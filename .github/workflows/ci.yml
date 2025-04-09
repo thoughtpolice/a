@@ -19,8 +19,8 @@ jobs:
           # FIXME (aseipp): get working again
           #- os: windows-2022
           #  abi: x86_64-pc-windows-msvc
-          #- os: macos-14
-          #  abi: aarch64-apple-darwin
+          - os: macos-15
+            abi: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
 
