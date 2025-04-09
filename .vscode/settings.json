@@ -31,5 +31,6 @@
 
     "remote.extensionKind": {
         "aseipp.depot-buck2": ["workspace"],
-    }
+    },
+    "deno.enable": true
 }
