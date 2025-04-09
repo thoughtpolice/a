@@ -10,6 +10,7 @@ permissions: read-all
 
 jobs:
   build:
+    name: Build and Test
     strategy:
       fail-fast: false
       matrix:
@@ -24,7 +25,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
 
-    name: binaries
     steps:
       - name: Install NodeJS
         uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
