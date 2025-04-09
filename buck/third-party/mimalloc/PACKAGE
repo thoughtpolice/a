@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims/package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "2.1.7",
+    description = """
+        Compact, general-purpose memory allocator.
+    """,
+    license = "MIT",
+    copyright = [
+        "2018-2024 Microsoft Research",
+        "2018-2024 Daan Leijen",
+    ],
+    visibility = ['PUBLIC'],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/microsoft/mimalloc",
+        commit = "8c532c32c3c96e5ba1f2283e032f69ead8add00f",
+    ),
+)

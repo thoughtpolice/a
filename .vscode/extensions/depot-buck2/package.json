@@ -1,0 +1,117 @@
+{
+    "name": "depot-buck2",
+    "displayName": "depot/Buck2 Integration",
+    "description": "VSCode Extension for using Buck2 with the depot codebase",
+    "version": "0.0.1",
+    "publisher": "aseipp",
+    "engines": {
+        "vscode": "^1.96.0"
+    },
+    "main": "./out/index.js",
+    "scripts": {
+        "compile": "ncc build -m src/extension.ts -o out",
+        "compile-old": "tsc -p ./"
+    },
+    "contributes": {
+        "languages": [
+            {
+                "id": "starlark",
+                "aliases": ["Starlark", "skylark", "Skylark"],
+                "extensions": [
+                    ".bzl",
+                    ".bxl"
+                ],
+                "filenames": [
+                    "BUILD",
+                    "BUCK",
+                    "PACKAGE"
+                ],
+                "configuration": "./syntaxes/starlark.configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "starlark",
+                "scopeName": "source.starlark",
+                "path": "./syntaxes/starlark.tmLanguage.json"
+            }
+        ],
+        "configuration": {
+            "properties": {
+                "depot-buck2.lsp-exe": {
+                    "type": "string",
+                    "default": "buck2",
+                    "description": "Path to the buck2 executable"
+                },
+                "depot-buck2.lsp-args": {
+                    "type": "array",
+                    "default": ["-v", "4"],
+                    "description": "Arguments to pass to the LSP server"
+                }
+            }
+        },
+        "commands": [
+            {
+                "title": "depot/Buck2: Build this file (automatic)",
+                "command": "depot-buck2.build-file-auto"
+            },
+            {
+                "title": "depot/Buck2: Build this file",
+                "command": "depot-buck2.build-file"
+            },
+            {
+                "title": "depot/Buck2: Restart Starlark LSP",
+                "command": "depot-buck2.lsp-restart"
+            }
+        ],
+        "breakpoints": [
+            {
+                "language": "starlark"
+            }
+        ],
+        "debuggers": [
+            {
+                "type": "starlark",
+                "label": "Starlark Debug",
+                "program": "/usr/bin/env",
+                "args": [
+                    "buck2",
+                    "starlark",
+                    "debug-attach"
+                ],
+                "languages": [
+                    "starlark"
+                ],
+                "configurationAttributes": {
+                    "launch": {
+                        "properties": {
+                            "program": {
+                                "type": "string",
+                                "description": "The program to debug.",
+                                "default": "${file}"
+                            }
+                        }
+                    }
+                },
+                "initialConfigurations": [
+                    {
+                        "type": "starlark",
+                        "request": "launch",
+                        "name": "Launch Program",
+                        "program": "${file}"
+                    }
+                ]
+            }
+        ]
+    },
+    "devDependencies": {
+        "@vercel/ncc": "^0.38.3",
+        "@types/vscode": "^1.96.0",
+        "@types/node": "^22.10.7",
+        "tsx": "^4.19.2",
+        "typescript": "^5.7.3"
+    },
+    "dependencies": {
+        "vscode-languageclient": "^9.0.1"
+    }
+}

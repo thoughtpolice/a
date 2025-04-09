@@ -1,0 +1,58 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions: read-all
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            abi: x86_64-unknown-linux-gnu
+          # FIXME (aseipp): get working again
+          #- os: windows-2022
+          #  abi: x86_64-pc-windows-msvc
+          #- os: macos-14
+          #  abi: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+
+    name: binaries
+    steps:
+      - name: Install NodeJS
+        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
+        with:
+          node-version: "22"
+      - name: (Linux) Install Mold
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y mold
+      - name: Checkout repository
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install DotSlash
+        uses: ./.github/actions/install-dotslash
+      - name: Set up environment
+        shell: bash
+        run: echo "PATH=$GITHUB_WORKSPACE/buck/bin:$GITHUB_WORKSPACE/buck/bin/extra:$PATH" >> $GITHUB_ENV
+      - name: Init jj repository
+        shell: bash
+        run: dotslash ./buck/bin/extra/jj git init --colocate
+      - name: buck2 build ...
+        shell: bash
+        run: buck2 build @mode//debug third-party//... root//...
+      - name: buck2 test ...
+        shell: bash
+        run: buck2 test @mode//debug third-party//... root//...
+      - name: Upload build logs
+        if: always()
+        shell: bash
+        run: buck2 run //src/tools/buck2-logs:upload -- --host https://buck2-logs.deno.dev

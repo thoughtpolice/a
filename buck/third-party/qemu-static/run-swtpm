@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+TMPDIR=${TMPDIR:-/tmp}
+mkdir -p "$TMPDIR/swtpm"
+swtpm socket --tpm2 \
+    --tpmstate dir=$TMPDIR \
+    --ctrl type=unixio,path=$TMPDIR/swtpm/socket \
+    --log file=$TMPDIR/swtpm/log,level=20 > /dev/null &
+TPM=$!
+
+# Print the PID and socket address in JSON format
+echo "{\"pid\": $TPM, \"resources\": [{\"socket_path\": \"$TMPDIR/swtpm/socket\"}]}"

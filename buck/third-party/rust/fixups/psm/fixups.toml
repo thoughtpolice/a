@@ -1,0 +1,68 @@
+buildscript = []
+cfgs = []
+cargo_env = true
+
+[platform_fixup.'cfg(any(target_os = "linux", target_os = "macos"))']
+buildscript = []
+cfgs = ["asm", "switchable_stack"]
+
+[platform_fixup.'cfg(all(target_os = "windows"))']
+buildscript = []
+cfgs = ["asm"]
+
+[[platform_fixup.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.buildscript]]
+[platform_fixup.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.buildscript.cxx_library]
+name = "cbits-x86_64-linux"
+srcs = ["src/arch/x86_64.s"]
+include_paths = ["src/arch"]
+preferred_linkage = "static"
+compiler_flags = [
+    "-xassembler-with-cpp",
+    "-DCFG_TARGET_OS_linux",
+    "-DCFG_TARGET_ARCH_x86_64",
+    "-DCFG_TARGET_ENV_gnu",
+]
+
+[[platform_fixup.'cfg(all(target_arch = "aarch64", target_os = "linux"))'.buildscript]]
+[platform_fixup.'cfg(all(target_arch = "aarch64", target_os = "linux"))'.buildscript.cxx_library]
+name = "cbits-aarch64-linux"
+srcs = ["src/arch/aarch_aapcs64.s"]
+include_paths = ["src/arch"]
+preferred_linkage = "static"
+compiler_flags = [
+    "-xassembler-with-cpp",
+    "-DCFG_TARGET_OS_linux",
+    "-DCFG_TARGET_ARCH_aarch64",
+    "-DCFG_TARGET_ENV_gnu",
+]
+
+[[platform_fixup.'cfg(all(target_arch = "x86_64", target_os = "macos"))'.buildscript]]
+[platform_fixup.'cfg(all(target_arch = "x86_64", target_os = "macos"))'.buildscript.cxx_library]
+name = "cbits-x86_64-macos"
+srcs = ["src/arch/x86_64.s"]
+include_paths = ["src/arch"]
+preferred_linkage = "static"
+compiler_flags = [
+    "-xassembler-with-cpp",
+    "-DCFG_TARGET_OS_macos",
+    "-DCFG_TARGET_ARCH_x86_64",
+]
+
+[[platform_fixup.'cfg(all(target_arch = "aarch64", target_os = "macos"))'.buildscript]]
+[platform_fixup.'cfg(all(target_arch = "aarch64", target_os = "macos"))'.buildscript.cxx_library]
+name = "cbits-aarch64-macos"
+srcs = ["src/arch/aarch_aapcs64.s"]
+include_paths = ["src/arch"]
+preferred_linkage = "static"
+compiler_flags = [
+    "-xassembler-with-cpp",
+    "-DCFG_TARGET_OS_macos",
+    "-DCFG_TARGET_ARCH_aarch64",
+]
+
+[[platform_fixup.'cfg(all(target_arch = "x86_64", target_os = "windows"))'.buildscript]]
+[platform_fixup.'cfg(all(target_arch = "x86_64", target_os = "windows"))'.buildscript.cxx_library]
+name = "cbits-x86_64-windows"
+srcs = ["src/arch/x86_64_msvc.asm"]
+include_paths = ["src/arch"]
+preferred_linkage = "static"

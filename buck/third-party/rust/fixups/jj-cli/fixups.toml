@@ -1,0 +1,6 @@
+buildscript = []
+
+[env]
+JJ_VERSION = "0.25.0"
+CARGO_MANIFEST_DIR = "jj-5d9a3f8a30f872ad/cli"
+JJ_DOCS_DIR = "docs/"

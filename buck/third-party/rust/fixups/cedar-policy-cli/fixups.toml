@@ -1,0 +1,6 @@
+cargo_env = true
+
+[export_sources]
+name = "srcs"
+srcs = ["src/main.rs"]
+visibility = ["PUBLIC"]

@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims/package.bzl", "pkg", "OsvGitRepoInfo")
+
+VERSION="3.46.1"
+
+pkg.info(
+    version = f"{VERSION}",
+    description = """
+        SQLite is an in-process library that implements a self-contained,
+        serverless, zero-configuration, transactional SQL database engine.
+    """,
+    license = "Public-Domain",
+    copyright = [],
+    visibility = ['PUBLIC'],
+
+    # XXX TODO (aseipp): make sure this repo works with osv.dev?
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/sqlite/sqlite",
+        commit = "f3d536d37825302e31ed0eddd811c689f38f85a3",
+    ),
+)

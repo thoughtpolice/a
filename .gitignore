@@ -1,0 +1,8 @@
+/.direnv
+/buck-out
+
+.envrc
+.buckconfig.local
+
+*.pending-snap
+.gdb_history

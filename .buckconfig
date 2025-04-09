@@ -1,0 +1,21 @@
+[cells]
+depot = .
+depot-mode = buck/mode
+depot-toolchains = buck/toolchains
+depot-third-party = buck/third-party
+
+[cell_aliases]
+root = depot
+mode = depot-mode
+toolchains = depot-toolchains
+third-party = depot-third-party
+
+[buildfile]
+name = BUILD
+# for the sake of future compatibility and migrations, we don't want any BUILD
+# files in the project to use raw, un-imported symbols from the prelude like
+# 'cxx_library()'; we instead want to make sure every rule is explicitly
+# wrapped, load()ed and called, i.e. they should use 'depot.cxx_library()' instead.
+# do this by loading noprelude.bzl into every BUILD file, which will stub out
+# these bad symbols with an error message.
+includes = root//buck/shims/noprelude.bzl

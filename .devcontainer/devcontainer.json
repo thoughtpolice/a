@@ -1,0 +1,29 @@
+{
+    "name": "Development container",
+    "build": {
+        // Path is relative to the devcontainer.json file.
+        "dockerfile": "Dockerfile"
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {},
+        "ghcr.io/devcontainers/features/rust:1": {},
+        "ghcr.io/devcontainers-community/features/llvm:3": {}
+    },
+    "postCreateCommand": "./.devcontainer/setup.sh",
+    "customizations": {
+        "codespaces": {
+            "openFiles": []
+        },
+        "vscode": {
+            "extensions": [
+                "aseipp.depot-buck2",
+                "rust-lang.rust-analyzer",
+                "ms-azuretools.vscode-docker",
+                "GitHub.vscode-github-actions"
+            ]
+        }
+    },
+    "remoteEnv": {
+        "PATH": "${containerWorkspaceFolder}/buck/bin:${containerWorkspaceFolder}/buck/bin/extra:${containerEnv:PATH}"
+    }
+}

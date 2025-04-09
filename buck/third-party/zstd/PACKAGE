@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims/package.bzl", "pkg", "OsvPurlInfo")
+
+REAL_VERSION="1.5.5"
+
+pkg.info(
+    version = f"{REAL_VERSION}+g6bcf321e242d62765c640458cd98d407e84f33a1",
+    description = """
+        Zstandard is a fast lossless compression algorithm.
+    """,
+    license = "BSD-3-Clause",
+    copyright = [
+        "2015-2024 Meta, Inc.",
+    ],
+    visibility = ['PUBLIC'],
+
+    osv_info = OsvPurlInfo(name = "pkg:generic/zstd", version = REAL_VERSION),
+)

@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+cli_args = {
+    "json": bxl.cli_args.bool(default = False),
+    "source": bxl.cli_args.list(bxl.cli_args.string())
+}
+
+def _main(ctx: bxl.Context) -> None:
+    for file in ctx.uquery().owner(ctx.cli_args.source):
+        target = "{}//{}:{}".format(
+            file.label.cell,
+            file.label.package,
+            file.label.name,
+        )
+
+        if not ctx.cli_args.json:
+            ctx.output.print(target)
+            continue
+
+        ctx.output.print_json(
+            {
+                "label": target,
+            },
+            pretty = False
+        )
+
+main = bxl_main( impl = _main, cli_args = cli_args )

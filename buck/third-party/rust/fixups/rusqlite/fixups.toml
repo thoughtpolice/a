@@ -1,0 +1,15 @@
+features = [
+    "hot_backup",
+    "blob",
+    "collation",
+    "functions",
+    "trace",
+    "release_memory",
+    "limits",
+    "hooks",
+    "vtab",
+    "array",
+    "session",
+    "window",
+    "series",
+]

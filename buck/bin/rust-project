@@ -1,0 +1,67 @@
+#!/usr/bin/env dotslash
+
+{
+  "name": "rust-project",
+  "platforms": {
+    "macos-aarch64": {
+      "size": 1266137,
+      "hash": "blake3",
+      "digest": "cbfba898829c195c34d84517ee1d03bb0ebe05b00cba77ad73d1b2cc2e558d01",
+      "format": "zst",
+      "path": "rust-project-aarch64-apple-darwin",
+      "providers": [
+        {
+          "url": "https://github.com/thoughtpolice/buck2/releases/download/snapshot-20250212-095412/rust-project-aarch64-apple-darwin.zst"
+        }
+      ]
+    },
+    "linux-aarch64": {
+      "size": 1413043,
+      "hash": "blake3",
+      "digest": "2a345b412f6fe123ad01df3925df99fd3e90a5120ce3e1be6ad52c08b383762f",
+      "format": "zst",
+      "path": "rust-project-aarch64-unknown-linux-musl",
+      "providers": [
+        {
+          "url": "https://github.com/thoughtpolice/buck2/releases/download/snapshot-20250212-095412/rust-project-aarch64-unknown-linux-musl.zst"
+        }
+      ]
+    },
+    "macos-x86_64": {
+      "size": 1366170,
+      "hash": "blake3",
+      "digest": "66e9e3a728c013c38654fe76c7b296ff29215093d05089bc420d7bd297587153",
+      "format": "zst",
+      "path": "rust-project-x86_64-apple-darwin",
+      "providers": [
+        {
+          "url": "https://github.com/thoughtpolice/buck2/releases/download/snapshot-20250212-095412/rust-project-x86_64-apple-darwin.zst"
+        }
+      ]
+    },
+    "windows-x86_64": {
+      "size": 1191608,
+      "hash": "blake3",
+      "digest": "6694983d2016f87602052cfecd838369df63adeeb9db1b81744cc0438f791502",
+      "format": "zst",
+      "path": "rust-project-x86_64-pc-windows-msvc.exe",
+      "providers": [
+        {
+          "url": "https://github.com/thoughtpolice/buck2/releases/download/snapshot-20250212-095412/rust-project-x86_64-pc-windows-msvc.exe.zst"
+        }
+      ]
+    },
+    "linux-x86_64": {
+      "size": 1528564,
+      "hash": "blake3",
+      "digest": "473b884c9761371e6ecee18e0f08b24a99f9c81d4a0362a1ecd9f7d9ce5667ec",
+      "format": "zst",
+      "path": "rust-project-x86_64-unknown-linux-musl",
+      "providers": [
+        {
+          "url": "https://github.com/thoughtpolice/buck2/releases/download/snapshot-20250212-095412/rust-project-x86_64-unknown-linux-musl.zst"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,41 @@
+name: Install DotSlash
+description: Install DotSlash on the current system
+inputs:
+  version:
+    description: "version of dotslash"
+    required: false
+    default: "0.5.2"
+runs:
+  using: "composite"
+  steps:
+    - name: Install DotSlash
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: | # zizmor: ignore[github-env]
+        mkdir -p $RUNNER_TEMP/dotslash
+        echo "$RUNNER_TEMP/dotslash" >> $GITHUB_PATH
+
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          C:\\msys64\\usr\\bin\\wget.exe https://github.com/facebook/dotslash/releases/download/v$INPUT_VERSION/dotslash-windows.v$INPUT_VERSION.tar.gz
+          tar xf dotslash-windows.v$INPUT_VERSION.tar.gz dotslash.exe
+          mv dotslash.exe $RUNNER_TEMP/dotslash
+          rm dotslash-windows.v$INPUT_VERSION.tar.gz
+        else
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            wget https://github.com/facebook/dotslash/releases/download/v$INPUT_VERSION/dotslash-macos.v$INPUT_VERSION.tar.gz
+            tar xf dotslash-macos.v$INPUT_VERSION.tar.gz dotslash
+            rm dotslash-macos.v$INPUT_VERSION.tar.gz
+          elif [[ "$RUNNER_OS" == "Linux" ]]; then
+            if [[ "$(uname -m)" == "aarch64" ]]; then
+              wget https://github.com/facebook/dotslash/releases/download/v$INPUT_VERSION/dotslash-ubuntu-22.04.arm64.v$INPUT_VERSION.tar.gz
+              tar xf dotslash-ubuntu-22.04.arm64.v$INPUT_VERSION.tar.gz dotslash
+              rm dotslash-ubuntu-22.04.arm64.v$INPUT_VERSION.tar.gz
+            else
+              wget https://github.com/facebook/dotslash/releases/download/v$INPUT_VERSION/dotslash-ubuntu-22.04.x86_64.v$INPUT_VERSION.tar.gz
+              tar xf dotslash-ubuntu-22.04.x86_64.v$INPUT_VERSION.tar.gz dotslash
+              rm dotslash-ubuntu-22.04.x86_64.v$INPUT_VERSION.tar.gz
+            fi
+          fi
+          mv dotslash $RUNNER_TEMP/dotslash
+        fi

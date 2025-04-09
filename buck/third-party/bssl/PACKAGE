@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims/package.bzl", "pkg", "OsvGitRepoInfo")
+
+GIT_COMMIT = "386622719ab38a4f3a484a749bd6e1e6d5fda2e0"
+
+pkg.info(
+    version = f"2024.2.21+g{GIT_COMMIT}",
+    description = """
+        Google's SSL/TLS library.
+    """,
+    license = "OpenSSL",
+    copyright = [
+        "1995-2024 The OpenSSL Project",
+        "2014-2024 Google Inc.",
+    ],
+    visibility = ['PUBLIC'],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/google/boringssl",
+        commit = GIT_COMMIT,
+    ),
+)

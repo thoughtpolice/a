@@ -1,0 +1,35 @@
+{
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+
+    "files.associations": {
+        ".buckconfig": "ini",
+        ".buckconfig.local": "ini",
+    },
+
+    "files.exclude": {
+        "**/.direnv": true,
+        "**/.jj": true,
+    },
+
+    "rust-analyzer.workspace.discoverConfig": {
+        "command": [
+            "rust-project",
+            "develop-json",
+            "--sysroot-mode=rustc",
+            "{arg}"
+        ],
+        "progressLabel": "rust-analyzer[buck2]",
+        "filesToWatch": ["BUILD", "PACKAGE"]
+    },
+
+    "rust-analyzer.check.overrideCommand": [
+        "rust-project",
+        "check",
+        "$saved_file",
+    ],
+
+    "remote.extensionKind": {
+        "aseipp.depot-buck2": ["workspace"],
+    }
+}

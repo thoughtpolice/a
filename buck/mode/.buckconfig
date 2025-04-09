@@ -1,0 +1,5 @@
+[cells]
+depot-mode = .
+
+[buildfile]
+name = BUILD

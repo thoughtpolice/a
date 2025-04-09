@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims/package.bzl", "third_party_meta")
+
+third_party_meta([
+    'bssl',
+    'capnp',
+    'libgit2',
+    'libssh2',
+    'libz',
+    'mimalloc',
+    'rust',
+    'zstd'
+])

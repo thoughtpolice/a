@@ -1,0 +1,2 @@
+--config=buck2_re_client.default_mode=cache-only
+--config=buck2_re_client.cache_upload=true
