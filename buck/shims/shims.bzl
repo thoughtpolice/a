@@ -168,6 +168,9 @@ shims = struct(
     rust_binary = _depot_rust_binary,
     rust_test = _depot_rust_test,
 
+    ocaml_binary = native.ocaml_binary,
+    ocaml_library = native.ocaml_library,
+
     cxx_library = _depot_cxx_library,
     prebuilt_cxx_library = _depot_prebuilt_cxx_library,
     cxx_binary = _depot_cxx_binary,

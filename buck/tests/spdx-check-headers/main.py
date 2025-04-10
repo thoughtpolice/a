@@ -77,6 +77,11 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         "/* SPDX-License-Identifier: Apache-2.0 */",
     ]
 
+    ocaml_style_header = [
+        "(* SPDX-FileCopyrightText: © {} ".format(years),
+        "(* SPDX-License-Identifier: Apache-2.0 *)",
+    ]
+
     file_matches = {
         ".py": bzl_style_header,
         "BUILD": bzl_style_header,
@@ -94,6 +99,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".capnp": bzl_style_header,
         ".S": cxx_style_header,
         ".ld": old_cxx_style_header,
+        ".ml": ocaml_style_header,
     }
 
     file_ext = None

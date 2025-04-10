@@ -31,6 +31,11 @@ toolchain_alias(
     actual="toolchains//deno:deno",
 )
 
+toolchain_alias(
+    name="ocaml",
+    actual="toolchains//ocaml:ocaml",
+)
+
 remote_test_execution_toolchain(
     name="remote_test_execution",
     visibility=["PUBLIC"],

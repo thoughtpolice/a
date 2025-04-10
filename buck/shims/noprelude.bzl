@@ -15,3 +15,9 @@ def rust_library(**_kwargs):
 
 def rust_binary(**_kwargs):
     fail('use load("@root//buck/shims/shims.bzl", "shims") and call shims.rust_binary() instead')
+
+def ocaml_library(**_kwargs):
+    fail('use load("@root//buck/shims/shims.bzl", "shims") and call shims.ocaml_library() instead')
+
+def ocaml_binary(**_kwargs):
+    fail('use load("@root//buck/shims/shims.bzl", "shims") and call shims.ocaml_binary() instead')
