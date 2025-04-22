@@ -36,6 +36,9 @@ jobs:
         uses: ocaml/setup-ocaml@bf20b49633a2fa6e59af045f672c5a901311cb95
         with:
           ocaml-compiler: 5
+      - name: Setup OCaml (step 2)
+        run: |
+          opam env | sed "s/'//g; s/; export .*//g" >> $GITHUB_ENV
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
