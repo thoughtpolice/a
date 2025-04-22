@@ -23,6 +23,9 @@ clap = { version = "4.5.35", features = ["derive"] }
 dupe = "0.9.1"
 dupe_derive = "0.9.1"
 env_logger = "0.10"
+fjall = { version = "2.9.0", default_features = false, features = [
+    "single_writer_tx",
+] }
 log = "0.4"
 insta = "1.42.2"
 starlark = "0.13.0"
