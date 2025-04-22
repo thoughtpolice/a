@@ -19,14 +19,14 @@ def _ocaml_toolchain(ctx):
             # invoked.
             binutils_as = None,
 
-            ocaml_compiler = RunInfo(args = ["ocamlopt"]),
-            dep_tool = RunInfo(args = ["ocamldep"]),
+            ocaml_compiler = RunInfo(args = ["ocamlopt.opt"]),
+            dep_tool = RunInfo(args = ["ocamldep.opt"]),
             yacc_compiler = RunInfo(args = ["ocamlyacc"]),
             interop_includes = None,
             menhir_compiler = RunInfo(args = ["menhir"]),
             lex_compiler = RunInfo(args = ["ocamllex"]),
             libc = None,
-            ocaml_bytecode_compiler = RunInfo(args = ["ocamlc"]),
+            ocaml_bytecode_compiler = RunInfo(args = ["ocamlc.opt"]),
             # `ocamldebug` is bytecode intended to be run by `ocamlrun`. There
             # is no "debugger" executable (but then `debug` is not referenced by
             # the ocaml build rules) so `None` will do for this.
