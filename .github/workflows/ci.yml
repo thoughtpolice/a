@@ -30,6 +30,14 @@ jobs:
         uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
         with:
           node-version: "22"
+      - name: Setup OCaml
+        uses: ocaml/setup-ocaml@bf20b49633a2fa6e59af045f672c5a901311cb95
+        with:
+          ocaml-compiler: 5
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
+        with:
+          toolchain: 1.86
       - name: (Linux) Install Mold
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y mold
