@@ -26,7 +26,7 @@ load("@prelude//cxx:linker.bzl", "is_pdb_generated")
 load("@prelude//decls:common.bzl", "buck")
 load("@prelude//linking:link_info.bzl", "LinkOrdering", "LinkStyle")
 load("@prelude//linking:lto.bzl", "LtoMode")
-load("@prelude//os_lookup:defs.bzl", "OsLookup")
+load("@prelude//os_lookup:defs.bzl", "Os", "OsLookup")
 
 CxxToolsInfo = provider(
     fields = {
@@ -79,7 +79,7 @@ def _system_cxx_toolchain_impl(ctx: AnalysisContext):
     A very simple toolchain that is hardcoded to the current environment.
     """
 
-    os = ctx.attrs._target_os_type[OsLookup].platform
+    os = ctx.attrs._target_os_type[OsLookup].os.value
     arch_name = ctx.attrs._target_os_type[OsLookup].cpu
     cxx_tools_info = ctx.attrs._cxx_tools_info[CxxToolsInfo]
     cxx_tools_info = _legacy_equivalent_cxx_tools_info_windows(ctx, cxx_tools_info) if os == "windows" else _legacy_equivalent_cxx_tools_info_non_windows(ctx, cxx_tools_info)
@@ -92,10 +92,10 @@ def _cxx_tools_info_toolchain_impl(ctx: AnalysisContext):
     return _cxx_toolchain_from_cxx_tools_info(ctx, ctx.attrs.cxx_tools_info[CxxToolsInfo])
 
 def _cxx_toolchain_from_cxx_tools_info(ctx: AnalysisContext, cxx_tools_info: CxxToolsInfo, target_name = "x86_64"):
-    os = ctx.attrs._target_os_type[OsLookup].platform
-    archiver_supports_argfiles = os != "macos"
+    os = ctx.attrs._target_os_type[OsLookup].os
+    archiver_supports_argfiles = os != Os("macos")
 
-    if os == "windows":
+    if os == Os("windows"):
         linker_type = LinkerType("windows")
         binary_extension = "exe"
         object_file_extension = "obj"
@@ -112,7 +112,7 @@ def _cxx_toolchain_from_cxx_tools_info(ctx: AnalysisContext, cxx_tools_info: Cxx
         shared_library_name_format = "{}.so"
         shared_library_versioned_name_format = "{}.so.{}"
 
-        if os == "macos":
+        if os == Os("macos"):
             linker_type = LinkerType("darwin")
             pic_behavior = PicBehavior("always_enabled")
         else:
