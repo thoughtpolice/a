@@ -5,6 +5,7 @@ load("@prelude//tests:test_toolchain.bzl", "noop_test_toolchain")
 load(
     "@prelude//toolchains:remote_test_execution.bzl", "remote_test_execution_toolchain"
 )
+load("@depot//buck/lib/tar:toolchain.bzl", "tar_toolchain")
 
 toolchain_alias(
     name="genrule",
@@ -34,6 +35,16 @@ toolchain_alias(
 toolchain_alias(
     name="ocaml",
     actual="toolchains//ocaml:ocaml",
+)
+
+toolchain_alias(
+    name="oci",
+    actual="toolchains//oci:oci",
+)
+
+tar_toolchain(
+    name="tar",
+    visibility=["PUBLIC"],
 )
 
 remote_test_execution_toolchain(

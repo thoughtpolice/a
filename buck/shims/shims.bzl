@@ -4,6 +4,9 @@
 load("@prelude//utils/buckconfig.bzl", "read_choice")
 load("@prelude//cfg/modifier:conditional_modifier.bzl", "conditional_modifier")
 
+load("@root//buck/lib/tar:defs.bzl", "tar_file")
+load("@root//buck/lib/oci:defs.bzl", "oci_image", "oci_pull", "oci_push")
+
 # MARK: Basic shims
 
 depot_VERSION = '2025.0+0'
@@ -174,6 +177,13 @@ shims = struct(
     cxx_library = _depot_cxx_library,
     prebuilt_cxx_library = _depot_prebuilt_cxx_library,
     cxx_binary = _depot_cxx_binary,
+
+    tar_file = tar_file,
+    oci = struct(
+        pull = oci_pull,
+        push = oci_push,
+        image = oci_image,
+    ),
 
     write_file = _write_file,
     copy_files = _copy_files,
