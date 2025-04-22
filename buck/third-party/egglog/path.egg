@@ -1,0 +1,22 @@
+(datatype Proof
+  (Trans i64 Proof)
+  (Edge i64 i64))
+
+(function path (i64 i64 Proof) i64 :merge (min old new))
+(function edge (i64 i64) i64 :no-merge)
+
+(rule ((= (edge x y) len))
+      ((set (path x y (Edge x y)) len)))
+(rule ((= (path x y p) xy) (= (edge y z) yz))
+      ((set (path x z (Trans x p)) (+ xy yz))))
+(rule ((path x y p1) (path x y p2))
+      ((union p1 p2)))
+
+(set (edge 2 1) 10)
+(set (edge 3 2) 10)
+(set (edge 1 3) 30)
+
+(run 100)
+(print-function path 100)
+(check (path 3 1 (Trans 3 (Edge 3 2))))
+(query-extract (path 3 1 ?proof))

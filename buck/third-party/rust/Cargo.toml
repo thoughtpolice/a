@@ -22,10 +22,14 @@ capnpc = "0.20.1"
 clap = { version = "4.5.35", features = ["derive"] }
 dupe = "0.9.1"
 dupe_derive = "0.9.1"
+env_logger = "0.10"
+log = "0.4"
 insta = "1.42.2"
 starlark = "0.13.0"
 starlark_derive = "0.13.0"
 thiserror = "2.0.12"
+
+egglog = { git = "https://github.com/egraphs-good/egglog", rev = "24d914f41ac2edc0936a56d92bcd1da4a5382e0b" }
 
 [target.'cfg(unix)'.dependencies]
 
