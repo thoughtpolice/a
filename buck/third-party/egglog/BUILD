@@ -7,6 +7,7 @@ depot.rust_binary(
     name="egglog",
     srcs=["main.rs"],
     deps=[
+        "third-party//mimalloc:rust",
         "third-party//rust:clap",
         "third-party//rust:egglog",
         "third-party//rust:env_logger",
