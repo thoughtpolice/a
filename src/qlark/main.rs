@@ -18,6 +18,9 @@ use starlark_derive::ProvidesStaticType;
 // ---------------------------------------------------------------------------------------------------------------------
 // MARK: Entry point
 
+#[global_allocator]
+static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[derive(clap::Parser, Clone, Debug)]
 #[command(name = "qlark", about = "TODO FIXME")]
 pub(crate) struct Cli {
