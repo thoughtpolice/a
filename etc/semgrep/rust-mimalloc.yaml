@@ -1,0 +1,33 @@
+rules:
+  - id: rust-no-global-alloc
+    languages: [rust]
+    severity: WARNING
+    patterns:
+      - pattern-inside: |
+          fn main() {
+            $BODY
+          }
+      - pattern-not-inside: |
+          #[global_allocator]
+          static $VARIABLE: $TYPE = $VALUE;
+          ...
+          fn main() {
+            ...
+          }
+    fix: |
+      #[global_allocator]
+      static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+      fn main() {
+          $BODY
+      }
+    metadata:
+      category: performance
+      confidence: HIGH
+      impact: HIGH
+    message: |
+      No global memory allocator is explicitly set. Relying on the default
+      system allocator can result in long-term memory fragmentation issues,
+      severely degraded multithreading performance, and many other problems. It
+      is recommended to link to the `mimalloc` library for better performance on
+      all platforms.

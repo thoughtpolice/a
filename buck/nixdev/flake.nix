@@ -63,10 +63,13 @@
           # cargo tools
           cargo-edit
           # other stuff
-          cargo-edit bloaty
+          cargo-edit bloaty semgrep
         ]) ++ darwinDeps ++ linuxDeps;
 
         shellHook = with pkgs; ''
+          export SEMGREP_ENABLE_VERSION_CHECK=0
+          export SEMGREP_SEND_METRICS=off
+
           export RUST_BACKTRACE=1
           export RUSTFLAGS="-Zthreads=0"
 
