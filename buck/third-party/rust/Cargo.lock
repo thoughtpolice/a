@@ -1875,6 +1875,7 @@ dependencies = [
  "fjall",
  "insta",
  "log",
+ "rand",
  "starlark",
  "starlark_derive",
  "thiserror 2.0.12",

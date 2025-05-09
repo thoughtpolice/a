@@ -995,6 +995,7 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "9",
         "CARGO_PKG_VERSION_PATCH": "18",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
         "alloc",
@@ -1055,6 +1056,7 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "8",
         "CARGO_PKG_VERSION_PATCH": "21",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
         "default",
@@ -1088,12 +1090,14 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "2",
         "CARGO_PKG_VERSION_PATCH": "3",
+        "CARGO_PKG_VERSION_PRE": "",
         "OUT_DIR": "$(location :crunchy-0.2.3-build-script-run[out_dir])",
     },
     features = [
         "default",
         "limit_128",
     ],
+    rustc_flags = ["@$(location :crunchy-0.2.3-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
@@ -1114,6 +1118,7 @@ third_party_rust.rust_binary(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "2",
         "CARGO_PKG_VERSION_PATCH": "3",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
         "default",
@@ -1126,6 +1131,15 @@ third_party_rust.buildscript_run(
     name = "crunchy-0.2.3-build-script-run",
     package_name = "crunchy",
     buildscript_rule = ":crunchy-0.2.3-build-script-build",
+    env = {
+        "CARGO_PKG_AUTHORS": "Eira Fransham <jackefransham@gmail.com>",
+        "CARGO_PKG_DESCRIPTION": "Crunchy unroller: deterministically unroll constant loops",
+        "CARGO_PKG_REPOSITORY": "https://github.com/eira-fransham/crunchy",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "2",
+        "CARGO_PKG_VERSION_PATCH": "3",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
     features = [
         "default",
         "limit_128",
@@ -1205,6 +1219,7 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "5",
         "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     visibility = [],
     deps = [
@@ -1600,6 +1615,7 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "4",
         "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
         "FULL_VERSION": "0.4.0",
     },
     features = [
@@ -2142,6 +2158,7 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "3",
         "CARGO_PKG_VERSION_PATCH": "31",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
         "alloc",
@@ -2181,6 +2198,7 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "3",
         "CARGO_PKG_VERSION_PATCH": "31",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
         "alloc",
@@ -2253,6 +2271,7 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "3",
         "CARGO_PKG_VERSION_PATCH": "31",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
         "alloc",
@@ -2286,6 +2305,7 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "3",
         "CARGO_PKG_VERSION_PATCH": "31",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
         "alloc",
@@ -2421,6 +2441,7 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "6",
         "CARGO_PKG_VERSION_PATCH": "6",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     visibility = [],
     deps = [
@@ -3267,6 +3288,7 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "19",
         "CARGO_PKG_VERSION_PATCH": "12",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
         "default",
@@ -3346,6 +3368,9 @@ third_party_rust.rust_library(
     crate = "libc",
     crate_root = "libc-0.2.171.crate/src/lib.rs",
     edition = "2021",
+    env = {
+        "OUT_DIR": "$(location :libc-0.2.171-build-script-run[out_dir])",
+    },
     features = [
         "default",
         "extra_traits",
@@ -3454,6 +3479,9 @@ third_party_rust.rust_library(
     crate = "lock_api",
     crate_root = "lock_api-0.4.12.crate/src/lib.rs",
     edition = "2021",
+    env = {
+        "OUT_DIR": "$(location :lock_api-0.4.12-build-script-run[out_dir])",
+    },
     features = [
         "atomic_usize",
         "default",
@@ -3727,6 +3755,9 @@ third_party_rust.rust_library(
     crate = "nix",
     crate_root = "nix-0.28.0.crate/src/lib.rs",
     edition = "2021",
+    env = {
+        "OUT_DIR": "$(location :nix-0.28.0-build-script-run[out_dir])",
+    },
     features = [
         "fs",
         "ioctl",
@@ -3939,6 +3970,9 @@ third_party_rust.rust_library(
     crate = "num_traits",
     crate_root = "num-traits-0.2.19.crate/src/lib.rs",
     edition = "2021",
+    env = {
+        "OUT_DIR": "$(location :num-traits-0.2.19-build-script-run[out_dir])",
+    },
     features = [
         "default",
         "i128",
@@ -4061,6 +4095,9 @@ third_party_rust.rust_library(
     crate = "parking_lot_core",
     crate_root = "parking_lot_core-0.9.10.crate/src/lib.rs",
     edition = "2021",
+    env = {
+        "OUT_DIR": "$(location :parking_lot_core-0.9.10-build-script-run[out_dir])",
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2.171"],
@@ -4451,6 +4488,9 @@ third_party_rust.rust_library(
     crate = "proc_macro2",
     crate_root = "proc-macro2-1.0.92.crate/src/lib.rs",
     edition = "2021",
+    env = {
+        "OUT_DIR": "$(location :proc-macro2-1.0.92-build-script-run[out_dir])",
+    },
     features = [
         "default",
         "proc-macro",
@@ -4546,6 +4586,12 @@ third_party_rust.rust_library(
         ":endian-type-0.1.2",
         ":nibble_vec-0.1.0",
     ],
+)
+
+alias(
+    name = "rand",
+    actual = ":rand-0.8.5",
+    visibility = ["PUBLIC"],
 )
 
 http_archive(
@@ -4905,6 +4951,9 @@ third_party_rust.rust_library(
     crate = "rustix",
     crate_root = "rustix-1.0.5.crate/src/lib.rs",
     edition = "2021",
+    env = {
+        "OUT_DIR": "$(location :rustix-1.0.5-build-script-run[out_dir])",
+    },
     features = [
         "alloc",
         "default",
@@ -5013,9 +5062,11 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "20",
+        "CARGO_PKG_VERSION_PRE": "",
         "OUT_DIR": "$(location :rustversion-1.0.20-build-script-run[out_dir])",
     },
     proc_macro = True,
+    rustc_flags = ["@$(location :rustversion-1.0.20-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
@@ -5036,6 +5087,7 @@ third_party_rust.rust_binary(
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "20",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     visibility = [],
 )
@@ -5044,6 +5096,15 @@ third_party_rust.buildscript_run(
     name = "rustversion-1.0.20-build-script-run",
     package_name = "rustversion",
     buildscript_rule = ":rustversion-1.0.20-build-script-build",
+    env = {
+        "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
+        "CARGO_PKG_DESCRIPTION": "Conditional compilation according to rustc compiler version",
+        "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/rustversion",
+        "CARGO_PKG_VERSION_MAJOR": "1",
+        "CARGO_PKG_VERSION_MINOR": "0",
+        "CARGO_PKG_VERSION_PATCH": "20",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
     version = "1.0.20",
 )
 
@@ -5301,6 +5362,7 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "219",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     features = ["default"],
     proc_macro = True,
@@ -5326,6 +5388,9 @@ third_party_rust.rust_library(
     crate = "serde_json",
     crate_root = "serde_json-1.0.140.crate/src/lib.rs",
     edition = "2021",
+    env = {
+        "OUT_DIR": "$(location :serde_json-1.0.140-build-script-run[out_dir])",
+    },
     features = [
         "default",
         "indexmap",
@@ -5678,8 +5743,10 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "13",
         "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
         "OUT_DIR": "$(location :starlark_syntax-0.13.0-build-script-run[out_dir])",
     },
+    rustc_flags = ["@$(location :starlark_syntax-0.13.0-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
         ":allocative-0.3.4",
@@ -5717,6 +5784,7 @@ third_party_rust.rust_binary(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "13",
         "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     visibility = [],
     deps = [":lalrpop-0.19.12"],
@@ -5726,6 +5794,15 @@ third_party_rust.buildscript_run(
     name = "starlark_syntax-0.13.0-build-script-run",
     package_name = "starlark_syntax",
     buildscript_rule = ":starlark_syntax-0.13.0-build-script-build",
+    env = {
+        "CARGO_PKG_AUTHORS": "Damien Martin-Guillerez <dmarting@google.com>:Facebook",
+        "CARGO_PKG_DESCRIPTION": "Starlark language AST",
+        "CARGO_PKG_REPOSITORY": "https://github.com/facebook/starlark-rust",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "13",
+        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
     version = "0.13.0",
 )
 
@@ -6197,6 +6274,8 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "2",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "2",
+        "CARGO_PKG_VERSION_PRE": "",
+        "OUT_DIR": "$(location :tiny-keccak-2.0.2-build-script-run[out_dir])",
     },
     features = [
         "default",
@@ -6224,6 +6303,7 @@ third_party_rust.rust_binary(
         "CARGO_PKG_VERSION_MAJOR": "2",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "2",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
         "default",
@@ -6236,6 +6316,15 @@ third_party_rust.buildscript_run(
     name = "tiny-keccak-2.0.2-build-script-run",
     package_name = "tiny-keccak",
     buildscript_rule = ":tiny-keccak-2.0.2-build-script-build",
+    env = {
+        "CARGO_PKG_AUTHORS": "debris <marek.kotewicz@gmail.com>",
+        "CARGO_PKG_DESCRIPTION": "An implementation of Keccak derived functions.",
+        "CARGO_PKG_REPOSITORY": "",
+        "CARGO_PKG_VERSION_MAJOR": "2",
+        "CARGO_PKG_VERSION_MINOR": "0",
+        "CARGO_PKG_VERSION_PATCH": "2",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
     features = [
         "default",
         "sha3",
@@ -6286,6 +6375,7 @@ third_party_rust.rust_library(
         "OUT_DIR": "$(location :typenum-1.18.0-build-script-run[out_dir])",
     },
     features = ["force_unix_path_separator"],
+    rustc_flags = ["@$(location :typenum-1.18.0-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
@@ -6559,6 +6649,9 @@ third_party_rust.rust_library(
     crate = "winapi",
     crate_root = "winapi-0.3.9.crate/src/lib.rs",
     edition = "2015",
+    env = {
+        "OUT_DIR": "$(location :winapi-0.3.9-build-script-run[out_dir])",
+    },
     features = [
         "consoleapi",
         "fileapi",
@@ -6572,13 +6665,10 @@ third_party_rust.rust_library(
     ],
     platform = {
         "windows-gnu": dict(
-            rustc_flags = ["@$(location :winapi-0.3.9-build-script-run[rustc_flags])"],
             deps = [":winapi-x86_64-pc-windows-gnu-0.4.0"],
         ),
-        "windows-msvc": dict(
-            rustc_flags = ["@$(location :winapi-0.3.9-build-script-run[rustc_flags])"],
-        ),
     },
+    rustc_flags = ["@$(location :winapi-0.3.9-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
@@ -6649,6 +6739,10 @@ http_archive(
     name = "winapi-x86_64-pc-windows-gnu-0.4.0.crate",
     sha256 = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f",
     strip_prefix = "winapi-x86_64-pc-windows-gnu-0.4.0",
+    sub_targets = [
+        "lib/libwinapi_ole32.a",
+        "lib/libwinapi_shell32.a",
+    ],
     urls = ["https://static.crates.io/crates/winapi-x86_64-pc-windows-gnu/0.4.0/download"],
     visibility = [],
 )
@@ -6659,6 +6753,32 @@ third_party_rust.rust_library(
     crate = "winapi_x86_64_pc_windows_gnu",
     crate_root = "winapi-x86_64-pc-windows-gnu-0.4.0.crate/src/lib.rs",
     edition = "2015",
+    platform = {
+        "windows-gnu": dict(
+            deps = [
+                ":winapi-x86_64-pc-windows-gnu-0.4.0-extra_libraries-libwinapi_ole32.a",
+                ":winapi-x86_64-pc-windows-gnu-0.4.0-extra_libraries-libwinapi_shell32.a",
+            ],
+        ),
+        "windows-msvc": dict(
+            deps = [
+                ":winapi-x86_64-pc-windows-gnu-0.4.0-extra_libraries-libwinapi_ole32.a",
+                ":winapi-x86_64-pc-windows-gnu-0.4.0-extra_libraries-libwinapi_shell32.a",
+            ],
+        ),
+    },
+    visibility = [],
+)
+
+third_party_rust.prebuilt_cxx_library(
+    name = "winapi-x86_64-pc-windows-gnu-0.4.0-extra_libraries-libwinapi_ole32.a",
+    static_lib = ":winapi-x86_64-pc-windows-gnu-0.4.0.crate[lib/libwinapi_ole32.a]",
+    visibility = [],
+)
+
+third_party_rust.prebuilt_cxx_library(
+    name = "winapi-x86_64-pc-windows-gnu-0.4.0-extra_libraries-libwinapi_shell32.a",
+    static_lib = ":winapi-x86_64-pc-windows-gnu-0.4.0.crate[lib/libwinapi_shell32.a]",
     visibility = [],
 )
 
@@ -6929,6 +7049,7 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "7",
         "CARGO_PKG_VERSION_PATCH": "35",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     features = ["simd"],
     visibility = [],
@@ -6959,9 +7080,52 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "8",
         "CARGO_PKG_VERSION_PATCH": "24",
+        "CARGO_PKG_VERSION_PRE": "",
+        "OUT_DIR": "$(location :zerocopy-0.8.24-build-script-run[out_dir])",
+    },
+    features = ["simd"],
+    rustc_flags = ["@$(location :zerocopy-0.8.24-build-script-run[rustc_flags])"],
+    visibility = [],
+)
+
+third_party_rust.rust_binary(
+    name = "zerocopy-0.8.24-build-script-build",
+    srcs = [":zerocopy-0.8.24.crate"],
+    crate = "build_script_build",
+    crate_root = "zerocopy-0.8.24.crate/build.rs",
+    edition = "2021",
+    env = {
+        "CARGO_CRATE_NAME": "build_script_build",
+        "CARGO_MANIFEST_DIR": "zerocopy-0.8.24.crate",
+        "CARGO_PKG_AUTHORS": "Joshua Liebow-Feeser <joshlf@google.com>:Jack Wrenn <jswrenn@amazon.com>",
+        "CARGO_PKG_DESCRIPTION": "Zerocopy makes zero-cost memory manipulation effortless. We write \"unsafe\" so you don't have to.",
+        "CARGO_PKG_NAME": "zerocopy",
+        "CARGO_PKG_REPOSITORY": "https://github.com/google/zerocopy",
+        "CARGO_PKG_VERSION": "0.8.24",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "8",
+        "CARGO_PKG_VERSION_PATCH": "24",
+        "CARGO_PKG_VERSION_PRE": "",
     },
     features = ["simd"],
     visibility = [],
+)
+
+third_party_rust.buildscript_run(
+    name = "zerocopy-0.8.24-build-script-run",
+    package_name = "zerocopy",
+    buildscript_rule = ":zerocopy-0.8.24-build-script-build",
+    env = {
+        "CARGO_PKG_AUTHORS": "Joshua Liebow-Feeser <joshlf@google.com>:Jack Wrenn <jswrenn@amazon.com>",
+        "CARGO_PKG_DESCRIPTION": "Zerocopy makes zero-cost memory manipulation effortless. We write \"unsafe\" so you don't have to.",
+        "CARGO_PKG_REPOSITORY": "https://github.com/google/zerocopy",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "8",
+        "CARGO_PKG_VERSION_PATCH": "24",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = ["simd"],
+    version = "0.8.24",
 )
 
 http_archive(

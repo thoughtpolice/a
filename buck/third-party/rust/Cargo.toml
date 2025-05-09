@@ -27,6 +27,7 @@ fjall = { version = "2.9.0", default_features = false, features = [
 ] }
 log = "0.4"
 insta = "1.42.2"
+rand = "0.8.5"
 starlark = "0.13.0"
 starlark_derive = "0.13.0"
 thiserror = "2.0.12"

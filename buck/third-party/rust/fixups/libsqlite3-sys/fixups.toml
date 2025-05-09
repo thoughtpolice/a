@@ -1,4 +1,4 @@
-buildscript = []
+buildscript.run = true
 extra_deps = ["third-party//sqlite:sqlite"]
 
 env = { "OUT_DIR" = "$(location third-party//rust/fixups/libsqlite3-sys:rust_bindgen_out_dir)" }

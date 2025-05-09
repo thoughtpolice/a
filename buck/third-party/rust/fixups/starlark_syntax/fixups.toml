@@ -1,5 +1,4 @@
 cargo_env = true
 extra_srcs = ["src/**/*.lalrpop"]
 
-[[buildscript]]
-[buildscript.gen_srcs]
+buildscript.run = true
