@@ -6,4 +6,7 @@ load("@root//buck/shims/shims.bzl", depot = "shims")
 depot.rust_binary(
     name = 'hello',
     srcs = glob(['*.rs']),
+    deps = [
+        'third-party//mimalloc:rust',
+    ]
 )
