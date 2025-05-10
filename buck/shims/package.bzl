@@ -64,7 +64,7 @@ def _info(
         vendor_info: dict = {},
         osv_info: None | OsvPurlInfo | OsvGitRepoInfo = None,
 
-        inherit: bool = True,
+        inherit: bool = False,
         visibility: list[str] = [],
         within_view: list[str] = [],
     ) -> None:
