@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+CHDIREXEC="$1"
+UNTAR="$2"
+OUTDIR="$3"
+INPUT="$4"
+UNTAR_ARGS="${@:5}"
+
+# remove the last directory from $OUTDIR
+OUTDIR="${OUTDIR%/*}"
+# remove the first directory from $UNTAR and $INPUT. TODO FIXME(aseipp): horrid
+# horrid hack to make sure that the directory is relativized correctly.
+UNTAR="${UNTAR#*/}"
+INPUT="${INPUT#*/}"
+
+exec $CHDIREXEC $OUTDIR $UNTAR $UNTAR_ARGS $INPUT
