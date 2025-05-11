@@ -66,6 +66,7 @@ execution_platforms = root//buck/platforms:default
 # set the default execution platform for several target patterns. this is
 # required; the main documentation for the format is the source code, I think...
 target_platform_detector_spec = \
+  target:cellar//...->root//buck/platforms:default \
   target:root//...->root//buck/platforms:default \
   target:third-party//...->root//buck/platforms:default \
   target:toolchains//...->root//buck/platforms:default

@@ -1,0 +1,4 @@
+package(
+  visibility = [ 'cellar//bootstrap/stage0-posix/...' ],
+  within_view = [ 'cellar//bootstrap/stage0-posix/...' ],
+)

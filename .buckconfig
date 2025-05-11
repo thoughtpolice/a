@@ -1,11 +1,13 @@
 [cells]
 depot = .
+depot-cellar = cellar
 depot-mode = buck/mode
 depot-toolchains = buck/toolchains
 depot-third-party = buck/third-party
 
 [cell_aliases]
 root = depot
+cellar = depot-cellar
 mode = depot-mode
 toolchains = depot-toolchains
 third-party = depot-third-party

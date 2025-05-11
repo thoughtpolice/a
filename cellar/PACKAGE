@@ -1,0 +1,4 @@
+# Things in the cellar are musty and dirty and old, and are not allowed to be
+# depended on by non-cellar code.
+
+package( inherit = False, visibility = [ "cellar//..." ] )
