@@ -3,4 +3,11 @@
 
 load("@root//buck/shims/package.bzl", "pkg")
 
-pkg.cfg_constructor()
+pkg.cfg_modifiers([])
+
+pkg.cfg_constructor(
+    aliases = {
+        # TODO: add any modifier aliases here, when needed
+        # xyz = ...
+    }
+)
