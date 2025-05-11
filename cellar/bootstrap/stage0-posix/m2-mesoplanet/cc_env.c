@@ -23,7 +23,7 @@ void init_macro_env(char* sym, char* value, char* source, int num);
 char* env_lookup(char* variable);
 void clear_string(char* s);
 
-struct utsname* get_uname_data()
+struct utsname* get_uname_data(void)
 {
 	struct utsname* unameData = calloc(1, sizeof(struct utsname));
 	require(NULL != unameData, "unameData calloc failed\n");
@@ -39,7 +39,7 @@ struct utsname* get_uname_data()
 	return unameData;
 }
 
-void setup_env()
+void setup_env(void)
 {
 	if(2 <= DEBUG_LEVEL) fputs("Starting setup_env\n", stderr);
 	char* ARCH;
@@ -267,7 +267,7 @@ char* env_lookup(char* variable)
 char* envp_hold;
 int envp_index;
 
-void reset_envp_hold()
+void reset_envp_hold(void)
 {
 	clear_string(envp_hold);
 	envp_index = 0;

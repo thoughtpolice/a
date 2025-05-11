@@ -22,40 +22,38 @@
 #include <string.h>
 #include "M2libc/bootstrappable.h"
 
+enum
+{
+	max_string = 4096,
+};
+
 /* Internal processing Constants */
-// CONSTANT max_string 4096
-#define max_string 4096
-// CONSTANT STR 2
-#define STR 2
-// CONSTANT NEWLINE 3
-#define NEWLINE 3
+enum
+{
+	STR = 2,
+	NEWLINE = 3,
+};
 
 /* Unique code for each architecture */
-// CONSTANT KNIGHT 0
-#define KNIGHT 0
-// CONSTANT X86 3
-#define X86 0x03
-// CONSTANT AMD64 62
-#define AMD64 0x3E
-// CONSTANT ARMV7L 40
-#define ARMV7L 0x28
-// CONSTANT AARM64 183
-#define AARM64 0xB7
-// CONSTANT PPC64LE 21
-#define PPC64LE 0x15
-// CONSTANT RISCV32 243
-#define RISCV32 0xF3
-// CONSTANT RISCV64 65779
-#define RISCV64 0x100F3 /* Because RISC-V unlike all other architectures does get a seperate e_machine when changing from 32 to 64bit */
-
+enum
+{
+	KNIGHT = 0,
+	X86 = 0x03,
+	AMD64 = 0x3E,
+	ARMV7L = 0x28,
+	AARCH64 = 0xB7,
+	PPC64LE = 0x15,
+	RISCV32 = 0xF3,
+	RISCV64 = 0x100F3, /* Because RISC-V unlike all other architectures does get a seperate e_machine when changing from 32 to 64bit */
+};
 
 /* How do you want that output? */
-// CONSTANT HEX 16
-#define HEX 16
-// CONSTANT OCTAL 8
-#define OCTAL 8
-// CONSTANT BINARY 2
-#define BINARY 2
+enum
+{
+	BINARY = 2,
+	OCTAL = 8,
+	HEX = 16,
+};
 
 /* Imported from stringify.c */
 int stringify(char* s, int digits, int divisor, int value, int shift);
@@ -379,6 +377,7 @@ void hexify_string(struct blob* p)
 	p->Expression = d;
 	char* S = p->Text;
 
+	/* knight just needs a couple extra nulls to make string detection easier */
 	if((KNIGHT == Architecture) && (HEX == ByteMode))
 	{
 		i = (((((i - 1) >> 2) + 1) << 3) + i);
@@ -617,7 +616,7 @@ char* express_word(int value, char c)
 	s[0] = '.';
 	char* ch = s + 1;
 	require(NULL != ch, "Exhausted available memory\n");
-	int size;
+	int size = 4;
 	int shift;
 	int immediate;
 	if('!' == c)
@@ -642,6 +641,16 @@ char* express_word(int value, char c)
 			immediate = (value & 0xFFFFF000) + 0x1000;
 		}
 	}
+	else if('$' == c)
+	{
+		/* provides an option for 16bit immediate constants */
+		immediate = value & 0xFFFF;
+		/* Drop the leading . */
+		ch = s;
+		/* HUGE ASS WARNING RISC-V has some stupid alignment rules */
+		/* That the inconsiderate use of this feature will break */
+		size = 2;
+	}
 	else if('%' == c)
 	{
 		/* provides an option for 32bit immediate constants */
@@ -661,17 +670,17 @@ char* express_word(int value, char c)
 
 	if(HEX == ByteMode)
 	{
-		size = 4 * 2;
+		size = size * 2;
 		shift = 4;
 	}
 	else if(OCTAL == ByteMode)
 	{
-		size = 4 * 3;
+		size = size * 3;
 		shift = 3;
 	}
 	else if(BINARY == ByteMode)
 	{
-		size = 4 * 8;
+		size = size * 8;
 		shift = 1;
 	}
 	else
@@ -696,7 +705,12 @@ void eval_immediates(struct blob* p)
 		else if('<' == i->Text[0]) continue;
 		else if(NULL == i->Expression)
 		{
-			if((X86 == Architecture) || (AMD64 == Architecture) || (ARMV7L == Architecture) || (AARM64 == Architecture) || (PPC64LE == Architecture))
+			if((X86 == Architecture)     ||
+			   (AMD64 == Architecture)   ||
+			   (ARMV7L == Architecture)  ||
+			   (AARCH64 == Architecture)  ||
+			   (PPC64LE == Architecture) ||
+			   (KNIGHT == Architecture))
 			{
 				if(in_set(i->Text[0], "%~@!&$"))
 				{
@@ -707,10 +721,20 @@ void eval_immediates(struct blob* p)
 						i->Expression = express_number(value, i->Text[0]);
 					}
 				}
+				else if(KNIGHT == Architecture)
+				{
+					value = strtoint(i->Text);
+					if(('0' == i->Text[0]) || (0 != value))
+					{
+						if(value > 65536) continue;
+						else if(value > 32767) i->Expression = express_number(value, '$');
+						else i->Expression = express_number(value, '@');
+					}
+				}
 			}
 			else if((RISCV32 == Architecture) || (RISCV64 == Architecture))
 			{
-				if(in_set(i->Text[0], "%~@!"))
+				if(in_set(i->Text[0], "%~@!$"))
 				{
 					value = strtoint(i->Text + 1);
 
@@ -718,16 +742,6 @@ void eval_immediates(struct blob* p)
 					{
 						i->Expression = express_word(value, i->Text[0]);
 					}
-				}
-			}
-			else if(KNIGHT == Architecture)
-			{
-				value = strtoint(i->Text);
-				if(('0' == i->Text[0]) || (0 != value))
-				{
-					if(value > 65536) continue;
-					else if(value > 32767) i->Expression = express_number(value, '$');
-					else i->Expression = express_number(value, '@');
 				}
 			}
 			else
@@ -768,8 +782,10 @@ void print_hex(struct Token* p)
 /* Standard C main program */
 int main(int argc, char **argv)
 {
+	/* If they don't specify the target architecture, assume knight */
 	BigEndian = TRUE;
 	Architecture = KNIGHT;
+
 	destination_file = stdout;
 	ByteMode = HEX;
 	char* filename;
@@ -822,7 +838,7 @@ int main(int argc, char **argv)
 			else if(match("x86", arch)) Architecture = X86;
 			else if(match("amd64", arch)) Architecture = AMD64;
 			else if(match("armv7l", arch)) Architecture = ARMV7L;
-			else if(match("aarch64", arch)) Architecture = AARM64;
+			else if(match("aarch64", arch)) Architecture = AARCH64;
 			else if(match("ppc64le", arch)) Architecture = PPC64LE;
 			else if(match("riscv32", arch)) Architecture = RISCV32;
 			else if(match("riscv64", arch)) Architecture = RISCV64;
@@ -888,7 +904,7 @@ int main(int argc, char **argv)
 		}
 		else if(match(argv[option_index], "-V") || match(argv[option_index], "--version"))
 		{
-			fputs("M1 1.5.0\n", stdout);
+			fputs("M1 1.6.0\n", stdout);
 			exit(EXIT_SUCCESS);
 		}
 		else

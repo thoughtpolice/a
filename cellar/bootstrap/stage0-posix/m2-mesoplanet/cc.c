@@ -22,17 +22,17 @@
 
 /* The core functions */
 void populate_env(char** envp);
-void setup_env();
+void setup_env(void);
 char* env_lookup(char* variable);
-void initialize_types();
+void initialize_types(void);
 struct token_list* read_all_tokens(FILE* a, struct token_list* current, char* filename, int include);
 struct token_list* reverse_list(struct token_list* head);
 
 void init_macro_env(char* sym, char* value, char* source, int num);
-void preprocess();
+void preprocess(void);
 void output_tokens(struct token_list *i, FILE* out);
 int strtoint(char *a);
-void spawn_processes(int debug_flag, char* prefix, char* preprocessed_file, char* destination, char** envp);
+void spawn_processes(int debug_flag, char* prefix, char* preprocessed_file, char* destination, char** envp, int no_c_files);
 
 int follow_includes;
 
@@ -89,22 +89,56 @@ void prechecks(int argc, char** argv)
 			follow_includes = FALSE;
 			i+= 1;
 		}
-		else if(match(argv[i], "-I"))
+		else if(starts_with(argv[i], "-I"))
 		{
-			hold = argv[i+1];
+			int two_arguments = strlen(argv[i]) == 2;
+			if(two_arguments)
+			{
+				hold = argv[i+1];
+			}
+			else
+			{
+				hold = argv[i] + 2;
+			}
+
 			if(NULL == hold)
 			{
 				fputs("-I requires a PATH\n", stderr);
 				exit(EXIT_FAILURE);
 			}
-			if(1 <= DEBUG_LEVEL)
+
+			struct include_path_list* path = calloc(1, sizeof(struct include_path_list));
+			path->path = hold;
+
+			/* We want the first path on the CLI to be the first path checked so it needs to be in the proper order. */
+			if(include_paths == NULL)
 			{
-				fputs("M2LIBC_PATH set by -I to ", stderr);
-				fputs(hold, stderr);
-				fputc('\n', stderr);
+				include_paths = path;
 			}
-			M2LIBC_PATH = hold;
-			i += 2;
+			else
+			{
+				include_paths->next = path;
+			}
+
+			/* For backwards compatibility the first include path sets M2LIBC_PATH */
+			if(M2LIBC_PATH == NULL)
+			{
+				if(1 <= DEBUG_LEVEL)
+				{
+					fputs("M2LIBC_PATH set by -I to ", stderr);
+					fputs(hold, stderr);
+					fputc('\n', stderr);
+				}
+				M2LIBC_PATH = hold;
+			}
+			if(two_arguments)
+			{
+				i += 2;
+			}
+			else
+			{
+				i += 1;
+			}
 		}
 		else if(match(argv[i], "-D"))
 		{
@@ -127,6 +161,11 @@ void prechecks(int argc, char** argv)
 			init_macro_env(argv[i+1], hold, "__ARGV__", env);
 			env = env + 1;
 			i += 2;
+		}
+		else if(match(argv[i], "-c"))
+		{
+			OBJECT_FILES_ONLY = TRUE;
+			i += 1;
 		}
 		else
 		{
@@ -161,8 +200,11 @@ int main(int argc, char** argv, char** envp)
 	char* destination_name = "a.out";
 	FILE* destination_file = stdout;
 	char* name;
+	char* first_input_filename = NULL;
 	int DUMP_MODE = FALSE;
+	int explicit_output_file = FALSE;
 	follow_includes = TRUE;
+	OBJECT_FILES_ONLY = FALSE;
 
 	/* Try to get our needed updates */
 	prechecks(argc, argv);
@@ -172,6 +214,12 @@ int main(int argc, char** argv, char** envp)
 	populate_env(envp);
 	setup_env();
 	if(1 <= DEBUG_LEVEL) fputs("Environment setup\n", stderr);
+
+	/* If this variable is set we treat calling the executable without arguments as an error. */
+	if(env_lookup("M2MESOPLANET_NEW_ARGUMENTLESS_BEHAVIOR") != NULL)
+	{
+		in = NULL;
+	}
 
 	M2LIBC_PATH = env_lookup("M2LIBC_PATH");
 	if(NULL == M2LIBC_PATH) M2LIBC_PATH = "./M2libc";
@@ -233,35 +281,10 @@ int main(int argc, char** argv, char** envp)
 			/* Handled by precheck */
 			i += 2;
 		}
-		else if(match(argv[i], "-f") || match(argv[i], "--file"))
-		{
-			if(NULL == hold_string)
-			{
-				hold_string = calloc(MAX_STRING + 4, sizeof(char));
-				require(NULL != hold_string, "Impossible Exhaustion has occured\n");
-			}
-
-			name = argv[i + 1];
-			if(NULL == name)
-			{
-				fputs("did not receive a file name\n", stderr);
-				exit(EXIT_FAILURE);
-			}
-
-			in = fopen(name, "r");
-			if(NULL == in)
-			{
-				fputs("Unable to open for reading file: ", stderr);
-				fputs(name, stderr);
-				fputs("\n Aborting to avoid problems\n", stderr);
-				exit(EXIT_FAILURE);
-			}
-			global_token = read_all_tokens(in, global_token, name, follow_includes);
-			fclose(in);
-			i += 2;
-		}
 		else if(match(argv[i], "-o") || match(argv[i], "--output"))
 		{
+			explicit_output_file = TRUE;
+
 			destination_name = argv[i + 1];
 			require(NULL != destination_name, "--output option requires a filename to follow\n");
 			destination_file = fopen(destination_name, "w");
@@ -279,24 +302,56 @@ int main(int argc, char** argv, char** envp)
 			/* handled by precheck */
 			i += 2;
 		}
-		else if(match(argv[i], "-I"))
+		else if(starts_with(argv[i], "-I"))
 		{
 			/* Handled by precheck */
-			i += 2;
+			if(strlen(argv[i]) > 2)
+			{
+				/* If path in the same string as -I/mypath/here */
+				i += 1;
+			}
+			else
+			{
+				i += 2;
+			}
 		}
 		else if(match(argv[i], "-D"))
 		{
 			/* Handled by precheck */
 			i += 2;
 		}
+		else if(match(argv[i], "-c"))
+		{
+			/* Handled by precheck */
+			i += 1;
+		}
 		else if(match(argv[i], "-h") || match(argv[i], "--help"))
 		{
-			fputs(" -f input file\n -o output file\n --help for this message\n --version for file version\n-E or --preprocess-only\n--max-string N (N is a number)\n--fuzz\n--no-debug\n", stdout);
+			fputs("Usage: M2-Mesoplanet [options] file...\n"
+				"Options:\n"
+				" --file,-f               input file\n"
+				" --output,-o             output file\n"
+				" --architecture,-A       Target architecture. Use -A to list options\n"
+				" --operating-system,--os Target operating system\n"
+				" --preprocess-only,-E    Preprocess only\n"
+				" --max-string N          Size of maximum string value (default 4096)\n"
+				" --no-includes           Disable following include files\n"
+				" --debug-mode N          Compiler debug level. 0 is disabled and 15 is max\n"
+				" --dump-mode             Dump tokens before preprocessing\n"
+				" --dirty-mode            Do not remove temporary files\n"
+				" -D                      Add define\n"
+				" -c                      Compile and assemble, but do not link.\n"
+				" -I                      Add M2libc path. Will override the M2LIBC_PATH environment variable.\n"
+				" --fuzz                  Do not execve potentially dangerous inputs\n"
+				" --no-debug              Do not output debug info\n"
+				" --temp-directory        Directory used for temporary artifacts. Will override TMPDIR env var.\n"
+				" --help,-h               Display this message\n"
+				" --version,-V            Display compiler version\n", stdout);
 			exit(EXIT_SUCCESS);
 		}
 		else if(match(argv[i], "-V") || match(argv[i], "--version"))
 		{
-			fputs("M2-Mesoplanet v1.11.0\n", stderr);
+			fputs("M2-Mesoplanet v1.12.0\n", stderr);
 			exit(EXIT_SUCCESS);
 		}
 		else if(match(argv[i], "--fuzz"))
@@ -310,6 +365,10 @@ int main(int argc, char** argv, char** envp)
 			/* strip things down */
 			debug_flag = FALSE;
 			i += 1;
+		}
+		else if(match(argv[i], "-"))
+		{
+			in = stdin;
 		}
 		else if(match(argv[i], "--temp-directory"))
 		{
@@ -330,16 +389,54 @@ int main(int argc, char** argv, char** envp)
 		}
 		else
 		{
-			if(5 <= DEBUG_LEVEL)
+			if(match(argv[i], "-f") || match(argv[i], "--file"))
 			{
-				fputs("on index: ", stderr);
-				fputs(int2str(i, 10, TRUE), stderr);
-				fputc('\n', stderr);
+				i = i + 1;
 			}
-			fputs("UNKNOWN ARGUMENT: ", stdout);
-			fputs(argv[i], stdout);
-			fputc('\n', stdout);
-			exit(EXIT_FAILURE);
+
+			if(NULL == hold_string)
+			{
+				hold_string = calloc(MAX_STRING + 4, sizeof(char));
+				require(NULL != hold_string, "Impossible Exhaustion has occured\n");
+			}
+
+			name = argv[i];
+			if(NULL == name)
+			{
+				fputs("did not receive a file name\n", stderr);
+				exit(EXIT_FAILURE);
+			}
+
+			if(first_input_filename == NULL)
+			{
+				first_input_filename = name;
+			}
+
+			in = fopen(name, "r");
+			if(NULL == in)
+			{
+				fputs("Unable to open for reading file: ", stderr);
+				fputs(name, stderr);
+				fputs("\n Aborting to avoid problems\n", stderr);
+				exit(EXIT_FAILURE);
+			}
+
+			if(ends_with(name, ".o"))
+			{
+				if(1 <= DEBUG_LEVEL) fprintf(stderr, "Object file added: '%s'\n", name);
+
+				struct object_file_list* last = extra_object_files;
+				extra_object_files = calloc(1, sizeof(struct object_file_list));
+				extra_object_files->file = in;
+				extra_object_files->next = last;
+			}
+			else
+			{
+				global_token = read_all_tokens(in, global_token, name, follow_includes);
+				fclose(in);
+			}
+
+			i += 1;
 		}
 	}
 
@@ -353,7 +450,7 @@ int main(int argc, char** argv, char** envp)
 		global_token = read_all_tokens(in, global_token, "STDIN", follow_includes);
 	}
 
-	if(NULL == global_token)
+	if(NULL == global_token && NULL == extra_object_files)
 	{
 		fputs("Either no input files were given or they were empty\n", stderr);
 		exit(EXIT_FAILURE);
@@ -400,8 +497,35 @@ int main(int argc, char** argv, char** envp)
 			output_tokens(global_token, tempfile);
 			fclose(tempfile);
 
+			if(!explicit_output_file && OBJECT_FILES_ONLY)
+			{
+				destination_name = calloc(MAX_STRING, sizeof(char));
+
+				char* directory_separator = strrchr(first_input_filename, '/');
+				if(directory_separator == NULL)
+				{
+					/* No dir separator we just want the entire string */
+					directory_separator = first_input_filename;
+				}
+				else
+				{
+					directory_separator += 1;
+				}
+
+				strcpy(destination_name, directory_separator);
+
+				char* extension = strrchr(destination_name, '.');
+				if(extension == NULL)
+				{
+					extension = destination_name + strlen(destination_name);
+				}
+				strcpy(extension, ".o\0");
+			}
+
+			int no_c_files = global_token == NULL;
+
 			/* Make me a real binary */
-			spawn_processes(debug_flag, TEMPDIR, name, destination_name, envp);
+			spawn_processes(debug_flag, TEMPDIR, name, destination_name, envp, no_c_files);
 
 			/* And clean up the donkey */
 			if(!DIRTY_MODE) remove(name);

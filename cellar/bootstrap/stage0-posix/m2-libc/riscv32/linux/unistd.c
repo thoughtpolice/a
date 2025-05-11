@@ -182,6 +182,14 @@ int unlink (char* filename)
 	    "ecall");
 }
 
+int symlink(char *path1, char *path2)
+{
+	asm("rd_a0 rs1_fp !-4 lw"
+	    "rd_a1 !-100 addi"  /* AT_FDCWD */
+	    "rd_a2 rs1_fp !-8 lw"
+	    "rd_a7 !36 addi"    /* symlinkat */
+	    "ecall");
+}
 
 int _getcwd(char* buf, int size)
 {

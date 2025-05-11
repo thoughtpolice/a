@@ -140,11 +140,22 @@ int close(int fd)
 
 int unlink (char* filename)
 {
-	asm("SET_X0_FROM_BP" "SUB_X0_8" "DEREF_X0"
-	    "SET_X8_TO_SYS_UNLINK"
+	asm("SET_X1_FROM_X0"
+	    "SET_X2_TO_0"
+	    "SET_X0_TO_FCNTL_H_AT_FDCWD"
+	    "SET_X8_TO_SYS_UNLINKAT"
 	    "SYSCALL");
 }
 
+int symlink(char *path1, char *path2)
+{
+	asm("SET_X0_FROM_BP" "SUB_X0_16" "DEREF_X0"
+	    "SET_X2_FROM_X0"
+	    "SET_X1_TO_FCNTL_H_AT_FDCWD"
+	    "SET_X0_FROM_BP" "SUB_X0_8" "DEREF_X0"
+	    "SET_X8_TO_SYS_SYMLINKAT"
+	    "SYSCALL");
+}
 
 int _getcwd(char* buf, int size)
 {

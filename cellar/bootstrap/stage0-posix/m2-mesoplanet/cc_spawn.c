@@ -368,36 +368,43 @@ void spawn_M1(char* input, char* debug_file, char* output, char* architecture, c
 		libc = strcat(libc, "/libc-core.M1");
 	}
 
+	int i = 0;
 	char** array = calloc(MAX_ARRAY, sizeof(char*));
-	insert_array(array, 0, M1);
-	insert_array(array, 1, "--file");
-	insert_array(array, 2, definitions);
-	insert_array(array, 3, "--file");
-	insert_array(array, 4, libc);
-	insert_array(array, 5, "--file");
-	insert_array(array, 6, input);
+	insert_array(array, i++, M1);
+	insert_array(array, i++, "--file");
+	insert_array(array, i++, definitions);
+
+	if(!OBJECT_FILES_ONLY)
+	{
+		/* Including libc in an object file will lead to multiple libcs in the binary */
+		insert_array(array, i++, "--file");
+		insert_array(array, i++, libc);
+	}
+
+	insert_array(array, i++, "--file");
+	insert_array(array, i++, input);
 	if(ENDIAN)
 	{
-		insert_array(array, 7, "--big-endian");
+		insert_array(array, i++, "--big-endian");
 	}
 	else
 	{
-		insert_array(array, 7, "--little-endian");
+		insert_array(array, i++, "--little-endian");
 	}
-	insert_array(array, 8, "--architecture");
-	insert_array(array, 9, architecture);
+	insert_array(array, i++, "--architecture");
+	insert_array(array, i++, architecture);
 
 	if(debug_flag)
 	{
-		insert_array(array, 10, "--file");
-		insert_array(array, 11, debug_file);
-		insert_array(array, 12, "--output");
-		insert_array(array, 13, output);
+		insert_array(array, i++, "--file");
+		insert_array(array, i++, debug_file);
+		insert_array(array, i++, "--output");
+		insert_array(array, i++, output);
 	}
 	else
 	{
-		insert_array(array, 10, "--output");
-		insert_array(array, 11, output);
+		insert_array(array, i++, "--output");
+		insert_array(array, i++, output);
 	}
 	_execute(M1, array, envp);
 }
@@ -453,7 +460,7 @@ void spawn_M2(char* input, char* output, char* architecture, char** envp, int de
 	_execute(M2_Planet, array, envp);
 }
 
-void spawn_processes(int debug_flag, char* prefix, char* preprocessed_file, char* destination, char** envp)
+void spawn_processes(int debug_flag, char* prefix, char* preprocessed_file, char* destination, char** envp, int no_c_files)
 {
 	int large_flag = FALSE;
 	if(WORDSIZE > 32) large_flag = TRUE;
@@ -467,16 +474,46 @@ void spawn_processes(int debug_flag, char* prefix, char* preprocessed_file, char
 	strcpy(M2_output, prefix);
 	strcat(M2_output, "/M2-Planet-XXXXXX");
 	int i = mkstemp(M2_output);
+
+	if(OBJECT_FILES_ONLY)
+	{
+		M2_output = destination;
+	}
+
 	if(-1 != i)
 	{
 		close(i);
-		spawn_M2(preprocessed_file, M2_output, Architecture, envp, debug_flag);
+		if(!no_c_files)
+		{
+			spawn_M2(preprocessed_file, M2_output, Architecture, envp, debug_flag);
+		}
 	}
 	else
 	{
 		fputs("unable to get a tempfile for M2-Planet output\n", stderr);
 		exit(EXIT_FAILURE);
 	}
+
+	if(OBJECT_FILES_ONLY)
+	{
+		return;
+	}
+
+	FILE* M2_output_file = fopen(M2_output, "ab");
+	if(M2_output_file == NULL)
+	{
+		fprintf(stderr, "Unable to open M2_output file '%s'.\n", M2_output);
+		exit(EXIT_FAILURE);
+	}
+
+	while(extra_object_files != NULL)
+	{
+		append_file_contents(M2_output_file, extra_object_files->file);
+		fclose(extra_object_files->file);
+		extra_object_files = extra_object_files->next;
+	}
+
+	fclose(M2_output_file);
 
 	char* blood_output = "";
 	if(debug_flag)

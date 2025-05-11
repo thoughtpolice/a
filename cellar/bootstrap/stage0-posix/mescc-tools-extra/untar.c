@@ -188,10 +188,12 @@ int verify_checksum(char const* p)
 /* Extract a tar archive. */
 int untar(FILE *a, char const* path)
 {
+	char* target = calloc(101, sizeof(char));
 	char* buff = calloc(514, sizeof(char));
 	FILE* f = NULL;
 	size_t bytes_read;
 	size_t bytes_written;
+	int symlink_ret;
 	int filesize;
 	int op;
 	if(VERBOSE)
@@ -233,6 +235,15 @@ int untar(FILE *a, char const* path)
 
 		filesize = parseoct(buff + 124, 12);
 
+		/**
+		 * Long linknames are stored in a special file with the name "././@LongLink"
+		 * and are unsupported by this program.
+		 */
+		if (strcmp(buff, "././@LongLink") == 0) {
+			fputs("unable to create long symlink\n", stderr);
+			exit(EXIT_FAILURE);
+		}
+
 		op = buff[156];
 		if('1' == op)
 		{
@@ -246,13 +257,20 @@ int untar(FILE *a, char const* path)
 		}
 		else if('2' == op)
 		{
-			if(STRICT)
+			memcpy(target, buff + 157, 100);
+			target[100] = '\0';
+			if(VERBOSE)
 			{
-				fputs("unable to create symlinks\n", stderr);
-				exit(EXIT_FAILURE);
+				fputs(" Extracting file ", stdout);
+				puts(buff);
 			}
-			fputs(" Ignoring symlink ", stdout);
-			puts(buff);
+			if(!FUZZING) {
+				symlink_ret = symlink(target, buff);
+				if (symlink_ret != 0) {
+					fputs("Failed to create symlink\n", stderr);
+					if(STRICT) exit(EXIT_FAILURE);
+				}
+			}
 		}
 		else if('3' == op)
 		{

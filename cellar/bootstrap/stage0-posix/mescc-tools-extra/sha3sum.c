@@ -233,7 +233,7 @@ int main(int argc, char **argv)
 			fputs(" [--verify <hash>] [-a 224|256|384|512] [-o <outfile>] <file> ...\n", stderr);
 			return 0;
 		} else if (match(argv[option_index], "-V") || match(argv[option_index], "--version")) {
-			fputs("sha3sum 1.3.0\n", stdout);
+			fputs("sha3sum 1.4.0\n", stdout);
 			return 0;
 		} else {
 			for (i = 0; i < 50; i = i + 1) {

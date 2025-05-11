@@ -16,6 +16,7 @@
  */
 
 #include <stddef.h>
+#include <stdlib.h>
 
 char* strcpy(char* dest, char const* src)
 {
@@ -273,9 +274,25 @@ char* strstr(char* haystack, char* needle)
 	{
 		while(i <= max)
 		{
-			if(0 == strncmp(haystack+i, needle, hl)) return haystack+i;
+			if(0 == strncmp(haystack+i, needle, sl)) return haystack+i;
 			i = i + 1;
 		}
 		return NULL;
 	}
 }
+
+char* strdup(const char* s)
+{
+	size_t length = strlen(s);
+
+	char* new_string = malloc(length);
+
+	if(!new_string)
+	{
+		return NULL;
+	}
+
+	/* strlen does not include the null terminator */
+	return memcpy(new_string, s, length + 1);
+}
+

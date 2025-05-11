@@ -240,7 +240,7 @@ int main(int argc, char** argv)
 		}
 		else if(match(argv[i], "-V") || match(argv[i], "--version"))
 		{ /* Output version */
-			fputs("cp version 1.3.0\n", stdout);
+			fputs("cp version 1.4.0\n", stdout);
 			exit(EXIT_SUCCESS);
 		}
 		else if(match(argv[i], "-v") || match(argv[i], "--verbose"))

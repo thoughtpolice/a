@@ -135,6 +135,15 @@ int unlink (char* filename)
 	    "SYSCALL_ALWAYS");
 }
 
+int symlink(char *path1, char *path2)
+{
+	asm("!4 R0 SUB R12 ARITH_ALWAYS"
+	    "!0 R0 LOAD32 R0 MEMORY"
+	    "!8 R1 SUB R12 ARITH_ALWAYS"
+	    "!0 R1 LOAD32 R1 MEMORY"
+	    "!21 R7 LOADI8_ALWAYS"
+	    "SYSCALL_ALWAYS");
+}
 
 int _getcwd(char* buf, int size)
 {
@@ -187,7 +196,10 @@ int unshare(int flags)
 {
 	asm("!4 R0 SUB R12 ARITH_ALWAYS"
 	    "!0 R0 LOAD32 R0 MEMORY"
-	    "!337 R7 LOADI8_ALWAYS"
+	    /* because 337 can't fit in 1 byte */
+	    "!0 R7 LOAD32 R15 MEMORY"
+	    "~0 JUMP_ALWAYS"
+	    "%337"
 	    "SYSCALL_ALWAYS");
 }
 

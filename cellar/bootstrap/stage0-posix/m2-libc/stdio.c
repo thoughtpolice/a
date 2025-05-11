@@ -15,6 +15,7 @@
  * along with M2-Planet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdarg.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -135,7 +136,11 @@ char* fgets(char* str, int count, FILE* stream)
 	while(i < count)
 	{
 		ch = fgetc(stream);
-		if(EOF == ch) break;
+		if(EOF == ch) {
+			/* Return null if EOF is first char read */
+			if (i == 0) return NULL;
+			break;
+		}
 
 		str[i] = ch;
 		i = i + 1;
@@ -215,6 +220,7 @@ FILE* fopen(char const* filename, char const* mode)
 	int size;
 
 	if('w' == mode[0]) f = open(filename, O_WRONLY|O_CREAT|O_TRUNC, 00600);
+	else if('a' == mode[0]) f = open(filename, O_WRONLY|O_CREAT|O_APPEND, 00600);
 	else f = open(filename, 0, 0); /* Everything else is a read */
 
 	/* Negative numbers are error codes */
@@ -223,7 +229,7 @@ FILE* fopen(char const* filename, char const* mode)
 		return 0;
 	}
 
-	if('w' == mode[0])
+	if('w' == mode[0] || 'a' == mode[0])
 	{
 		/* Buffer as much as possible */
 		fi->buffer = malloc(BUFSIZ * sizeof(char));
@@ -416,4 +422,196 @@ int fseek(FILE* f, long offset, int whence)
 void rewind(FILE* f)
 {
 	fseek(f, 0, SEEK_SET);
+}
+
+char* __unsigned_integer_to_string(unsigned int value, int base, int uppercase)
+{
+	static char buf[60];
+
+	char* digits = "0123456789abcdef";
+	if(uppercase)
+	{
+		digits = "0123456789ABCDEF";
+	}
+
+	char* ptr = &buf + 59;
+	*ptr = '\0';
+
+	do
+	{
+		--ptr;
+		*ptr = digits[value % base];
+		value /= base;
+	}
+	while(value != 0);
+
+	return ptr;
+}
+
+char* __integer_to_string(int value)
+{
+	static char buf[60];
+
+	char* digits = "0123456789abcdef";
+
+	char* ptr = &buf + 59;
+	*ptr = '\0';
+
+	do
+	{
+		--ptr;
+		*ptr = digits[value % 10];
+		value /= 10;
+	}
+	while(value != 0);
+
+	return ptr;
+}
+
+int __vsnprintf_string_offset;
+va_list __vsnprintf_ap;
+/* One line since M2-Mesoplanet doesn't support multi line macros */
+#define INLINE_STRSCPY str_i = 0; while(str[str_i] != '\0' && output < n) { s[output++] = str[str_i++]; }
+int vsnprintf(char* s, size_t n, const char* format, va_list arg)
+{
+	int i = 0;
+	int output = 0;
+	int str_i;
+	char* str;
+
+	__vsnprintf_string_offset = 0;
+
+	while(format[i] != '\0' && output < n)
+	{
+		if(format[i] == '%')
+		{
+			++i;
+
+			if(format[i] == 's')
+			{
+				str = va_arg(arg, char*);
+				INLINE_STRSCPY
+			}
+			else if(format[i] == 'u' || format[i] == 'x' || format[i] == 'X' || format[i] == 'o')
+			{
+				int uppercase = 0;
+				int base = 10;
+				if(format[i] == 'x')
+				{
+					base = 16;
+				}
+				else if(format[i] == 'X')
+				{
+					uppercase = 1;
+					base = 16;
+				}
+				else if(format[i] == 'o')
+				{
+					base = 8;
+				}
+
+				unsigned int value = va_arg(arg, unsigned int);
+				str = __unsigned_integer_to_string(value, base, uppercase);
+				INLINE_STRSCPY
+			}
+			else if(format[i] == 'd' || format[i] == 'i')
+			{
+				int value = va_arg(arg, int);
+				if(value < 0)
+				{
+					s[output++] = '-';
+					value = -value;
+				}
+				str = __integer_to_string(value);
+				INLINE_STRSCPY
+			}
+			else if(format[i] == 'c')
+			{
+				char value = va_arg(arg, char);
+				s[output++] = value;
+			}
+			else if(format[i] == '%')
+			{
+					s[output++] = '%';
+			}
+
+			++i;
+		}
+		else
+		{
+			s[output++] = format[i++];
+		}
+	}
+
+	__vsnprintf_string_offset = i;
+	__vsnprintf_ap = arg;
+
+	if(output < n)
+	{
+		/* Null terminator doesn't count */
+		s[output] = '\0';
+	}
+
+	return output;
+}
+#undef INLINE_STRSCPY
+
+#define PRINTF_BUFFER_SIZE 4096
+/* Add one to always have a null terminator */
+char printf_buf[PRINTF_BUFFER_SIZE + 1];
+int vfprintf(FILE* stream, char* format, va_list arg)
+{
+	int output = 0;
+	va_list ap = arg;
+
+	do
+	{
+		output += vsnprintf(printf_buf, PRINTF_BUFFER_SIZE, format, ap);
+		format += __vsnprintf_string_offset;
+		ap = __vsnprintf_ap;
+		fputs(printf_buf, stream);
+	}
+	while(__vsnprintf_string_offset != 0);
+
+	return output;
+}
+#undef PRINTF_BUFFER_SIZE
+
+int vsprintf(char* s, const char* format, va_list arg)
+{
+	/* M2-Planet doesn't handle large literals that well. */
+	return vsnprintf(s, 2147483647, format, arg);
+}
+
+int sprintf(char* s, char* format, ...)
+{
+	va_list ap;
+	va_start(ap, format);
+	return vsprintf(s, format, ap);
+}
+
+int fprintf(FILE* stream, char* format, ...)
+{
+	va_list ap;
+	va_start(ap, format);
+	return vfprintf(stream, format, ap);
+}
+
+int printf(char* format, ...)
+{
+	va_list ap;
+	va_start(ap, format);
+	return vfprintf(stdout, format, ap);
+}
+
+int vprintf(const char * format, va_list arg)
+{
+	return vfprintf(stdout, format, arg);
+}
+
+int snprintf(char* s, size_t n, const char* format, ...)
+{
+	va_list ap;
+	va_start(ap, format);
+	return vsnprintf(s, n, format, ap);
 }

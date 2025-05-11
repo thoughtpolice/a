@@ -26,7 +26,20 @@ struct token_list* token;
 int line;
 char* file;
 
-int grab_byte()
+enum
+{
+	DEFINE_STATE_NONE = 0,
+	DEFINE_STATE_DEFINE = 1,
+};
+
+/* Defines require knowing about whitespace to differentiate a function-like macro
+ * #define FUNCTION_LIKE_MACRO(x)
+ * and a regular macro that starts with an open parens
+ * #define REGULAR_MACRO (x)
+ * */
+int define_state;
+
+int grab_byte(void)
 {
 	int c = fgetc(input);
 	if(10 == c) line = line + 1;
@@ -56,13 +69,44 @@ int preserve_string(int c)
 		if(!escape && '\\' == c ) escape = TRUE;
 		else escape = FALSE;
 		c = consume_byte(c);
-		require(EOF != c, "Unterminated string\n");
+		if(EOF == c)
+		{
+			line_error_token(token);
+			fputs("Unterminated string\n", stderr);
+			exit(EXIT_FAILURE);
+		}
 	} while(escape || (c != frequent));
 	return grab_byte();
 }
 
+char* concat_strings2(char* a, char* b)
+{
+	char* buf = calloc(MAX_STRING, sizeof(char));
+	int offset = copy_string(buf, a, MAX_STRING);
+	copy_string(buf + offset, b, MAX_STRING - offset);
+	return buf;
+}
 
-void copy_string(char* target, char* source, int max)
+char* concat_strings3(char* a, char* b, char* c)
+{
+	char* buf = calloc(MAX_STRING, sizeof(char));
+	int offset = copy_string(buf, a, MAX_STRING);
+	offset = offset + copy_string(buf + offset, b, MAX_STRING - offset);
+	copy_string(buf + offset, c, MAX_STRING - offset);
+	return buf;
+}
+
+char* concat_strings4(char* a, char* b, char* c, char* d)
+{
+	char* buf = calloc(MAX_STRING, sizeof(char));
+	int offset = copy_string(buf, a, MAX_STRING);
+	offset = offset + copy_string(buf + offset, b, MAX_STRING - offset);
+	offset = offset + copy_string(buf + offset, c, MAX_STRING - offset);
+	copy_string(buf + offset, d, MAX_STRING - offset);
+	return buf;
+}
+
+int copy_string(char* target, char* source, int max)
 {
 	int i = 0;
 	while(0 != source[i])
@@ -71,21 +115,14 @@ void copy_string(char* target, char* source, int max)
 		i = i + 1;
 		if(i == max) break;
 	}
+	return i;
 }
 
-
-void fixup_label()
+int string_length(char* a)
 {
-	int hold = ':';
-	int prev;
 	int i = 0;
-	do
-	{
-		prev = hold;
-		hold = hold_string[i];
-		hold_string[i] = prev;
-		i = i + 1;
-	} while(0 != hold);
+	while(0 != a[i]) i = i + 1;
+	return i;
 }
 
 int preserve_keyword(int c, char* S)
@@ -97,7 +134,7 @@ int preserve_keyword(int c, char* S)
 	return c;
 }
 
-void reset_hold_string()
+void reset_hold_string(void)
 {
 	int i = MAX_STRING;
 	while(0 <= i)
@@ -246,16 +283,33 @@ reset:
 	else if('#' == c)
 	{
 		c = consume_byte(c);
+		while (c == ' ' || c == '\t')
+		{
+			c = grab_byte();
+		}
 		c = preserve_keyword(c, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
+
+		if(match(hold_string, "#define"))
+		{
+			define_state = DEFINE_STATE_DEFINE;
+		}
 	}
 	else if(in_set(c, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"))
 	{
 		c = preserve_keyword(c, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
-		if(':' == c)
+		if(define_state == DEFINE_STATE_DEFINE)
 		{
-			fixup_label();
-			c = ' ';
+			if(c != '(')
+			{
+				define_state = DEFINE_STATE_NONE;
+
+				new_token(hold_string, string_index + 2);
+				new_token(" ", 2);
+				return c;
+			}
 		}
+
+		define_state = DEFINE_STATE_NONE;
 	}
 	else if(in_set(c, "<=>|&!^%"))
 	{
@@ -333,6 +387,15 @@ reset:
 			c = consume_byte(c);
 		}
 	}
+	else if(c == '\\')
+	{
+		c = consume_byte(c);
+		if(c == '\n')
+		{
+			c = consume_byte(c);
+			goto reset;
+		}
+	}
 	else
 	{
 		c = consume_byte(c);
@@ -390,6 +453,7 @@ int change_filename(int ch)
 	require(EOF != ch, "#FILENAME failed to receive filename\n");
 
 	/* Get new line number */
+	define_state = DEFINE_STATE_NONE;
 	ch = get_token(ch);
 	line = strtoint(token->s);
 	if(0 == line)
@@ -429,6 +493,7 @@ struct token_list* read_all_tokens(FILE* a, struct token_list* current, char* fi
 	file = filename;
 	token = current;
 	int ch = grab_byte();
+	define_state = DEFINE_STATE_NONE;
 	while(EOF != ch)
 	{
 		ch = get_token(ch);

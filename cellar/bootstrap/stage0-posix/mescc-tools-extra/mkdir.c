@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 		}
 		else if(match(argv[i], "-v") || match(argv[i], "--version"))
 		{
-			fputs("mescc-tools-extra mkdir version 1.3.0\n", stdout);
+			fputs("mescc-tools-extra mkdir version 1.4.0\n", stdout);
 			return 0;
 		}
 		else if(match(argv[i], "-m") || match(argv[i], "--mode"))

@@ -874,12 +874,6 @@ int* dynamic_order()
 
 int dynamic(struct state *s)
 {
-	#if defined(__M2__)
-		int array = sizeof(int);
-	#else
-		int array = 1;
-	#endif
-
 	int nlen;
 	int ndist;
 	int ncode;                          /* number of lengths in descriptor */
@@ -975,7 +969,8 @@ int dynamic(struct state *s)
 	if((0 != err) && (nlen != (lencode->count[0] + lencode->count[1]))) return -7;
 
 	/* build huffman table for distance codes */
-	set = lengths + (nlen * array);
+	set = lengths;
+	set += nlen;
 	err = construct(distcode, set, ndist);
 
 	/* incomplete code ok only for single length 1 code */
@@ -1342,7 +1337,7 @@ int main(int argc, char **argv)
 
 	if (0 != ret->error)
 	{
-		fputs("puff() failed with return code ", stderr);
+		fputs("\npuff() failed with return code ", stderr);
 		fputs(int2str(ret->error, 10, TRUE), stderr);
 		fputc('\n', stderr);
 		exit(3);

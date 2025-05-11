@@ -52,7 +52,7 @@ void just_seen(char* s)
 	vision = hold;
 }
 
-int grab_byte()
+int grab_byte(void)
 {
 	int c = fgetc(input);
 	if(10 == c) line = line + 1;
@@ -120,7 +120,7 @@ void clear_string(char* s)
 	}
 }
 
-void reset_hold_string()
+void reset_hold_string(void)
 {
 	clear_string(hold_string);
 	string_index = 0;
@@ -190,6 +190,10 @@ int get_token(int c)
 	else if(in_set(c, "'\""))
 	{
 		c = preserve_string(c);
+	}
+	else if(c == ':')
+	{
+		c = consume_byte(c);
 	}
 	else if(c == '/')
 	{
@@ -353,10 +357,14 @@ int include_file(int ch, int include_file)
 	/* Remove name from stream */
 	token = token->next;
 
+	if(match("stdio.h", new_filename + 1))
+	{
+		STDIO_USED = TRUE;
+	}
+
 	/* Try to open the file */
 	if('<' == new_filename[0])
 	{
-		if(match("stdio.h", new_filename + 1)) STDIO_USED = TRUE;
 		reset_hold_string();
 		strcat(hold_string, M2LIBC_PATH);
 		strcat(hold_string, "/");
@@ -403,7 +411,40 @@ int include_file(int ch, int include_file)
 			strcat(hold_string, "/bootstrappable.h");
 			new_file = fopen(hold_string, "r");
 		}
-		else new_file = fopen(new_filename+1, "r");
+		else
+		{
+			/* Looks up in the current working directory.
+			 * This isn't _really_ compatible with GCC since it only looks in the
+			 * directory of the current file, but it's kept as backwards compatibility.
+			 *
+			 * Arguably this behavior isn't very intuitive since attempting to compile
+			 * a project from a different working directory can lead to including different
+			 * files resulting in a different executable.
+			 * */
+			new_file = fopen(new_filename+1, "r");
+			if(new_file == NULL)
+			{
+				reset_hold_string();
+				strcat(hold_string, file);
+				char* filename_separator = strrchr(hold_string, '/');
+				filename_separator[1] = '\0';
+				strcat(hold_string, new_filename + 1);
+				new_file = fopen(hold_string, "r");
+			}
+
+			struct include_path_list* path = include_paths;
+			while(new_file == NULL && path != NULL)
+			{
+				reset_hold_string();
+
+				strcat(hold_string, path->path);
+				strcat(hold_string, "/");
+				strcat(hold_string, new_filename + 1);
+				new_file = fopen(hold_string, "r");
+
+				path = path->next;
+			}
+		}
 
 		strcat(new_filename, "\"");
 	}

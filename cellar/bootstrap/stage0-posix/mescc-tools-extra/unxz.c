@@ -2410,6 +2410,13 @@ int main(int argc, char **argv)
 
 	if(NULL != name) source = fopen(name, "r");
 	else source = stdin;
+	if(source == NULL)
+	{
+		fputs("File ", stderr);
+		fputs(name, stderr);
+		fputs(" not found!\n", stderr);
+		return 1;
+	}
 	if(NULL != dest) destination = fopen(dest, "w");
 	else destination = stdout;
 

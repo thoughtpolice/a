@@ -21,7 +21,7 @@
 #include"cc.h"
 
 /* The core functions */
-void initialize_types();
+void initialize_types(void);
 struct token_list* read_all_tokens(FILE* a, struct token_list* current, char* filename);
 struct token_list* reverse_list(struct token_list* head);
 
@@ -29,10 +29,10 @@ struct token_list* remove_line_comments(struct token_list* head);
 struct token_list* remove_line_comment_tokens(struct token_list* head);
 struct token_list* remove_preprocessor_directives(struct token_list* head);
 
-void eat_newline_tokens();
+void eat_newline_tokens(void);
 void init_macro_env(char* sym, char* value, char* source, int num);
-void preprocess();
-void program();
+void preprocess(void);
+void program(void);
 void recursive_output(struct token_list* i, FILE* out);
 void output_tokens(struct token_list *i, FILE* out);
 int strtoint(char *a);
@@ -42,16 +42,42 @@ int main(int argc, char** argv)
 	MAX_STRING = 4096;
 	BOOTSTRAP_MODE = FALSE;
 	PREPROCESSOR_MODE = FALSE;
+	FOLLOW_INCLUDES = FALSE;
 	int DEBUG = FALSE;
 	FILE* in = stdin;
 	FILE* destination_file = stdout;
 	Architecture = 0; /* catch unset */
+
+	/* These need to be here instead of defines
+	 * since cc_* can't handle string constants. */
+	char* m2_major = "1";
+	char* m2_minor = "12";
+	char* m2_patch = "1";
+
 	init_macro_env("__M2__", "42", "__INTERNAL_M2__", 0); /* Setup __M2__ */
+	init_macro_env("__M2C__", m2_major, "__INTERNAL_M2__", 0);
+	init_macro_env("__M2C_MINOR__", m2_minor, "__INTERNAL_M2__", 0);
+	init_macro_env("__M2C_PATCHLEVEL__", m2_patch, "__INTERNAL_M2__", 0);
+
+	/* The standard allows an implementation defined valid value
+	 * if time and date are not available. */
+	/* Since we're modifying the tokens directly we don't need closing quotes */
+	init_macro_env("__DATE__", "\"Jan  1 1970", "__C_STANDARD__", 0);
+	init_macro_env("__TIME__", "\"00:00:00", "__C_STANDARD__", 0);
+
+	init_macro_env("__STDC__", "1", "__C_STANDARD__", 0);
+	init_macro_env("__STDC_HOSTED__", "1", "__C_STANDARD__", 0);
+	/* Claim support for C89 despite us supporting some newer features.
+	 * We are not close to fully supporting any standard so claim the one with least features. */
+	init_macro_env("__STDC_VERSION__", "199409", "__C_STANDARD__", 0);
+
 	char* arch;
 	char* name;
 	char* hold;
 	int env=0;
 	char* val;
+	struct include_path_list* path;
+	struct include_path_list* end;
 
 	int i = 1;
 	while(i <= argc)
@@ -59,33 +85,6 @@ int main(int argc, char** argv)
 		if(NULL == argv[i])
 		{
 			i = i + 1;
-		}
-		else if(match(argv[i], "-f") || match(argv[i], "--file"))
-		{
-			if(NULL == hold_string)
-			{
-				hold_string = calloc(MAX_STRING + 4, sizeof(char));
-				require(NULL != hold_string, "Impossible Exhaustion has occurred\n");
-			}
-
-			name = argv[i + 1];
-			if(NULL == name)
-			{
-				fputs("did not receive a file name\n", stderr);
-				exit(EXIT_FAILURE);
-			}
-
-			in = fopen(name, "r");
-			if(NULL == in)
-			{
-				fputs("Unable to open for reading file: ", stderr);
-				fputs(name, stderr);
-				fputs("\n Aborting to avoid problems\n", stderr);
-				exit(EXIT_FAILURE);
-			}
-			global_token = read_all_tokens(in, global_token, name);
-			fclose(in);
-			i = i + 2;
 		}
 		else if(match(argv[i], "-o") || match(argv[i], "--output"))
 		{
@@ -183,8 +182,26 @@ int main(int argc, char** argv)
 		}
 		else if(match(argv[i], "-h") || match(argv[i], "--help"))
 		{
-			fputs(" -f input file\n -o output file\n --help for this message\n --version for file version\n", stdout);
+			fputs("Usage: M2-Planet [options] file...\n", stdout);
+			fputs("Options:\n", stdout);
+			fputs(" --file,-f                      input file\n", stdout);
+			fputs(" --output,-o                    output file\n", stdout);
+			fputs(" --architecture,-A ARCHITECTURE Target architecture. Call without argument to list available\n", stdout);
+			fputs(" -D                             Add define\n", stdout);
+			fputs(" -E                             Preprocess only\n", stdout);
+			fputs(" --expand-includes              Enable resolving #includes\n", stdout);
+			fputs(" -I DIR                         Add DIR to include search path\n", stdout);
+			fputs(" --debug,-g                     Debug mode\n", stdout);
+			fputs(" --bootstrap-mode               Emulate less powerful cc_* compilers\n", stdout);
+			fputs(" --max-string N                 Size of maximum string value (default 4096)\n", stdout);
+			fputs(" --help,-h                      Display this message\n", stdout);
+			fputs(" --version,-V                   Display compiler version\n", stdout);
 			exit(EXIT_SUCCESS);
+		}
+		else if(match(argv[i], "--expand-includes"))
+		{
+			FOLLOW_INCLUDES = TRUE;
+			i = i + 1;
 		}
 		else if(match(argv[i], "-E"))
 		{
@@ -215,13 +232,77 @@ int main(int argc, char** argv)
 		}
 		else if(match(argv[i], "-V") || match(argv[i], "--version"))
 		{
-			fputs("M2-Planet v1.11.0\n", stderr);
+			fputs("M2-Planet v", stderr);
+			fputs(m2_major, stderr);
+			fputs(".", stderr);
+			fputs(m2_minor, stderr);
+			fputs(".", stderr);
+			fputs(m2_patch, stderr);
+			fputs("\n", stderr);
 			exit(EXIT_SUCCESS);
+		}
+		else if(match(argv[i], "-I"))
+		{
+			i = i + 1;
+
+			path = calloc(1, sizeof(struct include_path_list));
+			path->path = argv[i];
+
+			if(argv[i] == NULL)
+			{
+				fputs("-I requires an argument\n", stderr);
+				exit(EXIT_FAILURE);
+			}
+
+			/* We want the first path on the CLI to be the first path checked so it needs to be in the proper order. */
+			if(include_paths == NULL)
+			{
+				include_paths = path;
+			}
+			else
+			{
+				end = include_paths;
+				while(end->next != NULL)
+				{
+					end = end->next;
+				}
+				end->next = path;
+			}
+
+			i = i + 1;
 		}
 		else
 		{
-			fputs("UNKNOWN ARGUMENT\n", stdout);
-			exit(EXIT_FAILURE);
+			if(match(argv[i], "-f") || match(argv[i], "--file"))
+			{
+				i = i + 1;
+			}
+
+			name = argv[i];
+			if(NULL == hold_string)
+			{
+				hold_string = calloc(MAX_STRING + 4, sizeof(char));
+				require(NULL != hold_string, "Impossible Exhaustion has occurred\n");
+			}
+
+			if(NULL == name)
+			{
+				fputs("did not receive a filename\n", stderr);
+				exit(EXIT_FAILURE);
+			}
+
+			in = fopen(name, "r");
+			if(NULL == in)
+			{
+				fputs("Unable to open for reading file: ", stderr);
+				fputs(name, stderr);
+				fputs("\n Aborting to avoid problems\n", stderr);
+				exit(EXIT_FAILURE);
+			}
+			global_token = read_all_tokens(in, global_token, name);
+			fclose(in);
+
+			i = i + 1;
 		}
 	}
 
@@ -230,6 +311,16 @@ int main(int argc, char** argv)
 	{
 		Architecture = KNIGHT_NATIVE;
 		init_macro_env("__knight__", "1", "--architecture", env);
+	}
+
+	if(Architecture == KNIGHT_NATIVE
+		|| Architecture == KNIGHT_POSIX)
+	{
+		stack_direction = STACK_DIRECTION_PLUS;
+	}
+	else
+	{
+		stack_direction = STACK_DIRECTION_MINUS;
 	}
 
 	/* Deal with special case of wanting to read from standard input */

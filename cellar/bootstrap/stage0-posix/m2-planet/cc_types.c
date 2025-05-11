@@ -19,8 +19,10 @@
 
 /* Imported functions */
 int strtoint(char *a);
-void line_error();
+void line_error(void);
 void require(int bool, char* error);
+struct token_list* sym_lookup(char*, struct token_list*);
+int constant_expression(void);
 
 /* enable easy primitive extension */
 struct type* add_primitive(struct type* a)
@@ -69,7 +71,7 @@ struct type* new_primitive(char* name0, char* name1, char* name2, int size, int 
 }
 
 /* Initialize default types */
-void initialize_types()
+void initialize_types(void)
 {
 	if(AMD64 == Architecture || AARCH64 == Architecture || RISCV64 == Architecture) register_size = 8;
 	else register_size = 4;
@@ -82,17 +84,45 @@ void initialize_types()
 	hold = new_primitive("SCM","SCM*", "SCM**", register_size, FALSE);
 	prim_types = add_primitive(hold);
 
+	/* Define unsigned long long */
+	unsigned_long_long = new_primitive("unsigned long long", "unsigned long long*", "unsigned long long**", register_size, FALSE);
+	prim_types = add_primitive(unsigned_long_long);
+
+	/* Define signed long long */
+	signed_long_long = new_primitive("long long", "long long*", "long long**", register_size, TRUE);
+	prim_types = add_primitive(signed_long_long);
+
 	/* Define LONG */
-	hold = new_primitive("long", "long*", "long**", register_size, TRUE);
-	prim_types = add_primitive(hold);
+	signed_long = new_primitive("long", "long*", "long**", register_size, TRUE);
+	prim_types = add_primitive(signed_long);
+
+	/* Define unsigned long */
+	unsigned_long = new_primitive("unsigned long", "unsigned long*", "unsigned long**", register_size, FALSE);
+	prim_types = add_primitive(unsigned_long);
 
 	/* Define UNSIGNED */
-	hold = new_primitive("unsigned", "unsigned*", "unsigned**", register_size, FALSE);
-	prim_types = add_primitive(hold);
+	unsigned_integer = new_primitive("unsigned", "unsigned*", "unsigned**", register_size, FALSE);
+	prim_types = add_primitive(unsigned_integer);
 
 	/* Define int */
 	integer = new_primitive("int", "int*", "int**", register_size, TRUE);
 	prim_types = add_primitive(integer);
+
+	/* Define signed short */
+	signed_short = new_primitive("short", "short*", "short**", 2, TRUE);
+	prim_types = add_primitive(signed_short);
+
+	/* Define unsigned short */
+	unsigned_short = new_primitive("unsigned short", "unsigned short*", "unsigned short**", 2, FALSE);
+	prim_types = add_primitive(unsigned_short);
+
+	/* Define uint64_t */
+	hold = new_primitive("uint64_t", "uint64_t*", "uint64_t**", 8, FALSE);
+	prim_types = add_primitive(hold);
+
+	/* Define int64_t */
+	hold = new_primitive("int64_t", "int64_t*", "int64_t**", 8, TRUE);
+	prim_types = add_primitive(hold);
 
 	/* Define uint32_t */
 	hold = new_primitive("uint32_t", "uint32_t*", "uint32_t**", 4, FALSE);
@@ -122,8 +152,26 @@ void initialize_types()
 	hold = new_primitive("char", "char*", "char**", 1, TRUE);
 	prim_types = add_primitive(hold);
 
+	/* Define signed char */
+	signed_char = new_primitive("signed char", "signed char*", "signed char**", 1, TRUE);
+	prim_types = add_primitive(signed_char);
+
+	/* Define unsigned char */
+	unsigned_char = new_primitive("unsigned char", "unsigned char*", "unsigned char**", 1, FALSE);
+	prim_types = add_primitive(unsigned_char);
+
+	/* Define _Bool */
+	hold = new_primitive("_Bool", "_Bool*", "_Bool**", 1, TRUE);
+	prim_types = add_primitive(hold);
+
 	/* Define FUNCTION */
-	hold = new_primitive("FUNCTION", "FUNCTION*", "FUNCTION**", register_size, FALSE);
+	function_pointer = new_primitive("FUNCTION", "FUNCTION*", "FUNCTION**", register_size, FALSE);
+	function_pointer->options = TO_FUNCTION_POINTER; /* FUNCTION */
+	function_pointer->indirect->options = TO_FUNCTION_POINTER; /* FUNCTION* */
+	prim_types = add_primitive(function_pointer);
+
+	/* Define _va_list */
+	hold = new_primitive("__va_list", "__va_list*", "__va_list**", register_size, FALSE);
 	prim_types = add_primitive(hold);
 
 	if(BOOTSTRAP_MODE)
@@ -156,27 +204,293 @@ struct type* lookup_type(char* s, struct type* start)
 	return NULL;
 }
 
+struct type* lookup_primitive_type(void)
+{
+	if(BOOTSTRAP_MODE)
+	{
+		return lookup_type(global_token->s, prim_types);
+	}
+
+	/* Lookup order for multi token types
+
+	 * unsigned
+     *	 char
+     *	 short
+     *	 short int
+     *	 long
+     *	 long int
+     *	 long long
+     *	 long long int
+     *	 int
+     *	 - (unsigned int)
+
+	 * signed
+     *	 char
+     *	 short
+     *	 short int
+     *	 long
+     *	 long int
+     *	 long long
+     *	 long long int
+     *	 int
+	 *	 - (int)
+
+	 * short
+     *	 int
+     *	 - (short)
+
+	 * long
+     *	 int
+     *	 long
+     *	 long long int
+     *	 - (long)
+	 */
+
+	if(match("unsigned", global_token->s))
+	{
+		require(global_token->next != NULL, "NULL token received in multi token type lookup");
+
+		if(match("char", global_token->next->s))
+		{
+			global_token = global_token->next;
+			return unsigned_char;
+		}
+		else if(match("short", global_token->next->s))
+		{
+			global_token = global_token->next;
+			require(global_token->next != NULL, "NULL token received in multi token type lookup 'unsigned short'");
+
+			if(match("int", global_token->next->s))
+			{
+				global_token = global_token->next;
+				/* fallthrough to unsigned_short */
+			}
+
+			return unsigned_short;
+		}
+		else if(match("long", global_token->next->s))
+		{
+			global_token = global_token->next;
+			require(global_token->next != NULL, "NULL token received in multi token type lookup 'unsigned long'");
+
+			if(match("long", global_token->next->s))
+			{
+				global_token = global_token->next;
+				require(global_token->next != NULL, "NULL token received in multi token type lookup 'unsigned long long'");
+
+				if(match("int", global_token->next->s))
+				{
+					global_token = global_token->next;
+					/* fallthrough to unsigned_long_long */
+				}
+
+				return unsigned_long_long;
+			}
+			else if(match("int", global_token->next->s))
+			{
+				global_token = global_token->next;
+				/* fallthrough to unsigned_long */
+			}
+
+			return unsigned_long;
+		}
+		else if(match("int", global_token->next->s))
+		{
+			global_token = global_token->next;
+			/* fallthrough to unsigned_integer */
+		}
+
+		return unsigned_integer;
+	}
+	else if(match("signed", global_token->s))
+	{
+		require(global_token->next != NULL, "NULL token received in multi token type lookup");
+
+		if(match("char", global_token->next->s))
+		{
+			global_token = global_token->next;
+			return signed_char;
+		}
+		else if(match("short", global_token->next->s))
+		{
+			global_token = global_token->next;
+			require(global_token->next != NULL, "NULL token received in multi token type lookup 'signed short'");
+
+			if(match("int", global_token->next->s))
+			{
+				global_token = global_token->next;
+				/* fallthrough to signed_short */
+			}
+
+			return signed_short;
+		}
+		else if(match("long", global_token->next->s))
+		{
+			global_token = global_token->next;
+			require(global_token->next != NULL, "NULL token received in multi token type lookup 'signed long'");
+
+			if(match("long", global_token->next->s))
+			{
+				global_token = global_token->next;
+				require(global_token->next != NULL, "NULL token received in multi token type lookup 'signed long long'");
+
+				if(match("int", global_token->next->s))
+				{
+					global_token = global_token->next;
+					/* fallthrough to signed_long_long */
+				}
+
+				return signed_long_long;
+			}
+			else if(match("int", global_token->next->s))
+			{
+				global_token = global_token->next;
+				/* fallthrough to signed_long */
+			}
+
+			return signed_long;
+		}
+		else if(match("int", global_token->next->s))
+		{
+			global_token = global_token->next;
+			/* fallthrough to integer */
+		}
+
+		return integer;
+	}
+	else if(match("short", global_token->s))
+	{
+		require(global_token->next != NULL, "NULL token received in multi token type lookup 'short'");
+
+		if(match("int", global_token->next->s))
+		{
+			global_token = global_token->next;
+			/* fallthrough to signed_short */
+		}
+
+		return signed_short;
+	}
+	else if(match("long", global_token->s))
+	{
+		require(global_token->next != NULL, "NULL token received in multi token type lookup 'long'");
+
+		if(match("long", global_token->next->s))
+		{
+			global_token = global_token->next;
+			require(global_token->next != NULL, "NULL token received in multi token type lookup 'long long'");
+
+			if(match("int", global_token->next->s))
+			{
+				global_token = global_token->next;
+				/* fallthrough to signed_long_long */
+			}
+
+			return signed_long_long;
+		}
+		else if(match("int", global_token->next->s))
+		{
+			global_token = global_token->next;
+			/* fallthrough to signed_long */
+		}
+
+		return signed_long;
+	}
+
+	return lookup_type(global_token->s, prim_types);
+}
+
+struct type* lookup_global_type(void)
+{
+	struct type* a = lookup_primitive_type();
+	if(NULL != a) return a;
+
+	return lookup_type(global_token->s, global_types);
+}
+
 struct type* lookup_member(struct type* parent, char* name)
 {
+	int is_anonymous_type = match("", parent->name);
+	if(is_anonymous_type)
+	{
+		/* We need to be able to know if we're in an anonymous type */
+		parent = parent->type;
+	}
+
 	struct type* i;
 	require(NULL != parent, "Not a valid struct type\n");
+	struct type* anonymous;
 	for(i = parent->members; NULL != i; i = i->members)
 	{
-		if(match(i->name, name)) return i;
+		if(match("", i->name))
+		{
+			/* Anonymous struct/union (C11 extension */
+			 anonymous = lookup_member(i, name);
+			 if(anonymous != NULL)
+			 {
+				 return anonymous;
+			 }
+		}
+		else if(match(i->name, name)) return i;
+	}
+
+	/* Anonymous types are not guaranteed to have the member in them */
+	if(is_anonymous_type)
+	{
+		return NULL;
 	}
 
 	fputs("ERROR in lookup_member ", stderr);
 	fputs(parent->name, stderr);
 	fputs("->", stderr);
-	fputs(global_token->s, stderr);
+	fputs(name, stderr);
 	fputs(" does not exist\n", stderr);
 	line_error();
 	fputs("\n", stderr);
 	exit(EXIT_FAILURE);
 }
 
-struct type* type_name();
+struct type* type_name(void);
 void require_match(char* message, char* required);
+
+char* parse_function_pointer(void)
+{
+	require_extra_token(); /* skip '(' */
+	require_match("Required '*' after '(' in struct function pointer.", "*");
+
+	char* name = NULL;
+	if(global_token->s[0] != ')')
+	{
+		name = global_token->s;
+		require_extra_token();
+	}
+
+	require_match("Required ')' after name in struct function pointer.", ")");
+	require_match("Required '(' after ')' in struct function pointer.", "(");
+
+	while(global_token->s[0] != ')')
+	{
+		type_name();
+
+		if(global_token->s[0] == '(')
+		{
+			parse_function_pointer();
+		}
+
+		if(global_token->s[0] != ')' && global_token->s[0] != ',')
+		{
+			/* skip optional name */
+			require_extra_token();
+		}
+
+		if(global_token->s[0] == ',')
+		{
+			require_extra_token();
+		}
+	}
+	require_extra_token(); /* skip ')' */
+
+	return name;
+}
 
 int member_size;
 struct type* build_member(struct type* last, int offset)
@@ -189,22 +503,57 @@ struct type* build_member(struct type* last, int offset)
 	struct type* member_type = type_name();
 	require(NULL != member_type, "struct member type can not be invalid\n");
 	i->type = member_type;
-	i->name = global_token->s;
-	global_token = global_token->next;
-	require(NULL != global_token, "struct member can not be EOF terminated\n");
+
+	if(global_token->s[0] == '(')
+	{
+		i->name = parse_function_pointer();
+		i->type = function_pointer;
+	}
+	else if(global_token->s[0] != ';')
+	{
+		i->name = global_token->s;
+		require_extra_token();
+	}
+	else
+	{
+		struct type* iterator = i->type->members;
+		if(iterator == NULL)
+		{
+			line_error();
+			fputs("Missing name for non-struct/union type.\n", stderr);
+			exit(EXIT_FAILURE);
+		}
+
+		if(!match(i->type->name, "anonymous struct") && !match(i->type->name, "anonymous union"))
+		{
+			line_error();
+			fputs("Anonymous members can not have a type name.\n", stderr);
+			exit(EXIT_FAILURE);
+		}
+
+		/* Anonymous struct/union (C11 extension) */
+		i->name = "";
+
+		/* We need to offset all the member so that they're pointing correctly
+		 * into the current struct. */
+		while (iterator != NULL)
+		{
+			iterator->offset = iterator->offset + offset;
+
+			iterator = iterator->members;
+		}
+	}
 
 	/* Check to see if array */
 	if(match( "[", global_token->s))
 	{
-		global_token = global_token->next;
-		require(NULL != global_token, "struct member arrays can not be EOF sized\n");
-		i->size = member_type->type->size * strtoint(global_token->s);
+		require_extra_token();
+		i->size = constant_expression() * member_type->type->size;
 		if(0 == i->size)
 		{
 			fputs("Struct only supports [num] form\n", stderr);
 			exit(EXIT_FAILURE);
 		}
-		global_token = global_token->next;
 		require_match("Struct only supports [num] form\n", "]");
 	}
 	else
@@ -216,78 +565,237 @@ struct type* build_member(struct type* last, int offset)
 	return i;
 }
 
-struct type* build_union(struct type* last, int offset)
+struct type* reverse_members_type_list(struct type* head)
 {
-	int size = 0;
-	global_token = global_token->next;
-	require_match("ERROR in build_union\nMissing {\n", "{");
-	while('}' != global_token->s[0])
+	struct type* root = NULL;
+	struct type* next;
+	while(NULL != head)
 	{
-		last = build_member(last, offset);
-		if(member_size > size)
-		{
-			size = member_size;
-		}
-		require_match("ERROR in build_union\nMissing ;\n", ";");
-		require(NULL != global_token, "Unterminated union\n");
+		next = head->members;
+		head->members = root;
+		root = head;
+		head = next;
 	}
-	member_size = size;
-	global_token = global_token->next;
-	return last;
+	return root;
 }
 
-void create_struct()
+struct type* create_forward_declared_struct(char* name, int prepend_to_global_types)
 {
-	int offset = 0;
-	member_size = 0;
 	struct type* head = calloc(1, sizeof(struct type));
 	require(NULL != head, "Exhausted memory while creating a struct\n");
 	struct type* i = calloc(1, sizeof(struct type));
 	require(NULL != i, "Exhausted memory while creating a struct indirection\n");
 	struct type* ii = calloc(1, sizeof(struct type));
 	require(NULL != ii, "Exhausted memory while creating a struct double indirection\n");
-	head->name = global_token->s;
+
+	head->name = name;
 	head->type = head;
 	head->indirect = i;
 	head->next = global_types;
-	i->name = global_token->s;
+	head->size = NO_STRUCT_DEFINITION;
+	head->members = NULL;
+
+	i->name = head->name;
 	i->type = head;
 	i->indirect = ii;
 	i->size = register_size;
-	ii->name = global_token->s;
+	i->members = NULL;
+
+	ii->name = head->name;
 	ii->type = i;
 	ii->indirect = ii;
 	ii->size = register_size;
-	global_types = head;
-	global_token = global_token->next;
+
+	if(prepend_to_global_types)
+	{
+		global_types = head;
+	}
+
+	return head;
+}
+
+struct type* create_struct(int is_union)
+{
+	int offset = 0;
+	member_size = 0;
+
+	struct type* head = NULL;
+	struct type* i = NULL;
+
+	char* name = "anonymous struct";
+	if(is_union)
+	{
+		name = "anonymous union";
+	}
+
+	int has_name = global_token->s[0] != '{';
+	if(has_name)
+	{
+		name = global_token->s;
+		head = lookup_global_type();
+		require_extra_token();
+	}
+
+	if(NULL == head)
+	{
+		head = create_forward_declared_struct(name, has_name);
+		i = head->indirect;
+	}
+	else
+	{
+		if(head->size != NO_STRUCT_DEFINITION)
+		{
+			line_error();
+			fputs("struct '", stderr);
+			fputs(head->name, stderr);
+			fputs("' already has definition.", stderr);
+			exit(EXIT_FAILURE);
+		}
+
+		i = head->indirect;
+	}
+
+	require(NULL != global_token, "Incomplete struct declaration/definition at end of file\n");
+
+	if(global_token->s[0] != '{')
+	{
+		/*
+		 * When forward declaring the struct will have size == 0 and be an error to use.
+		 * Zero-sized types are not allowed in C so this will never happen naturally.
+		 */
+		return head;
+	}
+
+	int largest_member_size = 0;
 	require_match("ERROR in create_struct\n Missing {\n", "{");
 	struct type* last = NULL;
 	require(NULL != global_token, "Incomplete struct definition at end of file\n");
 	while('}' != global_token->s[0])
 	{
-		if(match(global_token->s, "union"))
+		last = build_member(last, offset);
+
+		if(member_size == NO_STRUCT_DEFINITION)
 		{
-			last = build_union(last, offset);
+			line_error();
+			fputs("Can not use non-defined type in object.\n", stderr);
+			exit(EXIT_FAILURE);
 		}
-		else
-		{
-			last = build_member(last, offset);
-		}
+
 		offset = offset + member_size;
+		if(member_size > largest_member_size)
+		{
+			largest_member_size = member_size;
+		}
+
+		if(is_union)
+		{
+			offset = 0;
+		}
+
 		require_match("ERROR in create_struct\n Missing ;\n", ";");
 		require(NULL != global_token, "Unterminated struct\n");
 	}
 
-	global_token = global_token->next;
-	require_match("ERROR in create_struct\n Missing ;\n", ";");
+	/* Members are prepended so the list needs to be reversed. */
+	last = reverse_members_type_list(last);
+
+	require_extra_token();
 
 	head->size = offset;
+	if(is_union)
+	{
+		head->size = largest_member_size;
+	}
+
 	head->members = last;
 	i->members = last;
+
+	return head;
 }
 
+struct type* create_enum(void)
+{
+	struct type* head = calloc(1, sizeof(struct type));
+	require(NULL != head, "Exhausted memory while creating an enum\n");
+	struct type* i = calloc(1, sizeof(struct type));
+	require(NULL != i, "Exhausted memory while creating a enum indirection\n");
+	struct type* ii = calloc(1, sizeof(struct type));
+	require(NULL != ii, "Exhausted memory while creating a enum double indirection\n");
 
-struct type* type_name()
+	head->type = head;
+	head->indirect = i;
+	head->next = global_types;
+
+	head->size = register_size; /* We treat enums as always being ints. */
+	head->is_signed = TRUE;
+
+	i->name = head->name;
+	i->type = head;
+	i->indirect = ii;
+	i->size = register_size;
+
+	ii->name = head->name;
+	ii->type = i;
+	ii->indirect = ii;
+	ii->size = register_size;
+
+	if(match("{", global_token->s))
+	{
+		head->name = "anonymous enum";
+	}
+	else
+	{
+		maybe_bootstrap_error("non-anonymous enum statement");
+		head->name = global_token->s;
+		require_extra_token();
+
+		/* Anonymous enums should not be able to be looked up
+		 * so we only add named enums. */
+		global_types = head;
+	}
+
+	require_match("ERROR in create_enum\n Missing {\n", "{");
+	require(NULL != global_token, "Incomplete enum definition at end of file\n");
+
+	int next_enum_value = 0;
+	int expr = 0;
+	while('}' != global_token->s[0])
+	{
+		global_constant_list = sym_declare(global_token->s, NULL, global_constant_list, TLO_CONSTANT);
+		global_constant_list->type = integer;
+
+		require_extra_token();
+
+		global_constant_list->arguments = calloc(1, sizeof(struct token_list));
+		if(match("=", global_token->s))
+		{
+			require_extra_token();
+
+			expr = constant_expression();
+		}
+		else
+		{
+			maybe_bootstrap_error("enum statement");
+		}
+
+		global_constant_list->arguments->s = int2str(expr, 10, TRUE);
+		next_enum_value = expr + 1;
+		expr = next_enum_value;
+
+		if(match(",", global_token->s))
+		{
+			require_extra_token();
+		}
+
+		require(NULL != global_token, "Unterminated enum\n");
+	}
+
+	require_extra_token();
+
+	return head;
+}
+
+struct type* fallible_type_name(void)
 {
 	struct type* ret;
 
@@ -295,63 +803,125 @@ struct type* type_name()
 
 	if(match("extern", global_token->s))
 	{
-		global_token = global_token->next;
-		require(NULL != global_token, "unfinished type definition in extern\n");
+		require_extra_token();
+	}
+
+	if(match("const", global_token->s))
+	{
+		require_extra_token();
 	}
 
 	if(match("struct", global_token->s))
 	{
-		global_token = global_token->next;
-		require(NULL != global_token, "structs can not have a EOF type name\n");
-		ret = lookup_type(global_token->s, global_types);
+		require_extra_token();
+		ret = lookup_global_type();
+		if(match(global_token->s, "{") || match(global_token->next->s, "{") || match(global_token->next->s, ";"))
+		{
+			return create_struct(FALSE);
+		}
+		else if(NULL == ret)
+		{
+			ret = create_forward_declared_struct(global_token->s, TRUE);
+		}
+	}
+	else if(match("enum", global_token->s))
+	{
+		require_extra_token();
+		ret = lookup_global_type();
 		if(NULL == ret)
 		{
-			create_struct();
-			return NULL;
+			return create_enum();
+		}
+	}
+	else if(match("union", global_token->s))
+	{
+		require_extra_token();
+		ret = lookup_global_type();
+		if(match(global_token->s, "{") || match(global_token->next->s, "{") || match(global_token->next->s, ";"))
+		{
+			return create_struct(TRUE);
+		}
+		else if(NULL == ret)
+		{
+			ret = create_forward_declared_struct(global_token->s, TRUE);
 		}
 	}
 	else
 	{
-		ret = lookup_type(global_token->s, global_types);
+		ret = lookup_global_type();
 		if(NULL == ret)
 		{
-			fputs("Unknown type ", stderr);
-			fputs(global_token->s, stderr);
-			fputs("\n", stderr);
-			line_error();
-			fputs("\n", stderr);
-			exit(EXIT_FAILURE);
+			return NULL;
 		}
 	}
 
-	global_token = global_token->next;
-	require(NULL != global_token, "unfinished type definition\n");
+	require_extra_token();
 
 	if(match("const", global_token->s))
 	{
-		global_token = global_token->next;
-		require(NULL != global_token, "unfinished type definition in const\n");
+		require_extra_token();
 	}
 
 	while(global_token->s[0] == '*')
 	{
 		ret = ret->indirect;
-		global_token = global_token->next;
-		require(NULL != global_token, "unfinished type definition in indirection\n");
+		require_extra_token();
+
+		while(match("const", global_token->s) || match("restrict", global_token->s))
+		{
+			require_extra_token();
+		}
 	}
 
 	return ret;
 }
 
-struct type* mirror_type(struct type* source, char* name)
+struct type* type_name(void)
 {
-	struct type* head = calloc(1, sizeof(struct type));
-	require(NULL != head, "Exhausted memory while creating a struct\n");
-	struct type* i = calloc(1, sizeof(struct type));
-	require(NULL != i, "Exhausted memory while creating a struct indirection\n");
+	struct type* ret = fallible_type_name();
+	if(ret != NULL)
+	{
+		return ret;
+	}
 
-	head->name = name;
-	i->name = name;
+	fputs("Unknown type ", stderr);
+	fputs(global_token->s, stderr);
+	fputs("\n", stderr);
+	line_error();
+	fputs("\n", stderr);
+	exit(EXIT_FAILURE);
+}
+
+struct type* new_function_pointer_typedef(char* name)
+{
+	struct type* first = new_primitive(name, name, name, register_size, FALSE);
+	first->options = TO_FUNCTION_POINTER;
+	first->indirect->options = TO_FUNCTION_POINTER;
+
+	return add_primitive(first);
+}
+
+struct type *mirror_type(struct type *source)
+{
+	struct type* head = lookup_primitive_type();
+	struct type* i;
+	if(NULL == head)
+	{
+		head = calloc(1, sizeof(struct type));
+		require(NULL != head, "Exhausted memory while creating a struct\n");
+
+		add_primitive(head);
+
+		i = calloc(1, sizeof(struct type));
+		require(NULL != i, "Exhausted memory while creating a struct indirection\n");
+	}
+	else
+	{
+		i = head->indirect;
+	}
+
+	head->name = global_token->s;
+	i->name = global_token->s;
 	head->size = source->size;
 	i->size = source->indirect->size;
 	head->offset = source->offset;

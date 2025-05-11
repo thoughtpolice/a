@@ -38,7 +38,7 @@ void line_error_token(struct token_list *token)
 	fputs(":", stderr);
 }
 
-void line_error()
+void line_error(void)
 {
 	line_error_token(global_token);
 }
@@ -64,3 +64,49 @@ void output_tokens(struct token_list *i, FILE* out)
 		i = i->next;
 	}
 }
+
+int starts_with(char* str, char* needle)
+{
+	return strcmp(str, needle) == 0;
+}
+
+int ends_with(char* str, char* needle)
+{
+	size_t str_len = strlen(str);
+	size_t needle_len = strlen(needle);
+
+	return (str_len >= needle_len) && (!memcmp(str + str_len - needle_len, needle, needle_len));
+}
+
+void append_file_contents(FILE* f, FILE* appended_file)
+{
+	const int BUFFER_SIZE = 8192;
+	static char* append_buffer = NULL;
+	if(append_buffer == NULL)
+	{
+		append_buffer = calloc(BUFFER_SIZE, sizeof(char));
+	}
+
+	/* Just in case the appended file doesn't end on a newline */
+	fputs("\n", f);
+
+	size_t read = 0;
+	do
+	{
+		read = fread(append_buffer, sizeof(char), BUFFER_SIZE, appended_file);
+
+		/* Need to know if stdio has been used to choose correct libc. */
+		if(strstr(append_buffer, "__init_malloc") != NULL)
+		{
+			STDIO_USED = TRUE;
+		}
+
+		size_t written = 0;
+		while(written != read)
+		{
+			written = fwrite(append_buffer + written, sizeof(char), read, f);
+		}
+	}
+	while(read != 0);
+}
+

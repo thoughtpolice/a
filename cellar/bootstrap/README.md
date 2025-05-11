@@ -1,16 +1,18 @@
 # Full-Source Bootstrap project
 
-This is an attempt to port the GNU Guix _Full-Source Bootstrap_ project to
-Buck2 rules. The goal is that one day we might actually emit a fully usable C
+This is an attempt to port the GNU Guix _Full-Source Bootstrap_ project to Buck2
+rules. The goal is that one day we might actually emit a fully usable C
 compiler, right from the source code, that we can use to compile all third-party
 code.
 
-See the Guix blog for more background: <https://guix.gnu.org/blog/2023/the-full-source-bootstrap-building-from-source-all-the-way-down/>
+See the Guix blog for more background:
+<https://guix.gnu.org/blog/2023/the-full-source-bootstrap-building-from-source-all-the-way-down/>
 
 And the following repositories, where most of this code was cribbed from:
 
 - https://github.com/oriansj/bootstrap-seeds
-- https://github.com/oriansj/stage0-posix, commit `779e5424d4b55fe9b7faea2285ae8b6486df0433`
+- https://github.com/oriansj/stage0-posix, commit
+  `a79d862bed4e37a5e9dcebc15d555d176ef880ee`
 
 Note that because this port uses buck2 itself, it isn't "trustable" in the same
 way the `kaem` based build is: buck2 is a foreign contaminant that could in

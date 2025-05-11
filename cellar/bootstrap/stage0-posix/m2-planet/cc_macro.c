@@ -23,6 +23,10 @@ void require(int bool, char* error);
 int strtoint(char* a);
 void line_error_token(struct token_list* list);
 struct token_list* eat_token(struct token_list* head);
+int copy_string(char* target, char* source, int max);
+struct token_list* read_all_tokens(FILE* a, struct token_list* current, char* filename);
+struct token_list* remove_line_comments(struct token_list* head);
+struct token_list* reverse_list(struct token_list* head);
 
 struct conditional_inclusion
 {
@@ -31,15 +35,41 @@ struct conditional_inclusion
 	int previous_condition_matched; /* 1 == all subsequent conditions treated as FALSE */
 };
 
+struct macro_argument
+{
+	char* name;
+	struct macro_argument* next;
+};
+
 struct macro_list
 {
 	struct macro_list* next;
 	char* symbol;
 	struct token_list* expansion;
+	struct macro_argument* arguments;
 };
 
 struct macro_list* macro_env;
 struct conditional_inclusion* conditional_inclusion_top;
+
+void push_conditional_inclusion(int include)
+{
+	struct conditional_inclusion* t = calloc(1, sizeof(struct conditional_inclusion));
+
+	t->prev = conditional_inclusion_top;
+	conditional_inclusion_top = t;
+
+	t->include = include;
+	t->previous_condition_matched = include;
+}
+
+void pop_conditional_inclusion(void)
+{
+	struct conditional_inclusion* t = conditional_inclusion_top;
+	conditional_inclusion_top = conditional_inclusion_top->prev;
+	free(t);
+}
+
 
 /* point where we are currently modifying the global_token list */
 struct token_list* macro_token;
@@ -54,9 +84,10 @@ void init_macro_env(char* sym, char* value, char* source, int num)
 	macro_env->expansion->s = value;
 	macro_env->expansion->filename = source;
 	macro_env->expansion->linenumber = num;
+	macro_env->arguments = NULL;
 }
 
-void eat_current_token()
+void eat_current_token(void)
 {
 	int update_global_token = FALSE;
 	if (macro_token == global_token)
@@ -68,7 +99,7 @@ void eat_current_token()
 		global_token = macro_token;
 }
 
-void eat_newline_tokens()
+void eat_newline_tokens(void)
 {
 	macro_token = global_token;
 
@@ -125,6 +156,25 @@ struct token_list* insert_tokens(struct token_list* point, struct token_list* to
 	return first;
 }
 
+struct macro_list* create_replacement_token(char* symbol, struct token_list* token)
+{
+	struct macro_list* hold = calloc(1, sizeof(struct macro_list));
+
+	hold->next = NULL;
+	hold->symbol = symbol;
+	hold->expansion = calloc(1, sizeof(struct token_list));
+
+	hold->expansion->prev = NULL;
+	hold->expansion->next = NULL;
+	hold->expansion->linenumber = token->linenumber;
+
+	/* Make sure this is cleaned up along with the real ones */
+	hold->next = macro_env;
+	macro_env = hold;
+
+	return hold;
+}
+
 struct macro_list* lookup_macro(struct token_list* token)
 {
 	if(NULL == token)
@@ -132,6 +182,35 @@ struct macro_list* lookup_macro(struct token_list* token)
 		line_error_token(macro_token);
 		fputs("null token received in lookup_macro\n", stderr);
 		exit(EXIT_FAILURE);
+	}
+
+	if(match(token->s, "__LINE__"))
+	{
+		struct macro_list* hold = create_replacement_token("__LINE__", token);
+
+		hold->expansion->s = int2str(token->linenumber, 10, TRUE);
+
+		return hold;
+	}
+	else if(match(token->s, "__FILE__"))
+	{
+		struct macro_list* hold = create_replacement_token("__FILE__", token);
+
+		int length = string_length(token->filename);
+
+		hold->expansion->s = calloc(length + 3, sizeof(char));
+		hold->expansion->s[0] = '"';
+		hold->expansion->s[length] = '"';
+		hold->expansion->s[length + 1] = 0; /* We don't have '\0' */
+
+		/* memcpy */
+		int i;
+		for(i = 0; i < length; i = i + 1)
+		{
+			hold->expansion->s[i + 1] = token->filename[i];
+		}
+
+		return hold;
 	}
 
 	struct macro_list* hold = macro_env;
@@ -188,8 +267,8 @@ void remove_macro(struct token_list* token)
 	return;
 }
 
-int macro_expression();
-int macro_variable()
+int macro_expression(void);
+int macro_variable(void)
 {
 	int value = 0;
 	struct macro_list* hold = lookup_macro(macro_token);
@@ -207,14 +286,14 @@ int macro_variable()
 	return value;
 }
 
-int macro_number()
+int macro_number(void)
 {
 	int result = strtoint(macro_token->s);
 	eat_current_token();
 	return result;
 }
 
-int macro_primary_expr()
+int macro_primary_expr(void)
 {
 	int defined_has_paren = FALSE;
 	int hold;
@@ -288,7 +367,7 @@ int macro_primary_expr()
 	}
 }
 
-int macro_additive_expr()
+int macro_additive_expr(void)
 {
 	int lhs = macro_primary_expr();
 	int hold;
@@ -339,7 +418,7 @@ int macro_additive_expr()
 	}
 }
 
-int macro_relational_expr()
+int macro_relational_expr(void)
 {
 	int lhs = macro_additive_expr();
 
@@ -379,7 +458,7 @@ int macro_relational_expr()
 	}
 }
 
-int macro_bitwise_expr()
+int macro_bitwise_expr(void)
 {
 	int rhs;
 	int lhs = macro_relational_expr();
@@ -419,25 +498,58 @@ int macro_bitwise_expr()
 	}
 }
 
-int macro_expression()
+int macro_expression(void)
 {
 	return macro_bitwise_expr();
 }
 
-void handle_define()
+void handle_function_like_macro(struct macro_list* hold)
+{
+
+	eat_current_token(); /* Skip '(' */
+	struct macro_argument* argument = calloc(1, sizeof(struct macro_argument));
+	hold->arguments = argument;
+
+	argument->next = NULL;
+	/* A NULL name in the first argument means a function macro without any arguments */
+	argument->name = NULL;
+
+	while(macro_token->s[0] != ')')
+	{
+		/* ... is not tokenized as a single token here */
+		if(macro_token->s[0] == '.')
+		{
+			/* Periods can only be in the macro argument list as a variadic parameter
+			 * so if there is a period it's part of a variadic parameter */
+			require(macro_token->next != NULL, "EOF in variadic parameter");
+			require(macro_token->next->s[0] == '.', "Invalid token '.' in macro parameter list");
+			require(macro_token->next->next != NULL, "EOF in second variadic parameter");
+			require(macro_token->next->next->s[0] == '.', "Invalid tokens '..' in macro parameter list");
+
+			line_error_token(macro_token);
+			fputs("Variadic function-like macros not supported.", stderr);
+			exit(EXIT_FAILURE);
+		}
+
+		argument->name = macro_token->s;
+		eat_current_token(); /* skip past name to comma */
+
+		if(macro_token->s[0] == ',')
+		{
+			argument->next = calloc(1, sizeof(struct macro_argument));
+			argument = argument->next;
+
+			eat_current_token(); /* skip comma */
+		}
+	}
+
+	eat_current_token(); /* skip past ')' */
+}
+
+void handle_define(void)
 {
 	struct macro_list* hold;
 	struct token_list* expansion_end = NULL;
-
-	/* don't use #define statements from non-included blocks */
-	int conditional_define = TRUE;
-	if(NULL != conditional_inclusion_top)
-	{
-		if(FALSE == conditional_inclusion_top->include)
-		{
-			conditional_define = FALSE;
-		}
-	}
 
 	eat_current_token();
 
@@ -448,11 +560,26 @@ void handle_define()
 	hold = calloc(1, sizeof(struct macro_list));
 	hold->symbol = macro_token->s;
 	hold->next = macro_env;
-	/* provided it isn't in a non-included block */
-	if(conditional_define) macro_env = hold;
+	hold->arguments = NULL;
+	macro_env = hold;
 
 	/* discard the macro name */
 	eat_current_token();
+
+	/* This is the only place in which a token can be whitespace
+	 * We need this to distinguish between function-like macros
+	 * and normal macros with an opening parens as the first token.
+	 * #define FUNCTION_MACRO(x)
+	 * #define NOT_FUNCTION_MACRO (x)
+	 * */
+	if(macro_token->s[0] == ' ')
+	{
+		eat_current_token();
+	}
+	else if(macro_token->s[0] == '(')
+	{
+		handle_function_like_macro(hold);
+	}
 
 	while (TRUE)
 	{
@@ -481,18 +608,11 @@ void handle_define()
 			hold->expansion = macro_token;
 		}
 
-		/* throw away if not used */
-		if(!conditional_define && (NULL != hold))
-		{
-			free(hold);
-			hold = NULL;
-		}
-
 		eat_current_token();
 	}
 }
 
-void handle_undef()
+void handle_undef(void)
 {
 	eat_current_token();
 	remove_macro(macro_token);
@@ -501,33 +621,21 @@ void handle_undef()
 
 void handle_error(int warning_p)
 {
-	/* don't use #error statements from non-included blocks */
-	int conditional_error = TRUE;
-	if(NULL != conditional_inclusion_top)
-	{
-		if(FALSE == conditional_inclusion_top->include)
-		{
-			conditional_error = FALSE;
-		}
-	}
 	eat_current_token();
-	/* provided it isn't in a non-included block */
-	if(conditional_error)
+	line_error_token(macro_token);
+	if(warning_p) fputs(" warning: #warning ", stderr);
+	else fputs(" error: #error ", stderr);
+	while (TRUE)
 	{
-		line_error_token(macro_token);
-		if(warning_p) fputs(" warning: #warning ", stderr);
-		else fputs(" error: #error ", stderr);
-		while (TRUE)
-		{
-			require(NULL != macro_token, "\nFailed to properly terminate error message with \\n\n");
-			if ('\n' == macro_token->s[0]) break;
-			fputs(macro_token->s, stderr);
-			macro_token = macro_token->next;
-			fputs(" ", stderr);
-		}
-		fputs("\n", stderr);
-		if(!warning_p) exit(EXIT_FAILURE);
+		require(NULL != macro_token, "\nFailed to properly terminate error message with \\n\n");
+		if ('\n' == macro_token->s[0]) break;
+		fputs(macro_token->s, stderr);
+		macro_token = macro_token->next;
+		fputs(" ", stderr);
 	}
+	fputs("\n", stderr);
+	if(!warning_p) exit(EXIT_FAILURE);
+
 	while (TRUE)
 	{
 		require(NULL != macro_token, "\nFailed to properly terminate error message with \\n\n");
@@ -540,31 +648,119 @@ void handle_error(int warning_p)
 	}
 }
 
-void eat_block();
-void macro_directive()
+void handle_include(void)
 {
-	struct conditional_inclusion *t;
+	eat_current_token();
+	char* buffer = calloc(MAX_STRING, sizeof(char));
+	FILE* f = NULL;
+
+	char* include_filename = macro_token->s + 1;
+
+	/* The only difference between " and < includes is that " looks in the directory of the current file. */
+	if(macro_token->s[0] == '"')
+	{
+		int offset = copy_string(buffer, macro_token->filename, MAX_STRING);
+		while(buffer[offset] != '/' && offset != 0)
+		{
+			offset = offset - 1;
+		}
+
+		/* We could have no / in filename in which case we just start from 0 */
+		if(buffer[offset] == '/')
+		{
+			offset = offset + 1;
+		}
+
+		offset = offset + copy_string(buffer + offset, include_filename, MAX_STRING - offset);
+		buffer[offset] = 0;
+
+		f = fopen(buffer, "r");
+	}
+	else
+	{
+		/* < includes are not tokenized as a single token, but as a list of tokens in between < and > */
+		include_filename = calloc(MAX_STRING, sizeof(char));
+		eat_current_token(); /* Skip over '<' */
+		int offset = 0;
+		while(macro_token->s[0] != '>')
+		{
+			offset = offset + copy_string(include_filename + offset, macro_token->s, MAX_STRING - offset);
+			eat_current_token();
+		}
+	}
+
+	struct include_path_list* inc = include_paths;
+	int offset;
+	while(inc != NULL && f == NULL)
+	{
+		offset = copy_string(buffer, inc->path, MAX_STRING);
+		buffer[offset] = '/';
+		offset = offset + 1;
+		copy_string(buffer + offset, include_filename, MAX_STRING - offset);
+
+		f = fopen(buffer, "r");
+
+		inc = inc->next;
+	}
+
+	if(f == NULL)
+	{
+		/* If all else fails, try to look in M2libc in the CWD */
+		offset = copy_string(buffer, "./M2libc/", MAX_STRING);
+		copy_string(buffer + offset, include_filename, MAX_STRING - offset);
+		f = fopen(buffer, "r");
+	}
+
+	if(f == NULL)
+	{
+		line_error_token(macro_token);
+		fputs("Unable to find include file: ", stderr);
+		fputs(include_filename, stderr);
+		fputs("\n", stderr);
+		exit(EXIT_FAILURE);
+	}
+	eat_current_token();
+
+	struct token_list* current_macro_token = macro_token;
+
+	struct token_list* new_token_list = read_all_tokens(f, NULL, buffer);
+	new_token_list = reverse_list(new_token_list);
+	new_token_list = remove_line_comments(new_token_list);
+
+	struct token_list* last_token = new_token_list;
+	while(last_token->next != NULL)
+	{
+		last_token = last_token->next;
+	}
+
+	struct token_list* next_original_token = current_macro_token->next;
+
+	current_macro_token->next = new_token_list;
+	new_token_list->prev = current_macro_token;
+
+	last_token->next = next_original_token;
+	next_original_token->prev = last_token;
+
+	macro_token = current_macro_token;
+}
+
+void eat_block(void);
+void macro_directive(void)
+{
 	int result;
 
-	/* FIXME: whitespace is allowed between "#"" and "if" */
 	if(match("#if", macro_token->s))
 	{
 		eat_current_token();
 		/* evaluate constant integer expression */
 		result = macro_expression();
-		/* push conditional inclusion */
-		t = calloc(1, sizeof(struct conditional_inclusion));
-		t->prev = conditional_inclusion_top;
-		conditional_inclusion_top = t;
-		t->include = TRUE;
+
+		push_conditional_inclusion(result);
 
 		if(FALSE == result)
 		{
-			t->include = FALSE;
 			eat_block();
 		}
-
-		t->previous_condition_matched = t->include;
 	}
 	else if(match("#ifdef", macro_token->s))
 	{
@@ -581,18 +777,7 @@ void macro_directive()
 			eat_block();
 		}
 
-		/* push conditional inclusion */
-		t = calloc(1, sizeof(struct conditional_inclusion));
-		t->prev = conditional_inclusion_top;
-		conditional_inclusion_top = t;
-		t->include = TRUE;
-
-		if(FALSE == result)
-		{
-			t->include = FALSE;
-		}
-
-		t->previous_condition_matched = t->include;
+		push_conditional_inclusion(result);
 	}
 	else if(match("#ifndef", macro_token->s))
 	{
@@ -608,22 +793,16 @@ void macro_directive()
 			eat_current_token();
 		}
 
-		/* push conditional inclusion */
-		t = calloc(1, sizeof(struct conditional_inclusion));
-		t->prev = conditional_inclusion_top;
-		conditional_inclusion_top = t;
-		t->include = TRUE;
+		push_conditional_inclusion(result);
 
 		if(FALSE == result)
 		{
-			t->include = FALSE;
 			eat_block();
 		}
-
-		t->previous_condition_matched = t->include;
 	}
 	else if(match("#elif", macro_token->s))
 	{
+		require(NULL != macro_token->next, "#elif without leading #if\n");
 		eat_current_token();
 		result = macro_expression();
 		require(NULL != conditional_inclusion_top, "#elif without leading #if\n");
@@ -637,6 +816,7 @@ void macro_directive()
 	}
 	else if(match("#else", macro_token->s))
 	{
+		require(NULL != macro_token->next, "#else without leading #if\n");
 		eat_current_token();
 		require(NULL != conditional_inclusion_top, "#else without leading #if\n");
 		conditional_inclusion_top->include = !conditional_inclusion_top->previous_condition_matched;
@@ -655,10 +835,8 @@ void macro_directive()
 		}
 
 		eat_current_token();
-		/* pop conditional inclusion */
-		t = conditional_inclusion_top;
-		conditional_inclusion_top = conditional_inclusion_top->prev;
-		free(t);
+
+		pop_conditional_inclusion();
 	}
 	else if(match("#define", macro_token->s))
 	{
@@ -678,7 +856,14 @@ void macro_directive()
 	}
 	else
 	{
-		if(!match("#include", macro_token->s))
+		if(match("#include", macro_token->s))
+		{
+			if(FOLLOW_INCLUDES)
+			{
+				handle_include();
+			}
+		}
+		else
 		{
 			/* Put a big fat warning but see if we can just ignore */
 			fputs(">>WARNING<<\n>>WARNING<<\n", stderr);
@@ -707,7 +892,7 @@ void macro_directive()
 }
 
 
-void eat_until_endif()
+void eat_until_endif(void)
 {
 	/* This #if block is nested inside of an #if block that needs to be dropped, lose EVERYTHING */
 	do
@@ -724,7 +909,7 @@ void eat_until_endif()
 	} while(!match("#endif", macro_token->s));
 }
 
-void eat_block()
+void eat_block(void)
 {
 	/* This conditional #if block is wrong, drop everything until the #elif/#else/#endif */
 	do
@@ -741,12 +926,44 @@ void eat_block()
 		if(match("#else", macro_token->s)) break;
 		if(match("#endif", macro_token->s)) break;
 	} while(TRUE);
-	require(NULL != macro_token->prev, "impossible #if block\n");
 
-	/* rewind the newline */
-	if(match("\n", macro_token->prev->s)) macro_token = macro_token->prev;
+	if(macro_token->prev != NULL)
+	{
+		/* rewind the newline */
+		if(match("\n", macro_token->prev->s)) macro_token = macro_token->prev;
+	}
+	else
+	{
+		struct token_list* newline_token = calloc(1, sizeof(struct token_list));
+		newline_token->s = "\n";
+		newline_token->filename = macro_token->filename;
+		newline_token->linenumber = macro_token->linenumber;
+		newline_token->next = macro_token;
+		macro_token = newline_token;
+	}
 }
 
+struct token_list* deep_copy_token_list(struct token_list* from)
+{
+	if(from == NULL)
+	{
+		return NULL;
+	}
+
+	struct token_list* to = calloc(1, sizeof(struct token_list));
+
+	to->next = deep_copy_token_list(from->next);
+	to->locals = from->locals;
+	to->prev = from->prev;
+	to->s = from->s;
+	to->type = from->type;
+	to->filename = from->filename;
+	to->arguments = from->arguments;
+	to->depth = from->depth;
+	to->linenumber = from->linenumber;
+
+	return to;
+}
 
 struct token_list* maybe_expand(struct token_list* token)
 {
@@ -758,7 +975,6 @@ struct token_list* maybe_expand(struct token_list* token)
 	}
 
 	struct macro_list* hold = lookup_macro(token);
-	struct token_list* hold2;
 	if(NULL == token->next)
 	{
 		line_error_token(macro_token);
@@ -775,16 +991,100 @@ struct token_list* maybe_expand(struct token_list* token)
 
 	token = eat_token(token);
 
+	struct token_list* expansion = hold->expansion;
+
+	if(hold->arguments != NULL)
+	{
+		if(token->s[0] != '(')
+		{
+			line_error_token(macro_token);
+			fputs("Function-like-macro called without parameter list\n", stderr);
+			exit(EXIT_FAILURE);
+		}
+		token = eat_token(token); /* skip '(' */
+
+		expansion = deep_copy_token_list(hold->expansion);
+
+		struct token_list* token_before_macro = token->prev;
+
+		struct token_list* start_token = token;
+		int parens = 1;
+		struct macro_argument* argument = hold->arguments;
+		struct token_list* expand_list;
+		while (parens != 0)
+		{
+			if(argument == NULL)
+			{
+				line_error_token(macro_token);
+				fputs("Invalid amount of parameters for function-like macro\n", stderr);
+				exit(EXIT_FAILURE);
+			}
+
+			if(token->s[0] == '(')
+			{
+				parens = parens + 1;
+			}
+			else if (token->s[0] == ')')
+			{
+				parens = parens - 1;
+			}
+
+			if ((token->s[0] == ',' && parens == 1) || (token->s[0] == ')' && parens == 0))
+			{
+				token->prev->next = NULL;
+				if(start_token->next != NULL && argument->name != NULL)
+				{
+					line_error_token(start_token);
+					fputs("Function-like macro with arguments of more than one token are not supported.\n", stderr);
+					exit(EXIT_FAILURE);
+				}
+
+				expand_list = expansion;
+
+				while(expand_list != NULL)
+				{
+					if(match(expand_list->s, argument->name))
+					{
+						expand_list->s = start_token->s;
+					}
+					expand_list = expand_list->next;
+				}
+
+				token->prev->next = token;
+				start_token = token->next;
+				argument = argument->next;
+			}
+
+			require(token->next != NULL, "NULL token found in function-like macro arguments\n");
+			token = token->next;
+		}
+
+		token_before_macro->next = token;
+		token->prev = token_before_macro;
+	}
+	else
+	{
+		if(hold->arguments != NULL)
+		{
+			line_error_token(macro_token);
+			fputs("Function-like macro '", stderr);
+			fputs(hold->symbol, stderr);
+			fputs("' was called like normal macro\n", stderr);
+			exit(EXIT_FAILURE);
+		}
+	}
+
 	if (NULL == hold->expansion)
 	{
 		return token->next;
 	}
-	hold2 = insert_tokens(token, hold->expansion);
+
+	struct token_list* hold2 = insert_tokens(token, expansion);
 
 	return hold2->next;
 }
 
-void preprocess()
+void preprocess(void)
 {
 	int start_of_line = TRUE;
 	macro_token = global_token;
@@ -816,20 +1116,7 @@ void preprocess()
 		else
 		{
 			start_of_line = FALSE;
-			if(NULL == conditional_inclusion_top)
-			{
-				macro_token = maybe_expand(macro_token);
-			}
-			else if(!conditional_inclusion_top->include)
-			{
-				/* rewrite the token stream to exclude the current token */
-				eat_block();
-				start_of_line = TRUE;
-			}
-			else
-			{
-				macro_token = maybe_expand(macro_token);
-			}
+			macro_token = maybe_expand(macro_token);
 		}
 	}
 }

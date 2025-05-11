@@ -33,6 +33,10 @@
 #include <riscv32/linux/unistd.c>
 #elif __riscv && __riscv_xlen==64
 #include <riscv64/linux/unistd.c>
+#elif __knight_posix__
+#include <knight/linux/unistd.c>
+#elif __knight__
+#include <knight/native/unistd.c>
 #else
 #error arch not supported
 #endif
@@ -54,6 +58,7 @@ int write(int fd, char* buf, unsigned count);
 int lseek(int fd, int offset, int whence);
 int close(int fd);
 int unlink (char *filename);
+int symlink(char *path1, char *path2);
 int _getcwd(char* buf, int size);
 char* getcwd(char* buf, unsigned size);
 char* getwd(char* buf);

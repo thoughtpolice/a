@@ -75,12 +75,12 @@ void _eat_current_token(int eat_whitespace)
 		global_token = macro_token;
 }
 
-void eat_current_token()
+void eat_current_token(void)
 {
 	_eat_current_token(TRUE);
 }
 
-void eat_current_token_without_space()
+void eat_current_token_without_space(void)
 {
 	_eat_current_token(FALSE);
 }
@@ -232,8 +232,8 @@ void remove_macro(struct token_list* token)
 	return;
 }
 
-int macro_expression();
-int macro_variable()
+int macro_expression(void);
+int macro_variable(void)
 {
 	int value = 0;
 	struct macro_list* hold = lookup_macro(macro_token);
@@ -251,14 +251,14 @@ int macro_variable()
 	return value;
 }
 
-int macro_number()
+int macro_number(void)
 {
 	int result = strtoint(macro_token->s);
 	eat_current_token();
 	return result;
 }
 
-int macro_primary_expr()
+int macro_primary_expr(void)
 {
 	int defined_has_paren = FALSE;
 	int hold;
@@ -332,7 +332,7 @@ int macro_primary_expr()
 	}
 }
 
-int macro_additive_expr()
+int macro_additive_expr(void)
 {
 	int lhs = macro_primary_expr();
 	int hold;
@@ -383,7 +383,7 @@ int macro_additive_expr()
 	}
 }
 
-int macro_relational_expr()
+int macro_relational_expr(void)
 {
 	int lhs = macro_additive_expr();
 
@@ -423,7 +423,7 @@ int macro_relational_expr()
 	}
 }
 
-int macro_bitwise_expr()
+int macro_bitwise_expr(void)
 {
 	int rhs;
 	int lhs = macro_relational_expr();
@@ -463,12 +463,12 @@ int macro_bitwise_expr()
 	}
 }
 
-int macro_expression()
+int macro_expression(void)
 {
 	return macro_bitwise_expr();
 }
 
-void handle_define()
+void handle_define(void)
 {
 	struct macro_list* hold;
 	struct token_list* arg;
@@ -595,7 +595,7 @@ void handle_define()
 	}
 }
 
-void handle_undef()
+void handle_undef(void)
 {
 	eat_current_token();
 	remove_macro(macro_token);
@@ -640,7 +640,7 @@ void handle_error(int warning_p)
 	}
 }
 
-void macro_directive()
+void macro_directive(void)
 {
 	struct conditional_inclusion *t;
 	int result;
@@ -833,7 +833,7 @@ struct token_list* expand_macro_functions(struct token_list* expansion, struct t
 	return hold;
 }
 
-void eat_until_endif()
+void eat_until_endif(void)
 {
 	/* This #if block is nested inside of an #if block that needs to be dropped, lose EVERYTHING */
 	do
@@ -849,7 +849,7 @@ void eat_until_endif()
 	} while(!match("#endif", macro_token->s));
 }
 
-void eat_block()
+void eat_block(void)
 {
 	/* This conditional #if block is wrong, drop everything until the #elif/#else/#endif */
 	do
@@ -939,7 +939,7 @@ struct token_list* maybe_expand(struct token_list* token)
 	return hold4;
 }
 
-void preprocess()
+void preprocess(void)
 {
 	int start_of_line = TRUE;
 	macro_token = global_token;
