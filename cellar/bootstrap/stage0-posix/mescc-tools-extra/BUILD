@@ -1,4 +1,4 @@
-load("@cellar//bootstrap/stage0-posix:defs.bzl", "export_file")
+load("@cellar//bootstrap:defs.bzl", "export_file")
 load(":defs.bzl", "cc")
 
 [
