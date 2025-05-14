@@ -41,6 +41,8 @@ jobs:
         run: |
           opam env | sed "s/'//g; s/; export .*//g" >> $GITHUB_ENV
           cat $GITHUB_ENV # for debugging
+          find /home/runner/work/a/a/_opam/bin
+          /home/runner/work/a/a/_opam/bin/ocamldep.opt --help
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
