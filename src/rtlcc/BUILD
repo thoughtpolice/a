@@ -7,6 +7,6 @@ deno.binary(
     name="rtlcc",
     main="main.ts",
     type="run",
-    permissions=["read", "net", "env"],
+    permissions=["read", "write", "env"],
     visibility=["PUBLIC"],
 )
