@@ -571,6 +571,29 @@ third_party_rust.rust_library(
 )
 
 http_archive(
+    name = "bytes-1.10.1.crate",
+    sha256 = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a",
+    strip_prefix = "bytes-1.10.1",
+    urls = ["https://static.crates.io/crates/bytes/1.10.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "bytes-1.10.1",
+    srcs = [":bytes-1.10.1.crate"],
+    crate = "bytes",
+    crate_root = "bytes-1.10.1.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "default",
+        "serde",
+        "std",
+    ],
+    visibility = [],
+    deps = [":serde-1.0.219"],
+)
+
+http_archive(
     name = "byteview-0.6.1.crate",
     sha256 = "6236364b88b9b6d0bc181ba374cf1ab55ba3ef97a1cb6f8cddad48a273767fb5",
     strip_prefix = "byteview-0.6.1",
@@ -2105,6 +2128,28 @@ third_party_rust.rust_library(
 )
 
 http_archive(
+    name = "futures-0.1.31.crate",
+    sha256 = "3a471a38ef8ed83cd6e40aa59c1ffe17db6855c18e3604d9c4ed8c08ebc28678",
+    strip_prefix = "futures-0.1.31",
+    urls = ["https://static.crates.io/crates/futures/0.1.31/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "futures-0.1.31",
+    srcs = [":futures-0.1.31.crate"],
+    crate = "futures",
+    crate_root = "futures-0.1.31.crate/src/lib.rs",
+    edition = "2015",
+    features = [
+        "default",
+        "use_std",
+        "with-deprecated",
+    ],
+    visibility = [],
+)
+
+http_archive(
     name = "futures-0.3.31.crate",
     sha256 = "65bc07b1a8bc7c85c5f2e110c476c7389b4554ba72af57d8445ea63a576b0876",
     strip_prefix = "futures-0.3.31",
@@ -2120,12 +2165,18 @@ third_party_rust.rust_library(
     edition = "2018",
     features = [
         "alloc",
+        "async-await",
+        "compat",
+        "default",
+        "executor",
+        "futures-executor",
         "std",
     ],
     visibility = [],
     deps = [
         ":futures-channel-0.3.31",
         ":futures-core-0.3.31",
+        ":futures-executor-0.3.31",
         ":futures-io-0.3.31",
         ":futures-sink-0.3.31",
         ":futures-task-0.3.31",
@@ -2202,9 +2253,33 @@ third_party_rust.rust_library(
     },
     features = [
         "alloc",
+        "default",
         "std",
     ],
     visibility = [],
+)
+
+http_archive(
+    name = "futures-executor-0.3.31.crate",
+    sha256 = "1e28d1d997f585e54aebc3f97d39e72338912123a67330d723fdbb564d646c9f",
+    strip_prefix = "futures-executor-0.3.31",
+    urls = ["https://static.crates.io/crates/futures-executor/0.3.31/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "futures-executor-0.3.31",
+    srcs = [":futures-executor-0.3.31.crate"],
+    crate = "futures_executor",
+    crate_root = "futures-executor-0.3.31.crate/src/lib.rs",
+    edition = "2018",
+    features = ["std"],
+    visibility = [],
+    deps = [
+        ":futures-core-0.3.31",
+        ":futures-task-0.3.31",
+        ":futures-util-0.3.31",
+    ],
 )
 
 http_archive(
@@ -2221,8 +2296,34 @@ third_party_rust.rust_library(
     crate = "futures_io",
     crate_root = "futures-io-0.3.31.crate/src/lib.rs",
     edition = "2018",
-    features = ["std"],
+    features = [
+        "default",
+        "std",
+    ],
     visibility = [],
+)
+
+http_archive(
+    name = "futures-macro-0.3.31.crate",
+    sha256 = "162ee34ebcb7c64a8abebc059ce0fee27c2262618d7b60ed8faf72fef13c3650",
+    strip_prefix = "futures-macro-0.3.31",
+    urls = ["https://static.crates.io/crates/futures-macro/0.3.31/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "futures-macro-0.3.31",
+    srcs = [":futures-macro-0.3.31.crate"],
+    crate = "futures_macro",
+    crate_root = "futures-macro-0.3.31.crate/src/lib.rs",
+    edition = "2018",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1.0.92",
+        ":quote-1.0.38",
+        ":syn-2.0.95",
+    ],
 )
 
 http_archive(
@@ -2241,6 +2342,7 @@ third_party_rust.rust_library(
     edition = "2018",
     features = [
         "alloc",
+        "default",
         "std",
     ],
     visibility = [],
@@ -2309,21 +2411,30 @@ third_party_rust.rust_library(
     },
     features = [
         "alloc",
+        "async-await",
+        "async-await-macro",
         "channel",
+        "compat",
         "futures-channel",
         "futures-io",
+        "futures-macro",
         "futures-sink",
+        "futures_01",
         "io",
         "memchr",
         "sink",
         "slab",
         "std",
     ],
+    named_deps = {
+        "futures_01": ":futures-0.1.31",
+    },
     visibility = [],
     deps = [
         ":futures-channel-0.3.31",
         ":futures-core-0.3.31",
         ":futures-io-0.3.31",
+        ":futures-macro-0.3.31",
         ":futures-sink-0.3.31",
         ":futures-task-0.3.31",
         ":memchr-2.7.4",
@@ -3703,6 +3814,48 @@ third_party_rust.rust_library(
     crate_root = "memoffset-0.6.5.crate/src/lib.rs",
     edition = "2015",
     features = ["default"],
+    visibility = [],
+)
+
+http_archive(
+    name = "mio-1.0.3.crate",
+    sha256 = "2886843bf800fba2e3377cff24abf6379b4c4d5c6681eaf9ea5b0d15090450bd",
+    strip_prefix = "mio-1.0.3",
+    urls = ["https://static.crates.io/crates/mio/1.0.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "mio-1.0.3",
+    srcs = [":mio-1.0.3.crate"],
+    crate = "mio",
+    crate_root = "mio-1.0.3.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "net",
+        "os-ext",
+        "os-poll",
+    ],
+    platform = {
+        "linux-arm64": dict(
+            deps = [":libc-0.2.171"],
+        ),
+        "linux-x86_64": dict(
+            deps = [":libc-0.2.171"],
+        ),
+        "macos-arm64": dict(
+            deps = [":libc-0.2.171"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":libc-0.2.171"],
+        ),
+        "windows-gnu": dict(
+            deps = [":windows-sys-0.52.0"],
+        ),
+        "windows-msvc": dict(
+            deps = [":windows-sys-0.52.0"],
+        ),
+    },
     visibility = [],
 )
 
@@ -5338,6 +5491,54 @@ third_party_rust.rust_library(
 )
 
 http_archive(
+    name = "serde_bser-0.4.0.crate",
+    sha256 = "a56b4bcc15e42e5b5ae16c6f75582bef80d36c6ffe2c03b1b5317754b38f8717",
+    strip_prefix = "serde_bser-0.4.0",
+    urls = ["https://static.crates.io/crates/serde_bser/0.4.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "serde_bser-0.4.0",
+    srcs = [":serde_bser-0.4.0.crate"],
+    crate = "serde_bser",
+    crate_root = "serde_bser-0.4.0.crate/src/lib.rs",
+    edition = "2021",
+    features = ["default"],
+    visibility = [],
+    deps = [
+        ":anyhow-1.0.97",
+        ":byteorder-1.5.0",
+        ":bytes-1.10.1",
+        ":serde-1.0.219",
+        ":serde_bytes-0.11.17",
+        ":thiserror-1.0.69",
+    ],
+)
+
+http_archive(
+    name = "serde_bytes-0.11.17.crate",
+    sha256 = "8437fd221bde2d4ca316d61b90e337e9e702b3820b87d63caa9ba6c02bd06d96",
+    strip_prefix = "serde_bytes-0.11.17",
+    urls = ["https://static.crates.io/crates/serde_bytes/0.11.17/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "serde_bytes-0.11.17",
+    srcs = [":serde_bytes-0.11.17.crate"],
+    crate = "serde_bytes",
+    crate_root = "serde_bytes-0.11.17.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "default",
+        "std",
+    ],
+    visibility = [],
+    deps = [":serde-1.0.219"],
+)
+
+http_archive(
     name = "serde_derive-1.0.219.crate",
     sha256 = "5b0276cf7f2c73365f7157c8123c21cd9a50fbbd844757af28ca1f5925fc2a00",
     strip_prefix = "serde_derive-1.0.219",
@@ -5463,6 +5664,24 @@ third_party_rust.rust_library(
 )
 
 http_archive(
+    name = "signal-hook-registry-1.4.5.crate",
+    sha256 = "9203b8055f63a2a00e2f593bb0510367fe707d7ff1e5c872de2f537b339e5410",
+    strip_prefix = "signal-hook-registry-1.4.5",
+    urls = ["https://static.crates.io/crates/signal-hook-registry/1.4.5/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "signal-hook-registry-1.4.5",
+    srcs = [":signal-hook-registry-1.4.5.crate"],
+    crate = "signal_hook_registry",
+    crate_root = "signal-hook-registry-1.4.5.crate/src/lib.rs",
+    edition = "2015",
+    visibility = [],
+    deps = [":libc-0.2.171"],
+)
+
+http_archive(
     name = "similar-2.7.0.crate",
     sha256 = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa",
     strip_prefix = "similar-2.7.0",
@@ -5566,6 +5785,44 @@ third_party_rust.rust_library(
     crate_root = "smallvec-1.15.0.crate/src/lib.rs",
     edition = "2018",
     features = ["const_generics"],
+    visibility = [],
+)
+
+http_archive(
+    name = "socket2-0.5.9.crate",
+    sha256 = "4f5fd57c80058a56cf5c777ab8a126398ece8e442983605d280a44ce79d0edef",
+    strip_prefix = "socket2-0.5.9",
+    urls = ["https://static.crates.io/crates/socket2/0.5.9/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "socket2-0.5.9",
+    srcs = [":socket2-0.5.9.crate"],
+    crate = "socket2",
+    crate_root = "socket2-0.5.9.crate/src/lib.rs",
+    edition = "2021",
+    features = ["all"],
+    platform = {
+        "linux-arm64": dict(
+            deps = [":libc-0.2.171"],
+        ),
+        "linux-x86_64": dict(
+            deps = [":libc-0.2.171"],
+        ),
+        "macos-arm64": dict(
+            deps = [":libc-0.2.171"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":libc-0.2.171"],
+        ),
+        "windows-gnu": dict(
+            deps = [":windows-sys-0.52.0"],
+        ),
+        "windows-msvc": dict(
+            deps = [":windows-sys-0.52.0"],
+        ),
+    },
     visibility = [],
 )
 
@@ -6358,6 +6615,244 @@ third_party_rust.rust_library(
 )
 
 http_archive(
+    name = "tokio-1.45.0.crate",
+    sha256 = "2513ca694ef9ede0fb23fe71a4ee4107cb102b9dc1930f6d0fd77aae068ae165",
+    strip_prefix = "tokio-1.45.0",
+    urls = ["https://static.crates.io/crates/tokio/1.45.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "tokio-1.45.0",
+    srcs = [":tokio-1.45.0.crate"],
+    crate = "tokio",
+    crate_root = "tokio-1.45.0.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "bytes",
+        "default",
+        "fs",
+        "full",
+        "io-std",
+        "io-util",
+        "libc",
+        "macros",
+        "mio",
+        "net",
+        "parking_lot",
+        "process",
+        "rt",
+        "rt-multi-thread",
+        "signal",
+        "signal-hook-registry",
+        "socket2",
+        "sync",
+        "test-util",
+        "time",
+        "tokio-macros",
+        "tokio_track_caller",
+        "windows-sys",
+    ],
+    platform = {
+        "linux-arm64": dict(
+            deps = [
+                ":libc-0.2.171",
+                ":signal-hook-registry-1.4.5",
+                ":socket2-0.5.9",
+            ],
+        ),
+        "linux-x86_64": dict(
+            deps = [
+                ":libc-0.2.171",
+                ":signal-hook-registry-1.4.5",
+                ":socket2-0.5.9",
+            ],
+        ),
+        "macos-arm64": dict(
+            deps = [
+                ":libc-0.2.171",
+                ":signal-hook-registry-1.4.5",
+                ":socket2-0.5.9",
+            ],
+        ),
+        "macos-x86_64": dict(
+            deps = [
+                ":libc-0.2.171",
+                ":signal-hook-registry-1.4.5",
+                ":socket2-0.5.9",
+            ],
+        ),
+        "windows-gnu": dict(
+            deps = [
+                ":socket2-0.5.9",
+                ":windows-sys-0.52.0",
+            ],
+        ),
+        "windows-msvc": dict(
+            deps = [
+                ":socket2-0.5.9",
+                ":windows-sys-0.52.0",
+            ],
+        ),
+    },
+    rustc_flags = [
+        "--cfg=tokio_track_caller",
+        "--cfg=tokio_unstable",
+    ],
+    visibility = [],
+    deps = [
+        ":bytes-1.10.1",
+        ":mio-1.0.3",
+        ":parking_lot-0.12.3",
+        ":pin-project-lite-0.2.16",
+        ":tokio-macros-2.5.0",
+        ":tracing",
+    ],
+)
+
+http_archive(
+    name = "tokio-macros-2.5.0.crate",
+    sha256 = "6e06d43f1345a3bcd39f6a56dbb7dcab2ba47e68e8ac134855e7e2bdbaf8cab8",
+    strip_prefix = "tokio-macros-2.5.0",
+    urls = ["https://static.crates.io/crates/tokio-macros/2.5.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "tokio-macros-2.5.0",
+    srcs = [":tokio-macros-2.5.0.crate"],
+    crate = "tokio_macros",
+    crate_root = "tokio-macros-2.5.0.crate/src/lib.rs",
+    edition = "2021",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1.0.92",
+        ":quote-1.0.38",
+        ":syn-2.0.95",
+    ],
+)
+
+http_archive(
+    name = "tokio-util-0.6.10.crate",
+    sha256 = "36943ee01a6d67977dd3f84a5a1d2efeb4ada3a1ae771cadfaa535d9d9fc6507",
+    strip_prefix = "tokio-util-0.6.10",
+    urls = ["https://static.crates.io/crates/tokio-util/0.6.10/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "tokio-util-0.6.10",
+    srcs = [":tokio-util-0.6.10.crate"],
+    crate = "tokio_util",
+    crate_root = "tokio-util-0.6.10.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "codec",
+        "compat",
+        "default",
+        "full",
+        "futures-io",
+        "io",
+        "io-util",
+        "net",
+        "rt",
+        "slab",
+        "time",
+    ],
+    visibility = [],
+    deps = [
+        ":bytes-1.10.1",
+        ":futures-core-0.3.31",
+        ":futures-io-0.3.31",
+        ":futures-sink-0.3.31",
+        ":log-0.4.22",
+        ":pin-project-lite-0.2.16",
+        ":slab-0.4.9",
+        ":tokio-1.45.0",
+    ],
+)
+
+alias(
+    name = "tracing",
+    actual = ":tracing-0.1.41",
+    visibility = ["PUBLIC"],
+)
+
+http_archive(
+    name = "tracing-0.1.41.crate",
+    sha256 = "784e0ac535deb450455cbfa28a6f0df145ea1bb7ae51b821cf5e7927fdcfbdd0",
+    strip_prefix = "tracing-0.1.41",
+    urls = ["https://static.crates.io/crates/tracing/0.1.41/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "tracing-0.1.41",
+    srcs = [":tracing-0.1.41.crate"],
+    crate = "tracing",
+    crate_root = "tracing-0.1.41.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "attributes",
+        "default",
+        "std",
+        "tracing-attributes",
+    ],
+    visibility = [],
+    deps = [
+        ":pin-project-lite-0.2.16",
+        ":tracing-attributes-0.1.28",
+        ":tracing-core-0.1.33",
+    ],
+)
+
+http_archive(
+    name = "tracing-attributes-0.1.28.crate",
+    sha256 = "395ae124c09f9e6918a2310af6038fba074bcf474ac352496d5910dd59a2226d",
+    strip_prefix = "tracing-attributes-0.1.28",
+    urls = ["https://static.crates.io/crates/tracing-attributes/0.1.28/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "tracing-attributes-0.1.28",
+    srcs = [":tracing-attributes-0.1.28.crate"],
+    crate = "tracing_attributes",
+    crate_root = "tracing-attributes-0.1.28.crate/src/lib.rs",
+    edition = "2018",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1.0.92",
+        ":quote-1.0.38",
+        ":syn-2.0.95",
+    ],
+)
+
+http_archive(
+    name = "tracing-core-0.1.33.crate",
+    sha256 = "e672c95779cf947c5311f83787af4fa8fffd12fb27e4993211a84bdfd9610f9c",
+    strip_prefix = "tracing-core-0.1.33",
+    urls = ["https://static.crates.io/crates/tracing-core/0.1.33/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "tracing-core-0.1.33",
+    srcs = [":tracing-core-0.1.33.crate"],
+    crate = "tracing_core",
+    crate_root = "tracing-core-0.1.33.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "once_cell",
+        "std",
+    ],
+    visibility = [],
+    deps = [":once_cell-1.21.3"],
+)
+
+http_archive(
     name = "typenum-1.18.0.crate",
     sha256 = "1dccffe3ce07af9386bfd29e80c0ab1a8205a2fc34e4bcd40364df902cfa8f3f",
     strip_prefix = "typenum-1.18.0",
@@ -6635,6 +7130,48 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
+alias(
+    name = "watchman_client",
+    actual = ":watchman_client-0.9.0",
+    visibility = ["PUBLIC"],
+)
+
+http_archive(
+    name = "watchman_client-0.9.0.crate",
+    sha256 = "88bc4c9bb443a7aae10d4fa7807bffc397805315e2305288c90c80e2f66cfb52",
+    strip_prefix = "watchman_client-0.9.0",
+    urls = ["https://static.crates.io/crates/watchman_client/0.9.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "watchman_client-0.9.0",
+    srcs = [":watchman_client-0.9.0.crate"],
+    crate = "watchman_client",
+    crate_root = "watchman_client-0.9.0.crate/src/lib.rs",
+    edition = "2021",
+    platform = {
+        "windows-gnu": dict(
+            deps = [":winapi-0.3.9"],
+        ),
+        "windows-msvc": dict(
+            deps = [":winapi-0.3.9"],
+        ),
+    },
+    visibility = [],
+    deps = [
+        ":anyhow-1.0.97",
+        ":bytes-1.10.1",
+        ":futures-0.3.31",
+        ":maplit-1.0.2",
+        ":serde-1.0.219",
+        ":serde_bser-0.4.0",
+        ":thiserror-1.0.69",
+        ":tokio-1.45.0",
+        ":tokio-util-0.6.10",
+    ],
+)
+
 http_archive(
     name = "winapi-0.3.9.crate",
     sha256 = "5c839a674fcd7a98952e593242ea400abe93992746761e38641405d28b00f419",
@@ -6662,6 +7199,7 @@ third_party_rust.rust_library(
         "winbase",
         "wincon",
         "winerror",
+        "winuser",
     ],
     platform = {
         "windows-gnu": dict(
@@ -6688,6 +7226,7 @@ third_party_rust.rust_binary(
         "winbase",
         "wincon",
         "winerror",
+        "winuser",
     ],
     visibility = [],
 )
@@ -6706,6 +7245,7 @@ third_party_rust.buildscript_run(
         "winbase",
         "wincon",
         "winerror",
+        "winuser",
     ],
     version = "0.3.9",
 )
@@ -6797,12 +7337,26 @@ third_party_rust.rust_library(
     crate_root = "windows-sys-0.52.0.crate/src/lib.rs",
     edition = "2021",
     features = [
+        "Wdk",
+        "Wdk_Foundation",
+        "Wdk_Storage",
+        "Wdk_Storage_FileSystem",
+        "Wdk_System",
+        "Wdk_System_IO",
         "Win32",
         "Win32_Foundation",
+        "Win32_Networking",
+        "Win32_Networking_WinSock",
         "Win32_Security",
+        "Win32_Storage",
+        "Win32_Storage_FileSystem",
         "Win32_System",
         "Win32_System_Console",
+        "Win32_System_IO",
+        "Win32_System_Pipes",
+        "Win32_System_SystemServices",
         "Win32_System_Threading",
+        "Win32_System_WindowsProgramming",
         "Win32_UI",
         "Win32_UI_Input",
         "Win32_UI_Input_KeyboardAndMouse",
