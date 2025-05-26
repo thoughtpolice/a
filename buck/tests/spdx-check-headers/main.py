@@ -21,6 +21,7 @@ BAD_PREFIXES = [
     # buck stuff: fixups, etc
     "buck/third-party/",
     "buck/prelude/",
+    "cellar/bootstrap",
 ]
 
 BAD_SUFFIXES = [
@@ -100,6 +101,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".S": cxx_style_header,
         ".ld": old_cxx_style_header,
         ".ml": ocaml_style_header,
+        ".yaml": bzl_style_header,
     }
 
     file_ext = None

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
 # Things in the cellar are musty and dirty and old, and are not allowed to be
 # depended on by non-cellar code.
 
