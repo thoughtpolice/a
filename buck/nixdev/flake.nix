@@ -56,10 +56,10 @@
         ]) ++ (with ocamlPackages; [
           ocaml
         ]) ++ (with pkgs; [
+          # general utilities
+          gdb qemu swtpm dotslash
           # vscode support
           nodejs
-          # general tools
-          gdb qemu swtpm
           # cargo tools
           cargo-edit
           # other stuff
