@@ -26,7 +26,6 @@ def __download_file(ctx: AnalysisContext) -> list[Provider]:
         output,
         ctx.attrs.urls[0],
         sha256 = hash,
-        is_deferrable = True,
     )
 
     return [
