@@ -134,7 +134,7 @@ async function targetsAtRevision(
 
     // Run supertd targets command with the specified cell patterns
     console.error(`Running supertd targets for ${revision}...`);
-    const supertdArgs = ["targets", ...targetPatterns];
+    const supertdArgs = ["targets", "--isolation-dir", ".quicktd", ...targetPatterns];
     const supertdCmd = new Deno.Command("sh", {
       args: ["-c", `cd ${workspacePath} && supertd ${supertdArgs.join(" ")}`],
     });
@@ -201,6 +201,8 @@ async function runBtd(
   const command = new Deno.Command("supertd", {
     args: [
       "btd",
+      "--isolation-dir",
+      ".quicktd",
       "--json-lines",
       "--base",
       join(tempDir, "base.jsonl"),

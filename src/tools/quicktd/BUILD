@@ -7,6 +7,6 @@ deno.binary(
     name="quicktd",
     main="main.ts",
     type="run",
-    permissions=["read", "net"],
+    permissions=["read", "write", "run", "env"],
     visibility=["PUBLIC"],
 )
