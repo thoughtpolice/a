@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2025 Benjamin Brittain
+# SPDX-License-Identifier: Apache-2.0
+
 load(":toolchain.bzl", "TarToolchainInfo")
 
 def _tar_file_impl(ctx: AnalysisContext) -> list[Provider]:

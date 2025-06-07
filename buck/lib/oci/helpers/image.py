@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2025 Benjamin Brittain
+# SPDX-License-Identifier: Apache-2.0
+
 import argparse
 from io import BufferedRandom
 import subprocess
