@@ -9,13 +9,13 @@ load("@root//buck/lib/oci:defs.bzl", "oci_image", "oci_pull", "oci_push")
 
 # MARK: Basic shims
 
-depot_VERSION = '2025.0+0'
+DEPOT_VERSION = '2025.0+0'
 
 # wrap native.rust_*, but provide some extra default args
 def _depot_rust_rule(rule_name: str, **kwargs):
     edition = kwargs.pop('edition', '2021')
     env = {
-        'depot_VERSION': depot_VERSION,
+        'DEPOT_VERSION': DEPOT_VERSION,
     } | kwargs.pop('env', {})
     rustc_flags = [
         #'--cfg=buck_build',
