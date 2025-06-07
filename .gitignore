@@ -6,3 +6,5 @@
 
 *.pending-snap
 .gdb_history
+
+CLAUDE.local.md
