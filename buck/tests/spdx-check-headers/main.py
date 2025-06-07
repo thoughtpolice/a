@@ -53,6 +53,8 @@ BAD_FILES = [
     # REASON FIXME TODO (aseipp): this file is technically MIT and not
     # Apache-2.0, and it has a modified copyright year.
     "buck/third-party/mimalloc/rust/lib.rs",
+    # REASON: standard license text files don't need SPDX headers
+    "buck/lib/oci/LICENSE",
 ]
 
 
@@ -63,49 +65,43 @@ def eprint(*args, **kwargs):
 # MARK: SPDX check
 def has_spdx_header(file: str, lines: list[str]) -> bool:
     years = "2024-2025"
-    bzl_style_header = [
-        "# SPDX-FileCopyrightText: © {} ".format(years),
-        "# SPDX-License-Identifier: Apache-2.0",
-    ]
+    
+    # Define comment styles
+    bzl_style_copyright = "# SPDX-FileCopyrightText: © {} ".format(years)
+    bzl_style_license = "# SPDX-License-Identifier: Apache-2.0"
+    
+    cxx_style_copyright = "// SPDX-FileCopyrightText: © {} ".format(years)
+    cxx_style_license = "// SPDX-License-Identifier: Apache-2.0"
+    
+    old_cxx_style_copyright = "/* SPDX-FileCopyrightText: © {} ".format(years)
+    old_cxx_style_license = "/* SPDX-License-Identifier: Apache-2.0 */"
+    
+    ocaml_style_copyright = "(* SPDX-FileCopyrightText: © {} ".format(years)
+    ocaml_style_license = "(* SPDX-License-Identifier: Apache-2.0 *)"
 
-    cxx_style_header = [
-        "// SPDX-FileCopyrightText: © {} ".format(years),
-        "// SPDX-License-Identifier: Apache-2.0",
-    ]
-
-    old_cxx_style_header = [
-        "/* SPDX-FileCopyrightText: © {} ".format(years),
-        "/* SPDX-License-Identifier: Apache-2.0 */",
-    ]
-
-    ocaml_style_header = [
-        "(* SPDX-FileCopyrightText: © {} ".format(years),
-        "(* SPDX-License-Identifier: Apache-2.0 *)",
-    ]
-
-    file_matches = {
-        ".py": bzl_style_header,
-        "BUILD": bzl_style_header,
-        "PACKAGE": bzl_style_header,
-        ".bzl": bzl_style_header,
-        ".bxl": bzl_style_header,
-        ".rs": cxx_style_header,
-        ".cpp": cxx_style_header,
-        ".hpp": cxx_style_header,
-        ".h": cxx_style_header,
-        ".c": cxx_style_header,
-        ".ts": cxx_style_header,
-        ".js": cxx_style_header,
-        ".nix": bzl_style_header,
-        ".capnp": bzl_style_header,
-        ".S": cxx_style_header,
-        ".ld": old_cxx_style_header,
-        ".ml": ocaml_style_header,
-        ".yaml": bzl_style_header,
+    file_styles = {
+        ".py": (bzl_style_copyright, bzl_style_license),
+        "BUILD": (bzl_style_copyright, bzl_style_license),
+        "PACKAGE": (bzl_style_copyright, bzl_style_license),
+        ".bzl": (bzl_style_copyright, bzl_style_license),
+        ".bxl": (bzl_style_copyright, bzl_style_license),
+        ".rs": (cxx_style_copyright, cxx_style_license),
+        ".cpp": (cxx_style_copyright, cxx_style_license),
+        ".hpp": (cxx_style_copyright, cxx_style_license),
+        ".h": (cxx_style_copyright, cxx_style_license),
+        ".c": (cxx_style_copyright, cxx_style_license),
+        ".ts": (cxx_style_copyright, cxx_style_license),
+        ".js": (cxx_style_copyright, cxx_style_license),
+        ".nix": (bzl_style_copyright, bzl_style_license),
+        ".capnp": (bzl_style_copyright, bzl_style_license),
+        ".S": (cxx_style_copyright, cxx_style_license),
+        ".ld": (old_cxx_style_copyright, old_cxx_style_license),
+        ".ml": (ocaml_style_copyright, ocaml_style_license),
+        ".yaml": (bzl_style_copyright, bzl_style_license),
     }
 
     file_ext = None
-    for key, value in file_matches.items():
+    for key in file_styles.keys():
         if file == key or file.endswith(key):
             file_ext = key
             break
@@ -113,17 +109,29 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         eprint(f"Error: {file} is an unknown file type, hard failing!")
         return False
 
-    matches = file_matches[file_ext]
-    for i, line in enumerate(lines):
-        if i >= len(matches):
+    copyright_prefix, license_line = file_styles[file_ext]
+    
+    # Look for one or more copyright lines followed by license line
+    i = 0
+    copyright_found = False
+    
+    # Check for at least one copyright line
+    while i < len(lines):
+        line = lines[i].strip()
+        if line.startswith(copyright_prefix):
+            copyright_found = True
+            i += 1
+        else:
             break
-        line = line.strip()
-
-        # TODO FIXME (aseipp): match the actual name exactly rather than a
-        # prefix match; this is for flexibility, right now.
-        if not line.strip().startswith(matches[i]):
-            eprint(f"Error: {file} does not have the correct SPDX header!")
-            return False
+    
+    if not copyright_found:
+        eprint(f"Error: {file} does not have the correct SPDX header!")
+        return False
+    
+    # Check for license line
+    if i >= len(lines) or not lines[i].strip().startswith(license_line):
+        eprint(f"Error: {file} does not have the correct SPDX header!")
+        return False
 
     return True
 
