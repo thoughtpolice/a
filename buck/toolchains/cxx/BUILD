@@ -79,10 +79,6 @@ link_flags = select({
 
         "config//os:macos": [
             # on macOS, use the new parallel linker
-            "-fuse-ld=/usr/bin/ld",
-            "-ld_new",
-            "-framework",
-            "Security",
         ],
 
         # on Windows, suffer

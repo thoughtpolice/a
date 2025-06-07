@@ -22,7 +22,7 @@ rustc_target_triple = select({
     'toolchains//cfg/target:x86_64-unknown-linux-gnu': 'x86_64-unknown-linux-gnu',
     'toolchains//cfg/target:aarch64-unknown-uefi': 'aarch64-unknown-uefi',
     'toolchains//cfg/target:aarch64-unknown-linux-gnu': 'aarch64-unknown-linux-gnu',
-    'DEFAULT': 'x86_64-unknown-linux-gnu',
+    'DEFAULT': '',
 })
 
 rustc_flags = select({
@@ -39,9 +39,7 @@ rustc_flags = select({
         '-Coverflow-checks=false',
     ] + select({
         'toolchains//cfg/target:x86_64-unknown-uefi': [ '-Copt-level=z' ],
-        'toolchains//cfg/target:x86_64-unknown-linux-gnu': [ '-Copt-level=z' ],
         'toolchains//cfg/target:aarch64-unknown-uefi': [ '-Copt-level=z' ],
-        'toolchains//cfg/target:aarch64-unknown-linux-gnu': [ '-Copt-level=z' ],
         'DEFAULT': [ '-Copt-level=3' ],
     }),
 })
