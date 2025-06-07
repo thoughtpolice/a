@@ -1,0 +1,23 @@
+{
+  "lsp": {
+    "rust-analyzer": {
+      "initialization_options": {
+        "check": {
+          "overrideCommand": ["rust-project", "check", "$saved_file"]
+        },
+        "workspace": {
+          "discoverConfig": {
+            "command": [
+              "rust-project",
+              "develop-json",
+              "--sysroot-mode=rustc",
+              "{arg}"
+            ],
+            "progressLabel": "rust-analyzer[buck2]",
+            "filesToWatch": ["BUILD", "PACKAGE"]
+          }
+        }
+      }
+    }
+  }
+}
