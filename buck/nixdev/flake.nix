@@ -22,32 +22,21 @@
         crossSystem = { config = "aarch64-unknown-linux-gnu"; };
       };
 
-      ourRustVersion = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.complete.override {
-        targets =
-          [ "x86_64-unknown-linux-gnu"  "x86_64-unknown-uefi"
-            "aarch64-unknown-linux-gnu" "aarch64-unknown-uefi"
-          ];
-      });
+      ourRustVersion = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.complete);
 
       llvmPackages = pkgs.llvmPackages_latest;
-
       ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_3;
 
       # these are needed in both devShell and buildInputs
-      darwinDeps = with pkgs; lib.optionals stdenv.isDarwin [
-        darwin.apple_sdk.frameworks.Security
-        darwin.apple_sdk.frameworks.SystemConfiguration
-        libiconv
-      ];
+      darwinDeps = with pkgs; lib.optionals stdenv.isDarwin [ ];
 
       # these are needed in both devShell and buildInputs
-      linuxDeps = with pkgs; [
+      linuxDeps = with pkgs; lib.optionals stdenv.isLinux [
         mold-wrapped
       ];
     in {
       devShells.default = pkgs.mkShell {
         packages = (with llvmPackages; [
-          ourRustVersion
           lld
           clang
           clang-tools
@@ -56,6 +45,7 @@
         ]) ++ (with ocamlPackages; [
           ocaml
         ]) ++ (with pkgs; [
+          ourRustVersion
           # general utilities
           gdb qemu swtpm dotslash
           # vscode support
@@ -72,15 +62,8 @@
 
           export RUST_BACKTRACE=1
           export RUSTFLAGS="-Zthreads=0"
-
         '' + lib.optionalString stdenv.isLinux ''
           export RUSTFLAGS+=" -C link-arg=-fuse-ld=mold -C link-arg=-Wl,--compress-debug-sections=zstd"
-
-        '' + lib.optionalString stdenv.isDarwin ''
-          # work around https://github.com/nextest-rs/nextest/issues/267
-          export DYLD_FALLBACK_LIBRARY_PATH=$(${ourRustVersion}/bin/rustc --print sysroot)/lib
-          # use new fast macOS linker
-          export RUSTFLAGS+=" -C link-arg=-fuse-ld=/usr/bin/ld -C link-arg=-ld_new"
         '';
       };
     });
