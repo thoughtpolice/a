@@ -55,11 +55,11 @@ jobs:
       - name: buck2 build ...
         shell: bash
         run: |
-          buck2 build -c ci.depot_gha_ci=true @mode//debug third-party//... root//...
+          buck2 build -c ci.depot_gha_ci=true @mode//debug root//...
       - name: buck2 test ...
         shell: bash
         run: |
-          buck2 test -c ci.depot_gha_ci=true @mode//debug third-party//... root//... -- \
+          buck2 test -c ci.depot_gha_ci=true @mode//debug root//... -- \
             --env SEMGREP_ENABLE_VERSION_CHECK=0
       - name: Upload build logs
         if: always()
