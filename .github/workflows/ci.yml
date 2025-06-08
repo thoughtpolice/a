@@ -10,7 +10,7 @@ permissions: read-all
 
 jobs:
   build:
-    name: Build and Test
+    name: integrate
     strategy:
       fail-fast: false
       matrix:
@@ -76,7 +76,7 @@ jobs:
         run: buck2 run //src/tools/buck2-logs:upload -- --host https://buck2-logs.deno.dev
 
   zizmor:
-    name: Zizmor Security Check
+    name: zizmor
     runs-on: ubuntu-24.04
     permissions:
       security-events: write
