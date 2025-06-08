@@ -6,7 +6,9 @@ on:
       - canon
   pull_request:
 
-permissions: read-all
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   build:
@@ -72,13 +74,39 @@ jobs:
         shell: bash
         run: buck2 run //src/tools/buck2-logs:upload -- --host https://buck2-logs.deno.dev
 
-  # dry run for target determination. TODO FIXME (aseipp): wire this up to the
-  # main CI fixture later after refinement.
+  # Target determination workflow - parallel to main build, non-fatal for smoke testing
   target-determination:
     name: target-determination
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5 # extra short window for now. replace later once th
+    continue-on-error: true # Non-fatal during transition period
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            abi: x86_64-unknown-linux-gnu
+          - os: macos-15
+            abi: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+
     steps:
+      - name: Install NodeJS
+        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
+        with:
+          node-version: "22"
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
+        with:
+          toolchain: 1.86
+      - name: (Linux) Install packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y mold b3sum
+          python3 -m pip install semgrep # sigh...
+      - name: (macOS) Install packages
+        if: runner.os == 'macOS'
+        run: |
+          brew install b3sum semgrep
       - name: Checkout repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
@@ -92,31 +120,113 @@ jobs:
       - name: Init jj repository
         shell: bash
         run: dotslash ./buck/bin/extra/jj git init --colocate
-      - name: Determine target changes
+
+      # Target Determination Step
+      - name: Determine affected targets
+        id: determine-targets
+        continue-on-error: true
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_COMMIT="${{ github.event.pull_request.base.sha }}"
             HEAD_COMMIT="${{ github.event.pull_request.head.sha }}"
           else
-            # for push events, compare against the previous commit. FIXME
-            # (aseipp): is there a way on direct pushes to compare to the
-            # relative previous HEAD?
+            # for push events, compare against the previous commit
             BASE_COMMIT="${{ github.event.before }}"
             HEAD_COMMIT="${{ github.sha }}"
           fi
-          
-          echo "Base commit: $BASE_COMMIT"
-          echo "Head commit: $HEAD_COMMIT" 
-          echo "\n\nDetermining impacted targets..."
-          TARGETS=$(buck2 run depot//src/tools/quicktd -- "$BASE_COMMIT" "$HEAD_COMMIT" depot//...)
 
-          echo "Affected targets:"
-          if [ -f "$TARGETS" ]; then
-            cat "$TARGETS"
+          echo "Base commit: $BASE_COMMIT"
+          echo "Head commit: $HEAD_COMMIT"
+          echo "Determining impacted targets..."
+
+          # Run target determination
+          TARGETS_FILE=$(buck2 run depot//src/tools/quicktd -- "$BASE_COMMIT" "$HEAD_COMMIT" depot//...)
+
+          if [ -f "$TARGETS_FILE" ] && [ -s "$TARGETS_FILE" ]; then
+            TARGET_COUNT=$(wc -l < "$TARGETS_FILE")
+            echo "target-file=$TARGETS_FILE" >> $GITHUB_OUTPUT
+            echo "target-count=$TARGET_COUNT" >> $GITHUB_OUTPUT
+            echo "targets-found=true" >> $GITHUB_OUTPUT
+            echo "Found $TARGET_COUNT affected targets"
+
+            # Check if target count is reasonable (less than 100 for efficiency)
+            if [ "$TARGET_COUNT" -le 100 ]; then
+              echo "reasonable-target-count=true" >> $GITHUB_OUTPUT
+              echo "Target count is reasonable, will proceed with targeted build"
+            else
+              echo "reasonable-target-count=false" >> $GITHUB_OUTPUT
+              echo "Target count ($TARGET_COUNT) is too high, will fall back to full build"
+            fi
           else
-            echo "No targets file generated or targets file is empty"
+            echo "targets-found=false" >> $GITHUB_OUTPUT
+            echo "reasonable-target-count=false" >> $GITHUB_OUTPUT
+            echo "No targets file generated or file is empty, will fall back to full build"
           fi
+
+      # Build Step - either targeted or full build
+      - name: Build affected targets
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ "${TARGETS_FOUND}" = "true" ] && [ "${REASONABLE_TARGET_COUNT}" = "true" ]; then
+            echo "Building targeted selection of ${TARGET_COUNT} targets"
+            buck2 build -c ci.depot_gha_ci=true @mode//debug @"${TARGET_FILE}"
+          else
+            echo "Falling back to full build"
+            buck2 build -c ci.depot_gha_ci=true @mode//debug root//...
+          fi
+        env:
+          TARGETS_FOUND: ${{ steps.determine-targets.outputs.targets-found }}
+          REASONABLE_TARGET_COUNT: ${{ steps.determine-targets.outputs.reasonable-target-count }}
+          TARGET_COUNT: ${{ steps.determine-targets.outputs.target-count }}
+          TARGET_FILE: ${{ steps.determine-targets.outputs.target-file }}
+
+      # Test Step - either targeted or full test
+      - name: Test affected targets
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ "${TARGETS_FOUND}" = "true" ] && [ "${REASONABLE_TARGET_COUNT}" = "true" ]; then
+            echo "Testing targeted selection of ${TARGET_COUNT} targets"
+            buck2 test -c ci.depot_gha_ci=true @mode//debug @"${TARGET_FILE}" -- \
+              --env SEMGREP_ENABLE_VERSION_CHECK=0
+          else
+            echo "Falling back to full test"
+            buck2 test -c ci.depot_gha_ci=true @mode//debug root//... -- \
+              --env SEMGREP_ENABLE_VERSION_CHECK=0
+          fi
+        env:
+          TARGETS_FOUND: ${{ steps.determine-targets.outputs.targets-found }}
+          REASONABLE_TARGET_COUNT: ${{ steps.determine-targets.outputs.reasonable-target-count }}
+          TARGET_COUNT: ${{ steps.determine-targets.outputs.target-count }}
+          TARGET_FILE: ${{ steps.determine-targets.outputs.target-file }}
+
+      # Upload build logs (same as main CI)
+      - name: Upload build logs
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: buck2 run //src/tools/buck2-logs:upload -- --host https://buck2-logs.deno.dev
+
+      # Summary step to report what happened
+      - name: Report target determination results
+        if: always()
+        shell: bash
+        run: |
+          echo "## Target Determination Summary"
+          echo "- OS: ${MATRIX_OS} (${MATRIX_ABI})"
+          echo "- Targets found: ${TARGETS_FOUND}"
+          if [ "${TARGETS_FOUND}" = "true" ]; then
+            echo "- Target count: ${TARGET_COUNT}"
+            echo "- Used targeted build: ${REASONABLE_TARGET_COUNT}"
+          fi
+        env:
+          MATRIX_OS: ${{ matrix.os }}
+          MATRIX_ABI: ${{ matrix.abi }}
+          TARGETS_FOUND: ${{ steps.determine-targets.outputs.targets-found }}
+          TARGET_COUNT: ${{ steps.determine-targets.outputs.target-count }}
+          REASONABLE_TARGET_COUNT: ${{ steps.determine-targets.outputs.reasonable-target-count }}
 
   zizmor:
     name: zizmor
