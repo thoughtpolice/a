@@ -15,7 +15,7 @@ from pathlib import Path
 def main():
     """Check all dotslash files in buck/bin directory"""
 
-    # Find the repository root by looking for .buckconfig
+    # Find the repository root by looking for .buckroot
     current_dir = Path(__file__).parent
     repo_root = current_dir
     while repo_root != repo_root.parent:
