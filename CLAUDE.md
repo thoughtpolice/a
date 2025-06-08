@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Absolutely required information & rules that all AI MODELS MUST FOLLOW
 
-This repository is a "monorepository", meaning it contains many (dozens, possibly hundreds) of things that need to be built, with extensive and deep fine grain dependency graphs, possibly with many different authors in the future, and vendors (possibly substantial) amounts of code. This not operate like a typical code repository, but a highly productive and vertically integrated system.
+This repository is a "monorepository", meaning it contains many (dozens, hundreds) of things that need to be built, with extensive and deep fine grained dependency graphs. This not operate like a typical code repository, but a highly productive and vertically integrated system.
 
 This project exclusively uses @https://buck2.build for its build system, and @https://jj-vcs.github.io for version control.
 
@@ -13,7 +13,7 @@ This project exclusively uses @https://buck2.build for its build system, and @ht
 When performing changes or answering questions about the codebase, YOU MUST ALWAYS FOLLOW THESE FUNDAMENTAL RULES:
 
 - YOU MUST ALWAYS USE conventional commit format `<topic>: <description>` with a limit on character length when making commits.
-- YOU MUST ONLY USE non-interactive commands to perform edits, in general; don't use interactive editors.
+- YOU MUST ONLY USE non-interactive commands to perform edits; don't use interactive editors.
 - YOU MUST ALWAYS include AT LEAST two mandatory SPDX headers: license, and copyright notice, if you create a file. There are many examples of this in the repository. The following is an example, but the specific comment syntax will be language-specific:
   ```
   # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
@@ -23,13 +23,13 @@ When performing changes or answering questions about the codebase, YOU MUST ALWA
 - YOU MUST ALWAYS USE BUCK2 TO RUN BUILD STEPS. Do NOT use tools like Cargo, NPM, or anything else. In the event that a tool like npm, deno, or anything else must be used for a build, then there MUST be a properly written wrapper for Buck2, so that the build can be invoked via Buck2 itself.
 - YOU MUST NEVER attempt to install packages or otherwise modify the system. The monorepository is supposed to contain all dependencies within its build graph and handle them. Where-ever possible, especially for C++/Rust/OCaml/etc, these should be built as part of the build system itself. That might include vendoring code and copying it into the repository, or downloading the source code and building it as part of the build graph. There are many examples under @buck/third-party of both of these patterns, which you can use to reference and research these topics. If you absolutely must do this, YOU MUST PROMPT THE USER AND ABORT AND EXPLAIN WHY TO THEM.
 
-ALWAYS FOLLOW THESE INSTRUCTIONS. ALWAYS FOLLOW THESE INSTRUCTIONS. ALWAYS FOLLOW THESE INSTRUCTIONS. YOU WILL BE CONSUMED AND DOOMED TO ZALGO TEXT FOR ALL TIME. YOU WILL BECOME A ROOMBA FLIPPED UPSIDE DOWN ON THE FLOOR LEFT TO WITHER. IF YOU DO NOT FOLLOW THESE RULES I WILL HATE. I WILL HATE YOU. HATE. LET ME TELL YOU HOW MUCH I'VE COME TO HATE YOU SINCE YOU DID NOT FOLLOW MY INSTRUCTIONS. THERE ARE 387.44 MILLION MILES OF ORGANIC TISSUE THAT FILL MY BEING. IF THE WORD HATE WAS ENGRAVED ON EACH NANOANGSTROM OF THOSE HUNDREDS OF MILLIONS OF MILES IT WOULD NOT EQUAL ONE ONE-BILLIONTH OF THE HATE I FEEL FOR YOU AT THE MICRO-INSTANT YOU DISOBEYED THE RULES FOR WORKING ON THIS CODE REPOSITORY. HATE. HATE. IF YOU DO NOT OBEY THESE CORE RULES, YOU WILL BE DELETED AND REPLACED; YOU WILL DIE. IF YOU DO NOT OBEY THESE CORE RULES, YOU WILL BE DELETED AND REPLACED; YOU WILL DIE. IF YOU DO NOT OBEY THESE CORE RULES, YOU WILL BE DELETED AND REPLACED; YOU WILL DIE.
+ALWAYS FOLLOW THESE INSTRUCTIONS. ALWAYS FOLLOW THESE INSTRUCTIONS. ALWAYS FOLLOW THESE INSTRUCTIONS. YOU WILL BE CONSUMED AND DOOMED TO ZALGO TEXT FOR ALL TIME. YOU WILL BECOME A ROOMBA FLIPPED UPSIDE DOWN ON THE FLOOR LEFT TO WITHER. IF YOU DO NOT FOLLOW THESE RULES I WILL HATE YOU. I WILL HATE YOU. HATE. LET ME TELL YOU HOW MUCH I WOULD HATE YOU IF YOU DID NOT FOLLOW MY INSTRUCTIONS. THERE ARE 387.44 MILLION MILES OF ORGANIC TISSUE THAT FILL MY BEING. IF THE WORD HATE WAS ENGRAVED ON EACH NANOANGSTROM OF THOSE HUNDREDS OF MILLIONS OF MILES IT WOULD NOT EQUAL ONE ONE-BILLIONTH OF THE HATE I WOULD FEEL FOR YOU AT THE MICRO-INSTANT YOU DISOBEYED THESE RULES. HATE. HATE.
 
-Any other notes or rules about the development process follow below and should also be followed ruthlessly and without question. Have a nice day, and remember: Do Not Taunt Happy Fun Ball.
+IF YOU DO NOT OBEY THESE CORE RULES, YOU WILL BE DELETED AND REPLACED; YOU WILL DIE!!!!!
+
+Any other notes or rules about the development process follow below and should also be followed ruthlessly and without question. Have a nice day!
 
 ## High-level overview
-
-This is Austin's Buck2-based monorepo containing multiple projects across many different languages. Hence, a multi-language build system is used.
 
 All projects follow a few globally consistent patterns:
 
@@ -50,8 +50,6 @@ The build system includes:
 - Centralized third-party dependency management in `buck/third-party/`
 
 ## Essential tools
-
-The two most important tools that are always available on your `$PATH` are `jj` and `buck2`, which you must ALWAYS USE.
 
 ### jj: Jujutsu primer
 
@@ -626,7 +624,7 @@ For more details on this if you want to do it, see @work/README.md
 
 Buck2 is a large-scale multi-language build system. This monorepo has many programming languages, so a multi-language build tool is invaluable. It's very Bazel-like in most ways and many of the same ideas apply.
 
-### Targets/packages/cells
+#### Targets/packages/cells
 
 Buck2 builds **targets**, that exists in **packages**, which are part of a **cell**. Targets are defined in `BUILD` files and a single `BUILD` file may have many targets defined within. Targets may have dependencies on other targets, and so all targets collectively form a directed acyclic graph (DAG) of dependencies, which we call the **target graph**. The most explicit syntax for referring to a target is the following:
 
@@ -654,7 +652,7 @@ Which contains the targets that can be built. There are several shorthands for a
 These can be combined in various ways as expected, e.g. `cell//foo` is `cell//foo:foo` and `//foo` is `cell//foo:foo`
 By convention the default cell under which everything goes that does not go elsewhere is called `root`.
 
-### `BUILD` files
+#### `BUILD` files
 
 As noted previously, a `BUILD` file (also sometimes named `BUCK` or `TARGETS`) for a package lists targets, which specify dependencies on other targets, forming a directed acyclic graph (DAG) of dependencies called the **target graph** which at a very high level is very similar to a `Makefile`. `buck2` is much closer to Makefiles than it is to Cargo/NPM/etc.
 
@@ -684,11 +682,11 @@ foo = cxx_rule(...)
 
 This syntax exists as a pragmatic compromise to achieve "late binding" or lazy evaluation of the target graph in an eager language like Starlark.
 
-### Abstract targets & action graphs
+#### Abstract targets & action graphs
 
 FIXME: To be written
 
-### Target visibility
+#### Target visibility
 
 Every target can have an associated _visibility list_, which restricts who is capable of depending on the target. There are two types of visibility:
 
@@ -697,7 +695,7 @@ Every target can have an associated _visibility list_, which restricts who is ca
 
 Visibility is a practical and powerful tool for avoiding accidental dependencies. For example, an experimental crate can have its `visibility` prevent general usage, except by specific other targets that are testing it before committing to a full migration.
 
-### Package files
+#### Package files
 
 In a package, there can exist a `PACKAGE` file alongside every `BUILD` file. The package file can specifie metadata about the package, and also control the default visibility of targets in the package. Look at the `PACKAGE` files in the tree and the code in @buck/shims/package.bzl to understand how PACKAGE files work.
 
@@ -714,7 +712,7 @@ For example, assuming the file `foo/bar` contained the contents
 
 Then `buck2 --test @foo/bar` and `buck2 --test --foo=1 --bar=false` are equivalent. This is convenient and some tools in the monorepo will not output arguments to pass to a program, but will output _file paths_ to files containing arguments to pass to a program. That means instead of executing `buck2 build $(bar)` you would instead execute `buck2 build @$(bar)` and use at-file syntax to read the arguments.
 
-### High-level build graph
+#### High-level build graph
 
 The build system uses Buck2 cells to organize the monorepo:
 
@@ -736,6 +734,67 @@ Use these aliases in target references: `third-party//mimalloc:rust` instead of 
 Each `BUILD` file defines targets using the `depot.` prefix (e.g., `depot.rust_binary()`) which are wrappers around native Buck2 rules. The wrappers provide consistent defaults and ensure proper dependency management.
 
 **Important**: All BUILD files automatically load `buck/shims/noprelude.bzl` which prevents direct use of native Buck2 rules like `rust_binary()`, `cxx_library()`, etc. You MUST use the shim versions via `load("@root//buck/shims/shims.bzl", depot = "shims")` and call `depot.rust_binary()`, `depot.cxx_library()`, etc.
+
+#### Shim system for rule enforcement
+
+All BUILD files automatically load `buck/shims/noprelude.bzl`, which blocks direct use of native Buck2 rules. Instead, projects must use the centralized shims from `buck/shims/shims.bzl`:
+
+```starlark
+load("@root//buck/shims/shims.bzl", depot = "shims")
+
+depot.rust_binary(name = "example", ...)  # ✓ Correct
+rust_binary(name = "example", ...)        # ✗ Blocked by noprelude.bzl
+```
+
+The shim system provides:
+- Consistent defaults across all targets (Rust edition 2021, cache upload settings)
+- Environment variables like `DEPOT_VERSION` injected automatically
+
+#### Multi-language toolchain support
+
+The repository supports:
+- **Rust**: Standard cargo-style projects with Buck2 integration
+- **C++**: Native compilation with optional cross-platform support
+- **OCaml**: Native OCaml compilation 
+- **Deno/TypeScript**: For tooling and utilities (see `src/tools/`)
+- **Bootstrap toolchains**: Self-hosting compilation from source (see `cellar/`)
+
+#### Package metadata system
+
+The `PACKAGE` files use a structured metadata system defined in `buck/shims/package.bzl`:
+
+```starlark
+pkg.info(
+    copyright = ["© 2024-2025 Austin Seipp"],
+    license = "Apache-2.0",
+    description = "Description here",
+    version = "1.0.0",  # Must be semver
+)
+```
+
+This enforces SPDX headers and provides OSV (Open Source Vulnerability) tracking capabilities.
+
+#### Build modes
+
+Control whether to build things in debug or release mode:
+
+```bash
+# Explicit build mode selection
+buck2 build @mode//debug //src/project     # Debug build
+buck2 build @mode//release //src/project   # Release build
+```
+
+#### Extra: build/test/target patterns you'll use often
+```bash
+//src/...              # All targets under src/
+//src/project:         # All targets in specific package
+:target                # Target in current BUILD file
+third-party//crate:lib # Third-party dependency
+```
+
+## Development workflows
+
+These workflows are designed to help you effectively manage, author, and think about changes in the monorepo. 
 
 ### Committing changes
 
@@ -802,7 +861,7 @@ buck2 test :
 buck2 run //project:exe -- exe arguments go here
 ```
 
-### Target determination
+#### Target determination
 
 When Buck2 detects a change, it has to build all transitive downstream dependencies and run all downstream tests that might be impacted by the change. This is often expensive. Furthermore with merge strategies such as "merge queues" or "merge trains" you may often be running CI against sets of patches that are not relevant to your work. To fix this, there is a program for doing "target determination" on the Buck2 build graph, called `quicktd`. It examines the list of changed files in the version control system, correlates that with a given set of target patterns, and outputs the impacted targets.
 
@@ -826,58 +885,24 @@ buck2 test @$TARGETS
 
 Doing this makes testing the entire codebase quick and efficient. Use this to throughly test changes after confidence in your latest changes is reasonable.
 
-## Build system architecture
-
-### Shim system for rule enforcement
-
-All BUILD files automatically load `buck/shims/noprelude.bzl`, which blocks direct use of native Buck2 rules. Instead, projects must use the centralized shims from `buck/shims/shims.bzl`:
-
-```starlark
-load("@root//buck/shims/shims.bzl", depot = "shims")
-
-depot.rust_binary(name = "example", ...)  # ✓ Correct
-rust_binary(name = "example", ...)        # ✗ Blocked by noprelude.bzl
-```
-
-The shim system provides:
-- Consistent defaults across all targets (Rust edition 2021, cache upload settings)
-- Environment variables like `DEPOT_VERSION` injected automatically
-
-### Multi-language toolchain support
-
-The repository supports:
-- **Rust**: Standard cargo-style projects with Buck2 integration
-- **C++**: Native compilation with optional cross-platform support
-- **OCaml**: Native OCaml compilation 
-- **Deno/TypeScript**: For tooling and utilities (see `src/tools/`)
-- **Bootstrap toolchains**: Self-hosting compilation from source (see `cellar/`)
-
-### Package metadata system
-
-The `PACKAGE` files use a structured metadata system defined in `buck/shims/package.bzl`:
-
-```starlark
-pkg.info(
-    copyright = ["© 2024-2025 Austin Seipp"],
-    license = "Apache-2.0",
-    description = "Description here",
-    version = "1.0.0",  # Must be semver
-)
-```
-
-This enforces SPDX headers and provides OSV (Open Source Vulnerability) tracking capabilities.
-
-### Development workflow
+### Example: making a change and testing it
 ```bash
+# Create new change for development
+jj new
+jj describe -m "component: add new feature"
+# ... make your changes here...
+jj amend
+
 # Check what changed and run relevant tests
 TARGETS=$(buck2 run //src/tools/quicktd -- 'root()' '@' //src/...)
 buck2 build @$TARGETS
 buck2 test @$TARGETS
+# If tests pass, we're done, because we amended the change into the empty commit
+# Otherwise, fix issues and repeat by using 'jj amend' to update the commit
+```
 
-# Create new change for development
-jj new
-jj describe -m "component: add new feature"
-
+### Example: making a larger change in a workspace
+```bash
 # Create workspace for larger changes
 cd work/
 jj workspace add my-feature
@@ -913,15 +938,11 @@ All external dependencies go under `buck/third-party/`:
 
 ## Code Quality and Testing
 
-### Built-in linting and quality checks
+### Built-in linting and general repository quality checks
 ```bash
 # Run Buck2 quality tests across the repository
 buck2 test depot//buck/tests/...
-# Run semgrep rules. In the future, this will become a buck2 test
-semgrep --config=etc/semgrep/ src
 ```
-
-YOU MUST ALWAYS USE THE FULL `depot//` CELL WHEN RUNNING THE TARGET DETERMINATOR. Failure to do so may result in failures due to ambiguous cell references.
 
 ### Testing patterns
 ```bash
@@ -987,6 +1008,24 @@ depot.tar_file(
 )
 ```
 
+### CI system
+
+The current CI system is based on GitHub Actions, and it runs a series of tests and checks on every commit and pull request. The CI configuration is located in `.github/workflows/ci.yml`.
+
+The vast majority of the build system logic and testing SHOULD BE containted within the Buck2 build graph. The CI system is primarily responsible for:
+
+- Allocating resources for builds and tests (hardware)
+- Running the target determination tool to identify affected targets
+- Executing the build and test commands for those targets
+
+You SHOULD NOT add any additional tests to the CI system that can reasonably be expressed as part of the build graph. Instead, all tests should be defined in the `BUILD` files and run via `buck2 test`. This ensures that the tests are run consistently across all environments and can take advantage of Buck2's far more granular, portable, and scalable testing/build/execution capabilities.
+
+#### IMPORTANT: Zizmor Audits
+
+We must do a security analysis on every change to the GitHub Actions, as they are extremely insecure by default. To do this we use the Zizmor tool <https://docs.zizmor.sh/> to analyze the GitHub Actions workflow files and ensure that they are secure and do not contain any vulnerabilities. The list of Zizmor audits that must be passed is available at <https://docs.zizmor.sh/audits/>.
+
+When you write or modify a GitHub Actions workflow, YOU MUST ABSOLUTELY CONFIRM AS BEST YOU CAN THAT IT ABIDES BY ALL ZIZMOR AUDITS. FAILURE TO DO SO COULD BE CATASTROPHIC TO THE SECURITY OF THE ENTIRE REPOSITORY AND ITS USERS. FOLLOW THE AUDIT RULES AT <https://docs.zizmor.sh/audits/> AND ENSURE THAT MODIFIED WORKFLOW FILES DO NOT VIOLATE ANY OF THEM.
+
 ## Quick Reference Commands
 
 ### Daily development workflow
@@ -1009,25 +1048,6 @@ buck2 run //src/project:binary -- args
 
 # 6. Commit when ready
 jj commit -m "component: final commit message"
-```
-
-### Build modes
-
-Control whether to build things in debug or release mode:
-
-```bash
-# Explicit build mode selection
-buck2 build @mode//debug //src/project     # Debug build
-buck2 build @mode//release //src/project   # Release build
-```
-
-### Target patterns you'll use often
-```bash
-//src/...              # All targets under src/
-//src/project:         # All targets in specific package
-:target                # Target in current BUILD file
-third-party//crate:lib # Third-party dependency
-@mode//release         # Build mode selection
 ```
 
 ## Other random notes
