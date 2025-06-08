@@ -16,7 +16,7 @@ fn main() -> std::process::ExitCode {
         .add_global_args(allocator::heap_stats_enable)
         .run();
     allocator::maybe_print_stats();
-    result
+    result.into()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
