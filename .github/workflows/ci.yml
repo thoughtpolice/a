@@ -36,12 +36,9 @@ jobs:
         uses: ocaml/setup-ocaml@73dd34d81d764537324523f890162b658d68aeeb
         with:
           ocaml-compiler: 5
-      - name: OCaml debugging
+      - name: Setup OCaml (pt. 2)
         shell: bash
-        run: |
-          cat $(echo $GITHUB_ENV)
-          ocamlc --version
-          ocamldep -h
+        run: opam switch create 5.3.0 || opam switch set 5.3.0
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
