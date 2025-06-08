@@ -1,4 +1,5 @@
-buildscript = []
+buildscript.run = false
+
 features = ["unstable_boringssl", "bindgen"]
 extra_deps = [
     "third-party//bssl:crypto",

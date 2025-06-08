@@ -1,0 +1,4 @@
+buildscript.run = false
+
+# https://docs.rs/crate/logos-codegen/0.15.0/source/build.rs#13-16
+cfgs = ["rust_1_82"]
