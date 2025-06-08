@@ -33,14 +33,13 @@ jobs:
         with:
           node-version: "22"
       - name: Setup OCaml
-        uses: ocaml/setup-ocaml@bf20b49633a2fa6e59af045f672c5a901311cb95
+        uses: ocaml/setup-ocaml@73dd34d81d764537324523f890162b658d68aeeb
         with:
           ocaml-compiler: 5
-      - name: Setup OCaml (step 2)
+      - name: OCaml debugging
         shell: bash
         run: |
-          opam env | sed "s/'//g; s/; export .*//g" >> $GITHUB_ENV
-          cat $GITHUB_ENV # for debugging
+          echo $GITHUB_ENV
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
