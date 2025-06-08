@@ -32,16 +32,6 @@ jobs:
         uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
         with:
           node-version: "22"
-      - name: Setup OCaml
-        uses: ocaml/setup-ocaml@73dd34d81d764537324523f890162b658d68aeeb
-        with:
-          ocaml-compiler: 5
-      - name: Setup OCaml (pt. 2)
-        shell: bash
-        run: |
-          opam switch create 5.3.0 || opam switch set 5.3.0
-          opam env | sed "s/'//g; s/; export .*//g" >> $GITHUB_ENV
-          cat $GITHUB_ENV # for debugging
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
@@ -64,11 +54,12 @@ jobs:
         run: dotslash ./buck/bin/extra/jj git init --colocate
       - name: buck2 build ...
         shell: bash
-        run: buck2 build @mode//debug third-party//... root//...
+        run: |
+          buck2 build -c ci.depot_gha_ci=true @mode//debug third-party//... root//...
       - name: buck2 test ...
         shell: bash
         run: |
-          buck2 test @mode//debug third-party//... root//... -- \
+          buck2 test -c ci.depot_gha_ci=true @mode//debug third-party//... root//... -- \
             --env SEMGREP_ENABLE_VERSION_CHECK=0
       - name: Upload build logs
         if: always()
