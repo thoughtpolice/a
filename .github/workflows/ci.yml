@@ -64,7 +64,9 @@ jobs:
         run: buck2 build @mode//debug third-party//... root//...
       - name: buck2 test ...
         shell: bash
-        run: buck2 test @mode//debug third-party//... root//...
+        run: |
+          buck2 test @mode//debug third-party//... root//... -- \
+            --env SEMGREP_ENABLE_VERSION_CHECK=0
       - name: Upload build logs
         if: always()
         shell: bash
