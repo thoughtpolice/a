@@ -1029,3 +1029,11 @@ buck2 build @mode//release //src/project   # Release build
 third-party//crate:lib # Third-party dependency
 @mode//release         # Build mode selection
 ```
+
+## Other random notes
+
+### Dotslash files
+
+There are many files in this repository that are "DotSlash" files. These are effectively JSON files that get executed by the system by a given 'dotslash' interpreter, and then download a given file and run them. See <https://dotslash-cli.com> for more information.
+
+Almost all dotslash files are under @buck/bin and @buck/bin/extra -- in the event you need to (or are asked to) update these files, YOU MUST always run the test `depot//buck/tests/dotslash-check` afterwords, which will validate the dotslash files are updated correctly and work on all platforms.
