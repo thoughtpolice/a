@@ -75,6 +75,52 @@ jobs:
         shell: bash
         run: buck2 run //src/tools/buck2-logs:upload -- --host https://buck2-logs.deno.dev
 
+  # dry run for target determination. TODO FIXME (aseipp): wire this up to the
+  # main CI fixture later after refinement.
+  target-determination:
+    name: target-determination
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5 # extra short window for now. replace later once th
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install DotSlash
+        uses: ./.github/actions/install-dotslash
+      - name: Set up environment
+        shell: bash
+        run: echo "PATH=$GITHUB_WORKSPACE/buck/bin:$GITHUB_WORKSPACE/buck/bin/extra:$PATH" >> $GITHUB_ENV
+      - name: Init jj repository
+        shell: bash
+        run: dotslash ./buck/bin/extra/jj git init --colocate
+      - name: Determine target changes
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_COMMIT="${{ github.event.pull_request.base.sha }}"
+            HEAD_COMMIT="${{ github.event.pull_request.head.sha }}"
+          else
+            # for push events, compare against the previous commit. FIXME
+            # (aseipp): is there a way on direct pushes to compare to the
+            # relative previous HEAD?
+            BASE_COMMIT="${{ github.event.before }}"
+            HEAD_COMMIT="${{ github.sha }}"
+          fi
+          
+          echo "Base commit: $BASE_COMMIT"
+          echo "Head commit: $HEAD_COMMIT" 
+          echo "\n\nDetermining impacted targets..."
+          TARGETS=$(buck2 run depot//src/tools/quicktd -- "$BASE_COMMIT" "$HEAD_COMMIT" depot//...)
+
+          echo "Affected targets:"
+          if [ -f "$TARGETS" ]; then
+            cat "$TARGETS"
+          else
+            echo "No targets file generated or targets file is empty"
+          fi
+
   zizmor:
     name: zizmor
     runs-on: ubuntu-24.04
