@@ -262,20 +262,25 @@ async function quickTd(
     // each entry transforming it into a new file, a simple line-delimited file
     // with a single target name on each line
     const finalTargetsFile = join(tempDir, "targets.txt");
-    const targets = btdOutput
-      .trim()
-      .split("\n")
-      .map((line) => {
-        try {
-          const entry = JSON.parse(line);
-          return entry.target;
-        } catch (_e) {
-          const errorMessage = `Failed to parse JSON line: ${line}`;
-          throw new Error(errorMessage);
-        }
-      })
-      .filter((target) => target !== null)
-      .map((target) => target as string);
+    const trimmedOutput = btdOutput.trim();
+    const targets = trimmedOutput === ""
+      ? []
+      : trimmedOutput
+          .split("\n")
+          .map((line) => {
+            if (line.trim() === "") {
+              return null;
+            }
+            try {
+              const entry = JSON.parse(line);
+              return entry.target;
+            } catch (_e) {
+              const errorMessage = `Failed to parse JSON line: ${line}`;
+              throw new Error(errorMessage);
+            }
+          })
+          .filter((target) => target !== null)
+          .map((target) => target as string);
 
     await Deno.writeTextFile(
       finalTargetsFile,
