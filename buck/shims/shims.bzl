@@ -64,6 +64,12 @@ def _depot_prebuilt_cxx_library(**kwargs):
 def _depot_export_file(**kwargs):
     native.export_file(**kwargs)
 
+def _depot_genrule(**kwargs):
+    native.genrule(**kwargs)
+
+def _depot_filegroup(**kwargs):
+    native.filegroup(**kwargs)
+
 # MARK: Supplemental rules
 
 def _write_file_impl(ctx: AnalysisContext) -> list[Provider]:
@@ -188,6 +194,8 @@ shims = struct(
     write_file = _write_file,
     copy_files = _copy_files,
     export_file = _depot_export_file,
+    genrule = _depot_genrule,
+    filegroup = _depot_filegroup,
 
     constraint = _constraint,
 
