@@ -4,62 +4,62 @@
   "name": "supertd",
   "platforms": {
     "macos-aarch64": {
-      "size": 1478343,
+      "size": 1480512,
       "hash": "blake3",
-      "digest": "fcc6254ec0b7bba9fd9fb0db222943db18782f775511109e0098d770b73a1b75",
+      "digest": "3f77d63d9d2f638c79b60a8f7d73682bd4b14927328890c8537e94c49fb61bd3",
       "format": "zst",
       "path": "supertd-aarch64-apple-darwin",
       "providers": [
         {
-          "url": "https://github.com/thoughtpolice/buck2-change-detector/releases/download/snapshot-20250424-002211/supertd-aarch64-apple-darwin.zst"
+          "url": "https://github.com/thoughtpolice/buck2-change-detector/releases/download/snapshot-20250608-215314/supertd-aarch64-apple-darwin.zst"
         }
       ]
     },
     "linux-aarch64": {
-      "size": 1669389,
+      "size": 1669530,
       "hash": "blake3",
-      "digest": "06260a3dc14b52b2eb221091a1964952f47958d5b1752e70aa41a539830b67bb",
+      "digest": "e21bc2807ceb9efe493a320f23fc770669ffd2433388815da935fd6a7f241ff3",
       "format": "zst",
       "path": "supertd-aarch64-unknown-linux-musl",
       "providers": [
         {
-          "url": "https://github.com/thoughtpolice/buck2-change-detector/releases/download/snapshot-20250424-002211/supertd-aarch64-unknown-linux-musl.zst"
+          "url": "https://github.com/thoughtpolice/buck2-change-detector/releases/download/snapshot-20250608-215314/supertd-aarch64-unknown-linux-musl.zst"
         }
       ]
     },
     "macos-x86_64": {
-      "size": 1640756,
+      "size": 1641212,
       "hash": "blake3",
-      "digest": "ebab4ce66661b28b656e4604fdf2c99305e7179fc7a5077c32144e95cc99ff4d",
+      "digest": "bdf5cea85f703964513a7ce3a00870282037677b9e9c0453c64a9fa169c87c43",
       "format": "zst",
       "path": "supertd-x86_64-apple-darwin",
       "providers": [
         {
-          "url": "https://github.com/thoughtpolice/buck2-change-detector/releases/download/snapshot-20250424-002211/supertd-x86_64-apple-darwin.zst"
+          "url": "https://github.com/thoughtpolice/buck2-change-detector/releases/download/snapshot-20250608-215314/supertd-x86_64-apple-darwin.zst"
         }
       ]
     },
     "windows-x86_64": {
-      "size": 1424526,
+      "size": 1421792,
       "hash": "blake3",
-      "digest": "f049ea3dae7ff45705cd10d15a3c9e67ee722e24a751c1d5430a0f1ab35813b9",
+      "digest": "1db3ebb4a68e037734dc72a5c2f93f89944893d9290fe46d134c785d43d737e0",
       "format": "zst",
       "path": "supertd-x86_64-pc-windows-msvc.exe",
       "providers": [
         {
-          "url": "https://github.com/thoughtpolice/buck2-change-detector/releases/download/snapshot-20250424-002211/supertd-x86_64-pc-windows-msvc.exe.zst"
+          "url": "https://github.com/thoughtpolice/buck2-change-detector/releases/download/snapshot-20250608-215314/supertd-x86_64-pc-windows-msvc.exe.zst"
         }
       ]
     },
     "linux-x86_64": {
-      "size": 1823428,
+      "size": 1824336,
       "hash": "blake3",
-      "digest": "9d3a2d0ea4908a06d67d70fc99d2870f2552ee295042f16aa832b9c3c3adb12f",
+      "digest": "a13cb9c40973d01eaa79473a9bc3d2fb5bc85110da9537182464efea7acf4469",
       "format": "zst",
       "path": "supertd-x86_64-unknown-linux-musl",
       "providers": [
         {
-          "url": "https://github.com/thoughtpolice/buck2-change-detector/releases/download/snapshot-20250424-002211/supertd-x86_64-unknown-linux-musl.zst"
+          "url": "https://github.com/thoughtpolice/buck2-change-detector/releases/download/snapshot-20250608-215314/supertd-x86_64-unknown-linux-musl.zst"
         }
       ]
     }
