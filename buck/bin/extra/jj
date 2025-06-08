@@ -4,52 +4,52 @@
   "name": "jj",
   "platforms": {
     "macos-aarch64": {
-      "size": 8263268,
+      "size": 8379306,
       "hash": "blake3",
-      "digest": "2efdd1e3696ff179c4a9cb5ba30ed17d3047480fb94b69b96a5ed7e0ef845f89",
+      "digest": "22f37c1022f6b49b92be994d9febd51c300154bb7a0218baa771376b45f9f433",
       "format": "tar.gz",
       "path": "jj",
       "providers": [
         {
-          "url": "https://github.com/martinvonz/jj/releases/download/v0.19.0/jj-v0.19.0-aarch64-apple-darwin.tar.gz",
+          "url": "https://github.com/jj-vcs/jj/releases/download/v0.30.0/jj-v0.30.0-aarch64-apple-darwin.tar.gz"
         }
       ]
     },
     "linux-aarch64": {
-      "size": 9532879,
+      "size": 8462686,
       "hash": "blake3",
-      "digest": "0c4bfcd2e9254d00deb2d1956e08695c5ebbc5402e3918efdee123e4b2913b1f",
+      "digest": "2bf4ccf1a9a272d529db1d9ba7fe494c27fcfdcdd0304ef529b84f577c88b7c4",
       "format": "tar.gz",
       "path": "jj",
       "providers": [
         {
-          "url": "https://github.com/martinvonz/jj/releases/download/v0.19.0/jj-v0.19.0-aarch64-unknown-linux-musl.tar.gz",
+          "url": "https://github.com/jj-vcs/jj/releases/download/v0.30.0/jj-v0.30.0-aarch64-unknown-linux-musl.tar.gz"
         }
       ]
     },
     "linux-x86_64": {
-      "size": 9610769,
+      "size": 9101484,
       "hash": "blake3",
-      "digest": "bb54950284843b9fcfb8cefac7b96867136d6fc129021f8b993057a1c70fab5c",
+      "digest": "8398f2eddaf9443f60e5595614c91c40e42f7bdb64fcc67426b49996e44d536b",
       "format": "tar.gz",
       "path": "jj",
       "providers": [
         {
-          "url": "https://github.com/martinvonz/jj/releases/download/v0.19.0/jj-v0.19.0-x86_64-unknown-linux-musl.tar.gz"
+          "url": "https://github.com/jj-vcs/jj/releases/download/v0.30.0/jj-v0.30.0-x86_64-unknown-linux-musl.tar.gz"
         }
       ]
     },
     "windows-x86_64": {
-      "size": 6454535,
+      "size": 7952305,
       "hash": "blake3",
-      "digest": "268a264bd0789107baae3db4f0e4faaab7fef1f20e466773a1299af3f6bcc084",
+      "digest": "6a432301da64243629e3e5ada6122cb8d4b1771adb140b05670786c9e78f3678",
       "format": "zip",
       "path": "jj.exe",
       "providers": [
         {
-          "url": "https://github.com/martinvonz/jj/releases/download/v0.19.0/jj-v0.19.0-x86_64-pc-windows-msvc.zip"
+          "url": "https://github.com/jj-vcs/jj/releases/download/v0.30.0/jj-v0.30.0-x86_64-pc-windows-msvc.zip"
         }
       ]
-    },
+    }
   }
 }
