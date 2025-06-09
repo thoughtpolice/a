@@ -16,7 +16,8 @@ jobs:
       contents: write
       pull-requests: write
     runs-on: ubuntu-24.04
-    if: ${{ github.actor == 'thoughtpolice' }}
+    # only iff: filed by austin AND starts with [automerge]
+    if: ${{ github.actor == 'thoughtpolice' && startsWith(github.event.pull_request.title, '[automerge]') }}
     steps:
       - name: Enable auto-merge for trusted [automerge] PRs
         run: gh pr merge --auto --rebase "$PR_URL"
