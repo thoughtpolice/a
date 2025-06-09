@@ -8,7 +8,17 @@ python_bootstrap_binary(
     main = 'hashes.py',
 )
 
+python_bootstrap_binary(
+    name = 'check-windows-shims',
+    main = 'windows-shims.py',
+)
+
 shims.run_test(
     name = 'dotslash-check',
     dep = ":check-hashes",
+)
+
+shims.run_test(
+    name = 'windows-shims-check',
+    dep = ":check-windows-shims",
 )
