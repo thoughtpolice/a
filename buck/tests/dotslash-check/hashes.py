@@ -8,8 +8,8 @@ Check that all dotslash files in buck/bin have valid platform entries by downloa
 and verifying their hashes and sizes.
 """
 
+import hashlib
 import json
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -18,30 +18,19 @@ from urllib.error import URLError
 
 
 def verify_hash(file_path: Path, hash_type: str, expected_digest: str) -> bool:
-    """Verify file hash using external tools."""
+    """Verify file hash using Python's hashlib."""
     try:
-        if hash_type == "blake3":
-            result = subprocess.run(
-                ["b3sum", str(file_path)], 
-                capture_output=True, 
-                text=True, 
-                check=True
-            )
-            actual_digest = result.stdout.split()[0]
-        elif hash_type == "sha256":
-            result = subprocess.run(
-                ["sha256sum", str(file_path)], 
-                capture_output=True, 
-                text=True, 
-                check=True
-            )
-            actual_digest = result.stdout.split()[0]
+        with open(file_path, 'rb') as f:
+            file_data = f.read()
+        
+        if hash_type == "sha256":
+            actual_digest = hashlib.sha256(file_data).hexdigest()
         else:
             print(f"    ERROR: Unsupported hash type: {hash_type}")
             return False
         
         return actual_digest == expected_digest
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+    except Exception as e:
         print(f"    ERROR: Failed to compute {hash_type} hash: {e}")
         return False
 
@@ -50,7 +39,6 @@ def download_and_verify_platform(platform_name: str, platform_info: dict) -> boo
     """Download and verify a single platform binary."""
     print(f"  Checking platform {platform_name}...", end=" ")
     
-    # Extract platform info
     size = platform_info.get("size")
     hash_type = platform_info.get("hash")
     expected_digest = platform_info.get("digest")
@@ -61,7 +49,7 @@ def download_and_verify_platform(platform_name: str, platform_info: dict) -> boo
         print(f"    ERROR: No providers found for platform {platform_name}")
         return False
     
-    # Use first provider
+    # FIXME: Use first provider
     url = providers[0].get("url")
     if not url:
         print("✗")
@@ -69,7 +57,6 @@ def download_and_verify_platform(platform_name: str, platform_info: dict) -> boo
         return False
     
     try:
-        # Download file to temporary location
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_path = Path(tmp_file.name)
             
@@ -77,7 +64,6 @@ def download_and_verify_platform(platform_name: str, platform_info: dict) -> boo
             with urlopen(url) as response:
                 tmp_file.write(response.read())
         
-        # Verify file size
         actual_size = tmp_path.stat().st_size
         if actual_size != size:
             print("✗")
@@ -86,8 +72,7 @@ def download_and_verify_platform(platform_name: str, platform_info: dict) -> boo
             print(f"           Actual:   {actual_size} bytes")
             tmp_path.unlink()
             return False
-        
-        # Verify hash
+
         print(f"verifying {hash_type}...", end=" ")
         if not verify_hash(tmp_path, hash_type, expected_digest):
             print("✗")
@@ -95,29 +80,18 @@ def download_and_verify_platform(platform_name: str, platform_info: dict) -> boo
             print(f"           Expected {hash_type}: {expected_digest}")
             # Get actual hash for comparison
             try:
-                if hash_type == "blake3":
-                    result = subprocess.run(
-                        ["b3sum", str(tmp_path)], 
-                        capture_output=True, 
-                        text=True, 
-                        check=True
-                    )
-                    actual_digest = result.stdout.split()[0]
-                elif hash_type == "sha256":
-                    result = subprocess.run(
-                        ["sha256sum", str(tmp_path)], 
-                        capture_output=True, 
-                        text=True, 
-                        check=True
-                    )
-                    actual_digest = result.stdout.split()[0]
-                print(f"           Actual {hash_type}:   {actual_digest}")
+                with open(tmp_path, 'rb') as f:
+                    file_data = f.read()
+                if hash_type == "sha256":
+                    actual_digest = hashlib.sha256(file_data).hexdigest()
+                    print(f"           Actual {hash_type}:   {actual_digest}")
+                else:
+                    print(f"           Cannot compute actual hash for unsupported type: {hash_type}")
             except:
                 pass
             tmp_path.unlink()
             return False
         
-        # Cleanup
         tmp_path.unlink()
         print("✓")
         return True
@@ -137,7 +111,6 @@ def check_dotslash_file(file_path: Path) -> bool:
     print(f"Checking {file_path.name}...")
     
     try:
-        # Read and parse JSON (skip shebang line)
         content = file_path.read_text()
         if content.startswith("#!"):
             # Find first line that starts with {
@@ -155,14 +128,13 @@ def check_dotslash_file(file_path: Path) -> bool:
             json_content = content
             
         config = json.loads(json_content)
-        
+
         # Get platforms
         platforms = config.get("platforms", {})
         if not platforms:
             print(f"  ERROR: No platforms found in {file_path.name}")
             return False
-        
-        # Check each platform
+
         all_passed = True
         for platform_name, platform_info in platforms.items():
             if not download_and_verify_platform(platform_name, platform_info):
@@ -184,7 +156,6 @@ def check_dotslash_file(file_path: Path) -> bool:
 def main():
     """Check all dotslash files in buck/bin directory"""
     
-    # Find the repository root by looking for .buckroot
     current_dir = Path(__file__).parent
     repo_root = current_dir
     while repo_root != repo_root.parent:
@@ -195,18 +166,9 @@ def main():
         print("ERROR: Could not find repository root (no .buckroot found)")
         return 1
 
-    # Check for required tools
-    for tool in ["b3sum", "sha256sum"]:
-        try:
-            subprocess.run([tool, "--version"], capture_output=True, check=True)
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            print(f"ERROR: Required tool '{tool}' not found. Please install coreutils or equivalent.")
-            return 1
-
     buck_bin_dir = repo_root / "buck" / "bin"
     buck_bin_extra_dir = repo_root / "buck" / "bin" / "extra"
 
-    # Collect dotslash files from both directories
     dotslash_files = []
     
     for directory in [buck_bin_dir, buck_bin_extra_dir]:
@@ -219,13 +181,12 @@ def main():
                 and item.name not in ["BUILD", "PACKAGE"]
                 and not item.name.endswith(".exe")
             ):
-                # Check if it's a dotslash file by looking for shebang
                 try:
                     first_line = item.read_text().split('\n')[0]
                     if "dotslash" in first_line:
                         dotslash_files.append(item)
                 except:
-                    pass  # Skip files we can't read
+                    pass
 
     if not dotslash_files:
         print("No dotslash files found to check")
@@ -239,7 +200,7 @@ def main():
     for dotslash_file in sorted(dotslash_files):
         if not check_dotslash_file(dotslash_file):
             failed_files.append(dotslash_file.name)
-        print()  # Add spacing between files
+        print()
 
     if failed_files:
         print(f"{len(failed_files)} files failed verification:")

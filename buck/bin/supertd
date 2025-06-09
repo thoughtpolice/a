@@ -5,8 +5,8 @@
   "platforms": {
     "macos-aarch64": {
       "size": 1480512,
-      "hash": "blake3",
-      "digest": "3f77d63d9d2f638c79b60a8f7d73682bd4b14927328890c8537e94c49fb61bd3",
+      "hash": "sha256",
+      "digest": "e96db5f32373eb91bea66247cf10f9bcb844397025ac6d78bc546afab4fa4cab",
       "format": "zst",
       "path": "supertd-aarch64-apple-darwin",
       "providers": [
@@ -17,8 +17,8 @@
     },
     "linux-aarch64": {
       "size": 1669530,
-      "hash": "blake3",
-      "digest": "e21bc2807ceb9efe493a320f23fc770669ffd2433388815da935fd6a7f241ff3",
+      "hash": "sha256",
+      "digest": "7cd09f7448e91af390bf809bc49a104b26b25943d16f0b867f0cb2bfd5dd475c",
       "format": "zst",
       "path": "supertd-aarch64-unknown-linux-musl",
       "providers": [
@@ -29,8 +29,8 @@
     },
     "macos-x86_64": {
       "size": 1641212,
-      "hash": "blake3",
-      "digest": "bdf5cea85f703964513a7ce3a00870282037677b9e9c0453c64a9fa169c87c43",
+      "hash": "sha256",
+      "digest": "cbca77591511022cc36a22a7e283e96b77e3df1183994c650f046a4bce191ba3",
       "format": "zst",
       "path": "supertd-x86_64-apple-darwin",
       "providers": [
@@ -41,8 +41,8 @@
     },
     "windows-x86_64": {
       "size": 1421792,
-      "hash": "blake3",
-      "digest": "1db3ebb4a68e037734dc72a5c2f93f89944893d9290fe46d134c785d43d737e0",
+      "hash": "sha256",
+      "digest": "84d6549b9f36408ac5dd54ab123b171287ae7cdd8e701e718c458833799b7659",
       "format": "zst",
       "path": "supertd-x86_64-pc-windows-msvc.exe",
       "providers": [
@@ -53,8 +53,8 @@
     },
     "linux-x86_64": {
       "size": 1824336,
-      "hash": "blake3",
-      "digest": "a13cb9c40973d01eaa79473a9bc3d2fb5bc85110da9537182464efea7acf4469",
+      "hash": "sha256",
+      "digest": "d0ff0f5de3fb93a2bfeab0b2fae965ec861fd61f6064198fe1e49f139f265a56",
       "format": "zst",
       "path": "supertd-x86_64-unknown-linux-musl",
       "providers": [

@@ -4,12 +4,11 @@
 load("@root//buck/shims/shims.bzl", "shims")
 
 python_bootstrap_binary(
-    name = 'check-dotslash',
-    main = 'main.py',
-    tests = [ ':dotslash-check' ],
+    name = 'check-hashes',
+    main = 'hashes.py',
 )
 
 shims.run_test(
     name = 'dotslash-check',
-    dep = ":check-dotslash",
+    dep = ":check-hashes",
 )

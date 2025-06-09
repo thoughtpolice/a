@@ -5,8 +5,8 @@
   "platforms": {
     "macos-aarch64": {
       "size": 29253813,
-      "hash": "blake3",
-      "digest": "14c672498a9a17be2ed33e4f3ef6e88fc2bd39325c822a024d181751ba41b4be",
+      "hash": "sha256",
+      "digest": "3b324432fc2645a23f4f364dfd5a76b7a0a711fa62e6eea8e319bffb25734dd1",
       "format": "zst",
       "path": "buck2-aarch64-apple-darwin",
       "providers": [
@@ -17,8 +17,8 @@
     },
     "linux-aarch64": {
       "size": 30178220,
-      "hash": "blake3",
-      "digest": "8f80d6cba04612f958ba68ab17d21ffc13616336d6414d65e6d5e9aaef971664",
+      "hash": "sha256",
+      "digest": "cbc14af11a3b814459c359b2cec725555028994b3a19c05f4ef8db77aa45e56d",
       "format": "zst",
       "path": "buck2-aarch64-unknown-linux-musl",
       "providers": [
@@ -29,8 +29,8 @@
     },
     "macos-x86_64": {
       "size": 30764855,
-      "hash": "blake3",
-      "digest": "1168c7b7606f562715c7113dc2b64eb36cb9a3fcf1ca99963ce76f44a83f7865",
+      "hash": "sha256",
+      "digest": "1666b01e601dd7060d5bfc6f52f5d5a738e15ce42c6d476cad9012228893a702",
       "format": "zst",
       "path": "buck2-x86_64-apple-darwin",
       "providers": [
@@ -41,8 +41,8 @@
     },
     "windows-x86_64": {
       "size": 26127696,
-      "hash": "blake3",
-      "digest": "6c7583303dc428551fb633a259c2d86b313cad7e54eefbea924121fcb409dadb",
+      "hash": "sha256",
+      "digest": "84b17c3dc5f64c777d58c874ed154f5a72c8bd9b1cb460261cbf62a2574198c9",
       "format": "zst",
       "path": "buck2-x86_64-pc-windows-msvc.exe",
       "providers": [
@@ -53,8 +53,8 @@
     },
     "linux-x86_64": {
       "size": 31499842,
-      "hash": "blake3",
-      "digest": "eb6dda60daf7b24795e5e5f2b47e0abc50343cadfc8cc598e6023cbd438f4046",
+      "hash": "sha256",
+      "digest": "17e9c75f636dc148bdc46ba0240e994fca9fab34750222cc5036b0e0a61e8aa2",
       "format": "zst",
       "path": "buck2-x86_64-unknown-linux-musl",
       "providers": [

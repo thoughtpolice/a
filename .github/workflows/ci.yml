@@ -41,12 +41,12 @@ jobs:
       - name: (Linux) Install packages
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update && sudo apt-get install -y mold b3sum
+          sudo apt-get update && sudo apt-get install -y mold
           python3 -m pip install semgrep # sigh...
       - name: (macOS) Install packages
         if: runner.os == 'macOS'
         run: |
-          brew install b3sum semgrep
+          brew install semgrep
       - name: Checkout repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:

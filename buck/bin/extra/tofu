@@ -5,8 +5,8 @@
   "platforms": {
     "linux-x86_64": {
       "size": 24182988,
-      "hash": "blake3",
-      "digest": "cd4faf720e090ac930662f4791f5f8374edaa481590a48a477e54659d61244bb",
+      "hash": "sha256",
+      "digest": "18277462e0ded513e47fb3e041911dfd14f4ad3721d53ee2f0c709fa810b8cf0",
       "format": "zip",
       "path": "tofu",
       "providers": [

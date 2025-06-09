@@ -5,8 +5,8 @@
   "platforms": {
     "macos-aarch64": {
       "size": 2285223,
-      "hash": "blake3",
-      "digest": "2b4fdb0587aece5658030b68dc7271973b5c731e0c2493efd3aa87ff3f445a61",
+      "hash": "sha256",
+      "digest": "414fe8a275cf7aacec1a2bca235908c5b6fb088c30204878e2e5aea6f9586f19",
       "format": "tar.gz",
       "path": "diffedit3",
       "providers": [
@@ -17,8 +17,8 @@
     },
     "linux-x86_64": {
       "size": 3498501,
-      "hash": "blake3",
-      "digest": "84557e1409e0e4c76d80ff0758ab5995ec40dd7a151bfdef7858c54d71d43d9a",
+      "hash": "sha256",
+      "digest": "90b7e9ad0dc7248f1f82aa5ab68caec916b5980e21beb6b943e75540258c3e06",
       "format": "tar.gz",
       "path": "diffedit3",
       "providers": [
@@ -29,8 +29,8 @@
     },
     "windows-x86_64": {
       "size": 1900470,
-      "hash": "blake3",
-      "digest": "462c4fc77655e0688e5317fcdc2a4a6af326b7f04912fc8c7489028b56e50a59",
+      "hash": "sha256",
+      "digest": "eb08457696429afaec9f89d5936dabb228036aa509f0ff8f6dd6b96388896957",
       "format": "zip",
       "path": "diffedit3.exe",
       "providers": [
