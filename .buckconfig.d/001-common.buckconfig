@@ -48,6 +48,19 @@ starlark_max_callstack_size = 50
 # starlark_memory_limit() by default if no limit is specified.
 default_starlark_peak_memory = 5242880
 
+[buck2_resource_control]
+# Resource control for the buck2 daemon. If available (systemd >= 253) then the
+# buck2 daemon will enforce resource limits via cgroupsv2 and systemd scoped
+# units. We don't enforce this just yet.
+status = if_available
+# Max available memory for the daemon and all workers.
+memory_max = 85%
+# Max available memory per action.
+memory_max_per_action = 8G
+# When using hybrid execution, this limit is used to 'backoff' local actions and
+# offload further commands to the remote executor until pressure is relieved.
+hybrid_execution_memory_limit_gibibytes = 10
+
 [build]
 # set the default execution platform for builds on this machine. NOTE: this
 # platform definition is where remote execution (optionally) is enabled via
