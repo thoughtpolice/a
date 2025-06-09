@@ -5,8 +5,8 @@
   "platforms": {
     "macos-aarch64": {
       "size": 1299040,
-      "hash": "blake3",
-      "digest": "85f8bdae9249c4c886f2df468f8349d636b16fb30934c23af5f415fad3b13358",
+      "hash": "sha256",
+      "digest": "a31cc6cfad301e06656d7c2d56248fbbf60ee7272f70afbb0ce48110ba2e1ae6",
       "format": "zst",
       "path": "rust-project-aarch64-apple-darwin",
       "providers": [
@@ -17,8 +17,8 @@
     },
     "linux-aarch64": {
       "size": 1430387,
-      "hash": "blake3",
-      "digest": "6cc51c59f7d53a9541f7992a8883911f21f3db1dcb9b646b23be182ca459c26e",
+      "hash": "sha256",
+      "digest": "0392cb2d04d4fffaa5412cba65757621279a92d3aa28568bc0504e4fc55ab907",
       "format": "zst",
       "path": "rust-project-aarch64-unknown-linux-musl",
       "providers": [
@@ -29,8 +29,8 @@
     },
     "macos-x86_64": {
       "size": 1406165,
-      "hash": "blake3",
-      "digest": "f853975e09f0b51fae9421a18791f5fa25c338f0fd123cc3f26f57857bc53027",
+      "hash": "sha256",
+      "digest": "562f2dd8f5255ef910151373e6263cfa9547b5d94f99480fcc3c8df7e09a1320",
       "format": "zst",
       "path": "rust-project-x86_64-apple-darwin",
       "providers": [
@@ -41,8 +41,8 @@
     },
     "windows-x86_64": {
       "size": 1208609,
-      "hash": "blake3",
-      "digest": "8842727bc0cd5ac376ecd8dddf01d1d79f7a787d2f10561cfe572d91d68cd5a9",
+      "hash": "sha256",
+      "digest": "c3ab164ff74500e8864688e5eac02e43fbd42c3d072bcba66b5cd974a5f0b0a1",
       "format": "zst",
       "path": "rust-project-x86_64-pc-windows-msvc.exe",
       "providers": [
@@ -53,8 +53,8 @@
     },
     "linux-x86_64": {
       "size": 1548637,
-      "hash": "blake3",
-      "digest": "511d7cba8cb7f2019c878456d972b01edb0971d6987b76e663a6a03b7ba474e0",
+      "hash": "sha256",
+      "digest": "6dc7b7caeb6e872ae12b547ca0eff4281a9355ceb3065f3dcc4ea50fb8e055ae",
       "format": "zst",
       "path": "rust-project-x86_64-unknown-linux-musl",
       "providers": [

@@ -5,8 +5,8 @@
   "platforms": {
     "macos-aarch64": {
       "size": 2814843,
-      "hash": "blake3",
-      "digest": "90217374a8690dca96ddd7380239d5ea4819cb8f3ad7636f580f06685cb91b90",
+      "hash": "sha256",
+      "digest": "81e6efb92dcd8e233ffd1a65c0e668f724238469b72fd9fd3e1e26d6f8dfb811",
       "format": "zst",
       "path": "josh-filter-aarch64-apple-darwin",
       "providers": [
@@ -17,8 +17,8 @@
     },
     "linux-aarch64": {
       "size": 3113348,
-      "hash": "blake3",
-      "digest": "ea9f0200e2deb2468edc8c8517044914111bef3417cf65859d046e91a0c78409",
+      "hash": "sha256",
+      "digest": "1bed56a137699a47bf93bb7ab9bbf5c20c8e00403097664751d20b233af9285b",
       "format": "zst",
       "path": "josh-filter-aarch64-unknown-linux-musl",
       "providers": [
@@ -29,8 +29,8 @@
     },
     "macos-x86_64": {
       "size": 3058467,
-      "hash": "blake3",
-      "digest": "cb6677883167c08850cf15962c77a04fa7f8c128d94be2169e98386d8df0a4cf",
+      "hash": "sha256",
+      "digest": "2351815bbaa3a6b4dd5b2397fe92527a859e4b4e1edcf87cc116f061aed1b616",
       "format": "zst",
       "path": "josh-filter-x86_64-apple-darwin",
       "providers": [
@@ -41,8 +41,8 @@
     },
     "windows-x86_64": {
       "size": 3257471,
-      "hash": "blake3",
-      "digest": "d1668f4c789cd4dacee4f128d5c65ca7fbb1aa8be2dd67d4e9dfcf0280a47274",
+      "hash": "sha256",
+      "digest": "9e4ae498f0e057ec1d20b3aa5a538816cd1ac5528e55b2f7c0cd32b82c04b679",
       "format": "zst",
       "path": "josh-filter-x86_64-pc-windows-msvc.exe",
       "providers": [
@@ -53,8 +53,8 @@
     },
     "linux-x86_64": {
       "size": 3364246,
-      "hash": "blake3",
-      "digest": "703625463199f6658928d8770cfb73eb6f17871d7241729edd2392a984edc24a",
+      "hash": "sha256",
+      "digest": "2502d00121fca6d3171a51c560b4cf35ccd02f22163715b0673927a6e6a86405",
       "format": "zst",
       "path": "josh-filter-x86_64-unknown-linux-musl",
       "providers": [

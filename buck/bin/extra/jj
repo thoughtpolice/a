@@ -5,8 +5,8 @@
   "platforms": {
     "macos-aarch64": {
       "size": 8379306,
-      "hash": "blake3",
-      "digest": "22f37c1022f6b49b92be994d9febd51c300154bb7a0218baa771376b45f9f433",
+      "hash": "sha256",
+      "digest": "160b9c575f279343b8cd9d2fcef74b03d16210d1457da328ceedc3a7a184c4c7",
       "format": "tar.gz",
       "path": "jj",
       "providers": [
@@ -17,8 +17,8 @@
     },
     "linux-aarch64": {
       "size": 8462686,
-      "hash": "blake3",
-      "digest": "2bf4ccf1a9a272d529db1d9ba7fe494c27fcfdcdd0304ef529b84f577c88b7c4",
+      "hash": "sha256",
+      "digest": "36001ee38b14d0241e8c061f3147e4c52754b02cc32c4e3f09ebf641cb28f6b9",
       "format": "tar.gz",
       "path": "jj",
       "providers": [
@@ -29,8 +29,8 @@
     },
     "linux-x86_64": {
       "size": 9101484,
-      "hash": "blake3",
-      "digest": "8398f2eddaf9443f60e5595614c91c40e42f7bdb64fcc67426b49996e44d536b",
+      "hash": "sha256",
+      "digest": "5540b5438d71867ccde3339d041e57eecf60edf8b4ecc3dfcce2af106e08f70b",
       "format": "tar.gz",
       "path": "jj",
       "providers": [
@@ -41,8 +41,8 @@
     },
     "windows-x86_64": {
       "size": 7952305,
-      "hash": "blake3",
-      "digest": "6a432301da64243629e3e5ada6122cb8d4b1771adb140b05670786c9e78f3678",
+      "hash": "sha256",
+      "digest": "4b094838898bebd3970ef6c94b9cf5fef4368a0291e33ae884736195abce0671",
       "format": "zip",
       "path": "jj.exe",
       "providers": [
