@@ -143,29 +143,38 @@ jobs:
           # Run target determination
           TARGETS_FILE=$(buck2 run depot//src/tools/quicktd -- "$BASE_COMMIT" "$HEAD_COMMIT" depot//...)
 
-          if [ -f "$TARGETS_FILE" ] && [ -s "$TARGETS_FILE" ]; then
+          if [ -f "$TARGETS_FILE" ]; then
             TARGET_COUNT=$(wc -l < "$TARGETS_FILE")
             echo "target-file=$TARGETS_FILE" >> $GITHUB_OUTPUT
             echo "target-count=$TARGET_COUNT" >> $GITHUB_OUTPUT
-            echo "targets-found=true" >> $GITHUB_OUTPUT
-            echo "Found $TARGET_COUNT affected targets"
 
-            # Check if target count is reasonable (less than 100 for efficiency)
-            if [ "$TARGET_COUNT" -le 100 ]; then
-              echo "reasonable-target-count=true" >> $GITHUB_OUTPUT
-              echo "Target count is reasonable, will proceed with targeted build"
-            else
+            if [ "$TARGET_COUNT" -eq 0 ]; then
+              echo "targets-found=false" >> $GITHUB_OUTPUT
               echo "reasonable-target-count=false" >> $GITHUB_OUTPUT
-              echo "Target count ($TARGET_COUNT) is too high, will fall back to full build"
+              echo "no-targets-affected=true" >> $GITHUB_OUTPUT
+              echo "No targets affected by changes, skipping build and test"
+            elif [ "$TARGET_COUNT" -le 100 ]; then
+              echo "targets-found=true" >> $GITHUB_OUTPUT
+              echo "reasonable-target-count=true" >> $GITHUB_OUTPUT
+              echo "no-targets-affected=false" >> $GITHUB_OUTPUT
+              echo "Found $TARGET_COUNT affected targets, will proceed with targeted build"
+            else
+              echo "targets-found=true" >> $GITHUB_OUTPUT
+              echo "reasonable-target-count=false" >> $GITHUB_OUTPUT
+              echo "no-targets-affected=false" >> $GITHUB_OUTPUT
+              echo "Found $TARGET_COUNT affected targets, but count is too high, will fall back to full build"
             fi
           else
             echo "targets-found=false" >> $GITHUB_OUTPUT
             echo "reasonable-target-count=false" >> $GITHUB_OUTPUT
-            echo "No targets file generated or file is empty, will fall back to full build"
+            echo "no-targets-affected=false" >> $GITHUB_OUTPUT
+            # FIXME (aseipp): this should be an error in the long run
+            echo "No targets file generated, will fall back to full build"
           fi
 
-      # Build Step - either targeted or full build
+      # Build Step - either targeted or full build (skip if no targets affected)
       - name: Build affected targets
+        if: steps.determine-targets.outputs.no-targets-affected != 'true'
         continue-on-error: true
         shell: bash
         run: |
@@ -182,8 +191,9 @@ jobs:
           TARGET_COUNT: ${{ steps.determine-targets.outputs.target-count }}
           TARGET_FILE: ${{ steps.determine-targets.outputs.target-file }}
 
-      # Test Step - either targeted or full test
+      # Test Step - either targeted or full test (skip if no targets affected)
       - name: Test affected targets
+        if: steps.determine-targets.outputs.no-targets-affected != 'true'
         continue-on-error: true
         shell: bash
         run: |
@@ -216,14 +226,18 @@ jobs:
         run: |
           echo "## Target Determination Summary"
           echo "- OS: ${MATRIX_OS} (${MATRIX_ABI})"
+          echo "- No targets affected: ${NO_TARGETS_AFFECTED:-false}"
           echo "- Targets found: ${TARGETS_FOUND}"
-          if [ "${TARGETS_FOUND}" = "true" ]; then
+          if [ "${NO_TARGETS_AFFECTED}" = "true" ]; then
+            echo "- Build/test skipped: No targets affected by changes"
+          elif [ "${TARGETS_FOUND}" = "true" ]; then
             echo "- Target count: ${TARGET_COUNT}"
             echo "- Used targeted build: ${REASONABLE_TARGET_COUNT}"
           fi
         env:
           MATRIX_OS: ${{ matrix.os }}
           MATRIX_ABI: ${{ matrix.abi }}
+          NO_TARGETS_AFFECTED: ${{ steps.determine-targets.outputs.no-targets-affected }}
           TARGETS_FOUND: ${{ steps.determine-targets.outputs.targets-found }}
           TARGET_COUNT: ${{ steps.determine-targets.outputs.target-count }}
           REASONABLE_TARGET_COUNT: ${{ steps.determine-targets.outputs.reasonable-target-count }}
