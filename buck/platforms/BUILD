@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@prelude//utils/buckconfig.bzl", "read_choice")
+load("@root//buck/shims/shims.bzl", depot = "shims")
 load(":defs.bzl", "generate_platforms", "default_platforms")
 
 build_config = read_choice("project", "buildmode", [
@@ -22,7 +23,7 @@ default_constraints = [
 generate_platforms(default_platforms, default_configs)
 
 [
-    platform(
+    depot.platform(
         name = f'{arch}-{name}',
         deps = [ ':default' ],
         constraint_values = [

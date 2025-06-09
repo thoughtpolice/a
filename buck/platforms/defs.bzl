@@ -2,16 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@prelude//utils:buckconfig.bzl", "read_choice")
+load("@root//buck/shims/shims.bzl", depot = "shims")
 
-def constraint_with_values(name, values, **kwargs):
+def constraint_with_values(name, values, **_kwargs):
     """Declare a constraint setting with a set of values."""
-    native.constraint_setting(name = name, **kwargs)
-    for value in values:
-        native.constraint_value(
-            name = value,
-            constraint = ":{}".format(name),
-            **kwargs,
-        )
+    depot.constraint(name, values)
 
 def _execution_platform_impl(ctx: AnalysisContext) -> list[Provider]:
     name = ctx.label.raw_target()
@@ -228,17 +223,17 @@ def generate_platforms(variants, constraints=[]):
 
     if re_choice == "full-remote":
         suffix = 'remote' if host_info().os.is_linux and not host_info().arch.is_aarch64 else 'cached'
-        native.alias(
+        depot.alias(
             name = 'default',
             actual = f'{default_alias_prefix}-{suffix}',
         )
     elif re_choice == "cache-only":
-        native.alias(
+        depot.alias(
             name = 'default',
             actual = f'{default_alias_prefix}-cached',
         )
     elif re_choice == "none":
-        native.alias(
+        depot.alias(
             name = 'default',
             actual = f'{default_alias_prefix}-local',
         )

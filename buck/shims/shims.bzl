@@ -170,6 +170,12 @@ def _constraint(name, values):
             constraint_setting = ":{}".format(name),
         )
 
+def _platform(**kwargs):
+    native.platform(**kwargs)
+
+def _alias(**kwargs):
+    native.alias(**kwargs)
+
 # MARK: Public API
 
 shims = struct(
@@ -198,6 +204,8 @@ shims = struct(
     filegroup = _depot_filegroup,
 
     constraint = _constraint,
+    platform = _platform,
+    alias = _alias,
 
     command_test = _command_test,
     run_test = _run_test,
