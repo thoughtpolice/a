@@ -1,6 +1,7 @@
 name: docker
 
 on:
+  workflow_dispatch:
   push:
     # FIXME (aseipp): enable later
     branches: ["fixme-no-push"]
