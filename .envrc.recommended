@@ -8,3 +8,5 @@ use flake ./buck/nixdev
 
 # then export buck and other stuff via dotslash
 export PATH=$PWD/buck/bin:$PATH
+
+source_env_if_exists .envrc.local

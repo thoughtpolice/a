@@ -2,6 +2,7 @@
 /buck-out
 
 .envrc
+.envrc.local
 .buckconfig.local
 
 *.pending-snap
