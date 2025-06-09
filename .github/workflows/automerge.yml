@@ -1,0 +1,25 @@
+name: automerge
+
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  automerge:
+    name: Enable automerge
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-24.04
+    if: ${{ github.actor == 'github-actions[bot]' }}
+    steps:
+      - name: Enable auto-merge for trusted [automerge] PRs
+        run: gh pr merge --auto --rebase "$PR_URL"
+        env:
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
