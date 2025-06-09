@@ -47,7 +47,7 @@
         ]) ++ (with pkgs; [
           ourRustVersion
           # general utilities
-          gdb qemu swtpm dotslash
+          gdb qemu swtpm dotslash unzip
           # vscode support
           nodejs
           # cargo tools
