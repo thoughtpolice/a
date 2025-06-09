@@ -25,6 +25,7 @@ jobs:
       - name: Update flake.lock
         uses: DeterminateSystems/update-flake-lock@428c2b58a4b7414dabd372acb6a03dba1084d3ab
         with:
+          token: ${{ secrets.GH_TOKEN_FOR_UPDATES }}
           pr-title: "[automerge] nix: update flake.lock"
           pr-body: Automated update of Nix flake dependencies.
           commit-msg: "nix: update flake.lock"
