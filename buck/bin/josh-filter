@@ -1,0 +1,67 @@
+#!/usr/bin/env dotslash
+
+{
+  "name": "josh-filter",
+  "platforms": {
+    "macos-aarch64": {
+      "size": 2814843,
+      "hash": "blake3",
+      "digest": "90217374a8690dca96ddd7380239d5ea4819cb8f3ad7636f580f06685cb91b90",
+      "format": "zst",
+      "path": "josh-filter-aarch64-apple-darwin",
+      "providers": [
+        {
+          "url": "https://github.com/thoughtpolice/josh/releases/download/snapshot-20250609-040203/josh-filter-aarch64-apple-darwin.zst"
+        }
+      ]
+    },
+    "linux-aarch64": {
+      "size": 3113348,
+      "hash": "blake3",
+      "digest": "ea9f0200e2deb2468edc8c8517044914111bef3417cf65859d046e91a0c78409",
+      "format": "zst",
+      "path": "josh-filter-aarch64-unknown-linux-musl",
+      "providers": [
+        {
+          "url": "https://github.com/thoughtpolice/josh/releases/download/snapshot-20250609-040203/josh-filter-aarch64-unknown-linux-musl.zst"
+        }
+      ]
+    },
+    "macos-x86_64": {
+      "size": 3058467,
+      "hash": "blake3",
+      "digest": "cb6677883167c08850cf15962c77a04fa7f8c128d94be2169e98386d8df0a4cf",
+      "format": "zst",
+      "path": "josh-filter-x86_64-apple-darwin",
+      "providers": [
+        {
+          "url": "https://github.com/thoughtpolice/josh/releases/download/snapshot-20250609-040203/josh-filter-x86_64-apple-darwin.zst"
+        }
+      ]
+    },
+    "windows-x86_64": {
+      "size": 3257471,
+      "hash": "blake3",
+      "digest": "d1668f4c789cd4dacee4f128d5c65ca7fbb1aa8be2dd67d4e9dfcf0280a47274",
+      "format": "zst",
+      "path": "josh-filter-x86_64-pc-windows-msvc.exe",
+      "providers": [
+        {
+          "url": "https://github.com/thoughtpolice/josh/releases/download/snapshot-20250609-040203/josh-filter-x86_64-pc-windows-msvc.exe.zst"
+        }
+      ]
+    },
+    "linux-x86_64": {
+      "size": 3364246,
+      "hash": "blake3",
+      "digest": "703625463199f6658928d8770cfb73eb6f17871d7241729edd2392a984edc24a",
+      "format": "zst",
+      "path": "josh-filter-x86_64-unknown-linux-musl",
+      "providers": [
+        {
+          "url": "https://github.com/thoughtpolice/josh/releases/download/snapshot-20250609-040203/josh-filter-x86_64-unknown-linux-musl.zst"
+        }
+      ]
+    }
+  }
+}
