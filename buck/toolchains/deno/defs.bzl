@@ -67,9 +67,28 @@ def _deno_binary_impl(ctx: AnalysisContext) -> list[Provider]:
         allow_cache_upload = True,
     )
 
+    # Create lint subtarget - lint entire directory to catch all TypeScript files
+    config_args = []
+    if ctx.attrs.config:
+        config_args = ["--config", ctx.attrs.config]
+    
+    lint_cmd = cmd_args([
+        deno,
+        "lint",
+    ] + config_args)
+
     return [
         DefaultInfo(
             default_output = output,
+            sub_targets = {
+                "lint": [
+                    DefaultInfo(),
+                    ExternalRunnerTestInfo(
+                        type = "custom",
+                        command = [lint_cmd],
+                    ),
+                ],
+            },
         ),
         RunInfo(
             args = cmd_args([
@@ -88,6 +107,7 @@ _deno_binary = rule(
         "srcs": attrs.list(attrs.source(), default = []),
         "main": attrs.source(),
         "type": attrs.enum(["run", "serve"]),
+        "config": attrs.option(attrs.source(), default = None),
         "unstable_features": attrs.list(attrs.string(), default = []),
         "permissions": attrs.list(attrs.string(), default = []),
         "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
@@ -109,8 +129,24 @@ def _deno_test_impl(ctx: AnalysisContext) -> list[Provider]:
         "test",
     ] + config_args + unstable_features + permissions + ctx.attrs.srcs)
     
+    # Create lint subtarget - lint entire directory to catch all TypeScript files
+    lint_cmd = cmd_args([
+        deno,
+        "lint",
+    ] + config_args)
+    
     return [
-        DefaultInfo(),
+        DefaultInfo(
+            sub_targets = {
+                "lint": [
+                    DefaultInfo(),
+                    ExternalRunnerTestInfo(
+                        type = "custom",
+                        command = [lint_cmd],
+                    ),
+                ],
+            },
+        ),
         RunInfo(args = cmd),
         ExternalRunnerTestInfo(
             type = "custom",
