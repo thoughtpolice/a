@@ -94,6 +94,42 @@ _deno_binary = rule(
     }
 )
 
+def _deno_test_impl(ctx: AnalysisContext) -> list[Provider]:
+    deno = ctx.attrs._deno_toolchain[DenoToolchain].deno
+    
+    unstable_features = map(lambda x: f'--unstable-{x}', ctx.attrs.unstable_features)
+    permissions = map(lambda x: f'--allow-{x}', ctx.attrs.permissions)
+    
+    config_args = []
+    if ctx.attrs.config:
+        config_args = ["--config", ctx.attrs.config]
+    
+    cmd = cmd_args([
+        deno,
+        "test",
+    ] + config_args + unstable_features + permissions + ctx.attrs.srcs)
+    
+    return [
+        DefaultInfo(),
+        RunInfo(args = cmd),
+        ExternalRunnerTestInfo(
+            type = "custom",
+            command = [cmd],
+        )
+    ]
+
+_deno_test = rule(
+    impl = _deno_test_impl,
+    attrs = {
+        "srcs": attrs.list(attrs.source()),
+        "config": attrs.option(attrs.source(), default = None),
+        "unstable_features": attrs.list(attrs.string(), default = []),
+        "permissions": attrs.list(attrs.string(), default = []),
+        "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
+    }
+)
+
 deno = struct(
     binary = _deno_binary,
+    test = _deno_test,
 )
