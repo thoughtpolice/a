@@ -3,14 +3,14 @@
 
 load(":defs.bzl", "download_deno", "deno_toolchain")
 
-DENO_VERSION = '2.1.10'
+DENO_VERSION = '2.3.5'
 
 ALL_DENO_VERSIONS = {
-    '2.1.10': [
-        ('aarch64-unknown-linux-gnu', 'ee01a21a2b6ebd1aaa7d349b5e05238bfb5f4b3062a225ba78f591e242b973e3'),
-        ('aarch64-apple-darwin', 'd33fe472cd93bbabcdfbcb5cb9806cf49e3a862365963aef323bafb9d7326bf4'),
-        ('x86_64-unknown-linux-gnu', '55d18bf969b7ac6e132b3a35f31f8f01c0bd9c0e847e05b459f40384ce746cc1'),
-        ('x86_64-pc-windows-msvc', '6a5e82c9796bdaa8da0626c2e4c0f960d4da7028775003b3b81eeb88238a2f47'),
+    '2.3.5': [
+        ('aarch64-unknown-linux-gnu', '8b5c2495aa2e8763acb6fe6f5b03feda4af31a1f2628dede1e41f82a8b950366'),
+        ('aarch64-apple-darwin', 'c4b97b260d534b27bd31d0dac1e7d8dd83375b08510d7889b38b734ee932bb75'),
+        ('x86_64-unknown-linux-gnu', '096ddb8b151adb26f34ac6a8f2beb774776e4b80173824181eb2d2f81e00d111'),
+        ('x86_64-pc-windows-msvc', 'aeebfb104074b94b0fc35a52b306be3ad4275d0f871263b74d0740e9e27e56d2'),
     ],
 }
 
