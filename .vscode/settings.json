@@ -5,6 +5,7 @@
     "files.associations": {
         ".buckconfig": "ini",
         ".buckconfig.local": "ini",
+        "*.buckconfig": "ini",
     },
 
     "files.exclude": {

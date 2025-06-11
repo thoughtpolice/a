@@ -24,6 +24,13 @@ name = BUILD
 # use sha256 since everything supports it. XXX FIXME (aseipp): blake3?
 digest_algorithms = SHA256
 
+# These options are used to configure a "graph sketch" that roughly keeps track
+# of the size of the underlying graphs that buck2 uses. turn these on; they're
+# emitted as part of the build reports.
+log_total_configured_graph_sketch = true
+log_total_configured_graph_unconfigured_sketch = true
+log_configured_graph_unconfigured_sketch = true
+
 # enable deferred materialization. this means that intermediate outputs will
 # never get written to disk, and instead will be stored in the remote cache for
 # all intermediate execution steps.
