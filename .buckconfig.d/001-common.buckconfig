@@ -31,21 +31,8 @@ log_total_configured_graph_sketch = true
 log_total_configured_graph_unconfigured_sketch = true
 log_configured_graph_unconfigured_sketch = true
 
-# enable deferred materialization. this means that intermediate outputs will
-# never get written to disk, and instead will be stored in the remote cache for
-# all intermediate execution steps.
-#
-# we don' use RE yet, but keep these enabled so we don' have to change things or
-# find problems later. this also enables (local disk) sqlite materialization
-# state, and defers writes to the end of actions to help improve performance.
-materializations = deferred
-sqlite_materializer_state = true
+# defers writes to the end of actions to help improve performance
 defer_write_actions = true
-
-# hash all commands in the action graph; this helps avoid some spurious
-# recompilations when the action graph changes, but the actual commands don't.
-# NOTE: this requires `materializations = deferred`
-hash_all_commands = true
 
 # deferred materialization requires that cache outputs never expire. if they do,
 # a command might fail if it expects a hit on an object that was supposed to be
@@ -57,11 +44,13 @@ restarter = true
 # for the interpreter. this is useful for catching runaway memory usage in BUILD
 # files just in case people start going crazy with them.
 check_starlark_peak_memory = true
-# default limit is 5MiB = 5 * 1024 * 1024 = 5242880 bytes
-default_starlark_peak_memory = 5242880
 # also, enforce a max callstack size to prevent ridiculous stack sizes and
 # put a limit on how deep/abstract things can get.
 starlark_max_callstack_size = 50
+
+# default limit is 5MiB = 5 * 1024 * 1024 = 5242880 bytes. this is used by
+# starlark_memory_limit() by default if no limit is specified.
+default_starlark_peak_memory = 5242880
 
 [build]
 # set the default execution platform for builds on this machine. NOTE: this
