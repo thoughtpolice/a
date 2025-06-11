@@ -46,14 +46,15 @@
           ocaml
         ]) ++ (with pkgs; [
           ourRustVersion
+
           # general utilities
-          gdb qemu swtpm dotslash unzip
-          # vscode support
-          nodejs
+          gdb qemu swtpm dotslash unzip semgrep
+
           # cargo tools
-          cargo-edit
-          # other stuff
-          cargo-edit bloaty semgrep
+          cargo-edit bloaty
+
+          # other toolchains
+          nodejs go_latest
         ]) ++ darwinDeps ++ linuxDeps;
 
         shellHook = with pkgs; ''

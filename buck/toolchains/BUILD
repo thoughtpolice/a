@@ -38,6 +38,11 @@ toolchain_alias(
 )
 
 toolchain_alias(
+    name="golang",
+    actual="toolchains//golang:golang",
+)
+
+toolchain_alias(
     name="oci",
     actual="toolchains//oci:oci",
 )

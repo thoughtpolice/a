@@ -90,6 +90,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".hpp": (cxx_style_copyright, cxx_style_license),
         ".h": (cxx_style_copyright, cxx_style_license),
         ".c": (cxx_style_copyright, cxx_style_license),
+        ".go": (cxx_style_copyright, cxx_style_license),
         ".ts": (cxx_style_copyright, cxx_style_license),
         ".js": (cxx_style_copyright, cxx_style_license),
         ".nix": (bzl_style_copyright, bzl_style_license),

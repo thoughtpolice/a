@@ -6,6 +6,7 @@ load("@prelude//cfg/modifier:conditional_modifier.bzl", "conditional_modifier")
 
 load("@root//buck/lib/tar:defs.bzl", "tar_file")
 load("@root//buck/lib/oci:defs.bzl", "oci_image", "oci_pull", "oci_push")
+load("@toolchains//golang:defs.bzl", "go_binary", "go_library")
 
 # MARK: Basic shims
 
@@ -185,6 +186,9 @@ shims = struct(
 
     ocaml_binary = native.ocaml_binary,
     ocaml_library = native.ocaml_library,
+
+    go_binary = go_binary,
+    go_library = go_library,
 
     cxx_library = _depot_cxx_library,
     prebuilt_cxx_library = _depot_prebuilt_cxx_library,
