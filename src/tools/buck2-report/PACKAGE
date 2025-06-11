@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims/package.bzl", "pkg")
+
+pkg.info(
+    version = "0.1.0",
+    description = """
+        Buck2 build report analyzer and formatter.
+        
+        Parses Buck2 build reports generated with --build-report flag
+        and produces human-readable summaries with statistics.
+    """,
+    license = "Apache-2.0",
+    copyright = [
+        "2024-2025 Austin Seipp",
+    ],
+    visibility = ['PUBLIC'],
+)

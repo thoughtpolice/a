@@ -1,0 +1,9 @@
+{
+  "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
+  "imports": {},
+  "fmt": {
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "proseWrap": "preserve"
+  }
+}
