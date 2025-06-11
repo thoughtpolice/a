@@ -161,6 +161,42 @@ def rjust(s: str, pad: str, width: int) -> str:
         return s
     return pad * (width - len(s)) + s
 
+# MARK: Utilities
+
+def _hash_chance(seed: typing.Any, percent: int) -> bool:
+    """
+    Given a probability `p` to describe an event happening, and input seed `s`,
+    return `True` if the event should happen, or `False` otherwise.
+    """
+    s = seed if isinstance(seed, str) else str(seed)
+    h = hash(s)
+    h = -h if h < 0 else h
+    return (True if (h % 100) < percent else False)
+
+def _hash_chance_ctx(ctx: AnalysisContext, percent: int) -> bool:
+    """
+    Given a probability `p` to describe an event happening, and input `ctx` object,
+    return `True` if the event should happen, or `False` otherwise.
+    """
+    return _hash_chance(ctx.label, percent=percent)
+
+def _enforce_starlark_memory_limit(bytes: [None, int] = None):
+    """
+    Set the peak memory usage for a BUILD file. This is mostly useful as a diagnostic tool when
+    writing BUILD files since it can be included conveniently; it is not intended to be used
+    everywhere all the time, at least not for now.
+    """
+    root_config_value = read_config("buck2", "default_starlark_peak_memory")
+    if root_config_value != None:
+        root_config_value = int(root_config_value)
+    else:
+        root_config_value = 0
+    
+    bytes = bytes if bytes != None else root_config_value
+
+    if bytes > 0:
+        set_starlark_peak_allocated_byte_limit(bytes)
+
 # Easier setting of constraints and values
 def _constraint(name, values):
     """Declare a constraint setting with a set of values."""
@@ -215,6 +251,10 @@ shims = struct(
     run_test = _run_test,
     command = _command,
     rjust = rjust,
+
+    chance = _hash_chance,
+    chance_ctx = _hash_chance_ctx,
+    starlark_memory_limit = _enforce_starlark_memory_limit,
 
     modifiers = struct(
         conditional = conditional_modifier,
