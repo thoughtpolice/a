@@ -1,8 +1,16 @@
-# `jj` workspace root
+# `jj` workspace root & dumping grounds
 
 This empty directory is a convenient "workspace root" to place your various
-different `jj` workspaces. The idea is something like this &mdash; while you are
-in a clean, empty working copy commit, execute the following:
+different `jj` workspaces, and other various things that you want in the
+repository that shouldn't be tracked by the repo directly.
+
+Most importantly of all, the content under this directory (besides this README)
+is ignored by the VCS, which is useful for various purposes outlined below.
+
+## Case 1: workspaces for feature development
+
+The idea is something like this &mdash; while you are in a clean, empty working
+copy commit, execute the following:
 
 ```bash
 cd $(jj workspace root) # go to the root of the default workspace
@@ -41,3 +49,14 @@ project was its own separate repository entirely.
 Run `jj workspace forget work/new-feature` when you are done with a workspace,
 and the commits will still exist in the top level repository, but the workspace
 is gone. You can delete the directories after that.
+
+## Case 2: automation uses
+
+There are some cases that we use in the repo right now that use this directory.
+
+- **Target determination**. The `quicktd` tool will put workspaces at different
+  commits under here, so that the graph of BUILD files can be built and compared
+  to figure out what targets have changed.
+- **Source code analysis**. Sometimes you need to `git clone` a repository to
+  look at the source code. This directory is good at that. Some automation may
+  do so, as well (like the `brainiac` MCP tool).
