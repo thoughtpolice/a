@@ -51,7 +51,7 @@
           gdb qemu swtpm dotslash unzip semgrep
 
           # cargo tools
-          cargo-edit bloaty
+          cargo-edit bloaty rust-bindgen
 
           # other toolchains
           nodejs go_latest

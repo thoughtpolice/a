@@ -5,10 +5,6 @@ load("@root//buck/shims/shims.bzl", depot="shims")
 
 # MARK: main library
 
-# XXX HACK (aseipp): get bindgen-cli binaries everywhere, somehow
-aarch64_linux = host_info().os.is_linux and host_info().arch.is_aarch64
-bindgen = "bindgen" if aarch64_linux else "$(exe third-party//rust/bindgen:bindgen)"
-
 cxx_genrule(
     name="wrapper.rs",
     outs={
@@ -23,7 +19,7 @@ cxx_genrule(
         "wrapper.h": "third-party//bssl:src[src/rust/bssl-sys/wrapper.h]",
     },
     cmd=f"""
-      {bindgen} \
+      bindgen \
         wrapper.h -o $OUT/wrapper.rs \
           --no-derive-default \
           --enable-function-attribute-detection \

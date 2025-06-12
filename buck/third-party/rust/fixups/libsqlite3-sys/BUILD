@@ -1,10 +1,6 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# XXX HACK (aseipp): get bindgen-cli binaries everywhere, somehow
-aarch64_linux = host_info().os.is_linux and host_info().arch.is_aarch64
-bindgen = 'bindgen' if aarch64_linux else '$(exe third-party//rust/bindgen:bindgen)'
-
 cxx_genrule(
     name = 'bindgen.rs',
     outs = {
@@ -18,7 +14,8 @@ cxx_genrule(
     },
     # this abomination comes from
     # https://github.com/rusqlite/rusqlite/blob/fb95263b1c17947dbe81fa03fd8bd216b4fba6b3/libsqlite3-sys/build.rs#L530-L576
-    cmd = bindgen + """ \
+    cmd = """
+        bindgen \
         wrapper.h -o $OUT/bindgen.rs \
           --default-macro-constant-type=signed \
           --disable-nested-struct-naming \

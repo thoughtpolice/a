@@ -43,10 +43,12 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y mold
           python3 -m pip install semgrep # sigh...
+          cargo install bindgen-cli
       - name: (macOS) Install packages
         if: runner.os == 'macOS'
         run: |
           brew install go semgrep
+          cargo install bindgen-cli
       - name: Checkout repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
@@ -99,10 +101,12 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y mold
           python3 -m pip install semgrep # sigh...
+          cargo install bindgen-cli
       - name: (macOS) Install packages
         if: runner.os == 'macOS'
         run: |
           brew install go semgrep
+          cargo install bindgen-cli
       - name: Checkout repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
