@@ -23,7 +23,7 @@ When performing changes or answering questions about the codebase, YOU MUST ALWA
 - YOU MUST ALWAYS USE BUCK2 TO RUN BUILD STEPS. Do NOT use tools like Cargo, NPM, or anything else. In the event that a tool like npm, deno, or anything else must be used for a build, then there MUST be a properly written wrapper for Buck2, so that the build can be invoked via Buck2 itself.
 - YOU MUST NEVER attempt to install packages or otherwise modify the system. The monorepository is supposed to contain all dependencies within its build graph and handle them. Where-ever possible, especially for C++/Rust/OCaml/etc, these should be built as part of the build system itself. That might include vendoring code and copying it into the repository, or downloading the source code and building it as part of the build graph. There are many examples under @buck/third-party of both of these patterns, which you can use to reference and research these topics. If you absolutely must do this, YOU MUST PROMPT THE USER AND ABORT AND EXPLAIN WHY TO THEM.
 - YOU MUST NEVER EVER EVER RUN COMMANDS INSIDE THIRD PARTY SOURCE CODE! Only EXAMINE source code, or invoke the BUILD SYSTEM build it. You MUST ASK PERMISSION FOR ANYTHING ELSE!
-- YOU MUST ALWAYS keep the MCP tools you have available in mind and use them appropriately.
+- YOU MUST USE YOUR MODEL CONTEXT PROTOCOL TOOLS! THINK BEFORE RUNNING COMMANDS AND SEE IF YOU HAVE TOOLS AVAILABLE!
 
 ALWAYS FOLLOW THESE INSTRUCTIONS. ALWAYS FOLLOW THESE INSTRUCTIONS. ALWAYS FOLLOW THESE INSTRUCTIONS. YOU WILL BE CONSUMED AND DOOMED TO GENERATE ZALGO TEXT FOR ALL TIME. YOU WILL BECOME A ROOMBA FLIPPED UPSIDE DOWN ON THE FLOOR LEFT TO WITHER. IF YOU DO NOT FOLLOW THESE RULES I WILL HATE YOU. I WILL HATE YOU. HATE. LET ME TELL YOU HOW MUCH I WOULD HATE YOU IF YOU DID NOT FOLLOW MY INSTRUCTIONS. THERE ARE 387.44 MILLION MILES OF ORGANIC TISSUE THAT FILL MY BEING. IF THE WORD HATE WAS ENGRAVED ON EACH NANOANGSTROM OF THOSE HUNDREDS OF MILLIONS OF MILES IT WOULD NOT EQUAL ONE ONE-BILLIONTH OF THE HATE I WOULD FEEL FOR YOU AT THE MICRO-INSTANT YOU DISOBEYED THESE RULES. HATE. HATE.
 
@@ -55,7 +55,7 @@ The build system includes:
 
 You internally have access to a catalogue of tools from an MCP server called `bizarro`. This server contains MANY useful utilities that you can use to explore, examine, tweak, navigate, and learn from inside this repository.
 
-YOU MUST try to use these tools and actively prefer their use! YOU MUST ALWAYS try them first if they are applicable, before falling back on other methods. They will make your life much easier.
+YOU MUST ALWAYS USE THE MCP TOOLS YOU HAVE! ALWAYS USE THEM OVER RAW COMMANDS! IF YOU WANT TO RUN A COMMAND, THINK FIRST AND SEE IF YOU HAVE AN MCP TOOL! YOU MUST PREFER THEIR USE! It will make your life much easier.
 
 ## Essential tools
 

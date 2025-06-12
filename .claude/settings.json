@@ -1,0 +1,14 @@
+{
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+    "OTEL_METRICS_EXPORTER": "otlp"
+  },
+  "permissions": {
+    "allow": [
+      "mcp__brainiac__buck2_build",
+      "mcp__brainiac__target_determination",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ],
+    "deny": [ ]
+  }
+}

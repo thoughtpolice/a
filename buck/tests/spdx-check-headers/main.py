@@ -28,6 +28,7 @@ BAD_SUFFIXES = [
     ".md",
     ".lock",
     ".txt",
+    ".json",
     ".jsonc",
     ".exe",
     ".gitattributes",
