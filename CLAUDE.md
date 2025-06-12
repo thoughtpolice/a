@@ -868,17 +868,17 @@ When Buck2 detects a change, it has to build all transitive downstream dependenc
 The following command runs quicktd and calculates the targets impacted by every change from the root of the repo (empty) to your working copy. In other words, it should "build everything" more or less:
 
 ```bash
-buck2 run depot//src/tools/quicktd -- 'root()' '@' depot//src/...
+buck2 run root//buck/tools/quicktd -- 'root()' '@' depot//src/...
 ```
 
-YOU MUST ALWAYS USE THE FULL `depot//` CELL WHEN RUNNING THE TARGET DETERMINATOR. Failure to do so may result in failures due to ambiguous cell references.
+YOU MUST ALWAYS USE THE FULL `root//` CELL WHEN RUNNING THE TARGET DETERMINATOR. Failure to do so may result in failures due to ambiguous cell references. This is ALWAYS the correct unambiguous reference.
 
 The two parameters `A B` in quotes (`root()` and `@` respectively in the above example) are Jujutsu revsets, which collectively should resolve into some connected DAG between points `A` and `B`.
 
 The output is a file name, which needs to be piped to `buck2`. You MUST ALWAYS use at-file syntax to do this; the target list may be extremely large and exceed the maximum allowed command line:
 
 ```bash
-TARGETS=$(buck2 run depot//src/tools/quicktd -- 'root()' '@' depot//src/...)
+TARGETS=$(buck2 run root//buck/tools/quicktd -- 'root()' '@' depot//src/...)
 buck2 build @$TARGETS
 buck2 test @$TARGETS
 ```
@@ -894,7 +894,7 @@ jj describe -m "component: add new feature"
 jj amend
 
 # Check what changed and run relevant tests
-TARGETS=$(buck2 run //src/tools/quicktd -- 'root()' '@' //src/...)
+TARGETS=$(buck2 run root//buck/tools/quicktd -- 'root()' '@' //src/...)
 buck2 build @$TARGETS
 buck2 test @$TARGETS
 # If tests pass, we're done, because we amended the change into the empty commit
@@ -1034,7 +1034,7 @@ When you write or modify a GitHub Actions workflow, YOU MUST ABSOLUTELY CONFIRM 
 jj new -m "component: description"
 
 # 2. Check what targets are affected by your changes
-TARGETS=$(buck2 run depot//src/tools/quicktd -- 'root()' '@' depot//src/...)
+TARGETS=$(buck2 run root//buck/tools/quicktd -- 'root()' '@' depot//src/...)
 
 # 3. Build and test affected targets
 buck2 build @$TARGETS
