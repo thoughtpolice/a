@@ -3,8 +3,11 @@
   "specifiers": {
     "jsr:@std/assert@*": "1.0.13",
     "jsr:@std/assert@1": "1.0.13",
+    "jsr:@std/fs@*": "1.0.18",
     "jsr:@std/internal@^1.0.6": "1.0.8",
+    "jsr:@std/path@*": "1.1.0",
     "jsr:@std/path@1": "1.1.0",
+    "jsr:@std/path@^1.1.0": "1.1.0",
     "npm:@modelcontextprotocol/sdk@1": "1.12.1_express@5.1.0_zod@3.25.57",
     "npm:zod@^3.22.4": "3.25.57"
   },
@@ -13,6 +16,12 @@
       "integrity": "ae0d31e41919b12c656c742b22522c32fb26ed0cba32975cb0de2a273cb68b29",
       "dependencies": [
         "jsr:@std/internal"
+      ]
+    },
+    "@std/fs@1.0.18": {
+      "integrity": "24bcad99eab1af4fde75e05da6e9ed0e0dce5edb71b7e34baacf86ffe3969f3a",
+      "dependencies": [
+        "jsr:@std/path@^1.1.0"
       ]
     },
     "@std/internal@1.0.8": {

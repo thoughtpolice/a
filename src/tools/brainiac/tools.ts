@@ -6,7 +6,7 @@ import { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 
 import { ToolDefinition } from "./tools/types.ts";
 import { sourceFetchTool } from "./tools/source_fetch.ts";
-import { buck2BuildTool } from "./tools/buck2.ts";
+import { buck2BuildTool, targetDeterminationTool } from "./tools/buck2.ts";
 import { RESOURCE_TOOLS } from "./resource_tools.ts";
 
 // Registry of all available tools (manual tools + resource-backed tools)
@@ -14,6 +14,7 @@ import { RESOURCE_TOOLS } from "./resource_tools.ts";
 export const TOOLS: ToolDefinition<any>[] = [
   sourceFetchTool,
   buck2BuildTool,
+  targetDeterminationTool,
   ...RESOURCE_TOOLS,
 ];
 

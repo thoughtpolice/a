@@ -17,6 +17,8 @@ Deno.test("Modular tool system", () => {
   
   // Manual tools
   assertEquals(toolNames.includes("source_fetch"), true);
+  assertEquals(toolNames.includes("buck2_build"), true);
+  assertEquals(toolNames.includes("target_determination"), true);
   
   // Resource-backed tools
   assertEquals(toolNames.includes("get_config"), true);
@@ -37,6 +39,21 @@ Deno.test("Dynamic schema conversion", () => {
   assertEquals(sourceFetchTool?.inputSchema.required, ["url"]);
   assertEquals(
     (sourceFetchTool?.inputSchema.properties?.url as JsonSchemaProperty)?.type,
+    "string",
+  );
+
+  // Check target_determination tool schema
+  const targetDeterminationTool = mcpTools.find((tool) => tool.name === "target_determination");
+  assertEquals(targetDeterminationTool?.name, "target_determination");
+  assertEquals(targetDeterminationTool?.description, "Determine which Buck2 targets need to be rebuilt based on changes between two revisions");
+  assertEquals(targetDeterminationTool?.inputSchema.type, "object");
+  assertEquals(targetDeterminationTool?.inputSchema.required, ["from", "to", "universe"]);
+  assertEquals(
+    (targetDeterminationTool?.inputSchema.properties?.from as JsonSchemaProperty)?.type,
+    "string",
+  );
+  assertEquals(
+    (targetDeterminationTool?.inputSchema.properties?.to as JsonSchemaProperty)?.type,
     "string",
   );
 });
