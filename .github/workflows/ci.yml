@@ -22,8 +22,8 @@ jobs:
           # FIXME (aseipp): get working again
           #- os: ubuntu-24.04-arm
           #  abi: aarch64-unknown-linux-gnu
-          #- os: windows-2022
-          #  abi: x86_64-pc-windows-msvc
+          - os: windows-2022
+            abi: x86_64-pc-windows-msvc
           - os: macos-15
             abi: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
