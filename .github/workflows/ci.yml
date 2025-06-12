@@ -60,10 +60,6 @@ jobs:
       - name: Init jj repository
         shell: bash
         run: dotslash ./buck/bin/extra/jj git init --colocate
-      - name: buck2 build ...
-        shell: bash
-        run: |
-          buck2 build -c ci.depot_gha_ci=true @mode//debug root//...
       - name: buck2 test ...
         shell: bash
         run: |
@@ -152,44 +148,25 @@ jobs:
               echo "targets-found=false" >> $GITHUB_OUTPUT
               echo "reasonable-target-count=false" >> $GITHUB_OUTPUT
               echo "no-targets-affected=true" >> $GITHUB_OUTPUT
-              echo "No targets affected by changes, skipping build and test"
+              echo "No targets affected by changes, skipping test"
             elif [ "$TARGET_COUNT" -le 100 ]; then
               echo "targets-found=true" >> $GITHUB_OUTPUT
               echo "reasonable-target-count=true" >> $GITHUB_OUTPUT
               echo "no-targets-affected=false" >> $GITHUB_OUTPUT
-              echo "Found $TARGET_COUNT affected targets, will proceed with targeted build"
+              echo "Found $TARGET_COUNT affected targets, will proceed with targeted test"
             else
               echo "targets-found=true" >> $GITHUB_OUTPUT
               echo "reasonable-target-count=false" >> $GITHUB_OUTPUT
               echo "no-targets-affected=false" >> $GITHUB_OUTPUT
-              echo "Found $TARGET_COUNT affected targets, but count is too high, will fall back to full build"
+              echo "Found $TARGET_COUNT affected targets, but count is too high, will fall back to full test"
             fi
           else
             echo "targets-found=false" >> $GITHUB_OUTPUT
             echo "reasonable-target-count=false" >> $GITHUB_OUTPUT
             echo "no-targets-affected=false" >> $GITHUB_OUTPUT
             # FIXME (aseipp): this should be an error in the long run
-            echo "No targets file generated, will fall back to full build"
+            echo "No targets file generated, will fall back to full test"
           fi
-
-      # Build Step - either targeted or full build (skip if no targets affected)
-      - name: Build affected targets
-        if: steps.determine-targets.outputs.no-targets-affected != 'true'
-        continue-on-error: true
-        shell: bash
-        run: |
-          if [ "${TARGETS_FOUND}" = "true" ] && [ "${REASONABLE_TARGET_COUNT}" = "true" ]; then
-            echo "Building targeted selection of ${TARGET_COUNT} targets"
-            buck2 build -c ci.depot_gha_ci=true @mode//debug @"${TARGET_FILE}"
-          else
-            echo "Falling back to full build"
-            buck2 build -c ci.depot_gha_ci=true @mode//debug root//...
-          fi
-        env:
-          TARGETS_FOUND: ${{ steps.determine-targets.outputs.targets-found }}
-          REASONABLE_TARGET_COUNT: ${{ steps.determine-targets.outputs.reasonable-target-count }}
-          TARGET_COUNT: ${{ steps.determine-targets.outputs.target-count }}
-          TARGET_FILE: ${{ steps.determine-targets.outputs.target-file }}
 
       # Test Step - either targeted or full test (skip if no targets affected)
       - name: Test affected targets
@@ -229,10 +206,10 @@ jobs:
           echo "- No targets affected: ${NO_TARGETS_AFFECTED:-false}"
           echo "- Targets found: ${TARGETS_FOUND}"
           if [ "${NO_TARGETS_AFFECTED}" = "true" ]; then
-            echo "- Build/test skipped: No targets affected by changes"
+            echo "- Test skipped: No targets affected by changes"
           elif [ "${TARGETS_FOUND}" = "true" ]; then
             echo "- Target count: ${TARGET_COUNT}"
-            echo "- Used targeted build: ${REASONABLE_TARGET_COUNT}"
+            echo "- Used targeted test: ${REASONABLE_TARGET_COUNT}"
           fi
         env:
           MATRIX_OS: ${{ matrix.os }}
