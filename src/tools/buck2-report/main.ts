@@ -14,14 +14,14 @@ interface ConfiguredResult {
   success: string;
   outputs: BuildOutput;
   other_outputs: BuildOutput;
-  configured_graph_size: number;
+  configured_graph_size: number | null;
 }
 
 interface BuildResult {
   success: string;
   outputs: BuildOutput;
   other_outputs: BuildOutput;
-  configured_graph_size: number;
+  configured_graph_size: number | null;
   configured: Record<string, ConfiguredResult>;
   errors: string[];
 }
@@ -48,6 +48,8 @@ interface ProcessedBuildReport {
   };
   summary: {
     total_targets: number;
+    build_targets: number;
+    test_targets: number;
     succeeded: number;
     failed: number;
     success_rate: string;
@@ -81,6 +83,8 @@ interface ProcessedBuildReport {
 // Legacy interface for backward compatibility
 interface TargetStats {
   total: number;
+  buildTargets: number;
+  testTargets: number;
   succeeded: number;
   failed: number;
   byType: Record<string, number>;
@@ -115,6 +119,8 @@ function convertRawToProcessed(report: RawBuildReport): ProcessedBuildReport {
     },
     summary: {
       total_targets: stats.total,
+      build_targets: stats.buildTargets,
+      test_targets: stats.testTargets,
       succeeded: stats.succeeded,
       failed: stats.failed,
       success_rate: ((stats.succeeded / stats.total) * 100).toFixed(1) + "%",
@@ -165,6 +171,8 @@ function convertProcessedToStats(report: ProcessedBuildReport): TargetStats {
   
   return {
     total: report.summary.total_targets,
+    buildTargets: report.summary.build_targets,
+    testTargets: report.summary.test_targets,
     succeeded: report.summary.succeeded,
     failed: report.summary.failed,
     byType,
@@ -182,6 +190,8 @@ function convertProcessedToStats(report: ProcessedBuildReport): TargetStats {
 function analyzeTargets(results: Record<string, BuildResult>): TargetStats {
   const stats: TargetStats = {
     total: 0,
+    buildTargets: 0,
+    testTargets: 0,
     succeeded: 0,
     failed: 0,
     byType: {},
@@ -196,6 +206,14 @@ function analyzeTargets(results: Record<string, BuildResult>): TargetStats {
 
   for (const [target, result] of Object.entries(results)) {
     stats.total++;
+    
+    // Determine if this is a test target (no outputs and null graph size) or build target
+    const isTestTarget = Object.keys(result.outputs).length === 0 && result.configured_graph_size === null;
+    if (isTestTarget) {
+      stats.testTargets++;
+    } else {
+      stats.buildTargets++;
+    }
     
     if (result.success === "SUCCESS") {
       stats.succeeded++;
@@ -217,7 +235,7 @@ function analyzeTargets(results: Record<string, BuildResult>): TargetStats {
       let category = "other";
       if (targetType.endsWith(".exe")) {
         category = "executable";
-      } else if (targetType.includes("test") || targetType.includes("check")) {
+      } else if (targetType.includes("test") || targetType.includes("check") || isTestTarget) {
         category = "test";
       } else if (targetType.includes("lib")) {
         category = "library";
@@ -231,14 +249,16 @@ function analyzeTargets(results: Record<string, BuildResult>): TargetStats {
       stats.byType[category] = (stats.byType[category] || 0) + 1;
     }
 
-    // Track graph sizes
+    // Track graph sizes (only for build targets with valid graph sizes)
     const graphSize = result.configured_graph_size;
-    stats.totalGraphSize += graphSize;
-    graphSizes.push({ target, size: graphSize });
+    if (graphSize !== null) {
+      stats.totalGraphSize += graphSize;
+      graphSizes.push({ target, size: graphSize });
+    }
   }
 
-  // Calculate average
-  stats.avgGraphSize = stats.total > 0 ? Math.round(stats.totalGraphSize / stats.total) : 0;
+  // Calculate average (only for targets with graph sizes)
+  stats.avgGraphSize = graphSizes.length > 0 ? Math.round(stats.totalGraphSize / graphSizes.length) : 0;
 
   // Find largest graphs
   graphSizes.sort((a, b) => b.size - a.size);
@@ -276,6 +296,8 @@ function printReport(processedReport: ProcessedBuildReport, format: string) {
   
   const successRate = (stats.succeeded / stats.total * 100).toFixed(1);
   console.log(`Total targets: ${bold(stats.total.toString())}`);
+  console.log(`Build targets: ${bold(stats.buildTargets.toString())}`);
+  console.log(`Test targets: ${bold(stats.testTargets.toString())}`);
   console.log(`Succeeded: ${green(stats.succeeded.toString())} (${successRate}%)`);
   if (stats.failed > 0) {
     console.log(`Failed: ${red(stats.failed.toString())}`);
@@ -354,7 +376,8 @@ ${bold("USAGE:")}
   buck2-report [OPTIONS] <input-file.json>
 
 ${bold("INPUT FORMATS:")}
-  - Raw Buck2 build reports (from --build-report flag)
+  - Raw Buck2 build reports (from buck2 build --build-report)
+  - Raw Buck2 test reports (from buck2 test --build-report)  
   - Processed JSON summaries (from previous buck2-report runs)
 
 ${bold("OPTIONS:")}
@@ -369,8 +392,11 @@ ${bold("ROUND-TRIP SUPPORT:")}
   - Database storage and retrieval workflows
 
 ${bold("EXAMPLES:")}
-  # Generate console report from raw Buck2 output
+  # Generate console report from raw Buck2 build output
   buck2 build --build-report raw-report.json //... && buck2-report raw-report.json
+
+  # Generate console report from raw Buck2 test output
+  buck2 test --build-report test-report.json //... && buck2-report test-report.json
 
   # Process and save as JSON for later use
   buck2-report --format json --output processed.json raw-report.json
@@ -464,6 +490,8 @@ async function generateMarkdown(processedReport: ProcessedBuildReport): Promise<
   lines.push("| Metric | Value |");
   lines.push("|--------|-------|");
   lines.push(`| Total Targets | **${processedReport.summary.total_targets}** |`);
+  lines.push(`| Build Targets | ${processedReport.summary.build_targets} |`);
+  lines.push(`| Test Targets | ${processedReport.summary.test_targets} |`);
   lines.push(`| Succeeded | ${processedReport.summary.succeeded} (${processedReport.summary.success_rate}) |`);
   lines.push(`| Failed | ${processedReport.summary.failed} |`);
   lines.push(`| Success Rate | **${processedReport.summary.success_rate}** |`);
@@ -564,6 +592,8 @@ function generateConsoleText(processedReport: ProcessedBuildReport): string {
   lines.push("─".repeat(50));
   
   lines.push(`Total targets: ${processedReport.summary.total_targets}`);
+  lines.push(`Build targets: ${processedReport.summary.build_targets}`);
+  lines.push(`Test targets: ${processedReport.summary.test_targets}`);
   lines.push(`Succeeded: ${processedReport.summary.succeeded} (${processedReport.summary.success_rate})`);
   if (processedReport.summary.failed > 0) {
     lines.push(`Failed: ${processedReport.summary.failed}`);
