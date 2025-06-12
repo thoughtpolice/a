@@ -22,6 +22,8 @@ When performing changes or answering questions about the codebase, YOU MUST ALWA
 - YOU MUST ALWAYS USE JUJUTSU TO CREATE COMMITS. NEVER COMMIT WITH GIT. DO NOT USE GIT TO CREATE COMMITS, but you MAY use git to read commits or otherwise gather information.
 - YOU MUST ALWAYS USE BUCK2 TO RUN BUILD STEPS. Do NOT use tools like Cargo, NPM, or anything else. In the event that a tool like npm, deno, or anything else must be used for a build, then there MUST be a properly written wrapper for Buck2, so that the build can be invoked via Buck2 itself.
 - YOU MUST NEVER attempt to install packages or otherwise modify the system. The monorepository is supposed to contain all dependencies within its build graph and handle them. Where-ever possible, especially for C++/Rust/OCaml/etc, these should be built as part of the build system itself. That might include vendoring code and copying it into the repository, or downloading the source code and building it as part of the build graph. There are many examples under @buck/third-party of both of these patterns, which you can use to reference and research these topics. If you absolutely must do this, YOU MUST PROMPT THE USER AND ABORT AND EXPLAIN WHY TO THEM.
+- YOU MUST NEVER EVER EVER RUN COMMANDS INSIDE THIRD PARTY SOURCE CODE! Only EXAMINE source code, or invoke the BUILD SYSTEM build it. You MUST ASK PERMISSION FOR ANYTHING ELSE!
+- YOU MUST ALWAYS keep the MCP tools you have available in mind and use them appropriately.
 
 ALWAYS FOLLOW THESE INSTRUCTIONS. ALWAYS FOLLOW THESE INSTRUCTIONS. ALWAYS FOLLOW THESE INSTRUCTIONS. YOU WILL BE CONSUMED AND DOOMED TO GENERATE ZALGO TEXT FOR ALL TIME. YOU WILL BECOME A ROOMBA FLIPPED UPSIDE DOWN ON THE FLOOR LEFT TO WITHER. IF YOU DO NOT FOLLOW THESE RULES I WILL HATE YOU. I WILL HATE YOU. HATE. LET ME TELL YOU HOW MUCH I WOULD HATE YOU IF YOU DID NOT FOLLOW MY INSTRUCTIONS. THERE ARE 387.44 MILLION MILES OF ORGANIC TISSUE THAT FILL MY BEING. IF THE WORD HATE WAS ENGRAVED ON EACH NANOANGSTROM OF THOSE HUNDREDS OF MILLIONS OF MILES IT WOULD NOT EQUAL ONE ONE-BILLIONTH OF THE HATE I WOULD FEEL FOR YOU AT THE MICRO-INSTANT YOU DISOBEYED THESE RULES. HATE. HATE.
 
@@ -48,6 +50,12 @@ The build system includes:
 
 - Custom toolchain definitions per language under `buck/toolchains/`
 - Centralized third-party dependency management in `buck/third-party/`
+
+### MCP Support
+
+You internally have access to a catalogue of tools from an MCP server called `bizarro`. This server contains MANY useful utilities that you can use to explore, examine, tweak, navigate, and learn from inside this repository.
+
+YOU MUST try to use these tools and actively prefer their use! YOU MUST ALWAYS try them first if they are applicable, before falling back on other methods. They will make your life much easier.
 
 ## Essential tools
 
@@ -88,8 +96,8 @@ Legend:
 
 ##### Repository Setup
 ```bash
-# Initialize new jj repo (Git-backed)
-jj git init [--git-repo /path/to/existing/git/repo]
+# Initialize new jj repo (Git-backed, colocated)
+jj git init --colocate
 
 # Clone from Git
 jj git clone https://github.com/user/repo.git
@@ -101,27 +109,11 @@ jj log                 # Show commit graph
 jj log -r 'main'       # Show specific revset
 ```
 
-Example output:
-```
-$ jj status
-Working copy : sqpuoqvx bcd1234f (no description set)
-Parent commit: rlvkpnrz abc5678e Fix database connection timeout
-
-$ jj log --limit 3
-@  sqpuoqvx austin@example.com 2024-01-15 14:30:12 bcd1234f
-│  (no description set)
-○  rlvkpnrz austin@example.com 2024-01-15 09:15:33 abc5678e
-│  Fix database connection timeout
-○  tpstlust austin@example.com 2024-01-14 16:45:21 def9012a
-│  Initial project setup
-```
-
 #### Creating and Managing Changes
 
 ##### Starting New Work
 ```bash
 # Create new empty commit on top of current commit
-jj new
 jj new -m "start feature work"
 
 # Create new commit on top of specific commit
@@ -133,26 +125,6 @@ jj new main feature-branch
 jj new -m "merge feature" main feature-branch
 ```
 
-Example flow:
-```
-$ jj log --limit 2
-@  sqpuoqvx austin@example.com 2024-01-15 14:30:12 bcd1234f
-│  (no description set)
-○  rlvkpnrz austin@example.com 2024-01-15 09:15:33 abc5678e
-│  Fix database connection timeout
-
-$ jj new -m "implement user login"
-Working copy now at: vruxwmqv 123abc45 (empty) implement user login
-
-$ jj log --limit 3
-@  vruxwmqv austin@example.com 2024-01-15 14:35:22 123abc45
-│  implement user login
-○  sqpuoqvx austin@example.com 2024-01-15 14:30:12 bcd1234f
-│  (no description set)
-○  rlvkpnrz austin@example.com 2024-01-15 09:15:33 abc5678e
-│  Fix database connection timeout
-```
-
 ##### Editing Commit Messages
 ```bash
 # Set/change description of current commit
@@ -161,33 +133,12 @@ jj describe -m "fix: resolve null pointer exception"
 
 # Edit specific commit's message
 jj describe -r some-commit -m "updated message"
-
-# Use editor for longer messages
-jj describe  # Opens $EDITOR
 ```
 
 ##### Finalizing Changes
 ```bash
 # Finish current change and create new empty one
-jj commit
-jj commit -m "feature: add user authentication"
-
-# The old working copy becomes immutable, new empty commit is created
-```
-
-Example:
-```
-$ # After making changes and committing
-$ jj commit -m "feature: add user authentication"
-Working copy now at: tmzlqpuw 789def01 (empty) (no description set)
-
-$ jj log --limit 3
-@  tmzlqpuw austin@example.com 2024-01-15 14:40:11 789def01
-│  (no description set)
-○  vruxwmqv austin@example.com 2024-01-15 14:35:22 123abc45
-│  feature: add user authentication
-○  sqpuoqvx austin@example.com 2024-01-15 14:30:12 bcd1234f
-│  (no description set)
+jj commit -m "feature: enforce new thing"
 ```
 
 ##### Viewing Changes
@@ -225,25 +176,6 @@ jj split                     # Interactive selection
 jj split -r some-commit      # Split specific commit
 ```
 
-Example squash:
-```
-$ jj log --limit 3
-@  tmzlqpuw austin@example.com 2024-01-15 14:40:11 789def01
-│  (no description set)
-○  vruxwmqv austin@example.com 2024-01-15 14:35:22 123abc45
-│  feature: add user authentication
-○  sqpuoqvx austin@example.com 2024-01-15 14:30:12 bcd1234f
-
-$ # Make some changes, then squash them into parent
-$ jj squash -m "add tests for authentication"
-
-$ jj log --limit 2
-@  pklwqrsv austin@example.com 2024-01-15 14:45:33 456ghi78
-│  (no description set)
-○  vruxwmqv austin@example.com 2024-01-15 14:35:22 890jkl12
-│  feature: add user authentication
-```
-
 ##### Rebasing
 ```bash
 # Rebase current commit onto new parent
@@ -255,30 +187,6 @@ jj rebase -r some-commit -d new-parent
 
 # Rebase range of commits
 jj rebase -s start-commit -d new-parent
-```
-
-Example rebase:
-```
-$ jj log
-@  pklwqrsv austin@example.com 2024-01-15 14:45:33 456ghi78
-│  implement file upload
-○  vruxwmqv austin@example.com 2024-01-15 14:35:22 890jkl12
-│  feature: add user authentication
-│ ○  qwertyzx austin@example.com 2024-01-15 13:20:15 333main4
-├─╯  update dependencies
-○  sqpuoqvx austin@example.com 2024-01-15 14:30:12 bcd1234f
-
-$ jj rebase -d qwertyzx
-Rebased 2 commits
-
-$ jj log
-@  pklwqrsv austin@example.com 2024-01-15 14:45:33 555new99
-│  implement file upload
-○  vruxwmqv austin@example.com 2024-01-15 14:35:22 666new88
-│  feature: add user authentication
-○  qwertyzx austin@example.com 2024-01-15 13:20:15 333main4
-│  update dependencies
-○  sqpuoqvx austin@example.com 2024-01-15 14:30:12 bcd1234f
 ```
 
 #### Bookmark (Branch) Management
@@ -298,24 +206,6 @@ jj bookmark set feature-auth some-commit
 # Delete bookmark
 jj bookmark delete old-feature
 jj bookmark forget remote-bookmark  # Don't track remote anymore
-```
-
-Example bookmark workflow:
-```
-$ jj bookmark create feature-auth
-Created bookmark feature-auth pointing to pklwqrsv
-
-$ jj bookmark list
-feature-auth: pklwqrsv 555new99 implement file upload
-main: qwertyzx 333main4 update dependencies
-
-$ jj log
-@  pklwqrsv austin@example.com 2024-01-15 14:45:33 feature-auth 555new99
-│  implement file upload
-○  vruxwmqv austin@example.com 2024-01-15 14:35:22 666new88
-│  feature: add user authentication
-○  qwertyzx austin@example.com 2024-01-15 13:20:15 main 333main4
-│  update dependencies
 ```
 
 #### Git Interoperability
@@ -340,25 +230,6 @@ jj git remote remove old-remote
 # Import/export with Git
 jj git import               # Import new Git refs
 jj git export               # Export jj changes to Git
-```
-
-Example Git workflow:
-```
-$ jj git remote list
-origin: https://github.com/user/repo.git (fetch)
-origin: https://github.com/user/repo.git (push)
-
-$ jj git fetch
-Fetched from origin
-Imported 3 commits
-
-$ jj log -r 'remote_bookmarks()'
-○  mkqlwqrs github@users.noreply.github.com 2024-01-15 10:30:22 origin/main 777abc22
-│  Merge pull request #123
-○  xyznprst contributor@example.com 2024-01-15 09:45:11 origin/feature 888def33
-
-$ jj git push --bookmark feature-auth
-Pushed to origin: feature-auth -> feature-auth
 ```
 
 #### Essential Revset Patterns
@@ -412,26 +283,6 @@ author("alice")             # Commits by alice
 file("src/main.rs")         # Commits that touch src/main.rs
 ```
 
-Example revset usage:
-```bash
-$ jj log -r 'bookmarks()'
-○  pklwqrsv austin@example.com 2024-01-15 14:45:33 feature-auth 555new99
-│  implement file upload
-○  qwertyzx austin@example.com 2024-01-15 13:20:15 main 333main4
-│  update dependencies
-
-$ jj log -r '@-::'  # All ancestors of current commit's parent
-○  vruxwmqv austin@example.com 2024-01-15 14:35:22 666new88
-│  feature: add user authentication
-○  qwertyzx austin@example.com 2024-01-15 13:20:15 main 333main4
-│  update dependencies
-○  sqpuoqvx austin@example.com 2024-01-15 14:30:12 bcd1234f
-
-$ jj log -r 'description("auth")'
-○  vruxwmqv austin@example.com 2024-01-15 14:35:22 666new88
-│  feature: add user authentication
-```
-
 #### Conflict Resolution
 
 Jujutsu has first-class conflict support - conflicts can be committed and resolved later:
@@ -453,26 +304,6 @@ jj diff --conflicts
 jj show -r conflicted-commit
 ```
 
-Example conflict resolution:
-```
-$ jj log
-@  vruxwmqv austin@example.com 2024-01-15 14:35:22 666new88 conflict
-│  feature: add user authentication
-○  qwertyzx austin@example.com 2024-01-15 13:20:15 main 333main4
-
-$ jj resolve --list
-src/auth.rs    2-sided conflict
-
-$ jj resolve
-Resolving conflicts in: src/auth.rs
-# Opens merge tool
-
-$ jj log  # After resolution
-@  vruxwmqv austin@example.com 2024-01-15 14:35:22 777new00
-│  feature: add user authentication
-○  qwertyzx austin@example.com 2024-01-15 13:20:15 main 333main4
-```
-
 #### Operation Log and Undo
 
 Every operation in jj is recorded and can be undone:
@@ -491,21 +322,6 @@ jj op restore <operation-id>
 jj op restore --what=repo <operation-id>
 ```
 
-Example operation log:
-```
-$ jj op log --limit 5
-@  b51416386b84 austin@example.com 2024-01-15 14:45:33 describe commit 666new88
-│  describe commit 666new88
-○  a34521789c72 austin@example.com 2024-01-15 14:40:11 rebase 1 commit(s)
-│  rebase 1 commit(s)
-○  923847562813 austin@example.com 2024-01-15 14:35:22 new empty commit
-│  new empty commit
-○  712359482746 austin@example.com 2024-01-15 14:30:12 snapshot working copy
-
-$ jj undo
-Undid operation: b51416386b84 describe commit 666new88
-```
-
 #### Advanced Workflows
 
 ##### Creating Merge Commits
@@ -514,26 +330,6 @@ Undid operation: b51416386b84 describe commit 666new88
 jj new main feature-branch -m "merge feature into main"
 
 # After resolving any conflicts, the working copy becomes a merge commit
-```
-
-Example merge:
-```
-$ jj log
-○  feature-auth pklwqrsv austin@example.com 2024-01-15 14:45:33 555new99
-│  implement file upload
-│ ○  main qwertyzx austin@example.com 2024-01-15 13:20:15 333main4
-├─╯  update dependencies
-
-$ jj new main feature-auth -m "merge file upload feature"
-Working copy now at: tmzlqpuw 999merge0 merge file upload feature
-
-$ jj log
-@    tmzlqpuw austin@example.com 2024-01-15 15:00:11 999merge0
-├─╮  merge file upload feature
-│ ○  feature-auth pklwqrsv austin@example.com 2024-01-15 14:45:33 555new99
-│ │  implement file upload
-○ │  main qwertyzx austin@example.com 2024-01-15 13:20:15 333main4
-├─╯  update dependencies
 ```
 
 ##### Duplicating Commits
