@@ -109,12 +109,15 @@ async function executeBuck2Command(
     // Create temporary file for at-file syntax
     tempFile = await Deno.makeTempFile({ suffix: ".txt" });
     
+    // Use fixed isolation directory name for nested buck2 invocations
+    const isolationDir = "brainiac";
+    
     // Write each argument on a separate line
     const argsContent = args.join("\n");
     await Deno.writeTextFile(tempFile, argsContent);
 
     const command = new Deno.Command("buck2", {
-      args: [`@${tempFile}`],
+      args: ["--isolation-dir", isolationDir, `@${tempFile}`],
       stdout: "piped",
       stderr: "piped",
     });

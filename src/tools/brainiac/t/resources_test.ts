@@ -67,16 +67,21 @@ Deno.test("executeResource handles buck2 targets resource", async () => {
   assertEquals(result.contents[0].uri, "buck2://targets///src/...");
   assertEquals(result.contents[0].mimeType, "application/json");
 
-  // Should contain valid JSON with either targets or error
+  // Should contain valid JSON
   const data = JSON.parse(result.contents[0].text as string);
   assertEquals(data.target_pattern, "//src/...");
   
-  // Could be either a success with targets array or an error
+  // With proper isolation, this should succeed
   if (data.error) {
-    assertEquals(typeof data.error, "string");
+    // If there's an error, the command should have failed
+    console.error("Buck2 targets command failed:", data.error);
+    throw new Error(`Buck2 targets command should succeed: ${data.error}`);
   } else {
+    // Success case - should have targets array
     assertEquals(Array.isArray(data.targets), true);
     assertEquals(typeof data.count, "number");
+    // Should find at least some targets under //src/...
+    assertEquals(data.count > 0, true, "Should find at least one target under //src/...");
   }
 });
 
@@ -87,15 +92,20 @@ Deno.test("executeResource handles buck2 audit providers resource", async () => 
   assertEquals(result.contents[0].uri, "buck2://providers///src/hello:hello");
   assertEquals(result.contents[0].mimeType, "application/json");
 
-  // Should contain valid JSON with either providers or error
+  // Should contain valid JSON
   const data = JSON.parse(result.contents[0].text as string);
   assertEquals(data.target, "//src/hello:hello");
   
-  // Could be either a success with providers array or an error
+  // With proper isolation, this should succeed
   if (data.error) {
-    assertEquals(typeof data.error, "string");
+    // If there's an error, the command should have failed
+    console.error("Buck2 audit providers command failed:", data.error);
+    throw new Error(`Buck2 audit providers command should succeed: ${data.error}`);
   } else {
+    // Success case - should have providers array
     assertEquals(Array.isArray(data.providers), true);
     assertEquals(typeof data.count, "number");
+    // Should find at least some providers for a valid target
+    assertEquals(data.count >= 0, true, "Should return non-negative provider count");
   }
 });
