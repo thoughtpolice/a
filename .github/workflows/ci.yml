@@ -65,12 +65,23 @@ jobs:
       - name: buck2 test ...
         shell: bash
         run: |
-          buck2 test -c ci.depot_gha_ci=true @mode//debug root//... -- \
+          buck2 test -c ci.depot_gha_ci=true @mode//debug root//... \
+            --build-report ${{ runner.temp }}/build-report.json -- \
             --env SEMGREP_ENABLE_VERSION_CHECK=0
       - name: Upload build logs
         if: always()
         shell: bash
         run: buck2 run //src/tools/buck2-logs:upload -- --host https://buck2-logs.deno.dev
+      - name: Generate build report
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "${{ runner.temp }}/build-report.json" ]; then
+            echo "## Build Report Summary"
+            buck2 run root//buck/tools/build-report:build-report -- "${{ runner.temp }}/build-report.json"
+          else
+            echo "Build report file not found, skipping report generation"
+          fi
 
   # Target determination workflow - parallel to main build, non-fatal for smoke testing
   target-determination:
@@ -121,7 +132,6 @@ jobs:
         shell: bash
         run: dotslash ./buck/bin/extra/jj git init --colocate
 
-      # Target Determination Step
       - name: Determine affected targets
         id: determine-targets
         continue-on-error: true
@@ -180,11 +190,13 @@ jobs:
         run: |
           if [ "${TARGETS_FOUND}" = "true" ] && [ "${REASONABLE_TARGET_COUNT}" = "true" ]; then
             echo "Testing targeted selection of ${TARGET_COUNT} targets"
-            buck2 test -c ci.depot_gha_ci=true @mode//debug @"${TARGET_FILE}" -- \
+            buck2 test -c ci.depot_gha_ci=true @mode//debug @"${TARGET_FILE}" \
+              --build-report ${{ runner.temp }}/build-report.json -- \
               --env SEMGREP_ENABLE_VERSION_CHECK=0
           else
             echo "Falling back to full test"
-            buck2 test -c ci.depot_gha_ci=true @mode//debug root//... -- \
+            buck2 test -c ci.depot_gha_ci=true @mode//debug root//... \
+              --build-report ${{ runner.temp }}/build-report.json -- \
               --env SEMGREP_ENABLE_VERSION_CHECK=0
           fi
         env:
@@ -193,15 +205,13 @@ jobs:
           TARGET_COUNT: ${{ steps.determine-targets.outputs.target-count }}
           TARGET_FILE: ${{ steps.determine-targets.outputs.target-file }}
 
-      # Upload build logs (same as main CI)
       - name: Upload build logs
         if: always()
         continue-on-error: true
         shell: bash
         run: buck2 run //src/tools/buck2-logs:upload -- --host https://buck2-logs.deno.dev
 
-      # Summary step to report what happened
-      - name: Report target determination results
+      - name: Report results
         if: always()
         shell: bash
         run: |
@@ -214,6 +224,14 @@ jobs:
           elif [ "${TARGETS_FOUND}" = "true" ]; then
             echo "- Target count: ${TARGET_COUNT}"
             echo "- Used targeted test: ${REASONABLE_TARGET_COUNT}"
+          fi
+
+          echo
+          if [ -f "${{ runner.temp }}/build-report.json" ]; then
+            echo "## Build Report Summary (Target Determination)"
+            buck2 run root//buck/tools/build-report:build-report -- "${{ runner.temp }}/build-report.json"
+          else
+            echo "Build report file not found, skipping report generation"
           fi
         env:
           MATRIX_OS: ${{ matrix.os }}
