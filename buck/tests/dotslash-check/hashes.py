@@ -10,11 +10,13 @@ and verifying their hashes and sizes.
 
 import hashlib
 import json
+import os
 import sys
 import tempfile
+import time
 from pathlib import Path
-from urllib.request import urlopen
-from urllib.error import URLError
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
 
 
 def verify_hash(file_path: Path, hash_type: str, expected_digest: str) -> bool:
@@ -33,6 +35,40 @@ def verify_hash(file_path: Path, hash_type: str, expected_digest: str) -> bool:
     except Exception as e:
         print(f"    ERROR: Failed to compute {hash_type} hash: {e}")
         return False
+
+
+def download_with_retry(url: str, max_retries: int = 3, base_delay: float = 1.0) -> bytes:
+    """Download file with exponential backoff retry logic."""
+    headers = {}
+    
+    # Check for GitHub token for authentication to avoid rate limiting
+    github_token = os.environ.get('GITHUB_TOKEN') or os.environ.get('GH_TOKEN')
+    if github_token and 'github.com' in url:
+        headers['Authorization'] = f'Bearer {github_token}'
+    
+    for attempt in range(max_retries):
+        try:
+            request = Request(url, headers=headers)
+            with urlopen(request) as response:
+                return response.read()
+        except HTTPError as e:
+            if e.code in [500, 502, 503, 504, 429]:  # Server errors and rate limiting
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)  # Exponential backoff
+                    print(f"HTTP {e.code} error, retrying in {delay:.1f}s... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(delay)
+                    continue
+            raise
+        except URLError as e:
+            if attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                print(f"Network error, retrying in {delay:.1f}s... (attempt {attempt + 1}/{max_retries})")
+                time.sleep(delay)
+                continue
+            raise
+    
+    # This should never be reached due to the raise statements above
+    raise Exception("Max retries exceeded")
 
 
 def download_and_verify_platform(platform_name: str, platform_info: dict) -> bool:
@@ -61,8 +97,8 @@ def download_and_verify_platform(platform_name: str, platform_info: dict) -> boo
             tmp_path = Path(tmp_file.name)
             
             print(f"downloading...", end=" ")
-            with urlopen(url) as response:
-                tmp_file.write(response.read())
+            data = download_with_retry(url)
+            tmp_file.write(data)
         
         actual_size = tmp_path.stat().st_size
         if actual_size != size:
@@ -96,9 +132,12 @@ def download_and_verify_platform(platform_name: str, platform_info: dict) -> boo
         print("✓")
         return True
         
-    except URLError as e:
+    except (URLError, HTTPError) as e:
         print("✗")
-        print(f"    ERROR: Failed to download from {url}: {e}")
+        if isinstance(e, HTTPError):
+            print(f"    ERROR: HTTP {e.code} error downloading from {url}: {e}")
+        else:
+            print(f"    ERROR: Failed to download from {url}: {e}")
         return False
     except Exception as e:
         print("✗")
