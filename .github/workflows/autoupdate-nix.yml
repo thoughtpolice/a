@@ -29,4 +29,4 @@ jobs:
           pr-title: "[automerge] nix: update flake.lock"
           pr-body: Automated update of Nix flake dependencies.
           commit-msg: "nix: update flake.lock"
-          path-to-flake-dir: buck/nixdev
+          path-to-flake-dir: buck/etc/nix
