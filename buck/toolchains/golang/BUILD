@@ -4,6 +4,6 @@
 load(":defs.bzl", "system_golang_toolchain")
 
 system_golang_toolchain(
-    name = "golang",
-    visibility = ["PUBLIC"],
+    name="golang",
+    visibility=["PUBLIC"],
 )

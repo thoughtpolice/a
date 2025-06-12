@@ -50,7 +50,7 @@ function zodSchemaToJsonSchema(
 
       // Determine the type based on the Zod schema
       const propertyDef: Record<string, unknown> = { description };
-      
+
       if (zodField instanceof z.ZodNumber) {
         propertyDef.type = "number";
       } else if (zodField instanceof z.ZodString) {

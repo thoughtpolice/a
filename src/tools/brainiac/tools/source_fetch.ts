@@ -7,12 +7,16 @@ import { ToolDefinition } from "./types.ts";
 import { join } from "@std/path";
 
 const SourceFetchSchema = z.object({
-  url: z.string().describe("Source URL in format 'github:owner/repo' or similar"),
+  url: z.string().describe(
+    "Source URL in format 'github:owner/repo' or similar",
+  ),
 });
 
 type SourceFetchArgs = z.infer<typeof SourceFetchSchema>;
 
-async function sourceFetchHandler(args: SourceFetchArgs): Promise<CallToolResult> {
+async function sourceFetchHandler(
+  args: SourceFetchArgs,
+): Promise<CallToolResult> {
   const { url } = args;
 
   // Parse the URL format
@@ -31,13 +35,14 @@ async function sourceFetchHandler(args: SourceFetchArgs): Promise<CallToolResult
   // Extract owner/repo from github:owner/repo format
   const githubPath = url.slice("github:".length);
   const pathParts = githubPath.split("/");
-  
+
   if (pathParts.length !== 2 || !pathParts[0] || !pathParts[1]) {
     return {
       content: [
         {
           type: "text",
-          text: "Error: Invalid GitHub URL format. Expected 'github:owner/repo'",
+          text:
+            "Error: Invalid GitHub URL format. Expected 'github:owner/repo'",
         },
       ],
       isError: true,
@@ -45,11 +50,11 @@ async function sourceFetchHandler(args: SourceFetchArgs): Promise<CallToolResult
   }
 
   const [owner, repo] = pathParts;
-  
+
   // Determine the clone directory - find repository root dynamically
   let currentDir = Deno.cwd();
   let repoRoot: string | null = null;
-  
+
   // Walk up directories to find the repository root (contains .buckconfig)
   while (currentDir !== "/" && currentDir !== ".") {
     try {
@@ -63,7 +68,7 @@ async function sourceFetchHandler(args: SourceFetchArgs): Promise<CallToolResult
       currentDir = parent;
     }
   }
-  
+
   if (!repoRoot) {
     return {
       content: [
@@ -75,16 +80,16 @@ async function sourceFetchHandler(args: SourceFetchArgs): Promise<CallToolResult
       isError: true,
     };
   }
-  
+
   const workDir = join(repoRoot, "work");
   const clonesDir = join(workDir, "clones");
   const repoDir = join(clonesDir, `${repo}.git`);
   const relativePath = `./work/clones/${repo}.git`;
-  
+
   try {
     // Create clones directory if it doesn't exist
     await Deno.mkdir(clonesDir, { recursive: true });
-    
+
     // Check if repo already exists
     try {
       const stat = await Deno.stat(repoDir);
@@ -102,16 +107,16 @@ async function sourceFetchHandler(args: SourceFetchArgs): Promise<CallToolResult
     } catch {
       // Directory doesn't exist, proceed with cloning
     }
-    
+
     // Clone the repository
     const gitUrl = `https://github.com/${owner}/${repo}.git`;
     const cloneCmd = new Deno.Command("git", {
       args: ["clone", gitUrl, repoDir],
       cwd: workDir,
     });
-    
+
     const cloneResult = await cloneCmd.output();
-    
+
     if (!cloneResult.success) {
       const stderr = new TextDecoder().decode(cloneResult.stderr);
       return {
@@ -124,7 +129,7 @@ async function sourceFetchHandler(args: SourceFetchArgs): Promise<CallToolResult
         isError: true,
       };
     }
-    
+
     // Return the relative path to the cloned repository
     return {
       content: [
@@ -134,13 +139,14 @@ async function sourceFetchHandler(args: SourceFetchArgs): Promise<CallToolResult
         },
       ],
     };
-    
   } catch (error) {
     return {
       content: [
         {
           type: "text",
-          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          text: `Error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
         },
       ],
       isError: true,
@@ -150,7 +156,8 @@ async function sourceFetchHandler(args: SourceFetchArgs): Promise<CallToolResult
 
 export const sourceFetchTool: ToolDefinition<SourceFetchArgs> = {
   name: "source_fetch",
-  description: "Fetch source code from a repository and return the local path. Supports 'github:owner/repo' format.",
+  description:
+    "Fetch source code from a repository and return the local path. Supports 'github:owner/repo' format.",
   schema: SourceFetchSchema,
   handler: sourceFetchHandler,
 };

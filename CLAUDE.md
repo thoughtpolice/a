@@ -513,7 +513,7 @@ Then `buck2 --test @foo/bar` and `buck2 --test --foo=1 --bar=false` are equivale
 The build system uses Buck2 cells to organize the monorepo:
 
 - `depot` (root cell) - Main source code and projects
-- `depot-cellar` - Bootstrap toolchain for system-level builds  
+- `depot-cellar` - Bootstrap toolchain for system-level builds
 - `depot-mode` - Build mode configurations (debug/release)
 - `depot-toolchains` - Language-specific toolchain definitions
 - `depot-third-party` - External dependencies
@@ -521,7 +521,7 @@ The build system uses Buck2 cells to organize the monorepo:
 **Cell aliases**: The `.buckconfig` defines cell aliases for convenience:
 - `root` = `depot` (primary cell)
 - `cellar` = `depot-cellar`
-- `mode` = `depot-mode` 
+- `mode` = `depot-mode`
 - `toolchains` = `depot-toolchains`
 - `third-party` = `depot-third-party`
 
@@ -551,7 +551,7 @@ The shim system provides:
 The repository supports:
 - **Rust**: Standard cargo-style projects with Buck2 integration
 - **C++**: Native compilation with optional cross-platform support
-- **OCaml**: Native OCaml compilation 
+- **OCaml**: Native OCaml compilation
 - **Deno/TypeScript**: For tooling and utilities (see `src/tools/`)
 - **Bootstrap toolchains**: Self-hosting compilation from source (see `cellar/`)
 
@@ -590,7 +590,7 @@ third-party//crate:lib # Third-party dependency
 
 ## Development workflows
 
-These workflows are designed to help you effectively manage, author, and think about changes in the monorepo. 
+These workflows are designed to help you effectively manage, author, and think about changes in the monorepo.
 
 ### Committing changes
 
@@ -716,7 +716,7 @@ cd my-feature/
 - Build mode is controlled via `read_choice("project", "buildmode")` (debug/release)
 
 ### Deno/TypeScript tools
-- Located under `src/tools/` 
+- Located under `src/tools/`
 - Use `deno.binary()` from `@toolchains//deno:defs.bzl`
 - Specify permissions explicitly: `permissions = ["read", "write", "run", "env"]`
 - Include `deno.jsonc` and `deno.lock` files for dependency management

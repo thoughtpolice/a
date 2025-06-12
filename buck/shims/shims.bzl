@@ -191,7 +191,7 @@ def _enforce_starlark_memory_limit(bytes: [None, int] = None):
         root_config_value = int(root_config_value)
     else:
         root_config_value = 0
-    
+
     bytes = bytes if bytes != None else root_config_value
 
     if bytes > 0:

@@ -24,13 +24,13 @@ def verify_hash(file_path: Path, hash_type: str, expected_digest: str) -> bool:
     try:
         with open(file_path, 'rb') as f:
             file_data = f.read()
-        
+
         if hash_type == "sha256":
             actual_digest = hashlib.sha256(file_data).hexdigest()
         else:
             print(f"    ERROR: Unsupported hash type: {hash_type}")
             return False
-        
+
         return actual_digest == expected_digest
     except Exception as e:
         print(f"    ERROR: Failed to compute {hash_type} hash: {e}")
@@ -40,12 +40,12 @@ def verify_hash(file_path: Path, hash_type: str, expected_digest: str) -> bool:
 def download_with_retry(url: str, max_retries: int = 3, base_delay: float = 1.0) -> bytes:
     """Download file with exponential backoff retry logic."""
     headers = {}
-    
+
     # Check for GitHub token for authentication to avoid rate limiting
     github_token = os.environ.get('GITHUB_TOKEN') or os.environ.get('GH_TOKEN')
     if github_token and 'github.com' in url:
         headers['Authorization'] = f'Bearer {github_token}'
-    
+
     for attempt in range(max_retries):
         try:
             request = Request(url, headers=headers)
@@ -66,7 +66,7 @@ def download_with_retry(url: str, max_retries: int = 3, base_delay: float = 1.0)
                 time.sleep(delay)
                 continue
             raise
-    
+
     # This should never be reached due to the raise statements above
     raise Exception("Max retries exceeded")
 
@@ -74,32 +74,32 @@ def download_with_retry(url: str, max_retries: int = 3, base_delay: float = 1.0)
 def download_and_verify_platform(platform_name: str, platform_info: dict) -> bool:
     """Download and verify a single platform binary."""
     print(f"  Checking platform {platform_name}...", end=" ")
-    
+
     size = platform_info.get("size")
     hash_type = platform_info.get("hash")
     expected_digest = platform_info.get("digest")
     providers = platform_info.get("providers", [])
-    
+
     if not providers:
         print("✗")
         print(f"    ERROR: No providers found for platform {platform_name}")
         return False
-    
+
     # FIXME: Use first provider
     url = providers[0].get("url")
     if not url:
         print("✗")
         print(f"    ERROR: No URL found in provider for platform {platform_name}")
         return False
-    
+
     try:
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_path = Path(tmp_file.name)
-            
+
             print(f"downloading...", end=" ")
             data = download_with_retry(url)
             tmp_file.write(data)
-        
+
         actual_size = tmp_path.stat().st_size
         if actual_size != size:
             print("✗")
@@ -127,11 +127,11 @@ def download_and_verify_platform(platform_name: str, platform_info: dict) -> boo
                 pass
             tmp_path.unlink()
             return False
-        
+
         tmp_path.unlink()
         print("✓")
         return True
-        
+
     except (URLError, HTTPError) as e:
         print("✗")
         if isinstance(e, HTTPError):
@@ -148,7 +148,7 @@ def download_and_verify_platform(platform_name: str, platform_info: dict) -> boo
 def check_dotslash_file(file_path: Path) -> bool:
     """Check a single dotslash file by parsing JSON and verifying all platforms."""
     print(f"Checking {file_path.name}...")
-    
+
     try:
         content = file_path.read_text()
         if content.startswith("#!"):
@@ -165,7 +165,7 @@ def check_dotslash_file(file_path: Path) -> bool:
             json_content = '\n'.join(lines[json_start:])
         else:
             json_content = content
-            
+
         config = json.loads(json_content)
 
         # Get platforms
@@ -178,12 +178,12 @@ def check_dotslash_file(file_path: Path) -> bool:
         for platform_name, platform_info in platforms.items():
             if not download_and_verify_platform(platform_name, platform_info):
                 all_passed = False
-        
+
         if all_passed:
             print(f"  All {len(platforms)} platforms verified successfully!")
-        
+
         return all_passed
-        
+
     except json.JSONDecodeError as e:
         print(f"  ERROR: Invalid JSON in {file_path.name}: {e}")
         return False
@@ -194,7 +194,7 @@ def check_dotslash_file(file_path: Path) -> bool:
 
 def main():
     """Check all dotslash files in buck/bin directory"""
-    
+
     current_dir = Path(__file__).parent
     repo_root = current_dir
     while repo_root != repo_root.parent:
@@ -209,11 +209,11 @@ def main():
     buck_bin_extra_dir = repo_root / "buck" / "bin" / "extra"
 
     dotslash_files = []
-    
+
     for directory in [buck_bin_dir, buck_bin_extra_dir]:
         if not directory.exists():
             continue
-            
+
         for item in directory.iterdir():
             if (
                 item.is_file()

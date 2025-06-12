@@ -92,7 +92,9 @@ interface TargetDeterminationArgs {
 }
 
 const targetDeterminationSchema = z.object({
-  from: z.string().describe("Base revset to compare from (e.g., 'trunk()', '@--')"),
+  from: z.string().describe(
+    "Base revset to compare from (e.g., 'trunk()', '@--')",
+  ),
   to: z.string().describe("Target revset to compare to (e.g., '@', '@-')"),
   universe: z.array(z.string()).min(1).describe(
     "List of Buck2 target patterns to analyze (e.g., ['root//...', 'third-party//...'])",
@@ -108,7 +110,6 @@ async function executeTargetDetermination(
   universe: string[],
 ): Promise<CallToolResult> {
   try {
-    
     // Validate all universe targets first
     const validatedUniverse: string[] = [];
     const invalidTargets: string[] = [];
@@ -135,14 +136,25 @@ async function executeTargetDetermination(
     }
 
     // Use the existing quicktd tool via buck2 run
-    const args = ["run", "root//buck/tools/quicktd", "--", from, to, ...validatedUniverse];
-    const { code, stdout, stderr } = await executeBuck2Command(args, "brainiac-quicktd");
+    const args = [
+      "run",
+      "root//buck/tools/quicktd",
+      "--",
+      from,
+      to,
+      ...validatedUniverse,
+    ];
+    const { code, stdout, stderr } = await executeBuck2Command(
+      args,
+      "brainiac-quicktd",
+    );
 
     if (code !== 0) {
       return {
         content: [{
           type: "text",
-          text: `QuickTD failed with code ${code}\n\nStderr:\n${stderr}\n\nStdout:\n${stdout}`,
+          text:
+            `QuickTD failed with code ${code}\n\nStderr:\n${stderr}\n\nStdout:\n${stdout}`,
         }],
         isError: true,
       };
@@ -150,7 +162,7 @@ async function executeTargetDetermination(
 
     // The quicktd tool outputs the path to a file containing the target list
     const targetsFilePath = stdout.trim();
-    
+
     // Read the targets file
     let targetsContent: string;
     try {
@@ -175,13 +187,17 @@ async function executeTargetDetermination(
     return {
       content: [{
         type: "text",
-        text: JSON.stringify({
-          from,
-          to,
-          universe: validatedUniverse,
-          targets,
-          count: targets.length,
-        }, null, 2),
+        text: JSON.stringify(
+          {
+            from,
+            to,
+            universe: validatedUniverse,
+            targets,
+            count: targets.length,
+          },
+          null,
+          2,
+        ),
       }],
       isError: false,
     };
@@ -206,11 +222,17 @@ export const buck2BuildTool: ToolDefinition<Buck2BuildArgs> = {
   },
 };
 
-export const targetDeterminationTool: ToolDefinition<TargetDeterminationArgs> = {
-  name: "target_determination",
-  description: "Determine which Buck2 targets need to be rebuilt based on changes between two revisions",
-  schema: targetDeterminationSchema,
-  handler: async (args: TargetDeterminationArgs): Promise<CallToolResult> => {
-    return await executeTargetDetermination(args.from, args.to, args.universe);
-  },
-};
+export const targetDeterminationTool: ToolDefinition<TargetDeterminationArgs> =
+  {
+    name: "target_determination",
+    description:
+      "Determine which Buck2 targets need to be rebuilt based on changes between two revisions",
+    schema: targetDeterminationSchema,
+    handler: async (args: TargetDeterminationArgs): Promise<CallToolResult> => {
+      return await executeTargetDetermination(
+        args.from,
+        args.to,
+        args.universe,
+      );
+    },
+  };

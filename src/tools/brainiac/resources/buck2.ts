@@ -9,7 +9,6 @@ interface Buck2TargetParams {
   target: string;
 }
 
-
 // Create standardized error response
 function createErrorResponse(
   uri: URL,
@@ -38,14 +37,14 @@ async function executeBuck2Command(
   target: string,
 ): Promise<ReadResourceResult> {
   let tempFile: string | null = null;
-  
+
   try {
     // Create temporary file for at-file syntax
     tempFile = await Deno.makeTempFile({ suffix: ".txt" });
-    
+
     // Use fixed isolation directory name for nested buck2 invocations
     const isolationDir = "brainiac";
-    
+
     // Write each argument on a separate line
     const argsContent = args.join("\n");
     await Deno.writeTextFile(tempFile, argsContent);
@@ -62,7 +61,9 @@ async function executeBuck2Command(
       const errorMessage = new TextDecoder().decode(stderr);
       const isTargetsCommand = args[0] === "targets";
       // Don't delete temp file on failure for debugging
-      console.error(`buck2 command failed, temp file preserved at: ${tempFile}`);
+      console.error(
+        `buck2 command failed, temp file preserved at: ${tempFile}`,
+      );
       tempFile = null; // Prevent cleanup
       return createErrorResponse(
         uri,
@@ -96,7 +97,9 @@ async function executeBuck2Command(
     const isTargetsCommand = args[0] === "targets";
     // Don't delete temp file on failure for debugging
     if (tempFile) {
-      console.error(`buck2 command failed, temp file preserved at: ${tempFile}`);
+      console.error(
+        `buck2 command failed, temp file preserved at: ${tempFile}`,
+      );
       tempFile = null; // Prevent cleanup
     }
     return createErrorResponse(

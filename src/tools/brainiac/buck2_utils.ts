@@ -77,11 +77,11 @@ export async function executeBuck2Command(
   isolationDir = "brainiac",
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   let tempFile: string | null = null;
-  
+
   try {
     // Create temporary file for at-file syntax
     tempFile = await Deno.makeTempFile({ suffix: ".txt" });
-    
+
     // Write each argument on a separate line
     const argsContent = args.join("\n");
     await Deno.writeTextFile(tempFile, argsContent);
@@ -93,7 +93,7 @@ export async function executeBuck2Command(
     });
 
     const { code, stdout, stderr } = await command.output();
-    
+
     return {
       code,
       stdout: new TextDecoder().decode(stdout),

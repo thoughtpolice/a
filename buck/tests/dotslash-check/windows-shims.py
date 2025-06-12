@@ -23,7 +23,7 @@ EXPECTED_SIZE = 4096
 def check_exe_file(file_path: Path) -> bool:
     """Check a single .exe file to verify it's a valid dotslash Windows shim."""
     print(f"Checking {file_path.name}...")
-    
+
     try:
         actual_size = file_path.stat().st_size
         if actual_size != EXPECTED_SIZE:
@@ -31,21 +31,21 @@ def check_exe_file(file_path: Path) -> bool:
             print(f"         Expected: {EXPECTED_SIZE} bytes")
             print(f"         Actual:   {actual_size} bytes")
             return False
-        
+
         with open(file_path, 'rb') as f:
             file_data = f.read()
-        
+
         actual_hash = hashlib.sha256(file_data).hexdigest()
         if actual_hash not in VALID_SHIM_HASHES:
             print(f"  ERROR: Hash mismatch")
             print(f"         Expected one of: {VALID_SHIM_HASHES}")
             print(f"         Actual:          {actual_hash}")
             return False
-        
+
         print(f"  ✓ Size: {actual_size} bytes")
         print(f"  ✓ Hash: {actual_hash}")
         return True
-        
+
     except Exception as e:
         print(f"  ERROR: Failed to process {file_path.name}: {e}")
         return False
@@ -53,7 +53,7 @@ def check_exe_file(file_path: Path) -> bool:
 
 def main():
     """Check all .exe files in buck/bin directory"""
-    
+
     current_dir = Path(__file__).parent
     repo_root = current_dir
     while repo_root != repo_root.parent:
@@ -68,11 +68,11 @@ def main():
     buck_bin_extra_dir = repo_root / "buck" / "bin" / "extra"
 
     exe_files = []
-    
+
     for directory in [buck_bin_dir, buck_bin_extra_dir]:
         if not directory.exists():
             continue
-            
+
         for item in directory.iterdir():
             if item.is_file() and item.name.endswith(".exe"):
                 exe_files.append(item)

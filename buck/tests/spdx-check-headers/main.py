@@ -66,17 +66,17 @@ def eprint(*args, **kwargs):
 # MARK: SPDX check
 def has_spdx_header(file: str, lines: list[str]) -> bool:
     years = "2024-2025"
-    
+
     # Define comment styles
     bzl_style_copyright = "# SPDX-FileCopyrightText: © {} ".format(years)
     bzl_style_license = "# SPDX-License-Identifier: Apache-2.0"
-    
+
     cxx_style_copyright = "// SPDX-FileCopyrightText: © {} ".format(years)
     cxx_style_license = "// SPDX-License-Identifier: Apache-2.0"
-    
+
     old_cxx_style_copyright = "/* SPDX-FileCopyrightText: © {} ".format(years)
     old_cxx_style_license = "/* SPDX-License-Identifier: Apache-2.0 */"
-    
+
     ocaml_style_copyright = "(* SPDX-FileCopyrightText: © {} ".format(years)
     ocaml_style_license = "(* SPDX-License-Identifier: Apache-2.0 *)"
 
@@ -112,11 +112,11 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         return False
 
     copyright_prefix, license_line = file_styles[file_ext]
-    
+
     # Look for one or more copyright lines followed by license line
     i = 0
     copyright_found = False
-    
+
     # Check for at least one copyright line
     while i < len(lines):
         line = lines[i].strip()
@@ -125,11 +125,11 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
             i += 1
         else:
             break
-    
+
     if not copyright_found:
         eprint(f"Error: {file} does not have the correct SPDX header!")
         return False
-    
+
     # Check for license line
     if i >= len(lines) or not lines[i].strip().startswith(license_line):
         eprint(f"Error: {file} does not have the correct SPDX header!")

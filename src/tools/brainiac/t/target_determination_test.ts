@@ -11,7 +11,7 @@ Deno.test("target_determination tool - schema validation", () => {
     to: "@",
     universe: ["root//src/...", "third-party//..."],
   };
-  
+
   const result = targetDeterminationTool.schema.safeParse(validArgs);
   assertEquals(result.success, true);
 });
@@ -22,7 +22,7 @@ Deno.test("target_determination tool - schema validation errors", () => {
     from: "trunk()",
     // missing 'to' and 'universe'
   };
-  
+
   const result = targetDeterminationTool.schema.safeParse(invalidArgs);
   assertEquals(result.success, false);
 });
@@ -34,7 +34,7 @@ Deno.test("target_determination tool - empty universe validation", () => {
     to: "@",
     universe: [], // empty array should fail
   };
-  
+
   const result = targetDeterminationTool.schema.safeParse(invalidArgs);
   assertEquals(result.success, false);
 });
@@ -46,7 +46,7 @@ Deno.test("target_determination tool - single string universe rejected", () => {
     to: "@",
     universe: "root//src/...", // single string should now fail
   };
-  
+
   const result = targetDeterminationTool.schema.safeParse(invalidArgs);
   assertEquals(result.success, false);
 });

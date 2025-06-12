@@ -96,7 +96,7 @@ def build_image(crane_path, registry_port, base_image_path, tar_files, entrypoin
     # Delete the cached image from the local registry.
     # It is ok if the command fails since the image may not be cached.
     delete_image_command = [crane_path, 'delete', registry_image]
-    eprint(f"Deleting image: {delete_image_command}")                                      
+    eprint(f"Deleting image: {delete_image_command}")
     subprocess.run(delete_image_command)
 
     # Append all layers to the base image
