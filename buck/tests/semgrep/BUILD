@@ -7,7 +7,7 @@ shims.command_test(
     name = 'semgrep',
     cmd = [
         'semgrep',
-        '--config=etc/semgrep/',
+        '--config=buck/etc/semgrep/',
         'src',
     ],
 )
