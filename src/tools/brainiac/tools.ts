@@ -6,12 +6,14 @@ import { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 
 import { ToolDefinition } from "./tools/types.ts";
 import { sourceFetchTool } from "./tools/source_fetch.ts";
+import { buck2BuildTool } from "./tools/buck2.ts";
 import { RESOURCE_TOOLS } from "./resource_tools.ts";
 
 // Registry of all available tools (manual tools + resource-backed tools)
 // deno-lint-ignore no-explicit-any
 export const TOOLS: ToolDefinition<any>[] = [
   sourceFetchTool,
+  buck2BuildTool,
   ...RESOURCE_TOOLS,
 ];
 
@@ -46,19 +48,32 @@ function zodSchemaToJsonSchema(
       }
 
       // Determine the type based on the Zod schema
-      let type = "unknown";
+      const propertyDef: Record<string, unknown> = { description };
+      
       if (zodField instanceof z.ZodNumber) {
-        type = "number";
+        propertyDef.type = "number";
       } else if (zodField instanceof z.ZodString) {
-        type = "string";
+        propertyDef.type = "string";
       } else if (zodField instanceof z.ZodBoolean) {
-        type = "boolean";
+        propertyDef.type = "boolean";
+      } else if (zodField instanceof z.ZodArray) {
+        propertyDef.type = "array";
+        // Get the inner type for array items
+        const innerType = zodField._def.type;
+        if (innerType instanceof z.ZodString) {
+          propertyDef.items = { type: "string" };
+        } else if (innerType instanceof z.ZodNumber) {
+          propertyDef.items = { type: "number" };
+        } else if (innerType instanceof z.ZodBoolean) {
+          propertyDef.items = { type: "boolean" };
+        } else {
+          propertyDef.items = { type: "unknown" };
+        }
+      } else {
+        propertyDef.type = "unknown";
       }
 
-      properties[key] = {
-        type,
-        description,
-      };
+      properties[key] = propertyDef;
 
       // Check if field is required (not optional)
       if (!zodField.isOptional()) {

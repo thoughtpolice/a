@@ -3,78 +3,12 @@
 
 import { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 import { DynamicResourceDefinition } from "./types.ts";
+import { validateBuckTarget } from "../buck2_utils.ts";
 
 interface Buck2TargetParams {
   target: string;
 }
 
-// Validate Buck2 target for security and format correctness
-function validateBuckTarget(target: string): string | null {
-  if (typeof target !== "string" || target.trim() === "") {
-    return null;
-  }
-
-  const trimmed = target.trim();
-
-  // Security: Block dangerous characters for command injection
-  if (/[;&|`$(){}[\]<>'"\\]/.test(trimmed)) {
-    return null;
-  }
-
-  // Security: Block absolute paths and directory traversal
-  if (
-    (trimmed.startsWith("/") && !trimmed.startsWith("//")) ||
-    trimmed.includes("../") || trimmed.includes("./")
-  ) {
-    return null;
-  }
-
-  // Validate Buck2 target patterns:
-  // :target, //path..., //path:target, cell//path...
-  if (trimmed.startsWith(":")) {
-    const name = trimmed.slice(1);
-    if (!name || !/^[a-zA-Z0-9._-]+$/.test(name)) return null;
-  } else if (trimmed.startsWith("//")) {
-    const path = trimmed.slice(2);
-    if (!isValidBuckPath(path)) return null;
-  } else if (trimmed.includes("//")) {
-    const [cell, path] = trimmed.split("//", 2);
-    if (
-      !cell || !/^[a-zA-Z0-9_-]+$/.test(cell) || !path || !isValidBuckPath(path)
-    ) {
-      return null;
-    }
-  } else {
-    return null;
-  }
-
-  return trimmed;
-}
-
-function isValidBuckPath(path: string): boolean {
-  // Handle recursive patterns like "src/..." or just "..."
-  if (path.endsWith("...")) {
-    path = path.slice(0, -3);
-  }
-
-  // Handle target specifications like "path:target"
-  if (path.includes(":")) {
-    const [pkgPath, target] = path.split(":", 2);
-    if (target && !/^[a-zA-Z0-9._-]+$/.test(target)) return false;
-    path = pkgPath;
-  }
-
-  // Empty path is valid (represents root or after removing "...")
-  if (path === "") return true;
-
-  // Validate each path segment
-  return path.split("/").every((segment) => {
-    // Allow empty segments (for cases like "//src/...")
-    if (segment === "") return true;
-    // Validate segment characters
-    return /^[a-zA-Z0-9._-]+$/.test(segment);
-  });
-}
 
 // Create standardized error response
 function createErrorResponse(
