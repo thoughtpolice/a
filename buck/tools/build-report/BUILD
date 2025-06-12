@@ -4,7 +4,7 @@
 load("@toolchains//deno:defs.bzl", "deno")
 
 deno.binary(
-    name="buck2-report",
+    name="build-report",
     main="main.ts",
     type="run",
     permissions=["read", "write"],

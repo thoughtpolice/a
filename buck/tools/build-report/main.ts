@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { parseArgs } from "jsr:@std/cli";
-import { bold, green, red, yellow, blue, dim } from "jsr:@std/fmt/colors";
+import { blue, bold, dim, green, red, yellow } from "jsr:@std/fmt/colors";
 
 // Raw Buck2 build report interfaces
 interface BuildOutput {
@@ -96,18 +96,18 @@ interface TargetStats {
 }
 
 function isProcessedReport(data: any): data is ProcessedBuildReport {
-  return data && 
-         data.format_version && 
-         data.build_metadata && 
-         data.summary && 
-         data.graph_analysis && 
-         data.target_breakdown && 
-         data.failed_targets !== undefined;
+  return data &&
+    data.format_version &&
+    data.build_metadata &&
+    data.summary &&
+    data.graph_analysis &&
+    data.target_breakdown &&
+    data.failed_targets !== undefined;
 }
 
 function convertRawToProcessed(report: RawBuildReport): ProcessedBuildReport {
   const stats = analyzeTargets(report.results);
-  
+
   return {
     format_version: "1.0.0",
     generated_at: new Date().toISOString(),
@@ -128,7 +128,7 @@ function convertRawToProcessed(report: RawBuildReport): ProcessedBuildReport {
     graph_analysis: {
       total_graph_nodes: stats.totalGraphSize,
       average_graph_size: stats.avgGraphSize,
-      largest_dependency_graphs: stats.largestGraphs.slice(0, 10).map(g => ({
+      largest_dependency_graphs: stats.largestGraphs.slice(0, 10).map((g) => ({
         target: g.target,
         nodes: g.size,
       })),
@@ -149,7 +149,7 @@ function convertRawToProcessed(report: RawBuildReport): ProcessedBuildReport {
           percentage: ((count / stats.total) * 100).toFixed(1) + "%",
         })),
     },
-    failed_targets: stats.failedTargets.map(f => ({
+    failed_targets: stats.failedTargets.map((f) => ({
       target: f.target,
       errors: f.errors,
     })),
@@ -160,15 +160,15 @@ function convertProcessedToStats(report: ProcessedBuildReport): TargetStats {
   // Convert processed report back to legacy TargetStats format for output functions
   const byType: Record<string, number> = {};
   const byCell: Record<string, number> = {};
-  
+
   for (const item of report.target_breakdown.by_type) {
     byType[item.type] = item.count;
   }
-  
+
   for (const item of report.target_breakdown.by_cell) {
     byCell[item.cell] = item.count;
   }
-  
+
   return {
     total: report.summary.total_targets,
     buildTargets: report.summary.build_targets,
@@ -177,7 +177,7 @@ function convertProcessedToStats(report: ProcessedBuildReport): TargetStats {
     failed: report.summary.failed,
     byType,
     byCell,
-    largestGraphs: report.graph_analysis.largest_dependency_graphs.map(g => ({
+    largestGraphs: report.graph_analysis.largest_dependency_graphs.map((g) => ({
       target: g.target,
       size: g.nodes,
     })),
@@ -206,15 +206,16 @@ function analyzeTargets(results: Record<string, BuildResult>): TargetStats {
 
   for (const [target, result] of Object.entries(results)) {
     stats.total++;
-    
+
     // Determine if this is a test target (no outputs and null graph size) or build target
-    const isTestTarget = Object.keys(result.outputs).length === 0 && result.configured_graph_size === null;
+    const isTestTarget = Object.keys(result.outputs).length === 0 &&
+      result.configured_graph_size === null;
     if (isTestTarget) {
       stats.testTargets++;
     } else {
       stats.buildTargets++;
     }
-    
+
     if (result.success === "SUCCESS") {
       stats.succeeded++;
     } else {
@@ -239,9 +240,11 @@ function analyzeTargets(results: Record<string, BuildResult>): TargetStats {
         category = "test";
       } else if (targetType.includes("lib")) {
         category = "library";
-      } else if (targetType.includes("platform") || targetType.includes("-linux-") || 
-                 targetType.includes("-macos-") || targetType.includes("-windows-") ||
-                 targetType.includes("-uefi")) {
+      } else if (
+        targetType.includes("platform") || targetType.includes("-linux-") ||
+        targetType.includes("-macos-") || targetType.includes("-windows-") ||
+        targetType.includes("-uefi")
+      ) {
         category = "platform";
       } else if (targetType.includes("image") || targetType.includes("oci")) {
         category = "container";
@@ -258,7 +261,9 @@ function analyzeTargets(results: Record<string, BuildResult>): TargetStats {
   }
 
   // Calculate average (only for targets with graph sizes)
-  stats.avgGraphSize = graphSizes.length > 0 ? Math.round(stats.totalGraphSize / graphSizes.length) : 0;
+  stats.avgGraphSize = graphSizes.length > 0
+    ? Math.round(stats.totalGraphSize / graphSizes.length)
+    : 0;
 
   // Find largest graphs
   graphSizes.sort((a, b) => b.size - a.size);
@@ -286,14 +291,16 @@ function printReport(processedReport: ProcessedBuildReport, format: string) {
   // Console output
   console.log(bold("\n📊 Buck2 Build Report"));
   console.log(dim("─".repeat(50)));
-  
+
   console.log(`\n${bold("Build ID:")} ${blue(report.build_id)}`);
-  console.log(`${bold("Status:")} ${report.status === "SUCCESS" ? green("✓ SUCCESS") : red("✗ FAILED")}`);
+  console.log(
+    `${bold("Status:")} ${report.status === "SUCCESS" ? green("✓ SUCCESS") : red("✗ FAILED")}`,
+  );
   console.log(`${bold("Project:")} ${report.project_root}`);
-  
+
   console.log(bold("\n📈 Summary"));
   console.log(dim("─".repeat(50)));
-  
+
   const successRate = (stats.succeeded / stats.total * 100).toFixed(1);
   console.log(`Total targets: ${bold(stats.total.toString())}`);
   console.log(`Build targets: ${bold(stats.buildTargets.toString())}`);
@@ -304,30 +311,30 @@ function printReport(processedReport: ProcessedBuildReport, format: string) {
   }
   console.log(`Average graph size: ${stats.avgGraphSize} nodes`);
   console.log(`Total graph nodes: ${stats.totalGraphSize.toLocaleString()}`);
-  
+
   console.log(bold("\n🎯 Target Types"));
   console.log(dim("─".repeat(50)));
-  
+
   const sortedTypes = Object.entries(stats.byType).sort((a, b) => b[1] - a[1]);
   for (const [type, count] of sortedTypes) {
     const percentage = (count / stats.total * 100).toFixed(1);
     console.log(`${type.padEnd(15)} ${count.toString().padStart(4)} (${percentage}%)`);
   }
-  
+
   if (Object.keys(stats.byCell).length > 1) {
     console.log(bold("\n📦 Cells"));
     console.log(dim("─".repeat(50)));
-    
+
     const sortedCells = Object.entries(stats.byCell).sort((a, b) => b[1] - a[1]);
     for (const [cell, count] of sortedCells) {
       const percentage = (count / stats.total * 100).toFixed(1);
       console.log(`${cell.padEnd(15)} ${count.toString().padStart(4)} (${percentage}%)`);
     }
   }
-  
+
   console.log(bold("\n📏 Largest Dependency Graphs"));
   console.log(dim("─".repeat(50)));
-  
+
   for (const { target, size } of stats.largestGraphs.slice(0, 5)) {
     // Shorten long target names
     let displayTarget = target;
@@ -345,7 +352,7 @@ function printReport(processedReport: ProcessedBuildReport, format: string) {
   if (stats.failed > 0) {
     console.log(bold(`\n❌ Failed Targets`));
     console.log(dim("─".repeat(50)));
-    
+
     for (const failedTarget of stats.failedTargets) {
       console.log(red(`• ${failedTarget.target}`));
       if (failedTarget.errors.length > 0) {
@@ -370,15 +377,15 @@ async function main() {
 
   if (args.help) {
     console.log(`
-${bold("buck2-report")} - Analyze Buck2 build reports and generate summaries
+${bold("build-report")} - Analyze Buck2 build reports and generate summaries
 
 ${bold("USAGE:")}
-  buck2-report [OPTIONS] <input-file.json>
+  build-report [OPTIONS] <input-file.json>
 
 ${bold("INPUT FORMATS:")}
   - Raw Buck2 build reports (from buck2 build --build-report)
-  - Raw Buck2 test reports (from buck2 test --build-report)  
-  - Processed JSON summaries (from previous buck2-report runs)
+  - Raw Buck2 test reports (from buck2 test --build-report)
+  - Processed JSON summaries (from previous build-report runs)
 
 ${bold("OPTIONS:")}
   --format <format>  Output format: console (default), json, markdown
@@ -393,19 +400,19 @@ ${bold("ROUND-TRIP SUPPORT:")}
 
 ${bold("EXAMPLES:")}
   # Generate console report from raw Buck2 build output
-  buck2 build --build-report raw-report.json //... && buck2-report raw-report.json
+  buck2 build --build-report raw-report.json //... && build-report raw-report.json
 
   # Generate console report from raw Buck2 test output
-  buck2 test --build-report test-report.json //... && buck2-report test-report.json
+  buck2 test --build-report test-report.json //... && build-report test-report.json
 
   # Process and save as JSON for later use
-  buck2-report --format json --output processed.json raw-report.json
+  build-report --format json --output processed.json raw-report.json
 
   # Generate markdown from previously processed JSON
-  buck2-report --format markdown --output summary.md processed.json
+  build-report --format markdown --output summary.md processed.json
 
   # Round-trip: JSON -> JSON (re-process with updated timestamp)
-  buck2-report --format json --output updated.json processed.json
+  build-report --format json --output updated.json processed.json
 `);
     Deno.exit(0);
   }
@@ -420,9 +427,9 @@ ${bold("EXAMPLES:")}
   try {
     const content = await Deno.readTextFile(reportFile);
     const data = JSON.parse(content);
-    
+
     let processedReport: ProcessedBuildReport;
-    
+
     // Detect input type and convert to unified format
     if (isProcessedReport(data)) {
       // Input is already a processed report - use as-is
@@ -432,7 +439,7 @@ ${bold("EXAMPLES:")}
       const rawReport = data as RawBuildReport;
       processedReport = convertRawToProcessed(rawReport);
     }
-    
+
     if (args.output) {
       // Generate output to file
       let output: string;
@@ -444,13 +451,13 @@ ${bold("EXAMPLES:")}
         // For console format, generate a text version
         output = generateConsoleText(processedReport);
       }
-      
+
       await Deno.writeTextFile(args.output, output);
       console.log(green(`✓ Report written to ${args.output}`));
     } else {
       printReport(processedReport, args.format);
     }
-    
+
     // Exit with error if build failed
     if (processedReport.build_metadata.status === "FAILED") {
       Deno.exit(1);
@@ -467,23 +474,27 @@ ${bold("EXAMPLES:")}
 
 async function generateMarkdown(processedReport: ProcessedBuildReport): Promise<string> {
   const lines: string[] = [];
-  
+
   lines.push("# Buck2 Build Report");
   lines.push("");
   lines.push(`> Generated at ${processedReport.generated_at}`);
   lines.push("");
-  
+
   // Build metadata
   lines.push("## Build Metadata");
   lines.push("");
   lines.push("| Field | Value |");
   lines.push("|-------|-------|");
   lines.push(`| Build ID | \`${processedReport.build_metadata.build_id}\` |`);
-  lines.push(`| Status | ${processedReport.build_metadata.status === "SUCCESS" ? "✅ SUCCESS" : "❌ FAILED"} |`);
+  lines.push(
+    `| Status | ${
+      processedReport.build_metadata.status === "SUCCESS" ? "✅ SUCCESS" : "❌ FAILED"
+    } |`,
+  );
   lines.push(`| Project Root | \`${processedReport.build_metadata.project_root}\` |`);
   lines.push(`| Report Truncated | ${processedReport.build_metadata.truncated ? "Yes" : "No"} |`);
   lines.push("");
-  
+
   // Summary statistics
   lines.push("## Summary Statistics");
   lines.push("");
@@ -492,66 +503,70 @@ async function generateMarkdown(processedReport: ProcessedBuildReport): Promise<
   lines.push(`| Total Targets | **${processedReport.summary.total_targets}** |`);
   lines.push(`| Build Targets | ${processedReport.summary.build_targets} |`);
   lines.push(`| Test Targets | ${processedReport.summary.test_targets} |`);
-  lines.push(`| Succeeded | ${processedReport.summary.succeeded} (${processedReport.summary.success_rate}) |`);
+  lines.push(
+    `| Succeeded | ${processedReport.summary.succeeded} (${processedReport.summary.success_rate}) |`,
+  );
   lines.push(`| Failed | ${processedReport.summary.failed} |`);
   lines.push(`| Success Rate | **${processedReport.summary.success_rate}** |`);
   lines.push("");
-  
+
   // Graph analysis
   lines.push("## Dependency Graph Analysis");
   lines.push("");
   lines.push("| Metric | Value |");
   lines.push("|--------|-------|");
-  lines.push(`| Total Graph Nodes | ${processedReport.graph_analysis.total_graph_nodes.toLocaleString()} |`);
+  lines.push(
+    `| Total Graph Nodes | ${processedReport.graph_analysis.total_graph_nodes.toLocaleString()} |`,
+  );
   lines.push(`| Average Graph Size | ${processedReport.graph_analysis.average_graph_size} nodes |`);
   lines.push("");
-  
+
   // Target type breakdown
   lines.push("## Target Type Breakdown");
   lines.push("");
   lines.push("| Type | Count | Percentage | Bar |");
   lines.push("|------|-------|------------|-----|");
-  
+
   for (const item of processedReport.target_breakdown.by_type) {
     const bar = generateBar(item.count, processedReport.summary.total_targets, 20);
     lines.push(`| ${item.type} | ${item.count} | ${item.percentage} | ${bar} |`);
   }
   lines.push("");
-  
+
   // Cell breakdown if multiple cells
   if (processedReport.target_breakdown.by_cell.length > 1) {
     lines.push("## Cell Distribution");
     lines.push("");
     lines.push("| Cell | Count | Percentage | Bar |");
     lines.push("|------|-------|------------|-----|");
-    
+
     for (const item of processedReport.target_breakdown.by_cell) {
       const bar = generateBar(item.count, processedReport.summary.total_targets, 20);
       lines.push(`| ${item.cell} | ${item.count} | ${item.percentage} | ${bar} |`);
     }
     lines.push("");
   }
-  
+
   // Largest dependency graphs
   lines.push("## Top 10 Largest Dependency Graphs");
   lines.push("");
   lines.push("| Rank | Target | Graph Size |");
   lines.push("|------|--------|------------|");
-  
+
   const topGraphs = processedReport.graph_analysis.largest_dependency_graphs.slice(0, 10);
   for (let i = 0; i < topGraphs.length; i++) {
     const { target, nodes } = topGraphs[i];
     lines.push(`| ${i + 1} | \`${target}\` | ${nodes.toLocaleString()} nodes |`);
   }
   lines.push("");
-  
+
   // Failed targets section
   if (processedReport.summary.failed > 0) {
     lines.push("## Failed Targets");
     lines.push("");
     lines.push(`Total failed: ${processedReport.summary.failed}`);
     lines.push("");
-    
+
     for (const failedTarget of processedReport.failed_targets) {
       lines.push(`### \`${failedTarget.target}\``);
       lines.push("");
@@ -566,7 +581,7 @@ async function generateMarkdown(processedReport: ProcessedBuildReport): Promise<
       lines.push("");
     }
   }
-  
+
   return lines.join("\n");
 }
 
@@ -577,50 +592,59 @@ function generateBar(value: number, total: number, width: number): string {
   return "█".repeat(filled) + "░".repeat(empty);
 }
 
-
 function generateConsoleText(processedReport: ProcessedBuildReport): string {
   const lines: string[] = [];
-  
+
   lines.push("\n📊 Buck2 Build Report");
   lines.push("─".repeat(50));
-  
+
   lines.push(`\nBuild ID: ${processedReport.build_metadata.build_id}`);
-  lines.push(`Status: ${processedReport.build_metadata.status === "SUCCESS" ? "✓ SUCCESS" : "✗ FAILED"}`);
+  lines.push(
+    `Status: ${processedReport.build_metadata.status === "SUCCESS" ? "✓ SUCCESS" : "✗ FAILED"}`,
+  );
   lines.push(`Project: ${processedReport.build_metadata.project_root}`);
-  
+
   lines.push("\n📈 Summary");
   lines.push("─".repeat(50));
-  
+
   lines.push(`Total targets: ${processedReport.summary.total_targets}`);
   lines.push(`Build targets: ${processedReport.summary.build_targets}`);
   lines.push(`Test targets: ${processedReport.summary.test_targets}`);
-  lines.push(`Succeeded: ${processedReport.summary.succeeded} (${processedReport.summary.success_rate})`);
+  lines.push(
+    `Succeeded: ${processedReport.summary.succeeded} (${processedReport.summary.success_rate})`,
+  );
   if (processedReport.summary.failed > 0) {
     lines.push(`Failed: ${processedReport.summary.failed}`);
   }
   lines.push(`Average graph size: ${processedReport.graph_analysis.average_graph_size} nodes`);
-  lines.push(`Total graph nodes: ${processedReport.graph_analysis.total_graph_nodes.toLocaleString()}`);
-  
+  lines.push(
+    `Total graph nodes: ${processedReport.graph_analysis.total_graph_nodes.toLocaleString()}`,
+  );
+
   lines.push("\n🎯 Target Types");
   lines.push("─".repeat(50));
-  
+
   for (const item of processedReport.target_breakdown.by_type) {
     lines.push(`${item.type.padEnd(15)} ${item.count.toString().padStart(4)} (${item.percentage})`);
   }
-  
+
   if (processedReport.target_breakdown.by_cell.length > 1) {
     lines.push("\n📦 Cells");
     lines.push("─".repeat(50));
-    
+
     for (const item of processedReport.target_breakdown.by_cell) {
-      lines.push(`${item.cell.padEnd(15)} ${item.count.toString().padStart(4)} (${item.percentage})`);
+      lines.push(
+        `${item.cell.padEnd(15)} ${item.count.toString().padStart(4)} (${item.percentage})`,
+      );
     }
   }
-  
+
   lines.push("\n📏 Largest Dependency Graphs");
   lines.push("─".repeat(50));
-  
-  for (const { target, nodes } of processedReport.graph_analysis.largest_dependency_graphs.slice(0, 5)) {
+
+  for (
+    const { target, nodes } of processedReport.graph_analysis.largest_dependency_graphs.slice(0, 5)
+  ) {
     // Shorten long target names
     let displayTarget = target;
     if (target.length > 60) {
@@ -637,7 +661,7 @@ function generateConsoleText(processedReport: ProcessedBuildReport): string {
   if (processedReport.summary.failed > 0) {
     lines.push(`\n❌ Failed Targets`);
     lines.push("─".repeat(50));
-    
+
     for (const failedTarget of processedReport.failed_targets) {
       lines.push(`• ${failedTarget.target}`);
       if (failedTarget.errors.length > 0) {
