@@ -151,7 +151,7 @@ jobs:
           echo "Determining impacted targets..."
 
           # Run target determination
-          TARGETS_FILE=$(buck2 run root//buck/tools/quicktd -- "$BASE_COMMIT" "$HEAD_COMMIT" depot//...)
+          TARGETS_FILE=$(buck2 run -c ci.depot_gha_ci=true root//buck/tools/quicktd -- "$BASE_COMMIT" "$HEAD_COMMIT" depot//...)
 
           if [ -f "$TARGETS_FILE" ]; then
             TARGET_COUNT=$(wc -l < "$TARGETS_FILE")
