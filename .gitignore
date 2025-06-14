@@ -1,11 +1,16 @@
+# Build/tool directories
 /.direnv
 /buck-out
+__pycache__
 
+# Your personal configuration files
 .envrc
 .envrc.local
 .buckconfig.local
+CLAUDE.local.md
 
+# Various junk
 *.pending-snap
 .gdb_history
-
-CLAUDE.local.md
+*.qbit
+*.data
