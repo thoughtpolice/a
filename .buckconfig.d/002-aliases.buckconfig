@@ -1,0 +1,2 @@
+[alias]
+quicktd = root//buck/tools/quicktd:quicktd
