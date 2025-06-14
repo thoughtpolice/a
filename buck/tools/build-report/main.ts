@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { parseArgs } from "jsr:@std/cli";
-import { blue, bold, dim, green, red, yellow } from "jsr:@std/fmt/colors";
+import { blue, bold, dim, green, red } from "jsr:@std/fmt/colors";
 
 // Raw Buck2 build report interfaces
 interface BuildOutput {
@@ -95,14 +95,14 @@ interface TargetStats {
   failedTargets: Array<{ target: string; errors: string[] }>;
 }
 
-function isProcessedReport(data: any): data is ProcessedBuildReport {
-  return data &&
-    data.format_version &&
-    data.build_metadata &&
-    data.summary &&
-    data.graph_analysis &&
-    data.target_breakdown &&
-    data.failed_targets !== undefined;
+function isProcessedReport(data: unknown): data is ProcessedBuildReport {
+  return typeof data === 'object' && data !== null &&
+    'format_version' in data &&
+    'build_metadata' in data &&
+    'summary' in data &&
+    'graph_analysis' in data &&
+    'target_breakdown' in data &&
+    'failed_targets' in data;
 }
 
 function convertRawToProcessed(report: RawBuildReport): ProcessedBuildReport {
@@ -272,7 +272,7 @@ function analyzeTargets(results: Record<string, BuildResult>): TargetStats {
   return stats;
 }
 
-function formatDuration(ms: number): string {
+function _formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
   return `${Math.floor(ms / 60000)}m ${((ms % 60000) / 1000).toFixed(0)}s`;
@@ -446,7 +446,7 @@ ${bold("EXAMPLES:")}
       if (args.format === "json") {
         output = JSON.stringify(processedReport, null, 2);
       } else if (args.format === "markdown") {
-        output = await generateMarkdown(processedReport);
+        output = generateMarkdown(processedReport);
       } else {
         // For console format, generate a text version
         output = generateConsoleText(processedReport);
@@ -472,7 +472,7 @@ ${bold("EXAMPLES:")}
   }
 }
 
-async function generateMarkdown(processedReport: ProcessedBuildReport): Promise<string> {
+function generateMarkdown(processedReport: ProcessedBuildReport): string {
   const lines: string[] = [];
 
   lines.push("# Buck2 Build Report");

@@ -170,7 +170,43 @@ _deno_test = rule(
     }
 )
 
+# Macro wrappers that automatically add lint tests
+def deno_binary(**kwargs):
+    """
+    Wrapper for deno.binary that automatically adds lint test to tests parameter.
+    """
+    name = kwargs.get("name")
+    tests = kwargs.pop("tests", [])
+    # Automatically add lint test if not already present
+    lint_test = ":{}[lint]".format(name)
+    if lint_test not in tests:
+        tests = tests + [lint_test]
+
+    _deno_binary(
+        tests = tests,
+        **kwargs
+    )
+
+def deno_test(**kwargs):
+    """
+    Wrapper for deno.test that automatically adds lint test to tests parameter.
+    """
+    name = kwargs.get("name")
+    tests = kwargs.pop("tests", [])
+    # Automatically add lint test if not already present
+    lint_test = ":{}[lint]".format(name)
+    if lint_test not in tests:
+        tests = tests + [lint_test]
+
+    _deno_test(
+        tests = tests,
+        **kwargs
+    )
+
 deno = struct(
-    binary = _deno_binary,
-    test = _deno_test,
+    binary = deno_binary,
+    test = deno_test,
+    # Also expose raw rules if needed
+    raw_binary = _deno_binary,
+    raw_test = _deno_test,
 )

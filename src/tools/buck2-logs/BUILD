@@ -7,6 +7,7 @@ deno.binary(
     name="upload",
     main="upload.ts",
     type="run",
+    config="deno.jsonc",
     permissions=["read", "net"],
     unstable_features=["kv"],
     visibility=["PUBLIC"],
@@ -16,6 +17,7 @@ deno.binary(
     name="server",
     main="server.ts",
     type="serve",
+    config="deno.jsonc",
     permissions=[
         "net",
         "env="

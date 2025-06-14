@@ -77,7 +77,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }),
         // MARK: CMD: build-file
         vscode.commands.registerCommand("depot-buck2.build-file", async () => {
-            const targets = await getTargetsForOpenFile(lspExecutable);
+            const targets = getTargetsForOpenFile(lspExecutable);
             if (!targets) {
                 vscode.window.showInformationMessage("No targets found");
                 return;
@@ -105,20 +105,20 @@ export async function activate(context: vscode.ExtensionContext) {
                 ? targets
                 : picked.map((item) => item.label);
 
-            await buck2(lspExecutable, buildTargets);
+            buck2(lspExecutable, buildTargets);
             console.log("build complete");
         }),
         // MARK: CMD: build-file-auto
         vscode.commands.registerCommand(
             "depot-buck2.build-file-auto",
-            async () => {
-                const targets = await getTargetsForOpenFile(lspExecutable);
+            () => {
+                const targets = getTargetsForOpenFile(lspExecutable);
                 if (!targets) {
                     vscode.window.showInformationMessage("No targets found");
                     return;
                 }
 
-                await buck2(lspExecutable, targets);
+                buck2(lspExecutable, targets);
                 console.log("build complete");
             },
         ),
@@ -131,7 +131,7 @@ function getWorkspaceFolder(): string | undefined {
     return vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 }
 
-async function getTargetsForOpenFile(buck2: string): Promise<string[]> {
+function getTargetsForOpenFile(buck2: string): string[] | undefined {
     const activeEditor = vscode.window.activeTextEditor;
     const openFile = activeEditor.document.fileName;
 
@@ -152,10 +152,10 @@ async function getTargetsForOpenFile(buck2: string): Promise<string[]> {
     return targets;
 }
 
-async function buck2(
+function buck2(
     lspExecutable: string,
     buildTargets: string[],
-): Promise<void> {
+): void {
     const tmpFile = path.join(
         fs.mkdtempSync(
             os.tmpdir() + path.sep + "depot-buck2-",
