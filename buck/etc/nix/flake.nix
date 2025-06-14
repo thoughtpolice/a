@@ -54,7 +54,7 @@
           cargo-edit bloaty rust-bindgen
 
           # other toolchains
-          nodejs go_latest
+          nodejs go_latest uv
         ]) ++ darwinDeps ++ linuxDeps;
 
         shellHook = with pkgs; ''
