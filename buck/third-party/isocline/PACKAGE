@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims/package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "1.0.9+gc9310ae",
+    description = """Small, portable alternative to GNU Readline""",
+    license = "MIT",
+    copyright = [ "2021-2023 Daan Leijen" ],
+    visibility = ['PUBLIC'],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/daanx/isocline",
+        commit = "c9310aed7e40b5b2db479b5cf0edc9aec9a96be9",
+    ),
+)
