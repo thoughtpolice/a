@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims/package.bzl", "pkg", "OsvPurlInfo")
+
+pkg.info(
+    version = '0.3.3',
+    description = """
+        WUFFS: Wrangling Untrusted File Formats Safely.
+    """,
+    license = 'Apache-2.0',
+    copyright = [
+        "2019-2023 The Wuffs Authors"
+    ],
+    visibility = ['PUBLIC'],
+
+    osv_info = OsvPurlInfo(
+        name = "google/wuffs",
+        version = "0.3.3",
+    ),
+)

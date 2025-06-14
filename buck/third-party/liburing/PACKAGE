@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims/package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "2.5.0+g7524a6a",
+    description = """io_uring""",
+    license = "MIT",
+    copyright = [ "2020-2023 Jens Axboe" ],
+    visibility = ['PUBLIC'],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/axboe/liburing",
+        commit = "7524a6a71876ba4d4f59ab6a37a8bfa6b2ec3842",
+    ),
+)
