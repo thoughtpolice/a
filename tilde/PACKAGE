@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Things in tilde// can only depend on their own stuff
+
+package( inherit = False, visibility = [ "tilde//..." ] )
