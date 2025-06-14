@@ -31,6 +31,7 @@ BAD_SUFFIXES = [
     ".txt",
     ".json",
     ".jsonc",
+    ".jsonl",
     ".exe",
     ".gitattributes",
     ".gitignore",
