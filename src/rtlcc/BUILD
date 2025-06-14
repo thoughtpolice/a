@@ -7,6 +7,7 @@ deno.binary(
     name="rtlcc",
     main="main.ts",
     type="run",
+    config="deno.jsonc",
     permissions=["read", "write", "env"],
     visibility=["PUBLIC"],
 )
