@@ -64,6 +64,15 @@ def should_check_file(file_path):
         ".hex1",
         ".hex2",
         ".M1",
+        ".pyc",
+        ".pyo",
+        ".pyd",
+        ".json",
+        ".jsonl",
+        ".jsonc",
+        ".wasm",
+        ".o",
+        ".obj",
     }
     # Skip certain directories
     skip_dirs = {".jj", ".git", "buck-out", ".direnv", "cellar"}
