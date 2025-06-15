@@ -191,6 +191,7 @@ jobs:
           if [ "${TARGETS_FOUND}" = "true" ] && [ "${REASONABLE_TARGET_COUNT}" = "true" ]; then
             echo "Testing targeted selection of ${TARGET_COUNT} targets"
             buck2 test -c ci.depot_gha_ci=true @mode//debug @"${TARGET_FILE}" \
+              --skip-missing-targets \
               --build-report ${{ runner.temp }}/build-report.json -- \
               --env SEMGREP_ENABLE_VERSION_CHECK=0
           else
