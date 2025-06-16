@@ -33,6 +33,10 @@ jobs:
         uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
         with:
           node-version: "22"
+      - name: Install uv
+        uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba
+        with:
+          version: "0.7.12"
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
@@ -104,6 +108,10 @@ jobs:
         uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
         with:
           node-version: "22"
+      - name: Install uv
+        uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba
+        with:
+          version: "0.7.12"
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
@@ -194,6 +202,7 @@ jobs:
             buck2 test -c ci.depot_gha_ci=true @mode//debug @"${TARGET_FILE}" \
               root//buck/... \
               --skip-missing-targets \
+              --skip-incompatible-targets \
               --build-report ${{ runner.temp }}/build-report.json -- \
               --env SEMGREP_ENABLE_VERSION_CHECK=0
           else
