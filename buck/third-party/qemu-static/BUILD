@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims/package.bzl", "pkg")
+load("@root//buck/shims/shims.bzl", depot = "shims")
 
 VERSION = pkg.version().split('+', 1)[0]
 
-http_archive(
+depot.http_archive(
     name = 'qemu-static',
     sha256 = 'b22f6cf575f5c8266d70f64b8ecc754f61c2986e9cc9e00607453baa5fe7352b',
     urls = [
@@ -15,7 +16,7 @@ http_archive(
     type = 'tar.xz',
 )
 
-export_file(
+depot.export_file(
     name = 'run-swtpm',
     src = 'run-swtpm',
 )

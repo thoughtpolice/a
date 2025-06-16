@@ -1,0 +1,5 @@
+[buildfile]
+# [ref:buildfile-names]
+name = BUILD
+# [ref:noprelude-dot-bzl]
+includes = root//buck/shims/noprelude.bzl

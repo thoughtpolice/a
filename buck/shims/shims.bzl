@@ -57,6 +57,9 @@ def _depot_cxx_binary(**kwargs):
     kwargs['allow_cache_upload'] = allow_cache_upload
     native.cxx_binary(**kwargs)
 
+def _depot_cxx_genrule(**kwargs):
+    native.cxx_genrule(**kwargs)
+
 def _depot_prebuilt_cxx_library(**kwargs):
     allow_cache_upload = kwargs.pop('allow_cache_upload', True)
     kwargs['allow_cache_upload'] = allow_cache_upload
@@ -213,6 +216,18 @@ def _platform(**kwargs):
 def _alias(**kwargs):
     native.alias(**kwargs)
 
+def _config_setting(**kwargs):
+    native.config_setting(**kwargs)
+
+def _toolchain_alias(**kwargs):
+    native.toolchain_alias(**kwargs)
+
+def _http_archive(**kwargs):
+    native.http_archive(**kwargs)
+
+def _git_fetch(**kwargs):
+    native.git_fetch(**kwargs)
+
 # MARK: Public API
 
 shims = struct(
@@ -229,6 +244,7 @@ shims = struct(
     cxx_library = _depot_cxx_library,
     prebuilt_cxx_library = _depot_prebuilt_cxx_library,
     cxx_binary = _depot_cxx_binary,
+    cxx_genrule = _depot_cxx_genrule,
 
     tar_file = tar_file,
     oci = struct(
@@ -246,6 +262,8 @@ shims = struct(
     constraint = _constraint,
     platform = _platform,
     alias = _alias,
+    config_setting = _config_setting,
+    toolchain_alias = _toolchain_alias,
 
     command_test = _command_test,
     run_test = _run_test,
@@ -258,5 +276,8 @@ shims = struct(
 
     modifiers = struct(
         conditional = conditional_modifier,
-    )
+    ),
+    select = select,
+    http_archive = _http_archive,
+    git_fetch = _git_fetch,
 )

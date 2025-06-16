@@ -7,7 +7,7 @@ load("@root//buck/shims/package.bzl", "pkg")
 
 VERSION = pkg.version()
 
-http_archive(
+depot.http_archive(
     name="src",
     sha256="0eed39319f139afde8515010ff59baf24de9e47ea316a315398e8027d198202d",
     urls=[
@@ -73,7 +73,7 @@ depot.cxx_library(
         ":src[src/segment-map.c]",
         ":src[src/stats.c]",
     ]
-    + select(
+    + depot.select(
         {
             "config//os:linux": [":src[src/prim/unix/prim.c]"],
             "config//os:windows": [":src[src/prim/windows/prim.c]"],

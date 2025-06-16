@@ -5,7 +5,7 @@ load("@root//buck/shims/shims.bzl", depot="shims")
 
 # MARK: main library
 
-cxx_genrule(
+depot.cxx_genrule(
     name="wrapper.rs",
     outs={
         "wrapper.rs": ["wrapper.rs"],
@@ -67,7 +67,7 @@ depot.rust_library(
     visibility=["PUBLIC"],
 )
 
-alias(
+depot.alias(
     name="rust",
     actual=":bssl-sys",
     visibility=["PUBLIC"],

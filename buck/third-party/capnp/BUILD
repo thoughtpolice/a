@@ -166,7 +166,7 @@ SOURCE_FILES = [
 ]
 
 [
-    http_archive(
+    depot.http_archive(
         name = f'src.{typ}',
         type = typ,
         strip_prefix = f'capnproto-{VERSION}',
@@ -181,15 +181,15 @@ SOURCE_FILES = [
     }).items()
 ]
 
-alias(
+depot.alias(
     name = 'src',
-    actual = select({
+    actual = depot.select({
         'config//os:windows': ':src.zip',
         'DEFAULT': ':src.tar.gz',
     })
 )
 
-MSVC_FLAGS = select({
+MSVC_FLAGS = depot.select({
     'config//os:windows': [ '/TP' ],
     'DEFAULT': [],
 })
@@ -340,12 +340,12 @@ depot.cxx_library(
         ":kj-srcs[kj/units.c++]",
     ],
 
-    compiler_flags = select({
+    compiler_flags = depot.select({
         'config//os:windows': [ '/TP' ],
         'DEFAULT': [],
     }),
 
-    preprocessor_flags = select({
+    preprocessor_flags = depot.select({
         'config//os:windows': [
             '-D_WINDOWS',
             '-DWIN32',
@@ -371,12 +371,12 @@ depot.cxx_library(
         ":kj-srcs[kj/timer.c++]",
     ],
 
-    compiler_flags = select({
+    compiler_flags = depot.select({
         'config//os:windows': [ '/TP' ],
         'DEFAULT': [],
     }),
 
-    preprocessor_flags = select({
+    preprocessor_flags = depot.select({
         'config//os:windows': [
             '-D_WINDOWS',
             '-DWIN32',
@@ -484,12 +484,12 @@ depot.cxx_library(
         ":capnp-srcs[capnp/stringify.c++]",
     ],
 
-    compiler_flags = select({
+    compiler_flags = depot.select({
         'config//os:windows': [ '/TP' ],
         'DEFAULT': [],
     }),
 
-    preprocessor_flags = select({
+    preprocessor_flags = depot.select({
         'config//os:windows': [
             '-D_WINDOWS',
             '-DWIN32',
@@ -521,12 +521,12 @@ depot.cxx_library(
         ":capnp-srcs[capnp/serialize-text.c++]",
     ],
 
-    compiler_flags = select({
+    compiler_flags = depot.select({
         'config//os:windows': [ '/TP' ],
         'DEFAULT': [],
     }),
 
-    preprocessor_flags = select({
+    preprocessor_flags = depot.select({
         'config//os:windows': [
             '-D_WINDOWS',
             '-DWIN32',
@@ -558,12 +558,12 @@ depot.cxx_library(
         ":compat_json-srcs[capnp/compat/json.c++]",
         ":compat_json-srcs[capnp/compat/json.capnp.c++]",
     ],
-    compiler_flags = select({
+    compiler_flags = depot.select({
         'config//os:windows': [ '/TP' ],
         'DEFAULT': [],
     }),
 
-    preprocessor_flags = select({
+    preprocessor_flags = depot.select({
         'config//os:windows': [
             '-D_WINDOWS',
             '-DWIN32',
@@ -586,12 +586,12 @@ depot.cxx_binary(
         ":capnp-srcs[capnp/compiler/capnp.c++]",
         ":capnp-srcs[capnp/compiler/module-loader.c++]",
     ],
-    compiler_flags = select({
+    compiler_flags = depot.select({
         'config//os:windows': [ '/TP' ],
         'DEFAULT': [],
     }),
 
-    preprocessor_flags = select({
+    preprocessor_flags = depot.select({
         'config//os:windows': [
             '-D_WINDOWS',
             '-DWIN32',

@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+load("@root//buck/shims/shims.bzl", depot = "shims")
 load(":defs.bzl", "download_deno", "deno_toolchain")
 
 DENO_VERSION = '2.3.5'
@@ -22,12 +23,12 @@ ALL_DENO_VERSIONS = {
 [
     deno_toolchain(
         name = f'deno-{version}',
-        deno = select({
-            'config//cpu:arm64': select({
+        deno = depot.select({
+            'config//cpu:arm64': depot.select({
                 'config//os:linux': [ f'$(location :{version}-aarch64-unknown-linux-gnu)/deno' ],
                 'config//os:macos': [ f'$(location :{version}-aarch64-apple-darwin)/deno' ],
             }),
-            'config//cpu:x86_64': select({
+            'config//cpu:x86_64': depot.select({
                 'config//os:linux':   [ f'$(location :{version}-x86_64-unknown-linux-gnu)/deno' ],
                 'config//os:windows': [ f'$(location :{version}-x86_64-pc-windows-msvc)/deno.exe' ],
             }),
@@ -35,7 +36,7 @@ ALL_DENO_VERSIONS = {
     ) for version in ALL_DENO_VERSIONS.keys()
 ]
 
-toolchain_alias(
+depot.toolchain_alias(
     name = 'deno',
     actual = f':deno-{DENO_VERSION}',
 )
