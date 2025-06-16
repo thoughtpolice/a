@@ -9,6 +9,7 @@ export const configResource: StaticResourceDefinition = {
   description: "Application configuration and settings",
   uri: "config://app",
   mimeType: "application/json",
+  is_mcp_safe: true,
   handler: (uri) => {
     const config = {
       name: "Brainiac MCP Server",
@@ -36,6 +37,7 @@ export const serverInfoResource: StaticResourceDefinition = {
   description: "Server runtime information and status",
   uri: "info://server",
   mimeType: "text/plain",
+  is_mcp_safe: true,
   handler: (uri) => {
     const info = `Brainiac MCP Server
 Status: Running

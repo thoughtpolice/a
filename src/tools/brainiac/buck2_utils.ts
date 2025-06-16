@@ -74,7 +74,7 @@ export function isValidBuckPath(path: string): boolean {
 // Execute buck2 command with common patterns
 export async function executeBuck2Command(
   args: string[],
-  isolationDir = "brainiac",
+  isolationDir = ".brainiac",
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   let tempFile: string | null = null;
 

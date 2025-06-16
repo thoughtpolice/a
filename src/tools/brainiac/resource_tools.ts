@@ -70,6 +70,7 @@ function generateResourceTool(
     name: toolName,
     description: `Get ${resource.description}`,
     schema,
+    is_mcp_safe: resource.is_mcp_safe,
     handler: async (args: Record<string, string>): Promise<CallToolResult> => {
       try {
         let uri: string;

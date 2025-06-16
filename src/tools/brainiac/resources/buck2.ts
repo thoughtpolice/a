@@ -3,7 +3,7 @@
 
 import { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 import { DynamicResourceDefinition } from "./types.ts";
-import { validateBuckTarget } from "../buck2_utils.ts";
+import { validateBuckTarget, executeBuck2Command as executeBuck2CommandUtil } from "../buck2_utils.ts";
 
 interface Buck2TargetParams {
   target: string;
@@ -36,45 +36,20 @@ async function executeBuck2Command(
   args: string[],
   target: string,
 ): Promise<ReadResourceResult> {
-  let tempFile: string | null = null;
-
   try {
-    // Create temporary file for at-file syntax
-    tempFile = await Deno.makeTempFile({ suffix: ".txt" });
-
-    // Use fixed isolation directory name for nested buck2 invocations
-    const isolationDir = "brainiac";
-
-    // Write each argument on a separate line
-    const argsContent = args.join("\n");
-    await Deno.writeTextFile(tempFile, argsContent);
-
-    const command = new Deno.Command("buck2", {
-      args: ["--isolation-dir", isolationDir, `@${tempFile}`],
-      stdout: "piped",
-      stderr: "piped",
-    });
-
-    const { code, stdout, stderr } = await command.output();
+    const { code, stdout, stderr } = await executeBuck2CommandUtil(args);
 
     if (code !== 0) {
-      const errorMessage = new TextDecoder().decode(stderr);
       const isTargetsCommand = args[0] === "targets";
-      // Don't delete temp file on failure for debugging
-      console.error(
-        `buck2 command failed, temp file preserved at: ${tempFile}`,
-      );
-      tempFile = null; // Prevent cleanup
       return createErrorResponse(
         uri,
-        `buck2 ${args[0]} failed with code ${code}: ${errorMessage}`,
+        `buck2 ${args[0]} failed with code ${code}: ${stderr}`,
         target,
         isTargetsCommand,
       );
     }
 
-    const output = new TextDecoder().decode(stdout);
-    const lines = output.trim().split("\n").filter((line) => line.length > 0);
+    const lines = stdout.trim().split("\n").filter((line) => line.length > 0);
 
     const isTargetsCommand = args[0] === "targets";
     return {
@@ -95,28 +70,12 @@ async function executeBuck2Command(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const isTargetsCommand = args[0] === "targets";
-    // Don't delete temp file on failure for debugging
-    if (tempFile) {
-      console.error(
-        `buck2 command failed, temp file preserved at: ${tempFile}`,
-      );
-      tempFile = null; // Prevent cleanup
-    }
     return createErrorResponse(
       uri,
       `Failed to execute buck2 ${args[0]}: ${message}`,
       target,
       isTargetsCommand,
     );
-  } finally {
-    // Clean up temp file only on success
-    if (tempFile) {
-      try {
-        await Deno.remove(tempFile);
-      } catch {
-        // Ignore cleanup errors
-      }
-    }
   }
 }
 
@@ -160,6 +119,7 @@ export const buck2TargetsResource: DynamicResourceDefinition<
   description: "List Buck2 targets matching a pattern",
   uriTemplate: "buck2://targets/{target}",
   mimeType: "application/json",
+  is_mcp_safe: true,
   handler: createBuck2Handler((target) => ["targets", target], true),
 };
 
@@ -170,6 +130,7 @@ export const buck2TargetProvidersResource: DynamicResourceDefinition<
   description: "List Buck2 providers for a specific target",
   uriTemplate: "buck2://providers/{target}",
   mimeType: "application/json",
+  is_mcp_safe: true,
   handler: createBuck2Handler(
     (target) => ["audit", "providers", target],
     false,

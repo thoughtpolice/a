@@ -16,6 +16,7 @@ export interface StaticResourceDefinition {
   uri: string;
   mimeType?: string;
   handler: ResourceHandler<never>;
+  is_mcp_safe: boolean;
 }
 
 // Dynamic resource definition (with parameters)
@@ -25,6 +26,7 @@ export interface DynamicResourceDefinition<T = Record<string, string>> {
   uriTemplate: string;
   mimeType?: string;
   handler: ResourceHandler<T>;
+  is_mcp_safe: boolean;
 }
 
 // Union type for all resource definitions

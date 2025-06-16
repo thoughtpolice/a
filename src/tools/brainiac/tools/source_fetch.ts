@@ -160,4 +160,5 @@ export const sourceFetchTool: ToolDefinition<SourceFetchArgs> = {
     "Fetch source code from a repository and return the local path. Supports 'github:owner/repo' format.",
   schema: SourceFetchSchema,
   handler: sourceFetchHandler,
+  is_mcp_safe: true,
 };

@@ -15,4 +15,5 @@ export interface ToolDefinition<T = unknown> {
   description: string;
   schema: z.ZodSchema<T>;
   handler: ToolHandler<T>;
+  is_mcp_safe: boolean;
 }
