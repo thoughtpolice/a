@@ -4,12 +4,12 @@
 load("@root//buck/shims:shims.bzl", "shims")
 
 python_bootstrap_binary(
-    name = 'check-spdx',
-    main = 'main.py',
-    tests = [ ':spdx-check-headers' ],
+    name="check-starlark-load-syntax",
+    main="main.py",
+    tests=[":starlark-load-syntax"],
 )
 
 shims.run_test(
-    name = 'spdx-check-headers',
-    dep = ":check-spdx",
+    name="starlark-load-syntax",
+    dep=":check-starlark-load-syntax",
 )

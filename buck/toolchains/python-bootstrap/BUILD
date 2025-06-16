@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", "shims")
+load("@root//buck/shims:shims.bzl", "shims")
 load(":defs.bzl",
     "simple_exe_download",
     "standalone_python_download",

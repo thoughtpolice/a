@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@prelude//utils:buckconfig.bzl", "read_choice")
-load("@root//buck/shims/shims.bzl", "shims")
+load("@root//buck/shims:shims.bzl", "shims")
 
 def constraint_with_values(name, values, **_kwargs):
     """Declare a constraint setting with a set of values."""

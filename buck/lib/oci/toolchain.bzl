@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load(
-    "@prelude//rules.bzl",
+    "@prelude//:rules.bzl",
     "http_archive",
 )
 load(
