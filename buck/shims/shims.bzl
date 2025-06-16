@@ -8,12 +8,57 @@ load("@root//buck/lib/tar:defs.bzl", "tar_file")
 load("@root//buck/lib/oci:defs.bzl", "oci_image", "oci_pull", "oci_push")
 load("@toolchains//golang:defs.bzl", "go_binary", "go_library")
 
+# MARK: Package metadata handling
+
+def _apply_package_target_compatible_with(kwargs):
+    """Apply target_compatible_with from package metadata if not explicitly provided."""
+    # If user explicitly sets target_compatible_with to None, we respect that and don't apply defaults
+    if 'target_compatible_with' in kwargs and kwargs['target_compatible_with'] == None:
+        # Remove the None value so it doesn't get passed to the rule
+        kwargs.pop('target_compatible_with')
+        return kwargs
+
+    # If user provides their own target_compatible_with, use it
+    if 'target_compatible_with' in kwargs:
+        return kwargs
+
+    # Otherwise, check for package default
+    pkg_compat = read_package_value('meta.target_compatible_with')
+    if pkg_compat != None:
+        kwargs['target_compatible_with'] = pkg_compat
+
+    return kwargs
+
+def _fix_kwargs(_rule_name: str, kwargs):
+    """Apply all package-level defaults and fixes to rule kwargs.
+
+    Args:
+        _rule_name: The name of the rule being called (e.g., "rust_library", "cxx_binary") - currently unused but reserved for future use
+        kwargs: The keyword arguments passed to the rule
+
+    This is the central place to add new package-level defaults that should
+    be applied to rules. Add new fixes here as needed, and they can be
+    customized per rule type.
+    """
+    kwargs = _apply_package_target_compatible_with(kwargs)
+
+    # Add more fixes here as needed in the future
+    # Example of rule-specific handling:
+    # if rule_name.startswith("rust_"):
+    #     kwargs = _apply_rust_specific_fixes(kwargs)
+    # elif rule_name.startswith("cxx_"):
+    #     kwargs = _apply_cxx_specific_fixes(kwargs)
+
+    return kwargs
+
 # MARK: Basic shims
 
 DEPOT_VERSION = '2025.0+0'
 
 # wrap native.rust_*, but provide some extra default args
 def _depot_rust_rule(rule_name: str, **kwargs):
+    kwargs = _fix_kwargs(rule_name, kwargs)
+
     edition = kwargs.pop('edition', '2021')
     env = {
         'DEPOT_VERSION': DEPOT_VERSION,
@@ -48,11 +93,13 @@ def _depot_rust_test(**kwargs):
     _depot_rust_rule('rust_test', **kwargs)
 
 def _depot_cxx_library(**kwargs):
+    kwargs = _fix_kwargs("cxx_library", kwargs)
     allow_cache_upload = kwargs.pop('allow_cache_upload', True)
     kwargs['allow_cache_upload'] = allow_cache_upload
     native.cxx_library(**kwargs)
 
 def _depot_cxx_binary(**kwargs):
+    kwargs = _fix_kwargs("cxx_binary", kwargs)
     allow_cache_upload = kwargs.pop('allow_cache_upload', True)
     kwargs['allow_cache_upload'] = allow_cache_upload
     native.cxx_binary(**kwargs)
@@ -61,17 +108,21 @@ def _depot_cxx_genrule(**kwargs):
     native.cxx_genrule(**kwargs)
 
 def _depot_prebuilt_cxx_library(**kwargs):
+    kwargs = _fix_kwargs("prebuilt_cxx_library", kwargs)
     allow_cache_upload = kwargs.pop('allow_cache_upload', True)
     kwargs['allow_cache_upload'] = allow_cache_upload
     native.prebuilt_cxx_library(**kwargs)
 
 def _depot_export_file(**kwargs):
+    kwargs = _fix_kwargs("export_file", kwargs)
     native.export_file(**kwargs)
 
 def _depot_genrule(**kwargs):
+    kwargs = _fix_kwargs("genrule", kwargs)
     native.genrule(**kwargs)
 
 def _depot_filegroup(**kwargs):
+    kwargs = _fix_kwargs("filegroup", kwargs)
     native.filegroup(**kwargs)
 
 # MARK: Supplemental rules
@@ -83,12 +134,16 @@ def _write_file_impl(ctx: AnalysisContext) -> list[Provider]:
         DefaultInfo(default_output = output),
     ]
 
-_write_file = rule(
+_write_file_rule = rule(
     impl = _write_file_impl,
     attrs = {
         "contents": attrs.list(attrs.string()),
     }
 )
+
+def _write_file(**kwargs):
+    kwargs = _fix_kwargs("write_file", kwargs)
+    _write_file_rule(**kwargs)
 
 def _copy_files_impl(ctx: AnalysisContext) -> list[Provider]:
     srcs = {
@@ -112,14 +167,18 @@ def _copy_files_impl(ctx: AnalysisContext) -> list[Provider]:
         ),
     ]
 
-_copy_files = rule(
+_copy_files_rule = rule(
     impl = _copy_files_impl,
     attrs = {
         "srcs": attrs.dict(attrs.string(), attrs.source()),
     }
 )
 
-_command_test = rule(
+def _copy_files(**kwargs):
+    kwargs = _fix_kwargs("copy_files", kwargs)
+    _copy_files_rule(**kwargs)
+
+_command_test_rule = rule(
     impl = lambda ctx: [
         DefaultInfo(),
         RunInfo(args = cmd_args(ctx.attrs.cmd)),
@@ -133,7 +192,11 @@ _command_test = rule(
     }
 )
 
-_command = rule(
+def _command_test(**kwargs):
+    kwargs = _fix_kwargs("command_test", kwargs)
+    _command_test_rule(**kwargs)
+
+_command_rule = rule(
     impl = lambda ctx: [
         DefaultInfo(),
         RunInfo(args = cmd_args(ctx.attrs.cmd)),
@@ -143,7 +206,11 @@ _command = rule(
     }
 )
 
-_run_test = rule(
+def _command(**kwargs):
+    kwargs = _fix_kwargs("command", kwargs)
+    _command_rule(**kwargs)
+
+_run_test_rule = rule(
     impl = lambda ctx: [
         DefaultInfo(),
         RunInfo(args = cmd_args(ctx.attrs.dep[RunInfo].args)),
@@ -156,6 +223,10 @@ _run_test = rule(
         "dep": attrs.dep(providers = [RunInfo])
     }
 )
+
+def _run_test(**kwargs):
+    kwargs = _fix_kwargs("run_test", kwargs)
+    _run_test_rule(**kwargs)
 
 # starlark has no 'rjust', and 'format' does not support padding with
 # zeros, so we have to do this manually.
@@ -235,11 +306,11 @@ shims = struct(
     rust_binary = _depot_rust_binary,
     rust_test = _depot_rust_test,
 
-    ocaml_binary = native.ocaml_binary,
-    ocaml_library = native.ocaml_library,
+    ocaml_binary = lambda **kwargs: native.ocaml_binary(**_fix_kwargs("ocaml_binary", kwargs)),
+    ocaml_library = lambda **kwargs: native.ocaml_library(**_fix_kwargs("ocaml_library", kwargs)),
 
-    go_binary = go_binary,
-    go_library = go_library,
+    go_binary = lambda **kwargs: go_binary(**_fix_kwargs("go_binary", kwargs)),
+    go_library = lambda **kwargs: go_library(**_fix_kwargs("go_library", kwargs)),
 
     cxx_library = _depot_cxx_library,
     prebuilt_cxx_library = _depot_prebuilt_cxx_library,

@@ -67,6 +67,7 @@ def _info(
         inherit: bool = False,
         visibility: list[str] = [],
         within_view: list[str] = [],
+        target_compatible_with: None | list[str] = None,
     ) -> None:
 
     _copyright(copyright)
@@ -94,6 +95,9 @@ def _info(
         if vendor_info == {}:
             fail("Must specify upstream vendor metadata (vendor_info) when package is vendored code")
         _vendored(vendor_info)
+
+    if target_compatible_with != None:
+        _meta_write_package_value('target_compatible_with', target_compatible_with)
 
     package(
         inherit = inherit,
