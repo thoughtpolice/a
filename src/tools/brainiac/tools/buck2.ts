@@ -213,6 +213,85 @@ async function executeTargetDetermination(
   }
 }
 
+//
+// Buck2 Test Tool
+//
+
+interface Buck2TestArgs {
+  targets: string[];
+}
+
+const buck2TestSchema = z.object({
+  targets: z.array(z.string()).min(1).describe(
+    "List of Buck2 target patterns to test",
+  ),
+});
+
+async function executeBuck2Test(targets: string[]): Promise<CallToolResult> {
+  try {
+    // Validate all targets first
+    const validatedTargets: string[] = [];
+    const invalidTargets: string[] = [];
+
+    for (const target of targets) {
+      const validated = validateBuckTarget(target);
+      if (validated) {
+        validatedTargets.push(validated);
+      } else {
+        invalidTargets.push(target);
+      }
+    }
+
+    if (invalidTargets.length > 0) {
+      return {
+        content: [{
+          type: "text",
+          text: `Error: Invalid or unsafe Buck2 target format(s): ${
+            invalidTargets.join(", ")
+          }`,
+        }],
+        isError: true,
+      };
+    }
+
+    // Build arguments: test command + all targets
+    const args = ["test", ...validatedTargets];
+    const { code, stdout, stderr } = await executeBuck2Command(args);
+
+    if (code !== 0) {
+      return {
+        content: [{
+          type: "text",
+          text: `Buck2 test failed with code ${code}\n\nTargets: ${
+            validatedTargets.join(" ")
+          }\n\nStderr:\n${stderr}\n\nStdout:\n${stdout}`,
+        }],
+        isError: true,
+      };
+    }
+
+    // Success - return test output
+    return {
+      content: [{
+        type: "text",
+        text: `Buck2 test succeeded for targets: ${
+          validatedTargets.join(" ")
+        }\n\nTest output:\n${stdout}${stderr ? `\nStderr:\n${stderr}` : ""}`,
+      }],
+      isError: false,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      content: [{
+        type: "text",
+        text: `Failed to execute buck2 test: ${message}`,
+      }],
+      isError: true,
+    };
+  }
+}
+
 export const buck2BuildTool: ToolDefinition<Buck2BuildArgs> = {
   name: "buck2_build",
   description: "Build Buck2 targets using buck2 build command",
@@ -220,6 +299,17 @@ export const buck2BuildTool: ToolDefinition<Buck2BuildArgs> = {
   handler: async (args: Buck2BuildArgs): Promise<CallToolResult> => {
     return await executeBuck2Build(args.targets);
   },
+  is_mcp_safe: true,
+};
+
+export const buck2TestTool: ToolDefinition<Buck2TestArgs> = {
+  name: "buck2_test",
+  description: "Run tests for Buck2 targets using buck2 test command",
+  schema: buck2TestSchema,
+  handler: async (args: Buck2TestArgs): Promise<CallToolResult> => {
+    return await executeBuck2Test(args.targets);
+  },
+  is_mcp_safe: true,
 };
 
 export const targetDeterminationTool: ToolDefinition<TargetDeterminationArgs> =
@@ -235,4 +325,5 @@ export const targetDeterminationTool: ToolDefinition<TargetDeterminationArgs> =
         args.universe,
       );
     },
+    is_mcp_safe: true,
   };

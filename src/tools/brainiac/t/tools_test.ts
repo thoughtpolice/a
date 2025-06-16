@@ -18,6 +18,7 @@ Deno.test("Modular tool system", () => {
   // Manual tools
   assertEquals(toolNames.includes("source_fetch"), true);
   assertEquals(toolNames.includes("buck2_build"), true);
+  assertEquals(toolNames.includes("buck2_test"), true);
   assertEquals(toolNames.includes("target_determination"), true);
 
   // Resource-backed tools
@@ -43,6 +44,20 @@ Deno.test("Dynamic schema conversion", () => {
   assertEquals(
     (sourceFetchTool?.inputSchema.properties?.url as JsonSchemaProperty)?.type,
     "string",
+  );
+
+  // Check buck2_test tool schema
+  const buck2TestTool = mcpTools.find((tool) => tool.name === "buck2_test");
+  assertEquals(buck2TestTool?.name, "buck2_test");
+  assertEquals(
+    buck2TestTool?.description,
+    "Run tests for Buck2 targets using buck2 test command",
+  );
+  assertEquals(buck2TestTool?.inputSchema.type, "object");
+  assertEquals(buck2TestTool?.inputSchema.required, ["targets"]);
+  assertEquals(
+    (buck2TestTool?.inputSchema.properties?.targets as Record<string, unknown>)?.type,
+    "array",
   );
 
   // Check target_determination tool schema
