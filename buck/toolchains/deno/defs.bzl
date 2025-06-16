@@ -65,6 +65,9 @@ def _deno_binary_impl(ctx: AnalysisContext) -> list[Provider]:
         ]),
         category = "deno_compile",
         allow_cache_upload = True,
+        env = {
+            "DENO_NO_UPDATE_CHECK": "1",
+        },
     )
 
     # Create lint subtarget - lint entire directory to catch all TypeScript files
