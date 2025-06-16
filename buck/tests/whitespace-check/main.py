@@ -75,7 +75,7 @@ def should_check_file(file_path):
         ".obj",
     }
     # Skip certain directories
-    skip_dirs = {".jj", ".git", "buck-out", ".direnv", "cellar"}
+    skip_dirs = {".jj", ".git", "buck-out", ".direnv", "cellar", "node_modules"}
 
     path = Path(file_path)
 
@@ -83,6 +83,11 @@ def should_check_file(file_path):
     for parent in path.parents:
         if parent.name in skip_dirs:
             return False
+
+    # HACK (aseipp): also check if node_modules appears anywhere in the path.
+    # this needs to be redone to be simpler?
+    if "node_modules" in str(path):
+        return False
 
     # Check file extension
     if path.suffix.lower() in skip_extensions:
@@ -102,8 +107,8 @@ def main():
 
     # Find all files in the repository
     for root, dirs, files in os.walk("."):
-        # Skip hidden directories and work directory
-        dirs[:] = [d for d in dirs if not d.startswith(".") and d != "work"]
+        # skip work directory
+        dirs[:] = [d for d in dirs if d != "work"]
 
         for file in files:
             file_path = Path(root) / file
