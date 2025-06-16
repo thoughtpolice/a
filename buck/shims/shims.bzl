@@ -178,17 +178,41 @@ def _copy_files(**kwargs):
     kwargs = _fix_kwargs("copy_files", kwargs)
     _copy_files_rule(**kwargs)
 
+def _command_test_impl(ctx: AnalysisContext) -> list[Provider]:
+    if ctx.attrs.cmd and ctx.attrs.script:
+        fail("command_test: 'cmd' and 'script' arguments are mutually exclusive")
+
+    if not ctx.attrs.cmd and not ctx.attrs.script:
+        fail("command_test: either 'cmd' or 'script' must be provided")
+
+    if ctx.attrs.cmd:
+        return [
+            DefaultInfo(),
+            RunInfo(args = cmd_args(ctx.attrs.cmd)),
+            ExternalRunnerTestInfo(
+                type = "custom",
+                command = ctx.attrs.cmd,
+            )
+        ]
+    else:
+        script_file = ctx.actions.declare_output("{}.sh".format(ctx.label.name))
+        script_content = cmd_args("#!/bin/bash\nset -euo pipefail\n", ctx.attrs.script, delimiter = "")
+        ctx.actions.write(script_file, script_content, allow_args = True)
+
+        return [
+            DefaultInfo(default_output = script_file),
+            RunInfo(args = cmd_args(["bash", script_file])),
+            ExternalRunnerTestInfo(
+                type = "custom",
+                command = ["bash", script_file],
+            )
+        ]
+
 _command_test_rule = rule(
-    impl = lambda ctx: [
-        DefaultInfo(),
-        RunInfo(args = cmd_args(ctx.attrs.cmd)),
-        ExternalRunnerTestInfo(
-            type = "custom",
-            command = ctx.attrs.cmd,
-        )
-    ],
+    impl = _command_test_impl,
     attrs = {
-        "cmd": attrs.list(attrs.arg()),
+        "cmd": attrs.option(attrs.list(attrs.arg()), default = None),
+        "script": attrs.option(attrs.arg(), default = None),
     }
 )
 
