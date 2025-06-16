@@ -1,19 +1,14 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+load("@root//buck/shims/shims.bzl", depot = "shims")
+
 MODES = [ 'debug', 'release' ]
 
-constraint_setting(name = 'build-mode')
+depot.constraint(name = 'build-mode', values = [f'build-mode-{name}' for name in MODES])
 
 [
-    constraint_value(
-        name = f'build-mode-{name}',
-        constraint_setting = ':build-mode'
-    ) for name in MODES
-]
-
-[
-    config_setting(
+    depot.config_setting(
         name = name,
         constraint_values = [ f'mode//:build-mode-{name}' ]
     ) for name in MODES

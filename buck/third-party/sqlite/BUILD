@@ -15,7 +15,7 @@ URL_VERSION = "{major}{minor}{patch}00".format(
     patch=shims.rjust(VERSION[2], "0", 2),
 )
 
-http_archive(
+shims.http_archive(
     name="src",
     sha256="67d3fe6d268e6eaddcae3727fce58fcc8e9c53869bdd07a0c61e38ddf2965071",
     urls=[

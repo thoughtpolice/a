@@ -16,10 +16,6 @@ buck = none
 fbcode = none
 fbsource = none
 
-[buildfile]
-# 'BUILD' is a much better noun than 'BUCK'...
-name = BUILD
-
 [buck2]
 # use sha256 since everything supports it. XXX FIXME (aseipp): blake3?
 digest_algorithms = SHA256

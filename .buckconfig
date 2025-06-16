@@ -15,7 +15,9 @@ third-party = depot-third-party
 tilde = depot-tilde
 
 [buildfile]
+# 'BUILD' is a much better noun than 'BUCK'...
 name = BUILD
+
 # for the sake of future compatibility and migrations, we don't want any BUILD
 # files in the project to use raw, un-imported symbols from the prelude like
 # 'cxx_library()'; we instead want to make sure every rule is explicitly

@@ -41,7 +41,7 @@ decrepit_sources = [
     "src/decrepit/xts/xts.c",
 ]
 
-http_archive(
+depot.http_archive(
     name="src",
     sha256="c81ef84430272ce63f9308780981f84dae9a46179aa192f16f79370adf1d3a12",
     urls=[
@@ -101,7 +101,7 @@ boringssl_copts = (
     [
         "-DBORINGSSL_IMPLEMENTATION",
     ]
-    + select(
+    + depot.select(
         {
             # We assume that non-Windows builds use a GCC-compatible toolchain and that
             # Windows builds do not.
@@ -109,7 +109,7 @@ boringssl_copts = (
             "DEFAULT": cc_copts,
         }
     )
-    + select(
+    + depot.select(
         {
             # This is needed on glibc systems to get rwlock in pthreads, but it should
             # not be set on Apple platforms or FreeBSD, where it instead disables APIs
@@ -122,7 +122,7 @@ boringssl_copts = (
             "DEFAULT": [],
         }
     )
-    + select(
+    + depot.select(
         {
             "config//os:windows": ["-DOPENSSL_NO_ASM"],
             "DEFAULT": [],
@@ -130,14 +130,14 @@ boringssl_copts = (
     )
 )
 
-boringssl_copts_c11 = boringssl_copts + select(
+boringssl_copts_c11 = boringssl_copts + depot.select(
     {
         "config//os:windows": ["/std:c11"],
         "DEFAULT": cc_copts_c11,
     }
 )
 
-boringssl_copts_cxx = boringssl_copts + select(
+boringssl_copts_cxx = boringssl_copts + depot.select(
     {
         "config//os:windows": [],
         "DEFAULT": cc_copts_cxx,
@@ -147,7 +147,7 @@ boringssl_copts_cxx = boringssl_copts + select(
 depot.cxx_library(
     name="crypto",
     srcs=map(src_ref, crypto_sources)
-    + select(
+    + depot.select(
         {
             "config//os:windows": [],
             "DEFAULT": map(src_ref, crypto_sources_asm),
@@ -159,7 +159,7 @@ depot.cxx_library(
         x: y for (x, y) in map(lambda x: (x[12:], src_ref(x)), crypto_headers)
     },
     preferred_linkage="static",
-    linker_flags=select(
+    linker_flags=depot.select(
         {
             "config//os:windows": ["-defaultlib:advapi32.lib"],
             "DEFAULT": ["-pthread"],
@@ -176,7 +176,7 @@ depot.cxx_library(
         x: y for (x, y) in map(lambda x: (x[12:], src_ref(x)), ssl_headers)
     },
     preferred_linkage="static",
-    exported_linker_flags=select(
+    exported_linker_flags=depot.select(
         {"config//os:linux": ["-lstdc++"], "config//os:macos": ["-lc++"], "DEFAULT": []}
     ),
     deps=[":crypto"],

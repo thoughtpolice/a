@@ -1,6 +1,4 @@
+<file:../.buckconfig.d/cells-common.include>
+
 [cells]
 depot-tilde = .
-
-[buildfile]
-# [ref:buildfile-names]
-name = BUILD

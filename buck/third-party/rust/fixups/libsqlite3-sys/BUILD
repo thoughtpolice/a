@@ -1,7 +1,9 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-cxx_genrule(
+load("@root//buck/shims/shims.bzl", depot = "shims")
+
+depot.cxx_genrule(
     name = 'bindgen.rs',
     outs = {
         'bindgen.rs': [ 'bindgen.rs' ],
@@ -35,7 +37,7 @@ cxx_genrule(
     visibility = [],
 )
 
-filegroup(
+depot.filegroup(
     name = 'rust_bindgen_out_dir',
     srcs = [ ':bindgen.rs' ],
     visibility = [ 'third-party//rust/...' ],

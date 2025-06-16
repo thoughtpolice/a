@@ -7,7 +7,7 @@ load("@root//buck/shims/package.bzl", "pkg")
 
 VERSION = pkg.version()
 
-http_archive(
+depot.http_archive(
     name = 'src',
     sha256 = '5adfeda85961281b70c6498268bdc388990790edb245daf168830312a63fd43b',
     urls = [

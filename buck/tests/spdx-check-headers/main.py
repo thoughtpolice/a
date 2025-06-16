@@ -22,6 +22,7 @@ BAD_PREFIXES = [
     "buck/third-party/",
     "buck/prelude/",
     "cellar/bootstrap",
+    ".buckconfig.d",
 ]
 
 BAD_SUFFIXES = [

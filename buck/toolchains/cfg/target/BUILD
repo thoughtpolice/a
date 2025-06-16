@@ -1,8 +1,10 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+load("@root//buck/shims/shims.bzl", depot = "shims")
+
 [
-    config_setting(
+    depot.config_setting(
         name = name,
         constraint_values = [ 'toolchains//cfg/target/constraint:' + name ],
     ) for name in [

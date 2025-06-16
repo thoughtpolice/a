@@ -1,9 +1,10 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+load("@root//buck/shims/shims.bzl", depot = "shims")
 load(":defs.bzl", "system_cxx_toolchain")
 
-cxx_warn_flags = select({
+cxx_warn_flags = depot.select({
     "config//os:macos": [
         # NOTE (aseipp): some apparently ancient zlib code in the zlib-sys crate
         # needs this, otherwise builds fail on sufficiently recent macOS systems due
@@ -13,7 +14,7 @@ cxx_warn_flags = select({
     "DEFAULT": [],
 })
 
-cxx_base_flags = select({
+cxx_base_flags = depot.select({
     'config//os:linux': [
         '-std=gnu++17',
     ],
@@ -30,33 +31,33 @@ cxx_base_flags = select({
     ],
 })
 
-opt_flags = select({
-    "mode//:debug": select({
+opt_flags = depot.select({
+    "mode//:debug": depot.select({
         "config//os:windows": ["/Zi", "/Od"],
         "DEFAULT": ["-g", "-Og"],
     }),
-    "mode//:release": select({
+    "mode//:release": depot.select({
         "config//os:windows": ["/O2"],
         "DEFAULT": ["-O3"],
     }),
 })
 
-compiler_type = select({
+compiler_type = depot.select({
     'config//os:windows': 'windows',
     'DEFAULT': 'clang',
 })
 
-linker = select({
+linker = depot.select({
     "toolchains//cfg/target:x86_64-unknown-uefi": "lld",
     "toolchains//cfg/target:aarch64-unknown-uefi": "lld",
-    "DEFAULT": select({
+    "DEFAULT": depot.select({
         "config//os:windows": "link.exe",
         "config//os:macos": "clang++",
         "DEFAULT": "clang++",
     })
 })
 
-link_flags = select({
+link_flags = depot.select({
     "toolchains//cfg/target:x86_64-unknown-uefi": [ ],
     "toolchains//cfg/target:aarch64-unknown-uefi": [ ],
     "toolchains//cfg/target:x86_64-unknown-linux-gnu": [
@@ -67,7 +68,7 @@ link_flags = select({
         "-fuse-ld=lld",
         "-target", "aarch64-unknown-linux-gnu",
     ],
-    "DEFAULT": select({
+    "DEFAULT": depot.select({
         "config//os:linux": [
             # on Linux, always use mold + zstd debug sections
             "-fuse-ld=mold",

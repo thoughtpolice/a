@@ -8,6 +8,9 @@ def cxx_library(**_kwargs):
 def cxx_binary(**_kwargs):
     fail('use load("@root//buck/shims/shims.bzl", "shims") and call shims.cxx_binary() instead')
 
+def cxx_genrule(**_kwargs):
+    fail('use load("@root//buck/shims/shims.bzl", "shims") and call shims.cxx_genrule() instead')
+
 def prebuilt_cxx_library(**_kwargs):
     fail('use load("@root//buck/shims/shims.bzl", "shims") and call shims.prebuilt_cxx_library() instead')
 
@@ -79,16 +82,25 @@ def go_binary(**_kwargs):
 def go_library(**_kwargs):
     fail('use appropriate language-specific toolchain instead of native go_library')
 
-# Package management
-def package(**_kwargs):
-    fail('use load("@root//buck/shims/package.bzl", "pkg") and call pkg.info() instead')
+# Archive and fetch rules
+def http_archive(**_kwargs):
+    fail('use load("@root//buck/shims/shims.bzl", depot = "shims") and call depot.http_archive() instead')
+
+def git_fetch(**_kwargs):
+    fail('use load("@root//buck/shims/shims.bzl", depot = "shims") and call depot.git_fetch() instead')
 
 # Configuration and modifiers
 def select(**_kwargs):
-    fail('use load("@root//buck/shims/shims.bzl", "shims") and call shims.modifiers.conditional() instead')
+    fail('use load("@root//buck/shims/shims.bzl", depot = "shims") and call depot.select() instead')
 
 def configured_alias(**_kwargs):
     fail('use appropriate toolchain configuration instead of configured_alias')
 
 def alias(**_kwargs):
     fail('use appropriate dependency specification instead of alias')
+
+def toolchain_alias(**_kwargs):
+    fail('use load("@root//buck/shims/shims.bzl", "shims") and call shims.toolchain_alias() instead')
+
+def config_setting(**_kwargs):
+    fail('use load("@root//buck/shims/shims.bzl", "shims") and call shims.config_setting() instead')

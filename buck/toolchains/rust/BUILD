@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+load("@root//buck/shims/shims.bzl", depot = "shims")
 load("@prelude//toolchains:rust.bzl", "system_rust_toolchain")
 
 common_rustc_flags = [
@@ -17,7 +18,7 @@ common_rustc_flags = [
     '-Ccodegen-units=1',
 ]
 
-rustc_target_triple = select({
+rustc_target_triple = depot.select({
     'toolchains//cfg/target:x86_64-unknown-uefi': 'x86_64-unknown-uefi',
     'toolchains//cfg/target:x86_64-unknown-linux-gnu': 'x86_64-unknown-linux-gnu',
     'toolchains//cfg/target:aarch64-unknown-uefi': 'aarch64-unknown-uefi',
@@ -25,7 +26,7 @@ rustc_target_triple = select({
     'DEFAULT': '',
 })
 
-rustc_flags = select({
+rustc_flags = depot.select({
     'mode//:debug': common_rustc_flags + [
         '-Cdebuginfo=2',
         '-Coverflow-checks=true',
@@ -37,7 +38,7 @@ rustc_flags = select({
         '-Cstrip=debuginfo',
         '-Cdebug-assertions=false',
         '-Coverflow-checks=false',
-    ] + select({
+    ] + depot.select({
         'toolchains//cfg/target:x86_64-unknown-uefi': [ '-Copt-level=z' ],
         'toolchains//cfg/target:aarch64-unknown-uefi': [ '-Copt-level=z' ],
         'DEFAULT': [ '-Copt-level=3' ],

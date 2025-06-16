@@ -1,5 +1,4 @@
+<file:../../.buckconfig.d/cells-common.include>
+
 [cells]
 depot-third-party = .
-
-[buildfile]
-name = BUILD

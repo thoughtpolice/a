@@ -1,6 +1,4 @@
+<file:../.buckconfig.d/cells-common.include>
+
 [cells]
 cellar = .
-
-[buildfile]
-# [ref:buildfile-names]
-name = BUILD

@@ -7,7 +7,7 @@ load("@root//buck/shims/package.bzl", "pkg")
 VERSION = pkg.version().split("g", 1)[1]
 
 # XXX FIXME (aseipp): download the real source, not my copy of zstd i amalgamated a few months ago
-http_archive(
+depot.http_archive(
     name="src",
     sha256="3dde08c4ceb16a1de42ed4008fa52eda01fc1b8b115012e8216b9f6d910db9e5",
     urls=[
