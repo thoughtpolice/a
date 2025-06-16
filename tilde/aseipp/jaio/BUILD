@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@prelude//paths.bzl", "paths")
-load("@root//buck/shims/shims.bzl", depot="shims")
+load("@prelude//:paths.bzl", "paths")
+load("@root//buck/shims:shims.bzl", depot="shims")
 
 depot.cxx_library(
     name = 'crypto',

@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/package.bzl", "pkg", "OsvGitRepoInfo")
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 
 VERSION="9.2.0+gf3d536d37825302e31ed0eddd811c689f38f85a3"
 

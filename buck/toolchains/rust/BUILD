@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", "shims")
+load("@root//buck/shims:shims.bzl", "shims")
 load("@prelude//toolchains:rust.bzl", "system_rust_toolchain")
 
 common_rustc_flags = [

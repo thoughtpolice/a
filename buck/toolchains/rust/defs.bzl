@@ -1,9 +1,9 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp, Meta Platforms, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", "shims")
+load("@root//buck/shims:shims.bzl", "shims")
 load("@prelude//cxx:cxx_context.bzl", "get_cxx_toolchain_info")
-load("@prelude//decls/toolchains_common.bzl", "toolchains_common")
+load("@prelude//decls:toolchains_common.bzl", "toolchains_common")
 load("@prelude//rust:rust_toolchain.bzl", "PanicRuntime", "RustToolchainInfo")
 load("@prelude//rust/tools:attrs.bzl", "internal_tool_attrs")
 

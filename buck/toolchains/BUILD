@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", "shims")
+load("@root//buck/shims:shims.bzl", "shims")
 load("@prelude//tests:test_toolchain.bzl", "noop_test_toolchain")
 load(
     "@prelude//toolchains:remote_test_execution.bzl", "remote_test_execution_toolchain"

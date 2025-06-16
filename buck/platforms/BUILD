@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@prelude//utils/buckconfig.bzl", "read_choice")
-load("@root//buck/shims/shims.bzl", "shims")
+load("@prelude//utils:buckconfig.bzl", "read_choice")
+load("@root//buck/shims:shims.bzl", "shims")
 load(":defs.bzl", "generate_platforms", "default_platforms")
 
 build_config = read_choice("project", "buildmode", [

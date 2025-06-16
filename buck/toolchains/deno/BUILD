@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", "shims")
+load("@root//buck/shims:shims.bzl", "shims")
 load(":defs.bzl", "download_deno", "deno_toolchain")
 
 DENO_VERSION = '2.3.5'

@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@prelude//utils/buckconfig.bzl", "read_choice")
+load("@prelude//utils:buckconfig.bzl", "read_choice")
 load("@prelude//cfg/modifier:conditional_modifier.bzl", "conditional_modifier")
 
 load("@root//buck/lib/tar:defs.bzl", "tar_file")

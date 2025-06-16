@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/package.bzl", "pkg")
-load("@root//buck/shims/shims.bzl", "shims")
+load("@root//buck/shims:package.bzl", "pkg")
+load("@root//buck/shims:shims.bzl", "shims")
 
 VERSION = pkg.version().split('+', 1)[0]
 

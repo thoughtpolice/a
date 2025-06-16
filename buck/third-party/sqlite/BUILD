@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", "shims")
-load("@root//buck/shims/package.bzl", "pkg")
+load("@root//buck/shims:shims.bzl", "shims")
+load("@root//buck/shims:package.bzl", "pkg")
 
 VERSION = pkg.version().split(".")  # something like '3.46.1'
 # quoting https://www.sqlite.org/download.html: "The version is encoded
