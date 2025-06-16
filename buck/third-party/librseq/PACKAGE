@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims/package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "0.0.0+g313af7c",
+    description = """Library for using Restartable Sequences.""",
+    license = "MIT",
+    copyright = [ "2018-2023 Mathieu Desnoyers" ],
+    visibility = ['PUBLIC'],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/compudj/librseq",
+        commit = "313af7c8f1c73d03b9a8dfdf88b8983f7bbd3eab",
+    ),
+)

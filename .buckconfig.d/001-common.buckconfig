@@ -65,6 +65,7 @@ target_platform_detector_spec = \
   target:cellar//...->root//buck/platforms:default \
   target:root//...->root//buck/platforms:default \
   target:third-party//...->root//buck/platforms:default \
+  target:tilde//...->root//buck/platforms:default \
   target:toolchains//...->root//buck/platforms:default
 
 [project]
