@@ -65,7 +65,7 @@ jobs:
       - name: buck2 test ...
         shell: bash
         run: |
-          buck2 test -c ci.depot_gha_ci=true @mode//debug root//... \
+          buck2 test -c ci.depot_gha_ci=true @mode//debug root//... tilde//... \
             --build-report ${{ runner.temp }}/build-report.json -- \
             --env SEMGREP_ENABLE_VERSION_CHECK=0
       - name: Upload build logs
@@ -191,12 +191,13 @@ jobs:
           if [ "${TARGETS_FOUND}" = "true" ] && [ "${REASONABLE_TARGET_COUNT}" = "true" ]; then
             echo "Testing targeted selection of ${TARGET_COUNT} targets"
             buck2 test -c ci.depot_gha_ci=true @mode//debug @"${TARGET_FILE}" \
+              root//buck/... \
               --skip-missing-targets \
               --build-report ${{ runner.temp }}/build-report.json -- \
               --env SEMGREP_ENABLE_VERSION_CHECK=0
           else
             echo "Falling back to full test"
-            buck2 test -c ci.depot_gha_ci=true @mode//debug root//... \
+            buck2 test -c ci.depot_gha_ci=true @mode//debug root//... tilde//... \
               --build-report ${{ runner.temp }}/build-report.json -- \
               --env SEMGREP_ENABLE_VERSION_CHECK=0
           fi
