@@ -9,5 +9,8 @@ pkg.info(
     license = "Apache-2.0",
     copyright = ["© 2024-2025 Austin Seipp"],
     visibility = [],
-    target_compatible_with = ["config//os:linux"],
+    target_compatible_with = [
+        "config//os:linux",
+        "config//cpu:x86_64",
+    ],
 )
