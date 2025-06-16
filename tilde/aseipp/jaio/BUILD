@@ -12,6 +12,8 @@ depot.cxx_library(
         'strobe.h': 'src/crypto/strobe.h',
     },
     srcs = glob([ 'src/crypto/*.c' ]),
+    # Override package default - crypto library is cross-platform
+    target_compatible_with = None,
 )
 
 depot.cxx_library(
@@ -32,7 +34,6 @@ depot.cxx_library(
     ] + [
         ':crypto',
     ],
-    target_compatible_with = [ 'config//os:linux' ],
 )
 
 depot.cxx_library(
@@ -51,7 +52,6 @@ depot.cxx_library(
         ':crypto',
         ':util',
     ],
-    target_compatible_with = [ 'config//os:linux' ],
 )
 
 depot.cxx_binary(
@@ -66,12 +66,11 @@ depot.cxx_binary(
         'third-party//mimalloc:mimalloc',
         'third-party//liburing:liburing',
     ],
-    target_compatible_with = [ 'config//os:linux' ],
 )
 
 TESTS = [ 'gimli', 'co' ]
 
-native.test_suite(name = 'tests', tests = [ ':test-{}'.format(t) for t in TESTS ], target_compatible_with = [ 'config//os:linux' ])
+native.test_suite(name = 'tests', tests = [ ':test-{}'.format(t) for t in TESTS ])
 
 [
     depot.cxx_binary(
@@ -84,7 +83,6 @@ native.test_suite(name = 'tests', tests = [ ':test-{}'.format(t) for t in TESTS 
             'third-party//mimalloc:mimalloc',
             'third-party//liburing:liburing',
         ],
-        target_compatible_with = [ 'config//os:linux' ],
     ) for t in TESTS
 ]
 
@@ -92,6 +90,5 @@ native.test_suite(name = 'tests', tests = [ ':test-{}'.format(t) for t in TESTS 
     depot.command_test(
         name = 'test-{}'.format(t),
         cmd = [ '$(exe :test-{}-exe)'.format(t) ],
-        target_compatible_with = [ 'config//os:linux' ],
     ) for t in TESTS
 ]
