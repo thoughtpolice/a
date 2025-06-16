@@ -2,12 +2,12 @@
 # SPDX-FileCopyrightText: © 2023 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", depot="shims")
+load("@root//buck/shims/shims.bzl", "shims")
 load("@root//buck/shims/package.bzl", "pkg")
 
 VERSION = pkg.version()
 
-depot.http_archive(
+shims.http_archive(
     name = 'src',
     sha256 = 'bb27df3402d3bd943e80d8f128aff29bef74b62d5fc6ea40977bd4af46ee87cf',
     urls = [
@@ -44,7 +44,7 @@ depot.http_archive(
     ]
 )
 
-depot.cxx_library(
+shims.cxx_library(
     name = "liburing",
     visibility = ['PUBLIC'],
     header_namespace = '',

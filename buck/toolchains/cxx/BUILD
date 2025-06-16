@@ -1,10 +1,10 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", depot = "shims")
+load("@root//buck/shims/shims.bzl", "shims")
 load(":defs.bzl", "system_cxx_toolchain")
 
-cxx_warn_flags = depot.select({
+cxx_warn_flags = shims.select({
     "config//os:macos": [
         # NOTE (aseipp): some apparently ancient zlib code in the zlib-sys crate
         # needs this, otherwise builds fail on sufficiently recent macOS systems due
@@ -14,7 +14,7 @@ cxx_warn_flags = depot.select({
     "DEFAULT": [],
 })
 
-cxx_base_flags = depot.select({
+cxx_base_flags = shims.select({
     'config//os:linux': [
         '-std=gnu++17',
     ],
@@ -31,33 +31,33 @@ cxx_base_flags = depot.select({
     ],
 })
 
-opt_flags = depot.select({
-    "mode//:debug": depot.select({
+opt_flags = shims.select({
+    "mode//:debug": shims.select({
         "config//os:windows": ["/Zi", "/Od"],
         "DEFAULT": ["-g", "-Og"],
     }),
-    "mode//:release": depot.select({
+    "mode//:release": shims.select({
         "config//os:windows": ["/O2"],
         "DEFAULT": ["-O3"],
     }),
 })
 
-compiler_type = depot.select({
+compiler_type = shims.select({
     'config//os:windows': 'windows',
     'DEFAULT': 'clang',
 })
 
-linker = depot.select({
+linker = shims.select({
     "toolchains//cfg/target:x86_64-unknown-uefi": "lld",
     "toolchains//cfg/target:aarch64-unknown-uefi": "lld",
-    "DEFAULT": depot.select({
+    "DEFAULT": shims.select({
         "config//os:windows": "link.exe",
         "config//os:macos": "clang++",
         "DEFAULT": "clang++",
     })
 })
 
-link_flags = depot.select({
+link_flags = shims.select({
     "toolchains//cfg/target:x86_64-unknown-uefi": [ ],
     "toolchains//cfg/target:aarch64-unknown-uefi": [ ],
     "toolchains//cfg/target:x86_64-unknown-linux-gnu": [
@@ -68,7 +68,7 @@ link_flags = depot.select({
         "-fuse-ld=lld",
         "-target", "aarch64-unknown-linux-gnu",
     ],
-    "DEFAULT": depot.select({
+    "DEFAULT": shims.select({
         "config//os:linux": [
             # on Linux, always use mold + zstd debug sections
             "-fuse-ld=mold",

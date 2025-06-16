@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2023 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", depot="shims")
+load("@root//buck/shims/shims.bzl", "shims")
 load("@root//buck/shims/package.bzl", "pkg")
 
 http_file(
@@ -16,7 +16,7 @@ http_file(
     ],
 )
 
-depot.cxx_library(
+shims.cxx_library(
     name = 'wuffs',
     header_namespace = "wuffs",
     exported_headers = {
@@ -32,20 +32,20 @@ depot.cxx_library(
     ],
 )
 
-depot.cxx_binary(
+shims.cxx_binary(
     name = 'toy-genlib',
     srcs = ['toy-genlib.c'],
     deps = [':wuffs'],
 )
 
-depot.cxx_binary(
+shims.cxx_binary(
     name = 'wcat',
     srcs = ['wcat.c'],
     deps = [':wuffs'],
     visibility = ['PUBLIC'],
 )
 
-depot.command_test(
+shims.command_test(
     name = 'toy-genlib-test',
     cmd = ["$(exe :toy-genlib)"],
 )

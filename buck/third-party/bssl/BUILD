@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", depot="shims")
+load("@root//buck/shims/shims.bzl", "shims")
 load("@root//buck/shims/package.bzl", "pkg")
 
 load(
@@ -41,7 +41,7 @@ decrepit_sources = [
     "src/decrepit/xts/xts.c",
 ]
 
-depot.http_archive(
+shims.http_archive(
     name="src",
     sha256="c81ef84430272ce63f9308780981f84dae9a46179aa192f16f79370adf1d3a12",
     urls=[
@@ -101,7 +101,7 @@ boringssl_copts = (
     [
         "-DBORINGSSL_IMPLEMENTATION",
     ]
-    + depot.select(
+    + shims.select(
         {
             # We assume that non-Windows builds use a GCC-compatible toolchain and that
             # Windows builds do not.
@@ -109,7 +109,7 @@ boringssl_copts = (
             "DEFAULT": cc_copts,
         }
     )
-    + depot.select(
+    + shims.select(
         {
             # This is needed on glibc systems to get rwlock in pthreads, but it should
             # not be set on Apple platforms or FreeBSD, where it instead disables APIs
@@ -122,7 +122,7 @@ boringssl_copts = (
             "DEFAULT": [],
         }
     )
-    + depot.select(
+    + shims.select(
         {
             "config//os:windows": ["-DOPENSSL_NO_ASM"],
             "DEFAULT": [],
@@ -130,24 +130,24 @@ boringssl_copts = (
     )
 )
 
-boringssl_copts_c11 = boringssl_copts + depot.select(
+boringssl_copts_c11 = boringssl_copts + shims.select(
     {
         "config//os:windows": ["/std:c11"],
         "DEFAULT": cc_copts_c11,
     }
 )
 
-boringssl_copts_cxx = boringssl_copts + depot.select(
+boringssl_copts_cxx = boringssl_copts + shims.select(
     {
         "config//os:windows": [],
         "DEFAULT": cc_copts_cxx,
     }
 )
 
-depot.cxx_library(
+shims.cxx_library(
     name="crypto",
     srcs=map(src_ref, crypto_sources)
-    + depot.select(
+    + shims.select(
         {
             "config//os:windows": [],
             "DEFAULT": map(src_ref, crypto_sources_asm),
@@ -159,7 +159,7 @@ depot.cxx_library(
         x: y for (x, y) in map(lambda x: (x[12:], src_ref(x)), crypto_headers)
     },
     preferred_linkage="static",
-    linker_flags=depot.select(
+    linker_flags=shims.select(
         {
             "config//os:windows": ["-defaultlib:advapi32.lib"],
             "DEFAULT": ["-pthread"],
@@ -167,7 +167,7 @@ depot.cxx_library(
     ),
 )
 
-depot.cxx_library(
+shims.cxx_library(
     name="ssl",
     srcs=map(src_ref, ssl_sources),
     compiler_flags=boringssl_copts_cxx,
@@ -176,20 +176,20 @@ depot.cxx_library(
         x: y for (x, y) in map(lambda x: (x[12:], src_ref(x)), ssl_headers)
     },
     preferred_linkage="static",
-    exported_linker_flags=depot.select(
+    exported_linker_flags=shims.select(
         {"config//os:linux": ["-lstdc++"], "config//os:macos": ["-lc++"], "DEFAULT": []}
     ),
     deps=[":crypto"],
 )
 
-depot.cxx_library(
+shims.cxx_library(
     name="decrepit",
     srcs=map(src_ref, decrepit_sources),
     compiler_flags=boringssl_copts_c11,
     deps=[":crypto", ":ssl"],
 )
 
-depot.cxx_binary(
+shims.cxx_binary(
     name="bssl",
     srcs=map(src_ref, tool_sources),
     compiler_flags=boringssl_copts_cxx,
