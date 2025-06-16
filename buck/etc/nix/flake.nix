@@ -49,6 +49,7 @@
 
           # general utilities
           gdb qemu swtpm dotslash unzip semgrep
+          hunspell hunspellDicts."en_US-large"
 
           # cargo tools
           cargo-edit bloaty rust-bindgen
