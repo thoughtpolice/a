@@ -70,7 +70,7 @@ depot.cxx_binary(
 
 TESTS = [ 'gimli', 'co' ]
 
-native.test_suite(name = 'tests', tests = [ ':test-{}'.format(t) for t in TESTS ])
+depot.test_suite(name = 'tests', tests = [ ':test-{}'.format(t) for t in TESTS ])
 
 [
     depot.cxx_binary(

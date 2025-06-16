@@ -36,4 +36,4 @@ TESTS = [ paths.basename(t).removesuffix('.c') for t in glob(['t/*.c']) ]
     ) for t in TESTS
 ]
 
-native.test_suite(name = 'tests', tests = [ ':test-{}'.format(t) for t in TESTS ])
+depot.test_suite(name = 'tests', tests = [ ':test-{}'.format(t) for t in TESTS ])
