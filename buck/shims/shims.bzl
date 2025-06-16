@@ -299,6 +299,10 @@ def _http_archive(**kwargs):
 def _git_fetch(**kwargs):
     native.git_fetch(**kwargs)
 
+def _test_suite(**kwargs):
+    kwargs = _fix_kwargs("test_suite", kwargs)
+    native.test_suite(**kwargs)
+
 # MARK: Public API
 
 shims = struct(
@@ -351,4 +355,5 @@ shims = struct(
     select = select,
     http_archive = _http_archive,
     git_fetch = _git_fetch,
+    test_suite = _test_suite,
 )
