@@ -102,6 +102,8 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".ld": (old_cxx_style_copyright, old_cxx_style_license),
         ".ml": (ocaml_style_copyright, ocaml_style_license),
         ".yaml": (bzl_style_copyright, bzl_style_license),
+        ".fish": (bzl_style_copyright, bzl_style_license),
+        ".toml": (bzl_style_copyright, bzl_style_license),
     }
 
     file_ext = None
