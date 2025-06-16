@@ -1,9 +1,9 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", depot="shims")
+load("@root//buck/shims/shims.bzl", "shims")
 
-depot.rust_binary(
+shims.rust_binary(
     name="egglog",
     srcs=["main.rs"],
     deps=[

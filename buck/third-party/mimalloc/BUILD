@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@prelude//paths.bzl", "paths")
-load("@root//buck/shims/shims.bzl", depot="shims")
+load("@root//buck/shims/shims.bzl", "shims")
 load("@root//buck/shims/package.bzl", "pkg")
 
 VERSION = pkg.version()
 
-depot.http_archive(
+shims.http_archive(
     name="src",
     sha256="0eed39319f139afde8515010ff59baf24de9e47ea316a315398e8027d198202d",
     urls=[
@@ -54,7 +54,7 @@ depot.http_archive(
 
 # MARK: C/C++ library
 
-depot.cxx_library(
+shims.cxx_library(
     name="mimalloc",
     srcs=[
         ":src[src/alloc.c]",
@@ -73,7 +73,7 @@ depot.cxx_library(
         ":src[src/segment-map.c]",
         ":src[src/stats.c]",
     ]
-    + depot.select(
+    + shims.select(
         {
             "config//os:linux": [":src[src/prim/unix/prim.c]"],
             "config//os:windows": [":src[src/prim/windows/prim.c]"],
@@ -119,7 +119,7 @@ CXX_TESTS = map(
 )
 
 [
-    depot.cxx_binary(
+    shims.cxx_binary(
         name="{}-exe".format(t),
         srcs=[src],
         deps=[":mimalloc"],
@@ -129,7 +129,7 @@ CXX_TESTS = map(
 ]
 
 [
-    depot.command_test(
+    shims.command_test(
         name="{}".format(t),
         cmd=["$(exe :{}-exe)".format(t)],
     )
@@ -138,7 +138,7 @@ CXX_TESTS = map(
 
 # MARK: Rust tests
 
-depot.rust_library(
+shims.rust_library(
     name="rust",
     crate="mimalloc",
     srcs=["lib.rs"],
@@ -148,7 +148,7 @@ depot.rust_library(
     ],
 )
 
-depot.rust_test(
+shims.rust_test(
     name="rust-test",
     srcs=["lib.rs"],
     deps=[":mimalloc"],

@@ -2,12 +2,12 @@
 # SPDX-FileCopyrightText: © 2023 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", depot="shims")
+load("@root//buck/shims/shims.bzl", "shims")
 load("@root//buck/shims/package.bzl", "pkg")
 
 VERSION = pkg.version()
 
-depot.http_archive(
+shims.http_archive(
     name = 'src',
     sha256 = '5adfeda85961281b70c6498268bdc388990790edb245daf168830312a63fd43b',
     urls = [
@@ -43,7 +43,7 @@ depot.http_archive(
     ]
 )
 
-depot.cxx_library(
+shims.cxx_library(
     name = "librseq",
     visibility = ['PUBLIC'],
     header_namespace = 'rseq',

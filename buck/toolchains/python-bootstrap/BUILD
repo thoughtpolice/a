@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", depot = "shims")
+load("@root//buck/shims/shims.bzl", "shims")
 load(":defs.bzl",
     "simple_exe_download",
     "standalone_python_download",
@@ -13,12 +13,12 @@ PYTHON_VERSION = f'3.13.1+{PYTHON_VERSION_TAG}'
 
 standalone_python_bootstrap_toolchain(
     name = "python_bootstrap",
-    interpreter = depot.select({
-        'config//cpu:arm64': depot.select({
+    interpreter = shims.select({
+        'config//cpu:arm64': shims.select({
             'config//os:linux': f'$(location :cpython-{PYTHON_VERSION}-aarch64-unknown-linux-gnu.tar.gz[python/bin/python])',
             'config//os:macos': f'$(location :cpython-{PYTHON_VERSION}-aarch64-apple-darwin.tar.gz[python/bin/python])',
         }),
-        'config//cpu:x86_64': depot.select({
+        'config//cpu:x86_64': shims.select({
             'config//os:linux':   f'$(location :cpython-{PYTHON_VERSION}-x86_64-unknown-linux-gnu.tar.gz[python/bin/python])',
             'config//os:windows': f'$(location :cpython-{PYTHON_VERSION}-x86_64-pc-windows-msvc.tar.gz[python/python.exe])',
         }),
@@ -31,12 +31,12 @@ standalone_python_bootstrap_toolchain(
         sha256 = sha256,
         url = f'https://github.com/astral-sh/python-build-standalone/releases/download/{PYTHON_VERSION_TAG}/cpython-{PYTHON_VERSION}-{name}-install_only.tar.gz',
         exe = bin,
-        smoltar = depot.select({
-            'config//cpu:arm64': depot.select({
+        smoltar = shims.select({
+            'config//cpu:arm64': shims.select({
                 'config//os:linux': ':smoltar-aarch64-unknown-linux-musl',
                 'config//os:macos': ':smoltar-aarch64-apple-darwin',
             }),
-            'config//cpu:x86_64': depot.select({
+            'config//cpu:x86_64': shims.select({
                 'config//os:linux':   ':smoltar-x86_64-unknown-linux-musl',
                 'config//os:windows': ':smoltar-x86_64-pc-windows-msvc.exe',
             }),

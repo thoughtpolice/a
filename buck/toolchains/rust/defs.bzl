@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp, Meta Platforms, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", depot = "shims")
+load("@root//buck/shims/shims.bzl", "shims")
 load("@prelude//cxx:cxx_context.bzl", "get_cxx_toolchain_info")
 load("@prelude//decls/toolchains_common.bzl", "toolchains_common")
 load("@prelude//rust:rust_toolchain.bzl", "PanicRuntime", "RustToolchainInfo")
@@ -130,7 +130,7 @@ def download_rust_toolchain(name: str , channel: str, version: str, hashes: list
         elif triple == 'aarch64-apple-darwin':
             triple = 'arm64-macos'
 
-        depot.http_archive(
+        shims.http_archive(
             name = f'{ver}-{triple}',
             sha256 = sha256,
             type = 'tar.gz',
@@ -139,7 +139,7 @@ def download_rust_toolchain(name: str , channel: str, version: str, hashes: list
             visibility = [],
         )
 
-    depot.alias(
+    shims.alias(
         name = f'rustc-{name}',
         actual = select({
             'config//cpu:arm64': select({

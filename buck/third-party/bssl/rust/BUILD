@@ -1,11 +1,11 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", depot="shims")
+load("@root//buck/shims/shims.bzl", "shims")
 
 # MARK: main library
 
-depot.cxx_genrule(
+shims.cxx_genrule(
     name="wrapper.rs",
     outs={
         "wrapper.rs": ["wrapper.rs"],
@@ -36,7 +36,7 @@ depot.cxx_genrule(
 )
 
 # this library contains all the needed wrappers for static inline functions
-depot.cxx_library(
+shims.cxx_library(
     name="bssl-sys-cbits",
     srcs=[":wrapper.rs[extern.c]"],
     header_namespace="",
@@ -51,7 +51,7 @@ depot.cxx_library(
     visibility=["third-party//bssl/..."],
 )
 
-depot.rust_library(
+shims.rust_library(
     name="bssl-sys",
     srcs=[
         "third-party//bssl:src[src/rust/bssl-sys/src/lib.rs]",
@@ -67,7 +67,7 @@ depot.rust_library(
     visibility=["PUBLIC"],
 )
 
-depot.alias(
+shims.alias(
     name="rust",
     actual=":bssl-sys",
     visibility=["PUBLIC"],

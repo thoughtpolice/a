@@ -84,14 +84,14 @@ def go_library(**_kwargs):
 
 # Archive and fetch rules
 def http_archive(**_kwargs):
-    fail('use load("@root//buck/shims/shims.bzl", depot = "shims") and call depot.http_archive() instead')
+    fail('use load("@root//buck/shims/shims.bzl", "shims") and call shims.http_archive() instead')
 
 def git_fetch(**_kwargs):
-    fail('use load("@root//buck/shims/shims.bzl", depot = "shims") and call depot.git_fetch() instead')
+    fail('use load("@root//buck/shims/shims.bzl", "shims") and call shims.git_fetch() instead')
 
 # Configuration and modifiers
 def select(**_kwargs):
-    fail('use load("@root//buck/shims/shims.bzl", depot = "shims") and call depot.select() instead')
+    fail('use load("@root//buck/shims/shims.bzl", "shims") and call shims.select() instead')
 
 def configured_alias(**_kwargs):
     fail('use appropriate toolchain configuration instead of configured_alias')

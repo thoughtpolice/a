@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", depot="shims")
+load("@root//buck/shims/shims.bzl", "shims")
 load("@root//buck/shims/package.bzl", "pkg")
 
 VERSION = pkg.version()
@@ -166,7 +166,7 @@ SOURCE_FILES = [
 ]
 
 [
-    depot.http_archive(
+    shims.http_archive(
         name = f'src.{typ}',
         type = typ,
         strip_prefix = f'capnproto-{VERSION}',
@@ -181,20 +181,20 @@ SOURCE_FILES = [
     }).items()
 ]
 
-depot.alias(
+shims.alias(
     name = 'src',
-    actual = depot.select({
+    actual = shims.select({
         'config//os:windows': ':src.zip',
         'DEFAULT': ':src.tar.gz',
     })
 )
 
-MSVC_FLAGS = depot.select({
+MSVC_FLAGS = shims.select({
     'config//os:windows': [ '/TP' ],
     'DEFAULT': [],
 })
 
-depot.copy_files(
+shims.copy_files(
     name = 'kj-srcs',
     srcs = {
         "kj/arena.c++": ":src[c++/src/kj/arena.c++]",
@@ -279,7 +279,7 @@ depot.copy_files(
     },
 )
 
-depot.cxx_library(
+shims.cxx_library(
     name = 'kj-headers',
     header_namespace = "kj",
     exported_headers = {
@@ -309,7 +309,7 @@ depot.cxx_library(
     },
 )
 
-depot.cxx_library(
+shims.cxx_library(
     name = 'kj',
     srcs = [
         ":kj-srcs[kj/arena.c++]",
@@ -340,12 +340,12 @@ depot.cxx_library(
         ":kj-srcs[kj/units.c++]",
     ],
 
-    compiler_flags = depot.select({
+    compiler_flags = shims.select({
         'config//os:windows': [ '/TP' ],
         'DEFAULT': [],
     }),
 
-    preprocessor_flags = depot.select({
+    preprocessor_flags = shims.select({
         'config//os:windows': [
             '-D_WINDOWS',
             '-DWIN32',
@@ -359,7 +359,7 @@ depot.cxx_library(
     preferred_linkage = 'static',
 )
 
-depot.cxx_library(
+shims.cxx_library(
     name = 'kj-async',
     srcs = [
         ":kj-srcs[kj/async.c++]",
@@ -371,12 +371,12 @@ depot.cxx_library(
         ":kj-srcs[kj/timer.c++]",
     ],
 
-    compiler_flags = depot.select({
+    compiler_flags = shims.select({
         'config//os:windows': [ '/TP' ],
         'DEFAULT': [],
     }),
 
-    preprocessor_flags = depot.select({
+    preprocessor_flags = shims.select({
         'config//os:windows': [
             '-D_WINDOWS',
             '-DWIN32',
@@ -391,7 +391,7 @@ depot.cxx_library(
     exported_deps = [ ":kj" ],
 )
 
-depot.copy_files(
+shims.copy_files(
     name = 'capnp-srcs',
     srcs = {
         "capnp/any.c++": ":src[c++/src/capnp/any.c++]",
@@ -464,7 +464,7 @@ depot.copy_files(
     },
 )
 
-depot.cxx_library(
+shims.cxx_library(
     name = 'capnp',
     srcs = [
         ":capnp-srcs[capnp/any.c++]",
@@ -484,12 +484,12 @@ depot.cxx_library(
         ":capnp-srcs[capnp/stringify.c++]",
     ],
 
-    compiler_flags = depot.select({
+    compiler_flags = shims.select({
         'config//os:windows': [ '/TP' ],
         'DEFAULT': [],
     }),
 
-    preprocessor_flags = depot.select({
+    preprocessor_flags = shims.select({
         'config//os:windows': [
             '-D_WINDOWS',
             '-DWIN32',
@@ -505,7 +505,7 @@ depot.cxx_library(
     exported_deps = [ ":kj" ],
 )
 
-depot.cxx_library(
+shims.cxx_library(
     name = 'capnpc',
     srcs = [
         ":capnp-srcs[capnp/compiler/compiler.c++]",
@@ -521,12 +521,12 @@ depot.cxx_library(
         ":capnp-srcs[capnp/serialize-text.c++]",
     ],
 
-    compiler_flags = depot.select({
+    compiler_flags = shims.select({
         'config//os:windows': [ '/TP' ],
         'DEFAULT': [],
     }),
 
-    preprocessor_flags = depot.select({
+    preprocessor_flags = shims.select({
         'config//os:windows': [
             '-D_WINDOWS',
             '-DWIN32',
@@ -542,7 +542,7 @@ depot.cxx_library(
     exported_deps = [ ":capnp" ],
 )
 
-depot.copy_files(
+shims.copy_files(
     name = 'compat_json-srcs',
     srcs = {
         "capnp/compat/json.c++": ":src[c++/src/capnp/compat/json.c++]",
@@ -552,18 +552,18 @@ depot.copy_files(
     },
 )
 
-depot.cxx_library(
+shims.cxx_library(
     name = 'compat_json',
     srcs = [
         ":compat_json-srcs[capnp/compat/json.c++]",
         ":compat_json-srcs[capnp/compat/json.capnp.c++]",
     ],
-    compiler_flags = depot.select({
+    compiler_flags = shims.select({
         'config//os:windows': [ '/TP' ],
         'DEFAULT': [],
     }),
 
-    preprocessor_flags = depot.select({
+    preprocessor_flags = shims.select({
         'config//os:windows': [
             '-D_WINDOWS',
             '-DWIN32',
@@ -580,18 +580,18 @@ depot.cxx_library(
     deps = [ ":capnp" ],
 )
 
-depot.cxx_binary(
+shims.cxx_binary(
     name = 'capnp_tool',
     srcs = [
         ":capnp-srcs[capnp/compiler/capnp.c++]",
         ":capnp-srcs[capnp/compiler/module-loader.c++]",
     ],
-    compiler_flags = depot.select({
+    compiler_flags = shims.select({
         'config//os:windows': [ '/TP' ],
         'DEFAULT': [],
     }),
 
-    preprocessor_flags = depot.select({
+    preprocessor_flags = shims.select({
         'config//os:windows': [
             '-D_WINDOWS',
             '-DWIN32',
@@ -609,7 +609,7 @@ depot.cxx_binary(
     visibility = [ 'PUBLIC' ],
 )
 
-depot.write_file(
+shims.write_file(
     name = 'capnp-rust.rs',
     # XXX: this program is © 2013-2024 Sandstorm Development Group, Inc. and
     # contributors but is probably so simple it barely qualifies for the
@@ -625,7 +625,7 @@ depot.write_file(
     ],
 )
 
-depot.rust_binary(
+shims.rust_binary(
     name = 'capnpc-rust',
     mapped_srcs = { ':capnp-rust.rs': 'main.rs' },
     deps = [

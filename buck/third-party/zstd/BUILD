@@ -1,13 +1,13 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims/shims.bzl", depot="shims")
+load("@root//buck/shims/shims.bzl", "shims")
 load("@root//buck/shims/package.bzl", "pkg")
 
 VERSION = pkg.version().split("g", 1)[1]
 
 # XXX FIXME (aseipp): download the real source, not my copy of zstd i amalgamated a few months ago
-depot.http_archive(
+shims.http_archive(
     name="src",
     sha256="3dde08c4ceb16a1de42ed4008fa52eda01fc1b8b115012e8216b9f6d910db9e5",
     urls=[
@@ -23,7 +23,7 @@ depot.http_archive(
     ],
 )
 
-depot.cxx_library(
+shims.cxx_library(
     name="zstd",
     header_namespace="zstd",
     exported_headers={

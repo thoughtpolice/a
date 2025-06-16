@@ -3,12 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@prelude//paths.bzl", "paths")
-load("@root//buck/shims/shims.bzl", depot="shims")
+load("@root//buck/shims/shims.bzl", "shims")
 load("@root//buck/shims/package.bzl", "pkg")
 
 VERSION = pkg.version()
 
-depot.http_archive(
+shims.http_archive(
     name = 'src',
     sha256 = '7d678dd32233bf1c4a576fe3cd788b059c921650650e182441c9465d80d22b11',
     urls = [
@@ -83,7 +83,7 @@ FIX_INCLUDE_FILES = [
     for f in FIX_INCLUDE_FILES
 ]
 
-depot.cxx_library(
+shims.cxx_library(
     name = "isocline",
     visibility = ['PUBLIC'],
     header_namespace = '',
