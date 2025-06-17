@@ -190,6 +190,230 @@ emit_json({"x": "y"})
         let res = star.store();
         insta::assert_snapshot!(format!("{:?}", res), @r###"Store(RefCell { value: ["1", "[\"test\"]", "{\"x\":\"y\"}"] })"###);
     }
+
+    #[test]
+    fn test_simple_load() {
+        let get_source_fn = |file: String| match file.as_str() {
+            "main.star" => Ok(r#"
+load("helper.star", "helper_func")
+emit_json(helper_func())
+        "#
+            .to_owned()),
+            "helper.star" => Ok(r#"
+def helper_func():
+    return {"result": "from_helper"}
+        "#
+            .to_owned()),
+            x => Err(anyhow::anyhow!("unknown file: {}", x)),
+        };
+
+        let store = crate::Store::default();
+        let star = Slark::new(store);
+        let globals = star.globals().with(crate::install_globals).build();
+
+        star.eval_module_recursive(&globals, "main.star", &get_source_fn)
+            .unwrap();
+        let res = star.store();
+        insta::assert_snapshot!(format!("{:?}", res), @r###"Store(RefCell { value: ["{\"result\":\"from_helper\"}"] })"###);
+    }
+
+    #[test]
+    fn test_nested_load() {
+        let get_source_fn = |file: String| match file.as_str() {
+            "main.star" => Ok(r#"
+load("middle.star", "middle_func")
+emit_json(middle_func())
+        "#
+            .to_owned()),
+            "middle.star" => Ok(r#"
+load("deep.star", "deep_func")
+
+def middle_func():
+    return {"middle": deep_func()}
+        "#
+            .to_owned()),
+            "deep.star" => Ok(r#"
+def deep_func():
+    return "deep_value"
+        "#
+            .to_owned()),
+            x => Err(anyhow::anyhow!("unknown file: {}", x)),
+        };
+
+        let store = crate::Store::default();
+        let star = Slark::new(store);
+        let globals = star.globals().with(crate::install_globals).build();
+
+        star.eval_module_recursive(&globals, "main.star", &get_source_fn)
+            .unwrap();
+        let res = star.store();
+        insta::assert_snapshot!(format!("{:?}", res), @r###"Store(RefCell { value: ["{\"middle\":\"deep_value\"}"] })"###);
+    }
+
+    #[test]
+    fn test_multiple_loads() {
+        let get_source_fn = |file: String| match file.as_str() {
+            "main.star" => Ok(r#"
+load("math.star", "add", "multiply")
+load("strings.star", "concat")
+emit_json(add(2, 3))
+emit_json(multiply(4, 5))
+emit_json(concat("hello", "world"))
+        "#
+            .to_owned()),
+            "math.star" => Ok(r#"
+def add(x, y):
+    return x + y
+
+def multiply(x, y):
+    return x * y
+        "#
+            .to_owned()),
+            "strings.star" => Ok(r#"
+def concat(a, b):
+    return a + " " + b
+        "#
+            .to_owned()),
+            x => Err(anyhow::anyhow!("unknown file: {}", x)),
+        };
+
+        let store = crate::Store::default();
+        let star = Slark::new(store);
+        let globals = star.globals().with(crate::install_globals).build();
+
+        star.eval_module_recursive(&globals, "main.star", &get_source_fn)
+            .unwrap();
+        let res = star.store();
+        insta::assert_snapshot!(format!("{:?}", res), @r###"Store(RefCell { value: ["5", "20", "\"hello world\""] })"###);
+    }
+
+    #[test]
+    fn test_complex_dependency_chain() {
+        let get_source_fn = |file: String| match file.as_str() {
+            "main.star" => Ok(r#"
+load("a.star", "compute")
+emit_json(compute())
+        "#
+            .to_owned()),
+            "a.star" => Ok(r#"
+load("b.star", "helper")
+
+def compute():
+    return {"a": helper(10)}
+        "#
+            .to_owned()),
+            "b.star" => Ok(r#"
+load("c.star", "base_value")
+
+def helper(x):
+    return x + base_value()
+        "#
+            .to_owned()),
+            "c.star" => Ok(r#"
+def base_value():
+    return 5
+        "#
+            .to_owned()),
+            x => Err(anyhow::anyhow!("unknown file: {}", x)),
+        };
+
+        let store = crate::Store::default();
+        let star = Slark::new(store);
+        let globals = star.globals().with(crate::install_globals).build();
+
+        star.eval_module_recursive(&globals, "main.star", &get_source_fn)
+            .unwrap();
+        let res = star.store();
+        insta::assert_snapshot!(format!("{:?}", res), @r###"Store(RefCell { value: ["{\"a\":15}"] })"###);
+    }
+
+    #[test]
+    fn test_load_with_selective_imports() {
+        let get_source_fn = |file: String| match file.as_str() {
+            "main.star" => Ok(r#"
+load("utils.star", "util_a", renamed_b = "util_b")
+emit_json(util_a())
+emit_json(renamed_b())
+        "#
+            .to_owned()),
+            "utils.star" => Ok(r#"
+def util_a():
+    return "result_a"
+
+def util_b():
+    return "result_b"
+
+def util_c():
+    return "result_c"
+        "#
+            .to_owned()),
+            x => Err(anyhow::anyhow!("unknown file: {}", x)),
+        };
+
+        let store = crate::Store::default();
+        let star = Slark::new(store);
+        let globals = star.globals().with(crate::install_globals).build();
+
+        star.eval_module_recursive(&globals, "main.star", &get_source_fn)
+            .unwrap();
+        let res = star.store();
+        insta::assert_snapshot!(format!("{:?}", res), @r###"Store(RefCell { value: ["\"result_a\"", "\"result_b\""] })"###);
+    }
+
+    #[test]
+    fn test_load_with_global_access() {
+        let get_source_fn = |file: String| match file.as_str() {
+            "main.star" => Ok(r#"
+load("config.star", "get_config")
+emit_json(get_config())
+        "#
+            .to_owned()),
+            "config.star" => Ok(r#"
+CONFIG = {
+    "env": "test",
+    "debug": True,
+    "features": ["feature1", "feature2"]
+}
+
+def get_config():
+    return CONFIG
+        "#
+            .to_owned()),
+            x => Err(anyhow::anyhow!("unknown file: {}", x)),
+        };
+
+        let store = crate::Store::default();
+        let star = Slark::new(store);
+        let globals = star.globals().with(crate::install_globals).build();
+
+        star.eval_module_recursive(&globals, "main.star", &get_source_fn)
+            .unwrap();
+        let res = star.store();
+        insta::assert_snapshot!(format!("{:?}", res), @r###"Store(RefCell { value: ["{\"env\":\"test\",\"debug\":true,\"features\":[\"feature1\",\"feature2\"]}"] })"###);
+    }
+
+    #[test]
+    fn test_load_missing_file_error() {
+        let get_source_fn = |file: String| match file.as_str() {
+            "main.star" => Ok(r#"
+load("missing.star", "some_func")
+emit_json(some_func())
+        "#
+            .to_owned()),
+            x => Err(anyhow::anyhow!("unknown file: {}", x)),
+        };
+
+        let store = crate::Store::default();
+        let star = Slark::new(store);
+        let globals = star.globals().with(crate::install_globals).build();
+
+        let result = star.eval_module_recursive(&globals, "main.star", &get_source_fn);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("unknown file: missing.star"));
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
