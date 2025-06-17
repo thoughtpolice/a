@@ -20,6 +20,14 @@ shims.git_fetch(
     visibility = [],
 )
 
+shims.git_fetch(
+    name = "starlark-rust-a9d911d33fd77ff2.git",
+    repo = "https://github.com/facebook/starlark-rust",
+    rev = "469ff502b05594b9b1ec1818753f712996a79d38",
+    sub_targets = ["starlark_syntax"],
+    visibility = [],
+)
+
 shims.http_archive(
     name = "Inflector-0.11.4.crate",
     sha256 = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3",
@@ -128,20 +136,12 @@ third_party_rust.rust_library(
     deps = [":memchr-2.7.5"],
 )
 
-shims.http_archive(
-    name = "allocative-0.3.4.crate",
-    sha256 = "8fac2ce611db8b8cee9b2aa886ca03c924e9da5e5295d0dbd0526e5d0b0710f7",
-    strip_prefix = "allocative-0.3.4",
-    urls = ["https://static.crates.io/crates/allocative/0.3.4/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "allocative-0.3.4",
-    srcs = [":allocative-0.3.4.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "allocative",
-    crate_root = "allocative-0.3.4.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/allocative/allocative/src/lib.rs",
+    edition = "2024",
     features = [
         "bumpalo",
         "hashbrown",
@@ -157,20 +157,12 @@ third_party_rust.rust_library(
     ],
 )
 
-shims.http_archive(
-    name = "allocative_derive-0.3.3.crate",
-    sha256 = "fe233a377643e0fc1a56421d7c90acdec45c291b30345eb9f08e8d0ddce5a4ab",
-    strip_prefix = "allocative_derive-0.3.3",
-    urls = ["https://static.crates.io/crates/allocative_derive/0.3.3/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "allocative_derive-0.3.3",
-    srcs = [":allocative_derive-0.3.3.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "allocative_derive",
-    crate_root = "allocative_derive-0.3.3.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/allocative/allocative_derive/src/lib.rs",
+    edition = "2024",
     proc_macro = True,
     visibility = [],
     deps = [
@@ -1969,20 +1961,12 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
-shims.http_archive(
-    name = "cmp_any-0.8.1.crate",
-    sha256 = "e9b18233253483ce2f65329a24072ec414db782531bdbb7d0bbc4bd2ce6b7e21",
-    strip_prefix = "cmp_any-0.8.1",
-    urls = ["https://static.crates.io/crates/cmp_any/0.8.1/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "cmp_any-0.8.1",
-    srcs = [":cmp_any-0.8.1.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "cmp_any",
-    crate_root = "cmp_any-0.8.1.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/cmp_any/src/lib.rs",
+    edition = "2024",
     visibility = [],
 )
 
@@ -3101,20 +3085,12 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
-shims.http_archive(
-    name = "display_container-0.9.0.crate",
-    sha256 = "0a110a75c96bedec8e65823dea00a1d710288b7a369d95fd8a0f5127639466fa",
-    strip_prefix = "display_container-0.9.0",
-    urls = ["https://static.crates.io/crates/display_container/0.9.0/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "display_container-0.9.0",
-    srcs = [":display_container-0.9.0.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "display_container",
-    crate_root = "display_container-0.9.0.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/display_container/src/lib.rs",
+    edition = "2024",
     visibility = [],
     deps = [
         ":either-1.15.0",
@@ -3254,10 +3230,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe_derive-0.9.1",
-    srcs = [":dupe_derive-0.9.1.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe_derive",
-    crate_root = "dupe_derive-0.9.1.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe_derive/src/lib.rs",
+    edition = "2024",
     proc_macro = True,
     visibility = [],
     deps = [
@@ -12671,20 +12647,12 @@ shims.alias(
     visibility = ["PUBLIC"],
 )
 
-shims.http_archive(
-    name = "starlark-0.13.0.crate",
-    sha256 = "0f53849859f05d9db705b221bd92eede93877fd426c1b4a3c3061403a5912a8f",
-    strip_prefix = "starlark-0.13.0",
-    urls = ["https://static.crates.io/crates/starlark/0.13.0/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "starlark-0.13.0",
-    srcs = [":starlark-0.13.0.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "starlark",
-    crate_root = "starlark-0.13.0.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/starlark/src/lib.rs",
+    edition = "2024",
     platform = {
         "linux-arm64": dict(
             deps = [":rustyline-14.0.0"],
@@ -12747,20 +12715,12 @@ shims.alias(
     visibility = ["PUBLIC"],
 )
 
-shims.http_archive(
-    name = "starlark_derive-0.13.0.crate",
-    sha256 = "fe58bc6c8b7980a1fe4c9f8f48200c3212db42ebfe21ae6a0336385ab53f082a",
-    strip_prefix = "starlark_derive-0.13.0",
-    urls = ["https://static.crates.io/crates/starlark_derive/0.13.0/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "starlark_derive-0.13.0",
-    srcs = [":starlark_derive-0.13.0.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "starlark_derive",
-    crate_root = "starlark_derive-0.13.0.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/starlark_derive/src/lib.rs",
+    edition = "2024",
     proc_macro = True,
     visibility = [],
     deps = [
@@ -12771,20 +12731,12 @@ third_party_rust.rust_library(
     ],
 )
 
-shims.http_archive(
-    name = "starlark_map-0.13.0.crate",
-    sha256 = "92659970f120df0cc1c0bb220b33587b7a9a90e80d4eecc5c5af5debb950173d",
-    strip_prefix = "starlark_map-0.13.0",
-    urls = ["https://static.crates.io/crates/starlark_map/0.13.0/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "starlark_map-0.13.0",
-    srcs = [":starlark_map-0.13.0.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "starlark_map",
-    crate_root = "starlark_map-0.13.0.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/starlark_map/src/lib.rs",
+    edition = "2024",
     visibility = [],
     deps = [
         ":allocative-0.3.4",
@@ -12793,26 +12745,19 @@ third_party_rust.rust_library(
         ":fxhash-0.2.1",
         ":hashbrown-0.14.5",
         ":serde-1.0.219",
+        ":strong_hash-0.1.0",
     ],
-)
-
-shims.http_archive(
-    name = "starlark_syntax-0.13.0.crate",
-    sha256 = "fe53b3690d776aafd7cb6b9fed62d94f83280e3b87d88e3719cc0024638461b3",
-    strip_prefix = "starlark_syntax-0.13.0",
-    urls = ["https://static.crates.io/crates/starlark_syntax/0.13.0/download"],
-    visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "starlark_syntax-0.13.0",
-    srcs = [":starlark_syntax-0.13.0.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "starlark_syntax",
-    crate_root = "starlark_syntax-0.13.0.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/starlark_syntax/src/lib.rs",
+    edition = "2024",
     env = {
         "CARGO_CRATE_NAME": "starlark_syntax",
-        "CARGO_MANIFEST_DIR": "starlark_syntax-0.13.0.crate",
+        "CARGO_MANIFEST_DIR": "starlark-rust-a9d911d33fd77ff2",
         "CARGO_PKG_AUTHORS": "Damien Martin-Guillerez <dmarting@google.com>:Facebook",
         "CARGO_PKG_DESCRIPTION": "Starlark language AST",
         "CARGO_PKG_NAME": "starlark_syntax",
@@ -12847,13 +12792,13 @@ third_party_rust.rust_library(
 
 third_party_rust.rust_binary(
     name = "starlark_syntax-0.13.0-build-script-build",
-    srcs = [":starlark_syntax-0.13.0.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "build_script_build",
-    crate_root = "starlark_syntax-0.13.0.crate/build.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/starlark_syntax/build.rs",
+    edition = "2024",
     env = {
         "CARGO_CRATE_NAME": "build_script_build",
-        "CARGO_MANIFEST_DIR": "starlark_syntax-0.13.0.crate",
+        "CARGO_MANIFEST_DIR": "starlark-rust-a9d911d33fd77ff2",
         "CARGO_PKG_AUTHORS": "Damien Martin-Guillerez <dmarting@google.com>:Facebook",
         "CARGO_PKG_DESCRIPTION": "Starlark language AST",
         "CARGO_PKG_NAME": "starlark_syntax",
@@ -12881,6 +12826,7 @@ third_party_rust.buildscript_run(
         "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    manifest_dir = ":starlark-rust-a9d911d33fd77ff2.git[starlark_syntax]",
     version = "0.13.0",
 )
 
@@ -12938,6 +12884,33 @@ third_party_rust.rust_library(
         ":parking_lot-0.12.4",
         ":phf_shared-0.11.3",
         ":precomputed-hash-0.1.1",
+    ],
+)
+
+third_party_rust.rust_library(
+    name = "strong_hash-0.1.0",
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
+    crate = "strong_hash",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/strong_hash/src/lib.rs",
+    edition = "2024",
+    visibility = [],
+    deps = [
+        ":ref-cast-1.0.24",
+        ":strong_hash_derive-0.1.0",
+    ],
+)
+
+third_party_rust.rust_library(
+    name = "strong_hash_derive-0.1.0",
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
+    crate = "strong_hash_derive",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/strong_hash_derive/src/lib.rs",
+    edition = "2024",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":quote-1.0.40",
+        ":syn-2.0.103",
     ],
 )
 
