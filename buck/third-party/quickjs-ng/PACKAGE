@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: MIT
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "0.10.1",
+    description = """
+        QuickJS-NG is an embeddable Javascript engine forked from QuickJS.
+    """,
+    license = "MIT",
+    copyright = [
+        "2017-2021 Fabrice Bellard and Charlie Gordon",
+        "2024 quickjs-ng team",
+    ],
+    visibility = ['PUBLIC'],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/quickjs-ng/quickjs",
+        commit = "8ec675d2bf7b0fe8b8fcc5e95c5c58f12b6c6f6d",  # v0.10.1
+    ),
+)
