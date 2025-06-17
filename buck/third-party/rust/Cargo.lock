@@ -51,8 +51,7 @@ dependencies = [
 [[package]]
 name = "allocative"
 version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fac2ce611db8b8cee9b2aa886ca03c924e9da5e5295d0dbd0526e5d0b0710f7"
+source = "git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38#469ff502b05594b9b1ec1818753f712996a79d38"
 dependencies = [
  "allocative_derive",
  "bumpalo",
@@ -64,8 +63,7 @@ dependencies = [
 [[package]]
 name = "allocative_derive"
 version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe233a377643e0fc1a56421d7c90acdec45c291b30345eb9f08e8d0ddce5a4ab"
+source = "git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38#469ff502b05594b9b1ec1818753f712996a79d38"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -750,8 +748,7 @@ checksum = "cbd0f76e066e64fdc5631e3bb46381254deab9ef1158292f27c8c57e3bf3fe59"
 [[package]]
 name = "cmp_any"
 version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9b18233253483ce2f65329a24072ec414db782531bdbb7d0bbc4bd2ce6b7e21"
+source = "git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38#469ff502b05594b9b1ec1818753f712996a79d38"
 
 [[package]]
 name = "colorchoice"
@@ -1139,8 +1136,7 @@ dependencies = [
 [[package]]
 name = "display_container"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a110a75c96bedec8e65823dea00a1d710288b7a369d95fd8a0f5127639466fa"
+source = "git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38#469ff502b05594b9b1ec1818753f712996a79d38"
 dependencies = [
  "either",
  "indenter",
@@ -1190,7 +1186,15 @@ version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ed2bc011db9c93fbc2b6cdb341a53737a55bafb46dbb74cf6764fc33a2fbf9c"
 dependencies = [
- "dupe_derive",
+ "dupe_derive 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "dupe"
+version = "0.9.1"
+source = "git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38#469ff502b05594b9b1ec1818753f712996a79d38"
+dependencies = [
+ "dupe_derive 0.9.1 (git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38)",
 ]
 
 [[package]]
@@ -1198,6 +1202,16 @@ name = "dupe_derive"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "83e195b4945e88836d826124af44fdcb262ec01ef94d44f14f4fb5103f19892a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.103",
+]
+
+[[package]]
+name = "dupe_derive"
+version = "0.9.1"
+source = "git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38#469ff502b05594b9b1ec1818753f712996a79d38"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4446,8 +4460,8 @@ dependencies = [
  "cedar-policy",
  "clap",
  "console-subscriber",
- "dupe",
- "dupe_derive",
+ "dupe 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dupe_derive 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "egglog",
  "env_logger",
  "fjall",
@@ -4982,8 +4996,7 @@ dependencies = [
 [[package]]
 name = "starlark"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f53849859f05d9db705b221bd92eede93877fd426c1b4a3c3061403a5912a8f"
+source = "git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38#469ff502b05594b9b1ec1818753f712996a79d38"
 dependencies = [
  "allocative",
  "anyhow",
@@ -4993,7 +5006,7 @@ dependencies = [
  "derivative",
  "derive_more",
  "display_container",
- "dupe",
+ "dupe 0.9.1 (git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38)",
  "either",
  "erased-serde",
  "hashbrown 0.14.5",
@@ -5022,10 +5035,9 @@ dependencies = [
 [[package]]
 name = "starlark_derive"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe58bc6c8b7980a1fe4c9f8f48200c3212db42ebfe21ae6a0336385ab53f082a"
+source = "git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38#469ff502b05594b9b1ec1818753f712996a79d38"
 dependencies = [
- "dupe",
+ "dupe 0.9.1 (git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38)",
  "proc-macro2",
  "quote",
  "syn 2.0.103",
@@ -5034,29 +5046,28 @@ dependencies = [
 [[package]]
 name = "starlark_map"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92659970f120df0cc1c0bb220b33587b7a9a90e80d4eecc5c5af5debb950173d"
+source = "git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38#469ff502b05594b9b1ec1818753f712996a79d38"
 dependencies = [
  "allocative",
- "dupe",
+ "dupe 0.9.1 (git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38)",
  "equivalent",
  "fxhash",
  "hashbrown 0.14.5",
  "serde",
+ "strong_hash",
 ]
 
 [[package]]
 name = "starlark_syntax"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe53b3690d776aafd7cb6b9fed62d94f83280e3b87d88e3719cc0024638461b3"
+source = "git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38#469ff502b05594b9b1ec1818753f712996a79d38"
 dependencies = [
  "allocative",
  "annotate-snippets",
  "anyhow",
  "derivative",
  "derive_more",
- "dupe",
+ "dupe 0.9.1 (git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38)",
  "lalrpop 0.19.12",
  "lalrpop-util 0.19.12",
  "logos 0.12.1",
@@ -5091,6 +5102,24 @@ dependencies = [
  "parking_lot",
  "phf_shared",
  "precomputed-hash",
+]
+
+[[package]]
+name = "strong_hash"
+version = "0.1.0"
+source = "git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38#469ff502b05594b9b1ec1818753f712996a79d38"
+dependencies = [
+ "ref-cast",
+ "strong_hash_derive",
+]
+
+[[package]]
+name = "strong_hash_derive"
+version = "0.1.0"
+source = "git+https://github.com/facebook/starlark-rust?rev=469ff502b05594b9b1ec1818753f712996a79d38#469ff502b05594b9b1ec1818753f712996a79d38"
+dependencies = [
+ "quote",
+ "syn 2.0.103",
 ]
 
 [[package]]
