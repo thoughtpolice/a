@@ -7,7 +7,7 @@
     "@std/assert": "jsr:@std/assert@1",
     "@std/path": "jsr:@std/path@1",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.0.0",
-    "zod": "npm:zod@^3.22.4"
+    "zod": "npm:zod@^3.25.67"
   },
   "compilerOptions": {
     "lib": ["deno.window", "deno.unstable"]
