@@ -93,15 +93,15 @@ Deno.test("executeResource handles buck2 targets resource", async () => {
 });
 
 Deno.test("executeResource handles buck2 audit providers resource", async () => {
-  const result = await executeResource("buck2://providers///src/hello:hello");
+  const result = await executeResource("buck2://providers///src/qq/qq-cli:qq-cli");
 
   assertEquals(result.contents.length, 1);
-  assertEquals(result.contents[0].uri, "buck2://providers///src/hello:hello");
+  assertEquals(result.contents[0].uri, "buck2://providers///src/qq/qq-cli:qq-cli");
   assertEquals(result.contents[0].mimeType, "application/json");
 
   // Should contain valid JSON
   const data = JSON.parse(result.contents[0].text as string);
-  assertEquals(data.target, "//src/hello:hello");
+  assertEquals(data.target, "//src/qq/qq-cli:qq-cli");
 
   // With proper isolation, this should succeed
   if (data.error) {
