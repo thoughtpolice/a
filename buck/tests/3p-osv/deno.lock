@@ -1,0 +1,21 @@
+{
+  "version": "3",
+  "packages": {
+    "specifiers": {
+      "jsr:@std/collections@^1.0.5": "jsr:@std/collections@1.0.5",
+      "jsr:@std/toml": "jsr:@std/toml@1.0.1"
+    },
+    "jsr": {
+      "@std/collections@1.0.5": {
+        "integrity": "ab9eac23b57a0c0b89ba45134e61561f69f3d001f37235a248ed40be260c0c10"
+      },
+      "@std/toml@1.0.1": {
+        "integrity": "b55b407159930f338d384b1f8fd317c8e8a35e27ebb8946155f49e3a158d16c4",
+        "dependencies": [
+          "jsr:@std/collections@^1.0.5"
+        ]
+      }
+    }
+  },
+  "remote": {}
+}
