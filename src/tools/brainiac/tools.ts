@@ -9,15 +9,27 @@ import { sourceFetchTool } from "./tools/source_fetch.ts";
 import { buck2BuildTool, buck2TestTool, targetDeterminationTool } from "./tools/buck2.ts";
 import { RESOURCE_TOOLS } from "./resource_tools.ts";
 
-// Registry of all available tools (manual tools + resource-backed tools)
+// Registry of manual tools
 // deno-lint-ignore no-explicit-any
-export const TOOLS: ToolDefinition<any>[] = [
+const MANUAL_TOOLS: ToolDefinition<any>[] = [
   sourceFetchTool,
   buck2BuildTool,
   buck2TestTool,
   targetDeterminationTool,
-  ...RESOURCE_TOOLS,
 ];
+
+// Get tools based on configuration
+// deno-lint-ignore no-explicit-any
+export function getTools(convertResourcesToTools: boolean): ToolDefinition<any>[] {
+  if (convertResourcesToTools) {
+    return [...MANUAL_TOOLS, ...RESOURCE_TOOLS];
+  }
+  return MANUAL_TOOLS;
+}
+
+// Legacy export for backward compatibility (uses all tools including resource tools)
+// deno-lint-ignore no-explicit-any
+export const TOOLS: ToolDefinition<any>[] = [...MANUAL_TOOLS, ...RESOURCE_TOOLS];
 
 // Convert tool definitions to MCP Tool format
 // deno-lint-ignore no-explicit-any
@@ -103,6 +115,9 @@ export async function executeTool(
   toolName: string,
   args: unknown,
 ): Promise<CallToolResult> {
+  // Use the global TOOLS array which includes all tools for execution
+  // This ensures that even if resources aren't exposed as tools in the list,
+  // they can still be executed if the client knows about them
   const tool = TOOLS.find((t) => t.name === toolName);
   if (!tool) {
     return {
