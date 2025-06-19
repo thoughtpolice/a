@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:package.bzl", "pkg")
+load("@root//buck/shims:package.bzl", "pkg", "OsvPurlInfo")
 
 pkg.info(
     version="0.4.0",
@@ -11,4 +11,8 @@ pkg.info(
         "2024-2025 The Egglog Authors",
     ],
     visibility=[],
+    osv_info=OsvPurlInfo(
+        name="pkg:generic/egglog",
+        version="0.4.0",
+    ),
 )

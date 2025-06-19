@@ -15,7 +15,7 @@ pkg.info(
     visibility = ['PUBLIC'],
 
     osv_info = OsvPurlInfo(
-        name = "google/wuffs",
+        name = "pkg:generic/google/wuffs",
         version = "0.3.3",
     ),
 )
