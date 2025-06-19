@@ -8,7 +8,7 @@
     "jsr:@std/path@*": "1.1.0",
     "jsr:@std/path@1": "1.1.0",
     "jsr:@std/path@^1.1.0": "1.1.0",
-    "npm:@modelcontextprotocol/sdk@1": "1.13.0_express@5.1.0_zod@3.25.67",
+    "npm:@modelcontextprotocol/sdk@^1.13.0": "1.13.0_express@5.1.0_zod@3.25.67",
     "npm:zod@^3.25.67": "3.25.67"
   },
   "jsr": {
@@ -528,7 +528,7 @@
     "dependencies": [
       "jsr:@std/assert@1",
       "jsr:@std/path@1",
-      "npm:@modelcontextprotocol/sdk@1",
+      "npm:@modelcontextprotocol/sdk@^1.13.0",
       "npm:zod@^3.25.67"
     ]
   }
