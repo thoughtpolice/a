@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
 # Setup Nix
 
 # We need to distinguish between single-user and multi-user installs.

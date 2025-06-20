@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
 set -g __buck2_completion_loaded false
 
 function __check_buck2_availability --on-variable PATH

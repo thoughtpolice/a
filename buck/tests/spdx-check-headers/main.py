@@ -58,6 +58,8 @@ BAD_FILES = [
     "buck/third-party/mimalloc/rust/lib.rs",
     # REASON: standard license text files don't need SPDX headers
     "buck/lib/oci/LICENSE",
+    # REASON: shell rc file without extension
+    "tilde/aseipp/dotfiles/direnv/direnvrc",
 ]
 
 
