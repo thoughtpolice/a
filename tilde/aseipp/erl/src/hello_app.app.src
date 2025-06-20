@@ -1,0 +1,17 @@
+%% SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+%% SPDX-License-Identifier: Apache-2.0
+
+{application, hello_app,
+ [{description, "A simple OTP application"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {hello_app, []}},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+  {licenses, ["Apache-2.0"]},
+  {links, []}
+ ]}.

@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    copyright = ["© 2024-2025 Austin Seipp"],
+    license = "Apache-2.0",
+    description = "Simple Erlang OTP application example",
+    version = "0.1.0",
+)
