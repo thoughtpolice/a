@@ -44,6 +44,16 @@ shims.toolchain_alias(
 )
 
 shims.toolchain_alias(
+    name="erlang",
+    actual="toolchains//erlang:erlang",
+)
+
+shims.toolchain_alias(
+    name="erlang-default",
+    actual="toolchains//erlang:erlang",
+)
+
+shims.toolchain_alias(
     name="oci",
     actual="toolchains//oci:oci",
 )
