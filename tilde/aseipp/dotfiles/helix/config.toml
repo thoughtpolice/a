@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+[editor]
+soft-wrap.enable = true
+
+[editor.inline-diagnostics]
+cursor-line = "warning"
