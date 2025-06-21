@@ -29,6 +29,15 @@ def ocaml_library(**_kwargs):
 def ocaml_binary(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.ocaml_binary() instead')
 
+def erlang_app(**_kwargs):
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.erlang_app() instead')
+
+def erlang_test(**_kwargs):
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.erlang_test() instead')
+
+def erlang_escript(**_kwargs):
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.erlang_escript() instead')
+
 # File and utility rules
 def export_file(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.export_file() instead')

@@ -84,6 +84,9 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
     ocaml_style_copyright = "(* SPDX-FileCopyrightText: © {} ".format(years)
     ocaml_style_license = "(* SPDX-License-Identifier: Apache-2.0 *)"
 
+    erlang_style_copyright = "%% SPDX-FileCopyrightText: © {} ".format(years)
+    erlang_style_license = "%% SPDX-License-Identifier: Apache-2.0"
+
     file_styles = {
         ".py": (bzl_style_copyright, bzl_style_license),
         "BUILD": (bzl_style_copyright, bzl_style_license),
@@ -106,6 +109,8 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".yaml": (bzl_style_copyright, bzl_style_license),
         ".fish": (bzl_style_copyright, bzl_style_license),
         ".toml": (bzl_style_copyright, bzl_style_license),
+        ".erl": (erlang_style_copyright, erlang_style_license),
+        ".src": (erlang_style_copyright, erlang_style_license),
     }
 
     file_ext = None
@@ -175,6 +180,9 @@ def main():
         print(f"Checking {file}...")
         with open(file, "r", encoding="utf-8") as f:
             lines = f.readlines()
+            # skip empty files
+            if not lines:
+                continue
             # quick path: if the file starts with '#!' it's a script, skip it
             if lines[0].startswith("#!"):
                 continue
