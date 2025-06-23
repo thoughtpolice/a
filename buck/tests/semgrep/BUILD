@@ -9,5 +9,6 @@ shims.command_test(
         'semgrep',
         '--config=buck/etc/semgrep/',
         'src',
+        'tilde',
     ],
 )
