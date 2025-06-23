@@ -21,9 +21,12 @@ capnpc = "0.20.1"
 clap = { version = "4.5.35", features = ["derive"] }
 console-subscriber = "0.4.1"
 cedar-policy = "4.4.1"
+crossbeam-channel = "0.5.15"
+dashmap = "6.1.0"
 dupe = "0.9.1"
 dupe_derive = "0.9.1"
 env_logger = "0.10"
+eyre = "0.6.12"
 fjall = { version = "2.9.0", default_features = false, features = [
     "single_writer_tx",
 ] }
@@ -37,8 +40,10 @@ gix = { version = "0.72.1", default-features = false, features = [
 ] }
 insta = "1.42.2"
 log = "0.4"
+notify-debouncer-mini = { version = "0.6.0", features = ["crossbeam-channel"] }
 openssl = "0.10.73"
 rand = "0.8.5"
+salsa = "0.22.0"
 thiserror = "2.0.12"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
@@ -53,10 +58,13 @@ tokio = { version = "1.45.1", features = [
 watchman_client = "0.9.0"
 
 ## Git repos come below
+
 egglog = { git = "https://github.com/egraphs-good/egglog", rev = "24d914f41ac2edc0936a56d92bcd1da4a5382e0b" }
+
 # NOTE (jj): adjust fixups.toml too
 jj-lib = { git = "https://github.com/martinvonz/jj", rev = "b1503b4fe967d9e9db5ac113cb4a33644d16842c" }
 jj-cli = { git = "https://github.com/martinvonz/jj", rev = "b1503b4fe967d9e9db5ac113cb4a33644d16842c" }
+
 # NOTE (starlark): bump to stable when possible
 starlark        = { git = "https://github.com/facebook/starlark-rust", rev = "469ff502b05594b9b1ec1818753f712996a79d38" }
 starlark_derive = { git = "https://github.com/facebook/starlark-rust", rev = "469ff502b05594b9b1ec1818753f712996a79d38" }
