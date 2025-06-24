@@ -71,41 +71,45 @@ def eprint(*args, **kwargs):
 def has_spdx_header(file: str, lines: list[str]) -> bool:
     years = "2024-2025"
 
-    # Define comment styles
+    # Allowed SPDX license identifiers
+    allowed_licenses = ["Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC"]
+    # Also allow compound licenses with AND/OR
+    allowed_compound_licenses = ["Apache-2.0 AND MIT"]
+
+    # Define comment styles for copyright
     bzl_style_copyright = "# SPDX-FileCopyrightText: © {} ".format(years)
-    bzl_style_license = "# SPDX-License-Identifier: Apache-2.0"
-
     cxx_style_copyright = "// SPDX-FileCopyrightText: © {} ".format(years)
-    cxx_style_license = "// SPDX-License-Identifier: Apache-2.0"
-
     old_cxx_style_copyright = "/* SPDX-FileCopyrightText: © {} ".format(years)
-    old_cxx_style_license = "/* SPDX-License-Identifier: Apache-2.0 */"
-
     ocaml_style_copyright = "(* SPDX-FileCopyrightText: © {} ".format(years)
-    ocaml_style_license = "(* SPDX-License-Identifier: Apache-2.0 *)"
+
+    # Define comment styles for license (we'll check the license separately)
+    bzl_style_license_prefix = "# SPDX-License-Identifier: "
+    cxx_style_license_prefix = "// SPDX-License-Identifier: "
+    old_cxx_style_license_prefix = "/* SPDX-License-Identifier: "
+    ocaml_style_license_prefix = "(* SPDX-License-Identifier: "
 
     file_styles = {
-        ".py": (bzl_style_copyright, bzl_style_license),
-        "BUILD": (bzl_style_copyright, bzl_style_license),
-        "PACKAGE": (bzl_style_copyright, bzl_style_license),
-        ".bzl": (bzl_style_copyright, bzl_style_license),
-        ".bxl": (bzl_style_copyright, bzl_style_license),
-        ".rs": (cxx_style_copyright, cxx_style_license),
-        ".cpp": (cxx_style_copyright, cxx_style_license),
-        ".hpp": (cxx_style_copyright, cxx_style_license),
-        ".h": (cxx_style_copyright, cxx_style_license),
-        ".c": (cxx_style_copyright, cxx_style_license),
-        ".go": (cxx_style_copyright, cxx_style_license),
-        ".ts": (cxx_style_copyright, cxx_style_license),
-        ".js": (cxx_style_copyright, cxx_style_license),
-        ".nix": (bzl_style_copyright, bzl_style_license),
-        ".capnp": (bzl_style_copyright, bzl_style_license),
-        ".S": (cxx_style_copyright, cxx_style_license),
-        ".ld": (old_cxx_style_copyright, old_cxx_style_license),
-        ".ml": (ocaml_style_copyright, ocaml_style_license),
-        ".yaml": (bzl_style_copyright, bzl_style_license),
-        ".fish": (bzl_style_copyright, bzl_style_license),
-        ".toml": (bzl_style_copyright, bzl_style_license),
+        ".py": (bzl_style_copyright, bzl_style_license_prefix),
+        "BUILD": (bzl_style_copyright, bzl_style_license_prefix),
+        "PACKAGE": (bzl_style_copyright, bzl_style_license_prefix),
+        ".bzl": (bzl_style_copyright, bzl_style_license_prefix),
+        ".bxl": (bzl_style_copyright, bzl_style_license_prefix),
+        ".rs": (cxx_style_copyright, cxx_style_license_prefix),
+        ".cpp": (cxx_style_copyright, cxx_style_license_prefix),
+        ".hpp": (cxx_style_copyright, cxx_style_license_prefix),
+        ".h": (cxx_style_copyright, cxx_style_license_prefix),
+        ".c": (cxx_style_copyright, cxx_style_license_prefix),
+        ".go": (cxx_style_copyright, cxx_style_license_prefix),
+        ".ts": (cxx_style_copyright, cxx_style_license_prefix),
+        ".js": (cxx_style_copyright, cxx_style_license_prefix),
+        ".nix": (bzl_style_copyright, bzl_style_license_prefix),
+        ".capnp": (bzl_style_copyright, bzl_style_license_prefix),
+        ".S": (cxx_style_copyright, cxx_style_license_prefix),
+        ".ld": (old_cxx_style_copyright, old_cxx_style_license_prefix),
+        ".ml": (ocaml_style_copyright, ocaml_style_license_prefix),
+        ".yaml": (bzl_style_copyright, bzl_style_license_prefix),
+        ".fish": (bzl_style_copyright, bzl_style_license_prefix),
+        ".toml": (bzl_style_copyright, bzl_style_license_prefix),
     }
 
     file_ext = None
@@ -117,7 +121,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         eprint(f"Error: {file} is an unknown file type, hard failing!")
         return False
 
-    copyright_prefix, license_line = file_styles[file_ext]
+    copyright_prefix, license_prefix = file_styles[file_ext]
 
     # Look for one or more copyright lines followed by license line
     i = 0
@@ -133,12 +137,30 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
             break
 
     if not copyright_found:
-        eprint(f"Error: {file} does not have the correct SPDX header!")
+        eprint(f"Error: {file} does not have the correct SPDX copyright header!")
         return False
 
     # Check for license line
-    if i >= len(lines) or not lines[i].strip().startswith(license_line):
-        eprint(f"Error: {file} does not have the correct SPDX header!")
+    if i >= len(lines):
+        eprint(f"Error: {file} is missing SPDX license header!")
+        return False
+
+    license_line = lines[i].strip()
+    if not license_line.startswith(license_prefix):
+        eprint(f"Error: {file} does not have the correct SPDX license header format!")
+        return False
+
+    # Extract the license identifier
+    # Handle different comment closing styles
+    license_id = license_line[len(license_prefix):].strip()
+    if license_id.endswith(" */"):
+        license_id = license_id[:-3].strip()
+    elif license_id.endswith(" *)"):
+        license_id = license_id[:-3].strip()
+
+    # Check if it's an allowed license
+    if license_id not in allowed_licenses and license_id not in allowed_compound_licenses:
+        eprint(f"Error: {file} has unsupported license '{license_id}'. Allowed licenses: {', '.join(allowed_licenses + allowed_compound_licenses)}")
         return False
 
     return True
