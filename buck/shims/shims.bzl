@@ -337,6 +337,10 @@ shims = struct(
     ocaml_binary = lambda **kwargs: native.ocaml_binary(**_fix_kwargs("ocaml_binary", kwargs)),
     ocaml_library = lambda **kwargs: native.ocaml_library(**_fix_kwargs("ocaml_library", kwargs)),
 
+    erlang_app = lambda **kwargs: native.erlang_app(**_fix_kwargs("erlang_app", kwargs)),
+    erlang_test = lambda **kwargs: native.erlang_test(**_fix_kwargs("erlang_test", kwargs)),
+    erlang_escript = lambda **kwargs: native.erlang_escript(**_fix_kwargs("erlang_escript", kwargs)),
+
     go_binary = lambda **kwargs: go_binary(**_fix_kwargs("go_binary", kwargs)),
     go_library = lambda **kwargs: go_library(**_fix_kwargs("go_library", kwargs)),
 
