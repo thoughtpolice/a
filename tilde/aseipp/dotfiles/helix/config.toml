@@ -6,3 +6,7 @@ soft-wrap.enable = true
 
 [editor.inline-diagnostics]
 cursor-line = "warning"
+
+[keys.normal.space]
+# why isn't this an option?
+i = ":toggle lsp.display-inlay-hints"
