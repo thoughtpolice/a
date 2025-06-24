@@ -20,6 +20,18 @@ const RUSTSEC_VIOLATION_EXCEPTIONS = [
         id: "RUSTSEC-2024-0384",
         reason: "temporary, instant is unmaintained but still widely used",
     },
+    {
+        id: "GHSA-c2hm-mjxv-89r4",
+        reason: "lexical soundness issues - used by nom, awaiting migration",
+    },
+    {
+        id: "GHSA-2326-pfpj-vx3h",
+        reason: "lexical-core soundness issues - used by nom, awaiting migration",
+    },
+    {
+        id: "RUSTSEC-2023-0086",
+        reason: "lexical-core soundness issues - used by nom, awaiting migration",
+    },
 ];
 
 // ---------------------------------------------------------------------------------------------------------------------
