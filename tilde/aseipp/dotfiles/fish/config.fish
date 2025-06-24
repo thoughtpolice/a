@@ -9,4 +9,9 @@ if status is-interactive
     # Commands to run in interactive sessions can go here
     direnv hook fish | source
     set -gx EDITOR hx
+
+    if test -d /mnt/c/Users/jasei
+        # WSL2 case: this lets us use 'code .' and launch on the Windows Desktop
+        fish_add_path -a "/mnt/c/Users/jasei/AppData/Local/Programs/Microsoft VS Code/bin"
+    end
 end
