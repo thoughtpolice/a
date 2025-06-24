@@ -87,8 +87,8 @@ log-graph-prioritize = 'coalesce(megamerge(), trunk())'
 
 # Private and WIP commits that should never be pushed anywhere. Often part of
 # work-in-progress merge stacks.
-'wip()' = 'description(glob:"wip:*")'
-'private()' = 'description(glob:"private:*")'
+'wip()' = 'description(glob-i:"wip:*") | description(glob-i:"[[]WIP[]]*")'
+'private()' = 'description(glob-i:"private:*") | description(glob-i:"[[]PRIVATE[]]*")'
 'blacklist()' = 'wip() | private()'
 
 # stack(x, n) is the set of mutable commits reachable from 'x', with 'n'
@@ -266,6 +266,8 @@ examine = ["log", "-T", "builtin_log_detailed", "-p", "-r"]
 [templates]
 # Improve the default representation in the log. This colors
 # and changes the node icon for each.
+#
+# TODO FIXME (aseipp): support blacklist() and wip() above more elegantly
 op_log_node = 'if(current_operation, "@", "◉")'
 log_node = '''
 label("node",
