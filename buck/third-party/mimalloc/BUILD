@@ -9,7 +9,7 @@ VERSION = pkg.version()
 
 shims.http_archive(
     name="src",
-    sha256="0eed39319f139afde8515010ff59baf24de9e47ea316a315398e8027d198202d",
+    sha256="1c6949032069d5ebea438ec5cedd602d06f40a92ddf0f0d9dcff0993e5f6635c",
     urls=[
         f"https://github.com/microsoft/mimalloc/archive/refs/tags/v{VERSION}.tar.gz",
     ],
@@ -23,9 +23,12 @@ shims.http_archive(
         "include/mimalloc/types.h",
         "include/mimalloc/track.h",
         "include/mimalloc/atomic.h",
+        "include/mimalloc/bits.h",
         "include/mimalloc-new-delete.h",
+        "include/mimalloc-stats.h",
         "src/page.c",
-        "src/segment.c",
+        "src/page-map.c",
+        "src/free.c",
         "src/os.c",
         "src/libc.c",
         "src/bitmap.h",
@@ -38,7 +41,7 @@ shims.http_archive(
         "src/random.c",
         "src/stats.c",
         "src/options.c",
-        "src/segment-map.c",
+        "src/arena-meta.c",
         "src/alloc.c",
         "src/bitmap.c",
         "src/heap.c",
@@ -57,10 +60,12 @@ shims.http_archive(
 shims.cxx_library(
     name="mimalloc",
     srcs=[
+        ":src[src/prim/prim.c]",
         ":src[src/alloc.c]",
         ":src[src/alloc-aligned.c]",
         ":src[src/alloc-posix.c]",
         ":src[src/arena.c]",
+        ":src[src/arena-meta.c]",
         ":src[src/bitmap.c]",
         ":src[src/heap.c]",
         ":src[src/init.c]",
@@ -68,9 +73,8 @@ shims.cxx_library(
         ":src[src/options.c]",
         ":src[src/os.c]",
         ":src[src/page.c]",
+        ":src[src/page-map.c]",
         ":src[src/random.c]",
-        ":src[src/segment.c]",
-        ":src[src/segment-map.c]",
         ":src[src/stats.c]",
     ]
     + shims.select(
@@ -98,13 +102,16 @@ shims.cxx_library(
         "mimalloc/types.h": ":src[include/mimalloc/types.h]",
         "mimalloc/track.h": ":src[include/mimalloc/track.h]",
         "mimalloc/atomic.h": ":src[include/mimalloc/atomic.h]",
+        "mimalloc/bits.h": ":src[include/mimalloc/bits.h]",
         "mimalloc-new-delete.h": ":src[include/mimalloc-new-delete.h]",
+        "mimalloc-stats.h": ":src[include/mimalloc-stats.h]",
     },
     headers={
         "bitmap.h": ":src[src/bitmap.h]",
         "page-queue.c": ":src[src/page-queue.c]",
         "alloc-override.c": ":src[src/alloc-override.c]",
         "unix/prim.c": ":src[src/prim/unix/prim.c]",
+        "free.c": ":src[src/free.c]",
     },
     visibility=["PUBLIC"],
 )
