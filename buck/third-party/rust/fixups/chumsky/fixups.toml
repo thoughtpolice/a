@@ -1,0 +1,5 @@
+cargo_env = true
+buildscript.run = false
+
+[env]
+CHUMSKY_REPO_URL="https://github.com/zesterer/chumsky"
