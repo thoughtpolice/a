@@ -391,6 +391,110 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
+shims.alias(
+    name = "argh",
+    actual = ":argh-0.1.13",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "argh-0.1.13.crate",
+    sha256 = "34ff18325c8a36b82f992e533ece1ec9f9a9db446bd1c14d4f936bac88fcd240",
+    strip_prefix = "argh-0.1.13",
+    urls = ["https://static.crates.io/crates/argh/0.1.13/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "argh-0.1.13",
+    srcs = [":argh-0.1.13.crate"],
+    crate = "argh",
+    crate_root = "argh-0.1.13.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "default",
+        "help",
+        "serde",
+    ],
+    visibility = [],
+    deps = [
+        ":argh_derive-0.1.13",
+        ":argh_shared-0.1.13",
+        ":rust-fuzzy-search-0.1.1",
+    ],
+)
+
+shims.http_archive(
+    name = "argh_derive-0.1.13.crate",
+    sha256 = "adb7b2b83a50d329d5d8ccc620f5c7064028828538bdf5646acd60dc1f767803",
+    strip_prefix = "argh_derive-0.1.13",
+    urls = ["https://static.crates.io/crates/argh_derive/0.1.13/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "argh_derive-0.1.13",
+    srcs = [":argh_derive-0.1.13.crate"],
+    crate = "argh_derive",
+    crate_root = "argh_derive-0.1.13.crate/src/lib.rs",
+    edition = "2018",
+    features = ["help"],
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":argh_shared-0.1.13",
+        ":proc-macro2-1.0.95",
+        ":quote-1.0.40",
+        ":syn-2.0.103",
+    ],
+)
+
+shims.http_archive(
+    name = "argh_shared-0.1.13.crate",
+    sha256 = "a464143cc82dedcdc3928737445362466b7674b5db4e2eb8e869846d6d84f4f6",
+    strip_prefix = "argh_shared-0.1.13",
+    urls = ["https://static.crates.io/crates/argh_shared/0.1.13/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "argh_shared-0.1.13",
+    srcs = [":argh_shared-0.1.13.crate"],
+    crate = "argh_shared",
+    crate_root = "argh_shared-0.1.13.crate/src/lib.rs",
+    edition = "2018",
+    features = ["serde"],
+    visibility = [],
+    deps = [":serde-1.0.219"],
+)
+
+shims.alias(
+    name = "ariadne",
+    actual = ":ariadne-0.5.1",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "ariadne-0.5.1.crate",
+    sha256 = "36f5e3dca4e09a6f340a61a0e9c7b61e030c69fc27bf29d73218f7e5e3b7638f",
+    strip_prefix = "ariadne-0.5.1",
+    urls = ["https://static.crates.io/crates/ariadne/0.5.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "ariadne-0.5.1",
+    srcs = [":ariadne-0.5.1.crate"],
+    crate = "ariadne",
+    crate_root = "ariadne-0.5.1.crate/src/lib.rs",
+    edition = "2018",
+    visibility = [],
+    deps = [
+        ":unicode-width-0.1.12",
+        ":yansi-1.0.1",
+    ],
+)
+
 shims.http_archive(
     name = "arrayvec-0.5.2.crate",
     sha256 = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b",
@@ -1720,6 +1824,66 @@ third_party_rust.rust_library(
     deps = [
         ":num-traits-0.2.19",
         ":serde-1.0.219",
+    ],
+)
+
+shims.alias(
+    name = "chumsky",
+    actual = ":chumsky-0.10.1",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "chumsky-0.10.1.crate",
+    sha256 = "14377e276b2c8300513dff55ba4cc4142b44e5d6de6d00eb5b2307d650bb4ec1",
+    strip_prefix = "chumsky-0.10.1",
+    urls = ["https://static.crates.io/crates/chumsky/0.10.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "chumsky-0.10.1",
+    srcs = [":chumsky-0.10.1.crate"],
+    crate = "chumsky",
+    crate_root = "chumsky-0.10.1.crate/src/lib.rs",
+    edition = "2021",
+    env = {
+        "CARGO_CRATE_NAME": "chumsky",
+        "CARGO_MANIFEST_DIR": "chumsky-0.10.1.crate",
+        "CARGO_PKG_AUTHORS": "Joshua Barretto <joshua.s.barretto@gmail.com>:Elijah Hartvigsen <elijah.reed@hartvigsen.xyz:Jakob Wiesmore <runetynan@gmail.com>",
+        "CARGO_PKG_DESCRIPTION": "A parser library for humans with powerful error recovery",
+        "CARGO_PKG_NAME": "chumsky",
+        "CARGO_PKG_REPOSITORY": "https://github.com/zesterer/chumsky",
+        "CARGO_PKG_VERSION": "0.10.1",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "10",
+        "CARGO_PKG_VERSION_PATCH": "1",
+        "CARGO_PKG_VERSION_PRE": "",
+        "CHUMSKY_REPO_URL": "https://github.com/zesterer/chumsky",
+    },
+    features = [
+        "default",
+        "either",
+        "lexical",
+        "lexical-numbers",
+        "memoization",
+        "pratt",
+        "regex",
+        "serde",
+        "stacker",
+        "std",
+        "unstable",
+    ],
+    visibility = [],
+    deps = [
+        ":either-1.15.0",
+        ":hashbrown-0.15.4",
+        ":lexical-6.1.1",
+        ":regex-automata-0.3.9",
+        ":serde-1.0.219",
+        ":stacker-0.1.21",
+        ":unicode-ident-1.0.18",
+        ":unicode-segmentation-1.12.0",
     ],
 )
 
@@ -3259,10 +3423,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe-0.9.1",
-    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
+    srcs = [":dupe-0.9.1.crate"],
     crate = "dupe",
-    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe/src/lib.rs",
-    edition = "2024",
+    crate_root = "dupe-0.9.1.crate/src/lib.rs",
+    edition = "2021",
     visibility = [],
     deps = [":dupe_derive-0.9.1"],
 )
@@ -3283,10 +3447,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe_derive-0.9.1",
-    srcs = [":dupe_derive-0.9.1.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe_derive",
-    crate_root = "dupe_derive-0.9.1.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe_derive/src/lib.rs",
+    edition = "2024",
     proc_macro = True,
     visibility = [],
     deps = [
@@ -8080,6 +8244,187 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "lexical-6.1.1.crate",
+    sha256 = "c7aefb36fd43fef7003334742cbf77b243fcd36418a1d1bdd480d613a67968f6",
+    strip_prefix = "lexical-6.1.1",
+    urls = ["https://static.crates.io/crates/lexical/6.1.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "lexical-6.1.1",
+    srcs = [":lexical-6.1.1.crate"],
+    crate = "lexical",
+    crate_root = "lexical-6.1.1.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "floats",
+        "format",
+        "integers",
+        "parse",
+        "parse-floats",
+        "parse-integers",
+    ],
+    visibility = [],
+    deps = [":lexical-core-0.8.5"],
+)
+
+shims.http_archive(
+    name = "lexical-core-0.8.5.crate",
+    sha256 = "2cde5de06e8d4c2faabc400238f9ae1c74d5412d03a7bd067645ccbc47070e46",
+    strip_prefix = "lexical-core-0.8.5",
+    urls = ["https://static.crates.io/crates/lexical-core/0.8.5/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "lexical-core-0.8.5",
+    srcs = [":lexical-core-0.8.5.crate"],
+    crate = "lexical_core",
+    crate_root = "lexical-core-0.8.5.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "floats",
+        "format",
+        "integers",
+        "lexical-parse-float",
+        "lexical-parse-integer",
+        "lexical-write-float",
+        "lexical-write-integer",
+        "parse",
+        "parse-floats",
+        "parse-integers",
+    ],
+    visibility = [],
+    deps = [
+        ":lexical-parse-float-0.8.5",
+        ":lexical-parse-integer-0.8.6",
+        ":lexical-util-0.8.5",
+        ":lexical-write-float-0.8.5",
+        ":lexical-write-integer-0.8.5",
+    ],
+)
+
+shims.http_archive(
+    name = "lexical-parse-float-0.8.5.crate",
+    sha256 = "683b3a5ebd0130b8fb52ba0bdc718cc56815b6a097e28ae5a6997d0ad17dc05f",
+    strip_prefix = "lexical-parse-float-0.8.5",
+    urls = ["https://static.crates.io/crates/lexical-parse-float/0.8.5/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "lexical-parse-float-0.8.5",
+    srcs = [":lexical-parse-float-0.8.5.crate"],
+    crate = "lexical_parse_float",
+    crate_root = "lexical-parse-float-0.8.5.crate/src/lib.rs",
+    edition = "2018",
+    features = ["format"],
+    visibility = [],
+    deps = [
+        ":lexical-parse-integer-0.8.6",
+        ":lexical-util-0.8.5",
+        ":static_assertions-1.1.0",
+    ],
+)
+
+shims.http_archive(
+    name = "lexical-parse-integer-0.8.6.crate",
+    sha256 = "6d0994485ed0c312f6d965766754ea177d07f9c00c9b82a5ee62ed5b47945ee9",
+    strip_prefix = "lexical-parse-integer-0.8.6",
+    urls = ["https://static.crates.io/crates/lexical-parse-integer/0.8.6/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "lexical-parse-integer-0.8.6",
+    srcs = [":lexical-parse-integer-0.8.6.crate"],
+    crate = "lexical_parse_integer",
+    crate_root = "lexical-parse-integer-0.8.6.crate/src/lib.rs",
+    edition = "2018",
+    features = ["format"],
+    visibility = [],
+    deps = [
+        ":lexical-util-0.8.5",
+        ":static_assertions-1.1.0",
+    ],
+)
+
+shims.http_archive(
+    name = "lexical-util-0.8.5.crate",
+    sha256 = "5255b9ff16ff898710eb9eb63cb39248ea8a5bb036bea8085b1a767ff6c4e3fc",
+    strip_prefix = "lexical-util-0.8.5",
+    urls = ["https://static.crates.io/crates/lexical-util/0.8.5/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "lexical-util-0.8.5",
+    srcs = [":lexical-util-0.8.5.crate"],
+    crate = "lexical_util",
+    crate_root = "lexical-util-0.8.5.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "floats",
+        "format",
+        "integers",
+        "parse",
+        "parse-floats",
+        "parse-integers",
+        "write",
+        "write-floats",
+        "write-integers",
+    ],
+    visibility = [],
+    deps = [":static_assertions-1.1.0"],
+)
+
+shims.http_archive(
+    name = "lexical-write-float-0.8.5.crate",
+    sha256 = "accabaa1c4581f05a3923d1b4cfd124c329352288b7b9da09e766b0668116862",
+    strip_prefix = "lexical-write-float-0.8.5",
+    urls = ["https://static.crates.io/crates/lexical-write-float/0.8.5/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "lexical-write-float-0.8.5",
+    srcs = [":lexical-write-float-0.8.5.crate"],
+    crate = "lexical_write_float",
+    crate_root = "lexical-write-float-0.8.5.crate/src/lib.rs",
+    edition = "2018",
+    features = ["format"],
+    visibility = [],
+    deps = [
+        ":lexical-util-0.8.5",
+        ":lexical-write-integer-0.8.5",
+        ":static_assertions-1.1.0",
+    ],
+)
+
+shims.http_archive(
+    name = "lexical-write-integer-0.8.5.crate",
+    sha256 = "e1b6f3d1f4422866b68192d62f77bc5c700bee84f3069f2469d7bc8c77852446",
+    strip_prefix = "lexical-write-integer-0.8.5",
+    urls = ["https://static.crates.io/crates/lexical-write-integer/0.8.5/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "lexical-write-integer-0.8.5",
+    srcs = [":lexical-write-integer-0.8.5.crate"],
+    crate = "lexical_write_integer",
+    crate_root = "lexical-write-integer-0.8.5.crate/src/lib.rs",
+    edition = "2018",
+    features = ["format"],
+    visibility = [],
+    deps = [
+        ":lexical-util-0.8.5",
+        ":static_assertions-1.1.0",
+    ],
+)
+
+shims.http_archive(
     name = "libc-0.2.173.crate",
     sha256 = "d8cfeafaffdbc32176b64fb251369d52ea9f0a8fbc6f8759edffef7b525d64bb",
     strip_prefix = "libc-0.2.173",
@@ -11274,6 +11619,57 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "regex-automata-0.3.9.crate",
+    sha256 = "59b23e92ee4318893fa3fe3e6fb365258efbfe6ac6ab30f090cdcbb7aa37efa9",
+    strip_prefix = "regex-automata-0.3.9",
+    urls = ["https://static.crates.io/crates/regex-automata/0.3.9/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "regex-automata-0.3.9",
+    srcs = [":regex-automata-0.3.9.crate"],
+    crate = "regex_automata",
+    crate_root = "regex-automata-0.3.9.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "alloc",
+        "dfa",
+        "dfa-build",
+        "dfa-onepass",
+        "dfa-search",
+        "hybrid",
+        "meta",
+        "nfa",
+        "nfa-backtrack",
+        "nfa-pikevm",
+        "nfa-thompson",
+        "perf",
+        "perf-inline",
+        "perf-literal",
+        "perf-literal-multisubstring",
+        "perf-literal-substring",
+        "std",
+        "syntax",
+        "unicode",
+        "unicode-age",
+        "unicode-bool",
+        "unicode-case",
+        "unicode-gencat",
+        "unicode-perl",
+        "unicode-script",
+        "unicode-segment",
+        "unicode-word-boundary",
+    ],
+    visibility = [],
+    deps = [
+        ":aho-corasick-1.1.3",
+        ":memchr-2.7.5",
+        ":regex-syntax-0.7.5",
+    ],
+)
+
+shims.http_archive(
     name = "regex-automata-0.4.9.crate",
     sha256 = "809e8dc61f6de73b46c85f4c96486310fe304c434cfa43669d7b40f711150908",
     strip_prefix = "regex-automata-0.4.9",
@@ -11338,6 +11734,34 @@ third_party_rust.rust_library(
     edition = "2018",
     features = [
         "default",
+        "unicode",
+        "unicode-age",
+        "unicode-bool",
+        "unicode-case",
+        "unicode-gencat",
+        "unicode-perl",
+        "unicode-script",
+        "unicode-segment",
+    ],
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "regex-syntax-0.7.5.crate",
+    sha256 = "dbb5fb1acd8a1a18b3dd5be62d25485eb770e05afb408a9627d14d451bae12da",
+    strip_prefix = "regex-syntax-0.7.5",
+    urls = ["https://static.crates.io/crates/regex-syntax/0.7.5/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "regex-syntax-0.7.5",
+    srcs = [":regex-syntax-0.7.5.crate"],
+    crate = "regex_syntax",
+    crate_root = "regex-syntax-0.7.5.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "std",
         "unicode",
         "unicode-age",
         "unicode-bool",
@@ -11468,6 +11892,23 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.52.0"],
         ),
     },
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "rust-fuzzy-search-0.1.1.crate",
+    sha256 = "a157657054ffe556d8858504af8a672a054a6e0bd9e8ee531059100c0fa11bb2",
+    strip_prefix = "rust-fuzzy-search-0.1.1",
+    urls = ["https://static.crates.io/crates/rust-fuzzy-search/0.1.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "rust-fuzzy-search-0.1.1",
+    srcs = [":rust-fuzzy-search-0.1.1.crate"],
+    crate = "rust_fuzzy_search",
+    crate_root = "rust-fuzzy-search-0.1.1.crate/src/lib.rs",
+    edition = "2018",
     visibility = [],
 )
 
@@ -16621,6 +17062,28 @@ third_party_rust.rust_library(
     crate_root = "xxhash-rust-0.8.15.crate/src/lib.rs",
     edition = "2018",
     features = ["xxh3"],
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "yansi-1.0.1.crate",
+    sha256 = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049",
+    strip_prefix = "yansi-1.0.1",
+    urls = ["https://static.crates.io/crates/yansi/1.0.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "yansi-1.0.1",
+    srcs = [":yansi-1.0.1.crate"],
+    crate = "yansi",
+    crate_root = "yansi-1.0.1.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "alloc",
+        "default",
+        "std",
+    ],
     visibility = [],
 )
 
