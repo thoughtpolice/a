@@ -60,9 +60,20 @@ def _depot_rust_rule(rule_name: str, **kwargs):
     kwargs = _fix_kwargs(rule_name, kwargs)
 
     edition = kwargs.pop('edition', '2021')
+
+    # Read package version from metadata
+    package_version = read_package_value('meta.version')
+
     env = {
         'DEPOT_VERSION': DEPOT_VERSION,
-    } | kwargs.pop('env', {})
+    }
+    # Add package version to env if it exists
+    if package_version != None:
+        env['DEPOT_PACKAGE_VERSION'] = package_version
+
+    # Merge with user-provided env
+    env = env | kwargs.pop('env', {})
+
     rustc_flags = [
         #'--cfg=buck_build',
     ] + kwargs.pop('rustc_flags', [])
