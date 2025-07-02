@@ -30,7 +30,6 @@ diff-args = ["--color=always", "$left", "$right"]
 
 [git]
 auto-local-bookmark = false
-push-bookmark-prefix = "aseipp/push-"
 private-commits = 'blacklist()'
 #colocate = true
 write-change-id-header = true
@@ -264,6 +263,9 @@ examine = ["log", "-T", "builtin_log_detailed", "-p", "-r"]
 'gh_pr_base()' = '"undefined"'
 
 [templates]
+# Always prefix my pushes with my name
+git_push_bookmark = '"aseipp/push-" ++ change_id.short()'
+
 # Improve the default representation in the log. This colors
 # and changes the node icon for each.
 #
