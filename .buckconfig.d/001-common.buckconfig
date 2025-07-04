@@ -71,6 +71,5 @@ ignore = \
   .jj, \
   .git, \
   .direnv, \
-  .watchman-cookie** \
-  .gdb_history** \
-  target
+  .watchman-cookie**, \
+  .gdb_history**
