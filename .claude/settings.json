@@ -3,6 +3,7 @@
     "CLAUDE_CODE_ENABLE_TELEMETRY": "0"
   },
   "permissions": {
+    "defaultMode": "acceptEdits",
     "allow": [
       "mcp__brainiac__source_fetch",
       "mcp__brainiac__buck2_build",
@@ -12,11 +13,14 @@
       "mcp__brainiac__get_server_info",
       "mcp__brainiac__get_buck2_targets",
       "mcp__brainiac__get_buck2_target_providers",
+      "MultiEdit",
       "Bash(true)",
       "Bash(env)",
-      "Bash(grep:*)",
+      "Bash(curl:*)",
+      "Bash(tar)",
       "Bash(rg:*)",
       "Bash(ls:*)",
+      "Bash(sha256sum:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:github.com)"
     ],
