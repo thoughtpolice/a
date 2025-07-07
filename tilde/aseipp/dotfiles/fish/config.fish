@@ -10,6 +10,7 @@ if status is-interactive
     set -gx EDITOR hx
 
     atuin init fish | source
+    zoxide init fish | source
     direnv hook fish | source
 
     if test -d /mnt/c/Users/jasei
