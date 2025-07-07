@@ -73,6 +73,7 @@ log-graph-prioritize = 'coalesce(megamerge(), trunk())'
 
 # FIXME (upstream): should this be upstream?
 'user(x)' = 'author(x) | committer(x)'
+
 'mine()' = 'user("aseipp@pobox.com") | user("austin@ersc.io")'
 
 # By default, show the repo trunk, the remote bookmarks, and all remote tags. We
@@ -261,6 +262,9 @@ examine = ["log", "-T", "builtin_log_detailed", "-p", "-r"]
 'gerrit_id(c)' = 'gerrit_id(c, 31)'
 
 'gh_pr_base()' = '"undefined"'
+
+'ndjson(obj)' = 'json(obj) ++ "\n"'
+'ndjson()' = 'ndjson(self)'
 
 [templates]
 # Always prefix my pushes with my name
