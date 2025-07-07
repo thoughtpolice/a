@@ -203,9 +203,115 @@ def deno_test(**kwargs):
         **kwargs
     )
 
+def _deno_run_impl(ctx: AnalysisContext) -> list[Provider]:
+    deno = ctx.attrs._deno_toolchain[DenoToolchain].deno
+
+    # Build command arguments
+    cmd = cmd_args([deno, "run"])
+
+    # Add unstable features
+    for feature in ctx.attrs.unstable_features:
+        cmd.add(f"--unstable-{feature}")
+
+    # Add permissions
+    for perm in ctx.attrs.permissions:
+        cmd.add(f"--allow-{perm}")
+
+    # Add config if provided
+    if ctx.attrs.config:
+        cmd.add("--config", ctx.attrs.config)
+
+    # Add the source (either local file or package ID)
+    if ctx.attrs.src:
+        cmd.add(ctx.attrs.src)
+    else:
+        cmd.add(ctx.attrs.package_id)
+
+    # Create lint subtarget only if src is provided
+    sub_targets = {}
+    if ctx.attrs.src:
+        config_args = []
+        if ctx.attrs.config:
+            config_args = ["--config", ctx.attrs.config]
+
+        lint_cmd = cmd_args([
+            deno,
+            "lint",
+        ] + config_args + [ctx.attrs.src])
+
+        sub_targets["lint"] = [
+            DefaultInfo(),
+            ExternalRunnerTestInfo(
+                type = "custom",
+                command = [lint_cmd],
+            ),
+        ]
+
+    # Create RunInfo
+    return [
+        DefaultInfo(sub_targets = sub_targets),
+        RunInfo(args = cmd)
+    ]
+
+_deno_run = rule(
+    impl = _deno_run_impl,
+    attrs = {
+        "src": attrs.option(attrs.source(), default = None),
+        "package_id": attrs.option(attrs.string(), default = None),
+        "permissions": attrs.list(attrs.string(), default = []),
+        "unstable_features": attrs.list(attrs.string(), default = []),
+        "config": attrs.option(attrs.source(), default = None),
+        "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
+    }
+)
+
+def deno_run(name, src = None, package_id = None, **kwargs):
+    """
+    Run a Deno script directly or execute an npm package via Deno.
+
+    Either 'src' or 'package_id' must be specified (but not both):
+    - src: Path to a TypeScript/JavaScript file to run directly
+    - package_id: NPM package specifier (e.g., "npm:prettier@3.0.0")
+
+    Args:
+        name: Name of the target
+        src: Source file to run (mutually exclusive with package_id)
+        package_id: NPM package to run (mutually exclusive with src)
+        config: Optional deno.json config file
+        unstable_features: List of unstable features to enable
+        permissions: List of permissions to allow
+    """
+    if (src == None) == (package_id == None):
+        fail("deno_run: Exactly one of 'src' or 'package_id' must be provided")
+
+    # Add lint test if src is provided
+    tests = kwargs.pop("tests", [])
+    if src:
+        lint_test = ":{}[lint]".format(name)
+        if lint_test not in tests:
+            tests = tests + [lint_test]
+
+    # Build kwargs for the rule, only including non-None values
+    rule_kwargs = {
+        "name": name,
+        "tests": tests,
+    }
+
+    if src != None:
+        rule_kwargs["src"] = src
+    if package_id != None:
+        rule_kwargs["package_id"] = package_id
+
+    # Merge with remaining kwargs
+    rule_kwargs.update(kwargs)
+
+    # Call underlying rule
+    _deno_run(**rule_kwargs)
+
 deno = struct(
     binary = deno_binary,
     test = deno_test,
+    run = deno_run,
     # Also expose raw rules if needed
     raw_binary = _deno_binary,
     raw_test = _deno_test,
