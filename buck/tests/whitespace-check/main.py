@@ -75,7 +75,7 @@ def should_check_file(file_path):
         ".obj",
     }
     # Skip certain directories
-    skip_dirs = {".jj", ".git", "buck-out", ".direnv", "cellar", "node_modules"}
+    skip_dirs = {".jj", ".git", "buck-out", ".direnv", "cellar", "node_modules", ".ruff_cache"}
 
     path = Path(file_path)
 
