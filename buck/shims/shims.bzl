@@ -7,6 +7,7 @@ load("@prelude//cfg/modifier:conditional_modifier.bzl", "conditional_modifier")
 load("@root//buck/lib/tar:defs.bzl", "tar_file")
 load("@root//buck/lib/oci:defs.bzl", "oci_image", "oci_pull", "oci_push")
 load("@toolchains//golang:defs.bzl", "go_binary", "go_library")
+load("@toolchains//uv:defs.bzl", _uv_impl = "uv")
 
 # MARK: Package metadata handling
 
@@ -338,6 +339,29 @@ def _test_suite(**kwargs):
     kwargs = _fix_kwargs("test_suite", kwargs)
     native.test_suite(**kwargs)
 
+# MARK: UV Python toolchain wrappers
+
+def _depot_uv_python_binary(**kwargs):
+    """Wrapper for uv.python_binary that applies package defaults."""
+    kwargs = _fix_kwargs("uv_python_binary", kwargs)
+    # Preserve the automatic lint test behavior from the original
+    name = kwargs.get("name")
+    tests = kwargs.pop("tests", [])
+    lint_test = ":{}[lint]".format(name)
+    if lint_test not in tests:
+        tests = tests + [lint_test]
+    _uv_impl.python_binary(tests = tests, **kwargs)
+
+def _depot_uv_python_test(**kwargs):
+    """Wrapper for uv.python_test that applies package defaults."""
+    kwargs = _fix_kwargs("uv_python_test", kwargs)
+    _uv_impl.python_test(**kwargs)
+
+def _depot_uv_tool_format(**kwargs):
+    """Wrapper for uv.tool_format that applies package defaults."""
+    kwargs = _fix_kwargs("uv_tool_format", kwargs)
+    _uv_impl.tool_format(**kwargs)
+
 # MARK: Public API
 
 shims = struct(
@@ -361,6 +385,12 @@ shims = struct(
         pull = oci_pull,
         push = oci_push,
         image = oci_image,
+    ),
+
+    uv = struct(
+        python_binary = _depot_uv_python_binary,
+        python_test = _depot_uv_python_test,
+        tool_format = _depot_uv_tool_format,
     ),
 
     write_file = _write_file,
