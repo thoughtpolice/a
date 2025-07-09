@@ -81,12 +81,14 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
     cxx_style_copyright = "// SPDX-FileCopyrightText: © {} ".format(years)
     old_cxx_style_copyright = "/* SPDX-FileCopyrightText: © {} ".format(years)
     ocaml_style_copyright = "(* SPDX-FileCopyrightText: © {} ".format(years)
+    lisp_style_copyright = ";; SPDX-FileCopyrightText: © {} ".format(years)
 
     # Define comment styles for license (we'll check the license separately)
     bzl_style_license_prefix = "# SPDX-License-Identifier: "
     cxx_style_license_prefix = "// SPDX-License-Identifier: "
     old_cxx_style_license_prefix = "/* SPDX-License-Identifier: "
     ocaml_style_license_prefix = "(* SPDX-License-Identifier: "
+    lisp_style_license_prefix = ";; SPDX-License-Identifier: "
 
     file_styles = {
         ".py": (bzl_style_copyright, bzl_style_license_prefix),
@@ -110,6 +112,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".yaml": (bzl_style_copyright, bzl_style_license_prefix),
         ".fish": (bzl_style_copyright, bzl_style_license_prefix),
         ".toml": (bzl_style_copyright, bzl_style_license_prefix),
+        ".zuo": (lisp_style_copyright, lisp_style_license_prefix),
     }
 
     file_ext = None

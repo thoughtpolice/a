@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "OsvGitRepoInfo", "pkg")
+
+pkg.info(
+    copyright = [
+        "© 2022-2023 Zuo Developers",
+        "© 2024-2025 Austin Seipp",
+    ],
+    license = "Apache-2.0 OR MIT",  # Dual licensed
+    description = "A tiny Racket variant for scripting and build systems",
+    version = "1.12.0", # No official version, using embedded #define macros
+    vendored = True,
+    vendor_info = {
+        "upstream": "https://github.com/racket/zuo",
+        "note": "Mirror of racket/src/zuo from the Racket repository",
+    },
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/racket/racket",
+        commit = "main",  # Should be updated to specific commit when vendoring
+    ),
+    visibility = ["PUBLIC"],
+)

@@ -84,6 +84,9 @@ def should_check_file(file_path):
         r"^cellar/",
         r"node_modules",  # anywhere in path
         r"^\.ruff_cache/",
+        r"^buck/third-party/zuo/lib",
+        r"^buck/third-party/zuo/local",
+        r"^buck/third-party/zuo/zuo.*",
         r"^work/",  # work directory
     ]
 
