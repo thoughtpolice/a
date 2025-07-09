@@ -1,0 +1,25 @@
+;; SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+;; SPDX-License-Identifier: Apache-2.0
+
+#lang zuo
+
+;; A simple Zuo script that demonstrates basic functionality
+
+(displayln "Hello from Zuo!")
+(displayln (~a "Running on " (system-type)))
+
+;; Show command line arguments
+(define args (hash-ref (runtime-env) 'args '()))
+(when (pair? args)
+  (displayln "\nCommand line arguments:")
+  (let loop ([args args] [i 0])
+    (when (pair? args)
+      (displayln (~a "  " i ": " (car args)))
+      (loop (cdr args) (+ i 1)))))
+
+;; Demonstrate some file operations
+(displayln "\nCurrent directory:")
+(displayln (~a "  " (path->complete-path ".")))
+
+(displayln "\nZuo runtime info:")
+(displayln (~a "  Zuo version: " (hash-ref (runtime-env) 'version) "." (hash-ref (runtime-env) 'minor-version)))
