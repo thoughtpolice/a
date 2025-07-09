@@ -48,6 +48,11 @@ shims.toolchain_alias(
     actual="toolchains//oci:oci",
 )
 
+shims.toolchain_alias(
+    name="zuo",
+    actual="toolchains//zuo:zuo",
+)
+
 tar_toolchain(
     name="tar",
     visibility=["PUBLIC"],
