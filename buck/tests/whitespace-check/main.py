@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -74,20 +75,25 @@ def should_check_file(file_path):
         ".o",
         ".obj",
     }
-    # Skip certain directories
-    skip_dirs = {".jj", ".git", "buck-out", ".direnv", "cellar", "node_modules", ".ruff_cache"}
+    # Skip certain path prefixes (regex patterns)
+    skip_patterns = [
+        r"^\.jj/",
+        r"^\.git/",
+        r"^buck-out/",
+        r"^\.direnv/",
+        r"^cellar/",
+        r"node_modules",  # anywhere in path
+        r"^\.ruff_cache/",
+        r"^work/",  # work directory
+    ]
 
     path = Path(file_path)
+    path_str = str(path).replace("\\", "/")  # normalize for Windows
 
-    # Check if any parent directory should be skipped
-    for parent in path.parents:
-        if parent.name in skip_dirs:
+    # Check if the path matches any skip pattern
+    for pattern in skip_patterns:
+        if re.search(pattern, path_str):
             return False
-
-    # HACK (aseipp): also check if node_modules appears anywhere in the path.
-    # this needs to be redone to be simpler?
-    if "node_modules" in str(path):
-        return False
 
     # Check file extension
     if path.suffix.lower() in skip_extensions:
@@ -107,9 +113,6 @@ def main():
 
     # Find all files in the repository
     for root, dirs, files in os.walk("."):
-        # skip work directory
-        dirs[:] = [d for d in dirs if d != "work"]
-
         for file in files:
             file_path = Path(root) / file
 
