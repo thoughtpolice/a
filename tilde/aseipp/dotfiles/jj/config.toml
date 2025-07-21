@@ -142,6 +142,11 @@ log-graph-prioritize = 'coalesce(megamerge(), trunk())'
 ## ---- UX/UI Configuration
 
 [aliases]
+
+# A truly genius alias from Martin that gracefully lets you do things like type
+# 'jj jj log' on the command line without getting a command-not-found error.
+jj = []
+
 # "New Trunk"
 nt = ["new", "trunk()"]
 
