@@ -147,6 +147,9 @@ log-graph-prioritize = 'coalesce(megamerge(), trunk())'
 # 'jj jj log' on the command line without getting a command-not-found error.
 jj = []
 
+# EXPERIMENTAL: use this to replace 'commit' and 'split' at the same time
+cleave = [ "split", "all()" ]
+
 # "New Trunk"
 nt = ["new", "trunk()"]
 
@@ -300,18 +303,14 @@ draft_commit_description = '''
 concat(
   description,
   "\n",
-  if(
-    config("gerrit.enabled").as_boolean() && !has_change_id(description),
-    "\nChange-Id: I" ++ gerrit_id(change_id),
-  ),
-  if(
-    config("ui.should-sign-off").as_boolean() && !description.contains("Signed-off-by: " ++ author.name()),
-    "\nSigned-off-by: " ++ author.name() ++ " <" ++ author.email() ++ ">",
-  ),
-  "\n",
   surround(
     "\nJJ: This commit contains the following changes:\n", "",
     indent("JJ:     ", diff.summary()),
   ),
 )
 '''
+
+# Commit trailers
+commit_trailers = '''
+if(config("ui.should-sign-off").as_boolean(), format_signed_off_by_trailer(self))
+++ if(config("gerrit.enabled").as_boolean() && !trailers.contains_key("Change-Id"), format_gerrit_change_id_trailer(self))'''
