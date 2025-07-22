@@ -1,6 +1,11 @@
 {
   "env": {
-    "CLAUDE_CODE_ENABLE_TELEMETRY": "0"
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "true",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "true",
+    "ENABLE_BACKGROUND_TASKS": "true",
+    "FORCE_AUTO_BACKGROUND_TASKS": "true",
+    "CLAUDE_CODE_ENABLE_UNIFIED_READ_TOOL": "true"
   },
   "permissions": {
     "defaultMode": "acceptEdits",
@@ -22,6 +27,9 @@
       "Bash(rg:*)",
       "Bash(ls:*)",
       "Bash(cp:*)",
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(tree:*)",
       "Bash(mkdir:*)",
       "Bash(sha256sum:*)",
       "Bash(buck2 build:*)",
@@ -29,9 +37,19 @@
       "Bash(buck2 run:*)",
       "Bash(buck2 targets:*)",
       "Bash(buck2 audit:*)",
+      "Bash(buck2 log:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:github.com)"
     ],
     "deny": [ ]
+  },
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Edit|Write",
+      "hooks": [{
+        "type": "command",
+        "command": "jj fix"
+      }]
+    }]
   }
 }
