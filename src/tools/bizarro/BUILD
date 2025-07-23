@@ -6,9 +6,9 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 # Main bizarro binary
 depot.uv.python_binary(
     name = "bizarro",
-    main = "bizarro.py",
+    main = "engine/bizarro.py",
     srcs = [
-        "bizarro.py.lock",
+        "engine/bizarro.py.lock",
     ],
     lint_dir = "src/tools/bizarro",
     args = [
@@ -25,15 +25,15 @@ depot.uv.python_binary(
 
 depot.export_file(
     name = 'system-prompt.txt',
-    src = 'system-prompt.txt',
+    src = 'engine/system-prompt.txt',
 )
 
 # Tuner binary for model tuning operations
 depot.uv.python_binary(
     name = "tuner",
-    main = "tuner.py",
+    main = "tuning/tuner.py",
     srcs = [
-        "tuner.py.lock",
+        "tuning/tuner.py.lock",
     ],
     lint_dir = "src/tools/bizarro",
     visibility = ["PUBLIC"],
@@ -59,13 +59,13 @@ depot.command_test(
 # Individual command tests for quick validation
 depot.command_test(
     name = "test-help",
-    cmd = ["./src/tools/bizarro/bizarro.py", "--help"],
+    cmd = ["./src/tools/bizarro/engine/bizarro.py", "--help"],
 )
 
 depot.command_test(
     name = "test-run-basic",
     cmd = [
-        "./src/tools/bizarro/bizarro.py",
+        "./src/tools/bizarro/engine/bizarro.py",
         "run",
         "--no-stats",
         "What is 2+2?",
@@ -77,5 +77,5 @@ depot.command_test(
 # Export data files for testing
 depot.filegroup(
     name = "test-data",
-    srcs = glob(["data/*.jsonl", "data/*.md"]),
+    srcs = glob(["t/data/*.jsonl", "t/data/*.md"]),
 )
