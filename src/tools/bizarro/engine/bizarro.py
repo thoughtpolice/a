@@ -2,8 +2,8 @@
 # /// script
 # requires-python = "==3.12.*"
 # dependencies = [
-#     "mlx>=0.26.2",
-#     "mlx-lm>=0.25.2",
+#     "mlx>=0.26.5",
+#     "mlx-lm>=0.26.0",
 #     "urllib3==1.26.6",
 #     "click>=8.0.0",
 #     "rich>=13.0.0",

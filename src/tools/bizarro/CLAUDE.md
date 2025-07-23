@@ -2,10 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Overview
-
-This is `bizarro.py`, a comprehensive MLX-based language model CLI tool that provides a complete fine-tuning and inference pipeline for local LLMs on Mac. The tool is built as a single-file Python script with inline dependency management using uv.
-
 ## You absolutely must must must must must
 
 When you are done with a change, run the following:
