@@ -6,9 +6,9 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 # Main bizarro binary
 depot.uv.python_binary(
     name = "bizarro",
-    main = "engine/bizarro.py",
+    main = "bizarro.py",
     srcs = [
-        "engine/bizarro.py.lock",
+        "bizarro.py.lock",
     ],
     lint_dir = "src/tools/bizarro",
     args = [
@@ -25,7 +25,7 @@ depot.uv.python_binary(
 
 depot.export_file(
     name = 'system-prompt.txt',
-    src = 'engine/system-prompt.txt',
+    src = 'system-prompt.txt',
 )
 
 # Tuner binary for model tuning operations
@@ -53,7 +53,7 @@ depot.uv.tool_format(
 # Integration tests using the test script
 depot.command_test(
     name = "test",
-    cmd = ["./src/tools/bizarro/t/runtests.sh"],
+    cmd = ["./src/tools/bizarro/engine/t/runtests.sh"],
 )
 
 # Individual command tests for quick validation

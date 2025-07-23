@@ -42,7 +42,7 @@ BASE_MODEL="Qwen/Qwen3-0.6B"
 QUANTIZED_MODEL="$TEMP_DIR/quantized_model"
 ADAPTER_PATH="$TEMP_DIR/adapter"
 FUSED_MODEL="$TEMP_DIR/fused_model"
-DATA_PATH="src/tools/bizarro/t/data"
+DATA_PATH="src/tools/bizarro/engine/t/data"
 
 print_status "Starting comprehensive pipeline test"
 print_status "Base model: $BASE_MODEL"
@@ -54,12 +54,12 @@ print_status "✓ Basic run command successful"
 
 # Test 2: Quantize the model to 4 bits
 print_status "Test 2: Quantizing model to 4 bits..."
-src/tools/bizarro/tuning/tuner.py quantize "$BASE_MODEL" --q-bits 4 --output-dir "$QUANTIZED_MODEL"
+src/tools/bizarro/engine/tuning/tuner.py quantize "$BASE_MODEL" --q-bits 4 --output-dir "$QUANTIZED_MODEL"
 print_status "✓ Model quantized successfully to: $QUANTIZED_MODEL"
 
 # Test 3: Fine-tune the quantized model
 print_status "Test 3: Fine-tuning the quantized model..."
-src/tools/bizarro/tuning/tuner.py tune "$QUANTIZED_MODEL" "$DATA_PATH" \
+src/tools/bizarro/engine/tuning/tuner.py tune "$QUANTIZED_MODEL" "$DATA_PATH" \
     --fine-tune-type lora \
     --num-layers 4 \
     --batch-size 2 \
@@ -73,7 +73,7 @@ print_status "✓ Model fine-tuned successfully, adapter saved to: $ADAPTER_PATH
 
 # Test 4: Fuse the adapter back into the model
 print_status "Test 4: Fusing adapter into the model..."
-src/tools/bizarro/tuning/tuner.py fuse "$QUANTIZED_MODEL" \
+src/tools/bizarro/engine/tuning/tuner.py fuse "$QUANTIZED_MODEL" \
     --adapter-path "$ADAPTER_PATH" \
     --save-path "$FUSED_MODEL"
 print_status "✓ Model fused successfully to: $FUSED_MODEL"
@@ -95,7 +95,7 @@ print_status "Sample output (first 200 chars): ${OUTPUT:0:200}..."
 
 # Test 6: Test model-card command
 print_status "Test 6: Testing model-card command..."
-src/tools/bizarro/tuning/tuner.py model-card "$FUSED_MODEL" > /dev/null
+src/tools/bizarro/engine/tuning/tuner.py model-card "$FUSED_MODEL" > /dev/null
 print_status "✓ Model card command successful"
 
 # Test 7: Test chat mode (non-interactive)
@@ -121,7 +121,7 @@ print_status "✓ Run with system prompt successful"
 # Test 10: Quantize with different bit sizes
 print_status "Test 10: Testing different quantization bit sizes..."
 for BITS in 3 8; do
-    src/tools/bizarro/tuning/tuner.py quantize "$BASE_MODEL" \
+    src/tools/bizarro/engine/tuning/tuner.py quantize "$BASE_MODEL" \
         --q-bits $BITS \
         --output-dir "$TEMP_DIR/quantized_${BITS}bit" > /dev/null
     print_status "✓ Quantized to $BITS bits successfully"
