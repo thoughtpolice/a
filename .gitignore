@@ -15,3 +15,8 @@ CLAUDE.local.md
 .gdb_history
 *.qbit
 *.data
+
+# Due to bugs, apparently ra/cargo/rustc create various
+# bogus lock files; the only one that should exist is in
+# buck/third-party/rust -- stop them from wreaking havoc
+Cargo.lock
