@@ -46,6 +46,7 @@ log = "0.4"
 notify-debouncer-mini = { version = "0.6.0", features = ["crossbeam-channel"] }
 openssl = "0.10.73"
 rand = "0.8.5"
+ratatui = "0.29.0"
 salsa = "0.22.0"
 thiserror = "2.0.12"
 tracing = "0.1.41"

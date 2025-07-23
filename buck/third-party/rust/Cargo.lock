@@ -4742,6 +4742,7 @@ dependencies = [
  "notify-debouncer-mini",
  "openssl",
  "rand 0.8.5",
+ "ratatui",
  "salsa",
  "starlark",
  "starlark_derive",
