@@ -131,11 +131,11 @@ log-graph-prioritize = 'coalesce(megamerge(), trunk())'
 # of the fork; Tn is where the main bookmark points. Finally, we have changes P1
 # ... Pn which are private and should never be pushed upstream at all.
 #
-# In this case, sandwich will fail because 'reachable(stack(), merges())' will
-# resolve to {M1, M2}, which is an invalid argument for 'rebase -B' due to not
-# having an all: prefix modifier. So to handle that case, we allow the user
-# to either specify the merge via literal tag "megamerge". In this case if we
-# 'bookmark set megamerge -r M1' then sandwich will always work correctly.
+# In this case, sandwich will work poorly because 'reachable(stack(), merges())'
+# will resolve to {M1, M2}, which is not what we want for 'rebase -B'. So to
+# handle that case, we allow the user to specify the merge via literal tag
+# "megamerge". In this case if we 'bookmark set megamerge -r M1' then sandwich
+# will always work correctly.
 'megamerge()' = 'coalesce(present(megamerge), reachable(stack(), merges()))'
 
 ## ------------------------------------------------------------------------------------------------
@@ -169,11 +169,11 @@ open = ["log", "-r", "open()"]
 
 # Retrunk revisions. Typically as `jj retrunk -s ...` -- notably can be used
 # with open:
-# - jj retrunk -s 'all:roots(open())'
+# - jj retrunk -s 'roots(open())'
 retrunk = ["rebase", "-d", "trunk()"]
 
 # Retrunk the current stack of work.
-reheat = ["rebase", "-d", "trunk()", "-s", "all:roots(trunk()..stack(@))"]
+reheat = ["rebase", "-d", "trunk()", "-s", "roots(trunk()..stack(@))"]
 
 # 'jj sandwich xyz' to move xyz into the megamerge in parallel to everything
 # else. See notes on 'megamerge()' above for how it's resolved.
