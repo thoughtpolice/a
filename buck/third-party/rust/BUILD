@@ -21,6 +21,13 @@ shims.git_fetch(
 )
 
 shims.git_fetch(
+    name = "sapling-84adaa40a7305b9a.git",
+    repo = "https://github.com/thoughtpolice/sapling",
+    rev = "697ec8cb9a010b513aef4519341d69428a5626cc",
+    visibility = [],
+)
+
+shims.git_fetch(
     name = "starlark-rust-a9d911d33fd77ff2.git",
     repo = "https://github.com/facebook/starlark-rust",
     rev = "469ff502b05594b9b1ec1818753f712996a79d38",
@@ -187,7 +194,7 @@ third_party_rust.rust_library(
     edition = "2018",
     features = ["default"],
     visibility = [],
-    deps = [":unicode-width-0.1.12"],
+    deps = [":unicode-width-0.1.14"],
 )
 
 shims.http_archive(
@@ -315,6 +322,27 @@ third_party_rust.rust_library(
         ":anstyle-1.0.11",
         ":once_cell_polyfill-1.70.1",
         ":windows-sys-0.59.0",
+    ],
+)
+
+shims.http_archive(
+    name = "any_key-0.1.1.crate",
+    sha256 = "d21bb2cdab8087ed9d69411dd99c608dbede1df847c255b4d609f0399a3cb452",
+    strip_prefix = "any_key-0.1.1",
+    urls = ["https://static.crates.io/crates/any_key/0.1.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "any_key-0.1.1",
+    srcs = [":any_key-0.1.1.crate"],
+    crate = "any_key",
+    crate_root = "any_key-0.1.1.crate/src/lib.rs",
+    edition = "2015",
+    visibility = [],
+    deps = [
+        ":debugit-0.1.2",
+        ":mopa-0.2.2",
     ],
 )
 
@@ -461,7 +489,7 @@ third_party_rust.rust_library(
     edition = "2018",
     visibility = [],
     deps = [
-        ":unicode-width-0.1.12",
+        ":unicode-width-0.1.14",
         ":yansi-1.0.1",
     ],
 )
@@ -2152,6 +2180,24 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "convert_case-0.7.1.crate",
+    sha256 = "bb402b8d4c85569410425650ce3eddc7d698ed96d39a73f941b08fb63082f1e7",
+    strip_prefix = "convert_case-0.7.1",
+    urls = ["https://static.crates.io/crates/convert_case/0.7.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "convert_case-0.7.1",
+    srcs = [":convert_case-0.7.1.crate"],
+    crate = "convert_case",
+    crate_root = "convert_case-0.7.1.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [":unicode-segmentation-1.12.0"],
+)
+
+shims.http_archive(
     name = "core-foundation-sys-0.8.7.crate",
     sha256 = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b",
     strip_prefix = "core-foundation-sys-0.8.7",
@@ -2404,9 +2450,23 @@ third_party_rust.rust_library(
     crate = "crossterm",
     crate_root = "crossterm-0.28.1.crate/src/lib.rs",
     edition = "2021",
+    env = {
+        "CARGO_CRATE_NAME": "crossterm",
+        "CARGO_MANIFEST_DIR": "crossterm-0.28.1.crate",
+        "CARGO_PKG_AUTHORS": "T. Post",
+        "CARGO_PKG_DESCRIPTION": "A crossplatform terminal library for manipulating terminals.",
+        "CARGO_PKG_NAME": "crossterm",
+        "CARGO_PKG_REPOSITORY": "https://github.com/crossterm-rs/crossterm",
+        "CARGO_PKG_VERSION": "0.28.1",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "28",
+        "CARGO_PKG_VERSION_PATCH": "1",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
     features = [
         "bracketed-paste",
         "default",
+        "event-stream",
         "events",
         "windows",
     ],
@@ -2459,6 +2519,96 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":bitflags-2.9.1",
+        ":futures-core-0.3.31",
+        ":parking_lot-0.12.4",
+    ],
+)
+
+shims.http_archive(
+    name = "crossterm-0.29.0.crate",
+    sha256 = "d8b9f2e4c67f833b660cdb0a3523065869fb35570177239812ed4c905aeff87b",
+    strip_prefix = "crossterm-0.29.0",
+    urls = ["https://static.crates.io/crates/crossterm/0.29.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "crossterm-0.29.0",
+    srcs = [":crossterm-0.29.0.crate"],
+    crate = "crossterm",
+    crate_root = "crossterm-0.29.0.crate/src/lib.rs",
+    edition = "2021",
+    env = {
+        "CARGO_CRATE_NAME": "crossterm",
+        "CARGO_MANIFEST_DIR": "crossterm-0.29.0.crate",
+        "CARGO_PKG_AUTHORS": "T. Post",
+        "CARGO_PKG_DESCRIPTION": "A crossplatform terminal library for manipulating terminals.",
+        "CARGO_PKG_NAME": "crossterm",
+        "CARGO_PKG_REPOSITORY": "https://github.com/crossterm-rs/crossterm",
+        "CARGO_PKG_VERSION": "0.29.0",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "29",
+        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = [
+        "bracketed-paste",
+        "default",
+        "derive-more",
+        "events",
+        "windows",
+    ],
+    platform = {
+        "linux-arm64": dict(
+            deps = [
+                ":mio-1.0.4",
+                ":rustix-1.0.8",
+                ":signal-hook-0.3.18",
+                ":signal-hook-mio-0.2.4",
+            ],
+        ),
+        "linux-x86_64": dict(
+            deps = [
+                ":mio-1.0.4",
+                ":rustix-1.0.8",
+                ":signal-hook-0.3.18",
+                ":signal-hook-mio-0.2.4",
+            ],
+        ),
+        "macos-arm64": dict(
+            deps = [
+                ":mio-1.0.4",
+                ":rustix-1.0.8",
+                ":signal-hook-0.3.18",
+                ":signal-hook-mio-0.2.4",
+            ],
+        ),
+        "macos-x86_64": dict(
+            deps = [
+                ":mio-1.0.4",
+                ":rustix-1.0.8",
+                ":signal-hook-0.3.18",
+                ":signal-hook-mio-0.2.4",
+            ],
+        ),
+        "windows-gnu": dict(
+            deps = [
+                ":crossterm_winapi-0.9.1",
+                ":winapi-0.3.9",
+            ],
+        ),
+        "windows-msvc": dict(
+            deps = [
+                ":crossterm_winapi-0.9.1",
+                ":winapi-0.3.9",
+            ],
+        ),
+    },
+    visibility = [],
+    deps = [
+        ":bitflags-2.9.1",
+        ":derive_more-2.0.1",
+        ":document-features-0.2.11",
         ":parking_lot-0.12.4",
     ],
 )
@@ -2744,6 +2894,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "debugit-0.1.2.crate",
+    sha256 = "63c2f7e3034df2b09f750327e23c1adfe33301e6b7388f05bb4fcc0fa46825e3",
+    strip_prefix = "debugit-0.1.2",
+    urls = ["https://static.crates.io/crates/debugit/0.1.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "debugit-0.1.2",
+    srcs = [":debugit-0.1.2.crate"],
+    crate = "debugit",
+    crate_root = "debugit-0.1.2.crate/src/lib.rs",
+    edition = "2015",
+    visibility = [],
+)
+
+shims.http_archive(
     name = "debugserver-types-0.5.0.crate",
     sha256 = "2bf6834a70ed14e8e4e41882df27190bea150f1f6ecf461f1033f8739cd8af4a",
     strip_prefix = "debugserver-types-0.5.0",
@@ -2866,6 +3033,29 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "derive_more-2.0.1.crate",
+    sha256 = "093242cf7570c207c83073cf82f79706fe7b8317e98620a47d5be7c3d8497678",
+    strip_prefix = "derive_more-2.0.1",
+    urls = ["https://static.crates.io/crates/derive_more/2.0.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "derive_more-2.0.1",
+    srcs = [":derive_more-2.0.1.crate"],
+    crate = "derive_more",
+    crate_root = "derive_more-2.0.1.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "is_variant",
+        "std",
+    ],
+    visibility = [],
+    deps = [":derive_more-impl-2.0.1"],
+)
+
+shims.http_archive(
     name = "derive_more-impl-1.0.0.crate",
     sha256 = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22",
     strip_prefix = "derive_more-impl-1.0.0",
@@ -2914,6 +3104,34 @@ third_party_rust.rust_library(
         ":quote-1.0.40",
         ":syn-2.0.104",
         ":unicode-xid-0.2.6",
+    ],
+)
+
+shims.http_archive(
+    name = "derive_more-impl-2.0.1.crate",
+    sha256 = "bda628edc44c4bb645fbe0f758797143e4e07926f7ebf4e9bdfbd3d2ce621df3",
+    strip_prefix = "derive_more-impl-2.0.1",
+    urls = ["https://static.crates.io/crates/derive_more-impl/2.0.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "derive_more-impl-2.0.1",
+    srcs = [":derive_more-impl-2.0.1.crate"],
+    crate = "derive_more_impl",
+    crate_root = "derive_more-impl-2.0.1.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "is_variant",
+    ],
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":convert_case-0.7.1",
+        ":proc-macro2-1.0.95",
+        ":quote-1.0.40",
+        ":syn-2.0.104",
     ],
 )
 
@@ -3116,6 +3334,26 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "document-features-0.2.11.crate",
+    sha256 = "95249b50c6c185bee49034bcb378a49dc2b5dff0be90ff6616d31d64febab05d",
+    strip_prefix = "document-features-0.2.11",
+    urls = ["https://static.crates.io/crates/document-features/0.2.11/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "document-features-0.2.11",
+    srcs = [":document-features-0.2.11.crate"],
+    crate = "document_features",
+    crate_root = "document-features-0.2.11.crate/lib.rs",
+    edition = "2018",
+    features = ["default"],
+    proc_macro = True,
+    visibility = [],
+    deps = [":litrs-0.4.1"],
+)
+
+shims.http_archive(
     name = "dot-generator-0.2.0.crate",
     sha256 = "0aaac7ada45f71873ebce336491d1c1bc4a7c8042c7cea978168ad59e805b871",
     strip_prefix = "dot-generator-0.2.0",
@@ -3200,10 +3438,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe-0.9.1",
-    srcs = [":dupe-0.9.1.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe",
-    crate_root = "dupe-0.9.1.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe/src/lib.rs",
+    edition = "2024",
     visibility = [],
     deps = [":dupe_derive-0.9.1"],
 )
@@ -3235,6 +3473,12 @@ third_party_rust.rust_library(
         ":quote-1.0.40",
         ":syn-2.0.104",
     ],
+)
+
+shims.alias(
+    name = "educe",
+    actual = ":educe-0.6.0",
+    visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
@@ -3837,6 +4081,29 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [":cfg-if-1.0.1"],
+)
+
+shims.alias(
+    name = "figleter",
+    actual = ":figleter-0.2.2",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "figleter-0.2.2.crate",
+    sha256 = "04e0769e6cf86e246a3eee5b84b9e9b1abb9bca8b4161136f03ce752dac15ea9",
+    strip_prefix = "figleter-0.2.2",
+    urls = ["https://static.crates.io/crates/figleter/0.2.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "figleter-0.2.2",
+    srcs = [":figleter-0.2.2.crate"],
+    crate = "figleter",
+    crate_root = "figleter-0.2.2.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
 )
 
 shims.http_archive(
@@ -4489,6 +4756,28 @@ third_party_rust.rust_library(
     edition = "2015",
     visibility = [],
     deps = [":byteorder-1.5.0"],
+)
+
+shims.http_archive(
+    name = "generational-box-0.5.6.crate",
+    sha256 = "557cf2cbacd0504c6bf8c29f52f8071e0de1d9783346713dc6121d7fa1e5d0e0",
+    strip_prefix = "generational-box-0.5.6",
+    urls = ["https://static.crates.io/crates/generational-box/0.5.6/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "generational-box-0.5.6",
+    srcs = [":generational-box-0.5.6.crate"],
+    crate = "generational_box",
+    crate_root = "generational-box-0.5.6.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "check_generation",
+        "default",
+    ],
+    visibility = [],
+    deps = [":parking_lot-0.12.4"],
 )
 
 shims.http_archive(
@@ -7225,6 +7514,63 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
+shims.alias(
+    name = "iocraft",
+    actual = ":iocraft-0.7.10",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "iocraft-0.7.10.crate",
+    sha256 = "bd8d3ddf4888a50fae057c96cca667a52bc529e56a19fc2300e09a1d5d955d5a",
+    strip_prefix = "iocraft-0.7.10",
+    urls = ["https://static.crates.io/crates/iocraft/0.7.10/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "iocraft-0.7.10",
+    srcs = [":iocraft-0.7.10.crate"],
+    crate = "iocraft",
+    crate_root = "iocraft-0.7.10.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [
+        ":any_key-0.1.1",
+        ":bitflags-2.9.1",
+        ":crossterm-0.28.1",
+        ":futures-0.3.31",
+        ":generational-box-0.5.6",
+        ":iocraft-macros-0.2.3",
+        ":taffy-0.5.2",
+        ":unicode-width-0.1.14",
+    ],
+)
+
+shims.http_archive(
+    name = "iocraft-macros-0.2.3.crate",
+    sha256 = "d2a8b12929295d5fea225570fd69a41084e2949d56ce0c20ff22494ef13e0d56",
+    strip_prefix = "iocraft-macros-0.2.3",
+    urls = ["https://static.crates.io/crates/iocraft-macros/0.2.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "iocraft-macros-0.2.3",
+    srcs = [":iocraft-macros-0.2.3.crate"],
+    crate = "iocraft_macros",
+    crate_root = "iocraft-macros-0.2.3.crate/src/lib.rs",
+    edition = "2021",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1.0.95",
+        ":quote-1.0.40",
+        ":syn-2.0.104",
+        ":uuid-1.17.0",
+    ],
+)
+
 shims.http_archive(
     name = "is-terminal-0.4.16.crate",
     sha256 = "e04d7f318608d35d4b61ddd75cbdaee86b023ebe2bd5a66ee0915f0bf93095a9",
@@ -7872,6 +8218,56 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "lazy-regex-3.4.1.crate",
+    sha256 = "60c7310b93682b36b98fa7ea4de998d3463ccbebd94d935d6b48ba5b6ffa7126",
+    strip_prefix = "lazy-regex-3.4.1",
+    urls = ["https://static.crates.io/crates/lazy-regex/3.4.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "lazy-regex-3.4.1",
+    srcs = [":lazy-regex-3.4.1.crate"],
+    crate = "lazy_regex",
+    crate_root = "lazy-regex-3.4.1.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "regex",
+    ],
+    visibility = [],
+    deps = [
+        ":lazy-regex-proc_macros-3.4.1",
+        ":once_cell-1.21.3",
+        ":regex-1.11.1",
+    ],
+)
+
+shims.http_archive(
+    name = "lazy-regex-proc_macros-3.4.1.crate",
+    sha256 = "4ba01db5ef81e17eb10a5e0f2109d1b3a3e29bac3070fdbd7d156bf7dbd206a1",
+    strip_prefix = "lazy-regex-proc_macros-3.4.1",
+    urls = ["https://static.crates.io/crates/lazy-regex-proc_macros/3.4.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "lazy-regex-proc_macros-3.4.1",
+    srcs = [":lazy-regex-proc_macros-3.4.1.crate"],
+    crate = "lazy_regex_proc_macros",
+    crate_root = "lazy-regex-proc_macros-3.4.1.crate/mod.rs",
+    edition = "2018",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1.0.95",
+        ":quote-1.0.40",
+        ":regex-1.11.1",
+        ":syn-2.0.104",
+    ],
+)
+
+shims.http_archive(
     name = "lazy_static-1.5.0.crate",
     sha256 = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe",
     strip_prefix = "lazy_static-1.5.0",
@@ -8258,6 +8654,23 @@ third_party_rust.rust_library(
     crate_root = "litemap-0.8.0.crate/src/lib.rs",
     edition = "2021",
     features = ["alloc"],
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "litrs-0.4.1.crate",
+    sha256 = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5",
+    strip_prefix = "litrs-0.4.1",
+    urls = ["https://static.crates.io/crates/litrs/0.4.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "litrs-0.4.1",
+    srcs = [":litrs-0.4.1.crate"],
+    crate = "litrs",
+    crate_root = "litrs-0.4.1.crate/src/lib.rs",
+    edition = "2018",
     visibility = [],
 )
 
@@ -8674,37 +9087,6 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "memmap2-0.5.10.crate",
-    sha256 = "83faa42c0a078c393f6b29d5db232d8be22776a891f8f56e5284faee4a20b327",
-    strip_prefix = "memmap2-0.5.10",
-    urls = ["https://static.crates.io/crates/memmap2/0.5.10/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "memmap2-0.5.10",
-    srcs = [":memmap2-0.5.10.crate"],
-    crate = "memmap2",
-    crate_root = "memmap2-0.5.10.crate/src/lib.rs",
-    edition = "2018",
-    platform = {
-        "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
-        ),
-        "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
-        ),
-        "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
-        ),
-        "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
-        ),
-    },
-    visibility = [],
-)
-
-shims.http_archive(
     name = "memmap2-0.9.7.crate",
     sha256 = "483758ad303d734cec05e5c12b41d7e93e6a6390c5e9dae6bdeb7c1259012d28",
     strip_prefix = "memmap2-0.9.7",
@@ -8825,7 +9207,7 @@ third_party_rust.rust_library(
         ":cfg-if-1.0.1",
         ":miette-derive-7.6.0",
         ":serde-1.0.219",
-        ":unicode-width-0.1.12",
+        ":unicode-width-0.1.14",
     ],
 )
 
@@ -8973,6 +9355,23 @@ third_party_rust.rust_library(
             deps = [":windows-sys-0.59.0"],
         ),
     },
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "mopa-0.2.2.crate",
+    sha256 = "a785740271256c230f57462d3b83e52f998433a7062fc18f96d5999474a9f915",
+    strip_prefix = "mopa-0.2.2",
+    urls = ["https://static.crates.io/crates/mopa/0.2.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "mopa-0.2.2",
+    srcs = [":mopa-0.2.2.crate"],
+    crate = "mopa",
+    crate_root = "mopa-0.2.2.crate/src/lib.rs",
+    edition = "2015",
     visibility = [],
 )
 
@@ -10544,7 +10943,7 @@ third_party_rust.rust_library(
     deps = [
         ":arrayvec-0.5.2",
         ":typed-arena-2.0.2",
-        ":unicode-width-0.1.12",
+        ":unicode-width-0.1.14",
     ],
 )
 
@@ -11749,6 +12148,7 @@ third_party_rust.rust_library(
         "default",
         "fs",
         "std",
+        "stdio",
         "termios",
     ],
     platform = {
@@ -11787,6 +12187,7 @@ third_party_rust.rust_binary(
         "default",
         "fs",
         "std",
+        "stdio",
         "termios",
     ],
     visibility = [],
@@ -11801,6 +12202,7 @@ third_party_rust.buildscript_run(
         "default",
         "fs",
         "std",
+        "stdio",
         "termios",
     ],
     version = "1.0.8",
@@ -11949,7 +12351,7 @@ third_party_rust.rust_library(
         ":memchr-2.7.5",
         ":radix_trie-0.2.1",
         ":unicode-segmentation-1.12.0",
-        ":unicode-width-0.1.12",
+        ":unicode-width-0.1.14",
     ],
 )
 
@@ -12102,40 +12504,27 @@ third_party_rust.rust_library(
     deps = [":bitflags-2.9.1"],
 )
 
-shims.http_archive(
-    name = "sapling-streampager-0.11.0.crate",
-    sha256 = "67225ae0841f3e2d4082eff3f5dd4dca2777a46b7b6876e7b076eb4a913ada92",
-    strip_prefix = "sapling-streampager-0.11.0",
-    urls = ["https://static.crates.io/crates/sapling-streampager/0.11.0/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "sapling-streampager-0.11.0",
-    srcs = [":sapling-streampager-0.11.0.crate"],
+    srcs = [":sapling-84adaa40a7305b9a.git"],
     crate = "streampager",
-    crate_root = "sapling-streampager-0.11.0.crate/src/lib.rs",
+    crate_root = "sapling-84adaa40a7305b9a/eden/scm/lib/third-party/streampager/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bit-set-0.5.3",
         ":dirs-6.0.0",
         ":enum_dispatch-0.3.13",
-        ":indexmap-2.10.0",
-        ":lazy_static-1.5.0",
         ":lru-0.12.4",
-        ":memmap2-0.5.10",
+        ":memmap2-0.9.7",
         ":regex-1.11.1",
         ":scopeguard-1.2.0",
         ":serde-1.0.219",
         ":smallvec-1.15.1",
-        ":tempfile-3.20.0",
         ":terminfo-0.9.0",
         ":termwiz-0.23.3",
         ":thiserror-2.0.12",
-        ":toml-0.8.23",
         ":unicode-segmentation-1.12.0",
-        ":unicode-width-0.1.12",
+        ":unicode-width-0.1.14",
         ":vec_map-0.8.2",
     ],
 )
@@ -12924,6 +13313,25 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "slotmap-1.0.7.crate",
+    sha256 = "dbff4acf519f630b3a3ddcfaea6c06b42174d9a44bc70c620e9ed1649d58b82a",
+    strip_prefix = "slotmap-1.0.7",
+    urls = ["https://static.crates.io/crates/slotmap/1.0.7/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "slotmap-1.0.7",
+    srcs = [":slotmap-1.0.7.crate"],
+    crate = "slotmap",
+    crate_root = "slotmap-1.0.7.crate/src/lib.rs",
+    edition = "2018",
+    features = ["std"],
+    rustc_flags = ["--cfg=has_min_const_generics"],
+    visibility = [],
+)
+
+shims.http_archive(
     name = "smallvec-1.15.1.crate",
     sha256 = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03",
     strip_prefix = "smallvec-1.15.1",
@@ -13616,6 +14024,33 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "taffy-0.5.2.crate",
+    sha256 = "9cb893bff0f80ae17d3a57e030622a967b8dbc90e38284d9b4b1442e23873c94",
+    strip_prefix = "taffy-0.5.2",
+    urls = ["https://static.crates.io/crates/taffy/0.5.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "taffy-0.5.2",
+    srcs = [":taffy-0.5.2.crate"],
+    crate = "taffy",
+    crate_root = "taffy-0.5.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "flexbox",
+        "std",
+        "taffy_tree",
+    ],
+    visibility = [],
+    deps = [
+        ":arrayvec-0.7.6",
+        ":num-traits-0.2.19",
+        ":slotmap-1.0.7",
+    ],
+)
+
+shims.http_archive(
     name = "tempfile-3.20.0.crate",
     sha256 = "e8a64e3985349f2441a1a9ef0b853f869006c3855f2cda6862a94d26ebb9d6a1",
     strip_prefix = "tempfile-3.20.0",
@@ -13956,7 +14391,7 @@ third_party_rust.rust_library(
     crate_root = "textwrap-0.11.0.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":unicode-width-0.1.12"],
+    deps = [":unicode-width-0.1.14"],
 )
 
 shims.http_archive(
@@ -14535,34 +14970,6 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "toml-0.8.23.crate",
-    sha256 = "dc1beb996b9d83529a9e75c17a1686767d148d70663143c7854d8b4a09ced362",
-    strip_prefix = "toml-0.8.23",
-    urls = ["https://static.crates.io/crates/toml/0.8.23/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "toml-0.8.23",
-    srcs = [":toml-0.8.23.crate"],
-    crate = "toml",
-    crate_root = "toml-0.8.23.crate/src/lib.rs",
-    edition = "2021",
-    features = [
-        "default",
-        "display",
-        "parse",
-    ],
-    visibility = [],
-    deps = [
-        ":serde-1.0.219",
-        ":serde_spanned-0.6.9",
-        ":toml_datetime-0.6.11",
-        ":toml_edit-0.22.27",
-    ],
-)
-
-shims.http_archive(
     name = "toml_datetime-0.6.11.crate",
     sha256 = "22cddaf88f4fbc13c51aebbf5f8eceb5c7c5a9da2ac40a13519eb5b0a0e8f11c",
     strip_prefix = "toml_datetime-0.6.11",
@@ -15014,6 +15421,99 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
+shims.alias(
+    name = "tui-realm-stdlib",
+    actual = ":tui-realm-stdlib-3.0.0",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "tui-realm-stdlib-3.0.0.crate",
+    sha256 = "83c5dd796e9ba2d0d2cfe26dc6a84d5a8287ec110ee1226a53d8cde9a24d67cf",
+    strip_prefix = "tui-realm-stdlib-3.0.0",
+    urls = ["https://static.crates.io/crates/tui-realm-stdlib/3.0.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "tui-realm-stdlib-3.0.0",
+    srcs = [":tui-realm-stdlib-3.0.0.crate"],
+    crate = "tui_realm_stdlib",
+    crate_root = "tui-realm-stdlib-3.0.0.crate/src/lib.rs",
+    edition = "2024",
+    features = [
+        "crossterm",
+        "default",
+    ],
+    visibility = [],
+    deps = [
+        ":textwrap-0.16.2",
+        ":tuirealm-3.0.1",
+        ":unicode-width-0.2.0",
+    ],
+)
+
+shims.alias(
+    name = "tuirealm",
+    actual = ":tuirealm-3.0.1",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "tuirealm-3.0.1.crate",
+    sha256 = "29607ee819f733f15c6bbad6aa760ed3d52b345588130003399bd792bfc6b0a8",
+    strip_prefix = "tuirealm-3.0.1",
+    urls = ["https://static.crates.io/crates/tuirealm/3.0.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "tuirealm-3.0.1",
+    srcs = [":tuirealm-3.0.1.crate"],
+    crate = "tuirealm",
+    crate_root = "tuirealm-3.0.1.crate/src/lib.rs",
+    edition = "2024",
+    features = [
+        "crossterm",
+        "default",
+        "derive",
+        "serialize",
+    ],
+    visibility = [],
+    deps = [
+        ":bitflags-2.9.1",
+        ":crossterm-0.29.0",
+        ":lazy-regex-3.4.1",
+        ":ratatui-0.29.0",
+        ":serde-1.0.219",
+        ":thiserror-2.0.12",
+        ":tuirealm_derive-2.0.1",
+    ],
+)
+
+shims.http_archive(
+    name = "tuirealm_derive-2.0.1.crate",
+    sha256 = "bad3c151090da5a036321776209b3d026df637d7f52c0984ff8d45927326ab4f",
+    strip_prefix = "tuirealm_derive-2.0.1",
+    urls = ["https://static.crates.io/crates/tuirealm_derive/2.0.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "tuirealm_derive-2.0.1",
+    srcs = [":tuirealm_derive-2.0.1.crate"],
+    crate = "tuirealm_derive",
+    crate_root = "tuirealm_derive-2.0.1.crate/src/lib.rs",
+    edition = "2021",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1.0.95",
+        ":quote-1.0.40",
+        ":syn-2.0.104",
+    ],
+)
+
 shims.http_archive(
     name = "typed-arena-2.0.2.crate",
     sha256 = "6af6ae20167a9ece4bcb41af5b80f8a1f1df981f6391189ce00fd257af04126a",
@@ -15261,25 +15761,28 @@ third_party_rust.rust_library(
     deps = [
         ":itertools-0.13.0",
         ":unicode-segmentation-1.12.0",
-        ":unicode-width-0.1.12",
+        ":unicode-width-0.1.14",
     ],
 )
 
 shims.http_archive(
-    name = "unicode-width-0.1.12.crate",
-    sha256 = "68f5e5f3158ecfd4b8ff6fe086db7c8467a2dfdac97fe420f2b7c4aa97af66d6",
-    strip_prefix = "unicode-width-0.1.12",
-    urls = ["https://static.crates.io/crates/unicode-width/0.1.12/download"],
+    name = "unicode-width-0.1.14.crate",
+    sha256 = "7dd6e30e90baa6f72411720665d41d89b9a3d039dc45b8faea1ddd07f617f6af",
+    strip_prefix = "unicode-width-0.1.14",
+    urls = ["https://static.crates.io/crates/unicode-width/0.1.14/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "unicode-width-0.1.12",
-    srcs = [":unicode-width-0.1.12.crate"],
+    name = "unicode-width-0.1.14",
+    srcs = [":unicode-width-0.1.14.crate"],
     crate = "unicode_width",
-    crate_root = "unicode-width-0.1.12.crate/src/lib.rs",
+    crate_root = "unicode-width-0.1.14.crate/src/lib.rs",
     edition = "2021",
-    features = ["default"],
+    features = [
+        "cjk",
+        "default",
+    ],
     visibility = [],
 )
 
@@ -15405,6 +15908,7 @@ third_party_rust.rust_library(
         "rng",
         "std",
         "v1",
+        "v4",
     ],
     visibility = [],
     deps = [

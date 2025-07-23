@@ -32,6 +32,10 @@ const RUSTSEC_VIOLATION_EXCEPTIONS = [
         id: "RUSTSEC-2023-0086",
         reason: "lexical-core soundness issues - used by nom, awaiting migration",
     },
+    {
+        id: "GHSA-2gxj-qrp2-53jv",
+        reason: "mopa soundness issue -- used by {iocraft,any_key} and awaiting migration",
+    }
 ];
 
 // ---------------------------------------------------------------------------------------------------------------------
