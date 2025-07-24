@@ -1,2 +1,3 @@
 [alias]
 quicktd = root//buck/tools/quicktd:quicktd
+omnifix = root//src/tools/omnifix:omnifix
