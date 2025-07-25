@@ -27,6 +27,7 @@ should-sign-off = true
 [merge-tools.difft]
 program = "difft"
 diff-args = ["--color=always", "$left", "$right"]
+diff-invocation-mode = "file-by-file"
 
 [git]
 auto-local-bookmark = false
@@ -65,6 +66,9 @@ log = 'stack(mine() | @) | trunk() | @'
 # Prioritize megamerges so that they always appear on the 'left-most' side of
 # the graph.
 log-graph-prioritize = 'coalesce(megamerge(), trunk())'
+
+# Fix things!
+fix = 'stack(@, 1)'
 
 [revset-aliases]
 # Useful on Windows. Technically conflicts with any bookmark/tag named 'at', but
@@ -157,8 +161,9 @@ nt = ["new", "trunk()"]
 credit = ["file", "annotate"]
 cat = ["file", "show"]
 
-# TODO FIXME (aseipp): is this a better name?
-streamline = ["simplify-parents"]
+# I think these are better names
+#backout = ["revert"] -- TODO FIXME (aseipp): enable after 'backout' is gone
+streamline = ["simplify-parents"] # TODO FIXME (aseipp): is this a better name?
 
 # Find the closest ancestor with a bookmark pointing at it, and move it to the
 # parent of the working copy.
