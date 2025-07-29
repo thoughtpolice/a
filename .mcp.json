@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "brainiac": {
+      "type": "stdio",
+      "command": "buck2",
+      "args": [
+        "--isolation-dir",
+        ".claude-code",
+        "run",
+        "depot//src/tools/brainiac"
+      ],
+      "env": {}
+    }
+  }
+}
