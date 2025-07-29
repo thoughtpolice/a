@@ -240,13 +240,13 @@ class OmniFix {
   }
 
   async formatFile(path: string, content: string): Promise<string> {
+    let result = content;
     for (const tool of this.tools) {
       if (tool.canHandle(path)) {
-        return await tool.format(content, path);
+        result = await tool.format(result, path);
       }
     }
-
-    return content; // do nothing if no tool is capable
+    return result;
   }
 }
 
