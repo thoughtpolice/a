@@ -11,3 +11,10 @@ deno.binary(
     permissions=["read", "run", "env"],
     visibility=["PUBLIC"],
 )
+
+deno.test(
+    name="test",
+    srcs=["test.ts"],
+    config="deno.jsonc",
+    permissions=["read", "write", "run", "env"],
+)
