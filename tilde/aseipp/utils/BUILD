@@ -8,3 +8,11 @@ deno.run(
     package_id = "npm:ccusage@15.3.1",
     permissions = ["read", "write", "net", "env", "sys"],
 )
+
+deno.run(
+    name = 'claude-review',
+    src = "claude-review.tsx",
+    permissions = [
+        "all"
+    ],
+)
