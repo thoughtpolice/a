@@ -1,0 +1,16 @@
+{
+  "imports": {
+    "ink": "npm:ink@^5.1.1",
+    "react": "npm:react@^18.0.0",
+    "marked": "npm:marked@^16.1.1",
+    "marked-terminal": "npm:marked-terminal@^7.3.0",
+    "ink-spinner": "npm:ink-spinner@^5.0.0",
+    "@cliffy/command": "jsr:@cliffy/command@1.0.0-rc.8",
+    "@anthropic-ai/claude-code": "npm:@anthropic-ai/claude-code@^1.0.62"
+  },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "jsxImportSourceTypes": "npm:@types/react@^18"
+  }
+}
