@@ -72,15 +72,17 @@ def _deno_binary_impl(ctx: AnalysisContext) -> list[Provider]:
         },
     )
 
-    # Create lint subtarget - lint entire directory to catch all TypeScript files
+    # Create lint subtarget - lint source files for this target
     config_args = []
     if ctx.attrs.config:
         config_args = ["--config", ctx.attrs.config]
 
+    # Lint the main file and any additional source files
+    files_to_lint = [ctx.attrs.main] + ctx.attrs.srcs
     lint_cmd = cmd_args([
         deno,
         "lint",
-    ] + config_args)
+    ] + config_args + files_to_lint)
 
     return [
         DefaultInfo(
@@ -134,11 +136,11 @@ def _deno_test_impl(ctx: AnalysisContext) -> list[Provider]:
         "test",
     ] + config_args + unstable_features + permissions + ctx.attrs.srcs)
 
-    # Create lint subtarget - lint entire directory to catch all TypeScript files
+    # Create lint subtarget - lint test source files
     lint_cmd = cmd_args([
         deno,
         "lint",
-    ] + config_args)
+    ] + config_args + ctx.attrs.srcs)
 
     return [
         DefaultInfo(
