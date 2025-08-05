@@ -7,17 +7,30 @@
 
 import sys, subprocess
 
-# MARK: Bad file prefixes, suffixes, and exact matches
-BAD_PREFIXES = [
-    # dev files
-    ".devcontainer",
-    ".envrc",
+# MARK: Bad file prefixes, suffixes, directory components, and exact matches
+
+# Directory names that should be ignored anywhere in the path
+BAD_DIRECTORY_COMPONENTS = [
+    # version control
     ".git",
     ".github",
     # editors
     ".helix",
     ".vscode",
     ".zed",
+    # development environments
+    ".devcontainer",
+    ".direnv",
+    # caches
+    ".ruff_cache",
+    "__pycache__",
+    # dependencies
+    "node_modules",
+]
+
+BAD_PREFIXES = [
+    # dev files
+    ".envrc",
     # buck stuff: fixups, etc
     "buck/third-party/",
     "buck/prelude/",
@@ -195,6 +208,10 @@ def main():
             continue
         # and bad suffixes
         if any(file.endswith(suffix) for suffix in BAD_SUFFIXES):
+            continue
+        # skip files with banned directory components
+        path_parts = file.split('/')
+        if any(component in BAD_DIRECTORY_COMPONENTS for component in path_parts):
             continue
 
         print(f"Checking {file}...")
