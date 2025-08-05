@@ -3438,10 +3438,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe-0.9.1",
-    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
+    srcs = [":dupe-0.9.1.crate"],
     crate = "dupe",
-    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe/src/lib.rs",
-    edition = "2024",
+    crate_root = "dupe-0.9.1.crate/src/lib.rs",
+    edition = "2021",
     visibility = [],
     deps = [":dupe_derive-0.9.1"],
 )
@@ -3462,10 +3462,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe_derive-0.9.1",
-    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
+    srcs = [":dupe_derive-0.9.1.crate"],
     crate = "dupe_derive",
-    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe_derive/src/lib.rs",
-    edition = "2024",
+    crate_root = "dupe_derive-0.9.1.crate/src/lib.rs",
+    edition = "2021",
     proc_macro = True,
     visibility = [],
     deps = [
@@ -11133,42 +11133,29 @@ third_party_rust.rust_library(
     },
     platform = {
         "linux-arm64": dict(
-            rustc_flags = [
-                "--cfg=asm",
-                "--cfg=switchable_stack",
-            ],
+            rustc_flags = ["--cfg=switchable_stack"],
             deps = [":psm-0.1.26-cbits-aarch64-linux"],
         ),
         "linux-x86_64": dict(
-            rustc_flags = [
-                "--cfg=asm",
-                "--cfg=switchable_stack",
-            ],
+            rustc_flags = ["--cfg=switchable_stack"],
             deps = [":psm-0.1.26-cbits-x86_64-linux"],
         ),
         "macos-arm64": dict(
-            rustc_flags = [
-                "--cfg=asm",
-                "--cfg=switchable_stack",
-            ],
+            rustc_flags = ["--cfg=switchable_stack"],
             deps = [":psm-0.1.26-cbits-aarch64-macos"],
         ),
         "macos-x86_64": dict(
-            rustc_flags = [
-                "--cfg=asm",
-                "--cfg=switchable_stack",
-            ],
+            rustc_flags = ["--cfg=switchable_stack"],
             deps = [":psm-0.1.26-cbits-x86_64-macos"],
         ),
         "windows-gnu": dict(
-            rustc_flags = ["--cfg=asm"],
             deps = [":psm-0.1.26-cbits-x86_64-windows"],
         ),
         "windows-msvc": dict(
-            rustc_flags = ["--cfg=asm"],
             deps = [":psm-0.1.26-cbits-x86_64-windows"],
         ),
     },
+    rustc_flags = ["--cfg=asm"],
     visibility = [],
 )
 
@@ -16633,6 +16620,7 @@ third_party_rust.rust_library(
             deps = [":windows_x86_64_msvc-0.48.5"],
         ),
     },
+    rustc_flags = ["--cfg=windows_raw_dylib"],
     visibility = [],
 )
 
@@ -16658,6 +16646,7 @@ third_party_rust.rust_library(
             deps = [":windows_x86_64_msvc-0.52.6"],
         ),
     },
+    rustc_flags = ["--cfg=windows_raw_dylib"],
     visibility = [],
 )
 
@@ -16683,6 +16672,7 @@ third_party_rust.rust_library(
             deps = [":windows_x86_64_msvc-0.53.0"],
         ),
     },
+    rustc_flags = ["--cfg=windows_raw_dylib"],
     visibility = [],
 )
 

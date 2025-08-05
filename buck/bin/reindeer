@@ -4,62 +4,62 @@
   "name": "reindeer",
   "platforms": {
     "macos-aarch64": {
-      "size": 2635843,
+      "size": 10162472,
       "hash": "sha256",
-      "digest": "046f80eb666e1e31184997d7a7076d3580eef772166827f9a8249696c39ebb96",
+      "digest": "91ea66f1f592f024448acd850f0fd4298eca2e432756c035859195be65e2ed08",
       "format": "zst",
       "path": "reindeer-aarch64-apple-darwin",
       "providers": [
         {
-          "url": "https://github.com/facebookincubator/reindeer/releases/download/v2025.07.14.00/reindeer-aarch64-apple-darwin.zst"
+          "url": "https://github.com/facebookincubator/reindeer/releases/download/v2025.08.04.00/reindeer-aarch64-apple-darwin.zst"
         }
       ]
     },
     "linux-aarch64": {
-      "size": 2781062,
+      "size": 11806965,
       "hash": "sha256",
-      "digest": "439dc89cc87589b9e225531f8f29a0463ab8b2ebe350b826063ad090ac82f39b",
+      "digest": "123a063880f7cdf6f2e1928b172b3c7ae360c75157d8f4c1af4c2ff473f8b87b",
       "format": "zst",
       "path": "reindeer-aarch64-unknown-linux-musl",
       "providers": [
         {
-          "url": "https://github.com/facebookincubator/reindeer/releases/download/v2025.07.14.00/reindeer-aarch64-unknown-linux-musl.zst"
+          "url": "https://github.com/facebookincubator/reindeer/releases/download/v2025.08.04.00/reindeer-aarch64-unknown-linux-musl.zst"
         }
       ]
     },
     "macos-x86_64": {
-      "size": 2814147,
+      "size": 10277621,
       "hash": "sha256",
-      "digest": "9616968423845a0ac1eebe06af6ce7e4caa32d42e892f972bc1f3d36b876f46e",
+      "digest": "261028a69bed26d793b56126b9b0a59f8df17cda4a6ec9223c3a472bdef44323",
       "format": "zst",
       "path": "reindeer-x86_64-apple-darwin",
       "providers": [
         {
-          "url": "https://github.com/facebookincubator/reindeer/releases/download/v2025.07.14.00/reindeer-x86_64-apple-darwin.zst"
+          "url": "https://github.com/facebookincubator/reindeer/releases/download/v2025.08.04.00/reindeer-x86_64-apple-darwin.zst"
         }
       ]
     },
     "windows-x86_64": {
-      "size": 2704570,
+      "size": 9116091,
       "hash": "sha256",
-      "digest": "c8f170a7630ba7e6829a57df73ed050c32a86f87567304bca63c6a2d9006a743",
+      "digest": "84c29a6bd4b2a0ac98008082145504704c4e57d6a7f7d9beecfbb272599b8754",
       "format": "zst",
       "path": "reindeer-x86_64-pc-windows-msvc.exe",
       "providers": [
         {
-          "url": "https://github.com/facebookincubator/reindeer/releases/download/v2025.07.14.00/reindeer-x86_64-pc-windows-msvc.exe.zst"
+          "url": "https://github.com/facebookincubator/reindeer/releases/download/v2025.08.04.00/reindeer-x86_64-pc-windows-msvc.exe.zst"
         }
       ]
     },
     "linux-x86_64": {
-      "size": 2979414,
+      "size": 11959715,
       "hash": "sha256",
-      "digest": "2bf2d09d68b6b97474207ed287fb2912b8a551be05efa3ea5f07b4d55a44b4de",
+      "digest": "512147e4ba9448d7069843ba739bd3026a483afdb12390d3a724bc9dd23c37a8",
       "format": "zst",
       "path": "reindeer-x86_64-unknown-linux-musl",
       "providers": [
         {
-          "url": "https://github.com/facebookincubator/reindeer/releases/download/v2025.07.14.00/reindeer-x86_64-unknown-linux-musl.zst"
+          "url": "https://github.com/facebookincubator/reindeer/releases/download/v2025.08.04.00/reindeer-x86_64-unknown-linux-musl.zst"
         }
       ]
     }
