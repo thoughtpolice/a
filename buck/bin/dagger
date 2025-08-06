@@ -1,0 +1,67 @@
+#!/usr/bin/env dotslash
+
+{
+  "name": "dagger",
+  "platforms": {
+    "macos-aarch64": {
+      "size": 18606440,
+      "hash": "sha256",
+      "digest": "c8646f662b75caf7226b83d840cf7a31533801514b06c1ea7e35e3e456fc894e",
+      "format": "tar.gz",
+      "path": "dagger",
+      "providers": [
+        {
+          "url": "https://github.com/dagger/dagger/releases/download/v0.18.14/dagger_v0.18.14_darwin_arm64.tar.gz"
+        }
+      ]
+    },
+    "macos-x86_64": {
+      "size": 19501498,
+      "hash": "sha256",
+      "digest": "880361e92842400f4b14ef4dc4eb05dd269ee4f7a18059871f1c4411b8ddea4c",
+      "format": "tar.gz",
+      "path": "dagger",
+      "providers": [
+        {
+          "url": "https://github.com/dagger/dagger/releases/download/v0.18.14/dagger_v0.18.14_darwin_amd64.tar.gz"
+        }
+      ]
+    },
+    "linux-aarch64": {
+      "size": 17848925,
+      "hash": "sha256",
+      "digest": "01e83c3efbaf34ee4d2d76958afbb15ed93e87941f188e7648cb8ee8908635af",
+      "format": "tar.gz",
+      "path": "dagger",
+      "providers": [
+        {
+          "url": "https://github.com/dagger/dagger/releases/download/v0.18.14/dagger_v0.18.14_linux_arm64.tar.gz"
+        }
+      ]
+    },
+    "linux-x86_64": {
+      "size": 19173884,
+      "hash": "sha256",
+      "digest": "081329716be3bbf76a35b77d8c21d433bef9dce5efee43d6e91ba88be192b6e3",
+      "format": "tar.gz",
+      "path": "dagger",
+      "providers": [
+        {
+          "url": "https://github.com/dagger/dagger/releases/download/v0.18.14/dagger_v0.18.14_linux_amd64.tar.gz"
+        }
+      ]
+    },
+    "windows-x86_64": {
+      "size": 19635559,
+      "hash": "sha256",
+      "digest": "d579fdf671380658a006bca2908011d76fc095a4d55ac2286d0213c4404c2411",
+      "format": "zip",
+      "path": "dagger.exe",
+      "providers": [
+        {
+          "url": "https://github.com/dagger/dagger/releases/download/v0.18.14/dagger_v0.18.14_windows_amd64.zip"
+        }
+      ]
+    }
+  }
+}
