@@ -17,6 +17,9 @@ fbcode = none
 fbsource = none
 
 [buck2]
+# 'buck2 test' should also build anything matching given target patterns
+test_builds_targets = true
+
 # use sha256 since everything supports it. XXX FIXME (aseipp): blake3?
 digest_algorithms = SHA256
 
