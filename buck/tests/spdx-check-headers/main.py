@@ -73,6 +73,9 @@ BAD_FILES = [
     "buck/lib/oci/LICENSE",
     # REASON: shell rc file without extension
     "tilde/aseipp/dotfiles/direnv/direnvrc",
+    # REASON: standard license text files don't need SPDX headers
+    "tilde/aseipp/dotfiles/claude/agents/LICENSE",
+    "tilde/aseipp/dotfiles/claude/commands/LICENSE",
 ]
 
 
