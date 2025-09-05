@@ -9,4 +9,3 @@ direnv_layout_dir() {
         echo "${XDG_CACHE_HOME}/direnv/layouts/${hash}${path}"
     )}"
 }
-

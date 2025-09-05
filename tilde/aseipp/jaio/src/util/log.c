@@ -45,4 +45,3 @@ log_stderr(int priority,
 
   fflush(stderr);
 }
-
