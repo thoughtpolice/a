@@ -11,4 +11,3 @@ void file_size(int fd, off_t* size);
 /* --------------------------------------------------------------- */
 
 #endif /* __TESTING__FILE_SIZE_H__ */
-
