@@ -35,7 +35,19 @@ const RUSTSEC_VIOLATION_EXCEPTIONS = [
     {
         id: "GHSA-2gxj-qrp2-53jv",
         reason: "mopa soundness issue -- used by {iocraft,any_key} and awaiting migration",
-    }
+    },
+    {
+        id: "GHSA-qx2v-8332-m4fv",
+        reason: "slab bounds check issue - widely used dependency, awaiting upstream fix",
+    },
+    {
+        id: "GHSA-xwfj-jgwm-7wp5",
+        reason: "tracing-subscriber ANSI escape sequence vulnerability - low severity for build environment",
+    },
+    {
+        id: "RUSTSEC-2025-0057",
+        reason: "temporary, fxhash is unmaintained but widely used",
+    },
 ];
 
 // ---------------------------------------------------------------------------------------------------------------------
