@@ -61,7 +61,7 @@ DEPOT_VERSION = '2025.0+0'
 def _depot_rust_rule(rule_name: str, **kwargs):
     kwargs = _fix_kwargs(rule_name, kwargs)
 
-    edition = kwargs.pop('edition', '2021')
+    edition = kwargs.pop('edition', '2024')
 
     # Read package version from metadata
     package_version = read_package_value('meta.version')

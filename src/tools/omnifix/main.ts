@@ -125,7 +125,7 @@ class RustFormatter implements Tool {
 
   async format(content: string, path: string): Promise<string> {
     try {
-      const args = ["--emit=stdout"];
+      const args = ["--emit=stdout", "--edition=2024"];
       if (this.config.edition) {
         args.push(`--edition=${this.config.edition}`);
       }
