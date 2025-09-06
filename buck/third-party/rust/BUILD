@@ -779,6 +779,12 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
+shims.alias(
+    name = "base64",
+    actual = ":base64-0.22.1",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "base64-0.22.1.crate",
     sha256 = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6",
@@ -6521,6 +6527,12 @@ third_party_rust.rust_library(
     crate_root = "heck-0.5.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
+)
+
+shims.alias(
+    name = "hex",
+    actual = ":hex-0.4.3",
+    visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
