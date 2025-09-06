@@ -63,12 +63,12 @@
 //! ```
 
 use core::alloc::GlobalAlloc;
-use core::ffi::{c_char, c_ulonglong, c_void, CStr};
+use core::ffi::{CStr, c_char, c_ulonglong, c_void};
 
 // Full set of external C APIs.
 //
 // NOTE: These should under no circumstances ever be made `pub`.
-extern "C" {
+unsafe extern "C" {
     /// Allocate a block of memory of at least `size` bytes, aligned to the
     /// given alignment, that is completely zeroed out.
     fn mi_zalloc_aligned(size: usize, alignment: usize) -> *mut c_void;
@@ -131,7 +131,9 @@ extern "C" {
 pub fn stats_print<F: Fn(&CStr)>(f: &'static F) {
     unsafe {
         unsafe extern "C" fn wrapper<F: Fn(&CStr)>(value: *const c_char, ctx: *mut c_void) {
-            (*(ctx as *const F))(CStr::from_ptr(value));
+            unsafe {
+                (*(ctx as *const F))(CStr::from_ptr(value));
+            }
         }
         mi_stats_merge();
         mi_stats_print_out(wrapper::<F>, f as *const F as *mut c_void)
@@ -203,7 +205,9 @@ pub fn register_deferred_free<F: Fn(bool, c_ulonglong)>(f: &'static F) {
             count: c_ulonglong,
             ctx: *mut c_void,
         ) {
-            (*(ctx as *const F))(force, count);
+            unsafe {
+                (*(ctx as *const F))(force, count);
+            }
         }
         mi_register_deferred_free(wrapper::<F>, f as *const F as *mut c_void)
     }
@@ -224,17 +228,17 @@ pub struct MiMalloc;
 unsafe impl GlobalAlloc for MiMalloc {
     #[inline]
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        mi_malloc_aligned(layout.size(), layout.align()) as *mut u8
+        unsafe { mi_malloc_aligned(layout.size(), layout.align()) as *mut u8 }
     }
 
     #[inline]
     unsafe fn alloc_zeroed(&self, layout: core::alloc::Layout) -> *mut u8 {
-        mi_zalloc_aligned(layout.size(), layout.align()) as *mut u8
+        unsafe { mi_zalloc_aligned(layout.size(), layout.align()) as *mut u8 }
     }
 
     #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: core::alloc::Layout) {
-        mi_free(ptr as *mut c_void)
+        unsafe { mi_free(ptr as *mut c_void) }
     }
 
     #[inline]
@@ -244,7 +248,7 @@ unsafe impl GlobalAlloc for MiMalloc {
         layout: core::alloc::Layout,
         new_size: usize,
     ) -> *mut u8 {
-        mi_realloc_aligned(ptr as *mut c_void, new_size, layout.align()) as *mut u8
+        unsafe { mi_realloc_aligned(ptr as *mut c_void, new_size, layout.align()) as *mut u8 }
     }
 }
 
