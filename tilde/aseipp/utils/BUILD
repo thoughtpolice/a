@@ -16,3 +16,11 @@ deno.run(
         "all"
     ],
 )
+
+deno.run(
+    name = 'claude-difftool',
+    src = "claude-difftool.ts",
+    permissions = [
+        "run=claude,diff,rich"
+    ]
+)
