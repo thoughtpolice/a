@@ -29,6 +29,10 @@ program = "difft"
 diff-args = ["--color=always", "$left", "$right"]
 diff-invocation-mode = "file-by-file"
 
+[merge-tools.claude]
+program = "claude-difftool"
+diff-args = ["$left", "$right"]
+
 [git]
 auto-local-bookmark = false
 private-commits = 'blacklist()'
@@ -52,7 +56,7 @@ url = 'http://example.com'
 email = "aseipp@pobox.com"
 
 [[--scope]]
---when.repositories = ["~/work/ersc"]
+--when.repositories = ["~/work"]
 [--scope.user]
 email = "austin@ersc.io"
 
@@ -140,7 +144,25 @@ fix = 'stack(@, 1)'
 # handle that case, we allow the user to specify the merge via literal tag
 # "megamerge". In this case if we 'bookmark set megamerge -r M1' then sandwich
 # will always work correctly.
-'megamerge()' = 'coalesce(present(megamerge), reachable(stack(), merges()))'
+'megamerge()' = '''coalesce(
+  present(megamerge),
+  reachable(stack(), merges())
+)
+'''
+
+# From Rain (@sunshowers), tipped off by Andre (@indirect). This shows us what
+# is actually interesting in any given case.
+'uninteresting()' = '::remote_bookmarks() | tags()'
+'interesting()' = 'mine() ~ uninterested()'
+
+# By Andre (@indirect). Find a closer revision to tug to, that isn't just blindly using @-
+'closest_pushable(to)' = '''heads(
+  ::to
+  & mutable()
+  & ~description(exact:"")
+  & ~descendants(blacklist())
+  & (~empty() | merges()))
+'''
 
 ## ------------------------------------------------------------------------------------------------
 ## ---- UX/UI Configuration
@@ -151,18 +173,13 @@ fix = 'stack(@, 1)'
 # 'jj jj log' on the command line without getting a command-not-found error.
 jj = []
 
-# EXPERIMENTAL: use this to replace 'commit' and 'split' at the same time
-cleave = [ "split", "all()" ]
-
 # "New Trunk"
 nt = ["new", "trunk()"]
 
-# Shorter (and thus better) names, IMO
+# Shorter and/or superior names, IMO
+#backout = ["revert"] -- TODO FIXME (aseipp): enable after 'backout' is gone
 credit = ["file", "annotate"]
 cat = ["file", "show"]
-
-# I think these are better names
-#backout = ["revert"] -- TODO FIXME (aseipp): enable after 'backout' is gone
 streamline = ["simplify-parents"] # TODO FIXME (aseipp): is this a better name?
 
 # Find the closest ancestor with a bookmark pointing at it, and move it to the
@@ -173,8 +190,7 @@ tug = ["bookmark", "move", "--from", "heads(::@- & bookmarks())", "--to", "@-"]
 open = ["log", "-r", "open()"]
 
 # Retrunk revisions. Typically as `jj retrunk -s ...` -- notably can be used
-# with open:
-# - jj retrunk -s 'roots(open())'
+# with open: jj retrunk -s 'roots(open())'
 retrunk = ["rebase", "-d", "trunk()"]
 
 # Retrunk the current stack of work.
@@ -192,8 +208,18 @@ consume = ["squash", "--into", "@", "--from"]
 # - jj eject xyz --interactive
 eject = ["squash", "--from", "@", "--into"]
 
+# EXPERIMENTAL: use this to replace 'commit' and 'split' at the same time
+cleave = [ "split", "all()" ]
+
 # EXPERIMENTAL: ultra-generalized command that subsumes both 'diff' and 'show'
 examine = ["log", "-T", "builtin_log_detailed", "-p", "-r"]
+
+# EXPERIMENTAL: use the Claude-based difftool (defined above) to add an AI
+# summary to all commit messages, based on the underlying diff.
+smartlog = ["log", "-T", "builtin_log_detailed", "--tool=claude", "-r"]
+
+# EXPERIMENTAL: json output
+jsonlog = ["log", "--no-graph", "-T", "ndjson"]
 
 [colors]
 # Base customizations
@@ -277,11 +303,11 @@ examine = ["log", "-T", "builtin_log_detailed", "-p", "-r"]
 'gh_pr_base()' = '"undefined"'
 
 'ndjson(obj)' = 'json(obj) ++ "\n"'
-'ndjson()' = 'ndjson(self)'
+'ndjson' = 'ndjson(self)'
 
 [templates]
-# Always prefix my pushes with my name
-git_push_bookmark = '"aseipp/push-" ++ change_id.short()'
+# Always prefix my pushes with my name. This deranged expression is from Connor, my colleague.
+git_push_bookmark = '"aseipp/" ++ stringify(truncate_end(32, description.first_line().lower())).replace(regex:"[^a-zA-Z0-9]+", "-").replace(regex:"^-.*", "").replace(regex:"-*$", "") ++ "-" ++ change_id.short()'
 
 # Improve the default representation in the log. This colors
 # and changes the node icon for each.
