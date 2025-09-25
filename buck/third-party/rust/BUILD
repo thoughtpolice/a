@@ -3444,10 +3444,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe-0.9.1",
-    srcs = [":dupe-0.9.1.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe",
-    crate_root = "dupe-0.9.1.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe/src/lib.rs",
+    edition = "2024",
     visibility = [],
     deps = [":dupe_derive-0.9.1"],
 )
@@ -3468,10 +3468,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe_derive-0.9.1",
-    srcs = [":dupe_derive-0.9.1.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe_derive",
-    crate_root = "dupe_derive-0.9.1.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe_derive/src/lib.rs",
+    edition = "2024",
     proc_macro = True,
     visibility = [],
     deps = [
@@ -14809,6 +14809,7 @@ third_party_rust.rust_library(
         ":socket2-0.5.10",
         ":tokio-macros-2.5.0",
         ":tracing",
+        ":tracing-0.1.41",
     ],
 )
 
@@ -16624,14 +16625,6 @@ third_party_rust.rust_library(
     crate = "windows_targets",
     crate_root = "windows-targets-0.48.5.crate/src/lib.rs",
     edition = "2018",
-    platform = {
-        "windows-gnu": dict(
-            deps = [":windows_x86_64_gnu-0.48.5"],
-        ),
-        "windows-msvc": dict(
-            deps = [":windows_x86_64_msvc-0.48.5"],
-        ),
-    },
     rustc_flags = ["--cfg=windows_raw_dylib"],
     visibility = [],
 )
@@ -16650,14 +16643,6 @@ third_party_rust.rust_library(
     crate = "windows_targets",
     crate_root = "windows-targets-0.52.6.crate/src/lib.rs",
     edition = "2021",
-    platform = {
-        "windows-gnu": dict(
-            deps = [":windows_x86_64_gnu-0.52.6"],
-        ),
-        "windows-msvc": dict(
-            deps = [":windows_x86_64_msvc-0.52.6"],
-        ),
-    },
     rustc_flags = ["--cfg=windows_raw_dylib"],
     visibility = [],
 )
@@ -16676,117 +16661,7 @@ third_party_rust.rust_library(
     crate = "windows_targets",
     crate_root = "windows-targets-0.53.2.crate/src/lib.rs",
     edition = "2021",
-    platform = {
-        "windows-gnu": dict(
-            deps = [":windows_x86_64_gnu-0.53.0"],
-        ),
-        "windows-msvc": dict(
-            deps = [":windows_x86_64_msvc-0.53.0"],
-        ),
-    },
     rustc_flags = ["--cfg=windows_raw_dylib"],
-    visibility = [],
-)
-
-shims.http_archive(
-    name = "windows_x86_64_gnu-0.48.5.crate",
-    sha256 = "53d40abd2583d23e4718fddf1ebec84dbff8381c07cae67ff7768bbf19c6718e",
-    strip_prefix = "windows_x86_64_gnu-0.48.5",
-    urls = ["https://static.crates.io/crates/windows_x86_64_gnu/0.48.5/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "windows_x86_64_gnu-0.48.5",
-    srcs = [":windows_x86_64_gnu-0.48.5.crate"],
-    crate = "windows_x86_64_gnu",
-    crate_root = "windows_x86_64_gnu-0.48.5.crate/src/lib.rs",
-    edition = "2018",
-    visibility = [],
-)
-
-shims.http_archive(
-    name = "windows_x86_64_gnu-0.52.6.crate",
-    sha256 = "147a5c80aabfbf0c7d901cb5895d1de30ef2907eb21fbbab29ca94c5b08b1a78",
-    strip_prefix = "windows_x86_64_gnu-0.52.6",
-    urls = ["https://static.crates.io/crates/windows_x86_64_gnu/0.52.6/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "windows_x86_64_gnu-0.52.6",
-    srcs = [":windows_x86_64_gnu-0.52.6.crate"],
-    crate = "windows_x86_64_gnu",
-    crate_root = "windows_x86_64_gnu-0.52.6.crate/src/lib.rs",
-    edition = "2021",
-    visibility = [],
-)
-
-shims.http_archive(
-    name = "windows_x86_64_gnu-0.53.0.crate",
-    sha256 = "2e55b5ac9ea33f2fc1716d1742db15574fd6fc8dadc51caab1c16a3d3b4190ba",
-    strip_prefix = "windows_x86_64_gnu-0.53.0",
-    urls = ["https://static.crates.io/crates/windows_x86_64_gnu/0.53.0/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "windows_x86_64_gnu-0.53.0",
-    srcs = [":windows_x86_64_gnu-0.53.0.crate"],
-    crate = "windows_x86_64_gnu",
-    crate_root = "windows_x86_64_gnu-0.53.0.crate/src/lib.rs",
-    edition = "2021",
-    visibility = [],
-)
-
-shims.http_archive(
-    name = "windows_x86_64_msvc-0.48.5.crate",
-    sha256 = "ed94fce61571a4006852b7389a063ab983c02eb1bb37b47f8272ce92d06d9538",
-    strip_prefix = "windows_x86_64_msvc-0.48.5",
-    urls = ["https://static.crates.io/crates/windows_x86_64_msvc/0.48.5/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "windows_x86_64_msvc-0.48.5",
-    srcs = [":windows_x86_64_msvc-0.48.5.crate"],
-    crate = "windows_x86_64_msvc",
-    crate_root = "windows_x86_64_msvc-0.48.5.crate/src/lib.rs",
-    edition = "2018",
-    visibility = [],
-)
-
-shims.http_archive(
-    name = "windows_x86_64_msvc-0.52.6.crate",
-    sha256 = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec",
-    strip_prefix = "windows_x86_64_msvc-0.52.6",
-    urls = ["https://static.crates.io/crates/windows_x86_64_msvc/0.52.6/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "windows_x86_64_msvc-0.52.6",
-    srcs = [":windows_x86_64_msvc-0.52.6.crate"],
-    crate = "windows_x86_64_msvc",
-    crate_root = "windows_x86_64_msvc-0.52.6.crate/src/lib.rs",
-    edition = "2021",
-    visibility = [],
-)
-
-shims.http_archive(
-    name = "windows_x86_64_msvc-0.53.0.crate",
-    sha256 = "271414315aff87387382ec3d271b52d7ae78726f5d44ac98b4f4030c91880486",
-    strip_prefix = "windows_x86_64_msvc-0.53.0",
-    urls = ["https://static.crates.io/crates/windows_x86_64_msvc/0.53.0/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "windows_x86_64_msvc-0.53.0",
-    srcs = [":windows_x86_64_msvc-0.53.0.crate"],
-    crate = "windows_x86_64_msvc",
-    crate_root = "windows_x86_64_msvc-0.53.0.crate/src/lib.rs",
-    edition = "2021",
     visibility = [],
 )
 
