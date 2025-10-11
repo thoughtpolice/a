@@ -10,3 +10,6 @@ cursor-line = "warning"
 [keys.normal.space]
 # why isn't this an option?
 i = ":toggle lsp.display-inlay-hints"
+
+[editor.file-picker]
+hidden = false # ugh
