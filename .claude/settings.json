@@ -7,6 +7,9 @@
     "FORCE_AUTO_BACKGROUND_TASKS": "true",
     "CLAUDE_CODE_ENABLE_UNIFIED_READ_TOOL": "true"
   },
+  "enabledMcpjsonServers": [
+    "brainiac"
+  ],
   "permissions": {
     "defaultMode": "acceptEdits",
     "allow": [
@@ -18,7 +21,6 @@
       "mcp__brainiac__get_server_info",
       "mcp__brainiac__get_buck2_targets",
       "mcp__brainiac__get_buck2_target_providers",
-      "MultiEdit",
       "Bash(true)",
       "Bash(env)",
       "Bash(curl:*)",
@@ -31,13 +33,18 @@
       "Bash(cat:*)",
       "Bash(tree:*)",
       "Bash(mkdir:*)",
+      "Bash(wget:*)",
+      "Bash(python3:*)",
       "Bash(sha256sum:*)",
+      "Bash(deno test:*)",
+      "Bash(deno check:*)",
       "Bash(buck2 build:*)",
       "Bash(buck2 test:*)",
       "Bash(buck2 run:*)",
       "Bash(buck2 targets:*)",
       "Bash(buck2 audit:*)",
       "Bash(buck2 log:*)",
+      "WebFetch(domain:jj-vcs.github.io)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:github.com)"
     ],
@@ -45,7 +52,7 @@
   },
   "hooks": {
     "PostToolUse": [{
-      "matcher": "Edit|Write",
+      "matcher": "Edit|Write|MultiEdit",
       "hooks": [{
         "type": "command",
         "command": "jj fix"
