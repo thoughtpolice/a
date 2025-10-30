@@ -22,3 +22,11 @@ deno.binary(
     permissions=["net", "read", "write", "env=NODE_ENV"],
     unstable_features=["kv"],
 )
+
+deno.test(
+    name="tests",
+    srcs=glob(["tests/*.ts"]),
+    config="deno.jsonc",
+    permissions=["net", "read", "write", "env=NODE_ENV"],
+    unstable_features=["kv"],
+)
