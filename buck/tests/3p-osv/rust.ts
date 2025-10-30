@@ -3,7 +3,7 @@
 
 // 3p-osv-rust: check buck/third-party/rust/Cargo.lock against https://osv.dev metadata
 
-import { parse as parseTOML } from "jsr:@std/toml";
+import { parse as parseTOML } from "@std/toml";
 
 // ---------------------------------------------------------------------------------------------------------------------
 

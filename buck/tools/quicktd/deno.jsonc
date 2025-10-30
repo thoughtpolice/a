@@ -1,2 +1,6 @@
-// Needed just to satisfy the deno LSP
-{ }
+{
+  "imports": {
+    "@std/path": "jsr:@std/path@1",
+    "@std/fs": "jsr:@std/fs@1"
+  }
+}
