@@ -1,0 +1,16 @@
+{
+  "lint": {
+    "rules": {
+      "exclude": ["no-empty-interface", "require-await"]
+    }
+  },
+  "imports": {
+    "@cliffy/command": "jsr:@cliffy/command@^1.0.0-rc.8",
+    "@std/assert": "jsr:@std/assert@1",
+    "@trpc/client": "npm:@trpc/client@^11.7.1",
+    "@trpc/server": "npm:@trpc/server@^11.7.1",
+    "@yowasp/clang": "npm:@yowasp/clang@^21.1.4-3",
+    "superjson": "npm:superjson@^2.2.5",
+    "zod": "npm:zod@^4.1.12"
+  }
+}
