@@ -1,23 +1,59 @@
 {
-  "lsp": {
-    "rust-analyzer": {
-      "initialization_options": {
-        "check": {
-          "overrideCommand": ["rust-project", "check", "$saved_file"]
+    "lsp": {
+        "deno": {
+            "settings": {
+                "deno": {
+                    "enable": true
+                }
+            }
         },
-        "workspace": {
-          "discoverConfig": {
-            "command": [
-              "rust-project",
-              "develop-json",
-              "--sysroot-mode=rustc",
-              "{arg}"
-            ],
-            "progressLabel": "rust-analyzer[buck2]",
-            "filesToWatch": ["BUILD", "PACKAGE"]
-          }
+        "rust-analyzer": {
+            "initialization_options": {
+                "check": {
+                    "overrideCommand": ["rust-project", "check", "$saved_file"]
+                },
+                "workspace": {
+                    "discoverConfig": {
+                        "command": [
+                            "rust-project",
+                            "develop-json",
+                            "--sysroot-mode=rustc",
+                            "{arg}"
+                        ],
+                        "progressLabel": "rust-analyzer[buck2]",
+                        "filesToWatch": ["BUILD", "PACKAGE"]
+                    }
+                }
+            }
         }
-      }
+    },
+    "languages": {
+        "JavaScript": {
+            "language_servers": [
+                "deno",
+                "!typescript-language-server",
+                "!vtsls",
+                "!eslint"
+            ],
+            "formatter": "language_server"
+        },
+        "TypeScript": {
+            "language_servers": [
+                "deno",
+                "!typescript-language-server",
+                "!vtsls",
+                "!eslint"
+            ],
+            "formatter": "language_server"
+        },
+        "TSX": {
+            "language_servers": [
+                "deno",
+                "!typescript-language-server",
+                "!vtsls",
+                "!eslint"
+            ],
+            "formatter": "language_server"
+        }
     }
-  }
 }
