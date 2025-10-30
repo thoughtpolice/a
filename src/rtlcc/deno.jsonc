@@ -1,1 +1,9 @@
-{ }
+{
+  "imports": {
+    "@std/fs": "jsr:@std/fs@1",
+    "@yowasp/runtime": "npm:@yowasp/runtime@9.0.56",
+    "@yowasp/yosys": "npm:@yowasp/yosys@0.52.893",
+    "@yowasp/nextpnr-ecp5": "npm:@yowasp/nextpnr-ecp5@0.8.620",
+    "@cliffy/command": "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts"
+  }
+}

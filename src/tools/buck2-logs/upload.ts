@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-import { debounce } from "jsr:@std/async/debounce";
-import { parseArgs } from "jsr:@std/cli/parse-args";
-import { exists } from "jsr:@std/fs/exists";
-import { toReadableStream } from "jsr:@std/io/to-readable-stream";
+import { debounce } from "@std/async/debounce";
+import { parseArgs } from "@std/cli/parse-args";
+import { exists } from "@std/fs/exists";
+import { toReadableStream } from "@std/io/to-readable-stream";
 
 const flags = parseArgs(Deno.args, {
   string: ["host"],

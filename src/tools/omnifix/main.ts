@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-import { readAll } from "https://deno.land/std@0.224.0/io/read_all.ts";
+import { readAll } from "@std/io";
 
 // Tool interface - all formatters must implement this
 interface Tool {

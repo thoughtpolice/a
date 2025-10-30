@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-import { join } from "jsr:@std/path";
-import { ensureDir } from "jsr:@std/fs";
+import { join } from "@std/path";
+import { ensureDir } from "@std/fs";
 
 /**
  * Runs a `jj` command safely in a way that won't snapshot by default.

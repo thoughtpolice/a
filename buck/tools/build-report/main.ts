@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-import { parseArgs } from "jsr:@std/cli";
-import { blue, bold, dim, green, red } from "jsr:@std/fmt/colors";
+import { parseArgs } from "@std/cli";
+import { blue, bold, dim, green, red } from "@std/fmt/colors";
 
 // Raw Buck2 build report interfaces
 interface BuildOutput {
