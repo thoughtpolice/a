@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-import { walk } from "jsr:@std/fs/walk";
+import { walk } from "@std/fs/walk";
 
-import { Tree } from "npm:@yowasp/runtime@9.0.56";
-import { runYosys } from "npm:@yowasp/yosys@0.52.893";
-import { runEcppack, runNextpnrEcp5 } from "npm:@yowasp/nextpnr-ecp5@0.8.620";
+import { Tree } from "@yowasp/runtime";
+import { runYosys } from "@yowasp/yosys";
+import { runEcppack, runNextpnrEcp5 } from "@yowasp/nextpnr-ecp5";
 
 import {
   Command,
   EnumType,
   HelpCommand,
-} from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
+} from "@cliffy/command";
 
 // -------------------------------------------------------------------------------------------------
 

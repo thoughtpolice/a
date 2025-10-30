@@ -1,2 +1,5 @@
-// Needed just to satisfy the deno LSP
-{ }
+{
+  "imports": {
+    "@std/toml": "jsr:@std/toml@1"
+  }
+}

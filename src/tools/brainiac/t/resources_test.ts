@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-import { assertEquals, assertStringIncludes } from "jsr:@std/assert";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import {
   convertToMcpResources,
   executeResource,

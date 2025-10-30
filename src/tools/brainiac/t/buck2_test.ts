@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-import { assertEquals } from "jsr:@std/assert";
+import { assertEquals } from "@std/assert";
 import {
   buck2TargetProvidersResource,
   buck2TargetsResource,
