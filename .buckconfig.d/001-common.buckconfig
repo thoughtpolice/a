@@ -53,6 +53,10 @@ starlark_max_callstack_size = 50
 # starlark_memory_limit() by default if no limit is specified.
 default_starlark_peak_memory = 5242880
 
+[buck2_resource_control]
+status = if_available
+enable_suspension = true
+
 [build]
 # set the default execution platform for builds on this machine. NOTE: this
 # platform definition is where remote execution (optionally) is enabled via
