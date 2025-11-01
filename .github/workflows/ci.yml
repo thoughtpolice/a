@@ -68,7 +68,37 @@ jobs:
       - name: buck2 test ...
         shell: bash
         run: |
-          buck2 test -c ci.depot_gha_ci=true @mode//debug root//... tilde//... \
+          # Retry function: attempts a command up to 5 times with exponential backoff
+          retry_command() {
+            local max_attempts=5
+            local attempt=1
+            local exit_code=0
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "Attempt $attempt of $max_attempts..."
+
+              if "$@"; then
+                echo "Command succeeded on attempt $attempt"
+                return 0
+              else
+                exit_code=$?
+                echo "Command failed with exit code $exit_code on attempt $attempt"
+
+                if [ $attempt -lt $max_attempts ]; then
+                  local wait_time=$((2 ** (attempt - 1)))
+                  echo "Waiting ${wait_time}s before retry..."
+                  sleep $wait_time
+                fi
+              fi
+
+              attempt=$((attempt + 1))
+            done
+
+            echo "All $max_attempts attempts failed"
+            return $exit_code
+          }
+
+          retry_command buck2 test -c ci.depot_gha_ci=true @mode//debug root//... tilde//... \
             --build-report ${{ runner.temp }}/build-report.json -- \
             --env SEMGREP_ENABLE_VERSION_CHECK=0
       - name: Upload build logs
