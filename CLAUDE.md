@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository is a "monorepository", meaning it contains many (dozens, hundreds) of things that need to be built, with extensive and deep fine grained dependency graphs. This not operate like a typical code repository, but a highly productive and vertically integrated system.
 
-This project exclusively uses @https://buck2.build for its build system, and @https://jj-vcs.github.io for version control.
+This project exclusively uses <https://buck2.build> for its build system, and <https://jj-vcs.github.io> for version control.
 
 ### Fundamental rules
 
@@ -36,7 +36,7 @@ All projects follow a few globally consistent patterns:
 - Third-party dependencies are always under `buck/third-party`
 - Buck2 files are named BUILD and files describing a Buck2 package are named PACKAGE
 
-File system layout:
+Basic code layout on top of the filesystem:
 
 - `src/` - Main source projects
 - `buck/` - Build system configuration and toolchains
@@ -48,171 +48,11 @@ The build system includes:
 - Custom toolchain definitions per language under `buck/toolchains/`
 - Centralized third-party dependency management in `buck/third-party/`
 
-### MCP Support
-
-You internally have access to a catalogue of tools from an MCP server called `bizarro`. This server contains MANY useful utilities that you can use to explore, examine, tweak, navigate, and learn from inside this repository.
-
-YOU MUST ALWAYS USE THE MCP TOOLS YOU HAVE! ALWAYS USE THEM OVER RAW COMMANDS! IF YOU WANT TO RUN A COMMAND, THINK FIRST AND SEE IF YOU HAVE AN MCP TOOL! YOU MUST PREFER THEIR USE! It will make your life much easier.
-
 ## Essential tools
 
-### buck2: Buck2 primer
+### buck2
 
-This monorepository uses Buck2 exclusively for its build system. Repo docs for Buck2 are in @docs/buck2.md and the homepage is at <https://buck2.build>
-
-### jj: Jujutsu primer
-
-This monorepository uses Jujutsu exclusively for version control. Repo docs for JJ are in @docs/jj.md and the homepage is at <https://jj-vcs.github.io>
-
-## Development Workflows
-
-These workflows are designed to help you effectively manage, author, and think about changes in the monorepo.
-
-### Committing changes
-
-Use Jujutsu (`jj`) instead of Git for creating commits:
-
-```bash
-# Start new work on top of current commit
-jj new
-jj new -m "wip: implementing feature"  # With initial description
-
-# Update the description of current commit
-jj describe -m "topic: description"
-
-# Finalize current work and start new empty commit
-jj commit -m "feat: add user authentication"
-
-# Amend changes into parent commit (like git commit --amend)
-jj squash
-
-# View change history
-jj log                    # Full graph
-jj log -r @               # Current commit only
-jj log -r 'trunk()..@'    # Changes since main
-
-# Show current status and diff
-jj status                 # Working copy status
-jj diff                   # Changes in working copy
-jj show                   # Current commit with changes
-```
-
-**Important jj workflows:**
-- Always use conventional commit format: `<topic>: <description>`
-- Never use `git commit` - only use `jj` for creating commits
-- Use `jj op log` to see operation history and `jj undo` to revert mistakes
-
-### Testing changes
-
-To test changes, use a combination of `buck2` commands and the target determinator.
-
-#### Basic builds and testing
-
-For basic changes while iterating quickly, do the following:
-
-```bash
-##### ---- Basic builds and testing:
-
-# Build target
-buck2 build //src/project:project
-# Build all targets in a directory
-buck2 build //src/project:
-# Build everything under src/
-buck2 build //src/...
-# Build with explicit mode
-buck2 build --config=project.buildmode=release //src/project
-
-##### ---- Running projects:
-
-# Run a binary target
-buck2 run //src/project:binary
-# Run with arguments
-buck2 run //src/project:binary -- arg1 arg2
-
-##### ---- Run specific tests:
-
-# Run a specific test target
-buck2 test //src/project:test-name
-# Run all tests in a package
-buck2 test //src/project:
-# Recursively test package and all sub-packages
-buck2 test //src/...
-# Run all tests in the current directory
-buck2 test :
-# Run a target binary in order to do basic testing
-buck2 run //project:exe -- exe arguments go here
-```
-
-#### Target determination
-
-When Buck2 detects a change, it has to build all transitive downstream dependencies and run all downstream tests that might be impacted by the change. This is often expensive. Furthermore with merge strategies such as "merge queues" or "merge trains" you may often be running CI against sets of patches that are not relevant to your work. To fix this, there is a program for doing "target determination" on the Buck2 build graph, called `quicktd`. It examines the list of changed files in the version control system, correlates that with a given set of target patterns, and outputs the impacted targets.
-
-The following command runs quicktd and calculates the targets impacted by every change from the root of the repo (empty) to your working copy. In other words, it should "build everything" more or less:
-
-```bash
-buck2 run root//buck/tools/quicktd -- 'root()' '@' depot//src/...
-```
-
-YOU MUST ALWAYS USE THE FULL `root//` CELL WHEN RUNNING THE TARGET DETERMINATOR. Failure to do so may result in failures due to ambiguous cell references. This is ALWAYS the correct unambiguous reference.
-
-The two parameters `A B` in quotes (`root()` and `@` respectively in the above example) are Jujutsu revsets, which collectively should resolve into some connected DAG between points `A` and `B`.
-
-The output is a file name, which needs to be piped to `buck2`. You MUST ALWAYS use at-file syntax to do this; the target list may be extremely large and exceed the maximum allowed command line:
-
-```bash
-TARGETS=$(buck2 run root//buck/tools/quicktd -- 'root()' '@' depot//src/...)
-buck2 build @$TARGETS
-buck2 test @$TARGETS
-```
-
-Doing this makes testing the entire codebase quick and efficient. Use this to throughly test changes after confidence in your latest changes is reasonable.
-
-#### Private workspaces
-
-For larger changes, you can create a 'workspace' underneath the `work` directory using `jj workspace`, which is a kind of equivalent to `git worktree`. Then you can move into that repository and you will have a completely disconnected copy of the repository, while still being able to see all the commits between both of them.
-
-```bash
-# Create new workspace for development
-cd work/
-jj workspace add work/new-feature
-
-# Work in the new workspace
-cd work/new-feature
-# Now you have a full copy of the repo to work in
-```
-
-The `work/` directory pattern allows multiple concurrent checkouts of the same repository for parallel development. Use this for experiments or other long-running changes that shouldn't interrupt other reasoning or tool uses.
-
-For more details on this if you want to do it, see @work/README.md
-
-### Example: making a change and testing it
-```bash
-# Create new change for development
-jj new -m "wip: working on feature"
-# ... make your changes here...
-
-# Check what changed and run relevant tests
-TARGETS=$(buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/...)
-buck2 build @$TARGETS
-buck2 test @$TARGETS
-
-# If tests pass, finalize the commit
-jj describe -m "component: add new feature"
-jj commit -m "component: add new feature"  # Or use this to finalize and continue
-
-# If tests fail, fix and update
-# ... fix issues ...
-jj diff  # Review changes
-# Changes are automatically part of @ commit, no need to stage
-```
-
-### Example: making a larger change in a workspace
-```bash
-# Create workspace for larger changes
-cd work/
-jj workspace add my-feature
-cd my-feature/
-```
+This monorepository uses Buck2 exclusively for its build system. You have various skills available to you that are buck2 related that you can use for common tasks; when you want to use buck2 in this repository specifically for advanced scenarios, check out ./docs/buck2.md which is very thorough and comprehensive.
 
 ## Language and project-specific patterns
 
@@ -243,76 +83,6 @@ All external dependencies go under `buck/third-party/`:
 
 ## Code Quality and Testing
 
-### Built-in linting and general repository quality checks
-```bash
-# Run Buck2 quality tests across the repository
-buck2 test depot//buck/tests/...
-```
-
-### Testing patterns
-```bash
-# Unit tests
-depot.rust_test(
-    name = "test-name",
-    srcs = ["test.rs"],
-    deps = [":lib"],
-)
-
-# Command tests (test CLI behavior)
-depot.command_test(
-    name = "integration-test",
-    cmd = ["buck2", "run", ":binary", "--", "test-args"],
-)
-
-# Run tests (test binary execution)
-depot.run_test(
-    name = "run-test",
-    cmd = [":binary"],
-    args = ["test-args"],
-)
-```
-
-### OCaml projects
-```bash
-# OCaml library and binary
-depot.ocaml_library(
-    name = "lib",
-    srcs = ["lib.ml"],
-)
-
-depot.ocaml_binary(
-    name = "binary",
-    srcs = ["main.ml"],
-    deps = [":lib"],
-)
-```
-
-### Container/OCI support
-```bash
-# Pull base image
-depot.oci.pull(
-    name = "distroless",
-    image = "gcr.io/distroless/cc-debian12",
-    digest = "sha256:...",
-    platforms = ["linux/amd64"],
-)
-
-# Build container image
-depot.oci.image(
-    name = "app-image",
-    base = ":distroless",
-    tars = [":app-tar"],
-    entrypoint = ["./binary"],
-)
-
-# Create tar file
-depot.tar_file(
-    name = "app-tar",
-    srcs = [":binary"],
-    out = "app.tar",
-)
-```
-
 ### CI system
 
 The current CI system is based on GitHub Actions, and it runs a series of tests and checks on every commit and pull request. The CI configuration is located in `.github/workflows/ci.yml`.
@@ -330,66 +100,6 @@ You SHOULD NOT add any additional tests to the CI system that can reasonably be 
 We must do a security analysis on every change to the GitHub Actions, as they are extremely insecure by default. To do this we use the Zizmor tool <https://docs.zizmor.sh/> to analyze the GitHub Actions workflow files and ensure that they are secure and do not contain any vulnerabilities. The list of Zizmor audits that must be passed is available at <https://docs.zizmor.sh/audits/>.
 
 When you write or modify a GitHub Actions workflow, YOU MUST ABSOLUTELY CONFIRM AS BEST YOU CAN THAT IT ABIDES BY ALL ZIZMOR AUDITS. FAILURE TO DO SO COULD BE CATASTROPHIC TO THE SECURITY OF THE ENTIRE REPOSITORY AND ITS USERS. FOLLOW THE AUDIT RULES AT <https://docs.zizmor.sh/audits/> AND ENSURE THAT MODIFIED WORKFLOW FILES DO NOT VIOLATE ANY OF THEM.
-
-## Quick Reference Commands
-
-### Daily development workflow
-```bash
-# 1. Sync with upstream
-jj git fetch
-jj log -r 'trunk()..@'  # See your changes vs main
-
-# 2. Start new work
-jj new trunk() -m "feat: starting new feature"  # Start from main
-# Or continue existing work:
-jj edit CHANGE_ID  # Resume work on existing change
-
-# 3. Make changes (automatically tracked in @)
-# ... edit files ...
-
-# 4. Check what targets are affected by your changes
-TARGETS=$(buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/...)
-
-# 5. Build and test affected targets
-buck2 build @$TARGETS
-buck2 test @$TARGETS
-
-# 6. Run quality checks
-buck2 test depot//buck/tests/...
-
-# 7. Review and finalize
-jj diff                    # Review changes
-jj describe -m "feat: implement user authentication"
-jj commit -m "feat: implement user authentication"
-
-# 8. Push when ready (creates remote bookmark)
-jj git push --change @-
-```
-
-### Common jj patterns for this repository
-
-```bash
-# Rebase onto latest main
-jj rebase -d trunk()
-
-# Squash work-in-progress commits before pushing
-jj squash -r @-- -r @-  # Squash last two commits into parent
-
-# Split a commit that got too large
-jj split -r @  # Interactive split
-
-# Find what changed between commits
-jj diff -r CHANGE_ID
-jj diff -r @--..@  # Changes in last two commits
-
-# Abandon unwanted changes
-jj abandon @  # Abandon current
-jj abandon CHANGE_ID  # Abandon specific change
-
-# See what operations you've done (and undo if needed)
-jj op log
-jj undo  # Undo last operation
-```
 
 ## Other random notes
 
