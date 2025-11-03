@@ -1,62 +1,76 @@
 {
-  "env": {
-    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
-    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "true",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "true",
-    "ENABLE_BACKGROUND_TASKS": "true",
-    "FORCE_AUTO_BACKGROUND_TASKS": "true",
-    "CLAUDE_CODE_ENABLE_UNIFIED_READ_TOOL": "true"
-  },
-  "enabledMcpjsonServers": [
-    "brainiac"
-  ],
-  "permissions": {
-    "defaultMode": "acceptEdits",
-    "allow": [
-      "mcp__brainiac__source_fetch",
-      "mcp__brainiac__buck2_build",
-      "mcp__brainiac__buck2_test",
-      "mcp__brainiac__target_determination",
-      "mcp__brainiac__get_config",
-      "mcp__brainiac__get_server_info",
-      "mcp__brainiac__get_buck2_targets",
-      "mcp__brainiac__get_buck2_target_providers",
-      "Bash(true)",
-      "Bash(env)",
-      "Bash(curl:*)",
-      "Bash(grep:*)",
-      "Bash(tar)",
-      "Bash(rg:*)",
-      "Bash(ls:*)",
-      "Bash(cp:*)",
-      "Bash(find:*)",
-      "Bash(cat:*)",
-      "Bash(tree:*)",
-      "Bash(mkdir:*)",
-      "Bash(wget:*)",
-      "Bash(python3:*)",
-      "Bash(sha256sum:*)",
-      "Bash(deno test:*)",
-      "Bash(deno check:*)",
-      "Bash(buck2 build:*)",
-      "Bash(buck2 test:*)",
-      "Bash(buck2 run:*)",
-      "Bash(buck2 targets:*)",
-      "Bash(buck2 audit:*)",
-      "Bash(buck2 log:*)",
-      "WebFetch(domain:jj-vcs.github.io)",
-      "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:github.com)"
-    ],
-    "deny": [ ]
-  },
-  "hooks": {
-    "PostToolUse": [{
-      "matcher": "Edit|Write|MultiEdit",
-      "hooks": [{
-        "type": "command",
-        "command": "jj fix"
-      }]
-    }]
-  }
+    "env": {
+        "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+        "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "true",
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "true",
+        "ENABLE_BACKGROUND_TASKS": "true",
+        "FORCE_AUTO_BACKGROUND_TASKS": "true",
+        "CLAUDE_CODE_ENABLE_UNIFIED_READ_TOOL": "true"
+    },
+    "permissions": {
+        "allow": [
+            "mcp__brainiac__source_fetch",
+            "mcp__brainiac__buck2_build",
+            "mcp__brainiac__buck2_test",
+            "mcp__brainiac__target_determination",
+            "mcp__brainiac__get_config",
+            "mcp__brainiac__get_server_info",
+            "mcp__brainiac__get_buck2_targets",
+            "mcp__brainiac__get_buck2_target_providers",
+            "Bash(true)",
+            "Bash(env)",
+            "Bash(curl:*)",
+            "Bash(grep:*)",
+            "Bash(tar)",
+            "Bash(rg:*)",
+            "Bash(ls:*)",
+            "Bash(cp:*)",
+            "Bash(find:*)",
+            "Bash(cat:*)",
+            "Bash(tree:*)",
+            "Bash(mkdir:*)",
+            "Bash(wget:*)",
+            "Bash(python3:*)",
+            "Bash(sha256sum:*)",
+            "Bash(deno test:*)",
+            "Bash(deno check:*)",
+            "Bash(buck2 build:*)",
+            "Bash(buck2 test:*)",
+            "Bash(buck2 run:*)",
+            "Bash(buck2 targets:*)",
+            "Bash(buck2 audit:*)",
+            "Bash(buck2 log:*)",
+            "WebFetch(domain:jj-vcs.github.io)",
+            "WebFetch(domain:raw.githubusercontent.com)",
+            "WebFetch(domain:github.com)"
+        ],
+        "deny": [],
+        "defaultMode": "acceptEdits"
+    },
+    "enabledMcpjsonServers": ["brainiac"],
+    "hooks": {
+        "PostToolUse": [
+            {
+                "matcher": "Edit|Write|MultiEdit",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "jj st 'claude code checkpoint'"
+                    }
+                ]
+            }
+        ],
+        "PreToolUse": [
+            {
+                "matcher": "Bash",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "python3 .claude/hooks/pre-commit-test.py",
+                        "timeout": 600
+                    }
+                ]
+            }
+        ]
+    }
 }
