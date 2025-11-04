@@ -120,4 +120,7 @@ Almost all dotslash files are under ./buck/bin and ./buck/bin/extra -- in the ev
 
 ## Custom memory entries for Claude follow:
 
-- Remember that after code changes, you should test things (use your buck2 skills for that!)
+- When changing code, make sure that you don't just approximate/hack solutions together. For example, never comment out tests just because you don't know how to fix them.
+- Remember that after code changes, you should test things with buck2, not just language-specific tools, or one-off testing. Always use `buck2 test` on all changes!
+- Never remove or out tests to get things working, UNLESS you are debugging something. If you can't fix a test properly, prompt the user immediately.
+- If a project has a notes/ directory in it, you are strongly encouraged to skim and read those notes for valuable information.

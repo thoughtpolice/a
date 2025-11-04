@@ -26,6 +26,7 @@
             "Bash(ls:*)",
             "Bash(cp:*)",
             "Bash(find:*)",
+            "Bash(tar:*)",
             "Bash(cat:*)",
             "Bash(tree:*)",
             "Bash(mkdir:*)",
@@ -42,7 +43,10 @@
             "Bash(buck2 log:*)",
             "WebFetch(domain:jj-vcs.github.io)",
             "WebFetch(domain:raw.githubusercontent.com)",
-            "WebFetch(domain:github.com)"
+            "WebFetch(domain:github.com)",
+            "WebFetch(domain:api.github.com)",
+            "WebFetch(domain:docs.rs)",
+            "WebSearch"
         ],
         "deny": [],
         "defaultMode": "acceptEdits"
@@ -51,7 +55,7 @@
     "hooks": {
         "PostToolUse": [
             {
-                "matcher": "Edit|Write|MultiEdit",
+                "matcher": "Edit|Write|MultiEdit|Update",
                 "hooks": [
                     {
                         "type": "command",
