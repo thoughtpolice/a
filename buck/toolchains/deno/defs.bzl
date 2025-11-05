@@ -308,11 +308,99 @@ def deno_run(name, src = None, package_id = None, **kwargs):
     # Call underlying rule
     _deno_run(**rule_kwargs)
 
+def _deno_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
+    deno = ctx.attrs._deno_toolchain[DenoToolchain].deno
+
+    unstable_features = map(lambda x: f'--unstable-{x}', ctx.attrs.unstable_features)
+
+    config_args = []
+    if ctx.attrs.config:
+        config_args = ["--config", ctx.attrs.config]
+
+    output = ctx.actions.declare_output("{}.ts".format(ctx.label.name))
+
+    # Build the command with hidden dependencies on all source files
+    cmd = cmd_args(
+        [
+            deno,
+            "bundle",
+        ] + config_args
+          + unstable_features
+        + [
+            ctx.attrs.main,
+            "--output",
+            output.as_output(),
+        ],
+        hidden = ctx.attrs.srcs,
+    )
+
+    ctx.actions.run(
+        cmd,
+        category = "deno_bundle",
+        allow_cache_upload = True,
+        env = {
+            "DENO_NO_UPDATE_CHECK": "1",
+        },
+    )
+
+    # Create lint subtarget - lint source files for this target
+    files_to_lint = [ctx.attrs.main] + ctx.attrs.srcs
+    lint_cmd = cmd_args([
+        deno,
+        "lint",
+    ] + config_args + files_to_lint)
+
+    return [
+        DefaultInfo(
+            default_output = output,
+            sub_targets = {
+                "lint": [
+                    DefaultInfo(),
+                    ExternalRunnerTestInfo(
+                        type = "custom",
+                        command = [lint_cmd],
+                    ),
+                ],
+            },
+        ),
+    ]
+
+_deno_bundle = rule(
+    impl = _deno_bundle_impl,
+    attrs = {
+        "srcs": attrs.list(attrs.source(), default = []),
+        "main": attrs.source(),
+        "config": attrs.option(attrs.source(), default = None),
+        "unstable_features": attrs.list(attrs.string(), default = []),
+        "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
+    }
+)
+
+def deno_bundle(**kwargs):
+    """
+    Bundle a Deno TypeScript/JavaScript application into a single file.
+    This uses 'deno bundle' to create an amalgamated .ts file that includes
+    all dependencies and can be run standalone with 'deno run' or 'deno serve'.
+    """
+    name = kwargs.get("name")
+    tests = kwargs.pop("tests", [])
+    # Automatically add lint test if not already present
+    lint_test = ":{}[lint]".format(name)
+    if lint_test not in tests:
+        tests = tests + [lint_test]
+
+    _deno_bundle(
+        tests = tests,
+        **kwargs
+    )
+
 deno = struct(
     binary = deno_binary,
     test = deno_test,
     run = deno_run,
+    bundle = deno_bundle,
     # Also expose raw rules if needed
     raw_binary = _deno_binary,
     raw_test = _deno_test,
+    raw_bundle = _deno_bundle,
 )

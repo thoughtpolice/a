@@ -40,3 +40,17 @@ shims.toolchain_alias(
     name = 'deno',
     actual = f':deno-{DENO_VERSION}',
 )
+
+# Export deno runtime binaries for use in containers
+[
+    shims.filegroup(
+        name = f'deno-runtime-{triple}',
+        srcs = [f':{DENO_VERSION}-{triple}'],
+        visibility = ['PUBLIC'],
+    ) for triple in [
+        'aarch64-unknown-linux-gnu',
+        'aarch64-apple-darwin',
+        'x86_64-unknown-linux-gnu',
+        'x86_64-pc-windows-msvc',
+    ]
+]
