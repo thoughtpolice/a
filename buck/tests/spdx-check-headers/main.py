@@ -85,19 +85,24 @@ def eprint(*args, **kwargs):
 
 # MARK: SPDX check
 def has_spdx_header(file: str, lines: list[str]) -> bool:
-    years = "2024-2025"
+    import datetime
+    import re
+
+    current_year = datetime.datetime.now().year
+    # Accept both "2024-CURRENT_YEAR" and "CURRENT_YEAR" formats
+    year_pattern = re.compile(r"^(2024-{}|{})$".format(current_year, current_year))
 
     # Allowed SPDX license identifiers
     allowed_licenses = ["Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC"]
     # Also allow compound licenses with AND/OR
     allowed_compound_licenses = ["Apache-2.0 AND MIT"]
 
-    # Define comment styles for copyright
-    bzl_style_copyright = "# SPDX-FileCopyrightText: © {} ".format(years)
-    cxx_style_copyright = "// SPDX-FileCopyrightText: © {} ".format(years)
-    old_cxx_style_copyright = "/* SPDX-FileCopyrightText: © {} ".format(years)
-    ocaml_style_copyright = "(* SPDX-FileCopyrightText: © {} ".format(years)
-    lisp_style_copyright = ";; SPDX-FileCopyrightText: © {} ".format(years)
+    # Define comment styles for copyright (without years)
+    bzl_style_copyright = "# SPDX-FileCopyrightText: © "
+    cxx_style_copyright = "// SPDX-FileCopyrightText: © "
+    old_cxx_style_copyright = "/* SPDX-FileCopyrightText: © "
+    ocaml_style_copyright = "(* SPDX-FileCopyrightText: © "
+    lisp_style_copyright = ";; SPDX-FileCopyrightText: © "
 
     # Define comment styles for license (we'll check the license separately)
     bzl_style_license_prefix = "# SPDX-License-Identifier: "
@@ -151,6 +156,18 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
     while i < len(lines):
         line = lines[i].strip()
         if line.startswith(copyright_prefix):
+            # Extract the year part from the copyright line
+            # Format is: "PREFIX YYYY[-YYYY] Name"
+            remainder = line[len(copyright_prefix) :].strip()
+            # Extract just the year part (first token)
+            parts = remainder.split(None, 1)
+            if len(parts) > 0:
+                year_part = parts[0]
+                if not year_pattern.match(year_part):
+                    eprint(
+                        f"Error: {file} has incorrect year format '{year_part}'. Expected '2024-{current_year}' or '{current_year}'"
+                    )
+                    return False
             copyright_found = True
             i += 1
         else:
@@ -172,15 +189,20 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
 
     # Extract the license identifier
     # Handle different comment closing styles
-    license_id = license_line[len(license_prefix):].strip()
+    license_id = license_line[len(license_prefix) :].strip()
     if license_id.endswith(" */"):
         license_id = license_id[:-3].strip()
     elif license_id.endswith(" *)"):
         license_id = license_id[:-3].strip()
 
     # Check if it's an allowed license
-    if license_id not in allowed_licenses and license_id not in allowed_compound_licenses:
-        eprint(f"Error: {file} has unsupported license '{license_id}'. Allowed licenses: {', '.join(allowed_licenses + allowed_compound_licenses)}")
+    if (
+        license_id not in allowed_licenses
+        and license_id not in allowed_compound_licenses
+    ):
+        eprint(
+            f"Error: {file} has unsupported license '{license_id}'. Allowed licenses: {', '.join(allowed_licenses + allowed_compound_licenses)}"
+        )
         return False
 
     return True
@@ -214,7 +236,7 @@ def main():
         if any(file.endswith(suffix) for suffix in BAD_SUFFIXES):
             continue
         # skip files with banned directory components
-        path_parts = file.split('/')
+        path_parts = file.split("/")
         if any(component in BAD_DIRECTORY_COMPONENTS for component in path_parts):
             continue
 
