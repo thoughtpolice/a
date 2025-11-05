@@ -34,6 +34,11 @@ shims.toolchain_alias(
 )
 
 shims.toolchain_alias(
+    name="k6",
+    actual="toolchains//k6:k6",
+)
+
+shims.toolchain_alias(
     name="ocaml",
     actual="toolchains//ocaml:ocaml",
 )

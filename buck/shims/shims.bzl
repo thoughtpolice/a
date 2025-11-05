@@ -7,6 +7,7 @@ load("@prelude//cfg/modifier:conditional_modifier.bzl", "conditional_modifier")
 load("@root//buck/lib/tar:defs.bzl", "tar_file")
 load("@root//buck/lib/oci:defs.bzl", "oci_image", "oci_pull", "oci_push")
 load("@toolchains//golang:defs.bzl", "go_binary", "go_library")
+load("@toolchains//k6:defs.bzl", "k6_run")
 load("@toolchains//uv:defs.bzl", _uv_impl = "uv")
 load("@toolchains//zuo:defs.bzl", _zuo = "zuo")
 
@@ -385,6 +386,13 @@ def _depot_zuo_test(**kwargs):
     kwargs = _fix_kwargs("zuo_test", kwargs)
     _zuo.test(**kwargs)
 
+# MARK: k6 wrappers
+
+def _depot_k6_run(**kwargs):
+    """Wrapper for k6_run that applies package defaults."""
+    kwargs = _fix_kwargs("k6_run", kwargs)
+    k6_run(**kwargs)
+
 # MARK: Public API
 
 shims = struct(
@@ -421,6 +429,10 @@ shims = struct(
         module = _depot_zuo_module,
         embedded_binary = _depot_zuo_embedded_binary,
         test = _depot_zuo_test,
+    ),
+
+    k6 = struct(
+        run = _depot_k6_run,
     ),
 
     write_file = _write_file,
