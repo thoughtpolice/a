@@ -10,6 +10,7 @@ load("@toolchains//golang:defs.bzl", "go_binary", "go_library")
 load("@toolchains//k6:defs.bzl", "k6_run")
 load("@toolchains//uv:defs.bzl", _uv_impl = "uv")
 load("@toolchains//zuo:defs.bzl", _zuo = "zuo")
+load("@toolchains//deno:defs.bzl", _deno = "deno")
 
 # MARK: Package metadata handling
 
@@ -434,6 +435,8 @@ shims = struct(
     k6 = struct(
         run = _depot_k6_run,
     ),
+
+    deno = _deno,
 
     write_file = _write_file,
     copy_files = _copy_files,
