@@ -45,18 +45,17 @@ def _k6_run_impl(ctx: AnalysisContext) -> list[Provider]:
     # Build command arguments
     cmd = cmd_args([k6, "run"])
 
-    # Add optional parameters
-    if ctx.attrs.vus != None:
-        cmd.add("--vus", str(ctx.attrs.vus))
+    # Set initial VUs (defaults to 0)
+    initial = ctx.attrs.initial_vus if ctx.attrs.initial_vus != None else 0
+    cmd.add("--vus", str(initial))
 
-    if ctx.attrs.duration != None:
-        cmd.add("--duration", ctx.attrs.duration)
-
-    if ctx.attrs.iterations != None:
-        cmd.add("--iterations", str(ctx.attrs.iterations))
-
-    if ctx.attrs.out != None:
-        cmd.add("--out", ctx.attrs.out)
+    # Add each step as -s <duration>:<target>
+    for step in ctx.attrs.steps:
+        duration = step.get("duration")
+        target = step.get("target")
+        if duration == None or target == None:
+            fail("Each step must have 'duration' and 'target' fields")
+        cmd.add("-s", "{}:{}".format(duration, target))
 
     # Add the script
     cmd.add(ctx.attrs.script)
@@ -71,10 +70,8 @@ k6_run = rule(
     impl = _k6_run_impl,
     attrs = {
         "script": attrs.source(),
-        "vus": attrs.option(attrs.int(), default = None),
-        "duration": attrs.option(attrs.string(), default = None),
-        "iterations": attrs.option(attrs.int(), default = None),
-        "out": attrs.option(attrs.string(), default = None),
+        "initial_vus": attrs.option(attrs.int(), default = None),
+        "steps": attrs.list(attrs.dict(key = attrs.string(), value = attrs.any(), sorted = False), default = []),
         "_k6_toolchain": attrs.toolchain_dep(default = "toolchains//:k6", providers = [K6Toolchain]),
     }
 )
