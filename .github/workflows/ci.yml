@@ -131,7 +131,7 @@ jobs:
           - os: macos-15
             abi: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Install NodeJS
