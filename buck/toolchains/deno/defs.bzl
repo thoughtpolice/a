@@ -1,8 +1,6 @@
 # SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:shims.bzl", "shims")
-
 DenoToolchain = provider(fields = {
     "deno": provider_field(typing.Any),
 })
@@ -25,7 +23,7 @@ deno_toolchain = rule(
 def download_deno(version: str, hashes: list[(str, str)]):
     for triple, sha256 in hashes:
         url = f'https://github.com/denoland/deno/releases/download/v{version}/deno-{triple}.zip'
-        shims.http_archive(
+        native.http_archive(
             name = f'{version}-{triple}',
             sha256 = sha256,
             type = 'zip',
@@ -33,7 +31,7 @@ def download_deno(version: str, hashes: list[(str, str)]):
             visibility = [],
         )
 
-    shims.alias(
+    native.alias(
         name = f'{version}.zip',
         actual = select({
             'config//cpu:arm64': select({
