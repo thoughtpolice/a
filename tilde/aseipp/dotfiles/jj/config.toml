@@ -282,8 +282,8 @@ jsonlog = ["log", "--no-graph", "-T", "ndjson"]
   if(has_change_id(commit.description()),
     "[" ++
     hyperlink(
-      config("gerrit.url").as_string() ++ "/q/" ++ gerrit_id(change_id),
-      "CR: " ++ gerrit_id(change_id, 10)
+      config("gerrit.url").as_string() ++ "/q/" ++ gerrit_id(commit.change_id()),
+      "CR: " ++ gerrit_id(commit.change_id(), 10)
     ) ++ "]"
   ),
   if(commit.git_head(), label("git_head", "git_head()")),
