@@ -1179,6 +1179,569 @@ buck2 test //src/app:tests -- --test-threads=1
 buck2 test //src/... 2>&1 | grep -A 10 FAILED
 ```
 
+### Local Resources Pattern
+
+Buck2 provides a **local resources** pattern for tests that depend on external processes or services (databases, HTTP servers, message queues, Unix sockets, etc.). This pattern uses **broker processes** that Buck2 starts automatically before running tests and cleans up afterward.
+
+#### Why Local Resources?
+
+Traditional testing approaches for service-dependent tests have limitations:
+
+**Problem scenarios**:
+- Integration tests need a database instance
+- Tests require an HTTP server to make requests against
+- Tests communicate via Unix domain sockets
+- Tests need message queues, cache servers, or other services
+
+**Traditional solutions (and their problems)**:
+- **System services**: Tests depend on system state (not hermetic)
+- **Docker containers**: Heavyweight, slow, require Docker daemon
+- **Manual setup scripts**: Easy to forget cleanup, leak processes
+- **Test fixtures in code**: Can't parallelize, port conflicts
+
+**Buck2's local resources solution**:
+- Buck2 manages the lifecycle (start, provide connection info, cleanup)
+- Each test gets isolated resource instances (parallel execution safe)
+- Hermetic (no system dependencies beyond the broker script)
+- Automatic cleanup (Buck2 kills broker processes after tests)
+- Environment variables pass connection info from broker to test
+
+#### Core Components
+
+The local resources pattern has three parts:
+
+**1. Broker Script**
+
+A shell script (or binary) that:
+- Starts the external service/process in the background
+- Outputs JSON to stdout with process info and connection details
+- Format: `{"pid": <process_id>, "resources": [{<key>: <value>, ...}]}`
+
+Example broker script (`start-server.sh`):
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Start HTTP server on random available port
+python3 -m http.server 0 &
+SERVER_PID=$!
+
+# Wait for server to start and get port
+sleep 0.5
+PORT=$(lsof -ti:8000 -sTCP:LISTEN | head -1)
+
+# Output JSON with PID and connection info
+echo "{\"pid\": $SERVER_PID, \"resources\": [{\"port\": \"$PORT\", \"url\": \"http://localhost:$PORT\"}]}"
+```
+
+**Key requirements**:
+- Process MUST run in background (`&` in bash)
+- Output MUST be valid JSON on stdout
+- JSON MUST include `pid` (for Buck2 to track and kill)
+- JSON MUST include `resources` array with connection details
+- Resource keys become available as environment variables
+
+**2. Broker Rule**
+
+A Buck2 rule that wraps the broker script and provides `LocalResourceInfo`:
+
+```starlark
+# In defs.bzl
+_http_broker = rule(
+    impl = lambda ctx: [
+        DefaultInfo(),
+        RunInfo(args = cmd_args(ctx.attrs._script[DefaultInfo].default_outputs[0])),
+        LocalResourceInfo(
+            setup = cmd_args(ctx.attrs._script[DefaultInfo].default_outputs[0]),
+            resource_env_vars = {
+                "HTTP_PORT": "port",      # Map JSON "port" → $HTTP_PORT env var
+                "HTTP_URL": "url",        # Map JSON "url" → $HTTP_URL env var
+            },
+        ),
+    ],
+    attrs = {
+        "_script": attrs.default_only(attrs.exec_dep(default = "//pkg:start-server"))
+    }
+)
+```
+
+**`LocalResourceInfo` provider**:
+- `setup`: Command to run (the broker script)
+- `resource_env_vars`: Dict mapping environment variable names to JSON keys
+  - Keys = environment variable names (what test sees)
+  - Values = JSON keys from broker output (what broker provides)
+  - Example: `{"HTTP_PORT": "port"}` means broker's `resources[0].port` → test's `$HTTP_PORT`
+
+**3. Test Rule**
+
+A Buck2 test that consumes the local resource:
+
+```starlark
+# In defs.bzl
+_http_test = rule(
+    impl = lambda ctx: [
+        DefaultInfo(),
+        RunInfo(args = cmd_args([ctx.attrs.script[DefaultInfo].default_outputs[0]])),
+        ExternalRunnerTestInfo(
+            type = "custom",
+            command = [cmd_args([ctx.attrs.script[DefaultInfo].default_outputs[0]])],
+            local_resources = {
+                'http': ctx.attrs.http_broker.label  # Name → broker target
+            },
+            required_local_resources = [
+                RequiredTestLocalResource("http", listing = False, execution = True),
+            ],
+        ),
+    ],
+    attrs = {
+        "script": attrs.source(),
+        "http_broker": attrs.exec_dep(providers = [LocalResourceInfo]),
+    }
+)
+```
+
+**`ExternalRunnerTestInfo` provider**:
+- `type`: Test type (usually `"custom"` for local resources)
+- `command`: The test command to run
+- `local_resources`: Dict mapping names to broker targets
+  - Keys = resource names (arbitrary, for reference)
+  - Values = broker target labels
+- `required_local_resources`: List of `RequiredTestLocalResource`
+  - First arg = resource name (must match key in `local_resources`)
+  - `listing`: Whether resource needed during `buck2 targets` (usually `False`)
+  - `execution`: Whether resource needed during test execution (usually `True`)
+
+#### Complete Example: HTTP Server Test
+
+Here's a complete working example:
+
+**Broker script** (`http-broker.sh`):
+```bash
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+set -euo pipefail
+
+TMPDIR=${TMPDIR:-/tmp}
+mkdir -p "$TMPDIR/http-test"
+echo "Hello from HTTP server" > "$TMPDIR/http-test/index.html"
+
+cd "$TMPDIR/http-test"
+python3 -m http.server 8888 > /dev/null 2>&1 &
+HTTP_PID=$!
+
+# Give server time to start
+sleep 0.5
+
+echo "{\"pid\": $HTTP_PID, \"resources\": [{\"port\": \"8888\", \"url\": \"http://localhost:8888\"}]}"
+```
+
+**Test script** (`http-test.sh`):
+```bash
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+set -euo pipefail
+
+# Environment variables provided by broker via resource_env_vars
+echo "Testing HTTP server at $HTTP_URL"
+
+# Make request to server
+RESPONSE=$(curl -s "$HTTP_URL/index.html")
+
+if [[ "$RESPONSE" == "Hello from HTTP server" ]]; then
+    echo "✓ HTTP test passed"
+    exit 0
+else
+    echo "✗ HTTP test failed: unexpected response"
+    echo "Expected: 'Hello from HTTP server'"
+    echo "Got: '$RESPONSE'"
+    exit 1
+fi
+```
+
+**Buck2 rules** (`defs.bzl`):
+```starlark
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Broker rule
+_http_broker_rule = rule(
+    impl = lambda ctx: [
+        DefaultInfo(),
+        RunInfo(args = cmd_args(ctx.attrs._script[DefaultInfo].default_outputs[0])),
+        LocalResourceInfo(
+            setup = cmd_args(ctx.attrs._script[DefaultInfo].default_outputs[0]),
+            resource_env_vars = {
+                "HTTP_PORT": "port",
+                "HTTP_URL": "url",
+            },
+        ),
+    ],
+    attrs = {
+        "_script": attrs.default_only(attrs.exec_dep(default = "//pkg:http-broker"))
+    }
+)
+
+# Test rule
+_http_test_rule = rule(
+    impl = lambda ctx: [
+        DefaultInfo(),
+        RunInfo(args = cmd_args([ctx.attrs.script[DefaultInfo].default_outputs[0]])),
+        ExternalRunnerTestInfo(
+            type = "custom",
+            command = [cmd_args([ctx.attrs.script[DefaultInfo].default_outputs[0]])],
+            local_resources = {
+                'http': ctx.attrs.http_broker.label
+            },
+            required_local_resources = [
+                RequiredTestLocalResource("http", listing = False, execution = True),
+            ],
+        ),
+    ],
+    attrs = {
+        "script": attrs.source(),
+        "http_broker": attrs.exec_dep(providers = [LocalResourceInfo]),
+    }
+)
+
+exports = struct(
+    http_broker = _http_broker_rule,
+    http_test = _http_test_rule,
+)
+```
+
+**BUILD file**:
+```starlark
+# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load(":defs.bzl", "exports")
+load("@root//buck/shims:shims.bzl", depot = "shims")
+
+# Export broker script
+depot.export_file(
+    name = "http-broker",
+    src = "http-broker.sh",
+)
+
+# Create broker target
+exports.http_broker(
+    name = "http-broker-resource",
+)
+
+# Create test target
+exports.http_test(
+    name = "http-test",
+    script = "http-test.sh",
+    http_broker = ":http-broker-resource",
+)
+```
+
+**Running the test**:
+```bash
+buck2 test //pkg:http-test
+```
+
+**What happens**:
+1. Buck2 identifies that `http-test` needs the `http-broker-resource`
+2. Buck2 runs `http-broker.sh`, which starts the HTTP server
+3. Broker outputs JSON: `{"pid": 12345, "resources": [{"port": "8888", "url": "http://localhost:8888"}]}`
+4. Buck2 parses JSON and sets environment variables based on `resource_env_vars`:
+   - `HTTP_PORT=8888`
+   - `HTTP_URL=http://localhost:8888`
+5. Buck2 runs `http-test.sh` with these environment variables
+6. Test script uses `$HTTP_URL` to make requests
+7. After test completes, Buck2 kills process 12345 (automatic cleanup)
+
+#### Multiple Resources Example
+
+Tests can depend on multiple local resources simultaneously:
+
+```starlark
+_multi_resource_test = rule(
+    impl = lambda ctx: [
+        DefaultInfo(),
+        RunInfo(args = cmd_args([ctx.attrs.script[DefaultInfo].default_outputs[0]])),
+        ExternalRunnerTestInfo(
+            type = "custom",
+            command = [cmd_args([ctx.attrs.script[DefaultInfo].default_outputs[0]])],
+            local_resources = {
+                'http': ctx.attrs.http_broker.label,
+                'db': ctx.attrs.db_broker.label,
+                'redis': ctx.attrs.redis_broker.label,
+            },
+            required_local_resources = [
+                RequiredTestLocalResource("http", listing = False, execution = True),
+                RequiredTestLocalResource("db", listing = False, execution = True),
+                RequiredTestLocalResource("redis", listing = False, execution = True),
+            ],
+        ),
+    ],
+    attrs = {
+        "script": attrs.source(),
+        "http_broker": attrs.exec_dep(providers = [LocalResourceInfo]),
+        "db_broker": attrs.exec_dep(providers = [LocalResourceInfo]),
+        "redis_broker": attrs.exec_dep(providers = [LocalResourceInfo]),
+    }
+)
+```
+
+The test script will have access to all environment variables from all brokers:
+```bash
+# From http broker
+echo "HTTP server at: $HTTP_URL"
+
+# From db broker
+echo "Database at: $DB_PATH"
+
+# From redis broker
+echo "Redis at: $REDIS_PORT"
+```
+
+#### Real-World Example: QEMU with TPM
+
+The `qemu-static` package demonstrates a sophisticated use of local resources:
+
+**Broker**: `buck/third-party/qemu-static/run-swtpm`
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+TMPDIR=${TMPDIR:-/tmp}
+mkdir -p "$TMPDIR/swtpm"
+swtpm socket --tpm2 \
+    --tpmstate dir=$TMPDIR \
+    --ctrl type=unixio,path=$TMPDIR/swtpm/socket \
+    --log file=$TMPDIR/swtpm/log,level=20 > /dev/null &
+TPM=$!
+
+echo "{\"pid\": $TPM, \"resources\": [{\"socket_path\": \"$TMPDIR/swtpm/socket\"}]}"
+```
+
+**Broker rule**: `buck/third-party/qemu-static/defs.bzl`
+```starlark
+_swtpm_cmd = rule(
+    impl = lambda ctx: [
+        DefaultInfo(),
+        RunInfo(args = cmd_args(ctx.attrs._script[DefaultInfo].default_outputs[0])),
+        LocalResourceInfo(
+            setup = cmd_args(ctx.attrs._script[DefaultInfo].default_outputs[0]),
+            resource_env_vars = {
+                "SWTPM_SOCKET": "socket_path"
+            },
+        ),
+    ],
+    attrs = {
+        "_script": attrs.default_only(attrs.exec_dep(default = "third-party//qemu-static:run-swtpm"))
+    }
+)
+```
+
+**Test (QEMU consuming the TPM)**: `buck/third-party/qemu-static/defs.bzl`
+```starlark
+_run_qemu_impl = lambda ctx: [
+    DefaultInfo(),
+    RunInfo(args = cmd_args(['/usr/bin/env', 'bash', '-c',
+        cmd_args([
+            'qemu-system-' + ctx.attrs.system,
+            '-nographic',
+            '-chardev', 'socket,id=swtpm,path="$SWTPM_SOCKET"',  # Uses env var
+            '-tpmdev emulator,id=tpm0,chardev=swtpm',
+            '-device', 'tpm-tis-device,tpmdev=tpm0',
+        ] + ctx.attrs.args, delimiter = " ")
+    ])),
+    ExternalRunnerTestInfo(
+        type = "custom",
+        command = [cmd_args([...])],
+        local_resources = {
+            'swtpm': ctx.attrs.swtpm_broker.label
+        },
+        required_local_resources = [
+            RequiredTestLocalResource("swtpm", listing = False, execution = True),
+        ],
+    ),
+]
+```
+
+This allows QEMU tests to use a software TPM without system dependencies.
+
+#### Common Patterns and Best Practices
+
+**1. Use `$TMPDIR` for isolation**
+
+Brokers should use temporary directories to avoid conflicts:
+```bash
+TMPDIR=${TMPDIR:-/tmp}
+WORKDIR="$TMPDIR/my-service-$$"  # $$ = process ID for uniqueness
+mkdir -p "$WORKDIR"
+```
+
+**2. Wait for services to be ready**
+
+Services often need time to start. Add health checks:
+```bash
+# Start service
+my_service &
+PID=$!
+
+# Wait for service to be ready
+for i in {1..30}; do
+    if lsof -ti:8000 >/dev/null 2>&1; then
+        break
+    fi
+    sleep 0.1
+done
+
+echo "{\"pid\": $PID, ...}"
+```
+
+**3. Handle port allocation**
+
+Use random/dynamic ports to avoid conflicts:
+```bash
+# Let OS assign random port
+python3 -m http.server 0 &  # Port 0 = random available port
+PID=$!
+
+# Discover assigned port
+sleep 0.2
+PORT=$(lsof -ti -sTCP:LISTEN -a -p $PID)
+
+echo "{\"pid\": $PID, \"resources\": [{\"port\": \"$PORT\"}]}"
+```
+
+**4. Use Unix sockets for simplicity**
+
+Unix domain sockets avoid port conflicts entirely:
+```bash
+SOCKET="$TMPDIR/my-service.sock"
+my_service --socket="$SOCKET" &
+PID=$!
+
+echo "{\"pid\": $PID, \"resources\": [{\"socket_path\": \"$SOCKET\"}]}"
+```
+
+**5. Cleanup is automatic**
+
+Buck2 kills broker processes (by PID) after tests complete. No manual cleanup needed.
+
+**6. Errors and debugging**
+
+If a broker fails:
+- Buck2 shows broker script output (stdout/stderr)
+- Check broker script runs standalone: `bash broker.sh`
+- Validate JSON output: `bash broker.sh | jq .`
+- Ensure process backgrounds correctly (`&`)
+- Check resource keys match `resource_env_vars`
+
+**7. Parallel test execution**
+
+Buck2 can run multiple tests in parallel. Each test gets its own broker instance, so resource isolation is critical:
+- Use unique temp directories
+- Use dynamic port allocation or Unix sockets
+- Avoid hardcoded paths/ports
+
+#### Troubleshooting
+
+**"Resource not available"**
+
+Cause: `local_resources` dict or `required_local_resources` list has mismatched names.
+
+Fix: Ensure names match exactly:
+```starlark
+local_resources = {
+    'myservice': ctx.attrs.broker.label,  # Name: 'myservice'
+},
+required_local_resources = [
+    RequiredTestLocalResource("myservice", ...),  # Must match
+],
+```
+
+**"Invalid JSON from broker"**
+
+Cause: Broker script outputs malformed JSON or extra output.
+
+Fix: Validate broker output:
+```bash
+bash broker.sh | jq .
+```
+
+Ensure ONLY JSON goes to stdout. Redirect logs to stderr or files:
+```bash
+my_service > /dev/null 2>&1 &  # Suppress service output
+echo "{\"pid\": $!, ...}"  # Only JSON to stdout
+```
+
+**"Environment variable not set"**
+
+Cause: Mismatch between JSON keys and `resource_env_vars`.
+
+Fix: Check mapping:
+- Broker outputs: `"resources": [{"my_key": "value"}]`
+- Rule must map: `resource_env_vars = {"MY_ENV_VAR": "my_key"}`
+- Test receives: `$MY_ENV_VAR=value`
+
+**"Process already running"**
+
+Cause: Previous test didn't clean up (Buck2 crashed or was killed).
+
+Fix: Manually kill processes:
+```bash
+# Find processes
+ps aux | grep my-service
+
+# Kill them
+pkill -f my-service
+```
+
+Prevent by ensuring broker uses unique temp directories.
+
+**"Port already in use"**
+
+Cause: Hardcoded ports conflict between parallel tests.
+
+Fix: Use dynamic port allocation (port 0) or Unix sockets.
+
+#### When to Use Local Resources
+
+**Good use cases**:
+- Integration tests needing databases (SQLite, PostgreSQL, Redis)
+- HTTP/REST API testing (start server, make requests)
+- Message queue testing (Kafka, RabbitMQ, NATS)
+- Unix socket communication testing
+- Service orchestration testing (multiple services interacting)
+- Tests requiring external processes (compilers, interpreters, tools)
+
+**Bad use cases**:
+- Simple unit tests (no external dependencies needed)
+- Tests that can use in-memory alternatives (use in-memory DB instead of PostgreSQL)
+- Heavy services (avoid Docker-in-Docker or VMs; too slow)
+- System-dependent services (breaks hermeticity)
+
+**Alternatives**:
+- **Unit tests**: Test logic without external services
+- **Mocking**: Use test doubles instead of real services
+- **In-memory**: Use in-memory databases/queues when possible
+- **Command tests**: Use `depot.command_test()` for simple command execution
+
+#### Summary
+
+The local resources pattern enables hermetic, parallelizable integration tests by having Buck2 manage service lifecycles. Key points:
+
+1. **Broker script**: Starts service, outputs JSON with PID and connection info
+2. **Broker rule**: Wraps script with `LocalResourceInfo`, maps JSON → env vars
+3. **Test rule**: Uses `ExternalRunnerTestInfo` to declare resource dependencies
+4. **Execution**: Buck2 starts brokers, sets env vars, runs tests, cleans up
+5. **Isolation**: Each test gets its own broker instance (parallel-safe)
+6. **Hermeticity**: No system dependencies, reproducible, cacheable
+
+For examples, see:
+- `buck/third-party/qemu-static/` - QEMU with TPM emulator
+- `buck/tests/local-resources/` - Example tests (HTTP, sockets, multi-resource)
+
 ### Running Binaries
 
 ```bash
