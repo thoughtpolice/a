@@ -3444,10 +3444,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe-0.9.1",
-    srcs = [":dupe-0.9.1.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe",
-    crate_root = "dupe-0.9.1.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe/src/lib.rs",
+    edition = "2024",
     visibility = [],
     deps = [":dupe_derive-0.9.1"],
 )
@@ -3468,10 +3468,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe_derive-0.9.1",
-    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
+    srcs = [":dupe_derive-0.9.1.crate"],
     crate = "dupe_derive",
-    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe_derive/src/lib.rs",
-    edition = "2024",
+    crate_root = "dupe_derive-0.9.1.crate/src/lib.rs",
+    edition = "2021",
     proc_macro = True,
     visibility = [],
     deps = [
@@ -12724,6 +12724,12 @@ third_party_rust.buildscript_run(
     version = "1.0.26",
 )
 
+shims.alias(
+    name = "serde",
+    actual = ":serde-1.0.219",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "serde-1.0.219.crate",
     sha256 = "5f0e2c6ed6606019b4e29e69dbaba95b11854410e5347d525002456dbbb786b6",
@@ -12833,6 +12839,12 @@ third_party_rust.rust_library(
         ":quote-1.0.40",
         ":syn-2.0.104",
     ],
+)
+
+shims.alias(
+    name = "serde_json",
+    actual = ":serde_json-1.0.141",
+    visibility = ["PUBLIC"],
 )
 
 shims.http_archive(

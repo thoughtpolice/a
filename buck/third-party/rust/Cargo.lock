@@ -4901,6 +4901,8 @@ dependencies = [
  "rand 0.8.5",
  "ratatui",
  "salsa",
+ "serde",
+ "serde_json",
  "starlark",
  "starlark_derive",
  "thiserror 2.0.12",
