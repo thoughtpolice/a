@@ -36,6 +36,7 @@ figleter = "0.2.2"
 fjall = { version = "2.9.0", default_features = false, features = [
     "single_writer_tx",
 ] }
+flate2 = "1.0"
 futures = "0.3.31"
 gix = { version = "0.72.1", default-features = false, features = [
     "attributes",
@@ -52,9 +53,12 @@ notify-debouncer-mini = { version = "0.6.0", features = ["crossbeam-channel"] }
 openssl = "0.10.73"
 rand = "0.8.5"
 ratatui = "0.29.0"
+reqwest = { version = "0.12.24", features = ["blocking", "json"] }
 salsa = "0.22.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+sha2 = "0.10"
+tar = "0.4"
 thiserror = "2.0.12"
 tuirealm = { version = "3.0.1", features = ["derive", "serialize", "crossterm"] }
 tui-realm-stdlib = "3.0"
