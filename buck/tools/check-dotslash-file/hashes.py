@@ -193,8 +193,17 @@ def check_dotslash_file(file_path: Path) -> bool:
 
 
 def main():
-    """Check all dotslash files in buck/bin directory"""
+    """Check a single dotslash file specified as command-line argument"""
 
+    if len(sys.argv) != 2:
+        print("Usage: hashes.py <dotslash-file-path>")
+        print("Example: hashes.py buck/bin/buck2")
+        return 1
+
+    # Get the file path from command line - can be relative or absolute
+    file_path_arg = sys.argv[1]
+
+    # Find repository root
     current_dir = Path(__file__).parent
     repo_root = current_dir
     while repo_root != repo_root.parent:
@@ -205,49 +214,35 @@ def main():
         print("ERROR: Could not find repository root (no .buckroot found)")
         return 1
 
-    buck_bin_dir = repo_root / "buck" / "bin"
-    buck_bin_extra_dir = repo_root / "buck" / "bin" / "extra"
+    # Resolve the file path (support both relative to repo root and absolute paths)
+    file_path = Path(file_path_arg)
+    if not file_path.is_absolute():
+        file_path = repo_root / file_path
 
-    dotslash_files = []
-
-    for directory in [buck_bin_dir, buck_bin_extra_dir]:
-        if not directory.exists():
-            continue
-
-        for item in directory.iterdir():
-            if (
-                item.is_file()
-                and item.name not in ["BUILD", "PACKAGE"]
-                and not item.name.endswith(".exe")
-            ):
-                try:
-                    first_line = item.read_text().split('\n')[0]
-                    if "dotslash" in first_line:
-                        dotslash_files.append(item)
-                except:
-                    pass
-
-    if not dotslash_files:
-        print("No dotslash files found to check")
-        return 0
-
-    print(f"Found {len(dotslash_files)} dotslash files to verify")
-    print()
-
-    failed_files = []
-
-    for dotslash_file in sorted(dotslash_files):
-        if not check_dotslash_file(dotslash_file):
-            failed_files.append(dotslash_file.name)
-        print()
-
-    if failed_files:
-        print(f"{len(failed_files)} files failed verification:")
-        for failed_file in failed_files:
-            print(f"  - {failed_file}")
+    # Verify the file exists
+    if not file_path.exists():
+        print(f"ERROR: File not found: {file_path}")
         return 1
 
-    print(f"All {len(dotslash_files)} dotslash files passed verification!")
+    if not file_path.is_file():
+        print(f"ERROR: Not a file: {file_path}")
+        return 1
+
+    # Verify it's a dotslash file
+    try:
+        first_line = file_path.read_text().split('\n')[0]
+        if "dotslash" not in first_line:
+            print(f"ERROR: {file_path.name} does not appear to be a dotslash file")
+            print(f"       First line: {first_line}")
+            return 1
+    except Exception as e:
+        print(f"ERROR: Failed to read {file_path}: {e}")
+        return 1
+
+    # Check the file
+    if not check_dotslash_file(file_path):
+        return 1
+
     return 0
 
 
