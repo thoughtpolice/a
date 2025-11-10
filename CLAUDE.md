@@ -116,7 +116,7 @@ You SHOULD NOT add any additional tests to the CI system that can reasonably be 
 
 There are many files in this repository that are "DotSlash" files. These are effectively JSON files that get executed by the system by a given 'dotslash' interpreter, and then download a given file and run them. See <https://dotslash-cli.com> for more information.
 
-Almost all dotslash files are under ./buck/bin and ./buck/bin/extra -- in the event you need to (or are asked to) update these files, YOU MUST always run the test `depot//buck/tests/dotslash-check` afterwords, which will validate the dotslash files are updated correctly and work on all platforms.
+Almost all dotslash files are under ./buck/bin -- in the event you need to (or are asked to) update these files, YOU MUST always run the tests via `depot//buck/bin:tests` afterwards, which will validate the dotslash files are updated correctly and work on all platforms.
 
 ## Custom memory entries for Claude follow:
 
