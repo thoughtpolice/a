@@ -277,7 +277,7 @@ mod tests {
 
     #[test]
     fn ok_usable_size() {
-        extern "C" {
+        unsafe extern "C" {
             // not used elsewhere, so scope it here to the tests to avoid
             // spurious dead_code warnings
             fn mi_usable_size(p: *const c_void) -> usize;
