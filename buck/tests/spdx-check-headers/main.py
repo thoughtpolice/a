@@ -30,6 +30,7 @@ BAD_DIRECTORY_COMPONENTS = [
 
 BAD_PREFIXES = [
     # dev files
+    ".watchmanconfig",
     ".envrc",
     # buck stuff: fixups, etc
     "buck/third-party/",

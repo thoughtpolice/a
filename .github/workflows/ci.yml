@@ -68,6 +68,10 @@ jobs:
       - name: buck2 test ...
         shell: bash
         run: |
+          # don't use watchman in CI, it's pointless
+          echo '[buck2]' >> .buckconfig.local
+          echo 'file_watcher = notify' >> .buckconfig.local
+
           # Retry function: attempts a command up to 5 times with exponential backoff
           retry_command() {
             local max_attempts=5

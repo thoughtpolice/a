@@ -17,6 +17,8 @@ fbcode = none
 fbsource = none
 
 [buck2]
+file_watcher = watchman
+
 # 'buck2 test' should also build anything matching given target patterns
 test_builds_targets = true
 
@@ -75,4 +77,5 @@ ignore = \
   .git, \
   .direnv, \
   .watchman-cookie**, \
-  .gdb_history**
+  .gdb_history**, \
+  **.bck
