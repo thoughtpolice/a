@@ -6,7 +6,8 @@
     "ignore_dirs": [
         "buck-out",
         ".direnv",
-        "buck/nix/setup/target"
+        "buck/nix/setup/target",
+        "work"
     ],
     "ignore_vcs": [
         ".git",
