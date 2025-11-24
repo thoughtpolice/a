@@ -86,6 +86,9 @@ def go_library(**_kwargs):
 def http_archive(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.http_archive() instead')
 
+def http_file(**_kwargs):
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.http_file() instead')
+
 def git_fetch(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.git_fetch() instead')
 
