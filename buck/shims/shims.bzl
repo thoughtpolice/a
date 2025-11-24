@@ -4,8 +4,8 @@
 load("@prelude//utils:buckconfig.bzl", "read_choice")
 load("@prelude//cfg/modifier:conditional_modifier.bzl", "conditional_modifier")
 
-load("@root//buck/lib/tar:defs.bzl", "tar_file")
-load("@root//buck/lib/oci:defs.bzl", "oci_image", "oci_pull", "oci_push")
+load("@root//buck/lib/tar:defs.bzl", _tar_file = "tar_file")
+load("@root//buck/lib/oci:defs.bzl", _oci_image = "oci_image", _oci_index = "oci_index", _oci_pull = "oci_pull", _oci_repack = "oci_repack", _oci_unpack = "oci_unpack")
 load("@toolchains//golang:defs.bzl", "go_binary", "go_library")
 load("@toolchains//k6:defs.bzl", "k6_run")
 load("@toolchains//uv:defs.bzl", _uv_impl = "uv")
@@ -413,11 +413,13 @@ shims = struct(
     cxx_binary = _depot_cxx_binary,
     cxx_genrule = _depot_cxx_genrule,
 
-    tar_file = tar_file,
+    tar_file = lambda **kwargs: _tar_file(**_fix_kwargs("tar_file", kwargs)),
     oci = struct(
-        pull = oci_pull,
-        push = oci_push,
-        image = oci_image,
+        pull = lambda **kwargs: _oci_pull(**_fix_kwargs("oci_pull", kwargs)),
+        image = lambda **kwargs: _oci_image(**_fix_kwargs("oci_image", kwargs)),
+        unpack = lambda **kwargs: _oci_unpack(**_fix_kwargs("oci_unpack", kwargs)),
+        repack = lambda **kwargs: _oci_repack(**_fix_kwargs("oci_repack", kwargs)),
+        index = lambda **kwargs: _oci_index(**_fix_kwargs("oci_index", kwargs)),
     ),
 
     uv = struct(

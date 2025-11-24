@@ -25,6 +25,10 @@ def _tar_file_impl(ctx: AnalysisContext) -> list[Provider]:
         hidden = srcs,
     )
 
+    # Add prefix if specified
+    if ctx.attrs.prefix:
+        cmd.add(["--prefix", ctx.attrs.prefix])
+
     ctx.actions.run(cmd, category = "tar")
 
     return [DefaultInfo(default_output = tar_file)]
@@ -35,6 +39,11 @@ tar_file = rule(
         "compress": attrs.bool(default = False),
         "srcs": attrs.list(attrs.source()),
         "out": attrs.option(attrs.string(), default = None),
+        "prefix": attrs.option(
+            attrs.string(),
+            default = None,
+            doc = "Directory prefix to add to all files in the tar (e.g., 'usr/local/bin')",
+        ),
         "_tar_toolchain": attrs.toolchain_dep(
             default = "toolchains//:tar",
             providers = [TarToolchainInfo],

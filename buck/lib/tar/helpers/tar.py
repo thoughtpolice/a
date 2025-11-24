@@ -6,12 +6,22 @@ import tarfile
 import os
 import sys
 
-def create_tar(paths, compress, filename):
+def create_tar(paths, compress, filename, prefix=None):
     with tarfile.open(filename, "w:gz" if compress == "true" else "w") as tar:
         for path in paths:
             if not os.path.exists(path):
                 raise FileNotFoundError(f"Path not found: {path}")
-            tar.add(path, arcname=os.path.basename(path))
+
+            # Determine the archive name
+            basename = os.path.basename(path)
+            if prefix:
+                # Ensure prefix doesn't have leading/trailing slashes
+                prefix_clean = prefix.strip("/")
+                arcname = f"{prefix_clean}/{basename}" if prefix_clean else basename
+            else:
+                arcname = basename
+
+            tar.add(path, arcname=arcname)
 
 def read_paths(file_path):
     try:
@@ -34,12 +44,17 @@ if __name__ == "__main__":
         help="Path to the file containing paths to include in the tar file",
     )
     parser.add_argument("--filename", required=True, help="Name of the tar file")
+    parser.add_argument(
+        "--prefix",
+        default=None,
+        help="Directory prefix to add to all files (e.g., 'usr/local/bin')",
+    )
     args = parser.parse_args()
 
     paths = read_paths(args.file_path)
 
     try:
-        create_tar(paths, args.compress, args.filename)
+        create_tar(paths, args.compress, args.filename, prefix=args.prefix)
     except FileNotFoundError as e:
         print(e, file=sys.stderr)
         sys.exit(1)

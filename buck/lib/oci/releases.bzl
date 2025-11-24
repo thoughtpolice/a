@@ -1,21 +1,34 @@
-# SPDX-FileCopyrightText: © 2024-2025 Benjamin Brittain
+# SPDX-FileCopyrightText: © 2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-releases = {
-    "0.19.1": {
-        "Darwin-arm64": {
-            "url": "https://github.com/google/go-containerregistry/releases/download/v0.19.1/go-containerregistry_Darwin_arm64.tar.gz",
-            "sha256": "19b95d9e5354131a2e5a8cfeefdf915123a2ee2b8e2f9c9070c8fa8c062f8c1d",
-        },
+# OCI tool releases: skopeo for registry operations, umoci for image manipulation
+
+skopeo_releases = {
+    "1.20.0": {
         "Linux-x86_64": {
-            "url": "https://github.com/google/go-containerregistry/releases/download/v0.19.1/go-containerregistry_Linux_x86_64.tar.gz",
-            "sha256": "5f2b43c32a901adaaabaa78755d56cea71183954de7547cb4c4bc64b9ac6b2ff",
+            "url": "https://github.com/lework/skopeo-binary/releases/download/v1.20.0/skopeo-linux-amd64",
+            "sha256": "e5d3f410839313c0b28ef4659643146dad88653fc831aa15adf705421fa06fc0",
+        },
+        "Linux-arm64": {
+            "url": "https://github.com/lework/skopeo-binary/releases/download/v1.20.0/skopeo-linux-arm64",
+            "sha256": "c53670037b0a861ffaae1ce11baaca511d0722e4b537ab11c19a04660d8e6021",
+        },
+        "Darwin-arm64": {
+            "url": "https://github.com/lework/skopeo-binary/releases/download/v1.20.0/skopeo-darwin-arm64",
+            "sha256": "c55f8277e36fa5def1fe6c266640033237571aff2c5f15d7847d6ac55b7910da",
         },
     },
-    "0.19.0": {
-        "Darwin-arm64": {
-            "url": "https://github.com/google/go-containerregistry/releases/download/v0.19.0/go-containerregistry_Darwin_arm64.tar.gz",
-            "sha256": "0d34767cebd3c2e2e3e227ba301bd867f951ebd85b6079aca93b326152ff667f",
+}
+
+umoci_releases = {
+    "0.6.0": {
+        "Linux-x86_64": {
+            "url": "https://github.com/opencontainers/umoci/releases/download/v0.6.0/umoci.linux.amd64",
+            "sha256": "b51c267ec394499e42c6fde47f240b7b7dba57ea49df0b5acd304378b82a3b71",
+        },
+        "Linux-arm64": {
+            "url": "https://github.com/opencontainers/umoci/releases/download/v0.6.0/umoci.linux.arm64",
+            "sha256": "5cfd17f2e7a4bcf9ed67ea1b955ca893d200349b9ce6a3d3707dba415f458a1f",
         },
     },
 }

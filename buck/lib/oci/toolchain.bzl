@@ -1,43 +1,21 @@
-# SPDX-FileCopyrightText: © 2024-2025 Benjamin Brittain
+# SPDX-FileCopyrightText: © 2025 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load(
-    "@prelude//:rules.bzl",
-    "http_archive",
-)
-load(
-    ":releases.bzl",
-    crane_releases = "releases",
-)
+load("@prelude//:rules.bzl", "http_file")
+load(":versions.json", versions_data = "value")
 
-CraneReleaseInfo = provider(
-    fields = {
-        "version": provider_field(typing.Any, default = None),
-        "url": provider_field(typing.Any, default = None),
-        "sha256": provider_field(typing.Any, default = None),
-    },
-)
-
-def _get_crane_release(version: str, platform: str) -> CraneReleaseInfo:
-    if version not in crane_releases:
-        fail("Unsupported crane version: {}".format(version))
-    if platform not in crane_releases[version]:
-        fail("Unsupported crane platform: {}".format(platform))
-
-    return CraneReleaseInfo(
-        version = version,
-        url = crane_releases[version][platform]["url"],
-        sha256 = crane_releases[version][platform]["sha256"],
-    )
+# Extract release data from JSON
+skopeo_releases = versions_data["skopeo"]["releases"]
+umoci_releases = versions_data["umoci"]["releases"]
 
 def _host_arch() -> str:
     arch = host_info().arch
     if arch.is_x86_64:
         return "x86_64"
-    elif host_info().arch.is_aarch64:
+    elif arch.is_aarch64:
         return "arm64"
     else:
-        fail("Unsupported host architecture.")
+        fail("Unsupported host architecture: {}".format(arch))
 
 def _host_os() -> str:
     os = host_info().os
@@ -45,87 +23,151 @@ def _host_os() -> str:
         return "Linux"
     elif os.is_macos:
         return "Darwin"
-    elif os.is_windows:
-        return "Windows"
     else:
-        fail("Unsupported host os.")
+        fail("Unsupported host OS: {}".format(os))
 
-CraneInfo = provider(
-    fields = {
-        "version": provider_field(typing.Any, default = None),
-        "arch": provider_field(typing.Any, default = None),
-        "os": provider_field(typing.Any, default = None),
-    },
-)
+def _get_platform_key(os: str, arch: str) -> str:
+    return "{}-{}".format(os, arch)
 
-def _crane_binary_impl(ctx: AnalysisContext) -> list[Provider]:
-    dst = ctx.actions.declare_output("crane")
+def _get_release(releases: dict, version: str, platform: str):
+    if version not in releases:
+        fail("Unsupported version: {}".format(version))
+    if platform not in releases[version]:
+        fail("Unsupported platform {} for version {}".format(platform, version))
+    return releases[version][platform]
+
+# Binary wrapper rules
+def _skopeo_binary_impl(ctx: AnalysisContext) -> list[Provider]:
+    """Makes skopeo binary executable and provides RunInfo"""
+    output = ctx.actions.declare_output("skopeo")
     src = ctx.attrs.bin[DefaultInfo].default_outputs[0]
-    ctx.actions.run(["cp", cmd_args(src, format = "{}/crane"), dst.as_output()], category = "cp_crane")
 
-    crane = cmd_args([dst], hidden = ctx.attrs.bin[DefaultInfo].default_outputs + ctx.attrs.bin[DefaultInfo].other_outputs)
+    # Copy and make executable
+    ctx.actions.run(
+        ["cp", src, output.as_output()],
+        category = "cp_skopeo",
+    )
+
+    skopeo_cmd = cmd_args(output, hidden = src)
 
     return [
-        ctx.attrs.bin[DefaultInfo],
-        RunInfo(args = crane),
-        CraneInfo(
-            version = ctx.attrs.version,
-            arch = ctx.attrs.arch,
-            os = ctx.attrs.os,
-        ),
+        DefaultInfo(default_output = output),
+        RunInfo(args = skopeo_cmd),
     ]
 
-crane_binary = rule(
-    impl = _crane_binary_impl,
+skopeo_binary = rule(
+    impl = _skopeo_binary_impl,
     attrs = {
-        "version": attrs.string(),
-        "arch": attrs.string(),
-        "os": attrs.string(),
         "bin": attrs.dep(providers = [DefaultInfo]),
     },
 )
 
-def download_crane_binary(
+def _umoci_binary_impl(ctx: AnalysisContext) -> list[Provider]:
+    """Makes umoci binary executable and provides RunInfo"""
+    output = ctx.actions.declare_output("umoci")
+    src = ctx.attrs.bin[DefaultInfo].default_outputs[0]
+
+    # Copy and make executable
+    ctx.actions.run(
+        ["cp", src, output.as_output()],
+        category = "cp_umoci",
+    )
+
+    umoci_cmd = cmd_args(output, hidden = src)
+
+    return [
+        DefaultInfo(default_output = output),
+        RunInfo(args = umoci_cmd),
+    ]
+
+umoci_binary = rule(
+    impl = _umoci_binary_impl,
+    attrs = {
+        "bin": attrs.dep(providers = [DefaultInfo]),
+    },
+)
+
+# Download helpers
+def download_skopeo(
         name: str,
-        version: str,
+        version: [None, str] = None,
         arch: [None, str] = None,
         os: [None, str] = None):
+    """Download skopeo binary for the current platform"""
+    if version == None:
+        version = versions_data["skopeo"]["default_version"]
     if arch == None:
         arch = _host_arch()
     if os == None:
         os = _host_os()
 
-    archive_name = "go_containerregistry_{}_{}.tar.gz".format(os, arch)
-    release = _get_crane_release(version, "{}-{}".format(os, arch))
-    http_archive(
-        name = archive_name,
-        urls = [release.url],
-        sha256 = release.sha256,
-    )
-    crane_binary(
-        name = name,
-        version = version,
-        arch = arch,
-        os = os,
-        bin = ":{}".format(archive_name),
+    platform = _get_platform_key(os, arch)
+    release = _get_release(skopeo_releases, version, platform)
+
+    http_file(
+        name = "{}_download".format(name),
+        urls = [release["url"]],
+        sha256 = release["sha256"],
+        executable = True,
     )
 
-OciToolchainInfo = provider(fields = {
-    "crane": typing.Any,
-})
+    skopeo_binary(
+        name = name,
+        bin = ":{}_download".format(name),
+    )
+
+def download_umoci(
+        name: str,
+        version: [None, str] = None,
+        arch: [None, str] = None,
+        os: [None, str] = None):
+    """Download umoci binary for the current platform"""
+    if version == None:
+        version = versions_data["umoci"]["default_version"]
+    if arch == None:
+        arch = _host_arch()
+    if os == None:
+        os = _host_os()
+
+    platform = _get_platform_key(os, arch)
+    release = _get_release(umoci_releases, version, platform)
+
+    http_file(
+        name = "{}_download".format(name),
+        urls = [release["url"]],
+        sha256 = release["sha256"],
+        executable = True,
+    )
+
+    umoci_binary(
+        name = name,
+        bin = ":{}_download".format(name),
+    )
+
+# Toolchain provider
+OciToolchainInfo = provider(
+    doc = "OCI toolchain providing skopeo and umoci",
+    fields = {
+        "skopeo": provider_field(typing.Any, default = None),
+        "umoci": provider_field(typing.Any, default = None),
+    },
+)
 
 def _oci_toolchain_impl(ctx) -> list[[DefaultInfo, OciToolchainInfo]]:
+    """OCI toolchain implementation"""
     return [
         DefaultInfo(),
         OciToolchainInfo(
-            crane = ctx.attrs.crane,
+            skopeo = ctx.attrs.skopeo,
+            umoci = ctx.attrs.umoci,
         ),
     ]
 
 oci_toolchain = rule(
     impl = _oci_toolchain_impl,
     attrs = {
-        "crane": attrs.exec_dep(providers = [RunInfo]),
+        "skopeo": attrs.exec_dep(providers = [RunInfo]),
+        "umoci": attrs.exec_dep(providers = [RunInfo]),
     },
     is_toolchain_rule = True,
 )
