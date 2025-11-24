@@ -3,13 +3,31 @@
 
 import { walk } from "@std/fs/walk";
 
-import { runYosys, Tree } from "@yowasp/yosys";
-import { runEcppack, runNextpnrEcp5 } from "@yowasp/nextpnr-ecp5";
-
 import { Command, EnumType } from "@cliffy/command";
+
+import { runYosys } from "@yowasp/yosys";
+import { runEcppack, runNextpnrEcp5 } from "@yowasp/nextpnr-ecp5";
 
 // -------------------------------------------------------------------------------------------------
 
+/* Dump an object to stdout via `Deno.inspect` */
+const barf = (obj: unknown, colors = true) =>
+  console.log(
+    Deno.inspect(obj, {
+      breakLength: 140,
+      colors: colors,
+      depth: Infinity,
+      strAbbreviateSize: Infinity,
+    }),
+  );
+
+/* This is the one type we need from @yowasp/runtime and it's exposed from all packages, so
+ * just to keep one canonical definition, we'll put it here. */
+type Tree = {
+  [name: string]: Tree | string | Uint8Array;
+};
+
+/* Walk a directory path and create a `Tree` from it. */
 export async function walkDirectoryForTree(path: string): Promise<Tree> {
   const files: Tree = {};
   const dirpath = path + (path.endsWith("/") ? "" : "/");
@@ -32,33 +50,27 @@ export async function walkDirectoryForTree(path: string): Promise<Tree> {
   return files;
 }
 
-export function yowaspPrintLine(line: string) {
-  if (Deno.env.get("YOWASP_VERBOSE") === "1") {
-    console.log(line);
-  }
+/* Preload all @yowasp/runtime-based toolchain assets. This should be called around startup to
+ * properly measure timings. */
+export async function preloadAllToolchains(): Promise<void> {
+  // deno-lint-ignore no-explicit-any
+  const fetchProgress = (_: any) => {};
+  await runYosys(undefined, undefined, { fetchProgress });
+  await runNextpnrEcp5(undefined, undefined, { fetchProgress });
+  await runEcppack(undefined, undefined, { fetchProgress });
 }
-
-export const barf = (d: unknown, colors = true) =>
-  console.log(
-    Deno.inspect(d, {
-      breakLength: 140,
-      colors: colors,
-      depth: Infinity,
-      strAbbreviateSize: Infinity,
-    }),
-  );
 
 // -------------------------------------------------------------------------------------------------
 
-const verbose = Deno.env.get("YOWASP_VERBOSE") === "1";
-const outputStreams = {
+/* Default settings for all @yowasp/runtime based toolchains */
+const defaultYowaspSettings = {
   stdout: (data: Uint8Array | null) => {
-    if (verbose && data !== null) {
+    if (Deno.env.get("YOWASP_VERBOSE") === "1" && data !== null) {
       Deno.stdout.writeSync(data);
     }
   },
   stderr: (data: Uint8Array | null) => {
-    if (verbose && data !== null) {
+    if (Deno.env.get("YOWASP_VERBOSE") === "1" && data !== null) {
       Deno.stderr.writeSync(data);
     }
   },
@@ -69,14 +81,7 @@ const outputStreams = {
 export async function synthesis(
   inputTree: Tree,
 ): Promise<Tree> {
-  const result = await runYosys(
-    [
-      "synth.ys",
-    ],
-    inputTree,
-    outputStreams,
-  );
-
+  const result = await runYosys(["synth.ys"], inputTree, defaultYowaspSettings);
   if (result == undefined) {
     throw new Error("Yosys failed to generate a result");
   }
@@ -129,12 +134,6 @@ export function parseTimingReport(input: string): Report {
   };
 }
 
-// pnr options. router can be router1 or router2. placer can be heap or sa or static
-type PnrOptions = {
-  router: "router1" | "router2";
-  placer: "heap" | "sa" | "static";
-};
-
 export function cleanReportUtilization(
   report: Utilization,
 ): Utilization {
@@ -147,6 +146,12 @@ export function cleanReportUtilization(
   }
   return util;
 }
+
+// pnr options. router can be router1 or router2. placer can be heap or sa or static
+type PnrOptions = {
+  router: "router1" | "router2";
+  placer: "heap" | "sa" | "static";
+};
 
 export async function placeAndRoute(
   inputTree: Tree,
@@ -163,7 +168,7 @@ export async function placeAndRoute(
       "--textcfg",
       "design.pnr.config",
       "--report",
-      "design.report.json",
+      "design.pnr-report.json",
       "--85k",
       "--package",
       "CABGA381",
@@ -173,7 +178,7 @@ export async function placeAndRoute(
       placer,
     ],
     inputTree,
-    outputStreams,
+    defaultYowaspSettings,
   );
 
   // bail if tree is undefined
@@ -181,7 +186,7 @@ export async function placeAndRoute(
     throw new Error("Place and route failed, tree is undefined");
   }
 
-  return [tree, parseTimingReport(tree["design.report.json"] as string)];
+  return [tree, parseTimingReport(tree["design.pnr-report.json"] as string)];
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -195,7 +200,7 @@ export async function packBitstream(inputTree: Tree): Promise<Uint8Array> {
       "output.bit",
     ],
     inputTree,
-    outputStreams,
+    defaultYowaspSettings,
   );
 
   // bail if tree is undefined
@@ -244,16 +249,10 @@ async function main() {
         Deno.exit(1);
       }
 
-      // deno-lint-ignore no-explicit-any
-      const fetchProgress = (_: any) => {};
-
       console.time("preloading assets");
-      await runYosys(undefined, undefined, { fetchProgress });
-      await runNextpnrEcp5(undefined, undefined, { fetchProgress });
-      await runEcppack(undefined, undefined, { fetchProgress });
+      await preloadAllToolchains();
       console.timeEnd("preloading assets");
 
-      const bitstreamOutfile = args[1] ?? "out.bit";
       const inputTree = await walkDirectoryForTree(dir);
 
       console.time("synthesis time");
@@ -278,7 +277,7 @@ async function main() {
       console.time("writing bitstream");
       const bitstream = await packBitstream(pnrTree);
       await Deno.writeFile(
-        bitstreamOutfile,
+        args[1] ?? "out.bit",
         bitstream,
       );
       console.timeEnd("writing bitstream");
