@@ -628,14 +628,15 @@ const cxxrtl = new Command()
     console.log("✓ Yosys synthesis");
 
     console.log("Running Clang++...");
-    const _finalTree = await builder.llvm("clang++", cxxTree, [
+    const finalTree = await builder.llvm("clang++", cxxTree, [
       "-O3",
-      "-c",
+      "-fno-exceptions",
       "-I.",
-      "--output=out/main.o",
+      "--output=out/sim.exe",
       "main.cpp",
     ]);
     console.log("✓ Clang++ compilation");
+    await util.writeTreeToDirectory(finalTree, "/tmp/rtlcc-test");
 
     builder.terminate();
     console.log("Done!");
