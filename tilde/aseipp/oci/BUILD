@@ -30,12 +30,12 @@ depot.oci.pull(
   name = "distroless",
   image = "gcr.io/distroless/cc-debian12",
   digest = "sha256:388145607c79313a1e49b783a7ee71e4ef3df31d87c45adb46bfb9b257b643d1",
-  platforms = ["linux/amd64"],
+  platform = "linux/amd64",
 ) if ENABLED else None
 
 depot.oci.image(
   name = "oci-image",
   base = ":distroless",
-  tars = [":app"],
+  layers = [":app"],
   entrypoint = ["./hello"],
 ) if ENABLED else None

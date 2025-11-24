@@ -12,6 +12,7 @@ third_party_meta([
     'liburing',
     'libz',
     'mimalloc',
+    'oci-images',
     'qemu-static',
     'quickjs-ng',
     'rust',

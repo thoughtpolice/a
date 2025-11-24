@@ -6,7 +6,6 @@ load("@prelude//tests:test_toolchain.bzl", "noop_test_toolchain")
 load(
     "@prelude//toolchains:remote_test_execution.bzl", "remote_test_execution_toolchain"
 )
-load("@depot//buck/lib/tar:toolchain.bzl", "tar_toolchain")
 
 shims.toolchain_alias(
     name="genrule",
@@ -51,6 +50,9 @@ shims.toolchain_alias(
 shims.toolchain_alias(
     name="oci",
     actual="toolchains//oci:oci",
+    target_compatible_with = [
+        "config//os:linux",
+    ],
 )
 
 shims.toolchain_alias(
@@ -68,9 +70,9 @@ shims.toolchain_alias(
     actual="toolchains//zuo:zuo",
 )
 
-tar_toolchain(
+shims.toolchain_alias(
     name="tar",
-    visibility=["PUBLIC"],
+    actual="toolchains//tar:tar",
 )
 
 remote_test_execution_toolchain(
