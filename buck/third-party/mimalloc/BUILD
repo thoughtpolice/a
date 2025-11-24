@@ -57,6 +57,19 @@ shims.http_archive(
 
 # MARK: C/C++ library
 
+EXPORTED_HEADERS = {
+    "mimalloc.h": ":src[include/mimalloc.h]",
+    "mimalloc-override.h": ":src[include/mimalloc-override.h]",
+    "mimalloc/internal.h": ":src[include/mimalloc/internal.h]",
+    "mimalloc/prim.h": ":src[include/mimalloc/prim.h]",
+    "mimalloc/types.h": ":src[include/mimalloc/types.h]",
+    "mimalloc/track.h": ":src[include/mimalloc/track.h]",
+    "mimalloc/atomic.h": ":src[include/mimalloc/atomic.h]",
+    "mimalloc/bits.h": ":src[include/mimalloc/bits.h]",
+    "mimalloc-new-delete.h": ":src[include/mimalloc-new-delete.h]",
+    "mimalloc-stats.h": ":src[include/mimalloc-stats.h]",
+}
+
 shims.cxx_library(
     name="mimalloc",
     srcs=[
@@ -94,18 +107,7 @@ shims.cxx_library(
         "-DMI_STAT=2",
     ],
     header_namespace="",
-    exported_headers={
-        "mimalloc.h": ":src[include/mimalloc.h]",
-        "mimalloc-override.h": ":src[include/mimalloc-override.h]",
-        "mimalloc/internal.h": ":src[include/mimalloc/internal.h]",
-        "mimalloc/prim.h": ":src[include/mimalloc/prim.h]",
-        "mimalloc/types.h": ":src[include/mimalloc/types.h]",
-        "mimalloc/track.h": ":src[include/mimalloc/track.h]",
-        "mimalloc/atomic.h": ":src[include/mimalloc/atomic.h]",
-        "mimalloc/bits.h": ":src[include/mimalloc/bits.h]",
-        "mimalloc-new-delete.h": ":src[include/mimalloc-new-delete.h]",
-        "mimalloc-stats.h": ":src[include/mimalloc-stats.h]",
-    },
+    exported_headers=EXPORTED_HEADERS,
     headers={
         "bitmap.h": ":src[src/bitmap.h]",
         "page-queue.c": ":src[src/page-queue.c]",
@@ -123,6 +125,14 @@ CXX_TESTS = map(
     # (source file, test name)
     (f, paths.basename(f).replace(".c", "")),
     glob(["test-*.c"]),
+)
+
+# Standalone binary to test statistics API and print sizes
+shims.cxx_binary(
+    name="test-stats-debug",
+    srcs=["test-stats.c"],
+    deps=[":mimalloc"],
+    link_style="static",
 )
 
 [
@@ -143,20 +153,80 @@ CXX_TESTS = map(
     for (_, t) in CXX_TESTS
 ]
 
-# MARK: Rust tests
+# MARK: Rust bindings
+
+shims.write_file(
+    name = 'bindgen-wrapper.h',
+    contents = [
+        '#include "mimalloc.h"',
+        '#include "mimalloc-stats.h"',
+    ],
+)
+
+shims.cxx_genrule(
+    name="mimalloc_ffi.rs",
+    srcs=EXPORTED_HEADERS | {
+        "bindgen-wrapper.h": ":bindgen-wrapper.h",
+    },
+    out="mimalloc_ffi.rs",
+    cmd="bindgen bindgen-wrapper.h -o $OUT -- -I.",
+)
+
+shims.write_file(
+    name = 'ffi_lib.rs',
+    contents = [
+        'mod mimalloc_ffi;',
+        'pub use mimalloc_ffi::*;',
+    ],
+)
+
+# layer this into a filegroup so that buck2-rust-project and rust-analyzer can
+# more easily find the source code for this crate
+shims.filegroup(
+    name = 'mimalloc-ffi-lib-src',
+    srcs = {
+        'lib.rs': ':ffi_lib.rs',
+        'mimalloc_ffi.rs': ':mimalloc_ffi.rs',
+    },
+)
+
+shims.rust_library(
+    name="mimalloc-ffi-rs",
+    crate="mimalloc_ffi",
+    srcs=[':mimalloc-ffi-lib-src'],
+    crate_root='mimalloc-ffi-lib-src/lib.rs',
+    deps=[":mimalloc"],
+    tests=[":rust-test"],
+)
 
 shims.rust_library(
     name="rust",
     crate="mimalloc",
     srcs=["lib.rs"],
-    deps=[":mimalloc"],
-    tests=[
-        ":rust-test",
-    ],
+    deps=[":mimalloc-ffi-rs"],
+    tests=[":rust-test"],
 )
+
+# MARK: Rust tests
 
 shims.rust_test(
     name="rust-test",
     srcs=["lib.rs"],
-    deps=[":mimalloc"],
+    deps=[":mimalloc-ffi-rs"],
+)
+
+# Standalone test binary to print JSON statistics
+shims.rust_binary(
+    name="test-stats-print",
+    srcs=["test-stats-print.rs"],
+    crate_root="test-stats-print.rs",
+    deps=[":rust"],
+)
+
+# Test that prints JSON statistics (also runnable as a test)
+shims.rust_test(
+    name="test-stats-print-test",
+    srcs=["test-stats-print.rs"],
+    crate_root="test-stats-print.rs",
+    deps=[":rust"],
 )
