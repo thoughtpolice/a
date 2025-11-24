@@ -5,15 +5,15 @@
 
 use std::net::ToSocketAddrs;
 use std::pin::Pin;
+use std::rc::Rc;
 
 use anyhow::Result;
 use clap::Parser;
 use futures::{AsyncReadExt, TryFutureExt};
 use tracing::level_filters::LevelFilter;
-use tracing_subscriber::{prelude::*, EnvFilter};
+use tracing_subscriber::{EnvFilter, prelude::*};
 
-use capnp::capability::Promise;
-use capnp_rpc::{pry, rpc_twoparty_capnp, twoparty, RpcSystem};
+use capnp_rpc::{RpcSystem, pry, rpc_twoparty_capnp, twoparty};
 use openssl::ssl::{Ssl, SslAcceptor, SslFiletype, SslMethod};
 use tokio_openssl::SslStream;
 
@@ -98,17 +98,17 @@ async fn main() -> Result<()> {
 struct TestImpl;
 
 impl qq_capnp::test::Server for TestImpl {
-    fn call(
-        &mut self,
+    async fn call(
+        self: Rc<Self>,
         params: qq_capnp::test::CallParams,
         mut results: qq_capnp::test::CallResults,
-    ) -> capnp::capability::Promise<(), capnp::Error> {
-        let req = pry!(params.get());
+    ) -> Result<(), capnp::Error> {
+        let req = params.get()?;
         let x = req.get_x();
         tracing::info!(message = "got test call", x = x);
         let mut resp = results.get();
         resp.set_y(x + 42);
 
-        Promise::ok(())
+        Ok(())
     }
 }
