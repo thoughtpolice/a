@@ -335,6 +335,9 @@ def _toolchain_alias(**kwargs):
 def _http_archive(**kwargs):
     native.http_archive(**kwargs)
 
+def _http_file(**kwargs):
+    native.http_file(**kwargs)
+
 def _git_fetch(**kwargs):
     native.git_fetch(**kwargs)
 
@@ -464,6 +467,7 @@ shims = struct(
     ),
     select = select,
     http_archive = _http_archive,
+    http_file = _http_file,
     git_fetch = _git_fetch,
     test_suite = _test_suite,
 )
