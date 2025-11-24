@@ -3469,10 +3469,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe-0.9.1",
-    srcs = [":dupe-0.9.1.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe",
-    crate_root = "dupe-0.9.1.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe/src/lib.rs",
+    edition = "2024",
     visibility = [],
     deps = [":dupe_derive-0.9.1"],
 )
@@ -3493,10 +3493,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe_derive-0.9.1",
-    srcs = [":dupe_derive-0.9.1.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe_derive",
-    crate_root = "dupe_derive-0.9.1.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe_derive/src/lib.rs",
+    edition = "2024",
     proc_macro = True,
     visibility = [],
     deps = [
@@ -16469,6 +16469,12 @@ third_party_rust.rust_library(
     edition = "2018",
     features = ["default"],
     visibility = [],
+)
+
+shims.alias(
+    name = "uuid",
+    actual = ":uuid-1.17.0",
+    visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
