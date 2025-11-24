@@ -37,6 +37,7 @@ BAD_PREFIXES = [
     "buck/prelude/",
     "cellar/bootstrap",
     ".buckconfig.d",
+    "src/rtlcc/ulx3s-picosoc",
 ]
 
 BAD_SUFFIXES = [

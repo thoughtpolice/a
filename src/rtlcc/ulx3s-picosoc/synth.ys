@@ -1,0 +1,5 @@
+read_verilog top.v
+hierarchy -libdir . -auto-top
+synth_lattice -family ecp5 -abc2 -json out/design.synth.json
+write_file out/pinout.lpf pinout.lpf
+tee -o out/design.synth.stats stat -json
