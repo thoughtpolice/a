@@ -3,15 +3,10 @@
 
 import { walk } from "@std/fs/walk";
 
-import { Tree } from "@yowasp/runtime";
-import { runYosys } from "@yowasp/yosys";
+import { runYosys, Tree } from "@yowasp/yosys";
 import { runEcppack, runNextpnrEcp5 } from "@yowasp/nextpnr-ecp5";
 
-import {
-  Command,
-  EnumType,
-  HelpCommand,
-} from "@cliffy/command";
+import { Command, EnumType } from "@cliffy/command";
 
 // -------------------------------------------------------------------------------------------------
 
@@ -241,9 +236,24 @@ async function main() {
       default: "info" as const,
     })
     .arguments("<dir:file> [out:file]")
-    .action(async (_options, ..._args) => {
-      const dir = _args[0];
-      const bitstreamOutfile = _args[1] ?? "out.bit";
+    .action(async (_options, ...args) => {
+      const dir = args[0];
+      const dirInfo = await Deno.lstat(dir);
+      if (!dirInfo.isDirectory) {
+        console.error(`Provided project path '${dir}' is not a directory`);
+        Deno.exit(1);
+      }
+
+      // deno-lint-ignore no-explicit-any
+      const fetchProgress = (_: any) => {};
+
+      console.time("preloading assets");
+      await runYosys(undefined, undefined, { fetchProgress });
+      await runNextpnrEcp5(undefined, undefined, { fetchProgress });
+      await runEcppack(undefined, undefined, { fetchProgress });
+      console.timeEnd("preloading assets");
+
+      const bitstreamOutfile = args[1] ?? "out.bit";
       const inputTree = await walkDirectoryForTree(dir);
 
       console.time("synthesis time");
@@ -273,7 +283,6 @@ async function main() {
       );
       console.timeEnd("writing bitstream");
     })
-    .command("help", new HelpCommand().global())
     .command("yosys", yosys)
     .parse(Deno.args);
 }
