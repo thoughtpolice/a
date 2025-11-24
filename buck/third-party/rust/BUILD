@@ -154,9 +154,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -442,9 +442,9 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":argh_shared-0.1.13",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -607,9 +607,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -630,9 +630,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -1907,9 +1907,9 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":heck-0.5.0",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -2810,7 +2810,7 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":quote-1.0.40",
+        ":quote-1.0.42",
         ":syn-1.0.109",
     ],
 )
@@ -2862,10 +2862,10 @@ third_party_rust.rust_library(
     deps = [
         ":fnv-1.0.7",
         ":ident_case-1.0.1",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
         ":strsim-0.11.1",
-        ":syn-2.0.104",
+        ":syn-2.0.110",
     ],
 )
 
@@ -2887,8 +2887,8 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":darling_core-0.20.11",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -3010,8 +3010,8 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
         ":syn-1.0.109",
     ],
 )
@@ -3131,9 +3131,9 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":convert_case-0.6.0",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
         ":unicode-xid-0.2.6",
     ],
 )
@@ -3160,9 +3160,9 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":convert_case-0.7.1",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -3358,9 +3358,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -3500,9 +3500,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -3545,9 +3545,9 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":enum-ordinalize-4.3.0",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -3769,9 +3769,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -3793,9 +3793,9 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":once_cell-1.21.3",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -4654,9 +4654,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -7476,9 +7476,9 @@ third_party_rust.rust_library(
     deps = [
         ":darling-0.20.11",
         ":indoc-2.0.6",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -7582,7 +7582,7 @@ third_party_rust.rust_library(
         ":dot-generator-0.2.0",
         ":dot-structures-0.1.2",
         ":into-attr-0.1.1",
-        ":quote-1.0.40",
+        ":quote-1.0.42",
         ":syn-1.0.109",
     ],
 )
@@ -7654,9 +7654,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
         ":uuid-1.17.0",
     ],
 )
@@ -8125,9 +8125,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -8393,10 +8393,10 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
         ":regex-1.11.1",
-        ":syn-2.0.104",
+        ":syn-2.0.110",
     ],
 )
 
@@ -8950,10 +8950,10 @@ third_party_rust.rust_library(
         ":beef-0.5.2",
         ":fnv-1.0.7",
         ":lazy_static-1.5.0",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
         ":regex-syntax-0.8.5",
-        ":syn-2.0.104",
+        ":syn-2.0.110",
     ],
 )
 
@@ -8976,8 +8976,8 @@ third_party_rust.rust_library(
     deps = [
         ":beef-0.5.2",
         ":fnv-1.0.7",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
         ":regex-syntax-0.6.29",
         ":syn-1.0.109",
     ],
@@ -9191,9 +9191,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -9361,9 +9361,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -10014,9 +10014,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -10298,9 +10298,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -10700,9 +10700,9 @@ third_party_rust.rust_library(
     deps = [
         ":pest-2.8.1",
         ":pest_meta-2.8.1",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -10855,9 +10855,9 @@ third_party_rust.rust_library(
     deps = [
         ":phf_generator-0.11.3",
         ":phf_shared-0.11.3",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -10935,9 +10935,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -11154,37 +11154,43 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "proc-macro2",
+    actual = ":proc-macro2-1.0.103",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
-    name = "proc-macro2-1.0.95.crate",
-    sha256 = "02b3e5e68a3a1a02aad3ec490a98007cbc13c37cbe84a3cd7b8e406d76e7f778",
-    strip_prefix = "proc-macro2-1.0.95",
-    urls = ["https://static.crates.io/crates/proc-macro2/1.0.95/download"],
+    name = "proc-macro2-1.0.103.crate",
+    sha256 = "5ee95bc4ef87b8d5ba32e8b7714ccc834865276eab0aed5c9958d00ec45f49e8",
+    strip_prefix = "proc-macro2-1.0.103",
+    urls = ["https://static.crates.io/crates/proc-macro2/1.0.103/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "proc-macro2-1.0.95",
-    srcs = [":proc-macro2-1.0.95.crate"],
+    name = "proc-macro2-1.0.103",
+    srcs = [":proc-macro2-1.0.103.crate"],
     crate = "proc_macro2",
-    crate_root = "proc-macro2-1.0.95.crate/src/lib.rs",
+    crate_root = "proc-macro2-1.0.103.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :proc-macro2-1.0.95-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :proc-macro2-1.0.103-build-script-run[out_dir])",
     },
     features = [
         "default",
         "proc-macro",
     ],
-    rustc_flags = ["@$(location :proc-macro2-1.0.95-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :proc-macro2-1.0.103-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [":unicode-ident-1.0.18"],
 )
 
 third_party_rust.rust_binary(
-    name = "proc-macro2-1.0.95-build-script-build",
-    srcs = [":proc-macro2-1.0.95.crate"],
+    name = "proc-macro2-1.0.103-build-script-build",
+    srcs = [":proc-macro2-1.0.103.crate"],
     crate = "build_script_build",
-    crate_root = "proc-macro2-1.0.95.crate/build.rs",
+    crate_root = "proc-macro2-1.0.103.crate/build.rs",
     edition = "2021",
     features = [
         "default",
@@ -11194,14 +11200,14 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "proc-macro2-1.0.95-build-script-run",
+    name = "proc-macro2-1.0.103-build-script-run",
     package_name = "proc-macro2",
-    buildscript_rule = ":proc-macro2-1.0.95-build-script-build",
+    buildscript_rule = ":proc-macro2-1.0.103-build-script-build",
     features = [
         "default",
         "proc-macro",
     ],
-    version = "1.0.95",
+    version = "1.0.103",
 )
 
 shims.http_archive(
@@ -11278,9 +11284,9 @@ third_party_rust.rust_library(
     deps = [
         ":anyhow-1.0.98",
         ":itertools-0.14.0",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -11454,26 +11460,32 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "quote",
+    actual = ":quote-1.0.42",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
-    name = "quote-1.0.40.crate",
-    sha256 = "1885c039570dc00dcb4ff087a89e185fd56bae234ddc7f056a945bf36467248d",
-    strip_prefix = "quote-1.0.40",
-    urls = ["https://static.crates.io/crates/quote/1.0.40/download"],
+    name = "quote-1.0.42.crate",
+    sha256 = "a338cc41d27e6cc6dce6cefc13a0729dfbb81c262b1f519331575dd80ef3067f",
+    strip_prefix = "quote-1.0.42",
+    urls = ["https://static.crates.io/crates/quote/1.0.42/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "quote-1.0.40",
-    srcs = [":quote-1.0.40.crate"],
+    name = "quote-1.0.42",
+    srcs = [":quote-1.0.42.crate"],
     crate = "quote",
-    crate_root = "quote-1.0.40.crate/src/lib.rs",
+    crate_root = "quote-1.0.42.crate/src/lib.rs",
     edition = "2018",
     features = [
         "default",
         "proc-macro",
     ],
     visibility = [],
-    deps = [":proc-macro2-1.0.95"],
+    deps = [":proc-macro2-1.0.103"],
 )
 
 shims.http_archive(
@@ -11816,9 +11828,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -12737,9 +12749,9 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":heck-0.5.0",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
         ":synstructure-0.13.2",
     ],
 )
@@ -12897,8 +12909,8 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":Inflector-0.11.4",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
         ":schemafy_core-0.5.2",
         ":serde-1.0.219",
         ":serde_derive-1.0.219",
@@ -13197,9 +13209,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -13294,9 +13306,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -13390,9 +13402,9 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":darling-0.20.11",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -13998,9 +14010,9 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":dupe-0.9.1",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -14182,8 +14194,8 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -14263,10 +14275,10 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":heck-0.5.0",
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
         ":rustversion-1.0.21",
-        ":syn-2.0.104",
+        ":syn-2.0.110",
     ],
 )
 
@@ -14341,25 +14353,31 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
         ":unicode-ident-1.0.18",
     ],
 )
 
+shims.alias(
+    name = "syn",
+    actual = ":syn-2.0.110",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
-    name = "syn-2.0.104.crate",
-    sha256 = "17b6f705963418cdb9927482fa304bc562ece2fdd4f616084c50b7023b435a40",
-    strip_prefix = "syn-2.0.104",
-    urls = ["https://static.crates.io/crates/syn/2.0.104/download"],
+    name = "syn-2.0.110.crate",
+    sha256 = "a99801b5bd34ede4cf3fc688c5919368fea4e4814a4664359503e6015b280aea",
+    strip_prefix = "syn-2.0.110",
+    urls = ["https://static.crates.io/crates/syn/2.0.110/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "syn-2.0.104",
-    srcs = [":syn-2.0.104.crate"],
+    name = "syn-2.0.110",
+    srcs = [":syn-2.0.110.crate"],
     crate = "syn",
-    crate_root = "syn-2.0.104.crate/src/lib.rs",
+    crate_root = "syn-2.0.110.crate/src/lib.rs",
     edition = "2021",
     features = [
         "clone-impls",
@@ -14376,8 +14394,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
         ":unicode-ident-1.0.18",
     ],
 )
@@ -14424,9 +14442,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -15010,9 +15028,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -15033,9 +15051,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -15335,9 +15353,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -15839,9 +15857,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -16073,9 +16091,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
@@ -16780,8 +16798,8 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
         ":syn-1.0.109",
     ],
 )
@@ -17511,9 +17529,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
         ":synstructure-0.13.2",
     ],
 )
@@ -17630,9 +17648,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
         ":synstructure-0.13.2",
     ],
 )
@@ -17728,9 +17746,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.95",
-        ":quote-1.0.40",
-        ":syn-2.0.104",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
     ],
 )
 
