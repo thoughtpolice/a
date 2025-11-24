@@ -95,7 +95,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
     # Allowed SPDX license identifiers
     allowed_licenses = ["Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC"]
     # Also allow compound licenses with AND/OR
-    allowed_compound_licenses = ["Apache-2.0 AND MIT"]
+    allowed_compound_licenses = ["Apache-2.0 AND MIT", "Apache-2.0 OR MIT"]
 
     # Define comment styles for copyright (without years)
     bzl_style_copyright = "# SPDX-FileCopyrightText: © "
