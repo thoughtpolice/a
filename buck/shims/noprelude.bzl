@@ -82,6 +82,15 @@ def go_binary(**_kwargs):
 def go_library(**_kwargs):
     fail('use appropriate language-specific toolchain instead of native go_library')
 
+def erlang_app(**_kwargs):
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.erlang_app() instead')
+
+def erlang_test(**_kwargs):
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.erlang_test() instead')
+
+def erlang_escript(**_kwargs):
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.erlang_escript() instead')
+
 # Archive and fetch rules
 def http_archive(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.http_archive() instead')
