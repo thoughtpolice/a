@@ -46,6 +46,9 @@ def constraint_setting(**_kwargs):
 def constraint_value(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.constraint() instead')
 
+def constraint(**_kwargs):
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.constraint() instead')
+
 def platform(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.platform() instead')
 

@@ -19,19 +19,19 @@ common_rustc_flags = [
 ]
 
 rustc_target_triple = shims.select({
-    'toolchains//cfg/target:x86_64-unknown-uefi': 'x86_64-unknown-uefi',
-    'toolchains//cfg/target:x86_64-unknown-linux-gnu': 'x86_64-unknown-linux-gnu',
-    'toolchains//cfg/target:aarch64-unknown-uefi': 'aarch64-unknown-uefi',
-    'toolchains//cfg/target:aarch64-unknown-linux-gnu': 'aarch64-unknown-linux-gnu',
-    'DEFAULT': '',
+    'toolchains//cfg/target:target[x86_64-unknown-uefi]': 'x86_64-unknown-uefi',
+    'toolchains//cfg/target:target[x86_64-unknown-linux-gnu]': 'x86_64-unknown-linux-gnu',
+    'toolchains//cfg/target:target[aarch64-unknown-uefi]': 'aarch64-unknown-uefi',
+    'toolchains//cfg/target:target[aarch64-unknown-linux-gnu]': 'aarch64-unknown-linux-gnu',
+    'toolchains//cfg/target:target[aarch64-apple-darwin]': 'aarch64-apple-darwin',
 })
 
 rustc_flags = shims.select({
-    'mode//:debug': common_rustc_flags + [
+    'mode//:build-mode[debug]': common_rustc_flags + [
         '-Cdebuginfo=2',
         '-Coverflow-checks=true',
     ],
-    'mode//:release': common_rustc_flags + [
+    'mode//:build-mode[release]': common_rustc_flags + [
         # Overall, we want to aggressively optimize for size on the resulting
         # binary images for the kernel and UEFI apps.
         '-Cdebuginfo=none',
@@ -39,9 +39,9 @@ rustc_flags = shims.select({
         '-Cdebug-assertions=false',
         '-Coverflow-checks=false',
     ] + shims.select({
-        'toolchains//cfg/target:x86_64-unknown-uefi': [ '-Copt-level=z' ],
-        'toolchains//cfg/target:aarch64-unknown-uefi': [ '-Copt-level=z' ],
-        'DEFAULT': [ '-Copt-level=3' ],
+        'toolchains//cfg/target:target[x86_64-unknown-uefi]': [ '-Copt-level=z' ],
+        'toolchains//cfg/target:target[aarch64-unknown-uefi]': [ '-Copt-level=z' ],
+        'DEFAULT': [],
     }),
 })
 

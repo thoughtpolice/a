@@ -311,14 +311,8 @@ def _enforce_starlark_memory_limit(bytes: [None, int] = None):
         set_starlark_peak_allocated_byte_limit(bytes)
 
 # Easier setting of constraints and values
-def _constraint(name, values):
-    """Declare a constraint setting with a set of values."""
-    native.constraint_setting(name = name)
-    for value in values:
-        native.constraint_value(
-            name = value,
-            constraint_setting = ":{}".format(name),
-        )
+def _constraint(**kwargs):
+    native.constraint(**kwargs)
 
 def _platform(**kwargs):
     native.platform(**kwargs)
@@ -469,7 +463,7 @@ shims = struct(
     modifiers = struct(
         conditional = conditional_modifier,
     ),
-    select = select,
+    select = native.select,
     http_archive = _http_archive,
     http_file = _http_file,
     git_fetch = _git_fetch,

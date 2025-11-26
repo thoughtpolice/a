@@ -32,11 +32,11 @@ cxx_base_flags = shims.select({
 })
 
 opt_flags = shims.select({
-    "mode//:debug": shims.select({
+    "mode//:build-mode[debug]": shims.select({
         "config//os:windows": ["/Zi", "/Od"],
         "DEFAULT": ["-g", "-Og"],
     }),
-    "mode//:release": shims.select({
+    "mode//:build-mode[release]": shims.select({
         "config//os:windows": ["/O2"],
         "DEFAULT": ["-O3"],
     }),
@@ -48,8 +48,8 @@ compiler_type = shims.select({
 })
 
 linker = shims.select({
-    "toolchains//cfg/target:x86_64-unknown-uefi": "lld",
-    "toolchains//cfg/target:aarch64-unknown-uefi": "lld",
+    "toolchains//cfg/target:target[x86_64-unknown-uefi]": "lld",
+    "toolchains//cfg/target:target[aarch64-unknown-uefi]": "lld",
     "DEFAULT": shims.select({
         "config//os:windows": "link.exe",
         "config//os:macos": "clang++",
@@ -57,31 +57,24 @@ linker = shims.select({
     })
 })
 
+linux_common_ldflags = [
+    # emit relocations for BOLT
+    "-Wl,--emit-relocs",
+    # FIXME issue: nixos/nixpkgs#347795 <https://github.com/NixOS/nixpkgs/issues/347795>
+    #"-Wl,--compress-debug-sections=zstd",
+    "-fuse-ld=mold",
+]
+
 link_flags = shims.select({
-    "toolchains//cfg/target:x86_64-unknown-uefi": [ ],
-    "toolchains//cfg/target:aarch64-unknown-uefi": [ ],
-    "toolchains//cfg/target:x86_64-unknown-linux-gnu": [
-        "-fuse-ld=lld",
+    "toolchains//cfg/target:target[x86_64-unknown-uefi]": [ ],
+    "toolchains//cfg/target:target[aarch64-unknown-uefi]": [ ],
+    "toolchains//cfg/target:target[x86_64-unknown-linux-gnu]": [
         "-target", "x86_64-unknown-linux-gnu",
-    ],
-    "toolchains//cfg/target:aarch64-unknown-linux-gnu": [
-        "-fuse-ld=lld",
+    ] + linux_common_ldflags,
+    "toolchains//cfg/target:target[aarch64-unknown-linux-gnu]": [
         "-target", "aarch64-unknown-linux-gnu",
-    ],
+    ] + linux_common_ldflags,
     "DEFAULT": shims.select({
-        "config//os:linux": [
-            # on Linux, always use mold + zstd debug sections
-            "-fuse-ld=mold",
-            # FIXME issue: nixos/nixpkgs#347795 <https://github.com/NixOS/nixpkgs/issues/347795>
-            #"-Wl,--compress-debug-sections=zstd",
-            # emit relocations for BOLT
-            "-Wl,--emit-relocs",
-        ],
-
-        "config//os:macos": [
-            # on macOS, use the new parallel linker
-        ],
-
         # on Windows, suffer
         "config//os:windows": [
             "advapi32.lib",
@@ -93,6 +86,7 @@ link_flags = shims.select({
             "shell32.lib",
             "user32.lib",
         ],
+        "config//os:macos": [ ],
     }),
 })
 
