@@ -4,10 +4,6 @@
 load("@prelude//utils:buckconfig.bzl", "read_choice")
 load("@root//buck/shims:shims.bzl", "shims")
 
-def constraint_with_values(name, values, **_kwargs):
-    """Declare a constraint setting with a set of values."""
-    shims.constraint(name, values)
-
 def _execution_platform_impl(ctx: AnalysisContext) -> list[Provider]:
     name = ctx.label.raw_target()
     re_enabled = ctx.attrs.remote_enabled

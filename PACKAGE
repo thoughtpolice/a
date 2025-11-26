@@ -3,11 +3,13 @@
 
 load("@root//buck/shims:package.bzl", "pkg")
 
-pkg.cfg_modifiers([])
-
 pkg.cfg_constructor(
     aliases = {
-        # TODO: add any modifier aliases here, when needed
-        # xyz = ...
-    }
+        "debug": "mode//:build-mode[debug]",
+        "release": "mode//:build-mode[release]",
+    },
 )
+
+pkg.cfg_modifiers([
+    "mode//:build-mode[debug]"
+])

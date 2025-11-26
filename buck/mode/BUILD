@@ -3,13 +3,11 @@
 
 load("@root//buck/shims:shims.bzl", "shims")
 
-MODES = [ 'debug', 'release' ]
-
-shims.constraint(name = 'build-mode', values = [f'build-mode-{name}' for name in MODES])
-
-[
-    shims.config_setting(
-        name = name,
-        constraint_values = [ f'mode//:build-mode-{name}' ]
-    ) for name in MODES
-]
+shims.constraint(
+    name = "build-mode",
+    values = [
+        "debug",
+        "release",
+    ],
+    default = "debug",
+)
