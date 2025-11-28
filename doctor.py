@@ -251,7 +251,6 @@ def run_diagnostics():
 
     if error_count > 0:
         print("⚠  Please fix the errors above before continuing development.")
-        print("   File watching issues will cause Buck2 and tools to malfunction.")
         print()
         print("   Use --explain <issue-id> for detailed fix instructions")
         return 1
