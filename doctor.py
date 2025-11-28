@@ -141,7 +141,6 @@ def print_result(result, use_color=True):
             print(f"  {line}")
         # If there's an issue_id, add the --explain reference
         if issue_id:
-            print()
             print(f"  Run 'doctor.py --explain {issue_id}' for detailed instructions.")
         print()
 
