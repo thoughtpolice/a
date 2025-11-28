@@ -124,3 +124,4 @@ Almost all dotslash files are under ./buck/bin -- in the event you need to (or a
 - Remember that after code changes, you should test things with buck2, not just language-specific tools, or one-off testing. Always use `buck2 test` on all changes!
 - Never remove or out tests to get things working, UNLESS you are debugging something. If you can't fix a test properly, prompt the user immediately.
 - If a project has a notes/ directory in it, you are strongly encouraged to skim and read those notes for valuable information.
+- Do not use "obvious" comments like "This is the download for X" right before a line that says "download_file(X)" or whatever.
