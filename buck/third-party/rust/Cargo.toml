@@ -16,6 +16,8 @@ anyhow = "1.0.97"
 argh = "0.1.13"
 ariadne = "0.5.1"
 base64 = "0.22.1"
+blake3 = "1.8.2"
+brotli = "8.0"
 buck-resources = "1"
 capnp = "0.23.0"
 capnpc = "0.23.2"
@@ -36,7 +38,7 @@ figleter = "0.2.2"
 fjall = { version = "2.9.0", default_features = false, features = [
     "single_writer_tx",
 ] }
-flate2 = "1.0"
+flate2 = { version = "1.1", features = ["zlib-rs"], default-features = false }
 futures = "0.3.31"
 gix = { version = "0.72.1", default-features = false, features = [
     "attributes",
