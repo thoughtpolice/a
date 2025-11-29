@@ -41,7 +41,7 @@ rustc_flags = shims.select({
     ] + shims.select({
         'toolchains//cfg/target:target[x86_64-unknown-uefi]': [ '-Copt-level=z' ],
         'toolchains//cfg/target:target[aarch64-unknown-uefi]': [ '-Copt-level=z' ],
-        'DEFAULT': [],
+        'DEFAULT': [ '-Copt-level=3' ],
     }),
 })
 
