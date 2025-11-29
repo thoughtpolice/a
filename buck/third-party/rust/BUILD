@@ -124,6 +124,41 @@ third_party_rust.rust_library(
     deps = [":memchr-2.7.5"],
 )
 
+shims.http_archive(
+    name = "alloc-no-stdlib-2.0.4.crate",
+    sha256 = "cc7bb162ec39d46ab1ca8c77bf72e890535becd1751bb45f64c597edb4c8c6b3",
+    strip_prefix = "alloc-no-stdlib-2.0.4",
+    urls = ["https://static.crates.io/crates/alloc-no-stdlib/2.0.4/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "alloc-no-stdlib-2.0.4",
+    srcs = [":alloc-no-stdlib-2.0.4.crate"],
+    crate = "alloc_no_stdlib",
+    crate_root = "alloc-no-stdlib-2.0.4.crate/src/lib.rs",
+    edition = "2015",
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "alloc-stdlib-0.2.2.crate",
+    sha256 = "94fb8275041c72129eb51b7d0322c29b8387a0386127718b096429201a5d6ece",
+    strip_prefix = "alloc-stdlib-0.2.2",
+    urls = ["https://static.crates.io/crates/alloc-stdlib/0.2.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "alloc-stdlib-0.2.2",
+    srcs = [":alloc-stdlib-0.2.2.crate"],
+    crate = "alloc_stdlib",
+    crate_root = "alloc-stdlib-0.2.2.crate/src/lib.rs",
+    edition = "2015",
+    visibility = [],
+    deps = [":alloc-no-stdlib-2.0.4"],
+)
+
 third_party_rust.rust_library(
     name = "allocative-0.3.4",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
@@ -492,6 +527,23 @@ third_party_rust.rust_library(
         ":unicode-width-0.1.14",
         ":yansi-1.0.1",
     ],
+)
+
+shims.http_archive(
+    name = "arrayref-0.3.9.crate",
+    sha256 = "76a2e8124351fda1ef8aaaa3bbd7ebbcb486bbcd4225aca0aa0d84bb2db8fecb",
+    strip_prefix = "arrayref-0.3.9",
+    urls = ["https://static.crates.io/crates/arrayref/0.3.9/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "arrayref-0.3.9",
+    srcs = [":arrayref-0.3.9.crate"],
+    crate = "arrayref",
+    crate_root = "arrayref-0.3.9.crate/src/lib.rs",
+    edition = "2015",
+    visibility = [],
 )
 
 shims.http_archive(
@@ -1046,6 +1098,183 @@ third_party_rust.rust_library(
     deps = [":digest-0.10.7"],
 )
 
+shims.alias(
+    name = "blake3",
+    actual = ":blake3-1.8.2",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "blake3-1.8.2.crate",
+    sha256 = "3888aaa89e4b2a40fca9848e400f6a658a5a3978de7be858e209cafa8be9a4a0",
+    strip_prefix = "blake3-1.8.2",
+    sub_targets = [
+        "c/blake3.c",
+        "c/blake3.h",
+        "c/blake3_avx2_x86-64_unix.S",
+        "c/blake3_avx2_x86-64_windows_gnu.S",
+        "c/blake3_avx2_x86-64_windows_msvc.asm",
+        "c/blake3_avx512_x86-64_unix.S",
+        "c/blake3_avx512_x86-64_windows_gnu.S",
+        "c/blake3_avx512_x86-64_windows_msvc.asm",
+        "c/blake3_dispatch.c",
+        "c/blake3_impl.h",
+        "c/blake3_neon.c",
+        "c/blake3_portable.c",
+        "c/blake3_sse2_x86-64_unix.S",
+        "c/blake3_sse2_x86-64_windows_gnu.S",
+        "c/blake3_sse2_x86-64_windows_msvc.asm",
+        "c/blake3_sse41_x86-64_unix.S",
+        "c/blake3_sse41_x86-64_windows_gnu.S",
+        "c/blake3_sse41_x86-64_windows_msvc.asm",
+    ],
+    urls = ["https://static.crates.io/crates/blake3/1.8.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "blake3-1.8.2",
+    srcs = [":blake3-1.8.2.crate"],
+    crate = "blake3",
+    crate_root = "blake3-1.8.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "std",
+    ],
+    platform = {
+        "linux-arm64": dict(
+            rustc_flags = ["--cfg=blake3_neon"],
+            deps = [":blake3-1.8.2-simd_neon-aarch64"],
+        ),
+        "linux-x86_64": dict(
+            rustc_flags = [
+                "--cfg=blake3_avx2_ffi",
+                "--cfg=blake3_avx512_ffi",
+                "--cfg=blake3_sse2_ffi",
+                "--cfg=blake3_sse41_ffi",
+            ],
+            deps = [":blake3-1.8.2-simd_x86_unix"],
+        ),
+        "macos-arm64": dict(
+            rustc_flags = ["--cfg=blake3_neon"],
+            deps = [":blake3-1.8.2-simd_neon-aarch64"],
+        ),
+        "macos-x86_64": dict(
+            rustc_flags = [
+                "--cfg=blake3_avx2_ffi",
+                "--cfg=blake3_avx512_ffi",
+                "--cfg=blake3_sse2_ffi",
+                "--cfg=blake3_sse41_ffi",
+            ],
+            deps = [":blake3-1.8.2-simd_x86_unix"],
+        ),
+        "windows-gnu": dict(
+            rustc_flags = [
+                "--cfg=blake3_avx2_ffi",
+                "--cfg=blake3_avx512_ffi",
+                "--cfg=blake3_sse2_ffi",
+                "--cfg=blake3_sse41_ffi",
+            ],
+            deps = [":blake3-1.8.2-simd_x86_windows_gnu"],
+        ),
+        "windows-msvc": dict(
+            rustc_flags = [
+                "--cfg=blake3_avx2_ffi",
+                "--cfg=blake3_avx512_ffi",
+                "--cfg=blake3_sse2_ffi",
+                "--cfg=blake3_sse41_ffi",
+            ],
+            deps = [":blake3-1.8.2-simd_x86_windows_msvc"],
+        ),
+    },
+    visibility = [],
+    deps = [
+        ":arrayref-0.3.9",
+        ":arrayvec-0.7.6",
+        ":cfg-if-1.0.1",
+        ":constant_time_eq-0.3.1",
+    ],
+)
+
+third_party_rust.cxx_library(
+    name = "blake3-1.8.2-simd_neon-aarch64",
+    srcs = [":blake3-1.8.2.crate[c/blake3_neon.c]"],
+    headers = [
+        ":blake3-1.8.2.crate[c/blake3.h]",
+        ":blake3-1.8.2.crate[c/blake3_impl.h]",
+    ],
+    visibility = [],
+)
+
+third_party_rust.cxx_library(
+    name = "blake3-1.8.2-simd_x86_unix",
+    srcs = [
+        ":blake3-1.8.2.crate[c/blake3.c]",
+        ":blake3-1.8.2.crate[c/blake3_avx2_x86-64_unix.S]",
+        ":blake3-1.8.2.crate[c/blake3_avx512_x86-64_unix.S]",
+        ":blake3-1.8.2.crate[c/blake3_dispatch.c]",
+        ":blake3-1.8.2.crate[c/blake3_portable.c]",
+        ":blake3-1.8.2.crate[c/blake3_sse2_x86-64_unix.S]",
+        ":blake3-1.8.2.crate[c/blake3_sse41_x86-64_unix.S]",
+    ],
+    headers = [
+        ":blake3-1.8.2.crate[c/blake3.h]",
+        ":blake3-1.8.2.crate[c/blake3_impl.h]",
+    ],
+    compatible_with = [
+        "prelude//os/constraints:linux",
+        "prelude//os/constraints:macos",
+    ],
+    compiler_flags = [
+        "-mavx512f",
+        "-mavx512vl",
+    ],
+    visibility = [],
+)
+
+third_party_rust.cxx_library(
+    name = "blake3-1.8.2-simd_x86_windows_gnu",
+    srcs = [
+        ":blake3-1.8.2.crate[c/blake3.c]",
+        ":blake3-1.8.2.crate[c/blake3_avx2_x86-64_windows_gnu.S]",
+        ":blake3-1.8.2.crate[c/blake3_avx512_x86-64_windows_gnu.S]",
+        ":blake3-1.8.2.crate[c/blake3_dispatch.c]",
+        ":blake3-1.8.2.crate[c/blake3_portable.c]",
+        ":blake3-1.8.2.crate[c/blake3_sse2_x86-64_windows_gnu.S]",
+        ":blake3-1.8.2.crate[c/blake3_sse41_x86-64_windows_gnu.S]",
+    ],
+    headers = [
+        ":blake3-1.8.2.crate[c/blake3.h]",
+        ":blake3-1.8.2.crate[c/blake3_impl.h]",
+    ],
+    compatible_with = ["prelude//os/constraints:windows"],
+    compiler_flags = [
+        "-mavx512f",
+        "-mavx512vl",
+    ],
+    visibility = [],
+)
+
+third_party_rust.cxx_library(
+    name = "blake3-1.8.2-simd_x86_windows_msvc",
+    srcs = [
+        ":blake3-1.8.2.crate[c/blake3.c]",
+        ":blake3-1.8.2.crate[c/blake3_avx2_x86-64_windows_msvc.asm]",
+        ":blake3-1.8.2.crate[c/blake3_avx512_x86-64_windows_msvc.asm]",
+        ":blake3-1.8.2.crate[c/blake3_dispatch.c]",
+        ":blake3-1.8.2.crate[c/blake3_portable.c]",
+        ":blake3-1.8.2.crate[c/blake3_sse2_x86-64_windows_msvc.asm]",
+        ":blake3-1.8.2.crate[c/blake3_sse41_x86-64_windows_msvc.asm]",
+    ],
+    headers = [
+        ":blake3-1.8.2.crate[c/blake3.h]",
+        ":blake3-1.8.2.crate[c/blake3_impl.h]",
+    ],
+    compatible_with = ["prelude//os/constraints:windows"],
+    visibility = [],
+)
+
 shims.http_archive(
     name = "block-buffer-0.10.4.crate",
     sha256 = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71",
@@ -1079,6 +1308,64 @@ third_party_rust.rust_library(
     crate_root = "boxcar-0.2.13.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
+)
+
+shims.alias(
+    name = "brotli",
+    actual = ":brotli-8.0.2",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "brotli-8.0.2.crate",
+    sha256 = "4bd8b9603c7aa97359dbd97ecf258968c95f3adddd6db2f7e7a5bef101c84560",
+    strip_prefix = "brotli-8.0.2",
+    urls = ["https://static.crates.io/crates/brotli/8.0.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "brotli-8.0.2",
+    srcs = [":brotli-8.0.2.crate"],
+    crate = "brotli",
+    crate_root = "brotli-8.0.2.crate/src/lib.rs",
+    edition = "2015",
+    features = [
+        "alloc-stdlib",
+        "default",
+        "std",
+    ],
+    visibility = [],
+    deps = [
+        ":alloc-no-stdlib-2.0.4",
+        ":alloc-stdlib-0.2.2",
+        ":brotli-decompressor-5.0.0",
+    ],
+)
+
+shims.http_archive(
+    name = "brotli-decompressor-5.0.0.crate",
+    sha256 = "874bb8112abecc98cbd6d81ea4fa7e94fb9449648c93cc89aa40c81c24d7de03",
+    strip_prefix = "brotli-decompressor-5.0.0",
+    urls = ["https://static.crates.io/crates/brotli-decompressor/5.0.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "brotli-decompressor-5.0.0",
+    srcs = [":brotli-decompressor-5.0.0.crate"],
+    crate = "brotli_decompressor",
+    crate_root = "brotli-decompressor-5.0.0.crate/src/lib.rs",
+    edition = "2015",
+    features = [
+        "alloc-stdlib",
+        "std",
+    ],
+    visibility = [],
+    deps = [
+        ":alloc-no-stdlib-2.0.4",
+        ":alloc-stdlib-0.2.2",
+    ],
 )
 
 shims.http_archive(
@@ -2236,6 +2523,23 @@ third_party_rust.rust_library(
         ":tracing-core-0.1.34",
         ":tracing-subscriber-0.3.19",
     ],
+)
+
+shims.http_archive(
+    name = "constant_time_eq-0.3.1.crate",
+    sha256 = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6",
+    strip_prefix = "constant_time_eq-0.3.1",
+    urls = ["https://static.crates.io/crates/constant_time_eq/0.3.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "constant_time_eq-0.3.1",
+    srcs = [":constant_time_eq-0.3.1.crate"],
+    crate = "constant_time_eq",
+    crate_root = "constant_time_eq-0.3.1.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
 )
 
 shims.http_archive(
