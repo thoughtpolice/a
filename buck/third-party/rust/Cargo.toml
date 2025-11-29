@@ -52,6 +52,8 @@ log = "0.4"
 notify-debouncer-mini = { version = "0.6.0", features = ["crossbeam-channel"] }
 openssl = "0.10.73"
 proc-macro2 = "1.0.103"
+prost = "0.14.1"
+prost-types = "0.14.1"
 quote = "1.0.42"
 rand = "0.8.5"
 ratatui = "0.29.0"
@@ -67,15 +69,22 @@ tuirealm = { version = "3.0.1", features = ["derive", "serialize", "crossterm"] 
 tui-realm-stdlib = "3.0"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
-uuid = { version = "1.17.0", features = ["v4"] }
+tonic-prost-build = "0.14.2"
+tonic-prost = "0.14.2"
 tokio-util = { version = "0.7.15", features = ["compat"] }
 tokio-openssl = "0.6.5"
+tokio-stream = "0.1.17"
 tokio = { version = "1.45.1", features = [
     "full",
     "tracing",
     "macros",
     "rt-multi-thread",
 ]}
+tonic = "0.14.2"
+tonic-build = "0.14.2"
+tonic-reflection = "0.14.2"
+tonic-health = "0.14.2"
+uuid = { version = "1.17.0", features = ["v4"] }
 watchman_client = "0.9.0"
 
 ## Git repos come below
@@ -89,6 +98,9 @@ jj-cli = { git = "https://github.com/martinvonz/jj", rev = "b1503b4fe967d9e9db5a
 # NOTE (starlark): bump to stable when possible
 starlark        = { git = "https://github.com/facebook/starlark-rust", rev = "469ff502b05594b9b1ec1818753f712996a79d38" }
 starlark_derive = { git = "https://github.com/facebook/starlark-rust", rev = "469ff502b05594b9b1ec1818753f712996a79d38" }
+bytes = "1.11.0"
+parking_lot = "0.12.5"
+linked-hash-map = "0.5.6"
 
 [target.'cfg(unix)'.dependencies]
 
