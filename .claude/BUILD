@@ -3,6 +3,11 @@
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
+python_bootstrap_binary(
+    name = "claude",
+    main = "claude.py",
+)
+
 depot.export_file(
     name = "settings.json",
     src = "settings.json",
