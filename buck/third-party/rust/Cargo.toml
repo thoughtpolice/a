@@ -88,6 +88,7 @@ tonic-reflection = "0.14.2"
 tonic-health = "0.14.2"
 uuid = { version = "1.17.0", features = ["v4"] }
 watchman_client = "0.9.0"
+zstd = "0.13"
 
 ## Git repos come below
 
