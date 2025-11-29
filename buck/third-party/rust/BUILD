@@ -1686,8 +1686,26 @@ third_party_rust.rust_library(
     crate = "cc",
     crate_root = "cc-1.2.30.crate/src/lib.rs",
     edition = "2018",
+    features = ["parallel"],
+    platform = {
+        "linux-arm64": dict(
+            deps = [":libc-0.2.174"],
+        ),
+        "linux-x86_64": dict(
+            deps = [":libc-0.2.174"],
+        ),
+        "macos-arm64": dict(
+            deps = [":libc-0.2.174"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":libc-0.2.174"],
+        ),
+    },
     visibility = [],
-    deps = [":shlex-1.3.0"],
+    deps = [
+        ":jobserver-0.1.34",
+        ":shlex-1.3.0",
+    ],
 )
 
 shims.alias(
@@ -8504,6 +8522,43 @@ third_party_rust.rust_library(
         ":quote-1.0.42",
         ":syn-2.0.110",
     ],
+)
+
+shims.http_archive(
+    name = "jobserver-0.1.34.crate",
+    sha256 = "9afb3de4395d6b3e67a780b6de64b51c978ecf11cb9a462c66be7d4ca9039d33",
+    strip_prefix = "jobserver-0.1.34",
+    urls = ["https://static.crates.io/crates/jobserver/0.1.34/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "jobserver-0.1.34",
+    srcs = [":jobserver-0.1.34.crate"],
+    crate = "jobserver",
+    crate_root = "jobserver-0.1.34.crate/src/lib.rs",
+    edition = "2021",
+    platform = {
+        "linux-arm64": dict(
+            deps = [":libc-0.2.174"],
+        ),
+        "linux-x86_64": dict(
+            deps = [":libc-0.2.174"],
+        ),
+        "macos-arm64": dict(
+            deps = [":libc-0.2.174"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":libc-0.2.174"],
+        ),
+        "windows-gnu": dict(
+            deps = [":getrandom-0.3.3"],
+        ),
+        "windows-msvc": dict(
+            deps = [":getrandom-0.3.3"],
+        ),
+    },
+    visibility = [],
 )
 
 shims.http_archive(
@@ -18768,4 +18823,81 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
+)
+
+shims.alias(
+    name = "zstd",
+    actual = ":zstd-0.13.3",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "zstd-0.13.3.crate",
+    sha256 = "e91ee311a569c327171651566e07972200e76fcfe2242a4fa446149a3881c08a",
+    strip_prefix = "zstd-0.13.3",
+    urls = ["https://static.crates.io/crates/zstd/0.13.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "zstd-0.13.3",
+    srcs = [":zstd-0.13.3.crate"],
+    crate = "zstd",
+    crate_root = "zstd-0.13.3.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "arrays",
+        "default",
+        "legacy",
+        "zdict_builder",
+    ],
+    visibility = [],
+    deps = [":zstd-safe-7.2.4"],
+)
+
+shims.http_archive(
+    name = "zstd-safe-7.2.4.crate",
+    sha256 = "8f49c4d5f0abb602a93fb8736af2a4f4dd9512e36f7f570d66e65ff867ed3b9d",
+    strip_prefix = "zstd-safe-7.2.4",
+    urls = ["https://static.crates.io/crates/zstd-safe/7.2.4/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "zstd-safe-7.2.4",
+    srcs = [":zstd-safe-7.2.4.crate"],
+    crate = "zstd_safe",
+    crate_root = "zstd-safe-7.2.4.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "arrays",
+        "legacy",
+        "std",
+        "zdict_builder",
+    ],
+    visibility = [],
+    deps = [":zstd-sys-2.0.16+zstd.1.5.7"],
+)
+
+shims.http_archive(
+    name = "zstd-sys-2.0.16+zstd.1.5.7.crate",
+    sha256 = "91e19ebc2adc8f83e43039e79776e3fda8ca919132d68a1fed6a5faca2683748",
+    strip_prefix = "zstd-sys-2.0.16+zstd.1.5.7",
+    urls = ["https://static.crates.io/crates/zstd-sys/2.0.16+zstd.1.5.7/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "zstd-sys-2.0.16+zstd.1.5.7",
+    srcs = [":zstd-sys-2.0.16+zstd.1.5.7.crate"],
+    crate = "zstd_sys",
+    crate_root = "zstd-sys-2.0.16+zstd.1.5.7.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "legacy",
+        "std",
+        "zdict_builder",
+    ],
+    visibility = [],
+    deps = ["third-party//zstd:zstd"],
 )
