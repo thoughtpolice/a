@@ -620,6 +620,12 @@ third_party_rust.rust_library(
     deps = [":term-1.1.0"],
 )
 
+shims.alias(
+    name = "async-stream",
+    actual = ":async-stream-0.3.6",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "async-stream-0.3.6.crate",
     sha256 = "0b5a71a6f37880a80d1d7f19efd781e4b5de42c88f0722cc13bcb6cc2cfe8476",
