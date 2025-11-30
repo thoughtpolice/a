@@ -1695,16 +1695,16 @@ third_party_rust.rust_library(
     features = ["parallel"],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
     },
     visibility = [],
@@ -2471,7 +2471,7 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
-        ":libc-0.2.174",
+        ":libc-0.2.178",
         ":once_cell-1.21.3",
     ],
 )
@@ -2623,7 +2623,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":core-foundation-sys-0.8.7",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
     ],
 )
 
@@ -2664,10 +2664,10 @@ third_party_rust.rust_library(
     edition = "2018",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
     },
     visibility = [],
@@ -3668,16 +3668,16 @@ third_party_rust.rust_library(
     edition = "2015",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "windows-gnu": dict(
             deps = [":windows-sys-0.61.2"],
@@ -3706,16 +3706,16 @@ third_party_rust.rust_library(
     edition = "2018",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "windows-gnu": dict(
             deps = [":winapi-0.3.9"],
@@ -4198,6 +4198,47 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.http_archive(
+    name = "enumflags2-0.7.12.crate",
+    sha256 = "1027f7680c853e056ebcec683615fb6fbbc07dbaa13b4d5d9442b146ded4ecef",
+    strip_prefix = "enumflags2-0.7.12",
+    urls = ["https://static.crates.io/crates/enumflags2/0.7.12/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "enumflags2-0.7.12",
+    srcs = [":enumflags2-0.7.12.crate"],
+    crate = "enumflags2",
+    crate_root = "enumflags2-0.7.12.crate/src/lib.rs",
+    edition = "2018",
+    visibility = [],
+    deps = [":enumflags2_derive-0.7.12"],
+)
+
+shims.http_archive(
+    name = "enumflags2_derive-0.7.12.crate",
+    sha256 = "67c78a4d8fdf9953a5c9d458f9efe940fd97a0cab0941c075a813ac594733827",
+    strip_prefix = "enumflags2_derive-0.7.12",
+    urls = ["https://static.crates.io/crates/enumflags2_derive/0.7.12/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "enumflags2_derive-0.7.12",
+    srcs = [":enumflags2_derive-0.7.12.crate"],
+    crate = "enumflags2_derive",
+    crate_root = "enumflags2_derive-0.7.12.crate/src/lib.rs",
+    edition = "2018",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
+    ],
+)
+
 shims.alias(
     name = "env_logger",
     actual = ":env_logger-0.10.2",
@@ -4291,10 +4332,10 @@ third_party_rust.rust_library(
     features = ["std"],
     platform = {
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
     },
     visibility = [],
@@ -4560,7 +4601,7 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
-        ":libc-0.2.174",
+        ":libc-0.2.178",
         ":thiserror-1.0.69",
     ],
 )
@@ -4581,16 +4622,16 @@ third_party_rust.rust_library(
     edition = "2018",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "windows-gnu": dict(
             deps = [":windows-sys-0.59.0"],
@@ -4850,7 +4891,7 @@ third_party_rust.rust_library(
     crate_root = "fsevent-sys-4.1.0.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":libc-0.2.174"],
+    deps = [":libc-0.2.178"],
 )
 
 shims.http_archive(
@@ -5256,16 +5297,16 @@ third_party_rust.rust_library(
     features = ["std"],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
     },
     visibility = [],
@@ -5289,16 +5330,16 @@ third_party_rust.rust_library(
     features = ["std"],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
     },
     visibility = [],
@@ -5581,16 +5622,16 @@ third_party_rust.rust_library(
     edition = "2021",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
     },
     visibility = [],
@@ -5720,16 +5761,16 @@ third_party_rust.rust_library(
     ],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
     },
     visibility = [],
@@ -5914,25 +5955,25 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":rustix-1.0.8",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":rustix-1.0.8",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":rustix-1.0.8",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":rustix-1.0.8",
             ],
         ),
@@ -6360,16 +6401,16 @@ third_party_rust.rust_library(
     edition = "2021",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "windows-gnu": dict(
             deps = [
@@ -6457,16 +6498,16 @@ third_party_rust.rust_library(
     ],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
     },
     visibility = [],
@@ -7285,7 +7326,7 @@ third_party_rust.rust_library(
         ":http-body-1.0.1",
         ":hyper-1.6.0",
         ":ipnet-2.11.0",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
         ":percent-encoding-2.3.1",
         ":pin-project-lite-0.2.16",
         ":socket2-0.6.0",
@@ -7804,7 +7845,7 @@ third_party_rust.rust_library(
     deps = [
         ":bitflags-2.9.1",
         ":inotify-sys-0.1.5",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
     ],
 )
 
@@ -7823,7 +7864,7 @@ third_party_rust.rust_library(
     crate_root = "inotify-sys-0.1.5.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":libc-0.2.174"],
+    deps = [":libc-0.2.178"],
 )
 
 shims.alias(
@@ -8122,16 +8163,16 @@ third_party_rust.rust_library(
     edition = "2018",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "windows-gnu": dict(
             deps = [":windows-sys-0.59.0"],
@@ -8372,16 +8413,16 @@ third_party_rust.rust_library(
     ],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
     },
     visibility = [],
@@ -8549,16 +8590,16 @@ third_party_rust.rust_library(
     edition = "2021",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "windows-gnu": dict(
             deps = [":getrandom-0.3.3"],
@@ -8786,6 +8827,34 @@ third_party_rust.rust_library(
     deps = [
         ":regex-automata-0.4.9",
         ":rustversion-1.0.21",
+    ],
+)
+
+shims.alias(
+    name = "landlock",
+    actual = ":landlock-0.4.4",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "landlock-0.4.4.crate",
+    sha256 = "49fefd6652c57d68aaa32544a4c0e642929725bdc1fd929367cdeb673ab81088",
+    strip_prefix = "landlock-0.4.4",
+    urls = ["https://static.crates.io/crates/landlock/0.4.4/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "landlock-0.4.4",
+    srcs = [":landlock-0.4.4.crate"],
+    crate = "landlock",
+    crate_root = "landlock-0.4.4.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [
+        ":enumflags2-0.7.12",
+        ":libc-0.2.178",
+        ":thiserror-2.0.12",
     ],
 )
 
@@ -9038,21 +9107,21 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "libc-0.2.174.crate",
-    sha256 = "1171693293099992e19cddea4e8b849964e9846f4acee11b3948bcc337be8776",
-    strip_prefix = "libc-0.2.174",
-    urls = ["https://static.crates.io/crates/libc/0.2.174/download"],
+    name = "libc-0.2.178.crate",
+    sha256 = "37c93d8daa9d8a012fd8ab92f088405fb202ea0b6ab73ee2482ae66af4f42091",
+    strip_prefix = "libc-0.2.178",
+    urls = ["https://static.crates.io/crates/libc/0.2.178/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "libc-0.2.174",
-    srcs = [":libc-0.2.174.crate"],
+    name = "libc-0.2.178",
+    srcs = [":libc-0.2.178.crate"],
     crate = "libc",
-    crate_root = "libc-0.2.174.crate/src/lib.rs",
+    crate_root = "libc-0.2.178.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :libc-0.2.174-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :libc-0.2.178-build-script-run[out_dir])",
     },
     features = [
         "default",
@@ -9072,15 +9141,15 @@ third_party_rust.rust_library(
             features = ["extra_traits"],
         ),
     },
-    rustc_flags = ["@$(location :libc-0.2.174-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :libc-0.2.178-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
 third_party_rust.rust_binary(
-    name = "libc-0.2.174-build-script-build",
-    srcs = [":libc-0.2.174.crate"],
+    name = "libc-0.2.178-build-script-build",
+    srcs = [":libc-0.2.178.crate"],
     crate = "build_script_build",
-    crate_root = "libc-0.2.174.crate/build.rs",
+    crate_root = "libc-0.2.178.crate/build.rs",
     edition = "2021",
     features = [
         "default",
@@ -9104,9 +9173,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "libc-0.2.174-build-script-run",
+    name = "libc-0.2.178-build-script-run",
     package_name = "libc",
-    buildscript_rule = ":libc-0.2.174-build-script-build",
+    buildscript_rule = ":libc-0.2.178-build-script-build",
     features = [
         "default",
         "std",
@@ -9125,7 +9194,7 @@ third_party_rust.buildscript_run(
             features = ["extra_traits"],
         ),
     },
-    version = "0.2.174",
+    version = "0.2.178",
 )
 
 shims.http_archive(
@@ -9689,16 +9758,16 @@ third_party_rust.rust_library(
     edition = "2021",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
     },
     visibility = [],
@@ -9901,7 +9970,7 @@ third_party_rust.rust_library(
                 "log",
             ],
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":log-0.4.27",
             ],
         ),
@@ -9911,7 +9980,7 @@ third_party_rust.rust_library(
                 "log",
             ],
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":log-0.4.27",
             ],
         ),
@@ -9921,7 +9990,7 @@ third_party_rust.rust_library(
                 "log",
             ],
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":log-0.4.27",
             ],
         ),
@@ -9931,7 +10000,7 @@ third_party_rust.rust_library(
                 "log",
             ],
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":log-0.4.27",
             ],
         ),
@@ -10012,7 +10081,7 @@ third_party_rust.rust_library(
         ),
         "macos-arm64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":security-framework-2.11.1",
                 ":security-framework-sys-2.15.0",
                 ":tempfile-3.20.0",
@@ -10020,7 +10089,7 @@ third_party_rust.rust_library(
         ),
         "macos-x86_64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":security-framework-2.11.1",
                 ":security-framework-sys-2.15.0",
                 ":tempfile-3.20.0",
@@ -10101,7 +10170,7 @@ third_party_rust.rust_library(
     deps = [
         ":bitflags-2.9.1",
         ":cfg-if-1.0.1",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
     ],
 )
 
@@ -10168,7 +10237,7 @@ third_party_rust.rust_library(
     deps = [
         ":bitflags-2.9.1",
         ":cfg-if-1.0.1",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
         ":memoffset-0.9.1",
     ],
 )
@@ -10309,7 +10378,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":crossbeam-channel-0.5.15",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
         ":log-0.4.27",
         ":notify-types-2.0.0",
         ":walkdir-2.5.0",
@@ -10746,7 +10815,7 @@ third_party_rust.rust_library(
         ":bitflags-2.9.1",
         ":cfg-if-1.0.1",
         ":foreign-types-0.3.2",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
         ":once_cell-1.21.3",
         ":openssl-macros-0.1.1",
     ],
@@ -10817,7 +10886,7 @@ third_party_rust.rust_library(
         "third-party//bssl:decrepit",
         "third-party//bssl:ssl",
         "third-party//bssl/rust:bssl-sys",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
     ],
 )
 
@@ -11242,16 +11311,16 @@ third_party_rust.rust_library(
     edition = "2021",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "windows-gnu": dict(
             deps = [":windows-sys-0.59.0"],
@@ -11327,16 +11396,16 @@ third_party_rust.rust_library(
     },
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "windows-gnu": dict(
             deps = [":windows-link-0.2.1"],
@@ -12557,16 +12626,16 @@ third_party_rust.rust_library(
     ],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
     },
     visibility = [],
@@ -13198,16 +13267,16 @@ third_party_rust.rust_library(
     edition = "2018",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "windows-gnu": dict(
             deps = [":windows-sys-0.59.0"],
@@ -13236,16 +13305,16 @@ third_party_rust.rust_library(
     edition = "2018",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "windows-gnu": dict(
             deps = [":windows-sys-0.52.0"],
@@ -13369,13 +13438,13 @@ third_party_rust.rust_library(
             named_deps = {
                 "libc_errno": ":errno-0.3.13",
             },
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
             named_deps = {
                 "libc_errno": ":errno-0.3.13",
             },
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
     },
     rustc_flags = ["@$(location :rustix-0.38.44-build-script-run[rustc_flags])"],
@@ -13449,13 +13518,13 @@ third_party_rust.rust_library(
             named_deps = {
                 "libc_errno": ":errno-0.3.13",
             },
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
             named_deps = {
                 "libc_errno": ":errno-0.3.13",
             },
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
     },
     rustc_flags = ["@$(location :rustix-1.0.8-build-script-run[rustc_flags])"],
@@ -13656,7 +13725,7 @@ third_party_rust.rust_library(
         ":cfg-if-1.0.1",
         ":fd-lock-4.0.4",
         ":home-0.5.11",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
         ":log-0.4.27",
         ":memchr-2.7.5",
         ":radix_trie-0.2.1",
@@ -14013,7 +14082,7 @@ third_party_rust.rust_library(
         ":bitflags-2.9.1",
         ":core-foundation-0.9.4",
         ":core-foundation-sys-0.8.7",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
         ":security-framework-sys-2.15.0",
     ],
 )
@@ -14042,7 +14111,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":core-foundation-sys-0.8.7",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
     ],
 )
 
@@ -14711,7 +14780,7 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":libc-0.2.174",
+        ":libc-0.2.178",
         ":signal-hook-registry-1.4.5",
     ],
 )
@@ -14739,7 +14808,7 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
-        ":libc-0.2.174",
+        ":libc-0.2.178",
         ":signal-hook-0.3.18",
     ],
 )
@@ -14759,7 +14828,7 @@ third_party_rust.rust_library(
     crate_root = "signal-hook-registry-1.4.5.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":libc-0.2.174"],
+    deps = [":libc-0.2.178"],
 )
 
 shims.http_archive(
@@ -14950,16 +15019,16 @@ third_party_rust.rust_library(
     features = ["all"],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "windows-gnu": dict(
             deps = [":windows-sys-0.52.0"],
@@ -14988,16 +15057,16 @@ third_party_rust.rust_library(
     features = ["all"],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.174"],
+            deps = [":libc-0.2.178"],
         ),
         "windows-gnu": dict(
             deps = [":windows-sys-0.59.0"],
@@ -15065,7 +15134,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":cfg-if-1.0.1",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
         ":psm-0.1.26",
     ],
 )
@@ -15612,7 +15681,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":core-foundation-sys-0.8.7",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
     ],
 )
 
@@ -15670,25 +15739,25 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":xattr-1.6.1",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":xattr-1.6.1",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":xattr-1.6.1",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":xattr-1.6.1",
             ],
         ),
@@ -15922,7 +15991,7 @@ third_party_rust.rust_library(
     crate_root = "termios-0.3.3.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":libc-0.2.174"],
+    deps = [":libc-0.2.178"],
 )
 
 shims.http_archive(
@@ -15999,7 +16068,7 @@ third_party_rust.rust_library(
         ":fixedbitset-0.4.2",
         ":hex-0.4.3",
         ":lazy_static-1.5.0",
-        ":libc-0.2.174",
+        ":libc-0.2.178",
         ":log-0.4.27",
         ":memmem-0.1.1",
         ":num-derive-0.4.2",
@@ -16413,25 +16482,25 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":signal-hook-registry-1.4.5",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":signal-hook-registry-1.4.5",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":signal-hook-registry-1.4.5",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":libc-0.2.174",
+                ":libc-0.2.178",
                 ":signal-hook-registry-1.4.5",
             ],
         ),
