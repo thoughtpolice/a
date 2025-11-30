@@ -3862,10 +3862,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe-0.9.1",
-    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
+    srcs = [":dupe-0.9.1.crate"],
     crate = "dupe",
-    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe/src/lib.rs",
-    edition = "2024",
+    crate_root = "dupe-0.9.1.crate/src/lib.rs",
+    edition = "2021",
     visibility = [],
     deps = [":dupe_derive-0.9.1"],
 )
@@ -3886,10 +3886,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe_derive-0.9.1",
-    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
+    srcs = [":dupe_derive-0.9.1.crate"],
     crate = "dupe_derive",
-    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe_derive/src/lib.rs",
-    edition = "2024",
+    crate_root = "dupe_derive-0.9.1.crate/src/lib.rs",
+    edition = "2021",
     proc_macro = True,
     visibility = [],
     deps = [
@@ -10975,6 +10975,7 @@ third_party_rust.rust_library(
     },
     features = [
         "default",
+        "grpc-tonic",
         "http",
         "http-proto",
         "internal-logs",
@@ -10984,6 +10985,8 @@ third_party_rust.rust_library(
         "prost",
         "reqwest",
         "reqwest-blocking-client",
+        "tokio",
+        "tonic",
         "trace",
         "tracing",
     ],
@@ -10997,6 +11000,8 @@ third_party_rust.rust_library(
         ":prost-0.14.1",
         ":reqwest-0.12.24",
         ":thiserror-2.0.12",
+        ":tokio-1.46.1",
+        ":tonic-0.14.2",
         ":tracing-0.1.41",
     ],
 )
@@ -11016,6 +11021,7 @@ third_party_rust.rust_library(
     crate_root = "opentelemetry-proto-0.31.0.crate/src/lib.rs",
     edition = "2021",
     features = [
+        "gen-tonic",
         "gen-tonic-messages",
         "logs",
         "metrics",
@@ -11060,6 +11066,12 @@ third_party_rust.rust_library(
         ":opentelemetry-semantic-conventions-0.31.0",
         ":opentelemetry_sdk-0.31.0",
     ],
+)
+
+shims.alias(
+    name = "opentelemetry-semantic-conventions",
+    actual = ":opentelemetry-semantic-conventions-0.31.0",
+    visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
@@ -11118,11 +11130,15 @@ third_party_rust.rust_library(
     },
     features = [
         "default",
+        "experimental_async_runtime",
         "internal-logs",
         "logs",
         "metrics",
         "percent-encoding",
         "rand",
+        "rt-tokio",
+        "tokio",
+        "tokio-stream",
         "trace",
     ],
     visibility = [],
@@ -11134,6 +11150,8 @@ third_party_rust.rust_library(
         ":percent-encoding-2.3.1",
         ":rand-0.9.2",
         ":thiserror-2.0.12",
+        ":tokio-1.46.1",
+        ":tokio-stream-0.1.17",
     ],
 )
 
@@ -17288,6 +17306,59 @@ third_party_rust.rust_library(
         ":log-0.4.27",
         ":once_cell-1.21.3",
         ":tracing-core-0.1.34",
+    ],
+)
+
+shims.alias(
+    name = "tracing-opentelemetry",
+    actual = ":tracing-opentelemetry-0.32.0",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "tracing-opentelemetry-0.32.0.crate",
+    sha256 = "1e6e5658463dd88089aba75c7791e1d3120633b1bfde22478b28f625a9bb1b8e",
+    strip_prefix = "tracing-opentelemetry-0.32.0",
+    urls = ["https://static.crates.io/crates/tracing-opentelemetry/0.32.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "tracing-opentelemetry-0.32.0",
+    srcs = [":tracing-opentelemetry-0.32.0.crate"],
+    crate = "tracing_opentelemetry",
+    crate_root = "tracing-opentelemetry-0.32.0.crate/src/lib.rs",
+    edition = "2021",
+    env = {
+        "CARGO_CRATE_NAME": "tracing_opentelemetry",
+        "CARGO_MANIFEST_DIR": "tracing-opentelemetry-0.32.0.crate",
+        "CARGO_PKG_AUTHORS": "",
+        "CARGO_PKG_DESCRIPTION": "OpenTelemetry integration for tracing",
+        "CARGO_PKG_NAME": "tracing-opentelemetry",
+        "CARGO_PKG_REPOSITORY": "https://github.com/tokio-rs/tracing-opentelemetry",
+        "CARGO_PKG_VERSION": "0.32.0",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "32",
+        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = [
+        "default",
+        "metrics",
+        "smallvec",
+        "tracing-log",
+    ],
+    visibility = [],
+    deps = [
+        ":opentelemetry-0.31.0",
+        ":opentelemetry_sdk-0.31.0",
+        ":rustversion-1.0.21",
+        ":smallvec-1.15.1",
+        ":thiserror-2.0.12",
+        ":tracing-0.1.41",
+        ":tracing-core-0.1.34",
+        ":tracing-log-0.2.0",
+        ":tracing-subscriber-0.3.19",
     ],
 )
 
