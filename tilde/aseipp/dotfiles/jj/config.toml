@@ -82,7 +82,7 @@ fix = 'stack(@, 1)'
 # FIXME (upstream): should this be upstream?
 'user(x)' = 'author(x) | committer(x)'
 
-'mine()' = 'user("aseipp@pobox.com") | user("austin@ersc.io")'
+'mine()' = 'user(exact:"aseipp@pobox.com") | user(exact:"austin@ersc.io")'
 
 # By default, show the repo trunk, the remote bookmarks, and all remote tags. We
 # don't want to change these in most cases, but in some repos it's useful.
