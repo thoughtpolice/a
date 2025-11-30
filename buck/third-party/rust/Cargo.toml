@@ -56,10 +56,12 @@ log = "0.4"
 notify-debouncer-mini = { version = "0.6.0", features = ["crossbeam-channel"] }
 openssl = "0.10.73"
 opentelemetry = "0.31.0"
-opentelemetry_sdk = "0.31.0"
-opentelemetry-otlp = "0.31.0"
+opentelemetry_sdk = { version = "0.31.0", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.31.0", features = ["grpc-tonic"] }
 opentelemetry-resource-detectors = "0.10.0"
 opentelemetry-appender-log = "0.31.0"
+opentelemetry-semantic-conventions = "0.31.0"
+tracing-opentelemetry = "0.32.0"
 parking_lot = "0.12.5"
 proc-macro2 = "1.0.103"
 prost = "0.14.1"
