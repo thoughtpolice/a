@@ -1,0 +1,2 @@
+# TODO FIXME: set RUSTC_VERSION & RUSTC_VERSION_DESCRIPTION from build.rs?
+buildscript.run = false

@@ -19,6 +19,7 @@ base64 = "0.22.1"
 blake3 = "1.8.2"
 brotli = "8.0"
 buck-resources = "1"
+bytes = "1.11.0"
 capnp = "0.23.0"
 capnpc = "0.23.2"
 capnp-futures = "0.23.0"
@@ -50,9 +51,16 @@ gix = { version = "0.72.1", default-features = false, features = [
 hex = "0.4.3"
 insta = "1.42.2"
 iocraft = "0.7.10"
+linked-hash-map = "0.5.6"
 log = "0.4"
 notify-debouncer-mini = { version = "0.6.0", features = ["crossbeam-channel"] }
 openssl = "0.10.73"
+opentelemetry = "0.31.0"
+opentelemetry_sdk = "0.31.0"
+opentelemetry-otlp = "0.31.0"
+opentelemetry-resource-detectors = "0.10.0"
+opentelemetry-appender-log = "0.31.0"
+parking_lot = "0.12.5"
 proc-macro2 = "1.0.103"
 prost = "0.14.1"
 prost-types = "0.14.1"
@@ -101,9 +109,6 @@ jj-cli = { git = "https://github.com/martinvonz/jj", rev = "b1503b4fe967d9e9db5a
 # NOTE (starlark): bump to stable when possible
 starlark        = { git = "https://github.com/facebook/starlark-rust", rev = "469ff502b05594b9b1ec1818753f712996a79d38" }
 starlark_derive = { git = "https://github.com/facebook/starlark-rust", rev = "469ff502b05594b9b1ec1818753f712996a79d38" }
-bytes = "1.11.0"
-parking_lot = "0.12.5"
-linked-hash-map = "0.5.6"
 
 [target.'cfg(unix)'.dependencies]
 
