@@ -5330,6 +5330,7 @@ dependencies = [
  "anyhow",
  "argh",
  "ariadne",
+ "async-stream",
  "base64 0.22.1",
  "blake3",
  "brotli",
