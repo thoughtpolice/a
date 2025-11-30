@@ -3862,10 +3862,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe-0.9.1",
-    srcs = [":dupe-0.9.1.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe",
-    crate_root = "dupe-0.9.1.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe/src/lib.rs",
+    edition = "2024",
     visibility = [],
     deps = [":dupe_derive-0.9.1"],
 )
@@ -5000,7 +5000,10 @@ third_party_rust.rust_library(
     crate = "futures_executor",
     crate_root = "futures-executor-0.3.31.crate/src/lib.rs",
     edition = "2018",
-    features = ["std"],
+    features = [
+        "default",
+        "std",
+    ],
     visibility = [],
     deps = [
         ":futures-core-0.3.31",
@@ -9302,7 +9305,10 @@ third_party_rust.rust_library(
     crate = "log",
     crate_root = "log-0.4.27.crate/src/lib.rs",
     edition = "2021",
-    features = ["std"],
+    features = [
+        "kv",
+        "std",
+    ],
     visibility = [],
 )
 
@@ -10806,6 +10812,328 @@ third_party_rust.rust_library(
         "third-party//bssl:ssl",
         "third-party//bssl/rust:bssl-sys",
         ":libc-0.2.174",
+    ],
+)
+
+shims.alias(
+    name = "opentelemetry",
+    actual = ":opentelemetry-0.31.0",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "opentelemetry-0.31.0.crate",
+    sha256 = "b84bcd6ae87133e903af7ef497404dda70c60d0ea14895fc8a5e6722754fc2a0",
+    strip_prefix = "opentelemetry-0.31.0",
+    urls = ["https://static.crates.io/crates/opentelemetry/0.31.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "opentelemetry-0.31.0",
+    srcs = [":opentelemetry-0.31.0.crate"],
+    crate = "opentelemetry",
+    crate_root = "opentelemetry-0.31.0.crate/src/lib.rs",
+    edition = "2021",
+    env = {
+        "CARGO_CRATE_NAME": "opentelemetry",
+        "CARGO_MANIFEST_DIR": "opentelemetry-0.31.0.crate",
+        "CARGO_PKG_AUTHORS": "",
+        "CARGO_PKG_DESCRIPTION": "OpenTelemetry API for Rust",
+        "CARGO_PKG_NAME": "opentelemetry",
+        "CARGO_PKG_REPOSITORY": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry",
+        "CARGO_PKG_VERSION": "0.31.0",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "31",
+        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = [
+        "default",
+        "futures",
+        "futures-core",
+        "futures-sink",
+        "internal-logs",
+        "logs",
+        "metrics",
+        "pin-project-lite",
+        "thiserror",
+        "trace",
+        "tracing",
+    ],
+    visibility = [],
+    deps = [
+        ":futures-core-0.3.31",
+        ":futures-sink-0.3.31",
+        ":pin-project-lite-0.2.16",
+        ":thiserror-2.0.12",
+        ":tracing-0.1.41",
+    ],
+)
+
+shims.alias(
+    name = "opentelemetry-appender-log",
+    actual = ":opentelemetry-appender-log-0.31.0",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "opentelemetry-appender-log-0.31.0.crate",
+    sha256 = "9e50c59a96bd6a723a4329c5db31eb04fa4488c5f141ae7b9d4fd587439e6ee1",
+    strip_prefix = "opentelemetry-appender-log-0.31.0",
+    urls = ["https://static.crates.io/crates/opentelemetry-appender-log/0.31.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "opentelemetry-appender-log-0.31.0",
+    srcs = [":opentelemetry-appender-log-0.31.0.crate"],
+    crate = "opentelemetry_appender_log",
+    crate_root = "opentelemetry-appender-log-0.31.0.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [
+        ":log-0.4.27",
+        ":opentelemetry-0.31.0",
+    ],
+)
+
+shims.http_archive(
+    name = "opentelemetry-http-0.31.0.crate",
+    sha256 = "d7a6d09a73194e6b66df7c8f1b680f156d916a1a942abf2de06823dd02b7855d",
+    strip_prefix = "opentelemetry-http-0.31.0",
+    urls = ["https://static.crates.io/crates/opentelemetry-http/0.31.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "opentelemetry-http-0.31.0",
+    srcs = [":opentelemetry-http-0.31.0.crate"],
+    crate = "opentelemetry_http",
+    crate_root = "opentelemetry-http-0.31.0.crate/src/lib.rs",
+    edition = "2021",
+    env = {
+        "CARGO_CRATE_NAME": "opentelemetry_http",
+        "CARGO_MANIFEST_DIR": "opentelemetry-http-0.31.0.crate",
+        "CARGO_PKG_AUTHORS": "",
+        "CARGO_PKG_DESCRIPTION": "Helper implementations for sending HTTP requests. Uses include propagating and extracting context over http, exporting telemetry, requesting sampling strategies.",
+        "CARGO_PKG_NAME": "opentelemetry-http",
+        "CARGO_PKG_REPOSITORY": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-http",
+        "CARGO_PKG_VERSION": "0.31.0",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "31",
+        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = [
+        "internal-logs",
+        "reqwest",
+        "reqwest-blocking",
+    ],
+    visibility = [],
+    deps = [
+        ":async-trait-0.1.88",
+        ":bytes-1.11.0",
+        ":http-1.3.1",
+        ":opentelemetry-0.31.0",
+        ":reqwest-0.12.24",
+    ],
+)
+
+shims.alias(
+    name = "opentelemetry-otlp",
+    actual = ":opentelemetry-otlp-0.31.0",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "opentelemetry-otlp-0.31.0.crate",
+    sha256 = "7a2366db2dca4d2ad033cad11e6ee42844fd727007af5ad04a1730f4cb8163bf",
+    strip_prefix = "opentelemetry-otlp-0.31.0",
+    urls = ["https://static.crates.io/crates/opentelemetry-otlp/0.31.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "opentelemetry-otlp-0.31.0",
+    srcs = [":opentelemetry-otlp-0.31.0.crate"],
+    crate = "opentelemetry_otlp",
+    crate_root = "opentelemetry-otlp-0.31.0.crate/src/lib.rs",
+    edition = "2021",
+    env = {
+        "CARGO_CRATE_NAME": "opentelemetry_otlp",
+        "CARGO_MANIFEST_DIR": "opentelemetry-otlp-0.31.0.crate",
+        "CARGO_PKG_AUTHORS": "",
+        "CARGO_PKG_DESCRIPTION": "Exporter for the OpenTelemetry Collector",
+        "CARGO_PKG_NAME": "opentelemetry-otlp",
+        "CARGO_PKG_REPOSITORY": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp",
+        "CARGO_PKG_VERSION": "0.31.0",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "31",
+        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = [
+        "default",
+        "http",
+        "http-proto",
+        "internal-logs",
+        "logs",
+        "metrics",
+        "opentelemetry-http",
+        "prost",
+        "reqwest",
+        "reqwest-blocking-client",
+        "trace",
+        "tracing",
+    ],
+    visibility = [],
+    deps = [
+        ":http-1.3.1",
+        ":opentelemetry-0.31.0",
+        ":opentelemetry-http-0.31.0",
+        ":opentelemetry-proto-0.31.0",
+        ":opentelemetry_sdk-0.31.0",
+        ":prost-0.14.1",
+        ":reqwest-0.12.24",
+        ":thiserror-2.0.12",
+        ":tracing-0.1.41",
+    ],
+)
+
+shims.http_archive(
+    name = "opentelemetry-proto-0.31.0.crate",
+    sha256 = "a7175df06de5eaee9909d4805a3d07e28bb752c34cab57fa9cff549da596b30f",
+    strip_prefix = "opentelemetry-proto-0.31.0",
+    urls = ["https://static.crates.io/crates/opentelemetry-proto/0.31.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "opentelemetry-proto-0.31.0",
+    srcs = [":opentelemetry-proto-0.31.0.crate"],
+    crate = "opentelemetry_proto",
+    crate_root = "opentelemetry-proto-0.31.0.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "gen-tonic-messages",
+        "logs",
+        "metrics",
+        "prost",
+        "tonic",
+        "tonic-prost",
+        "trace",
+    ],
+    visibility = [],
+    deps = [
+        ":opentelemetry-0.31.0",
+        ":opentelemetry_sdk-0.31.0",
+        ":prost-0.14.1",
+        ":tonic-0.14.2",
+        ":tonic-prost-0.14.2",
+    ],
+)
+
+shims.alias(
+    name = "opentelemetry-resource-detectors",
+    actual = ":opentelemetry-resource-detectors-0.10.0",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "opentelemetry-resource-detectors-0.10.0.crate",
+    sha256 = "e82845106cf72d47c141cee7f0d95e0650d8f28c6222a1f1ae727a8883899c19",
+    strip_prefix = "opentelemetry-resource-detectors-0.10.0",
+    urls = ["https://static.crates.io/crates/opentelemetry-resource-detectors/0.10.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "opentelemetry-resource-detectors-0.10.0",
+    srcs = [":opentelemetry-resource-detectors-0.10.0.crate"],
+    crate = "opentelemetry_resource_detectors",
+    crate_root = "opentelemetry-resource-detectors-0.10.0.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [
+        ":opentelemetry-0.31.0",
+        ":opentelemetry-semantic-conventions-0.31.0",
+        ":opentelemetry_sdk-0.31.0",
+    ],
+)
+
+shims.http_archive(
+    name = "opentelemetry-semantic-conventions-0.31.0.crate",
+    sha256 = "e62e29dfe041afb8ed2a6c9737ab57db4907285d999ef8ad3a59092a36bdc846",
+    strip_prefix = "opentelemetry-semantic-conventions-0.31.0",
+    urls = ["https://static.crates.io/crates/opentelemetry-semantic-conventions/0.31.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "opentelemetry-semantic-conventions-0.31.0",
+    srcs = [":opentelemetry-semantic-conventions-0.31.0.crate"],
+    crate = "opentelemetry_semantic_conventions",
+    crate_root = "opentelemetry-semantic-conventions-0.31.0.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "semconv_experimental",
+    ],
+    visibility = [],
+)
+
+shims.alias(
+    name = "opentelemetry_sdk",
+    actual = ":opentelemetry_sdk-0.31.0",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "opentelemetry_sdk-0.31.0.crate",
+    sha256 = "e14ae4f5991976fd48df6d843de219ca6d31b01daaab2dad5af2badeded372bd",
+    strip_prefix = "opentelemetry_sdk-0.31.0",
+    urls = ["https://static.crates.io/crates/opentelemetry_sdk/0.31.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "opentelemetry_sdk-0.31.0",
+    srcs = [":opentelemetry_sdk-0.31.0.crate"],
+    crate = "opentelemetry_sdk",
+    crate_root = "opentelemetry_sdk-0.31.0.crate/src/lib.rs",
+    edition = "2021",
+    env = {
+        "CARGO_CRATE_NAME": "opentelemetry_sdk",
+        "CARGO_MANIFEST_DIR": "opentelemetry_sdk-0.31.0.crate",
+        "CARGO_PKG_AUTHORS": "",
+        "CARGO_PKG_DESCRIPTION": "The SDK for the OpenTelemetry metrics collection and distributed tracing framework",
+        "CARGO_PKG_NAME": "opentelemetry_sdk",
+        "CARGO_PKG_REPOSITORY": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk",
+        "CARGO_PKG_VERSION": "0.31.0",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "31",
+        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = [
+        "default",
+        "internal-logs",
+        "logs",
+        "metrics",
+        "percent-encoding",
+        "rand",
+        "trace",
+    ],
+    visibility = [],
+    deps = [
+        ":futures-channel-0.3.31",
+        ":futures-executor-0.3.31",
+        ":futures-util-0.3.31",
+        ":opentelemetry-0.31.0",
+        ":percent-encoding-2.3.1",
+        ":rand-0.9.2",
+        ":thiserror-2.0.12",
     ],
 )
 
