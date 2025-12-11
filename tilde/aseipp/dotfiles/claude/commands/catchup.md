@@ -1,6 +1,5 @@
 ---
 description: Catchup on the current stack(s) of work you're doing
-model: claude-sonnet-4-5
 ---
 
 Catch up on the current work being done by looking at the current commit stack and seeing what is being worked on. (Often, when you are asked to do this, it will be when the context is fully fresh.)
