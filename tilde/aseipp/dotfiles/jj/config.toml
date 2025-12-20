@@ -111,7 +111,7 @@ fix = 'stack(@, 1)'
 # reachable from my working copy, or any other commit I wrote.
 # n = 1, meaning that nothing from `trunk()` is included, so all resulting
 # commits are mutable by definition.
-'open()' = 'stack(mine() | @, 1)'
+'open()' = 'stack(mine() | @, 1) ~ hidden()'
 
 # the set of 'ready()' commits. defined as the set of open commits, but nothing
 # that is blacklisted or any of their children.
@@ -286,7 +286,7 @@ jsonlog = ["log", "--no-graph", "-T", "ndjson"]
       "CR: " ++ gerrit_id(commit.change_id(), 10)
     ) ++ "]"
   ),
-  if(commit.git_head(), label("git_head", "git_head()")),
+  if(commit.contained_in('first_parent(@)'), label("git_head", "git_head()")),
   if(commit.conflict(), label("conflict", "conflict")),
 )'''
 
