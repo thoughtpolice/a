@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
 // This is a simple program that can do code review of a given diff. The

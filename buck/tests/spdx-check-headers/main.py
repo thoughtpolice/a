@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 # check-spdx: a script to check the SPDX license headers of all files in the
@@ -38,6 +38,9 @@ BAD_PREFIXES = [
     "cellar/bootstrap",
     ".buckconfig.d",
     "src/rtlcc/ulx3s-picosoc",
+    # vendored proto files from Google/Bazel
+    "src/tools/cache-server/protos/google/",
+    "src/tools/cache-server/protos/build/",
 ]
 
 BAD_SUFFIXES = [
@@ -96,8 +99,8 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
 
     # Allowed SPDX license identifiers
     allowed_licenses = ["Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC"]
-    # Also allow compound licenses with AND/OR
-    allowed_compound_licenses = ["Apache-2.0 AND MIT", "Apache-2.0 OR MIT"]
+    # Also allow compound licenses with AND/OR (both orderings)
+    allowed_compound_licenses = ["Apache-2.0 AND MIT", "Apache-2.0 OR MIT", "MIT AND Apache-2.0", "MIT OR Apache-2.0"]
 
     # Define comment styles for copyright (without years)
     bzl_style_copyright = "# SPDX-FileCopyrightText: © "

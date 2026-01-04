@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run --allow-run=claude,diff,rich
 
-// SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 //
 // A tool that can provide a summary of a unified diff in text format given two

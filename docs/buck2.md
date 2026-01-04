@@ -196,7 +196,7 @@ A typical BUILD file structure:
 
 ```starlark
 # SPDX headers (required in this monorepo)
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 # Load rule wrappers
@@ -692,13 +692,13 @@ The shim system provides:
 `PACKAGE` files define package-level metadata using `pkg.info()`:
 
 ```starlark
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:package.bzl", pkg = "pkg")
 
 pkg.info(
-    copyright = ["© 2024-2025 Austin Seipp"],
+    copyright = ["© 2024-2026 Austin Seipp"],
     license = "Apache-2.0",
     description = "My awesome project",
     version = "1.0.0",  # Must be semver
@@ -1318,7 +1318,7 @@ Here's a complete working example:
 **Broker script** (`http-broker.sh`):
 ```bash
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
@@ -1340,7 +1340,7 @@ echo "{\"pid\": $HTTP_PID, \"resources\": [{\"port\": \"8888\", \"url\": \"http:
 **Test script** (`http-test.sh`):
 ```bash
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
@@ -1364,7 +1364,7 @@ fi
 
 **Buck2 rules** (`defs.bzl`):
 ```starlark
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 # Broker rule
@@ -1415,7 +1415,7 @@ exports = struct(
 
 **BUILD file**:
 ```starlark
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 load(":defs.bzl", "exports")
@@ -2383,7 +2383,7 @@ If you change one logging file, only `logging` rebuilds, not all 100 files.
 
 ```starlark
 # SPDX headers at top
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 # Load statements
@@ -2623,7 +2623,7 @@ depot.rust_test(
 **All source files** in this monorepo must include SPDX headers:
 
 ```rust
-// SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 ```
 

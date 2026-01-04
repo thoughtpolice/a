@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: © 2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 load("@prelude//:rules.bzl", "http_file")

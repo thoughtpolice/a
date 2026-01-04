@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:package.bzl", "OsvGitRepoInfo", "pkg")
@@ -6,7 +6,7 @@ load("@root//buck/shims:package.bzl", "OsvGitRepoInfo", "pkg")
 pkg.info(
     copyright = [
         "© 2022-2023 Zuo Developers",
-        "© 2024-2025 Austin Seipp",
+        "© 2024-2026 Austin Seipp",
     ],
     license = "Apache-2.0 OR MIT",  # Dual licensed
     description = "A tiny Racket variant for scripting and build systems",

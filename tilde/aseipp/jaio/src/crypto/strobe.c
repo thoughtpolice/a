@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
 #define __STDC_WANT_LIB_EXT1__ 1 /* for memset_s */
