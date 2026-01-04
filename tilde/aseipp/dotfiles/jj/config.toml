@@ -265,7 +265,7 @@ jsonlog = ["log", "--no-graph", "-T", "ndjson"]
 # Commit header. This includes code to automatically link to Gerrit code reviews
 # for matching commits in a very basic way.
 'format_short_commit_header(commit)' = '''separate(" ",
-  format_short_change_id_with_hidden_and_divergent_info(commit),
+  format_short_change_id_with_change_offset(commit),
   format_short_signature(commit.author()),
   format_timestamp(commit_timestamp(commit)),
   render_bookmarks(commit),
