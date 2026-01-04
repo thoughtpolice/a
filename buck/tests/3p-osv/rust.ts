@@ -48,6 +48,10 @@ const RUSTSEC_VIOLATION_EXCEPTIONS = [
         id: "RUSTSEC-2025-0057",
         reason: "temporary, fxhash is unmaintained but widely used",
     },
+    {
+        id: "RUSTSEC-2025-0140",
+        reason: "temporary, awaiting crate bump",
+    }
 ];
 
 // ---------------------------------------------------------------------------------------------------------------------
