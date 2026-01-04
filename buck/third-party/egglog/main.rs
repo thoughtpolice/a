@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: © 2024-2025 Austin Seipp, 2024-2025 Egglog Authors
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp, 2024-2026 Egglog Authors
 // SPDX-License-Identifier: Apache-2.0
 
 #[global_allocator]

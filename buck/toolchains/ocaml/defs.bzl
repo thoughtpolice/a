@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp, 2022-2025 Meta Platforms, Inc. and affiliates.
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp, 2022-2025 Meta Platforms, Inc. and affiliates.
 # SPDX-License-Identifier: Apache-2.0 AND MIT
 
 load("@prelude//ocaml:ocaml_toolchain_types.bzl","OCamlPlatformInfo","OCamlToolchainInfo")

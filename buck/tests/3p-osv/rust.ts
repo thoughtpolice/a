@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
 // 3p-osv-rust: check buck/third-party/rust/Cargo.lock against https://osv.dev metadata

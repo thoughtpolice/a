@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp, Meta Platforms Inc.
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp, Meta Platforms Inc.
 # SPDX-License-Identifier: Apache-2.0
 
 # NOTE (aseipp): this is just a copy of the system_cxx_toolchain rule from the

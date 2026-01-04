@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:package.bzl", "pkg", "OsvPurlInfo")
@@ -8,7 +8,7 @@ pkg.info(
     description="""Egglog = Equality Saturation + Datalog""",
     license="MIT",
     copyright=[
-        "2024-2025 The Egglog Authors",
+        "2024-2026 The Egglog Authors",
     ],
     visibility=[],
     osv_info=OsvPurlInfo(

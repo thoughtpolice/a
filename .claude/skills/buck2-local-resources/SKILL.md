@@ -70,7 +70,7 @@ Template:
 
 ```bash
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
@@ -190,7 +190,7 @@ echo "{\"pid\": $PID, \"resources\": [{\"db_path\": \"$DB_PATH\"}]}"
 Template:
 
 ```starlark
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 _<service>_broker_rule = rule(
@@ -249,7 +249,7 @@ Your test script will receive environment variables from the broker:
 
 ```bash
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
@@ -361,7 +361,7 @@ _http_test_rule = rule(
 Template:
 
 ```starlark
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
@@ -389,7 +389,7 @@ depot.export_file(
 **Example:**
 
 ```starlark
-# SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", depot = "shims")

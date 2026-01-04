@@ -78,7 +78,7 @@ depot.rust_binary(
 
 **Generated main.rs:**
 ```rust
-// SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
 fn main() {
@@ -112,7 +112,7 @@ depot.rust_library(
 
 **Generated lib.rs:**
 ```rust
-// SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
 pub fn example() {
@@ -148,7 +148,7 @@ deno.binary(
 
 **Generated main.ts:**
 ```typescript
-// SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
 function main() {
@@ -179,7 +179,7 @@ Generated PACKAGE files include:
 load("@root//buck/shims:package.bzl", pkg = "package")
 
 pkg.info(
-    copyright = ["© 2024-2025 Austin Seipp"],
+    copyright = ["© 2024-2026 Austin Seipp"],
     license = "Apache-2.0",
     description = "Fast target determination for Buck2",
     version = "1.0.0",
@@ -197,7 +197,7 @@ This enables:
 All source files include mandatory SPDX headers:
 
 ```rust
-// SPDX-FileCopyrightText: © 2024-2025 Austin Seipp
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 ```
 
