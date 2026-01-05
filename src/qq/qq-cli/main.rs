@@ -13,6 +13,7 @@ fn main() -> std::process::ExitCode {
         .about("Experimental Jujutsu Backend")
         .version("0.20.0-remix+0")
         .add_subcommand(commands::dojo::dojo_cmd)
+        .add_subcommand(commands::hunt::hunt_cmd)
         .add_global_args(allocator::heap_stats_enable)
         .run();
     allocator::maybe_print_stats();
