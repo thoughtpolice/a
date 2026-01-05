@@ -25,14 +25,14 @@
       ourRustVersion = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.complete);
 
       llvmPackages = pkgs.llvmPackages_latest;
-      ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_3;
+      ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_4;
 
       # these are needed in both devShell and buildInputs
       darwinDeps = with pkgs; lib.optionals stdenv.isDarwin [ ];
 
       # these are needed in both devShell and buildInputs
       linuxDeps = with pkgs; lib.optionals stdenv.isLinux [
-        mold-wrapped
+        mold
       ];
     in {
       devShells.default = pkgs.mkShell {
