@@ -153,7 +153,7 @@ fix = 'stack(@, 1)'
 # From Rain (@sunshowers), tipped off by Andre (@indirect). This shows us what
 # is actually interesting in any given case.
 'uninteresting()' = '::remote_bookmarks() | tags()'
-'interesting()' = 'mine() ~ uninterested()'
+'interesting()' = 'mine() ~ uninteresting()'
 
 # By Andre (@indirect). Find a closer revision to tug to, that isn't just blindly using @-
 'closest_pushable(to)' = '''heads(
