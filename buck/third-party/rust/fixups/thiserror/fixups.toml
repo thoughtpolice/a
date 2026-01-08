@@ -6,4 +6,4 @@
 # of this source tree.
 
 buildscript.run = true
-cargo_env = ["CARGO_PKG_VERSION_PATCH"]
+cargo_env = true
