@@ -6,7 +6,6 @@ load("@root//buck/shims:package.bzl", "third_party_meta")
 third_party_meta([
     'bssl',
     'capnp',
-    'egglog',
     'isocline',
     'librseq',
     'liburing',
