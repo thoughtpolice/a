@@ -37,3 +37,4 @@ pub(crate) async fn hunt_cmd(
 
 mod facf;
 mod run;
+mod tui;

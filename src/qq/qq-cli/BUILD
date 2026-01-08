@@ -21,6 +21,8 @@ depot.rust_binary(
         'third-party//rust:jj-cli',
         'third-party//rust:openssl',
         'third-party//rust:thiserror',
+        'third-party//rust:crossterm',
+        'third-party//rust:ratatui',
         'third-party//rust:tokio',
         'third-party//rust:tokio-openssl',
         'third-party//rust:tokio-util',
