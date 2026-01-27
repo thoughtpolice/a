@@ -51,6 +51,10 @@ const RUSTSEC_VIOLATION_EXCEPTIONS = [
     {
         id: "GHSA-6mw6-mj76-grwc",
         reason: "temporary, awaiting crate bump",
+    },
+    {
+        id: "GHSA-rhfx-m35p-ff5j",
+        reason: "temporary, awaiting crate bump",
     }
 ];
 
