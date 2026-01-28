@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# buildscript processes README.md for documentation (required for #![doc = include_str!(...)])
+buildscript.run = true

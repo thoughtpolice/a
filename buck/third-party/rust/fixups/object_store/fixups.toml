@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# needs CARGO_PKG_NAME and CARGO_PKG_VERSION at compile time
+cargo_env = true
