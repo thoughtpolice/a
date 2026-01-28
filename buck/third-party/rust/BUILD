@@ -675,6 +675,12 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "async-trait",
+    actual = ":async-trait-0.1.89",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "async-trait-0.1.89.crate",
     sha256 = "9035ad2d096bed7955a320ee7e2230574d28fd3c3a0f186cbea1ff3c7eed5dbb",
@@ -4113,10 +4119,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe-0.9.1",
-    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
+    srcs = [":dupe-0.9.1.crate"],
     crate = "dupe",
-    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe/src/lib.rs",
-    edition = "2024",
+    crate_root = "dupe-0.9.1.crate/src/lib.rs",
+    edition = "2021",
     visibility = [],
     deps = [":dupe_derive-0.9.1"],
 )
