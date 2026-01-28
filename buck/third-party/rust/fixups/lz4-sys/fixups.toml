@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# lz4-sys compiles lz4 C library
+buildscript.run = false
+cargo_env = true
+
+[['cfg(all(target_arch = "x86_64", target_os = "linux"))'.cxx_library]]
+name = "lz4-c-x86_64-linux"
+srcs = ["liblz4/lib/lz4.c", "liblz4/lib/lz4frame.c", "liblz4/lib/lz4hc.c", "liblz4/lib/xxhash.c"]
+headers = ["liblz4/lib/*.h"]
+include_paths = ["liblz4/lib"]
+exported_headers = ["liblz4/lib/*.h"]
+preferred_linkage = "static"
+compiler_flags = ["-O3"]
+
+[['cfg(all(target_arch = "aarch64", target_os = "linux"))'.cxx_library]]
+name = "lz4-c-aarch64-linux"
+srcs = ["liblz4/lib/lz4.c", "liblz4/lib/lz4frame.c", "liblz4/lib/lz4hc.c", "liblz4/lib/xxhash.c"]
+headers = ["liblz4/lib/*.h"]
+include_paths = ["liblz4/lib"]
+exported_headers = ["liblz4/lib/*.h"]
+preferred_linkage = "static"
+compiler_flags = ["-O3"]
+
+[['cfg(all(target_arch = "x86_64", target_os = "macos"))'.cxx_library]]
+name = "lz4-c-x86_64-macos"
+srcs = ["liblz4/lib/lz4.c", "liblz4/lib/lz4frame.c", "liblz4/lib/lz4hc.c", "liblz4/lib/xxhash.c"]
+headers = ["liblz4/lib/*.h"]
+include_paths = ["liblz4/lib"]
+exported_headers = ["liblz4/lib/*.h"]
+preferred_linkage = "static"
+compiler_flags = ["-O3"]
+
+[['cfg(all(target_arch = "aarch64", target_os = "macos"))'.cxx_library]]
+name = "lz4-c-aarch64-macos"
+srcs = ["liblz4/lib/lz4.c", "liblz4/lib/lz4frame.c", "liblz4/lib/lz4hc.c", "liblz4/lib/xxhash.c"]
+headers = ["liblz4/lib/*.h"]
+include_paths = ["liblz4/lib"]
+exported_headers = ["liblz4/lib/*.h"]
+preferred_linkage = "static"
+compiler_flags = ["-O3"]
