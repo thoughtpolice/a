@@ -5481,6 +5481,7 @@ dependencies = [
  "futures 0.3.31",
  "gix",
  "hex",
+ "hyper-util",
  "insta",
  "iocraft",
  "jj-cli",
