@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    copyright = ["© 2024-2026 Austin Seipp"],
+    license = "Apache-2.0",
+    description = "K6 load testing scripts for smols3 S3-compatible server",
+    version = "1.0.0",
+    visibility = ["PUBLIC"],
+)
