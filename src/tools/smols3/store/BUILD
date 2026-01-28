@@ -25,5 +25,7 @@ depot.rust_library(
 depot.rust_test(
     name = 'tests',
     srcs = glob(['*.rs']),
-    deps = DEPS,
+    deps = DEPS + [
+        'third-party//rust:tokio',
+    ],
 )

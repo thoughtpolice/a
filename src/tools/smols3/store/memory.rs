@@ -584,3 +584,1335 @@ impl Store for MemoryStore {
         Ok(uploads)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    // =========================================================================
+    // Helper functions
+    // =========================================================================
+
+    /// Create a store with a test bucket already created.
+    async fn setup_store_with_bucket() -> (MemoryStore, &'static str) {
+        let store = MemoryStore::new();
+        let bucket = "test-bucket";
+        store.create_bucket(bucket).await.unwrap();
+        (store, bucket)
+    }
+
+    /// Create test ObjectMeta with optional content_type.
+    fn test_meta(content_type: Option<&str>) -> ObjectMeta {
+        ObjectMeta {
+            content_type: content_type.map(String::from),
+            ..Default::default()
+        }
+    }
+
+    // =========================================================================
+    // 1. Bucket Operations (8 tests)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_create_bucket() {
+        let store = MemoryStore::new();
+
+        store.create_bucket("my-bucket").await.unwrap();
+
+        assert!(store.bucket_exists("my-bucket").await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_create_bucket_duplicate() {
+        let store = MemoryStore::new();
+
+        store.create_bucket("my-bucket").await.unwrap();
+        let result = store.create_bucket("my-bucket").await;
+
+        assert!(matches!(result, Err(StoreError::BucketAlreadyExists(_))));
+    }
+
+    #[tokio::test]
+    async fn test_delete_bucket() {
+        let store = MemoryStore::new();
+
+        store.create_bucket("my-bucket").await.unwrap();
+        assert!(store.bucket_exists("my-bucket").await.unwrap());
+
+        store.delete_bucket("my-bucket").await.unwrap();
+        assert!(!store.bucket_exists("my-bucket").await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_delete_bucket_not_found() {
+        let store = MemoryStore::new();
+
+        let result = store.delete_bucket("nonexistent").await;
+
+        assert!(matches!(result, Err(StoreError::BucketNotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn test_delete_bucket_not_empty() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        store
+            .put_object(bucket, "key", Bytes::from("data"), test_meta(None))
+            .await
+            .unwrap();
+
+        let result = store.delete_bucket(bucket).await;
+
+        assert!(matches!(result, Err(StoreError::BucketNotEmpty(_))));
+    }
+
+    #[tokio::test]
+    async fn test_bucket_exists() {
+        let store = MemoryStore::new();
+
+        assert!(!store.bucket_exists("my-bucket").await.unwrap());
+
+        store.create_bucket("my-bucket").await.unwrap();
+
+        assert!(store.bucket_exists("my-bucket").await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_list_buckets_empty() {
+        let store = MemoryStore::new();
+
+        let buckets = store.list_buckets().await.unwrap();
+
+        assert!(buckets.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_list_buckets_multiple() {
+        let store = MemoryStore::new();
+
+        store.create_bucket("bucket-a").await.unwrap();
+        store.create_bucket("bucket-b").await.unwrap();
+        store.create_bucket("bucket-c").await.unwrap();
+
+        let buckets = store.list_buckets().await.unwrap();
+
+        assert_eq!(buckets.len(), 3);
+        let names: Vec<&str> = buckets.iter().map(|b| b.name.as_str()).collect();
+        assert!(names.contains(&"bucket-a"));
+        assert!(names.contains(&"bucket-b"));
+        assert!(names.contains(&"bucket-c"));
+    }
+
+    // =========================================================================
+    // 2. Object Operations (14 tests)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_put_object() {
+        let (store, bucket) = setup_store_with_bucket().await;
+        let data = Bytes::from("hello world");
+
+        let result = store
+            .put_object(bucket, "my-key", data.clone(), test_meta(None))
+            .await
+            .unwrap();
+
+        assert!(!result.etag.is_empty());
+        let expected_etag = MemoryStore::compute_etag(&data);
+        assert_eq!(result.etag, expected_etag);
+    }
+
+    #[tokio::test]
+    async fn test_put_object_no_bucket() {
+        let store = MemoryStore::new();
+
+        let result = store
+            .put_object("nonexistent", "key", Bytes::from("data"), test_meta(None))
+            .await;
+
+        assert!(matches!(result, Err(StoreError::BucketNotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn test_put_object_overwrite() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        store
+            .put_object(bucket, "key", Bytes::from("first"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "key", Bytes::from("second"), test_meta(None))
+            .await
+            .unwrap();
+
+        let obj = store.get_object(bucket, "key").await.unwrap();
+        assert_eq!(obj.data, Bytes::from("second"));
+    }
+
+    #[tokio::test]
+    async fn test_put_object_empty() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let result = store
+            .put_object(bucket, "empty-key", Bytes::new(), test_meta(None))
+            .await
+            .unwrap();
+
+        assert!(!result.etag.is_empty());
+
+        let obj = store.get_object(bucket, "empty-key").await.unwrap();
+        assert!(obj.data.is_empty());
+        assert_eq!(obj.meta.size, 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_object() {
+        let (store, bucket) = setup_store_with_bucket().await;
+        let data = Bytes::from("hello world");
+
+        store
+            .put_object(
+                bucket,
+                "key",
+                data.clone(),
+                test_meta(Some("text/plain")),
+            )
+            .await
+            .unwrap();
+
+        let obj = store.get_object(bucket, "key").await.unwrap();
+
+        assert_eq!(obj.data, data);
+        assert_eq!(obj.meta.content_type, Some("text/plain".to_string()));
+        assert_eq!(obj.meta.size, data.len() as u64);
+        assert!(!obj.meta.etag.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_object_not_found() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let result = store.get_object(bucket, "nonexistent").await;
+
+        assert!(matches!(result, Err(StoreError::ObjectNotFound { .. })));
+    }
+
+    #[tokio::test]
+    async fn test_get_object_no_bucket() {
+        let store = MemoryStore::new();
+
+        let result = store.get_object("nonexistent", "key").await;
+
+        assert!(matches!(result, Err(StoreError::BucketNotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn test_get_object_range() {
+        let (store, bucket) = setup_store_with_bucket().await;
+        let data = Bytes::from("hello world");
+
+        store
+            .put_object(bucket, "key", data, test_meta(None))
+            .await
+            .unwrap();
+
+        let range_data = store.get_object_range(bucket, "key", 0..5).await.unwrap();
+
+        assert_eq!(range_data, Bytes::from("hello"));
+    }
+
+    #[tokio::test]
+    async fn test_get_object_range_partial() {
+        let (store, bucket) = setup_store_with_bucket().await;
+        let data = Bytes::from("hello");
+
+        store
+            .put_object(bucket, "key", data, test_meta(None))
+            .await
+            .unwrap();
+
+        // Range extends past end - should be clamped
+        let range_data = store.get_object_range(bucket, "key", 2..100).await.unwrap();
+
+        assert_eq!(range_data, Bytes::from("llo"));
+    }
+
+    #[tokio::test]
+    async fn test_get_object_range_invalid() {
+        let (store, bucket) = setup_store_with_bucket().await;
+        let data = Bytes::from("hello");
+
+        store
+            .put_object(bucket, "key", data, test_meta(None))
+            .await
+            .unwrap();
+
+        // Start >= size
+        let result = store.get_object_range(bucket, "key", 10..20).await;
+
+        assert!(matches!(result, Err(StoreError::InvalidRange(_))));
+    }
+
+    #[tokio::test]
+    async fn test_head_object() {
+        let (store, bucket) = setup_store_with_bucket().await;
+        let data = Bytes::from("hello world");
+
+        store
+            .put_object(
+                bucket,
+                "key",
+                data.clone(),
+                test_meta(Some("application/json")),
+            )
+            .await
+            .unwrap();
+
+        let meta = store.head_object(bucket, "key").await.unwrap();
+
+        assert_eq!(meta.content_type, Some("application/json".to_string()));
+        assert_eq!(meta.size, data.len() as u64);
+        assert!(!meta.etag.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_head_object_not_found() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let result = store.head_object(bucket, "nonexistent").await;
+
+        assert!(matches!(result, Err(StoreError::ObjectNotFound { .. })));
+    }
+
+    #[tokio::test]
+    async fn test_delete_object() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        store
+            .put_object(bucket, "key", Bytes::from("data"), test_meta(None))
+            .await
+            .unwrap();
+
+        store.delete_object(bucket, "key").await.unwrap();
+
+        let result = store.get_object(bucket, "key").await;
+        assert!(matches!(result, Err(StoreError::ObjectNotFound { .. })));
+    }
+
+    #[tokio::test]
+    async fn test_delete_object_idempotent() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        // Delete non-existent object should succeed (S3 semantics)
+        store.delete_object(bucket, "nonexistent").await.unwrap();
+
+        // Delete same object twice should also succeed
+        store
+            .put_object(bucket, "key", Bytes::from("data"), test_meta(None))
+            .await
+            .unwrap();
+        store.delete_object(bucket, "key").await.unwrap();
+        store.delete_object(bucket, "key").await.unwrap();
+    }
+
+    // =========================================================================
+    // 3. Copy Object Operations (5 tests)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_copy_object_same_bucket() {
+        let (store, bucket) = setup_store_with_bucket().await;
+        let data = Bytes::from("hello world");
+
+        store
+            .put_object(bucket, "source", data.clone(), test_meta(Some("text/plain")))
+            .await
+            .unwrap();
+
+        let result = store
+            .copy_object(bucket, "source", bucket, "dest")
+            .await
+            .unwrap();
+
+        assert!(!result.etag.is_empty());
+
+        let dest_obj = store.get_object(bucket, "dest").await.unwrap();
+        assert_eq!(dest_obj.data, data);
+        assert_eq!(dest_obj.meta.content_type, Some("text/plain".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_copy_object_cross_bucket() {
+        let store = MemoryStore::new();
+        store.create_bucket("src-bucket").await.unwrap();
+        store.create_bucket("dst-bucket").await.unwrap();
+
+        let data = Bytes::from("cross bucket data");
+        store
+            .put_object("src-bucket", "key", data.clone(), test_meta(None))
+            .await
+            .unwrap();
+
+        store
+            .copy_object("src-bucket", "key", "dst-bucket", "key")
+            .await
+            .unwrap();
+
+        let dest_obj = store.get_object("dst-bucket", "key").await.unwrap();
+        assert_eq!(dest_obj.data, data);
+    }
+
+    #[tokio::test]
+    async fn test_copy_object_source_not_found() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let result = store
+            .copy_object(bucket, "nonexistent", bucket, "dest")
+            .await;
+
+        assert!(matches!(result, Err(StoreError::ObjectNotFound { .. })));
+    }
+
+    #[tokio::test]
+    async fn test_copy_object_dest_bucket_not_found() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        store
+            .put_object(bucket, "source", Bytes::from("data"), test_meta(None))
+            .await
+            .unwrap();
+
+        let result = store
+            .copy_object(bucket, "source", "nonexistent", "dest")
+            .await;
+
+        assert!(matches!(result, Err(StoreError::BucketNotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn test_copy_object_overwrites_existing() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        store
+            .put_object(bucket, "source", Bytes::from("source data"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "dest", Bytes::from("original dest"), test_meta(None))
+            .await
+            .unwrap();
+
+        store
+            .copy_object(bucket, "source", bucket, "dest")
+            .await
+            .unwrap();
+
+        let dest_obj = store.get_object(bucket, "dest").await.unwrap();
+        assert_eq!(dest_obj.data, Bytes::from("source data"));
+    }
+
+    // =========================================================================
+    // 4. List Objects Operations (10 tests)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_list_objects_empty() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let result = store
+            .list_objects(
+                bucket,
+                ListObjectsOptions {
+                    max_keys: 1000,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
+        assert!(result.objects.is_empty());
+        assert!(result.common_prefixes.is_empty());
+        assert!(!result.is_truncated);
+    }
+
+    #[tokio::test]
+    async fn test_list_objects_basic() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        store
+            .put_object(bucket, "a", Bytes::from("data-a"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "b", Bytes::from("data-b"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "c", Bytes::from("data-c"), test_meta(None))
+            .await
+            .unwrap();
+
+        let result = store
+            .list_objects(
+                bucket,
+                ListObjectsOptions {
+                    max_keys: 1000,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(result.objects.len(), 3);
+        assert_eq!(result.key_count, 3);
+    }
+
+    #[tokio::test]
+    async fn test_list_objects_no_bucket() {
+        let store = MemoryStore::new();
+
+        let result = store
+            .list_objects(
+                "nonexistent",
+                ListObjectsOptions {
+                    max_keys: 1000,
+                    ..Default::default()
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(StoreError::BucketNotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn test_list_objects_with_prefix() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        store
+            .put_object(bucket, "photos/cat.jpg", Bytes::from("cat"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "photos/dog.jpg", Bytes::from("dog"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "docs/readme.txt", Bytes::from("readme"), test_meta(None))
+            .await
+            .unwrap();
+
+        let result = store
+            .list_objects(
+                bucket,
+                ListObjectsOptions {
+                    prefix: Some("photos/".to_string()),
+                    max_keys: 1000,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(result.objects.len(), 2);
+        assert!(result.objects.iter().all(|e| e.key.starts_with("photos/")));
+    }
+
+    #[tokio::test]
+    async fn test_list_objects_with_delimiter() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        store
+            .put_object(bucket, "photos/2023/cat.jpg", Bytes::from("cat"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "photos/2024/dog.jpg", Bytes::from("dog"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "root.txt", Bytes::from("root"), test_meta(None))
+            .await
+            .unwrap();
+
+        let result = store
+            .list_objects(
+                bucket,
+                ListObjectsOptions {
+                    delimiter: Some("/".to_string()),
+                    max_keys: 1000,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
+        // Should have "root.txt" as object and "photos/" as common prefix
+        assert_eq!(result.objects.len(), 1);
+        assert_eq!(result.objects[0].key, "root.txt");
+        assert_eq!(result.common_prefixes.len(), 1);
+        assert_eq!(result.common_prefixes[0].prefix, "photos/");
+    }
+
+    #[tokio::test]
+    async fn test_list_objects_prefix_and_delimiter() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        store
+            .put_object(bucket, "photos/2023/jan/a.jpg", Bytes::from("a"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "photos/2023/feb/b.jpg", Bytes::from("b"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "photos/2024/mar/c.jpg", Bytes::from("c"), test_meta(None))
+            .await
+            .unwrap();
+
+        let result = store
+            .list_objects(
+                bucket,
+                ListObjectsOptions {
+                    prefix: Some("photos/".to_string()),
+                    delimiter: Some("/".to_string()),
+                    max_keys: 1000,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
+        // Should have "photos/2023/" and "photos/2024/" as common prefixes
+        assert!(result.objects.is_empty());
+        assert_eq!(result.common_prefixes.len(), 2);
+        let prefixes: Vec<&str> = result.common_prefixes.iter().map(|p| p.prefix.as_str()).collect();
+        assert!(prefixes.contains(&"photos/2023/"));
+        assert!(prefixes.contains(&"photos/2024/"));
+    }
+
+    #[tokio::test]
+    async fn test_list_objects_max_keys() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        for i in 0..10 {
+            store
+                .put_object(bucket, &format!("key-{:02}", i), Bytes::from("data"), test_meta(None))
+                .await
+                .unwrap();
+        }
+
+        let result = store
+            .list_objects(
+                bucket,
+                ListObjectsOptions {
+                    max_keys: 3,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(result.objects.len(), 3);
+        assert!(result.is_truncated);
+    }
+
+    #[tokio::test]
+    async fn test_list_objects_start_after() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        store
+            .put_object(bucket, "a", Bytes::from("a"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "b", Bytes::from("b"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "c", Bytes::from("c"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "d", Bytes::from("d"), test_meta(None))
+            .await
+            .unwrap();
+
+        let result = store
+            .list_objects(
+                bucket,
+                ListObjectsOptions {
+                    start_after: Some("b".to_string()),
+                    max_keys: 1000,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(result.objects.len(), 2);
+        assert_eq!(result.objects[0].key, "c");
+        assert_eq!(result.objects[1].key, "d");
+    }
+
+    #[tokio::test]
+    async fn test_list_objects_is_truncated() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        for i in 0..5 {
+            store
+                .put_object(bucket, &format!("key-{}", i), Bytes::from("data"), test_meta(None))
+                .await
+                .unwrap();
+        }
+
+        // Request more than available
+        let result = store
+            .list_objects(
+                bucket,
+                ListObjectsOptions {
+                    max_keys: 10,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert!(!result.is_truncated);
+        assert!(result.next_continuation_token.is_none());
+
+        // Request fewer than available
+        let result = store
+            .list_objects(
+                bucket,
+                ListObjectsOptions {
+                    max_keys: 3,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert!(result.is_truncated);
+        assert!(result.next_continuation_token.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_list_objects_sorted() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        // Insert in non-sorted order
+        store
+            .put_object(bucket, "zebra", Bytes::from("z"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "apple", Bytes::from("a"), test_meta(None))
+            .await
+            .unwrap();
+        store
+            .put_object(bucket, "mango", Bytes::from("m"), test_meta(None))
+            .await
+            .unwrap();
+
+        let result = store
+            .list_objects(
+                bucket,
+                ListObjectsOptions {
+                    max_keys: 1000,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(result.objects[0].key, "apple");
+        assert_eq!(result.objects[1].key, "mango");
+        assert_eq!(result.objects[2].key, "zebra");
+    }
+
+    // =========================================================================
+    // 5. Multipart Upload Operations (15 tests)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_create_multipart_upload() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let upload_id = store
+            .create_multipart_upload(bucket, "key", test_meta(None))
+            .await
+            .unwrap();
+
+        assert!(!upload_id.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_create_multipart_no_bucket() {
+        let store = MemoryStore::new();
+
+        let result = store
+            .create_multipart_upload("nonexistent", "key", test_meta(None))
+            .await;
+
+        assert!(matches!(result, Err(StoreError::BucketNotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn test_upload_part() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let upload_id = store
+            .create_multipart_upload(bucket, "key", test_meta(None))
+            .await
+            .unwrap();
+
+        let part_info = store
+            .upload_part(bucket, &upload_id, 1, Bytes::from("part 1 data"))
+            .await
+            .unwrap();
+
+        assert_eq!(part_info.part_number, 1);
+        assert!(!part_info.etag.is_empty());
+        assert_eq!(part_info.size, 11);
+    }
+
+    #[tokio::test]
+    async fn test_upload_part_invalid_number_zero() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let upload_id = store
+            .create_multipart_upload(bucket, "key", test_meta(None))
+            .await
+            .unwrap();
+
+        let result = store
+            .upload_part(bucket, &upload_id, 0, Bytes::from("data"))
+            .await;
+
+        assert!(matches!(result, Err(StoreError::InvalidPartNumber(0))));
+    }
+
+    #[tokio::test]
+    async fn test_upload_part_invalid_number_high() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let upload_id = store
+            .create_multipart_upload(bucket, "key", test_meta(None))
+            .await
+            .unwrap();
+
+        let result = store
+            .upload_part(bucket, &upload_id, 10001, Bytes::from("data"))
+            .await;
+
+        assert!(matches!(result, Err(StoreError::InvalidPartNumber(10001))));
+    }
+
+    #[tokio::test]
+    async fn test_upload_part_no_upload() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let result = store
+            .upload_part(bucket, "nonexistent-upload-id", 1, Bytes::from("data"))
+            .await;
+
+        assert!(matches!(result, Err(StoreError::MultipartNotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn test_upload_part_wrong_bucket() {
+        let store = MemoryStore::new();
+        store.create_bucket("bucket-a").await.unwrap();
+        store.create_bucket("bucket-b").await.unwrap();
+
+        let upload_id = store
+            .create_multipart_upload("bucket-a", "key", test_meta(None))
+            .await
+            .unwrap();
+
+        let result = store
+            .upload_part("bucket-b", &upload_id, 1, Bytes::from("data"))
+            .await;
+
+        assert!(matches!(result, Err(StoreError::MultipartNotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn test_upload_part_overwrite() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let upload_id = store
+            .create_multipart_upload(bucket, "key", test_meta(None))
+            .await
+            .unwrap();
+
+        store
+            .upload_part(bucket, &upload_id, 1, Bytes::from("first"))
+            .await
+            .unwrap();
+        let part_info = store
+            .upload_part(bucket, &upload_id, 1, Bytes::from("second"))
+            .await
+            .unwrap();
+
+        assert_eq!(part_info.size, 6); // "second"
+
+        let parts = store.list_parts(bucket, &upload_id).await.unwrap();
+        assert_eq!(parts.len(), 1);
+        assert_eq!(parts[0].size, 6);
+    }
+
+    #[tokio::test]
+    async fn test_complete_multipart() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let upload_id = store
+            .create_multipart_upload(bucket, "key", test_meta(Some("text/plain")))
+            .await
+            .unwrap();
+
+        let part1 = store
+            .upload_part(bucket, &upload_id, 1, Bytes::from("Hello "))
+            .await
+            .unwrap();
+        let part2 = store
+            .upload_part(bucket, &upload_id, 2, Bytes::from("World"))
+            .await
+            .unwrap();
+
+        let result = store
+            .complete_multipart_upload(
+                bucket,
+                "key",
+                &upload_id,
+                &[
+                    CompletedPart {
+                        part_number: 1,
+                        etag: part1.etag,
+                    },
+                    CompletedPart {
+                        part_number: 2,
+                        etag: part2.etag,
+                    },
+                ],
+            )
+            .await
+            .unwrap();
+
+        assert!(!result.etag.is_empty());
+
+        let obj = store.get_object(bucket, "key").await.unwrap();
+        assert_eq!(obj.data, Bytes::from("Hello World"));
+        assert_eq!(obj.meta.content_type, Some("text/plain".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_complete_multipart_out_of_order() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let upload_id = store
+            .create_multipart_upload(bucket, "key", test_meta(None))
+            .await
+            .unwrap();
+
+        let part1 = store
+            .upload_part(bucket, &upload_id, 1, Bytes::from("A"))
+            .await
+            .unwrap();
+        let part2 = store
+            .upload_part(bucket, &upload_id, 2, Bytes::from("B"))
+            .await
+            .unwrap();
+        let part3 = store
+            .upload_part(bucket, &upload_id, 3, Bytes::from("C"))
+            .await
+            .unwrap();
+
+        // Complete with parts in different order (3, 1, 2)
+        let _ = store
+            .complete_multipart_upload(
+                bucket,
+                "key",
+                &upload_id,
+                &[
+                    CompletedPart {
+                        part_number: 3,
+                        etag: part3.etag,
+                    },
+                    CompletedPart {
+                        part_number: 1,
+                        etag: part1.etag,
+                    },
+                    CompletedPart {
+                        part_number: 2,
+                        etag: part2.etag,
+                    },
+                ],
+            )
+            .await
+            .unwrap();
+
+        let obj = store.get_object(bucket, "key").await.unwrap();
+        // Parts are assembled in the order they appear in the request
+        assert_eq!(obj.data, Bytes::from("CAB"));
+    }
+
+    #[tokio::test]
+    async fn test_complete_multipart_missing_part() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let upload_id = store
+            .create_multipart_upload(bucket, "key", test_meta(None))
+            .await
+            .unwrap();
+
+        let part1 = store
+            .upload_part(bucket, &upload_id, 1, Bytes::from("part1"))
+            .await
+            .unwrap();
+
+        let result = store
+            .complete_multipart_upload(
+                bucket,
+                "key",
+                &upload_id,
+                &[
+                    CompletedPart {
+                        part_number: 1,
+                        etag: part1.etag,
+                    },
+                    CompletedPart {
+                        part_number: 2, // Not uploaded
+                        etag: "fake".to_string(),
+                    },
+                ],
+            )
+            .await;
+
+        assert!(matches!(result, Err(StoreError::PartNotFound { .. })));
+    }
+
+    #[tokio::test]
+    async fn test_complete_multipart_no_upload() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let result = store
+            .complete_multipart_upload(bucket, "key", "nonexistent", &[])
+            .await;
+
+        assert!(matches!(result, Err(StoreError::MultipartNotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn test_abort_multipart() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let upload_id = store
+            .create_multipart_upload(bucket, "key", test_meta(None))
+            .await
+            .unwrap();
+
+        store
+            .upload_part(bucket, &upload_id, 1, Bytes::from("data"))
+            .await
+            .unwrap();
+
+        store.abort_multipart_upload(bucket, &upload_id).await.unwrap();
+
+        // Upload should no longer exist
+        let result = store.list_parts(bucket, &upload_id).await;
+        assert!(matches!(result, Err(StoreError::MultipartNotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn test_abort_multipart_no_upload() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let result = store.abort_multipart_upload(bucket, "nonexistent").await;
+
+        assert!(matches!(result, Err(StoreError::MultipartNotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn test_list_parts() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let upload_id = store
+            .create_multipart_upload(bucket, "key", test_meta(None))
+            .await
+            .unwrap();
+
+        store
+            .upload_part(bucket, &upload_id, 3, Bytes::from("third"))
+            .await
+            .unwrap();
+        store
+            .upload_part(bucket, &upload_id, 1, Bytes::from("first"))
+            .await
+            .unwrap();
+        store
+            .upload_part(bucket, &upload_id, 2, Bytes::from("second"))
+            .await
+            .unwrap();
+
+        let parts = store.list_parts(bucket, &upload_id).await.unwrap();
+
+        assert_eq!(parts.len(), 3);
+        // Should be sorted by part number
+        assert_eq!(parts[0].part_number, 1);
+        assert_eq!(parts[1].part_number, 2);
+        assert_eq!(parts[2].part_number, 3);
+    }
+
+    #[tokio::test]
+    async fn test_list_multipart_uploads() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let upload1 = store
+            .create_multipart_upload(bucket, "key1", test_meta(None))
+            .await
+            .unwrap();
+        let upload2 = store
+            .create_multipart_upload(bucket, "key2", test_meta(None))
+            .await
+            .unwrap();
+
+        let uploads = store.list_multipart_uploads(bucket).await.unwrap();
+
+        assert_eq!(uploads.len(), 2);
+        let upload_ids: Vec<&str> = uploads.iter().map(|u| u.upload_id.as_str()).collect();
+        assert!(upload_ids.contains(&upload1.as_str()));
+        assert!(upload_ids.contains(&upload2.as_str()));
+    }
+
+    // =========================================================================
+    // 6. Metadata Handling (4 tests)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_metadata_preserved() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let meta = ObjectMeta {
+            content_type: Some("application/json".to_string()),
+            content_encoding: Some("gzip".to_string()),
+            content_disposition: Some("attachment".to_string()),
+            content_language: Some("en-US".to_string()),
+            cache_control: Some("max-age=3600".to_string()),
+            ..Default::default()
+        };
+
+        store
+            .put_object(bucket, "key", Bytes::from("{}"), meta)
+            .await
+            .unwrap();
+
+        let retrieved = store.head_object(bucket, "key").await.unwrap();
+
+        assert_eq!(retrieved.content_type, Some("application/json".to_string()));
+        assert_eq!(retrieved.content_encoding, Some("gzip".to_string()));
+        assert_eq!(retrieved.content_disposition, Some("attachment".to_string()));
+        assert_eq!(retrieved.content_language, Some("en-US".to_string()));
+        assert_eq!(retrieved.cache_control, Some("max-age=3600".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_metadata_user_defined() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let mut user_metadata = HashMap::new();
+        user_metadata.insert("x-amz-meta-author".to_string(), "Alice".to_string());
+        user_metadata.insert("x-amz-meta-version".to_string(), "1.0".to_string());
+
+        let meta = ObjectMeta {
+            user_metadata: Some(user_metadata),
+            ..Default::default()
+        };
+
+        store
+            .put_object(bucket, "key", Bytes::from("data"), meta)
+            .await
+            .unwrap();
+
+        let retrieved = store.head_object(bucket, "key").await.unwrap();
+        let user_meta = retrieved.user_metadata.unwrap();
+
+        assert_eq!(user_meta.get("x-amz-meta-author"), Some(&"Alice".to_string()));
+        assert_eq!(user_meta.get("x-amz-meta-version"), Some(&"1.0".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_etag_computed() {
+        let (store, bucket) = setup_store_with_bucket().await;
+        let data = b"hello world";
+
+        store
+            .put_object(bucket, "key", Bytes::from_static(data), test_meta(None))
+            .await
+            .unwrap();
+
+        let meta = store.head_object(bucket, "key").await.unwrap();
+
+        // ETag should be MD5 of content
+        let expected = format!("{:x}", md5::compute(data));
+        assert_eq!(meta.etag, expected);
+    }
+
+    #[tokio::test]
+    async fn test_last_modified_updated() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        store
+            .put_object(bucket, "key", Bytes::from("v1"), test_meta(None))
+            .await
+            .unwrap();
+
+        let meta1 = store.head_object(bucket, "key").await.unwrap();
+
+        // Small delay to ensure different timestamp
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        store
+            .put_object(bucket, "key", Bytes::from("v2"), test_meta(None))
+            .await
+            .unwrap();
+
+        let meta2 = store.head_object(bucket, "key").await.unwrap();
+
+        assert!(meta2.last_modified >= meta1.last_modified);
+    }
+
+    // =========================================================================
+    // 7. Edge Cases (4 tests)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_special_characters_in_key() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        let special_keys = [
+            "path/with/slashes/file.txt",
+            "file with spaces.txt",
+            "unicode-文件-émoji-🎉.txt",
+            "special!@#$%^&()chars",
+            "file\twith\ttabs",
+        ];
+
+        for key in &special_keys {
+            store
+                .put_object(bucket, key, Bytes::from("data"), test_meta(None))
+                .await
+                .unwrap();
+
+            let obj = store.get_object(bucket, key).await.unwrap();
+            assert_eq!(obj.data, Bytes::from("data"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_large_object() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        // 1MB + 1 byte object
+        let size = 1024 * 1024 + 1;
+        let data = Bytes::from(vec![0xABu8; size]);
+
+        store
+            .put_object(bucket, "large", data.clone(), test_meta(None))
+            .await
+            .unwrap();
+
+        let obj = store.get_object(bucket, "large").await.unwrap();
+        assert_eq!(obj.data.len(), size);
+        assert_eq!(obj.meta.size, size as u64);
+    }
+
+    #[tokio::test]
+    async fn test_many_objects() {
+        let (store, bucket) = setup_store_with_bucket().await;
+
+        // Create 1000 objects
+        for i in 0..1000 {
+            store
+                .put_object(
+                    bucket,
+                    &format!("obj-{:04}", i),
+                    Bytes::from(format!("data-{}", i)),
+                    test_meta(None),
+                )
+                .await
+                .unwrap();
+        }
+
+        let result = store
+            .list_objects(
+                bucket,
+                ListObjectsOptions {
+                    max_keys: 2000,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(result.objects.len(), 1000);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_operations() {
+        use std::sync::Arc;
+
+        let store = Arc::new(MemoryStore::new());
+        store.create_bucket("concurrent").await.unwrap();
+
+        let mut handles = vec![];
+
+        // Spawn multiple tasks doing concurrent operations
+        for i in 0..10 {
+            let store = Arc::clone(&store);
+            let handle = tokio::spawn(async move {
+                let key = format!("key-{}", i);
+
+                // Put
+                store
+                    .put_object(
+                        "concurrent",
+                        &key,
+                        Bytes::from(format!("data-{}", i)),
+                        ObjectMeta::default(),
+                    )
+                    .await
+                    .unwrap();
+
+                // Get
+                let obj = store.get_object("concurrent", &key).await.unwrap();
+                assert_eq!(obj.data, Bytes::from(format!("data-{}", i)));
+
+                // Head
+                let meta = store.head_object("concurrent", &key).await.unwrap();
+                assert!(meta.size > 0);
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all tasks
+        for handle in handles {
+            handle.await.unwrap();
+        }
+
+        // Verify all objects exist
+        let result = store
+            .list_objects(
+                "concurrent",
+                ListObjectsOptions {
+                    max_keys: 100,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(result.objects.len(), 10);
+    }
+}
