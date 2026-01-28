@@ -23,11 +23,17 @@ fn extract_upload_id(body: &[u8]) -> String {
 }
 
 /// Macro to generate tests only for chunking store backends.
+///
+/// Which backends are included depends on enabled features:
+/// - `memory`: ChunkingStore<MemoryStore>
+/// - `fjall`: ChunkingStore<FjallStore>
+/// - `slatedb`: ChunkingStore<SlateStore>
 macro_rules! test_with_chunking_stores {
     ($name:ident, $test:expr) => {
         mod $name {
             use super::*;
 
+            #[cfg(feature = "memory")]
             #[tokio::test]
             async fn chunking_memory() {
                 let inner = store::MemoryStore::new();
@@ -37,6 +43,7 @@ macro_rules! test_with_chunking_stores {
                 test_fn(harness).await;
             }
 
+            #[cfg(feature = "fjall")]
             #[tokio::test]
             async fn chunking_fjall() {
                 let tmp = tempfile::tempdir().unwrap();
@@ -48,6 +55,7 @@ macro_rules! test_with_chunking_stores {
                 test_fn(harness).await;
             }
 
+            #[cfg(feature = "slatedb")]
             #[tokio::test]
             async fn chunking_slatedb() {
                 let slate_store = store::SlateStore::open_in_memory().await.unwrap();

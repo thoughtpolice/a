@@ -25,4 +25,7 @@ depot.rust_binary(
     srcs = ['bin/main.rs'],
     deps = BUILD_DEPS,
     visibility = [ 'PUBLIC' ],
+    tests = [
+        '//src/tools/smols3/http-tests:http-tests',
+    ],
 )
