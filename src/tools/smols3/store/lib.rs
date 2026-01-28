@@ -46,5 +46,5 @@ pub use s3::SmolS3;
 pub use traits::{
     BucketInfo, CommonPrefix, CompletedPart, CompleteMultipartResult, CopyObjectResult,
     ListObjectsOptions, ListObjectsResult, MultipartUploadInfo, ObjectData, ObjectEntry,
-    ObjectMeta, PartInfo, PutObjectResult, Store,
+    ObjectMeta, PartInfo, PutObjectOptions, PutObjectResult, Store,
 };

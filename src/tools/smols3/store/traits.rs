@@ -107,6 +107,30 @@ pub struct PutObjectResult {
     pub etag: String,
 }
 
+/// Options for conditional put_object operations.
+///
+/// These options implement S3's conditional write semantics:
+/// - `if_none_match`: Only write if the object doesn't exist (put-if-absent)
+/// - `if_match`: Only write if the object's ETag matches (compare-and-swap)
+///
+/// See: <https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html>
+#[derive(Debug, Clone, Default)]
+pub struct PutObjectOptions {
+    /// If set to true (representing `If-None-Match: *`), the operation only
+    /// succeeds if the object does not already exist.
+    ///
+    /// Returns `PreconditionFailed` if the object exists.
+    pub if_none_match: bool,
+
+    /// If set, the operation only succeeds if the existing object's ETag
+    /// matches this value (representing `If-Match: <etag>`).
+    ///
+    /// Returns `PreconditionFailed` if:
+    /// - The object doesn't exist
+    /// - The object's ETag doesn't match
+    pub if_match: Option<String>,
+}
+
 /// Result of a copy_object operation.
 #[derive(Debug, Clone)]
 pub struct CopyObjectResult {
@@ -272,13 +296,17 @@ pub trait Store: Send + Sync {
 
     /// Store an object.
     ///
-    /// If the object already exists, it is overwritten.
+    /// If the object already exists, it is overwritten unless conditional options
+    /// are specified:
+    /// - `options.if_none_match = true`: Only succeeds if object doesn't exist (put-if-absent)
+    /// - `options.if_match = Some(etag)`: Only succeeds if existing object's ETag matches
     async fn put_object(
         &self,
         bucket: &str,
         key: &str,
         data: Bytes,
         meta: ObjectMeta,
+        options: PutObjectOptions,
     ) -> StoreResult<PutObjectResult>;
 
     /// Retrieve an object and its metadata.

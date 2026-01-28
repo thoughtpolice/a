@@ -30,11 +30,19 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
+use fjall::Readable;
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
 use super::error::{StoreError, StoreResult};
 use super::traits::*;
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+/// Maximum number of transaction retries on conflict
+const MAX_TRANSACTION_RETRIES: usize = 10;
 
 // =============================================================================
 // Serializable types for Fjall storage
@@ -190,23 +198,23 @@ impl FjallStoreConfig {
 /// Fjall-based persistent storage backend.
 ///
 /// Uses Fjall LSM-tree database for durable storage with
-/// efficient reads and writes.
+/// efficient reads and writes. Uses optimistic transactions
+/// for atomic conditional writes.
 pub struct FjallStore {
-    /// The fjall database handle.
-    #[allow(dead_code)]
-    db: fjall::Database,
+    /// The fjall transactional database handle.
+    db: fjall::OptimisticTxDatabase,
     /// Keyspace for bucket metadata.
-    buckets: fjall::Keyspace,
+    buckets: fjall::OptimisticTxKeyspace,
     /// Keyspace for object data.
-    objects: fjall::Keyspace,
+    objects: fjall::OptimisticTxKeyspace,
     /// Keyspace for object metadata.
-    object_meta: fjall::Keyspace,
+    object_meta: fjall::OptimisticTxKeyspace,
     /// Keyspace for multipart upload state.
-    multipart: fjall::Keyspace,
+    multipart: fjall::OptimisticTxKeyspace,
     /// Keyspace for multipart parts data.
-    parts: fjall::Keyspace,
+    parts: fjall::OptimisticTxKeyspace,
     /// Keyspace for multipart parts metadata.
-    part_meta: fjall::Keyspace,
+    part_meta: fjall::OptimisticTxKeyspace,
     /// Configuration.
     #[allow(dead_code)]
     config: FjallStoreConfig,
@@ -217,7 +225,7 @@ impl FjallStore {
     pub fn open(config: FjallStoreConfig) -> StoreResult<Self> {
         debug!(path = %config.path.display(), "opening fjall store");
 
-        let db = fjall::Database::builder(&config.path).open()?;
+        let db = fjall::OptimisticTxDatabase::builder(&config.path).open()?;
 
         let buckets = db.keyspace("buckets", fjall::KeyspaceCreateOptions::default)?;
         let objects = db.keyspace("objects", fjall::KeyspaceCreateOptions::default)?;
@@ -283,7 +291,7 @@ impl Store for FjallStore {
 
         // Check if bucket is empty
         let prefix = make_object_key(bucket, "");
-        let mut iter = self.objects.prefix(&prefix);
+        let mut iter = self.objects.inner().prefix(&prefix);
         if iter.next().is_some() {
             return Err(StoreError::BucketNotEmpty(bucket.to_string()));
         }
@@ -300,7 +308,7 @@ impl Store for FjallStore {
     async fn list_buckets(&self) -> StoreResult<Vec<BucketInfo>> {
         let mut buckets = Vec::new();
 
-        for entry in self.buckets.iter() {
+        for entry in self.buckets.inner().iter() {
             let (key, value) = entry.into_inner()?;
             let name = String::from_utf8_lossy(&key).to_string();
             let created_at = decode_timestamp(&value);
@@ -320,26 +328,106 @@ impl Store for FjallStore {
         key: &str,
         data: Bytes,
         mut meta: ObjectMeta,
+        options: PutObjectOptions,
     ) -> StoreResult<PutObjectResult> {
         if !self.bucket_exists_sync(bucket)? {
             return Err(StoreError::BucketNotFound(bucket.to_string()));
         }
 
-        let etag = compute_etag(&data);
-        meta.size = data.len() as u64;
-        meta.last_modified = SystemTime::now();
-        meta.etag = etag.clone();
-
+        let has_conditions = options.if_none_match || options.if_match.is_some();
         let obj_key = make_object_key(bucket, key);
-        let stored_meta = StoredObjectMeta::from_object_meta(&meta);
-        let meta_json = serde_json::to_vec(&stored_meta)
-            .map_err(|e| StoreError::Internal(format!("failed to serialize meta: {e}")))?;
 
-        self.objects.insert(&obj_key, data.as_ref())?;
-        self.object_meta.insert(&obj_key, meta_json)?;
+        // Fast path: no conditions, use direct writes
+        if !has_conditions {
+            let etag = compute_etag(&data);
+            meta.size = data.len() as u64;
+            meta.last_modified = SystemTime::now();
+            meta.etag = etag.clone();
 
-        debug!(bucket, key, "object stored");
-        Ok(PutObjectResult { etag })
+            let stored_meta = StoredObjectMeta::from_object_meta(&meta);
+            let meta_json = serde_json::to_vec(&stored_meta)
+                .map_err(|e| StoreError::Internal(format!("failed to serialize meta: {e}")))?;
+
+            self.objects.insert(&obj_key, data.as_ref())?;
+            self.object_meta.insert(&obj_key, meta_json)?;
+
+            debug!(bucket, key, "object stored");
+            return Ok(PutObjectResult { etag });
+        }
+
+        // Slow path: use transaction for atomic conditional writes
+        for attempt in 0..MAX_TRANSACTION_RETRIES {
+            let mut txn = self.db.write_tx()?;
+
+            // Check if_none_match condition within transaction
+            if options.if_none_match {
+                // If-None-Match: * - only succeed if object doesn't exist
+                if txn.get(&self.objects, &obj_key)?.is_some() {
+                    return Err(StoreError::PreconditionFailed(format!(
+                        "object already exists: {}/{}",
+                        bucket, key
+                    )));
+                }
+            }
+
+            // Check if_match condition within transaction
+            if let Some(ref expected_etag) = options.if_match {
+                // If-Match: <etag> - only succeed if existing object's ETag matches
+                match txn.get(&self.object_meta, &obj_key)? {
+                    Some(meta_bytes) => {
+                        let stored_meta: StoredObjectMeta = serde_json::from_slice(&meta_bytes)
+                            .map_err(|e| {
+                                StoreError::Internal(format!("failed to parse meta: {e}"))
+                            })?;
+                        if stored_meta.etag != *expected_etag {
+                            return Err(StoreError::PreconditionFailed(format!(
+                                "ETag mismatch: expected {}, found {}",
+                                expected_etag, stored_meta.etag
+                            )));
+                        }
+                    }
+                    None => {
+                        return Err(StoreError::PreconditionFailed(format!(
+                            "object does not exist: {}/{}",
+                            bucket, key
+                        )));
+                    }
+                }
+            }
+
+            // Prepare write data
+            let etag = compute_etag(&data);
+            let mut write_meta = meta.clone();
+            write_meta.size = data.len() as u64;
+            write_meta.last_modified = SystemTime::now();
+            write_meta.etag = etag.clone();
+
+            let stored_meta = StoredObjectMeta::from_object_meta(&write_meta);
+            let meta_json = serde_json::to_vec(&stored_meta)
+                .map_err(|e| StoreError::Internal(format!("failed to serialize meta: {e}")))?;
+
+            // Write within transaction
+            txn.insert(&self.objects, &obj_key, data.as_ref());
+            txn.insert(&self.object_meta, &obj_key, meta_json);
+
+            // Commit - retry on conflict
+            match txn.commit()? {
+                Ok(()) => {
+                    debug!(bucket, key, attempt, "object stored (transactional)");
+                    return Ok(PutObjectResult { etag });
+                }
+                Err(fjall::Conflict) => {
+                    debug!(bucket, key, attempt, "transaction conflict, retrying");
+                    continue;
+                }
+            }
+        }
+
+        // Exhausted retries
+        Err(StoreError::ConditionalRequestConflict(format!(
+            "failed to complete conditional write after {} retries: {}/{}",
+            MAX_TRANSACTION_RETRIES, bucket, key
+        )))
     }
 
     async fn get_object(&self, bucket: &str, key: &str) -> StoreResult<ObjectData> {
@@ -487,7 +575,7 @@ impl Store for FjallStore {
         // Scan all objects in the bucket
         let bucket_prefix = make_object_key(bucket, "");
 
-        for entry in self.objects.prefix(&bucket_prefix) {
+        for entry in self.objects.inner().prefix(&bucket_prefix) {
             let key_bytes = match entry.key() {
                 Ok(k) => k,
                 Err(_) => continue,
@@ -719,6 +807,7 @@ impl Store for FjallStore {
         let part_prefix = make_part_prefix(upload_id);
         let parts_to_delete: Vec<_> = self
             .parts
+            .inner()
             .prefix(&part_prefix)
             .filter_map(|e| e.key().ok().map(|k| k.to_vec()))
             .collect();
@@ -748,6 +837,7 @@ impl Store for FjallStore {
         let part_prefix = make_part_prefix(upload_id);
         let parts_to_delete: Vec<_> = self
             .parts
+            .inner()
             .prefix(&part_prefix)
             .filter_map(|e| e.key().ok().map(|k| k.to_vec()))
             .collect();
@@ -773,7 +863,7 @@ impl Store for FjallStore {
         let part_prefix = make_part_prefix(upload_id);
         let mut parts = Vec::new();
 
-        for entry in self.part_meta.prefix(&part_prefix) {
+        for entry in self.part_meta.inner().prefix(&part_prefix) {
             let value = entry.value()?;
             let stored: StoredPartMeta = serde_json::from_slice(&value)
                 .map_err(|e| StoreError::Internal(format!("failed to parse part meta: {e}")))?;
@@ -797,7 +887,7 @@ impl Store for FjallStore {
 
         let mut uploads = Vec::new();
 
-        for entry in self.multipart.iter() {
+        for entry in self.multipart.inner().iter() {
             let (key, value) = entry.into_inner()?;
             let upload_id = String::from_utf8_lossy(&key).to_string();
             let stored: StoredMultipartUpload = serde_json::from_slice(&value)

@@ -40,6 +40,21 @@ pub enum StoreError {
     #[error("invalid range: {0}")]
     InvalidRange(String),
 
+    /// Precondition failed (If-Match or If-None-Match condition not met).
+    ///
+    /// Returned when:
+    /// - If-None-Match: * was specified but the object already exists
+    /// - If-Match: <etag> was specified but the ETag doesn't match
+    #[error("precondition failed: {0}")]
+    PreconditionFailed(String),
+
+    /// Conditional request conflict (concurrent modification).
+    ///
+    /// Returned when a conflicting operation occurs during a conditional write,
+    /// such as a concurrent delete or update.
+    #[error("conditional request conflict: {0}")]
+    ConditionalRequestConflict(String),
+
     /// Fjall database error.
     #[error("database error: {0}")]
     Database(#[from] fjall::Error),

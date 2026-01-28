@@ -491,3 +491,241 @@ test_with_stores!(list_objects_max_keys, |harness: TestHarness| async move {
     // Should indicate truncation
     assert!(body_str.contains("<IsTruncated>true</IsTruncated>"));
 });
+
+// =============================================================================
+// Conditional write tests
+// =============================================================================
+
+test_with_stores!(
+    put_object_if_none_match_success,
+    |harness: TestHarness| async move {
+        harness
+            .call(S3Request::create_bucket("test-bucket").build())
+            .await;
+
+        // Put with If-None-Match: * when object doesn't exist - should succeed
+        let resp = harness
+            .call(
+                S3Request::put_object("test-bucket", "new-key")
+                    .with_body(b"data")
+                    .with_if_none_match("*")
+                    .build(),
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Verify object was created
+        let resp = harness
+            .call(S3Request::get_object("test-bucket", "new-key").build())
+            .await;
+        let body = collect_body(resp).await;
+        assert_eq!(body, Bytes::from("data"));
+    }
+);
+
+test_with_stores!(
+    put_object_if_none_match_fails_when_exists,
+    |harness: TestHarness| async move {
+        harness
+            .call(S3Request::create_bucket("test-bucket").build())
+            .await;
+
+        // Put initial object
+        harness
+            .call(
+                S3Request::put_object("test-bucket", "key")
+                    .with_body(b"original")
+                    .build(),
+            )
+            .await;
+
+        // Try to put with If-None-Match: * - should fail with 412
+        let resp = harness
+            .call(
+                S3Request::put_object("test-bucket", "key")
+                    .with_body(b"new")
+                    .with_if_none_match("*")
+                    .build(),
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::PRECONDITION_FAILED);
+
+        // Verify original data is unchanged
+        let resp = harness
+            .call(S3Request::get_object("test-bucket", "key").build())
+            .await;
+        let body = collect_body(resp).await;
+        assert_eq!(body, Bytes::from("original"));
+    }
+);
+
+test_with_stores!(
+    put_object_if_match_success,
+    |harness: TestHarness| async move {
+        harness
+            .call(S3Request::create_bucket("test-bucket").build())
+            .await;
+
+        // Put initial object
+        let resp = harness
+            .call(
+                S3Request::put_object("test-bucket", "key")
+                    .with_body(b"original")
+                    .build(),
+            )
+            .await;
+        let etag = resp
+            .headers()
+            .get("etag")
+            .expect("should have etag")
+            .to_str()
+            .unwrap()
+            .to_string();
+
+        // Put with matching If-Match - should succeed
+        let resp = harness
+            .call(
+                S3Request::put_object("test-bucket", "key")
+                    .with_body(b"updated")
+                    .with_if_match(&etag)
+                    .build(),
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Verify update succeeded
+        let resp = harness
+            .call(S3Request::get_object("test-bucket", "key").build())
+            .await;
+        let body = collect_body(resp).await;
+        assert_eq!(body, Bytes::from("updated"));
+    }
+);
+
+test_with_stores!(
+    put_object_if_match_fails_when_etag_mismatch,
+    |harness: TestHarness| async move {
+        harness
+            .call(S3Request::create_bucket("test-bucket").build())
+            .await;
+
+        // Put initial object
+        harness
+            .call(
+                S3Request::put_object("test-bucket", "key")
+                    .with_body(b"original")
+                    .build(),
+            )
+            .await;
+
+        // Put with wrong If-Match - should fail with 412
+        let resp = harness
+            .call(
+                S3Request::put_object("test-bucket", "key")
+                    .with_body(b"updated")
+                    .with_if_match("\"wrong-etag\"")
+                    .build(),
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::PRECONDITION_FAILED);
+
+        // Verify original data is unchanged
+        let resp = harness
+            .call(S3Request::get_object("test-bucket", "key").build())
+            .await;
+        let body = collect_body(resp).await;
+        assert_eq!(body, Bytes::from("original"));
+    }
+);
+
+test_with_stores!(
+    put_object_if_match_fails_when_not_exists,
+    |harness: TestHarness| async move {
+        harness
+            .call(S3Request::create_bucket("test-bucket").build())
+            .await;
+
+        // Put with If-Match when object doesn't exist - should fail with 412
+        let resp = harness
+            .call(
+                S3Request::put_object("test-bucket", "nonexistent")
+                    .with_body(b"data")
+                    .with_if_match("\"some-etag\"")
+                    .build(),
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::PRECONDITION_FAILED);
+    }
+);
+
+test_with_stores!(
+    conditional_write_compare_and_swap,
+    |harness: TestHarness| async move {
+        harness
+            .call(S3Request::create_bucket("test-bucket").build())
+            .await;
+
+        // Create initial value
+        let resp = harness
+            .call(
+                S3Request::put_object("test-bucket", "counter")
+                    .with_body(b"0")
+                    .build(),
+            )
+            .await;
+        let etag_v0 = resp
+            .headers()
+            .get("etag")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+
+        // CAS: update 0 -> 1 with correct etag
+        let resp = harness
+            .call(
+                S3Request::put_object("test-bucket", "counter")
+                    .with_body(b"1")
+                    .with_if_match(&etag_v0)
+                    .build(),
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let etag_v1 = resp
+            .headers()
+            .get("etag")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+
+        // CAS: try to update with stale etag - should fail
+        let resp = harness
+            .call(
+                S3Request::put_object("test-bucket", "counter")
+                    .with_body(b"conflict")
+                    .with_if_match(&etag_v0)
+                    .build(),
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::PRECONDITION_FAILED);
+
+        // CAS: update 1 -> 2 with correct etag
+        let resp = harness
+            .call(
+                S3Request::put_object("test-bucket", "counter")
+                    .with_body(b"2")
+                    .with_if_match(&etag_v1)
+                    .build(),
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Verify final value
+        let resp = harness
+            .call(S3Request::get_object("test-bucket", "counter").build())
+            .await;
+        let body = collect_body(resp).await;
+        assert_eq!(body, Bytes::from("2"));
+    }
+);
