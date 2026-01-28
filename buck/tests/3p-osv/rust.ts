@@ -55,7 +55,11 @@ const RUSTSEC_VIOLATION_EXCEPTIONS = [
     {
         id: "GHSA-rhfx-m35p-ff5j",
         reason: "temporary, awaiting crate bump",
-    }
+    },
+    {
+        id: "RUSTSEC-2025-0141",
+        reason: "bincode is unmaintained, but usable",
+    },
 ];
 
 // ---------------------------------------------------------------------------------------------------------------------
