@@ -8,6 +8,7 @@ DEPS = [
     'third-party//rust:async-trait',
     'third-party//rust:bytes',
     'third-party//rust:fjall',
+    'third-party//rust:futures',
     'third-party//rust:md5',
     'third-party//rust:s3s',
     'third-party//rust:thiserror',
