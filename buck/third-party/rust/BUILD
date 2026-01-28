@@ -10138,6 +10138,33 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "md5",
+    actual = ":md5-0.7.0",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "md5-0.7.0.crate",
+    sha256 = "490cc448043f947bae3cbee9c203358d62dbee0db12107a74be5c30ccfd09771",
+    strip_prefix = "md5-0.7.0",
+    urls = ["https://static.crates.io/crates/md5/0.7.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "md5-0.7.0",
+    srcs = [":md5-0.7.0.crate"],
+    crate = "md5",
+    crate_root = "md5-0.7.0.crate/src/lib.rs",
+    edition = "2015",
+    features = [
+        "default",
+        "std",
+    ],
+    visibility = [],
+)
+
 shims.http_archive(
     name = "memchr-2.7.6.crate",
     sha256 = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273",
