@@ -51,6 +51,7 @@ gix = { version = "0.72.1", default-features = false, features = [
     "zlib-rs",
 ] }
 hex = "0.4.3"
+hyper-util = { version = "0.1", features = ["server-auto", "server-graceful", "http1", "http2", "tokio"] }
 insta = "1.42.2"
 iocraft = "0.7.10"
 landlock = "0.4.4"
