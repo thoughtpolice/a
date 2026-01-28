@@ -2953,6 +2953,15 @@ dependencies = [
 
 [[package]]
 name = "hmac"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
+dependencies = [
+ "digest 0.10.7",
+]
+
+[[package]]
+name = "hmac"
 version = "0.13.0-rc.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1c597ac7d6cc8143e30e83ef70915e7f883b18d8bec2e2b2bce47f5bbb06d57"
@@ -5540,6 +5549,7 @@ dependencies = [
  "futures 0.3.31",
  "gix",
  "hex",
+ "hmac 0.12.1",
  "http",
  "http-body-util",
  "hyper-util",
@@ -5740,7 +5750,7 @@ dependencies = [
  "crc-fast",
  "futures 0.3.31",
  "hex-simd",
- "hmac",
+ "hmac 0.13.0-rc.3",
  "http",
  "http-body",
  "http-body-util",
