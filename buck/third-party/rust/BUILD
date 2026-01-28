@@ -7379,6 +7379,12 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
+shims.alias(
+    name = "http",
+    actual = ":http-1.4.0",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "http-1.4.0.crate",
     sha256 = "e3ba2a386d7f85a81f119ad7498ebe444d2e22c2af0b86b069416ace48b3311a",
@@ -7423,6 +7429,12 @@ third_party_rust.rust_library(
         ":bytes-1.11.0",
         ":http-1.4.0",
     ],
+)
+
+shims.alias(
+    name = "http-body-util",
+    actual = ":http-body-util-0.1.3",
+    visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
@@ -16523,6 +16535,12 @@ third_party_rust.rust_library(
     deps = [":filetime-0.2.25"],
 )
 
+shims.alias(
+    name = "tempfile",
+    actual = ":tempfile-3.20.0",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "tempfile-3.20.0.crate",
     sha256 = "e8a64e3985349f2441a1a9ef0b853f869006c3855f2cda6862a94d26ebb9d6a1",
@@ -18057,6 +18075,12 @@ third_party_rust.rust_library(
         ":tower-service-0.3.3",
         ":tracing-0.1.44",
     ],
+)
+
+shims.alias(
+    name = "tower",
+    actual = ":tower-0.5.2",
+    visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
