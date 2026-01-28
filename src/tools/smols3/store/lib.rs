@@ -8,6 +8,7 @@
 //!
 //! - [`MemoryStore`]: In-memory storage for testing and development
 //! - [`FjallStore`]: Persistent storage using Fjall LSM-tree database
+//! - [`SlateStore`]: Persistent storage using SlateDB backed by object storage
 //!
 //! The S3 protocol layer ([`SmolS3`]) uses the abstract [`Store`] trait,
 //! allowing the same protocol implementation to work with any backend.
@@ -25,12 +26,12 @@
 //! │  Store trait    │  <- Abstract storage interface
 //! └────────┬────────┘
 //!          │ implemented by
-//!    ┌─────┴─────┐
-//!    ▼           ▼
-//! ┌──────┐  ┌──────────┐
-//! │Memory│  │  Fjall   │
-//! │Store │  │  Store   │
-//! └──────┘  └──────────┘
+//!    ┌─────┼─────────┐
+//!    ▼     ▼         ▼
+//! ┌──────┐ ┌──────┐ ┌───────┐
+//! │Memory│ │Fjall │ │Slate  │
+//! │Store │ │Store │ │Store  │
+//! └──────┘ └──────┘ └───────┘
 //! ```
 
 mod authz;
@@ -38,6 +39,7 @@ mod error;
 mod fjall;
 mod memory;
 mod s3;
+mod slatedb;
 mod traits;
 
 pub use authz::CedarAuthorizer;
@@ -45,6 +47,7 @@ pub use error::{StoreError, StoreResult};
 pub use fjall::{FjallStore, FjallStoreConfig};
 pub use memory::MemoryStore;
 pub use s3::SmolS3;
+pub use slatedb::{SlateBackend, SlateStore, SlateStoreConfig};
 pub use traits::{
     BucketInfo, CommonPrefix, CompletedPart, CompleteMultipartResult, CopyObjectResult,
     ListObjectsOptions, ListObjectsResult, MultipartUploadInfo, ObjectData, ObjectEntry,

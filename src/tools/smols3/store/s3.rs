@@ -55,6 +55,7 @@ fn store_error_to_s3(e: StoreError) -> s3s::S3Error {
             s3_error!(ConditionalRequestConflict, "{}", msg)
         }
         StoreError::Database(e) => s3_error!(InternalError, "Database error: {}", e),
+        StoreError::SlateDb(e) => s3_error!(InternalError, "SlateDB error: {}", e),
         StoreError::Internal(msg) => s3_error!(InternalError, "{}", msg),
     }
 }
