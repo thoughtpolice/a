@@ -2,3 +2,7 @@
 - If you need a new Rust package, or to make one available, you MUST add it to Cargo.toml BEFORE you can use it!
 - If you modify Cargo.toml in ANY way -- you MUST regenerate the BUILD file
 - `$ROOT_OF_REPO/bin/reindeer --third-party-dir $ROOT_OF_REPO/buck/third-party/rust buckify`
+- If a reindeer gives a warning, try to fix the errors.
+  - Most of the time, you can look at build.rs and make a pretty quick decision: does this impact the compilation/linking steps of the system?
+  - Most of the time it's optional. But you MUST look at the build.rs to figure it out
+  - If you get a warning that you need fixups, you MUST fix that immediately
