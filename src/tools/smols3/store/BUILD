@@ -6,8 +6,10 @@ load("@root//buck/shims:shims.bzl", depot="shims")
 DEPS = [
     'third-party//rust:anyhow',
     'third-party//rust:async-trait',
+    'third-party//rust:blake3',
     'third-party//rust:bytes',
     'third-party//rust:cedar-policy',
+    'third-party//rust:fastcdc',
     'third-party//rust:fjall',
     'third-party//rust:futures',
     'third-party//rust:md5',

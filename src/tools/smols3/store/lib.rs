@@ -9,6 +9,7 @@
 //! - [`MemoryStore`]: In-memory storage for testing and development
 //! - [`FjallStore`]: Persistent storage using Fjall LSM-tree database
 //! - [`SlateStore`]: Persistent storage using SlateDB backed by object storage
+//! - [`ChunkingStore`]: Wrapper that adds content-defined chunking for deduplication
 //!
 //! The S3 protocol layer ([`SmolS3`]) uses the abstract [`Store`] trait,
 //! allowing the same protocol implementation to work with any backend.
@@ -23,6 +24,12 @@
 //!          │ uses
 //!          ▼
 //! ┌─────────────────┐
+//! │  ChunkingStore  │  <- Optional: content-defined chunking (FastCDC + BLAKE3)
+//! │  (impl Store)   │
+//! └────────┬────────┘
+//!          │ wraps
+//!          ▼
+//! ┌─────────────────┐
 //! │  Store trait    │  <- Abstract storage interface
 //! └────────┬────────┘
 //!          │ implemented by
@@ -35,6 +42,7 @@
 //! ```
 
 mod authz;
+mod chunking;
 mod error;
 mod fjall;
 mod memory;
@@ -43,6 +51,7 @@ mod slatedb;
 mod traits;
 
 pub use authz::CedarAuthorizer;
+pub use chunking::{ChunkingConfig, ChunkingStore};
 pub use error::{StoreError, StoreResult};
 pub use fjall::{FjallStore, FjallStoreConfig};
 pub use memory::MemoryStore;

@@ -8,6 +8,7 @@
 
 mod authz_ops;
 mod bucket_ops;
+mod chunking_ops;
 mod multipart_ops;
 mod object_ops;
 #[cfg(any(feature = "memory", feature = "fjall", feature = "slatedb"))]
@@ -17,6 +18,7 @@ mod stress_ops;
 ///
 /// This macro creates a module with a test function for each store type,
 /// allowing the same test logic to be run against different backends.
+/// Tests are run against both raw stores and chunking-wrapped stores.
 ///
 /// # Example
 ///
@@ -31,6 +33,7 @@ macro_rules! test_with_stores {
         mod $name {
             use super::*;
 
+            // Raw store backends
             #[tokio::test]
             async fn memory() {
                 let harness = testing::TestHarness::new(store::MemoryStore::new());
@@ -53,6 +56,37 @@ macro_rules! test_with_stores {
             async fn slatedb() {
                 let slate_store = store::SlateStore::open_in_memory().await.unwrap();
                 let harness = testing::TestHarness::new(slate_store);
+                let test_fn = $test;
+                test_fn(harness).await;
+            }
+
+            // Chunking-wrapped store backends
+            #[tokio::test]
+            async fn chunking_memory() {
+                let inner = store::MemoryStore::new();
+                let chunking_store = store::ChunkingStore::new(inner);
+                let harness = testing::TestHarness::new(chunking_store);
+                let test_fn = $test;
+                test_fn(harness).await;
+            }
+
+            #[tokio::test]
+            async fn chunking_fjall() {
+                let tmp = tempfile::tempdir().unwrap();
+                let config = store::FjallStoreConfig::new(tmp.path());
+                let fjall_store = store::FjallStore::open(config).unwrap();
+                let chunking_store = store::ChunkingStore::new(fjall_store);
+                let harness = testing::TestHarness::new(chunking_store);
+                let test_fn = $test;
+                test_fn(harness).await;
+                // tmp is dropped here, cleaning up the temp directory
+            }
+
+            #[tokio::test]
+            async fn chunking_slatedb() {
+                let slate_store = store::SlateStore::open_in_memory().await.unwrap();
+                let chunking_store = store::ChunkingStore::new(slate_store);
+                let harness = testing::TestHarness::new(chunking_store);
                 let test_fn = $test;
                 test_fn(harness).await;
             }
