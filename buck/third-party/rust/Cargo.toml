@@ -37,6 +37,7 @@ dupe_derive = "0.9.1"
 educe = "0.6.0"
 env_logger = "0.10"
 eyre = "0.6.12"
+fastcdc = "3.2.1"
 figleter = "0.2.2"
 fjall = { version = "3.0.1", default_features = false, features = [
     "lz4",
