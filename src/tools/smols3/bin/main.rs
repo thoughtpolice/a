@@ -4,12 +4,15 @@
 //! smols3: A minimal S3-compatible server with pluggable storage backends.
 
 use std::io::IsTerminal;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
+use s3s::auth::SimpleAuth;
 use s3s::service::{S3Service, S3ServiceBuilder};
+use serde::Deserialize;
 use store::{FjallStore, FjallStoreConfig, MemoryStore, SmolS3, Store};
 use tokio::net::TcpListener;
 use tracing::info;
@@ -56,6 +59,57 @@ struct Cli {
     /// `tracing` filter for the console logs.
     #[arg(long, default_value = "info")]
     console_log: String,
+
+    /// Access key for single-credential authentication.
+    #[arg(long, env = "SMOLS3_ACCESS_KEY")]
+    access_key: Option<String>,
+
+    /// Secret key for single-credential authentication.
+    #[arg(long, env = "SMOLS3_SECRET_KEY")]
+    secret_key: Option<String>,
+
+    /// Path to JSON config file for multi-credential authentication.
+    #[arg(long)]
+    auth_config: Option<PathBuf>,
+}
+
+/// Configuration for multi-credential authentication loaded from JSON.
+#[derive(Deserialize)]
+struct AuthConfig {
+    credentials: Vec<AuthCredential>,
+}
+
+/// A single credential entry in the auth config.
+#[derive(Deserialize)]
+struct AuthCredential {
+    access_key: String,
+    secret_key: String,
+}
+
+/// Load authentication configuration from a JSON file.
+fn load_auth_config(path: &Path) -> Result<SimpleAuth> {
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!("failed to read auth config from {}", path.display()))?;
+    let config: AuthConfig = serde_json::from_str(&content)
+        .with_context(|| format!("failed to parse auth config from {}", path.display()))?;
+    let mut auth = SimpleAuth::new();
+    for cred in config.credentials {
+        auth.register(cred.access_key, cred.secret_key.into());
+    }
+    Ok(auth)
+}
+
+/// Validate CLI arguments for consistency.
+fn validate_cli(cli: &Cli) -> Result<()> {
+    match (&cli.access_key, &cli.secret_key) {
+        (Some(_), None) => {
+            anyhow::bail!("--access-key requires --secret-key to also be specified");
+        }
+        (None, Some(_)) => {
+            anyhow::bail!("--secret-key requires --access-key to also be specified");
+        }
+        _ => Ok(()),
+    }
 }
 
 fn setup_tracing(filter: &str) -> Result<()> {
@@ -76,6 +130,7 @@ fn setup_tracing(filter: &str) -> Result<()> {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    validate_cli(&cli)?;
     setup_tracing(&cli.console_log)?;
     run(cli)
 }
@@ -100,9 +155,29 @@ async fn run(cli: Cli) -> Result<()> {
         }
     };
 
+    // Determine authentication mode
+    let auth: Option<SimpleAuth> = if let (Some(ak), Some(sk)) = (&cli.access_key, &cli.secret_key)
+    {
+        info!("authentication enabled (single credential)");
+        Some(SimpleAuth::from_single(ak.clone(), sk.clone()))
+    } else if let Some(config_path) = &cli.auth_config {
+        let auth = load_auth_config(config_path)?;
+        info!(path = %config_path.display(), "authentication enabled (config file)");
+        Some(auth)
+    } else {
+        info!("authentication disabled");
+        None
+    };
+
     // Create S3 service using the storage backend
     let s3 = SmolS3::new(store);
-    let service = S3ServiceBuilder::new(s3).build();
+    let service = {
+        let mut builder = S3ServiceBuilder::new(s3);
+        if let Some(auth) = auth {
+            builder.set_auth(auth);
+        }
+        builder.build()
+    };
 
     // Run the HTTP server
     run_server(service, &cli.host, cli.port).await

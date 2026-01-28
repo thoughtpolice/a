@@ -13,6 +13,8 @@ BUILD_DEPS = [
     'third-party//rust:clap',
     'third-party//rust:hyper-util',
     'third-party//rust:s3s',
+    'third-party//rust:serde',
+    'third-party//rust:serde_json',
     'third-party//rust:tokio',
     'third-party//rust:tracing',
     'third-party//rust:tracing-subscriber',
