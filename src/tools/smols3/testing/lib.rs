@@ -41,7 +41,9 @@
 mod harness;
 mod request;
 mod response;
+mod signing;
 
 pub use harness::TestHarness;
 pub use request::S3Request;
 pub use response::{collect_body, Expect};
+pub use signing::{SignedRequest, TestCredentials};

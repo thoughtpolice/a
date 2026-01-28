@@ -33,12 +33,14 @@
 //! └──────┘  └──────────┘
 //! ```
 
+mod authz;
 mod error;
 mod fjall;
 mod memory;
 mod s3;
 mod traits;
 
+pub use authz::CedarAuthorizer;
 pub use error::{StoreError, StoreResult};
 pub use fjall::{FjallStore, FjallStoreConfig};
 pub use memory::MemoryStore;
