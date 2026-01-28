@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# buildscript only checks for nightly and version for cfg flags
+buildscript.run = false
