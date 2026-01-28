@@ -48,6 +48,14 @@ macro_rules! test_with_stores {
                 test_fn(harness).await;
                 // tmp is dropped here, cleaning up the temp directory
             }
+
+            #[tokio::test]
+            async fn slatedb() {
+                let slate_store = store::SlateStore::open_in_memory().await.unwrap();
+                let harness = testing::TestHarness::new(slate_store);
+                let test_fn = $test;
+                test_fn(harness).await;
+            }
         }
     };
 }

@@ -59,6 +59,10 @@ pub enum StoreError {
     #[error("database error: {0}")]
     Database(#[from] fjall::Error),
 
+    /// SlateDB error.
+    #[error("slatedb error: {0}")]
+    SlateDb(#[from] slatedb::Error),
+
     /// Internal storage error.
     #[error("internal error: {0}")]
     Internal(String),
