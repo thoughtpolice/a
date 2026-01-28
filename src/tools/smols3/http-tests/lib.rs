@@ -35,16 +35,16 @@ macro_rules! test_with_stores {
                 test_fn(harness).await;
             }
 
-            // FjallStore tests - uncomment when ready for persistent store testing
-            // #[tokio::test]
-            // async fn fjall() {
-            //     let tmp = tempfile::tempdir().unwrap();
-            //     let config = store::FjallStoreConfig::new(tmp.path());
-            //     let fjall_store = store::FjallStore::open(config).unwrap();
-            //     let harness = testing::TestHarness::new(fjall_store);
-            //     let test_fn = $test;
-            //     test_fn(harness).await;
-            // }
+            #[tokio::test]
+            async fn fjall() {
+                let tmp = tempfile::tempdir().unwrap();
+                let config = store::FjallStoreConfig::new(tmp.path());
+                let fjall_store = store::FjallStore::open(config).unwrap();
+                let harness = testing::TestHarness::new(fjall_store);
+                let test_fn = $test;
+                test_fn(harness).await;
+                // tmp is dropped here, cleaning up the temp directory
+            }
         }
     };
 }

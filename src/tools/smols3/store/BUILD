@@ -11,6 +11,8 @@ DEPS = [
     'third-party//rust:futures',
     'third-party//rust:md5',
     'third-party//rust:s3s',
+    'third-party//rust:serde',
+    'third-party//rust:serde_json',
     'third-party//rust:thiserror',
     'third-party//rust:tracing',
     'third-party//rust:uuid',
