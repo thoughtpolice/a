@@ -9,6 +9,7 @@ DEPS = [
     'third-party//rust:bytes',
     'third-party//rust:http',
     'third-party//rust:http-body-util',
+    'third-party//rust:s3s',
     'third-party//rust:tempfile',
     'third-party//rust:tokio',
 ]

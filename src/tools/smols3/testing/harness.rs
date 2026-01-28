@@ -8,10 +8,16 @@ use std::sync::Arc;
 use bytes::Bytes;
 use http::{Request, Response};
 use http_body_util::BodyExt;
+use s3s::access::S3Access;
 use s3s::auth::SimpleAuth;
 use s3s::service::{S3Service, S3ServiceBuilder};
 use store::{SmolS3, Store};
 use tower::Service;
+
+/// Dummy type used to satisfy generic bounds when no access control is needed.
+enum NoAccess {}
+
+impl S3Access for NoAccess {}
 
 /// Test harness wrapping an S3Service for HTTP-level testing.
 ///
@@ -29,10 +35,22 @@ impl TestHarness {
 
     /// Create a new test harness with the given store and optional authentication.
     pub fn with_auth<S: Store + 'static>(store: S, auth: Option<SimpleAuth>) -> Self {
+        Self::with_auth_and_access(store, auth, None::<NoAccess>)
+    }
+
+    /// Create a new test harness with auth and access control.
+    pub fn with_auth_and_access<S, A>(store: S, auth: Option<SimpleAuth>, access: Option<A>) -> Self
+    where
+        S: Store + 'static,
+        A: S3Access,
+    {
         let smol = SmolS3::new(Arc::new(store));
         let mut builder = S3ServiceBuilder::new(smol);
         if let Some(auth) = auth {
             builder.set_auth(auth);
+        }
+        if let Some(access) = access {
+            builder.set_access(access);
         }
         let service = builder.build();
         Self { service }

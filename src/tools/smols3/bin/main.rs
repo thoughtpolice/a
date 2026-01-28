@@ -13,7 +13,7 @@ use clap::{Parser, ValueEnum};
 use s3s::auth::SimpleAuth;
 use s3s::service::{S3Service, S3ServiceBuilder};
 use serde::Deserialize;
-use store::{FjallStore, FjallStoreConfig, MemoryStore, SmolS3, Store};
+use store::{CedarAuthorizer, FjallStore, FjallStoreConfig, MemoryStore, SmolS3, Store};
 use tokio::net::TcpListener;
 use tracing::info;
 use tracing_subscriber::filter::LevelFilter;
@@ -71,6 +71,14 @@ struct Cli {
     /// Path to JSON config file for multi-credential authentication.
     #[arg(long)]
     auth_config: Option<PathBuf>,
+
+    /// Path to Cedar policy file for authorization.
+    #[arg(long)]
+    policy_file: Option<PathBuf>,
+
+    /// Path to directory containing Cedar policy files (*.cedar).
+    #[arg(long)]
+    policy_dir: Option<PathBuf>,
 }
 
 /// Configuration for multi-credential authentication loaded from JSON.
@@ -108,8 +116,44 @@ fn validate_cli(cli: &Cli) -> Result<()> {
         (None, Some(_)) => {
             anyhow::bail!("--secret-key requires --access-key to also be specified");
         }
-        _ => Ok(()),
+        _ => {}
     }
+
+    if cli.policy_file.is_some() && cli.policy_dir.is_some() {
+        anyhow::bail!("--policy-file and --policy-dir are mutually exclusive");
+    }
+
+    Ok(())
+}
+
+/// Load a Cedar policy from a single file.
+fn load_policy_file(path: &Path) -> Result<CedarAuthorizer> {
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!("failed to read policy file: {}", path.display()))?;
+    CedarAuthorizer::from_policy_str(&content)
+        .map_err(|e| anyhow::anyhow!("failed to parse policy: {}", e))
+}
+
+/// Load Cedar policies from a directory (all *.cedar files).
+fn load_policy_dir(dir: &Path) -> Result<CedarAuthorizer> {
+    let mut combined = String::new();
+    for entry in
+        std::fs::read_dir(dir).with_context(|| format!("failed to read policy dir: {}", dir.display()))?
+    {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().is_some_and(|e| e == "cedar") {
+            let content = std::fs::read_to_string(&path)
+                .with_context(|| format!("failed to read: {}", path.display()))?;
+            combined.push_str(&content);
+            combined.push('\n');
+        }
+    }
+    if combined.is_empty() {
+        anyhow::bail!("no .cedar files found in {}", dir.display());
+    }
+    CedarAuthorizer::from_policy_str(&combined)
+        .map_err(|e| anyhow::anyhow!("failed to parse policies: {}", e))
 }
 
 fn setup_tracing(filter: &str) -> Result<()> {
@@ -169,12 +213,29 @@ async fn run(cli: Cli) -> Result<()> {
         None
     };
 
+    // Load authorization policies
+    let access: Option<CedarAuthorizer> = if let Some(policy_path) = &cli.policy_file {
+        let authorizer = load_policy_file(policy_path)?;
+        info!(path = %policy_path.display(), "authorization enabled (policy file)");
+        Some(authorizer)
+    } else if let Some(policy_dir) = &cli.policy_dir {
+        let authorizer = load_policy_dir(policy_dir)?;
+        info!(path = %policy_dir.display(), "authorization enabled (policy directory)");
+        Some(authorizer)
+    } else {
+        info!("authorization disabled (all authenticated requests allowed)");
+        None
+    };
+
     // Create S3 service using the storage backend
     let s3 = SmolS3::new(store);
     let service = {
         let mut builder = S3ServiceBuilder::new(s3);
         if let Some(auth) = auth {
             builder.set_auth(auth);
+        }
+        if let Some(access) = access {
+            builder.set_access(access);
         }
         builder.build()
     };

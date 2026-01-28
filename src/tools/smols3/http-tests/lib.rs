@@ -6,6 +6,7 @@
 //! This module contains tests that exercise the S3 API through HTTP
 //! request/response flows, parameterized over different store backends.
 
+mod authz_ops;
 mod bucket_ops;
 mod multipart_ops;
 mod object_ops;
