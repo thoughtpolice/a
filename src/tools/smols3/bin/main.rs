@@ -13,7 +13,10 @@ use clap::{Parser, ValueEnum};
 use s3s::auth::SimpleAuth;
 use s3s::service::{S3Service, S3ServiceBuilder};
 use serde::Deserialize;
-use store::{CedarAuthorizer, FjallStore, FjallStoreConfig, MemoryStore, SmolS3, Store};
+use store::{
+    CedarAuthorizer, ChunkingConfig, ChunkingStore, FjallStore, FjallStoreConfig, MemoryStore,
+    SmolS3, Store,
+};
 use tokio::net::TcpListener;
 use tracing::info;
 use tracing_subscriber::filter::LevelFilter;
@@ -55,6 +58,22 @@ struct Cli {
     /// Path for persistent storage (required for fjall backend).
     #[arg(long)]
     storage_path: Option<PathBuf>,
+
+    /// Enable content-defined chunking for deduplication.
+    #[arg(long)]
+    chunking: bool,
+
+    /// Minimum chunk size in KB (default: 8).
+    #[arg(long, default_value = "8")]
+    chunk_min_kb: u32,
+
+    /// Average chunk size in KB (default: 64).
+    #[arg(long, default_value = "64")]
+    chunk_avg_kb: u32,
+
+    /// Maximum chunk size in KB (default: 256).
+    #[arg(long, default_value = "256")]
+    chunk_max_kb: u32,
 
     /// `tracing` filter for the console logs.
     #[arg(long, default_value = "info")]
@@ -172,6 +191,26 @@ fn setup_tracing(filter: &str) -> Result<()> {
     Ok(())
 }
 
+/// Optionally wrap a store with ChunkingStore based on CLI flags.
+fn wrap_with_chunking<S: Store + 'static>(store: S, cli: &Cli) -> Arc<dyn Store> {
+    if cli.chunking {
+        let config = ChunkingConfig {
+            min_size: cli.chunk_min_kb * 1024,
+            avg_size: cli.chunk_avg_kb * 1024,
+            max_size: cli.chunk_max_kb * 1024,
+        };
+        info!(
+            min_kb = cli.chunk_min_kb,
+            avg_kb = cli.chunk_avg_kb,
+            max_kb = cli.chunk_max_kb,
+            "content-defined chunking enabled"
+        );
+        Arc::new(ChunkingStore::with_config(store, config))
+    } else {
+        Arc::new(store)
+    }
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
     validate_cli(&cli)?;
@@ -186,16 +225,17 @@ async fn run(cli: Cli) -> Result<()> {
         StorageBackend::Memory => {
             let store = MemoryStore::new();
             info!("initialized in-memory storage backend");
-            Arc::new(store)
+            wrap_with_chunking(store, &cli)
         }
         StorageBackend::Fjall => {
             let path = cli
                 .storage_path
+                .as_ref()
                 .ok_or_else(|| anyhow::anyhow!("--storage-path is required for fjall backend"))?;
-            let config = FjallStoreConfig::new(&path);
+            let config = FjallStoreConfig::new(path);
             let store = FjallStore::open(config).context("failed to open fjall store")?;
             info!(path = %path.display(), "initialized fjall storage backend");
-            Arc::new(store)
+            wrap_with_chunking(store, &cli)
         }
     };
 
