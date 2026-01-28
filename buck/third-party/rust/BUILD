@@ -4388,10 +4388,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe-0.9.1",
-    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
+    srcs = [":dupe-0.9.1.crate"],
     crate = "dupe",
-    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe/src/lib.rs",
-    edition = "2024",
+    crate_root = "dupe-0.9.1.crate/src/lib.rs",
+    edition = "2021",
     visibility = [],
     deps = [":dupe_derive-0.9.1"],
 )
@@ -4412,10 +4412,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe_derive-0.9.1",
-    srcs = [":dupe_derive-0.9.1.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe_derive",
-    crate_root = "dupe_derive-0.9.1.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe_derive/src/lib.rs",
+    edition = "2024",
     proc_macro = True,
     visibility = [],
     deps = [
@@ -5035,6 +5035,30 @@ third_party_rust.rust_library(
         ":bit-set-0.5.3",
         ":regex-1.12.2",
     ],
+)
+
+shims.alias(
+    name = "fastcdc",
+    actual = ":fastcdc-3.2.1",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "fastcdc-3.2.1.crate",
+    sha256 = "bf51ceb43e96afbfe4dd5c6f6082af5dfd60e220820b8123792d61963f2ce6bc",
+    strip_prefix = "fastcdc-3.2.1",
+    urls = ["https://static.crates.io/crates/fastcdc/3.2.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "fastcdc-3.2.1",
+    srcs = [":fastcdc-3.2.1.crate"],
+    crate = "fastcdc",
+    crate_root = "fastcdc-3.2.1.crate/src/lib.rs",
+    edition = "2018",
+    features = ["default"],
+    visibility = [],
 )
 
 shims.http_archive(
