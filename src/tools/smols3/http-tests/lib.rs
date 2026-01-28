@@ -26,6 +26,8 @@ mod multipart_ops;
 mod object_ops;
 #[cfg(any(feature = "memory", feature = "fjall", feature = "slatedb"))]
 mod stress_ops;
+#[cfg(any(feature = "memory", feature = "fjall", feature = "slatedb"))]
+mod presigned_ops;
 
 /// Macro to generate tests for multiple store backends.
 ///

@@ -24,3 +24,9 @@ depot.rust_library(
     deps = DEPS,
     visibility = ['//src/tools/smols3/...'],
 )
+
+depot.rust_test(
+    name = 'tests',
+    srcs = glob(['*.rs']),
+    deps = DEPS,
+)
