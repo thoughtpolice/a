@@ -58,7 +58,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":lazy_static-1.5.0",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
     ],
 )
 
@@ -1470,7 +1470,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":memchr-2.7.6",
-        ":regex-automata-0.4.9",
+        ":regex-automata-0.4.13",
     ],
 )
 
@@ -1499,7 +1499,7 @@ third_party_rust.rust_library(
         ":dunce-1.0.5",
         ":once_cell-1.21.3",
         ":serde-1.0.228",
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
         ":thiserror-1.0.69",
     ],
 )
@@ -1791,18 +1791,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "cc-1.2.30.crate",
-    sha256 = "deec109607ca693028562ed836a5f1c4b8bd77755c4e132fc5ce11b0b6211ae7",
-    strip_prefix = "cc-1.2.30",
-    urls = ["https://static.crates.io/crates/cc/1.2.30/download"],
+    name = "cc-1.2.54.crate",
+    sha256 = "6354c81bbfd62d9cfa9cb3c773c2b7b2a3a482d569de977fd0e961f6e7c00583",
+    strip_prefix = "cc-1.2.54",
+    urls = ["https://static.crates.io/crates/cc/1.2.54/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "cc-1.2.30",
-    srcs = [":cc-1.2.30.crate"],
+    name = "cc-1.2.54",
+    srcs = [":cc-1.2.54.crate"],
     crate = "cc",
-    crate_root = "cc-1.2.30.crate/src/lib.rs",
+    crate_root = "cc-1.2.54.crate/src/lib.rs",
     edition = "2018",
     features = ["parallel"],
     platform = {
@@ -1821,6 +1821,7 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
+        ":find-msvc-tools-0.1.8",
         ":jobserver-0.1.34",
         ":shlex-1.3.0",
     ],
@@ -1828,38 +1829,37 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "cedar-policy",
-    actual = ":cedar-policy-4.5.0",
+    actual = ":cedar-policy-4.8.2",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "cedar-policy-4.5.0.crate",
-    sha256 = "c3a73fdc6a5127276075a8c559a0dee47d2b66aa823daef349a36e5a03e95624",
-    strip_prefix = "cedar-policy-4.5.0",
-    urls = ["https://static.crates.io/crates/cedar-policy/4.5.0/download"],
+    name = "cedar-policy-4.8.2.crate",
+    sha256 = "c8c84f46d7feed570e52cd93b0f1e3ce7f57e2ac61712fba0d1318f84c96a99b",
+    strip_prefix = "cedar-policy-4.8.2",
+    urls = ["https://static.crates.io/crates/cedar-policy/4.8.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "cedar-policy-4.5.0",
-    srcs = [":cedar-policy-4.5.0.crate"],
+    name = "cedar-policy-4.8.2",
+    srcs = [":cedar-policy-4.8.2.crate"],
     crate = "cedar_policy",
-    crate_root = "cedar-policy-4.5.0.crate/src/lib.rs",
-    dlopen_enable = True,
+    crate_root = "cedar-policy-4.8.2.crate/src/lib.rs",
     edition = "2021",
     env = {
         "CARGO_CRATE_NAME": "cedar_policy",
-        "CARGO_MANIFEST_DIR": "cedar-policy-4.5.0.crate",
+        "CARGO_MANIFEST_DIR": "cedar-policy-4.8.2.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Cedar is a language for defining permissions as policies, which describe who should have access to what.",
         "CARGO_PKG_NAME": "cedar-policy",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
-        "CARGO_PKG_VERSION": "4.5.0",
+        "CARGO_PKG_VERSION": "4.8.2",
         "CARGO_PKG_VERSION_MAJOR": "4",
-        "CARGO_PKG_VERSION_MINOR": "5",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "8",
+        "CARGO_PKG_VERSION_PATCH": "2",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :cedar-policy-4.5.0-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :cedar-policy-4.8.2-build-script-run[out_dir])",
     },
     features = [
         "datetime",
@@ -1867,44 +1867,41 @@ third_party_rust.rust_library(
         "default",
         "ipaddr",
     ],
-    linkable_alias = "cedar-policy",
-    rustc_flags = ["@$(location :cedar-policy-4.5.0-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :cedar-policy-4.8.2-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":cedar-policy-core-4.5.0",
-        ":cedar-policy-formatter-4.5.0",
+        ":cedar-policy-core-4.8.2",
+        ":cedar-policy-formatter-4.8.2",
         ":itertools-0.14.0",
-        ":lalrpop-util-0.22.2",
-        ":lazy_static-1.5.0",
+        ":linked-hash-map-0.5.6",
         ":miette-7.6.0",
-        ":nonempty-0.10.0",
         ":ref-cast-1.0.24",
-        ":semver-1.0.26",
+        ":semver-1.0.27",
         ":serde-1.0.228",
-        ":serde_json-1.0.141",
-        ":serde_with-3.14.0",
+        ":serde_json-1.0.149",
+        ":serde_with-3.16.1",
         ":smol_str-0.3.2",
         ":thiserror-2.0.18",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "cedar-policy-4.5.0-build-script-build",
-    srcs = [":cedar-policy-4.5.0.crate"],
+    name = "cedar-policy-4.8.2-build-script-build",
+    srcs = [":cedar-policy-4.8.2.crate"],
     crate = "build_script_build",
-    crate_root = "cedar-policy-4.5.0.crate/build.rs",
+    crate_root = "cedar-policy-4.8.2.crate/build.rs",
     edition = "2021",
     env = {
         "CARGO_CRATE_NAME": "build_script_build",
-        "CARGO_MANIFEST_DIR": "cedar-policy-4.5.0.crate",
+        "CARGO_MANIFEST_DIR": "cedar-policy-4.8.2.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Cedar is a language for defining permissions as policies, which describe who should have access to what.",
         "CARGO_PKG_NAME": "cedar-policy",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
-        "CARGO_PKG_VERSION": "4.5.0",
+        "CARGO_PKG_VERSION": "4.8.2",
         "CARGO_PKG_VERSION_MAJOR": "4",
-        "CARGO_PKG_VERSION_MINOR": "5",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "8",
+        "CARGO_PKG_VERSION_PATCH": "2",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -1917,16 +1914,16 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "cedar-policy-4.5.0-build-script-run",
+    name = "cedar-policy-4.8.2-build-script-run",
     package_name = "cedar-policy",
-    buildscript_rule = ":cedar-policy-4.5.0-build-script-build",
+    buildscript_rule = ":cedar-policy-4.8.2-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Cedar is a language for defining permissions as policies, which describe who should have access to what.",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
         "CARGO_PKG_VERSION_MAJOR": "4",
-        "CARGO_PKG_VERSION_MINOR": "5",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "8",
+        "CARGO_PKG_VERSION_PATCH": "2",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -1935,36 +1932,36 @@ third_party_rust.buildscript_run(
         "default",
         "ipaddr",
     ],
-    version = "4.5.0",
+    version = "4.8.2",
 )
 
 shims.http_archive(
-    name = "cedar-policy-core-4.5.0.crate",
-    sha256 = "7dda1924b69cc47f602d839782f3a9c5369f545897276c20fec9e2026562142e",
-    strip_prefix = "cedar-policy-core-4.5.0",
-    urls = ["https://static.crates.io/crates/cedar-policy-core/4.5.0/download"],
+    name = "cedar-policy-core-4.8.2.crate",
+    sha256 = "8011d10d2ffa8ee4497d4d7234d0d4e97f52a6e6e66a1150c5c3409ba7fe1b5c",
+    strip_prefix = "cedar-policy-core-4.8.2",
+    urls = ["https://static.crates.io/crates/cedar-policy-core/4.8.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "cedar-policy-core-4.5.0",
-    srcs = [":cedar-policy-core-4.5.0.crate"],
+    name = "cedar-policy-core-4.8.2",
+    srcs = [":cedar-policy-core-4.8.2.crate"],
     crate = "cedar_policy_core",
-    crate_root = "cedar-policy-core-4.5.0.crate/src/lib.rs",
+    crate_root = "cedar-policy-core-4.8.2.crate/src/lib.rs",
     edition = "2021",
     env = {
         "CARGO_CRATE_NAME": "cedar_policy_core",
-        "CARGO_MANIFEST_DIR": "cedar-policy-core-4.5.0.crate",
+        "CARGO_MANIFEST_DIR": "cedar-policy-core-4.8.2.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Core implementation of the Cedar policy language",
         "CARGO_PKG_NAME": "cedar-policy-core",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
-        "CARGO_PKG_VERSION": "4.5.0",
+        "CARGO_PKG_VERSION": "4.8.2",
         "CARGO_PKG_VERSION_MAJOR": "4",
-        "CARGO_PKG_VERSION_MINOR": "5",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "8",
+        "CARGO_PKG_VERSION_PATCH": "2",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :cedar-policy-core-4.5.0-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :cedar-policy-core-4.8.2-build-script-run[out_dir])",
     },
     features = [
         "datetime",
@@ -1972,7 +1969,7 @@ third_party_rust.rust_library(
         "default",
         "ipaddr",
     ],
-    rustc_flags = ["@$(location :cedar-policy-core-4.5.0-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :cedar-policy-core-4.8.2-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
         ":chrono-0.4.43",
@@ -1980,39 +1977,40 @@ third_party_rust.rust_library(
         ":either-1.15.0",
         ":itertools-0.14.0",
         ":lalrpop-util-0.22.2",
-        ":lazy_static-1.5.0",
+        ":linked-hash-map-0.5.6",
+        ":linked_hash_set-0.1.6",
         ":miette-7.6.0",
-        ":nonempty-0.10.0",
+        ":nonempty-0.12.0",
         ":ref-cast-1.0.24",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
         ":rustc_lexer-0.1.0",
         ":serde-1.0.228",
-        ":serde_json-1.0.141",
-        ":serde_with-3.14.0",
+        ":serde_json-1.0.149",
+        ":serde_with-3.16.1",
         ":smol_str-0.3.2",
-        ":stacker-0.1.21",
+        ":stacker-0.1.22",
         ":thiserror-2.0.18",
         ":unicode-security-0.1.2",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "cedar-policy-core-4.5.0-build-script-build",
-    srcs = [":cedar-policy-core-4.5.0.crate"],
+    name = "cedar-policy-core-4.8.2-build-script-build",
+    srcs = [":cedar-policy-core-4.8.2.crate"],
     crate = "build_script_build",
-    crate_root = "cedar-policy-core-4.5.0.crate/build.rs",
+    crate_root = "cedar-policy-core-4.8.2.crate/build.rs",
     edition = "2021",
     env = {
         "CARGO_CRATE_NAME": "build_script_build",
-        "CARGO_MANIFEST_DIR": "cedar-policy-core-4.5.0.crate",
+        "CARGO_MANIFEST_DIR": "cedar-policy-core-4.8.2.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Core implementation of the Cedar policy language",
         "CARGO_PKG_NAME": "cedar-policy-core",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
-        "CARGO_PKG_VERSION": "4.5.0",
+        "CARGO_PKG_VERSION": "4.8.2",
         "CARGO_PKG_VERSION_MAJOR": "4",
-        "CARGO_PKG_VERSION_MINOR": "5",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "8",
+        "CARGO_PKG_VERSION_PATCH": "2",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -2026,16 +2024,16 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "cedar-policy-core-4.5.0-build-script-run",
+    name = "cedar-policy-core-4.8.2-build-script-run",
     package_name = "cedar-policy-core",
-    buildscript_rule = ":cedar-policy-core-4.5.0-build-script-build",
+    buildscript_rule = ":cedar-policy-core-4.8.2-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Core implementation of the Cedar policy language",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
         "CARGO_PKG_VERSION_MAJOR": "4",
-        "CARGO_PKG_VERSION_MINOR": "5",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "8",
+        "CARGO_PKG_VERSION_PATCH": "2",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -2044,32 +2042,31 @@ third_party_rust.buildscript_run(
         "default",
         "ipaddr",
     ],
-    version = "4.5.0",
+    version = "4.8.2",
 )
 
 shims.http_archive(
-    name = "cedar-policy-formatter-4.5.0.crate",
-    sha256 = "75b7998a24f7bf11f26224457a49c8cb5eacf42be780c2ad91f86b5b10f7c393",
-    strip_prefix = "cedar-policy-formatter-4.5.0",
-    urls = ["https://static.crates.io/crates/cedar-policy-formatter/4.5.0/download"],
+    name = "cedar-policy-formatter-4.8.2.crate",
+    sha256 = "f29faad4ed540d812bc213b1228de39a34731730bca6dd51a8086796461415c0",
+    strip_prefix = "cedar-policy-formatter-4.8.2",
+    urls = ["https://static.crates.io/crates/cedar-policy-formatter/4.8.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "cedar-policy-formatter-4.5.0",
-    srcs = [":cedar-policy-formatter-4.5.0.crate"],
+    name = "cedar-policy-formatter-4.8.2",
+    srcs = [":cedar-policy-formatter-4.8.2.crate"],
     crate = "cedar_policy_formatter",
-    crate_root = "cedar-policy-formatter-4.5.0.crate/src/lib.rs",
+    crate_root = "cedar-policy-formatter-4.8.2.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":cedar-policy-core-4.5.0",
+        ":cedar-policy-core-4.8.2",
         ":itertools-0.14.0",
-        ":lazy_static-1.5.0",
-        ":logos-0.15.0",
+        ":logos-0.15.1",
         ":miette-7.6.0",
-        ":pretty-0.12.4",
-        ":regex-1.11.1",
+        ":pretty-0.12.5",
+        ":regex-1.12.2",
         ":smol_str-0.3.2",
     ],
 )
@@ -2226,7 +2223,7 @@ third_party_rust.rust_library(
         ":lexical-6.1.1",
         ":regex-automata-0.3.9",
         ":serde-1.0.228",
-        ":stacker-0.1.21",
+        ":stacker-0.1.22",
         ":unicode-ident-1.0.18",
         ":unicode-segmentation-1.12.0",
     ],
@@ -2649,7 +2646,7 @@ third_party_rust.rust_library(
         ":prost-0.13.5",
         ":prost-types-0.13.5",
         ":serde-1.0.228",
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
         ":thread_local-1.1.9",
         ":tokio-1.49.0",
         ":tokio-stream-0.1.17",
@@ -3447,6 +3444,31 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "darling-0.21.3.crate",
+    sha256 = "9cdf337090841a411e2a7f3deb9187445851f91b309c0c0a29e05f74a00a48c0",
+    strip_prefix = "darling-0.21.3",
+    urls = ["https://static.crates.io/crates/darling/0.21.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "darling-0.21.3",
+    srcs = [":darling-0.21.3.crate"],
+    crate = "darling",
+    crate_root = "darling-0.21.3.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "suggestions",
+    ],
+    visibility = [],
+    deps = [
+        ":darling_core-0.21.3",
+        ":darling_macro-0.21.3",
+    ],
+)
+
+shims.http_archive(
     name = "darling_core-0.20.11.crate",
     sha256 = "0d00b9596d185e565c2207a0b01f8bd1a135483d02d9b7b0a54b11da8d53412e",
     strip_prefix = "darling_core-0.20.11",
@@ -3459,6 +3481,35 @@ third_party_rust.rust_library(
     srcs = [":darling_core-0.20.11.crate"],
     crate = "darling_core",
     crate_root = "darling_core-0.20.11.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "strsim",
+        "suggestions",
+    ],
+    visibility = [],
+    deps = [
+        ":fnv-1.0.7",
+        ":ident_case-1.0.1",
+        ":proc-macro2-1.0.103",
+        ":quote-1.0.42",
+        ":strsim-0.11.1",
+        ":syn-2.0.110",
+    ],
+)
+
+shims.http_archive(
+    name = "darling_core-0.21.3.crate",
+    sha256 = "1247195ecd7e3c85f83c8d2a366e4210d588e802133e1e355180a9870b517ea4",
+    strip_prefix = "darling_core-0.21.3",
+    urls = ["https://static.crates.io/crates/darling_core/0.21.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "darling_core-0.21.3",
+    srcs = [":darling_core-0.21.3.crate"],
+    crate = "darling_core",
+    crate_root = "darling_core-0.21.3.crate/src/lib.rs",
     edition = "2021",
     features = [
         "strsim",
@@ -3493,6 +3544,29 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":darling_core-0.20.11",
+        ":quote-1.0.42",
+        ":syn-2.0.110",
+    ],
+)
+
+shims.http_archive(
+    name = "darling_macro-0.21.3.crate",
+    sha256 = "d38308df82d1080de0afee5d069fa14b0326a88c14f15c5ccda35b4a6c414c81",
+    strip_prefix = "darling_macro-0.21.3",
+    urls = ["https://static.crates.io/crates/darling_macro/0.21.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "darling_macro-0.21.3",
+    srcs = [":darling_macro-0.21.3.crate"],
+    crate = "darling_macro",
+    crate_root = "darling_macro-0.21.3.crate/src/lib.rs",
+    edition = "2021",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":darling_core-0.21.3",
         ":quote-1.0.42",
         ":syn-2.0.110",
     ],
@@ -3578,7 +3652,7 @@ third_party_rust.rust_library(
     deps = [
         ":schemafy-0.5.2",
         ":serde-1.0.228",
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
     ],
 )
 
@@ -4143,10 +4217,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe_derive-0.9.1",
-    srcs = [":dupe_derive-0.9.1.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe_derive",
-    crate_root = "dupe_derive-0.9.1.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe_derive/src/lib.rs",
+    edition = "2024",
     proc_macro = True,
     visibility = [],
     deps = [
@@ -4279,7 +4353,7 @@ third_party_rust.rust_library(
         ":once_cell-1.21.3",
         ":ordered-float-3.9.2",
         ":serde-1.0.228",
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
     ],
 )
 
@@ -4522,7 +4596,7 @@ third_party_rust.rust_library(
         ":humantime-2.2.0",
         ":is-terminal-0.4.16",
         ":log-0.4.27",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
         ":termcolor-1.4.1",
     ],
 )
@@ -4714,7 +4788,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":bit-set-0.5.3",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
     ],
 )
 
@@ -4893,6 +4967,23 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [":cfg-if-1.0.4"],
+)
+
+shims.http_archive(
+    name = "find-msvc-tools-0.1.8.crate",
+    sha256 = "8591b0bcc8a98a64310a2fae1bb3e9b8564dd10e381e6e28010fde8e8e8568db",
+    strip_prefix = "find-msvc-tools-0.1.8",
+    urls = ["https://static.crates.io/crates/find-msvc-tools/0.1.8/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "find-msvc-tools-0.1.8",
+    srcs = [":find-msvc-tools-0.1.8.crate"],
+    crate = "find_msvc_tools",
+    crate_root = "find-msvc-tools-0.1.8.crate/src/lib.rs",
+    edition = "2018",
+    visibility = [],
 )
 
 shims.http_archive(
@@ -7008,7 +7099,7 @@ third_party_rust.rust_library(
         ":aho-corasick-1.1.3",
         ":bstr-1.12.0",
         ":log-0.4.27",
-        ":regex-automata-0.4.9",
+        ":regex-automata-0.4.13",
         ":regex-syntax-0.8.5",
     ],
 )
@@ -7985,7 +8076,7 @@ third_party_rust.rust_library(
         ":globset-0.4.16",
         ":log-0.4.27",
         ":memchr-2.7.6",
-        ":regex-automata-0.4.9",
+        ":regex-automata-0.4.13",
         ":same-file-1.0.6",
         ":walkdir-2.5.0",
     ],
@@ -8325,7 +8416,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":chrono-0.4.43",
-        ":logos-0.15.0",
+        ":logos-0.15.1",
     ],
 )
 
@@ -8811,13 +8902,13 @@ third_party_rust.rust_library(
         ":pest_derive-2.8.1",
         ":pollster-0.4.0",
         ":rayon-1.10.0",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
         ":rpassword-7.4.0",
         ":sapling-renderdag-0.1.0",
         ":sapling-streampager-0.11.0",
         ":scm-record-0.8.0",
         ":serde-1.0.228",
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
         ":slab-0.4.10",
         ":strsim-0.11.1",
         ":tempfile-3.20.0",
@@ -8904,10 +8995,10 @@ third_party_rust.rust_library(
         ":rand_chacha-0.9.0",
         ":rayon-1.10.0",
         ":ref-cast-1.0.24",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
         ":same-file-1.0.6",
         ":serde-1.0.228",
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
         ":smallvec-1.15.1",
         ":strsim-0.11.1",
         ":tempfile-3.20.0",
@@ -9077,7 +9168,7 @@ third_party_rust.rust_library(
         ":itertools-0.10.5",
         ":lalrpop-util-0.19.12",
         ":petgraph-0.6.5",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
         ":regex-syntax-0.6.29",
         ":string_cache-0.8.9",
         ":term-0.7.0",
@@ -9128,7 +9219,7 @@ third_party_rust.rust_library(
         ":lalrpop-util-0.22.2",
         ":petgraph-0.7.1",
         ":pico-args-0.5.0",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
         ":regex-syntax-0.8.5",
         ":sha3-0.10.8",
         ":string_cache-0.8.9",
@@ -9159,7 +9250,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":regex-1.11.1"],
+    deps = [":regex-1.12.2"],
 )
 
 shims.http_archive(
@@ -9185,7 +9276,7 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":regex-automata-0.4.9",
+        ":regex-automata-0.4.13",
         ":rustversion-1.0.21",
     ],
 )
@@ -9240,7 +9331,7 @@ third_party_rust.rust_library(
     deps = [
         ":lazy-regex-proc_macros-3.4.1",
         ":once_cell-1.21.3",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
     ],
 )
 
@@ -9263,7 +9354,7 @@ third_party_rust.rust_library(
     deps = [
         ":proc-macro2-1.0.103",
         ":quote-1.0.42",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
         ":syn-2.0.110",
     ],
 )
@@ -9612,7 +9703,30 @@ third_party_rust.rust_library(
     crate = "linked_hash_map",
     crate_root = "linked-hash-map-0.5.6.crate/src/lib.rs",
     edition = "2015",
+    features = [
+        "serde",
+        "serde_impl",
+    ],
     visibility = [],
+    deps = [":serde-1.0.228"],
+)
+
+shims.http_archive(
+    name = "linked_hash_set-0.1.6.crate",
+    sha256 = "984fb35d06508d1e69fc91050cceba9c0b748f983e6739fa2c7a9237154c52c8",
+    strip_prefix = "linked_hash_set-0.1.6",
+    urls = ["https://static.crates.io/crates/linked_hash_set/0.1.6/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "linked_hash_set-0.1.6",
+    srcs = [":linked_hash_set-0.1.6.crate"],
+    crate = "linked_hash_set",
+    crate_root = "linked_hash_set-0.1.6.crate/src/lib.rs",
+    edition = "2024",
+    visibility = [],
+    deps = [":linked-hash-map-0.5.6"],
 )
 
 shims.http_archive(
@@ -9772,18 +9886,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "logos-0.15.0.crate",
-    sha256 = "ab6f536c1af4c7cc81edf73da1f8029896e7e1e16a219ef09b184e76a296f3db",
-    strip_prefix = "logos-0.15.0",
-    urls = ["https://static.crates.io/crates/logos/0.15.0/download"],
+    name = "logos-0.15.1.crate",
+    sha256 = "ff472f899b4ec2d99161c51f60ff7075eeb3097069a36050d8037a6325eb8154",
+    strip_prefix = "logos-0.15.1",
+    urls = ["https://static.crates.io/crates/logos/0.15.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "logos-0.15.0",
-    srcs = [":logos-0.15.0.crate"],
+    name = "logos-0.15.1",
+    srcs = [":logos-0.15.1.crate"],
     crate = "logos",
-    crate_root = "logos-0.15.0.crate/src/lib.rs",
+    crate_root = "logos-0.15.1.crate/src/lib.rs",
     edition = "2021",
     features = [
         "default",
@@ -9792,22 +9906,22 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":logos-derive-0.15.0"],
+    deps = [":logos-derive-0.15.1"],
 )
 
 shims.http_archive(
-    name = "logos-codegen-0.15.0.crate",
-    sha256 = "189bbfd0b61330abea797e5e9276408f2edbe4f822d7ad08685d67419aafb34e",
-    strip_prefix = "logos-codegen-0.15.0",
-    urls = ["https://static.crates.io/crates/logos-codegen/0.15.0/download"],
+    name = "logos-codegen-0.15.1.crate",
+    sha256 = "192a3a2b90b0c05b27a0b2c43eecdb7c415e29243acc3f89cc8247a5b693045c",
+    strip_prefix = "logos-codegen-0.15.1",
+    urls = ["https://static.crates.io/crates/logos-codegen/0.15.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "logos-codegen-0.15.0",
-    srcs = [":logos-codegen-0.15.0.crate"],
+    name = "logos-codegen-0.15.1",
+    srcs = [":logos-codegen-0.15.1.crate"],
     crate = "logos_codegen",
-    crate_root = "logos-codegen-0.15.0.crate/src/lib.rs",
+    crate_root = "logos-codegen-0.15.1.crate/src/lib.rs",
     edition = "2021",
     rustc_flags = ["--cfg=rust_1_82"],
     visibility = [],
@@ -9849,22 +9963,22 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "logos-derive-0.15.0.crate",
-    sha256 = "ebfe8e1a19049ddbfccbd14ac834b215e11b85b90bab0c2dba7c7b92fb5d5cba",
-    strip_prefix = "logos-derive-0.15.0",
-    urls = ["https://static.crates.io/crates/logos-derive/0.15.0/download"],
+    name = "logos-derive-0.15.1.crate",
+    sha256 = "605d9697bcd5ef3a42d38efc51541aa3d6a4a25f7ab6d1ed0da5ac632a26b470",
+    strip_prefix = "logos-derive-0.15.1",
+    urls = ["https://static.crates.io/crates/logos-derive/0.15.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "logos-derive-0.15.0",
-    srcs = [":logos-derive-0.15.0.crate"],
+    name = "logos-derive-0.15.1",
+    srcs = [":logos-derive-0.15.1.crate"],
     crate = "logos_derive",
-    crate_root = "logos-derive-0.15.0.crate/src/lib.rs",
+    crate_root = "logos-derive-0.15.1.crate/src/lib.rs",
     edition = "2021",
     proc_macro = True,
     visibility = [],
-    deps = [":logos-codegen-0.15.0"],
+    deps = [":logos-codegen-0.15.1"],
 )
 
 shims.http_archive(
@@ -9960,7 +10074,7 @@ third_party_rust.rust_library(
     deps = [
         ":bitflags-1.3.2",
         ":serde-1.0.228",
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
         ":serde_repr-0.1.20",
         ":url-2.5.4",
     ],
@@ -10782,22 +10896,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "nonempty-0.10.0.crate",
-    sha256 = "303e8749c804ccd6ca3b428de7fe0d86cb86bc7606bc15291f100fd487960bb8",
-    strip_prefix = "nonempty-0.10.0",
-    urls = ["https://static.crates.io/crates/nonempty/0.10.0/download"],
+    name = "nonempty-0.12.0.crate",
+    sha256 = "9737e026353e5cd0736f98eddae28665118eb6f6600902a7f50db585621fecb6",
+    strip_prefix = "nonempty-0.12.0",
+    urls = ["https://static.crates.io/crates/nonempty/0.12.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "nonempty-0.10.0",
-    srcs = [":nonempty-0.10.0.crate"],
+    name = "nonempty-0.12.0",
+    srcs = [":nonempty-0.12.0.crate"],
     crate = "nonempty",
-    crate_root = "nonempty-0.10.0.crate/src/lib.rs",
-    edition = "2018",
+    crate_root = "nonempty-0.12.0.crate/src/lib.rs",
+    edition = "2021",
     features = [
-        "serde",
+        "default",
         "serialize",
+        "std",
     ],
     visibility = [],
     deps = [":serde-1.0.228"],
@@ -12531,24 +12646,24 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "pretty-0.12.4.crate",
-    sha256 = "ac98773b7109bc75f475ab5a134c9b64b87e59d776d31098d8f346922396a477",
-    strip_prefix = "pretty-0.12.4",
-    urls = ["https://static.crates.io/crates/pretty/0.12.4/download"],
+    name = "pretty-0.12.5.crate",
+    sha256 = "0d22152487193190344590e4f30e219cf3fe140d9e7a3fdb683d82aa2c5f4156",
+    strip_prefix = "pretty-0.12.5",
+    urls = ["https://static.crates.io/crates/pretty/0.12.5/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "pretty-0.12.4",
-    srcs = [":pretty-0.12.4.crate"],
+    name = "pretty-0.12.5",
+    srcs = [":pretty-0.12.5.crate"],
     crate = "pretty",
-    crate_root = "pretty-0.12.4.crate/src/lib.rs",
+    crate_root = "pretty-0.12.5.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
         ":arrayvec-0.5.2",
         ":typed-arena-2.0.2",
-        ":unicode-width-0.1.14",
+        ":unicode-width-0.2.0",
     ],
 )
 
@@ -12761,7 +12876,7 @@ third_party_rust.rust_library(
         ":prost-types-0.14.1",
         ":pulldown-cmark-0.13.0",
         ":pulldown-cmark-to-cmark-21.1.0",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
         ":syn-2.0.110",
         ":tempfile-3.20.0",
     ],
@@ -13456,18 +13571,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "regex-1.11.1.crate",
-    sha256 = "b544ef1b4eac5dc2db33ea63606ae9ffcfac26c1416a2806ae0bf5f56b201191",
-    strip_prefix = "regex-1.11.1",
-    urls = ["https://static.crates.io/crates/regex/1.11.1/download"],
+    name = "regex-1.12.2.crate",
+    sha256 = "843bc0191f75f3e22651ae5f1e72939ab2f72a4bc30fa80a066bd66edefc24d4",
+    strip_prefix = "regex-1.12.2",
+    urls = ["https://static.crates.io/crates/regex/1.12.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "regex-1.11.1",
-    srcs = [":regex-1.11.1.crate"],
+    name = "regex-1.12.2",
+    srcs = [":regex-1.12.2.crate"],
     crate = "regex",
-    crate_root = "regex-1.11.1.crate/src/lib.rs",
+    crate_root = "regex-1.12.2.crate/src/lib.rs",
     edition = "2021",
     features = [
         "default",
@@ -13492,7 +13607,7 @@ third_party_rust.rust_library(
     deps = [
         ":aho-corasick-1.1.3",
         ":memchr-2.7.6",
-        ":regex-automata-0.4.9",
+        ":regex-automata-0.4.13",
         ":regex-syntax-0.8.5",
     ],
 )
@@ -13572,18 +13687,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "regex-automata-0.4.9.crate",
-    sha256 = "809e8dc61f6de73b46c85f4c96486310fe304c434cfa43669d7b40f711150908",
-    strip_prefix = "regex-automata-0.4.9",
-    urls = ["https://static.crates.io/crates/regex-automata/0.4.9/download"],
+    name = "regex-automata-0.4.13.crate",
+    sha256 = "5276caf25ac86c8d810222b3dbb938e512c55c6831a10f3e6ed1c93b84041f1c",
+    strip_prefix = "regex-automata-0.4.13",
+    urls = ["https://static.crates.io/crates/regex-automata/0.4.13/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "regex-automata-0.4.9",
-    srcs = [":regex-automata-0.4.9.crate"],
+    name = "regex-automata-0.4.13",
+    srcs = [":regex-automata-0.4.13.crate"],
     crate = "regex_automata",
-    crate_root = "regex-automata-0.4.9.crate/src/lib.rs",
+    crate_root = "regex-automata-0.4.13.crate/src/lib.rs",
     edition = "2021",
     features = [
         "alloc",
@@ -13760,7 +13875,7 @@ third_party_rust.rust_library(
         ":pin-project-lite-0.2.16",
         ":rustls-pki-types-1.13.0",
         ":serde-1.0.228",
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
         ":serde_urlencoded-0.7.1",
         ":sync_wrapper-1.0.2",
         ":tokio-1.49.0",
@@ -14500,7 +14615,7 @@ third_party_rust.rust_library(
         ":enum_dispatch-0.3.13",
         ":lru-0.12.4",
         ":memmap2-0.9.7",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
         ":scopeguard-1.2.0",
         ":serde-1.0.228",
         ":smallvec-1.15.1",
@@ -14553,7 +14668,7 @@ third_party_rust.rust_library(
         ":schemafy_lib-0.5.2",
         ":serde-1.0.228",
         ":serde_derive-1.0.228",
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
         ":serde_repr-0.1.20",
         ":syn-1.0.109",
     ],
@@ -14576,7 +14691,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":serde-1.0.228",
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
     ],
 )
 
@@ -14602,7 +14717,7 @@ third_party_rust.rust_library(
         ":schemafy_core-0.5.2",
         ":serde-1.0.228",
         ":serde_derive-1.0.228",
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
         ":syn-1.0.109",
     ],
 )
@@ -14633,7 +14748,7 @@ third_party_rust.rust_library(
         ":num-traits-0.2.19",
         ":ratatui-0.29.0",
         ":serde-1.0.228",
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
         ":thiserror-2.0.18",
         ":tracing-0.1.44",
         ":unicode-width-0.2.0",
@@ -14738,52 +14853,24 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "semver-1.0.26.crate",
-    sha256 = "56e6fa9c48d24d85fb3de5ad847117517440f6beceb7798af16b4a87d616b8d0",
-    strip_prefix = "semver-1.0.26",
-    urls = ["https://static.crates.io/crates/semver/1.0.26/download"],
+    name = "semver-1.0.27.crate",
+    sha256 = "d767eb0aabc880b29956c35734170f26ed551a859dbd361d140cdbeca61ab1e2",
+    strip_prefix = "semver-1.0.27",
+    urls = ["https://static.crates.io/crates/semver/1.0.27/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "semver-1.0.26",
-    srcs = [":semver-1.0.26.crate"],
+    name = "semver-1.0.27",
+    srcs = [":semver-1.0.27.crate"],
     crate = "semver",
-    crate_root = "semver-1.0.26.crate/src/lib.rs",
-    edition = "2018",
-    env = {
-        "OUT_DIR": "$(location :semver-1.0.26-build-script-run[out_dir])",
-    },
-    features = [
-        "default",
-        "std",
-    ],
-    rustc_flags = ["@$(location :semver-1.0.26-build-script-run[rustc_flags])"],
-    visibility = [],
-)
-
-third_party_rust.rust_binary(
-    name = "semver-1.0.26-build-script-build",
-    srcs = [":semver-1.0.26.crate"],
-    crate = "build_script_build",
-    crate_root = "semver-1.0.26.crate/build.rs",
+    crate_root = "semver-1.0.27.crate/src/lib.rs",
     edition = "2018",
     features = [
         "default",
         "std",
     ],
     visibility = [],
-)
-
-third_party_rust.buildscript_run(
-    name = "semver-1.0.26-build-script-run",
-    package_name = "semver",
-    buildscript_rule = ":semver-1.0.26-build-script-build",
-    features = [
-        "default",
-        "std",
-    ],
-    version = "1.0.26",
 )
 
 shims.alias(
@@ -15016,26 +15103,26 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "serde_json",
-    actual = ":serde_json-1.0.141",
+    actual = ":serde_json-1.0.149",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "serde_json-1.0.141.crate",
-    sha256 = "30b9eff21ebe718216c6ec64e1d9ac57087aad11efc64e32002bce4a0d4c03d3",
-    strip_prefix = "serde_json-1.0.141",
-    urls = ["https://static.crates.io/crates/serde_json/1.0.141/download"],
+    name = "serde_json-1.0.149.crate",
+    sha256 = "83fc039473c5595ace860d8c4fafa220ff474b3fc6bfdb4293327f1a37e94d86",
+    strip_prefix = "serde_json-1.0.149",
+    urls = ["https://static.crates.io/crates/serde_json/1.0.149/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "serde_json-1.0.141",
-    srcs = [":serde_json-1.0.141.crate"],
+    name = "serde_json-1.0.149",
+    srcs = [":serde_json-1.0.149.crate"],
     crate = "serde_json",
-    crate_root = "serde_json-1.0.141.crate/src/lib.rs",
+    crate_root = "serde_json-1.0.149.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :serde_json-1.0.141-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :serde_json-1.0.149-build-script-run[out_dir])",
     },
     features = [
         "alloc",
@@ -15045,22 +15132,22 @@ third_party_rust.rust_library(
         "raw_value",
         "std",
     ],
-    rustc_flags = ["@$(location :serde_json-1.0.141-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :serde_json-1.0.149-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
         ":indexmap-2.10.0",
         ":itoa-1.0.17",
         ":memchr-2.7.6",
-        ":ryu-1.0.20",
-        ":serde-1.0.228",
+        ":serde_core-1.0.228",
+        ":zmij-1.0.17",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "serde_json-1.0.141-build-script-build",
-    srcs = [":serde_json-1.0.141.crate"],
+    name = "serde_json-1.0.149-build-script-build",
+    srcs = [":serde_json-1.0.149.crate"],
     crate = "build_script_build",
-    crate_root = "serde_json-1.0.141.crate/build.rs",
+    crate_root = "serde_json-1.0.149.crate/build.rs",
     edition = "2021",
     features = [
         "alloc",
@@ -15074,9 +15161,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "serde_json-1.0.141-build-script-run",
+    name = "serde_json-1.0.149-build-script-run",
     package_name = "serde_json",
-    buildscript_rule = ":serde_json-1.0.141-build-script-build",
+    buildscript_rule = ":serde_json-1.0.149-build-script-build",
     features = [
         "alloc",
         "default",
@@ -15085,7 +15172,7 @@ third_party_rust.buildscript_run(
         "raw_value",
         "std",
     ],
-    version = "1.0.141",
+    version = "1.0.149",
 )
 
 shims.http_archive(
@@ -15154,18 +15241,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "serde_with-3.14.0.crate",
-    sha256 = "f2c45cd61fefa9db6f254525d46e392b852e0e61d9a1fd36e5bd183450a556d5",
-    strip_prefix = "serde_with-3.14.0",
-    urls = ["https://static.crates.io/crates/serde_with/3.14.0/download"],
+    name = "serde_with-3.16.1.crate",
+    sha256 = "4fa237f2807440d238e0364a218270b98f767a00d3dada77b1c53ae88940e2e7",
+    strip_prefix = "serde_with-3.16.1",
+    urls = ["https://static.crates.io/crates/serde_with/3.16.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "serde_with-3.14.0",
-    srcs = [":serde_with-3.14.0.crate"],
+    name = "serde_with-3.16.1",
+    srcs = [":serde_with-3.16.1.crate"],
     crate = "serde_with",
-    crate_root = "serde_with-3.14.0.crate/src/lib.rs",
+    crate_root = "serde_with-3.16.1.crate/src/lib.rs",
     edition = "2021",
     features = [
         "alloc",
@@ -15176,31 +15263,30 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":serde-1.0.228",
-        ":serde_derive-1.0.228",
-        ":serde_json-1.0.141",
-        ":serde_with_macros-3.14.0",
+        ":serde_core-1.0.228",
+        ":serde_json-1.0.149",
+        ":serde_with_macros-3.16.1",
     ],
 )
 
 shims.http_archive(
-    name = "serde_with_macros-3.14.0.crate",
-    sha256 = "de90945e6565ce0d9a25098082ed4ee4002e047cb59892c318d66821e14bb30f",
-    strip_prefix = "serde_with_macros-3.14.0",
-    urls = ["https://static.crates.io/crates/serde_with_macros/3.14.0/download"],
+    name = "serde_with_macros-3.16.1.crate",
+    sha256 = "52a8e3ca0ca629121f70ab50f95249e5a6f925cc0f6ffe8256c45b728875706c",
+    strip_prefix = "serde_with_macros-3.16.1",
+    urls = ["https://static.crates.io/crates/serde_with_macros/3.16.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "serde_with_macros-3.14.0",
-    srcs = [":serde_with_macros-3.14.0.crate"],
+    name = "serde_with_macros-3.16.1",
+    srcs = [":serde_with_macros-3.16.1.crate"],
     crate = "serde_with_macros",
-    crate_root = "serde_with_macros-3.14.0.crate/src/lib.rs",
+    crate_root = "serde_with_macros-3.16.1.crate/src/lib.rs",
     edition = "2021",
     proc_macro = True,
     visibility = [],
     deps = [
-        ":darling-0.20.11",
+        ":darling-0.21.3",
         ":proc-macro2-1.0.103",
         ":quote-1.0.42",
         ":syn-2.0.110",
@@ -15852,30 +15938,30 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "stacker-0.1.21.crate",
-    sha256 = "cddb07e32ddb770749da91081d8d0ac3a16f1a569a18b20348cd371f5dead06b",
-    strip_prefix = "stacker-0.1.21",
-    urls = ["https://static.crates.io/crates/stacker/0.1.21/download"],
+    name = "stacker-0.1.22.crate",
+    sha256 = "e1f8b29fb42aafcea4edeeb6b2f2d7ecd0d969c48b4cf0d2e64aafc471dd6e59",
+    strip_prefix = "stacker-0.1.22",
+    urls = ["https://static.crates.io/crates/stacker/0.1.22/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "stacker-0.1.21",
-    srcs = [":stacker-0.1.21.crate"],
+    name = "stacker-0.1.22",
+    srcs = [":stacker-0.1.22.crate"],
     crate = "stacker",
-    crate_root = "stacker-0.1.21.crate/src/lib.rs",
+    crate_root = "stacker-0.1.22.crate/src/lib.rs",
     edition = "2021",
     env = {
         "CARGO_CRATE_NAME": "stacker",
-        "CARGO_MANIFEST_DIR": "stacker-0.1.21.crate",
+        "CARGO_MANIFEST_DIR": "stacker-0.1.22.crate",
         "CARGO_PKG_AUTHORS": "Alex Crichton <alex@alexcrichton.com>:Simonas Kazlauskas <stacker@kazlauskas.me>",
         "CARGO_PKG_DESCRIPTION": "A stack growth library useful when implementing deeply recursive algorithms that\nmay accidentally blow the stack.\n",
         "CARGO_PKG_NAME": "stacker",
         "CARGO_PKG_REPOSITORY": "https://github.com/rust-lang/stacker",
-        "CARGO_PKG_VERSION": "0.1.21",
+        "CARGO_PKG_VERSION": "0.1.22",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "1",
-        "CARGO_PKG_VERSION_PATCH": "21",
+        "CARGO_PKG_VERSION_PATCH": "22",
         "CARGO_PKG_VERSION_PRE": "",
     },
     platform = {
@@ -15929,10 +16015,10 @@ third_party_rust.rust_library(
         ":once_cell-1.21.3",
         ":paste-1.0.15",
         ":ref-cast-1.0.24",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
         ":rustyline-14.0.0",
         ":serde-1.0.228",
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
         ":starlark_derive-0.13.0",
         ":starlark_map-0.13.0",
         ":starlark_syntax-0.13.0",
@@ -18278,7 +18364,7 @@ third_party_rust.rust_library(
     edition = "2018",
     visibility = [],
     deps = [
-        ":serde_json-1.0.141",
+        ":serde_json-1.0.149",
         ":tracing-core-0.1.36",
         ":tracing-subscriber-0.3.19",
     ],
@@ -18429,7 +18515,7 @@ third_party_rust.rust_library(
         ":matchers-0.1.0",
         ":nu-ansi-term-0.46.0",
         ":once_cell-1.21.3",
-        ":regex-1.11.1",
+        ":regex-1.12.2",
         ":sharded-slab-0.1.7",
         ":smallvec-1.15.1",
         ":thread_local-1.1.9",
@@ -20307,6 +20393,23 @@ third_party_rust.rust_library(
         "rust-allocator",
         "std",
     ],
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "zmij-1.0.17.crate",
+    sha256 = "02aae0f83f69aafc94776e879363e9771d7ecbffe2c7fbb6c14c5e00dfe88439",
+    strip_prefix = "zmij-1.0.17",
+    urls = ["https://static.crates.io/crates/zmij/1.0.17/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "zmij-1.0.17",
+    srcs = [":zmij-1.0.17.crate"],
+    crate = "zmij",
+    crate_root = "zmij-1.0.17.crate/src/lib.rs",
+    edition = "2021",
     visibility = [],
 )
 
