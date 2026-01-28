@@ -38,7 +38,7 @@ educe = "0.6.0"
 env_logger = "0.10"
 eyre = "0.6.12"
 figleter = "0.2.2"
-fjall = { version = "3.0.0", default_features = false, features = [
+fjall = { version = "3.0.1", default_features = false, features = [
     "lz4",
     "metrics",
 ] }

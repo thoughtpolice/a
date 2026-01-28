@@ -4143,10 +4143,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe_derive-0.9.1",
-    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
+    srcs = [":dupe_derive-0.9.1.crate"],
     crate = "dupe_derive",
-    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe_derive/src/lib.rs",
-    edition = "2024",
+    crate_root = "dupe_derive-0.9.1.crate/src/lib.rs",
+    edition = "2021",
     proc_macro = True,
     visibility = [],
     deps = [
@@ -4957,23 +4957,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "fjall",
-    actual = ":fjall-3.0.0",
+    actual = ":fjall-3.0.1",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "fjall-3.0.0.crate",
-    sha256 = "4986f550347ed1666561f36e8bf1be3c97df72850ecef0140129da6e2d0aa911",
-    strip_prefix = "fjall-3.0.0",
-    urls = ["https://static.crates.io/crates/fjall/3.0.0/download"],
+    name = "fjall-3.0.1.crate",
+    sha256 = "4f69637c02d38ad1b0f003101d0195a60368130aa17d9ef78b1557d265a22093",
+    strip_prefix = "fjall-3.0.1",
+    urls = ["https://static.crates.io/crates/fjall/3.0.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "fjall-3.0.0",
-    srcs = [":fjall-3.0.0.crate"],
+    name = "fjall-3.0.1",
+    srcs = [":fjall-3.0.1.crate"],
     crate = "fjall",
-    crate_root = "fjall-3.0.0.crate/src/lib.rs",
+    crate_root = "fjall-3.0.1.crate/src/lib.rs",
     edition = "2021",
     features = [
         "lz4",
@@ -4988,7 +4988,7 @@ third_party_rust.rust_library(
         ":dashmap-6.1.0",
         ":flume-0.12.0",
         ":log-0.4.27",
-        ":lsm-tree-3.0.0",
+        ":lsm-tree-3.0.1",
         ":lz4_flex-0.11.5",
         ":tempfile-3.20.0",
         ":xxhash-rust-0.8.15",
@@ -9878,30 +9878,30 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "lsm-tree-3.0.0.crate",
-    sha256 = "3a206e87e8bc38114045060ec1fc6bc4e4559748a37e9622b910d80e48863e87",
-    strip_prefix = "lsm-tree-3.0.0",
-    urls = ["https://static.crates.io/crates/lsm-tree/3.0.0/download"],
+    name = "lsm-tree-3.0.1.crate",
+    sha256 = "b875f1dfe14f557f805b167fb9b0fc54c5560c7a4bd6ae02535b2846f276a8cb",
+    strip_prefix = "lsm-tree-3.0.1",
+    urls = ["https://static.crates.io/crates/lsm-tree/3.0.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "lsm-tree-3.0.0",
-    srcs = [":lsm-tree-3.0.0.crate"],
+    name = "lsm-tree-3.0.1",
+    srcs = [":lsm-tree-3.0.1.crate"],
     crate = "lsm_tree",
-    crate_root = "lsm-tree-3.0.0.crate/src/lib.rs",
+    crate_root = "lsm-tree-3.0.1.crate/src/lib.rs",
     edition = "2021",
     env = {
         "CARGO_CRATE_NAME": "lsm_tree",
-        "CARGO_MANIFEST_DIR": "lsm-tree-3.0.0.crate",
+        "CARGO_MANIFEST_DIR": "lsm-tree-3.0.1.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "A K.I.S.S. implementation of log-structured merge trees (LSM-trees/LSMTs)",
         "CARGO_PKG_NAME": "lsm-tree",
         "CARGO_PKG_REPOSITORY": "https://github.com/fjall-rs/lsm-tree",
-        "CARGO_PKG_VERSION": "3.0.0",
+        "CARGO_PKG_VERSION": "3.0.1",
         "CARGO_PKG_VERSION_MAJOR": "3",
         "CARGO_PKG_VERSION_MINOR": "0",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
