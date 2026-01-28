@@ -17,7 +17,7 @@ use s3s::S3;
 use s3s::{S3Request, S3Response, S3Result};
 
 use super::error::StoreError;
-use super::traits::{CompletedPart, ListObjectsOptions, ObjectMeta, Store};
+use super::traits::{CompletedPart, ListObjectsOptions, ObjectMeta, PutObjectOptions, Store};
 
 /// S3-compatible server implementation.
 ///
@@ -49,6 +49,11 @@ fn store_error_to_s3(e: StoreError) -> s3s::S3Error {
             s3_error!(InvalidPart, "Part {} not found", part_number)
         }
         StoreError::InvalidRange(msg) => s3_error!(InvalidRange, "{}", msg),
+        StoreError::PreconditionFailed(msg) => s3_error!(PreconditionFailed, "{}", msg),
+        StoreError::ConditionalRequestConflict(msg) => {
+            // S3 returns 409 Conflict for concurrent modification during conditional writes
+            s3_error!(ConditionalRequestConflict, "{}", msg)
+        }
         StoreError::Database(e) => s3_error!(InternalError, "Database error: {}", e),
         StoreError::Internal(msg) => s3_error!(InternalError, "{}", msg),
     }
@@ -274,9 +279,25 @@ impl S3 for SmolS3 {
             input.metadata,
         );
 
+        // Handle conditional write headers
+        // S3 uses ETagCondition which can be Strong or Weak etags
+        let if_none_match = match &input.if_none_match {
+            Some(ETagCondition::Any) => true,
+            _ => false,
+        };
+        let if_match = input.if_match.as_ref().map(|etag| match etag {
+            ETagCondition::Any => "*".to_string(),
+            ETagCondition::ETag(ETag::Strong(s) | ETag::Weak(s)) => s.clone(),
+        });
+
+        let options = PutObjectOptions {
+            if_none_match,
+            if_match,
+        };
+
         let result = self
             .store
-            .put_object(&input.bucket, &input.key, data, meta)
+            .put_object(&input.bucket, &input.key, data, meta, options)
             .await
             .map_err(store_error_to_s3)?;
 

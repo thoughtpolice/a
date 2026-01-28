@@ -275,6 +275,20 @@ impl S3Request {
         self
     }
 
+    /// Add If-None-Match header for conditional writes.
+    ///
+    /// When set to "*", the request only succeeds if the object doesn't exist.
+    pub fn with_if_none_match(self, value: &str) -> Self {
+        self.with_header("if-none-match", value)
+    }
+
+    /// Add If-Match header for conditional writes.
+    ///
+    /// The request only succeeds if the object's ETag matches.
+    pub fn with_if_match(self, etag: &str) -> Self {
+        self.with_header("if-match", etag)
+    }
+
     /// Build the HTTP request.
     pub fn build(self) -> Request<s3s::Body> {
         let uri: Uri = self.uri.parse().expect("invalid URI");
