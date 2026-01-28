@@ -7427,6 +7427,30 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "hmac",
+    actual = ":hmac-0.12.1",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "hmac-0.12.1.crate",
+    sha256 = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e",
+    strip_prefix = "hmac-0.12.1",
+    urls = ["https://static.crates.io/crates/hmac/0.12.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "hmac-0.12.1",
+    srcs = [":hmac-0.12.1.crate"],
+    crate = "hmac",
+    crate_root = "hmac-0.12.1.crate/src/lib.rs",
+    edition = "2018",
+    visibility = [],
+    deps = [":digest-0.10.7"],
+)
+
 shims.http_archive(
     name = "hmac-0.13.0-rc.3.crate",
     sha256 = "f1c597ac7d6cc8143e30e83ef70915e7f883b18d8bec2e2b2bce47f5bbb06d57",
