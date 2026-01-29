@@ -1,0 +1,69 @@
+services:
+  victoriametrics:
+    container_name: victoriametrics
+    image: victoriametrics/victoria-metrics:v1.134.0
+    ports:
+      - "8428:8428"
+    volumes:
+      - vmdata:/storage
+    command:
+      - "--storageDataPath=/storage"
+      - "--httpListenAddr=:8428"
+      - "--retentionPeriod=12"  # 12 months retention
+      - "--selfScrapeInterval=10s"  # Self-monitoring
+    networks:
+      - vm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8428/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  victorialogs:
+    container_name: victorialogs
+    image: victoriametrics/victoria-logs:v1.44.0
+    ports:
+      - "9428:9428"
+    volumes:
+      - vldata:/victoria-logs-data
+    command:
+      - "-storageDataPath=/victoria-logs-data"
+      - "-retentionPeriod=30d"  # 30 days retention
+      - "-httpListenAddr=:9428"
+    networks:
+      - vm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9428/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Vector - Observability data router for OTLP ingestion
+  vector:
+    container_name: vector
+    image: timberio/vector:0.53.0-distroless-libc
+    ports:
+      - "4317:4317"  # OpenTelemetry gRPC
+      - "4318:4318"  # OpenTelemetry HTTP
+    volumes:
+      - ./vector.yaml:/etc/vector/vector.yaml:ro
+    depends_on:
+      victoriametrics:
+        condition: service_started
+      victorialogs:
+        condition: service_started
+    networks:
+      - vm-network
+    restart: unless-stopped
+    command: ["--config", "/etc/vector/vector.yaml", "--watch-config"]
+
+networks:
+  vm-network:
+    driver: bridge
+
+volumes:
+  vmdata:
+  vldata:
+  vtdata:

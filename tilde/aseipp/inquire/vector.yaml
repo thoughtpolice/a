@@ -1,0 +1,75 @@
+# OpenTelemetry source - receives OTLP data via gRPC and HTTP
+# Automatically outputs three streams: .logs, .metrics, .traces
+sources:
+  opentelemetry:
+    type: opentelemetry
+    grpc:
+      address: "0.0.0.0:4317"
+    http:
+      address: "0.0.0.0:4318"
+
+# Transform logs to flatten nested objects for VictoriaLogs
+transforms:
+  traces_to_logs:
+    type: trace_to_log
+    inputs:
+      - opentelemetry.traces
+
+  flat_logs:
+    type: remap
+    inputs:
+      - opentelemetry.logs
+      - traces_to_logs
+    source: |
+      # Map timestamp to VictoriaLogs expected field
+      ._time = del(.timestamp)
+
+      # Remove fields we don't need
+      del(.observed_timestamp)
+      del(.dropped_attributes_count)
+      del(.source_type)
+
+      # Flatten everything - converts nested objects to dotted keys
+      . = flatten(.)
+
+      # Set _msg to JSON of payload excluding _time (redundant)
+      time_val = del(._time)
+      ._msg = encode_json(.)
+      ._time = time_val
+
+
+# Sinks for routing to Victoria backends
+sinks:
+  # Route metrics to VictoriaMetrics via Prometheus remote write
+  victoriametrics:
+    type: prometheus_remote_write
+    inputs:
+      - opentelemetry.metrics
+    endpoint: http://victoriametrics:8428/api/v1/write
+    healthcheck:
+      enabled: false
+
+  # Route logs to VictoriaLogs via JSON line endpoint
+  victorialogs:
+    type: http
+    inputs:
+      - flat_logs
+    uri: http://victorialogs:9428/insert/jsonline
+    method: post
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    compression: gzip
+    batch:
+      max_events: 1000
+      timeout_secs: 1
+
+  #console:
+  #  type: console
+  #  inputs:
+  #    - flat_logs
+  #  encoding:
+  #    codec: json
+  #  framing:
+  #    method: newline_delimited
