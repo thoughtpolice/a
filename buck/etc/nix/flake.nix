@@ -48,7 +48,7 @@
           ourRustVersion
 
           # general utilities
-          gdb qemu swtpm dotslash unzip semgrep
+          gdb qemu swtpm dotslash unzip
           hunspell hunspellDicts."en_US-large"
           watchman
 
