@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+:root {
+  /* Dark theme colors */
+  --bg-primary: #1e1e2e;
+  --bg-secondary: #181825;
+  --bg-hover: #313244;
+  --border: #45475a;
+  --border-hover: #585b70;
+  --text-primary: #cdd6f4;
+  --text-muted: #6c7086;
+  --accent: #89b4fa;
+  --accent-muted: rgba(137, 180, 250, 0.15);
+
+  /* Heatmap color scale */
+  --heat-0: #1e1e2e;
+  --heat-1: #313244;
+  --heat-2: #45475a;
+  --heat-3: #585b70;
+  --heat-4: #6c7086;
+  --heat-5: #7f849c;
+  --heat-6: #f9e2af;
+  --heat-7: #fab387;
+  --heat-8: #f38ba8;
+  --heat-9: #f5c2e7;
+  --heat-10: #cba6f7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+.fresh-gradient {
+  background-color: rgb(134, 239, 172);
+  background-image: linear-gradient(
+    to right bottom,
+    rgb(219, 234, 254),
+    rgb(187, 247, 208),
+    rgb(254, 249, 195)
+  );
+}
