@@ -6,10 +6,12 @@ Catch up on the current work being done by looking at the current commit stack a
 
 Run the following command to get the current stack of commits in JSONL format, with full description included:
 
-`jj log --ignore-working-copy --no-graph -r 'stack()' -T 'json(self) ++ "\n"'`
+`jj log --ignore-working-copy --no-graph -r '(trunk()..stack()) ~ empty()' -T 'json(self) ++ "\n"'`
 
 Given the change ID or commit ID of any of these commits, you may use the command `jj log --stat -r $ID` in order to see the diffstat.
 
 Use `jj log -r $ID --patch` in order to see the full patch for true insight.
 
 Use this information to get up to speed quickly on what is being actively worked on so that you can take further action.
+
+This does not include the latest commit from trunk (i.e. the commit the stack is based on). Do Use `jj -r 'trunk()'` (and other variations) to see it.
