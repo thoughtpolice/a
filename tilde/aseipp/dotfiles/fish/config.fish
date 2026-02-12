@@ -12,6 +12,7 @@ if status is-interactive
     atuin init fish | source
     zoxide init fish | source
     direnv hook fish | source
+    mise activate fish | source
 
     if test -d /mnt/c/Users/jasei
         # WSL2 case: this lets us use 'code .' and launch on the Windows Desktop
