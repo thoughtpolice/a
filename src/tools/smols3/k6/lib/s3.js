@@ -44,6 +44,18 @@ export function getObject(bucketName, key) {
     return http.get(`${endpoint}/${bucketName}/${key}`);
 }
 
+export function getObjectRange(bucketName, key, start, end) {
+    return http.get(`${endpoint}/${bucketName}/${key}`, {
+        headers: { 'Range': `bytes=${start}-${end}` },
+    });
+}
+
+export function getObjectSuffix(bucketName, key, suffixLen) {
+    return http.get(`${endpoint}/${bucketName}/${key}`, {
+        headers: { 'Range': `bytes=-${suffixLen}` },
+    });
+}
+
 export function headObject(bucketName, key) {
     return http.head(`${endpoint}/${bucketName}/${key}`);
 }

@@ -53,6 +53,18 @@ depot.k6.run(
     ],
 )
 
+# Range read correctness and performance
+depot.k6.run(
+    name = "range",
+    script = "range.js",
+    initial_vus = 0,
+    steps = [
+        {"duration": "1m", "target": 15},   # Ramp up
+        {"duration": "5m", "target": 15},   # Sustain
+        {"duration": "1m", "target": 0},    # Ramp down
+    ],
+)
+
 # Multipart upload testing
 depot.k6.run(
     name = "multipart",
