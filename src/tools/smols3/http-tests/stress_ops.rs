@@ -79,7 +79,7 @@ stress_test_with_stores!(
                     .put_object(
                         "stress",
                         "contested-key",
-                        Bytes::from(format!("data-{}", i)),
+                        Bytes::from(format!("data-{}", i)).into(),
                         ObjectMeta::default(),
                         options,
                     )
@@ -133,7 +133,7 @@ stress_test_with_stores!(
             .put_object(
                 "stress",
                 "cas-key",
-                Bytes::from("initial"),
+                Bytes::from("initial").into(),
                 ObjectMeta::default(),
                 Default::default(),
             )
@@ -163,7 +163,7 @@ stress_test_with_stores!(
                     .put_object(
                         "stress",
                         "cas-key",
-                        Bytes::from(format!("updated-{}", i)),
+                        Bytes::from(format!("updated-{}", i)).into(),
                         ObjectMeta::default(),
                         options,
                     )
@@ -217,7 +217,7 @@ stress_test_with_stores!(
             .put_object(
                 "stress",
                 "counter",
-                Bytes::from("0"),
+                Bytes::from("0").into(),
                 ObjectMeta::default(),
                 Default::default(),
             )
@@ -255,7 +255,7 @@ stress_test_with_stores!(
                             .put_object(
                                 "stress",
                                 "counter",
-                                Bytes::from(new_value.to_string()),
+                                Bytes::from(new_value.to_string()).into(),
                                 ObjectMeta::default(),
                                 options,
                             )

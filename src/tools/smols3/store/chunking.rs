@@ -213,7 +213,7 @@ impl<S: Store> ChunkingStore<S> {
                 .put_object(
                     CHUNKS_BUCKET,
                     &key,
-                    Bytes::from(count.to_string()),
+                    Bytes::from(count.to_string()).into(),
                     ObjectMeta::default(),
                     PutObjectOptions::default(),
                 )
@@ -237,7 +237,7 @@ impl<S: Store> ChunkingStore<S> {
                 .put_object(
                     CHUNKS_BUCKET,
                     &chunk_key,
-                    Bytes::copy_from_slice(data),
+                    Bytes::copy_from_slice(data).into(),
                     ObjectMeta::default(),
                     PutObjectOptions::default(),
                 )
@@ -414,10 +414,12 @@ impl<S: Store> Store for ChunkingStore<S> {
         &self,
         bucket: &str,
         key: &str,
-        data: Bytes,
+        data: BodyStream,
         mut meta: ObjectMeta,
         options: PutObjectOptions,
     ) -> StoreResult<PutObjectResult> {
+        let data = data.collect_bytes().await?;
+
         if Self::is_reserved_bucket(bucket) {
             return Err(StoreError::Internal(format!(
                 "bucket name '{}' is reserved",
@@ -486,7 +488,7 @@ impl<S: Store> Store for ChunkingStore<S> {
             .put_object(
                 bucket,
                 key,
-                manifest_bytes,
+                manifest_bytes.into(),
                 meta,
                 PutObjectOptions::default(),
             )
@@ -666,7 +668,7 @@ impl<S: Store> Store for ChunkingStore<S> {
             .put_object(
                 dst_bucket,
                 dst_key,
-                src_stored.data,
+                src_stored.data.into(),
                 meta,
                 PutObjectOptions::default(),
             )
@@ -730,7 +732,7 @@ impl<S: Store> Store for ChunkingStore<S> {
         bucket: &str,
         upload_id: &str,
         part_number: i32,
-        data: Bytes,
+        data: BodyStream,
     ) -> StoreResult<PartInfo> {
         if Self::is_reserved_bucket(bucket) {
             return Err(StoreError::BucketNotFound(bucket.to_string()));
@@ -778,7 +780,7 @@ impl<S: Store> Store for ChunkingStore<S> {
             .put_object(
                 bucket,
                 key,
-                manifest_bytes,
+                manifest_bytes.into(),
                 meta,
                 PutObjectOptions::default(),
             )
@@ -922,7 +924,7 @@ mod tests {
             .put_object(
                 "test",
                 "empty",
-                Bytes::new(),
+                Bytes::new().into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -944,7 +946,7 @@ mod tests {
             .put_object(
                 "test",
                 "small",
-                data.clone(),
+                data.clone().into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -967,7 +969,7 @@ mod tests {
             .put_object(
                 "test",
                 "large",
-                data.clone(),
+                data.clone().into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -991,7 +993,7 @@ mod tests {
             .put_object(
                 "test",
                 "obj1",
-                data.clone(),
+                data.clone().into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -1002,7 +1004,7 @@ mod tests {
             .put_object(
                 "test",
                 "obj2",
-                data.clone(),
+                data.clone().into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -1033,7 +1035,7 @@ mod tests {
             .put_object(
                 "test",
                 "obj1",
-                data.clone(),
+                data.clone().into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -1045,7 +1047,7 @@ mod tests {
             .put_object(
                 "test",
                 "obj2",
-                data.clone(),
+                data.clone().into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -1076,7 +1078,7 @@ mod tests {
             .put_object(
                 "test",
                 "first",
-                data.clone(),
+                data.clone().into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -1087,7 +1089,7 @@ mod tests {
             .put_object(
                 "test",
                 "second",
-                data.clone(),
+                data.clone().into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -1115,7 +1117,7 @@ mod tests {
             .put_object(
                 "test",
                 "key",
-                data,
+                data.into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -1136,7 +1138,7 @@ mod tests {
             .put_object(
                 "test",
                 "key",
-                data,
+                data.into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -1160,7 +1162,7 @@ mod tests {
             .put_object(
                 "test",
                 "key",
-                data.clone(),
+                data.clone().into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -1192,7 +1194,7 @@ mod tests {
             .put_object(
                 "test",
                 "source",
-                data.clone(),
+                data.clone().into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -1241,7 +1243,7 @@ mod tests {
             .put_object(
                 "visible",
                 "key",
-                Bytes::from("data"),
+                Bytes::from("data").into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -1267,7 +1269,7 @@ mod tests {
             .put_object(
                 "test",
                 "key",
-                data.clone(),
+                data.clone().into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -1296,7 +1298,7 @@ mod tests {
             .put_object(
                 "test",
                 "key",
-                Bytes::from("first"),
+                Bytes::from("first").into(),
                 ObjectMeta::default(),
                 options.clone(),
             )
@@ -1308,7 +1310,7 @@ mod tests {
             .put_object(
                 "test",
                 "key",
-                Bytes::from("second"),
+                Bytes::from("second").into(),
                 ObjectMeta::default(),
                 options,
             )
@@ -1327,7 +1329,7 @@ mod tests {
             .put_object(
                 "test",
                 "key",
-                Bytes::from("initial"),
+                Bytes::from("initial").into(),
                 ObjectMeta::default(),
                 PutObjectOptions::default(),
             )
@@ -1345,7 +1347,7 @@ mod tests {
             .put_object(
                 "test",
                 "key",
-                Bytes::from("updated"),
+                Bytes::from("updated").into(),
                 ObjectMeta::default(),
                 options,
             )
@@ -1361,7 +1363,7 @@ mod tests {
             .put_object(
                 "test",
                 "key",
-                Bytes::from("conflict"),
+                Bytes::from("conflict").into(),
                 ObjectMeta::default(),
                 options,
             )

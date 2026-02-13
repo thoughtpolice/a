@@ -55,10 +55,10 @@ pub use chunking::{ChunkingConfig, ChunkingStore};
 pub use error::{StoreError, StoreResult};
 pub use fjall::{FjallStore, FjallStoreConfig};
 pub use memory::MemoryStore;
-pub use s3::SmolS3;
+pub use s3::{SmolS3, SmolS3Config};
 pub use slatedb::{SlateBackend, SlateStore, SlateStoreConfig};
 pub use traits::{
-    BucketInfo, CommonPrefix, CompletedPart, CompleteMultipartResult, CopyObjectResult,
+    BodyStream, BucketInfo, CommonPrefix, CompletedPart, CompleteMultipartResult, CopyObjectResult,
     ListObjectsOptions, ListObjectsResult, MultipartUploadInfo, ObjectData, ObjectEntry,
     ObjectMeta, PartInfo, PutObjectOptions, PutObjectResult, Store,
 };

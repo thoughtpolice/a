@@ -410,10 +410,12 @@ impl Store for SlateStore {
         &self,
         bucket: &str,
         key: &str,
-        data: Bytes,
+        data: BodyStream,
         mut meta: ObjectMeta,
         options: PutObjectOptions,
     ) -> StoreResult<PutObjectResult> {
+        let data = data.collect_bytes().await?;
+
         if !self.bucket_exists_internal(bucket).await? {
             return Err(StoreError::BucketNotFound(bucket.to_string()));
         }
@@ -808,8 +810,10 @@ impl Store for SlateStore {
         bucket: &str,
         upload_id: &str,
         part_number: i32,
-        data: Bytes,
+        data: BodyStream,
     ) -> StoreResult<PartInfo> {
+        let data = data.collect_bytes().await?;
+
         if !(1..=10000).contains(&part_number) {
             return Err(StoreError::InvalidPartNumber(part_number));
         }

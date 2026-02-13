@@ -146,10 +146,12 @@ impl Store for MemoryStore {
         &self,
         bucket: &str,
         key: &str,
-        data: Bytes,
+        data: BodyStream,
         mut meta: ObjectMeta,
         options: PutObjectOptions,
     ) -> StoreResult<PutObjectResult> {
+        let data = data.collect_bytes().await?;
+
         // Check bucket exists
         {
             let buckets = self.buckets.read().unwrap();
@@ -472,8 +474,10 @@ impl Store for MemoryStore {
         bucket: &str,
         upload_id: &str,
         part_number: i32,
-        data: Bytes,
+        data: BodyStream,
     ) -> StoreResult<PartInfo> {
+        let data = data.collect_bytes().await?;
+
         if !(1..=10000).contains(&part_number) {
             return Err(StoreError::InvalidPartNumber(part_number));
         }
@@ -692,7 +696,7 @@ mod tests {
         let (store, bucket) = setup_store_with_bucket().await;
 
         store
-            .put_object(bucket, "key", Bytes::from("data"), test_meta(None), Default::default())
+            .put_object(bucket, "key", Bytes::from("data").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -748,7 +752,7 @@ mod tests {
         let data = Bytes::from("hello world");
 
         let result = store
-            .put_object(bucket, "my-key", data.clone(), test_meta(None), Default::default())
+            .put_object(bucket, "my-key", data.clone().into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -762,7 +766,7 @@ mod tests {
         let store = MemoryStore::new();
 
         let result = store
-            .put_object("nonexistent", "key", Bytes::from("data"), test_meta(None), Default::default())
+            .put_object("nonexistent", "key", Bytes::from("data").into(), test_meta(None), Default::default())
             .await;
 
         assert!(matches!(result, Err(StoreError::BucketNotFound(_))));
@@ -773,11 +777,11 @@ mod tests {
         let (store, bucket) = setup_store_with_bucket().await;
 
         store
-            .put_object(bucket, "key", Bytes::from("first"), test_meta(None), Default::default())
+            .put_object(bucket, "key", Bytes::from("first").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "key", Bytes::from("second"), test_meta(None), Default::default())
+            .put_object(bucket, "key", Bytes::from("second").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -790,7 +794,7 @@ mod tests {
         let (store, bucket) = setup_store_with_bucket().await;
 
         let result = store
-            .put_object(bucket, "empty-key", Bytes::new(), test_meta(None), Default::default())
+            .put_object(bucket, "empty-key", Bytes::new().into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -810,7 +814,7 @@ mod tests {
             .put_object(
                 bucket,
                 "key",
-                data.clone(),
+                data.clone().into(),
                 test_meta(Some("text/plain")),
                 Default::default(),
             )
@@ -849,7 +853,7 @@ mod tests {
         let data = Bytes::from("hello world");
 
         store
-            .put_object(bucket, "key", data, test_meta(None), Default::default())
+            .put_object(bucket, "key", data.into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -864,7 +868,7 @@ mod tests {
         let data = Bytes::from("hello");
 
         store
-            .put_object(bucket, "key", data, test_meta(None), Default::default())
+            .put_object(bucket, "key", data.into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -880,7 +884,7 @@ mod tests {
         let data = Bytes::from("hello");
 
         store
-            .put_object(bucket, "key", data, test_meta(None), Default::default())
+            .put_object(bucket, "key", data.into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -899,7 +903,7 @@ mod tests {
             .put_object(
                 bucket,
                 "key",
-                data.clone(),
+                data.clone().into(),
                 test_meta(Some("application/json")),
                 Default::default(),
             )
@@ -927,7 +931,7 @@ mod tests {
         let (store, bucket) = setup_store_with_bucket().await;
 
         store
-            .put_object(bucket, "key", Bytes::from("data"), test_meta(None), Default::default())
+            .put_object(bucket, "key", Bytes::from("data").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -946,7 +950,7 @@ mod tests {
 
         // Delete same object twice should also succeed
         store
-            .put_object(bucket, "key", Bytes::from("data"), test_meta(None), Default::default())
+            .put_object(bucket, "key", Bytes::from("data").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store.delete_object(bucket, "key").await.unwrap();
@@ -963,7 +967,7 @@ mod tests {
         let data = Bytes::from("hello world");
 
         store
-            .put_object(bucket, "source", data.clone(), test_meta(Some("text/plain")), Default::default())
+            .put_object(bucket, "source", data.clone().into(), test_meta(Some("text/plain")), Default::default())
             .await
             .unwrap();
 
@@ -987,7 +991,7 @@ mod tests {
 
         let data = Bytes::from("cross bucket data");
         store
-            .put_object("src-bucket", "key", data.clone(), test_meta(None), Default::default())
+            .put_object("src-bucket", "key", data.clone().into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1016,7 +1020,7 @@ mod tests {
         let (store, bucket) = setup_store_with_bucket().await;
 
         store
-            .put_object(bucket, "source", Bytes::from("data"), test_meta(None), Default::default())
+            .put_object(bucket, "source", Bytes::from("data").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1032,11 +1036,11 @@ mod tests {
         let (store, bucket) = setup_store_with_bucket().await;
 
         store
-            .put_object(bucket, "source", Bytes::from("source data"), test_meta(None), Default::default())
+            .put_object(bucket, "source", Bytes::from("source data").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "dest", Bytes::from("original dest"), test_meta(None), Default::default())
+            .put_object(bucket, "dest", Bytes::from("original dest").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1078,15 +1082,15 @@ mod tests {
         let (store, bucket) = setup_store_with_bucket().await;
 
         store
-            .put_object(bucket, "a", Bytes::from("data-a"), test_meta(None), Default::default())
+            .put_object(bucket, "a", Bytes::from("data-a").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "b", Bytes::from("data-b"), test_meta(None), Default::default())
+            .put_object(bucket, "b", Bytes::from("data-b").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "c", Bytes::from("data-c"), test_meta(None), Default::default())
+            .put_object(bucket, "c", Bytes::from("data-c").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1127,15 +1131,15 @@ mod tests {
         let (store, bucket) = setup_store_with_bucket().await;
 
         store
-            .put_object(bucket, "photos/cat.jpg", Bytes::from("cat"), test_meta(None), Default::default())
+            .put_object(bucket, "photos/cat.jpg", Bytes::from("cat").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "photos/dog.jpg", Bytes::from("dog"), test_meta(None), Default::default())
+            .put_object(bucket, "photos/dog.jpg", Bytes::from("dog").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "docs/readme.txt", Bytes::from("readme"), test_meta(None), Default::default())
+            .put_object(bucket, "docs/readme.txt", Bytes::from("readme").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1160,15 +1164,15 @@ mod tests {
         let (store, bucket) = setup_store_with_bucket().await;
 
         store
-            .put_object(bucket, "photos/2023/cat.jpg", Bytes::from("cat"), test_meta(None), Default::default())
+            .put_object(bucket, "photos/2023/cat.jpg", Bytes::from("cat").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "photos/2024/dog.jpg", Bytes::from("dog"), test_meta(None), Default::default())
+            .put_object(bucket, "photos/2024/dog.jpg", Bytes::from("dog").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "root.txt", Bytes::from("root"), test_meta(None), Default::default())
+            .put_object(bucket, "root.txt", Bytes::from("root").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1196,15 +1200,15 @@ mod tests {
         let (store, bucket) = setup_store_with_bucket().await;
 
         store
-            .put_object(bucket, "photos/2023/jan/a.jpg", Bytes::from("a"), test_meta(None), Default::default())
+            .put_object(bucket, "photos/2023/jan/a.jpg", Bytes::from("a").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "photos/2023/feb/b.jpg", Bytes::from("b"), test_meta(None), Default::default())
+            .put_object(bucket, "photos/2023/feb/b.jpg", Bytes::from("b").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "photos/2024/mar/c.jpg", Bytes::from("c"), test_meta(None), Default::default())
+            .put_object(bucket, "photos/2024/mar/c.jpg", Bytes::from("c").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1235,7 +1239,7 @@ mod tests {
 
         for i in 0..10 {
             store
-                .put_object(bucket, &format!("key-{:02}", i), Bytes::from("data"), test_meta(None), Default::default())
+                .put_object(bucket, &format!("key-{:02}", i), Bytes::from("data").into(), test_meta(None), Default::default())
                 .await
                 .unwrap();
         }
@@ -1260,19 +1264,19 @@ mod tests {
         let (store, bucket) = setup_store_with_bucket().await;
 
         store
-            .put_object(bucket, "a", Bytes::from("a"), test_meta(None), Default::default())
+            .put_object(bucket, "a", Bytes::from("a").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "b", Bytes::from("b"), test_meta(None), Default::default())
+            .put_object(bucket, "b", Bytes::from("b").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "c", Bytes::from("c"), test_meta(None), Default::default())
+            .put_object(bucket, "c", Bytes::from("c").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "d", Bytes::from("d"), test_meta(None), Default::default())
+            .put_object(bucket, "d", Bytes::from("d").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1299,7 +1303,7 @@ mod tests {
 
         for i in 0..5 {
             store
-                .put_object(bucket, &format!("key-{}", i), Bytes::from("data"), test_meta(None), Default::default())
+                .put_object(bucket, &format!("key-{}", i), Bytes::from("data").into(), test_meta(None), Default::default())
                 .await
                 .unwrap();
         }
@@ -1339,15 +1343,15 @@ mod tests {
 
         // Insert in non-sorted order
         store
-            .put_object(bucket, "zebra", Bytes::from("z"), test_meta(None), Default::default())
+            .put_object(bucket, "zebra", Bytes::from("z").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "apple", Bytes::from("a"), test_meta(None), Default::default())
+            .put_object(bucket, "apple", Bytes::from("a").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         store
-            .put_object(bucket, "mango", Bytes::from("m"), test_meta(None), Default::default())
+            .put_object(bucket, "mango", Bytes::from("m").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1404,7 +1408,7 @@ mod tests {
             .unwrap();
 
         let part_info = store
-            .upload_part(bucket, &upload_id, 1, Bytes::from("part 1 data"))
+            .upload_part(bucket, &upload_id, 1, Bytes::from("part 1 data").into())
             .await
             .unwrap();
 
@@ -1423,7 +1427,7 @@ mod tests {
             .unwrap();
 
         let result = store
-            .upload_part(bucket, &upload_id, 0, Bytes::from("data"))
+            .upload_part(bucket, &upload_id, 0, Bytes::from("data").into())
             .await;
 
         assert!(matches!(result, Err(StoreError::InvalidPartNumber(0))));
@@ -1439,7 +1443,7 @@ mod tests {
             .unwrap();
 
         let result = store
-            .upload_part(bucket, &upload_id, 10001, Bytes::from("data"))
+            .upload_part(bucket, &upload_id, 10001, Bytes::from("data").into())
             .await;
 
         assert!(matches!(result, Err(StoreError::InvalidPartNumber(10001))));
@@ -1450,7 +1454,7 @@ mod tests {
         let (store, bucket) = setup_store_with_bucket().await;
 
         let result = store
-            .upload_part(bucket, "nonexistent-upload-id", 1, Bytes::from("data"))
+            .upload_part(bucket, "nonexistent-upload-id", 1, Bytes::from("data").into())
             .await;
 
         assert!(matches!(result, Err(StoreError::MultipartNotFound(_))));
@@ -1468,7 +1472,7 @@ mod tests {
             .unwrap();
 
         let result = store
-            .upload_part("bucket-b", &upload_id, 1, Bytes::from("data"))
+            .upload_part("bucket-b", &upload_id, 1, Bytes::from("data").into())
             .await;
 
         assert!(matches!(result, Err(StoreError::MultipartNotFound(_))));
@@ -1484,11 +1488,11 @@ mod tests {
             .unwrap();
 
         store
-            .upload_part(bucket, &upload_id, 1, Bytes::from("first"))
+            .upload_part(bucket, &upload_id, 1, Bytes::from("first").into())
             .await
             .unwrap();
         let part_info = store
-            .upload_part(bucket, &upload_id, 1, Bytes::from("second"))
+            .upload_part(bucket, &upload_id, 1, Bytes::from("second").into())
             .await
             .unwrap();
 
@@ -1509,11 +1513,11 @@ mod tests {
             .unwrap();
 
         let part1 = store
-            .upload_part(bucket, &upload_id, 1, Bytes::from("Hello "))
+            .upload_part(bucket, &upload_id, 1, Bytes::from("Hello ").into())
             .await
             .unwrap();
         let part2 = store
-            .upload_part(bucket, &upload_id, 2, Bytes::from("World"))
+            .upload_part(bucket, &upload_id, 2, Bytes::from("World").into())
             .await
             .unwrap();
 
@@ -1553,15 +1557,15 @@ mod tests {
             .unwrap();
 
         let part1 = store
-            .upload_part(bucket, &upload_id, 1, Bytes::from("A"))
+            .upload_part(bucket, &upload_id, 1, Bytes::from("A").into())
             .await
             .unwrap();
         let part2 = store
-            .upload_part(bucket, &upload_id, 2, Bytes::from("B"))
+            .upload_part(bucket, &upload_id, 2, Bytes::from("B").into())
             .await
             .unwrap();
         let part3 = store
-            .upload_part(bucket, &upload_id, 3, Bytes::from("C"))
+            .upload_part(bucket, &upload_id, 3, Bytes::from("C").into())
             .await
             .unwrap();
 
@@ -1604,7 +1608,7 @@ mod tests {
             .unwrap();
 
         let part1 = store
-            .upload_part(bucket, &upload_id, 1, Bytes::from("part1"))
+            .upload_part(bucket, &upload_id, 1, Bytes::from("part1").into())
             .await
             .unwrap();
 
@@ -1650,7 +1654,7 @@ mod tests {
             .unwrap();
 
         store
-            .upload_part(bucket, &upload_id, 1, Bytes::from("data"))
+            .upload_part(bucket, &upload_id, 1, Bytes::from("data").into())
             .await
             .unwrap();
 
@@ -1680,15 +1684,15 @@ mod tests {
             .unwrap();
 
         store
-            .upload_part(bucket, &upload_id, 3, Bytes::from("third"))
+            .upload_part(bucket, &upload_id, 3, Bytes::from("third").into())
             .await
             .unwrap();
         store
-            .upload_part(bucket, &upload_id, 1, Bytes::from("first"))
+            .upload_part(bucket, &upload_id, 1, Bytes::from("first").into())
             .await
             .unwrap();
         store
-            .upload_part(bucket, &upload_id, 2, Bytes::from("second"))
+            .upload_part(bucket, &upload_id, 2, Bytes::from("second").into())
             .await
             .unwrap();
 
@@ -1740,7 +1744,7 @@ mod tests {
         };
 
         store
-            .put_object(bucket, "key", Bytes::from("{}"), meta, Default::default())
+            .put_object(bucket, "key", Bytes::from("{}").into(), meta, Default::default())
             .await
             .unwrap();
 
@@ -1767,7 +1771,7 @@ mod tests {
         };
 
         store
-            .put_object(bucket, "key", Bytes::from("data"), meta, Default::default())
+            .put_object(bucket, "key", Bytes::from("data").into(), meta, Default::default())
             .await
             .unwrap();
 
@@ -1784,7 +1788,7 @@ mod tests {
         let data = b"hello world";
 
         store
-            .put_object(bucket, "key", Bytes::from_static(data), test_meta(None), Default::default())
+            .put_object(bucket, "key", Bytes::from_static(data).into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1800,7 +1804,7 @@ mod tests {
         let (store, bucket) = setup_store_with_bucket().await;
 
         store
-            .put_object(bucket, "key", Bytes::from("v1"), test_meta(None), Default::default())
+            .put_object(bucket, "key", Bytes::from("v1").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1810,7 +1814,7 @@ mod tests {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
 
         store
-            .put_object(bucket, "key", Bytes::from("v2"), test_meta(None), Default::default())
+            .put_object(bucket, "key", Bytes::from("v2").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1834,7 +1838,7 @@ mod tests {
         };
 
         let result = store
-            .put_object(bucket, "new-key", Bytes::from("data"), test_meta(None), options)
+            .put_object(bucket, "new-key", Bytes::from("data").into(), test_meta(None), options)
             .await;
 
         assert!(result.is_ok());
@@ -1848,7 +1852,7 @@ mod tests {
 
         // First put an object
         store
-            .put_object(bucket, "key", Bytes::from("original"), test_meta(None), Default::default())
+            .put_object(bucket, "key", Bytes::from("original").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1859,7 +1863,7 @@ mod tests {
         };
 
         let result = store
-            .put_object(bucket, "key", Bytes::from("new"), test_meta(None), options)
+            .put_object(bucket, "key", Bytes::from("new").into(), test_meta(None), options)
             .await;
 
         assert!(matches!(result, Err(StoreError::PreconditionFailed(_))));
@@ -1875,7 +1879,7 @@ mod tests {
 
         // First put an object
         let result = store
-            .put_object(bucket, "key", Bytes::from("original"), test_meta(None), Default::default())
+            .put_object(bucket, "key", Bytes::from("original").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         let original_etag = result.etag;
@@ -1887,7 +1891,7 @@ mod tests {
         };
 
         let result = store
-            .put_object(bucket, "key", Bytes::from("updated"), test_meta(None), options)
+            .put_object(bucket, "key", Bytes::from("updated").into(), test_meta(None), options)
             .await;
 
         assert!(result.is_ok());
@@ -1901,7 +1905,7 @@ mod tests {
 
         // First put an object
         store
-            .put_object(bucket, "key", Bytes::from("original"), test_meta(None), Default::default())
+            .put_object(bucket, "key", Bytes::from("original").into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -1912,7 +1916,7 @@ mod tests {
         };
 
         let result = store
-            .put_object(bucket, "key", Bytes::from("updated"), test_meta(None), options)
+            .put_object(bucket, "key", Bytes::from("updated").into(), test_meta(None), options)
             .await;
 
         assert!(matches!(result, Err(StoreError::PreconditionFailed(_))));
@@ -1933,7 +1937,7 @@ mod tests {
         };
 
         let result = store
-            .put_object(bucket, "nonexistent", Bytes::from("data"), test_meta(None), options)
+            .put_object(bucket, "nonexistent", Bytes::from("data").into(), test_meta(None), options)
             .await;
 
         assert!(matches!(result, Err(StoreError::PreconditionFailed(_))));
@@ -1945,7 +1949,7 @@ mod tests {
 
         // Create initial object
         let result = store
-            .put_object(bucket, "counter", Bytes::from("0"), test_meta(None), Default::default())
+            .put_object(bucket, "counter", Bytes::from("0").into(), test_meta(None), Default::default())
             .await
             .unwrap();
         let etag_v0 = result.etag;
@@ -1956,7 +1960,7 @@ mod tests {
             ..Default::default()
         };
         let result = store
-            .put_object(bucket, "counter", Bytes::from("1"), test_meta(None), options)
+            .put_object(bucket, "counter", Bytes::from("1").into(), test_meta(None), options)
             .await
             .unwrap();
         let etag_v1 = result.etag;
@@ -1967,7 +1971,7 @@ mod tests {
             ..Default::default()
         };
         let result = store
-            .put_object(bucket, "counter", Bytes::from("conflict"), test_meta(None), stale_options)
+            .put_object(bucket, "counter", Bytes::from("conflict").into(), test_meta(None), stale_options)
             .await;
         assert!(matches!(result, Err(StoreError::PreconditionFailed(_))));
 
@@ -1977,7 +1981,7 @@ mod tests {
             ..Default::default()
         };
         let result = store
-            .put_object(bucket, "counter", Bytes::from("2"), test_meta(None), options)
+            .put_object(bucket, "counter", Bytes::from("2").into(), test_meta(None), options)
             .await;
         assert!(result.is_ok());
 
@@ -2004,7 +2008,7 @@ mod tests {
 
         for key in &special_keys {
             store
-                .put_object(bucket, key, Bytes::from("data"), test_meta(None), Default::default())
+                .put_object(bucket, key, Bytes::from("data").into(), test_meta(None), Default::default())
                 .await
                 .unwrap();
 
@@ -2022,7 +2026,7 @@ mod tests {
         let data = Bytes::from(vec![0xABu8; size]);
 
         store
-            .put_object(bucket, "large", data.clone(), test_meta(None), Default::default())
+            .put_object(bucket, "large", data.clone().into(), test_meta(None), Default::default())
             .await
             .unwrap();
 
@@ -2041,7 +2045,7 @@ mod tests {
                 .put_object(
                     bucket,
                     &format!("obj-{:04}", i),
-                    Bytes::from(format!("data-{}", i)),
+                    Bytes::from(format!("data-{}", i)).into(),
                     test_meta(None),
                     Default::default(),
                 )
@@ -2083,7 +2087,7 @@ mod tests {
                     .put_object(
                         "concurrent",
                         &key,
-                        Bytes::from(format!("data-{}", i)),
+                        Bytes::from(format!("data-{}", i)).into(),
                         ObjectMeta::default(),
                         Default::default(),
                     )
