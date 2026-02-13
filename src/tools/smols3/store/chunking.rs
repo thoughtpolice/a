@@ -42,6 +42,7 @@ use std::time::SystemTime;
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 use tracing::debug;
 
 use super::error::{StoreError, StoreResult};
@@ -123,6 +124,9 @@ impl ObjectManifest {
     }
 }
 
+/// Number of striped locks for refcount operations.
+const NUM_REFCOUNT_STRIPES: usize = 256;
+
 /// A storage wrapper that provides content-defined chunking and deduplication.
 ///
 /// `ChunkingStore` wraps any [`Store`] implementation and transparently chunks
@@ -132,6 +136,8 @@ impl ObjectManifest {
 /// # Thread Safety
 ///
 /// `ChunkingStore` is thread-safe if the underlying store is thread-safe.
+/// Refcount operations are protected by striped `tokio::sync::Mutex` locks
+/// to prevent non-atomic read-modify-write races.
 pub struct ChunkingStore<S: Store> {
     /// The underlying storage backend.
     inner: S,
@@ -139,6 +145,8 @@ pub struct ChunkingStore<S: Store> {
     config: ChunkingConfig,
     /// Whether the __chunks__ bucket has been initialized.
     chunks_bucket_initialized: AtomicBool,
+    /// Striped locks for refcount operations, indexed by first byte of hash.
+    refcount_locks: Box<[Mutex<()>; NUM_REFCOUNT_STRIPES]>,
 }
 
 impl<S: Store> ChunkingStore<S> {
@@ -149,11 +157,19 @@ impl<S: Store> ChunkingStore<S> {
 
     /// Create a new chunking store with custom configuration.
     pub fn with_config(inner: S, config: ChunkingConfig) -> Self {
+        let refcount_locks = Box::new(std::array::from_fn(|_| Mutex::new(())));
         Self {
             inner,
             config,
             chunks_bucket_initialized: AtomicBool::new(false),
+            refcount_locks,
         }
+    }
+
+    /// Get the stripe index for a given hash. Uses the first byte of the hex hash.
+    fn stripe_index(hash: &str) -> usize {
+        // Parse first two hex chars as a byte value (0-255)
+        u8::from_str_radix(&hash[..2], 16).unwrap_or(0) as usize
     }
 
     /// Ensure the chunks bucket exists.
@@ -224,9 +240,13 @@ impl<S: Store> ChunkingStore<S> {
 
     /// Store a chunk and increment its reference count.
     /// Returns true if this was a new chunk, false if it already existed.
+    ///
+    /// Uses striped locking to ensure atomic read-modify-write of the refcount.
     async fn store_chunk(&self, data: &[u8]) -> StoreResult<(String, bool)> {
         let hash = Self::compute_hash(data);
         let chunk_key = Self::chunk_key(&hash);
+        let stripe = Self::stripe_index(&hash);
+        let _guard = self.refcount_locks[stripe].lock().await;
 
         let current_count = self.get_refcount(&hash).await?;
         let is_new = current_count == 0;
@@ -252,7 +272,12 @@ impl<S: Store> ChunkingStore<S> {
     }
 
     /// Decrement reference count for a chunk and delete if orphaned.
+    ///
+    /// Uses striped locking to ensure atomic read-modify-write of the refcount.
     async fn release_chunk(&self, hash: &str) -> StoreResult<()> {
+        let stripe = Self::stripe_index(hash);
+        let _guard = self.refcount_locks[stripe].lock().await;
+
         let current_count = self.get_refcount(hash).await?;
         if current_count == 0 {
             return Ok(()); // Already gone
@@ -339,8 +364,12 @@ impl<S: Store> ChunkingStore<S> {
     }
 
     /// Increment reference counts for all chunks in a manifest (for copy).
+    ///
+    /// Uses striped locking to ensure atomic read-modify-write of each refcount.
     async fn increment_manifest_chunks(&self, manifest: &ObjectManifest) -> StoreResult<()> {
         for chunk_ref in &manifest.chunks {
+            let stripe = Self::stripe_index(&chunk_ref.hash);
+            let _guard = self.refcount_locks[stripe].lock().await;
             let current_count = self.get_refcount(&chunk_ref.hash).await?;
             self.set_refcount(&chunk_ref.hash, current_count + 1).await?;
         }
