@@ -10,14 +10,22 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use futures::stream;
-use futures::TryStreamExt;
 use s3s::dto::*;
 use s3s::s3_error;
 use s3s::S3;
 use s3s::{S3Request, S3Response, S3Result};
 
 use super::error::StoreError;
-use super::traits::{CompletedPart, ListObjectsOptions, ObjectMeta, PutObjectOptions, Store};
+use super::traits::{
+    BodyStream, CompletedPart, ListObjectsOptions, ObjectMeta, PutObjectOptions, Store,
+};
+
+/// Configuration for the S3 protocol layer.
+#[derive(Debug, Clone, Default)]
+pub struct SmolS3Config {
+    /// Maximum allowed body size in bytes. `None` means no limit.
+    pub max_body_size: Option<u64>,
+}
 
 /// S3-compatible server implementation.
 ///
@@ -27,13 +35,52 @@ use super::traits::{CompletedPart, ListObjectsOptions, ObjectMeta, PutObjectOpti
 pub struct SmolS3 {
     /// The underlying storage backend.
     store: Arc<dyn Store>,
+    /// Configuration.
+    config: SmolS3Config,
 }
 
 impl SmolS3 {
     /// Create a new S3 server with the given storage backend.
     pub fn new(store: Arc<dyn Store>) -> Self {
-        Self { store }
+        Self {
+            store,
+            config: SmolS3Config::default(),
+        }
     }
+
+    /// Create a new S3 server with the given storage backend and configuration.
+    pub fn with_config(store: Arc<dyn Store>, config: SmolS3Config) -> Self {
+        Self { store, config }
+    }
+}
+
+/// Convert an s3s streaming body into a [`BodyStream`], enforcing an optional
+/// maximum body size during streaming.
+fn body_to_stream(body: StreamingBlob, max_size: Option<u64>) -> BodyStream {
+    let stream = async_stream::stream! {
+        let mut total: u64 = 0;
+        let mut inner = body;
+        use futures::StreamExt;
+        while let Some(result) = inner.next().await {
+            match result {
+                Ok(chunk) => {
+                    total += chunk.len() as u64;
+                    if let Some(max) = max_size {
+                        if total > max {
+                            yield Err(StoreError::BodyTooLarge { received: total, max });
+                            return;
+                        }
+                    }
+                    yield Ok(chunk);
+                }
+                Err(e) => {
+                    yield Err(StoreError::Internal(format!("failed to read body: {}", e)));
+                    return;
+                }
+            }
+        }
+    };
+    BodyStream::from_stream(stream)
 }
 
 /// Convert a StoreError to an S3 error.
@@ -48,6 +95,11 @@ fn store_error_to_s3(e: StoreError) -> s3s::S3Error {
         StoreError::PartNotFound { part_number, .. } => {
             s3_error!(InvalidPart, "Part {} not found", part_number)
         }
+        StoreError::BodyTooLarge { received, max } => {
+            s3_error!(EntityTooLarge, "Body size {} exceeds max {}", received, max)
+        }
+        StoreError::InvalidBucketName(msg) => s3_error!(InvalidBucketName, "{}", msg),
+        StoreError::InvalidKeyName(msg) => s3_error!(InvalidArgument, "{}", msg),
         StoreError::InvalidRange(msg) => s3_error!(InvalidRange, "{}", msg),
         StoreError::PreconditionFailed(msg) => s3_error!(PreconditionFailed, "{}", msg),
         StoreError::ConditionalRequestConflict(msg) => {
@@ -258,18 +310,7 @@ impl S3 for SmolS3 {
         let input = req.input;
 
         let body = input.body.ok_or_else(|| s3_error!(IncompleteBody))?;
-
-        // Collect the body stream into bytes
-        let data: Bytes = body
-            .try_collect::<Vec<Bytes>>()
-            .await
-            .map_err(|e| s3_error!(InternalError, "Failed to read body: {}", e))?
-            .into_iter()
-            .fold(Vec::new(), |mut acc, chunk| {
-                acc.extend_from_slice(&chunk);
-                acc
-            })
-            .into();
+        let data = body_to_stream(body, self.config.max_body_size);
 
         let meta = input_to_object_meta(
             input.content_type,
@@ -553,18 +594,7 @@ impl S3 for SmolS3 {
         let input = req.input;
 
         let body = input.body.ok_or_else(|| s3_error!(IncompleteBody))?;
-
-        // Collect the body stream into bytes
-        let data: Bytes = body
-            .try_collect::<Vec<Bytes>>()
-            .await
-            .map_err(|e| s3_error!(InternalError, "Failed to read body: {}", e))?
-            .into_iter()
-            .fold(Vec::new(), |mut acc, chunk| {
-                acc.extend_from_slice(&chunk);
-                acc
-            })
-            .into();
+        let data = body_to_stream(body, self.config.max_body_size);
 
         let part_info = self
             .store

@@ -63,6 +63,18 @@ pub enum StoreError {
     #[error("slatedb error: {0}")]
     SlateDb(#[from] slatedb::Error),
 
+    /// Request body exceeds the maximum allowed size.
+    #[error("body too large: received {received} bytes, max {max} bytes")]
+    BodyTooLarge { received: u64, max: u64 },
+
+    /// Invalid bucket name.
+    #[error("invalid bucket name: {0}")]
+    InvalidBucketName(String),
+
+    /// Invalid key name.
+    #[error("invalid key name: {0}")]
+    InvalidKeyName(String),
+
     /// Internal storage error.
     #[error("internal error: {0}")]
     Internal(String),

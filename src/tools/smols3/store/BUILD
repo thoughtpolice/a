@@ -5,6 +5,7 @@ load("@root//buck/shims:shims.bzl", depot="shims")
 
 DEPS = [
     'third-party//rust:anyhow',
+    'third-party//rust:async-stream',
     'third-party//rust:async-trait',
     'third-party//rust:blake3',
     'third-party//rust:bytes',
@@ -18,6 +19,7 @@ DEPS = [
     'third-party//rust:serde_json',
     'third-party//rust:slatedb',
     'third-party//rust:thiserror',
+    'third-party//rust:tokio',
     'third-party//rust:tracing',
     'third-party//rust:uuid',
 ]

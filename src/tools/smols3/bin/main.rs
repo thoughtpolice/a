@@ -15,7 +15,7 @@ use s3s::service::{S3Service, S3ServiceBuilder};
 use serde::Deserialize;
 use store::{
     CedarAuthorizer, ChunkingConfig, ChunkingStore, FjallStore, FjallStoreConfig, MemoryStore,
-    SmolS3, Store,
+    SmolS3, SmolS3Config, Store,
 };
 use tokio::net::TcpListener;
 use tracing::info;
@@ -98,6 +98,10 @@ struct Cli {
     /// Path to directory containing Cedar policy files (*.cedar).
     #[arg(long)]
     policy_dir: Option<PathBuf>,
+
+    /// Maximum allowed body size in bytes for PUT/upload requests. No limit if unset.
+    #[arg(long)]
+    max_body_size: Option<u64>,
 }
 
 /// Configuration for multi-credential authentication loaded from JSON.
@@ -268,7 +272,13 @@ async fn run(cli: Cli) -> Result<()> {
     };
 
     // Create S3 service using the storage backend
-    let s3 = SmolS3::new(store);
+    let s3_config = SmolS3Config {
+        max_body_size: cli.max_body_size,
+    };
+    if let Some(max) = cli.max_body_size {
+        info!(max_bytes = max, "body size limit enabled");
+    }
+    let s3 = SmolS3::with_config(store, s3_config);
     let service = {
         let mut builder = S3ServiceBuilder::new(s3);
         if let Some(auth) = auth {

@@ -38,11 +38,97 @@
 
 use std::collections::HashMap;
 use std::ops::Range;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::time::SystemTime;
 
 use bytes::Bytes;
+use futures::stream::Stream;
 
-use super::error::StoreResult;
+use super::error::{StoreError, StoreResult};
+
+// =============================================================================
+// BodyStream type
+// =============================================================================
+
+/// A streaming body for object data.
+///
+/// Wraps an asynchronous stream of `Bytes` chunks, allowing backends to
+/// consume the body data. Most backends will call [`collect_bytes`](BodyStream::collect_bytes)
+/// to buffer the full body, but the streaming interface enables size enforcement
+/// during transfer rather than after full buffering.
+pub struct BodyStream {
+    inner: Pin<Box<dyn Stream<Item = Result<Bytes, StoreError>> + Send>>,
+}
+
+impl std::fmt::Debug for BodyStream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BodyStream").finish_non_exhaustive()
+    }
+}
+
+impl BodyStream {
+    /// Create a `BodyStream` from any compatible stream.
+    pub fn from_stream<S>(stream: S) -> Self
+    where
+        S: Stream<Item = Result<Bytes, StoreError>> + Send + 'static,
+    {
+        Self {
+            inner: Box::pin(stream),
+        }
+    }
+
+    /// Collect the entire stream into a single `Bytes` buffer.
+    ///
+    /// Uses a fast path for single-chunk streams to avoid copying.
+    pub async fn collect_bytes(self) -> StoreResult<Bytes> {
+        use futures::TryStreamExt;
+
+        let chunks: Vec<Bytes> = self.inner.try_collect().await?;
+
+        match chunks.len() {
+            0 => Ok(Bytes::new()),
+            1 => Ok(chunks.into_iter().next().unwrap()),
+            _ => {
+                let total_len: usize = chunks.iter().map(|c| c.len()).sum();
+                let mut buf = Vec::with_capacity(total_len);
+                for chunk in chunks {
+                    buf.extend_from_slice(&chunk);
+                }
+                Ok(Bytes::from(buf))
+            }
+        }
+    }
+}
+
+impl Stream for BodyStream {
+    type Item = Result<Bytes, StoreError>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.inner.as_mut().poll_next(cx)
+    }
+}
+
+impl From<Bytes> for BodyStream {
+    fn from(data: Bytes) -> Self {
+        let stream = futures::stream::once(async move { Ok(data) });
+        Self {
+            inner: Box::pin(stream),
+        }
+    }
+}
+
+impl From<Vec<u8>> for BodyStream {
+    fn from(data: Vec<u8>) -> Self {
+        Self::from(Bytes::from(data))
+    }
+}
+
+impl From<&[u8]> for BodyStream {
+    fn from(data: &[u8]) -> Self {
+        Self::from(Bytes::copy_from_slice(data))
+    }
+}
 
 // =============================================================================
 // Bucket types
@@ -304,7 +390,7 @@ pub trait Store: Send + Sync {
         &self,
         bucket: &str,
         key: &str,
-        data: Bytes,
+        data: BodyStream,
         meta: ObjectMeta,
         options: PutObjectOptions,
     ) -> StoreResult<PutObjectResult>;
@@ -375,7 +461,7 @@ pub trait Store: Send + Sync {
         bucket: &str,
         upload_id: &str,
         part_number: i32,
-        data: Bytes,
+        data: BodyStream,
     ) -> StoreResult<PartInfo>;
 
     /// Complete a multipart upload.
