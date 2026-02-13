@@ -663,6 +663,12 @@ impl Store for SlateStore {
         let max_keys = options.max_keys as usize;
         let start_after = options.start_after.as_deref().unwrap_or("");
 
+        // continuation_token takes precedence over start_after per S3 semantics
+        let skip_after = options
+            .continuation_token
+            .as_deref()
+            .unwrap_or(start_after);
+
         let mut entries: Vec<ObjectEntry> = Vec::new();
         let mut common_prefixes_set: BTreeSet<String> = BTreeSet::new();
 
@@ -689,7 +695,7 @@ impl Store for SlateStore {
                 continue;
             }
 
-            if !start_after.is_empty() && key.as_str() <= start_after {
+            if !skip_after.is_empty() && key.as_str() <= skip_after {
                 continue;
             }
 
@@ -721,40 +727,43 @@ impl Store for SlateStore {
         // Sort by key
         entries.sort_by(|a, b| a.key.cmp(&b.key));
 
-        // Apply pagination
-        let total_count = entries.len() + common_prefixes_set.len();
-        let is_truncated = total_count > max_keys;
-
+        // Interleave entries and prefixes, truncate to max_keys
         let mut result_entries = Vec::new();
         let mut result_prefixes = Vec::new();
         let mut entries_iter = entries.into_iter().peekable();
         let mut prefixes_iter = common_prefixes_set.into_iter().peekable();
         let mut count = 0;
+        let mut last_key: Option<String> = None;
 
         while count < max_keys {
             match (entries_iter.peek(), prefixes_iter.peek()) {
                 (Some(e), Some(p)) => {
                     if e.key.as_str() < p.as_str() {
-                        result_entries.push(entries_iter.next().unwrap());
+                        let entry = entries_iter.next().unwrap();
+                        last_key = Some(entry.key.clone());
+                        result_entries.push(entry);
                     } else {
-                        result_prefixes.push(CommonPrefix {
-                            prefix: prefixes_iter.next().unwrap(),
-                        });
+                        let p = prefixes_iter.next().unwrap();
+                        last_key = Some(p.clone());
+                        result_prefixes.push(CommonPrefix { prefix: p });
                     }
                 }
                 (Some(_), None) => {
-                    result_entries.push(entries_iter.next().unwrap());
+                    let entry = entries_iter.next().unwrap();
+                    last_key = Some(entry.key.clone());
+                    result_entries.push(entry);
                 }
                 (None, Some(_)) => {
-                    result_prefixes.push(CommonPrefix {
-                        prefix: prefixes_iter.next().unwrap(),
-                    });
+                    let p = prefixes_iter.next().unwrap();
+                    last_key = Some(p.clone());
+                    result_prefixes.push(CommonPrefix { prefix: p });
                 }
                 (None, None) => break,
             }
             count += 1;
         }
 
+        let is_truncated = entries_iter.peek().is_some() || prefixes_iter.peek().is_some();
         let key_count = result_entries.len() + result_prefixes.len();
 
         Ok(ListObjectsResult {
@@ -762,7 +771,7 @@ impl Store for SlateStore {
             common_prefixes: result_prefixes,
             is_truncated,
             next_continuation_token: if is_truncated {
-                Some(format!("token-{}", total_count))
+                last_key
             } else {
                 None
             },
