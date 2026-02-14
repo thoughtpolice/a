@@ -102,6 +102,10 @@ struct Cli {
     /// Maximum allowed body size in bytes for PUT/upload requests. No limit if unset.
     #[arg(long)]
     max_body_size: Option<u64>,
+
+    /// Maximum number of concurrent connections. Default: 1024.
+    #[arg(long, default_value = "1024")]
+    max_connections: usize,
 }
 
 /// Configuration for multi-credential authentication loaded from JSON.
@@ -291,10 +295,10 @@ async fn run(cli: Cli) -> Result<()> {
     };
 
     // Run the HTTP server
-    run_server(service, &cli.host, cli.port).await
+    run_server(service, &cli.host, cli.port, cli.max_connections).await
 }
 
-async fn run_server(service: S3Service, host: &str, port: u16) -> Result<()> {
+async fn run_server(service: S3Service, host: &str, port: u16, max_connections: usize) -> Result<()> {
     let listener = TcpListener::bind((host, port))
         .await
         .context("failed to bind to address")?;
@@ -302,10 +306,11 @@ async fn run_server(service: S3Service, host: &str, port: u16) -> Result<()> {
 
     let http_server = ConnBuilder::new(TokioExecutor::new());
     let graceful = hyper_util::server::graceful::GracefulShutdown::new();
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(max_connections));
 
     let mut ctrl_c = std::pin::pin!(tokio::signal::ctrl_c());
 
-    info!("server is running at http://{local_addr}");
+    info!(max_connections, "server is running at http://{local_addr}");
 
     loop {
         let (socket, _) = tokio::select! {
@@ -323,10 +328,12 @@ async fn run_server(service: S3Service, host: &str, port: u16) -> Result<()> {
             }
         };
 
+        let permit = semaphore.clone().acquire_owned().await.unwrap();
         let conn = http_server.serve_connection(TokioIo::new(socket), service.clone());
         let conn = graceful.watch(conn.into_owned());
         tokio::spawn(async move {
             let _ = conn.await;
+            drop(permit);
         });
     }
 
