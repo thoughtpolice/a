@@ -833,44 +833,6 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "axum-0.7.9.crate",
-    sha256 = "edca88bc138befd0323b20752846e6587272d3b03b0343c8ea28a6f819e6e71f",
-    strip_prefix = "axum-0.7.9",
-    urls = ["https://static.crates.io/crates/axum/0.7.9/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "axum-0.7.9",
-    srcs = [":axum-0.7.9.crate"],
-    crate = "axum",
-    crate_root = "axum-0.7.9.crate/src/lib.rs",
-    edition = "2021",
-    visibility = [],
-    deps = [
-        ":async-trait-0.1.89",
-        ":axum-core-0.4.5",
-        ":bytes-1.11.0",
-        ":futures-util-0.3.31",
-        ":http-1.4.0",
-        ":http-body-1.0.1",
-        ":http-body-util-0.1.3",
-        ":itoa-1.0.17",
-        ":matchit-0.7.3",
-        ":memchr-2.7.6",
-        ":mime-0.3.17",
-        ":percent-encoding-2.3.1",
-        ":pin-project-lite-0.2.16",
-        ":rustversion-1.0.21",
-        ":serde-1.0.228",
-        ":sync_wrapper-1.0.2",
-        ":tower-0.5.2",
-        ":tower-layer-0.3.3",
-        ":tower-service-0.3.3",
-    ],
-)
-
-shims.http_archive(
     name = "axum-0.8.7.crate",
     sha256 = "5b098575ebe77cb6d14fc7f32749631a6e44edbef6b796f89b020e99ba20d425",
     strip_prefix = "axum-0.8.7",
@@ -901,37 +863,6 @@ third_party_rust.rust_library(
         ":serde_core-1.0.228",
         ":sync_wrapper-1.0.2",
         ":tower-0.5.2",
-        ":tower-layer-0.3.3",
-        ":tower-service-0.3.3",
-    ],
-)
-
-shims.http_archive(
-    name = "axum-core-0.4.5.crate",
-    sha256 = "09f2bd6146b97ae3359fa0cc6d6b376d9539582c7b4220f041a33ec24c226199",
-    strip_prefix = "axum-core-0.4.5",
-    urls = ["https://static.crates.io/crates/axum-core/0.4.5/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "axum-core-0.4.5",
-    srcs = [":axum-core-0.4.5.crate"],
-    crate = "axum_core",
-    crate_root = "axum-core-0.4.5.crate/src/lib.rs",
-    edition = "2021",
-    visibility = [],
-    deps = [
-        ":async-trait-0.1.89",
-        ":bytes-1.11.0",
-        ":futures-util-0.3.31",
-        ":http-1.4.0",
-        ":http-body-1.0.1",
-        ":http-body-util-0.1.3",
-        ":mime-0.3.17",
-        ":pin-project-lite-0.2.16",
-        ":rustversion-1.0.21",
-        ":sync_wrapper-1.0.2",
         ":tower-layer-0.3.3",
         ":tower-service-0.3.3",
     ],
@@ -2716,49 +2647,50 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "console-api-0.8.1.crate",
-    sha256 = "8030735ecb0d128428b64cd379809817e620a40e5001c54465b99ec5feec2857",
-    strip_prefix = "console-api-0.8.1",
-    urls = ["https://static.crates.io/crates/console-api/0.8.1/download"],
+    name = "console-api-0.9.0.crate",
+    sha256 = "e8599749b6667e2f0c910c1d0dff6901163ff698a52d5a39720f61b5be4b20d3",
+    strip_prefix = "console-api-0.9.0",
+    urls = ["https://static.crates.io/crates/console-api/0.9.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "console-api-0.8.1",
-    srcs = [":console-api-0.8.1.crate"],
+    name = "console-api-0.9.0",
+    srcs = [":console-api-0.9.0.crate"],
     crate = "console_api",
-    crate_root = "console-api-0.8.1.crate/src/lib.rs",
+    crate_root = "console-api-0.9.0.crate/src/lib.rs",
     edition = "2021",
     features = ["transport"],
     visibility = [],
     deps = [
         ":futures-core-0.3.31",
-        ":prost-0.13.5",
-        ":prost-types-0.13.5",
-        ":tonic-0.12.3",
+        ":prost-0.14.1",
+        ":prost-types-0.14.1",
+        ":tonic-0.14.2",
+        ":tonic-prost-0.14.2",
         ":tracing-core-0.1.36",
     ],
 )
 
 shims.alias(
     name = "console-subscriber",
-    actual = ":console-subscriber-0.4.1",
+    actual = ":console-subscriber-0.5.0",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "console-subscriber-0.4.1.crate",
-    sha256 = "6539aa9c6a4cd31f4b1c040f860a1eac9aa80e7df6b05d506a6e7179936d6a01",
-    strip_prefix = "console-subscriber-0.4.1",
-    urls = ["https://static.crates.io/crates/console-subscriber/0.4.1/download"],
+    name = "console-subscriber-0.5.0.crate",
+    sha256 = "fb4915b7d8dd960457a1b6c380114c2944f728e7c65294ab247ae6b6f1f37592",
+    strip_prefix = "console-subscriber-0.5.0",
+    urls = ["https://static.crates.io/crates/console-subscriber/0.5.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "console-subscriber-0.4.1",
-    srcs = [":console-subscriber-0.4.1.crate"],
+    name = "console-subscriber-0.5.0",
+    srcs = [":console-subscriber-0.5.0.crate"],
     crate = "console_subscriber",
-    crate_root = "console-subscriber-0.4.1.crate/src/lib.rs",
+    crate_root = "console-subscriber-0.5.0.crate/src/lib.rs",
     edition = "2021",
     features = [
         "default",
@@ -2767,21 +2699,21 @@ third_party_rust.rust_library(
     rustc_flags = ["--cfg=tokio_unstable"],
     visibility = [],
     deps = [
-        ":console-api-0.8.1",
+        ":console-api-0.9.0",
         ":crossbeam-channel-0.5.15",
         ":crossbeam-utils-0.8.21",
         ":futures-task-0.3.31",
         ":hdrhistogram-7.5.4",
         ":humantime-2.2.0",
         ":hyper-util-0.1.16",
-        ":prost-0.13.5",
-        ":prost-types-0.13.5",
+        ":prost-0.14.1",
+        ":prost-types-0.14.1",
         ":serde-1.0.228",
         ":serde_json-1.0.149",
         ":thread_local-1.1.9",
         ":tokio-1.49.0",
         ":tokio-stream-0.1.17",
-        ":tonic-0.12.3",
+        ":tonic-0.14.2",
         ":tracing-0.1.44",
         ":tracing-core-0.1.36",
         ":tracing-subscriber-0.3.19",
@@ -4388,10 +4320,10 @@ shims.http_archive(
 
 third_party_rust.rust_library(
     name = "dupe-0.9.1",
-    srcs = [":dupe-0.9.1.crate"],
+    srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe",
-    crate_root = "dupe-0.9.1.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe/src/lib.rs",
+    edition = "2024",
     visibility = [],
     deps = [":dupe_derive-0.9.1"],
 )
@@ -7767,24 +7699,6 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "hashbrown-0.12.3.crate",
-    sha256 = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888",
-    strip_prefix = "hashbrown-0.12.3",
-    urls = ["https://static.crates.io/crates/hashbrown/0.12.3/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "hashbrown-0.12.3",
-    srcs = [":hashbrown-0.12.3.crate"],
-    crate = "hashbrown",
-    crate_root = "hashbrown-0.12.3.crate/src/lib.rs",
-    edition = "2021",
-    features = ["raw"],
-    visibility = [],
-)
-
-shims.http_archive(
     name = "hashbrown-0.13.2.crate",
     sha256 = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e",
     strip_prefix = "hashbrown-0.13.2",
@@ -8890,26 +8804,6 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "indexmap-1.9.3.crate",
-    sha256 = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99",
-    strip_prefix = "indexmap-1.9.3",
-    urls = ["https://static.crates.io/crates/indexmap/1.9.3/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "indexmap-1.9.3",
-    srcs = [":indexmap-1.9.3.crate"],
-    crate = "indexmap",
-    crate_root = "indexmap-1.9.3.crate/src/lib.rs",
-    edition = "2021",
-    features = ["std"],
-    rustc_flags = ["--cfg=has_std"],
-    visibility = [],
-    deps = [":hashbrown-0.12.3"],
-)
-
-shims.http_archive(
     name = "indexmap-2.10.0.crate",
     sha256 = "fe4cd85333e22411419a0bcae1297d25e58c9443848b11dc6a86fefe8c78a661",
     strip_prefix = "indexmap-2.10.0",
@@ -8928,7 +8822,6 @@ third_party_rust.rust_library(
         "serde",
         "std",
     ],
-    rustc_flags = ["--cfg=has_std"],
     visibility = [],
     deps = [
         ":equivalent-1.0.2",
@@ -11065,24 +10958,6 @@ third_party_rust.rust_library(
     edition = "2018",
     visibility = [],
     deps = [":regex-automata-0.1.10"],
-)
-
-shims.http_archive(
-    name = "matchit-0.7.3.crate",
-    sha256 = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94",
-    strip_prefix = "matchit-0.7.3",
-    urls = ["https://static.crates.io/crates/matchit/0.7.3/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "matchit-0.7.3",
-    srcs = [":matchit-0.7.3.crate"],
-    crate = "matchit",
-    crate_root = "matchit-0.7.3.crate/src/lib.rs",
-    edition = "2021",
-    features = ["default"],
-    visibility = [],
 )
 
 shims.http_archive(
@@ -14088,7 +13963,6 @@ third_party_rust.rust_library(
     features = [
         "default",
         "derive",
-        "prost-derive",
         "std",
     ],
     visibility = [],
@@ -14216,28 +14090,6 @@ third_party_rust.rust_library(
         ":quote-1.0.42",
         ":syn-2.0.110",
     ],
-)
-
-shims.http_archive(
-    name = "prost-types-0.13.5.crate",
-    sha256 = "52c2c1bf36ddb1a1c396b3601a3cec27c2462e45f07c386894ec3ccf5332bd16",
-    strip_prefix = "prost-types-0.13.5",
-    urls = ["https://static.crates.io/crates/prost-types/0.13.5/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "prost-types-0.13.5",
-    srcs = [":prost-types-0.13.5.crate"],
-    crate = "prost_types",
-    crate_root = "prost-types-0.13.5.crate/src/lib.rs",
-    edition = "2021",
-    features = [
-        "default",
-        "std",
-    ],
-    visibility = [],
-    deps = [":prost-0.13.5"],
 )
 
 shims.alias(
@@ -17832,44 +17684,6 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "socket2-0.5.10.crate",
-    sha256 = "e22376abed350d73dd1cd119b57ffccad95b4e585a7cda43e286245ce23c0678",
-    strip_prefix = "socket2-0.5.10",
-    urls = ["https://static.crates.io/crates/socket2/0.5.10/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "socket2-0.5.10",
-    srcs = [":socket2-0.5.10.crate"],
-    crate = "socket2",
-    crate_root = "socket2-0.5.10.crate/src/lib.rs",
-    edition = "2021",
-    features = ["all"],
-    platform = {
-        "linux-arm64": dict(
-            deps = [":libc-0.2.178"],
-        ),
-        "linux-x86_64": dict(
-            deps = [":libc-0.2.178"],
-        ),
-        "macos-arm64": dict(
-            deps = [":libc-0.2.178"],
-        ),
-        "macos-x86_64": dict(
-            deps = [":libc-0.2.178"],
-        ),
-        "windows-gnu": dict(
-            deps = [":windows-sys-0.52.0"],
-        ),
-        "windows-msvc": dict(
-            deps = [":windows-sys-0.52.0"],
-        ),
-    },
-    visibility = [],
-)
-
-shims.http_archive(
     name = "socket2-0.6.0.crate",
     sha256 = "233504af464074f9d066d7b5416c5f9b894a5862a6506e306f7b816cdd6f1807",
     strip_prefix = "socket2-0.6.0",
@@ -19978,69 +19792,6 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
-shims.http_archive(
-    name = "tonic-0.12.3.crate",
-    sha256 = "877c5b330756d856ffcc4553ab34a5684481ade925ecc54bcd1bf02b1d0d4d52",
-    strip_prefix = "tonic-0.12.3",
-    urls = ["https://static.crates.io/crates/tonic/0.12.3/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "tonic-0.12.3",
-    srcs = [":tonic-0.12.3.crate"],
-    crate = "tonic",
-    crate_root = "tonic-0.12.3.crate/src/lib.rs",
-    edition = "2021",
-    env = {
-        "CARGO_CRATE_NAME": "tonic",
-        "CARGO_MANIFEST_DIR": "tonic-0.12.3.crate",
-        "CARGO_PKG_AUTHORS": "Lucio Franco <luciofranco14@gmail.com>",
-        "CARGO_PKG_DESCRIPTION": "A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility.\n",
-        "CARGO_PKG_NAME": "tonic",
-        "CARGO_PKG_REPOSITORY": "https://github.com/hyperium/tonic",
-        "CARGO_PKG_VERSION": "0.12.3",
-        "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "12",
-        "CARGO_PKG_VERSION_PATCH": "3",
-        "CARGO_PKG_VERSION_PRE": "",
-    },
-    features = [
-        "channel",
-        "codegen",
-        "default",
-        "prost",
-        "router",
-        "server",
-        "transport",
-    ],
-    visibility = [],
-    deps = [
-        ":async-stream-0.3.6",
-        ":async-trait-0.1.89",
-        ":axum-0.7.9",
-        ":base64-0.22.1",
-        ":bytes-1.11.0",
-        ":h2-0.4.11",
-        ":http-1.4.0",
-        ":http-body-1.0.1",
-        ":http-body-util-0.1.3",
-        ":hyper-1.8.1",
-        ":hyper-timeout-0.5.2",
-        ":hyper-util-0.1.16",
-        ":percent-encoding-2.3.1",
-        ":pin-project-1.1.10",
-        ":prost-0.13.5",
-        ":socket2-0.5.10",
-        ":tokio-1.49.0",
-        ":tokio-stream-0.1.17",
-        ":tower-0.4.13",
-        ":tower-layer-0.3.3",
-        ":tower-service-0.3.3",
-        ":tracing-0.1.44",
-    ],
-)
-
 shims.alias(
     name = "tonic",
     actual = ":tonic-0.14.2",
@@ -20269,58 +20020,6 @@ third_party_rust.rust_library(
         ":tokio-stream-0.1.17",
         ":tonic-0.14.2",
         ":tonic-prost-0.14.2",
-    ],
-)
-
-shims.http_archive(
-    name = "tower-0.4.13.crate",
-    sha256 = "b8fa9be0de6cf49e536ce1851f987bd21a43b771b09473c3549a6c853db37c1c",
-    strip_prefix = "tower-0.4.13",
-    urls = ["https://static.crates.io/crates/tower/0.4.13/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "tower-0.4.13",
-    srcs = [":tower-0.4.13.crate"],
-    crate = "tower",
-    crate_root = "tower-0.4.13.crate/src/lib.rs",
-    edition = "2018",
-    features = [
-        "__common",
-        "balance",
-        "buffer",
-        "discover",
-        "futures-core",
-        "futures-util",
-        "indexmap",
-        "limit",
-        "load",
-        "make",
-        "pin-project",
-        "pin-project-lite",
-        "rand",
-        "ready-cache",
-        "slab",
-        "tokio",
-        "tokio-util",
-        "tracing",
-        "util",
-    ],
-    visibility = [],
-    deps = [
-        ":futures-core-0.3.31",
-        ":futures-util-0.3.31",
-        ":indexmap-1.9.3",
-        ":pin-project-1.1.10",
-        ":pin-project-lite-0.2.16",
-        ":rand-0.8.5",
-        ":slab-0.4.10",
-        ":tokio-1.49.0",
-        ":tokio-util-0.7.18",
-        ":tower-layer-0.3.3",
-        ":tower-service-0.3.3",
-        ":tracing-0.1.44",
     ],
 )
 
@@ -22270,17 +21969,13 @@ third_party_rust.rust_library(
     features = [
         "Win32",
         "Win32_Foundation",
-        "Win32_Networking",
-        "Win32_Networking_WinSock",
         "Win32_Security",
         "Win32_Storage",
         "Win32_Storage_FileSystem",
         "Win32_System",
         "Win32_System_Console",
-        "Win32_System_IO",
         "Win32_System_SystemServices",
         "Win32_System_Threading",
-        "Win32_System_WindowsProgramming",
         "Win32_UI",
         "Win32_UI_Input",
         "Win32_UI_Input_KeyboardAndMouse",

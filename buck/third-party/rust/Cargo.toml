@@ -28,7 +28,7 @@ capnp-futures = "0.25.0"
 capnp-rpc = "0.25.0"
 chumsky = { version = "0.10.1", features = ["either", "lexical-numbers", "memoization", "pratt", "regex", "serde", "stacker"] }
 clap = { version = "4.5.35", features = ["derive"] }
-console-subscriber = "0.4.1"
+console-subscriber = "0.5.0"
 cedar-policy = "4.8.2"
 crossbeam-channel = "0.5.15"
 dashmap = "6.1.0"
