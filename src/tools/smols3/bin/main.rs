@@ -294,6 +294,17 @@ async fn run(cli: Cli) -> Result<()> {
         builder.build()
     };
 
+    // Warn if authentication is enabled on a non-localhost address without TLS
+    let has_auth = cli.access_key.is_some() || cli.auth_config.is_some();
+    let is_localhost = matches!(cli.host.as_str(), "localhost" | "127.0.0.1" | "::1");
+    if has_auth && !is_localhost {
+        tracing::warn!(
+            "server is running without TLS on a non-localhost address; \
+             authentication credentials will be transmitted in cleartext. \
+             Consider using a TLS-terminating reverse proxy."
+        );
+    }
+
     // Run the HTTP server
     run_server(service, &cli.host, cli.port, cli.max_connections).await
 }
