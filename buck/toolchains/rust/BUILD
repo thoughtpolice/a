@@ -16,6 +16,9 @@ common_rustc_flags = [
 
     # codegen-units=1 improves overall size and performance of generated code
     '-Ccodegen-units=1',
+
+    # we need this for tokio-console and other things
+    '--cfg=tokio_unstable',
 ]
 
 rustc_target_triple = shims.select({
