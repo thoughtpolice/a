@@ -537,9 +537,13 @@ impl Store for MemoryStore {
             return Err(StoreError::MultipartNotFound(upload_id.to_string()));
         }
 
+        // Sort parts by part number (S3 requires ascending order)
+        let mut sorted_parts = parts.to_vec();
+        sorted_parts.sort_by_key(|p| p.part_number);
+
         // Assemble parts in order
         let mut combined_data = Vec::new();
-        for completed in parts {
+        for completed in &sorted_parts {
             let stored = upload.parts.get(&completed.part_number).ok_or_else(|| {
                 StoreError::PartNotFound {
                     upload_id: upload_id.to_string(),
@@ -1602,8 +1606,8 @@ mod tests {
             .unwrap();
 
         let obj = store.get_object(bucket, "key").await.unwrap();
-        // Parts are assembled in the order they appear in the request
-        assert_eq!(obj.data, Bytes::from("CAB"));
+        // Parts are assembled in ascending part number order (S3 semantics)
+        assert_eq!(obj.data, Bytes::from("ABC"));
     }
 
     #[tokio::test]
