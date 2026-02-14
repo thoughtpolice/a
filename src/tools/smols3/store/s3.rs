@@ -250,18 +250,47 @@ impl S3 for SmolS3 {
     ) -> S3Result<S3Response<GetObjectOutput>> {
         let input = req.input;
 
-        let obj = self
-            .store
-            .get_object(&input.bucket, &input.key)
-            .await
-            .map_err(store_error_to_s3)?;
+        match input.range {
+            None => {
+                // No range: fetch the full object
+                let obj = self
+                    .store
+                    .get_object(&input.bucket, &input.key)
+                    .await
+                    .map_err(store_error_to_s3)?;
 
-        let file_len = obj.meta.size;
-        let last_modified = Timestamp::from(obj.meta.last_modified);
+                let content_length =
+                    i64::try_from(obj.meta.size).map_err(|_| s3_error!(InternalError))?;
 
-        let (data, content_length, content_range) = match input.range {
-            None => (obj.data, file_len, None),
+                let body_stream =
+                    stream::once(async move { Ok::<_, std::io::Error>(obj.data) });
+                let body = StreamingBlob::wrap(body_stream);
+
+                let output = GetObjectOutput {
+                    body: Some(body),
+                    content_length: Some(content_length),
+                    content_range: None,
+                    last_modified: Some(Timestamp::from(obj.meta.last_modified)),
+                    metadata: obj.meta.user_metadata,
+                    content_encoding: obj.meta.content_encoding,
+                    content_type: obj.meta.content_type,
+                    content_disposition: obj.meta.content_disposition,
+                    content_language: obj.meta.content_language,
+                    cache_control: obj.meta.cache_control,
+                    e_tag: Some(ETag::Strong(obj.meta.etag)),
+                    ..Default::default()
+                };
+                Ok(S3Response::new(output))
+            }
             Some(range) => {
+                // Range request: use head_object for metadata to avoid full data fetch
+                let meta = self
+                    .store
+                    .head_object(&input.bucket, &input.key)
+                    .await
+                    .map_err(store_error_to_s3)?;
+
+                let file_len = meta.size;
                 let file_range = range.check(file_len)?;
                 let start = file_range.start;
                 let end = file_range.end;
@@ -274,32 +303,30 @@ impl S3 for SmolS3 {
                     .await
                     .map_err(store_error_to_s3)?;
 
-                (range_data, content_length, Some(content_range))
+                let content_length_i64 =
+                    i64::try_from(content_length).map_err(|_| s3_error!(InternalError))?;
+
+                let body_stream =
+                    stream::once(async move { Ok::<_, std::io::Error>(range_data) });
+                let body = StreamingBlob::wrap(body_stream);
+
+                let output = GetObjectOutput {
+                    body: Some(body),
+                    content_length: Some(content_length_i64),
+                    content_range: Some(content_range),
+                    last_modified: Some(Timestamp::from(meta.last_modified)),
+                    metadata: meta.user_metadata,
+                    content_encoding: meta.content_encoding,
+                    content_type: meta.content_type,
+                    content_disposition: meta.content_disposition,
+                    content_language: meta.content_language,
+                    cache_control: meta.cache_control,
+                    e_tag: Some(ETag::Strong(meta.etag)),
+                    ..Default::default()
+                };
+                Ok(S3Response::new(output))
             }
-        };
-
-        let content_length_i64 =
-            i64::try_from(content_length).map_err(|_| s3_error!(InternalError))?;
-
-        // Create a streaming blob from bytes
-        let body_stream = stream::once(async move { Ok::<_, std::io::Error>(data) });
-        let body = StreamingBlob::wrap(body_stream);
-
-        let output = GetObjectOutput {
-            body: Some(body),
-            content_length: Some(content_length_i64),
-            content_range,
-            last_modified: Some(last_modified),
-            metadata: obj.meta.user_metadata.clone(),
-            content_encoding: obj.meta.content_encoding,
-            content_type: obj.meta.content_type,
-            content_disposition: obj.meta.content_disposition,
-            content_language: obj.meta.content_language,
-            cache_control: obj.meta.cache_control,
-            e_tag: Some(ETag::Strong(obj.meta.etag)),
-            ..Default::default()
-        };
-        Ok(S3Response::new(output))
+        }
     }
 
     #[tracing::instrument(skip(self))]
