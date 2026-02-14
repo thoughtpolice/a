@@ -112,6 +112,51 @@ fn store_error_to_s3(e: StoreError) -> s3s::S3Error {
     }
 }
 
+/// Validate a bucket name per S3 naming rules.
+/// Rejects null bytes, enforces 3-63 chars, lowercase alphanumeric + hyphens.
+fn validate_bucket_name(name: &str) -> Result<(), StoreError> {
+    if name.contains('\0') {
+        return Err(StoreError::InvalidBucketName(
+            "bucket name must not contain null bytes".to_string(),
+        ));
+    }
+    if name.len() < 3 {
+        return Err(StoreError::InvalidBucketName(
+            "bucket name must be at least 3 characters".to_string(),
+        ));
+    }
+    if name.len() > 63 {
+        return Err(StoreError::InvalidBucketName(
+            "bucket name must not exceed 63 characters".to_string(),
+        ));
+    }
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    {
+        return Err(StoreError::InvalidBucketName(
+            "bucket name must contain only lowercase letters, digits, and hyphens".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+/// Validate an object key name.
+/// Rejects null bytes and enforces max 1024 bytes.
+fn validate_key_name(key: &str) -> Result<(), StoreError> {
+    if key.contains('\0') {
+        return Err(StoreError::InvalidKeyName(
+            "key must not contain null bytes".to_string(),
+        ));
+    }
+    if key.len() > 1024 {
+        return Err(StoreError::InvalidKeyName(
+            "key must not exceed 1024 bytes".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 /// Format content range header value.
 fn fmt_content_range(start: u64, end_inclusive: u64, size: u64) -> String {
     format!("bytes {start}-{end_inclusive}/{size}")
@@ -149,6 +194,7 @@ impl S3 for SmolS3 {
         req: S3Request<CreateBucketInput>,
     ) -> S3Result<S3Response<CreateBucketOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
 
         self.store
             .create_bucket(&input.bucket)
@@ -165,6 +211,7 @@ impl S3 for SmolS3 {
         req: S3Request<DeleteBucketInput>,
     ) -> S3Result<S3Response<DeleteBucketOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
 
         self.store
             .delete_bucket(&input.bucket)
@@ -180,6 +227,7 @@ impl S3 for SmolS3 {
         req: S3Request<HeadBucketInput>,
     ) -> S3Result<S3Response<HeadBucketOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
 
         let exists = self
             .store
@@ -224,6 +272,7 @@ impl S3 for SmolS3 {
         req: S3Request<GetBucketLocationInput>,
     ) -> S3Result<S3Response<GetBucketLocationOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
 
         let exists = self
             .store
@@ -249,6 +298,8 @@ impl S3 for SmolS3 {
         req: S3Request<GetObjectInput>,
     ) -> S3Result<S3Response<GetObjectOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
+        validate_key_name(&input.key).map_err(store_error_to_s3)?;
 
         match input.range {
             None => {
@@ -335,6 +386,8 @@ impl S3 for SmolS3 {
         req: S3Request<PutObjectInput>,
     ) -> S3Result<S3Response<PutObjectOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
+        validate_key_name(&input.key).map_err(store_error_to_s3)?;
 
         let body = input.body.ok_or_else(|| s3_error!(IncompleteBody))?;
         let data = body_to_stream(body, self.config.max_body_size);
@@ -383,6 +436,8 @@ impl S3 for SmolS3 {
         req: S3Request<DeleteObjectInput>,
     ) -> S3Result<S3Response<DeleteObjectOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
+        validate_key_name(&input.key).map_err(store_error_to_s3)?;
 
         self.store
             .delete_object(&input.bucket, &input.key)
@@ -399,6 +454,7 @@ impl S3 for SmolS3 {
         req: S3Request<DeleteObjectsInput>,
     ) -> S3Result<S3Response<DeleteObjectsOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
 
         let mut deleted_objects: Vec<DeletedObject> = Vec::new();
 
@@ -426,6 +482,8 @@ impl S3 for SmolS3 {
         req: S3Request<HeadObjectInput>,
     ) -> S3Result<S3Response<HeadObjectOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
+        validate_key_name(&input.key).map_err(store_error_to_s3)?;
 
         let meta = self
             .store
@@ -457,11 +515,15 @@ impl S3 for SmolS3 {
         req: S3Request<CopyObjectInput>,
     ) -> S3Result<S3Response<CopyObjectOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
 
         let (src_bucket, src_key) = match &input.copy_source {
             CopySource::AccessPoint { .. } => return Err(s3_error!(NotImplemented)),
             CopySource::Bucket { bucket, key, .. } => (bucket.as_ref(), key.as_ref()),
         };
+        validate_bucket_name(src_bucket).map_err(store_error_to_s3)?;
+        validate_key_name(src_key).map_err(store_error_to_s3)?;
+        validate_key_name(&input.key).map_err(store_error_to_s3)?;
 
         let result = self
             .store
@@ -513,6 +575,7 @@ impl S3 for SmolS3 {
         req: S3Request<ListObjectsV2Input>,
     ) -> S3Result<S3Response<ListObjectsV2Output>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
 
         let max_keys = input.max_keys.unwrap_or(1000);
 
@@ -587,6 +650,8 @@ impl S3 for SmolS3 {
         req: S3Request<CreateMultipartUploadInput>,
     ) -> S3Result<S3Response<CreateMultipartUploadOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
+        validate_key_name(&input.key).map_err(store_error_to_s3)?;
 
         let meta = input_to_object_meta(
             input.content_type,
@@ -619,6 +684,8 @@ impl S3 for SmolS3 {
         req: S3Request<UploadPartInput>,
     ) -> S3Result<S3Response<UploadPartOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
+        validate_key_name(&input.key).map_err(store_error_to_s3)?;
 
         let body = input.body.ok_or_else(|| s3_error!(IncompleteBody))?;
         let data = body_to_stream(body, self.config.max_body_size);
@@ -642,6 +709,8 @@ impl S3 for SmolS3 {
         req: S3Request<CompleteMultipartUploadInput>,
     ) -> S3Result<S3Response<CompleteMultipartUploadOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
+        validate_key_name(&input.key).map_err(store_error_to_s3)?;
 
         let multipart_upload = input
             .multipart_upload
@@ -684,6 +753,7 @@ impl S3 for SmolS3 {
         req: S3Request<AbortMultipartUploadInput>,
     ) -> S3Result<S3Response<AbortMultipartUploadOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
 
         self.store
             .abort_multipart_upload(&input.bucket, &input.upload_id)
@@ -701,6 +771,8 @@ impl S3 for SmolS3 {
         req: S3Request<ListPartsInput>,
     ) -> S3Result<S3Response<ListPartsOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
+        validate_key_name(&input.key).map_err(store_error_to_s3)?;
 
         let part_infos = self
             .store
@@ -735,6 +807,7 @@ impl S3 for SmolS3 {
         req: S3Request<ListMultipartUploadsInput>,
     ) -> S3Result<S3Response<ListMultipartUploadsOutput>> {
         let input = req.input;
+        validate_bucket_name(&input.bucket).map_err(store_error_to_s3)?;
 
         let upload_infos = self
             .store
