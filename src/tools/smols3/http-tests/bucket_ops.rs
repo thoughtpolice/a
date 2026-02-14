@@ -170,3 +170,63 @@ test_with_stores!(
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 );
+
+// =============================================================================
+// Bucket name validation tests
+// =============================================================================
+
+#[cfg(feature = "memory")]
+#[tokio::test]
+async fn create_bucket_too_short_rejected() {
+    let harness = TestHarness::new(store::MemoryStore::new());
+
+    let resp = harness
+        .call(S3Request::create_bucket("ab").build())
+        .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[cfg(feature = "memory")]
+#[tokio::test]
+async fn create_bucket_too_long_rejected() {
+    let harness = TestHarness::new(store::MemoryStore::new());
+
+    let long_name = "a".repeat(64);
+    let resp = harness
+        .call(S3Request::create_bucket(&long_name).build())
+        .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[cfg(feature = "memory")]
+#[tokio::test]
+async fn create_bucket_uppercase_rejected() {
+    let harness = TestHarness::new(store::MemoryStore::new());
+
+    let resp = harness
+        .call(S3Request::create_bucket("MyBucket").build())
+        .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[cfg(feature = "memory")]
+#[tokio::test]
+async fn create_bucket_special_chars_rejected() {
+    let harness = TestHarness::new(store::MemoryStore::new());
+
+    let resp = harness
+        .call(S3Request::create_bucket("my_bucket").build())
+        .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[cfg(feature = "memory")]
+#[tokio::test]
+async fn create_bucket_valid_with_hyphens_and_digits() {
+    let harness = TestHarness::new(store::MemoryStore::new());
+
+    let resp = harness
+        .call(S3Request::create_bucket("my-bucket-123").build())
+        .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+}

@@ -486,3 +486,63 @@ pub trait Store: Send + Sync {
     /// List in-progress multipart uploads in a bucket.
     async fn list_multipart_uploads(&self, bucket: &str) -> StoreResult<Vec<MultipartUploadInfo>>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn body_stream_collect_empty() {
+        let stream = BodyStream::from(Bytes::new());
+        let result = stream.collect_bytes().await.unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn body_stream_collect_single_chunk() {
+        let stream = BodyStream::from(Bytes::from("hello"));
+        let result = stream.collect_bytes().await.unwrap();
+        assert_eq!(result, Bytes::from("hello"));
+    }
+
+    #[tokio::test]
+    async fn body_stream_collect_multi_chunk() {
+        let chunks = vec![
+            Ok(Bytes::from("hello")),
+            Ok(Bytes::from(" ")),
+            Ok(Bytes::from("world")),
+        ];
+        let stream = BodyStream::from_stream(futures::stream::iter(chunks));
+        let result = stream.collect_bytes().await.unwrap();
+        assert_eq!(result, Bytes::from("hello world"));
+    }
+
+    #[tokio::test]
+    async fn body_stream_from_vec() {
+        let data = vec![1u8, 2, 3, 4, 5];
+        let stream = BodyStream::from(data.clone());
+        let result = stream.collect_bytes().await.unwrap();
+        assert_eq!(result.as_ref(), &data[..]);
+    }
+
+    #[tokio::test]
+    async fn body_stream_from_slice() {
+        let data: &[u8] = &[10, 20, 30];
+        let stream = BodyStream::from(data);
+        let result = stream.collect_bytes().await.unwrap();
+        assert_eq!(result.as_ref(), data);
+    }
+
+    #[tokio::test]
+    async fn body_stream_error_propagation() {
+        let chunks: Vec<Result<Bytes, StoreError>> = vec![
+            Ok(Bytes::from("ok")),
+            Err(StoreError::Internal("test error".to_string())),
+        ];
+        let stream = BodyStream::from_stream(futures::stream::iter(chunks));
+        let result = stream.collect_bytes().await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, StoreError::Internal(msg) if msg == "test error"));
+    }
+}

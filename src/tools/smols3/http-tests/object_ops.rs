@@ -658,6 +658,360 @@ test_with_stores!(
     }
 );
 
+// =============================================================================
+// Range read tests
+// =============================================================================
+
+test_with_stores!(get_object_range_middle, |harness: TestHarness| async move {
+    harness
+        .call(S3Request::create_bucket("test-bucket").build())
+        .await;
+
+    harness
+        .call(
+            S3Request::put_object("test-bucket", "data.txt")
+                .with_body(b"Hello, World!")
+                .build(),
+        )
+        .await;
+
+    // Get range bytes 7-11 ("World")
+    let resp = harness
+        .call(
+            S3Request::get_object("test-bucket", "data.txt")
+                .with_range(7, 11)
+                .build(),
+        )
+        .await;
+    assert_eq!(resp.status(), StatusCode::PARTIAL_CONTENT);
+
+    let body = collect_body(resp).await;
+    assert_eq!(body, Bytes::from("World"));
+});
+
+test_with_stores!(
+    get_object_range_content_range_header,
+    |harness: TestHarness| async move {
+        harness
+            .call(S3Request::create_bucket("test-bucket").build())
+            .await;
+
+        harness
+            .call(
+                S3Request::put_object("test-bucket", "data.txt")
+                    .with_body(b"Hello, World!")
+                    .build(),
+            )
+            .await;
+
+        let (resp, body) = harness
+            .call_and_collect(
+                S3Request::get_object("test-bucket", "data.txt")
+                    .with_range(0, 4)
+                    .build(),
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::PARTIAL_CONTENT);
+        assert_eq!(body, Bytes::from("Hello"));
+
+        let content_range = resp
+            .headers()
+            .get("content-range")
+            .expect("should have content-range header")
+            .to_str()
+            .unwrap();
+        assert_eq!(content_range, "bytes 0-4/13");
+    }
+);
+
+test_with_stores!(
+    get_object_range_single_byte,
+    |harness: TestHarness| async move {
+        harness
+            .call(S3Request::create_bucket("test-bucket").build())
+            .await;
+
+        harness
+            .call(
+                S3Request::put_object("test-bucket", "data.txt")
+                    .with_body(b"ABCDE")
+                    .build(),
+            )
+            .await;
+
+        let resp = harness
+            .call(
+                S3Request::get_object("test-bucket", "data.txt")
+                    .with_range(2, 2)
+                    .build(),
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::PARTIAL_CONTENT);
+
+        let body = collect_body(resp).await;
+        assert_eq!(body, Bytes::from("C"));
+    }
+);
+
+// =============================================================================
+// List objects pagination tests
+// =============================================================================
+
+test_with_stores!(
+    list_objects_pagination_full,
+    |harness: TestHarness| async move {
+        harness
+            .call(S3Request::create_bucket("test-bucket").build())
+            .await;
+
+        // Create 10 objects
+        for i in 0..10 {
+            harness
+                .call(
+                    S3Request::put_object("test-bucket", &format!("key-{i:02}"))
+                        .with_body(b"data")
+                        .build(),
+                )
+                .await;
+        }
+
+        let mut all_keys = Vec::new();
+        let mut continuation_token: Option<String> = None;
+        let mut page_count = 0;
+
+        loop {
+            let mut req = S3Request::list_objects_v2("test-bucket").with_max_keys(3);
+            if let Some(ref token) = continuation_token {
+                req = req.with_query("continuation-token", token);
+            }
+
+            let (resp, body) = harness.call_and_collect(req.build()).await;
+            assert_eq!(resp.status(), StatusCode::OK);
+
+            let body_str = String::from_utf8_lossy(&body);
+            page_count += 1;
+
+            // Extract keys from this page
+            let mut offset = 0;
+            while let Some(start) = body_str[offset..].find("<Key>") {
+                let key_start = offset + start + 5;
+                let key_end = key_start
+                    + body_str[key_start..]
+                        .find("</Key>")
+                        .expect("missing </Key>");
+                all_keys.push(body_str[key_start..key_end].to_string());
+                offset = key_end + 6;
+            }
+
+            // Check for next page
+            if let Some(start) = body_str.find("<NextContinuationToken>") {
+                let token_start = start + 23;
+                let token_end = token_start
+                    + body_str[token_start..]
+                        .find("</NextContinuationToken>")
+                        .expect("missing closing tag");
+                continuation_token = Some(body_str[token_start..token_end].to_string());
+            } else {
+                // Last page should not be truncated
+                assert!(body_str.contains("<IsTruncated>false</IsTruncated>"));
+                break;
+            }
+        }
+
+        // Verify: 4 pages (3+3+3+1), all 10 unique keys, sorted order
+        assert_eq!(page_count, 4);
+        assert_eq!(all_keys.len(), 10);
+
+        // Keys should be sorted
+        let mut sorted_keys = all_keys.clone();
+        sorted_keys.sort();
+        assert_eq!(all_keys, sorted_keys);
+
+        // All expected keys present
+        for i in 0..10 {
+            assert!(all_keys.contains(&format!("key-{i:02}")));
+        }
+    }
+);
+
+test_with_stores!(
+    list_objects_continuation_token_resumes,
+    |harness: TestHarness| async move {
+        harness
+            .call(S3Request::create_bucket("test-bucket").build())
+            .await;
+
+        // Create 5 objects
+        for i in 0..5 {
+            harness
+                .call(
+                    S3Request::put_object("test-bucket", &format!("key-{i:02}"))
+                        .with_body(b"data")
+                        .build(),
+                )
+                .await;
+        }
+
+        // First page: max_keys=2
+        let (_, body1) = harness
+            .call_and_collect(
+                S3Request::list_objects_v2("test-bucket")
+                    .with_max_keys(2)
+                    .build(),
+            )
+            .await;
+
+        let body1_str = String::from_utf8_lossy(&body1);
+        assert!(body1_str.contains("<IsTruncated>true</IsTruncated>"));
+
+        // Extract continuation token
+        let token_start = body1_str
+            .find("<NextContinuationToken>")
+            .expect("should have token")
+            + 23;
+        let token_end = token_start
+            + body1_str[token_start..]
+                .find("</NextContinuationToken>")
+                .expect("missing closing tag");
+        let token = &body1_str[token_start..token_end];
+
+        // Extract keys from first page
+        let mut page1_keys = Vec::new();
+        let mut offset = 0;
+        while let Some(start) = body1_str[offset..].find("<Key>") {
+            let key_start = offset + start + 5;
+            let key_end = key_start
+                + body1_str[key_start..]
+                    .find("</Key>")
+                    .expect("missing </Key>");
+            page1_keys.push(body1_str[key_start..key_end].to_string());
+            offset = key_end + 6;
+        }
+
+        // Second page: continue from token
+        let (_, body2) = harness
+            .call_and_collect(
+                S3Request::list_objects_v2("test-bucket")
+                    .with_max_keys(2)
+                    .with_query("continuation-token", token)
+                    .build(),
+            )
+            .await;
+
+        let body2_str = String::from_utf8_lossy(&body2);
+
+        // Extract keys from second page
+        let mut page2_keys = Vec::new();
+        offset = 0;
+        while let Some(start) = body2_str[offset..].find("<Key>") {
+            let key_start = offset + start + 5;
+            let key_end = key_start
+                + body2_str[key_start..]
+                    .find("</Key>")
+                    .expect("missing </Key>");
+            page2_keys.push(body2_str[key_start..key_end].to_string());
+            offset = key_end + 6;
+        }
+
+        // Verify no overlap between pages
+        for key in &page1_keys {
+            assert!(
+                !page2_keys.contains(key),
+                "key {} appears on both pages",
+                key
+            );
+        }
+
+        // Second page keys should be lexicographically after first page keys
+        if let (Some(last_p1), Some(first_p2)) = (page1_keys.last(), page2_keys.first()) {
+            assert!(
+                last_p1 < first_p2,
+                "page 2 keys should come after page 1 keys: {} vs {}",
+                last_p1,
+                first_p2
+            );
+        }
+    }
+);
+
+// =============================================================================
+// Key name validation tests
+// =============================================================================
+
+#[cfg(feature = "memory")]
+#[tokio::test]
+async fn put_object_key_too_long_rejected() {
+    let harness = TestHarness::new(store::MemoryStore::new());
+
+    harness
+        .call(S3Request::create_bucket("test-bucket").build())
+        .await;
+
+    let long_key = "x".repeat(1025);
+    let resp = harness
+        .call(
+            S3Request::put_object("test-bucket", &long_key)
+                .with_body(b"data")
+                .build(),
+        )
+        .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+// =============================================================================
+// Max body size tests
+// =============================================================================
+
+#[cfg(feature = "memory")]
+#[tokio::test]
+async fn put_object_body_too_large() {
+    let config = store::SmolS3Config {
+        max_body_size: Some(100),
+    };
+    let harness = TestHarness::with_config(store::MemoryStore::new(), config);
+
+    harness
+        .call(S3Request::create_bucket("test-bucket").build())
+        .await;
+
+    let body = vec![0u8; 200];
+    let resp = harness
+        .call(
+            S3Request::put_object("test-bucket", "key")
+                .with_body(&body)
+                .build(),
+        )
+        .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[cfg(feature = "memory")]
+#[tokio::test]
+async fn put_object_body_at_limit() {
+    let config = store::SmolS3Config {
+        max_body_size: Some(100),
+    };
+    let harness = TestHarness::with_config(store::MemoryStore::new(), config);
+
+    harness
+        .call(S3Request::create_bucket("test-bucket").build())
+        .await;
+
+    let body = vec![0u8; 100];
+    let resp = harness
+        .call(
+            S3Request::put_object("test-bucket", "key")
+                .with_body(&body)
+                .build(),
+        )
+        .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+// =============================================================================
+// Conditional write tests
+// =============================================================================
+
 test_with_stores!(
     conditional_write_compare_and_swap,
     |harness: TestHarness| async move {

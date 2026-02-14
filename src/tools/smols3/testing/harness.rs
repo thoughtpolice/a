@@ -11,7 +11,7 @@ use http_body_util::BodyExt;
 use s3s::access::S3Access;
 use s3s::auth::SimpleAuth;
 use s3s::service::{S3Service, S3ServiceBuilder};
-use store::{SmolS3, Store};
+use store::{SmolS3, SmolS3Config, Store};
 use tower::Service;
 
 /// Dummy type used to satisfy generic bounds when no access control is needed.
@@ -31,6 +31,13 @@ impl TestHarness {
     /// Create a new test harness with the given store.
     pub fn new<S: Store + 'static>(store: S) -> Self {
         Self::with_auth(store, None)
+    }
+
+    /// Create a new test harness with the given store and S3 configuration.
+    pub fn with_config<S: Store + 'static>(store: S, config: SmolS3Config) -> Self {
+        let smol = SmolS3::with_config(Arc::new(store), config);
+        let service = S3ServiceBuilder::new(smol).build();
+        Self { service }
     }
 
     /// Create a new test harness with the given store and optional authentication.

@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! Stress tests for conditional write atomicity.
+//! Stress tests for conditional write atomicity and chunk refcounting.
 //!
 //! These tests verify that the transactional implementation of conditional
-//! writes (if_none_match, if_match) is correct under concurrent access.
+//! writes (if_none_match, if_match) is correct under concurrent access,
+//! and that chunking layer refcounts remain consistent under contention.
 
 use bytes::Bytes;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -304,3 +305,77 @@ stress_test_with_stores!(
         );
     }
 );
+
+// =============================================================================
+// Stress test: concurrent chunking store and delete with shared data
+// =============================================================================
+
+#[cfg(feature = "memory")]
+#[tokio::test]
+async fn stress_concurrent_store_and_delete_shared_data() {
+    let inner = store::MemoryStore::new();
+    let store = Arc::new(store::ChunkingStore::new(inner));
+
+    store.create_bucket("stress").await.unwrap();
+
+    // Create identical 50KB data that will produce shared chunks
+    let shared_data: Vec<u8> = (0..50_000).map(|i| (i % 256) as u8).collect();
+    let shared_bytes = Bytes::from(shared_data.clone());
+
+    let num_keys = 20;
+
+    // Concurrently store the same data under different keys
+    let mut store_handles = Vec::with_capacity(num_keys);
+    for i in 0..num_keys {
+        let store = Arc::clone(&store);
+        let data = shared_bytes.clone();
+        let handle = tokio::spawn(async move {
+            store
+                .put_object(
+                    "stress",
+                    &format!("shared-{i:02}"),
+                    data.into(),
+                    ObjectMeta::default(),
+                    PutObjectOptions::default(),
+                )
+                .await
+                .unwrap();
+        });
+        store_handles.push(handle);
+    }
+
+    for handle in store_handles {
+        handle.await.unwrap();
+    }
+
+    // Verify all objects were stored correctly
+    for i in 0..num_keys {
+        let obj = store
+            .get_object("stress", &format!("shared-{i:02}"))
+            .await
+            .unwrap();
+        assert_eq!(obj.data.len(), 50_000);
+    }
+
+    // Concurrently delete 19 of the 20 keys (keep key 0)
+    let mut delete_handles = Vec::with_capacity(num_keys - 1);
+    for i in 1..num_keys {
+        let store = Arc::clone(&store);
+        let handle = tokio::spawn(async move {
+            store
+                .delete_object("stress", &format!("shared-{i:02}"))
+                .await
+                .unwrap();
+        });
+        delete_handles.push(handle);
+    }
+
+    for handle in delete_handles {
+        handle.await.unwrap();
+    }
+
+    // The surviving key should still be fully readable with correct data
+    let surviving = store.get_object("stress", "shared-00").await.unwrap();
+    assert_eq!(surviving.data.len(), 50_000);
+    assert_eq!(surviving.data.as_ref(), &shared_data[..]);
+}

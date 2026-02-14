@@ -696,6 +696,40 @@ test_with_chunking_stores!(
 // =============================================================================
 
 test_with_chunking_stores!(
+    chunking_list_objects_reports_original_size,
+    |harness: TestHarness| async move {
+        harness
+            .call(S3Request::create_bucket("test-bucket").build())
+            .await;
+
+        // PUT a 150,000-byte object
+        let data = vec![0xABu8; 150_000];
+        harness
+            .call(
+                S3Request::put_object("test-bucket", "big-file")
+                    .with_body(&data)
+                    .build(),
+            )
+            .await;
+
+        // list_objects_v2 and verify <Size>150000</Size>
+        let resp = harness
+            .call(S3Request::list_objects_v2("test-bucket").build())
+            .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let body = collect_body(resp).await;
+        let body_str = String::from_utf8_lossy(&body);
+
+        assert!(
+            body_str.contains("<Size>150000</Size>"),
+            "list_objects should report original size 150000, got: {}",
+            body_str
+        );
+    }
+);
+
+test_with_chunking_stores!(
     chunking_head_object_size,
     |harness: TestHarness| async move {
         harness
