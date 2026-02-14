@@ -11,6 +11,7 @@ BUILD_DEPS = [
     # crates.io
     'third-party//rust:anyhow',
     'third-party//rust:clap',
+    'third-party//rust:console-subscriber',
     'third-party//rust:hyper-util',
     'third-party//rust:s3s',
     'third-party//rust:serde',

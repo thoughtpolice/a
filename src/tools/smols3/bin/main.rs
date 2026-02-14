@@ -20,6 +20,7 @@ use store::{
 use tokio::net::TcpListener;
 use tracing::info;
 use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 
 use hyper_util::rt::{TokioExecutor, TokioIo};
@@ -191,9 +192,14 @@ fn setup_tracing(filter: &str) -> Result<()> {
 
     let enable_color = std::io::stdout().is_terminal();
 
-    tracing_subscriber::fmt()
-        .with_env_filter(env_filter)
+    let console_layer = console_subscriber::spawn();
+    let fmt_layer = tracing_subscriber::fmt::layer()
         .with_ansi(enable_color)
+        .with_filter(env_filter);
+
+    tracing_subscriber::registry()
+        .with(console_layer)
+        .with(fmt_layer)
         .init();
 
     Ok(())
@@ -222,12 +228,13 @@ fn wrap_with_chunking<S: Store + 'static>(store: S, cli: &Cli) -> Arc<dyn Store>
 fn main() -> Result<()> {
     let cli = Cli::parse();
     validate_cli(&cli)?;
-    setup_tracing(&cli.console_log)?;
     run(cli)
 }
 
 #[tokio::main]
 async fn run(cli: Cli) -> Result<()> {
+    setup_tracing(&cli.console_log)?;
+
     // Create storage backend
     let store: Arc<dyn Store> = match cli.storage {
         StorageBackend::Memory => {
