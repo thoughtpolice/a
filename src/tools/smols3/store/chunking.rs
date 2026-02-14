@@ -507,10 +507,16 @@ impl<S: Store> Store for ChunkingStore<S> {
         let manifest_bytes = manifest.to_bytes()?;
         let etag = Self::compute_etag(&manifest_bytes);
 
-        // Update metadata
+        // Update metadata — store the real object size in user metadata
+        // since the inner store will overwrite meta.size with the manifest size
         meta.size = original_size;
         meta.last_modified = SystemTime::now();
         meta.etag = etag.clone();
+        let user_meta = meta.user_metadata.get_or_insert_with(Default::default);
+        user_meta.insert(
+            "__chunking_original_size".to_string(),
+            original_size.to_string(),
+        );
 
         // Store the manifest
         self.inner
@@ -615,12 +621,18 @@ impl<S: Store> Store for ChunkingStore<S> {
             return Err(StoreError::BucketNotFound(bucket.to_string()));
         }
 
-        // Get manifest to retrieve total size
-        let stored = self.inner.get_object(bucket, key).await?;
-        let manifest = ObjectManifest::from_bytes(&stored.data)?;
+        let mut meta = self.inner.head_object(bucket, key).await?;
 
-        let mut meta = stored.meta;
-        meta.size = manifest.total_size;
+        // Restore the real object size from user metadata (the inner store
+        // overwrites meta.size with the manifest byte length)
+        if let Some(ref user_meta) = meta.user_metadata {
+            if let Some(size_str) = user_meta.get("__chunking_original_size") {
+                if let Ok(original_size) = size_str.parse::<u64>() {
+                    meta.size = original_size;
+                }
+            }
+        }
+
         Ok(meta)
     }
 
@@ -725,18 +737,15 @@ impl<S: Store> Store for ChunkingStore<S> {
             return Err(StoreError::BucketNotFound(bucket.to_string()));
         }
 
-        // Get list from inner store
+        // Get list from inner store; object sizes in entries come from the inner
+        // store's metadata which reflects manifest size. We need to fix them up
+        // by reading each object's head metadata which has the original size.
         let mut result = self.inner.list_objects(bucket, options).await?;
-
-        // Update sizes by reading manifests
         for entry in &mut result.objects {
-            if let Ok(stored) = self.inner.get_object(bucket, &entry.key).await {
-                if let Ok(manifest) = ObjectManifest::from_bytes(&stored.data) {
-                    entry.size = manifest.total_size;
-                }
+            if let Ok(meta) = self.head_object(bucket, &entry.key).await {
+                entry.size = meta.size;
             }
         }
-
         Ok(result)
     }
 
@@ -799,10 +808,15 @@ impl<S: Store> Store for ChunkingStore<S> {
         let manifest_bytes = manifest.to_bytes()?;
         let etag = Self::compute_etag(&manifest_bytes);
 
-        // Update metadata
+        // Update metadata — store the real assembled size in user metadata
         let mut meta = obj.meta;
+        let original_size = meta.size;
         meta.etag = etag.clone();
-        // size is already set correctly from assembled parts
+        let user_meta = meta.user_metadata.get_or_insert_with(Default::default);
+        user_meta.insert(
+            "__chunking_original_size".to_string(),
+            original_size.to_string(),
+        );
 
         // Store the manifest (overwriting the assembled data)
         self.inner
