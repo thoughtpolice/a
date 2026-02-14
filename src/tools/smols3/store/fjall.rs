@@ -27,6 +27,7 @@
 use std::collections::{BTreeSet, HashMap};
 use std::ops::Range;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
@@ -195,65 +196,26 @@ impl FjallStoreConfig {
     }
 }
 
-/// Fjall-based persistent storage backend.
-///
-/// Uses Fjall LSM-tree database for durable storage with
-/// efficient reads and writes. Uses optimistic transactions
-/// for atomic conditional writes.
-pub struct FjallStore {
-    /// The fjall transactional database handle.
+/// Inner fjall handles, shared via `Arc` so they can be moved into
+/// `spawn_blocking` closures.
+struct FjallInner {
     db: fjall::OptimisticTxDatabase,
-    /// Keyspace for bucket metadata.
     buckets: fjall::OptimisticTxKeyspace,
-    /// Keyspace for object data.
     objects: fjall::OptimisticTxKeyspace,
-    /// Keyspace for object metadata.
     object_meta: fjall::OptimisticTxKeyspace,
-    /// Keyspace for multipart upload state.
     multipart: fjall::OptimisticTxKeyspace,
-    /// Keyspace for multipart parts data.
     parts: fjall::OptimisticTxKeyspace,
-    /// Keyspace for multipart parts metadata.
     part_meta: fjall::OptimisticTxKeyspace,
-    /// Configuration.
-    #[allow(dead_code)]
-    config: FjallStoreConfig,
+    /// Serializes conditional (transactional) writes to avoid lost updates
+    /// when fjall's optimistic conflict detection races under high parallelism.
+    conditional_write_lock: std::sync::Mutex<()>,
 }
 
-impl FjallStore {
-    /// Open a Fjall-based store with the given configuration.
-    pub fn open(config: FjallStoreConfig) -> StoreResult<Self> {
-        debug!(path = %config.path.display(), "opening fjall store");
-
-        let db = fjall::OptimisticTxDatabase::builder(&config.path).open()?;
-
-        let buckets = db.keyspace("buckets", fjall::KeyspaceCreateOptions::default)?;
-        let objects = db.keyspace("objects", fjall::KeyspaceCreateOptions::default)?;
-        let object_meta = db.keyspace("object_meta", fjall::KeyspaceCreateOptions::default)?;
-        let multipart = db.keyspace("multipart", fjall::KeyspaceCreateOptions::default)?;
-        let parts = db.keyspace("parts", fjall::KeyspaceCreateOptions::default)?;
-        let part_meta = db.keyspace("part_meta", fjall::KeyspaceCreateOptions::default)?;
-
-        debug!(path = %config.path.display(), "fjall store opened successfully");
-
-        Ok(Self {
-            db,
-            buckets,
-            objects,
-            object_meta,
-            multipart,
-            parts,
-            part_meta,
-            config,
-        })
-    }
-
-    /// Check if a bucket exists (internal helper).
+impl FjallInner {
     fn bucket_exists_sync(&self, bucket: &str) -> StoreResult<bool> {
         Ok(self.buckets.get(bucket.as_bytes())?.is_some())
     }
 
-    /// Get multipart upload state.
     fn get_multipart(&self, upload_id: &str) -> StoreResult<Option<StoredMultipartUpload>> {
         match self.multipart.get(upload_id.as_bytes())? {
             Some(data) => {
@@ -264,175 +226,8 @@ impl FjallStore {
             None => Ok(None),
         }
     }
-}
 
-#[async_trait::async_trait]
-impl Store for FjallStore {
-    // =========================================================================
-    // Bucket operations
-    // =========================================================================
-
-    async fn create_bucket(&self, bucket: &str) -> StoreResult<()> {
-        if self.bucket_exists_sync(bucket)? {
-            return Err(StoreError::BucketAlreadyExists(bucket.to_string()));
-        }
-
-        let timestamp = encode_timestamp(SystemTime::now());
-        self.buckets.insert(bucket.as_bytes(), timestamp)?;
-
-        debug!(bucket, "bucket created");
-        Ok(())
-    }
-
-    async fn delete_bucket(&self, bucket: &str) -> StoreResult<()> {
-        if !self.bucket_exists_sync(bucket)? {
-            return Err(StoreError::BucketNotFound(bucket.to_string()));
-        }
-
-        // Check if bucket is empty
-        let prefix = make_object_key(bucket, "");
-        let mut iter = self.objects.inner().prefix(&prefix);
-        if iter.next().is_some() {
-            return Err(StoreError::BucketNotEmpty(bucket.to_string()));
-        }
-
-        self.buckets.remove(bucket.as_bytes())?;
-        debug!(bucket, "bucket deleted");
-        Ok(())
-    }
-
-    async fn bucket_exists(&self, bucket: &str) -> StoreResult<bool> {
-        self.bucket_exists_sync(bucket)
-    }
-
-    async fn list_buckets(&self) -> StoreResult<Vec<BucketInfo>> {
-        let mut buckets = Vec::new();
-
-        for entry in self.buckets.inner().iter() {
-            let (key, value) = entry.into_inner()?;
-            let name = String::from_utf8_lossy(&key).to_string();
-            let created_at = decode_timestamp(&value);
-            buckets.push(BucketInfo { name, created_at });
-        }
-
-        Ok(buckets)
-    }
-
-    // =========================================================================
-    // Object operations
-    // =========================================================================
-
-    async fn put_object(
-        &self,
-        bucket: &str,
-        key: &str,
-        data: BodyStream,
-        mut meta: ObjectMeta,
-        options: PutObjectOptions,
-    ) -> StoreResult<PutObjectResult> {
-        let data = data.collect_bytes().await?;
-
-        if !self.bucket_exists_sync(bucket)? {
-            return Err(StoreError::BucketNotFound(bucket.to_string()));
-        }
-
-        let has_conditions = options.if_none_match || options.if_match.is_some();
-        let obj_key = make_object_key(bucket, key);
-
-        // Fast path: no conditions, use direct writes
-        if !has_conditions {
-            let etag = compute_etag(&data);
-            meta.size = data.len() as u64;
-            meta.last_modified = SystemTime::now();
-            meta.etag = etag.clone();
-
-            let stored_meta = StoredObjectMeta::from_object_meta(&meta);
-            let meta_json = serde_json::to_vec(&stored_meta)
-                .map_err(|e| StoreError::Internal(format!("failed to serialize meta: {e}")))?;
-
-            self.objects.insert(&obj_key, data.as_ref())?;
-            self.object_meta.insert(&obj_key, meta_json)?;
-
-            debug!(bucket, key, "object stored");
-            return Ok(PutObjectResult { etag });
-        }
-
-        // Slow path: use transaction for atomic conditional writes
-        for attempt in 0..MAX_TRANSACTION_RETRIES {
-            let mut txn = self.db.write_tx()?;
-
-            // Check if_none_match condition within transaction
-            if options.if_none_match {
-                // If-None-Match: * - only succeed if object doesn't exist
-                if txn.get(&self.objects, &obj_key)?.is_some() {
-                    return Err(StoreError::PreconditionFailed(format!(
-                        "object already exists: {}/{}",
-                        bucket, key
-                    )));
-                }
-            }
-
-            // Check if_match condition within transaction
-            if let Some(ref expected_etag) = options.if_match {
-                // If-Match: <etag> - only succeed if existing object's ETag matches
-                match txn.get(&self.object_meta, &obj_key)? {
-                    Some(meta_bytes) => {
-                        let stored_meta: StoredObjectMeta = serde_json::from_slice(&meta_bytes)
-                            .map_err(|e| {
-                                StoreError::Internal(format!("failed to parse meta: {e}"))
-                            })?;
-                        if stored_meta.etag != *expected_etag {
-                            return Err(StoreError::PreconditionFailed(format!(
-                                "ETag mismatch: expected {}, found {}",
-                                expected_etag, stored_meta.etag
-                            )));
-                        }
-                    }
-                    None => {
-                        return Err(StoreError::PreconditionFailed(format!(
-                            "object does not exist: {}/{}",
-                            bucket, key
-                        )));
-                    }
-                }
-            }
-
-            // Prepare write data
-            let etag = compute_etag(&data);
-            let mut write_meta = meta.clone();
-            write_meta.size = data.len() as u64;
-            write_meta.last_modified = SystemTime::now();
-            write_meta.etag = etag.clone();
-
-            let stored_meta = StoredObjectMeta::from_object_meta(&write_meta);
-            let meta_json = serde_json::to_vec(&stored_meta)
-                .map_err(|e| StoreError::Internal(format!("failed to serialize meta: {e}")))?;
-
-            // Write within transaction
-            txn.insert(&self.objects, &obj_key, data.as_ref());
-            txn.insert(&self.object_meta, &obj_key, meta_json);
-
-            // Commit - retry on conflict
-            match txn.commit()? {
-                Ok(()) => {
-                    debug!(bucket, key, attempt, "object stored (transactional)");
-                    return Ok(PutObjectResult { etag });
-                }
-                Err(fjall::Conflict) => {
-                    debug!(bucket, key, attempt, "transaction conflict, retrying");
-                    continue;
-                }
-            }
-        }
-
-        // Exhausted retries
-        Err(StoreError::ConditionalRequestConflict(format!(
-            "failed to complete conditional write after {} retries: {}/{}",
-            MAX_TRANSACTION_RETRIES, bucket, key
-        )))
-    }
-
-    async fn get_object(&self, bucket: &str, key: &str) -> StoreResult<ObjectData> {
+    fn get_object_sync(&self, bucket: &str, key: &str) -> StoreResult<ObjectData> {
         if !self.bucket_exists_sync(bucket)? {
             return Err(StoreError::BucketNotFound(bucket.to_string()));
         }
@@ -463,6 +258,229 @@ impl Store for FjallStore {
             meta: stored_meta.to_object_meta(),
         })
     }
+}
+
+/// Fjall-based persistent storage backend.
+///
+/// Uses Fjall LSM-tree database for durable storage with
+/// efficient reads and writes. Uses optimistic transactions
+/// for atomic conditional writes. All synchronous I/O is
+/// dispatched to `spawn_blocking` to avoid blocking the
+/// tokio runtime.
+pub struct FjallStore {
+    inner: Arc<FjallInner>,
+    #[allow(dead_code)]
+    config: FjallStoreConfig,
+}
+
+/// Helper to run a blocking closure on the tokio blocking pool.
+async fn blocking<F, T>(f: F) -> StoreResult<T>
+where
+    F: FnOnce() -> StoreResult<T> + Send + 'static,
+    T: Send + 'static,
+{
+    tokio::task::spawn_blocking(f)
+        .await
+        .map_err(|e| StoreError::Internal(format!("blocking task join error: {e}")))?
+}
+
+impl FjallStore {
+    /// Open a Fjall-based store with the given configuration.
+    pub fn open(config: FjallStoreConfig) -> StoreResult<Self> {
+        debug!(path = %config.path.display(), "opening fjall store");
+
+        let db = fjall::OptimisticTxDatabase::builder(&config.path).open()?;
+
+        let buckets = db.keyspace("buckets", fjall::KeyspaceCreateOptions::default)?;
+        let objects = db.keyspace("objects", fjall::KeyspaceCreateOptions::default)?;
+        let object_meta = db.keyspace("object_meta", fjall::KeyspaceCreateOptions::default)?;
+        let multipart = db.keyspace("multipart", fjall::KeyspaceCreateOptions::default)?;
+        let parts = db.keyspace("parts", fjall::KeyspaceCreateOptions::default)?;
+        let part_meta = db.keyspace("part_meta", fjall::KeyspaceCreateOptions::default)?;
+
+        debug!(path = %config.path.display(), "fjall store opened successfully");
+
+        Ok(Self {
+            inner: Arc::new(FjallInner {
+                db,
+                buckets,
+                objects,
+                object_meta,
+                multipart,
+                parts,
+                part_meta,
+                conditional_write_lock: std::sync::Mutex::new(()),
+            }),
+            config,
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl Store for FjallStore {
+    // =========================================================================
+    // Bucket operations
+    // =========================================================================
+
+    async fn create_bucket(&self, bucket: &str) -> StoreResult<()> {
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        blocking(move || {
+            if inner.bucket_exists_sync(&bucket)? {
+                return Err(StoreError::BucketAlreadyExists(bucket));
+            }
+            let timestamp = encode_timestamp(SystemTime::now());
+            inner.buckets.insert(bucket.as_bytes(), timestamp)?;
+            debug!(bucket, "bucket created");
+            Ok(())
+        })
+        .await
+    }
+
+    async fn delete_bucket(&self, bucket: &str) -> StoreResult<()> {
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        blocking(move || {
+            if !inner.bucket_exists_sync(&bucket)? {
+                return Err(StoreError::BucketNotFound(bucket));
+            }
+            let prefix = make_object_key(&bucket, "");
+            let mut iter = inner.objects.inner().prefix(&prefix);
+            if iter.next().is_some() {
+                return Err(StoreError::BucketNotEmpty(bucket));
+            }
+            inner.buckets.remove(bucket.as_bytes())?;
+            debug!(bucket, "bucket deleted");
+            Ok(())
+        })
+        .await
+    }
+
+    async fn bucket_exists(&self, bucket: &str) -> StoreResult<bool> {
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        blocking(move || inner.bucket_exists_sync(&bucket)).await
+    }
+
+    async fn list_buckets(&self) -> StoreResult<Vec<BucketInfo>> {
+        let inner = self.inner.clone();
+        blocking(move || {
+            let mut buckets = Vec::new();
+            for entry in inner.buckets.inner().iter() {
+                let (key, value) = entry.into_inner()?;
+                let name = String::from_utf8_lossy(&key).to_string();
+                let created_at = decode_timestamp(&value);
+                buckets.push(BucketInfo { name, created_at });
+            }
+            Ok(buckets)
+        })
+        .await
+    }
+
+    // =========================================================================
+    // Object operations
+    // =========================================================================
+
+    async fn put_object(
+        &self,
+        bucket: &str,
+        key: &str,
+        data: BodyStream,
+        meta: ObjectMeta,
+        options: PutObjectOptions,
+    ) -> StoreResult<PutObjectResult> {
+        let data = data.collect_bytes().await?;
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        let key = key.to_string();
+        blocking(move || {
+            if !inner.bucket_exists_sync(&bucket)? {
+                return Err(StoreError::BucketNotFound(bucket));
+            }
+
+            let has_conditions = options.if_none_match || options.if_match.is_some();
+            let obj_key = make_object_key(&bucket, &key);
+
+            if !has_conditions {
+                let etag = compute_etag(&data);
+                let mut meta = meta;
+                meta.size = data.len() as u64;
+                meta.last_modified = SystemTime::now();
+                meta.etag = etag.clone();
+
+                let stored_meta = StoredObjectMeta::from_object_meta(&meta);
+                let meta_json = serde_json::to_vec(&stored_meta)
+                    .map_err(|e| StoreError::Internal(format!("failed to serialize meta: {e}")))?;
+
+                inner.objects.insert(&obj_key, data.as_ref())?;
+                inner.object_meta.insert(&obj_key, meta_json)?;
+
+                debug!(bucket, key, "object stored");
+                return Ok(PutObjectResult { etag });
+            }
+
+            // Serialize conditional writes with a lock. Under spawn_blocking,
+            // fjall's optimistic transactions can race and lose updates, so we
+            // use a mutex to ensure check-and-write atomicity.
+            let _guard = inner.conditional_write_lock.lock().unwrap();
+
+            if options.if_none_match {
+                if inner.objects.get(&obj_key)?.is_some() {
+                    return Err(StoreError::PreconditionFailed(format!(
+                        "object already exists: {}/{}",
+                        bucket, key
+                    )));
+                }
+            }
+
+            if let Some(ref expected_etag) = options.if_match {
+                match inner.object_meta.get(&obj_key)? {
+                    Some(meta_bytes) => {
+                        let stored_meta: StoredObjectMeta =
+                            serde_json::from_slice(&meta_bytes).map_err(|e| {
+                                StoreError::Internal(format!("failed to parse meta: {e}"))
+                            })?;
+                        if stored_meta.etag != *expected_etag {
+                            return Err(StoreError::PreconditionFailed(format!(
+                                "ETag mismatch: expected {}, found {}",
+                                expected_etag, stored_meta.etag
+                            )));
+                        }
+                    }
+                    None => {
+                        return Err(StoreError::PreconditionFailed(format!(
+                            "object does not exist: {}/{}",
+                            bucket, key
+                        )));
+                    }
+                }
+            }
+
+            let etag = compute_etag(&data);
+            let mut write_meta = meta;
+            write_meta.size = data.len() as u64;
+            write_meta.last_modified = SystemTime::now();
+            write_meta.etag = etag.clone();
+
+            let stored_meta = StoredObjectMeta::from_object_meta(&write_meta);
+            let meta_json = serde_json::to_vec(&stored_meta)
+                .map_err(|e| StoreError::Internal(format!("failed to serialize meta: {e}")))?;
+
+            inner.objects.insert(&obj_key, data.as_ref())?;
+            inner.object_meta.insert(&obj_key, meta_json)?;
+
+            debug!(bucket, key, "object stored (conditional)");
+            Ok(PutObjectResult { etag })
+        })
+        .await
+    }
+
+    async fn get_object(&self, bucket: &str, key: &str) -> StoreResult<ObjectData> {
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        let key = key.to_string();
+        blocking(move || inner.get_object_sync(&bucket, &key)).await
+    }
 
     async fn get_object_range(
         &self,
@@ -470,54 +488,73 @@ impl Store for FjallStore {
         key: &str,
         range: Range<u64>,
     ) -> StoreResult<Bytes> {
-        let obj = self.get_object(bucket, key).await?;
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        let key = key.to_string();
+        blocking(move || {
+            let obj = inner.get_object_sync(&bucket, &key)?;
 
-        let start = range.start as usize;
-        let end = std::cmp::min(range.end as usize, obj.data.len());
+            let start = range.start as usize;
+            let end = std::cmp::min(range.end as usize, obj.data.len());
 
-        if start >= obj.data.len() {
-            return Err(StoreError::InvalidRange(format!(
-                "start {} >= size {}",
-                start,
-                obj.data.len()
-            )));
-        }
+            if start >= obj.data.len() {
+                return Err(StoreError::InvalidRange(format!(
+                    "start {} >= size {}",
+                    start,
+                    obj.data.len()
+                )));
+            }
 
-        Ok(obj.data.slice(start..end))
+            Ok(obj.data.slice(start..end))
+        })
+        .await
     }
 
     async fn head_object(&self, bucket: &str, key: &str) -> StoreResult<ObjectMeta> {
-        if !self.bucket_exists_sync(bucket)? {
-            return Err(StoreError::BucketNotFound(bucket.to_string()));
-        }
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        let key = key.to_string();
+        blocking(move || {
+            if !inner.bucket_exists_sync(&bucket)? {
+                return Err(StoreError::BucketNotFound(bucket));
+            }
 
-        let obj_key = make_object_key(bucket, key);
+            let obj_key = make_object_key(&bucket, &key);
 
-        let meta_bytes = self
-            .object_meta
-            .get(&obj_key)?
-            .ok_or_else(|| StoreError::ObjectNotFound {
-                bucket: bucket.to_string(),
-                key: key.to_string(),
-            })?;
+            let meta_bytes =
+                inner
+                    .object_meta
+                    .get(&obj_key)?
+                    .ok_or_else(|| StoreError::ObjectNotFound {
+                        bucket,
+                        key,
+                    })?;
 
-        let stored_meta: StoredObjectMeta = serde_json::from_slice(&meta_bytes)
-            .map_err(|e| StoreError::Internal(format!("failed to parse meta: {e}")))?;
+            let stored_meta: StoredObjectMeta = serde_json::from_slice(&meta_bytes)
+                .map_err(|e| StoreError::Internal(format!("failed to parse meta: {e}")))?;
 
-        Ok(stored_meta.to_object_meta())
+            Ok(stored_meta.to_object_meta())
+        })
+        .await
     }
 
     async fn delete_object(&self, bucket: &str, key: &str) -> StoreResult<()> {
-        if !self.bucket_exists_sync(bucket)? {
-            return Err(StoreError::BucketNotFound(bucket.to_string()));
-        }
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        let key = key.to_string();
+        blocking(move || {
+            if !inner.bucket_exists_sync(&bucket)? {
+                return Err(StoreError::BucketNotFound(bucket));
+            }
 
-        let obj_key = make_object_key(bucket, key);
-        self.objects.remove(&obj_key)?;
-        self.object_meta.remove(&obj_key)?;
+            let obj_key = make_object_key(&bucket, &key);
+            inner.objects.remove(&obj_key)?;
+            inner.object_meta.remove(&obj_key)?;
 
-        debug!(bucket, key, "object deleted");
-        Ok(())
+            debug!(bucket, key, "object deleted");
+            Ok(())
+        })
+        .await
     }
 
     async fn copy_object(
@@ -527,34 +564,38 @@ impl Store for FjallStore {
         dst_bucket: &str,
         dst_key: &str,
     ) -> StoreResult<CopyObjectResult> {
-        // Get source object
-        let src_obj = self.get_object(src_bucket, src_key).await?;
+        let inner = self.inner.clone();
+        let src_bucket = src_bucket.to_string();
+        let src_key = src_key.to_string();
+        let dst_bucket = dst_bucket.to_string();
+        let dst_key = dst_key.to_string();
+        blocking(move || {
+            let src_obj = inner.get_object_sync(&src_bucket, &src_key)?;
 
-        // Check destination bucket exists
-        if !self.bucket_exists_sync(dst_bucket)? {
-            return Err(StoreError::BucketNotFound(dst_bucket.to_string()));
-        }
+            if !inner.bucket_exists_sync(&dst_bucket)? {
+                return Err(StoreError::BucketNotFound(dst_bucket));
+            }
 
-        // Create new metadata for the copy
-        let mut meta = src_obj.meta.clone();
-        meta.last_modified = SystemTime::now();
+            let mut meta = src_obj.meta.clone();
+            meta.last_modified = SystemTime::now();
 
-        let result = CopyObjectResult {
-            etag: meta.etag.clone(),
-            last_modified: meta.last_modified,
-        };
+            let result = CopyObjectResult {
+                etag: meta.etag.clone(),
+                last_modified: meta.last_modified,
+            };
 
-        // Store the copy
-        let dst_obj_key = make_object_key(dst_bucket, dst_key);
-        let stored_meta = StoredObjectMeta::from_object_meta(&meta);
-        let meta_json = serde_json::to_vec(&stored_meta)
-            .map_err(|e| StoreError::Internal(format!("failed to serialize meta: {e}")))?;
+            let dst_obj_key = make_object_key(&dst_bucket, &dst_key);
+            let stored_meta = StoredObjectMeta::from_object_meta(&meta);
+            let meta_json = serde_json::to_vec(&stored_meta)
+                .map_err(|e| StoreError::Internal(format!("failed to serialize meta: {e}")))?;
 
-        self.objects.insert(&dst_obj_key, src_obj.data.as_ref())?;
-        self.object_meta.insert(&dst_obj_key, meta_json)?;
+            inner.objects.insert(&dst_obj_key, src_obj.data.as_ref())?;
+            inner.object_meta.insert(&dst_obj_key, meta_json)?;
 
-        debug!(src_bucket, src_key, dst_bucket, dst_key, "object copied");
-        Ok(result)
+            debug!(src_bucket, src_key, dst_bucket, dst_key, "object copied");
+            Ok(result)
+        })
+        .await
     }
 
     async fn list_objects(
@@ -562,128 +603,124 @@ impl Store for FjallStore {
         bucket: &str,
         options: ListObjectsOptions,
     ) -> StoreResult<ListObjectsResult> {
-        if !self.bucket_exists_sync(bucket)? {
-            return Err(StoreError::BucketNotFound(bucket.to_string()));
-        }
-
-        let prefix = options.prefix.as_deref().unwrap_or("");
-        let delimiter = options.delimiter.as_deref();
-        let max_keys = options.max_keys as usize;
-        let start_after = options.start_after.as_deref().unwrap_or("");
-
-        // continuation_token takes precedence over start_after per S3 semantics
-        let skip_after = options
-            .continuation_token
-            .as_deref()
-            .unwrap_or(start_after);
-
-        let mut entries: Vec<ObjectEntry> = Vec::new();
-        let mut common_prefixes_set: BTreeSet<String> = BTreeSet::new();
-
-        // Scan all objects in the bucket
-        let bucket_prefix = make_object_key(bucket, "");
-
-        for entry in self.objects.inner().prefix(&bucket_prefix) {
-            let key_bytes = match entry.key() {
-                Ok(k) => k,
-                Err(_) => continue,
-            };
-            let (entry_bucket, key) = match parse_object_key(&key_bytes) {
-                Some((b, k)) => (b, k),
-                None => continue,
-            };
-
-            if entry_bucket != bucket {
-                continue;
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        blocking(move || {
+            if !inner.bucket_exists_sync(&bucket)? {
+                return Err(StoreError::BucketNotFound(bucket));
             }
 
-            if !key.starts_with(prefix) {
-                continue;
-            }
+            let prefix = options.prefix.as_deref().unwrap_or("");
+            let delimiter = options.delimiter.as_deref();
+            let max_keys = options.max_keys as usize;
+            let start_after = options.start_after.as_deref().unwrap_or("");
 
-            if !skip_after.is_empty() && key <= skip_after {
-                continue;
-            }
+            let skip_after = options
+                .continuation_token
+                .as_deref()
+                .unwrap_or(start_after);
 
-            // Handle delimiter
-            if let Some(delim) = delimiter {
-                let suffix = &key[prefix.len()..];
-                if let Some(pos) = suffix.find(delim) {
-                    // This is a common prefix
-                    let common_prefix = format!("{}{}", prefix, &suffix[..=pos]);
-                    common_prefixes_set.insert(common_prefix);
+            let mut entries: Vec<ObjectEntry> = Vec::new();
+            let mut common_prefixes_set: BTreeSet<String> = BTreeSet::new();
+
+            let bucket_prefix = make_object_key(&bucket, "");
+
+            for entry in inner.objects.inner().prefix(&bucket_prefix) {
+                let key_bytes = match entry.key() {
+                    Ok(k) => k,
+                    Err(_) => continue,
+                };
+                let (entry_bucket, key) = match parse_object_key(&key_bytes) {
+                    Some((b, k)) => (b, k),
+                    None => continue,
+                };
+
+                if entry_bucket != bucket {
                     continue;
                 }
-            }
 
-            // Get metadata for this object
-            let obj_key = make_object_key(bucket, key);
-            if let Some(meta_bytes) = self.object_meta.get(&obj_key)? {
-                if let Ok(stored_meta) = serde_json::from_slice::<StoredObjectMeta>(&meta_bytes) {
-                    entries.push(ObjectEntry {
-                        key: key.to_string(),
-                        last_modified: UNIX_EPOCH
-                            + Duration::from_millis(stored_meta.last_modified_millis),
-                        size: stored_meta.size,
-                        etag: stored_meta.etag,
-                    });
+                if !key.starts_with(prefix) {
+                    continue;
+                }
+
+                if !skip_after.is_empty() && key <= skip_after {
+                    continue;
+                }
+
+                if let Some(delim) = delimiter {
+                    let suffix = &key[prefix.len()..];
+                    if let Some(pos) = suffix.find(delim) {
+                        let common_prefix = format!("{}{}", prefix, &suffix[..=pos]);
+                        common_prefixes_set.insert(common_prefix);
+                        continue;
+                    }
+                }
+
+                let obj_key = make_object_key(&bucket, key);
+                if let Some(meta_bytes) = inner.object_meta.get(&obj_key)? {
+                    if let Ok(stored_meta) =
+                        serde_json::from_slice::<StoredObjectMeta>(&meta_bytes)
+                    {
+                        entries.push(ObjectEntry {
+                            key: key.to_string(),
+                            last_modified: UNIX_EPOCH
+                                + Duration::from_millis(stored_meta.last_modified_millis),
+                            size: stored_meta.size,
+                            etag: stored_meta.etag,
+                        });
+                    }
                 }
             }
-        }
 
-        // Sort by key
-        entries.sort_by(|a, b| a.key.cmp(&b.key));
+            entries.sort_by(|a, b| a.key.cmp(&b.key));
 
-        // Interleave entries and prefixes, truncate to max_keys
-        let mut result_entries = Vec::new();
-        let mut result_prefixes = Vec::new();
-        let mut entries_iter = entries.into_iter().peekable();
-        let mut prefixes_iter = common_prefixes_set.into_iter().peekable();
-        let mut count = 0;
-        let mut last_key: Option<String> = None;
+            let mut result_entries = Vec::new();
+            let mut result_prefixes = Vec::new();
+            let mut entries_iter = entries.into_iter().peekable();
+            let mut prefixes_iter = common_prefixes_set.into_iter().peekable();
+            let mut count = 0;
+            let mut last_key: Option<String> = None;
 
-        while count < max_keys {
-            match (entries_iter.peek(), prefixes_iter.peek()) {
-                (Some(e), Some(p)) => {
-                    if e.key.as_str() < p.as_str() {
+            while count < max_keys {
+                match (entries_iter.peek(), prefixes_iter.peek()) {
+                    (Some(e), Some(p)) => {
+                        if e.key.as_str() < p.as_str() {
+                            let entry = entries_iter.next().unwrap();
+                            last_key = Some(entry.key.clone());
+                            result_entries.push(entry);
+                        } else {
+                            let p = prefixes_iter.next().unwrap();
+                            last_key = Some(p.clone());
+                            result_prefixes.push(CommonPrefix { prefix: p });
+                        }
+                    }
+                    (Some(_), None) => {
                         let entry = entries_iter.next().unwrap();
                         last_key = Some(entry.key.clone());
                         result_entries.push(entry);
-                    } else {
+                    }
+                    (None, Some(_)) => {
                         let p = prefixes_iter.next().unwrap();
                         last_key = Some(p.clone());
                         result_prefixes.push(CommonPrefix { prefix: p });
                     }
+                    (None, None) => break,
                 }
-                (Some(_), None) => {
-                    let entry = entries_iter.next().unwrap();
-                    last_key = Some(entry.key.clone());
-                    result_entries.push(entry);
-                }
-                (None, Some(_)) => {
-                    let p = prefixes_iter.next().unwrap();
-                    last_key = Some(p.clone());
-                    result_prefixes.push(CommonPrefix { prefix: p });
-                }
-                (None, None) => break,
+                count += 1;
             }
-            count += 1;
-        }
 
-        let is_truncated = entries_iter.peek().is_some() || prefixes_iter.peek().is_some();
-        let key_count = result_entries.len() + result_prefixes.len();
+            let is_truncated = entries_iter.peek().is_some() || prefixes_iter.peek().is_some();
+            let key_count = result_entries.len() + result_prefixes.len();
 
-        Ok(ListObjectsResult {
-            objects: result_entries,
-            common_prefixes: result_prefixes,
-            is_truncated,
-            next_continuation_token: if is_truncated {
-                last_key
-            } else {
-                None
-            },
-            key_count: key_count as u32,
+            Ok(ListObjectsResult {
+                objects: result_entries,
+                common_prefixes: result_prefixes,
+                is_truncated,
+                next_continuation_token: if is_truncated { last_key } else { None },
+                key_count: key_count as u32,
+            })
         })
+        .await
     }
 
     // =========================================================================
@@ -696,28 +733,35 @@ impl Store for FjallStore {
         key: &str,
         meta: ObjectMeta,
     ) -> StoreResult<String> {
-        if !self.bucket_exists_sync(bucket)? {
-            return Err(StoreError::BucketNotFound(bucket.to_string()));
-        }
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        let key = key.to_string();
+        blocking(move || {
+            if !inner.bucket_exists_sync(&bucket)? {
+                return Err(StoreError::BucketNotFound(bucket));
+            }
 
-        let upload_id = uuid::Uuid::new_v4().to_string();
-        let now = SystemTime::now();
-        let initiated_millis = now.duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+            let upload_id = uuid::Uuid::new_v4().to_string();
+            let now = SystemTime::now();
+            let initiated_millis =
+                now.duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
 
-        let upload = StoredMultipartUpload {
-            bucket: bucket.to_string(),
-            key: key.to_string(),
-            meta: StoredObjectMeta::from_object_meta(&meta),
-            initiated_millis,
-        };
+            let upload = StoredMultipartUpload {
+                bucket: bucket.to_string(),
+                key: key.to_string(),
+                meta: StoredObjectMeta::from_object_meta(&meta),
+                initiated_millis,
+            };
 
-        let upload_json = serde_json::to_vec(&upload)
-            .map_err(|e| StoreError::Internal(format!("failed to serialize multipart: {e}")))?;
+            let upload_json = serde_json::to_vec(&upload)
+                .map_err(|e| StoreError::Internal(format!("failed to serialize multipart: {e}")))?;
 
-        self.multipart.insert(upload_id.as_bytes(), upload_json)?;
+            inner.multipart.insert(upload_id.as_bytes(), upload_json)?;
 
-        debug!(bucket, key, upload_id = %upload_id, "multipart upload created");
-        Ok(upload_id)
+            debug!(bucket, key, upload_id = %upload_id, "multipart upload created");
+            Ok(upload_id)
+        })
+        .await
     }
 
     async fn upload_part(
@@ -728,46 +772,52 @@ impl Store for FjallStore {
         data: BodyStream,
     ) -> StoreResult<PartInfo> {
         let data = data.collect_bytes().await?;
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        let upload_id = upload_id.to_string();
+        blocking(move || {
+            if !(1..=10000).contains(&part_number) {
+                return Err(StoreError::InvalidPartNumber(part_number));
+            }
 
-        if !(1..=10000).contains(&part_number) {
-            return Err(StoreError::InvalidPartNumber(part_number));
-        }
+            let upload = inner
+                .get_multipart(&upload_id)?
+                .ok_or_else(|| StoreError::MultipartNotFound(upload_id.to_string()))?;
 
-        let upload = self
-            .get_multipart(upload_id)?
-            .ok_or_else(|| StoreError::MultipartNotFound(upload_id.to_string()))?;
+            if upload.bucket != bucket {
+                return Err(StoreError::MultipartNotFound(upload_id.to_string()));
+            }
 
-        if upload.bucket != bucket {
-            return Err(StoreError::MultipartNotFound(upload_id.to_string()));
-        }
+            let etag = compute_etag(&data);
+            let size = data.len() as u64;
+            let now = SystemTime::now();
+            let last_modified_millis =
+                now.duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
 
-        let etag = compute_etag(&data);
-        let size = data.len() as u64;
-        let now = SystemTime::now();
-        let last_modified_millis = now.duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+            let part_key = make_part_key(&upload_id, part_number);
 
-        let part_key = make_part_key(upload_id, part_number);
+            let part_meta = StoredPartMeta {
+                part_number,
+                etag: etag.clone(),
+                size,
+                last_modified_millis,
+            };
 
-        let part_meta = StoredPartMeta {
-            part_number,
-            etag: etag.clone(),
-            size,
-            last_modified_millis,
-        };
+            let meta_json = serde_json::to_vec(&part_meta)
+                .map_err(|e| StoreError::Internal(format!("failed to serialize part meta: {e}")))?;
 
-        let meta_json = serde_json::to_vec(&part_meta)
-            .map_err(|e| StoreError::Internal(format!("failed to serialize part meta: {e}")))?;
+            inner.parts.insert(&part_key, data.as_ref())?;
+            inner.part_meta.insert(&part_key, meta_json)?;
 
-        self.parts.insert(&part_key, data.as_ref())?;
-        self.part_meta.insert(&part_key, meta_json)?;
-
-        debug!(upload_id, part_number, size, "part uploaded");
-        Ok(PartInfo {
-            part_number,
-            etag,
-            size,
-            last_modified: now,
+            debug!(upload_id, part_number, size, "part uploaded");
+            Ok(PartInfo {
+                part_number,
+                etag,
+                size,
+                last_modified: now,
+            })
         })
+        .await
     }
 
     async fn complete_multipart_upload(
@@ -777,149 +827,173 @@ impl Store for FjallStore {
         upload_id: &str,
         parts: &[CompletedPart],
     ) -> StoreResult<CompleteMultipartResult> {
-        let upload = self
-            .get_multipart(upload_id)?
-            .ok_or_else(|| StoreError::MultipartNotFound(upload_id.to_string()))?;
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        let key = key.to_string();
+        let upload_id = upload_id.to_string();
+        let parts = parts.to_vec();
+        blocking(move || {
+            let upload = inner
+                .get_multipart(&upload_id)?
+                .ok_or_else(|| StoreError::MultipartNotFound(upload_id.to_string()))?;
 
-        if upload.bucket != bucket {
-            return Err(StoreError::MultipartNotFound(upload_id.to_string()));
-        }
+            if upload.bucket != bucket {
+                return Err(StoreError::MultipartNotFound(upload_id.to_string()));
+            }
 
-        // Sort parts by part number (S3 requires ascending order)
-        let mut sorted_parts = parts.to_vec();
-        sorted_parts.sort_by_key(|p| p.part_number);
+            let mut sorted_parts = parts;
+            sorted_parts.sort_by_key(|p| p.part_number);
 
-        // Assemble parts in order
-        let mut combined_data = Vec::new();
-        for completed in &sorted_parts {
-            let part_key = make_part_key(upload_id, completed.part_number);
-            let part_data = self.parts.get(&part_key)?.ok_or_else(|| StoreError::PartNotFound {
-                upload_id: upload_id.to_string(),
-                part_number: completed.part_number,
-            })?;
-            combined_data.extend_from_slice(&part_data);
-        }
+            let mut combined_data = Vec::new();
+            for completed in &sorted_parts {
+                let part_key = make_part_key(&upload_id, completed.part_number);
+                let part_data =
+                    inner
+                        .parts
+                        .get(&part_key)?
+                        .ok_or_else(|| StoreError::PartNotFound {
+                            upload_id: upload_id.to_string(),
+                            part_number: completed.part_number,
+                        })?;
+                combined_data.extend_from_slice(&part_data);
+            }
 
-        let data = Bytes::from(combined_data);
-        let etag = compute_etag(&data);
+            let data = Bytes::from(combined_data);
+            let etag = compute_etag(&data);
 
-        let mut meta = upload.meta.to_object_meta();
-        meta.size = data.len() as u64;
-        meta.last_modified = SystemTime::now();
-        meta.etag = etag.clone();
+            let mut meta = upload.meta.to_object_meta();
+            meta.size = data.len() as u64;
+            meta.last_modified = SystemTime::now();
+            meta.etag = etag.clone();
 
-        // Store the final object
-        let obj_key = make_object_key(bucket, key);
-        let stored_meta = StoredObjectMeta::from_object_meta(&meta);
-        let meta_json = serde_json::to_vec(&stored_meta)
-            .map_err(|e| StoreError::Internal(format!("failed to serialize meta: {e}")))?;
+            let obj_key = make_object_key(&bucket, &key);
+            let stored_meta = StoredObjectMeta::from_object_meta(&meta);
+            let meta_json = serde_json::to_vec(&stored_meta)
+                .map_err(|e| StoreError::Internal(format!("failed to serialize meta: {e}")))?;
 
-        self.objects.insert(&obj_key, data.as_ref())?;
-        self.object_meta.insert(&obj_key, meta_json)?;
+            inner.objects.insert(&obj_key, data.as_ref())?;
+            inner.object_meta.insert(&obj_key, meta_json)?;
 
-        // Clean up multipart state
-        self.multipart.remove(upload_id.as_bytes())?;
+            inner.multipart.remove(upload_id.as_bytes())?;
 
-        // Clean up parts
-        let part_prefix = make_part_prefix(upload_id);
-        let parts_to_delete: Vec<_> = self
-            .parts
-            .inner()
-            .prefix(&part_prefix)
-            .filter_map(|e| e.key().ok().map(|k| k.to_vec()))
-            .collect();
+            let part_prefix = make_part_prefix(&upload_id);
+            let parts_to_delete: Vec<_> = inner
+                .parts
+                .inner()
+                .prefix(&part_prefix)
+                .filter_map(|e| e.key().ok().map(|k| k.to_vec()))
+                .collect();
 
-        for part_key in parts_to_delete {
-            self.parts.remove(&part_key)?;
-            self.part_meta.remove(&part_key)?;
-        }
+            for part_key in parts_to_delete {
+                inner.parts.remove(&part_key)?;
+                inner.part_meta.remove(&part_key)?;
+            }
 
-        debug!(bucket, key, upload_id, "multipart upload completed");
-        Ok(CompleteMultipartResult { etag })
+            debug!(bucket, key, upload_id, "multipart upload completed");
+            Ok(CompleteMultipartResult { etag })
+        })
+        .await
     }
 
     async fn abort_multipart_upload(&self, bucket: &str, upload_id: &str) -> StoreResult<()> {
-        let upload = self
-            .get_multipart(upload_id)?
-            .ok_or_else(|| StoreError::MultipartNotFound(upload_id.to_string()))?;
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        let upload_id = upload_id.to_string();
+        blocking(move || {
+            let upload = inner
+                .get_multipart(&upload_id)?
+                .ok_or_else(|| StoreError::MultipartNotFound(upload_id.to_string()))?;
 
-        if upload.bucket != bucket {
-            return Err(StoreError::MultipartNotFound(upload_id.to_string()));
-        }
+            if upload.bucket != bucket {
+                return Err(StoreError::MultipartNotFound(upload_id.to_string()));
+            }
 
-        // Remove multipart state
-        self.multipart.remove(upload_id.as_bytes())?;
+            inner.multipart.remove(upload_id.as_bytes())?;
 
-        // Clean up parts
-        let part_prefix = make_part_prefix(upload_id);
-        let parts_to_delete: Vec<_> = self
-            .parts
-            .inner()
-            .prefix(&part_prefix)
-            .filter_map(|e| e.key().ok().map(|k| k.to_vec()))
-            .collect();
+            let part_prefix = make_part_prefix(&upload_id);
+            let parts_to_delete: Vec<_> = inner
+                .parts
+                .inner()
+                .prefix(&part_prefix)
+                .filter_map(|e| e.key().ok().map(|k| k.to_vec()))
+                .collect();
 
-        for part_key in parts_to_delete {
-            self.parts.remove(&part_key)?;
-            self.part_meta.remove(&part_key)?;
-        }
+            for part_key in parts_to_delete {
+                inner.parts.remove(&part_key)?;
+                inner.part_meta.remove(&part_key)?;
+            }
 
-        debug!(bucket, upload_id, "multipart upload aborted");
-        Ok(())
+            debug!(bucket, upload_id, "multipart upload aborted");
+            Ok(())
+        })
+        .await
     }
 
     async fn list_parts(&self, bucket: &str, upload_id: &str) -> StoreResult<Vec<PartInfo>> {
-        let upload = self
-            .get_multipart(upload_id)?
-            .ok_or_else(|| StoreError::MultipartNotFound(upload_id.to_string()))?;
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        let upload_id = upload_id.to_string();
+        blocking(move || {
+            let upload = inner
+                .get_multipart(&upload_id)?
+                .ok_or_else(|| StoreError::MultipartNotFound(upload_id.to_string()))?;
 
-        if upload.bucket != bucket {
-            return Err(StoreError::MultipartNotFound(upload_id.to_string()));
-        }
+            if upload.bucket != bucket {
+                return Err(StoreError::MultipartNotFound(upload_id.to_string()));
+            }
 
-        let part_prefix = make_part_prefix(upload_id);
-        let mut parts = Vec::new();
+            let part_prefix = make_part_prefix(&upload_id);
+            let mut parts = Vec::new();
 
-        for entry in self.part_meta.inner().prefix(&part_prefix) {
-            let value = entry.value()?;
-            let stored: StoredPartMeta = serde_json::from_slice(&value)
-                .map_err(|e| StoreError::Internal(format!("failed to parse part meta: {e}")))?;
+            for entry in inner.part_meta.inner().prefix(&part_prefix) {
+                let value = entry.value()?;
+                let stored: StoredPartMeta = serde_json::from_slice(&value)
+                    .map_err(|e| StoreError::Internal(format!("failed to parse part meta: {e}")))?;
 
-            parts.push(PartInfo {
-                part_number: stored.part_number,
-                etag: stored.etag,
-                size: stored.size,
-                last_modified: UNIX_EPOCH + Duration::from_millis(stored.last_modified_millis),
-            });
-        }
+                parts.push(PartInfo {
+                    part_number: stored.part_number,
+                    etag: stored.etag,
+                    size: stored.size,
+                    last_modified: UNIX_EPOCH + Duration::from_millis(stored.last_modified_millis),
+                });
+            }
 
-        parts.sort_by_key(|p| p.part_number);
-        Ok(parts)
+            parts.sort_by_key(|p| p.part_number);
+            Ok(parts)
+        })
+        .await
     }
 
     async fn list_multipart_uploads(&self, bucket: &str) -> StoreResult<Vec<MultipartUploadInfo>> {
-        if !self.bucket_exists_sync(bucket)? {
-            return Err(StoreError::BucketNotFound(bucket.to_string()));
-        }
-
-        let mut uploads = Vec::new();
-
-        for entry in self.multipart.inner().iter() {
-            let (key, value) = entry.into_inner()?;
-            let upload_id = String::from_utf8_lossy(&key).to_string();
-            let stored: StoredMultipartUpload = serde_json::from_slice(&value)
-                .map_err(|e| StoreError::Internal(format!("failed to parse multipart: {e}")))?;
-
-            if stored.bucket == bucket {
-                uploads.push(MultipartUploadInfo {
-                    upload_id,
-                    bucket: stored.bucket,
-                    key: stored.key,
-                    initiated: UNIX_EPOCH + Duration::from_millis(stored.initiated_millis),
-                });
+        let inner = self.inner.clone();
+        let bucket = bucket.to_string();
+        blocking(move || {
+            if !inner.bucket_exists_sync(&bucket)? {
+                return Err(StoreError::BucketNotFound(bucket));
             }
-        }
 
-        Ok(uploads)
+            let mut uploads = Vec::new();
+
+            for entry in inner.multipart.inner().iter() {
+                let (key, value) = entry.into_inner()?;
+                let upload_id = String::from_utf8_lossy(&key).to_string();
+                let stored: StoredMultipartUpload = serde_json::from_slice(&value)
+                    .map_err(|e| {
+                        StoreError::Internal(format!("failed to parse multipart: {e}"))
+                    })?;
+
+                if stored.bucket == bucket {
+                    uploads.push(MultipartUploadInfo {
+                        upload_id,
+                        bucket: stored.bucket,
+                        key: stored.key,
+                        initiated: UNIX_EPOCH + Duration::from_millis(stored.initiated_millis),
+                    });
+                }
+            }
+
+            Ok(uploads)
+        })
+        .await
     }
 }
