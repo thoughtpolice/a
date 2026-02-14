@@ -882,9 +882,13 @@ impl Store for SlateStore {
             return Err(StoreError::MultipartNotFound(upload_id.to_string()));
         }
 
-        // Assemble parts in the order specified
+        // Sort parts by part number (S3 requires ascending order)
+        let mut sorted_parts = parts.to_vec();
+        sorted_parts.sort_by_key(|p| p.part_number);
+
+        // Assemble parts in order
         let mut combined_data = Vec::new();
-        for completed in parts {
+        for completed in &sorted_parts {
             let part_key = make_part_key(upload_id, completed.part_number);
             let part_data = self.db.get(&part_key).await?.ok_or_else(|| StoreError::PartNotFound {
                 upload_id: upload_id.to_string(),
