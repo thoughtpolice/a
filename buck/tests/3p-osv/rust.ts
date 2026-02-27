@@ -60,6 +60,18 @@ const RUSTSEC_VIOLATION_EXCEPTIONS = [
         id: "RUSTSEC-2025-0141",
         reason: "bincode is unmaintained, but usable",
     },
+    {
+        id: "GHSA-434x-w66g-qw3r",
+        reason: "bytes integer overflow in BytesMut::reserve - awaiting upstream fix",
+    },
+    {
+        id: "GHSA-3288-p39f-rqpv",
+        reason: "keccak ARMv8 assembly backend unsoundness - not using ARM assembly backend",
+    },
+    {
+        id: "GHSA-r6v5-fh4h-64xc",
+        reason: "time stack exhaustion vulnerability - awaiting upstream fix",
+    },
 ];
 
 // ---------------------------------------------------------------------------------------------------------------------
