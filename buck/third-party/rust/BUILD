@@ -2809,31 +2809,6 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "core-foundation-0.10.1.crate",
-    sha256 = "b2a6cd9ae233e7f62ba4e9353e81a88df7fc8a5987b8d445b4d90c879bd156f6",
-    strip_prefix = "core-foundation-0.10.1",
-    urls = ["https://static.crates.io/crates/core-foundation/0.10.1/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "core-foundation-0.10.1",
-    srcs = [":core-foundation-0.10.1.crate"],
-    crate = "core_foundation",
-    crate_root = "core-foundation-0.10.1.crate/src/lib.rs",
-    edition = "2021",
-    features = [
-        "default",
-        "link",
-    ],
-    visibility = [],
-    deps = [
-        ":core-foundation-sys-0.8.7",
-        ":libc-0.2.178",
-    ],
-)
-
-shims.http_archive(
     name = "core-foundation-0.9.4.crate",
     sha256 = "91e195e091a93c46f7102ec7818a2aa394e1e1771c3ab4825963fa03e45afb8f",
     strip_prefix = "core-foundation-0.9.4",
@@ -2847,6 +2822,31 @@ third_party_rust.rust_library(
     crate = "core_foundation",
     crate_root = "core-foundation-0.9.4.crate/src/lib.rs",
     edition = "2018",
+    features = [
+        "default",
+        "link",
+    ],
+    visibility = [],
+    deps = [
+        ":core-foundation-sys-0.8.7",
+        ":libc-0.2.178",
+    ],
+)
+
+shims.http_archive(
+    name = "core-foundation-0.10.1.crate",
+    sha256 = "b2a6cd9ae233e7f62ba4e9353e81a88df7fc8a5987b8d445b4d90c879bd156f6",
+    strip_prefix = "core-foundation-0.10.1",
+    urls = ["https://static.crates.io/crates/core-foundation/0.10.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "core-foundation-0.10.1",
+    srcs = [":core-foundation-0.10.1.crate"],
+    crate = "core_foundation",
+    crate_root = "core-foundation-0.10.1.crate/src/lib.rs",
+    edition = "2021",
     features = [
         "default",
         "link",
@@ -17722,29 +17722,6 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "spin-0.10.0.crate",
-    sha256 = "d5fe4ccb98d9c292d56fec89a5e07da7fc4cf0dc11e156b41793132775d3e591",
-    strip_prefix = "spin-0.10.0",
-    urls = ["https://static.crates.io/crates/spin/0.10.0/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "spin-0.10.0",
-    srcs = [":spin-0.10.0.crate"],
-    crate = "spin",
-    crate_root = "spin-0.10.0.crate/src/lib.rs",
-    edition = "2015",
-    features = [
-        "mutex",
-        "once",
-        "rwlock",
-        "spin_mutex",
-    ],
-    visibility = [],
-)
-
-shims.http_archive(
     name = "spin-0.9.8.crate",
     sha256 = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67",
     strip_prefix = "spin-0.9.8",
@@ -17772,6 +17749,29 @@ third_party_rust.rust_library(
     named_deps = {
         "lock_api_crate": ":lock_api-0.4.14",
     },
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "spin-0.10.0.crate",
+    sha256 = "d5fe4ccb98d9c292d56fec89a5e07da7fc4cf0dc11e156b41793132775d3e591",
+    strip_prefix = "spin-0.10.0",
+    urls = ["https://static.crates.io/crates/spin/0.10.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "spin-0.10.0",
+    srcs = [":spin-0.10.0.crate"],
+    crate = "spin",
+    crate_root = "spin-0.10.0.crate/src/lib.rs",
+    edition = "2015",
+    features = [
+        "mutex",
+        "once",
+        "rwlock",
+        "spin_mutex",
+    ],
     visibility = [],
 )
 
