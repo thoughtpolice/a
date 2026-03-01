@@ -136,6 +136,7 @@ for (const key in toml) {
         packages.push(...toml[key]);
         continue;
     }
+    if (key === "patch") continue;
 
     console.error(`ERROR: Unexpected key in Cargo.lock: ${key}`);
     Deno.exit(1);
