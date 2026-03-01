@@ -1,75 +1,97 @@
 {
-    "env": {
-        "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
-        "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "true",
-        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "true",
-        "ENABLE_BACKGROUND_TASKS": "true",
-        "FORCE_AUTO_BACKGROUND_TASKS": "true",
-        "CLAUDE_CODE_ENABLE_UNIFIED_READ_TOOL": "true"
-    },
-    "permissions": {
-        "allow": [
-            "mcp__brainiac__source_fetch",
-            "mcp__brainiac__buck2_build",
-            "mcp__brainiac__buck2_test",
-            "mcp__brainiac__target_determination",
-            "mcp__brainiac__get_config",
-            "mcp__brainiac__get_server_info",
-            "mcp__brainiac__get_buck2_targets",
-            "mcp__brainiac__get_buck2_target_providers",
-            "Bash(true)",
-            "Bash(env)",
-            "Bash(curl:*)",
-            "Bash(grep:*)",
-            "Bash(tar)",
-            "Bash(rg:*)",
-            "Bash(ls:*)",
-            "Bash(cp:*)",
-            "Bash(find:*)",
-            "Bash(tar:*)",
-            "Bash(cat:*)",
-            "Bash(tree:*)",
-            "Bash(mkdir:*)",
-            "Bash(wget:*)",
-            "Bash(python3:*)",
-            "Bash(sha256sum:*)",
-            "Bash(deno:*)",
-            "Bash(buck2:*)",
-            "WebFetch(domain:jj-vcs.github.io)",
-            "WebFetch(domain:raw.githubusercontent.com)",
-            "WebFetch(domain:github.com)",
-            "WebFetch(domain:api.github.com)",
-            "WebFetch(domain:docs.rs)",
-            "WebFetch(domain:docs.deno.com)",
-            "WebSearch"
-        ],
-        "deny": [],
-        "defaultMode": "acceptEdits"
-    },
-    "enabledMcpjsonServers": ["brainiac"],
-    "hooks": {
-        "PostToolUse": [
-            {
-                "matcher": "Edit|Write|MultiEdit|Update",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "jj st 'claude code checkpoint'"
-                    }
-                ]
-            }
-        ],
-        "PreToolUse": [
-            {
-                "matcher": "Bash",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "python3 .claude/hooks/pre-commit-test.py",
-                        "timeout": 600
-                    }
-                ]
-            }
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "true",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "true",
+    "ENABLE_BACKGROUND_TASKS": "true",
+    "FORCE_AUTO_BACKGROUND_TASKS": "true",
+    "CLAUDE_CODE_ENABLE_UNIFIED_READ_TOOL": "true"
+  },
+  "permissions": {
+    "allow": [
+      "mcp__brainiac__source_fetch",
+      "mcp__brainiac__buck2_build",
+      "mcp__brainiac__buck2_test",
+      "mcp__brainiac__target_determination",
+      "mcp__brainiac__get_config",
+      "mcp__brainiac__get_server_info",
+      "mcp__brainiac__get_buck2_targets",
+      "mcp__brainiac__get_buck2_target_providers",
+      "Bash(true)",
+      "Bash(env)",
+      "Bash(curl:*)",
+      "Bash(grep:*)",
+      "Bash(tar)",
+      "Bash(rg:*)",
+      "Bash(ls:*)",
+      "Bash(cp:*)",
+      "Bash(find:*)",
+      "Bash(tar:*)",
+      "Bash(cat:*)",
+      "Bash(tree:*)",
+      "Bash(mkdir:*)",
+      "Bash(wget:*)",
+      "Bash(python3:*)",
+      "Bash(sha256sum:*)",
+      "Bash(deno:*)",
+      "Bash(buck2:*)",
+      "WebFetch(domain:jj-vcs.github.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:docs.rs)",
+      "WebFetch(domain:docs.deno.com)",
+      "WebSearch"
+    ],
+    "deny": [],
+    "defaultMode": "acceptEdits"
+  },
+  "enabledMcpjsonServers": [
+    "brainiac"
+  ],
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|Update",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jj st 'claude code checkpoint'"
+          }
         ]
-    }
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/pre-commit-test.py",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/worktree-create.py"
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/worktree-remove.py"
+          }
+        ]
+      }
+    ]
+  }
 }
