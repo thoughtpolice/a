@@ -33,6 +33,9 @@ Exit codes:
   2 - Tests failed, block commit (stderr fed back to Claude)
 """
 
+import sys
+sys.dont_write_bytecode = True
+
 import subprocess
 import sys
 import os
