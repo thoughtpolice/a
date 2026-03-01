@@ -33,6 +33,9 @@ diff-invocation-mode = "file-by-file"
 program = "claude-difftool"
 diff-args = ["$left", "$right"]
 
+[merge]
+hunk-level = "word"
+
 [git]
 auto-local-bookmark = false
 private-commits = 'blacklist()'
