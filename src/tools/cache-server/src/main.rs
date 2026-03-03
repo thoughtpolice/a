@@ -54,7 +54,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-pub mod protos;
 pub mod reapi_grpc;
 pub mod service;
 pub mod store;

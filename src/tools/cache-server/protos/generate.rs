@@ -1,15 +1,15 @@
-// SPDX-FileCopyrightText: © 2023 Austin Seipp
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::{env, path::PathBuf};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let base_protos = [
-        "protos/google/bytestream/bytestream.proto",
-        "protos/google/longrunning/operations.proto",
-        "protos/google/rpc/code.proto",
-        "protos/build/bazel/remote/execution/v2/remote_execution.proto",
-        "protos/build/bazel/semver/semver.proto",
+        "google/bytestream/bytestream.proto",
+        "google/longrunning/operations.proto",
+        "google/rpc/code.proto",
+        "build/bazel/remote/execution/v2/remote_execution.proto",
+        "build/bazel/semver/semver.proto",
     ];
 
     let prefix = env::var("SRCDIR").unwrap_or_else(|_| ".".to_string());
@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_client(false)
         .out_dir(out_dir.clone())
         .file_descriptor_set_path(out_dir.join("reapi_descriptor.bin"))
-        .compile_protos(&protos, &["protos".to_owned()])
+        .compile_protos(&protos, &[prefix])
         .unwrap_or_else(|e| panic!("protobuf compile error: {}", e));
 
     // add PROTOBUFS=out_dir to the environment so we can include the generated files

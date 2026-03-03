@@ -3,7 +3,7 @@
 
 use tonic;
 
-use crate::protos::google::longrunning::{
+use protos::google::longrunning::{
     CancelOperationRequest, DeleteOperationRequest, GetOperationRequest, ListOperationsRequest,
     ListOperationsResponse, Operation, WaitOperationRequest, operations_server,
 };
