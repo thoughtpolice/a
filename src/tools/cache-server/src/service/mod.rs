@@ -16,5 +16,11 @@ pub use cas::ContentAddressableStorageService;
 mod execution;
 pub use execution::ExecutionService;
 
+mod logstream;
+pub use logstream::LogStreamSvc;
+
 mod operations;
 pub use operations::OperationsService;
+
+mod remote_asset;
+pub use remote_asset::{FetchService, PushService};
