@@ -66,6 +66,10 @@ email = "austin@ersc.io"
 ## ------------------------------------------------------------------------------------------------
 ## ---- Revsets & filesets
 
+[fileset-aliases]
+'LOCK' = '**/Cargo.lock | **/package-lock.json | **/uv.lock'
+'not:x' = '~x'
+
 [revsets]
 # By default, show all my current stacks of work.
 log = 'stack(mine() | @) | trunk() | @'
