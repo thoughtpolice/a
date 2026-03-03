@@ -8,6 +8,7 @@ BUILD_DEPS = [
     'third-party//mimalloc:rust',
     # local deps
     ':protos',
+    ':storage',
     # crates.io
     'third-party//rust:clap',
     'third-party//rust:console-subscriber',
@@ -36,5 +37,12 @@ depot.rust_binary(
 depot.alias(
     name = 'protos',
     actual = '//src/tools/cache-server/protos:protos',
+    visibility = [],
+)
+
+# Storage library is in storage/BUILD
+depot.alias(
+    name = 'storage',
+    actual = '//src/tools/cache-server/storage:storage',
     visibility = [],
 )
