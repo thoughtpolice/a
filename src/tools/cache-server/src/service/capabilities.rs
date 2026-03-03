@@ -45,6 +45,11 @@ impl capabilities_server::Capabilities for CapabilitiesService {
             symlink_absolute_path_strategy: Allowed.into(),
             supported_batch_update_compressors: vec![],
             supported_compressors: vec![],
+            max_cas_blob_size_bytes: 0,
+            split_blob_support: false,
+            splice_blob_support: false,
+            fast_cdc_2020_params: None,
+            rep_max_cdc_params: None,
         };
 
         let exec_caps = ExecutionCapabilities {

@@ -9,6 +9,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "google/longrunning/operations.proto",
         "google/rpc/code.proto",
         "build/bazel/remote/execution/v2/remote_execution.proto",
+        "build/bazel/remote/asset/v1/remote_asset.proto",
+        "build/bazel/remote/logstream/v1/remote_logstream.proto",
         "build/bazel/semver/semver.proto",
     ];
 

@@ -6,7 +6,8 @@ use tokio_stream::wrappers::ReceiverStream;
 use protos::build::bazel::remote::execution::v2::{
     BatchReadBlobsRequest, BatchReadBlobsResponse, BatchUpdateBlobsRequest,
     BatchUpdateBlobsResponse, FindMissingBlobsRequest, FindMissingBlobsResponse, GetTreeRequest,
-    GetTreeResponse, content_addressable_storage_server,
+    GetTreeResponse, SpliceBlobRequest, SpliceBlobResponse, SplitBlobRequest, SplitBlobResponse,
+    content_addressable_storage_server,
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -56,6 +57,26 @@ impl content_addressable_storage_server::ContentAddressableStorage
         _req: tonic::Request<GetTreeRequest>,
     ) -> Result<tonic::Response<Self::GetTreeStream>, tonic::Status> {
         Err(tonic::Status::unimplemented("get_tree is not implemented"))
+    }
+
+    #[tracing::instrument]
+    async fn split_blob(
+        &self,
+        _req: tonic::Request<SplitBlobRequest>,
+    ) -> Result<tonic::Response<SplitBlobResponse>, tonic::Status> {
+        Err(tonic::Status::unimplemented(
+            "split_blob is not implemented",
+        ))
+    }
+
+    #[tracing::instrument]
+    async fn splice_blob(
+        &self,
+        _req: tonic::Request<SpliceBlobRequest>,
+    ) -> Result<tonic::Response<SpliceBlobResponse>, tonic::Status> {
+        Err(tonic::Status::unimplemented(
+            "splice_blob is not implemented",
+        ))
     }
 }
 
