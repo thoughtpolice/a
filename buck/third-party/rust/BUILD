@@ -18103,6 +18103,7 @@ third_party_rust.rust_library(
     crate_root = "sha2-0.10.9.crate/src/lib.rs",
     edition = "2018",
     features = [
+        "compress",
         "default",
         "std",
     ],
