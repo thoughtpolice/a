@@ -38,6 +38,24 @@ pub mod build {
                     ));
                 }
             }
+
+            pub mod asset {
+                pub mod v1 {
+                    include!(concat!(
+                        env!("PROTOBUFS"),
+                        "/build.bazel.remote.asset.v1.rs"
+                    ));
+                }
+            }
+
+            pub mod logstream {
+                pub mod v1 {
+                    include!(concat!(
+                        env!("PROTOBUFS"),
+                        "/build.bazel.remote.logstream.v1.rs"
+                    ));
+                }
+            }
         }
 
         pub mod semver {
