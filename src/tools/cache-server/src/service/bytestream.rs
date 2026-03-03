@@ -1,18 +1,30 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use std::sync::Arc;
+
 use tokio_stream::wrappers::ReceiverStream;
-use tonic;
 
 use protos::google::bytestream::{
     QueryWriteStatusRequest, QueryWriteStatusResponse, ReadRequest, ReadResponse, WriteRequest,
     WriteResponse, byte_stream_server,
 };
 
+use crate::store::CacheStore;
+
 // ---------------------------------------------------------------------------------------------------------------------
 
-#[derive(Debug, Default)]
-pub struct ByteStreamService {}
+#[derive(Clone, Debug)]
+pub struct ByteStreamService {
+    #[allow(dead_code)]
+    store: Arc<CacheStore>,
+}
+
+impl ByteStreamService {
+    pub fn new(store: Arc<CacheStore>) -> Self {
+        Self { store }
+    }
+}
 
 #[tonic::async_trait]
 impl byte_stream_server::ByteStream for ByteStreamService {
