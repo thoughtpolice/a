@@ -3,7 +3,7 @@
 
 use tonic;
 
-use crate::protos::build::bazel::remote::execution::v2::{
+use protos::build::bazel::remote::execution::v2::{
     ActionResult, GetActionResultRequest, UpdateActionResultRequest, action_cache_server,
 };
 

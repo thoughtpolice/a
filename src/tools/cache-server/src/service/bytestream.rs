@@ -4,7 +4,7 @@
 use tokio_stream::wrappers::ReceiverStream;
 use tonic;
 
-use crate::protos::google::bytestream::{
+use protos::google::bytestream::{
     QueryWriteStatusRequest, QueryWriteStatusResponse, ReadRequest, ReadResponse, WriteRequest,
     WriteResponse, byte_stream_server,
 };

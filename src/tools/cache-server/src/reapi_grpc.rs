@@ -3,19 +3,16 @@
 
 use std::{net::SocketAddr, time::Duration};
 
-use crate::protos::google::bytestream::byte_stream_server::ByteStreamServer;
+use protos::google::bytestream::byte_stream_server::ByteStreamServer;
 
-use crate::protos::build::bazel::remote::execution::v2::{
+use protos::build::bazel::remote::execution::v2::{
     action_cache_server::ActionCacheServer, capabilities_server::CapabilitiesServer,
     content_addressable_storage_server::ContentAddressableStorageServer,
     execution_server::ExecutionServer,
 };
-use crate::protos::google::longrunning::operations_server::OperationsServer;
+use protos::google::longrunning::operations_server::OperationsServer;
 
 // ---------------------------------------------------------------------------------------------------------------------
-
-const FILE_DESCRIPTOR_SET: &[u8] =
-    include_bytes!(concat!(env!("PROTOBUFS"), "/reapi_descriptor.bin"));
 
 pub async fn start_reapi_grpc(address: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
     use crate::service;
@@ -30,7 +27,7 @@ pub async fn start_reapi_grpc(address: SocketAddr) -> Result<(), Box<dyn std::er
     let capabilities_service = service::CapabilitiesService::default();
     let operations_service = service::OperationsService::default();
     let reflection_service = tonic_reflection::server::Builder::configure()
-        .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)
+        .register_encoded_file_descriptor_set(protos::FILE_DESCRIPTOR_SET)
         .register_encoded_file_descriptor_set(tonic_health::pb::FILE_DESCRIPTOR_SET)
         .build_v1()
         .unwrap();

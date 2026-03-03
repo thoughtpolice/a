@@ -3,16 +3,16 @@
 
 use tonic;
 
-use crate::protos::build::bazel::remote::execution::v2::{
+use protos::build::bazel::remote::execution::v2::{
     CacheCapabilities, ExecutionCapabilities, digest_function::Value::Sha256,
     symlink_absolute_path_strategy::Value::Allowed,
 };
 
-use crate::protos::build::bazel::remote::execution::v2::{
+use protos::build::bazel::remote::execution::v2::{
     ActionCacheUpdateCapabilities, GetCapabilitiesRequest, ServerCapabilities, capabilities_server,
 };
 
-use crate::protos::build::bazel::semver::SemVer;
+use protos::build::bazel::semver::SemVer;
 
 // ---------------------------------------------------------------------------------------------------------------------
 

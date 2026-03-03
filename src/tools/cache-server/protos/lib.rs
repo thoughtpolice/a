@@ -1,8 +1,14 @@
-// SPDX-FileCopyrightText: © 2023 Austin Seipp
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Protobuf files, reflected as a Rust module hierarchy. These basically map
-//! 1-to-1 with the actual protobuf namespace.ea
+//! 1-to-1 with the actual protobuf namespace.
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+/// The encoded file descriptor set for gRPC reflection.
+pub const FILE_DESCRIPTOR_SET: &[u8] =
+    include_bytes!(concat!(env!("PROTOBUFS"), "/reapi_descriptor.bin"));
 
 // ---------------------------------------------------------------------------------------------------------------------
 

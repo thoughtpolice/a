@@ -3,7 +3,7 @@
 
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::protos::build::bazel::remote::execution::v2::{
+use protos::build::bazel::remote::execution::v2::{
     BatchReadBlobsRequest, BatchReadBlobsResponse, BatchUpdateBlobsRequest,
     BatchUpdateBlobsResponse, FindMissingBlobsRequest, FindMissingBlobsResponse, GetTreeRequest,
     GetTreeResponse, content_addressable_storage_server,
