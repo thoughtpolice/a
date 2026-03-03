@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc, time::Duration};
+
+use crate::store::CacheStore;
 
 use protos::google::bytestream::byte_stream_server::ByteStreamServer;
 
@@ -19,6 +21,7 @@ use protos::google::longrunning::operations_server::OperationsServer;
 pub async fn start_reapi_grpc(
     address: SocketAddr,
     shutdown: impl Future<Output = ()> + Send + 'static,
+    store: Arc<CacheStore>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::service;
 
@@ -48,9 +51,9 @@ pub async fn start_reapi_grpc(
         .set_serving::<LogStreamServiceServer<service::LogStreamSvc>>()
         .await;
 
-    let cas_service = service::ContentAddressableStorageService::default();
-    let action_cache_service = service::ActionCacheService::default();
-    let bytestream_service = service::ByteStreamService::default();
+    let cas_service = service::ContentAddressableStorageService::new(store.clone());
+    let action_cache_service = service::ActionCacheService::new(store.clone());
+    let bytestream_service = service::ByteStreamService::new(store.clone());
     let execution_service = service::ExecutionService::default();
     let capabilities_service = service::CapabilitiesService::default();
     let operations_service = service::OperationsService::default();

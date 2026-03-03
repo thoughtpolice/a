@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use std::sync::Arc;
+
 use tokio_stream::wrappers::ReceiverStream;
 
 use protos::build::bazel::remote::execution::v2::{
@@ -10,10 +12,21 @@ use protos::build::bazel::remote::execution::v2::{
     content_addressable_storage_server,
 };
 
+use crate::store::CacheStore;
+
 // ---------------------------------------------------------------------------------------------------------------------
 
-#[derive(Debug, Default)]
-pub struct ContentAddressableStorageService {}
+#[derive(Clone, Debug)]
+pub struct ContentAddressableStorageService {
+    #[allow(dead_code)]
+    store: Arc<CacheStore>,
+}
+
+impl ContentAddressableStorageService {
+    pub fn new(store: Arc<CacheStore>) -> Self {
+        Self { store }
+    }
+}
 
 #[tonic::async_trait]
 impl content_addressable_storage_server::ContentAddressableStorage

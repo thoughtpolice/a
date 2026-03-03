@@ -5,6 +5,7 @@
 
 use std::{str::FromStr, sync::Arc};
 
+use anyhow::{Context, Result};
 use clap::Parser;
 use tracing_subscriber::{filter, prelude::*};
 
@@ -28,13 +29,17 @@ struct Cli {
     #[arg(long, default_value_t = false)]
     tokio_console: bool,
 
+    /// Storage backend: "memory" or "file:///path/to/dir"
+    #[arg(long, default_value = "memory")]
+    store: String,
+
     /// `tracing` filter for the console logs.
     #[arg(long, default_value = "info")]
     console_log: String,
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let tokio_console_layer = if cli.tokio_console {
@@ -51,10 +56,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         //  .with(..potential additional layer..)
         .init();
 
-    let address = cli.address.parse().unwrap();
+    let backend = if cli.store == "memory" {
+        store::StoreBackend::Memory
+    } else if let Some(path) = cli.store.strip_prefix("file://") {
+        store::StoreBackend::LocalFs(path.to_string())
+    } else {
+        anyhow::bail!(
+            "invalid --store value: {:?} (expected \"memory\" or \"file:///path\")",
+            cli.store
+        );
+    };
+
+    let cache_store = store::CacheStore::open(backend)
+        .await
+        .with_context(|| format!("failed to open cache store (backend: {:?})", cli.store))?;
+    let cache_store = Arc::new(cache_store);
+
+    let address: std::net::SocketAddr = cli.address.parse().with_context(|| {
+        format!(
+            "invalid listen address {:?} (expected HOST:PORT, e.g. 127.0.0.1:8080)",
+            cli.address,
+        )
+    })?;
+
     tracing::info!(
-        message = "Starting buck2-cache-server",
-        address = format!("{}", address)
+        %address,
+        store = %cli.store,
+        "cache-server ready",
     );
 
     let shutdown_notify = Arc::new(tokio::sync::Notify::new());
@@ -72,7 +100,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 tracing::info!("received SIGTERM, draining connections...");
             }
         }
-
         shutdown_notify2.notify_one();
     };
 
@@ -82,10 +109,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tracing::warn!("drain timeout (10s), forcing shutdown");
     };
 
-    tokio::select! {
-        _ = reapi_grpc::start_reapi_grpc(address, shutdown) => Ok(()),
+    let result = tokio::select! {
+        r = reapi_grpc::start_reapi_grpc(address, shutdown, cache_store.clone()) => r,
         _ = drain_deadline => Ok(()),
-    }
+    };
+
+    cache_store
+        .close()
+        .await
+        .context("failed to close cache store")?;
+    result.map_err(|e| anyhow::anyhow!("{}", e))
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

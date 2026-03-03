@@ -10,12 +10,11 @@ BUILD_DEPS = [
     ':protos',
     ':storage',
     # crates.io
+    'third-party//rust:anyhow',
     'third-party//rust:clap',
     'third-party//rust:console-subscriber',
-    'third-party//rust:hex',
     'third-party//rust:prost',
     'third-party//rust:prost-types',
-    'third-party//rust:sha2',
     'third-party//rust:tokio',
     'third-party//rust:tokio-stream',
     'third-party//rust:tonic',
