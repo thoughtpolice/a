@@ -3,7 +3,7 @@
 
 //! Happy Fun Ball. Do not taunt.
 
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 
 use clap::Parser;
 use tracing_subscriber::{filter, prelude::*};
@@ -56,8 +56,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         message = "Starting buck2-cache-server",
         address = format!("{}", address)
     );
-    reapi_grpc::start_reapi_grpc(address).await?;
-    Ok(())
+
+    let shutdown_notify = Arc::new(tokio::sync::Notify::new());
+    let shutdown_notify2 = shutdown_notify.clone();
+
+    let shutdown = async move {
+        let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install SIGTERM handler");
+
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                tracing::info!("received SIGINT, draining connections...");
+            }
+            _ = sigterm.recv() => {
+                tracing::info!("received SIGTERM, draining connections...");
+            }
+        }
+
+        shutdown_notify2.notify_one();
+    };
+
+    let drain_deadline = async {
+        shutdown_notify.notified().await;
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+        tracing::warn!("drain timeout (10s), forcing shutdown");
+    };
+
+    tokio::select! {
+        _ = reapi_grpc::start_reapi_grpc(address, shutdown) => Ok(()),
+        _ = drain_deadline => Ok(()),
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::{net::SocketAddr, time::Duration};
+use std::net::SocketAddr;
 
 use protos::google::bytestream::byte_stream_server::ByteStreamServer;
 
@@ -16,11 +16,37 @@ use protos::google::longrunning::operations_server::OperationsServer;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-pub async fn start_reapi_grpc(address: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn start_reapi_grpc(
+    address: SocketAddr,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+) -> Result<(), Box<dyn std::error::Error>> {
     use crate::service;
 
     let (health_reporter, health_service) = tonic_health::server::health_reporter();
-    tokio::spawn(report_service_status(health_reporter.clone())); // XXX FIXME (aseipp)
+    health_reporter
+        .set_serving::<CapabilitiesServer<service::CapabilitiesService>>()
+        .await;
+    health_reporter
+        .set_serving::<ContentAddressableStorageServer<service::ContentAddressableStorageService>>()
+        .await;
+    health_reporter
+        .set_serving::<ActionCacheServer<service::ActionCacheService>>()
+        .await;
+    health_reporter
+        .set_serving::<ExecutionServer<service::ExecutionService>>()
+        .await;
+    health_reporter
+        .set_serving::<ByteStreamServer<service::ByteStreamService>>()
+        .await;
+    health_reporter
+        .set_serving::<FetchServer<service::FetchService>>()
+        .await;
+    health_reporter
+        .set_serving::<PushServer<service::PushService>>()
+        .await;
+    health_reporter
+        .set_serving::<LogStreamServiceServer<service::LogStreamSvc>>()
+        .await;
 
     let cas_service = service::ContentAddressableStorageService::default();
     let action_cache_service = service::ActionCacheService::default();
@@ -58,38 +84,7 @@ pub async fn start_reapi_grpc(address: SocketAddr) -> Result<(), Box<dyn std::er
         .add_service(LogStreamServiceServer::new(logstream_service))
         .add_service(health_service)
         .add_service(reflection_service)
-        .serve(address)
+        .serve_with_shutdown(address, shutdown)
         .await?;
     Ok(())
-}
-
-async fn report_service_status(reporter: tonic_health::server::HealthReporter) {
-    use crate::service;
-    loop {
-        tokio::time::sleep(Duration::from_secs(1)).await;
-        reporter
-            .set_serving::<CapabilitiesServer<service::CapabilitiesService>>()
-            .await;
-        reporter
-            .set_serving::<ContentAddressableStorageServer<service::ContentAddressableStorageService>>()
-            .await;
-        reporter
-            .set_serving::<ActionCacheServer<service::ActionCacheService>>()
-            .await;
-        reporter
-            .set_serving::<ExecutionServer<service::ExecutionService>>()
-            .await;
-        reporter
-            .set_serving::<ByteStreamServer<service::ByteStreamService>>()
-            .await;
-        reporter
-            .set_serving::<FetchServer<service::FetchService>>()
-            .await;
-        reporter
-            .set_serving::<PushServer<service::PushService>>()
-            .await;
-        reporter
-            .set_serving::<LogStreamServiceServer<service::LogStreamSvc>>()
-            .await;
-    }
 }
