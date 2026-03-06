@@ -21,8 +21,12 @@ static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
 )]
 struct Cli {
     /// The address to listen on
-    #[arg(short, long, default_value = "[::1]:8080")]
+    #[arg(short, long, default_value = "127.0.0.1:8080")]
     address: String,
+
+    /// Enable tokio-console debugging subscriber
+    #[arg(long, default_value_t = false)]
+    tokio_console: bool,
 
     /// `tracing` filter for the console logs.
     #[arg(long, default_value = "info")]
@@ -33,7 +37,11 @@ struct Cli {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
-    let tokio_console_layer = console_subscriber::spawn();
+    let tokio_console_layer = if cli.tokio_console {
+        Some(console_subscriber::spawn())
+    } else {
+        None
+    };
     let cli_console_layer = tracing_subscriber::fmt::layer()
         .with_filter(filter::LevelFilter::from_str(cli.console_log.as_str()).unwrap());
 
