@@ -38,6 +38,15 @@ pub async fn start_reapi_grpc(address: SocketAddr) -> Result<(), Box<dyn std::er
         .unwrap();
 
     tonic::transport::Server::builder()
+        .initial_connection_window_size(16 * 1024 * 1024) // 16 MiB
+        .initial_stream_window_size(8 * 1024 * 1024) // 8 MiB
+        .http2_adaptive_window(Some(true))
+        .max_frame_size(Some(1024 * 1024)) // 1 MiB (default 16 KiB)
+        .tcp_nodelay(true)
+        .tcp_keepalive(Some(std::time::Duration::from_secs(60)))
+        .http2_keepalive_interval(Some(std::time::Duration::from_secs(30)))
+        .http2_keepalive_timeout(Some(std::time::Duration::from_secs(10)))
+        .concurrency_limit_per_connection(256)
         .add_service(CapabilitiesServer::new(capabilities_service))
         .add_service(ContentAddressableStorageServer::new(cas_service))
         .add_service(ActionCacheServer::new(action_cache_service))
