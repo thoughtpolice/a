@@ -23,7 +23,7 @@ pub(crate) enum DojoSubcommand {
     Dojo(DojoArgs),
 }
 
-pub(crate) fn dojo_cmd(
+pub(crate) async fn dojo_cmd(
     ui: &mut Ui,
     command: &CommandHelper,
     subcmd: DojoSubcommand,
