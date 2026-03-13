@@ -10492,6 +10492,12 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
+shims.alias(
+    name = "jiff",
+    actual = ":jiff-0.2.23",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "jiff-0.2.23.crate",
     sha256 = "1a3546dc96b6d42c5f24902af9e2538e82e39ad350b0c766eb3fbf2d8f3d8359",
