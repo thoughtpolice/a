@@ -121,6 +121,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
     file_styles = {
         ".py": (bzl_style_copyright, bzl_style_license_prefix),
         "BUILD": (bzl_style_copyright, bzl_style_license_prefix),
+        "BUCK": (bzl_style_copyright, bzl_style_license_prefix),
         "PACKAGE": (bzl_style_copyright, bzl_style_license_prefix),
         ".bzl": (bzl_style_copyright, bzl_style_license_prefix),
         ".bxl": (bzl_style_copyright, bzl_style_license_prefix),
