@@ -1,0 +1,67 @@
+#!/usr/bin/env dotslash
+
+{
+  "name": "s2",
+  "platforms": {
+    "macos-aarch64": {
+      "size": 12643749,
+      "hash": "sha256",
+      "digest": "9f85eb9406dfe2d315a539706cbf93943e5d31bd0e516a542dd90a144ea754cd",
+      "format": "zip",
+      "path": "s2",
+      "providers": [
+        {
+          "url": "https://github.com/s2-streamstore/s2/releases/download/s2-cli-v0.29.22/s2-aarch64-apple-darwin.zip"
+        }
+      ]
+    },
+    "macos-x86_64": {
+      "size": 13905006,
+      "hash": "sha256",
+      "digest": "572eeb0bb9ea35876236778396d9720b6617b2d8a1d4171bda86fd56652c9e79",
+      "format": "zip",
+      "path": "s2",
+      "providers": [
+        {
+          "url": "https://github.com/s2-streamstore/s2/releases/download/s2-cli-v0.29.22/s2-x86_64-apple-darwin.zip"
+        }
+      ]
+    },
+    "linux-aarch64": {
+      "size": 13286143,
+      "hash": "sha256",
+      "digest": "01aae0a30f81523d28e26e683e063f91fb7edff314bd715fa548d82965dbe19e",
+      "format": "zip",
+      "path": "s2",
+      "providers": [
+        {
+          "url": "https://github.com/s2-streamstore/s2/releases/download/s2-cli-v0.29.22/s2-aarch64-unknown-linux-musl.zip"
+        }
+      ]
+    },
+    "linux-x86_64": {
+      "size": 14062428,
+      "hash": "sha256",
+      "digest": "420f21cf325947e1a999b30f835b4fed2839c98b71013021e673b11c7cd444ef",
+      "format": "zip",
+      "path": "s2",
+      "providers": [
+        {
+          "url": "https://github.com/s2-streamstore/s2/releases/download/s2-cli-v0.29.22/s2-x86_64-unknown-linux-musl.zip"
+        }
+      ]
+    },
+    "windows-x86_64": {
+      "size": 12399118,
+      "hash": "sha256",
+      "digest": "09529062fda8b11c9fd0e2cdb867490bb9b1d1be40e2cefe717739452635da5f",
+      "format": "zip",
+      "path": "s2.exe",
+      "providers": [
+        {
+          "url": "https://github.com/s2-streamstore/s2/releases/download/s2-cli-v0.29.22/s2-x86_64-pc-windows-msvc.zip"
+        }
+      ]
+    }
+  }
+}
