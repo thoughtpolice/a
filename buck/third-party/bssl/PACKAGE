@@ -3,17 +3,17 @@
 
 load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 
-GIT_COMMIT = "386622719ab38a4f3a484a749bd6e1e6d5fda2e0"
+GIT_COMMIT = "dec5ee1f0108484e83409805ee570021c13b225c"
 
 pkg.info(
-    version = f"2024.2.21+g{GIT_COMMIT}",
+    version = f"2026.3.16+g{GIT_COMMIT}",
     description = """
         Google's SSL/TLS library.
     """,
     license = "OpenSSL",
     copyright = [
-        "1995-2024 The OpenSSL Project",
-        "2014-2024 Google Inc.",
+        "1995-2026 The OpenSSL Project",
+        "2014-2026 Google Inc.",
     ],
     visibility = ['PUBLIC'],
 

@@ -14,9 +14,7 @@ shims.cxx_genrule(
     },
     default_outs=["wrapper.rs"],
     srcs={
-        "rust_wrapper.c": "third-party//bssl:src[src/rust/bssl-sys/rust_wrapper.c]",
-        "rust_wrapper.h": "third-party//bssl:src[src/rust/bssl-sys/rust_wrapper.h]",
-        "wrapper.h": "third-party//bssl:src[src/rust/bssl-sys/wrapper.h]",
+        "wrapper.h": "third-party//bssl:src[rust/bssl-sys/wrapper.h]",
     },
     cmd=f"""
       bindgen \
@@ -30,7 +28,7 @@ shims.cxx_genrule(
           --experimental \
           --wrap-static-fns \
           --wrap-static-fns-path $OUT/extern.c \
-        -- -I$(location third-party//bssl:src)/src/include
+        -- -I$(location third-party//bssl:src)/include
     """,
     visibility=[],
 )
@@ -41,8 +39,7 @@ shims.cxx_library(
     srcs=[":wrapper.rs[extern.c]"],
     header_namespace="",
     headers={
-        "wrapper.h": "third-party//bssl:src[src/rust/bssl-sys/wrapper.h]",
-        "rust_wrapper.h": "third-party//bssl:src[src/rust/bssl-sys/rust_wrapper.h]",
+        "wrapper.h": "third-party//bssl:src[rust/bssl-sys/wrapper.h]",
     },
     deps=[
         "third-party//bssl:crypto",
@@ -52,10 +49,17 @@ shims.cxx_library(
 )
 
 shims.rust_library(
+    name="bssl-macros",
+    srcs=["third-party//bssl:src[rust/bssl-macros/src/lib.rs]"],
+    visibility=["third-party//bssl/..."],
+)
+
+shims.rust_library(
     name="bssl-sys",
     srcs=[
-        "third-party//bssl:src[src/rust/bssl-sys/src/lib.rs]",
+        "third-party//bssl:src[rust/bssl-sys/src/lib.rs]",
     ],
+    rustc_flags=["--cfg", "bindgen_rs_file"],
     env={
         "BINDGEN_RS_FILE": "$(location :wrapper.rs)",
     },
@@ -63,6 +67,7 @@ shims.rust_library(
         "third-party//bssl:crypto",
         "third-party//bssl:ssl",
         ":bssl-sys-cbits",  # NOTE: MUST be linked! requires crypto and ssl!
+        ":bssl-macros",
     ],
     visibility=["PUBLIC"],
 )
