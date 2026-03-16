@@ -15,8 +15,9 @@ third-party = depot-third-party
 tilde = depot-tilde
 
 [buildfile]
-# 'BUILD' is a much better noun than 'BUCK'...
-name = BUILD
+# 'BUILD' is a much better noun than 'BUCK', but sometimes BUCK is needed
+# when there are conflicts in case insensitive filesystems like macOS...
+name = BUILD,BUCK
 
 # for the sake of future compatibility and migrations, we don't want any BUILD
 # files in the project to use raw, un-imported symbols from the prelude like
