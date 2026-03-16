@@ -6,66 +6,51 @@ load("@root//buck/shims:package.bzl", "pkg")
 
 load(
     ":BUILD.generated.bzl",
+    "bcm_internal_headers",
+    "bcm_sources",
+    "bcm_sources_asm",
+    "bssl_internal_headers",
+    "bssl_sources",
     "crypto_headers",
     "crypto_internal_headers",
     "crypto_sources",
     "crypto_sources_asm",
-    "fips_fragments",
+    "decrepit_internal_headers",
+    "decrepit_sources",
     "ssl_headers",
     "ssl_internal_headers",
     "ssl_sources",
-    "tool_headers",
-    "tool_sources",
 )
 
 GIT_COMMIT = pkg.version().split("g", 1)[1]
 
-# from src/gen/sources.bzl
-decrepit_sources = [
-    "src/decrepit/bio/base64_bio.c",
-    "src/decrepit/blowfish/blowfish.c",
-    "src/decrepit/cast/cast.c",
-    "src/decrepit/cast/cast_tables.c",
-    "src/decrepit/cfb/cfb.c",
-    "src/decrepit/des/cfb64ede.c",
-    "src/decrepit/dh/dh_decrepit.c",
-    "src/decrepit/dsa/dsa_decrepit.c",
-    "src/decrepit/evp/dss1.c",
-    "src/decrepit/evp/evp_do_all.c",
-    "src/decrepit/obj/obj_decrepit.c",
-    "src/decrepit/rc4/rc4_decrepit.c",
-    "src/decrepit/ripemd/ripemd.c",
-    "src/decrepit/rsa/rsa_decrepit.c",
-    "src/decrepit/ssl/ssl_decrepit.c",
-    "src/decrepit/x509/x509_decrepit.c",
-    "src/decrepit/xts/xts.c",
-]
-
 shims.http_archive(
     name="src",
-    sha256="c81ef84430272ce63f9308780981f84dae9a46179aa192f16f79370adf1d3a12",
+    sha256="18a8010f460ecddd9b3bf53043e75a6ee72bd6d084259cf7d344bac09729b1a5",
     urls=[
         "https://github.com/google/boringssl/archive/{}.tar.gz".format(GIT_COMMIT),
     ],
     type="tar.gz",
     strip_prefix="boringssl-{}".format(GIT_COMMIT),
-    sub_targets=crypto_headers
-    + crypto_internal_headers
+    sub_targets=bcm_sources
+    + bcm_internal_headers
+    + bcm_sources_asm
     + crypto_sources
+    + crypto_headers
+    + crypto_internal_headers
     + crypto_sources_asm
-    + decrepit_sources
-    + fips_fragments
+    + ssl_sources
     + ssl_headers
     + ssl_internal_headers
-    + ssl_sources
-    + tool_headers
-    + tool_sources
+    + decrepit_sources
+    + decrepit_internal_headers
+    + bssl_sources
+    + bssl_internal_headers
     + [
         # rust sources
-        "src/rust/bssl-sys/src/lib.rs",
-        "src/rust/bssl-sys/rust_wrapper.c",
-        "src/rust/bssl-sys/rust_wrapper.h",
-        "src/rust/bssl-sys/wrapper.h",
+        "rust/bssl-sys/src/lib.rs",
+        "rust/bssl-sys/wrapper.h",
+        "rust/bssl-macros/src/lib.rs",
     ],
     visibility=["third-party//bssl/..."],
 )
@@ -78,23 +63,20 @@ cc_copts = [
     "-Wa,--noexecstack",
     # This list of warnings should match those in the top-level CMakeLists.txt.
     "-Wall",
-    "-Werror",
     "-Wformat=2",
-    "-Wsign-compare",
     "-Wmissing-field-initializers",
-    "-Wwrite-strings",
     "-Wshadow",
+    "-Wsign-compare",
+    "-Wtype-limits",
+    "-Wvla",
+    "-Wwrite-strings",
     "-fno-common",
-]
-cc_copts_c11 = [
-    "-std=c11",
-    "-Wmissing-prototypes",
-    "-Wold-style-definition",
-    "-Wstrict-prototypes",
+    "-fno-strict-aliasing",
 ]
 cc_copts_cxx = [
-    "-std=c++14",
+    "-std=c++17",
     "-Wmissing-declarations",
+    "-Wnon-virtual-dtor",
 ]
 
 boringssl_copts = (
@@ -130,13 +112,6 @@ boringssl_copts = (
     )
 )
 
-boringssl_copts_c11 = boringssl_copts + shims.select(
-    {
-        "config//os:windows": ["/std:c11"],
-        "DEFAULT": cc_copts_c11,
-    }
-)
-
 boringssl_copts_cxx = boringssl_copts + shims.select(
     {
         "config//os:windows": [],
@@ -146,17 +121,17 @@ boringssl_copts_cxx = boringssl_copts + shims.select(
 
 shims.cxx_library(
     name="crypto",
-    srcs=map(src_ref, crypto_sources)
+    srcs=map(src_ref, bcm_sources + crypto_sources)
     + shims.select(
         {
             "config//os:windows": [],
-            "DEFAULT": map(src_ref, crypto_sources_asm),
+            "DEFAULT": map(src_ref, bcm_sources_asm + crypto_sources_asm),
         }
     ),
-    compiler_flags=boringssl_copts_c11,
+    compiler_flags=boringssl_copts_cxx,
     header_namespace="",
     exported_headers={
-        x: y for (x, y) in map(lambda x: (x[12:], src_ref(x)), crypto_headers)
+        x: y for (x, y) in map(lambda x: (x[8:], src_ref(x)), crypto_headers)
     },
     preferred_linkage="static",
     linker_flags=shims.select(
@@ -173,7 +148,7 @@ shims.cxx_library(
     compiler_flags=boringssl_copts_cxx,
     header_namespace="",
     exported_headers={
-        x: y for (x, y) in map(lambda x: (x[12:], src_ref(x)), ssl_headers)
+        x: y for (x, y) in map(lambda x: (x[8:], src_ref(x)), ssl_headers)
     },
     preferred_linkage="static",
     exported_linker_flags=shims.select(
@@ -185,13 +160,14 @@ shims.cxx_library(
 shims.cxx_library(
     name="decrepit",
     srcs=map(src_ref, decrepit_sources),
-    compiler_flags=boringssl_copts_c11,
+    compiler_flags=boringssl_copts_cxx,
     deps=[":crypto", ":ssl"],
 )
 
 shims.cxx_binary(
     name="bssl",
-    srcs=map(src_ref, tool_sources),
+    srcs=map(src_ref, bssl_sources),
+    headers={x.split("/")[-1]: src_ref(x) for x in bssl_internal_headers},
     compiler_flags=boringssl_copts_cxx,
     deps=[":crypto", ":ssl", ":decrepit"],
     visibility=["PUBLIC"],
