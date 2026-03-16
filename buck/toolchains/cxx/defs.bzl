@@ -19,6 +19,7 @@ load(
     "LinkerType",
     "PicBehavior",
     "RcCompilerInfo",
+    "RuntimeDependencyHandling",
     "ShlibInterfacesMode",
 )
 load("@prelude//cxx:headers.bzl", "HeaderMode")
@@ -160,6 +161,7 @@ def _cxx_toolchain_from_cxx_tools_info(ctx: AnalysisContext, cxx_tools_info: Cxx
                 link_ordering = ctx.attrs.link_ordering,
             ),
             bolt_enabled = False,
+            runtime_dependency_handling = RuntimeDependencyHandling("no_symlink"),
             binary_utilities_info = BinaryUtilitiesInfo(
                 nm = RunInfo(args = ["nm"]),
                 objcopy = RunInfo(args = ["objcopy"]),
