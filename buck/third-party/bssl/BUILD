@@ -129,6 +129,7 @@ shims.cxx_library(
         }
     ),
     compiler_flags=boringssl_copts_cxx,
+    raw_headers=map(src_ref, crypto_internal_headers + bcm_internal_headers),
     header_namespace="",
     exported_headers={
         x: y for (x, y) in map(lambda x: (x[8:], src_ref(x)), crypto_headers)
@@ -146,6 +147,7 @@ shims.cxx_library(
     name="ssl",
     srcs=map(src_ref, ssl_sources),
     compiler_flags=boringssl_copts_cxx,
+    raw_headers=map(src_ref, ssl_internal_headers),
     header_namespace="",
     exported_headers={
         x: y for (x, y) in map(lambda x: (x[8:], src_ref(x)), ssl_headers)
@@ -161,13 +163,14 @@ shims.cxx_library(
     name="decrepit",
     srcs=map(src_ref, decrepit_sources),
     compiler_flags=boringssl_copts_cxx,
+    raw_headers=map(src_ref, decrepit_internal_headers),
     deps=[":crypto", ":ssl"],
 )
 
 shims.cxx_binary(
     name="bssl",
     srcs=map(src_ref, bssl_sources),
-    headers={x.split("/")[-1]: src_ref(x) for x in bssl_internal_headers},
+    raw_headers=map(src_ref, bssl_internal_headers),
     compiler_flags=boringssl_copts_cxx,
     deps=[":crypto", ":ssl", ":decrepit"],
     visibility=["PUBLIC"],
