@@ -198,10 +198,10 @@ open = ["log", "-r", "open()"]
 
 # Retrunk revisions. Typically as `jj retrunk -s ...` -- notably can be used
 # with open: jj retrunk -s 'roots(open())'
-retrunk = ["rebase", "-d", "trunk()"]
+retrunk = ["rebase", "--simplify-parents", "-d", "trunk()"]
 
 # Retrunk the current stack of work.
-reheat = ["rebase", "-d", "trunk()", "-s", "roots(trunk()..stack(@))"]
+reheat = ["rebase", "--simplify-parents", "-d", "trunk()", "-s", "roots(trunk()..stack(@))"]
 
 # 'jj sandwich xyz' to move xyz into the megamerge in parallel to everything
 # else. See notes on 'megamerge()' above for how it's resolved.
