@@ -3985,6 +3985,39 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "dial9-tokio-telemetry",
+    actual = ":dial9-tokio-telemetry-0.1.1",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "dial9-tokio-telemetry-0.1.1.crate",
+    sha256 = "80f4e2765a07184d9f885727e449d2a8e83aad1d906243e1253c89fb84ba9197",
+    strip_prefix = "dial9-tokio-telemetry-0.1.1",
+    urls = ["https://static.crates.io/crates/dial9-tokio-telemetry/0.1.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "dial9-tokio-telemetry-0.1.1",
+    srcs = [":dial9-tokio-telemetry-0.1.1.crate"],
+    crate = "dial9_tokio_telemetry",
+    crate_root = "dial9-tokio-telemetry-0.1.1.crate/src/lib.rs",
+    edition = "2024",
+    visibility = [],
+    deps = [
+        ":arc-swap-1.8.2",
+        ":futures-util-0.3.32",
+        ":libc-0.2.183",
+        ":pin-project-lite-0.2.17",
+        ":serde-1.0.228",
+        ":serde_json-1.0.149",
+        ":smallvec-1.15.1",
+        ":tokio-1.50.0",
+    ],
+)
+
 shims.http_archive(
     name = "diff-0.1.13.crate",
     sha256 = "56254986775e3233ffa9c4d7d3faaf6d36a2c09d30b20687e9f88bc8bafc16c8",
