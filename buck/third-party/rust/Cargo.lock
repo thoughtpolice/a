@@ -1469,6 +1469,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "dial9-tokio-telemetry"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80f4e2765a07184d9f885727e449d2a8e83aad1d906243e1253c89fb84ba9197"
+dependencies = [
+ "arc-swap",
+ "futures-util",
+ "libc",
+ "pin-project-lite",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "tokio",
+]
+
+[[package]]
 name = "diff"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6870,6 +6886,7 @@ dependencies = [
  "crossbeam-channel",
  "crossterm 0.29.0",
  "dashmap",
+ "dial9-tokio-telemetry",
  "dupe 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "dupe_derive 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "educe",
