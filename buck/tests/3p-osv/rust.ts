@@ -72,6 +72,18 @@ const RUSTSEC_VIOLATION_EXCEPTIONS = [
         id: "GHSA-r6v5-fh4h-64xc",
         reason: "time stack exhaustion vulnerability - awaiting upstream fix",
     },
+    {
+        id: "GHSA-pwjx-qhcg-rvj4",
+        reason: "rustls-webpki certificate revocation bug - awaiting upstream fix",
+    },
+    {
+        id: "GHSA-gchp-q4r4-x4ff",
+        reason: "tar PAX size header handling - awaiting upstream fix",
+    },
+    {
+        id: "GHSA-j4xf-2g29-59ph",
+        reason: "tar symlink chmod vulnerability - awaiting upstream fix",
+    },
 ];
 
 // ---------------------------------------------------------------------------------------------------------------------
