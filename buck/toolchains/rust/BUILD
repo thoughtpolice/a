@@ -17,6 +17,9 @@ common_rustc_flags = [
     # codegen-units=1 improves overall size and performance of generated code
     '-Ccodegen-units=1',
 
+    # always produce stack frames for perf analysis
+    '-Cforce-frame-pointers=yes',
+
     # we need this for tokio-console and other things
     '--cfg=tokio_unstable',
 ]
