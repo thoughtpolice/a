@@ -38,10 +38,7 @@ rustc_flags = shims.select({
         '-Coverflow-checks=true',
     ],
     'mode//:build-mode[release]': common_rustc_flags + [
-        # Overall, we want to aggressively optimize for size on the resulting
-        # binary images for the kernel and UEFI apps.
-        '-Cdebuginfo=none',
-        '-Cstrip=debuginfo',
+        '-Cdebuginfo=line-tables-only',
         '-Cdebug-assertions=false',
         '-Coverflow-checks=false',
     ] + shims.select({
