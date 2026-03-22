@@ -33,7 +33,6 @@ cedar-policy = "4.8.2"
 crossbeam-channel = "0.5.15"
 crossterm = "0.29.0"
 dashmap = "6.1.0"
-dial9-tokio-telemetry = { version = "0.2", features = ["cpu-profiling"] }
 dupe = "0.9.1"
 dupe_derive = "0.9.1"
 educe = "0.6.0"
@@ -119,6 +118,8 @@ watchman_client = "0.9.0"
 zstd = "0.13"
 
 ## Git repos come below
+
+dial9-tokio-telemetry = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "b94e87def29c0dd972bf71e19a28187bce13228c", features = ["cpu-profiling"] }
 
 # NOTE (jj): adjust fixups.toml too
 jj-lib = { git = "https://github.com/martinvonz/jj", rev = "0c24fce22b29732837a00acdb3d43c4a218ac1f1" }

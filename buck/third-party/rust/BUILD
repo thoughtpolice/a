@@ -7,6 +7,13 @@ load("@root//buck/shims:shims.bzl", "shims")
 # XXX: normal reindeer-generated code below
 
 shims.git_fetch(
+    name = "dial9-tokio-telemetry-43aa6b6c06fdd4e0.git",
+    repo = "https://github.com/dial9-rs/dial9-tokio-telemetry",
+    rev = "b94e87def29c0dd972bf71e19a28187bce13228c",
+    visibility = [],
+)
+
+shims.git_fetch(
     name = "jj-5d9a3f8a30f872ad.git",
     repo = "https://github.com/martinvonz/jj",
     rev = "0c24fce22b29732837a00acdb3d43c4a218ac1f1",
@@ -4179,19 +4186,11 @@ third_party_rust.rust_library(
     ],
 )
 
-shims.http_archive(
-    name = "dial9-perf-self-profile-0.2.0.crate",
-    sha256 = "70fb315fdebb7f7c00c358298b55e0541738ea1819c575d2f45696a568333642",
-    strip_prefix = "dial9-perf-self-profile-0.2.0",
-    urls = ["https://static.crates.io/crates/dial9-perf-self-profile/0.2.0/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "dial9-perf-self-profile-0.2.0",
-    srcs = [":dial9-perf-self-profile-0.2.0.crate"],
+    srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_perf_self_profile",
-    crate_root = "dial9-perf-self-profile-0.2.0.crate/src/lib.rs",
+    crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/perf-self-profile/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
@@ -4210,19 +4209,11 @@ shims.alias(
     visibility = ["PUBLIC"],
 )
 
-shims.http_archive(
-    name = "dial9-tokio-telemetry-0.2.0.crate",
-    sha256 = "0fab5b5b736126e4a4a3ed06e15389ac199c2ac4f72395197addb305e6ba1759",
-    strip_prefix = "dial9-tokio-telemetry-0.2.0",
-    urls = ["https://static.crates.io/crates/dial9-tokio-telemetry/0.2.0/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "dial9-tokio-telemetry-0.2.0",
-    srcs = [":dial9-tokio-telemetry-0.2.0.crate"],
+    srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_tokio_telemetry",
-    crate_root = "dial9-tokio-telemetry-0.2.0.crate/src/lib.rs",
+    crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-tokio-telemetry/src/lib.rs",
     edition = "2024",
     features = ["cpu-profiling"],
     visibility = [],
@@ -4248,19 +4239,11 @@ third_party_rust.rust_library(
     ],
 )
 
-shims.http_archive(
-    name = "dial9-trace-format-0.2.0.crate",
-    sha256 = "80e0ee560b05f09bf817602d57644947e31e83c521d4e0277f723a6e64d44f92",
-    strip_prefix = "dial9-trace-format-0.2.0",
-    urls = ["https://static.crates.io/crates/dial9-trace-format/0.2.0/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "dial9-trace-format-0.2.0",
-    srcs = [":dial9-trace-format-0.2.0.crate"],
+    srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_trace_format",
-    crate_root = "dial9-trace-format-0.2.0.crate/src/lib.rs",
+    crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-trace-format/src/lib.rs",
     edition = "2024",
     features = ["serde"],
     visibility = [],
@@ -4270,19 +4253,11 @@ third_party_rust.rust_library(
     ],
 )
 
-shims.http_archive(
-    name = "dial9-trace-format-derive-0.2.0.crate",
-    sha256 = "9dbbd8126d4d6613931317cfe2a7275c1cd487e41c961e42456ab5f956570030",
-    strip_prefix = "dial9-trace-format-derive-0.2.0",
-    urls = ["https://static.crates.io/crates/dial9-trace-format-derive/0.2.0/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "dial9-trace-format-derive-0.2.0",
-    srcs = [":dial9-trace-format-derive-0.2.0.crate"],
+    srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_trace_format_derive",
-    crate_root = "dial9-trace-format-derive-0.2.0.crate/src/lib.rs",
+    crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-trace-format-derive/src/lib.rs",
     edition = "2024",
     proc_macro = True,
     visibility = [],
