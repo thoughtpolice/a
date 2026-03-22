@@ -9804,6 +9804,12 @@ third_party_rust.rust_library(
     deps = [":typenum-1.19.0"],
 )
 
+shims.alias(
+    name = "hyper",
+    actual = ":hyper-1.8.1",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "hyper-1.8.1.crate",
     sha256 = "2ab2d4f250c3d7b1c9fcdff1cece94ea4e2dfbec68614f7b87cb205f24ca9d11",
