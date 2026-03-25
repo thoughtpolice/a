@@ -3,6 +3,7 @@
 
 [editor]
 soft-wrap.enable = true
+trim-trailing-whitespace = true
 
 [editor.inline-diagnostics]
 cursor-line = "warning"
