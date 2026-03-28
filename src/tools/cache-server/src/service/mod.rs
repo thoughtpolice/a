@@ -26,3 +26,6 @@ pub use operations::OperationsService;
 
 mod remote_asset;
 pub use remote_asset::{FetchService, PushService};
+
+#[cfg(test)]
+mod tests;
