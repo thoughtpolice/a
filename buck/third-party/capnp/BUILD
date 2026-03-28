@@ -10,7 +10,6 @@ SOURCE_FILES = [
     # kj: sources
     "c++/src/kj/arena.c++",
     "c++/src/kj/array.c++",
-    "c++/src/kj/cidr.c++",
     "c++/src/kj/common.c++",
     "c++/src/kj/debug.c++",
     "c++/src/kj/encoding.c++",
@@ -37,7 +36,6 @@ SOURCE_FILES = [
     # kj: headers
     "c++/src/kj/arena.h",
     "c++/src/kj/array.h",
-    "c++/src/kj/cidr.h",
     "c++/src/kj/common.h",
     "c++/src/kj/debug.h",
     "c++/src/kj/encoding.h",
@@ -77,6 +75,7 @@ SOURCE_FILES = [
     "c++/src/kj/async-io-win32.c++",
     "c++/src/kj/async-unix.c++",
     "c++/src/kj/async-win32.c++",
+    "c++/src/kj/cidr.c++",
     "c++/src/kj/timer.c++",
     # kj-async: headers
     "c++/src/kj/async.h",
@@ -87,6 +86,7 @@ SOURCE_FILES = [
     "c++/src/kj/async-queue.h",
     "c++/src/kj/async-unix.h",
     "c++/src/kj/async-win32.h",
+    "c++/src/kj/cidr.h",
     "c++/src/kj/timer.h",
     # capnp: sources
     "c++/src/capnp/any.c++",
@@ -156,11 +156,12 @@ SOURCE_FILES = [
     "c++/src/capnp/compiler/parser.h",
     "c++/src/capnp/compiler/resolver.h",
     "c++/src/capnp/compiler/type-id.h",
-    # capnp_tool: sources
+    # capnp compat: sources and headers
     "c++/src/capnp/compat/json.c++",
     "c++/src/capnp/compat/json.capnp.c++",
     "c++/src/capnp/compat/json.h",
     "c++/src/capnp/compat/json.capnp.h",
+    "c++/src/capnp/compat/std-iterator.h",
     "c++/src/capnp/compiler/capnp.c++",
     "c++/src/capnp/compiler/module-loader.c++",
 ]
@@ -176,8 +177,8 @@ SOURCE_FILES = [
         ],
         sha256 = sha256,
     ) for typ, sha256 in ({
-        'tar.gz': '3cfd0ed58080d78b3a3381305489f2175cdaf1ef1cb55425d8fc8246a76bdff3',
-        'zip': '3c9afa5dffa4d81a3cbd0581a15a5b1633feaf43093a3b108aded0f636622752',
+        'tar.gz': 'd14a9149b79c055fee9d5aa778defe8e8cee0d2a11f0729865cd30dcc345eef2',
+        'zip': '669d5dc0f95ec3280eaae2e7239a73211adb6cd3df1fcfe4882b2f97b917eb36',
     }).items()
 ]
 
@@ -199,7 +200,6 @@ shims.copy_files(
     srcs = {
         "kj/arena.c++": ":src[c++/src/kj/arena.c++]",
         "kj/array.c++": ":src[c++/src/kj/array.c++]",
-        "kj/cidr.c++": ":src[c++/src/kj/cidr.c++]",
         "kj/common.c++": ":src[c++/src/kj/common.c++]",
         "kj/debug.c++": ":src[c++/src/kj/debug.c++]",
         "kj/encoding.c++": ":src[c++/src/kj/encoding.c++]",
@@ -230,12 +230,12 @@ shims.copy_files(
         "kj/async-io-win32.c++": ":src[c++/src/kj/async-io-win32.c++]",
         "kj/async-unix.c++": ":src[c++/src/kj/async-unix.c++]",
         "kj/async-win32.c++": ":src[c++/src/kj/async-win32.c++]",
+        "kj/cidr.c++": ":src[c++/src/kj/cidr.c++]",
         "kj/timer.c++": ":src[c++/src/kj/timer.c++]",
 
         "kj/arena.h":     ":src[c++/src/kj/arena.h]",
         "kj/array.h":     ":src[c++/src/kj/array.h]",
         "kj/common.h":    ":src[c++/src/kj/common.h]",
-        "kj/cidr.h":      ":src[c++/src/kj/cidr.h]",
         "kj/debug.h":     ":src[c++/src/kj/debug.h]",
         "kj/encoding.h":  ":src[c++/src/kj/encoding.h]",
         "kj/list.h":      ":src[c++/src/kj/list.h]",
@@ -275,6 +275,7 @@ shims.copy_files(
         "kj/async-queue.h": ":src[c++/src/kj/async-queue.h]",
         "kj/async-unix.h": ":src[c++/src/kj/async-unix.h]",
         "kj/async-win32.h": ":src[c++/src/kj/async-win32.h]",
+        "kj/cidr.h": ":src[c++/src/kj/cidr.h]",
         "kj/timer.h": ":src[c++/src/kj/timer.h]",
     },
 )
@@ -314,7 +315,6 @@ shims.cxx_library(
     srcs = [
         ":kj-srcs[kj/arena.c++]",
         ":kj-srcs[kj/array.c++]",
-        ":kj-srcs[kj/cidr.c++]",
         ":kj-srcs[kj/common.c++]",
         ":kj-srcs[kj/debug.c++]",
         ":kj-srcs[kj/encoding.c++]",
@@ -368,6 +368,7 @@ shims.cxx_library(
         ":kj-srcs[kj/async-io-win32.c++]",
         ":kj-srcs[kj/async-unix.c++]",
         ":kj-srcs[kj/async-win32.c++]",
+        ":kj-srcs[kj/cidr.c++]",
         ":kj-srcs[kj/timer.c++]",
     ],
 
@@ -549,6 +550,7 @@ shims.copy_files(
         "capnp/compat/json.capnp.c++": ":src[c++/src/capnp/compat/json.capnp.c++]",
         "capnp/compat/json.h": ":src[c++/src/capnp/compat/json.h]",
         "capnp/compat/json.capnp.h": ":src[c++/src/capnp/compat/json.capnp.h]",
+        "capnp/compat/std-iterator.h": ":src[c++/src/capnp/compat/std-iterator.h]",
     },
 )
 
