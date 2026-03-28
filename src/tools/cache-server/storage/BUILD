@@ -28,6 +28,24 @@ depot.rust_library(
     visibility = ['//src/tools/cache-server/...'],
 )
 
+depot.export_file(
+    name = 'sha256tree-test-vectors',
+    src = 'testdata/sha256tree_test_vectors.txt',
+)
+
+depot.export_file(
+    name = 'fastcdc2020-test-vectors',
+    src = 'testdata/fastcdc2020_test_vectors.txt',
+)
+
+depot.http_file(
+    name = 'SekienAkashita.jpg',
+    sha256 = 'd9e749d9367fc908876749d6502eb212fee88c9a94892fb07da5ef3ba8bc39ed',
+    urls = [
+        'https://raw.githubusercontent.com/nlfiedler/fastcdc-rs/49c3d0b/test/fixtures/SekienAkashita.jpg',
+    ],
+)
+
 depot.rust_test(
     name = 'tests',
     srcs = glob(['*.rs']),
@@ -35,4 +53,9 @@ depot.rust_test(
     deps = DEPS + [
         'third-party//rust:buck-resources',
     ],
+    resources = {
+        'sha256tree_test_vectors': ':sha256tree-test-vectors',
+        'fastcdc2020_test_vectors': ':fastcdc2020-test-vectors',
+        'SekienAkashita.jpg': ':SekienAkashita.jpg',
+    },
 )
