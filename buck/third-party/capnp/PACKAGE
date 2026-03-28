@@ -4,7 +4,7 @@
 load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 
 pkg.info(
-    version="1.0.2",
+    version="1.4.0",
     description="""
         Cap'n Proto is an insanely fast data interchange format and
         capability-based RPC system.
@@ -16,6 +16,6 @@ pkg.info(
     visibility=[],
     osv_info=OsvGitRepoInfo(
         url="https://github.com/capnproto/capnproto",
-        commit="1a0e12c0a3ba1f0dbbad45ddfef555166e0a14fc",
+        commit="8b892a8a11a632f5d52b877a49728808a142379a",
     ),
 )
