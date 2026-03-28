@@ -11,6 +11,10 @@ BUILD_DEPS = [
     ':storage',
     ':telemetry',
     # crates.io
+    'third-party//rust:bytes',
+    'third-party//rust:futures',
+    'third-party//rust:hex',
+    'third-party//rust:sha2',
     'third-party//rust:anyhow',
     'third-party//rust:clap',
     'third-party//rust:console-subscriber',

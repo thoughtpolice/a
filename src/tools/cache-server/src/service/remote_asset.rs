@@ -14,7 +14,7 @@ pub struct FetchService {}
 
 #[tonic::async_trait]
 impl fetch_server::Fetch for FetchService {
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, _req))]
     async fn fetch_blob(
         &self,
         _req: tonic::Request<FetchBlobRequest>,
@@ -24,7 +24,7 @@ impl fetch_server::Fetch for FetchService {
         ))
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, _req))]
     async fn fetch_directory(
         &self,
         _req: tonic::Request<FetchDirectoryRequest>,
@@ -42,7 +42,7 @@ pub struct PushService {}
 
 #[tonic::async_trait]
 impl push_server::Push for PushService {
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, _req))]
     async fn push_blob(
         &self,
         _req: tonic::Request<PushBlobRequest>,
@@ -50,7 +50,7 @@ impl push_server::Push for PushService {
         Err(tonic::Status::unimplemented("push_blob is not implemented"))
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, _req))]
     async fn push_directory(
         &self,
         _req: tonic::Request<PushDirectoryRequest>,
