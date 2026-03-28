@@ -75,6 +75,10 @@ struct Cli {
     /// Sampling ratio (0.0-1.0). Omit for always_on.
     #[arg(long, env = "CACHE_SERVER_OTEL_SAMPLING_RATIO")]
     otel_sampling_ratio: Option<f64>,
+
+    /// Default TTL for cache entries in days (0 = no expiry).
+    #[arg(long, default_value_t = 30, env = "CACHE_SERVER_DEFAULT_TTL_DAYS")]
+    default_ttl_days: u32,
 }
 
 #[tokio::main]
@@ -126,7 +130,17 @@ async fn main() -> Result<()> {
         );
     };
 
-    let cache_store = store::CacheStore::open(backend)
+    let store_settings = store::CacheStoreSettings {
+        default_ttl: if cli.default_ttl_days == 0 {
+            None
+        } else {
+            Some(jiff::SignedDuration::from_hours(
+                i64::from(cli.default_ttl_days) * 24,
+            ))
+        },
+    };
+
+    let cache_store = store::CacheStore::open(backend, store_settings)
         .await
         .with_context(|| format!("failed to open cache store (backend: {:?})", cli.store))?;
     let cache_store = Arc::new(cache_store);
@@ -158,6 +172,7 @@ async fn main() -> Result<()> {
     tracing::info!(
         %address,
         store = %cli.store,
+        default_ttl_days = cli.default_ttl_days,
         version = option_env!("depot_VERSION").unwrap_or("dev"),
         otel = otel_config.enabled,
         request_timeout_secs = cli.request_timeout,

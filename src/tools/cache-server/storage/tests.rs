@@ -7,7 +7,9 @@ use sha2::{Digest as _, Sha256};
 
 /// Helper: open an in-memory CacheStore for testing.
 async fn open_memory_store() -> CacheStore {
-    CacheStore::open(StoreBackend::Memory).await.unwrap()
+    CacheStore::open(StoreBackend::Memory, CacheStoreSettings::default())
+        .await
+        .unwrap()
 }
 
 /// Helper: SHA-256 hash of data.

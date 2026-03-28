@@ -14,6 +14,7 @@ BUILD_DEPS = [
     'third-party//rust:bytes',
     'third-party//rust:futures',
     'third-party//rust:hex',
+    'third-party//rust:jiff',
     'third-party//rust:sha2',
     'third-party//rust:anyhow',
     'third-party//rust:clap',

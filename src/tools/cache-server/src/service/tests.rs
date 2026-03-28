@@ -14,7 +14,9 @@ use protos::build::bazel::remote::execution::v2::{
 };
 use protos::google::bytestream::{ReadRequest, WriteRequest, byte_stream_server::ByteStream};
 
-use crate::store::{CacheStore, Compression, ContentDigest, DigestFn, StoreBackend};
+use crate::store::{
+    CacheStore, CacheStoreSettings, Compression, ContentDigest, DigestFn, StoreBackend,
+};
 
 use super::action_cache::ActionCacheService;
 use super::bytestream::ByteStreamService;
@@ -43,7 +45,11 @@ fn make_digest(data: &[u8]) -> Digest {
 
 async fn make_store() -> Arc<CacheStore> {
     ensure_telemetry();
-    Arc::new(CacheStore::open(StoreBackend::Memory).await.unwrap())
+    Arc::new(
+        CacheStore::open(StoreBackend::Memory, CacheStoreSettings::default())
+            .await
+            .unwrap(),
+    )
 }
 
 fn make_cas(store: Arc<CacheStore>) -> ContentAddressableStorageService {
