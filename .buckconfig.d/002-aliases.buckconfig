@@ -1,3 +1,4 @@
 [alias]
 tdutil = root//buck/tools/tdutil:tdutil
 omnifix = root//src/tools/omnifix:omnifix
+cache-server = root//src/tools/cache-server:cache-server
