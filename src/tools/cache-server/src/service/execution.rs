@@ -19,7 +19,7 @@ pub struct ExecutionService {}
 impl execution_server::Execution for ExecutionService {
     type ExecuteStream = ReceiverStream<Result<longrunning::Operation, tonic::Status>>;
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, _req))]
     async fn execute(
         &self,
         _req: tonic::Request<ExecuteRequest>,
@@ -29,7 +29,7 @@ impl execution_server::Execution for ExecutionService {
 
     type WaitExecutionStream = ReceiverStream<Result<longrunning::Operation, tonic::Status>>;
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, _req))]
     async fn wait_execution(
         &self,
         _req: tonic::Request<WaitExecutionRequest>,

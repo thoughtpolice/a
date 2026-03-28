@@ -15,7 +15,7 @@ pub struct OperationsService {}
 
 #[tonic::async_trait]
 impl operations_server::Operations for OperationsService {
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, _req))]
     async fn list_operations(
         &self,
         _req: tonic::Request<ListOperationsRequest>,
@@ -25,7 +25,7 @@ impl operations_server::Operations for OperationsService {
         ))
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, _req))]
     async fn get_operation(
         &self,
         _req: tonic::Request<GetOperationRequest>,
@@ -35,7 +35,7 @@ impl operations_server::Operations for OperationsService {
         ))
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, _req))]
     async fn delete_operation(
         &self,
         _req: tonic::Request<DeleteOperationRequest>,
@@ -45,7 +45,7 @@ impl operations_server::Operations for OperationsService {
         ))
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, _req))]
     async fn cancel_operation(
         &self,
         _req: tonic::Request<CancelOperationRequest>,
@@ -55,7 +55,7 @@ impl operations_server::Operations for OperationsService {
         ))
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, _req))]
     async fn wait_operation(
         &self,
         _req: tonic::Request<WaitOperationRequest>,

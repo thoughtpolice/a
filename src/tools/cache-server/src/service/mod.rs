@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+pub(crate) mod helpers;
+
 mod action_cache;
 pub use action_cache::ActionCacheService;
 

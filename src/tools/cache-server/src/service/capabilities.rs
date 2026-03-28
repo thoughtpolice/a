@@ -4,7 +4,9 @@
 use tonic;
 
 use protos::build::bazel::remote::execution::v2::{
-    CacheCapabilities, ExecutionCapabilities, FastCdc2020Params, digest_function::Value::Sha256,
+    CacheCapabilities, ExecutionCapabilities, FastCdc2020Params,
+    compressor::Value::Zstd,
+    digest_function::Value::{Blake3, Sha256, Sha256tree},
     symlink_absolute_path_strategy::Value::Allowed,
 };
 
@@ -21,12 +23,12 @@ pub struct CapabilitiesService {}
 
 #[tonic::async_trait]
 impl capabilities_server::Capabilities for CapabilitiesService {
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, _request))]
     async fn get_capabilities(
         &self,
         _request: tonic::Request<GetCapabilitiesRequest>,
     ) -> Result<tonic::Response<ServerCapabilities>, tonic::Status> {
-        let digests = vec![Sha256.into()];
+        let digests = vec![Sha256.into(), Blake3.into(), Sha256tree.into()];
 
         let only_version = SemVer {
             major: 2,
@@ -43,9 +45,9 @@ impl capabilities_server::Capabilities for CapabilitiesService {
             cache_priority_capabilities: None,
             max_batch_total_size_bytes: 4000000,
             symlink_absolute_path_strategy: Allowed.into(),
-            supported_batch_update_compressors: vec![],
-            supported_compressors: vec![],
-            max_cas_blob_size_bytes: 0,
+            supported_batch_update_compressors: vec![Zstd.into()],
+            supported_compressors: vec![Zstd.into()],
+            max_cas_blob_size_bytes: crate::store::MAX_BLOB_REASSEMBLE_SIZE as i64,
             split_blob_support: true,
             splice_blob_support: true,
             fast_cdc_2020_params: Some(FastCdc2020Params {

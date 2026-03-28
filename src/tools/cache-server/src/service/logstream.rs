@@ -12,7 +12,7 @@ pub struct LogStreamSvc {}
 
 #[tonic::async_trait]
 impl log_stream_service_server::LogStreamService for LogStreamSvc {
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, _req))]
     async fn create_log_stream(
         &self,
         _req: tonic::Request<CreateLogStreamRequest>,
