@@ -9,6 +9,7 @@ BUILD_DEPS = [
     # local deps
     ':protos',
     ':storage',
+    ':telemetry',
     # crates.io
     'third-party//rust:anyhow',
     'third-party//rust:clap',
@@ -43,5 +44,12 @@ depot.alias(
 depot.alias(
     name = 'storage',
     actual = '//src/tools/cache-server/storage:storage',
+    visibility = [],
+)
+
+# Telemetry library is in telemetry/BUILD
+depot.alias(
+    name = 'telemetry',
+    actual = '//src/tools/cache-server/telemetry:telemetry',
     visibility = [],
 )
