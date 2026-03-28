@@ -67,7 +67,7 @@ pub async fn start_reapi_grpc(
     let execution_service = service::ExecutionService::default();
     let capabilities_service = service::CapabilitiesService::default();
     let operations_service = service::OperationsService::default();
-    let fetch_service = service::FetchService::new(store.clone());
+    let fetch_service = service::FetchService::new(store.clone(), handle.clone());
     let push_service = service::PushService::new(store.clone());
     let logstream_service = service::LogStreamSvc::default();
     let reflection_service = tonic_reflection::server::Builder::configure()

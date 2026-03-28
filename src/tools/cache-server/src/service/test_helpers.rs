@@ -96,7 +96,7 @@ pub fn make_data(size: usize) -> Vec<u8> {
 }
 
 pub fn make_fetch(store: Arc<CacheStore>) -> super::remote_asset::FetchService {
-    super::remote_asset::FetchService::new(store)
+    super::remote_asset::FetchService::new(store, test_handle())
 }
 
 pub fn make_push(store: Arc<CacheStore>) -> super::remote_asset::PushService {
