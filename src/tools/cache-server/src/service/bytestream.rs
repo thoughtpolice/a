@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 
+use dial9_tokio_telemetry::telemetry::TelemetryHandle;
 use futures::StreamExt as _;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -21,14 +22,23 @@ const READ_CHUNK_SIZE: usize = 2 * 1024 * 1024; // 2 MiB
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ByteStreamService {
     store: Arc<CacheStore>,
+    handle: TelemetryHandle,
+}
+
+impl std::fmt::Debug for ByteStreamService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ByteStreamService")
+            .field("store", &self.store)
+            .finish_non_exhaustive()
+    }
 }
 
 impl ByteStreamService {
-    pub fn new(store: Arc<CacheStore>) -> Self {
-        Self { store }
+    pub fn new(store: Arc<CacheStore>, handle: TelemetryHandle) -> Self {
+        Self { store, handle }
     }
 
     /// Process a sequence of write messages and store the resulting blob.
@@ -192,6 +202,7 @@ impl byte_stream_server::ByteStream for ByteStreamService {
         req: tonic::Request<ReadRequest>,
     ) -> Result<tonic::Response<Self::ReadStream>, tonic::Status> {
         let store = self.store.clone();
+        let handle = self.handle.clone();
         instrumented_rpc("bytestream.read", async move {
             let inner = req.into_inner();
             let parsed = parse_read_resource_name(&inner.resource_name)?;
@@ -266,7 +277,7 @@ impl byte_stream_server::ByteStream for ByteStreamService {
             let compressor = parsed.compressor;
             let (tx, rx) = tokio::sync::mpsc::channel(32);
 
-            tokio::spawn(async move {
+            handle.spawn(async move {
                 let m = telemetry::metrics();
                 let svc_attr = telemetry::KeyValue::new("service", "bytestream");
 
