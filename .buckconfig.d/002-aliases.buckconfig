@@ -2,3 +2,4 @@
 tdutil = root//buck/tools/tdutil:tdutil
 omnifix = root//src/tools/omnifix:omnifix
 fozzie = root//src/fozzie:fozzie
+cache-server = root//src/tools/cache-server:cache-server
