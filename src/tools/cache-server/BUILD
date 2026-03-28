@@ -43,9 +43,29 @@ depot.rust_binary(
     visibility = [ 'PUBLIC' ],
 )
 
+TEST_MODULES = {
+    'cas': {},
+    'split_splice': {},
+    'action_cache': {},
+    'bytestream': {},
+    'resource_names': {},
+    'remote_asset': {},
+}
+
+# Per-module test targets
+[depot.rust_test(
+    name = 'tests-' + name,
+    srcs = glob(['src/**/*.rs']),
+    crate_root = 'src/main.rs',
+    deps = BUILD_DEPS,
+    rustc_flags = ['--cfg=test_module_' + name],
+) for name, _ in TEST_MODULES.items()]
+
+# All-in-one target
 depot.rust_test(
     name = 'tests',
     srcs = glob(['src/**/*.rs']),
     crate_root = 'src/main.rs',
     deps = BUILD_DEPS,
+    rustc_flags = ['--cfg=test_module_' + name for name in TEST_MODULES],
 )
