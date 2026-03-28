@@ -22,6 +22,8 @@ pub async fn start_reapi_grpc(
     address: SocketAddr,
     shutdown: impl Future<Output = ()> + Send + 'static,
     store: Arc<CacheStore>,
+    request_timeout: Option<Duration>,
+    max_concurrent_requests: Option<usize>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::service;
 
@@ -66,7 +68,7 @@ pub async fn start_reapi_grpc(
         .build_v1()
         .unwrap();
 
-    tonic::transport::Server::builder()
+    let mut server = tonic::transport::Server::builder()
         .initial_connection_window_size(16 * 1024 * 1024) // 16 MiB
         .initial_stream_window_size(8 * 1024 * 1024) // 8 MiB
         .http2_adaptive_window(Some(true))
@@ -75,7 +77,15 @@ pub async fn start_reapi_grpc(
         .tcp_keepalive(Some(std::time::Duration::from_secs(60)))
         .http2_keepalive_interval(Some(std::time::Duration::from_secs(30)))
         .http2_keepalive_timeout(Some(std::time::Duration::from_secs(10)))
-        .concurrency_limit_per_connection(256)
+        .concurrency_limit_per_connection(256);
+
+    if let Some(timeout) = request_timeout {
+        server = server.timeout(timeout);
+    }
+
+    let effective_limit = max_concurrent_requests.unwrap_or(8192);
+    server
+        .layer(tower::limit::ConcurrencyLimitLayer::new(effective_limit))
         .add_service(CapabilitiesServer::new(capabilities_service))
         .add_service(ContentAddressableStorageServer::new(cas_service))
         .add_service(ActionCacheServer::new(action_cache_service))

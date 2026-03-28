@@ -23,6 +23,7 @@ BUILD_DEPS = [
     'third-party//rust:tokio',
     'third-party//rust:tokio-stream',
     'third-party//rust:tonic',
+    'third-party//rust:tower',
     'third-party//rust:tonic-prost',
     'third-party//rust:tonic-health',
     'third-party//rust:tonic-reflection',
