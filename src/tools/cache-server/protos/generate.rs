@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tonic_prost_build::configure()
         .build_server(true)
-        .build_client(false)
+        .build_client(true)
         .bytes(".")
         .out_dir(out_dir.clone())
         .file_descriptor_set_path(out_dir.join("reapi_descriptor.bin"))
