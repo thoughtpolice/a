@@ -37,6 +37,13 @@ depot.rust_binary(
     visibility = [ 'PUBLIC' ],
 )
 
+depot.rust_test(
+    name = 'tests',
+    srcs = glob(['src/**/*.rs']),
+    crate_root = 'src/main.rs',
+    deps = BUILD_DEPS,
+)
+
 # Protos library is now in protos/BUILD
 depot.alias(
     name = 'protos',
