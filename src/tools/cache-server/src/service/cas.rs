@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
+use dial9_tokio_telemetry::telemetry::TelemetryHandle;
 use futures::{StreamExt as _, TryStreamExt as _};
 use prost::Message;
 use tokio_stream::wrappers::ReceiverStream;
@@ -30,14 +31,23 @@ const MAX_BATCH_DIGESTS: usize = 10_000;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ContentAddressableStorageService {
     store: Arc<CacheStore>,
+    handle: TelemetryHandle,
+}
+
+impl std::fmt::Debug for ContentAddressableStorageService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ContentAddressableStorageService")
+            .field("store", &self.store)
+            .finish_non_exhaustive()
+    }
 }
 
 impl ContentAddressableStorageService {
-    pub fn new(store: Arc<CacheStore>) -> Self {
-        Self { store }
+    pub fn new(store: Arc<CacheStore>, handle: TelemetryHandle) -> Self {
+        Self { store, handle }
     }
 }
 
@@ -397,6 +407,7 @@ impl content_addressable_storage_server::ContentAddressableStorage
         req: tonic::Request<GetTreeRequest>,
     ) -> Result<tonic::Response<Self::GetTreeStream>, tonic::Status> {
         let store = self.store.clone();
+        let handle = self.handle.clone();
         instrumented_rpc("cas.get_tree", async move {
             let inner = req.into_inner();
             let digest_fn = resolve_digest_function(inner.digest_function)?;
@@ -421,7 +432,7 @@ impl content_addressable_storage_server::ContentAddressableStorage
             // Stream directories as they are decoded instead of
             // accumulating them all in memory first.
             let (tx, rx) = tokio::sync::mpsc::channel(32);
-            tokio::spawn(async move {
+            handle.spawn(async move {
                 let mut queue = std::collections::VecDeque::new();
                 let mut visited = std::collections::HashSet::new();
                 queue.push_back(root_cd.clone());

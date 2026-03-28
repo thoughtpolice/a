@@ -7,6 +7,7 @@ BUILD_DEPS = [
     # 3p deps
     'third-party//mimalloc:rust',
     # local deps
+    '//src/tools/cache-server/dial9-tonic:dial9-tonic',
     '//src/tools/cache-server/protos:protos',
     '//src/tools/cache-server/storage:storage',
     '//src/tools/cache-server/telemetry:telemetry',
@@ -18,6 +19,7 @@ BUILD_DEPS = [
     'third-party//rust:sha2',
     'third-party//rust:anyhow',
     'third-party//rust:clap',
+    'third-party//rust:dial9-tokio-telemetry',
     'third-party//rust:console-subscriber',
     'third-party//rust:prost',
     'third-party//rust:prost-types',
@@ -25,6 +27,8 @@ BUILD_DEPS = [
     'third-party//rust:tokio-stream',
     'third-party//rust:tonic',
     'third-party//rust:tower',
+    'third-party//rust:hyper',
+    'third-party//rust:hyper-util',
     'third-party//rust:tonic-prost',
     'third-party//rust:tonic-health',
     'third-party//rust:tonic-reflection',

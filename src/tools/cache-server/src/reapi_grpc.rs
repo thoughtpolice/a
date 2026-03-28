@@ -3,6 +3,8 @@
 
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 
+use dial9_tokio_telemetry::telemetry::TelemetryHandle;
+
 use crate::store::CacheStore;
 
 use protos::google::bytestream::byte_stream_server::ByteStreamServer;
@@ -24,6 +26,7 @@ pub async fn start_reapi_grpc(
     store: Arc<CacheStore>,
     request_timeout: Option<Duration>,
     max_concurrent_requests: Option<usize>,
+    handle: TelemetryHandle,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::service;
 
@@ -53,9 +56,9 @@ pub async fn start_reapi_grpc(
         .set_serving::<LogStreamServiceServer<service::LogStreamSvc>>()
         .await;
 
-    let cas_service = service::ContentAddressableStorageService::new(store.clone());
+    let cas_service = service::ContentAddressableStorageService::new(store.clone(), handle.clone());
     let action_cache_service = service::ActionCacheService::new(store.clone());
-    let bytestream_service = service::ByteStreamService::new(store.clone());
+    let bytestream_service = service::ByteStreamService::new(store.clone(), handle.clone());
     let execution_service = service::ExecutionService::default();
     let capabilities_service = service::CapabilitiesService::default();
     let operations_service = service::OperationsService::default();
@@ -68,25 +71,9 @@ pub async fn start_reapi_grpc(
         .build_v1()
         .unwrap();
 
-    let mut server = tonic::transport::Server::builder()
-        .initial_connection_window_size(16 * 1024 * 1024) // 16 MiB
-        .initial_stream_window_size(8 * 1024 * 1024) // 8 MiB
-        .http2_adaptive_window(Some(true))
-        .max_frame_size(Some(1024 * 1024)) // 1 MiB (default 16 KiB)
-        .tcp_nodelay(true)
-        .tcp_keepalive(Some(std::time::Duration::from_secs(60)))
-        .http2_keepalive_interval(Some(std::time::Duration::from_secs(30)))
-        .http2_keepalive_timeout(Some(std::time::Duration::from_secs(10)))
-        .concurrency_limit_per_connection(256);
-
-    if let Some(timeout) = request_timeout {
-        server = server.timeout(timeout);
-    }
-
-    let effective_limit = max_concurrent_requests.unwrap_or(8192);
-    server
-        .layer(tower::limit::ConcurrencyLimitLayer::new(effective_limit))
-        .add_service(CapabilitiesServer::new(capabilities_service))
+    // Build routes using tonic::service::Routes directly — we bypass tonic's
+    // transport layer so we can run our own traced accept loop.
+    let routes = tonic::service::Routes::new(CapabilitiesServer::new(capabilities_service))
         .add_service(ContentAddressableStorageServer::new(cas_service))
         .add_service(ActionCacheServer::new(action_cache_service))
         .add_service(ExecutionServer::new(execution_service))
@@ -97,7 +84,22 @@ pub async fn start_reapi_grpc(
         .add_service(LogStreamServiceServer::new(logstream_service))
         .add_service(health_service)
         .add_service(reflection_service)
-        .serve_with_shutdown(address, shutdown)
-        .await?;
-    Ok(())
+        .prepare();
+
+    let effective_limit = max_concurrent_requests.unwrap_or(8192);
+
+    let listener = tokio::net::TcpListener::bind(address).await?;
+
+    // Apply global concurrency limit, then optionally a per-request timeout.
+    // The two branches avoid complex type-erasure; serve_traced is generic.
+    if let Some(timeout) = request_timeout {
+        let svc = tower::limit::ConcurrencyLimit::new(
+            tower::timeout::Timeout::new(routes, timeout),
+            effective_limit,
+        );
+        dial9_tonic::serve_traced(listener, svc, handle, shutdown).await
+    } else {
+        let svc = tower::limit::ConcurrencyLimit::new(routes, effective_limit);
+        dial9_tonic::serve_traced(listener, svc, handle, shutdown).await
+    }
 }

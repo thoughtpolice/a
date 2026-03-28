@@ -14,6 +14,8 @@ use protos::build::bazel::remote::execution::v2::{
 };
 use protos::google::bytestream::{ReadRequest, WriteRequest, byte_stream_server::ByteStream};
 
+use dial9_tokio_telemetry::telemetry::{TelemetryHandle, TracedRuntime};
+
 use crate::store::{
     CacheStore, CacheStoreSettings, Compression, ContentDigest, DigestFn, StoreBackend,
 };
@@ -30,6 +32,20 @@ fn ensure_telemetry() {
     INIT_TELEMETRY.call_once(|| {
         telemetry::init_metrics(&telemetry::OtelConfig::default()).unwrap();
     });
+}
+
+fn test_handle() -> TelemetryHandle {
+    static HANDLE: std::sync::LazyLock<TelemetryHandle> = std::sync::LazyLock::new(|| {
+        let mut b = tokio::runtime::Builder::new_current_thread();
+        b.enable_all();
+        // Leak the runtime + guard so they live for the process lifetime.
+        let (rt, guard) = TracedRuntime::build_disabled(b).unwrap();
+        let handle = guard.handle();
+        std::mem::forget(rt);
+        std::mem::forget(guard);
+        handle
+    });
+    HANDLE.clone()
 }
 
 fn sha256(data: &[u8]) -> [u8; 32] {
@@ -53,7 +69,7 @@ async fn make_store() -> Arc<CacheStore> {
 }
 
 fn make_cas(store: Arc<CacheStore>) -> ContentAddressableStorageService {
-    ContentAddressableStorageService::new(store)
+    ContentAddressableStorageService::new(store, test_handle())
 }
 
 fn make_ac(store: Arc<CacheStore>) -> ActionCacheService {
@@ -61,7 +77,7 @@ fn make_ac(store: Arc<CacheStore>) -> ActionCacheService {
 }
 
 fn make_bs(store: Arc<CacheStore>) -> ByteStreamService {
-    ByteStreamService::new(store)
+    ByteStreamService::new(store, test_handle())
 }
 
 // =================================================================================================================
