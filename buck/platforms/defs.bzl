@@ -32,6 +32,12 @@ def _execution_platform_impl(ctx: AnalysisContext) -> list[Provider]:
     # Whether to use Windows path separators in command line arguments
     cec_args["use_windows_path_separators"] = ctx.attrs.os == "windows"
 
+    # EXPERIMENTAL(aseipp): enable sandboxing of local actions for this executor
+    # if asked. 'symlink' or 'landlock'. linux only right now.
+    sandbox_choice = read_root_config("buck2", "local_sandbox_mode", "disabled")
+    if sandbox_choice != "disabled":
+        cec_args["local_sandbox_mode"] = sandbox_choice
+
     if cache_enabled:
         # Use and query the RE cache
         cec_args["remote_cache_enabled"] = True
