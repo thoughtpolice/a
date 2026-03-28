@@ -13,6 +13,7 @@ DEPS = [
     'third-party//rust:futures',
     'third-party//rust:flate2',
     'third-party//rust:hex',
+    'third-party//rust:jiff',
     'third-party//rust:sha2',
     'third-party//rust:slatedb',
     'third-party//rust:thiserror',
