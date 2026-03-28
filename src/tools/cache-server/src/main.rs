@@ -36,24 +36,53 @@ struct Cli {
     /// `tracing` filter for the console logs.
     #[arg(long, default_value = "info")]
     console_log: String,
+
+    // --- OTEL options ---
+    /// Enable OpenTelemetry export (also enabled if OTEL_EXPORTER_OTLP_ENDPOINT is set)
+    #[arg(long)]
+    otel_enabled: bool,
+
+    /// OTLP endpoint (e.g., "http://localhost:4317")
+    #[arg(long, env = "OTEL_EXPORTER_OTLP_ENDPOINT")]
+    otel_endpoint: Option<String>,
+
+    /// Service name for OTEL resource
+    #[arg(long, default_value = "buck2-cache-server")]
+    otel_service_name: String,
+
+    /// Sampling ratio (0.0-1.0). Omit for always_on.
+    #[arg(long)]
+    otel_sampling_ratio: Option<f64>,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    // Build OTEL config from env + CLI
+    let otel_config = telemetry::OtelConfig::from_env().with_cli_overrides(
+        if cli.otel_enabled { Some(true) } else { None },
+        cli.otel_endpoint.clone(),
+        Some(cli.otel_service_name.clone()),
+        cli.otel_sampling_ratio,
+    );
+
     let tokio_console_layer = if cli.tokio_console {
         Some(console_subscriber::spawn())
     } else {
         None
     };
-    let cli_console_layer = tracing_subscriber::fmt::layer()
-        .with_filter(filter::LevelFilter::from_str(cli.console_log.as_str()).unwrap());
+    let cli_console_layer = tracing_subscriber::fmt::layer().with_filter(
+        filter::LevelFilter::from_str(cli.console_log.as_str())
+            .context("invalid console_log filter")?,
+    );
+
+    let otel_layer = telemetry::init_otel_layer(&otel_config)?;
 
     tracing_subscriber::registry()
         .with(tokio_console_layer)
         .with(cli_console_layer)
-        //  .with(..potential additional layer..)
+        .with(otel_layer)
         .init();
 
     let backend = if cli.store == "memory" {
@@ -78,6 +107,16 @@ async fn main() -> Result<()> {
             cli.address,
         )
     })?;
+
+    telemetry::init_metrics(&otel_config)?;
+    if otel_config.enabled {
+        tracing::info!(
+            endpoint = ?otel_config.endpoint,
+            service_name = %otel_config.service_name,
+            sampling = ?otel_config.sampling_ratio,
+            "OpenTelemetry export enabled"
+        );
+    }
 
     tracing::info!(
         %address,
@@ -118,6 +157,7 @@ async fn main() -> Result<()> {
         .close()
         .await
         .context("failed to close cache store")?;
+    telemetry::shutdown_otel();
     result.map_err(|e| anyhow::anyhow!("{}", e))
 }
 
