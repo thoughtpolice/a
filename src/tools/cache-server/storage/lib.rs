@@ -837,4 +837,23 @@ fn asset_key(digest_fn: DigestFn, uri: &str, qualifiers: &[(String, String)]) ->
 }
 
 #[cfg(test)]
-mod tests;
+mod test_helpers;
+
+#[cfg(test_module_action_cache)]
+mod test_action_cache;
+#[cfg(test_module_asset)]
+mod test_asset;
+#[cfg(test_module_cas)]
+mod test_cas;
+#[cfg(test_module_chunking)]
+mod test_chunking;
+#[cfg(test_module_compression)]
+mod test_compression;
+#[cfg(test_module_concurrency)]
+mod test_concurrency;
+#[cfg(test_module_hashing)]
+mod test_hashing;
+#[cfg(test_module_manifest)]
+mod test_manifest;
+#[cfg(test_module_streaming)]
+mod test_streaming;

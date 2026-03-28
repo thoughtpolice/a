@@ -47,16 +47,49 @@ depot.http_file(
     ],
 )
 
+TEST_MODULES = {
+    'hashing': {},
+    'compression': {},
+    'manifest': {},
+    'cas': {},
+    'chunking': {
+        'resources': {
+            'fastcdc2020_test_vectors': ':fastcdc2020-test-vectors',
+            'SekienAkashita.jpg': ':SekienAkashita.jpg',
+        },
+    },
+    'streaming': {},
+    'concurrency': {},
+    'action_cache': {},
+    'asset': {},
+}
+
+ALL_TEST_RESOURCES = {
+    'sha256tree_test_vectors': ':sha256tree-test-vectors',
+    'fastcdc2020_test_vectors': ':fastcdc2020-test-vectors',
+    'SekienAkashita.jpg': ':SekienAkashita.jpg',
+}
+
+TEST_DEPS = DEPS + [
+    'third-party//rust:buck-resources',
+]
+
+# Per-module test targets
+[depot.rust_test(
+    name = 'tests-' + name,
+    srcs = glob(['*.rs']),
+    crate_root = 'lib.rs',
+    deps = TEST_DEPS,
+    rustc_flags = ['--cfg=test_module_' + name],
+    resources = {'sha256tree_test_vectors': ':sha256tree-test-vectors'} | config.get('resources', {}),
+) for name, config in TEST_MODULES.items()]
+
+# All-in-one target
 depot.rust_test(
     name = 'tests',
     srcs = glob(['*.rs']),
     crate_root = 'lib.rs',
-    deps = DEPS + [
-        'third-party//rust:buck-resources',
-    ],
-    resources = {
-        'sha256tree_test_vectors': ':sha256tree-test-vectors',
-        'fastcdc2020_test_vectors': ':fastcdc2020-test-vectors',
-        'SekienAkashita.jpg': ':SekienAkashita.jpg',
-    },
+    deps = TEST_DEPS,
+    rustc_flags = ['--cfg=test_module_' + name for name in TEST_MODULES],
+    resources = ALL_TEST_RESOURCES,
 )
