@@ -94,24 +94,24 @@ syn = { version = "2.0.110", features = ["full"] }
 tar = "0.4"
 tempfile = "3.20.0"
 thiserror = "2.0.12"
-tower = { version = "0.5", features = ["util", "limit"] }
-tracing = "0.1.41"
-tracing-subscriber = "0.3.19"
+tonic = "0.14.2"
+tonic-build = "0.14.2"
+tonic-health = "0.14.2"
 tonic-prost-build = "0.14.2"
 tonic-prost = "0.14.2"
-tokio-util = { version = "0.7.15", features = ["compat"] }
-tokio-openssl = "0.6.5"
-tokio-stream = "0.1.17"
+tonic-reflection = "0.14.2"
 tokio = { version = "1.50", features = [
     "full",
     "tracing",
     "macros",
     "rt-multi-thread",
 ]}
-tonic = "0.14.2"
-tonic-build = "0.14.2"
-tonic-reflection = "0.14.2"
-tonic-health = "0.14.2"
+tokio-openssl = "0.6.5"
+tokio-stream = "0.1.17"
+tokio-util = { version = "0.7.15", features = ["compat"] }
+tower = { version = "0.5", features = ["util", "limit"] }
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
 unicode-width = "0.2.2"
 uuid = { version = "1.17.0", features = ["v4"] }
 watchman_client = "0.9.0"
