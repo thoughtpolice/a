@@ -7,9 +7,9 @@ BUILD_DEPS = [
     # 3p deps
     'third-party//mimalloc:rust',
     # local deps
-    ':protos',
-    ':storage',
-    ':telemetry',
+    '//src/tools/cache-server/protos:protos',
+    '//src/tools/cache-server/storage:storage',
+    '//src/tools/cache-server/telemetry:telemetry',
     # crates.io
     'third-party//rust:bytes',
     'third-party//rust:futures',
@@ -44,25 +44,4 @@ depot.rust_test(
     srcs = glob(['src/**/*.rs']),
     crate_root = 'src/main.rs',
     deps = BUILD_DEPS,
-)
-
-# Protos library is now in protos/BUILD
-depot.alias(
-    name = 'protos',
-    actual = '//src/tools/cache-server/protos:protos',
-    visibility = [],
-)
-
-# Storage library is in storage/BUILD
-depot.alias(
-    name = 'storage',
-    actual = '//src/tools/cache-server/storage:storage',
-    visibility = [],
-)
-
-# Telemetry library is in telemetry/BUILD
-depot.alias(
-    name = 'telemetry',
-    actual = '//src/tools/cache-server/telemetry:telemetry',
-    visibility = [],
 )
