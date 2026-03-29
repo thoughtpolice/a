@@ -6,7 +6,7 @@
 use std::{path::PathBuf, str::FromStr, sync::Arc};
 
 use anyhow::{Context, Result};
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use dial9_tokio_telemetry::telemetry::{
     CpuProfilingConfig, RotatingWriter, SchedEventConfig, TelemetryHandle, TracedRuntime,
 };
@@ -24,6 +24,67 @@ static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
     version = option_env!("depot_VERSION").unwrap_or("dev")
 )]
 struct Cli {
+    /// Storage backend: "memory", "file:///path/to/dir", or a bare path
+    #[arg(
+        long,
+        default_value = "memory",
+        env = "CACHE_SERVER_STORE",
+        global = true
+    )]
+    store: String,
+
+    /// `tracing` filter for the console logs.
+    #[arg(long, default_value = "info", env = "CACHE_SERVER_LOG", global = true)]
+    console_log: String,
+
+    /// Default TTL for cache entries in days (0 = no expiry).
+    #[arg(
+        long,
+        default_value_t = 30,
+        env = "CACHE_SERVER_DEFAULT_TTL_DAYS",
+        global = true
+    )]
+    default_ttl_days: u32,
+
+    // --- Tracing options ---
+    /// Directory for dial9 runtime trace output. Defaults to
+    /// $TMPDIR/cache-server-traces.
+    #[arg(long, env = "CACHE_SERVER_TRACE_DIR", global = true)]
+    trace_dir: Option<PathBuf>,
+
+    /// Maximum size per trace segment file in MiB.
+    #[arg(
+        long,
+        default_value_t = 10,
+        env = "CACHE_SERVER_TRACE_MAX_FILE_MIB",
+        global = true
+    )]
+    trace_max_file_mib: u64,
+
+    /// Maximum total trace disk usage in MiB.
+    #[arg(
+        long,
+        default_value_t = 50,
+        env = "CACHE_SERVER_TRACE_MAX_TOTAL_MIB",
+        global = true
+    )]
+    trace_max_total_mib: u64,
+
+    #[command(subcommand)]
+    command: Option<Command>,
+}
+
+#[derive(Subcommand, Debug)]
+enum Command {
+    /// Run the gRPC cache server (default when no subcommand is given)
+    Serve(ServeArgs),
+
+    /// Run standalone SlateDB compaction (database must already exist)
+    Compact,
+}
+
+#[derive(Parser, Debug)]
+struct ServeArgs {
     /// The address to listen on
     #[arg(
         short,
@@ -37,14 +98,6 @@ struct Cli {
     #[arg(long, default_value_t = false)]
     tokio_console: bool,
 
-    /// Storage backend: "memory", "file:///path/to/dir", or a bare path
-    #[arg(long, default_value = "memory", env = "CACHE_SERVER_STORE")]
-    store: String,
-
-    /// `tracing` filter for the console logs.
-    #[arg(long, default_value = "info", env = "CACHE_SERVER_LOG")]
-    console_log: String,
-
     /// Per-request timeout in seconds (0 = no timeout)
     #[arg(long, default_value_t = 300, env = "CACHE_SERVER_REQUEST_TIMEOUT")]
     request_timeout: u64,
@@ -57,6 +110,10 @@ struct Cli {
         env = "CACHE_SERVER_MAX_CONCURRENT_REQUESTS"
     )]
     max_concurrent_requests: usize,
+
+    /// Disable the embedded compactor (use with standalone `compact` subcommand)
+    #[arg(long, default_value_t = false)]
+    disable_compactor: bool,
 
     // --- OTEL options ---
     /// Enable OpenTelemetry export (also enabled if OTEL_EXPORTER_OTLP_ENDPOINT is set)
@@ -78,24 +135,6 @@ struct Cli {
     /// Sampling ratio (0.0-1.0). Omit for always_on.
     #[arg(long, env = "CACHE_SERVER_OTEL_SAMPLING_RATIO")]
     otel_sampling_ratio: Option<f64>,
-
-    /// Default TTL for cache entries in days (0 = no expiry).
-    #[arg(long, default_value_t = 30, env = "CACHE_SERVER_DEFAULT_TTL_DAYS")]
-    default_ttl_days: u32,
-
-    // --- Tracing options ---
-    /// Directory for dial9 runtime trace output. Defaults to
-    /// $TMPDIR/cache-server-traces.
-    #[arg(long, env = "CACHE_SERVER_TRACE_DIR")]
-    trace_dir: Option<PathBuf>,
-
-    /// Maximum size per trace segment file in MiB.
-    #[arg(long, default_value_t = 10, env = "CACHE_SERVER_TRACE_MAX_FILE_MIB")]
-    trace_max_file_mib: u64,
-
-    /// Maximum total trace disk usage in MiB.
-    #[arg(long, default_value_t = 50, env = "CACHE_SERVER_TRACE_MAX_TOTAL_MIB")]
-    trace_max_total_mib: u64,
 }
 
 fn main() -> Result<()> {
@@ -139,16 +178,112 @@ fn main() -> Result<()> {
     })
 }
 
+fn parse_backend(store: &str) -> Result<store::StoreBackend> {
+    if store == "memory" {
+        Ok(store::StoreBackend::Memory)
+    } else if let Some(path) = store.strip_prefix("file://") {
+        Ok(store::StoreBackend::LocalFs(path.to_string()))
+    } else if store.starts_with('/') || store.starts_with('.') {
+        Ok(store::StoreBackend::LocalFs(store.to_string()))
+    } else {
+        anyhow::bail!(
+            "invalid --store value: {:?} (expected \"memory\", \"file:///path\", or a bare path)",
+            store
+        )
+    }
+}
+
+fn default_ttl(days: u32) -> Option<jiff::SignedDuration> {
+    if days == 0 {
+        None
+    } else {
+        Some(jiff::SignedDuration::from_hours(i64::from(days) * 24))
+    }
+}
+
 async fn async_main(cli: Cli, handle: TelemetryHandle, trace_dir: PathBuf) -> Result<()> {
-    // Build OTEL config from env + CLI
-    let otel_config = telemetry::OtelConfig::from_env().with_cli_overrides(
-        if cli.otel_enabled { Some(true) } else { None },
-        cli.otel_endpoint.clone(),
-        Some(cli.otel_service_name.clone()),
-        cli.otel_sampling_ratio,
+    match cli.command {
+        Some(Command::Compact) => run_compactor(&cli, handle).await,
+        Some(Command::Serve(ref args)) => run_server(&cli, args, handle, &trace_dir).await,
+        None => run_server(&cli, &ServeArgs::default(), handle, &trace_dir).await,
+    }
+}
+
+impl Default for ServeArgs {
+    fn default() -> Self {
+        Self {
+            address: "127.0.0.1:8080".to_string(),
+            tokio_console: false,
+            request_timeout: 300,
+            max_concurrent_requests: 8192,
+            disable_compactor: false,
+            otel_enabled: false,
+            otel_endpoint: None,
+            otel_service_name: "buck2-cache-server".to_string(),
+            otel_sampling_ratio: None,
+        }
+    }
+}
+
+async fn run_compactor(cli: &Cli, handle: TelemetryHandle) -> Result<()> {
+    let cli_console_layer = tracing_subscriber::fmt::layer().with_filter(
+        filter::LevelFilter::from_str(cli.console_log.as_str()).context(
+            "invalid --console-log filter (valid values: trace, debug, info, warn, error, off)",
+        )?,
+    );
+    tracing_subscriber::registry()
+        .with(cli_console_layer)
+        .init();
+
+    let backend = parse_backend(&cli.store)?;
+    let object_store =
+        store::create_object_store(&backend).context("failed to create object store")?;
+
+    let compactor = Arc::new(store::CompactorBuilder::new(store::DB_PATH, object_store).build());
+
+    tracing::info!(
+        store = %cli.store,
+        version = option_env!("depot_VERSION").unwrap_or("dev"),
+        "standalone compactor running"
     );
 
-    let tokio_console_layer = if cli.tokio_console {
+    let compactor_task = {
+        let c = Arc::clone(&compactor);
+        handle.spawn(async move { c.run().await })
+    };
+
+    let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        .expect("failed to install SIGTERM handler");
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            tracing::info!("received SIGINT, stopping compactor...");
+        }
+        _ = sigterm.recv() => {
+            tracing::info!("received SIGTERM, stopping compactor...");
+        }
+    }
+
+    compactor.stop().await.context("failed to stop compactor")?;
+    compactor_task.await?.context("compactor task failed")?;
+    tracing::info!("compactor stopped cleanly");
+    Ok(())
+}
+
+async fn run_server(
+    cli: &Cli,
+    args: &ServeArgs,
+    handle: TelemetryHandle,
+    trace_dir: &PathBuf,
+) -> Result<()> {
+    // Build OTEL config from env + CLI
+    let otel_config = telemetry::OtelConfig::from_env().with_cli_overrides(
+        if args.otel_enabled { Some(true) } else { None },
+        args.otel_endpoint.clone(),
+        Some(args.otel_service_name.clone()),
+        args.otel_sampling_ratio,
+    );
+
+    let tokio_console_layer = if args.tokio_console {
         Some(console_subscriber::spawn())
     } else {
         None
@@ -168,31 +303,15 @@ async fn async_main(cli: Cli, handle: TelemetryHandle, trace_dir: PathBuf) -> Re
         .init();
 
     anyhow::ensure!(
-        cli.max_concurrent_requests > 0,
+        args.max_concurrent_requests > 0,
         "--max-concurrent-requests must be at least 1"
     );
 
-    let backend = if cli.store == "memory" {
-        store::StoreBackend::Memory
-    } else if let Some(path) = cli.store.strip_prefix("file://") {
-        store::StoreBackend::LocalFs(path.to_string())
-    } else if cli.store.starts_with('/') || cli.store.starts_with('.') {
-        store::StoreBackend::LocalFs(cli.store.clone())
-    } else {
-        anyhow::bail!(
-            "invalid --store value: {:?} (expected \"memory\", \"file:///path\", or a bare path)",
-            cli.store
-        );
-    };
+    let backend = parse_backend(&cli.store)?;
 
     let store_settings = store::CacheStoreSettings {
-        default_ttl: if cli.default_ttl_days == 0 {
-            None
-        } else {
-            Some(jiff::SignedDuration::from_hours(
-                i64::from(cli.default_ttl_days) * 24,
-            ))
-        },
+        default_ttl: default_ttl(cli.default_ttl_days),
+        disable_compactor: args.disable_compactor,
     };
 
     let cache_store = store::CacheStore::open(backend, store_settings)
@@ -200,10 +319,10 @@ async fn async_main(cli: Cli, handle: TelemetryHandle, trace_dir: PathBuf) -> Re
         .with_context(|| format!("failed to open cache store (backend: {:?})", cli.store))?;
     let cache_store = Arc::new(cache_store);
 
-    let address: std::net::SocketAddr = cli.address.parse().with_context(|| {
+    let address: std::net::SocketAddr = args.address.parse().with_context(|| {
         format!(
             "invalid listen address {:?} (expected HOST:PORT, e.g. 127.0.0.1:8080)",
-            cli.address,
+            args.address,
         )
     })?;
 
@@ -230,8 +349,9 @@ async fn async_main(cli: Cli, handle: TelemetryHandle, trace_dir: PathBuf) -> Re
         default_ttl_days = cli.default_ttl_days,
         version = option_env!("depot_VERSION").unwrap_or("dev"),
         otel = otel_config.enabled,
-        request_timeout_secs = cli.request_timeout,
-        max_concurrent_requests = cli.max_concurrent_requests,
+        request_timeout_secs = args.request_timeout,
+        max_concurrent_requests = args.max_concurrent_requests,
+        disable_compactor = args.disable_compactor,
         trace_dir = %trace_dir.display(),
         "cache-server ready",
     );
@@ -265,12 +385,12 @@ async fn async_main(cli: Cli, handle: TelemetryHandle, trace_dir: PathBuf) -> Re
                 address,
                 shutdown,
                 cache_store.clone(),
-                if cli.request_timeout > 0 {
-                    Some(std::time::Duration::from_secs(cli.request_timeout))
+                if args.request_timeout > 0 {
+                    Some(std::time::Duration::from_secs(args.request_timeout))
                 } else {
                     None
                 },
-                Some(cli.max_concurrent_requests),
+                Some(args.max_concurrent_requests),
                 handle,
         ) => r,
         _ = drain_deadline => Ok(()),
