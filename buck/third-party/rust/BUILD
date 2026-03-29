@@ -19276,6 +19276,12 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "sha1",
+    actual = ":sha1-0.10.6",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "sha1-0.10.6.crate",
     sha256 = "e3bf829a2d51ab4a5ddf1352d8470c140cadc8301b2ae1789db023f01cedd6ba",
@@ -19290,7 +19296,11 @@ third_party_rust.rust_library(
     crate = "sha1",
     crate_root = "sha1-0.10.6.crate/src/lib.rs",
     edition = "2018",
-    features = ["compress"],
+    features = [
+        "compress",
+        "default",
+        "std",
+    ],
     visibility = [],
     deps = [
         ":cfg-if-1.0.4",
