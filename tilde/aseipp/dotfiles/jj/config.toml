@@ -67,7 +67,7 @@ email = "austin@ersc.io"
 ## ---- Revsets & filesets
 
 [fileset-aliases]
-'LOCK' = '**/Cargo.lock | **/package-lock.json | **/uv.lock'
+'LOCK' = '**/Cargo.lock | **/package-lock.json | **/uv.lock | **/mise.lock'
 'not:x' = '~x'
 
 [revsets]
