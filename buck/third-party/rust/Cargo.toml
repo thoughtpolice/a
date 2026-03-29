@@ -89,7 +89,6 @@ salsa = "0.22.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = { version = "0.10", features = ["compress"] }
-slatedb = "0.11.2"
 syn = { version = "2.0.110", features = ["full"] }
 tar = "0.4"
 tempfile = "3.20.0"
@@ -120,6 +119,8 @@ zstd = "0.13"
 ## Git repos come below
 
 dial9-tokio-telemetry = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "291ddbca1e013e22fd36cfd0f1bcf3abd1f3f4e6", features = ["cpu-profiling"] }
+
+slatedb = { git = "https://github.com/slatedb/slatedb", rev = "2f9b8e23ad3310e40ca0344c75f87e252b25075e" }
 
 # NOTE (jj): adjust fixups.toml too
 jj-lib = { git = "https://github.com/martinvonz/jj", rev = "0c24fce22b29732837a00acdb3d43c4a218ac1f1" }
