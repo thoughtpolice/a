@@ -21,6 +21,13 @@ shims.git_fetch(
 )
 
 shims.git_fetch(
+    name = "slatedb-1981661380cef83f.git",
+    repo = "https://github.com/slatedb/slatedb",
+    rev = "2f9b8e23ad3310e40ca0344c75f87e252b25075e",
+    visibility = [],
+)
+
+shims.git_fetch(
     name = "starlark-rust-a9d911d33fd77ff2.git",
     repo = "https://github.com/facebook/starlark-rust",
     rev = "469ff502b05594b9b1ec1818753f712996a79d38",
@@ -19677,23 +19684,15 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "slatedb",
-    actual = ":slatedb-0.11.2",
+    actual = ":slatedb-0.11.1",
     visibility = ["PUBLIC"],
 )
 
-shims.http_archive(
-    name = "slatedb-0.11.2.crate",
-    sha256 = "d945c6cd6f239873e640c5b7bb204f5638ed5681b02145cdcc2e80b2d3882b8a",
-    strip_prefix = "slatedb-0.11.2",
-    urls = ["https://static.crates.io/crates/slatedb/0.11.2/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
-    name = "slatedb-0.11.2",
-    srcs = [":slatedb-0.11.2.crate"],
+    name = "slatedb-0.11.1",
+    srcs = [":slatedb-1981661380cef83f.git"],
     crate = "slatedb",
-    crate_root = "slatedb-0.11.2.crate/src/lib.rs",
+    crate_root = "slatedb-1981661380cef83f/slatedb/src/lib.rs",
     edition = "2021",
     features = [
         "aws",
@@ -19729,8 +19728,8 @@ third_party_rust.rust_library(
         ":serde-1.0.228",
         ":serde_json-1.0.149",
         ":siphasher-1.0.2",
-        ":slatedb-common-0.11.2",
-        ":slatedb-txn-obj-0.11.2",
+        ":slatedb-common-0.11.1",
+        ":slatedb-txn-obj-0.11.1",
         ":sysinfo-0.35.2",
         ":thiserror-1.0.69",
         ":thread_local-1.1.9",
@@ -19744,40 +19743,27 @@ third_party_rust.rust_library(
     ],
 )
 
-shims.http_archive(
-    name = "slatedb-common-0.11.2.crate",
-    sha256 = "2893ff22bb9a1013af0fb5e85380307ccd9d0a4fa8a111e187a48750e14b9a47",
-    strip_prefix = "slatedb-common-0.11.2",
-    urls = ["https://static.crates.io/crates/slatedb-common/0.11.2/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
-    name = "slatedb-common-0.11.2",
-    srcs = [":slatedb-common-0.11.2.crate"],
+    name = "slatedb-common-0.11.1",
+    srcs = [":slatedb-1981661380cef83f.git"],
     crate = "slatedb_common",
-    crate_root = "slatedb-common-0.11.2.crate/src/lib.rs",
+    crate_root = "slatedb-1981661380cef83f/slatedb-common/src/lib.rs",
     edition = "2021",
+    features = ["serde"],
     visibility = [],
     deps = [
         ":chrono-0.4.44",
+        ":log-0.4.29",
+        ":serde-1.0.228",
         ":tokio-1.50.0",
     ],
 )
 
-shims.http_archive(
-    name = "slatedb-txn-obj-0.11.2.crate",
-    sha256 = "2c33d5597404e23b9706aa32a1723399f022f0513a289d1059df8810a282dcc4",
-    strip_prefix = "slatedb-txn-obj-0.11.2",
-    urls = ["https://static.crates.io/crates/slatedb-txn-obj/0.11.2/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
-    name = "slatedb-txn-obj-0.11.2",
-    srcs = [":slatedb-txn-obj-0.11.2.crate"],
+    name = "slatedb-txn-obj-0.11.1",
+    srcs = [":slatedb-1981661380cef83f.git"],
     crate = "slatedb_txn_obj",
-    crate_root = "slatedb-txn-obj-0.11.2.crate/src/lib.rs",
+    crate_root = "slatedb-1981661380cef83f/slatedb-txn-obj/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
@@ -19787,7 +19773,7 @@ third_party_rust.rust_library(
         ":futures-0.3.32",
         ":log-0.4.29",
         ":object_store-0.12.5",
-        ":slatedb-common-0.11.2",
+        ":slatedb-common-0.11.1",
         ":thiserror-1.0.69",
     ],
 )
