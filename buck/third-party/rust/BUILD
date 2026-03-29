@@ -9,7 +9,7 @@ load("@root//buck/shims:shims.bzl", "shims")
 shims.git_fetch(
     name = "dial9-tokio-telemetry-43aa6b6c06fdd4e0.git",
     repo = "https://github.com/dial9-rs/dial9-tokio-telemetry",
-    rev = "b94e87def29c0dd972bf71e19a28187bce13228c",
+    rev = "291ddbca1e013e22fd36cfd0f1bcf3abd1f3f4e6",
     visibility = [],
 )
 

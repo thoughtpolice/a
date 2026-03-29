@@ -119,7 +119,7 @@ zstd = "0.13"
 
 ## Git repos come below
 
-dial9-tokio-telemetry = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "b94e87def29c0dd972bf71e19a28187bce13228c", features = ["cpu-profiling"] }
+dial9-tokio-telemetry = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "291ddbca1e013e22fd36cfd0f1bcf3abd1f3f4e6", features = ["cpu-profiling"] }
 
 # NOTE (jj): adjust fixups.toml too
 jj-lib = { git = "https://github.com/martinvonz/jj", rev = "0c24fce22b29732837a00acdb3d43c4a218ac1f1" }
