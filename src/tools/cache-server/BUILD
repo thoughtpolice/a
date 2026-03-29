@@ -11,6 +11,7 @@ BUILD_DEPS = [
     "//src/crates/dial9-tonic:dial9-tonic",
     "//src/crates/rustls-boring:rustls-boring",
     "//src/crates/rustls-transport:rustls-transport",
+    "//src/tools/cache-server/fetch-git:fetch-git",
     "//src/tools/cache-server/fetch-http:fetch-http",
     "//src/tools/cache-server/protos:protos",
     "//src/tools/cache-server/runtime:runtime",
@@ -18,6 +19,7 @@ BUILD_DEPS = [
     "//src/tools/cache-server/telemetry:telemetry",
     # crates.io
     "third-party//rust:bytes",
+    "third-party//rust:dashmap",
     "third-party//rust:futures",
     "third-party//rust:hex",
     "third-party//rust:jiff",
