@@ -36,6 +36,8 @@ use tracing::{debug, instrument, warn};
 
 /// Re-export for callers that need to construct TTL durations.
 pub use jiff::SignedDuration;
+/// Re-export for standalone compaction.
+pub use slatedb::CompactorBuilder;
 
 /// Settings for opening a [`CacheStore`].
 #[derive(Clone, Debug, Default)]
@@ -43,7 +45,13 @@ pub struct CacheStoreSettings {
     /// If `Some`, all new writes will expire after this duration
     /// (mapped to SlateDB's `Settings::default_ttl`). `None` means no expiry.
     pub default_ttl: Option<jiff::SignedDuration>,
+    /// When `true`, the embedded compactor is disabled. Use this when running
+    /// a standalone compactor process via [`CompactorBuilder`].
+    pub disable_compactor: bool,
 }
+
+/// The SlateDB database path used by the cache store.
+pub const DB_PATH: &str = "cache";
 
 // Key prefixes for the flat keyspace
 const PREFIX_MANIFEST: u8 = b'm';
@@ -84,26 +92,41 @@ impl std::fmt::Debug for CacheStore {
     }
 }
 
+/// Create the [`ObjectStore`](slatedb::object_store::ObjectStore) for a given backend.
+///
+/// Shared by [`CacheStore::open`] and standalone compaction so both use the
+/// same object store construction logic.
+pub fn create_object_store(
+    backend: &StoreBackend,
+) -> Result<Arc<dyn slatedb::object_store::ObjectStore>> {
+    let object_store: Arc<dyn slatedb::object_store::ObjectStore> = match backend {
+        StoreBackend::Memory => Arc::new(slatedb::object_store::memory::InMemory::new()),
+        StoreBackend::LocalFs(path) => Arc::new(
+            slatedb::object_store::local::LocalFileSystem::new_with_prefix(path)
+                .map_err(|e| StoreError::Database(slatedb::Error::unavailable(e.to_string())))?,
+        ),
+    };
+    Ok(object_store)
+}
+
 impl CacheStore {
     /// Open the store with the given backend and settings.
     pub async fn open(backend: StoreBackend, settings: CacheStoreSettings) -> Result<Self> {
-        let object_store: Arc<dyn slatedb::object_store::ObjectStore> = match backend {
-            StoreBackend::Memory => Arc::new(slatedb::object_store::memory::InMemory::new()),
-            StoreBackend::LocalFs(ref path) => Arc::new(
-                slatedb::object_store::local::LocalFileSystem::new_with_prefix(path).map_err(
-                    |e| StoreError::Database(slatedb::Error::unavailable(e.to_string())),
-                )?,
-            ),
-        };
+        let object_store = create_object_store(&backend)?;
 
         let default_ttl_ms = settings
             .default_ttl
             .map(|d| u64::try_from(d.as_millis()).expect("default TTL overflows u64 milliseconds"));
         let db_settings = slatedb::config::Settings {
             default_ttl: default_ttl_ms,
+            compactor_options: if settings.disable_compactor {
+                None
+            } else {
+                slatedb::config::Settings::default().compactor_options
+            },
             ..Default::default()
         };
-        let db = Db::builder("cache", object_store)
+        let db = Db::builder(DB_PATH, object_store)
             .with_settings(db_settings)
             .build()
             .await?;
