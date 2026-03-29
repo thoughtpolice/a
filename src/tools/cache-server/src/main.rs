@@ -140,6 +140,12 @@ struct ServeArgs {
     #[arg(long, env = "CACHE_SERVER_TLS_KEY", requires = "tls_cert")]
     tls_key: Option<PathBuf>,
 
+    /// Directory for spooling git packfiles during clones. Large repository
+    /// fetches write multi-GiB temporary files here; point it at real disk
+    /// (the default system temp dir is often RAM-backed tmpfs).
+    #[arg(long, env = "CACHE_SERVER_GIT_SPOOL_DIR")]
+    git_spool_dir: Option<std::path::PathBuf>,
+
     // --- OTEL options ---
     /// Enable OpenTelemetry export (also enabled if OTEL_EXPORTER_OTLP_ENDPOINT is set)
     #[arg(long)]
@@ -319,6 +325,7 @@ impl Default for ServeArgs {
             disable_compactor: false,
             tls_cert: None,
             tls_key: None,
+            git_spool_dir: None,
             otel_enabled: false,
             otel_endpoint: None,
             otel_service_name: "buck2-cache-server".to_string(),
@@ -523,6 +530,7 @@ async fn run_server(
                     None
                 },
                 Some(args.max_concurrent_requests),
+                args.git_spool_dir.clone(),
                 handle,
                 pressure_monitor,
         ) => r,

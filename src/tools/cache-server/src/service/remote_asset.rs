@@ -16,6 +16,7 @@ use protos::build::bazel::remote::execution::v2::Digest;
 
 use crate::store::{AssetEntry, CacheStore, Compression, ContentDigest, DigestFn, unix_now_secs};
 
+use super::git_clone;
 use super::helpers::{
     instrumented_rpc, parse_and_validate_digest, resolve_digest_function, rpc_status,
     rpc_status_ok, store_error_to_status,
@@ -30,18 +31,6 @@ fn extract_qualifiers(qualifiers: &[Qualifier]) -> Vec<(String, String)> {
         .iter()
         .map(|q| (q.name.clone(), q.value.clone()))
         .collect()
-}
-
-fn reject_vcs_qualifiers(qualifiers: &[Qualifier]) -> Result<(), tonic::Status> {
-    for q in qualifiers {
-        if q.name == "vcs.branch" || q.name == "vcs.commit" {
-            return Err(tonic::Status::invalid_argument(format!(
-                "qualifier '{}' is not supported (Git not supported)",
-                q.name,
-            )));
-        }
-    }
-    Ok(())
 }
 
 fn qualifiers_to_proto(quals: &[(String, String)]) -> Vec<Qualifier> {
@@ -88,6 +77,9 @@ pub struct FetchService {
     store: Arc<CacheStore>,
     ssl_connector: SslConnector,
     handle: Dial9TokioHandle,
+    /// Directory for spooling git packfiles during clones (system temp when
+    /// `None`).
+    git_spool_dir: Option<std::path::PathBuf>,
 }
 
 impl std::fmt::Debug for FetchService {
@@ -97,11 +89,16 @@ impl std::fmt::Debug for FetchService {
 }
 
 impl FetchService {
-    pub fn new(store: Arc<CacheStore>, handle: Dial9TokioHandle) -> Self {
+    pub fn new(
+        store: Arc<CacheStore>,
+        handle: Dial9TokioHandle,
+        git_spool_dir: Option<std::path::PathBuf>,
+    ) -> Self {
         Self {
             store,
             ssl_connector: fetch_http::build_ssl_connector(),
             handle,
+            git_spool_dir,
         }
     }
 
@@ -164,6 +161,7 @@ impl fetch_server::Fetch for FetchService {
         let store = self.store.clone();
         let ssl_connector = self.ssl_connector.clone();
         let handle = self.handle.clone();
+        let git_spool_dir = self.git_spool_dir.clone();
         instrumented_rpc("fetch.fetch_blob", async move {
             let inner = req.into_inner();
 
@@ -174,7 +172,6 @@ impl fetch_server::Fetch for FetchService {
             }
 
             let digest_fn = resolve_digest_function(inner.digest_function)?;
-            reject_vcs_qualifiers(&inner.qualifiers)?;
             let qualifiers = extract_qualifiers(&inner.qualifiers);
             let oldest_content_accepted = timestamp_to_secs(&inner.oldest_content_accepted);
 
@@ -182,6 +179,7 @@ impl fetch_server::Fetch for FetchService {
                 store: store.clone(),
                 ssl_connector: ssl_connector.clone(),
                 handle: handle.clone(),
+                git_spool_dir: git_spool_dir.clone(),
             };
 
             // Phase 1: try cached lookups
@@ -326,6 +324,7 @@ impl fetch_server::Fetch for FetchService {
         let store = self.store.clone();
         let ssl_connector = self.ssl_connector.clone();
         let handle = self.handle.clone();
+        let git_spool_dir = self.git_spool_dir.clone();
         instrumented_rpc("fetch.fetch_directory", async move {
             let inner = req.into_inner();
 
@@ -336,16 +335,17 @@ impl fetch_server::Fetch for FetchService {
             }
 
             let digest_fn = resolve_digest_function(inner.digest_function)?;
-            reject_vcs_qualifiers(&inner.qualifiers)?;
             let qualifiers = extract_qualifiers(&inner.qualifiers);
             let oldest_content_accepted = timestamp_to_secs(&inner.oldest_content_accepted);
 
             let svc = FetchService {
-                store,
-                ssl_connector,
-                handle,
+                store: store.clone(),
+                ssl_connector: ssl_connector.clone(),
+                handle: handle.clone(),
+                git_spool_dir: git_spool_dir.clone(),
             };
 
+            // Phase 1: try cached lookups
             for uri in &inner.uris {
                 if let Some(entry) = svc
                     .try_cached_lookup(digest_fn, uri, &qualifiers, oldest_content_accepted, true)
@@ -360,6 +360,76 @@ impl fetch_server::Fetch for FetchService {
                             hash: hex::encode(entry.digest_hash),
                             size_bytes: entry.digest_size_bytes,
                         }),
+                        digest_function: digest_fn.to_proto_i32(),
+                    }));
+                }
+            }
+
+            // Phase 2: try git clone for git URIs with VCS qualifiers
+            if git_clone::has_vcs_qualifiers(&qualifiers) {
+                let timeout = inner.timeout.as_ref().map(|d| {
+                    Duration::from_secs(d.seconds.max(0) as u64)
+                        + Duration::from_nanos(d.nanos.max(0) as u64)
+                });
+
+                let mut last_error = None;
+                for uri in &inner.uris {
+                    if !git_clone::is_git_uri(uri, &qualifiers) {
+                        continue;
+                    }
+
+                    match git_clone::fetch_git_directory(
+                        &ssl_connector,
+                        &store,
+                        uri,
+                        &qualifiers,
+                        timeout,
+                        digest_fn,
+                        git_spool_dir.as_deref(),
+                        &handle,
+                    )
+                    .await
+                    {
+                        Ok(result) => {
+                            let entry = AssetEntry {
+                                digest_hash: result.root_digest_hash,
+                                digest_size_bytes: result.root_digest_size,
+                                created_at: unix_now_secs(),
+                                expires_at: 0,
+                                is_directory: true,
+                                qualifiers: qualifiers.clone(),
+                            };
+                            store
+                                .asset_put(digest_fn, uri, &qualifiers, &entry)
+                                .await
+                                .map_err(store_error_to_status)?;
+
+                            return Ok(tonic::Response::new(FetchDirectoryResponse {
+                                status: Some(rpc_status_ok()),
+                                uri: uri.clone(),
+                                qualifiers: qualifiers_to_proto(&entry.qualifiers),
+                                expires_at: None,
+                                root_directory_digest: Some(Digest {
+                                    hash: hex::encode(result.root_digest_hash),
+                                    size_bytes: result.root_digest_size,
+                                }),
+                                digest_function: digest_fn.to_proto_i32(),
+                            }));
+                        }
+                        Err(e) => {
+                            tracing::warn!(uri, error = %e, "git clone failed, trying next URI");
+                            last_error = Some(e);
+                        }
+                    }
+                }
+
+                if let Some(e) = last_error {
+                    return Ok(tonic::Response::new(FetchDirectoryResponse {
+                        status: Some(e.to_rpc_status()),
+                        uri: inner.uris.first().cloned().unwrap_or_default(),
+                        qualifiers: qualifiers_to_proto(&qualifiers),
+                        expires_at: None,
+                        root_directory_digest: None,
                         digest_function: digest_fn.to_proto_i32(),
                     }));
                 }

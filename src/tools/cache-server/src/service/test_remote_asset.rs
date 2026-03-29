@@ -472,7 +472,7 @@ async fn fetch_blob_non_http_uri_with_vcs_branch_returns_not_found() {
     let store = make_store().await;
     let fetch = make_fetch(store);
 
-    let result = fetch
+    let resp = fetch
         .fetch_blob(tonic::Request::new(FetchBlobRequest {
             instance_name: String::new(),
             timeout: None,
@@ -484,10 +484,14 @@ async fn fetch_blob_non_http_uri_with_vcs_branch_returns_not_found() {
             }],
             digest_function: 0,
         }))
-        .await;
+        .await
+        .unwrap()
+        .into_inner();
 
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code(), tonic::Code::InvalidArgument);
+    assert_eq!(
+        resp.status.as_ref().unwrap().code,
+        tonic::Code::NotFound as i32,
+    );
 }
 
 #[tokio::test]
@@ -495,7 +499,7 @@ async fn fetch_blob_non_http_uri_with_vcs_commit_returns_not_found() {
     let store = make_store().await;
     let fetch = make_fetch(store);
 
-    let result = fetch
+    let resp = fetch
         .fetch_blob(tonic::Request::new(FetchBlobRequest {
             instance_name: String::new(),
             timeout: None,
@@ -507,10 +511,14 @@ async fn fetch_blob_non_http_uri_with_vcs_commit_returns_not_found() {
             }],
             digest_function: 0,
         }))
-        .await;
+        .await
+        .unwrap()
+        .into_inner();
 
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code(), tonic::Code::InvalidArgument);
+    assert_eq!(
+        resp.status.as_ref().unwrap().code,
+        tonic::Code::NotFound as i32,
+    );
 }
 
 #[tokio::test]
@@ -663,4 +671,135 @@ async fn fetch_blob_does_not_return_directory_entry() {
         .into_inner();
 
     assert_eq!(resp.status.as_ref().unwrap().code, 0);
+}
+
+// =================================================================================================================
+// Git clone: fetch_directory with VCS qualifiers but no git server → NOT_FOUND
+// (git clone fails on network, falls through)
+// =================================================================================================================
+
+#[tokio::test]
+async fn fetch_directory_git_uri_no_vcs_returns_not_found() {
+    let store = make_store().await;
+    let fetch = make_fetch(store);
+
+    // Git URI without VCS qualifiers → no git clone attempted → NOT_FOUND
+    let resp = fetch
+        .fetch_directory(tonic::Request::new(FetchDirectoryRequest {
+            instance_name: String::new(),
+            timeout: None,
+            oldest_content_accepted: None,
+            uris: vec!["https://github.com/foo/bar.git".into()],
+            qualifiers: vec![],
+            digest_function: 0,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(
+        resp.status.as_ref().unwrap().code,
+        tonic::Code::NotFound as i32,
+    );
+}
+
+// =================================================================================================================
+// Git clone: push_directory with VCS qualifiers, then fetch via cache
+// =================================================================================================================
+
+#[tokio::test]
+async fn fetch_directory_git_uri_cached_roundtrip() {
+    let store = make_store().await;
+    let push = make_push(store.clone());
+    let fetch = make_fetch(store.clone());
+
+    let data = b"git repo directory content";
+    let cd = ContentDigest::new(DigestFn::Sha256, sha256(data));
+    store
+        .cas_put_blob(&cd, Bytes::from_static(data), Compression::Identity)
+        .await
+        .unwrap();
+
+    // Push with VCS qualifiers
+    push.push_directory(tonic::Request::new(PushDirectoryRequest {
+        instance_name: String::new(),
+        uris: vec!["https://github.com/foo/bar.git".into()],
+        qualifiers: vec![
+            Qualifier {
+                name: "vcs.branch".into(),
+                value: "main".into(),
+            },
+            Qualifier {
+                name: "resource_type".into(),
+                value: "application/x-git".into(),
+            },
+        ],
+        expire_at: None,
+        root_directory_digest: Some(make_digest(data)),
+        references_blobs: vec![],
+        references_directories: vec![],
+        digest_function: 0,
+    }))
+    .await
+    .unwrap();
+
+    // Fetch with same qualifiers → should hit cache (Phase 1)
+    let resp = fetch
+        .fetch_directory(tonic::Request::new(FetchDirectoryRequest {
+            instance_name: String::new(),
+            timeout: None,
+            oldest_content_accepted: None,
+            uris: vec!["https://github.com/foo/bar.git".into()],
+            qualifiers: vec![
+                Qualifier {
+                    name: "vcs.branch".into(),
+                    value: "main".into(),
+                },
+                Qualifier {
+                    name: "resource_type".into(),
+                    value: "application/x-git".into(),
+                },
+            ],
+            digest_function: 0,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(resp.status.as_ref().unwrap().code, 0);
+    assert_eq!(
+        resp.root_directory_digest.as_ref().unwrap().hash,
+        hex::encode(sha256(data)),
+    );
+}
+
+// =================================================================================================================
+// fetch_directory: non-HTTP git URI with VCS qualifiers is not attempted
+// =================================================================================================================
+
+#[tokio::test]
+async fn fetch_directory_non_http_git_uri_with_vcs_returns_not_found() {
+    let store = make_store().await;
+    let fetch = make_fetch(store);
+
+    let resp = fetch
+        .fetch_directory(tonic::Request::new(FetchDirectoryRequest {
+            instance_name: String::new(),
+            timeout: None,
+            oldest_content_accepted: None,
+            uris: vec!["ssh://git@github.com/foo/bar.git".into()],
+            qualifiers: vec![Qualifier {
+                name: "vcs.branch".into(),
+                value: "main".into(),
+            }],
+            digest_function: 0,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(
+        resp.status.as_ref().unwrap().code,
+        tonic::Code::NotFound as i32,
+    );
 }
