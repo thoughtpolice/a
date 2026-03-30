@@ -5,4 +5,8 @@
 - If a reindeer gives a warning, try to fix the errors.
   - Most of the time, you can look at build.rs and make a pretty quick decision: does this impact the compilation/linking steps of the system?
   - Most of the time it's optional. But you MUST look at the build.rs to figure it out
-  - If you get a warning that you need fixups, you MUST fix that immediately
+  - If you get a warning that you need fixups, you MUST fix that immediately.
+  - If unsure, prompt about it.
+- Our TLS library is BoringSSL, and is already provided by 'openssl' and 'tokio-openssl' properly
+  - Always turn off crates like ring, aws-lc-rs, etc
+  - Use custom providers in application code or enable other features if necessary
