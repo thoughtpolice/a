@@ -71,6 +71,8 @@ BAD_FILES = [
     "buck/mode/remote",
     "buck/mode/debug",
     "buck/mode/release",
+    "buck/mode/sandbox",
+    "buck/mode/sandbox-symlink",
     # REASON FIXME TODO (aseipp): this file is technically MIT and not
     # Apache-2.0, and it has a modified copyright year.
     "buck/third-party/mimalloc/rust/lib.rs",
