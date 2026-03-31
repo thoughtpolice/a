@@ -99,7 +99,7 @@ where
                 .adaptive_window(true)
                 .max_frame_size(1024 * 1024) // 1 MiB
                 .keep_alive_interval(Some(Duration::from_secs(30)))
-                .keep_alive_timeout(Duration::from_secs(10));
+                .keep_alive_timeout(Duration::from_secs(30));
 
             let conn = builder.serve_connection_with_upgrades(io, hyper_service);
             let mut conn = pin!(conn);
