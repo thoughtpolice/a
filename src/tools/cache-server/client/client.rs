@@ -65,6 +65,9 @@ impl ReapiClient {
     pub async fn connect(url: &str, instance_name: &str) -> Result<Self> {
         let channel = Channel::from_shared(url.to_string())
             .context("invalid server URL")?
+            .http2_keep_alive_interval(std::time::Duration::from_secs(30))
+            .keep_alive_timeout(std::time::Duration::from_secs(20))
+            .keep_alive_while_idle(true)
             .connect()
             .await
             .context("failed to connect to server")?;
