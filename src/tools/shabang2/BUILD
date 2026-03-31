@@ -4,13 +4,21 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
+    # in-tree deps
+    'root//src/crates/rustls-boring:rustls-boring',
     # 3p deps
     'third-party//by-name/mi/mimalloc:rust',
     # crates.io
     'third-party//rust:anyhow',
     'third-party//rust:blake3',
+    'third-party//rust:bytes',
     'third-party//rust:clap',
     'third-party//rust:hex',
+    'third-party//rust:http',
+    'third-party//rust:http-body-util',
+    'third-party//rust:hyper',
+    'third-party//rust:hyper-rustls',
+    'third-party//rust:hyper-util',
     'third-party//rust:serde',
     'third-party//rust:serde_json',
     'third-party//rust:sha2',
