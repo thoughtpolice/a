@@ -52,6 +52,7 @@ TEST_MODULES = {
     'compression': {},
     'manifest': {},
     'cas': {},
+    'cas_batch': {},
     'chunking': {
         'resources': {
             'fastcdc2020_test_vectors': ':fastcdc2020-test-vectors',
