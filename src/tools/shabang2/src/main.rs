@@ -16,7 +16,7 @@ mod platform;
 
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 
 #[global_allocator]
@@ -30,7 +30,6 @@ struct Cli {
     command: Option<Command>,
 
     /// Path to the shabang2 manifest file (used in shebang mode).
-    #[arg(global = true)]
     manifest: Option<PathBuf>,
 
     /// Arguments passed through to the executed binary.
@@ -112,34 +111,63 @@ fn run_manifest(path: &PathBuf, args: &[String]) -> Result<()> {
         "resolved platform entry"
     );
 
-    // Phase 4+5: real cache check, lock, fetch, extract, store, exec
-    // For now, run the full pipeline as a stub demonstration.
     let cache = cache::Cache::new()?;
 
     // Try cache first
-    match cache.lookup(entry) {
-        Ok(Some(cached_path)) => {
-            tracing::info!(path = %cached_path.display(), "cache hit");
-            return exec::exec_binary(&cached_path, args);
-        }
-        Ok(None) => {
-            tracing::info!("cache miss, fetching...");
-        }
-        Err(e) => {
-            tracing::debug!(err = %e, "cache lookup unavailable, fetching...");
-        }
+    if let Ok(Some(cached_path)) = cache.lookup(entry) {
+        tracing::info!(path = %cached_path.display(), "cache hit");
+        return exec::exec_binary(&cached_path, args);
     }
 
-    // Fetch from providers
+    // Acquire lock to prevent concurrent downloads of the same artifact
+    let lock_path = cache
+        .base_dir()
+        .join(format!("{}.lock", cache::Cache::cache_key(entry)));
+    let _lock = lock::FileLock::acquire(&lock_path).context("acquiring cache lock")?;
+
+    // Double-check after lock (another process may have populated the cache)
+    if let Ok(Some(cached_path)) = cache.lookup(entry) {
+        tracing::info!(path = %cached_path.display(), "cache hit after lock");
+        return exec::exec_binary(&cached_path, args);
+    }
+
+    // Fetch, verify, extract, cache
+    let cached_path = fetch_verify_extract_cache(entry, &cache)?;
+
+    // Execute
+    exec::exec_binary(&cached_path, args)
+}
+
+/// Fetch from providers, verify integrity, extract, and store in cache.
+fn fetch_verify_extract_cache(
+    entry: &manifest::PlatformEntry,
+    cache: &cache::Cache,
+) -> Result<PathBuf> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .context("creating tokio runtime")?;
 
     let data = rt.block_on(fetch_from_providers(entry))?;
-    let _ = data; // Will be used in Phase 5 for hash verification + extraction
 
-    anyhow::bail!("end-to-end pipeline not yet wired (Phase 5)")
+    // Verify size
+    if data.len() as u64 != entry.size {
+        bail!(
+            "size mismatch: expected {} bytes, got {} bytes",
+            entry.size,
+            data.len(),
+        );
+    }
+
+    // Verify hash
+    verify_hash(entry, &data)?;
+
+    // Extract to temp directory
+    let temp_dir = tempfile::tempdir().context("creating temp dir for extraction")?;
+    let _extracted = archive::extract(&data, entry.format, &entry.path, temp_dir.path())?;
+
+    // Store in cache
+    cache.store(entry, temp_dir.path())
 }
 
 /// Try each provider in sequence until one succeeds.
@@ -168,6 +196,29 @@ async fn fetch_from_providers(entry: &manifest::PlatformEntry) -> Result<Vec<u8>
     Err(last_err.unwrap_or_else(|| anyhow::anyhow!("no providers configured")))
 }
 
+/// Verify the hash of downloaded data against the manifest entry.
+fn verify_hash(entry: &manifest::PlatformEntry, data: &[u8]) -> Result<()> {
+    let computed = match entry.hash {
+        manifest::HashAlgorithm::Sha256 => {
+            use sha2::Digest;
+            hex::encode(sha2::Sha256::digest(data))
+        }
+        manifest::HashAlgorithm::Blake3 => blake3::hash(data).to_hex().to_string(),
+    };
+
+    if computed != entry.digest {
+        bail!(
+            "hash mismatch for '{}':\n  expected: {}\n  computed: {}",
+            entry.path,
+            entry.digest,
+            computed,
+        );
+    }
+
+    tracing::info!(algorithm = ?entry.hash, "hash verified");
+    Ok(())
+}
+
 /// Fetch and cache an artifact without executing it.
 fn fetch_manifest(path: &PathBuf) -> Result<()> {
     let manifest = manifest::parse_manifest_file(path)
@@ -176,17 +227,28 @@ fn fetch_manifest(path: &PathBuf) -> Result<()> {
     let entry = platform::resolve_platform(&manifest.platforms)
         .with_context(|| format!("in manifest '{}'", manifest.name))?;
 
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .context("creating tokio runtime")?;
+    let cache = cache::Cache::new()?;
 
-    let _data = rt.block_on(fetch_from_providers(entry))?;
-    eprintln!(
-        "fetched {} for {}",
-        manifest.name,
-        platform::current_platform_key()
-    );
+    // Already cached?
+    if let Ok(Some(cached_path)) = cache.lookup(entry) {
+        eprintln!("already cached: {}", cached_path.display());
+        return Ok(());
+    }
+
+    // Acquire lock
+    let lock_path = cache
+        .base_dir()
+        .join(format!("{}.lock", cache::Cache::cache_key(entry)));
+    let _lock = lock::FileLock::acquire(&lock_path)?;
+
+    // Double-check after lock
+    if let Ok(Some(cached_path)) = cache.lookup(entry) {
+        eprintln!("already cached: {}", cached_path.display());
+        return Ok(());
+    }
+
+    let cached_path = fetch_verify_extract_cache(entry, &cache)?;
+    eprintln!("fetched {} -> {}", manifest.name, cached_path.display());
     Ok(())
 }
 
@@ -209,4 +271,53 @@ fn clean_cache() -> Result<()> {
         eprintln!("cache dir does not exist: {}", dir.display());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_verify_hash_sha256_ok() {
+        let data = b"hello world";
+        let entry = manifest::PlatformEntry {
+            size: data.len() as u64,
+            hash: manifest::HashAlgorithm::Sha256,
+            digest: "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9".to_string(),
+            format: manifest::ArchiveFormat::Plain,
+            path: "test".to_string(),
+            providers: vec![],
+        };
+        verify_hash(&entry, data).unwrap();
+    }
+
+    #[test]
+    fn test_verify_hash_sha256_mismatch() {
+        let data = b"hello world";
+        let entry = manifest::PlatformEntry {
+            size: data.len() as u64,
+            hash: manifest::HashAlgorithm::Sha256,
+            digest: "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+            format: manifest::ArchiveFormat::Plain,
+            path: "test".to_string(),
+            providers: vec![],
+        };
+        let err = verify_hash(&entry, data).unwrap_err();
+        assert!(err.to_string().contains("hash mismatch"));
+    }
+
+    #[test]
+    fn test_verify_hash_blake3_ok() {
+        let data = b"hello world";
+        let hash = blake3::hash(data);
+        let entry = manifest::PlatformEntry {
+            size: data.len() as u64,
+            hash: manifest::HashAlgorithm::Blake3,
+            digest: hash.to_hex().to_string(),
+            format: manifest::ArchiveFormat::Plain,
+            path: "test".to_string(),
+            providers: vec![],
+        };
+        verify_hash(&entry, data).unwrap();
+    }
 }
