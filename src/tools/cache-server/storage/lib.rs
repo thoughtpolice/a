@@ -181,6 +181,75 @@ impl CacheStore {
             .await
     }
 
+    /// Store multiple blobs in a single batched write for amortized
+    /// throughput.
+    ///
+    /// Small blobs (< 2 MiB) are accumulated into one [`WriteBatch`] and
+    /// flushed with a single `db.write()` call. Large blobs fall back to
+    /// individual CDC-chunked writes via [`cas_put_blob_inner`].
+    ///
+    /// **No existence checks** are performed — callers should use this on
+    /// fresh-clone paths where duplicates are known to be absent or harmless
+    /// (content-addressed writes are idempotent).
+    ///
+    /// **No hash re-verification** — callers **must** guarantee that each
+    /// `digest` was computed from the corresponding `data`.
+    #[instrument(skip(self, blobs), fields(count = blobs.len()))]
+    pub async fn cas_put_blob_batch(
+        &self,
+        blobs: Vec<(ContentDigest, Bytes, Compression)>,
+    ) -> Result<()> {
+        if blobs.is_empty() {
+            return Ok(());
+        }
+
+        // Partition into small (single-chunk) and large (needs CDC).
+        let mut batch = WriteBatch::new();
+        let mut large: Vec<(ContentDigest, Bytes, Compression)> = Vec::new();
+        let now = unix_now_secs();
+
+        for (digest, data, compression) in blobs {
+            if data.len() > MAX_BLOB_REASSEMBLE_SIZE {
+                return Err(StoreError::BlobTooLarge {
+                    size: data.len(),
+                    limit: MAX_BLOB_REASSEMBLE_SIZE,
+                });
+            }
+
+            if data.len() >= SMALL_BLOB_THRESHOLD {
+                large.push((digest, data, compression));
+                continue;
+            }
+
+            // Small blob: compress, tag, add chunk + manifest to batch.
+            let compressed = compression.compress_async(data.clone()).await?;
+            let tagged = tagged_chunk(compression, &compressed);
+            let chunk_key = prefixed_key(PREFIX_CHUNK, digest.function, &digest.hash);
+            batch.put(chunk_key, tagged.as_ref());
+
+            let manifest = BlobManifest {
+                chunks: vec![ChunkInfo {
+                    hash: digest.hash,
+                    size: data.len() as u64,
+                }],
+                created_at: now,
+            };
+            let manifest_key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
+            batch.put(manifest_key, manifest.to_bytes(compression)?);
+        }
+
+        // Flush all small blobs in one write.
+        self.db.write(batch).await?;
+
+        // Fall back to individual writes for large blobs (CDC chunking).
+        for (digest, data, compression) in large {
+            self.cas_put_blob_inner(&digest, data, compression, false)
+                .await?;
+        }
+
+        Ok(())
+    }
+
     async fn cas_put_blob_inner(
         &self,
         digest: &ContentDigest,
@@ -898,6 +967,8 @@ mod test_action_cache;
 mod test_asset;
 #[cfg(test_module_cas)]
 mod test_cas;
+#[cfg(test_module_cas_batch)]
+mod test_cas_batch;
 #[cfg(test_module_chunking)]
 mod test_chunking;
 #[cfg(test_module_compression)]
