@@ -13,6 +13,7 @@ DEPS = [
     'third-party//rust:blake3',
     'third-party//rust:bytes',
     'third-party//rust:clap',
+    'third-party//rust:flate2',
     'third-party//rust:hex',
     'third-party//rust:http',
     'third-party//rust:http-body-util',
@@ -22,9 +23,12 @@ DEPS = [
     'third-party//rust:serde',
     'third-party//rust:serde_json',
     'third-party//rust:sha2',
+    'third-party//rust:tar',
     'third-party//rust:tokio',
     'third-party//rust:tracing',
     'third-party//rust:tracing-subscriber',
+    'third-party//rust:zip',
+    'third-party//rust:zstd',
 ]
 
 depot.rust_binary(
