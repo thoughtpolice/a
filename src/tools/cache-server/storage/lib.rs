@@ -160,6 +160,34 @@ impl CacheStore {
         data: Bytes,
         compression: Compression,
     ) -> Result<()> {
+        self.cas_put_blob_inner(digest, data, compression, true)
+            .await
+    }
+
+    /// Store a blob whose digest was already computed by the caller.
+    ///
+    /// Identical to [`cas_put_blob`] but skips re-hashing the data for
+    /// verification. The caller **must** guarantee that `digest` was
+    /// computed from `data` — passing a mismatched pair is a logic error
+    /// that will silently store garbage.
+    #[instrument(skip(self, data), fields(size = data.len(), %digest, %compression))]
+    pub async fn cas_put_blob_prehashed(
+        &self,
+        digest: &ContentDigest,
+        data: Bytes,
+        compression: Compression,
+    ) -> Result<()> {
+        self.cas_put_blob_inner(digest, data, compression, false)
+            .await
+    }
+
+    async fn cas_put_blob_inner(
+        &self,
+        digest: &ContentDigest,
+        data: Bytes,
+        compression: Compression,
+        verify_hash: bool,
+    ) -> Result<()> {
         let digest_fn = digest.function;
         let hash = &digest.hash;
         if data.len() > MAX_BLOB_REASSEMBLE_SIZE {
@@ -169,18 +197,20 @@ impl CacheStore {
             });
         }
 
-        // Always verify hash first — never skip validation, even for
-        // existing blobs, to prevent accepting garbage data under a
-        // valid digest.
-        let computed = digest_fn.hash_data(&data);
-        if computed != *hash {
-            return Err(StoreError::DigestMismatch {
-                expected: hex::encode(hash),
-                actual: hex::encode(computed),
-            });
+        if verify_hash {
+            // Verify hash first — never skip validation for untrusted
+            // callers, to prevent accepting garbage data under a valid
+            // digest.
+            let computed = digest_fn.hash_data(&data);
+            if computed != *hash {
+                return Err(StoreError::DigestMismatch {
+                    expected: hex::encode(hash),
+                    actual: hex::encode(computed),
+                });
+            }
         }
 
-        // Now safe to short-circuit: data is verified, skip redundant write
+        // Short-circuit: skip redundant write if blob already exists
         if self.cas_blob_exists(digest).await? {
             debug!("blob already exists, skipping write");
             return Ok(());

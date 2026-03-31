@@ -220,6 +220,55 @@ async fn cas_put_blob_wrong_hash_rejected() {
 }
 
 #[tokio::test]
+async fn cas_put_blob_prehashed_stores_correctly() {
+    let store = open_memory_store().await;
+    let data = Bytes::from_static(b"prehashed blob data");
+    let hash = sha256(&data);
+
+    store
+        .cas_put_blob_prehashed(
+            &ContentDigest::new(DigestFn::Sha256, hash),
+            data.clone(),
+            Compression::Identity,
+        )
+        .await
+        .unwrap();
+
+    let retrieved = store
+        .cas_get_blob(&ContentDigest::new(DigestFn::Sha256, hash))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(retrieved, data);
+
+    store.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn cas_put_blob_prehashed_skips_existing() {
+    let store = open_memory_store().await;
+    let data = Bytes::from_static(b"deduplicated prehashed blob");
+    let hash = sha256(&data);
+    let cd = ContentDigest::new(DigestFn::Sha256, hash);
+
+    store
+        .cas_put_blob_prehashed(&cd, data.clone(), Compression::Identity)
+        .await
+        .unwrap();
+
+    // Second write of the same blob should succeed (idempotent)
+    store
+        .cas_put_blob_prehashed(&cd, data.clone(), Compression::Identity)
+        .await
+        .unwrap();
+
+    let retrieved = store.cas_get_blob(&cd).await.unwrap().unwrap();
+    assert_eq!(retrieved, data);
+
+    store.close().await.unwrap();
+}
+
+#[tokio::test]
 async fn cas_put_chunk_wrong_hash_rejected() {
     let store = open_memory_store().await;
     let data = Bytes::from_static(b"chunk data");
