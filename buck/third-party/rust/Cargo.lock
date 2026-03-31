@@ -7252,6 +7252,7 @@ dependencies = [
  "quote",
  "rand 0.8.5",
  "ratatui",
+ "rayon",
  "reqwest",
  "s3s",
  "salsa",
