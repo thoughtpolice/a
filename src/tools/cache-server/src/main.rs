@@ -99,7 +99,7 @@ struct ServeArgs {
     tokio_console: bool,
 
     /// Per-request timeout in seconds (0 = no timeout)
-    #[arg(long, default_value_t = 300, env = "CACHE_SERVER_REQUEST_TIMEOUT")]
+    #[arg(long, default_value_t = 900, env = "CACHE_SERVER_REQUEST_TIMEOUT")]
     request_timeout: u64,
 
     /// Maximum concurrent requests across all connections (default 8192).
@@ -214,7 +214,7 @@ impl Default for ServeArgs {
         Self {
             address: "127.0.0.1:8080".to_string(),
             tokio_console: false,
-            request_timeout: 300,
+            request_timeout: 900,
             max_concurrent_requests: 8192,
             disable_compactor: false,
             otel_enabled: false,
