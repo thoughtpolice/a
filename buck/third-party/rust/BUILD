@@ -8869,6 +8869,45 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "hyper-rustls",
+    actual = ":hyper-rustls-0.27.9",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "hyper-rustls-0.27.9.crate",
+    sha256 = "33ca68d021ef39cf6463ab54c1d0f5daf03377b70561305bb89a8f83aab66e0f",
+    strip_prefix = "hyper-rustls-0.27.9",
+    urls = ["https://static.crates.io/crates/hyper-rustls/0.27.9/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "hyper-rustls-0.27.9",
+    srcs = [":hyper-rustls-0.27.9.crate"],
+    crate = "hyper_rustls",
+    crate_root = "hyper-rustls-0.27.9.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "http1",
+        "http2",
+        "native-tokio",
+        "rustls-native-certs",
+    ],
+    visibility = [],
+    deps = [
+        ":http-1.4.2",
+        ":hyper-1.10.1",
+        ":hyper-util-0.1.20",
+        ":rustls-0.23.42",
+        ":rustls-native-certs-0.8.4",
+        ":tokio-1.52.3",
+        ":tokio-rustls-0.26.4",
+        ":tower-service-0.3.3",
+    ],
+)
+
 shims.http_archive(
     name = "hyper-timeout-0.5.2.crate",
     sha256 = "2b90d566bffbce6a75bd8b09a05aa8c2cb1fabb6cb348f8840c9e4c90a0d83b0",
@@ -16476,6 +16515,46 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "rustls-native-certs-0.8.4.crate",
+    sha256 = "dab5152771c58876a2146916e53e35057e1a4dfa2b9df0f0305b07f611fdea4d",
+    strip_prefix = "rustls-native-certs-0.8.4",
+    urls = ["https://static.crates.io/crates/rustls-native-certs/0.8.4/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "rustls-native-certs-0.8.4",
+    srcs = [":rustls-native-certs-0.8.4.crate"],
+    crate = "rustls_native_certs",
+    crate_root = "rustls-native-certs-0.8.4.crate/src/lib.rs",
+    edition = "2021",
+    named_deps = {
+        "pki_types": ":rustls-pki-types-1.14.1",
+    },
+    platform = {
+        "linux-arm64": dict(
+            deps = [":openssl-probe-0.2.1"],
+        ),
+        "linux-x86_64": dict(
+            deps = [":openssl-probe-0.2.1"],
+        ),
+        "macos-arm64": dict(
+            deps = [":security-framework-3.7.0"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":security-framework-3.7.0"],
+        ),
+        "windows-gnu": dict(
+            deps = [":schannel-0.1.29"],
+        ),
+        "windows-msvc": dict(
+            deps = [":schannel-0.1.29"],
+        ),
+    },
+    visibility = [],
+)
+
+shims.http_archive(
     name = "rustls-pki-types-1.14.1.crate",
     sha256 = "30a7197ae7eb376e574fe940d068c30fe0462554a3ddbe4eca7838e049c937a9",
     strip_prefix = "rustls-pki-types-1.14.1",
@@ -20241,6 +20320,27 @@ third_party_rust.rust_library(
     deps = [
         ":openssl-0.10.80",
         ":openssl-sys-0.9.116",
+        ":tokio-1.52.3",
+    ],
+)
+
+shims.http_archive(
+    name = "tokio-rustls-0.26.4.crate",
+    sha256 = "1729aa945f29d91ba541258c8df89027d5792d85a8841fb65e8bf0f4ede4ef61",
+    strip_prefix = "tokio-rustls-0.26.4",
+    urls = ["https://static.crates.io/crates/tokio-rustls/0.26.4/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "tokio-rustls-0.26.4",
+    srcs = [":tokio-rustls-0.26.4.crate"],
+    crate = "tokio_rustls",
+    crate_root = "tokio-rustls-0.26.4.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [
+        ":rustls-0.23.42",
         ":tokio-1.52.3",
     ],
 )
