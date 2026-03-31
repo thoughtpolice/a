@@ -24,6 +24,7 @@ DEPS = [
     'third-party//rust:serde_json',
     'third-party//rust:sha2',
     'third-party//rust:tar',
+    'third-party//rust:tempfile',
     'third-party//rust:tokio',
     'third-party//rust:tracing',
     'third-party//rust:tracing-subscriber',
@@ -41,7 +42,5 @@ depot.rust_binary(
 depot.rust_test(
     name = 'tests',
     srcs = glob(['src/**/*.rs']),
-    deps = DEPS + [
-        'third-party//rust:tempfile',
-    ],
+    deps = DEPS,
 )
