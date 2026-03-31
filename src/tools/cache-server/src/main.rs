@@ -71,6 +71,15 @@ struct Cli {
     )]
     trace_max_total_mib: u64,
 
+    /// Disable dial9 scheduler tracing (use a plain tokio runtime).
+    #[arg(
+        long,
+        default_value_t = false,
+        env = "CACHE_SERVER_DISABLE_DIAL9",
+        global = true
+    )]
+    disable_dial9: bool,
+
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -141,41 +150,53 @@ struct ServeArgs {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    let trace_dir = cli
-        .trace_dir
-        .clone()
-        .unwrap_or_else(|| std::env::temp_dir().join("cache-server-traces"));
-    let _ = std::fs::remove_dir_all(&trace_dir);
-
-    let trace_path = trace_dir.join("trace.bin");
-    let writer = RotatingWriter::builder()
-        .base_path(&trace_path)
-        .max_file_size(cli.trace_max_file_mib * 1024 * 1024)
-        .max_total_size(cli.trace_max_total_mib * 1024 * 1024)
-        .build()?;
-
     let mut builder = tokio::runtime::Builder::new_multi_thread();
     builder.enable_all();
 
-    let (runtime, guard) = TracedRuntime::builder()
-        .with_task_tracking(true)
-        .with_cpu_profiling(CpuProfilingConfig::default())
-        .with_sched_events(SchedEventConfig {
-            include_kernel: true,
+    if cli.disable_dial9 {
+        let (runtime, guard) = TracedRuntime::build_disabled(builder)?;
+        let handle = guard.handle();
+        runtime.block_on(async {
+            let result = async_main(cli, handle, None).await;
+            guard
+                .graceful_shutdown(std::time::Duration::from_secs(5))
+                .ok();
+            result
         })
-        .with_trace_path(&trace_path)
-        .build_and_start(builder, writer)?;
-    let handle = guard.handle();
-    runtime.block_on(async {
-        let result = async_main(cli, handle, trace_dir).await;
-        // Give the background worker time to symbolize the final trace segment
-        // before exiting. Without this, Drop hard-kills the worker and stack
-        // traces are left as raw addresses.
-        guard
-            .graceful_shutdown(std::time::Duration::from_secs(5))
-            .ok();
-        result
-    })
+    } else {
+        let trace_dir = cli
+            .trace_dir
+            .clone()
+            .unwrap_or_else(|| std::env::temp_dir().join("cache-server-traces"));
+        let _ = std::fs::remove_dir_all(&trace_dir);
+
+        let trace_path = trace_dir.join("trace.bin");
+        let writer = RotatingWriter::builder()
+            .base_path(&trace_path)
+            .max_file_size(cli.trace_max_file_mib * 1024 * 1024)
+            .max_total_size(cli.trace_max_total_mib * 1024 * 1024)
+            .build()?;
+
+        let (runtime, guard) = TracedRuntime::builder()
+            .with_task_tracking(true)
+            .with_cpu_profiling(CpuProfilingConfig::default())
+            .with_sched_events(SchedEventConfig {
+                include_kernel: true,
+            })
+            .with_trace_path(&trace_path)
+            .build_and_start(builder, writer)?;
+        let handle = guard.handle();
+        runtime.block_on(async {
+            let result = async_main(cli, handle, Some(trace_dir)).await;
+            // Give the background worker time to symbolize the final trace segment
+            // before exiting. Without this, Drop hard-kills the worker and stack
+            // traces are left as raw addresses.
+            guard
+                .graceful_shutdown(std::time::Duration::from_secs(5))
+                .ok();
+            result
+        })
+    }
 }
 
 fn parse_backend(store: &str) -> Result<store::StoreBackend> {
@@ -201,11 +222,11 @@ fn default_ttl(days: u32) -> Option<jiff::SignedDuration> {
     }
 }
 
-async fn async_main(cli: Cli, handle: TelemetryHandle, trace_dir: PathBuf) -> Result<()> {
+async fn async_main(cli: Cli, handle: TelemetryHandle, trace_dir: Option<PathBuf>) -> Result<()> {
     match cli.command {
         Some(Command::Compact) => run_compactor(&cli, handle).await,
-        Some(Command::Serve(ref args)) => run_server(&cli, args, handle, &trace_dir).await,
-        None => run_server(&cli, &ServeArgs::default(), handle, &trace_dir).await,
+        Some(Command::Serve(ref args)) => run_server(&cli, args, handle, trace_dir.as_ref()).await,
+        None => run_server(&cli, &ServeArgs::default(), handle, trace_dir.as_ref()).await,
     }
 }
 
@@ -273,7 +294,7 @@ async fn run_server(
     cli: &Cli,
     args: &ServeArgs,
     handle: TelemetryHandle,
-    trace_dir: &PathBuf,
+    trace_dir: Option<&PathBuf>,
 ) -> Result<()> {
     // Build OTEL config from env + CLI
     let otel_config = telemetry::OtelConfig::from_env().with_cli_overrides(
@@ -352,7 +373,8 @@ async fn run_server(
         request_timeout_secs = args.request_timeout,
         max_concurrent_requests = args.max_concurrent_requests,
         disable_compactor = args.disable_compactor,
-        trace_dir = %trace_dir.display(),
+        dial9 = !cli.disable_dial9,
+        trace_dir = trace_dir.map_or("disabled".to_string(), |d| d.display().to_string()),
         "cache-server ready",
     );
 
