@@ -16778,6 +16778,12 @@ third_party_rust.rust_library(
     deps = [":bitflags-2.11.0"],
 )
 
+shims.alias(
+    name = "rayon",
+    actual = ":rayon-1.11.0",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "rayon-1.11.0.crate",
     sha256 = "368f01d005bf8fd9b1206fb6fa653e6c4a81ceb1466406b81792d87c5677a58f",
