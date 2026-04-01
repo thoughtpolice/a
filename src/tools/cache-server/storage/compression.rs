@@ -327,7 +327,7 @@ impl StreamingDecompressor {
             DecompressorInner::Zstd(decoder, out_buf) => {
                 use zstd::stream::raw::Operation as _;
 
-                let mut output = bytes::BytesMut::new();
+                let mut output = bytes::BytesMut::with_capacity(compressed.len() * 2);
                 let mut src_pos = 0;
                 loop {
                     let status = decoder
@@ -349,7 +349,7 @@ impl StreamingDecompressor {
                 Ok(output.freeze())
             }
             DecompressorInner::Deflate(decompress, out_buf) => {
-                let mut output = bytes::BytesMut::new();
+                let mut output = bytes::BytesMut::with_capacity(compressed.len() * 2);
                 let mut src_pos = 0;
                 loop {
                     let before_in = decompress.total_in();
@@ -379,7 +379,7 @@ impl StreamingDecompressor {
                 Ok(output.freeze())
             }
             DecompressorInner::Brotli(writer) => {
-                let mut output = bytes::BytesMut::new();
+                let mut output = bytes::BytesMut::with_capacity(compressed.len() * 2);
                 // Feed input in small chunks so the limit check fires before
                 // unbounded expansion can occur.
                 const FEED_SIZE: usize = 16 * 1024;
@@ -415,7 +415,7 @@ impl StreamingDecompressor {
             DecompressorInner::Zstd(mut decoder, mut out_buf) => {
                 use zstd::stream::raw::Operation as _;
 
-                let mut output = bytes::BytesMut::new();
+                let mut output = bytes::BytesMut::with_capacity(256);
                 loop {
                     let status = decoder
                         .run_on_buffers(&[], &mut out_buf)
@@ -431,7 +431,7 @@ impl StreamingDecompressor {
                 Ok(output.freeze())
             }
             DecompressorInner::Deflate(mut decompress, mut out_buf) => {
-                let mut output = bytes::BytesMut::new();
+                let mut output = bytes::BytesMut::with_capacity(256);
                 loop {
                     let before_out = decompress.total_out();
                     let status = decompress
