@@ -4,50 +4,50 @@
   "name": "rust-project",
   "platforms": {
     "macos-aarch64": {
-      "size": 955097,
+      "size": 947580,
       "hash": "sha256",
-      "digest": "024d38501bb942b38f7ac185c91896590b5f050c18123be50874cf582c1b5dba",
+      "digest": "260fbc7cd89d539905a8617da9778d5470252711b438822d6b95d63a6431cf3c",
       "format": "zst",
       "path": "rust-project-aarch64-apple-darwin",
       "providers": [
         {
-          "url": "https://github.com/thoughtpolice/buck2/releases/download/snapshot-20260330-024626/rust-project-aarch64-apple-darwin.zst"
+          "url": "https://github.com/thoughtpolice/buck2/releases/download/snapshot-20260401-211612/rust-project-aarch64-apple-darwin.zst"
         }
       ]
     },
     "linux-aarch64": {
-      "size": 1111611,
+      "size": 1100205,
       "hash": "sha256",
-      "digest": "d5f36cbe20cbfebbf3e2095b114cd11ea5025c50d327de19d3155877c3e79927",
+      "digest": "90d7c65c012bab786936be0de733eb26ab3e950f4149261a8d493b9715bc7660",
       "format": "zst",
       "path": "rust-project-aarch64-unknown-linux-musl",
       "providers": [
         {
-          "url": "https://github.com/thoughtpolice/buck2/releases/download/snapshot-20260330-024626/rust-project-aarch64-unknown-linux-musl.zst"
+          "url": "https://github.com/thoughtpolice/buck2/releases/download/snapshot-20260401-211612/rust-project-aarch64-unknown-linux-musl.zst"
         }
       ]
     },
     "windows-x86_64": {
-      "size": 874698,
+      "size": 864686,
       "hash": "sha256",
-      "digest": "a150e14d5e2b687676f29f511258683b13981491208cfec0da54572cefbc2c69",
+      "digest": "c6a00ecb55c22f56d990f61149823aeef4af9302c1d847d1f031bba22a26b58a",
       "format": "zst",
       "path": "rust-project-x86_64-pc-windows-msvc.exe",
       "providers": [
         {
-          "url": "https://github.com/thoughtpolice/buck2/releases/download/snapshot-20260330-024626/rust-project-x86_64-pc-windows-msvc.exe.zst"
+          "url": "https://github.com/thoughtpolice/buck2/releases/download/snapshot-20260401-211612/rust-project-x86_64-pc-windows-msvc.exe.zst"
         }
       ]
     },
     "linux-x86_64": {
-      "size": 1179095,
+      "size": 1168773,
       "hash": "sha256",
-      "digest": "4800e8775a531539b0ccfdbe58024f77281209764af9f09b9679b1670b8e8b86",
+      "digest": "faa1b03537cc9f3a4f2339ccd6a83551ddefcad82bb6221c6aadf0588d0e707f",
       "format": "zst",
       "path": "rust-project-x86_64-unknown-linux-musl",
       "providers": [
         {
-          "url": "https://github.com/thoughtpolice/buck2/releases/download/snapshot-20260330-024626/rust-project-x86_64-unknown-linux-musl.zst"
+          "url": "https://github.com/thoughtpolice/buck2/releases/download/snapshot-20260401-211612/rust-project-x86_64-unknown-linux-musl.zst"
         }
       ]
     }
