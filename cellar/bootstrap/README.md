@@ -39,6 +39,12 @@ this stage, which is the biggest hang-up, I think. But the goal would be to have
 a set of binaries for each main platform that can be built from scratch up-to
 bit identical outputs.
 
+## Extra note: `chdirexec`
+
+An extra tool that is NOT provided by upstream stage0-posix or mescc-tools is
+`chdirexec` which is used as a workaround for moving `$CWD` in a buck build
+step. Ideally, its use will go away in the future.
+
 ## TODO
 
 Roughly in the order they need to be accomplished:
