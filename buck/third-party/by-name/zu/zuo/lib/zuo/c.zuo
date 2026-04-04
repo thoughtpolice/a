@@ -116,7 +116,7 @@
   (unless (symbol? key) (arg-error 'config-merge "symbol" key))
   (unless (string? shell-str) (arg-error 'config-merge "string" shell-str))
   (do-config-merge config key shell-str))
-  
+
 (define (do-config-merge config key shell-str)
   (define now-str (hash-ref config key ""))
   (hash-set config key (build-shell now-str shell-str)))

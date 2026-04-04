@@ -4350,7 +4350,7 @@ static zuo_raw_handle_t zuo_fd_open_input_handle(zuo_t *path, zuo_t *options) {
   zuo_raw_handle_t fd;
 
   if (options == z.o_undefined) options = z.o_empty_hash;
-  
+
   if (zuo_is_path_string(path)) {
     check_hash(who, options);
     check_options_consumed(who, options);
@@ -4508,7 +4508,7 @@ static zuo_t *zuo_fd_open_output(zuo_t *path, zuo_t *options) {
       zuo_fail_arg(who, "path string, 'stdout, 'stderr, or nonnegative integer", path);
     check_hash(who, options);
     check_options_consumed(who, options);
-#ifdef ZUO_UNIX    
+#ifdef ZUO_UNIX
     fd = zuo_get_std_handle((zuo_raw_handle_t)ZUO_INT_I(path));
     return zuo_handle(fd, zuo_handle_open_fd_out_status);
 #endif

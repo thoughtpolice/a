@@ -36,7 +36,7 @@
    (let* ([mod (module->hash mod-path)]
           [provides (hash-ref mod 'macromod-provides #f)]
           [m-binds (hash-ref mod merge-bindings-export-key #f)])
-     (unless provides 
+     (unless provides
        (syntax-error "not a compatible module for initial imports" mod-path))
      (hash 'read-and-eval
            (make-read-and-eval

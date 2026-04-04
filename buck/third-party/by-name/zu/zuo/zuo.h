@@ -1,5 +1,5 @@
 /* This header is used only when embedding Zuo in a larger
-   application, and this file defines the embedding interface. 
+   application, and this file defines the embedding interface.
 
    To use an embedded Zuo, it must be initialized through the three
    startup steps below. The space between those steps offer two

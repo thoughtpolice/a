@@ -6,7 +6,7 @@ load(":defs.bzl", "zuo_toolchain")
 # The default Zuo toolchain using the embedded Zuo executable
 zuo_toolchain(
     name = "zuo",
-    zuo = "third-party//zuo:zuo",
-    stdlib = "third-party//zuo:stdlib",
+    zuo = "third-party//by-name/zu/zuo:zuo",
+    stdlib = "third-party//by-name/zu/zuo:stdlib",
     visibility = ["PUBLIC"],
 )

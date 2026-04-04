@@ -88,7 +88,7 @@
         (displayln (~a "generating " c-file " embedding these libraries: " (string-join (map ~s libs))))))
   (when deps-file
     (display-to-file "" deps-file :truncate))
-  
+
   (define deps-h (and deps-file (cleanable-file deps-file)))
 
   (define image
@@ -127,7 +127,7 @@
   (define out (if c-file
                   (fd-open-output c-file (hash 'exists 'truncate))
                   (fd-open-output 'stdout (hash))))
-  
+
   (define lines (let ([l (reverse (string-split zuo.c "\n"))])
 		  ;; splitting on newlines should leave us with an empty last string
 		  ;; that doesn't represent a line
