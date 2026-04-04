@@ -14339,10 +14339,10 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        "third-party//bssl:crypto",
-        "third-party//bssl:decrepit",
-        "third-party//bssl:ssl",
-        "third-party//bssl/rust:bssl-sys",
+        "third-party//by-name/bo/boringssl:crypto",
+        "third-party//by-name/bo/boringssl:decrepit",
+        "third-party//by-name/bo/boringssl:ssl",
+        "third-party//by-name/bo/boringssl/rust:bssl-sys",
         ":bitflags-2.11.0",
         ":cfg-if-1.0.4",
         ":foreign-types-0.3.2",
@@ -14413,10 +14413,10 @@ third_party_rust.rust_library(
     rustc_flags = ["--cfg=boringssl"],
     visibility = [],
     deps = [
-        "third-party//bssl:crypto",
-        "third-party//bssl:decrepit",
-        "third-party//bssl:ssl",
-        "third-party//bssl/rust:bssl-sys",
+        "third-party//by-name/bo/boringssl:crypto",
+        "third-party//by-name/bo/boringssl:decrepit",
+        "third-party//by-name/bo/boringssl:ssl",
+        "third-party//by-name/bo/boringssl/rust:bssl-sys",
         ":libc-0.2.183",
     ],
 )
@@ -25071,5 +25071,5 @@ third_party_rust.rust_library(
         "zdict_builder",
     ],
     visibility = [],
-    deps = ["third-party//zstd:zstd"],
+    deps = ["third-party//by-name/zs/zstd:zstd"],
 )
