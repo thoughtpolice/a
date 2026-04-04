@@ -74,7 +74,7 @@ FIX_INCLUDE_FILES = [
 ]
 
 [
-    genrule(
+    shims.genrule(
         name = 'fixed-{}'.format(paths.basename(f).replace('.', '-')),
         srcs = [':src[{}]'.format(f)],
         out = paths.basename(f),
