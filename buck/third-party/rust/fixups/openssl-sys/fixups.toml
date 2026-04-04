@@ -2,10 +2,10 @@ buildscript.run = false
 
 features = ["unstable_boringssl", "bindgen"]
 extra_deps = [
-    "third-party//bssl:crypto",
-    "third-party//bssl:ssl",
-    "third-party//bssl:decrepit",
-    "third-party//bssl/rust:bssl-sys",
+    "third-party//by-name/bo/boringssl:crypto",
+    "third-party//by-name/bo/boringssl:ssl",
+    "third-party//by-name/bo/boringssl:decrepit",
+    "third-party//by-name/bo/boringssl/rust:bssl-sys",
 ]
 omit_deps = ["bssl-sys"]
 cfgs = ["boringssl"]

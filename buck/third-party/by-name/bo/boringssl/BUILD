@@ -52,7 +52,7 @@ shims.http_archive(
         "rust/bssl-sys/wrapper.h",
         "rust/bssl-macros/src/lib.rs",
     ],
-    visibility=["third-party//bssl/..."],
+    visibility=["third-party//by-name/bo/boringssl/..."],
 )
 
 src_ref = lambda x: ":src[{}]".format(x)

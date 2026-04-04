@@ -14,7 +14,7 @@ shims.cxx_genrule(
     },
     default_outs=["wrapper.rs"],
     srcs={
-        "wrapper.h": "third-party//bssl:src[rust/bssl-sys/wrapper.h]",
+        "wrapper.h": "third-party//by-name/bo/boringssl:src[rust/bssl-sys/wrapper.h]",
     },
     cmd=f"""
       bindgen \
@@ -28,7 +28,7 @@ shims.cxx_genrule(
           --experimental \
           --wrap-static-fns \
           --wrap-static-fns-path $OUT/extern.c \
-        -- -I$(location third-party//bssl:src)/include
+        -- -I$(location third-party//by-name/bo/boringssl:src)/include
     """,
     visibility=[],
 )
@@ -39,33 +39,33 @@ shims.cxx_library(
     srcs=[":wrapper.rs[extern.c]"],
     header_namespace="",
     headers={
-        "wrapper.h": "third-party//bssl:src[rust/bssl-sys/wrapper.h]",
+        "wrapper.h": "third-party//by-name/bo/boringssl:src[rust/bssl-sys/wrapper.h]",
     },
     deps=[
-        "third-party//bssl:crypto",
-        "third-party//bssl:ssl",
+        "third-party//by-name/bo/boringssl:crypto",
+        "third-party//by-name/bo/boringssl:ssl",
     ],
-    visibility=["third-party//bssl/..."],
+    visibility=["third-party//by-name/bo/boringssl/..."],
 )
 
 shims.rust_library(
     name="bssl-macros",
-    srcs=["third-party//bssl:src[rust/bssl-macros/src/lib.rs]"],
-    visibility=["third-party//bssl/..."],
+    srcs=["third-party//by-name/bo/boringssl:src[rust/bssl-macros/src/lib.rs]"],
+    visibility=["third-party//by-name/bo/boringssl/..."],
 )
 
 shims.rust_library(
     name="bssl-sys",
     srcs=[
-        "third-party//bssl:src[rust/bssl-sys/src/lib.rs]",
+        "third-party//by-name/bo/boringssl:src[rust/bssl-sys/src/lib.rs]",
     ],
     rustc_flags=["--cfg", "bindgen_rs_file"],
     env={
         "BINDGEN_RS_FILE": "$(location :wrapper.rs)",
     },
     deps=[
-        "third-party//bssl:crypto",
-        "third-party//bssl:ssl",
+        "third-party//by-name/bo/boringssl:crypto",
+        "third-party//by-name/bo/boringssl:ssl",
         ":bssl-sys-cbits",  # NOTE: MUST be linked! requires crypto and ssl!
         ":bssl-macros",
     ],
