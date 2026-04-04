@@ -1,2 +1,2 @@
-extra_deps = ["third-party//zstd:zstd"]
+extra_deps = ["third-party//by-name/zs/zstd:zstd"]
 buildscript.run = false
