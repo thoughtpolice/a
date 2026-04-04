@@ -4,18 +4,19 @@
 load("@root//buck/shims:package.bzl", "third_party_meta")
 
 third_party_meta([
-    'bssl',
-    'capnp',
-    'isocline',
-    'librseq',
-    'liburing',
-    'libz',
-    'mimalloc',
+    'by-name/bo/boringssl',
+    'by-name/ca/capnproto',
+    'by-name/is/isocline',
+    'by-name/li/librseq',
+    'by-name/li/liburing',
+    'by-name/mi/mimalloc',
+    'by-name/qe/qemu-static',
+    'by-name/qu/quickjs-ng',
+    'by-name/sq/sqlite',
+    'by-name/wu/wuffs',
+    'by-name/zl/zlib',
+    'by-name/zs/zstd',
+    'by-name/zu/zuo',
     'oci-images',
-    'qemu-static',
-    'quickjs-ng',
     'rust',
-    'sqlite',
-    'wuffs',
-    'zstd'
 ])
