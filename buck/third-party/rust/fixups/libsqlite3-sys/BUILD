@@ -12,7 +12,7 @@ shims.cxx_genrule(
     },
     default_outs = [ 'bindgen.rs' ],
     srcs = {
-        'wrapper.h': 'third-party//sqlite:wrapper_sqlite3ext.h',
+        'wrapper.h': 'third-party//by-name/sq/sqlite:wrapper_sqlite3ext.h',
     },
     # this abomination comes from
     # https://github.com/rusqlite/rusqlite/blob/fb95263b1c17947dbe81fa03fd8bd216b4fba6b3/libsqlite3-sys/build.rs#L530-L576
@@ -32,7 +32,7 @@ shims.cxx_genrule(
           --blocklist-function=sqlite3_create_module \
           --blocklist-function=sqlite3_prepare \
           --blocklist-function=.*16* \
-        -- -I$(location third-party//sqlite:src)
+        -- -I$(location third-party//by-name/sq/sqlite:src)
     """,
     visibility = [],
 )
