@@ -4,7 +4,7 @@
 load("@root//buck/shims:shims.bzl", "shims")
 load("@root//buck/shims:package.bzl", "pkg")
 
-http_file(
+shims.http_file(
     name = 'wuffs.c',
     sha256 = "ca10c422ebd4bf9f2cc469bafec4d5606eed3db0db7cbe21cb5232249ac0fe68",
     urls = [
