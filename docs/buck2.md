@@ -1535,7 +1535,7 @@ _swtpm_cmd = rule(
         ),
     ],
     attrs = {
-        "_script": attrs.default_only(attrs.exec_dep(default = "third-party//qemu-static:run-swtpm"))
+        "_script": attrs.default_only(attrs.exec_dep(default = "third-party//by-name/qe/qemu-static:run-swtpm"))
     }
 )
 ```
