@@ -70,7 +70,7 @@ This monorepository uses Buck2 exclusively for its build system. You have variou
 ## Language and project-specific patterns
 
 ### Rust projects
-- Always include `third-party//mimalloc:rust` for memory allocation
+- Always include `third-party//by-name/mi/mimalloc:rust` for memory allocation
 - Use `depot.rust_binary()`, `depot.rust_library()`, `depot.rust_test()`
 - Tests automatically get `insta` snapshots support when needed
 - Edition 2021 is default, override with `edition = "2024"` if needed

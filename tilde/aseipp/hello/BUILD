@@ -7,6 +7,6 @@ depot.rust_binary(
     name = 'hello',
     srcs = glob(['*.rs']),
     deps = [
-        'third-party//mimalloc:rust',
+        'third-party//by-name/mi/mimalloc:rust',
     ]
 )

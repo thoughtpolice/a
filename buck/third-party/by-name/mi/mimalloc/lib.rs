@@ -67,10 +67,10 @@ use core::ffi::{CStr, c_char, c_ulonglong, c_void};
 use core::fmt;
 
 use mimalloc_ffi::{
-    mi_collect, mi_free, mi_good_size, mi_malloc_aligned, mi_process_info, mi_realloc_aligned,
-    mi_register_deferred_free, mi_stat_count_t, mi_stat_counter_t, mi_stats_get,
-    mi_stats_get_bin_size, mi_stats_print_out, mi_stats_reset, mi_stats_t, mi_usable_size,
-    mi_zalloc_aligned, MI_STAT_VERSION,
+    MI_STAT_VERSION, mi_collect, mi_free, mi_good_size, mi_malloc_aligned, mi_process_info,
+    mi_realloc_aligned, mi_register_deferred_free, mi_stat_count_t, mi_stat_counter_t,
+    mi_stats_get, mi_stats_get_bin_size, mi_stats_print_out, mi_stats_reset, mi_stats_t,
+    mi_usable_size, mi_zalloc_aligned,
 };
 
 /// A statistic counter with total, peak, and current values.
@@ -159,9 +159,7 @@ pub fn stats_print<F: Fn(&CStr)>(f: &'static F) {
             (*(ctx as *const F))(CStr::from_ptr(value));
         }
     }
-    unsafe {
-        mi_stats_print_out(Some(wrapper::<F>), f as *const F as *mut c_void)
-    }
+    unsafe { mi_stats_print_out(Some(wrapper::<F>), f as *const F as *mut c_void) }
 }
 
 /// Reset heap statistics counters and histograms.

@@ -33,7 +33,7 @@ depot.rust_binary(
     name = 'main',
     srcs = [ 'main.rs' ],
     deps = [
-        'third-party//mimalloc:rust',
+        'third-party//by-name/mi/mimalloc:rust',
         ':stribob'
     ],
 )

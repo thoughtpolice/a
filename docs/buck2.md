@@ -645,7 +645,7 @@ depot.rust_binary(
         "//src/utils:helpers",            # Same cell (root)
         "third-party//rust:serde",        # Different cell
         "third-party//rust:tokio",
-        "third-party//mimalloc:rust",     # Custom allocator
+        "third-party//by-name/mi/mimalloc:rust",     # Custom allocator
     ],
 )
 ```

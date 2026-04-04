@@ -5,7 +5,7 @@ load("@root//buck/shims:shims.bzl", depot="shims")
 
 BUILD_DEPS = [
     # 3p deps
-    'third-party//mimalloc:rust',
+    'third-party//by-name/mi/mimalloc:rust',
     # local deps
     '//src/tools/cache-server/dial9-tonic:dial9-tonic',
     '//src/tools/cache-server/protos:protos',

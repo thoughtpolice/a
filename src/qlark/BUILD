@@ -4,7 +4,7 @@
 load("@root//buck/shims:shims.bzl", depot="shims")
 
 COMMON_DEPS = [
-    "third-party//mimalloc:rust",
+    "third-party//by-name/mi/mimalloc:rust",
     # rust dependencies
     "third-party//rust:anyhow",
     "third-party//rust:clap",

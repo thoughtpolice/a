@@ -88,7 +88,7 @@ depot.rust_binary(
     name = "{self.name}",
     srcs = glob(["src/**/*.rs"]),
     deps = [
-        "third-party//mimalloc:rust",
+        "third-party//by-name/mi/mimalloc:rust",
     ],
     visibility = {self.visibility},
 )

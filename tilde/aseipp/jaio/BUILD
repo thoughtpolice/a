@@ -30,7 +30,7 @@ depot.cxx_library(
     srcs = glob([ 'src/util/*.c' ]),
 
     deps = [
-        'third-party//mimalloc:mimalloc',
+        'third-party//by-name/mi/mimalloc:mimalloc',
     ] + [
         ':crypto',
     ],
@@ -46,7 +46,7 @@ depot.cxx_library(
     srcs = glob([ 'src/io/*.c' ]),
 
     deps = [
-        'third-party//mimalloc:mimalloc',
+        'third-party//by-name/mi/mimalloc:mimalloc',
         'third-party//liburing:liburing',
     ] + [
         ':crypto',
@@ -63,7 +63,7 @@ depot.cxx_binary(
         ':io',
         ':util',
     ] + [
-        'third-party//mimalloc:mimalloc',
+        'third-party//by-name/mi/mimalloc:mimalloc',
         'third-party//liburing:liburing',
     ],
 )
@@ -80,7 +80,7 @@ depot.test_suite(name = 'tests', tests = [ ':test-{}'.format(t) for t in TESTS ]
             ':util',
             ':crypto',
         ] + [
-            'third-party//mimalloc:mimalloc',
+            'third-party//by-name/mi/mimalloc:mimalloc',
             'third-party//liburing:liburing',
         ],
     ) for t in TESTS
