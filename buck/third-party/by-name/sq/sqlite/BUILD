@@ -71,7 +71,7 @@ shims.cxx_library(
 
 HEADER_FILE_FLAGS = map(lambda x: "#define {}".format(x.replace("=", " ")), BUILD_FLAGS)
 [
-    genrule(
+    shims.genrule(
         name=f"wrapper_{f}.h",
         srcs=[f":src[{f}.h]"],
         out=f"wrapper_{f}.h",
