@@ -16,8 +16,10 @@ main(void) {
   // Test mi_stats_get
   mi_stats_t stats;
   memset(&stats, 0, sizeof(stats));
-  mi_stats_get(sizeof(stats), &stats);
-  printf("mi_stats_get succeeded, version = %d\n", stats.version);
+  stats.size = sizeof(stats);
+  stats.version = MI_STAT_VERSION;
+  mi_stats_get(&stats);
+  printf("mi_stats_get succeeded, version = %zu\n", stats.version);
   printf("sizeof(mi_stats_t) = %zu\n", sizeof(mi_stats_t));
   printf("sizeof(mi_stat_count_t) = %zu\n", sizeof(mi_stat_count_t));
   printf("sizeof(mi_stat_counter_t) = %zu\n", sizeof(mi_stat_counter_t));

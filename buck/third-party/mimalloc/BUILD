@@ -9,7 +9,7 @@ VERSION = pkg.version()
 
 shims.http_archive(
     name="src",
-    sha256="1c6949032069d5ebea438ec5cedd602d06f40a92ddf0f0d9dcff0993e5f6635c",
+    sha256="68163666575518c213a6593850099adce3863b340ca2751103dbd1f253664e05",
     urls=[
         f"https://github.com/microsoft/mimalloc/archive/refs/tags/v{VERSION}.tar.gz",
     ],
@@ -52,6 +52,8 @@ shims.http_archive(
         "src/page-queue.c",
         "src/init.c",
         "src/alloc-posix.c",
+        "src/theap.c",
+        "src/threadlocal.c",
     ],
 )
 
@@ -89,6 +91,8 @@ shims.cxx_library(
         ":src[src/page-map.c]",
         ":src[src/random.c]",
         ":src[src/stats.c]",
+        ":src[src/theap.c]",
+        ":src[src/threadlocal.c]",
     ]
     + shims.select(
         {
