@@ -1,4 +1,4 @@
 buildscript.run = false
 cargo_env = true
 features = ["stock-zlib"]
-extra_deps = ["third-party//libz:libz"]
+extra_deps = ["third-party//by-name/zl/zlib:zlib"]
