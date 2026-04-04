@@ -4,7 +4,7 @@
 load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 
 pkg.info(
-    version = "3.1.5",
+    version = "3.2.8",
     description = """
         Compact, general-purpose memory allocator.
     """,
@@ -17,6 +17,6 @@ pkg.info(
 
     osv_info = OsvGitRepoInfo(
         url = "https://github.com/microsoft/mimalloc",
-        commit = "dfa50c37d951128b1e77167dd9291081aa88eea4",
+        commit = "7b7fca4b7013d77e356d96e055fec309cb3cbbd6",
     ),
 )
