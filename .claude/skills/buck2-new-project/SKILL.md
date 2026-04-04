@@ -70,7 +70,7 @@ depot.rust_binary(
     name = "quicktd",
     srcs = glob(["src/**/*.rs"]),
     deps = [
-        "third-party//mimalloc:rust",
+        "third-party//by-name/mi/mimalloc:rust",
     ],
     visibility = ["PUBLIC"],
 )
@@ -169,7 +169,7 @@ All BUILD files follow this pattern:
 1. **Import shims**: `load("@root//buck/shims:shims.bzl", depot = "shims")`
 2. **Use depot wrappers**: `depot.rust_binary()` NOT `rust_binary()`
 3. **Set visibility**: Usually `["PUBLIC"]` for reusable components
-4. **Include dependencies**: Always add `third-party//mimalloc:rust` for Rust binaries
+4. **Include dependencies**: Always add `third-party//by-name/mi/mimalloc:rust` for Rust binaries
 
 ### PACKAGE File Metadata
 
@@ -214,7 +214,7 @@ depot.rust_binary(
     name = "my-tool",
     srcs = glob(["src/**/*.rs"]),
     deps = [
-        "third-party//mimalloc:rust",
+        "third-party//by-name/mi/mimalloc:rust",
         "third-party//clap:clap",  # Add CLI argument parser
         "//src/lib/common-utils",  # Add internal library
     ],
@@ -266,7 +266,7 @@ python3 scripts/new_project.py \
 depot.rust_binary(
     name = "myapp-cli",
     srcs = ["src/bin/main.rs"],
-    deps = [":myapp", "third-party//mimalloc:rust"],
+    deps = [":myapp", "third-party//by-name/mi/mimalloc:rust"],
 )
 ```
 

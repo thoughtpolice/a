@@ -9,7 +9,7 @@ depot.rust_binary(
     srcs = glob(['**/*.rs']),
     deps = [
         '//src/qq/qq-capnp:qq-capnp',
-        'third-party//mimalloc:rust',
+        'third-party//by-name/mi/mimalloc:rust',
 
         # rust dependencies
         'third-party//rust:anyhow',

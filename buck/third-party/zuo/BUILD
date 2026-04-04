@@ -42,7 +42,7 @@ depot.cxx_binary(
     name = "zuo-embedded",
     srcs = [":image_zuo.c"],
     deps = [
-        'third-party//mimalloc:mimalloc',
+        'third-party//by-name/mi/mimalloc:mimalloc',
     ],
     visibility = ["PUBLIC"],
 )

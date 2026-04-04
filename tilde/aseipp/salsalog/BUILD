@@ -7,7 +7,7 @@ depot.rust_binary(
     name = 'salsalog',
     srcs = glob(['*.rs']),
     deps = [
-        'third-party//mimalloc:rust',
+        'third-party//by-name/mi/mimalloc:rust',
         'third-party//rust:salsa',
     ],
 )

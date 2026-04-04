@@ -5,7 +5,7 @@ load("@root//buck/shims:shims.bzl", depot="shims")
 
 # Shared deps for REAPI client code (no TUI)
 REAPI_CLIENT_DEPS = [
-    'third-party//mimalloc:rust',
+    'third-party//by-name/mi/mimalloc:rust',
 
     # proto library (shared with cache-server)
     '//src/tools/cache-server/protos:protos',
