@@ -47,7 +47,7 @@ depot.cxx_library(
 
     deps = [
         'third-party//by-name/mi/mimalloc:mimalloc',
-        'third-party//liburing:liburing',
+        'third-party//by-name/li/liburing:liburing',
     ] + [
         ':crypto',
         ':util',
@@ -64,7 +64,7 @@ depot.cxx_binary(
         ':util',
     ] + [
         'third-party//by-name/mi/mimalloc:mimalloc',
-        'third-party//liburing:liburing',
+        'third-party//by-name/li/liburing:liburing',
     ],
 )
 
@@ -81,7 +81,7 @@ depot.test_suite(name = 'tests', tests = [ ':test-{}'.format(t) for t in TESTS ]
             ':crypto',
         ] + [
             'third-party//by-name/mi/mimalloc:mimalloc',
-            'third-party//liburing:liburing',
+            'third-party//by-name/li/liburing:liburing',
         ],
     ) for t in TESTS
 ]
