@@ -206,7 +206,7 @@
                                 (if modtop
                                     ;; save submodules to handle at the end:
                                     (let ([new-modtop (modtop-set-modules modtop (cons s (modtop-modules modtop)))])
-                                      (expand-seq (cdr es) accum state new-modtop)) 
+                                      (expand-seq (cdr es) accum state new-modtop))
                                     (syntax-error "nested submodules not allowed" s))]
                                [(eq? bind 'require)
                                 (let ([new-state (expand-require s state mod-path)])

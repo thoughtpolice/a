@@ -65,7 +65,7 @@
         (if (null? (cadr spec))
             dots
             (~a " [" (string-join (cadr spec)) dots "]")))))
-      
+
 (define (flag-parser key handler spec)
   (lambda (program pend-flags flag+args cmd saw k)
     (when key

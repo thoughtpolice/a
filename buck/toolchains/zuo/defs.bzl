@@ -162,9 +162,9 @@ _zuo_embedded_binary = rule(
             default = "toolchains//:zuo",
             providers = [ZuoToolchain],
         ),
-        "_stdlib": attrs.source(default = "third-party//zuo:stdlib"),
-        "_image_zuo": attrs.source(default = "third-party//zuo:local/image.zuo"),
-        "_zuo_c": attrs.source(default = "third-party//zuo:zuo.c"),
+        "_stdlib": attrs.source(default = "third-party//by-name/zu/zuo:stdlib"),
+        "_image_zuo": attrs.source(default = "third-party//by-name/zu/zuo:local/image.zuo"),
+        "_zuo_c": attrs.source(default = "third-party//by-name/zu/zuo:zuo.c"),
     },
 )
 
