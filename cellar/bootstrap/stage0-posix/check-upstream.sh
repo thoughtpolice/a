@@ -57,11 +57,9 @@ check_file() {
     fi
 }
 
-# Files known to be cellar-only (not from upstream)
+# Files known to be cellar-only (not from upstream).
+# Custom tools live in cellar-extra/, not here.
 is_cellar_only() {
-    case "$1" in
-        */chdirexec.c) return 0 ;;  # Buck2 CWD workaround, not upstream
-    esac
     return 1
 }
 

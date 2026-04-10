@@ -981,7 +981,7 @@ def stage0_platform(
     stage0_answer_test(
         name = "check",
         command = mtex + ":sha256sum",
-        chdirexec = mtex + ":chdirexec",
+        chdirexec = "cellar//bootstrap/stage0-posix/cellar-extra:chdirexec",
         input = ":" + filegroup_name,
         runner = "cellar//bootstrap/stage0-posix/cellar-extra:answer-test",
         **compat

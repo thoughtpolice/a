@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+package(
+  visibility = [ 'cellar//bootstrap/...' ],
+  within_view = [ 'cellar//bootstrap/...' ],
+)
