@@ -4,6 +4,7 @@
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use dial9_tokio_telemetry::telemetry::TelemetryHandle;
+use tower::Layer;
 
 use crate::store::CacheStore;
 
@@ -27,6 +28,7 @@ pub async fn start_reapi_grpc(
     request_timeout: Option<Duration>,
     max_concurrent_requests: Option<usize>,
     handle: TelemetryHandle,
+    pressure_monitor: Option<runtime::psi::PressureMonitor>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::service;
 
@@ -91,15 +93,40 @@ pub async fn start_reapi_grpc(
     let listener = tokio::net::TcpListener::bind(address).await?;
 
     // Apply global concurrency limit, then optionally a per-request timeout.
-    // The two branches avoid complex type-erasure; serve_traced is generic.
-    if let Some(timeout) = request_timeout {
-        let svc = tower::limit::ConcurrencyLimit::new(
-            tower::timeout::Timeout::new(routes, timeout),
-            effective_limit,
-        );
-        dial9_tonic::serve_traced(listener, svc, handle, shutdown).await
-    } else {
-        let svc = tower::limit::ConcurrencyLimit::new(routes, effective_limit);
-        dial9_tonic::serve_traced(listener, svc, handle, shutdown).await
+    // When a pressure monitor is available, wrap the outermost layer with a
+    // gate that rejects requests under severe memory pressure (UNAVAILABLE).
+    //
+    // The branches avoid complex type-erasure; serve_traced is generic.
+    match (request_timeout, pressure_monitor) {
+        (Some(timeout), Some(monitor)) => {
+            let svc = crate::pressure_gate::PressureGateLayer::new(
+                monitor,
+                runtime::psi::PressureLevel::High,
+            )
+            .layer(tower::limit::ConcurrencyLimit::new(
+                tower::timeout::Timeout::new(routes, timeout),
+                effective_limit,
+            ));
+            dial9_tonic::serve_traced(listener, svc, handle, shutdown).await
+        }
+        (Some(timeout), None) => {
+            let svc = tower::limit::ConcurrencyLimit::new(
+                tower::timeout::Timeout::new(routes, timeout),
+                effective_limit,
+            );
+            dial9_tonic::serve_traced(listener, svc, handle, shutdown).await
+        }
+        (None, Some(monitor)) => {
+            let svc = crate::pressure_gate::PressureGateLayer::new(
+                monitor,
+                runtime::psi::PressureLevel::High,
+            )
+            .layer(tower::limit::ConcurrencyLimit::new(routes, effective_limit));
+            dial9_tonic::serve_traced(listener, svc, handle, shutdown).await
+        }
+        (None, None) => {
+            let svc = tower::limit::ConcurrencyLimit::new(routes, effective_limit);
+            dial9_tonic::serve_traced(listener, svc, handle, shutdown).await
+        }
     }
 }
