@@ -78,6 +78,13 @@ impl ByteStreamService {
         }
         let parsed = parse_write_resource_name(&first.resource_name)?;
 
+        if parsed.size as u64 > MAX_BLOB_REASSEMBLE_SIZE as u64 {
+            return Err(tonic::Status::invalid_argument(format!(
+                "declared size {} exceeds limit {}",
+                parsed.size, MAX_BLOB_REASSEMBLE_SIZE
+            )));
+        }
+
         telemetry::wide!("blob.digest", parsed.hash.clone());
         telemetry::wide!("blob.size_bytes", parsed.size);
         telemetry::wide!(

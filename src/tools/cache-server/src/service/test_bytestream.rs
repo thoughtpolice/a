@@ -755,17 +755,13 @@ async fn bytestream_write_compressed_with_oversized_declared_size() {
     let compressed = Bytes::from(Compression::Zstd.compress(data).unwrap().into_owned());
 
     // Declare an absurdly large uncompressed size in the resource name.
-    // Before the fix, this would set the decompressor limit to i64::MAX.
-    // After the fix, it gets capped to MAX_BLOB_REASSEMBLE_SIZE, so
-    // decompression proceeds without OOM because the limit is sane.
+    // The upfront size check rejects this before any data is processed.
     let resource_name = format!(
         "uploads/test-uuid/compressed-blobs/zstd/{}/{}",
         hex::encode(sha256(data)),
         i64::MAX,
     );
 
-    // The write should succeed — the oversized declared size is capped, not rejected.
-    // The final size-mismatch check (actual vs declared) will catch this.
     let result = bs
         .write_from_messages(vec![WriteRequest {
             resource_name,
@@ -775,10 +771,38 @@ async fn bytestream_write_compressed_with_oversized_declared_size() {
         }])
         .await;
 
-    // The upload fails at the end because actual decompressed size != declared size,
-    // but critically it does NOT fail with an OOM or decompressor-init error.
+    // Rejected upfront because declared size exceeds MAX_BLOB_REASSEMBLE_SIZE.
     assert!(result.is_err());
     let status = result.unwrap_err();
     assert_eq!(status.code(), tonic::Code::InvalidArgument);
-    assert!(status.message().contains("size mismatch"));
+    assert!(status.message().contains("exceeds limit"));
+}
+
+#[tokio::test]
+async fn bytestream_write_rejects_oversized_declared_size_upfront() {
+    let store = make_store().await;
+    let bs = make_bs(store);
+
+    let data = b"tiny payload";
+    // Declare a size larger than MAX_BLOB_REASSEMBLE_SIZE in the resource name.
+    let oversized = crate::store::MAX_BLOB_REASSEMBLE_SIZE as i64 + 1;
+    let resource_name = format!(
+        "uploads/test-uuid/blobs/{}/{}",
+        hex::encode(sha256(data)),
+        oversized,
+    );
+
+    let result = bs
+        .write_from_messages(vec![WriteRequest {
+            resource_name,
+            write_offset: 0,
+            finish_write: true,
+            data: Bytes::from_static(data),
+        }])
+        .await;
+
+    assert!(result.is_err());
+    let status = result.unwrap_err();
+    assert_eq!(status.code(), tonic::Code::InvalidArgument);
+    assert!(status.message().contains("exceeds limit"));
 }
