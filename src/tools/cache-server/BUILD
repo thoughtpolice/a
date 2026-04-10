@@ -9,6 +9,7 @@ BUILD_DEPS = [
     # local deps
     '//src/tools/cache-server/dial9-tonic:dial9-tonic',
     '//src/tools/cache-server/protos:protos',
+    '//src/tools/cache-server/runtime:runtime',
     '//src/tools/cache-server/storage:storage',
     '//src/tools/cache-server/telemetry:telemetry',
     # crates.io

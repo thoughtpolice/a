@@ -156,7 +156,7 @@ fn main() -> Result<()> {
     if cli.disable_dial9 {
         let (runtime, guard) = TracedRuntime::build_disabled(builder)?;
         let handle = guard.handle();
-        let result = runtime.block_on(async_main(cli, handle, None));
+        let result = runtime.block_on(async_main(cli, handle, None, None));
         drop(runtime);
         guard
             .graceful_shutdown(std::time::Duration::from_secs(5))
@@ -176,16 +176,20 @@ fn main() -> Result<()> {
             .max_total_size(cli.trace_max_total_mib * 1024 * 1024)
             .build()?;
 
-        let (runtime, guard) = TracedRuntime::builder()
-            .with_task_tracking(true)
-            .with_cpu_profiling(CpuProfilingConfig::default())
-            .with_sched_events(SchedEventConfig {
-                include_kernel: true,
-            })
+        let caps = runtime::check_perf_capabilities();
+
+        let mut traced = TracedRuntime::builder().with_task_tracking(true);
+        if caps.cpu_profiling {
+            traced = traced.with_cpu_profiling(CpuProfilingConfig::default());
+            traced = traced.with_sched_events(SchedEventConfig {
+                include_kernel: caps.kernel_stacks,
+            });
+        }
+        let (runtime, guard) = traced
             .with_trace_path(&trace_path)
             .build_and_start(builder, writer)?;
         let handle = guard.handle();
-        let result = runtime.block_on(async_main(cli, handle, Some(trace_dir)));
+        let result = runtime.block_on(async_main(cli, handle, Some(trace_dir), Some(caps)));
         // Drop the runtime first so worker threads exit and flush their
         // thread-local telemetry buffers to the central collector. Then
         // graceful_shutdown drains the collector, seals the final segment,
@@ -221,11 +225,27 @@ fn default_ttl(days: u32) -> Option<jiff::SignedDuration> {
     }
 }
 
-async fn async_main(cli: Cli, handle: TelemetryHandle, trace_dir: Option<PathBuf>) -> Result<()> {
+async fn async_main(
+    cli: Cli,
+    handle: TelemetryHandle,
+    trace_dir: Option<PathBuf>,
+    perf_caps: Option<runtime::PerfCapabilities>,
+) -> Result<()> {
     match cli.command {
         Some(Command::Compact) => run_compactor(&cli, handle).await,
-        Some(Command::Serve(ref args)) => run_server(&cli, args, handle, trace_dir.as_ref()).await,
-        None => run_server(&cli, &ServeArgs::default(), handle, trace_dir.as_ref()).await,
+        Some(Command::Serve(ref args)) => {
+            run_server(&cli, args, handle, trace_dir.as_ref(), perf_caps.as_ref()).await
+        }
+        None => {
+            run_server(
+                &cli,
+                &ServeArgs::default(),
+                handle,
+                trace_dir.as_ref(),
+                perf_caps.as_ref(),
+            )
+            .await
+        }
     }
 }
 
@@ -294,6 +314,7 @@ async fn run_server(
     args: &ServeArgs,
     handle: TelemetryHandle,
     trace_dir: Option<&PathBuf>,
+    perf_caps: Option<&runtime::PerfCapabilities>,
 ) -> Result<()> {
     // Build OTEL config from env + CLI
     let otel_config = telemetry::OtelConfig::from_env().with_cli_overrides(
@@ -321,6 +342,10 @@ async fn run_server(
         .with(cli_console_layer)
         .with(otel_layer)
         .init();
+
+    if let Some(caps) = perf_caps {
+        caps.emit_warnings();
+    }
 
     anyhow::ensure!(
         args.max_concurrent_requests > 0,
