@@ -17,9 +17,13 @@
  */
 
 #include"cc.h"
+
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #define MAX_ARRAY 256
+
+#define BUFFER_SIZE 65536
 
 char* env_lookup(char* variable);
 
@@ -460,6 +464,59 @@ void spawn_M2(char* input, char* output, char* architecture, char** envp, int de
 	_execute(M2_Planet, array, envp);
 }
 
+char* spawn_catm(char* M2_output, char* prefix, char** envp)
+{
+	fputs("# starting catm merging of object files\n", stdout);
+	char* catm_output = calloc(100, sizeof(char));
+	strcpy(catm_output, prefix);
+	strcat(catm_output, "/catm-XXXXXX");
+	int i = mkstemp(catm_output);
+
+	if(-1 != i)
+	{
+		close(i);
+	}
+	else
+	{
+		fputs("unable to get a tempfile for catm output\n", stderr);
+		exit(EXIT_FAILURE);
+	}
+
+	i = 3;
+	char** array = calloc(MAX_ARRAY, sizeof(char*));
+	insert_array(array, 0, "catm");
+	insert_array(array, 1, catm_output);
+	insert_array(array, 2, M2_output);
+	while(extra_object_files != NULL)
+	{
+		int input = open(extra_object_files->file, 0, 0);
+		int bytes;
+		char* buffer = calloc(BUFFER_SIZE + 1, sizeof(char));
+		if(-1 == input)
+		{
+			fprintf(stderr, "Unable to open object file '%s'.\n", extra_object_files->file);
+			exit(EXIT_FAILURE);
+		}
+keep:
+		bytes = read(input, buffer, BUFFER_SIZE);
+		if(strstr(buffer, "__init_malloc") != NULL)
+		{
+			fputs("STDIO_USED\n", stderr);
+			STDIO_USED = TRUE;
+		}
+
+		if(BUFFER_SIZE == bytes) goto keep;
+
+		insert_array(array, i, extra_object_files->file);
+		i = i + 1;
+		extra_object_files = extra_object_files->next;
+	}
+
+	_execute("catm", array, envp);
+
+	return catm_output;
+}
+
 void spawn_processes(int debug_flag, char* prefix, char* preprocessed_file, char* destination, char** envp, int no_c_files)
 {
 	int large_flag = FALSE;
@@ -499,21 +556,10 @@ void spawn_processes(int debug_flag, char* prefix, char* preprocessed_file, char
 		return;
 	}
 
-	FILE* M2_output_file = fopen(M2_output, "ab");
-	if(M2_output_file == NULL)
+	if(extra_object_files != NULL)
 	{
-		fprintf(stderr, "Unable to open M2_output file '%s'.\n", M2_output);
-		exit(EXIT_FAILURE);
+		M2_output = spawn_catm(M2_output, prefix, envp);
 	}
-
-	while(extra_object_files != NULL)
-	{
-		append_file_contents(M2_output_file, extra_object_files->file);
-		fclose(extra_object_files->file);
-		extra_object_files = extra_object_files->next;
-	}
-
-	fclose(M2_output_file);
 
 	char* blood_output = "";
 	if(debug_flag)

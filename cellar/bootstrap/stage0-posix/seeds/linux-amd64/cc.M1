@@ -469,7 +469,7 @@ DEFINE NULL 0000000000000000
     jne %get_token_done          # keep if just '/'
 
     # Deal with // line comment
-    call %fgetc                  # drop to match
+    call %purge_macro            # discard all until newline
     mov_[rip+DWORD],rax %C       # Set C
     jmp %reset                   # throw away, try again
 
@@ -875,7 +875,7 @@ Expected ;
     lea_rax,[rip+DWORD] %enum                   # "enum"
     call %match                                 # IF GLOBAL_TOKEN->S == "enum"
     cmp_rax, %0                                 # If true
-    jne %constant_value                         # Looks like not an enum
+    jne %program_else                           # Looks like not an enum
 
     # Deal with minimal anonymous enums
     mov_rax,[rip+DWORD] %global_token           # Using global_token
@@ -939,36 +939,6 @@ Expected ;
     call %require_match                         # Require match and skip
 
     jmp %new_type                               # go around again
-
-:constant_value
-    mov_rax,[rip+DWORD] %global_token         # Using global_token
-    cmp_rax, %0                               # Check if NULL
-    je %program_done                          # Be done if null
-
-    mov_rbx,[rax+BYTE] !16                    # GLOBAL_TOKEN->S
-    lea_rax,[rip+DWORD] %constant             # "CONSTANT"
-    call %match                               # IF GLOBAL_TOKEN->S == "CONSTANT"
-    cmp_rax, %0                               # If true
-    jne %program_else                         # Looks like not a constant
-
-    # Deal with minimal constant case
-    mov_rax,[rip+DWORD] %global_token         # Using global_token
-    mov_rax,[rax]                             # global_token->next
-    mov_[rip+DWORD],rax %global_token         # global_token = global_token->next
-
-    mov_rax,[rax+BYTE] !16                    # global_token->S
-    mov_rbx, %0                               # NULL
-    mov_rcx,[rip+DWORD] %global_constant_list # global_constant_list
-    call %sym_declare                         # Declare that constant
-    mov_[rip+DWORD],rax %global_constant_list # global_constant_list = sym_declare(global_token->s, NULL, global_constant_list);
-
-    mov_rbx,[rip+DWORD] %global_token         # Using global_token
-    mov_rbx,[rbx]                             # global_token->next
-    mov_[rax+BYTE],rbx !32                    # global_constant_list->arguments = global_token->next
-
-    mov_rbx,[rbx]                             # global_token->next->next
-    mov_[rip+DWORD],rbx %global_token         # global_token = global_token->next->next;
-    jmp %new_type                             # go around again
 
 :program_else
     call %type_name                           # Figure out the type_size
@@ -3124,7 +3094,7 @@ add_rax,rbx
     lea_rax,[rip+DWORD] %postfix_expr         # Passing postfix_expr
     call %common_recursion                    # Get what it is notting
 
-    lea_rax,[rip+DWORD] %primary_expr_string_3 # Using "xor_rax,rbx\n"
+    lea_rax,[rip+DWORD] %primary_expr_string_3 # Using "cmp_rbx,rax\nseta_al\nmovzx_rax,al\n"
     call %emit_out                            # Emit it
     jmp %primary_expr_done                    # Be done
 
@@ -3235,7 +3205,9 @@ mov_rax,rbx
 "
 
 :primary_expr_string_3
-"xor_rax,rbx
+"cmp_rbx,rax
+seta_al
+movzx_rax,al
 "
 
 :primary_expr_string_4
@@ -4652,33 +4624,10 @@ mov_rax,[rax]
     cmp_rax, %125                             # IF global_token->S[0] == "}"
     je %create_struct_done                    # be done
 
-    # Looks like we are adding members
-    # Lets see if it is a union
-    mov_rax,[rip+DWORD] %global_token         # Using global_token
-    mov_rax,[rax+BYTE] !16                    # global_token->S
-    lea_rbx,[rip+DWORD] %union                # Using "union"
-    call %match                               # IF match(global_token->s, "union")
-    cmp_rax, %0                               # Deal with union
-    jne %create_struct_single                 # Otherwise deal with singles
-
-    # Deal with union
-    mov_rax,rsi                               # Put last in right place
-    mov_rbx,rcx                               # put offset in right place
-    call %build_union                         # ASSEMBLE
-    mov_rsi,rax                               # last = build_union(last, offset)
-    add_rcx,rdi                               # offset = offset + member_size
-
-    lea_rax,[rip+DWORD] %create_struct_string_1 # Using "ERROR in create_struct\n Missing ;\n"
-    lea_rbx,[rip+DWORD] %semicolon            # Using ";"
-    call %require_match                       # Make sure we have it
-    jmp %create_struct_iter                   # keep going
-
-:create_struct_single
-    # deal with singles
     mov_rax,rsi                               # Put last in right place
     mov_rbx,rcx                               # put offset in right place
     call %build_member                        # ASSEMBLE
-    mov_rsi,rax                               # last = build_union(last, offset)
+    mov_rsi,rax                               # last = build_member(last, offset)
     add_rcx,rdi                               # offset = offset + member_size
 
     lea_rax,[rip+DWORD] %create_struct_string_1 # Using "ERROR in create_struct\n Missing ;\n"
@@ -4850,79 +4799,6 @@ mov_rax,[rax]
 
 :build_member_string_0
 "Struct only supports [num] form
-"
-
-
-# build_union function
-# Receives struct type* last in RAX, int offset in RBX and global member_size in RDI
-# Updates member_size in RDI and returns struct type* LAST in RAX
-# Uses RCX for struct type* last, RDX for int offset, RSI for int size and RDI for int member_size
-:build_union
-    push_rbx                                  # Protect RBX
-    push_rcx                                  # Protect RCX
-    push_rdx                                  # Protect RDX
-    push_rsi                                  # Protect RSI
-    mov_rcx,rax                               # Put LAST in right spot
-    mov_rdx,rbx                               # Put OFFSET in right spot
-    mov_rsi, %0                               # SIZE = 0
-
-    mov_rax,[rip+DWORD] %global_token         # Using global_token
-    mov_rax,[rax]                             # global_token->NEXT
-    mov_[rip+DWORD],rax %global_token         # global_token = global_token->NEXT
-
-    lea_rax,[rip+DWORD] %build_union_string_0 # Using "ERROR in build_union\nMissing {\n"
-    lea_rbx,[rip+DWORD] %open_curly_brace     # Using "{"
-    call %require_match                       # Make sure we have it
-
-:build_union_iter
-    mov_rax,[rip+DWORD] %global_token         # Using global_token
-    mov_rax,[rax+BYTE] !16                    # global_token->S
-    mov_al,[rax]                              # global_token->S[0]
-    movzx_rax,al                              # make it useful
-    cmp_rax, %125                             # IF global_token->S[0] == "}"
-    je %build_union_done                      # Be done
-
-    # Collect union member
-    mov_rax,rcx                               # Passing LAST
-    mov_rbx,rdx                               # Passing offset
-    call %build_member                        # build_member(last, offset)
-    mov_rcx,rax                               # last = build_member(last, offset)
-
-    cmp_rsi,rdi                               # IF member_size > size
-    jg %build_union_size                      # Then update size
-
-    # deal with member_size > size
-    mov_rsi,rdi                               # SIZE = MEMBER_SIZE
-
-:build_union_size
-    lea_rax,[rip+DWORD] %build_union_string_1 # Using "ERROR in build_union\nMissing ;\n"
-    lea_rbx,[rip+DWORD] %semicolon            # Using ";"
-    call %require_match                       # Make sure we have it
-    jmp %build_union_iter                     # Keep going
-
-:build_union_done
-    mov_rdi,rsi                               # MEMBER_SIZE = SIZE
-
-    mov_rax,[rip+DWORD] %global_token         # Using global_token
-    mov_rax,[rax]                             # global_token->NEXT
-    mov_[rip+DWORD],rax %global_token         # global_token = global_token->NEXT
-
-    mov_rax,rcx                               # Return last
-
-    pop_rsi                                   # Restore RSI
-    pop_rdx                                   # Restore RDX
-    pop_rcx                                   # Restore RCX
-    pop_rbx                                   # Restore RBX
-    ret
-
-:build_union_string_0
-"ERROR in build_union
-Missing {
-"
-
-:build_union_string_1
-"ERROR in build_union
-Missing ;
 "
 
 
@@ -5251,17 +5127,11 @@ ARGUMENTS address: "
 ">::<NULL>::<"
 
 # Keywords
-:union
-"union"
-
 :struct
 "struct"
 
 :enum
 "enum"
-
-:constant
-"CONSTANT"
 
 :main_string
 "main"

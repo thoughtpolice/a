@@ -25,14 +25,13 @@
 #define TRUE 1
 
 
-int in_set(int c, char* s);
-int match(char* a, char* b);
-void require(int bool, char* error);
-char* int2str(int x, int base, int signed_p);
-void reset_hold_string(void);
-int starts_with(char* str, char* needle);
-int ends_with(char* str, char* needle);
-void append_file_contents(FILE* f, FILE* appended_file);
+extern int in_set(int c, char* s);
+extern int match(char* a, char* b);
+extern void require(int flag, char* error);
+extern char* int2str(int x, int base, int signed_p);
+extern void reset_hold_string(void);
+extern int starts_with(char* str, char* needle);
+extern int ends_with(char* str, char* needle);
 
 struct type
 {
@@ -71,7 +70,7 @@ struct token_list
 
 struct object_file_list
 {
-	FILE* file;
+	char* file;
 	struct object_file_list* next;
 };
 

@@ -69,17 +69,6 @@ int type_is_struct_or_union(struct type* type_size)
 	return type_size->members != NULL;
 }
 
-struct token_list* uniqueID(char* s, struct token_list* l, char* num)
-{
-	l = emit("\n", emit(num, emit("_", emit(s, l))));
-	return l;
-}
-
-void uniqueID_out(char* s, char* num)
-{
-	output_list = uniqueID(s, output_list, num);
-}
-
 char* create_unique_id(char* prefix, char* s, char* num)
 {
 	return concat_strings4(prefix, s, "_", num);
@@ -1411,12 +1400,12 @@ void relational_expr_stub(void)
 	}
 	else if(X86 == Architecture)
 	{
-		arithmetic_recursion(additive_expr_c, "cmp\nsetl_al\nmovzx_eax,al\n", "cmp\nsetb_al\nmovzx_eax,al\n", "<", relational_expr_stub);
-		arithmetic_recursion(additive_expr_c, "cmp\nsetle_al\nmovzx_eax,al\n", "cmp\nsetbe_al\nmovzx_eax,al\n", "<=", relational_expr_stub);
-		arithmetic_recursion(additive_expr_c, "cmp\nsetge_al\nmovzx_eax,al\n", "cmp\nsetae_al\nmovzx_eax,al\n", ">=", relational_expr_stub);
-		arithmetic_recursion(additive_expr_c, "cmp\nsetg_al\nmovzx_eax,al\n", "cmp\nseta_al\nmovzx_eax,al\n", ">", relational_expr_stub);
-		general_recursion(additive_expr_c, "cmp\nsete_al\nmovzx_eax,al\n", "==", relational_expr_stub);
-		general_recursion(additive_expr_c, "cmp\nsetne_al\nmovzx_eax,al\n", "!=", relational_expr_stub);
+		arithmetic_recursion(additive_expr_c, "cmp_ebx,eax\nsetl_al\nmovzx_eax,al\n", "cmp_ebx,eax\nsetb_al\nmovzx_eax,al\n", "<", relational_expr_stub);
+		arithmetic_recursion(additive_expr_c, "cmp_ebx,eax\nsetle_al\nmovzx_eax,al\n", "cmp_ebx,eax\nsetbe_al\nmovzx_eax,al\n", "<=", relational_expr_stub);
+		arithmetic_recursion(additive_expr_c, "cmp_ebx,eax\nsetge_al\nmovzx_eax,al\n", "cmp_ebx,eax\nsetae_al\nmovzx_eax,al\n", ">=", relational_expr_stub);
+		arithmetic_recursion(additive_expr_c, "cmp_ebx,eax\nsetg_al\nmovzx_eax,al\n", "cmp_ebx,eax\nseta_al\nmovzx_eax,al\n", ">", relational_expr_stub);
+		general_recursion(additive_expr_c, "cmp_ebx,eax\nsete_al\nmovzx_eax,al\n", "==", relational_expr_stub);
+		general_recursion(additive_expr_c, "cmp_ebx,eax\nsetne_al\nmovzx_eax,al\n", "!=", relational_expr_stub);
 	}
 	else if(AMD64 == Architecture)
 	{
@@ -1576,7 +1565,7 @@ void primary_expr(void)
 		common_recursion(postfix_expr);
 
 		if((KNIGHT_POSIX == Architecture) || (KNIGHT_NATIVE == Architecture)) emit_out("CMPU R0 R1 R0\nSET.G R0 R0 1\n");
-		else if(X86 == Architecture) emit_out("cmp\nseta_al\nmovzx_eax,al\n");
+		else if(X86 == Architecture) emit_out("cmp_ebx,eax\nseta_al\nmovzx_eax,al\n");
 		else if(AMD64 == Architecture) emit_out("cmp_rbx,rax\nseta_al\nmovzx_rax,al\n");
 		else if(ARMV7L == Architecture) emit_out("'0' R0 CMP R1 AUX_ALWAYS\n!0 R0 LOADI8_ALWAYS\n!1 R0 LOADI8_HI\n");
 		else if(AARCH64 == Architecture) emit_out("CMP_X1_X0\nSET_X0_TO_1\nSKIP_INST_HI\nSET_X0_TO_0\n");
@@ -2529,13 +2518,7 @@ void return_result(void)
 	require_match("ERROR in return_result\nMISSING ;\n", ";");
 
 	emit_out(function_locals_cleanup_string);
-
-	if((KNIGHT_POSIX == Architecture) || (KNIGHT_NATIVE == Architecture)) emit_out("RET R15\n");
-	else if(X86 == Architecture) emit_out("ret\n");
-	else if(AMD64 == Architecture) emit_out("ret\n");
-	else if(ARMV7L == Architecture) emit_out("'1' LR RETURN\n");
-	else if(AARCH64 == Architecture) emit_out("RETURN\n");
-	else if((RISCV32 == Architecture) || (RISCV64 == Architecture)) emit_out("ret\n");
+	emit_return();
 }
 
 void process_break(void)
@@ -2879,58 +2862,14 @@ void declare_function(void)
 		 * [..] reaching the } that terminates the main function returns a value of 0.
 		 * */
 		int is_main = match(function->s, "main");
-
-		/* Prevent duplicate RETURNS */
-		if(((KNIGHT_POSIX == Architecture) || (KNIGHT_NATIVE == Architecture)) && !match("RET R15\n", output_list->s))
+		if (!match(return_instruction, output_list->s))
 		{
 			if(is_main) emit_load_immediate(REGISTER_ZERO, 0, "declare function");
 			emit_out(function_locals_cleanup_string);
-			emit_out("RET R15\n");
-		}
-		else if((X86 == Architecture || AMD64 == Architecture || RISCV32 == Architecture || RISCV64 == Architecture)
-				&& !match("ret\n", output_list->s))
-		{
-			if(is_main) emit_load_immediate(REGISTER_ZERO, 0, "declare function");
-			emit_out(function_locals_cleanup_string);
-			emit_out("ret\n");
-		}
-		else if((ARMV7L == Architecture) && !match("'1' LR RETURN\n", output_list->s))
-		{
-			if(is_main) emit_load_immediate(REGISTER_ZERO, 0, "declare function");
-			emit_out(function_locals_cleanup_string);
-			emit_out("'1' LR RETURN\n");
-		}
-		else if((AARCH64 == Architecture) && !match("RETURN\n", output_list->s))
-		{
-			if(is_main) emit_load_immediate(REGISTER_ZERO, 0, "declare function");
-			emit_out(function_locals_cleanup_string);
-			emit_out("RETURN\n");
+			emit_return();
 		}
 
 		emit_out("\n");
-	}
-}
-
-void global_constant(void)
-{
-	require_extra_token();
-	global_constant_list = sym_declare(global_token->s, NULL, global_constant_list, TLO_CONSTANT);
-
-	require(NULL != global_token->next, "CONSTANT lacks a value\n");
-	if(match("sizeof", global_token->next->s))
-	{
-		global_token = global_token->next->next;
-		require_match("ERROR in CONSTANT with sizeof\nMissing (\n", "(");
-		struct type* a = type_name();
-		require_match("ERROR in CONSTANT with sizeof\nMissing )\n", ")");
-		global_token->prev->s = int2str(a->size, 10, TRUE);
-		global_constant_list->arguments = global_token->prev;
-	}
-	else
-	{
-		global_constant_list->arguments = global_token->next;
-		require_extra_token();
-		require_extra_token();
 	}
 }
 
@@ -3373,13 +3312,6 @@ new_type:
 	if (NULL == global_token) return;
 	require('#' != global_token->s[0], "unhandled macro directive\n");
 	require(!match("\n", global_token->s), "unexpected newline token\n");
-
-	/* Handle cc_* CONSTANT statements */
-	if(match("CONSTANT", global_token->s))
-	{
-		global_constant();
-		goto new_type;
-	}
 
 	/* Handle c typedef statements */
 	if(match("typedef", global_token->s))

@@ -40,41 +40,82 @@ enum
 	FALSE = 0,
 };
 
+void* malloc(int size);
 
+unsigned read(FILE* f, char* buffer, unsigned count) {
+	asm(
+			"mov_rax, %0"
+			"lea_rsi,[rsp+DWORD] %16"
+			"mov_rsi,[rsi]"
+			"lea_rdx,[rsp+DWORD] %8"
+			"mov_rdx,[rdx]"
+			"lea_rdi,[rsp+DWORD] %24"
+			"mov_rdi,[rdi]"
+			"syscall");
+}
+
+
+char* __fputc_buffer;
 int fgetc(FILE* f)
 {
-	asm("lea_rdi,[rsp+DWORD] %8"
-	    "mov_rdi,[rdi]"
-	    "mov_rax, %0"
-	    "push_rax"
-	    "lea_rsi,[rsp+DWORD] %0"
-	    "mov_rdx, %1"
-	    "syscall"
-	    "mov_rbx, %0"
-	    "cmp_rbx,rax"
-	    "pop_rax"
-	    "jne %FUNCTION_fgetc_Done"
-	    "mov_rax, %-1"
-	    ":FUNCTION_fgetc_Done");
+	/* We don't have operator & */
+	if(__fputc_buffer == NULL) {
+		__fputc_buffer = malloc(1);
+	}
+
+	if(read(f, __fputc_buffer, 1) <= 0) {
+		return EOF;
+	}
+
+	return __fputc_buffer[0];
+}
+
+unsigned fread(char* buffer, unsigned size, unsigned count, FILE* f) {
+	return read(f, buffer, size * count);
+}
+
+
+unsigned write(FILE* f, char* buffer, unsigned count) {
+	asm(
+			"mov_rax, %1"
+			"lea_rsi,[rsp+DWORD] %16"
+			"mov_rsi,[rsi]"
+			"lea_rdx,[rsp+DWORD] %8"
+			"mov_rdx,[rdx]"
+			"lea_rdi,[rsp+DWORD] %24"
+			"mov_rdi,[rdi]"
+			"syscall");
 }
 
 void fputc(char s, FILE* f)
 {
-	asm("mov_rax, %1"
-	    "lea_rdi,[rsp+DWORD] %8"
-	    "mov_rdi,[rdi]"
-	    "lea_rsi,[rsp+DWORD] %16"
-	    "mov_rdx, %1"
-	    "syscall");
+	/* We don't have operator & */
+	if(__fputc_buffer == NULL) {
+		__fputc_buffer = malloc(1);
+	}
+	__fputc_buffer[0] = s;
+
+	write(f, __fputc_buffer, 1);
+}
+
+unsigned fwrite(char* buffer, unsigned size, unsigned count, FILE* f) {
+	if(size == 0 || count == 0) {
+		return 0;
+	}
+
+	return write(f, buffer, size * count);
+}
+
+int strlen(char* str )
+{
+	int i = 0;
+	while(0 != str[i]) i = i + 1;
+	return i;
 }
 
 void fputs(char* s, FILE* f)
 {
-	while(0 != s[0])
-	{
-		fputc(s[0], f);
-		s = s + 1;
-	}
+	write(f, s, strlen(s));
 }
 
 FILE* open(char* name, int flag, int mode)
@@ -153,13 +194,6 @@ void* malloc(int size)
 	long old_malloc = _malloc_ptr;
 	_malloc_ptr = _malloc_ptr + size;
 	return old_malloc;
-}
-
-int strlen(char* str )
-{
-	int i = 0;
-	while(0 != str[i]) i = i + 1;
-	return i;
 }
 
 void* memset(void* ptr, int value, int num)

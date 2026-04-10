@@ -351,7 +351,7 @@ int main(int argc, char** argv, char** envp)
 		}
 		else if(match(argv[i], "-V") || match(argv[i], "--version"))
 		{
-			fputs("M2-Mesoplanet v1.12.0\n", stderr);
+			fputs("M2-Mesoplanet v1.13.0\n", stderr);
 			exit(EXIT_SUCCESS);
 		}
 		else if(match(argv[i], "--fuzz"))
@@ -427,7 +427,7 @@ int main(int argc, char** argv, char** envp)
 
 				struct object_file_list* last = extra_object_files;
 				extra_object_files = calloc(1, sizeof(struct object_file_list));
-				extra_object_files->file = in;
+				extra_object_files->file = name;
 				extra_object_files->next = last;
 			}
 			else
