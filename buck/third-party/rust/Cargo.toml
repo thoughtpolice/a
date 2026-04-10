@@ -120,7 +120,7 @@ zstd = "0.13"
 
 ## Git repos come below
 
-dial9-tokio-telemetry = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "291ddbca1e013e22fd36cfd0f1bcf3abd1f3f4e6", features = ["cpu-profiling"] }
+dial9-tokio-telemetry = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "845481114793d0d6b8c5d267cc8cdc8ea3b44ded", features = ["cpu-profiling"] }
 
 slatedb = { git = "https://github.com/slatedb/slatedb", rev = "46543bff2c577440e2daf2315cf926671cb9cc5e" }
 
