@@ -134,6 +134,12 @@ impl ByteStreamService {
 
         while let Some(msg_result) = rest.next().await {
             let msg = msg_result?;
+            if msg.write_offset != wire_bytes {
+                return Err(tonic::Status::invalid_argument(format!(
+                    "write_offset mismatch: expected {wire_bytes}, got {}",
+                    msg.write_offset
+                )));
+            }
             wire_bytes = wire_bytes
                 .checked_add(msg.data.len() as i64)
                 .ok_or_else(|| tonic::Status::invalid_argument("write size overflow"))?;
