@@ -3,17 +3,17 @@ def __cc(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
     tools = ctx.attrs.tools[DefaultInfo].default_outputs[0]
 
-    m2_mesoplanet = tools.project("M2-Mesoplanet")
+    m2libc = ctx.attrs._m2_libc[DefaultInfo].default_outputs[0]
     ctx.actions.run(
-        [
-            m2_mesoplanet,
+        cmd_args(
+            cmd_args(tools, format = "{}/M2-Mesoplanet"),
             "--operating-system", ctx.attrs.os,
             "--architecture", ctx.attrs.arch,
             "-f", ctx.attrs.src,
-            '-o', output.as_output()
-        ],
+            '-o', output.as_output(),
+        ),
         env = {
-            'M2LIBC_PATH': ctx.attrs._m2_libc[DefaultInfo].default_outputs[0],
+            'M2LIBC_PATH': m2libc,
             'PATH': tools,
         },
         category = "stage0_m2_mesoplanet",
