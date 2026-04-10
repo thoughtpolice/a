@@ -67,10 +67,11 @@ use core::ffi::{CStr, c_char, c_ulonglong, c_void};
 use core::fmt;
 
 use mimalloc_ffi::{
-    MI_STAT_VERSION, mi_collect, mi_free, mi_good_size, mi_malloc_aligned, mi_process_info,
-    mi_realloc_aligned, mi_register_deferred_free, mi_stat_count_t, mi_stat_counter_t,
-    mi_stats_get, mi_stats_get_bin_size, mi_stats_print_out, mi_stats_reset, mi_stats_t,
-    mi_usable_size, mi_zalloc_aligned,
+    MI_STAT_VERSION, mi_collect, mi_free, mi_good_size, mi_malloc_aligned, mi_option_get,
+    mi_option_set, mi_option_set_default, mi_option_t, mi_process_info, mi_realloc_aligned,
+    mi_register_deferred_free, mi_stat_count_t, mi_stat_counter_t, mi_stats_get,
+    mi_stats_get_bin_size, mi_stats_print_out, mi_stats_reset, mi_stats_t, mi_usable_size,
+    mi_zalloc_aligned,
 };
 
 /// A statistic counter with total, peak, and current values.
@@ -834,6 +835,52 @@ pub fn register_deferred_free<F: Fn(bool, c_ulonglong)>(f: &'static F) {
     unsafe { mi_register_deferred_free(Some(wrapper::<F>), f as *const F as *mut c_void) }
 }
 
+// --- Option configuration ---------------------------------------------------
+
+/// Mimalloc runtime options that can be queried or changed.
+///
+/// These map to the underlying `mi_option_t` C enum. Only options
+/// relevant to arena/memory tuning are exposed; add more variants as
+/// needed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum MiOption {
+    /// Allow the use of large OS pages (2 MiB on x86-64).
+    AllowLargeOsPages = mimalloc_ffi::mi_option_e_mi_option_allow_large_os_pages,
+
+    /// Reserve OS memory upfront (in KiB).
+    ReserveOsMemory = mimalloc_ffi::mi_option_e_mi_option_reserve_os_memory,
+
+    /// Disallow OS memory allocation (only use pre-reserved memory).
+    DisallowOsAlloc = mimalloc_ffi::mi_option_e_mi_option_disallow_os_alloc,
+
+    /// Initial arena reserve size (in KiB). Mimalloc reserves virtual
+    /// address space in arenas of this size; lowering it avoids
+    /// over-committing in memory-constrained containers.
+    ArenaReserve = mimalloc_ffi::mi_option_e_mi_option_arena_reserve,
+}
+
+/// Get the current value of a mimalloc option.
+pub fn option_get(option: MiOption) -> i64 {
+    unsafe { mi_option_get(option as mi_option_t) as i64 }
+}
+
+/// Set a mimalloc option to the given value.
+///
+/// The change takes effect immediately for newly created arenas.
+pub fn option_set(option: MiOption, value: i64) {
+    unsafe { mi_option_set(option as mi_option_t, value as _) }
+}
+
+/// Set the default value for a mimalloc option.
+///
+/// Unlike [`option_set`], this only takes effect if the option has not
+/// already been set explicitly (via environment variables or a prior
+/// call to [`option_set`]).
+pub fn option_set_default(option: MiOption, value: i64) {
+    unsafe { mi_option_set_default(option as mi_option_t, value as _) }
+}
+
 /// Global memory allocator, based on the mimalloc library.
 ///
 /// ## Usage
@@ -1346,5 +1393,16 @@ mod tests {
             count_before,
             count_after
         );
+    }
+
+    #[test]
+    fn test_option_get_set_roundtrip() {
+        let original = option_get(MiOption::ArenaReserve);
+        let test_value = 128 * 1024; // 128 MiB in KiB
+        option_set(MiOption::ArenaReserve, test_value);
+        let read_back = option_get(MiOption::ArenaReserve);
+        assert_eq!(read_back, test_value, "option_set/get roundtrip");
+        // Restore the original value.
+        option_set(MiOption::ArenaReserve, original);
     }
 }
