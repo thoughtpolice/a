@@ -313,6 +313,74 @@ async fn bytestream_write_multiple_messages() {
 }
 
 #[tokio::test]
+async fn bytestream_write_wrong_offset_too_high() {
+    let store = make_store().await;
+    let bs = make_bs(store);
+
+    let data = b"chunked write test data here";
+    let resource_name = format!(
+        "uploads/test-uuid/blobs/{}/{}",
+        hex::encode(sha256(data)),
+        data.len()
+    );
+
+    let mid = data.len() / 2;
+    let result = bs
+        .write_from_messages(vec![
+            WriteRequest {
+                resource_name: resource_name.clone(),
+                write_offset: 0,
+                finish_write: false,
+                data: Bytes::copy_from_slice(&data[..mid]),
+            },
+            WriteRequest {
+                resource_name: String::new(),
+                write_offset: 9999,
+                finish_write: true,
+                data: Bytes::copy_from_slice(&data[mid..]),
+            },
+        ])
+        .await;
+
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().code(), tonic::Code::InvalidArgument);
+}
+
+#[tokio::test]
+async fn bytestream_write_wrong_offset_zero() {
+    let store = make_store().await;
+    let bs = make_bs(store);
+
+    let data = b"chunked write test data here";
+    let resource_name = format!(
+        "uploads/test-uuid/blobs/{}/{}",
+        hex::encode(sha256(data)),
+        data.len()
+    );
+
+    let mid = data.len() / 2;
+    let result = bs
+        .write_from_messages(vec![
+            WriteRequest {
+                resource_name: resource_name.clone(),
+                write_offset: 0,
+                finish_write: false,
+                data: Bytes::copy_from_slice(&data[..mid]),
+            },
+            WriteRequest {
+                resource_name: String::new(),
+                write_offset: 0, // wrong: should be mid
+                finish_write: true,
+                data: Bytes::copy_from_slice(&data[mid..]),
+            },
+        ])
+        .await;
+
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().code(), tonic::Code::InvalidArgument);
+}
+
+#[tokio::test]
 async fn bytestream_write_size_mismatch() {
     let store = make_store().await;
     let bs = make_bs(store);
