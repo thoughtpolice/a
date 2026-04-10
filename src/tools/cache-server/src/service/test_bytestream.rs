@@ -745,3 +745,40 @@ async fn bytestream_write_and_read_blake3() {
     }
     assert_eq!(received, data);
 }
+
+#[tokio::test]
+async fn bytestream_write_compressed_with_oversized_declared_size() {
+    let store = make_store().await;
+    let bs = make_bs(store);
+
+    let data = b"decompressor limit cap test data for zstd";
+    let compressed = Bytes::from(Compression::Zstd.compress(data).unwrap().into_owned());
+
+    // Declare an absurdly large uncompressed size in the resource name.
+    // Before the fix, this would set the decompressor limit to i64::MAX.
+    // After the fix, it gets capped to MAX_BLOB_REASSEMBLE_SIZE, so
+    // decompression proceeds without OOM because the limit is sane.
+    let resource_name = format!(
+        "uploads/test-uuid/compressed-blobs/zstd/{}/{}",
+        hex::encode(sha256(data)),
+        i64::MAX,
+    );
+
+    // The write should succeed — the oversized declared size is capped, not rejected.
+    // The final size-mismatch check (actual vs declared) will catch this.
+    let result = bs
+        .write_from_messages(vec![WriteRequest {
+            resource_name,
+            write_offset: 0,
+            finish_write: true,
+            data: compressed,
+        }])
+        .await;
+
+    // The upload fails at the end because actual decompressed size != declared size,
+    // but critically it does NOT fail with an OOM or decompressor-init error.
+    assert!(result.is_err());
+    let status = result.unwrap_err();
+    assert_eq!(status.code(), tonic::Code::InvalidArgument);
+    assert!(status.message().contains("size mismatch"));
+}
