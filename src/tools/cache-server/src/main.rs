@@ -156,13 +156,12 @@ fn main() -> Result<()> {
     if cli.disable_dial9 {
         let (runtime, guard) = TracedRuntime::build_disabled(builder)?;
         let handle = guard.handle();
-        runtime.block_on(async {
-            let result = async_main(cli, handle, None).await;
-            guard
-                .graceful_shutdown(std::time::Duration::from_secs(5))
-                .ok();
-            result
-        })
+        let result = runtime.block_on(async_main(cli, handle, None));
+        drop(runtime);
+        guard
+            .graceful_shutdown(std::time::Duration::from_secs(5))
+            .ok();
+        result
     } else {
         let trace_dir = cli
             .trace_dir
@@ -186,16 +185,16 @@ fn main() -> Result<()> {
             .with_trace_path(&trace_path)
             .build_and_start(builder, writer)?;
         let handle = guard.handle();
-        runtime.block_on(async {
-            let result = async_main(cli, handle, Some(trace_dir)).await;
-            // Give the background worker time to symbolize the final trace segment
-            // before exiting. Without this, Drop hard-kills the worker and stack
-            // traces are left as raw addresses.
-            guard
-                .graceful_shutdown(std::time::Duration::from_secs(5))
-                .ok();
-            result
-        })
+        let result = runtime.block_on(async_main(cli, handle, Some(trace_dir)));
+        // Drop the runtime first so worker threads exit and flush their
+        // thread-local telemetry buffers to the central collector. Then
+        // graceful_shutdown drains the collector, seals the final segment,
+        // and gives the background worker time to symbolize + compress.
+        drop(runtime);
+        guard
+            .graceful_shutdown(std::time::Duration::from_secs(5))
+            .ok();
+        result
     }
 }
 
