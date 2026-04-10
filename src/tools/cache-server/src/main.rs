@@ -368,6 +368,11 @@ async fn run_server(
         caps.emit_warnings();
     }
 
+    let pressure_monitor = runtime::psi::PressureMonitor::spawn(
+        rt_info.cgroup_dir.clone(),
+        std::time::Duration::from_secs(2),
+    );
+
     anyhow::ensure!(
         args.max_concurrent_requests > 0,
         "--max-concurrent-requests must be at least 1"
@@ -459,6 +464,7 @@ async fn run_server(
                 },
                 Some(args.max_concurrent_requests),
                 handle,
+                pressure_monitor,
         ) => r,
         _ = drain_deadline => Ok(()),
     };
@@ -487,6 +493,7 @@ async fn run_server(
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+mod pressure_gate;
 pub mod reapi_grpc;
 pub mod service;
 pub mod store;

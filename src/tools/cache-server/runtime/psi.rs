@@ -240,13 +240,18 @@ impl PressureMonitor {
                 let snap = read(&cgroup_dir);
                 let state = PressureState::from_snapshot(&snap);
 
-                // Log when pressure changes to a concerning level.
-                if state.memory >= PressureLevel::Medium {
+                // Only warn when pressure is severe enough to trigger
+                // load shedding — Medium is noticeable but transient,
+                // and logging every 2 s at that level is just noise.
+                if state.memory >= PressureLevel::High
+                    || state.cpu >= PressureLevel::High
+                    || state.io >= PressureLevel::High
+                {
                     tracing::warn!(
                         memory = %state.memory,
                         cpu = %state.cpu,
                         io = %state.io,
-                        "elevated resource pressure"
+                        "high resource pressure"
                     );
                 }
 
