@@ -23,7 +23,7 @@ shims.git_fetch(
 shims.git_fetch(
     name = "slatedb-1981661380cef83f.git",
     repo = "https://github.com/slatedb/slatedb",
-    rev = "2f9b8e23ad3310e40ca0344c75f87e252b25075e",
+    rev = "46543bff2c577440e2daf2315cf926671cb9cc5e",
     visibility = [],
 )
 
@@ -680,6 +680,33 @@ third_party_rust.rust_library(
     edition = "2021",
     visibility = [],
     deps = [":term-1.2.1"],
+)
+
+shims.http_archive(
+    name = "async-channel-2.5.0.crate",
+    sha256 = "924ed96dd52d1b75e9c1a3e6275715fd320f5f9439fb5a4a11fa51f4221158d2",
+    strip_prefix = "async-channel-2.5.0",
+    urls = ["https://static.crates.io/crates/async-channel/2.5.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "async-channel-2.5.0",
+    srcs = [":async-channel-2.5.0.crate"],
+    crate = "async_channel",
+    crate_root = "async-channel-2.5.0.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "std",
+    ],
+    visibility = [],
+    deps = [
+        ":concurrent-queue-2.5.0",
+        ":event-listener-strategy-0.5.4",
+        ":futures-core-0.3.32",
+        ":pin-project-lite-0.2.17",
+    ],
 )
 
 shims.alias(
@@ -2827,6 +2854,25 @@ third_party_rust.rust_library(
     crate_root = "compare-0.0.6.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
+)
+
+shims.http_archive(
+    name = "concurrent-queue-2.5.0.crate",
+    sha256 = "4ca0197aee26d1ae37445ee532fefce43251d24cc7c166799f4d46817f1d3973",
+    strip_prefix = "concurrent-queue-2.5.0",
+    urls = ["https://static.crates.io/crates/concurrent-queue/2.5.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "concurrent-queue-2.5.0",
+    srcs = [":concurrent-queue-2.5.0.crate"],
+    crate = "concurrent_queue",
+    crate_root = "concurrent-queue-2.5.0.crate/src/lib.rs",
+    edition = "2021",
+    features = ["std"],
+    visibility = [],
+    deps = [":crossbeam-utils-0.8.21"],
 )
 
 shims.http_archive(
@@ -5109,6 +5155,54 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [":num-traits-0.2.19"],
+)
+
+shims.http_archive(
+    name = "event-listener-5.4.1.crate",
+    sha256 = "e13b66accf52311f30a0db42147dadea9850cb48cd070028831ae5f5d4b856ab",
+    strip_prefix = "event-listener-5.4.1",
+    urls = ["https://static.crates.io/crates/event-listener/5.4.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "event-listener-5.4.1",
+    srcs = [":event-listener-5.4.1.crate"],
+    crate = "event_listener",
+    crate_root = "event-listener-5.4.1.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "parking",
+        "std",
+    ],
+    visibility = [],
+    deps = [
+        ":concurrent-queue-2.5.0",
+        ":parking-2.2.1",
+        ":pin-project-lite-0.2.17",
+    ],
+)
+
+shims.http_archive(
+    name = "event-listener-strategy-0.5.4.crate",
+    sha256 = "8be9f3dfaaffdae2972880079a491a1a8bb7cbed0b8dd7a347f668b4150a3b93",
+    strip_prefix = "event-listener-strategy-0.5.4",
+    urls = ["https://static.crates.io/crates/event-listener-strategy/0.5.4/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "event-listener-strategy-0.5.4",
+    srcs = [":event-listener-strategy-0.5.4.crate"],
+    crate = "event_listener_strategy",
+    crate_root = "event-listener-strategy-0.5.4.crate/src/lib.rs",
+    edition = "2021",
+    features = ["std"],
+    visibility = [],
+    deps = [
+        ":event-listener-5.4.1",
+        ":pin-project-lite-0.2.17",
+    ],
 )
 
 shims.alias(
@@ -10733,6 +10827,7 @@ third_party_rust.rust_library(
     crate_root = "itertools-0.10.5.crate/src/lib.rs",
     edition = "2018",
     features = [
+        "default",
         "use_alloc",
         "use_std",
     ],
@@ -14905,6 +15000,23 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
+shims.http_archive(
+    name = "parking-2.2.1.crate",
+    sha256 = "f38d5652c16fde515bb1ecef450ab0f6a219d619a7274976324d5e377f7dceba",
+    strip_prefix = "parking-2.2.1",
+    urls = ["https://static.crates.io/crates/parking/2.2.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "parking-2.2.1",
+    srcs = [":parking-2.2.1.crate"],
+    crate = "parking",
+    crate_root = "parking-2.2.1.crate/src/lib.rs",
+    edition = "2018",
+    visibility = [],
+)
+
 shims.alias(
     name = "parking_lot",
     actual = ":parking_lot-0.12.5",
@@ -15925,7 +16037,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":heck-0.5.0",
-        ":itertools-0.14.0",
+        ":itertools-0.10.5",
         ":log-0.4.29",
         ":multimap-0.10.1",
         ":petgraph-0.8.3",
@@ -15958,7 +16070,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":anyhow-1.0.102",
-        ":itertools-0.14.0",
+        ":itertools-0.10.5",
         ":proc-macro2-1.0.106",
         ":quote-1.0.45",
         ":syn-2.0.117",
@@ -19718,6 +19830,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":anyhow-1.0.102",
+        ":async-channel-2.5.0",
         ":async-trait-0.1.89",
         ":atomic-0.6.1",
         ":backon-1.6.0",
