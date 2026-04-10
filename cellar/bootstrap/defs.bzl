@@ -8,10 +8,11 @@ __export_file = rule(impl = __export_file_impl, attrs = {
     "src": attrs.source(),
 })
 
-def export_file(name):
+def export_file(name, **kwargs):
     __export_file(
         name = name,
         src = name,
+        **kwargs
     )
 
 def __filegroup_impl(ctx: AnalysisContext) -> list[Provider]:
