@@ -12,7 +12,7 @@ And the following repositories, where most of this code was cribbed from:
 
 - https://github.com/oriansj/bootstrap-seeds
 - https://github.com/oriansj/stage0-posix, commit
-  `a79d862bed4e37a5e9dcebc15d555d176ef880ee`
+  `45d90f5955b6907dc6cdea9ebafce558359edcd3`
 
 Note that because this port uses buck2 itself, it isn't "trustable" in the same
 way the `kaem` based build is: buck2 is a foreign contaminant that could in
@@ -38,6 +38,46 @@ toolchain bootstrap. We'd have to cross compile from linux to macOS/Windows at
 this stage, which is the biggest hang-up, I think. But the goal would be to have
 a set of binaries for each main platform that can be built from scratch up-to
 bit identical outputs.
+
+## Updating from upstream stage0-posix
+
+All source files under `stage0-posix/` are direct copies from the upstream
+stage0-posix repository and its submodules. They must not be hand-edited; they
+should only be updated by copying from upstream.
+
+The directory names differ from upstream's submodule names:
+
+| Cellar directory       | Upstream submodule    |
+|------------------------|-----------------------|
+| `m2-libc/`             | `M2libc/`             |
+| `m2-planet/`           | `M2-Planet/`          |
+| `m2-mesoplanet/`       | `M2-Mesoplanet/`      |
+| `mescc-tools/`         | `mescc-tools/`        |
+| `mescc-tools-extra/`   | `mescc-tools-extra/`  |
+
+The `seeds/linux-amd64/` directory contains files from multiple upstream
+locations. Most seed files come from the `AMD64/` submodule (with renamed
+filenames), while `bootstrap.c` comes from `M2libc/amd64/linux/bootstrap.c`:
+
+| Seed file       | Upstream source                       |
+|-----------------|---------------------------------------|
+| `bootstrap.c`   | `M2libc/amd64/linux/bootstrap.c`      |
+| `cc.M1`         | `AMD64/cc_amd64.M1`                   |
+| `defs.M1`       | `AMD64/amd64_defs.M1`                 |
+| `libc-core.M1`  | `AMD64/libc-core.M1`                  |
+| `ELF.hex2`      | `AMD64/ELF-amd64.hex2`                |
+| `hex0.hex0`     | `AMD64/hex0_AMD64.hex0`               |
+| `hex1.hex0`     | `AMD64/hex1_AMD64.hex0`               |
+| `hex2.hex1`     | `AMD64/hex2_AMD64.hex1`               |
+| `catm.hex2`     | `AMD64/catm_AMD64.hex2`               |
+| `M0.hex2`       | `AMD64/M0_AMD64.hex2`                 |
+
+A validation script is included to verify all files match upstream:
+
+    ./stage0-posix/check-upstream.sh /path/to/stage0-posix
+
+This checks all 164+ source files and reports any mismatches. Run it after
+any update to confirm nothing was missed or accidentally hand-edited.
 
 ## Extra note: `chdirexec`
 

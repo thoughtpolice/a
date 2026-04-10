@@ -517,7 +517,6 @@ void add_envar()
 	newvalue = name + i + 2;
 	value = value + i + 1;
 	i = 0;
-	require(0 != value[i], "add_envar received improper variable\n");
 
 	while(0 != value[i])
 	{
@@ -1383,7 +1382,7 @@ int main(int argc, char** argv, char** envp)
 		else if(match(argv[i], "-V") || match(argv[i], "--version"))
 		{
 			/* Output version */
-			fputs("kaem version 1.6.0\n", stdout);
+			fputs("kaem version 1.7.0\n", stdout);
 			exit(EXIT_SUCCESS);
 		}
 		else if(match(argv[i], "-v") || match(argv[i], "--verbose"))

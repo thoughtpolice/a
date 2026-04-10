@@ -25,8 +25,6 @@ void initialize_types(void);
 struct token_list* read_all_tokens(FILE* a, struct token_list* current, char* filename);
 struct token_list* reverse_list(struct token_list* head);
 
-struct token_list* remove_line_comments(struct token_list* head);
-struct token_list* remove_line_comment_tokens(struct token_list* head);
 struct token_list* remove_preprocessor_directives(struct token_list* head);
 
 void eat_newline_tokens(void);
@@ -51,7 +49,7 @@ int main(int argc, char** argv)
 	/* These need to be here instead of defines
 	 * since cc_* can't handle string constants. */
 	char* m2_major = "1";
-	char* m2_minor = "12";
+	char* m2_minor = "13";
 	char* m2_patch = "1";
 
 	init_macro_env("__M2__", "42", "__INTERNAL_M2__", 0); /* Setup __M2__ */
@@ -323,6 +321,23 @@ int main(int argc, char** argv)
 		stack_direction = STACK_DIRECTION_MINUS;
 	}
 
+	if (Architecture & ARCH_FAMILY_KNIGHT)
+	{
+		return_instruction = "RET R15\n";
+	}
+	else if (Architecture & (ARCH_FAMILY_X86 | ARCH_FAMILY_RISCV))
+	{
+		return_instruction = "ret\n";
+	}
+	else if (Architecture == ARMV7L)
+	{
+		return_instruction = "'1' LR RETURN\n";
+	}
+	else if (Architecture == AARCH64)
+	{
+		return_instruction = "RETURN\n";
+	}
+
 	/* Deal with special case of wanting to read from standard input */
 	if(stdin == in)
 	{
@@ -340,12 +355,10 @@ int main(int argc, char** argv)
 
 	if (BOOTSTRAP_MODE)
 	{
-		global_token = remove_line_comment_tokens(global_token);
 		global_token = remove_preprocessor_directives(global_token);
 	}
 	else
 	{
-		global_token = remove_line_comments(global_token);
 		preprocess();
 	}
 
