@@ -53,6 +53,10 @@ starlark_max_callstack_size = 50
 # starlark_memory_limit() by default if no limit is specified.
 default_starlark_peak_memory = 5242880
 
+[buck2_re_client]
+# for larger blobs: set a larger gRPC timeout window so we can upload them in time
+grpc_timeout = 900
+
 [buck2_resource_control]
 status = if_available
 enable_suspension = true
