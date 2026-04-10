@@ -6568,7 +6568,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
 dependencies = [
  "heck 0.5.0",
- "itertools 0.14.0",
+ "itertools 0.10.5",
  "log",
  "multimap",
  "petgraph 0.8.3",
@@ -6589,7 +6589,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
 dependencies = [
  "anyhow",
- "itertools 0.14.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -8015,9 +8015,10 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 [[package]]
 name = "slatedb"
 version = "0.11.1"
-source = "git+https://github.com/slatedb/slatedb?rev=2f9b8e23ad3310e40ca0344c75f87e252b25075e#2f9b8e23ad3310e40ca0344c75f87e252b25075e"
+source = "git+https://github.com/slatedb/slatedb?rev=46543bff2c577440e2daf2315cf926671cb9cc5e#46543bff2c577440e2daf2315cf926671cb9cc5e"
 dependencies = [
  "anyhow",
+ "async-channel",
  "async-trait",
  "atomic",
  "backon",
@@ -8061,7 +8062,7 @@ dependencies = [
 [[package]]
 name = "slatedb-common"
 version = "0.11.1"
-source = "git+https://github.com/slatedb/slatedb?rev=2f9b8e23ad3310e40ca0344c75f87e252b25075e#2f9b8e23ad3310e40ca0344c75f87e252b25075e"
+source = "git+https://github.com/slatedb/slatedb?rev=46543bff2c577440e2daf2315cf926671cb9cc5e#46543bff2c577440e2daf2315cf926671cb9cc5e"
 dependencies = [
  "chrono",
  "log",
@@ -8072,7 +8073,7 @@ dependencies = [
 [[package]]
 name = "slatedb-txn-obj"
 version = "0.11.1"
-source = "git+https://github.com/slatedb/slatedb?rev=2f9b8e23ad3310e40ca0344c75f87e252b25075e#2f9b8e23ad3310e40ca0344c75f87e252b25075e"
+source = "git+https://github.com/slatedb/slatedb?rev=46543bff2c577440e2daf2315cf926671cb9cc5e#46543bff2c577440e2daf2315cf926671cb9cc5e"
 dependencies = [
  "async-trait",
  "bytes",
