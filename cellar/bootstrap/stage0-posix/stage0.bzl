@@ -194,14 +194,6 @@ hex2_1 = rule(impl = __hex2_1, attrs = {
 M1 = M1_0
 hex2 = hex2_1
 
-def _is_host_arch(host_arch):
-    if host_arch == "amd64":
-        return host_info().arch.is_x86_64
-    elif host_arch == "aarch64":
-        return host_info().arch.is_aarch64
-    else:
-        fail("stage0.bzl: unsupported host_arch %r" % host_arch)
-
 # -----------------------------------------------------------------------------
 # stage0_binaries: generate the full phase 0-15 build graph for a single target
 # architecture. Called from each seeds/linux-<arch>/BUILD with architecture
@@ -226,7 +218,8 @@ def stage0_binaries(
         arch,
         m2libc_dir,
         catm_src,
-        catm_bin):
+        catm_bin,
+        compat = {}):
     m2libc = "cellar//bootstrap/stage0-posix/m2-libc"
     m2planet = "cellar//bootstrap/stage0-posix/m2-planet"
     m2mesoplanet = "cellar//bootstrap/stage0-posix/m2-mesoplanet"
@@ -324,20 +317,21 @@ def stage0_binaries(
             ":get_machine",
             ":M2-Planet",
         ],
+        **compat
     )
 
     # Phase 0a: build hex0 from the bootstrap binary
-    hex0(name = "hex0", bin = "hex0-seed", src = "hex0.hex0")
+    hex0(name = "hex0", bin = "hex0-seed", src = "hex0.hex0", **compat)
 
     # Phase 1: build hex1 from hex0
-    hex0(name = "hex1", bin = ":hex0", src = "hex1.hex0")
+    hex0(name = "hex1", bin = ":hex0", src = "hex1.hex0", **compat)
 
     # Phase 2a: build hex2 from hex1
-    hex1(name = "hex2-0", bin = ":hex1", src = "hex2.hex1")
+    hex1(name = "hex2-0", bin = ":hex1", src = "hex2.hex1", **compat)
 
     # Phase 2b: build catm. On amd64 this uses hex2-0 + catm.hex2; on aarch64
     # it uses hex1 + catm.hex1 (see docstring above).
-    hex2_0(name = "catm", bin = catm_bin, src = catm_src)
+    hex2_0(name = "catm", bin = catm_bin, src = catm_src, **compat)
 
     # Phase 3: build M0 from hex2
     catm(
@@ -347,11 +341,12 @@ def stage0_binaries(
             "ELF.hex2",
             "M0.hex2",
         ],
+        **compat
     )
-    hex2_0(name = "M0", bin = ":hex2-0", src = ":M0.hex2")
+    hex2_0(name = "M0", bin = ":hex2-0", src = ":M0.hex2", **compat)
 
     # Phase 4: build architecture-specific cc from M0
-    M0(name = "cc.hex2", bin = ":M0", src = "cc.M1")
+    M0(name = "cc.hex2", bin = ":M0", src = "cc.M1", **compat)
     catm(
         name = "cc-0.hex2",
         bin = ":catm",
@@ -359,8 +354,9 @@ def stage0_binaries(
             "ELF.hex2",
             ":cc.hex2",
         ],
+        **compat
     )
-    hex2_0(name = "cc", bin = ":hex2-0", src = ":cc-0.hex2")
+    hex2_0(name = "cc", bin = ":hex2-0", src = ":cc-0.hex2", **compat)
 
     # Phase 5: build M2-Planet from cc
     catm(
@@ -379,8 +375,9 @@ def stage0_binaries(
             m2planet + ":cc_macro.c",
             m2planet + ":cc.c",
         ],
+        **compat
     )
-    cc(name = "M2-0.M1", bin = ":cc", src = ":M2-0.c")
+    cc(name = "M2-0.M1", bin = ":cc", src = ":M2-0.c", **compat)
     catm(
         name = "M2-0-0.M1",
         bin = ":catm",
@@ -389,8 +386,9 @@ def stage0_binaries(
             "libc-core.M1",
             ":M2-0.M1",
         ],
+        **compat
     )
-    M0(name = "M2-0.hex2", bin = ":M0", src = ":M2-0-0.M1")
+    M0(name = "M2-0.hex2", bin = ":M0", src = ":M2-0-0.M1", **compat)
     catm(
         name = "M2-0-0.hex2",
         bin = ":catm",
@@ -398,8 +396,9 @@ def stage0_binaries(
             "ELF.hex2",
             ":M2-0.hex2",
         ],
+        **compat
     )
-    hex2_0(name = "M2", bin = ":hex2-0", src = ":M2-0-0.hex2")
+    hex2_0(name = "M2", bin = ":hex2-0", src = ":M2-0-0.hex2", **compat)
 
     # Phase 6: build blood-elf0 from C sources. This is the last stage where
     # the binaries will not have debug info and the last piece built that
@@ -415,6 +414,7 @@ def stage0_binaries(
             mescctools + ":stringify.c",
             mescctools + ":blood-elf.c",
         ],
+        **compat
     )
     catm(
         name = "blood-elf-0-0.M1",
@@ -424,8 +424,9 @@ def stage0_binaries(
             libc_core_m1,
             ":blood-elf-0.M1",
         ],
+        **compat
     )
-    M0(name = "blood-elf-0.hex2", bin = ":M0", src = ":blood-elf-0-0.M1")
+    M0(name = "blood-elf-0.hex2", bin = ":M0", src = ":blood-elf-0-0.M1", **compat)
     catm(
         name = "blood-elf-0-0.hex2",
         bin = ":catm",
@@ -433,8 +434,9 @@ def stage0_binaries(
             elf_hex2,
             ":blood-elf-0.hex2",
         ],
+        **compat
     )
-    hex2_0(name = "blood-elf-0", bin = ":hex2-0", src = ":blood-elf-0-0.hex2")
+    hex2_0(name = "blood-elf-0", bin = ":hex2-0", src = ":blood-elf-0-0.hex2", **compat)
 
     # Phase 7: build M1-0 from C sources
     M2(
@@ -449,6 +451,7 @@ def stage0_binaries(
             mescctools + ":stringify.c",
             mescctools + ":M1-macro.c",
         ],
+        **compat
     )
     blood_elf(
         name = "M1-macro-0-footer.M1",
@@ -456,6 +459,7 @@ def stage0_binaries(
         sixtyfour = True,
         little_endian = True,
         srcs = [":M1-macro-0.M1"],
+        **compat
     )
     catm(
         name = "M1-macro-0-0.M1",
@@ -466,8 +470,9 @@ def stage0_binaries(
             ":M1-macro-0.M1",
             ":M1-macro-0-footer.M1",
         ],
+        **compat
     )
-    M0(name = "M1-macro-0.hex2", bin = ":M0", src = ":M1-macro-0-0.M1")
+    M0(name = "M1-macro-0.hex2", bin = ":M0", src = ":M1-macro-0-0.M1", **compat)
     catm(
         name = "M1-macro-0-0.hex2",
         bin = ":catm",
@@ -475,8 +480,9 @@ def stage0_binaries(
             elf_debug_hex2,
             ":M1-macro-0.hex2",
         ],
+        **compat
     )
-    hex2_0(name = "M1-0", bin = ":hex2-0", src = ":M1-macro-0-0.hex2")
+    hex2_0(name = "M1-0", bin = ":hex2-0", src = ":M1-macro-0-0.hex2", **compat)
 
     # Phase 8: build hex2-1 from C sources. This is the last stage where catm
     # will need to be used and the last stage where M0 is used, as we will be
@@ -493,6 +499,7 @@ def stage0_binaries(
             mescctools + ":hex2_word.c",
             mescctools + ":hex2.c",
         ],
+        **compat
     )
     blood_elf(
         name = "hex2_linker-1-footer.M1",
@@ -500,6 +507,7 @@ def stage0_binaries(
         sixtyfour = True,
         little_endian = True,
         srcs = [":hex2_linker-1.M1"],
+        **compat
     )
     M1_0(
         name = "hex2_linker-1.hex2",
@@ -512,6 +520,7 @@ def stage0_binaries(
             ":hex2_linker-1.M1",
             ":hex2_linker-1-footer.M1",
         ],
+        **compat
     )
     catm(
         name = "hex2_linker-1-0.hex2",
@@ -520,8 +529,9 @@ def stage0_binaries(
             "ELF.hex2",
             ":hex2_linker-1.hex2",
         ],
+        **compat
     )
-    hex2_0(name = "hex2-1", bin = ":hex2-0", src = ":hex2_linker-1-0.hex2")
+    hex2_0(name = "hex2-1", bin = ":hex2-0", src = ":hex2_linker-1-0.hex2", **compat)
 
     # Phase 9: build M1 from C sources
     M2(
@@ -533,6 +543,7 @@ def stage0_binaries(
             mescctools + ":stringify.c",
             mescctools + ":M1-macro.c",
         ],
+        **compat
     )
     blood_elf(
         name = "M1-macro-1-footer.M1",
@@ -540,6 +551,7 @@ def stage0_binaries(
         sixtyfour = True,
         little_endian = True,
         srcs = [":M1-macro-1.M1"],
+        **compat
     )
     M1_0(
         name = "M1-macro-1.hex2",
@@ -552,6 +564,7 @@ def stage0_binaries(
             ":M1-macro-1.M1",
             ":M1-macro-1-footer.M1",
         ],
+        **compat
     )
     hex2_1(
         name = "M1",
@@ -563,6 +576,7 @@ def stage0_binaries(
             elf_debug_hex2,
             ":M1-macro-1.hex2",
         ],
+        **compat
     )
 
     # Phase 10: build hex2 from C sources
@@ -577,6 +591,7 @@ def stage0_binaries(
             mescctools + ":hex2_word.c",
             mescctools + ":hex2.c",
         ],
+        **compat
     )
     blood_elf(
         name = "hex2_linker-2-footer.M1",
@@ -584,6 +599,7 @@ def stage0_binaries(
         sixtyfour = True,
         little_endian = True,
         srcs = [":hex2_linker-2.M1"],
+        **compat
     )
     M1(
         name = "hex2_linker-2.hex2",
@@ -596,6 +612,7 @@ def stage0_binaries(
             ":hex2_linker-2.M1",
             ":hex2_linker-2-footer.M1",
         ],
+        **compat
     )
     hex2_1(
         name = "hex2",
@@ -607,6 +624,7 @@ def stage0_binaries(
             elf_debug_hex2,
             ":hex2_linker-2.hex2",
         ],
+        **compat
     )
 
     # Phase 11: build kaem from C sources
@@ -621,6 +639,7 @@ def stage0_binaries(
             mescctools + ":Kaem/kaem_globals.c",
             mescctools + ":Kaem/kaem.c",
         ],
+        **compat
     )
     blood_elf(
         name = "kaem-footer.M1",
@@ -628,6 +647,7 @@ def stage0_binaries(
         sixtyfour = True,
         little_endian = True,
         srcs = [":kaem.M1"],
+        **compat
     )
     M1(
         name = "kaem.hex2",
@@ -640,6 +660,7 @@ def stage0_binaries(
             ":kaem.M1",
             ":kaem-footer.M1",
         ],
+        **compat
     )
     hex2(
         name = "kaem",
@@ -651,6 +672,7 @@ def stage0_binaries(
             elf_debug_hex2,
             ":kaem.hex2",
         ],
+        **compat
     )
 
     # Phase 12: build M2-Mesoplanet from M2-Planet
@@ -683,6 +705,7 @@ def stage0_binaries(
             m2mesoplanet + ":cc_macro.c",
             m2mesoplanet + ":cc.c",
         ],
+        **compat
     )
     blood_elf(
         name = "M2-Mesoplanet-1-footer.M1",
@@ -690,6 +713,7 @@ def stage0_binaries(
         sixtyfour = True,
         little_endian = True,
         srcs = [":M2-Mesoplanet-1.M1"],
+        **compat
     )
     M1(
         name = "M2-Mesoplanet-1.hex2",
@@ -702,6 +726,7 @@ def stage0_binaries(
             ":M2-Mesoplanet-1.M1",
             ":M2-Mesoplanet-1-footer.M1",
         ],
+        **compat
     )
     hex2(
         name = "M2-Mesoplanet",
@@ -713,6 +738,7 @@ def stage0_binaries(
             elf_debug_hex2,
             ":M2-Mesoplanet-1.hex2",
         ],
+        **compat
     )
 
     # Phase 13: build final blood-elf from C sources
@@ -737,6 +763,7 @@ def stage0_binaries(
             mescctools + ":stringify.c",
             mescctools + ":blood-elf.c",
         ],
+        **compat
     )
     blood_elf(
         name = "blood-elf-1-footer.M1",
@@ -744,6 +771,7 @@ def stage0_binaries(
         sixtyfour = True,
         little_endian = True,
         srcs = [":blood-elf-1.M1"],
+        **compat
     )
     M1(
         name = "blood-elf-1.hex2",
@@ -756,6 +784,7 @@ def stage0_binaries(
             ":blood-elf-1.M1",
             ":blood-elf-1-footer.M1",
         ],
+        **compat
     )
     hex2(
         name = "blood-elf",
@@ -767,6 +796,7 @@ def stage0_binaries(
             elf_debug_hex2,
             ":blood-elf-1.hex2",
         ],
+        **compat
     )
 
     # Now we have our shipping debuggable blood-elf; the rest will be downhill
@@ -782,6 +812,7 @@ def stage0_binaries(
         srcs = arch_linux_sources_core + [
             mescctools + ":get_machine.c",
         ],
+        **compat
     )
     blood_elf(
         name = "get_machine-footer.M1",
@@ -789,6 +820,7 @@ def stage0_binaries(
         sixtyfour = True,
         little_endian = True,
         srcs = [":get_machine.M1"],
+        **compat
     )
     M1(
         name = "get_machine.hex2",
@@ -801,6 +833,7 @@ def stage0_binaries(
             ":get_machine.M1",
             ":get_machine-footer.M1",
         ],
+        **compat
     )
     hex2(
         name = "get_machine",
@@ -812,6 +845,7 @@ def stage0_binaries(
             elf_debug_hex2,
             ":get_machine.hex2",
         ],
+        **compat
     )
 
     # Phase 15: build final M2-Planet from M2-Planet
@@ -831,6 +865,7 @@ def stage0_binaries(
             m2planet + ":cc_macro.c",
             m2planet + ":cc.c",
         ],
+        **compat
     )
     blood_elf(
         name = "M2-1-footer.M1",
@@ -838,6 +873,7 @@ def stage0_binaries(
         sixtyfour = True,
         little_endian = True,
         srcs = [":M2-1.M1"],
+        **compat
     )
     M1(
         name = "M2-1.hex2",
@@ -850,6 +886,7 @@ def stage0_binaries(
             ":M2-1.M1",
             ":M2-1-footer.M1",
         ],
+        **compat
     )
     hex2(
         name = "M2-Planet",
@@ -861,24 +898,25 @@ def stage0_binaries(
             elf_debug_hex2,
             ":M2-1.hex2",
         ],
+        **compat
     )
 
 # -----------------------------------------------------------------------------
 # stage0_platform: the single entry point each seeds/linux-<arch>/BUILD calls.
 # It:
-#   1) gates all target creation on `host_info().arch` matching `host_arch`,
-#      since the hex0-seed binary for this arch is native and cannot be
-#      spawned on a different host;
-#   2) creates the exported `:answers` file target;
-#   3) invokes `stage0_binaries` to wire up the full build graph;
-#   4) assembles the platform-specific filegroup (named `<host_arch>-files`)
+#   1) creates the exported `:answers` file target;
+#   2) invokes `stage0_binaries` to wire up the full build graph;
+#   3) assembles the platform-specific filegroup (named via `filegroup_name`)
 #      laying out the produced binaries under `<arch_dir_upper>/bin/`, mirroring
 #      the upstream stage0-posix directory layout that `<arch>.answers` expects;
-#   5) declares the `:check` test that runs sha256sum over that filegroup
+#   4) declares the `:check` test that runs sha256sum over that filegroup
 #      against the golden answers.
 #
+# All targets are gated via `target_compatible_with` constraints from
+# cellar//bootstrap/platforms so they are skipped on incompatible hosts
+# instead of failing at build time.
+#
 # Arguments:
-#   host_arch         "amd64" or "aarch64" — used to gate on host_info().
 #   arch              target architecture passed to M2/M1/hex2 rules.
 #   m2libc_dir        subdirectory within m2-libc for this arch's libc.
 #   arch_dir_upper    layout directory under the answers file ("AMD64",
@@ -887,23 +925,25 @@ def stage0_binaries(
 #   catm_src          hand-written catm source file (see stage0_binaries).
 #   catm_bin          target to assemble catm_src with (see stage0_binaries).
 def stage0_platform(
-        host_arch,
         arch,
         m2libc_dir,
         arch_dir_upper,
         filegroup_name,
         catm_src,
         catm_bin):
-    export_file(name = "answers")
+    compat = {"target_compatible_with": [
+        "cellar//bootstrap/platforms:linux",
+        "cellar//bootstrap/platforms:" + arch,
+    ]}
 
-    if not _is_host_arch(host_arch):
-        return
+    export_file(name = "answers", **compat)
 
     stage0_binaries(
         arch = arch,
         m2libc_dir = m2libc_dir,
         catm_src = catm_src,
         catm_bin = catm_bin,
+        compat = compat,
     )
 
     mtex = "cellar//bootstrap/stage0-posix/mescc-tools-extra"
@@ -932,6 +972,7 @@ def stage0_platform(
             bindir + "/unxz": mtex + ":unxz",
             bindir + "/untar": mtex + ":untar",
         },
+        **compat
     )
 
     stage0_answer_test(
@@ -940,4 +981,5 @@ def stage0_platform(
         chdirexec = mtex + ":chdirexec",
         input = ":" + filegroup_name,
         args = ["--check", "answers"],
+        **compat
     )
