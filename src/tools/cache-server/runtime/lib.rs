@@ -4,7 +4,12 @@
 //! Runtime environment checks for the cache server.
 //!
 //! Validates Linux kernel settings required for dial9 CPU profiling and
-//! kernel stack traces before the traced runtime starts.
+//! kernel stack traces before the traced runtime starts. Detects cgroup
+//! CPU and memory limits so callers can size thread pools and configure
+//! the global allocator appropriately.
+
+mod cgroup;
+mod mimalloc_config;
 
 /// Profiling capabilities determined by Linux kernel settings.
 #[derive(Debug, Clone)]
@@ -91,6 +96,105 @@ pub fn check_perf_capabilities() -> PerfCapabilities {
         kptr,
     }
 }
+
+// --- Cgroup-aware resource detection ----------------------------------------
+
+/// Detected runtime resource limits.
+///
+/// Use [`init`] to populate this at startup, before building tokio
+/// runtimes or allocating large data structures. Call
+/// [`emit_diagnostics`](RuntimeInfo::emit_diagnostics) after the
+/// tracing subscriber is initialized to log startup info.
+#[derive(Debug, Clone)]
+pub struct RuntimeInfo {
+    /// Effective CPU count (cgroup-aware). Use this for sizing thread
+    /// pools (e.g. `tokio::runtime::Builder::worker_threads`).
+    pub effective_cpus: usize,
+
+    /// Memory limit in bytes, if a cgroup limit is set.
+    pub memory_limit: Option<u64>,
+
+    /// Whether the process is running inside a cgroup with at least one
+    /// resource limit set.
+    pub in_cgroup: bool,
+
+    // Diagnostic fields for deferred logging.
+    cgroup_version: &'static str,
+    cgroup_dir: Option<String>,
+    raw_cpu: Option<String>,
+    raw_memory: Option<String>,
+    cpu_quota: Option<f64>,
+}
+
+impl RuntimeInfo {
+    /// Log cgroup detection results and mimalloc configuration.
+    ///
+    /// Call this after the tracing subscriber has been initialized so
+    /// the messages are visible in normal log output. This always logs,
+    /// even when no cgroup limits are detected, to aid debugging
+    /// container deployments.
+    pub fn emit_diagnostics(&self) {
+        tracing::info!(
+            cgroup_version = self.cgroup_version,
+            cgroup_dir = self.cgroup_dir.as_deref().unwrap_or("n/a"),
+            raw_cpu = self.raw_cpu.as_deref().unwrap_or("n/a"),
+            raw_memory = self.raw_memory.as_deref().unwrap_or("n/a"),
+            "cgroup detection"
+        );
+
+        tracing::info!(
+            cpu_quota = self.cpu_quota.map(|c| format!("{c:.2}")),
+            effective_cpus = self.effective_cpus,
+            memory_limit_mib = self.memory_limit.map(|b| b / (1024 * 1024)),
+            in_cgroup = self.in_cgroup,
+            "runtime resource limits"
+        );
+
+        let arena_reserve_kib = mimalloc::option_get(mimalloc::MiOption::ArenaReserve);
+        tracing::info!(
+            arena_reserve_mib = arena_reserve_kib / 1024,
+            "mimalloc configuration"
+        );
+    }
+}
+
+/// Detect cgroup limits and configure the runtime accordingly.
+///
+/// Call once at startup, before building tokio runtimes.
+///
+/// - Reads cgroup v2 then v1 CPU/memory limits
+/// - Falls back to [`std::thread::available_parallelism`] for CPUs
+/// - Configures mimalloc arena reserve when a memory limit is detected
+///
+/// **Note:** this runs before the tracing subscriber is active. Call
+/// [`RuntimeInfo::emit_diagnostics`] later to log the results.
+pub fn init() -> RuntimeInfo {
+    let limits = cgroup::detect();
+
+    let in_cgroup = limits.cpu_quota_cpus.is_some() || limits.memory_limit_bytes.is_some();
+
+    let effective_cpus = match limits.cpu_quota_cpus {
+        Some(cpus) => (cpus.ceil() as usize).max(1),
+        None => std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1),
+    };
+
+    mimalloc_config::configure(limits.memory_limit_bytes);
+
+    RuntimeInfo {
+        effective_cpus,
+        memory_limit: limits.memory_limit_bytes,
+        in_cgroup,
+        cgroup_version: limits.diag.version,
+        cgroup_dir: limits.diag.cgroup_dir,
+        raw_cpu: limits.diag.raw_cpu,
+        raw_memory: limits.diag.raw_memory,
+        cpu_quota: limits.cpu_quota_cpus,
+    }
+}
+
+// --- Perf capability checks -------------------------------------------------
 
 fn read_sysctl(path: &str) -> Option<i32> {
     std::fs::read_to_string(path)

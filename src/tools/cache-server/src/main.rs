@@ -150,13 +150,16 @@ struct ServeArgs {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    let rt_info = runtime::init();
+
     let mut builder = tokio::runtime::Builder::new_multi_thread();
     builder.enable_all();
+    builder.worker_threads(rt_info.effective_cpus);
 
     if cli.disable_dial9 {
         let (runtime, guard) = TracedRuntime::build_disabled(builder)?;
         let handle = guard.handle();
-        let result = runtime.block_on(async_main(cli, handle, None, None));
+        let result = runtime.block_on(async_main(cli, handle, None, None, rt_info));
         drop(runtime);
         guard
             .graceful_shutdown(std::time::Duration::from_secs(5))
@@ -189,7 +192,13 @@ fn main() -> Result<()> {
             .with_trace_path(&trace_path)
             .build_and_start(builder, writer)?;
         let handle = guard.handle();
-        let result = runtime.block_on(async_main(cli, handle, Some(trace_dir), Some(caps)));
+        let result = runtime.block_on(async_main(
+            cli,
+            handle,
+            Some(trace_dir),
+            Some(caps),
+            rt_info,
+        ));
         // Drop the runtime first so worker threads exit and flush their
         // thread-local telemetry buffers to the central collector. Then
         // graceful_shutdown drains the collector, seals the final segment,
@@ -230,11 +239,20 @@ async fn async_main(
     handle: TelemetryHandle,
     trace_dir: Option<PathBuf>,
     perf_caps: Option<runtime::PerfCapabilities>,
+    rt_info: runtime::RuntimeInfo,
 ) -> Result<()> {
     match cli.command {
         Some(Command::Compact) => run_compactor(&cli, handle).await,
         Some(Command::Serve(ref args)) => {
-            run_server(&cli, args, handle, trace_dir.as_ref(), perf_caps.as_ref()).await
+            run_server(
+                &cli,
+                args,
+                handle,
+                trace_dir.as_ref(),
+                perf_caps.as_ref(),
+                &rt_info,
+            )
+            .await
         }
         None => {
             run_server(
@@ -243,6 +261,7 @@ async fn async_main(
                 handle,
                 trace_dir.as_ref(),
                 perf_caps.as_ref(),
+                &rt_info,
             )
             .await
         }
@@ -315,6 +334,7 @@ async fn run_server(
     handle: TelemetryHandle,
     trace_dir: Option<&PathBuf>,
     perf_caps: Option<&runtime::PerfCapabilities>,
+    rt_info: &runtime::RuntimeInfo,
 ) -> Result<()> {
     // Build OTEL config from env + CLI
     let otel_config = telemetry::OtelConfig::from_env().with_cli_overrides(
@@ -343,6 +363,7 @@ async fn run_server(
         .with(otel_layer)
         .init();
 
+    rt_info.emit_diagnostics();
     if let Some(caps) = perf_caps {
         caps.emit_warnings();
     }

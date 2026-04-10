@@ -4,6 +4,7 @@
 load("@root//buck/shims:shims.bzl", depot="shims")
 
 DEPS = [
+    'third-party//by-name/mi/mimalloc:rust',
     'third-party//rust:tracing',
 ]
 
