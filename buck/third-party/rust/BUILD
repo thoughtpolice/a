@@ -9,7 +9,7 @@ load("@root//buck/shims:shims.bzl", "shims")
 shims.git_fetch(
     name = "dial9-tokio-telemetry-43aa6b6c06fdd4e0.git",
     repo = "https://github.com/dial9-rs/dial9-tokio-telemetry",
-    rev = "291ddbca1e013e22fd36cfd0f1bcf3abd1f3f4e6",
+    rev = "845481114793d0d6b8c5d267cc8cdc8ea3b44ded",
     visibility = [],
 )
 
@@ -390,10 +390,10 @@ third_party_rust.rust_library(
     edition = "2021",
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.60.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.60.2"],
         ),
     },
     visibility = [],
@@ -417,7 +417,7 @@ third_party_rust.rust_library(
     deps = [
         ":anstyle-1.0.14",
         ":once_cell_polyfill-1.70.2",
-        ":windows-sys-0.61.2",
+        ":windows-sys-0.60.2",
     ],
 )
 
@@ -982,7 +982,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":fastrand-2.3.0",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
     ],
 )
 
@@ -2975,7 +2975,7 @@ third_party_rust.rust_library(
         ":serde-1.0.228",
         ":serde_json-1.0.149",
         ":thread_local-1.1.9",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-stream-0.1.18",
         ":tonic-0.14.5",
         ":tracing-0.1.44",
@@ -3482,7 +3482,7 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":mio-1.1.1",
+                ":mio-1.2.0",
                 ":rustix-0.38.44",
                 ":signal-hook-0.3.18",
                 ":signal-hook-mio-0.2.5",
@@ -3490,7 +3490,7 @@ third_party_rust.rust_library(
         ),
         "linux-x86_64": dict(
             deps = [
-                ":mio-1.1.1",
+                ":mio-1.2.0",
                 ":rustix-0.38.44",
                 ":signal-hook-0.3.18",
                 ":signal-hook-mio-0.2.5",
@@ -3498,7 +3498,7 @@ third_party_rust.rust_library(
         ),
         "macos-arm64": dict(
             deps = [
-                ":mio-1.1.1",
+                ":mio-1.2.0",
                 ":rustix-0.38.44",
                 ":signal-hook-0.3.18",
                 ":signal-hook-mio-0.2.5",
@@ -3506,7 +3506,7 @@ third_party_rust.rust_library(
         ),
         "macos-x86_64": dict(
             deps = [
-                ":mio-1.1.1",
+                ":mio-1.2.0",
                 ":rustix-0.38.44",
                 ":signal-hook-0.3.18",
                 ":signal-hook-mio-0.2.5",
@@ -3576,7 +3576,7 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":mio-1.1.1",
+                ":mio-1.2.0",
                 ":rustix-1.1.4",
                 ":signal-hook-0.3.18",
                 ":signal-hook-mio-0.2.5",
@@ -3584,7 +3584,7 @@ third_party_rust.rust_library(
         ),
         "linux-x86_64": dict(
             deps = [
-                ":mio-1.1.1",
+                ":mio-1.2.0",
                 ":rustix-1.1.4",
                 ":signal-hook-0.3.18",
                 ":signal-hook-mio-0.2.5",
@@ -3592,7 +3592,7 @@ third_party_rust.rust_library(
         ),
         "macos-arm64": dict(
             deps = [
-                ":mio-1.1.1",
+                ":mio-1.2.0",
                 ":rustix-1.1.4",
                 ":signal-hook-0.3.18",
                 ":signal-hook-mio-0.2.5",
@@ -3600,7 +3600,7 @@ third_party_rust.rust_library(
         ),
         "macos-x86_64": dict(
             deps = [
-                ":mio-1.1.1",
+                ":mio-1.2.0",
                 ":rustix-1.1.4",
                 ":signal-hook-0.3.18",
                 ":signal-hook-mio-0.2.5",
@@ -4280,13 +4280,13 @@ third_party_rust.rust_library(
         ":futures-util-0.3.32",
         ":hostname-0.4.2",
         ":libc-0.2.183",
-        ":metrique-0.1.22",
-        ":metrique-writer-0.1.19",
+        ":metrique-0.1.23",
+        ":metrique-writer-0.1.20",
         ":pin-project-lite-0.2.17",
         ":serde-1.0.228",
         ":serde_json-1.0.149",
         ":smallvec-1.15.1",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-util-0.7.18",
         ":tracing-0.1.44",
     ],
@@ -4468,10 +4468,10 @@ third_party_rust.rust_library(
             deps = [":libc-0.2.183"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.59.0"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.59.0"],
         ),
     },
     visibility = [],
@@ -5906,7 +5906,7 @@ third_party_rust.rust_library(
         ":pin-project-1.1.11",
         ":serde-1.0.228",
         ":thiserror-2.0.18",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tracing-0.1.44",
     ],
 )
@@ -5937,7 +5937,7 @@ third_party_rust.rust_library(
         ":pin-project-1.1.11",
         ":serde-1.0.228",
         ":thiserror-2.0.18",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":twox-hash-2.1.2",
     ],
 )
@@ -5995,7 +5995,7 @@ third_party_rust.rust_library(
         ":pin-project-1.1.11",
         ":serde-1.0.228",
         ":thiserror-2.0.18",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tracing-0.1.44",
     ],
 )
@@ -6041,7 +6041,7 @@ third_party_rust.rust_library(
         ":rand-0.9.2",
         ":serde-1.0.228",
         ":thiserror-2.0.18",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tracing-0.1.44",
         ":twox-hash-2.1.2",
         ":zstd-0.13.3",
@@ -9324,7 +9324,7 @@ third_party_rust.rust_library(
         ":http-1.4.0",
         ":indexmap-2.13.0",
         ":slab-0.4.12",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-util-0.7.18",
         ":tracing-0.1.44",
     ],
@@ -9922,7 +9922,7 @@ third_party_rust.rust_library(
         ":pin-project-lite-0.2.17",
         ":pin-utils-0.1.0",
         ":smallvec-1.15.1",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":want-0.3.1",
     ],
 )
@@ -9959,7 +9959,7 @@ third_party_rust.rust_library(
         ":hyper-util-0.1.20",
         ":rustls-0.23.37",
         ":rustls-native-certs-0.8.3",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-rustls-0.26.4",
         ":tower-service-0.3.3",
     ],
@@ -9984,7 +9984,7 @@ third_party_rust.rust_library(
         ":hyper-1.8.1",
         ":hyper-util-0.1.20",
         ":pin-project-lite-0.2.17",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tower-service-0.3.3",
     ],
 )
@@ -10010,7 +10010,7 @@ third_party_rust.rust_library(
         ":hyper-1.8.1",
         ":hyper-util-0.1.20",
         ":native-tls-0.2.18",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-native-tls-0.3.1",
         ":tower-service-0.3.3",
     ],
@@ -10078,7 +10078,7 @@ third_party_rust.rust_library(
         ":percent-encoding-2.3.2",
         ":pin-project-lite-0.2.17",
         ":socket2-0.6.3",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tower-service-0.3.3",
         ":tracing-0.1.44",
     ],
@@ -10760,10 +10760,10 @@ third_party_rust.rust_library(
             deps = [":libc-0.2.183"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.52.0"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.52.0"],
         ),
     },
     visibility = [],
@@ -10933,13 +10933,13 @@ third_party_rust.rust_library(
         "windows-gnu": dict(
             deps = [
                 ":jiff-tzdb-platform-0.1.3",
-                ":windows-sys-0.61.2",
+                ":windows-sys-0.52.0",
             ],
         ),
         "windows-msvc": dict(
             deps = [
                 ":jiff-tzdb-platform-0.1.3",
-                ":windows-sys-0.61.2",
+                ":windows-sys-0.52.0",
             ],
         ),
     },
@@ -11071,7 +11071,7 @@ third_party_rust.rust_library(
         ":textwrap-0.16.2",
         ":thiserror-2.0.18",
         ":timeago-0.6.0",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":toml-1.0.7+spec-1.1.0",
         ":toml_edit-0.25.5+spec-1.1.0",
         ":tracing-0.1.44",
@@ -11164,7 +11164,7 @@ third_party_rust.rust_library(
         ":strsim-0.11.1",
         ":tempfile-3.27.0",
         ":thiserror-2.0.18",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":toml_edit-0.25.5+spec-1.1.0",
         ":tracing-0.1.44",
         ":watchman_client-0.9.0",
@@ -12897,18 +12897,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "metrique-0.1.22.crate",
-    sha256 = "4f3e5ecbbefec32dafed0fd98ef23768aaade6de35b8434fc3e44f6346b73cd6",
-    strip_prefix = "metrique-0.1.22",
-    urls = ["https://static.crates.io/crates/metrique/0.1.22/download"],
+    name = "metrique-0.1.23.crate",
+    sha256 = "c41212ded0b2ba808836b36db163067eb6da41447e7f224267a7331b670009b9",
+    strip_prefix = "metrique-0.1.23",
+    urls = ["https://static.crates.io/crates/metrique/0.1.23/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "metrique-0.1.22",
-    srcs = [":metrique-0.1.22.crate"],
+    name = "metrique-0.1.23",
+    srcs = [":metrique-0.1.23.crate"],
     crate = "metrique",
-    crate_root = "metrique-0.1.22.crate/src/lib.rs",
+    crate_root = "metrique-0.1.23.crate/src/lib.rs",
     edition = "2024",
     features = [
         "default",
@@ -12919,53 +12919,53 @@ third_party_rust.rust_library(
     deps = [
         ":itoa-1.0.17",
         ":jiff-0.2.23",
-        ":metrique-core-0.1.17",
-        ":metrique-macro-0.1.14",
-        ":metrique-service-metrics-0.1.18",
-        ":metrique-timesource-0.1.8",
-        ":metrique-writer-0.1.19",
-        ":metrique-writer-core-0.1.13",
-        ":metrique-writer-macro-0.1.7",
+        ":metrique-core-0.1.18",
+        ":metrique-macro-0.1.15",
+        ":metrique-service-metrics-0.1.19",
+        ":metrique-timesource-0.1.9",
+        ":metrique-writer-0.1.20",
+        ":metrique-writer-core-0.1.14",
+        ":metrique-writer-macro-0.1.8",
         ":ryu-1.0.23",
         ":serde_json-1.0.149",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
     ],
 )
 
 shims.http_archive(
-    name = "metrique-core-0.1.17.crate",
-    sha256 = "ad6478374c256ffbb0d2de67b7d93e43ac94e35a083f40bd5f72a9770f6110bb",
-    strip_prefix = "metrique-core-0.1.17",
-    urls = ["https://static.crates.io/crates/metrique-core/0.1.17/download"],
+    name = "metrique-core-0.1.18.crate",
+    sha256 = "a5f67f8bf383a36ddb563846a9b143228505fd1f833aa936fdefbc9cb1e46855",
+    strip_prefix = "metrique-core-0.1.18",
+    urls = ["https://static.crates.io/crates/metrique-core/0.1.18/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "metrique-core-0.1.17",
-    srcs = [":metrique-core-0.1.17.crate"],
+    name = "metrique-core-0.1.18",
+    srcs = [":metrique-core-0.1.18.crate"],
     crate = "metrique_core",
-    crate_root = "metrique-core-0.1.17.crate/src/lib.rs",
+    crate_root = "metrique-core-0.1.18.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
         ":itertools-0.14.0",
-        ":metrique-writer-core-0.1.13",
+        ":metrique-writer-core-0.1.14",
     ],
 )
 
 shims.http_archive(
-    name = "metrique-macro-0.1.14.crate",
-    sha256 = "83adb8929ae9b2f7a4ec07a04c3af569ffe22f96f02c89063e4a78895d6af760",
-    strip_prefix = "metrique-macro-0.1.14",
-    urls = ["https://static.crates.io/crates/metrique-macro/0.1.14/download"],
+    name = "metrique-macro-0.1.15.crate",
+    sha256 = "07c50c41313eaa762e16c251aa3aa7f1eff170ab403fac8fc688840e93f39b18",
+    strip_prefix = "metrique-macro-0.1.15",
+    urls = ["https://static.crates.io/crates/metrique-macro/0.1.15/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "metrique-macro-0.1.14",
-    srcs = [":metrique-macro-0.1.14.crate"],
+    name = "metrique-macro-0.1.15",
+    srcs = [":metrique-macro-0.1.15.crate"],
     crate = "metrique_macro",
-    crate_root = "metrique-macro-0.1.14.crate/src/lib.rs",
+    crate_root = "metrique-macro-0.1.15.crate/src/lib.rs",
     edition = "2024",
     proc_macro = True,
     visibility = [],
@@ -12979,54 +12979,54 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "metrique-service-metrics-0.1.18.crate",
-    sha256 = "4d01f36f47452cd6e33f66fc8185bb32f320aaa5721b6ad7230776442d3cf180",
-    strip_prefix = "metrique-service-metrics-0.1.18",
-    urls = ["https://static.crates.io/crates/metrique-service-metrics/0.1.18/download"],
+    name = "metrique-service-metrics-0.1.19.crate",
+    sha256 = "07a742784bddd4a8636cf4e952ec4bbd49d4dab34b7dd24d11026ab16adbfe19",
+    strip_prefix = "metrique-service-metrics-0.1.19",
+    urls = ["https://static.crates.io/crates/metrique-service-metrics/0.1.19/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "metrique-service-metrics-0.1.18",
-    srcs = [":metrique-service-metrics-0.1.18.crate"],
+    name = "metrique-service-metrics-0.1.19",
+    srcs = [":metrique-service-metrics-0.1.19.crate"],
     crate = "metrique_service_metrics",
-    crate_root = "metrique-service-metrics-0.1.18.crate/src/lib.rs",
+    crate_root = "metrique-service-metrics-0.1.19.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":metrique-writer-0.1.19"],
+    deps = [":metrique-writer-0.1.20"],
 )
 
 shims.http_archive(
-    name = "metrique-timesource-0.1.8.crate",
-    sha256 = "c60fb3f2836dffc05146f0dfe7bf2e0789909f3fefd72c729491adaef01acc1a",
-    strip_prefix = "metrique-timesource-0.1.8",
-    urls = ["https://static.crates.io/crates/metrique-timesource/0.1.8/download"],
+    name = "metrique-timesource-0.1.9.crate",
+    sha256 = "d607939211e4eaaa8cd35394fa5e57faffb7390d0ac513b39992edcaf3cc526c",
+    strip_prefix = "metrique-timesource-0.1.9",
+    urls = ["https://static.crates.io/crates/metrique-timesource/0.1.9/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "metrique-timesource-0.1.8",
-    srcs = [":metrique-timesource-0.1.8.crate"],
+    name = "metrique-timesource-0.1.9",
+    srcs = [":metrique-timesource-0.1.9.crate"],
     crate = "metrique_timesource",
-    crate_root = "metrique-timesource-0.1.8.crate/src/lib.rs",
+    crate_root = "metrique-timesource-0.1.9.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
     visibility = [],
 )
 
 shims.http_archive(
-    name = "metrique-writer-0.1.19.crate",
-    sha256 = "677d9ba4f5a6b5dd821f78315095840e88d244fafbdda3cf1688835cd2a56aec",
-    strip_prefix = "metrique-writer-0.1.19",
-    urls = ["https://static.crates.io/crates/metrique-writer/0.1.19/download"],
+    name = "metrique-writer-0.1.20.crate",
+    sha256 = "8ea8f6776cef2fed8ebaea2044971e4bfec96268eb47ccccb0e93797a198b025",
+    strip_prefix = "metrique-writer-0.1.20",
+    urls = ["https://static.crates.io/crates/metrique-writer/0.1.20/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "metrique-writer-0.1.19",
-    srcs = [":metrique-writer-0.1.19.crate"],
+    name = "metrique-writer-0.1.20",
+    srcs = [":metrique-writer-0.1.20.crate"],
     crate = "metrique_writer",
-    crate_root = "metrique-writer-0.1.19.crate/src/lib.rs",
+    crate_root = "metrique-writer-0.1.20.crate/src/lib.rs",
     edition = "2024",
     features = [
         "background-queue",
@@ -13043,30 +13043,30 @@ third_party_rust.rust_library(
         ":ahash-0.8.12",
         ":crossbeam-queue-0.3.12",
         ":crossbeam-utils-0.8.21",
-        ":metrique-core-0.1.17",
-        ":metrique-writer-core-0.1.13",
-        ":metrique-writer-macro-0.1.7",
+        ":metrique-core-0.1.18",
+        ":metrique-writer-core-0.1.14",
+        ":metrique-writer-macro-0.1.8",
         ":rand-0.9.2",
         ":smallvec-1.15.1",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tracing-0.1.44",
         ":tracing-subscriber-0.3.23",
     ],
 )
 
 shims.http_archive(
-    name = "metrique-writer-core-0.1.13.crate",
-    sha256 = "642989d2c349dfcd705a0b6b63887459f71c8b8deb6dc79e39e12eaa17400aba",
-    strip_prefix = "metrique-writer-core-0.1.13",
-    urls = ["https://static.crates.io/crates/metrique-writer-core/0.1.13/download"],
+    name = "metrique-writer-core-0.1.14.crate",
+    sha256 = "5399135c49a096ba9565872ddfef24627a4129501e930cbffe84d66897d4b12c",
+    strip_prefix = "metrique-writer-core-0.1.14",
+    urls = ["https://static.crates.io/crates/metrique-writer-core/0.1.14/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "metrique-writer-core-0.1.13",
-    srcs = [":metrique-writer-core-0.1.13.crate"],
+    name = "metrique-writer-core-0.1.14",
+    srcs = [":metrique-writer-core-0.1.14.crate"],
     crate = "metrique_writer_core",
-    crate_root = "metrique-writer-core-0.1.13.crate/src/lib.rs",
+    crate_root = "metrique-writer-core-0.1.14.crate/src/lib.rs",
     edition = "2024",
     features = [
         "default",
@@ -13082,18 +13082,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "metrique-writer-macro-0.1.7.crate",
-    sha256 = "12edafee41e67f90ab2efe2b850e10751f0da3da4aeb61b8eb7e6c31666e8da8",
-    strip_prefix = "metrique-writer-macro-0.1.7",
-    urls = ["https://static.crates.io/crates/metrique-writer-macro/0.1.7/download"],
+    name = "metrique-writer-macro-0.1.8.crate",
+    sha256 = "7417c002f7b01c3d96792ff553b0b7e333059048a9e40d4f8d4bab23f570773e",
+    strip_prefix = "metrique-writer-macro-0.1.8",
+    urls = ["https://static.crates.io/crates/metrique-writer-macro/0.1.8/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "metrique-writer-macro-0.1.7",
-    srcs = [":metrique-writer-macro-0.1.7.crate"],
+    name = "metrique-writer-macro-0.1.8",
+    srcs = [":metrique-writer-macro-0.1.8.crate"],
     crate = "metrique_writer_macro",
-    crate_root = "metrique-writer-macro-0.1.7.crate/src/lib.rs",
+    crate_root = "metrique-writer-macro-0.1.8.crate/src/lib.rs",
     edition = "2024",
     proc_macro = True,
     visibility = [],
@@ -13233,18 +13233,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "mio-1.1.1.crate",
-    sha256 = "a69bcab0ad47271a0234d9422b131806bf3968021e5dc9328caf2d4cd58557fc",
-    strip_prefix = "mio-1.1.1",
-    urls = ["https://static.crates.io/crates/mio/1.1.1/download"],
+    name = "mio-1.2.0.crate",
+    sha256 = "50b7e5b27aa02a74bac8c3f23f448f8d87ff11f92d3aac1a6ed369ee08cc56c1",
+    strip_prefix = "mio-1.2.0",
+    urls = ["https://static.crates.io/crates/mio/1.2.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "mio-1.1.1",
-    srcs = [":mio-1.1.1.crate"],
+    name = "mio-1.2.0",
+    srcs = [":mio-1.2.0.crate"],
     crate = "mio",
-    crate_root = "mio-1.1.1.crate/src/lib.rs",
+    crate_root = "mio-1.2.0.crate/src/lib.rs",
     edition = "2021",
     features = [
         "net",
@@ -13751,13 +13751,13 @@ third_party_rust.rust_library(
         "linux-arm64": dict(
             deps = [
                 ":inotify-0.11.1",
-                ":mio-1.1.1",
+                ":mio-1.2.0",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
                 ":inotify-0.11.1",
-                ":mio-1.1.1",
+                ":mio-1.2.0",
             ],
         ),
         "macos-arm64": dict(
@@ -13885,12 +13885,12 @@ third_party_rust.rust_library(
     platform = {
         "windows-gnu": dict(
             named_deps = {
-                "windows": ":windows-sys-0.61.2",
+                "windows": ":windows-sys-0.59.0",
             },
         ),
         "windows-msvc": dict(
             named_deps = {
-                "windows": ":windows-sys-0.61.2",
+                "windows": ":windows-sys-0.59.0",
             },
         ),
     },
@@ -14306,7 +14306,7 @@ third_party_rust.rust_library(
         ":serde_json-1.0.149",
         ":serde_urlencoded-0.7.1",
         ":thiserror-2.0.18",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tracing-0.1.44",
         ":url-2.5.8",
         ":walkdir-2.5.0",
@@ -14701,7 +14701,7 @@ third_party_rust.rust_library(
         ":prost-0.14.3",
         ":reqwest-0.12.28",
         ":thiserror-2.0.18",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tonic-0.14.5",
         ":tracing-0.1.44",
     ],
@@ -14851,7 +14851,7 @@ third_party_rust.rust_library(
         ":percent-encoding-2.3.2",
         ":rand-0.9.2",
         ":thiserror-2.0.18",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-stream-0.1.18",
     ],
 )
@@ -16036,7 +16036,7 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":heck-0.5.0",
+        ":heck-0.4.1",
         ":itertools-0.10.5",
         ":log-0.4.29",
         ":multimap-0.10.1",
@@ -17341,7 +17341,7 @@ third_party_rust.rust_library(
         ":serde_json-1.0.149",
         ":serde_urlencoded-0.7.1",
         ":sync_wrapper-1.0.2",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-native-tls-0.3.1",
         ":tokio-rustls-0.26.4",
         ":tokio-util-0.7.18",
@@ -18487,7 +18487,7 @@ third_party_rust.rust_library(
         ":sync_wrapper-1.0.2",
         ":thiserror-2.0.18",
         ":time-0.3.47",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tower-0.5.3",
         ":tracing-0.1.44",
         ":transform-stream-0.3.1",
@@ -19661,7 +19661,7 @@ third_party_rust.rust_library(
         "support-v1_0",
     ],
     named_deps = {
-        "mio_1_0": ":mio-1.1.1",
+        "mio_1_0": ":mio-1.2.0",
     },
     visibility = [],
     deps = [
@@ -19862,7 +19862,7 @@ third_party_rust.rust_library(
         ":sysinfo-0.35.2",
         ":thiserror-1.0.69",
         ":thread_local-1.1.9",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-util-0.7.18",
         ":tracing-0.1.44",
         ":ulid-1.2.1",
@@ -19884,7 +19884,7 @@ third_party_rust.rust_library(
         ":chrono-0.4.44",
         ":log-0.4.29",
         ":serde-1.0.228",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
     ],
 )
 
@@ -20020,10 +20020,10 @@ third_party_rust.rust_library(
             deps = [":libc-0.2.183"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.60.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.60.2"],
         ),
     },
     visibility = [],
@@ -20885,10 +20885,10 @@ third_party_rust.rust_library(
             deps = [":rustix-1.1.4"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.52.0"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.52.0"],
         ),
     },
     visibility = [],
@@ -20949,10 +20949,10 @@ third_party_rust.rust_library(
     features = ["default"],
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.59.0"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.59.0"],
         ),
     },
     visibility = [],
@@ -21767,23 +21767,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "tokio",
-    actual = ":tokio-1.50.0",
+    actual = ":tokio-1.51.1",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "tokio-1.50.0.crate",
-    sha256 = "27ad5e34374e03cfffefc301becb44e9dc3c17584f414349ebe29ed26661822d",
-    strip_prefix = "tokio-1.50.0",
-    urls = ["https://static.crates.io/crates/tokio/1.50.0/download"],
+    name = "tokio-1.51.1.crate",
+    sha256 = "f66bf9585cda4b724d3e78ab34b73fb2bbaba9011b9bfdf69dc836382ea13b8c",
+    strip_prefix = "tokio-1.51.1",
+    urls = ["https://static.crates.io/crates/tokio/1.51.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "tokio-1.50.0",
-    srcs = [":tokio-1.50.0.crate"],
+    name = "tokio-1.51.1",
+    srcs = [":tokio-1.51.1.crate"],
     crate = "tokio",
-    crate_root = "tokio-1.50.0.crate/src/lib.rs",
+    crate_root = "tokio-1.51.1.crate/src/lib.rs",
     edition = "2021",
     features = [
         "bytes",
@@ -21851,29 +21851,29 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":bytes-1.11.1",
-        ":mio-1.1.1",
+        ":mio-1.2.0",
         ":parking_lot-0.12.5",
         ":pin-project-lite-0.2.17",
         ":socket2-0.6.3",
-        ":tokio-macros-2.6.1",
+        ":tokio-macros-2.7.0",
         ":tracing",
         ":tracing-0.1.44",
     ],
 )
 
 shims.http_archive(
-    name = "tokio-macros-2.6.1.crate",
-    sha256 = "5c55a2eff8b69ce66c84f85e1da1c233edc36ceb85a2058d11b0d6a3c7e7569c",
-    strip_prefix = "tokio-macros-2.6.1",
-    urls = ["https://static.crates.io/crates/tokio-macros/2.6.1/download"],
+    name = "tokio-macros-2.7.0.crate",
+    sha256 = "385a6cb71ab9ab790c5fe8d67f1645e6c450a7ce006a33de03daa956cf70a496",
+    strip_prefix = "tokio-macros-2.7.0",
+    urls = ["https://static.crates.io/crates/tokio-macros/2.7.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "tokio-macros-2.6.1",
-    srcs = [":tokio-macros-2.6.1.crate"],
+    name = "tokio-macros-2.7.0",
+    srcs = [":tokio-macros-2.7.0.crate"],
     crate = "tokio_macros",
-    crate_root = "tokio-macros-2.6.1.crate/src/lib.rs",
+    crate_root = "tokio-macros-2.7.0.crate/src/lib.rs",
     edition = "2021",
     proc_macro = True,
     visibility = [],
@@ -21901,7 +21901,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":native-tls-0.2.18",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
     ],
 )
 
@@ -21929,7 +21929,7 @@ third_party_rust.rust_library(
     deps = [
         ":openssl-0.10.76",
         ":openssl-sys-0.9.112",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
     ],
 )
 
@@ -21954,7 +21954,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":rustls-0.23.37",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
     ],
 )
 
@@ -21989,7 +21989,7 @@ third_party_rust.rust_library(
     deps = [
         ":futures-core-0.3.32",
         ":pin-project-lite-0.2.17",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-util-0.7.18",
     ],
 )
@@ -22030,7 +22030,7 @@ third_party_rust.rust_library(
         ":log-0.4.29",
         ":pin-project-lite-0.2.17",
         ":slab-0.4.12",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
     ],
 )
 
@@ -22074,7 +22074,7 @@ third_party_rust.rust_library(
         ":futures-util-0.3.32",
         ":hashbrown-0.15.5",
         ":pin-project-lite-0.2.17",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
     ],
 )
 
@@ -22368,7 +22368,7 @@ third_party_rust.rust_library(
         ":pin-project-1.1.11",
         ":socket2-0.6.3",
         ":sync_wrapper-1.0.2",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-stream-0.1.18",
         ":tower-0.5.3",
         ":tower-layer-0.3.3",
@@ -22433,7 +22433,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":prost-0.14.3",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-stream-0.1.18",
         ":tonic-0.14.5",
         ":tonic-prost-0.14.5",
@@ -22534,7 +22534,7 @@ third_party_rust.rust_library(
     deps = [
         ":prost-0.14.3",
         ":prost-types-0.14.3",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-stream-0.1.18",
         ":tonic-0.14.5",
         ":tonic-prost-0.14.5",
@@ -22591,7 +22591,7 @@ third_party_rust.rust_library(
         ":pin-project-lite-0.2.17",
         ":slab-0.4.12",
         ":sync_wrapper-1.0.2",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-util-0.7.18",
         ":tower-layer-0.3.3",
         ":tower-service-0.3.3",
@@ -23700,7 +23700,7 @@ third_party_rust.rust_library(
         ":serde-1.0.228",
         ":serde_bser-0.4.0",
         ":thiserror-1.0.69",
-        ":tokio-1.50.0",
+        ":tokio-1.51.1",
         ":tokio-util-0.6.10",
     ],
 )
@@ -24045,7 +24045,7 @@ third_party_rust.rust_library(
     crate_root = "winapi-util-0.1.11.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":windows-sys-0.61.2"],
+    deps = [":windows-sys-0.52.0"],
 )
 
 shims.http_archive(
@@ -24446,8 +24446,10 @@ third_party_rust.rust_library(
         "Win32_Storage_FileSystem",
         "Win32_System",
         "Win32_System_Console",
+        "Win32_System_SystemInformation",
         "Win32_System_SystemServices",
         "Win32_System_Threading",
+        "Win32_System_Time",
         "Win32_UI",
         "Win32_UI_Input",
         "Win32_UI_Input_KeyboardAndMouse",
@@ -24474,11 +24476,13 @@ third_party_rust.rust_library(
     features = [
         "Win32",
         "Win32_Foundation",
+        "Win32_Globalization",
         "Win32_Security",
         "Win32_Security_Authorization",
         "Win32_Storage",
         "Win32_Storage_FileSystem",
         "Win32_System",
+        "Win32_System_Com",
         "Win32_System_Console",
         "Win32_System_Diagnostics",
         "Win32_System_Diagnostics_Debug",
@@ -24491,6 +24495,7 @@ third_party_rust.rust_library(
         "Win32_UI",
         "Win32_UI_Input",
         "Win32_UI_Input_KeyboardAndMouse",
+        "Win32_UI_Shell",
         "default",
     ],
     visibility = [],
@@ -24514,6 +24519,8 @@ third_party_rust.rust_library(
     features = [
         "Win32",
         "Win32_Foundation",
+        "Win32_Networking",
+        "Win32_Networking_WinSock",
         "Win32_Security",
         "Win32_Storage",
         "Win32_Storage_FileSystem",
@@ -24551,7 +24558,6 @@ third_party_rust.rust_library(
         "Wdk_System_IO",
         "Win32",
         "Win32_Foundation",
-        "Win32_Globalization",
         "Win32_Networking",
         "Win32_Networking_WinSock",
         "Win32_Security",
@@ -24572,7 +24578,6 @@ third_party_rust.rust_library(
         "Win32_System_SystemInformation",
         "Win32_System_SystemServices",
         "Win32_System_Threading",
-        "Win32_System_Time",
         "Win32_System_WindowsProgramming",
         "Win32_UI",
         "Win32_UI_Shell",

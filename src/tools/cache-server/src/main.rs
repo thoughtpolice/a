@@ -8,7 +8,8 @@ use std::{path::PathBuf, str::FromStr, sync::Arc};
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use dial9_tokio_telemetry::telemetry::{
-    CpuProfilingConfig, RotatingWriter, SchedEventConfig, TelemetryHandle, TracedRuntime,
+    RotatingWriter, TelemetryHandle, TracedRuntime,
+    cpu_profile::{CpuProfilingConfig, SchedEventConfig},
 };
 use tracing_subscriber::{filter, prelude::*};
 
@@ -172,7 +173,6 @@ fn main() -> Result<()> {
         // traces are left as raw addresses.
         guard
             .graceful_shutdown(std::time::Duration::from_secs(5))
-            .await
             .ok();
         result
     })
