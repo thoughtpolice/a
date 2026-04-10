@@ -4,7 +4,6 @@ load(
 )
 
 stage0_platform(
-    host_arch = "aarch64",
     arch = "aarch64",
     m2libc_dir = "aarch64",
     arch_dir_upper = "AArch64",
