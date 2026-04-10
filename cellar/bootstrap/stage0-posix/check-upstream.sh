@@ -125,6 +125,31 @@ check_file "$SEEDS/hex2.hex1"    "$UPSTREAM/AMD64/hex2_AMD64.hex1"
 check_file "$SEEDS/catm.hex2"    "$UPSTREAM/AMD64/catm_AMD64.hex2"
 check_file "$SEEDS/M0.hex2"      "$UPSTREAM/AMD64/M0_AMD64.hex2"
 
+echo "=== Checking seeds/linux-arm64 against AArch64 + M2libc ==="
+# The seed files map to various upstream locations:
+#   bootstrap.c     -> M2libc/aarch64/linux/bootstrap.c
+#   cc.M1           -> AArch64/cc_aarch64.M1
+#   defs.M1         -> AArch64/aarch64_defs.M1
+#   libc-core.M1    -> AArch64/libc-core.M1
+#   ELF.hex2        -> AArch64/ELF-aarch64.hex2
+#   hex0.hex0       -> AArch64/hex0_AArch64.hex0
+#   hex1.hex0       -> AArch64/hex1_AArch64.hex0
+#   hex2.hex1       -> AArch64/hex2_AArch64.hex1
+#   catm.hex1       -> AArch64/catm_AArch64.hex1   (note: .hex1, not .hex2)
+#   M0.hex2         -> AArch64/M0_AArch64.hex2
+SEEDS="$CELLAR_DIR/seeds/linux-arm64"
+
+check_file "$SEEDS/bootstrap.c"  "$UPSTREAM/M2libc/aarch64/linux/bootstrap.c"
+check_file "$SEEDS/cc.M1"        "$UPSTREAM/AArch64/cc_aarch64.M1"
+check_file "$SEEDS/defs.M1"      "$UPSTREAM/AArch64/aarch64_defs.M1"
+check_file "$SEEDS/libc-core.M1" "$UPSTREAM/AArch64/libc-core.M1"
+check_file "$SEEDS/ELF.hex2"     "$UPSTREAM/AArch64/ELF-aarch64.hex2"
+check_file "$SEEDS/hex0.hex0"    "$UPSTREAM/AArch64/hex0_AArch64.hex0"
+check_file "$SEEDS/hex1.hex0"    "$UPSTREAM/AArch64/hex1_AArch64.hex0"
+check_file "$SEEDS/hex2.hex1"    "$UPSTREAM/AArch64/hex2_AArch64.hex1"
+check_file "$SEEDS/catm.hex1"    "$UPSTREAM/AArch64/catm_AArch64.hex1"
+check_file "$SEEDS/M0.hex2"      "$UPSTREAM/AArch64/M0_AArch64.hex2"
+
 echo "=== Summary ==="
 read errors checked skipped < "$RESULT_FILE"
 echo "Checked: $checked files"
