@@ -10,6 +10,7 @@
 
 mod cgroup;
 mod mimalloc_config;
+pub mod psi;
 
 /// Profiling capabilities determined by Linux kernel settings.
 #[derive(Debug, Clone)]
@@ -118,9 +119,13 @@ pub struct RuntimeInfo {
     /// resource limit set.
     pub in_cgroup: bool,
 
+    /// Resolved cgroup directory path, if detected. Used by
+    /// [`psi::PressureMonitor`] to periodically re-read pressure
+    /// files.
+    pub cgroup_dir: Option<std::path::PathBuf>,
+
     // Diagnostic fields for deferred logging.
     cgroup_version: &'static str,
-    cgroup_dir: Option<String>,
     raw_cpu: Option<String>,
     raw_memory: Option<String>,
     cpu_quota: Option<f64>,
@@ -134,9 +139,14 @@ impl RuntimeInfo {
     /// even when no cgroup limits are detected, to aid debugging
     /// container deployments.
     pub fn emit_diagnostics(&self) {
+        let dir_str = self
+            .cgroup_dir
+            .as_deref()
+            .map(|p| p.to_string_lossy().into_owned());
+
         tracing::info!(
             cgroup_version = self.cgroup_version,
-            cgroup_dir = self.cgroup_dir.as_deref().unwrap_or("n/a"),
+            cgroup_dir = dir_str.as_deref().unwrap_or("n/a"),
             raw_cpu = self.raw_cpu.as_deref().unwrap_or("n/a"),
             raw_memory = self.raw_memory.as_deref().unwrap_or("n/a"),
             "cgroup detection"
@@ -155,6 +165,30 @@ impl RuntimeInfo {
             arena_reserve_mib = arena_reserve_kib / 1024,
             "mimalloc configuration"
         );
+
+        // Log current PSI snapshot if a cgroup dir was resolved.
+        if let Some(dir) = &self.cgroup_dir {
+            let snap = psi::read(dir);
+            Self::log_psi("cpu", &snap.cpu);
+            Self::log_psi("memory", &snap.memory);
+            Self::log_psi("io", &snap.io);
+        }
+    }
+
+    fn log_psi(resource: &str, data: &Option<psi::PsiResource>) {
+        if let Some(res) = data {
+            let level = psi::PressureLevel::from_avg10(res.some.avg10);
+            tracing::info!(
+                resource,
+                level = %level,
+                some_avg10 = format!("{:.2}", res.some.avg10),
+                some_avg60 = format!("{:.2}", res.some.avg60),
+                some_avg300 = format!("{:.2}", res.some.avg300),
+                some_total_us = res.some.total_us,
+                full_avg10 = res.full.map(|f| format!("{:.2}", f.avg10)),
+                "pressure"
+            );
+        }
     }
 }
 
@@ -186,8 +220,8 @@ pub fn init() -> RuntimeInfo {
         effective_cpus,
         memory_limit: limits.memory_limit_bytes,
         in_cgroup,
+        cgroup_dir: limits.diag.cgroup_dir.map(std::path::PathBuf::from),
         cgroup_version: limits.diag.version,
-        cgroup_dir: limits.diag.cgroup_dir,
         raw_cpu: limits.diag.raw_cpu,
         raw_memory: limits.diag.raw_memory,
         cpu_quota: limits.cpu_quota_cpus,
