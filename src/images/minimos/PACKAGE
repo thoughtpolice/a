@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    copyright = ["© 2026 Austin Seipp"],
+    license = "Apache-2.0",
+    description = "Bottlerocket-style minimal systemd OCI image for exe.dev",
+    version = "0.1.0",
+    visibility = ["PUBLIC"],
+    target_compatible_with = [
+        "config//os:linux",
+    ],
+    inherit = True,
+)

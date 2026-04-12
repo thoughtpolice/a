@@ -1,0 +1,16 @@
+root:x:0:
+daemon:x:1:
+bin:x:2:
+sys:x:3:
+tty:x:5:
+disk:x:6:
+adm:x:4:
+systemd-network:x:101:
+# exedev is a member so day-to-day/agent SSH sessions can read the
+# whole journal (single-tenant VM; the user is the admin).
+systemd-journal:x:105:exedev
+systemd-resolve:x:103:
+systemd-timesync:x:104:
+messagebus:x:106:
+exedev:x:1000:
+nogroup:x:65534:

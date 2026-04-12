@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+[Unit]
+Description=Bounded minimos application workloads
+Before=slices.target
+
+[Slice]
+# The user- prefix makes this a child of user.slice. Application services and
+# interactive/devenv scopes therefore share one aggregate 80% memory and
+# 3072-task ceiling instead of two independently overcommitted top-level caps.
+CPUWeight=100
+IOWeight=100
+MemoryHigh=65%
+MemoryMax=70%
+MemorySwapMax=0
+# Kept here as the self-contained policy, then repeated in the later
+# 90-minimos-qos.conf drop-in. systemd ships a user-.slice.d/10-defaults.conf
+# that also matches this hierarchical slice name and would otherwise replace
+# the explicit value with its percentage-based default.
+TasksMax=2048

@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Paths to drop from the nginx culled rootfs. Applied both pre- and
+# post-closure (see cull.py). The minimos systemd-culled layer ships
+# glibc/ld-linux/libm already; let those win and skip the duplicates
+# here so the image doesn't carry two copies of identical files.
+
+/usr/lib/ld-linux-x86-64.so.2
+/usr/lib/libc.so*
+/usr/lib/libm.so*
+# libpcre2 comes in through nginx's .so closure and the base already ships it
+# for systemd. Without this the composition layer would land a second copy on
+# top of the base's, which is exactly the redefinition minimos.image() refuses.
+/usr/lib/libpcre2-8.so*

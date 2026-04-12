@@ -1,0 +1,56 @@
+#!/bin/bash -p
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# exe.dev starts its SSH listener before PID 1, so children initially inherit
+# init.scope and bypass systemd's user slices. Development images install the
+# require-user-scope marker; there, every command and interactive shell must be
+# handed to the lingering user manager. Appliance images have no user manager
+# and retain a core-limited Bash fallback for systemctl/journalctl triage.
+
+set -euo pipefail
+
+unset BASH_ENV ENV CDPATH GLOBIGNORE LD_LIBRARY_PATH LD_PRELOAD
+umask 077
+ulimit -S -c 0
+ulimit -H -c 0
+
+export HOME=/home/exedev
+export USER=exedev
+export LOGNAME=exedev
+export SHELL=/bin/bash
+export PATH=/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin
+export XDG_RUNTIME_DIR=/run/user/1000
+export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+
+if [[ $# -eq 0 ]]; then
+    command=(/bin/bash --login)
+else
+    command=(/bin/bash "$@")
+fi
+
+if [[ -e /etc/minimos/require-user-scope ]]; then
+    if [[ ! -S /run/user/1000/bus ]]; then
+        echo "minimos: bounded user manager is not ready; refusing an unscoped login" >&2
+        exit 1
+    fi
+    builtin exec /usr/bin/systemd-run \
+        --user \
+        --scope \
+        --collect \
+        --quiet \
+        --expand-environment=no \
+        --property="Delegate=cpu cpuset io memory pids" \
+        --property=CPUWeight=100 \
+        --property=IOAccounting=yes \
+        --property=IOWeight=100 \
+        --property=MemoryAccounting=yes \
+        --property=MemoryHigh=65% \
+        --property=MemoryMax=75% \
+        --property=MemorySwapMax=0 \
+        --property=TasksAccounting=yes \
+        --property=TasksMax=2048 \
+        "${command[@]}"
+fi
+
+builtin exec "${command[@]}"

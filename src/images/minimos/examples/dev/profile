@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# Login-shell environment for minimos dev images. The platform sshd
+# runs no PAM, so nobody else wires a session up to the user manager;
+# exedev's runtime dir exists from boot because the account lingers.
+# Everything here must stay POSIX (bash and dash both read this).
+
+umask 077
+
+# systemctl --user, busctl --user, and anything speaking to the user
+# bus find it via XDG_RUNTIME_DIR.
+if [ -z "${XDG_RUNTIME_DIR:-}" ] && [ -d "/run/user/$(id -u)" ]; then
+    export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+fi
+
+# First-party tools land in /usr/local/bin (the codex example, for
+# one); the platform sshd's default PATH doesn't always include it.
+case ":$PATH:" in
+    *:/usr/local/bin:*) ;;
+    *) export PATH="/usr/local/bin:$PATH" ;;
+esac

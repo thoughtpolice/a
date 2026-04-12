@@ -85,6 +85,11 @@ BAD_FILES = [
     # REASON: standard license text files don't need SPDX headers
     "tilde/aseipp/dotfiles/claude/agents/LICENSE",
     "tilde/aseipp/dotfiles/claude/commands/LICENSE",
+    # REASON: these system account databases have no portable comment syntax;
+    # adding a header would create malformed records in the resulting image.
+    "src/images/minimos/base/config/group",
+    "src/images/minimos/base/config/passwd",
+    "src/images/minimos/base/config/shadow",
 ]
 
 
@@ -148,6 +153,11 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".yaml": (bzl_style_copyright, bzl_style_license_prefix),
         ".fish": (bzl_style_copyright, bzl_style_license_prefix),
         ".toml": (bzl_style_copyright, bzl_style_license_prefix),
+        ".conf": (bzl_style_copyright, bzl_style_license_prefix),
+        ".service": (bzl_style_copyright, bzl_style_license_prefix),
+        "/hostname": (bzl_style_copyright, bzl_style_license_prefix),
+        "/hosts": (bzl_style_copyright, bzl_style_license_prefix),
+        "/os-release": (bzl_style_copyright, bzl_style_license_prefix),
         ".html": (html_style_copyright, html_style_license_prefix),
         ".zuo": (lisp_style_copyright, lisp_style_license_prefix),
         ".sv": (cxx_style_copyright, cxx_style_license_prefix),

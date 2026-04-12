@@ -1,0 +1,61 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+[Unit]
+Description=Valkey key-value store
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/valkey-server /etc/valkey/valkey.conf
+Restart=on-failure
+RestartSec=2s
+StandardOutput=journal
+StandardError=journal
+
+# Bound the database and its client workload. MemoryHigh starts reclaim before
+# the hard cap; the remaining gap covers allocator and connection overhead.
+Slice=user-workload.slice
+CPUWeight=100
+IOWeight=100
+MemoryHigh=192M
+MemoryMax=256M
+MemorySwapMax=0
+TasksMax=64
+OOMPolicy=kill
+
+# Sandbox — see the README's hardening section. StateDirectory= creates
+# /var/lib/valkey owned by the dynamic user (valkey.conf's `dir`), so
+# the overlay doesn't hand-make root-owned state dirs. DynamicUser=
+# implies NoNewPrivileges, ProtectSystem=strict, ProtectHome=read-only,
+# PrivateTmp, RemoveIPC, and RestrictSUIDSGID. ProtectHome=yes below
+# tightens the implied read-only view to an inaccessible one.
+DynamicUser=yes
+StateDirectory=valkey
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# valkey.conf binds loopback only; cut it off from the network entirely.
+IPAddressDeny=any
+IPAddressAllow=localhost
+PrivateDevices=yes
+PrivateIPC=yes
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+SystemCallArchitectures=native
+UMask=077
+
+[Install]
+WantedBy=multi-user.target

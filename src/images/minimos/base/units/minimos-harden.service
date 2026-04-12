@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+[Unit]
+Description=Apply VM-only kernel hardening sysctls
+# These keys are host-global (kernel.modules_disabled latches until
+# reboot); under docker — the boot smokes — they would escape to the
+# host kernel, so containers must not apply them.
+#
+# The condition is `!container` rather than `vm` so that the failure
+# direction is right: an unrecognized *hypervisor* still gets hardened,
+# while a container is refused. `vm` inverted that — a VM whose
+# virtualization systemd could not identify would silently skip the entire
+# host-global tier, and a skipped unit is not a failed one.
+DefaultDependencies=no
+ConditionVirtualization=!container
+Wants=systemd-sysctl.service
+After=systemd-sysctl.service
+Before=sysinit.target shutdown.target
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/systemd/systemd-sysctl /usr/lib/minimos/sysctl-vm.conf
+# systemd-sysctl logs and continues when an individual key will not take, so
+# a clean exit is not evidence the kernel policy is in force. Read one back:
+# module loading latched off is the setting minimos substitutes for
+# Bottlerocket's lockdown, and the boot smoke fails on a failed unit.
+ExecStartPost=/usr/bin/bash -c '[[ "$(</proc/sys/kernel/modules_disabled)" == 1 ]] || { echo "minimos: VM hardening sysctls did not apply" >&2; exit 1; }'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sysinit.target

@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# The two systemd pieces the base denylist drops that a *dev* machine
+# wants back: user-runtime-dir is what user@.service BindsTo= (it
+# creates /run/user/<uid>), loginctl is the operator's window into
+# logind. Everything else user@1000 needs — the systemd binary, the
+# user unit tree, logind itself — already ships in the base layer.
+
+/usr/lib/systemd/systemd-user-runtime-dir
+/usr/bin/loginctl

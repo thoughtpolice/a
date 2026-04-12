@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# Libraries the minimos base layer already ships: they ride along in
+# the apk list so the .so closure resolves, then the duplicates drop
+# out here. libtinfo comes from the same ncurses package as the
+# libncursesw this layer *does* need, so it's denied by name rather
+# than denying ncurses wholesale.
+
+/usr/lib/ld-linux-x86-64.so.2
+/usr/lib/libc.so*
+/usr/lib/libm.so*
+/usr/lib/libacl.so*
+/usr/lib/libexpat.so*
+/usr/lib/libgcc_s.so*
+/usr/lib/libpcre2-8.so*
+/usr/lib/libselinux.so*
+/usr/lib/libtinfo.so*
+/usr/lib/libzstd.so*
+/usr/lib/liblz4.so*
+
+# Locale data and certificates also come from the base.
+/usr/lib/locale/**
+/etc/ssl/**
+
+# glibc's loader tools stay culled, same as the base: .so resolution
+# happens at build time and ldconfig.service is masked.
+/usr/bin/ldconfig
+/usr/bin/ld.so
+
+# libselinux rides along for the .so closure only; its util userland
+# is dead weight on a policyless kernel (SELinux has no policy loaded
+# on exe.dev, and minimos ships none).
+/usr/bin/avcstat
+/usr/bin/compute_*
+/usr/bin/getconlist
+/usr/bin/getdefaultcon
+/usr/bin/getenforce
+/usr/bin/getfilecon
+/usr/bin/getpidcon
+/usr/bin/getpidprevcon
+/usr/bin/getpolicyload
+/usr/bin/getsebool
+/usr/bin/getseuser
+/usr/bin/matchpathcon
+/usr/bin/policyvers
+/usr/bin/sefcontext_compile
+/usr/bin/selabel_*
+/usr/bin/selinux_*
+/usr/bin/selinuxenabled
+/usr/bin/selinuxexeccon
+/usr/bin/setenforce
+/usr/bin/setfilecon
+/usr/bin/togglesebool
+/usr/bin/validatetrans

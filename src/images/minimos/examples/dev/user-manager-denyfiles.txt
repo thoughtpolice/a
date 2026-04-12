@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# The .so closure of the kept binaries resolves against the same
+# libraries the minimos base layer already ships (glibc, the systemd
+# private libs, and their dlopen set); drop the duplicates so this
+# layer carries exactly the two binaries.
+
+/usr/lib/ld-linux-x86-64.so.2
+/usr/lib/lib*
+/usr/lib/systemd/lib*

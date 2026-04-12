@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# Allowlist culling the memcached packages down to the daemon itself. Its
+# .so closure (libevent, libsasl2, libssl, ...) is resolved and added
+# automatically by cull.py.
+
+/usr/bin/memcached

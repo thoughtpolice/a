@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Allowlist of paths inside the assembled Wolfi rootfs that we want to
+# preserve in the minimos image. One glob per line; empty lines and `#`
+# comments are ignored. Resolved .so closure of every kept ELF binary is
+# added automatically by cull.py — do not list individual libraries here.
+#
+# Wolfi is fully usr-merged: /bin, /sbin -> usr/bin and /lib, /lib64 ->
+# usr/lib (there is no /usr/sbin split and no multiarch directory).
+# os.walk() with followlinks=False doesn't descend through those
+# symlinks, so everything is matched under /usr/bin and /usr/lib.
+
+# --- PID 1 / systemd core ---
+# /sbin/init resolves through the /sbin -> usr/bin merge symlink to this
+# init -> ../lib/systemd/systemd link the systemd package ships.
+/usr/bin/init
+/usr/lib/systemd/systemd
+/usr/lib/systemd/systemd-*
+# systemd's internal libs live next to it, linked via RPATH — the ELF
+# resolver needs them to be picked up explicitly.
+/usr/lib/systemd/libsystemd-*.so*
+/usr/lib/systemd/*.so*
+/usr/lib/systemd/system-generators/*
+/usr/lib/systemd/system-environment-generators/*
+/usr/lib/systemd/user-generators/*
+/usr/lib/systemd/system-shutdown/*
+/usr/bin/systemctl
+/usr/bin/journalctl
+/usr/bin/busctl
+/usr/bin/hostnamectl
+/usr/bin/systemd-*
+# systemctl's halt/poweroff/reboot/shutdown aliases.
+/usr/bin/halt
+/usr/bin/poweroff
+/usr/bin/reboot
+/usr/bin/shutdown
+
+# --- dbus (bus broker for systemctl & friends) ---
+/usr/bin/dbus-daemon
+/usr/bin/dbus-send
+/usr/share/dbus-1/system.conf
+/usr/share/dbus-1/session.conf
+/usr/share/dbus-1/system.d/**
+/usr/share/dbus-1/session.d/**
+/usr/share/dbus-1/system-services/**
+/usr/share/dbus-1/services/**
+/etc/dbus-1/**
+
+# --- systemd unit files ---
+# The rootfs is assembled from a curated package set, so unlike a distro
+# donor image the unit tree is already ours: keep it wholesale. Units
+# for binaries the denylist drops are masked in the overlay.
+/usr/lib/systemd/system/**
+/usr/lib/systemd/system-preset/*
+/usr/lib/systemd/user/**
+/usr/lib/systemd/user-preset/*
+
+# --- tmpfiles / sysctl defaults ---
+# sysusers.d is deliberately NOT kept: accounts are baked into the
+# overlay's /etc files and nothing may create more at boot
+# (systemd-sysusers.service is also masked in the overlay).
+/usr/lib/tmpfiles.d/*.conf
+/usr/lib/sysctl.d/*.conf
+
+# --- journal message catalog (journalctl -x) ---
+/usr/lib/systemd/catalog/*
+
+# --- NSS modules used by systemd accounts ---
+/usr/lib/libnss_systemd.so.2
+/usr/lib/libnss_myhostname.so.2
+/usr/lib/libnss_files.so.2
+/usr/lib/libnss_dns.so.2
+/usr/lib/libnss_compat.so.2
+
+# --- dynamic loader (explicit; .so resolver may miss it) ---
+/usr/lib/ld-linux-x86-64.so.2
+
+# --- dlopen'd systemd deps: systemd links these lazily (declared via
+# .note.dlopen ELF notes, invisible to the DT_NEEDED closure), so they
+# must be kept explicitly. Ship only the features minimos uses:
+# mount units, journal compression, sandboxing, ACL tmpfiles lines. ---
+/usr/lib/libmount.so.*
+/usr/lib/libzstd.so.*
+/usr/lib/liblz4.so.*
+/usr/lib/libseccomp.so.*
+/usr/lib/libacl.so.*
+/usr/lib/libaudit.so.*
+/usr/lib/libselinux.so.*
+# glibc dlopens libgcc_s for pthread_cancel unwinding.
+/usr/lib/libgcc_s.so.*
+
+# --- top-level merged-usr symlinks (/bin, /sbin, /lib, /lib64) ---
+# cull.py preserves them as-is; target dirs are matched via /usr/*.
+/lib
+/lib64
+/bin
+/sbin
+/usr/sbin
+/usr/lib64
+
+# --- terminfo for the few programs that poke it ---
+/usr/share/terminfo/x/xterm-256color
+/usr/share/terminfo/l/linux
+/usr/share/terminfo/d/dumb
+
+# --- the C.UTF-8 locale, so setlocale() under LANG=C.UTF-8 works
+# (valkey, for one, refuses to start when it doesn't) ---
+/usr/lib/locale/C.utf8/**
+
+# --- certificates (in case any service does outbound TLS) ---
+/etc/ssl/certs/ca-certificates.crt
+/etc/ssl/cert.pem
+
+# --- login shells for the exe.dev platform sshd ---
+# Every login shell named in /etc/passwd must exist on disk: the
+# platform sshd stat()s them and refuses the user otherwise, and exe.dev
+# gates HTTP proxy readiness on an SSH login succeeding.
+/usr/bin/bash
+/usr/bin/nologin
+/usr/bin/dash
+
+# --- mount/umount: systemd .mount units shell out to these ---
+/usr/bin/mount
+/usr/bin/umount

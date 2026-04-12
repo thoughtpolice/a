@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# The minimos base layer already ships the loader and glibc; let those
+# win and skip the duplicates so the image doesn't carry two copies.
+
+/usr/lib/ld-linux-x86-64.so.2
+/usr/lib/libc.so*
+/usr/lib/libm.so*

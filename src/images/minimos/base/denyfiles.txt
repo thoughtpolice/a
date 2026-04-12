@@ -1,0 +1,176 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Paths to DROP from the culled rootfs. Applied both before .so closure
+# (so denied binaries don't drag in extra libs) AND after.
+#
+# Wolfi builds systemd with every optional dependency behind dlopen, so
+# dropping a binary here really does drop its whole feature: none of
+# these pull libraries into the image. Units that reference denied
+# binaries are masked in the overlay (see BUILD).
+
+# Block-device / partition / boot-loader machinery: minimos images are
+# container rootfses booted by the exe.dev hypervisor; there is no ESP,
+# no LUKS, no fstab and no repartitioning.
+/usr/lib/systemd/systemd-cryptsetup
+/usr/lib/systemd/systemd-integritysetup
+/usr/lib/systemd/systemd-veritysetup
+/usr/lib/systemd/systemd-repart
+/usr/lib/systemd/systemd-fsck
+/usr/lib/systemd/systemd-makefs
+/usr/lib/systemd/systemd-growfs
+/usr/lib/systemd/systemd-quotacheck
+/usr/lib/systemd/systemd-storage-block
+/usr/lib/systemd/systemd-storage-fs
+/usr/lib/systemd/systemd-storagetm
+/usr/lib/systemd/systemd-mountfsd
+/usr/lib/systemd/systemd-mountwork
+/usr/lib/systemd/systemd-validatefs
+/usr/lib/systemd/systemd-volatile-root
+/usr/lib/systemd/systemd-hibernate-resume
+/usr/lib/systemd/systemd-sleep
+/usr/lib/systemd/systemd-rfkill
+/usr/lib/systemd/systemd-backlight
+/usr/lib/systemd/systemd-battery-check
+/usr/lib/systemd/systemd-sbsign
+/usr/lib/systemd/systemd-factory-reset
+/usr/lib/systemd/systemd-sysroot-fstab-check
+/usr/lib/systemd/system-generators/systemd-gpt-auto-generator
+/usr/lib/systemd/system-generators/systemd-cryptsetup-generator
+/usr/lib/systemd/system-generators/systemd-integritysetup-generator
+/usr/lib/systemd/system-generators/systemd-veritysetup-generator
+/usr/lib/systemd/system-generators/systemd-hibernate-resume-generator
+/usr/lib/systemd/system-generators/systemd-factory-reset-generator
+/usr/bin/systemd-cryptsetup
+/usr/bin/systemd-cryptenroll
+/usr/bin/systemd-repart
+/usr/bin/storagectl
+/usr/bin/mount.ddi
+/usr/bin/mount.mstack
+/usr/bin/mount.storage
+/usr/bin/systemd-mstack
+/usr/bin/systemd-umount
+
+# Network management: exe.dev VMs get their network from the platform;
+# no networkd/resolved (their units are masked in the overlay).
+/usr/lib/systemd/systemd-networkd
+/usr/lib/systemd/systemd-networkd-wait-online
+/usr/lib/systemd/systemd-network-generator
+/usr/lib/systemd/systemd-resolved
+/usr/bin/networkctl
+/usr/bin/resolvectl
+/usr/bin/resolvconf
+/usr/bin/systemd-resolve
+
+# Daemons and tools for features minimos doesn't run.
+/usr/lib/systemd/systemd-oomd
+/usr/lib/systemd/systemd-coredump
+/usr/lib/systemd/systemd-pstore
+/usr/lib/systemd/systemd-journal-upload
+/usr/lib/systemd/systemd-nsresourced
+/usr/lib/systemd/systemd-nsresourcework
+/usr/lib/systemd/systemd-userwork
+/usr/lib/systemd/systemd-user-runtime-dir
+/usr/lib/systemd/systemd-localed
+/usr/lib/systemd/systemd-timedated
+/usr/lib/systemd/systemd-keyutil
+/usr/lib/systemd/systemd-report*
+/usr/lib/systemd/systemd-ssh-issue
+/usr/lib/systemd/systemd-ssh-proxy
+/usr/lib/systemd/systemd-sulogin-shell
+/usr/lib/systemd/systemd-sysupdate
+/usr/lib/systemd/systemd-xdg-autostart-condition
+/usr/lib/systemd/system-generators/systemd-ssh-generator
+/usr/lib/systemd/system-generators/systemd-getty-generator
+/usr/bin/oomctl
+/usr/bin/coredumpctl
+/usr/bin/loginctl
+/usr/bin/localectl
+/usr/bin/timedatectl
+/usr/bin/run0
+/usr/bin/systemd-analyze
+/usr/bin/systemd-confext
+/usr/bin/systemd-sysext
+/usr/bin/systemd-sysinstall
+/usr/bin/systemd-sysupdate
+/usr/bin/systemd-inhibit
+/usr/bin/systemd-mute-console
+/usr/bin/sulogin
+
+# ldconfig: .so deps are resolved at build time; ldconfig.service is
+# masked in the overlay.
+/usr/bin/ldconfig
+/usr/bin/ld.so
+/etc/apk/**
+
+# Vendor sysctl files. systemd-sysctl reads /usr/lib/sysctl.d on the same
+# pass as /etc/sysctl.d, so anything left here defeats the two-tier split:
+# host-global keys must reach the kernel only from
+# /usr/lib/minimos/sysctl-vm.conf, via minimos-harden.service, on a real VM.
+#   50-coredump.conf points kernel.core_pattern at the culled
+#     systemd-coredump binary and re-enables suid coredumps.
+#   50-default.conf carries kernel.sysrq, kernel.core_uses_pid and
+#     fs.protected_* — the netns-safe half is restated in
+#     sysctl.d/60-minimos-hardening.conf, the global half in sysctl-vm.conf
+#     at strictly stronger values.
+#   50-pid-max.conf sets kernel.pid_max, which is host-global;
+#     sysctl-vm.conf carries it instead.
+/usr/lib/sysctl.d/50-coredump.conf
+/usr/lib/sysctl.d/50-default.conf
+/usr/lib/sysctl.d/50-pid-max.conf
+
+# Vendor tmpfiles that provision image content from outside the image.
+#   provision.conf writes /etc/hosts and /root/.ssh/authorized_keys from
+#     system credentials (SMBIOS/fw_cfg/cmdline). minimos bakes those files;
+#     nothing outside the image may rewrite them at boot, for the same reason
+#     sysusers.d is culled.
+#   static-nodes-permissions.conf chmods /dev/{fuse,net/tun,kvm,vfio/vfio,
+#     vhost-*} to 0666 and references audio/kvm groups the baked /etc/group
+#     does not define. Both the world-writable devices and the boot warnings
+#     are unwanted; a composition that needs one of those nodes should grant
+#     it deliberately via its own unit's DeviceAllow=.
+#   20-systemd-shell-extra.conf links /etc/profile.d/70-systemd-shell-extra.sh
+#     to a script this image does not ship.
+/usr/lib/tmpfiles.d/provision.conf
+/usr/lib/tmpfiles.d/static-nodes-permissions.conf
+/usr/lib/tmpfiles.d/20-systemd-shell-extra.conf
+
+# Generators run as root, before any unit, on every boot. These two turn
+# kernel-cmdline and credential input into units:
+# systemd.run=<cmd> and systemd.extra-unit.<name>/systemd.unit-dropin.<name>
+# (which land in /run/systemd/generator.early, above /etc/systemd/system).
+# On minimos, configuration changes are image rebuilds.
+/usr/lib/systemd/system-generators/systemd-debug-generator
+/usr/lib/systemd/system-generators/systemd-run-generator
+
+# util-linux-login ships more than the nologin we keep it for.
+/usr/bin/login
+/usr/bin/last
+/usr/bin/lastb
+/usr/bin/lslogins
+/usr/bin/newgrp
+/etc/pam.d/**
+
+# Distro /etc the overlay replaces (or that only apk cares about).
+/etc/passwd
+/etc/group
+/etc/shadow
+/etc/os-release
+/etc/hostname
+/etc/hosts
+/etc/nsswitch.conf
+/etc/fstab
+/etc/mtab
+/etc/motd
+/etc/profile
+/etc/profile.d/**
+/etc/secfixes.d/**
+/etc/sysctl.conf
+/etc/modprobe.d/**
+/etc/logrotate.d/**
+/etc/crontabs/**
+/var/lib/db/**
+/var/cache/**
+/usr/share/xml/**
+/usr/share/zsh/**
+/usr/share/factory/**
+/usr/share/polkit-1/**
