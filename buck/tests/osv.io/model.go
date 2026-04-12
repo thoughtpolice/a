@@ -213,6 +213,30 @@ var wolfiExceptions = []exception{
 		ID:     "CGA-mj3q-7hxc-pp4g",
 		Reason: "GNU tar CVE-2026-18477: incremental restore rename race with local writers; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
+	// GO-2026-5932 declares golang.org/x/crypto/openpgp unsafe by design and
+	// covers every version of the module with no fix, so it fires on any Go
+	// binary that links x/crypto at all. Chainguard files it against the
+	// container-host packages as "pending upstream fix". The pins are already
+	// Wolfi's newest builds, and neither containerd nor nerdctl speaks OpenPGP;
+	// the module arrives transitively. Remove these when the binaries stop
+	// linking x/crypto/openpgp or Chainguard marks the advisories fixed.
+	// https://osv.dev/vulnerability/GO-2026-5932
+	{
+		ID:     "CGA-9r9j-62j2-9gp8",
+		Reason: "containerd-2 GO-2026-5932: x/crypto/openpgp is unmaintained and has no fixed version; the package does not use OpenPGP, accepted until Chainguard marks it fixed",
+	},
+	{
+		ID:     "CGA-m2hc-4chw-x5vv",
+		Reason: "containerd-2 GO-2026-5932: x/crypto/openpgp is unmaintained and has no fixed version; the package does not use OpenPGP, accepted until Chainguard marks it fixed",
+	},
+	{
+		ID:     "CGA-fmx9-qp76-j672",
+		Reason: "nerdctl GO-2026-5932: x/crypto/openpgp is unmaintained and has no fixed version; the package does not use OpenPGP, accepted until Chainguard marks it fixed",
+	},
+	{
+		ID:     "CGA-jwh8-4j76-c7cc",
+		Reason: "nerdctl GO-2026-5932: x/crypto/openpgp is unmaintained and has no fixed version; the package does not use OpenPGP, accepted until Chainguard marks it fixed",
+	},
 }
 
 // exceptionSets binds each ecosystem's exception list to the subject kind it

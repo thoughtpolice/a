@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+[Unit]
+Description=nginx HTTP server
+After=network.target
+
+[Service]
+Type=simple
+# -e stderr: nginx opens its compiled-in error-log path
+# (/var/lib/nginx/logs/, which we don't ship) once at startup before
+# reading the config; without the flag every start logs an alert.
+ExecStartPre=/usr/bin/nginx -e stderr -t -q
+# `daemon off;` is set in nginx.conf (needed when nginx runs as a bare
+# container Cmd); repeating it via -g would be a fatal duplicate directive.
+ExecStart=/usr/bin/nginx -e stderr
+ExecReload=/usr/bin/nginx -e stderr -s reload
+KillMode=mixed
+StandardOutput=journal
+StandardError=journal
+Restart=on-failure
+RestartSec=2s
+
+# Bound a connection flood's impact while preserving enough memory for the
+# configured 512 worker connections and tmpfs-backed request buffers.
+Slice=user-workload.slice
+CPUWeight=100
+IOWeight=100
+MemoryHigh=96M
+MemoryMax=128M
+MemorySwapMax=0
+TasksMax=64
+OOMPolicy=kill
+
+# Sandbox — see the README's hardening section. Master and workers all
+# run as the dynamic user. RuntimeDirectory= carries the pid file; access
+# logs go to journald, where the base's journal quota and rate limit apply.
+# With ip_unprivileged_port_start=1024, binding :80 requires precisely
+# CAP_NET_BIND_SERVICE; the bounding and ambient sets grant nothing else.
+# DynamicUser= implies NoNewPrivileges, ProtectSystem=strict,
+# ProtectHome=read-only, PrivateTmp, RemoveIPC, and RestrictSUIDSGID.
+# ProtectHome=yes below tightens the implied read-only view to inaccessible.
+DynamicUser=yes
+RuntimeDirectory=nginx
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+PrivateDevices=yes
+PrivateIPC=yes
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+SystemCallArchitectures=native
+UMask=077
+
+[Install]
+WantedBy=multi-user.target

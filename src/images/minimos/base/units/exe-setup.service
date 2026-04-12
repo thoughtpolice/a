@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+[Unit]
+Description=Run /exe.dev/setup on first boot
+ConditionPathExists=/exe.dev/setup
+Wants=minimos-harden.service
+After=minimos-harden.service network.target
+
+[Service]
+Type=oneshot
+User=exedev
+Group=exedev
+Slice=user-workload.slice
+WorkingDirectory=/home/exedev
+ExecStart=/bin/bash /exe.dev/setup
+# Platform semantic (the stock image does `sudo rm` here): the setup
+# script is deleted after its one run — it may carry user secrets, and
+# ConditionPathExists= would re-run it every boot otherwise. There is
+# no rm in this image, so systemd-tmpfiles does the unlink; the `+`
+# prefix runs this one command as root (/exe.dev is root-owned).
+ExecStopPost=-+/usr/bin/systemd-tmpfiles --remove /usr/lib/minimos/exe-setup-clean.conf
+Environment=HOME=/home/exedev
+Environment=USER=exedev
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# The script runs unprivileged and nothing in the image is setuid;
+# lock that in.
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/exedev /exe.dev
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+UMask=077
+CPUWeight=100
+IOWeight=100
+MemoryHigh=50%
+MemoryMax=70%
+MemorySwapMax=0
+TasksMax=1024
+OOMPolicy=kill
+TimeoutStartSec=5min
+TimeoutStopSec=15s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=exe-setup
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target

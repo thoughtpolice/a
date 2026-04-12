@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+NAME="minimos"
+ID=minimos
+PRETTY_NAME="minimos (exe.dev appliance)"
+VERSION_ID="0.4.0"
+VERSION="0.4.0"
+HOME_URL="https://exe.dev/"

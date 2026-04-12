@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# /etc/nerdctl/nerdctl.toml — client-side defaults for the docker-shaped
+# CLI. nerdctl has no configuration key for the runtime (its --runtime
+# default of io.containerd.runc.v2 is compiled in), which is why this
+# image ships no runc shim at all: asking for the default runtime fails
+# closed instead of silently escaping the sandbox. Run containers with
+#
+#     nerdctl run --runtime=io.containerd.runsc.v1 ...
+#
+# There is deliberately no wrapper or shell function that injects the
+# flag: a CLI that quietly rewrites its own arguments is worse than a
+# runtime that is simply absent.
+
+debug = false
+address = "unix:///run/containerd/containerd.sock"
+namespace = "default"
+snapshotter = "overlayfs"
+
+# Not "systemd", even though this is a systemd image: nerdctl refuses
+# that manager for any runtime other than runc and falls back to cgroupfs
+# with a warning. Saying cgroupfs here keeps the client, the warning-free
+# journal, and the runtime's own flags (see
+# /etc/containerd/runsc/config.toml) telling the same story. Container
+# cgroups therefore live at /sys/fs/cgroup/<namespace>/<id> rather than
+# under a slice; bound them per container with --memory/--cpus/
+# --pids-limit, or place them with --cgroup-parent.
+cgroup_manager = "cgroupfs"
+
+# Wolfi installs the CNI plugins in /usr/bin; the overlay symlinks the
+# ones this image ships into the conventional directory rather than
+# pointing the search path at a directory full of unrelated binaries.
+cni_path = "/opt/cni/bin"
+cni_netconfpath = "/etc/cni/net.d"
+
+data_root = "/var/lib/nerdctl"

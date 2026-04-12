@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# glibc is in the apk list for its tools, but its loader tools stay
+# culled, same as the base: .so resolution happens at build time and
+# ldconfig.service is masked.
+
+/usr/bin/ldconfig
+/usr/bin/ld.so
