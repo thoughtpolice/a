@@ -13,6 +13,7 @@ third_party_meta([
     'by-name/qe/qemu-static',
     'by-name/qu/quickjs-ng',
     'by-name/sq/sqlite',
+    'by-name/wo/wolfi',
     'by-name/wu/wuffs',
     'by-name/zl/zlib',
     'by-name/zs/zstd',

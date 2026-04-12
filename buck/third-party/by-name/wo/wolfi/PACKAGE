@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    description = """
+        Pinned packages from Wolfi, Chainguard's glibc-based rolling
+        "undistro" (https://wolfi.dev). Each target downloads one .apk
+        (hash-verified); consumers unpack them into rootfs layers via
+        src/images/minimos machinery. Individual package versions are
+        pinned in BUILD — there is no single collection version.
+    """,
+    license = 'Apache-2.0',
+    copyright = [
+        "2022-2026 Chainguard, Inc. and the Wolfi contributors",
+    ],
+    visibility = ['PUBLIC'],
+)
