@@ -34,8 +34,11 @@ def pull_image(skopeo_path: str, image: str, digest: str, platform: str, output:
 
     # Use skopeo to copy image to OCI layout
     # Format: oci:path:tag
+    # --insecure-policy: don't require /etc/containers/policy.json. Buck2 sandboxes
+    # may not have system config; treat hermetic sha-pinned pulls as trusted.
     cmd = [
         skopeo_path,
+        "--insecure-policy",
         "copy",
         f"--override-os={platform.split('/')[0]}",
         f"--override-arch={platform.split('/')[1]}",
