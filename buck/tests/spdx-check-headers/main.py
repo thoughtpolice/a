@@ -95,6 +95,11 @@ BAD_FILES = [
     # REASON: standard license text files don't need SPDX headers
     "tilde/aseipp/dotfiles/claude/agents/LICENSE",
     "tilde/aseipp/dotfiles/claude/commands/LICENSE",
+    # REASON: these system account databases have no portable comment syntax;
+    # adding a header would create malformed records in the resulting image.
+    "src/images/minimos/base/config/group",
+    "src/images/minimos/base/config/passwd",
+    "src/images/minimos/base/config/shadow",
 ]
 
 
@@ -123,6 +128,10 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
     html_style = ("<!-- SPDX-FileCopyrightText: © ", "<!-- SPDX-License-Identifier: ")
     llvm_style = ("; SPDX-FileCopyrightText: © ", "; SPDX-License-Identifier: ")
     lua_style = ("-- SPDX-FileCopyrightText: © ", "-- SPDX-License-Identifier: ")
+    # A markup file whose header sits inside a block comment that opens on its
+    # own line. Lines are compared after stripping, so the marker is the bare
+    # tag; the opening "<!--" is skipped as a preamble below.
+    xml_block_style = ("SPDX-FileCopyrightText: © ", "SPDX-License-Identifier: ")
 
     # lit-style test files use the comment syntax of whatever language the
     # tool under test reads, so they may carry the header in any of these.
@@ -157,6 +166,18 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".yaml": [bzl_style],
         ".fish": [bzl_style],
         ".toml": [bzl_style],
+        # D-Bus policy files are XML that convention names ".conf", so this
+        # entry has to precede the ".conf" one: the lookup below takes the
+        # first matching suffix, not the longest.
+        "/dbus-minimos-deny.conf": [xml_block_style],
+        ".conf": [bzl_style],
+        ".service": [bzl_style],
+        # systemd resource-control units; same "#" comments as ".service".
+        ".slice": [bzl_style],
+        "/hostname": [bzl_style],
+        "/hosts": [bzl_style],
+        "/os-release": [bzl_style],
+        "/profile": [bzl_style],
         ".html": [html_style],
         ".wat": [lisp_style],
         ".wit": [cxx_style],
@@ -187,11 +208,18 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
 
     # HTML requires its doctype before other markup. Treat that declaration as
     # a format preamble, then require the SPDX header immediately after it.
+    # A block comment that opens on its own line is the same kind of preamble.
     i = 0
     if (
         file_ext == ".html"
         and lines
         and lines[0].strip().lower() == "<!doctype html>"
+    ):
+        i = 1
+    elif (
+        copyright_prefix == xml_block_style[0]
+        and lines
+        and lines[0].strip() == "<!--"
     ):
         i = 1
 

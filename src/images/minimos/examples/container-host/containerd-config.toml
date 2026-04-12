@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# /etc/containerd/config.toml — containerd 2.x, config schema version 4.
+#
+# containerd merges this on top of its compiled-in defaults, so this file
+# only states what minimos changes. Everything about *how* a sandbox is
+# built lives in /etc/containerd/runsc/config.toml instead; that file is
+# read by the shim itself, which is why it applies to nerdctl and ctr
+# containers as well as to the CRI ones configured here.
+
+version = 4
+
+# Drop the daemon's own info chatter; a boot journal that is quiet unless
+# something is wrong is a minimos invariant, not a preference.
+[debug]
+  level = 'warn'
+
+[plugins]
+  [plugins.'io.containerd.cri.v1.runtime']
+    [plugins.'io.containerd.cri.v1.runtime'.containerd]
+      # The CRI is the one place containerd has a server-side default
+      # runtime, so this is where "gVisor is the runtime for this system"
+      # is a configured fact rather than an image-content one. The
+      # compiled-in `runc` handler stays registered and cannot be
+      # removed by a TOML merge; it is harmless because no image layer
+      # ships containerd-shim-runc-v2, so asking for it fails closed
+      # instead of quietly producing an unsandboxed container.
+      default_runtime_name = 'runsc'
+
+      [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes]
+        [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.runsc]
+          runtime_type = 'io.containerd.runsc.v1'
+
+          [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.runsc.options]
+            TypeUrl = 'io.containerd.runsc.v1.options'
+            ConfigPath = '/etc/containerd/runsc/config.toml'

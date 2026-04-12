@@ -41,6 +41,10 @@ shims.run_test(
 MINIMOS_BASE = {
     "bash": ("5.3-r13", "55326f8afdd5061f463d74e0061b856c98c822404e4a06b17de65b5f91a60fe3"),
     "ca-certificates-bundle": ("20260611-r1", "006012021d22e720b1832bb1eb92f53f7e917be65ae8ad80badd40a65eff5c5b"),
+    # Time sync. Note the build is -NTS: authenticated network time is not
+    # on the table with this package, which is one reason the base takes
+    # its time from the hypervisor's PTP clock instead of the network.
+    "chrony": ("4.9-r2", "335b7c7f4a8a68cb73f2ef249fc47869c71fa6b3f25a32f2541f22ee2887bb03"),
     "dash": ("0.5.13.5-r1", "d973a5a053e8fd523aa4274c3475b5165f45f761ea74b232aa46881b9f628805"),
     "dbus": ("1.16.2-r6", "a767b8a109b9f3478175e02387516c02029d04c1c8804b59e585ab6beacd1af5"),
     "dbus-libs": ("1.16.2-r6", "ed8f47cdb202574ef1af9d8bb1d03bd9feb887a9420a75dc4462795ab6a8ae2a"),
@@ -50,6 +54,10 @@ MINIMOS_BASE = {
     "libacl1": ("2.4.0-r3", "10858ad8137f60ca54784978f41148c28377f82ed6ff96a74ac0459dfb519717"),
     "libaudit": ("4.2.1-r1", "61f35651d60ab459206f5dabad2796f37fb99dad2099da3f95c0d474bb69fbad"),
     "libblkid": ("2.42.3-r4", "73376a7be9f64bbfe2101d32ad47b97a2816e8a97019c3c1d00a89eb9391548f"),
+    # chronyd links libcap to drop capabilities. The apk metadata says
+    # libpam, but that is pam_cap.so; the culled layer only ever keeps
+    # libcap.so.2, which needs nothing but libc.
+    "libcap": ("2.78-r3", "dc83031936427b3ad7c9c627a36bab793df6381a7cdfc512796bd0eadafa31ed"),
     "libcap-ng": ("0.9.6-r0", "28a94408e0676f58e3847e141b60d1e635ae728de31d2a73f26fb027ab3561b4"),
     "libexpat1": ("2.8.4-r0", "2aa592acf91515e05dcf42d86036093797d286a018dd8c32445c1c102efd0f59"),
     "libgcc": ("16.2.0-r1", "6c41a73a5e07bfa17ff3fa6c64d0a898905168c780a04f2092eacb53545106db"),
@@ -131,9 +139,6 @@ DEVTOOLS = {
     "libattr1": ("2.6.0-r3", "dddc29015204ec417a96508d9ddce84628bcc34e1f44820951814ffe8d6642ea"),
     "libbrotlicommon1": ("1.2.0-r5", "ce2bbe259d5906f2d12592ea71e175f5d23f6437ad736a6506c1ec4f022926c9"),
     "libbrotlidec1": ("1.2.0-r5", "c21ea670f748f1d2b32c17199f8e1bc7e5188a5e2e9325adbffc05f3d8a7f074"),
-    # The apk metadata says libpam, but that's pam_cap.so; the culled
-    # layer only ever keeps libcap.so.2, which needs nothing but libc.
-    "libcap": ("2.78-r3", "dc83031936427b3ad7c9c627a36bab793df6381a7cdfc512796bd0eadafa31ed"),
     "libcom_err": ("1.47.4-r2", "23ca8006254dad6eaee4feb1b29f12d042f6214ea95c7fad9865d1c7c24ac1f9"),
     "libcurl-openssl4": ("8.22.0-r2", "9000a78042230eb45315222e731c0472b0772d78010925be65892aa7fcc5e289"),
     "libidn2": ("2.3.8-r9", "75c10d044558781f8002156542d1b250b34f9e3cd135f7779f426c943c7a656c"),
@@ -154,6 +159,25 @@ DEVTOOLS = {
     "xz": ("5.8.4-r0", "d015b40af8b300a0a33e710573e1e7d6cdc31ae5124bcac2fd299bea90a8506a"),
 }
 
+# minimos container host (src/images/minimos/examples/container-host):
+# containerd and its clients, plus the CNI plugins and iptables that
+# container networking shells out to. Wolfi carries containerd under
+# versioned package names (containerd-2, ctr-2) so a pin tracks one
+# major series; the OCI runtime itself is gVisor, which Wolfi does not
+# package — it is pinned from upstream's release bucket in that image's
+# BUILD file. iptables is here for its nft-backend multi binary: the
+# platform kernel has nf_tables built in, which matters because minimos
+# latches module loading off before anything could load one.
+CONTAINERS = {
+    "cni-plugins": ("1.9.1-r14", "f320196135be0fb5c37fbc1fa189175770196073b8029b2ea02ff7c082167aa8"),
+    "containerd-2": ("2.4.0-r0", "e9e7b2ae66af49fabf1f312e65b6ef5d4b4ad2d9ae7f0402cad67794f15475e7"),
+    "ctr-2": ("2.4.0-r0", "c201f8a43f90dc41fbb97cc76a7d172e47eb6c4bf755322b43bfa7d9cba0fe45"),
+    "iptables": ("1.8.13-r4", "696cbf0f9ca46dd1a0f0c74a73c0c8b16ece2cdc15542b2b40a6ee20de0615e2"),
+    "libmnl": ("1.0.5-r8", "916046fd5e2a6e707b00b6f2f3ae9534eca0eec3426a5e6a2a849bfa6d39c388"),
+    "libnftnl": ("1.3.2-r0", "845c6e710018d5bbd6640658929f4d61db9ec9bce918cdec1682d98954e2e936"),
+    "nerdctl": ("2.3.5-r14", "fa3bf1ddaa1e3572ddca64d49fcbebd725cf4c462580c7efc4b8c95d8da91e6f"),
+}
+
 wolfi_apks(MINIMOS_BASE)
 
 wolfi_apks(CRYPTO)
@@ -165,3 +189,5 @@ wolfi_apks(MEMCACHED)
 wolfi_apks(NGINX)
 
 wolfi_apks(DEVTOOLS)
+
+wolfi_apks(CONTAINERS)

@@ -1,0 +1,123 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# What a composition layer may write, as a default-deny policy that
+# scratch_image.py enforces when minimos.image() stacks layers, and that
+# the boot smoke re-checks on the finished image. One rule per line:
+#
+#   composable PREFIX   a composition may create new paths under PREFIX
+#   sealed PREFIX       no composition may create anything under PREFIX
+#
+# Two unconditional rules come first and need no line here: a composition
+# layer can never replace a path a lower layer established (so every one
+# of the base's ~670 paths, PID 1, the shells, the account files, every
+# vendor unit, is covered without being named), and it can never write a
+# type-wide systemd drop-in directory (`service.d`, `user-.slice.d`, ...)
+# that would reconfigure units it does not own.
+#
+# On top of that, a *new* path must fall under a composable prefix. This
+# is the inverse of naming the dangerous paths: a search directory nobody
+# anticipated is refused because it was never opened, rather than allowed
+# because it was never denied. Longest match wins and ties are sealed, so
+# a sealed line can carve a directory out of a composable subtree and a
+# composable line can reopen one path inside a sealed one.
+
+composable etc
+composable home
+composable opt
+composable srv
+composable usr/bin
+composable usr/lib
+composable usr/libexec
+composable usr/local
+composable usr/share
+composable var
+
+# Carved back out of the composable prefixes above: directories where merely
+# adding a file changes identity, privilege, or boot policy for the whole
+# image. Everything outside the composable prefixes (/run, /root, /boot,
+# /dev, the merged-usr links, ...) is already denied and needs no line.
+
+# Identity and authentication.
+sealed etc/passwd
+sealed etc/group
+sealed etc/shadow
+sealed etc/gshadow
+sealed etc/subuid
+sealed etc/subgid
+sealed etc/nsswitch.conf
+sealed etc/login.defs
+sealed etc/pam.d
+sealed etc/security
+sealed etc/sudoers
+sealed etc/sudoers.d
+sealed etc/doas.conf
+
+# Accounts created at boot: the base bakes /etc and masks systemd-sysusers.
+sealed etc/sysusers.d
+sealed usr/lib/sysusers.d
+
+# The dynamic loader reads these before any program's first instruction.
+sealed etc/ld.so.preload
+sealed etc/ld.so.conf
+sealed etc/ld.so.conf.d
+sealed etc/ld.so.cache
+
+# Kernel-facing configuration applied by early boot services.
+sealed etc/sysctl.conf
+sealed etc/sysctl.d
+sealed usr/lib/sysctl.d
+sealed etc/tmpfiles.d
+sealed usr/lib/tmpfiles.d
+sealed etc/modules-load.d
+sealed usr/lib/modules-load.d
+sealed etc/modprobe.d
+sealed usr/lib/modprobe.d
+sealed etc/binfmt.d
+sealed usr/lib/binfmt.d
+sealed etc/udev
+sealed usr/lib/udev
+sealed etc/environment
+sealed etc/environment.d
+sealed usr/lib/environment.d
+
+# The manager's own configuration tree: system.conf and its drop-ins,
+# journald/logind config, presets, generators, and every unit search path
+# that outranks /etc/systemd/system (system.control, system.attached).
+# Sealed wholesale so a directory a future systemd adds is refused too;
+# the two unit trees a composition legitimately owns are reopened below.
+sealed etc/systemd
+composable etc/systemd/system
+composable etc/systemd/user
+
+# systemd's private directory: PID 1 itself, its helpers, the vendor unit
+# tree, and its generator directories. Sealed wholesale for the same
+# reason, with one file reopened: a per-user manager needs the helper
+# user@.service BindsTo=, and the base denylist drops it, so examples/dev
+# culls it back in.
+sealed usr/lib/systemd
+composable usr/lib/systemd/systemd-user-runtime-dir
+
+# /usr/local/lib is searched for every drop-in kind named above (units,
+# sysusers.d, sysctl.d, tmpfiles.d, environment.d, binfmt.d,
+# modules-load.d) and is not on the loader's default path, so nothing a
+# composition ships belongs there. Sealed whole rather than enumerated;
+# a composition that really needs a library directory under it can
+# reopen that one directory by name.
+sealed usr/local/lib
+
+# minimos's own boot and login chain lives here.
+sealed usr/lib/minimos
+
+# Bus policy: the vendor files grant every uid the right to *send* to PID 1
+# and rely on systemd's authorization for the deny.
+sealed etc/dbus-1
+sealed usr/share/dbus-1
+
+# Trust roots and the factory tree systemd-tmpfiles copies from.
+sealed etc/ssl
+sealed etc/pki
+sealed etc/ca-certificates
+sealed usr/share/ca-certificates
+sealed usr/share/factory
+sealed usr/share/polkit-1

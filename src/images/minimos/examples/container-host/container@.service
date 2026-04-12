@@ -1,0 +1,85 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# One sandboxed container, declared as data. Instance `%i` reads
+# /etc/minimos/containers/%i.env, which a composition layer stacked on
+# this image ships alongside a
+# multi-user.target.wants/container@<name>.service symlink to enable it:
+#
+#     # /etc/minimos/containers/web.env
+#     IMAGE=docker.io/library/nginx:1.29-alpine@sha256:<digest>
+#     RUN_ARGS=--publish 80:80 --memory 256m --cpus 1
+#     COMMAND=
+#
+# This is the interface for running workloads here, and it is a build-time
+# one on purpose: the image has no path to uid 0 at runtime, so the set of
+# containers a host runs is part of the image, the same way the set of
+# services is. `ctr` over SSH can pull and inspect but cannot start a
+# container — see the example README.
+#
+# The runtime is named explicitly because nerdctl's default is compiled
+# in and points at a shim this image does not ship. The flag is what
+# makes the container start rather than what makes it sandboxed: there is
+# nothing else here that could run it.
+#
+# The annotation is not optional and not cosmetic. gVisor's shim only
+# wires a container's stdio through to runsc when the OCI spec says
+# io.kubernetes.cri.container-type=sandbox — see pkg/shim/v1/runsc's
+# newInit, which sets p.Sandbox from that annotation alone, and
+# pkg/shim/v1/proc's Create, which passes opts.IO only when p.Sandbox is
+# set. Without it the shim captures runsc's output through a pipe that
+# the sandbox process inherits and never closes, so Create blocks
+# forever: the sandbox boots, logs "Watchdog.Start() not called within
+# 30s", and the task never starts. Every client that is not the CRI
+# (nerdctl, ctr) has to supply the annotation itself.
+
+[Unit]
+Description=Sandboxed container %i
+Documentation=https://gvisor.dev/docs/user_guide/containerd/
+# time-sync.target orders this after chronyd has *started*, not after the
+# clock has converged — the image ships no chronyc, so there is nothing to
+# block on (chrony's own chrony-wait.service is denied for that reason).
+# It is still the right edge to declare: pulling an image validates a
+# registry certificate, and a clock that has not been disciplined yet is
+# how a long-expired certificate passes.
+After=containerd.service network.target time-sync.target
+Requires=containerd.service
+PartOf=containerd.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/minimos/containers/%i.env
+Environment=PATH=/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin
+# Every other input to this image is pinned by digest — apks, the gVisor
+# release binaries, the Codex tarball — and a workload image is the one
+# that arrives at runtime, from a registry, over a mutable tag. Refuse
+# that: `IMAGE` has to name a digest. A tag can be re-pointed between the
+# boot that was tested and the boot that runs, and TLS only proves who
+# served the bytes, not which bytes were promised.
+ExecStartPre=/usr/bin/bash -c 'case "$IMAGE" in *@sha256:*) exit 0 ;; esac; echo "IMAGE must be digest-pinned (…@sha256:…), got: ${IMAGE:-<unset>}" >&2; exit 1'
+# A container left behind by an unclean stop would collide on the name.
+# `nerdctl rm` fails when there is nothing to remove, which is the normal
+# case, so the error goes to /dev/null rather than into every boot's
+# journal; the shell is bash because that is what the base image has.
+ExecStartPre=-/usr/bin/bash -c '/usr/bin/nerdctl rm --force %i 2>/dev/null || true'
+# --log-opt comes before $RUN_ARGS so a workload can raise or replace it.
+# Container stdout is json-file on disk, and nothing else bounds it:
+# cgroups cap memory, CPU and pids, never bytes written, so an unbounded
+# log is the most likely way this host fills its root filesystem.
+ExecStart=/usr/bin/nerdctl run --rm --quiet --name %i --runtime=io.containerd.runsc.v1 --annotation io.kubernetes.cri.container-type=sandbox --log-opt max-size=16m --log-opt max-file=3 $RUN_ARGS $IMAGE $COMMAND
+ExecStop=-/usr/bin/nerdctl stop %i
+Restart=on-failure
+RestartSec=10s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=container-%i
+
+# This unit is the launcher, not the container. nerdctl stays in the
+# foreground until the sandbox exits, but the sandbox's own cgroup is
+# created by the runtime at /sys/fs/cgroup/<namespace>/<id> — outside
+# this unit's tree, because the client speaks cgroupfs paths for a
+# non-runc runtime (see nerdctl.toml). Limits set here bound the launcher
+# only; per-container limits belong in RUN_ARGS — `--memory`, `--cpus`,
+# `--pids-limit`, or a `--cgroup-parent` that names a bounded tree.
+TasksMax=512
+LimitCORE=0

@@ -1,0 +1,21 @@
+#!/bin/bash -p
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Docker mounts a private cgroup v2 namespace read-only. PID 1 needs to create
+# its own hierarchy, so the bounded boot smoke uses this protected entrypoint
+# to remount only that namespaced view, then executes the OCI image's verified
+# Cmd argv unchanged.
+
+set -euo pipefail
+
+unset BASH_ENV ENV CDPATH GLOBIGNORE LD_LIBRARY_PATH LD_PRELOAD
+export PATH=/usr/bin:/usr/sbin:/bin:/sbin
+
+if [[ $# -eq 0 ]]; then
+    echo "minimos docker boot wrapper: image Cmd is empty" >&2
+    exit 2
+fi
+
+/usr/bin/mount -o remount,rw,nosuid,nodev,noexec /sys/fs/cgroup
+builtin exec "$@"

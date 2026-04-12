@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# Allowlist for culling the container-host packages down to the daemon,
+# its two clients, the CNI plugins nerdctl's bridge network runs, and
+# the iptables those plugins shell out to. cull.py adds the .so closure
+# (containerd and ctr need only libc; the iptables multi binary pulls in
+# libxtables/libmnl/libnftnl).
+#
+# There is deliberately no runc, crun, or containerd-shim-runc-v2 here:
+# the only OCI runtime this image can start a container with is gVisor,
+# which arrives as a separate hash-pinned overlay layer. The boot smoke
+# re-asserts that from the built layers.
+
+# The daemon and its clients.
+/usr/bin/containerd
+/usr/bin/ctr
+/usr/bin/nerdctl
+
+# The CNI plugins in nerdctl's generated bridge configuration (bridge +
+# portmap + firewall + tuning), plus the IPAM and loopback plugins every
+# network list uses. The other ~13 plugins in the package stay out.
+/usr/bin/bridge
+/usr/bin/firewall
+/usr/bin/host-local
+/usr/bin/loopback
+/usr/bin/portmap
+/usr/bin/tuning
+
+# iptables, nft backend only: portmap and firewall exec `iptables` and
+# `ip6tables`, whose applet names the overlay symlinks onto this multi
+# binary. Wolfi points its own /usr/bin/iptables at the legacy binary;
+# the backend choice here is a platform fact rather than a preference,
+# because minimos latches kernel.modules_disabled=1 during
+# sysinit.target and only nf_tables is demonstrably built into the
+# exe.dev kernel — the platform's own container networking runs on it.
+/usr/bin/xtables-nft-multi
+
+# iptables loads match and target extensions with dlopen, so the .so
+# closure cannot see them: portmap alone needs comment, multiport, tcp,
+# udp, DNAT, MASQUERADE. Keep the ip/ip6/generic families and skip the
+# ebtables/arptables ones, whose front-end binaries this image lacks.
+/usr/lib/xtables/libxt_*.so
+/usr/lib/xtables/libipt_*.so
+/usr/lib/xtables/libip6t_*.so

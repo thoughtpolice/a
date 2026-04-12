@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+[Unit]
+Description=memcached in-memory object cache
+After=network.target
+
+[Service]
+Type=simple
+# Loopback only — verify from inside the VM, e.g. with bash builtins:
+#   exec 3<>/dev/tcp/127.0.0.1/11211; printf 'version\r\n' >&3; read -r v <&3; echo "$v"
+# No `-u root`: with DynamicUser= the service never starts as root, so
+# memcached's refuse-to-run-as-root check never trips.
+ExecStart=/usr/bin/memcached -l 127.0.0.1 -p 11211 -m 64
+Restart=on-failure
+RestartSec=2s
+StandardOutput=journal
+StandardError=journal
+
+# Keep the cache responsive without allowing it to destabilize the host. The
+# 64 MiB item cache configured above leaves headroom for connections, threads,
+# the hash table, and allocator overhead below the hard cgroup limit.
+Slice=user-workload.slice
+CPUWeight=100
+IOWeight=100
+MemoryHigh=128M
+MemoryMax=192M
+MemorySwapMax=0
+TasksMax=64
+OOMPolicy=kill
+
+# Sandbox — the copy-me baseline for minimos services (see the README's
+# hardening section). DynamicUser= implies NoNewPrivileges,
+# ProtectSystem=strict, ProtectHome=read-only, PrivateTmp, RemoveIPC,
+# and RestrictSUIDSGID on top of what's spelled out here. ProtectHome=yes
+# below tightens the implied read-only view to an inaccessible one.
+DynamicUser=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# This unit binds loopback only; cut it off from the network entirely.
+IPAddressDeny=any
+IPAddressAllow=localhost
+PrivateDevices=yes
+PrivateIPC=yes
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+SystemCallArchitectures=native
+UMask=077
+
+[Install]
+WantedBy=multi-user.target
