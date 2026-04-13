@@ -23,7 +23,7 @@ shims.git_fetch(
 shims.git_fetch(
     name = "slatedb-1981661380cef83f.git",
     repo = "https://github.com/slatedb/slatedb",
-    rev = "46543bff2c577440e2daf2315cf926671cb9cc5e",
+    rev = "3b97ab519a70f36a258350dd381b6a194b5314c1",
     visibility = [],
 )
 
@@ -19848,12 +19848,12 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "slatedb",
-    actual = ":slatedb-0.11.1",
+    actual = ":slatedb-0.12.0",
     visibility = ["PUBLIC"],
 )
 
 third_party_rust.rust_library(
-    name = "slatedb-0.11.1",
+    name = "slatedb-0.12.0",
     srcs = [":slatedb-1981661380cef83f.git"],
     crate = "slatedb",
     crate_root = "slatedb-1981661380cef83f/slatedb/src/lib.rs",
@@ -19893,8 +19893,8 @@ third_party_rust.rust_library(
         ":serde-1.0.228",
         ":serde_json-1.0.149",
         ":siphasher-1.0.2",
-        ":slatedb-common-0.11.1",
-        ":slatedb-txn-obj-0.11.1",
+        ":slatedb-common-0.12.0",
+        ":slatedb-txn-obj-0.12.0",
         ":sysinfo-0.35.2",
         ":thiserror-1.0.69",
         ":thread_local-1.1.9",
@@ -19909,7 +19909,7 @@ third_party_rust.rust_library(
 )
 
 third_party_rust.rust_library(
-    name = "slatedb-common-0.11.1",
+    name = "slatedb-common-0.12.0",
     srcs = [":slatedb-1981661380cef83f.git"],
     crate = "slatedb_common",
     crate_root = "slatedb-1981661380cef83f/slatedb-common/src/lib.rs",
@@ -19925,7 +19925,7 @@ third_party_rust.rust_library(
 )
 
 third_party_rust.rust_library(
-    name = "slatedb-txn-obj-0.11.1",
+    name = "slatedb-txn-obj-0.12.0",
     srcs = [":slatedb-1981661380cef83f.git"],
     crate = "slatedb_txn_obj",
     crate_root = "slatedb-1981661380cef83f/slatedb-txn-obj/src/lib.rs",
@@ -19938,7 +19938,7 @@ third_party_rust.rust_library(
         ":futures-0.3.32",
         ":log-0.4.29",
         ":object_store-0.12.5",
-        ":slatedb-common-0.11.1",
+        ":slatedb-common-0.12.0",
         ":thiserror-1.0.69",
     ],
 )
