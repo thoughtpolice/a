@@ -84,6 +84,10 @@ const RUSTSEC_VIOLATION_EXCEPTIONS = [
         id: "GHSA-j4xf-2g29-59ph",
         reason: "tar symlink chmod vulnerability - awaiting upstream fix",
     },
+    {
+        id: "RUSTSEC-2026-0097",
+        reason: "rand unsoundness with custom logger via rand::rng() - awaiting upstream fix",
+    },
 ];
 
 // ---------------------------------------------------------------------------------------------------------------------
