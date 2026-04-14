@@ -88,6 +88,10 @@ const RUSTSEC_VIOLATION_EXCEPTIONS = [
         id: "RUSTSEC-2026-0097",
         reason: "rand unsoundness with custom logger via rand::rng() - awaiting upstream fix",
     },
+    {
+        id: "GHSA-cq8v-f236-94qc",
+        reason: "rand unsoundness with custom logger via rand::rng() - awaiting upstream fix",
+    },
 ];
 
 // ---------------------------------------------------------------------------------------------------------------------
