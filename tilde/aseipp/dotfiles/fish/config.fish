@@ -26,6 +26,10 @@ if status is-interactive
     if test -d ~/.local/bin
         fish_add_path -a ~/.local/bin
     end
+
+    if test -d ~/.elan/bin
+        fish_add_path -a ~/.elan/bin
+    end
 end
 
 alias buck buck2
