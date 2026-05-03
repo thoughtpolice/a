@@ -10,87 +10,19 @@ import { parse as parseTOML } from "@std/toml";
 const RUSTSEC_VIOLATION_EXCEPTIONS = [
     {
         id: "RUSTSEC-2024-0388",
-        reason: "temporary, to be fixed upstream in starlark-rust",
+        reason: "derivative unmaintained - pulled in by starlark-rust, awaiting upstream migration",
     },
     {
         id: "RUSTSEC-2024-0436",
-        reason: "temporary, to be fixed by upstream scm-record",
-    },
-    {
-        id: "RUSTSEC-2024-0384",
-        reason: "temporary, instant is unmaintained but still widely used",
-    },
-    {
-        id: "GHSA-c2hm-mjxv-89r4",
-        reason: "lexical soundness issues - used by nom, awaiting migration",
-    },
-    {
-        id: "GHSA-2326-pfpj-vx3h",
-        reason: "lexical-core soundness issues - used by nom, awaiting migration",
-    },
-    {
-        id: "RUSTSEC-2023-0086",
-        reason: "lexical-core soundness issues - used by nom, awaiting migration",
-    },
-    {
-        id: "GHSA-2gxj-qrp2-53jv",
-        reason: "mopa soundness issue -- used by {iocraft,any_key} and awaiting migration",
-    },
-    {
-        id: "GHSA-qx2v-8332-m4fv",
-        reason: "slab bounds check issue - widely used dependency, awaiting upstream fix",
-    },
-    {
-        id: "GHSA-xwfj-jgwm-7wp5",
-        reason: "tracing-subscriber ANSI escape sequence vulnerability - low severity for build environment",
+        reason: "paste unmaintained - pulled in by foyer-storage and starlark, awaiting upstream migration",
     },
     {
         id: "RUSTSEC-2025-0057",
-        reason: "temporary, fxhash is unmaintained but widely used",
-    },
-    {
-        id: "GHSA-6mw6-mj76-grwc",
-        reason: "temporary, awaiting crate bump",
-    },
-    {
-        id: "GHSA-rhfx-m35p-ff5j",
-        reason: "temporary, awaiting crate bump",
+        reason: "fxhash unmaintained - pulled in by starlark_map, awaiting upstream migration",
     },
     {
         id: "RUSTSEC-2025-0141",
-        reason: "bincode is unmaintained, but usable",
-    },
-    {
-        id: "GHSA-434x-w66g-qw3r",
-        reason: "bytes integer overflow in BytesMut::reserve - awaiting upstream fix",
-    },
-    {
-        id: "GHSA-3288-p39f-rqpv",
-        reason: "keccak ARMv8 assembly backend unsoundness - not using ARM assembly backend",
-    },
-    {
-        id: "GHSA-r6v5-fh4h-64xc",
-        reason: "time stack exhaustion vulnerability - awaiting upstream fix",
-    },
-    {
-        id: "GHSA-pwjx-qhcg-rvj4",
-        reason: "rustls-webpki certificate revocation bug - awaiting upstream fix",
-    },
-    {
-        id: "GHSA-gchp-q4r4-x4ff",
-        reason: "tar PAX size header handling - awaiting upstream fix",
-    },
-    {
-        id: "GHSA-j4xf-2g29-59ph",
-        reason: "tar symlink chmod vulnerability - awaiting upstream fix",
-    },
-    {
-        id: "RUSTSEC-2026-0097",
-        reason: "rand unsoundness with custom logger via rand::rng() - awaiting upstream fix",
-    },
-    {
-        id: "GHSA-cq8v-f236-94qc",
-        reason: "rand unsoundness with custom logger via rand::rng() - awaiting upstream fix",
+        reason: "bincode 1.x unmaintained - pulled in by foyer, awaiting bincode 2.x migration upstream",
     },
 ];
 
