@@ -11951,17 +11951,17 @@ third_party_rust.rust_library(
         "linux-arm64": dict(
             deps = [
                 ":log-0.4.29",
-                ":openssl-0.10.78",
+                ":openssl-0.10.79",
                 ":openssl-probe-0.2.1",
-                ":openssl-sys-0.9.114",
+                ":openssl-sys-0.9.115",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
                 ":log-0.4.29",
-                ":openssl-0.10.78",
+                ":openssl-0.10.79",
                 ":openssl-probe-0.2.1",
-                ":openssl-sys-0.9.114",
+                ":openssl-sys-0.9.115",
             ],
         ),
         "macos-arm64": dict(
@@ -12919,23 +12919,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "openssl",
-    actual = ":openssl-0.10.78",
+    actual = ":openssl-0.10.79",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "openssl-0.10.78.crate",
-    sha256 = "f38c4372413cdaaf3cc79dd92d29d7d9f5ab09b51b10dded508fb90bb70b9222",
-    strip_prefix = "openssl-0.10.78",
-    urls = ["https://static.crates.io/crates/openssl/0.10.78/download"],
+    name = "openssl-0.10.79.crate",
+    sha256 = "bf0b434746ee2832f4f0baf10137e1cabb18cbe6912c69e2e33263c45250f542",
+    strip_prefix = "openssl-0.10.79",
+    urls = ["https://static.crates.io/crates/openssl/0.10.79/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "openssl-0.10.78",
-    srcs = [":openssl-0.10.78.crate"],
+    name = "openssl-0.10.79",
+    srcs = [":openssl-0.10.79.crate"],
     crate = "openssl",
-    crate_root = "openssl-0.10.78.crate/src/lib.rs",
+    crate_root = "openssl-0.10.79.crate/src/lib.rs",
     edition = "2021",
     features = [
         "bindgen",
@@ -12943,7 +12943,7 @@ third_party_rust.rust_library(
         "unstable_boringssl",
     ],
     named_deps = {
-        "ffi": ":openssl-sys-0.9.114",
+        "ffi": ":openssl-sys-0.9.115",
     },
     rustc_flags = [
         "--cfg=boringssl",
@@ -13005,7 +13005,6 @@ third_party_rust.rust_library(
         ":cfg-if-1.0.4",
         ":foreign-types-0.3.2",
         ":libc-0.2.186",
-        ":once_cell-1.21.4",
         ":openssl-macros-0.1.1",
     ],
 )
@@ -13051,18 +13050,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "openssl-sys-0.9.114.crate",
-    sha256 = "13ce1245cd07fcc4cfdb438f7507b0c7e4f3849a69fd84d52374c66d83741bb6",
-    strip_prefix = "openssl-sys-0.9.114",
-    urls = ["https://static.crates.io/crates/openssl-sys/0.9.114/download"],
+    name = "openssl-sys-0.9.115.crate",
+    sha256 = "158fe5b292746440aa6e7a7e690e55aeb72d41505e2804c23c6973ad0e9c9781",
+    strip_prefix = "openssl-sys-0.9.115",
+    urls = ["https://static.crates.io/crates/openssl-sys/0.9.115/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "openssl-sys-0.9.114",
-    srcs = [":openssl-sys-0.9.114.crate"],
+    name = "openssl-sys-0.9.115",
+    srcs = [":openssl-sys-0.9.115.crate"],
     crate = "openssl_sys",
-    crate_root = "openssl-sys-0.9.114.crate/src/lib.rs",
+    crate_root = "openssl-sys-0.9.115.crate/src/lib.rs",
     edition = "2021",
     features = [
         "bindgen",
@@ -20463,8 +20462,8 @@ third_party_rust.rust_library(
     edition = "2018",
     visibility = [],
     deps = [
-        ":openssl-0.10.78",
-        ":openssl-sys-0.9.114",
+        ":openssl-0.10.79",
+        ":openssl-sys-0.9.115",
         ":tokio-1.52.1",
     ],
 )

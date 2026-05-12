@@ -24,6 +24,37 @@ const RUSTSEC_VIOLATION_EXCEPTIONS = [
         id: "RUSTSEC-2025-0141",
         reason: "bincode 1.x unmaintained - pulled in by foyer, awaiting bincode 2.x migration upstream",
     },
+    // gix 0.80.x and its sub-crates: fixed in gix 0.83.x, but the gix version
+    // is currently pinned by the jj-lib/jj-cli rev. Drop these once the jj rev
+    // is bumped (jj main is already on gix 0.83.x).
+    {
+        id: "GHSA-f26g-jm89-4g65",
+        reason: "gix-submodule .gitmodules command-injection - gix 0.80.x via jj-lib, fixed in gix 0.83, awaiting jj rev bump",
+    },
+    {
+        id: "GHSA-fr8x-3vfx-f45h",
+        reason: "gix submodule name path traversal - gix 0.80.x via jj-lib, fixed in gix 0.83, awaiting jj rev bump",
+    },
+    {
+        id: "GHSA-p3hw-mv63-rf9w",
+        reason: "gix submodule validation bypass + trust inheritance - gix 0.80.x via jj-lib, fixed in gix 0.83, awaiting jj rev bump",
+    },
+    {
+        id: "GHSA-pg4w-g64p-qwhj",
+        reason: "gix symlinked .gitmodules followed outside repo - gix 0.80.x via jj-lib, fixed in gix 0.83, awaiting jj rev bump",
+    },
+    {
+        id: "GHSA-f89h-2fjh-2r9q",
+        reason: "gix-fs symlink prefix-reuse worktree escape - gix 0.80.x via jj-lib, fixed in gix-fs 0.21.1, awaiting jj rev bump",
+    },
+    {
+        id: "GHSA-x494-mj8g-cj27",
+        reason: "gix-pack DoS via crafted pack data - gix 0.80.x via jj-lib, fixed in gix-pack 0.69.0, awaiting jj rev bump",
+    },
+    {
+        id: "GHSA-9857-6mw7-fq2m",
+        reason: "gix-transport curl backend credential leak on redirect - gix 0.80.x via jj-lib, fixed in gix-transport 0.56.0, awaiting jj rev bump",
+    },
 ];
 
 // ---------------------------------------------------------------------------------------------------------------------
