@@ -228,6 +228,10 @@ smartlog = ["log", "-T", "builtin_log_detailed", "--tool=claude", "-r"]
 # EXPERIMENTAL: json output
 jsonlog = ["log", "--no-graph", "-T", "ndjson"]
 
+# EXPERIMENTAL: name taken from sapling. not perfect but fits most of my
+# needs for squashing?
+fold = [ "squash" ]
+
 [colors]
 # Base customizations
 "normal change_id" = { bold = true, fg = "magenta" }
