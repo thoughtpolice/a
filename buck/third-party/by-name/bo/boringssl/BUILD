@@ -26,7 +26,7 @@ GIT_COMMIT = pkg.version().split("g", 1)[1]
 
 shims.http_archive(
     name="src",
-    sha256="18a8010f460ecddd9b3bf53043e75a6ee72bd6d084259cf7d344bac09729b1a5",
+    sha256="7aaf2f4b0c141b215ec7ff6d6e5f5a58045d39a9d0008e4c74ecee663ebf5ff6",
     urls=[
         "https://github.com/google/boringssl/archive/{}.tar.gz".format(GIT_COMMIT),
     ],
