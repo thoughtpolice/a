@@ -9,15 +9,17 @@ VERSION = pkg.version()
 
 shims.http_archive(
     name = 'src',
-    sha256 = 'bb27df3402d3bd943e80d8f128aff29bef74b62d5fc6ea40977bd4af46ee87cf',
+    sha256 = '3de6beb63ec279192e07863ca5edbdcf83686b470f6066cdaaf4bfb2192fee46',
     urls = [
         'https://github.com/axboe/liburing/archive/{}.tar.gz'.format(VERSION.split('g', 1)[1]),
     ],
     type = 'tar.gz',
-    strip_prefix = 'liburing-7524a6adf4d6720a47bfa617b5cb2fd8d57f16d2',
+    strip_prefix = 'liburing-e3d35ea59d3ba09075ed4d7751e4bb9049cce64a',
     sub_targets = [
         'src/include/liburing/barrier.h',
         'src/include/liburing/io_uring.h',
+        'src/include/liburing/sanitize.h',
+        'src/include/liburing/io_uring/query.h',
         'src/include/liburing.h',
 
         'src/arch/aarch64/lib.h',
@@ -53,9 +55,11 @@ shims.cxx_library(
         'liburing/io_uring_version.h': 'version.h',
         'liburing/compat.h':           'compat.h',
         # from :src tarball
-        'liburing/barrier.h':  ':src[src/include/liburing/barrier.h]',
-        'liburing/io_uring.h': ':src[src/include/liburing/io_uring.h]',
-        'liburing.h':          ':src[src/include/liburing.h]',
+        'liburing/barrier.h':          ':src[src/include/liburing/barrier.h]',
+        'liburing/io_uring.h':         ':src[src/include/liburing/io_uring.h]',
+        'liburing/sanitize.h':         ':src[src/include/liburing/sanitize.h]',
+        'liburing/io_uring/query.h':   ':src[src/include/liburing/io_uring/query.h]',
+        'liburing.h':                  ':src[src/include/liburing.h]',
     },
     headers = {
         'arch/aarch64/lib.h':     ':src[src/arch/aarch64/lib.h]',
