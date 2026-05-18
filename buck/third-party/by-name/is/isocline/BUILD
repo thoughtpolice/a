@@ -10,12 +10,12 @@ VERSION = pkg.version()
 
 shims.http_archive(
     name = 'src',
-    sha256 = '7d678dd32233bf1c4a576fe3cd788b059c921650650e182441c9465d80d22b11',
+    sha256 = '0a2149aa99bdffc0c430aa4ecfcdc378bd5f98565eef10991475db52b33f607b',
     urls = [
         'https://github.com/daanx/isocline/archive/{}.tar.gz'.format(VERSION.split('g', 1)[1]),
     ],
     type = 'tar.gz',
-    strip_prefix = 'isocline-c9310ae58941559d761fe5d2dd2713d245f18da6',
+    strip_prefix = 'isocline-8d6dc1ef95b1b46711e66eb23d39d4467a0fcdac',
     sub_targets = [
         'include/isocline.h',
 

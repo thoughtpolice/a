@@ -4,14 +4,14 @@
 load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 
 pkg.info(
-    version = "1.0.9+gc9310ae",
+    version = "1.1.0+g8d6dc1e",
     description = """Small, portable alternative to GNU Readline""",
     license = "MIT",
-    copyright = [ "2021-2023 Daan Leijen" ],
+    copyright = [ "2021-2026 Daan Leijen" ],
     visibility = ['PUBLIC'],
 
     osv_info = OsvGitRepoInfo(
         url = "https://github.com/daanx/isocline",
-        commit = "c9310aed7e40b5b2db479b5cf0edc9aec9a96be9",
+        commit = "8d6dc1ef95b1b46711e66eb23d39d4467a0fcdac",
     ),
 )
