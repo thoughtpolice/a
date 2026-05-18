@@ -4,14 +4,14 @@
 load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 
 pkg.info(
-    version = "2.5.0+g7524a6a",
+    version = "2.14.0+ge3d35ea",
     description = """io_uring""",
     license = "MIT",
-    copyright = [ "2020-2023 Jens Axboe" ],
+    copyright = [ "2020-2026 Jens Axboe" ],
     visibility = ['PUBLIC'],
 
     osv_info = OsvGitRepoInfo(
         url = "https://github.com/axboe/liburing",
-        commit = "7524a6a71876ba4d4f59ab6a37a8bfa6b2ec3842",
+        commit = "e3d35ea59d3ba09075ed4d7751e4bb9049cce64a",
     ),
 )
