@@ -4,19 +4,19 @@
 load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 
 pkg.info(
-    version = "0.10.1",
+    version = "0.14.0",
     description = """
         QuickJS-NG is an embeddable Javascript engine forked from QuickJS.
     """,
     license = "MIT",
     copyright = [
         "2017-2021 Fabrice Bellard and Charlie Gordon",
-        "2024 quickjs-ng team",
+        "2024-2026 quickjs-ng team",
     ],
     visibility = ['PUBLIC'],
 
     osv_info = OsvGitRepoInfo(
         url = "https://github.com/quickjs-ng/quickjs",
-        commit = "8ec675d2bf7b0fe8b8fcc5e95c5c58f12b6c6f6d",  # v0.10.1
+        commit = "3c051980ab7e783dfbfb1c70c014ce5e05ecf24c",  # v0.14.0
     ),
 )
