@@ -17,9 +17,9 @@ URL_VERSION = "{major}{minor}{patch}00".format(
 
 shims.http_archive(
     name="src",
-    sha256="67d3fe6d268e6eaddcae3727fce58fcc8e9c53869bdd07a0c61e38ddf2965071",
+    sha256="83e6b2020a034e9a7ad4a72feea59e1ad52f162e09cbd26735a3ffb98359fc4f",
     urls=[
-        f"https://www.sqlite.org/2024/sqlite-autoconf-{URL_VERSION}.tar.gz",
+        f"https://www.sqlite.org/2026/sqlite-autoconf-{URL_VERSION}.tar.gz",
     ],
     type="tar.gz",
     strip_prefix=f"sqlite-autoconf-{URL_VERSION}",
