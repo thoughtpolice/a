@@ -9,7 +9,7 @@ VERSION = pkg.version()
 
 shims.http_archive(
     name="src",
-    sha256="68163666575518c213a6593850099adce3863b340ca2751103dbd1f253664e05",
+    sha256="ca02384e007f46950598500dfaebde5ff9948c1d231f5a81b058799afa64bbbb",
     urls=[
         f"https://github.com/microsoft/mimalloc/archive/refs/tags/v{VERSION}.tar.gz",
     ],
