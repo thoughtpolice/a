@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Without the `bindgen` feature (which we do not enable) io-uring's build script
+# only emits `cargo:rustc-check-cfg` lines for lint hygiene; it has no effect on
+# the compiled output, so there is no need to run it.
+buildscript.run = false

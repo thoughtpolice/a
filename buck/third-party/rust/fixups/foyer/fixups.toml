@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# foyer's build script renders README.md into `$OUT_DIR/foyer-docs.md`, which
+# `src/lib.rs` pulls in via `#![doc = include_str!(...)]`. The crate fails to
+# compile without it, so the build script must run. The script also reads
+# `env!("CARGO_MANIFEST_DIR")` at compile time, so the cargo environment has to
+# be supplied to the build-script binary as well.
+cargo_env = true
+buildscript.run = true

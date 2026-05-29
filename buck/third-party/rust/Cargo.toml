@@ -122,7 +122,7 @@ zstd = "0.13"
 
 dial9-tokio-telemetry = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "845481114793d0d6b8c5d267cc8cdc8ea3b44ded", features = ["cpu-profiling"] }
 
-slatedb = { git = "https://github.com/slatedb/slatedb", rev = "3b97ab519a70f36a258350dd381b6a194b5314c1" }
+slatedb = { git = "https://github.com/slatedb/slatedb", rev = "87c997c4e1dc7d7ad00dac2f57c1f2f4fb135968" }
 
 # NOTE (jj): adjust fixups.toml too
 jj-lib = { git = "https://github.com/martinvonz/jj", rev = "0c24fce22b29732837a00acdb3d43c4a218ac1f1" }
