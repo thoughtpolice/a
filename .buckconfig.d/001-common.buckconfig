@@ -53,10 +53,9 @@ starlark_max_callstack_size = 50
 # starlark_memory_limit() by default if no limit is specified.
 default_starlark_peak_memory = 5242880
 
-# include the execution platform in the configuration hash, so that execution
-# platforms get different hashes from target platforms with identical
-# constraints
-hash_cfg_with_exec_platform = true
+# avoid thundering herd behaviors when batching large amounts of FindMissingBlob
+# requests: https://github.com/facebook/buck2/pull/1330
+deduplicate_get_digests_ttl_calls = true
 
 [buck2_re_client]
 # for larger blobs: set a larger gRPC timeout window so we can upload them in time
