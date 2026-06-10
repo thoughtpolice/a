@@ -131,6 +131,7 @@ jj-cli = { git = "https://github.com/martinvonz/jj", rev = "0c24fce22b29732837a0
 # NOTE (starlark): bump to stable when possible
 starlark        = { git = "https://github.com/facebook/starlark-rust", rev = "469ff502b05594b9b1ec1818753f712996a79d38" }
 starlark_derive = { git = "https://github.com/facebook/starlark-rust", rev = "469ff502b05594b9b1ec1818753f712996a79d38" }
+hegeltest = "0.17.1"
 
 [target.'cfg(unix)'.dependencies]
 

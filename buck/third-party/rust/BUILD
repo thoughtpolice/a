@@ -390,10 +390,10 @@ third_party_rust.rust_library(
     edition = "2021",
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -417,7 +417,7 @@ third_party_rust.rust_library(
     deps = [
         ":anstyle-1.0.14",
         ":once_cell_polyfill-1.70.2",
-        ":windows-sys-0.60.2",
+        ":windows-sys-0.61.2",
     ],
 )
 
@@ -2485,6 +2485,74 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.http_archive(
+    name = "ciborium-0.2.2.crate",
+    sha256 = "42e69ffd6f0917f5c029256a24d0161db17cea3997d185db0d35926308770f0e",
+    strip_prefix = "ciborium-0.2.2",
+    urls = ["https://static.crates.io/crates/ciborium/0.2.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "ciborium-0.2.2",
+    srcs = [":ciborium-0.2.2.crate"],
+    crate = "ciborium",
+    crate_root = "ciborium-0.2.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "std",
+    ],
+    visibility = [],
+    deps = [
+        ":ciborium-io-0.2.2",
+        ":ciborium-ll-0.2.2",
+        ":serde-1.0.228",
+    ],
+)
+
+shims.http_archive(
+    name = "ciborium-io-0.2.2.crate",
+    sha256 = "05afea1e0a06c9be33d539b876f1ce3692f4afea2cb41f740e7743225ed1c757",
+    strip_prefix = "ciborium-io-0.2.2",
+    urls = ["https://static.crates.io/crates/ciborium-io/0.2.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "ciborium-io-0.2.2",
+    srcs = [":ciborium-io-0.2.2.crate"],
+    crate = "ciborium_io",
+    crate_root = "ciborium-io-0.2.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "alloc",
+        "std",
+    ],
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "ciborium-ll-0.2.2.crate",
+    sha256 = "57663b653d948a338bfb3eeba9bb2fd5fcfaecb9e199e87e1eda4d9e8b240fd9",
+    strip_prefix = "ciborium-ll-0.2.2",
+    urls = ["https://static.crates.io/crates/ciborium-ll/0.2.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "ciborium-ll-0.2.2",
+    srcs = [":ciborium-ll-0.2.2.crate"],
+    crate = "ciborium_ll",
+    crate_root = "ciborium-ll-0.2.2.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [
+        ":ciborium-io-0.2.2",
+        ":half-2.7.1",
+    ],
+)
+
 shims.alias(
     name = "clap",
     actual = ":clap-4.6.1",
@@ -3947,6 +4015,49 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "dashu-base-0.4.2.crate",
+    sha256 = "fab3f0756c8585395280bd81b384cd28bbd66d6b00e66124ecfd1f644938b38c",
+    strip_prefix = "dashu-base-0.4.2",
+    urls = ["https://static.crates.io/crates/dashu-base/0.4.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "dashu-base-0.4.2",
+    srcs = [":dashu-base-0.4.2.crate"],
+    crate = "dashu_base",
+    crate_root = "dashu-base-0.4.2.crate/src/lib.rs",
+    edition = "2021",
+    features = ["std"],
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "dashu-int-0.4.2.crate",
+    sha256 = "d6a93d93dc2aca9a071e6ecb2af883441e8b34357a1037bc536e1c52b0d3c713",
+    strip_prefix = "dashu-int-0.4.2",
+    urls = ["https://static.crates.io/crates/dashu-int/0.4.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "dashu-int-0.4.2",
+    srcs = [":dashu-int-0.4.2.crate"],
+    crate = "dashu_int",
+    crate_root = "dashu-int-0.4.2.crate/src/lib.rs",
+    edition = "2021",
+    features = ["std"],
+    visibility = [],
+    deps = [
+        ":cfg-if-1.0.4",
+        ":dashu-base-0.4.2",
+        ":num-modular-0.6.2",
+        ":rustversion-1.0.22",
+        ":static_assertions-1.1.0",
+    ],
+)
+
+shims.http_archive(
     name = "debugserver-types-0.5.0.crate",
     sha256 = "2bf6834a70ed14e8e4e41882df27190bea150f1f6ecf461f1033f8739cd8af4a",
     strip_prefix = "debugserver-types-0.5.0",
@@ -4449,10 +4560,10 @@ third_party_rust.rust_library(
             deps = [":libc-0.2.186"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -8099,6 +8210,27 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "half-2.7.1.crate",
+    sha256 = "6ea2d84b969582b4b1864a92dc5d27cd2b77b622a8d79306834f1be5ba20d84b",
+    strip_prefix = "half-2.7.1",
+    urls = ["https://static.crates.io/crates/half/2.7.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "half-2.7.1",
+    srcs = [":half-2.7.1.crate"],
+    crate = "half",
+    crate_root = "half-2.7.1.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [
+        ":cfg-if-1.0.4",
+        ":zerocopy-0.8.48",
+    ],
+)
+
+shims.http_archive(
     name = "hash32-0.3.1.crate",
     sha256 = "47d60b12902ba28e2730cd37e95b8c9223af2808df9e902d4df49588d1470606",
     strip_prefix = "hash32-0.3.1",
@@ -8336,6 +8468,66 @@ third_party_rust.rust_library(
     crate_root = "heck-0.5.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
+)
+
+shims.alias(
+    name = "hegeltest",
+    actual = ":hegeltest-0.17.1",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "hegeltest-0.17.1.crate",
+    sha256 = "17460a695719ea7d9dfbacc415099d7a78a1acb17780dcb7c4f4ad845e422789",
+    strip_prefix = "hegeltest-0.17.1",
+    urls = ["https://static.crates.io/crates/hegeltest/0.17.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "hegeltest-0.17.1",
+    srcs = [":hegeltest-0.17.1.crate"],
+    crate = "hegel",
+    crate_root = "hegeltest-0.17.1.crate/src/lib.rs",
+    edition = "2024",
+    features = ["default"],
+    visibility = [],
+    deps = [
+        ":ciborium-0.2.2",
+        ":crc32fast-1.5.0",
+        ":dashu-int-0.4.2",
+        ":hegeltest-macros-0.17.1",
+        ":miniz_oxide-0.8.9",
+        ":parking_lot-0.12.5",
+        ":paste-1.0.15",
+        ":rand-0.10.1",
+        ":rustc-hash-2.1.2",
+        ":serde-1.0.228",
+        ":tempfile-3.27.0",
+    ],
+)
+
+shims.http_archive(
+    name = "hegeltest-macros-0.17.1.crate",
+    sha256 = "45213106f9ca7731b7914b34ab1d8c5c2a53d48e7c3d52b0961edafdaa65a6f6",
+    strip_prefix = "hegeltest-macros-0.17.1",
+    urls = ["https://static.crates.io/crates/hegeltest-macros/0.17.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "hegeltest-macros-0.17.1",
+    srcs = [":hegeltest-macros-0.17.1.crate"],
+    crate = "hegel_macros",
+    crate_root = "hegeltest-macros-0.17.1.crate/src/lib.rs",
+    edition = "2024",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1.0.106",
+        ":quote-1.0.45",
+        ":syn-2.0.117",
+    ],
 )
 
 shims.alias(
@@ -9553,10 +9745,10 @@ third_party_rust.rust_library(
             deps = [":libc-0.2.186"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -9725,13 +9917,13 @@ third_party_rust.rust_library(
         "windows-gnu": dict(
             deps = [
                 ":jiff-tzdb-platform-0.1.3",
-                ":windows-sys-0.59.0",
+                ":windows-sys-0.61.2",
             ],
         ),
         "windows-msvc": dict(
             deps = [
                 ":jiff-tzdb-platform-0.1.3",
-                ":windows-sys-0.59.0",
+                ":windows-sys-0.61.2",
             ],
         ),
     },
@@ -11870,6 +12062,7 @@ third_party_rust.rust_library(
     crate_root = "miniz_oxide-0.8.9.crate/src/lib.rs",
     edition = "2021",
     features = [
+        "default",
         "simd",
         "simd-adler32",
         "with-alloc",
@@ -12532,12 +12725,12 @@ third_party_rust.rust_library(
     platform = {
         "windows-gnu": dict(
             named_deps = {
-                "windows": ":windows-sys-0.59.0",
+                "windows": ":windows-sys-0.61.2",
             },
         ),
         "windows-msvc": dict(
             named_deps = {
-                "windows": ":windows-sys-0.59.0",
+                "windows": ":windows-sys-0.61.2",
             },
         ),
     },
@@ -12629,6 +12822,23 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [":num-traits-0.2.19"],
+)
+
+shims.http_archive(
+    name = "num-modular-0.6.2.crate",
+    sha256 = "9545315a0c41a7a32c6694f73ad2e927b8caf67180314d659bcba180a4daaa19",
+    strip_prefix = "num-modular-0.6.2",
+    urls = ["https://static.crates.io/crates/num-modular/0.6.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "num-modular-0.6.2",
+    srcs = [":num-modular-0.6.2.crate"],
+    crate = "num_modular",
+    crate_root = "num-modular-0.6.2.crate/src/lib.rs",
+    edition = "2018",
+    visibility = [],
 )
 
 shims.http_archive(
@@ -18658,10 +18868,10 @@ third_party_rust.rust_library(
             deps = [":libc-0.2.186"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -18771,10 +18981,10 @@ third_party_rust.rust_library(
     },
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -19523,10 +19733,10 @@ third_party_rust.rust_library(
             deps = [":rustix-1.1.4"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -19587,10 +19797,10 @@ third_party_rust.rust_library(
     features = ["default"],
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -19649,10 +19859,10 @@ third_party_rust.rust_library(
             deps = [":rustix-1.1.4"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -22672,7 +22882,7 @@ third_party_rust.rust_library(
     crate_root = "winapi-util-0.1.11.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":windows-sys-0.59.0"],
+    deps = [":windows-sys-0.61.2"],
 )
 
 shims.http_archive(
@@ -23098,22 +23308,17 @@ third_party_rust.rust_library(
     features = [
         "Win32",
         "Win32_Foundation",
-        "Win32_Globalization",
         "Win32_Security",
         "Win32_Storage",
         "Win32_Storage_FileSystem",
         "Win32_System",
-        "Win32_System_Com",
         "Win32_System_Console",
         "Win32_System_Diagnostics",
         "Win32_System_Diagnostics_Debug",
         "Win32_System_IO",
         "Win32_System_Registry",
-        "Win32_System_SystemInformation",
         "Win32_System_SystemServices",
         "Win32_System_Time",
-        "Win32_UI",
-        "Win32_UI_Shell",
         "default",
     ],
     visibility = [],
@@ -23137,15 +23342,11 @@ third_party_rust.rust_library(
     features = [
         "Win32",
         "Win32_Foundation",
-        "Win32_Networking",
-        "Win32_Networking_WinSock",
         "Win32_Security",
         "Win32_Storage",
         "Win32_Storage_FileSystem",
         "Win32_System",
-        "Win32_System_Console",
         "Win32_System_IO",
-        "Win32_System_Memory",
         "Win32_System_Threading",
         "Win32_System_WindowsProgramming",
         "default",
@@ -23177,6 +23378,7 @@ third_party_rust.rust_library(
         "Wdk_System_IO",
         "Win32",
         "Win32_Foundation",
+        "Win32_Globalization",
         "Win32_Networking",
         "Win32_Networking_WinSock",
         "Win32_Security",
@@ -23197,6 +23399,7 @@ third_party_rust.rust_library(
         "Win32_System_SystemInformation",
         "Win32_System_SystemServices",
         "Win32_System_Threading",
+        "Win32_System_Time",
         "Win32_System_WindowsProgramming",
         "Win32_UI",
         "Win32_UI_Input",
@@ -23512,9 +23715,14 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PRE": "",
         "OUT_DIR": "$(location :zerocopy-0.8.48-build-script-run[out_dir])",
     },
-    features = ["simd"],
+    features = [
+        "derive",
+        "simd",
+        "zerocopy-derive",
+    ],
     rustc_flags = ["@$(location :zerocopy-0.8.48-build-script-run[rustc_flags])"],
     visibility = [],
+    deps = [":zerocopy-derive-0.8.48"],
 )
 
 third_party_rust.rust_binary(
@@ -23536,7 +23744,11 @@ third_party_rust.rust_binary(
         "CARGO_PKG_VERSION_PATCH": "48",
         "CARGO_PKG_VERSION_PRE": "",
     },
-    features = ["simd"],
+    features = [
+        "derive",
+        "simd",
+        "zerocopy-derive",
+    ],
     visibility = [],
 )
 
@@ -23553,8 +23765,35 @@ third_party_rust.buildscript_run(
         "CARGO_PKG_VERSION_PATCH": "48",
         "CARGO_PKG_VERSION_PRE": "",
     },
-    features = ["simd"],
+    features = [
+        "derive",
+        "simd",
+        "zerocopy-derive",
+    ],
     version = "0.8.48",
+)
+
+shims.http_archive(
+    name = "zerocopy-derive-0.8.48.crate",
+    sha256 = "70e3cd084b1788766f53af483dd21f93881ff30d7320490ec3ef7526d203bad4",
+    strip_prefix = "zerocopy-derive-0.8.48",
+    urls = ["https://static.crates.io/crates/zerocopy-derive/0.8.48/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "zerocopy-derive-0.8.48",
+    srcs = [":zerocopy-derive-0.8.48.crate"],
+    crate = "zerocopy_derive",
+    crate_root = "zerocopy-derive-0.8.48.crate/src/lib.rs",
+    edition = "2021",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1.0.106",
+        ":quote-1.0.45",
+        ":syn-2.0.117",
+    ],
 )
 
 shims.http_archive(
