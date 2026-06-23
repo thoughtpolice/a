@@ -6,37 +6,34 @@ use jj_cli::{cli_util::CommandHelper, command_error::CommandError, ui::Ui};
 // ---------------------------------------------------------------------------------------------------------------------
 
 #[derive(clap::Subcommand, Clone, Debug)]
-enum DojoCommand {
-    Call(call::CallArgs),
+enum RpcCommand {
     Init(init::InitArgs),
 }
 
 #[derive(clap::Args, Clone, Debug)]
-pub(crate) struct DojoArgs {
+pub(crate) struct RpcArgs {
     #[command(subcommand)]
-    command: DojoCommand,
+    command: RpcCommand,
 }
 
 #[derive(clap::Parser, Clone, Debug)]
-pub(crate) enum DojoSubcommand {
-    /// Use the "dojo" cloud backend.
-    Dojo(DojoArgs),
+pub(crate) enum RpcSubcommand {
+    /// Use the RPC ("cloud") backend, which proxies storage to an HTTP server.
+    Rpc(RpcArgs),
 }
 
-pub(crate) async fn dojo_cmd(
+pub(crate) async fn rpc_cmd(
     ui: &mut Ui,
     command: &CommandHelper,
-    subcmd: DojoSubcommand,
+    subcmd: RpcSubcommand,
 ) -> Result<(), CommandError> {
     match subcmd {
-        DojoSubcommand::Dojo(args) => match args.command {
-            DojoCommand::Call(args) => call::call_cmd(ui, command, args),
-            DojoCommand::Init(args) => init::init_cmd(ui, command, args),
+        RpcSubcommand::Rpc(args) => match args.command {
+            RpcCommand::Init(args) => init::init_cmd(ui, command, args),
         },
     }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-mod call;
 mod init;

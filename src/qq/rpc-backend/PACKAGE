@@ -6,7 +6,7 @@ load("@root//buck/shims:package.bzl", "pkg")
 pkg.info(
     version = "0.0.0",
     description = """
-        Cap'n Proto definitions for the QQ.
+        QQ RPC backend: proxies jj storage traits to an HTTP server.
     """,
     license = "Apache-2.0",
     copyright = [
