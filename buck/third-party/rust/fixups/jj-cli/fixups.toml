@@ -1,5 +1,11 @@
 buildscript.run = false
 
+# mimalloc is only used as the `#[global_allocator]` in jj-cli's `main.rs`, it
+# isn't needed to build the jj_cli crate
+#
+# TODO FIXME (aseipp): fix this upstream with an optional dep
+omit_deps = ["mimalloc"]
+
 [env]
 JJ_VERSION = "0.30.0"
 JJ_DOCS_DIR = "docs/"
