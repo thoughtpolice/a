@@ -84,13 +84,27 @@ quote = "1.0.42"
 rand = "0.8.5"
 ratatui = "0.30"
 rayon = "1.11.0"
-reqwest = { version = "0.12.24", features = ["blocking", "json"] }
+# NOTE (aseipp): reqwest 0.13 flipped `default-tls` to rustls (which pulls
+# ring/aws-lc-rs). We build against BoringSSL, so disable default features and
+# select `native-tls` explicitly; the rest mirrors reqwest's default set.
+reqwest = { version = "0.13.4", default-features = false, features = [
+    "blocking",
+    "json",
+    "native-tls",
+    "charset",
+    "http2",
+    "system-proxy",
+] }
 s3s = "0.12.0"
 salsa = "0.22.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha1 = { version = "0.10", features = ["compress"] }
 sha2 = { version = "0.10", features = ["compress"] }
+# NOTE (aseipp): default features enable `aws`, which drags in object_store/aws
+# -> reqwest/rustls -> ring. cache-server only uses the memory/local backends,
+# so keep just `foyer` (the block cache) and let object_store default to `fs`.
+slatedb = { version = "0.14.1", default-features = false, features = ["foyer"] }
 syn = { version = "2.0.110", features = ["full"] }
 tar = "0.4"
 tempfile = "3.20.0"
@@ -120,9 +134,7 @@ zstd = "0.13"
 
 ## Git repos come below
 
-dial9-tokio-telemetry = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "845481114793d0d6b8c5d267cc8cdc8ea3b44ded", features = ["cpu-profiling"] }
-
-slatedb = { git = "https://github.com/slatedb/slatedb", rev = "87c997c4e1dc7d7ad00dac2f57c1f2f4fb135968" }
+dial9-tokio-telemetry = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "bd7a50c6873173c6d052a839f00f7fc576316a13", features = ["cpu-profiling", "memory-profiling"] }
 
 # NOTE (jj): adjust fixups.toml too
 jj-lib = { git = "https://github.com/martinvonz/jj", rev = "0c24fce22b29732837a00acdb3d43c4a218ac1f1" }

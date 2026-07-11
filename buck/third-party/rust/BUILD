@@ -9,7 +9,7 @@ load("@root//buck/shims:shims.bzl", "shims")
 shims.git_fetch(
     name = "dial9-tokio-telemetry-43aa6b6c06fdd4e0.git",
     repo = "https://github.com/dial9-rs/dial9-tokio-telemetry",
-    rev = "845481114793d0d6b8c5d267cc8cdc8ea3b44ded",
+    rev = "bd7a50c6873173c6d052a839f00f7fc576316a13",
     visibility = [],
 )
 
@@ -17,13 +17,6 @@ shims.git_fetch(
     name = "jj-5d9a3f8a30f872ad.git",
     repo = "https://github.com/martinvonz/jj",
     rev = "0c24fce22b29732837a00acdb3d43c4a218ac1f1",
-    visibility = [],
-)
-
-shims.git_fetch(
-    name = "slatedb-1981661380cef83f.git",
-    repo = "https://github.com/slatedb/slatedb",
-    rev = "87c997c4e1dc7d7ad00dac2f57c1f2f4fb135968",
     visibility = [],
 )
 
@@ -390,10 +383,10 @@ third_party_rust.rust_library(
     edition = "2021",
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -417,7 +410,7 @@ third_party_rust.rust_library(
     deps = [
         ":anstyle-1.0.14",
         ":once_cell_polyfill-1.70.2",
-        ":windows-sys-0.60.2",
+        ":windows-sys-0.61.2",
     ],
 )
 
@@ -4221,47 +4214,97 @@ third_party_rust.rust_library(
 )
 
 third_party_rust.rust_library(
-    name = "dial9-perf-self-profile-0.2.0",
+    name = "dial9-macro-0.3.7",
+    srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
+    crate = "dial9_macro",
+    crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-macro/src/lib.rs",
+    edition = "2024",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1.0.106",
+        ":quote-1.0.45",
+        ":syn-2.0.117",
+    ],
+)
+
+third_party_rust.rust_library(
+    name = "dial9-perf-self-profile-0.4.3",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_perf_self_profile",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/perf-self-profile/src/lib.rs",
     edition = "2024",
+    platform = {
+        "linux-arm64": dict(
+            deps = [
+                ":blazesym-0.2.3",
+                ":crossbeam-utils-0.8.21",
+                ":libc-0.2.186",
+                ":perf-event-data-0.1.8",
+                ":perf-event-open-sys2-5.0.6",
+            ],
+        ),
+        "linux-x86_64": dict(
+            deps = [
+                ":blazesym-0.2.3",
+                ":crossbeam-utils-0.8.21",
+                ":libc-0.2.186",
+                ":perf-event-data-0.1.8",
+                ":perf-event-open-sys2-5.0.6",
+            ],
+        ),
+    },
     visibility = [],
     deps = [
-        ":blazesym-0.2.3",
-        ":dial9-trace-format-0.2.0",
-        ":libc-0.2.186",
-        ":perf-event-data-0.1.8",
-        ":perf-event-open-sys2-5.0.6",
+        ":dial9-trace-format-0.4.1",
         ":tracing-0.1.44",
     ],
 )
 
 shims.alias(
     name = "dial9-tokio-telemetry",
-    actual = ":dial9-tokio-telemetry-0.2.0",
+    actual = ":dial9-tokio-telemetry-0.3.13",
     visibility = ["PUBLIC"],
 )
 
 third_party_rust.rust_library(
-    name = "dial9-tokio-telemetry-0.2.0",
+    name = "dial9-tokio-telemetry-0.3.13",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_tokio_telemetry",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-tokio-telemetry/src/lib.rs",
     edition = "2024",
-    features = ["cpu-profiling"],
+    env = {
+        "CARGO_CRATE_NAME": "dial9_tokio_telemetry",
+        "CARGO_MANIFEST_DIR": "dial9-tokio-telemetry-43aa6b6c06fdd4e0",
+        "CARGO_PKG_AUTHORS": "",
+        "CARGO_PKG_DESCRIPTION": "Low-overhead runtime telemetry for Tokio with poll timing, wake events, and CPU profiling",
+        "CARGO_PKG_NAME": "dial9-tokio-telemetry",
+        "CARGO_PKG_REPOSITORY": "https://github.com/dial9-rs/dial9-tokio-telemetry",
+        "CARGO_PKG_VERSION": "0.3.13",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "3",
+        "CARGO_PKG_VERSION_PATCH": "13",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = [
+        "cpu-profiling",
+        "memory-profiling",
+    ],
     visibility = [],
     deps = [
         ":arc-swap-1.9.1",
         ":bon-3.9.1",
+        ":bytes-1.11.1",
         ":crossbeam-queue-0.3.12",
-        ":dial9-perf-self-profile-0.2.0",
-        ":dial9-trace-format-0.2.0",
+        ":dial9-macro-0.3.7",
+        ":dial9-perf-self-profile-0.4.3",
+        ":dial9-trace-format-0.4.1",
         ":flate2-1.1.9",
         ":futures-util-0.3.32",
         ":hostname-0.4.2",
         ":libc-0.2.186",
         ":metrique-0.1.25",
+        ":metrique-timesource-0.1.9",
         ":metrique-writer-0.1.22",
         ":pin-project-lite-0.2.17",
         ":serde-1.0.228",
@@ -4274,21 +4317,24 @@ third_party_rust.rust_library(
 )
 
 third_party_rust.rust_library(
-    name = "dial9-trace-format-0.2.0",
+    name = "dial9-trace-format-0.4.1",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_trace_format",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-trace-format/src/lib.rs",
     edition = "2024",
-    features = ["serde"],
+    features = [
+        "serde",
+        "serde-deserialize",
+    ],
     visibility = [],
     deps = [
-        ":dial9-trace-format-derive-0.2.0",
+        ":dial9-trace-format-derive-0.4.1",
         ":serde-1.0.228",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "dial9-trace-format-derive-0.2.0",
+    name = "dial9-trace-format-derive-0.4.1",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_trace_format_derive",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-trace-format-derive/src/lib.rs",
@@ -4449,10 +4495,10 @@ third_party_rust.rust_library(
             deps = [":libc-0.2.186"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -8702,41 +8748,6 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "hyper-rustls-0.27.9.crate",
-    sha256 = "33ca68d021ef39cf6463ab54c1d0f5daf03377b70561305bb89a8f83aab66e0f",
-    strip_prefix = "hyper-rustls-0.27.9",
-    urls = ["https://static.crates.io/crates/hyper-rustls/0.27.9/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "hyper-rustls-0.27.9",
-    srcs = [":hyper-rustls-0.27.9.crate"],
-    crate = "hyper_rustls",
-    crate_root = "hyper-rustls-0.27.9.crate/src/lib.rs",
-    edition = "2021",
-    features = [
-        "http1",
-        "http2",
-        "native-tokio",
-        "ring",
-        "rustls-native-certs",
-        "tls12",
-    ],
-    visibility = [],
-    deps = [
-        ":http-1.4.0",
-        ":hyper-1.9.0",
-        ":hyper-util-0.1.20",
-        ":rustls-0.23.40",
-        ":rustls-native-certs-0.8.3",
-        ":tokio-1.52.1",
-        ":tokio-rustls-0.26.4",
-        ":tower-service-0.3.3",
-    ],
-)
-
-shims.http_archive(
     name = "hyper-timeout-0.5.2.crate",
     sha256 = "2b90d566bffbce6a75bd8b09a05aa8c2cb1fabb6cb348f8840c9e4c90a0d83b0",
     strip_prefix = "hyper-timeout-0.5.2",
@@ -8774,6 +8785,7 @@ third_party_rust.rust_library(
     crate = "hyper_tls",
     crate_root = "hyper-tls-0.6.0.crate/src/lib.rs",
     edition = "2018",
+    features = ["alpn"],
     visibility = [],
     deps = [
         ":bytes-1.11.1",
@@ -9553,10 +9565,10 @@ third_party_rust.rust_library(
             deps = [":libc-0.2.186"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -9620,6 +9632,7 @@ third_party_rust.rust_library(
     crate_root = "itertools-0.10.5.crate/src/lib.rs",
     edition = "2018",
     features = [
+        "default",
         "use_alloc",
         "use_std",
     ],
@@ -9663,6 +9676,29 @@ third_party_rust.rust_library(
     srcs = [":itertools-0.14.0.crate"],
     crate = "itertools",
     crate_root = "itertools-0.14.0.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "default",
+        "use_alloc",
+        "use_std",
+    ],
+    visibility = [],
+    deps = [":either-1.15.0"],
+)
+
+shims.http_archive(
+    name = "itertools-0.15.0.crate",
+    sha256 = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc",
+    strip_prefix = "itertools-0.15.0",
+    urls = ["https://static.crates.io/crates/itertools/0.15.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "itertools-0.15.0",
+    srcs = [":itertools-0.15.0.crate"],
+    crate = "itertools",
+    crate_root = "itertools-0.15.0.crate/src/lib.rs",
     edition = "2018",
     features = [
         "default",
@@ -9725,13 +9761,13 @@ third_party_rust.rust_library(
         "windows-gnu": dict(
             deps = [
                 ":jiff-tzdb-platform-0.1.3",
-                ":windows-sys-0.59.0",
+                ":windows-sys-0.61.2",
             ],
         ),
         "windows-msvc": dict(
             deps = [
                 ":jiff-tzdb-platform-0.1.3",
-                ":windows-sys-0.59.0",
+                ":windows-sys-0.61.2",
             ],
         ),
     },
@@ -11234,27 +11270,6 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "md-5-0.10.6.crate",
-    sha256 = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf",
-    strip_prefix = "md-5-0.10.6",
-    urls = ["https://static.crates.io/crates/md-5/0.10.6/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "md-5-0.10.6",
-    srcs = [":md-5-0.10.6.crate"],
-    crate = "md5",
-    crate_root = "md-5-0.10.6.crate/src/lib.rs",
-    edition = "2018",
-    visibility = [],
-    deps = [
-        ":cfg-if-1.0.4",
-        ":digest-0.10.7",
-    ],
-)
-
-shims.http_archive(
     name = "md-5-0.11.0-rc.3.crate",
     sha256 = "64dd2c9099caf8e29b629305199dddb1c6d981562b62c089afea54b0b4b5c333",
     strip_prefix = "md-5-0.11.0-rc.3",
@@ -12030,7 +12045,10 @@ third_party_rust.rust_library(
     crate = "native_tls",
     crate_root = "native-tls-0.2.18.crate/src/lib.rs",
     edition = "2021",
-    features = ["default"],
+    features = [
+        "alpn",
+        "default",
+    ],
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -12532,12 +12550,12 @@ third_party_rust.rust_library(
     platform = {
         "windows-gnu": dict(
             named_deps = {
-                "windows": ":windows-sys-0.59.0",
+                "windows": ":windows-sys-0.61.2",
             },
         ),
         "windows-msvc": dict(
             named_deps = {
-                "windows": ":windows-sys-0.59.0",
+                "windows": ":windows-sys-0.61.2",
             },
         ),
     },
@@ -12902,76 +12920,72 @@ third_party_rust.buildscript_run(
 )
 
 shims.http_archive(
-    name = "object_store-0.13.2.crate",
-    sha256 = "622acbc9100d3c10e2ee15804b0caa40e55c933d5aa53814cd520805b7958a49",
-    strip_prefix = "object_store-0.13.2",
-    urls = ["https://static.crates.io/crates/object_store/0.13.2/download"],
+    name = "object_store-0.14.0.crate",
+    sha256 = "765784b4390c6bcf80316e5a22f4e3661b639c9d8c83246856643c27d8ce9dbe",
+    strip_prefix = "object_store-0.14.0",
+    urls = ["https://static.crates.io/crates/object_store/0.14.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "object_store-0.13.2",
-    srcs = [":object_store-0.13.2.crate"],
+    name = "object_store-0.14.0",
+    srcs = [":object_store-0.14.0.crate"],
     crate = "object_store",
-    crate_root = "object_store-0.13.2.crate/src/lib.rs",
+    crate_root = "object_store-0.14.0.crate/src/lib.rs",
     edition = "2024",
     env = {
         "CARGO_CRATE_NAME": "object_store",
-        "CARGO_MANIFEST_DIR": "object_store-0.13.2.crate",
+        "CARGO_MANIFEST_DIR": "object_store-0.14.0.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "A generic object store interface for uniformly interacting with AWS S3, Google Cloud Storage, Azure Blob Storage and local files.",
         "CARGO_PKG_NAME": "object_store",
         "CARGO_PKG_REPOSITORY": "https://github.com/apache/arrow-rs-object-store",
-        "CARGO_PKG_VERSION": "0.13.2",
+        "CARGO_PKG_VERSION": "0.14.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "13",
-        "CARGO_PKG_VERSION_PATCH": "2",
+        "CARGO_PKG_VERSION_MINOR": "14",
+        "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
-        "aws",
-        "base64",
-        "cloud",
         "default",
-        "form_urlencoded",
         "fs",
-        "http-body-util",
-        "hyper",
-        "md-5",
-        "quick-xml",
-        "rand",
-        "reqwest",
-        "ring",
-        "serde",
-        "serde_json",
-        "serde_urlencoded",
+        "nix",
         "tokio",
         "walkdir",
+        "windows-sys",
     ],
+    platform = {
+        "linux-arm64": dict(
+            deps = [":nix-0.31.2"],
+        ),
+        "linux-x86_64": dict(
+            deps = [":nix-0.31.2"],
+        ),
+        "macos-arm64": dict(
+            deps = [":nix-0.31.2"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":nix-0.31.2"],
+        ),
+        "windows-gnu": dict(
+            deps = [":windows-sys-0.61.2"],
+        ),
+        "windows-msvc": dict(
+            deps = [":windows-sys-0.61.2"],
+        ),
+    },
     visibility = [],
     deps = [
         ":async-trait-0.1.89",
-        ":base64-0.22.1",
         ":bytes-1.11.1",
         ":chrono-0.4.44",
-        ":form_urlencoded-1.2.2",
         ":futures-core-0.3.32",
         ":futures-util-0.3.32",
         ":http-1.4.0",
-        ":http-body-util-0.1.3",
         ":humantime-2.3.0",
-        ":hyper-1.9.0",
-        ":itertools-0.14.0",
-        ":md-5-0.10.6",
+        ":itertools-0.15.0",
         ":parking_lot-0.12.5",
         ":percent-encoding-2.3.2",
-        ":quick-xml-0.39.4",
-        ":rand-0.10.1",
-        ":reqwest-0.12.28",
-        ":ring-0.17.14",
-        ":serde-1.0.228",
-        ":serde_json-1.0.149",
-        ":serde_urlencoded-0.7.1",
         ":thiserror-2.0.18",
         ":tokio-1.52.1",
         ":tracing-0.1.44",
@@ -14640,7 +14654,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":heck-0.5.0",
-        ":itertools-0.14.0",
+        ":itertools-0.10.5",
         ":log-0.4.29",
         ":multimap-0.10.1",
         ":petgraph-0.8.3",
@@ -14673,7 +14687,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":anyhow-1.0.102",
-        ":itertools-0.14.0",
+        ":itertools-0.10.5",
         ":proc-macro2-1.0.106",
         ":quote-1.0.45",
         ":syn-2.0.117",
@@ -14944,33 +14958,6 @@ third_party_rust.rust_library(
     edition = "2021",
     features = [
         "default",
-        "serde",
-        "serialize",
-    ],
-    visibility = [],
-    deps = [
-        ":memchr-2.8.0",
-        ":serde-1.0.228",
-    ],
-)
-
-shims.http_archive(
-    name = "quick-xml-0.39.4.crate",
-    sha256 = "cdcc8dd4e2f670d309a5f0e83fe36dfdc05af317008fea29144da1a2ac858e5e",
-    strip_prefix = "quick-xml-0.39.4",
-    urls = ["https://static.crates.io/crates/quick-xml/0.39.4/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "quick-xml-0.39.4",
-    srcs = [":quick-xml-0.39.4.crate"],
-    crate = "quick_xml",
-    crate_root = "quick-xml-0.39.4.crate/src/lib.rs",
-    edition = "2021",
-    features = [
-        "default",
-        "overlapped-lists",
         "serde",
         "serialize",
     ],
@@ -15896,12 +15883,6 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
-shims.alias(
-    name = "reqwest",
-    actual = ":reqwest-0.12.28",
-    visibility = ["PUBLIC"],
-)
-
 shims.http_archive(
     name = "reqwest-0.12.28.crate",
     sha256 = "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147",
@@ -15916,20 +15897,62 @@ third_party_rust.rust_library(
     crate = "reqwest",
     crate_root = "reqwest-0.12.28.crate/src/lib.rs",
     edition = "2021",
+    features = ["blocking"],
+    visibility = [],
+    deps = [
+        ":base64-0.22.1",
+        ":bytes-1.11.1",
+        ":futures-channel-0.3.32",
+        ":futures-core-0.3.32",
+        ":futures-util-0.3.32",
+        ":http-1.4.0",
+        ":http-body-1.0.1",
+        ":http-body-util-0.1.3",
+        ":hyper-1.9.0",
+        ":hyper-util-0.1.20",
+        ":log-0.4.29",
+        ":percent-encoding-2.3.2",
+        ":pin-project-lite-0.2.17",
+        ":serde-1.0.228",
+        ":serde_urlencoded-0.7.1",
+        ":sync_wrapper-1.0.2",
+        ":tokio-1.52.1",
+        ":tower-0.5.3",
+        ":tower-http-0.6.8",
+        ":tower-service-0.3.3",
+        ":url-2.5.8",
+    ],
+)
+
+shims.alias(
+    name = "reqwest",
+    actual = ":reqwest-0.13.4",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "reqwest-0.13.4.crate",
+    sha256 = "219c5811de6525e5416c7d5d53bb656d3afdbc6c5af816e0802bcfa42dbdc1c3",
+    strip_prefix = "reqwest-0.13.4",
+    urls = ["https://static.crates.io/crates/reqwest/0.13.4/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "reqwest-0.13.4",
+    srcs = [":reqwest-0.13.4.crate"],
+    crate = "reqwest",
+    crate_root = "reqwest-0.13.4.crate/src/lib.rs",
+    edition = "2021",
     features = [
-        "__rustls",
-        "__rustls-ring",
+        "__native-tls",
+        "__native-tls-alpn",
         "__tls",
         "blocking",
         "charset",
-        "default",
-        "default-tls",
-        "h2",
         "http2",
         "json",
-        "rustls-tls-native-roots",
-        "rustls-tls-native-roots-no-provider",
-        "stream",
+        "native-tls",
         "system-proxy",
     ],
     named_deps = {
@@ -15948,469 +15971,23 @@ third_party_rust.rust_library(
         ":http-body-1.0.1",
         ":http-body-util-0.1.3",
         ":hyper-1.9.0",
-        ":hyper-rustls-0.27.9",
         ":hyper-tls-0.6.0",
         ":hyper-util-0.1.20",
         ":log-0.4.29",
         ":mime-0.3.17",
         ":percent-encoding-2.3.2",
         ":pin-project-lite-0.2.17",
-        ":rustls-0.23.40",
-        ":rustls-native-certs-0.8.3",
         ":rustls-pki-types-1.14.1",
         ":serde-1.0.228",
         ":serde_json-1.0.149",
-        ":serde_urlencoded-0.7.1",
         ":sync_wrapper-1.0.2",
         ":tokio-1.52.1",
         ":tokio-native-tls-0.3.1",
-        ":tokio-rustls-0.26.4",
-        ":tokio-util-0.7.18",
         ":tower-0.5.3",
         ":tower-http-0.6.8",
         ":tower-service-0.3.3",
         ":url-2.5.8",
     ],
-)
-
-shims.http_archive(
-    name = "ring-0.17.14.crate",
-    sha256 = "a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7",
-    strip_prefix = "ring-0.17.14",
-    sub_targets = [
-        "crypto/constant_time_test.c",
-        "crypto/cpu_intel.c",
-        "crypto/crypto.c",
-        "crypto/curve25519/curve25519.c",
-        "crypto/curve25519/curve25519_64_adx.c",
-        "crypto/curve25519/curve25519_tables.h",
-        "crypto/curve25519/internal.h",
-        "crypto/fipsmodule/aes/aes_nohw.c",
-        "crypto/fipsmodule/bn/internal.h",
-        "crypto/fipsmodule/bn/montgomery.c",
-        "crypto/fipsmodule/bn/montgomery_inv.c",
-        "crypto/fipsmodule/ec/ecp_nistz.c",
-        "crypto/fipsmodule/ec/ecp_nistz.h",
-        "crypto/fipsmodule/ec/ecp_nistz384.h",
-        "crypto/fipsmodule/ec/ecp_nistz384.inl",
-        "crypto/fipsmodule/ec/gfp_p256.c",
-        "crypto/fipsmodule/ec/gfp_p384.c",
-        "crypto/fipsmodule/ec/p256.c",
-        "crypto/fipsmodule/ec/p256-nistz.c",
-        "crypto/fipsmodule/ec/p256-nistz.h",
-        "crypto/fipsmodule/ec/p256-nistz-table.h",
-        "crypto/fipsmodule/ec/p256_shared.h",
-        "crypto/fipsmodule/ec/p256_table.h",
-        "crypto/fipsmodule/ec/util.h",
-        "crypto/internal.h",
-        "crypto/limbs/limbs.c",
-        "crypto/limbs/limbs.h",
-        "crypto/limbs/limbs.inl",
-        "crypto/mem.c",
-        "crypto/poly1305/poly1305.c",
-        "crypto/poly1305/poly1305_arm.c",
-        "include/ring-core/aes.h",
-        "include/ring-core/asm_base.h",
-        "include/ring-core/base.h",
-        "include/ring-core/check.h",
-        "include/ring-core/mem.h",
-        "include/ring-core/target.h",
-        "include/ring-core/type_check.h",
-        "pregenerated/aes-gcm-avx2-x86_64-elf.S",
-        "pregenerated/aes-gcm-avx2-x86_64-macosx.S",
-        "pregenerated/aesni-gcm-x86_64-elf.S",
-        "pregenerated/aesni-gcm-x86_64-macosx.S",
-        "pregenerated/aesni-x86_64-elf.S",
-        "pregenerated/aesni-x86_64-macosx.S",
-        "pregenerated/aesv8-armx-ios64.S",
-        "pregenerated/aesv8-armx-linux64.S",
-        "pregenerated/aesv8-gcm-armv8-ios64.S",
-        "pregenerated/aesv8-gcm-armv8-linux64.S",
-        "pregenerated/armv8-mont-ios64.S",
-        "pregenerated/armv8-mont-linux64.S",
-        "pregenerated/chacha-armv8-ios64.S",
-        "pregenerated/chacha-armv8-linux64.S",
-        "pregenerated/chacha-x86_64-elf.S",
-        "pregenerated/chacha-x86_64-macosx.S",
-        "pregenerated/chacha20_poly1305_armv8-ios64.S",
-        "pregenerated/chacha20_poly1305_armv8-linux64.S",
-        "pregenerated/chacha20_poly1305_x86_64-elf.S",
-        "pregenerated/chacha20_poly1305_x86_64-macosx.S",
-        "pregenerated/ghash-neon-armv8-ios64.S",
-        "pregenerated/ghash-neon-armv8-linux64.S",
-        "pregenerated/ghash-x86_64-elf.S",
-        "pregenerated/ghash-x86_64-macosx.S",
-        "pregenerated/ghashv8-armx-ios64.S",
-        "pregenerated/ghashv8-armx-linux64.S",
-        "pregenerated/p256-armv8-asm-ios64.S",
-        "pregenerated/p256-armv8-asm-linux64.S",
-        "pregenerated/p256-x86_64-asm-elf.S",
-        "pregenerated/p256-x86_64-asm-macosx.S",
-        "pregenerated/sha256-armv8-ios64.S",
-        "pregenerated/sha256-armv8-linux64.S",
-        "pregenerated/sha256-x86_64-elf.S",
-        "pregenerated/sha256-x86_64-macosx.S",
-        "pregenerated/sha512-armv8-ios64.S",
-        "pregenerated/sha512-armv8-linux64.S",
-        "pregenerated/sha512-x86_64-elf.S",
-        "pregenerated/sha512-x86_64-macosx.S",
-        "pregenerated/vpaes-armv8-ios64.S",
-        "pregenerated/vpaes-armv8-linux64.S",
-        "pregenerated/vpaes-x86_64-elf.S",
-        "pregenerated/vpaes-x86_64-macosx.S",
-        "pregenerated/x86_64-mont-elf.S",
-        "pregenerated/x86_64-mont-macosx.S",
-        "pregenerated/x86_64-mont5-elf.S",
-        "pregenerated/x86_64-mont5-macosx.S",
-        "third_party/fiat/asm/fiat_curve25519_adx_mul.S",
-        "third_party/fiat/asm/fiat_curve25519_adx_square.S",
-        "third_party/fiat/curve25519_32.h",
-        "third_party/fiat/curve25519_64.h",
-        "third_party/fiat/curve25519_64_adx.h",
-        "third_party/fiat/curve25519_64_msvc.h",
-        "third_party/fiat/p256_32.h",
-        "third_party/fiat/p256_64.h",
-        "third_party/fiat/p256_64_msvc.h",
-    ],
-    urls = ["https://static.crates.io/crates/ring/0.17.14/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "ring-0.17.14",
-    srcs = [":ring-0.17.14.crate"],
-    crate = "ring",
-    crate_root = "ring-0.17.14.crate/src/lib.rs",
-    edition = "2021",
-    env = {
-        "CARGO_CRATE_NAME": "ring",
-        "CARGO_MANIFEST_DIR": "ring-0.17.14.crate",
-        "CARGO_PKG_AUTHORS": "",
-        "CARGO_PKG_DESCRIPTION": "An experiment.",
-        "CARGO_PKG_NAME": "ring",
-        "CARGO_PKG_REPOSITORY": "https://github.com/briansmith/ring",
-        "CARGO_PKG_VERSION": "0.17.14",
-        "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "17",
-        "CARGO_PKG_VERSION_PATCH": "14",
-        "CARGO_PKG_VERSION_PRE": "",
-    },
-    features = [
-        "alloc",
-        "default",
-        "dev_urandom_fallback",
-        "std",
-    ],
-    platform = {
-        "linux-arm64": dict(
-            deps = [
-                ":libc-0.2.186",
-                ":ring-0.17.14-ring-c-asm-elf-aarch64",
-            ],
-        ),
-        "linux-x86_64": dict(
-            deps = [":ring-0.17.14-ring-c-asm-elf-x86_64"],
-        ),
-        "macos-arm64": dict(
-            deps = [
-                ":libc-0.2.186",
-                ":ring-0.17.14-ring-c-asm-macos-arm64",
-            ],
-        ),
-        "macos-x86_64": dict(
-            deps = [":ring-0.17.14-ring-c-asm-macos-x86_64"],
-        ),
-    },
-    visibility = [],
-    deps = [
-        ":cfg-if-1.0.4",
-        ":getrandom-0.2.17",
-        ":untrusted-0.9.0",
-    ],
-)
-
-third_party_rust.cxx_library(
-    name = "ring-0.17.14-ring-c-asm-elf-aarch64",
-    srcs = [
-        ":ring-0.17.14.crate[crypto/constant_time_test.c]",
-        ":ring-0.17.14.crate[crypto/crypto.c]",
-        ":ring-0.17.14.crate[crypto/curve25519/curve25519.c]",
-        ":ring-0.17.14.crate[crypto/curve25519/curve25519_64_adx.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/aes/aes_nohw.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/bn/montgomery.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/bn/montgomery_inv.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/gfp_p256.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/gfp_p384.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256-nistz.c]",
-        ":ring-0.17.14.crate[crypto/limbs/limbs.c]",
-        ":ring-0.17.14.crate[crypto/mem.c]",
-        ":ring-0.17.14.crate[crypto/poly1305/poly1305.c]",
-        ":ring-0.17.14.crate[crypto/poly1305/poly1305_arm.c]",
-        ":ring-0.17.14.crate[pregenerated/aesv8-armx-linux64.S]",
-        ":ring-0.17.14.crate[pregenerated/aesv8-gcm-armv8-linux64.S]",
-        ":ring-0.17.14.crate[pregenerated/armv8-mont-linux64.S]",
-        ":ring-0.17.14.crate[pregenerated/chacha-armv8-linux64.S]",
-        ":ring-0.17.14.crate[pregenerated/chacha20_poly1305_armv8-linux64.S]",
-        ":ring-0.17.14.crate[pregenerated/ghash-neon-armv8-linux64.S]",
-        ":ring-0.17.14.crate[pregenerated/ghashv8-armx-linux64.S]",
-        ":ring-0.17.14.crate[pregenerated/p256-armv8-asm-linux64.S]",
-        ":ring-0.17.14.crate[pregenerated/sha256-armv8-linux64.S]",
-        ":ring-0.17.14.crate[pregenerated/sha512-armv8-linux64.S]",
-        ":ring-0.17.14.crate[pregenerated/vpaes-armv8-linux64.S]",
-    ],
-    headers = [
-        ":ring-0.17.14.crate[crypto/curve25519/curve25519_tables.h]",
-        ":ring-0.17.14.crate[crypto/curve25519/internal.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/bn/internal.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz384.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz384.inl]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256-nistz.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256-nistz-table.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256_shared.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256_table.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/util.h]",
-        ":ring-0.17.14.crate[crypto/internal.h]",
-        ":ring-0.17.14.crate[crypto/limbs/limbs.h]",
-        ":ring-0.17.14.crate[crypto/limbs/limbs.inl]",
-        ":ring-0.17.14.crate[include/ring-core/aes.h]",
-        ":ring-0.17.14.crate[include/ring-core/asm_base.h]",
-        ":ring-0.17.14.crate[include/ring-core/base.h]",
-        ":ring-0.17.14.crate[include/ring-core/check.h]",
-        ":ring-0.17.14.crate[include/ring-core/mem.h]",
-        ":ring-0.17.14.crate[include/ring-core/target.h]",
-        ":ring-0.17.14.crate[include/ring-core/type_check.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_32.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_64.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_64_adx.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_64_msvc.h]",
-        ":ring-0.17.14.crate[third_party/fiat/p256_32.h]",
-        ":ring-0.17.14.crate[third_party/fiat/p256_64.h]",
-        ":ring-0.17.14.crate[third_party/fiat/p256_64_msvc.h]",
-        "fixups/ring/include/ring_core_generated/prefix_symbols.h",
-        "fixups/ring/include/ring_core_generated/prefix_symbols_asm.h",
-    ],
-    compiler_flags = ["-Wno-error"],
-    include_directories = ["fixups/ring/include"],
-    preprocessor_flags = ["-I$(location :ring-0.17.14.crate)/include"],
-    visibility = [],
-)
-
-third_party_rust.cxx_library(
-    name = "ring-0.17.14-ring-c-asm-elf-x86_64",
-    srcs = [
-        ":ring-0.17.14.crate[crypto/constant_time_test.c]",
-        ":ring-0.17.14.crate[crypto/cpu_intel.c]",
-        ":ring-0.17.14.crate[crypto/crypto.c]",
-        ":ring-0.17.14.crate[crypto/curve25519/curve25519.c]",
-        ":ring-0.17.14.crate[crypto/curve25519/curve25519_64_adx.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/aes/aes_nohw.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/bn/montgomery.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/bn/montgomery_inv.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/gfp_p256.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/gfp_p384.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256-nistz.c]",
-        ":ring-0.17.14.crate[crypto/limbs/limbs.c]",
-        ":ring-0.17.14.crate[crypto/mem.c]",
-        ":ring-0.17.14.crate[crypto/poly1305/poly1305.c]",
-        ":ring-0.17.14.crate[crypto/poly1305/poly1305_arm.c]",
-        ":ring-0.17.14.crate[pregenerated/aes-gcm-avx2-x86_64-elf.S]",
-        ":ring-0.17.14.crate[pregenerated/aesni-gcm-x86_64-elf.S]",
-        ":ring-0.17.14.crate[pregenerated/aesni-x86_64-elf.S]",
-        ":ring-0.17.14.crate[pregenerated/chacha-x86_64-elf.S]",
-        ":ring-0.17.14.crate[pregenerated/chacha20_poly1305_x86_64-elf.S]",
-        ":ring-0.17.14.crate[pregenerated/ghash-x86_64-elf.S]",
-        ":ring-0.17.14.crate[pregenerated/p256-x86_64-asm-elf.S]",
-        ":ring-0.17.14.crate[pregenerated/sha256-x86_64-elf.S]",
-        ":ring-0.17.14.crate[pregenerated/sha512-x86_64-elf.S]",
-        ":ring-0.17.14.crate[pregenerated/vpaes-x86_64-elf.S]",
-        ":ring-0.17.14.crate[pregenerated/x86_64-mont-elf.S]",
-        ":ring-0.17.14.crate[pregenerated/x86_64-mont5-elf.S]",
-        ":ring-0.17.14.crate[third_party/fiat/asm/fiat_curve25519_adx_mul.S]",
-        ":ring-0.17.14.crate[third_party/fiat/asm/fiat_curve25519_adx_square.S]",
-    ],
-    headers = [
-        ":ring-0.17.14.crate[crypto/curve25519/curve25519_tables.h]",
-        ":ring-0.17.14.crate[crypto/curve25519/internal.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/bn/internal.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz384.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz384.inl]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256-nistz.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256-nistz-table.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256_shared.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256_table.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/util.h]",
-        ":ring-0.17.14.crate[crypto/internal.h]",
-        ":ring-0.17.14.crate[crypto/limbs/limbs.h]",
-        ":ring-0.17.14.crate[crypto/limbs/limbs.inl]",
-        ":ring-0.17.14.crate[include/ring-core/aes.h]",
-        ":ring-0.17.14.crate[include/ring-core/asm_base.h]",
-        ":ring-0.17.14.crate[include/ring-core/base.h]",
-        ":ring-0.17.14.crate[include/ring-core/check.h]",
-        ":ring-0.17.14.crate[include/ring-core/mem.h]",
-        ":ring-0.17.14.crate[include/ring-core/target.h]",
-        ":ring-0.17.14.crate[include/ring-core/type_check.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_32.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_64.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_64_adx.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_64_msvc.h]",
-        ":ring-0.17.14.crate[third_party/fiat/p256_32.h]",
-        ":ring-0.17.14.crate[third_party/fiat/p256_64.h]",
-        ":ring-0.17.14.crate[third_party/fiat/p256_64_msvc.h]",
-        "fixups/ring/include/ring_core_generated/prefix_symbols.h",
-        "fixups/ring/include/ring_core_generated/prefix_symbols_asm.h",
-    ],
-    compiler_flags = ["-Wno-error"],
-    include_directories = ["fixups/ring/include"],
-    preprocessor_flags = ["-I$(location :ring-0.17.14.crate)/include"],
-    visibility = [],
-)
-
-third_party_rust.cxx_library(
-    name = "ring-0.17.14-ring-c-asm-macos-arm64",
-    srcs = [
-        ":ring-0.17.14.crate[crypto/constant_time_test.c]",
-        ":ring-0.17.14.crate[crypto/crypto.c]",
-        ":ring-0.17.14.crate[crypto/curve25519/curve25519.c]",
-        ":ring-0.17.14.crate[crypto/curve25519/curve25519_64_adx.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/aes/aes_nohw.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/bn/montgomery.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/bn/montgomery_inv.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/gfp_p256.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/gfp_p384.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256-nistz.c]",
-        ":ring-0.17.14.crate[crypto/limbs/limbs.c]",
-        ":ring-0.17.14.crate[crypto/mem.c]",
-        ":ring-0.17.14.crate[crypto/poly1305/poly1305.c]",
-        ":ring-0.17.14.crate[crypto/poly1305/poly1305_arm.c]",
-        ":ring-0.17.14.crate[pregenerated/aesv8-armx-ios64.S]",
-        ":ring-0.17.14.crate[pregenerated/aesv8-gcm-armv8-ios64.S]",
-        ":ring-0.17.14.crate[pregenerated/armv8-mont-ios64.S]",
-        ":ring-0.17.14.crate[pregenerated/chacha-armv8-ios64.S]",
-        ":ring-0.17.14.crate[pregenerated/chacha20_poly1305_armv8-ios64.S]",
-        ":ring-0.17.14.crate[pregenerated/ghash-neon-armv8-ios64.S]",
-        ":ring-0.17.14.crate[pregenerated/ghashv8-armx-ios64.S]",
-        ":ring-0.17.14.crate[pregenerated/p256-armv8-asm-ios64.S]",
-        ":ring-0.17.14.crate[pregenerated/sha256-armv8-ios64.S]",
-        ":ring-0.17.14.crate[pregenerated/sha512-armv8-ios64.S]",
-        ":ring-0.17.14.crate[pregenerated/vpaes-armv8-ios64.S]",
-    ],
-    headers = [
-        ":ring-0.17.14.crate[crypto/curve25519/curve25519_tables.h]",
-        ":ring-0.17.14.crate[crypto/curve25519/internal.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/bn/internal.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz384.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz384.inl]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256-nistz.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256-nistz-table.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256_shared.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256_table.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/util.h]",
-        ":ring-0.17.14.crate[crypto/internal.h]",
-        ":ring-0.17.14.crate[crypto/limbs/limbs.h]",
-        ":ring-0.17.14.crate[crypto/limbs/limbs.inl]",
-        ":ring-0.17.14.crate[include/ring-core/aes.h]",
-        ":ring-0.17.14.crate[include/ring-core/asm_base.h]",
-        ":ring-0.17.14.crate[include/ring-core/base.h]",
-        ":ring-0.17.14.crate[include/ring-core/check.h]",
-        ":ring-0.17.14.crate[include/ring-core/mem.h]",
-        ":ring-0.17.14.crate[include/ring-core/target.h]",
-        ":ring-0.17.14.crate[include/ring-core/type_check.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_32.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_64.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_64_adx.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_64_msvc.h]",
-        ":ring-0.17.14.crate[third_party/fiat/p256_32.h]",
-        ":ring-0.17.14.crate[third_party/fiat/p256_64.h]",
-        ":ring-0.17.14.crate[third_party/fiat/p256_64_msvc.h]",
-        "fixups/ring/include/ring_core_generated/prefix_symbols.h",
-        "fixups/ring/include/ring_core_generated/prefix_symbols_asm.h",
-    ],
-    compiler_flags = ["-Wno-error"],
-    include_directories = ["fixups/ring/include"],
-    preprocessor_flags = ["-I$(location :ring-0.17.14.crate)/include"],
-    visibility = [],
-)
-
-third_party_rust.cxx_library(
-    name = "ring-0.17.14-ring-c-asm-macos-x86_64",
-    srcs = [
-        ":ring-0.17.14.crate[crypto/constant_time_test.c]",
-        ":ring-0.17.14.crate[crypto/cpu_intel.c]",
-        ":ring-0.17.14.crate[crypto/crypto.c]",
-        ":ring-0.17.14.crate[crypto/curve25519/curve25519.c]",
-        ":ring-0.17.14.crate[crypto/curve25519/curve25519_64_adx.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/aes/aes_nohw.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/bn/montgomery.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/bn/montgomery_inv.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/gfp_p256.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/gfp_p384.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256.c]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256-nistz.c]",
-        ":ring-0.17.14.crate[crypto/limbs/limbs.c]",
-        ":ring-0.17.14.crate[crypto/mem.c]",
-        ":ring-0.17.14.crate[crypto/poly1305/poly1305.c]",
-        ":ring-0.17.14.crate[crypto/poly1305/poly1305_arm.c]",
-        ":ring-0.17.14.crate[pregenerated/aes-gcm-avx2-x86_64-macosx.S]",
-        ":ring-0.17.14.crate[pregenerated/aesni-gcm-x86_64-macosx.S]",
-        ":ring-0.17.14.crate[pregenerated/aesni-x86_64-macosx.S]",
-        ":ring-0.17.14.crate[pregenerated/chacha-x86_64-macosx.S]",
-        ":ring-0.17.14.crate[pregenerated/chacha20_poly1305_x86_64-macosx.S]",
-        ":ring-0.17.14.crate[pregenerated/ghash-x86_64-macosx.S]",
-        ":ring-0.17.14.crate[pregenerated/p256-x86_64-asm-macosx.S]",
-        ":ring-0.17.14.crate[pregenerated/sha256-x86_64-macosx.S]",
-        ":ring-0.17.14.crate[pregenerated/sha512-x86_64-macosx.S]",
-        ":ring-0.17.14.crate[pregenerated/vpaes-x86_64-macosx.S]",
-        ":ring-0.17.14.crate[pregenerated/x86_64-mont-macosx.S]",
-        ":ring-0.17.14.crate[pregenerated/x86_64-mont5-macosx.S]",
-        ":ring-0.17.14.crate[third_party/fiat/asm/fiat_curve25519_adx_mul.S]",
-        ":ring-0.17.14.crate[third_party/fiat/asm/fiat_curve25519_adx_square.S]",
-    ],
-    headers = [
-        ":ring-0.17.14.crate[crypto/curve25519/curve25519_tables.h]",
-        ":ring-0.17.14.crate[crypto/curve25519/internal.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/bn/internal.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz384.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/ecp_nistz384.inl]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256-nistz.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256-nistz-table.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256_shared.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/p256_table.h]",
-        ":ring-0.17.14.crate[crypto/fipsmodule/ec/util.h]",
-        ":ring-0.17.14.crate[crypto/internal.h]",
-        ":ring-0.17.14.crate[crypto/limbs/limbs.h]",
-        ":ring-0.17.14.crate[crypto/limbs/limbs.inl]",
-        ":ring-0.17.14.crate[include/ring-core/aes.h]",
-        ":ring-0.17.14.crate[include/ring-core/asm_base.h]",
-        ":ring-0.17.14.crate[include/ring-core/base.h]",
-        ":ring-0.17.14.crate[include/ring-core/check.h]",
-        ":ring-0.17.14.crate[include/ring-core/mem.h]",
-        ":ring-0.17.14.crate[include/ring-core/target.h]",
-        ":ring-0.17.14.crate[include/ring-core/type_check.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_32.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_64.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_64_adx.h]",
-        ":ring-0.17.14.crate[third_party/fiat/curve25519_64_msvc.h]",
-        ":ring-0.17.14.crate[third_party/fiat/p256_32.h]",
-        ":ring-0.17.14.crate[third_party/fiat/p256_64.h]",
-        ":ring-0.17.14.crate[third_party/fiat/p256_64_msvc.h]",
-        "fixups/ring/include/ring_core_generated/prefix_symbols.h",
-        "fixups/ring/include/ring_core_generated/prefix_symbols_asm.h",
-    ],
-    compiler_flags = ["-Wno-error"],
-    include_directories = ["fixups/ring/include"],
-    preprocessor_flags = ["-I$(location :ring-0.17.14.crate)/include"],
-    visibility = [],
 )
 
 shims.http_archive(
@@ -16763,78 +16340,6 @@ third_party_rust.buildscript_run(
 )
 
 shims.http_archive(
-    name = "rustls-0.23.40.crate",
-    sha256 = "ef86cd5876211988985292b91c96a8f2d298df24e75989a43a3c73f2d4d8168b",
-    strip_prefix = "rustls-0.23.40",
-    urls = ["https://static.crates.io/crates/rustls/0.23.40/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "rustls-0.23.40",
-    srcs = [":rustls-0.23.40.crate"],
-    crate = "rustls",
-    crate_root = "rustls-0.23.40.crate/src/lib.rs",
-    edition = "2021",
-    features = [
-        "ring",
-        "std",
-        "tls12",
-    ],
-    named_deps = {
-        "pki_types": ":rustls-pki-types-1.14.1",
-    },
-    visibility = [],
-    deps = [
-        ":once_cell-1.21.4",
-        ":ring-0.17.14",
-        ":rustls-webpki-0.103.13",
-        ":subtle-2.6.1",
-        ":zeroize-1.8.2",
-    ],
-)
-
-shims.http_archive(
-    name = "rustls-native-certs-0.8.3.crate",
-    sha256 = "612460d5f7bea540c490b2b6395d8e34a953e52b491accd6c86c8164c5932a63",
-    strip_prefix = "rustls-native-certs-0.8.3",
-    urls = ["https://static.crates.io/crates/rustls-native-certs/0.8.3/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "rustls-native-certs-0.8.3",
-    srcs = [":rustls-native-certs-0.8.3.crate"],
-    crate = "rustls_native_certs",
-    crate_root = "rustls-native-certs-0.8.3.crate/src/lib.rs",
-    edition = "2021",
-    named_deps = {
-        "pki_types": ":rustls-pki-types-1.14.1",
-    },
-    platform = {
-        "linux-arm64": dict(
-            deps = [":openssl-probe-0.2.1"],
-        ),
-        "linux-x86_64": dict(
-            deps = [":openssl-probe-0.2.1"],
-        ),
-        "macos-arm64": dict(
-            deps = [":security-framework-3.7.0"],
-        ),
-        "macos-x86_64": dict(
-            deps = [":security-framework-3.7.0"],
-        ),
-        "windows-gnu": dict(
-            deps = [":schannel-0.1.29"],
-        ),
-        "windows-msvc": dict(
-            deps = [":schannel-0.1.29"],
-        ),
-    },
-    visibility = [],
-)
-
-shims.http_archive(
     name = "rustls-pki-types-1.14.1.crate",
     sha256 = "30a7197ae7eb376e574fe940d068c30fe0462554a3ddbe4eca7838e049c937a9",
     strip_prefix = "rustls-pki-types-1.14.1",
@@ -16855,35 +16360,6 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [":zeroize-1.8.2"],
-)
-
-shims.http_archive(
-    name = "rustls-webpki-0.103.13.crate",
-    sha256 = "61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e",
-    strip_prefix = "rustls-webpki-0.103.13",
-    urls = ["https://static.crates.io/crates/rustls-webpki/0.103.13/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "rustls-webpki-0.103.13",
-    srcs = [":rustls-webpki-0.103.13.crate"],
-    crate = "webpki",
-    crate_root = "rustls-webpki-0.103.13.crate/src/lib.rs",
-    edition = "2021",
-    features = [
-        "alloc",
-        "ring",
-        "std",
-    ],
-    named_deps = {
-        "pki_types": ":rustls-pki-types-1.14.1",
-    },
-    visibility = [],
-    deps = [
-        ":ring-0.17.14",
-        ":untrusted-0.9.0",
-    ],
 )
 
 shims.http_archive(
@@ -18433,21 +17909,25 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "slatedb",
-    actual = ":slatedb-0.13.0",
+    actual = ":slatedb-0.14.1",
     visibility = ["PUBLIC"],
 )
 
+shims.http_archive(
+    name = "slatedb-0.14.1.crate",
+    sha256 = "e6aba890a8fc5d2a3d283a77cfe712c0f27f0501bd75b07e14dece2dfc2cde86",
+    strip_prefix = "slatedb-0.14.1",
+    urls = ["https://static.crates.io/crates/slatedb/0.14.1/download"],
+    visibility = [],
+)
+
 third_party_rust.rust_library(
-    name = "slatedb-0.13.0",
-    srcs = [":slatedb-1981661380cef83f.git"],
+    name = "slatedb-0.14.1",
+    srcs = [":slatedb-0.14.1.crate"],
     crate = "slatedb",
-    crate_root = "slatedb-1981661380cef83f/slatedb/src/lib.rs",
+    crate_root = "slatedb-0.14.1.crate/src/lib.rs",
     edition = "2021",
-    features = [
-        "aws",
-        "default",
-        "foyer",
-    ],
+    features = ["foyer"],
     visibility = [],
     deps = [
         ":async-channel-2.5.0",
@@ -18468,19 +17948,18 @@ third_party_rust.rust_library(
         ":futures-0.3.32",
         ":log-0.4.29",
         ":lru-0.18.0",
-        ":object_store-0.13.2",
+        ":object_store-0.14.0",
         ":ouroboros-0.18.5",
         ":parking_lot-0.12.5",
         ":rand-0.9.4",
-        ":rand_xoshiro-0.7.0",
         ":serde-1.0.228",
         ":serde_json-1.0.149",
         ":siphasher-1.0.2",
-        ":slatedb-common-0.13.0",
-        ":slatedb-txn-obj-0.13.0",
+        ":slatedb-common-0.14.1",
+        ":slatedb-txn-obj-0.14.1",
+        ":smallvec-1.15.1",
         ":sysinfo-0.35.2",
         ":thiserror-1.0.69",
-        ":thread_local-1.1.9",
         ":tokio-1.52.1",
         ":tokio-util-0.7.18",
         ":tracing-0.1.44",
@@ -18491,27 +17970,47 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.http_archive(
+    name = "slatedb-common-0.14.1.crate",
+    sha256 = "7f3fdad5676b104bec5daa2f367bdb340f4162ef3c1ead16da903297f235fb49",
+    strip_prefix = "slatedb-common-0.14.1",
+    urls = ["https://static.crates.io/crates/slatedb-common/0.14.1/download"],
+    visibility = [],
+)
+
 third_party_rust.rust_library(
-    name = "slatedb-common-0.13.0",
-    srcs = [":slatedb-1981661380cef83f.git"],
+    name = "slatedb-common-0.14.1",
+    srcs = [":slatedb-common-0.14.1.crate"],
     crate = "slatedb_common",
-    crate_root = "slatedb-1981661380cef83f/slatedb-common/src/lib.rs",
+    crate_root = "slatedb-common-0.14.1.crate/src/lib.rs",
     edition = "2021",
     features = ["serde"],
     visibility = [],
     deps = [
         ":chrono-0.4.44",
         ":log-0.4.29",
+        ":object_store-0.14.0",
+        ":rand-0.9.4",
+        ":rand_xoshiro-0.7.0",
         ":serde-1.0.228",
+        ":thread_local-1.1.9",
         ":tokio-1.52.1",
     ],
 )
 
+shims.http_archive(
+    name = "slatedb-txn-obj-0.14.1.crate",
+    sha256 = "5df001443952d76ae7380536b4a050f88b3cc9a7d3dce0f3782ea7ae9a12c29c",
+    strip_prefix = "slatedb-txn-obj-0.14.1",
+    urls = ["https://static.crates.io/crates/slatedb-txn-obj/0.14.1/download"],
+    visibility = [],
+)
+
 third_party_rust.rust_library(
-    name = "slatedb-txn-obj-0.13.0",
-    srcs = [":slatedb-1981661380cef83f.git"],
+    name = "slatedb-txn-obj-0.14.1",
+    srcs = [":slatedb-txn-obj-0.14.1.crate"],
     crate = "slatedb_txn_obj",
-    crate_root = "slatedb-1981661380cef83f/slatedb-txn-obj/src/lib.rs",
+    crate_root = "slatedb-txn-obj-0.14.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
@@ -18520,9 +18019,9 @@ third_party_rust.rust_library(
         ":chrono-0.4.44",
         ":futures-0.3.32",
         ":log-0.4.29",
-        ":object_store-0.13.2",
+        ":object_store-0.14.0",
         ":parking_lot-0.12.5",
-        ":slatedb-common-0.13.0",
+        ":slatedb-common-0.14.1",
         ":thiserror-1.0.69",
     ],
 )
@@ -18658,10 +18157,10 @@ third_party_rust.rust_library(
             deps = [":libc-0.2.186"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -18735,10 +18234,20 @@ third_party_rust.rust_library(
     crate = "stable_deref_trait",
     crate_root = "stable_deref_trait-1.2.1.crate/src/lib.rs",
     edition = "2015",
-    features = [
-        "alloc",
-        "std",
-    ],
+    platform = {
+        "linux-arm64": dict(
+            features = [
+                "alloc",
+                "std",
+            ],
+        ),
+        "linux-x86_64": dict(
+            features = [
+                "alloc",
+                "std",
+            ],
+        ),
+    },
     visibility = [],
 )
 
@@ -18771,10 +18280,10 @@ third_party_rust.rust_library(
     },
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -19523,10 +19032,10 @@ third_party_rust.rust_library(
             deps = [":rustix-1.1.4"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -19587,10 +19096,10 @@ third_party_rust.rust_library(
     features = ["default"],
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -19649,10 +19158,10 @@ third_party_rust.rust_library(
             deps = [":rustix-1.1.4"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.61.2"],
         ),
     },
     visibility = [],
@@ -20567,31 +20076,6 @@ third_party_rust.rust_library(
     deps = [
         ":openssl-0.10.80",
         ":openssl-sys-0.9.116",
-        ":tokio-1.52.1",
-    ],
-)
-
-shims.http_archive(
-    name = "tokio-rustls-0.26.4.crate",
-    sha256 = "1729aa945f29d91ba541258c8df89027d5792d85a8841fb65e8bf0f4ede4ef61",
-    strip_prefix = "tokio-rustls-0.26.4",
-    urls = ["https://static.crates.io/crates/tokio-rustls/0.26.4/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "tokio-rustls-0.26.4",
-    srcs = [":tokio-rustls-0.26.4.crate"],
-    crate = "tokio_rustls",
-    crate_root = "tokio-rustls-0.26.4.crate/src/lib.rs",
-    edition = "2021",
-    features = [
-        "ring",
-        "tls12",
-    ],
-    visibility = [],
-    deps = [
-        ":rustls-0.23.40",
         ":tokio-1.52.1",
     ],
 )
@@ -22016,23 +21500,6 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "untrusted-0.9.0.crate",
-    sha256 = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1",
-    strip_prefix = "untrusted-0.9.0",
-    urls = ["https://static.crates.io/crates/untrusted/0.9.0/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "untrusted-0.9.0",
-    srcs = [":untrusted-0.9.0.crate"],
-    crate = "untrusted",
-    crate_root = "untrusted-0.9.0.crate/src/lib.rs",
-    edition = "2018",
-    visibility = [],
-)
-
-shims.http_archive(
     name = "url-2.5.8.crate",
     sha256 = "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed",
     strip_prefix = "url-2.5.8",
@@ -22672,7 +22139,7 @@ third_party_rust.rust_library(
     crate_root = "winapi-util-0.1.11.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":windows-sys-0.59.0"],
+    deps = [":windows-sys-0.61.2"],
 )
 
 shims.http_archive(
@@ -23098,22 +22565,17 @@ third_party_rust.rust_library(
     features = [
         "Win32",
         "Win32_Foundation",
-        "Win32_Globalization",
         "Win32_Security",
         "Win32_Storage",
         "Win32_Storage_FileSystem",
         "Win32_System",
-        "Win32_System_Com",
         "Win32_System_Console",
         "Win32_System_Diagnostics",
         "Win32_System_Diagnostics_Debug",
         "Win32_System_IO",
         "Win32_System_Registry",
-        "Win32_System_SystemInformation",
         "Win32_System_SystemServices",
         "Win32_System_Time",
-        "Win32_UI",
-        "Win32_UI_Shell",
         "default",
     ],
     visibility = [],
@@ -23137,15 +22599,11 @@ third_party_rust.rust_library(
     features = [
         "Win32",
         "Win32_Foundation",
-        "Win32_Networking",
-        "Win32_Networking_WinSock",
         "Win32_Security",
         "Win32_Storage",
         "Win32_Storage_FileSystem",
         "Win32_System",
-        "Win32_System_Console",
         "Win32_System_IO",
-        "Win32_System_Memory",
         "Win32_System_Threading",
         "Win32_System_WindowsProgramming",
         "default",
@@ -23177,6 +22635,7 @@ third_party_rust.rust_library(
         "Wdk_System_IO",
         "Win32",
         "Win32_Foundation",
+        "Win32_Globalization",
         "Win32_Networking",
         "Win32_Networking_WinSock",
         "Win32_Security",
@@ -23197,6 +22656,7 @@ third_party_rust.rust_library(
         "Win32_System_SystemInformation",
         "Win32_System_SystemServices",
         "Win32_System_Threading",
+        "Win32_System_Time",
         "Win32_System_WindowsProgramming",
         "Win32_UI",
         "Win32_UI_Input",

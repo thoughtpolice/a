@@ -7,6 +7,9 @@ use std::{path::PathBuf, str::FromStr, sync::Arc};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use dial9_tokio_telemetry::memory_profiling::{
+    Dial9Allocator, MemoryProfiler, MemoryProfilingConfig,
+};
 use dial9_tokio_telemetry::telemetry::{
     RotatingWriter, TelemetryHandle, TracedRuntime,
     cpu_profile::{CpuProfilingConfig, SchedEventConfig},
@@ -15,8 +18,12 @@ use tracing_subscriber::{filter, prelude::*};
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+// Wrap mimalloc in dial9's sampling allocator. This is a zero-cost passthrough
+// to mimalloc until `MemoryProfiler::install` is called (which only happens when
+// dial9 telemetry is enabled), at which point sampled allocations are recorded.
 #[global_allocator]
-static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+static GLOBAL_ALLOCATOR: Dial9Allocator<mimalloc::MiMalloc> =
+    Dial9Allocator::new(mimalloc::MiMalloc);
 
 #[derive(Parser, Debug)]
 #[command(
@@ -184,14 +191,26 @@ fn main() -> Result<()> {
         let mut traced = TracedRuntime::builder().with_task_tracking(true);
         if caps.cpu_profiling {
             traced = traced.with_cpu_profiling(CpuProfilingConfig::default());
-            traced = traced.with_sched_events(SchedEventConfig {
-                include_kernel: caps.kernel_stacks,
-            });
+            traced = traced
+                .with_sched_events(SchedEventConfig::default().include_kernel(caps.kernel_stacks));
         }
         let (runtime, guard) = traced
             .with_trace_path(&trace_path)
             .build_and_start(builder, writer)?;
         let handle = guard.handle();
+
+        // Activate sampling memory profiling on top of the Dial9Allocator that
+        // wraps mimalloc (a passthrough until now). Sampled at ~512 KiB with
+        // liveset tracking off by default, so the steady-state overhead is
+        // negligible. The guard must outlive the runtime, so keep it bound here.
+        let _mem_profiler = MemoryProfiler::from_config(
+            MemoryProfilingConfig::builder()
+                .sample_rate_bytes(512 * 1024)
+                .build(),
+        )
+        .install(handle.clone())
+        .context("failed to install dial9 memory profiler")?;
+
         let result = runtime.block_on(async_main(
             cli,
             handle,
