@@ -33,6 +33,52 @@ fn extract_qualifiers(qualifiers: &[Qualifier]) -> Vec<(String, String)> {
         .collect()
 }
 
+/// Qualifiers understood by `FetchBlob`.
+///
+/// `bazel.canonical_id` carries no fetch semantics of its own — it exists to
+/// salt the cache key, which qualifiers do here by construction (they are
+/// part of the asset-cache key). The `vcs.*`/`directory` family is
+/// recognized but only actionable on `FetchDirectory`; blob fetches with
+/// them fall through to NOT_FOUND rather than being rejected.
+const FETCH_BLOB_QUALIFIERS: &[&str] = &[
+    "checksum.sri",
+    "bazel.canonical_id",
+    "resource_type",
+    "vcs.branch",
+    "vcs.commit",
+    "directory",
+];
+
+/// Qualifiers understood by `FetchDirectory`. Note `checksum.sri` is absent:
+/// there is no checksum-verified directory fetch path.
+const FETCH_DIRECTORY_QUALIFIERS: &[&str] = &[
+    "vcs.branch",
+    "vcs.commit",
+    "directory",
+    "resource_type",
+    "bazel.canonical_id",
+];
+
+/// The Remote Asset spec requires servers to reject requests containing
+/// qualifiers they do not support with `INVALID_ARGUMENT`; silently ignoring
+/// one (say, a misspelled `vcs.commit`) would fetch the wrong content.
+fn reject_unsupported_qualifiers(
+    qualifiers: &[(String, String)],
+    supported: &[&str],
+) -> Result<(), tonic::Status> {
+    match qualifiers
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .find(|name| !supported.contains(name))
+    {
+        Some(name) => Err(tonic::Status::invalid_argument(format!(
+            "qualifier \"{name}\" not supported (supported: {})",
+            supported.join(", ")
+        ))),
+        None => Ok(()),
+    }
+}
+
 fn qualifiers_to_proto(quals: &[(String, String)]) -> Vec<Qualifier> {
     quals
         .iter()
@@ -173,6 +219,7 @@ impl fetch_server::Fetch for FetchService {
 
             let digest_fn = resolve_digest_function(inner.digest_function)?;
             let qualifiers = extract_qualifiers(&inner.qualifiers);
+            reject_unsupported_qualifiers(&qualifiers, FETCH_BLOB_QUALIFIERS)?;
             let oldest_content_accepted = timestamp_to_secs(&inner.oldest_content_accepted);
 
             let svc = FetchService {
@@ -336,6 +383,7 @@ impl fetch_server::Fetch for FetchService {
 
             let digest_fn = resolve_digest_function(inner.digest_function)?;
             let qualifiers = extract_qualifiers(&inner.qualifiers);
+            reject_unsupported_qualifiers(&qualifiers, FETCH_DIRECTORY_QUALIFIERS)?;
             let oldest_content_accepted = timestamp_to_secs(&inner.oldest_content_accepted);
 
             let svc = FetchService {
