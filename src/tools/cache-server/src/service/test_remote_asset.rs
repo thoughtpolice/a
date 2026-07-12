@@ -521,6 +521,128 @@ async fn fetch_blob_non_http_uri_with_vcs_commit_returns_not_found() {
     );
 }
 
+// Unsupported qualifiers are rejected up front (Remote Asset spec: the API
+// MUST reject requests containing qualifiers it does not support).
+
+#[tokio::test]
+async fn fetch_blob_unknown_qualifier_rejected() {
+    let store = make_store().await;
+    let fetch = make_fetch(store);
+
+    let err = fetch
+        .fetch_blob(tonic::Request::new(FetchBlobRequest {
+            instance_name: String::new(),
+            timeout: None,
+            oldest_content_accepted: None,
+            uris: vec!["https://example.com/file.tar".into()],
+            qualifiers: vec![Qualifier {
+                name: "checksum.sha256".into(),
+                value: "abc".into(),
+            }],
+            digest_function: 0,
+        }))
+        .await
+        .unwrap_err();
+
+    assert_eq!(err.code(), tonic::Code::InvalidArgument);
+    assert!(err.message().contains("checksum.sha256"), "{err}");
+    assert!(err.message().contains("not supported"), "{err}");
+}
+
+#[tokio::test]
+async fn fetch_directory_unknown_qualifier_rejected() {
+    let store = make_store().await;
+    let fetch = make_fetch(store);
+
+    let err = fetch
+        .fetch_directory(tonic::Request::new(FetchDirectoryRequest {
+            instance_name: String::new(),
+            timeout: None,
+            oldest_content_accepted: None,
+            uris: vec!["https://example.com/repo.git".into()],
+            qualifiers: vec![
+                Qualifier {
+                    name: "vcs.commit".into(),
+                    value: "abc123".into(),
+                },
+                Qualifier {
+                    name: "http_header:Authorization".into(),
+                    value: "Bearer x".into(),
+                },
+            ],
+            digest_function: 0,
+        }))
+        .await
+        .unwrap_err();
+
+    assert_eq!(err.code(), tonic::Code::InvalidArgument);
+    assert!(err.message().contains("http_header:Authorization"), "{err}");
+}
+
+#[tokio::test]
+async fn fetch_directory_checksum_sri_rejected() {
+    // There is no integrity-verified directory fetch; silently ignoring the
+    // checksum would be worse than rejecting it.
+    let store = make_store().await;
+    let fetch = make_fetch(store);
+
+    let err = fetch
+        .fetch_directory(tonic::Request::new(FetchDirectoryRequest {
+            instance_name: String::new(),
+            timeout: None,
+            oldest_content_accepted: None,
+            uris: vec!["https://example.com/repo.git".into()],
+            qualifiers: vec![Qualifier {
+                name: "checksum.sri".into(),
+                value: "sha256-abc".into(),
+            }],
+            digest_function: 0,
+        }))
+        .await
+        .unwrap_err();
+
+    assert_eq!(err.code(), tonic::Code::InvalidArgument);
+}
+
+#[tokio::test]
+async fn fetch_blob_supported_qualifiers_accepted() {
+    // Every supported qualifier together: passes validation and falls
+    // through to NOT_FOUND (non-HTTP URI, nothing cached).
+    let store = make_store().await;
+    let fetch = make_fetch(store);
+
+    let resp = fetch
+        .fetch_blob(tonic::Request::new(FetchBlobRequest {
+            instance_name: String::new(),
+            timeout: None,
+            oldest_content_accepted: None,
+            uris: vec!["urn:example:asset".into()],
+            qualifiers: vec![
+                Qualifier {
+                    name: "checksum.sri".into(),
+                    value: "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=".into(),
+                },
+                Qualifier {
+                    name: "bazel.canonical_id".into(),
+                    value: "my-id".into(),
+                },
+                Qualifier {
+                    name: "resource_type".into(),
+                    value: "application/x-tar".into(),
+                },
+            ],
+            digest_function: 0,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(
+        resp.status.as_ref().unwrap().code,
+        tonic::Code::NotFound as i32,
+    );
+}
+
 #[tokio::test]
 async fn push_blob_not_in_cas_returns_not_found() {
     let store = make_store().await;
