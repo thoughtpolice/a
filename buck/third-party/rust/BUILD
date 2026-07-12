@@ -11351,6 +11351,12 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
+shims.alias(
+    name = "memmap2",
+    actual = ":memmap2-0.9.11",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "memmap2-0.9.11.crate",
     sha256 = "d1219ed1b7f229ee7104d281dd01d6802fe28bb6e95d292942c4daacdeb798c0",

@@ -6292,6 +6292,7 @@ dependencies = [
  "linked-hash-map",
  "log",
  "md5",
+ "memmap2",
  "notify-debouncer-mini",
  "openssl",
  "opentelemetry",
