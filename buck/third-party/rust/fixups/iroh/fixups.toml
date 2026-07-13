@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# buildscript only emits hermetic cfg_aliases (wasm_browser etc.), safe to run
+buildscript.run = true
+cargo_env = true

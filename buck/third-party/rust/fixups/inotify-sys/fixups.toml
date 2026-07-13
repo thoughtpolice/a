@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# build.rs only links userspace libinotify on netbsd/openbsd; on linux (the
+# only platform where this crate appears in our graph) it does nothing.
+buildscript.run = false

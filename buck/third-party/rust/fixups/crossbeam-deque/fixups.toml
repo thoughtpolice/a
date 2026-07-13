@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# build.rs emits `cargo:rustc-check-cfg` plus a crossbeam_sanitize_thread cfg
+# that only fires under cargo-driven TSan builds (CARGO_CFG_SANITIZE), which
+# we don't do.
+buildscript.run = false

@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# apple-only: buildscript emits docsrs/feature cfgs we don't need
+buildscript.run = false
+cargo_env = true

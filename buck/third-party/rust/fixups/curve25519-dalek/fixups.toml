@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# buildscript selects the arithmetic backend (32/64-bit) via rustc-cfg
+buildscript.run = true

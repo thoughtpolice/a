@@ -66,6 +66,11 @@ hyper-rustls = { version = "0.27.9", default-features = false, features = [
 hyper-util = { version = "0.1", features = ["server-auto", "server-graceful", "http1", "http2", "tokio"] }
 insta = "1.42.2"
 iocraft = "0.7.10"
+# NOTE (aseipp): default features enable `tls-ring`, so turn them off
+iroh = { version = "1.0.2", default-features = false, features = [
+    "metrics",
+    "portmapper",
+] }
 jiff = "0.2.23"
 landlock = "0.4.4"
 linked-hash-map = "0.5.6"

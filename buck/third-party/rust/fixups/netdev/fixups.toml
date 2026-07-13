@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# buildscript only emits a SystemConfiguration framework link flag on apple
+# platforms; nothing to do on linux
+buildscript.run = false
