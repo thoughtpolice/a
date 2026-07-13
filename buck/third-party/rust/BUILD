@@ -16442,6 +16442,39 @@ third_party_rust.buildscript_run(
     version = "1.1.4",
 )
 
+shims.alias(
+    name = "rustls",
+    actual = ":rustls-0.23.42",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "rustls-0.23.42.crate",
+    sha256 = "3c54fcab019b409d04215d3a17cb438fd7fbf192ee61461f20f4fe18704bc138",
+    strip_prefix = "rustls-0.23.42",
+    urls = ["https://static.crates.io/crates/rustls/0.23.42/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "rustls-0.23.42",
+    srcs = [":rustls-0.23.42.crate"],
+    crate = "rustls",
+    crate_root = "rustls-0.23.42.crate/src/lib.rs",
+    edition = "2021",
+    features = ["std"],
+    named_deps = {
+        "pki_types": ":rustls-pki-types-1.14.1",
+    },
+    visibility = [],
+    deps = [
+        ":once_cell-1.21.4",
+        ":rustls-webpki-0.103.13",
+        ":subtle-2.6.1",
+        ":zeroize-1.9.0",
+    ],
+)
+
 shims.http_archive(
     name = "rustls-pki-types-1.14.1.crate",
     sha256 = "30a7197ae7eb376e574fe940d068c30fe0462554a3ddbe4eca7838e049c937a9",
@@ -16462,7 +16495,32 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":zeroize-1.8.2"],
+    deps = [":zeroize-1.9.0"],
+)
+
+shims.http_archive(
+    name = "rustls-webpki-0.103.13.crate",
+    sha256 = "61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e",
+    strip_prefix = "rustls-webpki-0.103.13",
+    urls = ["https://static.crates.io/crates/rustls-webpki/0.103.13/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "rustls-webpki-0.103.13",
+    srcs = [":rustls-webpki-0.103.13.crate"],
+    crate = "webpki",
+    crate_root = "rustls-webpki-0.103.13.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "alloc",
+        "std",
+    ],
+    named_deps = {
+        "pki_types": ":rustls-pki-types-1.14.1",
+    },
+    visibility = [],
+    deps = [":untrusted-0.9.0"],
 )
 
 shims.http_archive(
@@ -16694,7 +16752,7 @@ third_party_rust.rust_library(
         ":transform-stream-0.3.1",
         ":url-2.5.8",
         ":urlencoding-2.1.3",
-        ":zeroize-1.8.2",
+        ":zeroize-1.9.0",
     ],
 )
 
@@ -21628,6 +21686,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "untrusted-0.9.0.crate",
+    sha256 = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1",
+    strip_prefix = "untrusted-0.9.0",
+    urls = ["https://static.crates.io/crates/untrusted/0.9.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "untrusted-0.9.0",
+    srcs = [":untrusted-0.9.0.crate"],
+    crate = "untrusted",
+    crate_root = "untrusted-0.9.0.crate/src/lib.rs",
+    edition = "2018",
+    visibility = [],
+)
+
+shims.http_archive(
     name = "url-2.5.8.crate",
     sha256 = "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed",
     strip_prefix = "url-2.5.8",
@@ -23188,20 +23263,26 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "zeroize",
+    actual = ":zeroize-1.9.0",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
-    name = "zeroize-1.8.2.crate",
-    sha256 = "b97154e67e32c85465826e8bcc1c59429aaaf107c1e4a9e53c8d8ccd5eff88d0",
-    strip_prefix = "zeroize-1.8.2",
-    urls = ["https://static.crates.io/crates/zeroize/1.8.2/download"],
+    name = "zeroize-1.9.0.crate",
+    sha256 = "e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e",
+    strip_prefix = "zeroize-1.9.0",
+    urls = ["https://static.crates.io/crates/zeroize/1.9.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "zeroize-1.8.2",
-    srcs = [":zeroize-1.8.2.crate"],
+    name = "zeroize-1.9.0",
+    srcs = [":zeroize-1.9.0.crate"],
     crate = "zeroize",
-    crate_root = "zeroize-1.8.2.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "zeroize-1.9.0.crate/src/lib.rs",
+    edition = "2024",
     features = [
         "alloc",
         "default",

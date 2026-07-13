@@ -6410,6 +6410,7 @@ dependencies = [
  "ratatui",
  "rayon",
  "reqwest",
+ "rustls",
  "s3s",
  "salsa",
  "serde",
@@ -6440,6 +6441,7 @@ dependencies = [
  "unicode-width 0.2.2",
  "uuid",
  "watchman_client",
+ "zeroize",
  "zstd",
 ]
 
@@ -6508,9 +6510,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.40"
+version = "0.23.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef86cd5876211988985292b91c96a8f2d298df24e75989a43a3c73f2d4d8168b"
+checksum = "3c54fcab019b409d04215d3a17cb438fd7fbf192ee61461f20f4fe18704bc138"
 dependencies = [
  "once_cell",
  "rustls-pki-types",
@@ -9434,9 +9436,9 @@ dependencies = [
 
 [[package]]
 name = "zeroize"
-version = "1.8.2"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b97154e67e32c85465826e8bcc1c59429aaaf107c1e4a9e53c8d8ccd5eff88d0"
+checksum = "e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e"
 
 [[package]]
 name = "zerotrie"
