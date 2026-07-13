@@ -56,9 +56,9 @@ For standalone executables and CLI tools:
 ```bash
 python3 scripts/new_project.py \
   --type rust_binary \
-  --name quicktd \
-  --path src/tools/quicktd \
-  --description "Fast target determination for Buck2" \
+  --name build_helper \
+  --path src/tools/build-helper \
+  --description "A small Buck2 build helper" \
   --author "Austin Seipp"
 ```
 
@@ -67,7 +67,7 @@ python3 scripts/new_project.py \
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 depot.rust_binary(
-    name = "quicktd",
+    name = "build_helper",
     srcs = glob(["src/**/*.rs"]),
     deps = [
         "third-party//by-name/mi/mimalloc:rust",
@@ -82,7 +82,7 @@ depot.rust_binary(
 // SPDX-License-Identifier: Apache-2.0
 
 fn main() {
-    println!("Hello from quicktd!");
+    println!("Hello from build-helper!");
 }
 ```
 

@@ -82,7 +82,7 @@ async function executeBuck2Build(targets: string[]): Promise<CallToolResult> {
 }
 
 //
-// Target Determination (QuickTD) Tool
+// Target Determination Tool
 //
 
 interface TargetDeterminationArgs {
@@ -102,7 +102,7 @@ const targetDeterminationSchema = z.object({
 });
 
 /**
- * Main target determination logic using the existing quicktd tool
+ * Main target determination logic using the first-party tdutil tool.
  */
 async function executeTargetDetermination(
   from: string,
@@ -135,18 +135,26 @@ async function executeTargetDetermination(
       };
     }
 
-    // Use the existing quicktd tool via buck2 run
+    // Use named arguments so arbitrary JJ revsets cannot be mistaken for
+    // target patterns by tdutil's convenient positional shorthand. tdutil
+    // writes one fully-qualified target per line in text mode.
     const args = [
       "run",
-      "root//buck/tools/quicktd",
+      "root//buck/tools/tdutil:tdutil",
       "--",
+      "--format",
+      "text",
+      "--from",
       from,
+      "--to",
       to,
-      ...validatedUniverse,
     ];
+    for (const pattern of validatedUniverse) {
+      args.push("--universe", pattern);
+    }
     const { code, stdout, stderr } = await executeBuck2Command(
       args,
-      "brainiac-quicktd",
+      "brainiac-tdutil",
     );
 
     if (code !== 0) {
@@ -154,31 +162,14 @@ async function executeTargetDetermination(
         content: [{
           type: "text",
           text:
-            `QuickTD failed with code ${code}\n\nStderr:\n${stderr}\n\nStdout:\n${stdout}`,
-        }],
-        isError: true,
-      };
-    }
-
-    // The quicktd tool outputs the path to a file containing the target list
-    const targetsFilePath = stdout.trim();
-
-    // Read the targets file
-    let targetsContent: string;
-    try {
-      targetsContent = await Deno.readTextFile(targetsFilePath);
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Failed to read targets file ${targetsFilePath}: ${error}`,
+            `tdutil failed with code ${code}\n\nStderr:\n${stderr}\n\nStdout:\n${stdout}`,
         }],
         isError: true,
       };
     }
 
     // Parse the targets (one per line)
-    const targets = targetsContent
+    const targets = stdout
       .trim()
       .split("\n")
       .filter((line) => line.trim() !== "")

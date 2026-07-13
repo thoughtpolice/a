@@ -204,8 +204,16 @@ jobs:
           echo "Head commit: $HEAD_COMMIT"
           echo "Determining impacted targets..."
 
-          # Run target determination
-          TARGETS_FILE=$(buck2 run @buck/ci.buckargs root//buck/tools/quicktd -- "$BASE_COMMIT" "$HEAD_COMMIT" depot//...)
+          # Run the first-party detector. Pass CI configuration to the inner
+          # graph queries as well as to the outer build of tdutil.
+          TARGETS_FILE="${{ runner.temp }}/affected-targets.txt"
+          buck2 run @buck/ci.buckargs root//buck/tools/tdutil:tdutil -- \
+            --config ci.depot_gha_ci=true \
+            --format text \
+            --output "$TARGETS_FILE" \
+            --from "$BASE_COMMIT" \
+            --to "$HEAD_COMMIT" \
+            --universe depot//...
 
           if [ -f "$TARGETS_FILE" ]; then
             TARGET_COUNT=$(wc -l < "$TARGETS_FILE")
@@ -217,7 +225,7 @@ jobs:
               echo "reasonable-target-count=false" >> $GITHUB_OUTPUT
               echo "no-targets-affected=true" >> $GITHUB_OUTPUT
               echo "No targets affected by changes, skipping test"
-            elif [ "$TARGET_COUNT" -le 100 ]; then
+            elif [ "$TARGET_COUNT" -le 5000 ]; then
               echo "targets-found=true" >> $GITHUB_OUTPUT
               echo "reasonable-target-count=true" >> $GITHUB_OUTPUT
               echo "no-targets-affected=false" >> $GITHUB_OUTPUT

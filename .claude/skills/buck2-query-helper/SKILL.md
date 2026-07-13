@@ -49,19 +49,19 @@ python3 scripts/query_helper.py attrs //src/lib/mylib
 **Direct dependencies:**
 ```bash
 # All direct dependencies
-python3 scripts/query_helper.py deps //src/tools/quicktd
+python3 scripts/query_helper.py deps root//buck/tools/tdutil:tdutil
 
 # Formatted output with types
-python3 scripts/query_helper.py deps --show-kind //src/tools/quicktd
+python3 scripts/query_helper.py deps --show-kind root//buck/tools/tdutil:tdutil
 ```
 
 **Transitive dependencies:**
 ```bash
 # All transitive dependencies
-python3 scripts/query_helper.py deps --transitive //src/tools/quicktd
+python3 scripts/query_helper.py deps --transitive root//buck/tools/tdutil:tdutil
 
 # Limit depth
-python3 scripts/query_helper.py deps --transitive --depth 2 //src/tools/quicktd
+python3 scripts/query_helper.py deps --transitive --depth 2 root//buck/tools/tdutil:tdutil
 ```
 
 ### Finding Reverse Dependencies
@@ -134,13 +134,13 @@ buck2 query "//src/lib/...:test"  # All targets named 'test'
 **deps() - Find dependencies:**
 ```bash
 # Direct dependencies
-buck2 query "deps('//src/tools:quicktd')"
+buck2 query "deps('root//buck/tools/tdutil:tdutil')"
 
 # With depth limit (1 = direct deps)
-buck2 query "deps('//src/tools:quicktd', 1)"
+buck2 query "deps('root//buck/tools/tdutil:tdutil', 1)"
 
 # Filter results
-buck2 query "deps('//src/tools:quicktd') ^ //third-party/..."
+buck2 query "deps('root//buck/tools/tdutil:tdutil') ^ third-party//..."
 ```
 
 **rdeps() - Find reverse dependencies:**
@@ -355,11 +355,14 @@ buck2 query "attrfilter(visibility, PUBLIC, //src/...)"
 
 ```bash
 # Find affected tests for changed targets
-CHANGED=$(buck2 run root//buck/tools/quicktd -- '@-' '@' //src/...)
-for target in $(cat $CHANGED); do
-  python3 scripts/query_helper.py rdeps --scope //src/... $target | \
+TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/tdutil-targets.XXXXXX")"
+trap 'rm -f -- "$TARGETS_FILE"' EXIT
+buck2 run root//buck/tools/tdutil:tdutil -- \
+  --output "$TARGETS_FILE" --universe depot//src/...
+while IFS= read -r target; do
+  python3 scripts/query_helper.py rdeps --scope //src/... "$target" | \
     grep _test
-done | sort -u
+done < "$TARGETS_FILE" | sort -u
 ```
 
 ### With jj Version Control

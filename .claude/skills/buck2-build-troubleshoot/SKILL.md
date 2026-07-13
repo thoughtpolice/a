@@ -483,8 +483,10 @@ fi
 
 ```bash
 # Diagnose failures in changed targets
-TARGETS=$(buck2 run root//buck/tools/quicktd -- '@-' '@' //src/...)
-buck2 build @$TARGETS || {
+TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/tdutil-targets.XXXXXX")"
+trap 'rm -f -- "$TARGETS_FILE"' EXIT
+buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" --universe depot//src/...
+buck2 build "@$TARGETS_FILE" || {
   python3 scripts/build_doctor.py --show-logs
 }
 ```
