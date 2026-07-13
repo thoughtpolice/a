@@ -617,7 +617,7 @@ buck2 test root//...
 buck2 targets third-party//...
 ```
 
-**Performance note**: Recursive patterns can be slow on large monorepos. Use target determination (quicktd) for changed targets instead.
+**Performance note**: Recursive patterns can be slow on large monorepos. Use target determination (tdutil) for changed targets instead.
 
 **When to use recursion**:
 - Quality checks across the repo: `buck2 test depot//buck/tests/...`
@@ -625,7 +625,7 @@ buck2 targets third-party//...
 - Target discovery: `buck2 targets //...`
 
 **When to avoid recursion**:
-- Incremental development (use `quicktd` instead)
+- Incremental development (use `tdutil` instead)
 - CI/CD (build only affected targets)
 - Large monorepos (can timeout or OOM)
 
@@ -1067,8 +1067,10 @@ buck2 query "rdeps('//src/...', '//third-party/rust:serde')" | wc -l
 
 # What tests will run if I change this file?
 # (Use target determination for accurate results)
-TARGETS=$(buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/...)
-buck2 query "kind('.*_test', set(@$TARGETS))"
+TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/tdutil-targets.XXXXXX")"
+trap 'rm -f -- "$TARGETS_FILE"' EXIT
+buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" --universe depot//src/...
+buck2 query "kind('.*_test', %Ss)" "@$TARGETS_FILE"
 ```
 
 #### Dependency Audit
@@ -1811,51 +1813,64 @@ The `buck2` CLI supports **at-file syntax** where `@path/to/file` expands to the
 
 ```bash
 # Create file with targets
-echo "//src/app:binary" > targets.txt
-echo "//src/tools:cli" >> targets.txt
+TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/buck-targets.XXXXXX")"
+trap 'rm -f -- "$TARGETS_FILE"' EXIT
+echo "//src/app:binary" > "$TARGETS_FILE"
+echo "//src/tools:cli" >> "$TARGETS_FILE"
 
 # Build all targets in file
-buck2 build @targets.txt
+buck2 build "@$TARGETS_FILE"
 
 # Combine with command output
-buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/... > targets.txt
-buck2 test @targets.txt
+buck2 run root//buck/tools/tdutil:tdutil -- '@-' '@' depot//src/... > "$TARGETS_FILE"
+buck2 test "@$TARGETS_FILE"
 ```
 
-**Use case**: The `quicktd` (target determination) tool outputs target lists to files, which you consume with at-file syntax:
+**Use case**: `tdutil` writes targets to stdout by default. Use `--output` when
+you want an at-file for a later Buck2 command:
 
 ```bash
+TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/tdutil-targets.XXXXXX")"
+trap 'rm -f -- "$TARGETS_FILE"' EXIT
+
 # Find changed targets
-TARGETS=$(buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/...)
+buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" '@-' '@' depot//src/...
 
 # Build only changed targets
-buck2 build @$TARGETS
+buck2 build "@$TARGETS_FILE"
 
 # Test only affected tests
-buck2 test @$TARGETS
+buck2 test "@$TARGETS_FILE"
 ```
 
 **Important**: At-file syntax is essential when target lists exceed command-line length limits (which can happen in large monorepos).
 
-### Target Determination (quicktd)
+The default `text` format is one target per line. `--format json` emits one
+metadata object, and `--format json-lines` emits machine-readable records.
 
-The `quicktd` tool analyzes jj revisions and determines which Buck2 targets are affected by changes:
+### Target Determination (tdutil)
+
+The `tdutil` tool analyzes jj revisions and determines which Buck2 targets are affected by changes:
 
 ```bash
-# Compare current commit (@) with parent (@-)
-buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/...
+# Compare @ with its fork point with trunk()
+buck2 run root//buck/tools/tdutil:tdutil
+
+# Use the same default revisions over only src/
+buck2 run root//buck/tools/tdutil:tdutil -- depot//src/...
 
 # Compare working copy with trunk
-buck2 run root//buck/tools/quicktd -- 'trunk()' '@' depot//src/...
+buck2 run root//buck/tools/tdutil:tdutil -- \
+  --from 'trunk()' --to '@' --universe depot//src/...
 
 # Full repository scan
-buck2 run root//buck/tools/quicktd -- 'root()' '@' depot//...
+buck2 run root//buck/tools/tdutil:tdutil -- --from 'root()' --to '@'
 
 # Specific subdirectory only
-buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/myproject/...
+buck2 run root//buck/tools/tdutil:tdutil -- depot//src/myproject/...
 ```
 
-**Note**: Always use the `root//` cell prefix with quicktd to avoid ambiguous cell references.
+**Note**: Always use the `root//` cell prefix with tdutil to avoid ambiguous cell references.
 
 Typical workflow:
 
@@ -1865,19 +1880,22 @@ jj new -m "feat: implement feature"
 # ... edit files ...
 
 # Test affected targets
-TARGETS=$(buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/...)
-buck2 test @$TARGETS
+TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/tdutil-targets.XXXXXX")"
+trap 'rm -f -- "$TARGETS_FILE"' EXIT
+buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" --universe depot//src/...
+buck2 test "@$TARGETS_FILE"
 
 # If tests pass, commit
 jj commit -m "feat: implement feature"
 ```
 
-**How quicktd works**:
+**How tdutil works**:
 1. Computes file changes between two jj revisions
 2. Builds Buck2 target graph at both revisions
 3. Identifies targets whose BUILD files or sources changed
-4. Outputs affected targets to a file
-5. You use at-file syntax to build/test only those targets
+4. Compares hashes, inputs, packages, and transitive rule imports, then walks reverse dependencies
+5. Outputs sorted affected targets to stdout or `--output`
+6. You can use at-file syntax to build/test only those targets
 
 ---
 
@@ -2314,11 +2332,15 @@ This ensures x86_64 code isn't compiled on aarch64 systems, reducing build time.
 Use at-file syntax when building many targets (avoids command-line length limits and speeds up Buck2 initialization):
 
 ```bash
+TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/buck-targets.XXXXXX")"
+trap 'rm -f -- "$TARGETS_FILE"' EXIT
+printf '%s\n' //a:1 //a:2 //a:3 //z:1000 > "$TARGETS_FILE"
+
 # Slow: Buck2 parses all targets as CLI args
 buck2 build //a:1 //a:2 //a:3 ... //z:1000
 
 # Fast: Buck2 reads from file
-buck2 build @targets.txt
+buck2 build "@$TARGETS_FILE"
 ```
 
 **5. Target determination**
@@ -2326,8 +2348,10 @@ buck2 build @targets.txt
 Only build/test affected targets:
 
 ```bash
-TARGETS=$(buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/...)
-buck2 test @$TARGETS
+TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/tdutil-targets.XXXXXX")"
+trap 'rm -f -- "$TARGETS_FILE"' EXIT
+buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" '@-' '@' depot//src/...
+buck2 test "@$TARGETS_FILE"
 ```
 
 This can reduce build times by 10-100x on incremental changes.
@@ -2737,8 +2761,10 @@ buck2 build //src/app:binary
 buck2 test //src/app:
 
 # Test affected targets before committing
-TARGETS=$(buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/...)
-buck2 test @$TARGETS
+TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/tdutil-targets.XXXXXX")"
+trap 'rm -f -- "$TARGETS_FILE"' EXIT
+buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" '@-' '@' depot//src/...
+buck2 test "@$TARGETS_FILE"
 
 # Commit if tests pass
 jj commit -m "feat: implement feature"
@@ -2746,11 +2772,12 @@ jj commit -m "feat: implement feature"
 
 ### Target Determination with jj Revsets
 
-The `quicktd` tool uses jj revsets to determine changed targets:
+The `tdutil` tool uses jj revsets to determine changed targets:
 
 ```bash
 # Compare two revisions
-buck2 run root//buck/tools/quicktd -- 'REV1' 'REV2' depot//src/...
+buck2 run root//buck/tools/tdutil:tdutil -- \
+  --from 'REV1' --to 'REV2' --universe depot//src/...
 
 # Common patterns:
 # - Current vs parent: '@-' '@'
@@ -2764,16 +2791,16 @@ buck2 run root//buck/tools/quicktd -- 'REV1' 'REV2' depot//src/...
 
 ```bash
 # All changes in current branch
-buck2 run root//buck/tools/quicktd -- 'trunk()' '@' depot//src/...
+buck2 run root//buck/tools/tdutil:tdutil -- 'trunk()' '@' depot//src/...
 
 # Changes in specific commit
-buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/...
+buck2 run root//buck/tools/tdutil:tdutil -- '@-' '@' depot//src/...
 
 # All uncommitted changes
-buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/...
+buck2 run root//buck/tools/tdutil:tdutil -- '@-' '@' depot//src/...
 
 # Changes across multiple commits
-buck2 run root//buck/tools/quicktd -- '@----' '@' depot//src/...
+buck2 run root//buck/tools/tdutil:tdutil -- '@----' '@' depot//src/...
 ```
 
 ### Pre-commit Checks
@@ -2785,11 +2812,13 @@ Run quality checks before committing:
 buck2 test depot//buck/tests/...
 
 # Test affected targets
-TARGETS=$(buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/...)
-buck2 test @$TARGETS
+TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/tdutil-targets.XXXXXX")"
+trap 'rm -f -- "$TARGETS_FILE"' EXIT
+buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" '@-' '@' depot//src/...
+buck2 test "@$TARGETS_FILE"
 
 # Build affected targets to catch compile errors
-buck2 build @$TARGETS
+buck2 build "@$TARGETS_FILE"
 ```
 
 **Automated pre-commit workflow**:
@@ -2803,15 +2832,17 @@ set -e
 echo "Running pre-commit checks..."
 
 # Determine affected targets
-TARGETS=$(buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/...)
+TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/tdutil-targets.XXXXXX")"
+trap 'rm -f -- "$TARGETS_FILE"' EXIT
+buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" '@-' '@' depot//src/...
 
 # Build affected targets
 echo "Building affected targets..."
-buck2 build @$TARGETS
+buck2 build "@$TARGETS_FILE"
 
 # Test affected targets
 echo "Testing affected targets..."
-buck2 test @$TARGETS
+buck2 test "@$TARGETS_FILE"
 
 # Run quality checks
 echo "Running quality checks..."
@@ -2836,8 +2867,10 @@ jj new -m "feat: new feature"
 buck2 build //src/app:binary
 
 # Test changes
-TARGETS=$(buck2 run root//buck/tools/quicktd -- 'trunk()' '@' depot//src/...)
-buck2 test @$TARGETS
+TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/tdutil-targets.XXXXXX")"
+trap 'rm -f -- "$TARGETS_FILE"' EXIT
+buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" 'trunk()' '@' depot//src/...
+buck2 test "@$TARGETS_FILE"
 
 # Changes in feature workspace don't affect main workspace
 cd ../main-workspace
@@ -2885,7 +2918,7 @@ Buck2 is a powerful, hermetic build system designed for large-scale multi-langua
 **This monorepo's patterns**:
 - Use `depot.*` shims, never native rules
 - SPDX headers in all files
-- Target determination with `quicktd`
+- Target determination with `tdutil`
 - Build modes: `@mode//debug`, `@mode//release`
 - Cells: `root//`, `third-party//`, `toolchains//`, etc.
 
@@ -2895,8 +2928,10 @@ buck2 build //src/app:binary
 buck2 test //src/...
 buck2 run //src/app:binary -- args
 buck2 query "deps('//src/app:binary')"
-TARGETS=$(buck2 run root//buck/tools/quicktd -- '@-' '@' depot//src/...)
-buck2 test @$TARGETS
+TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/tdutil-targets.XXXXXX")"
+trap 'rm -f -- "$TARGETS_FILE"' EXIT
+buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" '@-' '@' depot//src/...
+buck2 test "@$TARGETS_FILE"
 ```
 
 **Performance tips**:

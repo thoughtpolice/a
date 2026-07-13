@@ -33,13 +33,14 @@ Exit codes:
   2 - Tests failed, block commit (stderr fed back to Claude)
 """
 
-import sys
-sys.dont_write_bytecode = True
-
+import json
+import os
+import shlex
 import subprocess
 import sys
-import os
-import json
+import tempfile
+
+sys.dont_write_bytecode = True
 
 
 def run_command(cmd, description="", capture=True, check=True):
@@ -84,18 +85,32 @@ def run_command(cmd, description="", capture=True, check=True):
             )
 
         return result
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         print(f"Error: Command not found: {cmd[0]}", file=sys.stderr)
         raise
 
 
 def count_lines(filepath):
     """Count lines in a file."""
+    with open(filepath, "r", encoding="utf-8") as f:
+        return sum(1 for _ in f)
+
+
+def create_targets_file():
+    """Create a private, unpredictable at-file and return its path."""
+    fd, path = tempfile.mkstemp(prefix="tdutil-pre-commit-", suffix=".txt")
+    os.close(fd)
+    return path
+
+
+def remove_targets_file(path):
+    """Remove a temporary at-file, tolerating external cleanup."""
     try:
-        with open(filepath, 'r') as f:
-            return sum(1 for _ in f)
-    except (FileNotFoundError, IOError):
-        return 0
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
+    except OSError as error:
+        print(f"Warning: Could not remove temporary target file: {error}", file=sys.stderr)
 
 
 def validate_tool_input():
@@ -115,10 +130,13 @@ def validate_tool_input():
 
         # Validate it's a jj commit command
         if not command.strip().startswith('jj commit'):
-            print(f"→ Skipping: Not a 'jj commit' command (got: {command[:50]}...)", file=sys.stderr)
+            print(
+                f"→ Skipping: Not a 'jj commit' command (got: {command[:50]}...)",
+                file=sys.stderr,
+            )
             return False
 
-        print(f"→ Detected jj commit command", file=sys.stderr)
+        print("→ Detected jj commit command", file=sys.stderr)
         return True
 
     except json.JSONDecodeError as e:
@@ -151,27 +169,25 @@ def main():
     print("Step 1: Finding affected targets...", file=sys.stderr)
     print(file=sys.stderr)
 
+    targets_file = None
+    retain_targets = False
+
     try:
-        quicktd_cmd = [
-            "buck2", "run", "root//buck/tools/quicktd", "--",
-            "@-",           # From: parent commit
-            "@",            # To: current working copy
-            "depot//..."    # Universe: entire depot
+        targets_file = create_targets_file()
+        tdutil_cmd = [
+            "buck2", "run", "root//buck/tools/tdutil:tdutil", "--",
+            "--output", targets_file,
+            "--from", "@-",                # Parent commit
+            "--to", "@",                   # Current working copy
+            "--universe", "depot//..."     # Entire depot
         ]
 
-        result = run_command(
-            quicktd_cmd,
+        run_command(
+            tdutil_cmd,
             "Running target determination",
             capture=True,
             check=True
         )
-
-        # The output is the path to the targets file
-        targets_file = result.stdout.strip()
-
-        if not targets_file:
-            print("Error: quicktd did not return a targets file path", file=sys.stderr)
-            return 2
 
         if not os.path.exists(targets_file):
             print(f"Error: Targets file does not exist: {targets_file}", file=sys.stderr)
@@ -198,7 +214,7 @@ def main():
         # Skip targets that are incompatible with the host configuration
         # (e.g. macos-only tests on a linux machine): buck2 hard-errors on
         # explicitly-listed incompatible targets, and the target list from
-        # quicktd is platform-agnostic. CI covers the other platforms.
+        # tdutil is platform-agnostic. CI covers the other platforms.
         test_cmd = ["buck2", "test", "--skip-incompatible-targets", f"@{targets_file}"]
 
         # Don't capture output - let buck2 output stream to terminal
@@ -212,6 +228,10 @@ def main():
         print(file=sys.stderr)
 
         if result.returncode != 0:
+            # Keep a valid target list so the failure can be reproduced. The
+            # path is private (mkstemp creates it mode 0600) and is printed
+            # below so the user can remove it when finished.
+            retain_targets = True
             print("=" * 60, file=sys.stderr)
             print("✗ TESTS FAILED", file=sys.stderr)
             print("=" * 60, file=sys.stderr)
@@ -219,8 +239,23 @@ def main():
             print("Commit blocked due to test failures.", file=sys.stderr)
             print("Please fix the failing tests before committing.", file=sys.stderr)
             print(file=sys.stderr)
-            print(f"To see affected targets: cat {targets_file}", file=sys.stderr)
-            print(f"To rerun tests: buck2 test @{targets_file}", file=sys.stderr)
+            print(
+                f"Affected-target file retained at: {shlex.quote(targets_file)}",
+                file=sys.stderr,
+            )
+            print(
+                f"To see affected targets: cat {shlex.quote(targets_file)}",
+                file=sys.stderr,
+            )
+            print(
+                "To rerun tests: buck2 test --skip-incompatible-targets "
+                f"{shlex.quote(f'@{targets_file}')}",
+                file=sys.stderr,
+            )
+            print(
+                f"To remove the target file: rm -f -- {shlex.quote(targets_file)}",
+                file=sys.stderr,
+            )
             print(file=sys.stderr)
             return 2  # Block commit
 
@@ -242,7 +277,7 @@ def main():
         print("=" * 60, file=sys.stderr)
         print(file=sys.stderr)
         print(f"Command failed with exit code {e.returncode}", file=sys.stderr)
-        print(f"Command: {' '.join(e.cmd)}", file=sys.stderr)
+        print(f"Command: {shlex.join(e.cmd)}", file=sys.stderr)
         print(file=sys.stderr)
         print("Commit blocked due to error.", file=sys.stderr)
         print(file=sys.stderr)
@@ -259,6 +294,10 @@ def main():
         print("Commit blocked due to unexpected error.", file=sys.stderr)
         print(file=sys.stderr)
         return 2  # Block commit
+
+    finally:
+        if targets_file and not retain_targets:
+            remove_targets_file(targets_file)
 
 
 if __name__ == '__main__':

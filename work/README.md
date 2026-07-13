@@ -39,14 +39,12 @@ things in order to move that commit around, like usual.
 This makes it easy to have completely isolated working copies. It is particularly
 useful for things like Agenic AI coding agents.
 
-## Case 2: automation uses
+## Case 2: automation scratch space
 
-There are some cases that we use in the repo right now that use this directory.
-The most prominent example is **target determination**: the `quicktd` tool will
-put workspaces at different commits under here, so that the graph of BUILD
-files can be built and compared to figure out what targets have changed.
-
-Other forms of automation could also leverage this directory, if needed.
+Automation may use this ignored directory when a repository-local scratch area
+is useful. The `tdutil` target-determination tool deliberately does not: it
+creates private JJ workspaces beneath the platform temporary directory, outside
+the repository, and removes them after comparing the historical Buck graphs.
 
 ## Case 3: cloning a third-party repo for examination
 

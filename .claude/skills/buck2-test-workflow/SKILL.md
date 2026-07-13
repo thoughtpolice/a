@@ -289,12 +289,12 @@ After refactoring:
 **Symptom**: Target determination returns empty or minimal results despite significant changes.
 
 **Cause**:
-- Changes not committed (target determination compares commits)
+- Working-copy changes were not snapshotted by jj
 - Universe parameter too narrow
 - Comparing wrong revisions
 
 **Solution**:
-- Ensure changes are committed: `jj commit`
+- Snapshot and inspect working-copy changes: `jj status`
 - Expand universe: `["root//...", "third-party//..."]`
 - Verify revision parameters: `from: "trunk()"`, `to: "@"`
 
