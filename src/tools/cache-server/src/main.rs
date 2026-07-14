@@ -31,7 +31,8 @@ static GLOBAL_ALLOCATOR: Dial9Allocator<mimalloc::MiMalloc> =
     version = option_env!("depot_VERSION").unwrap_or("dev")
 )]
 struct Cli {
-    /// Storage backend: "memory", "file:///path/to/dir", or a bare path
+    /// Storage backend: "memory", "file:///path/to/dir", a bare path, or
+    /// "s3://bucket[/prefix]" (configured via AWS_* environment variables)
     #[arg(
         long,
         default_value = "memory",
@@ -263,13 +264,70 @@ fn parse_backend(store: &str) -> Result<store::StoreBackend> {
         Ok(store::StoreBackend::Memory)
     } else if let Some(path) = store.strip_prefix("file://") {
         Ok(store::StoreBackend::LocalFs(path.to_string()))
+    } else if let Some(rest) = store.strip_prefix("s3://") {
+        let (bucket, prefix) = match rest.split_once('/') {
+            Some((bucket, prefix)) => {
+                let prefix = prefix.trim_matches('/');
+                (bucket, (!prefix.is_empty()).then(|| prefix.to_string()))
+            }
+            None => (rest, None),
+        };
+        if bucket.is_empty() {
+            anyhow::bail!("invalid --store value: {:?} (missing bucket name)", store);
+        }
+        Ok(store::StoreBackend::S3 {
+            bucket: bucket.to_string(),
+            prefix,
+        })
     } else if store.starts_with('/') || store.starts_with('.') {
         Ok(store::StoreBackend::LocalFs(store.to_string()))
     } else {
         anyhow::bail!(
-            "invalid --store value: {:?} (expected \"memory\", \"file:///path\", or a bare path)",
+            "invalid --store value: {:?} (expected \"memory\", \"file:///path\", \
+             \"s3://bucket[/prefix]\", or a bare path)",
             store
         )
+    }
+}
+
+#[cfg(test)]
+mod parse_backend_tests {
+    use super::*;
+
+    #[test]
+    fn memory_and_paths() {
+        assert!(matches!(
+            parse_backend("memory").unwrap(),
+            store::StoreBackend::Memory,
+        ));
+        assert!(matches!(
+            parse_backend("file:///var/cache").unwrap(),
+            store::StoreBackend::LocalFs(path) if path == "/var/cache",
+        ));
+        assert!(matches!(
+            parse_backend("./relative").unwrap(),
+            store::StoreBackend::LocalFs(path) if path == "./relative",
+        ));
+        parse_backend("garbage").unwrap_err();
+    }
+
+    #[test]
+    fn s3_urls() {
+        assert!(matches!(
+            parse_backend("s3://bucket").unwrap(),
+            store::StoreBackend::S3 { bucket, prefix: None } if bucket == "bucket",
+        ));
+        assert!(matches!(
+            parse_backend("s3://bucket/").unwrap(),
+            store::StoreBackend::S3 { bucket, prefix: None } if bucket == "bucket",
+        ));
+        assert!(matches!(
+            parse_backend("s3://bucket/some/prefix/").unwrap(),
+            store::StoreBackend::S3 { bucket, prefix: Some(prefix) }
+                if bucket == "bucket" && prefix == "some/prefix",
+        ));
+        parse_backend("s3://").unwrap_err();
+        parse_backend("s3:///prefix-without-bucket").unwrap_err();
     }
 }
 
