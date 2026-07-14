@@ -74,11 +74,20 @@ pub const MAX_BLOB_REASSEMBLE_SIZE: usize = 2 * 1024 * 1024 * 1024;
 const MAX_ACTION_CACHE_ENTRY_SIZE: usize = 16 * 1024 * 1024;
 
 /// Where to store SlateDB data.
+#[derive(Debug)]
 pub enum StoreBackend {
     /// In-memory object store (ephemeral, for testing).
     Memory,
     /// Local filesystem at the given path.
     LocalFs(String),
+    /// S3 (or S3-compatible) bucket, optionally rooted at a key prefix.
+    ///
+    /// Credentials, region, and endpoint come from the standard `AWS_*`
+    /// environment variables; see [`s3_store::S3StoreBuilder::from_env`].
+    S3 {
+        bucket: String,
+        prefix: Option<String>,
+    },
 }
 
 /// Main storage engine wrapping SlateDB with CDC-aware blob storage.
@@ -105,6 +114,19 @@ pub fn create_object_store(
             slatedb::object_store::local::LocalFileSystem::new_with_prefix(path)
                 .map_err(|e| StoreError::Database(slatedb::Error::unavailable(e.to_string())))?,
         ),
+        StoreBackend::S3 { bucket, prefix } => {
+            let store = s3_store::S3StoreBuilder::from_env()
+                .with_bucket(bucket)
+                .build()
+                .map_err(|e| StoreError::Database(slatedb::Error::unavailable(e.to_string())))?;
+            match prefix {
+                Some(prefix) => Arc::new(slatedb::object_store::prefix::PrefixStore::new(
+                    store,
+                    prefix.as_str(),
+                )),
+                None => Arc::new(store),
+            }
+        }
     };
     Ok(object_store)
 }
