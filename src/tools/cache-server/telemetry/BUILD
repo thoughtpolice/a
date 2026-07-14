@@ -10,6 +10,7 @@ DEPS = [
     "third-party//rust:opentelemetry-otlp",
     "third-party//rust:opentelemetry-semantic-conventions",
     "third-party//rust:parking_lot",
+    "third-party//rust:slatedb-common",
     "third-party//rust:tokio",
     "third-party//rust:tracing",
     "third-party//rust:tracing-opentelemetry",

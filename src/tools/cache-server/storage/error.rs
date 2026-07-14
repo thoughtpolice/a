@@ -52,6 +52,12 @@ impl StoreError {
             _ => false,
         }
     }
+
+    /// Whether the database has stopped (see `CacheStore::failed`), so no
+    /// operation on it will succeed again.
+    pub fn is_closed(&self) -> bool {
+        matches!(self, StoreError::Database(e) if matches!(e.kind(), ErrorKind::Closed(_)))
+    }
 }
 
 impl From<slatedb::Error> for StoreError {

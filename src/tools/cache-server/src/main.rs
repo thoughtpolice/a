@@ -33,7 +33,8 @@ static GLOBAL_ALLOCATOR: Dial9Allocator<mimalloc::MiMalloc> =
     version = option_env!("depot_VERSION").unwrap_or("dev")
 )]
 struct Cli {
-    /// Storage backend: "memory", "file:///path/to/dir", or a bare path
+    /// Storage backend: "memory", "file:///path/to/dir", a bare path, or
+    /// "s3://bucket[/prefix]" (configured via AWS_* environment variables)
     #[arg(
         long,
         default_value = "memory",
@@ -132,6 +133,44 @@ struct ServeArgs {
     /// Disable the embedded compactor (use with standalone `compact` subcommand)
     #[arg(long, default_value_t = false)]
     disable_compactor: bool,
+
+    // --- Storage caches ---
+    /// In-memory cache of SST data blocks in MiB. Holds action cache,
+    /// manifest, and asset entries; chunk data bypasses it.
+    #[arg(
+        long,
+        default_value_t = store::DEFAULT_BLOCK_CACHE_BYTES / (1024 * 1024),
+        env = "CACHE_SERVER_BLOCK_CACHE_MIB"
+    )]
+    block_cache_mib: u64,
+
+    /// In-memory cache of SST indexes and bloom filters in MiB. Every lookup
+    /// consults them; size it to hold all of them.
+    #[arg(
+        long,
+        default_value_t = store::DEFAULT_META_CACHE_BYTES / (1024 * 1024),
+        env = "CACHE_SERVER_META_CACHE_MIB"
+    )]
+    meta_cache_mib: u64,
+
+    /// Most MiB of writes held in memory before they are flushed to the
+    /// store's L0 SSTs; past it, writes wait for a flush. It must exceed the
+    /// 64 MiB L0 SST size (default: SlateDB's, 1024).
+    #[arg(long, env = "CACHE_SERVER_WRITE_BUFFER_MIB")]
+    write_buffer_mib: Option<u64>,
+
+    /// S3 stores only: a local directory caching SST data read from (and
+    /// recently written to) S3. Disabled when unset.
+    #[arg(long, env = "CACHE_SERVER_OBJECT_STORE_CACHE_DIR")]
+    object_store_cache_dir: Option<PathBuf>,
+
+    /// Most GiB the object store cache holds.
+    #[arg(
+        long,
+        default_value_t = 16,
+        env = "CACHE_SERVER_OBJECT_STORE_CACHE_GIB"
+    )]
+    object_store_cache_gib: u64,
 
     // --- TLS options ---
     /// PEM certificate chain; enables TLS on the listener
@@ -301,13 +340,70 @@ fn parse_backend(store: &str) -> Result<store::StoreBackend> {
         Ok(store::StoreBackend::Memory)
     } else if let Some(path) = store.strip_prefix("file://") {
         Ok(store::StoreBackend::LocalFs(path.to_string()))
+    } else if let Some(rest) = store.strip_prefix("s3://") {
+        let (bucket, prefix) = match rest.split_once('/') {
+            Some((bucket, prefix)) => {
+                let prefix = prefix.trim_matches('/');
+                (bucket, (!prefix.is_empty()).then(|| prefix.to_string()))
+            }
+            None => (rest, None),
+        };
+        if bucket.is_empty() {
+            anyhow::bail!("invalid --store value: {:?} (missing bucket name)", store);
+        }
+        Ok(store::StoreBackend::S3 {
+            bucket: bucket.to_string(),
+            prefix,
+        })
     } else if store.starts_with('/') || store.starts_with('.') {
         Ok(store::StoreBackend::LocalFs(store.to_string()))
     } else {
         anyhow::bail!(
-            "invalid --store value: {:?} (expected \"memory\", \"file:///path\", or a bare path)",
+            "invalid --store value: {:?} (expected \"memory\", \"file:///path\", \
+             \"s3://bucket[/prefix]\", or a bare path)",
             store
         )
+    }
+}
+
+#[cfg(test)]
+mod parse_backend_tests {
+    use super::*;
+
+    #[test]
+    fn memory_and_paths() {
+        assert!(matches!(
+            parse_backend("memory").unwrap(),
+            store::StoreBackend::Memory,
+        ));
+        assert!(matches!(
+            parse_backend("file:///var/cache").unwrap(),
+            store::StoreBackend::LocalFs(path) if path == "/var/cache",
+        ));
+        assert!(matches!(
+            parse_backend("./relative").unwrap(),
+            store::StoreBackend::LocalFs(path) if path == "./relative",
+        ));
+        parse_backend("garbage").unwrap_err();
+    }
+
+    #[test]
+    fn s3_urls() {
+        assert!(matches!(
+            parse_backend("s3://bucket").unwrap(),
+            store::StoreBackend::S3 { bucket, prefix: None } if bucket == "bucket",
+        ));
+        assert!(matches!(
+            parse_backend("s3://bucket/").unwrap(),
+            store::StoreBackend::S3 { bucket, prefix: None } if bucket == "bucket",
+        ));
+        assert!(matches!(
+            parse_backend("s3://bucket/some/prefix/").unwrap(),
+            store::StoreBackend::S3 { bucket, prefix: Some(prefix) }
+                if bucket == "bucket" && prefix == "some/prefix",
+        ));
+        parse_backend("s3://").unwrap_err();
+        parse_backend("s3:///prefix-without-bucket").unwrap_err();
     }
 }
 
@@ -361,6 +457,11 @@ impl Default for ServeArgs {
             request_timeout: 900,
             max_concurrent_requests: 8192,
             disable_compactor: false,
+            block_cache_mib: store::DEFAULT_BLOCK_CACHE_BYTES / (1024 * 1024),
+            meta_cache_mib: store::DEFAULT_META_CACHE_BYTES / (1024 * 1024),
+            write_buffer_mib: None,
+            object_store_cache_dir: None,
+            object_store_cache_gib: 16,
             tls_cert: None,
             tls_key: None,
             git_spool_dir: None,
@@ -384,11 +485,25 @@ async fn run_compactor(cli: &Cli, handle: Dial9TokioHandle) -> Result<()> {
         .with(cli_console_layer)
         .init();
 
+    // The compactor takes no OTEL flags; the standard environment variables
+    // (OTEL_EXPORTER_OTLP_ENDPOINT, ...) enable metrics export.
+    let otel_config = telemetry::OtelConfig::from_env();
+    telemetry::init_metrics(&otel_config)?;
+
     let backend = parse_backend(&cli.store)?;
     let object_store =
         store::create_object_store(&backend).context("failed to create object store")?;
 
-    let compactor = Arc::new(store::CompactorBuilder::new(store::DB_PATH, object_store).build());
+    // The same CACHE_SERVER_SLATEDB_* compactor options the server would use.
+    let settings = store::settings_for(&backend).context("invalid SlateDB settings")?;
+    let mut builder = store::CompactorBuilder::new(store::DB_PATH, object_store);
+    if let Some(options) = settings.compactor_options {
+        builder = builder.with_options(options);
+    }
+    if otel_config.enabled {
+        builder = builder.with_metrics_recorder(telemetry::OtelMetricsRecorder::new());
+    }
+    let compactor = Arc::new(builder.build());
 
     tracing::info!(
         store = %cli.store,
@@ -415,6 +530,7 @@ async fn run_compactor(cli: &Cli, handle: Dial9TokioHandle) -> Result<()> {
     compactor.stop().await.context("failed to stop compactor")?;
     compactor_task.await?.context("compactor task failed")?;
     tracing::info!("compactor stopped cleanly");
+    telemetry::shutdown_otel();
     Ok(())
 }
 
@@ -470,9 +586,30 @@ async fn run_server(
 
     let backend = parse_backend(&cli.store)?;
 
+    // Before the store opens: SlateDB registers its metrics as it is built,
+    // and instruments created before the meter provider is installed stay
+    // no-ops for good.
+    telemetry::init_metrics(&otel_config)?;
+
+    const MIB: u64 = 1024 * 1024;
     let store_settings = store::CacheStoreSettings {
         default_ttl: default_ttl(cli.default_ttl_days),
         disable_compactor: args.disable_compactor,
+        // `open` derives the SlateDB settings from the backend and the
+        // CACHE_SERVER_SLATEDB_* environment.
+        slatedb_overrides: None,
+        block_cache_bytes: Some(args.block_cache_mib * MIB),
+        meta_cache_bytes: Some(args.meta_cache_mib * MIB),
+        write_buffer_bytes: args.write_buffer_mib.map(|mib| mib * MIB),
+        object_store_cache: args.object_store_cache_dir.clone().map(|dir| {
+            store::ObjectStoreCache {
+                dir,
+                max_bytes: usize::try_from(args.object_store_cache_gib * 1024 * MIB).ok(),
+            }
+        }),
+        metrics_recorder: otel_config
+            .enabled
+            .then(|| telemetry::OtelMetricsRecorder::new() as Arc<dyn store::MetricsRecorder>),
     };
 
     let cache_store = store::CacheStore::open(backend, store_settings)
@@ -509,7 +646,6 @@ async fn run_server(
         }
     }
 
-    telemetry::init_metrics(&otel_config)?;
     if otel_config.enabled {
         tracing::info!(
             endpoint = ?otel_config.endpoint,
@@ -537,20 +673,34 @@ async fn run_server(
 
     let shutdown_notify = Arc::new(tokio::sync::Notify::new());
     let shutdown_notify2 = shutdown_notify.clone();
+    // Set if the store stops under the server (see below).
+    let store_failure = Arc::new(std::sync::OnceLock::new());
 
-    let shutdown = async move {
-        let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("failed to install SIGTERM handler");
+    let shutdown = {
+        let store = cache_store.clone();
+        let store_failure = store_failure.clone();
+        async move {
+            let mut sigterm =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                    .expect("failed to install SIGTERM handler");
 
-        tokio::select! {
-            _ = tokio::signal::ctrl_c() => {
-                tracing::info!("received SIGINT, draining connections...");
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {
+                    tracing::info!("received SIGINT, draining connections...");
+                }
+                _ = sigterm.recv() => {
+                    tracing::info!("received SIGTERM, draining connections...");
+                }
+                // A store fenced by another writer, or stopped by a failed
+                // background task, fails every request from then on: stop
+                // serving rather than answer them all with errors.
+                reason = store.failed() => {
+                    tracing::error!(?reason, "the store has stopped, draining connections...");
+                    let _ = store_failure.set(reason);
+                }
             }
-            _ = sigterm.recv() => {
-                tracing::info!("received SIGTERM, draining connections...");
-            }
+            shutdown_notify2.notify_one();
         }
-        shutdown_notify2.notify_one();
     };
 
     let drain_deadline = async {
@@ -582,6 +732,20 @@ async fn run_server(
         ) => r,
         _ = drain_deadline => Ok(()),
     };
+
+    if let Some(reason) = store_failure.get() {
+        telemetry::shutdown_otel();
+        return Err(match reason {
+            store::CloseReason::Fenced => anyhow::anyhow!(
+                "another writer opened the store, fencing this one off; only one writer can \
+                 run at a time, and restarting this one would fence the other in turn"
+            ),
+            reason => anyhow::anyhow!(
+                "the store stopped after a background task failed ({reason:?}); see the log \
+                 above for the cause"
+            ),
+        });
+    }
 
     cache_store
         .close()

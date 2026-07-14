@@ -12,8 +12,8 @@ use super::error::{Result, StoreError};
 use super::hashing::{ContentDigest, DigestFn, IncrementalHasher};
 use super::manifest::{BlobManifest, ChunkInfo, unix_now_secs};
 use super::{
-    CDC_AVG_SIZE, CDC_MAX_SIZE, CDC_MIN_SIZE, CacheStore, MAX_BLOB_REASSEMBLE_SIZE, PREFIX_CHUNK,
-    PREFIX_MANIFEST, SMALL_BLOB_THRESHOLD, compress_and_batch_chunks, prefixed_key, tagged_chunk,
+    CDC_MAX_SIZE, CacheStore, MAX_BLOB_REASSEMBLE_SIZE, PREFIX_CHUNK, PREFIX_MANIFEST,
+    SMALL_BLOB_THRESHOLD, cdc_ranges, compress_and_batch_chunks, prefixed_key, tagged_chunk,
 };
 
 /// Streaming writer that builds a CAS blob incrementally from arbitrary-sized pieces.
@@ -81,23 +81,15 @@ impl<'a> CasBlobWriter<'a> {
     /// Process the buffer through FastCDC, writing complete chunks to the batch
     /// and retaining the unprocessed tail.
     async fn extract_chunks(&mut self) -> Result<()> {
-        let chunker = fastcdc::v2020::FastCDC::with_level(
-            &self.buffer,
-            CDC_MIN_SIZE,
-            CDC_AVG_SIZE,
-            CDC_MAX_SIZE,
-            fastcdc::v2020::Normalization::Level2,
-        );
-
         let mut last_end = 0;
-        let mut pending_chunks = Vec::new();
-        for chunk in chunker {
-            let end = chunk.offset + chunk.length;
+        let mut ranges = Vec::new();
+        for (offset, length) in cdc_ranges(&self.buffer) {
+            let end = offset + length;
             // Only take chunks that are fully within the buffer (not the tail)
             if end > self.buffer.len().saturating_sub(CDC_MAX_SIZE) {
                 break;
             }
-            pending_chunks.push((chunk.offset, end, chunk.length));
+            ranges.push((offset, length));
             last_end = end;
         }
 
@@ -105,10 +97,6 @@ impl<'a> CasBlobWriter<'a> {
             // O(1) split — no memmove of the tail
             let consumed = self.buffer.split_to(last_end).freeze();
 
-            let ranges: Vec<_> = pending_chunks
-                .iter()
-                .map(|&(offset, _end, length)| (offset, length))
-                .collect();
             let new_chunks = compress_and_batch_chunks(
                 &consumed,
                 &ranges,
@@ -152,7 +140,8 @@ impl<'a> CasBlobWriter<'a> {
                     .await?;
                 let tagged = tagged_chunk(self.compression, &compressed);
                 let chunk_key = prefixed_key(PREFIX_CHUNK, self.digest_fn, &chunk_hash);
-                self.batch.put(chunk_key, tagged.as_ref());
+                self.batch
+                    .put_bytes(bytes::Bytes::copy_from_slice(&chunk_key), tagged);
                 self.chunk_infos.push(ChunkInfo {
                     hash: chunk_hash,
                     size: buf_size,
@@ -160,14 +149,7 @@ impl<'a> CasBlobWriter<'a> {
             } else {
                 // Run CDC on the remaining buffer: collect chunk ranges first,
                 // then convert buffer to Bytes for zero-copy slicing.
-                let chunker = fastcdc::v2020::FastCDC::with_level(
-                    &self.buffer,
-                    CDC_MIN_SIZE,
-                    CDC_AVG_SIZE,
-                    CDC_MAX_SIZE,
-                    fastcdc::v2020::Normalization::Level2,
-                );
-                let chunk_ranges: Vec<_> = chunker.map(|c| (c.offset, c.length)).collect();
+                let chunk_ranges: Vec<_> = cdc_ranges(&self.buffer).collect();
                 let buffer_bytes = std::mem::take(&mut self.buffer).freeze();
 
                 let new_chunks = compress_and_batch_chunks(
@@ -198,9 +180,11 @@ impl<'a> CasBlobWriter<'a> {
             created_at: unix_now_secs(),
         };
         let manifest_key = prefixed_key(PREFIX_MANIFEST, self.digest_fn, &blob_hash);
-        self.batch
-            .put(manifest_key, manifest.to_bytes(self.compression)?);
-        self.store.db.write(self.batch).await?;
+        self.batch.put_bytes(
+            bytes::Bytes::copy_from_slice(&manifest_key),
+            manifest.to_bytes(self.compression)?,
+        );
+        self.store.commit(self.batch).await?;
 
         debug!(
             total_bytes,

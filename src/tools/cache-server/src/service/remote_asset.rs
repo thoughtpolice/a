@@ -332,14 +332,16 @@ impl FetchService {
             return Ok(None);
         }
 
-        // Verify referenced content still exists in CAS
+        // Verify the referenced content is still in CAS, with enough of its
+        // TTL left to be worth answering with; otherwise fetch again, which
+        // rewrites it (for a directory, its whole tree) with a fresh TTL.
         let cd = ContentDigest::new(digest_fn, entry.digest_hash);
-        let exists = self
+        let fresh = self
             .store
-            .cas_blob_exists(&cd)
+            .cas_blob_fresh(&cd)
             .await
             .map_err(store_error_to_status)?;
-        if !exists {
+        if !fresh {
             return Ok(None);
         }
 
