@@ -26,6 +26,7 @@ capnp = "0.26.2"
 capnpc = "0.26.0"
 capnp-futures = "0.26.1"
 capnp-rpc = "0.26.1"
+chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
 chumsky = { version = "0.13.0", features = ["either", "memoization", "pratt", "regex", "serde", "stacker"] }
 clap = { version = "4.6", features = ["derive"] }
 console-subscriber = "0.5.0"
@@ -81,6 +82,7 @@ log = "0.4"
 md5 = "0.8"
 memmap2 = "0.9.11"
 notify-debouncer-mini = { version = "0.7.0", features = ["crossbeam-channel"] }
+object_store = "0.14"
 openssl = "0.10.81"
 opentelemetry = "0.32.0"
 opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio"] }
@@ -90,10 +92,12 @@ opentelemetry-appender-log = "0.32.0"
 opentelemetry-semantic-conventions = "0.32.1"
 tracing-opentelemetry = "0.33.0"
 parking_lot = "0.12.5"
+percent-encoding = "2"
 pollster = "1.0.1"
 proc-macro2 = "1.0.106"
 prost = "0.14.4"
 prost-types = "0.14.4"
+quick-xml = { version = "0.41", features = ["serialize", "overlapped-lists"] }
 quote = "1.0.46"
 rand = "0.10.2"
 ratatui = "0.30"
@@ -109,6 +113,7 @@ reqwest = { version = "0.13.4", default-features = false, features = [
     "native-tls",
     "charset",
     "http2",
+    "stream",
     "system-proxy",
 ] }
 s3s = "0.14.1"
