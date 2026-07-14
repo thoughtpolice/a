@@ -29,6 +29,7 @@
 
 mod layer;
 mod metrics;
+mod slatedb_metrics;
 mod wide;
 
 use std::env;
@@ -36,6 +37,7 @@ use std::env;
 pub use layer::{init_otel_layer, shutdown_otel};
 pub use metrics::{CacheMetrics, init_metrics, metrics};
 pub use opentelemetry::KeyValue;
+pub use slatedb_metrics::OtelMetricsRecorder;
 pub use wide::{
     WideEventGuard, increment_counter, start_request, try_current_context, with_wide_context,
 };

@@ -31,16 +31,23 @@ use std::sync::Arc;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use futures::{Stream, StreamExt as _};
-use slatedb::{Db, WriteBatch};
+use slatedb::config::{DurabilityLevel, ReadOptions};
+use slatedb::db_cache::foyer::{FoyerCache, FoyerCacheOptions};
+use slatedb::db_cache::{CacheTarget, SplitCache};
+use slatedb::{BlockCachePolicy, Db, PrefixExtractor, PrefixTarget, WriteBatch};
 use tracing::{debug, instrument, warn};
 
 /// Re-export for callers that need to construct TTL durations.
 pub use jiff::SignedDuration;
+/// Re-export for [`CacheStore::failed`].
+pub use slatedb::CloseReason;
 /// Re-export for standalone compaction.
 pub use slatedb::CompactorBuilder;
+/// Re-export for [`CacheStoreSettings::metrics_recorder`].
+pub use slatedb_common::metrics::MetricsRecorder;
 
 /// Settings for opening a [`CacheStore`].
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct CacheStoreSettings {
     /// If `Some`, all new writes will expire after this duration
     /// (mapped to SlateDB's `Settings::default_ttl_millis`). `None` means no expiry.
@@ -48,7 +55,65 @@ pub struct CacheStoreSettings {
     /// When `true`, the embedded compactor is disabled. Use this when running
     /// a standalone compactor process via [`CompactorBuilder`].
     pub disable_compactor: bool,
+    /// Overrides the SlateDB settings that [`CacheStore::open`] would
+    /// otherwise derive ([`settings_for`]). Benchmarks use this to compare
+    /// profiles; production leaves it `None`.
+    pub slatedb_overrides: Option<slatedb::config::Settings>,
+    /// In-memory cache of SST data blocks (holding everything but chunk
+    /// data, see [`block_cache_policy`]). `None` keeps
+    /// [`DEFAULT_BLOCK_CACHE_BYTES`].
+    pub block_cache_bytes: Option<u64>,
+    /// In-memory cache of SST indexes and bloom filters, which every point
+    /// lookup consults. `None` keeps [`DEFAULT_META_CACHE_BYTES`].
+    pub meta_cache_bytes: Option<u64>,
+    /// Most bytes of writes held in memory before they are flushed to L0
+    /// SSTs (SlateDB's `max_unflushed_bytes`); past it, writes wait for a
+    /// flush. It must exceed the L0 SST size. `None` keeps SlateDB's 1 GiB,
+    /// or what `CACHE_SERVER_SLATEDB_MAX_UNFLUSHED_BYTES` says.
+    pub write_buffer_bytes: Option<u64>,
+    /// A local disk cache of SST data read from S3. Ignored for other
+    /// backends, whose data is already local.
+    pub object_store_cache: Option<ObjectStoreCache>,
+    /// Where SlateDB reports its metrics (and those of the embedded
+    /// compactor and garbage collector); `None` discards them.
+    pub metrics_recorder: Option<Arc<dyn MetricsRecorder>>,
 }
+
+impl std::fmt::Debug for CacheStoreSettings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CacheStoreSettings")
+            .field("default_ttl", &self.default_ttl)
+            .field("disable_compactor", &self.disable_compactor)
+            .field("slatedb_overrides", &self.slatedb_overrides)
+            .field("block_cache_bytes", &self.block_cache_bytes)
+            .field("meta_cache_bytes", &self.meta_cache_bytes)
+            .field("write_buffer_bytes", &self.write_buffer_bytes)
+            .field("object_store_cache", &self.object_store_cache)
+            .field("metrics_recorder", &self.metrics_recorder.is_some())
+            .finish()
+    }
+}
+
+/// A local disk cache in front of the object store.
+#[derive(Clone, Debug)]
+pub struct ObjectStoreCache {
+    /// Directory the cache lives in.
+    pub dir: std::path::PathBuf,
+    /// Most bytes it holds; `None` keeps SlateDB's default (16 GiB).
+    pub max_bytes: Option<usize>,
+}
+
+/// Default size of the in-memory SST data block cache (512 MiB).
+pub const DEFAULT_BLOCK_CACHE_BYTES: u64 = 512 * 1024 * 1024;
+
+/// Default size of the in-memory SST index and filter cache (128 MiB).
+pub const DEFAULT_META_CACHE_BYTES: u64 = 128 * 1024 * 1024;
+
+/// Prefix of the environment variables that override SlateDB settings, e.g.
+/// `CACHE_SERVER_SLATEDB_L0_SST_SIZE_BYTES=134217728`, or with a `.` for a
+/// nested setting, `CACHE_SERVER_SLATEDB_COMPACTOR_OPTIONS.MAX_CONCURRENT_COMPACTIONS=8`.
+/// Durations are strings such as `100ms`.
+pub const SLATEDB_ENV_PREFIX: &str = "CACHE_SERVER_SLATEDB_";
 
 /// The SlateDB database path used by the cache store.
 pub const DB_PATH: &str = "cache";
@@ -67,6 +132,9 @@ const CDC_MAX_SIZE: usize = CDC_AVG_SIZE * 4; // 2 MiB
 // Blobs below this size are stored as a single chunk (no CDC splitting)
 const SMALL_BLOB_THRESHOLD: usize = CDC_MAX_SIZE;
 
+/// Chunk reads a blob stream keeps in flight ahead of its consumer.
+pub const STREAM_PREFETCH_CHUNKS: usize = 8;
+
 /// Maximum total blob size for reassembly (2 GiB).
 pub const MAX_BLOB_REASSEMBLE_SIZE: usize = 2 * 1024 * 1024 * 1024;
 
@@ -74,16 +142,227 @@ pub const MAX_BLOB_REASSEMBLE_SIZE: usize = 2 * 1024 * 1024 * 1024;
 const MAX_ACTION_CACHE_ENTRY_SIZE: usize = 16 * 1024 * 1024;
 
 /// Where to store SlateDB data.
+#[derive(Debug)]
 pub enum StoreBackend {
     /// In-memory object store (ephemeral, for testing).
     Memory,
     /// Local filesystem at the given path.
     LocalFs(String),
+    /// S3 (or S3-compatible) bucket, optionally rooted at a key prefix.
+    ///
+    /// Credentials, region, and endpoint come from the standard `AWS_*`
+    /// environment variables; see [`s3_store::S3StoreBuilder::from_env`].
+    S3 {
+        bucket: String,
+        prefix: Option<String>,
+    },
+}
+
+/// Whether a backend's writes land on local media rather than remote object
+/// storage. This is the axis SlateDB's stock defaults are tuned against.
+fn writes_land_locally(backend: &StoreBackend) -> bool {
+    match backend {
+        StoreBackend::Memory | StoreBackend::LocalFs(_) => true,
+        StoreBackend::S3 { .. } => false,
+    }
+}
+
+/// Derive SlateDB settings for `backend`.
+///
+/// SlateDB ships defaults tuned for S3, where a flush is a billable, ~100 ms
+/// round trip. Two of those trades invert on a loopback store, so adjust them
+/// rather than leaving the operator to discover the defaults the hard way.
+pub fn tuned_settings(backend: &StoreBackend) -> slatedb::config::Settings {
+    let mut settings = slatedb::config::Settings::default();
+
+    if writes_land_locally(backend) {
+        // `flush_interval` is a WAL flush *tick*, and a write is not
+        // acknowledged until the next one makes it durable (see `commit`) —
+        // so it is a hard floor on write latency, and a cap of
+        // `concurrency / interval` on write throughput no matter how fast the
+        // machine is. SlateDB picks 100 ms to bound S3 PUT charges (its own
+        // docs quote ~$130/month at that rate); against memory or a local disk
+        // a flush costs microseconds and nothing per call, so the 100 ms is
+        // pure latency for no saving. Each tick with writes pending writes a
+        // WAL object that lives until garbage collection, so the tick stays
+        // a few milliseconds rather than one.
+        settings.flush_interval = Some(std::time::Duration::from_millis(5));
+    }
+
+    // SlateDB writes a bloom filter only for SSTs of at least 1000 keys. A
+    // 64 MiB SST of this cache's ~2 MiB chunks holds a few dozen, so stock
+    // SSTs mostly go without, and since keys are random hashes, every SST's
+    // key range covers every lookup: a miss (FindMissingBlobs on a new
+    // blob, say) then reads an index and a data block from every L0 SST and
+    // sorted run. With filters, a miss is answered from cached filters.
+    settings.min_filter_keys = 1;
+
+    // Each memtable flush adds one L0 SST to every segment it touches, and a
+    // segment holding `l0_max_ssts` of them stops flushes until a compaction
+    // takes them away; writes then stall once `max_unflushed_bytes` is
+    // buffered. The stock 8 gives a stream of uploads only seconds of slack,
+    // so allow twice that. Keys are random hashes, so every L0 SST spans the
+    // whole key space and the per-key limit is reached at the same count:
+    // it has to move too. A lookup consults every L0 SST of its segment,
+    // but through bloom filters held in the meta cache.
+    settings.l0_max_ssts = 16;
+    settings.l0_max_ssts_per_key = 16;
+
+    if let Some(compactor) = settings.compactor_options.as_mut() {
+        // The compactor looks for work, and its worker for submitted jobs,
+        // every 5 s by default — so a full L0 waited up to 10 s for a
+        // compaction that then took under one, with every upload stalled
+        // meanwhile. Each poll reads the manifest or the compactions file:
+        // free on a local store, a LIST and a GET on S3.
+        let poll = if writes_land_locally(backend) {
+            std::time::Duration::from_millis(100)
+        } else {
+            std::time::Duration::from_secs(1)
+        };
+        compactor.poll_interval = poll;
+        if let Some(worker) = compactor.worker.as_mut() {
+            worker.compactions_poll_interval = poll;
+            // SlateDB requires the worker's filter threshold to match the
+            // writer's; otherwise compacted SSTs drop their filters.
+            worker.min_filter_keys = settings.min_filter_keys;
+        }
+    }
+
+    if let Some(gc) = settings.garbage_collector_options.as_mut() {
+        // Every compaction keeps the SSTs it replaces for 15 minutes (SlateDB
+        // writes a checkpoint of the old manifest before committing, with a
+        // fixed lifetime), and collection then runs only every 10 minutes:
+        // under a stream of uploads, the replaced data waited up to 25
+        // minutes to go, and was most of the disk in use. Collect every
+        // minute instead. Flushed WAL is pinned by nothing (this store has no
+        // readers tailing it), so it goes after a minute too, not five.
+        let every_minute = Some(std::time::Duration::from_secs(60));
+        if let Some(wal) = gc.wal_options.as_mut() {
+            wal.interval = every_minute;
+            wal.min_age = std::time::Duration::from_secs(60);
+        }
+        if let Some(compacted) = gc.compacted_options.as_mut() {
+            compacted.interval = every_minute;
+        }
+
+        // WAL fence collection ships dry-run, so it deletes nothing and logs a
+        // paragraph explaining that it deleted nothing on every pass. Off is
+        // what dry-run already means, minus the noise. Enabling it for real
+        // risks data loss (see `wal_fence_options`), so off is also the safe
+        // reading of the default.
+        gc.wal_fence_options = None;
+
+        if matches!(backend, StoreBackend::LocalFs(_)) {
+            // Boundary advancement is the *only* thing in SlateDB that issues a
+            // conditional overwrite (`PutMode::Update`, in the boundary object
+            // behind the manifest and compactions stores), and object_store's
+            // LocalFileSystem returns `NotImplemented` for it. So the manifest
+            // and compactions collectors fail on every pass, forever, once per
+            // interval.
+            //
+            // Turning those two collectors off trades reclaiming their metadata
+            // for an error the operator cannot act on. The alternative is
+            // `boundary_files_enabled = false`, which keeps them collecting but
+            // lets a process suspended past `min_age` resurrect a deleted
+            // metadata ID and report a stale update as successful — a
+            // correctness risk on a workstation that sleeps. WAL and
+            // compacted-SST collection need no CAS and keep reclaiming the bulk
+            // of the space either way.
+            gc.manifest_options = None;
+            gc.compactions_options = None;
+        }
+    }
+
+    settings
+}
+
+/// [`tuned_settings`] for `backend`, overridden by any
+/// [`SLATEDB_ENV_PREFIX`] environment variables.
+pub fn settings_for(backend: &StoreBackend) -> Result<slatedb::config::Settings> {
+    Ok(slatedb::config::Settings::from_env_with_default(
+        SLATEDB_ENV_PREFIX,
+        tuned_settings(backend),
+    )?)
+}
+
+/// What a memtable flush puts in the block cache: indexes, filters, and
+/// the data blocks of everything but chunks.
+///
+/// Chunks are up to 2 MiB each, so the stock policy (every block of every
+/// flushed SST) has each flush of uploads evict the small, hot manifest,
+/// action cache, and asset blocks. Chunk reads skip the block cache too
+/// ([`chunk_read_options`]); repeated chunk reads are served by the OS page
+/// cache (local stores) or the object store disk cache (S3).
+pub fn block_cache_policy() -> BlockCachePolicy {
+    let data = |prefix: u8| CacheTarget::data([prefix]..[prefix + 1]);
+    BlockCachePolicy::default().with_flush_targets(&[
+        CacheTarget::Index,
+        CacheTarget::Filters,
+        data(PREFIX_ACTION),
+        data(PREFIX_MANIFEST),
+        data(PREFIX_ASSET),
+    ])
+}
+
+/// Splits the store into one LSM tree (an RFC-0024 segment) per kind of
+/// key — chunks, manifests, action cache entries, assets — by the key's
+/// first byte.
+///
+/// Metadata then never shares an SST, or a compaction, with megabytes of
+/// chunk data: a manifest or action cache lookup probes only that kind's
+/// SSTs, which are small, dense, and well covered by bloom filters and the
+/// block cache, and compacting metadata rewrites no chunks.
+///
+/// SlateDB stamps the extractor's name into the manifest of a new store and
+/// refuses to open a store with a different one (or none), so the name and
+/// the one-byte split must never change.
+struct KeyKind;
+
+impl PrefixExtractor for KeyKind {
+    fn name(&self) -> &str {
+        "cache-server.key-kind.v1"
+    }
+
+    fn prefix_len(&self, target: &PrefixTarget) -> Option<usize> {
+        let (PrefixTarget::Point(bytes) | PrefixTarget::Prefix(bytes)) = target;
+        (!bytes.is_empty()).then_some(1)
+    }
+}
+
+/// Reads of chunk data, which must not displace metadata in the block cache
+/// (see [`block_cache_policy`]).
+fn chunk_read_options() -> ReadOptions {
+    ReadOptions {
+        cache_blocks: false,
+        ..ReadOptions::default()
+    }
+}
+
+/// Reads that decide whether something is stored, and so whether a write
+/// can be skipped: they see only durable data. A write still in flight is
+/// not yet stored as far as an upload that would rely on it is concerned —
+/// skipping on its strength would acknowledge an upload before anything
+/// made it durable.
+fn durable_read_options() -> ReadOptions {
+    ReadOptions {
+        durability_filter: DurabilityLevel::Remote,
+        ..ReadOptions::default()
+    }
+}
+
+/// Milliseconds since the Unix epoch, the unit of SlateDB's expiry times.
+fn now_millis() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
 }
 
 /// Main storage engine wrapping SlateDB with CDC-aware blob storage.
 pub struct CacheStore {
     db: Db,
+    /// A value with less than this long (ms) to live is due for a rewrite:
+    /// half the default TTL, or `None` without one.
+    refresh_window_ms: Option<i64>,
 }
 
 impl std::fmt::Debug for CacheStore {
@@ -101,10 +380,32 @@ pub fn create_object_store(
 ) -> Result<Arc<dyn slatedb::object_store::ObjectStore>> {
     let object_store: Arc<dyn slatedb::object_store::ObjectStore> = match backend {
         StoreBackend::Memory => Arc::new(slatedb::object_store::memory::InMemory::new()),
-        StoreBackend::LocalFs(path) => Arc::new(
-            slatedb::object_store::local::LocalFileSystem::new_with_prefix(path)
-                .map_err(|e| StoreError::Database(slatedb::Error::unavailable(e.to_string())))?,
-        ),
+        StoreBackend::LocalFs(path) => {
+            // The store's root has to exist before LocalFileSystem will use it.
+            std::fs::create_dir_all(path).map_err(|e| {
+                StoreError::Database(slatedb::Error::unavailable(format!(
+                    "create store directory {path}: {e}"
+                )))
+            })?;
+            Arc::new(
+                slatedb::object_store::local::LocalFileSystem::new_with_prefix(path).map_err(
+                    |e| StoreError::Database(slatedb::Error::unavailable(e.to_string())),
+                )?,
+            )
+        }
+        StoreBackend::S3 { bucket, prefix } => {
+            let store = s3_store::S3StoreBuilder::from_env()
+                .with_bucket(bucket)
+                .build()
+                .map_err(|e| StoreError::Database(slatedb::Error::unavailable(e.to_string())))?;
+            match prefix {
+                Some(prefix) => Arc::new(slatedb::object_store::prefix::PrefixStore::new(
+                    store,
+                    prefix.as_str(),
+                )),
+                None => Arc::new(store),
+            }
+        }
     };
     Ok(object_store)
 }
@@ -117,20 +418,95 @@ impl CacheStore {
         let default_ttl_ms = settings
             .default_ttl
             .map(|d| u64::try_from(d.as_millis()).expect("default TTL overflows u64 milliseconds"));
-        let db_settings = slatedb::config::Settings {
+        let base = match settings.slatedb_overrides.clone() {
+            Some(overrides) => overrides,
+            None => settings_for(&backend)?,
+        };
+        let mut db_settings = slatedb::config::Settings {
             default_ttl_millis: default_ttl_ms,
             compactor_options: if settings.disable_compactor {
                 None
             } else {
-                slatedb::config::Settings::default().compactor_options
+                base.compactor_options.clone()
             },
-            ..Default::default()
+            ..base
         };
-        let db = Db::builder(DB_PATH, object_store)
+        if let Some(bytes) = settings.write_buffer_bytes {
+            db_settings.max_unflushed_bytes = usize::try_from(bytes).unwrap_or(usize::MAX);
+        }
+        match (&settings.object_store_cache, &backend) {
+            (Some(cache), StoreBackend::S3 { .. }) => {
+                let options = &mut db_settings.object_store_cache_options;
+                options.root_folder = Some(cache.dir.clone());
+                if cache.max_bytes.is_some() {
+                    options.max_cache_size_bytes = cache.max_bytes;
+                }
+                // Blobs are often read back soon after they are uploaded.
+                options.cache_on_flush = true;
+            }
+            (Some(_), _) => warn!("object store cache ignored: the store is already local"),
+            (None, _) => {}
+        }
+
+        let cache_options = |bytes: Option<u64>, default| FoyerCacheOptions {
+            max_capacity: bytes.unwrap_or(default),
+            ..FoyerCacheOptions::default()
+        };
+        let db_cache = SplitCache::new()
+            .with_block_cache(Some(Arc::new(FoyerCache::new_with_opts(cache_options(
+                settings.block_cache_bytes,
+                DEFAULT_BLOCK_CACHE_BYTES,
+            )))))
+            .with_meta_cache(Some(Arc::new(FoyerCache::new_with_opts(cache_options(
+                settings.meta_cache_bytes,
+                DEFAULT_META_CACHE_BYTES,
+            )))))
+            .build();
+
+        let mut builder = Db::builder(DB_PATH, object_store)
             .with_settings(db_settings)
-            .build()
-            .await?;
-        Ok(CacheStore { db })
+            .with_db_cache(Arc::new(db_cache))
+            .with_block_cache_policy(block_cache_policy())
+            .with_segment_extractor(Arc::new(KeyKind));
+        if let Some(recorder) = settings.metrics_recorder.clone() {
+            builder = builder.with_metrics_recorder(recorder);
+        }
+        let db = builder.build().await?;
+        Ok(CacheStore {
+            db,
+            refresh_window_ms: default_ttl_ms.map(|ttl| i64::try_from(ttl / 2).unwrap_or(i64::MAX)),
+        })
+    }
+
+    /// Resolves once the database has stopped for any reason but a clean
+    /// close, with that reason: fenced by another writer that opened the
+    /// store, or stopped by a failed background task (WAL upload, memtable
+    /// flush, compaction, garbage collection). Every operation fails from
+    /// then on. Never resolves otherwise.
+    pub async fn failed(&self) -> CloseReason {
+        let mut status = self.db.subscribe();
+        loop {
+            match status.borrow_and_update().close_reason {
+                None => {}
+                Some(CloseReason::Clean) => break,
+                Some(reason) => return reason,
+            }
+            if status.changed().await.is_err() {
+                break;
+            }
+        }
+        std::future::pending().await
+    }
+
+    /// The key prefixes the store keeps separate LSM trees for, so far.
+    #[cfg(test)]
+    pub(crate) fn segments(&self) -> Vec<Bytes> {
+        self.db
+            .status()
+            .list_segments()
+            .into_iter()
+            .map(|segment| segment.prefix)
+            .collect()
     }
 
     /// Graceful shutdown.
@@ -138,9 +514,46 @@ impl CacheStore {
         self.db.close().await.map_err(StoreError::from)
     }
 
-    /// Wrapper around `Db::put` that discards the `WriteHandle`.
-    async fn db_put<K: AsRef<[u8]>, V: AsRef<[u8]>>(&self, key: K, value: V) -> Result<()> {
-        self.db.put(key, value).await.map(|_handle| ())?;
+    /// The value at `key` and when it expires (ms since the epoch), or `None`
+    /// if it is absent or has expired.
+    ///
+    /// SlateDB drops an expired value only once compaction reaches it, and
+    /// until then a plain read still returns it — so a blob would outlive
+    /// its TTL by however long compaction takes, and worse, an upload of it
+    /// would be skipped as already stored just before compaction removed it.
+    async fn get_live(
+        &self,
+        key: &[u8],
+        options: &ReadOptions,
+    ) -> Result<Option<(Bytes, Option<i64>)>> {
+        let Some(entry) = self.db.get_key_value_with_options(key, options).await? else {
+            return Ok(None);
+        };
+        if entry.expire_ts.is_some_and(|at| at <= now_millis()) {
+            return Ok(None);
+        }
+        Ok(Some((entry.value, entry.expire_ts)))
+    }
+
+    /// `Db::put`, returning once the value is durable.
+    async fn db_put(&self, key: &[u8], value: Bytes) -> Result<()> {
+        self.db
+            .put_bytes(Bytes::copy_from_slice(key), value)
+            .await?
+            .await_durable()
+            .await?;
+        Ok(())
+    }
+
+    /// Write `batch`, returning once it is durable.
+    ///
+    /// SlateDB acknowledges a write as soon as it is in the in-memory WAL,
+    /// and makes it durable on the next flush tick. A cache that answered
+    /// then could lose an upload it had told the client succeeded, or report
+    /// a blob present that a crash then takes away, so every write here
+    /// waits. Concurrent waits are satisfied by the same flush.
+    pub(crate) async fn commit(&self, batch: WriteBatch) -> Result<()> {
+        self.db.write(batch).await?.await_durable().await?;
         Ok(())
     }
 
@@ -182,11 +595,8 @@ impl CacheStore {
     }
 
     /// Store multiple blobs in a single batched write for amortized
-    /// throughput.
-    ///
-    /// Small blobs (< 2 MiB) are accumulated into one [`WriteBatch`] and
-    /// flushed with a single `db.write()` call. Large blobs fall back to
-    /// individual CDC-chunked writes via [`cas_put_blob_inner`].
+    /// throughput: one `db.write()`, so one wait for durability, however
+    /// many blobs and however large.
     ///
     /// **No existence checks** are performed — callers should use this on
     /// fresh-clone paths where duplicates are known to be absent or harmless
@@ -202,52 +612,21 @@ impl CacheStore {
         if blobs.is_empty() {
             return Ok(());
         }
-
-        // Partition into small (single-chunk) and large (needs CDC).
-        let mut batch = WriteBatch::new();
-        let mut large: Vec<(ContentDigest, Bytes, Compression)> = Vec::new();
-        let now = unix_now_secs();
-
-        for (digest, data, compression) in blobs {
-            if data.len() > MAX_BLOB_REASSEMBLE_SIZE {
-                return Err(StoreError::BlobTooLarge {
-                    size: data.len(),
-                    limit: MAX_BLOB_REASSEMBLE_SIZE,
-                });
+        let cheap = blobs_are_cheap(&blobs);
+        let prepare_all = move || -> Result<Vec<([u8; 34], Bytes)>> {
+            let mut puts = Vec::with_capacity(blobs.len() * 2);
+            for (digest, data, compression) in &blobs {
+                puts.extend(prepare_blob(digest, data, *compression)?);
             }
+            Ok(puts)
+        };
+        let puts = if cheap {
+            prepare_all()?
+        } else {
+            spawn_cpu(prepare_all).await?
+        };
 
-            if data.len() >= SMALL_BLOB_THRESHOLD {
-                large.push((digest, data, compression));
-                continue;
-            }
-
-            // Small blob: compress, tag, add chunk + manifest to batch.
-            let compressed = compression.compress_async(data.clone()).await?;
-            let tagged = tagged_chunk(compression, &compressed);
-            let chunk_key = prefixed_key(PREFIX_CHUNK, digest.function, &digest.hash);
-            batch.put(chunk_key, tagged.as_ref());
-
-            let manifest = BlobManifest {
-                chunks: vec![ChunkInfo {
-                    hash: digest.hash,
-                    size: data.len() as u64,
-                }],
-                created_at: now,
-            };
-            let manifest_key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
-            batch.put(manifest_key, manifest.to_bytes(compression)?);
-        }
-
-        // Flush all small blobs in one write.
-        self.db.write(batch).await?;
-
-        // Fall back to individual writes for large blobs (CDC chunking).
-        for (digest, data, compression) in large {
-            self.cas_put_blob_inner(&digest, data, compression, false)
-                .await?;
-        }
-
-        Ok(())
+        self.commit(batch_of(puts)).await
     }
 
     async fn cas_put_blob_inner(
@@ -257,8 +636,6 @@ impl CacheStore {
         compression: Compression,
         verify_hash: bool,
     ) -> Result<()> {
-        let digest_fn = digest.function;
-        let hash = &digest.hash;
         if data.len() > MAX_BLOB_REASSEMBLE_SIZE {
             return Err(StoreError::BlobTooLarge {
                 size: data.len(),
@@ -270,74 +647,37 @@ impl CacheStore {
             // Verify hash first — never skip validation for untrusted
             // callers, to prevent accepting garbage data under a valid
             // digest.
-            let computed = digest_fn.hash_data(&data);
-            if computed != *hash {
-                return Err(StoreError::DigestMismatch {
-                    expected: hex::encode(hash),
-                    actual: hex::encode(computed),
-                });
+            let check = {
+                let (digest, data) = (*digest, data.clone());
+                move || verify_digest(&digest, &data)
+            };
+            if data.len() < CPU_INLINE_BYTES {
+                check()?;
+            } else {
+                spawn_cpu(check).await?;
             }
         }
 
-        // Short-circuit: skip redundant write if blob already exists
-        if self.cas_blob_exists(digest).await? {
+        // Short-circuit: skip redundant write if blob already exists (with
+        // enough of its TTL left; otherwise the write refreshes it).
+        if self.cas_blob_fresh(digest).await? {
             debug!("blob already exists, skipping write");
             return Ok(());
         }
 
-        if data.len() < SMALL_BLOB_THRESHOLD {
-            // Small blob: WriteBatch for atomic chunk+manifest write.
-            // Content-addressed writes are idempotent, so no transaction
-            // isolation is needed — concurrent writes of the same hash
-            // produce identical data.
-            let compressed = compression.compress_async(data.clone()).await?;
-            let tagged = tagged_chunk(compression, &compressed);
-            let chunk_key = prefixed_key(PREFIX_CHUNK, digest_fn, hash);
-
-            let manifest = BlobManifest {
-                chunks: vec![ChunkInfo {
-                    hash: *hash,
-                    size: data.len() as u64,
-                }],
-                created_at: unix_now_secs(),
-            };
-            let manifest_key = prefixed_key(PREFIX_MANIFEST, digest_fn, hash);
-
-            let mut batch = WriteBatch::new();
-            batch.put(chunk_key, tagged.as_ref());
-            batch.put(manifest_key, manifest.to_bytes(compression)?);
-            self.db.write(batch).await?;
+        // Chunks and manifest go in one WriteBatch, so the blob is either
+        // fully visible or not at all. Content-addressed writes are
+        // idempotent, so concurrent writers of the same hash need no
+        // isolation from each other.
+        let blob = [(*digest, data, compression)];
+        let puts = if blobs_are_cheap(&blob) {
+            prepare_blob(digest, &blob[0].1, compression)?
         } else {
-            // Large blob: use WriteBatch for atomic chunk+manifest write.
-            // Collect CDC chunk ranges first, then compress in parallel.
-            let chunker = fastcdc::v2020::FastCDC::with_level(
-                &data,
-                CDC_MIN_SIZE,
-                CDC_AVG_SIZE,
-                CDC_MAX_SIZE,
-                fastcdc::v2020::Normalization::Level2,
-            );
-            let chunk_ranges: Vec<_> = chunker.map(|c| (c.offset, c.length)).collect();
-
-            let mut batch = WriteBatch::new();
-            let chunks =
-                compress_and_batch_chunks(&data, &chunk_ranges, digest_fn, compression, &mut batch)
-                    .await?;
-
-            debug!(
-                chunk_count = chunks.len(),
-                "large blob CDC chunking complete"
-            );
-            let manifest = BlobManifest {
-                chunks,
-                created_at: unix_now_secs(),
-            };
-            let manifest_key = prefixed_key(PREFIX_MANIFEST, digest_fn, hash);
-            batch.put(manifest_key, manifest.to_bytes(compression)?);
-            self.db.write(batch).await?;
-        }
-
-        Ok(())
+            let [(digest, data, compression)] = blob;
+            spawn_cpu(move || prepare_blob(&digest, &data, compression)).await?
+        };
+        debug!(chunk_count = puts.len() - 1, "blob prepared");
+        self.commit(batch_of(puts)).await
     }
 
     /// Reassemble a blob from its manifest and chunks.
@@ -446,11 +786,13 @@ impl CacheStore {
         Ok(Some(buf.freeze()))
     }
 
-    /// Stream a blob's decompressed chunks one at a time.
+    /// Stream a blob's decompressed chunks in order.
     ///
-    /// Peak memory is O(max_chunk_size) instead of O(blob_size). Returns
-    /// `Ok(None)` if the blob does not exist. Each yielded `Bytes` is a
-    /// verified, decompressed chunk.
+    /// Peak memory is O(max_chunk_size × [`STREAM_PREFETCH_CHUNKS`]) instead
+    /// of O(blob_size): that many chunk reads run ahead of the consumer, so a
+    /// remote object store's latency is paid once per window rather than once
+    /// per chunk. Returns `Ok(None)` if the blob does not exist. Each yielded
+    /// `Bytes` is a verified, decompressed chunk.
     ///
     /// Note: unlike `cas_get_blob`, this does **not** verify the whole-blob
     /// hash (since chunks are yielded incrementally). Callers that need
@@ -467,41 +809,75 @@ impl CacheStore {
             None => return Ok(None),
         };
 
-        let stream = async_stream::try_stream! {
-            for chunk_info in &manifest.chunks {
+        // Owned (hash, size) pairs, as in `cas_get_blob`, keep the stream's
+        // futures free of borrows from the manifest.
+        let chunk_specs: Vec<([u8; 32], u64)> = manifest
+            .chunks
+            .iter()
+            .map(|ci| (ci.hash, ci.size))
+            .collect();
+        let stream = futures::stream::iter(chunk_specs)
+            .map(move |(chunk_hash, chunk_size)| async move {
                 let (chunk_compression, compressed) = self
-                    .cas_get_raw_chunk(digest_fn, &chunk_info.hash)
+                    .cas_get_raw_chunk(digest_fn, &chunk_hash)
                     .await?
                     .ok_or_else(|| StoreError::ChunkMissing {
-                        hash: hex::encode(chunk_info.hash),
+                        hash: hex::encode(chunk_hash),
                     })?;
                 let decompressed = chunk_compression
-                    .decompress_with_size_hint_async(compressed, chunk_info.size as usize).await?;
-                if decompressed.len() != chunk_info.size as usize {
-                    Err(StoreError::ChunkSizeMismatch {
-                        expected: chunk_info.size,
+                    .decompress_with_size_hint_async(compressed, chunk_size as usize)
+                    .await?;
+                if decompressed.len() != chunk_size as usize {
+                    return Err(StoreError::ChunkSizeMismatch {
+                        expected: chunk_size,
                         actual: decompressed.len(),
-                    })?;
+                    });
                 }
                 let computed = digest_fn.hash_data(&decompressed);
-                if computed != chunk_info.hash {
-                    Err(StoreError::DigestMismatch {
-                        expected: hex::encode(chunk_info.hash),
+                if computed != chunk_hash {
+                    return Err(StoreError::DigestMismatch {
+                        expected: hex::encode(chunk_hash),
                         actual: hex::encode(computed),
-                    })?;
+                    });
                 }
-                yield decompressed;
-            }
-        };
+                Ok(decompressed)
+            })
+            .buffered(STREAM_PREFETCH_CHUNKS);
         Ok(Some(stream))
     }
 
-    /// Check if a blob exists (by checking its manifest key).
+    /// Whether a blob is stored, durably and unexpired (by its manifest).
     // TODO(perf): SlateDB lacks contains_key; this fetches the full value
     pub async fn cas_blob_exists(&self, digest: &ContentDigest) -> Result<bool> {
+        Ok(self.blob_expiry(digest).await?.is_some())
+    }
+
+    /// Whether a blob is stored with at least half its TTL left: stored, as
+    /// far as skipping an upload of it goes.
+    ///
+    /// Nothing else extends a blob's TTL, so a blob in its last half-life
+    /// reads as missing here: FindMissingBlobs asks clients to upload it
+    /// again, and the upload rewrites it with a fresh TTL. Blobs in use stay
+    /// stored, at the cost of one re-upload per half-life; unused ones
+    /// expire.
+    pub async fn cas_blob_fresh(&self, digest: &ContentDigest) -> Result<bool> {
+        Ok(match self.blob_expiry(digest).await? {
+            None => false,
+            Some(None) => true,
+            Some(Some(expires_at)) => self
+                .refresh_window_ms
+                .is_none_or(|window| expires_at - now_millis() >= window),
+        })
+    }
+
+    /// `None` if the blob is not durably stored (or has expired), else when
+    /// it expires.
+    async fn blob_expiry(&self, digest: &ContentDigest) -> Result<Option<Option<i64>>> {
         let key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
-        let result = self.db.get(&key).await?;
-        Ok(result.is_some())
+        Ok(self
+            .get_live(&key, &durable_read_options())
+            .await?
+            .map(|(_, expires_at)| expires_at))
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -514,8 +890,8 @@ impl CacheStore {
         digest: &ContentDigest,
     ) -> Result<Option<(BlobManifest, Compression)>> {
         let key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
-        match self.db.get(&key).await? {
-            Some(data) => Ok(Some(BlobManifest::from_bytes(data)?)),
+        match self.get_live(&key, &ReadOptions::default()).await? {
+            Some((data, _)) => Ok(Some(BlobManifest::from_bytes(data)?)),
             None => Ok(None),
         }
     }
@@ -531,8 +907,7 @@ impl CacheStore {
         compression: Compression,
     ) -> Result<()> {
         let key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
-        self.db_put(&key, manifest.to_bytes(compression)?.as_ref())
-            .await
+        self.db_put(&key, manifest.to_bytes(compression)?).await
     }
 
     /// Atomically store a blob from pre-existing chunk data.
@@ -596,7 +971,7 @@ impl CacheStore {
         while let Some(result) = stream.next().await {
             let (hash, chunk_len, tagged) = result?;
             let chunk_key = prefixed_key(PREFIX_CHUNK, digest_fn, &hash);
-            batch.put(chunk_key, tagged.as_ref());
+            batch.put_bytes(Bytes::copy_from_slice(&chunk_key), tagged);
             chunk_infos.push(ChunkInfo {
                 hash,
                 size: chunk_len,
@@ -608,8 +983,11 @@ impl CacheStore {
             created_at: unix_now_secs(),
         };
         let manifest_key = prefixed_key(PREFIX_MANIFEST, digest_fn, &blob_digest.hash);
-        batch.put(manifest_key, manifest.to_bytes(compression)?);
-        self.db.write(batch).await?;
+        batch.put_bytes(
+            Bytes::copy_from_slice(&manifest_key),
+            manifest.to_bytes(compression)?,
+        );
+        self.commit(batch).await?;
         Ok(())
     }
 
@@ -620,7 +998,11 @@ impl CacheStore {
         hash: &[u8; 32],
     ) -> Result<Option<(Compression, Bytes)>> {
         let key = prefixed_key(PREFIX_CHUNK, digest_fn, hash);
-        match self.db.get(&key).await? {
+        match self
+            .db
+            .get_with_options(&key, &chunk_read_options())
+            .await?
+        {
             Some(raw) => Ok(Some(parse_chunk_tag(raw)?)),
             None => Ok(None),
         }
@@ -644,7 +1026,7 @@ impl CacheStore {
         let compressed = compression.compress_async(data).await?;
         let tagged = tagged_chunk(compression, &compressed);
         let key = prefixed_key(PREFIX_CHUNK, digest.function, &digest.hash);
-        self.db_put(&key, tagged.as_ref()).await
+        self.db_put(&key, tagged).await
     }
 
     /// Fetch a chunk, decompressing it after retrieval.
@@ -674,7 +1056,10 @@ impl CacheStore {
     // TODO(perf): SlateDB lacks contains_key; this fetches the full value
     pub async fn cas_chunk_exists(&self, digest: &ContentDigest) -> Result<bool> {
         let key = prefixed_key(PREFIX_CHUNK, digest.function, &digest.hash);
-        let result = self.db.get(&key).await?;
+        let result = self
+            .db
+            .get_with_options(&key, &chunk_read_options())
+            .await?;
         Ok(result.is_some())
     }
 
@@ -706,14 +1091,17 @@ impl CacheStore {
             });
         }
         let key = prefixed_key(PREFIX_ACTION, digest.function, &digest.hash);
-        self.db_put(&key, data.as_ref()).await
+        self.db_put(&key, data).await
     }
 
     /// Fetch an action cache entry.
     #[instrument(skip(self), fields(%digest))]
     pub async fn ac_get(&self, digest: &ContentDigest) -> Result<Option<Bytes>> {
         let key = prefixed_key(PREFIX_ACTION, digest.function, &digest.hash);
-        self.db.get(&key).await.map_err(StoreError::from)
+        Ok(self
+            .get_live(&key, &ReadOptions::default())
+            .await?
+            .map(|(data, _)| data))
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -730,7 +1118,7 @@ impl CacheStore {
         entry: &AssetEntry,
     ) -> Result<()> {
         let key = asset_key(digest_fn, uri, qualifiers);
-        self.db_put(&key, entry.to_bytes().as_ref()).await
+        self.db_put(&key, entry.to_bytes()).await
     }
 
     /// Look up an asset mapping entry by (URI, qualifiers, digest_function).
@@ -742,8 +1130,8 @@ impl CacheStore {
         qualifiers: &[(String, String)],
     ) -> Result<Option<AssetEntry>> {
         let key = asset_key(digest_fn, uri, qualifiers);
-        match self.db.get(&key).await? {
-            Some(data) => Ok(Some(AssetEntry::from_bytes(data)?)),
+        match self.get_live(&key, &ReadOptions::default()).await? {
+            Some((data, _)) => Ok(Some(AssetEntry::from_bytes(data)?)),
             None => Ok(None),
         }
     }
@@ -798,6 +1186,120 @@ pub(crate) fn prefixed_key(prefix: u8, digest_fn: DigestFn, hash: &[u8; 32]) -> 
     key
 }
 
+/// A write batch of `puts`, taking each value without a copy.
+fn batch_of(puts: Vec<([u8; 34], Bytes)>) -> WriteBatch {
+    let mut batch = WriteBatch::new();
+    for (key, value) in puts {
+        batch.put_bytes(Bytes::copy_from_slice(&key), value);
+    }
+    batch
+}
+
+/// Blobs below this size are hashed, chunked, and compressed inline; larger
+/// ones on a blocking thread, so no async worker stalls on a multi-GiB blob.
+pub const CPU_INLINE_BYTES: usize = 256 * 1024;
+
+/// Whether preparing `blobs` is cheap enough to do on an async worker:
+/// uncompressed, and small in total.
+fn blobs_are_cheap(blobs: &[(ContentDigest, Bytes, Compression)]) -> bool {
+    let mut total = 0;
+    blobs.iter().all(|(_, data, compression)| {
+        total += data.len();
+        *compression == Compression::Identity && total < CPU_INLINE_BYTES
+    })
+}
+
+/// Run CPU-bound `work` on a blocking thread.
+async fn spawn_cpu<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T> + Send + 'static,
+) -> Result<T> {
+    tokio::task::spawn_blocking(work).await.map_err(|e| {
+        StoreError::Database(slatedb::Error::unavailable(format!("blocking task: {e}")))
+    })?
+}
+
+/// Check that `data` hashes to `digest`.
+fn verify_digest(digest: &ContentDigest, data: &[u8]) -> Result<()> {
+    let computed = digest.function.hash_data(data);
+    if computed != digest.hash {
+        return Err(StoreError::DigestMismatch {
+            expected: hex::encode(digest.hash),
+            actual: hex::encode(computed),
+        });
+    }
+    Ok(())
+}
+
+/// The key-value pairs that store `data` as the blob `digest`: its chunks
+/// (one for a small blob, FastCDC-split otherwise), then its manifest.
+///
+/// CPU-bound for large blobs (chunking, hashing, and compressing every
+/// chunk), which it spreads over the rayon pool: call it from a blocking
+/// context unless [`blobs_are_cheap`].
+fn prepare_blob(
+    digest: &ContentDigest,
+    data: &Bytes,
+    compression: Compression,
+) -> Result<Vec<([u8; 34], Bytes)>> {
+    if data.len() > MAX_BLOB_REASSEMBLE_SIZE {
+        return Err(StoreError::BlobTooLarge {
+            size: data.len(),
+            limit: MAX_BLOB_REASSEMBLE_SIZE,
+        });
+    }
+    let digest_fn = digest.function;
+    let chunk = |hash: [u8; 32], piece: &[u8]| -> Result<(ChunkInfo, [u8; 34], Bytes)> {
+        let tagged = tagged_chunk(compression, &compression.compress(piece)?);
+        let info = ChunkInfo {
+            hash,
+            size: piece.len() as u64,
+        };
+        Ok((info, prefixed_key(PREFIX_CHUNK, digest_fn, &hash), tagged))
+    };
+
+    let chunks: Vec<_> = if data.is_empty() {
+        Vec::new()
+    } else if data.len() < SMALL_BLOB_THRESHOLD {
+        // A single chunk: the blob itself, under its own hash.
+        vec![chunk(digest.hash, data)?]
+    } else {
+        use rayon::prelude::*;
+        let ranges: Vec<(usize, usize)> = cdc_ranges(data).collect();
+        ranges
+            .into_par_iter()
+            .map(|(offset, length)| {
+                let piece = &data[offset..offset + length];
+                chunk(digest_fn.hash_data(piece), piece)
+            })
+            .collect::<Result<_>>()?
+    };
+
+    let mut puts = Vec::with_capacity(chunks.len() + 1);
+    let mut manifest = BlobManifest {
+        chunks: Vec::with_capacity(chunks.len()),
+        created_at: unix_now_secs(),
+    };
+    for (info, key, value) in chunks {
+        manifest.chunks.push(info);
+        puts.push((key, value));
+    }
+    let manifest_key = prefixed_key(PREFIX_MANIFEST, digest_fn, &digest.hash);
+    puts.push((manifest_key, manifest.to_bytes(compression)?));
+    Ok(puts)
+}
+
+/// The chunks FastCDC cuts `data` into, as `(offset, length)`.
+pub(crate) fn cdc_ranges(data: &[u8]) -> impl Iterator<Item = (usize, usize)> + '_ {
+    fastcdc::v2020::FastCDC::with_level(
+        data,
+        CDC_MIN_SIZE,
+        CDC_AVG_SIZE,
+        CDC_MAX_SIZE,
+        fastcdc::v2020::Normalization::Level2,
+    )
+    .map(|c| (c.offset, c.length))
+}
+
 /// Compress chunk ranges in parallel and write them to a WriteBatch.
 ///
 /// Each range `(offset, length)` is sliced from `data`, hashed, compressed,
@@ -825,7 +1327,7 @@ pub(crate) async fn compress_and_batch_chunks(
     while let Some(result) = stream.next().await {
         let (chunk_hash, length, tagged) = result?;
         let chunk_key = prefixed_key(PREFIX_CHUNK, digest_fn, &chunk_hash);
-        batch.put(chunk_key, tagged.as_ref());
+        batch.put_bytes(Bytes::copy_from_slice(&chunk_key), tagged);
         chunks.push(ChunkInfo {
             hash: chunk_hash,
             size: length as u64,
@@ -975,9 +1477,15 @@ mod test_chunking;
 mod test_compression;
 #[cfg(test_module_concurrency)]
 mod test_concurrency;
+#[cfg(test_module_expiry)]
+mod test_expiry;
 #[cfg(test_module_hashing)]
 mod test_hashing;
+#[cfg(test_module_lifecycle)]
+mod test_lifecycle;
 #[cfg(test_module_manifest)]
 mod test_manifest;
 #[cfg(test_module_streaming)]
 mod test_streaming;
+#[cfg(test_module_tuning)]
+mod test_tuning;

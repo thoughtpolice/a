@@ -37,30 +37,17 @@ pub async fn start_reapi_grpc(
     use crate::service;
 
     let (health_reporter, health_service) = tonic_health::server::health_reporter();
-    health_reporter
-        .set_serving::<CapabilitiesServer<service::CapabilitiesService>>()
-        .await;
-    health_reporter
-        .set_serving::<ContentAddressableStorageServer<service::ContentAddressableStorageService>>()
-        .await;
-    health_reporter
-        .set_serving::<ActionCacheServer<service::ActionCacheService>>()
-        .await;
-    health_reporter
-        .set_serving::<ExecutionServer<service::ExecutionService>>()
-        .await;
-    health_reporter
-        .set_serving::<ByteStreamServer<service::ByteStreamService>>()
-        .await;
-    health_reporter
-        .set_serving::<FetchServer<service::FetchService>>()
-        .await;
-    health_reporter
-        .set_serving::<PushServer<service::PushService>>()
-        .await;
-    health_reporter
-        .set_serving::<LogStreamServiceServer<service::LogStreamSvc>>()
-        .await;
+    set_services_status(&health_reporter, tonic_health::ServingStatus::Serving).await;
+
+    // Report every service NOT_SERVING as soon as shutdown begins, so load
+    // balancers watching health stop routing here while connections drain.
+    let shutdown = {
+        let health = health_reporter.clone();
+        async move {
+            shutdown.await;
+            set_not_serving(&health).await;
+        }
+    };
 
     let cas_service = service::ContentAddressableStorageService::new(store.clone(), handle.clone());
     let action_cache_service = service::ActionCacheService::new(store.clone());
@@ -121,6 +108,35 @@ pub async fn start_reapi_grpc(
             )
             .await
         }
+    }
+}
+
+/// Mark the server and each of its services NOT_SERVING.
+async fn set_not_serving(health: &tonic_health::server::HealthReporter) {
+    let status = tonic_health::ServingStatus::NotServing;
+    health.set_service_status("", status).await;
+    set_services_status(health, status).await;
+}
+
+/// Report each of the server's services `status`.
+async fn set_services_status(
+    health: &tonic_health::server::HealthReporter,
+    status: tonic_health::ServingStatus,
+) {
+    use crate::service;
+    use tonic::server::NamedService;
+
+    for name in [
+        <CapabilitiesServer<service::CapabilitiesService> as NamedService>::NAME,
+        <ContentAddressableStorageServer<service::ContentAddressableStorageService> as NamedService>::NAME,
+        <ActionCacheServer<service::ActionCacheService> as NamedService>::NAME,
+        <ExecutionServer<service::ExecutionService> as NamedService>::NAME,
+        <ByteStreamServer<service::ByteStreamService> as NamedService>::NAME,
+        <FetchServer<service::FetchService> as NamedService>::NAME,
+        <PushServer<service::PushService> as NamedService>::NAME,
+        <LogStreamServiceServer<service::LogStreamSvc> as NamedService>::NAME,
+    ] {
+        health.set_service_status(name, status).await;
     }
 }
 

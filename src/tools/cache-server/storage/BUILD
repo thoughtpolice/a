@@ -4,8 +4,8 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
+    "//src/tools/cache-server/s3-store:s3-store",
     "third-party//rust:anyhow",
-    "third-party//rust:async-stream",
     "third-party//rust:blake3",
     "third-party//rust:brotli",
     "third-party//rust:bytes",
@@ -14,8 +14,10 @@ DEPS = [
     "third-party//rust:flate2",
     "third-party//rust:hex",
     "third-party//rust:jiff",
+    "third-party//rust:rayon",
     "third-party//rust:sha2",
     "third-party//rust:slatedb",
+    "third-party//rust:slatedb-common",
     "third-party//rust:thiserror",
     "third-party//rust:tokio",
     "third-party//rust:tracing",
@@ -63,6 +65,9 @@ TEST_MODULES = {
     "concurrency": {},
     "action_cache": {},
     "asset": {},
+    "tuning": {},
+    "expiry": {},
+    "lifecycle": {},
 }
 
 ALL_TEST_RESOURCES = {
@@ -73,6 +78,7 @@ ALL_TEST_RESOURCES = {
 
 TEST_DEPS = DEPS + [
     "third-party//rust:buck-resources",
+    "third-party//rust:tempfile",
 ]
 
 # Per-module test targets

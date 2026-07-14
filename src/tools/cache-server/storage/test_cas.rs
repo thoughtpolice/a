@@ -1434,7 +1434,10 @@ async fn cas_large_blob_overwrite_restores_corrupted_chunk() {
     let first_chunk_key = prefixed_key(PREFIX_CHUNK, DigestFn::Sha256, &manifest.chunks[0].hash);
     let mut corrupted = vec![Compression::Identity as u8];
     corrupted.extend_from_slice(b"corrupted");
-    store.db_put(&first_chunk_key, &corrupted).await.unwrap();
+    store
+        .db_put(&first_chunk_key, Bytes::from(corrupted))
+        .await
+        .unwrap();
 
     // Re-store is a no-op because the blob manifest already exists
     store
@@ -1524,7 +1527,7 @@ async fn total_size_overflow_detected() {
     store
         .db_put(
             &manifest_key,
-            manifest.to_bytes(Compression::Identity).unwrap().as_ref(),
+            manifest.to_bytes(Compression::Identity).unwrap(),
         )
         .await
         .unwrap();
@@ -1654,7 +1657,7 @@ async fn cas_get_blob_zero_chunk_manifest_wrong_hash_rejected() {
     store
         .db_put(
             &manifest_key,
-            manifest.to_bytes(Compression::Identity).unwrap().as_ref(),
+            manifest.to_bytes(Compression::Identity).unwrap(),
         )
         .await
         .unwrap();
@@ -1686,7 +1689,7 @@ async fn cas_get_blob_zero_chunk_manifest_correct_hash_accepted() {
     store
         .db_put(
             &manifest_key,
-            manifest.to_bytes(Compression::Identity).unwrap().as_ref(),
+            manifest.to_bytes(Compression::Identity).unwrap(),
         )
         .await
         .unwrap();

@@ -90,7 +90,7 @@ impl content_addressable_storage_server::ContentAddressableStorage
                 .map(move |(cd, proto_digest)| {
                     let store = store.clone();
                     async move {
-                        match store.cas_blob_exists(&cd).await {
+                        match store.cas_blob_fresh(&cd).await {
                             Ok(false) => Ok(Some(proto_digest)),
                             Ok(true) => Ok(None),
                             Err(e) => Err(store_error_to_status(e)),
@@ -594,9 +594,9 @@ impl content_addressable_storage_server::ContentAddressableStorage
                 )));
             }
 
-            // If the blob already exists, short-circuit
+            // If the blob already exists (with enough TTL left), short-circuit
             if store
-                .cas_blob_exists(&blob_cd)
+                .cas_blob_fresh(&blob_cd)
                 .await
                 .map_err(store_error_to_status)?
             {
