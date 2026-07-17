@@ -40,9 +40,9 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
-          toolchain: 1.90
+          toolchain: "nightly-2026-03-24"
       - name: Setup Erlang/OTP
-        uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
         with:
           otp-version: '28.1.1'
       - name: (Linux) Install packages
@@ -152,9 +152,9 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
-          toolchain: 1.90
+          toolchain: "nightly-2026-03-24"
       - name: Setup Erlang/OTP
-        uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
         with:
           otp-version: '28.1.1'
       - name: (Linux) Install packages
