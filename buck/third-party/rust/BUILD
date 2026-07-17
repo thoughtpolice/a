@@ -2086,7 +2086,7 @@ third_party_rust.rust_library(
         ":semver-1.0.28",
         ":serde-1.0.228",
         ":serde_json-1.0.150",
-        ":serde_with-3.18.0",
+        ":serde_with-3.21.0",
         ":smol_str-0.3.6",
         ":thiserror-2.0.18",
     ],
@@ -2193,7 +2193,7 @@ third_party_rust.rust_library(
         ":rustc-literal-escaper-0.0.7",
         ":serde-1.0.228",
         ":serde_json-1.0.150",
-        ":serde_with-3.18.0",
+        ":serde_with-3.21.0",
         ":smol_str-0.3.6",
         ":stacker-0.1.24",
         ":thiserror-2.0.18",
@@ -17346,18 +17346,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "serde_with-3.18.0.crate",
-    sha256 = "dd5414fad8e6907dbdd5bc441a50ae8d6e26151a03b1de04d89a5576de61d01f",
-    strip_prefix = "serde_with-3.18.0",
-    urls = ["https://static.crates.io/crates/serde_with/3.18.0/download"],
+    name = "serde_with-3.21.0.crate",
+    sha256 = "76a5c54c7310e7b8b9577c286d7e399ddd876c3e12b3ed917a8aabc4b96e9e8c",
+    strip_prefix = "serde_with-3.21.0",
+    urls = ["https://static.crates.io/crates/serde_with/3.21.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "serde_with-3.18.0",
-    srcs = [":serde_with-3.18.0.crate"],
+    name = "serde_with-3.21.0",
+    srcs = [":serde_with-3.21.0.crate"],
     crate = "serde_with",
-    crate_root = "serde_with-3.18.0.crate/src/lib.rs",
+    crate_root = "serde_with-3.21.0.crate/src/lib.rs",
     edition = "2021",
     features = [
         "alloc",
@@ -17370,23 +17370,23 @@ third_party_rust.rust_library(
     deps = [
         ":serde_core-1.0.228",
         ":serde_json-1.0.150",
-        ":serde_with_macros-3.18.0",
+        ":serde_with_macros-3.21.0",
     ],
 )
 
 shims.http_archive(
-    name = "serde_with_macros-3.18.0.crate",
-    sha256 = "d3db8978e608f1fe7357e211969fd9abdcae80bac1ba7a3369bb7eb6b404eb65",
-    strip_prefix = "serde_with_macros-3.18.0",
-    urls = ["https://static.crates.io/crates/serde_with_macros/3.18.0/download"],
+    name = "serde_with_macros-3.21.0.crate",
+    sha256 = "84d57bc0c8b9a17920c178daa6bb924850d54a9c97ab45194bb8c17ad66bb660",
+    strip_prefix = "serde_with_macros-3.21.0",
+    urls = ["https://static.crates.io/crates/serde_with_macros/3.21.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "serde_with_macros-3.18.0",
-    srcs = [":serde_with_macros-3.18.0.crate"],
+    name = "serde_with_macros-3.21.0",
+    srcs = [":serde_with_macros-3.21.0.crate"],
     crate = "serde_with_macros",
-    crate_root = "serde_with_macros-3.18.0.crate/src/lib.rs",
+    crate_root = "serde_with_macros-3.21.0.crate/src/lib.rs",
     edition = "2021",
     proc_macro = True,
     visibility = [],
@@ -19844,6 +19844,7 @@ third_party_rust.rust_library(
     features = [
         "alloc",
         "default",
+        "std",
         "tinyvec_macros",
     ],
     visibility = [],
