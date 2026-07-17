@@ -60,12 +60,12 @@ const PREFIX_ACTION: u8 = b'a';
 const PREFIX_ASSET: u8 = b'r';
 
 // FastCDC parameters: avg 512 KiB, min = avg/4, max = avg*4
-const CDC_AVG_SIZE: u32 = 524_288; // 512 KiB
-const CDC_MIN_SIZE: u32 = CDC_AVG_SIZE / 4; // 128 KiB
-const CDC_MAX_SIZE: u32 = CDC_AVG_SIZE * 4; // 2 MiB
+const CDC_AVG_SIZE: usize = 524_288; // 512 KiB
+const CDC_MIN_SIZE: usize = CDC_AVG_SIZE / 4; // 128 KiB
+const CDC_MAX_SIZE: usize = CDC_AVG_SIZE * 4; // 2 MiB
 
 // Blobs below this size are stored as a single chunk (no CDC splitting)
-const SMALL_BLOB_THRESHOLD: usize = CDC_MAX_SIZE as usize;
+const SMALL_BLOB_THRESHOLD: usize = CDC_MAX_SIZE;
 
 /// Maximum total blob size for reassembly (2 GiB).
 pub const MAX_BLOB_REASSEMBLE_SIZE: usize = 2 * 1024 * 1024 * 1024;

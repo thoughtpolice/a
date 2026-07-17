@@ -12,40 +12,42 @@ name = "top"
 path = "top.rs"
 
 [dependencies]
-anyhow = "1.0.97"
-argh = "0.1.13"
-ariadne = "0.5.1"
+anyhow = "1.0.103"
+argh = "0.1.19"
+ariadne = "0.6.0"
 async-stream = "0.3.6"
 async-trait = "0.1"
 base64 = "0.22.1"
-blake3 = "1.8.2"
+blake3 = "1.8.5"
 brotli = "8.0"
 buck-resources = "1"
-bytes = "1.11.0"
-capnp = "0.25.0"
-capnpc = "0.25.0"
-capnp-futures = "0.25.0"
-capnp-rpc = "0.25.0"
-chumsky = { version = "0.10.1", features = ["either", "memoization", "pratt", "regex", "serde", "stacker"] }
-clap = { version = "4.5", features = ["derive"] }
+bytes = "1.12.1"
+capnp = "0.26.2"
+capnpc = "0.26.0"
+capnp-futures = "0.26.1"
+capnp-rpc = "0.26.1"
+chumsky = { version = "0.13.0", features = ["either", "memoization", "pratt", "regex", "serde", "stacker"] }
+clap = { version = "4.6", features = ["derive"] }
 console-subscriber = "0.5.0"
-cedar-policy = "4.8.2"
-crossbeam-channel = "0.5.15"
+cedar-policy = "4.11.2"
+crossbeam-channel = "0.5.16"
 crossterm = "0.29.0"
-dashmap = "6.1.0"
+dashmap = "6.2.1"
 dupe = "0.9.1"
 dupe_derive = "0.9.1"
-educe = "0.6.0"
-env_logger = "0.10"
+educe = "0.7.4"
+env_logger = "0.11"
 eyre = "0.6.12"
-fastcdc = "3.2.1"
+fastcdc = "4.0.1"
 figleter = "0.2.2"
-fjall = { version = "3.0.1", default_features = false, features = [
+fjall = { version = "3.1.7", default_features = false, features = [
     "lz4",
     "metrics",
 ] }
 flate2 = { version = "1.1", features = ["zlib-rs"], default-features = false }
-futures = "0.3.31"
+futures = "0.3.32"
+# NOTE (aseipp): version must stay in lockstep with jj-lib's gix requirement,
+# or the whole gix crate stack gets duplicated in the build graph
 gix = { version = "0.80.0", default-features = false, features = [
     "attributes",
     "blob-diff",
@@ -56,29 +58,29 @@ gix = { version = "0.80.0", default-features = false, features = [
 hegeltest = "0.28.0"
 hex = "0.4.3"
 hmac = "0.12"
-http = "1.3.1"
+http = "1.4.2"
 http-body-util = "0.1"
-hyper = "1.8.1"
+hyper = "1.10.1"
 hyper-rustls = { version = "0.27.9", default-features = false, features = [
     "http1",
     "native-tokio",
 ] }
 hyper-util = { version = "0.1", features = ["server-auto", "server-graceful", "http1", "http2", "tokio"] }
-insta = "1.42.2"
-iocraft = "0.7.10"
+insta = "1.48.0"
+iocraft = "0.8.4"
 # NOTE (aseipp): default features enable `tls-ring`, so turn them off
 iroh = { version = "1.0.2", default-features = false, features = [
     "metrics",
     "portmapper",
 ] }
-jiff = "0.2.23"
-landlock = "0.4.4"
+jiff = "0.2.32"
+landlock = "0.4.5"
 linked-hash-map = "0.5.6"
 log = "0.4"
-md5 = "0.7"
+md5 = "0.8"
 memmap2 = "0.9.11"
-notify-debouncer-mini = { version = "0.6.0", features = ["crossbeam-channel"] }
-openssl = "0.10.80"
+notify-debouncer-mini = { version = "0.7.0", features = ["crossbeam-channel"] }
+openssl = "0.10.81"
 opentelemetry = "0.32.0"
 opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.32.0", features = ["grpc-tonic"] }
@@ -87,14 +89,14 @@ opentelemetry-appender-log = "0.32.0"
 opentelemetry-semantic-conventions = "0.32.1"
 tracing-opentelemetry = "0.33.0"
 parking_lot = "0.12.5"
-pollster = "0.4.0"
-proc-macro2 = "1.0.103"
-prost = "0.14.1"
-prost-types = "0.14.1"
-quote = "1.0.42"
-rand = "0.8.5"
+pollster = "1.0.1"
+proc-macro2 = "1.0.106"
+prost = "0.14.4"
+prost-types = "0.14.4"
+quote = "1.0.46"
+rand = "0.10.2"
 ratatui = "0.30"
-rayon = "1.11.0"
+rayon = "1.12.0"
 # NOTE (aseipp): no default features, ever: they pull in aws-lc-rs.
 rustls = { version = "0.23.42", default-features = false, features = ["std"] }
 # NOTE (aseipp): reqwest 0.13 flipped `default-tls` to rustls (which pulls
@@ -109,39 +111,41 @@ reqwest = { version = "0.13.4", default-features = false, features = [
     "system-proxy",
 ] }
 s3s = "0.14.1"
-salsa = "0.22.0"
+salsa = "0.28.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+# NOTE (aseipp): sha1/sha2 stay on the digest-0.10 family: 0.11 removed the
+# `compress` feature and generic_array, both used by cache-server hashing
 sha1 = { version = "0.10", features = ["compress"] }
 sha2 = { version = "0.10", features = ["compress"] }
 # NOTE (aseipp): default features enable `aws`, which drags in object_store/aws
 # -> reqwest/rustls -> ring. cache-server only uses the memory/local backends,
 # so keep just `foyer` (the block cache) and let object_store default to `fs`.
 slatedb = { version = "0.14.1", default-features = false, features = ["foyer"] }
-syn = { version = "2.0.110", features = ["full"] }
+syn = { version = "2.0.119", features = ["full"] }
 tar = "0.4"
-tempfile = "3.20.0"
-thiserror = "2.0.12"
-tonic = "0.14.2"
-tonic-build = "0.14.2"
-tonic-health = "0.14.2"
-tonic-prost-build = "0.14.2"
-tonic-prost = "0.14.2"
-tonic-reflection = "0.14.2"
-tokio = { version = "1.50", features = [
+tempfile = "3.27.0"
+thiserror = "2.0.18"
+tonic = "0.14.6"
+tonic-build = "0.14.6"
+tonic-health = "0.14.6"
+tonic-prost-build = "0.14.6"
+tonic-prost = "0.14.6"
+tonic-reflection = "0.14.6"
+tokio = { version = "1.53", features = [
     "full",
     "tracing",
     "macros",
     "rt-multi-thread",
 ]}
 tokio-openssl = "0.6.5"
-tokio-stream = "0.1.17"
-tokio-util = { version = "0.7.15", features = ["compat"] }
+tokio-stream = "0.1.18"
+tokio-util = { version = "0.7.18", features = ["compat"] }
 tower = { version = "0.5", features = ["util", "limit"] }
-tracing = "0.1.41"
-tracing-subscriber = "0.3.19"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.23"
 unicode-width = "0.2.2"
-uuid = { version = "1.17.0", features = ["v4"] }
+uuid = { version = "1.24.0", features = ["v4"] }
 watchman_client = "0.9.0"
 zeroize = "1.9"
 zip = { version = "8", default-features = false, features = ["deflate"] }

@@ -832,9 +832,9 @@ async fn cas_blob_at_various_sizes() {
         100,
         4096,
         65536,
-        CDC_MIN_SIZE as usize,
-        CDC_AVG_SIZE as usize,
-        CDC_MAX_SIZE as usize - 1,
+        CDC_MIN_SIZE,
+        CDC_AVG_SIZE,
+        CDC_MAX_SIZE - 1,
     ];
 
     for &size in &sizes {

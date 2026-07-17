@@ -72,7 +72,7 @@ impl<'a> CasBlobWriter<'a> {
         }
 
         // Run CDC when buffer is large enough to produce complete chunks
-        while self.buffer.len() >= CDC_MAX_SIZE as usize * 2 {
+        while self.buffer.len() >= CDC_MAX_SIZE * 2 {
             self.extract_chunks().await?;
         }
         Ok(())
@@ -94,7 +94,7 @@ impl<'a> CasBlobWriter<'a> {
         for chunk in chunker {
             let end = chunk.offset + chunk.length;
             // Only take chunks that are fully within the buffer (not the tail)
-            if end > self.buffer.len().saturating_sub(CDC_MAX_SIZE as usize) {
+            if end > self.buffer.len().saturating_sub(CDC_MAX_SIZE) {
                 break;
             }
             pending_chunks.push((chunk.offset, end, chunk.length));
