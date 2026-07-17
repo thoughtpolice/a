@@ -7,7 +7,6 @@ load("@prelude//cfg/modifier:conditional_modifier.bzl", "conditional_modifier")
 load("@root//buck/lib/tar:defs.bzl", _tar_file = "tar_file")
 load("@root//buck/shims:rust_test_internal.bzl", _rust_test_internal_rule = "rust_test_internal")
 load("@root//buck/lib/oci:defs.bzl", _oci_image = "oci_image", _oci_index = "oci_index", _oci_pull = "oci_pull", _oci_repack = "oci_repack", _oci_unpack = "oci_unpack")
-load("@toolchains//golang:defs.bzl", "go_binary", "go_library")
 load("@toolchains//k6:defs.bzl", "k6_run")
 load("@toolchains//uv:defs.bzl", _uv_impl = "uv")
 load("@toolchains//zuo:defs.bzl", _zuo = "zuo")
@@ -454,8 +453,9 @@ shims = struct(
     ocaml_binary = lambda **kwargs: native.ocaml_binary(**_fix_kwargs("ocaml_binary", kwargs)),
     ocaml_library = lambda **kwargs: native.ocaml_library(**_fix_kwargs("ocaml_library", kwargs)),
 
-    go_binary = lambda **kwargs: go_binary(**_fix_kwargs("go_binary", kwargs)),
-    go_library = lambda **kwargs: go_library(**_fix_kwargs("go_library", kwargs)),
+    go_binary = lambda **kwargs: native.go_binary(**_fix_kwargs("go_binary", kwargs)),
+    go_library = lambda **kwargs: native.go_library(**_fix_kwargs("go_library", kwargs)),
+    go_test = lambda **kwargs: native.go_test(**_fix_kwargs("go_test", kwargs)),
 
     erlang_app = lambda **kwargs: native.erlang_app(**_fix_kwargs("erlang_app", kwargs)),
     erlang_test = lambda **kwargs: native.erlang_test(**_fix_kwargs("erlang_test", kwargs)),

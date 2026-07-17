@@ -43,8 +43,13 @@ shims.toolchain_alias(
 )
 
 shims.toolchain_alias(
-    name="golang",
-    actual="toolchains//golang:golang",
+    name="go",
+    actual="toolchains//golang:go",
+)
+
+shims.toolchain_alias(
+    name="go_bootstrap",
+    actual="toolchains//golang:go_bootstrap",
 )
 
 shims.toolchain_alias(

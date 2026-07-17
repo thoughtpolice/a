@@ -80,10 +80,13 @@ def java_library(**_kwargs):
     fail('use appropriate language-specific toolchain instead of native java_library')
 
 def go_binary(**_kwargs):
-    fail('use appropriate language-specific toolchain instead of native go_binary')
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.go_binary() instead')
 
 def go_library(**_kwargs):
-    fail('use appropriate language-specific toolchain instead of native go_library')
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.go_library() instead')
+
+def go_test(**_kwargs):
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.go_test() instead')
 
 def erlang_app(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.erlang_app() instead')
