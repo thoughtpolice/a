@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# build.rs only emits `cargo:rustc-check-cfg` for the force_bits test matrix.
+buildscript.run = false

@@ -3930,6 +3930,49 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "dashu-base-0.4.3.crate",
+    sha256 = "993b95dc1b248e3f5747dcb017a41d6e75853a2e5ee4504f7d537c5b8dffdae4",
+    strip_prefix = "dashu-base-0.4.3",
+    urls = ["https://static.crates.io/crates/dashu-base/0.4.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "dashu-base-0.4.3",
+    srcs = [":dashu-base-0.4.3.crate"],
+    crate = "dashu_base",
+    crate_root = "dashu-base-0.4.3.crate/src/lib.rs",
+    edition = "2021",
+    features = ["std"],
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "dashu-int-0.4.3.crate",
+    sha256 = "49c05a0d5cb0b39fcc87c46432fdac24b90dce239857c7f6b798be4ffc3c42c6",
+    strip_prefix = "dashu-int-0.4.3",
+    urls = ["https://static.crates.io/crates/dashu-int/0.4.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "dashu-int-0.4.3",
+    srcs = [":dashu-int-0.4.3.crate"],
+    crate = "dashu_int",
+    crate_root = "dashu-int-0.4.3.crate/src/lib.rs",
+    edition = "2021",
+    features = ["std"],
+    visibility = [],
+    deps = [
+        ":cfg-if-1.0.4",
+        ":dashu-base-0.4.3",
+        ":num-modular-0.6.4",
+        ":rustversion-1.0.22",
+        ":static_assertions-1.1.0",
+    ],
+)
+
+shims.http_archive(
     name = "debugserver-types-0.5.0.crate",
     sha256 = "2bf6834a70ed14e8e4e41882df27190bea150f1f6ecf461f1033f8739cd8af4a",
     strip_prefix = "debugserver-types-0.5.0",
@@ -8375,6 +8418,95 @@ third_party_rust.rust_library(
 )
 
 shims.alias(
+    name = "hegeltest",
+    actual = ":hegeltest-0.28.0",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "hegeltest-0.28.0.crate",
+    sha256 = "f12603ff7e94c463c26e97565d725010e92139f68fc93edcacf7cb800cfd422b",
+    strip_prefix = "hegeltest-0.28.0",
+    urls = ["https://static.crates.io/crates/hegeltest/0.28.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "hegeltest-0.28.0",
+    srcs = [":hegeltest-0.28.0.crate"],
+    crate = "hegel",
+    crate_root = "hegeltest-0.28.0.crate/src/lib.rs",
+    edition = "2024",
+    features = ["default"],
+    visibility = [],
+    deps = [
+        ":crc32fast-1.5.0",
+        ":dashu-int-0.4.3",
+        ":hegeltest-c-0.29.0",
+        ":hegeltest-macros-0.28.0",
+        ":miniz_oxide-0.8.9",
+        ":parking_lot-0.12.5",
+        ":paste-1.0.15",
+        ":rand-0.10.1",
+        ":rustc-hash-2.1.2",
+        ":tempfile-3.27.0",
+    ],
+)
+
+shims.http_archive(
+    name = "hegeltest-c-0.29.0.crate",
+    sha256 = "dc2ab96fd030ce7ad37081c1f6ab3186ba794b9894cefeef2644d9dc1ecc1df7",
+    strip_prefix = "hegeltest-c-0.29.0",
+    urls = ["https://static.crates.io/crates/hegeltest-c/0.29.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "hegeltest-c-0.29.0",
+    srcs = [":hegeltest-c-0.29.0.crate"],
+    crate = "hegel_c",
+    crate_root = "hegeltest-c-0.29.0.crate/src/lib.rs",
+    dlopen_enable = True,
+    edition = "2024",
+    env = {
+        "CARGO_PKG_VERSION": "0.29.0",
+    },
+    visibility = [],
+    deps = [
+        ":crc32fast-1.5.0",
+        ":dashu-int-0.4.3",
+        ":miniz_oxide-0.8.9",
+        ":parking_lot-0.12.5",
+        ":rand-0.10.1",
+        ":rustc-hash-2.1.2",
+        ":tempfile-3.27.0",
+    ],
+)
+
+shims.http_archive(
+    name = "hegeltest-macros-0.28.0.crate",
+    sha256 = "c3fe342530584e9e0ac8144d40a746fff47c63ad1a2725c8793fbc883f7a6f9e",
+    strip_prefix = "hegeltest-macros-0.28.0",
+    urls = ["https://static.crates.io/crates/hegeltest-macros/0.28.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "hegeltest-macros-0.28.0",
+    srcs = [":hegeltest-macros-0.28.0.crate"],
+    crate = "hegel_macros",
+    crate_root = "hegeltest-macros-0.28.0.crate/src/lib.rs",
+    edition = "2024",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1.0.106",
+        ":quote-1.0.45",
+        ":syn-2.0.117",
+    ],
+)
+
+shims.alias(
     name = "hex",
     actual = ":hex-0.4.3",
     visibility = ["PUBLIC"],
@@ -11880,6 +12012,7 @@ third_party_rust.rust_library(
     crate_root = "miniz_oxide-0.8.9.crate/src/lib.rs",
     edition = "2021",
     features = [
+        "default",
         "simd",
         "simd-adler32",
         "with-alloc",
@@ -12642,6 +12775,23 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [":num-traits-0.2.19"],
+)
+
+shims.http_archive(
+    name = "num-modular-0.6.4.crate",
+    sha256 = "fc41a1374056e9672221567958a66c16be12d0e2c1b408761e14d901c237d5e0",
+    strip_prefix = "num-modular-0.6.4",
+    urls = ["https://static.crates.io/crates/num-modular/0.6.4/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "num-modular-0.6.4",
+    srcs = [":num-modular-0.6.4.crate"],
+    crate = "num_modular",
+    crate_root = "num-modular-0.6.4.crate/src/lib.rs",
+    edition = "2018",
+    visibility = [],
 )
 
 shims.http_archive(
