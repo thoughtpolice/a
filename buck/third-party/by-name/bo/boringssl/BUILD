@@ -47,6 +47,8 @@ shims.http_archive(
     + bssl_sources
     + bssl_internal_headers
     + [
+        # The checked-in Buck source manifest must match this exact archive.
+        "gen/sources.bzl",
         # rust sources
         "rust/bssl-sys/src/lib.rs",
         "rust/bssl-sys/wrapper.h",
@@ -56,6 +58,25 @@ shims.http_archive(
 )
 
 src_ref = lambda x: ":src[{}]".format(x)
+
+# Fail every BoringSSL build closed if its checked-in source list came from a
+# different revision.  Without this dependency, a stale generated manifest
+# can silently compile the wrong set of translation units.
+shims.cxx_genrule(
+    name="validated-source-manifest",
+    outs={
+        "validated-source-manifest.h": ["validated-source-manifest.h"],
+    },
+    srcs={
+        "checked-in-sources.bzl": "BUILD.generated.bzl",
+        "upstream-sources.bzl": ":src[gen/sources.bzl]",
+    },
+    cmd="""
+        cmp checked-in-sources.bzl upstream-sources.bzl
+        echo '/* BoringSSL source manifest matches the pinned archive. */' > $OUT/validated-source-manifest.h
+    """,
+    visibility=[],
+)
 
 cc_copts = [
     # Assembler option --noexecstack adds .note.GNU-stack to each object to
@@ -129,7 +150,8 @@ shims.cxx_library(
         }
     ),
     compiler_flags=boringssl_copts_cxx,
-    raw_headers=map(src_ref, crypto_internal_headers + bcm_internal_headers),
+    raw_headers=map(src_ref, crypto_internal_headers + bcm_internal_headers)
+    + [":validated-source-manifest"],
     header_namespace="",
     exported_headers={
         x: y for (x, y) in map(lambda x: (x[8:], src_ref(x)), crypto_headers)
