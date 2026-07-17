@@ -49,12 +49,12 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update && sudo apt-get install -y mold
-          cargo install bindgen-cli
+          cargo install bindgen-cli --version 0.72.1 --locked
       - name: (macOS) Install packages
         if: runner.os == 'macOS'
         run: |
           brew install go
-          cargo install bindgen-cli
+          cargo install bindgen-cli --version 0.72.1 --locked
       - name: Checkout repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
@@ -161,12 +161,12 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update && sudo apt-get install -y mold
-          cargo install bindgen-cli
+          cargo install bindgen-cli --version 0.72.1 --locked
       - name: (macOS) Install packages
         if: runner.os == 'macOS'
         run: |
           brew install go
-          cargo install bindgen-cli
+          cargo install bindgen-cli --version 0.72.1 --locked
       - name: Checkout repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:

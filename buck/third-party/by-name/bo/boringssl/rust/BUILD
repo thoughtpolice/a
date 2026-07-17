@@ -3,6 +3,19 @@
 
 load("@root//buck/shims:shims.bzl", "shims")
 
+BINDGEN_VERSION = "0.72.1"
+
+BINDGEN_TARGET = shims.select({
+    # Rust's UEFI targets use Windows COFF/ABI LLVM targets. Clang does not
+    # recognize aarch64-unknown-uefi, so use the llvm-target values from the
+    # corresponding Rust target specifications for both architectures.
+    "toolchains//cfg/target:target[x86_64-unknown-uefi]": "x86_64-unknown-windows",
+    "toolchains//cfg/target:target[x86_64-unknown-linux-gnu]": "x86_64-unknown-linux-gnu",
+    "toolchains//cfg/target:target[aarch64-unknown-uefi]": "aarch64-unknown-windows",
+    "toolchains//cfg/target:target[aarch64-unknown-linux-gnu]": "aarch64-unknown-linux-gnu",
+    "toolchains//cfg/target:target[aarch64-apple-darwin]": "aarch64-apple-darwin",
+})
+
 # MARK: main library
 
 shims.cxx_genrule(
@@ -16,7 +29,19 @@ shims.cxx_genrule(
     srcs={
         "wrapper.h": "third-party//by-name/bo/boringssl:src[rust/bssl-sys/wrapper.h]",
     },
+    # Bindgen parses target-dependent C types. Make the target explicit so a
+    # cross build cannot silently generate host-ABI bindings, and fail closed
+    # if a developer or CI image supplies a different bindgen release.
     cmd=f"""
+      bindgen --version | (
+        bindgen_version=
+        read -r bindgen_version
+        if [ "$bindgen_version" != "bindgen {BINDGEN_VERSION}" ]; then
+          echo "expected bindgen {BINDGEN_VERSION}, found $bindgen_version" >&2
+          exit 1
+        fi
+      )
+
       bindgen \
         wrapper.h -o $OUT/wrapper.rs \
           --no-derive-default \
@@ -28,8 +53,12 @@ shims.cxx_genrule(
           --experimental \
           --wrap-static-fns \
           --wrap-static-fns-path $OUT/extern.c \
-        -- -I$(location third-party//by-name/bo/boringssl:src)/include
+        -- --target=$BINDGEN_TARGET \
+          -I$(location third-party//by-name/bo/boringssl:src)/include
     """,
+    env={
+        "BINDGEN_TARGET": BINDGEN_TARGET,
+    },
     visibility=[],
 )
 
