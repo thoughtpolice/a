@@ -17965,6 +17965,7 @@ third_party_rust.rust_library(
     crate = "simd_adler32",
     crate_root = "simd-adler32-0.3.9.crate/src/lib.rs",
     edition = "2018",
+    features = ["std"],
     visibility = [],
 )
 
@@ -21293,6 +21294,27 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "typed-path-0.12.3.crate",
+    sha256 = "8e28f89b80c87b8fb0cf04ab448d5dd0dd0ade2f8891bae878de66a75a28600e",
+    strip_prefix = "typed-path-0.12.3",
+    urls = ["https://static.crates.io/crates/typed-path/0.12.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "typed-path-0.12.3",
+    srcs = [":typed-path-0.12.3.crate"],
+    crate = "typed_path",
+    crate_root = "typed-path-0.12.3.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "std",
+    ],
+    visibility = [],
+)
+
+shims.http_archive(
     name = "typeid-1.0.3.crate",
     sha256 = "bc7d623258602320d5c55d1bc22793b57daff0ec7efc270ea7d55ce1d5f5471c",
     strip_prefix = "typeid-1.0.3",
@@ -23365,6 +23387,57 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "zip",
+    actual = ":zip-8.6.0",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "zip-8.6.0.crate",
+    sha256 = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b",
+    strip_prefix = "zip-8.6.0",
+    urls = ["https://static.crates.io/crates/zip/8.6.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "zip-8.6.0",
+    srcs = [":zip-8.6.0.crate"],
+    crate = "zip",
+    crate_root = "zip-8.6.0.crate/src/lib.rs",
+    edition = "2024",
+    env = {
+        "CARGO_CRATE_NAME": "zip",
+        "CARGO_MANIFEST_DIR": "zip-8.6.0.crate",
+        "CARGO_PKG_AUTHORS": "Mathijs van de Nes <git@mathijs.vd-nes.nl>:Marli Frost <marli@frost.red>:Ryan Levick <ryan.levick@gmail.com>:Chris Hennick <hennickc@amazon.com>",
+        "CARGO_PKG_DESCRIPTION": "Library to support the reading and writing of zip files.",
+        "CARGO_PKG_NAME": "zip",
+        "CARGO_PKG_REPOSITORY": "https://github.com/zip-rs/zip2",
+        "CARGO_PKG_VERSION": "8.6.0",
+        "CARGO_PKG_VERSION_MAJOR": "8",
+        "CARGO_PKG_VERSION_MINOR": "6",
+        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = [
+        "_deflate-any",
+        "deflate",
+        "deflate-flate2",
+        "deflate-flate2-zlib-rs",
+        "deflate-zopfli",
+    ],
+    visibility = [],
+    deps = [
+        ":crc32fast-1.5.0",
+        ":flate2-1.1.9",
+        ":indexmap-2.14.0",
+        ":memchr-2.8.3",
+        ":typed-path-0.12.3",
+        ":zopfli-0.8.3",
+    ],
+)
+
 shims.http_archive(
     name = "zlib-rs-0.6.3.crate",
     sha256 = "3be3d40e40a133f9c916ee3f9f4fa2d9d63435b5fbe1bfc6d9dae0aa0ada1513",
@@ -23403,6 +23476,35 @@ third_party_rust.rust_library(
     crate_root = "zmij-1.0.21.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
+)
+
+shims.http_archive(
+    name = "zopfli-0.8.3.crate",
+    sha256 = "f05cd8797d63865425ff89b5c4a48804f35ba0ce8d125800027ad6017d2b5249",
+    strip_prefix = "zopfli-0.8.3",
+    urls = ["https://static.crates.io/crates/zopfli/0.8.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "zopfli-0.8.3",
+    srcs = [":zopfli-0.8.3.crate"],
+    crate = "zopfli",
+    crate_root = "zopfli-0.8.3.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "gzip",
+        "std",
+        "zlib",
+    ],
+    visibility = [],
+    deps = [
+        ":bumpalo-3.20.2",
+        ":crc32fast-1.5.0",
+        ":log-0.4.29",
+        ":simd-adler32-0.3.9",
+    ],
 )
 
 shims.alias(
