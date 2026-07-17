@@ -195,7 +195,11 @@ def main():
         print(f"Step 2: Testing {target_count} affected target(s)...", file=sys.stderr)
         print(file=sys.stderr)
 
-        test_cmd = ["buck2", "test", f"@{targets_file}"]
+        # Skip targets that are incompatible with the host configuration
+        # (e.g. macos-only tests on a linux machine): buck2 hard-errors on
+        # explicitly-listed incompatible targets, and the target list from
+        # quicktd is platform-agnostic. CI covers the other platforms.
+        test_cmd = ["buck2", "test", "--skip-incompatible-targets", f"@{targets_file}"]
 
         # Don't capture output - let buck2 output stream to terminal
         result = run_command(
