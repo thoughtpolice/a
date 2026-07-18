@@ -22,25 +22,25 @@ deno_toolchain = rule(
 
 def download_deno(version: str, hashes: list[(str, str)]):
     for triple, sha256 in hashes:
-        url = f'https://github.com/denoland/deno/releases/download/v{version}/deno-{triple}.zip'
+        url = "https://github.com/denoland/deno/releases/download/v{version}/deno-{triple}.zip".format(version = version, triple = triple)
         native.http_archive(
-            name = f'{version}-{triple}',
+            name = "{version}-{triple}".format(version = version, triple = triple),
             sha256 = sha256,
-            type = 'zip',
-            urls = [ url ],
+            type = "zip",
+            urls = [url],
             visibility = [],
         )
 
     native.alias(
-        name = f'{version}.zip',
+        name = "{version}.zip".format(version = version),
         actual = select({
-            'config//cpu:arm64': select({
-                'config//os:linux': f':{version}-aarch64-unknown-linux-gnu',
-                'config//os:macos': f':{version}-aarch64-apple-darwin',
+            "config//cpu:arm64": select({
+                "config//os:linux": ":{version}-aarch64-unknown-linux-gnu".format(version = version),
+                "config//os:macos": ":{version}-aarch64-apple-darwin".format(version = version),
             }),
-            'config//cpu:x86_64': select({
-                'config//os:linux': f':{version}-x86_64-unknown-linux-gnu',
-                'config//os:windows': f':{version}-x86_64-pc-windows-msvc',
+            "config//cpu:x86_64": select({
+                "config//os:linux": ":{version}-x86_64-unknown-linux-gnu".format(version = version),
+                "config//os:windows": ":{version}-x86_64-pc-windows-msvc".format(version = version),
             }),
         }),
     )
@@ -48,21 +48,21 @@ def download_deno(version: str, hashes: list[(str, str)]):
 def _deno_binary_impl(ctx: AnalysisContext) -> list[Provider]:
     deno = ctx.attrs._deno_toolchain[DenoToolchain].deno
 
-    unstable_features = map(lambda x: f'--unstable-{x}', ctx.attrs.unstable_features)
-    permissions = map(lambda x: f'--allow-{x}', ctx.attrs.permissions)
+    unstable_features = map(lambda x: "--unstable-{x}".format(x = x), ctx.attrs.unstable_features)
+    permissions = map(lambda x: "--allow-{x}".format(x = x), ctx.attrs.permissions)
 
     output = ctx.actions.declare_output("{}.exe".format(ctx.label.name))
     ctx.actions.run(
         cmd_args([
-            deno,
-            "compile",
-            "--output",
-            output.as_output(),
-        ] + unstable_features
-          + permissions
-        + [
-            ctx.attrs.main,
-        ]),
+                     deno,
+                     "compile",
+                     "--output",
+                     output.as_output(),
+                 ] + unstable_features +
+                 permissions +
+                 [
+                     ctx.attrs.main,
+                 ]),
         category = "deno_compile",
         allow_cache_upload = True,
         env = {
@@ -102,8 +102,8 @@ def _deno_binary_impl(ctx: AnalysisContext) -> list[Provider]:
                 unstable_features,
                 permissions,
                 ctx.attrs.main,
-            ])
-        )
+            ]),
+        ),
     ]
 
 _deno_binary = rule(
@@ -116,14 +116,14 @@ _deno_binary = rule(
         "unstable_features": attrs.list(attrs.string(), default = []),
         "permissions": attrs.list(attrs.string(), default = []),
         "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
-    }
+    },
 )
 
 def _deno_test_impl(ctx: AnalysisContext) -> list[Provider]:
     deno = ctx.attrs._deno_toolchain[DenoToolchain].deno
 
-    unstable_features = map(lambda x: f'--unstable-{x}', ctx.attrs.unstable_features)
-    permissions = map(lambda x: f'--allow-{x}', ctx.attrs.permissions)
+    unstable_features = map(lambda x: "--unstable-{x}".format(x = x), ctx.attrs.unstable_features)
+    permissions = map(lambda x: "--allow-{x}".format(x = x), ctx.attrs.permissions)
 
     config_args = []
     if ctx.attrs.config:
@@ -156,7 +156,7 @@ def _deno_test_impl(ctx: AnalysisContext) -> list[Provider]:
         ExternalRunnerTestInfo(
             type = "custom",
             command = [cmd],
-        )
+        ),
     ]
 
 _deno_test = rule(
@@ -167,7 +167,7 @@ _deno_test = rule(
         "unstable_features": attrs.list(attrs.string(), default = []),
         "permissions": attrs.list(attrs.string(), default = []),
         "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
-    }
+    },
 )
 
 # Macro wrappers that automatically add lint tests
@@ -177,6 +177,7 @@ def deno_binary(**kwargs):
     """
     name = kwargs.get("name")
     tests = kwargs.pop("tests", [])
+
     # Automatically add lint test if not already present
     lint_test = ":{}[lint]".format(name)
     if lint_test not in tests:
@@ -193,6 +194,7 @@ def deno_test(**kwargs):
     """
     name = kwargs.get("name")
     tests = kwargs.pop("tests", [])
+
     # Automatically add lint test if not already present
     lint_test = ":{}[lint]".format(name)
     if lint_test not in tests:
@@ -211,11 +213,11 @@ def _deno_run_impl(ctx: AnalysisContext) -> list[Provider]:
 
     # Add unstable features
     for feature in ctx.attrs.unstable_features:
-        cmd.add(f"--unstable-{feature}")
+        cmd.add("--unstable-{feature}".format(feature = feature))
 
     # Add permissions
     for perm in ctx.attrs.permissions:
-        cmd.add(f"--allow-{perm}")
+        cmd.add("--allow-{perm}".format(perm = perm))
 
     # Add config if provided
     if ctx.attrs.config:
@@ -250,7 +252,7 @@ def _deno_run_impl(ctx: AnalysisContext) -> list[Provider]:
     # Create RunInfo
     return [
         DefaultInfo(sub_targets = sub_targets),
-        RunInfo(args = cmd)
+        RunInfo(args = cmd),
     ]
 
 _deno_run = rule(
@@ -262,7 +264,7 @@ _deno_run = rule(
         "unstable_features": attrs.list(attrs.string(), default = []),
         "config": attrs.option(attrs.source(), default = None),
         "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
-    }
+    },
 )
 
 def deno_run(name, src = None, package_id = None, **kwargs):
@@ -311,7 +313,7 @@ def deno_run(name, src = None, package_id = None, **kwargs):
 def _deno_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
     deno = ctx.attrs._deno_toolchain[DenoToolchain].deno
 
-    unstable_features = map(lambda x: f'--unstable-{x}', ctx.attrs.unstable_features)
+    unstable_features = map(lambda x: "--unstable-{x}".format(x = x), ctx.attrs.unstable_features)
 
     config_args = []
     if ctx.attrs.config:
@@ -324,9 +326,9 @@ def _deno_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
         [
             deno,
             "bundle",
-        ] + config_args
-          + unstable_features
-        + [
+        ] + config_args +
+        unstable_features +
+        [
             ctx.attrs.main,
             "--output",
             output.as_output(),
@@ -373,7 +375,7 @@ _deno_bundle = rule(
         "config": attrs.option(attrs.source(), default = None),
         "unstable_features": attrs.list(attrs.string(), default = []),
         "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
-    }
+    },
 )
 
 def deno_bundle(**kwargs):
@@ -384,6 +386,7 @@ def deno_bundle(**kwargs):
     """
     name = kwargs.get("name")
     tests = kwargs.pop("tests", [])
+
     # Automatically add lint test if not already present
     lint_test = ":{}[lint]".format(name)
     if lint_test not in tests:

@@ -6,7 +6,7 @@ load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 GIT_COMMIT = "922c15f36cc75db5af33c46f9ea8934553fb808e"
 
 pkg.info(
-    version = f"2026.7.17+g{GIT_COMMIT}",
+    version = "2026.7.17+g{GIT_COMMIT}".format(GIT_COMMIT=GIT_COMMIT),
     description = """
         Google's SSL/TLS library.
     """,

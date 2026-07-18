@@ -1,32 +1,41 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:shims.bzl", "shims")
 load("@root//buck/shims:package.bzl", "pkg")
+load("@root//buck/shims:shims.bzl", "shims")
 
 VERSION = pkg.version().split(".")  # something like '3.46.1'
+
 # quoting https://www.sqlite.org/download.html: "The version is encoded
 # so that filenames sort in order of increasing version number when
 # viewed using "ls". For version 3.X.Y the filename encoding is 3XXYY00.
 # For branch version 3.X.Y.Z, the encoding is 3XXYYZZ."
 URL_VERSION = "{major}{minor}{patch}00".format(
-    major=VERSION[0],
-    minor=shims.rjust(VERSION[1], "0", 2),
-    patch=shims.rjust(VERSION[2], "0", 2),
+    major = VERSION[0],
+    minor = shims.rjust(
+        VERSION[1],
+        "0",
+        2,
+    ),
+    patch = shims.rjust(
+        VERSION[2],
+        "0",
+        2,
+    ),
 )
 
 shims.http_archive(
-    name="src",
-    sha256="c917d7db16648ec95f714974ace5e5dcf46b7dc70e26600a0a102a3141125db0",
-    urls=[
-        f"https://www.sqlite.org/2026/sqlite-autoconf-{URL_VERSION}.tar.gz",
-    ],
-    type="tar.gz",
-    strip_prefix=f"sqlite-autoconf-{URL_VERSION}",
-    sub_targets=[
+    name = "src",
+    sha256 = "c917d7db16648ec95f714974ace5e5dcf46b7dc70e26600a0a102a3141125db0",
+    strip_prefix = "sqlite-autoconf-{URL_VERSION}".format(URL_VERSION = URL_VERSION),
+    sub_targets = [
         "sqlite3.c",
         "sqlite3.h",
         "sqlite3ext.h",
+    ],
+    type = "tar.gz",
+    urls = [
+        "https://www.sqlite.org/2026/sqlite-autoconf-{URL_VERSION}.tar.gz".format(URL_VERSION = URL_VERSION),
     ],
 )
 
@@ -52,15 +61,18 @@ BUILD_FLAGS = [
 ]
 
 shims.cxx_library(
-    name="sqlite",
-    srcs=[":src[sqlite3.c]"],
-    preferred_linkage="static",
-    header_namespace="",
-    exported_headers={
+    name = "sqlite",
+    srcs = [":src[sqlite3.c]"],
+    exported_headers = {
         "sqlite3.h": ":src[sqlite3.h]",
         "sqlite3ext.h": ":src[sqlite3ext.h]",
     },
-    exported_preprocessor_flags=map(lambda x: f"-D{x}", BUILD_FLAGS),
+    exported_preprocessor_flags = map(
+        lambda x: "-D{x}".format(x = x),
+        BUILD_FLAGS,
+    ),
+    header_namespace = "",
+    preferred_linkage = "static",
 )
 
 # write out some wrapper.h files for the sqlite3.h and sqlite3ext.h
@@ -69,15 +81,25 @@ shims.cxx_library(
 
 # FIXME (aseipp): re-enable this
 
-HEADER_FILE_FLAGS = map(lambda x: "#define {}".format(x.replace("=", " ")), BUILD_FLAGS)
+HEADER_FILE_FLAGS = map(
+    lambda x: "#define {}".format(x.replace("=", " ")),
+    BUILD_FLAGS,
+)
+
 [
     shims.genrule(
-        name=f"wrapper_{f}.h",
-        srcs=[f":src[{f}.h]"],
-        out=f"wrapper_{f}.h",
-        cmd="""
+        name = "wrapper_{f}.h".format(f = f),
+        srcs = [":src[{f}.h]".format(f = f)],
+        out = "wrapper_{f}.h".format(f = f),
+        cmd = """
             echo -e "{headers}\n#include \\"{file}.h\\"" > $OUT
-        """.format(headers="\n".join(HEADER_FILE_FLAGS), file=f),
+        """.format(
+            file = f,
+            headers = "\n".join(HEADER_FILE_FLAGS),
+        ),
     )
-    for f in ["sqlite3", "sqlite3ext"]
+    for f in [
+        "sqlite3",
+        "sqlite3ext",
+    ]
 ]

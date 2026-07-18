@@ -1,11 +1,11 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp, Meta Platforms, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:shims.bzl", "shims")
 load("@prelude//cxx:cxx_context.bzl", "get_cxx_toolchain_info")
 load("@prelude//decls:toolchains_common.bzl", "toolchains_common")
 load("@prelude//rust:rust_toolchain.bzl", "PanicRuntime", "RustToolchainInfo")
 load("@prelude//rust/tools:attrs.bzl", "internal_tool_attrs")
+load("@root//buck/shims:shims.bzl", "shims")
 
 _DEFAULT_TRIPLE = select({
     "config//os:linux": select({
@@ -41,20 +41,20 @@ def _vendored_rust_toolchain_impl(ctx):
     linker_info = get_cxx_toolchain_info(ctx).linker_info
     binary_extension = ".exe" if linker_info.binary_extension == "exe" else ""
 
-    clippy_driver = rustc_download.project(f'clippy-preview/bin/clippy-driver{binary_extension}')
-    rustc = rustc_download.project(f'rustc/bin/rustc{binary_extension}')
-    rustdoc = rustc_download.project(f'rustc/bin/rustdoc{binary_extension}')
-    cargo = rustc_download.project(f'cargo/bin/cargo{binary_extension}')
-    sysroot_path = rustc_download.project(f'rust-std-{triple}')
+    clippy_driver = rustc_download.project("clippy-preview/bin/clippy-driver{binary_extension}".format(binary_extension = binary_extension))
+    rustc = rustc_download.project("rustc/bin/rustc{binary_extension}".format(binary_extension = binary_extension))
+    rustdoc = rustc_download.project("rustc/bin/rustdoc{binary_extension}".format(binary_extension = binary_extension))
+    cargo = rustc_download.project("cargo/bin/cargo{binary_extension}".format(binary_extension = binary_extension))
+    sysroot_path = rustc_download.project("rust-std-{triple}".format(triple = triple))
 
     return [
         DefaultInfo(
             default_output = rustc_download,
             sub_targets = {
-                'rustc': [ DefaultInfo( default_output = rustc ), RunInfo( args = cmd_args([rustc]) ) ],
-                'rustdoc': [ DefaultInfo( default_output = rustdoc ), RunInfo( args = cmd_args([rustdoc]) ) ],
-                'cargo': [ DefaultInfo( default_output = cargo ), RunInfo( args = cmd_args([cargo]) ) ],
-            }
+                "rustc": [DefaultInfo(default_output = rustc), RunInfo(args = cmd_args([rustc]))],
+                "rustdoc": [DefaultInfo(default_output = rustdoc), RunInfo(args = cmd_args([rustdoc]))],
+                "cargo": [DefaultInfo(default_output = cargo), RunInfo(args = cmd_args([cargo]))],
+            },
         ),
         RustToolchainInfo(
             allow_lints = ctx.attrs.allow_lints,
@@ -99,56 +99,55 @@ vendored_rust_toolchain = rule(
         "rustc_test_flags": attrs.list(attrs.string(), default = []),
         "rustdoc_flags": attrs.list(attrs.string(), default = []),
         "warn_lints": attrs.list(attrs.string(), default = []),
-
         "_cxx_toolchain": toolchains_common.cxx(),
     },
     is_toolchain_rule = True,
 )
 
-def download_rust_toolchain(name: str , channel: str, version: str, hashes: list[(str, str)]):
-    if channel not in ('stable', 'nightly'):
-        fail(f"Invalid channel: {channel}")
+def download_rust_toolchain(name: str, channel: str, version: str, hashes: list[(str, str)]):
+    if channel not in ("stable", "nightly"):
+        fail("Invalid channel: {channel}".format(channel = channel))
 
     # shorten the version if it's nightly
-    ver = version.replace('-', '') if channel == 'nightly' else version
+    ver = version.replace("-", "") if channel == "nightly" else version
 
     for triple, sha256 in hashes:
-        if channel == 'nightly':
-            url = f'https://static.rust-lang.org/dist/{version}/rust-{channel}-{triple}.tar.gz'
-            prefix = f'rust-{channel}-{triple}'
+        if channel == "nightly":
+            url = "https://static.rust-lang.org/dist/{version}/rust-{channel}-{triple}.tar.gz".format(version = version, channel = channel, triple = triple)
+            prefix = "rust-{channel}-{triple}".format(channel = channel, triple = triple)
         else:
-            url = f'https://static.rust-lang.org/dist/rust-{version}-{triple}.tar.gz'
-            prefix = f'rust-{version}-{triple}'
+            url = "https://static.rust-lang.org/dist/rust-{version}-{triple}.tar.gz".format(version = version, triple = triple)
+            prefix = "rust-{version}-{triple}".format(version = version, triple = triple)
 
         # turn the triple into a short triple
-        if triple == 'x86_64-unknown-linux-gnu':
-            triple = 'x64-linux'
-        elif triple == 'x86_64-pc-windows-msvc':
-            triple = 'x64-win'
-        elif triple == 'aarch64-unknown-linux-gnu':
-            triple = 'arm64-linux'
-        elif triple == 'aarch64-apple-darwin':
-            triple = 'arm64-macos'
+        if triple == "x86_64-unknown-linux-gnu":
+            triple = "x64-linux"
+        elif triple == "x86_64-pc-windows-msvc":
+            triple = "x64-win"
+        elif triple == "aarch64-unknown-linux-gnu":
+            triple = "arm64-linux"
+        elif triple == "aarch64-apple-darwin":
+            triple = "arm64-macos"
 
         shims.http_archive(
-            name = f'{ver}-{triple}',
+            name = "{ver}-{triple}".format(ver = ver, triple = triple),
             sha256 = sha256,
-            type = 'tar.gz',
+            type = "tar.gz",
             strip_prefix = prefix,
-            urls = [ url ],
+            urls = [url],
             visibility = [],
         )
 
     shims.alias(
-        name = f'rustc-{name}',
+        name = "rustc-{name}".format(name = name),
         actual = select({
-            'config//cpu:arm64': select({
-                'config//os:linux': f':{ver}-arm64-linux',
-                'config//os:macos': f':{ver}-arm64-macos',
+            "config//cpu:arm64": select({
+                "config//os:linux": ":{ver}-arm64-linux".format(ver = ver),
+                "config//os:macos": ":{ver}-arm64-macos".format(ver = ver),
             }),
-            'config//cpu:x86_64': select({
-                'config//os:linux': f':{ver}-x64-linux',
-                'config//os:windows': f':{ver}-x64-win',
+            "config//cpu:x86_64": select({
+                "config//os:linux": ":{ver}-x64-linux".format(ver = ver),
+                "config//os:windows": ":{ver}-x64-win".format(ver = ver),
             }),
         }),
     )

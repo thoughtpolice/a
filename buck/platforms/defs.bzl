@@ -23,12 +23,14 @@ def _execution_platform_impl(ctx: AnalysisContext) -> list[Provider]:
     if re_enabled and not cache_enabled:
         fail("Remote execution cannot be enabled without caching enabled")
 
-    cec_args = {} # arguments to pass to CommandExecutorConfig
+    cec_args = {}  # arguments to pass to CommandExecutorConfig
 
     # Enable local execution
     cec_args["local_enabled"] = True
+
     # Default to no RE. Will be overridden if RE is enabled.
     cec_args["remote_enabled"] = False
+
     # Whether to use Windows path separators in command line arguments
     cec_args["use_windows_path_separators"] = ctx.attrs.os == "windows"
 
@@ -41,10 +43,13 @@ def _execution_platform_impl(ctx: AnalysisContext) -> list[Provider]:
     if cache_enabled:
         # Use and query the RE cache
         cec_args["remote_cache_enabled"] = True
+
         # Cache dep files, too
         cec_args["remote_dep_file_cache_enabled"] = True
+
         # Whether to upload local actions to the RE cache
         cec_args["allow_cache_uploads"] = (read_root_config("buck2_re_client", "cache_upload", "false") == "true")
+
         # How to express output paths to RE. This is used internally for the
         # FB RE implementation and the FOSS implementation; strict means that
         # the RE implementation should expect the output paths to be specified
@@ -59,7 +64,7 @@ def _execution_platform_impl(ctx: AnalysisContext) -> list[Provider]:
         force_remote_exe = read_root_config(
             "buck2_re_client",
             "force_remote",
-            "false"
+            "false",
         ) == "true"
 
         # If true, then if the preferred executor fails, the other executor will
@@ -67,14 +72,14 @@ def _execution_platform_impl(ctx: AnalysisContext) -> list[Provider]:
         allow_local_fallback = read_root_config(
             "buck2_re_client",
             "allow_local_fallback",
-            "false"
+            "false",
         ) == "true"
 
         # If true, then if the preferred executor fails, the other executor will
         allow_local_fallback_on_failure = read_root_config(
             "buck2_re_client",
             "allow_local_fallback_on_failure",
-            "false"
+            "false",
         ) == "true"
 
         # Enable remote execution for this platform
@@ -82,8 +87,10 @@ def _execution_platform_impl(ctx: AnalysisContext) -> list[Provider]:
 
         # The use case to use when communicating with RE.
         cec_args["remote_execution_use_case"] = "buck2-default"
+
         # Max file size that the RE system can support
-        cec_args["remote_execution_max_input_files_mebibytes"] = None # default: 30 * 1024 * 1024 * 1024
+        cec_args["remote_execution_max_input_files_mebibytes"] = None  # default: 30 * 1024 * 1024 * 1024
+
         # Max time we're willing to wait in the RE queue
         cec_args["remote_execution_queue_time_threshold_s"] = None
 
@@ -145,7 +152,6 @@ __execution_platform = rule(
         "constraints": attrs.list(attrs.dep(providers = [ConfigurationInfo]), default = []),
         "cpu": attrs.string(),
         "os": attrs.string(),
-
         "cache_enabled": attrs.bool(),
         "remote_enabled": attrs.bool(),
     },
@@ -167,7 +173,7 @@ def _host_os_configuration() -> str:
     else:
         return "config//os:linux"
 
-def generate_platforms(variants, constraints=[]):
+def generate_platforms(variants, constraints = []):
     """Generate execution platforms for the given variants, as well as a default
     execution platform matching the host platform."""
 
@@ -218,26 +224,27 @@ def generate_platforms(variants, constraints=[]):
             )
 
     re_choice = read_choice(
-        "buck2_re_client", "default_mode",
+        "buck2_re_client",
+        "default_mode",
         ["full-remote", "cache-only", "none"],
         default = "none",
     )
 
     if re_choice == "full-remote":
-        suffix = 'remote' if host_info().os.is_linux and not host_info().arch.is_aarch64 else 'cached'
+        suffix = "remote" if host_info().os.is_linux and not host_info().arch.is_aarch64 else "cached"
         shims.alias(
-            name = 'default',
-            actual = f'{default_alias_prefix}-{suffix}',
+            name = "default",
+            actual = "{default_alias_prefix}-{suffix}".format(default_alias_prefix = default_alias_prefix, suffix = suffix),
         )
     elif re_choice == "cache-only":
         shims.alias(
-            name = 'default',
-            actual = f'{default_alias_prefix}-cached',
+            name = "default",
+            actual = "{default_alias_prefix}-cached".format(default_alias_prefix = default_alias_prefix),
         )
     elif re_choice == "none":
         shims.alias(
-            name = 'default',
-            actual = f'{default_alias_prefix}-local',
+            name = "default",
+            actual = "{default_alias_prefix}-local".format(default_alias_prefix = default_alias_prefix),
         )
 
 # NOTE: keep the list of default platforms here instead of in BUILD. why?
@@ -246,8 +253,8 @@ def generate_platforms(variants, constraints=[]):
 default_platforms = [
     ("arm64", "linux"),
     ("arm64", "macos"),
-   #("arm64", "windows"),
+    #("arm64", "windows"),
     ("x86_64", "linux"),
-   #("x86_64", "macos"),
+    #("x86_64", "macos"),
     ("x86_64", "windows"),
 ]

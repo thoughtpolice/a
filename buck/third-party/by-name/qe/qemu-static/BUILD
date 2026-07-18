@@ -4,19 +4,19 @@
 load("@root//buck/shims:package.bzl", "pkg")
 load("@root//buck/shims:shims.bzl", "shims")
 
-VERSION = pkg.version().split('+', 1)[0]
+VERSION = pkg.version().split("+", 1)[0]
 
 shims.http_archive(
-    name = 'qemu-static',
-    sha256 = 'b22f6cf575f5c8266d70f64b8ecc754f61c2986e9cc9e00607453baa5fe7352b',
+    name = "qemu-static",
+    sha256 = "b22f6cf575f5c8266d70f64b8ecc754f61c2986e9cc9e00607453baa5fe7352b",
+    strip_prefix = "qemu-linux-x86_64-{VERSION}".format(VERSION = VERSION),
+    type = "tar.xz",
     urls = [
-        f'https://github.com/ziglang/qemu-static/releases/download/{VERSION}/qemu-linux-x86_64-{VERSION}.tar.xz',
+        "https://github.com/ziglang/qemu-static/releases/download/{VERSION}/qemu-linux-x86_64-{VERSION}.tar.xz".format(VERSION = VERSION),
     ],
-    strip_prefix = f'qemu-linux-x86_64-{VERSION}',
-    type = 'tar.xz',
 )
 
 shims.export_file(
-    name = 'run-swtpm',
-    src = 'run-swtpm',
+    name = "run-swtpm",
+    src = "run-swtpm",
 )
