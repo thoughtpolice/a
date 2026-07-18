@@ -3,51 +3,111 @@
 {
   "name": "jj",
   "platforms": {
-    "macos-aarch64": {
-      "size": 8379306,
-      "hash": "sha256",
-      "digest": "160b9c575f279343b8cd9d2fcef74b03d16210d1457da328ceedc3a7a184c4c7",
+    "linux-x86_64": {
+      "size": 10616891,
+      "hash": "blake3",
+      "digest": "83bb9dd63eac185f73b7f648b84f1c4578ecbd2f9868591064a118709d391156",
       "format": "tar.gz",
       "path": "jj",
       "providers": [
         {
-          "url": "https://github.com/jj-vcs/jj/releases/download/v0.30.0/jj-v0.30.0-aarch64-apple-darwin.tar.gz"
+          "url": "https://github.com/thoughtpolice/jj/releases/download/nightly-20260718-3fd40b85/jj-nightly-20260718-3fd40b85-x86_64-unknown-linux-musl.tar.gz"
+        },
+        {
+          "type": "github-release",
+          "repo": "https://github.com/thoughtpolice/jj",
+          "tag": "nightly-20260718-3fd40b85",
+          "name": "jj-nightly-20260718-3fd40b85-x86_64-unknown-linux-musl.tar.gz"
         }
       ]
     },
     "linux-aarch64": {
-      "size": 8462686,
-      "hash": "sha256",
-      "digest": "36001ee38b14d0241e8c061f3147e4c52754b02cc32c4e3f09ebf641cb28f6b9",
+      "size": 10002260,
+      "hash": "blake3",
+      "digest": "a786cb827218188596b6d61f68223cc585ee7cb755132666b41e5834c04de6a9",
       "format": "tar.gz",
       "path": "jj",
       "providers": [
         {
-          "url": "https://github.com/jj-vcs/jj/releases/download/v0.30.0/jj-v0.30.0-aarch64-unknown-linux-musl.tar.gz"
+          "url": "https://github.com/thoughtpolice/jj/releases/download/nightly-20260718-3fd40b85/jj-nightly-20260718-3fd40b85-aarch64-unknown-linux-musl.tar.gz"
+        },
+        {
+          "type": "github-release",
+          "repo": "https://github.com/thoughtpolice/jj",
+          "tag": "nightly-20260718-3fd40b85",
+          "name": "jj-nightly-20260718-3fd40b85-aarch64-unknown-linux-musl.tar.gz"
         }
       ]
     },
-    "linux-x86_64": {
-      "size": 9101484,
-      "hash": "sha256",
-      "digest": "5540b5438d71867ccde3339d041e57eecf60edf8b4ecc3dfcce2af106e08f70b",
+    "macos-x86_64": {
+      "size": 10202543,
+      "hash": "blake3",
+      "digest": "7ae988af1146364540b9f2c7f1767b6f9cb183735610118a9e968930d4167efe",
       "format": "tar.gz",
       "path": "jj",
       "providers": [
         {
-          "url": "https://github.com/jj-vcs/jj/releases/download/v0.30.0/jj-v0.30.0-x86_64-unknown-linux-musl.tar.gz"
+          "url": "https://github.com/thoughtpolice/jj/releases/download/nightly-20260718-3fd40b85/jj-nightly-20260718-3fd40b85-x86_64-apple-darwin.tar.gz"
+        },
+        {
+          "type": "github-release",
+          "repo": "https://github.com/thoughtpolice/jj",
+          "tag": "nightly-20260718-3fd40b85",
+          "name": "jj-nightly-20260718-3fd40b85-x86_64-apple-darwin.tar.gz"
+        }
+      ]
+    },
+    "macos-aarch64": {
+      "size": 9651884,
+      "hash": "blake3",
+      "digest": "beaf5ce4479488d70b052bc33f961850809b553493c7a5c3bd01c145692fe18b",
+      "format": "tar.gz",
+      "path": "jj",
+      "providers": [
+        {
+          "url": "https://github.com/thoughtpolice/jj/releases/download/nightly-20260718-3fd40b85/jj-nightly-20260718-3fd40b85-aarch64-apple-darwin.tar.gz"
+        },
+        {
+          "type": "github-release",
+          "repo": "https://github.com/thoughtpolice/jj",
+          "tag": "nightly-20260718-3fd40b85",
+          "name": "jj-nightly-20260718-3fd40b85-aarch64-apple-darwin.tar.gz"
         }
       ]
     },
     "windows-x86_64": {
-      "size": 7952305,
-      "hash": "sha256",
-      "digest": "4b094838898bebd3970ef6c94b9cf5fef4368a0291e33ae884736195abce0671",
+      "size": 9703785,
+      "hash": "blake3",
+      "digest": "32f20069bbed990106c91d1528fcf9ccaafc34341d407aca20cedf3c1e83be3f",
       "format": "zip",
       "path": "jj.exe",
       "providers": [
         {
-          "url": "https://github.com/jj-vcs/jj/releases/download/v0.30.0/jj-v0.30.0-x86_64-pc-windows-msvc.zip"
+          "url": "https://github.com/thoughtpolice/jj/releases/download/nightly-20260718-3fd40b85/jj-nightly-20260718-3fd40b85-x86_64-pc-windows-msvc.zip"
+        },
+        {
+          "type": "github-release",
+          "repo": "https://github.com/thoughtpolice/jj",
+          "tag": "nightly-20260718-3fd40b85",
+          "name": "jj-nightly-20260718-3fd40b85-x86_64-pc-windows-msvc.zip"
+        }
+      ]
+    },
+    "windows-aarch64": {
+      "size": 9047734,
+      "hash": "blake3",
+      "digest": "65afc5fc13d86c39efa090fa881818ed27b86c27e8fafe6213d87e54a241dd7e",
+      "format": "zip",
+      "path": "jj.exe",
+      "providers": [
+        {
+          "url": "https://github.com/thoughtpolice/jj/releases/download/nightly-20260718-3fd40b85/jj-nightly-20260718-3fd40b85-aarch64-pc-windows-msvc.zip"
+        },
+        {
+          "type": "github-release",
+          "repo": "https://github.com/thoughtpolice/jj",
+          "tag": "nightly-20260718-3fd40b85",
+          "name": "jj-nightly-20260718-3fd40b85-aarch64-pc-windows-msvc.zip"
         }
       ]
     }
