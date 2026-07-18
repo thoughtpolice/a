@@ -46,6 +46,7 @@ fjall = { version = "3.1.7", default_features = false, features = [
 ] }
 flate2 = { version = "1.1", features = ["zlib-rs"], default-features = false }
 futures = "0.3.32"
+glob = "0.3"
 # NOTE (aseipp): version must stay in lockstep with jj-lib's gix requirement,
 # or the whole gix crate stack gets duplicated in the build graph
 gix = { version = "0.80.0", default-features = false, features = [
