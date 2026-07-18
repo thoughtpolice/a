@@ -52,8 +52,17 @@
             lib.optionals stdenv.isLinux [
               mold
             ];
+
+          devcontainer = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux (
+            import ./devcontainer-image.nix {
+              inherit pkgs self system;
+            }
+          );
         in
         {
+          packages = devcontainer.packages or { };
+          checks = devcontainer.checks or { };
+
           devShells.default = pkgs.mkShell {
             packages =
               (with llvmPackages; [
