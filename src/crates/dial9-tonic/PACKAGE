@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    version = "0.1.0",
+    description = """
+        Traced tonic/hyper serving through dial9 telemetry.
+    """,
+    license = "MIT OR Apache-2.0",
+    copyright = [
+        "2026 Austin Seipp",
+    ],
+    visibility = ['PUBLIC'],
+    # dial9-tokio-telemetry is Linux perf tooling; this crate inherited
+    # the constraint from the cache-server package before moving here.
+    target_compatible_with = [
+        "config//os:linux",
+    ],
+)

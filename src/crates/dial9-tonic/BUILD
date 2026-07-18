@@ -4,6 +4,7 @@
 load("@root//buck/shims:shims.bzl", depot="shims")
 
 DEPS = [
+    'root//src/crates/accept:accept',
     'third-party//rust:bytes',
     'third-party//rust:dial9-tokio-telemetry',
     'third-party//rust:futures',
@@ -18,11 +19,13 @@ depot.rust_library(
     name = 'dial9-tonic',
     srcs = glob(['*.rs']),
     deps = DEPS,
-    visibility = ['//src/tools/cache-server/...'],
+    visibility = ['PUBLIC'],
 )
 
 depot.rust_test(
     name = 'tests',
     srcs = glob(['*.rs']),
-    deps = DEPS,
+    deps = DEPS + [
+        'third-party//rust:http-body-util',
+    ],
 )
