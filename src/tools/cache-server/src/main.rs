@@ -132,6 +132,15 @@ struct ServeArgs {
     #[arg(long, default_value_t = false)]
     disable_compactor: bool,
 
+    // --- TLS options ---
+    /// PEM certificate chain; enables TLS on the listener
+    #[arg(long, env = "CACHE_SERVER_TLS_CERT", requires = "tls_key")]
+    tls_cert: Option<PathBuf>,
+
+    /// PEM private key for --tls-cert
+    #[arg(long, env = "CACHE_SERVER_TLS_KEY", requires = "tls_cert")]
+    tls_key: Option<PathBuf>,
+
     // --- OTEL options ---
     /// Enable OpenTelemetry export (also enabled if OTEL_EXPORTER_OTLP_ENDPOINT is set)
     #[arg(long)]
@@ -295,6 +304,8 @@ impl Default for ServeArgs {
             request_timeout: 900,
             max_concurrent_requests: 8192,
             disable_compactor: false,
+            tls_cert: None,
+            tls_key: None,
             otel_enabled: false,
             otel_endpoint: None,
             otel_service_name: "buck2-cache-server".to_string(),
@@ -416,11 +427,26 @@ async fn run_server(
         )
     })?;
 
+    let tls_config = match (&args.tls_cert, &args.tls_key) {
+        (Some(cert), Some(key)) => Some(tls::load_server_config(cert, key)?),
+        (None, None) => None,
+        // clap's `requires` enforces the pairing for CLI use; this guards
+        // direct construction of ServeArgs.
+        _ => anyhow::bail!("--tls-cert and --tls-key must be given together"),
+    };
+
     if !address.ip().is_loopback() {
-        tracing::warn!(
-            %address,
-            "listening on non-loopback address without authentication or TLS"
-        );
+        if tls_config.is_none() {
+            tracing::warn!(
+                %address,
+                "listening on non-loopback address without authentication or TLS"
+            );
+        } else {
+            tracing::warn!(
+                %address,
+                "listening on non-loopback address without client authentication"
+            );
+        }
     }
 
     telemetry::init_metrics(&otel_config)?;
@@ -438,6 +464,7 @@ async fn run_server(
         store = %cli.store,
         default_ttl_days = cli.default_ttl_days,
         version = option_env!("depot_VERSION").unwrap_or("dev"),
+        tls = tls_config.is_some(),
         otel = otel_config.enabled,
         request_timeout_secs = args.request_timeout,
         max_concurrent_requests = args.max_concurrent_requests,
@@ -474,6 +501,7 @@ async fn run_server(
     let result = tokio::select! {
         r = reapi_grpc::start_reapi_grpc(
                 address,
+                tls_config,
                 shutdown,
                 cache_store.clone(),
                 if args.request_timeout > 0 {
@@ -516,5 +544,9 @@ mod pressure_gate;
 pub mod reapi_grpc;
 pub mod service;
 pub mod store;
+pub mod tls;
+
+#[cfg(test_module_tls)]
+mod test_tls;
 
 // ---------------------------------------------------------------------------------------------------------------------
