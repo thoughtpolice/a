@@ -1,15 +1,19 @@
 {
     "name": "Development container",
-    "build": {
-        // Path is relative to the devcontainer.json file.
-        "dockerfile": "Dockerfile"
-    },
-    "features": {
-        "ghcr.io/devcontainers/features/node:1": {},
-        "ghcr.io/devcontainers/features/rust:1": {},
-        "ghcr.io/devcontainers-community/features/llvm:3": {}
-    },
-    "postCreateCommand": "./.devcontainer/setup.sh",
+    "image": "ghcr.io/thoughtpolice/a/devcontainer:canon",
+    "containerUser": "vscode",
+    "remoteUser": "vscode",
+    "updateRemoteUserUID": true,
+    "overrideCommand": true,
+    "updateContentCommand": [
+        "/bin/bash",
+        ".devcontainer/update-content.sh"
+    ],
+    "postCreateCommand": [
+        "/bin/bash",
+        ".devcontainer/post-create.sh"
+    ],
+    "waitFor": "postCreateCommand",
     "customizations": {
         "codespaces": {
             "openFiles": []
@@ -20,7 +24,10 @@
                 "rust-lang.rust-analyzer",
                 "ms-azuretools.vscode-docker",
                 "GitHub.vscode-github-actions"
-            ]
+            ],
+            "settings": {
+                "rust-analyzer.server.path": "/opt/devcontainer/profile/bin/rust-analyzer"
+            }
         }
     },
     "remoteEnv": {
