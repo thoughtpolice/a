@@ -22,6 +22,7 @@ ssh exe.dev help <command>   # show command details
 ssh exe.dev new --json       # create VM
 ssh exe.dev ls --json        # list VMs
 ssh exe.dev rm <vm>          # delete VM
+ssh exe.dev vm-logs <vm>     # boot logs for debugging
 ssh <vm>.exe.xyz             # connect to VM
 scp file.txt <vm>.exe.xyz:~/ # transfer file
 ```
