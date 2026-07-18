@@ -12,7 +12,11 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, rust-overlay }:
-    flake-utils.lib.eachDefaultSystem (system: let
+    flake-utils.lib.eachSystem [
+      "aarch64-darwin"
+      "aarch64-linux"
+      "x86_64-linux"
+    ] (system: let
       pkgs = import nixpkgs {
         inherit system;
         overlays = [ (import rust-overlay) ];
