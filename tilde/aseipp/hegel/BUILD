@@ -3,7 +3,7 @@
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
-depot.rust_test_internal(
+depot.rust_test(
     name = 'tests',
     srcs = ['demo.rs'],
     crate_root = 'demo.rs',

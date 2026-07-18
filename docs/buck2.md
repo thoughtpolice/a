@@ -228,6 +228,13 @@ depot.rust_test(
 )
 ```
 
+`depot.rust_test` follows Buck2's root `test.use_internal_runner` setting. Its
+default, `true`, discovers and schedules each Rust `#[test]` separately through
+Buck2's internal runner. Use `-c test.use_internal_runner=false` for the
+standard external runner. A comma-separated framework list selects the internal
+rule only when it contains `rust`, for example
+`-c test.use_internal_runner=rust,gtest`.
+
 ### Rules vs Macros vs Functions
 
 Understanding the distinction is important:
@@ -1003,8 +1010,8 @@ diff \
 ### Set Operations and Filtering
 
 ```bash
-# All Rust targets except tests
-buck2 uquery "kind('rust_.*', //src/...) - kind('rust_test', //src/...)"
+# All Rust targets except tests (covers both configured runner rule kinds)
+buck2 uquery "kind('rust_.*', //src/...) - kind('rust_test.*', //src/...)"
 
 # Third-party dependencies not in stdlib
 buck2 uquery "filter('third-party//rust:', deps('//src/...')) - filter('third-party//rust:std', deps('//src/...'))"

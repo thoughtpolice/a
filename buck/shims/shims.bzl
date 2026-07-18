@@ -59,8 +59,9 @@ def _fix_kwargs(_rule_name: str, kwargs):
 
 DEPOT_VERSION = '2025.0+0'
 
-# wrap native.rust_*, but provide some extra default args
-def _depot_rust_rule(rule_name: str, **kwargs):
+# wrap native.rust_* (or a custom rust rule passed as `fn`), but provide some
+# extra default args
+def _depot_rust_rule(rule_name: str, fn = None, **kwargs):
     kwargs = _fix_kwargs(rule_name, kwargs)
 
     edition = kwargs.pop('edition', '2024')
@@ -87,7 +88,7 @@ def _depot_rust_rule(rule_name: str, **kwargs):
         "release",
     ], "debug")
 
-    fn = getattr(native, rule_name)
+    fn = fn if fn != None else getattr(native, rule_name)
     fn(
         edition = edition,
         env = env,
@@ -105,58 +106,21 @@ def _depot_rust_binary(**kwargs):
     _depot_rust_rule('rust_binary', **kwargs)
 
 def _depot_rust_test(**kwargs):
-    _depot_rust_rule('rust_test', **kwargs)
+    """Define a Rust test using the configured Buck2 test runner.
 
-def _depot_rust_test_internal(name, labels = [], contacts = [], visibility = [], **kwargs):
-    """rust_test with per-#[test] discovery via Buck2's internal runner.
-
-    Compiles the same libtest harness binary rust_test would (rust_binary
-    plus --test; the toolchain applies identical flags to both rule kinds),
-    then wraps it in a provider that lists and runs each test individually.
-    See rust_test_internal.bzl for the discovery/execution protocol.
+    This follows Buck2's root `test.use_internal_runner` setting: its default
+    (`true`) and a framework list containing `rust` enable per-#[test]
+    discovery; `false` or a list without `rust` uses the prelude rule.
     """
-    kwargs = _fix_kwargs('rust_test_internal', kwargs)
-
-    # The runtime environment must match what rust_test exposed through
-    # ExternalRunnerTestInfo, so compute the depot env once and hand the
-    # merged dict to both the compile step and the test provider.
-    env = {
-        'DEPOT_VERSION': DEPOT_VERSION,
-    }
-    package_version = read_package_value('meta.version')
-    if package_version != None:
-        env['DEPOT_PACKAGE_VERSION'] = package_version
-    env = env | kwargs.pop('env', {})
-
-    # rust_binary only infers main.rs crate roots, while rust_test also
-    # accepted lib.rs; keep that for call sites without an explicit root.
-    if kwargs.get('crate_root') == None:
-        srcs = kwargs.get('srcs', [])
-        for candidate in ('lib.rs', 'main.rs'):
-            roots = [s for s in srcs if s == candidate or s.endswith('/' + candidate)]
-            if len(roots) == 1:
-                kwargs['crate_root'] = roots[0]
-                break
-        if kwargs.get('crate_root') == None:
-            fail(f'rust_test_internal {name}: cannot infer a crate root from srcs, pass crate_root')
-
-    _depot_rust_rule(
-        'rust_binary',
-        name = name + '-bin',
-        env = env,
-        rustc_flags = ['--test'] + kwargs.pop('rustc_flags', []),
-        **kwargs,
+    runner = read_root_config("test", "use_internal_runner", "true")
+    use_internal_runner = runner == "true" or (
+        runner != "false" and
+        "rust" in [framework.strip() for framework in runner.split(",")]
     )
-
-    _rust_test_internal_rule(
-        name = name,
-        binary = ':' + name + '-bin',
-        env = env,
-        labels = labels,
-        contacts = contacts,
-        visibility = visibility,
-        target_compatible_with = kwargs.get('target_compatible_with', []),
-    )
+    if use_internal_runner:
+        _depot_rust_rule('rust_test', fn = _rust_test_internal_rule, **kwargs)
+    else:
+        _depot_rust_rule('rust_test', **kwargs)
 
 def _depot_cxx_library(**kwargs):
     kwargs = _fix_kwargs("cxx_library", kwargs)
@@ -448,7 +412,6 @@ shims = struct(
     rust_library = _depot_rust_library,
     rust_binary = _depot_rust_binary,
     rust_test = _depot_rust_test,
-    rust_test_internal = _depot_rust_test_internal,
 
     ocaml_binary = lambda **kwargs: native.ocaml_binary(**_fix_kwargs("ocaml_binary", kwargs)),
     ocaml_library = lambda **kwargs: native.ocaml_library(**_fix_kwargs("ocaml_library", kwargs)),
