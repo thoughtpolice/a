@@ -23010,6 +23010,12 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "tokio-rustls",
+    actual = ":tokio-rustls-0.26.4",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "tokio-rustls-0.26.4.crate",
     sha256 = "1729aa945f29d91ba541258c8df89027d5792d85a8841fb65e8bf0f4ede4ef61",

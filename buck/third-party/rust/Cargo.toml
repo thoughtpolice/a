@@ -140,6 +140,10 @@ tokio = { version = "1.53", features = [
     "rt-multi-thread",
 ]}
 tokio-openssl = "0.6.5"
+# NOTE: default features enable `aws_lc_rs`, so turn them off
+tokio-rustls = { version = "0.26.4", default-features = false, features = [
+    "logging",
+] }
 tokio-stream = "0.1.18"
 tokio-util = { version = "0.7.18", features = ["compat"] }
 tower = { version = "0.5", features = ["util", "limit"] }
