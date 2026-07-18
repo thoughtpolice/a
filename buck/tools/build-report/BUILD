@@ -4,9 +4,12 @@
 load("@toolchains//deno:defs.bzl", "deno")
 
 deno.binary(
-    name="build-report",
-    main="main.ts",
-    type="run",
-    permissions=["read", "write"],
-    visibility=["PUBLIC"],
+    name = "build-report",
+    main = "main.ts",
+    permissions = [
+        "read",
+        "write",
+    ],
+    type = "run",
+    visibility = ["PUBLIC"],
 )

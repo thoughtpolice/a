@@ -5,9 +5,9 @@ load("@root//buck/shims:shims.bzl", "shims")
 
 shims.constraint(
     name = "build-mode",
+    default = "debug",
     values = [
         "debug",
         "release",
     ],
-    default = "debug",
 )

@@ -4,30 +4,32 @@
 load("@toolchains//deno:defs.bzl", "deno")
 
 deno.binary(
-    name="upload",
-    main="upload.ts",
-    type="run",
-    config="deno.jsonc",
-    permissions=["read", "net"],
-    unstable_features=["kv"],
-    visibility=["PUBLIC"],
+    name = "upload",
+    config = "deno.jsonc",
+    main = "upload.ts",
+    permissions = [
+        "read",
+        "net",
+    ],
+    type = "run",
+    unstable_features = ["kv"],
+    visibility = ["PUBLIC"],
 )
 
 deno.binary(
-    name="server",
-    main="server.ts",
-    type="serve",
-    config="deno.jsonc",
-    permissions=[
+    name = "server",
+    config = "deno.jsonc",
+    main = "server.ts",
+    permissions = [
         "net",
-        "env="
-        + ",".join(
+        "env=" + ",".join(
             [
                 "DENO_KV_URL",
                 "DENO_DEPLOYMENT_ID",
-            ]
+            ],
         ),
     ],
-    unstable_features=["kv"],
-    visibility=["PUBLIC"],
+    type = "serve",
+    unstable_features = ["kv"],
+    visibility = ["PUBLIC"],
 )

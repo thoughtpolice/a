@@ -1,9 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:shims.bzl", "shims")
 load("@root//buck/shims:package.bzl", "pkg")
-
+load("@root//buck/shims:shims.bzl", "shims")
 load(
     ":BUILD.generated.bzl",
     "bcm_internal_headers",
@@ -25,28 +24,23 @@ load(
 GIT_COMMIT = pkg.version().split("g", 1)[1]
 
 shims.http_archive(
-    name="src",
-    sha256="ba1c96a8e227439c2b4c30b828ef3e24a691ef2354ff627c8cb91e106f804740",
-    urls=[
-        "https://github.com/google/boringssl/archive/{}.tar.gz".format(GIT_COMMIT),
-    ],
-    type="tar.gz",
-    strip_prefix="boringssl-{}".format(GIT_COMMIT),
-    sub_targets=bcm_sources
-    + bcm_internal_headers
-    + bcm_sources_asm
-    + crypto_sources
-    + crypto_headers
-    + crypto_internal_headers
-    + crypto_sources_asm
-    + ssl_sources
-    + ssl_headers
-    + ssl_internal_headers
-    + decrepit_sources
-    + decrepit_internal_headers
-    + bssl_sources
-    + bssl_internal_headers
-    + [
+    name = "src",
+    sha256 = "ba1c96a8e227439c2b4c30b828ef3e24a691ef2354ff627c8cb91e106f804740",
+    strip_prefix = "boringssl-{}".format(GIT_COMMIT),
+    sub_targets = bcm_sources +
+                  bcm_internal_headers +
+                  bcm_sources_asm +
+                  crypto_sources +
+                  crypto_headers +
+                  crypto_internal_headers +
+                  crypto_sources_asm +
+                  ssl_sources +
+                  ssl_headers +
+                  ssl_internal_headers +
+                  decrepit_sources +
+                  decrepit_internal_headers +
+                  bssl_sources +
+                  bssl_internal_headers + [
         # The checked-in Buck source manifest must match this exact archive.
         "gen/sources.bzl",
         # rust sources
@@ -54,7 +48,11 @@ shims.http_archive(
         "rust/bssl-sys/wrapper.h",
         "rust/bssl-macros/src/lib.rs",
     ],
-    visibility=["third-party//by-name/bo/boringssl/..."],
+    type = "tar.gz",
+    urls = [
+        "https://github.com/google/boringssl/archive/{}.tar.gz".format(GIT_COMMIT),
+    ],
+    visibility = ["third-party//by-name/bo/boringssl/..."],
 )
 
 src_ref = lambda x: ":src[{}]".format(x)
@@ -63,19 +61,19 @@ src_ref = lambda x: ":src[{}]".format(x)
 # different revision.  Without this dependency, a stale generated manifest
 # can silently compile the wrong set of translation units.
 shims.cxx_genrule(
-    name="validated-source-manifest",
-    outs={
-        "validated-source-manifest.h": ["validated-source-manifest.h"],
-    },
-    srcs={
+    name = "validated-source-manifest",
+    srcs = {
         "checked-in-sources.bzl": "BUILD.generated.bzl",
         "upstream-sources.bzl": ":src[gen/sources.bzl]",
     },
-    cmd="""
+    outs = {
+        "validated-source-manifest.h": ["validated-source-manifest.h"],
+    },
+    cmd = """
         cmp checked-in-sources.bzl upstream-sources.bzl
         echo '/* BoringSSL source manifest matches the pinned archive. */' > $OUT/validated-source-manifest.h
     """,
-    visibility=[],
+    visibility = [],
 )
 
 cc_copts = [
@@ -94,6 +92,7 @@ cc_copts = [
     "-fno-common",
     "-fno-strict-aliasing",
 ]
+
 cc_copts_cxx = [
     "-std=c++17",
     "-Wmissing-declarations",
@@ -103,16 +102,14 @@ cc_copts_cxx = [
 boringssl_copts = (
     [
         "-DBORINGSSL_IMPLEMENTATION",
-    ]
-    + shims.select(
+    ] + shims.select(
         {
             # We assume that non-Windows builds use a GCC-compatible toolchain and that
             # Windows builds do not.
             "config//os:windows": [],
             "DEFAULT": cc_copts,
-        }
-    )
-    + shims.select(
+        },
+    ) + shims.select(
         {
             # This is needed on glibc systems to get rwlock in pthreads, but it should
             # not be set on Apple platforms or FreeBSD, where it instead disables APIs
@@ -121,15 +118,17 @@ boringssl_copts = (
             "config//os:linux": ["-D_XOPEN_SOURCE=700"],
             # Without WIN32_LEAN_AND_MEAN, <windows.h> pulls in wincrypt.h, which
             # conflicts with our <openssl/x509.h>.
-            "config//os:windows": ["-DWIN32_LEAN_AND_MEAN", "-DNOMINMAX"],
+            "config//os:windows": [
+                "-DWIN32_LEAN_AND_MEAN",
+                "-DNOMINMAX",
+            ],
             "DEFAULT": [],
-        }
-    )
-    + shims.select(
+        },
+    ) + shims.select(
         {
             "config//os:windows": ["-DOPENSSL_NO_ASM"],
             "DEFAULT": [],
-        }
+        },
     )
 )
 
@@ -137,63 +136,98 @@ boringssl_copts_cxx = boringssl_copts + shims.select(
     {
         "config//os:windows": [],
         "DEFAULT": cc_copts_cxx,
-    }
+    },
 )
 
 shims.cxx_library(
-    name="crypto",
-    srcs=map(src_ref, bcm_sources + crypto_sources)
-    + shims.select(
-        {
-            "config//os:windows": [],
-            "DEFAULT": map(src_ref, bcm_sources_asm + crypto_sources_asm),
-        }
-    ),
-    compiler_flags=boringssl_copts_cxx,
-    raw_headers=map(src_ref, crypto_internal_headers + bcm_internal_headers)
-    + [":validated-source-manifest"],
-    header_namespace="",
-    exported_headers={
-        x: y for (x, y) in map(lambda x: (x[8:], src_ref(x)), crypto_headers)
+    name = "crypto",
+    srcs = map(
+               src_ref,
+               bcm_sources + crypto_sources,
+           ) +
+           shims.select(
+               {
+                   "config//os:windows": [],
+                   "DEFAULT": map(
+                       src_ref,
+                       bcm_sources_asm + crypto_sources_asm,
+                   ),
+               },
+           ),
+    compiler_flags = boringssl_copts_cxx,
+    exported_headers = {
+        x: y
+        for (x, y) in map(
+            lambda x: (
+                x[8:],
+                src_ref(x),
+            ),
+            crypto_headers,
+        )
     },
-    preferred_linkage="static",
-    linker_flags=shims.select(
+    header_namespace = "",
+    linker_flags = shims.select(
         {
             "config//os:windows": ["-defaultlib:advapi32.lib"],
             "DEFAULT": ["-pthread"],
-        }
+        },
     ),
+    preferred_linkage = "static",
+    raw_headers = map(
+        src_ref,
+        crypto_internal_headers + bcm_internal_headers,
+    ) + [
+        ":validated-source-manifest",
+    ],
 )
 
 shims.cxx_library(
-    name="ssl",
-    srcs=map(src_ref, ssl_sources),
-    compiler_flags=boringssl_copts_cxx,
-    raw_headers=map(src_ref, ssl_internal_headers),
-    header_namespace="",
-    exported_headers={
-        x: y for (x, y) in map(lambda x: (x[8:], src_ref(x)), ssl_headers)
+    name = "ssl",
+    srcs = map(src_ref, ssl_sources),
+    compiler_flags = boringssl_copts_cxx,
+    exported_headers = {
+        x: y
+        for (x, y) in map(
+            lambda x: (
+                x[8:],
+                src_ref(x),
+            ),
+            ssl_headers,
+        )
     },
-    preferred_linkage="static",
-    exported_linker_flags=shims.select(
-        {"config//os:linux": ["-lstdc++"], "config//os:macos": ["-lc++"], "DEFAULT": []}
+    exported_linker_flags = shims.select(
+        {
+            "config//os:linux": ["-lstdc++"],
+            "config//os:macos": ["-lc++"],
+            "DEFAULT": [],
+        },
     ),
-    deps=[":crypto"],
+    header_namespace = "",
+    preferred_linkage = "static",
+    raw_headers = map(src_ref, ssl_internal_headers),
+    deps = [":crypto"],
 )
 
 shims.cxx_library(
-    name="decrepit",
-    srcs=map(src_ref, decrepit_sources),
-    compiler_flags=boringssl_copts_cxx,
-    raw_headers=map(src_ref, decrepit_internal_headers),
-    deps=[":crypto", ":ssl"],
+    name = "decrepit",
+    srcs = map(src_ref, decrepit_sources),
+    compiler_flags = boringssl_copts_cxx,
+    raw_headers = map(src_ref, decrepit_internal_headers),
+    deps = [
+        ":crypto",
+        ":ssl",
+    ],
 )
 
 shims.cxx_binary(
-    name="bssl",
-    srcs=map(src_ref, bssl_sources),
-    raw_headers=map(src_ref, bssl_internal_headers),
-    compiler_flags=boringssl_copts_cxx,
-    deps=[":crypto", ":ssl", ":decrepit"],
-    visibility=["PUBLIC"],
+    name = "bssl",
+    srcs = map(src_ref, bssl_sources),
+    compiler_flags = boringssl_copts_cxx,
+    raw_headers = map(src_ref, bssl_internal_headers),
+    visibility = ["PUBLIC"],
+    deps = [
+        ":crypto",
+        ":decrepit",
+        ":ssl",
+    ],
 )

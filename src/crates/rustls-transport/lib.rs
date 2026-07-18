@@ -121,16 +121,16 @@ mod tests {
     use super::*;
 
     use rustls::SignatureScheme;
-    use rustls::client::danger::{
-        HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
-    };
+    use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
     use rustls::pki_types::ServerName;
     use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
     use tokio::net::{TcpListener, TcpStream};
 
     fn fixture(name: &str) -> Vec<u8> {
-        std::fs::read(buck_resources::get(format!("src/crates/rustls-transport/{name}")).expect("fixture"))
-            .expect("read fixture")
+        std::fs::read(
+            buck_resources::get(format!("src/crates/rustls-transport/{name}")).expect("fixture"),
+        )
+        .expect("read fixture")
     }
 
     fn test_server_config() -> Arc<rustls::ServerConfig> {
@@ -189,13 +189,12 @@ mod tests {
     }
 
     async fn connect_tls(addr: std::net::SocketAddr) -> tokio_rustls::client::TlsStream<TcpStream> {
-        let mut config =
-            rustls::ClientConfig::builder_with_provider(rustls_boring::arc_provider())
-                .with_protocol_versions(&[&rustls::version::TLS13])
-                .expect("TLS 1.3 client config")
-                .dangerous()
-                .with_custom_certificate_verifier(Arc::new(TrustAnything))
-                .with_no_client_auth();
+        let mut config = rustls::ClientConfig::builder_with_provider(rustls_boring::arc_provider())
+            .with_protocol_versions(&[&rustls::version::TLS13])
+            .expect("TLS 1.3 client config")
+            .dangerous()
+            .with_custom_certificate_verifier(Arc::new(TrustAnything))
+            .with_no_client_auth();
         config.alpn_protocols = vec![b"h2".to_vec()];
         let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
 
@@ -207,9 +206,7 @@ mod tests {
     }
 
     /// Accept one TLS connection and echo four bytes back over it.
-    fn spawn_echo_server(
-        listener: TcpListener,
-    ) -> tokio::task::JoinHandle<()> {
+    fn spawn_echo_server(listener: TcpListener) -> tokio::task::JoinHandle<()> {
         let mut acceptor = TlsAccept::new(listener, test_server_config());
         tokio::spawn(async move {
             let mut tls = acceptor

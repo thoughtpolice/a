@@ -5,8 +5,14 @@ load("@root//buck/shims:shims.bzl", "shims")
 
 [
     shims.export_file(
-        name=file,
-        src=file,
+        name = file,
+        src = file,
     )
-    for file in glob(["*"], exclude=["BUILD", "PACKAGE"])
+    for file in glob(
+        ["*"],
+        exclude = [
+            "BUILD",
+            "PACKAGE",
+        ],
+    )
 ]

@@ -259,18 +259,15 @@ mod tests {
     #[test]
     fn serves_http2_over_tcp_loopback() {
         block_on_traced(|handle| async move {
-            let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind loopback");
+            let listener = TcpListener::bind("127.0.0.1:0")
+                .await
+                .expect("bind loopback");
             let addr = listener.local_addr().expect("local addr");
             let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
-            let server = serve_traced(
-                listener,
-                tower::service_fn(hello),
-                handle,
-                async move {
-                    let _ = shutdown_rx.await;
-                },
-            );
+            let server = serve_traced(listener, tower::service_fn(hello), handle, async move {
+                let _ = shutdown_rx.await;
+            });
 
             let client = async move {
                 let stream = TcpStream::connect(addr).await.expect("connect to server");

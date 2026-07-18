@@ -12,7 +12,12 @@ depot.filegroup(
     depot.export_file(
         name = name,
         src = name,
-    ) for name in [ 'zuo.h', 'zuo.c', 'local/image.zuo' ]
+    )
+    for name in [
+        "zuo.h",
+        "zuo.c",
+        "local/image.zuo",
+    ]
 ]
 
 # Basic Zuo executable - minimal build without embedded modules
@@ -25,9 +30,9 @@ depot.cxx_binary(
 depot.genrule(
     name = "image_zuo.c",
     srcs = [
+        ":local/image.zuo",
         ":stdlib",
         ":zuo.c",
-        ":local/image.zuo",
     ],
     out = "image_zuo.c",
     cmd = """
@@ -41,10 +46,10 @@ depot.genrule(
 depot.cxx_binary(
     name = "zuo-embedded",
     srcs = [":image_zuo.c"],
-    deps = [
-        'third-party//by-name/mi/mimalloc:mimalloc',
-    ],
     visibility = ["PUBLIC"],
+    deps = [
+        "third-party//by-name/mi/mimalloc:mimalloc",
+    ],
 )
 
 # The main zuo alias points to the embedded version

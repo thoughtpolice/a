@@ -5,8 +5,8 @@
 #![feature(generic_const_exprs)]
 
 use stribob::{
-    prototype::{Whirlbob, S},
     Domain,
+    prototype::{S, Whirlbob},
 };
 
 #[global_allocator]

@@ -61,23 +61,23 @@ def python_test(**_kwargs):
 
 # Build rules
 def rule(**_kwargs):
-    fail('define custom rules in appropriate toolchain files, not in BUILD files')
+    fail("define custom rules in appropriate toolchain files, not in BUILD files")
 
 # Other common rules that should be shimmed
 def sh_binary(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.command() instead')
 
 def python_binary(**_kwargs):
-    fail('use appropriate language-specific toolchain instead of native python_binary')
+    fail("use appropriate language-specific toolchain instead of native python_binary")
 
 def python_library(**_kwargs):
-    fail('use appropriate language-specific toolchain instead of native python_library')
+    fail("use appropriate language-specific toolchain instead of native python_library")
 
 def java_binary(**_kwargs):
-    fail('use appropriate language-specific toolchain instead of native java_binary')
+    fail("use appropriate language-specific toolchain instead of native java_binary")
 
 def java_library(**_kwargs):
-    fail('use appropriate language-specific toolchain instead of native java_library')
+    fail("use appropriate language-specific toolchain instead of native java_library")
 
 def go_binary(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.go_binary() instead')
@@ -112,10 +112,10 @@ def select(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.select() instead')
 
 def configured_alias(**_kwargs):
-    fail('use appropriate toolchain configuration instead of configured_alias')
+    fail("use appropriate toolchain configuration instead of configured_alias")
 
 def alias(**_kwargs):
-    fail('use appropriate dependency specification instead of alias')
+    fail("use appropriate dependency specification instead of alias")
 
 def toolchain_alias(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.toolchain_alias() instead')

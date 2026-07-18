@@ -1,4 +1,3 @@
-
 def __export_file_impl(ctx: AnalysisContext) -> list[Provider]:
     return [
         DefaultInfo(default_output = ctx.attrs.src),
@@ -19,10 +18,10 @@ def __filegroup_impl(ctx: AnalysisContext) -> list[Provider]:
     if type(ctx.attrs.srcs) == type({}):
         srcs = ctx.attrs.srcs
     else:
-        srcs = { src.short_path: src for src in ctx.attrs.srcs }
+        srcs = {src.short_path: src for src in ctx.attrs.srcs}
 
     output = ctx.actions.copied_dir(ctx.label.name, srcs)
-    return [ DefaultInfo(default_output = output) ]
+    return [DefaultInfo(default_output = output)]
 
 filegroup = rule(
     doc = """Create a directory that contains links to a list of srcs.

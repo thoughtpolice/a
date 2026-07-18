@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:shims.bzl", depot="shims")
+load("@root//buck/shims:shims.bzl", depot = "shims")
 
 COMMON_DEPS = [
     "third-party//by-name/mi/mimalloc:rust",
@@ -18,34 +18,33 @@ ALL_TESTS = [
 ]
 
 depot.command(
-    name="qlark",
-    cmd=[
+    name = "qlark",
+    cmd = [
         "$(location :qlark-bin)",
         "--tofu-binary",
         "$(location //buck/bin/extra:tofu)",
     ],
-    visibility=["PUBLIC"],
-    tests=ALL_TESTS,
+    tests = ALL_TESTS,
+    visibility = ["PUBLIC"],
 )
 
 depot.rust_binary(
-    name="qlark-bin",
-    srcs=glob(["**/*.rs"]),
-    deps=COMMON_DEPS,
-    tests=ALL_TESTS,
-    visibility=[],
+    name = "qlark-bin",
+    srcs = glob(["**/*.rs"]),
+    tests = ALL_TESTS,
+    visibility = [],
+    deps = COMMON_DEPS,
 )
 
 depot.rust_test(
-    name="qlark-tests",
-    srcs=glob(["**/*.rs"]),
-    deps=COMMON_DEPS
-    + [
-        "third-party//rust:insta",
-    ],
-    env={
+    name = "qlark-tests",
+    srcs = glob(["**/*.rs"]),
+    env = {
         "CARGO_MANIFEST_DIR": ".",
         "INSTA_WORKSPACE_ROOT": ".",
     },
-    visibility=[],
+    visibility = [],
+    deps = COMMON_DEPS + [
+        "third-party//rust:insta",
+    ],
 )

@@ -5,13 +5,13 @@
 # The actual tests are defined in //buck/bin:dotslash-check
 
 python_bootstrap_binary(
-    name = 'check-hashes',
-    main = 'hashes.py',
-    visibility = ['PUBLIC'],
+    name = "check-hashes",
+    main = "hashes.py",
+    visibility = ["PUBLIC"],
 )
 
 python_bootstrap_binary(
-    name = 'check-windows-shim',
-    main = 'windows-shim.py',
-    visibility = ['PUBLIC'],
+    name = "check-windows-shim",
+    main = "windows-shim.py",
+    visibility = ["PUBLIC"],
 )

@@ -1,4 +1,3 @@
-
 load("@cellar//bootstrap:defs.bzl", "export_file")
 
 EXTS = [
@@ -9,5 +8,6 @@ EXTS = [
 ]
 
 [
-    export_file(name = name) for name in glob(EXTS)
+    export_file(name = name)
+    for name in glob(EXTS)
 ]

@@ -3,10 +3,10 @@ load("@cellar//bootstrap:defs.bzl", "export_file")
 def __write_file(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
     ctx.actions.write(output, ctx.attrs.content)
-    return [ DefaultInfo(default_output = output) ]
+    return [DefaultInfo(default_output = output)]
 
 write_file = rule(impl = __write_file, attrs = {
-    'content': attrs.string(),
+    "content": attrs.string(),
 })
 
 def __download_file(ctx: AnalysisContext) -> list[Provider]:
@@ -29,12 +29,12 @@ def __download_file(ctx: AnalysisContext) -> list[Provider]:
     )
 
     return [
-        DefaultInfo(default_output = output)
+        DefaultInfo(default_output = output),
     ]
 
 download_file = rule(impl = __download_file, attrs = {
-    'urls': attrs.list(attrs.string()),
-    'hash': attrs.option(attrs.string(), default = None),
+    "urls": attrs.list(attrs.string()),
+    "hash": attrs.option(attrs.string(), default = None),
 })
 
 def __ungz(ctx: AnalysisContext) -> list[Provider]:
@@ -49,11 +49,11 @@ def __ungz(ctx: AnalysisContext) -> list[Provider]:
         ],
         category = "mes_stage0_ungz",
     )
-    return [ DefaultInfo(default_output = output) ]
+    return [DefaultInfo(default_output = output)]
 
 ungz = rule(impl = __ungz, attrs = {
-    'ungz': attrs.dep(),
-    'input': attrs.dep(),
+    "ungz": attrs.dep(),
+    "input": attrs.dep(),
 })
 
 def __untar(ctx: AnalysisContext) -> list[Provider]:
@@ -68,25 +68,24 @@ def __untar(ctx: AnalysisContext) -> list[Provider]:
             "--non-strict",
             "--file",
         ],
-
         category = "mes_stage0_untar",
     )
     return [
         DefaultInfo(
             default_output = output,
             sub_targets = {
-                path: [ DefaultInfo(default_output = output.project(path)) ]
-                    for path in ctx.attrs.files
+                path: [DefaultInfo(default_output = output.project(path))]
+                for path in ctx.attrs.files
             },
-        )
+        ),
     ]
 
 untar = rule(impl = __untar, attrs = {
-    'chdirexec': attrs.dep(),
-    'tarxf': attrs.source(),
-    'untar': attrs.dep(),
-    'input': attrs.dep(),
-    'files': attrs.list(attrs.string(), default = []),
+    "chdirexec": attrs.dep(),
+    "tarxf": attrs.source(),
+    "untar": attrs.dep(),
+    "input": attrs.dep(),
+    "files": attrs.list(attrs.string(), default = []),
 })
 
 def __m2_planet(ctx: AnalysisContext) -> list[Provider]:
@@ -111,18 +110,18 @@ def __m2_planet(ctx: AnalysisContext) -> list[Provider]:
     ctx.actions.run(
         cmd,
         env = {
-            'PATH': tools,
+            "PATH": tools,
         },
         category = "mes_m2_planet",
     )
-    return [ DefaultInfo(default_output = output) ]
+    return [DefaultInfo(default_output = output)]
 
 M2_Planet = rule(impl = __m2_planet, attrs = {
-    'tools': attrs.dep(),
-    'arch_stage0': attrs.string(),
-    'arch_mes': attrs.string(),
-    'defines': attrs.list(attrs.string(), default = []),
-    'srcs': attrs.list(attrs.source()),
+    "tools": attrs.dep(),
+    "arch_stage0": attrs.string(),
+    "arch_mes": attrs.string(),
+    "defines": attrs.list(attrs.string(), default = []),
+    "srcs": attrs.list(attrs.source()),
 })
 
 def _blood_elf_impl(ctx: AnalysisContext) -> list[Provider]:
@@ -142,16 +141,16 @@ def _blood_elf_impl(ctx: AnalysisContext) -> list[Provider]:
     ctx.actions.run(
         cmd,
         env = {
-            'PATH': tools,
+            "PATH": tools,
         },
         category = "mes_blood_elf",
     )
-    return [ DefaultInfo(default_output = output) ]
+    return [DefaultInfo(default_output = output)]
 
 blood_elf = rule(impl = _blood_elf_impl, attrs = {
-    'tools': attrs.dep(),
-    'args': attrs.list(attrs.arg()),
-    'srcs': attrs.list(attrs.source()),
+    "tools": attrs.dep(),
+    "args": attrs.list(attrs.arg()),
+    "srcs": attrs.list(attrs.source()),
 })
 
 def _m1_impl(ctx: AnalysisContext) -> list[Provider]:
@@ -172,16 +171,16 @@ def _m1_impl(ctx: AnalysisContext) -> list[Provider]:
     ctx.actions.run(
         cmd,
         env = {
-            'PATH': tools,
+            "PATH": tools,
         },
         category = "mes_m1",
     )
-    return [ DefaultInfo(default_output = output) ]
+    return [DefaultInfo(default_output = output)]
 
 M1 = rule(impl = _m1_impl, attrs = {
-    'tools': attrs.dep(),
-    'args': attrs.list(attrs.arg()),
-    'srcs': attrs.list(attrs.source()),
+    "tools": attrs.dep(),
+    "args": attrs.list(attrs.arg()),
+    "srcs": attrs.list(attrs.source()),
 })
 
 def _hex2_impl(ctx: AnalysisContext) -> list[Provider]:
@@ -202,7 +201,7 @@ def _hex2_impl(ctx: AnalysisContext) -> list[Provider]:
     ctx.actions.run(
         cmd,
         env = {
-            'PATH': tools,
+            "PATH": tools,
         },
         category = "mes_hex2",
     )
@@ -212,9 +211,9 @@ def _hex2_impl(ctx: AnalysisContext) -> list[Provider]:
     ]
 
 hex2 = rule(impl = _hex2_impl, attrs = {
-    'tools': attrs.dep(),
-    'args': attrs.list(attrs.arg()),
-    'srcs': attrs.list(attrs.source()),
+    "tools": attrs.dep(),
+    "args": attrs.list(attrs.arg()),
+    "srcs": attrs.list(attrs.source()),
 })
 
 def _mes_bin_impl(ctx: AnalysisContext) -> list[Provider]:
@@ -230,14 +229,14 @@ def _mes_bin_impl(ctx: AnalysisContext) -> list[Provider]:
     ]
 
 _mes = rule(impl = _mes_bin_impl, attrs = {
-    'wrapper': attrs.dep(),
-    'prefix': attrs.default_only(attrs.arg(default = "$(location cellar//bootstrap/mes:mes-0.27)")),
-    'bin': attrs.default_only(attrs.dep(default = "cellar//bootstrap/mes:mes.bin")),
+    "wrapper": attrs.dep(),
+    "prefix": attrs.default_only(attrs.arg(default = "$(location cellar//bootstrap/mes:mes-0.27)")),
+    "bin": attrs.default_only(attrs.dep(default = "cellar//bootstrap/mes:mes.bin")),
 })
 
 def mes_bins():
-    export_file(name = 'mes.sh')
+    export_file(name = "mes.sh")
     _mes(
-        name = 'mes',
+        name = "mes",
         wrapper = "cellar//bootstrap/mes:mes.sh",
     )

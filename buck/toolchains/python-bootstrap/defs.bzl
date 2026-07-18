@@ -43,7 +43,7 @@ def _standalone_python_download(ctx):
             output,
             out_dir.as_output(),
         ]),
-        category = "system_tar"
+        category = "system_tar",
     )
 
     bin = out_dir.project(ctx.attrs.exe)
@@ -51,9 +51,9 @@ def _standalone_python_download(ctx):
         DefaultInfo(
             default_output = out_dir,
             sub_targets = {
-                'tar': [ DefaultInfo(default_output = output) ],
-                ctx.attrs.exe: [ DefaultInfo(default_output = bin) ],
-            }
+                "tar": [DefaultInfo(default_output = output)],
+                ctx.attrs.exe: [DefaultInfo(default_output = bin)],
+            },
         ),
         RunInfo(args = cmd_args([bin])),
     ]

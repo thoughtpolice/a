@@ -1,4 +1,3 @@
-
 def __constraint_setting_impl(ctx):
     return [DefaultInfo(), ConstraintSettingInfo(label = ctx.label.raw_target())]
 

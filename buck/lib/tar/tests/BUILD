@@ -8,8 +8,8 @@ load("@root//buck/shims:shims.bzl", "shims")
 tar_file(
     name = "test_with_prefix",
     srcs = ["test_with_prefix.txt"],
-    prefix = "usr/local/bin",
     compress = True,
+    prefix = "usr/local/bin",
 )
 
 # Verify the prefix works correctly

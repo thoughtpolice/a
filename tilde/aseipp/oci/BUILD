@@ -1,41 +1,41 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:shims.bzl", depot="shims")
+load("@root//buck/shims:shims.bzl", depot = "shims")
 
 # TODO FIXME(aseipp): enable on CI, somehow
 # # https://github.com/thoughtpolice/a/issues/16
-ENABLED = not (read_config("ci","depot_gha_ci","false") == "true")
+ENABLED = not (read_config("ci", "depot_gha_ci", "false") == "true")
 
 depot.ocaml_library(
-    name="lib",
-    srcs=["lib.ml"],
+    name = "lib",
+    srcs = ["lib.ml"],
 ) if ENABLED else None
 
 depot.ocaml_binary(
-    name="hello",
-    srcs=["main.ml"],
-    deps=[
+    name = "hello",
+    srcs = ["main.ml"],
+    deps = [
         ":lib",
     ],
 ) if ENABLED else None
 
 depot.tar_file(
-    name="app",
-    srcs=[":hello"],
-    out="app.tar",
+    name = "app",
+    srcs = [":hello"],
+    out = "app.tar",
 ) if ENABLED else None
 
 depot.oci.pull(
-  name = "distroless",
-  image = "gcr.io/distroless/cc-debian12",
-  digest = "sha256:388145607c79313a1e49b783a7ee71e4ef3df31d87c45adb46bfb9b257b643d1",
-  platform = "linux/amd64",
+    name = "distroless",
+    digest = "sha256:388145607c79313a1e49b783a7ee71e4ef3df31d87c45adb46bfb9b257b643d1",
+    image = "gcr.io/distroless/cc-debian12",
+    platform = "linux/amd64",
 ) if ENABLED else None
 
 depot.oci.image(
-  name = "oci-image",
-  base = ":distroless",
-  layers = [":app"],
-  entrypoint = ["./hello"],
+    name = "oci-image",
+    base = ":distroless",
+    entrypoint = ["./hello"],
+    layers = [":app"],
 ) if ENABLED else None

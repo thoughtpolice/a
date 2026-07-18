@@ -13,7 +13,7 @@ def __hex0(ctx: AnalysisContext) -> list[Provider]:
             ctx.attrs.src,
             output.as_output(),
         ],
-        category = "stage0_hex012"
+        category = "stage0_hex012",
     )
     return [
         DefaultInfo(default_output = output),
@@ -21,8 +21,8 @@ def __hex0(ctx: AnalysisContext) -> list[Provider]:
     ]
 
 hex0 = rule(impl = __hex0, attrs = {
-    'bin': attrs.source(),
-    'src': attrs.source(),
+    "bin": attrs.source(),
+    "src": attrs.source(),
 })
 
 # hex1 and hex2 have the same APIs
@@ -38,15 +38,15 @@ def __catm(ctx: AnalysisContext) -> list[Provider]:
             ctx.attrs.bin,
             output.as_output(),
         ] + ctx.attrs.inputs,
-        category = "stage0_catm"
+        category = "stage0_catm",
     )
     return [
         DefaultInfo(default_output = output),
     ]
 
 catm = rule(impl = __catm, attrs = {
-    'bin': attrs.source(),
-    'inputs': attrs.list(attrs.source()),
+    "bin": attrs.source(),
+    "inputs": attrs.list(attrs.source()),
 })
 
 def __M0(ctx: AnalysisContext) -> list[Provider]:
@@ -57,15 +57,15 @@ def __M0(ctx: AnalysisContext) -> list[Provider]:
             ctx.attrs.src,
             output.as_output(),
         ],
-        category = "stage0_m0"
+        category = "stage0_m0",
     )
     return [
         DefaultInfo(default_output = output),
     ]
 
 M0 = rule(impl = __M0, attrs = {
-    'bin': attrs.source(),
-    'src': attrs.source(),
+    "bin": attrs.source(),
+    "src": attrs.source(),
 })
 
 def __cc(ctx: AnalysisContext) -> list[Provider]:
@@ -76,21 +76,22 @@ def __cc(ctx: AnalysisContext) -> list[Provider]:
             ctx.attrs.src,
             output.as_output(),
         ],
-        category = "stage0_cc"
+        category = "stage0_cc",
     )
     return [
         DefaultInfo(default_output = output),
     ]
 
 cc = rule(impl = __cc, attrs = {
-    'bin': attrs.source(),
-    'src': attrs.source(),
+    "bin": attrs.source(),
+    "src": attrs.source(),
 })
 
 def __M2(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
         ctx.attrs.bin,
-        "--architecture", ctx.attrs.arch,
+        "--architecture",
+        ctx.attrs.arch,
     ]
     for src in ctx.attrs.srcs:
         cmd.extend(["-f", src])
@@ -107,11 +108,11 @@ def __M2(ctx: AnalysisContext) -> list[Provider]:
     ]
 
 M2 = rule(impl = __M2, attrs = {
-    'bin': attrs.source(),
-    'arch': attrs.string(),
-    'srcs': attrs.list(attrs.source()),
-    'bootstrap': attrs.bool(default = False),
-    'debug': attrs.bool(default = False),
+    "bin": attrs.source(),
+    "arch": attrs.string(),
+    "srcs": attrs.list(attrs.source()),
+    "bootstrap": attrs.bool(default = False),
+    "debug": attrs.bool(default = False),
 })
 
 def __blood_elf(ctx: AnalysisContext) -> list[Provider]:
@@ -133,16 +134,17 @@ def __blood_elf(ctx: AnalysisContext) -> list[Provider]:
     ]
 
 blood_elf = rule(impl = __blood_elf, attrs = {
-    'bin': attrs.source(),
-    'sixtyfour': attrs.bool(),
-    'little_endian': attrs.bool(),
-    'srcs': attrs.list(attrs.source()),
+    "bin": attrs.source(),
+    "sixtyfour": attrs.bool(),
+    "little_endian": attrs.bool(),
+    "srcs": attrs.list(attrs.source()),
 })
 
 def __m1_0(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
         ctx.attrs.bin,
-        "--architecture", ctx.attrs.arch,
+        "--architecture",
+        ctx.attrs.arch,
     ]
     if ctx.attrs.little_endian:
         cmd.append("--little-endian")
@@ -157,16 +159,17 @@ def __m1_0(ctx: AnalysisContext) -> list[Provider]:
     ]
 
 M1_0 = rule(impl = __m1_0, attrs = {
-    'bin': attrs.source(),
-    'arch': attrs.string(),
-    'little_endian': attrs.bool(),
-    'srcs': attrs.list(attrs.source()),
+    "bin": attrs.source(),
+    "arch": attrs.string(),
+    "little_endian": attrs.bool(),
+    "srcs": attrs.list(attrs.source()),
 })
 
 def __hex2_1(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
         ctx.attrs.bin,
-        "--architecture", ctx.attrs.arch,
+        "--architecture",
+        ctx.attrs.arch,
     ]
     if ctx.attrs.little_endian:
         cmd.append("--little-endian")
@@ -184,11 +187,11 @@ def __hex2_1(ctx: AnalysisContext) -> list[Provider]:
     ]
 
 hex2_1 = rule(impl = __hex2_1, attrs = {
-    'bin': attrs.source(),
-    'arch': attrs.string(),
-    'little_endian': attrs.bool(),
-    'base_address': attrs.string(),
-    'srcs': attrs.list(attrs.source()),
+    "bin": attrs.source(),
+    "arch": attrs.string(),
+    "little_endian": attrs.bool(),
+    "base_address": attrs.string(),
+    "srcs": attrs.list(attrs.source()),
 })
 
 M1 = M1_0

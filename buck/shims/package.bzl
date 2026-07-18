@@ -10,7 +10,7 @@ load("@prelude//cfg/modifier:set_cfg_modifiers.bzl", "set_cfg_modifiers")
 def _meta_write_package_value(k: str, v) -> None:
     # FIXME (aseipp): propagate overwrite upwards so it can be conditionally
     # enabled
-    return write_package_value('meta.{}'.format(k), v, overwrite = True)
+    return write_package_value("meta.{}".format(k), v, overwrite = True)
 
 PackageMetaField = enum(
     "license",
@@ -26,33 +26,33 @@ OsvGitRepoInfo = record(url = field(str), commit = field(str))
 
 def _license(s: str) -> None:
     """Set the license of the current package."""
-    return _meta_write_package_value('license', s.strip())
+    return _meta_write_package_value("license", s.strip())
 
 def _description(s: str) -> None:
     """Set the description of the current package."""
-    return _meta_write_package_value('description', s.strip())
+    return _meta_write_package_value("description", s.strip())
 
 def _version(s: str) -> None:
     """Set the version of the current package."""
 
     # https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
-    r = "^([0-9]\d*)\.([0-9]\d*)\.([0-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
+    r = "^([0-9]\\d*)\\.([0-9]\\d*)\\.([0-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
     if not regex_match(r, s):
         fail("Invalid version, must be semver-style: {}".format(s))
-    return _meta_write_package_value('version', s.strip())
+    return _meta_write_package_value("version", s.strip())
 
 def _copyright(cc: list[str]) -> None:
     """Set the license of the current package."""
-    return _meta_write_package_value('copyright', cc)
+    return _meta_write_package_value("copyright", cc)
 
 def _vendored(meta: dict) -> None:
     """Set the vendored status of the current package."""
-    _meta_write_package_value('vendor', meta)
+    _meta_write_package_value("vendor", meta)
     return None
 
 def _osv_info(meta: dict) -> None:
     """Set the OSV metadata of the current package."""
-    _meta_write_package_value('osv', meta)
+    _meta_write_package_value("osv", meta)
     return None
 
 def _info(
@@ -63,30 +63,29 @@ def _info(
         vendored: bool = False,
         vendor_info: dict = {},
         osv_info: None | OsvPurlInfo | OsvGitRepoInfo = None,
-
         inherit: bool = False,
         visibility: list[str] = [],
         within_view: list[str] = [],
-        target_compatible_with: None | list[str] = None,
-    ) -> None:
-
+        target_compatible_with: None | list[str] = None) -> None:
     _copyright(copyright)
     _license(license)
-    if description != None: _description(description)
-    if version != None: _version(version)
+    if description != None:
+        _description(description)
+    if version != None:
+        _version(version)
 
     if osv_info != None:
         if isinstance(osv_info, OsvPurlInfo):
             _osv_info({
-                'type': 'OsvPurlInfo',
-                'purl': osv_info.name,
-                'version': osv_info.version or version if version != None else fail("Must specify version for OSV PURL info"),
+                "type": "OsvPurlInfo",
+                "purl": osv_info.name,
+                "version": osv_info.version or version if version != None else fail("Must specify version for OSV PURL info"),
             })
         elif isinstance(osv_info, OsvGitRepoInfo):
             _osv_info({
-                'type': 'OsvGitRepoInfo',
-                'url': osv_info.url,
-                'commit': osv_info.commit,
+                "type": "OsvGitRepoInfo",
+                "url": osv_info.url,
+                "commit": osv_info.commit,
             })
         else:
             fail("Invalid OSV info type: {}".format(osv_info))
@@ -97,7 +96,7 @@ def _info(
         _vendored(vendor_info)
 
     if target_compatible_with != None:
-        _meta_write_package_value('target_compatible_with', target_compatible_with)
+        _meta_write_package_value("target_compatible_with", target_compatible_with)
 
     package(
         inherit = inherit,
@@ -114,7 +113,7 @@ def __get_pkg_path() -> str:
     )
 
 def third_party_meta(names: list[str]):
-    _meta_write_package_value('3p', names)
+    _meta_write_package_value("3p", names)
 
 # MARK: Modifiers
 
@@ -133,9 +132,7 @@ pkg = struct(
     info = _info,
     third_party_meta = third_party_meta,
     get_path = __get_pkg_path,
-
-    version = lambda: read_package_value('meta.version'),
-
+    version = lambda: read_package_value("meta.version"),
     cfg_constructor = set_cfg_constructor,
     cfg_modifiers = set_cfg_modifiers,
 )

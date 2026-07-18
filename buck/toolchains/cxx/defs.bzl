@@ -234,7 +234,7 @@ system_cxx_toolchain = rule(
         "rc_flags": attrs.list(attrs.string(), default = []),
         "_cxx_tools_info": attrs.exec_dep(
             providers = [CxxToolsInfo],
-            default = "prelude//toolchains/msvc:msvc_tools" if host_info().os.is_windows else "toolchains//cxx/clang:path_clang_tools"
+            default = "prelude//toolchains/msvc:msvc_tools" if host_info().os.is_windows else "toolchains//cxx/clang:path_clang_tools",
         ),
         "_internal_tools": attrs.default_only(attrs.exec_dep(providers = [CxxInternalTools], default = "prelude//cxx/tools:internal_tools")),
         "_target_os_type": buck.target_os_type_arg(),
