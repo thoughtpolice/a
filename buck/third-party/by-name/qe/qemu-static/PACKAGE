@@ -6,7 +6,7 @@ load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 VERSION="9.2.0+gf3d536d37825302e31ed0eddd811c689f38f85a3"
 
 pkg.info(
-    version = f"{VERSION}",
+    version = VERSION,
     description = """QEMU is an open source machine emulator and virtual machine.""",
     license = "GPL-2.0-or-later",
     copyright = [ ],

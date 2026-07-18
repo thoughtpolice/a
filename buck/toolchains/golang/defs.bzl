@@ -43,16 +43,16 @@ def hermetic_go_toolchain(version: str, hashes: list[(str, str)]):
     for triple, sha256 in hashes:
         ext = "zip" if triple.startswith("windows") else "tar.gz"
         native.http_archive(
-            name = f"{version}-{triple}",
+            name = "{version}-{triple}".format(version = version, triple = triple),
             sha256 = sha256,
             strip_prefix = "go",
             type = ext,
-            urls = [f"https://go.dev/dl/go{version}.{triple}.{ext}"],
+            urls = ["https://go.dev/dl/go{version}.{triple}.{ext}".format(version = version, triple = triple, ext = ext)],
             visibility = [],
         )
 
     go_os_arch = _distr_select(hashes, lambda goos, goarch: (goos, goarch))
-    go_root = _distr_select(hashes, lambda goos, goarch: f":{version}-{goos}-{goarch}")
+    go_root = _distr_select(hashes, lambda goos, goarch: ":{version}-{goos}-{goarch}".format(version = version, goos = goos, goarch = goarch))
 
     # GOOS/GOARCH the toolchain emits code for; unlike the distribution
     # selects above, these resolve in the target configuration
@@ -60,28 +60,28 @@ def hermetic_go_toolchain(version: str, hashes: list[(str, str)]):
     env_go_arch = select({constraint: goarch for goarch, constraint in _GOARCH_CONSTRAINTS.items()})
 
     go_bootstrap_distr(
-        name = f"go_bootstrap_distr-{version}",
+        name = "go_bootstrap_distr-{version}".format(version = version),
         go_os_arch = go_os_arch,
         go_root = go_root,
     )
 
     go_bootstrap_toolchain(
-        name = f"go_bootstrap-{version}",
+        name = "go_bootstrap-{version}".format(version = version),
         env_go_arch = env_go_arch,
         env_go_os = env_go_os,
-        go_bootstrap_distr = f":go_bootstrap_distr-{version}",
+        go_bootstrap_distr = ":go_bootstrap_distr-{version}".format(version = version),
     )
 
     go_distr(
-        name = f"go_distr-{version}",
+        name = "go_distr-{version}".format(version = version),
         go_os_arch = go_os_arch,
         go_root = go_root,
         version = version,
     )
 
     go_toolchain(
-        name = f"go-{version}",
+        name = "go-{version}".format(version = version),
         env_go_arch = env_go_arch,
         env_go_os = env_go_os,
-        go_distr = f":go_distr-{version}",
+        go_distr = ":go_distr-{version}".format(version = version),
     )

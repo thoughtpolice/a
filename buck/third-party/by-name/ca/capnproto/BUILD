@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:shims.bzl", "shims")
 load("@root//buck/shims:package.bzl", "pkg")
+load("@root//buck/shims:shims.bzl", "shims")
 
 VERSION = pkg.version()
 
@@ -168,35 +168,39 @@ SOURCE_FILES = [
 
 [
     shims.http_archive(
-        name = f'src.{typ}',
-        type = typ,
-        strip_prefix = f'capnproto-{VERSION}',
-        sub_targets = SOURCE_FILES,
-        urls = [
-            f'https://github.com/capnproto/capnproto/archive/refs/tags/v{VERSION}.{typ}',
-        ],
+        name = "src.{typ}".format(typ = typ),
         sha256 = sha256,
-    ) for typ, sha256 in ({
-        'tar.gz': 'd14a9149b79c055fee9d5aa778defe8e8cee0d2a11f0729865cd30dcc345eef2',
-        'zip': '669d5dc0f95ec3280eaae2e7239a73211adb6cd3df1fcfe4882b2f97b917eb36',
-    }).items()
+        strip_prefix = "capnproto-{VERSION}".format(VERSION = VERSION),
+        sub_targets = SOURCE_FILES,
+        type = typ,
+        urls = [
+            "https://github.com/capnproto/capnproto/archive/refs/tags/v{VERSION}.{typ}".format(
+                VERSION = VERSION,
+                typ = typ,
+            ),
+        ],
+    )
+    for typ, sha256 in {
+        "tar.gz": "d14a9149b79c055fee9d5aa778defe8e8cee0d2a11f0729865cd30dcc345eef2",
+        "zip": "669d5dc0f95ec3280eaae2e7239a73211adb6cd3df1fcfe4882b2f97b917eb36",
+    }.items()
 ]
 
 shims.alias(
-    name = 'src',
+    name = "src",
     actual = shims.select({
-        'config//os:windows': ':src.zip',
-        'DEFAULT': ':src.tar.gz',
-    })
+        "config//os:windows": ":src.zip",
+        "DEFAULT": ":src.tar.gz",
+    }),
 )
 
 MSVC_FLAGS = shims.select({
-    'config//os:windows': [ '/TP' ],
-    'DEFAULT': [],
+    "config//os:windows": ["/TP"],
+    "DEFAULT": [],
 })
 
 shims.copy_files(
-    name = 'kj-srcs',
+    name = "kj-srcs",
     srcs = {
         "kj/arena.c++": ":src[c++/src/kj/arena.c++]",
         "kj/array.c++": ":src[c++/src/kj/array.c++]",
@@ -223,7 +227,6 @@ shims.copy_files(
         "kj/thread.c++": ":src[c++/src/kj/thread.c++]",
         "kj/time.c++": ":src[c++/src/kj/time.c++]",
         "kj/units.c++": ":src[c++/src/kj/units.c++]",
-
         "kj/async.c++": ":src[c++/src/kj/async.c++]",
         "kj/async-io.c++": ":src[c++/src/kj/async-io.c++]",
         "kj/async-io-unix.c++": ":src[c++/src/kj/async-io-unix.c++]",
@@ -232,41 +235,39 @@ shims.copy_files(
         "kj/async-win32.c++": ":src[c++/src/kj/async-win32.c++]",
         "kj/cidr.c++": ":src[c++/src/kj/cidr.c++]",
         "kj/timer.c++": ":src[c++/src/kj/timer.c++]",
-
-        "kj/arena.h":     ":src[c++/src/kj/arena.h]",
-        "kj/array.h":     ":src[c++/src/kj/array.h]",
-        "kj/common.h":    ":src[c++/src/kj/common.h]",
-        "kj/debug.h":     ":src[c++/src/kj/debug.h]",
-        "kj/encoding.h":  ":src[c++/src/kj/encoding.h]",
-        "kj/list.h":      ":src[c++/src/kj/list.h]",
-        "kj/hash.h":      ":src[c++/src/kj/hash.h]",
-        "kj/io.h":        ":src[c++/src/kj/io.h]",
+        "kj/arena.h": ":src[c++/src/kj/arena.h]",
+        "kj/array.h": ":src[c++/src/kj/array.h]",
+        "kj/common.h": ":src[c++/src/kj/common.h]",
+        "kj/debug.h": ":src[c++/src/kj/debug.h]",
+        "kj/encoding.h": ":src[c++/src/kj/encoding.h]",
+        "kj/list.h": ":src[c++/src/kj/list.h]",
+        "kj/hash.h": ":src[c++/src/kj/hash.h]",
+        "kj/io.h": ":src[c++/src/kj/io.h]",
         "kj/exception.h": ":src[c++/src/kj/exception.h]",
         "kj/filesystem.h": ":src[c++/src/kj/filesystem.h]",
-        "kj/function.h":   ":src[c++/src/kj/function.h]",
-        "kj/main.h":      ":src[c++/src/kj/main.h]",
-        "kj/map.h":       ":src[c++/src/kj/map.h]",
-        "kj/memory.h":    ":src[c++/src/kj/memory.h]",
-        "kj/mutex.h":     ":src[c++/src/kj/mutex.h]",
+        "kj/function.h": ":src[c++/src/kj/function.h]",
+        "kj/main.h": ":src[c++/src/kj/main.h]",
+        "kj/map.h": ":src[c++/src/kj/map.h]",
+        "kj/memory.h": ":src[c++/src/kj/memory.h]",
+        "kj/mutex.h": ":src[c++/src/kj/mutex.h]",
         "kj/miniposix.h": ":src[c++/src/kj/miniposix.h]",
-        "kj/one-of.h":     ":src[c++/src/kj/one-of.h]",
+        "kj/one-of.h": ":src[c++/src/kj/one-of.h]",
         "kj/parse/char.h": ":src[c++/src/kj/parse/char.h]",
         "kj/parse/common.h": ":src[c++/src/kj/parse/common.h]",
-        "kj/refcount.h":  ":src[c++/src/kj/refcount.h]",
-        "kj/string.h":    ":src[c++/src/kj/string.h]",
+        "kj/refcount.h": ":src[c++/src/kj/refcount.h]",
+        "kj/string.h": ":src[c++/src/kj/string.h]",
         "kj/string-tree.h": ":src[c++/src/kj/string-tree.h]",
         "kj/source-location.h": ":src[c++/src/kj/source-location.h]",
-        "kj/table.h":     ":src[c++/src/kj/table.h]",
-        "kj/time.h":      ":src[c++/src/kj/time.h]",
-        "kj/test.h":      ":src[c++/src/kj/test.h]",
-        "kj/thread.h":    ":src[c++/src/kj/thread.h]",
+        "kj/table.h": ":src[c++/src/kj/table.h]",
+        "kj/time.h": ":src[c++/src/kj/time.h]",
+        "kj/test.h": ":src[c++/src/kj/test.h]",
+        "kj/thread.h": ":src[c++/src/kj/thread.h]",
         "kj/threadlocal.h": ":src[c++/src/kj/threadlocal.h]",
-        "kj/tuple.h":     ":src[c++/src/kj/tuple.h]",
-        "kj/units.h":      ":src[c++/src/kj/units.h]",
+        "kj/tuple.h": ":src[c++/src/kj/tuple.h]",
+        "kj/units.h": ":src[c++/src/kj/units.h]",
         "kj/windows-sanity.h": ":src[c++/src/kj/windows-sanity.h]",
         "kj/win32-api-version.h": ":src[c++/src/kj/win32-api-version.h]",
-        "kj/vector.h":    ":src[c++/src/kj/vector.h]",
-
+        "kj/vector.h": ":src[c++/src/kj/vector.h]",
         "kj/async.h": ":src[c++/src/kj/async.h]",
         "kj/async-inl.h": ":src[c++/src/kj/async-inl.h]",
         "kj/async-io.h": ":src[c++/src/kj/async-io.h]",
@@ -281,23 +282,21 @@ shims.copy_files(
 )
 
 shims.cxx_library(
-    name = 'kj-headers',
-    header_namespace = "kj",
+    name = "kj-headers",
     exported_headers = {
-        "arena.h":     ":src[c++/src/kj/arena.h]",
-        "array.h":     ":src[c++/src/kj/array.h]",
-        "common.h":    ":src[c++/src/kj/common.h]",
-        "debug.h":     ":src[c++/src/kj/debug.h]",
+        "arena.h": ":src[c++/src/kj/arena.h]",
+        "array.h": ":src[c++/src/kj/array.h]",
+        "common.h": ":src[c++/src/kj/common.h]",
+        "debug.h": ":src[c++/src/kj/debug.h]",
         "exception.h": ":src[c++/src/kj/exception.h]",
-        "memory.h":    ":src[c++/src/kj/memory.h]",
-        "refcount.h":  ":src[c++/src/kj/refcount.h]",
-        "string.h":    ":src[c++/src/kj/string.h]",
-        "time.h":      ":src[c++/src/kj/time.h]",
-        "tuple.h":     ":src[c++/src/kj/tuple.h]",
+        "memory.h": ":src[c++/src/kj/memory.h]",
+        "refcount.h": ":src[c++/src/kj/refcount.h]",
+        "string.h": ":src[c++/src/kj/string.h]",
+        "time.h": ":src[c++/src/kj/time.h]",
+        "tuple.h": ":src[c++/src/kj/tuple.h]",
         "source-location.h": ":src[c++/src/kj/source-location.h]",
         "win32-api-version.h": ":src[c++/src/kj/win32-api-version.h]",
         "windows-sanity.h": ":src[c++/src/kj/windows-sanity.h]",
-
         "async.h": ":src[c++/src/kj/async.h]",
         "async-inl.h": ":src[c++/src/kj/async-inl.h]",
         "async-io.h": ":src[c++/src/kj/async-io.h]",
@@ -308,10 +307,11 @@ shims.cxx_library(
         "async-win32.h": ":src[c++/src/kj/async-win32.h]",
         "timer.h": ":src[c++/src/kj/timer.h]",
     },
+    header_namespace = "kj",
 )
 
 shims.cxx_library(
-    name = 'kj',
+    name = "kj",
     srcs = [
         ":kj-srcs[kj/arena.c++]",
         ":kj-srcs[kj/array.c++]",
@@ -339,28 +339,25 @@ shims.cxx_library(
         ":kj-srcs[kj/time.c++]",
         ":kj-srcs[kj/units.c++]",
     ],
-
     compiler_flags = shims.select({
-        'config//os:windows': [ '/TP' ],
-        'DEFAULT': [],
+        "config//os:windows": ["/TP"],
+        "DEFAULT": [],
     }),
-
+    preferred_linkage = "static",
     preprocessor_flags = shims.select({
-        'config//os:windows': [
-            '-D_WINDOWS',
-            '-DWIN32',
-            '-DWIN32_LEAN_AND_MEAN',
+        "config//os:windows": [
+            "-D_WINDOWS",
+            "-DWIN32",
+            "-DWIN32_LEAN_AND_MEAN",
         ],
-        'DEFAULT': [],
+        "DEFAULT": [],
     }) + [
         "-I$(location :kj-srcs)",
     ],
-
-    preferred_linkage = 'static',
 )
 
 shims.cxx_library(
-    name = 'kj-async',
+    name = "kj-async",
     srcs = [
         ":kj-srcs[kj/async.c++]",
         ":kj-srcs[kj/async-io.c++]",
@@ -371,29 +368,26 @@ shims.cxx_library(
         ":kj-srcs[kj/cidr.c++]",
         ":kj-srcs[kj/timer.c++]",
     ],
-
     compiler_flags = shims.select({
-        'config//os:windows': [ '/TP' ],
-        'DEFAULT': [],
+        "config//os:windows": ["/TP"],
+        "DEFAULT": [],
     }),
-
+    exported_deps = [":kj"],
+    preferred_linkage = "static",
     preprocessor_flags = shims.select({
-        'config//os:windows': [
-            '-D_WINDOWS',
-            '-DWIN32',
-            '-DWIN32_LEAN_AND_MEAN',
+        "config//os:windows": [
+            "-D_WINDOWS",
+            "-DWIN32",
+            "-DWIN32_LEAN_AND_MEAN",
         ],
-        'DEFAULT': [],
+        "DEFAULT": [],
     }) + [
         "-I$(location :kj-srcs)",
     ],
-
-    preferred_linkage = 'static',
-    exported_deps = [ ":kj" ],
 )
 
 shims.copy_files(
-    name = 'capnp-srcs',
+    name = "capnp-srcs",
     srcs = {
         "capnp/any.c++": ":src[c++/src/capnp/any.c++]",
         "capnp/arena.c++": ":src[c++/src/capnp/arena.c++]",
@@ -412,7 +406,6 @@ shims.copy_files(
         "capnp/serialize-packed.c++": ":src[c++/src/capnp/serialize-packed.c++]",
         "capnp/stream.capnp.c++": ":src[c++/src/capnp/stream.capnp.c++]",
         "capnp/stringify.c++": ":src[c++/src/capnp/stringify.c++]",
-
         "capnp/compiler/compiler.c++": ":src[c++/src/capnp/compiler/compiler.c++]",
         "capnp/compiler/error-reporter.c++": ":src[c++/src/capnp/compiler/error-reporter.c++]",
         "capnp/compiler/generics.c++": ":src[c++/src/capnp/compiler/generics.c++]",
@@ -422,10 +415,8 @@ shims.copy_files(
         "capnp/compiler/node-translator.c++": ":src[c++/src/capnp/compiler/node-translator.c++]",
         "capnp/compiler/parser.c++": ":src[c++/src/capnp/compiler/parser.c++]",
         "capnp/compiler/type-id.c++": ":src[c++/src/capnp/compiler/type-id.c++]",
-
         "capnp/compiler/capnp.c++": ":src[c++/src/capnp/compiler/capnp.c++]",
         "capnp/compiler/module-loader.c++": ":src[c++/src/capnp/compiler/module-loader.c++]",
-
         "capnp/any.h": ":src[c++/src/capnp/any.h]",
         "capnp/arena.h": ":src[c++/src/capnp/arena.h]",
         "capnp/blob.h": ":src[c++/src/capnp/blob.h]",
@@ -450,7 +441,6 @@ shims.copy_files(
         "capnp/serialize-text.h": ":src[c++/src/capnp/serialize-text.h]",
         "capnp/serialize-packed.h": ":src[c++/src/capnp/serialize-packed.h]",
         "capnp/stream.capnp.h": ":src[c++/src/capnp/stream.capnp.h]",
-
         "capnp/compiler/compiler.h": ":src[c++/src/capnp/compiler/compiler.h]",
         "capnp/compiler/error-reporter.h": ":src[c++/src/capnp/compiler/error-reporter.h]",
         "capnp/compiler/generics.h": ":src[c++/src/capnp/compiler/generics.h]",
@@ -466,7 +456,7 @@ shims.copy_files(
 )
 
 shims.cxx_library(
-    name = 'capnp',
+    name = "capnp",
     srcs = [
         ":capnp-srcs[capnp/any.c++]",
         ":capnp-srcs[capnp/arena.c++]",
@@ -484,30 +474,27 @@ shims.cxx_library(
         ":capnp-srcs[capnp/stream.capnp.c++]",
         ":capnp-srcs[capnp/stringify.c++]",
     ],
-
     compiler_flags = shims.select({
-        'config//os:windows': [ '/TP' ],
-        'DEFAULT': [],
+        "config//os:windows": ["/TP"],
+        "DEFAULT": [],
     }),
-
+    exported_deps = [":kj"],
+    preferred_linkage = "static",
     preprocessor_flags = shims.select({
-        'config//os:windows': [
-            '-D_WINDOWS',
-            '-DWIN32',
-            '-DWIN32_LEAN_AND_MEAN',
+        "config//os:windows": [
+            "-D_WINDOWS",
+            "-DWIN32",
+            "-DWIN32_LEAN_AND_MEAN",
         ],
-        'DEFAULT': [],
+        "DEFAULT": [],
     }) + [
         "-I$(location :kj-srcs)",
         "-I$(location :capnp-srcs)",
     ],
-
-    preferred_linkage = 'static',
-    exported_deps = [ ":kj" ],
 )
 
 shims.cxx_library(
-    name = 'capnpc',
+    name = "capnpc",
     srcs = [
         ":capnp-srcs[capnp/compiler/compiler.c++]",
         ":capnp-srcs[capnp/compiler/error-reporter.c++]",
@@ -521,30 +508,27 @@ shims.cxx_library(
         ":capnp-srcs[capnp/schema-parser.c++]",
         ":capnp-srcs[capnp/serialize-text.c++]",
     ],
-
     compiler_flags = shims.select({
-        'config//os:windows': [ '/TP' ],
-        'DEFAULT': [],
+        "config//os:windows": ["/TP"],
+        "DEFAULT": [],
     }),
-
+    exported_deps = [":capnp"],
+    preferred_linkage = "static",
     preprocessor_flags = shims.select({
-        'config//os:windows': [
-            '-D_WINDOWS',
-            '-DWIN32',
-            '-DWIN32_LEAN_AND_MEAN',
+        "config//os:windows": [
+            "-D_WINDOWS",
+            "-DWIN32",
+            "-DWIN32_LEAN_AND_MEAN",
         ],
-        'DEFAULT': [],
+        "DEFAULT": [],
     }) + [
         "-I$(location :kj-srcs)",
         "-I$(location :capnp-srcs)",
     ],
-
-    preferred_linkage = 'static',
-    exported_deps = [ ":capnp" ],
 )
 
 shims.copy_files(
-    name = 'compat_json-srcs',
+    name = "compat_json-srcs",
     srcs = {
         "capnp/compat/json.c++": ":src[c++/src/capnp/compat/json.c++]",
         "capnp/compat/json.capnp.c++": ":src[c++/src/capnp/compat/json.capnp.c++]",
@@ -555,64 +539,63 @@ shims.copy_files(
 )
 
 shims.cxx_library(
-    name = 'compat_json',
+    name = "compat_json",
     srcs = [
         ":compat_json-srcs[capnp/compat/json.c++]",
         ":compat_json-srcs[capnp/compat/json.capnp.c++]",
     ],
     compiler_flags = shims.select({
-        'config//os:windows': [ '/TP' ],
-        'DEFAULT': [],
+        "config//os:windows": ["/TP"],
+        "DEFAULT": [],
     }),
-
+    preferred_linkage = "static",
     preprocessor_flags = shims.select({
-        'config//os:windows': [
-            '-D_WINDOWS',
-            '-DWIN32',
-            '-DWIN32_LEAN_AND_MEAN',
+        "config//os:windows": [
+            "-D_WINDOWS",
+            "-DWIN32",
+            "-DWIN32_LEAN_AND_MEAN",
         ],
-        'DEFAULT': [],
+        "DEFAULT": [],
     }) + [
         "-I$(location :kj-srcs)",
         "-I$(location :capnp-srcs)",
         "-I$(location :compat_json-srcs)",
     ],
-
-    preferred_linkage = 'static',
-    deps = [ ":capnp" ],
+    deps = [":capnp"],
 )
 
 shims.cxx_binary(
-    name = 'capnp_tool',
+    name = "capnp_tool",
     srcs = [
         ":capnp-srcs[capnp/compiler/capnp.c++]",
         ":capnp-srcs[capnp/compiler/module-loader.c++]",
     ],
     compiler_flags = shims.select({
-        'config//os:windows': [ '/TP' ],
-        'DEFAULT': [],
+        "config//os:windows": ["/TP"],
+        "DEFAULT": [],
     }),
-
+    link_style = "static",
     preprocessor_flags = shims.select({
-        'config//os:windows': [
-            '-D_WINDOWS',
-            '-DWIN32',
-            '-DWIN32_LEAN_AND_MEAN',
+        "config//os:windows": [
+            "-D_WINDOWS",
+            "-DWIN32",
+            "-DWIN32_LEAN_AND_MEAN",
         ],
-        'DEFAULT': [],
+        "DEFAULT": [],
     }) + [
         "-I$(location :kj-srcs)",
         "-I$(location :capnp-srcs)",
         "-I$(location :compat_json-srcs)",
     ],
-
-    link_style = 'static',
-    deps = [ ":capnpc", ":compat_json" ],
-    visibility = [ 'PUBLIC' ],
+    visibility = ["PUBLIC"],
+    deps = [
+        ":capnpc",
+        ":compat_json",
+    ],
 )
 
 shims.write_file(
-    name = 'capnp-rust.rs',
+    name = "capnp-rust.rs",
     # XXX: this program is © 2013-2024 Sandstorm Development Group, Inc. and
     # contributors but is probably so simple it barely qualifies for the
     # "threshold of originality"; there's no real other way to write this
@@ -628,10 +611,10 @@ shims.write_file(
 )
 
 shims.rust_binary(
-    name = 'capnpc-rust',
-    mapped_srcs = { ':capnp-rust.rs': 'main.rs' },
+    name = "capnpc-rust",
+    mapped_srcs = {":capnp-rust.rs": "main.rs"},
+    visibility = ["PUBLIC"],
     deps = [
-        'third-party//rust:capnpc',
+        "third-party//rust:capnpc",
     ],
-    visibility = [ 'PUBLIC' ],
 )

@@ -22,20 +22,20 @@ k6_toolchain = rule(
 
 def download_k6(version: str, hashes: list[(str, str)]):
     for triple, sha256 in hashes:
-        url = f'https://github.com/grafana/k6/releases/download/v{version}/k6-v{version}-{triple}.tar.gz'
+        url = "https://github.com/grafana/k6/releases/download/v{version}/k6-v{version}-{triple}.tar.gz".format(version = version, triple = triple)
         native.http_archive(
-            name = f'{version}-{triple}',
+            name = "{version}-{triple}".format(version = version, triple = triple),
             sha256 = sha256,
-            type = 'tar.gz',
-            urls = [ url ],
+            type = "tar.gz",
+            urls = [url],
             visibility = [],
         )
 
     native.alias(
-        name = f'{version}.tar.gz',
+        name = "{version}.tar.gz".format(version = version),
         actual = select({
-            'config//cpu:arm64': f':{version}-linux-arm64',
-            'config//cpu:x86_64': f':{version}-linux-amd64',
+            "config//cpu:arm64": ":{version}-linux-arm64".format(version = version),
+            "config//cpu:x86_64": ":{version}-linux-amd64".format(version = version),
         }),
     )
 
@@ -63,7 +63,7 @@ def _k6_run_impl(ctx: AnalysisContext) -> list[Provider]:
     # Create RunInfo
     return [
         DefaultInfo(),
-        RunInfo(args = cmd)
+        RunInfo(args = cmd),
     ]
 
 k6_run = rule(
@@ -73,5 +73,5 @@ k6_run = rule(
         "initial_vus": attrs.option(attrs.int(), default = None),
         "steps": attrs.list(attrs.dict(key = attrs.string(), value = attrs.any(), sorted = False), default = []),
         "_k6_toolchain": attrs.toolchain_dep(default = "toolchains//:k6", providers = [K6Toolchain]),
-    }
+    },
 )

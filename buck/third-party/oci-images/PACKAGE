@@ -6,7 +6,7 @@ load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 VERSION="0.0.0+20251105"
 
 pkg.info(
-    version = f"{VERSION}",
+    version = VERSION,
     description = """
         OCI base container images for building application containers.
         Currently includes Chainguard's glibc-dynamic base image.

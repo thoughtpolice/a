@@ -19,20 +19,19 @@ BINDGEN_TARGET = shims.select({
 # MARK: main library
 
 shims.cxx_genrule(
-    name="wrapper.rs",
-    outs={
+    name = "wrapper.rs",
+    srcs = {
+        "wrapper.h": "third-party//by-name/bo/boringssl:src[rust/bssl-sys/wrapper.h]",
+    },
+    outs = {
         "wrapper.rs": ["wrapper.rs"],
         # XXX FIXME (aseipp): --wrap-static-fns uses $TMPDIR? why?
         "extern.c": ["extern.c"],
     },
-    default_outs=["wrapper.rs"],
-    srcs={
-        "wrapper.h": "third-party//by-name/bo/boringssl:src[rust/bssl-sys/wrapper.h]",
-    },
     # Bindgen parses target-dependent C types. Make the target explicit so a
     # cross build cannot silently generate host-ABI bindings, and fail closed
     # if a developer or CI image supplies a different bindgen release.
-    cmd=f"""
+    cmd = """
       bindgen --version | (
         bindgen_version=
         read -r bindgen_version
@@ -55,54 +54,58 @@ shims.cxx_genrule(
           --wrap-static-fns-path $OUT/extern.c \
         -- --target=$BINDGEN_TARGET \
           -I$(location third-party//by-name/bo/boringssl:src)/include
-    """,
-    env={
+    """.format(BINDGEN_VERSION = BINDGEN_VERSION),
+    default_outs = ["wrapper.rs"],
+    env = {
         "BINDGEN_TARGET": BINDGEN_TARGET,
     },
-    visibility=[],
+    visibility = [],
 )
 
 # this library contains all the needed wrappers for static inline functions
 shims.cxx_library(
-    name="bssl-sys-cbits",
-    srcs=[":wrapper.rs[extern.c]"],
-    header_namespace="",
-    headers={
+    name = "bssl-sys-cbits",
+    srcs = [":wrapper.rs[extern.c]"],
+    header_namespace = "",
+    headers = {
         "wrapper.h": "third-party//by-name/bo/boringssl:src[rust/bssl-sys/wrapper.h]",
     },
-    deps=[
+    visibility = ["third-party//by-name/bo/boringssl/..."],
+    deps = [
         "third-party//by-name/bo/boringssl:crypto",
         "third-party//by-name/bo/boringssl:ssl",
     ],
-    visibility=["third-party//by-name/bo/boringssl/..."],
 )
 
 shims.rust_library(
-    name="bssl-macros",
-    srcs=["third-party//by-name/bo/boringssl:src[rust/bssl-macros/src/lib.rs]"],
-    visibility=["third-party//by-name/bo/boringssl/..."],
+    name = "bssl-macros",
+    srcs = ["third-party//by-name/bo/boringssl:src[rust/bssl-macros/src/lib.rs]"],
+    visibility = ["third-party//by-name/bo/boringssl/..."],
 )
 
 shims.rust_library(
-    name="bssl-sys",
-    srcs=[
+    name = "bssl-sys",
+    srcs = [
         "third-party//by-name/bo/boringssl:src[rust/bssl-sys/src/lib.rs]",
     ],
-    rustc_flags=["--cfg", "bindgen_rs_file"],
-    env={
+    env = {
         "BINDGEN_RS_FILE": "$(location :wrapper.rs)",
     },
-    deps=[
+    rustc_flags = [
+        "--cfg",
+        "bindgen_rs_file",
+    ],
+    visibility = ["PUBLIC"],
+    deps = [
         "third-party//by-name/bo/boringssl:crypto",
         "third-party//by-name/bo/boringssl:ssl",
-        ":bssl-sys-cbits",  # NOTE: MUST be linked! requires crypto and ssl!
         ":bssl-macros",
+        ":bssl-sys-cbits",  # NOTE: MUST be linked! requires crypto and ssl!
     ],
-    visibility=["PUBLIC"],
 )
 
 shims.alias(
-    name="rust",
-    actual=":bssl-sys",
-    visibility=["PUBLIC"],
+    name = "rust",
+    actual = ":bssl-sys",
+    visibility = ["PUBLIC"],
 )

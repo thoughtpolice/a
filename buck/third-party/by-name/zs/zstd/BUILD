@@ -1,19 +1,15 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:shims.bzl", "shims")
 load("@root//buck/shims:package.bzl", "pkg")
+load("@root//buck/shims:shims.bzl", "shims")
 
 VERSION = pkg.version()
 
 shims.http_archive(
     name = "src",
     sha256 = "37d7284556b20954e56e1ca85b80226768902e2edabd3b649e9e72c0c9012ee3",
-    urls = [
-        f"https://github.com/facebook/zstd/archive/refs/tags/v{VERSION}.tar.gz",
-    ],
-    type = "tar.gz",
-    strip_prefix = f"zstd-{VERSION}",
+    strip_prefix = "zstd-{VERSION}".format(VERSION = VERSION),
     sub_targets = [
         # public headers
         "lib/zstd.h",
@@ -118,6 +114,10 @@ shims.http_archive(
         "lib/legacy/zstd_v06.h",
         "lib/legacy/zstd_v07.c",
         "lib/legacy/zstd_v07.h",
+    ],
+    type = "tar.gz",
+    urls = [
+        "https://github.com/facebook/zstd/archive/refs/tags/v{VERSION}.tar.gz".format(VERSION = VERSION),
     ],
 )
 
@@ -234,12 +234,6 @@ shims.copy_files(
 
 shims.cxx_library(
     name = "zstd",
-    header_namespace = "",
-    exported_headers = {
-        "zstd.h": ":src[lib/zstd.h]",
-        "zstd_errors.h": ":src[lib/zstd_errors.h]",
-        "zdict.h": ":src[lib/zdict.h]",
-    },
     srcs = [
         # common/
         ":lib[common/debug.c]",
@@ -294,14 +288,20 @@ shims.cxx_library(
         ":lib[legacy/zstd_v06.c]",
         ":lib[legacy/zstd_v07.c]",
     ],
+    exported_headers = {
+        "zstd.h": ":src[lib/zstd.h]",
+        "zstd_errors.h": ":src[lib/zstd_errors.h]",
+        "zdict.h": ":src[lib/zdict.h]",
+    },
+    header_namespace = "",
+    linker_flags = [
+        "-pthread",
+    ],
+    preferred_linkage = "static",
     preprocessor_flags = [
         "-I$(location :lib)",
         "-DXXH_NAMESPACE=ZSTD_",
         "-DZSTD_MULTITHREAD",
         "-DZSTD_LEGACY_SUPPORT=4",
     ],
-    linker_flags = [
-        "-pthread",
-    ],
-    preferred_linkage = "static",
 )
