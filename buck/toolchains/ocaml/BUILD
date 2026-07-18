@@ -4,6 +4,9 @@
 load(":defs.bzl", "ocaml_toolchain")
 
 ocaml_toolchain(
-    name="ocaml",
-    compiler_flags=["-w", "-40"],
+    name = "ocaml",
+    compiler_flags = [
+        "-w",
+        "-40",
+    ],
 )

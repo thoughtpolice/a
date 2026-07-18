@@ -12,7 +12,9 @@ use protos::google::bytestream::{
     WriteResponse, byte_stream_server,
 };
 
-use crate::store::{CacheStore, Compression, ContentDigest, MAX_BLOB_REASSEMBLE_SIZE, parse_digest_hash};
+use crate::store::{
+    CacheStore, Compression, ContentDigest, MAX_BLOB_REASSEMBLE_SIZE, parse_digest_hash,
+};
 
 use super::helpers::{
     instrumented_rpc, parse_read_resource_name, parse_write_resource_name, store_error_to_status,

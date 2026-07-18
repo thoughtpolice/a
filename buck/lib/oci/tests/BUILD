@@ -4,9 +4,13 @@
 load("@root//buck/shims:shims.bzl", "shims")
 
 oci_pull = shims.oci.pull
+
 oci_image = shims.oci.image
+
 oci_unpack = shims.oci.unpack
+
 oci_index = shims.oci.index
+
 tar_file = shims.tar_file
 
 # Test 1: Pull a base image
@@ -27,17 +31,21 @@ tar_file(
 oci_image(
     name = "test_image_simple",
     base = ":alpine_base",
-    layers = [":test_layer"],
     env = {
         "TEST_VAR": "test_value",
     },
+    layers = [":test_layer"],
 )
 
 # Test 4: Build an image with full config
 oci_image(
     name = "test_image_full",
     base = ":alpine_base",
-    layers = [":test_layer"],
+    cmd = [
+        "-c",
+        "echo hello",
+    ],
+    entrypoint = ["/bin/sh"],
     env = {
         "PATH": "/usr/local/bin:/usr/bin:/bin",
         "APP_ENV": "test",
@@ -46,20 +54,19 @@ oci_image(
         "org.opencontainers.image.title": "Test Image",
         "org.opencontainers.image.version": "1.0.0",
     },
-    entrypoint = ["/bin/sh"],
-    cmd = ["-c", "echo hello"],
-    working_dir = "/app",
+    layers = [":test_layer"],
     user = "nobody",
+    working_dir = "/app",
 )
 
 # Test 5: Layer composition - build image from another image
 oci_image(
     name = "test_image_layered",
     base = ":test_image_full",
-    layers = [":test_layer"],  # Add another copy of the layer
     env = {
         "ANOTHER_VAR": "another_value",
     },
+    layers = [":test_layer"],  # Add another copy of the layer
 )
 
 # Test 6: Unpack an image
@@ -86,17 +93,17 @@ oci_pull(
 oci_image(
     name = "test_app_amd64",
     base = ":alpine_amd64",
-    layers = [":test_layer"],
     env = {"ARCH": "amd64"},
     image_labels = {"arch": "amd64"},
+    layers = [":test_layer"],
 )
 
 oci_image(
     name = "test_app_arm64",
     base = ":alpine_arm64",
-    layers = [":test_layer"],
     env = {"ARCH": "arm64"},
     image_labels = {"arch": "arm64"},
+    layers = [":test_layer"],
 )
 
 # Test 9: Create multi-platform index
@@ -160,18 +167,18 @@ tar_file(
 oci_image(
     name = "test_multilayer",
     base = ":alpine_base",
+    entrypoint = ["/app/app.sh"],
+    env = {
+        "PATH": "/usr/local/bin:/usr/bin:/bin:/app/bin",
+        "APP_HOME": "/app",
+        "LOG_LEVEL": "debug",
+    },
     layers = [
         ":test_layer",
         ":app_layer",
         ":config_layer",
         ":data_layer",
     ],
-    env = {
-        "PATH": "/usr/local/bin:/usr/bin:/bin:/app/bin",
-        "APP_HOME": "/app",
-        "LOG_LEVEL": "debug",
-    },
-    entrypoint = ["/app/app.sh"],
     working_dir = "/app",
 )
 
@@ -218,20 +225,31 @@ oci_image(
 oci_image(
     name = "test_cmd_only",
     base = ":alpine_base",
-    cmd = ["/bin/sh", "-c", "echo 'cmd only'"],
+    cmd = [
+        "/bin/sh",
+        "-c",
+        "echo 'cmd only'",
+    ],
 )
 
 oci_image(
     name = "test_entrypoint_only",
     base = ":alpine_base",
-    entrypoint = ["/bin/sh", "-c", "echo 'entrypoint only'"],
+    entrypoint = [
+        "/bin/sh",
+        "-c",
+        "echo 'entrypoint only'",
+    ],
 )
 
 oci_image(
     name = "test_cmd_and_entrypoint",
     base = ":alpine_base",
-    entrypoint = ["/bin/sh", "-c"],
     cmd = ["echo 'both set'"],
+    entrypoint = [
+        "/bin/sh",
+        "-c",
+    ],
 )
 
 # Test 23: Exposed ports
@@ -280,8 +298,8 @@ oci_image(
 oci_image(
     name = "test_metadata_only",
     base = ":alpine_base",
-    layers = [],
     env = {"METADATA_ONLY": "true"},
+    layers = [],
 )
 
 # Test 28: Many layers (stress test)
@@ -304,7 +322,6 @@ oci_image(
 oci_image(
     name = "test_special_chars_metadata",
     base = ":alpine_base",
-    layers = [":special_chars_layer"],
     env = {
         "URL": "https://example.com:8080/path?query=value&other=123",
         "JSON": '{"key":"value","nested":{"foo":"bar"}}',
@@ -316,6 +333,7 @@ oci_image(
         "json.label": '{"test":true}',
         "special-chars_label.v1": "value-123_test",
     },
+    layers = [":special_chars_layer"],
 )
 
 # Test 31-32: Different registries
@@ -331,16 +349,19 @@ oci_pull(
 oci_image(
     name = "test_busybox_based",
     base = ":busybox_base",
-    layers = [":test_layer"],
     cmd = ["/bin/sh"],
+    layers = [":test_layer"],
 )
 
 # Test 35: Build from debian base
 oci_image(
     name = "test_debian_based",
     base = ":debian_base",
-    layers = [":app_layer", ":config_layer"],
     env = {"DEBIAN_FRONTEND": "noninteractive"},
+    layers = [
+        ":app_layer",
+        ":config_layer",
+    ],
 )
 
 # Test 36-38: Unpack tests
@@ -366,10 +387,10 @@ oci_unpack(
 oci_image(
     name = "test_complete_app",
     base = ":alpine_base",
-    layers = [
-        ":app_layer",
-        ":config_layer",
-        ":data_layer",
+    cmd = ["--verbose"],
+    entrypoint = [
+        "/bin/sh",
+        "/app/app.sh",
     ],
     env = {
         "PATH": "/usr/local/bin:/usr/bin:/bin",
@@ -377,6 +398,10 @@ oci_image(
         "APP_ENV": "production",
         "PORT": "8080",
     },
+    exposed_ports = [
+        "8080/tcp",
+        "8081/tcp",
+    ],
     image_labels = {
         "org.opencontainers.image.title": "Complete Test App",
         "org.opencontainers.image.description": "Full-featured test application",
@@ -385,41 +410,45 @@ oci_image(
         "org.opencontainers.image.vendor": "Test Vendor Inc",
         "org.opencontainers.image.licenses": "Apache-2.0",
     },
-    entrypoint = ["/bin/sh", "/app/app.sh"],
-    cmd = ["--verbose"],
-    working_dir = "/app",
+    layers = [
+        ":app_layer",
+        ":config_layer",
+        ":data_layer",
+    ],
     user = "nobody",
-    exposed_ports = ["8080/tcp", "8081/tcp"],
-    volumes = ["/app/data", "/app/logs"],
+    volumes = [
+        "/app/data",
+        "/app/logs",
+    ],
+    working_dir = "/app",
 )
 
 # Test 40: Chained image building (3 levels)
 oci_image(
     name = "test_chain_level1",
     base = ":alpine_base",
-    layers = [":test_layer"],
     env = {"LEVEL": "1"},
+    layers = [":test_layer"],
 )
 
 oci_image(
     name = "test_chain_level2",
     base = ":test_chain_level1",
-    layers = [":app_layer"],
     env = {"LEVEL": "2"},
+    layers = [":app_layer"],
 )
 
 oci_image(
     name = "test_chain_level3",
     base = ":test_chain_level2",
-    layers = [":config_layer"],
     env = {"LEVEL": "3"},
+    layers = [":config_layer"],
 )
 
 # Test 41-42: Multi-platform with different configs
 oci_image(
     name = "test_platform_specific_amd64",
     base = ":alpine_amd64",
-    layers = [":app_layer"],
     env = {
         "ARCH": "amd64",
         "PLATFORM": "x86_64",
@@ -429,12 +458,12 @@ oci_image(
         "arch": "amd64",
         "platform.features": "sse4.2,avx2",
     },
+    layers = [":app_layer"],
 )
 
 oci_image(
     name = "test_platform_specific_arm64",
     base = ":alpine_arm64",
-    layers = [":app_layer"],
     env = {
         "ARCH": "arm64",
         "PLATFORM": "aarch64",
@@ -444,6 +473,7 @@ oci_image(
         "arch": "arm64",
         "platform.features": "neon",
     },
+    layers = [":app_layer"],
 )
 
 # Test 43: Multi-platform index with more metadata

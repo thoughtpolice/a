@@ -2,38 +2,43 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@prelude//:paths.bzl", "paths")
-load("@root//buck/shims:shims.bzl", depot="shims")
+load("@root//buck/shims:shims.bzl", depot = "shims")
 
 depot.cxx_library(
-    name = 'libedsign',
-    header_namespace = "libedsign",
+    name = "libedsign",
+    srcs = glob(["src/*.c"]),
     exported_headers = {
-        'edsign.h': 'inc/edsign.h'
+        "edsign.h": "inc/edsign.h",
     },
+    header_namespace = "libedsign",
     headers = {
         paths.basename(fullpath): fullpath
-            for fullpath in glob(['src/*.h'])
+        for fullpath in glob(["src/*.h"])
     },
-    tests = [ ':tests' ],
-    srcs = glob([ 'src/*.c' ]),
-    visibility = [ 'PUBLIC' ],
+    tests = [":tests"],
+    visibility = ["PUBLIC"],
 )
 
-TESTS = [ paths.basename(t).removesuffix('.c') for t in glob(['t/*.c']) ]
+TESTS = [paths.basename(t).removesuffix(".c") for t in glob(["t/*.c"])]
 
 [
     depot.cxx_binary(
-        name = 'test-{}-exe'.format(t),
-        srcs = [ 't/{}.c'.format(t) ],
-        deps = [ ':libedsign' ],
-    ) for t in TESTS
+        name = "test-{}-exe".format(t),
+        srcs = ["t/{}.c".format(t)],
+        deps = [":libedsign"],
+    )
+    for t in TESTS
 ]
 
 [
     depot.command_test(
-        name = 'test-{}'.format(t),
-        cmd = [ '$(exe :test-{}-exe)'.format(t) ],
-    ) for t in TESTS
+        name = "test-{}".format(t),
+        cmd = ["$(exe :test-{}-exe)".format(t)],
+    )
+    for t in TESTS
 ]
 
-depot.test_suite(name = 'tests', tests = [ ':test-{}'.format(t) for t in TESTS ])
+depot.test_suite(
+    name = "tests",
+    tests = [":test-{}".format(t) for t in TESTS],
+)

@@ -6,6 +6,7 @@ load(":defs.bzl", "get_default_target_triple")
 
 shims.constraint(
     name = "target",
+    default = get_default_target_triple(),
     values = [
         "x86_64-unknown-uefi",
         "x86_64-unknown-linux-gnu",
@@ -13,5 +14,4 @@ shims.constraint(
         "aarch64-unknown-linux-gnu",
         "aarch64-apple-darwin",
     ],
-    default = get_default_target_triple(),
 )

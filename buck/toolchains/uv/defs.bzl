@@ -7,8 +7,10 @@ Custom build rules for Python tools that use uv for dependency management.
 
 def _uv_python_binary_impl(ctx: AnalysisContext) -> list[Provider]:
     """Implementation for uv-based Python binaries."""
+
     # The main Python script
     script = ctx.attrs.main
+
     # Create a wrapper script that ensures uv is available and runs the Python script
     wrapper = ctx.actions.declare_output("{}.wrapper".format(ctx.label.name))
     wrapper_content = [
@@ -23,6 +25,7 @@ def _uv_python_binary_impl(ctx: AnalysisContext) -> list[Provider]:
     ]
 
     ctx.actions.write(wrapper, "\n".join(wrapper_content), is_executable = True)
+
     # Collect all source files
     srcs = [script] + ctx.attrs.srcs
 
@@ -31,8 +34,9 @@ def _uv_python_binary_impl(ctx: AnalysisContext) -> list[Provider]:
     outdir = ctx.actions.copied_dir(
         outdir,
         {
-            src.short_path: src for src in srcs
-        }
+            src.short_path: src
+            for src in srcs
+        },
     )
 
     # Create lint sub-target
@@ -95,7 +99,7 @@ def _uv_python_binary_impl(ctx: AnalysisContext) -> list[Provider]:
                         command = [lint_wrapper],
                     ),
                 ],
-            }
+            },
         ),
         RunInfo(args = run_args),
     ]
@@ -107,11 +111,12 @@ _uv_python_binary = rule(
         "srcs": attrs.list(attrs.source(), default = [], doc = "Additional source files"),
         "lint_dir": attrs.string(doc = "Directory to lint"),
         "args": attrs.list(attrs.arg(), default = [], doc = "Default arguments to prepend to the command"),
-    }
+    },
 )
 
 def _uv_python_test_impl(ctx: AnalysisContext) -> list[Provider]:
     """Implementation for uv-based Python test runner."""
+
     # The test script
     script = ctx.attrs.script
 
@@ -124,7 +129,7 @@ def _uv_python_test_impl(ctx: AnalysisContext) -> list[Provider]:
         ExternalRunnerTestInfo(
             type = "custom",
             command = [script] + test_args,
-        )
+        ),
     ]
 
 _uv_python_test = rule(
@@ -132,7 +137,7 @@ _uv_python_test = rule(
     attrs = {
         "script": attrs.source(doc = "The test script to run"),
         "args": attrs.list(attrs.string(), default = [], doc = "Arguments to pass to the test script"),
-    }
+    },
 )
 
 # Macro wrappers that automatically add lint tests
@@ -142,6 +147,7 @@ def uv_python_binary(**kwargs):
     """
     name = kwargs.get("name")
     tests = kwargs.pop("tests", [])
+
     # Automatically add lint test if not already present
     lint_test = ":{}[lint]".format(name)
     if lint_test not in tests:
@@ -166,7 +172,7 @@ _uv_tool_format = rule(
     impl = _uv_tool_format_impl,
     attrs = {
         "format_dir": attrs.string(doc = "Directory to format"),
-    }
+    },
 )
 
 # Public API

@@ -1,40 +1,40 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:shims.bzl", depot="shims")
+load("@root//buck/shims:shims.bzl", depot = "shims")
 load("@toolchains//protoc:defs.bzl", "protoc_env")
 
 depot.rust_library(
-    name = 'protos',
-    srcs = ['lib.rs'],
+    name = "protos",
+    srcs = ["lib.rs"],
     deps = [
-        'third-party//rust:prost',
-        'third-party//rust:prost-types',
-        'third-party//rust:tonic',
-        'third-party//rust:tonic-prost',
+        "third-party//rust:prost",
+        "third-party//rust:prost-types",
+        "third-party//rust:tonic",
+        "third-party//rust:tonic-prost",
     ],
     env = {
-        'PROTOBUFS': '$(location :protos.rs)',
+        "PROTOBUFS": "$(location :protos.rs)",
     },
-    visibility = [ 'PUBLIC' ],
+    visibility = ["PUBLIC"],
 )
 
 depot.rust_binary(
-    name = 'gen-protos',
-    srcs = ['generate.rs'],
+    name = "gen-protos",
+    srcs = ["generate.rs"],
     crate_root = "generate.rs",
     deps = [
-        'third-party//rust:tonic-prost-build',
-        'third-party//rust:tonic-prost',
+        "third-party//rust:tonic-prost-build",
+        "third-party//rust:tonic-prost",
     ],
     visibility = [],
 )
 
 depot.genrule(
-    name = 'protos.rs',
+    name = "protos.rs",
     cmd = "$(exe :gen-protos)",
     out = ".",
-    srcs = glob(['**/*.proto']),
+    srcs = glob(["**/*.proto"]),
     env = protoc_env(),
     visibility = [],
 )

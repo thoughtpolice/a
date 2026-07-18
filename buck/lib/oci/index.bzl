@@ -29,6 +29,7 @@ def _oci_index_impl(ctx: AnalysisContext) -> list[Provider]:
     # Add all images with their platforms
     for image_dep, platform in zip(ctx.attrs.images, ctx.attrs.platforms):
         image = image_dep[DefaultInfo].default_outputs[0]
+
         # Format: path:platform
         cmd.add(["--image", cmd_args([image, ":", platform], delimiter = "")])
 

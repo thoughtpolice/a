@@ -4,15 +4,14 @@
 load("@root//buck/shims:shims.bzl", "shims")
 
 shims.cxx_genrule(
-    name = 'bindgen.rs',
-    outs = {
-        'bindgen.rs': [ 'bindgen.rs' ],
-        # XXX FIXME (aseipp): --wrap-static-fns uses $TMPDIR? why?
-        'extern.c': [ 'extern.c' ],
-    },
-    default_outs = [ 'bindgen.rs' ],
+    name = "bindgen.rs",
     srcs = {
-        'wrapper.h': 'third-party//by-name/sq/sqlite:wrapper_sqlite3ext.h',
+        "wrapper.h": "third-party//by-name/sq/sqlite:wrapper_sqlite3ext.h",
+    },
+    outs = {
+        "bindgen.rs": ["bindgen.rs"],
+        # XXX FIXME (aseipp): --wrap-static-fns uses $TMPDIR? why?
+        "extern.c": ["extern.c"],
     },
     # this abomination comes from
     # https://github.com/rusqlite/rusqlite/blob/fb95263b1c17947dbe81fa03fd8bd216b4fba6b3/libsqlite3-sys/build.rs#L530-L576
@@ -34,11 +33,12 @@ shims.cxx_genrule(
           --blocklist-function=.*16* \
         -- -I$(location third-party//by-name/sq/sqlite:src)
     """,
+    default_outs = ["bindgen.rs"],
     visibility = [],
 )
 
 shims.filegroup(
-    name = 'rust_bindgen_out_dir',
-    srcs = [ ':bindgen.rs' ],
-    visibility = [ 'third-party//rust/...' ],
+    name = "rust_bindgen_out_dir",
+    srcs = [":bindgen.rs"],
+    visibility = ["third-party//rust/..."],
 )

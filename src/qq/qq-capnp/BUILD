@@ -4,47 +4,47 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 depot.export_file(
-    name = 'qq.capnp',
-    src = 'qq.capnp',
+    name = "qq.capnp",
+    src = "qq.capnp",
 )
 
 depot.genrule(
-    name = 'qq_capnp.rs',
-    srcs = [':qq.capnp'],
+    name = "qq_capnp.rs",
+    srcs = [":qq.capnp"],
     # we have to use 'outs' so that $OUT is a directory, instead of a file
-    outs = { 'qq_capnp.rs': [ 'qq_capnp.rs' ] },
-    default_outs = [ 'qq_capnp.rs' ],
+    outs = {"qq_capnp.rs": ["qq_capnp.rs"]},
     cmd = """
         $(exe third-party//by-name/ca/capnproto:capnp_tool) \
           compile -o $(location third-party//by-name/ca/capnproto:capnpc-rust):$OUT \
           qq.capnp
     """,
+    default_outs = ["qq_capnp.rs"],
 )
 
 depot.write_file(
-    name = 'lib.rs',
+    name = "lib.rs",
     contents = [
-        'mod qq_capnp;',
-        'pub use qq_capnp::*;',
+        "mod qq_capnp;",
+        "pub use qq_capnp::*;",
     ],
 )
 
 # layer this into a filegroup so that buck2-rust-project and rust-analyzer can
 # more easily find the source code for this crate
 depot.filegroup(
-    name = 'qq-capnp-src',
+    name = "qq-capnp-src",
     srcs = {
-        'qq_capnp.rs': ':qq_capnp.rs',
-        'lib.rs': ':lib.rs',
+        "qq_capnp.rs": ":qq_capnp.rs",
+        "lib.rs": ":lib.rs",
     },
 )
 
 depot.rust_library(
-    name = 'qq-capnp',
-    srcs = [':qq-capnp-src'],
-    crate_root = 'qq-capnp-src/lib.rs',
+    name = "qq-capnp",
+    srcs = [":qq-capnp-src"],
+    crate_root = "qq-capnp-src/lib.rs",
+    visibility = ["PUBLIC"],
     deps = [
-        'third-party//rust:capnp',
+        "third-party//rust:capnp",
     ],
-    visibility = [ 'PUBLIC' ],
 )

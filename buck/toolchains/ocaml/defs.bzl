@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp, 2022-2025 Meta Platforms, Inc. and affiliates.
 # SPDX-License-Identifier: Apache-2.0 AND MIT
 
-load("@prelude//ocaml:ocaml_toolchain_types.bzl","OCamlPlatformInfo","OCamlToolchainInfo")
+load("@prelude//ocaml:ocaml_toolchain_types.bzl", "OCamlPlatformInfo", "OCamlToolchainInfo")
 
 def _ocaml_toolchain(ctx):
     return [
@@ -18,7 +18,6 @@ def _ocaml_toolchain(ctx):
             # environment. If not `None` then the provided value will be what's
             # invoked.
             binutils_as = None,
-
             ocaml_compiler = RunInfo(args = ["ocamlopt"]),
             dep_tool = RunInfo(args = ["ocamldep"]),
             yacc_compiler = RunInfo(args = ["ocamlyacc"]),
@@ -44,7 +43,7 @@ def _ocaml_toolchain(ctx):
 ocaml_toolchain = rule(
     impl = _ocaml_toolchain,
     attrs = {
-        "compiler_flags": attrs.list(attrs.string(), default = [])
+        "compiler_flags": attrs.list(attrs.string(), default = []),
     },
     is_toolchain_rule = True,
 )

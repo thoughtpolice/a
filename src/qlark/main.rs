@@ -11,7 +11,7 @@ use starlark::{
     eval::{Evaluator, ReturnFileLoader},
     starlark_module,
     syntax::{AstModule, Dialect},
-    values::{none::NoneType, Value},
+    values::{Value, none::NoneType},
 };
 use starlark_derive::ProvidesStaticType;
 
@@ -409,10 +409,12 @@ emit_json(some_func())
 
         let result = star.eval_module_recursive(&globals, "main.star", &get_source_fn);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("unknown file: missing.star"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("unknown file: missing.star")
+        );
     }
 }
 

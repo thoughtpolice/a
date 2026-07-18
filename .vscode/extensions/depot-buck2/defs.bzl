@@ -6,7 +6,7 @@ load("@root//buck/shims/shims.bzl", "shims")
 def _ncc_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
     source_dir = ctx.actions.copied_dir(
         "srcs",
-        { src.short_path: src for src in ctx.attrs.srcs },
+        {src.short_path: src for src in ctx.attrs.srcs},
     )
 
     outdir = ctx.actions.declare_output("dist", dir = True)
@@ -16,10 +16,13 @@ def _ncc_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
             cmd_args(["npm", "install", "&&"]),
             cmd_args(
                 [
-                    "npx", "ncc",
-                    "build", "-m",
+                    "npx",
+                    "ncc",
+                    "build",
+                    "-m",
                     "src/extension.ts",
-                    "-o", outdir.as_output(),
+                    "-o",
+                    outdir.as_output(),
                 ],
                 relative_to = source_dir,
             ),
@@ -35,7 +38,7 @@ def _ncc_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
                 args,
             ],
         ),
-        category = "ncc_bundle"
+        category = "ncc_bundle",
     )
 
     return [
@@ -46,5 +49,5 @@ ncc_bundle = rule(
     impl = _ncc_bundle_impl,
     attrs = {
         "srcs": attrs.list(attrs.source()),
-    }
+    },
 )

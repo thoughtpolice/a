@@ -4,10 +4,14 @@
 load("@toolchains//deno:defs.bzl", "deno")
 
 deno.binary(
-    name="rtlcc",
-    main="main.tsx",
-    type="run",
-    config="deno.jsonc",
-    permissions=["read", "write", "env"],
-    visibility=["PUBLIC"],
+    name = "rtlcc",
+    config = "deno.jsonc",
+    main = "main.tsx",
+    permissions = [
+        "read",
+        "write",
+        "env",
+    ],
+    type = "run",
+    visibility = ["PUBLIC"],
 )

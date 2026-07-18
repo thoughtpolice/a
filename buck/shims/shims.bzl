@@ -1,36 +1,36 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@prelude//utils:buckconfig.bzl", "read_choice")
 load("@prelude//cfg/modifier:conditional_modifier.bzl", "conditional_modifier")
-
+load("@prelude//utils:buckconfig.bzl", "read_choice")
+load("@root//buck/lib/oci:defs.bzl", _oci_image = "oci_image", _oci_index = "oci_index", _oci_pull = "oci_pull", _oci_repack = "oci_repack", _oci_unpack = "oci_unpack")
 load("@root//buck/lib/tar:defs.bzl", _tar_file = "tar_file")
 load("@root//buck/shims:go_test_internal.bzl", _go_test_internal_rule = "go_test_internal")
 load("@root//buck/shims:rust_test_internal.bzl", _rust_test_internal_rule = "rust_test_internal")
-load("@root//buck/lib/oci:defs.bzl", _oci_image = "oci_image", _oci_index = "oci_index", _oci_pull = "oci_pull", _oci_repack = "oci_repack", _oci_unpack = "oci_unpack")
+load("@toolchains//deno:defs.bzl", _deno = "deno")
 load("@toolchains//k6:defs.bzl", "k6_run")
 load("@toolchains//uv:defs.bzl", _uv_impl = "uv")
 load("@toolchains//zuo:defs.bzl", _zuo = "zuo")
-load("@toolchains//deno:defs.bzl", _deno = "deno")
 
 # MARK: Package metadata handling
 
 def _apply_package_target_compatible_with(kwargs):
     """Apply target_compatible_with from package metadata if not explicitly provided."""
+
     # If user explicitly sets target_compatible_with to None, we respect that and don't apply defaults
-    if 'target_compatible_with' in kwargs and kwargs['target_compatible_with'] == None:
+    if "target_compatible_with" in kwargs and kwargs["target_compatible_with"] == None:
         # Remove the None value so it doesn't get passed to the rule
-        kwargs.pop('target_compatible_with')
+        kwargs.pop("target_compatible_with")
         return kwargs
 
     # If user provides their own target_compatible_with, use it
-    if 'target_compatible_with' in kwargs:
+    if "target_compatible_with" in kwargs:
         return kwargs
 
     # Otherwise, check for package default
-    pkg_compat = read_package_value('meta.target_compatible_with')
+    pkg_compat = read_package_value("meta.target_compatible_with")
     if pkg_compat != None:
-        kwargs['target_compatible_with'] = pkg_compat
+        kwargs["target_compatible_with"] = pkg_compat
 
     return kwargs
 
@@ -58,31 +58,32 @@ def _fix_kwargs(_rule_name: str, kwargs):
 
 # MARK: Basic shims
 
-DEPOT_VERSION = '2025.0+0'
+DEPOT_VERSION = "2025.0+0"
 
 # wrap native.rust_* (or a custom rust rule passed as `fn`), but provide some
 # extra default args
 def _depot_rust_rule(rule_name: str, fn = None, **kwargs):
     kwargs = _fix_kwargs(rule_name, kwargs)
 
-    edition = kwargs.pop('edition', '2024')
+    edition = kwargs.pop("edition", "2024")
 
     # Read package version from metadata
-    package_version = read_package_value('meta.version')
+    package_version = read_package_value("meta.version")
 
     env = {
-        'DEPOT_VERSION': DEPOT_VERSION,
+        "DEPOT_VERSION": DEPOT_VERSION,
     }
+
     # Add package version to env if it exists
     if package_version != None:
-        env['DEPOT_PACKAGE_VERSION'] = package_version
+        env["DEPOT_PACKAGE_VERSION"] = package_version
 
     # Merge with user-provided env
-    env = env | kwargs.pop('env', {})
+    env = env | kwargs.pop("env", {})
 
     rustc_flags = [
         #'--cfg=buck_build',
-    ] + kwargs.pop('rustc_flags', [])
+    ] + kwargs.pop("rustc_flags", [])
 
     build_config = read_choice("project", "buildmode", [
         "debug",
@@ -95,16 +96,16 @@ def _depot_rust_rule(rule_name: str, fn = None, **kwargs):
         env = env,
         rustc_flags = rustc_flags,
         incremental_enabled = build_config == "debug",
-        **kwargs,
+        **kwargs
     )
 
 def _depot_rust_library(**kwargs):
-    _depot_rust_rule('rust_library', **kwargs)
+    _depot_rust_rule("rust_library", **kwargs)
 
 def _depot_rust_binary(**kwargs):
-    allow_cache_upload = kwargs.pop('allow_cache_upload', True)
-    kwargs['allow_cache_upload'] = allow_cache_upload
-    _depot_rust_rule('rust_binary', **kwargs)
+    allow_cache_upload = kwargs.pop("allow_cache_upload", True)
+    kwargs["allow_cache_upload"] = allow_cache_upload
+    _depot_rust_rule("rust_binary", **kwargs)
 
 def _use_internal_test_runner(framework: str) -> bool:
     runner = read_root_config("test", "use_internal_runner", "true")
@@ -116,9 +117,9 @@ def _use_internal_test_runner(framework: str) -> bool:
 def _depot_rust_test(**kwargs):
     """Define a Rust test using the configured Buck2 test runner."""
     if _use_internal_test_runner("rust"):
-        _depot_rust_rule('rust_test', fn = _rust_test_internal_rule, **kwargs)
+        _depot_rust_rule("rust_test", fn = _rust_test_internal_rule, **kwargs)
     else:
-        _depot_rust_rule('rust_test', **kwargs)
+        _depot_rust_rule("rust_test", **kwargs)
 
 def _depot_go_test(**kwargs):
     """Define a Go test using the configured Buck2 test runner."""
@@ -130,14 +131,14 @@ def _depot_go_test(**kwargs):
 
 def _depot_cxx_library(**kwargs):
     kwargs = _fix_kwargs("cxx_library", kwargs)
-    allow_cache_upload = kwargs.pop('allow_cache_upload', True)
-    kwargs['allow_cache_upload'] = allow_cache_upload
+    allow_cache_upload = kwargs.pop("allow_cache_upload", True)
+    kwargs["allow_cache_upload"] = allow_cache_upload
     native.cxx_library(**kwargs)
 
 def _depot_cxx_binary(**kwargs):
     kwargs = _fix_kwargs("cxx_binary", kwargs)
-    allow_cache_upload = kwargs.pop('allow_cache_upload', True)
-    kwargs['allow_cache_upload'] = allow_cache_upload
+    allow_cache_upload = kwargs.pop("allow_cache_upload", True)
+    kwargs["allow_cache_upload"] = allow_cache_upload
     native.cxx_binary(**kwargs)
 
 def _depot_cxx_genrule(**kwargs):
@@ -145,8 +146,8 @@ def _depot_cxx_genrule(**kwargs):
 
 def _depot_prebuilt_cxx_library(**kwargs):
     kwargs = _fix_kwargs("prebuilt_cxx_library", kwargs)
-    allow_cache_upload = kwargs.pop('allow_cache_upload', True)
-    kwargs['allow_cache_upload'] = allow_cache_upload
+    allow_cache_upload = kwargs.pop("allow_cache_upload", True)
+    kwargs["allow_cache_upload"] = allow_cache_upload
     native.prebuilt_cxx_library(**kwargs)
 
 def _depot_export_file(**kwargs):
@@ -174,7 +175,7 @@ _write_file_rule = rule(
     impl = _write_file_impl,
     attrs = {
         "contents": attrs.list(attrs.string()),
-    }
+    },
 )
 
 def _write_file(**kwargs):
@@ -197,9 +198,9 @@ def _copy_files_impl(ctx: AnalysisContext) -> list[Provider]:
         DefaultInfo(
             default_output = outdir,
             sub_targets = {
-                name: [ DefaultInfo(default_output = outdir.project(name)) ]
+                name: [DefaultInfo(default_output = outdir.project(name))]
                 for name in ctx.attrs.srcs.keys()
-            }
+            },
         ),
     ]
 
@@ -207,7 +208,7 @@ _copy_files_rule = rule(
     impl = _copy_files_impl,
     attrs = {
         "srcs": attrs.dict(attrs.string(), attrs.source()),
-    }
+    },
 )
 
 def _copy_files(**kwargs):
@@ -228,7 +229,7 @@ def _command_test_impl(ctx: AnalysisContext) -> list[Provider]:
             ExternalRunnerTestInfo(
                 type = "custom",
                 command = ctx.attrs.cmd,
-            )
+            ),
         ]
     else:
         script_file = ctx.actions.declare_output("{}.sh".format(ctx.label.name))
@@ -241,7 +242,7 @@ def _command_test_impl(ctx: AnalysisContext) -> list[Provider]:
             ExternalRunnerTestInfo(
                 type = "custom",
                 command = ["bash", script_file],
-            )
+            ),
         ]
 
 _command_test_rule = rule(
@@ -249,7 +250,7 @@ _command_test_rule = rule(
     attrs = {
         "cmd": attrs.option(attrs.list(attrs.arg()), default = None),
         "script": attrs.option(attrs.arg(), default = None),
-    }
+    },
 )
 
 def _command_test(**kwargs):
@@ -263,7 +264,7 @@ _command_rule = rule(
     ],
     attrs = {
         "cmd": attrs.list(attrs.arg()),
-    }
+    },
 )
 
 def _command(**kwargs):
@@ -276,12 +277,12 @@ _run_test_rule = rule(
         RunInfo(args = cmd_args(ctx.attrs.dep[RunInfo].args)),
         ExternalRunnerTestInfo(
             type = "custom",
-            command = [ ctx.attrs.dep[RunInfo].args ],
-        )
+            command = [ctx.attrs.dep[RunInfo].args],
+        ),
     ],
     attrs = {
-        "dep": attrs.dep(providers = [RunInfo])
-    }
+        "dep": attrs.dep(providers = [RunInfo]),
+    },
 )
 
 def _run_test(**kwargs):
@@ -312,7 +313,7 @@ def _hash_chance_ctx(ctx: AnalysisContext, percent: int) -> bool:
     Given a probability `p` to describe an event happening, and input `ctx` object,
     return `True` if the event should happen, or `False` otherwise.
     """
-    return _hash_chance(ctx.label, percent=percent)
+    return _hash_chance(ctx.label, percent = percent)
 
 def _enforce_starlark_memory_limit(bytes: [None, int] = None):
     """
@@ -365,6 +366,7 @@ def _test_suite(**kwargs):
 def _depot_uv_python_binary(**kwargs):
     """Wrapper for uv.python_binary that applies package defaults."""
     kwargs = _fix_kwargs("uv_python_binary", kwargs)
+
     # Preserve the automatic lint test behavior from the original
     name = kwargs.get("name")
     tests = kwargs.pop("tests", [])
@@ -418,23 +420,18 @@ shims = struct(
     rust_library = _depot_rust_library,
     rust_binary = _depot_rust_binary,
     rust_test = _depot_rust_test,
-
     ocaml_binary = lambda **kwargs: native.ocaml_binary(**_fix_kwargs("ocaml_binary", kwargs)),
     ocaml_library = lambda **kwargs: native.ocaml_library(**_fix_kwargs("ocaml_library", kwargs)),
-
     go_binary = lambda **kwargs: native.go_binary(**_fix_kwargs("go_binary", kwargs)),
     go_library = lambda **kwargs: native.go_library(**_fix_kwargs("go_library", kwargs)),
     go_test = _depot_go_test,
-
     erlang_app = lambda **kwargs: native.erlang_app(**_fix_kwargs("erlang_app", kwargs)),
     erlang_test = lambda **kwargs: native.erlang_test(**_fix_kwargs("erlang_test", kwargs)),
     erlang_escript = lambda **kwargs: native.erlang_escript(**_fix_kwargs("erlang_escript", kwargs)),
-
     cxx_library = _depot_cxx_library,
     prebuilt_cxx_library = _depot_prebuilt_cxx_library,
     cxx_binary = _depot_cxx_binary,
     cxx_genrule = _depot_cxx_genrule,
-
     tar_file = lambda **kwargs: _tar_file(**_fix_kwargs("tar_file", kwargs)),
     oci = struct(
         pull = lambda **kwargs: _oci_pull(**_fix_kwargs("oci_pull", kwargs)),
@@ -443,47 +440,38 @@ shims = struct(
         repack = lambda **kwargs: _oci_repack(**_fix_kwargs("oci_repack", kwargs)),
         index = lambda **kwargs: _oci_index(**_fix_kwargs("oci_index", kwargs)),
     ),
-
     uv = struct(
         python_binary = _depot_uv_python_binary,
         python_test = _depot_uv_python_test,
         tool_format = _depot_uv_tool_format,
     ),
-
     zuo = struct(
         binary = _depot_zuo_binary,
         module = _depot_zuo_module,
         embedded_binary = _depot_zuo_embedded_binary,
         test = _depot_zuo_test,
     ),
-
     k6 = struct(
         run = _depot_k6_run,
     ),
-
     deno = _deno,
-
     write_file = _write_file,
     copy_files = _copy_files,
     export_file = _depot_export_file,
     genrule = _depot_genrule,
     filegroup = _depot_filegroup,
-
     constraint = _constraint,
     platform = _platform,
     alias = _alias,
     config_setting = _config_setting,
     toolchain_alias = _toolchain_alias,
-
     command_test = _command_test,
     run_test = _run_test,
     command = _command,
     rjust = rjust,
-
     chance = _hash_chance,
     chance_ctx = _hash_chance_ctx,
     starlark_memory_limit = _enforce_starlark_memory_limit,
-
     modifiers = struct(
         conditional = conditional_modifier,
     ),

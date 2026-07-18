@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:shims.bzl", depot="shims")
+load("@root//buck/shims:shims.bzl", depot = "shims")
 
 # Chainguard glibc-dynamic base images for building application containers
 # https://images.chainguard.dev/directory/image/glibc-dynamic

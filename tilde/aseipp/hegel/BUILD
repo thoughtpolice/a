@@ -4,11 +4,11 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 depot.rust_test(
-    name = 'tests',
-    srcs = ['demo.rs'],
-    crate_root = 'demo.rs',
+    name = "tests",
+    srcs = ["demo.rs"],
+    crate_root = "demo.rs",
     deps = [
-        'third-party//by-name/mi/mimalloc:rust',
-        'third-party//rust:hegeltest',
+        "third-party//by-name/mi/mimalloc:rust",
+        "third-party//rust:hegeltest",
     ],
 )

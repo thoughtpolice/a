@@ -5,5 +5,5 @@ load("@prelude//toolchains:erlang.bzl", "system_erlang_toolchain")
 
 system_erlang_toolchain(
     name = "erlang",
-    visibility=["PUBLIC"],
+    visibility = ["PUBLIC"],
 )

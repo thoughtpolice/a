@@ -48,6 +48,7 @@ def _zuo_binary_impl(ctx: AnalysisContext) -> list[Provider]:
 
 def _zuo_module_impl(ctx: AnalysisContext) -> list[Provider]:
     """Implementation of the zuo_module rule."""
+
     # For now, modules are just filegroups that can be depended on
     return [
         DefaultInfo(default_outputs = ctx.attrs.srcs),

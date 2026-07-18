@@ -4,16 +4,16 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 depot.rust_library(
-    name = 'common',
-    srcs = ['lib.rs'],
+    name = "common",
+    srcs = ["lib.rs"],
+    visibility = ["PUBLIC"],
     deps = [
-        '//buck/installers/proto:proto',
-        'third-party//rust:anyhow',
-        'third-party//rust:clap',
-        'third-party//rust:tokio',
-        'third-party//rust:tonic',
-        'third-party//rust:tracing',
-        'third-party//rust:tracing-subscriber',
+        "third-party//rust:anyhow",
+        "third-party//rust:clap",
+        "third-party//rust:tokio",
+        "third-party//rust:tonic",
+        "third-party//rust:tracing",
+        "third-party//rust:tracing-subscriber",
+        "//buck/installers/proto",
     ],
-    visibility = ['PUBLIC'],
 )

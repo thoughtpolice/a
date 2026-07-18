@@ -3,7 +3,7 @@
 
 cli_args = {
     "json": bxl.cli_args.bool(default = False),
-    "source": bxl.cli_args.list(bxl.cli_args.string())
+    "source": bxl.cli_args.list(bxl.cli_args.string()),
 }
 
 def _main(ctx: bxl.Context) -> None:
@@ -22,7 +22,7 @@ def _main(ctx: bxl.Context) -> None:
             {
                 "label": target,
             },
-            pretty = False
+            pretty = False,
         )
 
-main = bxl_main( impl = _main, cli_args = cli_args )
+main = bxl_main(impl = _main, cli_args = cli_args)

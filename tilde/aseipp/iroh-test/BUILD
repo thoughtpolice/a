@@ -4,23 +4,23 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
-    'third-party//by-name/mi/mimalloc:rust',
-    'root//src/crates/rustls-boring:rustls-boring',
-    'third-party//rust:anyhow',
-    'third-party//rust:iroh',
-    'third-party//rust:rustls',
-    'third-party//rust:tokio',
+    "third-party//by-name/mi/mimalloc:rust",
+    "root//src/crates/rustls-boring:rustls-boring",
+    "third-party//rust:anyhow",
+    "third-party//rust:iroh",
+    "third-party//rust:rustls",
+    "third-party//rust:tokio",
 ]
 
 depot.rust_binary(
-    name = 'iroh-test',
-    srcs = glob(['*.rs']),
+    name = "iroh-test",
+    srcs = glob(["*.rs"]),
     deps = DEPS,
 )
 
 depot.rust_test(
-    name = 'test',
-    srcs = glob(['*.rs']),
-    crate_root = 'main.rs',
+    name = "test",
+    srcs = glob(["*.rs"]),
+    crate_root = "main.rs",
     deps = DEPS,
 )

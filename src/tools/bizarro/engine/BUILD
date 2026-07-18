@@ -6,42 +6,42 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 # Main bizarro binary
 depot.uv.python_binary(
     name = "bizarro",
-    main = "bizarro.py",
     srcs = [
         "bizarro.py.lock",
     ],
-    lint_dir = "src/tools/bizarro",
     args = [
         "--system",
         "$(location :system-prompt.txt)",
     ],
-    visibility = ["PUBLIC"],
+    lint_dir = "src/tools/bizarro",
+    main = "bizarro.py",
     tests = [
         ":test",
         ":test-help",
         ":test-run-basic",
     ],
+    visibility = ["PUBLIC"],
 )
 
 depot.export_file(
-    name = 'system-prompt.txt',
-    src = 'system-prompt.txt',
+    name = "system-prompt.txt",
+    src = "system-prompt.txt",
 )
 
 # Tuner binary for model tuning operations
 depot.uv.python_binary(
     name = "tuner",
-    main = "tuning/tuner.py",
     srcs = [
         "tuning/tuner.py.lock",
     ],
     lint_dir = "src/tools/bizarro",
-    visibility = ["PUBLIC"],
+    main = "tuning/tuner.py",
     tests = [
         ":test",
         ":test-help",
         ":test-run-basic",
     ],
+    visibility = ["PUBLIC"],
 )
 
 # Format target (for running formatting, not just checking)
@@ -59,7 +59,10 @@ depot.command_test(
 # Individual command tests for quick validation
 depot.command_test(
     name = "test-help",
-    cmd = ["./src/tools/bizarro/engine/bizarro.py", "--help"],
+    cmd = [
+        "./src/tools/bizarro/engine/bizarro.py",
+        "--help",
+    ],
 )
 
 depot.command_test(
@@ -69,13 +72,18 @@ depot.command_test(
         "run",
         "--no-stats",
         "What is 2+2?",
-        "--model", "Qwen/Qwen3-0.6B",
-        "--max-tokens", "64",
+        "--model",
+        "Qwen/Qwen3-0.6B",
+        "--max-tokens",
+        "64",
     ],
 )
 
 # Export data files for testing
 depot.filegroup(
     name = "test-data",
-    srcs = glob(["t/data/*.jsonl", "t/data/*.md"]),
+    srcs = glob([
+        "t/data/*.jsonl",
+        "t/data/*.md",
+    ]),
 )

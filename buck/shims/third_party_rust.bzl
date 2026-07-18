@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@prelude//rust:cargo_package.bzl", "cargo")
 load("@prelude//rust:cargo_buildscript.bzl", "buildscript_run")
+load("@prelude//rust:cargo_package.bzl", "cargo")
 
 def _rust_library(**kwargs):
     cargo.rust_library(**kwargs)

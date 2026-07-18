@@ -2,93 +2,98 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@prelude//:paths.bzl", "paths")
-load("@root//buck/shims:shims.bzl", depot="shims")
+load("@root//buck/shims:shims.bzl", depot = "shims")
 
 depot.cxx_library(
-    name = 'crypto',
-    header_namespace = "crypto",
+    name = "crypto",
+    srcs = glob(["src/crypto/*.c"]),
     exported_headers = {
-        'gimli.h': 'src/crypto/gimli.h',
-        'strobe.h': 'src/crypto/strobe.h',
+        "gimli.h": "src/crypto/gimli.h",
+        "strobe.h": "src/crypto/strobe.h",
     },
-    srcs = glob([ 'src/crypto/*.c' ]),
+    header_namespace = "crypto",
     # Override package default - crypto library is cross-platform
     target_compatible_with = None,
 )
 
 depot.cxx_library(
-    name = 'util',
-    header_namespace = "util",
+    name = "util",
+    srcs = glob(["src/util/*.c"]),
     exported_headers = {
-        'co.h': 'src/util/co.h',
-        'file_size.h': 'src/util/file_size.h',
-        'log.h': 'src/util/log.h',
-        'macros.h': 'src/util/macros.h',
-        'password.h': 'src/util/password.h',
-        'vsb.h': 'src/util/vsb.h',
+        "co.h": "src/util/co.h",
+        "file_size.h": "src/util/file_size.h",
+        "log.h": "src/util/log.h",
+        "macros.h": "src/util/macros.h",
+        "password.h": "src/util/password.h",
+        "vsb.h": "src/util/vsb.h",
     },
-    srcs = glob([ 'src/util/*.c' ]),
-
+    header_namespace = "util",
     deps = [
-        'third-party//by-name/mi/mimalloc:mimalloc',
+        "third-party//by-name/mi/mimalloc:mimalloc",
     ] + [
-        ':crypto',
+        ":crypto",
     ],
 )
 
 depot.cxx_library(
-    name = 'io',
-    header_namespace = "io",
+    name = "io",
+    srcs = glob(["src/io/*.c"]),
     exported_headers = {
-        'ring.h': 'src/io/ring.h',
-        'async.h': 'src/io/async.h',
+        "ring.h": "src/io/ring.h",
+        "async.h": "src/io/async.h",
     },
-    srcs = glob([ 'src/io/*.c' ]),
-
+    header_namespace = "io",
     deps = [
-        'third-party//by-name/mi/mimalloc:mimalloc',
-        'third-party//by-name/li/liburing:liburing',
+        "third-party//by-name/li/liburing:liburing",
+        "third-party//by-name/mi/mimalloc:mimalloc",
     ] + [
-        ':crypto',
-        ':util',
+        ":crypto",
+        ":util",
     ],
 )
 
 depot.cxx_binary(
-    name = 'copy-file',
-
-    srcs = glob([ 'copy-file/*.c' ]),
+    name = "copy-file",
+    srcs = glob(["copy-file/*.c"]),
     deps = [
-        ':crypto',
-        ':io',
-        ':util',
+        ":crypto",
+        ":io",
+        ":util",
     ] + [
-        'third-party//by-name/mi/mimalloc:mimalloc',
-        'third-party//by-name/li/liburing:liburing',
+        "third-party//by-name/li/liburing:liburing",
+        "third-party//by-name/mi/mimalloc:mimalloc",
     ],
 )
 
-TESTS = [ 'gimli', 'co' ]
+TESTS = [
+    "gimli",
+    "co",
+]
 
-depot.test_suite(name = 'tests', tests = [ ':test-{}'.format(t) for t in TESTS ])
+depot.test_suite(
+    name = "tests",
+    tests = [":test-{}".format(t) for t in TESTS],
+)
 
 [
     depot.cxx_binary(
-        name = 'test-{}-exe'.format(t),
-        srcs = [ 't/{}.c'.format(t) ],
+        name = "test-{}-exe".format(t),
+        srcs = ["t/{}.c".format(t)],
         deps = [
-            ':util',
-            ':crypto',
+            ":crypto",
+            ":util",
         ] + [
-            'third-party//by-name/mi/mimalloc:mimalloc',
-            'third-party//by-name/li/liburing:liburing',
+            "third-party//by-name/li/liburing:liburing",
+            "third-party//by-name/mi/mimalloc:mimalloc",
         ],
-    ) for t in TESTS
+    )
+    for t in TESTS
 ]
 
 [
     depot.command_test(
-        name = 'test-{}'.format(t),
-        cmd = [ '$(exe :test-{}-exe)'.format(t) ],
-    ) for t in TESTS
+        name = "test-{}".format(t),
+        cmd = ["$(exe :test-{}-exe)".format(t)],
+    )
+    for t in TESTS
 ]

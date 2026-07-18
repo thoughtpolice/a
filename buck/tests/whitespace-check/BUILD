@@ -4,12 +4,12 @@
 load("@root//buck/shims:shims.bzl", "shims")
 
 python_bootstrap_binary(
-    name="check-whitespace",
-    main="main.py",
-    tests=[":whitespace-check"],
+    name = "check-whitespace",
+    main = "main.py",
+    tests = [":whitespace-check"],
 )
 
 shims.run_test(
-    name="whitespace-check",
-    dep=":check-whitespace",
+    name = "whitespace-check",
+    dep = ":check-whitespace",
 )

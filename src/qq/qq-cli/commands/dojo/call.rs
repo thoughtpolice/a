@@ -5,7 +5,7 @@ use std::io::Write;
 use std::net::ToSocketAddrs;
 use std::pin::Pin;
 
-use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
+use capnp_rpc::{RpcSystem, rpc_twoparty_capnp, twoparty};
 use futures::AsyncReadExt;
 use jj_cli::{cli_util::CommandHelper, command_error::CommandError, ui::Ui};
 use openssl::ssl::{SslConnector, SslMethod};

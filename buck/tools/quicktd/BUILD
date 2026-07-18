@@ -4,9 +4,14 @@
 load("@toolchains//deno:defs.bzl", "deno")
 
 deno.binary(
-    name="quicktd",
-    main="main.ts",
-    type="run",
-    permissions=["read", "write", "run", "env"],
-    visibility=["PUBLIC"],
+    name = "quicktd",
+    main = "main.ts",
+    permissions = [
+        "read",
+        "write",
+        "run",
+        "env",
+    ],
+    type = "run",
+    visibility = ["PUBLIC"],
 )
