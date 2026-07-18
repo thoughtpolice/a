@@ -228,12 +228,18 @@ depot.rust_test(
 )
 ```
 
-`depot.rust_test` follows Buck2's root `test.use_internal_runner` setting. Its
-default, `true`, discovers and schedules each Rust `#[test]` separately through
-Buck2's internal runner. Use `-c test.use_internal_runner=false` for the
-standard external runner. A comma-separated framework list selects the internal
-rule only when it contains `rust`, for example
-`-c test.use_internal_runner=rust,gtest`.
+`depot.rust_test` and `depot.go_test` follow Buck2's root
+`test.use_internal_runner` setting. Its default, `true`, discovers and schedules
+each Rust `#[test]` or top-level Go test in a separate process through Buck2's
+internal runner. Use `-c test.use_internal_runner=false` for the standard
+external runner. A comma-separated framework list selects the internal rule
+only for the named languages, for example
+`-c test.use_internal_runner=go,rust,gtest`.
+
+Go discovery follows the standard test-binary interface: `-test.list .` finds
+top-level tests, fuzz tests, and runnable examples, and each is selected with an
+anchored `-test.run` expression. Subtests stay within their top-level test's
+process. Benchmarks are omitted, matching ordinary `go test` behavior.
 
 ### Rules vs Macros vs Functions
 
