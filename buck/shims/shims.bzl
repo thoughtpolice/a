@@ -105,19 +105,16 @@ def _depot_rust_binary(**kwargs):
     kwargs['allow_cache_upload'] = allow_cache_upload
     _depot_rust_rule('rust_binary', **kwargs)
 
-def _depot_rust_test(**kwargs):
-    """Define a Rust test using the configured Buck2 test runner.
-
-    This follows Buck2's root `test.use_internal_runner` setting: its default
-    (`true`) and a framework list containing `rust` enable per-#[test]
-    discovery; `false` or a list without `rust` uses the prelude rule.
-    """
+def _use_internal_test_runner(framework: str) -> bool:
     runner = read_root_config("test", "use_internal_runner", "true")
-    use_internal_runner = runner == "true" or (
+    return runner == "true" or (
         runner != "false" and
-        "rust" in [framework.strip() for framework in runner.split(",")]
+        framework in [item.strip() for item in runner.split(",")]
     )
-    if use_internal_runner:
+
+def _depot_rust_test(**kwargs):
+    """Define a Rust test using the configured Buck2 test runner."""
+    if _use_internal_test_runner("rust"):
         _depot_rust_rule('rust_test', fn = _rust_test_internal_rule, **kwargs)
     else:
         _depot_rust_rule('rust_test', **kwargs)

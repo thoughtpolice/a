@@ -46,6 +46,7 @@ instead of emitting a second crate with a duplicate root.
 """
 
 load("@prelude//decls:rust_rules.bzl", _prelude_rust_test = "rust_test")
+load(":test_internal.bzl", "internal_runner_from_external", "nonnegative_float_or_none")
 
 _LISTING_SUFFIX = ": test"
 _RESULT_SEP = " ... "
@@ -63,20 +64,6 @@ def _listing_names(listing_content: str) -> list[str]:
             if name:
                 names.append(name)
     return names
-
-def _float_or_none(text: str) -> [None, float]:
-    # float() fails hard on malformed input, so vet the characters first.
-    if not text:
-        return None
-    dots = 0
-    for c in text.elems():
-        if c == ".":
-            dots += 1
-        elif not c.isdigit():
-            return None
-    if dots > 1:
-        return None
-    return float(text)
 
 def _result_entries(stdout: str) -> list[dict]:
     # A single `--exact` run prints the usual libtest report:
@@ -105,7 +92,7 @@ def _result_entries(stdout: str) -> list[dict]:
                 value = line[idx + len("finished in "):].strip()
                 if value.endswith("s"):
                     value = value[:len(value) - 1]
-                duration = _float_or_none(value)
+                duration = nonnegative_float_or_none(value)
         elif not in_failure_output and line.startswith("test ") and _RESULT_SEP in line:
             head = line[len("test "):]
             sep = head.find(_RESULT_SEP)
@@ -178,23 +165,10 @@ def _rust_test_internal_impl(ctx: AnalysisContext) -> list[Provider]:
         fail("prelude rust_test impl returned no ExternalRunnerTestInfo")
 
     harness = list(external.command)
-    providers.append(InternalRunnerTestInfo(
-        # The provider constructor calls this `type`, while its readable field
-        # is exposed as `test_type`.
-        type = external.test_type,
+    providers.append(internal_runner_from_external(
+        external = external,
         command = harness + ["--exact"],
         listing_command = harness + ["--list", "--format", "terse"],
-        env = external.env,
-        labels = external.labels,
-        contacts = external.contacts,
-        run_from_project_root = external.run_from_project_root,
-        use_project_relative_paths = external.use_project_relative_paths,
-        default_executor = external.default_executor,
-        executor_overrides = external.executor_overrides,
-        local_resources = external.local_resources,
-        required_local_resources = external.required_local_resources,
-        worker = external.worker,
-        supports_test_execution_caching = external.supports_test_execution_caching,
         parse_test_listing = parse_test_listing,
         parse_test_result = parse_test_result,
     ))
