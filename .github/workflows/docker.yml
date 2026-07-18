@@ -1,26 +1,630 @@
 name: docker
 
 on:
-  workflow_dispatch:
-  push:
-    # FIXME (aseipp): enable later
-    branches: ["fixme-no-push"]
+  pull_request:
     paths:
       - ".devcontainer/**"
+      - "buck/etc/nix/**"
+      - ".github/workflows/docker.yml"
+  push:
+    branches: ["canon"]
+    paths:
+      - ".devcontainer/**"
+      - "buck/etc/nix/**"
+      - ".github/workflows/docker.yml"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish this commit and promote it to canon"
+        required: true
+        type: boolean
+        default: false
 
-permissions:
-  contents: read
-  packages: write
+# All publishing runs share one group so an older run cannot move canon after a
+# newer run starts. Validation-only runs use a unique group and do not interfere.
+concurrency:
+  group: devcontainer-image-${{ (github.repository == 'thoughtpolice/a' && ((github.event_name == 'push' && github.ref == 'refs/heads/canon') || (github.event_name == 'workflow_dispatch' && inputs.publish))) && 'publish' || format('run-{0}', github.run_id) }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/thoughtpolice/a/devcontainer
 
 jobs:
-  devcontainer:
-    runs-on: ubuntu-latest
+  image:
+    name: image (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 300
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            nix-system: x86_64-linux
+            platform: linux/amd64
+            arch: amd64
+            loader: /lib64/ld-linux-x86-64.so.2
+            vscode-arch: x64
+          - runner: ubuntu-24.04-arm
+            nix-system: aarch64-linux
+            platform: linux/arm64
+            arch: arm64
+            loader: /lib/ld-linux-aarch64.so.1
+            vscode-arch: arm64
+    env:
+      NIX_SYSTEM: ${{ matrix.nix-system }}
+      ARCH: ${{ matrix.arch }}
+      LOADER: ${{ matrix.loader }}
+      VSCODE_ARCH: ${{ matrix.vscode-arch }}
+      PUBLISH: ${{ github.repository == 'thoughtpolice/a' && ((github.event_name == 'push' && github.ref == 'refs/heads/canon') || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: false
+          fetch-depth: 0
 
+      - name: Install Nix 2.34.8
+        uses: cachix/install-nix-action@a49548c11d9846ad46ecc0115273879b045f001c
+        with:
+          install_url: https://releases.nixos.org/nix/nix-2.34.8/install
+
+      - name: Build the native image check and evaluate the locked flake
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # replaceDependency resolves the realized native closure before it
+          # can propagate the slim glibc path. Build that check first; the two
+          # native matrix jobs collectively evaluate both supported systems.
+          nix build \
+            --no-link \
+            --no-update-lock-file \
+            --print-build-logs \
+            "./buck/etc/nix#checks.${NIX_SYSTEM}.devcontainer-image"
+          nix flake check \
+            --no-build \
+            --no-update-lock-file \
+            ./buck/etc/nix
+
+      - name: Build and size-check both native image outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          report_largest_closure_members() {
+            local root="$1"
+            echo "Largest Nix closure members (bytes):"
+            nix-store --query --requisites "$root" \
+              | xargs --no-run-if-empty du --summarize --block-size=1 \
+              | sort --numeric-sort \
+              | tail --lines=30
+          }
+
+          stream="$(nix build \
+            --no-link \
+            --no-update-lock-file \
+            --print-build-logs \
+            --print-out-paths \
+            "./buck/etc/nix#packages.${NIX_SYSTEM}.devcontainer-image-stream")"
+          test -x "$stream"
+
+          archive="$(nix build \
+            --no-link \
+            --no-update-lock-file \
+            --print-build-logs \
+            --print-out-paths \
+            "./buck/etc/nix#packages.${NIX_SYSTEM}.devcontainer-image")"
+          test -f "$archive"
+          gzip --test "$archive"
+
+          archive_bytes="$(stat --format=%s "$archive")"
+          if (( archive_bytes >= 629145600 )); then
+            echo "Compressed image archive is ${archive_bytes} bytes; limit is below 600 MiB." >&2
+            report_largest_closure_members "$stream"
+            exit 1
+          fi
+          echo "Compressed image archive: $(numfmt --to=iec-i --suffix=B "$archive_bytes")"
+
+          # The archive output is an acceptance check. Remove that generated store
+          # object before loading the streaming output to conserve runner disk.
+          nix store delete "$archive"
+
+          echo "IMAGE_STREAM=$stream" >> "$GITHUB_ENV"
+          echo "- ${NIX_SYSTEM} compressed archive: $(numfmt --to=iec-i --suffix=B "$archive_bytes")" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Stream the native image into Docker
+        shell: bash
+        run: |
+          set -euo pipefail
+          load_output="$("$IMAGE_STREAM" | docker load)"
+          printf '%s\n' "$load_output"
+          loaded_image="$(printf '%s\n' "$load_output" \
+            | sed -n -e 's/^Loaded image: //p' -e 's/^Loaded image ID: //p' \
+            | tail --lines=1)"
+          if [[ -z "$loaded_image" ]]; then
+            echo "Could not determine the image loaded by Docker." >&2
+            exit 1
+          fi
+
+          local_tag="${IMAGE}:ci-${GITHUB_RUN_ID}-${ARCH}"
+          docker image inspect "$loaded_image" >/dev/null
+          docker tag "$loaded_image" "$local_tag"
+          echo "LOCAL_IMAGE=$local_tag" >> "$GITHUB_ENV"
+
+      - name: Inspect image size, platform, and OCI configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          report_largest_image_members() {
+            echo "Largest paths shipped in the image (bytes):"
+            docker run --rm \
+              --user root \
+              --entrypoint /bin/bash \
+              "$LOCAL_IMAGE" \
+              -c 'du --summarize --block-size=1 /nix/store/* | sort --numeric-sort | tail --lines=30'
+          }
+
+          image_bytes="$(docker image inspect --format '{{.Size}}' "$LOCAL_IMAGE")"
+          if (( image_bytes >= 2147483648 )); then
+            echo "Docker image is ${image_bytes} bytes; limit is below 2 GiB." >&2
+            report_largest_image_members
+            exit 1
+          fi
+
+          test "$(docker image inspect --format '{{.Os}}' "$LOCAL_IMAGE")" = linux
+          test "$(docker image inspect --format '{{.Architecture}}' "$LOCAL_IMAGE")" = "$ARCH"
+          created="$(docker image inspect --format '{{.Created}}' "$LOCAL_IMAGE")"
+          test "$(date --date="$created" +%s)" = 1
+          test "$(docker image inspect --format '{{.Config.User}}' "$LOCAL_IMAGE")" = vscode
+          test "$(docker image inspect --format '{{.Config.WorkingDir}}' "$LOCAL_IMAGE")" = /workspaces
+          test "$(docker image inspect --format '{{json .Config.Cmd}}' "$LOCAL_IMAGE")" = '["/bin/sh"]'
+
+          source_label="$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.source"}}' "$LOCAL_IMAGE")"
+          revision_label="$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$LOCAL_IMAGE")"
+          license_label="$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.licenses"}}' "$LOCAL_IMAGE")"
+          description_label="$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.description"}}' "$LOCAL_IMAGE")"
+          test "$source_label" = "https://github.com/thoughtpolice/a"
+          test "$revision_label" = "$GITHUB_SHA"
+          test "$license_label" = "Apache-2.0"
+          test -n "$description_label"
+
+          echo "Docker image size: $(numfmt --to=iec-i --suffix=B "$image_bytes")"
+          echo "- ${NIX_SYSTEM} Docker image: $(numfmt --to=iec-i --suffix=B "$image_bytes")" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Inspect compatibility root and permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --user root \
+            --env EXPECTED_LOADER="$LOADER" \
+            --entrypoint /bin/sh \
+            "$LOCAL_IMAGE" -euxc '
+              for account_file in /etc/passwd /etc/group /etc/shadow /etc/gshadow; do
+                test -f "$account_file"
+                test ! -L "$account_file"
+              done
+              for startup_file in /etc/profile /etc/bash.bashrc /etc/environment /etc/nsswitch.conf /etc/os-release; do
+                test -f "$startup_file"
+                test ! -L "$startup_file"
+              done
+              test -z "$(find /etc \( ! -user 0 -o ! -group 0 \) -print -quit)"
+              test "$(stat -c "%u:%g:%a" /etc/passwd)" = "0:0:644"
+              test "$(stat -c "%u:%g:%a" /etc/group)" = "0:0:644"
+              test "$(stat -c "%u:%g:%a" /etc/shadow)" = "0:0:600"
+              test "$(stat -c "%u:%g:%a" /etc/gshadow)" = "0:0:600"
+              test "$(stat -c "%u:%g:%a" /etc/sudoers)" = "0:0:440"
+              test "$(stat -c "%u:%g:%a" /usr/bin/sudo)" = "0:0:4755"
+              test ! -L /usr/bin/sudo
+              test "$(stat -c "%u:%g:%a" /home/vscode)" = "1000:1000:755"
+              test "$(stat -c "%a" /tmp)" = "1777"
+              test "$(stat -c "%a" /var/tmp)" = "1777"
+              test "$(stat -c "%a" /var/devcontainer)" = "1777"
+              test "$(stat -c "%a" /vscode)" = "1777"
+              test -x "$EXPECTED_LOADER"
+              grep -Fx "ID=thoughtpolice-a-devcontainer" /etc/os-release
+              test ! -e /nix/var/nix/db
+              test -z "$(find /nix/store -mindepth 3 -maxdepth 3 -path "*/bin/nix" -print -quit)"
+              test -z "$(find /nix/store -maxdepth 1 -type d -name "*-clang-tools-*" -print -quit)"
+              test -z "$(find /nix/store -maxdepth 1 -type d -name "*-icu4c-*" -print -quit)"
+              test -z "$(find /nix/store -maxdepth 1 -type d -name "*-linux-pam-*" -print -quit)"
+              test -z "$(find /nix/store -maxdepth 1 -type d -name "*-python3-*" -print -quit)"
+              test -z "$(find /nix/store -maxdepth 1 -type d -name "*-systemd-minimal-libs-*" -print -quit)"
+              test -z "$(find /nix/store -maxdepth 1 -type d -name "*-gcc-[0-9]*" ! -name "*-lib" ! -name "*-libgcc" -print -quit)"
+              test -z "$(find /nix/store -maxdepth 3 -type d -path "*-glibc-*/share/i18n" -print -quit)"
+              if command -v nix; then
+                exit 1
+              fi
+              getent passwd root
+              test "$(getent passwd vscode | cut -d: -f3-4)" = "1000:1000"
+              getent passwd nobody
+            '
+
+      - name: Test login, network, sudo, and foreign ELF compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --entrypoint /bin/bash \
+            "$LOCAL_IMAGE" -lc '
+              set -euo pipefail
+              test "$HOME" = /home/vscode
+              test "$USER" = vscode
+              test "$LOGNAME" = vscode
+              test "$SHELL" = /bin/bash
+              test "$LANG" = C.UTF-8
+              test -z "${LD_LIBRARY_PATH+x}"
+              test -n "$NIX_LD"
+              test -x "$NIX_LD"
+              test -n "$NIX_LD_LIBRARY_PATH"
+              test -f "$SSL_CERT_FILE"
+              case ":$PATH:" in
+                *:/opt/devcontainer/profile/bin:*) ;;
+                *) exit 1 ;;
+              esac
+
+              home_probe="$(mktemp "$HOME/.devcontainer-ci.XXXXXX")"
+              tmp_probe="$(mktemp /tmp/devcontainer-ci.XXXXXX)"
+              var_tmp_probe="$(mktemp /var/tmp/devcontainer-ci.XXXXXX)"
+              workspace_probe="$(mktemp /workspaces/devcontainer-ci.XXXXXX)"
+              rm -f "$home_probe" "$tmp_probe" "$var_tmp_probe" "$workspace_probe"
+
+              getent hosts github.com >/dev/null
+              curl --fail --location --silent --show-error --output /dev/null https://github.com/
+              ip address show dev lo
+              ip route show
+              ss --numeric --listening
+              ps -p $$
+              free --bytes
+              test "$(sudo -n id -u)" = 0
+              sudo_ldd="$(ldd /usr/bin/sudo)"
+              if grep -q libpam <<<"$sudo_ldd"; then
+                exit 1
+              fi
+              ssh -V
+              ssh_scratch="$(mktemp -d)"
+              ssh_key="$ssh_scratch/id_ed25519"
+              ssh-keygen -q -t ed25519 -N "" -f "$ssh_key"
+              ssh-keygen -l -f "$ssh_key.pub"
+              rm -rf "$ssh_scratch"
+              ssh -Q key | grep -Fx sk-ssh-ed25519@openssh.com
+              if command -v sshd; then
+                exit 1
+              fi
+              test ! -e /opt/devcontainer/profile/libexec/sftp-server
+              git --version
+              git ls-remote --exit-code \
+                https://github.com/thoughtpolice/a.git HEAD >/dev/null
+            '
+
+          # This is the runner's ordinary Ubuntu binary, not a Nix-built binary.
+          # Buck sanitizes test environments, so exercise nix-ld's conventional
+          # fallback with its explicit environment variables removed.
+          docker run --rm \
+            --volume /usr/bin/true:/tmp/ubuntu-true:ro \
+            --entrypoint /usr/bin/env \
+            "$LOCAL_IMAGE" \
+            -u NIX_LD \
+            -u NIX_LD_LIBRARY_PATH \
+            /tmp/ubuntu-true
+
+      - name: Validate editor and build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --entrypoint /bin/bash \
+            "$LOCAL_IMAGE" -euo pipefail -c '
+              for command_name in \
+                bash cargo clang clang++ clangd dotslash git jq ld ld.lld mold \
+                node npm npx objdump rust-analyzer rustc rustfmt watchman; do
+                command -v "$command_name" >/dev/null
+              done
+
+              rustc --version --verbose | grep -E "^release: .*nightly"
+              cargo --version
+              cargo clippy --version
+              rustfmt --version
+              rust-analyzer --version
+              test "$(command -v rust-analyzer)" = /opt/devcontainer/profile/bin/rust-analyzer
+              test -f "$(rustc --print sysroot)/lib/rustlib/src/rust/library/core/src/lib.rs"
+
+              for target in \
+                x86_64-unknown-linux-gnu x86_64-unknown-uefi \
+                aarch64-unknown-linux-gnu aarch64-unknown-uefi; do
+                target_libdir="$(rustc --print target-libdir --target "$target")"
+                find "$target_libdir" -name "libcore-*.rlib" -print -quit | grep .
+                find "$target_libdir" -name "libstd-*.rlib" -print -quit | grep .
+                find "$target_libdir" -name "libcore-*.rmeta" -print -quit | grep .
+              done
+
+              scratch="$(mktemp -d)"
+              trap '\''rm -rf "$scratch"'\'' EXIT
+              printf "%s\n" \
+                "fn main() { println!(\"devcontainer-rust\"); }" \
+                > "$scratch/native.rs"
+              rustc "$scratch/native.rs" -o "$scratch/native"
+              test "$("$scratch/native")" = devcontainer-rust
+              rustc \
+                -C embed-bitcode=yes \
+                -C lto=fat \
+                "$scratch/native.rs" \
+                -o "$scratch/native-lto"
+              test "$("$scratch/native-lto")" = devcontainer-rust
+              test -z "$(find "$(rustc --print sysroot)/lib/rustlib" \
+                -name "librustc-nightly_rt.*.a" -print -quit)"
+
+              printf "%s\n" \
+                "pub fn devcontainer_target() -> String { String::from(\"ok\") }" \
+                > "$scratch/target.rs"
+              for target in \
+                x86_64-unknown-linux-gnu x86_64-unknown-uefi \
+                aarch64-unknown-linux-gnu aarch64-unknown-uefi; do
+                mkdir "$scratch/$target"
+                rustc \
+                  --crate-type lib \
+                  --emit metadata,obj \
+                  --target "$target" \
+                  --out-dir "$scratch/$target" \
+                  "$scratch/target.rs"
+              done
+
+              printf "%s\n" "fn main() {}" > "$scratch/uefi.rs"
+              for target in aarch64-unknown-uefi x86_64-unknown-uefi; do
+                output="$scratch/$target.efi"
+                rustc --target "$target" "$scratch/uefi.rs" -o "$output"
+                file "$output" \
+                  | grep -F "PE32+ executable (EFI application)"
+                case "$target" in
+                  aarch64-*) file "$output" | grep -F Aarch64 ;;
+                  x86_64-*) file "$output" | grep -F x86-64 ;;
+                esac
+              done
+
+              printf "%s\n" \
+                "#include <iostream>" \
+                "int main() { std::cout << \"devcontainer-cxx\"; }" \
+                > "$scratch/probe.cc"
+              clang++ "$scratch/probe.cc" -o "$scratch/probe"
+              test "$("$scratch/probe")" = devcontainer-cxx
+              clang++ \
+                -fuse-ld=mold \
+                "$scratch/probe.cc" \
+                -o "$scratch/probe-mold"
+              test "$("$scratch/probe-mold")" = devcontainer-cxx
+              readelf --string-dump=.comment "$scratch/probe-mold" \
+                | grep -F mold
+
+              printf "%s\n" \
+                "int devcontainer_add(int left, int right);" \
+                > "$scratch/probe.h"
+              bindgen \
+                "$scratch/probe.h" \
+                --allowlist-function devcontainer_add \
+                --output "$scratch/probe.rs"
+              grep -q "pub fn devcontainer_add" "$scratch/probe.rs"
+
+              clang --version
+              clangd --version
+              ld.lld --version
+              ld --version
+              objdump --version
+              mold --version
+              dotslash --version
+              node --version
+              npm --version
+              npx --version
+              test "$(node --print "process.config.variables.icu_small")" = true
+              test "$(node --print "new Intl.DateTimeFormat(\"en\", { month: \"long\", timeZone: \"UTC\" }).format(new Date(\"2026-01-01\"))")" = January
+              test "$(node --print "process.config.variables.node_prefix")" = \
+                "$(dirname "$(dirname "$(readlink -f "$(command -v node)")")")"
+              if command -v corepack; then
+                exit 1
+              fi
+
+              mkdir -p \
+                "$scratch/node-local-package/bin" \
+                "$scratch/node-consumer"
+              printf "%s\n" \
+                "{\"name\":\"devcontainer-local-cli\",\"version\":\"0.0.0\",\"bin\":{\"devcontainer-local-cli\":\"bin/cli.js\"}}" \
+                > "$scratch/node-local-package/package.json"
+              printf "%s\n" \
+                "#!/usr/bin/env node" \
+                "console.log(\"local-cli:\" + process.argv.slice(2).join(\",\"));" \
+                > "$scratch/node-local-package/bin/cli.js"
+              chmod +x "$scratch/node-local-package/bin/cli.js"
+              printf "%s\n" \
+                "{\"name\":\"devcontainer-node-smoke\",\"version\":\"0.0.0\"}" \
+                > "$scratch/node-consumer/package.json"
+              (
+                cd "$scratch/node-consumer"
+                export npm_config_cache="$scratch/npm-cache"
+                npm install \
+                  --ignore-scripts \
+                  --no-audit \
+                  --no-fund \
+                  --offline \
+                  "$scratch/node-local-package"
+                test "$(npx \
+                  --no-install \
+                  --offline \
+                  devcontainer-local-cli alpha beta)" = "local-cli:alpha,beta"
+              )
+
+              watchman --version
+              mkdir "$scratch/watch-root"
+              watchman watch-project "$scratch/watch-root" \
+                | jq --exit-status ".watch == \"$scratch/watch-root\"" >/dev/null
+              printf "%s\n" query-me > "$scratch/watch-root/query-me"
+              watchman query \
+                "$scratch/watch-root" \
+                "{\"expression\":[\"exists\"],\"fields\":[\"name\"]}" \
+                | jq --exit-status ".files | map(.name) | index(\"query-me\") != null" >/dev/null
+              watchman watch-del "$scratch/watch-root" \
+                | jq --exit-status ".\"watch-del\" == true" >/dev/null
+              watchman shutdown-server \
+                | jq --exit-status ".\"shutdown-server\" == true" >/dev/null
+              bindgen_version="$(bindgen --version)"
+              test "$bindgen_version" = "bindgen 0.72.1"
+            '
+
+      - name: Run the current VS Code Server Node binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --env VSCODE_ARCH="$VSCODE_ARCH" \
+            --entrypoint /bin/bash \
+            "$LOCAL_IMAGE" -euo pipefail -c '
+              scratch="$(mktemp -d)"
+              curl --fail --location --silent --show-error \
+                "https://update.code.visualstudio.com/latest/server-linux-${VSCODE_ARCH}/stable" \
+                --output "$scratch/vscode-server.tar.gz"
+              tar -xzf "$scratch/vscode-server.tar.gz" -C "$scratch"
+              server_node="$(find "$scratch" -type f -name node -perm -u+x -print -quit)"
+              test -n "$server_node"
+              "$server_node" --version
+              test "$("$server_node" --print "new Intl.DateTimeFormat(\"fr-FR\", { month: \"long\", timeZone: \"UTC\" }).format(new Date(\"2026-07-18\"))")" = juillet
+            '
+
+      - name: Install the pinned Dev Container CLI
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22"
+
+      - name: Prepare local Dev Container test configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global @devcontainers/cli@0.86.1
+          test "$(devcontainer --version)" = "0.86.1"
+
+          # Keep publication testing independent from the repository's consumer
+          # configuration. This allows the image to pass its release gates before
+          # devcontainer.json switches from the previous Dockerfile to canon.
+          mkdir -p "$RUNNER_TEMP/devcontainer-ci"
+          config="$RUNNER_TEMP/devcontainer-ci/devcontainer.json"
+          jq --null-input --arg image "$LOCAL_IMAGE" '
+            {
+              name: "Development container CI",
+              image: $image,
+              containerUser: "vscode",
+              remoteUser: "vscode",
+              updateRemoteUserUID: true,
+              overrideCommand: true,
+              updateContentCommand: [
+                "/bin/bash",
+                ".devcontainer/update-content.sh"
+              ],
+              postCreateCommand: [
+                "/bin/bash",
+                ".devcontainer/post-create.sh"
+              ],
+              waitFor: "postCreateCommand",
+              remoteEnv: {
+                PATH: "${containerWorkspaceFolder}/buck/bin:${containerWorkspaceFolder}/buck/bin/extra:${containerEnv:PATH}"
+              }
+            }
+          ' > "$config"
+          jq --exit-status --arg image "$LOCAL_IMAGE" '
+            .image == $image and
+            .containerUser == "vscode" and
+            .remoteUser == "vscode" and
+            .updateRemoteUserUID == true and
+            .waitFor == "postCreateCommand"
+          ' "$config"
+          echo "DEVCONTAINER_CI_CONFIG=$config" >> "$GITHUB_ENV"
+
+      - name: Exercise Dev Container lifecycle and UID update
+        shell: bash
+        run: |
+          set -euo pipefail
+          devcontainer up \
+            --workspace-folder "$GITHUB_WORKSPACE" \
+            --config "$DEVCONTAINER_CI_CONFIG"
+
+          host_uid="$(id -u)"
+          container_uid="$(devcontainer exec \
+            --workspace-folder "$GITHUB_WORKSPACE" \
+            --config "$DEVCONTAINER_CI_CONFIG" \
+            id -u | tail --lines=1 | tr -d '\r')"
+          test "$container_uid" = "$host_uid"
+
+          # This single-quoted script is intentionally expanded in the
+          # container, not by the runner shell.
+          # shellcheck disable=SC2016
+          devcontainer exec \
+            --workspace-folder "$GITHUB_WORKSPACE" \
+            --config "$DEVCONTAINER_CI_CONFIG" \
+            /bin/bash -euo pipefail -c '
+              probe="$(mktemp "$PWD/.devcontainer-ci.XXXXXX")"
+              rm -f "$probe"
+              for state_dir in /var/devcontainer /vscode; do
+                state_probe="$(mktemp "$state_dir/.devcontainer-ci.XXXXXX")"
+                rm -f "$state_probe"
+              done
+
+              config_file="${XDG_CONFIG_HOME:-$HOME/.config}/jj/config.toml"
+              if [[ -f "$config_file" ]]; then
+                config_before="$(sha256sum "$config_file")"
+              else
+                config_before=missing
+              fi
+
+              /bin/bash .devcontainer/update-content.sh
+              /bin/bash .devcontainer/post-create.sh
+
+              if [[ -f "$config_file" ]]; then
+                config_after="$(sha256sum "$config_file")"
+              else
+                config_after=missing
+              fi
+              test "$config_after" = "$config_before"
+
+              buck2 --version
+              buck2 test \
+                -c ci.depot_gha_ci=true \
+                -m debug \
+                root//src/crates/rustls-boring:rustls-boring-unittest
+            '
+
+          git diff --exit-code
+          git diff --cached --exit-code
+
+      - name: Log in to GitHub Container Registry
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push native immutable tag
+        if: env.PUBLISH == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          immutable_tag="${IMAGE}:sha-${GITHUB_SHA}-${ARCH}"
+          docker tag "$LOCAL_IMAGE" "$immutable_tag"
+          docker push "$immutable_tag"
+
+  manifest:
+    name: verify and promote manifest
+    needs: [image]
+    if: ${{ github.repository == 'thoughtpolice/a' && ((github.event_name == 'push' && github.ref == 'refs/heads/canon') || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c
         with:
@@ -33,21 +637,47 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
-        with:
-          images: ghcr.io/${{ github.repository }}/devcontainer
-          tags: |
-            type=ref,event=branch
-            type=sha,format=long
+      - name: Create and verify commit manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          commit_tag="${IMAGE}:sha-${GITHUB_SHA}"
+          docker buildx imagetools create \
+            --tag "$commit_tag" \
+            "${IMAGE}:sha-${GITHUB_SHA}-amd64" \
+            "${IMAGE}:sha-${GITHUB_SHA}-arm64"
 
-      - name: Build and push
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
-        with:
-          context: .devcontainer
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          docker buildx imagetools inspect --raw "$commit_tag" \
+            > "$RUNNER_TEMP/devcontainer-index.json"
+          jq -e '
+            (.manifests | length) == 2 and
+            ([.manifests[].platform | "\(.os)/\(.architecture)"] | sort) ==
+              ["linux/amd64", "linux/arm64"]
+          ' "$RUNNER_TEMP/devcontainer-index.json"
+          docker buildx imagetools inspect "$commit_tag"
+
+      - name: Promote verified manifest to canon
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            --tag "${IMAGE}:canon" \
+            "${IMAGE}:sha-${GITHUB_SHA}"
+          docker buildx imagetools inspect "${IMAGE}:canon"
+          docker buildx imagetools inspect --raw "${IMAGE}:canon" \
+            > "$RUNNER_TEMP/devcontainer-canon-index.json"
+          jq -e '
+            (.manifests | length) == 2 and
+            ([.manifests[].platform | "\(.os)/\(.architecture)"] | sort) ==
+              ["linux/amd64", "linux/arm64"]
+          ' "$RUNNER_TEMP/devcontainer-canon-index.json"
+
+      - name: Pull both children through canon
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull --platform linux/amd64 "${IMAGE}:canon"
+          test "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "${IMAGE}:canon")" = linux/amd64
+
+          docker pull --platform linux/arm64 "${IMAGE}:canon"
+          test "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "${IMAGE}:canon")" = linux/arm64
