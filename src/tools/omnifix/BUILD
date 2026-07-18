@@ -1,20 +1,38 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@toolchains//deno:defs.bzl", "deno")
+load("@root//buck/shims:shims.bzl", "shims")
 
-deno.binary(
-    name="omnifix",
-    main="main.ts",
-    type="run",
-    config="deno.jsonc",
-    permissions=["read", "run", "env"],
-    visibility=["PUBLIC"],
+SRCS = [
+    "buildifier.go",
+    "command.go",
+    "gofmt.go",
+    "main.go",
+    "omnifix.go",
+    "paths.go",
+    "rustfmt.go",
+    "whitespace.go",
+]
+
+shims.go_binary(
+    name = "omnifix",
+    srcs = SRCS,
+    cgo_enabled = False,
+    link_mode = "internal",
+    tests = [":unit"],
+    visibility = ["PUBLIC"],
 )
 
-deno.test(
-    name="test",
-    srcs=["test.ts"],
-    config="deno.jsonc",
-    permissions=["read", "write", "run", "env"],
+shims.go_test(
+    name = "unit",
+    srcs = SRCS + [
+        "buildifier_test.go",
+        "gofmt_test.go",
+        "main_test.go",
+        "omnifix_test.go",
+        "paths_test.go",
+        "rustfmt_test.go",
+        "whitespace_test.go",
+    ],
+    cgo_enabled = False,
 )

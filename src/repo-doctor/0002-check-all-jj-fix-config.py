@@ -32,7 +32,7 @@ to manually format code and may accidentally commit improperly formatted code.
 3. Add or fix the omnifix configuration in .jj/repo/config.toml:
 
    [fix.tools.omnifix]
-   command = ["deno", "run", "--allow-run", "src/tools/omnifix/main.ts", "$path"]
+   command = ["./buck/bin/buck2", "run", "omnifix", "--", "$path"]
    patterns = ["glob:**/*"]
 
 4. Verify TOML syntax is valid:
@@ -51,6 +51,8 @@ to manually format code and may accidentally commit improperly formatted code.
 
 The omnifix tool will:
 - Format Rust code with rustfmt
+- Format Go code with gofmt
+- Format Buck and Starlark code with buildifier
 - Trim trailing whitespace
 - Ensure files end with a newline
 - Run on every file in the tree for consistent style

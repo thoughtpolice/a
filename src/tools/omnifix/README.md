@@ -11,3 +11,7 @@ OmniFix™️ papers over these problems and lets you use a single command named
 `omnifix` that you then configure with `jj config --repo`. OmniFix™️ solves every
 problem you had and others you didn't. OmniFix™️ knows all. OmniFix™️ is watching
 you.
+
+OmniFix currently trims trailing whitespace, ensures a final newline, formats
+Rust source with `rustfmt`, formats Go source with `gofmt`, and formats Buck and
+Starlark source with `buildifier`.
