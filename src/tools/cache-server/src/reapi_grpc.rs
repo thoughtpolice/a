@@ -3,7 +3,9 @@
 
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 
+use accept::Accept;
 use dial9_tokio_telemetry::telemetry::TelemetryHandle;
+use rustls_transport::TlsAccept;
 use tower::Layer;
 
 use crate::store::CacheStore;
@@ -23,6 +25,7 @@ use protos::google::longrunning::operations_server::OperationsServer;
 
 pub async fn start_reapi_grpc(
     address: SocketAddr,
+    tls: Option<Arc<rustls::ServerConfig>>,
     shutdown: impl Future<Output = ()> + Send + 'static,
     store: Arc<CacheStore>,
     request_timeout: Option<Duration>,
@@ -92,11 +95,51 @@ pub async fn start_reapi_grpc(
 
     let listener = tokio::net::TcpListener::bind(address).await?;
 
-    // Apply global concurrency limit, then optionally a per-request timeout.
-    // When a pressure monitor is available, wrap the outermost layer with a
-    // gate that rejects requests under severe memory pressure (UNAVAILABLE).
-    //
-    // The branches avoid complex type-erasure; serve_traced is generic.
+    match tls {
+        Some(config) => {
+            serve_stack(
+                TlsAccept::new(listener, config),
+                routes,
+                request_timeout,
+                effective_limit,
+                pressure_monitor,
+                handle,
+                shutdown,
+            )
+            .await
+        }
+        None => {
+            serve_stack(
+                listener,
+                routes,
+                request_timeout,
+                effective_limit,
+                pressure_monitor,
+                handle,
+                shutdown,
+            )
+            .await
+        }
+    }
+}
+
+/// Serve the prepared routes over any transport: plain TCP, TLS, or later
+/// an iroh acceptor.
+///
+/// Applies the global concurrency limit, then optionally a per-request
+/// timeout. When a pressure monitor is available, wraps the outermost
+/// layer with a gate that rejects requests under severe memory pressure
+/// (UNAVAILABLE). The branches avoid complex type-erasure; serve_traced
+/// is generic.
+async fn serve_stack<A: Accept>(
+    acceptor: A,
+    routes: tonic::service::Routes,
+    request_timeout: Option<Duration>,
+    effective_limit: usize,
+    pressure_monitor: Option<runtime::psi::PressureMonitor>,
+    handle: TelemetryHandle,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+) -> Result<(), Box<dyn std::error::Error>> {
     match (request_timeout, pressure_monitor) {
         (Some(timeout), Some(monitor)) => {
             let svc = crate::pressure_gate::PressureGateLayer::new(
@@ -107,14 +150,14 @@ pub async fn start_reapi_grpc(
                 tower::timeout::Timeout::new(routes, timeout),
                 effective_limit,
             ));
-            dial9_tonic::serve_traced(listener, svc, handle, shutdown).await
+            dial9_tonic::serve_traced(acceptor, svc, handle, shutdown).await
         }
         (Some(timeout), None) => {
             let svc = tower::limit::ConcurrencyLimit::new(
                 tower::timeout::Timeout::new(routes, timeout),
                 effective_limit,
             );
-            dial9_tonic::serve_traced(listener, svc, handle, shutdown).await
+            dial9_tonic::serve_traced(acceptor, svc, handle, shutdown).await
         }
         (None, Some(monitor)) => {
             let svc = crate::pressure_gate::PressureGateLayer::new(
@@ -122,11 +165,11 @@ pub async fn start_reapi_grpc(
                 runtime::psi::PressureLevel::High,
             )
             .layer(tower::limit::ConcurrencyLimit::new(routes, effective_limit));
-            dial9_tonic::serve_traced(listener, svc, handle, shutdown).await
+            dial9_tonic::serve_traced(acceptor, svc, handle, shutdown).await
         }
         (None, None) => {
             let svc = tower::limit::ConcurrencyLimit::new(routes, effective_limit);
-            dial9_tonic::serve_traced(listener, svc, handle, shutdown).await
+            dial9_tonic::serve_traced(acceptor, svc, handle, shutdown).await
         }
     }
 }
