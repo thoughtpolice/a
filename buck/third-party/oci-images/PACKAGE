@@ -19,6 +19,7 @@ pkg.info(
     # Reference the Chainguard images repository
     osv_info = OsvGitRepoInfo(
         url = "https://github.com/chainguard-images/images",
-        commit = "main",
+        # Upstream repository snapshot corresponding to VERSION's date.
+        commit = "916158dae96b066f50a7278c38f389df027e3b7b",
     ),
 )

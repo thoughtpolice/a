@@ -18,7 +18,8 @@ pkg.info(
     },
     osv_info = OsvGitRepoInfo(
         url = "https://github.com/racket/racket",
-        commit = "main",  # Should be updated to specific commit when vendoring
+        # Upstream main at the time this Zuo snapshot was vendored.
+        commit = "2a408328b6627791d0945e63f05bb9bae3b749d2",
     ),
     visibility = ["PUBLIC"],
 )
