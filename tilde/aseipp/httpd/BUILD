@@ -6,4 +6,6 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 depot.go_binary(
     name = "httpd",
     srcs = ["main.go"],
+    cgo_enabled = False,
+    link_mode = "internal",
 )
