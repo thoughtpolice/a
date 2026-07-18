@@ -111,6 +111,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
     ocaml_style_copyright = "(* SPDX-FileCopyrightText: © "
     lisp_style_copyright = ";; SPDX-FileCopyrightText: © "
     erlang_style_copyright = "%% SPDX-FileCopyrightText: © "
+    html_style_copyright = "<!-- SPDX-FileCopyrightText: © "
 
     # Define comment styles for license (we'll check the license separately)
     bzl_style_license_prefix = "# SPDX-License-Identifier: "
@@ -119,6 +120,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
     ocaml_style_license_prefix = "(* SPDX-License-Identifier: "
     lisp_style_license_prefix = ";; SPDX-License-Identifier: "
     erlang_style_license_prefix = "%% SPDX-License-Identifier: "
+    html_style_license_prefix = "<!-- SPDX-License-Identifier: "
 
     file_styles = {
         ".py": (bzl_style_copyright, bzl_style_license_prefix),
@@ -144,6 +146,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".yaml": (bzl_style_copyright, bzl_style_license_prefix),
         ".fish": (bzl_style_copyright, bzl_style_license_prefix),
         ".toml": (bzl_style_copyright, bzl_style_license_prefix),
+        ".html": (html_style_copyright, html_style_license_prefix),
         ".zuo": (lisp_style_copyright, lisp_style_license_prefix),
         ".sv": (cxx_style_copyright, cxx_style_license_prefix),
         ".erl": (erlang_style_copyright, erlang_style_license_prefix),
@@ -160,8 +163,17 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
 
     copyright_prefix, license_prefix = file_styles[file_ext]
 
-    # Look for one or more copyright lines followed by license line
+    # HTML requires its doctype before other markup. Treat that declaration as
+    # a format preamble, then require the SPDX header immediately after it.
     i = 0
+    if (
+        file_ext == ".html"
+        and lines
+        and lines[0].strip().lower() == "<!doctype html>"
+    ):
+        i = 1
+
+    # Look for one or more copyright lines followed by license line
     copyright_found = False
 
     # Check for at least one copyright line
@@ -206,6 +218,8 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         license_id = license_id[:-3].strip()
     elif license_id.endswith(" *)"):
         license_id = license_id[:-3].strip()
+    elif license_id.endswith(" -->"):
+        license_id = license_id[:-4].strip()
 
     # Check if it's an allowed license
     if (
