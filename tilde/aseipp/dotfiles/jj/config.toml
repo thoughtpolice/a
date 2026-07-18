@@ -205,7 +205,7 @@ reheat = ["rebase", "--simplify-parents", "-d", "trunk()", "-s", "roots(trunk().
 
 # 'jj sandwich xyz' to move xyz into the megamerge in parallel to everything
 # else. See notes on 'megamerge()' above for how it's resolved.
-sandwich = [ "rebase", "-B", "megamerge()", "-A", "trunk()", "-r"]
+sandwich = [ "rebase", "-B", "megamerge()", "-A", "coalesce(present(mmbase), trunk())", "-r"]
 
 # Take content from any change, and move it into @. The inverse of 'eject'
 # - jj consume xyz path/to/file`
