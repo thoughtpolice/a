@@ -4,9 +4,12 @@
 """Rust tests driven by Buck2's in-process test runner.
 
 The stock `rust_test` rule surfaces a whole libtest binary as one opaque
-test: ten `#[test]` functions still show up as a single unit of work. The
-`rust_test_internal` rule instead hands the binary to Buck2's internal
-runner via `InternalRunnerTestInfo`, which
+test: ten `#[test]` functions still show up as a single unit of work. When the
+root `test.use_internal_runner` setting enables the `rust` framework, the
+public `depot.rust_test` macro selects the private rule in this file. It
+compiles the exact same harness — reusing the prelude `rust_test` attrs and
+implementation — but swaps
+`ExternalRunnerTestInfo` for `InternalRunnerTestInfo`, which
 
   1. runs `<binary> --list --format terse` to discover individual tests,
   2. runs `<binary> --exact <name>` once per discovered test, and
@@ -30,7 +33,19 @@ one test appearing under several targets (say a per-module target and an
 all-in-one target compiling the same module) stays distinguishable. The
 parse callbacks are constructed per target during analysis to capture that
 label; only the bare test path is used as the execution filter.
+
+Delegation makes these targets indistinguishable from `rust_test` outside
+of `buck2 test`: `buck2 run` behaves identically (env injection included),
+`DefaultInfo` keeps its sub-targets (rust-analyzer materializes `sources`),
+and `RustAnalyzerInfo` carries target kind "test" so rust-project discovers
+the target through the `_rust_analyzer_target_kind` attribute. For unit
+tests sharing a library's crate root, name the target `<library>-unittest`
+and list it in the library's `tests` attribute: rust-project then folds the
+test into the library crate (activating cfg(test) and the test-only deps)
+instead of emitting a second crate with a duplicate root.
 """
+
+load("@prelude//decls:rust_rules.bzl", _prelude_rust_test = "rust_test")
 
 _LISTING_SUFFIX = ": test"
 _RESULT_SEP = " ... "
@@ -76,17 +91,22 @@ def _result_entries(stdout: str) -> list[dict]:
     results = []
     duration = None
     panic_line = None
+    in_failure_output = False
     lines = stdout.splitlines()
     for i in range(len(lines)):
         line = lines[i].strip()
-        if line.startswith("test result:"):
+        if line == "failures:":
+            # Captured output follows this marker and is arbitrary user text;
+            # do not interpret status-shaped lines inside it as harness output.
+            in_failure_output = True
+        elif line.startswith("test result:"):
             idx = line.find("finished in ")
             if idx != -1:
                 value = line[idx + len("finished in "):].strip()
                 if value.endswith("s"):
                     value = value[:len(value) - 1]
                 duration = _float_or_none(value)
-        elif line.startswith("test ") and _RESULT_SEP in line:
+        elif not in_failure_output and line.startswith("test ") and _RESULT_SEP in line:
             head = line[len("test "):]
             sep = head.find(_RESULT_SEP)
             name = head[:sep]
@@ -115,9 +135,6 @@ def _result_entries(stdout: str) -> list[dict]:
     return results
 
 def _rust_test_internal_impl(ctx: AnalysisContext) -> list[Provider]:
-    binary = ctx.attrs.binary
-    default_info = binary[DefaultInfo]
-
     # Closures capturing the target label, so reported names read
     # `src/tools/cache-server/storage:tests-concurrency - cas::get_blob`
     # while the execution filter stays the bare test path.
@@ -130,46 +147,63 @@ def _rust_test_internal_impl(ctx: AnalysisContext) -> list[Provider]:
         ]
 
     def parse_test_result(stdout: str, stderr: str, exit_code: int) -> list[dict]:
-        _ = (stderr, exit_code)  # runner synthesizes from exit code if we return []
+        _ = stderr
         results = _result_entries(stdout)
+
+        # An exact invocation must produce exactly one result whose status
+        # agrees with the process exit. Returning no entries asks Buck to
+        # synthesize PASS/FAIL from that exit code and retain the raw output.
+        if len(results) != 1:
+            return []
+        if exit_code == 0 and results[0]["status"] == "FAIL":
+            return []
+        if exit_code != 0 and results[0]["status"] != "FAIL":
+            return []
+
         for result in results:
             result["name"] = target + " - " + result["name"]
         return results
 
-    return [
-        # Forward the harness binary so `buck2 build` and `buck2 run` on the
-        # test target behave like they did for `rust_test`. Unlike the old
-        # rule, RunInfo does not inject `env` — that only affected `buck2
-        # run`, never test execution.
-        DefaultInfo(
-            default_outputs = default_info.default_outputs,
-            other_outputs = default_info.other_outputs,
-        ),
-        RunInfo(args = cmd_args(binary[RunInfo])),
-        InternalRunnerTestInfo(
-            type = "rust",
-            command = [cmd_args(binary[RunInfo]), "--exact"],
-            listing_command = [cmd_args(binary[RunInfo]), "--list", "--format", "terse"],
-            env = ctx.attrs.env,
-            labels = ctx.attrs.labels,
-            contacts = ctx.attrs.contacts,
-            run_from_project_root = True,
-            use_project_relative_paths = True,
-            parse_test_listing = parse_test_listing,
-            parse_test_result = parse_test_result,
-        ),
-    ]
+    # The external-runner provider carries the bare harness invocation; keep
+    # that as our command base and drop the provider itself so `buck2 test`
+    # only ever sees the internal runner. Everything else passes through.
+    providers = []
+    external = None
+    for p in _prelude_rust_test.impl(ctx):
+        if isinstance(p, ExternalRunnerTestInfo):
+            external = p
+        else:
+            providers.append(p)
+    if external == None:
+        fail("prelude rust_test impl returned no ExternalRunnerTestInfo")
+
+    harness = list(external.command)
+    providers.append(InternalRunnerTestInfo(
+        # The provider constructor calls this `type`, while its readable field
+        # is exposed as `test_type`.
+        type = external.test_type,
+        command = harness + ["--exact"],
+        listing_command = harness + ["--list", "--format", "terse"],
+        env = external.env,
+        labels = external.labels,
+        contacts = external.contacts,
+        run_from_project_root = external.run_from_project_root,
+        use_project_relative_paths = external.use_project_relative_paths,
+        default_executor = external.default_executor,
+        executor_overrides = external.executor_overrides,
+        local_resources = external.local_resources,
+        required_local_resources = external.required_local_resources,
+        worker = external.worker,
+        supports_test_execution_caching = external.supports_test_execution_caching,
+        parse_test_listing = parse_test_listing,
+        parse_test_result = parse_test_result,
+    ))
+    return providers
 
 rust_test_internal = rule(
     impl = _rust_test_internal_impl,
-    attrs = {
-        "binary": attrs.dep(
-            providers = [RunInfo],
-            doc = "The libtest harness executable (a rust_binary compiled with --test).",
-        ),
-        "contacts": attrs.list(attrs.string(), default = []),
-        "env": attrs.dict(key = attrs.string(), value = attrs.arg(), sorted = False, default = {}),
-        "labels": attrs.list(attrs.string(), default = []),
-    },
-    doc = "Runs a libtest binary through Buck2's internal runner, one process per discovered test.",
+    attrs = _prelude_rust_test.attrs,
+    uses_plugins = _prelude_rust_test.uses_plugins,
+    supports_incoming_transition = _prelude_rust_test.supports_incoming_transition,
+    doc = "rust_test whose harness runs through Buck2's internal runner, one process per discovered test.",
 )
