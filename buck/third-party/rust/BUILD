@@ -8740,6 +8740,29 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "glob",
+    actual = ":glob-0.3.3",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "glob-0.3.3.crate",
+    sha256 = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280",
+    strip_prefix = "glob-0.3.3",
+    urls = ["https://static.crates.io/crates/glob/0.3.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "glob-0.3.3",
+    srcs = [":glob-0.3.3.crate"],
+    crate = "glob",
+    crate_root = "glob-0.3.3.crate/src/lib.rs",
+    edition = "2015",
+    visibility = [],
+)
+
 shims.http_archive(
     name = "globset-0.4.19.crate",
     sha256 = "e47d37d2ae4464254884b60ab7071be2b876a9c35b696bd018ddcc76847309cd",
