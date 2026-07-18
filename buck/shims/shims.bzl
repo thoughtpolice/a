@@ -5,6 +5,7 @@ load("@prelude//utils:buckconfig.bzl", "read_choice")
 load("@prelude//cfg/modifier:conditional_modifier.bzl", "conditional_modifier")
 
 load("@root//buck/lib/tar:defs.bzl", _tar_file = "tar_file")
+load("@root//buck/shims:go_test_internal.bzl", _go_test_internal_rule = "go_test_internal")
 load("@root//buck/shims:rust_test_internal.bzl", _rust_test_internal_rule = "rust_test_internal")
 load("@root//buck/lib/oci:defs.bzl", _oci_image = "oci_image", _oci_index = "oci_index", _oci_pull = "oci_pull", _oci_repack = "oci_repack", _oci_unpack = "oci_unpack")
 load("@toolchains//k6:defs.bzl", "k6_run")
@@ -118,6 +119,14 @@ def _depot_rust_test(**kwargs):
         _depot_rust_rule('rust_test', fn = _rust_test_internal_rule, **kwargs)
     else:
         _depot_rust_rule('rust_test', **kwargs)
+
+def _depot_go_test(**kwargs):
+    """Define a Go test using the configured Buck2 test runner."""
+    kwargs = _fix_kwargs("go_test", kwargs)
+    if _use_internal_test_runner("go"):
+        _go_test_internal_rule(**kwargs)
+    else:
+        native.go_test(**kwargs)
 
 def _depot_cxx_library(**kwargs):
     kwargs = _fix_kwargs("cxx_library", kwargs)
@@ -415,7 +424,7 @@ shims = struct(
 
     go_binary = lambda **kwargs: native.go_binary(**_fix_kwargs("go_binary", kwargs)),
     go_library = lambda **kwargs: native.go_library(**_fix_kwargs("go_library", kwargs)),
-    go_test = lambda **kwargs: native.go_test(**_fix_kwargs("go_test", kwargs)),
+    go_test = _depot_go_test,
 
     erlang_app = lambda **kwargs: native.erlang_app(**_fix_kwargs("erlang_app", kwargs)),
     erlang_test = lambda **kwargs: native.erlang_test(**_fix_kwargs("erlang_test", kwargs)),
