@@ -11,67 +11,101 @@
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
-    flake-utils.lib.eachSystem [
-      "aarch64-darwin"
-      "aarch64-linux"
-      "x86_64-linux"
-    ] (system: let
-      pkgs = import nixpkgs {
-        inherit system;
-        overlays = [ (import rust-overlay) ];
-      };
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      rust-overlay,
+    }:
+    flake-utils.lib.eachSystem
+      [
+        "aarch64-darwin"
+        "aarch64-linux"
+        "x86_64-linux"
+      ]
+      (
+        system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [ (import rust-overlay) ];
+          };
 
-      cross = import nixpkgs {
-        crossSystem = { config = "aarch64-unknown-linux-gnu"; };
-      };
+          cross = import nixpkgs {
+            crossSystem = {
+              config = "aarch64-unknown-linux-gnu";
+            };
+          };
 
-      ourRustVersion = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.complete);
+          ourRustVersion = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.complete);
 
-      llvmPackages = pkgs.llvmPackages_latest;
-      ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_4;
+          llvmPackages = pkgs.llvmPackages_latest;
+          ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_4;
 
-      # these are needed in both devShell and buildInputs
-      darwinDeps = with pkgs; lib.optionals stdenv.isDarwin [ ];
+          # these are needed in both devShell and buildInputs
+          darwinDeps = with pkgs; lib.optionals stdenv.isDarwin [ ];
 
-      # these are needed in both devShell and buildInputs
-      linuxDeps = with pkgs; lib.optionals stdenv.isLinux [
-        mold
-      ];
-    in {
-      devShells.default = pkgs.mkShell {
-        packages = (with llvmPackages; [
-          lld
-          clang
-          clang-tools
-          bolt
-          lldb
-        ]) ++ (with ocamlPackages; [
-          ocaml
-        ]) ++ (with pkgs; [
-          ourRustVersion
+          # these are needed in both devShell and buildInputs
+          linuxDeps =
+            with pkgs;
+            lib.optionals stdenv.isLinux [
+              mold
+            ];
+        in
+        {
+          devShells.default = pkgs.mkShell {
+            packages =
+              (with llvmPackages; [
+                lld
+                clang
+                clang-tools
+                bolt
+                lldb
+              ])
+              ++ (with ocamlPackages; [
+                ocaml
+              ])
+              ++ (with pkgs; [
+                ourRustVersion
 
-          # general utilities
-          gdb qemu swtpm dotslash unzip
-          hunspell hunspellDicts."en_US-large"
-          watchman
+                # general utilities
+                gdb
+                qemu
+                swtpm
+                dotslash
+                unzip
+                hunspell
+                hunspellDicts."en_US-large"
+                watchman
 
-          # cargo tools
-          cargo-edit bloaty rust-bindgen
+                # cargo tools
+                cargo-edit
+                bloaty
+                rust-bindgen
 
-          # other toolchains
-          nodejs go_latest uv erlang_28
-        ]) ++ darwinDeps ++ linuxDeps;
+                # other toolchains
+                nodejs
+                go_latest
+                uv
+                erlang_28
+              ])
+              ++ darwinDeps
+              ++ linuxDeps;
 
-        shellHook = with pkgs; ''
-          export SEMGREP_ENABLE_VERSION_CHECK=0
-          export SEMGREP_SEND_METRICS=off
+            shellHook =
+              with pkgs;
+              ''
+                export SEMGREP_ENABLE_VERSION_CHECK=0
+                export SEMGREP_SEND_METRICS=off
 
-          export RUST_BACKTRACE=1
-          export RUSTFLAGS="-Zthreads=0"
-        '' + lib.optionalString stdenv.isLinux ''
-          export RUSTFLAGS+=" -C link-arg=-fuse-ld=mold -C link-arg=-Wl,--compress-debug-sections=zstd"
-        '';
-      };
-    });
+                export RUST_BACKTRACE=1
+                export RUSTFLAGS="-Zthreads=0"
+              ''
+              + lib.optionalString stdenv.isLinux ''
+                export RUSTFLAGS+=" -C link-arg=-fuse-ld=mold -C link-arg=-Wl,--compress-debug-sections=zstd"
+              '';
+          };
+        }
+      );
 }
