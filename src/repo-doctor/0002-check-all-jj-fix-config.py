@@ -52,6 +52,7 @@ to manually format code and may accidentally commit improperly formatted code.
 The omnifix tool will:
 - Format Rust code with rustfmt
 - Format Go code with gofmt
+- Format Nix code with nixfmt
 - Format Buck and Starlark code with buildifier
 - Trim trailing whitespace
 - Ensure files end with a newline

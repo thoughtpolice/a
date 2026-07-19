@@ -13,5 +13,5 @@ problem you had and others you didn't. OmniFix™️ knows all. OmniFix™️ is
 you.
 
 OmniFix currently trims trailing whitespace, ensures a final newline, formats
-Rust source with `rustfmt`, formats Go source with `gofmt`, and formats Buck and
-Starlark source with `buildifier`.
+Rust source with `rustfmt`, formats Go source with `gofmt`, formats Nix source
+with `nixfmt`, and formats Buck and Starlark source with `buildifier`.

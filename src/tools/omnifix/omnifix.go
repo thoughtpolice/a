@@ -36,6 +36,7 @@ func newDefaultFixer(stderr io.Writer) *fixer {
 		whitespaceFormatter{},
 		newRustFormatter(nil),
 		newGoFormatter(nil),
+		newNixFormatter(nil),
 		newBuildifierFormatter(nil),
 	)
 }
