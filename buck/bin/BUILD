@@ -20,15 +20,14 @@ FILE_LIST = glob(
 ]
 
 [
-    shims.command_test(
+    shims.run_test(
         name = "test-check-{}".format(file),
-        cmd = [
-            "python3",
-            "$(location //buck/tools/check-dotslash-file:{})".format(
-                "check-hashes" if not file.endswith(".exe") else "check-windows-shim",
-            ),
+        args = [
             "$(location :{})".format(file),
         ],
+        dep = "//buck/tools/check-dotslash-file:{}".format(
+            "check-hashes" if not file.endswith(".exe") else "check-windows-shim",
+        ),
     )
     for file in FILE_LIST
 ]

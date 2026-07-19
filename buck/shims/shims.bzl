@@ -271,16 +271,21 @@ def _command(**kwargs):
     kwargs = _fix_kwargs("command", kwargs)
     _command_rule(**kwargs)
 
-_run_test_rule = rule(
-    impl = lambda ctx: [
+def _run_test_impl(ctx: AnalysisContext) -> list[Provider]:
+    command = [ctx.attrs.dep[RunInfo].args] + ctx.attrs.args
+    return [
         DefaultInfo(),
-        RunInfo(args = cmd_args(ctx.attrs.dep[RunInfo].args)),
+        RunInfo(args = cmd_args(command)),
         ExternalRunnerTestInfo(
             type = "custom",
-            command = [ctx.attrs.dep[RunInfo].args],
+            command = command,
         ),
-    ],
+    ]
+
+_run_test_rule = rule(
+    impl = _run_test_impl,
     attrs = {
+        "args": attrs.list(attrs.arg(), default = []),
         "dep": attrs.dep(providers = [RunInfo]),
     },
 )
