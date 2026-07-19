@@ -28,6 +28,15 @@ shims.toolchain_alias(
     actual = "toolchains//cxx:cxx",
 )
 
+# The prelude's _cxx_toolchain() attribute default is a select() whose
+# non-DEFAULT branch names toolchains//:cxx_no_default_deps. That branch is
+# never selectable here, but unconfigured queries (uquery deps/rdeps) walk
+# every select branch, so the target has to exist for those to work.
+shims.toolchain_alias(
+    name = "cxx_no_default_deps",
+    actual = "toolchains//cxx:cxx",
+)
+
 shims.toolchain_alias(
     name = "deno",
     actual = "toolchains//deno:deno",
