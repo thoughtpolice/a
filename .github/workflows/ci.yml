@@ -106,7 +106,8 @@ jobs:
           }
 
           retry_command buck2 test -c ci.depot_gha_ci=true -m debug root//... tilde//... cellar//bootstrap/stage0-posix/... \
-            --build-report ${{ runner.temp }}/build-report.json -- \
+            --build-report ${{ runner.temp }}/build-report.json \
+            --build-report-options fill-out-failures -- \
             --env SEMGREP_ENABLE_VERSION_CHECK=0
       - name: Upload build logs
         if: always()
@@ -116,9 +117,12 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [ -f "${{ runner.temp }}/build-report.json" ]; then
-            echo "## Build Report Summary"
-            buck2 run root//buck/tools/build-report:build-report -- "${{ runner.temp }}/build-report.json"
+          # Report generation is informational: pass/fail signal comes from
+          # the test step, and the summary matters most when that failed.
+          REPORT="${{ runner.temp }}/build-report.json"
+          if [ -f "$REPORT" ]; then
+            buck2 run root//buck/tools/build-report:build-report -- "$REPORT" || true
+            buck2 run root//buck/tools/build-report:build-report -- --format markdown "$REPORT" >> "$GITHUB_STEP_SUMMARY" || true
           else
             echo "Build report file not found, skipping report generation"
           fi
@@ -249,12 +253,14 @@ jobs:
               root//buck/... \
               --skip-missing-targets \
               --skip-incompatible-targets \
-              --build-report ${{ runner.temp }}/build-report.json -- \
+              --build-report ${{ runner.temp }}/build-report.json \
+              --build-report-options fill-out-failures -- \
               --env SEMGREP_ENABLE_VERSION_CHECK=0
           else
             echo "Falling back to full test"
             buck2 test -c ci.depot_gha_ci=true @mode//debug root//... tilde//... cellar//bootstrap/stage0-posix/... \
-              --build-report ${{ runner.temp }}/build-report.json -- \
+              --build-report ${{ runner.temp }}/build-report.json \
+              --build-report-options fill-out-failures -- \
               --env SEMGREP_ENABLE_VERSION_CHECK=0
           fi
         env:
@@ -285,9 +291,10 @@ jobs:
           fi
 
           echo
-          if [ -f "${{ runner.temp }}/build-report.json" ]; then
-            echo "## Build Report Summary (Target Determination)"
-            buck2 run root//buck/tools/build-report:build-report -- "${{ runner.temp }}/build-report.json"
+          REPORT="${{ runner.temp }}/build-report.json"
+          if [ -f "$REPORT" ]; then
+            buck2 run root//buck/tools/build-report:build-report -- "$REPORT" || true
+            buck2 run root//buck/tools/build-report:build-report -- --format markdown "$REPORT" >> "$GITHUB_STEP_SUMMARY" || true
           else
             echo "Build report file not found, skipping report generation"
           fi
