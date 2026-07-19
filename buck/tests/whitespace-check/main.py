@@ -81,6 +81,7 @@ def should_check_file(file_path):
         r"^\.git/",
         r"^buck-out/",
         r"^\.direnv/",
+        r"^\.vscode/extensions/[^/]+/out/",
         r"^cellar/",
         r"node_modules",  # anywhere in path
         r"^\.ruff_cache/",
