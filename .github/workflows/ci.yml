@@ -65,16 +65,17 @@ jobs:
       - name: Set up environment
         shell: bash
         run: echo "PATH=$GITHUB_WORKSPACE/buck/bin:$GITHUB_WORKSPACE/buck/bin/extra:$PATH" >> $GITHUB_ENV
+      - name: Configure Buck2 for CI
+        shell: bash
+        run: |
+          printf '\n' >> .buckconfig.local
+          cat buck/ci.buckconfig >> .buckconfig.local
       - name: Init jj repository
         shell: bash
         run: dotslash ./buck/bin/extra/jj git init --colocate
       - name: buck2 test ...
         shell: bash
         run: |
-          # don't use watchman in CI, it's pointless
-          echo '[buck2]' >> .buckconfig.local
-          echo 'file_watcher = notify' >> .buckconfig.local
-
           # Retry function: attempts a command up to 5 times with exponential backoff
           retry_command() {
             local max_attempts=5
@@ -105,7 +106,7 @@ jobs:
             return $exit_code
           }
 
-          retry_command buck2 test -c ci.depot_gha_ci=true -m debug root//... tilde//... cellar//bootstrap/stage0-posix/... \
+          retry_command buck2 test @buck/ci.buckargs -m debug root//... tilde//... cellar//bootstrap/stage0-posix/... \
             --build-report ${{ runner.temp }}/build-report.json \
             --build-report-options fill-out-failures -- \
             --env SEMGREP_ENABLE_VERSION_CHECK=0
@@ -177,16 +178,14 @@ jobs:
       - name: Set up environment
         shell: bash
         run: echo "PATH=$GITHUB_WORKSPACE/buck/bin:$GITHUB_WORKSPACE/buck/bin/extra:$PATH" >> $GITHUB_ENV
+      - name: Configure Buck2 for CI
+        shell: bash
+        run: |
+          printf '\n' >> .buckconfig.local
+          cat buck/ci.buckconfig >> .buckconfig.local
       - name: Init jj repository
         shell: bash
         run: dotslash ./buck/bin/extra/jj git init --colocate
-      - name: Configure .buckconfig.local
-        shell: bash
-        run: |
-          # don't use watchman in CI, it's pointless
-          echo '[buck2]' >> .buckconfig.local
-          echo 'file_watcher = notify' >> .buckconfig.local
-
       - name: Determine affected targets
         id: determine-targets
         continue-on-error: true
@@ -206,7 +205,7 @@ jobs:
           echo "Determining impacted targets..."
 
           # Run target determination
-          TARGETS_FILE=$(buck2 run -c ci.depot_gha_ci=true root//buck/tools/quicktd -- "$BASE_COMMIT" "$HEAD_COMMIT" depot//...)
+          TARGETS_FILE=$(buck2 run @buck/ci.buckargs root//buck/tools/quicktd -- "$BASE_COMMIT" "$HEAD_COMMIT" depot//...)
 
           if [ -f "$TARGETS_FILE" ]; then
             TARGET_COUNT=$(wc -l < "$TARGETS_FILE")
@@ -245,7 +244,7 @@ jobs:
         run: |
           if [ "${TARGETS_FOUND}" = "true" ] && [ "${REASONABLE_TARGET_COUNT}" = "true" ]; then
             echo "Testing targeted selection of ${TARGET_COUNT} targets"
-            buck2 test -c ci.depot_gha_ci=true -m debug @"${TARGET_FILE}" \
+            buck2 test @buck/ci.buckargs -m debug @"${TARGET_FILE}" \
               root//buck/... \
               --skip-missing-targets \
               --skip-incompatible-targets \
@@ -254,7 +253,8 @@ jobs:
               --env SEMGREP_ENABLE_VERSION_CHECK=0
           else
             echo "Falling back to full test"
-            buck2 test -c ci.depot_gha_ci=true @mode//debug root//... tilde//... cellar//bootstrap/stage0-posix/... \
+            buck2 test @buck/ci.buckargs -m debug \
+              root//... tilde//... cellar//bootstrap/stage0-posix/... \
               --build-report ${{ runner.temp }}/build-report.json \
               --build-report-options fill-out-failures -- \
               --env SEMGREP_ENABLE_VERSION_CHECK=0
