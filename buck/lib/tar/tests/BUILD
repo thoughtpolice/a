@@ -4,20 +4,36 @@
 load("@root//buck/lib/tar:defs.bzl", "tar_file")
 load("@root//buck/shims:shims.bzl", "shims")
 
-# Test tar_file with prefix
+shims.export_file(
+    name = "test_with_prefix.txt",
+    src = "test_with_prefix.txt",
+)
+
 tar_file(
-    name = "test_with_prefix",
-    srcs = ["test_with_prefix.txt"],
+    name = "test_with_prefix_a",
+    srcs = [":test_with_prefix.txt"],
     compress = True,
     prefix = "usr/local/bin",
 )
 
-# Verify the prefix works correctly
-shims.command_test(
-    name = "test_verify_prefix",
-    cmd = [
-        "bash",
-        "-c",
-        "tar tzf $(location :test_with_prefix) | grep -q 'usr/local/bin/test_with_prefix.txt'",
+tar_file(
+    name = "test_with_prefix_b",
+    srcs = [":test_with_prefix.txt"],
+    compress = True,
+    prefix = "usr/local/bin",
+)
+
+python_bootstrap_binary(
+    name = "verify_tar",
+    main = "verify_tar.py",
+)
+
+shims.run_test(
+    name = "test_tar",
+    args = [
+        "$(location :test_with_prefix_a)",
+        "$(location :test_with_prefix_b)",
+        "$(location :test_with_prefix.txt)",
     ],
+    dep = ":verify_tar",
 )
