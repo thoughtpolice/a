@@ -1,0 +1,2 @@
+--config=ci.depot_gha_ci=true
+--console=simplenotty
