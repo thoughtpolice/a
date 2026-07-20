@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -245,6 +247,207 @@ func TestGroupAdvisoriesMatchesExceptionsThroughAliases(t *testing.T) {
 	}
 	if groups[0].ExceptionReason != "" {
 		t.Fatal("Rust exception was incorrectly applied to a generic package")
+	}
+}
+
+func TestWriteTestListing(t *testing.T) {
+	var output bytes.Buffer
+	writeTestListing("all", &output)
+	want := "test: generic:all generic-packages\ntest: rust:all rust-packages\n"
+	if output.String() != want {
+		t.Fatalf("listing = %q, want %q", output.String(), want)
+	}
+
+	output.Reset()
+	writeTestListing("rust", &output)
+	if output.String() != "test: rust:all rust-packages\n" {
+		t.Fatalf("unexpected rust listing %q", output.String())
+	}
+
+	output.Reset()
+	writeTestListing("generic", &output)
+	if output.String() != "test: generic:all generic-packages\n" {
+		t.Fatalf("unexpected generic listing %q", output.String())
+	}
+}
+
+func writeTempCargoLock(t *testing.T, contents string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "Cargo.lock")
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func harnessOSVServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/querybatch":
+			var request struct {
+				Queries []osvQuery `json:"queries"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Errorf("decode query: %v", err)
+			}
+			results := make([]osvResult, len(request.Queries))
+			for index, query := range request.Queries {
+				if query.Package == nil {
+					continue
+				}
+				switch query.Package.PURL {
+				case "pkg:cargo/vulnerable":
+					results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "OSV-2"}}}
+				case "pkg:cargo/derivative":
+					results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "RUSTSEC-2024-0388"}}}
+				}
+			}
+			if err := json.NewEncoder(w).Encode(batchResponse{Results: results}); err != nil {
+				t.Errorf("encode response: %v", err)
+			}
+		case "/vulns/OSV-2":
+			fmt.Fprint(w, `{"id":"OSV-2","summary":"bad thing"}`)
+		case "/vulns/RUSTSEC-2024-0388":
+			fmt.Fprint(w, `{"id":"RUSTSEC-2024-0388","summary":"derivative is unmaintained"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+func harnessConfig(server *httptest.Server, lockPath string) config {
+	return config{
+		apiBase:       server.URL,
+		cargoLockPath: lockPath,
+		batchSize:     10,
+		concurrency:   2,
+		httpTimeout:   2 * time.Second,
+	}
+}
+
+func TestRunHarnessCaseRust(t *testing.T) {
+	lock := writeTempCargoLock(t, `version = 4
+
+[[package]]
+name = "clean"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "vulnerable"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "derivative"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+`)
+	server := harnessOSVServer(t)
+	var stdout, stderr bytes.Buffer
+	code := runHarnessTest(context.Background(), harnessConfig(server, lock), "rust:all", &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("exit = %d, want 1; stderr: %s", code, stderr.String())
+	}
+	for _, want := range []string{
+		"\n[FAIL] vulnerable@2.0.0\n",
+		"result: PASS cargo/clean@1.0.0 -\n",
+		"result: FAIL cargo/vulnerable@2.0.0 - 1 blocking advisory group(s): OSV-2\n",
+		"result: PASS cargo/derivative@2.2.0 - 1 excepted advisory group(s)\n",
+		"result-details: [FAIL] vulnerable@2.0.0\n",
+		"result-details: [EXEMPT] derivative@2.2.0\n",
+		"Scanned 3 packages: 1 clean, 2 affected; 2 advisory groups (1 blocking, 1 excepted).",
+		"result: FAIL rust-packages ",
+	} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("output is missing %q:\n%s", want, stdout.String())
+		}
+	}
+}
+
+func TestRunHarnessCaseRustClean(t *testing.T) {
+	lock := writeTempCargoLock(t, `version = 4
+
+[[package]]
+name = "clean"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+`)
+	server := harnessOSVServer(t)
+	var stdout, stderr bytes.Buffer
+	code := runHarnessTest(context.Background(), harnessConfig(server, lock), "rust:all", &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0; stderr: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "result: PASS cargo/clean@1.0.0 -\n") ||
+		!strings.Contains(stdout.String(), "result: PASS rust-packages ") {
+		t.Fatalf("unexpected output:\n%s", stdout.String())
+	}
+}
+
+func TestRunHarnessCaseGeneric(t *testing.T) {
+	server := harnessOSVServer(t)
+	cfg := harnessConfig(server, "")
+	auditor := &mockAuditor{responses: []auditResponse{
+		{
+			"depot-third-party//": {
+				"meta.3p": rawJSON(t, []string{"foo"}),
+			},
+		},
+		{
+			"depot-third-party//foo": {
+				"meta.version": rawJSON(t, "1.2.3"),
+				"meta.osv": rawJSON(t, genericMetadata{
+					Type: "OsvPurlInfo", PURL: "pkg:generic/example/foo", Version: "1.2.3",
+				}),
+			},
+		},
+	}}
+	var stdout, stderr bytes.Buffer
+	code := runHarnessCase(context.Background(), cfg, "generic", genericCaseName, auditor, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0; stderr: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "result: PASS third-party//foo -\n") ||
+		!strings.Contains(stdout.String(), "result: PASS generic-packages ") {
+		t.Fatalf("unexpected output:\n%s", stdout.String())
+	}
+}
+
+func TestRunHarnessTestRejectsUnknownFilter(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := runHarnessTest(context.Background(), config{}, "bogus:filter", &stdout, &stderr)
+	if code != 2 || !strings.Contains(stderr.String(), "unknown test filter") {
+		t.Fatalf("exit = %d, stderr = %q", code, stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("unexpected stdout: %q", stdout.String())
+	}
+}
+
+func TestRealMainHarnessFlags(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := realMain(context.Background(), []string{"-list-tests", "rust"}, &stdout, &stderr)
+	if code != 0 || stdout.String() != "test: rust:all rust-packages\n" {
+		t.Fatalf("exit = %d, stdout = %q, stderr = %q", code, stdout.String(), stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	code = realMain(context.Background(), []string{"-list-tests", "-run-test"}, &stdout, &stderr)
+	if code != 2 || !strings.Contains(stderr.String(), "mutually exclusive") {
+		t.Fatalf("exit = %d, stderr = %q", code, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	code = realMain(context.Background(), []string{"-run-test"}, &stdout, &stderr)
+	if code != 2 || !strings.Contains(stderr.String(), "requires a test filter") {
+		t.Fatalf("exit = %d, stderr = %q", code, stderr.String())
 	}
 }
 

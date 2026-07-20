@@ -7,11 +7,28 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 )
 
 const supportedCargoLockVersion = 4
+
+func loadCargoLock(path string) ([]cargoPackage, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open %s: %w", path, err)
+	}
+	packages, parseErr := parseCargoLock(file)
+	closeErr := file.Close()
+	if parseErr != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, parseErr)
+	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("close %s: %w", path, closeErr)
+	}
+	return packages, nil
+}
 
 type cargoPackage struct {
 	Name    string
