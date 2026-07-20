@@ -15,7 +15,8 @@ depot.genrule(
     outs = {"qq_capnp.rs": ["qq_capnp.rs"]},
     cmd = """
         $(exe third-party//by-name/ca/capnproto:capnp_tool) \
-          compile -o $(location third-party//by-name/ca/capnproto:capnpc-rust):$OUT \
+          compile --no-standard-import \
+          -o $(location third-party//by-name/ca/capnproto:capnpc-rust):$OUT \
           qq.capnp
     """,
     default_outs = ["qq_capnp.rs"],

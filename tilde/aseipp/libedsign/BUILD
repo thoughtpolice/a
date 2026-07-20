@@ -5,16 +5,19 @@ load("@prelude//:paths.bzl", "paths")
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 depot.cxx_library(
-    name = "libedsign",
-    srcs = glob(["src/*.c"]),
+    name = "libedsign-headers",
     exported_headers = {
         "edsign.h": "inc/edsign.h",
     },
     header_namespace = "libedsign",
-    headers = {
-        paths.basename(fullpath): fullpath
-        for fullpath in glob(["src/*.h"])
-    },
+    visibility = [],
+)
+
+depot.cxx_library(
+    name = "libedsign",
+    srcs = glob(["src/*.c"]),
+    exported_deps = [":libedsign-headers"],
+    raw_headers = glob(["src/*.h"]),
     tests = [":tests"],
     visibility = ["PUBLIC"],
 )

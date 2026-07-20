@@ -7,6 +7,7 @@ depot.cxx_library(
     name = "wbob-pi",
     srcs = glob(["*.c"]),
     exported_headers = ["wbob-pi.h"],
+    raw_headers = ["wbob-pi.h"],
 )
 
 depot.cxx_genrule(
