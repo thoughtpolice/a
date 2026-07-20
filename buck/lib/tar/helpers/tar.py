@@ -2,26 +2,67 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-import tarfile
+import gzip
 import os
 import sys
+import tarfile
+
+
+def normalize_tarinfo(tarinfo):
+    tarinfo.uid = 0
+    tarinfo.gid = 0
+    tarinfo.uname = ""
+    tarinfo.gname = ""
+    tarinfo.mtime = 0
+    tarinfo.pax_headers = {}
+
+    if tarinfo.isdir():
+        tarinfo.mode = 0o755
+    elif tarinfo.isfile():
+        tarinfo.mode = 0o755 if tarinfo.mode & 0o111 else 0o644
+    elif tarinfo.issym():
+        tarinfo.mode = 0o777
+
+    return tarinfo
+
+
+def add_paths(tar, paths, prefix):
+    for path in paths:
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Path not found: {path}")
+
+        basename = os.path.basename(path)
+        if prefix:
+            prefix_clean = prefix.strip("/")
+            arcname = f"{prefix_clean}/{basename}" if prefix_clean else basename
+        else:
+            arcname = basename
+
+        # Buck presents source artifacts through a symlink farm. Resolve only
+        # that top-level link so the archive contains the declared artifact,
+        # not an absolute link back into the workspace.
+        tar.add(
+            os.path.realpath(path),
+            arcname=arcname,
+            filter=normalize_tarinfo,
+        )
+
 
 def create_tar(paths, compress, filename, prefix=None):
-    with tarfile.open(filename, "w:gz" if compress == "true" else "w") as tar:
-        for path in paths:
-            if not os.path.exists(path):
-                raise FileNotFoundError(f"Path not found: {path}")
+    if compress == "true":
+        with open(filename, "wb") as output:
+            with gzip.GzipFile(
+                filename="",
+                mode="wb",
+                fileobj=output,
+                mtime=0,
+            ) as compressed:
+                with tarfile.open(fileobj=compressed, mode="w") as tar:
+                    add_paths(tar, paths, prefix)
+    else:
+        with tarfile.open(filename, "w") as tar:
+            add_paths(tar, paths, prefix)
 
-            # Determine the archive name
-            basename = os.path.basename(path)
-            if prefix:
-                # Ensure prefix doesn't have leading/trailing slashes
-                prefix_clean = prefix.strip("/")
-                arcname = f"{prefix_clean}/{basename}" if prefix_clean else basename
-            else:
-                arcname = basename
-
-            tar.add(path, arcname=arcname)
 
 def read_paths(file_path):
     try:
@@ -30,6 +71,7 @@ def read_paths(file_path):
     except IOError as e:
         print(f"Failed to read file {file_path}: {e}", file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
