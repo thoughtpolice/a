@@ -5,6 +5,7 @@ load("@prelude//cfg/modifier:conditional_modifier.bzl", "conditional_modifier")
 load("@prelude//utils:buckconfig.bzl", "read_choice")
 load("@root//buck/lib/oci:defs.bzl", _oci_image = "oci_image", _oci_index = "oci_index", _oci_pull = "oci_pull", _oci_repack = "oci_repack", _oci_unpack = "oci_unpack")
 load("@root//buck/lib/tar:defs.bzl", _tar_file = "tar_file")
+load("@root//buck/shims:dynamic_test_internal.bzl", _dynamic_test_external_rule = "dynamic_test_external", _dynamic_test_internal_rule = "dynamic_test_internal")
 load("@root//buck/shims:go_test_internal.bzl", _go_test_internal_rule = "go_test_internal")
 load("@root//buck/shims:rust_test_internal.bzl", _rust_test_internal_rule = "rust_test_internal")
 load("@toolchains//deno:defs.bzl", _deno = "deno")
@@ -128,6 +129,14 @@ def _depot_go_test(**kwargs):
         _go_test_internal_rule(**kwargs)
     else:
         native.go_test(**kwargs)
+
+def _depot_dynamic_test(**kwargs):
+    """Define a discovery-protocol command test using the configured runner."""
+    kwargs = _fix_kwargs("dynamic_test", kwargs)
+    if _use_internal_test_runner("dynamic"):
+        _dynamic_test_internal_rule(**kwargs)
+    else:
+        _dynamic_test_external_rule(**kwargs)
 
 def _depot_cxx_library(**kwargs):
     kwargs = _fix_kwargs("cxx_library", kwargs)
@@ -472,6 +481,7 @@ shims = struct(
     toolchain_alias = _toolchain_alias,
     command_test = _command_test,
     run_test = _run_test,
+    dynamic_test = _depot_dynamic_test,
     command = _command,
     rjust = rjust,
     chance = _hash_chance,

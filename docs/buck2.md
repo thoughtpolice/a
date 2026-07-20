@@ -241,6 +241,24 @@ top-level tests, fuzz tests, and runnable examples, and each is selected with an
 anchored `-test.run` expression. Subtests stay within their top-level test's
 process. Benchmarks are omitted, matching ordinary `go test` behavior.
 
+`depot.dynamic_test` extends the internal runner to arbitrary binaries that can
+enumerate their own work (framework name `dynamic` in the setting above; it
+degrades to a `run_test`-style opaque external test when disabled). The binary
+implements a small stdout protocol: `<binary> -list-tests <args...>` prints one
+`test: <filter> <name>` line per case, Buck2 then runs
+`<binary> -run-test <args...> <filter>` once per case, and that execution
+prints any number of `result: <PASS|FAIL|SKIP> <name> <seconds|-> [message]`
+lines, each optionally followed by `result-details:` diagnostic lines. One case
+may fan out into many named results, which lets a checker gather expensive data
+in memory — batched network queries, `buck audit` output — in a single process
+while still reporting a granular per-item verdict. The process exits 0 when
+nothing failed, 1 when a FAIL result was reported, and anything else for
+infrastructure errors. Listings are cacheable actions, so they must be a pure
+function of the command line and its declared inputs; discovery that reads
+undeclared state belongs in case execution, which always runs fresh.
+`buck/tests/dynamic-runner` is a live fixture for the protocol, and
+`buck/tests/osv.io` is the real consumer.
+
 ### Rules vs Macros vs Functions
 
 Understanding the distinction is important:
