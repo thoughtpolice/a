@@ -12,7 +12,6 @@ import json
 import shutil
 import sys
 import tarfile
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -115,6 +114,7 @@ class OciImageBuilder:
         labels: Optional[Dict[str, str]] = None,
         exposed_ports: Optional[List[str]] = None,
         volumes: Optional[List[str]] = None,
+        created: str = "1970-01-01T00:00:00Z",
     ) -> str:
         """
         Build a new OCI image from base + new layers + config changes.
@@ -162,7 +162,16 @@ class OciImageBuilder:
         # Step 3: Create new config
         print("Creating new image configuration...", file=sys.stderr)
         new_config = self._create_config(
-            new_diff_ids, env, entrypoint, cmd, working_dir, user, labels, exposed_ports, volumes
+            new_diff_ids,
+            env,
+            entrypoint,
+            cmd,
+            working_dir,
+            user,
+            labels,
+            exposed_ports,
+            volumes,
+            created,
         )
         config_json = json.dumps(new_config, indent=2, sort_keys=True).encode()
         config_digest = sha256_digest(config_json)
@@ -230,6 +239,7 @@ class OciImageBuilder:
         labels: Optional[Dict[str, str]],
         exposed_ports: Optional[List[str]],
         volumes: Optional[List[str]],
+        created: str,
     ) -> Dict[str, Any]:
         """Create new image configuration based on base + modifications"""
         # Start with base config
@@ -282,8 +292,7 @@ class OciImageBuilder:
             for volume in volumes:
                 config["config"]["Volumes"][volume] = {}
 
-        # Update creation timestamp
-        config["created"] = datetime.now(timezone.utc).isoformat()
+        config["created"] = created
 
         # Add history entries for new layers
         for i, _ in enumerate(new_diff_ids):
@@ -312,6 +321,11 @@ def main():
     parser.add_argument("--label", action="append", help="Labels (KEY=VALUE)")
     parser.add_argument("--exposed-port", action="append", help="Exposed ports")
     parser.add_argument("--volume", action="append", help="Volume mount points")
+    parser.add_argument(
+        "--created",
+        required=True,
+        help="RFC 3339 creation timestamp for the image and new history entries",
+    )
 
     args = parser.parse_args()
 
@@ -355,6 +369,7 @@ def main():
         labels=labels,
         exposed_ports=args.exposed_port,
         volumes=args.volume,
+        created=args.created,
     )
 
 
