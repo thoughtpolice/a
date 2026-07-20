@@ -6,6 +6,7 @@ load("@root//buck/shims:shims.bzl", "shims")
 SRCS = [
     "cargo.go",
     "generic.go",
+    "harness.go",
     "main.go",
     "model.go",
     "osv.go",
@@ -28,7 +29,9 @@ shims.go_test(
     cgo_enabled = False,
 )
 
-shims.run_test(
+# Under the internal runner this discovers one case per dependency set; each
+# case batches its OSV queries in memory and reports a per-package result.
+shims.dynamic_test(
     name = "check",
     dep = ":osv.io",
 )

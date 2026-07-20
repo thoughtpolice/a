@@ -31,6 +31,10 @@ type config struct {
 	httpTimeout      time.Duration
 }
 
+func (c config) auditor() packageAuditor {
+	return buckAuditor{path: c.buckPath, isolationDir: c.buckIsolationDir}
+}
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -39,6 +43,8 @@ func main() {
 
 func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	cfg := config{}
+	listTests := false
+	runTest := false
 	flags := flag.NewFlagSet("3p-osv", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	flags.StringVar(&cfg.apiBase, "api-base", defaultOSVAPIBase, "OSV API base URL")
@@ -48,9 +54,14 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	flags.IntVar(&cfg.batchSize, "batch-size", 100, "queries per OSV batch")
 	flags.IntVar(&cfg.concurrency, "concurrency", 8, "maximum concurrent OSV requests")
 	flags.DurationVar(&cfg.httpTimeout, "http-timeout", 60*time.Second, "timeout for each OSV request")
+	flags.BoolVar(&listTests, "list-tests", false, "print the Buck2 test cases for the selected mode and exit")
+	flags.BoolVar(&runTest, "run-test", false, "run the single Buck2 test case named by the trailing filter argument")
 	flags.Usage = func() {
 		fmt.Fprintln(stderr, "Usage: 3p-osv [flags] [all|generic|rust] [Cargo.lock]")
 		fmt.Fprintln(stderr, "Checks all dependency sets when no mode is supplied.")
+		fmt.Fprintln(stderr, "Buck2 internal-runner protocol:")
+		fmt.Fprintln(stderr, "  3p-osv -list-tests [mode]         print one \"test: <filter> <name>\" line per case")
+		fmt.Fprintln(stderr, "  3p-osv -run-test [mode] <filter>  check one case and print \"result: ...\" lines")
 		flags.PrintDefaults()
 	}
 	if err := flags.Parse(args); err != nil {
@@ -59,7 +70,38 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		}
 		return 2
 	}
+	if listTests && runTest {
+		fmt.Fprintln(stderr, "ERROR: -list-tests and -run-test are mutually exclusive")
+		return 2
+	}
+	if cfg.batchSize <= 0 || cfg.concurrency <= 0 || cfg.httpTimeout <= 0 {
+		fmt.Fprintln(stderr, "ERROR: batch-size, concurrency, and http-timeout must be positive")
+		return 2
+	}
+	if err := validateExceptions(); err != nil {
+		fmt.Fprintf(stderr, "ERROR: %v\n", err)
+		return 2
+	}
+
 	remaining := flags.Args()
+	if runTest {
+		// Buck2 appends the filter after any user-supplied arguments, so it is
+		// the final positional; a leading mode token is tolerated and ignored
+		// because the filter alone selects the case.
+		if len(remaining) == 0 {
+			fmt.Fprintln(stderr, "ERROR: -run-test requires a test filter argument")
+			return 2
+		}
+		filter := remaining[len(remaining)-1]
+		for _, extra := range remaining[:len(remaining)-1] {
+			if extra != "all" && extra != "generic" && extra != "rust" {
+				fmt.Fprintf(stderr, "ERROR: unexpected argument %q before the test filter\n", extra)
+				return 2
+			}
+		}
+		return runHarnessTest(ctx, cfg, filter, stdout, stderr)
+	}
+
 	mode := "all"
 	if len(remaining) > 0 {
 		mode = remaining[0]
@@ -79,16 +121,12 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		flags.Usage()
 		return 2
 	}
-	if cfg.batchSize <= 0 || cfg.concurrency <= 0 || cfg.httpTimeout <= 0 {
-		fmt.Fprintln(stderr, "ERROR: batch-size, concurrency, and http-timeout must be positive")
-		return 2
-	}
-	if err := validateExceptions(); err != nil {
-		fmt.Fprintf(stderr, "ERROR: %v\n", err)
-		return 2
+	if listTests {
+		writeTestListing(mode, stdout)
+		return 0
 	}
 
-	violation, err := execute(ctx, cfg, mode, stdout)
+	violation, err := execute(ctx, cfg, mode, cfg.auditor(), stdout)
 	if err != nil {
 		fmt.Fprintf(stderr, "ERROR: %v\n", err)
 		return 2
@@ -99,62 +137,12 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	return 0
 }
 
-func execute(ctx context.Context, cfg config, mode string, output io.Writer) (bool, error) {
-	var subjects []subject
-	if mode == "all" || mode == "generic" {
-		generic, err := collectGenericSubjects(ctx, buckAuditor{
-			path:         cfg.buckPath,
-			isolationDir: cfg.buckIsolationDir,
-		})
-		if err != nil {
-			return false, err
-		}
-		fmt.Fprintf(output, "Loaded and validated OSV metadata for %d generic third-party packages.\n", len(generic))
-		subjects = append(subjects, generic...)
-	}
-	if mode == "all" || mode == "rust" {
-		file, err := os.Open(cfg.cargoLockPath)
-		if err != nil {
-			return false, fmt.Errorf("open %s: %w", cfg.cargoLockPath, err)
-		}
-		packages, parseErr := parseCargoLock(file)
-		closeErr := file.Close()
-		if parseErr != nil {
-			return false, fmt.Errorf("parse %s: %w", cfg.cargoLockPath, parseErr)
-		}
-		if closeErr != nil {
-			return false, fmt.Errorf("close %s: %w", cfg.cargoLockPath, closeErr)
-		}
-		rust, skipped, err := cargoSubjects(packages)
-		if err != nil {
-			return false, err
-		}
-		fmt.Fprintf(output, "Loaded %d third-party Rust crates from %s (%d source-less workspace packages skipped).\n", len(rust), cfg.cargoLockPath, skipped)
-		subjects = append(subjects, rust...)
-	}
-
-	client, err := newOSVClient(cfg.apiBase, cfg.httpTimeout)
+func execute(ctx context.Context, cfg config, mode string, auditor packageAuditor, output io.Writer) (bool, error) {
+	subjects, err := collectSubjects(ctx, cfg, mode, auditor, output)
 	if err != nil {
 		return false, err
 	}
-	batchCount := (len(subjects) + cfg.batchSize - 1) / cfg.batchSize
-	fmt.Fprintf(output, "Querying OSV for %d packages in %d batches...\n", len(subjects), batchCount)
-	queryResults, err := client.query(ctx, subjects, cfg.batchSize, cfg.concurrency)
-	if err != nil {
-		return false, err
-	}
-	advisoryReferences := 0
-	for _, result := range queryResults {
-		advisoryReferences += len(result)
-	}
-	if advisoryReferences > 0 {
-		fmt.Fprintf(output, "Fetching details for %d advisory references...\n", advisoryReferences)
-	}
-	details, err := client.fetchVulnerabilities(ctx, queryResults, cfg.concurrency)
-	if err != nil {
-		return false, err
-	}
-	findings, err := analyzeFindings(subjects, queryResults, details)
+	findings, err := queryFindings(ctx, cfg, subjects, output)
 	if err != nil {
 		return false, err
 	}

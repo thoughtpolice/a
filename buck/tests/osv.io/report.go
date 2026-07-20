@@ -206,8 +206,53 @@ func firstSentence(value string) string {
 	return value
 }
 
-// writeReport returns true when an unexcepted advisory should fail the check.
-func writeReport(w io.Writer, subjects []subject, findings []finding) bool {
+// renderedFinding is one affected package's report block plus the group
+// tallies the Buck2 harness turns into a per-package test result.
+type renderedFinding struct {
+	text        string
+	blocking    int
+	excepted    int
+	blockingIDs []string
+}
+
+func renderFinding(item finding) renderedFinding {
+	var out renderedFinding
+	for _, group := range item.Groups {
+		if group.ExceptionReason == "" {
+			out.blocking++
+			out.blockingIDs = append(out.blockingIDs, group.Primary)
+		} else {
+			out.excepted++
+		}
+	}
+	status := "EXEMPT"
+	if out.blocking > 0 {
+		status = "FAIL"
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n[%s] %s\n", status, item.Subject.Name)
+	fmt.Fprintf(&b, "  %s\n", item.Subject.Display)
+	for _, group := range item.Groups {
+		marker := "BLOCKING"
+		if group.ExceptionReason != "" {
+			marker = "EXCEPTION"
+		}
+		fmt.Fprintf(&b, "  - %s [%s]: %s\n", group.Primary, marker, group.Summary)
+		if len(group.Aliases) > 0 {
+			fmt.Fprintf(&b, "    aliases: %s\n", strings.Join(group.Aliases, ", "))
+		}
+		fmt.Fprintf(&b, "    https://osv.dev/vulnerability/%s\n", group.Primary)
+		if group.ExceptionReason != "" {
+			fmt.Fprintf(&b, "    reason: %s\n", group.ExceptionReason)
+		}
+	}
+	out.text = b.String()
+	return out
+}
+
+// renderSummary returns the closing scan summary and whether an unexcepted
+// advisory should fail the check.
+func renderSummary(subjects []subject, findings []finding) (string, bool) {
 	affected := len(findings)
 	clean := len(subjects) - affected
 	hasRust := false
@@ -221,14 +266,11 @@ func writeReport(w io.Writer, subjects []subject, findings []finding) bool {
 	exemptGroupCount := 0
 	violationGroupCount := 0
 	usedExceptions := make(map[string]struct{})
-
 	for _, item := range findings {
-		hasViolation := false
 		for _, group := range item.Groups {
 			groupCount++
 			if group.ExceptionReason == "" {
 				violationGroupCount++
-				hasViolation = true
 			} else {
 				exemptGroupCount++
 				for _, id := range group.ExceptionIDs {
@@ -236,29 +278,10 @@ func writeReport(w io.Writer, subjects []subject, findings []finding) bool {
 				}
 			}
 		}
-		status := "EXEMPT"
-		if hasViolation {
-			status = "FAIL"
-		}
-		fmt.Fprintf(w, "\n[%s] %s\n", status, item.Subject.Name)
-		fmt.Fprintf(w, "  %s\n", item.Subject.Display)
-		for _, group := range item.Groups {
-			marker := "BLOCKING"
-			if group.ExceptionReason != "" {
-				marker = "EXCEPTION"
-			}
-			fmt.Fprintf(w, "  - %s [%s]: %s\n", group.Primary, marker, group.Summary)
-			if len(group.Aliases) > 0 {
-				fmt.Fprintf(w, "    aliases: %s\n", strings.Join(group.Aliases, ", "))
-			}
-			fmt.Fprintf(w, "    https://osv.dev/vulnerability/%s\n", group.Primary)
-			if group.ExceptionReason != "" {
-				fmt.Fprintf(w, "    reason: %s\n", group.ExceptionReason)
-			}
-		}
 	}
 
-	fmt.Fprintf(w, "\nScanned %d packages: %d clean, %d affected; %d advisory groups (%d blocking, %d excepted).\n",
+	var b strings.Builder
+	fmt.Fprintf(&b, "\nScanned %d packages: %d clean, %d affected; %d advisory groups (%d blocking, %d excepted).\n",
 		len(subjects), clean, affected, groupCount, violationGroupCount, exemptGroupCount)
 	var unused []string
 	for _, item := range rustExceptions {
@@ -267,7 +290,17 @@ func writeReport(w io.Writer, subjects []subject, findings []finding) bool {
 		}
 	}
 	if hasRust && len(unused) > 0 {
-		fmt.Fprintf(w, "Unused Rust exceptions (candidates for removal): %s\n", strings.Join(unused, ", "))
+		fmt.Fprintf(&b, "Unused Rust exceptions (candidates for removal): %s\n", strings.Join(unused, ", "))
 	}
-	return violationGroupCount > 0
+	return b.String(), violationGroupCount > 0
+}
+
+// writeReport returns true when an unexcepted advisory should fail the check.
+func writeReport(w io.Writer, subjects []subject, findings []finding) bool {
+	for _, item := range findings {
+		fmt.Fprint(w, renderFinding(item).text)
+	}
+	summary, violation := renderSummary(subjects, findings)
+	fmt.Fprint(w, summary)
+	return violation
 }
