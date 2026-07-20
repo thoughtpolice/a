@@ -68,6 +68,8 @@ def _oci_image_impl(ctx: AnalysisContext) -> list[Provider]:
     for volume in ctx.attrs.volumes:
         cmd.add(["--volume", volume])
 
+    cmd.add(["--created", ctx.attrs.created])
+
     ctx.actions.run(
         cmd,
         category = "oci_image",
@@ -129,6 +131,10 @@ oci_image = rule(
             attrs.string(),
             default = [],
             doc = "Volume mount points",
+        ),
+        "created": attrs.string(
+            default = "1970-01-01T00:00:00Z",
+            doc = "RFC 3339 creation timestamp for the image and new history entries",
         ),
         "_image_helper": attrs.default_only(
             attrs.exec_dep(default = "//buck/lib/oci/helpers:oci_image"),
