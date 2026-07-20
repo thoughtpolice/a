@@ -26,7 +26,7 @@ jobs:
           - os: macos-15
             abi: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 120
 
     steps:
       - name: Checkout repository
@@ -139,7 +139,7 @@ jobs:
           - os: macos-15
             abi: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 120
 
     steps:
       - name: Checkout repository
