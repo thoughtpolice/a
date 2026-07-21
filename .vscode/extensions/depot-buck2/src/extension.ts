@@ -136,7 +136,7 @@ function getTargetsForOpenFile(buck2: string): string[] | undefined {
     const openFile = activeEditor.document.fileName;
 
     const command =
-        `${buck2} bxl root//buck/bxl/source-to-targets.bxl:main -- --source ${openFile}`;
+        `${buck2} bxl root//buck/tools/bxl/source-to-targets.bxl:main -- --source ${openFile}`;
 
     // run command, and parse stdout as a simple list of targets separated by newline
     const options = { cwd: getWorkspaceFolder() };
