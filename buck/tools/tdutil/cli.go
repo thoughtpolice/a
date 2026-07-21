@@ -30,6 +30,11 @@ Options:
       --format FORMAT         text, json, or json-lines (default: text)
       --json                  Shorthand for --format json
       --depth N               Maximum reverse-dependency depth (roots are 0)
+      --quick                 Single-snapshot mode: consult only the working
+                              copy's Buck graph, with no base materialization.
+                              Misses dependents of deleted targets and precise
+                              definition-change detection; the head revision
+                              must resolve to the working-copy commit
       --buck COMMAND          Buck2 executable (default: buck2)
       --jj COMMAND            JJ executable (default: jj)
       --buck-arg ARG          Extra Buck2 argument (repeatable)
@@ -60,6 +65,7 @@ type cliArgs struct {
 	output            *string
 	format            outputFormat
 	depth             *int
+	quick             bool
 	buck              string
 	jj                string
 	buckArgs          []string
@@ -90,6 +96,7 @@ func parseCLI(argv []string) (cliAction, error) {
 	var output *string
 	format := formatText
 	var depth *int
+	quick := false
 	buck := "buck2"
 	jj := "jj"
 	var buckArgs []string
@@ -187,6 +194,8 @@ func parseCLI(argv []string) (cliAction, error) {
 				return cliAction{}, fmt.Errorf("invalid --depth value `%s`", raw)
 			}
 			depth = intPointer(int(parsed))
+		case "--quick":
+			quick = true
 		case "--buck":
 			raw, err := value("--buck")
 			if err != nil {
@@ -243,6 +252,10 @@ func parseCLI(argv []string) (cliAction, error) {
 		universe = append(universe, positional...)
 	}
 
+	if quick && noHeadInPlace {
+		return cliAction{}, fmt.Errorf("--quick already analyzes the working copy in place; it cannot combine with --no-head-in-place")
+	}
+
 	if len(universe) == 0 {
 		universe = append(universe, "depot//...")
 	}
@@ -259,6 +272,7 @@ func parseCLI(argv []string) (cliAction, error) {
 		output:            output,
 		format:            format,
 		depth:             depth,
+		quick:             quick,
 		buck:              buck,
 		jj:                jj,
 		buckArgs:          buckArgs,

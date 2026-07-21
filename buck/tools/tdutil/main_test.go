@@ -467,6 +467,46 @@ func TestApplicationHeadInPlaceSkipsHeadMaterialization(t *testing.T) {
 	}
 }
 
+func TestApplicationQuickModeUsesOneWorkingCopyQueryAndNoWorkspaces(t *testing.T) {
+	app, runner, repository := pipelineApplicationFixture(t)
+	runner.workspaceList = []byte("default\ntdutil-dead-1f-0\n")
+	app.pidAlive = func(pid int) bool { return pid != 0xdead }
+	var stdout bytes.Buffer
+	if err := runApplication(context.Background(), app, []string{"--quick"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := stdout.String(), "depot//src:lib\n"; got != want {
+		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+	commands, roots, adds, forgets, audits, targets, _ := runner.snapshot()
+	if adds != 0 || audits != 1 || targets != 1 || len(roots) != 0 {
+		t.Fatalf("lifecycle = adds %d, audits %d, targets %d, roots %d", adds, audits, targets, len(roots))
+	}
+	if forgotten := runner.forgottenWorkspaces(); forgets != 1 || len(forgotten) != 1 || forgotten[0] != "tdutil-dead-1f-0" {
+		t.Fatalf("sweep skipped in quick mode: forgets=%d forgotten=%#v", forgets, forgotten)
+	}
+	for _, command := range commands {
+		if !hasArgumentSequence(command.args, "audit", "cell") && !hasArgument(command.args, "targets") {
+			continue
+		}
+		if command.dir != repository {
+			t.Fatalf("quick query ran outside the repository: %q in %q", command.args, command.dir)
+		}
+	}
+}
+
+func TestApplicationQuickModeRejectsNonWorkingCopyHead(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	err := runApplication(context.Background(), app, []string{"--quick", "--to", "head"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "--quick") || !strings.Contains(err.Error(), "working copy") {
+		t.Fatalf("error = %v", err)
+	}
+	_, _, adds, _, audits, targets, _ := runner.snapshot()
+	if adds != 0 || audits != 0 || targets != 0 {
+		t.Fatalf("work performed despite rejection: adds=%d audits=%d targets=%d", adds, audits, targets)
+	}
+}
+
 func TestApplicationNoHeadInPlaceForcesMaterialization(t *testing.T) {
 	app, runner, _ := pipelineApplicationFixture(t)
 	if err := runApplication(context.Background(), app, []string{"--no-head-in-place"}, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
