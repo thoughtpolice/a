@@ -36,6 +36,38 @@ shims.python_binary(
 )
 
 shims.python_binary(
+    name = "native_binary_layer",
+    main = "native_binary_layer.py",
+    visibility = ["PUBLIC"],
+)
+
+shims.python_binary(
+    name = "container_smoke",
+    main = "container_smoke.py",
+    visibility = ["PUBLIC"],
+)
+
+shims.python_binary(
     name = "validate_image",
     main = "validate_image.py",
+)
+
+# The test does a plain 'import native_binary_layer', so the module has to land
+# at the root of the package rather than under the default base module.
+shims.python_library(
+    name = "native_binary_layer_lib",
+    srcs = ["native_binary_layer.py"],
+    base_module = "",
+)
+
+shims.python_binary(
+    name = "native_binary_layer_test",
+    base_module = "",
+    main = "native_binary_layer_test.py",
+    deps = [":native_binary_layer_lib"],
+)
+
+shims.run_test(
+    name = "test-native-binary-layer",
+    dep = ":native_binary_layer_test",
 )

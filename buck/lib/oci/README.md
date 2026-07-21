@@ -6,6 +6,9 @@ Comprehensive OCI (Open Container Initiative) container image support for Buck2.
 
 - **Pull images from registries**: Download images from Docker Hub, GitHub Container Registry, etc.
 - **Build images**: Create images by layering tarballs on base images with full config control
+- **Package native binaries**: Strip and relocate ELF binaries, or carry their exact Nix runtime closure
+- **Export to Docker**: Produce archives accepted directly by `docker load`
+- **Smoke-test with Docker**: Import an OCI layout, wait for readiness, and clean up automatically
 - **Unpack/repack images**: Extract image filesystems, modify them, and rebuild images
 - **Multi-platform support**: Build image indexes supporting multiple architectures
 - **Pure implementation**: Core image building uses pure Python OCI spec implementation
@@ -17,6 +20,7 @@ Comprehensive OCI (Open Container Initiative) container image support for Buck2.
 
 - **skopeo** (v1.24.1): Registry pull/push operations
 - **umoci** (v0.6.0): Unpack/repack filesystem bundles
+- **patchelf** (v0.19.1): Repoint native binaries at compatible base runtimes
 - **Pure Python**: Manifest and config manipulation (no external tools)
 
 ### Design Principles
@@ -95,6 +99,88 @@ oci_image(
 - `user` (string): User to run as
 
 **Output:** OCI image layout directory
+
+### `native_binary_layer` and `oci_native_binary_image`
+
+`native_binary_layer` installs an ELF executable at an explicit image path. By
+default it reads `PT_INTERP`, `DT_RPATH`, and `DT_RUNPATH`, copies every
+referenced `/nix/store/<hash>-...` root, then follows embedded Nix references,
+ELF runtime paths, and cross-store symlinks to a fixed point. This is the safe
+choice for an arbitrary container base because the executable keeps the exact
+runtime against which it was linked.
+
+`oci_native_binary_image` is the convenient application-level macro. It emits
+the layer, the `<name>` OCI layout, and a `<name>-docker` archive:
+
+```python
+load("@root//buck/shims:shims.bzl", depot = "shims")
+
+depot.oci.native_binary_image(
+    name = "worker-image",
+    binary = ":worker",
+    base = ":base",
+    destination = "/usr/local/bin/worker",
+    cmd = ["serve"],
+    exposed_ports = ["8080/tcp"],
+)
+```
+
+For a pinned base whose glibc and compiler runtimes are known to be ABI
+compatible, the binary can instead be repointed at the base libraries. This is
+smaller because it does not duplicate the Nix store in the image:
+
+```python
+depot.oci.native_binary_image(
+    name = "worker-image",
+    binary = ":worker",
+    base = "third-party//oci-images:chainguard_glibc_dynamic_amd64",
+    destination = "/usr/local/bin/worker",
+    include_nix_store = False,
+    interpreter = "/lib64/ld-linux-x86-64.so.2",
+    rpath = "/usr/lib",
+)
+```
+
+Only use the second form when the base runtime has been validated against the
+toolchain. A statically linked PatchELF is pinned in the OCI toolchain, so this
+mode does not depend on a host package. The `strip` setting accepts `none`,
+`debug` (the default), or `all`.
+
+### `oci_archive`
+
+Export any OCI layout as a Docker archive independently of the native-binary
+macro:
+
+```python
+depot.oci.archive(
+    name = "worker-docker",
+    image = ":worker-image",
+    image_name = "worker",
+    tag = "latest",
+)
+```
+
+The output can be imported with `docker load -i <output>`. `tag` controls the
+tag embedded in that archive; `source_tag` selects an existing tag from the OCI
+layout and defaults to `latest`, which is what `oci_image` produces.
+
+### `oci_container_test`
+
+Run an image under Docker and require both a fixed readiness log line and a
+still-running container. The test imports the OCI layout through the pinned
+Skopeo tool and removes its temporary container and tag on normal, failure, and
+SIGTERM exit paths:
+
+```python
+depot.oci.container_test(
+    name = "worker-image-smoke",
+    image = ":worker-image",
+    ready_log = "worker ready",
+    timeout_seconds = 15,
+)
+```
+
+The host running the test must provide a working Docker daemon.
 
 ### `oci_unpack`
 
@@ -224,6 +310,11 @@ umoci stat --image buck-out/v2/.../image:latest
 # Extract and examine
 umoci unpack --image buck-out/v2/.../image:latest bundle
 ls -la bundle/rootfs/
+
+# Build and load a Docker archive
+archive=$(buck2 build //path/to:worker-image-docker --show-full-simple-output)
+docker load -i "$archive"
+docker run --rm worker:latest --version
 ```
 
 ## Comparison to Old Implementation
@@ -249,7 +340,6 @@ Possible future additions:
 
 - **oci_push**: Push images to registries
 - **oci_copy**: Copy images between registries
-- **oci_export**: Export to Docker tar format
 - **oci_import**: Import from Docker tar format
 - **Layer caching**: Advanced layer deduplication
 - **Signature support**: Image signing and verification
