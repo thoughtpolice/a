@@ -38,6 +38,7 @@ import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
+from pathlib import Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +92,51 @@ def jj_repo_root(cwd):
     return workspace_root
 
 
+def trust_worktree(worktree_path):
+    """Records the worktree as trusted in Claude's user config.
+
+    Without this, Claude gates the worktree's `.claude/settings.local.json`
+    (permissions, MCP servers, hooks) because its path is not yet trusted. Trust
+    is keyed on the exact resolved path and read from `~/.claude.json` (honoring
+    `CLAUDE_CONFIG_DIR`), not from `settings.json`. Best-effort: failures are
+    reported to stderr but never abort worktree creation.
+    """
+    config_dir = os.environ.get("CLAUDE_CONFIG_DIR")
+    config_path = (
+        os.path.join(config_dir, ".claude.json")
+        if config_dir
+        else os.path.expanduser("~/.claude.json")
+    )
+    key = os.path.realpath(worktree_path)
+
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        config = {}
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"Warning: cannot read {config_path} to trust worktree: {e}", file=sys.stderr)
+        return
+
+    entry = config.setdefault("projects", {}).setdefault(key, {})
+    if entry.get("hasTrustDialogAccepted") is True:
+        return
+    entry["hasTrustDialogAccepted"] = True
+
+    tmp_path = f"{config_path}.{os.getpid()}.tmp"
+    try:
+        with open(tmp_path, "w") as f:
+            json.dump(config, f, indent=2)
+            f.write("\n")
+        os.replace(tmp_path, config_path)
+    except OSError as e:
+        print(f"Warning: cannot write {config_path} to trust worktree: {e}", file=sys.stderr)
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -114,25 +160,28 @@ def main():
     config = load_worktree_config(repo_root)
 
     repo_name = os.path.basename(repo_root)
-    worktree_dir = os.path.join(
+    repo_worktrees_root = os.path.join(
         os.path.expanduser(config.base_dir), repo_name
     )
-    worktree_path = os.path.join(worktree_dir, name)
-
-    os.makedirs(worktree_dir, exist_ok=True)
+    worktree_path = os.path.join(repo_worktrees_root, name)
     workspace_name = f"claude/{name}"
 
-    result = subprocess.run(
-        ["jj", "workspace", "add", worktree_path, "--name", workspace_name,
-         "-r", config.revision],
-        capture_output=True,
-        text=True,
-        cwd=repo_root,
-    )
+    os.makedirs(repo_worktrees_root, exist_ok=True)
 
-    if result.returncode != 0:
-        print(f"Error: jj workspace add failed: {result.stderr}", file=sys.stderr)
-        return 2
+    if Path(worktree_path).is_dir():
+        pass  # re-use existing worktree dir
+    else:
+        result = subprocess.run(
+            ["jj", "workspace", "add", worktree_path, "--name", workspace_name,
+             "-r", config.revision],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+        )
+
+        if result.returncode != 0:
+            print(f"Error: jj workspace add failed: {result.stderr}", file=sys.stderr)
+            return 2
 
     def cleanup():
         subprocess.run(
@@ -159,6 +208,8 @@ def main():
         dst = os.path.join(worktree_path, link)
         if os.path.exists(src) and not os.path.exists(dst):
             os.symlink(src, dst)
+
+    trust_worktree(worktree_path)
 
     print(worktree_path)
     return 0
