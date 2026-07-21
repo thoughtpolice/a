@@ -40,12 +40,23 @@ shims.go_binary(
     srcs = SRCS,
     cgo_enabled = False,
     link_mode = "internal",
-    tests = [":unit"],
+    tests = [
+        ":integration",
+        ":unit",
+    ],
     visibility = ["PUBLIC"],
 )
 
 shims.go_test(
     name = "unit",
     srcs = SRCS + TEST_SRCS,
+    cgo_enabled = False,
+)
+
+# Runs the real buck2 against a synthetic project to pin the diagnostic text
+# the universe recognizers parse. Skips when buck2 is not reachable.
+shims.go_test(
+    name = "integration",
+    srcs = SRCS + ["integration_test.go"],
     cgo_enabled = False,
 )

@@ -70,6 +70,13 @@ path. Configuration changes select the whole requested head universe. New Buck
 graph errors, malformed JSON, bad revsets, and changed packages with existing
 graph errors fail closed instead of returning an incomplete target set.
 
+Two expected diagnostics — a universe endpoint's missing package and its
+missing target — are recognized by their exact buck2 wording. A buck2 upgrade
+that rewords them turns those expected diagnostics into hard failures: still
+fail-closed, but disruptive. The `:integration` test runs the real buck2
+against a synthetic project to catch that drift, so land buck2 upgrades and
+recognizer updates together. It skips when no buck2 is reachable.
+
 Temporary workspaces live in the platform temporary directory rather than the
 repository. Each checkout is created inside a race-safe private container. A
 temporary base inside the source repository is rejected. Workspaces and their
