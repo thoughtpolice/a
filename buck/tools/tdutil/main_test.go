@@ -49,6 +49,8 @@ type pipelineRunner struct {
 	workspaceAdds      int
 	workspaceForgets   int
 	workspaceRoots     []string
+	forgottenNames     []string
+	workspaceList      []byte
 	auditCalls         int
 	targetCalls        int
 	cleanupWasCanceled bool
@@ -167,9 +169,18 @@ func (runner *pipelineRunner) run(ctx context.Context, spec commandSpec) (proces
 			return processResult{stderr: []byte("head add failed\n"), exitCode: 23}, nil
 		}
 		return processResult{}, nil
+	case hasArgumentSequence(spec.args, "workspace", "list"):
+		runner.mu.Lock()
+		list := runner.workspaceList
+		runner.mu.Unlock()
+		if list == nil {
+			list = []byte("default\n")
+		}
+		return processResult{stdout: append([]byte(nil), list...)}, nil
 	case hasArgumentSequence(spec.args, "workspace", "forget"):
 		runner.mu.Lock()
 		runner.workspaceForgets++
+		runner.forgottenNames = append(runner.forgottenNames, spec.args[len(spec.args)-1])
 		if ctx.Err() != nil {
 			runner.cleanupWasCanceled = true
 		}
@@ -255,6 +266,12 @@ func (runner *pipelineRunner) snapshot() (commands []commandSpec, roots []string
 	return commands, roots, runner.workspaceAdds, runner.workspaceForgets, runner.auditCalls, runner.targetCalls, runner.cleanupWasCanceled
 }
 
+func (runner *pipelineRunner) forgottenWorkspaces() []string {
+	runner.mu.Lock()
+	defer runner.mu.Unlock()
+	return append([]string(nil), runner.forgottenNames...)
+}
+
 func hasArgument(arguments []string, wanted string) bool {
 	for _, argument := range arguments {
 		if argument == wanted {
@@ -302,6 +319,7 @@ func pipelineApplicationFixture(t *testing.T) (application, *pipelineRunner, str
 		tempDir: func() string {
 			return temporary
 		},
+		pidAlive: func(int) bool { return true },
 	}
 	return app, runner, repository
 }
@@ -323,6 +341,42 @@ func TestApplicationEqualTreeFastPathSkipsWorkspacesAndBuck(t *testing.T) {
 	}
 	if len(commands) != 4 {
 		t.Fatalf("commands = %d, want discovery, two resolutions, and diff", len(commands))
+	}
+}
+
+func TestApplicationSweepsOrphanedRegistrationsBeforeCreatingWorkspaces(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	runner.workspaceList = []byte("default\ntdutil-dead-1f-0\ntdutil-cafe-1f-0\n")
+	app.pidAlive = func(pid int) bool { return pid != 0xdead }
+	if err := runApplication(context.Background(), app, nil, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	forgotten := runner.forgottenWorkspaces()
+	if len(forgotten) != 3 || forgotten[0] != "tdutil-dead-1f-0" {
+		t.Fatalf("forgotten = %#v", forgotten)
+	}
+	for _, name := range forgotten[1:] {
+		if name == "tdutil-cafe-1f-0" {
+			t.Fatalf("live workspace was forgotten: %#v", forgotten)
+		}
+	}
+	commands, _, adds, _, _, _, _ := runner.snapshot()
+	if adds != 2 {
+		t.Fatalf("adds = %d", adds)
+	}
+	listIndex, forgetIndex, addIndex := -1, -1, -1
+	for index, command := range commands {
+		switch {
+		case listIndex < 0 && hasArgumentSequence(command.args, "workspace", "list"):
+			listIndex = index
+		case forgetIndex < 0 && hasArgumentSequence(command.args, "workspace", "forget"):
+			forgetIndex = index
+		case addIndex < 0 && hasArgumentSequence(command.args, "workspace", "add"):
+			addIndex = index
+		}
+	}
+	if listIndex < 0 || forgetIndex < 0 || addIndex < 0 || listIndex > forgetIndex || forgetIndex > addIndex {
+		t.Fatalf("command order: list=%d forget=%d add=%d", listIndex, forgetIndex, addIndex)
 	}
 }
 

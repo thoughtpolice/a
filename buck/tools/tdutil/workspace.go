@@ -5,13 +5,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -204,17 +207,81 @@ func (workspace *workspace) close(ctx context.Context) error {
 }
 
 func (workspace *workspace) forget(ctx context.Context) error {
-	args := workspace.jj.commandArgs(true)
-	args = append(args, "workspace", "forget", workspace.name)
-	result, err := workspace.jj.runner.run(ctx, commandSpec{
-		path: workspace.jj.executable,
-		args: args,
-		dir:  workspace.jj.repository,
-	})
+	return workspace.jj.forgetWorkspace(ctx, workspace.name)
+}
+
+// sweepOrphanedWorkspaces forgets tdutil workspace registrations whose owning
+// process is provably gone. Deferred cleanup cannot run when a tdutil process
+// is killed outright, which would otherwise leak its registrations in the
+// repository forever; the checkout directories themselves live under the
+// platform temporary directory and are reaped by the operating system.
+// Ambiguity — an unrecognized name, a live or unverifiable pid — always keeps
+// the registration, so concurrent tdutil runs are never disturbed. The sweep
+// is best-effort and never fails the run.
+func sweepOrphanedWorkspaces(
+	ctx context.Context,
+	jj *jjClient,
+	pidAlive func(int) bool,
+	log func(format string, values ...any),
+) {
+	names, err := jj.listWorkspaceNames(ctx)
 	if err != nil {
-		return fmt.Errorf("forgetting temporary jj workspace %s: %w", workspace.name, err)
+		log("skipping orphaned workspace sweep: %v", err)
+		return
 	}
-	return ensureJJProcessSuccess("jj workspace forget", result)
+	for _, name := range names {
+		pid, ok := parseWorkspaceOwnerPid(name)
+		if !ok || pidAlive(pid) {
+			continue
+		}
+		if err := jj.forgetWorkspace(ctx, name); err != nil {
+			log("could not forget orphaned workspace %s: %v", name, err)
+			continue
+		}
+		log("forgot orphaned workspace %s", name)
+	}
+}
+
+// parseWorkspaceOwnerPid extracts the owning pid from a name produced by
+// uniqueWorkspaceName. Anything else — including tdutil-prefixed names a
+// person created by hand — is rejected.
+func parseWorkspaceOwnerPid(name string) (int, bool) {
+	rest, ok := strings.CutPrefix(name, "tdutil-")
+	if !ok {
+		return 0, false
+	}
+	fields := strings.Split(rest, "-")
+	if len(fields) != 3 {
+		return 0, false
+	}
+	for _, field := range fields[1:] {
+		if _, err := strconv.ParseUint(field, 16, 64); err != nil {
+			return 0, false
+		}
+	}
+	pid, err := strconv.ParseUint(fields[0], 16, 31)
+	if err != nil || pid == 0 {
+		return 0, false
+	}
+	return int(pid), true
+}
+
+// processIsAlive reports whether pid demonstrably refers to a live process.
+// Platforms without signal probing and permission failures report alive: the
+// sweep may only act on certain death.
+func processIsAlive(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	err = process.Signal(syscall.Signal(0))
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, os.ErrProcessDone) || errors.Is(err, syscall.ESRCH) {
+		return false
+	}
+	return true
 }
 
 func allocateWorkspaceLocation(repository, tempBase, currentDir string) (workspaceLocation, error) {

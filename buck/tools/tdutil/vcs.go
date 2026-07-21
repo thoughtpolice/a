@@ -106,6 +106,37 @@ func (jj *jjClient) changedPaths(ctx context.Context, from, to string, ignoreWor
 	return parseChangedPaths(result.stdout)
 }
 
+func (jj *jjClient) listWorkspaceNames(ctx context.Context) ([]string, error) {
+	args := jj.commandArgs(true)
+	args = append(args, "workspace", "list", "-T", `name ++ "\n"`)
+	result, err := jj.runner.run(ctx, commandSpec{
+		path: jj.executable,
+		args: args,
+		dir:  jj.repository,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("running `jj workspace list`: %w", err)
+	}
+	if err := ensureJJProcessSuccess("jj workspace list", result); err != nil {
+		return nil, err
+	}
+	return parseWorkspaceNames(result.stdout)
+}
+
+func (jj *jjClient) forgetWorkspace(ctx context.Context, name string) error {
+	args := jj.commandArgs(true)
+	args = append(args, "workspace", "forget", name)
+	result, err := jj.runner.run(ctx, commandSpec{
+		path: jj.executable,
+		args: args,
+		dir:  jj.repository,
+	})
+	if err != nil {
+		return fmt.Errorf("forgetting temporary jj workspace %s: %w", name, err)
+	}
+	return ensureJJProcessSuccess("jj workspace forget", result)
+}
+
 func (jj *jjClient) commandArgs(ignoreWorkingCopy bool) []string {
 	args := []string{"--no-pager", "--color=never", "-R", jj.repository}
 	if ignoreWorkingCopy {
@@ -144,6 +175,21 @@ func parseWorkspaceRoot(stdout []byte) (string, error) {
 		return "", fmt.Errorf("jj returned a non-absolute workspace root: %q", root)
 	}
 	return root, nil
+}
+
+func parseWorkspaceNames(stdout []byte) ([]string, error) {
+	if !utf8.Valid(stdout) {
+		return nil, fmt.Errorf("jj returned non-UTF-8 workspace names")
+	}
+	var names []string
+	for _, line := range strings.Split(string(stdout), "\n") {
+		name := strings.TrimSuffix(line, "\r")
+		if name == "" {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names, nil
 }
 
 func parseSingleRevision(stdout []byte, revset string) (string, error) {
