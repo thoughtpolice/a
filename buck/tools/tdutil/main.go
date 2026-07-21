@@ -93,85 +93,126 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 			logProgress(stderr, &args, format, values...)
 		})
 
-		// The head graph is queried directly in the invoking workspace when the
-		// requested head is the working-copy commit: the tree on disk already is
-		// that revision, so a second materialization would only duplicate it.
-		headInPlace := false
-		if !args.noHeadInPlace {
+		if args.quick {
+			// Quick mode consults only the working-copy graph: no base
+			// materialization, one Buck query, and the documented blind spots
+			// around deleted targets and hash-level definition changes.
 			workingCopyCommit, err := jj.resolveOne(ctx, "@", true)
 			if err != nil {
 				return err
 			}
-			headInPlace = workingCopyCommit == revisions.head
-		}
-
-		localConfig, err := snapshotBuckLocalConfig(jj.repository)
-		if err != nil {
-			return err
-		}
-		baseWorkspace, err := createWorkspace(ctx, jj, revisions.base, app.tempDir(), currentDir, localConfig)
-		if err != nil {
-			return err
-		}
-		cleanupContext := context.WithoutCancel(ctx)
-		defer func() { _ = baseWorkspace.close(cleanupContext) }()
-
-		var headWorkspace *workspace
-		headCheckout := jj.repository
-		if headInPlace {
-			logProgress(stderr, &args, "querying head in place at %s", jj.repository)
-		} else {
-			headWorkspace, err = createWorkspace(ctx, jj, revisions.head, app.tempDir(), currentDir, localConfig)
-			if err != nil {
-				return finishOneWorkspace(cleanupContext, baseWorkspace, args.keepWorkspaces, err, "base", stderr)
+			if workingCopyCommit != revisions.head {
+				return fmt.Errorf(
+					"--quick analyzes only the working copy: head revset `%s` resolves to %s, not the working-copy commit %s; drop --quick or target `@`",
+					args.head,
+					revisions.head,
+					workingCopyCommit,
+				)
 			}
-			defer func() { _ = headWorkspace.close(cleanupContext) }()
-			headCheckout = headWorkspace.checkout
-		}
-
-		logProgress(
-			stderr,
-			&args,
-			"querying base/head Buck graphs in parallel (%s)",
-			strings.Join(args.universe, " "),
-		)
-		buckArgs := append([]string(nil), args.buckArgs...)
-		baseSnapshot, headSnapshot, analysisErr := collectSnapshotPair(
-			ctx,
-			app.runner,
-			baseWorkspace.checkout,
-			headCheckout,
-			args.buck,
-			buckArgs,
-			args.isolationDir,
-			args.universe,
-		)
-		if analysisErr == nil {
-			logProgress(
-				stderr,
-				&args,
-				"parsed %d base and %d head targets",
-				len(baseSnapshot.targets),
-				len(headSnapshot.targets),
+			logProgress(stderr, &args, "quick: querying the working-copy Buck graph (%s)", strings.Join(args.universe, " "))
+			quickSnapshot, err := collectQuickSnapshot(
+				ctx,
+				app.runner,
+				jj.repository,
+				args.buck,
+				append([]string(nil), args.buckArgs...),
+				args.isolationDir,
+				args.universe,
 			)
-			affected, analysisErr = determine(
-				&baseSnapshot,
-				&headSnapshot,
+			if err != nil {
+				return err
+			}
+			logProgress(stderr, &args, "parsed %d working-copy targets", len(quickSnapshot.targets))
+			affected, err = determine(
+				&quickSnapshot,
+				&quickSnapshot,
 				changed,
 				determineOptions{depth: args.depth},
 			)
-		}
-		affected, err = finishWorkspacePair(
-			cleanupContext,
-			baseWorkspace,
-			headWorkspace,
-			args.keepWorkspaces,
-			affected,
-			analysisErr,
-			stderr,
-		)
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
+		} else {
+			// The head graph is queried directly in the invoking workspace when the
+			// requested head is the working-copy commit: the tree on disk already is
+			// that revision, so a second materialization would only duplicate it.
+			headInPlace := false
+			if !args.noHeadInPlace {
+				workingCopyCommit, err := jj.resolveOne(ctx, "@", true)
+				if err != nil {
+					return err
+				}
+				headInPlace = workingCopyCommit == revisions.head
+			}
+
+			localConfig, err := snapshotBuckLocalConfig(jj.repository)
+			if err != nil {
+				return err
+			}
+			baseWorkspace, err := createWorkspace(ctx, jj, revisions.base, app.tempDir(), currentDir, localConfig)
+			if err != nil {
+				return err
+			}
+			cleanupContext := context.WithoutCancel(ctx)
+			defer func() { _ = baseWorkspace.close(cleanupContext) }()
+
+			var headWorkspace *workspace
+			headCheckout := jj.repository
+			if headInPlace {
+				logProgress(stderr, &args, "querying head in place at %s", jj.repository)
+			} else {
+				headWorkspace, err = createWorkspace(ctx, jj, revisions.head, app.tempDir(), currentDir, localConfig)
+				if err != nil {
+					return finishOneWorkspace(cleanupContext, baseWorkspace, args.keepWorkspaces, err, "base", stderr)
+				}
+				defer func() { _ = headWorkspace.close(cleanupContext) }()
+				headCheckout = headWorkspace.checkout
+			}
+
+			logProgress(
+				stderr,
+				&args,
+				"querying base/head Buck graphs in parallel (%s)",
+				strings.Join(args.universe, " "),
+			)
+			buckArgs := append([]string(nil), args.buckArgs...)
+			baseSnapshot, headSnapshot, analysisErr := collectSnapshotPair(
+				ctx,
+				app.runner,
+				baseWorkspace.checkout,
+				headCheckout,
+				args.buck,
+				buckArgs,
+				args.isolationDir,
+				args.universe,
+			)
+			if analysisErr == nil {
+				logProgress(
+					stderr,
+					&args,
+					"parsed %d base and %d head targets",
+					len(baseSnapshot.targets),
+					len(headSnapshot.targets),
+				)
+				affected, analysisErr = determine(
+					&baseSnapshot,
+					&headSnapshot,
+					changed,
+					determineOptions{depth: args.depth},
+				)
+			}
+			affected, err = finishWorkspacePair(
+				cleanupContext,
+				baseWorkspace,
+				headWorkspace,
+				args.keepWorkspaces,
+				affected,
+				analysisErr,
+				stderr,
+			)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

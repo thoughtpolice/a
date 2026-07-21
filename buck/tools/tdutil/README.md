@@ -45,6 +45,28 @@ directly. `--format json` emits revision metadata and root-cause information;
 `--format json-lines` emits one reason record per target. Run with `--help` for
 all options.
 
+## Quick mode
+
+`--quick` answers "what should I test before pushing?" at interactive speed by
+consulting only the working-copy graph — no temporary workspaces, one Buck
+query against the repository's own warm daemon:
+
+```console
+$ buck2 run root//buck/tools/tdutil:tdutil -- --quick
+```
+
+The base revset still chooses which diff is analyzed, but its graph is never
+built, so the head revision must resolve to the working-copy commit. Quick
+mode seeds from changed inputs, BUILD and PACKAGE files, transitive
+Buck-reported imports, CI annotations, and configuration files, and it
+propagates through the same reverse-dependency, `ci_deps`, and
+`ci_srcs_must_match` machinery with the same fail-closed universe and graph
+error checks as the full protocol. Without a base graph it cannot see
+dependents of targets that were removed, and it cannot compare target hashes,
+so a macro edit selects every package importing the macro instead of only the
+targets whose definitions actually changed. CI keeps the two-snapshot
+protocol; quick mode is for the inner development loop.
+
 The command snapshots the current JJ working copy by default, so `@` includes
 edits that have not yet been observed by another JJ command. Use
 `--ignore-working-copy` only when stale working-copy state is intentional.

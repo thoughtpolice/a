@@ -55,6 +55,18 @@ func TestCLIPatternsOnlyKeepDefaultRevisions(t *testing.T) {
 	}
 }
 
+func TestCLIQuickFlagParsesAndRejectsConflicts(t *testing.T) {
+	if mustRunArgs(t).quick {
+		t.Fatal("quick should default off")
+	}
+	if !mustRunArgs(t, "--quick").quick {
+		t.Fatal("--quick was not recorded")
+	}
+	if _, err := parseCLI([]string{"--quick", "--no-head-in-place"}); err == nil {
+		t.Fatal("conflicting in-place flags were accepted")
+	}
+}
+
 func TestCLIHeadInPlaceIsDefaultWithOptOut(t *testing.T) {
 	if mustRunArgs(t).noHeadInPlace {
 		t.Fatal("in-place head should be allowed by default")
