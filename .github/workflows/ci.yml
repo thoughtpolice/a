@@ -186,19 +186,34 @@ jobs:
       - name: Init jj repository
         shell: bash
         run: dotslash ./buck/bin/extra/jj git init --colocate
+      - name: Resolve comparison commits
+        id: commits
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "base=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+            echo "head=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          else
+            # for push events, compare against the previous commit
+            echo "base=${{ github.event.before }}" >> $GITHUB_OUTPUT
+            echo "head=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+      # Optimistically reuse the base commit's graph, captured by an earlier
+      # push run. tdutil validates the snapshot against the requested commit,
+      # universe, configuration, and buck2 version, and silently collects the
+      # base graph itself when the snapshot is missing or unusable.
+      - name: Restore base graph snapshot
+        uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809
+        with:
+          path: ${{ runner.temp }}/tdutil-base-snapshot.json
+          key: tdutil-base-snapshot-v1-${{ matrix.abi }}-${{ steps.commits.outputs.base }}-${{ hashFiles('buck/bin/buck2', 'buck/ci.buckconfig') }}
       - name: Determine affected targets
         id: determine-targets
         continue-on-error: true
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_COMMIT="${{ github.event.pull_request.base.sha }}"
-            HEAD_COMMIT="${{ github.event.pull_request.head.sha }}"
-          else
-            # for push events, compare against the previous commit
-            BASE_COMMIT="${{ github.event.before }}"
-            HEAD_COMMIT="${{ github.sha }}"
-          fi
+          BASE_COMMIT="${{ steps.commits.outputs.base }}"
+          HEAD_COMMIT="${{ steps.commits.outputs.head }}"
 
           echo "Base commit: $BASE_COMMIT"
           echo "Head commit: $HEAD_COMMIT"
@@ -209,10 +224,12 @@ jobs:
           TARGETS_FILE="${{ runner.temp }}/affected-targets.txt"
           buck2 run @buck/ci.buckargs root//buck/tools/tdutil:tdutil -- \
             --config ci.depot_gha_ci=true \
+            --verbose \
             --format text \
             --output "$TARGETS_FILE" \
             --from "$BASE_COMMIT" \
             --to "$HEAD_COMMIT" \
+            --base-snapshot "${{ runner.temp }}/tdutil-base-snapshot.json" \
             --universe depot//...
 
           if [ -f "$TARGETS_FILE" ]; then
@@ -243,6 +260,29 @@ jobs:
             # FIXME (aseipp): this should be an error in the long run
             echo "No targets file generated, will fall back to full test"
           fi
+
+      # Refresh the trunk snapshot so future runs can skip base collection.
+      # The capture reuses the warm in-place daemon from the determination
+      # step; it is an optimization only and never fails the build.
+      - name: Capture base graph snapshot
+        id: capture-snapshot
+        if: github.event_name == 'push'
+        continue-on-error: true
+        shell: bash
+        run: |
+          buck2 run @buck/ci.buckargs root//buck/tools/tdutil:tdutil -- \
+            --config ci.depot_gha_ci=true \
+            --verbose \
+            --to "${{ steps.commits.outputs.head }}" \
+            --snapshot-to "${{ runner.temp }}/tdutil-head-snapshot.json" \
+            --universe depot//...
+      - name: Save base graph snapshot
+        if: github.event_name == 'push' && steps.capture-snapshot.outcome == 'success'
+        continue-on-error: true
+        uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809
+        with:
+          path: ${{ runner.temp }}/tdutil-head-snapshot.json
+          key: tdutil-base-snapshot-v1-${{ matrix.abi }}-${{ steps.commits.outputs.head }}-${{ hashFiles('buck/bin/buck2', 'buck/ci.buckconfig') }}
 
       # Test Step - either targeted or full test (skip if no targets affected)
       - name: Test affected targets
