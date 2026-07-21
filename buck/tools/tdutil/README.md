@@ -52,9 +52,13 @@ edits that have not yet been observed by another JJ command. Use
 ## Algorithm and correctness
 
 1. Resolve both revsets to exactly one commit and compute their tree diff.
-2. Materialize both trees in real temporary JJ workspaces.
+2. Materialize the base tree in a real temporary JJ workspace. The head tree
+   is materialized the same way only when it is not the working-copy commit;
+   the working copy itself is already that tree, so the head graph is queried
+   in place. `--no-head-in-place` forces materialization anyway.
 3. In parallel, run Buck's cell audit and its streaming target dump with target
-   hashes, inputs, dependencies, package records, and Buck-reported import edges.
+   hashes, inputs, dependencies, package records, and Buck-reported import
+   edges. The dump is parsed as it streams rather than accumulated in memory.
 4. Seed impact from added/removed/hash-changed targets, changed inputs, BUILD
    and inherited PACKAGE files, transitive Buck-reported imports, and CI annotations.
 5. Walk head-graph reverse dependencies (including `ci_deps`) and emit only
@@ -70,11 +74,18 @@ Temporary workspaces live in the platform temporary directory rather than the
 repository. Each checkout is created inside a race-safe private container. A
 temporary base inside the source repository is rejected. Workspaces and their
 containers are forgotten and removed even on errors; `--keep-workspaces`
-retains them for diagnosis. The repository's `.buckconfig.local`, when present,
-is snapshotted once and installed mode 0600 in both private checkouts before
-their Buck daemons start. Retained diagnostic workspaces therefore retain that
-snapshot too. Extra Buck configuration must describe both graphs, so pass it
-with `--config KEY=VALUE` or repeat `--buck-arg`.
+retains them for diagnosis. A tdutil process killed outright cannot run that
+cleanup, so each run also sweeps workspace registrations left by tdutil
+processes which are provably dead. The repository's `.buckconfig.local`, when
+present, is snapshotted once and installed mode 0600 in each private checkout
+before its Buck daemon starts. Retained diagnostic workspaces therefore retain
+that snapshot too. Extra Buck configuration must describe both graphs, so pass
+it with `--config KEY=VALUE` or repeat `--buck-arg`.
+
+A head queried in place reads the live working copy, including its live
+`.buckconfig.local`. Edits made to the tree or that file while tdutil runs
+land in the head graph, exactly as they would in any local build; pass
+`--no-head-in-place` when even that must be pinned.
 
 Graph collection dominates runtime. Base and head queries run concurrently,
 and the detector avoids materialization entirely when the JJ tree diff is empty.

@@ -37,6 +37,8 @@ Options:
       --isolation-dir NAME    Inner Buck2 isolation directory (default: tdutil)
       --ignore-working-copy   Do not ask JJ to snapshot before resolving revsets
       --keep-workspaces       Retain temporary historical workspaces for debugging
+      --no-head-in-place      Materialize the head revision in a temporary
+                              workspace even when it is the working-copy commit
   -v, --verbose               Print progress details to stderr
   -h, --help                  Print this help
   -V, --version               Print the version
@@ -64,6 +66,7 @@ type cliArgs struct {
 	isolationDir      string
 	ignoreWorkingCopy bool
 	keepWorkspaces    bool
+	noHeadInPlace     bool
 	verbose           bool
 }
 
@@ -93,6 +96,7 @@ func parseCLI(argv []string) (cliAction, error) {
 	isolationDir := "tdutil"
 	ignoreWorkingCopy := false
 	keepWorkspaces := false
+	noHeadInPlace := false
 	verbose := false
 	var positional []string
 	options := true
@@ -217,6 +221,8 @@ func parseCLI(argv []string) (cliAction, error) {
 			ignoreWorkingCopy = true
 		case "--keep-workspaces":
 			keepWorkspaces = true
+		case "--no-head-in-place":
+			noHeadInPlace = true
 		case "-v", "--verbose":
 			verbose = true
 		default:
@@ -259,6 +265,7 @@ func parseCLI(argv []string) (cliAction, error) {
 		isolationDir:      isolationDir,
 		ignoreWorkingCopy: ignoreWorkingCopy,
 		keepWorkspaces:    keepWorkspaces,
+		noHeadInPlace:     noHeadInPlace,
 		verbose:           verbose,
 	}
 	if base != nil {
