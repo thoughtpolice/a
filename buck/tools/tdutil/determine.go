@@ -384,7 +384,8 @@ func addDescendantPackages(graph *graph, packageName, changedFile string, roots 
 
 func isGlobalConfiguration(path string) bool {
 	name := pathBase(path)
-	if name == ".buckroot" || strings.HasSuffix(name, ".buckconfig") || strings.HasSuffix(name, ".bcfg") {
+	if name == ".buckroot" || strings.HasSuffix(name, ".buckconfig") ||
+		strings.HasSuffix(name, ".bcfg") || strings.HasSuffix(name, ".buckargs") {
 		return true
 	}
 	for _, component := range strings.Split(path, "/") {
