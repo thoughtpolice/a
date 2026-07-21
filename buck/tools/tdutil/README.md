@@ -56,7 +56,7 @@ $ buck2 run root//buck/tools/tdutil:tdutil -- --quick
 ```
 
 The base revset still chooses which diff is analyzed, but its graph is never
-built, so the head revision must resolve to the working-copy commit. Quick
+built, so the head revision must match the working-copy tree. Quick
 mode seeds from changed inputs, BUILD and PACKAGE files, transitive
 Buck-reported imports, CI annotations, and configuration files, and it
 propagates through the same reverse-dependency, `ci_deps`, and
@@ -75,8 +75,9 @@ edits that have not yet been observed by another JJ command. Use
 
 1. Resolve both revsets to exactly one commit and compute their tree diff.
 2. Materialize the base tree in a real temporary JJ workspace. The head tree
-   is materialized the same way only when it is not the working-copy commit;
-   the working copy itself is already that tree, so the head graph is queried
+   is materialized the same way only when its tree differs from the working
+   copy; when they match — including a colocated CI checkout whose working
+   copy is an empty commit atop the pinned head — the head graph is queried
    in place. `--no-head-in-place` forces materialization anyway.
 3. In parallel, run Buck's cell audit and its streaming target dump with target
    hashes, inputs, dependencies, package records, and Buck-reported import
