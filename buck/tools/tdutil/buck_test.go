@@ -137,6 +137,88 @@ func TestCollectTargetsSkipsCommandForAbsentEndpoint(t *testing.T) {
 	}
 }
 
+type streamingBuckRunner struct {
+	t        *testing.T
+	stdout   []byte
+	result   processResult
+	streamed int
+}
+
+func (runner *streamingBuckRunner) run(context.Context, commandSpec) (processResult, error) {
+	runner.t.Fatal("buffered run used despite streaming support")
+	return processResult{}, nil
+}
+
+func (runner *streamingBuckRunner) runLines(_ context.Context, _ commandSpec, line func([]byte)) (processResult, error) {
+	runner.streamed++
+	feedLines(runner.stdout, line)
+	return runner.result, nil
+}
+
+func TestCollectTargetsPrefersStreamingRunnerAndParsesIncrementally(t *testing.T) {
+	runner := &streamingBuckRunner{t: t, stdout: []byte(targetJSON("app") + "\n")}
+	snapshot, err := collectTargets(
+		context.Background(),
+		runner,
+		t.TempDir(),
+		"buck2",
+		nil,
+		"",
+		[]string{"root//src/app:app"},
+		testCellMap(t),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runner.streamed != 1 {
+		t.Fatalf("streamed = %d", runner.streamed)
+	}
+	if _, ok := snapshot.targets["root//src/app:app"]; !ok {
+		t.Fatalf("parsed targets = %#v", snapshot.targets)
+	}
+}
+
+func TestCollectTargetsProcessFailureOutranksStreamedParseError(t *testing.T) {
+	runner := &streamingBuckRunner{
+		t:      t,
+		stdout: []byte("this is not JSON\n"),
+		result: processResult{stderr: []byte("daemon exploded\n"), exitCode: 7},
+	}
+	_, err := collectTargets(
+		context.Background(),
+		runner,
+		t.TempDir(),
+		"buck2",
+		nil,
+		"",
+		[]string{"root//src/app:app"},
+		testCellMap(t),
+	)
+	if err == nil || !strings.Contains(err.Error(), "exit 7") || !strings.Contains(err.Error(), "daemon exploded") {
+		t.Fatalf("error = %v, want process failure", err)
+	}
+}
+
+func TestCollectTargetsStreamedParseErrorKeepsLineNumber(t *testing.T) {
+	runner := &streamingBuckRunner{
+		t:      t,
+		stdout: []byte(targetJSON("app") + "\n\nthis is not JSON\n"),
+	}
+	_, err := collectTargets(
+		context.Background(),
+		runner,
+		t.TempDir(),
+		"buck2",
+		nil,
+		"",
+		[]string{"root//src/app:app"},
+		testCellMap(t),
+	)
+	if err == nil || !strings.Contains(err.Error(), "output line 3") {
+		t.Fatalf("error = %v, want line 3 parse failure", err)
+	}
+}
+
 func TestBuckCollectorsRejectNonUTF8Stdout(t *testing.T) {
 	workspace := t.TempDir()
 	cells := singleCellMap(t, workspace)
