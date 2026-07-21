@@ -72,6 +72,10 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 		return err
 	}
 
+	if args.snapshotTo != nil {
+		return runSnapshotCapture(ctx, app, jj, &args, currentDir, stderr)
+	}
+
 	logProgress(stderr, &args, "resolving %s .. %s", args.base, args.head)
 	revisions, err := jj.resolvePair(ctx, args.base, args.head, args.ignoreWorkingCopy)
 	if err != nil {
@@ -132,6 +136,31 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				return err
 			}
 		} else {
+			var baseDocument *snapshotDocument
+			if args.baseSnapshot != nil {
+				document, reason := loadBaseSnapshot(
+					ctx,
+					app.runner,
+					*args.baseSnapshot,
+					args.buck,
+					jj.repository,
+					revisions.base,
+					args.universe,
+					args.buckArgs,
+				)
+				if document == nil {
+					_, _ = fmt.Fprintf(
+						stderr,
+						"tdutil: base snapshot %s ignored (%s); collecting the base graph instead\n",
+						*args.baseSnapshot,
+						reason,
+					)
+				} else {
+					logProgress(stderr, &args, "using base snapshot for %s (%d targets)", revisions.base, len(document.Targets))
+				}
+				baseDocument = document
+			}
+
 			// The head graph is queried directly in the invoking workspace when the
 			// requested head has the working-copy tree: the tree on disk already is
 			// that revision, so a second materialization would only duplicate it.
@@ -147,12 +176,16 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 			if err != nil {
 				return err
 			}
-			baseWorkspace, err := createWorkspace(ctx, jj, revisions.base, app.tempDir(), currentDir, localConfig)
-			if err != nil {
-				return err
-			}
 			cleanupContext := context.WithoutCancel(ctx)
-			defer func() { _ = baseWorkspace.close(cleanupContext) }()
+
+			var baseWorkspace *workspace
+			if baseDocument == nil {
+				baseWorkspace, err = createWorkspace(ctx, jj, revisions.base, app.tempDir(), currentDir, localConfig)
+				if err != nil {
+					return err
+				}
+				defer func() { _ = baseWorkspace.close(cleanupContext) }()
+			}
 
 			var headWorkspace *workspace
 			headCheckout := jj.repository
@@ -161,29 +194,53 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 			} else {
 				headWorkspace, err = createWorkspace(ctx, jj, revisions.head, app.tempDir(), currentDir, localConfig)
 				if err != nil {
-					return finishOneWorkspace(cleanupContext, baseWorkspace, args.keepWorkspaces, err, "base", stderr)
+					if baseWorkspace != nil {
+						return finishOneWorkspace(cleanupContext, baseWorkspace, args.keepWorkspaces, err, "base", stderr)
+					}
+					return err
 				}
 				defer func() { _ = headWorkspace.close(cleanupContext) }()
 				headCheckout = headWorkspace.checkout
 			}
 
-			logProgress(
-				stderr,
-				&args,
-				"querying base/head Buck graphs in parallel (%s)",
-				strings.Join(args.universe, " "),
-			)
 			buckArgs := append([]string(nil), args.buckArgs...)
-			baseSnapshot, headSnapshot, analysisErr := collectSnapshotPair(
-				ctx,
-				app.runner,
-				baseWorkspace.checkout,
-				headCheckout,
-				args.buck,
-				buckArgs,
-				args.isolationDir,
-				args.universe,
-			)
+			var baseSnapshot, headSnapshot snapshot
+			var analysisErr error
+			if baseDocument != nil {
+				logProgress(
+					stderr,
+					&args,
+					"querying the head Buck graph against the base snapshot (%s)",
+					strings.Join(args.universe, " "),
+				)
+				baseSnapshot, headSnapshot, analysisErr = collectSnapshotPairFromDocument(
+					ctx,
+					app.runner,
+					baseDocument,
+					headCheckout,
+					args.buck,
+					buckArgs,
+					args.isolationDir,
+					args.universe,
+				)
+			} else {
+				logProgress(
+					stderr,
+					&args,
+					"querying base/head Buck graphs in parallel (%s)",
+					strings.Join(args.universe, " "),
+				)
+				baseSnapshot, headSnapshot, analysisErr = collectSnapshotPair(
+					ctx,
+					app.runner,
+					baseWorkspace.checkout,
+					headCheckout,
+					args.buck,
+					buckArgs,
+					args.isolationDir,
+					args.universe,
+				)
+			}
 			if analysisErr == nil {
 				logProgress(
 					stderr,
@@ -233,6 +290,77 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 	return render(output, args.format, &meta, affected)
 }
 
+// runSnapshotCapture collects the head revision's graph once and writes it as
+// a reusable base snapshot document. The working copy is used directly when
+// its tree matches; any other revision is materialized in a temporary
+// workspace exactly like the sound path's endpoints.
+func runSnapshotCapture(
+	ctx context.Context,
+	app application,
+	jj *jjClient,
+	args *cliArgs,
+	currentDir string,
+	stderr io.Writer,
+) error {
+	logProgress(stderr, args, "resolving snapshot revision %s", args.head)
+	headCommit, err := jj.resolveOne(ctx, args.head, args.ignoreWorkingCopy)
+	if err != nil {
+		return err
+	}
+	inPlace := false
+	if !args.noHeadInPlace {
+		inPlace, err = headMatchesWorkingCopy(ctx, jj, headCommit)
+		if err != nil {
+			return err
+		}
+	}
+
+	buckArgs := append([]string(nil), args.buckArgs...)
+	var collected snapshot
+	if inPlace {
+		logProgress(stderr, args, "snapshotting the working-copy Buck graph (%s)", strings.Join(args.universe, " "))
+		collected, err = collectQuickSnapshot(ctx, app.runner, jj.repository, args.buck, buckArgs, args.isolationDir, args.universe)
+		if err != nil {
+			return err
+		}
+	} else {
+		localConfig, err := snapshotBuckLocalConfig(jj.repository)
+		if err != nil {
+			return err
+		}
+		headWorkspace, err := createWorkspace(ctx, jj, headCommit, app.tempDir(), currentDir, localConfig)
+		if err != nil {
+			return err
+		}
+		cleanupContext := context.WithoutCancel(ctx)
+		logProgress(stderr, args, "snapshotting the Buck graph at %s (%s)", headCommit, strings.Join(args.universe, " "))
+		collected, err = collectQuickSnapshot(ctx, app.runner, headWorkspace.checkout, args.buck, buckArgs, args.isolationDir, args.universe)
+		err = finishOneWorkspace(cleanupContext, headWorkspace, args.keepWorkspaces, err, "snapshot", stderr)
+		if err != nil {
+			return err
+		}
+	}
+
+	version, err := buckVersionString(ctx, app.runner, args.buck)
+	if err != nil {
+		return err
+	}
+	digest, err := localBuckConfigDigest(jj.repository)
+	if err != nil {
+		return err
+	}
+	document := buildSnapshotDocument(version, headCommit, args.universe, buckArgs, digest, &collected)
+	data, err := encodeSnapshotDocument(document)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(*args.snapshotTo, data, 0o644); err != nil {
+		return fmt.Errorf("writing base snapshot `%s`: %w", *args.snapshotTo, err)
+	}
+	logProgress(stderr, args, "wrote base snapshot for %s (%d targets) to %s", headCommit, len(collected.targets), *args.snapshotTo)
+	return nil
+}
+
 // headMatchesWorkingCopy reports whether the resolved head revision has the
 // same tree as the working copy. Commit identity is sufficient but not
 // necessary: a colocated CI checkout parks the working copy in a fresh empty
@@ -253,7 +381,8 @@ func headMatchesWorkingCopy(ctx context.Context, jj *jjClient, headCommit string
 }
 
 // finishWorkspacePair releases both endpoint workspaces. A nil head means the
-// head graph was queried in place and there is nothing to retain or clean.
+// head graph was queried in place; a nil base means it was reconstructed from
+// a snapshot. Either way there is nothing to retain or clean on that side.
 func finishWorkspacePair(
 	ctx context.Context,
 	base, head *workspace,
@@ -263,19 +392,23 @@ func finishWorkspacePair(
 	stderr io.Writer,
 ) ([]affectedTarget, error) {
 	if keep {
-		basePath := base.keep()
-		if head == nil {
-			_, _ = fmt.Fprintf(stderr, "tdutil: retained base workspace %s; head was queried in place\n", basePath)
-		} else {
-			headPath := head.keep()
-			_, _ = fmt.Fprintf(stderr, "tdutil: retained workspaces %s and %s\n", basePath, headPath)
+		switch {
+		case base != nil && head != nil:
+			_, _ = fmt.Fprintf(stderr, "tdutil: retained workspaces %s and %s\n", base.keep(), head.keep())
+		case base != nil:
+			_, _ = fmt.Fprintf(stderr, "tdutil: retained base workspace %s; head was queried in place\n", base.keep())
+		case head != nil:
+			_, _ = fmt.Fprintf(stderr, "tdutil: retained head workspace %s; base came from a snapshot\n", head.keep())
 		}
 		return result, resultErr
 	}
 
-	baseErr := base.close(ctx)
-	if baseErr != nil {
-		baseErr = fmt.Errorf("cleaning base workspace: %w", baseErr)
+	var baseErr error
+	if base != nil {
+		baseErr = base.close(ctx)
+		if baseErr != nil {
+			baseErr = fmt.Errorf("cleaning base workspace: %w", baseErr)
+		}
 	}
 	var headErr error
 	if head != nil {
