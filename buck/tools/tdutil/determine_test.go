@@ -172,6 +172,8 @@ func TestGlobalConfigurationClassifierCoversRepoConventions(t *testing.T) {
 		".buckconfig.d/cells-common.include",
 		"cell/buckconfigs/dev.bcfg",
 		"config/dev.bcfg",
+		"buck/ci.buckargs",
+		"cell/dev.buckargs",
 		"buck/mode/remote",
 		"buck/mode/nested/config",
 	} {
@@ -184,6 +186,7 @@ func TestGlobalConfigurationClassifierCoversRepoConventions(t *testing.T) {
 		"buck/model/remote",
 		"modes/remote",
 		"config/buckconfig",
+		"config/buckargs",
 		"config/dev.cfg",
 	} {
 		if isGlobalConfiguration(path) {
