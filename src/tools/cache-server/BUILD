@@ -48,6 +48,48 @@ depot.rust_binary(
     deps = BUILD_DEPS,
 )
 
+# glibc-dynamic is a pinned Wolfi/Chainguard runtime containing glibc 2.42
+# and the GCC 15.2 libraries used by the Nix toolchain. Repointing the ELF at
+# those ABI-compatible paths keeps the image small; native_binary_layer can
+# instead preserve and package the exact Nix closure for other base images.
+depot.oci.native_binary_image(
+    name = "cache-server-image",
+    base = "third-party//oci-images:chainguard_glibc_dynamic_amd64",
+    binary = ":cache-server",
+    cmd = [
+        "serve",
+        "--address",
+        "0.0.0.0:8080",
+    ],
+    destination = "/usr/local/bin/cache-server",
+    docker_image_name = "cache-server",
+    exposed_ports = ["8080/tcp"],
+    image_labels = {
+        "org.opencontainers.image.description": "Buck2 Remote Execution API cache server",
+        "org.opencontainers.image.licenses": "Apache-2.0 OR MIT",
+        "org.opencontainers.image.source": "https://github.com/thoughtpolice/a",
+        "org.opencontainers.image.title": "cache-server",
+        "org.opencontainers.image.version": "dev",
+    },
+    include_nix_store = False,
+    interpreter = "/lib64/ld-linux-x86-64.so.2",
+    rpath = "/usr/lib",
+    strip = "debug",
+    target_compatible_with = [
+        "config//os:linux",
+        "config//cpu:x86_64",
+    ],
+    visibility = ["PUBLIC"],
+    working_dir = "/",
+)
+
+depot.oci.container_test(
+    name = "cache-server-image-smoke",
+    image = ":cache-server-image",
+    ready_log = "cache-server ready",
+    timeout_seconds = 15,
+)
+
 TEST_MODULES = {
     "cas": {},
     "dial9": {},
