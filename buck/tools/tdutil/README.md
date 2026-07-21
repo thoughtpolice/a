@@ -67,6 +67,34 @@ so a macro edit selects every package importing the macro instead of only the
 targets whose definitions actually changed. CI keeps the two-snapshot
 protocol; quick mode is for the inner development loop.
 
+## Base snapshot caching
+
+The base endpoint of the two-snapshot protocol is deterministic for a given
+commit, universe, configuration, and buck2 build, so it can be captured once
+and reused:
+
+```console
+$ buck2 run root//buck/tools/tdutil:tdutil -- --snapshot-to base.json
+$ buck2 run root//buck/tools/tdutil:tdutil -- --base-snapshot base.json
+```
+
+`--snapshot-to` collects the head revision's graph — in place when it matches
+the working-copy tree, in a temporary workspace otherwise — and writes a
+self-describing document: a schema number, the exact buck2 version, the
+commit, the universe patterns, the Buck configuration arguments, a digest of
+`.buckconfig.local`, and the whole graph in workspace-independent form.
+`--base-snapshot` reuses such a document as the base endpoint when every
+recorded input matches the requested comparison; any mismatch is reported and
+the run falls back to full collection, so a stale or missing snapshot can
+slow a run down but never change its answer. With a matching snapshot the
+full protocol applies unchanged — deleted-target dependents, hash comparison,
+and base/head error accounting behave exactly as with a materialized base.
+
+In CI the snapshots ride the GitHub Actions cache: pushes to the main branch
+capture the new trunk graph keyed by commit, and pull-request runs restore
+the snapshot for their base commit, skipping base materialization and its
+cold daemon whenever the cache hits.
+
 The command snapshots the current JJ working copy by default, so `@` includes
 edits that have not yet been observed by another JJ command. Use
 `--ignore-working-copy` only when stale working-copy state is intentional.

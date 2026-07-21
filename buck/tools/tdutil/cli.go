@@ -34,7 +34,12 @@ Options:
                               copy's Buck graph, with no base materialization.
                               Misses dependents of deleted targets and precise
                               definition-change detection; the head revision
-                              must resolve to the working-copy commit
+                              must match the working-copy tree
+      --snapshot-to PATH      Capture the head revision's graph as a reusable
+                              base snapshot at PATH, then exit
+      --base-snapshot PATH    Reuse a matching --snapshot-to document as the
+                              base graph; falls back to full collection when
+                              it does not match
       --buck COMMAND          Buck2 executable (default: buck2)
       --jj COMMAND            JJ executable (default: jj)
       --buck-arg ARG          Extra Buck2 argument (repeatable)
@@ -66,6 +71,8 @@ type cliArgs struct {
 	format            outputFormat
 	depth             *int
 	quick             bool
+	snapshotTo        *string
+	baseSnapshot      *string
 	buck              string
 	jj                string
 	buckArgs          []string
@@ -97,6 +104,8 @@ func parseCLI(argv []string) (cliAction, error) {
 	format := formatText
 	var depth *int
 	quick := false
+	var snapshotTo *string
+	var baseSnapshot *string
 	buck := "buck2"
 	jj := "jj"
 	var buckArgs []string
@@ -196,6 +205,18 @@ func parseCLI(argv []string) (cliAction, error) {
 			depth = intPointer(int(parsed))
 		case "--quick":
 			quick = true
+		case "--snapshot-to":
+			raw, err := value("--snapshot-to")
+			if err != nil {
+				return cliAction{}, err
+			}
+			snapshotTo = stringPointer(raw)
+		case "--base-snapshot":
+			raw, err := value("--base-snapshot")
+			if err != nil {
+				return cliAction{}, err
+			}
+			baseSnapshot = stringPointer(raw)
 		case "--buck":
 			raw, err := value("--buck")
 			if err != nil {
@@ -255,6 +276,21 @@ func parseCLI(argv []string) (cliAction, error) {
 	if quick && noHeadInPlace {
 		return cliAction{}, fmt.Errorf("--quick already analyzes the working copy in place; it cannot combine with --no-head-in-place")
 	}
+	if quick && baseSnapshot != nil {
+		return cliAction{}, fmt.Errorf("--quick consults no base graph; it cannot combine with --base-snapshot")
+	}
+	if snapshotTo != nil {
+		switch {
+		case quick:
+			return cliAction{}, fmt.Errorf("--snapshot-to is a standalone capture; it cannot combine with --quick")
+		case baseSnapshot != nil:
+			return cliAction{}, fmt.Errorf("--snapshot-to is a standalone capture; it cannot combine with --base-snapshot")
+		case base != nil:
+			return cliAction{}, fmt.Errorf("--snapshot-to captures a single revision; a base revset does not apply")
+		case output != nil:
+			return cliAction{}, fmt.Errorf("--snapshot-to writes the snapshot itself; --output does not apply")
+		}
+	}
 
 	if len(universe) == 0 {
 		universe = append(universe, "depot//...")
@@ -273,6 +309,8 @@ func parseCLI(argv []string) (cliAction, error) {
 		format:            format,
 		depth:             depth,
 		quick:             quick,
+		snapshotTo:        snapshotTo,
+		baseSnapshot:      baseSnapshot,
 		buck:              buck,
 		jj:                jj,
 		buckArgs:          buckArgs,

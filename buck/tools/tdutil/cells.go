@@ -81,8 +81,17 @@ func parseCellMap(workspace string, data []byte) (cellMap, error) {
 		}
 	}
 
-	result.roots = make([]cellRoot, 0, len(result.cells))
-	for cell, root := range result.cells {
+	return assembleCellMap(result.cells, result.externalCells), nil
+}
+
+// assembleCellMap builds the derived longest-root index over a validated cell
+// layout. The internal roots are repository-relative, so an assembled map is
+// independent of any particular checkout location; external cells participate
+// only as a name set.
+func assembleCellMap(cells map[string]string, externalCells map[string]string) cellMap {
+	result := cellMap{cells: cells, externalCells: externalCells}
+	result.roots = make([]cellRoot, 0, len(cells))
+	for cell, root := range cells {
 		result.roots = append(result.roots, cellRoot{root: root, cell: cell})
 	}
 	sort.Slice(result.roots, func(i, j int) bool {
@@ -91,7 +100,7 @@ func parseCellMap(workspace string, data []byte) (cellMap, error) {
 		}
 		return result.roots[i].cell < result.roots[j].cell
 	})
-	return result, nil
+	return result
 }
 
 // toRepoPath resolves a cell-qualified path into a slash-separated path

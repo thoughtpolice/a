@@ -8,13 +8,13 @@ import (
 	"fmt"
 )
 
-// collectQuickSnapshot collects the working-copy graph once for --quick
-// analysis. Quick mode trades the base snapshot away: the caller compares this
-// snapshot against itself, so only evidence visible in the head tree — changed
-// inputs, build and package files, transitive imports, CI annotations, and
-// configuration files — can seed impact. Dependents of targets that no longer
-// exist and hash-level definition differences need the base graph; those are
-// the documented gaps of this mode.
+// collectQuickSnapshot collects one endpoint's graph in a single workspace.
+// It backs --quick analysis, where the caller compares the working-copy
+// snapshot against itself, and --snapshot-to capture, where the result is
+// serialized for later reuse as a base endpoint. Quick mode's documented gaps
+// follow from the missing base graph: dependents of targets that no longer
+// exist and hash-level definition differences cannot be seen in a lone
+// snapshot.
 func collectQuickSnapshot(
 	ctx context.Context,
 	runner processRunner,

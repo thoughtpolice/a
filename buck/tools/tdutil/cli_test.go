@@ -67,6 +67,28 @@ func TestCLIQuickFlagParsesAndRejectsConflicts(t *testing.T) {
 	}
 }
 
+func TestCLISnapshotFlagsParseAndRejectConflicts(t *testing.T) {
+	args := mustRunArgs(t, "--snapshot-to", "/tmp/x")
+	if args.snapshotTo == nil || *args.snapshotTo != "/tmp/x" {
+		t.Fatalf("snapshotTo = %v", args.snapshotTo)
+	}
+	args = mustRunArgs(t, "--base-snapshot=/tmp/y")
+	if args.baseSnapshot == nil || *args.baseSnapshot != "/tmp/y" {
+		t.Fatalf("baseSnapshot = %v", args.baseSnapshot)
+	}
+	for _, argv := range [][]string{
+		{"--quick", "--base-snapshot", "x"},
+		{"--snapshot-to", "x", "--quick"},
+		{"--snapshot-to", "x", "--base-snapshot", "y"},
+		{"--snapshot-to", "x", "--from", "base"},
+		{"--snapshot-to", "x", "--output", "o"},
+	} {
+		if _, err := parseCLI(argv); err == nil {
+			t.Errorf("parseCLI(%q) accepted conflicting flags", argv)
+		}
+	}
+}
+
 func TestCLIHeadInPlaceIsDefaultWithOptOut(t *testing.T) {
 	if mustRunArgs(t).noHeadInPlace {
 		t.Fatal("in-place head should be allowed by default")

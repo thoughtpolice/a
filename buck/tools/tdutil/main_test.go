@@ -173,6 +173,8 @@ func (runner *pipelineRunner) run(ctx context.Context, spec commandSpec) (proces
 	runner.mu.Unlock()
 
 	switch {
+	case len(spec.args) == 1 && spec.args[0] == "--version":
+		return processResult{stdout: []byte("buck2 test-version\n")}, nil
 	case hasArgumentSuffix(spec.args, "workspace", "root"):
 		return processResult{stdout: []byte(runner.repository + "\n")}, nil
 	case hasArgument(spec.args, "log"):
@@ -539,6 +541,113 @@ func TestApplicationQuickModeRejectsNonWorkingCopyHead(t *testing.T) {
 	_, _, adds, _, audits, targets, _ := runner.snapshot()
 	if adds != 0 || audits != 0 || targets != 0 {
 		t.Fatalf("work performed despite rejection: adds=%d audits=%d targets=%d", adds, audits, targets)
+	}
+}
+
+func TestApplicationSnapshotCaptureWritesPortableDocument(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	path := filepath.Join(t.TempDir(), "base-snapshot.json")
+	var stdout bytes.Buffer
+	if err := runApplication(context.Background(), app, []string{"--snapshot-to", path}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+	_, _, adds, _, audits, targets, _ := runner.snapshot()
+	if adds != 0 || audits != 1 || targets != 1 {
+		t.Fatalf("lifecycle = adds %d, audits %d, targets %d", adds, audits, targets)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := parseSnapshotDocument(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if document.Commit != strings.Repeat("b", 40) || document.BuckVersion != "buck2 test-version" {
+		t.Fatalf("document identity = %q / %q", document.Commit, document.BuckVersion)
+	}
+	if len(document.Universe) != 1 || document.Universe[0] != "depot//..." {
+		t.Fatalf("document universe = %#v", document.Universe)
+	}
+	if len(document.Targets) != 1 || document.Targets[0].Label != "depot//src:lib" {
+		t.Fatalf("document targets = %#v", document.Targets)
+	}
+}
+
+func TestApplicationBaseSnapshotSkipsBaseCollectionAcrossCheckouts(t *testing.T) {
+	captureApp, _, _ := pipelineApplicationFixture(t)
+	path := filepath.Join(t.TempDir(), "base-snapshot.json")
+	if err := runApplication(context.Background(), captureApp, []string{"--snapshot-to", path}, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+
+	app, runner, repository := pipelineApplicationFixture(t)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if err := runApplication(context.Background(), app, []string{"--base-snapshot", path}, &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := stdout.String(), "depot//src:lib\n"; got != want {
+		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+	if strings.Contains(stderr.String(), "ignored") {
+		t.Fatalf("snapshot was not used: %q", stderr.String())
+	}
+	commands, roots, adds, forgets, audits, targets, _ := runner.snapshot()
+	if adds != 0 || forgets != 0 || audits != 1 || targets != 1 || len(roots) != 0 {
+		t.Fatalf("lifecycle = adds %d, forgets %d, audits %d, targets %d, roots %d", adds, forgets, audits, targets, len(roots))
+	}
+	for _, command := range commands {
+		if !hasArgumentSequence(command.args, "audit", "cell") && !hasArgument(command.args, "targets") {
+			continue
+		}
+		if command.dir != repository {
+			t.Fatalf("head query ran outside the repository: %q in %q", command.args, command.dir)
+		}
+	}
+}
+
+func TestApplicationBaseSnapshotMismatchFallsBackToFullCollection(t *testing.T) {
+	captureApp, _, _ := pipelineApplicationFixture(t)
+	path := filepath.Join(t.TempDir(), "base-snapshot.json")
+	if err := runApplication(context.Background(), captureApp, []string{"--snapshot-to", path}, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+
+	app, runner, _ := pipelineApplicationFixture(t)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if err := runApplication(context.Background(), app, []string{"--base-snapshot", path, "--from", "@-"}, &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := stdout.String(), "depot//src:lib\n"; got != want {
+		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+	if !strings.Contains(stderr.String(), "ignored") || !strings.Contains(stderr.String(), "not base") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	_, _, adds, _, audits, targets, _ := runner.snapshot()
+	if adds != 1 || audits != 2 || targets != 2 {
+		t.Fatalf("lifecycle = adds %d, audits %d, targets %d", adds, audits, targets)
+	}
+}
+
+func TestApplicationBaseSnapshotMissingFileFallsBack(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	missing := filepath.Join(t.TempDir(), "absent.json")
+	var stderr bytes.Buffer
+	if err := runApplication(context.Background(), app, []string{"--base-snapshot", missing}, &bytes.Buffer{}, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stderr.String(), "no snapshot file present") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	_, _, adds, _, audits, targets, _ := runner.snapshot()
+	if adds != 1 || audits != 2 || targets != 2 {
+		t.Fatalf("lifecycle = adds %d, audits %d, targets %d", adds, audits, targets)
 	}
 }
 
