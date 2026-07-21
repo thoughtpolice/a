@@ -105,7 +105,7 @@ func collectGenericSubjects(ctx context.Context, auditor packageAuditor) ([]subj
 	seen := make(map[string]struct{}, len(packagePaths))
 	targets := make([]string, 0, len(packagePaths))
 	for _, packagePath := range packagePaths {
-		if packagePath == "rust" {
+		if packagePath == "rust" || packagePath == wolfiPackagePath {
 			continue
 		}
 		if packagePath == "" || path.IsAbs(packagePath) || path.Clean(packagePath) != packagePath || strings.Contains(packagePath, "//") {

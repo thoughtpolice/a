@@ -94,8 +94,8 @@ MEMCACHED = {
 # transition package, is what actually ships libcrypt.so.1.
 NGINX = {
     "libxcrypt": ("4.5.2-r3", "e2a7657bde0d6e38c27e3d17de64474e9805cd92b3c8da2baa5dfba32a281ffb"),
-    "nginx-stable": ("1.30.2-r0", "528f7eb4cfe841c38639fd8b2fd6f7224c1d5d60babc3d1fee8bb9681a9268fe"),
-    "nginx-stable-mime-types": ("1.30.2-r0", "0d53ab086e9d682477aadda102856e1aa6060928a4407689967588bd1e88e9b1"),
+    "nginx-mainline": ("1.31.3-r2", "0b0d32fa7062453064b6e147fc0dcac79fdbd619435217bb7ea440b3e42fb8ce"),
+    "nginx-mainline-mime-types": ("1.31.3-r2", "3426f9e2238289c405142c2b81d40170101a4dbbdf59bb8b49ef276417b7feba"),
     "zlib": ("1.3.2-r3", "26ec98f85dd79a99158ac2097fdfb31f029948c4b57046312592aa11a0639343"),
 }
 

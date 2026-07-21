@@ -272,8 +272,10 @@ func TestNPMPackageNameHandlesInstallPaths(t *testing.T) {
 }
 
 type mockAuditor struct {
-	responses []auditResponse
-	calls     int
+	responses      []auditResponse
+	calls          int
+	wolfiResponses []wolfiTargetResponse
+	wolfiCalls     int
 }
 
 func (m *mockAuditor) read(_ context.Context, _ ...string) (auditResponse, error) {
@@ -282,6 +284,15 @@ func (m *mockAuditor) read(_ context.Context, _ ...string) (auditResponse, error
 	}
 	response := m.responses[m.calls]
 	m.calls++
+	return response, nil
+}
+
+func (m *mockAuditor) readWolfiTargets(_ context.Context) (wolfiTargetResponse, error) {
+	if m.wolfiCalls >= len(m.wolfiResponses) {
+		return nil, fmt.Errorf("unexpected Wolfi target audit call")
+	}
+	response := m.wolfiResponses[m.wolfiCalls]
+	m.wolfiCalls++
 	return response, nil
 }
 
@@ -298,7 +309,7 @@ func TestCollectGenericSubjects(t *testing.T) {
 	auditor := &mockAuditor{responses: []auditResponse{
 		{
 			"depot-third-party//": {
-				"meta.3p": rawJSON(t, []string{"foo", "rust", "bar"}),
+				"meta.3p": rawJSON(t, []string{"foo", "rust", wolfiPackagePath, "bar"}),
 			},
 		},
 		{
@@ -322,6 +333,83 @@ func TestCollectGenericSubjects(t *testing.T) {
 	}
 	if len(subjects) != 2 || subjects[0].Name != "third-party//foo" || subjects[1].Query.Commit != "0123456789abcdef0123456789abcdef01234567" {
 		t.Fatalf("unexpected subjects: %#v", subjects)
+	}
+}
+
+func TestCollectWolfiSubjects(t *testing.T) {
+	auditor := &mockAuditor{wolfiResponses: []wolfiTargetResponse{{
+		"depot-third-party//by-name/wo/wolfi:update": {},
+		"depot-third-party//by-name/wo/wolfi:zlib.apk": {
+			SHA256: strings.Repeat("a", 64),
+			URLs:   []string{wolfiRepository + "zlib-1.3.2-r3.apk"},
+		},
+		"depot-third-party//by-name/wo/wolfi:libpcre2-8-0.apk": {
+			SHA256: strings.Repeat("b", 64),
+			URLs:   []string{wolfiRepository + "libpcre2-8-0-10.47-r0.apk"},
+		},
+	}}}
+	subjects, err := collectWolfiSubjects(context.Background(), auditor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(subjects) != 2 {
+		t.Fatalf("got %d subjects, want 2", len(subjects))
+	}
+	first := subjects[0]
+	if first.Kind != wolfiSubject || first.Name != "libpcre2-8-0@10.47-r0" || first.Display != "pkg:apk/wolfi/libpcre2-8-0@10.47-r0" {
+		t.Fatalf("unexpected first subject: %#v", first)
+	}
+	if first.Query.Version != "10.47-r0" || first.Query.Package == nil || first.Query.Package.PURL != "pkg:apk/wolfi/libpcre2-8-0" {
+		t.Fatalf("unexpected Wolfi query: %#v", first.Query)
+	}
+	if strings.Contains(first.Query.Package.PURL, "arch=") {
+		t.Fatalf("Wolfi query unexpectedly has an architecture qualifier: %q", first.Query.Package.PURL)
+	}
+}
+
+func TestWolfiSubjectsReportsAllTargetProblems(t *testing.T) {
+	validSHA := strings.Repeat("c", 64)
+	targets := wolfiTargetResponse{
+		"depot-third-party//by-name/wo/wolfi:bad-digest.apk": {
+			SHA256: strings.Repeat("A", 64),
+			URLs:   []string{wolfiRepository + "bad-digest-1-r0.apk"},
+		},
+		"depot-third-party//by-name/wo/wolfi:many-urls.apk": {
+			SHA256: validSHA,
+			URLs: []string{
+				wolfiRepository + "many-urls-1-r0.apk",
+				wolfiRepository + "many-urls-2-r0.apk",
+			},
+		},
+		"depot-third-party//by-name/wo/wolfi:mismatch.apk": {
+			SHA256: validSHA,
+			URLs:   []string{wolfiRepository + "another-package-1-r0.apk"},
+		},
+		"depot-third-party//somewhere:wrong-package.apk": {
+			SHA256: validSHA,
+			URLs:   []string{wolfiRepository + "wrong-package-1-r0.apk"},
+		},
+		"depot-third-party//by-name/wo/wolfi:update": {},
+	}
+	_, err := wolfiSubjects(targets)
+	if err == nil {
+		t.Fatal("wolfiSubjects unexpectedly accepted invalid targets")
+	}
+	for _, want := range []string{
+		"bad-digest.apk: sha256",
+		"many-urls.apk: expected exactly one package URL",
+		"mismatch.apk: URL",
+		"somewhere:wrong-package.apk: target is not in",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error is missing %q:\n%s", want, err)
+		}
+	}
+}
+
+func TestWolfiSubjectsRejectsEmptySet(t *testing.T) {
+	if _, err := wolfiSubjects(wolfiTargetResponse{}); err == nil {
+		t.Fatal("wolfiSubjects unexpectedly accepted an empty target set")
 	}
 }
 
@@ -435,7 +523,7 @@ func TestGroupAdvisoriesMatchesExceptionsThroughAliases(t *testing.T) {
 		t.Fatalf("unexpected groups: %#v", groups)
 	}
 
-	for _, kind := range []subjectKind{genericSubject, npmSubject} {
+	for _, kind := range []subjectKind{genericSubject, npmSubject, wolfiSubject} {
 		groups, err = groupAdvisories(kind, references, details)
 		if err != nil {
 			t.Fatal(err)
@@ -449,7 +537,8 @@ func TestGroupAdvisoriesMatchesExceptionsThroughAliases(t *testing.T) {
 func TestWriteTestListing(t *testing.T) {
 	var output bytes.Buffer
 	writeTestListing("all", &output)
-	want := "test: generic:all generic-packages\ntest: rust:all rust-packages\ntest: npm:all npm-packages\n"
+	want := "test: generic:all generic-packages\ntest: rust:all rust-packages\n" +
+		"test: npm:all npm-packages\ntest: wolfi:all wolfi-packages\n"
 	if output.String() != want {
 		t.Fatalf("listing = %q, want %q", output.String(), want)
 	}
@@ -470,6 +559,12 @@ func TestWriteTestListing(t *testing.T) {
 	writeTestListing("npm", &output)
 	if output.String() != "test: npm:all npm-packages\n" {
 		t.Fatalf("unexpected npm listing %q", output.String())
+	}
+
+	output.Reset()
+	writeTestListing("wolfi", &output)
+	if output.String() != "test: wolfi:all wolfi-packages\n" {
+		t.Fatalf("unexpected Wolfi listing %q", output.String())
 	}
 }
 
@@ -508,6 +603,8 @@ func harnessOSVServer(t *testing.T) *httptest.Server {
 					results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "OSV-3"}}}
 				case "pkg:npm/%40sveltejs/kit":
 					results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "GHSA-npm-excepted"}}}
+				case "pkg:apk/wolfi/vulnerable":
+					results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "OSV-2"}}}
 				}
 			}
 			if err := json.NewEncoder(w).Encode(batchResponse{Results: results}); err != nil {
@@ -735,6 +832,38 @@ func TestRunHarnessCaseGeneric(t *testing.T) {
 	}
 }
 
+func TestRunHarnessCaseWolfi(t *testing.T) {
+	server := harnessOSVServer(t)
+	cfg := harnessConfig(server, "")
+	auditor := &mockAuditor{wolfiResponses: []wolfiTargetResponse{{
+		"depot-third-party//by-name/wo/wolfi:clean.apk": {
+			SHA256: strings.Repeat("d", 64),
+			URLs:   []string{wolfiRepository + "clean-1.0-r0.apk"},
+		},
+		"depot-third-party//by-name/wo/wolfi:vulnerable.apk": {
+			SHA256: strings.Repeat("e", 64),
+			URLs:   []string{wolfiRepository + "vulnerable-2.0-r1.apk"},
+		},
+	}}}
+	var stdout, stderr bytes.Buffer
+	code := runHarnessCase(context.Background(), cfg, "wolfi", wolfiCaseName, auditor, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("exit = %d, want 1; stderr: %s", code, stderr.String())
+	}
+	for _, want := range []string{
+		"Loaded and validated 2 pinned Wolfi packages",
+		"\n[FAIL] vulnerable@2.0-r1\n",
+		"pkg:apk/wolfi/vulnerable@2.0-r1",
+		"result: PASS wolfi/clean@1.0-r0 -\n",
+		"result: FAIL wolfi/vulnerable@2.0-r1 - 1 blocking advisory group(s): OSV-2\n",
+		"result: FAIL wolfi-packages ",
+	} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("output is missing %q:\n%s", want, stdout.String())
+		}
+	}
+}
+
 func TestRunHarnessTestRejectsUnknownFilter(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := runHarnessTest(context.Background(), config{}, "bogus:filter", &stdout, &stderr)
@@ -757,6 +886,13 @@ func TestRealMainHarnessFlags(t *testing.T) {
 	stderr.Reset()
 	code = realMain(context.Background(), []string{"-list-tests", "npm"}, &stdout, &stderr)
 	if code != 0 || stdout.String() != "test: npm:all npm-packages\n" {
+		t.Fatalf("exit = %d, stdout = %q, stderr = %q", code, stdout.String(), stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	code = realMain(context.Background(), []string{"-list-tests", "wolfi"}, &stdout, &stderr)
+	if code != 0 || stdout.String() != "test: wolfi:all wolfi-packages\n" {
 		t.Fatalf("exit = %d, stdout = %q, stderr = %q", code, stdout.String(), stderr.String())
 	}
 

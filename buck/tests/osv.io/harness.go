@@ -40,6 +40,8 @@ const (
 	rustCaseFilter    = "rust:all"
 	npmCaseName       = "npm-packages"
 	npmCaseFilter     = "npm:all"
+	wolfiCaseName     = "wolfi-packages"
+	wolfiCaseFilter   = "wolfi:all"
 )
 
 func writeTestListing(mode string, stdout io.Writer) {
@@ -52,6 +54,9 @@ func writeTestListing(mode string, stdout io.Writer) {
 	if mode == "all" || mode == "npm" {
 		fmt.Fprintf(stdout, "%s%s %s\n", testLinePrefix, npmCaseFilter, npmCaseName)
 	}
+	if mode == "all" || mode == "wolfi" {
+		fmt.Fprintf(stdout, "%s%s %s\n", testLinePrefix, wolfiCaseFilter, wolfiCaseName)
+	}
 }
 
 func runHarnessTest(ctx context.Context, cfg config, filter string, stdout, stderr io.Writer) int {
@@ -62,6 +67,8 @@ func runHarnessTest(ctx context.Context, cfg config, filter string, stdout, stde
 		return runHarnessCase(ctx, cfg, "rust", rustCaseName, cfg.auditor(), stdout, stderr)
 	case npmCaseFilter:
 		return runHarnessCase(ctx, cfg, "npm", npmCaseName, cfg.auditor(), stdout, stderr)
+	case wolfiCaseFilter:
+		return runHarnessCase(ctx, cfg, "wolfi", wolfiCaseName, cfg.auditor(), stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "ERROR: unknown test filter %q\n", filter)
 	return 2
@@ -81,6 +88,8 @@ func resultName(item subject) string {
 		return "cargo/" + item.Name
 	case npmSubject:
 		return "npm/" + item.Name
+	case wolfiSubject:
+		return "wolfi/" + item.Name
 	}
 	return item.Name
 }
@@ -99,7 +108,7 @@ func emitDetails(w io.Writer, text string) {
 	}
 }
 
-func runHarnessCase(ctx context.Context, cfg config, mode, caseName string, auditor packageAuditor, stdout, stderr io.Writer) int {
+func runHarnessCase(ctx context.Context, cfg config, mode, caseName string, auditor dependencyAuditor, stdout, stderr io.Writer) int {
 	start := time.Now()
 	subjects, err := collectSubjects(ctx, cfg, mode, auditor, stdout)
 	if err != nil {
@@ -161,7 +170,7 @@ func runHarnessCase(ctx context.Context, cfg config, mode, caseName string, audi
 
 // collectSubjects gathers the dependency subjects for one mode, printing the
 // same progress lines as the command-line report flow.
-func collectSubjects(ctx context.Context, cfg config, mode string, auditor packageAuditor, output io.Writer) ([]subject, error) {
+func collectSubjects(ctx context.Context, cfg config, mode string, auditor dependencyAuditor, output io.Writer) ([]subject, error) {
 	var subjects []subject
 	if mode == "all" || mode == "generic" {
 		generic, err := collectGenericSubjects(ctx, auditor)
@@ -195,6 +204,14 @@ func collectSubjects(ctx context.Context, cfg config, mode string, auditor packa
 		fmt.Fprintf(output, "Loaded %d npm registry packages from %s (%d local, %d non-registry, %d duplicate entries skipped).\n",
 			len(npm), cfg.npmLockPath, skips.Local, skips.NonRegistry, skips.Duplicate)
 		subjects = append(subjects, npm...)
+	}
+	if mode == "all" || mode == "wolfi" {
+		wolfi, err := collectWolfiSubjects(ctx, auditor)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Fprintf(output, "Loaded and validated %d pinned Wolfi packages from %s.\n", len(wolfi), wolfiTargetSet)
+		subjects = append(subjects, wolfi...)
 	}
 	return subjects, nil
 }
