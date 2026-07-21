@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // 3p-osv verifies that depot's generic third-party packages have usable OSV
-// metadata and checks those packages, Cargo.lock, and package-lock.json
-// against osv.dev.
+// metadata and checks those packages, pinned Wolfi APKs, Cargo.lock, and
+// package-lock.json against osv.dev.
 package main
 
 import (
@@ -34,13 +34,13 @@ type config struct {
 	httpTimeout      time.Duration
 }
 
-var checkModes = []string{"all", "generic", "rust", "npm"}
+var checkModes = []string{"all", "generic", "rust", "npm", "wolfi"}
 
 func isCheckMode(value string) bool {
 	return slices.Contains(checkModes, value)
 }
 
-func (c config) auditor() packageAuditor {
+func (c config) auditor() dependencyAuditor {
 	return buckAuditor{path: c.buckPath, isolationDir: c.buckIsolationDir}
 }
 
@@ -67,7 +67,7 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	flags.BoolVar(&listTests, "list-tests", false, "print the Buck2 test cases for the selected mode and exit")
 	flags.BoolVar(&runTest, "run-test", false, "run the single Buck2 test case named by the trailing filter argument")
 	flags.Usage = func() {
-		fmt.Fprintln(stderr, "Usage: 3p-osv [flags] [all|generic|rust|npm] [lockfile]")
+		fmt.Fprintln(stderr, "Usage: 3p-osv [flags] [all|generic|rust|npm|wolfi] [lockfile]")
 		fmt.Fprintln(stderr, "Checks all dependency sets when no mode is supplied.")
 		fmt.Fprintln(stderr, "A trailing lockfile overrides the scanned file in rust and npm mode.")
 		fmt.Fprintln(stderr, "Buck2 internal-runner protocol:")
@@ -154,7 +154,7 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	return 0
 }
 
-func execute(ctx context.Context, cfg config, mode string, auditor packageAuditor, output io.Writer) (bool, error) {
+func execute(ctx context.Context, cfg config, mode string, auditor dependencyAuditor, output io.Writer) (bool, error) {
 	subjects, err := collectSubjects(ctx, cfg, mode, auditor, output)
 	if err != nil {
 		return false, err

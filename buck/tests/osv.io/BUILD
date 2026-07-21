@@ -12,6 +12,7 @@ SRCS = [
     "npm.go",
     "osv.go",
     "report.go",
+    "wolfi.go",
 ]
 
 shims.go_binary(

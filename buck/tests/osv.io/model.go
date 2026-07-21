@@ -15,6 +15,7 @@ const (
 	genericSubject subjectKind = iota
 	rustSubject
 	npmSubject
+	wolfiSubject
 )
 
 type osvPackage struct {
