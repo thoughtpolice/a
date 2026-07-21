@@ -132,17 +132,15 @@ func collectTargets(
 		"--output-attribute="+targetAttributes,
 	)
 	args = append(args, patterns...)
-	result, err := runner.run(ctx, commandSpec{path: buck, args: args, dir: workspace})
+	parser := newTargetStreamParser(cells)
+	result, err := runProcessLines(ctx, runner, commandSpec{path: buck, args: args, dir: workspace}, parser.consume)
 	if err != nil {
 		return snapshot{}, fmt.Errorf("failed to run `%s targets` in `%s`: %w", buck, workspace, err)
 	}
 	if err := ensureBuckProcessSuccess("buck2 targets", result); err != nil {
 		return snapshot{}, err
 	}
-	if !utf8.Valid(result.stdout) {
-		return snapshot{}, fmt.Errorf("`buck2 targets` produced non-UTF-8 stdout")
-	}
-	return parseTargetsJSONLines(result.stdout, cells)
+	return parser.finish()
 }
 
 func isolationArgs(isolation string) []string {

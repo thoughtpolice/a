@@ -64,61 +64,91 @@ func emptySnapshot(cells cellMap) snapshot {
 // parseTargetsJSONLines deliberately discriminates the untagged Buck JSONL
 // stream by its required fields. Unknown and partial records fail closed.
 func parseTargetsJSONLines(data []byte, cells cellMap) (snapshot, error) {
-	if !utf8.Valid(data) {
-		return snapshot{}, fmt.Errorf("`buck2 targets` produced non-UTF-8 stdout")
-	}
-	result := emptySnapshot(cells)
-	lines := bytes.Split(data, []byte{'\n'})
-	for index, line := range lines {
-		if len(bytes.TrimSpace(line)) == 0 {
-			continue
-		}
-		if err := validateJSONUnicodeEscapes(line); err != nil {
-			return snapshot{}, fmt.Errorf("malformed target JSON on output line %d: %w", index+1, err)
-		}
-		var object map[string]any
-		if err := json.Unmarshal(line, &object); err != nil {
-			return snapshot{}, fmt.Errorf("malformed target JSON on output line %d: %w", index+1, err)
-		}
-		if object == nil {
-			return snapshot{}, fmt.Errorf("target output line %d is not a JSON object", index+1)
-		}
+	parser := newTargetStreamParser(cells)
+	feedLines(data, parser.consume)
+	return parser.finish()
+}
 
-		if _, ok := object["buck.error"]; ok {
-			if err := parseErrorRecord(object, &result); err != nil {
-				return snapshot{}, fmt.Errorf("invalid error record on output line %d: %w", index+1, err)
-			}
-			continue
-		}
-		_, hasImports := object["buck.imports"]
-		_, hasFile := object["buck.file"]
-		if hasImports || hasFile {
-			file, err := parseFileRecord(object, result.cells)
-			if err != nil {
-				return snapshot{}, fmt.Errorf("invalid import record on output line %d: %w", index+1, err)
-			}
-			if _, exists := result.files[file.cellPath]; exists {
-				return snapshot{}, fmt.Errorf("duplicate import record on output line %d", index+1)
-			}
-			result.files[file.cellPath] = file
-			continue
-		}
-		_, hasName := object["name"]
-		_, hasHash := object["buck.target_hash"]
-		if hasName || hasHash {
-			target, err := parseTargetRecord(object, result.cells)
-			if err != nil {
-				return snapshot{}, fmt.Errorf("invalid target record on output line %d: %w", index+1, err)
-			}
-			if _, exists := result.targets[target.label]; exists {
-				return snapshot{}, fmt.Errorf("duplicate target record on output line %d", index+1)
-			}
-			result.targets[target.label] = target
-			continue
-		}
-		return snapshot{}, fmt.Errorf("unknown record shape on `buck2 targets` output line %d", index+1)
+// targetStreamParser accumulates the `buck2 targets` JSONL stream one line at
+// a time so a dump never needs to be held in memory wholesale. The first
+// defect wins and is reported with its 1-based physical line number; later
+// lines are still counted but otherwise ignored.
+type targetStreamParser struct {
+	result snapshot
+	line   int
+	err    error
+}
+
+func newTargetStreamParser(cells cellMap) *targetStreamParser {
+	return &targetStreamParser{result: emptySnapshot(cells)}
+}
+
+func (parser *targetStreamParser) consume(line []byte) {
+	parser.line++
+	if parser.err != nil {
+		return
 	}
-	return result, nil
+	parser.err = parser.parseLine(line, parser.line)
+}
+
+func (parser *targetStreamParser) finish() (snapshot, error) {
+	if parser.err != nil {
+		return snapshot{}, parser.err
+	}
+	return parser.result, nil
+}
+
+func (parser *targetStreamParser) parseLine(line []byte, number int) error {
+	if len(bytes.TrimSpace(line)) == 0 {
+		return nil
+	}
+	if !utf8.Valid(line) {
+		return fmt.Errorf("`buck2 targets` produced non-UTF-8 stdout")
+	}
+	if err := validateJSONUnicodeEscapes(line); err != nil {
+		return fmt.Errorf("malformed target JSON on output line %d: %w", number, err)
+	}
+	var object map[string]any
+	if err := json.Unmarshal(line, &object); err != nil {
+		return fmt.Errorf("malformed target JSON on output line %d: %w", number, err)
+	}
+	if object == nil {
+		return fmt.Errorf("target output line %d is not a JSON object", number)
+	}
+
+	if _, ok := object["buck.error"]; ok {
+		if err := parseErrorRecord(object, &parser.result); err != nil {
+			return fmt.Errorf("invalid error record on output line %d: %w", number, err)
+		}
+		return nil
+	}
+	_, hasImports := object["buck.imports"]
+	_, hasFile := object["buck.file"]
+	if hasImports || hasFile {
+		file, err := parseFileRecord(object, parser.result.cells)
+		if err != nil {
+			return fmt.Errorf("invalid import record on output line %d: %w", number, err)
+		}
+		if _, exists := parser.result.files[file.cellPath]; exists {
+			return fmt.Errorf("duplicate import record on output line %d", number)
+		}
+		parser.result.files[file.cellPath] = file
+		return nil
+	}
+	_, hasName := object["name"]
+	_, hasHash := object["buck.target_hash"]
+	if hasName || hasHash {
+		target, err := parseTargetRecord(object, parser.result.cells)
+		if err != nil {
+			return fmt.Errorf("invalid target record on output line %d: %w", number, err)
+		}
+		if _, exists := parser.result.targets[target.label]; exists {
+			return fmt.Errorf("duplicate target record on output line %d", number)
+		}
+		parser.result.targets[target.label] = target
+		return nil
+	}
+	return fmt.Errorf("unknown record shape on `buck2 targets` output line %d", number)
 }
 
 // encoding/json replaces lone UTF-16 surrogate escapes with U+FFFD, while
