@@ -118,6 +118,41 @@ func (runner *squashHistoryRunner) run(ctx context.Context, spec commandSpec) (p
 	return runner.pipelineRunner.run(ctx, spec)
 }
 
+// colocatedRunner models a colocated CI checkout: the working copy is a fresh
+// empty commit (`b`) whose tree equals the pinned head commit (`pinned`, `e`),
+// even though the two commit IDs differ.
+type colocatedRunner struct {
+	*pipelineRunner
+}
+
+func (runner *colocatedRunner) run(ctx context.Context, spec commandSpec) (processResult, error) {
+	pinnedHead := strings.Repeat("e", 40)
+	workingCopy := strings.Repeat("b", 40)
+	switch {
+	case hasArgument(spec.args, "log"):
+		if revset := spec.args[len(spec.args)-1]; revset == "pinned" {
+			return processResult{stdout: []byte(pinnedHead + "\n")}, nil
+		}
+	case hasArgument(spec.args, "diff"):
+		var from, to string
+		for index, argument := range spec.args {
+			if index+1 >= len(spec.args) {
+				continue
+			}
+			switch argument {
+			case "--from":
+				from = spec.args[index+1]
+			case "--to":
+				to = spec.args[index+1]
+			}
+		}
+		if from == pinnedHead && to == workingCopy {
+			return processResult{}, nil
+		}
+	}
+	return runner.pipelineRunner.run(ctx, spec)
+}
+
 func newPipelineRunner(repository string) *pipelineRunner {
 	return &pipelineRunner{
 		repository: repository,
@@ -504,6 +539,38 @@ func TestApplicationQuickModeRejectsNonWorkingCopyHead(t *testing.T) {
 	_, _, adds, _, audits, targets, _ := runner.snapshot()
 	if adds != 0 || audits != 0 || targets != 0 {
 		t.Fatalf("work performed despite rejection: adds=%d audits=%d targets=%d", adds, audits, targets)
+	}
+}
+
+func TestApplicationHeadInPlaceAcceptsTreeIdenticalWorkingCopy(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	app.runner = &colocatedRunner{pipelineRunner: runner}
+	var stdout bytes.Buffer
+	if err := runApplication(context.Background(), app, []string{"--to", "pinned"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := stdout.String(), "depot//src:lib\n"; got != want {
+		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+	_, _, adds, forgets, audits, targets, _ := runner.snapshot()
+	if adds != 1 || forgets != 1 || audits != 2 || targets != 2 {
+		t.Fatalf("lifecycle = adds %d, forgets %d, audits %d, targets %d", adds, forgets, audits, targets)
+	}
+}
+
+func TestApplicationQuickModeAcceptsTreeIdenticalHead(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	app.runner = &colocatedRunner{pipelineRunner: runner}
+	var stdout bytes.Buffer
+	if err := runApplication(context.Background(), app, []string{"--quick", "--to", "pinned"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := stdout.String(), "depot//src:lib\n"; got != want {
+		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+	_, _, adds, _, audits, targets, _ := runner.snapshot()
+	if adds != 0 || audits != 1 || targets != 1 {
+		t.Fatalf("lifecycle = adds %d, audits %d, targets %d", adds, audits, targets)
 	}
 }
 

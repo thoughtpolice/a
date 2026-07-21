@@ -97,16 +97,15 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 			// Quick mode consults only the working-copy graph: no base
 			// materialization, one Buck query, and the documented blind spots
 			// around deleted targets and hash-level definition changes.
-			workingCopyCommit, err := jj.resolveOne(ctx, "@", true)
+			matches, err := headMatchesWorkingCopy(ctx, jj, revisions.head)
 			if err != nil {
 				return err
 			}
-			if workingCopyCommit != revisions.head {
+			if !matches {
 				return fmt.Errorf(
-					"--quick analyzes only the working copy: head revset `%s` resolves to %s, not the working-copy commit %s; drop --quick or target `@`",
+					"--quick analyzes only the working copy: head revset `%s` (%s) does not match the working-copy tree; drop --quick or target `@`",
 					args.head,
 					revisions.head,
-					workingCopyCommit,
 				)
 			}
 			logProgress(stderr, &args, "quick: querying the working-copy Buck graph (%s)", strings.Join(args.universe, " "))
@@ -134,15 +133,14 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 			}
 		} else {
 			// The head graph is queried directly in the invoking workspace when the
-			// requested head is the working-copy commit: the tree on disk already is
+			// requested head has the working-copy tree: the tree on disk already is
 			// that revision, so a second materialization would only duplicate it.
 			headInPlace := false
 			if !args.noHeadInPlace {
-				workingCopyCommit, err := jj.resolveOne(ctx, "@", true)
+				headInPlace, err = headMatchesWorkingCopy(ctx, jj, revisions.head)
 				if err != nil {
 					return err
 				}
-				headInPlace = workingCopyCommit == revisions.head
 			}
 
 			localConfig, err := snapshotBuckLocalConfig(jj.repository)
@@ -233,6 +231,25 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 	}
 	defer func() { _ = output.Close() }()
 	return render(output, args.format, &meta, affected)
+}
+
+// headMatchesWorkingCopy reports whether the resolved head revision has the
+// same tree as the working copy. Commit identity is sufficient but not
+// necessary: a colocated CI checkout parks the working copy in a fresh empty
+// commit whose tree still equals the pinned head commit's tree.
+func headMatchesWorkingCopy(ctx context.Context, jj *jjClient, headCommit string) (bool, error) {
+	workingCopyCommit, err := jj.resolveOne(ctx, "@", true)
+	if err != nil {
+		return false, err
+	}
+	if workingCopyCommit == headCommit {
+		return true, nil
+	}
+	changed, err := jj.changedPaths(ctx, headCommit, workingCopyCommit, true)
+	if err != nil {
+		return false, err
+	}
+	return len(changed) == 0, nil
 }
 
 // finishWorkspacePair releases both endpoint workspaces. A nil head means the
