@@ -142,8 +142,11 @@ func (runner *pipelineRunner) run(ctx context.Context, spec commandSpec) (proces
 		return processResult{stdout: []byte(runner.repository + "\n")}, nil
 	case hasArgument(spec.args, "log"):
 		revset := spec.args[len(spec.args)-1]
-		if revset == "@-" || revset == "base" {
+		switch revset {
+		case "@-", "base":
 			return processResult{stdout: []byte(strings.Repeat("a", 40) + "\n")}, nil
+		case "head":
+			return processResult{stdout: []byte(strings.Repeat("c", 40) + "\n")}, nil
 		}
 		return processResult{stdout: []byte(strings.Repeat("b", 40) + "\n")}, nil
 	case hasArgument(spec.args, "diff"):
@@ -348,7 +351,7 @@ func TestApplicationSweepsOrphanedRegistrationsBeforeCreatingWorkspaces(t *testi
 	app, runner, _ := pipelineApplicationFixture(t)
 	runner.workspaceList = []byte("default\ntdutil-dead-1f-0\ntdutil-cafe-1f-0\n")
 	app.pidAlive = func(pid int) bool { return pid != 0xdead }
-	if err := runApplication(context.Background(), app, nil, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+	if err := runApplication(context.Background(), app, []string{"--to", "head"}, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
 	forgotten := runner.forgottenWorkspaces()
@@ -409,7 +412,7 @@ func TestApplicationSuccessfulParallelSnapshotPathAndCleanup(t *testing.T) {
 	defer cancel()
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	if err := runApplication(ctx, app, []string{"--ignore-working-copy"}, &stdout, &stderr); err != nil {
+	if err := runApplication(ctx, app, []string{"--ignore-working-copy", "--to", "head"}, &stdout, &stderr); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := stdout.String(), "depot//src:lib\n"; got != want {
@@ -429,11 +432,91 @@ func TestApplicationSuccessfulParallelSnapshotPathAndCleanup(t *testing.T) {
 	}
 }
 
+func TestApplicationHeadInPlaceSkipsHeadMaterialization(t *testing.T) {
+	app, runner, repository := pipelineApplicationFixture(t)
+	var stdout bytes.Buffer
+	if err := runApplication(context.Background(), app, nil, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := stdout.String(), "depot//src:lib\n"; got != want {
+		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+	commands, roots, adds, forgets, audits, targets, _ := runner.snapshot()
+	if adds != 1 || forgets != 1 || audits != 2 || targets != 2 {
+		t.Fatalf("lifecycle = adds %d, forgets %d, audits %d, targets %d", adds, forgets, audits, targets)
+	}
+	repositoryAudits, repositoryTargets := 0, 0
+	for _, command := range commands {
+		if command.dir != repository {
+			continue
+		}
+		if hasArgumentSequence(command.args, "audit", "cell") {
+			repositoryAudits++
+		}
+		if hasArgument(command.args, "targets") {
+			repositoryTargets++
+		}
+	}
+	if repositoryAudits != 1 || repositoryTargets != 1 {
+		t.Fatalf("in-place queries = audits %d, targets %d", repositoryAudits, repositoryTargets)
+	}
+	for _, root := range roots {
+		if _, err := os.Stat(root); !os.IsNotExist(err) {
+			t.Fatalf("workspace root retained: %s (err=%v)", root, err)
+		}
+	}
+}
+
+func TestApplicationNoHeadInPlaceForcesMaterialization(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	if err := runApplication(context.Background(), app, []string{"--no-head-in-place"}, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	_, _, adds, forgets, _, _, _ := runner.snapshot()
+	if adds != 2 || forgets != 2 {
+		t.Fatalf("lifecycle = adds %d, forgets %d", adds, forgets)
+	}
+}
+
+func TestApplicationHeadInPlaceRequiresWorkingCopyCommit(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	if err := runApplication(context.Background(), app, []string{"--to", "head"}, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	_, _, adds, _, _, _, _ := runner.snapshot()
+	if adds != 2 {
+		t.Fatalf("adds = %d, want a materialized head for a non-working-copy commit", adds)
+	}
+}
+
+func TestApplicationKeepWorkspacesWithHeadInPlaceRetainsBaseOnly(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	var stderr bytes.Buffer
+	if err := runApplication(context.Background(), app, []string{"--keep-workspaces"}, &bytes.Buffer{}, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	_, roots, adds, forgets, _, _, _ := runner.snapshot()
+	if adds != 1 || forgets != 0 || len(roots) != 1 {
+		t.Fatalf("lifecycle = adds %d, forgets %d, roots %d", adds, forgets, len(roots))
+	}
+	if !strings.Contains(stderr.String(), "retained base workspace") || !strings.Contains(stderr.String(), "queried in place") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	for _, root := range roots {
+		if _, err := os.Stat(root); err != nil {
+			t.Fatalf("retained root %s: %v", root, err)
+		}
+		if err := os.RemoveAll(root); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestApplicationHeadWorkspaceCreationFailureCleansBothEndpoints(t *testing.T) {
 	app, runner, _ := pipelineApplicationFixture(t)
 	runner.failHeadAdd = true
 	var stdout bytes.Buffer
-	err := runApplication(context.Background(), app, nil, &stdout, &bytes.Buffer{})
+	err := runApplication(context.Background(), app, []string{"--to", "head"}, &stdout, &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "jj workspace add failed") {
 		t.Fatalf("error = %v", err)
 	}
@@ -452,7 +535,7 @@ func TestApplicationBuckFailureStillCleansWorkspaces(t *testing.T) {
 	app, runner, _ := pipelineApplicationFixture(t)
 	runner.failBuck = true
 	var stdout bytes.Buffer
-	err := runApplication(context.Background(), app, nil, &stdout, &bytes.Buffer{})
+	err := runApplication(context.Background(), app, []string{"--to", "head"}, &stdout, &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "buck2 targets failed") {
 		t.Fatalf("error = %v", err)
 	}
@@ -470,7 +553,7 @@ func TestApplicationBuckFailureStillCleansWorkspaces(t *testing.T) {
 func TestApplicationKeepWorkspacesRetainsBoth(t *testing.T) {
 	app, runner, _ := pipelineApplicationFixture(t)
 	var stderr bytes.Buffer
-	if err := runApplication(context.Background(), app, []string{"--keep-workspaces"}, &bytes.Buffer{}, &stderr); err != nil {
+	if err := runApplication(context.Background(), app, []string{"--keep-workspaces", "--to", "head"}, &bytes.Buffer{}, &stderr); err != nil {
 		t.Fatal(err)
 	}
 	_, roots, adds, forgets, _, _, _ := runner.snapshot()
@@ -534,7 +617,7 @@ func TestApplicationLocalBuckConfigCollisionCleansBothWorkspaces(t *testing.T) {
 		t.Fatal(err)
 	}
 	runner.localBuckConfigCollisionAt = 2
-	err := runApplication(context.Background(), app, nil, &bytes.Buffer{}, &bytes.Buffer{})
+	err := runApplication(context.Background(), app, []string{"--to", "head"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if err == nil || !errors.Is(err, os.ErrExist) {
 		t.Fatalf("collision error = %v, want os.ErrExist", err)
 	}
@@ -554,7 +637,7 @@ func TestApplicationCancellationStillUsesLiveCleanupContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	runner.cancelOnTargets = cancel
 	var stdout bytes.Buffer
-	err := runApplication(ctx, app, nil, &stdout, &bytes.Buffer{})
+	err := runApplication(ctx, app, []string{"--to", "head"}, &stdout, &bytes.Buffer{})
 	if err == nil || !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context canceled", err)
 	}

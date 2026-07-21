@@ -55,6 +55,15 @@ func TestCLIPatternsOnlyKeepDefaultRevisions(t *testing.T) {
 	}
 }
 
+func TestCLIHeadInPlaceIsDefaultWithOptOut(t *testing.T) {
+	if mustRunArgs(t).noHeadInPlace {
+		t.Fatal("in-place head should be allowed by default")
+	}
+	if !mustRunArgs(t, "--no-head-in-place").noHeadInPlace {
+		t.Fatal("--no-head-in-place was not recorded")
+	}
+}
+
 // Port of cli.rs::named_revisions_make_positionals_patterns.
 func TestCLINamedRevisionsMakePositionalsPatterns(t *testing.T) {
 	args := mustRunArgs(t, "--from=abc", "--to", "def", "depot//...")

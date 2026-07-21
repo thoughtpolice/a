@@ -93,6 +93,18 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 			logProgress(stderr, &args, format, values...)
 		})
 
+		// The head graph is queried directly in the invoking workspace when the
+		// requested head is the working-copy commit: the tree on disk already is
+		// that revision, so a second materialization would only duplicate it.
+		headInPlace := false
+		if !args.noHeadInPlace {
+			workingCopyCommit, err := jj.resolveOne(ctx, "@", true)
+			if err != nil {
+				return err
+			}
+			headInPlace = workingCopyCommit == revisions.head
+		}
+
 		localConfig, err := snapshotBuckLocalConfig(jj.repository)
 		if err != nil {
 			return err
@@ -104,11 +116,18 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 		cleanupContext := context.WithoutCancel(ctx)
 		defer func() { _ = baseWorkspace.close(cleanupContext) }()
 
-		headWorkspace, err := createWorkspace(ctx, jj, revisions.head, app.tempDir(), currentDir, localConfig)
-		if err != nil {
-			return finishOneWorkspace(cleanupContext, baseWorkspace, args.keepWorkspaces, err, "base", stderr)
+		var headWorkspace *workspace
+		headCheckout := jj.repository
+		if headInPlace {
+			logProgress(stderr, &args, "querying head in place at %s", jj.repository)
+		} else {
+			headWorkspace, err = createWorkspace(ctx, jj, revisions.head, app.tempDir(), currentDir, localConfig)
+			if err != nil {
+				return finishOneWorkspace(cleanupContext, baseWorkspace, args.keepWorkspaces, err, "base", stderr)
+			}
+			defer func() { _ = headWorkspace.close(cleanupContext) }()
+			headCheckout = headWorkspace.checkout
 		}
-		defer func() { _ = headWorkspace.close(cleanupContext) }()
 
 		logProgress(
 			stderr,
@@ -121,7 +140,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 			ctx,
 			app.runner,
 			baseWorkspace.checkout,
-			headWorkspace.checkout,
+			headCheckout,
 			args.buck,
 			buckArgs,
 			args.isolationDir,
@@ -175,6 +194,8 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 	return render(output, args.format, &meta, affected)
 }
 
+// finishWorkspacePair releases both endpoint workspaces. A nil head means the
+// head graph was queried in place and there is nothing to retain or clean.
 func finishWorkspacePair(
 	ctx context.Context,
 	base, head *workspace,
@@ -185,8 +206,12 @@ func finishWorkspacePair(
 ) ([]affectedTarget, error) {
 	if keep {
 		basePath := base.keep()
-		headPath := head.keep()
-		_, _ = fmt.Fprintf(stderr, "tdutil: retained workspaces %s and %s\n", basePath, headPath)
+		if head == nil {
+			_, _ = fmt.Fprintf(stderr, "tdutil: retained base workspace %s; head was queried in place\n", basePath)
+		} else {
+			headPath := head.keep()
+			_, _ = fmt.Fprintf(stderr, "tdutil: retained workspaces %s and %s\n", basePath, headPath)
+		}
 		return result, resultErr
 	}
 
@@ -194,9 +219,12 @@ func finishWorkspacePair(
 	if baseErr != nil {
 		baseErr = fmt.Errorf("cleaning base workspace: %w", baseErr)
 	}
-	headErr := head.close(ctx)
-	if headErr != nil {
-		headErr = fmt.Errorf("cleaning head workspace: %w", headErr)
+	var headErr error
+	if head != nil {
+		headErr = head.close(ctx)
+		if headErr != nil {
+			headErr = fmt.Errorf("cleaning head workspace: %w", headErr)
+		}
 	}
 	cleanupErr := joinAdditionalErrors(baseErr, headErr)
 	return result, combineCleanupError(resultErr, cleanupErr)
