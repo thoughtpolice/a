@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/lib/oci:toolchain.bzl", "oci_toolchain", "skopeo_binary", "umoci_binary")
+load("@root//buck/lib/oci:toolchain.bzl", "oci_toolchain", "patchelf_binary", "skopeo_binary", "umoci_binary")
 load("@root//buck/shims:shims.bzl", "shims")
 
 shims.http_file(
@@ -54,8 +54,36 @@ umoci_binary(
     target_compatible_with = ["config//os:linux"],
 )
 
+# PatchELF's release binaries are statically linked, so the OCI packaging
+# action does not depend on a host package or the repository's Nix shell.
+shims.http_archive(
+    name = "patchelf_x86_64",
+    sha256 = "a6818fef80128fb354423234ecacdcca3e993913d774e5d8346bc63f70fed4cf",
+    sub_targets = ["bin/patchelf"],
+    type = "tar.gz",
+    urls = ["https://github.com/NixOS/patchelf/releases/download/0.19.1/patchelf-0.19.1-x86_64.tar.gz"],
+)
+
+shims.http_archive(
+    name = "patchelf_arm64",
+    sha256 = "a2f8f5add5910a521d35062adf2c9f55d75b65ae5508d290758787004054e702",
+    sub_targets = ["bin/patchelf"],
+    type = "tar.gz",
+    urls = ["https://github.com/NixOS/patchelf/releases/download/0.19.1/patchelf-0.19.1-aarch64.tar.gz"],
+)
+
+patchelf_binary(
+    name = "patchelf",
+    bin = shims.select({
+        "config//cpu:x86_64": ":patchelf_x86_64[bin/patchelf]",
+        "config//cpu:arm64": ":patchelf_arm64[bin/patchelf]",
+    }),
+    target_compatible_with = ["config//os:linux"],
+)
+
 oci_toolchain(
     name = "oci",
+    patchelf = ":patchelf",
     skopeo = ":skopeo",
     target_compatible_with = ["config//os:linux"],
     umoci = ":umoci",

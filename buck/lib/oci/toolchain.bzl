@@ -87,6 +87,30 @@ umoci_binary = rule(
     },
 )
 
+def _patchelf_binary_impl(ctx: AnalysisContext) -> list[Provider]:
+    """Makes the patchelf binary executable and provides RunInfo"""
+    output = ctx.actions.declare_output("patchelf")
+    src = ctx.attrs.bin[DefaultInfo].default_outputs[0]
+
+    ctx.actions.run(
+        ["cp", src, output.as_output()],
+        category = "cp_patchelf",
+    )
+
+    patchelf_cmd = cmd_args(output, hidden = src)
+
+    return [
+        DefaultInfo(default_output = output),
+        RunInfo(args = patchelf_cmd),
+    ]
+
+patchelf_binary = rule(
+    impl = _patchelf_binary_impl,
+    attrs = {
+        "bin": attrs.dep(providers = [DefaultInfo]),
+    },
+)
+
 # Download helpers
 def download_skopeo(
         name: str,
@@ -146,8 +170,9 @@ def download_umoci(
 
 # Toolchain provider
 OciToolchainInfo = provider(
-    doc = "OCI toolchain providing skopeo and umoci",
+    doc = "OCI toolchain providing skopeo, umoci, and patchelf",
     fields = {
+        "patchelf": provider_field(typing.Any, default = None),
         "skopeo": provider_field(typing.Any, default = None),
         "umoci": provider_field(typing.Any, default = None),
     },
@@ -158,6 +183,7 @@ def _oci_toolchain_impl(ctx) -> list[[DefaultInfo, OciToolchainInfo]]:
     return [
         DefaultInfo(),
         OciToolchainInfo(
+            patchelf = ctx.attrs.patchelf,
             skopeo = ctx.attrs.skopeo,
             umoci = ctx.attrs.umoci,
         ),
@@ -166,6 +192,7 @@ def _oci_toolchain_impl(ctx) -> list[[DefaultInfo, OciToolchainInfo]]:
 oci_toolchain = rule(
     impl = _oci_toolchain_impl,
     attrs = {
+        "patchelf": attrs.exec_dep(providers = [RunInfo]),
         "skopeo": attrs.exec_dep(providers = [RunInfo]),
         "umoci": attrs.exec_dep(providers = [RunInfo]),
     },
