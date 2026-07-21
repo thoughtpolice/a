@@ -14,16 +14,18 @@ import (
 )
 
 type application struct {
-	runner  processRunner
-	getwd   func() (string, error)
-	tempDir func() string
+	runner   processRunner
+	getwd    func() (string, error)
+	tempDir  func() string
+	pidAlive func(int) bool
 }
 
 func defaultApplication() application {
 	return application{
-		runner:  osProcessRunner{},
-		getwd:   os.Getwd,
-		tempDir: os.TempDir,
+		runner:   osProcessRunner{},
+		getwd:    os.Getwd,
+		tempDir:  os.TempDir,
+		pidAlive: processIsAlive,
 	}
 }
 
@@ -83,6 +85,14 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 
 	var affected []affectedTarget
 	if len(changed) != 0 {
+		pidAlive := app.pidAlive
+		if pidAlive == nil {
+			pidAlive = processIsAlive
+		}
+		sweepOrphanedWorkspaces(ctx, jj, pidAlive, func(format string, values ...any) {
+			logProgress(stderr, &args, format, values...)
+		})
+
 		localConfig, err := snapshotBuckLocalConfig(jj.repository)
 		if err != nil {
 			return err

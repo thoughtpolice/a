@@ -4,10 +4,13 @@
 package main
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -44,6 +47,111 @@ func TestWorkspaceGeneratedNamesAreUniqueAndSafe(t *testing.T) {
 		}
 		if strings.ContainsAny(name, `/\`) {
 			t.Fatalf("unsafe separator in %q", name)
+		}
+	}
+}
+
+func TestWorkspaceOwnerPidParsing(t *testing.T) {
+	pid, ok := parseWorkspaceOwnerPid(uniqueWorkspaceName())
+	if !ok || pid != os.Getpid() {
+		t.Fatalf("own workspace name parsed to pid=%d ok=%v, want %d", pid, ok, os.Getpid())
+	}
+	for _, name := range []string{
+		"default",
+		"work",
+		"tdutil-",
+		"tdutil-1-2",
+		"tdutil-1-2-3-4",
+		"tdutil-zz-1-2",
+		"tdutil-1-zz-2",
+		"tdutil-1-2-zz",
+		"tdutil-0-1-2",
+		"tdutil--1-2",
+		"tdutil-1-2-",
+		"sometdutil-1-2-3",
+	} {
+		if pid, ok := parseWorkspaceOwnerPid(name); ok {
+			t.Errorf("parsed %q to pid %d, want rejection", name, pid)
+		}
+	}
+}
+
+func TestProcessLivenessProbeSeesOwnProcess(t *testing.T) {
+	if !processIsAlive(os.Getpid()) {
+		t.Fatal("own process reported dead")
+	}
+}
+
+func sweepTestClient(t *testing.T, list func() (processResult, error), forgotten *[]string) *jjClient {
+	t.Helper()
+	runner := buckFakeRunner{runFunc: func(_ context.Context, spec commandSpec) (processResult, error) {
+		switch {
+		case hasArgumentSequence(spec.args, "workspace", "list"):
+			return list()
+		case hasArgumentSequence(spec.args, "workspace", "forget"):
+			*forgotten = append(*forgotten, spec.args[len(spec.args)-1])
+			return processResult{}, nil
+		}
+		t.Fatalf("unexpected command %q", spec.args)
+		return processResult{}, nil
+	}}
+	return jjAtRepository(runner, "jj", t.TempDir())
+}
+
+func TestSweepForgetsOnlyProvablyDeadTdutilWorkspaces(t *testing.T) {
+	var forgotten []string
+	list := func() (processResult, error) {
+		return processResult{stdout: []byte("default\ntdutil-2a-1f-0\ntdutil-3b-1f-0\ntdutil-zz-a-b\nwork\n")}, nil
+	}
+	var logged []string
+	sweepOrphanedWorkspaces(
+		context.Background(),
+		sweepTestClient(t, list, &forgotten),
+		func(pid int) bool { return pid != 0x2a },
+		func(format string, values ...any) { logged = append(logged, fmt.Sprintf(format, values...)) },
+	)
+	if !slices.Equal(forgotten, []string{"tdutil-2a-1f-0"}) {
+		t.Fatalf("forgotten = %#v", forgotten)
+	}
+	if len(logged) != 1 || !strings.Contains(logged[0], "tdutil-2a-1f-0") {
+		t.Fatalf("logged = %#v", logged)
+	}
+}
+
+func TestSweepToleratesListAndForgetFailures(t *testing.T) {
+	var forgotten []string
+	failingList := func() (processResult, error) {
+		return processResult{stderr: []byte("locked\n"), exitCode: 1}, nil
+	}
+	var logged []string
+	log := func(format string, values ...any) { logged = append(logged, fmt.Sprintf(format, values...)) }
+	sweepOrphanedWorkspaces(context.Background(), sweepTestClient(t, failingList, &forgotten), func(int) bool { return false }, log)
+	if len(forgotten) != 0 {
+		t.Fatalf("forgotten after list failure = %#v", forgotten)
+	}
+	if len(logged) != 1 || !strings.Contains(logged[0], "skipping orphaned workspace sweep") {
+		t.Fatalf("logged = %#v", logged)
+	}
+
+	failingForget := buckFakeRunner{runFunc: func(_ context.Context, spec commandSpec) (processResult, error) {
+		if hasArgumentSequence(spec.args, "workspace", "list") {
+			return processResult{stdout: []byte("tdutil-2a-1f-0\ntdutil-3b-1f-0\n")}, nil
+		}
+		return processResult{stderr: []byte("stale\n"), exitCode: 1}, nil
+	}}
+	logged = nil
+	sweepOrphanedWorkspaces(
+		context.Background(),
+		jjAtRepository(failingForget, "jj", t.TempDir()),
+		func(int) bool { return false },
+		log,
+	)
+	if len(logged) != 2 {
+		t.Fatalf("logged = %#v", logged)
+	}
+	for _, entry := range logged {
+		if !strings.Contains(entry, "could not forget orphaned workspace") {
+			t.Fatalf("logged = %#v", logged)
 		}
 	}
 }
