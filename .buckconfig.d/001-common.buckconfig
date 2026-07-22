@@ -19,6 +19,10 @@ fbsource = none
 [buck2]
 file_watcher = watchman
 
+# enable content addressed actions by default
+declare_output_has_content_based_path_default = true
+action_has_content_based_path_default = true
+
 # 'buck2 test' should also build anything matching given target patterns
 test_builds_targets = true
 
