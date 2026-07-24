@@ -38,6 +38,8 @@ const (
 	genericCaseFilter = "generic:all"
 	rustCaseName      = "rust-packages"
 	rustCaseFilter    = "rust:all"
+	npmCaseName       = "npm-packages"
+	npmCaseFilter     = "npm:all"
 )
 
 func writeTestListing(mode string, stdout io.Writer) {
@@ -47,6 +49,9 @@ func writeTestListing(mode string, stdout io.Writer) {
 	if mode == "all" || mode == "rust" {
 		fmt.Fprintf(stdout, "%s%s %s\n", testLinePrefix, rustCaseFilter, rustCaseName)
 	}
+	if mode == "all" || mode == "npm" {
+		fmt.Fprintf(stdout, "%s%s %s\n", testLinePrefix, npmCaseFilter, npmCaseName)
+	}
 }
 
 func runHarnessTest(ctx context.Context, cfg config, filter string, stdout, stderr io.Writer) int {
@@ -55,6 +60,8 @@ func runHarnessTest(ctx context.Context, cfg config, filter string, stdout, stde
 		return runHarnessCase(ctx, cfg, "generic", genericCaseName, cfg.auditor(), stdout, stderr)
 	case rustCaseFilter:
 		return runHarnessCase(ctx, cfg, "rust", rustCaseName, cfg.auditor(), stdout, stderr)
+	case npmCaseFilter:
+		return runHarnessCase(ctx, cfg, "npm", npmCaseName, cfg.auditor(), stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "ERROR: unknown test filter %q\n", filter)
 	return 2
@@ -69,8 +76,11 @@ func protocolSafe(name string) bool {
 }
 
 func resultName(item subject) string {
-	if item.Kind == rustSubject {
+	switch item.Kind {
+	case rustSubject:
 		return "cargo/" + item.Name
+	case npmSubject:
+		return "npm/" + item.Name
 	}
 	return item.Name
 }
@@ -172,6 +182,19 @@ func collectSubjects(ctx context.Context, cfg config, mode string, auditor packa
 		}
 		fmt.Fprintf(output, "Loaded %d third-party Rust crates from %s (%d source-less workspace packages skipped).\n", len(rust), cfg.cargoLockPath, skipped)
 		subjects = append(subjects, rust...)
+	}
+	if mode == "all" || mode == "npm" {
+		packages, skips, err := loadPackageLock(cfg.npmLockPath)
+		if err != nil {
+			return nil, err
+		}
+		npm, err := npmSubjects(packages)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Fprintf(output, "Loaded %d npm registry packages from %s (%d local, %d non-registry, %d duplicate entries skipped).\n",
+			len(npm), cfg.npmLockPath, skips.Local, skips.NonRegistry, skips.Duplicate)
+		subjects = append(subjects, npm...)
 	}
 	return subjects, nil
 }

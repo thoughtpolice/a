@@ -77,6 +77,200 @@ func TestParseCargoLockRejectsUnsupportedInput(t *testing.T) {
 	}
 }
 
+// popularNPMLock is a package-lock.json in the shape npm 7 and newer write:
+// popular registry packages, plus one of every entry the scanner has to
+// classify as something other than a plain registry install.
+const popularNPMLock = `{
+  "name": "example-app",
+  "version": "0.0.0",
+  "lockfileVersion": 3,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "example-app",
+      "version": "0.0.0",
+      "workspaces": ["packages/*"],
+      "dependencies": {"svelte": "^5.56.7", "react": "^19.2.8"}
+    },
+    "node_modules/@example/ui": {"resolved": "packages/ui", "link": true},
+    "node_modules/@sveltejs/kit": {
+      "version": "2.70.1",
+      "resolved": "https://registry.npmjs.org/@sveltejs/kit/-/kit-2.70.1.tgz",
+      "dev": true
+    },
+    "node_modules/@sveltejs/kit/node_modules/cookie": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/cookie/-/cookie-1.0.2.tgz",
+      "dev": true
+    },
+    "node_modules/chalk": {
+      "version": "5.6.2",
+      "resolved": "https://registry.npmjs.org/chalk/-/chalk-5.6.2.tgz"
+    },
+    "node_modules/esbuild": {
+      "version": "0.28.1",
+      "resolved": "https://registry.npmjs.org/esbuild/-/esbuild-0.28.1.tgz",
+      "dev": true
+    },
+    "node_modules/is-plain-obj": {
+      "version": "4.1.0",
+      "resolved": "git+https://github.com/sindresorhus/is-plain-obj.git#97f38e8836f86a642cce98fc6ab3058bc36df181"
+    },
+    "node_modules/react": {
+      "version": "19.2.8",
+      "resolved": "https://registry.npmjs.org/react/-/react-19.2.8.tgz"
+    },
+    "node_modules/react-dom": {
+      "version": "19.2.8",
+      "resolved": "https://registry.npmjs.org/react-dom/-/react-dom-19.2.8.tgz"
+    },
+    "node_modules/svelte": {
+      "version": "5.56.7",
+      "resolved": "https://registry.npmjs.org/svelte/-/svelte-5.56.7.tgz"
+    },
+    "node_modules/typescript": {
+      "version": "7.0.2",
+      "resolved": "https://registry.npmjs.org/typescript/-/typescript-7.0.2.tgz",
+      "dev": true
+    },
+    "node_modules/vite": {
+      "version": "8.1.5",
+      "resolved": "https://registry.npmjs.org/vite/-/vite-8.1.5.tgz",
+      "dev": true
+    },
+    "node_modules/vite/node_modules/esbuild": {
+      "version": "0.28.1",
+      "resolved": "https://registry.npmjs.org/esbuild/-/esbuild-0.28.1.tgz",
+      "dev": true
+    },
+    "node_modules/vue": {
+      "version": "3.5.40",
+      "resolved": "https://registry.npmjs.org/vue/-/vue-3.5.40.tgz"
+    },
+    "node_modules/zod": {
+      "version": "4.4.3",
+      "resolved": "https://registry.npmjs.org/zod/-/zod-4.4.3.tgz"
+    },
+    "node_modules/zod-v3": {
+      "name": "zod",
+      "version": "3.25.76",
+      "resolved": "https://registry.npmjs.org/zod/-/zod-3.25.76.tgz"
+    },
+    "packages/ui": {"name": "@example/ui", "version": "0.0.0"}
+  }
+}
+`
+
+func TestParsePackageLock(t *testing.T) {
+	packages, skips, err := parsePackageLock(strings.NewReader(popularNPMLock))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []npmPackage{
+		{Name: "@sveltejs/kit", Version: "2.70.1"},
+		{Name: "cookie", Version: "1.0.2"},
+		{Name: "chalk", Version: "5.6.2"},
+		{Name: "esbuild", Version: "0.28.1"},
+		{Name: "react", Version: "19.2.8"},
+		{Name: "react-dom", Version: "19.2.8"},
+		{Name: "svelte", Version: "5.56.7"},
+		{Name: "typescript", Version: "7.0.2"},
+		{Name: "vite", Version: "8.1.5"},
+		{Name: "vue", Version: "3.5.40"},
+		{Name: "zod", Version: "4.4.3"},
+		{Name: "zod", Version: "3.25.76"},
+	}
+	if !reflect.DeepEqual(packages, want) {
+		t.Fatalf("packages = %#v, want %#v", packages, want)
+	}
+	// The root project, the workspace member, and the symlink to it are local;
+	// the git checkout has no registry identity; vite's nested esbuild copy is
+	// the same package at the same version as the hoisted one.
+	if (skips != npmSkips{Local: 3, NonRegistry: 1, Duplicate: 1}) {
+		t.Fatalf("skips = %#v", skips)
+	}
+
+	subjects, err := npmSubjects(packages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(subjects) != len(want) {
+		t.Fatalf("got %d subjects, want %d", len(subjects), len(want))
+	}
+	if subjects[0].Query.Package.PURL != "pkg:npm/%40sveltejs/kit" || subjects[0].Display != "pkg:npm/%40sveltejs/kit@2.70.1" {
+		t.Fatalf("unexpected scoped subject: %#v", subjects[0])
+	}
+	if subjects[0].Kind != npmSubject || resultName(subjects[0]) != "npm/@sveltejs/kit@2.70.1" {
+		t.Fatalf("unexpected result name %q", resultName(subjects[0]))
+	}
+	for _, item := range subjects {
+		if err := item.Query.validate(); err != nil {
+			t.Fatalf("%s: %v", item.Name, err)
+		}
+		if !protocolSafe(resultName(item)) {
+			t.Fatalf("%q cannot be reported as a test name", resultName(item))
+		}
+	}
+}
+
+func TestParsePackageLockRejectsUnsupportedInput(t *testing.T) {
+	tests := map[string]string{
+		"legacy format":       `{"lockfileVersion": 1, "dependencies": {"svelte": {"version": "5.56.7"}}}`,
+		"future format":       `{"lockfileVersion": 4, "packages": {"node_modules/svelte": {"version": "5.56.7"}}}`,
+		"missing version key": `{"packages": {"node_modules/svelte": {"version": "5.56.7"}}}`,
+		"no packages":         `{"lockfileVersion": 3, "packages": {}}`,
+		"no registry packages": `{"lockfileVersion": 3, "packages": {
+			"": {"name": "example-app"},
+			"node_modules/@example/ui": {"resolved": "packages/ui", "link": true}
+		}}`,
+		"package without a version": `{"lockfileVersion": 3, "packages": {
+			"node_modules/svelte": {"resolved": "https://registry.npmjs.org/svelte/-/svelte-5.56.7.tgz"}
+		}}`,
+		"invalid package name": `{"lockfileVersion": 3, "packages": {
+			"node_modules/bad name": {"version": "1.0.0", "resolved": "https://registry.npmjs.org/x/-/x-1.0.0.tgz"}
+		}}`,
+		"unscoped name with a slash": `{"lockfileVersion": 3, "packages": {
+			"node_modules/svelte": {"name": "not/scoped", "version": "1.0.0", "resolved": "https://registry.npmjs.org/x/-/x-1.0.0.tgz"}
+		}}`,
+		"truncated json": `{"lockfileVersion": 3, "packages": {`,
+		"trailing content": `{"lockfileVersion": 3, "packages": {
+			"node_modules/svelte": {"version": "5.56.7", "resolved": "https://registry.npmjs.org/svelte/-/svelte-5.56.7.tgz"}
+		}}{}`,
+	}
+	for name, input := range tests {
+		t.Run(name, func(t *testing.T) {
+			if _, _, err := parsePackageLock(strings.NewReader(input)); err == nil {
+				t.Fatal("parsePackageLock unexpectedly succeeded")
+			}
+		})
+	}
+}
+
+func TestNPMPackageNameHandlesInstallPaths(t *testing.T) {
+	tests := []struct {
+		treePath  string
+		entryName string
+		want      string
+		installed bool
+	}{
+		{treePath: "", want: "", installed: false},
+		{treePath: "packages/ui", want: "", installed: false},
+		{treePath: "node_modules/svelte", want: "svelte", installed: true},
+		{treePath: "node_modules/@sveltejs/kit", want: "@sveltejs/kit", installed: true},
+		{treePath: "node_modules/vite/node_modules/esbuild", want: "esbuild", installed: true},
+		{treePath: "node_modules/zod-v3", entryName: "zod", want: "zod", installed: true},
+		// "node_modules" has to be a whole path segment, not a suffix.
+		{treePath: "packages/my_node_modules/thing", want: "", installed: false},
+	}
+	for _, test := range tests {
+		name, installed := npmPackageName(test.treePath, test.entryName)
+		if name != test.want || installed != test.installed {
+			t.Errorf("npmPackageName(%q, %q) = (%q, %t), want (%q, %t)",
+				test.treePath, test.entryName, name, installed, test.want, test.installed)
+		}
+	}
+}
+
 type mockAuditor struct {
 	responses []auditResponse
 	calls     int
@@ -241,19 +435,21 @@ func TestGroupAdvisoriesMatchesExceptionsThroughAliases(t *testing.T) {
 		t.Fatalf("unexpected groups: %#v", groups)
 	}
 
-	groups, err = groupAdvisories(genericSubject, references, details)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if groups[0].ExceptionReason != "" {
-		t.Fatal("Rust exception was incorrectly applied to a generic package")
+	for _, kind := range []subjectKind{genericSubject, npmSubject} {
+		groups, err = groupAdvisories(kind, references, details)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if groups[0].ExceptionReason != "" {
+			t.Fatalf("Rust exception was incorrectly applied to subject kind %d", kind)
+		}
 	}
 }
 
 func TestWriteTestListing(t *testing.T) {
 	var output bytes.Buffer
 	writeTestListing("all", &output)
-	want := "test: generic:all generic-packages\ntest: rust:all rust-packages\n"
+	want := "test: generic:all generic-packages\ntest: rust:all rust-packages\ntest: npm:all npm-packages\n"
 	if output.String() != want {
 		t.Fatalf("listing = %q, want %q", output.String(), want)
 	}
@@ -268,6 +464,12 @@ func TestWriteTestListing(t *testing.T) {
 	writeTestListing("generic", &output)
 	if output.String() != "test: generic:all generic-packages\n" {
 		t.Fatalf("unexpected generic listing %q", output.String())
+	}
+
+	output.Reset()
+	writeTestListing("npm", &output)
+	if output.String() != "test: npm:all npm-packages\n" {
+		t.Fatalf("unexpected npm listing %q", output.String())
 	}
 }
 
@@ -302,6 +504,10 @@ func harnessOSVServer(t *testing.T) *httptest.Server {
 					results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "OSV-2"}}}
 				case "pkg:cargo/derivative":
 					results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "RUSTSEC-2024-0388"}}}
+				case "pkg:npm/vite":
+					results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "OSV-3"}}}
+				case "pkg:npm/%40sveltejs/kit":
+					results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "GHSA-npm-excepted"}}}
 				}
 			}
 			if err := json.NewEncoder(w).Encode(batchResponse{Results: results}); err != nil {
@@ -309,8 +515,12 @@ func harnessOSVServer(t *testing.T) *httptest.Server {
 			}
 		case "/vulns/OSV-2":
 			fmt.Fprint(w, `{"id":"OSV-2","summary":"bad thing"}`)
+		case "/vulns/OSV-3":
+			fmt.Fprint(w, `{"id":"OSV-3","summary":"dev server exposes the filesystem"}`)
 		case "/vulns/RUSTSEC-2024-0388":
 			fmt.Fprint(w, `{"id":"RUSTSEC-2024-0388","summary":"derivative is unmaintained"}`)
+		case "/vulns/GHSA-npm-excepted":
+			fmt.Fprint(w, `{"id":"GHSA-npm-excepted","summary":"kit request smuggling"}`)
 		default:
 			http.NotFound(w, r)
 		}
@@ -389,6 +599,113 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 	}
 }
 
+func writeTempNPMLock(t *testing.T, contents string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "package-lock.json")
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// withNPMExceptions swaps the npm exception list for the duration of one test.
+func withNPMExceptions(t *testing.T, items ...exception) {
+	t.Helper()
+	for index := range exceptionSets {
+		if exceptionSets[index].Kind != npmSubject {
+			continue
+		}
+		original := exceptionSets[index].Items
+		exceptionSets[index].Items = items
+		t.Cleanup(func() { exceptionSets[index].Items = original })
+		return
+	}
+	t.Fatal("npm has no registered exception set")
+}
+
+func TestRunHarnessCaseNPM(t *testing.T) {
+	withNPMExceptions(t, exception{
+		ID:     "GHSA-npm-excepted",
+		Reason: "build-time only; awaiting an upstream release",
+	})
+	lock := writeTempNPMLock(t, popularNPMLock)
+	server := harnessOSVServer(t)
+	cfg := harnessConfig(server, "")
+	cfg.npmLockPath = lock
+
+	var stdout, stderr bytes.Buffer
+	code := runHarnessTest(context.Background(), cfg, "npm:all", &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("exit = %d, want 1; stderr: %s", code, stderr.String())
+	}
+	for _, want := range []string{
+		"Loaded 12 npm registry packages from " + lock + " (3 local, 1 non-registry, 1 duplicate entries skipped).\n",
+		"result: PASS npm/svelte@5.56.7 -\n",
+		"result: PASS npm/react-dom@19.2.8 -\n",
+		"result: PASS npm/zod@3.25.76 -\n",
+		"result: FAIL npm/vite@8.1.5 - 1 blocking advisory group(s): OSV-3\n",
+		"result: PASS npm/@sveltejs/kit@2.70.1 - 1 excepted advisory group(s)\n",
+		"result-details: [FAIL] vite@8.1.5\n",
+		"result-details:   pkg:npm/vite@8.1.5\n",
+		"result-details: [EXEMPT] @sveltejs/kit@2.70.1\n",
+		"result-details:     reason: build-time only; awaiting an upstream release\n",
+		"Scanned 12 packages: 10 clean, 2 affected; 2 advisory groups (1 blocking, 1 excepted).",
+		"result: FAIL npm-packages ",
+	} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("output is missing %q:\n%s", want, stdout.String())
+		}
+	}
+	if strings.Contains(stdout.String(), "Unused npm exceptions") {
+		t.Fatalf("the used npm exception was reported as unused:\n%s", stdout.String())
+	}
+}
+
+func TestRunHarnessCaseNPMReportsUnusedExceptions(t *testing.T) {
+	withNPMExceptions(t, exception{ID: "GHSA-stale", Reason: "no longer reachable"})
+	lock := writeTempNPMLock(t, `{"lockfileVersion": 3, "packages": {
+		"": {"name": "example-app"},
+		"node_modules/svelte": {
+			"version": "5.56.7",
+			"resolved": "https://registry.npmjs.org/svelte/-/svelte-5.56.7.tgz"
+		}
+	}}`)
+	server := harnessOSVServer(t)
+	cfg := harnessConfig(server, "")
+	cfg.npmLockPath = lock
+
+	var stdout, stderr bytes.Buffer
+	code := runHarnessTest(context.Background(), cfg, "npm:all", &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0; stderr: %s", code, stderr.String())
+	}
+	for _, want := range []string{
+		"result: PASS npm/svelte@5.56.7 -\n",
+		"result: PASS npm-packages ",
+		"Unused npm exceptions (candidates for removal): GHSA-stale\n",
+	} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("output is missing %q:\n%s", want, stdout.String())
+		}
+	}
+	// An npm-only scan says nothing about the Rust list.
+	if strings.Contains(stdout.String(), "Unused Rust exceptions") {
+		t.Fatalf("Rust exceptions were reported for an npm scan:\n%s", stdout.String())
+	}
+}
+
+func TestRunHarnessCaseNPMMissingLockfile(t *testing.T) {
+	server := harnessOSVServer(t)
+	cfg := harnessConfig(server, "")
+	cfg.npmLockPath = filepath.Join(t.TempDir(), "package-lock.json")
+
+	var stdout, stderr bytes.Buffer
+	code := runHarnessTest(context.Background(), cfg, "npm:all", &stdout, &stderr)
+	if code != 2 || !strings.Contains(stderr.String(), "package-lock.json") {
+		t.Fatalf("exit = %d, stderr = %q", code, stderr.String())
+	}
+}
+
 func TestRunHarnessCaseGeneric(t *testing.T) {
 	server := harnessOSVServer(t)
 	cfg := harnessConfig(server, "")
@@ -433,6 +750,13 @@ func TestRealMainHarnessFlags(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := realMain(context.Background(), []string{"-list-tests", "rust"}, &stdout, &stderr)
 	if code != 0 || stdout.String() != "test: rust:all rust-packages\n" {
+		t.Fatalf("exit = %d, stdout = %q, stderr = %q", code, stdout.String(), stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	code = realMain(context.Background(), []string{"-list-tests", "npm"}, &stdout, &stderr)
+	if code != 0 || stdout.String() != "test: npm:all npm-packages\n" {
 		t.Fatalf("exit = %d, stdout = %q, stderr = %q", code, stdout.String(), stderr.String())
 	}
 

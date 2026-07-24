@@ -1,0 +1,33 @@
+{
+  "name": "osv-npm-example",
+  "version": "0.0.0",
+  "description": "Example npm project used to exercise the 3p-osv package-lock.json scanner.",
+  "private": true,
+  "license": "Apache-2.0",
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^15.0.0",
+    "date-fns": "^4.4.0",
+    "is-plain-obj": "github:sindresorhus/is-plain-obj#97f38e8836f86a642cce98fc6ab3058bc36df181",
+    "lodash": "^4.18.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "svelte": "^5.56.7",
+    "uuid": "^14.0.1",
+    "vue": "^3.5.40",
+    "zod": "^4.4.3",
+    "zod-v3": "npm:zod@^3.25.76"
+  },
+  "devDependencies": {
+    "@sveltejs/kit": "^2.70.1",
+    "esbuild": "^0.28.1",
+    "eslint": "^10.7.0",
+    "postcss": "^8.5.23",
+    "prettier": "^3.9.6",
+    "rollup": "^4.62.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10"
+  }
+}
