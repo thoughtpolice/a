@@ -9,6 +9,7 @@ SRCS = [
     "harness.go",
     "main.go",
     "model.go",
+    "npm.go",
     "osv.go",
     "report.go",
 ]

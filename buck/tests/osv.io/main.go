@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // 3p-osv verifies that depot's generic third-party packages have usable OSV
-// metadata and checks both those packages and Cargo.lock against osv.dev.
+// metadata and checks those packages, Cargo.lock, and package-lock.json
+// against osv.dev.
 package main
 
 import (
@@ -13,6 +14,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -26,9 +28,16 @@ type config struct {
 	buckPath         string
 	buckIsolationDir string
 	cargoLockPath    string
+	npmLockPath      string
 	batchSize        int
 	concurrency      int
 	httpTimeout      time.Duration
+}
+
+var checkModes = []string{"all", "generic", "rust", "npm"}
+
+func isCheckMode(value string) bool {
+	return slices.Contains(checkModes, value)
 }
 
 func (c config) auditor() packageAuditor {
@@ -51,14 +60,16 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	flags.StringVar(&cfg.buckPath, "buck", "./buck/bin/buck2", "path to the Buck2 dotslash executable")
 	flags.StringVar(&cfg.buckIsolationDir, "buck-isolation-dir", "buck2-3p-osv-tests", "Buck2 isolation directory used for metadata audits")
 	flags.StringVar(&cfg.cargoLockPath, "cargo-lock", "buck/third-party/rust/Cargo.lock", "Cargo.lock to scan")
+	flags.StringVar(&cfg.npmLockPath, "npm-lock", "buck/tests/osv.io/testdata/package-lock.json", "npm package-lock.json to scan")
 	flags.IntVar(&cfg.batchSize, "batch-size", 100, "queries per OSV batch")
 	flags.IntVar(&cfg.concurrency, "concurrency", 8, "maximum concurrent OSV requests")
 	flags.DurationVar(&cfg.httpTimeout, "http-timeout", 60*time.Second, "timeout for each OSV request")
 	flags.BoolVar(&listTests, "list-tests", false, "print the Buck2 test cases for the selected mode and exit")
 	flags.BoolVar(&runTest, "run-test", false, "run the single Buck2 test case named by the trailing filter argument")
 	flags.Usage = func() {
-		fmt.Fprintln(stderr, "Usage: 3p-osv [flags] [all|generic|rust] [Cargo.lock]")
+		fmt.Fprintln(stderr, "Usage: 3p-osv [flags] [all|generic|rust|npm] [lockfile]")
 		fmt.Fprintln(stderr, "Checks all dependency sets when no mode is supplied.")
+		fmt.Fprintln(stderr, "A trailing lockfile overrides the scanned file in rust and npm mode.")
 		fmt.Fprintln(stderr, "Buck2 internal-runner protocol:")
 		fmt.Fprintln(stderr, "  3p-osv -list-tests [mode]         print one \"test: <filter> <name>\" line per case")
 		fmt.Fprintln(stderr, "  3p-osv -run-test [mode] <filter>  check one case and print \"result: ...\" lines")
@@ -94,7 +105,7 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		}
 		filter := remaining[len(remaining)-1]
 		for _, extra := range remaining[:len(remaining)-1] {
-			if extra != "all" && extra != "generic" && extra != "rust" {
+			if !isCheckMode(extra) {
 				fmt.Fprintf(stderr, "ERROR: unexpected argument %q before the test filter\n", extra)
 				return 2
 			}
@@ -107,14 +118,20 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		mode = remaining[0]
 		remaining = remaining[1:]
 	}
-	if mode != "all" && mode != "generic" && mode != "rust" {
+	if !isCheckMode(mode) {
 		fmt.Fprintf(stderr, "ERROR: unknown check mode %q\n", mode)
 		flags.Usage()
 		return 2
 	}
-	if mode == "rust" && len(remaining) == 1 {
-		cfg.cargoLockPath = remaining[0]
-		remaining = nil
+	if len(remaining) == 1 {
+		switch mode {
+		case "rust":
+			cfg.cargoLockPath = remaining[0]
+			remaining = nil
+		case "npm":
+			cfg.npmLockPath = remaining[0]
+			remaining = nil
+		}
 	}
 	if len(remaining) != 0 {
 		fmt.Fprintln(stderr, "ERROR: too many positional arguments")
@@ -150,21 +167,25 @@ func execute(ctx context.Context, cfg config, mode string, auditor packageAudito
 }
 
 func validateExceptions() error {
-	seen := make(map[string]struct{}, len(rustExceptions))
 	var problems []string
-	for _, item := range rustExceptions {
-		if item.ID == "" || item.Reason == "" {
-			problems = append(problems, "exception has an empty id or reason")
-			continue
+	for _, set := range exceptionSets {
+		seen := make(map[string]struct{}, len(set.Items))
+		for _, item := range set.Items {
+			if item.ID == "" || item.Reason == "" {
+				problems = append(problems, set.Label+" exception has an empty id or reason")
+				continue
+			}
+			// The same advisory may legitimately appear in two ecosystems, so
+			// duplicates are only rejected within one list.
+			if _, duplicate := seen[item.ID]; duplicate {
+				problems = append(problems, "duplicate "+set.Label+" exception "+item.ID)
+			}
+			seen[item.ID] = struct{}{}
 		}
-		if _, duplicate := seen[item.ID]; duplicate {
-			problems = append(problems, "duplicate exception "+item.ID)
-		}
-		seen[item.ID] = struct{}{}
 	}
 	if len(problems) > 0 {
 		sort.Strings(problems)
-		return fmt.Errorf("invalid Rust exceptions: %s", strings.Join(problems, "; "))
+		return fmt.Errorf("invalid exceptions: %s", strings.Join(problems, "; "))
 	}
 	return nil
 }

@@ -109,8 +109,9 @@ func groupAdvisories(kind subjectKind, references []vulnerabilityRef, details ma
 	for index, record := range records {
 		grouped[find(index)] = append(grouped[find(index)], record)
 	}
-	exceptionByID := make(map[string]string, len(rustExceptions))
-	for _, item := range rustExceptions {
+	ecosystemExceptions := exceptionsFor(kind)
+	exceptionByID := make(map[string]string, len(ecosystemExceptions))
+	for _, item := range ecosystemExceptions {
 		exceptionByID[item.ID] = item.Reason
 	}
 
@@ -157,16 +158,14 @@ func groupAdvisories(kind subjectKind, references []vulnerabilityRef, details ma
 		if group.Summary == "" {
 			group.Summary = "No summary provided"
 		}
-		if kind == rustSubject {
-			var reasons []string
-			for _, identifier := range identifiers {
-				if reason, ok := exceptionByID[identifier]; ok {
-					group.ExceptionIDs = append(group.ExceptionIDs, identifier)
-					reasons = append(reasons, reason)
-				}
+		var reasons []string
+		for _, identifier := range identifiers {
+			if reason, ok := exceptionByID[identifier]; ok {
+				group.ExceptionIDs = append(group.ExceptionIDs, identifier)
+				reasons = append(reasons, reason)
 			}
-			group.ExceptionReason = strings.Join(reasons, "; ")
 		}
+		group.ExceptionReason = strings.Join(reasons, "; ")
 		groups = append(groups, group)
 	}
 	sort.Slice(groups, func(left, right int) bool {
@@ -255,17 +254,18 @@ func renderFinding(item finding) renderedFinding {
 func renderSummary(subjects []subject, findings []finding) (string, bool) {
 	affected := len(findings)
 	clean := len(subjects) - affected
-	hasRust := false
+	scannedKinds := make(map[subjectKind]struct{}, len(exceptionSets))
 	for _, item := range subjects {
-		if item.Kind == rustSubject {
-			hasRust = true
-			break
-		}
+		scannedKinds[item.Kind] = struct{}{}
 	}
 	groupCount := 0
 	exemptGroupCount := 0
 	violationGroupCount := 0
-	usedExceptions := make(map[string]struct{})
+	type exceptionUse struct {
+		kind subjectKind
+		id   string
+	}
+	usedExceptions := make(map[exceptionUse]struct{})
 	for _, item := range findings {
 		for _, group := range item.Groups {
 			groupCount++
@@ -274,7 +274,7 @@ func renderSummary(subjects []subject, findings []finding) (string, bool) {
 			} else {
 				exemptGroupCount++
 				for _, id := range group.ExceptionIDs {
-					usedExceptions[id] = struct{}{}
+					usedExceptions[exceptionUse{kind: item.Subject.Kind, id: id}] = struct{}{}
 				}
 			}
 		}
@@ -283,14 +283,21 @@ func renderSummary(subjects []subject, findings []finding) (string, bool) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "\nScanned %d packages: %d clean, %d affected; %d advisory groups (%d blocking, %d excepted).\n",
 		len(subjects), clean, affected, groupCount, violationGroupCount, exemptGroupCount)
-	var unused []string
-	for _, item := range rustExceptions {
-		if _, used := usedExceptions[item.ID]; !used {
-			unused = append(unused, item.ID)
+	// Only ecosystems that were actually scanned can report an unused
+	// exception; a Rust-only run says nothing about the npm list.
+	for _, set := range exceptionSets {
+		if _, scanned := scannedKinds[set.Kind]; !scanned {
+			continue
 		}
-	}
-	if hasRust && len(unused) > 0 {
-		fmt.Fprintf(&b, "Unused Rust exceptions (candidates for removal): %s\n", strings.Join(unused, ", "))
+		var unused []string
+		for _, item := range set.Items {
+			if _, used := usedExceptions[exceptionUse{kind: set.Kind, id: item.ID}]; !used {
+				unused = append(unused, item.ID)
+			}
+		}
+		if len(unused) > 0 {
+			fmt.Fprintf(&b, "Unused %s exceptions (candidates for removal): %s\n", set.Label, strings.Join(unused, ", "))
+		}
 	}
 	return b.String(), violationGroupCount > 0
 }

@@ -14,6 +14,7 @@ type subjectKind uint8
 const (
 	genericSubject subjectKind = iota
 	rustSubject
+	npmSubject
 )
 
 type osvPackage struct {
@@ -131,6 +132,32 @@ var rustExceptions = []exception{
 		ID:     "GHSA-9857-6mw7-fq2m",
 		Reason: "gix-transport curl backend credential leak on redirect; fixed in gix-transport 0.56.0, awaiting a jj revision bump",
 	},
+}
+
+// npmExceptions accepts advisories against packages in the scanned
+// package-lock.json files. Every entry needs a reason and an exit condition,
+// the same as the Rust list above.
+var npmExceptions []exception
+
+// exceptionSets binds each ecosystem's exception list to the subject kind it
+// applies to. An advisory is only excepted for the ecosystem that declared it,
+// so an npm entry can never silence the same advisory ID for a crate.
+var exceptionSets = []struct {
+	Kind  subjectKind
+	Label string
+	Items []exception
+}{
+	{Kind: rustSubject, Label: "Rust", Items: rustExceptions},
+	{Kind: npmSubject, Label: "npm", Items: npmExceptions},
+}
+
+func exceptionsFor(kind subjectKind) []exception {
+	for _, set := range exceptionSets {
+		if set.Kind == kind {
+			return set.Items
+		}
+	}
+	return nil
 }
 
 func validateGitURL(raw string) error {
