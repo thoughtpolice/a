@@ -26,6 +26,9 @@ action_has_content_based_path_default = true
 # 'buck2 test' should also build anything matching given target patterns
 test_builds_targets = true
 
+# 'A//B/C' is an alias for 'A//B/C:C' as it is in bazel
+infer_target_names = true
+
 # use sha256 since everything supports it. XXX FIXME (aseipp): blake3?
 digest_algorithms = SHA256
 
