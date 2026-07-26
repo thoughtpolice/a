@@ -9,7 +9,7 @@
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use tokio::sync::Notify;
@@ -91,7 +91,13 @@ pub trait InstallerHandler: Send + Sync + 'static {
     /// Called when a single file has been materialized and is ready to install.
     async fn file_ready(&self, info: FileReadyInfo) -> Result<FileResult>;
 
-    /// Called when buck2 asks the installer to shut down. Default is a no-op.
+    /// Called when buck2 asks the installer to shut down, once every file has
+    /// been reported via [`InstallerHandler::file_ready`]. Installers that
+    /// produce a single combined artifact should finalize it here rather than
+    /// trying to detect the last file. Default is a no-op.
+    ///
+    /// An error here is reported back to buck2 and becomes the installer's exit
+    /// status.
     async fn shutdown(&self) -> Result<()> {
         Ok(())
     }
@@ -104,6 +110,7 @@ pub trait InstallerHandler: Send + Sync + 'static {
 struct InstallerService<H> {
     handler: Arc<H>,
     shutdown: Arc<Notify>,
+    shutdown_error: Arc<Mutex<Option<anyhow::Error>>>,
 }
 
 #[tonic::async_trait]
@@ -168,12 +175,18 @@ impl<H: InstallerHandler> proto::installer_server::Installer for InstallerServic
     ) -> std::result::Result<Response<proto::ShutdownResponse>, Status> {
         tracing::info!("shutdown requested");
 
-        self.handler
-            .shutdown()
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let result = self.handler.shutdown().await;
 
+        // Stop the server before reporting a failure, otherwise a handler that
+        // errors leaves buck2 waiting on a process that never exits.
         self.shutdown.notify_one();
+
+        if let Err(e) = result {
+            let status = Status::internal(e.to_string());
+            *self.shutdown_error.lock().unwrap() = Some(e);
+            return Err(status);
+        }
+
         Ok(Response::new(proto::ShutdownResponse {}))
     }
 }
@@ -183,7 +196,8 @@ impl<H: InstallerHandler> proto::installer_server::Installer for InstallerServic
 // ---------------------------------------------------------------------------
 
 /// Set up logging, start the gRPC server, and dispatch RPCs to the provided
-/// handler. Returns when buck2 sends `ShutdownServer`.
+/// handler. Returns when buck2 sends `ShutdownServer`, propagating any error
+/// from [`InstallerHandler::shutdown`].
 ///
 /// Callers are responsible for parsing CLI arguments (including
 /// [`InstallerArgs`]) and constructing their handler before calling this.
@@ -199,9 +213,11 @@ pub async fn run_installer<H: InstallerHandler>(args: &InstallerArgs, handler: H
     tracing::info!(port = args.tcp_port, "starting installer");
 
     let shutdown = Arc::new(Notify::new());
+    let shutdown_error = Arc::new(Mutex::new(None));
     let service = InstallerService {
         handler: Arc::new(handler),
         shutdown: shutdown.clone(),
+        shutdown_error: shutdown_error.clone(),
     };
 
     let addr: SocketAddr = ([127, 0, 0, 1], args.tcp_port).into();
@@ -211,6 +227,11 @@ pub async fn run_installer<H: InstallerHandler>(args: &InstallerArgs, handler: H
         .add_service(InstallerServer::new(service))
         .serve_with_shutdown(addr, shutdown.notified())
         .await?;
+
+    if let Some(err) = shutdown_error.lock().unwrap().take() {
+        tracing::error!(%err, "shutdown handler failed");
+        return Err(err);
+    }
 
     tracing::info!("server shut down");
     Ok(())
