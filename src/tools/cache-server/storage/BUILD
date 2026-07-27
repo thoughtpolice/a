@@ -64,6 +64,7 @@ TEST_MODULES = {
     "concurrency": {},
     "action_cache": {},
     "asset": {},
+    "tuning": {},
 }
 
 ALL_TEST_RESOURCES = {
