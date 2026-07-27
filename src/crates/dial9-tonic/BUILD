@@ -6,7 +6,7 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 DEPS = [
     "root//src/crates/accept:accept",
     "third-party//rust:bytes",
-    "third-party//rust:dial9-tokio-telemetry",
+    "third-party//rust:dial9",
     "third-party//rust:futures",
     "third-party//rust:hyper",
     "third-party//rust:hyper-util",

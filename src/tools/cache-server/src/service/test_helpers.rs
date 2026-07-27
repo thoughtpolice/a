@@ -20,7 +20,7 @@ pub use protos::build::bazel::remote::asset::v1::{
     fetch_server::Fetch, push_server::Push,
 };
 
-pub use dial9_tokio_telemetry::telemetry::{TelemetryHandle, TracedRuntime};
+pub use dial9::Dial9TokioHandle;
 
 pub use crate::store::{
     CacheStore, CacheStoreSettings, Compression, ContentDigest, DigestFn, StoreBackend,
@@ -38,18 +38,10 @@ pub fn ensure_telemetry() {
     });
 }
 
-pub fn test_handle() -> TelemetryHandle {
-    static HANDLE: std::sync::LazyLock<TelemetryHandle> = std::sync::LazyLock::new(|| {
-        let mut b = tokio::runtime::Builder::new_current_thread();
-        b.enable_all();
-        // Leak the runtime + guard so they live for the process lifetime.
-        let (rt, guard) = TracedRuntime::build_disabled(b).unwrap();
-        let handle = guard.handle();
-        std::mem::forget(rt);
-        std::mem::forget(guard);
-        handle
-    });
-    HANDLE.clone()
+/// An inert handle: `spawn` falls through to `tokio::spawn` on whichever
+/// runtime the test is running under, with no wake tracking.
+pub fn test_handle() -> Dial9TokioHandle {
+    Dial9TokioHandle::disabled()
 }
 
 pub fn sha256(data: &[u8]) -> [u8; 32] {

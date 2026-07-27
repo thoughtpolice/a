@@ -23,7 +23,7 @@ BUILD_DEPS = [
     "third-party//rust:sha2",
     "third-party//rust:anyhow",
     "third-party//rust:clap",
-    "third-party//rust:dial9-tokio-telemetry",
+    "third-party//rust:dial9",
     "third-party//rust:console-subscriber",
     "third-party//rust:prost",
     "third-party//rust:prost-types",
@@ -50,6 +50,7 @@ depot.rust_binary(
 
 TEST_MODULES = {
     "cas": {},
+    "dial9": {},
     "split_splice": {},
     "action_cache": {},
     "bytestream": {},
@@ -70,6 +71,7 @@ ALL_TEST_RESOURCES = {
 
 TEST_DEPS = BUILD_DEPS + [
     "third-party//rust:buck-resources",
+    "third-party//rust:tempfile",
 ]
 
 # Per-module test targets

@@ -191,7 +191,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -202,7 +202,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -643,7 +643,7 @@ version = "3.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6dee98b0db6a962de883bf5d20362dee4d7ca0d12fe39a7c6c73c844e1cd7c1f"
 dependencies = [
- "darling 0.23.0",
+ "darling 0.20.11",
  "ident_case",
  "prettyplease",
  "proc-macro2",
@@ -1654,7 +1654,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ccc2776f0c61eca1ca32528f85548abd1a4be8fb53d1b21c013e4f18da1e7090"
 dependencies = [
  "data-encoding",
- "syn 2.0.119",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -1824,9 +1824,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "dial9"
+version = "0.5.0-rc1"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=755d86393c4bfe4423aa72038c015296bfc3c3db#755d86393c4bfe4423aa72038c015296bfc3c3db"
+dependencies = [
+ "bon",
+ "dial9-core",
+ "dial9-macro",
+ "dial9-perf-self-profile",
+ "dial9-tokio-telemetry",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "dial9-core"
+version = "0.5.0-rc0"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=755d86393c4bfe4423aa72038c015296bfc3c3db#755d86393c4bfe4423aa72038c015296bfc3c3db"
+dependencies = [
+ "bon",
+ "bytes",
+ "crossbeam-queue",
+ "dial9-trace-format",
+ "flate2",
+ "futures-util",
+ "libc",
+ "metrique",
+ "metrique-timesource",
+ "tokio",
+ "tokio-util 0.7.18",
+ "tracing",
+ "ulid",
+]
+
+[[package]]
 name = "dial9-macro"
-version = "0.3.7"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=bd7a50c6873173c6d052a839f00f7fc576316a13#bd7a50c6873173c6d052a839f00f7fc576316a13"
+version = "0.5.0-rc0"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=755d86393c4bfe4423aa72038c015296bfc3c3db#755d86393c4bfe4423aa72038c015296bfc3c3db"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1835,28 +1869,33 @@ dependencies = [
 
 [[package]]
 name = "dial9-perf-self-profile"
-version = "0.4.3"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=bd7a50c6873173c6d052a839f00f7fc576316a13#bd7a50c6873173c6d052a839f00f7fc576316a13"
+version = "0.5.0-rc0"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=755d86393c4bfe4423aa72038c015296bfc3c3db#755d86393c4bfe4423aa72038c015296bfc3c3db"
 dependencies = [
  "blazesym",
+ "bon",
+ "bytes",
+ "crossbeam-queue",
  "crossbeam-utils",
+ "dial9-core",
  "dial9-trace-format",
  "libc",
  "perf-event-data",
  "perf-event-open-sys2",
+ "scc",
+ "tokio",
  "tracing",
 ]
 
 [[package]]
 name = "dial9-tokio-telemetry"
-version = "0.3.13"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=bd7a50c6873173c6d052a839f00f7fc576316a13#bd7a50c6873173c6d052a839f00f7fc576316a13"
+version = "0.5.0-rc0"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=755d86393c4bfe4423aa72038c015296bfc3c3db#755d86393c4bfe4423aa72038c015296bfc3c3db"
 dependencies = [
  "arc-swap",
  "bon",
  "bytes",
- "crossbeam-queue",
- "dial9-macro",
+ "dial9-core",
  "dial9-perf-self-profile",
  "dial9-trace-format",
  "flate2",
@@ -1865,7 +1904,6 @@ dependencies = [
  "libc",
  "metrique",
  "metrique-timesource",
- "metrique-writer",
  "pin-project-lite",
  "serde",
  "serde_json",
@@ -1877,8 +1915,8 @@ dependencies = [
 
 [[package]]
 name = "dial9-trace-format"
-version = "0.4.1"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=bd7a50c6873173c6d052a839f00f7fc576316a13#bd7a50c6873173c6d052a839f00f7fc576316a13"
+version = "0.5.0-rc0"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=755d86393c4bfe4423aa72038c015296bfc3c3db#755d86393c4bfe4423aa72038c015296bfc3c3db"
 dependencies = [
  "dial9-trace-format-derive",
  "serde",
@@ -1886,8 +1924,8 @@ dependencies = [
 
 [[package]]
 name = "dial9-trace-format-derive"
-version = "0.4.1"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=bd7a50c6873173c6d052a839f00f7fc576316a13#bd7a50c6873173c6d052a839f00f7fc576316a13"
+version = "0.5.0-rc0"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=755d86393c4bfe4423aa72038c015296bfc3c3db#755d86393c4bfe4423aa72038c015296bfc3c3db"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1957,7 +1995,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.2",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2316,7 +2354,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2377,9 +2415,9 @@ dependencies = [
 
 [[package]]
 name = "fail-parallel"
-version = "0.5.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6f4a147ba57fcd64323c54c8f69fd4e045456a99574163010ccf5eea3168aaa"
+checksum = "c29b33a0187823f1fa88b36980227dc96c7504ede2288e7d2a77d9d6d88b260c"
 dependencies = [
  "log",
  "once_cell",
@@ -2443,7 +2481,7 @@ checksum = "0ce92ff622d6dadf7349484f42c93271a0d49b7cc4d466a936405bacbe10aa78"
 dependencies = [
  "cfg-if",
  "rustix",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4701,7 +4739,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4710,7 +4748,7 @@ version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82cb6a9f675da968c63b6208c641b9dca58fc0133ae53375736b1767b0cab8bd"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -6139,7 +6177,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -7138,7 +7176,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03da047801ff44bb6a4d407d4860c05fd70bb81714e6b2f3812603d5b145b042"
 dependencies = [
  "heck 0.5.0",
- "itertools 0.14.0",
+ "itertools 0.10.5",
  "log",
  "multimap",
  "petgraph 0.8.3",
@@ -7159,7 +7197,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b570b25f7617e43d59005d0990ccb79e950a423952cea19671b7a876da390adf"
 dependencies = [
  "anyhow",
- "itertools 0.14.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -7703,7 +7741,7 @@ dependencies = [
  "crossbeam-channel",
  "crossterm",
  "dashmap",
- "dial9-tokio-telemetry",
+ "dial9",
  "dupe 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "dupe_derive 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "educe 0.7.4",
@@ -7840,7 +7878,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -7897,7 +7935,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -8087,6 +8125,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "scc"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46e6f046b7fef48e2660c57ed794263155d713de679057f2d0c169bfc6e756cc"
+dependencies = [
+ "sdd",
+]
+
+[[package]]
 name = "schannel"
 version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8191,6 +8238,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
+name = "sdd"
+version = "3.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "490dcfcbfef26be6800d11870ff2df8774fa6e86d047e3e8c8a76b25655e41ca"
+
+[[package]]
 name = "security-framework"
 version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8220,7 +8273,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b55fb86dfd3a2f5f76ea78310a88f96c4ea21a3031f8d212443d56123fd0521"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -8608,8 +8661,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 [[package]]
 name = "slatedb"
 version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6aba890a8fc5d2a3d283a77cfe712c0f27f0501bd75b07e14dece2dfc2cde86"
+source = "git+https://github.com/slatedb/slatedb?rev=bb3c30edef219fe0d35a49380a27fedefd9b4bd1#bb3c30edef219fe0d35a49380a27fedefd9b4bd1"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -8653,8 +8705,7 @@ dependencies = [
 [[package]]
 name = "slatedb-common"
 version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f3fdad5676b104bec5daa2f367bdb340f4162ef3c1ead16da903297f235fb49"
+source = "git+https://github.com/slatedb/slatedb?rev=bb3c30edef219fe0d35a49380a27fedefd9b4bd1#bb3c30edef219fe0d35a49380a27fedefd9b4bd1"
 dependencies = [
  "chrono",
  "log",
@@ -8669,8 +8720,7 @@ dependencies = [
 [[package]]
 name = "slatedb-txn-obj"
 version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5df001443952d76ae7380536b4a050f88b3cc9a7d3dce0f3782ea7ae9a12c29c"
+source = "git+https://github.com/slatedb/slatedb?rev=bb3c30edef219fe0d35a49380a27fedefd9b4bd1#bb3c30edef219fe0d35a49380a27fedefd9b4bd1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -8730,7 +8780,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -8791,7 +8841,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "psm",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -9093,7 +9143,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -9113,7 +9163,7 @@ version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8c27177b12a6399ffc08b98f76f7c9a1f4fe9fc967c784c5a071fa8d93cf7e1"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -9126,7 +9176,7 @@ dependencies = [
  "parking_lot",
  "rustix",
  "signal-hook",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -9136,7 +9186,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "230a1b821ccbd75b185820a1f1ff7b14d21da1e442e22c0863ea5f08771a8874"
 dependencies = [
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -10443,7 +10493,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
