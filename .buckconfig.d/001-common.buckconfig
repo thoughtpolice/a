@@ -19,6 +19,11 @@ fbsource = none
 [buck2]
 file_watcher = watchman
 
+# Upload every locally-executed action's result to the remote action cache.
+# This is opt-in per-action by default (off), so without it buck2 reads the
+# cache but never writes it — every GetActionResult misses forever.
+default_allow_cache_upload = true
+
 # enable content addressed actions by default
 declare_output_has_content_based_path_default = true
 action_has_content_based_path_default = true
