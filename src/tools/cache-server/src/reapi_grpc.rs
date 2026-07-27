@@ -4,7 +4,7 @@
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use accept::Accept;
-use dial9_tokio_telemetry::telemetry::TelemetryHandle;
+use dial9::Dial9TokioHandle;
 use rustls_transport::TlsAccept;
 use tower::Layer;
 
@@ -30,7 +30,7 @@ pub async fn start_reapi_grpc(
     store: Arc<CacheStore>,
     request_timeout: Option<Duration>,
     max_concurrent_requests: Option<usize>,
-    handle: TelemetryHandle,
+    handle: Dial9TokioHandle,
     pressure_monitor: Option<runtime::psi::PressureMonitor>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::service;
@@ -137,7 +137,7 @@ async fn serve_stack<A: Accept>(
     request_timeout: Option<Duration>,
     effective_limit: usize,
     pressure_monitor: Option<runtime::psi::PressureMonitor>,
-    handle: TelemetryHandle,
+    handle: Dial9TokioHandle,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match (request_timeout, pressure_monitor) {

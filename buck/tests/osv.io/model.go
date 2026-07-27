@@ -103,6 +103,10 @@ var rustExceptions = []exception{
 		ID:     "RUSTSEC-2025-0141",
 		Reason: "bincode 1.x is unmaintained; pulled in by foyer, awaiting an upstream bincode 2.x migration",
 	},
+	{
+		ID:     "RUSTSEC-2026-0205",
+		Reason: "scc Array::insert double-free on a panicking comparator; fixed only in scc 3.8.4, but dial9-perf-self-profile pins scc \"2\" for its memory-profiling feature, so no reachable 2.x carries the fix. Remove once dial9 bumps scc to 3.8.4 or newer",
+	},
 	// gix 0.80.x and its sub-crates are pinned by the jj-lib/jj-cli revision.
 	// Remove these after jj is bumped to a revision using gix 0.83 or newer.
 	{

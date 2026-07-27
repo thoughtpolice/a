@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Traced gRPC server: routes every per-connection and HTTP/2-internal spawn
-//! through [`TelemetryHandle::spawn`] so that scheduling delays are captured
+//! through [`Dial9TokioHandle::spawn`] so that scheduling delays are captured
 //! by the dial9 telemetry system.
 //!
 //! Adapted from the dial9 `axum_traced.rs` example for tonic services.
@@ -14,7 +14,7 @@
 
 use std::{future::Future, pin::pin, time::Duration};
 
-use dial9_tokio_telemetry::telemetry::TelemetryHandle;
+use dial9::Dial9TokioHandle;
 use futures::FutureExt as _;
 use hyper::body::Incoming;
 use hyper_util::{
@@ -29,11 +29,11 @@ pub use accept::Accept;
 
 // -------------------------------------------------------------------------------------------------
 
-/// A hyper executor that routes spawns through dial9's [`TelemetryHandle`]
+/// A hyper executor that routes spawns through dial9's [`Dial9TokioHandle`]
 /// so HTTP/2 internal tasks get wake event tracking.
 #[derive(Clone)]
 struct TracedExecutor {
-    handle: TelemetryHandle,
+    handle: Dial9TokioHandle,
 }
 
 impl<Fut> hyper::rt::Executor<Fut> for TracedExecutor
@@ -56,7 +56,7 @@ where
 pub async fn serve_traced<A, S, ResBody>(
     mut acceptor: A,
     service: S,
-    handle: TelemetryHandle,
+    handle: Dial9TokioHandle,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(), Box<dyn std::error::Error>>
 where
@@ -148,7 +148,7 @@ pub(crate) mod test_support {
     use std::convert::Infallible;
 
     use bytes::Bytes;
-    use dial9_tokio_telemetry::telemetry::TracedRuntime;
+    use dial9::RecorderTokioExt as _;
     use http_body_util::{BodyExt as _, Full};
     use hyper_util::rt::TokioExecutor;
     use tokio::io::{AsyncRead, AsyncWrite};
@@ -161,20 +161,23 @@ pub(crate) mod test_support {
         ))))
     }
 
-    /// Run `body` on a dial9-disabled [`TracedRuntime`] and tear it down.
+    /// Run `body` on a runtime attached to a disabled recorder and tear it down.
+    ///
+    /// A disabled recorder attaches a plain, unmodified tokio runtime, and
+    /// `Dial9TokioHandle::current()` hands back an inert handle whose `spawn`
+    /// falls through to `tokio::spawn` — the same shape production takes when
+    /// tracing is switched off.
     pub(crate) fn block_on_traced<F, Fut>(body: F)
     where
-        F: FnOnce(TelemetryHandle) -> Fut,
+        F: FnOnce(Dial9TokioHandle) -> Fut,
         Fut: Future<Output = ()>,
     {
-        let mut builder = tokio::runtime::Builder::new_multi_thread();
-        builder.enable_all();
-        let (runtime, guard) = TracedRuntime::build_disabled(builder).expect("build runtime");
-        runtime.block_on(body(guard.handle()));
+        let (recorder, runtime) = dial9::recorder_disabled()
+            .attach_tokio_runtime(|_| {})
+            .expect("build runtime");
+        runtime.block_on(body(Dial9TokioHandle::current()));
         drop(runtime);
-        guard
-            .graceful_shutdown(std::time::Duration::from_secs(5))
-            .ok();
+        recorder.graceful_shutdown(std::time::Duration::from_secs(5));
     }
 
     /// Handshake HTTP/2 over `io`, run one request against [`hello`], and
