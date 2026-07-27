@@ -38,69 +38,85 @@ def check_trailing_whitespace(file_path):
         return False, None
 
 
+# Skip binary files and certain extensions
+SKIP_EXTENSIONS = {
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".ico",
+    ".pdf",
+    ".zip",
+    ".tar",
+    ".gz",
+    ".bz2",
+    ".xz",
+    ".7z",
+    ".bin",
+    ".exe",
+    ".dll",
+    ".so",
+    ".dylib",
+    ".a",
+    ".lock",
+    ".hex0",
+    ".hex1",
+    ".hex2",
+    ".M1",
+    ".pyc",
+    ".pyo",
+    ".pyd",
+    ".json",
+    ".jsonl",
+    ".jsonc",
+    ".wasm",
+    ".o",
+    ".obj",
+}
+
+# Skip certain path prefixes (regex patterns)
+SKIP_PATTERNS = [
+    r"^\.jj/",
+    r"^\.git/",
+    r"^buck-out/",
+    r"^\.direnv/",
+    r"^\.vscode/extensions/[^/]+/out/",
+    r"^cellar/",
+    r"node_modules",  # anywhere in path
+    r"^\.ruff_cache/",
+    r"^buck/third-party/zuo/lib",
+    r"^buck/third-party/zuo/local",
+    r"^buck/third-party/zuo/zuo.*",
+    r"^work/",  # work directory
+]
+
+
+def should_skip_dir(dir_path):
+    """Determine if the walk should descend into a directory at all.
+
+    Every pattern above is anchored at a path prefix, so a directory one of them
+    matches can only hold files it would also match. Pruning the walk rather than
+    rejecting those files one at a time is what keeps the ~170k build outputs
+    under buck-out out of the traversal entirely.
+    """
+    # The trailing slash stops a prefix like '^work/' matching a sibling
+    # directory such as 'workspace/'.
+    path_str = str(Path(dir_path)).replace("\\", "/") + "/"
+    return any(re.search(pattern, path_str) for pattern in SKIP_PATTERNS)
+
+
 def should_check_file(file_path):
     """Determine if a file should be checked for whitespace issues."""
-    # Skip binary files and certain extensions
-    skip_extensions = {
-        ".png",
-        ".jpg",
-        ".jpeg",
-        ".gif",
-        ".ico",
-        ".pdf",
-        ".zip",
-        ".tar",
-        ".gz",
-        ".bz2",
-        ".xz",
-        ".7z",
-        ".bin",
-        ".exe",
-        ".dll",
-        ".so",
-        ".dylib",
-        ".a",
-        ".lock",
-        ".hex0",
-        ".hex1",
-        ".hex2",
-        ".M1",
-        ".pyc",
-        ".pyo",
-        ".pyd",
-        ".json",
-        ".jsonl",
-        ".jsonc",
-        ".wasm",
-        ".o",
-        ".obj",
-    }
-    # Skip certain path prefixes (regex patterns)
-    skip_patterns = [
-        r"^\.jj/",
-        r"^\.git/",
-        r"^buck-out/",
-        r"^\.direnv/",
-        r"^\.vscode/extensions/[^/]+/out/",
-        r"^cellar/",
-        r"node_modules",  # anywhere in path
-        r"^\.ruff_cache/",
-        r"^buck/third-party/zuo/lib",
-        r"^buck/third-party/zuo/local",
-        r"^buck/third-party/zuo/zuo.*",
-        r"^work/",  # work directory
-    ]
-
     path = Path(file_path)
     path_str = str(path).replace("\\", "/")  # normalize for Windows
 
     # Check if the path matches any skip pattern
-    for pattern in skip_patterns:
+    for pattern in SKIP_PATTERNS:
         if re.search(pattern, path_str):
             return False
 
     # Check file extension
-    if path.suffix.lower() in skip_extensions:
+    if path.suffix.lower() in SKIP_EXTENSIONS:
         return False
 
     # Skip dotslash files (they're binary-ish)
@@ -117,6 +133,7 @@ def main():
 
     # Find all files in the repository
     for root, dirs, files in os.walk("."):
+        dirs[:] = [d for d in dirs if not should_skip_dir(Path(root) / d)]
         for file in files:
             file_path = Path(root) / file
 

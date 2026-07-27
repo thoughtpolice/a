@@ -11,5 +11,6 @@ python_bootstrap_binary(
 
 shims.run_test(
     name = "spdx-check-headers",
+    args = ["$(location //buck/bin/extra:jj)"],
     dep = ":check-spdx",
 )

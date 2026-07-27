@@ -5,7 +5,15 @@
 # repository that are source code, and ensure they are correct. Run on change
 # integration.
 
-import sys, subprocess
+import re, sys, subprocess
+
+# The year that copyright ranges are expected to end at. This is pinned rather
+# than read from the clock so a run's verdict is a function of its inputs alone;
+# a wall-clock year would flip every header in the repository from passing to
+# failing at midnight on January 1st with nothing having changed, and would let
+# a cached pass hide that. Bumping this is the deliberate act that opens the
+# new year's header sweep.
+COPYRIGHT_YEAR = 2026
 
 # MARK: Bad file prefixes, suffixes, directory components, and exact matches
 
@@ -94,12 +102,8 @@ def eprint(*args, **kwargs):
 
 # MARK: SPDX check
 def has_spdx_header(file: str, lines: list[str]) -> bool:
-    import datetime
-    import re
-
-    current_year = datetime.datetime.now().year
     # Accept both "2024-CURRENT_YEAR" and "CURRENT_YEAR" formats
-    year_pattern = re.compile(r"^(2024-{}|{})$".format(current_year, current_year))
+    year_pattern = re.compile(r"^(2024-{}|{})$".format(COPYRIGHT_YEAR, COPYRIGHT_YEAR))
 
     # Allowed SPDX license identifiers
     allowed_licenses = ["Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC"]
@@ -191,7 +195,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
                 year_part = parts[0]
                 if not year_pattern.match(year_part):
                     eprint(
-                        f"Error: {file} has incorrect year format '{year_part}'. Expected '2024-{current_year}' or '{current_year}'"
+                        f"Error: {file} has incorrect year format '{year_part}'. Expected '2024-{COPYRIGHT_YEAR}' or '{COPYRIGHT_YEAR}'"
                     )
                     return False
             copyright_found = True
@@ -238,10 +242,20 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
 
 # MARK: Entry point
 def main():
+    if len(sys.argv) != 2:
+        eprint(f"usage: {sys.argv[0]} <path-to-jj-dotslash-file>")
+        exit(2)
+
+    # The jj to run is passed in as a build artifact rather than resolved from
+    # PATH, so the file list comes from a version of jj the build graph knows
+    # about. It is a DotSlash file, so it is launched the same way the buck2
+    # lint test launches buck2: through the interpreter, by name.
+    jj = sys.argv[1]
+
     # run 'jj files' command and get line-by-line output
     files = (
         subprocess.run(
-            ["jj", "file", "list"],
+            ["dotslash", jj, "file", "list"],
             stdout=subprocess.PIPE,
             check=True,
         )
