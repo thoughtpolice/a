@@ -11,5 +11,6 @@ python_bootstrap_binary(
 
 shims.run_test(
     name = "whitespace-check",
+    ci_srcs = shims.ci_srcs_any_path,
     dep = ":check-whitespace",
 )

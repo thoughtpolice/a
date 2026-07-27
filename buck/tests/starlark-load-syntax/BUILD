@@ -11,5 +11,12 @@ python_bootstrap_binary(
 
 shims.run_test(
     name = "starlark-load-syntax",
+    # Mirrors the rglob patterns in main.py. No dot forms: the checker skips any
+    # path with a dot-leading component, which is also where these globs stop.
+    ci_srcs = [
+        "**/BUILD",
+        "**/PACKAGE",
+        "**/*.bzl",
+    ],
     dep = ":check-starlark-load-syntax",
 )

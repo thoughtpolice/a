@@ -12,5 +12,6 @@ python_bootstrap_binary(
 shims.run_test(
     name = "spdx-check-headers",
     args = ["$(location //buck/bin/extra:jj)"],
+    ci_srcs = shims.ci_srcs_any_path,
     dep = ":check-spdx",
 )

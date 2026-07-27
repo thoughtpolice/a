@@ -257,6 +257,8 @@ def _command_test_impl(ctx: AnalysisContext) -> list[Provider]:
 _command_test_rule = rule(
     impl = _command_test_impl,
     attrs = {
+        # See the note on the same attribute in _run_test_rule.
+        "ci_srcs": attrs.list(attrs.string(), default = []),
         "cmd": attrs.option(attrs.list(attrs.arg()), default = None),
         "script": attrs.option(attrs.arg(), default = None),
     },
@@ -280,6 +282,23 @@ def _command(**kwargs):
     kwargs = _fix_kwargs("command", kwargs)
     _command_rule(**kwargs)
 
+# Every path in the repository, for `ci_srcs` on tests that read the whole tree
+# rather than a declared set of sources.
+#
+# The dot forms are not redundant. The target determinator compiles `ci_srcs`
+# with Rust glob semantics, in which a wildcard never matches a path component
+# beginning with '.', so a bare "**" silently misses .github/, .claude/,
+# .buckconfig and buck/.gitattributes. A path with two dot-leading components
+# is still unmatched; the three in the repository today are all file types the
+# whitespace and SPDX checks already exclude.
+CI_SRCS_ANY_PATH = [
+    "**",
+    ".*",
+    ".*/**",
+    "**/.*",
+    "**/.*/**",
+]
+
 def _run_test_impl(ctx: AnalysisContext) -> list[Provider]:
     command = [ctx.attrs.dep[RunInfo].args] + ctx.attrs.args
     return [
@@ -295,6 +314,10 @@ _run_test_rule = rule(
     impl = _run_test_impl,
     attrs = {
         "args": attrs.list(attrs.arg(), default = []),
+        # Read by the target determinator off the target graph, not during
+        # analysis: it names the paths whose change should select this test even
+        # though they are not declared inputs.
+        "ci_srcs": attrs.list(attrs.string(), default = []),
         "dep": attrs.dep(providers = [RunInfo]),
     },
 )
@@ -481,6 +504,7 @@ shims = struct(
     toolchain_alias = _toolchain_alias,
     command_test = _command_test,
     run_test = _run_test,
+    ci_srcs_any_path = CI_SRCS_ANY_PATH,
     dynamic_test = _depot_dynamic_test,
     command = _command,
     rjust = rjust,

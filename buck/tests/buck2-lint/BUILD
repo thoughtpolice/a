@@ -16,8 +16,24 @@ SOURCE_DIRS = [
     "buck/toolchains",
 ]
 
+# The Starlark file names the linter reads under each of SOURCE_DIRS. Deriving
+# the determinator patterns from that same list keeps the two descriptions of
+# this test's scope from drifting apart.
+STARLARK_FILES = [
+    "BUILD",
+    "BUCK",
+    "PACKAGE",
+    "*.bzl",
+    "*.bxl",
+]
+
 shims.command_test(
     name = "lint",
+    ci_srcs = [
+        "{}/**/{}".format(directory, name)
+        for directory in SOURCE_DIRS
+        for name in STARLARK_FILES
+    ],
     cmd = [
         "dotslash",
         "$(location //buck/bin:buck2)",
