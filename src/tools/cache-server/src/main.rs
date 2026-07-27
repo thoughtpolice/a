@@ -491,6 +491,8 @@ async fn run_server(
     let store_settings = store::CacheStoreSettings {
         default_ttl: default_ttl(cli.default_ttl_days),
         disable_compactor: args.disable_compactor,
+        // `open` derives the SlateDB write-pipeline sizing from the backend.
+        slatedb_overrides: None,
     };
 
     let cache_store = store::CacheStore::open(backend, store_settings)
