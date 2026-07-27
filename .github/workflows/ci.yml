@@ -42,6 +42,10 @@ jobs:
         uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
         with:
           version: "0.7.12"
+          # There is no Python project here for uv to resolve, so the cache
+          # would be keyed on dependency files that never exist and thus never
+          # invalidate. Buck2 owns the caching that actually matters.
+          enable-cache: false
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
@@ -58,6 +62,10 @@ jobs:
       - name: (macOS) Install packages
         if: runner.os == 'macOS'
         run: |
+          # The runner image ships an untrusted aws/tap, which makes every brew
+          # invocation warn. Nothing here uses it, so drop it; trust checks stay
+          # enabled for the install below.
+          HOMEBREW_NO_REQUIRE_TAP_TRUST=1 brew untap aws/tap || true
           brew install go
           cargo install bindgen-cli --version 0.72.1 --locked
       - name: Install DotSlash
@@ -155,6 +163,7 @@ jobs:
         uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
         with:
           version: "0.7.12"
+          enable-cache: false
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
@@ -171,6 +180,7 @@ jobs:
       - name: (macOS) Install packages
         if: runner.os == 'macOS'
         run: |
+          HOMEBREW_NO_REQUIRE_TAP_TRUST=1 brew untap aws/tap || true
           brew install go
           cargo install bindgen-cli --version 0.72.1 --locked
       - name: Install DotSlash
@@ -203,7 +213,7 @@ jobs:
       # universe, configuration, and buck2 version, and silently collects the
       # base graph itself when the snapshot is missing or unusable.
       - name: Restore base graph snapshot
-        uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ runner.temp }}/tdutil-base-snapshot.json
           key: tdutil-base-snapshot-v1-${{ matrix.abi }}-${{ steps.commits.outputs.base }}-${{ hashFiles('buck/bin/buck2', 'buck/ci.buckconfig') }}
@@ -279,7 +289,7 @@ jobs:
       - name: Save base graph snapshot
         if: github.event_name == 'push' && steps.capture-snapshot.outcome == 'success'
         continue-on-error: true
-        uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ runner.temp }}/tdutil-head-snapshot.json
           key: tdutil-base-snapshot-v1-${{ matrix.abi }}-${{ steps.commits.outputs.head }}-${{ hashFiles('buck/bin/buck2', 'buck/ci.buckconfig') }}
@@ -359,6 +369,8 @@ jobs:
 
       - name: Install the latest version of uv
         uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
+        with:
+          enable-cache: false
 
       - name: Run zizmor 🌈
         run: uvx zizmor --format sarif . > results.sarif
