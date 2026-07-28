@@ -5,6 +5,7 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
     # in-tree deps
+    'root//src/crates/dotslash-manifest:dotslash-manifest',
     'root//src/crates/rustls-boring:rustls-boring',
     # 3p deps
     'third-party//by-name/mi/mimalloc:rust',

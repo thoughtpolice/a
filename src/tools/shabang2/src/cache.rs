@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 
-use crate::manifest::PlatformEntry;
+use dotslash_manifest::PlatformEntry;
 
 /// Manages the on-disk artifact cache.
 pub struct Cache {
@@ -144,7 +144,7 @@ impl Cache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::{ArchiveFormat, HashAlgorithm, Provider};
+    use dotslash_manifest::{ArchiveFormat, HashAlgorithm, Provider};
 
     fn sample_entry() -> PlatformEntry {
         PlatformEntry {

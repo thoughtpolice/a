@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
-use crate::manifest::ArchiveFormat;
+use dotslash_manifest::ArchiveFormat;
 
 /// Extract/decompress `data` according to `format`, placing the result under
 /// `dest_dir`. Returns the path to the executable identified by `target_path`

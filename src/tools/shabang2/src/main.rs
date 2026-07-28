@@ -11,13 +11,12 @@ mod cache;
 mod exec;
 mod http;
 mod lock;
-mod manifest;
-mod platform;
 
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
+use dotslash_manifest as manifest;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -100,12 +99,12 @@ fn run_manifest(path: &PathBuf, args: &[String]) -> Result<()> {
     let manifest = manifest::parse_manifest_file(path)
         .with_context(|| format!("failed to load: {}", path.display()))?;
 
-    let entry = platform::resolve_platform(&manifest.platforms)
+    let entry = manifest::resolve_platform(&manifest.platforms)
         .with_context(|| format!("in manifest '{}'", manifest.name))?;
 
     tracing::info!(
         name = %manifest.name,
-        platform = %platform::current_platform_key(),
+        platform = %manifest::current_platform_key(),
         format = ?entry.format,
         size = entry.size,
         "resolved platform entry"
@@ -224,7 +223,7 @@ fn fetch_manifest(path: &PathBuf) -> Result<()> {
     let manifest = manifest::parse_manifest_file(path)
         .with_context(|| format!("failed to load: {}", path.display()))?;
 
-    let entry = platform::resolve_platform(&manifest.platforms)
+    let entry = manifest::resolve_platform(&manifest.platforms)
         .with_context(|| format!("in manifest '{}'", manifest.name))?;
 
     let cache = cache::Cache::new()?;
