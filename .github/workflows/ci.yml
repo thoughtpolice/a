@@ -211,10 +211,15 @@ jobs:
       # push run. tdutil validates the snapshot against the requested commit,
       # universe, configuration, and buck2 version, and silently collects the
       # base graph itself when the snapshot is missing or unusable.
+      #
+      # The restore, tdutil, and save steps below must all name the same file.
+      # actions/cache derives an entry version from the `path` input, so a save
+      # and a restore that disagree on the filename never see each other's
+      # entries, even when their keys match byte for byte.
       - name: Restore base graph snapshot
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
-          path: ${{ runner.temp }}/tdutil-base-snapshot.json
+          path: ${{ runner.temp }}/tdutil-snapshot.json
           key: tdutil-base-snapshot-v1-${{ matrix.abi }}-${{ steps.commits.outputs.base }}-${{ hashFiles('buck/bin/buck2', 'buck/ci.buckconfig') }}
       - name: Determine affected targets
         id: determine-targets
@@ -238,7 +243,7 @@ jobs:
             --output "$TARGETS_FILE" \
             --from "$BASE_COMMIT" \
             --to "$HEAD_COMMIT" \
-            --base-snapshot "${{ runner.temp }}/tdutil-base-snapshot.json" \
+            --base-snapshot "${{ runner.temp }}/tdutil-snapshot.json" \
             --universe depot//...
 
           if [ -f "$TARGETS_FILE" ]; then
@@ -272,7 +277,9 @@ jobs:
 
       # Refresh the trunk snapshot so future runs can skip base collection.
       # The capture reuses the warm in-place daemon from the determination
-      # step; it is an optimization only and never fails the build.
+      # step; it is an optimization only and never fails the build. Writing
+      # over the restored base snapshot is safe: determination has already
+      # consumed it, and the save below is keyed on the head commit.
       - name: Capture base graph snapshot
         id: capture-snapshot
         if: github.event_name == 'push'
@@ -283,14 +290,14 @@ jobs:
             --config ci.depot_gha_ci=true \
             --verbose \
             --to "${{ steps.commits.outputs.head }}" \
-            --snapshot-to "${{ runner.temp }}/tdutil-head-snapshot.json" \
+            --snapshot-to "${{ runner.temp }}/tdutil-snapshot.json" \
             --universe depot//...
       - name: Save base graph snapshot
         if: github.event_name == 'push' && steps.capture-snapshot.outcome == 'success'
         continue-on-error: true
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
-          path: ${{ runner.temp }}/tdutil-head-snapshot.json
+          path: ${{ runner.temp }}/tdutil-snapshot.json
           key: tdutil-base-snapshot-v1-${{ matrix.abi }}-${{ steps.commits.outputs.head }}-${{ hashFiles('buck/bin/buck2', 'buck/ci.buckconfig') }}
 
       # Test Step - either targeted or full test (skip if no targets affected)
