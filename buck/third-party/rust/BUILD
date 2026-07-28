@@ -37,7 +37,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "Inflector-0.11.4",
+    name = "Inflector-0.11",
     srcs = [":Inflector-0.11.4.crate"],
     crate = "inflector",
     crate_root = "Inflector-0.11.4.crate/src/lib.rs",
@@ -50,8 +50,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":lazy_static-1.5.0",
-        ":regex-1.13.1",
+        ":lazy_static-1",
+        ":regex-1",
     ],
 )
 
@@ -64,7 +64,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "adler2-2.0.1",
+    name = "adler2-2",
     srcs = [":adler2-2.0.1.crate"],
     crate = "adler2",
     crate_root = "adler2-2.0.1.crate/src/lib.rs",
@@ -81,15 +81,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "aead-0.5.2",
+    name = "aead-0.5",
     srcs = [":aead-0.5.2.crate"],
     crate = "aead",
     crate_root = "aead-0.5.2.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":crypto-common-0.1.7",
-        ":generic-array-0.14.7",
+        ":crypto-common-0.1",
+        ":generic-array-0.14",
     ],
 )
 
@@ -102,16 +102,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "aes-0.8.4",
+    name = "aes-0.8",
     srcs = [":aes-0.8.4.crate"],
     crate = "aes",
     crate_root = "aes-0.8.4.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":cipher-0.4.4",
-        ":cpufeatures-0.2.17",
+        ":cfg-if-1",
+        ":cipher-0.4",
+        ":cpufeatures-0.2",
     ],
 )
 
@@ -124,7 +124,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "aes-gcm-0.10.3",
+    name = "aes-gcm-0.10",
     srcs = [":aes-gcm-0.10.3.crate"],
     crate = "aes_gcm",
     crate_root = "aes-gcm-0.10.3.crate/src/lib.rs",
@@ -132,12 +132,12 @@ third_party_rust.rust_library(
     features = ["aes"],
     visibility = [],
     deps = [
-        ":aead-0.5.2",
-        ":aes-0.8.4",
-        ":cipher-0.4.4",
-        ":ctr-0.9.2",
-        ":ghash-0.5.1",
-        ":subtle-2.6.1",
+        ":aead-0.5",
+        ":aes-0.8",
+        ":cipher-0.4",
+        ":ctr-0.9",
+        ":ghash-0.5",
+        ":subtle-2",
     ],
 )
 
@@ -150,7 +150,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ahash-0.8.12",
+    name = "ahash-0.8",
     srcs = [":ahash-0.8.12.crate"],
     crate = "ahash",
     crate_root = "ahash-0.8.12.crate/src/lib.rs",
@@ -163,10 +163,10 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":getrandom-0.3.4",
-        ":once_cell-1.21.4",
-        ":zerocopy-0.8.54",
+        ":cfg-if-1",
+        ":getrandom-0.3",
+        ":once_cell-1",
+        ":zerocopy-0.8",
     ],
 )
 
@@ -179,7 +179,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "aho-corasick-1.1.4",
+    name = "aho-corasick-1",
     srcs = [":aho-corasick-1.1.4.crate"],
     crate = "aho_corasick",
     crate_root = "aho-corasick-1.1.4.crate/src/lib.rs",
@@ -190,7 +190,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":memchr-2.8.3"],
+    deps = [":memchr-2"],
 )
 
 shims.http_archive(
@@ -202,7 +202,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "aliasable-0.1.3",
+    name = "aliasable-0.1",
     srcs = [":aliasable-0.1.3.crate"],
     crate = "aliasable",
     crate_root = "aliasable-0.1.3.crate/src/lib.rs",
@@ -223,7 +223,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "alloc-no-stdlib-2.0.4",
+    name = "alloc-no-stdlib-2",
     srcs = [":alloc-no-stdlib-2.0.4.crate"],
     crate = "alloc_no_stdlib",
     crate_root = "alloc-no-stdlib-2.0.4.crate/src/lib.rs",
@@ -240,17 +240,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "alloc-stdlib-0.2.4",
+    name = "alloc-stdlib-0.2",
     srcs = [":alloc-stdlib-0.2.4.crate"],
     crate = "alloc_stdlib",
     crate_root = "alloc-stdlib-0.2.4.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":alloc-no-stdlib-2.0.4"],
+    deps = [":alloc-no-stdlib-2"],
 )
 
 third_party_rust.rust_library(
-    name = "allocative-0.3.4",
+    name = "allocative-0.3",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "allocative",
     crate_root = "starlark-rust-a9d911d33fd77ff2/allocative/allocative/src/lib.rs",
@@ -262,16 +262,16 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":allocative_derive-0.3.3",
-        ":bumpalo-3.20.3",
-        ":ctor-0.1.26",
-        ":hashbrown-0.14.5",
-        ":num-bigint-0.4.8",
+        ":allocative_derive-0.3",
+        ":bumpalo-3",
+        ":ctor-0.1",
+        ":hashbrown-0.14",
+        ":num-bigint-0.4",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "allocative_derive-0.3.3",
+    name = "allocative_derive-0.3",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "allocative_derive",
     crate_root = "starlark-rust-a9d911d33fd77ff2/allocative/allocative_derive/src/lib.rs",
@@ -279,9 +279,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -294,7 +294,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "allocator-api2-0.2.21",
+    name = "allocator-api2-0.2",
     srcs = [":allocator-api2-0.2.21.crate"],
     crate = "allocator_api2",
     crate_root = "allocator-api2-0.2.21.crate/src/lib.rs",
@@ -316,14 +316,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "annotate-snippets-0.9.2",
+    name = "annotate-snippets-0.9",
     srcs = [":annotate-snippets-0.9.2.crate"],
     crate = "annotate_snippets",
     crate_root = "annotate-snippets-0.9.2.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
     visibility = [],
-    deps = [":unicode-width-0.1.14"],
+    deps = [":unicode-width-0.1"],
 )
 
 shims.http_archive(
@@ -335,7 +335,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ansi-to-tui-8.0.1",
+    name = "ansi-to-tui-8",
     srcs = [":ansi-to-tui-8.0.1.crate"],
     crate = "ansi_to_tui",
     crate_root = "ansi-to-tui-8.0.1.crate/src/lib.rs",
@@ -347,11 +347,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":nom-8.0.0",
-        ":ratatui-core-0.1.2",
-        ":simdutf8-0.1.5",
-        ":smallvec-1.15.2",
-        ":thiserror-2.0.18",
+        ":nom-8",
+        ":ratatui-core-0.1",
+        ":simdutf8-0.1",
+        ":smallvec-1",
+        ":thiserror-2",
     ],
 )
 
@@ -364,7 +364,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "anstream-1.0.0",
+    name = "anstream-1",
     srcs = [":anstream-1.0.0.crate"],
     crate = "anstream",
     crate_root = "anstream-1.0.0.crate/src/lib.rs",
@@ -376,20 +376,20 @@ third_party_rust.rust_library(
     ],
     platform = {
         "windows-gnu": dict(
-            deps = [":anstyle-wincon-3.0.11"],
+            deps = [":anstyle-wincon-3"],
         ),
         "windows-msvc": dict(
-            deps = [":anstyle-wincon-3.0.11"],
+            deps = [":anstyle-wincon-3"],
         ),
     },
     visibility = [],
     deps = [
-        ":anstyle-1.0.14",
-        ":anstyle-parse-1.0.0",
-        ":anstyle-query-1.1.5",
-        ":colorchoice-1.0.5",
-        ":is_terminal_polyfill-1.70.2",
-        ":utf8parse-0.2.2",
+        ":anstyle-1",
+        ":anstyle-parse-1",
+        ":anstyle-query-1",
+        ":colorchoice-1",
+        ":is_terminal_polyfill-1",
+        ":utf8parse-0.2",
     ],
 )
 
@@ -402,7 +402,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "anstyle-1.0.14",
+    name = "anstyle-1",
     srcs = [":anstyle-1.0.14.crate"],
     crate = "anstyle",
     crate_root = "anstyle-1.0.14.crate/src/lib.rs",
@@ -423,7 +423,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "anstyle-parse-1.0.0",
+    name = "anstyle-parse-1",
     srcs = [":anstyle-parse-1.0.0.crate"],
     crate = "anstyle_parse",
     crate_root = "anstyle-parse-1.0.0.crate/src/lib.rs",
@@ -433,7 +433,7 @@ third_party_rust.rust_library(
         "utf8",
     ],
     visibility = [],
-    deps = [":utf8parse-0.2.2"],
+    deps = [":utf8parse-0.2"],
 )
 
 shims.http_archive(
@@ -445,17 +445,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "anstyle-query-1.1.5",
+    name = "anstyle-query-1",
     srcs = [":anstyle-query-1.1.5.crate"],
     crate = "anstyle_query",
     crate_root = "anstyle-query-1.1.5.crate/src/lib.rs",
     edition = "2021",
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
@@ -470,22 +470,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "anstyle-wincon-3.0.11",
+    name = "anstyle-wincon-3",
     srcs = [":anstyle-wincon-3.0.11.crate"],
     crate = "anstyle_wincon",
     crate_root = "anstyle-wincon-3.0.11.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":anstyle-1.0.14",
-        ":once_cell_polyfill-1.70.2",
-        ":windows-sys-0.61.2",
+        ":anstyle-1",
+        ":once_cell_polyfill-1",
+        ":windows-sys-0.61",
     ],
 )
 
 shims.alias(
     name = "anyhow",
-    actual = ":anyhow-1.0.103",
+    actual = ":anyhow-1",
     visibility = ["PUBLIC"],
 )
 
@@ -498,7 +498,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "anyhow-1.0.103",
+    name = "anyhow-1",
     srcs = [":anyhow-1.0.103.crate"],
     crate = "anyhow",
     crate_root = "anyhow-1.0.103.crate/src/lib.rs",
@@ -519,13 +519,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ar_archive_writer-0.5.2",
+    name = "ar_archive_writer-0.5",
     srcs = [":ar_archive_writer-0.5.2.crate"],
     crate = "ar_archive_writer",
     crate_root = "ar_archive_writer-0.5.2.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":object-0.37.3"],
+    deps = [":object-0.37"],
 )
 
 shims.http_archive(
@@ -537,18 +537,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "arc-swap-1.9.2",
+    name = "arc-swap-1",
     srcs = [":arc-swap-1.9.2.crate"],
     crate = "arc_swap",
     crate_root = "arc-swap-1.9.2.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":rustversion-1.0.23"],
+    deps = [":rustversion-1"],
 )
 
 shims.alias(
     name = "argh",
-    actual = ":argh-0.1.19",
+    actual = ":argh-0.1",
     visibility = ["PUBLIC"],
 )
 
@@ -561,7 +561,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "argh-0.1.19",
+    name = "argh-0.1",
     srcs = [":argh-0.1.19.crate"],
     crate = "argh",
     crate_root = "argh-0.1.19.crate/src/lib.rs",
@@ -573,8 +573,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":argh_derive-0.1.19",
-        ":argh_shared-0.1.19",
+        ":argh_derive-0.1",
+        ":argh_shared-0.1",
     ],
 )
 
@@ -587,7 +587,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "argh_derive-0.1.19",
+    name = "argh_derive-0.1",
     srcs = [":argh_derive-0.1.19.crate"],
     crate = "argh_derive",
     crate_root = "argh_derive-0.1.19.crate/src/lib.rs",
@@ -596,10 +596,10 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":argh_shared-0.1.19",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":argh_shared-0.1",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -612,19 +612,19 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "argh_shared-0.1.19",
+    name = "argh_shared-0.1",
     srcs = [":argh_shared-0.1.19.crate"],
     crate = "argh_shared",
     crate_root = "argh_shared-0.1.19.crate/src/lib.rs",
     edition = "2018",
     features = ["serde"],
     visibility = [],
-    deps = [":serde-1.0.228"],
+    deps = [":serde-1"],
 )
 
 shims.alias(
     name = "ariadne",
-    actual = ":ariadne-0.6.0",
+    actual = ":ariadne-0.6",
     visibility = ["PUBLIC"],
 )
 
@@ -637,15 +637,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ariadne-0.6.0",
+    name = "ariadne-0.6",
     srcs = [":ariadne-0.6.0.crate"],
     crate = "ariadne",
     crate_root = "ariadne-0.6.0.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":unicode-width-0.2.2",
-        ":yansi-1.0.1",
+        ":unicode-width-0.2",
+        ":yansi-1",
     ],
 )
 
@@ -658,7 +658,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "arrayref-0.3.9",
+    name = "arrayref-0.3",
     srcs = [":arrayref-0.3.9.crate"],
     crate = "arrayref",
     crate_root = "arrayref-0.3.9.crate/src/lib.rs",
@@ -675,7 +675,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "arrayvec-0.5.2",
+    name = "arrayvec-0.5",
     srcs = [":arrayvec-0.5.2.crate"],
     crate = "arrayvec",
     crate_root = "arrayvec-0.5.2.crate/src/lib.rs",
@@ -696,7 +696,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "arrayvec-0.7.8",
+    name = "arrayvec-0.7",
     srcs = [":arrayvec-0.7.8.crate"],
     crate = "arrayvec",
     crate_root = "arrayvec-0.7.8.crate/src/lib.rs",
@@ -717,13 +717,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ascii-canvas-3.0.0",
+    name = "ascii-canvas-3",
     srcs = [":ascii-canvas-3.0.0.crate"],
     crate = "ascii_canvas",
     crate_root = "ascii-canvas-3.0.0.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":term-0.7.0"],
+    deps = [":term-0.7"],
 )
 
 shims.http_archive(
@@ -735,13 +735,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ascii-canvas-4.0.0",
+    name = "ascii-canvas-4",
     srcs = [":ascii-canvas-4.0.0.crate"],
     crate = "ascii_canvas",
     crate_root = "ascii-canvas-4.0.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":term-1.2.1"],
+    deps = [":term-1"],
 )
 
 shims.http_archive(
@@ -753,7 +753,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "async-channel-2.5.0",
+    name = "async-channel-2",
     srcs = [":async-channel-2.5.0.crate"],
     crate = "async_channel",
     crate_root = "async-channel-2.5.0.crate/src/lib.rs",
@@ -764,16 +764,16 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":concurrent-queue-2.5.0",
-        ":event-listener-strategy-0.5.4",
-        ":futures-core-0.3.32",
-        ":pin-project-lite-0.2.17",
+        ":concurrent-queue-2",
+        ":event-listener-strategy-0.5",
+        ":futures-core-0.3",
+        ":pin-project-lite-0.2",
     ],
 )
 
 shims.alias(
     name = "async-stream",
-    actual = ":async-stream-0.3.6",
+    actual = ":async-stream-0.3",
     visibility = ["PUBLIC"],
 )
 
@@ -786,16 +786,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "async-stream-0.3.6",
+    name = "async-stream-0.3",
     srcs = [":async-stream-0.3.6.crate"],
     crate = "async_stream",
     crate_root = "async-stream-0.3.6.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":async-stream-impl-0.3.6",
-        ":futures-core-0.3.32",
-        ":pin-project-lite-0.2.17",
+        ":async-stream-impl-0.3",
+        ":futures-core-0.3",
+        ":pin-project-lite-0.2",
     ],
 )
 
@@ -808,7 +808,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "async-stream-impl-0.3.6",
+    name = "async-stream-impl-0.3",
     srcs = [":async-stream-impl-0.3.6.crate"],
     crate = "async_stream_impl",
     crate_root = "async-stream-impl-0.3.6.crate/src/lib.rs",
@@ -816,15 +816,15 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
 shims.alias(
     name = "async-trait",
-    actual = ":async-trait-0.1.89",
+    actual = ":async-trait-0.1",
     visibility = ["PUBLIC"],
 )
 
@@ -837,7 +837,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "async-trait-0.1.89",
+    name = "async-trait-0.1",
     srcs = [":async-trait-0.1.89.crate"],
     crate = "async_trait",
     crate_root = "async-trait-0.1.89.crate/src/lib.rs",
@@ -845,9 +845,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -860,13 +860,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "atoi-3.1.0",
+    name = "atoi-3",
     srcs = [":atoi-3.1.0.crate"],
     crate = "atoi",
     crate_root = "atoi-3.1.0.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":num-traits-0.2.19"],
+    deps = [":num-traits-0.2"],
 )
 
 shims.http_archive(
@@ -878,7 +878,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "atomic-0.6.1",
+    name = "atomic-0.6",
     srcs = [":atomic-0.6.1.crate"],
     crate = "atomic",
     crate_root = "atomic-0.6.1.crate/src/lib.rs",
@@ -888,7 +888,7 @@ third_party_rust.rust_library(
         "fallback",
     ],
     visibility = [],
-    deps = [":bytemuck-1.25.1"],
+    deps = [":bytemuck-1"],
 )
 
 shims.http_archive(
@@ -900,7 +900,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "atomic-waker-1.1.2",
+    name = "atomic-waker-1",
     srcs = [":atomic-waker-1.1.2.crate"],
     crate = "atomic_waker",
     crate_root = "atomic-waker-1.1.2.crate/src/lib.rs",
@@ -917,18 +917,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "attohttpc-0.30.1",
+    name = "attohttpc-0.30",
     srcs = [":attohttpc-0.30.1.crate"],
     crate = "attohttpc",
     crate_root = "attohttpc-0.30.1.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "attohttpc",
         "CARGO_CRATE_NAME": "attohttpc",
         "CARGO_MANIFEST_DIR": "attohttpc-0.30.1.crate",
         "CARGO_PKG_AUTHORS": "Simon Bernier St-Pierre <git.sbstp.ca@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Small and lightweight HTTP client",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/sbstp/attohttpc",
         "CARGO_PKG_NAME": "attohttpc",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/sbstp/attohttpc",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "0.30.1",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "30",
@@ -937,10 +941,10 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
-        ":base64-0.22.1",
-        ":http-1.4.2",
-        ":log-0.4.33",
-        ":url-2.5.8",
+        ":base64-0.22",
+        ":http-1",
+        ":log-0.4",
+        ":url-2",
     ],
 )
 
@@ -953,7 +957,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "autocfg-1.5.1",
+    name = "autocfg-1",
     srcs = [":autocfg-1.5.1.crate"],
     crate = "autocfg",
     crate_root = "autocfg-1.5.1.crate/src/lib.rs",
@@ -970,30 +974,30 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "axum-0.8.9",
+    name = "axum-0.8",
     srcs = [":axum-0.8.9.crate"],
     crate = "axum",
     crate_root = "axum-0.8.9.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":axum-core-0.5.6",
-        ":bytes-1.12.1",
-        ":futures-util-0.3.32",
-        ":http-1.4.2",
-        ":http-body-1.1.0",
-        ":http-body-util-0.1.4",
-        ":itoa-1.0.18",
-        ":matchit-0.8.4",
-        ":memchr-2.8.3",
-        ":mime-0.3.17",
-        ":percent-encoding-2.3.2",
-        ":pin-project-lite-0.2.17",
-        ":serde_core-1.0.228",
-        ":sync_wrapper-1.0.2",
-        ":tower-0.5.3",
-        ":tower-layer-0.3.3",
-        ":tower-service-0.3.3",
+        ":axum-core-0.5",
+        ":bytes-1",
+        ":futures-util-0.3",
+        ":http-1",
+        ":http-body-1",
+        ":http-body-util-0.1",
+        ":itoa-1",
+        ":matchit-0.8",
+        ":memchr-2",
+        ":mime-0.3",
+        ":percent-encoding-2",
+        ":pin-project-lite-0.2",
+        ":serde_core-1",
+        ":sync_wrapper-1",
+        ":tower-0.5",
+        ":tower-layer-0.3",
+        ":tower-service-0.3",
     ],
 )
 
@@ -1006,23 +1010,23 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "axum-core-0.5.6",
+    name = "axum-core-0.5",
     srcs = [":axum-core-0.5.6.crate"],
     crate = "axum_core",
     crate_root = "axum-core-0.5.6.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bytes-1.12.1",
-        ":futures-core-0.3.32",
-        ":http-1.4.2",
-        ":http-body-1.1.0",
-        ":http-body-util-0.1.4",
-        ":mime-0.3.17",
-        ":pin-project-lite-0.2.17",
-        ":sync_wrapper-1.0.2",
-        ":tower-layer-0.3.3",
-        ":tower-service-0.3.3",
+        ":bytes-1",
+        ":futures-core-0.3",
+        ":http-1",
+        ":http-body-1",
+        ":http-body-util-0.1",
+        ":mime-0.3",
+        ":pin-project-lite-0.2",
+        ":sync_wrapper-1",
+        ":tower-layer-0.3",
+        ":tower-service-0.3",
     ],
 )
 
@@ -1035,7 +1039,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "backon-1.6.0",
+    name = "backon-1",
     srcs = [":backon-1.6.0.crate"],
     crate = "backon",
     crate_root = "backon-1.6.0.crate/src/lib.rs",
@@ -1050,8 +1054,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":fastrand-2.4.1",
-        ":tokio-1.53.0",
+        ":fastrand-2",
+        ":tokio-1",
     ],
 )
 
@@ -1064,7 +1068,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "base16ct-1.0.0",
+    name = "base16ct-1",
     srcs = [":base16ct-1.0.0.crate"],
     crate = "base16ct",
     crate_root = "base16ct-1.0.0.crate/src/lib.rs",
@@ -1081,7 +1085,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "base64-0.21.7",
+    name = "base64-0.21",
     srcs = [":base64-0.21.7.crate"],
     crate = "base64",
     crate_root = "base64-0.21.7.crate/src/lib.rs",
@@ -1096,7 +1100,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "base64",
-    actual = ":base64-0.22.1",
+    actual = ":base64-0.22",
     visibility = ["PUBLIC"],
 )
 
@@ -1109,7 +1113,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "base64-0.22.1",
+    name = "base64-0.22",
     srcs = [":base64-0.22.1.crate"],
     crate = "base64",
     crate_root = "base64-0.22.1.crate/src/lib.rs",
@@ -1131,7 +1135,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "base64-simd-0.8.0",
+    name = "base64-simd-0.8",
     srcs = [":base64-simd-0.8.0.crate"],
     crate = "base64_simd",
     crate_root = "base64-simd-0.8.0.crate/src/lib.rs",
@@ -1144,8 +1148,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":outref-0.5.2",
-        ":vsimd-0.8.0",
+        ":outref-0.5",
+        ":vsimd-0.8",
     ],
 )
 
@@ -1158,7 +1162,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "base64ct-1.8.3",
+    name = "base64ct-1",
     srcs = [":base64ct-1.8.3.crate"],
     crate = "base64ct",
     crate_root = "base64ct-1.8.3.crate/src/lib.rs",
@@ -1176,7 +1180,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "beef-0.5.2",
+    name = "beef-0.5",
     srcs = [":beef-0.5.2.crate"],
     crate = "beef",
     crate_root = "beef-0.5.2.crate/src/lib.rs",
@@ -1194,13 +1198,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bincode-1.3.3",
+    name = "bincode-1",
     srcs = [":bincode-1.3.3.crate"],
     crate = "bincode",
     crate_root = "bincode-1.3.3.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":serde-1.0.228"],
+    deps = [":serde-1"],
 )
 
 shims.http_archive(
@@ -1212,7 +1216,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bit-set-0.5.3",
+    name = "bit-set-0.5",
     srcs = [":bit-set-0.5.3.crate"],
     crate = "bit_set",
     crate_root = "bit-set-0.5.3.crate/src/lib.rs",
@@ -1222,7 +1226,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":bit-vec-0.6.3"],
+    deps = [":bit-vec-0.6"],
 )
 
 shims.http_archive(
@@ -1234,13 +1238,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bit-set-0.8.0",
+    name = "bit-set-0.8",
     srcs = [":bit-set-0.8.0.crate"],
     crate = "bit_set",
     crate_root = "bit-set-0.8.0.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":bit-vec-0.8.0"],
+    deps = [":bit-vec-0.8"],
 )
 
 shims.http_archive(
@@ -1252,7 +1256,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bit-vec-0.6.3",
+    name = "bit-vec-0.6",
     srcs = [":bit-vec-0.6.3.crate"],
     crate = "bit_vec",
     crate_root = "bit-vec-0.6.3.crate/src/lib.rs",
@@ -1270,7 +1274,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bit-vec-0.8.0",
+    name = "bit-vec-0.8",
     srcs = [":bit-vec-0.8.0.crate"],
     crate = "bit_vec",
     crate_root = "bit-vec-0.8.0.crate/src/lib.rs",
@@ -1287,7 +1291,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bitflags-1.3.2",
+    name = "bitflags-1",
     srcs = [":bitflags-1.3.2.crate"],
     crate = "bitflags",
     crate_root = "bitflags-1.3.2.crate/src/lib.rs",
@@ -1305,7 +1309,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bitflags-2.13.1",
+    name = "bitflags-2",
     srcs = [":bitflags-2.13.1.crate"],
     crate = "bitflags",
     crate_root = "bitflags-2.13.1.crate/src/lib.rs",
@@ -1315,7 +1319,7 @@ third_party_rust.rust_library(
         "serde_core",
     ],
     visibility = [],
-    deps = [":serde_core-1.0.228"],
+    deps = [":serde_core-1"],
 )
 
 shims.http_archive(
@@ -1327,7 +1331,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "blake2-0.10.6",
+    name = "blake2-0.10",
     srcs = [":blake2-0.10.6.crate"],
     crate = "blake2",
     crate_root = "blake2-0.10.6.crate/src/lib.rs",
@@ -1337,12 +1341,12 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":digest-0.10.7"],
+    deps = [":digest-0.10"],
 )
 
 shims.alias(
     name = "blake3",
-    actual = ":blake3-1.8.5",
+    actual = ":blake3-1",
     visibility = ["PUBLIC"],
 )
 
@@ -1375,7 +1379,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "blake3-1.8.5",
+    name = "blake3-1",
     srcs = [":blake3-1.8.5.crate"],
     crate = "blake3",
     crate_root = "blake3-1.8.5.crate/src/lib.rs",
@@ -1387,7 +1391,7 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             rustc_flags = ["--cfg=blake3_neon"],
-            deps = [":blake3-1.8.5-simd_neon-aarch64"],
+            deps = [":blake3-1-simd_neon-aarch64"],
         ),
         "linux-x86_64": dict(
             rustc_flags = [
@@ -1397,13 +1401,13 @@ third_party_rust.rust_library(
                 "--cfg=blake3_sse41_ffi",
             ],
             deps = [
-                ":blake3-1.8.5-simd_x86_unix",
-                ":cpufeatures-0.3.0",
+                ":blake3-1-simd_x86_unix",
+                ":cpufeatures-0.3",
             ],
         ),
         "macos-arm64": dict(
             rustc_flags = ["--cfg=blake3_neon"],
-            deps = [":blake3-1.8.5-simd_neon-aarch64"],
+            deps = [":blake3-1-simd_neon-aarch64"],
         ),
         "macos-x86_64": dict(
             rustc_flags = [
@@ -1413,8 +1417,8 @@ third_party_rust.rust_library(
                 "--cfg=blake3_sse41_ffi",
             ],
             deps = [
-                ":blake3-1.8.5-simd_x86_unix",
-                ":cpufeatures-0.3.0",
+                ":blake3-1-simd_x86_unix",
+                ":cpufeatures-0.3",
             ],
         ),
         "windows-gnu": dict(
@@ -1425,8 +1429,8 @@ third_party_rust.rust_library(
                 "--cfg=blake3_sse41_ffi",
             ],
             deps = [
-                ":blake3-1.8.5-simd_x86_windows_gnu",
-                ":cpufeatures-0.3.0",
+                ":blake3-1-simd_x86_windows_gnu",
+                ":cpufeatures-0.3",
             ],
         ),
         "windows-msvc": dict(
@@ -1437,22 +1441,22 @@ third_party_rust.rust_library(
                 "--cfg=blake3_sse41_ffi",
             ],
             deps = [
-                ":blake3-1.8.5-simd_x86_windows_msvc",
-                ":cpufeatures-0.3.0",
+                ":blake3-1-simd_x86_windows_msvc",
+                ":cpufeatures-0.3",
             ],
         ),
     },
     visibility = [],
     deps = [
-        ":arrayref-0.3.9",
-        ":arrayvec-0.7.8",
-        ":cfg-if-1.0.4",
-        ":constant_time_eq-0.4.2",
+        ":arrayref-0.3",
+        ":arrayvec-0.7",
+        ":cfg-if-1",
+        ":constant_time_eq-0.4",
     ],
 )
 
 third_party_rust.cxx_library(
-    name = "blake3-1.8.5-simd_neon-aarch64",
+    name = "blake3-1-simd_neon-aarch64",
     srcs = [":blake3-1.8.5.crate[c/blake3_neon.c]"],
     headers = [
         ":blake3-1.8.5.crate[c/blake3.h]",
@@ -1462,7 +1466,7 @@ third_party_rust.cxx_library(
 )
 
 third_party_rust.cxx_library(
-    name = "blake3-1.8.5-simd_x86_unix",
+    name = "blake3-1-simd_x86_unix",
     srcs = [
         ":blake3-1.8.5.crate[c/blake3.c]",
         ":blake3-1.8.5.crate[c/blake3_avx2_x86-64_unix.S]",
@@ -1488,7 +1492,7 @@ third_party_rust.cxx_library(
 )
 
 third_party_rust.cxx_library(
-    name = "blake3-1.8.5-simd_x86_windows_gnu",
+    name = "blake3-1-simd_x86_windows_gnu",
     srcs = [
         ":blake3-1.8.5.crate[c/blake3.c]",
         ":blake3-1.8.5.crate[c/blake3_avx2_x86-64_windows_gnu.S]",
@@ -1511,7 +1515,7 @@ third_party_rust.cxx_library(
 )
 
 third_party_rust.cxx_library(
-    name = "blake3-1.8.5-simd_x86_windows_msvc",
+    name = "blake3-1-simd_x86_windows_msvc",
     srcs = [
         ":blake3-1.8.5.crate[c/blake3.c]",
         ":blake3-1.8.5.crate[c/blake3_avx2_x86-64_windows_msvc.asm]",
@@ -1538,13 +1542,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "blazesym-0.2.5",
+    name = "blazesym-0.2",
     srcs = [":blazesym-0.2.5.crate"],
     crate = "blazesym",
     crate_root = "blazesym-0.2.5.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :blazesym-0.2.5-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :blazesym-0.2-build-script-run[out_dir])",
     },
     features = [
         "backtrace",
@@ -1553,22 +1557,22 @@ third_party_rust.rust_library(
         "dwarf",
         "zlib",
     ],
-    rustc_flags = ["@$(location :blazesym-0.2.5-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :blazesym-0.2-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":cpp_demangle-0.5.1",
-        ":crc32fast-1.5.0",
-        ":flate2-1.1.9",
-        ":gimli-0.33.0",
-        ":libc-0.2.186",
-        ":memmap2-0.9.11",
-        ":rustc-demangle-0.1.28",
-        ":tempfile-3.27.0",
+        ":cpp_demangle-0.5",
+        ":crc32fast-1",
+        ":flate2-1",
+        ":gimli-0.33",
+        ":libc-0.2",
+        ":memmap2-0.9",
+        ":rustc-demangle-0.1",
+        ":tempfile-3",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "blazesym-0.2.5-build-script-build",
+    name = "blazesym-0.2-build-script-build",
     srcs = [":blazesym-0.2.5.crate"],
     crate = "build_script_build",
     crate_root = "blazesym-0.2.5.crate/build.rs",
@@ -1584,9 +1588,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "blazesym-0.2.5-build-script-run",
+    name = "blazesym-0.2-build-script-run",
     package_name = "blazesym",
-    buildscript_rule = ":blazesym-0.2.5-build-script-build",
+    buildscript_rule = ":blazesym-0.2-build-script-build",
     features = [
         "backtrace",
         "default",
@@ -1606,13 +1610,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "block-buffer-0.10.4",
+    name = "block-buffer-0.10",
     srcs = [":block-buffer-0.10.4.crate"],
     crate = "block_buffer",
     crate_root = "block-buffer-0.10.4.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":generic-array-0.14.7"],
+    deps = [":generic-array-0.14"],
 )
 
 shims.http_archive(
@@ -1624,13 +1628,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "block-buffer-0.12.1",
+    name = "block-buffer-0.12",
     srcs = [":block-buffer-0.12.1.crate"],
     crate = "block_buffer",
     crate_root = "block-buffer-0.12.1.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":hybrid-array-0.4.13"],
+    deps = [":hybrid-array-0.4"],
 )
 
 shims.http_archive(
@@ -1642,14 +1646,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "block2-0.6.2",
+    name = "block2-0.6",
     srcs = [":block2-0.6.2.crate"],
     crate = "block2",
     crate_root = "block2-0.6.2.crate/src/lib.rs",
     edition = "2021",
     features = ["alloc"],
     visibility = [],
-    deps = [":objc2-0.6.4"],
+    deps = [":objc2-0.6"],
 )
 
 shims.http_archive(
@@ -1661,7 +1665,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bon-3.9.3",
+    name = "bon-3",
     srcs = [":bon-3.9.3.crate"],
     crate = "bon",
     crate_root = "bon-3.9.3.crate/src/lib.rs",
@@ -1673,8 +1677,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bon-macros-3.9.3",
-        ":rustversion-1.0.23",
+        ":bon-macros-3",
+        ":rustversion-1",
     ],
 )
 
@@ -1687,7 +1691,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bon-macros-3.9.3",
+    name = "bon-macros-3",
     srcs = [":bon-macros-3.9.3.crate"],
     crate = "bon_macros",
     crate_root = "bon-macros-3.9.3.crate/src/lib.rs",
@@ -1700,13 +1704,13 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":darling-0.23.0",
-        ":ident_case-1.0.1",
-        ":prettyplease-0.2.37",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":rustversion-1.0.23",
-        ":syn-2.0.119",
+        ":darling-0.23",
+        ":ident_case-1",
+        ":prettyplease-0.2",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":rustversion-1",
+        ":syn-2",
     ],
 )
 
@@ -1719,7 +1723,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "boxcar-0.2.14",
+    name = "boxcar-0.2",
     srcs = [":boxcar-0.2.14.crate"],
     crate = "boxcar",
     crate_root = "boxcar-0.2.14.crate/src/lib.rs",
@@ -1729,7 +1733,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "brotli",
-    actual = ":brotli-8.0.4",
+    actual = ":brotli-8",
     visibility = ["PUBLIC"],
 )
 
@@ -1742,7 +1746,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "brotli-8.0.4",
+    name = "brotli-8",
     srcs = [":brotli-8.0.4.crate"],
     crate = "brotli",
     crate_root = "brotli-8.0.4.crate/src/lib.rs",
@@ -1754,9 +1758,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":alloc-no-stdlib-2.0.4",
-        ":alloc-stdlib-0.2.4",
-        ":brotli-decompressor-5.0.3",
+        ":alloc-no-stdlib-2",
+        ":alloc-stdlib-0.2",
+        ":brotli-decompressor-5",
     ],
 )
 
@@ -1769,7 +1773,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "brotli-decompressor-5.0.3",
+    name = "brotli-decompressor-5",
     srcs = [":brotli-decompressor-5.0.3.crate"],
     crate = "brotli_decompressor",
     crate_root = "brotli-decompressor-5.0.3.crate/src/lib.rs",
@@ -1780,8 +1784,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":alloc-no-stdlib-2.0.4",
-        ":alloc-stdlib-0.2.4",
+        ":alloc-no-stdlib-2",
+        ":alloc-stdlib-0.2",
     ],
 )
 
@@ -1794,7 +1798,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bstr-1.13.0",
+    name = "bstr-1",
     srcs = [":bstr-1.13.0.crate"],
     crate = "bstr",
     crate_root = "bstr-1.13.0.crate/src/lib.rs",
@@ -1807,14 +1811,14 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":memchr-2.8.3",
-        ":regex-automata-0.4.16",
+        ":memchr-2",
+        ":regex-automata-0.4",
     ],
 )
 
 shims.alias(
     name = "buck-resources",
-    actual = ":buck-resources-1.0.0",
+    actual = ":buck-resources-1",
     visibility = ["PUBLIC"],
 )
 
@@ -1827,18 +1831,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "buck-resources-1.0.0",
+    name = "buck-resources-1",
     srcs = [":buck-resources-1.0.0.crate"],
     crate = "buck_resources",
     crate_root = "buck-resources-1.0.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":dunce-1.0.5",
-        ":once_cell-1.21.4",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
-        ":thiserror-1.0.69",
+        ":dunce-1",
+        ":once_cell-1",
+        ":serde-1",
+        ":serde_json-1",
+        ":thiserror-1",
     ],
 )
 
@@ -1851,7 +1855,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bumpalo-3.20.3",
+    name = "bumpalo-3",
     srcs = [":bumpalo-3.20.3.crate"],
     crate = "bumpalo",
     crate_root = "bumpalo-3.20.3.crate/src/lib.rs",
@@ -1869,7 +1873,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bytemuck-1.25.1",
+    name = "bytemuck-1",
     srcs = [":bytemuck-1.25.1.crate"],
     crate = "bytemuck",
     crate_root = "bytemuck-1.25.1.crate/src/lib.rs",
@@ -1886,7 +1890,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "byteorder-1.5.0",
+    name = "byteorder-1",
     srcs = [":byteorder-1.5.0.crate"],
     crate = "byteorder",
     crate_root = "byteorder-1.5.0.crate/src/lib.rs",
@@ -1907,7 +1911,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "byteorder-lite-0.1.0",
+    name = "byteorder-lite-0.1",
     srcs = [":byteorder-lite-0.1.0.crate"],
     crate = "byteorder_lite",
     crate_root = "byteorder-lite-0.1.0.crate/src/lib.rs",
@@ -1921,7 +1925,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "bytes",
-    actual = ":bytes-1.12.1",
+    actual = ":bytes-1",
     visibility = ["PUBLIC"],
 )
 
@@ -1934,7 +1938,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bytes-1.12.1",
+    name = "bytes-1",
     srcs = [":bytes-1.12.1.crate"],
     crate = "bytes",
     crate_root = "bytes-1.12.1.crate/src/lib.rs",
@@ -1945,7 +1949,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":serde-1.0.228"],
+    deps = [":serde-1"],
 )
 
 shims.http_archive(
@@ -1957,13 +1961,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "bytestring-1.5.1",
+    name = "bytestring-1",
     srcs = [":bytestring-1.5.1.crate"],
     crate = "bytestring",
     crate_root = "bytestring-1.5.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":bytes-1.12.1"],
+    deps = [":bytes-1"],
 )
 
 shims.http_archive(
@@ -1975,7 +1979,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "byteview-0.10.1",
+    name = "byteview-0.10",
     srcs = [":byteview-0.10.1.crate"],
     crate = "byteview",
     crate_root = "byteview-0.10.1.crate/src/lib.rs",
@@ -1993,7 +1997,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "c-enum-0.2.3",
+    name = "c-enum-0.2",
     srcs = [":c-enum-0.2.3.crate"],
     crate = "c_enum",
     crate_root = "c-enum-0.2.3.crate/src/lib.rs",
@@ -2003,7 +2007,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "capnp",
-    actual = ":capnp-0.26.2",
+    actual = ":capnp-0.26",
     visibility = ["PUBLIC"],
 )
 
@@ -2016,7 +2020,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "capnp-0.26.2",
+    name = "capnp-0.26",
     srcs = [":capnp-0.26.2.crate"],
     crate = "capnp",
     crate_root = "capnp-0.26.2.crate/src/lib.rs",
@@ -2031,7 +2035,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "capnp-futures",
-    actual = ":capnp-futures-0.26.1",
+    actual = ":capnp-futures-0.26",
     visibility = ["PUBLIC"],
 )
 
@@ -2044,22 +2048,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "capnp-futures-0.26.1",
+    name = "capnp-futures-0.26",
     srcs = [":capnp-futures-0.26.1.crate"],
     crate = "capnp_futures",
     crate_root = "capnp-futures-0.26.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":capnp-0.26.2",
-        ":futures-channel-0.3.32",
-        ":futures-util-0.3.32",
+        ":capnp-0.26",
+        ":futures-channel-0.3",
+        ":futures-util-0.3",
     ],
 )
 
 shims.alias(
     name = "capnp-rpc",
-    actual = ":capnp-rpc-0.26.1",
+    actual = ":capnp-rpc-0.26",
     visibility = ["PUBLIC"],
 )
 
@@ -2072,22 +2076,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "capnp-rpc-0.26.1",
+    name = "capnp-rpc-0.26",
     srcs = [":capnp-rpc-0.26.1.crate"],
     crate = "capnp_rpc",
     crate_root = "capnp-rpc-0.26.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":capnp-0.26.2",
-        ":capnp-futures-0.26.1",
-        ":futures-0.3.32",
+        ":capnp-0.26",
+        ":capnp-futures-0.26",
+        ":futures-0.3",
     ],
 )
 
 shims.alias(
     name = "capnpc",
-    actual = ":capnpc-0.26.0",
+    actual = ":capnpc-0.26",
     visibility = ["PUBLIC"],
 )
 
@@ -2100,18 +2104,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "capnpc-0.26.0",
+    name = "capnpc-0.26",
     srcs = [":capnpc-0.26.0.crate"],
     crate = "capnpc",
     crate_root = "capnpc-0.26.0.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "capnpc",
         "CARGO_CRATE_NAME": "capnpc",
         "CARGO_MANIFEST_DIR": "capnpc-0.26.0.crate",
         "CARGO_PKG_AUTHORS": "David Renshaw <dwrenshaw@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Cap'n Proto code generation",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "capnpc",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/capnproto/capnproto-rust",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "0.26.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "26",
@@ -2119,7 +2127,7 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PRE": "",
     },
     visibility = [],
-    deps = [":capnp-0.26.2"],
+    deps = [":capnp-0.26"],
 )
 
 shims.http_archive(
@@ -2131,7 +2139,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cassowary-0.3.0",
+    name = "cassowary-0.3",
     srcs = [":cassowary-0.3.0.crate"],
     crate = "cassowary",
     crate_root = "cassowary-0.3.0.crate/src/lib.rs",
@@ -2148,14 +2156,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "castaway-0.2.4",
+    name = "castaway-0.2",
     srcs = [":castaway-0.2.4.crate"],
     crate = "castaway",
     crate_root = "castaway-0.2.4.crate/src/lib.rs",
     edition = "2018",
     features = ["alloc"],
     visibility = [],
-    deps = [":rustversion-1.0.23"],
+    deps = [":rustversion-1"],
 )
 
 shims.http_archive(
@@ -2167,7 +2175,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cc-1.2.67",
+    name = "cc-1",
     srcs = [":cc-1.2.67.crate"],
     crate = "cc",
     crate_root = "cc-1.2.67.crate/src/lib.rs",
@@ -2175,29 +2183,29 @@ third_party_rust.rust_library(
     features = ["parallel"],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
     },
     visibility = [],
     deps = [
-        ":find-msvc-tools-0.1.9",
-        ":jobserver-0.1.35",
-        ":shlex-2.0.1",
+        ":find-msvc-tools-0.1",
+        ":jobserver-0.1",
+        ":shlex-2",
     ],
 )
 
 shims.alias(
     name = "cedar-policy",
-    actual = ":cedar-policy-4.11.2",
+    actual = ":cedar-policy-4",
     visibility = ["PUBLIC"],
 )
 
@@ -2210,24 +2218,28 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cedar-policy-4.11.2",
+    name = "cedar-policy-4",
     srcs = [":cedar-policy-4.11.2.crate"],
     crate = "cedar_policy",
     crate_root = "cedar-policy-4.11.2.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "cedar_policy",
         "CARGO_CRATE_NAME": "cedar_policy",
         "CARGO_MANIFEST_DIR": "cedar-policy-4.11.2.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Cedar is a language for defining permissions as policies, which describe who should have access to what.",
+        "CARGO_PKG_HOMEPAGE": "https://cedarpolicy.com",
         "CARGO_PKG_NAME": "cedar-policy",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
+        "CARGO_PKG_RUST_VERSION": "1.89",
         "CARGO_PKG_VERSION": "4.11.2",
         "CARGO_PKG_VERSION_MAJOR": "4",
         "CARGO_PKG_VERSION_MINOR": "11",
         "CARGO_PKG_VERSION_PATCH": "2",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :cedar-policy-4.11.2-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :cedar-policy-4-build-script-run[out_dir])",
     },
     features = [
         "datetime",
@@ -2235,37 +2247,41 @@ third_party_rust.rust_library(
         "default",
         "ipaddr",
     ],
-    rustc_flags = ["@$(location :cedar-policy-4.11.2-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :cedar-policy-4-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":cedar-policy-core-4.11.2",
-        ":cedar-policy-formatter-4.11.2",
-        ":itertools-0.14.0",
-        ":linked-hash-map-0.5.6",
-        ":miette-7.6.0",
-        ":ref-cast-1.0.25",
-        ":semver-1.0.28",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
-        ":serde_with-3.21.0",
-        ":smol_str-0.3.6",
-        ":thiserror-2.0.18",
+        ":cedar-policy-core-4",
+        ":cedar-policy-formatter-4",
+        ":itertools-0.14",
+        ":linked-hash-map-0.5",
+        ":miette-7",
+        ":ref-cast-1",
+        ":semver-1",
+        ":serde-1",
+        ":serde_json-1",
+        ":serde_with-3",
+        ":smol_str-0.3",
+        ":thiserror-2",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "cedar-policy-4.11.2-build-script-build",
+    name = "cedar-policy-4-build-script-build",
     srcs = [":cedar-policy-4.11.2.crate"],
     crate = "build_script_build",
     crate_root = "cedar-policy-4.11.2.crate/build.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
         "CARGO_MANIFEST_DIR": "cedar-policy-4.11.2.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Cedar is a language for defining permissions as policies, which describe who should have access to what.",
+        "CARGO_PKG_HOMEPAGE": "https://cedarpolicy.com",
         "CARGO_PKG_NAME": "cedar-policy",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
+        "CARGO_PKG_RUST_VERSION": "1.89",
         "CARGO_PKG_VERSION": "4.11.2",
         "CARGO_PKG_VERSION_MAJOR": "4",
         "CARGO_PKG_VERSION_MINOR": "11",
@@ -2282,13 +2298,16 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "cedar-policy-4.11.2-build-script-run",
+    name = "cedar-policy-4-build-script-run",
     package_name = "cedar-policy",
-    buildscript_rule = ":cedar-policy-4.11.2-build-script-build",
+    buildscript_rule = ":cedar-policy-4-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Cedar is a language for defining permissions as policies, which describe who should have access to what.",
+        "CARGO_PKG_HOMEPAGE": "https://cedarpolicy.com",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
+        "CARGO_PKG_RUST_VERSION": "1.89",
         "CARGO_PKG_VERSION_MAJOR": "4",
         "CARGO_PKG_VERSION_MINOR": "11",
         "CARGO_PKG_VERSION_PATCH": "2",
@@ -2312,24 +2331,28 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cedar-policy-core-4.11.2",
+    name = "cedar-policy-core-4",
     srcs = [":cedar-policy-core-4.11.2.crate"],
     crate = "cedar_policy_core",
     crate_root = "cedar-policy-core-4.11.2.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "cedar_policy_core",
         "CARGO_CRATE_NAME": "cedar_policy_core",
         "CARGO_MANIFEST_DIR": "cedar-policy-core-4.11.2.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Core implementation of the Cedar policy language",
+        "CARGO_PKG_HOMEPAGE": "https://cedarpolicy.com",
         "CARGO_PKG_NAME": "cedar-policy-core",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
+        "CARGO_PKG_RUST_VERSION": "1.89",
         "CARGO_PKG_VERSION": "4.11.2",
         "CARGO_PKG_VERSION_MAJOR": "4",
         "CARGO_PKG_VERSION_MINOR": "11",
         "CARGO_PKG_VERSION_PATCH": "2",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :cedar-policy-core-4.11.2-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :cedar-policy-core-4-build-script-run[out_dir])",
     },
     features = [
         "datetime",
@@ -2337,44 +2360,48 @@ third_party_rust.rust_library(
         "default",
         "ipaddr",
     ],
-    rustc_flags = ["@$(location :cedar-policy-core-4.11.2-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :cedar-policy-core-4-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":chrono-0.4.45",
-        ":educe-0.6.0",
-        ":either-1.16.0",
-        ":itertools-0.14.0",
-        ":lalrpop-util-0.22.2",
-        ":linked-hash-map-0.5.6",
-        ":linked_hash_set-0.1.6",
-        ":miette-7.6.0",
-        ":nonempty-0.12.0",
-        ":ref-cast-1.0.25",
-        ":regex-1.13.1",
+        ":chrono-0.4",
+        ":educe-0.6",
+        ":either-1",
+        ":itertools-0.14",
+        ":lalrpop-util-0.22",
+        ":linked-hash-map-0.5",
+        ":linked_hash_set-0.1",
+        ":miette-7",
+        ":nonempty-0.12",
+        ":ref-cast-1",
+        ":regex-1",
         ":rustc-literal-escaper-0.0.7",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
-        ":serde_with-3.21.0",
-        ":smol_str-0.3.6",
-        ":stacker-0.1.24",
-        ":thiserror-2.0.18",
-        ":unicode-security-0.1.2",
+        ":serde-1",
+        ":serde_json-1",
+        ":serde_with-3",
+        ":smol_str-0.3",
+        ":stacker-0.1",
+        ":thiserror-2",
+        ":unicode-security-0.1",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "cedar-policy-core-4.11.2-build-script-build",
+    name = "cedar-policy-core-4-build-script-build",
     srcs = [":cedar-policy-core-4.11.2.crate"],
     crate = "build_script_build",
     crate_root = "cedar-policy-core-4.11.2.crate/build.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
         "CARGO_MANIFEST_DIR": "cedar-policy-core-4.11.2.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Core implementation of the Cedar policy language",
+        "CARGO_PKG_HOMEPAGE": "https://cedarpolicy.com",
         "CARGO_PKG_NAME": "cedar-policy-core",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
+        "CARGO_PKG_RUST_VERSION": "1.89",
         "CARGO_PKG_VERSION": "4.11.2",
         "CARGO_PKG_VERSION_MAJOR": "4",
         "CARGO_PKG_VERSION_MINOR": "11",
@@ -2388,17 +2415,20 @@ third_party_rust.rust_binary(
         "ipaddr",
     ],
     visibility = [],
-    deps = [":lalrpop-0.22.2"],
+    deps = [":lalrpop-0.22"],
 )
 
 third_party_rust.buildscript_run(
-    name = "cedar-policy-core-4.11.2-build-script-run",
+    name = "cedar-policy-core-4-build-script-run",
     package_name = "cedar-policy-core",
-    buildscript_rule = ":cedar-policy-core-4.11.2-build-script-build",
+    buildscript_rule = ":cedar-policy-core-4-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Core implementation of the Cedar policy language",
+        "CARGO_PKG_HOMEPAGE": "https://cedarpolicy.com",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
+        "CARGO_PKG_RUST_VERSION": "1.89",
         "CARGO_PKG_VERSION_MAJOR": "4",
         "CARGO_PKG_VERSION_MINOR": "11",
         "CARGO_PKG_VERSION_PATCH": "2",
@@ -2422,20 +2452,20 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cedar-policy-formatter-4.11.2",
+    name = "cedar-policy-formatter-4",
     srcs = [":cedar-policy-formatter-4.11.2.crate"],
     crate = "cedar_policy_formatter",
     crate_root = "cedar-policy-formatter-4.11.2.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":cedar-policy-core-4.11.2",
-        ":itertools-0.14.0",
-        ":logos-0.16.1",
-        ":miette-7.6.0",
-        ":pretty-0.12.5",
-        ":regex-1.13.1",
-        ":smol_str-0.3.6",
+        ":cedar-policy-core-4",
+        ":itertools-0.14",
+        ":logos-0.16",
+        ":miette-7",
+        ":pretty-0.12",
+        ":regex-1",
+        ":smol_str-0.3",
     ],
 )
 
@@ -2448,7 +2478,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cfg-if-1.0.4",
+    name = "cfg-if-1",
     srcs = [":cfg-if-1.0.4.crate"],
     crate = "cfg_if",
     crate_root = "cfg-if-1.0.4.crate/src/lib.rs",
@@ -2465,7 +2495,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cfg_aliases-0.1.1",
+    name = "cfg_aliases-0.1",
     srcs = [":cfg_aliases-0.1.1.crate"],
     crate = "cfg_aliases",
     crate_root = "cfg_aliases-0.1.1.crate/src/lib.rs",
@@ -2482,7 +2512,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cfg_aliases-0.2.2",
+    name = "cfg_aliases-0.2",
     srcs = [":cfg_aliases-0.2.2.crate"],
     crate = "cfg_aliases",
     crate_root = "cfg_aliases-0.2.2.crate/src/lib.rs",
@@ -2499,7 +2529,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "chacha20-0.10.1",
+    name = "chacha20-0.10",
     srcs = [":chacha20-0.10.1.crate"],
     crate = "chacha20",
     crate_root = "chacha20-0.10.1.crate/src/lib.rs",
@@ -2507,28 +2537,28 @@ third_party_rust.rust_library(
     features = ["rng"],
     platform = {
         "linux-x86_64": dict(
-            deps = [":cpufeatures-0.3.0"],
+            deps = [":cpufeatures-0.3"],
         ),
         "macos-x86_64": dict(
-            deps = [":cpufeatures-0.3.0"],
+            deps = [":cpufeatures-0.3"],
         ),
         "windows-gnu": dict(
-            deps = [":cpufeatures-0.3.0"],
+            deps = [":cpufeatures-0.3"],
         ),
         "windows-msvc": dict(
-            deps = [":cpufeatures-0.3.0"],
+            deps = [":cpufeatures-0.3"],
         ),
     },
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":rand_core-0.10.1",
+        ":cfg-if-1",
+        ":rand_core-0.10",
     ],
 )
 
 shims.alias(
     name = "chrono",
-    actual = ":chrono-0.4.45",
+    actual = ":chrono-0.4",
     visibility = ["PUBLIC"],
 )
 
@@ -2541,7 +2571,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "chrono-0.4.45",
+    name = "chrono-0.4",
     srcs = [":chrono-0.4.45.crate"],
     crate = "chrono",
     crate_root = "chrono-0.4.45.crate/src/lib.rs",
@@ -2563,34 +2593,34 @@ third_party_rust.rust_library(
     ],
     platform = {
         "linux-arm64": dict(
-            deps = [":iana-time-zone-0.1.65"],
+            deps = [":iana-time-zone-0.1"],
         ),
         "linux-x86_64": dict(
-            deps = [":iana-time-zone-0.1.65"],
+            deps = [":iana-time-zone-0.1"],
         ),
         "macos-arm64": dict(
-            deps = [":iana-time-zone-0.1.65"],
+            deps = [":iana-time-zone-0.1"],
         ),
         "macos-x86_64": dict(
-            deps = [":iana-time-zone-0.1.65"],
+            deps = [":iana-time-zone-0.1"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-link-0.2.1"],
+            deps = [":windows-link-0.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-link-0.2.1"],
+            deps = [":windows-link-0.2"],
         ),
     },
     visibility = [],
     deps = [
-        ":num-traits-0.2.19",
-        ":serde-1.0.228",
+        ":num-traits-0.2",
+        ":serde-1",
     ],
 )
 
 shims.alias(
     name = "chumsky",
-    actual = ":chumsky-0.13.0",
+    actual = ":chumsky-0.13",
     visibility = ["PUBLIC"],
 )
 
@@ -2603,7 +2633,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "chumsky-0.13.0",
+    name = "chumsky-0.13",
     srcs = [":chumsky-0.13.0.crate"],
     crate = "chumsky",
     crate_root = "chumsky-0.13.0.crate/src/lib.rs",
@@ -2620,13 +2650,13 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":either-1.16.0",
-        ":hashbrown-0.15.5",
-        ":regex-automata-0.4.16",
-        ":serde-1.0.228",
-        ":stacker-0.1.24",
-        ":unicode-ident-1.0.24",
-        ":unicode-segmentation-1.13.3",
+        ":either-1",
+        ":hashbrown-0.15",
+        ":regex-automata-0.4",
+        ":serde-1",
+        ":stacker-0.1",
+        ":unicode-ident-1",
+        ":unicode-segmentation-1",
     ],
 )
 
@@ -2639,21 +2669,21 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cipher-0.4.4",
+    name = "cipher-0.4",
     srcs = [":cipher-0.4.4.crate"],
     crate = "cipher",
     crate_root = "cipher-0.4.4.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":crypto-common-0.1.7",
-        ":inout-0.1.4",
+        ":crypto-common-0.1",
+        ":inout-0.1",
     ],
 )
 
 shims.alias(
     name = "clap",
-    actual = ":clap-4.6.2",
+    actual = ":clap-4",
     visibility = ["PUBLIC"],
 )
 
@@ -2666,7 +2696,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "clap-4.6.2",
+    name = "clap-4",
     srcs = [":clap-4.6.2.crate"],
     crate = "clap",
     crate_root = "clap-4.6.2.crate/src/lib.rs",
@@ -2688,8 +2718,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":clap_builder-4.6.2",
-        ":clap_derive-4.6.1",
+        ":clap_builder-4",
+        ":clap_derive-4",
     ],
 )
 
@@ -2702,13 +2732,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "clap-markdown-0.1.5",
+    name = "clap-markdown-0.1",
     srcs = [":clap-markdown-0.1.5.crate"],
     crate = "clap_markdown",
     crate_root = "clap-markdown-0.1.5.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":clap-4.6.2"],
+    deps = [":clap-4"],
 )
 
 shims.http_archive(
@@ -2720,7 +2750,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "clap_builder-4.6.2",
+    name = "clap_builder-4",
     srcs = [":clap_builder-4.6.2.crate"],
     crate = "clap_builder",
     crate_root = "clap_builder-4.6.2.crate/src/lib.rs",
@@ -2740,11 +2770,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":anstream-1.0.0",
-        ":anstyle-1.0.14",
-        ":clap_lex-1.1.0",
-        ":strsim-0.11.1",
-        ":terminal_size-0.4.4",
+        ":anstream-1",
+        ":anstyle-1",
+        ":clap_lex-1",
+        ":strsim-0.11",
+        ":terminal_size-0.4",
     ],
 )
 
@@ -2757,7 +2787,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "clap_complete-4.6.7",
+    name = "clap_complete-4",
     srcs = [":clap_complete-4.6.7.crate"],
     crate = "clap_complete",
     crate_root = "clap_complete-4.6.7.crate/src/lib.rs",
@@ -2768,10 +2798,10 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":clap-4.6.2",
-        ":clap_lex-1.1.0",
-        ":is_executable-1.0.6",
-        ":shlex-2.0.1",
+        ":clap-4",
+        ":clap_lex-1",
+        ":is_executable-1",
+        ":shlex-2",
     ],
 )
 
@@ -2784,7 +2814,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "clap_complete_nushell-4.6.1",
+    name = "clap_complete_nushell-4",
     srcs = [":clap_complete_nushell-4.6.1.crate"],
     crate = "clap_complete_nushell",
     crate_root = "clap_complete_nushell-4.6.1.crate/src/lib.rs",
@@ -2792,8 +2822,8 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":clap-4.6.2",
-        ":clap_complete-4.6.7",
+        ":clap-4",
+        ":clap_complete-4",
     ],
 )
 
@@ -2806,7 +2836,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "clap_derive-4.6.1",
+    name = "clap_derive-4",
     srcs = [":clap_derive-4.6.1.crate"],
     crate = "clap_derive",
     crate_root = "clap_derive-4.6.1.crate/src/lib.rs",
@@ -2818,10 +2848,10 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":heck-0.5.0",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":heck-0.5",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -2834,7 +2864,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "clap_lex-1.1.0",
+    name = "clap_lex-1",
     srcs = [":clap_lex-1.1.0.crate"],
     crate = "clap_lex",
     crate_root = "clap_lex-1.1.0.crate/src/lib.rs",
@@ -2851,7 +2881,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "clap_mangen-0.2.33",
+    name = "clap_mangen-0.2",
     srcs = [":clap_mangen-0.2.33.crate"],
     crate = "clap_mangen",
     crate_root = "clap_mangen-0.2.33.crate/src/lib.rs",
@@ -2859,8 +2889,8 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":clap-4.6.2",
-        ":roff-1.1.1",
+        ":clap-4",
+        ":roff-1",
     ],
 )
 
@@ -2873,13 +2903,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "clipboard-win-5.4.1",
+    name = "clipboard-win-5",
     srcs = [":clipboard-win-5.4.1.crate"],
     crate = "clipboard_win",
     crate_root = "clipboard-win-5.4.1.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":error-code-3.3.2"],
+    deps = [":error-code-3"],
 )
 
 shims.http_archive(
@@ -2891,13 +2921,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "clru-0.6.3",
+    name = "clru-0.6",
     srcs = [":clru-0.6.3.crate"],
     crate = "clru",
     crate_root = "clru-0.6.3.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":hashbrown-0.16.1"],
+    deps = [":hashbrown-0.16"],
 )
 
 shims.http_archive(
@@ -2909,7 +2939,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cmov-0.5.4",
+    name = "cmov-0.5",
     srcs = [":cmov-0.5.4.crate"],
     crate = "cmov",
     crate_root = "cmov-0.5.4.crate/src/lib.rs",
@@ -2918,7 +2948,7 @@ third_party_rust.rust_library(
 )
 
 third_party_rust.rust_library(
-    name = "cmp_any-0.8.1",
+    name = "cmp_any-0.8",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "cmp_any",
     crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/cmp_any/src/lib.rs",
@@ -2935,7 +2965,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cmsketch-0.2.4",
+    name = "cmsketch-0.2",
     srcs = [":cmsketch-0.2.4.crate"],
     crate = "cmsketch",
     crate_root = "cmsketch-0.2.4.crate/src/lib.rs",
@@ -2952,13 +2982,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cobs-0.3.0",
+    name = "cobs-0.3",
     srcs = [":cobs-0.3.0.crate"],
     crate = "cobs",
     crate_root = "cobs-0.3.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":thiserror-2.0.18"],
+    deps = [":thiserror-2"],
 )
 
 shims.http_archive(
@@ -2970,7 +3000,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "colorchoice-1.0.5",
+    name = "colorchoice-1",
     srcs = [":colorchoice-1.0.5.crate"],
     crate = "colorchoice",
     crate_root = "colorchoice-1.0.5.crate/src/lib.rs",
@@ -2987,7 +3017,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "compact_str-0.9.1",
+    name = "compact_str-0.9",
     srcs = [":compact_str-0.9.1.crate"],
     crate = "compact_str",
     crate_root = "compact_str-0.9.1.crate/src/lib.rs",
@@ -2995,12 +3025,12 @@ third_party_rust.rust_library(
     features = ["std"],
     visibility = [],
     deps = [
-        ":castaway-0.2.4",
-        ":cfg-if-1.0.4",
-        ":itoa-1.0.18",
-        ":rustversion-1.0.23",
-        ":ryu-1.0.23",
-        ":static_assertions-1.1.0",
+        ":castaway-0.2",
+        ":cfg-if-1",
+        ":itoa-1",
+        ":rustversion-1",
+        ":ryu-1",
+        ":static_assertions-1",
     ],
 )
 
@@ -3030,14 +3060,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "concurrent-queue-2.5.0",
+    name = "concurrent-queue-2",
     srcs = [":concurrent-queue-2.5.0.crate"],
     crate = "concurrent_queue",
     crate_root = "concurrent-queue-2.5.0.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
     visibility = [],
-    deps = [":crossbeam-utils-0.8.22"],
+    deps = [":crossbeam-utils-0.8"],
 )
 
 shims.http_archive(
@@ -3049,7 +3079,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "console-0.16.4",
+    name = "console-0.16",
     srcs = [":console-0.16.4.crate"],
     crate = "console",
     crate_root = "console-0.16.4.crate/src/lib.rs",
@@ -3061,19 +3091,19 @@ third_party_rust.rust_library(
     platform = {
         "windows-gnu": dict(
             deps = [
-                ":encode_unicode-1.0.0",
-                ":windows-sys-0.61.2",
+                ":encode_unicode-1",
+                ":windows-sys-0.61",
             ],
         ),
         "windows-msvc": dict(
             deps = [
-                ":encode_unicode-1.0.0",
-                ":windows-sys-0.61.2",
+                ":encode_unicode-1",
+                ":windows-sys-0.61",
             ],
         ),
     },
     visibility = [],
-    deps = [":libc-0.2.186"],
+    deps = [":libc-0.2"],
 )
 
 shims.http_archive(
@@ -3085,7 +3115,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "console-api-0.9.0",
+    name = "console-api-0.9",
     srcs = [":console-api-0.9.0.crate"],
     crate = "console_api",
     crate_root = "console-api-0.9.0.crate/src/lib.rs",
@@ -3093,18 +3123,18 @@ third_party_rust.rust_library(
     features = ["transport"],
     visibility = [],
     deps = [
-        ":futures-core-0.3.32",
-        ":prost-0.14.4",
-        ":prost-types-0.14.4",
-        ":tonic-0.14.6",
-        ":tonic-prost-0.14.6",
-        ":tracing-core-0.1.36",
+        ":futures-core-0.3",
+        ":prost-0.14",
+        ":prost-types-0.14",
+        ":tonic-0.14",
+        ":tonic-prost-0.14",
+        ":tracing-core-0.1",
     ],
 )
 
 shims.alias(
     name = "console-subscriber",
-    actual = ":console-subscriber-0.5.0",
+    actual = ":console-subscriber-0.5",
     visibility = ["PUBLIC"],
 )
 
@@ -3117,7 +3147,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "console-subscriber-0.5.0",
+    name = "console-subscriber-0.5",
     srcs = [":console-subscriber-0.5.0.crate"],
     crate = "console_subscriber",
     crate_root = "console-subscriber-0.5.0.crate/src/lib.rs",
@@ -3129,24 +3159,24 @@ third_party_rust.rust_library(
     rustc_flags = ["--cfg=tokio_unstable"],
     visibility = [],
     deps = [
-        ":console-api-0.9.0",
-        ":crossbeam-channel-0.5.16",
-        ":crossbeam-utils-0.8.22",
-        ":futures-task-0.3.32",
-        ":hdrhistogram-7.5.4",
-        ":humantime-2.4.0",
-        ":hyper-util-0.1.20",
-        ":prost-0.14.4",
-        ":prost-types-0.14.4",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
-        ":thread_local-1.1.10",
-        ":tokio-1.53.0",
-        ":tokio-stream-0.1.18",
-        ":tonic-0.14.6",
-        ":tracing-0.1.44",
-        ":tracing-core-0.1.36",
-        ":tracing-subscriber-0.3.23",
+        ":console-api-0.9",
+        ":crossbeam-channel-0.5",
+        ":crossbeam-utils-0.8",
+        ":futures-task-0.3",
+        ":hdrhistogram-7",
+        ":humantime-2",
+        ":hyper-util-0.1",
+        ":prost-0.14",
+        ":prost-types-0.14",
+        ":serde-1",
+        ":serde_json-1",
+        ":thread_local-1",
+        ":tokio-1",
+        ":tokio-stream-0.1",
+        ":tonic-0.14",
+        ":tracing-0.1",
+        ":tracing-core-0.1",
+        ":tracing-subscriber-0.3",
     ],
 )
 
@@ -3159,7 +3189,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "const-oid-0.10.2",
+    name = "const-oid-0.10",
     srcs = [":const-oid-0.10.2.crate"],
     crate = "const_oid",
     crate_root = "const-oid-0.10.2.crate/src/lib.rs",
@@ -3176,7 +3206,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "constant_time_eq-0.4.2",
+    name = "constant_time_eq-0.4",
     srcs = [":constant_time_eq-0.4.2.crate"],
     crate = "constant_time_eq",
     crate_root = "constant_time_eq-0.4.2.crate/src/lib.rs",
@@ -3194,13 +3224,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "convert_case-0.6.0",
+    name = "convert_case-0.6",
     srcs = [":convert_case-0.6.0.crate"],
     crate = "convert_case",
     crate_root = "convert_case-0.6.0.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":unicode-segmentation-1.13.3"],
+    deps = [":unicode-segmentation-1"],
 )
 
 shims.http_archive(
@@ -3212,13 +3242,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "convert_case-0.10.0",
+    name = "convert_case-0.10",
     srcs = [":convert_case-0.10.0.crate"],
     crate = "convert_case",
     crate_root = "convert_case-0.10.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":unicode-segmentation-1.13.3"],
+    deps = [":unicode-segmentation-1"],
 )
 
 shims.http_archive(
@@ -3230,7 +3260,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cordyceps-0.3.4",
+    name = "cordyceps-0.3",
     srcs = [":cordyceps-0.3.4.crate"],
     crate = "cordyceps",
     crate_root = "cordyceps-0.3.4.crate/src/lib.rs",
@@ -3248,7 +3278,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "core-foundation-0.9.4",
+    name = "core-foundation-0.9",
     srcs = [":core-foundation-0.9.4.crate"],
     crate = "core_foundation",
     crate_root = "core-foundation-0.9.4.crate/src/lib.rs",
@@ -3259,8 +3289,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":core-foundation-sys-0.8.7",
-        ":libc-0.2.186",
+        ":core-foundation-sys-0.8",
+        ":libc-0.2",
     ],
 )
 
@@ -3273,7 +3303,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "core-foundation-0.10.1",
+    name = "core-foundation-0.10",
     srcs = [":core-foundation-0.10.1.crate"],
     crate = "core_foundation",
     crate_root = "core-foundation-0.10.1.crate/src/lib.rs",
@@ -3284,8 +3314,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":core-foundation-sys-0.8.7",
-        ":libc-0.2.186",
+        ":core-foundation-sys-0.8",
+        ":libc-0.2",
     ],
 )
 
@@ -3298,7 +3328,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "core-foundation-sys-0.8.7",
+    name = "core-foundation-sys-0.8",
     srcs = [":core-foundation-sys-0.8.7.crate"],
     crate = "core_foundation_sys",
     crate_root = "core-foundation-sys-0.8.7.crate/src/lib.rs",
@@ -3319,15 +3349,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "core_affinity-0.8.3",
+    name = "core_affinity-0.8",
     srcs = [":core_affinity-0.8.3.crate"],
     crate = "core_affinity",
     crate_root = "core_affinity-0.8.3.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
     deps = [
-        ":libc-0.2.186",
-        ":num_cpus-1.17.0",
+        ":libc-0.2",
+        ":num_cpus-1",
     ],
 )
 
@@ -3340,7 +3370,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cpp_demangle-0.5.1",
+    name = "cpp_demangle-0.5",
     srcs = [":cpp_demangle-0.5.1.crate"],
     crate = "cpp_demangle",
     crate_root = "cpp_demangle-0.5.1.crate/src/lib.rs",
@@ -3351,7 +3381,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":cfg-if-1.0.4"],
+    deps = [":cfg-if-1"],
 )
 
 shims.http_archive(
@@ -3363,17 +3393,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cpufeatures-0.2.17",
+    name = "cpufeatures-0.2",
     srcs = [":cpufeatures-0.2.17.crate"],
     crate = "cpufeatures",
     crate_root = "cpufeatures-0.2.17.crate/src/lib.rs",
     edition = "2018",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
     },
     visibility = [],
@@ -3388,17 +3418,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "cpufeatures-0.3.0",
+    name = "cpufeatures-0.3",
     srcs = [":cpufeatures-0.3.0.crate"],
     crate = "cpufeatures",
     crate_root = "cpufeatures-0.3.0.crate/src/lib.rs",
     edition = "2024",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
     },
     visibility = [],
@@ -3413,19 +3443,23 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "crc-fast-1.10.0",
+    name = "crc-fast-1",
     srcs = [":crc-fast-1.10.0.crate"],
     crate = "crc_fast",
     crate_root = "crc-fast-1.10.0.crate/src/lib.rs",
     dlopen_enable = True,
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "crc_fast",
         "CARGO_CRATE_NAME": "crc_fast",
         "CARGO_MANIFEST_DIR": "crc-fast-1.10.0.crate",
         "CARGO_PKG_AUTHORS": "Don MacAskill",
         "CARGO_PKG_DESCRIPTION": "World's fastest generic CRC16, CRC32, and CRC64 calculator using SIMD. Supplies a C-compatible shared library for use in other languages.",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "crc-fast",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/awesomized/crc-fast-rust",
+        "CARGO_PKG_RUST_VERSION": "1.89",
         "CARGO_PKG_VERSION": "1.10.0",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "10",
@@ -3442,8 +3476,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":digest-0.10.7",
-        ":spin-0.10.1",
+        ":digest-0.10",
+        ":spin-0.10",
     ],
 )
 
@@ -3456,7 +3490,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "crc32fast-1.5.0",
+    name = "crc32fast-1",
     srcs = [":crc32fast-1.5.0.crate"],
     crate = "crc32fast",
     crate_root = "crc32fast-1.5.0.crate/src/lib.rs",
@@ -3466,7 +3500,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":cfg-if-1.0.4"],
+    deps = [":cfg-if-1"],
 )
 
 shims.http_archive(
@@ -3478,7 +3512,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "critical-section-1.2.0",
+    name = "critical-section-1",
     srcs = [":critical-section-1.2.0.crate"],
     crate = "critical_section",
     crate_root = "critical-section-1.2.0.crate/src/lib.rs",
@@ -3488,7 +3522,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "crossbeam-channel",
-    actual = ":crossbeam-channel-0.5.16",
+    actual = ":crossbeam-channel-0.5",
     visibility = ["PUBLIC"],
 )
 
@@ -3501,7 +3535,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "crossbeam-channel-0.5.16",
+    name = "crossbeam-channel-0.5",
     srcs = [":crossbeam-channel-0.5.16.crate"],
     crate = "crossbeam_channel",
     crate_root = "crossbeam-channel-0.5.16.crate/src/lib.rs",
@@ -3511,7 +3545,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":crossbeam-utils-0.8.22"],
+    deps = [":crossbeam-utils-0.8"],
 )
 
 shims.http_archive(
@@ -3523,7 +3557,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "crossbeam-deque-0.8.7",
+    name = "crossbeam-deque-0.8",
     srcs = [":crossbeam-deque-0.8.7.crate"],
     crate = "crossbeam_deque",
     crate_root = "crossbeam-deque-0.8.7.crate/src/lib.rs",
@@ -3534,8 +3568,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":crossbeam-epoch-0.9.20",
-        ":crossbeam-utils-0.8.22",
+        ":crossbeam-epoch-0.9",
+        ":crossbeam-utils-0.8",
     ],
 )
 
@@ -3548,18 +3582,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "crossbeam-epoch-0.9.20",
+    name = "crossbeam-epoch-0.9",
     srcs = [":crossbeam-epoch-0.9.20.crate"],
     crate = "crossbeam_epoch",
     crate_root = "crossbeam-epoch-0.9.20.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "crossbeam_epoch",
         "CARGO_CRATE_NAME": "crossbeam_epoch",
         "CARGO_MANIFEST_DIR": "crossbeam-epoch-0.9.20.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Epoch-based garbage collection",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/crossbeam-rs/crossbeam/tree/master/crossbeam-epoch",
         "CARGO_PKG_NAME": "crossbeam-epoch",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/crossbeam-rs/crossbeam",
+        "CARGO_PKG_RUST_VERSION": "1.61",
         "CARGO_PKG_VERSION": "0.9.20",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "9",
@@ -3572,7 +3610,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":crossbeam-utils-0.8.22"],
+    deps = [":crossbeam-utils-0.8"],
 )
 
 shims.http_archive(
@@ -3584,7 +3622,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "crossbeam-queue-0.3.13",
+    name = "crossbeam-queue-0.3",
     srcs = [":crossbeam-queue-0.3.13.crate"],
     crate = "crossbeam_queue",
     crate_root = "crossbeam-queue-0.3.13.crate/src/lib.rs",
@@ -3595,7 +3633,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":crossbeam-utils-0.8.22"],
+    deps = [":crossbeam-utils-0.8"],
 )
 
 shims.http_archive(
@@ -3607,7 +3645,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "crossbeam-skiplist-0.1.3",
+    name = "crossbeam-skiplist-0.1",
     srcs = [":crossbeam-skiplist-0.1.3.crate"],
     crate = "crossbeam_skiplist",
     crate_root = "crossbeam-skiplist-0.1.3.crate/src/lib.rs",
@@ -3619,8 +3657,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":crossbeam-epoch-0.9.20",
-        ":crossbeam-utils-0.8.22",
+        ":crossbeam-epoch-0.9",
+        ":crossbeam-utils-0.8",
     ],
 )
 
@@ -3633,18 +3671,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "crossbeam-utils-0.8.22",
+    name = "crossbeam-utils-0.8",
     srcs = [":crossbeam-utils-0.8.22.crate"],
     crate = "crossbeam_utils",
     crate_root = "crossbeam-utils-0.8.22.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "crossbeam_utils",
         "CARGO_CRATE_NAME": "crossbeam_utils",
         "CARGO_MANIFEST_DIR": "crossbeam-utils-0.8.22.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Utilities for concurrent programming",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/crossbeam-rs/crossbeam/tree/master/crossbeam-utils",
         "CARGO_PKG_NAME": "crossbeam-utils",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/crossbeam-rs/crossbeam",
+        "CARGO_PKG_RUST_VERSION": "1.60",
         "CARGO_PKG_VERSION": "0.8.22",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "8",
@@ -3660,7 +3702,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "crossterm",
-    actual = ":crossterm-0.29.0",
+    actual = ":crossterm-0.29",
     visibility = ["PUBLIC"],
 )
 
@@ -3673,18 +3715,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "crossterm-0.29.0",
+    name = "crossterm-0.29",
     srcs = [":crossterm-0.29.0.crate"],
     crate = "crossterm",
     crate_root = "crossterm-0.29.0.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "crossterm",
         "CARGO_CRATE_NAME": "crossterm",
         "CARGO_MANIFEST_DIR": "crossterm-0.29.0.crate",
         "CARGO_PKG_AUTHORS": "T. Post",
         "CARGO_PKG_DESCRIPTION": "A crossplatform terminal library for manipulating terminals.",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "crossterm",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/crossterm-rs/crossterm",
+        "CARGO_PKG_RUST_VERSION": "1.63.0",
         "CARGO_PKG_VERSION": "0.29.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "29",
@@ -3702,56 +3748,56 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":mio-1.2.2",
-                ":rustix-1.1.4",
-                ":signal-hook-0.3.18",
-                ":signal-hook-mio-0.2.5",
+                ":mio-1",
+                ":rustix-1",
+                ":signal-hook-0.3",
+                ":signal-hook-mio-0.2",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":mio-1.2.2",
-                ":rustix-1.1.4",
-                ":signal-hook-0.3.18",
-                ":signal-hook-mio-0.2.5",
+                ":mio-1",
+                ":rustix-1",
+                ":signal-hook-0.3",
+                ":signal-hook-mio-0.2",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":mio-1.2.2",
-                ":rustix-1.1.4",
-                ":signal-hook-0.3.18",
-                ":signal-hook-mio-0.2.5",
+                ":mio-1",
+                ":rustix-1",
+                ":signal-hook-0.3",
+                ":signal-hook-mio-0.2",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":mio-1.2.2",
-                ":rustix-1.1.4",
-                ":signal-hook-0.3.18",
-                ":signal-hook-mio-0.2.5",
+                ":mio-1",
+                ":rustix-1",
+                ":signal-hook-0.3",
+                ":signal-hook-mio-0.2",
             ],
         ),
         "windows-gnu": dict(
             deps = [
-                ":crossterm_winapi-0.9.1",
-                ":winapi-0.3.9",
+                ":crossterm_winapi-0.9",
+                ":winapi-0.3",
             ],
         ),
         "windows-msvc": dict(
             deps = [
-                ":crossterm_winapi-0.9.1",
-                ":winapi-0.3.9",
+                ":crossterm_winapi-0.9",
+                ":winapi-0.3",
             ],
         ),
     },
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":derive_more-2.1.1",
-        ":document-features-0.2.12",
-        ":futures-core-0.3.32",
-        ":parking_lot-0.12.5",
+        ":bitflags-2",
+        ":derive_more-2",
+        ":document-features-0.2",
+        ":futures-core-0.3",
+        ":parking_lot-0.12",
     ],
 )
 
@@ -3764,13 +3810,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "crossterm_winapi-0.9.1",
+    name = "crossterm_winapi-0.9",
     srcs = [":crossterm_winapi-0.9.1.crate"],
     crate = "crossterm_winapi",
     crate_root = "crossterm_winapi-0.9.1.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":winapi-0.3.9"],
+    deps = [":winapi-0.3"],
 )
 
 shims.http_archive(
@@ -3782,46 +3828,54 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "crunchy-0.2.4",
+    name = "crunchy-0.2",
     srcs = [":crunchy-0.2.4.crate"],
     crate = "crunchy",
     crate_root = "crunchy-0.2.4.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "crunchy",
         "CARGO_CRATE_NAME": "crunchy",
         "CARGO_MANIFEST_DIR": "crunchy-0.2.4.crate",
         "CARGO_PKG_AUTHORS": "Eira Fransham <jackefransham@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Crunchy unroller: deterministically unroll constant loops",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/eira-fransham/crunchy",
         "CARGO_PKG_NAME": "crunchy",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/eira-fransham/crunchy",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "0.2.4",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "2",
         "CARGO_PKG_VERSION_PATCH": "4",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :crunchy-0.2.4-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :crunchy-0.2-build-script-run[out_dir])",
     },
     features = [
         "default",
         "limit_128",
     ],
-    rustc_flags = ["@$(location :crunchy-0.2.4-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :crunchy-0.2-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
 third_party_rust.rust_binary(
-    name = "crunchy-0.2.4-build-script-build",
+    name = "crunchy-0.2-build-script-build",
     srcs = [":crunchy-0.2.4.crate"],
     crate = "build_script_build",
     crate_root = "crunchy-0.2.4.crate/build.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
         "CARGO_MANIFEST_DIR": "crunchy-0.2.4.crate",
         "CARGO_PKG_AUTHORS": "Eira Fransham <jackefransham@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Crunchy unroller: deterministically unroll constant loops",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/eira-fransham/crunchy",
         "CARGO_PKG_NAME": "crunchy",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/eira-fransham/crunchy",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "0.2.4",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "2",
@@ -3836,13 +3890,16 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "crunchy-0.2.4-build-script-run",
+    name = "crunchy-0.2-build-script-run",
     package_name = "crunchy",
-    buildscript_rule = ":crunchy-0.2.4-build-script-build",
+    buildscript_rule = ":crunchy-0.2-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "Eira Fransham <jackefransham@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Crunchy unroller: deterministically unroll constant loops",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/eira-fransham/crunchy",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/eira-fransham/crunchy",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "2",
         "CARGO_PKG_VERSION_PATCH": "4",
@@ -3864,7 +3921,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "crypto-common-0.1.7",
+    name = "crypto-common-0.1",
     srcs = [":crypto-common-0.1.7.crate"],
     crate = "crypto_common",
     crate_root = "crypto-common-0.1.7.crate/src/lib.rs",
@@ -3872,8 +3929,8 @@ third_party_rust.rust_library(
     features = ["std"],
     visibility = [],
     deps = [
-        ":generic-array-0.14.7",
-        ":typenum-1.20.1",
+        ":generic-array-0.14",
+        ":typenum-1",
     ],
 )
 
@@ -3886,13 +3943,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "crypto-common-0.2.2",
+    name = "crypto-common-0.2",
     srcs = [":crypto-common-0.2.2.crate"],
     crate = "crypto_common",
     crate_root = "crypto-common-0.2.2.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":hybrid-array-0.4.13"],
+    deps = [":hybrid-array-0.4"],
 )
 
 shims.http_archive(
@@ -3904,7 +3961,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "csscolorparser-0.6.2",
+    name = "csscolorparser-0.6",
     srcs = [":csscolorparser-0.6.2.crate"],
     crate = "csscolorparser",
     crate_root = "csscolorparser-0.6.2.crate/src/lib.rs",
@@ -3917,8 +3974,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":lab-0.11.0",
-        ":phf-0.11.3",
+        ":lab-0.11",
+        ":phf-0.11",
     ],
 )
 
@@ -3931,7 +3988,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ctor-0.1.26",
+    name = "ctor-0.1",
     srcs = [":ctor-0.1.26.crate"],
     crate = "ctor",
     crate_root = "ctor-0.1.26.crate/src/lib.rs",
@@ -3939,8 +3996,8 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":quote-1.0.46",
-        ":syn-1.0.109",
+        ":quote-1",
+        ":syn-1",
     ],
 )
 
@@ -3953,13 +4010,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ctr-0.9.2",
+    name = "ctr-0.9",
     srcs = [":ctr-0.9.2.crate"],
     crate = "ctr",
     crate_root = "ctr-0.9.2.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":cipher-0.4.4"],
+    deps = [":cipher-0.4"],
 )
 
 shims.http_archive(
@@ -3971,13 +4028,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ctutils-0.4.2",
+    name = "ctutils-0.4",
     srcs = [":ctutils-0.4.2.crate"],
     crate = "ctutils",
     crate_root = "ctutils-0.4.2.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":cmov-0.5.4"],
+    deps = [":cmov-0.5"],
 )
 
 shims.http_archive(
@@ -3989,13 +4046,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "curve25519-dalek-5.0.0-rc.0",
+    name = "curve25519-dalek-5",
     srcs = [":curve25519-dalek-5.0.0-rc.0.crate"],
     crate = "curve25519_dalek",
     crate_root = "curve25519-dalek-5.0.0-rc.0.crate/src/lib.rs",
     edition = "2024",
     env = {
-        "OUT_DIR": "$(location :curve25519-dalek-5.0.0-rc.0-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :curve25519-dalek-5-build-script-run[out_dir])",
     },
     features = [
         "alloc",
@@ -4009,43 +4066,43 @@ third_party_rust.rust_library(
     platform = {
         "linux-x86_64": dict(
             deps = [
-                ":cpufeatures-0.3.0",
-                ":curve25519-dalek-derive-0.1.1",
+                ":cpufeatures-0.3",
+                ":curve25519-dalek-derive-0.1",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":cpufeatures-0.3.0",
-                ":curve25519-dalek-derive-0.1.1",
+                ":cpufeatures-0.3",
+                ":curve25519-dalek-derive-0.1",
             ],
         ),
         "windows-gnu": dict(
             deps = [
-                ":cpufeatures-0.3.0",
-                ":curve25519-dalek-derive-0.1.1",
+                ":cpufeatures-0.3",
+                ":curve25519-dalek-derive-0.1",
             ],
         ),
         "windows-msvc": dict(
             deps = [
-                ":cpufeatures-0.3.0",
-                ":curve25519-dalek-derive-0.1.1",
+                ":cpufeatures-0.3",
+                ":curve25519-dalek-derive-0.1",
             ],
         ),
     },
-    rustc_flags = ["@$(location :curve25519-dalek-5.0.0-rc.0-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :curve25519-dalek-5-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":digest-0.11.3",
-        ":rand_core-0.10.1",
-        ":serde-1.0.228",
-        ":subtle-2.6.1",
-        ":zeroize-1.9.0",
+        ":cfg-if-1",
+        ":digest-0.11",
+        ":rand_core-0.10",
+        ":serde-1",
+        ":subtle-2",
+        ":zeroize-1",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "curve25519-dalek-5.0.0-rc.0-build-script-build",
+    name = "curve25519-dalek-5-build-script-build",
     srcs = [":curve25519-dalek-5.0.0-rc.0.crate"],
     crate = "build_script_build",
     crate_root = "curve25519-dalek-5.0.0-rc.0.crate/build.rs",
@@ -4060,13 +4117,13 @@ third_party_rust.rust_binary(
         "zeroize",
     ],
     visibility = [],
-    deps = [":rustc_version-0.4.1"],
+    deps = [":rustc_version-0.4"],
 )
 
 third_party_rust.buildscript_run(
-    name = "curve25519-dalek-5.0.0-rc.0-build-script-run",
+    name = "curve25519-dalek-5-build-script-run",
     package_name = "curve25519-dalek",
-    buildscript_rule = ":curve25519-dalek-5.0.0-rc.0-build-script-build",
+    buildscript_rule = ":curve25519-dalek-5-build-script-build",
     features = [
         "alloc",
         "default",
@@ -4088,7 +4145,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "curve25519-dalek-derive-0.1.1",
+    name = "curve25519-dalek-derive-0.1",
     srcs = [":curve25519-dalek-derive-0.1.1.crate"],
     crate = "curve25519_dalek_derive",
     crate_root = "curve25519-dalek-derive-0.1.1.crate/src/lib.rs",
@@ -4096,9 +4153,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -4111,7 +4168,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "darling-0.23.0",
+    name = "darling-0.23",
     srcs = [":darling-0.23.0.crate"],
     crate = "darling",
     crate_root = "darling-0.23.0.crate/src/lib.rs",
@@ -4122,8 +4179,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":darling_core-0.23.0",
-        ":darling_macro-0.23.0",
+        ":darling_core-0.23",
+        ":darling_macro-0.23",
     ],
 )
 
@@ -4136,7 +4193,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "darling_core-0.23.0",
+    name = "darling_core-0.23",
     srcs = [":darling_core-0.23.0.crate"],
     crate = "darling_core",
     crate_root = "darling_core-0.23.0.crate/src/lib.rs",
@@ -4147,11 +4204,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":ident_case-1.0.1",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":strsim-0.11.1",
-        ":syn-2.0.119",
+        ":ident_case-1",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":strsim-0.11",
+        ":syn-2",
     ],
 )
 
@@ -4164,7 +4221,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "darling_macro-0.23.0",
+    name = "darling_macro-0.23",
     srcs = [":darling_macro-0.23.0.crate"],
     crate = "darling_macro",
     crate_root = "darling_macro-0.23.0.crate/src/lib.rs",
@@ -4172,15 +4229,15 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":darling_core-0.23.0",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":darling_core-0.23",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
 shims.alias(
     name = "dashmap",
-    actual = ":dashmap-6.2.1",
+    actual = ":dashmap-6",
     visibility = ["PUBLIC"],
 )
 
@@ -4193,19 +4250,19 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "dashmap-6.2.1",
+    name = "dashmap-6",
     srcs = [":dashmap-6.2.1.crate"],
     crate = "dashmap",
     crate_root = "dashmap-6.2.1.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":crossbeam-utils-0.8.22",
-        ":hashbrown-0.14.5",
-        ":lock_api-0.4.14",
-        ":once_cell-1.21.4",
-        ":parking_lot_core-0.9.12",
+        ":cfg-if-1",
+        ":crossbeam-utils-0.8",
+        ":hashbrown-0.14",
+        ":lock_api-0.4",
+        ":once_cell-1",
+        ":parking_lot_core-0.9",
     ],
 )
 
@@ -4218,7 +4275,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "dashu-base-0.4.3",
+    name = "dashu-base-0.4",
     srcs = [":dashu-base-0.4.3.crate"],
     crate = "dashu_base",
     crate_root = "dashu-base-0.4.3.crate/src/lib.rs",
@@ -4236,7 +4293,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "dashu-int-0.4.3",
+    name = "dashu-int-0.4",
     srcs = [":dashu-int-0.4.3.crate"],
     crate = "dashu_int",
     crate_root = "dashu-int-0.4.3.crate/src/lib.rs",
@@ -4244,11 +4301,11 @@ third_party_rust.rust_library(
     features = ["std"],
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":dashu-base-0.4.3",
-        ":num-modular-0.6.4",
-        ":rustversion-1.0.23",
-        ":static_assertions-1.1.0",
+        ":cfg-if-1",
+        ":dashu-base-0.4",
+        ":num-modular-0.6",
+        ":rustversion-1",
+        ":static_assertions-1",
     ],
 )
 
@@ -4261,7 +4318,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "data-encoding-2.11.0",
+    name = "data-encoding-2",
     srcs = [":data-encoding-2.11.0.crate"],
     crate = "data_encoding",
     crate_root = "data-encoding-2.11.0.crate/src/lib.rs",
@@ -4283,15 +4340,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "data-encoding-macro-0.1.20",
+    name = "data-encoding-macro-0.1",
     srcs = [":data-encoding-macro-0.1.20.crate"],
     crate = "data_encoding_macro",
     crate_root = "data-encoding-macro-0.1.20.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":data-encoding-2.11.0",
-        ":data-encoding-macro-internal-0.1.18",
+        ":data-encoding-2",
+        ":data-encoding-macro-internal-0.1",
     ],
 )
 
@@ -4304,7 +4361,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "data-encoding-macro-internal-0.1.18",
+    name = "data-encoding-macro-internal-0.1",
     srcs = [":data-encoding-macro-internal-0.1.18.crate"],
     crate = "data_encoding_macro_internal",
     crate_root = "data-encoding-macro-internal-0.1.18.crate/src/lib.rs",
@@ -4312,8 +4369,8 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":data-encoding-2.11.0",
-        ":syn-2.0.119",
+        ":data-encoding-2",
+        ":syn-2",
     ],
 )
 
@@ -4326,18 +4383,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "debugserver-types-0.5.0",
+    name = "debugserver-types-0.5",
     srcs = [":debugserver-types-0.5.0.crate"],
     crate = "debugserver_types",
     crate_root = "debugserver-types-0.5.0.crate/src/lib.rs",
     edition = "2018",
     env = {
+        "CARGO_BIN_NAME": "debugserver_types",
         "CARGO_CRATE_NAME": "debugserver_types",
         "CARGO_MANIFEST_DIR": "debugserver-types-0.5.0.crate",
         "CARGO_PKG_AUTHORS": "Markus Westerlind <marwes91@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Type definitions for Visual Code's debug server.",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "debugserver-types",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/Marwes/debugserver-types",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "0.5.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "5",
@@ -4346,9 +4407,9 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
-        ":schemafy-0.5.2",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
+        ":schemafy-0.5",
+        ":serde-1",
+        ":serde_json-1",
     ],
 )
 
@@ -4361,7 +4422,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "deltae-0.3.2",
+    name = "deltae-0.3",
     srcs = [":deltae-0.3.2.crate"],
     crate = "deltae",
     crate_root = "deltae-0.3.2.crate/src/lib.rs",
@@ -4378,7 +4439,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "der-0.8.1",
+    name = "der-0.8",
     srcs = [":der-0.8.1.crate"],
     crate = "der",
     crate_root = "der-0.8.1.crate/src/lib.rs",
@@ -4391,9 +4452,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":const-oid-0.10.2",
-        ":pem-rfc7468-1.0.0",
-        ":zeroize-1.9.0",
+        ":const-oid-0.10",
+        ":pem-rfc7468-1",
+        ":zeroize-1",
     ],
 )
 
@@ -4406,7 +4467,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "deranged-0.5.8",
+    name = "deranged-0.5",
     srcs = [":deranged-0.5.8.crate"],
     crate = "deranged",
     crate_root = "deranged-0.5.8.crate/src/lib.rs",
@@ -4416,7 +4477,7 @@ third_party_rust.rust_library(
         "serde",
     ],
     visibility = [],
-    deps = [":serde_core-1.0.228"],
+    deps = [":serde_core-1"],
 )
 
 shims.http_archive(
@@ -4428,7 +4489,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "derivative-2.2.0",
+    name = "derivative-2",
     srcs = [":derivative-2.2.0.crate"],
     crate = "derivative",
     crate_root = "derivative-2.2.0.crate/src/lib.rs",
@@ -4436,9 +4497,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-1.0.109",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-1",
     ],
 )
 
@@ -4451,7 +4512,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "derive-where-1.6.1",
+    name = "derive-where-1",
     srcs = [":derive-where-1.6.1.crate"],
     crate = "derive_where",
     crate_root = "derive-where-1.6.1.crate/src/lib.rs",
@@ -4459,9 +4520,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -4474,7 +4535,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "derive_more-1.0.0",
+    name = "derive_more-1",
     srcs = [":derive_more-1.0.0.crate"],
     crate = "derive_more",
     crate_root = "derive_more-1.0.0.crate/src/lib.rs",
@@ -4509,7 +4570,7 @@ third_party_rust.rust_library(
         "unwrap",
     ],
     visibility = [],
-    deps = [":derive_more-impl-1.0.0"],
+    deps = [":derive_more-impl-1"],
 )
 
 shims.http_archive(
@@ -4521,7 +4582,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "derive_more-2.1.1",
+    name = "derive_more-2",
     srcs = [":derive_more-2.1.1.crate"],
     crate = "derive_more",
     crate_root = "derive_more-2.1.1.crate/src/lib.rs",
@@ -4542,7 +4603,7 @@ third_party_rust.rust_library(
         "try_into",
     ],
     visibility = [],
-    deps = [":derive_more-impl-2.1.1"],
+    deps = [":derive_more-impl-2"],
 )
 
 shims.http_archive(
@@ -4554,7 +4615,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "derive_more-impl-1.0.0",
+    name = "derive_more-impl-1",
     srcs = [":derive_more-impl-1.0.0.crate"],
     crate = "derive_more_impl",
     crate_root = "derive_more-impl-1.0.0.crate/src/lib.rs",
@@ -4589,11 +4650,11 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":convert_case-0.6.0",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
-        ":unicode-xid-0.2.6",
+        ":convert_case-0.6",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
+        ":unicode-xid-0.2",
     ],
 )
 
@@ -4606,7 +4667,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "derive_more-impl-2.1.1",
+    name = "derive_more-impl-2",
     srcs = [":derive_more-impl-2.1.1.crate"],
     crate = "derive_more_impl",
     crate_root = "derive_more-impl-2.1.1.crate/src/lib.rs",
@@ -4628,16 +4689,16 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":convert_case-0.10.0",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
-        ":unicode-xid-0.2.6",
+        ":convert_case-0.10",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
+        ":unicode-xid-0.2",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "dial9-macro-0.3.7",
+    name = "dial9-macro-0.3",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_macro",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-macro/src/lib.rs",
@@ -4645,14 +4706,14 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "dial9-perf-self-profile-0.4.3",
+    name = "dial9-perf-self-profile-0.4",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_perf_self_profile",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/perf-self-profile/src/lib.rs",
@@ -4660,49 +4721,53 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":blazesym-0.2.5",
-                ":crossbeam-utils-0.8.22",
-                ":libc-0.2.186",
-                ":perf-event-data-0.1.8",
-                ":perf-event-open-sys2-5.0.6",
+                ":blazesym-0.2",
+                ":crossbeam-utils-0.8",
+                ":libc-0.2",
+                ":perf-event-data-0.1",
+                ":perf-event-open-sys2-5",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":blazesym-0.2.5",
-                ":crossbeam-utils-0.8.22",
-                ":libc-0.2.186",
-                ":perf-event-data-0.1.8",
-                ":perf-event-open-sys2-5.0.6",
+                ":blazesym-0.2",
+                ":crossbeam-utils-0.8",
+                ":libc-0.2",
+                ":perf-event-data-0.1",
+                ":perf-event-open-sys2-5",
             ],
         ),
     },
     visibility = [],
     deps = [
-        ":dial9-trace-format-0.4.1",
-        ":tracing-0.1.44",
+        ":dial9-trace-format-0.4",
+        ":tracing-0.1",
     ],
 )
 
 shims.alias(
     name = "dial9-tokio-telemetry",
-    actual = ":dial9-tokio-telemetry-0.3.13",
+    actual = ":dial9-tokio-telemetry-0.3",
     visibility = ["PUBLIC"],
 )
 
 third_party_rust.rust_library(
-    name = "dial9-tokio-telemetry-0.3.13",
+    name = "dial9-tokio-telemetry-0.3",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_tokio_telemetry",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-tokio-telemetry/src/lib.rs",
     edition = "2024",
     env = {
+        "CARGO_BIN_NAME": "dial9_tokio_telemetry",
         "CARGO_CRATE_NAME": "dial9_tokio_telemetry",
         "CARGO_MANIFEST_DIR": "dial9-tokio-telemetry-43aa6b6c06fdd4e0",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Low-overhead runtime telemetry for Tokio with poll timing, wake events, and CPU profiling",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "dial9-tokio-telemetry",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dial9-rs/dial9-tokio-telemetry",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "0.3.13",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "3",
@@ -4715,32 +4780,32 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":arc-swap-1.9.2",
-        ":bon-3.9.3",
-        ":bytes-1.12.1",
-        ":crossbeam-queue-0.3.13",
-        ":dial9-macro-0.3.7",
-        ":dial9-perf-self-profile-0.4.3",
-        ":dial9-trace-format-0.4.1",
-        ":flate2-1.1.9",
-        ":futures-util-0.3.32",
-        ":hostname-0.4.2",
-        ":libc-0.2.186",
-        ":metrique-0.1.27",
-        ":metrique-timesource-0.1.10",
-        ":metrique-writer-0.1.24",
-        ":pin-project-lite-0.2.17",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
-        ":smallvec-1.15.2",
-        ":tokio-1.53.0",
-        ":tokio-util-0.7.18",
-        ":tracing-0.1.44",
+        ":arc-swap-1",
+        ":bon-3",
+        ":bytes-1",
+        ":crossbeam-queue-0.3",
+        ":dial9-macro-0.3",
+        ":dial9-perf-self-profile-0.4",
+        ":dial9-trace-format-0.4",
+        ":flate2-1",
+        ":futures-util-0.3",
+        ":hostname-0.4",
+        ":libc-0.2",
+        ":metrique-0.1",
+        ":metrique-timesource-0.1",
+        ":metrique-writer-0.1",
+        ":pin-project-lite-0.2",
+        ":serde-1",
+        ":serde_json-1",
+        ":smallvec-1",
+        ":tokio-1",
+        ":tokio-util-0.7",
+        ":tracing-0.1",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "dial9-trace-format-0.4.1",
+    name = "dial9-trace-format-0.4",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_trace_format",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-trace-format/src/lib.rs",
@@ -4751,13 +4816,13 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":dial9-trace-format-derive-0.4.1",
-        ":serde-1.0.228",
+        ":dial9-trace-format-derive-0.4",
+        ":serde-1",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "dial9-trace-format-derive-0.4.1",
+    name = "dial9-trace-format-derive-0.4",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_trace_format_derive",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-trace-format-derive/src/lib.rs",
@@ -4765,9 +4830,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -4780,7 +4845,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "diatomic-waker-0.2.3",
+    name = "diatomic-waker-0.2",
     srcs = [":diatomic-waker-0.2.3.crate"],
     crate = "diatomic_waker",
     crate_root = "diatomic-waker-0.2.3.crate/src/lib.rs",
@@ -4801,7 +4866,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "diff-0.1.13",
+    name = "diff-0.1",
     srcs = [":diff-0.1.13.crate"],
     crate = "diff",
     crate_root = "diff-0.1.13.crate/src/lib.rs",
@@ -4818,7 +4883,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "digest-0.10.7",
+    name = "digest-0.10",
     srcs = [":digest-0.10.7.crate"],
     crate = "digest",
     crate_root = "digest-0.10.7.crate/src/lib.rs",
@@ -4834,9 +4899,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":block-buffer-0.10.4",
-        ":crypto-common-0.1.7",
-        ":subtle-2.6.1",
+        ":block-buffer-0.10",
+        ":crypto-common-0.1",
+        ":subtle-2",
     ],
 )
 
@@ -4849,7 +4914,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "digest-0.11.3",
+    name = "digest-0.11",
     srcs = [":digest-0.11.3.crate"],
     crate = "digest",
     crate_root = "digest-0.11.3.crate/src/lib.rs",
@@ -4862,13 +4927,13 @@ third_party_rust.rust_library(
         "oid",
     ],
     named_deps = {
-        "common": ":crypto-common-0.2.2",
+        "common": ":crypto-common-0.2",
     },
     visibility = [],
     deps = [
-        ":block-buffer-0.12.1",
-        ":const-oid-0.10.2",
-        ":ctutils-0.4.2",
+        ":block-buffer-0.12",
+        ":const-oid-0.10",
+        ":ctutils-0.4",
     ],
 )
 
@@ -4881,13 +4946,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "dirs-6.0.0",
+    name = "dirs-6",
     srcs = [":dirs-6.0.0.crate"],
     crate = "dirs",
     crate_root = "dirs-6.0.0.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":dirs-sys-0.5.0"],
+    deps = [":dirs-sys-0.5"],
 )
 
 shims.http_archive(
@@ -4899,15 +4964,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "dirs-next-2.0.0",
+    name = "dirs-next-2",
     srcs = [":dirs-next-2.0.0.crate"],
     crate = "dirs_next",
     crate_root = "dirs-next-2.0.0.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":dirs-sys-next-0.1.2",
+        ":cfg-if-1",
+        ":dirs-sys-next-0.1",
     ],
 )
 
@@ -4920,33 +4985,33 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "dirs-sys-0.5.0",
+    name = "dirs-sys-0.5",
     srcs = [":dirs-sys-0.5.0.crate"],
     crate = "dirs_sys",
     crate_root = "dirs-sys-0.5.0.crate/src/lib.rs",
     edition = "2015",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
-    deps = [":option-ext-0.2.0"],
+    deps = [":option-ext-0.2"],
 )
 
 shims.http_archive(
@@ -4958,29 +5023,29 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "dirs-sys-next-0.1.2",
+    name = "dirs-sys-next-0.1",
     srcs = [":dirs-sys-next-0.1.2.crate"],
     crate = "dirs_sys_next",
     crate_root = "dirs-sys-next-0.1.2.crate/src/lib.rs",
     edition = "2018",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "windows-gnu": dict(
-            deps = [":winapi-0.3.9"],
+            deps = [":winapi-0.3"],
         ),
         "windows-msvc": dict(
-            deps = [":winapi-0.3.9"],
+            deps = [":winapi-0.3"],
         ),
     },
     visibility = [],
@@ -4995,7 +5060,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "dispatch2-0.3.1",
+    name = "dispatch2-0.3",
     srcs = [":dispatch2-0.3.1.crate"],
     crate = "dispatch2",
     crate_root = "dispatch2-0.3.1.crate/src/lib.rs",
@@ -5006,21 +5071,21 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":objc2-0.6.4",
+        ":bitflags-2",
+        ":objc2-0.6",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "display_container-0.9.0",
+    name = "display_container-0.9",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "display_container",
     crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/display_container/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":either-1.16.0",
-        ":indenter-0.3.4",
+        ":either-1",
+        ":indenter-0.3",
     ],
 )
 
@@ -5033,7 +5098,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "displaydoc-0.2.6",
+    name = "displaydoc-0.2",
     srcs = [":displaydoc-0.2.6.crate"],
     crate = "displaydoc",
     crate_root = "displaydoc-0.2.6.crate/src/lib.rs",
@@ -5041,9 +5106,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -5056,7 +5121,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "document-features-0.2.12",
+    name = "document-features-0.2",
     srcs = [":document-features-0.2.12.crate"],
     crate = "document_features",
     crate_root = "document-features-0.2.12.crate/lib.rs",
@@ -5064,7 +5129,7 @@ third_party_rust.rust_library(
     features = ["default"],
     proc_macro = True,
     visibility = [],
-    deps = [":litrs-1.0.0"],
+    deps = [":litrs-1"],
 )
 
 shims.http_archive(
@@ -5076,7 +5141,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "dotenvy-0.15.7",
+    name = "dotenvy-0.15",
     srcs = [":dotenvy-0.15.7.crate"],
     crate = "dotenvy",
     crate_root = "dotenvy-0.15.7.crate/src/lib.rs",
@@ -5093,7 +5158,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "dunce-1.0.5",
+    name = "dunce-1",
     srcs = [":dunce-1.0.5.crate"],
     crate = "dunce",
     crate_root = "dunce-1.0.5.crate/src/lib.rs",
@@ -5103,7 +5168,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "dupe",
-    actual = ":dupe-0.9.1",
+    actual = ":dupe-0.9",
     visibility = ["PUBLIC"],
 )
 
@@ -5116,18 +5181,28 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "dupe-0.9.1",
+    name = "dupe-0.9",
+    srcs = [":dupe-0.9.1.crate"],
+    crate = "dupe",
+    crate_root = "dupe-0.9.1.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [":dupe_derive-0.9"],
+)
+
+third_party_rust.rust_library(
+    name = "dupe-0.9-469ff502",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe",
     crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":dupe_derive-0.9.1"],
+    deps = [":dupe_derive-0.9-469ff502"],
 )
 
 shims.alias(
     name = "dupe_derive",
-    actual = ":dupe_derive-0.9.1",
+    actual = ":dupe_derive-0.9",
     visibility = ["PUBLIC"],
 )
 
@@ -5140,7 +5215,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "dupe_derive-0.9.1",
+    name = "dupe_derive-0.9",
+    srcs = [":dupe_derive-0.9.1.crate"],
+    crate = "dupe_derive",
+    crate_root = "dupe_derive-0.9.1.crate/src/lib.rs",
+    edition = "2021",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
+    ],
+)
+
+third_party_rust.rust_library(
+    name = "dupe_derive-0.9-469ff502",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "dupe_derive",
     crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe_derive/src/lib.rs",
@@ -5148,9 +5238,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -5163,7 +5253,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "duration-str-0.11.3",
+    name = "duration-str-0.11",
     srcs = [":duration-str-0.11.3.crate"],
     crate = "duration_str",
     crate_root = "duration-str-0.11.3.crate/src/lib.rs",
@@ -5174,11 +5264,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":rust_decimal-1.42.1",
-        ":serde-1.0.228",
-        ":thiserror-2.0.18",
-        ":time-0.3.53",
-        ":winnow-0.6.26",
+        ":rust_decimal-1",
+        ":serde-1",
+        ":thiserror-2",
+        ":time-0.3",
+        ":winnow-0.6",
     ],
 )
 
@@ -5191,7 +5281,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ed25519-3.0.0",
+    name = "ed25519-3",
     srcs = [":ed25519-3.0.0.crate"],
     crate = "ed25519",
     crate_root = "ed25519-3.0.0.crate/src/lib.rs",
@@ -5204,9 +5294,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":pkcs8-0.11.0",
-        ":serdect-0.4.3",
-        ":signature-3.0.0",
+        ":pkcs8-0.11",
+        ":serdect-0.4",
+        ":signature-3",
     ],
 )
 
@@ -5219,7 +5309,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ed25519-dalek-3.0.0-rc.0",
+    name = "ed25519-dalek-3",
     srcs = [":ed25519-dalek-3.0.0-rc.0.crate"],
     crate = "ed25519_dalek",
     crate_root = "ed25519-dalek-3.0.0-rc.0.crate/src/lib.rs",
@@ -5237,14 +5327,14 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":curve25519-dalek-5.0.0-rc.0",
-        ":ed25519-3.0.0",
-        ":rand_core-0.10.1",
-        ":serde-1.0.228",
-        ":sha2-0.11.0",
-        ":signature-3.0.0",
-        ":subtle-2.6.1",
-        ":zeroize-1.9.0",
+        ":curve25519-dalek-5",
+        ":ed25519-3",
+        ":rand_core-0.10",
+        ":serde-1",
+        ":sha2-0.11",
+        ":signature-3",
+        ":subtle-2",
+        ":zeroize-1",
     ],
 )
 
@@ -5257,7 +5347,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "educe-0.6.0",
+    name = "educe-0.6",
     srcs = [":educe-0.6.0.crate"],
     crate = "educe",
     crate_root = "educe-0.6.0.crate/src/lib.rs",
@@ -5280,16 +5370,16 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":enum-ordinalize-4.4.1",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":enum-ordinalize-4",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
 shims.alias(
     name = "educe",
-    actual = ":educe-0.7.4",
+    actual = ":educe-0.7",
     visibility = ["PUBLIC"],
 )
 
@@ -5302,7 +5392,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "educe-0.7.4",
+    name = "educe-0.7",
     srcs = [":educe-0.7.4.crate"],
     crate = "educe",
     crate_root = "educe-0.7.4.crate/src/lib.rs",
@@ -5325,10 +5415,10 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":enum-ordinalize-4.4.1",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":enum-ordinalize-4",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -5341,7 +5431,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "either-1.16.0",
+    name = "either-1",
     srcs = [":either-1.16.0.crate"],
     crate = "either",
     crate_root = "either-1.16.0.crate/src/lib.rs",
@@ -5363,13 +5453,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ena-0.14.4",
+    name = "ena-0.14",
     srcs = [":ena-0.14.4.crate"],
     crate = "ena",
     crate_root = "ena-0.14.4.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":log-0.4.33"],
+    deps = [":log-0.4"],
 )
 
 shims.http_archive(
@@ -5381,7 +5471,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "encode_unicode-1.0.0",
+    name = "encode_unicode-1",
     srcs = [":encode_unicode-1.0.0.crate"],
     crate = "encode_unicode",
     crate_root = "encode_unicode-1.0.0.crate/src/lib.rs",
@@ -5402,7 +5492,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "encoding_rs-0.8.35",
+    name = "encoding_rs-0.8",
     srcs = [":encoding_rs-0.8.35.crate"],
     crate = "encoding_rs",
     crate_root = "encoding_rs-0.8.35.crate/src/lib.rs",
@@ -5412,7 +5502,7 @@ third_party_rust.rust_library(
         "default",
     ],
     visibility = [],
-    deps = [":cfg-if-1.0.4"],
+    deps = [":cfg-if-1"],
 )
 
 shims.http_archive(
@@ -5424,7 +5514,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "endian-type-0.1.2",
+    name = "endian-type-0.1",
     srcs = [":endian-type-0.1.2.crate"],
     crate = "endian_type",
     crate_root = "endian-type-0.1.2.crate/src/lib.rs",
@@ -5441,18 +5531,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "enum-assoc-1.3.0",
+    name = "enum-assoc-1",
     srcs = [":enum-assoc-1.3.0.crate"],
     crate = "enum_assoc",
     crate_root = "enum-assoc-1.3.0.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "enum_assoc",
         "CARGO_CRATE_NAME": "enum_assoc",
         "CARGO_MANIFEST_DIR": "enum-assoc-1.3.0.crate",
         "CARGO_PKG_AUTHORS": "Griffin O'Neill <gsoneill1003@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Procedural macro to associate constants with enum variants.\n",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/Eolu/enum-assoc",
         "CARGO_PKG_NAME": "enum-assoc",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/Eolu/enum-assoc",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "1.3.0",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "3",
@@ -5462,9 +5556,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -5477,14 +5571,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "enum-ordinalize-4.4.1",
+    name = "enum-ordinalize-4",
     srcs = [":enum-ordinalize-4.4.1.crate"],
     crate = "enum_ordinalize",
     crate_root = "enum-ordinalize-4.4.1.crate/src/lib.rs",
     edition = "2024",
     features = ["derive"],
     visibility = [],
-    deps = [":enum-ordinalize-derive-4.4.1"],
+    deps = [":enum-ordinalize-derive-4"],
 )
 
 shims.http_archive(
@@ -5496,7 +5590,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "enum-ordinalize-derive-4.4.1",
+    name = "enum-ordinalize-derive-4",
     srcs = [":enum-ordinalize-derive-4.4.1.crate"],
     crate = "enum_ordinalize_derive",
     crate_root = "enum-ordinalize-derive-4.4.1.crate/src/lib.rs",
@@ -5504,9 +5598,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -5519,7 +5613,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "enum_dispatch-0.3.13",
+    name = "enum_dispatch-0.3",
     srcs = [":enum_dispatch-0.3.13.crate"],
     crate = "enum_dispatch",
     crate_root = "enum_dispatch-0.3.13.crate/src/lib.rs",
@@ -5527,10 +5621,10 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":once_cell-1.21.4",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":once_cell-1",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -5543,13 +5637,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "enumflags2-0.7.12",
+    name = "enumflags2-0.7",
     srcs = [":enumflags2-0.7.12.crate"],
     crate = "enumflags2",
     crate_root = "enumflags2-0.7.12.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":enumflags2_derive-0.7.12"],
+    deps = [":enumflags2_derive-0.7"],
 )
 
 shims.http_archive(
@@ -5561,7 +5655,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "enumflags2_derive-0.7.12",
+    name = "enumflags2_derive-0.7",
     srcs = [":enumflags2_derive-0.7.12.crate"],
     crate = "enumflags2_derive",
     crate_root = "enumflags2_derive-0.7.12.crate/src/lib.rs",
@@ -5569,9 +5663,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -5584,7 +5678,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "env_filter-2.0.0",
+    name = "env_filter-2",
     srcs = [":env_filter-2.0.0.crate"],
     crate = "env_filter",
     crate_root = "env_filter-2.0.0.crate/src/lib.rs",
@@ -5595,14 +5689,14 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":log-0.4.33",
-        ":regex-1.13.1",
+        ":log-0.4",
+        ":regex-1",
     ],
 )
 
 shims.alias(
     name = "env_logger",
-    actual = ":env_logger-0.11.11",
+    actual = ":env_logger-0.11",
     visibility = ["PUBLIC"],
 )
 
@@ -5615,7 +5709,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "env_logger-0.11.11",
+    name = "env_logger-0.11",
     srcs = [":env_logger-0.11.11.crate"],
     crate = "env_logger",
     crate_root = "env_logger-0.11.11.crate/src/lib.rs",
@@ -5629,11 +5723,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":anstream-1.0.0",
-        ":anstyle-1.0.14",
-        ":env_filter-2.0.0",
-        ":jiff-0.2.32",
-        ":log-0.4.33",
+        ":anstream-1",
+        ":anstyle-1",
+        ":env_filter-2",
+        ":jiff-0.2",
+        ":log-0.4",
     ],
 )
 
@@ -5646,7 +5740,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "equivalent-1.0.2",
+    name = "equivalent-1",
     srcs = [":equivalent-1.0.2.crate"],
     crate = "equivalent",
     crate_root = "equivalent-1.0.2.crate/src/lib.rs",
@@ -5663,7 +5757,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "erased-serde-0.3.31",
+    name = "erased-serde-0.3",
     srcs = [":erased-serde-0.3.31.crate"],
     crate = "erased_serde",
     crate_root = "erased-serde-0.3.31.crate/src/lib.rs",
@@ -5673,7 +5767,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":serde-1.0.228"],
+    deps = [":serde-1"],
 )
 
 shims.http_archive(
@@ -5685,29 +5779,29 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "erased-serde-0.4.10",
+    name = "erased-serde-0.4",
     srcs = [":erased-serde-0.4.10.crate"],
     crate = "erased_serde",
     crate_root = "erased-serde-0.4.10.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :erased-serde-0.4.10-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :erased-serde-0.4-build-script-run[out_dir])",
     },
     features = [
         "alloc",
         "default",
         "std",
     ],
-    rustc_flags = ["@$(location :erased-serde-0.4.10-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :erased-serde-0.4-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":serde_core-1.0.228",
-        ":typeid-1.0.3",
+        ":serde_core-1",
+        ":typeid-1",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "erased-serde-0.4.10-build-script-build",
+    name = "erased-serde-0.4-build-script-build",
     srcs = [":erased-serde-0.4.10.crate"],
     crate = "build_script_build",
     crate_root = "erased-serde-0.4.10.crate/build.rs",
@@ -5721,9 +5815,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "erased-serde-0.4.10-build-script-run",
+    name = "erased-serde-0.4-build-script-run",
     package_name = "erased-serde",
-    buildscript_rule = ":erased-serde-0.4.10-build-script-build",
+    buildscript_rule = ":erased-serde-0.4-build-script-build",
     features = [
         "alloc",
         "default",
@@ -5741,7 +5835,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "errno-0.3.14",
+    name = "errno-0.3",
     srcs = [":errno-0.3.14.crate"],
     crate = "errno",
     crate_root = "errno-0.3.14.crate/src/lib.rs",
@@ -5751,7 +5845,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":libc-0.2.186"],
+    deps = [":libc-0.2"],
 )
 
 shims.http_archive(
@@ -5763,7 +5857,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "error-code-3.3.2",
+    name = "error-code-3",
     srcs = [":error-code-3.3.2.crate"],
     crate = "error_code",
     crate_root = "error-code-3.3.2.crate/src/lib.rs",
@@ -5780,21 +5874,21 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "etcetera-0.11.0",
+    name = "etcetera-0.11",
     srcs = [":etcetera-0.11.0.crate"],
     crate = "etcetera",
     crate_root = "etcetera-0.11.0.crate/src/lib.rs",
     edition = "2024",
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
-    deps = [":cfg-if-1.0.4"],
+    deps = [":cfg-if-1"],
 )
 
 shims.http_archive(
@@ -5806,7 +5900,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "euclid-0.22.14",
+    name = "euclid-0.22",
     srcs = [":euclid-0.22.14.crate"],
     crate = "euclid",
     crate_root = "euclid-0.22.14.crate/src/lib.rs",
@@ -5816,7 +5910,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":num-traits-0.2.19"],
+    deps = [":num-traits-0.2"],
 )
 
 shims.http_archive(
@@ -5828,7 +5922,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "event-listener-5.4.1",
+    name = "event-listener-5",
     srcs = [":event-listener-5.4.1.crate"],
     crate = "event_listener",
     crate_root = "event-listener-5.4.1.crate/src/lib.rs",
@@ -5839,9 +5933,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":concurrent-queue-2.5.0",
-        ":parking-2.2.1",
-        ":pin-project-lite-0.2.17",
+        ":concurrent-queue-2",
+        ":parking-2",
+        ":pin-project-lite-0.2",
     ],
 )
 
@@ -5854,7 +5948,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "event-listener-strategy-0.5.4",
+    name = "event-listener-strategy-0.5",
     srcs = [":event-listener-strategy-0.5.4.crate"],
     crate = "event_listener_strategy",
     crate_root = "event-listener-strategy-0.5.4.crate/src/lib.rs",
@@ -5862,14 +5956,14 @@ third_party_rust.rust_library(
     features = ["std"],
     visibility = [],
     deps = [
-        ":event-listener-5.4.1",
-        ":pin-project-lite-0.2.17",
+        ":event-listener-5",
+        ":pin-project-lite-0.2",
     ],
 )
 
 shims.alias(
     name = "eyre",
-    actual = ":eyre-0.6.12",
+    actual = ":eyre-0.6",
     visibility = ["PUBLIC"],
 )
 
@@ -5882,7 +5976,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "eyre-0.6.12",
+    name = "eyre-0.6",
     srcs = [":eyre-0.6.12.crate"],
     crate = "eyre",
     crate_root = "eyre-0.6.12.crate/src/lib.rs",
@@ -5894,8 +5988,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":indenter-0.3.4",
-        ":once_cell-1.21.4",
+        ":indenter-0.3",
+        ":once_cell-1",
     ],
 )
 
@@ -5908,17 +6002,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "fail-parallel-0.5.2",
+    name = "fail-parallel-0.5",
     srcs = [":fail-parallel-0.5.2.crate"],
     crate = "fail_parallel",
     crate_root = "fail-parallel-0.5.2.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":log-0.4.33",
-        ":once_cell-1.21.4",
-        ":rand-0.9.5",
-        ":tokio-1.53.0",
+        ":log-0.4",
+        ":once_cell-1",
+        ":rand-0.9",
+        ":tokio-1",
     ],
 )
 
@@ -5931,7 +6025,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "fancy-regex-0.11.0",
+    name = "fancy-regex-0.11",
     srcs = [":fancy-regex-0.11.0.crate"],
     crate = "fancy_regex",
     crate_root = "fancy-regex-0.11.0.crate/src/lib.rs",
@@ -5943,8 +6037,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bit-set-0.5.3",
-        ":regex-1.13.1",
+        ":bit-set-0.5",
+        ":regex-1",
     ],
 )
 
@@ -5957,7 +6051,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "fastant-0.1.11",
+    name = "fastant-0.1",
     srcs = [":fastant-0.1.11.crate"],
     crate = "fastant",
     crate_root = "fastant-0.1.11.crate/src/lib.rs",
@@ -5965,14 +6059,14 @@ third_party_rust.rust_library(
     features = ["atomic"],
     visibility = [],
     deps = [
-        ":small_ctor-0.1.2",
-        ":web-time-1.1.0",
+        ":small_ctor-0.1",
+        ":web-time-1",
     ],
 )
 
 shims.alias(
     name = "fastcdc",
-    actual = ":fastcdc-4.0.1",
+    actual = ":fastcdc-4",
     visibility = ["PUBLIC"],
 )
 
@@ -5985,7 +6079,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "fastcdc-4.0.1",
+    name = "fastcdc-4",
     srcs = [":fastcdc-4.0.1.crate"],
     crate = "fastcdc",
     crate_root = "fastcdc-4.0.1.crate/src/lib.rs",
@@ -6003,7 +6097,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "faster-hex-0.10.0",
+    name = "faster-hex-0.10",
     srcs = [":faster-hex-0.10.0.crate"],
     crate = "faster_hex",
     crate_root = "faster-hex-0.10.0.crate/src/lib.rs",
@@ -6013,7 +6107,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":heapless-0.8.0"],
+    deps = [":heapless-0.8"],
 )
 
 shims.http_archive(
@@ -6025,7 +6119,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "fastrand-2.4.1",
+    name = "fastrand-2",
     srcs = [":fastrand-2.4.1.crate"],
     crate = "fastrand",
     crate_root = "fastrand-2.4.1.crate/src/lib.rs",
@@ -6047,38 +6141,38 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "fd-lock-4.0.4",
+    name = "fd-lock-4",
     srcs = [":fd-lock-4.0.4.crate"],
     crate = "fd_lock",
     crate_root = "fd-lock-4.0.4.crate/src/lib.rs",
     edition = "2021",
     platform = {
         "linux-arm64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "linux-x86_64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "macos-arm64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "macos-x86_64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.59"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.59"],
         ),
     },
     visibility = [],
-    deps = [":cfg-if-1.0.4"],
+    deps = [":cfg-if-1"],
 )
 
 shims.alias(
     name = "figleter",
-    actual = ":figleter-0.2.2",
+    actual = ":figleter-0.2",
     visibility = ["PUBLIC"],
 )
 
@@ -6091,7 +6185,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "figleter-0.2.2",
+    name = "figleter-0.2",
     srcs = [":figleter-0.2.2.crate"],
     crate = "figleter",
     crate_root = "figleter-0.2.2.crate/src/lib.rs",
@@ -6108,7 +6202,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "figment-0.10.19",
+    name = "figment-0.10",
     srcs = [":figment-0.10.19.crate"],
     crate = "figment",
     crate_root = "figment-0.10.19.crate/src/lib.rs",
@@ -6125,12 +6219,12 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":pear-0.2.9",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
-        ":serde_yaml-0.9.34+deprecated",
-        ":toml-0.8.23",
-        ":uncased-0.9.10",
+        ":pear-0.2",
+        ":serde-1",
+        ":serde_json-1",
+        ":serde_yaml-0.9",
+        ":toml-0.8",
+        ":uncased-0.9",
     ],
 )
 
@@ -6143,23 +6237,23 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "filedescriptor-0.8.3",
+    name = "filedescriptor-0.8",
     srcs = [":filedescriptor-0.8.3.crate"],
     crate = "filedescriptor",
     crate_root = "filedescriptor-0.8.3.crate/src/lib.rs",
     edition = "2018",
     platform = {
         "windows-gnu": dict(
-            deps = [":winapi-0.3.9"],
+            deps = [":winapi-0.3"],
         ),
         "windows-msvc": dict(
-            deps = [":winapi-0.3.9"],
+            deps = [":winapi-0.3"],
         ),
     },
     visibility = [],
     deps = [
-        ":libc-0.2.186",
-        ":thiserror-1.0.69",
+        ":libc-0.2",
+        ":thiserror-1",
     ],
 )
 
@@ -6172,27 +6266,27 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "filetime-0.2.29",
+    name = "filetime-0.2",
     srcs = [":filetime-0.2.29.crate"],
     crate = "filetime",
     crate_root = "filetime-0.2.29.crate/src/lib.rs",
     edition = "2018",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
     },
     visibility = [],
-    deps = [":cfg-if-1.0.4"],
+    deps = [":cfg-if-1"],
 )
 
 shims.http_archive(
@@ -6204,7 +6298,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "find-msvc-tools-0.1.9",
+    name = "find-msvc-tools-0.1",
     srcs = [":find-msvc-tools-0.1.9.crate"],
     crate = "find_msvc_tools",
     crate_root = "find-msvc-tools-0.1.9.crate/src/lib.rs",
@@ -6221,7 +6315,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "finl_unicode-1.4.0",
+    name = "finl_unicode-1",
     srcs = [":finl_unicode-1.4.0.crate"],
     crate = "finl_unicode",
     crate_root = "finl_unicode-1.4.0.crate/src/lib.rs",
@@ -6243,7 +6337,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "fixedbitset-0.4.2",
+    name = "fixedbitset-0.4",
     srcs = [":fixedbitset-0.4.2.crate"],
     crate = "fixedbitset",
     crate_root = "fixedbitset-0.4.2.crate/src/lib.rs",
@@ -6264,7 +6358,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "fixedbitset-0.5.7",
+    name = "fixedbitset-0.5",
     srcs = [":fixedbitset-0.5.7.crate"],
     crate = "fixedbitset",
     crate_root = "fixedbitset-0.5.7.crate/src/lib.rs",
@@ -6274,7 +6368,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "fjall",
-    actual = ":fjall-3.1.7",
+    actual = ":fjall-3",
     visibility = ["PUBLIC"],
 )
 
@@ -6287,7 +6381,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "fjall-3.1.7",
+    name = "fjall-3",
     srcs = [":fjall-3.1.7.crate"],
     crate = "fjall",
     crate_root = "fjall-3.1.7.crate/src/lib.rs",
@@ -6297,18 +6391,18 @@ third_party_rust.rust_library(
         "metrics",
     ],
     named_deps = {
-        "byteorder": ":byteorder-lite-0.1.0",
+        "byteorder": ":byteorder-lite-0.1",
     },
     visibility = [],
     deps = [
-        ":byteview-0.10.1",
-        ":dashmap-6.2.1",
-        ":flume-0.12.0",
-        ":log-0.4.33",
-        ":lsm-tree-3.1.7",
-        ":lz4_flex-0.13.1",
-        ":tempfile-3.27.0",
-        ":xxhash-rust-0.8.17",
+        ":byteview-0.10",
+        ":dashmap-6",
+        ":flume-0.12",
+        ":log-0.4",
+        ":lsm-tree-3",
+        ":lz4_flex-0.13",
+        ":tempfile-3",
+        ":xxhash-rust-0.8",
     ],
 )
 
@@ -6321,7 +6415,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "flatbuffers-25.12.19",
+    name = "flatbuffers-25",
     srcs = [":flatbuffers-25.12.19.crate"],
     crate = "flatbuffers",
     crate_root = "flatbuffers-25.12.19.crate/src/lib.rs",
@@ -6331,12 +6425,12 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":bitflags-2.13.1"],
+    deps = [":bitflags-2"],
 )
 
 shims.alias(
     name = "flate2",
-    actual = ":flate2-1.1.9",
+    actual = ":flate2-1",
     visibility = ["PUBLIC"],
 )
 
@@ -6349,7 +6443,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "flate2-1.1.9",
+    name = "flate2-1",
     srcs = [":flate2-1.1.9.crate"],
     crate = "flate2",
     crate_root = "flate2-1.1.9.crate/src/lib.rs",
@@ -6364,9 +6458,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":crc32fast-1.5.0",
-        ":miniz_oxide-0.8.9",
-        ":zlib-rs-0.6.6",
+        ":crc32fast-1",
+        ":miniz_oxide-0.8",
+        ":zlib-rs-0.6",
     ],
 )
 
@@ -6379,13 +6473,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "flume-0.12.0",
+    name = "flume-0.12",
     srcs = [":flume-0.12.0.crate"],
     crate = "flume",
     crate_root = "flume-0.12.0.crate/src/lib.rs",
     edition = "2018",
     named_deps = {
-        "spin1": ":spin-0.9.9",
+        "spin1": ":spin-0.9",
     },
     visibility = [],
 )
@@ -6399,7 +6493,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "fnv-1.0.7",
+    name = "fnv-1",
     srcs = [":fnv-1.0.7.crate"],
     crate = "fnv",
     crate_root = "fnv-1.0.7.crate/lib.rs",
@@ -6420,7 +6514,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "foldhash-0.1.5",
+    name = "foldhash-0.1",
     srcs = [":foldhash-0.1.5.crate"],
     crate = "foldhash",
     crate_root = "foldhash-0.1.5.crate/src/lib.rs",
@@ -6437,7 +6531,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "foldhash-0.2.0",
+    name = "foldhash-0.2",
     srcs = [":foldhash-0.2.0.crate"],
     crate = "foldhash",
     crate_root = "foldhash-0.2.0.crate/src/lib.rs",
@@ -6454,13 +6548,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "foreign-types-0.3.2",
+    name = "foreign-types-0.3",
     srcs = [":foreign-types-0.3.2.crate"],
     crate = "foreign_types",
     crate_root = "foreign-types-0.3.2.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":foreign-types-shared-0.1.1"],
+    deps = [":foreign-types-shared-0.1"],
 )
 
 shims.http_archive(
@@ -6472,7 +6566,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "foreign-types-shared-0.1.1",
+    name = "foreign-types-shared-0.1",
     srcs = [":foreign-types-shared-0.1.1.crate"],
     crate = "foreign_types_shared",
     crate_root = "foreign-types-shared-0.1.1.crate/src/lib.rs",
@@ -6489,7 +6583,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "form_urlencoded-1.2.2",
+    name = "form_urlencoded-1",
     srcs = [":form_urlencoded-1.2.2.crate"],
     crate = "form_urlencoded",
     crate_root = "form_urlencoded-1.2.2.crate/src/lib.rs",
@@ -6500,7 +6594,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":percent-encoding-2.3.2"],
+    deps = [":percent-encoding-2"],
 )
 
 shims.http_archive(
@@ -6512,24 +6606,28 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "foyer-0.22.3",
+    name = "foyer-0.22",
     srcs = [":foyer-0.22.3.crate"],
     crate = "foyer",
     crate_root = "foyer-0.22.3.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "foyer",
         "CARGO_CRATE_NAME": "foyer",
         "CARGO_MANIFEST_DIR": "foyer-0.22.3.crate",
         "CARGO_PKG_AUTHORS": "MrCroxx <mrcroxx@outlook.com>",
         "CARGO_PKG_DESCRIPTION": "foyer - Hybrid cache for Rust",
+        "CARGO_PKG_HOMEPAGE": "https://foyer-rs.github.io/foyer",
         "CARGO_PKG_NAME": "foyer",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/foyer-rs/foyer",
+        "CARGO_PKG_RUST_VERSION": "1.85.0",
         "CARGO_PKG_VERSION": "0.22.3",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "22",
         "CARGO_PKG_VERSION_PATCH": "3",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :foyer-0.22.3-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :foyer-0.22-build-script-run[out_dir])",
     },
     features = [
         "default",
@@ -6537,38 +6635,42 @@ third_party_rust.rust_library(
         "serde",
     ],
     named_deps = {
-        "tokio": ":foyer-tokio-0.22.3",
+        "tokio": ":foyer-tokio-0.22",
     },
-    rustc_flags = ["@$(location :foyer-0.22.3-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :foyer-0.22-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":anyhow-1.0.103",
-        ":equivalent-1.0.2",
-        ":foyer-common-0.22.3",
-        ":foyer-memory-0.22.3",
-        ":foyer-storage-0.22.3",
-        ":futures-util-0.3.32",
-        ":mea-0.6.4",
-        ":mixtrics-0.2.5",
-        ":pin-project-1.1.13",
-        ":serde-1.0.228",
-        ":tracing-0.1.44",
+        ":anyhow-1",
+        ":equivalent-1",
+        ":foyer-common-0.22",
+        ":foyer-memory-0.22",
+        ":foyer-storage-0.22",
+        ":futures-util-0.3",
+        ":mea-0.6",
+        ":mixtrics-0.2",
+        ":pin-project-1",
+        ":serde-1",
+        ":tracing-0.1",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "foyer-0.22.3-build-script-build",
+    name = "foyer-0.22-build-script-build",
     srcs = [":foyer-0.22.3.crate"],
     crate = "build_script_build",
     crate_root = "foyer-0.22.3.crate/build.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
         "CARGO_MANIFEST_DIR": "foyer-0.22.3.crate",
         "CARGO_PKG_AUTHORS": "MrCroxx <mrcroxx@outlook.com>",
         "CARGO_PKG_DESCRIPTION": "foyer - Hybrid cache for Rust",
+        "CARGO_PKG_HOMEPAGE": "https://foyer-rs.github.io/foyer",
         "CARGO_PKG_NAME": "foyer",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/foyer-rs/foyer",
+        "CARGO_PKG_RUST_VERSION": "1.85.0",
         "CARGO_PKG_VERSION": "0.22.3",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "22",
@@ -6584,13 +6686,16 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "foyer-0.22.3-build-script-run",
+    name = "foyer-0.22-build-script-run",
     package_name = "foyer",
-    buildscript_rule = ":foyer-0.22.3-build-script-build",
+    buildscript_rule = ":foyer-0.22-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "MrCroxx <mrcroxx@outlook.com>",
         "CARGO_PKG_DESCRIPTION": "foyer - Hybrid cache for Rust",
+        "CARGO_PKG_HOMEPAGE": "https://foyer-rs.github.io/foyer",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/foyer-rs/foyer",
+        "CARGO_PKG_RUST_VERSION": "1.85.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "22",
         "CARGO_PKG_VERSION_PATCH": "3",
@@ -6613,26 +6718,26 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "foyer-common-0.22.3",
+    name = "foyer-common-0.22",
     srcs = [":foyer-common-0.22.3.crate"],
     crate = "foyer_common",
     crate_root = "foyer-common-0.22.3.crate/src/lib.rs",
     edition = "2021",
     features = ["serde"],
     named_deps = {
-        "tokio": ":foyer-tokio-0.22.3",
+        "tokio": ":foyer-tokio-0.22",
     },
     visibility = [],
     deps = [
-        ":anyhow-1.0.103",
-        ":bincode-1.3.3",
-        ":bytes-1.12.1",
-        ":cfg-if-1.0.4",
-        ":mixtrics-0.2.5",
-        ":parking_lot-0.12.5",
-        ":pin-project-1.1.13",
-        ":serde-1.0.228",
-        ":twox-hash-2.1.2",
+        ":anyhow-1",
+        ":bincode-1",
+        ":bytes-1",
+        ":cfg-if-1",
+        ":mixtrics-0.2",
+        ":parking_lot-0.12",
+        ":pin-project-1",
+        ":serde-1",
+        ":twox-hash-2",
     ],
 )
 
@@ -6645,7 +6750,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "foyer-intrusive-collections-0.10.0-dev",
+    name = "foyer-intrusive-collections-0.10",
     srcs = [":foyer-intrusive-collections-0.10.0-dev.crate"],
     crate = "foyer_intrusive_collections",
     crate_root = "foyer-intrusive-collections-0.10.0-dev.crate/src/lib.rs",
@@ -6655,7 +6760,7 @@ third_party_rust.rust_library(
         "default",
     ],
     visibility = [],
-    deps = [":memoffset-0.9.1"],
+    deps = [":memoffset-0.9"],
 )
 
 shims.http_archive(
@@ -6667,32 +6772,32 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "foyer-memory-0.22.3",
+    name = "foyer-memory-0.22",
     srcs = [":foyer-memory-0.22.3.crate"],
     crate = "foyer_memory",
     crate_root = "foyer-memory-0.22.3.crate/src/lib.rs",
     edition = "2021",
     named_deps = {
-        "intrusive_collections": ":foyer-intrusive-collections-0.10.0-dev",
-        "tokio": ":foyer-tokio-0.22.3",
+        "intrusive_collections": ":foyer-intrusive-collections-0.10",
+        "tokio": ":foyer-tokio-0.22",
     },
     visibility = [],
     deps = [
-        ":anyhow-1.0.103",
-        ":bitflags-2.13.1",
-        ":cmsketch-0.2.4",
-        ":equivalent-1.0.2",
-        ":foyer-common-0.22.3",
-        ":futures-util-0.3.32",
-        ":hashbrown-0.16.1",
-        ":itertools-0.14.0",
-        ":mea-0.6.4",
-        ":mixtrics-0.2.5",
-        ":parking_lot-0.12.5",
-        ":paste-1.0.15",
-        ":pin-project-1.1.13",
-        ":serde-1.0.228",
-        ":tracing-0.1.44",
+        ":anyhow-1",
+        ":bitflags-2",
+        ":cmsketch-0.2",
+        ":equivalent-1",
+        ":foyer-common-0.22",
+        ":futures-util-0.3",
+        ":hashbrown-0.16",
+        ":itertools-0.14",
+        ":mea-0.6",
+        ":mixtrics-0.2",
+        ":parking_lot-0.12",
+        ":paste-1",
+        ":pin-project-1",
+        ":serde-1",
+        ":tracing-0.1",
     ],
 )
 
@@ -6705,53 +6810,53 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "foyer-storage-0.22.3",
+    name = "foyer-storage-0.22",
     srcs = [":foyer-storage-0.22.3.crate"],
     crate = "foyer_storage",
     crate_root = "foyer-storage-0.22.3.crate/src/lib.rs",
     edition = "2021",
     features = ["serde"],
     named_deps = {
-        "tokio": ":foyer-tokio-0.22.3",
+        "tokio": ":foyer-tokio-0.22",
     },
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":core_affinity-0.8.3",
-                ":io-uring-0.7.13",
+                ":core_affinity-0.8",
+                ":io-uring-0.7",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":core_affinity-0.8.3",
-                ":io-uring-0.7.13",
+                ":core_affinity-0.8",
+                ":io-uring-0.7",
             ],
         ),
     },
     visibility = [],
     deps = [
-        ":allocator-api2-0.2.21",
-        ":anyhow-1.0.103",
-        ":bytes-1.12.1",
-        ":equivalent-1.0.2",
-        ":fastant-0.1.11",
-        ":foyer-common-0.22.3",
-        ":foyer-memory-0.22.3",
-        ":fs4-0.13.1",
-        ":futures-core-0.3.32",
-        ":futures-util-0.3.32",
-        ":hashbrown-0.16.1",
-        ":itertools-0.14.0",
-        ":libc-0.2.186",
-        ":lz4-1.28.1",
-        ":mea-0.6.4",
-        ":parking_lot-0.12.5",
-        ":pin-project-1.1.13",
-        ":rand-0.9.5",
-        ":serde-1.0.228",
-        ":tracing-0.1.44",
-        ":twox-hash-2.1.2",
-        ":zstd-0.13.3",
+        ":allocator-api2-0.2",
+        ":anyhow-1",
+        ":bytes-1",
+        ":equivalent-1",
+        ":fastant-0.1",
+        ":foyer-common-0.22",
+        ":foyer-memory-0.22",
+        ":fs4-0.13",
+        ":futures-core-0.3",
+        ":futures-util-0.3",
+        ":hashbrown-0.16",
+        ":itertools-0.14",
+        ":libc-0.2",
+        ":lz4-1",
+        ":mea-0.6",
+        ":parking_lot-0.12",
+        ":pin-project-1",
+        ":rand-0.9",
+        ":serde-1",
+        ":tracing-0.1",
+        ":twox-hash-2",
+        ":zstd-0.13",
     ],
 )
 
@@ -6764,7 +6869,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "foyer-tokio-0.22.3",
+    name = "foyer-tokio-0.22",
     srcs = [":foyer-tokio-0.22.3.crate"],
     crate = "foyer_tokio",
     crate_root = "foyer-tokio-0.22.3.crate/src/lib.rs",
@@ -6776,7 +6881,7 @@ third_party_rust.rust_library(
         "time",
     ],
     named_deps = {
-        "runtime_tokio": ":tokio-1.53.0",
+        "runtime_tokio": ":tokio-1",
     },
     visibility = [],
 )
@@ -6790,29 +6895,29 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "fs4-0.13.1",
+    name = "fs4-0.13",
     srcs = [":fs4-0.13.1.crate"],
     crate = "fs4",
     crate_root = "fs4-0.13.1.crate/src/lib.rs",
     edition = "2021",
     platform = {
         "linux-arm64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "linux-x86_64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "macos-arm64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "macos-x86_64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.59"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.59"],
         ),
     },
     visibility = [],
@@ -6827,13 +6932,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "fsevent-sys-4.1.0",
+    name = "fsevent-sys-4",
     srcs = [":fsevent-sys-4.1.0.crate"],
     crate = "fsevent_sys",
     crate_root = "fsevent-sys-4.1.0.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":libc-0.2.186"],
+    deps = [":libc-0.2"],
 )
 
 shims.http_archive(
@@ -6845,7 +6950,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "futures-0.1.31",
+    name = "futures-0.1",
     srcs = [":futures-0.1.31.crate"],
     crate = "futures",
     crate_root = "futures-0.1.31.crate/src/lib.rs",
@@ -6860,7 +6965,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "futures",
-    actual = ":futures-0.3.32",
+    actual = ":futures-0.3",
     visibility = ["PUBLIC"],
 )
 
@@ -6873,7 +6978,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "futures-0.3.32",
+    name = "futures-0.3",
     srcs = [":futures-0.3.32.crate"],
     crate = "futures",
     crate_root = "futures-0.3.32.crate/src/lib.rs",
@@ -6889,13 +6994,13 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":futures-channel-0.3.32",
-        ":futures-core-0.3.32",
-        ":futures-executor-0.3.32",
-        ":futures-io-0.3.32",
-        ":futures-sink-0.3.32",
-        ":futures-task-0.3.32",
-        ":futures-util-0.3.32",
+        ":futures-channel-0.3",
+        ":futures-core-0.3",
+        ":futures-executor-0.3",
+        ":futures-io-0.3",
+        ":futures-sink-0.3",
+        ":futures-task-0.3",
+        ":futures-util-0.3",
     ],
 )
 
@@ -6908,7 +7013,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "futures-buffered-0.2.13",
+    name = "futures-buffered-0.2",
     srcs = [":futures-buffered-0.2.13.crate"],
     crate = "futures_buffered",
     crate_root = "futures-buffered-0.2.13.crate/src/lib.rs",
@@ -6916,11 +7021,11 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":cordyceps-0.3.4",
-        ":diatomic-waker-0.2.3",
-        ":futures-core-0.3.32",
-        ":pin-project-lite-0.2.17",
-        ":spin-0.10.1",
+        ":cordyceps-0.3",
+        ":diatomic-waker-0.2",
+        ":futures-core-0.3",
+        ":pin-project-lite-0.2",
+        ":spin-0.10",
     ],
 )
 
@@ -6933,18 +7038,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "futures-channel-0.3.32",
+    name = "futures-channel-0.3",
     srcs = [":futures-channel-0.3.32.crate"],
     crate = "futures_channel",
     crate_root = "futures-channel-0.3.32.crate/src/lib.rs",
     edition = "2018",
     env = {
+        "CARGO_BIN_NAME": "futures_channel",
         "CARGO_CRATE_NAME": "futures_channel",
         "CARGO_MANIFEST_DIR": "futures-channel-0.3.32.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Channels for asynchronous communication using futures-rs.\n",
+        "CARGO_PKG_HOMEPAGE": "https://rust-lang.github.io/futures-rs",
         "CARGO_PKG_NAME": "futures-channel",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/rust-lang/futures-rs",
+        "CARGO_PKG_RUST_VERSION": "1.71",
         "CARGO_PKG_VERSION": "0.3.32",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "3",
@@ -6960,8 +7069,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":futures-core-0.3.32",
-        ":futures-sink-0.3.32",
+        ":futures-core-0.3",
+        ":futures-sink-0.3",
     ],
 )
 
@@ -6974,18 +7083,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "futures-core-0.3.32",
+    name = "futures-core-0.3",
     srcs = [":futures-core-0.3.32.crate"],
     crate = "futures_core",
     crate_root = "futures-core-0.3.32.crate/src/lib.rs",
     edition = "2018",
     env = {
+        "CARGO_BIN_NAME": "futures_core",
         "CARGO_CRATE_NAME": "futures_core",
         "CARGO_MANIFEST_DIR": "futures-core-0.3.32.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "The core traits and types in for the `futures` library.\n",
+        "CARGO_PKG_HOMEPAGE": "https://rust-lang.github.io/futures-rs",
         "CARGO_PKG_NAME": "futures-core",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/rust-lang/futures-rs",
+        "CARGO_PKG_RUST_VERSION": "1.36",
         "CARGO_PKG_VERSION": "0.3.32",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "3",
@@ -7009,7 +7122,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "futures-executor-0.3.32",
+    name = "futures-executor-0.3",
     srcs = [":futures-executor-0.3.32.crate"],
     crate = "futures_executor",
     crate_root = "futures-executor-0.3.32.crate/src/lib.rs",
@@ -7020,9 +7133,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":futures-core-0.3.32",
-        ":futures-task-0.3.32",
-        ":futures-util-0.3.32",
+        ":futures-core-0.3",
+        ":futures-task-0.3",
+        ":futures-util-0.3",
     ],
 )
 
@@ -7035,7 +7148,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "futures-io-0.3.32",
+    name = "futures-io-0.3",
     srcs = [":futures-io-0.3.32.crate"],
     crate = "futures_io",
     crate_root = "futures-io-0.3.32.crate/src/lib.rs",
@@ -7056,7 +7169,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "futures-lite-2.6.1",
+    name = "futures-lite-2",
     srcs = [":futures-lite-2.6.1.crate"],
     crate = "futures_lite",
     crate_root = "futures-lite-2.6.1.crate/src/lib.rs",
@@ -7072,11 +7185,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":fastrand-2.4.1",
-        ":futures-core-0.3.32",
-        ":futures-io-0.3.32",
-        ":parking-2.2.1",
-        ":pin-project-lite-0.2.17",
+        ":fastrand-2",
+        ":futures-core-0.3",
+        ":futures-io-0.3",
+        ":parking-2",
+        ":pin-project-lite-0.2",
     ],
 )
 
@@ -7089,7 +7202,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "futures-macro-0.3.32",
+    name = "futures-macro-0.3",
     srcs = [":futures-macro-0.3.32.crate"],
     crate = "futures_macro",
     crate_root = "futures-macro-0.3.32.crate/src/lib.rs",
@@ -7097,9 +7210,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -7112,7 +7225,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "futures-sink-0.3.32",
+    name = "futures-sink-0.3",
     srcs = [":futures-sink-0.3.32.crate"],
     crate = "futures_sink",
     crate_root = "futures-sink-0.3.32.crate/src/lib.rs",
@@ -7134,18 +7247,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "futures-task-0.3.32",
+    name = "futures-task-0.3",
     srcs = [":futures-task-0.3.32.crate"],
     crate = "futures_task",
     crate_root = "futures-task-0.3.32.crate/src/lib.rs",
     edition = "2018",
     env = {
+        "CARGO_BIN_NAME": "futures_task",
         "CARGO_CRATE_NAME": "futures_task",
         "CARGO_MANIFEST_DIR": "futures-task-0.3.32.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Tools for working with tasks.\n",
+        "CARGO_PKG_HOMEPAGE": "https://rust-lang.github.io/futures-rs",
         "CARGO_PKG_NAME": "futures-task",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/rust-lang/futures-rs",
+        "CARGO_PKG_RUST_VERSION": "1.71",
         "CARGO_PKG_VERSION": "0.3.32",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "3",
@@ -7168,18 +7285,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "futures-util-0.3.32",
+    name = "futures-util-0.3",
     srcs = [":futures-util-0.3.32.crate"],
     crate = "futures_util",
     crate_root = "futures-util-0.3.32.crate/src/lib.rs",
     edition = "2018",
     env = {
+        "CARGO_BIN_NAME": "futures_util",
         "CARGO_CRATE_NAME": "futures_util",
         "CARGO_MANIFEST_DIR": "futures-util-0.3.32.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Common utilities and extension traits for the futures-rs library.\n",
+        "CARGO_PKG_HOMEPAGE": "https://rust-lang.github.io/futures-rs",
         "CARGO_PKG_NAME": "futures-util",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/rust-lang/futures-rs",
+        "CARGO_PKG_RUST_VERSION": "1.71",
         "CARGO_PKG_VERSION": "0.3.32",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "3",
@@ -7206,20 +7327,20 @@ third_party_rust.rust_library(
         "std",
     ],
     named_deps = {
-        "futures_01": ":futures-0.1.31",
+        "futures_01": ":futures-0.1",
     },
     visibility = [],
     deps = [
-        ":futures-channel-0.3.32",
-        ":futures-core-0.3.32",
-        ":futures-io-0.3.32",
-        ":futures-macro-0.3.32",
-        ":futures-sink-0.3.32",
-        ":futures-task-0.3.32",
-        ":libc-0.2.186",
-        ":memchr-2.8.3",
-        ":pin-project-lite-0.2.17",
-        ":slab-0.4.12",
+        ":futures-channel-0.3",
+        ":futures-core-0.3",
+        ":futures-io-0.3",
+        ":futures-macro-0.3",
+        ":futures-sink-0.3",
+        ":futures-task-0.3",
+        ":libc-0.2",
+        ":memchr-2",
+        ":pin-project-lite-0.2",
+        ":slab-0.4",
     ],
 )
 
@@ -7232,13 +7353,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "fxhash-0.2.1",
+    name = "fxhash-0.2",
     srcs = [":fxhash-0.2.1.crate"],
     crate = "fxhash",
     crate_root = "fxhash-0.2.1.crate/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":byteorder-1.5.0"],
+    deps = [":byteorder-1"],
 )
 
 shims.http_archive(
@@ -7250,7 +7371,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "generational-box-0.5.6",
+    name = "generational-box-0.5",
     srcs = [":generational-box-0.5.6.crate"],
     crate = "generational_box",
     crate_root = "generational-box-0.5.6.crate/src/lib.rs",
@@ -7260,7 +7381,7 @@ third_party_rust.rust_library(
         "default",
     ],
     visibility = [],
-    deps = [":parking_lot-0.12.5"],
+    deps = [":parking_lot-0.12"],
 )
 
 shims.http_archive(
@@ -7272,14 +7393,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "generic-array-0.14.7",
+    name = "generic-array-0.14",
     srcs = [":generic-array-0.14.7.crate"],
     crate = "generic_array",
     crate_root = "generic-array-0.14.7.crate/src/lib.rs",
     edition = "2015",
     features = ["more_lengths"],
     visibility = [],
-    deps = [":typenum-1.20.1"],
+    deps = [":typenum-1"],
 )
 
 shims.http_archive(
@@ -7291,7 +7412,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "getrandom-0.3.4",
+    name = "getrandom-0.3",
     srcs = [":getrandom-0.3.4.crate"],
     crate = "getrandom",
     crate_root = "getrandom-0.3.4.crate/src/lib.rs",
@@ -7299,20 +7420,20 @@ third_party_rust.rust_library(
     features = ["std"],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
     },
     visibility = [],
-    deps = [":cfg-if-1.0.4"],
+    deps = [":cfg-if-1"],
 )
 
 shims.http_archive(
@@ -7324,7 +7445,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "getrandom-0.4.3",
+    name = "getrandom-0.4",
     srcs = [":getrandom-0.4.3.crate"],
     crate = "getrandom",
     crate_root = "getrandom-0.4.3.crate/src/lib.rs",
@@ -7335,22 +7456,22 @@ third_party_rust.rust_library(
     ],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
     },
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":rand_core-0.10.1",
+        ":cfg-if-1",
+        ":rand_core-0.10",
     ],
 )
 
@@ -7363,15 +7484,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ghash-0.5.1",
+    name = "ghash-0.5",
     srcs = [":ghash-0.5.1.crate"],
     crate = "ghash",
     crate_root = "ghash-0.5.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":opaque-debug-0.3.1",
-        ":polyval-0.6.2",
+        ":opaque-debug-0.3",
+        ":polyval-0.6",
     ],
 )
 
@@ -7384,7 +7505,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gimli-0.33.0",
+    name = "gimli-0.33",
     srcs = [":gimli-0.33.0.crate"],
     crate = "gimli",
     crate_root = "gimli-0.33.0.crate/src/lib.rs",
@@ -7400,16 +7521,16 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":fnv-1.0.7",
-        ":hashbrown-0.16.1",
-        ":indexmap-2.14.0",
-        ":stable_deref_trait-1.2.1",
+        ":fnv-1",
+        ":hashbrown-0.16",
+        ":indexmap-2",
+        ":stable_deref_trait-1",
     ],
 )
 
 shims.alias(
     name = "gix",
-    actual = ":gix-0.80.0",
+    actual = ":gix-0.80",
     visibility = ["PUBLIC"],
 )
 
@@ -7422,18 +7543,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-0.80.0",
+    name = "gix-0.80",
     srcs = [":gix-0.80.0.crate"],
     crate = "gix",
     crate_root = "gix-0.80.0.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "gix",
         "CARGO_CRATE_NAME": "gix",
         "CARGO_MANIFEST_DIR": "gix-0.80.0.crate",
         "CARGO_PKG_AUTHORS": "Sebastian Thiel <sebastian.thiel@icloud.com>",
         "CARGO_PKG_DESCRIPTION": "Interact with git repositories just like git would",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "gix",
+        "CARGO_PKG_README": "",
         "CARGO_PKG_REPOSITORY": "https://github.com/GitoxideLabs/gitoxide",
+        "CARGO_PKG_RUST_VERSION": "1.82",
         "CARGO_PKG_VERSION": "0.80.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "80",
@@ -7455,47 +7580,47 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":gix-actor-0.40.0",
-        ":gix-attributes-0.31.0",
-        ":gix-command-0.8.1",
-        ":gix-commitgraph-0.34.0",
-        ":gix-config-0.53.0",
-        ":gix-date-0.15.6",
-        ":gix-diff-0.60.0",
-        ":gix-discover-0.48.0",
-        ":gix-error-0.2.5",
-        ":gix-features-0.46.2",
-        ":gix-filter-0.27.0",
-        ":gix-fs-0.19.2",
-        ":gix-glob-0.24.0",
-        ":gix-hash-0.22.1",
-        ":gix-hashtable-0.12.0",
-        ":gix-ignore-0.19.1",
-        ":gix-index-0.48.0",
-        ":gix-lock-21.0.2",
-        ":gix-object-0.57.0",
-        ":gix-odb-0.77.0",
-        ":gix-pack-0.67.0",
-        ":gix-path-0.11.3",
-        ":gix-pathspec-0.16.1",
-        ":gix-protocol-0.58.0",
-        ":gix-ref-0.60.0",
-        ":gix-refspec-0.38.0",
-        ":gix-revision-0.42.0",
-        ":gix-revwalk-0.28.0",
-        ":gix-sec-0.13.3",
-        ":gix-shallow-0.9.0",
-        ":gix-submodule-0.27.0",
-        ":gix-tempfile-21.0.2",
-        ":gix-trace-0.1.20",
-        ":gix-traverse-0.54.0",
-        ":gix-url-0.35.3",
-        ":gix-utils-0.3.4",
-        ":gix-validate-0.11.2",
-        ":gix-worktree-0.49.0",
-        ":nonempty-0.12.0",
-        ":smallvec-1.15.2",
-        ":thiserror-2.0.18",
+        ":gix-actor-0.40",
+        ":gix-attributes-0.31",
+        ":gix-command-0.8",
+        ":gix-commitgraph-0.34",
+        ":gix-config-0.53",
+        ":gix-date-0.15",
+        ":gix-diff-0.60",
+        ":gix-discover-0.48",
+        ":gix-error-0.2",
+        ":gix-features-0.46",
+        ":gix-filter-0.27",
+        ":gix-fs-0.19",
+        ":gix-glob-0.24",
+        ":gix-hash-0.22",
+        ":gix-hashtable-0.12",
+        ":gix-ignore-0.19",
+        ":gix-index-0.48",
+        ":gix-lock-21",
+        ":gix-object-0.57",
+        ":gix-odb-0.77",
+        ":gix-pack-0.67",
+        ":gix-path-0.11",
+        ":gix-pathspec-0.16",
+        ":gix-protocol-0.58",
+        ":gix-ref-0.60",
+        ":gix-refspec-0.38",
+        ":gix-revision-0.42",
+        ":gix-revwalk-0.28",
+        ":gix-sec-0.13",
+        ":gix-shallow-0.9",
+        ":gix-submodule-0.27",
+        ":gix-tempfile-21",
+        ":gix-trace-0.1",
+        ":gix-traverse-0.54",
+        ":gix-url-0.35",
+        ":gix-utils-0.3",
+        ":gix-validate-0.11",
+        ":gix-worktree-0.49",
+        ":nonempty-0.12",
+        ":smallvec-1",
+        ":thiserror-2",
     ],
 )
 
@@ -7508,17 +7633,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-actor-0.40.0",
+    name = "gix-actor-0.40",
     srcs = [":gix-actor-0.40.0.crate"],
     crate = "gix_actor",
     crate_root = "gix-actor-0.40.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-date-0.15.6",
-        ":gix-error-0.2.5",
-        ":winnow-0.7.15",
+        ":bstr-1",
+        ":gix-date-0.15",
+        ":gix-error-0.2",
+        ":winnow-0.7",
     ],
 )
 
@@ -7531,22 +7656,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-attributes-0.31.0",
+    name = "gix-attributes-0.31",
     srcs = [":gix-attributes-0.31.0.crate"],
     crate = "gix_attributes",
     crate_root = "gix-attributes-0.31.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-glob-0.24.0",
-        ":gix-path-0.11.3",
-        ":gix-quote-0.7.2",
-        ":gix-trace-0.1.20",
-        ":kstring-2.0.4",
-        ":smallvec-1.15.2",
-        ":thiserror-2.0.18",
-        ":unicode-bom-2.0.3",
+        ":bstr-1",
+        ":gix-glob-0.24",
+        ":gix-path-0.11",
+        ":gix-quote-0.7",
+        ":gix-trace-0.1",
+        ":kstring-2",
+        ":smallvec-1",
+        ":thiserror-2",
+        ":unicode-bom-2",
     ],
 )
 
@@ -7559,13 +7684,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-bitmap-0.3.2",
+    name = "gix-bitmap-0.3",
     srcs = [":gix-bitmap-0.3.2.crate"],
     crate = "gix_bitmap",
     crate_root = "gix-bitmap-0.3.2.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":gix-error-0.2.5"],
+    deps = [":gix-error-0.2"],
 )
 
 shims.http_archive(
@@ -7577,13 +7702,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-chunk-0.7.2",
+    name = "gix-chunk-0.7",
     srcs = [":gix-chunk-0.7.2.crate"],
     crate = "gix_chunk",
     crate_root = "gix-chunk-0.7.2.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":gix-error-0.2.5"],
+    deps = [":gix-error-0.2"],
 )
 
 shims.http_archive(
@@ -7595,18 +7720,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-command-0.8.1",
+    name = "gix-command-0.8",
     srcs = [":gix-command-0.8.1.crate"],
     crate = "gix_command",
     crate_root = "gix-command-0.8.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-path-0.11.3",
-        ":gix-quote-0.7.2",
-        ":gix-trace-0.1.20",
-        ":shell-words-1.1.1",
+        ":bstr-1",
+        ":gix-path-0.11",
+        ":gix-quote-0.7",
+        ":gix-trace-0.1",
+        ":shell-words-1",
     ],
 )
 
@@ -7619,19 +7744,19 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-commitgraph-0.34.0",
+    name = "gix-commitgraph-0.34",
     srcs = [":gix-commitgraph-0.34.0.crate"],
     crate = "gix_commitgraph",
     crate_root = "gix-commitgraph-0.34.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-chunk-0.7.2",
-        ":gix-error-0.2.5",
-        ":gix-hash-0.22.1",
-        ":memmap2-0.9.11",
-        ":nonempty-0.12.0",
+        ":bstr-1",
+        ":gix-chunk-0.7",
+        ":gix-error-0.2",
+        ":gix-hash-0.22",
+        ":memmap2-0.9",
+        ":nonempty-0.12",
     ],
 )
 
@@ -7644,25 +7769,25 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-config-0.53.0",
+    name = "gix-config-0.53",
     srcs = [":gix-config-0.53.0.crate"],
     crate = "gix_config",
     crate_root = "gix-config-0.53.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-config-value-0.17.2",
-        ":gix-features-0.46.2",
-        ":gix-glob-0.24.0",
-        ":gix-path-0.11.3",
-        ":gix-ref-0.60.0",
-        ":gix-sec-0.13.3",
-        ":memchr-2.8.3",
-        ":smallvec-1.15.2",
-        ":thiserror-2.0.18",
-        ":unicode-bom-2.0.3",
-        ":winnow-0.7.15",
+        ":bstr-1",
+        ":gix-config-value-0.17",
+        ":gix-features-0.46",
+        ":gix-glob-0.24",
+        ":gix-path-0.11",
+        ":gix-ref-0.60",
+        ":gix-sec-0.13",
+        ":memchr-2",
+        ":smallvec-1",
+        ":thiserror-2",
+        ":unicode-bom-2",
+        ":winnow-0.7",
     ],
 )
 
@@ -7675,31 +7800,31 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-config-value-0.17.2",
+    name = "gix-config-value-0.17",
     srcs = [":gix-config-value-0.17.2.crate"],
     crate = "gix_config_value",
     crate_root = "gix-config-value-0.17.2.crate/src/lib.rs",
     edition = "2021",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
     },
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":bstr-1.13.0",
-        ":gix-path-0.11.3",
-        ":thiserror-2.0.18",
+        ":bitflags-2",
+        ":bstr-1",
+        ":gix-path-0.11",
+        ":thiserror-2",
     ],
 )
 
@@ -7712,17 +7837,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-date-0.15.6",
+    name = "gix-date-0.15",
     srcs = [":gix-date-0.15.6.crate"],
     crate = "gix_date",
     crate_root = "gix-date-0.15.6.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-error-0.2.5",
-        ":itoa-1.0.18",
-        ":jiff-0.2.32",
+        ":bstr-1",
+        ":gix-error-0.2",
+        ":itoa-1",
+        ":jiff-0.2",
     ],
 )
 
@@ -7735,7 +7860,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-diff-0.60.0",
+    name = "gix-diff-0.60",
     srcs = [":gix-diff-0.60.0.crate"],
     crate = "gix_diff",
     crate_root = "gix-diff-0.60.0.crate/src/lib.rs",
@@ -7743,19 +7868,19 @@ third_party_rust.rust_library(
     features = ["blob"],
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-command-0.8.1",
-        ":gix-filter-0.27.0",
-        ":gix-fs-0.19.2",
-        ":gix-hash-0.22.1",
-        ":gix-object-0.57.0",
-        ":gix-path-0.11.3",
-        ":gix-tempfile-21.0.2",
-        ":gix-trace-0.1.20",
-        ":gix-traverse-0.54.0",
-        ":gix-worktree-0.49.0",
-        ":imara-diff-0.1.8",
-        ":thiserror-2.0.18",
+        ":bstr-1",
+        ":gix-command-0.8",
+        ":gix-filter-0.27",
+        ":gix-fs-0.19",
+        ":gix-hash-0.22",
+        ":gix-object-0.57",
+        ":gix-path-0.11",
+        ":gix-tempfile-21",
+        ":gix-trace-0.1",
+        ":gix-traverse-0.54",
+        ":gix-worktree-0.49",
+        ":imara-diff-0.1",
+        ":thiserror-2",
     ],
 )
 
@@ -7768,27 +7893,27 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-discover-0.48.0",
+    name = "gix-discover-0.48",
     srcs = [":gix-discover-0.48.0.crate"],
     crate = "gix_discover",
     crate_root = "gix-discover-0.48.0.crate/src/lib.rs",
     edition = "2021",
     platform = {
         "windows-gnu": dict(
-            deps = [":dunce-1.0.5"],
+            deps = [":dunce-1"],
         ),
         "windows-msvc": dict(
-            deps = [":dunce-1.0.5"],
+            deps = [":dunce-1"],
         ),
     },
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-fs-0.19.2",
-        ":gix-path-0.11.3",
-        ":gix-ref-0.60.0",
-        ":gix-sec-0.13.3",
-        ":thiserror-2.0.18",
+        ":bstr-1",
+        ":gix-fs-0.19",
+        ":gix-path-0.11",
+        ":gix-ref-0.60",
+        ":gix-sec-0.13",
+        ":thiserror-2",
     ],
 )
 
@@ -7801,13 +7926,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-error-0.2.5",
+    name = "gix-error-0.2",
     srcs = [":gix-error-0.2.5.crate"],
     crate = "gix_error",
     crate_root = "gix-error-0.2.5.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":bstr-1.13.0"],
+    deps = [":bstr-1"],
 )
 
 shims.http_archive(
@@ -7819,7 +7944,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-features-0.46.2",
+    name = "gix-features-0.46",
     srcs = [":gix-features-0.46.2.crate"],
     crate = "gix_features",
     crate_root = "gix-features-0.46.2.crate/src/lib.rs",
@@ -7837,31 +7962,31 @@ third_party_rust.rust_library(
     ],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
     },
     visibility = [],
     deps = [
-        ":crc32fast-1.5.0",
-        ":crossbeam-channel-0.5.16",
-        ":gix-path-0.11.3",
-        ":gix-trace-0.1.20",
-        ":gix-utils-0.3.4",
-        ":once_cell-1.21.4",
-        ":parking_lot-0.12.5",
-        ":prodash-31.0.0",
-        ":thiserror-2.0.18",
-        ":walkdir-2.5.0",
-        ":zlib-rs-0.6.6",
+        ":crc32fast-1",
+        ":crossbeam-channel-0.5",
+        ":gix-path-0.11",
+        ":gix-trace-0.1",
+        ":gix-utils-0.3",
+        ":once_cell-1",
+        ":parking_lot-0.12",
+        ":prodash-31",
+        ":thiserror-2",
+        ":walkdir-2",
+        ":zlib-rs-0.6",
     ],
 )
 
@@ -7874,26 +7999,26 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-filter-0.27.0",
+    name = "gix-filter-0.27",
     srcs = [":gix-filter-0.27.0.crate"],
     crate = "gix_filter",
     crate_root = "gix-filter-0.27.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":encoding_rs-0.8.35",
-        ":gix-attributes-0.31.0",
-        ":gix-command-0.8.1",
-        ":gix-hash-0.22.1",
-        ":gix-object-0.57.0",
-        ":gix-packetline-0.21.5",
-        ":gix-path-0.11.3",
-        ":gix-quote-0.7.2",
-        ":gix-trace-0.1.20",
-        ":gix-utils-0.3.4",
-        ":smallvec-1.15.2",
-        ":thiserror-2.0.18",
+        ":bstr-1",
+        ":encoding_rs-0.8",
+        ":gix-attributes-0.31",
+        ":gix-command-0.8",
+        ":gix-hash-0.22",
+        ":gix-object-0.57",
+        ":gix-packetline-0.21",
+        ":gix-path-0.11",
+        ":gix-quote-0.7",
+        ":gix-trace-0.1",
+        ":gix-utils-0.3",
+        ":smallvec-1",
+        ":thiserror-2",
     ],
 )
 
@@ -7906,19 +8031,19 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-fs-0.19.2",
+    name = "gix-fs-0.19",
     srcs = [":gix-fs-0.19.2.crate"],
     crate = "gix_fs",
     crate_root = "gix-fs-0.19.2.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":fastrand-2.4.1",
-        ":gix-features-0.46.2",
-        ":gix-path-0.11.3",
-        ":gix-utils-0.3.4",
-        ":thiserror-2.0.18",
+        ":bstr-1",
+        ":fastrand-2",
+        ":gix-features-0.46",
+        ":gix-path-0.11",
+        ":gix-utils-0.3",
+        ":thiserror-2",
     ],
 )
 
@@ -7931,17 +8056,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-glob-0.24.0",
+    name = "gix-glob-0.24",
     srcs = [":gix-glob-0.24.0.crate"],
     crate = "gix_glob",
     crate_root = "gix-glob-0.24.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":bstr-1.13.0",
-        ":gix-features-0.46.2",
-        ":gix-path-0.11.3",
+        ":bitflags-2",
+        ":bstr-1",
+        ":gix-features-0.46",
+        ":gix-path-0.11",
     ],
 )
 
@@ -7954,7 +8079,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-hash-0.22.1",
+    name = "gix-hash-0.22",
     srcs = [":gix-hash-0.22.1.crate"],
     crate = "gix_hash",
     crate_root = "gix-hash-0.22.1.crate/src/lib.rs",
@@ -7965,10 +8090,10 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":faster-hex-0.10.0",
-        ":gix-features-0.46.2",
-        ":sha1-checked-0.10.0",
-        ":thiserror-2.0.18",
+        ":faster-hex-0.10",
+        ":gix-features-0.46",
+        ":sha1-checked-0.10",
+        ":thiserror-2",
     ],
 )
 
@@ -7981,16 +8106,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-hashtable-0.12.0",
+    name = "gix-hashtable-0.12",
     srcs = [":gix-hashtable-0.12.0.crate"],
     crate = "gix_hashtable",
     crate_root = "gix-hashtable-0.12.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":gix-hash-0.22.1",
-        ":hashbrown-0.16.1",
-        ":parking_lot-0.12.5",
+        ":gix-hash-0.22",
+        ":hashbrown-0.16",
+        ":parking_lot-0.12",
     ],
 )
 
@@ -8003,18 +8128,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-ignore-0.19.1",
+    name = "gix-ignore-0.19",
     srcs = [":gix-ignore-0.19.1.crate"],
     crate = "gix_ignore",
     crate_root = "gix-ignore-0.19.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-glob-0.24.0",
-        ":gix-path-0.11.3",
-        ":gix-trace-0.1.20",
-        ":unicode-bom-2.0.3",
+        ":bstr-1",
+        ":gix-glob-0.24",
+        ":gix-path-0.11",
+        ":gix-trace-0.1",
+        ":unicode-bom-2",
     ],
 )
 
@@ -8027,7 +8152,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-index-0.48.0",
+    name = "gix-index-0.48",
     srcs = [":gix-index-0.48.0.crate"],
     crate = "gix_index",
     crate_root = "gix-index-0.48.0.crate/src/lib.rs",
@@ -8035,49 +8160,49 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":rustix-1.1.4",
+                ":libc-0.2",
+                ":rustix-1",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":rustix-1.1.4",
+                ":libc-0.2",
+                ":rustix-1",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":rustix-1.1.4",
+                ":libc-0.2",
+                ":rustix-1",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":rustix-1.1.4",
+                ":libc-0.2",
+                ":rustix-1",
             ],
         ),
     },
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":bstr-1.13.0",
-        ":filetime-0.2.29",
-        ":fnv-1.0.7",
-        ":gix-bitmap-0.3.2",
-        ":gix-features-0.46.2",
-        ":gix-fs-0.19.2",
-        ":gix-hash-0.22.1",
-        ":gix-lock-21.0.2",
-        ":gix-object-0.57.0",
-        ":gix-traverse-0.54.0",
-        ":gix-utils-0.3.4",
-        ":gix-validate-0.11.2",
-        ":hashbrown-0.16.1",
-        ":itoa-1.0.18",
-        ":memmap2-0.9.11",
-        ":smallvec-1.15.2",
-        ":thiserror-2.0.18",
+        ":bitflags-2",
+        ":bstr-1",
+        ":filetime-0.2",
+        ":fnv-1",
+        ":gix-bitmap-0.3",
+        ":gix-features-0.46",
+        ":gix-fs-0.19",
+        ":gix-hash-0.22",
+        ":gix-lock-21",
+        ":gix-object-0.57",
+        ":gix-traverse-0.54",
+        ":gix-utils-0.3",
+        ":gix-validate-0.11",
+        ":hashbrown-0.16",
+        ":itoa-1",
+        ":memmap2-0.9",
+        ":smallvec-1",
+        ":thiserror-2",
     ],
 )
 
@@ -8090,16 +8215,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-lock-21.0.2",
+    name = "gix-lock-21",
     srcs = [":gix-lock-21.0.2.crate"],
     crate = "gix_lock",
     crate_root = "gix-lock-21.0.2.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":gix-tempfile-21.0.2",
-        ":gix-utils-0.3.4",
-        ":thiserror-2.0.18",
+        ":gix-tempfile-21",
+        ":gix-utils-0.3",
+        ":thiserror-2",
     ],
 )
 
@@ -8112,26 +8237,26 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-object-0.57.0",
+    name = "gix-object-0.57",
     srcs = [":gix-object-0.57.0.crate"],
     crate = "gix_object",
     crate_root = "gix-object-0.57.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-actor-0.40.0",
-        ":gix-date-0.15.6",
-        ":gix-features-0.46.2",
-        ":gix-hash-0.22.1",
-        ":gix-hashtable-0.12.0",
-        ":gix-path-0.11.3",
-        ":gix-utils-0.3.4",
-        ":gix-validate-0.11.2",
-        ":itoa-1.0.18",
-        ":smallvec-1.15.2",
-        ":thiserror-2.0.18",
-        ":winnow-0.7.15",
+        ":bstr-1",
+        ":gix-actor-0.40",
+        ":gix-date-0.15",
+        ":gix-features-0.46",
+        ":gix-hash-0.22",
+        ":gix-hashtable-0.12",
+        ":gix-path-0.11",
+        ":gix-utils-0.3",
+        ":gix-validate-0.11",
+        ":itoa-1",
+        ":smallvec-1",
+        ":thiserror-2",
+        ":winnow-0.7",
     ],
 )
 
@@ -8144,25 +8269,25 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-odb-0.77.0",
+    name = "gix-odb-0.77",
     srcs = [":gix-odb-0.77.0.crate"],
     crate = "gix_odb",
     crate_root = "gix-odb-0.77.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":arc-swap-1.9.2",
-        ":gix-features-0.46.2",
-        ":gix-fs-0.19.2",
-        ":gix-hash-0.22.1",
-        ":gix-hashtable-0.12.0",
-        ":gix-object-0.57.0",
-        ":gix-pack-0.67.0",
-        ":gix-path-0.11.3",
-        ":gix-quote-0.7.2",
-        ":parking_lot-0.12.5",
-        ":tempfile-3.27.0",
-        ":thiserror-2.0.18",
+        ":arc-swap-1",
+        ":gix-features-0.46",
+        ":gix-fs-0.19",
+        ":gix-hash-0.22",
+        ":gix-hashtable-0.12",
+        ":gix-object-0.57",
+        ":gix-pack-0.67",
+        ":gix-path-0.11",
+        ":gix-quote-0.7",
+        ":parking_lot-0.12",
+        ":tempfile-3",
+        ":thiserror-2",
     ],
 )
 
@@ -8175,7 +8300,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-pack-0.67.0",
+    name = "gix-pack-0.67",
     srcs = [":gix-pack-0.67.0.crate"],
     crate = "gix_pack",
     crate_root = "gix-pack-0.67.0.crate/src/lib.rs",
@@ -8187,18 +8312,18 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":clru-0.6.3",
-        ":gix-chunk-0.7.2",
-        ":gix-error-0.2.5",
-        ":gix-features-0.46.2",
-        ":gix-hash-0.22.1",
-        ":gix-hashtable-0.12.0",
-        ":gix-object-0.57.0",
-        ":gix-path-0.11.3",
-        ":memmap2-0.9.11",
-        ":smallvec-1.15.2",
-        ":thiserror-2.0.18",
-        ":uluru-3.1.0",
+        ":clru-0.6",
+        ":gix-chunk-0.7",
+        ":gix-error-0.2",
+        ":gix-features-0.46",
+        ":gix-hash-0.22",
+        ":gix-hashtable-0.12",
+        ":gix-object-0.57",
+        ":gix-path-0.11",
+        ":memmap2-0.9",
+        ":smallvec-1",
+        ":thiserror-2",
+        ":uluru-3",
     ],
 )
 
@@ -8211,7 +8336,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-packetline-0.21.5",
+    name = "gix-packetline-0.21",
     srcs = [":gix-packetline-0.21.5.crate"],
     crate = "gix_packetline",
     crate_root = "gix-packetline-0.21.5.crate/src/lib.rs",
@@ -8222,10 +8347,10 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":faster-hex-0.10.0",
-        ":gix-trace-0.1.20",
-        ":thiserror-2.0.18",
+        ":bstr-1",
+        ":faster-hex-0.10",
+        ":gix-trace-0.1",
+        ":thiserror-2",
     ],
 )
 
@@ -8238,17 +8363,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-path-0.11.3",
+    name = "gix-path-0.11",
     srcs = [":gix-path-0.11.3.crate"],
     crate = "gix_path",
     crate_root = "gix-path-0.11.3.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-trace-0.1.20",
-        ":gix-validate-0.11.2",
-        ":thiserror-2.0.18",
+        ":bstr-1",
+        ":gix-trace-0.1",
+        ":gix-validate-0.11",
+        ":thiserror-2",
     ],
 )
 
@@ -8261,20 +8386,20 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-pathspec-0.16.1",
+    name = "gix-pathspec-0.16",
     srcs = [":gix-pathspec-0.16.1.crate"],
     crate = "gix_pathspec",
     crate_root = "gix-pathspec-0.16.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":bstr-1.13.0",
-        ":gix-attributes-0.31.0",
-        ":gix-config-value-0.17.2",
-        ":gix-glob-0.24.0",
-        ":gix-path-0.11.3",
-        ":thiserror-2.0.18",
+        ":bitflags-2",
+        ":bstr-1",
+        ":gix-attributes-0.31",
+        ":gix-config-value-0.17",
+        ":gix-glob-0.24",
+        ":gix-path-0.11",
+        ":thiserror-2",
     ],
 )
 
@@ -8287,25 +8412,25 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-protocol-0.58.0",
+    name = "gix-protocol-0.58",
     srcs = [":gix-protocol-0.58.0.crate"],
     crate = "gix_protocol",
     crate_root = "gix-protocol-0.58.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-date-0.15.6",
-        ":gix-features-0.46.2",
-        ":gix-hash-0.22.1",
-        ":gix-ref-0.60.0",
-        ":gix-shallow-0.9.0",
-        ":gix-transport-0.55.1",
-        ":gix-utils-0.3.4",
-        ":maybe-async-0.2.11",
-        ":nonempty-0.12.0",
-        ":thiserror-2.0.18",
-        ":winnow-0.7.15",
+        ":bstr-1",
+        ":gix-date-0.15",
+        ":gix-features-0.46",
+        ":gix-hash-0.22",
+        ":gix-ref-0.60",
+        ":gix-shallow-0.9",
+        ":gix-transport-0.55",
+        ":gix-utils-0.3",
+        ":maybe-async-0.2",
+        ":nonempty-0.12",
+        ":thiserror-2",
+        ":winnow-0.7",
     ],
 )
 
@@ -8318,16 +8443,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-quote-0.7.2",
+    name = "gix-quote-0.7",
     srcs = [":gix-quote-0.7.2.crate"],
     crate = "gix_quote",
     crate_root = "gix-quote-0.7.2.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-error-0.2.5",
-        ":gix-utils-0.3.4",
+        ":bstr-1",
+        ":gix-error-0.2",
+        ":gix-utils-0.3",
     ],
 )
 
@@ -8340,26 +8465,26 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-ref-0.60.0",
+    name = "gix-ref-0.60",
     srcs = [":gix-ref-0.60.0.crate"],
     crate = "gix_ref",
     crate_root = "gix-ref-0.60.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":gix-actor-0.40.0",
-        ":gix-features-0.46.2",
-        ":gix-fs-0.19.2",
-        ":gix-hash-0.22.1",
-        ":gix-lock-21.0.2",
-        ":gix-object-0.57.0",
-        ":gix-path-0.11.3",
-        ":gix-tempfile-21.0.2",
-        ":gix-utils-0.3.4",
-        ":gix-validate-0.11.2",
-        ":memmap2-0.9.11",
-        ":thiserror-2.0.18",
-        ":winnow-0.7.15",
+        ":gix-actor-0.40",
+        ":gix-features-0.46",
+        ":gix-fs-0.19",
+        ":gix-hash-0.22",
+        ":gix-lock-21",
+        ":gix-object-0.57",
+        ":gix-path-0.11",
+        ":gix-tempfile-21",
+        ":gix-utils-0.3",
+        ":gix-validate-0.11",
+        ":memmap2-0.9",
+        ":thiserror-2",
+        ":winnow-0.7",
     ],
 )
 
@@ -8372,21 +8497,21 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-refspec-0.38.0",
+    name = "gix-refspec-0.38",
     srcs = [":gix-refspec-0.38.0.crate"],
     crate = "gix_refspec",
     crate_root = "gix-refspec-0.38.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-error-0.2.5",
-        ":gix-glob-0.24.0",
-        ":gix-hash-0.22.1",
-        ":gix-revision-0.42.0",
-        ":gix-validate-0.11.2",
-        ":smallvec-1.15.2",
-        ":thiserror-2.0.18",
+        ":bstr-1",
+        ":gix-error-0.2",
+        ":gix-glob-0.24",
+        ":gix-hash-0.22",
+        ":gix-revision-0.42",
+        ":gix-validate-0.11",
+        ":smallvec-1",
+        ":thiserror-2",
     ],
 )
 
@@ -8399,21 +8524,21 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-revision-0.42.0",
+    name = "gix-revision-0.42",
     srcs = [":gix-revision-0.42.0.crate"],
     crate = "gix_revision",
     crate_root = "gix-revision-0.42.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-commitgraph-0.34.0",
-        ":gix-date-0.15.6",
-        ":gix-error-0.2.5",
-        ":gix-hash-0.22.1",
-        ":gix-object-0.57.0",
-        ":gix-revwalk-0.28.0",
-        ":nonempty-0.12.0",
+        ":bstr-1",
+        ":gix-commitgraph-0.34",
+        ":gix-date-0.15",
+        ":gix-error-0.2",
+        ":gix-hash-0.22",
+        ":gix-object-0.57",
+        ":gix-revwalk-0.28",
+        ":nonempty-0.12",
     ],
 )
 
@@ -8426,21 +8551,21 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-revwalk-0.28.0",
+    name = "gix-revwalk-0.28",
     srcs = [":gix-revwalk-0.28.0.crate"],
     crate = "gix_revwalk",
     crate_root = "gix-revwalk-0.28.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":gix-commitgraph-0.34.0",
-        ":gix-date-0.15.6",
-        ":gix-error-0.2.5",
-        ":gix-hash-0.22.1",
-        ":gix-hashtable-0.12.0",
-        ":gix-object-0.57.0",
-        ":smallvec-1.15.2",
-        ":thiserror-2.0.18",
+        ":gix-commitgraph-0.34",
+        ":gix-date-0.15",
+        ":gix-error-0.2",
+        ":gix-hash-0.22",
+        ":gix-hashtable-0.12",
+        ":gix-object-0.57",
+        ":smallvec-1",
+        ":thiserror-2",
     ],
 )
 
@@ -8453,39 +8578,39 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-sec-0.13.3",
+    name = "gix-sec-0.13",
     srcs = [":gix-sec-0.13.3.crate"],
     crate = "gix_sec",
     crate_root = "gix-sec-0.13.3.crate/src/lib.rs",
     edition = "2021",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "windows-gnu": dict(
             deps = [
-                ":gix-path-0.11.3",
-                ":windows-sys-0.61.2",
+                ":gix-path-0.11",
+                ":windows-sys-0.61",
             ],
         ),
         "windows-msvc": dict(
             deps = [
-                ":gix-path-0.11.3",
-                ":windows-sys-0.61.2",
+                ":gix-path-0.11",
+                ":windows-sys-0.61",
             ],
         ),
     },
     visibility = [],
-    deps = [":bitflags-2.13.1"],
+    deps = [":bitflags-2"],
 )
 
 shims.http_archive(
@@ -8497,18 +8622,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-shallow-0.9.0",
+    name = "gix-shallow-0.9",
     srcs = [":gix-shallow-0.9.0.crate"],
     crate = "gix_shallow",
     crate_root = "gix-shallow-0.9.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-hash-0.22.1",
-        ":gix-lock-21.0.2",
-        ":nonempty-0.12.0",
-        ":thiserror-2.0.18",
+        ":bstr-1",
+        ":gix-hash-0.22",
+        ":gix-lock-21",
+        ":nonempty-0.12",
+        ":thiserror-2",
     ],
 )
 
@@ -8521,20 +8646,20 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-submodule-0.27.0",
+    name = "gix-submodule-0.27",
     srcs = [":gix-submodule-0.27.0.crate"],
     crate = "gix_submodule",
     crate_root = "gix-submodule-0.27.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-config-0.53.0",
-        ":gix-path-0.11.3",
-        ":gix-pathspec-0.16.1",
-        ":gix-refspec-0.38.0",
-        ":gix-url-0.35.3",
-        ":thiserror-2.0.18",
+        ":bstr-1",
+        ":gix-config-0.53",
+        ":gix-path-0.11",
+        ":gix-pathspec-0.16",
+        ":gix-refspec-0.38",
+        ":gix-url-0.35",
+        ":thiserror-2",
     ],
 )
 
@@ -8547,7 +8672,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-tempfile-21.0.2",
+    name = "gix-tempfile-21",
     srcs = [":gix-tempfile-21.0.2.crate"],
     crate = "gix_tempfile",
     crate_root = "gix-tempfile-21.0.2.crate/src/lib.rs",
@@ -8558,24 +8683,24 @@ third_party_rust.rust_library(
     ],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
     },
     visibility = [],
     deps = [
-        ":dashmap-6.2.1",
-        ":gix-fs-0.19.2",
-        ":parking_lot-0.12.5",
-        ":tempfile-3.27.0",
+        ":dashmap-6",
+        ":gix-fs-0.19",
+        ":parking_lot-0.12",
+        ":tempfile-3",
     ],
 )
 
@@ -8588,7 +8713,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-trace-0.1.20",
+    name = "gix-trace-0.1",
     srcs = [":gix-trace-0.1.20.crate"],
     crate = "gix_trace",
     crate_root = "gix-trace-0.1.20.crate/src/lib.rs",
@@ -8606,7 +8731,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-transport-0.55.1",
+    name = "gix-transport-0.55",
     srcs = [":gix-transport-0.55.1.crate"],
     crate = "gix_transport",
     crate_root = "gix-transport-0.55.1.crate/src/lib.rs",
@@ -8614,14 +8739,14 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-command-0.8.1",
-        ":gix-features-0.46.2",
-        ":gix-packetline-0.21.5",
-        ":gix-quote-0.7.2",
-        ":gix-sec-0.13.3",
-        ":gix-url-0.35.3",
-        ":thiserror-2.0.18",
+        ":bstr-1",
+        ":gix-command-0.8",
+        ":gix-features-0.46",
+        ":gix-packetline-0.21",
+        ":gix-quote-0.7",
+        ":gix-sec-0.13",
+        ":gix-url-0.35",
+        ":thiserror-2",
     ],
 )
 
@@ -8634,22 +8759,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-traverse-0.54.0",
+    name = "gix-traverse-0.54",
     srcs = [":gix-traverse-0.54.0.crate"],
     crate = "gix_traverse",
     crate_root = "gix-traverse-0.54.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":gix-commitgraph-0.34.0",
-        ":gix-date-0.15.6",
-        ":gix-hash-0.22.1",
-        ":gix-hashtable-0.12.0",
-        ":gix-object-0.57.0",
-        ":gix-revwalk-0.28.0",
-        ":smallvec-1.15.2",
-        ":thiserror-2.0.18",
+        ":bitflags-2",
+        ":gix-commitgraph-0.34",
+        ":gix-date-0.15",
+        ":gix-hash-0.22",
+        ":gix-hashtable-0.12",
+        ":gix-object-0.57",
+        ":gix-revwalk-0.28",
+        ":smallvec-1",
+        ":thiserror-2",
     ],
 )
 
@@ -8662,17 +8787,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-url-0.35.3",
+    name = "gix-url-0.35",
     srcs = [":gix-url-0.35.3.crate"],
     crate = "gix_url",
     crate_root = "gix-url-0.35.3.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-path-0.11.3",
-        ":percent-encoding-2.3.2",
-        ":thiserror-2.0.18",
+        ":bstr-1",
+        ":gix-path-0.11",
+        ":percent-encoding-2",
+        ":thiserror-2",
     ],
 )
 
@@ -8685,16 +8810,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-utils-0.3.4",
+    name = "gix-utils-0.3",
     srcs = [":gix-utils-0.3.4.crate"],
     crate = "gix_utils",
     crate_root = "gix-utils-0.3.4.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":fastrand-2.4.1",
-        ":getrandom-0.4.3",
-        ":unicode-normalization-0.1.25",
+        ":fastrand-2",
+        ":getrandom-0.4",
+        ":unicode-normalization-0.1",
     ],
 )
 
@@ -8707,13 +8832,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-validate-0.11.2",
+    name = "gix-validate-0.11",
     srcs = [":gix-validate-0.11.2.crate"],
     crate = "gix_validate",
     crate_root = "gix-validate-0.11.2.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":bstr-1.13.0"],
+    deps = [":bstr-1"],
 )
 
 shims.http_archive(
@@ -8725,7 +8850,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "gix-worktree-0.49.0",
+    name = "gix-worktree-0.49",
     srcs = [":gix-worktree-0.49.0.crate"],
     crate = "gix_worktree",
     crate_root = "gix-worktree-0.49.0.crate/src/lib.rs",
@@ -8733,22 +8858,22 @@ third_party_rust.rust_library(
     features = ["attributes"],
     visibility = [],
     deps = [
-        ":bstr-1.13.0",
-        ":gix-attributes-0.31.0",
-        ":gix-fs-0.19.2",
-        ":gix-glob-0.24.0",
-        ":gix-hash-0.22.1",
-        ":gix-ignore-0.19.1",
-        ":gix-index-0.48.0",
-        ":gix-object-0.57.0",
-        ":gix-path-0.11.3",
-        ":gix-validate-0.11.2",
+        ":bstr-1",
+        ":gix-attributes-0.31",
+        ":gix-fs-0.19",
+        ":gix-glob-0.24",
+        ":gix-hash-0.22",
+        ":gix-ignore-0.19",
+        ":gix-index-0.48",
+        ":gix-object-0.57",
+        ":gix-path-0.11",
+        ":gix-validate-0.11",
     ],
 )
 
 shims.alias(
     name = "glob",
-    actual = ":glob-0.3.3",
+    actual = ":glob-0.3",
     visibility = ["PUBLIC"],
 )
 
@@ -8761,7 +8886,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "glob-0.3.3",
+    name = "glob-0.3",
     srcs = [":glob-0.3.3.crate"],
     crate = "glob",
     crate_root = "glob-0.3.3.crate/src/lib.rs",
@@ -8778,7 +8903,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "globset-0.4.19",
+    name = "globset-0.4",
     srcs = [":globset-0.4.19.crate"],
     crate = "globset",
     crate_root = "globset-0.4.19.crate/src/lib.rs",
@@ -8789,11 +8914,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":aho-corasick-1.1.4",
-        ":bstr-1.13.0",
-        ":log-0.4.33",
-        ":regex-automata-0.4.16",
-        ":regex-syntax-0.8.11",
+        ":aho-corasick-1",
+        ":bstr-1",
+        ":log-0.4",
+        ":regex-automata-0.4",
+        ":regex-syntax-0.8",
     ],
 )
 
@@ -8806,24 +8931,24 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "h2-0.4.15",
+    name = "h2-0.4",
     srcs = [":h2-0.4.15.crate"],
     crate = "h2",
     crate_root = "h2-0.4.15.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":atomic-waker-1.1.2",
-        ":bytes-1.12.1",
-        ":fnv-1.0.7",
-        ":futures-core-0.3.32",
-        ":futures-sink-0.3.32",
-        ":http-1.4.2",
-        ":indexmap-2.14.0",
-        ":slab-0.4.12",
-        ":tokio-1.53.0",
-        ":tokio-util-0.7.18",
-        ":tracing-0.1.44",
+        ":atomic-waker-1",
+        ":bytes-1",
+        ":fnv-1",
+        ":futures-core-0.3",
+        ":futures-sink-0.3",
+        ":http-1",
+        ":indexmap-2",
+        ":slab-0.4",
+        ":tokio-1",
+        ":tokio-util-0.7",
+        ":tracing-0.1",
     ],
 )
 
@@ -8836,13 +8961,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hash32-0.3.1",
+    name = "hash32-0.3",
     srcs = [":hash32-0.3.1.crate"],
     crate = "hash32",
     crate_root = "hash32-0.3.1.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":byteorder-1.5.0"],
+    deps = [":byteorder-1"],
 )
 
 shims.http_archive(
@@ -8854,7 +8979,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hashbrown-0.14.5",
+    name = "hashbrown-0.14",
     srcs = [":hashbrown-0.14.5.crate"],
     crate = "hashbrown",
     crate_root = "hashbrown-0.14.5.crate/src/lib.rs",
@@ -8868,8 +8993,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":ahash-0.8.12",
-        ":allocator-api2-0.2.21",
+        ":ahash-0.8",
+        ":allocator-api2-0.2",
     ],
 )
 
@@ -8882,7 +9007,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hashbrown-0.15.5",
+    name = "hashbrown-0.15",
     srcs = [":hashbrown-0.15.5.crate"],
     crate = "hashbrown",
     crate_root = "hashbrown-0.15.5.crate/src/lib.rs",
@@ -8897,9 +9022,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":allocator-api2-0.2.21",
-        ":equivalent-1.0.2",
-        ":foldhash-0.1.5",
+        ":allocator-api2-0.2",
+        ":equivalent-1",
+        ":foldhash-0.1",
     ],
 )
 
@@ -8912,7 +9037,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hashbrown-0.16.1",
+    name = "hashbrown-0.16",
     srcs = [":hashbrown-0.16.1.crate"],
     crate = "hashbrown",
     crate_root = "hashbrown-0.16.1.crate/src/lib.rs",
@@ -8927,9 +9052,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":allocator-api2-0.2.21",
-        ":equivalent-1.0.2",
-        ":foldhash-0.2.0",
+        ":allocator-api2-0.2",
+        ":equivalent-1",
+        ":foldhash-0.2",
     ],
 )
 
@@ -8942,7 +9067,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hashbrown-0.17.1",
+    name = "hashbrown-0.17",
     srcs = [":hashbrown-0.17.1.crate"],
     crate = "hashbrown",
     crate_root = "hashbrown-0.17.1.crate/src/lib.rs",
@@ -8957,9 +9082,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":allocator-api2-0.2.21",
-        ":equivalent-1.0.2",
-        ":foldhash-0.2.0",
+        ":allocator-api2-0.2",
+        ":equivalent-1",
+        ":foldhash-0.2",
     ],
 )
 
@@ -8972,13 +9097,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hashlink-0.12.1",
+    name = "hashlink-0.12",
     srcs = [":hashlink-0.12.1.crate"],
     crate = "hashlink",
     crate_root = "hashlink-0.12.1.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":hashbrown-0.17.1"],
+    deps = [":hashbrown-0.17"],
 )
 
 shims.http_archive(
@@ -8990,7 +9115,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hdrhistogram-7.5.4",
+    name = "hdrhistogram-7",
     srcs = [":hdrhistogram-7.5.4.crate"],
     crate = "hdrhistogram",
     crate_root = "hdrhistogram-7.5.4.crate/src/lib.rs",
@@ -9003,11 +9128,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":base64-0.21.7",
-        ":byteorder-1.5.0",
-        ":flate2-1.1.9",
-        ":nom-7.1.3",
-        ":num-traits-0.2.19",
+        ":base64-0.21",
+        ":byteorder-1",
+        ":flate2-1",
+        ":nom-7",
+        ":num-traits-0.2",
     ],
 )
 
@@ -9020,15 +9145,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "heapless-0.8.0",
+    name = "heapless-0.8",
     srcs = [":heapless-0.8.0.crate"],
     crate = "heapless",
     crate_root = "heapless-0.8.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":hash32-0.3.1",
-        ":stable_deref_trait-1.2.1",
+        ":hash32-0.3",
+        ":stable_deref_trait-1",
     ],
 )
 
@@ -9041,7 +9166,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "heck-0.4.1",
+    name = "heck-0.4",
     srcs = [":heck-0.4.1.crate"],
     crate = "heck",
     crate_root = "heck-0.4.1.crate/src/lib.rs",
@@ -9059,7 +9184,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "heck-0.5.0",
+    name = "heck-0.5",
     srcs = [":heck-0.5.0.crate"],
     crate = "heck",
     crate_root = "heck-0.5.0.crate/src/lib.rs",
@@ -9069,7 +9194,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "hegeltest",
-    actual = ":hegeltest-0.28.0",
+    actual = ":hegeltest-0.28",
     visibility = ["PUBLIC"],
 )
 
@@ -9082,7 +9207,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-0.28.0",
+    name = "hegeltest-0.28",
     srcs = [":hegeltest-0.28.0.crate"],
     crate = "hegel",
     crate_root = "hegeltest-0.28.0.crate/src/lib.rs",
@@ -9090,16 +9215,16 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":crc32fast-1.5.0",
-        ":dashu-int-0.4.3",
-        ":hegeltest-c-0.29.0",
-        ":hegeltest-macros-0.28.0",
-        ":miniz_oxide-0.8.9",
-        ":parking_lot-0.12.5",
-        ":paste-1.0.15",
-        ":rand-0.10.2",
-        ":rustc-hash-2.1.3",
-        ":tempfile-3.27.0",
+        ":crc32fast-1",
+        ":dashu-int-0.4",
+        ":hegeltest-c-0.29",
+        ":hegeltest-macros-0.28",
+        ":miniz_oxide-0.8",
+        ":parking_lot-0.12",
+        ":paste-1",
+        ":rand-0.10",
+        ":rustc-hash-2",
+        ":tempfile-3",
     ],
 )
 
@@ -9112,7 +9237,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-c-0.29.0",
+    name = "hegeltest-c-0.29",
     srcs = [":hegeltest-c-0.29.0.crate"],
     crate = "hegel_c",
     crate_root = "hegeltest-c-0.29.0.crate/src/lib.rs",
@@ -9123,13 +9248,13 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
-        ":crc32fast-1.5.0",
-        ":dashu-int-0.4.3",
-        ":miniz_oxide-0.8.9",
-        ":parking_lot-0.12.5",
-        ":rand-0.10.2",
-        ":rustc-hash-2.1.3",
-        ":tempfile-3.27.0",
+        ":crc32fast-1",
+        ":dashu-int-0.4",
+        ":miniz_oxide-0.8",
+        ":parking_lot-0.12",
+        ":rand-0.10",
+        ":rustc-hash-2",
+        ":tempfile-3",
     ],
 )
 
@@ -9142,7 +9267,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-macros-0.28.0",
+    name = "hegeltest-macros-0.28",
     srcs = [":hegeltest-macros-0.28.0.crate"],
     crate = "hegel_macros",
     crate_root = "hegeltest-macros-0.28.0.crate/src/lib.rs",
@@ -9150,15 +9275,15 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
 shims.alias(
     name = "hex",
-    actual = ":hex-0.4.3",
+    actual = ":hex-0.4",
     visibility = ["PUBLIC"],
 )
 
@@ -9171,7 +9296,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hex-0.4.3",
+    name = "hex-0.4",
     srcs = [":hex-0.4.3.crate"],
     crate = "hex",
     crate_root = "hex-0.4.3.crate/src/lib.rs",
@@ -9193,7 +9318,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hex-simd-0.8.0",
+    name = "hex-simd-0.8",
     srcs = [":hex-simd-0.8.0.crate"],
     crate = "hex_simd",
     crate_root = "hex-simd-0.8.0.crate/src/lib.rs",
@@ -9206,8 +9331,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":outref-0.5.2",
-        ":vsimd-0.8.0",
+        ":outref-0.5",
+        ":vsimd-0.8",
     ],
 )
 
@@ -9220,7 +9345,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hickory-net-0.26.1",
+    name = "hickory-net-0.26",
     srcs = [":hickory-net-0.26.1.crate"],
     crate = "hickory_net",
     crate_root = "hickory-net-0.26.1.crate/src/lib.rs",
@@ -9228,21 +9353,21 @@ third_party_rust.rust_library(
     features = ["tokio"],
     visibility = [],
     deps = [
-        ":async-trait-0.1.89",
-        ":cfg-if-1.0.4",
-        ":data-encoding-2.11.0",
-        ":futures-channel-0.3.32",
-        ":futures-io-0.3.32",
-        ":futures-util-0.3.32",
-        ":hickory-proto-0.26.1",
-        ":idna-1.1.0",
-        ":ipnet-2.12.0",
-        ":rand-0.10.2",
-        ":thiserror-2.0.18",
-        ":tinyvec-1.12.0",
-        ":tokio-1.53.0",
-        ":tracing-0.1.44",
-        ":url-2.5.8",
+        ":async-trait-0.1",
+        ":cfg-if-1",
+        ":data-encoding-2",
+        ":futures-channel-0.3",
+        ":futures-io-0.3",
+        ":futures-util-0.3",
+        ":hickory-proto-0.26",
+        ":idna-1",
+        ":ipnet-2",
+        ":rand-0.10",
+        ":thiserror-2",
+        ":tinyvec-1",
+        ":tokio-1",
+        ":tracing-0.1",
+        ":url-2",
     ],
 )
 
@@ -9255,7 +9380,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hickory-proto-0.26.1",
+    name = "hickory-proto-0.26",
     srcs = [":hickory-proto-0.26.1.crate"],
     crate = "hickory_proto",
     crate_root = "hickory-proto-0.26.1.crate/src/lib.rs",
@@ -9266,16 +9391,16 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":data-encoding-2.11.0",
-        ":idna-1.1.0",
-        ":ipnet-2.12.0",
-        ":once_cell-1.21.4",
-        ":prefix-trie-0.8.4",
-        ":rand-0.10.2",
-        ":thiserror-2.0.18",
-        ":tinyvec-1.12.0",
-        ":tracing-0.1.44",
-        ":url-2.5.8",
+        ":data-encoding-2",
+        ":idna-1",
+        ":ipnet-2",
+        ":once_cell-1",
+        ":prefix-trie-0.8",
+        ":rand-0.10",
+        ":thiserror-2",
+        ":tinyvec-1",
+        ":tracing-0.1",
+        ":url-2",
     ],
 )
 
@@ -9288,18 +9413,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hickory-resolver-0.26.1",
+    name = "hickory-resolver-0.26",
     srcs = [":hickory-resolver-0.26.1.crate"],
     crate = "hickory_resolver",
     crate_root = "hickory-resolver-0.26.1.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "hickory_resolver",
         "CARGO_CRATE_NAME": "hickory_resolver",
         "CARGO_MANIFEST_DIR": "hickory-resolver-0.26.1.crate",
         "CARGO_PKG_AUTHORS": "The contributors to Hickory DNS",
         "CARGO_PKG_DESCRIPTION": "hickory-resolver is a safe and secure DNS stub resolver library intended to be a high-level library\nfor DNS record resolution.\n",
+        "CARGO_PKG_HOMEPAGE": "https://hickory-dns.org/",
         "CARGO_PKG_NAME": "hickory-resolver",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/hickory-dns/hickory-dns",
+        "CARGO_PKG_RUST_VERSION": "1.88",
         "CARGO_PKG_VERSION": "0.26.1",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "26",
@@ -9313,40 +9442,40 @@ third_party_rust.rust_library(
     ],
     platform = {
         "macos-arm64": dict(
-            deps = [":system-configuration-0.7.0"],
+            deps = [":system-configuration-0.7"],
         ),
         "macos-x86_64": dict(
-            deps = [":system-configuration-0.7.0"],
+            deps = [":system-configuration-0.7"],
         ),
         "windows-gnu": dict(
-            deps = [":ipconfig-0.3.4"],
+            deps = [":ipconfig-0.3"],
         ),
         "windows-msvc": dict(
-            deps = [":ipconfig-0.3.4"],
+            deps = [":ipconfig-0.3"],
         ),
     },
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":futures-util-0.3.32",
-        ":hickory-net-0.26.1",
-        ":hickory-proto-0.26.1",
-        ":ipnet-2.12.0",
-        ":moka-0.12.15",
-        ":once_cell-1.21.4",
-        ":parking_lot-0.12.5",
-        ":rand-0.10.2",
-        ":resolv-conf-0.7.6",
-        ":smallvec-1.15.2",
-        ":thiserror-2.0.18",
-        ":tokio-1.53.0",
-        ":tracing-0.1.44",
+        ":cfg-if-1",
+        ":futures-util-0.3",
+        ":hickory-net-0.26",
+        ":hickory-proto-0.26",
+        ":ipnet-2",
+        ":moka-0.12",
+        ":once_cell-1",
+        ":parking_lot-0.12",
+        ":rand-0.10",
+        ":resolv-conf-0.7",
+        ":smallvec-1",
+        ":thiserror-2",
+        ":tokio-1",
+        ":tracing-0.1",
     ],
 )
 
 shims.alias(
     name = "hmac",
-    actual = ":hmac-0.12.1",
+    actual = ":hmac-0.12",
     visibility = ["PUBLIC"],
 )
 
@@ -9359,13 +9488,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hmac-0.12.1",
+    name = "hmac-0.12",
     srcs = [":hmac-0.12.1.crate"],
     crate = "hmac",
     crate_root = "hmac-0.12.1.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":digest-0.10.7"],
+    deps = [":digest-0.10"],
 )
 
 shims.http_archive(
@@ -9377,13 +9506,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hmac-0.13.0",
+    name = "hmac-0.13",
     srcs = [":hmac-0.13.0.crate"],
     crate = "hmac",
     crate_root = "hmac-0.13.0.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":digest-0.11.3"],
+    deps = [":digest-0.11"],
 )
 
 shims.http_archive(
@@ -9395,17 +9524,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "home-0.5.12",
+    name = "home-0.5",
     srcs = [":home-0.5.12.crate"],
     crate = "home",
     crate_root = "home-0.5.12.crate/src/lib.rs",
     edition = "2024",
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
@@ -9420,7 +9549,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hostname-0.4.2",
+    name = "hostname-0.4",
     srcs = [":hostname-0.4.2.crate"],
     crate = "hostname",
     crate_root = "hostname-0.4.2.crate/src/lib.rs",
@@ -9428,31 +9557,31 @@ third_party_rust.rust_library(
     features = ["default"],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-link-0.2.1"],
+            deps = [":windows-link-0.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-link-0.2.1"],
+            deps = [":windows-link-0.2"],
         ),
     },
     visibility = [],
-    deps = [":cfg-if-1.0.4"],
+    deps = [":cfg-if-1"],
 )
 
 shims.alias(
     name = "http",
-    actual = ":http-1.4.2",
+    actual = ":http-1",
     visibility = ["PUBLIC"],
 )
 
@@ -9465,7 +9594,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "http-1.4.2",
+    name = "http-1",
     srcs = [":http-1.4.2.crate"],
     crate = "http",
     crate_root = "http-1.4.2.crate/src/lib.rs",
@@ -9476,8 +9605,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bytes-1.12.1",
-        ":itoa-1.0.18",
+        ":bytes-1",
+        ":itoa-1",
     ],
 )
 
@@ -9490,21 +9619,21 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "http-body-1.1.0",
+    name = "http-body-1",
     srcs = [":http-body-1.1.0.crate"],
     crate = "http_body",
     crate_root = "http-body-1.1.0.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":bytes-1.12.1",
-        ":http-1.4.2",
+        ":bytes-1",
+        ":http-1",
     ],
 )
 
 shims.alias(
     name = "http-body-util",
-    actual = ":http-body-util-0.1.4",
+    actual = ":http-body-util-0.1",
     visibility = ["PUBLIC"],
 )
 
@@ -9517,7 +9646,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "http-body-util-0.1.4",
+    name = "http-body-util-0.1",
     srcs = [":http-body-util-0.1.4.crate"],
     crate = "http_body_util",
     crate_root = "http-body-util-0.1.4.crate/src/lib.rs",
@@ -9525,11 +9654,11 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":bytes-1.12.1",
-        ":futures-core-0.3.32",
-        ":http-1.4.2",
-        ":http-body-1.1.0",
-        ":pin-project-lite-0.2.17",
+        ":bytes-1",
+        ":futures-core-0.3",
+        ":http-1",
+        ":http-body-1",
+        ":pin-project-lite-0.2",
     ],
 )
 
@@ -9542,7 +9671,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "httparse-1.10.1",
+    name = "httparse-1",
     srcs = [":httparse-1.10.1.crate"],
     crate = "httparse",
     crate_root = "httparse-1.10.1.crate/src/lib.rs",
@@ -9563,7 +9692,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "httpdate-1.0.3",
+    name = "httpdate-1",
     srcs = [":httpdate-1.0.3.crate"],
     crate = "httpdate",
     crate_root = "httpdate-1.0.3.crate/src/lib.rs",
@@ -9580,7 +9709,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "humantime-2.4.0",
+    name = "humantime-2",
     srcs = [":humantime-2.4.0.crate"],
     crate = "humantime",
     crate_root = "humantime-2.4.0.crate/src/lib.rs",
@@ -9597,18 +9726,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hybrid-array-0.4.13",
+    name = "hybrid-array-0.4",
     srcs = [":hybrid-array-0.4.13.crate"],
     crate = "hybrid_array",
     crate_root = "hybrid-array-0.4.13.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":typenum-1.20.1"],
+    deps = [":typenum-1"],
 )
 
 shims.alias(
     name = "hyper",
-    actual = ":hyper-1.10.1",
+    actual = ":hyper-1",
     visibility = ["PUBLIC"],
 )
 
@@ -9621,7 +9750,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hyper-1.10.1",
+    name = "hyper-1",
     srcs = [":hyper-1.10.1.crate"],
     crate = "hyper",
     crate_root = "hyper-1.10.1.crate/src/lib.rs",
@@ -9635,26 +9764,26 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":atomic-waker-1.1.2",
-        ":bytes-1.12.1",
-        ":futures-channel-0.3.32",
-        ":futures-core-0.3.32",
-        ":h2-0.4.15",
-        ":http-1.4.2",
-        ":http-body-1.1.0",
-        ":httparse-1.10.1",
-        ":httpdate-1.0.3",
-        ":itoa-1.0.18",
-        ":pin-project-lite-0.2.17",
-        ":smallvec-1.15.2",
-        ":tokio-1.53.0",
-        ":want-0.3.1",
+        ":atomic-waker-1",
+        ":bytes-1",
+        ":futures-channel-0.3",
+        ":futures-core-0.3",
+        ":h2-0.4",
+        ":http-1",
+        ":http-body-1",
+        ":httparse-1",
+        ":httpdate-1",
+        ":itoa-1",
+        ":pin-project-lite-0.2",
+        ":smallvec-1",
+        ":tokio-1",
+        ":want-0.3",
     ],
 )
 
 shims.alias(
     name = "hyper-rustls",
-    actual = ":hyper-rustls-0.27.9",
+    actual = ":hyper-rustls-0.27",
     visibility = ["PUBLIC"],
 )
 
@@ -9667,7 +9796,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hyper-rustls-0.27.9",
+    name = "hyper-rustls-0.27",
     srcs = [":hyper-rustls-0.27.9.crate"],
     crate = "hyper_rustls",
     crate_root = "hyper-rustls-0.27.9.crate/src/lib.rs",
@@ -9681,14 +9810,14 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":http-1.4.2",
-        ":hyper-1.10.1",
-        ":hyper-util-0.1.20",
-        ":rustls-0.23.42",
-        ":rustls-native-certs-0.8.4",
-        ":tokio-1.53.0",
-        ":tokio-rustls-0.26.4",
-        ":tower-service-0.3.3",
+        ":http-1",
+        ":hyper-1",
+        ":hyper-util-0.1",
+        ":rustls-0.23",
+        ":rustls-native-certs-0.8",
+        ":tokio-1",
+        ":tokio-rustls-0.26",
+        ":tower-service-0.3",
     ],
 )
 
@@ -9701,18 +9830,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hyper-timeout-0.5.2",
+    name = "hyper-timeout-0.5",
     srcs = [":hyper-timeout-0.5.2.crate"],
     crate = "hyper_timeout",
     crate_root = "hyper-timeout-0.5.2.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":hyper-1.10.1",
-        ":hyper-util-0.1.20",
-        ":pin-project-lite-0.2.17",
-        ":tokio-1.53.0",
-        ":tower-service-0.3.3",
+        ":hyper-1",
+        ":hyper-util-0.1",
+        ":pin-project-lite-0.2",
+        ":tokio-1",
+        ":tower-service-0.3",
     ],
 )
 
@@ -9725,7 +9854,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hyper-tls-0.6.0",
+    name = "hyper-tls-0.6",
     srcs = [":hyper-tls-0.6.0.crate"],
     crate = "hyper_tls",
     crate_root = "hyper-tls-0.6.0.crate/src/lib.rs",
@@ -9733,20 +9862,20 @@ third_party_rust.rust_library(
     features = ["alpn"],
     visibility = [],
     deps = [
-        ":bytes-1.12.1",
-        ":http-body-util-0.1.4",
-        ":hyper-1.10.1",
-        ":hyper-util-0.1.20",
-        ":native-tls-0.2.18",
-        ":tokio-1.53.0",
-        ":tokio-native-tls-0.3.1",
-        ":tower-service-0.3.3",
+        ":bytes-1",
+        ":http-body-util-0.1",
+        ":hyper-1",
+        ":hyper-util-0.1",
+        ":native-tls-0.2",
+        ":tokio-1",
+        ":tokio-native-tls-0.3",
+        ":tower-service-0.3",
     ],
 )
 
 shims.alias(
     name = "hyper-util",
-    actual = ":hyper-util-0.1.20",
+    actual = ":hyper-util-0.1",
     visibility = ["PUBLIC"],
 )
 
@@ -9759,7 +9888,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "hyper-util-0.1.20",
+    name = "hyper-util-0.1",
     srcs = [":hyper-util-0.1.20.crate"],
     crate = "hyper_util",
     crate_root = "hyper-util-0.1.20.crate/src/lib.rs",
@@ -9780,35 +9909,35 @@ third_party_rust.rust_library(
     ],
     platform = {
         "macos-arm64": dict(
-            deps = [":system-configuration-0.7.0"],
+            deps = [":system-configuration-0.7"],
         ),
         "macos-x86_64": dict(
-            deps = [":system-configuration-0.7.0"],
+            deps = [":system-configuration-0.7"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-registry-0.6.1"],
+            deps = [":windows-registry-0.6"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-registry-0.6.1"],
+            deps = [":windows-registry-0.6"],
         ),
     },
     visibility = [],
     deps = [
-        ":base64-0.22.1",
-        ":bytes-1.12.1",
-        ":futures-channel-0.3.32",
-        ":futures-util-0.3.32",
-        ":http-1.4.2",
-        ":http-body-1.1.0",
-        ":hyper-1.10.1",
-        ":ipnet-2.12.0",
-        ":libc-0.2.186",
-        ":percent-encoding-2.3.2",
-        ":pin-project-lite-0.2.17",
-        ":socket2-0.6.5",
-        ":tokio-1.53.0",
-        ":tower-service-0.3.3",
-        ":tracing-0.1.44",
+        ":base64-0.22",
+        ":bytes-1",
+        ":futures-channel-0.3",
+        ":futures-util-0.3",
+        ":http-1",
+        ":http-body-1",
+        ":hyper-1",
+        ":ipnet-2",
+        ":libc-0.2",
+        ":percent-encoding-2",
+        ":pin-project-lite-0.2",
+        ":socket2-0.6",
+        ":tokio-1",
+        ":tower-service-0.3",
+        ":tracing-0.1",
     ],
 )
 
@@ -9821,7 +9950,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "iana-time-zone-0.1.65",
+    name = "iana-time-zone-0.1",
     srcs = [":iana-time-zone-0.1.65.crate"],
     crate = "iana_time_zone",
     crate_root = "iana-time-zone-0.1.65.crate/src/lib.rs",
@@ -9829,10 +9958,10 @@ third_party_rust.rust_library(
     features = ["fallback"],
     platform = {
         "macos-arm64": dict(
-            deps = [":core-foundation-sys-0.8.7"],
+            deps = [":core-foundation-sys-0.8"],
         ),
         "macos-x86_64": dict(
-            deps = [":core-foundation-sys-0.8.7"],
+            deps = [":core-foundation-sys-0.8"],
         ),
     },
     visibility = [],
@@ -9847,19 +9976,19 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "icu_collections-2.2.0",
+    name = "icu_collections-2",
     srcs = [":icu_collections-2.2.0.crate"],
     crate = "icu_collections",
     crate_root = "icu_collections-2.2.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":displaydoc-0.2.6",
-        ":potential_utf-0.1.5",
-        ":utf8_iter-1.0.4",
-        ":yoke-0.8.3",
-        ":zerofrom-0.1.8",
-        ":zerovec-0.11.6",
+        ":displaydoc-0.2",
+        ":potential_utf-0.1",
+        ":utf8_iter-1",
+        ":yoke-0.8",
+        ":zerofrom-0.1",
+        ":zerovec-0.11",
     ],
 )
 
@@ -9872,7 +10001,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "icu_locale_core-2.2.0",
+    name = "icu_locale_core-2",
     srcs = [":icu_locale_core-2.2.0.crate"],
     crate = "icu_locale_core",
     crate_root = "icu_locale_core-2.2.0.crate/src/lib.rs",
@@ -9880,11 +10009,11 @@ third_party_rust.rust_library(
     features = ["zerovec"],
     visibility = [],
     deps = [
-        ":displaydoc-0.2.6",
-        ":litemap-0.8.2",
-        ":tinystr-0.8.3",
-        ":writeable-0.6.3",
-        ":zerovec-0.11.6",
+        ":displaydoc-0.2",
+        ":litemap-0.8",
+        ":tinystr-0.8",
+        ":writeable-0.6",
+        ":zerovec-0.11",
     ],
 )
 
@@ -9897,7 +10026,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "icu_normalizer-2.2.0",
+    name = "icu_normalizer-2",
     srcs = [":icu_normalizer-2.2.0.crate"],
     crate = "icu_normalizer",
     crate_root = "icu_normalizer-2.2.0.crate/src/lib.rs",
@@ -9905,11 +10034,11 @@ third_party_rust.rust_library(
     features = ["compiled_data"],
     visibility = [],
     deps = [
-        ":icu_collections-2.2.0",
-        ":icu_normalizer_data-2.2.0",
-        ":icu_provider-2.2.0",
-        ":smallvec-1.15.2",
-        ":zerovec-0.11.6",
+        ":icu_collections-2",
+        ":icu_normalizer_data-2",
+        ":icu_provider-2",
+        ":smallvec-1",
+        ":zerovec-0.11",
     ],
 )
 
@@ -9922,7 +10051,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "icu_normalizer_data-2.2.0",
+    name = "icu_normalizer_data-2",
     srcs = [":icu_normalizer_data-2.2.0.crate"],
     crate = "icu_normalizer_data",
     crate_root = "icu_normalizer_data-2.2.0.crate/src/lib.rs",
@@ -9939,7 +10068,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "icu_properties-2.2.0",
+    name = "icu_properties-2",
     srcs = [":icu_properties-2.2.0.crate"],
     crate = "icu_properties",
     crate_root = "icu_properties-2.2.0.crate/src/lib.rs",
@@ -9947,12 +10076,12 @@ third_party_rust.rust_library(
     features = ["compiled_data"],
     visibility = [],
     deps = [
-        ":icu_collections-2.2.0",
-        ":icu_locale_core-2.2.0",
-        ":icu_properties_data-2.2.0",
-        ":icu_provider-2.2.0",
-        ":zerotrie-0.2.4",
-        ":zerovec-0.11.6",
+        ":icu_collections-2",
+        ":icu_locale_core-2",
+        ":icu_properties_data-2",
+        ":icu_provider-2",
+        ":zerotrie-0.2",
+        ":zerovec-0.11",
     ],
 )
 
@@ -9965,7 +10094,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "icu_properties_data-2.2.0",
+    name = "icu_properties_data-2",
     srcs = [":icu_properties_data-2.2.0.crate"],
     crate = "icu_properties_data",
     crate_root = "icu_properties_data-2.2.0.crate/src/lib.rs",
@@ -9982,7 +10111,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "icu_provider-2.2.0",
+    name = "icu_provider-2",
     srcs = [":icu_provider-2.2.0.crate"],
     crate = "icu_provider",
     crate_root = "icu_provider-2.2.0.crate/src/lib.rs",
@@ -9990,13 +10119,13 @@ third_party_rust.rust_library(
     features = ["baked"],
     visibility = [],
     deps = [
-        ":displaydoc-0.2.6",
-        ":icu_locale_core-2.2.0",
-        ":writeable-0.6.3",
-        ":yoke-0.8.3",
-        ":zerofrom-0.1.8",
-        ":zerotrie-0.2.4",
-        ":zerovec-0.11.6",
+        ":displaydoc-0.2",
+        ":icu_locale_core-2",
+        ":writeable-0.6",
+        ":yoke-0.8",
+        ":zerofrom-0.1",
+        ":zerotrie-0.2",
+        ":zerovec-0.11",
     ],
 )
 
@@ -10009,7 +10138,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ident_case-1.0.1",
+    name = "ident_case-1",
     srcs = [":ident_case-1.0.1.crate"],
     crate = "ident_case",
     crate_root = "ident_case-1.0.1.crate/src/lib.rs",
@@ -10026,7 +10155,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "identity-hash-0.1.0",
+    name = "identity-hash-0.1",
     srcs = [":identity-hash-0.1.0.crate"],
     crate = "identity_hash",
     crate_root = "identity-hash-0.1.0.crate/src/lib.rs",
@@ -10047,7 +10176,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "idna-1.1.0",
+    name = "idna-1",
     srcs = [":idna-1.1.0.crate"],
     crate = "idna",
     crate_root = "idna-1.1.0.crate/src/lib.rs",
@@ -10059,9 +10188,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":idna_adapter-1.2.2",
-        ":smallvec-1.15.2",
-        ":utf8_iter-1.0.4",
+        ":idna_adapter-1",
+        ":smallvec-1",
+        ":utf8_iter-1",
     ],
 )
 
@@ -10074,7 +10203,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "idna_adapter-1.2.2",
+    name = "idna_adapter-1",
     srcs = [":idna_adapter-1.2.2.crate"],
     crate = "idna_adapter",
     crate_root = "idna_adapter-1.2.2.crate/src/lib.rs",
@@ -10082,8 +10211,8 @@ third_party_rust.rust_library(
     features = ["compiled_data"],
     visibility = [],
     deps = [
-        ":icu_normalizer-2.2.0",
-        ":icu_properties-2.2.0",
+        ":icu_normalizer-2",
+        ":icu_properties-2",
     ],
 )
 
@@ -10096,7 +10225,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "igd-next-0.17.1",
+    name = "igd-next-0.17",
     srcs = [":igd-next-0.17.1.crate"],
     crate = "igd_next",
     crate_root = "igd-next-0.17.1.crate/src/lib.rs",
@@ -10114,18 +10243,18 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":attohttpc-0.30.1",
-        ":bytes-1.12.1",
-        ":futures-0.3.32",
-        ":http-1.4.2",
-        ":http-body-util-0.1.4",
-        ":hyper-1.10.1",
-        ":hyper-util-0.1.20",
-        ":log-0.4.33",
-        ":rand-0.10.2",
-        ":tokio-1.53.0",
-        ":url-2.5.8",
-        ":xmltree-0.10.3",
+        ":attohttpc-0.30",
+        ":bytes-1",
+        ":futures-0.3",
+        ":http-1",
+        ":http-body-util-0.1",
+        ":hyper-1",
+        ":hyper-util-0.1",
+        ":log-0.4",
+        ":rand-0.10",
+        ":tokio-1",
+        ":url-2",
+        ":xmltree-0.10",
     ],
 )
 
@@ -10138,28 +10267,28 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ignore-0.4.30",
+    name = "ignore-0.4",
     srcs = [":ignore-0.4.30.crate"],
     crate = "ignore",
     crate_root = "ignore-0.4.30.crate/src/lib.rs",
     edition = "2024",
     platform = {
         "windows-gnu": dict(
-            deps = [":winapi-util-0.1.11"],
+            deps = [":winapi-util-0.1"],
         ),
         "windows-msvc": dict(
-            deps = [":winapi-util-0.1.11"],
+            deps = [":winapi-util-0.1"],
         ),
     },
     visibility = [],
     deps = [
-        ":crossbeam-deque-0.8.7",
-        ":globset-0.4.19",
-        ":log-0.4.33",
-        ":memchr-2.8.3",
-        ":regex-automata-0.4.16",
-        ":same-file-1.0.6",
-        ":walkdir-2.5.0",
+        ":crossbeam-deque-0.8",
+        ":globset-0.4",
+        ":log-0.4",
+        ":memchr-2",
+        ":regex-automata-0.4",
+        ":same-file-1",
+        ":walkdir-2",
     ],
 )
 
@@ -10172,7 +10301,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "imara-diff-0.1.8",
+    name = "imara-diff-0.1",
     srcs = [":imara-diff-0.1.8.crate"],
     crate = "imara_diff",
     crate_root = "imara-diff-0.1.8.crate/src/lib.rs",
@@ -10182,7 +10311,7 @@ third_party_rust.rust_library(
         "unified_diff",
     ],
     visibility = [],
-    deps = [":hashbrown-0.15.5"],
+    deps = [":hashbrown-0.15"],
 )
 
 shims.http_archive(
@@ -10194,7 +10323,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "indenter-0.3.4",
+    name = "indenter-0.3",
     srcs = [":indenter-0.3.4.crate"],
     crate = "indenter",
     crate_root = "indenter-0.3.4.crate/src/lib.rs",
@@ -10212,7 +10341,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "indexmap-2.14.0",
+    name = "indexmap-2",
     srcs = [":indexmap-2.14.0.crate"],
     crate = "indexmap",
     crate_root = "indexmap-2.14.0.crate/src/lib.rs",
@@ -10224,9 +10353,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":equivalent-1.0.2",
-        ":hashbrown-0.17.1",
-        ":serde_core-1.0.228",
+        ":equivalent-1",
+        ":hashbrown-0.17",
+        ":serde_core-1",
     ],
 )
 
@@ -10239,7 +10368,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "indoc-2.0.7",
+    name = "indoc-2",
     srcs = [":indoc-2.0.7.crate"],
     crate = "indoc",
     crate_root = "indoc-2.0.7.crate/src/lib.rs",
@@ -10257,7 +10386,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "inlinable_string-0.1.15",
+    name = "inlinable_string-0.1",
     srcs = [":inlinable_string-0.1.15.crate"],
     crate = "inlinable_string",
     crate_root = "inlinable_string-0.1.15.crate/src/lib.rs",
@@ -10274,16 +10403,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "inotify-0.11.4",
+    name = "inotify-0.11",
     srcs = [":inotify-0.11.4.crate"],
     crate = "inotify",
     crate_root = "inotify-0.11.4.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":inotify-sys-0.1.8",
-        ":libc-0.2.186",
+        ":bitflags-2",
+        ":inotify-sys-0.1",
+        ":libc-0.2",
     ],
 )
 
@@ -10296,13 +10425,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "inotify-sys-0.1.8",
+    name = "inotify-sys-0.1",
     srcs = [":inotify-sys-0.1.8.crate"],
     crate = "inotify_sys",
     crate_root = "inotify-sys-0.1.8.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":libc-0.2.186"],
+    deps = [":libc-0.2"],
 )
 
 shims.http_archive(
@@ -10314,18 +10443,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "inout-0.1.4",
+    name = "inout-0.1",
     srcs = [":inout-0.1.4.crate"],
     crate = "inout",
     crate_root = "inout-0.1.4.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":generic-array-0.14.7"],
+    deps = [":generic-array-0.14"],
 )
 
 shims.alias(
     name = "insta",
-    actual = ":insta-1.48.0",
+    actual = ":insta-1",
     visibility = ["PUBLIC"],
 )
 
@@ -10338,7 +10467,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "insta-1.48.0",
+    name = "insta-1",
     srcs = [":insta-1.48.0.crate"],
     crate = "insta",
     crate_root = "insta-1.48.0.crate/src/lib.rs",
@@ -10350,10 +10479,10 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":console-0.16.4",
-        ":once_cell-1.21.4",
-        ":similar-2.7.0",
-        ":tempfile-3.27.0",
+        ":console-0.16",
+        ":once_cell-1",
+        ":similar-2",
+        ":tempfile-3",
     ],
 )
 
@@ -10366,7 +10495,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "instability-0.3.12",
+    name = "instability-0.3",
     srcs = [":instability-0.3.12.crate"],
     crate = "instability",
     crate_root = "instability-0.3.12.crate/src/lib.rs",
@@ -10374,11 +10503,11 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":darling-0.23.0",
-        ":indoc-2.0.7",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":darling-0.23",
+        ":indoc-2",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -10391,7 +10520,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "interim-0.2.1",
+    name = "interim-0.2",
     srcs = [":interim-0.2.1.crate"],
     crate = "interim",
     crate_root = "interim-0.2.1.crate/src/lib.rs",
@@ -10403,8 +10532,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":chrono-0.4.45",
-        ":logos-0.15.1",
+        ":chrono-0.4",
+        ":logos-0.15",
     ],
 )
 
@@ -10435,7 +10564,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "intrusive-collections-0.10.2",
+    name = "intrusive-collections-0.10",
     srcs = [":intrusive-collections-0.10.2.crate"],
     crate = "intrusive_collections",
     crate_root = "intrusive-collections-0.10.2.crate/src/lib.rs",
@@ -10445,7 +10574,7 @@ third_party_rust.rust_library(
         "default",
     ],
     visibility = [],
-    deps = [":memoffset-0.9.1"],
+    deps = [":memoffset-0.9"],
 )
 
 shims.http_archive(
@@ -10457,7 +10586,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "inventory-0.3.24",
+    name = "inventory-0.3",
     srcs = [":inventory-0.3.24.crate"],
     crate = "inventory",
     crate_root = "inventory-0.3.24.crate/src/lib.rs",
@@ -10474,22 +10603,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "io-uring-0.7.13",
+    name = "io-uring-0.7",
     srcs = [":io-uring-0.7.13.crate"],
     crate = "io_uring",
     crate_root = "io-uring-0.7.13.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":cfg-if-1.0.4",
-        ":libc-0.2.186",
+        ":bitflags-2",
+        ":cfg-if-1",
+        ":libc-0.2",
     ],
 )
 
 shims.alias(
     name = "iocraft",
-    actual = ":iocraft-0.8.4",
+    actual = ":iocraft-0.8",
     visibility = ["PUBLIC"],
 )
 
@@ -10502,7 +10631,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "iocraft-0.8.4",
+    name = "iocraft-0.8",
     srcs = [":iocraft-0.8.4.crate"],
     crate = "iocraft",
     crate_root = "iocraft-0.8.4.crate/src/lib.rs",
@@ -10510,14 +10639,14 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":crossterm-0.29.0",
-        ":futures-0.3.32",
-        ":generational-box-0.5.6",
-        ":iocraft-macros-0.2.4",
-        ":regex-1.13.1",
-        ":taffy-0.5.2",
-        ":unicode-width-0.1.14",
+        ":bitflags-2",
+        ":crossterm-0.29",
+        ":futures-0.3",
+        ":generational-box-0.5",
+        ":iocraft-macros-0.2",
+        ":regex-1",
+        ":taffy-0.5",
+        ":unicode-width-0.1",
     ],
 )
 
@@ -10530,7 +10659,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "iocraft-macros-0.2.4",
+    name = "iocraft-macros-0.2",
     srcs = [":iocraft-macros-0.2.4.crate"],
     crate = "iocraft_macros",
     crate_root = "iocraft-macros-0.2.4.crate/src/lib.rs",
@@ -10538,9 +10667,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -10553,7 +10682,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ipconfig-0.3.4",
+    name = "ipconfig-0.3",
     srcs = [":ipconfig-0.3.4.crate"],
     crate = "ipconfig",
     crate_root = "ipconfig-0.3.4.crate/src/lib.rs",
@@ -10564,11 +10693,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":socket2-0.6.5",
-        ":widestring-1.2.1",
-        ":windows-registry-0.6.1",
-        ":windows-result-0.4.1",
-        ":windows-sys-0.61.2",
+        ":socket2-0.6",
+        ":widestring-1",
+        ":windows-registry-0.6",
+        ":windows-result-0.4",
+        ":windows-sys-0.61",
     ],
 )
 
@@ -10581,7 +10710,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ipnet-2.12.0",
+    name = "ipnet-2",
     srcs = [":ipnet-2.12.0.crate"],
     crate = "ipnet",
     crate_root = "ipnet-2.12.0.crate/src/lib.rs",
@@ -10592,12 +10721,12 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":serde-1.0.228"],
+    deps = [":serde-1"],
 )
 
 shims.alias(
     name = "iroh",
-    actual = ":iroh-1.0.2",
+    actual = ":iroh-1",
     visibility = ["PUBLIC"],
 )
 
@@ -10610,25 +10739,29 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "iroh-1.0.2",
+    name = "iroh-1",
     srcs = [":iroh-1.0.2.crate"],
     crate = "iroh",
     crate_root = "iroh-1.0.2.crate/src/lib.rs",
     dlopen_enable = True,
     edition = "2024",
     env = {
+        "CARGO_BIN_NAME": "iroh",
         "CARGO_CRATE_NAME": "iroh",
         "CARGO_MANIFEST_DIR": "iroh-1.0.2.crate",
         "CARGO_PKG_AUTHORS": "dignifiedquire <me@dignifiedquire.com>:n0 team",
         "CARGO_PKG_DESCRIPTION": "p2p quic connections dialed by public key",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "iroh",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/n0-computer/iroh",
+        "CARGO_PKG_RUST_VERSION": "1.91",
         "CARGO_PKG_VERSION": "1.0.2",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "2",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :iroh-1.0.2-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :iroh-1-build-script-run[out_dir])",
     },
     features = [
         "metrics",
@@ -10636,65 +10769,69 @@ third_party_rust.rust_library(
     ],
     linkable_alias = "iroh",
     named_deps = {
-        "webpki_types": ":rustls-pki-types-1.15.0",
+        "webpki_types": ":rustls-pki-types-1",
     },
-    rustc_flags = ["@$(location :iroh-1.0.2-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :iroh-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":backon-1.6.0",
-        ":blake3-1.8.5",
-        ":bytes-1.12.1",
-        ":ctutils-0.4.2",
-        ":data-encoding-2.11.0",
-        ":derive_more-2.1.1",
-        ":ed25519-dalek-3.0.0-rc.0",
-        ":futures-util-0.3.32",
-        ":hickory-resolver-0.26.1",
-        ":http-1.4.2",
-        ":ipnet-2.12.0",
-        ":iroh-base-1.0.2",
-        ":iroh-dns-1.0.2",
-        ":iroh-metrics-1.0.1",
-        ":iroh-relay-1.0.2",
-        ":n0-error-1.0.0",
-        ":n0-future-0.3.2",
-        ":n0-watcher-1.0.0",
-        ":netwatch-0.19.1",
-        ":noq-1.0.1",
-        ":noq-proto-1.0.1",
-        ":noq-udp-1.0.1",
-        ":papaya-0.2.4",
-        ":pin-project-1.1.13",
-        ":portable-atomic-1.14.0",
-        ":portmapper-0.19.1",
-        ":rand-0.10.2",
-        ":reqwest-0.13.4",
-        ":rustc-hash-2.1.3",
-        ":rustls-0.23.42",
-        ":serde-1.0.228",
-        ":smallvec-1.15.2",
-        ":strum-0.28.0",
-        ":tokio-1.53.0",
-        ":tokio-stream-0.1.18",
-        ":tokio-util-0.7.18",
-        ":tracing-0.1.44",
-        ":url-2.5.8",
+        ":backon-1",
+        ":blake3-1",
+        ":bytes-1",
+        ":ctutils-0.4",
+        ":data-encoding-2",
+        ":derive_more-2",
+        ":ed25519-dalek-3",
+        ":futures-util-0.3",
+        ":hickory-resolver-0.26",
+        ":http-1",
+        ":ipnet-2",
+        ":iroh-base-1",
+        ":iroh-dns-1",
+        ":iroh-metrics-1",
+        ":iroh-relay-1",
+        ":n0-error-1",
+        ":n0-future-0.3",
+        ":n0-watcher-1",
+        ":netwatch-0.19",
+        ":noq-1",
+        ":noq-proto-1",
+        ":noq-udp-1",
+        ":papaya-0.2",
+        ":pin-project-1",
+        ":portable-atomic-1",
+        ":portmapper-0.19",
+        ":rand-0.10",
+        ":reqwest-0.13",
+        ":rustc-hash-2",
+        ":rustls-0.23",
+        ":serde-1",
+        ":smallvec-1",
+        ":strum-0.28",
+        ":tokio-1",
+        ":tokio-stream-0.1",
+        ":tokio-util-0.7",
+        ":tracing-0.1",
+        ":url-2",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "iroh-1.0.2-build-script-build",
+    name = "iroh-1-build-script-build",
     srcs = [":iroh-1.0.2.crate"],
     crate = "build_script_build",
     crate_root = "iroh-1.0.2.crate/build.rs",
     edition = "2024",
     env = {
+        "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
         "CARGO_MANIFEST_DIR": "iroh-1.0.2.crate",
         "CARGO_PKG_AUTHORS": "dignifiedquire <me@dignifiedquire.com>:n0 team",
         "CARGO_PKG_DESCRIPTION": "p2p quic connections dialed by public key",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "iroh",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/n0-computer/iroh",
+        "CARGO_PKG_RUST_VERSION": "1.91",
         "CARGO_PKG_VERSION": "1.0.2",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
@@ -10706,17 +10843,20 @@ third_party_rust.rust_binary(
         "portmapper",
     ],
     visibility = [],
-    deps = [":cfg_aliases-0.2.2"],
+    deps = [":cfg_aliases-0.2"],
 )
 
 third_party_rust.buildscript_run(
-    name = "iroh-1.0.2-build-script-run",
+    name = "iroh-1-build-script-run",
     package_name = "iroh",
-    buildscript_rule = ":iroh-1.0.2-build-script-build",
+    buildscript_rule = ":iroh-1-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "dignifiedquire <me@dignifiedquire.com>:n0 team",
         "CARGO_PKG_DESCRIPTION": "p2p quic connections dialed by public key",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/n0-computer/iroh",
+        "CARGO_PKG_RUST_VERSION": "1.91",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "2",
@@ -10738,7 +10878,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "iroh-base-1.0.2",
+    name = "iroh-base-1",
     srcs = [":iroh-base-1.0.2.crate"],
     crate = "iroh_base",
     crate_root = "iroh-base-1.0.2.crate/src/lib.rs",
@@ -10749,16 +10889,16 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":curve25519-dalek-5.0.0-rc.0",
-        ":data-encoding-2.11.0",
-        ":data-encoding-macro-0.1.20",
-        ":derive_more-2.1.1",
-        ":ed25519-dalek-3.0.0-rc.0",
-        ":n0-error-1.0.0",
-        ":rand-0.10.2",
-        ":serde-1.0.228",
-        ":url-2.5.8",
-        ":zeroize-1.9.0",
+        ":curve25519-dalek-5",
+        ":data-encoding-2",
+        ":data-encoding-macro-0.1",
+        ":derive_more-2",
+        ":ed25519-dalek-3",
+        ":n0-error-1",
+        ":rand-0.10",
+        ":serde-1",
+        ":url-2",
+        ":zeroize-1",
     ],
 )
 
@@ -10771,50 +10911,50 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "iroh-dns-1.0.2",
+    name = "iroh-dns-1",
     srcs = [":iroh-dns-1.0.2.crate"],
     crate = "iroh_dns",
     crate_root = "iroh-dns-1.0.2.crate/src/lib.rs",
     edition = "2024",
     env = {
-        "OUT_DIR": "$(location :iroh-dns-1.0.2-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :iroh-dns-1-build-script-run[out_dir])",
     },
     features = ["default"],
-    rustc_flags = ["@$(location :iroh-dns-1.0.2-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :iroh-dns-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":arc-swap-1.9.2",
-        ":derive_more-2.1.1",
-        ":hickory-resolver-0.26.1",
-        ":iroh-base-1.0.2",
-        ":n0-error-1.0.0",
-        ":n0-future-0.3.2",
-        ":portable-atomic-1.14.0",
-        ":rand-0.10.2",
-        ":rustls-0.23.42",
-        ":simple-dns-0.11.3",
-        ":strum-0.28.0",
-        ":tokio-1.53.0",
-        ":tracing-0.1.44",
-        ":url-2.5.8",
+        ":arc-swap-1",
+        ":derive_more-2",
+        ":hickory-resolver-0.26",
+        ":iroh-base-1",
+        ":n0-error-1",
+        ":n0-future-0.3",
+        ":portable-atomic-1",
+        ":rand-0.10",
+        ":rustls-0.23",
+        ":simple-dns-0.11",
+        ":strum-0.28",
+        ":tokio-1",
+        ":tracing-0.1",
+        ":url-2",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "iroh-dns-1.0.2-build-script-build",
+    name = "iroh-dns-1-build-script-build",
     srcs = [":iroh-dns-1.0.2.crate"],
     crate = "build_script_build",
     crate_root = "iroh-dns-1.0.2.crate/build.rs",
     edition = "2024",
     features = ["default"],
     visibility = [],
-    deps = [":cfg_aliases-0.2.2"],
+    deps = [":cfg_aliases-0.2"],
 )
 
 third_party_rust.buildscript_run(
-    name = "iroh-dns-1.0.2-build-script-run",
+    name = "iroh-dns-1-build-script-run",
     package_name = "iroh-dns",
-    buildscript_rule = ":iroh-dns-1.0.2-build-script-build",
+    buildscript_rule = ":iroh-dns-1-build-script-build",
     features = ["default"],
     version = "1.0.2",
 )
@@ -10828,7 +10968,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "iroh-metrics-1.0.1",
+    name = "iroh-metrics-1",
     srcs = [":iroh-metrics-1.0.1.crate"],
     crate = "iroh_metrics",
     crate_root = "iroh-metrics-1.0.1.crate/src/lib.rs",
@@ -10836,13 +10976,13 @@ third_party_rust.rust_library(
     features = ["metrics"],
     visibility = [],
     deps = [
-        ":iroh-metrics-derive-1.0.1",
-        ":itoa-1.0.18",
-        ":n0-error-1.0.0",
-        ":portable-atomic-1.14.0",
-        ":ryu-1.0.23",
-        ":serde-1.0.228",
-        ":tracing-0.1.44",
+        ":iroh-metrics-derive-1",
+        ":itoa-1",
+        ":n0-error-1",
+        ":portable-atomic-1",
+        ":ryu-1",
+        ":serde-1",
+        ":tracing-0.1",
     ],
 )
 
@@ -10855,7 +10995,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "iroh-metrics-derive-1.0.1",
+    name = "iroh-metrics-derive-1",
     srcs = [":iroh-metrics-derive-1.0.1.crate"],
     crate = "iroh_metrics_derive",
     crate_root = "iroh-metrics-derive-1.0.1.crate/src/lib.rs",
@@ -10863,10 +11003,10 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":heck-0.5.0",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":heck-0.5",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -10879,19 +11019,23 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "iroh-relay-1.0.2",
+    name = "iroh-relay-1",
     srcs = [":iroh-relay-1.0.2.crate"],
     crate = "iroh_relay",
     crate_root = "iroh-relay-1.0.2.crate/src/lib.rs",
     dlopen_enable = True,
     edition = "2024",
     env = {
+        "CARGO_BIN_NAME": "iroh_relay",
         "CARGO_CRATE_NAME": "iroh_relay",
         "CARGO_MANIFEST_DIR": "iroh-relay-1.0.2.crate",
         "CARGO_PKG_AUTHORS": "n0 team",
         "CARGO_PKG_DESCRIPTION": "Iroh's relay server and client",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "iroh-relay",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/n0-computer/iroh",
+        "CARGO_PKG_RUST_VERSION": "1.91",
         "CARGO_PKG_VERSION": "1.0.2",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
@@ -10900,43 +11044,43 @@ third_party_rust.rust_library(
     },
     features = ["metrics"],
     named_deps = {
-        "webpki_types": ":rustls-pki-types-1.15.0",
+        "webpki_types": ":rustls-pki-types-1",
     },
     visibility = [],
     deps = [
-        ":blake3-1.8.5",
-        ":bytes-1.12.1",
-        ":data-encoding-2.11.0",
-        ":derive_more-2.1.1",
-        ":hickory-resolver-0.26.1",
-        ":http-1.4.2",
-        ":http-body-util-0.1.4",
-        ":hyper-1.10.1",
-        ":hyper-util-0.1.20",
-        ":iroh-base-1.0.2",
-        ":iroh-dns-1.0.2",
-        ":iroh-metrics-1.0.1",
-        ":lru-0.18.1",
-        ":n0-error-1.0.0",
-        ":n0-future-0.3.2",
-        ":noq-1.0.1",
-        ":noq-proto-1.0.1",
-        ":num_enum-0.7.6",
-        ":pin-project-1.1.13",
-        ":postcard-1.1.3",
-        ":rand-0.10.2",
-        ":reqwest-0.13.4",
-        ":rustls-0.23.42",
-        ":serde-1.0.228",
-        ":serde_bytes-0.11.19",
-        ":strum-0.28.0",
-        ":tokio-1.53.0",
-        ":tokio-rustls-0.26.4",
-        ":tokio-util-0.7.18",
-        ":tokio-websockets-0.13.3",
-        ":tracing-0.1.44",
-        ":url-2.5.8",
-        ":webpki-roots-1.0.8",
+        ":blake3-1",
+        ":bytes-1",
+        ":data-encoding-2",
+        ":derive_more-2",
+        ":hickory-resolver-0.26",
+        ":http-1",
+        ":http-body-util-0.1",
+        ":hyper-1",
+        ":hyper-util-0.1",
+        ":iroh-base-1",
+        ":iroh-dns-1",
+        ":iroh-metrics-1",
+        ":lru-0.18",
+        ":n0-error-1",
+        ":n0-future-0.3",
+        ":noq-1",
+        ":noq-proto-1",
+        ":num_enum-0.7",
+        ":pin-project-1",
+        ":postcard-1",
+        ":rand-0.10",
+        ":reqwest-0.13",
+        ":rustls-0.23",
+        ":serde-1",
+        ":serde_bytes-0.11",
+        ":strum-0.28",
+        ":tokio-1",
+        ":tokio-rustls-0.26",
+        ":tokio-util-0.7",
+        ":tokio-websockets-0.13",
+        ":tracing-0.1",
+        ":url-2",
+        ":webpki-roots-1",
     ],
 )
 
@@ -10949,29 +11093,29 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "is-terminal-0.4.17",
+    name = "is-terminal-0.4",
     srcs = [":is-terminal-0.4.17.crate"],
     crate = "is_terminal",
     crate_root = "is-terminal-0.4.17.crate/src/lib.rs",
     edition = "2018",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
@@ -10986,17 +11130,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "is_executable-1.0.6",
+    name = "is_executable-1",
     srcs = [":is_executable-1.0.6.crate"],
     crate = "is_executable",
     crate_root = "is_executable-1.0.6.crate/src/lib.rs",
     edition = "2021",
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
@@ -11011,7 +11155,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "is_terminal_polyfill-1.70.2",
+    name = "is_terminal_polyfill-1",
     srcs = [":is_terminal_polyfill-1.70.2.crate"],
     crate = "is_terminal_polyfill",
     crate_root = "is_terminal_polyfill-1.70.2.crate/src/lib.rs",
@@ -11029,7 +11173,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "itertools-0.10.5",
+    name = "itertools-0.10",
     srcs = [":itertools-0.10.5.crate"],
     crate = "itertools",
     crate_root = "itertools-0.10.5.crate/src/lib.rs",
@@ -11039,7 +11183,7 @@ third_party_rust.rust_library(
         "use_std",
     ],
     visibility = [],
-    deps = [":either-1.16.0"],
+    deps = [":either-1"],
 )
 
 shims.http_archive(
@@ -11051,7 +11195,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "itertools-0.13.0",
+    name = "itertools-0.13",
     srcs = [":itertools-0.13.0.crate"],
     crate = "itertools",
     crate_root = "itertools-0.13.0.crate/src/lib.rs",
@@ -11062,7 +11206,7 @@ third_party_rust.rust_library(
         "use_std",
     ],
     visibility = [],
-    deps = [":either-1.16.0"],
+    deps = [":either-1"],
 )
 
 shims.http_archive(
@@ -11074,7 +11218,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "itertools-0.14.0",
+    name = "itertools-0.14",
     srcs = [":itertools-0.14.0.crate"],
     crate = "itertools",
     crate_root = "itertools-0.14.0.crate/src/lib.rs",
@@ -11085,7 +11229,7 @@ third_party_rust.rust_library(
         "use_std",
     ],
     visibility = [],
-    deps = [":either-1.16.0"],
+    deps = [":either-1"],
 )
 
 shims.http_archive(
@@ -11097,7 +11241,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "itertools-0.15.0",
+    name = "itertools-0.15",
     srcs = [":itertools-0.15.0.crate"],
     crate = "itertools",
     crate_root = "itertools-0.15.0.crate/src/lib.rs",
@@ -11108,7 +11252,7 @@ third_party_rust.rust_library(
         "use_std",
     ],
     visibility = [],
-    deps = [":either-1.16.0"],
+    deps = [":either-1"],
 )
 
 shims.http_archive(
@@ -11120,7 +11264,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "itoa-1.0.18",
+    name = "itoa-1",
     srcs = [":itoa-1.0.18.crate"],
     crate = "itoa",
     crate_root = "itoa-1.0.18.crate/src/lib.rs",
@@ -11130,7 +11274,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "jiff",
-    actual = ":jiff-0.2.32",
+    actual = ":jiff-0.2",
     visibility = ["PUBLIC"],
 )
 
@@ -11143,7 +11287,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "jiff-0.2.32",
+    name = "jiff-0.2",
     srcs = [":jiff-0.2.32.crate"],
     crate = "jiff",
     crate_root = "jiff-0.2.32.crate/src/lib.rs",
@@ -11162,14 +11306,14 @@ third_party_rust.rust_library(
     platform = {
         "windows-gnu": dict(
             deps = [
-                ":jiff-tzdb-platform-0.1.3",
-                ":windows-link-0.2.1",
+                ":jiff-tzdb-platform-0.1",
+                ":windows-link-0.2",
             ],
         ),
         "windows-msvc": dict(
             deps = [
-                ":jiff-tzdb-platform-0.1.3",
-                ":windows-link-0.2.1",
+                ":jiff-tzdb-platform-0.1",
+                ":windows-link-0.2",
             ],
         ),
     },
@@ -11185,7 +11329,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "jiff-tzdb-0.1.8",
+    name = "jiff-tzdb-0.1",
     srcs = [":jiff-tzdb-0.1.8.crate"],
     crate = "jiff_tzdb",
     crate_root = "jiff-tzdb-0.1.8.crate/lib.rs",
@@ -11202,23 +11346,23 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "jiff-tzdb-platform-0.1.3",
+    name = "jiff-tzdb-platform-0.1",
     srcs = [":jiff-tzdb-platform-0.1.3.crate"],
     crate = "jiff_tzdb_platform",
     crate_root = "jiff-tzdb-platform-0.1.3.crate/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":jiff-tzdb-0.1.8"],
+    deps = [":jiff-tzdb-0.1"],
 )
 
 shims.alias(
     name = "jj-cli",
-    actual = ":jj-cli-0.39.0",
+    actual = ":jj-cli-0.39",
     visibility = ["PUBLIC"],
 )
 
 third_party_rust.rust_library(
-    name = "jj-cli-0.39.0",
+    name = "jj-cli-0.39",
     srcs = [":jj-5d9a3f8a30f872ad.git"],
     crate = "jj_cli",
     crate_root = "jj-5d9a3f8a30f872ad/cli/src/lib.rs",
@@ -11236,90 +11380,90 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":nix-0.31.3",
+                ":libc-0.2",
+                ":nix-0.31",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":nix-0.31.3",
+                ":libc-0.2",
+                ":nix-0.31",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":nix-0.31.3",
+                ":libc-0.2",
+                ":nix-0.31",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":nix-0.31.3",
+                ":libc-0.2",
+                ":nix-0.31",
             ],
         ),
     },
     visibility = [],
     deps = [
-        ":ansi-to-tui-8.0.1",
-        ":bstr-1.13.0",
-        ":chrono-0.4.45",
-        ":clap-4.6.2",
-        ":clap-markdown-0.1.5",
-        ":clap_complete-4.6.7",
-        ":clap_complete_nushell-4.6.1",
-        ":clap_mangen-0.2.33",
-        ":crossterm-0.29.0",
-        ":dunce-1.0.5",
-        ":erased-serde-0.4.10",
-        ":etcetera-0.11.0",
-        ":futures-0.3.32",
-        ":gix-0.80.0",
-        ":globset-0.4.19",
-        ":indexmap-2.14.0",
-        ":indoc-2.0.7",
-        ":itertools-0.14.0",
-        ":jj-lib-0.39.0",
-        ":maplit-1.0.2",
-        ":once_cell-1.21.4",
-        ":pest-2.8.7",
-        ":pest_derive-2.8.7",
-        ":pollster-0.4.0",
-        ":rand-0.10.2",
-        ":rand_chacha-0.10.0",
-        ":ratatui-0.30.2",
-        ":regex-1.13.1",
-        ":rpassword-7.5.4",
-        ":sapling-renderdag-0.1.0",
-        ":sapling-streampager-0.12.0",
-        ":scm-record-0.10.1",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
-        ":shlex-1.3.0",
-        ":slab-0.4.12",
-        ":tempfile-3.27.0",
-        ":textwrap-0.16.2",
-        ":thiserror-2.0.18",
-        ":timeago-0.6.1",
-        ":tokio-1.53.0",
-        ":toml-1.1.3+spec-1.1.0",
-        ":toml_edit-0.25.13+spec-1.1.0",
-        ":tracing-0.1.44",
-        ":tracing-chrome-0.7.2",
-        ":tracing-subscriber-0.3.23",
-        ":unicode-width-0.2.2",
-        ":whoami-2.1.2",
+        ":ansi-to-tui-8",
+        ":bstr-1",
+        ":chrono-0.4",
+        ":clap-4",
+        ":clap-markdown-0.1",
+        ":clap_complete-4",
+        ":clap_complete_nushell-4",
+        ":clap_mangen-0.2",
+        ":crossterm-0.29",
+        ":dunce-1",
+        ":erased-serde-0.4",
+        ":etcetera-0.11",
+        ":futures-0.3",
+        ":gix-0.80",
+        ":globset-0.4",
+        ":indexmap-2",
+        ":indoc-2",
+        ":itertools-0.14",
+        ":jj-lib-0.39",
+        ":maplit-1",
+        ":once_cell-1",
+        ":pest-2",
+        ":pest_derive-2",
+        ":pollster-0.4",
+        ":rand-0.10",
+        ":rand_chacha-0.10",
+        ":ratatui-0.30",
+        ":regex-1",
+        ":rpassword-7",
+        ":sapling-renderdag-0.1",
+        ":sapling-streampager-0.12",
+        ":scm-record-0.10",
+        ":serde-1",
+        ":serde_json-1",
+        ":shlex-1",
+        ":slab-0.4",
+        ":tempfile-3",
+        ":textwrap-0.16",
+        ":thiserror-2",
+        ":timeago-0.6",
+        ":tokio-1",
+        ":toml-1",
+        ":toml_edit-0.25",
+        ":tracing-0.1",
+        ":tracing-chrome-0.7",
+        ":tracing-subscriber-0.3",
+        ":unicode-width-0.2",
+        ":whoami-2",
     ],
 )
 
 shims.alias(
     name = "jj-lib",
-    actual = ":jj-lib-0.39.0",
+    actual = ":jj-lib-0.39",
     visibility = ["PUBLIC"],
 )
 
 third_party_rust.rust_library(
-    name = "jj-lib-0.39.0",
+    name = "jj-lib-0.39",
     srcs = [":jj-5d9a3f8a30f872ad.git"],
     crate = "jj_lib",
     crate_root = "jj-5d9a3f8a30f872ad/lib/src/lib.rs",
@@ -11334,75 +11478,75 @@ third_party_rust.rust_library(
     ],
     platform = {
         "linux-arm64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "linux-x86_64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "macos-arm64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "macos-x86_64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "windows-gnu": dict(
             deps = [
-                ":same-file-1.0.6",
-                ":winreg-0.55.0",
+                ":same-file-1",
+                ":winreg-0.55",
             ],
         ),
         "windows-msvc": dict(
             deps = [
-                ":same-file-1.0.6",
-                ":winreg-0.55.0",
+                ":same-file-1",
+                ":winreg-0.55",
             ],
         ),
     },
     visibility = [],
     deps = [
-        ":async-trait-0.1.89",
-        ":blake2-0.10.6",
-        ":bstr-1.13.0",
-        ":chrono-0.4.45",
-        ":clru-0.6.3",
-        ":digest-0.10.7",
-        ":dunce-1.0.5",
-        ":either-1.16.0",
-        ":etcetera-0.11.0",
-        ":futures-0.3.32",
-        ":gix-0.80.0",
-        ":globset-0.4.19",
-        ":hashbrown-0.16.1",
-        ":ignore-0.4.30",
-        ":indexmap-2.14.0",
-        ":interim-0.2.1",
-        ":itertools-0.14.0",
-        ":jj-lib-proc-macros-0.39.0",
-        ":maplit-1.0.2",
-        ":once_cell-1.21.4",
-        ":pest-2.8.7",
-        ":pest_derive-2.8.7",
-        ":pollster-0.4.0",
-        ":prost-0.14.4",
-        ":rand-0.10.2",
-        ":rand_chacha-0.10.0",
-        ":rayon-1.12.0",
-        ":ref-cast-1.0.25",
-        ":regex-1.13.1",
-        ":serde-1.0.228",
-        ":smallvec-1.15.2",
-        ":strsim-0.11.1",
-        ":tempfile-3.27.0",
-        ":thiserror-2.0.18",
-        ":tokio-1.53.0",
-        ":toml_edit-0.25.13+spec-1.1.0",
-        ":tracing-0.1.44",
-        ":watchman_client-0.9.0",
+        ":async-trait-0.1",
+        ":blake2-0.10",
+        ":bstr-1",
+        ":chrono-0.4",
+        ":clru-0.6",
+        ":digest-0.10",
+        ":dunce-1",
+        ":either-1",
+        ":etcetera-0.11",
+        ":futures-0.3",
+        ":gix-0.80",
+        ":globset-0.4",
+        ":hashbrown-0.16",
+        ":ignore-0.4",
+        ":indexmap-2",
+        ":interim-0.2",
+        ":itertools-0.14",
+        ":jj-lib-proc-macros-0.39",
+        ":maplit-1",
+        ":once_cell-1",
+        ":pest-2",
+        ":pest_derive-2",
+        ":pollster-0.4",
+        ":prost-0.14",
+        ":rand-0.10",
+        ":rand_chacha-0.10",
+        ":rayon-1",
+        ":ref-cast-1",
+        ":regex-1",
+        ":serde-1",
+        ":smallvec-1",
+        ":strsim-0.11",
+        ":tempfile-3",
+        ":thiserror-2",
+        ":tokio-1",
+        ":toml_edit-0.25",
+        ":tracing-0.1",
+        ":watchman_client-0.9",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "jj-lib-proc-macros-0.39.0",
+    name = "jj-lib-proc-macros-0.39",
     srcs = [":jj-5d9a3f8a30f872ad.git"],
     crate = "jj_lib_proc_macros",
     crate_root = "jj-5d9a3f8a30f872ad/lib/proc-macros/src/lib.rs",
@@ -11410,9 +11554,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -11425,29 +11569,29 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "jobserver-0.1.35",
+    name = "jobserver-0.1",
     srcs = [":jobserver-0.1.35.crate"],
     crate = "jobserver",
     crate_root = "jobserver-0.1.35.crate/src/lib.rs",
     edition = "2021",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "windows-gnu": dict(
-            deps = [":getrandom-0.4.3"],
+            deps = [":getrandom-0.4"],
         ),
         "windows-msvc": dict(
-            deps = [":getrandom-0.4.3"],
+            deps = [":getrandom-0.4"],
         ),
     },
     visibility = [],
@@ -11462,7 +11606,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "kasuari-0.4.12",
+    name = "kasuari-0.4",
     srcs = [":kasuari-0.4.12.crate"],
     crate = "kasuari",
     crate_root = "kasuari-0.4.12.crate/src/lib.rs",
@@ -11470,8 +11614,8 @@ third_party_rust.rust_library(
     features = ["std"],
     visibility = [],
     deps = [
-        ":hashbrown-0.16.1",
-        ":thiserror-2.0.18",
+        ":hashbrown-0.16",
+        ":thiserror-2",
     ],
 )
 
@@ -11484,17 +11628,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "keccak-0.1.6",
+    name = "keccak-0.1",
     srcs = [":keccak-0.1.6.crate"],
     crate = "keccak",
     crate_root = "keccak-0.1.6.crate/src/lib.rs",
     edition = "2018",
     platform = {
         "linux-arm64": dict(
-            deps = [":cpufeatures-0.2.17"],
+            deps = [":cpufeatures-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":cpufeatures-0.2.17"],
+            deps = [":cpufeatures-0.2"],
         ),
     },
     visibility = [],
@@ -11509,7 +11653,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "kstring-2.0.4",
+    name = "kstring-2",
     srcs = [":kstring-2.0.4.crate"],
     crate = "kstring",
     crate_root = "kstring-2.0.4.crate/src/lib.rs",
@@ -11520,7 +11664,7 @@ third_party_rust.rust_library(
         "unsafe",
     ],
     visibility = [],
-    deps = [":static_assertions-1.1.0"],
+    deps = [":static_assertions-1"],
 )
 
 shims.http_archive(
@@ -11532,7 +11676,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lab-0.11.0",
+    name = "lab-0.11",
     srcs = [":lab-0.11.0.crate"],
     crate = "lab",
     crate_root = "lab-0.11.0.crate/src/lib.rs",
@@ -11549,18 +11693,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lalrpop-0.19.12",
+    name = "lalrpop-0.19",
     srcs = [":lalrpop-0.19.12.crate"],
     crate = "lalrpop",
     crate_root = "lalrpop-0.19.12.crate/src/lib.rs",
     edition = "2015",
     env = {
+        "CARGO_BIN_NAME": "lalrpop",
         "CARGO_CRATE_NAME": "lalrpop",
         "CARGO_MANIFEST_DIR": "lalrpop-0.19.12.crate",
         "CARGO_PKG_AUTHORS": "Niko Matsakis <niko@alum.mit.edu>",
         "CARGO_PKG_DESCRIPTION": "convenient LR(1) parser generator",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "lalrpop",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/lalrpop/lalrpop",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "0.19.12",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "19",
@@ -11573,20 +11721,20 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":ascii-canvas-3.0.0",
-        ":bit-set-0.5.3",
-        ":diff-0.1.13",
-        ":ena-0.14.4",
-        ":is-terminal-0.4.17",
-        ":itertools-0.10.5",
-        ":lalrpop-util-0.19.12",
-        ":petgraph-0.6.5",
-        ":regex-1.13.1",
-        ":regex-syntax-0.6.29",
-        ":string_cache-0.8.9",
-        ":term-0.7.0",
-        ":tiny-keccak-2.0.2",
-        ":unicode-xid-0.2.6",
+        ":ascii-canvas-3",
+        ":bit-set-0.5",
+        ":diff-0.1",
+        ":ena-0.14",
+        ":is-terminal-0.4",
+        ":itertools-0.10",
+        ":lalrpop-util-0.19",
+        ":petgraph-0.6",
+        ":regex-1",
+        ":regex-syntax-0.6",
+        ":string_cache-0.8",
+        ":term-0.7",
+        ":tiny-keccak-2",
+        ":unicode-xid-0.2",
     ],
 )
 
@@ -11599,18 +11747,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lalrpop-0.22.2",
+    name = "lalrpop-0.22",
     srcs = [":lalrpop-0.22.2.crate"],
     crate = "lalrpop",
     crate_root = "lalrpop-0.22.2.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "lalrpop",
         "CARGO_CRATE_NAME": "lalrpop",
         "CARGO_MANIFEST_DIR": "lalrpop-0.22.2.crate",
         "CARGO_PKG_AUTHORS": "Niko Matsakis <niko@alum.mit.edu>",
         "CARGO_PKG_DESCRIPTION": "convenient LR(1) parser generator",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "lalrpop",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/lalrpop/lalrpop",
+        "CARGO_PKG_RUST_VERSION": "1.70",
         "CARGO_PKG_VERSION": "0.22.2",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "22",
@@ -11625,20 +11777,20 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":ascii-canvas-4.0.0",
-        ":bit-set-0.8.0",
-        ":ena-0.14.4",
-        ":itertools-0.14.0",
-        ":lalrpop-util-0.22.2",
-        ":petgraph-0.7.1",
-        ":pico-args-0.5.0",
-        ":regex-1.13.1",
-        ":regex-syntax-0.8.11",
-        ":sha3-0.10.9",
-        ":string_cache-0.8.9",
-        ":term-1.2.1",
-        ":unicode-xid-0.2.6",
-        ":walkdir-2.5.0",
+        ":ascii-canvas-4",
+        ":bit-set-0.8",
+        ":ena-0.14",
+        ":itertools-0.14",
+        ":lalrpop-util-0.22",
+        ":petgraph-0.7",
+        ":pico-args-0.5",
+        ":regex-1",
+        ":regex-syntax-0.8",
+        ":sha3-0.10",
+        ":string_cache-0.8",
+        ":term-1",
+        ":unicode-xid-0.2",
+        ":walkdir-2",
     ],
 )
 
@@ -11651,7 +11803,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lalrpop-util-0.19.12",
+    name = "lalrpop-util-0.19",
     srcs = [":lalrpop-util-0.19.12.crate"],
     crate = "lalrpop_util",
     crate_root = "lalrpop-util-0.19.12.crate/src/lib.rs",
@@ -11663,7 +11815,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":regex-1.13.1"],
+    deps = [":regex-1"],
 )
 
 shims.http_archive(
@@ -11675,7 +11827,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lalrpop-util-0.22.2",
+    name = "lalrpop-util-0.22",
     srcs = [":lalrpop-util-0.22.2.crate"],
     crate = "lalrpop_util",
     crate_root = "lalrpop-util-0.22.2.crate/src/lib.rs",
@@ -11689,14 +11841,14 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":regex-automata-0.4.16",
-        ":rustversion-1.0.23",
+        ":regex-automata-0.4",
+        ":rustversion-1",
     ],
 )
 
 shims.alias(
     name = "landlock",
-    actual = ":landlock-0.4.5",
+    actual = ":landlock-0.4",
     visibility = ["PUBLIC"],
 )
 
@@ -11709,16 +11861,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "landlock-0.4.5",
+    name = "landlock-0.4",
     srcs = [":landlock-0.4.5.crate"],
     crate = "landlock",
     crate_root = "landlock-0.4.5.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":enumflags2-0.7.12",
-        ":libc-0.2.186",
-        ":thiserror-2.0.18",
+        ":enumflags2-0.7",
+        ":libc-0.2",
+        ":thiserror-2",
     ],
 )
 
@@ -11731,7 +11883,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lazy_static-1.5.0",
+    name = "lazy_static-1",
     srcs = [":lazy_static-1.5.0.crate"],
     crate = "lazy_static",
     crate_root = "lazy_static-1.5.0.crate/src/lib.rs",
@@ -11748,13 +11900,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "libc-0.2.186",
+    name = "libc-0.2",
     srcs = [":libc-0.2.186.crate"],
     crate = "libc",
     crate_root = "libc-0.2.186.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :libc-0.2.186-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :libc-0.2-build-script-run[out_dir])",
     },
     features = [
         "default",
@@ -11774,12 +11926,12 @@ third_party_rust.rust_library(
             features = ["extra_traits"],
         ),
     },
-    rustc_flags = ["@$(location :libc-0.2.186-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :libc-0.2-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
 third_party_rust.rust_binary(
-    name = "libc-0.2.186-build-script-build",
+    name = "libc-0.2-build-script-build",
     srcs = [":libc-0.2.186.crate"],
     crate = "build_script_build",
     crate_root = "libc-0.2.186.crate/build.rs",
@@ -11806,9 +11958,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "libc-0.2.186-build-script-run",
+    name = "libc-0.2-build-script-run",
     package_name = "libc",
-    buildscript_rule = ":libc-0.2.186-build-script-build",
+    buildscript_rule = ":libc-0.2-build-script-build",
     features = [
         "default",
         "std",
@@ -11839,18 +11991,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "line-clipping-0.3.7",
+    name = "line-clipping-0.3",
     srcs = [":line-clipping-0.3.7.crate"],
     crate = "line_clipping",
     crate_root = "line-clipping-0.3.7.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":bitflags-2.13.1"],
+    deps = [":bitflags-2"],
 )
 
 shims.alias(
     name = "linked-hash-map",
-    actual = ":linked-hash-map-0.5.6",
+    actual = ":linked-hash-map-0.5",
     visibility = ["PUBLIC"],
 )
 
@@ -11863,7 +12015,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "linked-hash-map-0.5.6",
+    name = "linked-hash-map-0.5",
     srcs = [":linked-hash-map-0.5.6.crate"],
     crate = "linked_hash_map",
     crate_root = "linked-hash-map-0.5.6.crate/src/lib.rs",
@@ -11873,7 +12025,7 @@ third_party_rust.rust_library(
         "serde_impl",
     ],
     visibility = [],
-    deps = [":serde-1.0.228"],
+    deps = [":serde-1"],
 )
 
 shims.http_archive(
@@ -11885,13 +12037,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "linked_hash_set-0.1.6",
+    name = "linked_hash_set-0.1",
     srcs = [":linked_hash_set-0.1.6.crate"],
     crate = "linked_hash_set",
     crate_root = "linked_hash_set-0.1.6.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":linked-hash-map-0.5.6"],
+    deps = [":linked-hash-map-0.5"],
 )
 
 shims.http_archive(
@@ -11903,7 +12055,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "linux-raw-sys-0.12.1",
+    name = "linux-raw-sys-0.12",
     srcs = [":linux-raw-sys-0.12.1.crate"],
     crate = "linux_raw_sys",
     crate_root = "linux-raw-sys-0.12.1.crate/src/lib.rs",
@@ -11928,7 +12080,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "litemap-0.8.2",
+    name = "litemap-0.8",
     srcs = [":litemap-0.8.2.crate"],
     crate = "litemap",
     crate_root = "litemap-0.8.2.crate/src/lib.rs",
@@ -11945,7 +12097,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "litrs-1.0.0",
+    name = "litrs-1",
     srcs = [":litrs-1.0.0.crate"],
     crate = "litrs",
     crate_root = "litrs-1.0.0.crate/src/lib.rs",
@@ -11962,7 +12114,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lock_api-0.4.14",
+    name = "lock_api-0.4",
     srcs = [":lock_api-0.4.14.crate"],
     crate = "lock_api",
     crate_root = "lock_api-0.4.14.crate/src/lib.rs",
@@ -11972,12 +12124,12 @@ third_party_rust.rust_library(
         "default",
     ],
     visibility = [],
-    deps = [":scopeguard-1.2.0"],
+    deps = [":scopeguard-1"],
 )
 
 shims.alias(
     name = "log",
-    actual = ":log-0.4.33",
+    actual = ":log-0.4",
     visibility = ["PUBLIC"],
 )
 
@@ -11990,7 +12142,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "log-0.4.33",
+    name = "log-0.4",
     srcs = [":log-0.4.33.crate"],
     crate = "log",
     crate_root = "log-0.4.33.crate/src/lib.rs",
@@ -12011,7 +12163,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "logos-0.12.1",
+    name = "logos-0.12",
     srcs = [":logos-0.12.1.crate"],
     crate = "logos",
     crate_root = "logos-0.12.1.crate/src/lib.rs",
@@ -12023,7 +12175,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":logos-derive-0.12.1"],
+    deps = [":logos-derive-0.12"],
 )
 
 shims.http_archive(
@@ -12035,7 +12187,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "logos-0.15.1",
+    name = "logos-0.15",
     srcs = [":logos-0.15.1.crate"],
     crate = "logos",
     crate_root = "logos-0.15.1.crate/src/lib.rs",
@@ -12047,7 +12199,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":logos-derive-0.15.1"],
+    deps = [":logos-derive-0.15"],
 )
 
 shims.http_archive(
@@ -12059,7 +12211,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "logos-0.16.1",
+    name = "logos-0.16",
     srcs = [":logos-0.16.1.crate"],
     crate = "logos",
     crate_root = "logos-0.16.1.crate/src/lib.rs",
@@ -12071,7 +12223,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":logos-derive-0.16.1"],
+    deps = [":logos-derive-0.16"],
 )
 
 shims.http_archive(
@@ -12083,7 +12235,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "logos-codegen-0.15.1",
+    name = "logos-codegen-0.15",
     srcs = [":logos-codegen-0.15.1.crate"],
     crate = "logos_codegen",
     crate_root = "logos-codegen-0.15.1.crate/src/lib.rs",
@@ -12091,13 +12243,13 @@ third_party_rust.rust_library(
     rustc_flags = ["--cfg=rust_1_82"],
     visibility = [],
     deps = [
-        ":beef-0.5.2",
-        ":fnv-1.0.7",
-        ":lazy_static-1.5.0",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":regex-syntax-0.8.11",
-        ":syn-2.0.119",
+        ":beef-0.5",
+        ":fnv-1",
+        ":lazy_static-1",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":regex-syntax-0.8",
+        ":syn-2",
     ],
 )
 
@@ -12110,7 +12262,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "logos-codegen-0.16.1",
+    name = "logos-codegen-0.16",
     srcs = [":logos-codegen-0.16.1.crate"],
     crate = "logos_codegen",
     crate_root = "logos-codegen-0.16.1.crate/src/lib.rs",
@@ -12118,12 +12270,12 @@ third_party_rust.rust_library(
     rustc_flags = ["--cfg=rust_1_82"],
     visibility = [],
     deps = [
-        ":fnv-1.0.7",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":regex-automata-0.4.16",
-        ":regex-syntax-0.8.11",
-        ":syn-2.0.119",
+        ":fnv-1",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":regex-automata-0.4",
+        ":regex-syntax-0.8",
+        ":syn-2",
     ],
 )
 
@@ -12136,7 +12288,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "logos-derive-0.12.1",
+    name = "logos-derive-0.12",
     srcs = [":logos-derive-0.12.1.crate"],
     crate = "logos_derive",
     crate_root = "logos-derive-0.12.1.crate/src/lib.rs",
@@ -12144,12 +12296,12 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":beef-0.5.2",
-        ":fnv-1.0.7",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":regex-syntax-0.6.29",
-        ":syn-1.0.109",
+        ":beef-0.5",
+        ":fnv-1",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":regex-syntax-0.6",
+        ":syn-1",
     ],
 )
 
@@ -12162,14 +12314,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "logos-derive-0.15.1",
+    name = "logos-derive-0.15",
     srcs = [":logos-derive-0.15.1.crate"],
     crate = "logos_derive",
     crate_root = "logos-derive-0.15.1.crate/src/lib.rs",
     edition = "2021",
     proc_macro = True,
     visibility = [],
-    deps = [":logos-codegen-0.15.1"],
+    deps = [":logos-codegen-0.15"],
 )
 
 shims.http_archive(
@@ -12181,14 +12333,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "logos-derive-0.16.1",
+    name = "logos-derive-0.16",
     srcs = [":logos-derive-0.16.1.crate"],
     crate = "logos_derive",
     crate_root = "logos-derive-0.16.1.crate/src/lib.rs",
     edition = "2021",
     proc_macro = True,
     visibility = [],
-    deps = [":logos-codegen-0.16.1"],
+    deps = [":logos-codegen-0.16"],
 )
 
 shims.http_archive(
@@ -12200,7 +12352,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lru-0.16.4",
+    name = "lru-0.16",
     srcs = [":lru-0.16.4.crate"],
     crate = "lru",
     crate_root = "lru-0.16.4.crate/src/lib.rs",
@@ -12217,7 +12369,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lru-0.18.1",
+    name = "lru-0.18",
     srcs = [":lru-0.18.1.crate"],
     crate = "lru",
     crate_root = "lru-0.18.1.crate/src/lib.rs",
@@ -12227,7 +12379,7 @@ third_party_rust.rust_library(
         "hashbrown",
     ],
     visibility = [],
-    deps = [":hashbrown-0.17.1"],
+    deps = [":hashbrown-0.17"],
 )
 
 shims.http_archive(
@@ -12239,7 +12391,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lru-slab-0.1.2",
+    name = "lru-slab-0.1",
     srcs = [":lru-slab-0.1.2.crate"],
     crate = "lru_slab",
     crate_root = "lru-slab-0.1.2.crate/src/lib.rs",
@@ -12256,18 +12408,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lsm-tree-3.1.7",
+    name = "lsm-tree-3",
     srcs = [":lsm-tree-3.1.7.crate"],
     crate = "lsm_tree",
     crate_root = "lsm-tree-3.1.7.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "lsm_tree",
         "CARGO_CRATE_NAME": "lsm_tree",
         "CARGO_MANIFEST_DIR": "lsm-tree-3.1.7.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "A K.I.S.S. implementation of log-structured merge trees (LSM-trees/LSMTs)",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/fjall-rs/lsm-tree",
         "CARGO_PKG_NAME": "lsm-tree",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/fjall-rs/lsm-tree",
+        "CARGO_PKG_RUST_VERSION": "1.90",
         "CARGO_PKG_VERSION": "3.1.7",
         "CARGO_PKG_VERSION_MAJOR": "3",
         "CARGO_PKG_VERSION_MINOR": "1",
@@ -12279,23 +12435,23 @@ third_party_rust.rust_library(
         "metrics",
     ],
     named_deps = {
-        "byteorder": ":byteorder-lite-0.1.0",
+        "byteorder": ":byteorder-lite-0.1",
     },
     visibility = [],
     deps = [
-        ":byteview-0.10.1",
-        ":crossbeam-skiplist-0.1.3",
-        ":enum_dispatch-0.3.13",
+        ":byteview-0.10",
+        ":crossbeam-skiplist-0.1",
+        ":enum_dispatch-0.3",
         ":interval-heap-0.0.5",
-        ":log-0.4.33",
-        ":lz4_flex-0.13.1",
-        ":quick_cache-0.6.24",
-        ":rustc-hash-2.1.3",
-        ":self_cell-1.3.0",
-        ":sfa-1.0.0",
-        ":tempfile-3.27.0",
-        ":varint-rs-2.2.1",
-        ":xxhash-rust-0.8.17",
+        ":log-0.4",
+        ":lz4_flex-0.13",
+        ":quick_cache-0.6",
+        ":rustc-hash-2",
+        ":self_cell-1",
+        ":sfa-1",
+        ":tempfile-3",
+        ":varint-rs-2",
+        ":xxhash-rust-0.8",
     ],
 )
 
@@ -12308,7 +12464,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lsp-types-0.94.1",
+    name = "lsp-types-0.94",
     srcs = [":lsp-types-0.94.1.crate"],
     crate = "lsp_types",
     crate_root = "lsp-types-0.94.1.crate/src/lib.rs",
@@ -12316,11 +12472,11 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":bitflags-1.3.2",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
-        ":serde_repr-0.1.20",
-        ":url-2.5.8",
+        ":bitflags-1",
+        ":serde-1",
+        ":serde_json-1",
+        ":serde_repr-0.1",
+        ":url-2",
     ],
 )
 
@@ -12333,13 +12489,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lz4-1.28.1",
+    name = "lz4-1",
     srcs = [":lz4-1.28.1.crate"],
     crate = "lz4",
     crate_root = "lz4-1.28.1.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":lz4-sys-1.11.1+lz4-1.10.0"],
+    deps = [":lz4-sys-1"],
 )
 
 shims.http_archive(
@@ -12363,18 +12519,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lz4-sys-1.11.1+lz4-1.10.0",
+    name = "lz4-sys-1",
     srcs = [":lz4-sys-1.11.1+lz4-1.10.0.crate"],
     crate = "lz4_sys",
     crate_root = "lz4-sys-1.11.1+lz4-1.10.0.crate/src/lib.rs",
     edition = "2015",
     env = {
+        "CARGO_BIN_NAME": "lz4_sys",
         "CARGO_CRATE_NAME": "lz4_sys",
         "CARGO_MANIFEST_DIR": "lz4-sys-1.11.1+lz4-1.10.0.crate",
         "CARGO_PKG_AUTHORS": "Jens Heyens <jens.heyens@ewetel.net>:Artem V. Navrotskiy <bozaro@buzzsoft.ru>:Patrick Marks <pmarks@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Rust LZ4 sys package.",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "lz4-sys",
+        "CARGO_PKG_README": "",
         "CARGO_PKG_REPOSITORY": "https://github.com/10xGenomics/lz4-rs",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "1.11.1+lz4-1.10.0",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "11",
@@ -12383,24 +12543,24 @@ third_party_rust.rust_library(
     },
     platform = {
         "linux-arm64": dict(
-            deps = [":lz4-sys-1.11.1+lz4-1.10.0-lz4-c-aarch64-linux"],
+            deps = [":lz4-sys-1-lz4-c-aarch64-linux"],
         ),
         "linux-x86_64": dict(
-            deps = [":lz4-sys-1.11.1+lz4-1.10.0-lz4-c-x86_64-linux"],
+            deps = [":lz4-sys-1-lz4-c-x86_64-linux"],
         ),
         "macos-arm64": dict(
-            deps = [":lz4-sys-1.11.1+lz4-1.10.0-lz4-c-aarch64-macos"],
+            deps = [":lz4-sys-1-lz4-c-aarch64-macos"],
         ),
         "macos-x86_64": dict(
-            deps = [":lz4-sys-1.11.1+lz4-1.10.0-lz4-c-x86_64-macos"],
+            deps = [":lz4-sys-1-lz4-c-x86_64-macos"],
         ),
     },
     visibility = [],
-    deps = [":libc-0.2.186"],
+    deps = [":libc-0.2"],
 )
 
 third_party_rust.cxx_library(
-    name = "lz4-sys-1.11.1+lz4-1.10.0-lz4-c-aarch64-linux",
+    name = "lz4-sys-1-lz4-c-aarch64-linux",
     srcs = [
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/lz4.c]",
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/lz4frame.c]",
@@ -12430,7 +12590,7 @@ third_party_rust.cxx_library(
 )
 
 third_party_rust.cxx_library(
-    name = "lz4-sys-1.11.1+lz4-1.10.0-lz4-c-aarch64-macos",
+    name = "lz4-sys-1-lz4-c-aarch64-macos",
     srcs = [
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/lz4.c]",
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/lz4frame.c]",
@@ -12460,7 +12620,7 @@ third_party_rust.cxx_library(
 )
 
 third_party_rust.cxx_library(
-    name = "lz4-sys-1.11.1+lz4-1.10.0-lz4-c-x86_64-linux",
+    name = "lz4-sys-1-lz4-c-x86_64-linux",
     srcs = [
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/lz4.c]",
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/lz4frame.c]",
@@ -12490,7 +12650,7 @@ third_party_rust.cxx_library(
 )
 
 third_party_rust.cxx_library(
-    name = "lz4-sys-1.11.1+lz4-1.10.0-lz4-c-x86_64-macos",
+    name = "lz4-sys-1-lz4-c-x86_64-macos",
     srcs = [
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/lz4.c]",
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/lz4frame.c]",
@@ -12528,7 +12688,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "lz4_flex-0.13.1",
+    name = "lz4_flex-0.13",
     srcs = [":lz4_flex-0.13.1.crate"],
     crate = "lz4_flex",
     crate_root = "lz4_flex-0.13.1.crate/src/lib.rs",
@@ -12542,7 +12702,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":twox-hash-2.1.2"],
+    deps = [":twox-hash-2"],
 )
 
 shims.http_archive(
@@ -12554,7 +12714,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "mac-addr-0.3.0",
+    name = "mac-addr-0.3",
     srcs = [":mac-addr-0.3.0.crate"],
     crate = "mac_addr",
     crate_root = "mac-addr-0.3.0.crate/src/lib.rs",
@@ -12575,29 +12735,29 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "mac_address-1.1.8",
+    name = "mac_address-1",
     srcs = [":mac_address-1.1.8.crate"],
     crate = "mac_address",
     crate_root = "mac_address-1.1.8.crate/src/lib.rs",
     edition = "2018",
     platform = {
         "linux-arm64": dict(
-            deps = [":nix-0.29.0"],
+            deps = [":nix-0.29"],
         ),
         "linux-x86_64": dict(
-            deps = [":nix-0.29.0"],
+            deps = [":nix-0.29"],
         ),
         "macos-arm64": dict(
-            deps = [":nix-0.29.0"],
+            deps = [":nix-0.29"],
         ),
         "macos-x86_64": dict(
-            deps = [":nix-0.29.0"],
+            deps = [":nix-0.29"],
         ),
         "windows-gnu": dict(
-            deps = [":winapi-0.3.9"],
+            deps = [":winapi-0.3"],
         ),
         "windows-msvc": dict(
-            deps = [":winapi-0.3.9"],
+            deps = [":winapi-0.3"],
         ),
     },
     visibility = [],
@@ -12612,7 +12772,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "maplit-1.0.2",
+    name = "maplit-1",
     srcs = [":maplit-1.0.2.crate"],
     crate = "maplit",
     crate_root = "maplit-1.0.2.crate/src/lib.rs",
@@ -12629,13 +12789,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "matchers-0.2.0",
+    name = "matchers-0.2",
     srcs = [":matchers-0.2.0.crate"],
     crate = "matchers",
     crate_root = "matchers-0.2.0.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":regex-automata-0.4.16"],
+    deps = [":regex-automata-0.4"],
 )
 
 shims.http_archive(
@@ -12647,7 +12807,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "matchit-0.8.4",
+    name = "matchit-0.8",
     srcs = [":matchit-0.8.4.crate"],
     crate = "matchit",
     crate_root = "matchit-0.8.4.crate/src/lib.rs",
@@ -12665,7 +12825,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "maybe-async-0.2.11",
+    name = "maybe-async-0.2",
     srcs = [":maybe-async-0.2.11.crate"],
     crate = "maybe_async",
     crate_root = "maybe-async-0.2.11.crate/src/lib.rs",
@@ -12674,9 +12834,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -12689,7 +12849,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "md-5-0.11.0",
+    name = "md-5-0.11",
     srcs = [":md-5-0.11.0.crate"],
     crate = "md5",
     crate_root = "md-5-0.11.0.crate/src/lib.rs",
@@ -12701,14 +12861,14 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":digest-0.11.3",
+        ":cfg-if-1",
+        ":digest-0.11",
     ],
 )
 
 shims.alias(
     name = "md5",
-    actual = ":md5-0.8.1",
+    actual = ":md5-0.8",
     visibility = ["PUBLIC"],
 )
 
@@ -12721,7 +12881,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "md5-0.8.1",
+    name = "md5-0.8",
     srcs = [":md5-0.8.1.crate"],
     crate = "md5",
     crate_root = "md5-0.8.1.crate/src/lib.rs",
@@ -12742,13 +12902,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "mea-0.6.4",
+    name = "mea-0.6",
     srcs = [":mea-0.6.4.crate"],
     crate = "mea",
     crate_root = "mea-0.6.4.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":slab-0.4.12"],
+    deps = [":slab-0.4"],
 )
 
 shims.http_archive(
@@ -12760,7 +12920,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "memchr-2.8.3",
+    name = "memchr-2",
     srcs = [":memchr-2.8.3.crate"],
     crate = "memchr",
     crate_root = "memchr-2.8.3.crate/src/lib.rs",
@@ -12775,7 +12935,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "memmap2",
-    actual = ":memmap2-0.9.11",
+    actual = ":memmap2-0.9",
     visibility = ["PUBLIC"],
 )
 
@@ -12788,23 +12948,23 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "memmap2-0.9.11",
+    name = "memmap2-0.9",
     srcs = [":memmap2-0.9.11.crate"],
     crate = "memmap2",
     crate_root = "memmap2-0.9.11.crate/src/lib.rs",
     edition = "2021",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
     },
     visibility = [],
@@ -12819,7 +12979,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "memmem-0.1.1",
+    name = "memmem-0.1",
     srcs = [":memmem-0.1.1.crate"],
     crate = "memmem",
     crate_root = "memmem-0.1.1.crate/src/lib.rs",
@@ -12836,34 +12996,34 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "memoffset-0.6.5",
+    name = "memoffset-0.6",
     srcs = [":memoffset-0.6.5.crate"],
     crate = "memoffset",
     crate_root = "memoffset-0.6.5.crate/src/lib.rs",
     edition = "2015",
     env = {
-        "OUT_DIR": "$(location :memoffset-0.6.5-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :memoffset-0.6-build-script-run[out_dir])",
     },
     features = ["default"],
-    rustc_flags = ["@$(location :memoffset-0.6.5-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :memoffset-0.6-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
 third_party_rust.rust_binary(
-    name = "memoffset-0.6.5-build-script-build",
+    name = "memoffset-0.6-build-script-build",
     srcs = [":memoffset-0.6.5.crate"],
     crate = "build_script_build",
     crate_root = "memoffset-0.6.5.crate/build.rs",
     edition = "2015",
     features = ["default"],
     visibility = [],
-    deps = [":autocfg-1.5.1"],
+    deps = [":autocfg-1"],
 )
 
 third_party_rust.buildscript_run(
-    name = "memoffset-0.6.5-build-script-run",
+    name = "memoffset-0.6-build-script-run",
     package_name = "memoffset",
-    buildscript_rule = ":memoffset-0.6.5-build-script-build",
+    buildscript_rule = ":memoffset-0.6-build-script-build",
     features = ["default"],
     version = "0.6.5",
 )
@@ -12877,34 +13037,34 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "memoffset-0.9.1",
+    name = "memoffset-0.9",
     srcs = [":memoffset-0.9.1.crate"],
     crate = "memoffset",
     crate_root = "memoffset-0.9.1.crate/src/lib.rs",
     edition = "2015",
     env = {
-        "OUT_DIR": "$(location :memoffset-0.9.1-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :memoffset-0.9-build-script-run[out_dir])",
     },
     features = ["default"],
-    rustc_flags = ["@$(location :memoffset-0.9.1-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :memoffset-0.9-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
 third_party_rust.rust_binary(
-    name = "memoffset-0.9.1-build-script-build",
+    name = "memoffset-0.9-build-script-build",
     srcs = [":memoffset-0.9.1.crate"],
     crate = "build_script_build",
     crate_root = "memoffset-0.9.1.crate/build.rs",
     edition = "2015",
     features = ["default"],
     visibility = [],
-    deps = [":autocfg-1.5.1"],
+    deps = [":autocfg-1"],
 )
 
 third_party_rust.buildscript_run(
-    name = "memoffset-0.9.1-build-script-run",
+    name = "memoffset-0.9-build-script-run",
     package_name = "memoffset",
-    buildscript_rule = ":memoffset-0.9.1-build-script-build",
+    buildscript_rule = ":memoffset-0.9-build-script-build",
     features = ["default"],
     version = "0.9.1",
 )
@@ -12918,13 +13078,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "metrics-0.24.6",
+    name = "metrics-0.24",
     srcs = [":metrics-0.24.6.crate"],
     crate = "metrics",
     crate_root = "metrics-0.24.6.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":rapidhash-4.5.1"],
+    deps = [":rapidhash-4"],
 )
 
 shims.http_archive(
@@ -12936,7 +13096,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "metrics-util-0.20.4",
+    name = "metrics-util-0.20",
     srcs = [":metrics-util-0.20.4.crate"],
     crate = "metrics_util",
     crate_root = "metrics-util-0.20.4.crate/src/lib.rs",
@@ -12964,19 +13124,19 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":aho-corasick-1.1.4",
-        ":crossbeam-epoch-0.9.20",
-        ":crossbeam-utils-0.8.22",
-        ":hashbrown-0.16.1",
-        ":indexmap-2.14.0",
-        ":metrics-0.24.6",
-        ":ordered-float-5.3.0",
-        ":quanta-0.12.6",
-        ":radix_trie-0.2.1",
-        ":rand-0.9.5",
-        ":rand_xoshiro-0.7.0",
-        ":rapidhash-4.5.1",
-        ":sketches-ddsketch-0.3.1",
+        ":aho-corasick-1",
+        ":crossbeam-epoch-0.9",
+        ":crossbeam-utils-0.8",
+        ":hashbrown-0.16",
+        ":indexmap-2",
+        ":metrics-0.24",
+        ":ordered-float-5",
+        ":quanta-0.12",
+        ":radix_trie-0.2",
+        ":rand-0.9",
+        ":rand_xoshiro-0.7",
+        ":rapidhash-4",
+        ":sketches-ddsketch-0.3",
     ],
 )
 
@@ -12989,7 +13149,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "metrique-0.1.27",
+    name = "metrique-0.1",
     srcs = [":metrique-0.1.27.crate"],
     crate = "metrique",
     crate_root = "metrique-0.1.27.crate/src/lib.rs",
@@ -13001,18 +13161,18 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":itoa-1.0.18",
-        ":jiff-0.2.32",
-        ":metrique-core-0.1.22",
-        ":metrique-macro-0.1.18",
-        ":metrique-service-metrics-0.1.23",
-        ":metrique-timesource-0.1.10",
-        ":metrique-writer-0.1.24",
-        ":metrique-writer-core-0.1.18",
-        ":metrique-writer-macro-0.1.10",
-        ":ryu-1.0.23",
-        ":serde_json-1.0.150",
-        ":tokio-1.53.0",
+        ":itoa-1",
+        ":jiff-0.2",
+        ":metrique-core-0.1",
+        ":metrique-macro-0.1",
+        ":metrique-service-metrics-0.1",
+        ":metrique-timesource-0.1",
+        ":metrique-writer-0.1",
+        ":metrique-writer-core-0.1",
+        ":metrique-writer-macro-0.1",
+        ":ryu-1",
+        ":serde_json-1",
+        ":tokio-1",
     ],
 )
 
@@ -13025,15 +13185,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "metrique-core-0.1.22",
+    name = "metrique-core-0.1",
     srcs = [":metrique-core-0.1.22.crate"],
     crate = "metrique_core",
     crate_root = "metrique-core-0.1.22.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":itertools-0.14.0",
-        ":metrique-writer-core-0.1.18",
+        ":itertools-0.14",
+        ":metrique-writer-core-0.1",
     ],
 )
 
@@ -13046,7 +13206,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "metrique-macro-0.1.18",
+    name = "metrique-macro-0.1",
     srcs = [":metrique-macro-0.1.18.crate"],
     crate = "metrique_macro",
     crate_root = "metrique-macro-0.1.18.crate/src/lib.rs",
@@ -13054,12 +13214,12 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":Inflector-0.11.4",
-        ":darling-0.23.0",
-        ":metrique-core-0.1.22",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":Inflector-0.11",
+        ":darling-0.23",
+        ":metrique-core-0.1",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -13072,13 +13232,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "metrique-service-metrics-0.1.23",
+    name = "metrique-service-metrics-0.1",
     srcs = [":metrique-service-metrics-0.1.23.crate"],
     crate = "metrique_service_metrics",
     crate_root = "metrique-service-metrics-0.1.23.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":metrique-writer-0.1.24"],
+    deps = [":metrique-writer-0.1"],
 )
 
 shims.http_archive(
@@ -13090,7 +13250,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "metrique-timesource-0.1.10",
+    name = "metrique-timesource-0.1",
     srcs = [":metrique-timesource-0.1.10.crate"],
     crate = "metrique_timesource",
     crate_root = "metrique-timesource-0.1.10.crate/src/lib.rs",
@@ -13108,7 +13268,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "metrique-writer-0.1.24",
+    name = "metrique-writer-0.1",
     srcs = [":metrique-writer-0.1.24.crate"],
     crate = "metrique_writer",
     crate_root = "metrique-writer-0.1.24.crate/src/lib.rs",
@@ -13120,22 +13280,22 @@ third_party_rust.rust_library(
         "tracing-subscriber-03",
     ],
     named_deps = {
-        "metrics_024": ":metrics-0.24.6",
-        "metrics_util_020": ":metrics-util-0.20.4",
+        "metrics_024": ":metrics-0.24",
+        "metrics_util_020": ":metrics-util-0.20",
     },
     visibility = [],
     deps = [
-        ":ahash-0.8.12",
-        ":crossbeam-queue-0.3.13",
-        ":crossbeam-utils-0.8.22",
-        ":metrique-core-0.1.22",
-        ":metrique-writer-core-0.1.18",
-        ":metrique-writer-macro-0.1.10",
-        ":rand-0.9.5",
-        ":smallvec-1.15.2",
-        ":tokio-1.53.0",
-        ":tracing-0.1.44",
-        ":tracing-subscriber-0.3.23",
+        ":ahash-0.8",
+        ":crossbeam-queue-0.3",
+        ":crossbeam-utils-0.8",
+        ":metrique-core-0.1",
+        ":metrique-writer-core-0.1",
+        ":metrique-writer-macro-0.1",
+        ":rand-0.9",
+        ":smallvec-1",
+        ":tokio-1",
+        ":tracing-0.1",
+        ":tracing-subscriber-0.3",
     ],
 )
 
@@ -13148,7 +13308,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "metrique-writer-core-0.1.18",
+    name = "metrique-writer-core-0.1",
     srcs = [":metrique-writer-core-0.1.18.crate"],
     crate = "metrique_writer_core",
     crate_root = "metrique-writer-core-0.1.18.crate/src/lib.rs",
@@ -13156,10 +13316,10 @@ third_party_rust.rust_library(
     features = ["serde"],
     visibility = [],
     deps = [
-        ":derive-where-1.6.1",
-        ":itertools-0.14.0",
-        ":serde-1.0.228",
-        ":smallvec-1.15.2",
+        ":derive-where-1",
+        ":itertools-0.14",
+        ":serde-1",
+        ":smallvec-1",
     ],
 )
 
@@ -13172,7 +13332,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "metrique-writer-macro-0.1.10",
+    name = "metrique-writer-macro-0.1",
     srcs = [":metrique-writer-macro-0.1.10.crate"],
     crate = "metrique_writer_macro",
     crate_root = "metrique-writer-macro-0.1.10.crate/src/lib.rs",
@@ -13180,12 +13340,12 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":darling-0.23.0",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":str_inflector-0.12.0",
-        ":syn-2.0.119",
-        ":synstructure-0.13.2",
+        ":darling-0.23",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":str_inflector-0.12",
+        ":syn-2",
+        ":synstructure-0.13",
     ],
 )
 
@@ -13198,18 +13358,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "miette-7.6.0",
+    name = "miette-7",
     srcs = [":miette-7.6.0.crate"],
     crate = "miette",
     crate_root = "miette-7.6.0.crate/src/lib.rs",
     edition = "2018",
     env = {
+        "CARGO_BIN_NAME": "miette",
         "CARGO_CRATE_NAME": "miette",
         "CARGO_MANIFEST_DIR": "miette-7.6.0.crate",
         "CARGO_PKG_AUTHORS": "Kat Marchán <kzm@zkat.tech>",
         "CARGO_PKG_DESCRIPTION": "Fancy diagnostic reporting library and protocol for us mere mortals who aren't compiler hackers.",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "miette",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/zkat/miette",
+        "CARGO_PKG_RUST_VERSION": "1.70.0",
         "CARGO_PKG_VERSION": "7.6.0",
         "CARGO_PKG_VERSION_MAJOR": "7",
         "CARGO_PKG_VERSION_MINOR": "6",
@@ -13223,10 +13387,10 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":miette-derive-7.6.0",
-        ":serde-1.0.228",
-        ":unicode-width-0.1.14",
+        ":cfg-if-1",
+        ":miette-derive-7",
+        ":serde-1",
+        ":unicode-width-0.1",
     ],
 )
 
@@ -13239,7 +13403,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "miette-derive-7.6.0",
+    name = "miette-derive-7",
     srcs = [":miette-derive-7.6.0.crate"],
     crate = "miette_derive",
     crate_root = "miette-derive-7.6.0.crate/src/lib.rs",
@@ -13247,9 +13411,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -13262,7 +13426,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "mime-0.3.17",
+    name = "mime-0.3",
     srcs = [":mime-0.3.17.crate"],
     crate = "mime",
     crate_root = "mime-0.3.17.crate/src/lib.rs",
@@ -13279,7 +13443,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "minimal-lexical-0.2.1",
+    name = "minimal-lexical-0.2",
     srcs = [":minimal-lexical-0.2.1.crate"],
     crate = "minimal_lexical",
     crate_root = "minimal-lexical-0.2.1.crate/src/lib.rs",
@@ -13297,7 +13461,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "miniz_oxide-0.8.9",
+    name = "miniz_oxide-0.8",
     srcs = [":miniz_oxide-0.8.9.crate"],
     crate = "miniz_oxide",
     crate_root = "miniz_oxide-0.8.9.crate/src/lib.rs",
@@ -13310,8 +13474,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":adler2-2.0.1",
-        ":simd-adler32-0.3.10",
+        ":adler2-2",
+        ":simd-adler32-0.3",
     ],
 )
 
@@ -13324,7 +13488,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "mio-1.2.2",
+    name = "mio-1",
     srcs = [":mio-1.2.2.crate"],
     crate = "mio",
     crate_root = "mio-1.2.2.crate/src/lib.rs",
@@ -13341,8 +13505,8 @@ third_party_rust.rust_library(
                 "log",
             ],
             deps = [
-                ":libc-0.2.186",
-                ":log-0.4.33",
+                ":libc-0.2",
+                ":log-0.4",
             ],
         ),
         "linux-x86_64": dict(
@@ -13351,8 +13515,8 @@ third_party_rust.rust_library(
                 "log",
             ],
             deps = [
-                ":libc-0.2.186",
-                ":log-0.4.33",
+                ":libc-0.2",
+                ":log-0.4",
             ],
         ),
         "macos-arm64": dict(
@@ -13361,8 +13525,8 @@ third_party_rust.rust_library(
                 "log",
             ],
             deps = [
-                ":libc-0.2.186",
-                ":log-0.4.33",
+                ":libc-0.2",
+                ":log-0.4",
             ],
         ),
         "macos-x86_64": dict(
@@ -13371,15 +13535,15 @@ third_party_rust.rust_library(
                 "log",
             ],
             deps = [
-                ":libc-0.2.186",
-                ":log-0.4.33",
+                ":libc-0.2",
+                ":log-0.4",
             ],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
@@ -13394,7 +13558,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "mixtrics-0.2.5",
+    name = "mixtrics-0.2",
     srcs = [":mixtrics-0.2.5.crate"],
     crate = "mixtrics",
     crate_root = "mixtrics-0.2.5.crate/src/lib.rs",
@@ -13402,8 +13566,8 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":itertools-0.15.0",
-        ":parking_lot-0.12.5",
+        ":itertools-0.15",
+        ":parking_lot-0.12",
     ],
 )
 
@@ -13416,7 +13580,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "moka-0.12.15",
+    name = "moka-0.12",
     srcs = [":moka-0.12.15.crate"],
     crate = "moka",
     crate_root = "moka-0.12.15.crate/src/lib.rs",
@@ -13427,15 +13591,15 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":crossbeam-channel-0.5.16",
-        ":crossbeam-epoch-0.9.20",
-        ":crossbeam-utils-0.8.22",
-        ":equivalent-1.0.2",
-        ":parking_lot-0.12.5",
-        ":portable-atomic-1.14.0",
-        ":smallvec-1.15.2",
-        ":tagptr-0.2.0",
-        ":uuid-1.24.0",
+        ":crossbeam-channel-0.5",
+        ":crossbeam-epoch-0.9",
+        ":crossbeam-utils-0.8",
+        ":equivalent-1",
+        ":parking_lot-0.12",
+        ":portable-atomic-1",
+        ":smallvec-1",
+        ":tagptr-0.2",
+        ":uuid-1",
     ],
 )
 
@@ -13448,7 +13612,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "multimap-0.10.1",
+    name = "multimap-0.10",
     srcs = [":multimap-0.10.1.crate"],
     crate = "multimap",
     crate_root = "multimap-0.10.1.crate/src/lib.rs",
@@ -13465,7 +13629,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "n0-error-1.0.0",
+    name = "n0-error-1",
     srcs = [":n0-error-1.0.0.crate"],
     crate = "n0_error",
     crate_root = "n0-error-1.0.0.crate/src/lib.rs",
@@ -13473,8 +13637,8 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":n0-error-macros-1.0.0",
-        ":spez-0.1.2",
+        ":n0-error-macros-1",
+        ":spez-0.1",
     ],
 )
 
@@ -13487,7 +13651,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "n0-error-macros-1.0.0",
+    name = "n0-error-macros-1",
     srcs = [":n0-error-macros-1.0.0.crate"],
     crate = "n0_error_macros",
     crate_root = "n0-error-macros-1.0.0.crate/src/lib.rs",
@@ -13495,9 +13659,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -13510,41 +13674,41 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "n0-future-0.3.2",
+    name = "n0-future-0.3",
     srcs = [":n0-future-0.3.2.crate"],
     crate = "n0_future",
     crate_root = "n0-future-0.3.2.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :n0-future-0.3.2-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :n0-future-0.3-build-script-run[out_dir])",
     },
-    rustc_flags = ["@$(location :n0-future-0.3.2-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :n0-future-0.3-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":derive_more-2.1.1",
-        ":futures-buffered-0.2.13",
-        ":futures-lite-2.6.1",
-        ":futures-util-0.3.32",
-        ":pin-project-1.1.13",
-        ":tokio-1.53.0",
-        ":tokio-util-0.7.18",
+        ":derive_more-2",
+        ":futures-buffered-0.2",
+        ":futures-lite-2",
+        ":futures-util-0.3",
+        ":pin-project-1",
+        ":tokio-1",
+        ":tokio-util-0.7",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "n0-future-0.3.2-build-script-build",
+    name = "n0-future-0.3-build-script-build",
     srcs = [":n0-future-0.3.2.crate"],
     crate = "build_script_build",
     crate_root = "n0-future-0.3.2.crate/build.rs",
     edition = "2021",
     visibility = [],
-    deps = [":cfg_aliases-0.2.2"],
+    deps = [":cfg_aliases-0.2"],
 )
 
 third_party_rust.buildscript_run(
-    name = "n0-future-0.3.2-build-script-run",
+    name = "n0-future-0.3-build-script-run",
     package_name = "n0-future",
-    buildscript_rule = ":n0-future-0.3.2-build-script-build",
+    buildscript_rule = ":n0-future-0.3-build-script-build",
     version = "0.3.2",
 )
 
@@ -13557,16 +13721,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "n0-watcher-1.0.0",
+    name = "n0-watcher-1",
     srcs = [":n0-watcher-1.0.0.crate"],
     crate = "n0_watcher",
     crate_root = "n0-watcher-1.0.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":derive_more-2.1.1",
-        ":n0-error-1.0.0",
-        ":n0-future-0.3.2",
+        ":derive_more-2",
+        ":n0-error-1",
+        ":n0-future-0.3",
     ],
 )
 
@@ -13579,7 +13743,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "native-tls-0.2.18",
+    name = "native-tls-0.2",
     srcs = [":native-tls-0.2.18.crate"],
     crate = "native_tls",
     crate_root = "native-tls-0.2.18.crate/src/lib.rs",
@@ -13591,41 +13755,41 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":log-0.4.33",
-                ":openssl-0.10.81",
-                ":openssl-probe-0.2.1",
-                ":openssl-sys-0.9.117",
+                ":log-0.4",
+                ":openssl-0.10",
+                ":openssl-probe-0.2",
+                ":openssl-sys-0.9",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":log-0.4.33",
-                ":openssl-0.10.81",
-                ":openssl-probe-0.2.1",
-                ":openssl-sys-0.9.117",
+                ":log-0.4",
+                ":openssl-0.10",
+                ":openssl-probe-0.2",
+                ":openssl-sys-0.9",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":security-framework-3.7.0",
-                ":security-framework-sys-2.17.0",
-                ":tempfile-3.27.0",
+                ":libc-0.2",
+                ":security-framework-3",
+                ":security-framework-sys-2",
+                ":tempfile-3",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":security-framework-3.7.0",
-                ":security-framework-sys-2.17.0",
-                ":tempfile-3.27.0",
+                ":libc-0.2",
+                ":security-framework-3",
+                ":security-framework-sys-2",
+                ":tempfile-3",
             ],
         ),
         "windows-gnu": dict(
-            deps = [":schannel-0.1.29"],
+            deps = [":schannel-0.1"],
         ),
         "windows-msvc": dict(
-            deps = [":schannel-0.1.29"],
+            deps = [":schannel-0.1"],
         ),
     },
     visibility = [],
@@ -13640,7 +13804,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "netdev-0.45.0",
+    name = "netdev-0.45",
     srcs = [":netdev-0.45.0.crate"],
     crate = "netdev",
     crate_root = "netdev-0.45.0.crate/src/lib.rs",
@@ -13654,53 +13818,53 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":netlink-packet-core-0.8.1",
-                ":netlink-packet-route-0.31.0",
-                ":netlink-sys-0.8.8",
+                ":libc-0.2",
+                ":netlink-packet-core-0.8",
+                ":netlink-packet-route-0.31",
+                ":netlink-sys-0.8",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":netlink-packet-core-0.8.1",
-                ":netlink-packet-route-0.31.0",
-                ":netlink-sys-0.8.8",
+                ":libc-0.2",
+                ":netlink-packet-core-0.8",
+                ":netlink-packet-route-0.31",
+                ":netlink-sys-0.8",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":objc2-0.6.4",
-                ":objc2-core-foundation-0.3.2",
-                ":objc2-core-wlan-0.3.2",
-                ":objc2-foundation-0.3.2",
-                ":objc2-system-configuration-0.3.2",
-                ":plist-1.10.0",
+                ":libc-0.2",
+                ":objc2-0.6",
+                ":objc2-core-foundation-0.3",
+                ":objc2-core-wlan-0.3",
+                ":objc2-foundation-0.3",
+                ":objc2-system-configuration-0.3",
+                ":plist-1",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":objc2-0.6.4",
-                ":objc2-core-foundation-0.3.2",
-                ":objc2-core-wlan-0.3.2",
-                ":objc2-foundation-0.3.2",
-                ":objc2-system-configuration-0.3.2",
-                ":plist-1.10.0",
+                ":libc-0.2",
+                ":objc2-0.6",
+                ":objc2-core-foundation-0.3",
+                ":objc2-core-wlan-0.3",
+                ":objc2-foundation-0.3",
+                ":objc2-system-configuration-0.3",
+                ":plist-1",
             ],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
     deps = [
-        ":ipnet-2.12.0",
-        ":mac-addr-0.3.0",
+        ":ipnet-2",
+        ":mac-addr-0.3",
     ],
 )
 
@@ -13713,13 +13877,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "netlink-packet-core-0.8.1",
+    name = "netlink-packet-core-0.8",
     srcs = [":netlink-packet-core-0.8.1.crate"],
     crate = "netlink_packet_core",
     crate_root = "netlink-packet-core-0.8.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":paste-1.0.15"],
+    deps = [":paste-1"],
 )
 
 shims.http_archive(
@@ -13731,17 +13895,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "netlink-packet-route-0.31.0",
+    name = "netlink-packet-route-0.31",
     srcs = [":netlink-packet-route-0.31.0.crate"],
     crate = "netlink_packet_route",
     crate_root = "netlink-packet-route-0.31.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":libc-0.2.186",
-        ":log-0.4.33",
-        ":netlink-packet-core-0.8.1",
+        ":bitflags-2",
+        ":libc-0.2",
+        ":log-0.4",
+        ":netlink-packet-core-0.8",
     ],
 )
 
@@ -13754,7 +13918,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "netlink-proto-0.12.0",
+    name = "netlink-proto-0.12",
     srcs = [":netlink-proto-0.12.0.crate"],
     crate = "netlink_proto",
     crate_root = "netlink-proto-0.12.0.crate/src/lib.rs",
@@ -13765,12 +13929,12 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bytes-1.12.1",
-        ":futures-0.3.32",
-        ":log-0.4.33",
-        ":netlink-packet-core-0.8.1",
-        ":netlink-sys-0.8.8",
-        ":thiserror-2.0.18",
+        ":bytes-1",
+        ":futures-0.3",
+        ":log-0.4",
+        ":netlink-packet-core-0.8",
+        ":netlink-sys-0.8",
+        ":thiserror-2",
     ],
 )
 
@@ -13783,7 +13947,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "netlink-sys-0.8.8",
+    name = "netlink-sys-0.8",
     srcs = [":netlink-sys-0.8.8.crate"],
     crate = "netlink_sys",
     crate_root = "netlink-sys-0.8.8.crate/src/lib.rs",
@@ -13796,11 +13960,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bytes-1.12.1",
-        ":futures-util-0.3.32",
-        ":libc-0.2.186",
-        ":log-0.4.33",
-        ":tokio-1.53.0",
+        ":bytes-1",
+        ":futures-util-0.3",
+        ":libc-0.2",
+        ":log-0.4",
+        ":tokio-1",
     ],
 )
 
@@ -13813,97 +13977,97 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "netwatch-0.19.1",
+    name = "netwatch-0.19",
     srcs = [":netwatch-0.19.1.crate"],
     crate = "netwatch",
     crate_root = "netwatch-0.19.1.crate/src/lib.rs",
     edition = "2024",
     env = {
-        "OUT_DIR": "$(location :netwatch-0.19.1-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :netwatch-0.19-build-script-run[out_dir])",
     },
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":netlink-packet-core-0.8.1",
-                ":netlink-packet-route-0.31.0",
-                ":netlink-proto-0.12.0",
-                ":netlink-sys-0.8.8",
+                ":netlink-packet-core-0.8",
+                ":netlink-packet-route-0.31",
+                ":netlink-proto-0.12",
+                ":netlink-sys-0.8",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":netlink-packet-core-0.8.1",
-                ":netlink-packet-route-0.31.0",
-                ":netlink-proto-0.12.0",
-                ":netlink-sys-0.8.8",
+                ":netlink-packet-core-0.8",
+                ":netlink-packet-route-0.31",
+                ":netlink-proto-0.12",
+                ":netlink-sys-0.8",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":objc2-core-foundation-0.3.2",
-                ":objc2-system-configuration-0.3.2",
+                ":objc2-core-foundation-0.3",
+                ":objc2-system-configuration-0.3",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":objc2-core-foundation-0.3.2",
-                ":objc2-system-configuration-0.3.2",
+                ":objc2-core-foundation-0.3",
+                ":objc2-system-configuration-0.3",
             ],
         ),
         "windows-gnu": dict(
             deps = [
-                ":derive_more-2.1.1",
-                ":serde-1.0.228",
-                ":windows-0.62.2",
-                ":windows-result-0.4.1",
-                ":wmi-0.18.4",
+                ":derive_more-2",
+                ":serde-1",
+                ":windows-0.62",
+                ":windows-result-0.4",
+                ":wmi-0.18",
             ],
         ),
         "windows-msvc": dict(
             deps = [
-                ":derive_more-2.1.1",
-                ":serde-1.0.228",
-                ":windows-0.62.2",
-                ":windows-result-0.4.1",
-                ":wmi-0.18.4",
+                ":derive_more-2",
+                ":serde-1",
+                ":windows-0.62",
+                ":windows-result-0.4",
+                ":wmi-0.18",
             ],
         ),
     },
-    rustc_flags = ["@$(location :netwatch-0.19.1-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :netwatch-0.19-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":atomic-waker-1.1.2",
-        ":bytes-1.12.1",
-        ":ipnet-2.12.0",
-        ":libc-0.2.186",
-        ":n0-error-1.0.0",
-        ":n0-future-0.3.2",
-        ":n0-watcher-1.0.0",
-        ":netdev-0.45.0",
-        ":noq-udp-1.0.1",
-        ":pin-project-lite-0.2.17",
-        ":socket2-0.6.5",
-        ":time-0.3.53",
-        ":tokio-1.53.0",
-        ":tokio-util-0.7.18",
-        ":tracing-0.1.44",
+        ":atomic-waker-1",
+        ":bytes-1",
+        ":ipnet-2",
+        ":libc-0.2",
+        ":n0-error-1",
+        ":n0-future-0.3",
+        ":n0-watcher-1",
+        ":netdev-0.45",
+        ":noq-udp-1",
+        ":pin-project-lite-0.2",
+        ":socket2-0.6",
+        ":time-0.3",
+        ":tokio-1",
+        ":tokio-util-0.7",
+        ":tracing-0.1",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "netwatch-0.19.1-build-script-build",
+    name = "netwatch-0.19-build-script-build",
     srcs = [":netwatch-0.19.1.crate"],
     crate = "build_script_build",
     crate_root = "netwatch-0.19.1.crate/build.rs",
     edition = "2024",
     visibility = [],
-    deps = [":cfg_aliases-0.2.2"],
+    deps = [":cfg_aliases-0.2"],
 )
 
 third_party_rust.buildscript_run(
-    name = "netwatch-0.19.1-build-script-run",
+    name = "netwatch-0.19-build-script-run",
     package_name = "netwatch",
-    buildscript_rule = ":netwatch-0.19.1-build-script-build",
+    buildscript_rule = ":netwatch-0.19-build-script-build",
     version = "0.19.1",
 )
 
@@ -13916,7 +14080,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "new_debug_unreachable-1.0.6",
+    name = "new_debug_unreachable-1",
     srcs = [":new_debug_unreachable-1.0.6.crate"],
     crate = "debug_unreachable",
     crate_root = "new_debug_unreachable-1.0.6.crate/src/lib.rs",
@@ -13933,13 +14097,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "nibble_vec-0.1.0",
+    name = "nibble_vec-0.1",
     srcs = [":nibble_vec-0.1.0.crate"],
     crate = "nibble_vec",
     crate_root = "nibble_vec-0.1.0.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":smallvec-1.15.2"],
+    deps = [":smallvec-1"],
 )
 
 shims.http_archive(
@@ -13951,13 +14115,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "nix-0.28.0",
+    name = "nix-0.28",
     srcs = [":nix-0.28.0.crate"],
     crate = "nix",
     crate_root = "nix-0.28.0.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :nix-0.28.0-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :nix-0.28-build-script-run[out_dir])",
     },
     features = [
         "fs",
@@ -13967,17 +14131,17 @@ third_party_rust.rust_library(
         "signal",
         "term",
     ],
-    rustc_flags = ["@$(location :nix-0.28.0-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :nix-0.28-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":cfg-if-1.0.4",
-        ":libc-0.2.186",
+        ":bitflags-2",
+        ":cfg-if-1",
+        ":libc-0.2",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "nix-0.28.0-build-script-build",
+    name = "nix-0.28-build-script-build",
     srcs = [":nix-0.28.0.crate"],
     crate = "build_script_build",
     crate_root = "nix-0.28.0.crate/build.rs",
@@ -13991,13 +14155,13 @@ third_party_rust.rust_binary(
         "term",
     ],
     visibility = [],
-    deps = [":cfg_aliases-0.1.1"],
+    deps = [":cfg_aliases-0.1"],
 )
 
 third_party_rust.buildscript_run(
-    name = "nix-0.28.0-build-script-run",
+    name = "nix-0.28-build-script-run",
     package_name = "nix",
-    buildscript_rule = ":nix-0.28.0-build-script-build",
+    buildscript_rule = ":nix-0.28-build-script-build",
     features = [
         "fs",
         "ioctl",
@@ -14018,13 +14182,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "nix-0.29.0",
+    name = "nix-0.29",
     srcs = [":nix-0.29.0.crate"],
     crate = "nix",
     crate_root = "nix-0.29.0.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :nix-0.29.0-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :nix-0.29-build-script-run[out_dir])",
     },
     features = [
         "default",
@@ -14034,18 +14198,18 @@ third_party_rust.rust_library(
         "net",
         "socket",
     ],
-    rustc_flags = ["@$(location :nix-0.29.0-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :nix-0.29-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":cfg-if-1.0.4",
-        ":libc-0.2.186",
-        ":memoffset-0.9.1",
+        ":bitflags-2",
+        ":cfg-if-1",
+        ":libc-0.2",
+        ":memoffset-0.9",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "nix-0.29.0-build-script-build",
+    name = "nix-0.29-build-script-build",
     srcs = [":nix-0.29.0.crate"],
     crate = "build_script_build",
     crate_root = "nix-0.29.0.crate/build.rs",
@@ -14059,13 +14223,13 @@ third_party_rust.rust_binary(
         "socket",
     ],
     visibility = [],
-    deps = [":cfg_aliases-0.2.2"],
+    deps = [":cfg_aliases-0.2"],
 )
 
 third_party_rust.buildscript_run(
-    name = "nix-0.29.0-build-script-run",
+    name = "nix-0.29-build-script-run",
     package_name = "nix",
-    buildscript_rule = ":nix-0.29.0-build-script-build",
+    buildscript_rule = ":nix-0.29-build-script-build",
     features = [
         "default",
         "fs",
@@ -14086,30 +14250,30 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "nix-0.31.3",
+    name = "nix-0.31",
     srcs = [":nix-0.31.3.crate"],
     crate = "nix",
     crate_root = "nix-0.31.3.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :nix-0.31.3-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :nix-0.31-build-script-run[out_dir])",
     },
     features = [
         "default",
         "process",
         "signal",
     ],
-    rustc_flags = ["@$(location :nix-0.31.3-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :nix-0.31-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":cfg-if-1.0.4",
-        ":libc-0.2.186",
+        ":bitflags-2",
+        ":cfg-if-1",
+        ":libc-0.2",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "nix-0.31.3-build-script-build",
+    name = "nix-0.31-build-script-build",
     srcs = [":nix-0.31.3.crate"],
     crate = "build_script_build",
     crate_root = "nix-0.31.3.crate/build.rs",
@@ -14120,13 +14284,13 @@ third_party_rust.rust_binary(
         "signal",
     ],
     visibility = [],
-    deps = [":cfg_aliases-0.2.2"],
+    deps = [":cfg_aliases-0.2"],
 )
 
 third_party_rust.buildscript_run(
-    name = "nix-0.31.3-build-script-run",
+    name = "nix-0.31-build-script-run",
     package_name = "nix",
-    buildscript_rule = ":nix-0.31.3-build-script-build",
+    buildscript_rule = ":nix-0.31-build-script-build",
     features = [
         "default",
         "process",
@@ -14144,7 +14308,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "nom-7.1.3",
+    name = "nom-7",
     srcs = [":nom-7.1.3.crate"],
     crate = "nom",
     crate_root = "nom-7.1.3.crate/src/lib.rs",
@@ -14156,8 +14320,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":memchr-2.8.3",
-        ":minimal-lexical-0.2.1",
+        ":memchr-2",
+        ":minimal-lexical-0.2",
     ],
 )
 
@@ -14170,7 +14334,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "nom-8.0.0",
+    name = "nom-8",
     srcs = [":nom-8.0.0.crate"],
     crate = "nom",
     crate_root = "nom-8.0.0.crate/src/lib.rs",
@@ -14181,7 +14345,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":memchr-2.8.3"],
+    deps = [":memchr-2"],
 )
 
 shims.http_archive(
@@ -14193,7 +14357,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "nonempty-0.12.0",
+    name = "nonempty-0.12",
     srcs = [":nonempty-0.12.0.crate"],
     crate = "nonempty",
     crate_root = "nonempty-0.12.0.crate/src/lib.rs",
@@ -14204,7 +14368,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":serde-1.0.228"],
+    deps = [":serde-1"],
 )
 
 shims.http_archive(
@@ -14216,40 +14380,40 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "noq-1.0.1",
+    name = "noq-1",
     srcs = [":noq-1.0.1.crate"],
     crate = "noq",
     crate_root = "noq-1.0.1.crate/src/lib.rs",
     edition = "2024",
     env = {
-        "OUT_DIR": "$(location :noq-1.0.1-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :noq-1-build-script-run[out_dir])",
     },
     features = [
         "runtime-tokio",
         "rustls",
     ],
     named_deps = {
-        "proto": ":noq-proto-1.0.1",
-        "udp": ":noq-udp-1.0.1",
+        "proto": ":noq-proto-1",
+        "udp": ":noq-udp-1",
     },
-    rustc_flags = ["@$(location :noq-1.0.1-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :noq-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":bytes-1.12.1",
-        ":derive_more-2.1.1",
-        ":pin-project-lite-0.2.17",
-        ":rustc-hash-2.1.3",
-        ":rustls-0.23.42",
-        ":socket2-0.6.5",
-        ":thiserror-2.0.18",
-        ":tokio-1.53.0",
-        ":tokio-stream-0.1.18",
-        ":tracing-0.1.44",
+        ":bytes-1",
+        ":derive_more-2",
+        ":pin-project-lite-0.2",
+        ":rustc-hash-2",
+        ":rustls-0.23",
+        ":socket2-0.6",
+        ":thiserror-2",
+        ":tokio-1",
+        ":tokio-stream-0.1",
+        ":tracing-0.1",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "noq-1.0.1-build-script-build",
+    name = "noq-1-build-script-build",
     srcs = [":noq-1.0.1.crate"],
     crate = "build_script_build",
     crate_root = "noq-1.0.1.crate/build.rs",
@@ -14259,13 +14423,13 @@ third_party_rust.rust_binary(
         "rustls",
     ],
     visibility = [],
-    deps = [":cfg_aliases-0.2.2"],
+    deps = [":cfg_aliases-0.2"],
 )
 
 third_party_rust.buildscript_run(
-    name = "noq-1.0.1-build-script-run",
+    name = "noq-1-build-script-run",
     package_name = "noq",
-    buildscript_rule = ":noq-1.0.1-build-script-build",
+    buildscript_rule = ":noq-1-build-script-build",
     features = [
         "runtime-tokio",
         "rustls",
@@ -14282,7 +14446,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "noq-proto-1.0.1",
+    name = "noq-proto-1",
     srcs = [":noq-proto-1.0.1.crate"],
     crate = "noq_proto",
     crate_root = "noq-proto-1.0.1.crate/src/lib.rs",
@@ -14290,21 +14454,21 @@ third_party_rust.rust_library(
     features = ["rustls"],
     visibility = [],
     deps = [
-        ":aes-gcm-0.10.3",
-        ":bytes-1.12.1",
-        ":derive_more-2.1.1",
-        ":enum-assoc-1.3.0",
-        ":identity-hash-0.1.0",
-        ":lru-slab-0.1.2",
-        ":rand-0.10.2",
-        ":rand_pcg-0.10.2",
-        ":rustc-hash-2.1.3",
-        ":rustls-0.23.42",
-        ":slab-0.4.12",
-        ":sorted-index-buffer-0.2.1",
-        ":thiserror-2.0.18",
-        ":tinyvec-1.12.0",
-        ":tracing-0.1.44",
+        ":aes-gcm-0.10",
+        ":bytes-1",
+        ":derive_more-2",
+        ":enum-assoc-1",
+        ":identity-hash-0.1",
+        ":lru-slab-0.1",
+        ":rand-0.10",
+        ":rand_pcg-0.10",
+        ":rustc-hash-2",
+        ":rustls-0.23",
+        ":slab-0.4",
+        ":sorted-index-buffer-0.2",
+        ":thiserror-2",
+        ":tinyvec-1",
+        ":tracing-0.1",
     ],
 )
 
@@ -14317,13 +14481,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "noq-udp-1.0.1",
+    name = "noq-udp-1",
     srcs = [":noq-udp-1.0.1.crate"],
     crate = "noq_udp",
     crate_root = "noq-udp-1.0.1.crate/src/lib.rs",
     edition = "2024",
     env = {
-        "OUT_DIR": "$(location :noq-udp-1.0.1-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :noq-udp-1-build-script-run[out_dir])",
     },
     features = [
         "default",
@@ -14332,23 +14496,23 @@ third_party_rust.rust_library(
     ],
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
-    rustc_flags = ["@$(location :noq-udp-1.0.1-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :noq-udp-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":libc-0.2.186",
-        ":socket2-0.6.5",
-        ":tracing-0.1.44",
+        ":libc-0.2",
+        ":socket2-0.6",
+        ":tracing-0.1",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "noq-udp-1.0.1-build-script-build",
+    name = "noq-udp-1-build-script-build",
     srcs = [":noq-udp-1.0.1.crate"],
     crate = "build_script_build",
     crate_root = "noq-udp-1.0.1.crate/build.rs",
@@ -14359,13 +14523,13 @@ third_party_rust.rust_binary(
         "tracing-log",
     ],
     visibility = [],
-    deps = [":cfg_aliases-0.2.2"],
+    deps = [":cfg_aliases-0.2"],
 )
 
 third_party_rust.buildscript_run(
-    name = "noq-udp-1.0.1-build-script-run",
+    name = "noq-udp-1-build-script-run",
     package_name = "noq-udp",
-    buildscript_rule = ":noq-udp-1.0.1-build-script-build",
+    buildscript_rule = ":noq-udp-1-build-script-build",
     features = [
         "default",
         "tracing",
@@ -14383,7 +14547,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "notify-8.2.0",
+    name = "notify-8",
     srcs = [":notify-8.2.0.crate"],
     crate = "notify",
     crate_root = "notify-8.2.0.crate/src/lib.rs",
@@ -14397,48 +14561,48 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":inotify-0.11.4",
-                ":mio-1.2.2",
+                ":inotify-0.11",
+                ":mio-1",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":inotify-0.11.4",
-                ":mio-1.2.2",
+                ":inotify-0.11",
+                ":mio-1",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":bitflags-2.13.1",
-                ":fsevent-sys-4.1.0",
+                ":bitflags-2",
+                ":fsevent-sys-4",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":bitflags-2.13.1",
-                ":fsevent-sys-4.1.0",
+                ":bitflags-2",
+                ":fsevent-sys-4",
             ],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.60"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.60.2"],
+            deps = [":windows-sys-0.60"],
         ),
     },
     visibility = [],
     deps = [
-        ":crossbeam-channel-0.5.16",
-        ":libc-0.2.186",
-        ":log-0.4.33",
-        ":notify-types-2.1.0",
-        ":walkdir-2.5.0",
+        ":crossbeam-channel-0.5",
+        ":libc-0.2",
+        ":log-0.4",
+        ":notify-types-2",
+        ":walkdir-2",
     ],
 )
 
 shims.alias(
     name = "notify-debouncer-mini",
-    actual = ":notify-debouncer-mini-0.7.0",
+    actual = ":notify-debouncer-mini-0.7",
     visibility = ["PUBLIC"],
 )
 
@@ -14451,7 +14615,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "notify-debouncer-mini-0.7.0",
+    name = "notify-debouncer-mini-0.7",
     srcs = [":notify-debouncer-mini-0.7.0.crate"],
     crate = "notify_debouncer_mini",
     crate_root = "notify-debouncer-mini-0.7.0.crate/src/lib.rs",
@@ -14463,11 +14627,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":crossbeam-channel-0.5.16",
-        ":log-0.4.33",
-        ":notify-8.2.0",
-        ":notify-types-2.1.0",
-        ":tempfile-3.27.0",
+        ":crossbeam-channel-0.5",
+        ":log-0.4",
+        ":notify-8",
+        ":notify-types-2",
+        ":tempfile-3",
     ],
 )
 
@@ -14480,13 +14644,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "notify-types-2.1.0",
+    name = "notify-types-2",
     srcs = [":notify-types-2.1.0.crate"],
     crate = "notify_types",
     crate_root = "notify-types-2.1.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":bitflags-2.13.1"],
+    deps = [":bitflags-2"],
 )
 
 shims.http_archive(
@@ -14498,7 +14662,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ntapi-0.4.3",
+    name = "ntapi-0.4",
     srcs = [":ntapi-0.4.3.crate"],
     crate = "ntapi",
     crate_root = "ntapi-0.4.3.crate/src/lib.rs",
@@ -14508,7 +14672,7 @@ third_party_rust.rust_library(
         "user",
     ],
     visibility = [],
-    deps = [":winapi-0.3.9"],
+    deps = [":winapi-0.3"],
 )
 
 shims.http_archive(
@@ -14520,7 +14684,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "nu-ansi-term-0.50.3",
+    name = "nu-ansi-term-0.50",
     srcs = [":nu-ansi-term-0.50.3.crate"],
     crate = "nu_ansi_term",
     crate_root = "nu-ansi-term-0.50.3.crate/src/lib.rs",
@@ -14532,12 +14696,12 @@ third_party_rust.rust_library(
     platform = {
         "windows-gnu": dict(
             named_deps = {
-                "windows": ":windows-sys-0.61.2",
+                "windows": ":windows-sys-0.61",
             },
         ),
         "windows-msvc": dict(
             named_deps = {
-                "windows": ":windows-sys-0.61.2",
+                "windows": ":windows-sys-0.61",
             },
         ),
     },
@@ -14553,7 +14717,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "num-bigint-0.4.8",
+    name = "num-bigint-0.4",
     srcs = [":num-bigint-0.4.8.crate"],
     crate = "num_bigint",
     crate_root = "num-bigint-0.4.8.crate/src/lib.rs",
@@ -14564,8 +14728,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":num-integer-0.1.46",
-        ":num-traits-0.2.19",
+        ":num-integer-0.1",
+        ":num-traits-0.2",
     ],
 )
 
@@ -14578,7 +14742,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "num-conv-0.2.2",
+    name = "num-conv-0.2",
     srcs = [":num-conv-0.2.2.crate"],
     crate = "num_conv",
     crate_root = "num-conv-0.2.2.crate/src/lib.rs",
@@ -14595,7 +14759,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "num-derive-0.4.2",
+    name = "num-derive-0.4",
     srcs = [":num-derive-0.4.2.crate"],
     crate = "num_derive",
     crate_root = "num-derive-0.4.2.crate/src/lib.rs",
@@ -14603,9 +14767,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -14618,7 +14782,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "num-integer-0.1.46",
+    name = "num-integer-0.1",
     srcs = [":num-integer-0.1.46.crate"],
     crate = "num_integer",
     crate_root = "num-integer-0.1.46.crate/src/lib.rs",
@@ -14628,7 +14792,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":num-traits-0.2.19"],
+    deps = [":num-traits-0.2"],
 )
 
 shims.http_archive(
@@ -14640,7 +14804,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "num-modular-0.6.4",
+    name = "num-modular-0.6",
     srcs = [":num-modular-0.6.4.crate"],
     crate = "num_modular",
     crate_root = "num-modular-0.6.4.crate/src/lib.rs",
@@ -14657,25 +14821,25 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "num-traits-0.2.19",
+    name = "num-traits-0.2",
     srcs = [":num-traits-0.2.19.crate"],
     crate = "num_traits",
     crate_root = "num-traits-0.2.19.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :num-traits-0.2.19-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :num-traits-0.2-build-script-run[out_dir])",
     },
     features = [
         "default",
         "i128",
         "std",
     ],
-    rustc_flags = ["@$(location :num-traits-0.2.19-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :num-traits-0.2-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
 third_party_rust.rust_binary(
-    name = "num-traits-0.2.19-build-script-build",
+    name = "num-traits-0.2-build-script-build",
     srcs = [":num-traits-0.2.19.crate"],
     crate = "build_script_build",
     crate_root = "num-traits-0.2.19.crate/build.rs",
@@ -14686,13 +14850,13 @@ third_party_rust.rust_binary(
         "std",
     ],
     visibility = [],
-    deps = [":autocfg-1.5.1"],
+    deps = [":autocfg-1"],
 )
 
 third_party_rust.buildscript_run(
-    name = "num-traits-0.2.19-build-script-run",
+    name = "num-traits-0.2-build-script-run",
     package_name = "num-traits",
-    buildscript_rule = ":num-traits-0.2.19-build-script-build",
+    buildscript_rule = ":num-traits-0.2-build-script-build",
     features = [
         "default",
         "i128",
@@ -14710,13 +14874,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "num_cpus-1.17.0",
+    name = "num_cpus-1",
     srcs = [":num_cpus-1.17.0.crate"],
     crate = "num_cpus",
     crate_root = "num_cpus-1.17.0.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":libc-0.2.186"],
+    deps = [":libc-0.2"],
 )
 
 shims.http_archive(
@@ -14728,7 +14892,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "num_enum-0.7.6",
+    name = "num_enum-0.7",
     srcs = [":num_enum-0.7.6.crate"],
     crate = "num_enum",
     crate_root = "num_enum-0.7.6.crate/src/lib.rs",
@@ -14739,8 +14903,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":num_enum_derive-0.7.6",
-        ":rustversion-1.0.23",
+        ":num_enum_derive-0.7",
+        ":rustversion-1",
     ],
 )
 
@@ -14753,7 +14917,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "num_enum_derive-0.7.6",
+    name = "num_enum_derive-0.7",
     srcs = [":num_enum_derive-0.7.6.crate"],
     crate = "num_enum_derive",
     crate_root = "num_enum_derive-0.7.6.crate/src/lib.rs",
@@ -14765,10 +14929,10 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro-crate-3.5.0",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro-crate-3",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -14781,17 +14945,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "num_threads-0.1.7",
+    name = "num_threads-0.1",
     srcs = [":num_threads-0.1.7.crate"],
     crate = "num_threads",
     crate_root = "num_threads-0.1.7.crate/src/lib.rs",
     edition = "2015",
     platform = {
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
     },
     visibility = [],
@@ -14806,7 +14970,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "numeric_cast-0.3.0",
+    name = "numeric_cast-0.3",
     srcs = [":numeric_cast-0.3.0.crate"],
     crate = "numeric_cast",
     crate_root = "numeric_cast-0.3.0.crate/src/lib.rs",
@@ -14823,18 +14987,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "objc2-0.6.4",
+    name = "objc2-0.6",
     srcs = [":objc2-0.6.4.crate"],
     crate = "objc2",
     crate_root = "objc2-0.6.4.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "objc2",
         "CARGO_CRATE_NAME": "objc2",
         "CARGO_MANIFEST_DIR": "objc2-0.6.4.crate",
         "CARGO_PKG_AUTHORS": "Mads Marquart <mads@marquart.dk>",
         "CARGO_PKG_DESCRIPTION": "Objective-C interface and runtime bindings",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "objc2",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/madsmtm/objc2",
+        "CARGO_PKG_RUST_VERSION": "1.71",
         "CARGO_PKG_VERSION": "0.6.4",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "6",
@@ -14847,7 +15015,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":objc2-encode-4.1.0"],
+    deps = [":objc2-encode-4"],
 )
 
 shims.http_archive(
@@ -14859,7 +15027,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "objc2-core-foundation-0.3.2",
+    name = "objc2-core-foundation-0.3",
     srcs = [":objc2-core-foundation-0.3.2.crate"],
     crate = "objc2_core_foundation",
     crate_root = "objc2-core-foundation-0.3.2.crate/src/lib.rs",
@@ -14922,11 +15090,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":block2-0.6.2",
-        ":dispatch2-0.3.1",
-        ":libc-0.2.186",
-        ":objc2-0.6.4",
+        ":bitflags-2",
+        ":block2-0.6",
+        ":dispatch2-0.3",
+        ":libc-0.2",
+        ":objc2-0.6",
     ],
 )
 
@@ -14939,7 +15107,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "objc2-core-wlan-0.3.2",
+    name = "objc2-core-wlan-0.3",
     srcs = [":objc2-core-wlan-0.3.2.crate"],
     crate = "objc2_core_wlan",
     crate_root = "objc2-core-wlan-0.3.2.crate/src/lib.rs",
@@ -14964,12 +15132,12 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":objc2-0.6.4",
-        ":objc2-core-foundation-0.3.2",
-        ":objc2-foundation-0.3.2",
-        ":objc2-security-0.3.2",
-        ":objc2-security-foundation-0.3.2",
+        ":bitflags-2",
+        ":objc2-0.6",
+        ":objc2-core-foundation-0.3",
+        ":objc2-foundation-0.3",
+        ":objc2-security-0.3",
+        ":objc2-security-foundation-0.3",
     ],
 )
 
@@ -14982,7 +15150,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "objc2-encode-4.1.0",
+    name = "objc2-encode-4",
     srcs = [":objc2-encode-4.1.0.crate"],
     crate = "objc2_encode",
     crate_root = "objc2-encode-4.1.0.crate/src/lib.rs",
@@ -15003,7 +15171,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "objc2-foundation-0.3.2",
+    name = "objc2-foundation-0.3",
     srcs = [":objc2-foundation-0.3.2.crate"],
     crate = "objc2_foundation",
     crate_root = "objc2-foundation-0.3.2.crate/src/lib.rs",
@@ -15189,11 +15357,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":block2-0.6.2",
-        ":libc-0.2.186",
-        ":objc2-0.6.4",
-        ":objc2-core-foundation-0.3.2",
+        ":bitflags-2",
+        ":block2-0.6",
+        ":libc-0.2",
+        ":objc2-0.6",
+        ":objc2-core-foundation-0.3",
     ],
 )
 
@@ -15206,7 +15374,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "objc2-io-kit-0.3.2",
+    name = "objc2-io-kit-0.3",
     srcs = [":objc2-io-kit-0.3.2.crate"],
     crate = "objc2_io_kit",
     crate_root = "objc2-io-kit-0.3.2.crate/src/lib.rs",
@@ -15219,8 +15387,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":libc-0.2.186",
-        ":objc2-core-foundation-0.3.2",
+        ":libc-0.2",
+        ":objc2-core-foundation-0.3",
     ],
 )
 
@@ -15233,7 +15401,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "objc2-security-0.3.2",
+    name = "objc2-security-0.3",
     srcs = [":objc2-security-0.3.2.crate"],
     crate = "objc2_security",
     crate_root = "objc2-security-0.3.2.crate/src/lib.rs",
@@ -15246,9 +15414,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":objc2-0.6.4",
-        ":objc2-core-foundation-0.3.2",
+        ":bitflags-2",
+        ":objc2-0.6",
+        ":objc2-core-foundation-0.3",
     ],
 )
 
@@ -15261,7 +15429,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "objc2-security-foundation-0.3.2",
+    name = "objc2-security-foundation-0.3",
     srcs = [":objc2-security-foundation-0.3.2.crate"],
     crate = "objc2_security_foundation",
     crate_root = "objc2-security-foundation-0.3.2.crate/src/lib.rs",
@@ -15269,8 +15437,8 @@ third_party_rust.rust_library(
     features = ["SFAuthorization"],
     visibility = [],
     deps = [
-        ":objc2-0.6.4",
-        ":objc2-foundation-0.3.2",
+        ":objc2-0.6",
+        ":objc2-foundation-0.3",
     ],
 )
 
@@ -15283,7 +15451,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "objc2-system-configuration-0.3.2",
+    name = "objc2-system-configuration-0.3",
     srcs = [":objc2-system-configuration-0.3.2.crate"],
     crate = "objc2_system_configuration",
     crate_root = "objc2-system-configuration-0.3.2.crate/src/lib.rs",
@@ -15314,12 +15482,12 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":dispatch2-0.3.1",
-        ":libc-0.2.186",
-        ":objc2-0.6.4",
-        ":objc2-core-foundation-0.3.2",
-        ":objc2-security-0.3.2",
+        ":bitflags-2",
+        ":dispatch2-0.3",
+        ":libc-0.2",
+        ":objc2-0.6",
+        ":objc2-core-foundation-0.3",
+        ":objc2-security-0.3",
     ],
 )
 
@@ -15332,13 +15500,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "object-0.37.3",
+    name = "object-0.37",
     srcs = [":object-0.37.3.crate"],
     crate = "object",
     crate_root = "object-0.37.3.crate/src/lib.rs",
     edition = "2018",
     env = {
-        "OUT_DIR": "$(location :object-0.37.3-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :object-0.37-build-script-run[out_dir])",
     },
     features = [
         "archive",
@@ -15352,13 +15520,13 @@ third_party_rust.rust_library(
         "unaligned",
         "xcoff",
     ],
-    rustc_flags = ["@$(location :object-0.37.3-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :object-0.37-build-script-run[rustc_flags])"],
     visibility = [],
-    deps = [":memchr-2.8.3"],
+    deps = [":memchr-2"],
 )
 
 third_party_rust.rust_binary(
-    name = "object-0.37.3-build-script-build",
+    name = "object-0.37-build-script-build",
     srcs = [":object-0.37.3.crate"],
     crate = "build_script_build",
     crate_root = "object-0.37.3.crate/build.rs",
@@ -15379,9 +15547,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "object-0.37.3-build-script-run",
+    name = "object-0.37-build-script-run",
     package_name = "object",
-    buildscript_rule = ":object-0.37.3-build-script-build",
+    buildscript_rule = ":object-0.37-build-script-build",
     features = [
         "archive",
         "coff",
@@ -15399,7 +15567,7 @@ third_party_rust.buildscript_run(
 
 shims.alias(
     name = "object_store",
-    actual = ":object_store-0.14.1",
+    actual = ":object_store-0.14",
     visibility = ["PUBLIC"],
 )
 
@@ -15412,18 +15580,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "object_store-0.14.1",
+    name = "object_store-0.14",
     srcs = [":object_store-0.14.1.crate"],
     crate = "object_store",
     crate_root = "object_store-0.14.1.crate/src/lib.rs",
     edition = "2024",
     env = {
+        "CARGO_BIN_NAME": "object_store",
         "CARGO_CRATE_NAME": "object_store",
         "CARGO_MANIFEST_DIR": "object_store-0.14.1.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "A generic object store interface for uniformly interacting with AWS S3, Google Cloud Storage, Azure Blob Storage and local files.",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "object_store",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/apache/arrow-rs-object-store",
+        "CARGO_PKG_RUST_VERSION": "1.85",
         "CARGO_PKG_VERSION": "0.14.1",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "14",
@@ -15440,41 +15612,41 @@ third_party_rust.rust_library(
     ],
     platform = {
         "linux-arm64": dict(
-            deps = [":nix-0.31.3"],
+            deps = [":nix-0.31"],
         ),
         "linux-x86_64": dict(
-            deps = [":nix-0.31.3"],
+            deps = [":nix-0.31"],
         ),
         "macos-arm64": dict(
-            deps = [":nix-0.31.3"],
+            deps = [":nix-0.31"],
         ),
         "macos-x86_64": dict(
-            deps = [":nix-0.31.3"],
+            deps = [":nix-0.31"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
     deps = [
-        ":async-trait-0.1.89",
-        ":bytes-1.12.1",
-        ":chrono-0.4.45",
-        ":futures-core-0.3.32",
-        ":futures-util-0.3.32",
-        ":http-1.4.2",
-        ":humantime-2.4.0",
-        ":itertools-0.15.0",
-        ":parking_lot-0.12.5",
-        ":percent-encoding-2.3.2",
-        ":thiserror-2.0.18",
-        ":tokio-1.53.0",
-        ":tracing-0.1.44",
-        ":url-2.5.8",
-        ":walkdir-2.5.0",
+        ":async-trait-0.1",
+        ":bytes-1",
+        ":chrono-0.4",
+        ":futures-core-0.3",
+        ":futures-util-0.3",
+        ":http-1",
+        ":humantime-2",
+        ":itertools-0.15",
+        ":parking_lot-0.12",
+        ":percent-encoding-2",
+        ":thiserror-2",
+        ":tokio-1",
+        ":tracing-0.1",
+        ":url-2",
+        ":walkdir-2",
     ],
 )
 
@@ -15487,7 +15659,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "once_cell-1.21.4",
+    name = "once_cell-1",
     srcs = [":once_cell-1.21.4.crate"],
     crate = "once_cell",
     crate_root = "once_cell-1.21.4.crate/src/lib.rs",
@@ -15502,8 +15674,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":critical-section-1.2.0",
-        ":portable-atomic-1.14.0",
+        ":critical-section-1",
+        ":portable-atomic-1",
     ],
 )
 
@@ -15516,7 +15688,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "once_cell_polyfill-1.70.2",
+    name = "once_cell_polyfill-1",
     srcs = [":once_cell_polyfill-1.70.2.crate"],
     crate = "once_cell_polyfill",
     crate_root = "once_cell_polyfill-1.70.2.crate/src/lib.rs",
@@ -15534,7 +15706,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "opaque-debug-0.3.1",
+    name = "opaque-debug-0.3",
     srcs = [":opaque-debug-0.3.1.crate"],
     crate = "opaque_debug",
     crate_root = "opaque-debug-0.3.1.crate/src/lib.rs",
@@ -15544,7 +15716,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "openssl",
-    actual = ":openssl-0.10.81",
+    actual = ":openssl-0.10",
     visibility = ["PUBLIC"],
 )
 
@@ -15557,7 +15729,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "openssl-0.10.81",
+    name = "openssl-0.10",
     srcs = [":openssl-0.10.81.crate"],
     crate = "openssl",
     crate_root = "openssl-0.10.81.crate/src/lib.rs",
@@ -15568,7 +15740,7 @@ third_party_rust.rust_library(
         "unstable_boringssl",
     ],
     named_deps = {
-        "ffi": ":openssl-sys-0.9.117",
+        "ffi": ":openssl-sys-0.9",
     },
     rustc_flags = [
         "--cfg=boringssl",
@@ -15626,11 +15798,11 @@ third_party_rust.rust_library(
         "third-party//by-name/bo/boringssl:decrepit",
         "third-party//by-name/bo/boringssl:ssl",
         "third-party//by-name/bo/boringssl/rust:bssl-sys",
-        ":bitflags-2.13.1",
-        ":cfg-if-1.0.4",
-        ":foreign-types-0.3.2",
-        ":libc-0.2.186",
-        ":openssl-macros-0.1.1",
+        ":bitflags-2",
+        ":cfg-if-1",
+        ":foreign-types-0.3",
+        ":libc-0.2",
+        ":openssl-macros-0.1",
     ],
 )
 
@@ -15643,7 +15815,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "openssl-macros-0.1.1",
+    name = "openssl-macros-0.1",
     srcs = [":openssl-macros-0.1.1.crate"],
     crate = "openssl_macros",
     crate_root = "openssl-macros-0.1.1.crate/src/lib.rs",
@@ -15651,9 +15823,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -15666,7 +15838,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "openssl-probe-0.2.1",
+    name = "openssl-probe-0.2",
     srcs = [":openssl-probe-0.2.1.crate"],
     crate = "openssl_probe",
     crate_root = "openssl-probe-0.2.1.crate/src/lib.rs",
@@ -15683,7 +15855,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "openssl-sys-0.9.117",
+    name = "openssl-sys-0.9",
     srcs = [":openssl-sys-0.9.117.crate"],
     crate = "openssl_sys",
     crate_root = "openssl-sys-0.9.117.crate/src/lib.rs",
@@ -15699,13 +15871,13 @@ third_party_rust.rust_library(
         "third-party//by-name/bo/boringssl:decrepit",
         "third-party//by-name/bo/boringssl:ssl",
         "third-party//by-name/bo/boringssl/rust:bssl-sys",
-        ":libc-0.2.186",
+        ":libc-0.2",
     ],
 )
 
 shims.alias(
     name = "opentelemetry",
-    actual = ":opentelemetry-0.32.0",
+    actual = ":opentelemetry-0.32",
     visibility = ["PUBLIC"],
 )
 
@@ -15718,18 +15890,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "opentelemetry-0.32.0",
+    name = "opentelemetry-0.32",
     srcs = [":opentelemetry-0.32.0.crate"],
     crate = "opentelemetry",
     crate_root = "opentelemetry-0.32.0.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "opentelemetry",
         "CARGO_CRATE_NAME": "opentelemetry",
         "CARGO_MANIFEST_DIR": "opentelemetry-0.32.0.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "OpenTelemetry API for Rust",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry",
         "CARGO_PKG_NAME": "opentelemetry",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry",
+        "CARGO_PKG_RUST_VERSION": "1.75.0",
         "CARGO_PKG_VERSION": "0.32.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "32",
@@ -15751,17 +15927,17 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":futures-core-0.3.32",
-        ":futures-sink-0.3.32",
-        ":pin-project-lite-0.2.17",
-        ":thiserror-2.0.18",
-        ":tracing-0.1.44",
+        ":futures-core-0.3",
+        ":futures-sink-0.3",
+        ":pin-project-lite-0.2",
+        ":thiserror-2",
+        ":tracing-0.1",
     ],
 )
 
 shims.alias(
     name = "opentelemetry-appender-log",
-    actual = ":opentelemetry-appender-log-0.32.0",
+    actual = ":opentelemetry-appender-log-0.32",
     visibility = ["PUBLIC"],
 )
 
@@ -15774,15 +15950,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "opentelemetry-appender-log-0.32.0",
+    name = "opentelemetry-appender-log-0.32",
     srcs = [":opentelemetry-appender-log-0.32.0.crate"],
     crate = "opentelemetry_appender_log",
     crate_root = "opentelemetry-appender-log-0.32.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":log-0.4.33",
-        ":opentelemetry-0.32.0",
+        ":log-0.4",
+        ":opentelemetry-0.32",
     ],
 )
 
@@ -15795,18 +15971,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "opentelemetry-http-0.32.0",
+    name = "opentelemetry-http-0.32",
     srcs = [":opentelemetry-http-0.32.0.crate"],
     crate = "opentelemetry_http",
     crate_root = "opentelemetry-http-0.32.0.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "opentelemetry_http",
         "CARGO_CRATE_NAME": "opentelemetry_http",
         "CARGO_MANIFEST_DIR": "opentelemetry-http-0.32.0.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Helper implementations for sending HTTP requests. Uses include propagating and extracting context over http, exporting telemetry, requesting sampling strategies.",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-http",
         "CARGO_PKG_NAME": "opentelemetry-http",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-http",
+        "CARGO_PKG_RUST_VERSION": "1.75.0",
         "CARGO_PKG_VERSION": "0.32.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "32",
@@ -15819,17 +15999,17 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":async-trait-0.1.89",
-        ":bytes-1.12.1",
-        ":http-1.4.2",
-        ":opentelemetry-0.32.0",
-        ":reqwest-0.13.4",
+        ":async-trait-0.1",
+        ":bytes-1",
+        ":http-1",
+        ":opentelemetry-0.32",
+        ":reqwest-0.13",
     ],
 )
 
 shims.alias(
     name = "opentelemetry-otlp",
-    actual = ":opentelemetry-otlp-0.32.0",
+    actual = ":opentelemetry-otlp-0.32",
     visibility = ["PUBLIC"],
 )
 
@@ -15842,18 +16022,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "opentelemetry-otlp-0.32.0",
+    name = "opentelemetry-otlp-0.32",
     srcs = [":opentelemetry-otlp-0.32.0.crate"],
     crate = "opentelemetry_otlp",
     crate_root = "opentelemetry-otlp-0.32.0.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "opentelemetry_otlp",
         "CARGO_CRATE_NAME": "opentelemetry_otlp",
         "CARGO_MANIFEST_DIR": "opentelemetry-otlp-0.32.0.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Exporter for the OpenTelemetry Collector",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp",
         "CARGO_PKG_NAME": "opentelemetry-otlp",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp",
+        "CARGO_PKG_RUST_VERSION": "1.75.0",
         "CARGO_PKG_VERSION": "0.32.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "32",
@@ -15879,17 +16063,17 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":http-1.4.2",
-        ":opentelemetry-0.32.0",
-        ":opentelemetry-http-0.32.0",
-        ":opentelemetry-proto-0.32.0",
-        ":opentelemetry_sdk-0.32.1",
-        ":prost-0.14.4",
-        ":reqwest-0.13.4",
-        ":thiserror-2.0.18",
-        ":tokio-1.53.0",
-        ":tonic-0.14.6",
-        ":tonic-types-0.14.6",
+        ":http-1",
+        ":opentelemetry-0.32",
+        ":opentelemetry-http-0.32",
+        ":opentelemetry-proto-0.32",
+        ":opentelemetry_sdk-0.32",
+        ":prost-0.14",
+        ":reqwest-0.13",
+        ":thiserror-2",
+        ":tokio-1",
+        ":tonic-0.14",
+        ":tonic-types-0.14",
     ],
 )
 
@@ -15902,7 +16086,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "opentelemetry-proto-0.32.0",
+    name = "opentelemetry-proto-0.32",
     srcs = [":opentelemetry-proto-0.32.0.crate"],
     crate = "opentelemetry_proto",
     crate_root = "opentelemetry-proto-0.32.0.crate/src/lib.rs",
@@ -15919,17 +16103,17 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":opentelemetry-0.32.0",
-        ":opentelemetry_sdk-0.32.1",
-        ":prost-0.14.4",
-        ":tonic-0.14.6",
-        ":tonic-prost-0.14.6",
+        ":opentelemetry-0.32",
+        ":opentelemetry_sdk-0.32",
+        ":prost-0.14",
+        ":tonic-0.14",
+        ":tonic-prost-0.14",
     ],
 )
 
 shims.alias(
     name = "opentelemetry-resource-detectors",
-    actual = ":opentelemetry-resource-detectors-0.11.0",
+    actual = ":opentelemetry-resource-detectors-0.11",
     visibility = ["PUBLIC"],
 )
 
@@ -15942,22 +16126,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "opentelemetry-resource-detectors-0.11.0",
+    name = "opentelemetry-resource-detectors-0.11",
     srcs = [":opentelemetry-resource-detectors-0.11.0.crate"],
     crate = "opentelemetry_resource_detectors",
     crate_root = "opentelemetry-resource-detectors-0.11.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":opentelemetry-0.32.0",
-        ":opentelemetry-semantic-conventions-0.32.1",
-        ":opentelemetry_sdk-0.32.1",
+        ":opentelemetry-0.32",
+        ":opentelemetry-semantic-conventions-0.32",
+        ":opentelemetry_sdk-0.32",
     ],
 )
 
 shims.alias(
     name = "opentelemetry-semantic-conventions",
-    actual = ":opentelemetry-semantic-conventions-0.32.1",
+    actual = ":opentelemetry-semantic-conventions-0.32",
     visibility = ["PUBLIC"],
 )
 
@@ -15970,7 +16154,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "opentelemetry-semantic-conventions-0.32.1",
+    name = "opentelemetry-semantic-conventions-0.32",
     srcs = [":opentelemetry-semantic-conventions-0.32.1.crate"],
     crate = "opentelemetry_semantic_conventions",
     crate_root = "opentelemetry-semantic-conventions-0.32.1.crate/src/lib.rs",
@@ -15984,7 +16168,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "opentelemetry_sdk",
-    actual = ":opentelemetry_sdk-0.32.1",
+    actual = ":opentelemetry_sdk-0.32",
     visibility = ["PUBLIC"],
 )
 
@@ -15997,18 +16181,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "opentelemetry_sdk-0.32.1",
+    name = "opentelemetry_sdk-0.32",
     srcs = [":opentelemetry_sdk-0.32.1.crate"],
     crate = "opentelemetry_sdk",
     crate_root = "opentelemetry_sdk-0.32.1.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "opentelemetry_sdk",
         "CARGO_CRATE_NAME": "opentelemetry_sdk",
         "CARGO_MANIFEST_DIR": "opentelemetry_sdk-0.32.1.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "The SDK for the OpenTelemetry metrics collection and distributed tracing framework",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk",
         "CARGO_PKG_NAME": "opentelemetry_sdk",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk",
+        "CARGO_PKG_RUST_VERSION": "1.75.0",
         "CARGO_PKG_VERSION": "0.32.1",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "32",
@@ -16030,15 +16218,15 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":futures-channel-0.3.32",
-        ":futures-executor-0.3.32",
-        ":futures-util-0.3.32",
-        ":opentelemetry-0.32.0",
-        ":percent-encoding-2.3.2",
-        ":rand-0.9.5",
-        ":thiserror-2.0.18",
-        ":tokio-1.53.0",
-        ":tokio-stream-0.1.18",
+        ":futures-channel-0.3",
+        ":futures-executor-0.3",
+        ":futures-util-0.3",
+        ":opentelemetry-0.32",
+        ":percent-encoding-2",
+        ":rand-0.9",
+        ":thiserror-2",
+        ":tokio-1",
+        ":tokio-stream-0.1",
     ],
 )
 
@@ -16051,7 +16239,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "option-ext-0.2.0",
+    name = "option-ext-0.2",
     srcs = [":option-ext-0.2.0.crate"],
     crate = "option_ext",
     crate_root = "option-ext-0.2.0.crate/src/lib.rs",
@@ -16068,7 +16256,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ordered-float-4.6.0",
+    name = "ordered-float-4",
     srcs = [":ordered-float-4.6.0.crate"],
     crate = "ordered_float",
     crate_root = "ordered-float-4.6.0.crate/src/lib.rs",
@@ -16078,7 +16266,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":num-traits-0.2.19"],
+    deps = [":num-traits-0.2"],
 )
 
 shims.http_archive(
@@ -16090,13 +16278,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ordered-float-5.3.0",
+    name = "ordered-float-5",
     srcs = [":ordered-float-5.3.0.crate"],
     crate = "ordered_float",
     crate_root = "ordered-float-5.3.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":num-traits-0.2.19"],
+    deps = [":num-traits-0.2"],
 )
 
 shims.http_archive(
@@ -16108,7 +16296,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ouroboros-0.18.5",
+    name = "ouroboros-0.18",
     srcs = [":ouroboros-0.18.5.crate"],
     crate = "ouroboros",
     crate_root = "ouroboros-0.18.5.crate/src/lib.rs",
@@ -16119,9 +16307,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":aliasable-0.1.3",
-        ":ouroboros_macro-0.18.5",
-        ":static_assertions-1.1.0",
+        ":aliasable-0.1",
+        ":ouroboros_macro-0.18",
+        ":static_assertions-1",
     ],
 )
 
@@ -16134,7 +16322,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ouroboros_macro-0.18.5",
+    name = "ouroboros_macro-0.18",
     srcs = [":ouroboros_macro-0.18.5.crate"],
     crate = "ouroboros_macro",
     crate_root = "ouroboros_macro-0.18.5.crate/src/lib.rs",
@@ -16143,11 +16331,11 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":heck-0.4.1",
-        ":proc-macro2-1.0.106",
-        ":proc-macro2-diagnostics-0.10.1",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":heck-0.4",
+        ":proc-macro2-1",
+        ":proc-macro2-diagnostics-0.10",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -16160,7 +16348,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "outref-0.5.2",
+    name = "outref-0.5",
     srcs = [":outref-0.5.2.crate"],
     crate = "outref",
     crate_root = "outref-0.5.2.crate/src/lib.rs",
@@ -16177,15 +16365,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "papaya-0.2.4",
+    name = "papaya-0.2",
     srcs = [":papaya-0.2.4.crate"],
     crate = "papaya",
     crate_root = "papaya-0.2.4.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":equivalent-1.0.2",
-        ":seize-0.5.1",
+        ":equivalent-1",
+        ":seize-0.5",
     ],
 )
 
@@ -16198,7 +16386,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "parking-2.2.1",
+    name = "parking-2",
     srcs = [":parking-2.2.1.crate"],
     crate = "parking",
     crate_root = "parking-2.2.1.crate/src/lib.rs",
@@ -16208,7 +16396,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "parking_lot",
-    actual = ":parking_lot-0.12.5",
+    actual = ":parking_lot-0.12",
     visibility = ["PUBLIC"],
 )
 
@@ -16221,7 +16409,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "parking_lot-0.12.5",
+    name = "parking_lot-0.12",
     srcs = [":parking_lot-0.12.5.crate"],
     crate = "parking_lot",
     crate_root = "parking_lot-0.12.5.crate/src/lib.rs",
@@ -16229,8 +16417,8 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":lock_api-0.4.14",
-        ":parking_lot_core-0.9.12",
+        ":lock_api-0.4",
+        ":parking_lot_core-0.9",
     ],
 )
 
@@ -16243,44 +16431,44 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "parking_lot_core-0.9.12",
+    name = "parking_lot_core-0.9",
     srcs = [":parking_lot_core-0.9.12.crate"],
     crate = "parking_lot_core",
     crate_root = "parking_lot_core-0.9.12.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :parking_lot_core-0.9.12-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :parking_lot_core-0.9-build-script-run[out_dir])",
     },
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-link-0.2.1"],
+            deps = [":windows-link-0.2"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-link-0.2.1"],
+            deps = [":windows-link-0.2"],
         ),
     },
-    rustc_flags = ["@$(location :parking_lot_core-0.9.12-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :parking_lot_core-0.9-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":smallvec-1.15.2",
+        ":cfg-if-1",
+        ":smallvec-1",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "parking_lot_core-0.9.12-build-script-build",
+    name = "parking_lot_core-0.9-build-script-build",
     srcs = [":parking_lot_core-0.9.12.crate"],
     crate = "build_script_build",
     crate_root = "parking_lot_core-0.9.12.crate/build.rs",
@@ -16289,9 +16477,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "parking_lot_core-0.9.12-build-script-run",
+    name = "parking_lot_core-0.9-build-script-run",
     package_name = "parking_lot_core",
-    buildscript_rule = ":parking_lot_core-0.9.12-build-script-build",
+    buildscript_rule = ":parking_lot_core-0.9-build-script-build",
     version = "0.9.12",
 )
 
@@ -16304,7 +16492,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "paste-1.0.15",
+    name = "paste-1",
     srcs = [":paste-1.0.15.crate"],
     crate = "paste",
     crate_root = "paste-1.0.15.crate/src/lib.rs",
@@ -16322,7 +16510,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pear-0.2.9",
+    name = "pear-0.2",
     srcs = [":pear-0.2.9.crate"],
     crate = "pear",
     crate_root = "pear-0.2.9.crate/src/lib.rs",
@@ -16334,9 +16522,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":inlinable_string-0.1.15",
-        ":pear_codegen-0.2.9",
-        ":yansi-1.0.1",
+        ":inlinable_string-0.1",
+        ":pear_codegen-0.2",
+        ":yansi-1",
     ],
 )
 
@@ -16349,7 +16537,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pear_codegen-0.2.9",
+    name = "pear_codegen-0.2",
     srcs = [":pear_codegen-0.2.9.crate"],
     crate = "pear_codegen",
     crate_root = "pear_codegen-0.2.9.crate/src/lib.rs",
@@ -16357,10 +16545,10 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":proc-macro2-diagnostics-0.10.1",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":proc-macro2-diagnostics-0.10",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -16373,19 +16561,19 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pem-rfc7468-1.0.0",
+    name = "pem-rfc7468-1",
     srcs = [":pem-rfc7468-1.0.0.crate"],
     crate = "pem_rfc7468",
     crate_root = "pem-rfc7468-1.0.0.crate/src/lib.rs",
     edition = "2024",
     features = ["alloc"],
     visibility = [],
-    deps = [":base64ct-1.8.3"],
+    deps = [":base64ct-1"],
 )
 
 shims.alias(
     name = "percent-encoding",
-    actual = ":percent-encoding-2.3.2",
+    actual = ":percent-encoding-2",
     visibility = ["PUBLIC"],
 )
 
@@ -16398,7 +16586,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "percent-encoding-2.3.2",
+    name = "percent-encoding-2",
     srcs = [":percent-encoding-2.3.2.crate"],
     crate = "percent_encoding",
     crate_root = "percent-encoding-2.3.2.crate/src/lib.rs",
@@ -16420,16 +16608,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "perf-event-data-0.1.8",
+    name = "perf-event-data-0.1",
     srcs = [":perf-event-data-0.1.8.crate"],
     crate = "perf_event_data",
     crate_root = "perf-event-data-0.1.8.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":c-enum-0.2.3",
-        ":perf-event-open-sys2-5.0.6",
+        ":bitflags-2",
+        ":c-enum-0.2",
+        ":perf-event-open-sys2-5",
     ],
 )
 
@@ -16442,15 +16630,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "perf-event-open-sys2-5.0.6",
+    name = "perf-event-open-sys2-5",
     srcs = [":perf-event-open-sys2-5.0.6.crate"],
     crate = "perf_event_open_sys",
     crate_root = "perf-event-open-sys2-5.0.6.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":libc-0.2.186",
-        ":memoffset-0.9.1",
+        ":libc-0.2",
+        ":memoffset-0.9",
     ],
 )
 
@@ -16463,7 +16651,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pest-2.8.7",
+    name = "pest-2",
     srcs = [":pest-2.8.7.crate"],
     crate = "pest",
     crate_root = "pest-2.8.7.crate/src/lib.rs",
@@ -16475,8 +16663,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":memchr-2.8.3",
-        ":ucd-trie-0.1.7",
+        ":memchr-2",
+        ":ucd-trie-0.1",
     ],
 )
 
@@ -16489,7 +16677,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pest_derive-2.8.7",
+    name = "pest_derive-2",
     srcs = [":pest_derive-2.8.7.crate"],
     crate = "pest_derive",
     crate_root = "pest_derive-2.8.7.crate/src/lib.rs",
@@ -16501,8 +16689,8 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":pest-2.8.7",
-        ":pest_generator-2.8.7",
+        ":pest-2",
+        ":pest_generator-2",
     ],
 )
 
@@ -16515,7 +16703,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pest_generator-2.8.7",
+    name = "pest_generator-2",
     srcs = [":pest_generator-2.8.7.crate"],
     crate = "pest_generator",
     crate_root = "pest_generator-2.8.7.crate/src/lib.rs",
@@ -16523,11 +16711,11 @@ third_party_rust.rust_library(
     features = ["std"],
     visibility = [],
     deps = [
-        ":pest-2.8.7",
-        ":pest_meta-2.8.7",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":pest-2",
+        ":pest_meta-2",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -16540,14 +16728,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pest_meta-2.8.7",
+    name = "pest_meta-2",
     srcs = [":pest_meta-2.8.7.crate"],
     crate = "pest_meta",
     crate_root = "pest_meta-2.8.7.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
     visibility = [],
-    deps = [":pest-2.8.7"],
+    deps = [":pest-2"],
 )
 
 shims.http_archive(
@@ -16559,15 +16747,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "petgraph-0.6.5",
+    name = "petgraph-0.6",
     srcs = [":petgraph-0.6.5.crate"],
     crate = "petgraph",
     crate_root = "petgraph-0.6.5.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":fixedbitset-0.4.2",
-        ":indexmap-2.14.0",
+        ":fixedbitset-0.4",
+        ":indexmap-2",
     ],
 )
 
@@ -16580,15 +16768,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "petgraph-0.7.1",
+    name = "petgraph-0.7",
     srcs = [":petgraph-0.7.1.crate"],
     crate = "petgraph",
     crate_root = "petgraph-0.7.1.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":fixedbitset-0.5.7",
-        ":indexmap-2.14.0",
+        ":fixedbitset-0.5",
+        ":indexmap-2",
     ],
 )
 
@@ -16601,7 +16789,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "petgraph-0.8.3",
+    name = "petgraph-0.8",
     srcs = [":petgraph-0.8.3.crate"],
     crate = "petgraph",
     crate_root = "petgraph-0.8.3.crate/src/lib.rs",
@@ -16609,9 +16797,9 @@ third_party_rust.rust_library(
     features = ["std"],
     visibility = [],
     deps = [
-        ":fixedbitset-0.5.7",
-        ":hashbrown-0.15.5",
-        ":indexmap-2.14.0",
+        ":fixedbitset-0.5",
+        ":hashbrown-0.15",
+        ":indexmap-2",
     ],
 )
 
@@ -16624,7 +16812,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "phf-0.11.3",
+    name = "phf-0.11",
     srcs = [":phf-0.11.3.crate"],
     crate = "phf",
     crate_root = "phf-0.11.3.crate/src/lib.rs",
@@ -16637,8 +16825,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":phf_macros-0.11.3",
-        ":phf_shared-0.11.3",
+        ":phf_macros-0.11",
+        ":phf_shared-0.11",
     ],
 )
 
@@ -16651,15 +16839,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "phf_codegen-0.11.3",
+    name = "phf_codegen-0.11",
     srcs = [":phf_codegen-0.11.3.crate"],
     crate = "phf_codegen",
     crate_root = "phf_codegen-0.11.3.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":phf_generator-0.11.3",
-        ":phf_shared-0.11.3",
+        ":phf_generator-0.11",
+        ":phf_shared-0.11",
     ],
 )
 
@@ -16672,15 +16860,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "phf_generator-0.11.3",
+    name = "phf_generator-0.11",
     srcs = [":phf_generator-0.11.3.crate"],
     crate = "phf_generator",
     crate_root = "phf_generator-0.11.3.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":phf_shared-0.11.3",
-        ":rand-0.8.7",
+        ":phf_shared-0.11",
+        ":rand-0.8",
     ],
 )
 
@@ -16693,7 +16881,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "phf_macros-0.11.3",
+    name = "phf_macros-0.11",
     srcs = [":phf_macros-0.11.3.crate"],
     crate = "phf_macros",
     crate_root = "phf_macros-0.11.3.crate/src/lib.rs",
@@ -16701,11 +16889,11 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":phf_generator-0.11.3",
-        ":phf_shared-0.11.3",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":phf_generator-0.11",
+        ":phf_shared-0.11",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -16718,7 +16906,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "phf_shared-0.11.3",
+    name = "phf_shared-0.11",
     srcs = [":phf_shared-0.11.3.crate"],
     crate = "phf_shared",
     crate_root = "phf_shared-0.11.3.crate/src/lib.rs",
@@ -16728,7 +16916,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":siphasher-1.0.3"],
+    deps = [":siphasher-1"],
 )
 
 shims.http_archive(
@@ -16740,7 +16928,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pico-args-0.5.0",
+    name = "pico-args-0.5",
     srcs = [":pico-args-0.5.0.crate"],
     crate = "pico_args",
     crate_root = "pico-args-0.5.0.crate/src/lib.rs",
@@ -16757,13 +16945,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pin-project-1.1.13",
+    name = "pin-project-1",
     srcs = [":pin-project-1.1.13.crate"],
     crate = "pin_project",
     crate_root = "pin-project-1.1.13.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":pin-project-internal-1.1.13"],
+    deps = [":pin-project-internal-1"],
 )
 
 shims.http_archive(
@@ -16775,7 +16963,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pin-project-internal-1.1.13",
+    name = "pin-project-internal-1",
     srcs = [":pin-project-internal-1.1.13.crate"],
     crate = "pin_project_internal",
     crate_root = "pin-project-internal-1.1.13.crate/src/lib.rs",
@@ -16783,9 +16971,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -16798,7 +16986,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pin-project-lite-0.2.17",
+    name = "pin-project-lite-0.2",
     srcs = [":pin-project-lite-0.2.17.crate"],
     crate = "pin_project_lite",
     crate_root = "pin-project-lite-0.2.17.crate/src/lib.rs",
@@ -16815,7 +17003,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pkcs8-0.11.0",
+    name = "pkcs8-0.11",
     srcs = [":pkcs8-0.11.0.crate"],
     crate = "pkcs8",
     crate_root = "pkcs8-0.11.0.crate/src/lib.rs",
@@ -16826,8 +17014,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":der-0.8.1",
-        ":spki-0.8.0",
+        ":der-0.8",
+        ":spki-0.8",
     ],
 )
 
@@ -16840,7 +17028,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "plist-1.10.0",
+    name = "plist-1",
     srcs = [":plist-1.10.0.crate"],
     crate = "plist",
     crate_root = "plist-1.10.0.crate/src/lib.rs",
@@ -16851,11 +17039,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":base64-0.22.1",
-        ":indexmap-2.14.0",
-        ":quick-xml-0.41.0",
-        ":serde-1.0.228",
-        ":time-0.3.53",
+        ":base64-0.22",
+        ":indexmap-2",
+        ":quick-xml-0.41",
+        ":serde-1",
+        ":time-0.3",
     ],
 )
 
@@ -16868,7 +17056,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pollster-0.4.0",
+    name = "pollster-0.4",
     srcs = [":pollster-0.4.0.crate"],
     crate = "pollster",
     crate_root = "pollster-0.4.0.crate/src/lib.rs",
@@ -16878,7 +17066,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "pollster",
-    actual = ":pollster-1.0.1",
+    actual = ":pollster-1",
     visibility = ["PUBLIC"],
 )
 
@@ -16891,7 +17079,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pollster-1.0.1",
+    name = "pollster-1",
     srcs = [":pollster-1.0.1.crate"],
     crate = "pollster",
     crate_root = "pollster-1.0.1.crate/src/lib.rs",
@@ -16908,17 +17096,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "polyval-0.6.2",
+    name = "polyval-0.6",
     srcs = [":polyval-0.6.2.crate"],
     crate = "polyval",
     crate_root = "polyval-0.6.2.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":cpufeatures-0.2.17",
-        ":opaque-debug-0.3.1",
-        ":universal-hash-0.5.1",
+        ":cfg-if-1",
+        ":cpufeatures-0.2",
+        ":opaque-debug-0.3",
+        ":universal-hash-0.5",
     ],
 )
 
@@ -16931,24 +17119,28 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "portable-atomic-1.14.0",
+    name = "portable-atomic-1",
     srcs = [":portable-atomic-1.14.0.crate"],
     crate = "portable_atomic",
     crate_root = "portable-atomic-1.14.0.crate/src/lib.rs",
     edition = "2018",
     env = {
+        "CARGO_BIN_NAME": "portable_atomic",
         "CARGO_CRATE_NAME": "portable_atomic",
         "CARGO_MANIFEST_DIR": "portable-atomic-1.14.0.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Portable atomic types including support for 128-bit atomics, atomic float, etc.\n",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "portable-atomic",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/taiki-e/portable-atomic",
+        "CARGO_PKG_RUST_VERSION": "1.34",
         "CARGO_PKG_VERSION": "1.14.0",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "14",
         "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :portable-atomic-1.14.0-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :portable-atomic-1-build-script-run[out_dir])",
     },
     features = [
         "default",
@@ -16956,24 +17148,28 @@ third_party_rust.rust_library(
         "serde",
         "std",
     ],
-    rustc_flags = ["@$(location :portable-atomic-1.14.0-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :portable-atomic-1-build-script-run[rustc_flags])"],
     visibility = [],
-    deps = [":serde-1.0.228"],
+    deps = [":serde-1"],
 )
 
 third_party_rust.rust_binary(
-    name = "portable-atomic-1.14.0-build-script-build",
+    name = "portable-atomic-1-build-script-build",
     srcs = [":portable-atomic-1.14.0.crate"],
     crate = "build_script_build",
     crate_root = "portable-atomic-1.14.0.crate/build.rs",
     edition = "2018",
     env = {
+        "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
         "CARGO_MANIFEST_DIR": "portable-atomic-1.14.0.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Portable atomic types including support for 128-bit atomics, atomic float, etc.\n",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "portable-atomic",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/taiki-e/portable-atomic",
+        "CARGO_PKG_RUST_VERSION": "1.34",
         "CARGO_PKG_VERSION": "1.14.0",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "14",
@@ -16990,13 +17186,16 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "portable-atomic-1.14.0-build-script-run",
+    name = "portable-atomic-1-build-script-run",
     package_name = "portable-atomic",
-    buildscript_rule = ":portable-atomic-1.14.0-build-script-build",
+    buildscript_rule = ":portable-atomic-1-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Portable atomic types including support for 128-bit atomics, atomic float, etc.\n",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/taiki-e/portable-atomic",
+        "CARGO_PKG_RUST_VERSION": "1.34",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "14",
         "CARGO_PKG_VERSION_PATCH": "0",
@@ -17020,34 +17219,34 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "portmapper-0.19.1",
+    name = "portmapper-0.19",
     srcs = [":portmapper-0.19.1.crate"],
     crate = "portmapper",
     crate_root = "portmapper-0.19.1.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":base64-0.22.1",
-        ":bytes-1.12.1",
-        ":derive_more-2.1.1",
-        ":hyper-util-0.1.20",
-        ":igd-next-0.17.1",
-        ":iroh-metrics-1.0.1",
-        ":libc-0.2.186",
-        ":n0-error-1.0.0",
-        ":n0-future-0.3.2",
-        ":netwatch-0.19.1",
-        ":num_enum-0.7.6",
-        ":rand-0.10.2",
-        ":serde-1.0.228",
-        ":smallvec-1.15.2",
-        ":socket2-0.6.5",
-        ":time-0.3.53",
-        ":tokio-1.53.0",
-        ":tokio-util-0.7.18",
-        ":tower-layer-0.3.3",
-        ":tracing-0.1.44",
-        ":url-2.5.8",
+        ":base64-0.22",
+        ":bytes-1",
+        ":derive_more-2",
+        ":hyper-util-0.1",
+        ":igd-next-0.17",
+        ":iroh-metrics-1",
+        ":libc-0.2",
+        ":n0-error-1",
+        ":n0-future-0.3",
+        ":netwatch-0.19",
+        ":num_enum-0.7",
+        ":rand-0.10",
+        ":serde-1",
+        ":smallvec-1",
+        ":socket2-0.6",
+        ":time-0.3",
+        ":tokio-1",
+        ":tokio-util-0.7",
+        ":tower-layer-0.3",
+        ":tracing-0.1",
+        ":url-2",
     ],
 )
 
@@ -17060,7 +17259,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "postcard-1.1.3",
+    name = "postcard-1",
     srcs = [":postcard-1.1.3.crate"],
     crate = "postcard",
     crate_root = "postcard-1.1.3.crate/src/lib.rs",
@@ -17073,9 +17272,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":cobs-0.3.0",
-        ":postcard-derive-0.2.2",
-        ":serde-1.0.228",
+        ":cobs-0.3",
+        ":postcard-derive-0.2",
+        ":serde-1",
     ],
 )
 
@@ -17088,7 +17287,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "postcard-derive-0.2.2",
+    name = "postcard-derive-0.2",
     srcs = [":postcard-derive-0.2.2.crate"],
     crate = "postcard_derive",
     crate_root = "postcard-derive-0.2.2.crate/src/lib.rs",
@@ -17096,9 +17295,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -17111,14 +17310,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "potential_utf-0.1.5",
+    name = "potential_utf-0.1",
     srcs = [":potential_utf-0.1.5.crate"],
     crate = "potential_utf",
     crate_root = "potential_utf-0.1.5.crate/src/lib.rs",
     edition = "2021",
     features = ["zerovec"],
     visibility = [],
-    deps = [":zerovec-0.11.6"],
+    deps = [":zerovec-0.11"],
 )
 
 shims.http_archive(
@@ -17130,7 +17329,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "powerfmt-0.2.0",
+    name = "powerfmt-0.2",
     srcs = [":powerfmt-0.2.0.crate"],
     crate = "powerfmt",
     crate_root = "powerfmt-0.2.0.crate/src/lib.rs",
@@ -17147,7 +17346,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ppv-lite86-0.2.21",
+    name = "ppv-lite86-0.2",
     srcs = [":ppv-lite86-0.2.21.crate"],
     crate = "ppv_lite86",
     crate_root = "ppv-lite86-0.2.21.crate/src/lib.rs",
@@ -17157,7 +17356,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":zerocopy-0.8.54"],
+    deps = [":zerocopy-0.8"],
 )
 
 shims.http_archive(
@@ -17169,7 +17368,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "precomputed-hash-0.1.1",
+    name = "precomputed-hash-0.1",
     srcs = [":precomputed-hash-0.1.1.crate"],
     crate = "precomputed_hash",
     crate_root = "precomputed-hash-0.1.1.crate/src/lib.rs",
@@ -17186,7 +17385,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "prefix-trie-0.8.4",
+    name = "prefix-trie-0.8",
     srcs = [":prefix-trie-0.8.4.crate"],
     crate = "prefix_trie",
     crate_root = "prefix-trie-0.8.4.crate/src/lib.rs",
@@ -17197,9 +17396,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":either-1.16.0",
-        ":ipnet-2.12.0",
-        ":num-traits-0.2.19",
+        ":either-1",
+        ":ipnet-2",
+        ":num-traits-0.2",
     ],
 )
 
@@ -17212,16 +17411,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pretty-0.12.5",
+    name = "pretty-0.12",
     srcs = [":pretty-0.12.5.crate"],
     crate = "pretty",
     crate_root = "pretty-0.12.5.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":arrayvec-0.5.2",
-        ":typed-arena-2.0.2",
-        ":unicode-width-0.2.2",
+        ":arrayvec-0.5",
+        ":typed-arena-2",
+        ":unicode-width-0.2",
     ],
 )
 
@@ -17234,18 +17433,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "prettyplease-0.2.37",
+    name = "prettyplease-0.2",
     srcs = [":prettyplease-0.2.37.crate"],
     crate = "prettyplease",
     crate_root = "prettyplease-0.2.37.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "prettyplease",
         "CARGO_CRATE_NAME": "prettyplease",
         "CARGO_MANIFEST_DIR": "prettyplease-0.2.37.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "A minimal `syn` syntax tree pretty-printer",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "prettyplease",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/prettyplease",
+        "CARGO_PKG_RUST_VERSION": "1.62",
         "CARGO_PKG_VERSION": "0.2.37",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "2",
@@ -17254,8 +17457,8 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":syn-2",
     ],
 )
 
@@ -17268,18 +17471,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "proc-macro-crate-3.5.0",
+    name = "proc-macro-crate-3",
     srcs = [":proc-macro-crate-3.5.0.crate"],
     crate = "proc_macro_crate",
     crate_root = "proc-macro-crate-3.5.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":toml_edit-0.25.13+spec-1.1.0"],
+    deps = [":toml_edit-0.25"],
 )
 
 shims.alias(
     name = "proc-macro2",
-    actual = ":proc-macro2-1.0.106",
+    actual = ":proc-macro2-1",
     visibility = ["PUBLIC"],
 )
 
@@ -17292,25 +17495,25 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "proc-macro2-1.0.106",
+    name = "proc-macro2-1",
     srcs = [":proc-macro2-1.0.106.crate"],
     crate = "proc_macro2",
     crate_root = "proc-macro2-1.0.106.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :proc-macro2-1.0.106-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :proc-macro2-1-build-script-run[out_dir])",
     },
     features = [
         "default",
         "proc-macro",
     ],
-    rustc_flags = ["@$(location :proc-macro2-1.0.106-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :proc-macro2-1-build-script-run[rustc_flags])"],
     visibility = [],
-    deps = [":unicode-ident-1.0.24"],
+    deps = [":unicode-ident-1"],
 )
 
 third_party_rust.rust_binary(
-    name = "proc-macro2-1.0.106-build-script-build",
+    name = "proc-macro2-1-build-script-build",
     srcs = [":proc-macro2-1.0.106.crate"],
     crate = "build_script_build",
     crate_root = "proc-macro2-1.0.106.crate/build.rs",
@@ -17323,9 +17526,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "proc-macro2-1.0.106-build-script-run",
+    name = "proc-macro2-1-build-script-run",
     package_name = "proc-macro2",
-    buildscript_rule = ":proc-macro2-1.0.106-build-script-build",
+    buildscript_rule = ":proc-macro2-1-build-script-build",
     features = [
         "default",
         "proc-macro",
@@ -17342,7 +17545,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "proc-macro2-diagnostics-0.10.1",
+    name = "proc-macro2-diagnostics-0.10",
     srcs = [":proc-macro2-diagnostics-0.10.1.crate"],
     crate = "proc_macro2_diagnostics",
     crate_root = "proc-macro2-diagnostics-0.10.1.crate/src/lib.rs",
@@ -17354,10 +17557,10 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
-        ":yansi-1.0.1",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
+        ":yansi-1",
     ],
 )
 
@@ -17370,7 +17573,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "prodash-31.0.0",
+    name = "prodash-31",
     srcs = [":prodash-31.0.0.crate"],
     crate = "prodash",
     crate_root = "prodash-31.0.0.crate/src/lib.rs",
@@ -17381,12 +17584,12 @@ third_party_rust.rust_library(
         "progress-tree",
     ],
     visibility = [],
-    deps = [":parking_lot-0.12.5"],
+    deps = [":parking_lot-0.12"],
 )
 
 shims.alias(
     name = "prost",
-    actual = ":prost-0.14.4",
+    actual = ":prost-0.14",
     visibility = ["PUBLIC"],
 )
 
@@ -17399,7 +17602,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "prost-0.14.4",
+    name = "prost-0.14",
     srcs = [":prost-0.14.4.crate"],
     crate = "prost",
     crate_root = "prost-0.14.4.crate/src/lib.rs",
@@ -17411,8 +17614,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bytes-1.12.1",
-        ":prost-derive-0.14.4",
+        ":bytes-1",
+        ":prost-derive-0.14",
     ],
 )
 
@@ -17425,7 +17628,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "prost-build-0.14.4",
+    name = "prost-build-0.14",
     srcs = [":prost-build-0.14.4.crate"],
     crate = "prost_build",
     crate_root = "prost-build-0.14.4.crate/src/lib.rs",
@@ -17437,19 +17640,19 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":heck-0.5.0",
-        ":itertools-0.14.0",
-        ":log-0.4.33",
-        ":multimap-0.10.1",
-        ":petgraph-0.8.3",
-        ":prettyplease-0.2.37",
-        ":prost-0.14.4",
-        ":prost-types-0.14.4",
-        ":pulldown-cmark-0.13.4",
-        ":pulldown-cmark-to-cmark-22.0.0",
-        ":regex-1.13.1",
-        ":syn-2.0.119",
-        ":tempfile-3.27.0",
+        ":heck-0.5",
+        ":itertools-0.14",
+        ":log-0.4",
+        ":multimap-0.10",
+        ":petgraph-0.8",
+        ":prettyplease-0.2",
+        ":prost-0.14",
+        ":prost-types-0.14",
+        ":pulldown-cmark-0.13",
+        ":pulldown-cmark-to-cmark-22",
+        ":regex-1",
+        ":syn-2",
+        ":tempfile-3",
     ],
 )
 
@@ -17462,7 +17665,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "prost-derive-0.14.4",
+    name = "prost-derive-0.14",
     srcs = [":prost-derive-0.14.4.crate"],
     crate = "prost_derive",
     crate_root = "prost-derive-0.14.4.crate/src/lib.rs",
@@ -17470,17 +17673,17 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":anyhow-1.0.103",
-        ":itertools-0.14.0",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":anyhow-1",
+        ":itertools-0.14",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
 shims.alias(
     name = "prost-types",
-    actual = ":prost-types-0.14.4",
+    actual = ":prost-types-0.14",
     visibility = ["PUBLIC"],
 )
 
@@ -17493,7 +17696,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "prost-types-0.14.4",
+    name = "prost-types-0.14",
     srcs = [":prost-types-0.14.4.crate"],
     crate = "prost_types",
     crate_root = "prost-types-0.14.4.crate/src/lib.rs",
@@ -17503,7 +17706,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":prost-0.14.4"],
+    deps = [":prost-0.14"],
 )
 
 shims.http_archive(
@@ -17520,18 +17723,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "psm-0.1.31",
+    name = "psm-0.1",
     srcs = [":psm-0.1.31.crate"],
     crate = "psm",
     crate_root = "psm-0.1.31.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "psm",
         "CARGO_CRATE_NAME": "psm",
         "CARGO_MANIFEST_DIR": "psm-0.1.31.crate",
         "CARGO_PKG_AUTHORS": "Simonas Kazlauskas <psm@kazlauskas.me>",
         "CARGO_PKG_DESCRIPTION": "Portable Stack Manipulation: stack manipulation and introspection routines",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "psm",
+        "CARGO_PKG_README": "README.mkd",
         "CARGO_PKG_REPOSITORY": "https://github.com/rust-lang/stacker/",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "0.1.31",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "1",
@@ -17541,25 +17748,25 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             rustc_flags = ["--cfg=switchable_stack"],
-            deps = [":psm-0.1.31-cbits-aarch64-linux"],
+            deps = [":psm-0.1-cbits-aarch64-linux"],
         ),
         "linux-x86_64": dict(
             rustc_flags = ["--cfg=switchable_stack"],
-            deps = [":psm-0.1.31-cbits-x86_64-linux"],
+            deps = [":psm-0.1-cbits-x86_64-linux"],
         ),
         "macos-arm64": dict(
             rustc_flags = ["--cfg=switchable_stack"],
-            deps = [":psm-0.1.31-cbits-aarch64-macos"],
+            deps = [":psm-0.1-cbits-aarch64-macos"],
         ),
         "macos-x86_64": dict(
             rustc_flags = ["--cfg=switchable_stack"],
-            deps = [":psm-0.1.31-cbits-x86_64-macos"],
+            deps = [":psm-0.1-cbits-x86_64-macos"],
         ),
         "windows-gnu": dict(
-            deps = [":psm-0.1.31-cbits-x86_64-windows"],
+            deps = [":psm-0.1-cbits-x86_64-windows"],
         ),
         "windows-msvc": dict(
-            deps = [":psm-0.1.31-cbits-x86_64-windows"],
+            deps = [":psm-0.1-cbits-x86_64-windows"],
         ),
     },
     rustc_flags = ["--cfg=asm"],
@@ -17567,7 +17774,7 @@ third_party_rust.rust_library(
 )
 
 third_party_rust.cxx_library(
-    name = "psm-0.1.31-cbits-aarch64-linux",
+    name = "psm-0.1-cbits-aarch64-linux",
     srcs = [":psm-0.1.31.crate[src/arch/aarch_aapcs64.s]"],
     headers = [],
     compiler_flags = [
@@ -17582,7 +17789,7 @@ third_party_rust.cxx_library(
 )
 
 third_party_rust.cxx_library(
-    name = "psm-0.1.31-cbits-aarch64-macos",
+    name = "psm-0.1-cbits-aarch64-macos",
     srcs = [":psm-0.1.31.crate[src/arch/aarch_aapcs64.s]"],
     headers = [],
     compiler_flags = [
@@ -17596,7 +17803,7 @@ third_party_rust.cxx_library(
 )
 
 third_party_rust.cxx_library(
-    name = "psm-0.1.31-cbits-x86_64-linux",
+    name = "psm-0.1-cbits-x86_64-linux",
     srcs = [":psm-0.1.31.crate[src/arch/x86_64.s]"],
     headers = [],
     compiler_flags = [
@@ -17611,7 +17818,7 @@ third_party_rust.cxx_library(
 )
 
 third_party_rust.cxx_library(
-    name = "psm-0.1.31-cbits-x86_64-macos",
+    name = "psm-0.1-cbits-x86_64-macos",
     srcs = [":psm-0.1.31.crate[src/arch/x86_64.s]"],
     headers = [],
     compiler_flags = [
@@ -17625,7 +17832,7 @@ third_party_rust.cxx_library(
 )
 
 third_party_rust.cxx_library(
-    name = "psm-0.1.31-cbits-x86_64-windows",
+    name = "psm-0.1-cbits-x86_64-windows",
     srcs = [":psm-0.1.31.crate[src/arch/x86_64_msvc.asm]"],
     headers = [],
     preferred_linkage = "static",
@@ -17642,16 +17849,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pulldown-cmark-0.13.4",
+    name = "pulldown-cmark-0.13",
     srcs = [":pulldown-cmark-0.13.4.crate"],
     crate = "pulldown_cmark",
     crate_root = "pulldown-cmark-0.13.4.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":memchr-2.8.3",
-        ":unicase-2.9.0",
+        ":bitflags-2",
+        ":memchr-2",
+        ":unicase-2",
     ],
 )
 
@@ -17664,13 +17871,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "pulldown-cmark-to-cmark-22.0.0",
+    name = "pulldown-cmark-to-cmark-22",
     srcs = [":pulldown-cmark-to-cmark-22.0.0.crate"],
     crate = "pulldown_cmark_to_cmark",
     crate_root = "pulldown-cmark-to-cmark-22.0.0.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":pulldown-cmark-0.13.4"],
+    deps = [":pulldown-cmark-0.13"],
 )
 
 shims.http_archive(
@@ -17682,53 +17889,53 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "quanta-0.12.6",
+    name = "quanta-0.12",
     srcs = [":quanta-0.12.6.crate"],
     crate = "quanta",
     crate_root = "quanta-0.12.6.crate/src/lib.rs",
     edition = "2021",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":raw-cpuid-11.6.0",
+                ":libc-0.2",
+                ":raw-cpuid-11",
             ],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":raw-cpuid-11.6.0",
+                ":libc-0.2",
+                ":raw-cpuid-11",
             ],
         ),
         "windows-gnu": dict(
             deps = [
-                ":raw-cpuid-11.6.0",
-                ":winapi-0.3.9",
+                ":raw-cpuid-11",
+                ":winapi-0.3",
             ],
         ),
         "windows-msvc": dict(
             deps = [
-                ":raw-cpuid-11.6.0",
-                ":winapi-0.3.9",
+                ":raw-cpuid-11",
+                ":winapi-0.3",
             ],
         ),
     },
     visibility = [],
     deps = [
-        ":crossbeam-utils-0.8.22",
-        ":once_cell-1.21.4",
+        ":crossbeam-utils-0.8",
+        ":once_cell-1",
     ],
 )
 
 shims.alias(
     name = "quick-xml",
-    actual = ":quick-xml-0.41.0",
+    actual = ":quick-xml-0.41",
     visibility = ["PUBLIC"],
 )
 
@@ -17741,7 +17948,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "quick-xml-0.41.0",
+    name = "quick-xml-0.41",
     srcs = [":quick-xml-0.41.0.crate"],
     crate = "quick_xml",
     crate_root = "quick-xml-0.41.0.crate/src/lib.rs",
@@ -17754,8 +17961,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":memchr-2.8.3",
-        ":serde-1.0.228",
+        ":memchr-2",
+        ":serde-1",
     ],
 )
 
@@ -17768,21 +17975,21 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "quick_cache-0.6.24",
+    name = "quick_cache-0.6",
     srcs = [":quick_cache-0.6.24.crate"],
     crate = "quick_cache",
     crate_root = "quick_cache-0.6.24.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":equivalent-1.0.2",
-        ":hashbrown-0.16.1",
+        ":equivalent-1",
+        ":hashbrown-0.16",
     ],
 )
 
 shims.alias(
     name = "quote",
-    actual = ":quote-1.0.46",
+    actual = ":quote-1",
     visibility = ["PUBLIC"],
 )
 
@@ -17795,7 +18002,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "quote-1.0.46",
+    name = "quote-1",
     srcs = [":quote-1.0.46.crate"],
     crate = "quote",
     crate_root = "quote-1.0.46.crate/src/lib.rs",
@@ -17805,7 +18012,7 @@ third_party_rust.rust_library(
         "proc-macro",
     ],
     visibility = [],
-    deps = [":proc-macro2-1.0.106"],
+    deps = [":proc-macro2-1"],
 )
 
 shims.http_archive(
@@ -17817,15 +18024,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "radix_trie-0.2.1",
+    name = "radix_trie-0.2",
     srcs = [":radix_trie-0.2.1.crate"],
     crate = "radix_trie",
     crate_root = "radix_trie-0.2.1.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":endian-type-0.1.2",
-        ":nibble_vec-0.1.0",
+        ":endian-type-0.1",
+        ":nibble_vec-0.1",
     ],
 )
 
@@ -17838,14 +18045,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rand-0.8.7",
+    name = "rand-0.8",
     srcs = [":rand-0.8.7.crate"],
     crate = "rand",
     crate_root = "rand-0.8.7.crate/src/lib.rs",
     edition = "2018",
     features = ["small_rng"],
     visibility = [],
-    deps = [":rand_core-0.6.4"],
+    deps = [":rand_core-0.6"],
 )
 
 shims.http_archive(
@@ -17857,7 +18064,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rand-0.9.5",
+    name = "rand-0.9",
     srcs = [":rand-0.9.5.crate"],
     crate = "rand",
     crate_root = "rand-0.9.5.crate/src/lib.rs",
@@ -17873,14 +18080,14 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":rand_chacha-0.9.0",
-        ":rand_core-0.9.5",
+        ":rand_chacha-0.9",
+        ":rand_core-0.9",
     ],
 )
 
 shims.alias(
     name = "rand",
-    actual = ":rand-0.10.2",
+    actual = ":rand-0.10",
     visibility = ["PUBLIC"],
 )
 
@@ -17893,7 +18100,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rand-0.10.2",
+    name = "rand-0.10",
     srcs = [":rand-0.10.2.crate"],
     crate = "rand",
     crate_root = "rand-0.10.2.crate/src/lib.rs",
@@ -17908,9 +18115,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":chacha20-0.10.1",
-        ":getrandom-0.4.3",
-        ":rand_core-0.10.1",
+        ":chacha20-0.10",
+        ":getrandom-0.4",
+        ":rand_core-0.10",
     ],
 )
 
@@ -17923,7 +18130,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rand_chacha-0.9.0",
+    name = "rand_chacha-0.9",
     srcs = [":rand_chacha-0.9.0.crate"],
     crate = "rand_chacha",
     crate_root = "rand_chacha-0.9.0.crate/src/lib.rs",
@@ -17931,8 +18138,8 @@ third_party_rust.rust_library(
     features = ["std"],
     visibility = [],
     deps = [
-        ":ppv-lite86-0.2.21",
-        ":rand_core-0.9.5",
+        ":ppv-lite86-0.2",
+        ":rand_core-0.9",
     ],
 )
 
@@ -17945,7 +18152,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rand_chacha-0.10.0",
+    name = "rand_chacha-0.10",
     srcs = [":rand_chacha-0.10.0.crate"],
     crate = "rand_chacha",
     crate_root = "rand_chacha-0.10.0.crate/src/lib.rs",
@@ -17956,8 +18163,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":ppv-lite86-0.2.21",
-        ":rand_core-0.10.1",
+        ":ppv-lite86-0.2",
+        ":rand_core-0.10",
     ],
 )
 
@@ -17970,7 +18177,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rand_core-0.6.4",
+    name = "rand_core-0.6",
     srcs = [":rand_core-0.6.4.crate"],
     crate = "rand_core",
     crate_root = "rand_core-0.6.4.crate/src/lib.rs",
@@ -17987,7 +18194,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rand_core-0.9.5",
+    name = "rand_core-0.9",
     srcs = [":rand_core-0.9.5.crate"],
     crate = "rand_core",
     crate_root = "rand_core-0.9.5.crate/src/lib.rs",
@@ -17997,7 +18204,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":getrandom-0.3.4"],
+    deps = [":getrandom-0.3"],
 )
 
 shims.http_archive(
@@ -18009,7 +18216,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rand_core-0.10.1",
+    name = "rand_core-0.10",
     srcs = [":rand_core-0.10.1.crate"],
     crate = "rand_core",
     crate_root = "rand_core-0.10.1.crate/src/lib.rs",
@@ -18026,13 +18233,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rand_pcg-0.10.2",
+    name = "rand_pcg-0.10",
     srcs = [":rand_pcg-0.10.2.crate"],
     crate = "rand_pcg",
     crate_root = "rand_pcg-0.10.2.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
-    deps = [":rand_core-0.10.1"],
+    deps = [":rand_core-0.10"],
 )
 
 shims.http_archive(
@@ -18044,13 +18251,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rand_xoshiro-0.7.0",
+    name = "rand_xoshiro-0.7",
     srcs = [":rand_xoshiro-0.7.0.crate"],
     crate = "rand_xoshiro",
     crate_root = "rand_xoshiro-0.7.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":rand_core-0.9.5"],
+    deps = [":rand_core-0.9"],
 )
 
 shims.http_archive(
@@ -18062,18 +18269,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rapidhash-4.5.1",
+    name = "rapidhash-4",
     srcs = [":rapidhash-4.5.1.crate"],
     crate = "rapidhash",
     crate_root = "rapidhash-4.5.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":rustversion-1.0.23"],
+    deps = [":rustversion-1"],
 )
 
 shims.alias(
     name = "ratatui",
-    actual = ":ratatui-0.30.2",
+    actual = ":ratatui-0.30",
     visibility = ["PUBLIC"],
 )
 
@@ -18086,7 +18293,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ratatui-0.30.2",
+    name = "ratatui-0.30",
     srcs = [":ratatui-0.30.2.crate"],
     crate = "ratatui",
     crate_root = "ratatui-0.30.2.crate/src/lib.rs",
@@ -18103,11 +18310,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":instability-0.3.12",
-        ":ratatui-core-0.1.2",
-        ":ratatui-crossterm-0.1.2",
-        ":ratatui-macros-0.7.2",
-        ":ratatui-widgets-0.3.2",
+        ":instability-0.3",
+        ":ratatui-core-0.1",
+        ":ratatui-crossterm-0.1",
+        ":ratatui-macros-0.7",
+        ":ratatui-widgets-0.3",
     ],
 )
 
@@ -18120,7 +18327,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ratatui-core-0.1.2",
+    name = "ratatui-core-0.1",
     srcs = [":ratatui-core-0.1.2.crate"],
     crate = "ratatui_core",
     crate_root = "ratatui-core-0.1.2.crate/src/lib.rs",
@@ -18133,18 +18340,18 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":compact_str-0.9.1",
-        ":critical-section-1.2.0",
-        ":hashbrown-0.17.1",
-        ":itertools-0.14.0",
-        ":kasuari-0.4.12",
-        ":lru-0.18.1",
-        ":strum-0.28.0",
-        ":thiserror-2.0.18",
-        ":unicode-segmentation-1.13.3",
-        ":unicode-truncate-2.0.1",
-        ":unicode-width-0.2.2",
+        ":bitflags-2",
+        ":compact_str-0.9",
+        ":critical-section-1",
+        ":hashbrown-0.17",
+        ":itertools-0.14",
+        ":kasuari-0.4",
+        ":lru-0.18",
+        ":strum-0.28",
+        ":thiserror-2",
+        ":unicode-segmentation-1",
+        ":unicode-truncate-2",
+        ":unicode-width-0.2",
     ],
 )
 
@@ -18157,7 +18364,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ratatui-crossterm-0.1.2",
+    name = "ratatui-crossterm-0.1",
     srcs = [":ratatui-crossterm-0.1.2.crate"],
     crate = "ratatui_crossterm",
     crate_root = "ratatui-crossterm-0.1.2.crate/src/lib.rs",
@@ -18168,13 +18375,13 @@ third_party_rust.rust_library(
         "underline-color",
     ],
     named_deps = {
-        "crossterm_0_29": ":crossterm-0.29.0",
+        "crossterm_0_29": ":crossterm-0.29",
     },
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":instability-0.3.12",
-        ":ratatui-core-0.1.2",
+        ":cfg-if-1",
+        ":instability-0.3",
+        ":ratatui-core-0.1",
     ],
 )
 
@@ -18187,15 +18394,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ratatui-macros-0.7.2",
+    name = "ratatui-macros-0.7",
     srcs = [":ratatui-macros-0.7.2.crate"],
     crate = "ratatui_macros",
     crate_root = "ratatui-macros-0.7.2.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":ratatui-core-0.1.2",
-        ":ratatui-widgets-0.3.2",
+        ":ratatui-core-0.1",
+        ":ratatui-widgets-0.3",
     ],
 )
 
@@ -18208,7 +18415,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ratatui-widgets-0.3.2",
+    name = "ratatui-widgets-0.3",
     srcs = [":ratatui-widgets-0.3.2.crate"],
     crate = "ratatui_widgets",
     crate_root = "ratatui-widgets-0.3.2.crate/src/lib.rs",
@@ -18219,17 +18426,17 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":hashbrown-0.17.1",
-        ":indoc-2.0.7",
-        ":instability-0.3.12",
-        ":itertools-0.14.0",
-        ":line-clipping-0.3.7",
-        ":ratatui-core-0.1.2",
-        ":strum-0.28.0",
-        ":time-0.3.53",
-        ":unicode-segmentation-1.13.3",
-        ":unicode-width-0.2.2",
+        ":bitflags-2",
+        ":hashbrown-0.17",
+        ":indoc-2",
+        ":instability-0.3",
+        ":itertools-0.14",
+        ":line-clipping-0.3",
+        ":ratatui-core-0.1",
+        ":strum-0.28",
+        ":time-0.3",
+        ":unicode-segmentation-1",
+        ":unicode-width-0.2",
     ],
 )
 
@@ -18242,18 +18449,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "raw-cpuid-11.6.0",
+    name = "raw-cpuid-11",
     srcs = [":raw-cpuid-11.6.0.crate"],
     crate = "raw_cpuid",
     crate_root = "raw-cpuid-11.6.0.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":bitflags-2.13.1"],
+    deps = [":bitflags-2"],
 )
 
 shims.alias(
     name = "rayon",
-    actual = ":rayon-1.12.0",
+    actual = ":rayon-1",
     visibility = ["PUBLIC"],
 )
 
@@ -18266,15 +18473,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rayon-1.12.0",
+    name = "rayon-1",
     srcs = [":rayon-1.12.0.crate"],
     crate = "rayon",
     crate_root = "rayon-1.12.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":either-1.16.0",
-        ":rayon-core-1.13.0",
+        ":either-1",
+        ":rayon-core-1",
     ],
 )
 
@@ -18287,15 +18494,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rayon-core-1.13.0",
+    name = "rayon-core-1",
     srcs = [":rayon-core-1.13.0.crate"],
     crate = "rayon_core",
     crate_root = "rayon-core-1.13.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":crossbeam-deque-0.8.7",
-        ":crossbeam-utils-0.8.22",
+        ":crossbeam-deque-0.8",
+        ":crossbeam-utils-0.8",
     ],
 )
 
@@ -18308,43 +18515,51 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ref-cast-1.0.25",
+    name = "ref-cast-1",
     srcs = [":ref-cast-1.0.25.crate"],
     crate = "ref_cast",
     crate_root = "ref-cast-1.0.25.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "ref_cast",
         "CARGO_CRATE_NAME": "ref_cast",
         "CARGO_MANIFEST_DIR": "ref-cast-1.0.25.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Safely cast &T to &U where the struct U contains a single field of type T.",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "ref-cast",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/ref-cast",
+        "CARGO_PKG_RUST_VERSION": "1.61",
         "CARGO_PKG_VERSION": "1.0.25",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "25",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :ref-cast-1.0.25-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :ref-cast-1-build-script-run[out_dir])",
     },
-    rustc_flags = ["@$(location :ref-cast-1.0.25-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :ref-cast-1-build-script-run[rustc_flags])"],
     visibility = [],
-    deps = [":ref-cast-impl-1.0.25"],
+    deps = [":ref-cast-impl-1"],
 )
 
 third_party_rust.rust_binary(
-    name = "ref-cast-1.0.25-build-script-build",
+    name = "ref-cast-1-build-script-build",
     srcs = [":ref-cast-1.0.25.crate"],
     crate = "build_script_build",
     crate_root = "ref-cast-1.0.25.crate/build.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
         "CARGO_MANIFEST_DIR": "ref-cast-1.0.25.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Safely cast &T to &U where the struct U contains a single field of type T.",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "ref-cast",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/ref-cast",
+        "CARGO_PKG_RUST_VERSION": "1.61",
         "CARGO_PKG_VERSION": "1.0.25",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
@@ -18355,13 +18570,16 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "ref-cast-1.0.25-build-script-run",
+    name = "ref-cast-1-build-script-run",
     package_name = "ref-cast",
-    buildscript_rule = ":ref-cast-1.0.25-build-script-build",
+    buildscript_rule = ":ref-cast-1-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Safely cast &T to &U where the struct U contains a single field of type T.",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/ref-cast",
+        "CARGO_PKG_RUST_VERSION": "1.61",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "25",
@@ -18379,18 +18597,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ref-cast-impl-1.0.25",
+    name = "ref-cast-impl-1",
     srcs = [":ref-cast-impl-1.0.25.crate"],
     crate = "ref_cast_impl",
     crate_root = "ref-cast-impl-1.0.25.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "ref_cast_impl",
         "CARGO_CRATE_NAME": "ref_cast_impl",
         "CARGO_MANIFEST_DIR": "ref-cast-impl-1.0.25.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Derive implementation for ref_cast::RefCast.",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "ref-cast-impl",
+        "CARGO_PKG_README": "",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/ref-cast",
+        "CARGO_PKG_RUST_VERSION": "1.61",
         "CARGO_PKG_VERSION": "1.0.25",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
@@ -18400,9 +18622,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -18415,7 +18637,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "regex-1.13.1",
+    name = "regex-1",
     srcs = [":regex-1.13.1.crate"],
     crate = "regex",
     crate_root = "regex-1.13.1.crate/src/lib.rs",
@@ -18441,10 +18663,10 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":aho-corasick-1.1.4",
-        ":memchr-2.8.3",
-        ":regex-automata-0.4.16",
-        ":regex-syntax-0.8.11",
+        ":aho-corasick-1",
+        ":memchr-2",
+        ":regex-automata-0.4",
+        ":regex-syntax-0.8",
     ],
 )
 
@@ -18457,7 +18679,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "regex-automata-0.4.16",
+    name = "regex-automata-0.4",
     srcs = [":regex-automata-0.4.16.crate"],
     crate = "regex_automata",
     crate_root = "regex-automata-0.4.16.crate/src/lib.rs",
@@ -18494,9 +18716,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":aho-corasick-1.1.4",
-        ":memchr-2.8.3",
-        ":regex-syntax-0.8.11",
+        ":aho-corasick-1",
+        ":memchr-2",
+        ":regex-syntax-0.8",
     ],
 )
 
@@ -18509,7 +18731,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "regex-syntax-0.6.29",
+    name = "regex-syntax-0.6",
     srcs = [":regex-syntax-0.6.29.crate"],
     crate = "regex_syntax",
     crate_root = "regex-syntax-0.6.29.crate/src/lib.rs",
@@ -18537,7 +18759,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "regex-syntax-0.8.11",
+    name = "regex-syntax-0.8",
     srcs = [":regex-syntax-0.8.11.crate"],
     crate = "regex_syntax",
     crate_root = "regex-syntax-0.8.11.crate/src/lib.rs",
@@ -18559,7 +18781,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "reqwest",
-    actual = ":reqwest-0.13.4",
+    actual = ":reqwest-0.13",
     visibility = ["PUBLIC"],
 )
 
@@ -18572,7 +18794,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "reqwest-0.13.4",
+    name = "reqwest-0.13",
     srcs = [":reqwest-0.13.4.crate"],
     crate = "reqwest",
     crate_root = "reqwest-0.13.4.crate/src/lib.rs",
@@ -18592,42 +18814,42 @@ third_party_rust.rust_library(
         "system-proxy",
     ],
     named_deps = {
-        "native_tls_crate": ":native-tls-0.2.18",
+        "native_tls_crate": ":native-tls-0.2",
     },
     visibility = [],
     deps = [
-        ":base64-0.22.1",
-        ":bytes-1.12.1",
-        ":encoding_rs-0.8.35",
-        ":futures-channel-0.3.32",
-        ":futures-core-0.3.32",
-        ":futures-util-0.3.32",
-        ":h2-0.4.15",
-        ":http-1.4.2",
-        ":http-body-1.1.0",
-        ":http-body-util-0.1.4",
-        ":hyper-1.10.1",
-        ":hyper-rustls-0.27.9",
-        ":hyper-tls-0.6.0",
-        ":hyper-util-0.1.20",
-        ":log-0.4.33",
-        ":mime-0.3.17",
-        ":percent-encoding-2.3.2",
-        ":pin-project-lite-0.2.17",
-        ":rustls-0.23.42",
-        ":rustls-pki-types-1.15.0",
-        ":rustls-platform-verifier-0.7.0",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
-        ":sync_wrapper-1.0.2",
-        ":tokio-1.53.0",
-        ":tokio-native-tls-0.3.1",
-        ":tokio-rustls-0.26.4",
-        ":tokio-util-0.7.18",
-        ":tower-0.5.3",
-        ":tower-http-0.6.11",
-        ":tower-service-0.3.3",
-        ":url-2.5.8",
+        ":base64-0.22",
+        ":bytes-1",
+        ":encoding_rs-0.8",
+        ":futures-channel-0.3",
+        ":futures-core-0.3",
+        ":futures-util-0.3",
+        ":h2-0.4",
+        ":http-1",
+        ":http-body-1",
+        ":http-body-util-0.1",
+        ":hyper-1",
+        ":hyper-rustls-0.27",
+        ":hyper-tls-0.6",
+        ":hyper-util-0.1",
+        ":log-0.4",
+        ":mime-0.3",
+        ":percent-encoding-2",
+        ":pin-project-lite-0.2",
+        ":rustls-0.23",
+        ":rustls-pki-types-1",
+        ":rustls-platform-verifier-0.7",
+        ":serde-1",
+        ":serde_json-1",
+        ":sync_wrapper-1",
+        ":tokio-1",
+        ":tokio-native-tls-0.3",
+        ":tokio-rustls-0.26",
+        ":tokio-util-0.7",
+        ":tower-0.5",
+        ":tower-http-0.6",
+        ":tower-service-0.3",
+        ":url-2",
     ],
 )
 
@@ -18640,7 +18862,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "resolv-conf-0.7.6",
+    name = "resolv-conf-0.7",
     srcs = [":resolv-conf-0.7.6.crate"],
     crate = "resolv_conf",
     crate_root = "resolv-conf-0.7.6.crate/src/lib.rs",
@@ -18658,7 +18880,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "roff-1.1.1",
+    name = "roff-1",
     srcs = [":roff-1.1.1.crate"],
     crate = "roff",
     crate_root = "roff-1.1.1.crate/src/lib.rs",
@@ -18675,29 +18897,29 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rpassword-7.5.4",
+    name = "rpassword-7",
     srcs = [":rpassword-7.5.4.crate"],
     crate = "rpassword",
     crate_root = "rpassword-7.5.4.crate/src/lib.rs",
     edition = "2024",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
@@ -18720,22 +18942,22 @@ third_party_rust.rust_library(
     edition = "2018",
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.59"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59.0"],
+            deps = [":windows-sys-0.59"],
         ),
     },
     visibility = [],
@@ -18750,24 +18972,24 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rust_decimal-1.42.1",
+    name = "rust_decimal-1",
     srcs = [":rust_decimal-1.42.1.crate"],
     crate = "rust_decimal",
     crate_root = "rust_decimal-1.42.1.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :rust_decimal-1.42.1-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :rust_decimal-1-build-script-run[out_dir])",
     },
-    rustc_flags = ["@$(location :rust_decimal-1.42.1-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :rust_decimal-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":arrayvec-0.7.8",
-        ":num-traits-0.2.19",
+        ":arrayvec-0.7",
+        ":num-traits-0.2",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "rust_decimal-1.42.1-build-script-build",
+    name = "rust_decimal-1-build-script-build",
     srcs = [":rust_decimal-1.42.1.crate"],
     crate = "build_script_build",
     crate_root = "rust_decimal-1.42.1.crate/build.rs",
@@ -18776,9 +18998,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "rust_decimal-1.42.1-build-script-run",
+    name = "rust_decimal-1-build-script-run",
     package_name = "rust_decimal",
-    buildscript_rule = ":rust_decimal-1.42.1-build-script-build",
+    buildscript_rule = ":rust_decimal-1-build-script-build",
     version = "1.42.1",
 )
 
@@ -18791,7 +19013,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rustc-demangle-0.1.28",
+    name = "rustc-demangle-0.1",
     srcs = [":rustc-demangle-0.1.28.crate"],
     crate = "rustc_demangle",
     crate_root = "rustc-demangle-0.1.28.crate/src/lib.rs",
@@ -18808,7 +19030,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rustc-hash-2.1.3",
+    name = "rustc-hash-2",
     srcs = [":rustc-hash-2.1.3.crate"],
     crate = "rustc_hash",
     crate_root = "rustc-hash-2.1.3.crate/src/lib.rs",
@@ -18846,13 +19068,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rustc_version-0.4.1",
+    name = "rustc_version-0.4",
     srcs = [":rustc_version-0.4.1.crate"],
     crate = "rustc_version",
     crate_root = "rustc_version-0.4.1.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":semver-1.0.28"],
+    deps = [":semver-1"],
 )
 
 shims.http_archive(
@@ -18864,13 +19086,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rustix-1.1.4",
+    name = "rustix-1",
     srcs = [":rustix-1.1.4.crate"],
     crate = "rustix",
     crate_root = "rustix-1.1.4.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :rustix-1.1.4-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :rustix-1-build-script-run[out_dir])",
     },
     features = [
         "alloc",
@@ -18882,31 +19104,31 @@ third_party_rust.rust_library(
     ],
     platform = {
         "linux-arm64": dict(
-            deps = [":linux-raw-sys-0.12.1"],
+            deps = [":linux-raw-sys-0.12"],
         ),
         "linux-x86_64": dict(
-            deps = [":linux-raw-sys-0.12.1"],
+            deps = [":linux-raw-sys-0.12"],
         ),
         "macos-arm64": dict(
             named_deps = {
-                "libc_errno": ":errno-0.3.14",
+                "libc_errno": ":errno-0.3",
             },
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
             named_deps = {
-                "libc_errno": ":errno-0.3.14",
+                "libc_errno": ":errno-0.3",
             },
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
     },
-    rustc_flags = ["@$(location :rustix-1.1.4-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :rustix-1-build-script-run[rustc_flags])"],
     visibility = [],
-    deps = [":bitflags-2.13.1"],
+    deps = [":bitflags-2"],
 )
 
 third_party_rust.rust_binary(
-    name = "rustix-1.1.4-build-script-build",
+    name = "rustix-1-build-script-build",
     srcs = [":rustix-1.1.4.crate"],
     crate = "build_script_build",
     crate_root = "rustix-1.1.4.crate/build.rs",
@@ -18923,9 +19145,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "rustix-1.1.4-build-script-run",
+    name = "rustix-1-build-script-run",
     package_name = "rustix",
-    buildscript_rule = ":rustix-1.1.4-build-script-build",
+    buildscript_rule = ":rustix-1-build-script-build",
     features = [
         "alloc",
         "default",
@@ -18939,7 +19161,7 @@ third_party_rust.buildscript_run(
 
 shims.alias(
     name = "rustls",
-    actual = ":rustls-0.23.42",
+    actual = ":rustls-0.23",
     visibility = ["PUBLIC"],
 )
 
@@ -18952,7 +19174,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rustls-0.23.42",
+    name = "rustls-0.23",
     srcs = [":rustls-0.23.42.crate"],
     crate = "rustls",
     crate_root = "rustls-0.23.42.crate/src/lib.rs",
@@ -18964,15 +19186,15 @@ third_party_rust.rust_library(
         "tls12",
     ],
     named_deps = {
-        "pki_types": ":rustls-pki-types-1.15.0",
+        "pki_types": ":rustls-pki-types-1",
     },
     visibility = [],
     deps = [
-        ":log-0.4.33",
-        ":once_cell-1.21.4",
-        ":rustls-webpki-0.103.13",
-        ":subtle-2.6.1",
-        ":zeroize-1.9.0",
+        ":log-0.4",
+        ":once_cell-1",
+        ":rustls-webpki-0.103",
+        ":subtle-2",
+        ":zeroize-1",
     ],
 )
 
@@ -18985,32 +19207,32 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rustls-native-certs-0.8.4",
+    name = "rustls-native-certs-0.8",
     srcs = [":rustls-native-certs-0.8.4.crate"],
     crate = "rustls_native_certs",
     crate_root = "rustls-native-certs-0.8.4.crate/src/lib.rs",
     edition = "2021",
     named_deps = {
-        "pki_types": ":rustls-pki-types-1.15.0",
+        "pki_types": ":rustls-pki-types-1",
     },
     platform = {
         "linux-arm64": dict(
-            deps = [":openssl-probe-0.2.1"],
+            deps = [":openssl-probe-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":openssl-probe-0.2.1"],
+            deps = [":openssl-probe-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":security-framework-3.7.0"],
+            deps = [":security-framework-3"],
         ),
         "macos-x86_64": dict(
-            deps = [":security-framework-3.7.0"],
+            deps = [":security-framework-3"],
         ),
         "windows-gnu": dict(
-            deps = [":schannel-0.1.29"],
+            deps = [":schannel-0.1"],
         ),
         "windows-msvc": dict(
-            deps = [":schannel-0.1.29"],
+            deps = [":schannel-0.1"],
         ),
     },
     visibility = [],
@@ -19025,7 +19247,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rustls-pki-types-1.15.0",
+    name = "rustls-pki-types-1",
     srcs = [":rustls-pki-types-1.15.0.crate"],
     crate = "rustls_pki_types",
     crate_root = "rustls-pki-types-1.15.0.crate/src/lib.rs",
@@ -19036,7 +19258,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":zeroize-1.9.0"],
+    deps = [":zeroize-1"],
 )
 
 shims.http_archive(
@@ -19048,7 +19270,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rustls-platform-verifier-0.7.0",
+    name = "rustls-platform-verifier-0.7",
     srcs = [":rustls-platform-verifier-0.7.0.crate"],
     crate = "rustls_platform_verifier",
     crate_root = "rustls-platform-verifier-0.7.0.crate/src/lib.rs",
@@ -19056,43 +19278,43 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":rustls-native-certs-0.8.4",
-                ":rustls-webpki-0.103.13",
+                ":rustls-native-certs-0.8",
+                ":rustls-webpki-0.103",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":rustls-native-certs-0.8.4",
-                ":rustls-webpki-0.103.13",
+                ":rustls-native-certs-0.8",
+                ":rustls-webpki-0.103",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":core-foundation-0.10.1",
-                ":core-foundation-sys-0.8.7",
-                ":security-framework-3.7.0",
-                ":security-framework-sys-2.17.0",
+                ":core-foundation-0.10",
+                ":core-foundation-sys-0.8",
+                ":security-framework-3",
+                ":security-framework-sys-2",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":core-foundation-0.10.1",
-                ":core-foundation-sys-0.8.7",
-                ":security-framework-3.7.0",
-                ":security-framework-sys-2.17.0",
+                ":core-foundation-0.10",
+                ":core-foundation-sys-0.8",
+                ":security-framework-3",
+                ":security-framework-sys-2",
             ],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
     deps = [
-        ":log-0.4.33",
-        ":rustls-0.23.42",
+        ":log-0.4",
+        ":rustls-0.23",
     ],
 )
 
@@ -19105,7 +19327,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rustls-webpki-0.103.13",
+    name = "rustls-webpki-0.103",
     srcs = [":rustls-webpki-0.103.13.crate"],
     crate = "webpki",
     crate_root = "rustls-webpki-0.103.13.crate/src/lib.rs",
@@ -19115,10 +19337,10 @@ third_party_rust.rust_library(
         "std",
     ],
     named_deps = {
-        "pki_types": ":rustls-pki-types-1.15.0",
+        "pki_types": ":rustls-pki-types-1",
     },
     visibility = [],
-    deps = [":untrusted-0.9.0"],
+    deps = [":untrusted-0.9"],
 )
 
 shims.http_archive(
@@ -19130,43 +19352,51 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rustversion-1.0.23",
+    name = "rustversion-1",
     srcs = [":rustversion-1.0.23.crate"],
     crate = "rustversion",
     crate_root = "rustversion-1.0.23.crate/src/lib.rs",
     edition = "2018",
     env = {
+        "CARGO_BIN_NAME": "rustversion",
         "CARGO_CRATE_NAME": "rustversion",
         "CARGO_MANIFEST_DIR": "rustversion-1.0.23.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Conditional compilation according to rustc compiler version",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "rustversion",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/rustversion",
+        "CARGO_PKG_RUST_VERSION": "1.31",
         "CARGO_PKG_VERSION": "1.0.23",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "23",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :rustversion-1.0.23-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :rustversion-1-build-script-run[out_dir])",
     },
     proc_macro = True,
-    rustc_flags = ["@$(location :rustversion-1.0.23-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :rustversion-1-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
 third_party_rust.rust_binary(
-    name = "rustversion-1.0.23-build-script-build",
+    name = "rustversion-1-build-script-build",
     srcs = [":rustversion-1.0.23.crate"],
     crate = "build_script_build",
     crate_root = "rustversion-1.0.23.crate/build/build.rs",
     edition = "2018",
     env = {
+        "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
         "CARGO_MANIFEST_DIR": "rustversion-1.0.23.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Conditional compilation according to rustc compiler version",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "rustversion",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/rustversion",
+        "CARGO_PKG_RUST_VERSION": "1.31",
         "CARGO_PKG_VERSION": "1.0.23",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
@@ -19177,13 +19407,16 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "rustversion-1.0.23-build-script-run",
+    name = "rustversion-1-build-script-run",
     package_name = "rustversion",
-    buildscript_rule = ":rustversion-1.0.23-build-script-build",
+    buildscript_rule = ":rustversion-1-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Conditional compilation according to rustc compiler version",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/rustversion",
+        "CARGO_PKG_RUST_VERSION": "1.31",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "23",
@@ -19201,7 +19434,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "rustyline-14.0.0",
+    name = "rustyline-14",
     srcs = [":rustyline-14.0.0.crate"],
     crate = "rustyline",
     crate_root = "rustyline-14.0.0.crate/src/lib.rs",
@@ -19218,53 +19451,53 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":nix-0.28.0",
-                ":utf8parse-0.2.2",
+                ":nix-0.28",
+                ":utf8parse-0.2",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":nix-0.28.0",
-                ":utf8parse-0.2.2",
+                ":nix-0.28",
+                ":utf8parse-0.2",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":nix-0.28.0",
-                ":utf8parse-0.2.2",
+                ":nix-0.28",
+                ":utf8parse-0.2",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":nix-0.28.0",
-                ":utf8parse-0.2.2",
+                ":nix-0.28",
+                ":utf8parse-0.2",
             ],
         ),
         "windows-gnu": dict(
             deps = [
-                ":clipboard-win-5.4.1",
-                ":windows-sys-0.52.0",
+                ":clipboard-win-5",
+                ":windows-sys-0.52",
             ],
         ),
         "windows-msvc": dict(
             deps = [
-                ":clipboard-win-5.4.1",
-                ":windows-sys-0.52.0",
+                ":clipboard-win-5",
+                ":windows-sys-0.52",
             ],
         ),
     },
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":cfg-if-1.0.4",
-        ":fd-lock-4.0.4",
-        ":home-0.5.12",
-        ":libc-0.2.186",
-        ":log-0.4.33",
-        ":memchr-2.8.3",
-        ":radix_trie-0.2.1",
-        ":unicode-segmentation-1.13.3",
-        ":unicode-width-0.1.14",
+        ":bitflags-2",
+        ":cfg-if-1",
+        ":fd-lock-4",
+        ":home-0.5",
+        ":libc-0.2",
+        ":log-0.4",
+        ":memchr-2",
+        ":radix_trie-0.2",
+        ":unicode-segmentation-1",
+        ":unicode-width-0.1",
     ],
 )
 
@@ -19277,7 +19510,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ryu-1.0.23",
+    name = "ryu-1",
     srcs = [":ryu-1.0.23.crate"],
     crate = "ryu",
     crate_root = "ryu-1.0.23.crate/src/lib.rs",
@@ -19287,7 +19520,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "s3s",
-    actual = ":s3s-0.14.1",
+    actual = ":s3s-0.14",
     visibility = ["PUBLIC"],
 )
 
@@ -19300,63 +19533,63 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "s3s-0.14.1",
+    name = "s3s-0.14",
     srcs = [":s3s-0.14.1.crate"],
     crate = "s3s",
     crate_root = "s3s-0.14.1.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":arc-swap-1.9.2",
-        ":arrayvec-0.7.8",
-        ":async-trait-0.1.89",
-        ":atoi-3.1.0",
-        ":base64-simd-0.8.0",
-        ":bytes-1.12.1",
-        ":bytestring-1.5.1",
-        ":cfg-if-1.0.4",
-        ":chrono-0.4.45",
-        ":crc-fast-1.10.0",
-        ":futures-0.3.32",
-        ":hex-simd-0.8.0",
-        ":hmac-0.13.0",
-        ":http-1.4.2",
-        ":http-body-1.1.0",
-        ":http-body-util-0.1.4",
-        ":httparse-1.10.1",
-        ":hyper-1.10.1",
-        ":itoa-1.0.18",
-        ":md-5-0.11.0",
-        ":memchr-2.8.3",
-        ":mime-0.3.17",
-        ":nom-8.0.0",
-        ":numeric_cast-0.3.0",
-        ":pin-project-lite-0.2.17",
-        ":quick-xml-0.41.0",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
-        ":serde_urlencoded-0.7.1",
-        ":sha1-0.11.0",
-        ":sha2-0.11.0",
-        ":smallvec-1.15.2",
-        ":std-next-0.1.9",
-        ":subtle-2.6.1",
-        ":sync_wrapper-1.0.2",
-        ":thiserror-2.0.18",
-        ":time-0.3.53",
-        ":tokio-1.53.0",
-        ":tower-0.5.3",
-        ":tracing-0.1.44",
-        ":transform-stream-0.3.1",
-        ":url-2.5.8",
-        ":urlencoding-2.1.3",
-        ":zeroize-1.9.0",
+        ":arc-swap-1",
+        ":arrayvec-0.7",
+        ":async-trait-0.1",
+        ":atoi-3",
+        ":base64-simd-0.8",
+        ":bytes-1",
+        ":bytestring-1",
+        ":cfg-if-1",
+        ":chrono-0.4",
+        ":crc-fast-1",
+        ":futures-0.3",
+        ":hex-simd-0.8",
+        ":hmac-0.13",
+        ":http-1",
+        ":http-body-1",
+        ":http-body-util-0.1",
+        ":httparse-1",
+        ":hyper-1",
+        ":itoa-1",
+        ":md-5-0.11",
+        ":memchr-2",
+        ":mime-0.3",
+        ":nom-8",
+        ":numeric_cast-0.3",
+        ":pin-project-lite-0.2",
+        ":quick-xml-0.41",
+        ":serde-1",
+        ":serde_json-1",
+        ":serde_urlencoded-0.7",
+        ":sha1-0.11",
+        ":sha2-0.11",
+        ":smallvec-1",
+        ":std-next-0.1",
+        ":subtle-2",
+        ":sync_wrapper-1",
+        ":thiserror-2",
+        ":time-0.3",
+        ":tokio-1",
+        ":tower-0.5",
+        ":tracing-0.1",
+        ":transform-stream-0.3",
+        ":url-2",
+        ":urlencoding-2",
+        ":zeroize-1",
     ],
 )
 
 shims.alias(
     name = "salsa",
-    actual = ":salsa-0.28.0",
+    actual = ":salsa-0.28",
     visibility = ["PUBLIC"],
 )
 
@@ -19369,7 +19602,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "salsa-0.28.0",
+    name = "salsa-0.28",
     srcs = [":salsa-0.28.0.crate"],
     crate = "salsa",
     crate_root = "salsa-0.28.0.crate/src/lib.rs",
@@ -19384,24 +19617,24 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":boxcar-0.2.14",
-        ":crossbeam-queue-0.3.13",
-        ":crossbeam-utils-0.8.22",
-        ":hashbrown-0.17.1",
-        ":hashlink-0.12.1",
-        ":indexmap-2.14.0",
-        ":intrusive-collections-0.10.2",
-        ":inventory-0.3.24",
-        ":parking_lot-0.12.5",
-        ":portable-atomic-1.14.0",
-        ":rayon-1.12.0",
-        ":rustc-hash-2.1.3",
-        ":salsa-macro-rules-0.28.0",
-        ":salsa-macros-0.28.0",
-        ":smallvec-1.15.2",
-        ":thin-vec-0.2.18",
-        ":tracing-0.1.44",
-        ":typeid-1.0.3",
+        ":boxcar-0.2",
+        ":crossbeam-queue-0.3",
+        ":crossbeam-utils-0.8",
+        ":hashbrown-0.17",
+        ":hashlink-0.12",
+        ":indexmap-2",
+        ":intrusive-collections-0.10",
+        ":inventory-0.3",
+        ":parking_lot-0.12",
+        ":portable-atomic-1",
+        ":rayon-1",
+        ":rustc-hash-2",
+        ":salsa-macro-rules-0.28",
+        ":salsa-macros-0.28",
+        ":smallvec-1",
+        ":thin-vec-0.2",
+        ":tracing-0.1",
+        ":typeid-1",
     ],
 )
 
@@ -19414,7 +19647,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "salsa-macro-rules-0.28.0",
+    name = "salsa-macro-rules-0.28",
     srcs = [":salsa-macro-rules-0.28.0.crate"],
     crate = "salsa_macro_rules",
     crate_root = "salsa-macro-rules-0.28.0.crate/src/lib.rs",
@@ -19432,7 +19665,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "salsa-macros-0.28.0",
+    name = "salsa-macros-0.28",
     srcs = [":salsa-macros-0.28.0.crate"],
     crate = "salsa_macros",
     crate_root = "salsa-macros-0.28.0.crate/src/lib.rs",
@@ -19441,9 +19674,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -19456,17 +19689,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "same-file-1.0.6",
+    name = "same-file-1",
     srcs = [":same-file-1.0.6.crate"],
     crate = "same_file",
     crate_root = "same-file-1.0.6.crate/src/lib.rs",
     edition = "2018",
     platform = {
         "windows-gnu": dict(
-            deps = [":winapi-util-0.1.11"],
+            deps = [":winapi-util-0.1"],
         ),
         "windows-msvc": dict(
-            deps = [":winapi-util-0.1.11"],
+            deps = [":winapi-util-0.1"],
         ),
     },
     visibility = [],
@@ -19481,14 +19714,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sapling-renderdag-0.1.0",
+    name = "sapling-renderdag-0.1",
     srcs = [":sapling-renderdag-0.1.0.crate"],
     crate = "renderdag",
     crate_root = "sapling-renderdag-0.1.0.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
     visibility = [],
-    deps = [":bitflags-2.13.1"],
+    deps = [":bitflags-2"],
 )
 
 shims.http_archive(
@@ -19500,27 +19733,27 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sapling-streampager-0.12.0",
+    name = "sapling-streampager-0.12",
     srcs = [":sapling-streampager-0.12.0.crate"],
     crate = "streampager",
     crate_root = "sapling-streampager-0.12.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":dirs-6.0.0",
-        ":enum_dispatch-0.3.13",
-        ":lru-0.16.4",
-        ":memmap2-0.9.11",
-        ":regex-1.13.1",
-        ":scopeguard-1.2.0",
-        ":serde-1.0.228",
-        ":smallvec-1.15.2",
-        ":terminfo-0.9.0",
-        ":termwiz-0.23.3",
-        ":thiserror-2.0.18",
-        ":unicode-segmentation-1.13.3",
-        ":unicode-width-0.1.14",
-        ":vec_map-0.8.2",
+        ":dirs-6",
+        ":enum_dispatch-0.3",
+        ":lru-0.16",
+        ":memmap2-0.9",
+        ":regex-1",
+        ":scopeguard-1",
+        ":serde-1",
+        ":smallvec-1",
+        ":terminfo-0.9",
+        ":termwiz-0.23",
+        ":thiserror-2",
+        ":unicode-segmentation-1",
+        ":unicode-width-0.1",
+        ":vec_map-0.8",
     ],
 )
 
@@ -19533,13 +19766,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "schannel-0.1.29",
+    name = "schannel-0.1",
     srcs = [":schannel-0.1.29.crate"],
     crate = "schannel",
     crate_root = "schannel-0.1.29.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":windows-sys-0.61.2"],
+    deps = [":windows-sys-0.61"],
 )
 
 shims.http_archive(
@@ -19551,7 +19784,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "schemafy-0.5.2",
+    name = "schemafy-0.5",
     srcs = [":schemafy-0.5.2.crate"],
     crate = "schemafy",
     crate_root = "schemafy-0.5.2.crate/src/lib.rs",
@@ -19559,14 +19792,14 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":Inflector-0.11.4",
-        ":schemafy_core-0.5.2",
-        ":schemafy_lib-0.5.2",
-        ":serde-1.0.228",
-        ":serde_derive-1.0.228",
-        ":serde_json-1.0.150",
-        ":serde_repr-0.1.20",
-        ":syn-1.0.109",
+        ":Inflector-0.11",
+        ":schemafy_core-0.5",
+        ":schemafy_lib-0.5",
+        ":serde-1",
+        ":serde_derive-1",
+        ":serde_json-1",
+        ":serde_repr-0.1",
+        ":syn-1",
     ],
 )
 
@@ -19579,15 +19812,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "schemafy_core-0.5.2",
+    name = "schemafy_core-0.5",
     srcs = [":schemafy_core-0.5.2.crate"],
     crate = "schemafy_core",
     crate_root = "schemafy_core-0.5.2.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
+        ":serde-1",
+        ":serde_json-1",
     ],
 )
 
@@ -19600,21 +19833,21 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "schemafy_lib-0.5.2",
+    name = "schemafy_lib-0.5",
     srcs = [":schemafy_lib-0.5.2.crate"],
     crate = "schemafy_lib",
     crate_root = "schemafy_lib-0.5.2.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":Inflector-0.11.4",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":schemafy_core-0.5.2",
-        ":serde-1.0.228",
-        ":serde_derive-1.0.228",
-        ":serde_json-1.0.150",
-        ":syn-1.0.109",
+        ":Inflector-0.11",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":schemafy_core-0.5",
+        ":serde-1",
+        ":serde_derive-1",
+        ":serde_json-1",
+        ":syn-1",
     ],
 )
 
@@ -19627,7 +19860,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "scm-record-0.10.1",
+    name = "scm-record-0.10",
     srcs = [":scm-record-0.10.1.crate"],
     crate = "scm_record",
     crate_root = "scm-record-0.10.1.crate/src/lib.rs",
@@ -19639,15 +19872,15 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":cassowary-0.3.0",
-        ":crossterm-0.29.0",
-        ":num-traits-0.2.19",
-        ":ratatui-0.30.2",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
-        ":thiserror-2.0.18",
-        ":tracing-0.1.44",
-        ":unicode-width-0.2.2",
+        ":cassowary-0.3",
+        ":crossterm-0.29",
+        ":num-traits-0.2",
+        ":ratatui-0.30",
+        ":serde-1",
+        ":serde_json-1",
+        ":thiserror-2",
+        ":tracing-0.1",
+        ":unicode-width-0.2",
     ],
 )
 
@@ -19660,7 +19893,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "scopeguard-1.2.0",
+    name = "scopeguard-1",
     srcs = [":scopeguard-1.2.0.crate"],
     crate = "scopeguard",
     crate_root = "scopeguard-1.2.0.crate/src/lib.rs",
@@ -19681,7 +19914,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "security-framework-3.7.0",
+    name = "security-framework-3",
     srcs = [":security-framework-3.7.0.crate"],
     crate = "security_framework",
     crate_root = "security-framework-3.7.0.crate/src/lib.rs",
@@ -19694,11 +19927,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":core-foundation-0.10.1",
-        ":core-foundation-sys-0.8.7",
-        ":libc-0.2.186",
-        ":security-framework-sys-2.17.0",
+        ":bitflags-2",
+        ":core-foundation-0.10",
+        ":core-foundation-sys-0.8",
+        ":libc-0.2",
+        ":security-framework-sys-2",
     ],
 )
 
@@ -19711,7 +19944,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "security-framework-sys-2.17.0",
+    name = "security-framework-sys-2",
     srcs = [":security-framework-sys-2.17.0.crate"],
     crate = "security_framework_sys",
     crate_root = "security-framework-sys-2.17.0.crate/src/lib.rs",
@@ -19722,8 +19955,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":core-foundation-sys-0.8.7",
-        ":libc-0.2.186",
+        ":core-foundation-sys-0.8",
+        ":libc-0.2",
     ],
 )
 
@@ -19736,7 +19969,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "seize-0.5.1",
+    name = "seize-0.5",
     srcs = [":seize-0.5.1.crate"],
     crate = "seize",
     crate_root = "seize-0.5.1.crate/src/lib.rs",
@@ -19749,14 +19982,14 @@ third_party_rust.rust_library(
     ],
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
-    deps = [":libc-0.2.186"],
+    deps = [":libc-0.2"],
 )
 
 shims.http_archive(
@@ -19768,7 +20001,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "self_cell-1.3.0",
+    name = "self_cell-1",
     srcs = [":self_cell-1.3.0.crate"],
     crate = "self_cell",
     crate_root = "self_cell-1.3.0.crate/src/lib.rs",
@@ -19785,7 +20018,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "semver-1.0.28",
+    name = "semver-1",
     srcs = [":semver-1.0.28.crate"],
     crate = "semver",
     crate_root = "semver-1.0.28.crate/src/lib.rs",
@@ -19799,7 +20032,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "serde",
-    actual = ":serde-1.0.228",
+    actual = ":serde-1",
     visibility = ["PUBLIC"],
 )
 
@@ -19812,14 +20045,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serde-1.0.228",
+    name = "serde-1",
     srcs = [":serde-1.0.228.crate"],
     crate = "serde",
     crate_root = "serde-1.0.228.crate/src/lib.rs",
     edition = "2021",
     env = {
         "CARGO_PKG_VERSION_PATCH": "228",
-        "OUT_DIR": "$(location :serde-1.0.228-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :serde-1-build-script-run[out_dir])",
     },
     features = [
         "alloc",
@@ -19829,16 +20062,16 @@ third_party_rust.rust_library(
         "serde_derive",
         "std",
     ],
-    rustc_flags = ["@$(location :serde-1.0.228-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :serde-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":serde_core-1.0.228",
-        ":serde_derive-1.0.228",
+        ":serde_core-1",
+        ":serde_derive-1",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "serde-1.0.228-build-script-build",
+    name = "serde-1-build-script-build",
     srcs = [":serde-1.0.228.crate"],
     crate = "build_script_build",
     crate_root = "serde-1.0.228.crate/build.rs",
@@ -19858,9 +20091,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "serde-1.0.228-build-script-run",
+    name = "serde-1-build-script-run",
     package_name = "serde",
-    buildscript_rule = ":serde-1.0.228-build-script-build",
+    buildscript_rule = ":serde-1-build-script-build",
     env = {
         "CARGO_PKG_VERSION_PATCH": "228",
     },
@@ -19884,7 +20117,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serde_bser-0.4.0",
+    name = "serde_bser-0.4",
     srcs = [":serde_bser-0.4.0.crate"],
     crate = "serde_bser",
     crate_root = "serde_bser-0.4.0.crate/src/lib.rs",
@@ -19892,12 +20125,12 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":anyhow-1.0.103",
-        ":byteorder-1.5.0",
-        ":bytes-1.12.1",
-        ":serde-1.0.228",
-        ":serde_bytes-0.11.19",
-        ":thiserror-1.0.69",
+        ":anyhow-1",
+        ":byteorder-1",
+        ":bytes-1",
+        ":serde-1",
+        ":serde_bytes-0.11",
+        ":thiserror-1",
     ],
 )
 
@@ -19910,7 +20143,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serde_bytes-0.11.19",
+    name = "serde_bytes-0.11",
     srcs = [":serde_bytes-0.11.19.crate"],
     crate = "serde_bytes",
     crate_root = "serde_bytes-0.11.19.crate/src/lib.rs",
@@ -19920,7 +20153,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":serde_core-1.0.228"],
+    deps = [":serde_core-1"],
 )
 
 shims.http_archive(
@@ -19932,14 +20165,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serde_core-1.0.228",
+    name = "serde_core-1",
     srcs = [":serde_core-1.0.228.crate"],
     crate = "serde_core",
     crate_root = "serde_core-1.0.228.crate/src/lib.rs",
     edition = "2021",
     env = {
         "CARGO_PKG_VERSION_PATCH": "228",
-        "OUT_DIR": "$(location :serde_core-1.0.228-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :serde_core-1-build-script-run[out_dir])",
     },
     features = [
         "alloc",
@@ -19948,12 +20181,12 @@ third_party_rust.rust_library(
         "result",
         "std",
     ],
-    rustc_flags = ["@$(location :serde_core-1.0.228-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :serde_core-1-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
 third_party_rust.rust_binary(
-    name = "serde_core-1.0.228-build-script-build",
+    name = "serde_core-1-build-script-build",
     srcs = [":serde_core-1.0.228.crate"],
     crate = "build_script_build",
     crate_root = "serde_core-1.0.228.crate/build.rs",
@@ -19972,9 +20205,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "serde_core-1.0.228-build-script-run",
+    name = "serde_core-1-build-script-run",
     package_name = "serde_core",
-    buildscript_rule = ":serde_core-1.0.228-build-script-build",
+    buildscript_rule = ":serde_core-1-build-script-build",
     env = {
         "CARGO_PKG_VERSION_PATCH": "228",
     },
@@ -19997,18 +20230,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serde_derive-1.0.228",
+    name = "serde_derive-1",
     srcs = [":serde_derive-1.0.228.crate"],
     crate = "serde_derive",
     crate_root = "serde_derive-1.0.228.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "serde_derive",
         "CARGO_CRATE_NAME": "serde_derive",
         "CARGO_MANIFEST_DIR": "serde_derive-1.0.228.crate",
         "CARGO_PKG_AUTHORS": "Erick Tryzelaar <erick.tryzelaar@gmail.com>:David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Macros 1.1 implementation of #[derive(Serialize, Deserialize)]",
+        "CARGO_PKG_HOMEPAGE": "https://serde.rs",
         "CARGO_PKG_NAME": "serde_derive",
+        "CARGO_PKG_README": "crates-io.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/serde-rs/serde",
+        "CARGO_PKG_RUST_VERSION": "1.61",
         "CARGO_PKG_VERSION": "1.0.228",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
@@ -20019,15 +20256,15 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
 shims.alias(
     name = "serde_json",
-    actual = ":serde_json-1.0.150",
+    actual = ":serde_json-1",
     visibility = ["PUBLIC"],
 )
 
@@ -20040,13 +20277,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serde_json-1.0.150",
+    name = "serde_json-1",
     srcs = [":serde_json-1.0.150.crate"],
     crate = "serde_json",
     crate_root = "serde_json-1.0.150.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :serde_json-1.0.150-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :serde_json-1-build-script-run[out_dir])",
     },
     features = [
         "alloc",
@@ -20056,19 +20293,19 @@ third_party_rust.rust_library(
         "raw_value",
         "std",
     ],
-    rustc_flags = ["@$(location :serde_json-1.0.150-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :serde_json-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":indexmap-2.14.0",
-        ":itoa-1.0.18",
-        ":memchr-2.8.3",
-        ":serde_core-1.0.228",
-        ":zmij-1.0.23",
+        ":indexmap-2",
+        ":itoa-1",
+        ":memchr-2",
+        ":serde_core-1",
+        ":zmij-1",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "serde_json-1.0.150-build-script-build",
+    name = "serde_json-1-build-script-build",
     srcs = [":serde_json-1.0.150.crate"],
     crate = "build_script_build",
     crate_root = "serde_json-1.0.150.crate/build.rs",
@@ -20085,9 +20322,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "serde_json-1.0.150-build-script-run",
+    name = "serde_json-1-build-script-run",
     package_name = "serde_json",
-    buildscript_rule = ":serde_json-1.0.150-build-script-build",
+    buildscript_rule = ":serde_json-1-build-script-build",
     features = [
         "alloc",
         "default",
@@ -20108,7 +20345,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serde_repr-0.1.20",
+    name = "serde_repr-0.1",
     srcs = [":serde_repr-0.1.20.crate"],
     crate = "serde_repr",
     crate_root = "serde_repr-0.1.20.crate/src/lib.rs",
@@ -20116,9 +20353,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -20131,14 +20368,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serde_spanned-0.6.9",
+    name = "serde_spanned-0.6",
     srcs = [":serde_spanned-0.6.9.crate"],
     crate = "serde_spanned",
     crate_root = "serde_spanned-0.6.9.crate/src/lib.rs",
     edition = "2021",
     features = ["serde"],
     visibility = [],
-    deps = [":serde-1.0.228"],
+    deps = [":serde-1"],
 )
 
 shims.http_archive(
@@ -20150,7 +20387,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serde_spanned-1.1.1",
+    name = "serde_spanned-1",
     srcs = [":serde_spanned-1.1.1.crate"],
     crate = "serde_spanned",
     crate_root = "serde_spanned-1.1.1.crate/src/lib.rs",
@@ -20162,7 +20399,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":serde_core-1.0.228"],
+    deps = [":serde_core-1"],
 )
 
 shims.http_archive(
@@ -20174,17 +20411,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serde_urlencoded-0.7.1",
+    name = "serde_urlencoded-0.7",
     srcs = [":serde_urlencoded-0.7.1.crate"],
     crate = "serde_urlencoded",
     crate_root = "serde_urlencoded-0.7.1.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":form_urlencoded-1.2.2",
-        ":itoa-1.0.18",
-        ":ryu-1.0.23",
-        ":serde-1.0.228",
+        ":form_urlencoded-1",
+        ":itoa-1",
+        ":ryu-1",
+        ":serde-1",
     ],
 )
 
@@ -20197,7 +20434,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serde_with-3.21.0",
+    name = "serde_with-3",
     srcs = [":serde_with-3.21.0.crate"],
     crate = "serde_with",
     crate_root = "serde_with-3.21.0.crate/src/lib.rs",
@@ -20211,9 +20448,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":serde_core-1.0.228",
-        ":serde_json-1.0.150",
-        ":serde_with_macros-3.21.0",
+        ":serde_core-1",
+        ":serde_json-1",
+        ":serde_with_macros-3",
     ],
 )
 
@@ -20226,7 +20463,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serde_with_macros-3.21.0",
+    name = "serde_with_macros-3",
     srcs = [":serde_with_macros-3.21.0.crate"],
     crate = "serde_with_macros",
     crate_root = "serde_with_macros-3.21.0.crate/src/lib.rs",
@@ -20234,10 +20471,10 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":darling-0.23.0",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":darling-0.23",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -20250,18 +20487,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serde_yaml-0.9.34+deprecated",
+    name = "serde_yaml-0.9",
     srcs = [":serde_yaml-0.9.34+deprecated.crate"],
     crate = "serde_yaml",
     crate_root = "serde_yaml-0.9.34+deprecated.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":indexmap-2.14.0",
-        ":itoa-1.0.18",
-        ":ryu-1.0.23",
-        ":serde-1.0.228",
-        ":unsafe-libyaml-0.2.11",
+        ":indexmap-2",
+        ":itoa-1",
+        ":ryu-1",
+        ":serde-1",
+        ":unsafe-libyaml-0.2",
     ],
 )
 
@@ -20274,15 +20511,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "serdect-0.4.3",
+    name = "serdect-0.4",
     srcs = [":serdect-0.4.3.crate"],
     crate = "serdect",
     crate_root = "serdect-0.4.3.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":base16ct-1.0.0",
-        ":serde-1.0.228",
+        ":base16ct-1",
+        ":serde-1",
     ],
 )
 
@@ -20295,24 +20532,24 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sfa-1.0.0",
+    name = "sfa-1",
     srcs = [":sfa-1.0.0.crate"],
     crate = "sfa",
     crate_root = "sfa-1.0.0.crate/src/lib.rs",
     edition = "2021",
     named_deps = {
-        "byteorder": ":byteorder-lite-0.1.0",
+        "byteorder": ":byteorder-lite-0.1",
     },
     visibility = [],
     deps = [
-        ":log-0.4.33",
-        ":xxhash-rust-0.8.17",
+        ":log-0.4",
+        ":xxhash-rust-0.8",
     ],
 )
 
 shims.alias(
     name = "sha1",
-    actual = ":sha1-0.10.7",
+    actual = ":sha1-0.10",
     visibility = ["PUBLIC"],
 )
 
@@ -20325,7 +20562,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sha1-0.10.7",
+    name = "sha1-0.10",
     srcs = [":sha1-0.10.7.crate"],
     crate = "sha1",
     crate_root = "sha1-0.10.7.crate/src/lib.rs",
@@ -20337,9 +20574,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":cpufeatures-0.2.17",
-        ":digest-0.10.7",
+        ":cfg-if-1",
+        ":cpufeatures-0.2",
+        ":digest-0.10",
     ],
 )
 
@@ -20352,7 +20589,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sha1-0.11.0",
+    name = "sha1-0.11",
     srcs = [":sha1-0.11.0.crate"],
     crate = "sha1",
     crate_root = "sha1-0.11.0.crate/src/lib.rs",
@@ -20364,9 +20601,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":cpufeatures-0.3.0",
-        ":digest-0.11.3",
+        ":cfg-if-1",
+        ":cpufeatures-0.3",
+        ":digest-0.11",
     ],
 )
 
@@ -20379,15 +20616,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sha1-checked-0.10.0",
+    name = "sha1-checked-0.10",
     srcs = [":sha1-checked-0.10.0.crate"],
     crate = "sha1_checked",
     crate_root = "sha1-checked-0.10.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":digest-0.10.7",
-        ":sha1-0.10.7",
+        ":digest-0.10",
+        ":sha1-0.10",
     ],
 )
 
@@ -20400,7 +20637,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sha1_smol-1.0.1",
+    name = "sha1_smol-1",
     srcs = [":sha1_smol-1.0.1.crate"],
     crate = "sha1_smol",
     crate_root = "sha1_smol-1.0.1.crate/src/lib.rs",
@@ -20410,7 +20647,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "sha2",
-    actual = ":sha2-0.10.9",
+    actual = ":sha2-0.10",
     visibility = ["PUBLIC"],
 )
 
@@ -20423,7 +20660,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sha2-0.10.9",
+    name = "sha2-0.10",
     srcs = [":sha2-0.10.9.crate"],
     crate = "sha2",
     crate_root = "sha2-0.10.9.crate/src/lib.rs",
@@ -20435,9 +20672,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":cpufeatures-0.2.17",
-        ":digest-0.10.7",
+        ":cfg-if-1",
+        ":cpufeatures-0.2",
+        ":digest-0.10",
     ],
 )
 
@@ -20450,7 +20687,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sha2-0.11.0",
+    name = "sha2-0.11",
     srcs = [":sha2-0.11.0.crate"],
     crate = "sha2",
     crate_root = "sha2-0.11.0.crate/src/lib.rs",
@@ -20462,9 +20699,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":cpufeatures-0.3.0",
-        ":digest-0.11.3",
+        ":cfg-if-1",
+        ":cpufeatures-0.3",
+        ":digest-0.11",
     ],
 )
 
@@ -20477,15 +20714,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sha3-0.10.9",
+    name = "sha3-0.10",
     srcs = [":sha3-0.10.9.crate"],
     crate = "sha3",
     crate_root = "sha3-0.10.9.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":digest-0.10.7",
-        ":keccak-0.1.6",
+        ":digest-0.10",
+        ":keccak-0.1",
     ],
 )
 
@@ -20498,13 +20735,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sharded-slab-0.1.7",
+    name = "sharded-slab-0.1",
     srcs = [":sharded-slab-0.1.7.crate"],
     crate = "sharded_slab",
     crate_root = "sharded-slab-0.1.7.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":lazy_static-1.5.0"],
+    deps = [":lazy_static-1"],
 )
 
 shims.http_archive(
@@ -20516,7 +20753,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "shell-words-1.1.1",
+    name = "shell-words-1",
     srcs = [":shell-words-1.1.1.crate"],
     crate = "shell_words",
     crate_root = "shell-words-1.1.1.crate/src/lib.rs",
@@ -20537,7 +20774,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "shlex-1.3.0",
+    name = "shlex-1",
     srcs = [":shlex-1.3.0.crate"],
     crate = "shlex",
     crate_root = "shlex-1.3.0.crate/src/lib.rs",
@@ -20558,7 +20795,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "shlex-2.0.1",
+    name = "shlex-2",
     srcs = [":shlex-2.0.1.crate"],
     crate = "shlex",
     crate_root = "shlex-2.0.1.crate/src/lib.rs",
@@ -20579,7 +20816,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "signal-hook-0.3.18",
+    name = "signal-hook-0.3",
     srcs = [":signal-hook-0.3.18.crate"],
     crate = "signal_hook",
     crate_root = "signal-hook-0.3.18.crate/src/lib.rs",
@@ -20591,8 +20828,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":libc-0.2.186",
-        ":signal-hook-registry-1.4.8",
+        ":libc-0.2",
+        ":signal-hook-registry-1",
     ],
 )
 
@@ -20605,7 +20842,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "signal-hook-mio-0.2.5",
+    name = "signal-hook-mio-0.2",
     srcs = [":signal-hook-mio-0.2.5.crate"],
     crate = "signal_hook_mio",
     crate_root = "signal-hook-mio-0.2.5.crate/src/lib.rs",
@@ -20615,12 +20852,12 @@ third_party_rust.rust_library(
         "support-v1_0",
     ],
     named_deps = {
-        "mio_1_0": ":mio-1.2.2",
+        "mio_1_0": ":mio-1",
     },
     visibility = [],
     deps = [
-        ":libc-0.2.186",
-        ":signal-hook-0.3.18",
+        ":libc-0.2",
+        ":signal-hook-0.3",
     ],
 )
 
@@ -20633,15 +20870,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "signal-hook-registry-1.4.8",
+    name = "signal-hook-registry-1",
     srcs = [":signal-hook-registry-1.4.8.crate"],
     crate = "signal_hook_registry",
     crate_root = "signal-hook-registry-1.4.8.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
     deps = [
-        ":errno-0.3.14",
-        ":libc-0.2.186",
+        ":errno-0.3",
+        ":libc-0.2",
     ],
 )
 
@@ -20654,7 +20891,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "signature-3.0.0",
+    name = "signature-3",
     srcs = [":signature-3.0.0.crate"],
     crate = "signature",
     crate_root = "signature-3.0.0.crate/src/lib.rs",
@@ -20672,7 +20909,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "simd-adler32-0.3.10",
+    name = "simd-adler32-0.3",
     srcs = [":simd-adler32-0.3.10.crate"],
     crate = "simd_adler32",
     crate_root = "simd-adler32-0.3.10.crate/src/lib.rs",
@@ -20690,7 +20927,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "simdutf8-0.1.5",
+    name = "simdutf8-0.1",
     srcs = [":simdutf8-0.1.5.crate"],
     crate = "simdutf8",
     crate_root = "simdutf8-0.1.5.crate/src/lib.rs",
@@ -20712,7 +20949,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "similar-2.7.0",
+    name = "similar-2",
     srcs = [":similar-2.7.0.crate"],
     crate = "similar",
     crate_root = "similar-2.7.0.crate/src/lib.rs",
@@ -20734,7 +20971,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "simple-dns-0.11.3",
+    name = "simple-dns-0.11",
     srcs = [":simple-dns-0.11.3.crate"],
     crate = "simple_dns",
     crate_root = "simple-dns-0.11.3.crate/src/lib.rs",
@@ -20744,7 +20981,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":bitflags-2.13.1"],
+    deps = [":bitflags-2"],
 )
 
 shims.http_archive(
@@ -20756,7 +20993,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "siphasher-1.0.3",
+    name = "siphasher-1",
     srcs = [":siphasher-1.0.3.crate"],
     crate = "siphasher",
     crate_root = "siphasher-1.0.3.crate/src/lib.rs",
@@ -20777,7 +21014,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sketches-ddsketch-0.3.1",
+    name = "sketches-ddsketch-0.3",
     srcs = [":sketches-ddsketch-0.3.1.crate"],
     crate = "sketches_ddsketch",
     crate_root = "sketches-ddsketch-0.3.1.crate/src/lib.rs",
@@ -20794,7 +21031,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "slab-0.4.12",
+    name = "slab-0.4",
     srcs = [":slab-0.4.12.crate"],
     crate = "slab",
     crate_root = "slab-0.4.12.crate/src/lib.rs",
@@ -20808,7 +21045,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "slatedb",
-    actual = ":slatedb-0.14.1",
+    actual = ":slatedb-0.14",
     visibility = ["PUBLIC"],
 )
 
@@ -20821,7 +21058,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "slatedb-0.14.1",
+    name = "slatedb-0.14",
     srcs = [":slatedb-0.14.1.crate"],
     crate = "slatedb",
     crate_root = "slatedb-0.14.1.crate/src/lib.rs",
@@ -20829,43 +21066,43 @@ third_party_rust.rust_library(
     features = ["foyer"],
     visibility = [],
     deps = [
-        ":async-channel-2.5.0",
-        ":async-trait-0.1.89",
-        ":atomic-0.6.1",
-        ":backon-1.6.0",
-        ":bitflags-2.13.1",
-        ":bytes-1.12.1",
-        ":chrono-0.4.45",
-        ":crc32fast-1.5.0",
-        ":crossbeam-skiplist-0.1.3",
-        ":dotenvy-0.15.7",
-        ":duration-str-0.11.3",
-        ":fail-parallel-0.5.2",
-        ":figment-0.10.19",
-        ":flatbuffers-25.12.19",
-        ":foyer-0.22.3",
-        ":futures-0.3.32",
-        ":log-0.4.33",
-        ":lru-0.18.1",
-        ":object_store-0.14.1",
-        ":ouroboros-0.18.5",
-        ":parking_lot-0.12.5",
-        ":rand-0.9.5",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
-        ":siphasher-1.0.3",
-        ":slatedb-common-0.14.1",
-        ":slatedb-txn-obj-0.14.1",
-        ":smallvec-1.15.2",
-        ":sysinfo-0.35.2",
-        ":thiserror-1.0.69",
-        ":tokio-1.53.0",
-        ":tokio-util-0.7.18",
-        ":tracing-0.1.44",
-        ":ulid-1.2.1",
-        ":url-2.5.8",
-        ":uuid-1.24.0",
-        ":walkdir-2.5.0",
+        ":async-channel-2",
+        ":async-trait-0.1",
+        ":atomic-0.6",
+        ":backon-1",
+        ":bitflags-2",
+        ":bytes-1",
+        ":chrono-0.4",
+        ":crc32fast-1",
+        ":crossbeam-skiplist-0.1",
+        ":dotenvy-0.15",
+        ":duration-str-0.11",
+        ":fail-parallel-0.5",
+        ":figment-0.10",
+        ":flatbuffers-25",
+        ":foyer-0.22",
+        ":futures-0.3",
+        ":log-0.4",
+        ":lru-0.18",
+        ":object_store-0.14",
+        ":ouroboros-0.18",
+        ":parking_lot-0.12",
+        ":rand-0.9",
+        ":serde-1",
+        ":serde_json-1",
+        ":siphasher-1",
+        ":slatedb-common-0.14",
+        ":slatedb-txn-obj-0.14",
+        ":smallvec-1",
+        ":sysinfo-0.35",
+        ":thiserror-1",
+        ":tokio-1",
+        ":tokio-util-0.7",
+        ":tracing-0.1",
+        ":ulid-1",
+        ":url-2",
+        ":uuid-1",
+        ":walkdir-2",
     ],
 )
 
@@ -20878,7 +21115,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "slatedb-common-0.14.1",
+    name = "slatedb-common-0.14",
     srcs = [":slatedb-common-0.14.1.crate"],
     crate = "slatedb_common",
     crate_root = "slatedb-common-0.14.1.crate/src/lib.rs",
@@ -20886,14 +21123,14 @@ third_party_rust.rust_library(
     features = ["serde"],
     visibility = [],
     deps = [
-        ":chrono-0.4.45",
-        ":log-0.4.33",
-        ":object_store-0.14.1",
-        ":rand-0.9.5",
-        ":rand_xoshiro-0.7.0",
-        ":serde-1.0.228",
-        ":thread_local-1.1.10",
-        ":tokio-1.53.0",
+        ":chrono-0.4",
+        ":log-0.4",
+        ":object_store-0.14",
+        ":rand-0.9",
+        ":rand_xoshiro-0.7",
+        ":serde-1",
+        ":thread_local-1",
+        ":tokio-1",
     ],
 )
 
@@ -20906,22 +21143,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "slatedb-txn-obj-0.14.1",
+    name = "slatedb-txn-obj-0.14",
     srcs = [":slatedb-txn-obj-0.14.1.crate"],
     crate = "slatedb_txn_obj",
     crate_root = "slatedb-txn-obj-0.14.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":async-trait-0.1.89",
-        ":bytes-1.12.1",
-        ":chrono-0.4.45",
-        ":futures-0.3.32",
-        ":log-0.4.33",
-        ":object_store-0.14.1",
-        ":parking_lot-0.12.5",
-        ":slatedb-common-0.14.1",
-        ":thiserror-1.0.69",
+        ":async-trait-0.1",
+        ":bytes-1",
+        ":chrono-0.4",
+        ":futures-0.3",
+        ":log-0.4",
+        ":object_store-0.14",
+        ":parking_lot-0.12",
+        ":slatedb-common-0.14",
+        ":thiserror-1",
     ],
 )
 
@@ -20934,7 +21171,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "slotmap-1.1.1",
+    name = "slotmap-1",
     srcs = [":slotmap-1.1.1.crate"],
     crate = "slotmap",
     crate_root = "slotmap-1.1.1.crate/src/lib.rs",
@@ -20953,7 +21190,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "small_ctor-0.1.2",
+    name = "small_ctor-0.1",
     srcs = [":small_ctor-0.1.2.crate"],
     crate = "small_ctor",
     crate_root = "small_ctor-0.1.2.crate/src/lib.rs",
@@ -20971,7 +21208,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "smallvec-1.15.2",
+    name = "smallvec-1",
     srcs = [":smallvec-1.15.2.crate"],
     crate = "smallvec",
     crate_root = "smallvec-1.15.2.crate/src/lib.rs",
@@ -20984,7 +21221,7 @@ third_party_rust.rust_library(
         "write",
     ],
     visibility = [],
-    deps = [":serde-1.0.228"],
+    deps = [":serde-1"],
 )
 
 shims.http_archive(
@@ -20996,7 +21233,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "smawk-0.3.3",
+    name = "smawk-0.3",
     srcs = [":smawk-0.3.3.crate"],
     crate = "smawk",
     crate_root = "smawk-0.3.3.crate/src/lib.rs",
@@ -21013,7 +21250,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "smol_str-0.3.6",
+    name = "smol_str-0.3",
     srcs = [":smol_str-0.3.6.crate"],
     crate = "smol_str",
     crate_root = "smol_str-0.3.6.crate/src/lib.rs",
@@ -21024,7 +21261,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":serde_core-1.0.228"],
+    deps = [":serde_core-1"],
 )
 
 shims.http_archive(
@@ -21036,7 +21273,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "socket2-0.6.5",
+    name = "socket2-0.6",
     srcs = [":socket2-0.6.5.crate"],
     crate = "socket2",
     crate_root = "socket2-0.6.5.crate/src/lib.rs",
@@ -21044,22 +21281,22 @@ third_party_rust.rust_library(
     features = ["all"],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
@@ -21074,7 +21311,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sorted-index-buffer-0.2.1",
+    name = "sorted-index-buffer-0.2",
     srcs = [":sorted-index-buffer-0.2.1.crate"],
     crate = "sorted_index_buffer",
     crate_root = "sorted-index-buffer-0.2.1.crate/src/lib.rs",
@@ -21091,7 +21328,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "spez-0.1.2",
+    name = "spez-0.1",
     srcs = [":spez-0.1.2.crate"],
     crate = "spez",
     crate_root = "spez-0.1.2.crate/src/lib.rs",
@@ -21099,9 +21336,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -21114,7 +21351,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "spin-0.9.9",
+    name = "spin-0.9",
     srcs = [":spin-0.9.9.crate"],
     crate = "spin",
     crate_root = "spin-0.9.9.crate/src/lib.rs",
@@ -21131,7 +21368,7 @@ third_party_rust.rust_library(
         "spin_mutex",
     ],
     named_deps = {
-        "lock_api_crate": ":lock_api-0.4.14",
+        "lock_api_crate": ":lock_api-0.4",
     },
     visibility = [],
 )
@@ -21145,7 +21382,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "spin-0.10.1",
+    name = "spin-0.10",
     srcs = [":spin-0.10.1.crate"],
     crate = "spin",
     crate_root = "spin-0.10.1.crate/src/lib.rs",
@@ -21168,7 +21405,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "spki-0.8.0",
+    name = "spki-0.8",
     srcs = [":spki-0.8.0.crate"],
     crate = "spki",
     crate_root = "spki-0.8.0.crate/src/lib.rs",
@@ -21178,7 +21415,7 @@ third_party_rust.rust_library(
         "pem",
     ],
     visibility = [],
-    deps = [":der-0.8.1"],
+    deps = [":der-0.8"],
 )
 
 shims.http_archive(
@@ -21190,7 +21427,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "stable_deref_trait-1.2.1",
+    name = "stable_deref_trait-1",
     srcs = [":stable_deref_trait-1.2.1.crate"],
     crate = "stable_deref_trait",
     crate_root = "stable_deref_trait-1.2.1.crate/src/lib.rs",
@@ -21221,18 +21458,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "stacker-0.1.24",
+    name = "stacker-0.1",
     srcs = [":stacker-0.1.24.crate"],
     crate = "stacker",
     crate_root = "stacker-0.1.24.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "stacker",
         "CARGO_CRATE_NAME": "stacker",
         "CARGO_MANIFEST_DIR": "stacker-0.1.24.crate",
         "CARGO_PKG_AUTHORS": "Alex Crichton <alex@alexcrichton.com>:Simonas Kazlauskas <stacker@kazlauskas.me>",
         "CARGO_PKG_DESCRIPTION": "A stack growth library useful when implementing deeply recursive algorithms that\nmay accidentally blow the stack.\n",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/rust-lang/stacker",
         "CARGO_PKG_NAME": "stacker",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/rust-lang/stacker",
+        "CARGO_PKG_RUST_VERSION": "1.63",
         "CARGO_PKG_VERSION": "0.1.24",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "1",
@@ -21241,77 +21482,77 @@ third_party_rust.rust_library(
     },
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":libc-0.2.186",
-        ":psm-0.1.31",
+        ":cfg-if-1",
+        ":libc-0.2",
+        ":psm-0.1",
     ],
 )
 
 shims.alias(
     name = "starlark",
-    actual = ":starlark-0.13.0",
+    actual = ":starlark-0.13",
     visibility = ["PUBLIC"],
 )
 
 third_party_rust.rust_library(
-    name = "starlark-0.13.0",
+    name = "starlark-0.13",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "starlark",
     crate_root = "starlark-rust-a9d911d33fd77ff2/starlark/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":allocative-0.3.4",
-        ":anyhow-1.0.103",
-        ":bumpalo-3.20.3",
-        ":cmp_any-0.8.1",
-        ":debugserver-types-0.5.0",
-        ":derivative-2.2.0",
-        ":derive_more-1.0.0",
-        ":display_container-0.9.0",
-        ":dupe-0.9.1",
-        ":either-1.16.0",
-        ":erased-serde-0.3.31",
-        ":hashbrown-0.14.5",
-        ":inventory-0.3.24",
-        ":itertools-0.13.0",
-        ":maplit-1.0.2",
-        ":memoffset-0.6.5",
-        ":num-bigint-0.4.8",
-        ":num-traits-0.2.19",
-        ":once_cell-1.21.4",
-        ":paste-1.0.15",
-        ":ref-cast-1.0.25",
-        ":regex-1.13.1",
-        ":rustyline-14.0.0",
-        ":serde-1.0.228",
-        ":serde_json-1.0.150",
-        ":starlark_derive-0.13.0",
-        ":starlark_map-0.13.0",
-        ":starlark_syntax-0.13.0",
-        ":static_assertions-1.1.0",
-        ":strsim-0.10.0",
-        ":textwrap-0.11.0",
-        ":thiserror-1.0.69",
+        ":allocative-0.3",
+        ":anyhow-1",
+        ":bumpalo-3",
+        ":cmp_any-0.8",
+        ":debugserver-types-0.5",
+        ":derivative-2",
+        ":derive_more-1",
+        ":display_container-0.9",
+        ":dupe-0.9-469ff502",
+        ":either-1",
+        ":erased-serde-0.3",
+        ":hashbrown-0.14",
+        ":inventory-0.3",
+        ":itertools-0.13",
+        ":maplit-1",
+        ":memoffset-0.6",
+        ":num-bigint-0.4",
+        ":num-traits-0.2",
+        ":once_cell-1",
+        ":paste-1",
+        ":ref-cast-1",
+        ":regex-1",
+        ":rustyline-14",
+        ":serde-1",
+        ":serde_json-1",
+        ":starlark_derive-0.13",
+        ":starlark_map-0.13",
+        ":starlark_syntax-0.13",
+        ":static_assertions-1",
+        ":strsim-0.10",
+        ":textwrap-0.11",
+        ":thiserror-1",
     ],
 )
 
 shims.alias(
     name = "starlark_derive",
-    actual = ":starlark_derive-0.13.0",
+    actual = ":starlark_derive-0.13",
     visibility = ["PUBLIC"],
 )
 
 third_party_rust.rust_library(
-    name = "starlark_derive-0.13.0",
+    name = "starlark_derive-0.13",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "starlark_derive",
     crate_root = "starlark-rust-a9d911d33fd77ff2/starlark_derive/src/lib.rs",
@@ -21319,85 +21560,93 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":dupe-0.9.1",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":dupe-0.9-469ff502",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "starlark_map-0.13.0",
+    name = "starlark_map-0.13",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "starlark_map",
     crate_root = "starlark-rust-a9d911d33fd77ff2/starlark_map/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":allocative-0.3.4",
-        ":dupe-0.9.1",
-        ":equivalent-1.0.2",
-        ":fxhash-0.2.1",
-        ":hashbrown-0.14.5",
-        ":serde-1.0.228",
-        ":strong_hash-0.1.0",
+        ":allocative-0.3",
+        ":dupe-0.9-469ff502",
+        ":equivalent-1",
+        ":fxhash-0.2",
+        ":hashbrown-0.14",
+        ":serde-1",
+        ":strong_hash-0.1",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "starlark_syntax-0.13.0",
+    name = "starlark_syntax-0.13",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "starlark_syntax",
     crate_root = "starlark-rust-a9d911d33fd77ff2/starlark_syntax/src/lib.rs",
     edition = "2024",
     env = {
+        "CARGO_BIN_NAME": "starlark_syntax",
         "CARGO_CRATE_NAME": "starlark_syntax",
         "CARGO_MANIFEST_DIR": "starlark-rust-a9d911d33fd77ff2",
         "CARGO_PKG_AUTHORS": "Damien Martin-Guillerez <dmarting@google.com>:Facebook",
         "CARGO_PKG_DESCRIPTION": "Starlark language AST",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "starlark_syntax",
+        "CARGO_PKG_README": "",
         "CARGO_PKG_REPOSITORY": "https://github.com/facebook/starlark-rust",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "0.13.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "13",
         "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :starlark_syntax-0.13.0-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :starlark_syntax-0.13-build-script-run[out_dir])",
     },
-    rustc_flags = ["@$(location :starlark_syntax-0.13.0-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :starlark_syntax-0.13-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":allocative-0.3.4",
-        ":annotate-snippets-0.9.2",
-        ":anyhow-1.0.103",
-        ":derivative-2.2.0",
-        ":derive_more-1.0.0",
-        ":dupe-0.9.1",
-        ":lalrpop-util-0.19.12",
-        ":logos-0.12.1",
-        ":lsp-types-0.94.1",
-        ":memchr-2.8.3",
-        ":num-bigint-0.4.8",
-        ":num-traits-0.2.19",
-        ":once_cell-1.21.4",
-        ":starlark_map-0.13.0",
-        ":thiserror-1.0.69",
+        ":allocative-0.3",
+        ":annotate-snippets-0.9",
+        ":anyhow-1",
+        ":derivative-2",
+        ":derive_more-1",
+        ":dupe-0.9-469ff502",
+        ":lalrpop-util-0.19",
+        ":logos-0.12",
+        ":lsp-types-0.94",
+        ":memchr-2",
+        ":num-bigint-0.4",
+        ":num-traits-0.2",
+        ":once_cell-1",
+        ":starlark_map-0.13",
+        ":thiserror-1",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "starlark_syntax-0.13.0-build-script-build",
+    name = "starlark_syntax-0.13-build-script-build",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "build_script_build",
     crate_root = "starlark-rust-a9d911d33fd77ff2/starlark_syntax/build.rs",
     edition = "2024",
     env = {
+        "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
         "CARGO_MANIFEST_DIR": "starlark-rust-a9d911d33fd77ff2",
         "CARGO_PKG_AUTHORS": "Damien Martin-Guillerez <dmarting@google.com>:Facebook",
         "CARGO_PKG_DESCRIPTION": "Starlark language AST",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "starlark_syntax",
+        "CARGO_PKG_README": "",
         "CARGO_PKG_REPOSITORY": "https://github.com/facebook/starlark-rust",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "0.13.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "13",
@@ -21405,17 +21654,20 @@ third_party_rust.rust_binary(
         "CARGO_PKG_VERSION_PRE": "",
     },
     visibility = [],
-    deps = [":lalrpop-0.19.12"],
+    deps = [":lalrpop-0.19"],
 )
 
 third_party_rust.buildscript_run(
-    name = "starlark_syntax-0.13.0-build-script-run",
+    name = "starlark_syntax-0.13-build-script-run",
     package_name = "starlark_syntax",
-    buildscript_rule = ":starlark_syntax-0.13.0-build-script-build",
+    buildscript_rule = ":starlark_syntax-0.13-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "Damien Martin-Guillerez <dmarting@google.com>:Facebook",
         "CARGO_PKG_DESCRIPTION": "Starlark language AST",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_README": "",
         "CARGO_PKG_REPOSITORY": "https://github.com/facebook/starlark-rust",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "13",
         "CARGO_PKG_VERSION_PATCH": "0",
@@ -21434,7 +21686,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "static_assertions-1.1.0",
+    name = "static_assertions-1",
     srcs = [":static_assertions-1.1.0.crate"],
     crate = "static_assertions",
     crate_root = "static_assertions-1.1.0.crate/src/lib.rs",
@@ -21451,7 +21703,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "std-next-0.1.9",
+    name = "std-next-0.1",
     srcs = [":std-next-0.1.9.crate"],
     crate = "stdx",
     crate_root = "std-next-0.1.9.crate/src/lib.rs",
@@ -21463,8 +21715,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":simdutf8-0.1.5",
-        ":thiserror-2.0.18",
+        ":simdutf8-0.1",
+        ":thiserror-2",
     ],
 )
 
@@ -21477,7 +21729,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "str_inflector-0.12.0",
+    name = "str_inflector-0.12",
     srcs = [":str_inflector-0.12.0.crate"],
     crate = "inflector",
     crate_root = "str_inflector-0.12.0.crate/src/lib.rs",
@@ -21490,8 +21742,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":lazy_static-1.5.0",
-        ":regex-1.13.1",
+        ":lazy_static-1",
+        ":regex-1",
     ],
 )
 
@@ -21504,35 +21756,35 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "string_cache-0.8.9",
+    name = "string_cache-0.8",
     srcs = [":string_cache-0.8.9.crate"],
     crate = "string_cache",
     crate_root = "string_cache-0.8.9.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":new_debug_unreachable-1.0.6",
-        ":parking_lot-0.12.5",
-        ":phf_shared-0.11.3",
-        ":precomputed-hash-0.1.1",
+        ":new_debug_unreachable-1",
+        ":parking_lot-0.12",
+        ":phf_shared-0.11",
+        ":precomputed-hash-0.1",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "strong_hash-0.1.0",
+    name = "strong_hash-0.1",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "strong_hash",
     crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/strong_hash/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":ref-cast-1.0.25",
-        ":strong_hash_derive-0.1.0",
+        ":ref-cast-1",
+        ":strong_hash_derive-0.1",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "strong_hash_derive-0.1.0",
+    name = "strong_hash_derive-0.1",
     srcs = [":starlark-rust-a9d911d33fd77ff2.git"],
     crate = "strong_hash_derive",
     crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/strong_hash_derive/src/lib.rs",
@@ -21540,8 +21792,8 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -21554,7 +21806,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "strsim-0.10.0",
+    name = "strsim-0.10",
     srcs = [":strsim-0.10.0.crate"],
     crate = "strsim",
     crate_root = "strsim-0.10.0.crate/src/lib.rs",
@@ -21571,7 +21823,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "strsim-0.11.1",
+    name = "strsim-0.11",
     srcs = [":strsim-0.11.1.crate"],
     crate = "strsim",
     crate_root = "strsim-0.11.1.crate/src/lib.rs",
@@ -21588,7 +21840,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "strum-0.28.0",
+    name = "strum-0.28",
     srcs = [":strum-0.28.0.crate"],
     crate = "strum",
     crate_root = "strum-0.28.0.crate/src/lib.rs",
@@ -21600,7 +21852,7 @@ third_party_rust.rust_library(
         "strum_macros",
     ],
     visibility = [],
-    deps = [":strum_macros-0.28.0"],
+    deps = [":strum_macros-0.28"],
 )
 
 shims.http_archive(
@@ -21612,7 +21864,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "strum_macros-0.28.0",
+    name = "strum_macros-0.28",
     srcs = [":strum_macros-0.28.0.crate"],
     crate = "strum_macros",
     crate_root = "strum_macros-0.28.0.crate/src/lib.rs",
@@ -21620,10 +21872,10 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":heck-0.5.0",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":heck-0.5",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -21636,7 +21888,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "subtle-2.6.1",
+    name = "subtle-2",
     srcs = [":subtle-2.6.1.crate"],
     crate = "subtle",
     crate_root = "subtle-2.6.1.crate/src/lib.rs",
@@ -21659,7 +21911,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "syn-1.0.109",
+    name = "syn-1",
     srcs = [":syn-1.0.109.crate"],
     crate = "syn",
     crate_root = "syn-1.0.109.crate/src/lib.rs",
@@ -21678,15 +21930,15 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":unicode-ident-1.0.24",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":unicode-ident-1",
     ],
 )
 
 shims.alias(
     name = "syn",
-    actual = ":syn-2.0.119",
+    actual = ":syn-2",
     visibility = ["PUBLIC"],
 )
 
@@ -21699,7 +21951,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "syn-2.0.119",
+    name = "syn-2",
     srcs = [":syn-2.0.119.crate"],
     crate = "syn",
     crate_root = "syn-2.0.119.crate/src/lib.rs",
@@ -21719,9 +21971,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":unicode-ident-1.0.24",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":unicode-ident-1",
     ],
 )
 
@@ -21734,7 +21986,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sync_wrapper-1.0.2",
+    name = "sync_wrapper-1",
     srcs = [":sync_wrapper-1.0.2.crate"],
     crate = "sync_wrapper",
     crate_root = "sync_wrapper-1.0.2.crate/src/lib.rs",
@@ -21744,7 +21996,7 @@ third_party_rust.rust_library(
         "futures-core",
     ],
     visibility = [],
-    deps = [":futures-core-0.3.32"],
+    deps = [":futures-core-0.3"],
 )
 
 shims.http_archive(
@@ -21756,7 +22008,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "synstructure-0.13.2",
+    name = "synstructure-0.13",
     srcs = [":synstructure-0.13.2.crate"],
     crate = "synstructure",
     crate_root = "synstructure-0.13.2.crate/src/lib.rs",
@@ -21767,9 +22019,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -21782,7 +22034,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "sysinfo-0.35.2",
+    name = "sysinfo-0.35",
     srcs = [":sysinfo-0.35.2.crate"],
     crate = "sysinfo",
     crate_root = "sysinfo-0.35.2.crate/src/lib.rs",
@@ -21800,36 +22052,36 @@ third_party_rust.rust_library(
         "macos-arm64": dict(
             features = ["objc2-core-foundation"],
             deps = [
-                ":objc2-core-foundation-0.3.2",
-                ":objc2-io-kit-0.3.2",
+                ":objc2-core-foundation-0.3",
+                ":objc2-io-kit-0.3",
             ],
         ),
         "macos-x86_64": dict(
             features = ["objc2-core-foundation"],
             deps = [
-                ":objc2-core-foundation-0.3.2",
-                ":objc2-io-kit-0.3.2",
+                ":objc2-core-foundation-0.3",
+                ":objc2-io-kit-0.3",
             ],
         ),
         "windows-gnu": dict(
             features = ["windows"],
             deps = [
-                ":ntapi-0.4.3",
-                ":windows-0.61.3",
+                ":ntapi-0.4",
+                ":windows-0.61",
             ],
         ),
         "windows-msvc": dict(
             features = ["windows"],
             deps = [
-                ":ntapi-0.4.3",
-                ":windows-0.61.3",
+                ":ntapi-0.4",
+                ":windows-0.61",
             ],
         ),
     },
     visibility = [],
     deps = [
-        ":libc-0.2.186",
-        ":memchr-2.8.3",
+        ":libc-0.2",
+        ":memchr-2",
     ],
 )
 
@@ -21842,16 +22094,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "system-configuration-0.7.0",
+    name = "system-configuration-0.7",
     srcs = [":system-configuration-0.7.0.crate"],
     crate = "system_configuration",
     crate_root = "system-configuration-0.7.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":core-foundation-0.9.4",
-        ":system-configuration-sys-0.6.0",
+        ":bitflags-2",
+        ":core-foundation-0.9",
+        ":system-configuration-sys-0.6",
     ],
 )
 
@@ -21864,15 +22116,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "system-configuration-sys-0.6.0",
+    name = "system-configuration-sys-0.6",
     srcs = [":system-configuration-sys-0.6.0.crate"],
     crate = "system_configuration_sys",
     crate_root = "system-configuration-sys-0.6.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":core-foundation-sys-0.8.7",
-        ":libc-0.2.186",
+        ":core-foundation-sys-0.8",
+        ":libc-0.2",
     ],
 )
 
@@ -21885,7 +22137,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "taffy-0.5.2",
+    name = "taffy-0.5",
     srcs = [":taffy-0.5.2.crate"],
     crate = "taffy",
     crate_root = "taffy-0.5.2.crate/src/lib.rs",
@@ -21897,9 +22149,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":arrayvec-0.7.8",
-        ":num-traits-0.2.19",
-        ":slotmap-1.1.1",
+        ":arrayvec-0.7",
+        ":num-traits-0.2",
+        ":slotmap-1",
     ],
 )
 
@@ -21912,7 +22164,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tagptr-0.2.0",
+    name = "tagptr-0.2",
     srcs = [":tagptr-0.2.0.crate"],
     crate = "tagptr",
     crate_root = "tagptr-0.2.0.crate/src/lib.rs",
@@ -21922,7 +22174,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "tar",
-    actual = ":tar-0.4.46",
+    actual = ":tar-0.4",
     visibility = ["PUBLIC"],
 )
 
@@ -21935,7 +22187,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tar-0.4.46",
+    name = "tar-0.4",
     srcs = [":tar-0.4.46.crate"],
     crate = "tar",
     crate_root = "tar-0.4.46.crate/src/lib.rs",
@@ -21947,36 +22199,36 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":xattr-1.6.1",
+                ":libc-0.2",
+                ":xattr-1",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":xattr-1.6.1",
+                ":libc-0.2",
+                ":xattr-1",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":xattr-1.6.1",
+                ":libc-0.2",
+                ":xattr-1",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":xattr-1.6.1",
+                ":libc-0.2",
+                ":xattr-1",
             ],
         ),
     },
     visibility = [],
-    deps = [":filetime-0.2.29"],
+    deps = [":filetime-0.2"],
 )
 
 shims.alias(
     name = "tempfile",
-    actual = ":tempfile-3.27.0",
+    actual = ":tempfile-3",
     visibility = ["PUBLIC"],
 )
 
@@ -21989,7 +22241,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tempfile-3.27.0",
+    name = "tempfile-3",
     srcs = [":tempfile-3.27.0.crate"],
     crate = "tempfile",
     crate_root = "tempfile-3.27.0.crate/src/lib.rs",
@@ -22000,29 +22252,29 @@ third_party_rust.rust_library(
     ],
     platform = {
         "linux-arm64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "linux-x86_64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "macos-arm64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "macos-x86_64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
     deps = [
-        ":fastrand-2.4.1",
-        ":getrandom-0.4.3",
-        ":once_cell-1.21.4",
+        ":fastrand-2",
+        ":getrandom-0.4",
+        ":once_cell-1",
     ],
 )
 
@@ -22035,7 +22287,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "term-0.7.0",
+    name = "term-0.7",
     srcs = [":term-0.7.0.crate"],
     crate = "term",
     crate_root = "term-0.7.0.crate/src/lib.rs",
@@ -22044,19 +22296,19 @@ third_party_rust.rust_library(
     platform = {
         "windows-gnu": dict(
             deps = [
-                ":rustversion-1.0.23",
-                ":winapi-0.3.9",
+                ":rustversion-1",
+                ":winapi-0.3",
             ],
         ),
         "windows-msvc": dict(
             deps = [
-                ":rustversion-1.0.23",
-                ":winapi-0.3.9",
+                ":rustversion-1",
+                ":winapi-0.3",
             ],
         ),
     },
     visibility = [],
-    deps = [":dirs-next-2.0.0"],
+    deps = [":dirs-next-2"],
 )
 
 shims.http_archive(
@@ -22068,7 +22320,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "term-1.2.1",
+    name = "term-1",
     srcs = [":term-1.2.1.crate"],
     crate = "term",
     crate_root = "term-1.2.1.crate/src/lib.rs",
@@ -22076,10 +22328,10 @@ third_party_rust.rust_library(
     features = ["default"],
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
@@ -22094,29 +22346,29 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "terminal_size-0.4.4",
+    name = "terminal_size-0.4",
     srcs = [":terminal_size-0.4.4.crate"],
     crate = "terminal_size",
     crate_root = "terminal_size-0.4.4.crate/src/lib.rs",
     edition = "2021",
     platform = {
         "linux-arm64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "linux-x86_64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "macos-arm64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "macos-x86_64": dict(
-            deps = [":rustix-1.1.4"],
+            deps = [":rustix-1"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     visibility = [],
@@ -22131,37 +22383,37 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "terminfo-0.9.0",
+    name = "terminfo-0.9",
     srcs = [":terminfo-0.9.0.crate"],
     crate = "terminfo",
     crate_root = "terminfo-0.9.0.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :terminfo-0.9.0-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :terminfo-0.9-build-script-run[out_dir])",
     },
-    rustc_flags = ["@$(location :terminfo-0.9.0-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :terminfo-0.9-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":fnv-1.0.7",
-        ":nom-7.1.3",
-        ":phf-0.11.3",
+        ":fnv-1",
+        ":nom-7",
+        ":phf-0.11",
     ],
 )
 
 third_party_rust.rust_binary(
-    name = "terminfo-0.9.0-build-script-build",
+    name = "terminfo-0.9-build-script-build",
     srcs = [":terminfo-0.9.0.crate"],
     crate = "build_script_build",
     crate_root = "terminfo-0.9.0.crate/build.rs",
     edition = "2021",
     visibility = [],
-    deps = [":phf_codegen-0.11.3"],
+    deps = [":phf_codegen-0.11"],
 )
 
 third_party_rust.buildscript_run(
-    name = "terminfo-0.9.0-build-script-run",
+    name = "terminfo-0.9-build-script-run",
     package_name = "terminfo",
-    buildscript_rule = ":terminfo-0.9.0-build-script-build",
+    buildscript_rule = ":terminfo-0.9-build-script-build",
     version = "0.9.0",
 )
 
@@ -22174,13 +22426,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "termios-0.3.3",
+    name = "termios-0.3",
     srcs = [":termios-0.3.3.crate"],
     crate = "termios",
     crate_root = "termios-0.3.3.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":libc-0.2.186"],
+    deps = [":libc-0.2"],
 )
 
 shims.http_archive(
@@ -22192,18 +22444,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "termwiz-0.23.3",
+    name = "termwiz-0.23",
     srcs = [":termwiz-0.23.3.crate"],
     crate = "termwiz",
     crate_root = "termwiz-0.23.3.crate/src/lib.rs",
     edition = "2018",
     env = {
+        "CARGO_BIN_NAME": "termwiz",
         "CARGO_CRATE_NAME": "termwiz",
         "CARGO_MANIFEST_DIR": "termwiz-0.23.3.crate",
         "CARGO_PKG_AUTHORS": "Wez Furlong",
         "CARGO_PKG_DESCRIPTION": "Terminal Wizardry for Unix and Windows",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "termwiz",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/wezterm/wezterm",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "0.23.3",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "23",
@@ -22213,71 +22469,71 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":nix-0.29.0",
-                ":signal-hook-0.3.18",
-                ":termios-0.3.3",
+                ":nix-0.29",
+                ":signal-hook-0.3",
+                ":termios-0.3",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":nix-0.29.0",
-                ":signal-hook-0.3.18",
-                ":termios-0.3.3",
+                ":nix-0.29",
+                ":signal-hook-0.3",
+                ":termios-0.3",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":nix-0.29.0",
-                ":signal-hook-0.3.18",
-                ":termios-0.3.3",
+                ":nix-0.29",
+                ":signal-hook-0.3",
+                ":termios-0.3",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":nix-0.29.0",
-                ":signal-hook-0.3.18",
-                ":termios-0.3.3",
+                ":nix-0.29",
+                ":signal-hook-0.3",
+                ":termios-0.3",
             ],
         ),
         "windows-gnu": dict(
-            deps = [":winapi-0.3.9"],
+            deps = [":winapi-0.3"],
         ),
         "windows-msvc": dict(
-            deps = [":winapi-0.3.9"],
+            deps = [":winapi-0.3"],
         ),
     },
     visibility = [],
     deps = [
-        ":anyhow-1.0.103",
-        ":base64-0.22.1",
-        ":bitflags-2.13.1",
-        ":fancy-regex-0.11.0",
-        ":filedescriptor-0.8.3",
-        ":finl_unicode-1.4.0",
-        ":fixedbitset-0.4.2",
-        ":hex-0.4.3",
-        ":lazy_static-1.5.0",
-        ":libc-0.2.186",
-        ":log-0.4.33",
-        ":memmem-0.1.1",
-        ":num-derive-0.4.2",
-        ":num-traits-0.2.19",
-        ":ordered-float-4.6.0",
-        ":pest-2.8.7",
-        ":pest_derive-2.8.7",
-        ":phf-0.11.3",
-        ":sha2-0.10.9",
-        ":siphasher-1.0.3",
-        ":terminfo-0.9.0",
-        ":thiserror-1.0.69",
-        ":ucd-trie-0.1.7",
-        ":unicode-segmentation-1.13.3",
-        ":vtparse-0.6.2",
-        ":wezterm-bidi-0.2.3",
-        ":wezterm-blob-leases-0.1.1",
-        ":wezterm-color-types-0.3.0",
-        ":wezterm-dynamic-0.2.1",
-        ":wezterm-input-types-0.1.0",
+        ":anyhow-1",
+        ":base64-0.22",
+        ":bitflags-2",
+        ":fancy-regex-0.11",
+        ":filedescriptor-0.8",
+        ":finl_unicode-1",
+        ":fixedbitset-0.4",
+        ":hex-0.4",
+        ":lazy_static-1",
+        ":libc-0.2",
+        ":log-0.4",
+        ":memmem-0.1",
+        ":num-derive-0.4",
+        ":num-traits-0.2",
+        ":ordered-float-4",
+        ":pest-2",
+        ":pest_derive-2",
+        ":phf-0.11",
+        ":sha2-0.10",
+        ":siphasher-1",
+        ":terminfo-0.9",
+        ":thiserror-1",
+        ":ucd-trie-0.1",
+        ":unicode-segmentation-1",
+        ":vtparse-0.6",
+        ":wezterm-bidi-0.2",
+        ":wezterm-blob-leases-0.1",
+        ":wezterm-color-types-0.3",
+        ":wezterm-dynamic-0.2",
+        ":wezterm-input-types-0.1",
     ],
 )
 
@@ -22290,13 +22546,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "textwrap-0.11.0",
+    name = "textwrap-0.11",
     srcs = [":textwrap-0.11.0.crate"],
     crate = "textwrap",
     crate_root = "textwrap-0.11.0.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":unicode-width-0.1.14"],
+    deps = [":unicode-width-0.1"],
 )
 
 shims.http_archive(
@@ -22308,7 +22564,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "textwrap-0.16.2",
+    name = "textwrap-0.16",
     srcs = [":textwrap-0.16.2.crate"],
     crate = "textwrap",
     crate_root = "textwrap-0.16.2.crate/src/lib.rs",
@@ -22321,9 +22577,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":smawk-0.3.3",
-        ":unicode-linebreak-0.1.5",
-        ":unicode-width-0.2.2",
+        ":smawk-0.3",
+        ":unicode-linebreak-0.1",
+        ":unicode-width-0.2",
     ],
 )
 
@@ -22336,7 +22592,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "thin-vec-0.2.18",
+    name = "thin-vec-0.2",
     srcs = [":thin-vec-0.2.18.crate"],
     crate = "thin_vec",
     crate_root = "thin-vec-0.2.18.crate/src/lib.rs",
@@ -22357,43 +22613,51 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "thiserror-1.0.69",
+    name = "thiserror-1",
     srcs = [":thiserror-1.0.69.crate"],
     crate = "thiserror",
     crate_root = "thiserror-1.0.69.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "thiserror",
         "CARGO_CRATE_NAME": "thiserror",
         "CARGO_MANIFEST_DIR": "thiserror-1.0.69.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "derive(Error)",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "thiserror",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/thiserror",
+        "CARGO_PKG_RUST_VERSION": "1.61",
         "CARGO_PKG_VERSION": "1.0.69",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "69",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :thiserror-1.0.69-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :thiserror-1-build-script-run[out_dir])",
     },
-    rustc_flags = ["@$(location :thiserror-1.0.69-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :thiserror-1-build-script-run[rustc_flags])"],
     visibility = [],
-    deps = [":thiserror-impl-1.0.69"],
+    deps = [":thiserror-impl-1"],
 )
 
 third_party_rust.rust_binary(
-    name = "thiserror-1.0.69-build-script-build",
+    name = "thiserror-1-build-script-build",
     srcs = [":thiserror-1.0.69.crate"],
     crate = "build_script_build",
     crate_root = "thiserror-1.0.69.crate/build.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
         "CARGO_MANIFEST_DIR": "thiserror-1.0.69.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "derive(Error)",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "thiserror",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/thiserror",
+        "CARGO_PKG_RUST_VERSION": "1.61",
         "CARGO_PKG_VERSION": "1.0.69",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
@@ -22404,13 +22668,16 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "thiserror-1.0.69-build-script-run",
+    name = "thiserror-1-build-script-run",
     package_name = "thiserror",
-    buildscript_rule = ":thiserror-1.0.69-build-script-build",
+    buildscript_rule = ":thiserror-1-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "derive(Error)",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/thiserror",
+        "CARGO_PKG_RUST_VERSION": "1.61",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "69",
@@ -22421,7 +22688,7 @@ third_party_rust.buildscript_run(
 
 shims.alias(
     name = "thiserror",
-    actual = ":thiserror-2.0.18",
+    actual = ":thiserror-2",
     visibility = ["PUBLIC"],
 )
 
@@ -22434,47 +22701,55 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "thiserror-2.0.18",
+    name = "thiserror-2",
     srcs = [":thiserror-2.0.18.crate"],
     crate = "thiserror",
     crate_root = "thiserror-2.0.18.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "thiserror",
         "CARGO_CRATE_NAME": "thiserror",
         "CARGO_MANIFEST_DIR": "thiserror-2.0.18.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "derive(Error)",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "thiserror",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/thiserror",
+        "CARGO_PKG_RUST_VERSION": "1.68",
         "CARGO_PKG_VERSION": "2.0.18",
         "CARGO_PKG_VERSION_MAJOR": "2",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "18",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :thiserror-2.0.18-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :thiserror-2-build-script-run[out_dir])",
     },
     features = [
         "default",
         "std",
     ],
-    rustc_flags = ["@$(location :thiserror-2.0.18-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :thiserror-2-build-script-run[rustc_flags])"],
     visibility = [],
-    deps = [":thiserror-impl-2.0.18"],
+    deps = [":thiserror-impl-2"],
 )
 
 third_party_rust.rust_binary(
-    name = "thiserror-2.0.18-build-script-build",
+    name = "thiserror-2-build-script-build",
     srcs = [":thiserror-2.0.18.crate"],
     crate = "build_script_build",
     crate_root = "thiserror-2.0.18.crate/build.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
         "CARGO_MANIFEST_DIR": "thiserror-2.0.18.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "derive(Error)",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "thiserror",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/thiserror",
+        "CARGO_PKG_RUST_VERSION": "1.68",
         "CARGO_PKG_VERSION": "2.0.18",
         "CARGO_PKG_VERSION_MAJOR": "2",
         "CARGO_PKG_VERSION_MINOR": "0",
@@ -22489,13 +22764,16 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "thiserror-2.0.18-build-script-run",
+    name = "thiserror-2-build-script-run",
     package_name = "thiserror",
-    buildscript_rule = ":thiserror-2.0.18-build-script-build",
+    buildscript_rule = ":thiserror-2-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "derive(Error)",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/thiserror",
+        "CARGO_PKG_RUST_VERSION": "1.68",
         "CARGO_PKG_VERSION_MAJOR": "2",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "18",
@@ -22517,18 +22795,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "thiserror-impl-1.0.69",
+    name = "thiserror-impl-1",
     srcs = [":thiserror-impl-1.0.69.crate"],
     crate = "thiserror_impl",
     crate_root = "thiserror-impl-1.0.69.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "thiserror_impl",
         "CARGO_CRATE_NAME": "thiserror_impl",
         "CARGO_MANIFEST_DIR": "thiserror-impl-1.0.69.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Implementation detail of the `thiserror` crate",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "thiserror-impl",
+        "CARGO_PKG_README": "",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/thiserror",
+        "CARGO_PKG_RUST_VERSION": "1.61",
         "CARGO_PKG_VERSION": "1.0.69",
         "CARGO_PKG_VERSION_MAJOR": "1",
         "CARGO_PKG_VERSION_MINOR": "0",
@@ -22538,9 +22820,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -22553,18 +22835,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "thiserror-impl-2.0.18",
+    name = "thiserror-impl-2",
     srcs = [":thiserror-impl-2.0.18.crate"],
     crate = "thiserror_impl",
     crate_root = "thiserror-impl-2.0.18.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "thiserror_impl",
         "CARGO_CRATE_NAME": "thiserror_impl",
         "CARGO_MANIFEST_DIR": "thiserror-impl-2.0.18.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Implementation detail of the `thiserror` crate",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "thiserror-impl",
+        "CARGO_PKG_README": "",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/thiserror",
+        "CARGO_PKG_RUST_VERSION": "1.68",
         "CARGO_PKG_VERSION": "2.0.18",
         "CARGO_PKG_VERSION_MAJOR": "2",
         "CARGO_PKG_VERSION_MINOR": "0",
@@ -22574,9 +22860,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -22589,13 +22875,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "thread_local-1.1.10",
+    name = "thread_local-1",
     srcs = [":thread_local-1.1.10.crate"],
     crate = "thread_local",
     crate_root = "thread_local-1.1.10.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":cfg-if-1.0.4"],
+    deps = [":cfg-if-1"],
 )
 
 shims.http_archive(
@@ -22607,7 +22893,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "time-0.3.53",
+    name = "time-0.3",
     srcs = [":time-0.3.53.crate"],
     crate = "time",
     crate_root = "time-0.3.53.crate/src/lib.rs",
@@ -22626,37 +22912,37 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":num_threads-0.1.7",
+                ":libc-0.2",
+                ":num_threads-0.1",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":num_threads-0.1.7",
+                ":libc-0.2",
+                ":num_threads-0.1",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":num_threads-0.1.7",
+                ":libc-0.2",
+                ":num_threads-0.1",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":num_threads-0.1.7",
+                ":libc-0.2",
+                ":num_threads-0.1",
             ],
         ),
     },
     visibility = [],
     deps = [
-        ":deranged-0.5.8",
-        ":num-conv-0.2.2",
-        ":powerfmt-0.2.0",
-        ":serde_core-1.0.228",
-        ":time-core-0.1.9",
-        ":time-macros-0.2.31",
+        ":deranged-0.5",
+        ":num-conv-0.2",
+        ":powerfmt-0.2",
+        ":serde_core-1",
+        ":time-core-0.1",
+        ":time-macros-0.2",
     ],
 )
 
@@ -22669,7 +22955,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "time-core-0.1.9",
+    name = "time-core-0.1",
     srcs = [":time-core-0.1.9.crate"],
     crate = "time_core",
     crate_root = "time-core-0.1.9.crate/src/lib.rs",
@@ -22686,7 +22972,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "time-macros-0.2.31",
+    name = "time-macros-0.2",
     srcs = [":time-macros-0.2.31.crate"],
     crate = "time_macros",
     crate_root = "time-macros-0.2.31.crate/src/lib.rs",
@@ -22699,8 +22985,8 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":num-conv-0.2.2",
-        ":time-core-0.1.9",
+        ":num-conv-0.2",
+        ":time-core-0.1",
     ],
 )
 
@@ -22713,7 +22999,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "timeago-0.6.1",
+    name = "timeago-0.6",
     srcs = [":timeago-0.6.1.crate"],
     crate = "timeago",
     crate_root = "timeago-0.6.1.crate/src/lib.rs",
@@ -22730,47 +23016,55 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tiny-keccak-2.0.2",
+    name = "tiny-keccak-2",
     srcs = [":tiny-keccak-2.0.2.crate"],
     crate = "tiny_keccak",
     crate_root = "tiny-keccak-2.0.2.crate/src/lib.rs",
     edition = "2018",
     env = {
+        "CARGO_BIN_NAME": "tiny_keccak",
         "CARGO_CRATE_NAME": "tiny_keccak",
         "CARGO_MANIFEST_DIR": "tiny-keccak-2.0.2.crate",
         "CARGO_PKG_AUTHORS": "debris <marek.kotewicz@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "An implementation of Keccak derived functions.",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/debris/tiny-keccak",
         "CARGO_PKG_NAME": "tiny-keccak",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "2.0.2",
         "CARGO_PKG_VERSION_MAJOR": "2",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "2",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :tiny-keccak-2.0.2-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :tiny-keccak-2-build-script-run[out_dir])",
     },
     features = [
         "default",
         "sha3",
     ],
-    rustc_flags = ["@$(location :tiny-keccak-2.0.2-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :tiny-keccak-2-build-script-run[rustc_flags])"],
     visibility = [],
-    deps = [":crunchy-0.2.4"],
+    deps = [":crunchy-0.2"],
 )
 
 third_party_rust.rust_binary(
-    name = "tiny-keccak-2.0.2-build-script-build",
+    name = "tiny-keccak-2-build-script-build",
     srcs = [":tiny-keccak-2.0.2.crate"],
     crate = "build_script_build",
     crate_root = "tiny-keccak-2.0.2.crate/build.rs",
     edition = "2018",
     env = {
+        "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
         "CARGO_MANIFEST_DIR": "tiny-keccak-2.0.2.crate",
         "CARGO_PKG_AUTHORS": "debris <marek.kotewicz@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "An implementation of Keccak derived functions.",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/debris/tiny-keccak",
         "CARGO_PKG_NAME": "tiny-keccak",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION": "2.0.2",
         "CARGO_PKG_VERSION_MAJOR": "2",
         "CARGO_PKG_VERSION_MINOR": "0",
@@ -22785,13 +23079,16 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "tiny-keccak-2.0.2-build-script-run",
+    name = "tiny-keccak-2-build-script-run",
     package_name = "tiny-keccak",
-    buildscript_rule = ":tiny-keccak-2.0.2-build-script-build",
+    buildscript_rule = ":tiny-keccak-2-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "debris <marek.kotewicz@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "An implementation of Keccak derived functions.",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/debris/tiny-keccak",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "",
+        "CARGO_PKG_RUST_VERSION": "",
         "CARGO_PKG_VERSION_MAJOR": "2",
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "2",
@@ -22813,7 +23110,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tinystr-0.8.3",
+    name = "tinystr-0.8",
     srcs = [":tinystr-0.8.3.crate"],
     crate = "tinystr",
     crate_root = "tinystr-0.8.3.crate/src/lib.rs",
@@ -22821,8 +23118,8 @@ third_party_rust.rust_library(
     features = ["zerovec"],
     visibility = [],
     deps = [
-        ":displaydoc-0.2.6",
-        ":zerovec-0.11.6",
+        ":displaydoc-0.2",
+        ":zerovec-0.11",
     ],
 )
 
@@ -22835,7 +23132,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tinyvec-1.12.0",
+    name = "tinyvec-1",
     srcs = [":tinyvec-1.12.0.crate"],
     crate = "tinyvec",
     crate_root = "tinyvec-1.12.0.crate/src/lib.rs",
@@ -22847,7 +23144,7 @@ third_party_rust.rust_library(
         "tinyvec_macros",
     ],
     visibility = [],
-    deps = [":tinyvec_macros-0.1.1"],
+    deps = [":tinyvec_macros-0.1"],
 )
 
 shims.http_archive(
@@ -22859,7 +23156,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tinyvec_macros-0.1.1",
+    name = "tinyvec_macros-0.1",
     srcs = [":tinyvec_macros-0.1.1.crate"],
     crate = "tinyvec_macros",
     crate_root = "tinyvec_macros-0.1.1.crate/src/lib.rs",
@@ -22869,7 +23166,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "tokio",
-    actual = ":tokio-1.53.0",
+    actual = ":tokio-1",
     visibility = ["PUBLIC"],
 )
 
@@ -22882,7 +23179,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tokio-1.53.0",
+    name = "tokio-1",
     srcs = [":tokio-1.53.0.crate"],
     crate = "tokio",
     crate_root = "tokio-1.53.0.crate/src/lib.rs",
@@ -22915,35 +23212,35 @@ third_party_rust.rust_library(
     platform = {
         "linux-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":signal-hook-registry-1.4.8",
+                ":libc-0.2",
+                ":signal-hook-registry-1",
             ],
         ),
         "linux-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":signal-hook-registry-1.4.8",
+                ":libc-0.2",
+                ":signal-hook-registry-1",
             ],
         ),
         "macos-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":signal-hook-registry-1.4.8",
+                ":libc-0.2",
+                ":signal-hook-registry-1",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":signal-hook-registry-1.4.8",
+                ":libc-0.2",
+                ":signal-hook-registry-1",
             ],
         ),
         "windows-gnu": dict(
             features = ["windows-sys"],
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
         "windows-msvc": dict(
             features = ["windows-sys"],
-            deps = [":windows-sys-0.61.2"],
+            deps = [":windows-sys-0.61"],
         ),
     },
     rustc_flags = [
@@ -22952,14 +23249,14 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bytes-1.12.1",
-        ":mio-1.2.2",
-        ":parking_lot-0.12.5",
-        ":pin-project-lite-0.2.17",
-        ":socket2-0.6.5",
-        ":tokio-macros-2.7.1",
+        ":bytes-1",
+        ":mio-1",
+        ":parking_lot-0.12",
+        ":pin-project-lite-0.2",
+        ":socket2-0.6",
+        ":tokio-macros-2",
         ":tracing",
-        ":tracing-0.1.44",
+        ":tracing-0.1",
     ],
 )
 
@@ -22972,7 +23269,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tokio-macros-2.7.1",
+    name = "tokio-macros-2",
     srcs = [":tokio-macros-2.7.1.crate"],
     crate = "tokio_macros",
     crate_root = "tokio-macros-2.7.1.crate/src/lib.rs",
@@ -22980,9 +23277,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -22995,21 +23292,21 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tokio-native-tls-0.3.1",
+    name = "tokio-native-tls-0.3",
     srcs = [":tokio-native-tls-0.3.1.crate"],
     crate = "tokio_native_tls",
     crate_root = "tokio-native-tls-0.3.1.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":native-tls-0.2.18",
-        ":tokio-1.53.0",
+        ":native-tls-0.2",
+        ":tokio-1",
     ],
 )
 
 shims.alias(
     name = "tokio-openssl",
-    actual = ":tokio-openssl-0.6.5",
+    actual = ":tokio-openssl-0.6",
     visibility = ["PUBLIC"],
 )
 
@@ -23022,22 +23319,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tokio-openssl-0.6.5",
+    name = "tokio-openssl-0.6",
     srcs = [":tokio-openssl-0.6.5.crate"],
     crate = "tokio_openssl",
     crate_root = "tokio-openssl-0.6.5.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":openssl-0.10.81",
-        ":openssl-sys-0.9.117",
-        ":tokio-1.53.0",
+        ":openssl-0.10",
+        ":openssl-sys-0.9",
+        ":tokio-1",
     ],
 )
 
 shims.alias(
     name = "tokio-rustls",
-    actual = ":tokio-rustls-0.26.4",
+    actual = ":tokio-rustls-0.26",
     visibility = ["PUBLIC"],
 )
 
@@ -23050,7 +23347,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tokio-rustls-0.26.4",
+    name = "tokio-rustls-0.26",
     srcs = [":tokio-rustls-0.26.4.crate"],
     crate = "tokio_rustls",
     crate_root = "tokio-rustls-0.26.4.crate/src/lib.rs",
@@ -23061,14 +23358,14 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":rustls-0.23.42",
-        ":tokio-1.53.0",
+        ":rustls-0.23",
+        ":tokio-1",
     ],
 )
 
 shims.alias(
     name = "tokio-stream",
-    actual = ":tokio-stream-0.1.18",
+    actual = ":tokio-stream-0.1",
     visibility = ["PUBLIC"],
 )
 
@@ -23081,7 +23378,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tokio-stream-0.1.18",
+    name = "tokio-stream-0.1",
     srcs = [":tokio-stream-0.1.18.crate"],
     crate = "tokio_stream",
     crate_root = "tokio-stream-0.1.18.crate/src/lib.rs",
@@ -23095,10 +23392,10 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":futures-core-0.3.32",
-        ":pin-project-lite-0.2.17",
-        ":tokio-1.53.0",
-        ":tokio-util-0.7.18",
+        ":futures-core-0.3",
+        ":pin-project-lite-0.2",
+        ":tokio-1",
+        ":tokio-util-0.7",
     ],
 )
 
@@ -23111,7 +23408,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tokio-util-0.6.10",
+    name = "tokio-util-0.6",
     srcs = [":tokio-util-0.6.10.crate"],
     crate = "tokio_util",
     crate_root = "tokio-util-0.6.10.crate/src/lib.rs",
@@ -23131,20 +23428,20 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bytes-1.12.1",
-        ":futures-core-0.3.32",
-        ":futures-io-0.3.32",
-        ":futures-sink-0.3.32",
-        ":log-0.4.33",
-        ":pin-project-lite-0.2.17",
-        ":slab-0.4.12",
-        ":tokio-1.53.0",
+        ":bytes-1",
+        ":futures-core-0.3",
+        ":futures-io-0.3",
+        ":futures-sink-0.3",
+        ":log-0.4",
+        ":pin-project-lite-0.2",
+        ":slab-0.4",
+        ":tokio-1",
     ],
 )
 
 shims.alias(
     name = "tokio-util",
-    actual = ":tokio-util-0.7.18",
+    actual = ":tokio-util-0.7",
     visibility = ["PUBLIC"],
 )
 
@@ -23157,7 +23454,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tokio-util-0.7.18",
+    name = "tokio-util-0.7",
     srcs = [":tokio-util-0.7.18.crate"],
     crate = "tokio_util",
     crate_root = "tokio-util-0.7.18.crate/src/lib.rs",
@@ -23176,14 +23473,14 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bytes-1.12.1",
-        ":futures-core-0.3.32",
-        ":futures-io-0.3.32",
-        ":futures-sink-0.3.32",
-        ":futures-util-0.3.32",
-        ":hashbrown-0.15.5",
-        ":pin-project-lite-0.2.17",
-        ":tokio-1.53.0",
+        ":bytes-1",
+        ":futures-core-0.3",
+        ":futures-io-0.3",
+        ":futures-sink-0.3",
+        ":futures-util-0.3",
+        ":hashbrown-0.15",
+        ":pin-project-lite-0.2",
+        ":tokio-1",
     ],
 )
 
@@ -23196,7 +23493,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tokio-websockets-0.13.3",
+    name = "tokio-websockets-0.13",
     srcs = [":tokio-websockets-0.13.3.crate"],
     crate = "tokio_websockets",
     crate_root = "tokio-websockets-0.13.3.crate/src/lib.rs",
@@ -23210,20 +23507,20 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":base64-0.22.1",
-        ":bytes-1.12.1",
-        ":futures-core-0.3.32",
-        ":futures-sink-0.3.32",
-        ":getrandom-0.4.3",
-        ":http-1.4.2",
-        ":httparse-1.10.1",
-        ":rand-0.10.2",
-        ":rustls-pki-types-1.15.0",
-        ":sha1_smol-1.0.1",
-        ":simdutf8-0.1.5",
-        ":tokio-1.53.0",
-        ":tokio-rustls-0.26.4",
-        ":tokio-util-0.7.18",
+        ":base64-0.22",
+        ":bytes-1",
+        ":futures-core-0.3",
+        ":futures-sink-0.3",
+        ":getrandom-0.4",
+        ":http-1",
+        ":httparse-1",
+        ":rand-0.10",
+        ":rustls-pki-types-1",
+        ":sha1_smol-1",
+        ":simdutf8-0.1",
+        ":tokio-1",
+        ":tokio-rustls-0.26",
+        ":tokio-util-0.7",
     ],
 )
 
@@ -23236,7 +23533,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "toml-0.8.23",
+    name = "toml-0.8",
     srcs = [":toml-0.8.23.crate"],
     crate = "toml",
     crate_root = "toml-0.8.23.crate/src/lib.rs",
@@ -23248,10 +23545,10 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":serde-1.0.228",
-        ":serde_spanned-0.6.9",
-        ":toml_datetime-0.6.11",
-        ":toml_edit-0.22.27",
+        ":serde-1",
+        ":serde_spanned-0.6",
+        ":toml_datetime-0.6",
+        ":toml_edit-0.22",
     ],
 )
 
@@ -23264,7 +23561,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "toml-1.1.3+spec-1.1.0",
+    name = "toml-1",
     srcs = [":toml-1.1.3+spec-1.1.0.crate"],
     crate = "toml",
     crate_root = "toml-1.1.3+spec-1.1.0.crate/src/lib.rs",
@@ -23278,12 +23575,12 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":serde_core-1.0.228",
-        ":serde_spanned-1.1.1",
-        ":toml_datetime-1.1.1+spec-1.1.0",
-        ":toml_parser-1.1.2+spec-1.1.0",
-        ":toml_writer-1.1.2+spec-1.1.0",
-        ":winnow-1.0.4",
+        ":serde_core-1",
+        ":serde_spanned-1",
+        ":toml_datetime-1",
+        ":toml_parser-1",
+        ":toml_writer-1",
+        ":winnow-1",
     ],
 )
 
@@ -23296,14 +23593,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "toml_datetime-0.6.11",
+    name = "toml_datetime-0.6",
     srcs = [":toml_datetime-0.6.11.crate"],
     crate = "toml_datetime",
     crate_root = "toml_datetime-0.6.11.crate/src/lib.rs",
     edition = "2021",
     features = ["serde"],
     visibility = [],
-    deps = [":serde-1.0.228"],
+    deps = [":serde-1"],
 )
 
 shims.http_archive(
@@ -23315,7 +23612,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "toml_datetime-1.1.1+spec-1.1.0",
+    name = "toml_datetime-1",
     srcs = [":toml_datetime-1.1.1+spec-1.1.0.crate"],
     crate = "toml_datetime",
     crate_root = "toml_datetime-1.1.1+spec-1.1.0.crate/src/lib.rs",
@@ -23327,7 +23624,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":serde_core-1.0.228"],
+    deps = [":serde_core-1"],
 )
 
 shims.http_archive(
@@ -23339,7 +23636,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "toml_edit-0.22.27",
+    name = "toml_edit-0.22",
     srcs = [":toml_edit-0.22.27.crate"],
     crate = "toml_edit",
     crate_root = "toml_edit-0.22.27.crate/src/lib.rs",
@@ -23351,12 +23648,12 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":indexmap-2.14.0",
-        ":serde-1.0.228",
-        ":serde_spanned-0.6.9",
-        ":toml_datetime-0.6.11",
-        ":toml_write-0.1.2",
-        ":winnow-0.7.15",
+        ":indexmap-2",
+        ":serde-1",
+        ":serde_spanned-0.6",
+        ":toml_datetime-0.6",
+        ":toml_write-0.1",
+        ":winnow-0.7",
     ],
 )
 
@@ -23369,7 +23666,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "toml_edit-0.25.13+spec-1.1.0",
+    name = "toml_edit-0.25",
     srcs = [":toml_edit-0.25.13+spec-1.1.0.crate"],
     crate = "toml_edit",
     crate_root = "toml_edit-0.25.13+spec-1.1.0.crate/src/lib.rs",
@@ -23382,13 +23679,13 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":indexmap-2.14.0",
-        ":serde_core-1.0.228",
-        ":serde_spanned-1.1.1",
-        ":toml_datetime-1.1.1+spec-1.1.0",
-        ":toml_parser-1.1.2+spec-1.1.0",
-        ":toml_writer-1.1.2+spec-1.1.0",
-        ":winnow-1.0.4",
+        ":indexmap-2",
+        ":serde_core-1",
+        ":serde_spanned-1",
+        ":toml_datetime-1",
+        ":toml_parser-1",
+        ":toml_writer-1",
+        ":winnow-1",
     ],
 )
 
@@ -23401,7 +23698,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "toml_parser-1.1.2+spec-1.1.0",
+    name = "toml_parser-1",
     srcs = [":toml_parser-1.1.2+spec-1.1.0.crate"],
     crate = "toml_parser",
     crate_root = "toml_parser-1.1.2+spec-1.1.0.crate/src/lib.rs",
@@ -23412,7 +23709,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":winnow-1.0.4"],
+    deps = [":winnow-1"],
 )
 
 shims.http_archive(
@@ -23424,7 +23721,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "toml_write-0.1.2",
+    name = "toml_write-0.1",
     srcs = [":toml_write-0.1.2.crate"],
     crate = "toml_write",
     crate_root = "toml_write-0.1.2.crate/src/lib.rs",
@@ -23446,7 +23743,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "toml_writer-1.1.2+spec-1.1.0",
+    name = "toml_writer-1",
     srcs = [":toml_writer-1.1.2+spec-1.1.0.crate"],
     crate = "toml_writer",
     crate_root = "toml_writer-1.1.2+spec-1.1.0.crate/src/lib.rs",
@@ -23461,7 +23758,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "tonic",
-    actual = ":tonic-0.14.6",
+    actual = ":tonic-0.14",
     visibility = ["PUBLIC"],
 )
 
@@ -23474,18 +23771,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tonic-0.14.6",
+    name = "tonic-0.14",
     srcs = [":tonic-0.14.6.crate"],
     crate = "tonic",
     crate_root = "tonic-0.14.6.crate/src/lib.rs",
     edition = "2024",
     env = {
+        "CARGO_BIN_NAME": "tonic",
         "CARGO_CRATE_NAME": "tonic",
         "CARGO_MANIFEST_DIR": "tonic-0.14.6.crate",
         "CARGO_PKG_AUTHORS": "Lucio Franco <luciofranco14@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility.\n",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/hyperium/tonic",
         "CARGO_PKG_NAME": "tonic",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/hyperium/tonic",
+        "CARGO_PKG_RUST_VERSION": "1.88",
         "CARGO_PKG_VERSION": "0.14.6",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "14",
@@ -23502,33 +23803,33 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":async-trait-0.1.89",
-        ":axum-0.8.9",
-        ":base64-0.22.1",
-        ":bytes-1.12.1",
-        ":h2-0.4.15",
-        ":http-1.4.2",
-        ":http-body-1.1.0",
-        ":http-body-util-0.1.4",
-        ":hyper-1.10.1",
-        ":hyper-timeout-0.5.2",
-        ":hyper-util-0.1.20",
-        ":percent-encoding-2.3.2",
-        ":pin-project-1.1.13",
-        ":socket2-0.6.5",
-        ":sync_wrapper-1.0.2",
-        ":tokio-1.53.0",
-        ":tokio-stream-0.1.18",
-        ":tower-0.5.3",
-        ":tower-layer-0.3.3",
-        ":tower-service-0.3.3",
-        ":tracing-0.1.44",
+        ":async-trait-0.1",
+        ":axum-0.8",
+        ":base64-0.22",
+        ":bytes-1",
+        ":h2-0.4",
+        ":http-1",
+        ":http-body-1",
+        ":http-body-util-0.1",
+        ":hyper-1",
+        ":hyper-timeout-0.5",
+        ":hyper-util-0.1",
+        ":percent-encoding-2",
+        ":pin-project-1",
+        ":socket2-0.6",
+        ":sync_wrapper-1",
+        ":tokio-1",
+        ":tokio-stream-0.1",
+        ":tower-0.5",
+        ":tower-layer-0.3",
+        ":tower-service-0.3",
+        ":tracing-0.1",
     ],
 )
 
 shims.alias(
     name = "tonic-build",
-    actual = ":tonic-build-0.14.6",
+    actual = ":tonic-build-0.14",
     visibility = ["PUBLIC"],
 )
 
@@ -23541,7 +23842,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tonic-build-0.14.6",
+    name = "tonic-build-0.14",
     srcs = [":tonic-build-0.14.6.crate"],
     crate = "tonic_build",
     crate_root = "tonic-build-0.14.6.crate/src/lib.rs",
@@ -23552,16 +23853,16 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":prettyplease-0.2.37",
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":prettyplease-0.2",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
 shims.alias(
     name = "tonic-health",
-    actual = ":tonic-health-0.14.6",
+    actual = ":tonic-health-0.14",
     visibility = ["PUBLIC"],
 )
 
@@ -23574,24 +23875,24 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tonic-health-0.14.6",
+    name = "tonic-health-0.14",
     srcs = [":tonic-health-0.14.6.crate"],
     crate = "tonic_health",
     crate_root = "tonic-health-0.14.6.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":prost-0.14.4",
-        ":tokio-1.53.0",
-        ":tokio-stream-0.1.18",
-        ":tonic-0.14.6",
-        ":tonic-prost-0.14.6",
+        ":prost-0.14",
+        ":tokio-1",
+        ":tokio-stream-0.1",
+        ":tonic-0.14",
+        ":tonic-prost-0.14",
     ],
 )
 
 shims.alias(
     name = "tonic-prost",
-    actual = ":tonic-prost-0.14.6",
+    actual = ":tonic-prost-0.14",
     visibility = ["PUBLIC"],
 )
 
@@ -23604,22 +23905,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tonic-prost-0.14.6",
+    name = "tonic-prost-0.14",
     srcs = [":tonic-prost-0.14.6.crate"],
     crate = "tonic_prost",
     crate_root = "tonic-prost-0.14.6.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":bytes-1.12.1",
-        ":prost-0.14.4",
-        ":tonic-0.14.6",
+        ":bytes-1",
+        ":prost-0.14",
+        ":tonic-0.14",
     ],
 )
 
 shims.alias(
     name = "tonic-prost-build",
-    actual = ":tonic-prost-build-0.14.6",
+    actual = ":tonic-prost-build-0.14",
     visibility = ["PUBLIC"],
 )
 
@@ -23632,7 +23933,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tonic-prost-build-0.14.6",
+    name = "tonic-prost-build-0.14",
     srcs = [":tonic-prost-build-0.14.6.crate"],
     crate = "tonic_prost_build",
     crate_root = "tonic-prost-build-0.14.6.crate/src/lib.rs",
@@ -23644,20 +23945,20 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":prettyplease-0.2.37",
-        ":proc-macro2-1.0.106",
-        ":prost-build-0.14.4",
-        ":prost-types-0.14.4",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
-        ":tempfile-3.27.0",
-        ":tonic-build-0.14.6",
+        ":prettyplease-0.2",
+        ":proc-macro2-1",
+        ":prost-build-0.14",
+        ":prost-types-0.14",
+        ":quote-1",
+        ":syn-2",
+        ":tempfile-3",
+        ":tonic-build-0.14",
     ],
 )
 
 shims.alias(
     name = "tonic-reflection",
-    actual = ":tonic-reflection-0.14.6",
+    actual = ":tonic-reflection-0.14",
     visibility = ["PUBLIC"],
 )
 
@@ -23670,7 +23971,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tonic-reflection-0.14.6",
+    name = "tonic-reflection-0.14",
     srcs = [":tonic-reflection-0.14.6.crate"],
     crate = "tonic_reflection",
     crate_root = "tonic-reflection-0.14.6.crate/src/lib.rs",
@@ -23681,12 +23982,12 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":prost-0.14.4",
-        ":prost-types-0.14.4",
-        ":tokio-1.53.0",
-        ":tokio-stream-0.1.18",
-        ":tonic-0.14.6",
-        ":tonic-prost-0.14.6",
+        ":prost-0.14",
+        ":prost-types-0.14",
+        ":tokio-1",
+        ":tokio-stream-0.1",
+        ":tonic-0.14",
+        ":tonic-prost-0.14",
     ],
 )
 
@@ -23699,22 +24000,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tonic-types-0.14.6",
+    name = "tonic-types-0.14",
     srcs = [":tonic-types-0.14.6.crate"],
     crate = "tonic_types",
     crate_root = "tonic-types-0.14.6.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
-        ":prost-0.14.4",
-        ":prost-types-0.14.4",
-        ":tonic-0.14.6",
+        ":prost-0.14",
+        ":prost-types-0.14",
+        ":tonic-0.14",
     ],
 )
 
 shims.alias(
     name = "tower",
-    actual = ":tower-0.5.3",
+    actual = ":tower-0.5",
     visibility = ["PUBLIC"],
 )
 
@@ -23727,7 +24028,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tower-0.5.3",
+    name = "tower-0.5",
     srcs = [":tower-0.5.3.crate"],
     crate = "tower",
     crate_root = "tower-0.5.3.crate/src/lib.rs",
@@ -23756,17 +24057,17 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":futures-core-0.3.32",
-        ":futures-util-0.3.32",
-        ":indexmap-2.14.0",
-        ":pin-project-lite-0.2.17",
-        ":slab-0.4.12",
-        ":sync_wrapper-1.0.2",
-        ":tokio-1.53.0",
-        ":tokio-util-0.7.18",
-        ":tower-layer-0.3.3",
-        ":tower-service-0.3.3",
-        ":tracing-0.1.44",
+        ":futures-core-0.3",
+        ":futures-util-0.3",
+        ":indexmap-2",
+        ":pin-project-lite-0.2",
+        ":slab-0.4",
+        ":sync_wrapper-1",
+        ":tokio-1",
+        ":tokio-util-0.7",
+        ":tower-layer-0.3",
+        ":tower-service-0.3",
+        ":tracing-0.1",
     ],
 )
 
@@ -23779,7 +24080,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tower-http-0.6.11",
+    name = "tower-http-0.6",
     srcs = [":tower-http-0.6.11.crate"],
     crate = "tower_http",
     crate_root = "tower-http-0.6.11.crate/src/lib.rs",
@@ -23791,16 +24092,16 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bitflags-2.13.1",
-        ":bytes-1.12.1",
-        ":futures-util-0.3.32",
-        ":http-1.4.2",
-        ":http-body-1.1.0",
-        ":pin-project-lite-0.2.17",
-        ":tower-0.5.3",
-        ":tower-layer-0.3.3",
-        ":tower-service-0.3.3",
-        ":url-2.5.8",
+        ":bitflags-2",
+        ":bytes-1",
+        ":futures-util-0.3",
+        ":http-1",
+        ":http-body-1",
+        ":pin-project-lite-0.2",
+        ":tower-0.5",
+        ":tower-layer-0.3",
+        ":tower-service-0.3",
+        ":url-2",
     ],
 )
 
@@ -23813,7 +24114,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tower-layer-0.3.3",
+    name = "tower-layer-0.3",
     srcs = [":tower-layer-0.3.3.crate"],
     crate = "tower_layer",
     crate_root = "tower-layer-0.3.3.crate/src/lib.rs",
@@ -23830,7 +24131,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tower-service-0.3.3",
+    name = "tower-service-0.3",
     srcs = [":tower-service-0.3.3.crate"],
     crate = "tower_service",
     crate_root = "tower-service-0.3.3.crate/src/lib.rs",
@@ -23840,7 +24141,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "tracing",
-    actual = ":tracing-0.1.44",
+    actual = ":tracing-0.1",
     visibility = ["PUBLIC"],
 )
 
@@ -23853,7 +24154,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tracing-0.1.44",
+    name = "tracing-0.1",
     srcs = [":tracing-0.1.44.crate"],
     crate = "tracing",
     crate_root = "tracing-0.1.44.crate/src/lib.rs",
@@ -23867,10 +24168,10 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":log-0.4.33",
-        ":pin-project-lite-0.2.17",
-        ":tracing-attributes-0.1.31",
-        ":tracing-core-0.1.36",
+        ":log-0.4",
+        ":pin-project-lite-0.2",
+        ":tracing-attributes-0.1",
+        ":tracing-core-0.1",
     ],
 )
 
@@ -23883,7 +24184,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tracing-attributes-0.1.31",
+    name = "tracing-attributes-0.1",
     srcs = [":tracing-attributes-0.1.31.crate"],
     crate = "tracing_attributes",
     crate_root = "tracing-attributes-0.1.31.crate/src/lib.rs",
@@ -23891,9 +24192,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -23906,16 +24207,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tracing-chrome-0.7.2",
+    name = "tracing-chrome-0.7",
     srcs = [":tracing-chrome-0.7.2.crate"],
     crate = "tracing_chrome",
     crate_root = "tracing-chrome-0.7.2.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":serde_json-1.0.150",
-        ":tracing-core-0.1.36",
-        ":tracing-subscriber-0.3.23",
+        ":serde_json-1",
+        ":tracing-core-0.1",
+        ":tracing-subscriber-0.3",
     ],
 )
 
@@ -23928,7 +24229,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tracing-core-0.1.36",
+    name = "tracing-core-0.1",
     srcs = [":tracing-core-0.1.36.crate"],
     crate = "tracing_core",
     crate_root = "tracing-core-0.1.36.crate/src/lib.rs",
@@ -23939,7 +24240,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":once_cell-1.21.4"],
+    deps = [":once_cell-1"],
 )
 
 shims.http_archive(
@@ -23951,7 +24252,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tracing-log-0.2.0",
+    name = "tracing-log-0.2",
     srcs = [":tracing-log-0.2.0.crate"],
     crate = "tracing_log",
     crate_root = "tracing-log-0.2.0.crate/src/lib.rs",
@@ -23962,15 +24263,15 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":log-0.4.33",
-        ":once_cell-1.21.4",
-        ":tracing-core-0.1.36",
+        ":log-0.4",
+        ":once_cell-1",
+        ":tracing-core-0.1",
     ],
 )
 
 shims.alias(
     name = "tracing-opentelemetry",
-    actual = ":tracing-opentelemetry-0.33.0",
+    actual = ":tracing-opentelemetry-0.33",
     visibility = ["PUBLIC"],
 )
 
@@ -23983,18 +24284,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tracing-opentelemetry-0.33.0",
+    name = "tracing-opentelemetry-0.33",
     srcs = [":tracing-opentelemetry-0.33.0.crate"],
     crate = "tracing_opentelemetry",
     crate_root = "tracing-opentelemetry-0.33.0.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "tracing_opentelemetry",
         "CARGO_CRATE_NAME": "tracing_opentelemetry",
         "CARGO_MANIFEST_DIR": "tracing-opentelemetry-0.33.0.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "OpenTelemetry integration for tracing",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/tokio-rs/tracing-opentelemetry",
         "CARGO_PKG_NAME": "tracing-opentelemetry",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/tokio-rs/tracing-opentelemetry",
+        "CARGO_PKG_RUST_VERSION": "1.75.0",
         "CARGO_PKG_VERSION": "0.33.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "33",
@@ -24009,18 +24314,18 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":opentelemetry-0.32.0",
-        ":smallvec-1.15.2",
-        ":tracing-0.1.44",
-        ":tracing-core-0.1.36",
-        ":tracing-log-0.2.0",
-        ":tracing-subscriber-0.3.23",
+        ":opentelemetry-0.32",
+        ":smallvec-1",
+        ":tracing-0.1",
+        ":tracing-core-0.1",
+        ":tracing-log-0.2",
+        ":tracing-subscriber-0.3",
     ],
 )
 
 shims.alias(
     name = "tracing-subscriber",
-    actual = ":tracing-subscriber-0.3.23",
+    actual = ":tracing-subscriber-0.3",
     visibility = ["PUBLIC"],
 )
 
@@ -24033,7 +24338,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "tracing-subscriber-0.3.23",
+    name = "tracing-subscriber-0.3",
     srcs = [":tracing-subscriber-0.3.23.crate"],
     crate = "tracing_subscriber",
     crate_root = "tracing-subscriber-0.3.23.crate/src/lib.rs",
@@ -24057,16 +24362,16 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":matchers-0.2.0",
-        ":nu-ansi-term-0.50.3",
-        ":once_cell-1.21.4",
-        ":regex-automata-0.4.16",
-        ":sharded-slab-0.1.7",
-        ":smallvec-1.15.2",
-        ":thread_local-1.1.10",
-        ":tracing-0.1.44",
-        ":tracing-core-0.1.36",
-        ":tracing-log-0.2.0",
+        ":matchers-0.2",
+        ":nu-ansi-term-0.50",
+        ":once_cell-1",
+        ":regex-automata-0.4",
+        ":sharded-slab-0.1",
+        ":smallvec-1",
+        ":thread_local-1",
+        ":tracing-0.1",
+        ":tracing-core-0.1",
+        ":tracing-log-0.2",
     ],
 )
 
@@ -24079,13 +24384,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "transform-stream-0.3.1",
+    name = "transform-stream-0.3",
     srcs = [":transform-stream-0.3.1.crate"],
     crate = "transform_stream",
     crate_root = "transform-stream-0.3.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":futures-core-0.3.32"],
+    deps = [":futures-core-0.3"],
 )
 
 shims.http_archive(
@@ -24097,7 +24402,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "try-lock-0.2.5",
+    name = "try-lock-0.2",
     srcs = [":try-lock-0.2.5.crate"],
     crate = "try_lock",
     crate_root = "try-lock-0.2.5.crate/src/lib.rs",
@@ -24114,7 +24419,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "twox-hash-2.1.2",
+    name = "twox-hash-2",
     srcs = [":twox-hash-2.1.2.crate"],
     crate = "twox_hash",
     crate_root = "twox-hash-2.1.2.crate/src/lib.rs",
@@ -24130,7 +24435,7 @@ third_party_rust.rust_library(
         "xxhash64",
     ],
     visibility = [],
-    deps = [":rand-0.9.5"],
+    deps = [":rand-0.9"],
 )
 
 shims.http_archive(
@@ -24142,7 +24447,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "typed-arena-2.0.2",
+    name = "typed-arena-2",
     srcs = [":typed-arena-2.0.2.crate"],
     crate = "typed_arena",
     crate_root = "typed-arena-2.0.2.crate/src/lib.rs",
@@ -24163,7 +24468,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "typed-path-0.12.3",
+    name = "typed-path-0.12",
     srcs = [":typed-path-0.12.3.crate"],
     crate = "typed_path",
     crate_root = "typed-path-0.12.3.crate/src/lib.rs",
@@ -24184,20 +24489,20 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "typeid-1.0.3",
+    name = "typeid-1",
     srcs = [":typeid-1.0.3.crate"],
     crate = "typeid",
     crate_root = "typeid-1.0.3.crate/src/lib.rs",
     edition = "2018",
     env = {
-        "OUT_DIR": "$(location :typeid-1.0.3-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :typeid-1-build-script-run[out_dir])",
     },
-    rustc_flags = ["@$(location :typeid-1.0.3-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :typeid-1-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
 third_party_rust.rust_binary(
-    name = "typeid-1.0.3-build-script-build",
+    name = "typeid-1-build-script-build",
     srcs = [":typeid-1.0.3.crate"],
     crate = "build_script_build",
     crate_root = "typeid-1.0.3.crate/build.rs",
@@ -24206,9 +24511,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "typeid-1.0.3-build-script-run",
+    name = "typeid-1-build-script-run",
     package_name = "typeid",
-    buildscript_rule = ":typeid-1.0.3-build-script-build",
+    buildscript_rule = ":typeid-1-build-script-build",
     version = "1.0.3",
 )
 
@@ -24221,7 +24526,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "typenum-1.20.1",
+    name = "typenum-1",
     srcs = [":typenum-1.20.1.crate"],
     crate = "typenum",
     crate_root = "typenum-1.20.1.crate/src/lib.rs",
@@ -24242,7 +24547,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ucd-trie-0.1.7",
+    name = "ucd-trie-0.1",
     srcs = [":ucd-trie-0.1.7.crate"],
     crate = "ucd_trie",
     crate_root = "ucd-trie-0.1.7.crate/src/lib.rs",
@@ -24263,7 +24568,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "ulid-1.2.1",
+    name = "ulid-1",
     srcs = [":ulid-1.2.1.crate"],
     crate = "ulid",
     crate_root = "ulid-1.2.1.crate/src/lib.rs",
@@ -24276,8 +24581,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":rand-0.9.5",
-        ":serde-1.0.228",
+        ":rand-0.9",
+        ":serde-1",
     ],
 )
 
@@ -24290,13 +24595,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "uluru-3.1.0",
+    name = "uluru-3",
     srcs = [":uluru-3.1.0.crate"],
     crate = "uluru",
     crate_root = "uluru-3.1.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":arrayvec-0.7.8"],
+    deps = [":arrayvec-0.7"],
 )
 
 shims.http_archive(
@@ -24308,7 +24613,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "uncased-0.9.10",
+    name = "uncased-0.9",
     srcs = [":uncased-0.9.10.crate"],
     crate = "uncased",
     crate_root = "uncased-0.9.10.crate/src/lib.rs",
@@ -24329,7 +24634,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "unicase-2.9.0",
+    name = "unicase-2",
     srcs = [":unicase-2.9.0.crate"],
     crate = "unicase",
     crate_root = "unicase-2.9.0.crate/src/lib.rs",
@@ -24346,7 +24651,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "unicode-bom-2.0.3",
+    name = "unicode-bom-2",
     srcs = [":unicode-bom-2.0.3.crate"],
     crate = "unicode_bom",
     crate_root = "unicode-bom-2.0.3.crate/src/lib.rs",
@@ -24363,7 +24668,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "unicode-ident-1.0.24",
+    name = "unicode-ident-1",
     srcs = [":unicode-ident-1.0.24.crate"],
     crate = "unicode_ident",
     crate_root = "unicode-ident-1.0.24.crate/src/lib.rs",
@@ -24380,7 +24685,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "unicode-linebreak-0.1.5",
+    name = "unicode-linebreak-0.1",
     srcs = [":unicode-linebreak-0.1.5.crate"],
     crate = "unicode_linebreak",
     crate_root = "unicode-linebreak-0.1.5.crate/src/lib.rs",
@@ -24397,13 +24702,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "unicode-normalization-0.1.25",
+    name = "unicode-normalization-0.1",
     srcs = [":unicode-normalization-0.1.25.crate"],
     crate = "unicode_normalization",
     crate_root = "unicode-normalization-0.1.25.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":tinyvec-1.12.0"],
+    deps = [":tinyvec-1"],
 )
 
 shims.http_archive(
@@ -24415,7 +24720,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "unicode-script-0.5.8",
+    name = "unicode-script-0.5",
     srcs = [":unicode-script-0.5.8.crate"],
     crate = "unicode_script",
     crate_root = "unicode-script-0.5.8.crate/src/lib.rs",
@@ -24432,7 +24737,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "unicode-security-0.1.2",
+    name = "unicode-security-0.1",
     srcs = [":unicode-security-0.1.2.crate"],
     crate = "unicode_security",
     crate_root = "unicode-security-0.1.2.crate/src/lib.rs",
@@ -24440,8 +24745,8 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":unicode-normalization-0.1.25",
-        ":unicode-script-0.5.8",
+        ":unicode-normalization-0.1",
+        ":unicode-script-0.5",
     ],
 )
 
@@ -24454,7 +24759,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "unicode-segmentation-1.13.3",
+    name = "unicode-segmentation-1",
     srcs = [":unicode-segmentation-1.13.3.crate"],
     crate = "unicode_segmentation",
     crate_root = "unicode-segmentation-1.13.3.crate/src/lib.rs",
@@ -24471,7 +24776,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "unicode-truncate-2.0.1",
+    name = "unicode-truncate-2",
     srcs = [":unicode-truncate-2.0.1.crate"],
     crate = "unicode_truncate",
     crate_root = "unicode-truncate-2.0.1.crate/src/lib.rs",
@@ -24479,9 +24784,9 @@ third_party_rust.rust_library(
     features = ["std"],
     visibility = [],
     deps = [
-        ":itertools-0.14.0",
-        ":unicode-segmentation-1.13.3",
-        ":unicode-width-0.2.2",
+        ":itertools-0.14",
+        ":unicode-segmentation-1",
+        ":unicode-width-0.2",
     ],
 )
 
@@ -24494,7 +24799,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "unicode-width-0.1.14",
+    name = "unicode-width-0.1",
     srcs = [":unicode-width-0.1.14.crate"],
     crate = "unicode_width",
     crate_root = "unicode-width-0.1.14.crate/src/lib.rs",
@@ -24508,7 +24813,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "unicode-width",
-    actual = ":unicode-width-0.2.2",
+    actual = ":unicode-width-0.2",
     visibility = ["PUBLIC"],
 )
 
@@ -24521,7 +24826,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "unicode-width-0.2.2",
+    name = "unicode-width-0.2",
     srcs = [":unicode-width-0.2.2.crate"],
     crate = "unicode_width",
     crate_root = "unicode-width-0.2.2.crate/src/lib.rs",
@@ -24542,7 +24847,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "unicode-xid-0.2.6",
+    name = "unicode-xid-0.2",
     srcs = [":unicode-xid-0.2.6.crate"],
     crate = "unicode_xid",
     crate_root = "unicode-xid-0.2.6.crate/src/lib.rs",
@@ -24560,15 +24865,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "universal-hash-0.5.1",
+    name = "universal-hash-0.5",
     srcs = [":universal-hash-0.5.1.crate"],
     crate = "universal_hash",
     crate_root = "universal-hash-0.5.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":crypto-common-0.1.7",
-        ":subtle-2.6.1",
+        ":crypto-common-0.1",
+        ":subtle-2",
     ],
 )
 
@@ -24581,7 +24886,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "unsafe-libyaml-0.2.11",
+    name = "unsafe-libyaml-0.2",
     srcs = [":unsafe-libyaml-0.2.11.crate"],
     crate = "unsafe_libyaml",
     crate_root = "unsafe-libyaml-0.2.11.crate/src/lib.rs",
@@ -24598,7 +24903,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "untrusted-0.9.0",
+    name = "untrusted-0.9",
     srcs = [":untrusted-0.9.0.crate"],
     crate = "untrusted",
     crate_root = "untrusted-0.9.0.crate/src/lib.rs",
@@ -24615,7 +24920,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "url-2.5.8",
+    name = "url-2",
     srcs = [":url-2.5.8.crate"],
     crate = "url",
     crate_root = "url-2.5.8.crate/src/lib.rs",
@@ -24627,11 +24932,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":form_urlencoded-1.2.2",
-        ":idna-1.1.0",
-        ":percent-encoding-2.3.2",
-        ":serde-1.0.228",
-        ":serde_derive-1.0.228",
+        ":form_urlencoded-1",
+        ":idna-1",
+        ":percent-encoding-2",
+        ":serde-1",
+        ":serde_derive-1",
     ],
 )
 
@@ -24644,7 +24949,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "urlencoding-2.1.3",
+    name = "urlencoding-2",
     srcs = [":urlencoding-2.1.3.crate"],
     crate = "urlencoding",
     crate_root = "urlencoding-2.1.3.crate/src/lib.rs",
@@ -24661,7 +24966,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "utf8_iter-1.0.4",
+    name = "utf8_iter-1",
     srcs = [":utf8_iter-1.0.4.crate"],
     crate = "utf8_iter",
     crate_root = "utf8_iter-1.0.4.crate/src/lib.rs",
@@ -24678,7 +24983,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "utf8parse-0.2.2",
+    name = "utf8parse-0.2",
     srcs = [":utf8parse-0.2.2.crate"],
     crate = "utf8parse",
     crate_root = "utf8parse-0.2.2.crate/src/lib.rs",
@@ -24689,7 +24994,7 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "uuid",
-    actual = ":uuid-1.24.0",
+    actual = ":uuid-1",
     visibility = ["PUBLIC"],
 )
 
@@ -24702,7 +25007,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "uuid-1.24.0",
+    name = "uuid-1",
     srcs = [":uuid-1.24.0.crate"],
     crate = "uuid",
     crate_root = "uuid-1.24.0.crate/src/lib.rs",
@@ -24718,9 +25023,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":atomic-0.6.1",
-        ":getrandom-0.4.3",
-        ":serde_core-1.0.228",
+        ":atomic-0.6",
+        ":getrandom-0.4",
+        ":serde_core-1",
     ],
 )
 
@@ -24733,7 +25038,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "varint-rs-2.2.1",
+    name = "varint-rs-2",
     srcs = [":varint-rs-2.2.1.crate"],
     crate = "varint_rs",
     crate_root = "varint-rs-2.2.1.crate/src/lib.rs",
@@ -24755,7 +25060,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "vec_map-0.8.2",
+    name = "vec_map-0.8",
     srcs = [":vec_map-0.8.2.crate"],
     crate = "vec_map",
     crate_root = "vec_map-0.8.2.crate/src/lib.rs",
@@ -24772,7 +25077,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "vsimd-0.8.0",
+    name = "vsimd-0.8",
     srcs = [":vsimd-0.8.0.crate"],
     crate = "vsimd",
     crate_root = "vsimd-0.8.0.crate/src/lib.rs",
@@ -24794,13 +25099,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "vtparse-0.6.2",
+    name = "vtparse-0.6",
     srcs = [":vtparse-0.6.2.crate"],
     crate = "vtparse",
     crate_root = "vtparse-0.6.2.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":utf8parse-0.2.2"],
+    deps = [":utf8parse-0.2"],
 )
 
 shims.http_archive(
@@ -24812,21 +25117,21 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "walkdir-2.5.0",
+    name = "walkdir-2",
     srcs = [":walkdir-2.5.0.crate"],
     crate = "walkdir",
     crate_root = "walkdir-2.5.0.crate/src/lib.rs",
     edition = "2018",
     platform = {
         "windows-gnu": dict(
-            deps = [":winapi-util-0.1.11"],
+            deps = [":winapi-util-0.1"],
         ),
         "windows-msvc": dict(
-            deps = [":winapi-util-0.1.11"],
+            deps = [":winapi-util-0.1"],
         ),
     },
     visibility = [],
-    deps = [":same-file-1.0.6"],
+    deps = [":same-file-1"],
 )
 
 shims.http_archive(
@@ -24838,18 +25143,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "want-0.3.1",
+    name = "want-0.3",
     srcs = [":want-0.3.1.crate"],
     crate = "want",
     crate_root = "want-0.3.1.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
-    deps = [":try-lock-0.2.5"],
+    deps = [":try-lock-0.2"],
 )
 
 shims.alias(
     name = "watchman_client",
-    actual = ":watchman_client-0.9.0",
+    actual = ":watchman_client-0.9",
     visibility = ["PUBLIC"],
 )
 
@@ -24862,30 +25167,30 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "watchman_client-0.9.0",
+    name = "watchman_client-0.9",
     srcs = [":watchman_client-0.9.0.crate"],
     crate = "watchman_client",
     crate_root = "watchman_client-0.9.0.crate/src/lib.rs",
     edition = "2021",
     platform = {
         "windows-gnu": dict(
-            deps = [":winapi-0.3.9"],
+            deps = [":winapi-0.3"],
         ),
         "windows-msvc": dict(
-            deps = [":winapi-0.3.9"],
+            deps = [":winapi-0.3"],
         ),
     },
     visibility = [],
     deps = [
-        ":anyhow-1.0.103",
-        ":bytes-1.12.1",
-        ":futures-0.3.32",
-        ":maplit-1.0.2",
-        ":serde-1.0.228",
-        ":serde_bser-0.4.0",
-        ":thiserror-1.0.69",
-        ":tokio-1.53.0",
-        ":tokio-util-0.6.10",
+        ":anyhow-1",
+        ":bytes-1",
+        ":futures-0.3",
+        ":maplit-1",
+        ":serde-1",
+        ":serde_bser-0.4",
+        ":thiserror-1",
+        ":tokio-1",
+        ":tokio-util-0.6",
     ],
 )
 
@@ -24898,7 +25203,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "web-time-1.1.0",
+    name = "web-time-1",
     srcs = [":web-time-1.1.0.crate"],
     crate = "web_time",
     crate_root = "web-time-1.1.0.crate/src/lib.rs",
@@ -24915,13 +25220,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "webpki-roots-1.0.8",
+    name = "webpki-roots-1",
     srcs = [":webpki-roots-1.0.8.crate"],
     crate = "webpki_roots",
     crate_root = "webpki-roots-1.0.8.crate/src/lib.rs",
     edition = "2021",
     named_deps = {
-        "pki_types": ":rustls-pki-types-1.15.0",
+        "pki_types": ":rustls-pki-types-1",
     },
     visibility = [],
 )
@@ -24935,15 +25240,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "wezterm-bidi-0.2.3",
+    name = "wezterm-bidi-0.2",
     srcs = [":wezterm-bidi-0.2.3.crate"],
     crate = "wezterm_bidi",
     crate_root = "wezterm-bidi-0.2.3.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":log-0.4.33",
-        ":wezterm-dynamic-0.2.1",
+        ":log-0.4",
+        ":wezterm-dynamic-0.2",
     ],
 )
 
@@ -24956,7 +25261,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "wezterm-blob-leases-0.1.1",
+    name = "wezterm-blob-leases-0.1",
     srcs = [":wezterm-blob-leases-0.1.1.crate"],
     crate = "wezterm_blob_leases",
     crate_root = "wezterm-blob-leases-0.1.1.crate/src/lib.rs",
@@ -24964,11 +25269,11 @@ third_party_rust.rust_library(
     features = ["default"],
     visibility = [],
     deps = [
-        ":getrandom-0.3.4",
-        ":mac_address-1.1.8",
-        ":sha2-0.10.9",
-        ":thiserror-1.0.69",
-        ":uuid-1.24.0",
+        ":getrandom-0.3",
+        ":mac_address-1",
+        ":sha2-0.10",
+        ":thiserror-1",
+        ":uuid-1",
     ],
 )
 
@@ -24981,17 +25286,17 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "wezterm-color-types-0.3.0",
+    name = "wezterm-color-types-0.3",
     srcs = [":wezterm-color-types-0.3.0.crate"],
     crate = "wezterm_color_types",
     crate_root = "wezterm-color-types-0.3.0.crate/src/lib.rs",
     edition = "2018",
     visibility = [],
     deps = [
-        ":csscolorparser-0.6.2",
-        ":deltae-0.3.2",
-        ":lazy_static-1.5.0",
-        ":wezterm-dynamic-0.2.1",
+        ":csscolorparser-0.6",
+        ":deltae-0.3",
+        ":lazy_static-1",
+        ":wezterm-dynamic-0.2",
     ],
 )
 
@@ -25004,18 +25309,18 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "wezterm-dynamic-0.2.1",
+    name = "wezterm-dynamic-0.2",
     srcs = [":wezterm-dynamic-0.2.1.crate"],
     crate = "wezterm_dynamic",
     crate_root = "wezterm-dynamic-0.2.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":log-0.4.33",
-        ":ordered-float-4.6.0",
-        ":strsim-0.11.1",
-        ":thiserror-1.0.69",
-        ":wezterm-dynamic-derive-0.1.1",
+        ":log-0.4",
+        ":ordered-float-4",
+        ":strsim-0.11",
+        ":thiserror-1",
+        ":wezterm-dynamic-derive-0.1",
     ],
 )
 
@@ -25028,7 +25333,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "wezterm-dynamic-derive-0.1.1",
+    name = "wezterm-dynamic-derive-0.1",
     srcs = [":wezterm-dynamic-derive-0.1.1.crate"],
     crate = "wezterm_dynamic_derive",
     crate_root = "wezterm-dynamic-derive-0.1.1.crate/src/lib.rs",
@@ -25036,9 +25341,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-1.0.109",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-1",
     ],
 )
 
@@ -25051,7 +25356,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "wezterm-input-types-0.1.0",
+    name = "wezterm-input-types-0.1",
     srcs = [":wezterm-input-types-0.1.0.crate"],
     crate = "wezterm_input_types",
     crate_root = "wezterm-input-types-0.1.0.crate/src/lib.rs",
@@ -25062,11 +25367,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bitflags-1.3.2",
-        ":euclid-0.22.14",
-        ":lazy_static-1.5.0",
-        ":serde-1.0.228",
-        ":wezterm-dynamic-0.2.1",
+        ":bitflags-1",
+        ":euclid-0.22",
+        ":lazy_static-1",
+        ":serde-1",
+        ":wezterm-dynamic-0.2",
     ],
 )
 
@@ -25079,7 +25384,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "whoami-2.1.2",
+    name = "whoami-2",
     srcs = [":whoami-2.1.2.crate"],
     crate = "whoami",
     crate_root = "whoami-2.1.2.crate/src/lib.rs",
@@ -25092,21 +25397,21 @@ third_party_rust.rust_library(
     ],
     platform = {
         "linux-arm64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "linux-x86_64": dict(
-            deps = [":libc-0.2.186"],
+            deps = [":libc-0.2"],
         ),
         "macos-arm64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":objc2-system-configuration-0.3.2",
+                ":libc-0.2",
+                ":objc2-system-configuration-0.3",
             ],
         ),
         "macos-x86_64": dict(
             deps = [
-                ":libc-0.2.186",
-                ":objc2-system-configuration-0.3.2",
+                ":libc-0.2",
+                ":objc2-system-configuration-0.3",
             ],
         ),
     },
@@ -25122,7 +25427,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "widestring-1.2.1",
+    name = "widestring-1",
     srcs = [":widestring-1.2.1.crate"],
     crate = "widestring",
     crate_root = "widestring-1.2.1.crate/src/lib.rs",
@@ -25144,13 +25449,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "winapi-0.3.9",
+    name = "winapi-0.3",
     srcs = [":winapi-0.3.9.crate"],
     crate = "winapi",
     crate_root = "winapi-0.3.9.crate/src/lib.rs",
     edition = "2015",
     env = {
-        "OUT_DIR": "$(location :winapi-0.3.9-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :winapi-0.3-build-script-run[out_dir])",
     },
     features = [
         "cfg",
@@ -25186,15 +25491,15 @@ third_party_rust.rust_library(
     ],
     platform = {
         "windows-gnu": dict(
-            deps = [":winapi-x86_64-pc-windows-gnu-0.4.0"],
+            deps = [":winapi-x86_64-pc-windows-gnu-0.4"],
         ),
     },
-    rustc_flags = ["@$(location :winapi-0.3.9-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :winapi-0.3-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
 third_party_rust.rust_binary(
-    name = "winapi-0.3.9-build-script-build",
+    name = "winapi-0.3-build-script-build",
     srcs = [":winapi-0.3.9.crate"],
     crate = "build_script_build",
     crate_root = "winapi-0.3.9.crate/build.rs",
@@ -25235,9 +25540,9 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "winapi-0.3.9-build-script-run",
+    name = "winapi-0.3-build-script-run",
     package_name = "winapi",
-    buildscript_rule = ":winapi-0.3.9-build-script-build",
+    buildscript_rule = ":winapi-0.3-build-script-build",
     features = [
         "cfg",
         "consoleapi",
@@ -25282,13 +25587,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "winapi-util-0.1.11",
+    name = "winapi-util-0.1",
     srcs = [":winapi-util-0.1.11.crate"],
     crate = "winapi_util",
     crate_root = "winapi-util-0.1.11.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":windows-sys-0.61.2"],
+    deps = [":windows-sys-0.61"],
 )
 
 shims.http_archive(
@@ -25304,26 +25609,26 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "winapi-x86_64-pc-windows-gnu-0.4.0",
+    name = "winapi-x86_64-pc-windows-gnu-0.4",
     srcs = [":winapi-x86_64-pc-windows-gnu-0.4.0.crate"],
     crate = "winapi_x86_64_pc_windows_gnu",
     crate_root = "winapi-x86_64-pc-windows-gnu-0.4.0.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
     deps = [
-        ":winapi-x86_64-pc-windows-gnu-0.4.0-extra_libraries-libwinapi_ole32.a",
-        ":winapi-x86_64-pc-windows-gnu-0.4.0-extra_libraries-libwinapi_shell32.a",
+        ":winapi-x86_64-pc-windows-gnu-0.4-extra_libraries-libwinapi_ole32.a",
+        ":winapi-x86_64-pc-windows-gnu-0.4-extra_libraries-libwinapi_shell32.a",
     ],
 )
 
 third_party_rust.prebuilt_cxx_library(
-    name = "winapi-x86_64-pc-windows-gnu-0.4.0-extra_libraries-libwinapi_ole32.a",
+    name = "winapi-x86_64-pc-windows-gnu-0.4-extra_libraries-libwinapi_ole32.a",
     static_lib = ":winapi-x86_64-pc-windows-gnu-0.4.0.crate[lib/libwinapi_ole32.a]",
     visibility = [],
 )
 
 third_party_rust.prebuilt_cxx_library(
-    name = "winapi-x86_64-pc-windows-gnu-0.4.0-extra_libraries-libwinapi_shell32.a",
+    name = "winapi-x86_64-pc-windows-gnu-0.4-extra_libraries-libwinapi_shell32.a",
     static_lib = ":winapi-x86_64-pc-windows-gnu-0.4.0.crate[lib/libwinapi_shell32.a]",
     visibility = [],
 )
@@ -25337,7 +25642,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-0.61.3",
+    name = "windows-0.61",
     srcs = [":windows-0.61.3.crate"],
     crate = "windows",
     crate_root = "windows-0.61.3.crate/src/lib.rs",
@@ -25391,11 +25696,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":windows-collections-0.2.0",
-        ":windows-core-0.61.2",
-        ":windows-future-0.2.1",
-        ":windows-link-0.1.3",
-        ":windows-numerics-0.2.0",
+        ":windows-collections-0.2",
+        ":windows-core-0.61",
+        ":windows-future-0.2",
+        ":windows-link-0.1",
+        ":windows-numerics-0.2",
     ],
 )
 
@@ -25408,7 +25713,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-0.62.2",
+    name = "windows-0.62",
     srcs = [":windows-0.62.2.crate"],
     crate = "windows",
     crate_root = "windows-0.62.2.crate/src/lib.rs",
@@ -25433,10 +25738,10 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":windows-collections-0.3.2",
-        ":windows-core-0.62.2",
-        ":windows-future-0.3.2",
-        ":windows-numerics-0.3.1",
+        ":windows-collections-0.3",
+        ":windows-core-0.62",
+        ":windows-future-0.3",
+        ":windows-numerics-0.3",
     ],
 )
 
@@ -25449,13 +25754,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-collections-0.2.0",
+    name = "windows-collections-0.2",
     srcs = [":windows-collections-0.2.0.crate"],
     crate = "windows_collections",
     crate_root = "windows-collections-0.2.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":windows-core-0.61.2"],
+    deps = [":windows-core-0.61"],
 )
 
 shims.http_archive(
@@ -25467,14 +25772,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-collections-0.3.2",
+    name = "windows-collections-0.3",
     srcs = [":windows-collections-0.3.2.crate"],
     crate = "windows_collections",
     crate_root = "windows-collections-0.3.2.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
     visibility = [],
-    deps = [":windows-core-0.62.2"],
+    deps = [":windows-core-0.62"],
 )
 
 shims.http_archive(
@@ -25486,7 +25791,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-core-0.61.2",
+    name = "windows-core-0.61",
     srcs = [":windows-core-0.61.2.crate"],
     crate = "windows_core",
     crate_root = "windows-core-0.61.2.crate/src/lib.rs",
@@ -25494,11 +25799,11 @@ third_party_rust.rust_library(
     features = ["std"],
     visibility = [],
     deps = [
-        ":windows-implement-0.60.2",
-        ":windows-interface-0.59.3",
-        ":windows-link-0.1.3",
-        ":windows-result-0.3.4",
-        ":windows-strings-0.4.2",
+        ":windows-implement-0.60",
+        ":windows-interface-0.59",
+        ":windows-link-0.1",
+        ":windows-result-0.3",
+        ":windows-strings-0.4",
     ],
 )
 
@@ -25511,7 +25816,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-core-0.62.2",
+    name = "windows-core-0.62",
     srcs = [":windows-core-0.62.2.crate"],
     crate = "windows_core",
     crate_root = "windows-core-0.62.2.crate/src/lib.rs",
@@ -25522,11 +25827,11 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":windows-implement-0.60.2",
-        ":windows-interface-0.59.3",
-        ":windows-link-0.2.1",
-        ":windows-result-0.4.1",
-        ":windows-strings-0.5.1",
+        ":windows-implement-0.60",
+        ":windows-interface-0.59",
+        ":windows-link-0.2",
+        ":windows-result-0.4",
+        ":windows-strings-0.5",
     ],
 )
 
@@ -25539,16 +25844,16 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-future-0.2.1",
+    name = "windows-future-0.2",
     srcs = [":windows-future-0.2.1.crate"],
     crate = "windows_future",
     crate_root = "windows-future-0.2.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":windows-core-0.61.2",
-        ":windows-link-0.1.3",
-        ":windows-threading-0.1.0",
+        ":windows-core-0.61",
+        ":windows-link-0.1",
+        ":windows-threading-0.1",
     ],
 )
 
@@ -25561,7 +25866,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-future-0.3.2",
+    name = "windows-future-0.3",
     srcs = [":windows-future-0.3.2.crate"],
     crate = "windows_future",
     crate_root = "windows-future-0.3.2.crate/src/lib.rs",
@@ -25569,9 +25874,9 @@ third_party_rust.rust_library(
     features = ["std"],
     visibility = [],
     deps = [
-        ":windows-core-0.62.2",
-        ":windows-link-0.2.1",
-        ":windows-threading-0.2.1",
+        ":windows-core-0.62",
+        ":windows-link-0.2",
+        ":windows-threading-0.2",
     ],
 )
 
@@ -25584,7 +25889,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-implement-0.60.2",
+    name = "windows-implement-0.60",
     srcs = [":windows-implement-0.60.2.crate"],
     crate = "windows_implement",
     crate_root = "windows-implement-0.60.2.crate/src/lib.rs",
@@ -25592,9 +25897,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -25607,7 +25912,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-interface-0.59.3",
+    name = "windows-interface-0.59",
     srcs = [":windows-interface-0.59.3.crate"],
     crate = "windows_interface",
     crate_root = "windows-interface-0.59.3.crate/src/lib.rs",
@@ -25615,9 +25920,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -25630,7 +25935,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-link-0.1.3",
+    name = "windows-link-0.1",
     srcs = [":windows-link-0.1.3.crate"],
     crate = "windows_link",
     crate_root = "windows-link-0.1.3.crate/src/lib.rs",
@@ -25647,7 +25952,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-link-0.2.1",
+    name = "windows-link-0.2",
     srcs = [":windows-link-0.2.1.crate"],
     crate = "windows_link",
     crate_root = "windows-link-0.2.1.crate/src/lib.rs",
@@ -25664,15 +25969,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-numerics-0.2.0",
+    name = "windows-numerics-0.2",
     srcs = [":windows-numerics-0.2.0.crate"],
     crate = "windows_numerics",
     crate_root = "windows-numerics-0.2.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":windows-core-0.61.2",
-        ":windows-link-0.1.3",
+        ":windows-core-0.61",
+        ":windows-link-0.1",
     ],
 )
 
@@ -25685,7 +25990,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-numerics-0.3.1",
+    name = "windows-numerics-0.3",
     srcs = [":windows-numerics-0.3.1.crate"],
     crate = "windows_numerics",
     crate_root = "windows-numerics-0.3.1.crate/src/lib.rs",
@@ -25693,8 +25998,8 @@ third_party_rust.rust_library(
     features = ["std"],
     visibility = [],
     deps = [
-        ":windows-core-0.62.2",
-        ":windows-link-0.2.1",
+        ":windows-core-0.62",
+        ":windows-link-0.2",
     ],
 )
 
@@ -25707,7 +26012,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-registry-0.6.1",
+    name = "windows-registry-0.6",
     srcs = [":windows-registry-0.6.1.crate"],
     crate = "windows_registry",
     crate_root = "windows-registry-0.6.1.crate/src/lib.rs",
@@ -25718,9 +26023,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":windows-link-0.2.1",
-        ":windows-result-0.4.1",
-        ":windows-strings-0.5.1",
+        ":windows-link-0.2",
+        ":windows-result-0.4",
+        ":windows-strings-0.5",
     ],
 )
 
@@ -25733,14 +26038,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-result-0.3.4",
+    name = "windows-result-0.3",
     srcs = [":windows-result-0.3.4.crate"],
     crate = "windows_result",
     crate_root = "windows-result-0.3.4.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
     visibility = [],
-    deps = [":windows-link-0.1.3"],
+    deps = [":windows-link-0.1"],
 )
 
 shims.http_archive(
@@ -25752,7 +26057,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-result-0.4.1",
+    name = "windows-result-0.4",
     srcs = [":windows-result-0.4.1.crate"],
     crate = "windows_result",
     crate_root = "windows-result-0.4.1.crate/src/lib.rs",
@@ -25762,7 +26067,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":windows-link-0.2.1"],
+    deps = [":windows-link-0.2"],
 )
 
 shims.http_archive(
@@ -25774,14 +26079,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-strings-0.4.2",
+    name = "windows-strings-0.4",
     srcs = [":windows-strings-0.4.2.crate"],
     crate = "windows_strings",
     crate_root = "windows-strings-0.4.2.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
     visibility = [],
-    deps = [":windows-link-0.1.3"],
+    deps = [":windows-link-0.1"],
 )
 
 shims.http_archive(
@@ -25793,14 +26098,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-strings-0.5.1",
+    name = "windows-strings-0.5",
     srcs = [":windows-strings-0.5.1.crate"],
     crate = "windows_strings",
     crate_root = "windows-strings-0.5.1.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
     visibility = [],
-    deps = [":windows-link-0.2.1"],
+    deps = [":windows-link-0.2"],
 )
 
 shims.http_archive(
@@ -25812,7 +26117,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-sys-0.52.0",
+    name = "windows-sys-0.52",
     srcs = [":windows-sys-0.52.0.crate"],
     crate = "windows_sys",
     crate_root = "windows-sys-0.52.0.crate/src/lib.rs",
@@ -25830,7 +26135,7 @@ third_party_rust.rust_library(
         "default",
     ],
     visibility = [],
-    deps = [":windows-targets-0.52.6"],
+    deps = [":windows-targets-0.52"],
 )
 
 shims.http_archive(
@@ -25842,7 +26147,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-sys-0.59.0",
+    name = "windows-sys-0.59",
     srcs = [":windows-sys-0.59.0.crate"],
     crate = "windows_sys",
     crate_root = "windows-sys-0.59.0.crate/src/lib.rs",
@@ -25864,7 +26169,7 @@ third_party_rust.rust_library(
         "default",
     ],
     visibility = [],
-    deps = [":windows-targets-0.52.6"],
+    deps = [":windows-targets-0.52"],
 )
 
 shims.http_archive(
@@ -25876,7 +26181,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-sys-0.60.2",
+    name = "windows-sys-0.60",
     srcs = [":windows-sys-0.60.2.crate"],
     crate = "windows_sys",
     crate_root = "windows-sys-0.60.2.crate/src/lib.rs",
@@ -25894,7 +26199,7 @@ third_party_rust.rust_library(
         "default",
     ],
     visibility = [],
-    deps = [":windows-targets-0.53.5"],
+    deps = [":windows-targets-0.53"],
 )
 
 shims.http_archive(
@@ -25906,7 +26211,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-sys-0.61.2",
+    name = "windows-sys-0.61",
     srcs = [":windows-sys-0.61.2.crate"],
     crate = "windows_sys",
     crate_root = "windows-sys-0.61.2.crate/src/lib.rs",
@@ -25953,7 +26258,7 @@ third_party_rust.rust_library(
         "default",
     ],
     visibility = [],
-    deps = [":windows-link-0.2.1"],
+    deps = [":windows-link-0.2"],
 )
 
 shims.http_archive(
@@ -25965,7 +26270,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-targets-0.52.6",
+    name = "windows-targets-0.52",
     srcs = [":windows-targets-0.52.6.crate"],
     crate = "windows_targets",
     crate_root = "windows-targets-0.52.6.crate/src/lib.rs",
@@ -25983,14 +26288,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-targets-0.53.5",
+    name = "windows-targets-0.53",
     srcs = [":windows-targets-0.53.5.crate"],
     crate = "windows_targets",
     crate_root = "windows-targets-0.53.5.crate/src/lib.rs",
     edition = "2021",
     rustc_flags = ["--cfg=windows_raw_dylib"],
     visibility = [],
-    deps = [":windows-link-0.2.1"],
+    deps = [":windows-link-0.2"],
 )
 
 shims.http_archive(
@@ -26002,13 +26307,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-threading-0.1.0",
+    name = "windows-threading-0.1",
     srcs = [":windows-threading-0.1.0.crate"],
     crate = "windows_threading",
     crate_root = "windows-threading-0.1.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":windows-link-0.1.3"],
+    deps = [":windows-link-0.1"],
 )
 
 shims.http_archive(
@@ -26020,13 +26325,13 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "windows-threading-0.2.1",
+    name = "windows-threading-0.2",
     srcs = [":windows-threading-0.2.1.crate"],
     crate = "windows_threading",
     crate_root = "windows-threading-0.2.1.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":windows-link-0.2.1"],
+    deps = [":windows-link-0.2"],
 )
 
 shims.http_archive(
@@ -26038,7 +26343,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "winnow-0.6.26",
+    name = "winnow-0.6",
     srcs = [":winnow-0.6.26.crate"],
     crate = "winnow",
     crate_root = "winnow-0.6.26.crate/src/lib.rs",
@@ -26060,7 +26365,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "winnow-0.7.15",
+    name = "winnow-0.7",
     srcs = [":winnow-0.7.15.crate"],
     crate = "winnow",
     crate_root = "winnow-0.7.15.crate/src/lib.rs",
@@ -26072,7 +26377,7 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
-    deps = [":memchr-2.8.3"],
+    deps = [":memchr-2"],
 )
 
 shims.http_archive(
@@ -26084,7 +26389,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "winnow-1.0.4",
+    name = "winnow-1",
     srcs = [":winnow-1.0.4.crate"],
     crate = "winnow",
     crate_root = "winnow-1.0.4.crate/src/lib.rs",
@@ -26109,15 +26414,15 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "winreg-0.55.0",
+    name = "winreg-0.55",
     srcs = [":winreg-0.55.0.crate"],
     crate = "winreg",
     crate_root = "winreg-0.55.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":cfg-if-1.0.4",
-        ":windows-sys-0.59.0",
+        ":cfg-if-1",
+        ":windows-sys-0.59",
     ],
 )
 
@@ -26130,7 +26435,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "wmi-0.18.4",
+    name = "wmi-0.18",
     srcs = [":wmi-0.18.4.crate"],
     crate = "wmi",
     crate_root = "wmi-0.18.4.crate/src/lib.rs",
@@ -26141,13 +26446,13 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":chrono-0.4.45",
-        ":futures-0.3.32",
-        ":log-0.4.33",
-        ":serde-1.0.228",
-        ":thiserror-2.0.18",
-        ":windows-0.62.2",
-        ":windows-core-0.62.2",
+        ":chrono-0.4",
+        ":futures-0.3",
+        ":log-0.4",
+        ":serde-1",
+        ":thiserror-2",
+        ":windows-0.62",
+        ":windows-core-0.62",
     ],
 )
 
@@ -26160,7 +26465,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "writeable-0.6.3",
+    name = "writeable-0.6",
     srcs = [":writeable-0.6.3.crate"],
     crate = "writeable",
     crate_root = "writeable-0.6.3.crate/src/lib.rs",
@@ -26177,7 +26482,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "xattr-1.6.1",
+    name = "xattr-1",
     srcs = [":xattr-1.6.1.crate"],
     crate = "xattr",
     crate_root = "xattr-1.6.1.crate/src/lib.rs",
@@ -26187,7 +26492,7 @@ third_party_rust.rust_library(
         "unsupported",
     ],
     visibility = [],
-    deps = [":rustix-1.1.4"],
+    deps = [":rustix-1"],
 )
 
 shims.http_archive(
@@ -26199,7 +26504,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "xml-rs-0.8.28",
+    name = "xml-rs-0.8",
     srcs = [":xml-rs-0.8.28.crate"],
     crate = "xml",
     crate_root = "xml-rs-0.8.28.crate/src/lib.rs",
@@ -26216,14 +26521,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "xmltree-0.10.3",
+    name = "xmltree-0.10",
     srcs = [":xmltree-0.10.3.crate"],
     crate = "xmltree",
     crate_root = "xmltree-0.10.3.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
     visibility = [],
-    deps = [":xml-rs-0.8.28"],
+    deps = [":xml-rs-0.8"],
 )
 
 shims.http_archive(
@@ -26235,7 +26540,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "xxhash-rust-0.8.17",
+    name = "xxhash-rust-0.8",
     srcs = [":xxhash-rust-0.8.17.crate"],
     crate = "xxhash_rust",
     crate_root = "xxhash-rust-0.8.17.crate/src/lib.rs",
@@ -26253,7 +26558,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "yansi-1.0.1",
+    name = "yansi-1",
     srcs = [":yansi-1.0.1.crate"],
     crate = "yansi",
     crate_root = "yansi-1.0.1.crate/src/lib.rs",
@@ -26275,7 +26580,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "yoke-0.8.3",
+    name = "yoke-0.8",
     srcs = [":yoke-0.8.3.crate"],
     crate = "yoke",
     crate_root = "yoke-0.8.3.crate/src/lib.rs",
@@ -26286,9 +26591,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":stable_deref_trait-1.2.1",
-        ":yoke-derive-0.8.2",
-        ":zerofrom-0.1.8",
+        ":stable_deref_trait-1",
+        ":yoke-derive-0.8",
+        ":zerofrom-0.1",
     ],
 )
 
@@ -26301,7 +26606,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "yoke-derive-0.8.2",
+    name = "yoke-derive-0.8",
     srcs = [":yoke-derive-0.8.2.crate"],
     crate = "yoke_derive",
     crate_root = "yoke-derive-0.8.2.crate/src/lib.rs",
@@ -26309,10 +26614,10 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
-        ":synstructure-0.13.2",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
+        ":synstructure-0.13",
     ],
 )
 
@@ -26325,43 +26630,51 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zerocopy-0.8.54",
+    name = "zerocopy-0.8",
     srcs = [":zerocopy-0.8.54.crate"],
     crate = "zerocopy",
     crate_root = "zerocopy-0.8.54.crate/src/lib.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "zerocopy",
         "CARGO_CRATE_NAME": "zerocopy",
         "CARGO_MANIFEST_DIR": "zerocopy-0.8.54.crate",
         "CARGO_PKG_AUTHORS": "Joshua Liebow-Feeser <joshlf@google.com>:Jack Wrenn <jswrenn@amazon.com>",
         "CARGO_PKG_DESCRIPTION": "Zerocopy makes zero-cost memory manipulation effortless. We write \"unsafe\" so you don't have to.",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "zerocopy",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/google/zerocopy",
+        "CARGO_PKG_RUST_VERSION": "1.56.0",
         "CARGO_PKG_VERSION": "0.8.54",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "8",
         "CARGO_PKG_VERSION_PATCH": "54",
         "CARGO_PKG_VERSION_PRE": "",
-        "OUT_DIR": "$(location :zerocopy-0.8.54-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :zerocopy-0.8-build-script-run[out_dir])",
     },
     features = ["simd"],
-    rustc_flags = ["@$(location :zerocopy-0.8.54-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :zerocopy-0.8-build-script-run[rustc_flags])"],
     visibility = [],
 )
 
 third_party_rust.rust_binary(
-    name = "zerocopy-0.8.54-build-script-build",
+    name = "zerocopy-0.8-build-script-build",
     srcs = [":zerocopy-0.8.54.crate"],
     crate = "build_script_build",
     crate_root = "zerocopy-0.8.54.crate/build.rs",
     edition = "2021",
     env = {
+        "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
         "CARGO_MANIFEST_DIR": "zerocopy-0.8.54.crate",
         "CARGO_PKG_AUTHORS": "Joshua Liebow-Feeser <joshlf@google.com>:Jack Wrenn <jswrenn@amazon.com>",
         "CARGO_PKG_DESCRIPTION": "Zerocopy makes zero-cost memory manipulation effortless. We write \"unsafe\" so you don't have to.",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "zerocopy",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/google/zerocopy",
+        "CARGO_PKG_RUST_VERSION": "1.56.0",
         "CARGO_PKG_VERSION": "0.8.54",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "8",
@@ -26373,13 +26686,16 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "zerocopy-0.8.54-build-script-run",
+    name = "zerocopy-0.8-build-script-run",
     package_name = "zerocopy",
-    buildscript_rule = ":zerocopy-0.8.54-build-script-build",
+    buildscript_rule = ":zerocopy-0.8-build-script-build",
     env = {
         "CARGO_PKG_AUTHORS": "Joshua Liebow-Feeser <joshlf@google.com>:Jack Wrenn <jswrenn@amazon.com>",
         "CARGO_PKG_DESCRIPTION": "Zerocopy makes zero-cost memory manipulation effortless. We write \"unsafe\" so you don't have to.",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/google/zerocopy",
+        "CARGO_PKG_RUST_VERSION": "1.56.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "8",
         "CARGO_PKG_VERSION_PATCH": "54",
@@ -26398,14 +26714,14 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zerofrom-0.1.8",
+    name = "zerofrom-0.1",
     srcs = [":zerofrom-0.1.8.crate"],
     crate = "zerofrom",
     crate_root = "zerofrom-0.1.8.crate/src/lib.rs",
     edition = "2021",
     features = ["derive"],
     visibility = [],
-    deps = [":zerofrom-derive-0.1.7"],
+    deps = [":zerofrom-derive-0.1"],
 )
 
 shims.http_archive(
@@ -26417,7 +26733,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zerofrom-derive-0.1.7",
+    name = "zerofrom-derive-0.1",
     srcs = [":zerofrom-derive-0.1.7.crate"],
     crate = "zerofrom_derive",
     crate_root = "zerofrom-derive-0.1.7.crate/src/lib.rs",
@@ -26425,16 +26741,16 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
-        ":synstructure-0.13.2",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
+        ":synstructure-0.13",
     ],
 )
 
 shims.alias(
     name = "zeroize",
-    actual = ":zeroize-1.9.0",
+    actual = ":zeroize-1",
     visibility = ["PUBLIC"],
 )
 
@@ -26447,7 +26763,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zeroize-1.9.0",
+    name = "zeroize-1",
     srcs = [":zeroize-1.9.0.crate"],
     crate = "zeroize",
     crate_root = "zeroize-1.9.0.crate/src/lib.rs",
@@ -26459,7 +26775,7 @@ third_party_rust.rust_library(
         "zeroize_derive",
     ],
     visibility = [],
-    deps = [":zeroize_derive-1.5.0"],
+    deps = [":zeroize_derive-1"],
 )
 
 shims.http_archive(
@@ -26471,7 +26787,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zeroize_derive-1.5.0",
+    name = "zeroize_derive-1",
     srcs = [":zeroize_derive-1.5.0.crate"],
     crate = "zeroize_derive",
     crate_root = "zeroize_derive-1.5.0.crate/src/lib.rs",
@@ -26479,9 +26795,9 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
@@ -26494,7 +26810,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zerotrie-0.2.4",
+    name = "zerotrie-0.2",
     srcs = [":zerotrie-0.2.4.crate"],
     crate = "zerotrie",
     crate_root = "zerotrie-0.2.4.crate/src/lib.rs",
@@ -26505,9 +26821,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":displaydoc-0.2.6",
-        ":yoke-0.8.3",
-        ":zerofrom-0.1.8",
+        ":displaydoc-0.2",
+        ":yoke-0.8",
+        ":zerofrom-0.1",
     ],
 )
 
@@ -26520,7 +26836,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zerovec-0.11.6",
+    name = "zerovec-0.11",
     srcs = [":zerovec-0.11.6.crate"],
     crate = "zerovec",
     crate_root = "zerovec-0.11.6.crate/src/lib.rs",
@@ -26531,9 +26847,9 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":yoke-0.8.3",
-        ":zerofrom-0.1.8",
-        ":zerovec-derive-0.11.3",
+        ":yoke-0.8",
+        ":zerofrom-0.1",
+        ":zerovec-derive-0.11",
     ],
 )
 
@@ -26546,7 +26862,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zerovec-derive-0.11.3",
+    name = "zerovec-derive-0.11",
     srcs = [":zerovec-derive-0.11.3.crate"],
     crate = "zerovec_derive",
     crate_root = "zerovec-derive-0.11.3.crate/src/lib.rs",
@@ -26554,15 +26870,15 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":proc-macro2-1.0.106",
-        ":quote-1.0.46",
-        ":syn-2.0.119",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
     ],
 )
 
 shims.alias(
     name = "zip",
-    actual = ":zip-8.6.0",
+    actual = ":zip-8",
     visibility = ["PUBLIC"],
 )
 
@@ -26575,18 +26891,22 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zip-8.6.0",
+    name = "zip-8",
     srcs = [":zip-8.6.0.crate"],
     crate = "zip",
     crate_root = "zip-8.6.0.crate/src/lib.rs",
     edition = "2024",
     env = {
+        "CARGO_BIN_NAME": "zip",
         "CARGO_CRATE_NAME": "zip",
         "CARGO_MANIFEST_DIR": "zip-8.6.0.crate",
         "CARGO_PKG_AUTHORS": "Mathijs van de Nes <git@mathijs.vd-nes.nl>:Marli Frost <marli@frost.red>:Ryan Levick <ryan.levick@gmail.com>:Chris Hennick <hennickc@amazon.com>",
         "CARGO_PKG_DESCRIPTION": "Library to support the reading and writing of zip files.",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "zip",
+        "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/zip-rs/zip2",
+        "CARGO_PKG_RUST_VERSION": "1.88",
         "CARGO_PKG_VERSION": "8.6.0",
         "CARGO_PKG_VERSION_MAJOR": "8",
         "CARGO_PKG_VERSION_MINOR": "6",
@@ -26602,12 +26922,12 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":crc32fast-1.5.0",
-        ":flate2-1.1.9",
-        ":indexmap-2.14.0",
-        ":memchr-2.8.3",
-        ":typed-path-0.12.3",
-        ":zopfli-0.8.3",
+        ":crc32fast-1",
+        ":flate2-1",
+        ":indexmap-2",
+        ":memchr-2",
+        ":typed-path-0.12",
+        ":zopfli-0.8",
     ],
 )
 
@@ -26620,7 +26940,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zlib-rs-0.6.6",
+    name = "zlib-rs-0.6",
     srcs = [":zlib-rs-0.6.6.crate"],
     crate = "zlib_rs",
     crate_root = "zlib-rs-0.6.6.crate/src/lib.rs",
@@ -26643,7 +26963,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zmij-1.0.23",
+    name = "zmij-1",
     srcs = [":zmij-1.0.23.crate"],
     crate = "zmij",
     crate_root = "zmij-1.0.23.crate/src/lib.rs",
@@ -26660,7 +26980,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zopfli-0.8.3",
+    name = "zopfli-0.8",
     srcs = [":zopfli-0.8.3.crate"],
     crate = "zopfli",
     crate_root = "zopfli-0.8.3.crate/src/lib.rs",
@@ -26673,16 +26993,16 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":bumpalo-3.20.3",
-        ":crc32fast-1.5.0",
-        ":log-0.4.33",
-        ":simd-adler32-0.3.10",
+        ":bumpalo-3",
+        ":crc32fast-1",
+        ":log-0.4",
+        ":simd-adler32-0.3",
     ],
 )
 
 shims.alias(
     name = "zstd",
-    actual = ":zstd-0.13.3",
+    actual = ":zstd-0.13",
     visibility = ["PUBLIC"],
 )
 
@@ -26695,7 +27015,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zstd-0.13.3",
+    name = "zstd-0.13",
     srcs = [":zstd-0.13.3.crate"],
     crate = "zstd",
     crate_root = "zstd-0.13.3.crate/src/lib.rs",
@@ -26707,7 +27027,7 @@ third_party_rust.rust_library(
         "zdict_builder",
     ],
     visibility = [],
-    deps = [":zstd-safe-7.2.4"],
+    deps = [":zstd-safe-7"],
 )
 
 shims.http_archive(
@@ -26719,7 +27039,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zstd-safe-7.2.4",
+    name = "zstd-safe-7",
     srcs = [":zstd-safe-7.2.4.crate"],
     crate = "zstd_safe",
     crate_root = "zstd-safe-7.2.4.crate/src/lib.rs",
@@ -26731,7 +27051,7 @@ third_party_rust.rust_library(
         "zdict_builder",
     ],
     visibility = [],
-    deps = [":zstd-sys-2.0.16+zstd.1.5.7"],
+    deps = [":zstd-sys-2"],
 )
 
 shims.http_archive(
@@ -26743,7 +27063,7 @@ shims.http_archive(
 )
 
 third_party_rust.rust_library(
-    name = "zstd-sys-2.0.16+zstd.1.5.7",
+    name = "zstd-sys-2",
     srcs = [":zstd-sys-2.0.16+zstd.1.5.7.crate"],
     crate = "zstd_sys",
     crate_root = "zstd-sys-2.0.16+zstd.1.5.7.crate/src/lib.rs",
