@@ -58,7 +58,7 @@ fn main() -> ExitCode {
 }
 
 async fn run(args: Args) -> Result<()> {
-    let mut client = ReapiClient::connect(&args.server, &args.instance)
+    let mut client = ReapiClient::connect(&args.server, &args.instance, client::DigestFunction::Sha256)
         .await
         .context("failed to connect to server")?;
 

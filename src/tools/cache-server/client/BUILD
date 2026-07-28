@@ -3,20 +3,18 @@
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
-# Shared deps for REAPI client code (no TUI)
+# Shared deps for REAPI client code (no TUI).
+#
+# The protocol lives in //src/crates/reapi-client, which keeps tonic, prost and
+# the generated protos private — hence none of them appear here.
 REAPI_CLIENT_DEPS = [
     "third-party//by-name/mi/mimalloc:rust",
 
-    # proto library (shared with cache-server)
-    "//src/crates/reapi-protos:protos",
+    # protocol
+    "//src/crates/reapi-client:reapi-client",
 
-    # grpc / networking
-    "third-party//rust:tonic",
-    "third-party//rust:tonic-prost",
-    "third-party//rust:prost",
-    "third-party//rust:prost-types",
+    # runtime
     "third-party//rust:tokio",
-    "third-party//rust:tokio-stream",
 
     # cli
     "third-party//rust:clap",
@@ -24,10 +22,6 @@ REAPI_CLIENT_DEPS = [
     # utilities
     "third-party//rust:anyhow",
     "third-party//rust:bytes",
-    "third-party//rust:sha2",
-    "third-party//rust:hex",
-    "third-party//rust:futures",
-    "third-party//rust:uuid",
 ]
 
 depot.rust_binary(

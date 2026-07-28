@@ -40,7 +40,10 @@ impl Progress {
         self.sink.is_some()
     }
 
-    pub(crate) fn report(&self, transferred: u64, total: u64) {
+    /// Push an update. Callers may report progress for work the library
+    /// never sees, such as a transfer skipped because the server already had
+    /// the blob.
+    pub fn report(&self, transferred: u64, total: u64) {
         if let Some(sink) = &self.sink {
             sink(transferred, total);
         }

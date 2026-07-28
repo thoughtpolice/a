@@ -68,7 +68,7 @@ async fn run(args: Args) -> Result<()> {
     }
 
     let (progress_tx, _progress_rx) = tokio::sync::mpsc::unbounded_channel();
-    let mut client = ReapiClient::connect(&args.server, &args.instance)
+    let mut client = ReapiClient::connect(&args.server, &args.instance, client::DigestFunction::Sha256)
         .await
         .context("failed to connect to server")?;
 

@@ -24,6 +24,25 @@ use app::{App, ConnState};
 use client::ReapiClient;
 use event::{AppEvent, spawn_event_reader};
 
+/// Digest function to transfer with.
+///
+/// Blobs stored under one function are invisible to a lookup under another, so
+/// this selects a keyspace as much as an algorithm.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, clap::ValueEnum)]
+enum DigestFn {
+    Sha256,
+    Blake3,
+}
+
+impl From<DigestFn> for client::DigestFunction {
+    fn from(value: DigestFn) -> Self {
+        match value {
+            DigestFn::Sha256 => client::DigestFunction::Sha256,
+            DigestFn::Blake3 => client::DigestFunction::Blake3,
+        }
+    }
+}
+
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
@@ -53,6 +72,17 @@ struct Cli {
         global = true
     )]
     instance: String,
+
+    /// Digest function to transfer with
+    #[arg(
+        short,
+        long,
+        value_enum,
+        default_value_t = DigestFn::Sha256,
+        env = "CACHE_CLIENT_DIGEST_FUNCTION",
+        global = true
+    )]
+    digest_function: DigestFn,
 
     #[command(subcommand)]
     command: Option<Command>,
@@ -124,20 +154,25 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(cmd) => run_command(cli.server, cli.instance, cmd),
-        None => run_tui(cli.server, cli.instance),
+        Some(cmd) => run_command(cli.server, cli.instance, cli.digest_function.into(), cmd),
+        None => run_tui(cli.server, cli.instance, cli.digest_function.into()),
     }
 }
 
 // ── Non-interactive commands ────────────────────────────────────────────
 
-fn run_command(server: String, instance: String, cmd: Command) -> Result<()> {
+fn run_command(
+    server: String,
+    instance: String,
+    function: client::DigestFunction,
+    cmd: Command,
+) -> Result<()> {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
 
     rt.block_on(async {
-        let mut client = ReapiClient::connect(&server, &instance)
+        let mut client = ReapiClient::connect(&server, &instance, function)
             .await
             .context("failed to connect to server")?;
 
@@ -300,7 +335,7 @@ fn fmt_bytes(bytes: u64) -> String {
 
 // ── TUI mode ────────────────────────────────────────────────────────────
 
-fn run_tui(server: String, instance: String) -> Result<()> {
+fn run_tui(server: String, instance: String, function: client::DigestFunction) -> Result<()> {
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(move |info| {
         let _ = disable_raw_mode();
@@ -318,7 +353,7 @@ fn run_tui(server: String, instance: String) -> Result<()> {
         .enable_all()
         .build()?;
 
-    let result = rt.block_on(run_app(&mut terminal, server, instance));
+    let result = rt.block_on(run_app(&mut terminal, server, instance, function));
 
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
@@ -331,11 +366,12 @@ async fn run_app(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     server: String,
     instance: String,
+    function: client::DigestFunction,
 ) -> Result<()> {
     let (event_tx, mut app_events) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
     let mut term_events = spawn_event_reader(Duration::from_millis(100));
 
-    let mut app = App::new(server.clone(), instance.clone(), event_tx.clone());
+    let mut app = App::new(server.clone(), instance.clone(), function, event_tx.clone());
 
     app.conn = ConnState::Connecting;
     {
@@ -343,7 +379,7 @@ async fn run_app(
         let inst = instance;
         let tx = event_tx.clone();
         tokio::spawn(async move {
-            match ReapiClient::connect(&url, &inst).await {
+            match ReapiClient::connect(&url, &inst, function).await {
                 Ok(mut client) => {
                     let _ = tx.send(AppEvent::Connected);
                     match client.get_capabilities().await {

@@ -6,7 +6,7 @@ use std::time::Instant;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc;
 
-use protos::build::bazel::remote::execution::v2 as reapi;
+
 
 use crate::client::{DownloadResult, FetchResult, ProgressUpdate, ReapiClient, UploadResult};
 use crate::event::AppEvent;
@@ -79,7 +79,8 @@ pub struct App {
     pub instance_name: String,
 
     // capabilities
-    pub capabilities: Option<reapi::ServerCapabilities>,
+    pub capabilities: Option<crate::client::ServerCapabilities>,
+    pub digest_function: crate::client::DigestFunction,
 
     // upload
     pub upload_path: String,
@@ -124,6 +125,7 @@ impl App {
     pub fn new(
         server_url: String,
         instance_name: String,
+        digest_function: crate::client::DigestFunction,
         event_tx: mpsc::UnboundedSender<AppEvent>,
     ) -> Self {
         Self {
@@ -133,6 +135,7 @@ impl App {
             server_url,
             instance_name,
             capabilities: None,
+            digest_function,
             upload_path: String::new(),
             upload_completions: Vec::new(),
             upload_completion_selected: None,
@@ -415,6 +418,7 @@ impl App {
         let path = self.upload_path.clone();
         let url = self.server_url.clone();
         let instance = self.instance_name.clone();
+        let function = self.digest_function;
         let event_tx = self.event_tx.clone();
 
         tokio::spawn(async move {
@@ -429,7 +433,7 @@ impl App {
             });
 
             let result = async {
-                let mut client = ReapiClient::connect(&url, &instance).await?;
+                let mut client = ReapiClient::connect(&url, &instance, function).await?;
                 client
                     .upload_file(std::path::Path::new(&path), progress_tx)
                     .await
@@ -468,6 +472,7 @@ impl App {
         let output = self.download_output.clone();
         let url = self.server_url.clone();
         let instance = self.instance_name.clone();
+        let function = self.digest_function;
         let event_tx = self.event_tx.clone();
 
         tokio::spawn(async move {
@@ -481,7 +486,7 @@ impl App {
             });
 
             let result = async {
-                let mut client = ReapiClient::connect(&url, &instance).await?;
+                let mut client = ReapiClient::connect(&url, &instance, function).await?;
                 client
                     .download_blob(&hash, size, std::path::Path::new(&output), progress_tx)
                     .await
@@ -513,6 +518,7 @@ impl App {
         let output = self.fetch_output.clone();
         let url = self.server_url.clone();
         let instance = self.instance_name.clone();
+        let function = self.digest_function;
         let event_tx = self.event_tx.clone();
 
         tokio::spawn(async move {
@@ -526,7 +532,7 @@ impl App {
             });
 
             let result = async {
-                let mut client = ReapiClient::connect(&url, &instance).await?;
+                let mut client = ReapiClient::connect(&url, &instance, function).await?;
 
                 let qualifiers = if qualifier_str.is_empty() {
                     Vec::new()
@@ -577,11 +583,12 @@ impl App {
         let qualifier_str = self.tag_qualifier.clone();
         let url = self.server_url.clone();
         let instance = self.instance_name.clone();
+        let function = self.digest_function;
         let event_tx = self.event_tx.clone();
 
         tokio::spawn(async move {
             let result = async {
-                let mut client = ReapiClient::connect(&url, &instance).await?;
+                let mut client = ReapiClient::connect(&url, &instance, function).await?;
 
                 let uris = vec![uri];
                 let qualifiers = if qualifier_str.is_empty() {
