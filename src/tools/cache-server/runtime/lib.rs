@@ -132,6 +132,18 @@ pub struct RuntimeInfo {
 }
 
 impl RuntimeInfo {
+    /// The cgroup whose pressure should drive load shedding, if any.
+    ///
+    /// Only a cgroup with a memory limit qualifies: then its pressure is the
+    /// thing that would get this process killed. Without a limit, the PSI
+    /// covers every other process in the scope (on a workstation, the whole
+    /// login session, including the very build whose uploads would be
+    /// rejected), and rejecting work makes that pressure worse, because
+    /// buck2 answers UNAVAILABLE by re-running the actions locally.
+    pub fn pressure_dir(&self) -> Option<&std::path::Path> {
+        self.memory_limit.and(self.cgroup_dir.as_deref())
+    }
+
     /// Log cgroup detection results and mimalloc configuration.
     ///
     /// Call this after the tracing subscriber has been initialized so

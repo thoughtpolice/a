@@ -431,7 +431,7 @@ async fn run_server(
     }
 
     let pressure_monitor = runtime::psi::PressureMonitor::spawn(
-        rt_info.cgroup_dir.clone(),
+        rt_info.pressure_dir().map(std::path::Path::to_path_buf),
         std::time::Duration::from_secs(2),
     );
 
@@ -502,6 +502,7 @@ async fn run_server(
         max_concurrent_requests = args.max_concurrent_requests,
         disable_compactor = args.disable_compactor,
         dial9 = dial9::Dial9Handle::current().is_enabled(),
+        load_shedding = pressure_monitor.is_some(),
         trace_dir = trace_dir.map_or("disabled".to_string(), |d| d.display().to_string()),
         "cache-server ready",
     );
