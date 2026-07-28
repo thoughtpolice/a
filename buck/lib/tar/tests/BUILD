@@ -23,7 +23,7 @@ tar_file(
     prefix = "usr/local/bin",
 )
 
-python_bootstrap_binary(
+shims.python_bootstrap_binary(
     name = "verify_tar",
     main = "verify_tar.py",
 )

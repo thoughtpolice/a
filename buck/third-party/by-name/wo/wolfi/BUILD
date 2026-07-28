@@ -4,18 +4,18 @@
 load("@root//buck/shims:shims.bzl", "shims")
 load(":wolfi.bzl", "wolfi_apks")
 
-python_bootstrap_binary(
+shims.python_bootstrap_binary(
     name = "update",
     main = "update.py",
     visibility = ["PUBLIC"],
 )
 
-python_bootstrap_library(
+shims.python_bootstrap_library(
     name = "update-lib",
     srcs = ["update.py"],
 )
 
-python_bootstrap_binary(
+shims.python_bootstrap_binary(
     name = "update-test",
     main = "update_test.py",
     deps = [":update-lib"],
