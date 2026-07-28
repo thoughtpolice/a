@@ -4,19 +4,24 @@
 load("@root//buck/shims:shims.bzl", "shims")
 load(":wolfi.bzl", "wolfi_apks")
 
-shims.python_bootstrap_binary(
+shims.python_binary(
     name = "update",
+    base_module = "",
     main = "update.py",
     visibility = ["PUBLIC"],
 )
 
-shims.python_bootstrap_library(
+# The test does a plain 'import update', so the module has to land at the root
+# of the package rather than under the default by-name/wo/wolfi base module.
+shims.python_library(
     name = "update-lib",
     srcs = ["update.py"],
+    base_module = "",
 )
 
-shims.python_bootstrap_binary(
+shims.python_binary(
     name = "update-test",
+    base_module = "",
     main = "update_test.py",
     deps = [":update-lib"],
 )

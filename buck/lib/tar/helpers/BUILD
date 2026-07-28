@@ -3,7 +3,7 @@
 
 load("@root//buck/shims:shims.bzl", "shims")
 
-shims.python_bootstrap_binary(
+shims.python_binary(
     name = "tar",
     main = "tar.py",
     visibility = ["PUBLIC"],

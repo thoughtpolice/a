@@ -68,10 +68,10 @@ def sh_binary(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.command() instead')
 
 def python_binary(**_kwargs):
-    fail("use appropriate language-specific toolchain instead of native python_binary")
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.python_binary() instead')
 
 def python_library(**_kwargs):
-    fail("use appropriate language-specific toolchain instead of native python_library")
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.python_library() instead')
 
 def python_bootstrap_binary(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.python_bootstrap_binary() instead')

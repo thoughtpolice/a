@@ -52,9 +52,10 @@ _CPYTHON_ARCHIVES = {
 #
 #     discover_python_archives.sh 3.14.6 20260718
 #
-# 'bootstrap' is disabled: python_bootstrap_binary() rules keep using the
-# toolchain in toolchains//python-bootstrap, which the rest of the build already
-# relies on and which downloads its interpreter without needing any toolchain.
+# 'bootstrap' is disabled: the prelude's own build tools (rustc_action, the
+# python packaging scripts, ...) are bootstrap binaries and keep using
+# toolchains//python-bootstrap, which downloads its interpreter without needing
+# a python toolchain at all. Repository code wants shims.python_binary instead.
 remote_python_toolchain(
     name = "python",
     bootstrap = False,

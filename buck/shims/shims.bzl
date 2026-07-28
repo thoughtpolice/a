@@ -465,6 +465,10 @@ shims = struct(
     erlang_app = lambda **kwargs: native.erlang_app(**_fix_kwargs("erlang_app", kwargs)),
     erlang_test = lambda **kwargs: native.erlang_test(**_fix_kwargs("erlang_test", kwargs)),
     erlang_escript = lambda **kwargs: native.erlang_escript(**_fix_kwargs("erlang_escript", kwargs)),
+    python_binary = lambda **kwargs: native.python_binary(**_fix_kwargs("python_binary", kwargs)),
+    python_library = lambda **kwargs: native.python_library(**_fix_kwargs("python_library", kwargs)),
+    # Only for tools the build needs before the python toolchain can be used;
+    # everything else wants python_binary/python_library above.
     python_bootstrap_binary = lambda **kwargs: native.python_bootstrap_binary(**_fix_kwargs("python_bootstrap_binary", kwargs)),
     python_bootstrap_library = lambda **kwargs: native.python_bootstrap_library(**_fix_kwargs("python_bootstrap_library", kwargs)),
     cxx_library = _depot_cxx_library,
