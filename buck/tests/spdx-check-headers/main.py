@@ -47,8 +47,8 @@ BAD_PREFIXES = [
     ".buckconfig.d",
     "src/rtlcc/ulx3s-picosoc",
     # vendored proto files from Google/Bazel
-    "src/tools/cache-server/protos/google/",
-    "src/tools/cache-server/protos/build/",
+    "src/crates/reapi-protos/google/",
+    "src/crates/reapi-protos/build/",
 ]
 
 BAD_SUFFIXES = [

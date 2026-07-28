@@ -8,7 +8,7 @@ REAPI_CLIENT_DEPS = [
     "third-party//by-name/mi/mimalloc:rust",
 
     # proto library (shared with cache-server)
-    "//src/tools/cache-server/protos:protos",
+    "//src/crates/reapi-protos:protos",
 
     # grpc / networking
     "third-party//rust:tonic",

@@ -7,6 +7,7 @@ load("@toolchains//protoc:defs.bzl", "protoc_env")
 depot.rust_library(
     name = "protos",
     srcs = ["lib.rs"],
+    crate_root = "lib.rs",
     deps = [
         "third-party//rust:prost",
         "third-party//rust:prost-types",

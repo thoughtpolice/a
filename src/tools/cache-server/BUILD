@@ -9,11 +9,11 @@ BUILD_DEPS = [
     # local deps
     "//src/crates/accept:accept",
     "//src/crates/dial9-tonic:dial9-tonic",
+    "//src/crates/reapi-protos:protos",
     "//src/crates/rustls-boring:rustls-boring",
     "//src/crates/rustls-transport:rustls-transport",
     "//src/tools/cache-server/fetch-git:fetch-git",
     "//src/tools/cache-server/fetch-http:fetch-http",
-    "//src/tools/cache-server/protos:protos",
     "//src/tools/cache-server/runtime:runtime",
     "//src/tools/cache-server/storage:storage",
     "//src/tools/cache-server/telemetry:telemetry",
