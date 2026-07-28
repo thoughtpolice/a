@@ -476,10 +476,18 @@ async fn run_server(
         caps.emit_warnings();
     }
 
-    let pressure_monitor = runtime::psi::PressureMonitor::spawn(
-        rt_info.cgroup_dir.clone(),
-        std::time::Duration::from_secs(2),
-    );
+    // Shed load only when a cgroup memory limit is the thing that would kill
+    // us. Without one, this cgroup's PSI reports pressure from every other
+    // process in the scope — on a workstation that is the whole login session,
+    // including the very build whose uploads we would reject. Rejecting them
+    // then makes the pressure worse, because buck2 responds to UNAVAILABLE by
+    // re-running the actions locally.
+    let pressure_monitor = rt_info.memory_limit.and_then(|_| {
+        runtime::psi::PressureMonitor::spawn(
+            rt_info.cgroup_dir.clone(),
+            std::time::Duration::from_secs(2),
+        )
+    });
 
     anyhow::ensure!(
         args.max_concurrent_requests > 0,
@@ -550,6 +558,7 @@ async fn run_server(
         max_concurrent_requests = args.max_concurrent_requests,
         disable_compactor = args.disable_compactor,
         dial9 = !cli.disable_dial9,
+        load_shedding = pressure_monitor.is_some(),
         trace_dir = trace_dir.map_or("disabled".to_string(), |d| d.display().to_string()),
         "cache-server ready",
     );
