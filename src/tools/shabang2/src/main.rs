@@ -11,6 +11,7 @@ mod cache;
 mod exec;
 mod http;
 mod lock;
+mod remote;
 
 use std::path::PathBuf;
 
@@ -147,7 +148,7 @@ fn fetch_verify_extract_cache(
         .build()
         .context("creating tokio runtime")?;
 
-    let data = rt.block_on(fetch_from_providers(entry))?;
+    let data = rt.block_on(fetch_bytes(entry))?;
 
     // Verify size
     if data.len() as u64 != entry.size {
@@ -167,6 +168,25 @@ fn fetch_verify_extract_cache(
 
     // Store in cache
     cache.store(entry, temp_dir.path())
+}
+
+/// Obtain the artifact's bytes: from the remote cache if one is configured and
+/// has them, otherwise from the origin providers.
+///
+/// The remote tier sits here rather than in `run_manifest` so that `fetch`
+/// benefits from it too. It is reached only after the on-disk cache has missed
+/// twice — once before the lock and once after — so a warm launch never opens a
+/// connection at all.
+async fn fetch_bytes(entry: &manifest::PlatformEntry) -> Result<Vec<u8>> {
+    if let Some(remote) = remote::Remote::from_env() {
+        // Errors here are integrity failures only; everything else has already
+        // degraded to `None`.
+        if let Some(data) = remote.try_read(entry).await? {
+            return Ok(data);
+        }
+    }
+
+    fetch_from_providers(entry).await
 }
 
 /// Try each provider in sequence until one succeeds.
