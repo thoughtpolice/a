@@ -10,9 +10,10 @@
 //! the client, agree with it, and be wrong in the same direction.
 
 use std::process::{Child, Command};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::{ConnectOptions, Digest, DigestFunction, Error, ReapiClient};
+use crate::{BATCH_THRESHOLD, ConnectOptions, Digest, DigestFunction, Error, Progress, ReapiClient};
 
 /// A `cache-server` child process, killed when the test drops it.
 struct ServerGuard {
@@ -295,4 +296,291 @@ async fn digest_functions_do_not_alias() {
             .expect("read")
             .is_none()
     );
+}
+
+// ---------------------------------------------------------------------------
+// Capabilities
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn capabilities_report_the_digest_functions_the_server_accepts() {
+    let (_server, mut client) = start_server().await;
+
+    let caps = client.get_capabilities().await.expect("capabilities");
+
+    // The server supports these three; the client can only transfer with two
+    // of them, which is exactly why capabilities are reported as names rather
+    // than as this crate's DigestFunction.
+    assert!(caps.digest_functions.contains(&"SHA-256".to_string()));
+    assert!(caps.digest_functions.contains(&"BLAKE3".to_string()));
+    assert!(caps.max_batch_total_size_bytes > 0);
+    assert!(caps.high_api_version.is_some());
+}
+
+// ---------------------------------------------------------------------------
+// Batch / stream boundary
+// ---------------------------------------------------------------------------
+
+/// Blobs either side of the threshold take different wire paths and must be
+/// indistinguishable to the caller — including how a miss is reported.
+#[tokio::test]
+async fn both_transfer_paths_round_trip_and_miss_alike() {
+    let (_server, mut client) = start_server().await;
+
+    for size in [
+        BATCH_THRESHOLD as usize - 1,
+        BATCH_THRESHOLD as usize,
+        BATCH_THRESHOLD as usize + 1,
+    ] {
+        let data = bytes::Bytes::from(vec![b'x'; size]);
+        let digest = Digest::of(DigestFunction::Sha256, &data);
+
+        let absent = Digest::of(DigestFunction::Sha256, &vec![b'y'; size]);
+        assert_eq!(
+            client.read_blob(DigestFunction::Sha256, &absent).await.unwrap(),
+            None,
+            "a {size}-byte blob must miss as Ok(None)"
+        );
+
+        client
+            .write_blob(DigestFunction::Sha256, &digest, data.clone())
+            .await
+            .unwrap_or_else(|e| panic!("write of {size} bytes: {e}"));
+        let got = client
+            .read_blob(DigestFunction::Sha256, &digest)
+            .await
+            .unwrap_or_else(|e| panic!("read of {size} bytes: {e}"));
+
+        assert_eq!(got.as_ref().map(|b| b.len()), Some(size));
+        assert_eq!(got, Some(data));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Progress
+// ---------------------------------------------------------------------------
+
+/// Progress must reach the total on both paths, and the total must be the
+/// digest's declared size from the very first callback.
+#[tokio::test]
+async fn progress_is_reported_for_uploads_and_downloads() {
+    let (_server, mut client) = start_server().await;
+    let data = bytes::Bytes::from(vec![b'z'; 5 * 1024 * 1024]);
+    let digest = Digest::of(DigestFunction::Sha256, &data);
+    let total = data.len() as u64;
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let recorder = Arc::clone(&seen);
+    let progress = Progress::new(move |done, total| recorder.lock().unwrap().push((done, total)));
+
+    client
+        .write_blob_with_progress(DigestFunction::Sha256, &digest, data.clone(), &progress)
+        .await
+        .expect("write");
+
+    let uploads = std::mem::take(&mut *seen.lock().unwrap());
+    assert!(uploads.len() > 1, "expected several updates, got {uploads:?}");
+    assert!(uploads.iter().all(|(_, t)| *t == total));
+    assert_eq!(uploads.last().unwrap().0, total);
+
+    client
+        .read_blob_with_progress(DigestFunction::Sha256, &digest, &progress)
+        .await
+        .expect("read");
+
+    let downloads = seen.lock().unwrap().clone();
+    assert!(downloads.len() > 1, "expected several updates");
+    assert!(downloads.iter().all(|(_, t)| *t == total));
+    assert_eq!(downloads.last().unwrap().0, total);
+}
+
+// ---------------------------------------------------------------------------
+// Remote Asset fetch
+// ---------------------------------------------------------------------------
+
+/// The half of the asset contract `sync` depends on but could not previously
+/// check: that a pushed mapping is actually resolvable afterwards.
+#[tokio::test]
+async fn a_pushed_mapping_resolves_through_fetch_blob() {
+    let (_server, mut client) = start_server().await;
+    let data = bytes::Bytes::from_static(b"an artifact");
+    let digest = Digest::of(DigestFunction::Sha256, &data);
+    let uris = vec!["https://example.com/artifact.zst".to_string()];
+
+    client
+        .write_blob(DigestFunction::Sha256, &digest, data)
+        .await
+        .expect("write");
+    client
+        .push_blob(DigestFunction::Sha256, &digest, &uris, &[])
+        .await
+        .expect("push");
+
+    let fetched = client
+        .fetch_blob(DigestFunction::Sha256, &uris, &[])
+        .await
+        .expect("fetch");
+
+    assert_eq!(fetched.digest, digest);
+    assert_eq!(fetched.uri, uris[0]);
+}
+
+/// Qualifiers are part of the asset key, which is why `sync` pushes twice.
+/// A mapping pushed bare must not be found by a checksum-carrying fetch.
+#[tokio::test]
+async fn qualifiers_participate_in_the_asset_key() {
+    let (_server, mut client) = start_server().await;
+    let data = bytes::Bytes::from_static(b"qualified");
+    let digest = Digest::of(DigestFunction::Sha256, &data);
+    let uris = vec!["https://example.com/q".to_string()];
+    let sri = vec![(
+        "checksum.sri".to_string(),
+        digest.to_sri(DigestFunction::Sha256).unwrap(),
+    )];
+
+    client
+        .write_blob(DigestFunction::Sha256, &digest, data)
+        .await
+        .expect("write");
+    client
+        .push_blob(DigestFunction::Sha256, &digest, &uris, &[])
+        .await
+        .expect("push bare");
+
+    // Bare key hits.
+    assert_eq!(
+        client
+            .fetch_blob(DigestFunction::Sha256, &uris, &[])
+            .await
+            .expect("bare fetch")
+            .digest,
+        digest
+    );
+
+    // The SRI key is a different key, and nothing was pushed under it.
+    // (The server may try the origin; example.com is not resolvable here, so
+    // either way this must not report the blob as found.)
+    match client.fetch_blob(DigestFunction::Sha256, &uris, &sri).await {
+        Err(Error::AssetFetch { .. }) => {}
+        Err(other) => panic!("unexpected error: {other}"),
+        Ok(found) => panic!("SRI key should not have resolved, got {found:?}"),
+    }
+
+    // After pushing under the SRI key too, it resolves.
+    client
+        .push_blob(DigestFunction::Sha256, &digest, &uris, &sri)
+        .await
+        .expect("push sri");
+    assert_eq!(
+        client
+            .fetch_blob(DigestFunction::Sha256, &uris, &sri)
+            .await
+            .expect("sri fetch")
+            .digest,
+        digest
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Directory materialization
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn materialize_directory_writes_files_symlinks_and_subtrees() {
+    use prost::Message as _;
+    use protos::build::bazel::remote::execution::v2 as reapi;
+
+    let (_server, mut client) = start_server().await;
+
+    async fn put(client: &mut ReapiClient, data: &[u8]) -> Digest {
+        let bytes = bytes::Bytes::copy_from_slice(data);
+        let digest = Digest::of(DigestFunction::Sha256, &bytes);
+        client
+            .write_blob(DigestFunction::Sha256, &digest, bytes)
+            .await
+            .expect("write");
+        digest
+    }
+
+    let plain = put(&mut client, b"plain contents").await;
+    let script = put(&mut client, b"#!/bin/sh\ntrue\n").await;
+    let nested = put(&mut client, b"nested contents").await;
+
+    let to_node = |digest: &Digest| reapi::Digest {
+        hash: digest.hash.clone(),
+        size_bytes: digest.size,
+    };
+
+    let subdir = reapi::Directory {
+        files: vec![reapi::FileNode {
+            name: "nested.txt".to_string(),
+            digest: Some(to_node(&nested)),
+            is_executable: false,
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+    let subdir_digest = put(&mut client, &subdir.encode_to_vec()).await;
+
+    let root = reapi::Directory {
+        files: vec![
+            reapi::FileNode {
+                name: "plain.txt".to_string(),
+                digest: Some(to_node(&plain)),
+                is_executable: false,
+                ..Default::default()
+            },
+            reapi::FileNode {
+                name: "run.sh".to_string(),
+                digest: Some(to_node(&script)),
+                is_executable: true,
+                ..Default::default()
+            },
+        ],
+        directories: vec![reapi::DirectoryNode {
+            name: "sub".to_string(),
+            digest: Some(to_node(&subdir_digest)),
+        }],
+        symlinks: vec![reapi::SymlinkNode {
+            name: "link".to_string(),
+            target: "plain.txt".to_string(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+    let root_digest = put(&mut client, &root.encode_to_vec()).await;
+
+    let dest = tempfile::tempdir().expect("tempdir");
+    client
+        .materialize_directory(
+            DigestFunction::Sha256,
+            &root_digest,
+            dest.path(),
+            &Progress::none(),
+        )
+        .await
+        .expect("materialize");
+
+    let at = |name: &str| dest.path().join(name);
+    assert_eq!(std::fs::read(at("plain.txt")).unwrap(), b"plain contents");
+    assert_eq!(
+        std::fs::read(at("sub/nested.txt")).unwrap(),
+        b"nested contents"
+    );
+    assert_eq!(
+        std::fs::read_link(at("link")).unwrap(),
+        std::path::Path::new("plain.txt")
+    );
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = |p: std::path::PathBuf| std::fs::metadata(p).unwrap().permissions().mode();
+        assert_ne!(mode(at("run.sh")) & 0o111, 0, "run.sh should be executable");
+        assert_eq!(
+            mode(at("plain.txt")) & 0o111,
+            0,
+            "plain.txt should not be executable"
+        );
+    }
 }

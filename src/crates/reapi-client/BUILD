@@ -12,6 +12,7 @@ DEPS = [
     "third-party//rust:bytes",
     "third-party//rust:futures",
     "third-party//rust:hex",
+    "third-party//rust:prost",
     "third-party//rust:sha2",
     "third-party//rust:thiserror",
     "third-party//rust:tokio",
@@ -46,5 +47,8 @@ depot.rust_test(
     },
     rustc_flags = ["--cfg=integration_tests"],
     target_compatible_with = ["config//os:linux"],
-    deps = DEPS + ["third-party//rust:buck-resources"],
+    deps = DEPS + [
+        "third-party//rust:buck-resources",
+        "third-party//rust:tempfile",
+    ],
 )

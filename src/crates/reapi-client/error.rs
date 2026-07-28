@@ -54,6 +54,38 @@ pub enum Error {
     /// A digest was rejected before it reached the wire.
     #[error("invalid digest: {0}")]
     InvalidDigest(String),
+
+    /// A Remote Asset fetch reported failure in its response body.
+    ///
+    /// Distinct from [`Error::Rpc`]: the RPC itself succeeded, and the server
+    /// used the embedded `status` to say it could not resolve the asset.
+    #[error("could not fetch asset {uri}: {message} (code {code})")]
+    AssetFetch {
+        uri: String,
+        code: i32,
+        message: String,
+    },
+
+    /// A response body could not be decoded as the message it claimed to be.
+    #[error("failed to decode {what}: {source}")]
+    Decode {
+        what: &'static str,
+        #[source]
+        source: prost::DecodeError,
+    },
+
+    /// A filesystem operation failed while materializing a directory tree.
+    #[error("{operation} {path}")]
+    Io {
+        operation: &'static str,
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    /// The server's response omitted a field the protocol requires.
+    #[error("malformed {rpc} response: {detail}")]
+    MalformedResponse { rpc: &'static str, detail: String },
 }
 
 /// Convenience alias for results from this crate.
