@@ -14,6 +14,11 @@ shims.toolchain_alias(
 )
 
 shims.toolchain_alias(
+    name = "python",
+    actual = "toolchains//python:python",
+)
+
+shims.toolchain_alias(
     name = "python_bootstrap",
     actual = "toolchains//python-bootstrap:python_bootstrap",
 )
