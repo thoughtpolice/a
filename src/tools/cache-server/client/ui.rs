@@ -234,69 +234,53 @@ fn draw_capabilities(app: &App, frame: &mut Frame, area: Rect) {
 
     let mut rows: Vec<Row<'static>> = Vec::new();
 
-    // Cache capabilities
-    if let Some(ref cc) = caps.cache_capabilities {
-        let digest_fns: Vec<&str> = cc
-            .digest_functions
-            .iter()
-            .map(|d| digest_fn_name(*d))
-            .collect();
-        rows.push(cap_row("Digest functions", digest_fns.join(", ")));
+    rows.push(cap_row(
+        "Digest functions",
+        caps.digest_functions.join(", "),
+    ));
 
-        rows.push(cap_row(
-            "AC update",
-            match cc.action_cache_update_capabilities.as_ref() {
-                Some(u) if u.update_enabled => "enabled",
-                _ => "disabled",
-            }
-            .to_string(),
-        ));
-
-        rows.push(cap_row(
-            "Max batch size",
-            fmt_bytes(cc.max_batch_total_size_bytes as u64),
-        ));
-
-        let compressors: Vec<&str> = cc
-            .supported_compressors
-            .iter()
-            .map(|c| compressor_name(*c))
-            .collect();
-        if !compressors.is_empty() {
-            rows.push(cap_row("Compressors", compressors.join(", ")));
+    rows.push(cap_row(
+        "AC update",
+        if caps.action_cache_update_enabled {
+            "enabled"
+        } else {
+            "disabled"
         }
+        .to_string(),
+    ));
 
+    rows.push(cap_row(
+        "Max batch size",
+        fmt_bytes(caps.max_batch_total_size_bytes as u64),
+    ));
+
+    if !caps.supported_compressors.is_empty() {
         rows.push(cap_row(
-            "Symlink absolute",
-            symlink_name(cc.symlink_absolute_path_strategy).to_string(),
+            "Compressors",
+            caps.supported_compressors.join(", "),
         ));
     }
 
-    // Execution capabilities
-    if let Some(ref ec) = caps.execution_capabilities {
-        rows.push(cap_row(
-            "Execution",
-            if ec.exec_enabled {
-                "enabled"
-            } else {
-                "disabled"
-            }
-            .to_string(),
-        ));
-    }
+    rows.push(cap_row(
+        "Symlink absolute",
+        caps.symlink_absolute_path_strategy.clone(),
+    ));
 
-    // API version
-    if let Some(ref lo) = caps.low_api_version {
-        rows.push(cap_row(
-            "API version (low)",
-            format!("{}.{}.{}", lo.major, lo.minor, lo.patch),
-        ));
+    rows.push(cap_row(
+        "Execution",
+        if caps.exec_enabled {
+            "enabled"
+        } else {
+            "disabled"
+        }
+        .to_string(),
+    ));
+
+    if let Some(lo) = caps.low_api_version {
+        rows.push(cap_row("API version (low)", lo.to_string()));
     }
-    if let Some(ref hi) = caps.high_api_version {
-        rows.push(cap_row(
-            "API version (high)",
-            format!("{}.{}.{}", hi.major, hi.minor, hi.patch),
-        ));
+    if let Some(hi) = caps.high_api_version {
+        rows.push(cap_row("API version (high)", hi.to_string()));
     }
 
     let table = Table::new(rows, [Constraint::Length(22), Constraint::Min(30)])
@@ -317,41 +301,6 @@ fn cap_row(key: &str, value: String) -> Row<'static> {
         Cell::from(key.to_string()).style(Style::default().fg(Color::White)),
         Cell::from(value).style(Style::default().fg(Color::Yellow)),
     ])
-}
-
-fn digest_fn_name(v: i32) -> &'static str {
-    match v {
-        0 => "UNKNOWN",
-        1 => "SHA-256",
-        2 => "SHA-1",
-        3 => "MD5",
-        4 => "VSO",
-        5 => "SHA-384",
-        6 => "SHA-512",
-        7 => "MURMUR3",
-        8 => "SHA-256/TREE",
-        9 => "BLAKE3",
-        _ => "OTHER",
-    }
-}
-
-fn compressor_name(v: i32) -> &'static str {
-    match v {
-        0 => "IDENTITY",
-        1 => "ZSTD",
-        2 => "DEFLATE",
-        3 => "BROTLI",
-        _ => "OTHER",
-    }
-}
-
-fn symlink_name(v: i32) -> &'static str {
-    match v {
-        0 => "UNKNOWN",
-        1 => "DISALLOWED",
-        2 => "ALLOWED",
-        _ => "OTHER",
-    }
 }
 
 // ── Upload screen ───────────────────────────────────────────────────────
