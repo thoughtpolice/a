@@ -56,10 +56,6 @@ func discoverJJ(ctx context.Context, runner processRunner, executable, start str
 	return &jjClient{runner: runner, executable: executable, repository: repository}, nil
 }
 
-func jjAtRepository(runner processRunner, executable, repository string) *jjClient {
-	return &jjClient{runner: runner, executable: executable, repository: repository}
-}
-
 func (jj *jjClient) resolvePair(ctx context.Context, base, head string, ignoreWorkingCopy bool) (resolvedRevisions, error) {
 	baseCommit, err := jj.resolveOne(ctx, base, ignoreWorkingCopy)
 	if err != nil {

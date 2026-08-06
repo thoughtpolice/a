@@ -91,10 +91,6 @@ func (g *graph) headDependents(label string) labelSet {
 	return cloneSet(g.headReverseDeps[label])
 }
 
-func (g *graph) propagateHead(seeds []string, depthLimit *int) labelSet {
-	return propagate(g.headReverseDeps, seeds, depthLimit)
-}
-
 func (g *graph) transitiveImporters(changed []string) labelSet {
 	return propagate(g.reverseImports, changed, nil)
 }

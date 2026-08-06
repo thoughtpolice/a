@@ -44,15 +44,6 @@ func TestCellsResolveAndChooseLongestInverseRoot(t *testing.T) {
 	if err != nil || path != nil {
 		t.Fatalf("external path = %v, %v; want nil, nil", path, err)
 	}
-
-	cellPath, err := cells.toCellPath("src/nested/lib.rs")
-	if err != nil || cellPath != "nested//lib.rs" {
-		t.Fatalf("nested inverse path = %q, %v", cellPath, err)
-	}
-	cellPath, err = cells.toCellPath("README.md")
-	if err != nil || cellPath != "alias//README.md" {
-		t.Fatalf("equal-root alias = %q, %v", cellPath, err)
-	}
 }
 
 func TestCellsRejectUnknownAndEscapingPaths(t *testing.T) {

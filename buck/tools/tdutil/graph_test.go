@@ -14,13 +14,18 @@ func graphTestTarget(packageName, name string, deps, inputs []string) target {
 		ruleType:        "root//rules/rust.bzl:rust_library",
 		deps:            append([]string(nil), deps...),
 		inputs:          append([]string(nil), inputs...),
-		cellInputs:      nil,
 		targetHash:      "hash",
 		labels:          nil,
 		ciSrcs:          nil,
 		ciSrcsMustMatch: nil,
 		ciDeps:          nil,
 	}
+}
+
+// headReach walks the head reverse-dependency edges the way propagation does,
+// without the reason bookkeeping determine() layers on top.
+func (g *graph) headReach(seeds []string, depthLimit *int) labelSet {
+	return propagate(g.headReverseDeps, seeds, depthLimit)
 }
 
 func splitRepoPackage(packageName string) string {
@@ -46,15 +51,10 @@ func graphTestSnapshot(t *testing.T, targets []target, files []fileNode) snapsho
 
 func graphTestFile(path string, imports []string) fileNode {
 	pathCopy := path
-	cellImports := make([]string, len(imports))
-	for index, imported := range imports {
-		cellImports[index] = "root//" + imported
-	}
 	return fileNode{
-		cellPath:    "root//" + path,
-		path:        &pathCopy,
-		cellImports: cellImports,
-		imports:     append([]string(nil), imports...),
+		cellPath: "root//" + path,
+		path:     &pathCopy,
+		imports:  append([]string(nil), imports...),
 	}
 }
 
@@ -100,7 +100,7 @@ func TestHeadPropagationUsesOnlyHeadEdges(t *testing.T) {
 		graphTestTarget("root//new", "new", []string{"root//a:a"}, nil),
 	}, nil)
 
-	reached := newGraph(&base, &head).propagateHead([]string{"root//a:a"}, nil)
+	reached := newGraph(&base, &head).headReach([]string{"root//a:a"}, nil)
 	if !setContains(reached, "root//new:new") {
 		t.Fatal("head dependent was not reached")
 	}
@@ -117,7 +117,7 @@ func TestRemovedTargetCanSeedHeadDependents(t *testing.T) {
 		graphTestTarget("root//b", "consumer", []string{"root//a:gone"}, nil),
 	}, nil)
 
-	reached := newGraph(&base, &head).propagateHead([]string{"root//a:gone"}, nil)
+	reached := newGraph(&base, &head).headReach([]string{"root//a:gone"}, nil)
 	if !setContains(reached, "root//a:gone") || !setContains(reached, "root//b:consumer") {
 		t.Fatalf("reached = %#v", reached)
 	}
@@ -132,11 +132,11 @@ func TestPropagationObeysDepthAndHandlesCycles(t *testing.T) {
 	base := graphTestSnapshot(t, nil, nil)
 	graph := newGraph(&base, &head)
 	depth := 1
-	reached := graph.propagateHead([]string{"root//a:a"}, &depth)
+	reached := graph.headReach([]string{"root//a:a"}, &depth)
 	if len(reached) != 2 || !setContains(reached, "root//a:a") || !setContains(reached, "root//b:b") {
 		t.Fatalf("depth-one propagation = %#v", reached)
 	}
-	if reached := graph.propagateHead([]string{"root//a:a"}, nil); len(reached) != 3 {
+	if reached := graph.headReach([]string{"root//a:a"}, nil); len(reached) != 3 {
 		t.Fatalf("cycle propagation = %#v", reached)
 	}
 }
@@ -215,7 +215,7 @@ func TestCIDepsFromRemovedTargetsReachSurvivingConsumers(t *testing.T) {
 		if _, ok := graph.headTarget(test.removed); ok {
 			t.Errorf("removed target %q remains at head", test.removed)
 		}
-		if !setContains(graph.propagateHead([]string{test.removed}, nil), test.consumer) {
+		if !setContains(graph.headReach([]string{test.removed}, nil), test.consumer) {
 			t.Errorf("removed target %q did not reach %q", test.removed, test.consumer)
 		}
 	}
@@ -228,7 +228,7 @@ func TestBaseOnlyCIDepsDependentsDoNotEnterTheHeadGraph(t *testing.T) {
 	base := graphTestSnapshot(t, []target{removed, oldConsumer}, nil)
 	head := graphTestSnapshot(t, nil, nil)
 
-	reached := newGraph(&base, &head).propagateHead([]string{"root//lib:gone"}, nil)
+	reached := newGraph(&base, &head).headReach([]string{"root//lib:gone"}, nil)
 	if len(reached) != 1 || !setContains(reached, "root//lib:gone") {
 		t.Fatalf("head propagation = %#v", reached)
 	}

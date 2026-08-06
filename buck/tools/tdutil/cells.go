@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -19,12 +18,6 @@ import (
 type cellMap struct {
 	cells         map[string]string
 	externalCells map[string]string
-	roots         []cellRoot
-}
-
-type cellRoot struct {
-	root string
-	cell string
 }
 
 func parseCellMap(workspace string, data []byte) (cellMap, error) {
@@ -84,23 +77,11 @@ func parseCellMap(workspace string, data []byte) (cellMap, error) {
 	return assembleCellMap(result.cells, result.externalCells), nil
 }
 
-// assembleCellMap builds the derived longest-root index over a validated cell
-// layout. The internal roots are repository-relative, so an assembled map is
-// independent of any particular checkout location; external cells participate
-// only as a name set.
+// assembleCellMap names a validated cell layout. The internal roots are
+// repository-relative, so an assembled map is independent of any particular
+// checkout location; external cells participate only as a name set.
 func assembleCellMap(cells map[string]string, externalCells map[string]string) cellMap {
-	result := cellMap{cells: cells, externalCells: externalCells}
-	result.roots = make([]cellRoot, 0, len(cells))
-	for cell, root := range cells {
-		result.roots = append(result.roots, cellRoot{root: root, cell: cell})
-	}
-	sort.Slice(result.roots, func(i, j int) bool {
-		if len(result.roots[i].root) != len(result.roots[j].root) {
-			return len(result.roots[i].root) > len(result.roots[j].root)
-		}
-		return result.roots[i].cell < result.roots[j].cell
-	})
-	return result
+	return cellMap{cells: cells, externalCells: externalCells}
 }
 
 // toRepoPath resolves a cell-qualified path into a slash-separated path
@@ -129,26 +110,6 @@ func (m cellMap) toRepoPath(cellPath string) (*string, error) {
 		return nil, nil
 	}
 	return nil, fmt.Errorf("Buck path `%s` refers to unknown cell `%s`", cellPath, cell)
-}
-
-// toCellPath converts a repository-relative path to its most-specific Buck
-// cell alias. Equal-root aliases are resolved by cell name.
-func (m cellMap) toCellPath(repoPath string) (string, error) {
-	repoPath, err := normalizeRelative(repoPath)
-	if err != nil {
-		return "", err
-	}
-	for _, candidate := range m.roots {
-		switch {
-		case candidate.root == "":
-			return candidate.cell + "//" + repoPath, nil
-		case repoPath == candidate.root:
-			return candidate.cell + "//", nil
-		case strings.HasPrefix(repoPath, candidate.root+"/"):
-			return candidate.cell + "//" + strings.TrimPrefix(repoPath, candidate.root+"/"), nil
-		}
-	}
-	return "", fmt.Errorf("repository path `%s` is not contained by a Buck cell", repoPath)
 }
 
 func (m cellMap) isKnownCell(cell string) bool {

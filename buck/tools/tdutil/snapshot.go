@@ -4,7 +4,9 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -51,7 +53,6 @@ type documentTarget struct {
 	RuleType        string   `json:"rule_type"`
 	Deps            []string `json:"deps"`
 	Inputs          []string `json:"inputs"`
-	CellInputs      []string `json:"cell_inputs"`
 	TargetHash      string   `json:"target_hash"`
 	Labels          []string `json:"labels"`
 	CiSrcs          []string `json:"ci_srcs"`
@@ -64,7 +65,6 @@ type documentFile struct {
 	Path        *string  `json:"path"`
 	Package     *string  `json:"package"`
 	RepoPackage *string  `json:"repo_package"`
-	CellImports []string `json:"cell_imports"`
 	Imports     []string `json:"imports"`
 }
 
@@ -100,7 +100,6 @@ func buildSnapshotDocument(
 			RuleType:        record.ruleType,
 			Deps:            record.deps,
 			Inputs:          record.inputs,
-			CellInputs:      record.cellInputs,
 			TargetHash:      record.targetHash,
 			Labels:          record.labels,
 			CiSrcs:          record.ciSrcs,
@@ -122,7 +121,6 @@ func buildSnapshotDocument(
 			Path:        record.path,
 			Package:     record.packageName,
 			RepoPackage: record.repoPackage,
-			CellImports: record.cellImports,
 			Imports:     record.imports,
 		})
 	}
@@ -166,34 +164,62 @@ func quotedOrAbsent(version string) string {
 	return version
 }
 
-func encodeSnapshotDocument(document *snapshotDocument) ([]byte, error) {
-	data, err := json.Marshal(document)
-	if err != nil {
-		return nil, fmt.Errorf("encoding base snapshot: %w", err)
+// encodeSnapshotDocumentTo streams the document out gzipped. A graph dump is
+// the largest artifact tdutil handles and this shape of JSON — every label
+// sharing long prefixes with its neighbours — compresses by an order of
+// magnitude, which is the difference between a cache entry worth moving over
+// a network and one that is not.
+func encodeSnapshotDocumentTo(output io.Writer, document *snapshotDocument) error {
+	compressor := gzip.NewWriter(output)
+	if err := json.NewEncoder(compressor).Encode(document); err != nil {
+		return fmt.Errorf("encoding base snapshot: %w", err)
 	}
-	return append(data, '\n'), nil
+	if err := compressor.Close(); err != nil {
+		return fmt.Errorf("encoding base snapshot: %w", err)
+	}
+	return nil
+}
+
+// readSnapshotDocument decodes a document straight off the file. Documents
+// written before compression are still plain JSON, so the encoding is
+// detected rather than assumed; nothing else distinguishes them.
+func readSnapshotDocument(path string) (*snapshotDocument, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = file.Close() }()
+	return decodeSnapshotDocument(bufio.NewReaderSize(file, 64*1024))
 }
 
 func parseSnapshotDocument(data []byte) (*snapshotDocument, error) {
-	if !utf8.Valid(data) {
-		return nil, fmt.Errorf("malformed base snapshot: input is not UTF-8")
-	}
-	// Probe the schema first so a future schema reports as such instead of as
-	// an unknown-field decoding failure.
-	var probe struct {
-		Schema int `json:"schema"`
-	}
-	if err := json.Unmarshal(data, &probe); err != nil {
-		return nil, fmt.Errorf("malformed base snapshot: %w", err)
-	}
-	if probe.Schema != snapshotSchemaVersion {
-		return nil, fmt.Errorf("base snapshot schema %d is not supported (want %d)", probe.Schema, snapshotSchemaVersion)
+	return decodeSnapshotDocument(bufio.NewReader(bytes.NewReader(data)))
+}
+
+func decodeSnapshotDocument(input *bufio.Reader) (*snapshotDocument, error) {
+	var reader io.Reader = input
+	magic, err := input.Peek(2)
+	if err == nil && magic[0] == 0x1f && magic[1] == 0x8b {
+		decompressor, err := gzip.NewReader(input)
+		if err != nil {
+			return nil, fmt.Errorf("malformed base snapshot: %w", err)
+		}
+		defer func() { _ = decompressor.Close() }()
+		reader = decompressor
 	}
 
-	decoder := json.NewDecoder(bytes.NewReader(data))
+	// One pass, because the document is far too large to parse twice for the
+	// sake of a nicer message. DisallowUnknownFields therefore reports a
+	// future schema as an unknown field rather than as an unsupported
+	// version, so say what that actually means. Every failure here is a
+	// fallback to full collection, never a wrong answer.
+	decoder := json.NewDecoder(reader)
 	decoder.DisallowUnknownFields()
 	var document snapshotDocument
 	if err := decoder.Decode(&document); err != nil {
+		if strings.Contains(err.Error(), "unknown field") {
+			return nil, fmt.Errorf("base snapshot was written by a different tdutil or schema: %w", err)
+		}
 		return nil, fmt.Errorf("malformed base snapshot: %w", err)
 	}
 	var extra any
@@ -201,6 +227,9 @@ func parseSnapshotDocument(data []byte) (*snapshotDocument, error) {
 		return nil, fmt.Errorf("malformed base snapshot: trailing data after the document")
 	}
 
+	if document.Schema != snapshotSchemaVersion {
+		return nil, fmt.Errorf("base snapshot schema %d is not supported (want %d)", document.Schema, snapshotSchemaVersion)
+	}
 	if document.Commit == "" {
 		return nil, fmt.Errorf("base snapshot has no commit")
 	}
@@ -287,7 +316,6 @@ func (document *snapshotDocument) toSnapshot() (snapshot, error) {
 			ruleType:        record.RuleType,
 			deps:            record.Deps,
 			inputs:          record.Inputs,
-			cellInputs:      record.CellInputs,
 			targetHash:      record.TargetHash,
 			labels:          record.Labels,
 			ciSrcs:          record.CiSrcs,
@@ -307,7 +335,6 @@ func (document *snapshotDocument) toSnapshot() (snapshot, error) {
 			path:        record.Path,
 			packageName: record.Package,
 			repoPackage: record.RepoPackage,
-			cellImports: record.CellImports,
 			imports:     record.Imports,
 		}
 	}
@@ -333,15 +360,11 @@ func loadBaseSnapshot(
 	path, buck, repository, baseCommit string,
 	universe, buckArgs []string,
 ) (*snapshotDocument, string) {
-	data, err := os.ReadFile(path)
+	document, err := readSnapshotDocument(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, "no snapshot file present"
 		}
-		return nil, err.Error()
-	}
-	document, err := parseSnapshotDocument(data)
-	if err != nil {
 		return nil, err.Error()
 	}
 	digest, err := localBuckConfigDigest(repository)

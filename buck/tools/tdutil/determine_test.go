@@ -38,15 +38,10 @@ func determineTestSnapshot(t *testing.T, targets ...target) snapshot {
 
 func determineTestFile(path string, imports []string) fileNode {
 	pathCopy := path
-	cellImports := make([]string, len(imports))
-	for index, imported := range imports {
-		cellImports[index] = "root//" + imported
-	}
 	return fileNode{
-		cellPath:    "root//" + path,
-		path:        &pathCopy,
-		cellImports: cellImports,
-		imports:     append([]string(nil), imports...),
+		cellPath: "root//" + path,
+		path:     &pathCopy,
+		imports:  append([]string(nil), imports...),
 	}
 }
 

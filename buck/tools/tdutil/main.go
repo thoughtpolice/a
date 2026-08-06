@@ -416,13 +416,8 @@ func captureHeadSnapshot(
 }
 
 func writeSnapshotDocument(path string, document *snapshotDocument) error {
-	data, err := encodeSnapshotDocument(document)
-	if err != nil {
-		return err
-	}
-	err = writeFileAtomically(path, 0o644, func(output io.Writer) error {
-		_, err := output.Write(data)
-		return err
+	err := writeFileAtomically(path, 0o644, func(output io.Writer) error {
+		return encodeSnapshotDocumentTo(output, document)
 	})
 	if err != nil {
 		return fmt.Errorf("writing base snapshot `%s`: %w", path, err)

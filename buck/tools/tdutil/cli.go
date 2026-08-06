@@ -20,7 +20,7 @@ const (
 	// older snapshot describe the graph differently than a fresh collection
 	// would; every existing snapshot is invalidated, which costs one cold
 	// collection and is always the safe direction.
-	tdutilVersion     = "1"
+	tdutilVersion     = "2"
 	defaultBaseRevset = "fork_point(trunk() | @)"
 	helpText          = `Determine the Buck2 targets affected between two JJ revisions.
 

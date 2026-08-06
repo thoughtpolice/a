@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -16,6 +17,16 @@ import (
 
 const snapshotTestFileJSON = `{"buck.file":"root//src/app/BUCK","buck.package":"root//src/app","buck.imports":["root//rules/rust.bzl"]}`
 const snapshotTestErrorJSON = `{"buck.package":"root//broken","buck.error":"something exploded"}`
+
+// encodeSnapshotDocument collects a streamed document into bytes so tests can
+// state a whole document as a value. Production never materializes one.
+func encodeSnapshotDocument(document *snapshotDocument) ([]byte, error) {
+	var buffer bytes.Buffer
+	if err := encodeSnapshotDocumentTo(&buffer, document); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
 
 func snapshotTestGraph(t *testing.T) snapshot {
 	t.Helper()
@@ -70,10 +81,6 @@ func TestSnapshotDocumentRoundTripPreservesGraph(t *testing.T) {
 	if err != nil || external != nil {
 		t.Fatalf("external path = %v, %v; want nil, nil", external, err)
 	}
-	cellPath, err := restored.cells.toCellPath("src/nested/lib.rs")
-	if err != nil || cellPath != "nested//lib.rs" {
-		t.Fatalf("inverse path = %q, %v", cellPath, err)
-	}
 }
 
 func TestSnapshotDocumentEncodingIsDeterministic(t *testing.T) {
@@ -111,6 +118,49 @@ func TestParseSnapshotDocumentFailsClosed(t *testing.T) {
 	}
 	if _, err := parseSnapshotDocument(valid); err != nil {
 		t.Fatalf("valid document rejected: %v", err)
+	}
+}
+
+// The document is written compressed, and documents written before that are
+// still plain JSON, so the encoding is detected rather than assumed.
+func TestSnapshotDocumentsAreCompressedAndPlainOnesStillRead(t *testing.T) {
+	collected := snapshotTestGraph(t)
+	document := buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", &collected)
+	compressed, err := encodeSnapshotDocument(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(compressed) < 2 || compressed[0] != 0x1f || compressed[1] != 0x8b {
+		t.Fatalf("document does not begin with the gzip magic: %x", compressed[:min(2, len(compressed))])
+	}
+	if _, err := parseSnapshotDocument(compressed); err != nil {
+		t.Fatalf("compressed document rejected: %v", err)
+	}
+
+	plain, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := parseSnapshotDocument(plain)
+	if err != nil {
+		t.Fatalf("uncompressed document rejected: %v", err)
+	}
+	if parsed.Commit != document.Commit || len(parsed.Targets) != len(document.Targets) {
+		t.Fatalf("uncompressed document decoded differently: %#v", parsed)
+	}
+
+	// Reading goes straight off the file in both encodings.
+	for name, data := range map[string][]byte{"compressed.json": compressed, "plain.json": plain} {
+		path := filepath.Join(t.TempDir(), name)
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := readSnapshotDocument(path); err != nil {
+			t.Fatalf("%s rejected: %v", name, err)
+		}
+	}
+	if _, err := readSnapshotDocument(filepath.Join(t.TempDir(), "absent.json")); !os.IsNotExist(err) {
+		t.Fatalf("absent document error = %v, want not-exist", err)
 	}
 }
 

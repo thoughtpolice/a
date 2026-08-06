@@ -19,7 +19,6 @@ type target struct {
 	ruleType        string
 	deps            []string
 	inputs          []string
-	cellInputs      []string
 	targetHash      string
 	labels          []string
 	ciSrcs          []string
@@ -41,7 +40,6 @@ type fileNode struct {
 	path        *string
 	packageName *string
 	repoPackage *string
-	cellImports []string
 	imports     []string
 }
 
@@ -59,14 +57,6 @@ func emptySnapshot(cells cellMap) snapshot {
 		errors:  make(map[string][]string),
 		cells:   cells,
 	}
-}
-
-// parseTargetsJSONLines deliberately discriminates the untagged Buck JSONL
-// stream by its required fields. Unknown and partial records fail closed.
-func parseTargetsJSONLines(data []byte, cells cellMap) (snapshot, error) {
-	parser := newTargetStreamParser(cells)
-	feedLines(data, parser.consume)
-	return parser.finish()
 }
 
 // targetStreamParser accumulates the `buck2 targets` JSONL stream one line at
@@ -283,7 +273,6 @@ func parseTargetRecord(object map[string]any, cells cellMap) (target, error) {
 		ruleType:        ruleType,
 		deps:            deps,
 		inputs:          inputs,
-		cellInputs:      cellInputs,
 		targetHash:      targetHash,
 		labels:          labels,
 		ciSrcs:          ciSrcs,
@@ -331,7 +320,6 @@ func parseFileRecord(object map[string]any, cells cellMap) (fileNode, error) {
 		path:        path,
 		packageName: packageName,
 		repoPackage: repoPackage,
-		cellImports: cellImports,
 		imports:     imports,
 	}, nil
 }

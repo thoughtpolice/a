@@ -95,7 +95,7 @@ func sweepTestClient(t *testing.T, list func() (processResult, error), forgotten
 		t.Fatalf("unexpected command %q", spec.args)
 		return processResult{}, nil
 	}}
-	return jjAtRepository(runner, "jj", t.TempDir())
+	return &jjClient{runner: runner, executable: "jj", repository: t.TempDir()}
 }
 
 func TestSweepForgetsOnlyProvablyDeadTdutilWorkspaces(t *testing.T) {
@@ -142,7 +142,7 @@ func TestSweepToleratesListAndForgetFailures(t *testing.T) {
 	logged = nil
 	sweepOrphanedWorkspaces(
 		context.Background(),
-		jjAtRepository(failingForget, "jj", t.TempDir()),
+		&jjClient{runner: failingForget, executable: "jj", repository: t.TempDir()},
 		func(int) bool { return false },
 		log,
 	)
@@ -286,7 +286,7 @@ func TestWorkspaceKeepRetainsContainerAndReturnsCheckoutPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	workspace := &workspace{
-		jj:       jjAtRepository(nil, "jj-must-not-run", repository),
+		jj:       &jjClient{executable: "jj-must-not-run", repository: repository},
 		name:     "tdutil-keep-test",
 		root:     location.root,
 		checkout: location.checkout,

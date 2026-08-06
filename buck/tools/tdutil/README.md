@@ -92,6 +92,13 @@ that is otherwise observable in the document. Increment `tdutilVersion`
 whenever a change would make an older snapshot describe the graph differently
 than a fresh collection would. Doing so invalidates every existing snapshot,
 which costs one cold collection and is always the safe direction.
+
+The document is written gzip-compressed and is streamed in both directions
+rather than buffered whole: a graph dump is the largest artifact tdutil
+handles, and this shape of JSON — every label sharing a long prefix with its
+neighbours — compresses by better than ten to one. Documents written before
+compression are plain JSON and are still read, because the encoding is
+detected rather than assumed.
 `--base-snapshot` reuses such a document as the base endpoint when every
 recorded input matches the requested comparison; any mismatch is reported and
 the run falls back to full collection, so a stale or missing snapshot can

@@ -9,6 +9,15 @@ import (
 	"testing"
 )
 
+// parseTargetsJSONLines builds a snapshot from a whole JSONL dump at once.
+// Collection itself streams the dump line by line and never holds it, so this
+// exists only to let tests state a graph as literal Buck output.
+func parseTargetsJSONLines(data []byte, cells cellMap) (snapshot, error) {
+	parser := newTargetStreamParser(cells)
+	feedLines(data, parser.consume)
+	return parser.finish()
+}
+
 func targetJSON(name string) string {
 	return `{"name":"` + name + `","buck.package":"root//src/app","buck.type":"root//rules/rust.bzl:rust_library","buck.deps":["root//src/lib:lib"],"buck.inputs":["root//src/app/lib.rs","nested//generated.rs","external//builtin.bzl"],"buck.target_hash":"abc","labels":["ci:linux"],"ci_srcs":["config/**"],"ci_srcs_must_match":["**/*.rs"],"ci_deps":["root//tools/..."]}`
 }
@@ -22,11 +31,13 @@ func TestParsesAllTargetFieldsAndExternalInputs(t *testing.T) {
 	if target.repoPackage != "src/app" {
 		t.Fatalf("repo package = %q", target.repoPackage)
 	}
+	// Three inputs are declared and two survive: the one in an external cell
+	// has no repository path and is dropped rather than failing the parse.
 	if !slices.Equal(target.inputs, []string{"src/app/lib.rs", "src/nested/generated.rs"}) {
 		t.Fatalf("inputs = %#v", target.inputs)
 	}
-	if len(target.cellInputs) != 3 || target.targetHash != "abc" {
-		t.Fatalf("cell inputs/hash = %#v, %q", target.cellInputs, target.targetHash)
+	if target.targetHash != "abc" {
+		t.Fatalf("hash = %q", target.targetHash)
 	}
 	if !slices.Equal(target.labels, []string{"ci:linux"}) ||
 		!slices.Equal(target.ciSrcs, []string{"config/**"}) ||
