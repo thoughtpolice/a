@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os/exec"
 )
@@ -74,6 +75,43 @@ func feedLines(data []byte, line func([]byte)) {
 	}
 }
 
+// stderrLimit bounds what is retained from a child's stderr. `buck2 targets
+// --keep-going` over a broken graph can report a diagnostic per package, and
+// the whole stream is otherwise held in memory for the length of the run.
+const stderrLimit = 1 << 20
+
+// boundedBuffer retains the tail of a stream up to a fixed size. The tail is
+// the useful end for these children: buck2 writes progress to stderr and
+// reports the failure that actually stopped it last, so truncating from the
+// front keeps the diagnostic a caller needs.
+type boundedBuffer struct {
+	limit  int
+	data   []byte
+	elided int64
+}
+
+func (buffer *boundedBuffer) Write(contents []byte) (int, error) {
+	written := len(contents)
+	if len(contents) > buffer.limit {
+		buffer.elided += int64(len(contents) - buffer.limit)
+		contents = contents[len(contents)-buffer.limit:]
+	}
+	if overflow := len(buffer.data) + len(contents) - buffer.limit; overflow > 0 {
+		buffer.elided += int64(overflow)
+		buffer.data = append(buffer.data[:0], buffer.data[overflow:]...)
+	}
+	buffer.data = append(buffer.data, contents...)
+	return written, nil
+}
+
+func (buffer *boundedBuffer) Bytes() []byte {
+	if buffer.elided == 0 {
+		return buffer.data
+	}
+	notice := fmt.Sprintf("[%d earlier byte(s) elided]\n", buffer.elided)
+	return append([]byte(notice), buffer.data...)
+}
+
 type osProcessRunner struct{}
 
 func (osProcessRunner) run(ctx context.Context, spec commandSpec) (processResult, error) {
@@ -86,7 +124,7 @@ func (osProcessRunner) run(ctx context.Context, spec commandSpec) (processResult
 		cmd.Dir = spec.dir
 	}
 	var stdout bytes.Buffer
-	var stderr bytes.Buffer
+	stderr := boundedBuffer{limit: stderrLimit}
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
@@ -122,7 +160,7 @@ func (osProcessRunner) runLines(ctx context.Context, spec commandSpec, line func
 	if spec.dir != "" {
 		cmd.Dir = spec.dir
 	}
-	var stderr bytes.Buffer
+	stderr := boundedBuffer{limit: stderrLimit}
 	cmd.Stderr = &stderr
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -147,6 +185,11 @@ func (osProcessRunner) runLines(ctx context.Context, spec commandSpec, line func
 			readErr = err
 		}
 		break
+	}
+	if readErr != nil {
+		// Abandoning the pipe with the child still writing would fill it and
+		// block Wait forever, so consume whatever remains before joining.
+		_, _ = io.Copy(io.Discard, pipe)
 	}
 
 	waitErr := cmd.Wait()
