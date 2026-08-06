@@ -126,6 +126,11 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				return err
 			}
 			logProgress(stderr, &args, "parsed %d working-copy targets", len(quickSnapshot.targets))
+			if args.snapshotHeadTo != nil {
+				// Quick mode plans both endpoints against the same tree, so a
+				// pattern either has evidence and is queried or fails the run.
+				captureHeadSnapshot(ctx, app.runner, &args, jj.repository, revisions.head, true, &quickSnapshot, stderr)
+			}
 			affected, err = determine(
 				&quickSnapshot,
 				&quickSnapshot,
@@ -205,6 +210,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 
 			buckArgs := append([]string(nil), args.buckArgs...)
 			var baseSnapshot, headSnapshot snapshot
+			var plan universePlan
 			var analysisErr error
 			if baseDocument != nil {
 				logProgress(
@@ -213,7 +219,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					"querying the head Buck graph against the base snapshot (%s)",
 					strings.Join(args.universe, " "),
 				)
-				baseSnapshot, headSnapshot, analysisErr = collectSnapshotPairFromDocument(
+				baseSnapshot, headSnapshot, plan, analysisErr = collectSnapshotPairFromDocument(
 					ctx,
 					app.runner,
 					baseDocument,
@@ -230,7 +236,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					"querying base/head Buck graphs in parallel (%s)",
 					strings.Join(args.universe, " "),
 				)
-				baseSnapshot, headSnapshot, analysisErr = collectSnapshotPair(
+				baseSnapshot, headSnapshot, plan, analysisErr = collectSnapshotPair(
 					ctx,
 					app.runner,
 					baseWorkspace.checkout,
@@ -249,6 +255,18 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					len(baseSnapshot.targets),
 					len(headSnapshot.targets),
 				)
+				if args.snapshotHeadTo != nil {
+					captureHeadSnapshot(
+						ctx,
+						app.runner,
+						&args,
+						jj.repository,
+						revisions.head,
+						plan.headCoversEveryPattern(),
+						&headSnapshot,
+						stderr,
+					)
+				}
 				affected, analysisErr = determine(
 					&baseSnapshot,
 					&headSnapshot,
@@ -347,18 +365,68 @@ func runSnapshotCapture(
 		return err
 	}
 	document := buildSnapshotDocument(version, headCommit, args.universe, buckArgs, digest, &collected)
+	if err := writeSnapshotDocument(*args.snapshotTo, document); err != nil {
+		return err
+	}
+	logProgress(stderr, args, "wrote base snapshot for %s (%d targets) to %s", headCommit, len(collected.targets), *args.snapshotTo)
+	return nil
+}
+
+// captureHeadSnapshot records the head graph a determination run has already
+// collected, so refreshing a cached base costs nothing beyond serialization
+// rather than a second full collection.
+//
+// The determined targets are this run's deliverable and a snapshot is only a
+// cache, so every failure here is reported and the run continues. That is the
+// same bargain --base-snapshot makes in the other direction: a snapshot may
+// cost time, never correctness.
+func captureHeadSnapshot(
+	ctx context.Context,
+	runner processRunner,
+	args *cliArgs,
+	repository, headCommit string,
+	universeIsComplete bool,
+	collected *snapshot,
+	stderr io.Writer,
+) {
+	path := *args.snapshotHeadTo
+	decline := func(reason string) {
+		_, _ = fmt.Fprintf(stderr, "tdutil: head snapshot %s not written (%s)\n", path, reason)
+	}
+	if !universeIsComplete {
+		decline("the head graph does not cover every requested universe pattern")
+		return
+	}
+	version, err := buckVersionString(ctx, runner, args.buck)
+	if err != nil {
+		decline(err.Error())
+		return
+	}
+	digest, err := localBuckConfigDigest(repository)
+	if err != nil {
+		decline(err.Error())
+		return
+	}
+	document := buildSnapshotDocument(version, headCommit, args.universe, args.buckArgs, digest, collected)
+	if err := writeSnapshotDocument(path, document); err != nil {
+		decline(err.Error())
+		return
+	}
+	logProgress(stderr, args, "wrote head snapshot for %s (%d targets) to %s", headCommit, len(collected.targets), path)
+}
+
+func writeSnapshotDocument(path string, document *snapshotDocument) error {
 	data, err := encodeSnapshotDocument(document)
 	if err != nil {
 		return err
 	}
-	err = writeFileAtomically(*args.snapshotTo, 0o644, func(output io.Writer) error {
+	err = writeFileAtomically(path, 0o644, func(output io.Writer) error {
 		_, err := output.Write(data)
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("writing base snapshot `%s`: %w", *args.snapshotTo, err)
+		return fmt.Errorf("writing base snapshot `%s`: %w", path, err)
 	}
-	logProgress(stderr, args, "wrote base snapshot for %s (%d targets) to %s", headCommit, len(collected.targets), *args.snapshotTo)
 	return nil
 }
 

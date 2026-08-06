@@ -156,6 +156,25 @@ func TestCLINormalizesUniversePatternsForSnapshotIdentity(t *testing.T) {
 	}
 }
 
+// --snapshot-head-to is a modifier on an ordinary run, so unlike the
+// standalone --snapshot-to it combines with everything a run already does.
+func TestCLISnapshotHeadToIsAModifierNotAStandaloneCapture(t *testing.T) {
+	args := mustRunArgs(t, "--snapshot-head-to", "/tmp/head.json", "--output", "o", "--base-snapshot", "b")
+	if args.snapshotHeadTo == nil || *args.snapshotHeadTo != "/tmp/head.json" {
+		t.Fatalf("snapshotHeadTo = %v", args.snapshotHeadTo)
+	}
+	if args.snapshotTo != nil {
+		t.Fatalf("snapshotTo = %v, want unset", args.snapshotTo)
+	}
+	if _, err := parseCLI([]string{"--quick", "--snapshot-head-to", "/tmp/head.json"}); err != nil {
+		t.Fatalf("quick mode rejected: %v", err)
+	}
+	_, err := parseCLI([]string{"--snapshot-to", "a", "--snapshot-head-to", "b"})
+	if err == nil || !strings.Contains(err.Error(), "use one") {
+		t.Fatalf("error = %v, want a conflict between the two spellings", err)
+	}
+}
+
 // Port of cli.rs::rejects_unknown_format.
 func TestCLIRejectsUnknownFormat(t *testing.T) {
 	_, err := parseCLI([]string{"--format=yaml"})

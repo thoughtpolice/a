@@ -31,9 +31,9 @@ func collectSnapshotPair(
 	buckArgs []string,
 	isolation string,
 	patterns []string,
-) (snapshot, snapshot, error) {
+) (snapshot, snapshot, universePlan, error) {
 	if len(patterns) == 0 {
-		return snapshot{}, snapshot{}, fmt.Errorf("at least one Buck target pattern is required")
+		return snapshot{}, snapshot{}, universePlan{}, fmt.Errorf("at least one Buck target pattern is required")
 	}
 
 	baseCellsChannel := make(chan cellMapResult, 1)
@@ -49,15 +49,15 @@ func collectSnapshotPair(
 	baseCells := <-baseCellsChannel
 	headCells := <-headCellsChannel
 	if baseCells.err != nil {
-		return snapshot{}, snapshot{}, baseCells.err
+		return snapshot{}, snapshot{}, universePlan{}, baseCells.err
 	}
 	if headCells.err != nil {
-		return snapshot{}, snapshot{}, headCells.err
+		return snapshot{}, snapshot{}, universePlan{}, headCells.err
 	}
 
 	plan, err := planUniverse(baseWorkspace, baseCells.cells, headWorkspace, headCells.cells, patterns)
 	if err != nil {
-		return snapshot{}, snapshot{}, err
+		return snapshot{}, snapshot{}, universePlan{}, err
 	}
 
 	baseChannel := make(chan snapshotResult, 1)
@@ -73,15 +73,15 @@ func collectSnapshotPair(
 	base := <-baseChannel
 	head := <-headChannel
 	if base.err != nil {
-		return snapshot{}, snapshot{}, base.err
+		return snapshot{}, snapshot{}, universePlan{}, base.err
 	}
 	if head.err != nil {
-		return snapshot{}, snapshot{}, head.err
+		return snapshot{}, snapshot{}, universePlan{}, head.err
 	}
 	if err := validateUniverse(&plan, &base.snapshot, &head.snapshot); err != nil {
-		return snapshot{}, snapshot{}, err
+		return snapshot{}, snapshot{}, universePlan{}, err
 	}
-	return base.snapshot, head.snapshot, nil
+	return base.snapshot, head.snapshot, plan, nil
 }
 
 func auditCells(

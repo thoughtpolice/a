@@ -99,10 +99,29 @@ slow a run down but never change its answer. With a matching snapshot the
 full protocol applies unchanged — deleted-target dependents, hash comparison,
 and base/head error accounting behave exactly as with a materialized base.
 
+`--snapshot-to` is a standalone capture: it collects a graph and exits. A run
+which is already determining targets has collected the head graph anyway, so
+`--snapshot-head-to` records that graph instead of collecting a second one:
+
+```console
+$ buck2 run root//buck/tools/tdutil:tdutil -- \
+    --base-snapshot base.json --snapshot-head-to next.json
+```
+
+Refreshing a snapshot that way costs only the serialization. The determined
+targets are the run's deliverable and a snapshot is only a cache, so a capture
+which cannot be written is reported on stderr and the run continues; this is
+the same bargain `--base-snapshot` makes in the other direction, where a
+snapshot may cost time but never correctness. One case is declined rather than
+written: a head graph collected over fewer patterns than were requested —
+which happens when a universe pattern exists at the base revision but not at
+head — since `--base-snapshot` treats a document's universe as proof that
+capture queried all of it.
+
 In CI the snapshots ride the GitHub Actions cache: pushes to the main branch
-capture the new trunk graph keyed by commit, and pull-request runs restore
-the snapshot for their base commit, skipping base materialization and its
-cold daemon whenever the cache hits.
+record the trunk graph the determination run already collected, keyed by
+commit, and pull-request runs restore the snapshot for their base commit,
+skipping base materialization and its cold daemon whenever the cache hits.
 
 The command snapshots the current JJ working copy by default, so `@` includes
 edits that have not yet been observed by another JJ command. Use

@@ -577,6 +577,133 @@ func TestApplicationSnapshotCaptureWritesPortableDocument(t *testing.T) {
 	}
 }
 
+// The point of --snapshot-head-to is that refreshing the cached base costs
+// nothing beyond serialization: the run collects the head graph once, uses it
+// to determine targets, and records the very same graph.
+func TestApplicationSnapshotHeadToRidesAlongWithoutExtraCollection(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	path := filepath.Join(t.TempDir(), "head-snapshot.json")
+	targets := filepath.Join(t.TempDir(), "targets.txt")
+	var stdout, stderr bytes.Buffer
+	err := runApplication(
+		context.Background(),
+		app,
+		[]string{"--snapshot-head-to", path, "--output", targets},
+		&stdout,
+		&stderr,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(stderr.String(), "not written") {
+		t.Fatalf("snapshot declined: %q", stderr.String())
+	}
+
+	// One head audit and one head dump, exactly as a run without the flag.
+	_, _, _, _, audits, dumps, _ := runner.snapshot()
+	if audits != 2 || dumps != 2 {
+		t.Fatalf("collection = %d audits, %d dumps; want one per endpoint", audits, dumps)
+	}
+
+	determined, err := os.ReadFile(targets)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(determined); got != "depot//src:lib\n" {
+		t.Fatalf("targets = %q", got)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := parseSnapshotDocument(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if document.Commit != strings.Repeat("b", 40) {
+		t.Fatalf("document commit = %q, want the head revision", document.Commit)
+	}
+	if len(document.Targets) != 1 || document.Targets[0].Label != "depot//src:lib" {
+		t.Fatalf("document targets = %#v", document.Targets)
+	}
+}
+
+// The written document is interchangeable with a standalone capture: it is
+// accepted as a base snapshot on a later run.
+func TestApplicationSnapshotHeadToProducesAReusableBaseSnapshot(t *testing.T) {
+	app, _, _ := pipelineApplicationFixture(t)
+	path := filepath.Join(t.TempDir(), "head-snapshot.json")
+	if err := runApplication(
+		context.Background(),
+		app,
+		[]string{"--snapshot-head-to", path},
+		&bytes.Buffer{},
+		&bytes.Buffer{},
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	reuse, runner, _ := pipelineApplicationFixture(t)
+	var stderr bytes.Buffer
+	if err := runApplication(
+		context.Background(),
+		reuse,
+		[]string{"--base-snapshot", path},
+		&bytes.Buffer{},
+		&stderr,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(stderr.String(), "ignored") {
+		t.Fatalf("the ride-along snapshot was rejected: %q", stderr.String())
+	}
+	_, _, adds, _, audits, dumps, _ := runner.snapshot()
+	if adds != 0 || audits != 1 || dumps != 1 {
+		t.Fatalf("lifecycle = adds %d, audits %d, dumps %d; want head-only collection", adds, audits, dumps)
+	}
+}
+
+// A snapshot which does not cover every requested pattern would silently break
+// the cached-base plan, which treats a document's universe as proof that
+// capture queried all of it. Declining is reported and never fails the run.
+func TestApplicationSnapshotHeadToDeclinesAnIncompleteUniverse(t *testing.T) {
+	plan := universePlan{patterns: []plannedPattern{
+		{raw: "depot//present/...", base: true, head: true},
+		{raw: "depot//gone/...", base: true, head: false},
+	}}
+	if plan.headCoversEveryPattern() {
+		t.Fatal("a pattern absent at head was reported as covered")
+	}
+	plan.patterns[1].head = true
+	if !plan.headCoversEveryPattern() {
+		t.Fatal("a fully queried universe was reported as incomplete")
+	}
+
+	app, _, _ := pipelineApplicationFixture(t)
+	path := filepath.Join(t.TempDir(), "head-snapshot.json")
+	args := cliArgs{buck: "buck2", universe: []string{"depot//..."}, snapshotHeadTo: &path}
+	collected := snapshotTestGraph(t)
+	var stderr bytes.Buffer
+	captureHeadSnapshot(
+		context.Background(),
+		app.runner,
+		&args,
+		t.TempDir(),
+		strings.Repeat("c", 40),
+		false,
+		&collected,
+		&stderr,
+	)
+	if !strings.Contains(stderr.String(), "not written") ||
+		!strings.Contains(stderr.String(), "universe pattern") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("an incomplete snapshot was written: %v", err)
+	}
+}
+
 func TestApplicationBaseSnapshotSkipsBaseCollectionAcrossCheckouts(t *testing.T) {
 	captureApp, _, _ := pipelineApplicationFixture(t)
 	path := filepath.Join(t.TempDir(), "base-snapshot.json")

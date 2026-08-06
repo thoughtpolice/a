@@ -158,6 +158,20 @@ func planUniverse(
 	return plan, nil
 }
 
+// headCoversEveryPattern reports whether every requested pattern was queried
+// at head. A collected head graph may only be recorded as a reusable snapshot
+// when this holds: planUniverseCachedBase treats a document's universe as
+// unconditional evidence, on the grounds that capture queried everything the
+// document lists. A graph collected over a subset would quietly break that.
+func (plan *universePlan) headCoversEveryPattern() bool {
+	for _, planned := range plan.patterns {
+		if !planned.head {
+			return false
+		}
+	}
+	return true
+}
+
 func patternPackage(pattern universePattern) (string, bool) {
 	switch pattern.kind {
 	case universeRecursive, universePackage, universeExact:

@@ -47,6 +47,11 @@ Options:
                               must match the working-copy tree
       --snapshot-to PATH      Capture the head revision's graph as a reusable
                               base snapshot at PATH, then exit
+      --snapshot-head-to PATH Also write the head graph this run collected as
+                              a reusable base snapshot at PATH. Unlike
+                              --snapshot-to it collects nothing extra, so a
+                              run which determines targets can refresh the
+                              snapshot for free. Never fails the run
       --base-snapshot PATH    Reuse a matching --snapshot-to document as the
                               base graph; falls back to full collection when
                               it does not match
@@ -82,6 +87,7 @@ type cliArgs struct {
 	depth             *int
 	quick             bool
 	snapshotTo        *string
+	snapshotHeadTo    *string
 	baseSnapshot      *string
 	buck              string
 	jj                string
@@ -115,6 +121,7 @@ func parseCLI(argv []string) (cliAction, error) {
 	var depth *int
 	quick := false
 	var snapshotTo *string
+	var snapshotHeadTo *string
 	var baseSnapshot *string
 	buck := "buck2"
 	jj := "jj"
@@ -225,6 +232,12 @@ func parseCLI(argv []string) (cliAction, error) {
 				return cliAction{}, err
 			}
 			snapshotTo = stringPointer(raw)
+		case "--snapshot-head-to":
+			raw, err := value("--snapshot-head-to")
+			if err != nil {
+				return cliAction{}, err
+			}
+			snapshotHeadTo = stringPointer(raw)
 		case "--base-snapshot":
 			raw, err := value("--base-snapshot")
 			if err != nil {
@@ -295,6 +308,8 @@ func parseCLI(argv []string) (cliAction, error) {
 	}
 	if snapshotTo != nil {
 		switch {
+		case snapshotHeadTo != nil:
+			return cliAction{}, fmt.Errorf("--snapshot-to and --snapshot-head-to both write the head graph; use one")
 		case quick:
 			return cliAction{}, fmt.Errorf("--snapshot-to is a standalone capture; it cannot combine with --quick")
 		case baseSnapshot != nil:
@@ -325,6 +340,7 @@ func parseCLI(argv []string) (cliAction, error) {
 		depth:             depth,
 		quick:             quick,
 		snapshotTo:        snapshotTo,
+		snapshotHeadTo:    snapshotHeadTo,
 		baseSnapshot:      baseSnapshot,
 		buck:              buck,
 		jj:                jj,

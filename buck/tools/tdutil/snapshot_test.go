@@ -254,7 +254,7 @@ func TestCachedBaseStillSelectsDependentsOfDeletedTargets(t *testing.T) {
 		}
 		return successfulBuckResult([]byte(headJSONL)), nil
 	}}
-	base, head, err := collectSnapshotPairFromDocument(
+	base, head, _, err := collectSnapshotPairFromDocument(
 		context.Background(),
 		runner,
 		document,

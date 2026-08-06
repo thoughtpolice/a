@@ -431,28 +431,28 @@ func collectSnapshotPairFromDocument(
 	buckArgs []string,
 	isolation string,
 	patterns []string,
-) (snapshot, snapshot, error) {
+) (snapshot, snapshot, universePlan, error) {
 	if len(patterns) == 0 {
-		return snapshot{}, snapshot{}, fmt.Errorf("at least one Buck target pattern is required")
+		return snapshot{}, snapshot{}, universePlan{}, fmt.Errorf("at least one Buck target pattern is required")
 	}
 	base, err := document.toSnapshot()
 	if err != nil {
-		return snapshot{}, snapshot{}, err
+		return snapshot{}, snapshot{}, universePlan{}, err
 	}
 	headCells, err := auditCells(ctx, runner, headWorkspace, buck, buckArgs, isolation)
 	if err != nil {
-		return snapshot{}, snapshot{}, err
+		return snapshot{}, snapshot{}, universePlan{}, err
 	}
 	plan, err := planUniverseCachedBase(headWorkspace, headCells, patterns)
 	if err != nil {
-		return snapshot{}, snapshot{}, err
+		return snapshot{}, snapshot{}, universePlan{}, err
 	}
 	head, err := collectTargets(ctx, runner, headWorkspace, buck, buckArgs, isolation, plan.headPatterns, headCells)
 	if err != nil {
-		return snapshot{}, snapshot{}, err
+		return snapshot{}, snapshot{}, universePlan{}, err
 	}
 	if err := validateUniverse(&plan, &base, &head); err != nil {
-		return snapshot{}, snapshot{}, err
+		return snapshot{}, snapshot{}, universePlan{}, err
 	}
-	return base, head, nil
+	return base, head, plan, nil
 }
