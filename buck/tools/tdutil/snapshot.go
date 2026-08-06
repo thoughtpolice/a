@@ -454,6 +454,7 @@ func collectSnapshotPairFromDocument(
 	buckArgs []string,
 	isolation string,
 	patterns []string,
+	onGraphError graphErrorPolicy,
 ) (snapshot, snapshot, universePlan, error) {
 	if len(patterns) == 0 {
 		return snapshot{}, snapshot{}, universePlan{}, fmt.Errorf("at least one Buck target pattern is required")
@@ -470,6 +471,7 @@ func collectSnapshotPairFromDocument(
 	if err != nil {
 		return snapshot{}, snapshot{}, universePlan{}, err
 	}
+	plan.onGraphError = onGraphError
 	head, err := collectTargets(ctx, runner, headWorkspace, buck, buckArgs, isolation, plan.headPatterns, headCells)
 	if err != nil {
 		return snapshot{}, snapshot{}, universePlan{}, err

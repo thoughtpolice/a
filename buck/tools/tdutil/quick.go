@@ -30,6 +30,8 @@ func collectQuickSnapshot(
 	if err != nil {
 		return snapshot{}, err
 	}
+	// The policy is left at fail: base and head are the same graph here, so
+	// the predecessor cannot have regressed relative to itself.
 	plan, err := planUniverse(workspace, cells, workspace, cells, patterns)
 	if err != nil {
 		return snapshot{}, err

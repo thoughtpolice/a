@@ -306,6 +306,40 @@ func TestEndpointTargetDiagnosticHandlesRemovalAndCannotHideOtherErrors(t *testi
 	}
 }
 
+// Collection refuses a regressed predecessor before determine() ever sees it,
+// so select-all has to reach here too — otherwise the run would die with the
+// head graph collected and unused, and the policy would be inert.
+func TestSelectAllDefersTheBaseOnlyRejectionToDetermine(t *testing.T) {
+	cells := testCellMap(t)
+	base, err := parseTargetsJSONLines([]byte(targetJSON("app")), cells)
+	if err != nil {
+		t.Fatal(err)
+	}
+	head, err := parseTargetsJSONLines([]byte(targetJSON("app")), cells)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base.errors["root//src/app"] = []string{"base failure"}
+
+	plan := exactUniversePlan("root//src/app:app")
+	if err := validateUniverse(&plan, &base, &head); err == nil {
+		t.Fatal("the default policy stopped rejecting a base-only error")
+	}
+
+	permissive := exactUniversePlan("root//src/app:app")
+	permissive.onGraphError = graphErrorSelectAll
+	if err := validateUniverse(&permissive, &base, &head); err != nil {
+		t.Fatalf("select-all was rejected during collection: %v", err)
+	}
+	affected, err := determine(&base, &head, nil, determineOptions{onGraphError: graphErrorSelectAll})
+	if err != nil {
+		t.Fatalf("determine failed after collection allowed it through: %v", err)
+	}
+	if len(affected) != len(head.targets) {
+		t.Fatalf("affected = %d targets, want the whole head graph (%d)", len(affected), len(head.targets))
+	}
+}
+
 func TestBaseOnlyGraphErrorsFailClosedButSharedErrorsDoNot(t *testing.T) {
 	cells := testCellMap(t)
 	base, err := parseTargetsJSONLines([]byte(targetJSON("app")), cells)

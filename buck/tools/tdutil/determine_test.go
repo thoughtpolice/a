@@ -339,6 +339,62 @@ func TestAdditionalBaseGraphDiagnosticFailsClosed(t *testing.T) {
 	}
 }
 
+// select-all answers a regressed predecessor with the whole head universe.
+// The head graph is complete there, so naming all of it is a superset of any
+// honest selection — and unlike an error, it is an answer CI can act on.
+func TestSelectAllAnswersARegressedPredecessor(t *testing.T) {
+	base := determineTestSnapshot(t, determineTestTarget("root//pkg", "a", "h", nil, nil))
+	base.errors["root//broken"] = []string{"predecessor-only loading failure"}
+	head := determineTestSnapshot(t,
+		determineTestTarget("root//pkg", "a", "h", nil, nil),
+		determineTestTarget("root//pkg", "b", "h", nil, nil),
+	)
+
+	affected, err := determine(&base, &head, nil, determineOptions{onGraphError: graphErrorSelectAll})
+	if err != nil {
+		t.Fatalf("select-all still failed: %v", err)
+	}
+	if !slices.Equal(affectedLabels(affected), []string{"root//pkg:a", "root//pkg:b"}) {
+		t.Fatalf("affected = %#v, want every head target", affected)
+	}
+	for _, target := range affected {
+		if !strings.Contains(target.reason, "predecessor Buck graph error") || target.depth != 0 {
+			t.Fatalf("reason/depth = %q/%d", target.reason, target.depth)
+		}
+	}
+
+	// The default is unchanged.
+	if _, err := determine(&base, &head, nil, determineOptions{}); err == nil {
+		t.Fatal("the default policy stopped failing closed")
+	}
+}
+
+// select-all must not soften an error which leaves the head graph itself
+// incomplete: a selection can only name targets that were enumerated, so the
+// package which failed to parse would go untested and a green run would be
+// meaningless. Only an outright failure forces the caller to fall back.
+func TestSelectAllDoesNotSoftenAnIncompleteHeadGraph(t *testing.T) {
+	selectAll := determineOptions{onGraphError: graphErrorSelectAll}
+
+	base := determineTestSnapshot(t, determineTestTarget("root//pkg", "a", "h", nil, nil))
+	head := determineTestSnapshot(t, determineTestTarget("root//pkg", "a", "h", nil, nil))
+	head.errors["root//broken"] = []string{"head loading failure"}
+	if _, err := determine(&base, &head, nil, selectAll); err == nil ||
+		!strings.Contains(err.Error(), "new Buck graph error") {
+		t.Fatalf("new head error = %v, want a hard failure", err)
+	}
+
+	// Broken at both endpoints, and the diff touches the broken package.
+	shared := determineTestSnapshot(t, determineTestTarget("root//pkg", "a", "h", nil, nil))
+	shared.errors["root//broken"] = []string{"shared loading failure"}
+	other := determineTestSnapshot(t, determineTestTarget("root//pkg", "a", "h", nil, nil))
+	other.errors["root//broken"] = []string{"shared loading failure"}
+	if _, err := determine(&shared, &other, []string{"broken/BUILD"}, selectAll); err == nil ||
+		!strings.Contains(err.Error(), "pre-existing Buck graph error") {
+		t.Fatalf("pre-existing error = %v, want a hard failure", err)
+	}
+}
+
 func TestPreExistingGraphErrorsMatchAcrossEndpointCellAliases(t *testing.T) {
 	workspace := t.TempDir()
 	base := emptySnapshot(singleCellMap(t, workspace))

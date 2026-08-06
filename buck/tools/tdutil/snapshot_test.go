@@ -313,6 +313,7 @@ func TestCachedBaseStillSelectsDependentsOfDeletedTargets(t *testing.T) {
 		nil,
 		"",
 		[]string{"root//..."},
+		graphErrorFail,
 	)
 	if err != nil {
 		t.Fatal(err)

@@ -175,6 +175,22 @@ func TestCLISnapshotHeadToIsAModifierNotAStandaloneCapture(t *testing.T) {
 	}
 }
 
+func TestCLIGraphErrorPolicyParsesAndDefaultsToFail(t *testing.T) {
+	if args := mustRunArgs(t); args.onGraphError != graphErrorFail {
+		t.Fatalf("default policy = %v, want fail", args.onGraphError)
+	}
+	if args := mustRunArgs(t, "--on-graph-error", "select-all"); args.onGraphError != graphErrorSelectAll {
+		t.Fatalf("policy = %v, want select-all", args.onGraphError)
+	}
+	if args := mustRunArgs(t, "--on-graph-error=fail"); args.onGraphError != graphErrorFail {
+		t.Fatalf("policy = %v, want fail", args.onGraphError)
+	}
+	_, err := parseCLI([]string{"--on-graph-error", "select-everything"})
+	if err == nil || !strings.Contains(err.Error(), "unknown --on-graph-error policy") {
+		t.Fatalf("error = %v, want an unknown-policy rejection", err)
+	}
+}
+
 // Port of cli.rs::rejects_unknown_format.
 func TestCLIRejectsUnknownFormat(t *testing.T) {
 	_, err := parseCLI([]string{"--format=yaml"})

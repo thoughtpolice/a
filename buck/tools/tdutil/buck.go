@@ -31,6 +31,7 @@ func collectSnapshotPair(
 	buckArgs []string,
 	isolation string,
 	patterns []string,
+	onGraphError graphErrorPolicy,
 ) (snapshot, snapshot, universePlan, error) {
 	if len(patterns) == 0 {
 		return snapshot{}, snapshot{}, universePlan{}, fmt.Errorf("at least one Buck target pattern is required")
@@ -59,6 +60,7 @@ func collectSnapshotPair(
 	if err != nil {
 		return snapshot{}, snapshot{}, universePlan{}, err
 	}
+	plan.onGraphError = onGraphError
 
 	baseChannel := make(chan snapshotResult, 1)
 	headChannel := make(chan snapshotResult, 1)

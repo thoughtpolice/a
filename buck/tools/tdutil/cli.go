@@ -40,6 +40,13 @@ Options:
       --format FORMAT         text, json, or json-lines (default: text)
       --json                  Shorthand for --format json
       --depth N               Maximum reverse-dependency depth (roots are 0)
+      --on-graph-error POLICY Answer to a Buck graph error which leaves the
+                              head graph usable, meaning the predecessor
+                              regressed: fail (default) or select-all, which
+                              names every head target instead. Errors which
+                              leave the head graph itself incomplete always
+                              fail, since a selection cannot name what did
+                              not parse
       --quick                 Single-snapshot mode: consult only the working
                               copy's Buck graph, with no base materialization.
                               Misses dependents of deleted targets and precise
@@ -70,6 +77,26 @@ Options:
 `
 )
 
+// graphErrorPolicy chooses the answer to a Buck graph error which leaves the
+// head graph itself usable — that is, one where the predecessor regressed,
+// the commonest case being a diff which repairs a broken BUILD file.
+//
+// Failing and selecting everything are equally safe there, but only one of
+// them is useful: the head graph is complete, so naming every target in it
+// tests a superset of whatever the diff could have touched, whereas an error
+// leaves the caller with no target list at all.
+//
+// Errors which leave the head graph incomplete are outside this choice and
+// always fail. A selection can only name targets tdutil managed to enumerate,
+// so selecting everything would silently omit the very package that failed to
+// parse, and a green run would mean nothing.
+type graphErrorPolicy uint8
+
+const (
+	graphErrorFail graphErrorPolicy = iota
+	graphErrorSelectAll
+)
+
 type outputFormat uint8
 
 const (
@@ -85,6 +112,7 @@ type cliArgs struct {
 	output            *string
 	format            outputFormat
 	depth             *int
+	onGraphError      graphErrorPolicy
 	quick             bool
 	snapshotTo        *string
 	snapshotHeadTo    *string
@@ -119,6 +147,7 @@ func parseCLI(argv []string) (cliAction, error) {
 	var output *string
 	format := formatText
 	var depth *int
+	onGraphError := graphErrorFail
 	quick := false
 	var snapshotTo *string
 	var snapshotHeadTo *string
@@ -224,6 +253,19 @@ func parseCLI(argv []string) (cliAction, error) {
 				return cliAction{}, fmt.Errorf("invalid --depth value `%s`", raw)
 			}
 			depth = intPointer(int(parsed))
+		case "--on-graph-error":
+			raw, err := value("--on-graph-error")
+			if err != nil {
+				return cliAction{}, err
+			}
+			switch raw {
+			case "fail":
+				onGraphError = graphErrorFail
+			case "select-all":
+				onGraphError = graphErrorSelectAll
+			default:
+				return cliAction{}, fmt.Errorf("unknown --on-graph-error policy `%s` (expected fail or select-all)", raw)
+			}
 		case "--quick":
 			quick = true
 		case "--snapshot-to":
@@ -338,6 +380,7 @@ func parseCLI(argv []string) (cliAction, error) {
 		output:            output,
 		format:            format,
 		depth:             depth,
+		onGraphError:      onGraphError,
 		quick:             quick,
 		snapshotTo:        snapshotTo,
 		snapshotHeadTo:    snapshotHeadTo,

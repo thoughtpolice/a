@@ -99,6 +99,7 @@ handles, and this shape of JSON — every label sharing a long prefix with its
 neighbours — compresses by better than ten to one. Documents written before
 compression are plain JSON and are still read, because the encoding is
 detected rather than assumed.
+
 `--base-snapshot` reuses such a document as the base endpoint when every
 recorded input matches the requested comparison; any mismatch is reported and
 the run falls back to full collection, so a stale or missing snapshot can
@@ -152,9 +153,9 @@ edits that have not yet been observed by another JJ command. Use
 
 Cell-qualified Buck paths are mapped through `buck2 audit cell` separately in
 each workspace; the tool never assumes that stripping `cell//` yields a JJ
-path. Configuration changes select the whole requested head universe. New Buck
-graph errors, malformed JSON, bad revsets, and changed packages with existing
-graph errors fail closed instead of returning an incomplete target set.
+path. Configuration changes select the whole requested head universe.
+Malformed JSON and bad revsets fail closed instead of returning an incomplete
+target set; Buck graph errors are answered as described below.
 
 Two expected diagnostics — a universe endpoint's missing package and its
 missing target — are recognized by their exact buck2 wording. A buck2 upgrade
@@ -182,3 +183,27 @@ land in the head graph, exactly as they would in any local build; pass
 
 Graph collection dominates runtime. Base and head queries run concurrently,
 and the detector avoids materialization entirely when the JJ tree diff is empty.
+
+## Graph errors
+
+A Buck graph error is answered according to which endpoint it left incomplete.
+
+An error at head means a package there did not parse. That always fails, under
+every policy: a selection can only name targets tdutil managed to enumerate,
+so selecting everything would silently omit the very package that broke, and a
+green run would mean nothing. The same holds when both endpoints are broken
+and the diff touches the broken package. Failing hands the caller a problem it
+can still act on — falling back to a full build, which does surface the
+breakage.
+
+An error only in the predecessor is different: the head graph is complete, and
+only the comparison lost precision. The commonest cause is a diff which
+repairs a broken BUILD file. Failing and selecting everything are equally safe
+there, but only one is useful, so `--on-graph-error=select-all` names every
+head target instead of refusing, which is a superset of any honest selection.
+The default remains `fail`.
+
+CI needs no flag for this: its fallback already runs the full test suite when
+tdutil declines to answer, which is a superset again. The policy earns its
+keep where there is no such fallback — interactively, or in a pipeline that
+consumes the target list directly.

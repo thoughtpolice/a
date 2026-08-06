@@ -49,6 +49,7 @@ type universePlan struct {
 	basePatterns []string
 	headPatterns []string
 	patterns     []plannedPattern
+	onGraphError graphErrorPolicy
 }
 
 func classifyPattern(pattern string) universePattern {
@@ -184,8 +185,13 @@ func patternPackage(pattern universePattern) (string, bool) {
 func validateUniverse(plan *universePlan, base, head *snapshot) error {
 	excuseExpectedEndpointDiagnostics(plan, true, base, head)
 	excuseExpectedEndpointDiagnostics(plan, false, head, base)
-	if err := rejectBaseOnlyGraphErrors(base, head); err != nil {
-		return err
+	// Under select-all the same regressed predecessor is recognized again in
+	// determine(), which has the head graph in hand and can name all of it
+	// rather than refuse the run here, before there is anything to name.
+	if plan.onGraphError == graphErrorFail {
+		if err := rejectBaseOnlyGraphErrors(base, head); err != nil {
+			return err
+		}
 	}
 	for _, planned := range plan.patterns {
 		switch planned.kind.kind {

@@ -17,7 +17,8 @@ type affectedTarget struct {
 }
 
 type determineOptions struct {
-	depth *int
+	depth        *int
+	onGraphError graphErrorPolicy
 }
 
 // determine conservatively compares complete base and head snapshots and
@@ -28,27 +29,22 @@ func determine(base, head *snapshot, changed []string, options determineOptions)
 		changedSet[strings.ReplaceAll(changedPath, "\\", "/")] = struct{}{}
 	}
 	changedPaths := sortedSet(changedSet)
-	if err := validateGraphErrors(base, head, changedPaths); err != nil {
+	degraded, err := validateGraphErrors(base, head, changedPaths, options.onGraphError)
+	if err != nil {
 		return nil, err
 	}
 
 	graph := newGraph(base, head)
+	if degraded != "" {
+		return selectEveryHeadTarget(graph, degraded), nil
+	}
 	ciPatterns, err := compileCIPatterns(graph)
 	if err != nil {
 		return nil, err
 	}
 	for _, changedPath := range changedPaths {
 		if isGlobalConfiguration(changedPath) {
-			labels := sortedTargetLabels(graph.headTargets)
-			affected := make([]affectedTarget, 0, len(labels))
-			for _, label := range labels {
-				affected = append(affected, affectedTarget{
-					target: label,
-					depth:  0,
-					reason: "build configuration changed",
-				})
-			}
-			return affected, nil
+			return selectEveryHeadTarget(graph, "build configuration changed"), nil
 		}
 	}
 
@@ -113,6 +109,18 @@ func determine(base, head *snapshot, changed []string, options determineOptions)
 	return propagateWithReasons(graph, roots, options.depth, changedPaths, ciPatterns), nil
 }
 
+// selectEveryHeadTarget names the whole head universe. It answers the cases
+// where the diff cannot be reasoned about target by target but the head graph
+// is complete, so testing all of it is a superset of any honest selection.
+func selectEveryHeadTarget(graph *graph, reason string) []affectedTarget {
+	labels := sortedTargetLabels(graph.headTargets)
+	affected := make([]affectedTarget, 0, len(labels))
+	for _, label := range labels {
+		affected = append(affected, affectedTarget{target: label, depth: 0, reason: reason})
+	}
+	return affected
+}
+
 type diagnosticIdentity struct {
 	external bool
 	path     string
@@ -123,14 +131,19 @@ type diagnosticGroup struct {
 	diagnostics    []string
 }
 
-func validateGraphErrors(base, head *snapshot, changed []string) error {
+// validateGraphErrors reports either a hard failure or, when the policy allows
+// it, the reason the whole head universe should be selected instead. The
+// distinction is which endpoint is incomplete: a head which failed to parse
+// cannot be named in any selection, so it always fails, while a predecessor
+// which failed to parse only costs the comparison its precision.
+func validateGraphErrors(base, head *snapshot, changed []string, policy graphErrorPolicy) (string, error) {
 	baseDiagnostics, err := endpointDiagnostics(base, head)
 	if err != nil {
-		return err
+		return "", err
 	}
 	headDiagnostics, err := endpointDiagnostics(head, base)
 	if err != nil {
-		return err
+		return "", err
 	}
 	identitiesSet := make(map[diagnosticIdentity]struct{}, len(baseDiagnostics)+len(headDiagnostics))
 	for identity := range baseDiagnostics {
@@ -150,6 +163,7 @@ func validateGraphErrors(base, head *snapshot, changed []string) error {
 		return identities[i].path < identities[j].path
 	})
 
+	degraded := ""
 	for _, identity := range identities {
 		baseGroup := baseDiagnostics[identity]
 		headGroup, hasHead := headDiagnostics[identity]
@@ -160,21 +174,34 @@ func validateGraphErrors(base, head *snapshot, changed []string) error {
 			displayPackage = headGroup.displayPackage
 		}
 		if headCount > baseCount {
-			return fmt.Errorf(
+			// The head graph is the one missing a package, and a selection can
+			// only name what was enumerated, so no policy can rescue this.
+			return "", fmt.Errorf(
 				"new Buck graph error in `%s` (%d non-endpoint diagnostics at head, %d in the predecessor): %s",
 				displayPackage, headCount, baseCount, strings.Join(headGroup.diagnostics, "\n"),
 			)
 		}
 		if baseCount > headCount {
-			return fmt.Errorf(
+			message := fmt.Sprintf(
 				"Buck graph error in predecessor package `%s` (%d non-endpoint diagnostics in the predecessor, %d at head): %s",
 				displayPackage, baseCount, headCount, strings.Join(baseGroup.diagnostics, "\n"),
 			)
+			if policy == graphErrorSelectAll {
+				// Keep looking: a later identity may still fail hard, and a
+				// hard failure outranks selecting everything.
+				if degraded == "" {
+					degraded = fmt.Sprintf("predecessor Buck graph error in `%s`", displayPackage)
+				}
+				continue
+			}
+			return "", fmt.Errorf("%s", message)
 		}
 		if baseCount > 0 && !identity.external {
 			for _, changedPath := range changed {
 				if pathIsWithin(changedPath, identity.path) {
-					return fmt.Errorf(
+					// Both endpoints are missing this package, so the head
+					// graph cannot describe what the diff did to it either.
+					return "", fmt.Errorf(
 						"changed files touch package `%s`, which has a pre-existing Buck graph error: %s",
 						displayPackage, strings.Join(headGroup.diagnostics, "\n"),
 					)
@@ -182,7 +209,7 @@ func validateGraphErrors(base, head *snapshot, changed []string) error {
 			}
 		}
 	}
-	return nil
+	return degraded, nil
 }
 
 func endpointDiagnostics(current, peer *snapshot) (map[diagnosticIdentity]diagnosticGroup, error) {

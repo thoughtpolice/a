@@ -45,7 +45,7 @@ func TestCollectSnapshotPairRejectsEmptyPatterns(t *testing.T) {
 		t.Fatal("runner called for an empty universe")
 		return processResult{}, nil
 	}}
-	_, _, _, err := collectSnapshotPair(context.Background(), runner, "base", "head", "buck2", nil, "", nil)
+	_, _, _, err := collectSnapshotPair(context.Background(), runner, "base", "head", "buck2", nil, "", nil, graphErrorFail)
 	if err == nil || !strings.Contains(err.Error(), "at least one Buck target pattern") {
 		t.Fatalf("empty-pattern error = %v", err)
 	}
@@ -283,6 +283,7 @@ func TestCollectSnapshotPairRunsBothEndpointStagesConcurrentlyAndPrefersBaseErro
 		nil,
 		"",
 		[]string{"root//..."},
+		graphErrorFail,
 	)
 	if err == nil || !strings.Contains(err.Error(), "base collection failed") || strings.Contains(err.Error(), "head collection failed") {
 		t.Fatalf("paired error = %v", err)
