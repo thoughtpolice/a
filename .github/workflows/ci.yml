@@ -254,6 +254,18 @@ jobs:
           #
           # Such a selection is the whole universe, so it reads here as an
           # unusually high target count rather than as anything distinctive.
+          #
+          # The universe must name every cell the full-test fallback below
+          # tests. tilde and cellar are separate cells, so depot//... does not
+          # reach them, and their targets were absent from the graph rather
+          # than merely unselected: a change under tilde/ could only ever pick
+          # up the repo-wide lint targets, never the tilde targets actually
+          # built from the sources it changed. Keep the two lists in step.
+          #
+          # Spell the cells canonically. `buck2 audit cell --json`, which is
+          # what tdutil reads, reports only canonical names, so the aliases
+          # the fallback uses -- tilde//, cellar//, root// -- are cells tdutil
+          # has never heard of and it refuses the pattern outright.
           TARGETS_FILE="${{ runner.temp }}/affected-targets.txt"
           CAPTURE=()
           if [ "${{ github.event_name }}" = "push" ]; then
@@ -269,7 +281,9 @@ jobs:
             --base-snapshot "${{ runner.temp }}/tdutil-snapshot.json" \
             --on-graph-error select-all \
             "${CAPTURE[@]}" \
-            --universe depot//...
+            --universe depot//... \
+            --universe depot-tilde//... \
+            --universe depot-cellar//bootstrap/stage0-posix/...
 
           if [ -f "$TARGETS_FILE" ]; then
             TARGET_COUNT=$(wc -l < "$TARGETS_FILE")
