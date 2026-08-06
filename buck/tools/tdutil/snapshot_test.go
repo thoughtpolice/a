@@ -116,6 +116,7 @@ func TestParseSnapshotDocumentFailsClosed(t *testing.T) {
 
 func TestSnapshotMismatchReasonsCoverEveryRecordedInput(t *testing.T) {
 	document := &snapshotDocument{
+		TdutilVersion:     tdutilVersion,
 		Commit:            strings.Repeat("a", 40),
 		Universe:          []string{"depot//..."},
 		BuckArgs:          []string{"-c", "k=v"},
@@ -135,6 +136,34 @@ func TestSnapshotMismatchReasonsCoverEveryRecordedInput(t *testing.T) {
 	}
 	if reason := document.mismatchReason(strings.Repeat("a", 40), []string{"depot//..."}, []string{"-c", "k=v"}, "e"); !strings.Contains(reason, "config") {
 		t.Errorf("config mismatch reason = %q", reason)
+	}
+}
+
+// A document's contents depend on tdutil's own behavior, none of which is
+// otherwise observable in it, so a snapshot written by a different tdutil is
+// refused rather than trusted.
+func TestSnapshotRecordsAndChecksTheTdutilVersion(t *testing.T) {
+	collected := snapshotTestGraph(t)
+	document := buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", &collected)
+	if document.TdutilVersion != tdutilVersion {
+		t.Fatalf("recorded tdutil version = %q, want %q", document.TdutilVersion, tdutilVersion)
+	}
+	if reason := document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, ""); reason != "" {
+		t.Fatalf("matching document rejected: %s", reason)
+	}
+
+	document.TdutilVersion = "0"
+	reason := document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, "")
+	if !strings.Contains(reason, "tdutil") {
+		t.Fatalf("version drift reason = %q", reason)
+	}
+
+	// A document written before the version was recorded decodes to the empty
+	// string, which must read as a mismatch rather than as a valid version.
+	document.TdutilVersion = ""
+	reason = document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, "")
+	if !strings.Contains(reason, "tdutil") || !strings.Contains(reason, "unrecorded") {
+		t.Fatalf("absent version reason = %q", reason)
 	}
 }
 

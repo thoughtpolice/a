@@ -5,12 +5,22 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
 
 const (
-	tdutilVersion     = "0.1.0"
+	// tdutilVersion is a monotonic counter, not a semantic version. It is
+	// recorded in every base snapshot and checked when one is reused, because
+	// a document's contents depend on this program's own behavior — which
+	// attributes `targetAttributes` asks buck2 for, how repository paths are
+	// derived, what a graph error means — and none of that is otherwise
+	// observable in the document. Increment it whenever a change would make an
+	// older snapshot describe the graph differently than a fresh collection
+	// would; every existing snapshot is invalidated, which costs one cold
+	// collection and is always the safe direction.
+	tdutilVersion     = "1"
 	defaultBaseRevset = "fork_point(trunk() | @)"
 	helpText          = `Determine the Buck2 targets affected between two JJ revisions.
 
@@ -198,7 +208,11 @@ func parseCLI(argv []string) (cliAction, error) {
 			if err != nil {
 				return cliAction{}, err
 			}
-			parsed, parseErr := strconv.ParseUint(raw, 10, strconv.IntSize)
+			// Reserving the sign bit keeps the int conversion faithful. A value
+			// parsed across the full width wraps negative, and a negative limit
+			// silently stops propagation at the roots instead of reporting the
+			// bad input.
+			parsed, parseErr := strconv.ParseUint(raw, 10, strconv.IntSize-1)
 			if parseErr != nil {
 				return cliAction{}, fmt.Errorf("invalid --depth value `%s`", raw)
 			}
@@ -300,6 +314,7 @@ func parseCLI(argv []string) (cliAction, error) {
 			return cliAction{}, fmt.Errorf("invalid universe pattern `%s`: patterns must be cell-qualified and contain `//`", pattern)
 		}
 	}
+	universe = normalizeUniverse(universe)
 
 	result := cliArgs{
 		base:              defaultBaseRevset,
@@ -331,6 +346,20 @@ func parseCLI(argv []string) (cliAction, error) {
 
 func isTargetPattern(value string) bool {
 	return strings.Contains(value, "//")
+}
+
+// normalizeUniverse orders and deduplicates the requested patterns. Which
+// patterns are queried decides the graph; the order they were spelled in does
+// not. Normalizing here lets a base snapshot captured by one invocation match
+// an otherwise identical invocation that listed the same patterns differently,
+// which would otherwise be an unexplained cache miss.
+//
+// Buck configuration arguments deliberately get no such treatment: repeating a
+// key is meaningful to buck2, so their order is part of their meaning.
+func normalizeUniverse(patterns []string) []string {
+	normalized := append([]string(nil), patterns...)
+	slices.Sort(normalized)
+	return slices.Compact(normalized)
 }
 
 func stringPointer(value string) *string {

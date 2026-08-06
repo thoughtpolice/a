@@ -126,6 +126,36 @@ func TestCLIRootDepthIsValid(t *testing.T) {
 	}
 }
 
+// A depth parsed across the full width of an int wraps negative, and a
+// negative limit stops propagation at the roots — an under-selection reported
+// as success. Both the wrapping value and an ordinary negative are refused.
+func TestCLIRejectsOutOfRangeDepths(t *testing.T) {
+	for _, raw := range []string{"18446744073709551615", "9223372036854775808", "-1", "1.5", ""} {
+		if _, err := parseCLI([]string{"--depth", raw}); err == nil {
+			t.Errorf("--depth %q was accepted", raw)
+		}
+	}
+	args := mustRunArgs(t, "--depth", "9223372036854775807")
+	if args.depth == nil || *args.depth != 9223372036854775807 {
+		t.Fatalf("depth = %v, want the largest representable limit", args.depth)
+	}
+}
+
+// The set of universe patterns decides the graph; the order they were spelled
+// in does not. Normalizing lets a snapshot captured by one invocation match an
+// otherwise identical one that listed the same patterns differently.
+func TestCLINormalizesUniversePatternsForSnapshotIdentity(t *testing.T) {
+	first := mustRunArgs(t, "-u", "depot//b/...", "-u", "depot//a/...", "-u", "depot//b/...")
+	second := mustRunArgs(t, "-u", "depot//a/...", "-u", "depot//b/...")
+	want := []string{"depot//a/...", "depot//b/..."}
+	if !reflect.DeepEqual(first.universe, want) {
+		t.Fatalf("universe = %q, want %q", first.universe, want)
+	}
+	if !reflect.DeepEqual(first.universe, second.universe) {
+		t.Fatalf("orderings disagree: %q versus %q", first.universe, second.universe)
+	}
+}
+
 // Port of cli.rs::rejects_unknown_format.
 func TestCLIRejectsUnknownFormat(t *testing.T) {
 	_, err := parseCLI([]string{"--format=yaml"})

@@ -80,9 +80,18 @@ $ buck2 run root//buck/tools/tdutil:tdutil -- --base-snapshot base.json
 
 `--snapshot-to` collects the head revision's graph — in place when it matches
 the working-copy tree, in a temporary workspace otherwise — and writes a
-self-describing document: a schema number, the exact buck2 version, the
-commit, the universe patterns, the Buck configuration arguments, a digest of
-`.buckconfig.local`, and the whole graph in workspace-independent form.
+self-describing document: a schema number, the tdutil version, the exact buck2
+version, the commit, the universe patterns, the Buck configuration arguments, a
+digest of `.buckconfig.local`, and the whole graph in workspace-independent
+form.
+
+The recorded tdutil version is a monotonic counter rather than a semantic
+version, because a document's contents depend on tdutil's own behavior — which
+attributes it asks buck2 for, how it derives repository paths — and none of
+that is otherwise observable in the document. Increment `tdutilVersion`
+whenever a change would make an older snapshot describe the graph differently
+than a fresh collection would. Doing so invalidates every existing snapshot,
+which costs one cold collection and is always the safe direction.
 `--base-snapshot` reuses such a document as the base endpoint when every
 recorded input matches the requested comparison; any mismatch is reported and
 the run falls back to full collection, so a stale or missing snapshot can

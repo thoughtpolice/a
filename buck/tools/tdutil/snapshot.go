@@ -30,6 +30,7 @@ const snapshotSchemaVersion = 1
 
 type snapshotDocument struct {
 	Schema            int               `json:"schema"`
+	TdutilVersion     string            `json:"tdutil_version"`
 	BuckVersion       string            `json:"buck_version"`
 	Commit            string            `json:"commit"`
 	Universe          []string          `json:"universe"`
@@ -141,6 +142,7 @@ func buildSnapshotDocument(
 
 	return &snapshotDocument{
 		Schema:            snapshotSchemaVersion,
+		TdutilVersion:     tdutilVersion,
 		BuckVersion:       buckVersion,
 		Commit:            commit,
 		Universe:          append([]string{}, universe...),
@@ -152,6 +154,16 @@ func buildSnapshotDocument(
 		Files:             files,
 		Errors:            diagnostics,
 	}
+}
+
+// quotedOrAbsent describes a recorded version for a diagnostic. A document
+// written before the version was recorded decodes to the empty string rather
+// than to a version anyone can act on.
+func quotedOrAbsent(version string) string {
+	if version == "" {
+		return "an unrecorded version"
+	}
+	return version
 }
 
 func encodeSnapshotDocument(document *snapshotDocument) ([]byte, error) {
@@ -213,6 +225,15 @@ func (document *snapshotDocument) mismatchReason(
 	universe, buckArgs []string,
 	localConfigDigest string,
 ) string {
+	// Checked first: a tdutil mismatch invalidates the document wholesale,
+	// including the meaning of everything compared below.
+	if document.TdutilVersion != tdutilVersion {
+		return fmt.Sprintf(
+			"snapshot was made by tdutil %s but this is tdutil %s",
+			quotedOrAbsent(document.TdutilVersion),
+			tdutilVersion,
+		)
+	}
 	if document.Commit != baseCommit {
 		return fmt.Sprintf("snapshot is for commit %s, not base %s", document.Commit, baseCommit)
 	}
