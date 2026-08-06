@@ -235,7 +235,19 @@ jobs:
 
           # Run the first-party detector. Pass CI configuration to the inner
           # graph queries as well as to the outer build of tdutil.
+          #
+          # On a push, --snapshot-head-to records the head graph this run has
+          # already collected, so refreshing the trunk snapshot costs only the
+          # serialization rather than a second full collection. It goes to a
+          # distinct path so that its existence is an unambiguous signal that
+          # a new snapshot was written, rather than the restored base file
+          # still sitting there. Failing to write it is reported by tdutil and
+          # never fails the run.
           TARGETS_FILE="${{ runner.temp }}/affected-targets.txt"
+          CAPTURE=()
+          if [ "${{ github.event_name }}" = "push" ]; then
+            CAPTURE=(--snapshot-head-to "${{ runner.temp }}/tdutil-snapshot-new.json")
+          fi
           buck2 run @buck/ci.buckargs root//buck/tools/tdutil:tdutil -- \
             --config ci.depot_gha_ci=true \
             --verbose \
@@ -244,6 +256,7 @@ jobs:
             --from "$BASE_COMMIT" \
             --to "$HEAD_COMMIT" \
             --base-snapshot "${{ runner.temp }}/tdutil-snapshot.json" \
+            "${CAPTURE[@]}" \
             --universe depot//...
 
           if [ -f "$TARGETS_FILE" ]; then
@@ -275,25 +288,28 @@ jobs:
             echo "No targets file generated, will fall back to full test"
           fi
 
-      # Refresh the trunk snapshot so future runs can skip base collection.
-      # The capture reuses the warm in-place daemon from the determination
-      # step; it is an optimization only and never fails the build. Writing
-      # over the restored base snapshot is safe: determination has already
-      # consumed it, and the save below is keyed on the head commit.
-      - name: Capture base graph snapshot
+      # The determination step above already wrote the new trunk snapshot, so
+      # there is nothing left to collect here. Move it onto the path the
+      # restore step named: actions/cache derives an entry version from
+      # `path`, so a save which names a different file would never be found
+      # by the restore above, however exactly their keys matched. An absent
+      # file means tdutil declined or failed to write one, which costs the
+      # next run a base collection and is not a build failure.
+      - name: Stage the new base graph snapshot
         id: capture-snapshot
         if: github.event_name == 'push'
-        continue-on-error: true
         shell: bash
         run: |
-          buck2 run @buck/ci.buckargs root//buck/tools/tdutil:tdutil -- \
-            --config ci.depot_gha_ci=true \
-            --verbose \
-            --to "${{ steps.commits.outputs.head }}" \
-            --snapshot-to "${{ runner.temp }}/tdutil-snapshot.json" \
-            --universe depot//...
+          NEW_SNAPSHOT="${{ runner.temp }}/tdutil-snapshot-new.json"
+          if [ -s "$NEW_SNAPSHOT" ]; then
+            mv -f -- "$NEW_SNAPSHOT" "${{ runner.temp }}/tdutil-snapshot.json"
+            echo "captured=true" >> $GITHUB_OUTPUT
+          else
+            echo "captured=false" >> $GITHUB_OUTPUT
+            echo "No new snapshot was written; the next run collects its base graph."
+          fi
       - name: Save base graph snapshot
-        if: github.event_name == 'push' && steps.capture-snapshot.outcome == 'success'
+        if: github.event_name == 'push' && steps.capture-snapshot.outputs.captured == 'true'
         continue-on-error: true
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
