@@ -243,6 +243,17 @@ jobs:
           # a new snapshot was written, rather than the restored base file
           # still sitting there. Failing to write it is reported by tdutil and
           # never fails the run.
+          #
+          # --on-graph-error=select-all applies when the base commit has a Buck
+          # graph error the head does not, typically a diff which repairs a
+          # broken BUILD file. The head graph is complete there, so tdutil
+          # names every target in the universe instead of refusing, and this
+          # step produces a usable list rather than dying. Errors which leave
+          # the head graph itself incomplete still fail, and still land in the
+          # full-test fallback below, which is what surfaces them.
+          #
+          # Such a selection is the whole universe, so it reads here as an
+          # unusually high target count rather than as anything distinctive.
           TARGETS_FILE="${{ runner.temp }}/affected-targets.txt"
           CAPTURE=()
           if [ "${{ github.event_name }}" = "push" ]; then
@@ -256,6 +267,7 @@ jobs:
             --from "$BASE_COMMIT" \
             --to "$HEAD_COMMIT" \
             --base-snapshot "${{ runner.temp }}/tdutil-snapshot.json" \
+            --on-graph-error select-all \
             "${CAPTURE[@]}" \
             --universe depot//...
 
