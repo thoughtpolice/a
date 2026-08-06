@@ -4,6 +4,7 @@
 load("@root//buck/shims:shims.bzl", "shims")
 
 SRCS = [
+    "atomic.go",
     "buck.go",
     "buckjson.go",
     "cells.go",
@@ -22,6 +23,7 @@ SRCS = [
 ]
 
 TEST_SRCS = [
+    "atomic_test.go",
     "buck_test.go",
     "buckjson_test.go",
     "cells_test.go",

@@ -282,12 +282,9 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 	if args.output == nil {
 		return render(stdout, args.format, &meta, affected)
 	}
-	output, err := os.Create(*args.output)
-	if err != nil {
-		return fmt.Errorf("creating output file `%s`: %w", *args.output, err)
-	}
-	defer func() { _ = output.Close() }()
-	return render(output, args.format, &meta, affected)
+	return writeFileAtomically(*args.output, 0o644, func(output io.Writer) error {
+		return render(output, args.format, &meta, affected)
+	})
 }
 
 // runSnapshotCapture collects the head revision's graph once and writes it as
@@ -354,7 +351,11 @@ func runSnapshotCapture(
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(*args.snapshotTo, data, 0o644); err != nil {
+	err = writeFileAtomically(*args.snapshotTo, 0o644, func(output io.Writer) error {
+		_, err := output.Write(data)
+		return err
+	})
+	if err != nil {
 		return fmt.Errorf("writing base snapshot `%s`: %w", *args.snapshotTo, err)
 	}
 	logProgress(stderr, args, "wrote base snapshot for %s (%d targets) to %s", headCommit, len(collected.targets), *args.snapshotTo)
