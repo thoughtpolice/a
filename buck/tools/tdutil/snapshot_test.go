@@ -244,7 +244,6 @@ func TestSnapshotRecordsAndChecksTheTdutilVersion(t *testing.T) {
 }
 
 func TestLoadBaseSnapshotVerifiesBuckVersion(t *testing.T) {
-	repository := t.TempDir()
 	collected := snapshotTestGraph(t)
 	document := buildSnapshotDocument("buck2 old", strings.Repeat("a", 40), []string{"depot//..."}, nil, "", &collected)
 	data, err := encodeSnapshotDocument(document)
@@ -256,31 +255,20 @@ func TestLoadBaseSnapshotVerifiesBuckVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	versionRunner := func(version string) buckFakeRunner {
-		return buckFakeRunner{runFunc: func(_ context.Context, spec commandSpec) (processResult, error) {
-			if len(spec.args) != 1 || spec.args[0] != "--version" {
-				t.Fatalf("unexpected command %q", spec.args)
-			}
-			return processResult{stdout: []byte(version + "\n")}, nil
-		}}
+	identity := func(version string) snapshotIdentity {
+		return identityOf(version, []string{"depot//..."}, nil, "")
 	}
-	loaded, reason := loadBaseSnapshot(
-		context.Background(),
-		versionRunner("buck2 new"),
-		path, "buck2", repository,
-		strings.Repeat("a", 40), []string{"depot//..."}, nil,
-	)
+	loaded, reason := loadBaseSnapshot(path, identity("buck2 new"), strings.Repeat("a", 40))
 	if loaded != nil || !strings.Contains(reason, "buck2") {
 		t.Fatalf("version drift accepted: loaded=%v reason=%q", loaded != nil, reason)
 	}
-	loaded, reason = loadBaseSnapshot(
-		context.Background(),
-		versionRunner("buck2 old"),
-		path, "buck2", repository,
-		strings.Repeat("a", 40), []string{"depot//..."}, nil,
-	)
+	loaded, reason = loadBaseSnapshot(path, identity("buck2 old"), strings.Repeat("a", 40))
 	if loaded == nil {
 		t.Fatalf("matching snapshot rejected: %s", reason)
+	}
+
+	if _, reason := loadBaseSnapshot(filepath.Join(t.TempDir(), "absent.json"), identity("buck2 old"), strings.Repeat("a", 40)); reason != "no snapshot file present" {
+		t.Fatalf("absent snapshot reason = %q", reason)
 	}
 }
 

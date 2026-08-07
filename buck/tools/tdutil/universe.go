@@ -173,6 +173,20 @@ func (plan *universePlan) headCoversEveryPattern() bool {
 	return true
 }
 
+// baseCoversEveryPattern is the same gate for the other endpoint. A run which
+// missed the cache collects the base graph anyway, and that graph is worth
+// storing for the next run — but only when it covers everything a reader would
+// later take it as evidence for, which is the pattern that exists at base and
+// not at head.
+func (plan *universePlan) baseCoversEveryPattern() bool {
+	for _, planned := range plan.patterns {
+		if !planned.base {
+			return false
+		}
+	}
+	return true
+}
+
 func patternPackage(pattern universePattern) (string, bool) {
 	switch pattern.kind {
 	case universeRecursive, universePackage, universeExact:

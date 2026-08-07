@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -62,6 +63,21 @@ Options:
       --base-snapshot PATH    Reuse a matching --snapshot-to document as the
                               base graph; falls back to full collection when
                               it does not match
+      --cache LOCATION        Read base snapshots from a cache: an s3://BUCKET/PREFIX
+                              URL, or a local directory. Keys are derived from
+                              the snapshot's own identity, so nothing needs
+                              naming. A miss or a failure falls back to full
+                              collection
+      --cache-write           Also store snapshots in the cache: the head graph
+                              this run collected, and the base graph too when
+                              the cache missed and it had to be collected.
+                              Never fails the run
+      --cache-timeout D       Bound on each cache operation (default 60s).
+                              Falling back costs one base collection, so
+                              waiting longer than that is never a good trade
+      --cache-max-age D       Age at which a local cache directory prunes its
+                              own objects (default 14d). Object stores use
+                              their own lifecycle rules and ignore this
       --buck COMMAND          Buck2 executable (default: buck2)
       --jj COMMAND            JJ executable (default: jj)
       --buck-arg ARG          Extra Buck2 argument (repeatable)
@@ -117,6 +133,10 @@ type cliArgs struct {
 	snapshotTo        *string
 	snapshotHeadTo    *string
 	baseSnapshot      *string
+	cache             *string
+	cacheWrite        bool
+	cacheTimeout      time.Duration
+	cacheMaxAge       time.Duration
 	buck              string
 	jj                string
 	buckArgs          []string
@@ -152,6 +172,10 @@ func parseCLI(argv []string) (cliAction, error) {
 	var snapshotTo *string
 	var snapshotHeadTo *string
 	var baseSnapshot *string
+	var cache *string
+	cacheWrite := false
+	cacheTimeout := defaultCacheTimeout
+	cacheMaxAge := defaultCacheMaxAge
 	buck := "buck2"
 	jj := "jj"
 	var buckArgs []string
@@ -286,6 +310,32 @@ func parseCLI(argv []string) (cliAction, error) {
 				return cliAction{}, err
 			}
 			baseSnapshot = stringPointer(raw)
+		case "--cache":
+			raw, err := value("--cache")
+			if err != nil {
+				return cliAction{}, err
+			}
+			cache = stringPointer(raw)
+		case "--cache-write":
+			cacheWrite = true
+		case "--cache-timeout":
+			raw, err := value("--cache-timeout")
+			if err != nil {
+				return cliAction{}, err
+			}
+			cacheTimeout, err = parseDurationFlag("--cache-timeout", raw)
+			if err != nil {
+				return cliAction{}, err
+			}
+		case "--cache-max-age":
+			raw, err := value("--cache-max-age")
+			if err != nil {
+				return cliAction{}, err
+			}
+			cacheMaxAge, err = parseDurationFlag("--cache-max-age", raw)
+			if err != nil {
+				return cliAction{}, err
+			}
 		case "--buck":
 			raw, err := value("--buck")
 			if err != nil {
@@ -348,6 +398,14 @@ func parseCLI(argv []string) (cliAction, error) {
 	if quick && baseSnapshot != nil {
 		return cliAction{}, fmt.Errorf("--quick consults no base graph; it cannot combine with --base-snapshot")
 	}
+	if cacheWrite && cache == nil {
+		return cliAction{}, fmt.Errorf("--cache-write has nowhere to write; name a cache with --cache")
+	}
+	// Quick mode consults no base graph, so a cache it may only read from
+	// would do nothing; it can still produce a capture worth storing.
+	if quick && cache != nil && !cacheWrite {
+		return cliAction{}, fmt.Errorf("--quick consults no base graph; --cache without --cache-write would do nothing")
+	}
 	if snapshotTo != nil {
 		switch {
 		case snapshotHeadTo != nil:
@@ -356,6 +414,8 @@ func parseCLI(argv []string) (cliAction, error) {
 			return cliAction{}, fmt.Errorf("--snapshot-to is a standalone capture; it cannot combine with --quick")
 		case baseSnapshot != nil:
 			return cliAction{}, fmt.Errorf("--snapshot-to is a standalone capture; it cannot combine with --base-snapshot")
+		case cache != nil && !cacheWrite:
+			return cliAction{}, fmt.Errorf("--snapshot-to reads no base graph; --cache without --cache-write would do nothing")
 		case base != nil:
 			return cliAction{}, fmt.Errorf("--snapshot-to captures a single revision; a base revset does not apply")
 		case output != nil:
@@ -385,6 +445,10 @@ func parseCLI(argv []string) (cliAction, error) {
 		snapshotTo:        snapshotTo,
 		snapshotHeadTo:    snapshotHeadTo,
 		baseSnapshot:      baseSnapshot,
+		cache:             cache,
+		cacheWrite:        cacheWrite,
+		cacheTimeout:      cacheTimeout,
+		cacheMaxAge:       cacheMaxAge,
 		buck:              buck,
 		jj:                jj,
 		buckArgs:          buckArgs,
@@ -405,6 +469,30 @@ func parseCLI(argv []string) (cliAction, error) {
 
 func isTargetPattern(value string) bool {
 	return strings.Contains(value, "//")
+}
+
+// parseDurationFlag reads a Go duration, plus a `d` suffix for days that Go
+// itself does not accept. A cache retention spelled `336h` is arithmetic the
+// reader has to do to know what it says.
+func parseDurationFlag(name, raw string) (time.Duration, error) {
+	invalid := fmt.Errorf("invalid %s value `%s` (expected a duration such as 60s, 10m, or 14d)", name, raw)
+	parsed := time.Duration(0)
+	if days, found := strings.CutSuffix(raw, "d"); found {
+		count, err := strconv.ParseFloat(days, 64)
+		if err != nil {
+			return 0, invalid
+		}
+		parsed = time.Duration(count * float64(24*time.Hour))
+	} else {
+		var err error
+		if parsed, err = time.ParseDuration(raw); err != nil {
+			return 0, invalid
+		}
+	}
+	if parsed < 0 {
+		return 0, fmt.Errorf("invalid %s value `%s`: a duration cannot be negative", name, raw)
+	}
+	return parsed, nil
 }
 
 // normalizeUniverse orders and deduplicates the requested patterns. Which

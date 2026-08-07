@@ -72,8 +72,23 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 		return err
 	}
 
+	// Opened before anything is collected, so a location that cannot work —
+	// an unknown scheme, absent credentials — stops the run at once instead of
+	// letting it quietly pay full collection with nothing to say why.
+	cache, err := openSnapshotCache(ctx, app.runner, &args, jj.repository, app.tempDir())
+	if err != nil {
+		return err
+	}
+	if cache != nil {
+		access := "read-only"
+		if cache.write {
+			access = "read-write"
+		}
+		logProgress(stderr, &args, "snapshot cache %s, %s (identity %s)", cache.store, access, cache.identity.digest())
+	}
+
 	if args.snapshotTo != nil {
-		return runSnapshotCapture(ctx, app, jj, &args, currentDir, stderr)
+		return runSnapshotCapture(ctx, app, jj, &args, currentDir, cache, stderr)
 	}
 
 	logProgress(stderr, &args, "resolving %s .. %s", args.base, args.head)
@@ -126,11 +141,12 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				return err
 			}
 			logProgress(stderr, &args, "parsed %d working-copy targets", len(quickSnapshot.targets))
+			// Quick mode plans both endpoints against the same tree, so a
+			// pattern either has evidence and is queried or fails the run.
 			if args.snapshotHeadTo != nil {
-				// Quick mode plans both endpoints against the same tree, so a
-				// pattern either has evidence and is queried or fails the run.
 				captureHeadSnapshot(ctx, app.runner, &args, jj.repository, revisions.head, true, &quickSnapshot, stderr)
 			}
+			cache.storeSnapshot(ctx, &args, "head", revisions.head, true, &quickSnapshot, stderr)
 			affected, err = determine(
 				&quickSnapshot,
 				&quickSnapshot,
@@ -141,30 +157,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				return err
 			}
 		} else {
-			var baseDocument *snapshotDocument
-			if args.baseSnapshot != nil {
-				document, reason := loadBaseSnapshot(
-					ctx,
-					app.runner,
-					*args.baseSnapshot,
-					args.buck,
-					jj.repository,
-					revisions.base,
-					args.universe,
-					args.buckArgs,
-				)
-				if document == nil {
-					_, _ = fmt.Fprintf(
-						stderr,
-						"tdutil: base snapshot %s ignored (%s); collecting the base graph instead\n",
-						*args.baseSnapshot,
-						reason,
-					)
-				} else {
-					logProgress(stderr, &args, "using base snapshot for %s (%d targets)", revisions.base, len(document.Targets))
-				}
-				baseDocument = document
-			}
+			baseDocument := obtainBaseDocument(ctx, app.runner, &args, cache, jj.repository, revisions.base, stderr)
 
 			// The head graph is queried directly in the invoking workspace when the
 			// requested head has the working-copy tree: the tree on disk already is
@@ -269,6 +262,15 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 						stderr,
 					)
 				}
+				cache.storeSnapshot(ctx, &args, "head", revisions.head, plan.headCoversEveryPattern(), &headSnapshot, stderr)
+				// A run which missed the cache collected the base graph
+				// anyway, and that graph is the one every later run against
+				// this base will ask for. Storing it is what turns a repeated
+				// local run into a head-only collection, and it costs only the
+				// serialization, since the collection has already happened.
+				if baseDocument == nil {
+					cache.storeSnapshot(ctx, &args, "base", revisions.base, plan.baseCoversEveryPattern(), &baseSnapshot, stderr)
+				}
 				affected, analysisErr = determine(
 					&baseSnapshot,
 					&headSnapshot,
@@ -317,6 +319,7 @@ func runSnapshotCapture(
 	jj *jjClient,
 	args *cliArgs,
 	currentDir string,
+	cache *snapshotCache,
 	stderr io.Writer,
 ) error {
 	logProgress(stderr, args, "resolving snapshot revision %s", args.head)
@@ -371,6 +374,9 @@ func runSnapshotCapture(
 		return err
 	}
 	logProgress(stderr, args, "wrote base snapshot for %s (%d targets) to %s", headCommit, len(collected.targets), *args.snapshotTo)
+	// Capture plans every pattern against one tree, so a pattern either has
+	// evidence and is queried or fails the run before reaching here.
+	cache.storeSnapshot(ctx, args, "captured", headCommit, true, &collected, stderr)
 	return nil
 }
 

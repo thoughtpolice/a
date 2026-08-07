@@ -382,12 +382,7 @@ func (document *snapshotDocument) toSnapshot() (snapshot, error) {
 // reason it cannot stand in for the base endpoint. Every reason means the
 // caller falls back to full collection; a snapshot is never trusted past its
 // recorded identity.
-func loadBaseSnapshot(
-	ctx context.Context,
-	runner processRunner,
-	path, buck, repository, baseCommit string,
-	universe, buckArgs []string,
-) (*snapshotDocument, string) {
+func loadBaseSnapshot(path string, identity snapshotIdentity, baseCommit string) (*snapshotDocument, string) {
 	document, err := readSnapshotDocument(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -395,19 +390,8 @@ func loadBaseSnapshot(
 		}
 		return nil, err.Error()
 	}
-	digest, err := localBuckConfigDigest(repository)
-	if err != nil {
-		return nil, err.Error()
-	}
-	if reason := document.mismatchReason(baseCommit, universe, buckArgs, digest); reason != "" {
+	if reason := document.mismatchAgainst(identity, baseCommit); reason != "" {
 		return nil, reason
-	}
-	version, err := buckVersionString(ctx, runner, buck)
-	if err != nil {
-		return nil, err.Error()
-	}
-	if version != document.BuckVersion {
-		return nil, fmt.Sprintf("snapshot was made by buck2 %q but the current buck2 is %q", document.BuckVersion, version)
 	}
 	return document, ""
 }
