@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -19,11 +20,16 @@ type affectedTarget struct {
 type determineOptions struct {
 	depth        *int
 	onGraphError graphErrorPolicy
+	// config carries the repository's conventions: which paths invalidate the
+	// whole graph, which files are build files, and what the CI metadata is
+	// called. The zero value is not usable; callers pass a resolved config.
+	config tdutilConfig
 }
 
 // determine conservatively compares complete base and head snapshots and
 // propagates direct impact through the head reverse-dependency graph.
 func determine(base, head *snapshot, changed []string, options determineOptions) ([]affectedTarget, error) {
+	options.config = options.config.withDefaults()
 	changedSet := make(map[string]struct{}, len(changed))
 	for _, changedPath := range changed {
 		changedSet[strings.ReplaceAll(changedPath, "\\", "/")] = struct{}{}
@@ -34,16 +40,16 @@ func determine(base, head *snapshot, changed []string, options determineOptions)
 		return nil, err
 	}
 
-	graph := newGraph(base, head)
+	graph := newGraph(base, head, options.config)
 	if degraded != "" {
 		return selectEveryHeadTarget(graph, degraded), nil
 	}
-	ciPatterns, err := compileCIPatterns(graph)
+	ciPatterns, err := compileCIPatterns(graph, options.config)
 	if err != nil {
 		return nil, err
 	}
 	for _, changedPath := range changedPaths {
-		if isGlobalConfiguration(changedPath) {
+		if options.config.isGlobalConfiguration(changedPath) {
 			return selectEveryHeadTarget(graph, "build configuration changed"), nil
 		}
 	}
@@ -71,10 +77,9 @@ func determine(base, head *snapshot, changed []string, options determineOptions)
 		}
 	}
 	for _, changedPath := range changedPaths {
-		name := pathBase(changedPath)
-		if isPackageFile(name) {
+		if isPackageFile(pathBase(changedPath)) {
 			addDescendantPackages(graph, pathParent(changedPath), changedPath, roots)
-		} else if isBuildFile(name) {
+		} else if options.config.buildFiles.isBuildFile(changedPath) {
 			addPackage(graph, pathParent(changedPath), changedPath, roots)
 		}
 	}
@@ -89,7 +94,7 @@ func determine(base, head *snapshot, changed []string, options determineOptions)
 		}
 		if isPackageFile(pathBase(importedPath)) {
 			addDescendantPackages(graph, pathParent(importedPath), importedPath, roots)
-		} else if isBuildFile(pathBase(importedPath)) {
+		} else if options.config.buildFiles.isBuildFile(importedPath) {
 			addPackage(graph, pathParent(importedPath), importedPath, roots)
 		}
 	}
@@ -99,14 +104,14 @@ func determine(base, head *snapshot, changed []string, options determineOptions)
 		for _, changedPath := range changedPaths {
 			if patterns.srcs.matches(changedPath) {
 				if ciMustMatch(patterns, changedPaths) {
-					addRoot(roots, label, fmt.Sprintf("ci_srcs matched `%s`", changedPath))
+					addRoot(roots, label, fmt.Sprintf("%s matched `%s`", options.config.ciSrcsAttribute, changedPath))
 				}
 				break
 			}
 		}
 	}
 
-	return propagateWithReasons(graph, roots, options.depth, changedPaths, ciPatterns), nil
+	return propagateWithReasons(graph, roots, options.depth, changedPaths, ciPatterns, options.config.skipUpstreamLabel), nil
 }
 
 // selectEveryHeadTarget names the whole head universe. It answers the cases
@@ -284,15 +289,15 @@ type ciPatterns struct {
 	mustMatch globList
 }
 
-func compileCIPatterns(graph *graph) (map[string]ciPatterns, error) {
+func compileCIPatterns(graph *graph, config tdutilConfig) (map[string]ciPatterns, error) {
 	result := make(map[string]ciPatterns, len(graph.targets))
 	for _, label := range sortedTargetLabels(graph.targets) {
 		target := graph.targets[label]
-		srcs, err := compileGlobList(target.ciSrcs, target.label, "ci_srcs")
+		srcs, err := compileGlobList(target.ciSrcs, target.label, config.ciSrcsAttribute)
 		if err != nil {
 			return nil, err
 		}
-		mustMatch, err := compileGlobList(target.ciSrcsMustMatch, target.label, "ci_srcs_must_match")
+		mustMatch, err := compileGlobList(target.ciSrcsMustMatch, target.label, config.ciSrcsMustMatch)
 		if err != nil {
 			return nil, err
 		}
@@ -314,6 +319,7 @@ func propagateWithReasons(
 	depthLimit *int,
 	changed []string,
 	patterns map[string]ciPatterns,
+	skipUpstreamLabel string,
 ) []affectedTarget {
 	rootLabels := make([]string, 0, len(roots))
 	for label := range roots {
@@ -343,7 +349,7 @@ func propagateWithReasons(
 			})
 		}
 		unionTarget, exists := graph.target(item.target)
-		if (depthLimit != nil && item.depth >= *depthLimit) || (exists && stopsUpstreamPropagation(unionTarget)) {
+		if (depthLimit != nil && item.depth >= *depthLimit) || (exists && stopsUpstreamPropagation(unionTarget, skipUpstreamLabel)) {
 			continue
 		}
 		dependents := sortedSet(graph.headDependents(item.target))
@@ -365,13 +371,11 @@ func propagateWithReasons(
 	return affected
 }
 
-func stopsUpstreamPropagation(target target) bool {
-	for _, label := range target.labels {
-		if label == "ci:dangerously_skip_upstream" {
-			return true
-		}
+func stopsUpstreamPropagation(target target, skipUpstreamLabel string) bool {
+	if skipUpstreamLabel == "" {
+		return false
 	}
-	return false
+	return slices.Contains(target.labels, skipUpstreamLabel)
 }
 
 func ciMustMatch(patterns ciPatterns, changed []string) bool {
@@ -408,23 +412,6 @@ func addDescendantPackages(graph *graph, packageName, changedFile string, roots 
 		}
 	}
 }
-
-func isGlobalConfiguration(path string) bool {
-	name := pathBase(path)
-	if name == ".buckroot" || strings.HasSuffix(name, ".buckconfig") ||
-		strings.HasSuffix(name, ".bcfg") || strings.HasSuffix(name, ".buckargs") {
-		return true
-	}
-	for _, component := range strings.Split(path, "/") {
-		if component == ".buckconfig.d" || component == "buckconfigs" {
-			return true
-		}
-	}
-	return path == "buck/mode" || strings.HasPrefix(path, "buck/mode/")
-}
-
-func isBuildFile(name string) bool   { return name == "BUILD" || name == "BUCK" || name == "BUCK.v2" }
-func isPackageFile(name string) bool { return name == "PACKAGE" || name == "PACKAGE.v2" }
 
 func pathParent(path string) string {
 	if separator := strings.LastIndexByte(path, '/'); separator >= 0 {

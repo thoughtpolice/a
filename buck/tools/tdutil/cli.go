@@ -21,7 +21,7 @@ const (
 	// older snapshot describe the graph differently than a fresh collection
 	// would; every existing snapshot is invalidated, which costs one cold
 	// collection and is always the safe direction.
-	tdutilVersion     = "2"
+	tdutilVersion     = "3"
 	defaultBaseRevset = "fork_point(trunk() | @)"
 	helpText          = `Determine the Buck2 targets affected between two JJ revisions.
 
@@ -29,9 +29,9 @@ Usage:
   tdutil [OPTIONS] [BASE [HEAD [PATTERN...]]]
   tdutil [OPTIONS] PATTERN...
 
-With no arguments, compares the fork point of trunk() and @ to @ over
-depot//.... If the first positional argument contains ` + "`//`" + `, all positional
-arguments are target patterns and the default revisions are used.
+With no arguments, compares the fork point of trunk() and @ to @ over the whole
+of the repository's root cell. If the first positional argument contains ` + "`//`" + `,
+all positional arguments are target patterns and the default revisions are used.
 
 Options:
       --from REV              Base JJ revset (default: ` + defaultBaseRevset + `)
@@ -423,9 +423,9 @@ func parseCLI(argv []string) (cliAction, error) {
 		}
 	}
 
-	if len(universe) == 0 {
-		universe = append(universe, "depot//...")
-	}
+	// An empty universe is left empty here and defaulted once the cell map is
+	// known, because the default is the repository's own root cell and only
+	// buck2 can say what that is called.
 	for _, pattern := range universe {
 		if !isTargetPattern(pattern) {
 			return cliAction{}, fmt.Errorf("invalid universe pattern `%s`: patterns must be cell-qualified and contain `//`", pattern)

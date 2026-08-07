@@ -45,6 +45,7 @@ func TestCollectQuickSnapshotRunsOneAuditAndOneDumpInWorkspace(t *testing.T) {
 		nil,
 		"tdutil-isolation",
 		[]string{"root//..."},
+		defaultTdutilConfig(),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -84,6 +85,7 @@ func TestCollectQuickSnapshotFailsClosedOnMissingUniverseTarget(t *testing.T) {
 		nil,
 		"",
 		[]string{"root//src/app:absent"},
+		defaultTdutilConfig(),
 	)
 	if err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Fatalf("error = %v, want missing-target universe failure", err)
@@ -95,7 +97,7 @@ func TestCollectQuickSnapshotRejectsEmptyPatterns(t *testing.T) {
 		t.Fatal("runner called for an empty universe")
 		return processResult{}, nil
 	}}
-	_, err := collectQuickSnapshot(context.Background(), runner, "unused", "buck2", nil, "", nil)
+	_, err := collectQuickSnapshot(context.Background(), runner, "unused", "buck2", nil, "", nil, defaultTdutilConfig())
 	if err == nil || !strings.Contains(err.Error(), "at least one Buck target pattern") {
 		t.Fatalf("empty-pattern error = %v", err)
 	}

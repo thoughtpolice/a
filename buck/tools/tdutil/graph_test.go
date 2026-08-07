@@ -70,7 +70,7 @@ func TestUnionIndexesKeepDeletedAndAddedInputs(t *testing.T) {
 	changed := graphTestTarget("root//app", "lib", nil, []string{"app/new.rs"})
 	changed.targetHash = "new"
 	head := graphTestSnapshot(t, []target{changed}, nil)
-	graph := newGraph(&base, &head)
+	graph := newGraph(&base, &head, defaultTdutilConfig())
 
 	if !setContains(graph.labelsForInput("app/old.rs"), "root//app:lib") {
 		t.Fatal("deleted input was not retained in union index")
@@ -100,7 +100,7 @@ func TestHeadPropagationUsesOnlyHeadEdges(t *testing.T) {
 		graphTestTarget("root//new", "new", []string{"root//a:a"}, nil),
 	}, nil)
 
-	reached := newGraph(&base, &head).headReach([]string{"root//a:a"}, nil)
+	reached := newGraph(&base, &head, defaultTdutilConfig()).headReach([]string{"root//a:a"}, nil)
 	if !setContains(reached, "root//new:new") {
 		t.Fatal("head dependent was not reached")
 	}
@@ -117,7 +117,7 @@ func TestRemovedTargetCanSeedHeadDependents(t *testing.T) {
 		graphTestTarget("root//b", "consumer", []string{"root//a:gone"}, nil),
 	}, nil)
 
-	reached := newGraph(&base, &head).headReach([]string{"root//a:gone"}, nil)
+	reached := newGraph(&base, &head, defaultTdutilConfig()).headReach([]string{"root//a:gone"}, nil)
 	if !setContains(reached, "root//a:gone") || !setContains(reached, "root//b:consumer") {
 		t.Fatalf("reached = %#v", reached)
 	}
@@ -130,7 +130,7 @@ func TestPropagationObeysDepthAndHandlesCycles(t *testing.T) {
 		graphTestTarget("root//c", "c", []string{"root//b:b"}, nil),
 	}, nil)
 	base := graphTestSnapshot(t, nil, nil)
-	graph := newGraph(&base, &head)
+	graph := newGraph(&base, &head, defaultTdutilConfig())
 	depth := 1
 	reached := graph.headReach([]string{"root//a:a"}, &depth)
 	if len(reached) != 2 || !setContains(reached, "root//a:a") || !setContains(reached, "root//b:b") {
@@ -154,7 +154,7 @@ func TestCIDepLiteralsRelativePackagesAndRecursivePatternsAreEdges(t *testing.T)
 	recursive.ciDeps = []string{"root//lib/..."}
 	head := graphTestSnapshot(t, []target{dependency, nested, literal, relative, packageTarget, recursive}, nil)
 	base := graphTestSnapshot(t, nil, nil)
-	graph := newGraph(&base, &head)
+	graph := newGraph(&base, &head, defaultTdutilConfig())
 
 	if !setContains(graph.headDependents("root//lib:dep"), "root//app:literal") {
 		t.Fatal("literal ci_dep edge missing")
@@ -203,7 +203,7 @@ func TestCIDepsFromRemovedTargetsReachSurvivingConsumers(t *testing.T) {
 	recursive := graphTestTarget("root//app", "recursive_consumer", nil, nil)
 	recursive.ciDeps = []string{"root//tree/..."}
 	head := graphTestSnapshot(t, []target{literal, relative, packageTarget, recursive}, nil)
-	graph := newGraph(&base, &head)
+	graph := newGraph(&base, &head, defaultTdutilConfig())
 
 	tests := []struct{ removed, consumer string }{
 		{"root//literal:gone", "root//app:literal_consumer"},
@@ -228,7 +228,7 @@ func TestBaseOnlyCIDepsDependentsDoNotEnterTheHeadGraph(t *testing.T) {
 	base := graphTestSnapshot(t, []target{removed, oldConsumer}, nil)
 	head := graphTestSnapshot(t, nil, nil)
 
-	reached := newGraph(&base, &head).headReach([]string{"root//lib:gone"}, nil)
+	reached := newGraph(&base, &head, defaultTdutilConfig()).headReach([]string{"root//lib:gone"}, nil)
 	if len(reached) != 1 || !setContains(reached, "root//lib:gone") {
 		t.Fatalf("head propagation = %#v", reached)
 	}
@@ -241,7 +241,7 @@ func TestCIHintAddsSyntheticEdgeToRealTarget(t *testing.T) {
 	head := graphTestSnapshot(t, []target{hint, real}, nil)
 	base := graphTestSnapshot(t, nil, nil)
 
-	if !setContains(newGraph(&base, &head).headDependents("root//app:ci_hint@real"), "root//app:real") {
+	if !setContains(newGraph(&base, &head, defaultTdutilConfig()).headDependents("root//app:ci_hint@real"), "root//app:real") {
 		t.Fatal("ci_hint synthetic edge missing")
 	}
 }
@@ -254,7 +254,7 @@ func TestImportUnionAndTransitiveReverseWalk(t *testing.T) {
 	head := graphTestSnapshot(t, nil, []fileNode{
 		graphTestFile("rules/b.bzl", []string{"rules/common.bzl"}),
 	})
-	importers := newGraph(&base, &head).transitiveImporters([]string{"rules/common.bzl"})
+	importers := newGraph(&base, &head, defaultTdutilConfig()).transitiveImporters([]string{"rules/common.bzl"})
 	for _, path := range []string{"rules/common.bzl", "rules/a.bzl", "rules/b.bzl", "BUCK"} {
 		if !setContains(importers, path) {
 			t.Errorf("transitive importers omitted %q: %#v", path, importers)

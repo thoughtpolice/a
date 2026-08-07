@@ -48,6 +48,7 @@ func resolveSnapshotIdentity(
 	runner processRunner,
 	buck, repository string,
 	universe, buckArgs []string,
+	config tdutilConfig,
 ) (snapshotIdentity, error) {
 	version, err := buckVersionString(ctx, runner, buck)
 	if err != nil {
@@ -57,14 +58,14 @@ func resolveSnapshotIdentity(
 	if err != nil {
 		return snapshotIdentity{}, err
 	}
-	return identityOf(version, universe, buckArgs, digest), nil
+	return identityOf(version, universe, buckArgs, digest, config), nil
 }
 
 // mismatchAgainst is mismatchReason plus the buck2 version, which the document
 // records but which the caller used to check separately so it could defer the
 // subprocess. An identity has already paid for that, so both are checked here.
 func (document *snapshotDocument) mismatchAgainst(identity snapshotIdentity, baseCommit string) string {
-	if reason := document.mismatchReason(baseCommit, identity.universe, identity.buckArgs, identity.localConfigDigest); reason != "" {
+	if reason := document.mismatchReason(baseCommit, identity.universe, identity.buckArgs, identity.localConfigDigest, identity.configDigest); reason != "" {
 		return reason
 	}
 	if document.BuckVersion != identity.buckVersion {
@@ -84,6 +85,7 @@ func buildSnapshotDocumentFor(identity snapshotIdentity, commit string, collecte
 		identity.universe,
 		identity.buckArgs,
 		identity.localConfigDigest,
+		identity.configDigest,
 		collected,
 	)
 }
@@ -143,6 +145,7 @@ func openSnapshotCache(
 	runner processRunner,
 	args *cliArgs,
 	repository, tempDir string,
+	config tdutilConfig,
 ) (*snapshotCache, error) {
 	if args.cache == nil {
 		return nil, nil
@@ -151,7 +154,7 @@ func openSnapshotCache(
 	if err != nil {
 		return nil, err
 	}
-	identity, err := resolveSnapshotIdentity(ctx, runner, args.buck, repository, args.universe, args.buckArgs)
+	identity, err := resolveSnapshotIdentity(ctx, runner, args.buck, repository, args.universe, args.buckArgs, config)
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +182,7 @@ func obtainBaseDocument(
 	args *cliArgs,
 	cache *snapshotCache,
 	repository, baseCommit string,
+	config tdutilConfig,
 	stderr io.Writer,
 ) *snapshotDocument {
 	if args.baseSnapshot == nil && cache == nil {
@@ -189,7 +193,7 @@ func obtainBaseDocument(
 	if cache != nil {
 		identity = cache.identity
 	} else {
-		resolved, err := resolveSnapshotIdentity(ctx, runner, args.buck, repository, args.universe, args.buckArgs)
+		resolved, err := resolveSnapshotIdentity(ctx, runner, args.buck, repository, args.universe, args.buckArgs, config)
 		if err != nil {
 			_, _ = fmt.Fprintf(
 				stderr,

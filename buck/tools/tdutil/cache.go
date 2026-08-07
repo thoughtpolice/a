@@ -125,21 +125,28 @@ func openBlobStore(location string, maxAge time.Duration) (blobStore, error) {
 // The platform is here for the same reason it is in the document: Starlark
 // reads host_info() at load time, so a graph collected on another host
 // describes different unconfigured targets.
+//
+// The tdutil configuration is here for a third reason of the same kind: a
+// document collected while `ci_srcs` was called something else, or while a
+// cell's build files were named differently, records a graph this run would
+// read differently. Sharing a key with it would be a hit that answers wrong.
 type snapshotIdentity struct {
 	buckVersion       string
 	universe          []string
 	buckArgs          []string
 	localConfigDigest string
 	platform          string
+	configDigest      string
 }
 
-func identityOf(buckVersion string, universe, buckArgs []string, localConfigDigest string) snapshotIdentity {
+func identityOf(buckVersion string, universe, buckArgs []string, localConfigDigest string, config tdutilConfig) snapshotIdentity {
 	return snapshotIdentity{
 		buckVersion:       buckVersion,
 		universe:          universe,
 		buckArgs:          buckArgs,
 		localConfigDigest: localConfigDigest,
 		platform:          currentPlatform(),
+		configDigest:      config.digest(),
 	}
 }
 
@@ -162,6 +169,7 @@ func (identity snapshotIdentity) digest() string {
 	writeFramedList(hash, "buck-args", identity.buckArgs)
 	writeFramedField(hash, "local-config", identity.localConfigDigest)
 	writeFramedField(hash, "platform", identity.platform)
+	writeFramedField(hash, "tdutil-config", identity.configDigest)
 	return hex.EncodeToString(hash.Sum(nil))[:16]
 }
 

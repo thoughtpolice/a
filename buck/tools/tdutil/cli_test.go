@@ -28,8 +28,11 @@ func TestCLINoArgsAreAutomatic(t *testing.T) {
 	if args.base != "fork_point(trunk() | @)" || args.head != "@" {
 		t.Fatalf("revisions = %q .. %q, want fork point .. @", args.base, args.head)
 	}
-	if !reflect.DeepEqual(args.universe, []string{"depot//..."}) {
-		t.Fatalf("universe = %q, want depot//...", args.universe)
+	// The universe is deliberately left empty here: its default is the
+	// repository's own root cell, which only the cell map can name, so it is
+	// filled in once buck2 has been asked rather than guessed at parse time.
+	if len(args.universe) != 0 {
+		t.Fatalf("universe = %q, want it deferred to the cell map", args.universe)
 	}
 }
 

@@ -26,7 +26,7 @@ func testSnapshotCache(t *testing.T, write bool) (*snapshotCache, string) {
 	}
 	return &snapshotCache{
 		store:    store,
-		identity: identityOf("buck2 test", []string{"depot//..."}, nil, ""),
+		identity: identityOf("buck2 test", []string{"depot//..."}, nil, "", defaultTdutilConfig()),
 		write:    write,
 		timeout:  10 * time.Second,
 		tempDir:  t.TempDir(),
@@ -173,7 +173,7 @@ func TestObtainBaseDocumentPrefersTheLocalFile(t *testing.T) {
 	args.baseSnapshot = &path
 	cache.store = failingStore{err: errors.New("the cache must not be consulted")}
 
-	got := obtainBaseDocument(context.Background(), nil, &args, cache, t.TempDir(), cacheTestCommit, &stderr)
+	got := obtainBaseDocument(context.Background(), nil, &args, cache, t.TempDir(), cacheTestCommit, defaultTdutilConfig(), &stderr)
 	if got == nil {
 		t.Fatalf("the local file was not used: %s", stderr.String())
 	}
@@ -195,7 +195,7 @@ func TestObtainBaseDocumentFallsThroughToTheCache(t *testing.T) {
 	absent := filepath.Join(t.TempDir(), "absent.json")
 	args.baseSnapshot = &absent
 
-	got := obtainBaseDocument(context.Background(), nil, &args, cache, t.TempDir(), cacheTestCommit, &stderr)
+	got := obtainBaseDocument(context.Background(), nil, &args, cache, t.TempDir(), cacheTestCommit, defaultTdutilConfig(), &stderr)
 	if got == nil {
 		t.Fatalf("the cache was not consulted after the file missed: %s", stderr.String())
 	}
@@ -211,7 +211,7 @@ func TestObtainBaseDocumentReportsFaultsButNotColdMisses(t *testing.T) {
 	args := cacheTestArgs(cache)
 
 	var quiet bytes.Buffer
-	if got := obtainBaseDocument(context.Background(), nil, &args, cache, t.TempDir(), cacheTestCommit, &quiet); got != nil {
+	if got := obtainBaseDocument(context.Background(), nil, &args, cache, t.TempDir(), cacheTestCommit, defaultTdutilConfig(), &quiet); got != nil {
 		t.Fatal("a cold cache produced a document")
 	}
 	if quiet.Len() != 0 {
@@ -221,7 +221,7 @@ func TestObtainBaseDocumentReportsFaultsButNotColdMisses(t *testing.T) {
 	verbose := args
 	verbose.verbose = true
 	var loud bytes.Buffer
-	obtainBaseDocument(context.Background(), nil, &verbose, cache, t.TempDir(), cacheTestCommit, &loud)
+	obtainBaseDocument(context.Background(), nil, &verbose, cache, t.TempDir(), cacheTestCommit, defaultTdutilConfig(), &loud)
 	if !strings.Contains(loud.String(), "cache miss") {
 		t.Fatalf("--verbose did not explain the miss: %q", loud.String())
 	}
@@ -229,7 +229,7 @@ func TestObtainBaseDocumentReportsFaultsButNotColdMisses(t *testing.T) {
 	broken, _ := testSnapshotCache(t, false)
 	broken.store = failingStore{err: errors.New("bucket is on fire")}
 	var reported bytes.Buffer
-	if got := obtainBaseDocument(context.Background(), nil, &args, broken, t.TempDir(), cacheTestCommit, &reported); got != nil {
+	if got := obtainBaseDocument(context.Background(), nil, &args, broken, t.TempDir(), cacheTestCommit, defaultTdutilConfig(), &reported); got != nil {
 		t.Fatal("a broken backend produced a document")
 	}
 	if !strings.Contains(reported.String(), "bucket is on fire") {

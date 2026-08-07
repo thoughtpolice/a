@@ -72,10 +72,29 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 		return err
 	}
 
+	// The repository describes its own conventions, so they are read before
+	// anything is collected: the universe default, which files are build
+	// files, and what the CI metadata attributes are called all come from
+	// here. Both endpoints are read through the working copy's configuration,
+	// which is sound because a diff that changes buckconfig is itself a global
+	// configuration change and selects the whole graph anyway.
+	logProgress(stderr, &args, "reading Buck cells and [tdutil] configuration")
+	config, err := resolveRepositoryConfig(ctx, app.runner, &args, jj.repository)
+	if err != nil {
+		return err
+	}
+	if len(args.universe) == 0 {
+		if config.rootCell == "" {
+			return fmt.Errorf("no Buck cell is rooted at %s; pass --universe explicitly", jj.repository)
+		}
+		args.universe = normalizeUniverse([]string{config.rootCell + "//..."})
+		logProgress(stderr, &args, "universe defaulted to %s", strings.Join(args.universe, " "))
+	}
+
 	// Opened before anything is collected, so a location that cannot work —
 	// an unknown scheme, absent credentials — stops the run at once instead of
 	// letting it quietly pay full collection with nothing to say why.
-	cache, err := openSnapshotCache(ctx, app.runner, &args, jj.repository, app.tempDir())
+	cache, err := openSnapshotCache(ctx, app.runner, &args, jj.repository, app.tempDir(), config)
 	if err != nil {
 		return err
 	}
@@ -88,7 +107,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 	}
 
 	if args.snapshotTo != nil {
-		return runSnapshotCapture(ctx, app, jj, &args, currentDir, cache, stderr)
+		return runSnapshotCapture(ctx, app, jj, &args, currentDir, cache, config, stderr)
 	}
 
 	logProgress(stderr, &args, "resolving %s .. %s", args.base, args.head)
@@ -136,6 +155,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				append([]string(nil), args.buckArgs...),
 				args.isolationDir,
 				args.universe,
+				config,
 			)
 			if err != nil {
 				return err
@@ -144,20 +164,20 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 			// Quick mode plans both endpoints against the same tree, so a
 			// pattern either has evidence and is queried or fails the run.
 			if args.snapshotHeadTo != nil {
-				captureHeadSnapshot(ctx, app.runner, &args, jj.repository, revisions.head, true, &quickSnapshot, stderr)
+				captureHeadSnapshot(ctx, app.runner, &args, jj.repository, revisions.head, true, &quickSnapshot, config, stderr)
 			}
 			cache.storeSnapshot(ctx, &args, "head", revisions.head, true, &quickSnapshot, stderr)
 			affected, err = determine(
 				&quickSnapshot,
 				&quickSnapshot,
 				changed,
-				determineOptions{depth: args.depth, onGraphError: args.onGraphError},
+				determineOptions{depth: args.depth, onGraphError: args.onGraphError, config: config},
 			)
 			if err != nil {
 				return err
 			}
 		} else {
-			baseDocument := obtainBaseDocument(ctx, app.runner, &args, cache, jj.repository, revisions.base, stderr)
+			baseDocument := obtainBaseDocument(ctx, app.runner, &args, cache, jj.repository, revisions.base, config, stderr)
 
 			// The head graph is queried directly in the invoking workspace when the
 			// requested head has the working-copy tree: the tree on disk already is
@@ -222,6 +242,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					args.isolationDir,
 					args.universe,
 					args.onGraphError,
+					config,
 				)
 			} else {
 				logProgress(
@@ -240,6 +261,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					args.isolationDir,
 					args.universe,
 					args.onGraphError,
+					config,
 				)
 			}
 			if analysisErr == nil {
@@ -259,6 +281,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 						revisions.head,
 						plan.headCoversEveryPattern(),
 						&headSnapshot,
+						config,
 						stderr,
 					)
 				}
@@ -275,7 +298,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					&baseSnapshot,
 					&headSnapshot,
 					changed,
-					determineOptions{depth: args.depth, onGraphError: args.onGraphError},
+					determineOptions{depth: args.depth, onGraphError: args.onGraphError, config: config},
 				)
 			}
 			affected, err = finishWorkspacePair(
@@ -320,6 +343,7 @@ func runSnapshotCapture(
 	args *cliArgs,
 	currentDir string,
 	cache *snapshotCache,
+	config tdutilConfig,
 	stderr io.Writer,
 ) error {
 	logProgress(stderr, args, "resolving snapshot revision %s", args.head)
@@ -339,7 +363,7 @@ func runSnapshotCapture(
 	var collected snapshot
 	if inPlace {
 		logProgress(stderr, args, "snapshotting the working-copy Buck graph (%s)", strings.Join(args.universe, " "))
-		collected, err = collectQuickSnapshot(ctx, app.runner, jj.repository, args.buck, buckArgs, args.isolationDir, args.universe)
+		collected, err = collectQuickSnapshot(ctx, app.runner, jj.repository, args.buck, buckArgs, args.isolationDir, args.universe, config)
 		if err != nil {
 			return err
 		}
@@ -354,7 +378,7 @@ func runSnapshotCapture(
 		}
 		cleanupContext := context.WithoutCancel(ctx)
 		logProgress(stderr, args, "snapshotting the Buck graph at %s (%s)", headCommit, strings.Join(args.universe, " "))
-		collected, err = collectQuickSnapshot(ctx, app.runner, headWorkspace.checkout, args.buck, buckArgs, args.isolationDir, args.universe)
+		collected, err = collectQuickSnapshot(ctx, app.runner, headWorkspace.checkout, args.buck, buckArgs, args.isolationDir, args.universe, config)
 		err = finishOneWorkspace(cleanupContext, headWorkspace, args.keepWorkspaces, err, "snapshot", stderr)
 		if err != nil {
 			return err
@@ -369,7 +393,7 @@ func runSnapshotCapture(
 	if err != nil {
 		return err
 	}
-	document := buildSnapshotDocument(version, headCommit, args.universe, buckArgs, digest, &collected)
+	document := buildSnapshotDocument(version, headCommit, args.universe, buckArgs, digest, config.digest(), &collected)
 	if err := writeSnapshotDocument(*args.snapshotTo, document); err != nil {
 		return err
 	}
@@ -395,6 +419,7 @@ func captureHeadSnapshot(
 	repository, headCommit string,
 	universeIsComplete bool,
 	collected *snapshot,
+	config tdutilConfig,
 	stderr io.Writer,
 ) {
 	path := *args.snapshotHeadTo
@@ -415,7 +440,7 @@ func captureHeadSnapshot(
 		decline(err.Error())
 		return
 	}
-	document := buildSnapshotDocument(version, headCommit, args.universe, args.buckArgs, digest, collected)
+	document := buildSnapshotDocument(version, headCommit, args.universe, args.buckArgs, digest, config.digest(), collected)
 	if err := writeSnapshotDocument(path, document); err != nil {
 		decline(err.Error())
 		return

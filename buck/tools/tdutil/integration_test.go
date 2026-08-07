@@ -79,6 +79,7 @@ func TestRealBuck2DiagnosticsAreRecognized(t *testing.T) {
 		isolation,
 		[]string{"root//pkg:missing", "root//absent:"},
 		cells,
+		defaultTdutilConfig(),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -157,13 +158,13 @@ func TestRealBuck2GraphRoundTripsThroughTheCache(t *testing.T) {
 	})
 
 	universe := []string{"root//pkg:"}
-	collected, err := collectQuickSnapshot(ctx, runner, project, buck, nil, isolation, universe)
+	collected, err := collectQuickSnapshot(ctx, runner, project, buck, nil, isolation, universe, defaultTdutilConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// The identity comes from the real buck2, exactly as a run would build it.
-	identity, err := resolveSnapshotIdentity(ctx, runner, buck, project, universe, nil)
+	identity, err := resolveSnapshotIdentity(ctx, runner, buck, project, universe, nil, defaultTdutilConfig())
 	if err != nil {
 		t.Fatal(err)
 	}

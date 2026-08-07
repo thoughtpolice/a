@@ -41,6 +41,7 @@ type snapshotDocument struct {
 	Universe          []string          `json:"universe"`
 	BuckArgs          []string          `json:"buck_args"`
 	LocalConfigSHA256 string            `json:"local_config_sha256"`
+	TdutilConfigSHA   string            `json:"tdutil_config_sha256"`
 	Cells             map[string]string `json:"cells"`
 	ExternalCells     []string          `json:"external_cells"`
 	Targets           []documentTarget  `json:"targets"`
@@ -80,6 +81,7 @@ func buildSnapshotDocument(
 	buckVersion, commit string,
 	universe, buckArgs []string,
 	localConfigDigest string,
+	tdutilConfigDigest string,
 	collected *snapshot,
 ) *snapshotDocument {
 	cells := make(map[string]string, len(collected.cells.cells))
@@ -150,6 +152,7 @@ func buildSnapshotDocument(
 		Universe:          append([]string{}, universe...),
 		BuckArgs:          append([]string{}, buckArgs...),
 		LocalConfigSHA256: localConfigDigest,
+		TdutilConfigSHA:   tdutilConfigDigest,
 		Cells:             cells,
 		ExternalCells:     external,
 		Targets:           targets,
@@ -271,6 +274,7 @@ func (document *snapshotDocument) mismatchReason(
 	baseCommit string,
 	universe, buckArgs []string,
 	localConfigDigest string,
+	tdutilConfigDigest string,
 ) string {
 	// Checked first: a tdutil mismatch invalidates the document wholesale,
 	// including the meaning of everything compared below.
@@ -302,6 +306,12 @@ func (document *snapshotDocument) mismatchReason(
 	}
 	if document.LocalConfigSHA256 != localConfigDigest {
 		return "the repository-local Buck config differs"
+	}
+	// A document collected under different conventions — other CI attribute
+	// names, other build file names — describes the same targets in terms this
+	// run does not read the same way.
+	if document.TdutilConfigSHA != tdutilConfigDigest {
+		return "the repository's [tdutil] configuration differs"
 	}
 	return ""
 }
@@ -467,6 +477,7 @@ func collectSnapshotPairFromDocument(
 	isolation string,
 	patterns []string,
 	onGraphError graphErrorPolicy,
+	config tdutilConfig,
 ) (snapshot, snapshot, universePlan, error) {
 	if len(patterns) == 0 {
 		return snapshot{}, snapshot{}, universePlan{}, fmt.Errorf("at least one Buck target pattern is required")
@@ -484,7 +495,7 @@ func collectSnapshotPairFromDocument(
 		return snapshot{}, snapshot{}, universePlan{}, err
 	}
 	plan.onGraphError = onGraphError
-	head, err := collectTargets(ctx, runner, headWorkspace, buck, buckArgs, isolation, plan.headPatterns, headCells)
+	head, err := collectTargets(ctx, runner, headWorkspace, buck, buckArgs, isolation, plan.headPatterns, headCells, config)
 	if err != nil {
 		return snapshot{}, snapshot{}, universePlan{}, err
 	}

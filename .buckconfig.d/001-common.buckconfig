@@ -77,6 +77,14 @@ grpc_timeout = 900
 status = if_available
 enable_suspension = true
 
+[tdutil]
+# Paths outside Buck's own well-known configuration names whose modification
+# reconfigures the whole graph, and so must select every target rather than be
+# reasoned about target by target. tdutil recognizes .buckconfig, .bcfg,
+# .buckargs, .buckconfig.d/ and buckroot without being told; the build modes
+# live somewhere only this repository knows about.
+global_config_paths = buck/mode
+
 [build]
 # set the default execution platform for builds on this machine. NOTE: this
 # platform definition is where remote execution (optionally) is enabled via

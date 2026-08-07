@@ -22,6 +22,7 @@ func collectQuickSnapshot(
 	buckArgs []string,
 	isolation string,
 	patterns []string,
+	config tdutilConfig,
 ) (snapshot, error) {
 	if len(patterns) == 0 {
 		return snapshot{}, fmt.Errorf("at least one Buck target pattern is required")
@@ -36,7 +37,7 @@ func collectQuickSnapshot(
 	if err != nil {
 		return snapshot{}, err
 	}
-	collected, err := collectTargets(ctx, runner, workspace, buck, buckArgs, isolation, plan.headPatterns, cells)
+	collected, err := collectTargets(ctx, runner, workspace, buck, buckArgs, isolation, plan.headPatterns, cells, config)
 	if err != nil {
 		return snapshot{}, err
 	}

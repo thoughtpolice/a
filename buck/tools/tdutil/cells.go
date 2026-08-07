@@ -112,6 +112,19 @@ func (m cellMap) toRepoPath(cellPath string) (*string, error) {
 	return nil, fmt.Errorf("Buck path `%s` refers to unknown cell `%s`", cellPath, cell)
 }
 
+// rootCell names the cell rooted at the repository root, which is the cell a
+// bare `//...` means and the one whose [tdutil] section is repository policy.
+// Cell roots are distinct, so at most one cell can claim it; an empty result
+// means the repository root is not itself a cell.
+func (m cellMap) rootCell() string {
+	for cell, root := range m.cells {
+		if root == "" {
+			return cell
+		}
+	}
+	return ""
+}
+
 func (m cellMap) isKnownCell(cell string) bool {
 	_, internal := m.cells[cell]
 	_, external := m.externalCells[cell]

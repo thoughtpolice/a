@@ -13,7 +13,7 @@ import (
 // Collection itself streams the dump line by line and never holds it, so this
 // exists only to let tests state a graph as literal Buck output.
 func parseTargetsJSONLines(data []byte, cells cellMap) (snapshot, error) {
-	parser := newTargetStreamParser(cells)
+	parser := newTargetStreamParser(cells, defaultTdutilConfig())
 	feedLines(data, parser.consume)
 	return parser.finish()
 }

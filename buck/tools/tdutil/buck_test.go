@@ -45,7 +45,7 @@ func TestCollectSnapshotPairRejectsEmptyPatterns(t *testing.T) {
 		t.Fatal("runner called for an empty universe")
 		return processResult{}, nil
 	}}
-	_, _, _, err := collectSnapshotPair(context.Background(), runner, "base", "head", "buck2", nil, "", nil, graphErrorFail)
+	_, _, _, err := collectSnapshotPair(context.Background(), runner, "base", "head", "buck2", nil, "", nil, graphErrorFail, defaultTdutilConfig())
 	if err == nil || !strings.Contains(err.Error(), "at least one Buck target pattern") {
 		t.Fatalf("empty-pattern error = %v", err)
 	}
@@ -96,6 +96,8 @@ func TestCollectTargetsUsesExactArgumentOrder(t *testing.T) {
 		"tdutil-isolation",
 		[]string{"root//src/app:app", "root//tools/..."},
 		cells,
+
+		defaultTdutilConfig(),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -110,7 +112,7 @@ func TestCollectTargetsUsesExactArgumentOrder(t *testing.T) {
 		"--show-unconfigured-target-hash",
 		"--json-lines",
 		"--imports",
-		"--output-attribute=" + targetAttributes,
+		"--output-attribute=" + targetAttributesFor(defaultTdutilConfig()),
 		"root//src/app:app",
 		"root//tools/...",
 	}
@@ -128,7 +130,7 @@ func TestCollectTargetsSkipsCommandForAbsentEndpoint(t *testing.T) {
 		t.Fatal("runner called for endpoint without patterns")
 		return processResult{}, nil
 	}}
-	snapshot, err := collectTargets(context.Background(), runner, "unused", "buck2", nil, "", nil, cells)
+	snapshot, err := collectTargets(context.Background(), runner, "unused", "buck2", nil, "", nil, cells, defaultTdutilConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,6 +168,8 @@ func TestCollectTargetsPrefersStreamingRunnerAndParsesIncrementally(t *testing.T
 		"",
 		[]string{"root//src/app:app"},
 		testCellMap(t),
+
+		defaultTdutilConfig(),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -193,6 +197,8 @@ func TestCollectTargetsProcessFailureOutranksStreamedParseError(t *testing.T) {
 		"",
 		[]string{"root//src/app:app"},
 		testCellMap(t),
+
+		defaultTdutilConfig(),
 	)
 	if err == nil || !strings.Contains(err.Error(), "exit 7") || !strings.Contains(err.Error(), "daemon exploded") {
 		t.Fatalf("error = %v, want process failure", err)
@@ -213,6 +219,8 @@ func TestCollectTargetsStreamedParseErrorKeepsLineNumber(t *testing.T) {
 		"",
 		[]string{"root//src/app:app"},
 		testCellMap(t),
+
+		defaultTdutilConfig(),
 	)
 	if err == nil || !strings.Contains(err.Error(), "output line 3") {
 		t.Fatalf("error = %v, want line 3 parse failure", err)
@@ -228,7 +236,7 @@ func TestBuckCollectorsRejectNonUTF8Stdout(t *testing.T) {
 	if _, err := auditCells(context.Background(), runner, workspace, "buck2", nil, ""); err == nil || !strings.Contains(err.Error(), "non-UTF-8 stdout") {
 		t.Errorf("audit invalid-UTF-8 error = %v", err)
 	}
-	if _, err := collectTargets(context.Background(), runner, workspace, "buck2", nil, "", []string{"root//..."}, cells); err == nil || !strings.Contains(err.Error(), "non-UTF-8 stdout") {
+	if _, err := collectTargets(context.Background(), runner, workspace, "buck2", nil, "", []string{"root//..."}, cells, defaultTdutilConfig()); err == nil || !strings.Contains(err.Error(), "non-UTF-8 stdout") {
 		t.Errorf("targets invalid-UTF-8 error = %v", err)
 	}
 }
@@ -284,6 +292,8 @@ func TestCollectSnapshotPairRunsBothEndpointStagesConcurrentlyAndPrefersBaseErro
 		"",
 		[]string{"root//..."},
 		graphErrorFail,
+
+		defaultTdutilConfig(),
 	)
 	if err == nil || !strings.Contains(err.Error(), "base collection failed") || strings.Contains(err.Error(), "head collection failed") {
 		t.Fatalf("paired error = %v", err)

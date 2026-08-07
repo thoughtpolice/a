@@ -52,9 +52,12 @@ type pipelineRunner struct {
 	forgottenNames     []string
 	workspaceList      []byte
 	auditCalls         int
+	configAudited      bool
 	targetCalls        int
 	cleanupWasCanceled bool
 
+	cellAudit                  []byte
+	targetJSON                 []byte
 	parallelAudits             chan struct{}
 	parallelTargets            chan struct{}
 	failHeadAdd                bool
@@ -226,6 +229,13 @@ func (runner *pipelineRunner) run(ctx context.Context, spec commandSpec) (proces
 		}
 		runner.mu.Unlock()
 		return processResult{}, nil
+	case hasArgumentSequence(spec.args, "audit", "config"):
+		// The startup configuration read: no cell sets buildfile.name and
+		// there is no [tdutil] section, so every default applies.
+		runner.mu.Lock()
+		runner.configAudited = true
+		runner.mu.Unlock()
+		return processResult{stdout: []byte(`{}`)}, nil
 	case hasArgumentSequence(spec.args, "audit", "cell"):
 		if runner.expectLocalBuckConfig {
 			got, err := os.ReadFile(filepath.Join(spec.dir, buckLocalConfigName))
@@ -239,7 +249,13 @@ func (runner *pipelineRunner) run(ctx context.Context, spec commandSpec) (proces
 		if err := runner.arriveAtAuditBarrier(ctx); err != nil {
 			return processResult{}, err
 		}
-		return processResult{stdout: []byte(`{"depot":"."}`)}, nil
+		runner.mu.Lock()
+		audited := runner.cellAudit
+		runner.mu.Unlock()
+		if audited == nil {
+			audited = []byte(`{"depot":"."}`)
+		}
+		return processResult{stdout: append([]byte(nil), audited...)}, nil
 	case hasArgument(spec.args, "targets"):
 		if err := runner.arriveAtTargetBarrier(ctx); err != nil {
 			return processResult{}, err
@@ -252,7 +268,13 @@ func (runner *pipelineRunner) run(ctx context.Context, spec commandSpec) (proces
 		if runner.failBuck {
 			return processResult{stderr: []byte("query failed\n"), exitCode: 7}, nil
 		}
-		return processResult{stdout: []byte(pipelineTargetJSON)}, nil
+		runner.mu.Lock()
+		targets := runner.targetJSON
+		runner.mu.Unlock()
+		if targets == nil {
+			targets = []byte(pipelineTargetJSON)
+		}
+		return processResult{stdout: append([]byte(nil), targets...)}, nil
 	default:
 		return processResult{}, fmt.Errorf("unexpected command: %s %q", spec.path, spec.args)
 	}
@@ -260,6 +282,12 @@ func (runner *pipelineRunner) run(ctx context.Context, spec commandSpec) (proces
 
 func (runner *pipelineRunner) arriveAtAuditBarrier(ctx context.Context) error {
 	runner.mu.Lock()
+	// The startup cell audit is sequential and precedes the configuration
+	// read; only the endpoint audits after it are expected to be concurrent.
+	if !runner.configAudited {
+		runner.mu.Unlock()
+		return nil
+	}
 	runner.auditCalls++
 	count := runner.auditCalls
 	barrier := runner.parallelAudits
@@ -379,8 +407,53 @@ func TestApplicationEqualTreeFastPathSkipsWorkspacesAndBuck(t *testing.T) {
 	if adds != 0 || forgets != 0 || audits != 0 || targets != 0 {
 		t.Fatalf("work after no-op: adds=%d forgets=%d audits=%d targets=%d", adds, forgets, audits, targets)
 	}
-	if len(commands) != 4 {
-		t.Fatalf("commands = %d, want discovery, two resolutions, and diff", len(commands))
+	if len(commands) != 6 {
+		t.Fatalf("commands = %d, want discovery, the cell and config reads, two resolutions, and diff", len(commands))
+	}
+}
+
+// The default universe is whatever the repository calls its own root cell, so
+// a repository which is not this one gets its own name rather than ours.
+func TestApplicationDefaultUniverseFollowsTheRootCell(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	runner.cellAudit = []byte(`{"acme":".","vendor":"third-party"}`)
+	runner.targetJSON = []byte(`{"name":"lib","buck.package":"acme//src","buck.type":"acme//rules.bzl:go_library","buck.deps":[],"buck.inputs":["acme//src/lib.go"],"buck.target_hash":"same"}
+`)
+	var stdout bytes.Buffer
+	if err := runApplication(context.Background(), app, []string{"--quick"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+
+	commands, _, _, _, _, _, _ := runner.snapshot()
+	queried := false
+	for _, command := range commands {
+		if !hasArgument(command.args, "targets") {
+			continue
+		}
+		queried = true
+		if !hasArgument(command.args, "acme//...") {
+			t.Fatalf("targets query universe = %q, want acme//...", command.args)
+		}
+		if hasArgument(command.args, "depot//...") {
+			t.Fatalf("targets query used another repository's root cell: %q", command.args)
+		}
+	}
+	if !queried {
+		t.Fatal("no targets query was made")
+	}
+	if got := stdout.String(); !strings.Contains(got, "acme//src:lib") {
+		t.Fatalf("stdout = %q, want the acme target", got)
+	}
+}
+
+// A repository root which is not itself a cell cannot have a default universe
+// derived for it, and says so rather than guessing.
+func TestApplicationWithoutARootCellDemandsAnExplicitUniverse(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	runner.cellAudit = []byte(`{"vendor":"third-party"}`)
+	err := runApplication(context.Background(), app, []string{"--quick"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "--universe") {
+		t.Fatalf("error = %v, want a demand for an explicit universe", err)
 	}
 }
 
@@ -494,7 +567,9 @@ func TestApplicationHeadInPlaceSkipsHeadMaterialization(t *testing.T) {
 			repositoryTargets++
 		}
 	}
-	if repositoryAudits != 1 || repositoryTargets != 1 {
+	// Two cell audits: the startup read that resolves the universe and the
+	// cell layout, then the one quick collection makes for its own graph.
+	if repositoryAudits != 2 || repositoryTargets != 1 {
 		t.Fatalf("in-place queries = audits %d, targets %d", repositoryAudits, repositoryTargets)
 	}
 	for _, root := range roots {
@@ -693,6 +768,7 @@ func TestApplicationSnapshotHeadToDeclinesAnIncompleteUniverse(t *testing.T) {
 		strings.Repeat("c", 40),
 		false,
 		&collected,
+		defaultTdutilConfig(),
 		&stderr,
 	)
 	if !strings.Contains(stderr.String(), "not written") ||

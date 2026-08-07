@@ -26,7 +26,7 @@ type graph struct {
 	repoFiles       map[string]fileNode
 }
 
-func newGraph(base, head *snapshot) *graph {
+func newGraph(base, head *snapshot, config tdutilConfig) *graph {
 	result := &graph{
 		targets:        make(map[string]target, len(base.targets)+len(head.targets)),
 		baseTargets:    base.targets,
@@ -64,7 +64,7 @@ func newGraph(base, head *snapshot) *graph {
 		candidates = append(candidates, label)
 	}
 	sort.Strings(candidates)
-	result.headReverseDeps = buildReverseDeps(head.targets, candidates)
+	result.headReverseDeps = buildReverseDeps(head.targets, candidates, config)
 	return result
 }
 
@@ -125,7 +125,7 @@ func indexImports(input *snapshot, imports, reverseImports map[string]labelSet) 
 	}
 }
 
-func buildReverseDeps(targets map[string]target, ciDepCandidates []string) graphIndex {
+func buildReverseDeps(targets map[string]target, ciDepCandidates []string, config tdutilConfig) graphIndex {
 	result := make(graphIndex, len(targets))
 	for _, target := range targets {
 		for _, dependency := range target.deps {
@@ -142,11 +142,12 @@ func buildReverseDeps(targets map[string]target, ciDepCandidates []string) graph
 			}
 		}
 	}
+	hintPrefix := config.ciHintRule + "@"
 	for _, hint := range targets {
-		if ruleShortName(hint.ruleType) != "ci_hint" {
+		if config.ciHintRule == "" || ruleShortName(hint.ruleType) != config.ciHintRule {
 			continue
 		}
-		destinationName, ok := strings.CutPrefix(hint.name, "ci_hint@")
+		destinationName, ok := strings.CutPrefix(hint.name, hintPrefix)
 		if !ok {
 			continue
 		}

@@ -6,11 +6,23 @@ package main
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
 
-const targetAttributes = `^buck\.|^name$|^labels$|^ci_srcs$|^ci_srcs_must_match$|^ci_deps$`
+// targetAttributesFor builds the `--output-attribute` regex. The names are
+// quoted because they come from buckconfig: a repository is free to spell its
+// CI attributes with characters a regex would otherwise read as syntax.
+func targetAttributesFor(config tdutilConfig) string {
+	alternatives := []string{`^buck\.`, `^name$`, `^labels$`}
+	for _, attribute := range []string{config.ciSrcsAttribute, config.ciSrcsMustMatch, config.ciDepsAttribute} {
+		if attribute != "" {
+			alternatives = append(alternatives, `^`+regexp.QuoteMeta(attribute)+`$`)
+		}
+	}
+	return strings.Join(alternatives, "|")
+}
 
 type snapshotResult struct {
 	snapshot snapshot
@@ -32,6 +44,7 @@ func collectSnapshotPair(
 	isolation string,
 	patterns []string,
 	onGraphError graphErrorPolicy,
+	config tdutilConfig,
 ) (snapshot, snapshot, universePlan, error) {
 	if len(patterns) == 0 {
 		return snapshot{}, snapshot{}, universePlan{}, fmt.Errorf("at least one Buck target pattern is required")
@@ -65,11 +78,11 @@ func collectSnapshotPair(
 	baseChannel := make(chan snapshotResult, 1)
 	headChannel := make(chan snapshotResult, 1)
 	go func() {
-		collected, err := collectTargets(ctx, runner, baseWorkspace, buck, buckArgs, isolation, plan.basePatterns, baseCells.cells)
+		collected, err := collectTargets(ctx, runner, baseWorkspace, buck, buckArgs, isolation, plan.basePatterns, baseCells.cells, config)
 		baseChannel <- snapshotResult{snapshot: collected, err: err}
 	}()
 	go func() {
-		collected, err := collectTargets(ctx, runner, headWorkspace, buck, buckArgs, isolation, plan.headPatterns, headCells.cells)
+		collected, err := collectTargets(ctx, runner, headWorkspace, buck, buckArgs, isolation, plan.headPatterns, headCells.cells, config)
 		headChannel <- snapshotResult{snapshot: collected, err: err}
 	}()
 	base := <-baseChannel
@@ -117,6 +130,7 @@ func collectTargets(
 	isolation string,
 	patterns []string,
 	cells cellMap,
+	config tdutilConfig,
 ) (snapshot, error) {
 	if len(patterns) == 0 {
 		return emptySnapshot(cells), nil
@@ -131,10 +145,10 @@ func collectTargets(
 		"--show-unconfigured-target-hash",
 		"--json-lines",
 		"--imports",
-		"--output-attribute="+targetAttributes,
+		"--output-attribute="+targetAttributesFor(config),
 	)
 	args = append(args, patterns...)
-	parser := newTargetStreamParser(cells)
+	parser := newTargetStreamParser(cells, config)
 	result, err := runProcessLines(ctx, runner, commandSpec{path: buck, args: args, dir: workspace}, parser.consume)
 	if err != nil {
 		return snapshot{}, fmt.Errorf("failed to run `%s targets` in `%s`: %w", buck, workspace, err)

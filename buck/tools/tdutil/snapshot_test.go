@@ -48,6 +48,7 @@ func TestSnapshotDocumentRoundTripPreservesGraph(t *testing.T) {
 		[]string{"root//..."},
 		[]string{"-c", "x.y=1"},
 		"digest",
+		"cfg",
 		&original,
 	)
 	data, err := encodeSnapshotDocument(document)
@@ -85,11 +86,11 @@ func TestSnapshotDocumentRoundTripPreservesGraph(t *testing.T) {
 
 func TestSnapshotDocumentEncodingIsDeterministic(t *testing.T) {
 	collected := snapshotTestGraph(t)
-	first, err := encodeSnapshotDocument(buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", &collected))
+	first, err := encodeSnapshotDocument(buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", "cfg", &collected))
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := encodeSnapshotDocument(buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", &collected))
+	second, err := encodeSnapshotDocument(buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", "cfg", &collected))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +101,7 @@ func TestSnapshotDocumentEncodingIsDeterministic(t *testing.T) {
 
 func TestParseSnapshotDocumentFailsClosed(t *testing.T) {
 	collected := snapshotTestGraph(t)
-	valid, err := encodeSnapshotDocument(buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", &collected))
+	valid, err := encodeSnapshotDocument(buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", "cfg", &collected))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +127,7 @@ func TestParseSnapshotDocumentFailsClosed(t *testing.T) {
 // still plain JSON, so the encoding is detected rather than assumed.
 func TestSnapshotDocumentsAreCompressedAndPlainOnesStillRead(t *testing.T) {
 	collected := snapshotTestGraph(t)
-	document := buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", &collected)
+	document := buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", "cfg", &collected)
 	compressed, err := encodeSnapshotDocument(document)
 	if err != nil {
 		t.Fatal(err)
@@ -174,19 +175,19 @@ func TestSnapshotMismatchReasonsCoverEveryRecordedInput(t *testing.T) {
 		BuckArgs:          []string{"-c", "k=v"},
 		LocalConfigSHA256: "d",
 	}
-	if reason := document.mismatchReason(strings.Repeat("a", 40), []string{"depot//..."}, []string{"-c", "k=v"}, "d"); reason != "" {
+	if reason := document.mismatchReason(strings.Repeat("a", 40), []string{"depot//..."}, []string{"-c", "k=v"}, "d", ""); reason != "" {
 		t.Fatalf("matching inputs rejected: %s", reason)
 	}
-	if reason := document.mismatchReason(strings.Repeat("b", 40), []string{"depot//..."}, []string{"-c", "k=v"}, "d"); !strings.Contains(reason, "commit") {
+	if reason := document.mismatchReason(strings.Repeat("b", 40), []string{"depot//..."}, []string{"-c", "k=v"}, "d", ""); !strings.Contains(reason, "commit") {
 		t.Errorf("commit mismatch reason = %q", reason)
 	}
-	if reason := document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, []string{"-c", "k=v"}, "d"); !strings.Contains(reason, "universe") {
+	if reason := document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, []string{"-c", "k=v"}, "d", ""); !strings.Contains(reason, "universe") {
 		t.Errorf("universe mismatch reason = %q", reason)
 	}
-	if reason := document.mismatchReason(strings.Repeat("a", 40), []string{"depot//..."}, nil, "d"); !strings.Contains(reason, "arguments") {
+	if reason := document.mismatchReason(strings.Repeat("a", 40), []string{"depot//..."}, nil, "d", ""); !strings.Contains(reason, "arguments") {
 		t.Errorf("argument mismatch reason = %q", reason)
 	}
-	if reason := document.mismatchReason(strings.Repeat("a", 40), []string{"depot//..."}, []string{"-c", "k=v"}, "e"); !strings.Contains(reason, "config") {
+	if reason := document.mismatchReason(strings.Repeat("a", 40), []string{"depot//..."}, []string{"-c", "k=v"}, "e", ""); !strings.Contains(reason, "config") {
 		t.Errorf("config mismatch reason = %q", reason)
 	}
 }
@@ -197,19 +198,19 @@ func TestSnapshotMismatchReasonsCoverEveryRecordedInput(t *testing.T) {
 // stand in for the base.
 func TestSnapshotRecordsAndChecksThePlatform(t *testing.T) {
 	collected := snapshotTestGraph(t)
-	document := buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", &collected)
+	document := buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", "cfg", &collected)
 	if document.Platform != currentPlatform() {
 		t.Fatalf("recorded platform = %q, want %q", document.Platform, currentPlatform())
 	}
 
 	document.Platform = "plan9/mips"
-	reason := document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, "")
+	reason := document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, "", "cfg")
 	if !strings.Contains(reason, "plan9/mips") || !strings.Contains(reason, currentPlatform()) {
 		t.Fatalf("platform drift reason = %q", reason)
 	}
 
 	document.Platform = ""
-	reason = document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, "")
+	reason = document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, "", "cfg")
 	if !strings.Contains(reason, "unrecorded platform") {
 		t.Fatalf("absent platform reason = %q", reason)
 	}
@@ -220,16 +221,16 @@ func TestSnapshotRecordsAndChecksThePlatform(t *testing.T) {
 // refused rather than trusted.
 func TestSnapshotRecordsAndChecksTheTdutilVersion(t *testing.T) {
 	collected := snapshotTestGraph(t)
-	document := buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", &collected)
+	document := buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", "cfg", &collected)
 	if document.TdutilVersion != tdutilVersion {
 		t.Fatalf("recorded tdutil version = %q, want %q", document.TdutilVersion, tdutilVersion)
 	}
-	if reason := document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, ""); reason != "" {
+	if reason := document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, "", "cfg"); reason != "" {
 		t.Fatalf("matching document rejected: %s", reason)
 	}
 
 	document.TdutilVersion = "0"
-	reason := document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, "")
+	reason := document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, "", "cfg")
 	if !strings.Contains(reason, "tdutil") {
 		t.Fatalf("version drift reason = %q", reason)
 	}
@@ -237,7 +238,7 @@ func TestSnapshotRecordsAndChecksTheTdutilVersion(t *testing.T) {
 	// A document written before the version was recorded decodes to the empty
 	// string, which must read as a mismatch rather than as a valid version.
 	document.TdutilVersion = ""
-	reason = document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, "")
+	reason = document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, "", "cfg")
 	if !strings.Contains(reason, "tdutil") || !strings.Contains(reason, "unrecorded") {
 		t.Fatalf("absent version reason = %q", reason)
 	}
@@ -245,7 +246,7 @@ func TestSnapshotRecordsAndChecksTheTdutilVersion(t *testing.T) {
 
 func TestLoadBaseSnapshotVerifiesBuckVersion(t *testing.T) {
 	collected := snapshotTestGraph(t)
-	document := buildSnapshotDocument("buck2 old", strings.Repeat("a", 40), []string{"depot//..."}, nil, "", &collected)
+	document := buildSnapshotDocument("buck2 old", strings.Repeat("a", 40), []string{"depot//..."}, nil, "", "cfg", &collected)
 	data, err := encodeSnapshotDocument(document)
 	if err != nil {
 		t.Fatal(err)
@@ -256,7 +257,7 @@ func TestLoadBaseSnapshotVerifiesBuckVersion(t *testing.T) {
 	}
 
 	identity := func(version string) snapshotIdentity {
-		return identityOf(version, []string{"depot//..."}, nil, "")
+		return snapshotIdentity{buckVersion: version, universe: []string{"depot//..."}, configDigest: "cfg", platform: currentPlatform()}
 	}
 	loaded, reason := loadBaseSnapshot(path, identity("buck2 new"), strings.Repeat("a", 40))
 	if loaded != nil || !strings.Contains(reason, "buck2") {
@@ -309,7 +310,7 @@ func TestCachedBaseStillSelectsDependentsOfDeletedTargets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	document := buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", &baseGraph)
+	document := buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", "cfg", &baseGraph)
 
 	workspace := t.TempDir()
 	runner := buckFakeRunner{runFunc: func(_ context.Context, spec commandSpec) (processResult, error) {
@@ -328,6 +329,7 @@ func TestCachedBaseStillSelectsDependentsOfDeletedTargets(t *testing.T) {
 		"",
 		[]string{"root//..."},
 		graphErrorFail,
+		defaultTdutilConfig(),
 	)
 	if err != nil {
 		t.Fatal(err)

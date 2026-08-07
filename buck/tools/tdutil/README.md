@@ -18,10 +18,10 @@ The common case needs no arguments:
 $ buck2 run root//buck/tools/tdutil:tdutil
 ```
 
-That compares `fork_point(trunk() | @)` against `@` over `depot//...`. The fork
-point's own changes are excluded, while all descendant changes through the
-working copy are included. Target patterns can be supplied without spelling
-the default revisions:
+That compares `fork_point(trunk() | @)` against `@` over the whole of the
+repository's root cell — `depot//...` here. The fork point's own changes are
+excluded, while all descendant changes through the working copy are included.
+Target patterns can be supplied without spelling the default revisions:
 
 ```console
 $ buck2 run root//buck/tools/tdutil:tdutil -- depot//src/...
@@ -230,8 +230,50 @@ connection errors and 5xx within that bound, and never retries a 4xx. The bound
 is not arbitrary: falling back costs one base collection, so waiting longer for
 a download than the fallback would take is never the better trade.
 
+## Configuration
+
+tdutil reads the repository's conventions from buckconfig rather than assuming
+this repository's. Every key is optional; the defaults below are what an
+unconfigured repository gets.
+
+```ini
+[tdutil]
+# Repository-relative paths, comma separated, whose modification reconfigures
+# the whole graph and so selects every target. Buck's own well-known names —
+# .buckroot, *.buckconfig, *.bcfg, *.buckargs, .buckconfig.d/, buckconfigs/ —
+# are always recognized; this is for whatever else a repository keeps its build
+# modes or argument files in. Default: none.
+global_config_paths = buck/mode
+
+# Names of the CI metadata attributes and label. Default: as written here.
+ci_srcs_attribute = ci_srcs
+ci_srcs_must_match_attribute = ci_srcs_must_match
+ci_deps_attribute = ci_deps
+ci_hint_rule = ci_hint
+skip_upstream_label = ci:dangerously_skip_upstream
+```
+
+The section is read from the cell rooted at the repository root, which is also
+the cell whose name supplies the default universe: with no `--universe`, tdutil
+determines over all of `<root cell>//...`.
+
+Build file names are not configured here — they come from each cell's own
+`buildfile.name` / `buildfile.name_v2`, resolved with buck2's precedence
+(`name_v2` verbatim, otherwise each `name` entry preceded by its `.v2` sibling,
+otherwise `BUCK.v2, BUCK`) and per cell, so a repository whose vendored cell
+spells its build files differently is still read correctly. `PACKAGE` files are
+`PACKAGE` and `BUCK_TREE`, which buck2 does not make configurable.
+
+Getting these wrong under-selects silently — a build file tdutil does not
+recognize is a file whose package never gets dirtied — so they are folded into
+the snapshot cache identity. A document collected under different conventions
+is rejected rather than reused.
+
 ## Algorithm and correctness
 
+0. Read the cell layout and the `[tdutil]` section from the invoking working
+   copy. Both endpoints are interpreted through it, which is sound because a
+   diff that changes buckconfig is itself a global configuration change.
 1. Resolve both revsets to exactly one commit and compute their tree diff.
 2. Materialize the base tree in a real temporary JJ workspace. The head tree
    is materialized the same way only when its tree differs from the working

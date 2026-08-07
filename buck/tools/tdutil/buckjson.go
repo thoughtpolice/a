@@ -65,12 +65,13 @@ func emptySnapshot(cells cellMap) snapshot {
 // lines are still counted but otherwise ignored.
 type targetStreamParser struct {
 	result snapshot
+	config tdutilConfig
 	line   int
 	err    error
 }
 
-func newTargetStreamParser(cells cellMap) *targetStreamParser {
-	return &targetStreamParser{result: emptySnapshot(cells)}
+func newTargetStreamParser(cells cellMap, config tdutilConfig) *targetStreamParser {
+	return &targetStreamParser{result: emptySnapshot(cells), config: config}
 }
 
 func (parser *targetStreamParser) consume(line []byte) {
@@ -128,7 +129,7 @@ func (parser *targetStreamParser) parseLine(line []byte, number int) error {
 	_, hasName := object["name"]
 	_, hasHash := object["buck.target_hash"]
 	if hasName || hasHash {
-		target, err := parseTargetRecord(object, parser.result.cells)
+		target, err := parseTargetRecord(object, parser.result.cells, parser.config)
 		if err != nil {
 			return fmt.Errorf("invalid target record on output line %d: %w", number, err)
 		}
@@ -203,7 +204,7 @@ func jsonHexQuad(data []byte, start int) (uint16, bool) {
 	return result, true
 }
 
-func parseTargetRecord(object map[string]any, cells cellMap) (target, error) {
+func parseTargetRecord(object map[string]any, cells cellMap, config tdutilConfig) (target, error) {
 	name, err := requiredString(object, "name")
 	if err != nil {
 		return target{}, err
@@ -253,15 +254,18 @@ func parseTargetRecord(object map[string]any, cells cellMap) (target, error) {
 	if err != nil {
 		return target{}, err
 	}
-	ciSrcs, err := optionalStringArray(object, "ci_srcs")
+	// Read under the repository's own names, but stored — and serialized into
+	// snapshots — under tdutil's, so the document shape stays the same
+	// whatever a repository calls its CI metadata.
+	ciSrcs, err := optionalStringArray(object, config.ciSrcsAttribute)
 	if err != nil {
 		return target{}, err
 	}
-	ciSrcsMustMatch, err := optionalStringArray(object, "ci_srcs_must_match")
+	ciSrcsMustMatch, err := optionalStringArray(object, config.ciSrcsMustMatch)
 	if err != nil {
 		return target{}, err
 	}
-	ciDeps, err := optionalStringArray(object, "ci_deps")
+	ciDeps, err := optionalStringArray(object, config.ciDepsAttribute)
 	if err != nil {
 		return target{}, err
 	}

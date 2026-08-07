@@ -100,14 +100,26 @@ func TestBuildAndInheritedPackageFilesDirtyPackages(t *testing.T) {
 		targets[index].ciSrcsMustMatch = []string{"never/**"}
 	}
 	state := determineTestSnapshot(t, targets...)
-	build, err := determine(&state, &state, []string{"a/BUILD"}, determineOptions{})
+	// The build file name comes from the cell's buckconfig, so the test states
+	// one rather than relying on whatever this repository happens to use.
+	options := determineOptions{config: buildFileTestConfig("BUILD")}
+	build, err := determine(&state, &state, []string{"a/BUILD"}, options)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(build) != 1 {
 		t.Fatalf("BUILD affected = %#v", build)
 	}
-	packageAffected, err := determine(&state, &state, []string{"a/PACKAGE"}, determineOptions{})
+	// A cell which does not name BUILD does not have its packages dirtied by
+	// one, however much the file looks like a build file to a human.
+	unnamed, err := determine(&state, &state, []string{"a/BUILD"}, determineOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(unnamed) != 0 {
+		t.Fatalf("unconfigured BUILD affected = %#v", unnamed)
+	}
+	packageAffected, err := determine(&state, &state, []string{"a/PACKAGE"}, options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +170,18 @@ func TestConfigChangeIsWholeHeadUniverse(t *testing.T) {
 	}
 }
 
-func TestGlobalConfigurationClassifierCoversRepoConventions(t *testing.T) {
+// buildFileTestConfig states one root cell whose build files are named as
+// given, which is what a repository's buckconfig would otherwise supply.
+func buildFileTestConfig(names ...string) tdutilConfig {
+	config := defaultTdutilConfig()
+	config.buildFiles = buildFileMatcher{cells: []cellBuildFiles{{root: "", names: names}}}
+	return config
+}
+
+func TestGlobalConfigurationClassifierCoversBuckConventions(t *testing.T) {
+	// The well-known Buck names hold for any repository, so they are matched
+	// without anything being configured.
+	config := defaultTdutilConfig()
 	for _, path := range []string{
 		".buckroot",
 		".buckconfig",
@@ -169,10 +192,8 @@ func TestGlobalConfigurationClassifierCoversRepoConventions(t *testing.T) {
 		"config/dev.bcfg",
 		"buck/ci.buckargs",
 		"cell/dev.buckargs",
-		"buck/mode/remote",
-		"buck/mode/nested/config",
 	} {
-		if !isGlobalConfiguration(path) {
+		if !config.isGlobalConfiguration(path) {
 			t.Errorf("expected %q to match", path)
 		}
 	}
@@ -183,8 +204,35 @@ func TestGlobalConfigurationClassifierCoversRepoConventions(t *testing.T) {
 		"config/buckconfig",
 		"config/buckargs",
 		"config/dev.cfg",
+		// Not a Buck convention: only reachable once a repository says so.
+		"buck/mode/remote",
 	} {
-		if isGlobalConfiguration(path) {
+		if config.isGlobalConfiguration(path) {
+			t.Errorf("expected %q not to match", path)
+		}
+	}
+}
+
+func TestGlobalConfigurationHonoursConfiguredPaths(t *testing.T) {
+	config := defaultTdutilConfig()
+	config.globalConfigPaths = normalizeConfigPaths([]string{"buck/mode", "/ci/modes/"})
+	for _, path := range []string{
+		"buck/mode",
+		"buck/mode/remote",
+		"buck/mode/nested/config",
+		"ci/modes/opt",
+	} {
+		if !config.isGlobalConfiguration(path) {
+			t.Errorf("expected configured %q to match", path)
+		}
+	}
+	// A configured path names a directory or a file, never a string prefix.
+	for _, path := range []string{
+		"buck/modes/remote",
+		"buck/mode-extra/x",
+		"ci/modesty",
+	} {
+		if config.isGlobalConfiguration(path) {
 			t.Errorf("expected %q not to match", path)
 		}
 	}
