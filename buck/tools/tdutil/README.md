@@ -81,9 +81,16 @@ $ buck2 run root//buck/tools/tdutil:tdutil -- --base-snapshot base.json
 `--snapshot-to` collects the head revision's graph — in place when it matches
 the working-copy tree, in a temporary workspace otherwise — and writes a
 self-describing document: a schema number, the tdutil version, the exact buck2
-version, the commit, the universe patterns, the Buck configuration arguments, a
-digest of `.buckconfig.local`, and the whole graph in workspace-independent
-form.
+version, the host platform, the commit, the universe patterns, the Buck
+configuration arguments, a digest of `.buckconfig.local`, and the whole graph
+in workspace-independent form.
+
+The platform is recorded because Starlark reads `host_info()` at load time —
+toolchain, platform, and OCI definitions all branch on it — so the
+unconfigured graph differs between hosts even though
+`--show-unconfigured-target-hash` is otherwise host-independent. Without it a
+document collected on one platform would satisfy every other check and stand
+in for a base it does not describe.
 
 The recorded tdutil version is a monotonic counter rather than a semantic
 version, because a document's contents depend on tdutil's own behavior — which
@@ -134,6 +141,94 @@ skipping base materialization and its cold daemon whenever the cache hits.
 The command snapshots the current JJ working copy by default, so `@` includes
 edits that have not yet been observed by another JJ command. Use
 `--ignore-working-copy` only when stale working-copy state is intentional.
+
+## Snapshot caches
+
+`--base-snapshot` and `--snapshot-head-to` name exact files. `--cache` instead
+names a place to keep them and lets tdutil work out the rest:
+
+```console
+$ buck2 run root//buck/tools/tdutil:tdutil -- --cache ~/.cache/tdutil --cache-write
+```
+
+Keys are derived rather than supplied. A snapshot's contents depend on the
+buck2 version, the universe patterns, the Buck configuration arguments, the
+`.buckconfig.local` digest, and the host platform — exactly what a reader
+checks before reusing a document — so those are hashed into the key and the
+object lands at
+`<prefix>/v<schema>-<tdutilVersion>/<identity>/<commit>.json.gz`. Nothing about
+the cache needs naming, and no caller has to rediscover which facts make a
+snapshot valid. Every field is written length-prefixed when hashed, so
+`-c x=1` and `-cx=1` cannot collide into a key that stays permanently cold.
+
+A fetched document is still validated against that identity. A key is evidence,
+not proof, and the fallback is the same one every other snapshot failure takes.
+
+Reads are automatic; writes are opt-in behind `--cache-write`. The asymmetry is
+real rather than cautious: on the GitHub Actions cache a write from a
+pull-request run is scoped to that pull request's ref and nobody else will ever
+read it, and an object store has no ref scoping at all, so a developer writing
+from a local branch would store graphs keyed by working-copy commits that
+change on every `jj` snapshot and that no later run will request.
+
+`--cache-write` stores two things. The head graph the run collected is the
+obvious one. The other is the base graph, when the cache missed and the run had
+to collect it anyway — and that one is what makes repeated local runs pay off,
+because the base revset `fork_point(trunk() | @)` is stable across runs while
+`@` is not. Without it the second run misses exactly as the first did; with it
+the second run skips base materialization and its cold daemon entirely. Both
+are declined when the graph covers fewer patterns than were requested, for the
+same reason `--snapshot-head-to` declines: `--base-snapshot` treats a
+document's universe as proof that capture queried all of it.
+
+### Backends
+
+A location containing `://` is a URL dispatched on its scheme; anything else is
+a local directory, so the common local case needs no `file://` ceremony.
+
+`s3://BUCKET/PREFIX` speaks S3 with hand-rolled SigV4, since every Go tool here
+is built from the standard library alone. It uses two verbs — `GET` and `PUT` —
+so the bucket policy it needs is `s3:GetObject` and `s3:PutObject` and nothing
+else. With no `ListBucket` and no `DeleteObject` it is structurally incapable of
+removing anything.
+
+`AWS_ENDPOINT_URL_S3` or `AWS_ENDPOINT_URL` points that same implementation at
+GCS's XML API, R2, MinIO, or any other S3-compatible store. Addressing follows
+the endpoint: virtual-host style for AWS, where path-style is on its way out for
+new buckets, and path-style everywhere else, which is what MinIO requires.
+
+Credentials come from `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and
+`AWS_SESSION_TOKEN`, and from nowhere else. That covers CI, where
+`aws-actions/configure-aws-credentials` exports precisely those, and local use
+via `aws configure export-credentials --format env`. The region is
+`AWS_REGION`, then `AWS_DEFAULT_REGION`, then `us-east-1`.
+
+Retention belongs to whoever owns the storage. A bucket wants a lifecycle
+expiration rule. A cache directory has no such service behind it, so it prunes
+objects past `--cache-max-age` (default 14 days) on write, sweeping the whole
+tree rather than one directory so that identities retired wholesale by a buck2
+upgrade are collected too.
+
+### When it goes wrong
+
+A location that cannot work is fatal: an unknown scheme, a malformed URL,
+absent credentials. These are deterministic properties of the invocation which
+no retry can fix, and reporting them as warnings would leave a run quietly
+paying full collection forever with nothing to say why.
+
+Everything else is a warning and a fallback to full collection — a miss, a
+refusal, a timeout, a truncated body, a document whose recorded inputs do not
+match. Writes never fail a run at all, which is the bargain the local capture
+already makes. A cold cache is reported only under `--verbose`, because a cache
+nobody has written to yet is an ordinary first run rather than a fault;
+anything else is reported unconditionally, because it is one. `--verbose` also
+prints the derived key, which is the only way to answer "why did it miss?" once
+tdutil owns the key.
+
+Each operation is bounded by `--cache-timeout` (default 60s), retries twice on
+connection errors and 5xx within that bound, and never retries a 4xx. The bound
+is not arbitrary: falling back costs one base collection, so waiting longer for
+a download than the fallback would take is never the better trade.
 
 ## Algorithm and correctness
 
