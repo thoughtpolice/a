@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"slices"
 	"sort"
 	"strings"
@@ -25,15 +26,17 @@ import (
 // files, and diagnostics are recorded in their cell-qualified and
 // repository-relative forms. The document also records everything its graph
 // depended on — commit, universe, Buck configuration arguments, the
-// repository-local Buck config digest, and the exact buck2 version — so a
-// reader can prove the snapshot describes the base it needs. Any mismatch
-// falls back to full collection rather than trusting a stale graph.
-const snapshotSchemaVersion = 1
+// repository-local Buck config digest, the host platform, and the exact buck2
+// version — so a reader can prove the snapshot describes the base it needs.
+// Any mismatch falls back to full collection rather than trusting a stale
+// graph.
+const snapshotSchemaVersion = 2
 
 type snapshotDocument struct {
 	Schema            int               `json:"schema"`
 	TdutilVersion     string            `json:"tdutil_version"`
 	BuckVersion       string            `json:"buck_version"`
+	Platform          string            `json:"platform"`
 	Commit            string            `json:"commit"`
 	Universe          []string          `json:"universe"`
 	BuckArgs          []string          `json:"buck_args"`
@@ -142,6 +145,7 @@ func buildSnapshotDocument(
 		Schema:            snapshotSchemaVersion,
 		TdutilVersion:     tdutilVersion,
 		BuckVersion:       buckVersion,
+		Platform:          currentPlatform(),
 		Commit:            commit,
 		Universe:          append([]string{}, universe...),
 		BuckArgs:          append([]string{}, buckArgs...),
@@ -152,6 +156,17 @@ func buildSnapshotDocument(
 		Files:             files,
 		Errors:            diagnostics,
 	}
+}
+
+// currentPlatform identifies the host the graph was collected on. Target
+// hashes come from `--show-unconfigured-target-hash`, which is otherwise
+// independent of the host, but Starlark reads `host_info()` at load time —
+// toolchain, platform, and OCI definitions all branch on it — so the
+// unconfigured graph itself differs between hosts. Without this recorded, a
+// document collected on one platform satisfies every other check and stands in
+// for a base it does not describe.
+func currentPlatform() string {
+	return runtime.GOOS + "/" + runtime.GOARCH
 }
 
 // quotedOrAbsent describes a recorded version for a diagnostic. A document
@@ -230,6 +245,9 @@ func decodeSnapshotDocument(input *bufio.Reader) (*snapshotDocument, error) {
 	if document.Schema != snapshotSchemaVersion {
 		return nil, fmt.Errorf("base snapshot schema %d is not supported (want %d)", document.Schema, snapshotSchemaVersion)
 	}
+	if document.Platform == "" {
+		return nil, fmt.Errorf("base snapshot has no platform")
+	}
 	if document.Commit == "" {
 		return nil, fmt.Errorf("base snapshot has no commit")
 	}
@@ -262,6 +280,16 @@ func (document *snapshotDocument) mismatchReason(
 			quotedOrAbsent(document.TdutilVersion),
 			tdutilVersion,
 		)
+	}
+	// Also wholesale: a graph collected on another host describes different
+	// unconfigured targets, so every comparison below would be against the
+	// wrong nodes rather than against a stale version of the right ones.
+	if document.Platform != currentPlatform() {
+		recorded := document.Platform
+		if recorded == "" {
+			recorded = "an unrecorded platform"
+		}
+		return fmt.Sprintf("snapshot was collected on %s but this is %s", recorded, currentPlatform())
 	}
 	if document.Commit != baseCommit {
 		return fmt.Sprintf("snapshot is for commit %s, not base %s", document.Commit, baseCommit)

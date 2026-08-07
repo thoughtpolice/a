@@ -108,9 +108,10 @@ func TestParseSnapshotDocumentFailsClosed(t *testing.T) {
 		"not JSON":       []byte("nope"),
 		"future schema":  []byte(`{"schema":999}`),
 		"trailing data":  append(append([]byte{}, valid...), []byte("{}")...),
-		"bad commit":     []byte(`{"schema":1,"commit":"zz","universe":["root//..."]}`),
-		"no universe":    []byte(`{"schema":1,"commit":"aa","universe":[]}`),
-		"unknown fields": []byte(`{"schema":1,"commit":"aa","universe":["root//..."],"surprise":true}`),
+		"no platform":    []byte(`{"schema":2,"commit":"aa","universe":["root//..."]}`),
+		"bad commit":     []byte(`{"schema":2,"platform":"p","commit":"zz","universe":["root//..."]}`),
+		"no universe":    []byte(`{"schema":2,"platform":"p","commit":"aa","universe":[]}`),
+		"unknown fields": []byte(`{"schema":2,"platform":"p","commit":"aa","universe":["root//..."],"surprise":true}`),
 	} {
 		if _, err := parseSnapshotDocument(data); err == nil {
 			t.Errorf("%s was accepted", name)
@@ -167,6 +168,7 @@ func TestSnapshotDocumentsAreCompressedAndPlainOnesStillRead(t *testing.T) {
 func TestSnapshotMismatchReasonsCoverEveryRecordedInput(t *testing.T) {
 	document := &snapshotDocument{
 		TdutilVersion:     tdutilVersion,
+		Platform:          currentPlatform(),
 		Commit:            strings.Repeat("a", 40),
 		Universe:          []string{"depot//..."},
 		BuckArgs:          []string{"-c", "k=v"},
@@ -186,6 +188,30 @@ func TestSnapshotMismatchReasonsCoverEveryRecordedInput(t *testing.T) {
 	}
 	if reason := document.mismatchReason(strings.Repeat("a", 40), []string{"depot//..."}, []string{"-c", "k=v"}, "e"); !strings.Contains(reason, "config") {
 		t.Errorf("config mismatch reason = %q", reason)
+	}
+}
+
+// Starlark reads host_info() at load time, so the unconfigured graph differs
+// between hosts. A document which does not say where it was collected, or
+// which was collected somewhere else, describes a different graph and cannot
+// stand in for the base.
+func TestSnapshotRecordsAndChecksThePlatform(t *testing.T) {
+	collected := snapshotTestGraph(t)
+	document := buildSnapshotDocument("v", strings.Repeat("a", 40), []string{"root//..."}, nil, "", &collected)
+	if document.Platform != currentPlatform() {
+		t.Fatalf("recorded platform = %q, want %q", document.Platform, currentPlatform())
+	}
+
+	document.Platform = "plan9/mips"
+	reason := document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, "")
+	if !strings.Contains(reason, "plan9/mips") || !strings.Contains(reason, currentPlatform()) {
+		t.Fatalf("platform drift reason = %q", reason)
+	}
+
+	document.Platform = ""
+	reason = document.mismatchReason(strings.Repeat("a", 40), []string{"root//..."}, nil, "")
+	if !strings.Contains(reason, "unrecorded platform") {
+		t.Fatalf("absent platform reason = %q", reason)
 	}
 }
 
