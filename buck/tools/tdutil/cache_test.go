@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -24,10 +23,66 @@ func readAllFrom(t *testing.T, reader io.ReadCloser) string {
 	return string(data)
 }
 
+func stageString(t *testing.T, value string) stagedBlob {
+	t.Helper()
+	payload, cleanup, err := stageBlob(t.TempDir(), func(output io.Writer) error {
+		_, writeErr := io.WriteString(output, value)
+		return writeErr
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(cleanup)
+	return payload
+}
+
 func storeString(t *testing.T, store blobStore, key, value string) {
 	t.Helper()
-	if err := store.put(context.Background(), key, strings.NewReader(value), int64(len(value))); err != nil {
+	if err := store.put(context.Background(), key, stageString(t, value)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Staging is one pass which must produce the bytes, their length, and their
+// digest together: S3 signs the latter two into a request before the first
+// byte goes out, and a retry rereads the file from the start.
+func TestStageBlobMeasuresAndDigestsInOnePass(t *testing.T) {
+	payload := stageString(t, "Welcome to Amazon S3.")
+	if payload.size != 21 {
+		t.Errorf("size = %d, want 21", payload.size)
+	}
+	// The digest AWS publishes for this exact body in its PUT example.
+	const want = "44ce7dd67c959e0d3524ffac1771dfbba87d2b6b4b4e99e42034a8b803f8b072"
+	if payload.sha256 != want {
+		t.Errorf("sha256 = %s, want %s", payload.sha256, want)
+	}
+
+	file, err := payload.open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = file.Close() }()
+	data, err := io.ReadAll(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "Welcome to Amazon S3." {
+		t.Errorf("staged bytes = %q", data)
+	}
+}
+
+func TestStageBlobCleansUpAFailedRender(t *testing.T) {
+	directory := t.TempDir()
+	_, _, err := stageBlob(directory, func(io.Writer) error { return errors.New("render exploded") })
+	if err == nil {
+		t.Fatal("a failing render staged successfully")
+	}
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("%d temporary files left behind: %v", len(entries), entries)
 	}
 }
 
@@ -76,9 +131,9 @@ func TestDirStoreLeavesNoPartialObjects(t *testing.T) {
 	}
 	storeString(t, store, "id/commit.json.gz", "original")
 
-	failing := io.MultiReader(strings.NewReader("partial"), errorReader{})
-	if err := store.put(context.Background(), "id/commit.json.gz", failing, 0); err == nil {
-		t.Fatal("a failing body was stored successfully")
+	unreadable := stagedBlob{path: filepath.Join(t.TempDir(), "absent"), size: 7, sha256: "unused"}
+	if err := store.put(context.Background(), "id/commit.json.gz", unreadable); err == nil {
+		t.Fatal("an unreadable payload was stored successfully")
 	}
 
 	reader, err := store.get(context.Background(), "id/commit.json.gz")
@@ -96,10 +151,6 @@ func TestDirStoreLeavesNoPartialObjects(t *testing.T) {
 		t.Fatalf("%d entries left behind, want just the object: %v", len(entries), entries)
 	}
 }
-
-type errorReader struct{}
-
-func (errorReader) Read([]byte) (int, error) { return 0, errors.New("body exploded") }
 
 // A cache directory has no lifecycle service behind it, so it prunes itself.
 // Under --cache-write every run stores a head snapshot keyed by a working-copy

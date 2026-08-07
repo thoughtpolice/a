@@ -35,9 +35,58 @@ var errCacheMiss = errors.New("cache miss")
 // delete cannot destroy anything an operator did not ask it to.
 type blobStore interface {
 	get(ctx context.Context, key string) (io.ReadCloser, error)
-	put(ctx context.Context, key string, body io.Reader, size int64) error
+	put(ctx context.Context, key string, payload stagedBlob) error
 	String() string
 }
+
+// stagedBlob is a payload written to a temporary file before any backend sees
+// it. Reads stream straight through, but writes cannot: S3 signs the length
+// and the payload digest into the request before the first byte goes out, and
+// a retry has to send the same bytes again from the start. Both need a payload
+// that can be measured and reread, which a stream is not.
+//
+// Staging costs one pass, and that pass produces the file, its length, and its
+// digest together.
+type stagedBlob struct {
+	path   string
+	size   int64
+	sha256 string
+}
+
+// stageBlob renders a payload to a temporary file, returning it alongside the
+// cleanup its caller owns. The digest comes off the same pass as the bytes, so
+// nothing is read twice.
+func stageBlob(directory string, write func(io.Writer) error) (stagedBlob, func(), error) {
+	file, err := os.CreateTemp(directory, "tdutil-cache-*.tmp")
+	if err != nil {
+		return stagedBlob{}, func() {}, err
+	}
+	cleanup := func() {
+		_ = file.Close()
+		_ = os.Remove(file.Name())
+	}
+	hash := sha256.New()
+	if err := write(io.MultiWriter(file, hash)); err != nil {
+		cleanup()
+		return stagedBlob{}, func() {}, err
+	}
+	size, err := file.Seek(0, io.SeekCurrent)
+	if err != nil {
+		cleanup()
+		return stagedBlob{}, func() {}, err
+	}
+	if err := file.Close(); err != nil {
+		cleanup()
+		return stagedBlob{}, func() {}, err
+	}
+	return stagedBlob{
+		path:   file.Name(),
+		size:   size,
+		sha256: hex.EncodeToString(hash.Sum(nil)),
+	}, cleanup, nil
+}
+
+func (payload stagedBlob) open() (*os.File, error) { return os.Open(payload.path) }
 
 // openBlobStore resolves a --cache location. A value containing `://` is a URL
 // and dispatches on its scheme; anything else is a local directory, so the
@@ -55,13 +104,15 @@ func openBlobStore(location string, maxAge time.Duration) (blobStore, error) {
 	}
 	scheme, _, _ := strings.Cut(location, "://")
 	switch scheme {
+	case "s3":
+		return newS3Store(location)
 	case "file":
 		return nil, fmt.Errorf(
 			"cache location `%s`: spell a local directory as a plain path, not a file:// URL",
 			location,
 		)
 	default:
-		return nil, fmt.Errorf("cache location `%s`: unsupported scheme `%s` (expected a local directory)", location, scheme)
+		return nil, fmt.Errorf("cache location `%s`: unsupported scheme `%s` (expected s3:// or a local directory)", location, scheme)
 	}
 }
 
@@ -206,16 +257,21 @@ func (store *dirStore) get(_ context.Context, key string) (io.ReadCloser, error)
 	return file, nil
 }
 
-func (store *dirStore) put(_ context.Context, key string, body io.Reader, _ int64) error {
+func (store *dirStore) put(_ context.Context, key string, payload stagedBlob) error {
 	path, err := store.path(key)
 	if err != nil {
 		return err
 	}
+	source, err := payload.open()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = source.Close() }()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
 	err = writeFileAtomically(path, 0o644, func(output io.Writer) error {
-		_, copyErr := io.Copy(output, body)
+		_, copyErr := io.Copy(output, source)
 		return copyErr
 	})
 	if err != nil {
