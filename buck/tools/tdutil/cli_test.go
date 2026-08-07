@@ -178,6 +178,7 @@ func TestCLISnapshotHeadToIsAModifierNotAStandaloneCapture(t *testing.T) {
 		t.Fatalf("error = %v, want a conflict between the two spellings", err)
 	}
 }
+
 // Port of cli.rs::rejects_unknown_format.
 func TestCLIRejectsUnknownFormat(t *testing.T) {
 	_, err := parseCLI([]string{"--format=yaml"})

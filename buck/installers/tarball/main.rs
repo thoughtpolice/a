@@ -104,7 +104,11 @@ fn normalized_header(meta: &std::fs::Metadata) -> tar::Header {
     header
 }
 
-fn build_tarball(output: &Path, prefix: Option<&str>, entries: Vec<(String, PathBuf)>) -> Result<()> {
+fn build_tarball(
+    output: &Path,
+    prefix: Option<&str>,
+    entries: Vec<(String, PathBuf)>,
+) -> Result<()> {
     let partial = partial_path(output);
     match write_archive(&partial, prefix, entries) {
         Ok(()) => {
@@ -118,7 +122,11 @@ fn build_tarball(output: &Path, prefix: Option<&str>, entries: Vec<(String, Path
     }
 }
 
-fn write_archive(partial: &Path, prefix: Option<&str>, entries: Vec<(String, PathBuf)>) -> Result<()> {
+fn write_archive(
+    partial: &Path,
+    prefix: Option<&str>,
+    entries: Vec<(String, PathBuf)>,
+) -> Result<()> {
     if let Some(parent) = partial.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -252,7 +260,10 @@ mod tests {
     async fn install_all(output: &Path, names: &[&str], dir: &Path) -> Result<()> {
         let handler = TarballHandler::new(Some(output.to_path_buf()), None);
         handler
-            .install("test", &names.iter().map(|n| n.to_string()).collect::<Vec<_>>())
+            .install(
+                "test",
+                &names.iter().map(|n| n.to_string()).collect::<Vec<_>>(),
+            )
             .await?;
 
         for name in names {
@@ -284,7 +295,9 @@ mod tests {
         handler
             .file_ready(ready("test-1", "alpha.txt", src_a))
             .await?;
-        handler.file_ready(ready("test-1", "beta.txt", src_b)).await?;
+        handler
+            .file_ready(ready("test-1", "beta.txt", src_b))
+            .await?;
         handler.shutdown().await?;
 
         // Extract and verify
@@ -392,7 +405,9 @@ mod tests {
         handler
             .install("test-4", &["plain.txt".to_string(), "tool".to_string()])
             .await?;
-        handler.file_ready(ready("test-4", "plain.txt", plain)).await?;
+        handler
+            .file_ready(ready("test-4", "plain.txt", plain))
+            .await?;
         handler.file_ready(ready("test-4", "tool", exec)).await?;
         handler.shutdown().await?;
 
@@ -473,7 +488,10 @@ mod tests {
             handler.shutdown().await.is_err(),
             "a source file that cannot be read must fail the install"
         );
-        assert!(!tarball_path.exists(), "failed archive must not be published");
+        assert!(
+            !tarball_path.exists(),
+            "failed archive must not be published"
+        );
         assert!(
             !partial_path(&tarball_path).exists(),
             "failed archive must be cleaned up"

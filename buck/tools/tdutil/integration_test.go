@@ -16,6 +16,7 @@ import (
 // The :integration target builds only these sources, so nothing here may
 // borrow a fixture from the unit tests.
 const integrationTestCommit = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
 // The cache is a chain of parts each of which is unit-tested in isolation:
 // identity resolution, key derivation, document serialization, the backend,
 // and the revalidation a fetched document goes through. Only running the whole
