@@ -19,7 +19,7 @@
     "zod-v3": "npm:zod@^3.25.76"
   },
   "devDependencies": {
-    "@sveltejs/kit": "^2.70.1",
+    "@sveltejs/kit": "^2.70.2",
     "esbuild": "^0.28.1",
     "eslint": "^10.7.0",
     "postcss": "^8.5.23",
