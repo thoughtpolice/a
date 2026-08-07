@@ -22,9 +22,8 @@ import (
 
 // A snapshot document is the base endpoint of the two-snapshot protocol,
 // captured once and reused across runs and machines. Everything in it is
-// workspace-independent: cell roots are repository-relative, and targets,
-// files, and diagnostics are recorded in their cell-qualified and
-// repository-relative forms. The document also records everything its graph
+// workspace-independent: cell roots are repository-relative, and targets and
+// files are recorded in their cell-qualified and repository-relative forms. The document also records everything its graph
 // depended on — commit, universe, Buck configuration arguments, the
 // repository-local Buck config digest, the host platform, and the exact buck2
 // version — so a reader can prove the snapshot describes the base it needs.
@@ -46,7 +45,6 @@ type snapshotDocument struct {
 	ExternalCells     []string          `json:"external_cells"`
 	Targets           []documentTarget  `json:"targets"`
 	Files             []documentFile    `json:"files"`
-	Errors            []documentError   `json:"errors"`
 }
 
 type documentTarget struct {
@@ -70,11 +68,6 @@ type documentFile struct {
 	Package     *string  `json:"package"`
 	RepoPackage *string  `json:"repo_package"`
 	Imports     []string `json:"imports"`
-}
-
-type documentError struct {
-	Package     string   `json:"package"`
-	Diagnostics []string `json:"diagnostics"`
 }
 
 func buildSnapshotDocument(
@@ -130,19 +123,6 @@ func buildSnapshotDocument(
 		})
 	}
 
-	errorPackages := make([]string, 0, len(collected.errors))
-	for packageName := range collected.errors {
-		errorPackages = append(errorPackages, packageName)
-	}
-	sort.Strings(errorPackages)
-	diagnostics := make([]documentError, 0, len(errorPackages))
-	for _, packageName := range errorPackages {
-		diagnostics = append(diagnostics, documentError{
-			Package:     packageName,
-			Diagnostics: collected.errors[packageName],
-		})
-	}
-
 	return &snapshotDocument{
 		Schema:            snapshotSchemaVersion,
 		TdutilVersion:     tdutilVersion,
@@ -157,7 +137,6 @@ func buildSnapshotDocument(
 		ExternalCells:     external,
 		Targets:           targets,
 		Files:             files,
-		Errors:            diagnostics,
 	}
 }
 
@@ -376,15 +355,6 @@ func (document *snapshotDocument) toSnapshot() (snapshot, error) {
 			imports:     record.Imports,
 		}
 	}
-	for _, record := range document.Errors {
-		if record.Package == "" {
-			return snapshot{}, fmt.Errorf("base snapshot has an error record without a package")
-		}
-		if _, duplicate := result.errors[record.Package]; duplicate {
-			return snapshot{}, fmt.Errorf("base snapshot has duplicate error records for %q", record.Package)
-		}
-		result.errors[record.Package] = record.Diagnostics
-	}
 	return result, nil
 }
 
@@ -476,7 +446,6 @@ func collectSnapshotPairFromDocument(
 	buckArgs []string,
 	isolation string,
 	patterns []string,
-	onGraphError graphErrorPolicy,
 	config tdutilConfig,
 ) (snapshot, snapshot, universePlan, error) {
 	if len(patterns) == 0 {
@@ -494,7 +463,6 @@ func collectSnapshotPairFromDocument(
 	if err != nil {
 		return snapshot{}, snapshot{}, universePlan{}, err
 	}
-	plan.onGraphError = onGraphError
 	head, err := collectTargets(ctx, runner, headWorkspace, buck, buckArgs, isolation, plan.headPatterns, headCells, config)
 	if err != nil {
 		return snapshot{}, snapshot{}, universePlan{}, err

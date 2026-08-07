@@ -244,16 +244,12 @@ jobs:
           # still sitting there. Failing to write it is reported by tdutil and
           # never fails the run.
           #
-          # --on-graph-error=select-all applies when the base commit has a Buck
-          # graph error the head does not, typically a diff which repairs a
-          # broken BUILD file. The head graph is complete there, so tdutil
-          # names every target in the universe instead of refusing, and this
-          # step produces a usable list rather than dying. Errors which leave
-          # the head graph itself incomplete still fail, and still land in the
-          # full-test fallback below, which is what surfaces them.
-          #
-          # Such a selection is the whole universe, so it reads here as an
-          # unusually high target count rather than as anything distinctive.
+          # tdutil does not tolerate a Buck graph error at either endpoint: it
+          # collects without --keep-going, so a package which fails to load
+          # aborts the query and the step below. That lands in the full-test
+          # fallback, which tests the universe outright and is what surfaces
+          # the error. A broken package therefore costs a full test run until
+          # it is fixed, at either endpoint, whether or not the diff touched it.
           #
           # The universe must name every cell the full-test fallback below
           # tests. tilde and cellar are separate cells, so depot//... does not
@@ -279,7 +275,6 @@ jobs:
             --from "$BASE_COMMIT" \
             --to "$HEAD_COMMIT" \
             --base-snapshot "${{ runner.temp }}/tdutil-snapshot.json" \
-            --on-graph-error select-all \
             "${CAPTURE[@]}" \
             --universe depot//... \
             --universe depot-tilde//... \

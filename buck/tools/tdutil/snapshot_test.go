@@ -16,7 +16,6 @@ import (
 )
 
 const snapshotTestFileJSON = `{"buck.file":"root//src/app/BUCK","buck.package":"root//src/app","buck.imports":["root//rules/rust.bzl"]}`
-const snapshotTestErrorJSON = `{"buck.package":"root//broken","buck.error":"something exploded"}`
 
 // encodeSnapshotDocument collects a streamed document into bytes so tests can
 // state a whole document as a value. Production never materializes one.
@@ -31,7 +30,7 @@ func encodeSnapshotDocument(document *snapshotDocument) ([]byte, error) {
 func snapshotTestGraph(t *testing.T) snapshot {
 	t.Helper()
 	collected, err := parseTargetsJSONLines(
-		[]byte(targetJSON("app")+"\n"+snapshotTestFileJSON+"\n"+snapshotTestErrorJSON+"\n"),
+		[]byte(targetJSON("app")+"\n"+snapshotTestFileJSON+"\n"),
 		testCellMap(t),
 	)
 	if err != nil {
@@ -68,9 +67,6 @@ func TestSnapshotDocumentRoundTripPreservesGraph(t *testing.T) {
 	}
 	if !reflect.DeepEqual(restored.files, original.files) {
 		t.Fatalf("files = %#v, want %#v", restored.files, original.files)
-	}
-	if !reflect.DeepEqual(restored.errors, original.errors) {
-		t.Fatalf("errors = %#v, want %#v", restored.errors, original.errors)
 	}
 
 	// Cell behavior survives without the original checkout's absolute anchors.
@@ -299,7 +295,6 @@ func TestPlanUniverseCachedBaseInspectsOnlyHead(t *testing.T) {
 		}
 	}
 }
-
 func TestCachedBaseStillSelectsDependentsOfDeletedTargets(t *testing.T) {
 	baseJSONL := `{"name":"lib","buck.package":"root//src","buck.type":"root//rules.bzl:lib","buck.deps":[],"buck.inputs":["root//src/lib.rs"],"buck.target_hash":"h1"}
 {"name":"app","buck.package":"root//src","buck.type":"root//rules.bzl:bin","buck.deps":["root//src:lib"],"buck.inputs":["root//src/app.rs"],"buck.target_hash":"h2"}
@@ -328,7 +323,6 @@ func TestCachedBaseStillSelectsDependentsOfDeletedTargets(t *testing.T) {
 		nil,
 		"",
 		[]string{"root//..."},
-		graphErrorFail,
 		defaultTdutilConfig(),
 	)
 	if err != nil {

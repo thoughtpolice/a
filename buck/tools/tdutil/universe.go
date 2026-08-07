@@ -8,10 +8,8 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"sort"
 	"strings"
 	"syscall"
-	"unicode"
 )
 
 type universePatternKind int
@@ -49,7 +47,6 @@ type universePlan struct {
 	basePatterns []string
 	headPatterns []string
 	patterns     []plannedPattern
-	onGraphError graphErrorPolicy
 }
 
 func classifyPattern(pattern string) universePattern {
@@ -196,17 +193,14 @@ func patternPackage(pattern universePattern) (string, bool) {
 	}
 }
 
+// validateUniverse checks that every requested pattern resolved to something
+// at one endpoint or the other. A pattern which named nothing at either is a
+// typo, not a diff: it would silently contribute no targets forever.
+//
+// A pattern absent from one endpoint alone is ordinary — that is what adding
+// or removing a package looks like — and planUniverse has already arranged not
+// to query it there.
 func validateUniverse(plan *universePlan, base, head *snapshot) error {
-	excuseExpectedEndpointDiagnostics(plan, true, base, head)
-	excuseExpectedEndpointDiagnostics(plan, false, head, base)
-	// Under select-all the same regressed predecessor is recognized again in
-	// determine(), which has the head graph in hand and can name all of it
-	// rather than refuse the run here, before there is anything to name.
-	if plan.onGraphError == graphErrorFail {
-		if err := rejectBaseOnlyGraphErrors(base, head); err != nil {
-			return err
-		}
-	}
 	for _, planned := range plan.patterns {
 		switch planned.kind.kind {
 		case universeExact:
@@ -225,131 +219,6 @@ func validateUniverse(plan *universePlan, base, head *snapshot) error {
 	return nil
 }
 
-func excuseExpectedEndpointDiagnostics(plan *universePlan, baseEndpoint bool, current, peer *snapshot) {
-	for diagnosticPackage, records := range current.errors {
-		repoPackage, err := current.cells.toRepoPath(diagnosticPackage)
-		if err != nil || repoPackage == nil {
-			continue
-		}
-		retained := records[:0]
-		for _, diagnostic := range records {
-			if !isExpectedEndpointDiagnostic(plan, baseEndpoint, current.cells, peer, diagnosticPackage, *repoPackage, diagnostic) {
-				retained = append(retained, diagnostic)
-			}
-		}
-		if len(retained) == 0 {
-			delete(current.errors, diagnosticPackage)
-		} else {
-			current.errors[diagnosticPackage] = retained
-		}
-	}
-}
-
-func isExpectedEndpointDiagnostic(
-	plan *universePlan,
-	baseEndpoint bool,
-	currentCells cellMap,
-	peer *snapshot,
-	diagnosticPackage, repoPackage, diagnostic string,
-) bool {
-	matchesPlanned := func(planned plannedPattern) bool {
-		queried := planned.head
-		if baseEndpoint {
-			queried = planned.base
-		}
-		plannedRepoPackage, ok := patternRepoPackage(currentCells, planned.kind)
-		return queried && ok && plannedRepoPackage == repoPackage && peerProvesPattern(peer, planned.kind)
-	}
-	if isMissingPackageError(diagnosticPackage, diagnostic) {
-		for _, planned := range plan.patterns {
-			if matchesPlanned(planned) {
-				return true
-			}
-		}
-		return false
-	}
-	names, ok := parseUnknownTargetDiagnostic(diagnosticPackage, diagnostic)
-	if !ok || len(names) == 0 {
-		return false
-	}
-	for _, name := range names {
-		matched := false
-		for _, planned := range plan.patterns {
-			if planned.kind.kind == universeExact && planned.kind.name == name && matchesPlanned(planned) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-	return true
-}
-
-type normalizedGraphErrors struct {
-	packageName string
-	diagnostics []string
-}
-
-func rejectBaseOnlyGraphErrors(base, head *snapshot) error {
-	baseErrors, err := normalizeGraphErrors(base)
-	if err != nil {
-		return err
-	}
-	headErrors, err := normalizeGraphErrors(head)
-	if err != nil {
-		return err
-	}
-	identities := make([]string, 0, len(baseErrors))
-	for identity := range baseErrors {
-		identities = append(identities, identity)
-	}
-	sort.Slice(identities, func(i, j int) bool {
-		return baseErrors[identities[i]].packageName < baseErrors[identities[j]].packageName
-	})
-	for _, identity := range identities {
-		baseGroup := baseErrors[identity]
-		headCount := len(headErrors[identity].diagnostics)
-		if len(baseGroup.diagnostics) > headCount {
-			return fmt.Errorf(
-				"Buck graph has more errors at base than head in `%s` (%d versus %d): %s",
-				baseGroup.packageName,
-				len(baseGroup.diagnostics),
-				headCount,
-				strings.Join(baseGroup.diagnostics, "\n"),
-			)
-		}
-	}
-	return nil
-}
-
-func normalizeGraphErrors(input *snapshot) (map[string]normalizedGraphErrors, error) {
-	packages := make([]string, 0, len(input.errors))
-	for packageName := range input.errors {
-		packages = append(packages, packageName)
-	}
-	sort.Strings(packages)
-	result := make(map[string]normalizedGraphErrors)
-	for _, packageName := range packages {
-		repoPackage, err := input.cells.toRepoPath(packageName)
-		if err != nil {
-			return nil, err
-		}
-		identity := "external:" + packageName
-		if repoPackage != nil {
-			identity = "repository:" + *repoPackage
-		}
-		group, exists := result[identity]
-		if !exists {
-			group.packageName = packageName
-		}
-		group.diagnostics = append(group.diagnostics, input.errors[packageName]...)
-		result[identity] = group
-	}
-	return result, nil
-}
-
 func patternRepoPackage(cells cellMap, pattern universePattern) (string, bool) {
 	packageName, ok := patternPackage(pattern)
 	if !ok {
@@ -360,18 +229,6 @@ func patternRepoPackage(cells cellMap, pattern universePattern) (string, bool) {
 		return "", false
 	}
 	return *repoPackage, true
-}
-
-func peerProvesPattern(peer *snapshot, pattern universePattern) bool {
-	switch pattern.kind {
-	case universePackage:
-		repoPackage, ok := patternRepoPackage(peer.cells, pattern)
-		return ok && snapshotHasPackage(peer, repoPackage)
-	case universeExact:
-		return snapshotHasExact(peer, pattern.packageName, pattern.name)
-	default:
-		return false
-	}
 }
 
 func snapshotHasPackage(input *snapshot, repoPackage string) bool {
@@ -399,142 +256,4 @@ func snapshotHasExact(input *snapshot, packageName, name string) bool {
 		}
 	}
 	return false
-}
-
-func isMissingPackageError(packageName, diagnostic string) bool {
-	detail, ok := strings.CutPrefix(diagnostic, "package `"+packageName+":` does not exist\n")
-	if !ok {
-		return false
-	}
-	if !strings.Contains(detail, "\n") {
-		return isMissingBuildFileDetail(detail)
-	}
-	lines := rustStringLines(detail)
-	if len(lines) != 2 {
-		return false
-	}
-	marker := lines[0]
-	trimmedMarker := strings.TrimLeftFunc(marker, unicode.IsSpace)
-	if !strings.HasPrefix(trimmedMarker, "^") {
-		return false
-	}
-	for _, character := range marker {
-		if character != ' ' && character != '^' && character != '-' {
-			return false
-		}
-	}
-	message := strings.TrimRightFunc(lines[1], unicode.IsSpace)
-	return message == "    dir `"+packageName+"` does not exist."
-}
-
-func rustStringLines(value string) []string {
-	lines := strings.Split(value, "\n")
-	if len(lines) != 0 && lines[len(lines)-1] == "" {
-		lines = lines[:len(lines)-1]
-	}
-	for index := range lines {
-		lines[index] = strings.TrimSuffix(lines[index], "\r")
-	}
-	return lines
-}
-
-func isMissingBuildFileDetail(detail string) bool {
-	rest, ok := strings.CutPrefix(detail, "    missing ")
-	if !ok {
-		return false
-	}
-	rest, ok = stripQuotedBuildFile(rest)
-	if !ok {
-		return false
-	}
-	rest, ok = strings.CutPrefix(rest, " file")
-	if !ok {
-		return false
-	}
-	if rest == "" {
-		return true
-	}
-	rest, ok = strings.CutPrefix(rest, " (also missing alternatives ")
-	if !ok || !strings.HasSuffix(rest, ")") {
-		return false
-	}
-	rest = strings.TrimSuffix(rest, ")")
-	for {
-		rest, ok = stripQuotedBuildFile(rest)
-		if !ok {
-			return false
-		}
-		if rest == "" {
-			return true
-		}
-		rest, ok = strings.CutPrefix(rest, ", ")
-		if !ok {
-			return false
-		}
-	}
-}
-
-func stripQuotedBuildFile(input string) (string, bool) {
-	rest, ok := strings.CutPrefix(input, "`")
-	if !ok {
-		return "", false
-	}
-	end := strings.IndexByte(rest, '`')
-	if end < 0 {
-		return "", false
-	}
-	name := rest[:end]
-	if name == "" || strings.ContainsAny(name, "\n\r/\\") {
-		return "", false
-	}
-	return rest[end+1:], true
-}
-
-func parseUnknownTargetDiagnostic(packageName, diagnostic string) ([]string, bool) {
-	if strings.ContainsAny(diagnostic, "\n\r") {
-		return nil, false
-	}
-	body := strings.TrimSuffix(diagnostic, ".")
-	suffix := " from package `" + packageName + "`"
-	body, ok := strings.CutSuffix(body, suffix)
-	if !ok {
-		return nil, false
-	}
-	if name, single := strings.CutPrefix(body, "Unknown target `"); single && strings.HasSuffix(name, "`") {
-		name = strings.TrimSuffix(name, "`")
-		if validTargetName(name) {
-			return []string{name}, true
-		}
-		return nil, false
-	}
-	rest, ok := strings.CutPrefix(body, "Unknown targets ")
-	if !ok {
-		return nil, false
-	}
-	var names []string
-	for {
-		rest, ok = strings.CutPrefix(rest, "`")
-		if !ok {
-			return nil, false
-		}
-		end := strings.IndexByte(rest, '`')
-		if end < 0 || !validTargetName(rest[:end]) {
-			return nil, false
-		}
-		names = append(names, rest[:end])
-		rest = rest[end+1:]
-		if rest == "" {
-			return names, len(names) != 0
-		}
-		rest, ok = strings.CutPrefix(rest, ", ")
-		if !ok {
-			return nil, false
-		}
-	}
-}
-
-func validTargetName(name string) bool {
-	return name != "" &&
-		!strings.ContainsAny(name, "`\n\r:") &&
-		!strings.Contains(name, "//")
 }

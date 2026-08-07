@@ -60,8 +60,8 @@ built, so the head revision must match the working-copy tree. Quick
 mode seeds from changed inputs, BUILD and PACKAGE files, transitive
 Buck-reported imports, CI annotations, and configuration files, and it
 propagates through the same reverse-dependency, `ci_deps`, and
-`ci_srcs_must_match` machinery with the same fail-closed universe and graph
-error checks as the full protocol. Without a base graph it cannot see
+`ci_srcs_must_match` machinery with the same fail-closed universe checks as
+the full protocol. Without a base graph it cannot see
 dependents of targets that were removed, and it cannot compare target hashes,
 so a macro edit selects every package importing the macro instead of only the
 targets whose definitions actually changed. CI keeps the two-snapshot
@@ -111,8 +111,8 @@ detected rather than assumed.
 recorded input matches the requested comparison; any mismatch is reported and
 the run falls back to full collection, so a stale or missing snapshot can
 slow a run down but never change its answer. With a matching snapshot the
-full protocol applies unchanged — deleted-target dependents, hash comparison,
-and base/head error accounting behave exactly as with a materialized base.
+full protocol applies unchanged — deleted-target dependents and hash
+comparison behave exactly as with a materialized base.
 
 `--snapshot-to` is a standalone capture: it collects a graph and exits. A run
 which is already determining targets has collected the head graph anyway, so
@@ -291,15 +291,8 @@ is rejected rather than reused.
 Cell-qualified Buck paths are mapped through `buck2 audit cell` separately in
 each workspace; the tool never assumes that stripping `cell//` yields a JJ
 path. Configuration changes select the whole requested head universe.
-Malformed JSON and bad revsets fail closed instead of returning an incomplete
-target set; Buck graph errors are answered as described below.
-
-Two expected diagnostics — a universe endpoint's missing package and its
-missing target — are recognized by their exact buck2 wording. A buck2 upgrade
-that rewords them turns those expected diagnostics into hard failures: still
-fail-closed, but disruptive. The `:integration` test runs the real buck2
-against a synthetic project to catch that drift, so land buck2 upgrades and
-recognizer updates together. It skips when no buck2 is reachable.
+Malformed JSON, bad revsets, and Buck graph errors all fail closed instead of
+returning an incomplete target set; see below.
 
 Temporary workspaces live in the platform temporary directory rather than the
 repository. Each checkout is created inside a race-safe private container. A
@@ -323,24 +316,23 @@ and the detector avoids materialization entirely when the JJ tree diff is empty.
 
 ## Graph errors
 
-A Buck graph error is answered according to which endpoint it left incomplete.
+tdutil collects without `--keep-going`, so a package which fails to load aborts
+the query and the run. There is no policy and no partial graph: buck2 reports
+the error, tdutil reports buck2, and the caller falls back to whatever it does
+when no target list arrives — for CI, testing the universe outright, which is a
+superset of any selection and is what surfaces the breakage.
 
-An error at head means a package there did not parse. That always fails, under
-every policy: a selection can only name targets tdutil managed to enumerate,
-so selecting everything would silently omit the very package that broke, and a
-green run would mean nothing. The same holds when both endpoints are broken
-and the diff touches the broken package. Failing hands the caller a problem it
-can still act on — falling back to a full build, which does surface the
-breakage.
+That holds at either endpoint, and whether or not the diff touched the broken
+package. A predecessor which does not parse is as fatal as a head which does
+not, because the comparison needs both. This is stricter than it used to be:
+earlier versions tolerated a pre-existing breakage the diff steered clear of,
+and could name every head target when only the predecessor was broken. Both
+now fail, which costs a full test run until the package is fixed.
 
-An error only in the predecessor is different: the head graph is complete, and
-only the comparison lost precision. The commonest cause is a diff which
-repairs a broken BUILD file. Failing and selecting everything are equally safe
-there, but only one is useful, so `--on-graph-error=select-all` names every
-head target instead of refusing, which is a superset of any honest selection.
-The default remains `fail`.
-
-CI needs no flag for this: its fallback already runs the full test suite when
-tdutil declines to answer, which is a superset again. The policy earns its
-keep where there is no such fallback — interactively, or in a pipeline that
-consumes the target list directly.
+The upside is that nothing reads buck2's diagnostic prose. Recognizing an
+expected endpoint diagnostic used to mean matching buck2's exact wording,
+including its underline art, which pinned tdutil to a buck2 version with no
+signal on drift beyond a confusing refusal. Absent packages are now handled
+before the query instead: `planUniverse` stats each pattern's package directory
+at both endpoints and only queries it where it exists, so adding or removing a
+package is ordinary rather than an error to be excused.

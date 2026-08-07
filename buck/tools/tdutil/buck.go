@@ -43,7 +43,6 @@ func collectSnapshotPair(
 	buckArgs []string,
 	isolation string,
 	patterns []string,
-	onGraphError graphErrorPolicy,
 	config tdutilConfig,
 ) (snapshot, snapshot, universePlan, error) {
 	if len(patterns) == 0 {
@@ -73,8 +72,6 @@ func collectSnapshotPair(
 	if err != nil {
 		return snapshot{}, snapshot{}, universePlan{}, err
 	}
-	plan.onGraphError = onGraphError
-
 	baseChannel := make(chan snapshotResult, 1)
 	headChannel := make(chan snapshotResult, 1)
 	go func() {
@@ -140,7 +137,6 @@ func collectTargets(
 	args = append(args, buckArgs...)
 	args = append(args,
 		"--streaming",
-		"--keep-going",
 		"--no-cache",
 		"--show-unconfigured-target-hash",
 		"--json-lines",

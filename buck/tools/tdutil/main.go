@@ -171,7 +171,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				&quickSnapshot,
 				&quickSnapshot,
 				changed,
-				determineOptions{depth: args.depth, onGraphError: args.onGraphError, config: config},
+				determineOptions{depth: args.depth, config: config},
 			)
 			if err != nil {
 				return err
@@ -241,7 +241,6 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					buckArgs,
 					args.isolationDir,
 					args.universe,
-					args.onGraphError,
 					config,
 				)
 			} else {
@@ -260,7 +259,6 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					buckArgs,
 					args.isolationDir,
 					args.universe,
-					args.onGraphError,
 					config,
 				)
 			}
@@ -298,7 +296,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					&baseSnapshot,
 					&headSnapshot,
 					changed,
-					determineOptions{depth: args.depth, onGraphError: args.onGraphError, config: config},
+					determineOptions{depth: args.depth, config: config},
 				)
 			}
 			affected, err = finishWorkspacePair(

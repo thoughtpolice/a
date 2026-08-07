@@ -50,33 +50,6 @@ func TestParsesAllTargetFieldsAndExternalInputs(t *testing.T) {
 		t.Fatalf("rule file = %q, %v", ruleFile, ok)
 	}
 }
-
-func TestParsesImportsAndAccumulatesPackageErrors(t *testing.T) {
-	input := strings.Join([]string{
-		targetJSON("app"),
-		`{"buck.file":"root//src/app/BUCK","buck.package":"root//src/app","buck.imports":["root//rules/rust.bzl","external//prelude.bzl"]}`,
-		`{"buck.package":"root//broken","buck.error":"first"}`,
-		`{"buck.package":"root//broken","buck.error":"second"}`,
-	}, "\n")
-	snapshot, err := parseTargetsJSONLines([]byte(input), testCellMap(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	file := snapshot.files["root//src/app/BUCK"]
-	if file.path == nil || *file.path != "src/app/BUCK" {
-		t.Fatalf("file path = %v", file.path)
-	}
-	if file.repoPackage == nil || *file.repoPackage != "src/app" {
-		t.Fatalf("repo package = %v", file.repoPackage)
-	}
-	if !slices.Equal(file.imports, []string{"rules/rust.bzl"}) {
-		t.Fatalf("imports = %#v", file.imports)
-	}
-	if !slices.Equal(snapshot.errors["root//broken"], []string{"first", "second"}) {
-		t.Fatalf("errors = %#v", snapshot.errors)
-	}
-}
-
 func TestOptionalArraysDefaultButRequiredFieldsDoNot(t *testing.T) {
 	cells := testCellMap(t)
 	valid := `{"name":"x","buck.package":"root//","buck.type":"root//r.bzl:r","buck.deps":[],"buck.inputs":[],"buck.target_hash":"h"}`
@@ -149,5 +122,40 @@ func TestTargetParserMatchesSerdeUnicodeSurrogateValidation(t *testing.T) {
 	}
 	if _, ok := snapshot.targets["root//:😀"]; !ok {
 		t.Fatalf("decoded targets = %#v", snapshot.targets)
+	}
+}
+
+func TestParsesImportsAndResolvesRepoPaths(t *testing.T) {
+	input := strings.Join([]string{
+		targetJSON("app"),
+		`{"buck.file":"root//src/app/BUCK","buck.package":"root//src/app","buck.imports":["root//rules/rust.bzl","external//prelude.bzl"]}`,
+	}, "\n")
+	snapshot, err := parseTargetsJSONLines([]byte(input), testCellMap(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := snapshot.files["root//src/app/BUCK"]
+	if file.path == nil || *file.path != "src/app/BUCK" {
+		t.Fatalf("file path = %v", file.path)
+	}
+	if file.repoPackage == nil || *file.repoPackage != "src/app" {
+		t.Fatalf("repo package = %v", file.repoPackage)
+	}
+	if !slices.Equal(file.imports, []string{"rules/rust.bzl"}) {
+		t.Fatalf("imports = %#v", file.imports)
+	}
+}
+
+// Without --keep-going buck2 aborts rather than reporting a loading error
+// inline, so a record which claims otherwise means the dump is describing a
+// graph tdutil cannot account for. Refusing it keeps the failure loud.
+func TestErrorRecordIsRefusedRatherThanAccumulated(t *testing.T) {
+	input := `{"buck.package":"root//broken","buck.error":"Error parsing: ` + "`root//broken:BUCK`" + `"}`
+	_, err := parseTargetsJSONLines([]byte(input), testCellMap(t))
+	if err == nil || !strings.Contains(err.Error(), "reported a graph error") {
+		t.Fatalf("error = %v, want a refusal naming the graph error", err)
+	}
+	if err != nil && !strings.Contains(err.Error(), "Error parsing") {
+		t.Fatalf("error = %v, want buck2's own wording carried through", err)
 	}
 }

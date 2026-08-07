@@ -46,7 +46,6 @@ type fileNode struct {
 type snapshot struct {
 	targets map[string]target
 	files   map[string]fileNode
-	errors  map[string][]string
 	cells   cellMap
 }
 
@@ -54,7 +53,6 @@ func emptySnapshot(cells cellMap) snapshot {
 	return snapshot{
 		targets: make(map[string]target),
 		files:   make(map[string]fileNode),
-		errors:  make(map[string][]string),
 		cells:   cells,
 	}
 }
@@ -107,11 +105,16 @@ func (parser *targetStreamParser) parseLine(line []byte, number int) error {
 		return fmt.Errorf("target output line %d is not a JSON object", number)
 	}
 
+	// tdutil does not pass --keep-going, so buck2 aborts on a loading error
+	// rather than reporting one inline. A record here means buck2 grew a way to
+	// emit one that we have not accounted for; the graph would be silently
+	// incomplete, so refuse rather than determine against it.
 	if _, ok := object["buck.error"]; ok {
-		if err := parseErrorRecord(object, &parser.result); err != nil {
+		diagnostic, err := requiredString(object, "buck.error")
+		if err != nil {
 			return fmt.Errorf("invalid error record on output line %d: %w", number, err)
 		}
-		return nil
+		return fmt.Errorf("`buck2 targets` reported a graph error on output line %d: %s", number, diagnostic)
 	}
 	_, hasImports := object["buck.imports"]
 	_, hasFile := object["buck.file"]
@@ -326,19 +329,6 @@ func parseFileRecord(object map[string]any, cells cellMap) (fileNode, error) {
 		repoPackage: repoPackage,
 		imports:     imports,
 	}, nil
-}
-
-func parseErrorRecord(object map[string]any, result *snapshot) error {
-	packageName, err := requiredString(object, "buck.package")
-	if err != nil {
-		return err
-	}
-	diagnostic, err := requiredString(object, "buck.error")
-	if err != nil {
-		return err
-	}
-	result.errors[packageName] = append(result.errors[packageName], diagnostic)
-	return nil
 }
 
 func requiredString(object map[string]any, key string) (string, error) {

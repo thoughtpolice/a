@@ -39,18 +39,6 @@ func cellAuditFor(t *testing.T, workspace string) []byte {
 func commandContains(spec commandSpec, argument string) bool {
 	return slices.Contains(spec.args, argument)
 }
-
-func TestCollectSnapshotPairRejectsEmptyPatterns(t *testing.T) {
-	runner := buckFakeRunner{runFunc: func(context.Context, commandSpec) (processResult, error) {
-		t.Fatal("runner called for an empty universe")
-		return processResult{}, nil
-	}}
-	_, _, _, err := collectSnapshotPair(context.Background(), runner, "base", "head", "buck2", nil, "", nil, graphErrorFail, defaultTdutilConfig())
-	if err == nil || !strings.Contains(err.Error(), "at least one Buck target pattern") {
-		t.Fatalf("empty-pattern error = %v", err)
-	}
-}
-
 func TestAuditCellsUsesExactArgumentOrder(t *testing.T) {
 	workspace := t.TempDir()
 	var got commandSpec
@@ -107,7 +95,6 @@ func TestCollectTargetsUsesExactArgumentOrder(t *testing.T) {
 		"targets",
 		"--config", "ci.mode=test",
 		"--streaming",
-		"--keep-going",
 		"--no-cache",
 		"--show-unconfigured-target-hash",
 		"--json-lines",
@@ -134,7 +121,7 @@ func TestCollectTargetsSkipsCommandForAbsentEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(snapshot.targets) != 0 || len(snapshot.files) != 0 || len(snapshot.errors) != 0 {
+	if len(snapshot.targets) != 0 || len(snapshot.files) != 0 {
 		t.Fatalf("empty endpoint snapshot = %#v", snapshot)
 	}
 }
@@ -240,6 +227,32 @@ func TestBuckCollectorsRejectNonUTF8Stdout(t *testing.T) {
 		t.Errorf("targets invalid-UTF-8 error = %v", err)
 	}
 }
+func TestBuckProcessFailureReportsStatusAndTrimmedStderr(t *testing.T) {
+	exited := processResult{exitCode: 17, stderr: []byte("  target failed\n")}
+	err := ensureBuckProcessSuccess("buck2 targets", exited)
+	if err == nil || !strings.Contains(err.Error(), "exit 17") || !strings.HasSuffix(err.Error(), "target failed") {
+		t.Fatalf("exit error = %v", err)
+	}
+	signaled := processResult{signaled: true, exitCode: -1, stderr: []byte("killed")}
+	err = ensureBuckProcessSuccess("buck2 audit cell", signaled)
+	if err == nil || !strings.Contains(err.Error(), "terminated by signal") {
+		t.Fatalf("signal error = %v", err)
+	}
+	if err := ensureBuckProcessSuccess("buck2 targets", processResult{}); err != nil {
+		t.Fatalf("success = %v", err)
+	}
+}
+
+func TestCollectSnapshotPairRejectsEmptyPatterns(t *testing.T) {
+	runner := buckFakeRunner{runFunc: func(context.Context, commandSpec) (processResult, error) {
+		t.Fatal("runner called for an empty universe")
+		return processResult{}, nil
+	}}
+	_, _, _, err := collectSnapshotPair(context.Background(), runner, "base", "head", "buck2", nil, "", nil, defaultTdutilConfig())
+	if err == nil || !strings.Contains(err.Error(), "at least one Buck target pattern") {
+		t.Fatalf("empty-pattern error = %v", err)
+	}
+}
 
 func TestCollectSnapshotPairRunsBothEndpointStagesConcurrentlyAndPrefersBaseError(t *testing.T) {
 	baseWorkspace := t.TempDir()
@@ -291,8 +304,6 @@ func TestCollectSnapshotPairRunsBothEndpointStagesConcurrentlyAndPrefersBaseErro
 		nil,
 		"",
 		[]string{"root//..."},
-		graphErrorFail,
-
 		defaultTdutilConfig(),
 	)
 	if err == nil || !strings.Contains(err.Error(), "base collection failed") || strings.Contains(err.Error(), "head collection failed") {
@@ -300,21 +311,5 @@ func TestCollectSnapshotPairRunsBothEndpointStagesConcurrentlyAndPrefersBaseErro
 	}
 	if auditStarted.Load() != 2 || targetsStarted.Load() != 2 {
 		t.Fatalf("started audit=%d target=%d endpoint commands", auditStarted.Load(), targetsStarted.Load())
-	}
-}
-
-func TestBuckProcessFailureReportsStatusAndTrimmedStderr(t *testing.T) {
-	exited := processResult{exitCode: 17, stderr: []byte("  target failed\n")}
-	err := ensureBuckProcessSuccess("buck2 targets", exited)
-	if err == nil || !strings.Contains(err.Error(), "exit 17") || !strings.HasSuffix(err.Error(), "target failed") {
-		t.Fatalf("exit error = %v", err)
-	}
-	signaled := processResult{signaled: true, exitCode: -1, stderr: []byte("killed")}
-	err = ensureBuckProcessSuccess("buck2 audit cell", signaled)
-	if err == nil || !strings.Contains(err.Error(), "terminated by signal") {
-		t.Fatalf("signal error = %v", err)
-	}
-	if err := ensureBuckProcessSuccess("buck2 targets", processResult{}); err != nil {
-		t.Fatalf("success = %v", err)
 	}
 }
