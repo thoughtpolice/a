@@ -5914,18 +5914,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "event-listener-5.4.1.crate",
-    sha256 = "e13b66accf52311f30a0db42147dadea9850cb48cd070028831ae5f5d4b856ab",
-    strip_prefix = "event-listener-5.4.1",
-    urls = ["https://static.crates.io/crates/event-listener/5.4.1/download"],
+    name = "event-listener-5.4.2.crate",
+    sha256 = "5a23add41df1562121a9393cb065eab5146a1242410f23a644851e90cfd669d2",
+    strip_prefix = "event-listener-5.4.2",
+    urls = ["https://static.crates.io/crates/event-listener/5.4.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "event-listener-5",
-    srcs = [":event-listener-5.4.1.crate"],
+    srcs = [":event-listener-5.4.2.crate"],
     crate = "event_listener",
-    crate_root = "event-listener-5.4.1.crate/src/lib.rs",
+    crate_root = "event-listener-5.4.2.crate/src/lib.rs",
     edition = "2021",
     features = [
         "parking",
@@ -5933,7 +5933,6 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":concurrent-queue-2",
         ":parking-2",
         ":pin-project-lite-0.2",
     ],
