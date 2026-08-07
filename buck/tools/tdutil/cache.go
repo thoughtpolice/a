@@ -5,6 +5,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -61,6 +63,83 @@ func openBlobStore(location string, maxAge time.Duration) (blobStore, error) {
 	default:
 		return nil, fmt.Errorf("cache location `%s`: unsupported scheme `%s` (expected a local directory)", location, scheme)
 	}
+}
+
+// snapshotIdentity is everything a base snapshot's contents depend on apart
+// from the commit — exactly the inputs mismatchReason checks when a document
+// is reused. Keying on it means a document fetched from a cache is one the
+// reader would have accepted anyway, so a hit costs a download and never an
+// answer.
+//
+// The platform is here for the same reason it is in the document: Starlark
+// reads host_info() at load time, so a graph collected on another host
+// describes different unconfigured targets.
+type snapshotIdentity struct {
+	buckVersion       string
+	universe          []string
+	buckArgs          []string
+	localConfigDigest string
+	platform          string
+}
+
+func identityOf(buckVersion string, universe, buckArgs []string, localConfigDigest string) snapshotIdentity {
+	return snapshotIdentity{
+		buckVersion:       buckVersion,
+		universe:          universe,
+		buckArgs:          buckArgs,
+		localConfigDigest: localConfigDigest,
+		platform:          currentPlatform(),
+	}
+}
+
+// digest folds the identity into a short, stable name. Every field is written
+// length-prefixed: concatenating them plainly would let `--config x=1` and
+// `--configx=1` hash alike, and two genuinely different configurations sharing
+// a key is a cache that stays permanently cold while looking like a network
+// fault. The universe arrives already sorted and compacted from
+// normalizeUniverse; the Buck arguments deliberately do not, because repeating
+// a key is meaningful to buck2, so their order is part of their meaning and is
+// preserved here.
+//
+// Truncation to 64 bits is safe in the direction that matters. A collision
+// yields a document whose recorded inputs then fail mismatchReason, which
+// falls back to full collection — a wasted fetch, never a wrong base.
+func (identity snapshotIdentity) digest() string {
+	hash := sha256.New()
+	writeFramedField(hash, "buck-version", identity.buckVersion)
+	writeFramedList(hash, "universe", identity.universe)
+	writeFramedList(hash, "buck-args", identity.buckArgs)
+	writeFramedField(hash, "local-config", identity.localConfigDigest)
+	writeFramedField(hash, "platform", identity.platform)
+	return hex.EncodeToString(hash.Sum(nil))[:16]
+}
+
+func writeFramedField(hash io.Writer, name, value string) {
+	_, _ = fmt.Fprintf(hash, "%s:%d:%s", name, len(value), value)
+}
+
+func writeFramedList(hash io.Writer, name string, values []string) {
+	_, _ = fmt.Fprintf(hash, "%s:%d:", name, len(values))
+	for _, value := range values {
+		_, _ = fmt.Fprintf(hash, "%d:%s", len(value), value)
+	}
+}
+
+// snapshotCacheKey names the object holding one commit's graph. The schema and
+// tdutil version lead the path rather than being folded into the digest, so a
+// retired generation can be swept with a prefix delete and so a human looking
+// at the storage can tell what they are looking at.
+//
+// The prefix belongs to the backend — a directory root, or a bucket and key
+// prefix — so the caller's namespace never leaks into the derivation.
+func snapshotCacheKey(identity snapshotIdentity, commit string) string {
+	return fmt.Sprintf(
+		"v%d-%s/%s/%s.json.gz",
+		snapshotSchemaVersion,
+		tdutilVersion,
+		identity.digest(),
+		strings.ToLower(commit),
+	)
 }
 
 // validateCacheKey rejects a key which could address anything outside the

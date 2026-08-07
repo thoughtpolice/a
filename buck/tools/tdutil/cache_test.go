@@ -154,6 +154,68 @@ func TestDirStoreDoesNotPruneWithoutAMaxAge(t *testing.T) {
 	}
 }
 
+func testIdentity() snapshotIdentity {
+	return snapshotIdentity{
+		buckVersion:       "buck2 abc123",
+		universe:          []string{"depot//..."},
+		buckArgs:          []string{"-c", "ci.depot_gha_ci=true"},
+		localConfigDigest: "aa00",
+		platform:          "linux/amd64",
+	}
+}
+
+// The derived key is the whole cache. If it drifts, every cache everywhere
+// goes cold at once, and the symptom — a permanent stream of misses — looks
+// exactly like a broken backend. Pinning it here makes going cold a deliberate
+// act rather than an accident nobody notices for a month.
+func TestSnapshotCacheKeyIsPinned(t *testing.T) {
+	const want = "v2-2/d868b2576c63285d/deadbeef.json.gz"
+	if got := snapshotCacheKey(testIdentity(), "deadbeef"); got != want {
+		t.Fatalf("cache key = %q, want %q\nchanging the derivation invalidates every cache; update this only on purpose", got, want)
+	}
+
+	// Commits are matched case-insensitively elsewhere, so the key normalizes
+	// rather than letting a capitalized revset spelling miss its own object.
+	if got := snapshotCacheKey(testIdentity(), "DEADBEEF"); got != want {
+		t.Fatalf("uppercase commit key = %q, want %q", got, want)
+	}
+}
+
+// Concatenating fields plainly would let two genuinely different
+// configurations hash alike. mismatchReason would catch the resulting
+// document and fall back, so the cost is not a wrong answer -- it is a cache
+// which stays permanently cold while looking like a network fault.
+func TestSnapshotIdentityDigestIsUnambiguous(t *testing.T) {
+	seen := map[string]string{}
+	for name, identity := range map[string]snapshotIdentity{
+		"base":             testIdentity(),
+		"split args":       {buckVersion: "v", buckArgs: []string{"-c", "x=1"}},
+		"joined args":      {buckVersion: "v", buckArgs: []string{"-cx=1"}},
+		"arg order":        {buckVersion: "v", buckArgs: []string{"x=1", "-c"}},
+		"split universe":   {buckVersion: "v", universe: []string{"a//...", "b//..."}},
+		"joined universe":  {buckVersion: "v", universe: []string{"a//...b//..."}},
+		"version boundary": {buckVersion: "v0", universe: []string{"//..."}},
+		"version shifted":  {buckVersion: "v", universe: []string{"0//..."}},
+		"other platform":   {buckVersion: "v", platform: "darwin/arm64"},
+		"other config":     {buckVersion: "v", localConfigDigest: "ff"},
+	} {
+		digest := identity.digest()
+		if previous, duplicate := seen[digest]; duplicate {
+			t.Errorf("%q and %q share digest %s", name, previous, digest)
+		}
+		seen[digest] = name
+		if len(digest) != 16 {
+			t.Errorf("%q digest %q is not 16 hex characters", name, digest)
+		}
+	}
+}
+
+func TestSnapshotIdentityDigestIsStableAcrossCalls(t *testing.T) {
+	if first, second := testIdentity().digest(), testIdentity().digest(); first != second {
+		t.Fatalf("digest is unstable: %q then %q", first, second)
+	}
+}
+
 // A directory backend turns keys into paths, so a key which could address
 // anything outside the namespace is refused rather than joined.
 func TestCacheKeysCannotEscapeTheirNamespace(t *testing.T) {
