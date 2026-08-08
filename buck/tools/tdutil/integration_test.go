@@ -36,7 +36,15 @@ func TestRealBuck2GraphRoundTripsThroughTheCache(t *testing.T) {
 		buck = located
 	}
 
-	project := t.TempDir()
+	// buck2 reports cell roots resolved, and parseCellMap relates them to this
+	// root lexically -- as it may, because a run resolves the repository root
+	// before it ever audits cells. A test which skipped that would be testing
+	// its own temporary directory: on macOS it lives under /var, a symlink to
+	// /private/var, and every cell would come back looking external.
+	project, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(project, ".buckconfig"), []byte("[cells]\nroot = .\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
