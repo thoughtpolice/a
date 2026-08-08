@@ -96,6 +96,12 @@ link_flags = shims.select({
             "user32.lib",
         ],
         "config//os:macos": [],
+        # An os with no triple above it is reachable: a transition may move
+        # config//os without moving the target triple, which is what a
+        # cross-compiled binary built on a host whose default triple names
+        # another os looks like. Claiming no flags is the only safe answer,
+        # since the flags those triples want are the ones we do not have.
+        "DEFAULT": [],
     }),
 })
 
