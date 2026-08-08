@@ -70,9 +70,10 @@ shims.go_test(
 )
 
 # Cross-compiled variants of :tdutil, one per (cpu, os) we ship. tdutil is pure
-# Go, so the host Go distribution covers every target: cross_binary only moves
+# Go, so the host Go distribution covers every target: cross_binary moves
 # config//cpu and config//os, which buck/toolchains/golang/defs.bzl maps onto
-# GOARCH/GOOS. The distribution itself is an exec_dep and stays on the host.
+# GOARCH/GOOS, along with the target triple the other toolchains read. The
+# distribution itself is an exec_dep and stays on the host.
 #
 # This only holds while cgo_enabled = False. With cgo the link would need a C
 # cross-toolchain for each of these.

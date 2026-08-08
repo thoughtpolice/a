@@ -11,16 +11,17 @@ the collection and you get N identical copies of the host binary, with no error
 to tell you so. An incoming-edge transition belongs to the target that declares
 it and applies wherever that target is reached, including as a dependency.
 
-The transition overlays cpu and os onto the incoming configuration rather than
-replacing it, so unrelated constraints still flow down from the command line --
-`buck2 build :some-fanout -m release` keeps release mode for every platform.
+The transition overlays cpu, os and the target triple onto the incoming
+configuration rather than replacing it, so unrelated constraints still flow
+down from the command line -- `buck2 build :some-fanout -m release` keeps
+release mode for every platform.
 """
 
 load("@prelude//:paths.bzl", "paths")
 
-# Constraint values the transition can select between. Extending these is just
-# a matter of adding the name, as long as the toolchains being crossed to know
-# how to map it.
+# Constraint values the transition can select between. Extending these is a
+# matter of adding the name and its entry in TRIPLES, as long as the toolchains
+# being crossed to know how to map it.
 CPUS = [
     "arm64",
     "x86_64",
@@ -32,17 +33,51 @@ OSES = [
     "windows",
 ]
 
+# The triple each platform is described by. Moving cpu and os alone would leave
+# this behind at the host's default, and a configuration whose triple disagrees
+# with its os is not a platform anyone can build for: selects keyed on the
+# triple would answer for the host while the rest of the build answers for the
+# target, and the two would only be found out at link time -- or, where such a
+# select has no default, the target fails to configure at all.
+TRIPLES = {
+    ("arm64", "linux"): "aarch64-unknown-linux-gnu",
+    ("arm64", "macos"): "aarch64-apple-darwin",
+    ("arm64", "windows"): "aarch64-pc-windows-msvc",
+    ("x86_64", "linux"): "x86_64-unknown-linux-gnu",
+    ("x86_64", "macos"): "x86_64-apple-darwin",
+    ("x86_64", "windows"): "x86_64-pc-windows-msvc",
+}
+
+# A cpu/os this cannot name a triple for would silently keep the host's, which
+# is the failure this map exists to prevent. Catch it while loading instead.
+[
+    fail("cross_binary has no target triple for {cpu}/{os}".format(cpu = cpu, os = os))
+    for cpu in CPUS
+    for os in OSES
+    if (cpu, os) not in TRIPLES
+]
+
+def _triple_ref(cpu: str, os: str) -> str:
+    return "triple_{cpu}_{os}".format(cpu = cpu, os = os)
+
 _REFS = {
     "cpu_{}".format(cpu): "config//cpu/constraints:{}".format(cpu)
     for cpu in CPUS
 } | {
     "os_{}".format(os): "config//os/constraints:{}".format(os)
     for os in OSES
+} | {
+    _triple_ref(platform[0], platform[1]): "toolchains//cfg/target:target[{}]".format(triple)
+    for platform, triple in TRIPLES.items()
 }
 
 def _cross_transition_impl(platform: PlatformInfo, refs: struct, attrs: struct) -> PlatformInfo:
     constraints = dict(platform.configuration.constraints)
-    for ref in ["cpu_{}".format(attrs.cpu), "os_{}".format(attrs.os)]:
+    for ref in [
+        "cpu_{}".format(attrs.cpu),
+        "os_{}".format(attrs.os),
+        _triple_ref(attrs.cpu, attrs.os),
+    ]:
         value = getattr(refs, ref)[ConstraintValueInfo]
         constraints[value.setting.label] = value
 

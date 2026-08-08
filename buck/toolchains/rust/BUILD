@@ -24,12 +24,19 @@ common_rustc_flags = [
     "--cfg=tokio_unstable",
 ]
 
+# Total over the triples in buck/toolchains/cfg/target, deliberately: a triple
+# this does not name fails to configure, which is a worse error than the one a
+# rustc without that target's std gives back, and lands on whoever crossed to
+# it rather than on the platform they crossed to.
 rustc_target_triple = shims.select({
     "toolchains//cfg/target:target[x86_64-unknown-uefi]": "x86_64-unknown-uefi",
     "toolchains//cfg/target:target[x86_64-unknown-linux-gnu]": "x86_64-unknown-linux-gnu",
+    "toolchains//cfg/target:target[x86_64-apple-darwin]": "x86_64-apple-darwin",
+    "toolchains//cfg/target:target[x86_64-pc-windows-msvc]": "x86_64-pc-windows-msvc",
     "toolchains//cfg/target:target[aarch64-unknown-uefi]": "aarch64-unknown-uefi",
     "toolchains//cfg/target:target[aarch64-unknown-linux-gnu]": "aarch64-unknown-linux-gnu",
     "toolchains//cfg/target:target[aarch64-apple-darwin]": "aarch64-apple-darwin",
+    "toolchains//cfg/target:target[aarch64-pc-windows-msvc]": "aarch64-pc-windows-msvc",
 })
 
 rustc_flags = shims.select({
