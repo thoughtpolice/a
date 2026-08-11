@@ -10,7 +10,7 @@ load("@root//buck/shims:third_party_rust.bzl", "third_party_rust")
 shims.git_fetch(
     name = "dial9-tokio-telemetry-43aa6b6c06fdd4e0.git",
     repo = "https://github.com/dial9-rs/dial9-tokio-telemetry",
-    rev = "bd7a50c6873173c6d052a839f00f7fc576316a13",
+    rev = "755d86393c4bfe4423aa72038c015296bfc3c3db",
     visibility = [],
 )
 
@@ -18,6 +18,13 @@ shims.git_fetch(
     name = "jj-5d9a3f8a30f872ad.git",
     repo = "https://github.com/martinvonz/jj",
     rev = "0c24fce22b29732837a00acdb3d43c4a218ac1f1",
+    visibility = [],
+)
+
+shims.git_fetch(
+    name = "slatedb-1981661380cef83f.git",
+    repo = "https://github.com/slatedb/slatedb",
+    rev = "bb3c30edef219fe0d35a49380a27fedefd9b4bd1",
     visibility = [],
 )
 
@@ -453,10 +460,10 @@ third_party_rust.rust_library(
     edition = "2021",
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
     },
     visibility = [],
@@ -480,7 +487,7 @@ third_party_rust.rust_library(
     deps = [
         ":anstyle-1",
         ":once_cell_polyfill-1",
-        ":windows-sys-0.61",
+        ":windows-sys-0.60",
     ],
 )
 
@@ -1705,7 +1712,7 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
-        ":darling-0.23",
+        ":darling-0.20",
         ":ident_case-1",
         ":prettyplease-0.2",
         ":proc-macro2-1",
@@ -4161,6 +4168,31 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "darling-0.20.11.crate",
+    sha256 = "fc7f46116c46ff9ab3eb1597a45688b6715c6e628b5c133e288e709a29bcb4ee",
+    strip_prefix = "darling-0.20.11",
+    urls = ["https://static.crates.io/crates/darling/0.20.11/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "darling-0.20",
+    srcs = [":darling-0.20.11.crate"],
+    crate = "darling",
+    crate_root = "darling-0.20.11.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "suggestions",
+    ],
+    visibility = [],
+    deps = [
+        ":darling_core-0.20",
+        ":darling_macro-0.20",
+    ],
+)
+
+shims.http_archive(
     name = "darling-0.23.0.crate",
     sha256 = "25ae13da2f202d56bd7f91c25fba009e7717a1e4a1cc98a76d844b65ae912e9d",
     strip_prefix = "darling-0.23.0",
@@ -4182,6 +4214,35 @@ third_party_rust.rust_library(
     deps = [
         ":darling_core-0.23",
         ":darling_macro-0.23",
+    ],
+)
+
+shims.http_archive(
+    name = "darling_core-0.20.11.crate",
+    sha256 = "0d00b9596d185e565c2207a0b01f8bd1a135483d02d9b7b0a54b11da8d53412e",
+    strip_prefix = "darling_core-0.20.11",
+    urls = ["https://static.crates.io/crates/darling_core/0.20.11/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "darling_core-0.20",
+    srcs = [":darling_core-0.20.11.crate"],
+    crate = "darling_core",
+    crate_root = "darling_core-0.20.11.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "strsim",
+        "suggestions",
+    ],
+    visibility = [],
+    deps = [
+        ":fnv-1",
+        ":ident_case-1",
+        ":proc-macro2-1",
+        ":quote-1",
+        ":strsim-0.11",
+        ":syn-2",
     ],
 )
 
@@ -4209,6 +4270,29 @@ third_party_rust.rust_library(
         ":proc-macro2-1",
         ":quote-1",
         ":strsim-0.11",
+        ":syn-2",
+    ],
+)
+
+shims.http_archive(
+    name = "darling_macro-0.20.11.crate",
+    sha256 = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead",
+    strip_prefix = "darling_macro-0.20.11",
+    urls = ["https://static.crates.io/crates/darling_macro/0.20.11/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "darling_macro-0.20",
+    srcs = [":darling_macro-0.20.11.crate"],
+    crate = "darling_macro",
+    crate_root = "darling_macro-0.20.11.crate/src/lib.rs",
+    edition = "2021",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":darling_core-0.20",
+        ":quote-1",
         ":syn-2",
     ],
 )
@@ -4371,7 +4455,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":data-encoding-2",
-        ":syn-2",
+        ":syn-1",
     ],
 )
 
@@ -4698,8 +4782,80 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "dial9",
+    actual = ":dial9-0.5",
+    visibility = ["PUBLIC"],
+)
+
 third_party_rust.rust_library(
-    name = "dial9-macro-0.3",
+    name = "dial9-0.5",
+    srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
+    crate = "dial9",
+    crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9/src/lib.rs",
+    edition = "2024",
+    features = [
+        "cpu-profiling",
+        "memory-profiling",
+        "pipeline",
+        "tokio",
+    ],
+    visibility = [],
+    deps = [
+        ":bon-3",
+        ":dial9-core-0.5",
+        ":dial9-macro-0.5",
+        ":dial9-perf-self-profile-0.5",
+        ":dial9-tokio-telemetry-0.5",
+        ":tokio-1",
+        ":tracing-0.1",
+    ],
+)
+
+third_party_rust.rust_library(
+    name = "dial9-core-0.5",
+    srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
+    crate = "dial9_core",
+    crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-core/src/lib.rs",
+    edition = "2024",
+    env = {
+        "CARGO_BIN_NAME": "dial9_core",
+        "CARGO_CRATE_NAME": "dial9_core",
+        "CARGO_MANIFEST_DIR": "dial9-tokio-telemetry-43aa6b6c06fdd4e0",
+        "CARGO_PKG_AUTHORS": "",
+        "CARGO_PKG_DESCRIPTION": "Telemetry event bus for dial9",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_NAME": "dial9-core",
+        "CARGO_PKG_README": "README.md",
+        "CARGO_PKG_REPOSITORY": "https://github.com/dial9-rs/dial9",
+        "CARGO_PKG_RUST_VERSION": "",
+        "CARGO_PKG_VERSION": "0.5.0-rc0",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "5",
+        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "rc0",
+    },
+    features = ["pipeline"],
+    visibility = [],
+    deps = [
+        ":bon-3",
+        ":bytes-1",
+        ":crossbeam-queue-0.3",
+        ":dial9-trace-format-0.5",
+        ":flate2-1",
+        ":futures-util-0.3",
+        ":libc-0.2",
+        ":metrique-0.1",
+        ":metrique-timesource-0.1",
+        ":tokio-1",
+        ":tokio-util-0.7",
+        ":tracing-0.1",
+        ":ulid-1",
+    ],
+)
+
+third_party_rust.rust_library(
+    name = "dial9-macro-0.5",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_macro",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-macro/src/lib.rs",
@@ -4714,11 +4870,16 @@ third_party_rust.rust_library(
 )
 
 third_party_rust.rust_library(
-    name = "dial9-perf-self-profile-0.4",
+    name = "dial9-perf-self-profile-0.5",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_perf_self_profile",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/perf-self-profile/src/lib.rs",
     edition = "2024",
+    features = [
+        "cpu-profiling",
+        "memory-profiling",
+        "symbolize-processor",
+    ],
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -4741,40 +4902,23 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
-        ":dial9-trace-format-0.4",
+        ":bon-3",
+        ":bytes-1",
+        ":crossbeam-queue-0.3",
+        ":dial9-core-0.5",
+        ":dial9-trace-format-0.5",
+        ":scc-2",
+        ":tokio-1",
         ":tracing-0.1",
     ],
 )
 
-shims.alias(
-    name = "dial9-tokio-telemetry",
-    actual = ":dial9-tokio-telemetry-0.3",
-    visibility = ["PUBLIC"],
-)
-
 third_party_rust.rust_library(
-    name = "dial9-tokio-telemetry-0.3",
+    name = "dial9-tokio-telemetry-0.5",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_tokio_telemetry",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-tokio-telemetry/src/lib.rs",
     edition = "2024",
-    env = {
-        "CARGO_BIN_NAME": "dial9_tokio_telemetry",
-        "CARGO_CRATE_NAME": "dial9_tokio_telemetry",
-        "CARGO_MANIFEST_DIR": "dial9-tokio-telemetry-43aa6b6c06fdd4e0",
-        "CARGO_PKG_AUTHORS": "",
-        "CARGO_PKG_DESCRIPTION": "Low-overhead runtime telemetry for Tokio with poll timing, wake events, and CPU profiling",
-        "CARGO_PKG_HOMEPAGE": "",
-        "CARGO_PKG_NAME": "dial9-tokio-telemetry",
-        "CARGO_PKG_README": "README.md",
-        "CARGO_PKG_REPOSITORY": "https://github.com/dial9-rs/dial9-tokio-telemetry",
-        "CARGO_PKG_RUST_VERSION": "",
-        "CARGO_PKG_VERSION": "0.3.13",
-        "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "3",
-        "CARGO_PKG_VERSION_PATCH": "13",
-        "CARGO_PKG_VERSION_PRE": "",
-    },
     features = [
         "cpu-profiling",
         "memory-profiling",
@@ -4784,17 +4928,15 @@ third_party_rust.rust_library(
         ":arc-swap-1",
         ":bon-3",
         ":bytes-1",
-        ":crossbeam-queue-0.3",
-        ":dial9-macro-0.3",
-        ":dial9-perf-self-profile-0.4",
-        ":dial9-trace-format-0.4",
+        ":dial9-core-0.5",
+        ":dial9-perf-self-profile-0.5",
+        ":dial9-trace-format-0.5",
         ":flate2-1",
         ":futures-util-0.3",
         ":hostname-0.4",
         ":libc-0.2",
         ":metrique-0.1",
         ":metrique-timesource-0.1",
-        ":metrique-writer-0.1",
         ":pin-project-lite-0.2",
         ":serde-1",
         ":serde_json-1",
@@ -4806,7 +4948,7 @@ third_party_rust.rust_library(
 )
 
 third_party_rust.rust_library(
-    name = "dial9-trace-format-0.4",
+    name = "dial9-trace-format-0.5",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_trace_format",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-trace-format/src/lib.rs",
@@ -4817,13 +4959,13 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":dial9-trace-format-derive-0.4",
+        ":dial9-trace-format-derive-0.5",
         ":serde-1",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "dial9-trace-format-derive-0.4",
+    name = "dial9-trace-format-derive-0.5",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_trace_format_derive",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-trace-format-derive/src/lib.rs",
@@ -5005,10 +5147,10 @@ third_party_rust.rust_library(
             deps = [":libc-0.2"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
     },
     visibility = [],
@@ -5994,18 +6136,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "fail-parallel-0.5.2.crate",
-    sha256 = "c6f4a147ba57fcd64323c54c8f69fd4e045456a99574163010ccf5eea3168aaa",
-    strip_prefix = "fail-parallel-0.5.2",
-    urls = ["https://static.crates.io/crates/fail-parallel/0.5.2/download"],
+    name = "fail-parallel-0.6.0.crate",
+    sha256 = "c29b33a0187823f1fa88b36980227dc96c7504ede2288e7d2a77d9d6d88b260c",
+    strip_prefix = "fail-parallel-0.6.0",
+    urls = ["https://static.crates.io/crates/fail-parallel/0.6.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "fail-parallel-0.5",
-    srcs = [":fail-parallel-0.5.2.crate"],
+    name = "fail-parallel-0.6",
+    srcs = [":fail-parallel-0.6.0.crate"],
     crate = "fail_parallel",
-    crate_root = "fail-parallel-0.5.2.crate/src/lib.rs",
+    crate_root = "fail-parallel-0.6.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
@@ -6160,10 +6302,10 @@ third_party_rust.rust_library(
             deps = [":rustix-1"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.59"],
+            deps = [":windows-sys-0.52"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.59"],
+            deps = [":windows-sys-0.52"],
         ),
     },
     visibility = [],
@@ -11112,10 +11254,10 @@ third_party_rust.rust_library(
             deps = [":libc-0.2"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.52"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.52"],
         ),
     },
     visibility = [],
@@ -11137,10 +11279,10 @@ third_party_rust.rust_library(
     edition = "2021",
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
     },
     visibility = [],
@@ -11179,6 +11321,7 @@ third_party_rust.rust_library(
     crate_root = "itertools-0.10.5.crate/src/lib.rs",
     edition = "2018",
     features = [
+        "default",
         "use_alloc",
         "use_std",
     ],
@@ -13275,7 +13418,6 @@ third_party_rust.rust_library(
     edition = "2024",
     features = [
         "background-queue",
-        "default",
         "metrics-rs-024",
         "tracing-subscriber-03",
     ],
@@ -14696,12 +14838,12 @@ third_party_rust.rust_library(
     platform = {
         "windows-gnu": dict(
             named_deps = {
-                "windows": ":windows-sys-0.61",
+                "windows": ":windows-sys-0.60",
             },
         ),
         "windows-msvc": dict(
             named_deps = {
-                "windows": ":windows-sys-0.61",
+                "windows": ":windows-sys-0.60",
             },
         ),
     },
@@ -17641,7 +17783,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":heck-0.5",
-        ":itertools-0.14",
+        ":itertools-0.10",
         ":log-0.4",
         ":multimap-0.10",
         ":petgraph-0.8",
@@ -17674,7 +17816,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":anyhow-1",
-        ":itertools-0.14",
+        ":itertools-0.10",
         ":proc-macro2-1",
         ":quote-1",
         ":syn-2",
@@ -19305,10 +19447,10 @@ third_party_rust.rust_library(
             ],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.52"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.52"],
         ),
     },
     visibility = [],
@@ -19758,6 +19900,24 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "scc-2.4.0.crate",
+    sha256 = "46e6f046b7fef48e2660c57ed794263155d713de679057f2d0c169bfc6e756cc",
+    strip_prefix = "scc-2.4.0",
+    urls = ["https://static.crates.io/crates/scc/2.4.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "scc-2",
+    srcs = [":scc-2.4.0.crate"],
+    crate = "scc",
+    crate_root = "scc-2.4.0.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [":sdd-3"],
+)
+
+shims.http_archive(
     name = "schannel-0.1.29.crate",
     sha256 = "91c1b7e4904c873ef0710c1f407dde2e6287de2bebc1bbbf7d430bb7cbffd939",
     strip_prefix = "schannel-0.1.29",
@@ -19906,6 +20066,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "sdd-3.0.10.crate",
+    sha256 = "490dcfcbfef26be6800d11870ff2df8774fa6e86d047e3e8c8a76b25655e41ca",
+    strip_prefix = "sdd-3.0.10",
+    urls = ["https://static.crates.io/crates/sdd/3.0.10/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "sdd-3",
+    srcs = [":sdd-3.0.10.crate"],
+    crate = "sdd",
+    crate_root = "sdd-3.0.10.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+)
+
+shims.http_archive(
     name = "security-framework-3.7.0.crate",
     sha256 = "b7f4bc775c73d9a02cde8bf7b2ec4c9d12743edf609006c7facc23998404cd1d",
     strip_prefix = "security-framework-3.7.0",
@@ -19982,10 +20159,10 @@ third_party_rust.rust_library(
     ],
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.52"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.52"],
         ),
     },
     visibility = [],
@@ -21049,19 +21226,11 @@ shims.alias(
     visibility = ["PUBLIC"],
 )
 
-shims.http_archive(
-    name = "slatedb-0.14.1.crate",
-    sha256 = "e6aba890a8fc5d2a3d283a77cfe712c0f27f0501bd75b07e14dece2dfc2cde86",
-    strip_prefix = "slatedb-0.14.1",
-    urls = ["https://static.crates.io/crates/slatedb/0.14.1/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "slatedb-0.14",
-    srcs = [":slatedb-0.14.1.crate"],
+    srcs = [":slatedb-1981661380cef83f.git"],
     crate = "slatedb",
-    crate_root = "slatedb-0.14.1.crate/src/lib.rs",
+    crate_root = "slatedb-1981661380cef83f/slatedb/src/lib.rs",
     edition = "2021",
     features = ["foyer"],
     visibility = [],
@@ -21077,7 +21246,7 @@ third_party_rust.rust_library(
         ":crossbeam-skiplist-0.1",
         ":dotenvy-0.15",
         ":duration-str-0.11",
-        ":fail-parallel-0.5",
+        ":fail-parallel-0.6",
         ":figment-0.10",
         ":flatbuffers-25",
         ":foyer-0.22",
@@ -21106,19 +21275,11 @@ third_party_rust.rust_library(
     ],
 )
 
-shims.http_archive(
-    name = "slatedb-common-0.14.1.crate",
-    sha256 = "7f3fdad5676b104bec5daa2f367bdb340f4162ef3c1ead16da903297f235fb49",
-    strip_prefix = "slatedb-common-0.14.1",
-    urls = ["https://static.crates.io/crates/slatedb-common/0.14.1/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "slatedb-common-0.14",
-    srcs = [":slatedb-common-0.14.1.crate"],
+    srcs = [":slatedb-1981661380cef83f.git"],
     crate = "slatedb_common",
-    crate_root = "slatedb-common-0.14.1.crate/src/lib.rs",
+    crate_root = "slatedb-1981661380cef83f/slatedb-common/src/lib.rs",
     edition = "2021",
     features = ["serde"],
     visibility = [],
@@ -21134,19 +21295,11 @@ third_party_rust.rust_library(
     ],
 )
 
-shims.http_archive(
-    name = "slatedb-txn-obj-0.14.1.crate",
-    sha256 = "5df001443952d76ae7380536b4a050f88b3cc9a7d3dce0f3782ea7ae9a12c29c",
-    strip_prefix = "slatedb-txn-obj-0.14.1",
-    urls = ["https://static.crates.io/crates/slatedb-txn-obj/0.14.1/download"],
-    visibility = [],
-)
-
 third_party_rust.rust_library(
     name = "slatedb-txn-obj-0.14",
-    srcs = [":slatedb-txn-obj-0.14.1.crate"],
+    srcs = [":slatedb-1981661380cef83f.git"],
     crate = "slatedb_txn_obj",
-    crate_root = "slatedb-txn-obj-0.14.1.crate/src/lib.rs",
+    crate_root = "slatedb-1981661380cef83f/slatedb-txn-obj/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
@@ -21293,10 +21446,10 @@ third_party_rust.rust_library(
             deps = [":libc-0.2"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
     },
     visibility = [],
@@ -21482,10 +21635,10 @@ third_party_rust.rust_library(
     },
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
     },
     visibility = [],
@@ -22264,10 +22417,10 @@ third_party_rust.rust_library(
             deps = [":rustix-1"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.52"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.52"],
         ),
     },
     visibility = [],
@@ -22328,10 +22481,10 @@ third_party_rust.rust_library(
     features = ["default"],
     platform = {
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
     },
     visibility = [],
@@ -22365,10 +22518,10 @@ third_party_rust.rust_library(
             deps = [":rustix-1"],
         ),
         "windows-gnu": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
         "windows-msvc": dict(
-            deps = [":windows-sys-0.61"],
+            deps = [":windows-sys-0.60"],
         ),
     },
     visibility = [],
@@ -25593,7 +25746,7 @@ third_party_rust.rust_library(
     crate_root = "winapi-util-0.1.11.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
-    deps = [":windows-sys-0.61"],
+    deps = [":windows-sys-0.52"],
 )
 
 shims.http_archive(
@@ -26126,8 +26279,13 @@ third_party_rust.rust_library(
         "Win32",
         "Win32_Foundation",
         "Win32_Security",
+        "Win32_Security_Cryptography",
+        "Win32_Storage",
+        "Win32_Storage_FileSystem",
         "Win32_System",
         "Win32_System_Console",
+        "Win32_System_IO",
+        "Win32_System_SystemInformation",
         "Win32_System_Threading",
         "Win32_UI",
         "Win32_UI_Input",
@@ -26189,13 +26347,21 @@ third_party_rust.rust_library(
     features = [
         "Win32",
         "Win32_Foundation",
+        "Win32_Globalization",
+        "Win32_Networking",
+        "Win32_Networking_WinSock",
         "Win32_Security",
         "Win32_Storage",
         "Win32_Storage_FileSystem",
         "Win32_System",
+        "Win32_System_Com",
+        "Win32_System_Console",
         "Win32_System_IO",
+        "Win32_System_Memory",
         "Win32_System_Threading",
         "Win32_System_WindowsProgramming",
+        "Win32_UI",
+        "Win32_UI_Shell",
         "default",
     ],
     visibility = [],
@@ -26225,7 +26391,6 @@ third_party_rust.rust_library(
         "Wdk_System_IO",
         "Win32",
         "Win32_Foundation",
-        "Win32_Globalization",
         "Win32_NetworkManagement",
         "Win32_NetworkManagement_IpHelper",
         "Win32_NetworkManagement_Ndis",

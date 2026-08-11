@@ -48,6 +48,10 @@ pub struct CacheStoreSettings {
     /// When `true`, the embedded compactor is disabled. Use this when running
     /// a standalone compactor process via [`CompactorBuilder`].
     pub disable_compactor: bool,
+    /// Overrides the SlateDB write-pipeline sizing that [`CacheStore::open`]
+    /// would otherwise derive from the backend. Benchmarks use this to compare
+    /// profiles; production leaves it `None`.
+    pub slatedb_overrides: Option<slatedb::config::Settings>,
 }
 
 /// The SlateDB database path used by the cache store.
@@ -74,11 +78,80 @@ pub const MAX_BLOB_REASSEMBLE_SIZE: usize = 2 * 1024 * 1024 * 1024;
 const MAX_ACTION_CACHE_ENTRY_SIZE: usize = 16 * 1024 * 1024;
 
 /// Where to store SlateDB data.
+#[derive(Debug)]
 pub enum StoreBackend {
     /// In-memory object store (ephemeral, for testing).
     Memory,
     /// Local filesystem at the given path.
     LocalFs(String),
+    /// S3 (or S3-compatible) bucket, optionally rooted at a key prefix.
+    ///
+    /// Credentials, region, and endpoint come from the standard `AWS_*`
+    /// environment variables; see [`s3_store::S3StoreBuilder::from_env`].
+    S3 {
+        bucket: String,
+        prefix: Option<String>,
+    },
+}
+
+/// Whether a backend's writes land on local media rather than remote object
+/// storage. This is the axis SlateDB's stock defaults are tuned against.
+fn writes_land_locally(backend: &StoreBackend) -> bool {
+    match backend {
+        StoreBackend::Memory | StoreBackend::LocalFs(_) => true,
+        StoreBackend::S3 { .. } => false,
+    }
+}
+
+/// Derive SlateDB settings for `backend`.
+///
+/// SlateDB ships defaults tuned for S3, where a flush is a billable, ~100 ms
+/// round trip. Two of those trades invert on a loopback store, so adjust them
+/// rather than leaving the operator to discover the defaults the hard way.
+pub fn tuned_settings(backend: &StoreBackend) -> slatedb::config::Settings {
+    let mut settings = slatedb::config::Settings::default();
+
+    if writes_land_locally(backend) {
+        // `flush_interval` is a WAL flush *tick*, and a `put` is not
+        // acknowledged until the next one fires — so it is a hard floor on
+        // write latency, and a cap of `concurrency / interval` on write
+        // throughput no matter how fast the machine is. SlateDB picks 100 ms
+        // to bound S3 PUT charges (its own docs quote ~$130/month at that
+        // rate); against memory or a local disk a flush costs microseconds and
+        // nothing per call, so the 100 ms is pure latency for no saving.
+        settings.flush_interval = Some(std::time::Duration::from_millis(1));
+    }
+
+    if let Some(gc) = settings.garbage_collector_options.as_mut() {
+        // WAL fence collection ships dry-run, so it deletes nothing and logs a
+        // paragraph explaining that it deleted nothing on every pass. Off is
+        // what dry-run already means, minus the noise. Enabling it for real
+        // risks data loss (see `wal_fence_options`), so off is also the safe
+        // reading of the default.
+        gc.wal_fence_options = None;
+
+        if matches!(backend, StoreBackend::LocalFs(_)) {
+            // Boundary advancement is the *only* thing in SlateDB that issues a
+            // conditional overwrite (`PutMode::Update`, in the boundary object
+            // behind the manifest and compactions stores), and object_store's
+            // LocalFileSystem returns `NotImplemented` for it. So the manifest
+            // and compactions collectors fail on every pass, forever, once per
+            // interval.
+            //
+            // Turning those two collectors off trades reclaiming their metadata
+            // for an error the operator cannot act on. The alternative is
+            // `boundary_files_enabled = false`, which keeps them collecting but
+            // lets a process suspended past `min_age` resurrect a deleted
+            // metadata ID and report a stale update as successful — a
+            // correctness risk on a workstation that sleeps. WAL and
+            // compacted-SST collection need no CAS and keep reclaiming the bulk
+            // of the space either way.
+            gc.manifest_options = None;
+            gc.compactions_options = None;
+        }
+    }
+
+    settings
 }
 
 /// Main storage engine wrapping SlateDB with CDC-aware blob storage.
@@ -105,6 +178,19 @@ pub fn create_object_store(
             slatedb::object_store::local::LocalFileSystem::new_with_prefix(path)
                 .map_err(|e| StoreError::Database(slatedb::Error::unavailable(e.to_string())))?,
         ),
+        StoreBackend::S3 { bucket, prefix } => {
+            let store = s3_store::S3StoreBuilder::from_env()
+                .with_bucket(bucket)
+                .build()
+                .map_err(|e| StoreError::Database(slatedb::Error::unavailable(e.to_string())))?;
+            match prefix {
+                Some(prefix) => Arc::new(slatedb::object_store::prefix::PrefixStore::new(
+                    store,
+                    prefix.as_str(),
+                )),
+                None => Arc::new(store),
+            }
+        }
     };
     Ok(object_store)
 }
@@ -117,14 +203,18 @@ impl CacheStore {
         let default_ttl_ms = settings
             .default_ttl
             .map(|d| u64::try_from(d.as_millis()).expect("default TTL overflows u64 milliseconds"));
+        let base = settings
+            .slatedb_overrides
+            .clone()
+            .unwrap_or_else(|| tuned_settings(&backend));
         let db_settings = slatedb::config::Settings {
             default_ttl: default_ttl_ms,
             compactor_options: if settings.disable_compactor {
                 None
             } else {
-                slatedb::config::Settings::default().compactor_options
+                base.compactor_options.clone()
             },
-            ..Default::default()
+            ..base
         };
         let db = Db::builder(DB_PATH, object_store)
             .with_settings(db_settings)
@@ -981,3 +1071,5 @@ mod test_hashing;
 mod test_manifest;
 #[cfg(test_module_streaming)]
 mod test_streaming;
+#[cfg(test_module_tuning)]
+mod test_tuning;

@@ -9,8 +9,9 @@ pub use sha2::{Digest as _, Sha256};
 
 pub use protos::build::bazel::remote::execution::v2::{
     ActionResult, BatchReadBlobsRequest, BatchUpdateBlobsRequest, Digest, Directory, DirectoryNode,
-    FindMissingBlobsRequest, SpliceBlobRequest, SplitBlobRequest, action_cache_server::ActionCache,
-    batch_update_blobs_request, capabilities_server::Capabilities,
+    FileNode, FindMissingBlobsRequest, SpliceBlobRequest, SplitBlobRequest, SymlinkNode,
+    action_cache_server::ActionCache, batch_update_blobs_request,
+    capabilities_server::Capabilities,
     content_addressable_storage_server::ContentAddressableStorage,
 };
 pub use protos::google::bytestream::{ReadRequest, WriteRequest, byte_stream_server::ByteStream};
@@ -20,7 +21,7 @@ pub use protos::build::bazel::remote::asset::v1::{
     fetch_server::Fetch, push_server::Push,
 };
 
-pub use dial9_tokio_telemetry::telemetry::{TelemetryHandle, TracedRuntime};
+pub use dial9::Dial9TokioHandle;
 
 pub use crate::store::{
     CacheStore, CacheStoreSettings, Compression, ContentDigest, DigestFn, StoreBackend,
@@ -38,18 +39,10 @@ pub fn ensure_telemetry() {
     });
 }
 
-pub fn test_handle() -> TelemetryHandle {
-    static HANDLE: std::sync::LazyLock<TelemetryHandle> = std::sync::LazyLock::new(|| {
-        let mut b = tokio::runtime::Builder::new_current_thread();
-        b.enable_all();
-        // Leak the runtime + guard so they live for the process lifetime.
-        let (rt, guard) = TracedRuntime::build_disabled(b).unwrap();
-        let handle = guard.handle();
-        std::mem::forget(rt);
-        std::mem::forget(guard);
-        handle
-    });
-    HANDLE.clone()
+/// An inert handle: `spawn` falls through to `tokio::spawn` on whichever
+/// runtime the test is running under, with no wake tracking.
+pub fn test_handle() -> Dial9TokioHandle {
+    Dial9TokioHandle::disabled()
 }
 
 pub fn sha256(data: &[u8]) -> [u8; 32] {
@@ -104,7 +97,7 @@ pub fn make_data(size: usize) -> Vec<u8> {
 }
 
 pub fn make_fetch(store: Arc<CacheStore>) -> super::remote_asset::FetchService {
-    super::remote_asset::FetchService::new(store)
+    super::remote_asset::FetchService::new(store, test_handle(), None)
 }
 
 pub fn make_push(store: Arc<CacheStore>) -> super::remote_asset::PushService {

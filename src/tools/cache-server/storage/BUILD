@@ -4,6 +4,7 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
+    "//src/tools/cache-server/s3-store:s3-store",
     "third-party//rust:anyhow",
     "third-party//rust:async-stream",
     "third-party//rust:blake3",
@@ -63,6 +64,7 @@ TEST_MODULES = {
     "concurrency": {},
     "action_cache": {},
     "asset": {},
+    "tuning": {},
 }
 
 ALL_TEST_RESOURCES = {

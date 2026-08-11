@@ -7,19 +7,18 @@ use std::{path::PathBuf, str::FromStr, sync::Arc};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use dial9_tokio_telemetry::memory_profiling::{
-    Dial9Allocator, MemoryProfiler, MemoryProfilingConfig,
-};
-use dial9_tokio_telemetry::telemetry::{
-    RotatingWriter, TelemetryHandle, TracedRuntime,
-    cpu_profile::{CpuProfilingConfig, SchedEventConfig},
+use dial9::{
+    Dial9TokioHandle, DiskBuffer, Recorder, RecorderPerfExt as _, RecorderTokioExt as _,
+    TokioAttachOptions,
+    cpu::{CpuProfilingConfig, SchedEventConfig},
+    memory::{Dial9Allocator, MemoryProfilingConfig},
 };
 use tracing_subscriber::{filter, prelude::*};
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 // Wrap mimalloc in dial9's sampling allocator. This is a zero-cost passthrough
-// to mimalloc until `MemoryProfiler::install` is called (which only happens when
+// to mimalloc until the memory profiler is installed (which only happens when
 // dial9 telemetry is enabled), at which point sampled allocations are recorded.
 #[global_allocator]
 static GLOBAL_ALLOCATOR: Dial9Allocator<mimalloc::MiMalloc> =
@@ -32,7 +31,8 @@ static GLOBAL_ALLOCATOR: Dial9Allocator<mimalloc::MiMalloc> =
     version = option_env!("depot_VERSION").unwrap_or("dev")
 )]
 struct Cli {
-    /// Storage backend: "memory", "file:///path/to/dir", or a bare path
+    /// Storage backend: "memory", "file:///path/to/dir", a bare path, or
+    /// "s3://bucket[/prefix]" (configured via AWS_* environment variables)
     #[arg(
         long,
         default_value = "memory",
@@ -141,6 +141,12 @@ struct ServeArgs {
     #[arg(long, env = "CACHE_SERVER_TLS_KEY", requires = "tls_cert")]
     tls_key: Option<PathBuf>,
 
+    /// Directory for spooling git packfiles during clones. Large repository
+    /// fetches write multi-GiB temporary files here; point it at real disk
+    /// (the default system temp dir is often RAM-backed tmpfs).
+    #[arg(long, env = "CACHE_SERVER_GIT_SPOOL_DIR")]
+    git_spool_dir: Option<std::path::PathBuf>,
+
     // --- OTEL options ---
     /// Enable OpenTelemetry export (also enabled if OTEL_EXPORTER_OTLP_ENDPOINT is set)
     #[arg(long)]
@@ -163,80 +169,94 @@ struct ServeArgs {
     otel_sampling_ratio: Option<f64>,
 }
 
+/// Build the dial9 recorder the tokio runtime is attached to, alongside the
+/// trace directory and perf capabilities to report at startup.
+///
+/// `--disable-dial9` yields a disabled recorder: attaching to one produces a
+/// plain, unmodified tokio runtime and inert handles, so nothing downstream
+/// has to branch on whether tracing is live.
+fn build_recorder(
+    cli: &Cli,
+) -> Result<(Recorder, Option<PathBuf>, Option<runtime::PerfCapabilities>)> {
+    if cli.disable_dial9 {
+        return Ok((dial9::recorder_disabled(), None, None));
+    }
+
+    let trace_dir = cli
+        .trace_dir
+        .clone()
+        .unwrap_or_else(|| std::env::temp_dir().join("cache-server-traces"));
+    let _ = std::fs::remove_dir_all(&trace_dir);
+
+    // `base_path` is the segment directory, not a file: dial9 names the
+    // segments within it (`trace.<n>.bin.active` while being written, then
+    // `trace.<n>.bin.gz` once sealed) and evicts oldest-first against the caps.
+    let writer = DiskBuffer::builder()
+        .base_path(&trace_dir)
+        .max_file_size(cli.trace_max_file_mib * 1024 * 1024)
+        .max_total_size(cli.trace_max_total_mib * 1024 * 1024)
+        .build()
+        .with_context(|| {
+            format!(
+                "failed to open dial9 trace writer at {}",
+                trace_dir.display()
+            )
+        })?;
+
+    let caps = runtime::check_perf_capabilities();
+
+    let mut builder = dial9::recorder(writer);
+    if caps.cpu_profiling {
+        builder = builder
+            .with_cpu_profiling(CpuProfilingConfig::default())
+            .with_sched_events(SchedEventConfig::default().include_kernel(caps.kernel_stacks));
+    }
+
+    // Sampling memory profiling on top of the Dial9Allocator that wraps
+    // mimalloc (a passthrough until now). Sampled at ~512 KiB with liveset
+    // tracking off by default, so the steady-state overhead is negligible.
+    // The recorder installs it when recording starts.
+    let recorder = builder
+        .with_memory_profiling(
+            MemoryProfilingConfig::builder()
+                .sample_rate_bytes(512 * 1024)
+                .build(),
+        )
+        .build();
+
+    Ok((recorder, Some(trace_dir), Some(caps)))
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let rt_info = runtime::init();
 
-    let mut builder = tokio::runtime::Builder::new_multi_thread();
-    builder.enable_all();
-    builder.worker_threads(rt_info.effective_cpus);
+    // dial9 installs itself into the tokio runtime hooks, so the recorder has
+    // to exist before the runtime it instruments.
+    let (recorder, trace_dir, perf_caps) = build_recorder(&cli)?;
+    let (recorder, runtime) = recorder.attach_tokio_runtime_with(
+        TokioAttachOptions::builder()
+            .task_tracking_enabled(true)
+            .build(),
+        |b| {
+            b.worker_threads(rt_info.effective_cpus);
+        },
+    )?;
 
-    if cli.disable_dial9 {
-        let (runtime, guard) = TracedRuntime::build_disabled(builder)?;
-        let handle = guard.handle();
-        let result = runtime.block_on(async_main(cli, handle, None, None, rt_info));
-        drop(runtime);
-        guard
-            .graceful_shutdown(std::time::Duration::from_secs(5))
-            .ok();
-        result
-    } else {
-        let trace_dir = cli
-            .trace_dir
-            .clone()
-            .unwrap_or_else(|| std::env::temp_dir().join("cache-server-traces"));
-        let _ = std::fs::remove_dir_all(&trace_dir);
+    // Attaching claims this thread for the recorder, so the spawn handle
+    // resolves here, before the runtime is driven.
+    let handle = Dial9TokioHandle::current();
 
-        let trace_path = trace_dir.join("trace.bin");
-        let writer = RotatingWriter::builder()
-            .base_path(&trace_path)
-            .max_file_size(cli.trace_max_file_mib * 1024 * 1024)
-            .max_total_size(cli.trace_max_total_mib * 1024 * 1024)
-            .build()?;
+    let result = runtime.block_on(async_main(cli, handle, trace_dir, perf_caps, rt_info));
 
-        let caps = runtime::check_perf_capabilities();
-
-        let mut traced = TracedRuntime::builder().with_task_tracking(true);
-        if caps.cpu_profiling {
-            traced = traced.with_cpu_profiling(CpuProfilingConfig::default());
-            traced = traced
-                .with_sched_events(SchedEventConfig::default().include_kernel(caps.kernel_stacks));
-        }
-        let (runtime, guard) = traced
-            .with_trace_path(&trace_path)
-            .build_and_start(builder, writer)?;
-        let handle = guard.handle();
-
-        // Activate sampling memory profiling on top of the Dial9Allocator that
-        // wraps mimalloc (a passthrough until now). Sampled at ~512 KiB with
-        // liveset tracking off by default, so the steady-state overhead is
-        // negligible. The guard must outlive the runtime, so keep it bound here.
-        let _mem_profiler = MemoryProfiler::from_config(
-            MemoryProfilingConfig::builder()
-                .sample_rate_bytes(512 * 1024)
-                .build(),
-        )
-        .install(handle.clone())
-        .context("failed to install dial9 memory profiler")?;
-
-        let result = runtime.block_on(async_main(
-            cli,
-            handle,
-            Some(trace_dir),
-            Some(caps),
-            rt_info,
-        ));
-        // Drop the runtime first so worker threads exit and flush their
-        // thread-local telemetry buffers to the central collector. Then
-        // graceful_shutdown drains the collector, seals the final segment,
-        // and gives the background worker time to symbolize + compress.
-        drop(runtime);
-        guard
-            .graceful_shutdown(std::time::Duration::from_secs(5))
-            .ok();
-        result
-    }
+    // Drop the runtime first so worker threads exit and flush their
+    // thread-local telemetry buffers to the central collector. Then
+    // graceful_shutdown drains the collector, seals the final segment,
+    // and gives the background worker time to symbolize + compress.
+    drop(runtime);
+    recorder.graceful_shutdown(std::time::Duration::from_secs(5));
+    result
 }
 
 fn parse_backend(store: &str) -> Result<store::StoreBackend> {
@@ -244,13 +264,70 @@ fn parse_backend(store: &str) -> Result<store::StoreBackend> {
         Ok(store::StoreBackend::Memory)
     } else if let Some(path) = store.strip_prefix("file://") {
         Ok(store::StoreBackend::LocalFs(path.to_string()))
+    } else if let Some(rest) = store.strip_prefix("s3://") {
+        let (bucket, prefix) = match rest.split_once('/') {
+            Some((bucket, prefix)) => {
+                let prefix = prefix.trim_matches('/');
+                (bucket, (!prefix.is_empty()).then(|| prefix.to_string()))
+            }
+            None => (rest, None),
+        };
+        if bucket.is_empty() {
+            anyhow::bail!("invalid --store value: {:?} (missing bucket name)", store);
+        }
+        Ok(store::StoreBackend::S3 {
+            bucket: bucket.to_string(),
+            prefix,
+        })
     } else if store.starts_with('/') || store.starts_with('.') {
         Ok(store::StoreBackend::LocalFs(store.to_string()))
     } else {
         anyhow::bail!(
-            "invalid --store value: {:?} (expected \"memory\", \"file:///path\", or a bare path)",
+            "invalid --store value: {:?} (expected \"memory\", \"file:///path\", \
+             \"s3://bucket[/prefix]\", or a bare path)",
             store
         )
+    }
+}
+
+#[cfg(test)]
+mod parse_backend_tests {
+    use super::*;
+
+    #[test]
+    fn memory_and_paths() {
+        assert!(matches!(
+            parse_backend("memory").unwrap(),
+            store::StoreBackend::Memory,
+        ));
+        assert!(matches!(
+            parse_backend("file:///var/cache").unwrap(),
+            store::StoreBackend::LocalFs(path) if path == "/var/cache",
+        ));
+        assert!(matches!(
+            parse_backend("./relative").unwrap(),
+            store::StoreBackend::LocalFs(path) if path == "./relative",
+        ));
+        parse_backend("garbage").unwrap_err();
+    }
+
+    #[test]
+    fn s3_urls() {
+        assert!(matches!(
+            parse_backend("s3://bucket").unwrap(),
+            store::StoreBackend::S3 { bucket, prefix: None } if bucket == "bucket",
+        ));
+        assert!(matches!(
+            parse_backend("s3://bucket/").unwrap(),
+            store::StoreBackend::S3 { bucket, prefix: None } if bucket == "bucket",
+        ));
+        assert!(matches!(
+            parse_backend("s3://bucket/some/prefix/").unwrap(),
+            store::StoreBackend::S3 { bucket, prefix: Some(prefix) }
+                if bucket == "bucket" && prefix == "some/prefix",
+        ));
+        parse_backend("s3://").unwrap_err();
+        parse_backend("s3:///prefix-without-bucket").unwrap_err();
     }
 }
 
@@ -264,7 +341,7 @@ fn default_ttl(days: u32) -> Option<jiff::SignedDuration> {
 
 async fn async_main(
     cli: Cli,
-    handle: TelemetryHandle,
+    handle: Dial9TokioHandle,
     trace_dir: Option<PathBuf>,
     perf_caps: Option<runtime::PerfCapabilities>,
     rt_info: runtime::RuntimeInfo,
@@ -306,6 +383,7 @@ impl Default for ServeArgs {
             disable_compactor: false,
             tls_cert: None,
             tls_key: None,
+            git_spool_dir: None,
             otel_enabled: false,
             otel_endpoint: None,
             otel_service_name: "buck2-cache-server".to_string(),
@@ -314,7 +392,7 @@ impl Default for ServeArgs {
     }
 }
 
-async fn run_compactor(cli: &Cli, handle: TelemetryHandle) -> Result<()> {
+async fn run_compactor(cli: &Cli, handle: Dial9TokioHandle) -> Result<()> {
     let cli_console_layer = tracing_subscriber::fmt::layer().with_filter(
         filter::LevelFilter::from_str(cli.console_log.as_str()).context(
             "invalid --console-log filter (valid values: trace, debug, info, warn, error, off)",
@@ -361,7 +439,7 @@ async fn run_compactor(cli: &Cli, handle: TelemetryHandle) -> Result<()> {
 async fn run_server(
     cli: &Cli,
     args: &ServeArgs,
-    handle: TelemetryHandle,
+    handle: Dial9TokioHandle,
     trace_dir: Option<&PathBuf>,
     perf_caps: Option<&runtime::PerfCapabilities>,
     rt_info: &runtime::RuntimeInfo,
@@ -398,10 +476,18 @@ async fn run_server(
         caps.emit_warnings();
     }
 
-    let pressure_monitor = runtime::psi::PressureMonitor::spawn(
-        rt_info.cgroup_dir.clone(),
-        std::time::Duration::from_secs(2),
-    );
+    // Shed load only when a cgroup memory limit is the thing that would kill
+    // us. Without one, this cgroup's PSI reports pressure from every other
+    // process in the scope — on a workstation that is the whole login session,
+    // including the very build whose uploads we would reject. Rejecting them
+    // then makes the pressure worse, because buck2 responds to UNAVAILABLE by
+    // re-running the actions locally.
+    let pressure_monitor = rt_info.memory_limit.and_then(|_| {
+        runtime::psi::PressureMonitor::spawn(
+            rt_info.cgroup_dir.clone(),
+            std::time::Duration::from_secs(2),
+        )
+    });
 
     anyhow::ensure!(
         args.max_concurrent_requests > 0,
@@ -413,6 +499,8 @@ async fn run_server(
     let store_settings = store::CacheStoreSettings {
         default_ttl: default_ttl(cli.default_ttl_days),
         disable_compactor: args.disable_compactor,
+        // `open` derives the SlateDB write-pipeline sizing from the backend.
+        slatedb_overrides: None,
     };
 
     let cache_store = store::CacheStore::open(backend, store_settings)
@@ -470,6 +558,7 @@ async fn run_server(
         max_concurrent_requests = args.max_concurrent_requests,
         disable_compactor = args.disable_compactor,
         dial9 = !cli.disable_dial9,
+        load_shedding = pressure_monitor.is_some(),
         trace_dir = trace_dir.map_or("disabled".to_string(), |d| d.display().to_string()),
         "cache-server ready",
     );
@@ -510,6 +599,7 @@ async fn run_server(
                     None
                 },
                 Some(args.max_concurrent_requests),
+                args.git_spool_dir.clone(),
                 handle,
                 pressure_monitor,
         ) => r,
@@ -545,6 +635,9 @@ pub mod reapi_grpc;
 pub mod service;
 pub mod store;
 pub mod tls;
+
+#[cfg(test_module_dial9)]
+mod test_dial9;
 
 #[cfg(test_module_tls)]
 mod test_tls;

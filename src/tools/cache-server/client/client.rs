@@ -1,8 +1,11 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
+use std::path::Path;
+
 use anyhow::{Context, Result};
 use bytes::Bytes;
+use prost::Message as _;
 use sha2::{Digest as Sha2Digest, Sha256};
 use tokio::sync::mpsc;
 use tonic::transport::Channel;
@@ -411,15 +414,43 @@ impl ReapiClient {
         Ok(())
     }
 
-    /// Fetch a remote asset by URI + qualifiers and download it to a file.
+    /// Fetch a remote asset by URI + qualifiers and download it.
     ///
-    /// Resolves the URI via the FetchBlob RPC, then downloads the blob from
-    /// CAS using the returned digest.
+    /// For git repositories (detected via `resource_type=application/x-git` or
+    /// VCS qualifiers), uses the FetchDirectory RPC and recursively downloads
+    /// the directory tree. For everything else, uses FetchBlob and downloads a
+    /// single file.
     pub async fn fetch_asset(
         &mut self,
         uri: &str,
         qualifiers: Vec<(String, String)>,
         output_path: &std::path::Path,
+        progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
+    ) -> Result<FetchResult> {
+        if Self::is_directory_fetch(&qualifiers) {
+            self.fetch_directory_asset(uri, qualifiers, output_path, progress_tx)
+                .await
+        } else {
+            self.fetch_blob_asset(uri, qualifiers, output_path, progress_tx)
+                .await
+        }
+    }
+
+    /// Returns true if the qualifiers indicate a directory fetch (git clone).
+    fn is_directory_fetch(qualifiers: &[(String, String)]) -> bool {
+        qualifiers.iter().any(|(name, value)| {
+            (name == "resource_type" && value == "application/x-git")
+                || name == "vcs.branch"
+                || name == "vcs.commit"
+        })
+    }
+
+    /// Fetch a blob asset via FetchBlob RPC.
+    async fn fetch_blob_asset(
+        &mut self,
+        uri: &str,
+        qualifiers: Vec<(String, String)>,
+        output_path: &Path,
         progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
     ) -> Result<FetchResult> {
         let req = asset::FetchBlobRequest {
@@ -439,6 +470,12 @@ impl ReapiClient {
             .context("FetchBlob RPC failed")?
             .into_inner();
 
+        if let Some(ref status) = resp.status {
+            if status.code != 0 {
+                anyhow::bail!("FetchBlob failed: {}", status.message);
+            }
+        }
+
         let digest = resp
             .blob_digest
             .context("FetchBlob response missing blob_digest")?;
@@ -457,6 +494,140 @@ impl ReapiClient {
             hash,
             size,
             output_path: output_path.display().to_string(),
+        })
+    }
+
+    /// Fetch a directory asset via FetchDirectory RPC, then download the tree.
+    async fn fetch_directory_asset(
+        &mut self,
+        uri: &str,
+        qualifiers: Vec<(String, String)>,
+        output_path: &Path,
+        progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
+    ) -> Result<FetchResult> {
+        let req = asset::FetchDirectoryRequest {
+            instance_name: self.instance_name.clone(),
+            uris: vec![uri.to_string()],
+            qualifiers: qualifiers
+                .into_iter()
+                .map(|(name, value)| asset::Qualifier { name, value })
+                .collect(),
+            ..Default::default()
+        };
+
+        let resp = self
+            .fetch
+            .fetch_directory(req)
+            .await
+            .context("FetchDirectory RPC failed")?
+            .into_inner();
+
+        if let Some(ref status) = resp.status {
+            if status.code != 0 {
+                anyhow::bail!("FetchDirectory failed: {}", status.message);
+            }
+        }
+
+        let digest = resp
+            .root_directory_digest
+            .context("FetchDirectory response missing root_directory_digest")?;
+        let hash = digest.hash.clone();
+        let size = digest.size_bytes as u64;
+
+        // Create the output directory and download the tree recursively
+        tokio::fs::create_dir_all(output_path)
+            .await
+            .with_context(|| format!("failed to create {}", output_path.display()))?;
+        self.download_directory_tree(&hash, size, output_path, &progress_tx)
+            .await?;
+
+        Ok(FetchResult {
+            uri: if resp.uri.is_empty() {
+                uri.to_string()
+            } else {
+                resp.uri
+            },
+            hash,
+            size,
+            output_path: output_path.display().to_string(),
+        })
+    }
+
+    /// Recursively download a Directory tree from CAS to disk.
+    fn download_directory_tree<'a>(
+        &'a mut self,
+        hash: &'a str,
+        size: u64,
+        output_dir: &'a Path,
+        progress_tx: &'a mpsc::UnboundedSender<ProgressUpdate>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+        Box::pin(async move {
+            // Download and decode the Directory proto
+            let data = if (size as usize) <= BATCH_THRESHOLD {
+                self.download_batch(hash, size, progress_tx).await?
+            } else {
+                self.download_bytestream(hash, size, progress_tx).await?
+            };
+            let dir = reapi::Directory::decode(data.as_ref())
+                .context("failed to decode Directory proto")?;
+
+            // Download files
+            for file in &dir.files {
+                let digest = file.digest.as_ref().context("FileNode missing digest")?;
+                let file_path = output_dir.join(&file.name);
+                let file_data = if (digest.size_bytes as usize) <= BATCH_THRESHOLD {
+                    self.download_batch(&digest.hash, digest.size_bytes as u64, progress_tx)
+                        .await?
+                } else {
+                    self.download_bytestream(&digest.hash, digest.size_bytes as u64, progress_tx)
+                        .await?
+                };
+                tokio::fs::write(&file_path, &file_data)
+                    .await
+                    .with_context(|| format!("failed to write {}", file_path.display()))?;
+
+                // Set executable bit on Unix
+                #[cfg(unix)]
+                if file.is_executable {
+                    use std::os::unix::fs::PermissionsExt;
+                    let perms = std::fs::Permissions::from_mode(0o755);
+                    tokio::fs::set_permissions(&file_path, perms)
+                        .await
+                        .with_context(|| {
+                            format!("failed to set permissions on {}", file_path.display())
+                        })?;
+                }
+            }
+
+            // Create symlinks
+            for symlink in &dir.symlinks {
+                let link_path = output_dir.join(&symlink.name);
+                #[cfg(unix)]
+                tokio::fs::symlink(&symlink.target, &link_path)
+                    .await
+                    .with_context(|| format!("failed to create symlink {}", link_path.display()))?;
+            }
+
+            // Recurse into subdirectories
+            for subdir in &dir.directories {
+                let digest = subdir
+                    .digest
+                    .as_ref()
+                    .context("DirectoryNode missing digest")?;
+                let subdir_path = output_dir.join(&subdir.name);
+                tokio::fs::create_dir_all(&subdir_path)
+                    .await
+                    .with_context(|| format!("failed to create {}", subdir_path.display()))?;
+                self.download_directory_tree(
+                    &digest.hash,
+                    digest.size_bytes as u64,
+                    &subdir_path,
+                    progress_tx,
+                )
+                .await?;
+            }
+
+            Ok(())
         })
     }
 

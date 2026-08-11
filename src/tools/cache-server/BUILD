@@ -11,20 +11,24 @@ BUILD_DEPS = [
     "//src/crates/dial9-tonic:dial9-tonic",
     "//src/crates/rustls-boring:rustls-boring",
     "//src/crates/rustls-transport:rustls-transport",
+    "//src/tools/cache-server/fetch-git:fetch-git",
+    "//src/tools/cache-server/fetch-http:fetch-http",
     "//src/tools/cache-server/protos:protos",
     "//src/tools/cache-server/runtime:runtime",
     "//src/tools/cache-server/storage:storage",
     "//src/tools/cache-server/telemetry:telemetry",
     # crates.io
     "third-party//rust:bytes",
+    "third-party//rust:dashmap",
     "third-party//rust:futures",
     "third-party//rust:hex",
     "third-party//rust:jiff",
     "third-party//rust:sha2",
     "third-party//rust:anyhow",
     "third-party//rust:clap",
-    "third-party//rust:dial9-tokio-telemetry",
+    "third-party//rust:dial9",
     "third-party//rust:console-subscriber",
+    "third-party//rust:openssl",
     "third-party//rust:prost",
     "third-party//rust:prost-types",
     "third-party//rust:rustls",
@@ -50,6 +54,7 @@ depot.rust_binary(
 
 TEST_MODULES = {
     "cas": {},
+    "dial9": {},
     "split_splice": {},
     "action_cache": {},
     "bytestream": {},
@@ -70,6 +75,7 @@ ALL_TEST_RESOURCES = {
 
 TEST_DEPS = BUILD_DEPS + [
     "third-party//rust:buck-resources",
+    "third-party//rust:tempfile",
 ]
 
 # Per-module test targets
