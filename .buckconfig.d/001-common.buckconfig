@@ -19,6 +19,26 @@ fbsource = none
 [buck2]
 file_watcher = watchman
 
+# store materializer state in sqlite. this means that the materializer state
+# will persist across restarts, kills, etc, effectively resulting in a local
+# action cache.
+sqlite_materializer_state = true
+sqlite_dep_file_state = true
+
+# defer writes on actions as long as possible. also will allow skipping
+# writes entirely w/ the on-disk sqlite materializer state
+defer_write_actions = true
+
+# enable 'buck2 clean --stale'
+clean_stale_enabled = true
+
+# background auto-clean stale artifacts with some default settings. note that
+# 'buck2 clean --stale' is not influenced by these and you must provide an
+# argument to --stale to override the defaults
+clean_stale_artifact_ttl_hours = 120
+clean_stale_period_hours = 24
+clean_stale_start_offset_hours = 12
+
 # Upload every locally-executed action's result to the remote action cache.
 # This is opt-in per-action by default (off), so without it buck2 reads the
 # cache but never writes it — every GetActionResult misses forever.
@@ -43,9 +63,6 @@ digest_algorithms = SHA256
 log_total_configured_graph_sketch = true
 log_total_configured_graph_unconfigured_sketch = true
 log_configured_graph_unconfigured_sketch = true
-
-# defers writes to the end of actions to help improve performance
-defer_write_actions = true
 
 # deferred materialization requires that cache outputs never expire. if they do,
 # a command might fail if it expects a hit on an object that was supposed to be
