@@ -12361,18 +12361,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "lru-0.18.1.crate",
-    sha256 = "0b6180140927ee907000b0aa540091f6ea512ead4447c92b8fc35bc72788a5a6",
-    strip_prefix = "lru-0.18.1",
-    urls = ["https://static.crates.io/crates/lru/0.18.1/download"],
+    name = "lru-0.18.2.crate",
+    sha256 = "5d2f2f9b4ba7e6b24d95e7e899329d35be83bcded72c8540cdd5368932d1d90a",
+    strip_prefix = "lru-0.18.2",
+    urls = ["https://static.crates.io/crates/lru/0.18.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "lru-0.18",
-    srcs = [":lru-0.18.1.crate"],
+    srcs = [":lru-0.18.2.crate"],
     crate = "lru",
-    crate_root = "lru-0.18.1.crate/src/lib.rs",
+    crate_root = "lru-0.18.2.crate/src/lib.rs",
     edition = "2015",
     features = [
         "default",
