@@ -79,11 +79,12 @@ A validation script is included to verify all files match upstream:
 This checks all 164+ source files and reports any mismatches. Run it after
 any update to confirm nothing was missed or accidentally hand-edited.
 
-## Extra note: `chdirexec`
+## Custom tools: `cellar-extra/`
 
-An extra tool that is NOT provided by upstream stage0-posix or mescc-tools is
-`chdirexec` which is used as a workaround for moving `$CWD` in a buck build
-step. Ideally, its use will go away in the future.
+Tools that are NOT from upstream stage0-posix live in `stage0-posix/cellar-extra/`.
+They are compiled with the same M2-Mesoplanet toolchain but kept separate so
+`check-upstream.sh` can verify the upstream directories are unmodified. Current
+tools: `chdirexec`, `chdirenv`, `envexec`, `bytecmp`, `prepare-mes-src`.
 
 ## TODO
 

@@ -26,7 +26,7 @@ jobs:
           - os: macos-15
             abi: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 120
 
     steps:
       - name: Checkout repository
@@ -114,7 +114,7 @@ jobs:
             return $exit_code
           }
 
-          retry_command buck2 test @buck/ci.buckargs -m debug root//... tilde//... cellar//bootstrap/stage0-posix/... \
+          retry_command buck2 test @buck/ci.buckargs -m debug root//... tilde//... cellar//bootstrap/... \
             --build-report ${{ runner.temp }}/build-report.json \
             --build-report-options fill-out-failures --
       - name: Generate build report
@@ -146,7 +146,7 @@ jobs:
           - os: macos-15
             abi: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 120
 
     steps:
       - name: Checkout repository
@@ -353,7 +353,7 @@ jobs:
           else
             echo "Falling back to full test"
             buck2 test @buck/ci.buckargs -m debug \
-              root//... tilde//... cellar//bootstrap/stage0-posix/... \
+              root//... tilde//... cellar//bootstrap/... \
               --build-report ${{ runner.temp }}/build-report.json \
               --build-report-options fill-out-failures --
           fi
