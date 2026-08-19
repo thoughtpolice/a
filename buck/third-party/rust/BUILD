@@ -10970,6 +10970,12 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
+shims.alias(
+    name = "indexmap",
+    actual = ":indexmap-2",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "indexmap-2.14.0.crate",
     sha256 = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9",
