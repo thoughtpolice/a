@@ -1,0 +1,32 @@
+;; SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+;; SPDX-License-Identifier: Apache-2.0
+
+; A smoke test for the driver: datatypes, conditional rewrites over i64
+; primitives, core `run-schedule`, `check`, `extract`, and `print-size`.
+
+(datatype Math
+  (Num i64)
+  (Var String)
+  (Add Math Math)
+  (Mul Math Math))
+
+(ruleset arith)
+(rewrite (Add a b) (Add b a) :ruleset arith :name "comm-add")
+(rewrite (Mul a (Add b c)) (Add (Mul a b) (Mul a c)) :ruleset arith :name "dist")
+(rewrite (Add (Num a) (Num b)) (Num (+ a b)) :ruleset arith :name "fold-add")
+(rewrite (Mul (Num a) (Num b)) (Num (* a b)) :ruleset arith :name "fold-mul")
+(rewrite (Mul x (Num k)) (Mul x (Num 2)) :when ((= k 2)) :ruleset arith :name "cond-noop")
+
+(let $e1 (Mul (Num 2) (Add (Var "x") (Num 3))))
+(let $e2 (Add (Num 6) (Mul (Num 2) (Var "x"))))
+
+(run-schedule (repeat 4 (seq (run arith))))
+(check (= $e1 $e2))
+(extract $e1)
+(print-size Add)
+
+; Functions with merge are the e-class-analysis idiom used downstream.
+(function lo (Math) i64 :merge (max old new))
+(rule ((Num n)) ((set (lo (Num n)) n)))
+(run 1)
+(check (= (lo (Num 6)) 6))

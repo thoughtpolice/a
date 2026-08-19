@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "OsvPurlInfo", "pkg")
+
+pkg.info(
+    version = "3.0.0",
+    description = """
+        The egglog language driver: core egglog plus the experimental
+        standard library (rationals, schedulers, dynamic costs).
+    """,
+    license = "MIT",
+    copyright = [
+        "2024-2026 egraphs-good",
+    ],
+    visibility = ["PUBLIC"],
+
+    # Both crates come from third-party//rust, whose Cargo.lock is audited on
+    # its own; this names the driver's primary crate.
+    osv_info = OsvPurlInfo(
+        name = "pkg:cargo/egglog",
+        version = "3.0.0",
+    ),
+)

@@ -1,0 +1,25 @@
+;; SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+;; SPDX-License-Identifier: Apache-2.0
+
+; Proof production smoke test (run with --proofs): conditional rewrites over
+; i64 primitives, then `prove` an equality reached through several rewrites.
+; Also a regression guard for egraphs-good/egglog#971: proving a nested fact
+; with several atoms must not panic in query planning.
+
+(datatype Math
+  (Num i64)
+  (Var String)
+  (Add Math Math)
+  (Mul Math Math))
+
+(rewrite (Add a b) (Add b a) :name "comm-add")
+(rewrite (Mul a (Add b c)) (Add (Mul a b) (Mul a c)) :name "dist")
+(rewrite (Add (Num a) (Num b)) (Num (+ a b)) :name "fold-add")
+(rewrite (Mul (Num a) (Num b)) (Num (* a b)) :when ((>= a 0) (>= b 0)) :name "fold-mul")
+
+(let $e1 (Mul (Num 2) (Add (Var "x") (Num 3))))
+(let $e2 (Add (Num 6) (Mul (Num 2) (Var "x"))))
+(run 10)
+(prove (= $e1 $e2))
+(prove (= $e1 (Add (Num 6) (Mul (Num 2) (Var "x")))))
+(prove (= $e1 (Add (Mul (Num 2) (Var "x")) (Mul (Num 2) (Num 3)))))

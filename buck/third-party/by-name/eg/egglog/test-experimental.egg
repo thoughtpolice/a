@@ -1,0 +1,62 @@
+;; SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+;; SPDX-License-Identifier: Apache-2.0
+
+; A smoke test for the extensions that egglog-experimental registers on the
+; driver's e-graph: none of this parses on a core `EGraph::default()`.
+
+; `with-ruleset` assigns a whole block of rewrites to one ruleset.
+(datatype Math
+  (Num Rational)
+  (Var String)
+  (Add Math Math)
+  (Mul Math Math))
+
+(ruleset arith)
+(with-ruleset arith
+  (rewrite (Add a b) (Add b a))
+  (rewrite (Mul a (Add b c)) (Add (Mul a b) (Mul a c)))
+  (rewrite (Add (Num a) (Num b)) (Num (+ a b)))
+  (rewrite (Mul (Num a) (Num b)) (Num (* a b))))
+
+; The `Rational` sort is exact, so halves fold without rounding.
+(let $e1 (Mul (Num (rational 1 2)) (Add (Var "x") (Num (rational 3 1)))))
+(let $e2 (Add (Num (rational 3 2)) (Mul (Num (rational 1 2)) (Var "x"))))
+
+; The extended `run-schedule`, driven by a named scheduler.
+(run-schedule
+  (let-scheduler backoff (back-off :match-limit 1000 :ban-length 5))
+  (repeat 4 (run-with backoff arith)))
+(check (= $e1 $e2))
+
+; `multi-extract` reports several variants from one extractor pass.
+(multi-extract 2 $e1)
+
+; `for` applies actions once to the matches that exist right now.
+(function seen (Math) i64 :merge (max old new))
+(for ((= n (Num r))) ((set (seen n) 1)))
+(check (= (seen (Num (rational 3 2))) 1))
+
+; `unstable-fresh!` mints a fresh value per match, so the rule below rebuilds
+; `Wrap` around a value that no term names.
+(datatype Term
+  (Sym String)
+  (Wrap Term))
+(rule ((Wrap t)) ((Wrap (unstable-fresh! Term))))
+(Wrap (Sym "x"))
+(run 1)
+(check (Wrap ?t))
+(print-size Wrap)
+
+; Dynamic costs steer extraction at runtime: both constructors cost 1 by
+; default, so this must print `(Second)`.
+(with-dynamic-cost
+  (datatype Choice
+    (First)
+    (Second)))
+(let $c (First))
+(union $c (Second))
+(set-cost (First) 100)
+(extract $c)
+
+; `get-size!` is a reading primitive, usable from an `eval` schedule step.
+(run-schedule (eval (get-size! "Add")))

@@ -37,6 +37,11 @@ dashmap = "6.2.1"
 dupe = "0.9.1"
 dupe_derive = "0.9.1"
 educe = "0.7.4"
+# NOTE (egglog): the two must be bumped together, or the experimental crate
+# drags in a second copy of core egglog at its own major version
+egglog = "3.0.0"
+egglog-experimental = "3.0.0"
+egraph-serialize = { version = "0.3.0", default-features = false, features = ["serde"] }
 env_logger = "0.11"
 eyre = "0.6.12"
 fastcdc = "4.0.1"

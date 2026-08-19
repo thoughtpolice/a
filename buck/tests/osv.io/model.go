@@ -107,6 +107,25 @@ var rustExceptions = []exception{
 		ID:     "RUSTSEC-2026-0253",
 		Reason: "lru use-after-free in LruCache::pop(); fixed in lru 0.18.2, but sapling-streampager 0.12 (via jj-cli) requires lru 0.16, awaiting an upstream streampager bump",
 	},
+	// The im-rc stack is unmaintained with no fixed releases -- every version
+	// is affected -- and enters through egglog, which builds its persistent
+	// data structures on im-rc. Remove these once egglog drops im-rc.
+	{
+		ID:     "RUSTSEC-2026-0247",
+		Reason: "bitmaps is unmaintained; pulled in by egglog via im-rc and sized-chunks, awaiting an upstream egglog migration",
+	},
+	{
+		ID:     "RUSTSEC-2026-0250",
+		Reason: "im-rc is unmaintained; pulled in by egglog, awaiting an upstream egglog migration",
+	},
+	{
+		ID:     "RUSTSEC-2026-0251",
+		Reason: "sized-chunks is unmaintained; pulled in by egglog via im-rc, awaiting an upstream egglog migration",
+	},
+	{
+		ID:     "RUSTSEC-2026-0255",
+		Reason: "sized-chunks panic-safety unsoundness in Chunk/RingBuffer/InlineArray; no fixed release exists, pulled in by egglog via im-rc, awaiting an upstream egglog migration",
+	},
 	// gix 0.80.x and its sub-crates are pinned by the jj-lib/jj-cli revision.
 	// Remove these after jj is bumped to a revision using gix 0.83 or newer.
 	{
