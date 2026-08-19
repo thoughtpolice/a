@@ -1,5 +1,15 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The build script only computes FULL_VERSION, which it stamps with the build
+# date and a `git rev-parse` of whatever tree it happens to run in; set it to
+# the release version instead so the build stays hermetic.
 buildscript.run = false
 cargo_env = true
 
+# `mimalloc` is only used by egglog's own src/main.rs, which we do not build
+# as we use our own
+omit_deps = ["mimalloc"]
+
 [env]
-FULL_VERSION = "0.4.0"
+FULL_VERSION = "3.0.0"

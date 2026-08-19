@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Once the egglog crates are in the graph, reindeer's feature resolver turns on
+# `serde1` for rand 0.8. Cargo's own resolution never does: phf_generator (via
+# terminfo, via jj-cli) is the only thing here that depends on rand 0.8, and it
+# asks for `small_rng` alone. The feature does not merely add dead weight --
+# rand 0.8.7's serde1 code reaches for `std::char::MAX` while the crate is still
+# no_std, so leaving it on fails to compile and takes jj-cli down with it.
+#
+# Scoped to 0.8: rand 0.9 and 0.10 are also in the graph and are unaffected.
+['cfg(version = "0.8")']
+omit_features = ["serde", "serde1"]
