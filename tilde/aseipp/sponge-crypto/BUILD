@@ -19,19 +19,32 @@ depot.cxx_genrule(
     cmd = "bindgen wbob-pi.h -o $OUT/wbob-pi.rs",
 )
 
+STRIBOB_ENV = {
+    "WBOB_BINDGEN_H": "$(location :wbob-pi-rs)",
+}
+
 depot.rust_library(
     name = "stribob",
     srcs = ["stribob.rs"],
-    env = {
-        "WBOB_BINDGEN_H": "$(location :wbob-pi-rs)",
-    },
+    env = STRIBOB_ENV,
+    tests = [":test"],
+    deps = [
+        ":wbob-pi",
+    ],
+)
+
+depot.rust_test(
+    name = "test",
+    srcs = ["stribob.rs"],
+    crate_root = "stribob.rs",
+    env = STRIBOB_ENV,
     deps = [
         ":wbob-pi",
     ],
 )
 
 depot.rust_binary(
-    name = "main",
+    name = "sponge-crypto",
     srcs = ["main.rs"],
     deps = [
         "third-party//by-name/mi/mimalloc:rust",
