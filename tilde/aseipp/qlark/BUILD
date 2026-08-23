@@ -22,7 +22,7 @@ depot.command(
     cmd = [
         "$(location :qlark-bin)",
         "--tofu-binary",
-        "$(location //buck/bin/extra:tofu)",
+        "$(location root//buck/bin/extra:tofu)",
     ],
     tests = ALL_TESTS,
     visibility = ["PUBLIC"],
