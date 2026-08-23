@@ -9514,18 +9514,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "h2-0.4.15.crate",
-    sha256 = "6cb093c84e8bd9b188d4c4a8cb6579fc016968d14c99882163cd3ff402a4f155",
-    strip_prefix = "h2-0.4.15",
-    urls = ["https://static.crates.io/crates/h2/0.4.15/download"],
+    name = "h2-0.4.18.crate",
+    sha256 = "839c0e8a181239723652be9062bb56ca5bf5f64011f73b623f6f4fc59086a228",
+    strip_prefix = "h2-0.4.18",
+    urls = ["https://static.crates.io/crates/h2/0.4.18/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "h2-0.4",
-    srcs = [":h2-0.4.15.crate"],
+    srcs = [":h2-0.4.18.crate"],
     crate = "h2",
-    crate_root = "h2-0.4.15.crate/src/lib.rs",
+    crate_root = "h2-0.4.18.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
