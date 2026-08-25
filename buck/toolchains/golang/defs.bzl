@@ -59,6 +59,13 @@ def hermetic_go_toolchain(version: str, hashes: list[(str, str)]):
     env_go_os = select({constraint: goos for goos, constraint in _GOOS_CONSTRAINTS.items()})
     env_go_arch = select({constraint: goarch for goarch, constraint in _GOARCH_CONSTRAINTS.items()})
 
+    # Release drops the DWARF and symbol table; the pclntab survives, so panics
+    # still report file:line.
+    linker_flags = select({
+        "mode//:build-mode[debug]": [],
+        "mode//:build-mode[release]": ["-s", "-w"],
+    })
+
     go_bootstrap_distr(
         name = "go_bootstrap_distr-{version}".format(version = version),
         go_os_arch = go_os_arch,
@@ -84,4 +91,5 @@ def hermetic_go_toolchain(version: str, hashes: list[(str, str)]):
         env_go_arch = env_go_arch,
         env_go_os = env_go_os,
         go_distr = ":go_distr-{version}".format(version = version),
+        linker_flags = linker_flags,
     )
