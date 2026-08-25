@@ -37,7 +37,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use iroh::address_lookup::{DnsAddressLookup, PkarrPublisher};
+use iroh::address_lookup::{DnsAddressLookup, PkarrPublisher, PkarrResolver};
 use iroh::endpoint::{Connection, presets};
 use iroh::{Endpoint, EndpointAddr, EndpointId, RelayMode, RelayUrl, Watcher};
 use rustls::crypto::{
@@ -59,7 +59,8 @@ const RELAY_TIMEOUT: Duration = Duration::from_secs(15);
 ///
 /// This recreates `presets::N0`, which is unavailable to us: it is
 /// feature-gated on iroh's bundled ring/aws-lc-rs TLS stacks, and we build
-/// with those disabled in favor of BoringSSL.
+/// with those disabled in favor of BoringSSL. Like the preset (since iroh
+/// 1.0.3), lookups go through both the pkarr relay over HTTPS and DNS.
 async fn bind_public_endpoint(provider: Arc<CryptoProvider>, alpns: bool) -> Result<Endpoint> {
     // Cover any in-process rustls user that falls back to the process
     // default provider; only the first install can succeed. Deliberately
@@ -69,6 +70,7 @@ async fn bind_public_endpoint(provider: Arc<CryptoProvider>, alpns: bool) -> Res
     let mut builder = Endpoint::builder(presets::Empty)
         .crypto_provider(provider)
         .address_lookup(PkarrPublisher::n0_dns())
+        .address_lookup(PkarrResolver::n0_dns())
         .address_lookup(DnsAddressLookup::n0_dns())
         .relay_mode(RelayMode::Default);
     if alpns {
