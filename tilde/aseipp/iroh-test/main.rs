@@ -34,12 +34,12 @@ static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use iroh::address_lookup::{DnsAddressLookup, PkarrPublisher, PkarrResolver};
-use iroh::endpoint::{Connection, presets};
-use iroh::{Endpoint, EndpointAddr, EndpointId, RelayMode, RelayUrl, Watcher};
+use iroh::endpoint::Connection;
+use iroh::{Endpoint, EndpointAddr, EndpointId, RelayMode};
+use iroh_utils::{RELAY_TIMEOUT, dialable_addr, dialable_addrs};
 use rustls::crypto::{
     ActiveKeyExchange, CompletedKeyExchange, CryptoProvider, SharedSecret, SupportedKxGroup,
 };
@@ -49,7 +49,6 @@ use rustls::{NamedGroup, ProtocolVersion};
 const ALPN: &[u8] = b"depot/iroh-test/0";
 const PAYLOAD: &[u8] = b"jumped over the lazy dog, encrypted by BoringSSL";
 const USAGE: &str = "usage: iroh-test [serve | connect <endpoint-id> [addr]]";
-const RELAY_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// Binds an endpoint registered with n0's public infrastructure: their
 /// default relay servers, plus address publishing and lookup through the
@@ -62,13 +61,10 @@ const RELAY_TIMEOUT: Duration = Duration::from_secs(15);
 /// with those disabled in favor of BoringSSL. Like the preset (since iroh
 /// 1.0.3), lookups go through both the pkarr relay over HTTPS and DNS.
 async fn bind_public_endpoint(provider: Arc<CryptoProvider>, alpns: bool) -> Result<Endpoint> {
-    // Cover any in-process rustls user that falls back to the process
-    // default provider; only the first install can succeed. Deliberately
-    // not the monitored provider: unrelated handshakes (DoH, relay HTTP)
-    // must not overwrite a connection witness.
-    let _ = rustls_boring::provider().install_default();
-    let mut builder = Endpoint::builder(presets::Empty)
-        .crypto_provider(provider)
+    // `iroh_boring::builder_with` installs the plain provider as the
+    // process default for unrelated handshakes (DoH, relay HTTP), so those
+    // cannot overwrite what this connection's witness records.
+    let mut builder = iroh_boring::builder_with(provider)
         .address_lookup(PkarrPublisher::n0_dns())
         .address_lookup(PkarrResolver::n0_dns())
         .address_lookup(DnsAddressLookup::n0_dns())
@@ -79,25 +75,10 @@ async fn bind_public_endpoint(provider: Arc<CryptoProvider>, alpns: bool) -> Res
     Ok(builder.bind().await?)
 }
 
-/// Waits until the endpoint holds a connection to a home relay and returns
-/// its URL.
-async fn wait_for_relay(endpoint: &Endpoint) -> Result<RelayUrl> {
-    let mut status = endpoint.home_relay_status();
-    loop {
-        if let Some(relay) = status.get().iter().find(|s| s.is_connected()) {
-            return Ok(relay.url().clone());
-        }
-        status
-            .updated()
-            .await
-            .context("endpoint closed while waiting for a relay connection")?;
-    }
-}
-
 async fn bind_endpoint_with(provider: Arc<CryptoProvider>, alpns: bool) -> Result<Endpoint> {
-    // presets::Empty leaves relays disabled and configures no address
-    // lookup services; the crypto provider is the only mandatory option.
-    let mut builder = Endpoint::builder(presets::Empty).crypto_provider(provider);
+    // No relays and no address lookup, so these endpoints are reachable
+    // only at the addresses they are bound to.
+    let mut builder = iroh_boring::builder_with(provider);
     if alpns {
         builder = builder.alpns(vec![ALPN.to_vec()]);
     }
@@ -247,22 +228,6 @@ impl ActiveKeyExchange for RecordingKx {
     }
 }
 
-fn dialable_addrs(endpoint: &Endpoint) -> Vec<SocketAddr> {
-    endpoint
-        .bound_sockets()
-        .into_iter()
-        .map(|mut addr| {
-            if addr.ip().is_unspecified() {
-                match addr {
-                    SocketAddr::V4(_) => addr.set_ip(std::net::Ipv4Addr::LOCALHOST.into()),
-                    SocketAddr::V6(_) => addr.set_ip(std::net::Ipv6Addr::LOCALHOST.into()),
-                }
-            }
-            addr
-        })
-        .collect()
-}
-
 async fn echo_conn(conn: Connection) -> Result<()> {
     println!(
         "[server] connection from {} (ALPN {:?})",
@@ -291,9 +256,9 @@ async fn serve() -> Result<()> {
     let endpoint = bind_public_endpoint(rustls_boring::arc_provider(), true).await?;
     println!("[server] id {}", endpoint.id());
     println!("[server] local sockets {:?}", dialable_addrs(&endpoint));
-    match tokio::time::timeout(RELAY_TIMEOUT, wait_for_relay(&endpoint)).await {
-        Ok(relay) => println!("[server] home relay {}", relay?),
-        Err(_) => {
+    match tokio::time::timeout(RELAY_TIMEOUT, iroh_utils::home_relay(&endpoint)).await {
+        Ok(Some(relay)) => println!("[server] home relay {relay}"),
+        _ => {
             println!("[server] no relay connection after {RELAY_TIMEOUT:?}; only directly dialable")
         }
     }
@@ -353,12 +318,7 @@ async fn run_client(endpoint: &Endpoint, addr: EndpointAddr, kx: &KxWitness) -> 
 
 /// Echo one payload from `client` through `server` and close both ends.
 async fn echo_pair(server: Endpoint, client: Endpoint, kx: &KxWitness) -> Result<()> {
-    let server_addr = EndpointAddr::from_parts(
-        server.id(),
-        dialable_addrs(&server)
-            .into_iter()
-            .map(iroh::TransportAddr::Ip),
-    );
+    let server_addr = dialable_addr(&server);
     println!(
         "[server] id {} listening on {:?}",
         server.id().fmt_short(),
