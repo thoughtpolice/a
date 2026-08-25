@@ -1,8 +1,6 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# buildscript emits cfg_aliases (all false for our targets) but also invokes
-# git via vergen, which is non-hermetic. The crate falls back gracefully via
-# option_env!("VERGEN_GIT_SHA"), so don't run it.
-buildscript.run = false
+# buildscript only emits hermetic cfg_aliases (wasm_browser etc.), safe to run
+buildscript.run = true
 cargo_env = true
