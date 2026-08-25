@@ -3,6 +3,13 @@
 
 //! End-to-end proof that iroh runs on our BoringSSL rustls provider.
 //!
+//! Endpoints here come from `iroh_boring::builder_with`, which installs
+//! that provider as the process default before it hands back a builder.
+//! The install covers the TLS iroh does outside a QUIC connection. Both
+//! the relay's HTTPS client and DNS over HTTPS reach for the default
+//! provider on their own, so without it they would run on whatever rustls
+//! picked instead.
+//!
 //! With no arguments this spins up endpoint pairs in one process, connects
 //! them directly over loopback (no relays, no discovery), and echoes a
 //! payload across the encrypted QUIC connection — a complete TLS 1.3
@@ -61,9 +68,9 @@ const USAGE: &str = "usage: iroh-test [serve | connect <endpoint-id> [addr]]";
 /// with those disabled in favor of BoringSSL. Like the preset (since iroh
 /// 1.0.3), lookups go through both the pkarr relay over HTTPS and DNS.
 async fn bind_public_endpoint(provider: Arc<CryptoProvider>, alpns: bool) -> Result<Endpoint> {
-    // `iroh_boring::builder_with` installs the plain provider as the
-    // process default for unrelated handshakes (DoH, relay HTTP), so those
-    // cannot overwrite what this connection's witness records.
+    // What gets installed as the default is the plain provider, never the
+    // monitored wrapper passed in here, so a relay or DoH handshake cannot
+    // overwrite the group this connection's witness recorded.
     let mut builder = iroh_boring::builder_with(provider)
         .address_lookup(PkarrPublisher::n0_dns())
         .address_lookup(PkarrResolver::n0_dns())
