@@ -122,7 +122,8 @@ reqwest = { version = "0.13.4", default-features = false, features = [
     "stream",
     "system-proxy",
 ] }
-s3s = "0.14.1"
+# mems3 needs only s3s's core protocol adapter, not its optional TLS backends.
+s3s = { version = "0.15.0", default-features = false }
 salsa = "0.28.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

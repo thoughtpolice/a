@@ -830,25 +830,25 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "async-trait-0.1.89.crate",
-    sha256 = "9035ad2d096bed7955a320ee7e2230574d28fd3c3a0f186cbea1ff3c7eed5dbb",
-    strip_prefix = "async-trait-0.1.89",
-    urls = ["https://static.crates.io/crates/async-trait/0.1.89/download"],
+    name = "async-trait-0.1.92.crate",
+    sha256 = "82f6aeea286b8eb4dd3431a1be1b59d290ace00f5bfd8e2a159bc2a05e2c1667",
+    strip_prefix = "async-trait-0.1.92",
+    urls = ["https://static.crates.io/crates/async-trait/0.1.92/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "async-trait-0.1",
-    srcs = [":async-trait-0.1.89.crate"],
+    srcs = [":async-trait-0.1.92.crate"],
     crate = "async_trait",
-    crate_root = "async-trait-0.1.89.crate/src/lib.rs",
+    crate_root = "async-trait-0.1.92.crate/src/lib.rs",
     edition = "2021",
     proc_macro = True,
     visibility = [],
     deps = [
         ":proc-macro2-1",
         ":quote-1",
-        ":syn-2",
+        ":syn-3",
     ],
 )
 
@@ -20386,23 +20386,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "s3s",
-    actual = ":s3s-0.14",
+    actual = ":s3s-0.15",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "s3s-0.14.1.crate",
-    sha256 = "abe1bd31748cb69848c2cf4028cecdadf5f8299ef3b02a83e21b20e7bda3aba9",
-    strip_prefix = "s3s-0.14.1",
-    urls = ["https://static.crates.io/crates/s3s/0.14.1/download"],
+    name = "s3s-0.15.0.crate",
+    sha256 = "652451a66fefda01a13dc7df24aa2af9e70c7058f98bc08fe2f7c552eaa9f1e3",
+    strip_prefix = "s3s-0.15.0",
+    urls = ["https://static.crates.io/crates/s3s/0.15.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "s3s-0.14",
-    srcs = [":s3s-0.14.1.crate"],
+    name = "s3s-0.15",
+    srcs = [":s3s-0.15.0.crate"],
     crate = "s3s",
-    crate_root = "s3s-0.14.1.crate/src/lib.rs",
+    crate_root = "s3s-0.15.0.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
@@ -20432,6 +20432,7 @@ third_party_rust.rust_library(
         ":numeric_cast-0.3",
         ":pin-project-lite-0.2",
         ":quick-xml-0.41",
+        ":regex-1",
         ":serde-1",
         ":serde_json-1",
         ":serde_urlencoded-0.7",
@@ -20449,6 +20450,7 @@ third_party_rust.rust_library(
         ":transform-stream-0.3",
         ":url-2",
         ":urlencoding-2",
+        ":xxhash-rust-0.8",
         ":zeroize-1",
     ],
 )
@@ -22858,6 +22860,36 @@ third_party_rust.rust_library(
         "printing",
         "proc-macro",
         "visit",
+        "visit-mut",
+    ],
+    visibility = [],
+    deps = [
+        ":proc-macro2-1",
+        ":quote-1",
+        ":unicode-ident-1",
+    ],
+)
+
+shims.http_archive(
+    name = "syn-3.0.4.crate",
+    sha256 = "e6275cddf4610d1775e6d1fe9469b2e77d0f39fd98fb7450901b821e0c53649f",
+    strip_prefix = "syn-3.0.4",
+    urls = ["https://static.crates.io/crates/syn/3.0.4/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "syn-3",
+    srcs = [":syn-3.0.4.crate"],
+    crate = "syn",
+    crate_root = "syn-3.0.4.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "clone-impls",
+        "full",
+        "parsing",
+        "printing",
+        "proc-macro",
         "visit-mut",
     ],
     visibility = [],
@@ -27453,7 +27485,11 @@ third_party_rust.rust_library(
     crate = "xxhash_rust",
     crate_root = "xxhash-rust-0.8.17.crate/src/lib.rs",
     edition = "2018",
-    features = ["xxh3"],
+    features = [
+        "std",
+        "xxh3",
+        "xxh64",
+    ],
     visibility = [],
 )
 
