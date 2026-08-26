@@ -72,51 +72,98 @@ EXPORTED_HEADERS = {
     "mimalloc-stats.h": ":src[include/mimalloc-stats.h]",
 }
 
+MIMALLOC_CORE_SRCS = [
+    ":src[src/alloc.c]",
+    ":src[src/alloc-aligned.c]",
+    ":src[src/alloc-posix.c]",
+    ":src[src/arena.c]",
+    ":src[src/arena-meta.c]",
+    ":src[src/bitmap.c]",
+    ":src[src/heap.c]",
+    ":src[src/init.c]",
+    ":src[src/libc.c]",
+    ":src[src/options.c]",
+    ":src[src/os.c]",
+    ":src[src/page.c]",
+    ":src[src/page-map.c]",
+    ":src[src/prim/prim.c]",
+    ":src[src/random.c]",
+    ":src[src/stats.c]",
+    ":src[src/theap.c]",
+    ":src[src/threadlocal.c]",
+]
+
+MIMALLOC_SRCS = MIMALLOC_CORE_SRCS + shims.select(
+    {
+        "config//os:linux": [":src[src/prim/unix/prim.c]"],
+        "config//os:windows": [":src[src/prim/windows/prim.c]"],
+        "config//os:macos": [
+            ":src[src/prim/osx/alloc-override-zone.c]",
+            ":src[src/prim/unix/prim.c]",
+        ],
+    },
+)
+
+# prim/prim.c includes its selected platform implementation directly. The
+# existing archive can tolerate the redundant platform object because it is
+# loaded lazily, but a whole-archive override must not contain both copies.
+MIMALLOC_OVERRIDE_SRCS = MIMALLOC_CORE_SRCS + shims.select({
+    "config//os:macos": [":src[src/prim/osx/alloc-override-zone.c]"],
+    "DEFAULT": [],
+})
+
+MIMALLOC_HEADERS = {
+    "bitmap.h": ":src[src/bitmap.h]",
+    "page-queue.c": ":src[src/page-queue.c]",
+    "alloc-override.c": ":src[src/alloc-override.c]",
+    "unix/prim.c": ":src[src/prim/unix/prim.c]",
+    "free.c": ":src[src/free.c]",
+}
+
+MIMALLOC_PREPROCESSOR_FLAGS = [
+    "-DMI_SECURE=0",
+    "-DMI_DEBUG=0",
+    "-DMI_STAT=2",
+]
+
 shims.cxx_library(
     name = "mimalloc",
-    srcs = [
-        ":src[src/alloc.c]",
-        ":src[src/alloc-aligned.c]",
-        ":src[src/alloc-posix.c]",
-        ":src[src/arena.c]",
-        ":src[src/arena-meta.c]",
-        ":src[src/bitmap.c]",
-        ":src[src/heap.c]",
-        ":src[src/init.c]",
-        ":src[src/libc.c]",
-        ":src[src/options.c]",
-        ":src[src/os.c]",
-        ":src[src/page.c]",
-        ":src[src/page-map.c]",
-        ":src[src/prim/prim.c]",
-        ":src[src/random.c]",
-        ":src[src/stats.c]",
-        ":src[src/theap.c]",
-        ":src[src/threadlocal.c]",
-    ] + shims.select(
-        {
-            "config//os:linux": [":src[src/prim/unix/prim.c]"],
-            "config//os:windows": [":src[src/prim/windows/prim.c]"],
-            "config//os:macos": [
-                ":src[src/prim/osx/alloc-override-zone.c]",
-                ":src[src/prim/unix/prim.c]",
-            ],
-        },
-    ),
+    srcs = MIMALLOC_SRCS,
     exported_headers = EXPORTED_HEADERS,
     header_namespace = "",
-    headers = {
-        "bitmap.h": ":src[src/bitmap.h]",
-        "page-queue.c": ":src[src/page-queue.c]",
-        "alloc-override.c": ":src[src/alloc-override.c]",
-        "unix/prim.c": ":src[src/prim/unix/prim.c]",
-        "free.c": ":src[src/free.c]",
-    },
+    headers = MIMALLOC_HEADERS,
     preferred_linkage = "static",
-    preprocessor_flags = [
-        "-DMI_SECURE=0",
-        "-DMI_DEBUG=0",
-        "-DMI_STAT=2",
+    preprocessor_flags = MIMALLOC_PREPROCESSOR_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# Static allocator override for final executables. link_whole is required so
+# constructor-only platform support (notably the macOS malloc zone) is kept.
+shims.cxx_library(
+    name = "mimalloc-override",
+    srcs = MIMALLOC_OVERRIDE_SRCS,
+    compiler_flags = shims.select({
+        "config//os:windows": [],
+        "DEFAULT": ["-fno-builtin-malloc"],
+    }),
+    exported_headers = EXPORTED_HEADERS,
+    exported_linker_flags = shims.select({
+        "config//os:linux": [
+            "-pthread",
+            "-lrt",
+        ],
+        "config//os:macos": ["-pthread"],
+        "config//os:windows": [
+            "bcrypt.lib",
+            "psapi.lib",
+        ],
+    }),
+    header_namespace = "",
+    headers = MIMALLOC_HEADERS,
+    link_whole = True,
+    preferred_linkage = "static",
+    preprocessor_flags = MIMALLOC_PREPROCESSOR_FLAGS + [
+        "-DMI_MALLOC_OVERRIDE=1",
     ],
     visibility = ["PUBLIC"],
 )
