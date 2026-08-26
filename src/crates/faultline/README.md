@@ -7,7 +7,7 @@ Typed fault injection for concurrent services. Each service instance owns its
 faults, and each test can configure its own instance while other tests run.
 This is a fresh implementation informed by
 [`fail-parallel`](https://raw.githubusercontent.com/slatedb/fail-parallel/refs/heads/master/src/lib.rs),
-intended for mems3 and the storage clients tested against it.
+intended for chaos3 and the storage clients tested against it.
 
 ```rust
 use faultline::{Action, Injector};
@@ -66,7 +66,7 @@ unreliable networking makes a regression test difficult to control. An
 instrumented boundary lets a test choose the condition directly and assert
 the client's response to it.
 
-For mems3, the distinction between a failed write and an uncertain write is
+For chaos3, the distinction between a failed write and an uncertain write is
 particularly useful. An error before modifying the store means the operation
 did not commit. An error after modifying the store means the caller cannot
 infer the final state from the response. The client must reconcile or retry
@@ -428,10 +428,10 @@ are different operations; an enabled but unconfigured point still records
 visits. BUGGIFY has an additional explicit run switch and records no sites
 while that run is disabled.
 
-## Applying it to mems3
+## Applying it to chaos3
 
-`mems3` uses this crate in its S3 handlers. Its `MemoryS3` backend binds points
-during construction and shares the injector with service clones. The mems3
+`chaos3` uses this crate in its S3 handlers. Its `MemoryS3` backend binds points
+during construction and shares the injector with service clones. The chaos3
 suite exercises the real HTTP adapter, including retryable failures, isolated
 stores, async pauses, and committed writes with failed responses. This crate's
 external-consumer tests also retain a smaller S3-shaped service example.
@@ -448,7 +448,7 @@ committed write while its original response is paused or fails.
 
 Use named failpoints for targeted scenarios such as the first two PUTs
 returning `SlowDown`, and the automatic campaign below for broad stress. Both
-stay scoped to the same mems3 instance.
+stay scoped to the same chaos3 instance.
 
 The repeatable `--failpoint NAME=PLAN` option validates names and typed
 payloads before starting the server; `--list-failpoints` discovers the
@@ -457,7 +457,7 @@ campaign draw from. Its Buck resource helpers forward these settings to private
 server processes. For example:
 
 ```console
-buck2 run tilde//aseipp/mems3:mems3 -- \
+buck2 run root//src/chaos3:chaos3 -- \
     --fault-seed 42 \
     --failpoint 's3.get_object.before=2*return(SlowDown)'
 ```
@@ -466,7 +466,7 @@ Runtime administration, request predicates, transport disconnects, and stream
 truncation remain application concerns; generic fault actions alone cannot
 simulate those HTTP effects.
 
-For whole-service exploration, mems3 also provides `--chaos storage-v1`: that
+For whole-service exploration, chaos3 also provides `--chaos storage-v1`: that
 policy combines throttling, bounded delays, yields, errors after committed
 writes, and truncated response bodies. Request counts define optional warmup
 and recovery phases. Each active request derives its own seed from the campaign
@@ -476,13 +476,13 @@ truncated body ends. The seed follows the request through commit, so completion
 order cannot move one request's decisions into another request's stream.
 
 ```console
-buck2 run tilde//aseipp/mems3:mems3 -- \
+buck2 run root//src/chaos3:chaos3 -- \
     --fault-seed 42 --chaos storage-v1 --chaos-requests 2000 --chaos-trace
 ```
 
 The same admission sequence repeats selected faults, including delay lengths;
 reproducing client scheduling still requires control outside faultline. See the
-[mems3 campaign guide](../../../tilde/aseipp/mems3/README.md#automatic-adversarial-campaigns)
+[chaos3 campaign guide](../../chaos3/README.md#automatic-adversarial-campaigns)
 for the exact policy, counters, fixture configuration, and recovery assertions.
 
 ## Deliberate differences from fail-parallel
@@ -499,7 +499,7 @@ for the exact policy, counters, fixture configuration, and recovery assertions.
 - Callback, log, and busy-spin actions are omitted. Return a typed instruction
   and perform application logic explicitly. This keeps arbitrary callbacks
   and accidental CPU blocking out of the async action engine.
-- Tokio is a dependency in this initial implementation, matching mems3. Sync
+- Tokio is a dependency in this initial implementation, matching chaos3. Sync
   hits need no running executor. A separate async adapter can be extracted if
   a non-Tokio consumer justifies it.
 

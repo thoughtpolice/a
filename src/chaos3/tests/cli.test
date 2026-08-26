@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+# CLI output contracts. Process readiness, bind failures, and shutdown remain
+# in the executable tests; none of these commands starts a listening server.
+# RUN: %chaos3 --help > %t.out 2> %t.err && FileCheck %s --check-prefix=HELP < %t.out && count 0 < %t.err
+# RUN: %chaos3 -h > %t.out 2> %t.err && FileCheck %s --check-prefix=HELP < %t.out && count 0 < %t.err
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=MISSING_BUCKET %s -- %chaos3 --bucket
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=EMPTY_BUCKET %s -- %chaos3 --bucket=
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=INVALID_BUCKET %s -- %chaos3 --bucket=UPPERCASE
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=MISSING_LISTEN %s -- %chaos3 --listen
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=BAD_LISTEN %s -- %chaos3 --listen=not-an-address
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=UNKNOWN %s -- %chaos3 --unknown
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=MISSING_FD %s -- %chaos3 --ready-fd
+#
+# HELP: Usage: chaos3 [OPTIONS]
+# HELP-EMPTY:
+# HELP-NEXT: An ephemeral S3-compatible server for tests.
+# HELP-EMPTY:
+# HELP-NEXT: Options:
+# HELP-NEXT: --listen ADDRESS              Socket address to bind (default: 127.0.0.1:9000)
+# HELP-NEXT:  --ready-fd FD                 Write the bound endpoint to descriptor FD, then close it
+# HELP-NEXT: --bucket NAME                 Pre-create a bucket; may be repeated (default: celld)
+# HELP-NEXT: --failpoint NAME=PLAN         Configure a named point; may be repeated
+# HELP-NEXT: --list-failpoints             List available points and exit
+# HELP-NEXT: --fault-seed SEED             Seed fault decisions with an unsigned 64-bit integer
+# HELP-NEXT: --chaos PROFILE               Run a seeded chaos profile; only storage-v1 exists
+# HELP-NEXT: --chaos-warmup-requests N     Admit N healthy requests first (default: 0)
+# HELP-NEXT: --chaos-requests N            Inject during N requests, then recover (default: unlimited)
+# HELP-NEXT: --chaos-trace                 Log every automatic boundary decision to stderr
+# HELP-NEXT: -h, --help                    Show this help
+# HELP-EMPTY:
+# HELP-NEXT: Plans: [percent%][count*]action[(payload)] joined by -> (ordered fallbacks).
+# HELP-NEXT: Actions: off, return, sleep(milliseconds), pause, yield, panic(message).
+# HELP-NEXT: Errors: InternalError (default), SlowDown, ServiceUnavailable, RequestTimeout, AccessDenied.
+# HELP-NEXT: Body: s3.get_object.body runs before each 4 KiB chunk, and return(truncate) ends the body there.
+# HELP-NEXT: Example: --failpoint 's3.get_object.before=2*return(SlowDown)'
+# HELP-NEXT: Chaos count and trace options require --chaos, which is incompatible with --failpoint.
+#
+# MISSING_BUCKET: chaos3: --bucket requires a name
+# MISSING_BUCKET: Usage: chaos3
+# EMPTY_BUCKET: chaos3: --bucket names cannot be empty
+# EMPTY_BUCKET: Usage: chaos3
+# INVALID_BUCKET: chaos3: invalid --bucket name "UPPERCASE"
+# INVALID_BUCKET: Usage: chaos3
+# MISSING_LISTEN: chaos3: --listen requires an address
+# MISSING_LISTEN: Usage: chaos3
+# BAD_LISTEN: chaos3: invalid --listen address "not-an-address":
+# BAD_LISTEN: Usage: chaos3
+# UNKNOWN: chaos3: unknown argument "--unknown"
+# UNKNOWN: Usage: chaos3
+# MISSING_FD: chaos3: --ready-fd requires a descriptor number
+# MISSING_FD: Usage: chaos3
+#
+# RUN: %chaos3 --list-failpoints > %t.out 2> %t.err && FileCheck %s --check-prefix=POINTS < %t.out && count 0 < %t.err
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=BAD_POINT %s -- %chaos3 --failpoint=no_such_point=return
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=BAD_PAYLOAD %s -- %chaos3 --failpoint=s3.get_object.before=return\(NoSuchError\)
+# POINTS-DAG: s3.get_object.before
+# POINTS-DAG: s3.get_object.body
+# POINTS-DAG: s3.put_object.before
+# POINTS-DAG: s3.put_object.after_commit
+# POINTS-DAG: s3.complete_multipart_upload.after_commit
+# BAD_POINT: chaos3: unknown failpoint "no_such_point"; use --list-failpoints
+# BAD_PAYLOAD: chaos3: invalid --failpoint "s3.get_object.before": action 1: invalid return payload:
+
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=CHAOS_CONFLICT %s -- %chaos3 --chaos=storage-v1 --failpoint=s3.get_object.before=off
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=CHAOS_ZERO %s -- %chaos3 --chaos=storage-v1 --chaos-requests=0
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=BAD_PROFILE %s -- %chaos3 --chaos=storage-v2
+# CHAOS_CONFLICT: chaos3: --chaos is incompatible with --failpoint
+# CHAOS_ZERO: chaos3: --chaos-requests must be positive
+# BAD_PROFILE: chaos3: unknown chaos profile "storage-v2"; expected storage-v1
