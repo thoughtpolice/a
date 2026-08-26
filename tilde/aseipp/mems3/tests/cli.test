@@ -1,0 +1,67 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+# CLI output contracts. Process readiness, bind failures, and shutdown remain
+# in the executable tests; none of these commands starts a listening server.
+# RUN: %mems3 --help > %t.out 2> %t.err && FileCheck %s --check-prefix=HELP < %t.out && count 0 < %t.err
+# RUN: %mems3 -h > %t.out 2> %t.err && FileCheck %s --check-prefix=HELP < %t.out && count 0 < %t.err
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=MISSING_BUCKET %s -- %mems3 --bucket
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=EMPTY_BUCKET %s -- %mems3 --bucket=
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=INVALID_BUCKET %s -- %mems3 --bucket=UPPERCASE
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=MISSING_LISTEN %s -- %mems3 --listen
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=BAD_LISTEN %s -- %mems3 --listen=not-an-address
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=UNKNOWN %s -- %mems3 --unknown
+#
+# HELP: Usage: mems3 [OPTIONS]
+# HELP-EMPTY:
+# HELP-NEXT: An ephemeral S3-compatible server for tests.
+# HELP-EMPTY:
+# HELP-NEXT: Options:
+# HELP-NEXT: --listen ADDRESS              Socket address to bind (default: 127.0.0.1:9000)
+# HELP-NEXT: --bucket NAME                 Pre-create a bucket; may be repeated (default: celld)
+# HELP-NEXT: --failpoint NAME=PLAN         Configure a named point; may be repeated
+# HELP-NEXT: --list-failpoints             List available points and exit
+# HELP-NEXT: --fault-seed SEED             Seed fault decisions with an unsigned 64-bit integer
+# HELP-NEXT: --buggify                     Enable random request yields and SlowDown errors
+# HELP-NEXT: --buggify-activation PERCENT  Site activation probability (default: 25; requires --buggify)
+# HELP-NEXT: --buggify-firing PERCENT      Per-visit firing probability (default: 25; requires --buggify)
+# HELP-NEXT: --auto-buggify                Run the seeded storage-v1 chaos profile
+# HELP-NEXT: --chaos-warmup-requests N     Admit N healthy requests first (default: 0)
+# HELP-NEXT: --chaos-requests N            Inject during N requests, then recover (default: unlimited)
+# HELP-NEXT: --chaos-trace                 Log every automatic boundary decision to stderr
+# HELP-NEXT: -h, --help                    Show this help
+# HELP-EMPTY:
+# HELP-NEXT: Plans: [percent%][count*]action[(payload)] joined by -> (ordered fallbacks).
+# HELP-NEXT: Actions: off, return, sleep(milliseconds), pause, yield, panic(message).
+# HELP-NEXT: Errors: InternalError (default), SlowDown, ServiceUnavailable, RequestTimeout, AccessDenied.
+# HELP-NEXT: Example: --failpoint 's3.get_object.before=2*return(SlowDown)'
+# HELP-NEXT: Automatic chaos options require --auto-buggify; incompatible with --buggify/--failpoint.
+#
+# MISSING_BUCKET: mems3: --bucket requires a name
+# MISSING_BUCKET: Usage: mems3
+# EMPTY_BUCKET: mems3: --bucket names cannot be empty
+# EMPTY_BUCKET: Usage: mems3
+# INVALID_BUCKET: mems3: invalid --bucket name "UPPERCASE"
+# INVALID_BUCKET: Usage: mems3
+# MISSING_LISTEN: mems3: --listen requires an address
+# MISSING_LISTEN: Usage: mems3
+# BAD_LISTEN: mems3: invalid --listen address "not-an-address":
+# BAD_LISTEN: Usage: mems3
+# UNKNOWN: mems3: unknown argument "--unknown"
+# UNKNOWN: Usage: mems3
+#
+# RUN: %mems3 --list-failpoints > %t.out 2> %t.err && FileCheck %s --check-prefix=POINTS < %t.out && count 0 < %t.err
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=BAD_POINT %s -- %mems3 --failpoint=no_such_point=return
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=BAD_PAYLOAD %s -- %mems3 --failpoint=s3.get_object.before=return\(NoSuchError\)
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=BAD_PERCENT %s -- %mems3 --buggify --buggify-firing=101
+# POINTS-DAG: s3.get_object.before
+# POINTS-DAG: s3.put_object.before
+# POINTS-DAG: s3.put_object.after_commit
+# POINTS-DAG: s3.complete_multipart_upload.after_commit
+# BAD_POINT: mems3: unknown failpoint "no_such_point"; use --list-failpoints
+# BAD_PAYLOAD: mems3: invalid --failpoint "s3.get_object.before": action 1: invalid return payload:
+# BAD_PERCENT: mems3: invalid --buggify-firing "101": expected a finite percentage between 0 and 100
+
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=CHAOS_CONFLICT %s -- %mems3 --auto-buggify --buggify
+# RUN: %filecheck exec --capture stderr --expect-exit 2 --check-prefix=CHAOS_ZERO %s -- %mems3 --auto-buggify --chaos-requests=0
+# CHAOS_CONFLICT: mems3: --auto-buggify is incompatible with --buggify and --failpoint
+# CHAOS_ZERO: mems3: --chaos-requests must be positive
