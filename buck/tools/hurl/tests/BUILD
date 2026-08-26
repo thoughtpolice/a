@@ -11,7 +11,7 @@ shims.export_file(
 
 # A strict stand-in executable validates how hurl.test renders its command.
 # The real distribution is independently exercised by ../:version-check and
-# mems3's HTTP scenarios; these two tests need no server or network access.
+# chaos3's HTTP scenarios; these two tests need no server or network access.
 shims.go_binary(
     name = "check-arguments",
     srcs = ["check_arguments.go"],

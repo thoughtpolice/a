@@ -77,7 +77,7 @@ build tests a release server; Hurl itself is an execution dependency.
 Resources are required only for execution, not test listing. To inject dynamic
 Hurl variables, map the resource fields to `HURL_VARIABLE_name` environment
 variables. For example, `HURL_VARIABLE_endpoint` makes `{{endpoint}}` available
-in a scenario. This keeps the rule independent of mems3 or any other server.
+in a scenario. This keeps the rule independent of chaos3 or any other server.
 Use `buck2 test` to get resource provisioning; `buck2 run` exposes the same Hurl
 command but expects the caller to provide its server and environment.
 
