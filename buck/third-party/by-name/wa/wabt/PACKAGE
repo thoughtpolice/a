@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "OsvGitRepoInfo", "pkg")
+
+GIT_COMMIT = "4e145b34f8ebe2ae8931af3f36d85601960d0e46"
+
+pkg.info(
+    version = "1.0.41+g4e145b34",
+    description = "The WebAssembly Binary Toolkit",
+    license = "Apache-2.0 AND MIT",
+    copyright = [
+        "2016-2026 WebAssembly Community Group participants",
+        "2017 okdshin",
+    ],
+    visibility = ["PUBLIC"],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/WebAssembly/wabt",
+        commit = GIT_COMMIT,
+    ),
+)
