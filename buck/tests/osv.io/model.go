@@ -90,6 +90,28 @@ type exception struct {
 // third-party//by-name. Every entry needs a reason and an exit condition, the
 // same as the lists below.
 var genericExceptions = []exception{
+	// Four OSS-Fuzz crashes in wabt that upstream has not fixed. Each OSV range
+	// names an introduced commit and no fixed commit, so every release through
+	// 1.0.41 is affected and there is no newer tag to bump to. Reaching any of
+	// them takes a hostile .wasm, and depot only runs the wabt tools over the
+	// .wat inputs checked in next to them. Remove these once upstream closes the
+	// reports.
+	{
+		ID:     "OSV-2022-916",
+		Reason: "wabt container-overflow write in interp::BinaryReaderInterp::BeginFunctionBody; OSS-Fuzz 51565 is open with no fix",
+	},
+	{
+		ID:     "OSV-2022-1263",
+		Reason: "wabt null-dereference read with no reported crash stack; OSS-Fuzz 54424 is open with no fix",
+	},
+	{
+		ID:     "OSV-2023-346",
+		Reason: "wabt out-of-bounds write growing interp::HandlerDesc storage; OSS-Fuzz 58344 is open with no fix",
+	},
+	{
+		ID:     "OSV-2024-398",
+		Reason: "wabt use of an uninitialized value in BinaryReaderObjdump::PrintInitExpr; OSS-Fuzz 65975 is open with no fix",
+	},
 }
 
 var rustExceptions = []exception{
