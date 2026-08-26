@@ -1,0 +1,18 @@
+# Deno's language server through celld-project, which gives the celld units
+# their import maps; see buck/toolchains/celld/README.md.
+[language-server.celld-project]
+command = "celld-project"
+args = ["lsp"]
+config.deno = { enable = true }
+
+[[language]]
+name = "typescript"
+file-types = ["ts", "tsx"]
+language-servers = ["celld-project"]
+auto-format = true
+
+[[language]]
+name = "javascript"
+file-types = ["js", "jsx"]
+language-servers = ["celld-project"]
+auto-format = true
