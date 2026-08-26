@@ -319,7 +319,12 @@ def _deno_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
     if ctx.attrs.config:
         config_args = ["--config", ctx.attrs.config]
 
-    output = ctx.actions.declare_output("{}.ts".format(ctx.label.name))
+    # ``deno bundle`` always emits JavaScript, even when the entry point is
+    # TypeScript. Give the artifact its real extension so downstream rules can
+    # consume it without disguising source TypeScript as a runtime module.
+    output = ctx.actions.declare_output("{}.js".format(ctx.label.name))
+
+    check_args = ["--check"] if ctx.attrs.check else []
 
     # Build the command with hidden dependencies on all source files
     cmd = cmd_args(
@@ -328,7 +333,12 @@ def _deno_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
             "bundle",
         ] + config_args +
         unstable_features +
+        check_args +
         [
+            "--format",
+            "esm",
+            "--platform",
+            ctx.attrs.platform,
             ctx.attrs.main,
             "--output",
             output.as_output(),
@@ -373,6 +383,8 @@ _deno_bundle = rule(
         "srcs": attrs.list(attrs.source(), default = []),
         "main": attrs.source(),
         "config": attrs.option(attrs.source(), default = None),
+        "check": attrs.bool(default = True),
+        "platform": attrs.enum(["browser", "deno"], default = "deno"),
         "unstable_features": attrs.list(attrs.string(), default = []),
         "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
     },
@@ -380,9 +392,8 @@ _deno_bundle = rule(
 
 def deno_bundle(**kwargs):
     """
-    Bundle a Deno TypeScript/JavaScript application into a single file.
-    This uses 'deno bundle' to create an amalgamated .ts file that includes
-    all dependencies and can be run standalone with 'deno run' or 'deno serve'.
+    Bundle a Deno TypeScript/JavaScript application into a single JavaScript
+    ESM file. Type checking is enabled by default.
     """
     name = kwargs.get("name")
     tests = kwargs.pop("tests", [])

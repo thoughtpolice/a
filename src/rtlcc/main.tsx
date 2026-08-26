@@ -105,7 +105,7 @@ const ProgressiveStatus = (props: {
   useEffect(() => {
     if (!currentStep) return;
 
-    let animationTimer: number | null = null;
+    let animationTimer: ReturnType<typeof setInterval> | null = null;
     let isRunning = true;
 
     const runShimmerCycle = () => {
