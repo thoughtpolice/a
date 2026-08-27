@@ -86,6 +86,12 @@ type exception struct {
 	Reason string
 }
 
+// genericExceptions accepts advisories against the packages declared under
+// third-party//by-name. Every entry needs a reason and an exit condition, the
+// same as the lists below.
+var genericExceptions = []exception{
+}
+
 var rustExceptions = []exception{
 	{
 		ID:     "RUSTSEC-2024-0388",
@@ -171,6 +177,7 @@ var exceptionSets = []struct {
 	Label string
 	Items []exception
 }{
+	{Kind: genericSubject, Label: "generic", Items: genericExceptions},
 	{Kind: rustSubject, Label: "Rust", Items: rustExceptions},
 	{Kind: npmSubject, Label: "npm", Items: npmExceptions},
 }

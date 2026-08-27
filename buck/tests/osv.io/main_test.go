@@ -534,6 +534,31 @@ func TestGroupAdvisoriesMatchesExceptionsThroughAliases(t *testing.T) {
 	}
 }
 
+func TestGroupAdvisoriesKeepsGenericExceptionsOutOfOtherEcosystems(t *testing.T) {
+	withExceptions(t, genericSubject, exception{ID: "OSV-generic-excepted", Reason: "accepted for a generic package"})
+	references := []vulnerabilityRef{{ID: "OSV-generic-excepted"}}
+	details := map[string]vulnerability{
+		"OSV-generic-excepted": {ID: "OSV-generic-excepted", Summary: "fuzzer crash on malformed input"},
+	}
+	groups, err := groupAdvisories(genericSubject, references, details)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 1 || groups[0].ExceptionReason == "" {
+		t.Fatalf("the generic exception did not apply: %#v", groups)
+	}
+
+	for _, kind := range []subjectKind{rustSubject, npmSubject, wolfiSubject} {
+		groups, err := groupAdvisories(kind, references, details)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if groups[0].ExceptionReason != "" {
+			t.Fatalf("the generic exception was incorrectly applied to subject kind %d", kind)
+		}
+	}
+}
+
 func TestWriteTestListing(t *testing.T) {
 	var output bytes.Buffer
 	writeTestListing("all", &output)
@@ -577,6 +602,10 @@ func writeTempCargoLock(t *testing.T, contents string) string {
 	return path
 }
 
+// exceptedCommit is the only commit the stub OSV server reports an advisory
+// against, standing in for a pinned third-party//by-name git checkout.
+var exceptedCommit = strings.Repeat("a", 40)
+
 func harnessOSVServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -591,6 +620,12 @@ func harnessOSVServer(t *testing.T) *httptest.Server {
 			}
 			results := make([]osvResult, len(request.Queries))
 			for index, query := range request.Queries {
+				if query.Commit != "" {
+					if query.Commit == exceptedCommit {
+						results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "OSV-generic-excepted"}}}
+					}
+					continue
+				}
 				if query.Package == nil {
 					continue
 				}
@@ -618,6 +653,8 @@ func harnessOSVServer(t *testing.T) *httptest.Server {
 			fmt.Fprint(w, `{"id":"RUSTSEC-2024-0388","summary":"derivative is unmaintained"}`)
 		case "/vulns/GHSA-npm-excepted":
 			fmt.Fprint(w, `{"id":"GHSA-npm-excepted","summary":"kit request smuggling"}`)
+		case "/vulns/OSV-generic-excepted":
+			fmt.Fprint(w, `{"id":"OSV-generic-excepted","summary":"fuzzer crash on malformed input"}`)
 		default:
 			http.NotFound(w, r)
 		}
@@ -705,11 +742,12 @@ func writeTempNPMLock(t *testing.T, contents string) string {
 	return path
 }
 
-// withNPMExceptions swaps the npm exception list for the duration of one test.
-func withNPMExceptions(t *testing.T, items ...exception) {
+// withExceptions swaps one ecosystem's exception list for the duration of a
+// single test.
+func withExceptions(t *testing.T, kind subjectKind, items ...exception) {
 	t.Helper()
 	for index := range exceptionSets {
-		if exceptionSets[index].Kind != npmSubject {
+		if exceptionSets[index].Kind != kind {
 			continue
 		}
 		original := exceptionSets[index].Items
@@ -717,11 +755,11 @@ func withNPMExceptions(t *testing.T, items ...exception) {
 		t.Cleanup(func() { exceptionSets[index].Items = original })
 		return
 	}
-	t.Fatal("npm has no registered exception set")
+	t.Fatalf("subject kind %d has no registered exception set", kind)
 }
 
 func TestRunHarnessCaseNPM(t *testing.T) {
-	withNPMExceptions(t, exception{
+	withExceptions(t, npmSubject, exception{
 		ID:     "GHSA-npm-excepted",
 		Reason: "build-time only; awaiting an upstream release",
 	})
@@ -759,7 +797,7 @@ func TestRunHarnessCaseNPM(t *testing.T) {
 }
 
 func TestRunHarnessCaseNPMReportsUnusedExceptions(t *testing.T) {
-	withNPMExceptions(t, exception{ID: "GHSA-stale", Reason: "no longer reachable"})
+	withExceptions(t, npmSubject, exception{ID: "GHSA-stale", Reason: "no longer reachable"})
 	lock := writeTempNPMLock(t, `{"lockfileVersion": 3, "packages": {
 		"": {"name": "example-app"},
 		"node_modules/svelte": {
@@ -829,6 +867,84 @@ func TestRunHarnessCaseGeneric(t *testing.T) {
 	if !strings.Contains(stdout.String(), "result: PASS third-party//foo -\n") ||
 		!strings.Contains(stdout.String(), "result: PASS generic-packages ") {
 		t.Fatalf("unexpected output:\n%s", stdout.String())
+	}
+}
+
+func TestRunHarnessCaseGenericExceptsGitRepoAdvisory(t *testing.T) {
+	withExceptions(t, genericSubject, exception{
+		ID:     "OSV-generic-excepted",
+		Reason: "fuzzer crash with no upstream fix; only trusted inputs reach the tool",
+	})
+	server := harnessOSVServer(t)
+	cfg := harnessConfig(server, "")
+	auditor := &mockAuditor{responses: []auditResponse{
+		{
+			"depot-third-party//": {
+				"meta.3p": rawJSON(t, []string{"by-name/wi/widget"}),
+			},
+		},
+		{
+			"depot-third-party//by-name/wi/widget": {
+				"meta.version": rawJSON(t, "1.0.41+gaaaaaaa"),
+				"meta.osv": rawJSON(t, genericMetadata{
+					Type:   "OsvGitRepoInfo",
+					URL:    "https://github.com/example/widget",
+					Commit: exceptedCommit,
+				}),
+			},
+		},
+	}}
+	var stdout, stderr bytes.Buffer
+	code := runHarnessCase(context.Background(), cfg, "generic", genericCaseName, auditor, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0; stderr: %s", code, stderr.String())
+	}
+	for _, want := range []string{
+		"\n[EXEMPT] third-party//by-name/wi/widget\n",
+		"result: PASS third-party//by-name/wi/widget - 1 excepted advisory group(s)\n",
+		"result-details:     reason: fuzzer crash with no upstream fix; only trusted inputs reach the tool\n",
+		"Scanned 1 packages: 0 clean, 1 affected; 1 advisory groups (0 blocking, 1 excepted).",
+		"result: PASS generic-packages ",
+	} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("output is missing %q:\n%s", want, stdout.String())
+		}
+	}
+	if strings.Contains(stdout.String(), "Unused generic exceptions") {
+		t.Fatalf("the used generic exception was reported as unused:\n%s", stdout.String())
+	}
+}
+
+func TestRunHarnessCaseGenericReportsUnusedExceptions(t *testing.T) {
+	withExceptions(t, genericSubject, exception{ID: "OSV-stale", Reason: "upstream fixed this"})
+	server := harnessOSVServer(t)
+	cfg := harnessConfig(server, "")
+	auditor := &mockAuditor{responses: []auditResponse{
+		{
+			"depot-third-party//": {
+				"meta.3p": rawJSON(t, []string{"foo"}),
+			},
+		},
+		{
+			"depot-third-party//foo": {
+				"meta.version": rawJSON(t, "1.2.3"),
+				"meta.osv": rawJSON(t, genericMetadata{
+					Type: "OsvPurlInfo", PURL: "pkg:generic/example/foo", Version: "1.2.3",
+				}),
+			},
+		},
+	}}
+	var stdout, stderr bytes.Buffer
+	code := runHarnessCase(context.Background(), cfg, "generic", genericCaseName, auditor, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0; stderr: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "Unused generic exceptions (candidates for removal): OSV-stale\n") {
+		t.Fatalf("the stale generic exception was not reported:\n%s", stdout.String())
+	}
+	// A generic-only scan says nothing about the Rust list.
+	if strings.Contains(stdout.String(), "Unused Rust exceptions") {
+		t.Fatalf("Rust exceptions were reported for a generic scan:\n%s", stdout.String())
 	}
 }
 
