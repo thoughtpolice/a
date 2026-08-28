@@ -41,9 +41,21 @@ $ buck2 test "@$TARGETS_FILE"
 
 Text output is one sorted, fully qualified label per line. It goes to stdout by
 default, including a final newline when non-empty. `--output` writes an at-file
-directly. `--format json` emits revision metadata and root-cause information;
-`--format json-lines` emits one reason record per target. Run with `--help` for
-all options.
+directly. `--format json` emits revision metadata, rule types, and root-cause
+information. Each target record has this stable shape:
+
+```json
+{
+  "target": "depot//app:test",
+  "rule_type": "prelude//rules.bzl:rust_test",
+  "depth": 1,
+  "reason": "input `app/lib.rs` changed",
+  "affected_dep": "depot//app:lib"
+}
+```
+
+Roots have depth zero and a null `affected_dep`. `--format json-lines` emits one
+such record per target. Run with `--help` for all options.
 
 ## Quick mode
 

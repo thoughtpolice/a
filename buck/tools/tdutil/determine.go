@@ -12,6 +12,7 @@ import (
 
 type affectedTarget struct {
 	target      string
+	ruleType    string
 	depth       int
 	reason      string
 	affectedDep *string
@@ -114,7 +115,12 @@ func selectEveryHeadTarget(graph *graph, reason string) []affectedTarget {
 	labels := sortedTargetLabels(graph.headTargets)
 	affected := make([]affectedTarget, 0, len(labels))
 	for _, label := range labels {
-		affected = append(affected, affectedTarget{target: label, depth: 0, reason: reason})
+		affected = append(affected, affectedTarget{
+			target:   label,
+			ruleType: graph.headTargets[label].ruleType,
+			depth:    0,
+			reason:   reason,
+		})
 	}
 	return affected
 }
@@ -178,6 +184,7 @@ func propagateWithReasons(
 		if inHead {
 			affected = append(affected, affectedTarget{
 				target:      item.target,
+				ruleType:    headTarget.ruleType,
 				depth:       item.depth,
 				reason:      item.reason,
 				affectedDep: item.affectedDep,

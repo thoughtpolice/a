@@ -26,6 +26,7 @@ func formatTargets() []affectedTarget {
 	dependency := "root//app:lib"
 	return []affectedTarget{{
 		target:      "root//app:test",
+		ruleType:    "prelude//rules.bzl:rust_test",
 		depth:       1,
 		reason:      "input `app/test.rs` changed",
 		affectedDep: &dependency,
@@ -82,7 +83,7 @@ func TestFormatJSONHasMetadataAndReasons(t *testing.T) {
 		t.Fatalf("count/targets = %d/%d", document.Count, len(document.Targets))
 	}
 	target := document.Targets[0]
-	if target.Depth != 1 || target.AffectedDep == nil || *target.AffectedDep != "root//app:lib" {
+	if target.RuleType != "prelude//rules.bzl:rust_test" || target.Depth != 1 || target.AffectedDep == nil || *target.AffectedDep != "root//app:lib" {
 		t.Fatalf("target = %+v", target)
 	}
 }

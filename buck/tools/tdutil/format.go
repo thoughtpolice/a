@@ -20,6 +20,7 @@ type metadata struct {
 
 type jsonTarget struct {
 	Target      string  `json:"target"`
+	RuleType    string  `json:"rule_type"`
 	Depth       int     `json:"depth"`
 	Reason      string  `json:"reason"`
 	AffectedDep *string `json:"affected_dep"`
@@ -102,11 +103,12 @@ func (writer strictWriter) Write(contents []byte) (int, error) {
 func targetsForJSON(targets []affectedTarget) ([]jsonTarget, error) {
 	result := make([]jsonTarget, 0, len(targets))
 	for _, target := range targets {
-		if !utf8.ValidString(target.target) || !utf8.ValidString(target.reason) || (target.affectedDep != nil && !utf8.ValidString(*target.affectedDep)) {
+		if !utf8.ValidString(target.target) || !utf8.ValidString(target.ruleType) || !utf8.ValidString(target.reason) || (target.affectedDep != nil && !utf8.ValidString(*target.affectedDep)) {
 			return nil, fmt.Errorf("cannot encode invalid UTF-8 as JSON")
 		}
 		result = append(result, jsonTarget{
 			Target:      target.target,
+			RuleType:    target.ruleType,
 			Depth:       target.depth,
 			Reason:      target.reason,
 			AffectedDep: target.affectedDep,
