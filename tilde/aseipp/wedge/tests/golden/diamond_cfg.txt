@@ -1,0 +1,21 @@
+wedge.module binary-version=1 language=wasm-3.0 {
+  rec rec0 = [type0]
+  type type0 = final func (result i32)
+  func func0 wasm-index=0 : type0 defined {
+    cfg entry=block0 root=region0
+    region region0 function parent=- entry=block0
+    region region1 if-then parent=region0 entry=block1
+    region region2 if-else parent=region0 entry=block2
+    block0() [region0]:
+      %0: i32 = i32.const<s32=1>() ; inst0
+      branch %0, block1(), block2()
+    block1() [region1]:
+      %1: i32 = i32.const<s32=10>() ; inst1
+      jump block3(%1)
+    block2() [region2]:
+      %2: i32 = i32.const<s32=20>() ; inst2
+      jump block3(%2)
+    block3(%3: i32) [region0]:
+      return %3
+  }
+}

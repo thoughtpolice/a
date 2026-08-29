@@ -1,0 +1,47 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+// wlink's string fixture pair, tilde//aseipp/wlink:linked-string.wasm: a
+// producer exporting greet and name, a consumer calling them, and the two
+// adapters the linker fused between their memories. The fixtures are
+// hand-written, so the numbering is exact: func0 is the producer's realloc,
+// func1 greet, func2 name, func3 post_name, and func4 the consumer's realloc.
+// RUN: %wedge --emit ir %{wlink_string} | FileCheck %s
+// RUN: %wedge --emit cfg %{wlink_string} | FileCheck %s --check-prefix=CFG
+
+// CHECK: memory memory0 : i32 1..* defined
+// CHECK-NEXT: memory memory1 : i32 1..* defined
+
+// greet takes a string. The adapter asks the producer's realloc for the
+// bytes, copies them out of the consumer's memory, and calls greet with the
+// new pointer and the original length.
+// CHECK-LABEL: func func7 wasm-index=7 : type8 defined name="adapter#greet"
+// CHECK: block0(%0: i32, %1: i32) [region0]
+// CHECK: %6: i32 = call<function=func0>(%3, %4, %5, %1) ; inst4
+// CHECK-NEXT: memory.copy<memory=memory0, memory=memory1>(%6, %0, %1) ; inst5 effects[write:memory0, read:memory1, trap:memory-out-of-bounds]
+// CHECK-NEXT: %7: i32 = call<function=func1>(%6, %1) ; inst6
+// CHECK-NEXT: return %7
+
+// name returns a string through a post-return. The adapter calls name, copies
+// the pointer/length pair to the consumer's return area, copies the bytes
+// through the consumer's realloc, patches the pointer, and only then hands
+// the producer's return pointer to post_name.
+// CHECK-LABEL: func func8 wasm-index=8 : type9 defined name="adapter#name"
+// CHECK: block0(%0: i32) [region0]
+// CHECK: %2: i32 = call<function=func2>() ; inst1
+// CHECK: memory.copy<memory=memory1, memory=memory0>(%0, %2, %3) ; inst3 effects[write:memory1, read:memory0, trap:memory-out-of-bounds]
+// CHECK-NEXT: %4: i32 = i32.load<memarg(memory=memory0,offset=0,align=2)>(%2) ; inst4
+// CHECK-NEXT: %5: i32 = i32.load<memarg(memory=memory0,offset=4,align=2)>(%2) ; inst5
+// CHECK: %9: i32 = call<function=func4>(%6, %7, %8, %5) ; inst9
+// CHECK-NEXT: memory.copy<memory=memory1, memory=memory0>(%9, %4, %5) ; inst10
+// CHECK-NEXT: i32.store<memarg(memory=memory1,offset=0,align=2)>(%0, %9) ; inst11
+// CHECK-NEXT: call<function=func3>(%2) ; inst12
+// CHECK-NEXT: return
+
+// CHECK: export "run" = function func5
+// CHECK-NEXT: export "run-name" = function func6
+// CHECK-NEXT: export "string_producer:memory" = memory memory0
+// CHECK-NEXT: export "string_consumer:memory" = memory memory1
+
+// CFG: func func5 name="string_consumer.1.func0" exports=["run"] entry=block0 root=region0 {
+// CFG: func func6 name="string_consumer.1.func1" exports=["run-name"] entry=block0 root=region0 {

@@ -1,0 +1,44 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+// RUN: %wat2wasm %S/../control_flow.wat -o %t.wasm && %wedge --emit cfg %t.wasm | FileCheck %s
+// RUN: %wedge --emit cfg --function 1 %t.wasm | FileCheck %s --check-prefix=FUNCTION
+// RUN: %wedge --function dispatch %t.wasm | FileCheck %s --check-prefix=IR
+// RUN: not %wedge --emit cfg --function 99 %t.wasm 2>&1 | FileCheck %s --check-prefix=MISSING
+// RUN: %wat2wasm %S/../module_entities.wat -o %t.imports.wasm && not %wedge --emit cfg --function 0 %t.imports.wasm 2>&1 | FileCheck %s --check-prefix=IMPORTED
+
+// FUNCTION: wedge.cfg-analysis {
+// FUNCTION-NEXT:   func func1 exports=["dispatch"] entry=block0 root=region0 {
+// FUNCTION:   }
+// FUNCTION-NEXT: }
+
+// The IR dump restricts to one function too, selected here by export name.
+// IR-NOT: wedge.module
+// IR: func func1 wasm-index=1 : type0 defined
+// IR:   }
+// IR-NOT: func func
+
+// MISSING: function index 99 is out of range: the module has 2 functions
+
+// IMPORTED: func0 is imported and has no function body to dump
+
+// CHECK-LABEL: func func0 exports=["choose"] entry=block0 root=region0 {
+// CHECK: reachable=[block0, block1, block2, block3]
+// CHECK-NEXT: rpo=[block0, block1, block3, block2]
+// CHECK: block block1 region=region1 params=[] reachable=true rpo=1 idom=block0 ipdom-semantic=block2 ipdom-normal=block2 scc=scc1 cyclic=false incoming=[edge0] outgoing=[edge1, edge2]
+// CHECK: block block2 region=region0 params=[%1:i32] reachable=true rpo=3 idom=block1 ipdom-semantic=virtual-exit ipdom-normal=virtual-exit scc=scc3 cyclic=false incoming=[edge1, edge3] outgoing=[]
+// CHECK: edge edge1 block1 -> block2 kind=branch.true args=[%2] refined=[]
+// CHECK-NEXT: edge edge2 block1 -> block3 kind=branch.false args=[] refined=[]
+// CHECK-NEXT: edge edge3 block3 -> block2 kind=jump args=[%3] refined=[]
+
+// A br_table case and its default are distinct edge occurrences even when
+// both carry the same value to the same target.
+// CHECK-LABEL: func func1 exports=["dispatch"] entry=block0 root=region0 {
+// CHECK: reachable=[block0, block1, block2]
+// CHECK-NEXT: rpo=[block0, block1, block2]
+// CHECK: block block1 region=region1 params=[] reachable=true rpo=1 idom=block0 ipdom-semantic=block2 ipdom-normal=block2 scc=scc1 cyclic=false incoming=[edge0] outgoing=[edge1, edge2]
+// CHECK-NEXT: block block2 region=region0 params=[%1:i32] reachable=true rpo=2 idom=block1 ipdom-semantic=virtual-exit ipdom-normal=virtual-exit scc=scc2 cyclic=false incoming=[edge1, edge2] outgoing=[]
+// CHECK: edge edge1 block1 -> block2 kind=switch.case[0] args=[%2] refined=[]
+// CHECK-NEXT: edge edge2 block1 -> block2 kind=switch.default args=[%2] refined=[]
+// CHECK-NEXT: exit exit0 block2 kind=return origin=terminator
+// CHECK-NEXT:   }
