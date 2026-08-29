@@ -153,6 +153,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".fish": (bzl_style_copyright, bzl_style_license_prefix),
         ".toml": (bzl_style_copyright, bzl_style_license_prefix),
         ".html": (html_style_copyright, html_style_license_prefix),
+        ".wat": (lisp_style_copyright, lisp_style_license_prefix),
         ".zuo": (lisp_style_copyright, lisp_style_license_prefix),
         ".sv": (cxx_style_copyright, cxx_style_license_prefix),
         ".erl": (erlang_style_copyright, erlang_style_license_prefix),
