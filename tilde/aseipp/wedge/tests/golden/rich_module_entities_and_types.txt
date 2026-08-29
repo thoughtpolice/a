@@ -1,0 +1,49 @@
+wedge.module binary-version=1 language=wasm-3.0 {
+  rec rec0 = [type0]
+  rec rec1 = [type1]
+  rec rec2 = [type2, type3] @bytes=26..48,op=2
+  rec rec3 = [type4]
+  type type0 = final func (param i32) (result i32) @bytes=8..16,op=0
+  type type1 = final func (param i64) @bytes=17..25,op=1
+  type type2 = struct (field i8) (field (mut (ref null extern))) @bytes=26..40,op=2
+  type type3 = final array (field (mut i16)) @bytes=41..48,op=3
+  type type4 = final func @bytes=49..55,op=4
+  import import0 "host"."callback" = function func0
+  import import1 "host"."objects" = table table0
+  import import2 "host"."linear64" = memory memory0
+  import import3 "host"."seed" = global global0
+  import import4 "host"."failure" = tag tag0
+  table table0 : (ref null func) i32 1..4 imported(import1)
+  table table1 : (ref null extern) i64 2..* defined init=const[ref.null<heap-type=extern>]:(ref null extern)
+  memory memory0 : i64 1..4 imported(import2)
+  memory memory1 : i32 2..* defined
+  global global0 : i32 imported(import3)
+  global global1 : (mut i64) defined init=const[i64.const<s64=99>]:i64
+  tag tag0 : type1 imported(import4)
+  tag tag1 : type1 defined
+  func func0 wasm-index=0 : type0 imported(import0) name="callback"
+  func func1 wasm-index=1 : type4 defined name="initialize" {
+    locals local0:v128
+    cfg entry=block0 root=region0
+    region region0 function parent=- entry=block0
+    block0() [region0]:
+      return
+  }
+  element elem0 : (ref null func) active table0 at const[i32.const<s32=0>]:i32 [func0]
+  element elem1 : (ref type0) declarative [const[ref.func<function=func0>]:(ref type0)]
+  data data0 active memory0 at const[i64.const<s64=16>]:i64 = 0x7765646765
+  data data1 passive = 0x007f80ff
+  export "start" = function func1
+  export "objects" = table table1
+  export "memory" = memory memory1
+  export "counter" = global global1
+  export "failure" = tag tag1
+  start func1
+  name module = "rich-module"
+  name func0 = "callback"
+  name func1 = "initialize"
+  name func0/local0 = "value"
+  name func1/local0 = "scratch"
+  producer "processed-by" "wedge-golden" "0"
+  custom "research-note" = 0x66617420626c6f636b73 @bytes=220..240,op=20
+}

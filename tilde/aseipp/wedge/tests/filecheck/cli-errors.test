@@ -1,0 +1,32 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+// The command line's failure paths, exercised on artifacts wlink builds: a
+// component rather than a core module, misuse of --function, and a missing
+// input. The last cases check that --function really restricts either dump.
+
+// RUN: not %wedge %{wlink_component} 2>&1 | FileCheck %s --check-prefix=COMPONENT
+// COMPONENT: WebAssembly components are not supported
+
+// RUN: not %wedge --emit cfg --function 99 %{wlink_string} 2>&1 | FileCheck %s --check-prefix=RANGE
+// RANGE: function index 99 is out of range: the module has 9 functions
+
+// RUN: not %wedge --emit cfg --function 0 %{wlink_console} 2>&1 | FileCheck %s --check-prefix=IMPORTED
+// IMPORTED: func0 is imported and has no function body to dump
+
+// RUN: not %wedge --emit ir --function no-such-function %{wlink_string} 2>&1 | FileCheck %s --check-prefix=UNNAMED
+// UNNAMED: no function is named "no-such-function"
+
+// RUN: not %wedge %S/no-such-module.wasm 2>&1 | FileCheck %s --check-prefix=MISSING
+// MISSING: could not read
+
+// RUN: %wedge --emit cfg --function 8 %{wlink_string} | FileCheck %s --check-prefix=ONE
+// ONE-NOT: func func5
+// ONE: func func8 name="adapter#name" exports=[] entry=block0 root=region0 {
+// ONE-NOT: func func
+
+// An imported function has no CFG, but its IR line still prints on its own.
+// RUN: %wedge --emit ir --function 0 %{wlink_console} | FileCheck %s --check-prefix=IR
+// IR-NOT: wedge.module
+// IR: func func0 wasm-index=0 : type{{[0-9]+}} imported(import0) name="console:hal/raw@0.1.0#file-close"
+// IR-NOT: func func

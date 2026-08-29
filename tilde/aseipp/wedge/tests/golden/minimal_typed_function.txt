@@ -1,0 +1,12 @@
+wedge.module binary-version=1 language=wasm-3.0 {
+  rec rec0 = [type0]
+  type type0 = final func (result i32)
+  func func0 wasm-index=0 : type0 defined {
+    cfg entry=block0 root=region0
+    region region0 function parent=- entry=block0
+    block0() [region0]:
+      %0: i32 = i32.const<s32=42>() ; inst0
+      return %0
+  }
+  export "answer" = function func0
+}
