@@ -49,6 +49,23 @@ opt_flags = shims.select({
     }),
 })
 
+fozzie_compiler_flags = [
+    # Match optimized release behavior while retaining symbolizable locations
+    # and stable stack frames.
+    "-O3",
+    "-gline-tables-only",
+    "-fno-omit-frame-pointer",
+    "-fsanitize-coverage=inline-8bit-counters,pc-table,trace-cmp",
+]
+
+instrumentation_compiler_flags = shims.select({
+    "toolchains//cfg/instrumentation:instrumentation[none]": [],
+    "toolchains//cfg/instrumentation:instrumentation[fozzie]": fozzie_compiler_flags,
+    # ASan runtime support will be added separately. Keep this configuration
+    # useful for coverage-only builds until that runtime is available.
+    "toolchains//cfg/instrumentation:instrumentation[fozzie-asan]": fozzie_compiler_flags,
+})
+
 compiler_type = shims.select({
     "config//os:windows": "windows",
     "DEFAULT": "clang",
@@ -69,8 +86,12 @@ linux_common_ldflags = [
     "-Wl,--emit-relocs",
     # FIXME issue: nixos/nixpkgs#347795 <https://github.com/NixOS/nixpkgs/issues/347795>
     #"-Wl,--compress-debug-sections=zstd",
-    "-fuse-ld=mold",
-]
+] + shims.select({
+    "toolchains//cfg/instrumentation:instrumentation[none]": ["-fuse-ld=mold"],
+    # LLD retains the SanitizerCoverage PC table sections Fozzie consumes.
+    "toolchains//cfg/instrumentation:instrumentation[fozzie]": ["-fuse-ld=lld"],
+    "toolchains//cfg/instrumentation:instrumentation[fozzie-asan]": ["-fuse-ld=lld"],
+})
 
 link_flags = shims.select({
     "toolchains//cfg/target:target[x86_64-unknown-uefi]": [],
@@ -107,9 +128,9 @@ link_flags = shims.select({
 
 system_cxx_toolchain(
     name = "cxx",
-    c_flags = cxx_warn_flags + opt_flags,
+    c_flags = cxx_warn_flags + opt_flags + instrumentation_compiler_flags,
     compiler_type = compiler_type,
-    cxx_flags = cxx_base_flags + cxx_warn_flags + opt_flags,
+    cxx_flags = cxx_base_flags + cxx_warn_flags + opt_flags + instrumentation_compiler_flags,
     link_flags = link_flags,
     linker = linker,
 )
