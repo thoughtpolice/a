@@ -1,0 +1,23 @@
+wedge.module binary-version=1 language=wasm-3.0 {
+  rec rec0 = [type0]
+  rec rec1 = [type1]
+  type type0 = final func (result i32)
+  type type1 = final func (result i32)
+  import import0 "host"."may_throw" = function func0 @bytes=8..29,op=0
+  memory memory0 : i32 1..8 defined @bytes=30..35,op=1
+  func func0 wasm-index=0 : type0 imported(import0) @bytes=8..29,op=0
+  func func1 wasm-index=1 : type1 defined @bytes=36..56,op=2 {
+    cfg entry=block0 root=region0
+    region region0 function parent=- entry=block0
+    region region1 try-table[CatchAll -> block1] parent=region0 entry=block0 @bytes=40..49,op=0
+    region region2 catch parent=region0 entry=block1 @bytes=49..55,op=1
+    block0() [region1]:
+      invoke call<function=func0>() -> block2(%0: i32) effects[read-write:host, trap:stack-overflow, trap:callee-trap, allocates] throws[region1#0 -> block1()] @bytes=44..46,op=0
+    block1() [region2]:
+      %1: i32 = i32.const<s32=-1>() ; inst1 @bytes=50..52,op=1
+      return %1
+    block2(%0: i32) [region1]:
+      return %0
+  }
+  export "run" = function func1 @bytes=57..62,op=3
+}

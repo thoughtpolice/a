@@ -1,0 +1,49 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+// RUN: %wat2wasm %S/../structured_control.wat -o %t.wasm && %wedge --emit cfg %t.wasm | FileCheck %s
+
+// A typed loop header is a cyclic singleton SCC with one natural-loop
+// backedge, while its two typed parameters stay attached to that header.
+// CHECK-LABEL: func func0 exports=["typed_loop"] entry=block0 root=region0 {
+// CHECK: region region1 kind=loop parent=region0 entry=block1
+// CHECK: reachable=[block0, block1, block2, block3]
+// CHECK-NEXT: rpo=[block0, block1, block3, block2]
+// CHECK-NOT: cyclic=true
+// CHECK: block block1 region=region1 params=[%3:i32, %4:i32] reachable=true rpo=1 idom=block0 ipdom-semantic=block3 ipdom-normal=block3 scc=scc1 cyclic=true incoming=[edge0, edge1] outgoing=[edge1, edge2]
+// CHECK-NOT: cyclic=true
+// CHECK: edge edge1 block1 -> block1 kind=branch.true args=[%3, %4] refined=[]
+// CHECK: loop header=block1 blocks=[block1] backedges=[edge1]
+// CHECK-NEXT:   }
+
+// Lexically present but unreachable structured blocks stay in the CFG and
+// SCC inventory, but are absent from RPO and cannot reach an exit.
+// CHECK-LABEL: func func4 exports=["nested_dead"] entry=block0 root=region0 {
+// CHECK: region region1 kind=block parent=region0 entry=block1
+// CHECK-NEXT: region region2 kind=block parent=region1 entry=block3
+// CHECK-NEXT: region region3 kind=loop parent=region2 entry=block5
+// CHECK-NEXT: reachable=[block0, block1, block2]
+// CHECK-NEXT: rpo=[block0, block1, block2]
+// CHECK-NEXT: block block0 region=region0 params=[] reachable=true rpo=0 idom=none ipdom-semantic=block1 ipdom-normal=block1 scc=scc4 cyclic=false incoming=[] outgoing=[edge0]
+// CHECK-NEXT: block block1 region=region1 params=[] reachable=true rpo=1 idom=block0 ipdom-semantic=block2 ipdom-normal=block2 scc=scc5 cyclic=false incoming=[edge0] outgoing=[edge1]
+// CHECK-NEXT: block block2 region=region0 params=[%0:i32] reachable=true rpo=2 idom=block1 ipdom-semantic=virtual-exit ipdom-normal=virtual-exit scc=scc6 cyclic=false incoming=[edge1] outgoing=[]
+// CHECK-NEXT: block block3 region=region2 params=[] reachable=false rpo=none idom=none ipdom-semantic=none ipdom-normal=none scc=scc3 cyclic=false incoming=[] outgoing=[]
+// CHECK-NEXT: block block4 region=region1 params=[] reachable=false rpo=none idom=none ipdom-semantic=none ipdom-normal=none scc=scc2 cyclic=false incoming=[] outgoing=[]
+// CHECK-NEXT: block block5 region=region3 params=[] reachable=false rpo=none idom=none ipdom-semantic=none ipdom-normal=none scc=scc1 cyclic=false incoming=[] outgoing=[]
+// CHECK-NEXT: block block6 region=region2 params=[] reachable=false rpo=none idom=none ipdom-semantic=none ipdom-normal=none scc=scc0 cyclic=false incoming=[] outgoing=[]
+// CHECK-NEXT: edge edge0 block0 -> block1 kind=jump args=[] refined=[]
+
+// Nested sibling arms share the branch block as immediate dominator and the
+// join as immediate postdominator. The join then dominates the function exit.
+// CHECK-LABEL: func func7 exports=["nested_reachable"] entry=block0 root=region0 {
+// CHECK: region region1 kind=block parent=region0 entry=block1
+// CHECK-NEXT: region region2 kind=if-then parent=region1 entry=block3
+// CHECK-NEXT: region region3 kind=if-else parent=region1 entry=block4
+// CHECK-NEXT: reachable=[block0, block1, block2, block3, block4, block5]
+// CHECK-NEXT: rpo=[block0, block1, block4, block3, block5, block2]
+// CHECK: block block0 region=region0 params=[%0:i32, %1:i32] reachable=true rpo=0 idom=none ipdom-semantic=block1 ipdom-normal=block1 scc=scc0 cyclic=false incoming=[] outgoing=[edge0]
+// CHECK-NEXT: block block1 region=region1 params=[%2:i32] reachable=true rpo=1 idom=block0 ipdom-semantic=block5 ipdom-normal=block5 scc=scc1 cyclic=false incoming=[edge0] outgoing=[edge1, edge2]
+// CHECK-NEXT: block block2 region=region0 params=[%3:i32] reachable=true rpo=5 idom=block5 ipdom-semantic=virtual-exit ipdom-normal=virtual-exit scc=scc5 cyclic=false incoming=[edge5] outgoing=[]
+// CHECK-NEXT: block block3 region=region2 params=[%4:i32] reachable=true rpo=3 idom=block1 ipdom-semantic=block5 ipdom-normal=block5 scc=scc3 cyclic=false incoming=[edge1] outgoing=[edge3]
+// CHECK-NEXT: block block4 region=region3 params=[%5:i32] reachable=true rpo=2 idom=block1 ipdom-semantic=block5 ipdom-normal=block5 scc=scc2 cyclic=false incoming=[edge2] outgoing=[edge4]
+// CHECK-NEXT: block block5 region=region1 params=[%6:i32] reachable=true rpo=4 idom=block1 ipdom-semantic=block2 ipdom-normal=block2 scc=scc4 cyclic=false incoming=[edge3, edge4] outgoing=[edge5]

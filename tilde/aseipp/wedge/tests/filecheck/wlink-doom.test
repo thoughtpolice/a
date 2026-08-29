@@ -1,0 +1,81 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+// PureDOOM as the console SDK's C guest, linked with the platform into one
+// core module, tilde//aseipp/wlink/demo:doom-linked.wasm. It is the largest
+// module the linker produces, and both dumps must cover the whole game as the
+// build links it. Function numbers past the imports are left open; they move
+// with the game's and the platform's code.
+// RUN: %wedge --emit ir %{wlink_doom} | FileCheck %s
+// RUN: %wedge --emit cfg %{wlink_doom} | FileCheck %s --check-prefix=CFG
+
+// The same HAL as the prototype console package is all that stays imported,
+// so a host that runs one runs the other.
+// CHECK: import import0 "console:hal/raw@0.1.0"."file-close" = function func0
+// CHECK-NEXT: import import1 "console:hal/raw@0.1.0"."random-seed" = function func1
+// CHECK-NEXT: import import2 "console:hal/raw@0.1.0"."audio-queued" = function func2
+// CHECK-NEXT: import import3 "console:hal/raw@0.1.0"."unix-seconds" = function func3
+// CHECK-NEXT: import import4 "console:hal/raw@0.1.0"."host-features" = function func4
+// CHECK-NEXT: import import5 "console:hal/raw@0.1.0"."set-frame-rate" = function func5
+// CHECK-NEXT: import import6 "console:hal/raw@0.1.0"."capture-pointer" = function func6
+// CHECK-NEXT: import import7 "console:hal/raw@0.1.0"."frames-per-second" = function func7
+// CHECK-NEXT: import import8 "console:hal/raw@0.1.0"."input-capabilities" = function func8
+// CHECK-NEXT: import import9 "console:hal/raw@0.1.0"."exit" = function [[EXIT:func9]]
+// CHECK-NEXT: import import10 "console:hal/raw@0.1.0"."now-ms" = function [[NOW_MS:func10]]
+// CHECK-NEXT: import import11 "console:hal/raw@0.1.0"."arg-count" = function func11
+// CHECK-NEXT: import import12 "console:hal/raw@0.1.0"."file-size" = function func12
+// CHECK-NEXT: import import13 "console:hal/raw@0.1.0"."read-mouse" = function func13
+// CHECK-NEXT: import import14 "console:hal/raw@0.1.0"."audio-write" = function func14
+// CHECK-NEXT: import import15 "console:hal/raw@0.1.0"."file-remove" = function func15
+// CHECK-NEXT: import import16 "console:hal/raw@0.1.0"."file-rename" = function func16
+// CHECK-NEXT: import import17 "console:hal/raw@0.1.0"."read-events" = function [[READ_EVENTS:func17]]
+// CHECK-NEXT: import import18 "console:hal/raw@0.1.0"."file-read-at" = function [[FILE_READ:func18]]
+// CHECK-NEXT: import import19 "console:hal/raw@0.1.0"."file-write-at" = function func19
+// CHECK-NEXT: import import20 "console:hal/raw@0.1.0"."present-indexed" = function func20
+// CHECK-NEXT: import import21 "console:hal/raw@0.1.0"."file-list-directory" = function func21
+// CHECK-NEXT: import import22 "console:hal/raw@0.1.0"."file-create-directory" = function func22
+// CHECK-NEXT: import import23 "console:hal/raw@0.1.0"."arg" = function func23
+// CHECK-NEXT: import import24 "console:hal/raw@0.1.0"."present" = function [[PRESENT:func24]]
+// CHECK-NEXT: import import25 "console:hal/raw@0.1.0"."file-open" = function func25
+// CHECK-NEXT: import import26 "console:hal/raw@0.1.0"."host-name" = function func26
+// CHECK-NEXT: import import27 "console:hal/raw@0.1.0"."read-text" = function func27
+// CHECK-NEXT: import import28 "console:hal/raw@0.1.0"."set-title" = function func28
+// CHECK-NEXT: import import29 "console:hal/raw@0.1.0"."write-log" = function func29
+// CHECK-NOT: import import30
+
+// The game's function pointers land in tables of their own, and each
+// component keeps its memory: the platform's grows freely, while the C SDK
+// links the game with 32 MiB that may reach 256 MiB. The file resource's
+// handle table follows in a memory of its own.
+// CHECK: table table0 : (ref null func) i32 {{[0-9]+}}..{{[0-9]+}} defined
+// CHECK: memory memory0 : i32 {{[0-9]+}}..* defined
+// CHECK-NEXT: memory memory1 : i32 512..4096 defined
+// CHECK-NEXT: memory memory2 : i32 1..* defined
+// CHECK-NOT: memory memory3
+
+// The trampolines in front of the services a frame uses forward their
+// parameters unchanged, like every other open import's.
+// CHECK: call<function=[[EXIT]]>(%0) ; inst0
+// CHECK-NEXT: return
+// CHECK: %0: i64 = call<function=[[NOW_MS]]>() ; inst0
+// CHECK-NEXT: return %0
+// CHECK: call<function=[[READ_EVENTS]]>(%0) ; inst0
+// CHECK-NEXT: return
+// CHECK: call<function=[[FILE_READ]]>(%0, %1, %2, %3) ; inst0
+// CHECK-NEXT: return
+// CHECK: call<function=[[PRESENT]]>(%0, %1, %2, %3) ; inst0
+// CHECK-NEXT: return
+
+// CHECK: export "end-frame" = function func{{[0-9]+}}
+// CHECK-NEXT: export "init" = function func{{[0-9]+}}
+// CHECK-NEXT: export "frame" = function func{{[0-9]+}}
+// CHECK-NEXT: export "platform:memory" = memory memory0
+// CHECK-NEXT: export "game:memory" = memory memory1
+// CHECK-NEXT: export "wlink:handles" = memory memory2
+
+// Every body gets a CFG with its analyses; the game's loops are found as
+// natural loops, and its entry points are the exported bodies.
+// CFG: wedge.cfg-analysis {
+// CFG: loop header=block{{[0-9]+}} blocks=[block{{[0-9]+}}{{.*}}] backedges=[edge{{[0-9]+}}{{.*}}]
+// CFG-DAG: func func{{[0-9]+}} name="{{[^"]+}}" exports=["init"] entry=block0 root=region0 {
+// CFG-DAG: func func{{[0-9]+}} name="{{[^"]+}}" exports=["frame"] entry=block0 root=region0 {

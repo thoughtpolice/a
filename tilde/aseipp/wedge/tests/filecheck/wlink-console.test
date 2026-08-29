@@ -1,0 +1,105 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+// The prototype console package: a game and a platform component that wlink
+// linked into one core module, tilde//aseipp/wlink/demo:linked.wasm. Both
+// dumps run on that artifact as the build produces it, so this is the
+// compiler's front door for a linked game rather than a fixture of this
+// package. Function numbers are left open; they move with the guests' code.
+// RUN: %wedge --emit ir %{wlink_console} | FileCheck %s
+// RUN: %wedge --emit cfg %{wlink_console} | FileCheck %s --check-prefix=CFG
+
+// Nothing but the expanded HAL is left imported once the SDK is linked in, each
+// component keeps its own memory, and the SDK's file resource gives the linker
+// a handle table after them.
+// CHECK: import import0 "console:hal/raw@0.1.0"."file-close" = function [[FILE_CLOSE:func[0-9]+]]
+// CHECK-NEXT: import import1 "console:hal/raw@0.1.0"."random-seed" = function [[SEED:func[0-9]+]]
+// CHECK-NEXT: import import2 "console:hal/raw@0.1.0"."audio-queued" = function [[AUDIO_QUEUED:func[0-9]+]]
+// CHECK-NEXT: import import3 "console:hal/raw@0.1.0"."unix-seconds" = function [[UNIX:func[0-9]+]]
+// CHECK-NEXT: import import4 "console:hal/raw@0.1.0"."host-features" = function [[HOST_FEATURES:func[0-9]+]]
+// CHECK-NEXT: import import5 "console:hal/raw@0.1.0"."set-frame-rate" = function [[SET_FPS:func[0-9]+]]
+// CHECK-NEXT: import import6 "console:hal/raw@0.1.0"."capture-pointer" = function [[CAPTURE:func[0-9]+]]
+// CHECK-NEXT: import import7 "console:hal/raw@0.1.0"."frames-per-second" = function [[FPS:func[0-9]+]]
+// CHECK-NEXT: import import8 "console:hal/raw@0.1.0"."input-capabilities" = function [[INPUT_CAPS:func[0-9]+]]
+// CHECK-NEXT: import import9 "console:hal/raw@0.1.0"."exit" = function [[EXIT:func[0-9]+]]
+// CHECK-NEXT: import import10 "console:hal/raw@0.1.0"."now-ms" = function [[NOW_MS:func[0-9]+]]
+// CHECK-NEXT: import import11 "console:hal/raw@0.1.0"."arg-count" = function [[ARG_COUNT:func[0-9]+]]
+// CHECK-NEXT: import import12 "console:hal/raw@0.1.0"."file-size" = function [[FILE_SIZE:func[0-9]+]]
+// CHECK-NEXT: import import13 "console:hal/raw@0.1.0"."read-mouse" = function [[READ_MOUSE:func[0-9]+]]
+// CHECK-NEXT: import import14 "console:hal/raw@0.1.0"."audio-write" = function [[AUDIO_WRITE:func[0-9]+]]
+// CHECK-NEXT: import import15 "console:hal/raw@0.1.0"."file-remove" = function [[FILE_REMOVE:func[0-9]+]]
+// CHECK-NEXT: import import16 "console:hal/raw@0.1.0"."file-rename" = function [[FILE_RENAME:func[0-9]+]]
+// CHECK-NEXT: import import17 "console:hal/raw@0.1.0"."read-events" = function [[READ_EVENTS:func[0-9]+]]
+// CHECK-NEXT: import import18 "console:hal/raw@0.1.0"."file-read-at" = function [[FILE_READ:func[0-9]+]]
+// CHECK-NEXT: import import19 "console:hal/raw@0.1.0"."file-write-at" = function [[FILE_WRITE:func[0-9]+]]
+// CHECK-NEXT: import import20 "console:hal/raw@0.1.0"."present-indexed" = function [[PRESENT_INDEXED:func[0-9]+]]
+// CHECK-NEXT: import import21 "console:hal/raw@0.1.0"."file-list-directory" = function [[FILE_LIST:func[0-9]+]]
+// CHECK-NEXT: import import22 "console:hal/raw@0.1.0"."file-create-directory" = function [[CREATE_DIR:func[0-9]+]]
+// CHECK-NEXT: import import23 "console:hal/raw@0.1.0"."arg" = function [[ARG:func[0-9]+]]
+// CHECK-NEXT: import import24 "console:hal/raw@0.1.0"."present" = function [[PRESENT:func[0-9]+]]
+// CHECK-NEXT: import import25 "console:hal/raw@0.1.0"."file-open" = function [[FILE_OPEN:func[0-9]+]]
+// CHECK-NEXT: import import26 "console:hal/raw@0.1.0"."host-name" = function [[HOST_NAME:func[0-9]+]]
+// CHECK-NEXT: import import27 "console:hal/raw@0.1.0"."read-text" = function [[READ_TEXT:func[0-9]+]]
+// CHECK-NEXT: import import28 "console:hal/raw@0.1.0"."set-title" = function [[SET_TITLE:func[0-9]+]]
+// CHECK-NEXT: import import29 "console:hal/raw@0.1.0"."write-log" = function [[WRITE_LOG:func[0-9]+]]
+// CHECK-NOT: import import30
+// CHECK: memory memory0 : i32 {{[0-9]+}}..* defined
+// CHECK-NEXT: memory memory1 : i32 {{[0-9]+}}..* defined
+// CHECK-NEXT: memory memory2 : i32 1..* defined
+// CHECK-NOT: memory memory3
+
+// A string adapter copies the game's bytes into the platform's memory and
+// hands the new pointer on with the length. There are two, for draw-text and
+// log, and they follow the components' own code.
+// CHECK: memory.copy<memory=memory0, memory=memory1>([[PTR:%[0-9]+]], %{{[0-9]+}}, [[LEN:%[0-9]+]]) ; {{inst[0-9]+}} effects[write:memory0, read:memory1, trap:memory-out-of-bounds]
+// CHECK-NEXT: call<function={{func[0-9]+}}>({{.*}}[[PTR]], [[LEN]]{{.*}}) ; {{inst[0-9]+}} effects[read-write:host
+// CHECK: memory.copy<memory=memory0, memory=memory1>([[PTR:%[0-9]+]], %{{[0-9]+}}, [[LEN:%[0-9]+]]) ; {{inst[0-9]+}} effects[write:memory0, read:memory1, trap:memory-out-of-bounds]
+// CHECK-NEXT: call<function={{func[0-9]+}}>({{.*}}[[PTR]], [[LEN]]{{.*}}) ; {{inst[0-9]+}} effects[read-write:host
+
+// Every import is reached through a trampoline that forwards its parameters
+// unchanged; they close the module, after the adapters.
+// CHECK: call<function=[[FILE_CLOSE]]>(%0) ; inst0
+// CHECK-NEXT: return
+// CHECK: %0: i32 = call<function=[[INPUT_CAPS]]>() ; inst0
+// CHECK-NEXT: return %0
+// CHECK: call<function=[[EXIT]]>(%0) ; inst0
+// CHECK-NEXT: return
+// CHECK: %0: i64 = call<function=[[NOW_MS]]>() ; inst0
+// CHECK-NEXT: return %0
+// CHECK: %0: i32 = call<function=[[ARG_COUNT]]>() ; inst0
+// CHECK-NEXT: return %0
+// CHECK: %1: i64 = call<function=[[FILE_SIZE]]>(%0) ; inst0
+// CHECK-NEXT: return %1
+// CHECK: %2: i32 = call<function=[[FILE_REMOVE]]>(%0, %1) ; inst0
+// CHECK-NEXT: return %2
+// CHECK: %4: i32 = call<function=[[FILE_RENAME]]>(%0, %1, %2, %3) ; inst0
+// CHECK-NEXT: return %4
+// CHECK: call<function=[[READ_EVENTS]]>(%0) ; inst0
+// CHECK-NEXT: return
+// CHECK: call<function=[[FILE_READ]]>(%0, %1, %2, %3) ; inst0
+// CHECK-NEXT: return
+// CHECK: %4: i32 = call<function=[[FILE_WRITE]]>(%0, %1, %2, %3) ; inst0
+// CHECK-NEXT: return %4
+// CHECK: call<function=[[FILE_LIST]]>(%0, %1, %2) ; inst0
+// CHECK-NEXT: return
+// CHECK: %2: i32 = call<function=[[CREATE_DIR]]>(%0, %1) ; inst0
+// CHECK-NEXT: return %2
+// CHECK: call<function=[[ARG]]>(%0, %1) ; inst0
+// CHECK-NEXT: return
+// CHECK: call<function=[[PRESENT]]>(%0, %1, %2, %3) ; inst0
+// CHECK-NEXT: return
+// CHECK: %3: i32 = call<function=[[FILE_OPEN]]>(%0, %1, %2) ; inst0
+// CHECK-NEXT: return %3
+// CHECK: call<function=[[WRITE_LOG]]>(%0, %1, %2) ; inst0
+// CHECK-NEXT: return
+
+// CHECK: export "end-frame" = function func{{[0-9]+}}
+// CHECK-NEXT: export "init" = function func{{[0-9]+}}
+// CHECK-NEXT: export "frame" = function func{{[0-9]+}}
+// CHECK-NEXT: export "platform:memory" = memory memory0
+// CHECK-NEXT: export "game:memory" = memory memory1
+// CHECK-NEXT: export "wlink:handles" = memory memory2
+
+// The game's entry points are the exported bodies the CFG dump labels.
+// CFG-DAG: func func{{[0-9]+}} name="game.1.frame" exports=["frame"] entry=block0 root=region0 {
+// CFG-DAG: func func{{[0-9]+}} name="game.1.init" exports=["init"] entry=block0 root=region0 {

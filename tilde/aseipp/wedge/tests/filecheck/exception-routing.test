@@ -1,0 +1,74 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+// RUN: %wat2wasm --enable-function-references %S/../exception_routing.wat -o %t.wasm && %wedge --emit cfg %t.wasm | FileCheck %s
+
+// Two dynamic exception points are distinct invoke terminators whose
+// exceptional edges remain distinct occurrences entering the same handler.
+// CHECK-LABEL: func func5 exports=["two_exception_points"] entry=block0 root=region0 {
+// CHECK: block block2 region=region0 params=[%6:i32] reachable=true rpo=6 idom=block3 ipdom-semantic=virtual-exit ipdom-normal=virtual-exit scc=scc6 cyclic=false incoming=[edge3, edge4, edge6] outgoing=[]
+// CHECK: block block3 region=region2 params=[] reachable=true rpo=2 idom=block1 ipdom-semantic=virtual-exit ipdom-normal=block2 scc=scc2 cyclic=false incoming=[edge1] outgoing=[edge2, edge3]
+// CHECK: block block5 region=region2 params=[] reachable=true rpo=3 idom=block3 ipdom-semantic=virtual-exit ipdom-normal=block2 scc=scc3 cyclic=false incoming=[edge2] outgoing=[edge5, edge6]
+// CHECK-NOT: kind=exception{{ }}
+// CHECK: edge edge3 block3 -> block2 kind=exception arm=0 handler=region2 clause=0 args=[value(%3)]
+// CHECK-NOT: kind=exception{{ }}
+// CHECK: edge edge4 block4 -> block2 kind=jump args=[%5] refined=[]
+// CHECK-NOT: kind=exception{{ }}
+// CHECK: edge edge6 block5 -> block2 kind=exception arm=0 handler=region2 clause=0 args=[value(%4)]
+// CHECK-NOT: kind=exception{{ }}
+// CHECK: exit exit0 block2 kind=return origin=terminator
+// CHECK-NEXT: exit exit1 block3 kind=trap(stack-overflow) origin=terminator
+// CHECK-NEXT: exit exit2 block3 kind=trap(callee-trap) origin=terminator
+// CHECK-NEXT: exit exit3 block3 kind=exception-escape origin=terminator
+// CHECK-NEXT: exit exit4 block5 kind=trap(stack-overflow) origin=terminator
+// CHECK-NEXT: exit exit5 block5 kind=trap(callee-trap) origin=terminator
+// CHECK-NEXT: exit exit6 block5 kind=exception-escape origin=terminator
+// CHECK-NEXT:   }
+
+// Repeated catch clauses are ordered, distinct exceptional occurrences. A
+// normal continuation exists beside them; catch_all prevents escape.
+// CHECK-LABEL: func func7 exports=["multiple_clauses"] entry=block0 root=region0 {
+// CHECK: region region2 kind=try-table[Catch(tag0) -> block2, Catch(tag1) -> block2, CatchAll -> block2] parent=region1 entry=block3
+// CHECK: block block2 region=region0 params=[] reachable=true rpo=5 idom=block3 ipdom-semantic=virtual-exit ipdom-normal=virtual-exit scc=scc5 cyclic=false incoming=[edge3, edge4, edge5, edge6] outgoing=[]
+// CHECK-NEXT: block block3 region=region2 params=[] reachable=true rpo=2 idom=block1 ipdom-semantic=virtual-exit ipdom-normal=block2 scc=scc2 cyclic=false incoming=[edge1] outgoing=[edge2, edge3, edge4, edge5]
+// CHECK: edge edge2 block3 -> block5 kind=invoke.normal args=[] refined=[]
+// CHECK-NEXT: edge edge3 block3 -> block2 kind=exception arm=0 handler=region2 clause=0 args=[]
+// CHECK-NEXT: edge edge4 block3 -> block2 kind=exception arm=1 handler=region2 clause=1 args=[]
+// CHECK-NEXT: edge edge5 block3 -> block2 kind=exception arm=2 handler=region2 clause=2 args=[]
+// CHECK: exit exit0 block2 kind=return origin=terminator
+// CHECK-NEXT: exit exit1 block3 kind=trap(stack-overflow) origin=terminator
+// CHECK-NEXT: exit exit2 block3 kind=trap(callee-trap) origin=terminator
+// CHECK-NEXT:   }
+
+// A dynamic exception tries the inner handler, then the outer handler, while
+// retaining normal completion, traps, and eventual escape as separate paths.
+// CHECK-LABEL: func func13 exports=["nested_fallback"] entry=block0 root=region0 {
+// CHECK: region region2 kind=try-table[Catch(tag1) -> block2] parent=region1 entry=block3
+// CHECK: region region4 kind=try-table[Catch(tag0) -> block6] parent=region3 entry=block7
+// CHECK: reachable=[block0, block1, block2, block3, block4, block5, block6, block7, block8, block9]
+// CHECK-NEXT: rpo=[block0, block1, block3, block5, block7, block9, block8, block6, block4, block2]
+// CHECK-NOT: reachable=false
+// CHECK: block block7 region=region4 params=[] reachable=true rpo=4 idom=block5 ipdom-semantic=virtual-exit ipdom-normal=block2 scc=scc4 cyclic=false incoming=[edge4] outgoing=[edge6, edge7, edge8]
+// CHECK-NOT: reachable=false
+// CHECK: edge edge6 block7 -> block9 kind=invoke.normal args=[] refined=[]
+// CHECK-NEXT: edge edge7 block7 -> block6 kind=exception arm=0 handler=region4 clause=0 args=[]
+// CHECK-NEXT: edge edge8 block7 -> block2 kind=exception arm=1 handler=region2 clause=0 args=[]
+// CHECK: exit exit0 block2 kind=return origin=terminator
+// CHECK-NEXT: exit exit1 block7 kind=trap(stack-overflow) origin=terminator
+// CHECK-NEXT: exit exit2 block7 kind=trap(callee-trap) origin=terminator
+// CHECK-NEXT: exit exit3 block7 kind=exception-escape origin=terminator
+// CHECK-NEXT:   }
+
+// A caught throw has no normal edge or source exit. Its payload is carried by
+// the sole exceptional edge, and both policies postdominate the throw with
+// its handler.
+// CHECK-LABEL: func func14 exports=["known_throw_payload_and_local"] entry=block0 root=region0 {
+// CHECK: reachable=[block0, block1, block2, block3]
+// CHECK-NEXT: rpo=[block0, block1, block3, block2]
+// CHECK: block block2 region=region0 params=[%3:i32] reachable=true rpo=3 idom=block3 ipdom-semantic=virtual-exit ipdom-normal=virtual-exit scc=scc4 cyclic=false incoming=[edge2] outgoing=[]
+// CHECK-NEXT: block block3 region=region2 params=[] reachable=true rpo=2 idom=block1 ipdom-semantic=block2 ipdom-normal=block2 scc=scc3 cyclic=false incoming=[edge1] outgoing=[edge2]
+// CHECK-NEXT: block block4 region=region1 params=[] reachable=false rpo=none idom=none ipdom-semantic=none ipdom-normal=none scc=scc0 cyclic=false incoming=[] outgoing=[]
+// CHECK: edge edge2 block3 -> block2 kind=exception arm=0 handler=region2 clause=0 args=[value(%0)]
+// CHECK-NEXT: exit exit0 block2 kind=return origin=terminator
+// CHECK-NEXT: exit exit1 block4 kind=trap(unreachable) origin=terminator
+// CHECK-NEXT:   }
