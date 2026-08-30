@@ -1,10 +1,6 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# build.rs only regenerates include/hegel.h via cbindgen and panics on drift;
-# it emits no rustc/link directives, and we consume the crate as an rlib.
-buildscript.run = false
-
 # src/lib.rs bakes the crate version into hegel_version() via
 # env!("CARGO_PKG_VERSION").
 cargo_env = ["CARGO_PKG_VERSION"]
