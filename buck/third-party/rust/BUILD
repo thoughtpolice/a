@@ -9789,34 +9789,33 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "hegeltest",
-    actual = ":hegeltest-0.28",
+    actual = ":hegeltest-0.32",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "hegeltest-0.28.0.crate",
-    sha256 = "f12603ff7e94c463c26e97565d725010e92139f68fc93edcacf7cb800cfd422b",
-    strip_prefix = "hegeltest-0.28.0",
-    urls = ["https://static.crates.io/crates/hegeltest/0.28.0/download"],
+    name = "hegeltest-0.32.5.crate",
+    sha256 = "9210d5784dde569ca02bc14fa941617a695b065c974e5c56ae03c4fd7048c79f",
+    strip_prefix = "hegeltest-0.32.5",
+    urls = ["https://static.crates.io/crates/hegeltest/0.32.5/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-0.28",
-    srcs = [":hegeltest-0.28.0.crate"],
+    name = "hegeltest-0.32",
+    srcs = [":hegeltest-0.32.5.crate"],
     crate = "hegel",
-    crate_root = "hegeltest-0.28.0.crate/src/lib.rs",
+    crate_root = "hegeltest-0.32.5.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
     visibility = [],
     deps = [
         ":crc32fast-1",
         ":dashu-int-0.4",
-        ":hegeltest-c-0.29",
-        ":hegeltest-macros-0.28",
+        ":hegeltest-c-0.33",
+        ":hegeltest-macros-0.32",
         ":miniz_oxide-0.8",
         ":parking_lot-0.12",
-        ":paste-1",
         ":rand-0.10",
         ":rustc-hash-2",
         ":tempfile-3",
@@ -9824,48 +9823,68 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "hegeltest-c-0.29.0.crate",
-    sha256 = "dc2ab96fd030ce7ad37081c1f6ab3186ba794b9894cefeef2644d9dc1ecc1df7",
-    strip_prefix = "hegeltest-c-0.29.0",
-    urls = ["https://static.crates.io/crates/hegeltest-c/0.29.0/download"],
+    name = "hegeltest-c-0.33.3.crate",
+    sha256 = "01ec51d829e2104efa326683fc0d7bf21baa46bee4915d1b200cbbcf2ec1ac2d",
+    strip_prefix = "hegeltest-c-0.33.3",
+    urls = ["https://static.crates.io/crates/hegeltest-c/0.33.3/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-c-0.29",
-    srcs = [":hegeltest-c-0.29.0.crate"],
+    name = "hegeltest-c-0.33",
+    srcs = [":hegeltest-c-0.33.3.crate"],
     crate = "hegel_c",
-    crate_root = "hegeltest-c-0.29.0.crate/src/lib.rs",
+    crate_root = "hegeltest-c-0.33.3.crate/src/lib.rs",
     dlopen_enable = True,
     edition = "2024",
     env = {
-        "CARGO_PKG_VERSION": "0.29.0",
+        "CARGO_PKG_VERSION": "0.33.3",
+    },
+    platform = {
+        "linux-arm64": dict(
+            deps = [":rustix-1"],
+        ),
+        "linux-x86_64": dict(
+            deps = [":rustix-1"],
+        ),
+        "macos-arm64": dict(
+            deps = [":rustix-1"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":rustix-1"],
+        ),
+        "windows-gnu": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
     deps = [
-        ":crc32fast-1",
         ":dashu-int-0.4",
+        ":hashbrown-0.17",
+        ":libm-0.2",
         ":miniz_oxide-0.8",
-        ":parking_lot-0.12",
+        ":once_cell-1",
         ":rand-0.10",
         ":rustc-hash-2",
-        ":tempfile-3",
     ],
 )
 
 shims.http_archive(
-    name = "hegeltest-macros-0.28.0.crate",
-    sha256 = "c3fe342530584e9e0ac8144d40a746fff47c63ad1a2725c8793fbc883f7a6f9e",
-    strip_prefix = "hegeltest-macros-0.28.0",
-    urls = ["https://static.crates.io/crates/hegeltest-macros/0.28.0/download"],
+    name = "hegeltest-macros-0.32.5.crate",
+    sha256 = "7a79d57751ed94624b1fd65cf6c7f090cdc4ed48ebfffd74636b342c5885c07a",
+    strip_prefix = "hegeltest-macros-0.32.5",
+    urls = ["https://static.crates.io/crates/hegeltest-macros/0.32.5/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-macros-0.28",
-    srcs = [":hegeltest-macros-0.28.0.crate"],
+    name = "hegeltest-macros-0.32",
+    srcs = [":hegeltest-macros-0.32.5.crate"],
     crate = "hegel_macros",
-    crate_root = "hegeltest-macros-0.28.0.crate/src/lib.rs",
+    crate_root = "hegeltest-macros-0.32.5.crate/src/lib.rs",
     edition = "2024",
     proc_macro = True,
     visibility = [],
@@ -12722,6 +12741,23 @@ third_party_rust.buildscript_run(
 )
 
 shims.http_archive(
+    name = "libm-0.2.16.crate",
+    sha256 = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981",
+    strip_prefix = "libm-0.2.16",
+    urls = ["https://static.crates.io/crates/libm/0.2.16/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "libm-0.2",
+    srcs = [":libm-0.2.16.crate"],
+    crate = "libm",
+    crate_root = "libm-0.2.16.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+)
+
+shims.http_archive(
     name = "line-clipping-0.3.7.crate",
     sha256 = "3f50e8f47623268b5407192d26876c4d7f89d686ca130fdc53bced4814cd29f8",
     strip_prefix = "line-clipping-0.3.7",
@@ -12806,6 +12842,7 @@ third_party_rust.rust_library(
         "general",
         "ioctl",
         "no_std",
+        "prctl",
     ],
     visibility = [],
 )
@@ -19965,9 +20002,13 @@ third_party_rust.rust_library(
         "alloc",
         "default",
         "fs",
+        "process",
+        "rand",
         "std",
         "stdio",
         "termios",
+        "thread",
+        "time",
     ],
     platform = {
         "linux-arm64": dict(
@@ -20004,9 +20045,13 @@ third_party_rust.rust_binary(
         "alloc",
         "default",
         "fs",
+        "process",
+        "rand",
         "std",
         "stdio",
         "termios",
+        "thread",
+        "time",
     ],
     visibility = [],
 )
@@ -20019,9 +20064,13 @@ third_party_rust.buildscript_run(
         "alloc",
         "default",
         "fs",
+        "process",
+        "rand",
         "std",
         "stdio",
         "termios",
+        "thread",
+        "time",
     ],
     version = "1.1.4",
 )
@@ -27223,9 +27272,11 @@ third_party_rust.rust_library(
         "Win32_System",
         "Win32_System_Com",
         "Win32_System_Console",
+        "Win32_System_Environment",
         "Win32_System_IO",
         "Win32_System_LibraryLoader",
         "Win32_System_Memory",
+        "Win32_System_Performance",
         "Win32_System_Pipes",
         "Win32_System_Registry",
         "Win32_System_SystemInformation",

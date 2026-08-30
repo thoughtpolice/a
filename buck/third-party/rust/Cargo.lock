@@ -847,25 +847,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cbindgen"
-version = "0.29.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ecb53484c9c167ba674026b656d8a27d7657a58e6066aa902bfb1a4aa00ae20"
-dependencies = [
- "clap",
- "heck 0.5.0",
- "indexmap 2.14.0",
- "log",
- "proc-macro2",
- "quote",
- "serde",
- "serde_json",
- "syn 2.0.119",
- "tempfile",
- "toml 0.9.12+spec-1.1.0",
-]
-
-[[package]]
 name = "cc"
 version = "1.2.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4031,9 +4012,9 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hegeltest"
-version = "0.28.0"
+version = "0.32.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f12603ff7e94c463c26e97565d725010e92139f68fc93edcacf7cb800cfd422b"
+checksum = "9210d5784dde569ca02bc14fa941617a695b065c974e5c56ae03c4fd7048c79f"
 dependencies = [
  "crc32fast",
  "dashu-int",
@@ -4041,7 +4022,6 @@ dependencies = [
  "hegeltest-macros",
  "miniz_oxide",
  "parking_lot",
- "paste",
  "rand 0.10.2",
  "rustc-hash",
  "tempfile",
@@ -4049,25 +4029,26 @@ dependencies = [
 
 [[package]]
 name = "hegeltest-c"
-version = "0.29.0"
+version = "0.33.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc2ab96fd030ce7ad37081c1f6ab3186ba794b9894cefeef2644d9dc1ecc1df7"
+checksum = "01ec51d829e2104efa326683fc0d7bf21baa46bee4915d1b200cbbcf2ec1ac2d"
 dependencies = [
- "cbindgen",
- "crc32fast",
  "dashu-int",
+ "hashbrown 0.17.1",
+ "libm",
  "miniz_oxide",
- "parking_lot",
+ "once_cell",
  "rand 0.10.2",
  "rustc-hash",
- "tempfile",
+ "rustix",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "hegeltest-macros"
-version = "0.28.0"
+version = "0.32.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3fe342530584e9e0ac8144d40a746fff47c63ad1a2725c8793fbc883f7a6f9e"
+checksum = "7a79d57751ed94624b1fd65cf6c7f090cdc4ed48ebfffd74636b342c5885c07a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -9839,21 +9820,6 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.9.12+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf92845e79fc2e2def6a5d828f0801e29a2f8acc037becc5ab08595c7d5e9863"
-dependencies = [
- "indexmap 2.14.0",
- "serde_core",
- "serde_spanned 1.1.1",
- "toml_datetime 0.7.5+spec-1.1.0",
- "toml_parser",
- "toml_writer",
- "winnow 0.7.15",
-]
-
-[[package]]
-name = "toml"
 version = "1.1.3+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "53c96ecdfa941c8fc4fcaed14f99ada8ebed502eef533015095a07e3301d4c3c"
@@ -9874,15 +9840,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22cddaf88f4fbc13c51aebbf5f8eceb5c7c5a9da2ac40a13519eb5b0a0e8f11c"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "toml_datetime"
-version = "0.7.5+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92e1cfed4a3038bc5a127e35a2d360f145e1f4b971b551a2ba5fd7aedf7e1347"
-dependencies = [
- "serde_core",
 ]
 
 [[package]]
