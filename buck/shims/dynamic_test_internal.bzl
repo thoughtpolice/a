@@ -59,7 +59,8 @@ _ATTRS = {
     "type": attrs.string(default = "custom"),
 }
 
-def _result_entries(stdout: str) -> list[dict]:
+def dynamic_result_entries(stdout: str) -> list[dict]:
+    """Parse `result:` and `result-details:` lines from a test execution."""
     results = []
     for raw_line in stdout.splitlines():
         line = raw_line.rstrip()
@@ -86,6 +87,43 @@ def _result_entries(stdout: str) -> list[dict]:
             results[-1]["details"] = previous
     return results
 
+def dynamic_listing_entries(listing_content: str, target: str) -> list[dict[str, str]]:
+    """Parse `test: <filter> <name>` lines, prefixing names with the target."""
+    entries = []
+    for line in listing_content.splitlines():
+        line = line.strip()
+        if not line.startswith(_LISTING_PREFIX):
+            continue
+        fields = line[len(_LISTING_PREFIX):].split(" ")
+        if len(fields) != 2 or not fields[0] or not fields[1]:
+            continue
+        entries.append({
+            "name": target + " - " + fields[1],
+            "filter": fields[0],
+        })
+    return entries
+
+def dynamic_test_results(stdout: str, stderr: str, exit_code: int, target: str) -> list[dict]:
+    """Parse one execution's results, discarding them when they disagree
+    with the exit code so Buck synthesizes PASS/FAIL from it instead."""
+    _ = stderr
+    results = dynamic_result_entries(stdout)
+    if len(results) == 0:
+        return []
+
+    # One execution reports many items, so the exit code reflects the
+    # worst status: a FAIL entry requires a failing exit and vice versa.
+    fails = 0
+    for result in results:
+        if result["status"] == "FAIL":
+            fails += 1
+    if (exit_code == 0) != (fails == 0):
+        return []
+
+    for result in results:
+        result["name"] = target + " - " + result["name"]
+    return results
+
 def _dynamic_test_impl(ctx: AnalysisContext, internal: bool) -> list[Provider]:
     run = ctx.attrs.dep[RunInfo]
     batch_command = [run.args] + ctx.attrs.args
@@ -106,40 +144,10 @@ def _dynamic_test_impl(ctx: AnalysisContext, internal: bool) -> list[Provider]:
     target = ctx.label.package + ":" + ctx.label.name
 
     def parse_test_listing(listing_content: str) -> list[dict[str, str]]:
-        entries = []
-        for line in listing_content.splitlines():
-            line = line.strip()
-            if not line.startswith(_LISTING_PREFIX):
-                continue
-            fields = line[len(_LISTING_PREFIX):].split(" ")
-            if len(fields) != 2 or not fields[0] or not fields[1]:
-                continue
-            entries.append({
-                "name": target + " - " + fields[1],
-                "filter": fields[0],
-            })
-        return entries
+        return dynamic_listing_entries(listing_content, target)
 
     def parse_test_result(stdout: str, stderr: str, exit_code: int) -> list[dict]:
-        _ = stderr
-        results = _result_entries(stdout)
-        if len(results) == 0:
-            return []
-
-        # One execution reports many items, so the exit code reflects the
-        # worst status: a FAIL entry requires a failing exit and vice versa.
-        # Disagreement means the output cannot be trusted; returning no
-        # entries asks Buck to synthesize PASS/FAIL from the exit code.
-        fails = 0
-        for result in results:
-            if result["status"] == "FAIL":
-                fails += 1
-        if (exit_code == 0) != (fails == 0):
-            return []
-
-        for result in results:
-            result["name"] = target + " - " + result["name"]
-        return results
+        return dynamic_test_results(stdout, stderr, exit_code, target)
 
     providers.append(InternalRunnerTestInfo(
         type = ctx.attrs.type,
