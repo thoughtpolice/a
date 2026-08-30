@@ -1,0 +1,14 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+// DEFINE/REDEFINE substitutions and %{defines} from BUILD.
+// DEFINE: %{input} = %S/inputs/hello.txt
+// DEFINE: %{run} = %toy %{input}
+// RUN: %{run} | FileCheck %s
+// REDEFINE: %{run} = %toy --upper %{input}
+// RUN: %{run} | FileCheck %s --check-prefix=UPPER
+// RUN: echo %{greeting} | FileCheck %s --check-prefix=GREET
+//
+// CHECK: 1: hello
+// UPPER: 1: HELLO
+// GREET: hello from BUILD

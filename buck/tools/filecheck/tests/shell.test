@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Internal shell features: quoting, continuation, builtins, env, cd.
+# RUN: echo 'single "quoted"' "double 'quoted'" back\\slash | FileCheck %s --check-prefix=QUOTE
+# RUN: echo one two \
+# RUN:   three | FileCheck %s --check-prefix=CONT
+# RUN: printf 'a\nb\nc\n' | count 3
+# RUN: mkdir -p %T/sub && cd %T/sub && echo in-sub > here.txt && cat %T/sub/here.txt | FileCheck %s --check-prefix=CD
+# RUN: export TOYVAR=exported && env | FileCheck %s --check-prefix=EXPORT
+# RUN: env TOYVAR=inline env | FileCheck %s --check-prefix=INLINE
+# RUN: false || echo fallback | FileCheck %s --check-prefix=OR
+# RUN: true && echo both | FileCheck %s --check-prefix=AND
+# RUN: rm -f %t.gone; not cat %t.gone 2>/dev/null
+# RUN: echo %% %(line) %(line-1) | FileCheck %s --check-prefix=PCT
+#
+# QUOTE: single "quoted" double 'quoted' back\slash
+# CONT: one two three
+# CD: in-sub
+# EXPORT: TOYVAR=exported
+# INLINE: TOYVAR=inline
+# OR: fallback
+# AND: both
+# PCT: % 15 14

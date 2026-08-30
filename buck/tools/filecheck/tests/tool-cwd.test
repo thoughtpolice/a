@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Tool arguments and %{defines} from BUILD keep pointing at their artifacts
+# after a RUN line changes directory.
+# RUN: cd %T && %toy --version | FileCheck %s --check-prefix=VERSION
+# RUN: %toy_input | FileCheck %s --check-prefix=INPUT
+# RUN: cd %T && %toy_input | FileCheck %s --check-prefix=INPUT
+# RUN: cd %T && %toy %{input} | FileCheck %s --check-prefix=INPUT
+#
+# VERSION: toy 1.0
+# INPUT: 1: hello
+# INPUT-NEXT: 2: world

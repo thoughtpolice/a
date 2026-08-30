@@ -1,0 +1,26 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+// The checker's own command line, exercised through the in-process builtin
+// and through %filecheck as an external process.
+// RUN: echo 'value = 42' | FileCheck %s -DVAL=42 --check-prefix=DEF
+// RUN: echo 'value = 42' | not FileCheck %s -DVAL=41 --check-prefix=DEF
+// RUN: echo 'Hello' | FileCheck %s --ignore-case --check-prefix=CASE
+// RUN: printf 'a  b\n' | not FileCheck %s --strict-whitespace --check-prefix=WS
+// RUN: printf 'a  b\n' | FileCheck %s --check-prefix=WS
+// RUN: printf 'x\nwarning: bad\ny\n' | not FileCheck %s --check-prefix=IMP --implicit-check-not=warning
+// RUN: printf 'x\ny\n' | FileCheck %s --check-prefix=IMP --implicit-check-not=warning
+// RUN: echo 'exact' | %filecheck %s --match-full-lines --check-prefix=FULL
+// RUN: echo 'inexact' | not %filecheck %s --match-full-lines --check-prefix=FULL
+// RUN: echo 'z' | not FileCheck %s -DVAL=1 --check-prefix=DEF 2>&1 | FileCheck %s --check-prefix=DIAG
+//
+// DEF: value = [[VAL]]
+// CASE: hello
+// WS: a b
+// IMP: x
+// IMP: y
+// FULL: exact
+// The prefix followed by a colon cannot appear literally on this line, or the
+// line itself would be parsed as a directive.
+// DIAG: filecheck-cli.test:[[#@LINE-8]]:{{[0-9]+}}: error: {{DEF}}: expected string not found in input
+// DIAG: note: scanning from here

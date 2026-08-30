@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# This test is skipped, and must report as such rather than fail.
+# UNSUPPORTED: self-tests
+# RUN: false

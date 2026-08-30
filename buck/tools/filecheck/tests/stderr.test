@@ -1,0 +1,16 @@
+; SPDX-FileCopyrightText: © 2026 Austin Seipp
+; SPDX-License-Identifier: Apache-2.0
+
+; stderr, exit statuses, and `not`.
+; RUN: %toy %S/inputs/hello.txt 2>&1 | FileCheck %s --check-prefix=BOTH
+; RUN: not %toy --fail %S/inputs/hello.txt 2>&1 >/dev/null | FileCheck %s --check-prefix=ERR
+; RUN: not %toy --fail %S/inputs/hello.txt > /dev/null 2>&1
+; RUN: %toy %S/inputs/hello.txt 2> %t.err > %t.out && FileCheck %s --check-prefix=ERRFILE --input-file=%t.err
+;
+; BOTH-DAG: 1: hello
+; BOTH-DAG: toy: 2 lines from {{.*}}hello.txt
+;
+; ERR: toy: error: failing as requested
+; ERR-NOT: 1: hello
+;
+; ERRFILE: toy: 2 lines

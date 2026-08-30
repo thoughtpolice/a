@@ -1,0 +1,3 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+CHECK: filecheck {{[0-9]+\.[0-9]+\.[0-9]+}}

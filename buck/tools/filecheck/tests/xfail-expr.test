@@ -1,0 +1,7 @@
+; SPDX-FileCopyrightText: © 2026 Austin Seipp
+; SPDX-License-Identifier: Apache-2.0
+
+; XFAIL with an expression that does not hold: the test must simply pass.
+; XFAIL: no-such-feature && self-tests
+; RUN: echo fine | FileCheck %s
+; CHECK: fine

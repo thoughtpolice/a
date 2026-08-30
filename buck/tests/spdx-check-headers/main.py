@@ -60,6 +60,8 @@ BAD_SUFFIXES = [
     ".jsonl",
     ".pem",
     ".exe",
+    # golden test outputs are compared byte-for-byte
+    ".expected",
     ".gitattributes",
     ".gitignore",
     ".ignore",
@@ -110,54 +112,55 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
     # Also allow compound licenses with AND/OR (both orderings)
     allowed_compound_licenses = ["Apache-2.0 AND MIT", "Apache-2.0 OR MIT", "MIT AND Apache-2.0", "MIT OR Apache-2.0"]
 
-    # Define comment styles for copyright (without years)
-    bzl_style_copyright = "# SPDX-FileCopyrightText: © "
-    cxx_style_copyright = "// SPDX-FileCopyrightText: © "
-    old_cxx_style_copyright = "/* SPDX-FileCopyrightText: © "
-    ocaml_style_copyright = "(* SPDX-FileCopyrightText: © "
-    lisp_style_copyright = ";; SPDX-FileCopyrightText: © "
-    erlang_style_copyright = "%% SPDX-FileCopyrightText: © "
-    html_style_copyright = "<!-- SPDX-FileCopyrightText: © "
+    # Comment styles as (copyright prefix, license prefix) pairs, without the
+    # years and identifiers that follow.
+    bzl_style = ("# SPDX-FileCopyrightText: © ", "# SPDX-License-Identifier: ")
+    cxx_style = ("// SPDX-FileCopyrightText: © ", "// SPDX-License-Identifier: ")
+    old_cxx_style = ("/* SPDX-FileCopyrightText: © ", "/* SPDX-License-Identifier: ")
+    ocaml_style = ("(* SPDX-FileCopyrightText: © ", "(* SPDX-License-Identifier: ")
+    lisp_style = (";; SPDX-FileCopyrightText: © ", ";; SPDX-License-Identifier: ")
+    erlang_style = ("%% SPDX-FileCopyrightText: © ", "%% SPDX-License-Identifier: ")
+    html_style = ("<!-- SPDX-FileCopyrightText: © ", "<!-- SPDX-License-Identifier: ")
+    llvm_style = ("; SPDX-FileCopyrightText: © ", "; SPDX-License-Identifier: ")
 
-    # Define comment styles for license (we'll check the license separately)
-    bzl_style_license_prefix = "# SPDX-License-Identifier: "
-    cxx_style_license_prefix = "// SPDX-License-Identifier: "
-    old_cxx_style_license_prefix = "/* SPDX-License-Identifier: "
-    ocaml_style_license_prefix = "(* SPDX-License-Identifier: "
-    lisp_style_license_prefix = ";; SPDX-License-Identifier: "
-    erlang_style_license_prefix = "%% SPDX-License-Identifier: "
-    html_style_license_prefix = "<!-- SPDX-License-Identifier: "
+    # lit-style test files use the comment syntax of whatever language the
+    # tool under test reads, so they may carry the header in any of these.
+    lit_styles = [cxx_style, bzl_style, llvm_style, lisp_style]
 
+    # Every entry lists the styles a file may open with. The file is held to
+    # the first one its opening line starts with, else to the first listed.
     file_styles = {
-        ".py": (bzl_style_copyright, bzl_style_license_prefix),
-        "BUILD": (bzl_style_copyright, bzl_style_license_prefix),
-        "BUCK": (bzl_style_copyright, bzl_style_license_prefix),
-        "PACKAGE": (bzl_style_copyright, bzl_style_license_prefix),
-        ".bzl": (bzl_style_copyright, bzl_style_license_prefix),
-        ".bxl": (bzl_style_copyright, bzl_style_license_prefix),
-        ".rs": (cxx_style_copyright, cxx_style_license_prefix),
-        ".cpp": (cxx_style_copyright, cxx_style_license_prefix),
-        ".hpp": (cxx_style_copyright, cxx_style_license_prefix),
-        ".h": (cxx_style_copyright, cxx_style_license_prefix),
-        ".c": (cxx_style_copyright, cxx_style_license_prefix),
-        ".go": (cxx_style_copyright, cxx_style_license_prefix),
-        ".ts": (cxx_style_copyright, cxx_style_license_prefix),
-        ".tsx": (cxx_style_copyright, cxx_style_license_prefix),
-        ".js": (cxx_style_copyright, cxx_style_license_prefix),
-        ".nix": (bzl_style_copyright, bzl_style_license_prefix),
-        ".capnp": (bzl_style_copyright, bzl_style_license_prefix),
-        ".S": (cxx_style_copyright, cxx_style_license_prefix),
-        ".ld": (old_cxx_style_copyright, old_cxx_style_license_prefix),
-        ".ml": (ocaml_style_copyright, ocaml_style_license_prefix),
-        ".yaml": (bzl_style_copyright, bzl_style_license_prefix),
-        ".fish": (bzl_style_copyright, bzl_style_license_prefix),
-        ".toml": (bzl_style_copyright, bzl_style_license_prefix),
-        ".html": (html_style_copyright, html_style_license_prefix),
-        ".wat": (lisp_style_copyright, lisp_style_license_prefix),
-        ".wit": (cxx_style_copyright, cxx_style_license_prefix),
-        ".zuo": (lisp_style_copyright, lisp_style_license_prefix),
-        ".sv": (cxx_style_copyright, cxx_style_license_prefix),
-        ".erl": (erlang_style_copyright, erlang_style_license_prefix),
+        ".py": [bzl_style],
+        "BUILD": [bzl_style],
+        "BUCK": [bzl_style],
+        "PACKAGE": [bzl_style],
+        ".bzl": [bzl_style],
+        ".bxl": [bzl_style],
+        ".rs": [cxx_style],
+        ".cpp": [cxx_style],
+        ".hpp": [cxx_style],
+        ".h": [cxx_style],
+        ".c": [cxx_style],
+        ".go": [cxx_style],
+        ".ts": [cxx_style],
+        ".tsx": [cxx_style],
+        ".js": [cxx_style],
+        ".nix": [bzl_style],
+        ".capnp": [bzl_style],
+        ".S": [cxx_style],
+        ".ld": [old_cxx_style],
+        ".ml": [ocaml_style],
+        ".yaml": [bzl_style],
+        ".fish": [bzl_style],
+        ".toml": [bzl_style],
+        ".html": [html_style],
+        ".wat": [lisp_style],
+        ".wit": [cxx_style],
+        ".zuo": [lisp_style],
+        ".sv": [cxx_style],
+        ".erl": [erlang_style],
+        ".test": lit_styles,
+        ".check": lit_styles,
     }
 
     file_ext = None
@@ -169,7 +172,12 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         eprint(f"Error: {file} is an unknown file type, hard failing!")
         return False
 
-    copyright_prefix, license_prefix = file_styles[file_ext]
+    styles = file_styles[file_ext]
+    copyright_prefix, license_prefix = styles[0]
+    for style in styles:
+        if lines and lines[0].strip().startswith(style[0]):
+            copyright_prefix, license_prefix = style
+            break
 
     # HTML requires its doctype before other markup. Treat that declaration as
     # a format preamble, then require the SPDX header immediately after it.

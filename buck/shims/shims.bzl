@@ -9,6 +9,7 @@ load("@root//buck/shims:cross_binary.bzl", _cross_binary_rule = "cross_binary")
 load("@root//buck/shims:dynamic_test_internal.bzl", _dynamic_test_external_rule = "dynamic_test_external", _dynamic_test_internal_rule = "dynamic_test_internal")
 load("@root//buck/shims:go_test_internal.bzl", _go_test_internal_rule = "go_test_internal")
 load("@root//buck/shims:rust_test_internal.bzl", _rust_test_internal_rule = "rust_test_internal")
+load("@root//buck/tools/filecheck:defs.bzl", _filecheck_lit_external_rule = "filecheck_lit_external", _filecheck_lit_internal_rule = "filecheck_lit_internal", _filecheck_test_rule = "filecheck_test")
 load("@toolchains//deno:defs.bzl", _deno = "deno")
 load("@toolchains//k6:defs.bzl", "k6_run")
 load("@toolchains//uv:defs.bzl", _uv_impl = "uv")
@@ -138,6 +139,19 @@ def _depot_dynamic_test(**kwargs):
         _dynamic_test_internal_rule(**kwargs)
     else:
         _dynamic_test_external_rule(**kwargs)
+
+def _depot_filecheck_test(**kwargs):
+    """Run one tool and check its output against a FileCheck-style file."""
+    kwargs = _fix_kwargs("filecheck_test", kwargs)
+    _filecheck_test_rule(**kwargs)
+
+def _depot_filecheck_lit(**kwargs):
+    """Define lit-style RUN: tests using the configured Buck2 test runner."""
+    kwargs = _fix_kwargs("filecheck_lit", kwargs)
+    if _use_internal_test_runner("filecheck"):
+        _filecheck_lit_internal_rule(**kwargs)
+    else:
+        _filecheck_lit_external_rule(**kwargs)
 
 def _depot_cxx_library(**kwargs):
     kwargs = _fix_kwargs("cxx_library", kwargs)
@@ -518,6 +532,10 @@ shims = struct(
     run_test = _run_test,
     ci_srcs_any_path = CI_SRCS_ANY_PATH,
     dynamic_test = _depot_dynamic_test,
+    filecheck = struct(
+        test = _depot_filecheck_test,
+        lit = _depot_filecheck_lit,
+    ),
     command = _command,
     rjust = rjust,
     chance = _hash_chance,

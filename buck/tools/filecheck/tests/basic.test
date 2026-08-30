@@ -1,0 +1,13 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+// The toy tool numbers lines; %toy comes from the BUILD file's `tools`.
+// RUN: %toy %S/inputs/hello.txt | FileCheck %s
+// RUN: %toy --upper %S/inputs/hello.txt | FileCheck %s --check-prefix=UPPER
+//
+// CHECK: 1: hello
+// CHECK-NEXT: 2: world
+// CHECK-NOT: 3:
+//
+// UPPER: [[#N:]]: HELLO
+// UPPER-NEXT: [[#N+1]]: WORLD

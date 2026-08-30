@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Golden-output style: diff the tool's output against a checked-in file.
+# RUN: %toy %S/inputs/hello.txt | diff %S/inputs/hello.expected -
+# RUN: %toy %S/inputs/hello.txt > %t.out && diff -u %S/inputs/hello.expected %t.out
+# RUN: %toy --upper %S/inputs/hello.txt | not diff %S/inputs/hello.expected -
+
+# A missing final newline must differ from the golden output.
+# RUN: echo hello > %t.expected
+# RUN: echo -n hello | not diff %t.expected - | FileCheck %s --check-prefix=NEWLINE
+# NEWLINE: -hello
+# NEWLINE-NEXT: +hello
+# NEWLINE-NEXT: \ No newline at end of file

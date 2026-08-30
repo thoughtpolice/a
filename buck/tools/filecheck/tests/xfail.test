@@ -1,0 +1,6 @@
+; SPDX-FileCopyrightText: © 2026 Austin Seipp
+; SPDX-License-Identifier: Apache-2.0
+
+; An expected failure counts as a pass.
+; XFAIL: *
+; RUN: %toy --fail %S/inputs/hello.txt

@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# REQUIRES/UNSUPPORTED with boolean expressions; `self-tests` and
+# `system-*` come from the BUILD file and the host.
+# REQUIRES: self-tests && (system-linux || system-darwin || system-windows)
+# REQUIRES: !no-such-feature, tool-toy
+# UNSUPPORTED: no-such-feature
+# RUN: echo ok | FileCheck %s
+# CHECK: ok
