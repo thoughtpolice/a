@@ -57,12 +57,18 @@ fozzie_rustc_flags = [
     "--cfg=fuzzing",
 ]
 
+fozzie_asan_rustc_flags = fozzie_rustc_flags + [
+    # The Rust code is instrumented by rustc, while the final clang++ linker
+    # invocation owns the one compiler-rt instance for mixed-language targets.
+    "-Zsanitizer=address",
+    "-Zexternal-clangrt",
+    "--cfg=fozzie_asan",
+]
+
 instrumentation_rustc_flags = shims.select({
     "toolchains//cfg/instrumentation:instrumentation[none]": [],
     "toolchains//cfg/instrumentation:instrumentation[fozzie]": fozzie_rustc_flags,
-    # ASan runtime support will be added separately. Keep this configuration
-    # useful for coverage-only builds until that runtime is available.
-    "toolchains//cfg/instrumentation:instrumentation[fozzie-asan]": fozzie_rustc_flags,
+    "toolchains//cfg/instrumentation:instrumentation[fozzie-asan]": fozzie_asan_rustc_flags,
 })
 
 rustc_flags = shims.select({

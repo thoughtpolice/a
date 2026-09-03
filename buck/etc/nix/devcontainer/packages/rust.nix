@@ -34,8 +34,9 @@ let
     target:
     rustChannel._components.${target}.rust-std.overrideAttrs (previousAttrs: {
       postFixup = (previousAttrs.postFixup or "") + ''
-        # The nightly sanitizer runtimes are only used by unstable -Zsanitizer
-        # builds. This image does not ship that specialized runtime contract.
+        # The nightly sanitizer runtimes are not linked directly. Fozzie's
+        # mixed-language builds use -Zexternal-clangrt so the pinned Clang
+        # toolchain owns the single compiler-rt instance.
         find "$out/lib/rustlib/${target}/lib" -maxdepth 1 -type f \
           -name 'librustc-nightly_rt.*.a' -delete
 

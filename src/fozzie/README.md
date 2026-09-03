@@ -63,6 +63,25 @@ rust_fuzz_binary(
 )
 ```
 
+AddressSanitizer is an opt-in profile on either rule:
+
+```python
+rust_fuzz_binary(
+    name = "parser-fuzz-asan",
+    srcs = ["parser_fuzz.rs"],
+    deps = [":parser"],
+    sanitizer = "address",
+)
+```
+
+The transition applies ASan and SanitizerCoverage to the complete target
+dependency graph. Clang supplies the one statically linked compiler-rt runtime
+for C++, Rust, and mixed-language final binaries; Rust uses
+`-Zexternal-clangrt` to avoid a second copy. Fuzz targets that install a custom
+allocator should select the system allocator when `cfg(fozzie_asan)` is set,
+because replacing `malloc` can bypass ASan's heap redzones. The Rust example
+shows this while retaining mimalloc for ordinary coverage-only campaigns.
+
 Run the bounded smoke campaign with the normal test interface:
 
 ```console
@@ -139,10 +158,11 @@ reset arbitrary global target state, so harnesses must make repeated calls
 independent. A slower spawn/file/stdin adapter and a forkserver are natural
 future executors for stateful programs.
 
-Coverage feedback works without an external sanitizer runtime. Sanitizer
-profiles are separate toolchain selections because this repository's pinned
-LLVM and Rust distributions control which compiler-rt libraries exist. This
-keeps callback ownership unambiguous for mixed-language binaries.
+Coverage feedback works without an external sanitizer runtime. The optional
+address profile uses the ASan-only compiler-rt carried by the pinned Clang
+toolchain; it does not link libFuzzer or Rust's bundled sanitizer archives.
+Keeping Clang as the single runtime owner makes callback and allocator
+ownership unambiguous for mixed-language binaries.
 
 The controller keeps execution, feature collection, corpus storage, mutation,
 scheduling, and artifact decisions separate. Those are the seams for future

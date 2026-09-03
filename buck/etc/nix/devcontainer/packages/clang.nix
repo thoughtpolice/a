@@ -78,6 +78,8 @@ let
             rm -f "$out/resource-root/lib" "$out/resource-root/share"
             ln -s ${slimLlvmPackages.compiler-rt}/lib \
               "$out/resource-root/lib"
+            ln -s ${slimLlvmPackages.compiler-rt}/share \
+              "$out/resource-root/share"
 
             cat >> "$out/nix-support/cc-ldflags" <<'EOF'
             -L${libstdcxxLibcxxCompat}/lib

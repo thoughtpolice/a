@@ -18,6 +18,7 @@ pub struct ArtifactSink {
     target_label: Option<String>,
     target_digest: String,
     campaign_seed: u64,
+    sanitizer: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -45,6 +46,7 @@ struct FindingMetadata<'a> {
     target_label: Option<&'a str>,
     target_digest: &'a str,
     campaign_seed: u64,
+    sanitizer: &'a str,
     execution: u64,
     stderr: String,
     repro: &'a str,
@@ -73,6 +75,7 @@ impl ArtifactSink {
         target: PathBuf,
         target_label: Option<String>,
         campaign_seed: u64,
+        sanitizer: String,
     ) -> Result<Self> {
         let directory = workdir.join("artifacts");
         fs::create_dir_all(&directory)
@@ -84,6 +87,7 @@ impl ArtifactSink {
             target_label,
             target_digest,
             campaign_seed,
+            sanitizer,
         })
     }
 
@@ -120,6 +124,7 @@ impl ArtifactSink {
             target_label: self.target_label.as_deref(),
             target_digest: &self.target_digest,
             campaign_seed: self.campaign_seed,
+            sanitizer: &self.sanitizer,
             execution,
             stderr: String::from_utf8_lossy(&finding.stderr).into_owned(),
             repro: &repro,
@@ -187,8 +192,14 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let target = directory.path().join("target");
         fs::write(&target, b"binary").unwrap();
-        let sink =
-            ArtifactSink::new(directory.path(), target, Some("//demo:fuzz".into()), 7).unwrap();
+        let sink = ArtifactSink::new(
+            directory.path(),
+            target,
+            Some("//demo:fuzz".into()),
+            7,
+            "address".into(),
+        )
+        .unwrap();
         let finding = Finding {
             kind: FindingKind::Crash,
             detail: "signal 6".into(),
@@ -200,6 +211,7 @@ mod tests {
             serde_json::from_slice(&fs::read(&recorded.metadata_path).unwrap()).unwrap();
         assert_eq!(metadata["confirmed"], true);
         assert_eq!(metadata["target_label"], "//demo:fuzz");
+        assert_eq!(metadata["sanitizer"], "address");
         assert!(recorded.repro.contains("--base64 'YmFk'"));
     }
 }

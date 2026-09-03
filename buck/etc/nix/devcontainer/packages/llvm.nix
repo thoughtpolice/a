@@ -31,10 +31,12 @@ let
     '';
   };
   slimCompilerRtCmakeFlags = [
-    # The wrapper needs compiler-rt's builtins and CRT objects for ordinary
-    # C/C++ links. Dynamic analysis, fuzzing, instrumentation, and profiling
-    # runtimes are outside this editor-core image's contract.
-    (lib.cmakeBool "COMPILER_RT_BUILD_SANITIZERS" false)
+    # Fozzie's coverage runtime owns the SanitizerCoverage callbacks, while
+    # AddressSanitizer still needs compiler-rt's allocator and reporting
+    # runtime. Restrict the sanitizer build to ASan; compiler-rt also emits the
+    # LSan/UBSan/stats support objects ASan is built from.
+    (lib.cmakeBool "COMPILER_RT_BUILD_SANITIZERS" true)
+    (lib.cmakeFeature "COMPILER_RT_SANITIZERS_TO_BUILD" "asan")
     (lib.cmakeBool "COMPILER_RT_BUILD_XRAY" false)
     (lib.cmakeBool "COMPILER_RT_BUILD_LIBFUZZER" false)
     (lib.cmakeBool "COMPILER_RT_BUILD_MEMPROF" false)

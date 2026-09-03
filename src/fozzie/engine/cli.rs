@@ -86,6 +86,10 @@ pub struct FuzzOptions {
     #[arg(long)]
     pub target_label: Option<String>,
 
+    /// Instrumentation/sanitizer profile recorded in finding metadata.
+    #[arg(long, default_value = "none", value_parser = ["none", "address"])]
+    pub sanitizer: String,
+
     /// Stop after the first confirmed finding and use deterministic test defaults.
     #[arg(long)]
     pub test_mode: bool,

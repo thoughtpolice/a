@@ -40,6 +40,7 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
         executor_config.target.clone(),
         options.target_label.clone(),
         options.seed,
+        options.sanitizer.clone(),
     )?;
     let jobs = effective_jobs(options.jobs, options.test_mode);
 

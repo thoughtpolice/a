@@ -3,6 +3,10 @@
 
 #![no_main]
 
+// ASan must own allocations in address-sanitized targets so its redzones are
+// effective. The ordinary coverage-only profile follows the repository's
+// target allocator convention.
+#[cfg(not(fozzie_asan))]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 

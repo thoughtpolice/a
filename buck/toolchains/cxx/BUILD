@@ -58,12 +58,14 @@ fozzie_compiler_flags = [
     "-fsanitize-coverage=inline-8bit-counters,pc-table,trace-cmp",
 ]
 
+fozzie_asan_compiler_flags = fozzie_compiler_flags + [
+    "-fsanitize=address",
+]
+
 instrumentation_compiler_flags = shims.select({
     "toolchains//cfg/instrumentation:instrumentation[none]": [],
     "toolchains//cfg/instrumentation:instrumentation[fozzie]": fozzie_compiler_flags,
-    # ASan runtime support will be added separately. Keep this configuration
-    # useful for coverage-only builds until that runtime is available.
-    "toolchains//cfg/instrumentation:instrumentation[fozzie-asan]": fozzie_compiler_flags,
+    "toolchains//cfg/instrumentation:instrumentation[fozzie-asan]": fozzie_asan_compiler_flags,
 })
 
 compiler_type = shims.select({
@@ -90,7 +92,11 @@ linux_common_ldflags = [
     "toolchains//cfg/instrumentation:instrumentation[none]": ["-fuse-ld=mold"],
     # LLD retains the SanitizerCoverage PC table sections Fozzie consumes.
     "toolchains//cfg/instrumentation:instrumentation[fozzie]": ["-fuse-ld=lld"],
-    "toolchains//cfg/instrumentation:instrumentation[fozzie-asan]": ["-fuse-ld=lld"],
+    "toolchains//cfg/instrumentation:instrumentation[fozzie-asan]": [
+        "-fuse-ld=lld",
+        "-fsanitize=address",
+        "-static-libsan",
+    ],
 })
 
 link_flags = shims.select({

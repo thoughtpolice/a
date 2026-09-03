@@ -886,6 +886,44 @@ let
     ${toolProfile}/bin/clang++ \
       "$TMPDIR/devcontainer-cxx.cc" -o "$TMPDIR/devcontainer-cxx"
     test "$("$TMPDIR/devcontainer-cxx")" = devcontainer
+    ${toolProfile}/bin/clang++ \
+      -fsanitize=address \
+      -static-libsan \
+      "$TMPDIR/devcontainer-cxx.cc" \
+      -o "$TMPDIR/devcontainer-cxx-asan"
+    test "$("$TMPDIR/devcontainer-cxx-asan")" = devcontainer
+    test "$(${toolProfile}/bin/nm --defined-only \
+      "$TMPDIR/devcontainer-cxx-asan" \
+      | grep -c ' __asan_init$')" -eq 1
+    if ${toolProfile}/bin/readelf -d "$TMPDIR/devcontainer-cxx-asan" \
+      | grep -E 'NEEDED.*(libasan|libclang_rt\.asan)'; then
+      exit 1
+    fi
+
+    cat > "$TMPDIR/devcontainer-asan-failure.c" <<'EOF'
+    // SPDX-FileCopyrightText: © 2026 Austin Seipp
+    // SPDX-License-Identifier: Apache-2.0
+    #include <stdlib.h>
+    int main(void) {
+      volatile char *allocation = malloc(8);
+      volatile unsigned offset = 8;
+      allocation[offset] = 1;
+      free((void *)allocation);
+      return 0;
+    }
+    EOF
+    ${toolProfile}/bin/clang \
+      -fsanitize=address \
+      -static-libsan \
+      "$TMPDIR/devcontainer-asan-failure.c" \
+      -o "$TMPDIR/devcontainer-asan-failure"
+    if ASAN_OPTIONS=detect_leaks=0 \
+      "$TMPDIR/devcontainer-asan-failure" \
+      2> "$TMPDIR/devcontainer-asan-failure.log"; then
+      exit 1
+    fi
+    grep -F 'AddressSanitizer: heap-buffer-overflow' \
+      "$TMPDIR/devcontainer-asan-failure.log"
     ${toolProfile}/bin/clang \
       --target=aarch64-unknown-linux-gnu \
       -c "$TMPDIR/devcontainer-c.c" \
@@ -910,8 +948,18 @@ let
     test "$(find "$compiler_rt/lib" -type f \
       -name 'clang_rt.crtend-*.o' | wc -l)" -eq 1
     test -L ${compilerRtGccCompat}/lib/libgcc.a
-    test -z "$(find "$compiler_rt" -type f \
-      \( -iname '*san*' \
+    test "$(find "$compiler_rt/lib" -type f \
+      -name 'libclang_rt.asan-*.a' | wc -l)" -eq 1
+    test "$(find "$compiler_rt/lib" -type f \
+      -name 'libclang_rt.asan-preinit-*.a' | wc -l)" -eq 1
+    test -z "$(find "$compiler_rt/lib" -type f \
+      \( -iname '*msan*' \
+      -o -iname '*tsan*' \
+      -o -iname '*hwasan*' \
+      -o -iname '*dfsan*' \
+      -o -iname '*rtsan*' \
+      -o -iname '*tysan*' \
+      -o -iname '*nsan*' \
       -o -iname '*scudo*' \
       -o -iname '*fuzzer*' \
       -o -iname '*xray*' \

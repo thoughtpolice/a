@@ -17,11 +17,14 @@ _SELF_CONTAINED_LINKER_FLAGS = [
 ]
 
 _FOZZIE_TRANSITION_REFS = {
-    "instrumentation": "toolchains//cfg/instrumentation:instrumentation[fozzie]",
+    "address": "toolchains//cfg/instrumentation:instrumentation[fozzie-asan]",
+    "coverage": "toolchains//cfg/instrumentation:instrumentation[fozzie]",
 }
 
-def _fozzie_transition_impl(platform: PlatformInfo, refs: struct) -> PlatformInfo:
-    instrumentation = refs.instrumentation[ConstraintValueInfo]
+def _fozzie_transition_impl(platform: PlatformInfo, refs: struct, attrs: struct) -> PlatformInfo:
+    instrumentation = (
+        refs.address[ConstraintValueInfo] if attrs.sanitizer == "address" else refs.coverage[ConstraintValueInfo]
+    )
     constraints = dict(platform.configuration.constraints)
     constraints[instrumentation.setting.label] = instrumentation
     return PlatformInfo(
@@ -35,6 +38,7 @@ def _fozzie_transition_impl(platform: PlatformInfo, refs: struct) -> PlatformInf
 _fozzie_transition = transition(
     impl = _fozzie_transition_impl,
     refs = _FOZZIE_TRANSITION_REFS,
+    attrs = ["sanitizer"],
 )
 
 def _check_nonnegative(name: str, value: int):
@@ -49,6 +53,7 @@ def _fuzz_command(ctx: AnalysisContext, target: Artifact) -> cmd_args:
     command.add("--timeout-ms", str(ctx.attrs.timeout_ms))
     command.add("--max-input", str(ctx.attrs.max_input))
     command.add("--jobs", str(ctx.attrs.jobs))
+    command.add("--sanitizer", ctx.attrs.sanitizer)
     for source in ctx.attrs.corpus:
         command.add("--corpus", source)
     for source in ctx.attrs.dictionaries:
@@ -118,6 +123,7 @@ _fozzie_fuzz_binary = rule(
         "jobs": attrs.int(default = 0),
         "max_input": attrs.int(default = 65536),
         "runs": attrs.int(default = 0),
+        "sanitizer": attrs.enum(["none", "address"], default = "none"),
         "target": attrs.transition_dep(
             cfg = _fozzie_transition,
             providers = [DefaultInfo],
@@ -148,6 +154,7 @@ def _declare_wrapper(
         timeout_ms: int,
         max_input: int,
         jobs: int,
+        sanitizer: str,
         test_seed: int,
         visibility,
         target_compatible_with):
@@ -161,6 +168,7 @@ def _declare_wrapper(
         "timeout_ms": timeout_ms,
         "max_input": max_input,
         "jobs": jobs,
+        "sanitizer": sanitizer,
         "test_seed": test_seed,
         "target_compatible_with": target_compatible_with,
     }
@@ -179,6 +187,7 @@ def cxx_fuzz_binary(
         timeout_ms: int = 1000,
         max_input: int = 65536,
         jobs: int = 0,
+        sanitizer: str = "none",
         test_seed: int = 0xF0221E,
         visibility = None,
         **binary_kwargs):
@@ -207,6 +216,7 @@ def cxx_fuzz_binary(
         timeout_ms = timeout_ms,
         max_input = max_input,
         jobs = jobs,
+        sanitizer = sanitizer,
         test_seed = test_seed,
         visibility = visibility,
         target_compatible_with = target_compatible_with,
@@ -223,6 +233,7 @@ def rust_fuzz_binary(
         timeout_ms: int = 1000,
         max_input: int = 65536,
         jobs: int = 0,
+        sanitizer: str = "none",
         test_seed: int = 0xF0221E,
         visibility = None,
         **binary_kwargs):
@@ -255,6 +266,7 @@ def rust_fuzz_binary(
         timeout_ms = timeout_ms,
         max_input = max_input,
         jobs = jobs,
+        sanitizer = sanitizer,
         test_seed = test_seed,
         visibility = visibility,
         target_compatible_with = target_compatible_with,
