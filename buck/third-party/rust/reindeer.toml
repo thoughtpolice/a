@@ -17,9 +17,12 @@ prebuilt_cxx_library = "third_party_rust.prebuilt_cxx_library"
 buildscript_genrule = "third_party_rust.buildscript_run"
 
 buckfile_imports = """
-# XXX (aseipp): use our shims for builds here to enforce more settings
-load("@root//buck/shims:third_party_rust.bzl", "third_party_rust")
+# XXX: begin buckfile_imports stanza
+# in particular, these shims use our own 'third_party_rust' wrapper
+# so we can enforce behaviors on them
+
 load("@root//buck/shims:shims.bzl", "shims")
+load("@root//buck/shims:third_party_rust.bzl", "third_party_rust")
 
 # XXX: normal reindeer-generated code below
 """
