@@ -1,0 +1,13 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+package test:math;
+
+interface ops {
+  add: func(a: u32, b: u32) -> u32;
+}
+
+world consumer {
+  import ops;
+  export run: func() -> u32;
+}
