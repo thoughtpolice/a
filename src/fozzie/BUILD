@@ -3,9 +3,16 @@
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
+depot.alias(
+    name = "fozzie",
+    actual = "root//src/fozzie/engine:fozzie",
+    tests = [":tests"],
+)
+
 depot.test_suite(
     name = "tests",
     tests = [
+        "root//src/fozzie/engine:all-tests",
         "root//src/fozzie/runtime:tests",
     ],
     visibility = ["PUBLIC"],
