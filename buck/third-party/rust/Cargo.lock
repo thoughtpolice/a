@@ -8049,6 +8049,7 @@ dependencies = [
  "jj-cli",
  "jj-lib",
  "landlock",
+ "libc",
  "linked-hash-map",
  "log",
  "md5",

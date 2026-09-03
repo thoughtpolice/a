@@ -12671,6 +12671,12 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
+shims.alias(
+    name = "libc",
+    actual = ":libc-0.2",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "leb128fmt-0.1.0.crate",
     sha256 = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2",
