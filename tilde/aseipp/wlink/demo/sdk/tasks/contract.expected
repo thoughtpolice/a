@@ -1,0 +1,24 @@
+log 1: game: tasks: run starts 0 frame=0 now=0
+log 1: game: tasks: zero waits return 0 frame=0 now=0
+log 1: game: tasks: cancelled wait 4 frame=0 now=0
+log 1: game: tasks: missing load refused 0 frame=0 now=0
+log 1: game: tasks: loaded 40000 frame=0 now=17
+log 1: game: tasks: turn 1 frame=0 now=17
+log 1: game: tasks: loaded 80000 frame=1 now=34
+log 1: game: tasks: turn 2 frame=1 now=34
+log 1: game: tasks: loaded 120000 frame=2 now=50
+log 1: game: tasks: frames(3) woke 3 frame=2 now=50
+log 1: game: tasks: turn 3 frame=2 now=50
+log 1: game: tasks: loaded 150000 frame=3 now=67
+log 1: game: tasks: load complete 150000 frame=3 now=67
+log 1: game: tasks: turn 4 frame=3 now=67
+log 1: game: tasks: turn 5 frame=4 now=84
+log 1: game: tasks: sleep(100) woke 100 frame=5 now=100
+log 1: game: tasks: turn 6 frame=5 now=100
+log 1: game: tasks: turn 7 frame=6 now=117
+log 1: game: tasks: turn 8 frame=7 now=134
+log 1: game: tasks: turn 9 frame=8 now=150
+log 1: game: tasks: turn 10 frame=9 now=167
+log 1: game: tasks: turn 11 frame=10 now=184
+log 1: game: tasks: turn 12 frame=11 now=200
+log 1: game: tasks: run returns
