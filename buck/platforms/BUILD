@@ -29,3 +29,14 @@ generate_platforms(default_platforms)
         "x86_64",
     ]
 ]
+
+# Guest code for wasm keeps the host's cpu and os constraints, exactly like the
+# uefi platforms above: only the target triple moves, so every select keyed on
+# config//os keeps answering for the machine the toolchain runs on.
+shims.platform(
+    name = "wasm32-unknown-unknown",
+    constraint_values = [
+        "toolchains//cfg/target:target[wasm32-unknown-unknown]",
+    ],
+    deps = [":default"],
+)

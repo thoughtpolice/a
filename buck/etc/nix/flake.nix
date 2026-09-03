@@ -38,7 +38,14 @@
             };
           };
 
-          ourRustVersion = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.complete);
+          ourRustVersion = pkgs.rust-bin.selectLatestNightlyWith (
+            toolchain:
+            toolchain.complete.override {
+              # Guest code for the game console SDK (tilde/aseipp/wlink) is
+              # built for wasm32; the host toolchain needs that target's std.
+              targets = [ "wasm32-unknown-unknown" ];
+            }
+          );
 
           llvmPackages = pkgs.llvmPackages_latest;
           ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_5;

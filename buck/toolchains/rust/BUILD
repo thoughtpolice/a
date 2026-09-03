@@ -38,6 +38,15 @@ rustc_target_triple = shims.select({
     "toolchains//cfg/target:target[aarch64-unknown-linux-gnu]": "aarch64-unknown-linux-gnu",
     "toolchains//cfg/target:target[aarch64-apple-darwin]": "aarch64-apple-darwin",
     "toolchains//cfg/target:target[aarch64-pc-windows-msvc]": "aarch64-pc-windows-msvc",
+    "toolchains//cfg/target:target[wasm32-unknown-unknown]": "wasm32-unknown-unknown",
+})
+
+# The wasm32 target links with the cxx toolchain's linker like every other
+# triple, and that linker is wasm-ld there; naming the flavor keeps rustc
+# from guessing it from the wrapper script's file name.
+target_rustc_flags = shims.select({
+    "toolchains//cfg/target:target[wasm32-unknown-unknown]": ["-Clinker-flavor=wasm-ld"],
+    "DEFAULT": [],
 })
 
 fozzie_rustc_flags = [
@@ -76,7 +85,7 @@ instrumentation_rustc_flags = shims.select({
     "toolchains//cfg/instrumentation:instrumentation[fozzie-asan]": fozzie_asan_rustc_flags,
 })
 
-rustc_flags = shims.select({
+rustc_flags = target_rustc_flags + shims.select({
     "mode//:build-mode[debug]": common_rustc_flags + [
         "-Cdebuginfo=2",
         "-Coverflow-checks=true",

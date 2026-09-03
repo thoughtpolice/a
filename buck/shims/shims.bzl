@@ -6,6 +6,7 @@ load("@prelude//utils:buckconfig.bzl", "read_choice")
 load("@root//buck/lib/oci:defs.bzl", _oci_image = "oci_image", _oci_index = "oci_index", _oci_pull = "oci_pull", _oci_repack = "oci_repack", _oci_unpack = "oci_unpack")
 load("@root//buck/lib/tar:defs.bzl", _tar_file = "tar_file")
 load("@root//buck/shims:cross_binary.bzl", _cross_binary_rule = "cross_binary")
+load("@root//buck/shims:cross_target.bzl", _cross_target_binary_rule = "cross_target_binary")
 load("@root//buck/shims:dynamic_test_internal.bzl", _dynamic_test_external_rule = "dynamic_test_external", _dynamic_test_internal_rule = "dynamic_test_internal")
 load("@root//buck/shims:go_test_internal.bzl", _go_test_internal_rule = "go_test_internal")
 load("@root//buck/shims:rust_test_internal.bzl", _rust_test_internal_rule = "rust_test_internal")
@@ -189,6 +190,10 @@ def _depot_filegroup(**kwargs):
 def _depot_cross_binary(**kwargs):
     kwargs = _fix_kwargs("cross_binary", kwargs)
     _cross_binary_rule(**kwargs)
+
+def _depot_cross_target_binary(**kwargs):
+    kwargs = _fix_kwargs("cross_target_binary", kwargs)
+    _cross_target_binary_rule(**kwargs)
 
 # MARK: Supplemental rules
 
@@ -523,6 +528,7 @@ shims = struct(
     genrule = _depot_genrule,
     filegroup = _depot_filegroup,
     cross_binary = _depot_cross_binary,
+    cross_target_binary = _depot_cross_target_binary,
     constraint = _constraint,
     platform = _platform,
     alias = _alias,

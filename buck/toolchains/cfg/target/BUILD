@@ -21,5 +21,6 @@ shims.constraint(
         "aarch64-unknown-linux-gnu",
         "aarch64-apple-darwin",
         "aarch64-pc-windows-msvc",
+        "wasm32-unknown-unknown",
     ],
 )
