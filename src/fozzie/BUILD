@@ -7,6 +7,8 @@ depot.test_suite(
     name = "tests",
     tests = [
         "root//src/fozzie/engine:all-tests",
+        "root//src/fozzie/examples/cxx:packet-fuzz",
+        "root//src/fozzie/examples/rust:decoder-fuzz",
         "root//src/fozzie/runtime:tests",
     ],
     visibility = ["PUBLIC"],
