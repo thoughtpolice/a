@@ -45,7 +45,7 @@ def _check_nonnegative(name: str, value: int):
     if value < 0:
         fail("{} must be nonnegative, got {}".format(name, value))
 
-def _fuzz_command(ctx: AnalysisContext, target: Artifact) -> cmd_args:
+def _fuzz_command(ctx: AnalysisContext, target) -> cmd_args:
     command = cmd_args(ctx.attrs._engine[RunInfo].args)
     command.add("fuzz")
     command.add("--target", target)
@@ -72,7 +72,9 @@ def _fozzie_fuzz_binary_impl(ctx: AnalysisContext) -> list[Provider]:
     if ctx.attrs.duration_seconds == 0 and ctx.attrs.runs == 0:
         fail("a fuzz test needs a nonzero duration_seconds or runs budget")
 
-    outputs = ctx.attrs.target[DefaultInfo].default_outputs
+    target_default = ctx.attrs.target[DefaultInfo]
+    target_run = ctx.attrs.target[RunInfo]
+    outputs = target_default.default_outputs
     if len(outputs) != 1:
         fail("{} must produce exactly one output, got {}".format(
             ctx.attrs.target.label.raw_target(),
@@ -80,23 +82,30 @@ def _fozzie_fuzz_binary_impl(ctx: AnalysisContext) -> list[Provider]:
         ))
     target = outputs[0]
 
+    # The engine receives exactly one executable path, while the target's
+    # native RunInfo remains a hidden command dependency. This preserves
+    # shared libraries, resources, and launcher-side runtime files without
+    # rendering any additional arguments after --target.
+    target_arg = cmd_args(target, hidden = target_run)
+
     # `buck2 run` is an unlimited durable campaign. The caller supplies its
     # destination as `-- --workdir PATH`; omitting it deliberately lets the
     # engine use a temporary directory.
-    campaign_command = _fuzz_command(ctx, target)
+    campaign_command = _fuzz_command(ctx, target_arg)
     campaign_command.add("--duration", "0")
     campaign_command.add("--runs", "0")
 
     # `buck2 test` is deterministic and bounded. It deliberately omits
-    # --workdir so the engine owns and removes its temporary directory.
-    test_command = _fuzz_command(ctx, target)
+    # --workdir so the engine removes successful temporary campaigns and
+    # retains any campaign containing a finding or infrastructure failure.
+    test_command = _fuzz_command(ctx, target_arg)
     test_command.add("--duration", str(ctx.attrs.duration_seconds))
     test_command.add("--runs", str(ctx.attrs.runs))
     test_command.add("--seed", str(ctx.attrs.test_seed))
     test_command.add("--test-mode")
 
     return [
-        DefaultInfo(default_output = target),
+        target_default,
         RunInfo(args = campaign_command),
         ExternalRunnerTestInfo(
             type = "fozzie",
@@ -126,7 +135,7 @@ _fozzie_fuzz_binary = rule(
         "sanitizer": attrs.enum(["none", "address"], default = "none"),
         "target": attrs.transition_dep(
             cfg = _fozzie_transition,
-            providers = [DefaultInfo],
+            providers = [DefaultInfo, RunInfo],
         ),
         "test_seed": attrs.int(default = 0xF0221E),
         "timeout_ms": attrs.int(default = 1000),
@@ -137,7 +146,23 @@ def _compatibility(binary_kwargs: dict):
     compatible_with = binary_kwargs.pop("target_compatible_with", [])
     if compatible_with == None:
         compatible_with = []
-    return compatible_with + [_LINUX]
+    host = host_info()
+    if host.os.is_linux:
+        if host.arch.is_aarch64:
+            target = "toolchains//cfg/target:target[aarch64-unknown-linux-gnu]"
+        elif host.arch.is_x86_64:
+            target = "toolchains//cfg/target:target[x86_64-unknown-linux-gnu]"
+        else:
+            fail("Fozzie does not support this Linux host architecture")
+        return compatible_with + [_LINUX, target]
+    elif host.os.is_macos:
+        # Requiring two values from the OS constraint makes the local-only
+        # executable incompatible without making this module fail to load.
+        return compatible_with + [_LINUX, "config//os:macos"]
+    elif host.os.is_windows:
+        return compatible_with + [_LINUX, "config//os:windows"]
+    else:
+        fail("Fozzie does not support this host operating system")
 
 def _require_static(binary_kwargs: dict):
     requested = binary_kwargs.pop("link_style", None)

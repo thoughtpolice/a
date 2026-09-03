@@ -8,6 +8,7 @@ mod cli;
 mod corpus;
 mod engine;
 mod executor;
+mod interrupt;
 mod mutate;
 mod protocol;
 mod shm;

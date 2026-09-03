@@ -5,6 +5,7 @@ use crate::artifact::{ArtifactSink, RecordedFinding};
 use crate::cli::{Cli, Command, FuzzOptions, MinimizeOptions, ReplayOptions};
 use crate::corpus::{Corpus, persist_replace, read_bounded};
 use crate::executor::{Execution, ExecutorConfig, Finding, FindingFingerprint, PersistentExecutor};
+use crate::interrupt;
 use crate::mutate::{MAX_DICTIONARY_ENTRIES, Rng, comparison_tokens, load_dictionaries, mutate};
 use anyhow::{Context, Result, bail};
 use base64::Engine as _;
@@ -15,7 +16,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
@@ -35,7 +36,7 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
     let mut work = WorkRoot::new(options.workdir.as_deref())?;
     let corpus_path = work.path().join("corpus");
     let corpus = Corpus::load(&options.corpus, corpus_path, executor_config.max_input)?;
-    let dictionary = load_dictionaries(&options.dictionaries, executor_config.max_input)?;
+    let dictionary_entries = load_dictionaries(&options.dictionaries, executor_config.max_input)?;
     let artifact_sink = ArtifactSink::new(
         work.path(),
         &executor_config,
@@ -57,7 +58,7 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
     let shared = Arc::new(Shared {
         corpus: Mutex::new(corpus),
         features: Mutex::new(HashSet::new()),
-        dictionary: Mutex::new(dictionary),
+        dictionary: RwLock::new(DynamicDictionary::new(dictionary_entries)),
         artifacts: artifact_sink,
         executions: AtomicU64::new(0),
         interesting: AtomicU64::new(0),
@@ -72,6 +73,9 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
         infrastructure_error: Mutex::new(None),
     });
 
+    let _interrupt_handler =
+        interrupt::Handler::install().context("installing campaign signal handlers")?;
+
     // Importing seeds and dictionaries and hashing the target are setup work;
     // they must not consume the budget before the first harness call.
     let deadline = if options.duration == 0 {
@@ -84,15 +88,19 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
         )
     };
 
-    calibrate(
+    if let Err(error) = calibrate(
         &shared,
         &executor_config,
         work.path(),
         options.runs,
         deadline,
-    )?;
+    ) {
+        if interrupt::signal().is_none() {
+            shared.set_infrastructure_error(format!("calibration: {error:#}"));
+        }
+    }
 
-    if !shared.stop.load(Ordering::Acquire) && budget_available(&shared, options.runs, deadline) {
+    if !shared.should_stop() && budget_available(&shared, options.runs, deadline) {
         thread::scope(|scope| {
             for worker_id in 0..jobs {
                 let shared = Arc::clone(&shared);
@@ -108,14 +116,18 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
                         options.runs,
                         deadline,
                     ) {
-                        shared.set_infrastructure_error(format!("worker {worker_id}: {error:#}"));
+                        if interrupt::signal().is_none() {
+                            shared
+                                .set_infrastructure_error(format!("worker {worker_id}: {error:#}"));
+                        }
                     }
                 });
             }
         });
     }
 
-    if shared.executions.load(Ordering::Relaxed) == 0 {
+    let interrupted_signal = interrupt::signal();
+    if shared.executions.load(Ordering::Relaxed) == 0 && interrupted_signal.is_none() {
         shared.set_infrastructure_error("campaign ended without executing the target".into());
     }
 
@@ -125,7 +137,11 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
     let flaky_findings = shared.flaky_findings.load(Ordering::Relaxed);
     let verification_executions = shared.verification_executions.load(Ordering::Relaxed);
     let primary_executions = shared.executions.load(Ordering::Relaxed);
-    if finding.is_some() || infrastructure_error.is_some() || flaky_findings != 0 {
+    if finding.is_some()
+        || infrastructure_error.is_some()
+        || flaky_findings != 0
+        || interrupted_signal.is_some()
+    {
         work.preserve();
     }
     let workdir_persisted = work.temporary.is_none();
@@ -133,6 +149,7 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
         seed: options.seed,
         workdir: work.path().to_path_buf(),
         workdir_persisted,
+        interrupted_signal,
         elapsed_ms: elapsed.as_millis() as u64,
         executions: primary_executions,
         verification_executions,
@@ -168,6 +185,13 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
     if let Some(error) = infrastructure_error {
         bail!("fuzzing infrastructure failed: {error}");
     }
+    if let Some(signal) = interrupted_signal {
+        eprintln!(
+            "fozzie: interrupted by signal {signal}; campaign saved at {}",
+            work.path().display()
+        );
+        return Ok(ExitCode::from((128 + signal) as u8));
+    }
     Ok(ExitCode::SUCCESS)
 }
 
@@ -181,7 +205,7 @@ fn calibrate(
     let seeds = shared.corpus.lock().unwrap().all();
     let mut executor = PersistentExecutor::new(config.clone(), workdir.join("calibration"))?;
     for seed in seeds {
-        if shared.stop.load(Ordering::Acquire) || !budget_available(shared, run_limit, deadline) {
+        if shared.should_stop() || !budget_available(shared, run_limit, deadline) {
             break;
         }
         let Some(execution_id) = claim_execution(shared, run_limit, deadline) else {
@@ -190,8 +214,9 @@ fn calibrate(
         let first = executor.run(&seed)?;
         match first {
             Execution::Finding(finding) => {
-                handle_finding(shared, &mut executor, &seed, finding, execution_id)?;
-                break;
+                if handle_finding(shared, &mut executor, &seed, finding, execution_id)? {
+                    break;
+                }
             }
             Execution::Ok(first) => {
                 let first_features = first.features.iter().copied().collect::<HashSet<_>>();
@@ -199,14 +224,20 @@ fn calibrate(
                     let second = executor.run(&seed)?;
                     match second {
                         Execution::Finding(finding) => {
-                            handle_finding(shared, &mut executor, &seed, finding, second_id)?;
-                            break;
+                            if handle_finding(shared, &mut executor, &seed, finding, second_id)? {
+                                break;
+                            }
                         }
                         Execution::Ok(second) => {
                             let second_features =
                                 second.features.iter().copied().collect::<HashSet<_>>();
                             if first_features != second_features {
                                 shared.unstable_seeds.fetch_add(1, Ordering::Relaxed);
+                                let mut stable = first;
+                                stable
+                                    .features
+                                    .retain(|feature| second_features.contains(feature));
+                                absorb_observation(shared, &seed, stable, false)?;
                             } else {
                                 absorb_observation(shared, &seed, first, false)?;
                             }
@@ -234,7 +265,7 @@ fn worker_loop(
     let mut executor = PersistentExecutor::new(config.clone(), worker_root)?;
     let mut consecutive_errors = 0_u32;
 
-    while !shared.stop.load(Ordering::Acquire) {
+    while !shared.should_stop() {
         let Some(execution_id) = claim_execution(&shared, run_limit, deadline) else {
             break;
         };
@@ -242,8 +273,16 @@ fn worker_loop(
             let corpus = shared.corpus.lock().unwrap();
             corpus.snapshot_pair(rng.below(corpus.len()), rng.below(corpus.len()))
         };
-        let dictionary = shared.dictionary.lock().unwrap().clone();
-        let input = mutate(&base, &splice, &dictionary, config.max_input, &mut rng);
+        let input = {
+            let dictionary = shared.dictionary.read().unwrap();
+            mutate(
+                &base,
+                &splice,
+                dictionary.entries(),
+                config.max_input,
+                &mut rng,
+            )
+        };
 
         match executor.run(&input) {
             Ok(Execution::Ok(observation)) => {
@@ -252,9 +291,12 @@ fn worker_loop(
             }
             Ok(Execution::Finding(finding)) => {
                 consecutive_errors = 0;
-                handle_finding(&shared, &mut executor, &input, finding, execution_id)?;
+                let _ = handle_finding(&shared, &mut executor, &input, finding, execution_id)?;
             }
             Err(error) => {
+                if interrupt::signal().is_some() {
+                    break;
+                }
                 consecutive_errors += 1;
                 shared.restarts.fetch_add(1, Ordering::Relaxed);
                 executor.restart();
@@ -263,6 +305,11 @@ fn worker_loop(
                 }
             }
         }
+    }
+    if consecutive_errors != 0 && !shared.should_stop() {
+        bail!(
+            "campaign budget ended after {consecutive_errors} unresolved target runtime error(s)"
+        );
     }
     Ok(())
 }
@@ -297,7 +344,10 @@ fn absorb_observation(
         }
     }
 
-    let mut dictionary = shared.dictionary.lock().unwrap();
+    if observation.comparisons.is_empty() {
+        return Ok(());
+    }
+    let mut dictionary = shared.dictionary.write().unwrap();
     for comparison in observation.comparisons {
         if comparison.arg1 == comparison.arg2 {
             continue;
@@ -306,9 +356,7 @@ fn absorb_observation(
             if dictionary.len() >= MAX_DICTIONARY_ENTRIES {
                 break;
             }
-            if !token.is_empty() && !dictionary.contains(&token) {
-                dictionary.push(token);
-            }
+            dictionary.insert(token);
         }
     }
     Ok(())
@@ -320,13 +368,13 @@ fn handle_finding(
     input: &[u8],
     finding: Finding,
     execution: u64,
-) -> Result<()> {
+) -> Result<bool> {
     // Publish every candidate before arbitration. Another worker may own the
     // verifier, but it must never make this exact input disappear.
     let mut recorded = shared.artifacts.record(input, &finding, false, execution)?;
     let _verifier = shared.verifier.lock().unwrap();
-    if shared.stop.load(Ordering::Acquire) {
-        return Ok(());
+    if shared.should_stop() {
+        return Ok(true);
     }
 
     executor.restart();
@@ -352,7 +400,7 @@ fn handle_finding(
             recorded.input_path.display()
         );
     }
-    Ok(())
+    Ok(confirmed)
 }
 
 fn replay(options: ReplayOptions) -> Result<ExitCode> {
@@ -382,12 +430,41 @@ fn replay(options: ReplayOptions) -> Result<ExitCode> {
             if !finding.stderr.is_empty() {
                 eprintln!("{}", String::from_utf8_lossy(&finding.stderr));
             }
-            Ok(if options.expect_finding {
+            let expected = options
+                .expect_kind
+                .as_deref()
+                .is_none_or(|kind| finding_kind_name(finding.kind) == kind)
+                && options
+                    .expect_code
+                    .is_none_or(|code| finding.fingerprint.code == Some(code))
+                && options.expect_sanitizer.as_deref().is_none_or(|sanitizer| {
+                    finding
+                        .fingerprint
+                        .sanitizer
+                        .as_deref()
+                        .is_some_and(|actual| actual.starts_with(&format!("{sanitizer}:")))
+                });
+            if options.expect_finding && !expected {
+                eprintln!(
+                    "fozzie: finding did not match expected kind/code (actual fingerprint: {:?})",
+                    finding.fingerprint
+                );
+            }
+            Ok(if options.expect_finding && expected {
                 ExitCode::SUCCESS
             } else {
                 ExitCode::from(1)
             })
         }
+    }
+}
+
+fn finding_kind_name(kind: crate::executor::FindingKind) -> &'static str {
+    match kind {
+        crate::executor::FindingKind::Crash => "crash",
+        crate::executor::FindingKind::Hang => "hang",
+        crate::executor::FindingKind::NonzeroHarness => "nonzero_harness",
+        crate::executor::FindingKind::Exit => "exit",
     }
 }
 
@@ -475,6 +552,9 @@ fn read_replay_input(
 }
 
 fn claim_execution(shared: &Shared, limit: u64, deadline: Option<Instant>) -> Option<u64> {
+    if shared.should_stop() {
+        return None;
+    }
     if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
         return None;
     }
@@ -511,7 +591,7 @@ fn effective_jobs(requested: usize, test_mode: bool) -> usize {
 struct Shared {
     corpus: Mutex<Corpus>,
     features: Mutex<HashSet<u64>>,
-    dictionary: Mutex<Vec<Vec<u8>>>,
+    dictionary: RwLock<DynamicDictionary>,
     artifacts: ArtifactSink,
     executions: AtomicU64,
     interesting: AtomicU64,
@@ -526,7 +606,43 @@ struct Shared {
     infrastructure_error: Mutex<Option<String>>,
 }
 
+struct DynamicDictionary {
+    entries: Vec<Vec<u8>>,
+    known: HashSet<Vec<u8>>,
+}
+
+impl DynamicDictionary {
+    fn new(mut entries: Vec<Vec<u8>>) -> Self {
+        entries.truncate(MAX_DICTIONARY_ENTRIES);
+        let known = entries.iter().cloned().collect();
+        Self { entries, known }
+    }
+
+    fn entries(&self) -> &[Vec<u8>] {
+        &self.entries
+    }
+
+    fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    fn insert(&mut self, token: Vec<u8>) -> bool {
+        if token.is_empty()
+            || self.entries.len() >= MAX_DICTIONARY_ENTRIES
+            || !self.known.insert(token.clone())
+        {
+            return false;
+        }
+        self.entries.push(token);
+        true
+    }
+}
+
 impl Shared {
+    fn should_stop(&self) -> bool {
+        self.stop.load(Ordering::Acquire) || interrupt::signal().is_some()
+    }
+
     fn set_infrastructure_error(&self, error: String) {
         let mut slot = self.infrastructure_error.lock().unwrap();
         if slot.is_none() {
@@ -579,6 +695,7 @@ struct Summary {
     seed: u64,
     workdir: PathBuf,
     workdir_persisted: bool,
+    interrupted_signal: Option<i32>,
     elapsed_ms: u64,
     executions: u64,
     verification_executions: u64,
@@ -621,5 +738,20 @@ mod tests {
         drop(work);
         assert!(path.is_dir());
         fs::remove_dir_all(path).unwrap();
+    }
+
+    #[test]
+    fn dynamic_dictionary_deduplicates_and_bounds_entries() {
+        let initial = (0..=MAX_DICTIONARY_ENTRIES)
+            .map(|value| value.to_le_bytes().to_vec())
+            .collect();
+        let mut dictionary = DynamicDictionary::new(initial);
+        assert_eq!(dictionary.len(), MAX_DICTIONARY_ENTRIES);
+        assert!(!dictionary.insert(b"overflow".to_vec()));
+
+        let mut dictionary = DynamicDictionary::new(vec![b"known".to_vec()]);
+        assert!(!dictionary.insert(b"known".to_vec()));
+        assert!(dictionary.insert(b"new".to_vec()));
+        assert_eq!(dictionary.entries(), &[b"known".to_vec(), b"new".to_vec()]);
     }
 }

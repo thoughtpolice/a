@@ -26,9 +26,24 @@ impl Corpus {
             output,
             max_input,
         };
+        for path in collect_existing_entries(&corpus.output)? {
+            let input = read_bounded(&path, max_input)?;
+            let expected = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .context("corpus entry has a non-UTF-8 digest name")?;
+            let actual = digest(&input);
+            if actual != expected {
+                bail!(
+                    "corpus entry {} does not match its digest name",
+                    path.display()
+                );
+            }
+            corpus.insert_loaded(input, actual);
+        }
+
         let mut files = Vec::new();
-        let mut visited_directories = HashSet::new();
-        collect_files(&corpus.output, &mut files, &mut visited_directories)?;
+        let mut visited_directories = HashSet::from([fs::canonicalize(&corpus.output)?]);
         for path in paths {
             collect_files(path, &mut files, &mut visited_directories)?;
         }
@@ -72,10 +87,41 @@ impl Corpus {
             return Ok(false);
         }
         persist_new(&self.output.join(&hash), &input)?;
-        self.hashes.insert(hash);
-        self.entries.push(Arc::new(input));
+        let inserted = self.insert_loaded(input, hash);
+        debug_assert!(inserted);
         Ok(true)
     }
+
+    fn insert_loaded(&mut self, input: Vec<u8>, hash: String) -> bool {
+        if !self.hashes.insert(hash) {
+            return false;
+        }
+        self.entries.push(Arc::new(input));
+        true
+    }
+}
+
+fn collect_existing_entries(output: &Path) -> Result<Vec<PathBuf>> {
+    let mut entries = fs::read_dir(output)
+        .with_context(|| format!("reading corpus directory {}", output.display()))?
+        .collect::<std::io::Result<Vec<_>>>()?;
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+    let mut paths = Vec::new();
+    for entry in entries {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            continue;
+        };
+        if name.len() == 64
+            && name
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            && entry.file_type()?.is_file()
+        {
+            paths.push(entry.path());
+        }
+    }
+    Ok(paths)
 }
 
 pub fn digest(input: &[u8]) -> String {
@@ -255,5 +301,17 @@ mod tests {
         let path = directory.path().join(digest(b"expected"));
         fs::write(&path, b"corrupt!").unwrap();
         assert!(persist_new(&path, b"expected").is_err());
+    }
+
+    #[test]
+    fn ignores_staging_files_but_rejects_corrupt_digest_entries() {
+        let directory = tempfile::tempdir().unwrap();
+        fs::write(directory.path().join(".tmp-partial"), b"partial").unwrap();
+        fs::write(directory.path().join(digest(b"valid")), b"valid").unwrap();
+        let corpus = Corpus::load(&[], directory.path().to_path_buf(), 16).unwrap();
+        assert_eq!(corpus.len(), 1);
+
+        fs::write(directory.path().join(digest(b"expected")), b"corrupt").unwrap();
+        assert!(Corpus::load(&[], directory.path().to_path_buf(), 16).is_err());
     }
 }

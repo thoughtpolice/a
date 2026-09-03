@@ -29,6 +29,7 @@ depot.filegroup(
 depot.test_suite(
     name = "asan-tests",
     tests = [
+        "root//src/fozzie/engine:asan-tests",
         "root//src/fozzie/examples/cxx:packet-fuzz-asan",
         "root//src/fozzie/examples/rust:decoder-fuzz-asan",
     ],

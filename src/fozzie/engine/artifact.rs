@@ -139,6 +139,9 @@ pub fn replay_options(metadata: &Path) -> Result<ReplayOptions> {
         input: None,
         base64: Some(manifest.input_base64),
         expect_finding: false,
+        expect_kind: None,
+        expect_code: None,
+        expect_sanitizer: None,
     })
 }
 
@@ -200,7 +203,14 @@ impl ArtifactSink {
         let fingerprint_digest = digest(&fingerprint_bytes);
         let stem = format!("{kind}-{input_digest}-{}", &fingerprint_digest[..16]);
         let input_path = self.directory.join(&stem);
-        let metadata_path = self.directory.join(format!("{stem}.json"));
+        let metadata_path = if confirmed {
+            self.directory.join(format!("{stem}.confirmed.json"))
+        } else {
+            // Keep at most one pending record for a failure identity. A
+            // confirmed record has a distinct, monotonic path, so concurrent
+            // workers can refresh this diagnostic without downgrading it.
+            self.directory.join(format!("{stem}.pending.json"))
+        };
         persist_new(&input_path, input)?;
 
         let replay = ReplayManifest {
@@ -385,6 +395,21 @@ mod tests {
         assert_eq!(replay.target.target_args, config.target_args);
         assert_eq!(replay.target.target, config.target);
         assert_eq!(replay.base64.as_deref(), Some("YmFk"));
+
+        let pending = sink.record(b"bad", &finding, false, 10).unwrap();
+        assert_ne!(recorded.metadata_path, pending.metadata_path);
+        let confirmed_metadata: serde_json::Value =
+            serde_json::from_slice(&fs::read(&recorded.metadata_path).unwrap()).unwrap();
+        assert_eq!(confirmed_metadata["confirmed"], true);
+        let pending_metadata: serde_json::Value =
+            serde_json::from_slice(&fs::read(&pending.metadata_path).unwrap()).unwrap();
+        assert_eq!(pending_metadata["confirmed"], false);
+
+        let refreshed = sink.record(b"bad", &finding, false, 11).unwrap();
+        assert_eq!(pending.metadata_path, refreshed.metadata_path);
+        let refreshed_metadata: serde_json::Value =
+            serde_json::from_slice(&fs::read(&refreshed.metadata_path).unwrap()).unwrap();
+        assert_eq!(refreshed_metadata["execution"], 11);
 
         let mut corrupted = metadata.clone();
         corrupted["replay"]["input_base64"] = "YWJj".into();

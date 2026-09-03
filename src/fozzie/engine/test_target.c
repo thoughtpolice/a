@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
@@ -28,6 +29,18 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     }
     if (size == 6 && memcmp(data, "EXIT70", 6) == 0) {
         _exit(70);
+    }
+    if (size == 9 && memcmp(data, "FORKCRASH", 9) == 0) {
+        pid_t child = fork();
+        if (child == 0) {
+            for (;;) {
+                pause();
+            }
+        }
+        if (child < 0) {
+            return 2;
+        }
+        abort();
     }
 
     volatile uint8_t observation = 0;

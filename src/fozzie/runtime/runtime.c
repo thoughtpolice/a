@@ -31,6 +31,7 @@
 
 #define FOZZIE_MAX_COUNTER_SPANS 512U
 #define FOZZIE_MAX_PC_SPANS 512U
+#define FOZZIE_ASAN_GRANULARITY 8U
 
 struct counter_span {
     uint8_t* begin;
@@ -54,6 +55,7 @@ struct runtime_state {
     uint8_t* input_arena;
     size_t input_arena_size;
     size_t input_prefix_size;
+    size_t input_slot_size;
     uint64_t input_capacity;
     uint8_t* features;
     uint32_t feature_capacity;
@@ -236,7 +238,9 @@ FOZZIE_NOCOV static int create_input_arena(void) {
     }
     size_t page_size = (size_t)page_size_result;
     size_t capacity = (size_t)state.input_capacity;
-    if (page_size > SIZE_MAX / 2 || capacity > SIZE_MAX - (page_size - 1)) {
+    if (page_size < FOZZIE_ASAN_GRANULARITY ||
+        page_size % FOZZIE_ASAN_GRANULARITY != 0 || page_size > SIZE_MAX / 2 ||
+        capacity > SIZE_MAX - (page_size - 1)) {
         return FOZZIE_TARGET_EXIT_SHARED_MEMORY;
     }
     size_t rounded_capacity = ((capacity + page_size - 1) / page_size) * page_size;
@@ -256,7 +260,10 @@ FOZZIE_NOCOV static int create_input_arena(void) {
         state.input_arena = NULL;
         return FOZZIE_TARGET_EXIT_SHARED_MEMORY;
     }
-    state.input_prefix_size = rounded_capacity - capacity;
+    state.input_slot_size =
+        (capacity + FOZZIE_ASAN_GRANULARITY - 1U) &
+        ~((size_t)FOZZIE_ASAN_GRANULARITY - 1U);
+    state.input_prefix_size = rounded_capacity - state.input_slot_size;
     state.target_input = writable + state.input_prefix_size;
     return FOZZIE_TARGET_EXIT_OK;
 }
@@ -359,7 +366,7 @@ FOZZIE_NOCOV static void configure_input_bounds(size_t input_size) {
     }
     __asan_unpoison_memory_region(state.target_input, input_size);
     __asan_poison_memory_region(
-        state.target_input + input_size, (size_t)state.input_capacity - input_size);
+        state.target_input + input_size, state.input_slot_size - input_size);
 }
 
 FOZZIE_NOCOV static uint8_t hit_bucket(uint8_t count) {

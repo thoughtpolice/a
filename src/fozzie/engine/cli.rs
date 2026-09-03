@@ -23,7 +23,7 @@ pub enum Command {
         /// Finding metadata JSON file.
         metadata: PathBuf,
     },
-    /// Reduce a failing input while preserving its exact finding fingerprint.
+    /// Reduce a failing input while preserving its structured failure fingerprint.
     Minimize(MinimizeOptions),
 }
 
@@ -95,7 +95,7 @@ pub struct FuzzOptions {
     #[arg(long, default_value = "none", value_parser = ["none", "address"])]
     pub sanitizer: String,
 
-    /// Stop after the first confirmed finding and use deterministic test defaults.
+    /// Use deterministic one-worker test defaults.
     #[arg(long)]
     pub test_mode: bool,
 }
@@ -116,6 +116,26 @@ pub struct ReplayOptions {
     /// Succeed only if replay produces a finding (useful for regression tests).
     #[arg(long)]
     pub expect_finding: bool,
+
+    /// Require this finding kind when --expect-finding is set.
+    #[arg(
+        long,
+        requires = "expect_finding",
+        value_parser = ["crash", "hang", "nonzero_harness", "exit"]
+    )]
+    pub expect_kind: Option<String>,
+
+    /// Require this signal, exit status, or harness result when --expect-finding is set.
+    #[arg(long, requires = "expect_finding", allow_hyphen_values = true)]
+    pub expect_code: Option<i32>,
+
+    /// Require a finding reported by this sanitizer when --expect-finding is set.
+    #[arg(
+        long,
+        requires = "expect_finding",
+        value_parser = ["address", "memory", "thread", "undefined-behavior"]
+    )]
+    pub expect_sanitizer: Option<String>,
 }
 
 #[derive(Debug, Args)]
