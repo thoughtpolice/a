@@ -1,0 +1,93 @@
+<!doctype html>
+<!-- SPDX-FileCopyrightText: © 2026 Austin Seipp -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Console</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #0b0b0d;
+    color: #d8d8dc;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow: hidden;
+  }
+  body { display: flex; flex-direction: column; }
+  #screen {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    display: block;
+    background: #000;
+    outline: none;
+    touch-action: none;
+  }
+  #screen:focus-visible { outline: 1px solid #3d6ea5; outline-offset: -1px; }
+  #bar {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 4px 10px;
+    border-top: 1px solid #1e1e22;
+    background: #121216;
+  }
+  #status { flex: 1 1 auto; color: #8a8a92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  button {
+    font: inherit;
+    color: #d8d8dc;
+    background: #22222a;
+    border: 1px solid #33333d;
+    border-radius: 4px;
+    padding: 3px 10px;
+    cursor: pointer;
+  }
+  button:hover { background: #2c2c36; }
+  #log {
+    flex: 0 0 auto;
+    max-height: 28vh;
+    margin: 0;
+    padding: 6px 10px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    color: #9aa3ad;
+    background: #0e0e12;
+    border-top: 1px solid #1e1e22;
+  }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    background: rgba(8, 8, 10, 0.92);
+  }
+  #overlay-title { font-size: 22px; letter-spacing: 0.02em; }
+  #overlay-message { max-width: 60ch; white-space: pre-wrap; color: #a8a8b2; }
+  #start { padding: 8px 20px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<canvas id="screen" tabindex="0"></canvas>
+<pre id="log" hidden></pre>
+<div id="bar">
+  <div id="status">idle</div>
+  <button id="log-toggle" type="button">Log</button>
+</div>
+<div id="overlay">
+  <div id="overlay-title">Console</div>
+  <div id="overlay-message">Loading…</div>
+  <button id="start" type="button" hidden>Click to start</button>
+</div>
+<script type="module" src="./console.js"></script>
+</body>
+</html>

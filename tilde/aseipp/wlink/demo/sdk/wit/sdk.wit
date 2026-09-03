@@ -1,0 +1,262 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+/// The interface a game programs against. It is implemented by the platform
+/// component, not by the host, so it is free to use rich types.
+package console:sdk@0.1.0;
+
+/// Two layers make a frame: the image a game presents, whole, from its own
+/// renderer, and the overlay of primitives it draws over it. The platform
+/// shows the result when the frame ends. A game that never presents draws
+/// on a blank display-sized frame instead.
+interface gfx {
+    record color {
+        r: u8,
+        g: u8,
+        b: u8,
+        a: u8,
+    }
+
+    record rect {
+        x: s32,
+        y: s32,
+        w: u32,
+        h: u32,
+    }
+
+    record display-info {
+        width: u32,
+        height: u32,
+        refresh-hz: u32,
+    }
+
+    info: func() -> display-info;
+    /// The size of the frame a game that never presents draws on, 1 to
+    /// 4096 a side; returns whether it was accepted.
+    set-mode: func(width: u32, height: u32) -> bool;
+
+    /// Presents tightly packed row-major RGBA8 pixels. Invalid dimensions or
+    /// a byte count other than width * height * 4 are ignored.
+    present: func(width: u32, height: u32, rgba: list<u8>);
+    /// Sets palette entries for present-indexed, from `first` on.
+    set-palette: func(first: u8, colors: list<color>);
+    /// Presents one byte per pixel through the palette.
+    present-indexed: func(width: u32, height: u32, pixels: list<u8>);
+
+    /// Overlay drawing, in frame pixels shifted by the camera and cut to the
+    /// clip rectangle. A colour with zero alpha draws nothing; every other
+    /// colour is drawn as it is.
+    clear: func(color: color);
+    fill-rect: func(rect: rect, color: color);
+    draw-rect: func(rect: rect, color: color);
+    draw-line: func(x0: s32, y0: s32, x1: s32, y1: s32, color: color);
+    fill-circle: func(cx: s32, cy: s32, radius: u32, color: color);
+    /// The built-in 5x7 font, 6 pixels per character and 8 per line;
+    /// lowercase letters draw as capitals.
+    draw-text: func(x: s32, y: s32, text: string, color: color);
+    set-clip: func(rect: option<rect>);
+    set-camera: func(dx: s32, dy: s32);
+
+    flags flip {
+        horizontal,
+        vertical,
+    }
+
+    /// An image in RGBA8; pixels with zero alpha are transparent.
+    resource sheet {
+        constructor(width: u32, height: u32, rgba: list<u8>);
+    }
+
+    draw-sprite: func(sheet: borrow<sheet>, source: rect, x: s32, y: s32, flip: flip);
+}
+
+interface input {
+    flags buttons {
+        up,
+        down,
+        left,
+        right,
+        a,
+        b,
+        start,
+        select,
+    }
+
+    poll: func() -> buttons;
+
+    enum key {
+        tab, enter, escape, space, backspace, up, down, left, right,
+        shift, control, alt,
+        f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12,
+        a, b, c, d, e, f, g, h, i, j, k, l, m,
+        n, o, p, q, r, s, t, u, v, w, x, y, z,
+        num0, num1, num2, num3, num4, num5, num6, num7, num8, num9,
+        minus, equals, comma, period, slash, semicolon, apostrophe,
+        left-bracket, right-bracket, backslash, grave, pause,
+        insert, delete, home, end, page-up, page-down, caps-lock,
+        kp0, kp1, kp2, kp3, kp4, kp5, kp6, kp7, kp8, kp9,
+        kp-enter, kp-period, kp-plus, kp-minus, kp-multiply, kp-divide,
+    }
+
+    record key-event {
+        key: key,
+        pressed: bool,
+    }
+
+    /// Drains ordered key transitions, including releases.
+    read-events: func() -> list<key-event>;
+
+    /// What the host's input can report. Without key-releases, a key's
+    /// release arrives on a timer after its press rather than when the key
+    /// comes up, so holding a key reads as repeated taps. Without
+    /// pointer-capture, mouse motion stops at the edge of the screen.
+    flags capability {
+        key-releases,
+        text,
+        mouse,
+        pointer-capture,
+    }
+    capabilities: func() -> capability;
+
+    flags mouse-buttons {
+        left,
+        right,
+        middle,
+    }
+
+    record mouse-state {
+        /// The pointer over the last presented frame, in its pixels.
+        x: s32,
+        y: s32,
+        /// Motion and wheel notches since the last call.
+        dx: s32,
+        dy: s32,
+        buttons: mouse-buttons,
+        wheel: s32,
+    }
+
+    mouse: func() -> mouse-state;
+    /// Asks for relative motion with no visible pointer; returns whether
+    /// the host can provide it.
+    capture-pointer: func(captured: bool) -> bool;
+    /// The text typed since the last call, with the keyboard layout applied.
+    read-text: func() -> string;
+}
+
+interface audio {
+    record sample-format {
+        sample-rate: u32,
+        channels: u8,
+    }
+
+    /// The output: interleaved signed 16-bit samples, 44100 Hz stereo.
+    format: func() -> sample-format;
+    /// Appends interleaved samples to the output queue and returns the
+    /// frames accepted, fewer than offered when the queue is full. A
+    /// trailing unpaired sample is dropped.
+    write: func(samples: list<s16>) -> u32;
+    /// Frames queued but not yet played. The host plays a frame period's
+    /// worth after every frame, so keep a few frames ahead.
+    queued: func() -> u32;
+}
+
+interface clock {
+    /// Monotonic milliseconds since this application started.
+    now-ms: func() -> u64;
+    /// Frames ended so far: zero during the first frame.
+    frame: func() -> u64;
+    /// Seconds since the Unix epoch; a headless host reports a fixed value.
+    unix-seconds: func() -> s64;
+    /// Asks for a frame rate, 1 to 1000 Hz, before the first frame; returns
+    /// the rate in effect.
+    set-frame-rate: func(hz: u32) -> u32;
+}
+
+interface system {
+    flags features {
+        /// Files written outlast the session.
+        persistent-storage,
+    }
+
+    record host-info {
+        /// The host running the application: terminal, headless, ...
+        name: string,
+        features: features,
+    }
+
+    info: func() -> host-info;
+    /// Entropy from the host; a headless host derives it from its seed
+    /// option, so a run stays reproducible.
+    random-seed: func() -> u64;
+    /// Names the window or terminal tab where the host has one.
+    set-title: func(title: string);
+}
+
+interface files {
+    /// An open file. Dropping the handle closes it.
+    resource file {
+        size: func() -> s64;
+        /// Reads at most length bytes without a shared seek cursor; reading
+        /// at or past the end succeeds with fewer bytes. Fails on an I/O error.
+        read-at: func(offset: u64, length: u32) -> result<list<u8>>;
+        /// Returns the number of bytes written or minus one on failure.
+        write-at: func(offset: u64, data: list<u8>) -> s32;
+    }
+
+    /// Writing creates or truncates a file, and the directories on its
+    /// path with it; the host decides persistence and may mount read-only
+    /// assets. Returns none when the file cannot be opened.
+    open: func(path: string, write: bool) -> option<own<file>>;
+
+    record entry {
+        name: string,
+        size: u64,
+        directory: bool,
+    }
+
+    /// The entries directly inside a directory, sorted by name. The empty
+    /// path is the root. Returns none when there is no such directory.
+    list-directory: func(path: string) -> option<list<entry>>;
+    /// Deletes a file the game may write, or an empty directory.
+    remove: func(path: string) -> bool;
+    /// Moves a file or directory, creating the directories on the new
+    /// path and replacing a writable file already there.
+    rename: func(path: string, to: string) -> bool;
+    /// Creates a directory and any missing parents; a directory that
+    /// already exists counts as success.
+    create-directory: func(path: string) -> bool;
+}
+
+interface process {
+    arg-count: func() -> u32;
+    /// Returns an empty string for an index outside arg-count.
+    arg: func(index: u32) -> string;
+    /// Terminates the application. Implementations must not return.
+    exit: func(code: s32);
+}
+
+interface log {
+    enum level {
+        debug,
+        info,
+        warn,
+        error,
+    }
+
+    log: func(level: level, message: string);
+}
+
+world game {
+    import gfx;
+    import input;
+    import audio;
+    import log;
+    import clock;
+    import system;
+    import files;
+    import process;
+
+    export init: func();
+    /// Advances the game by `dt-ms`; returns false when the game is over.
+    export frame: func(dt-ms: u32) -> bool;
+}

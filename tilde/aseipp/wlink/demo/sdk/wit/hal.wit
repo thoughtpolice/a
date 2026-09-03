@@ -1,0 +1,101 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+/// The hardware abstraction layer: what the platform component needs from
+/// the machine it runs on. Lists and strings use canonical pointer/length
+/// pairs in the platform's memory; returned buffers use its allocator.
+package console:hal@0.1.0;
+
+interface raw {
+    write-log: func(level: u32, message: string);
+    present: func(width: u32, height: u32, rgba: list<u8>);
+    /// One byte per pixel through a 256-entry palette whose entries hold
+    /// the bytes of an RGBA8 pixel in memory order.
+    present-indexed: func(width: u32, height: u32, pixels: list<u8>, palette: list<u32>);
+    frames-per-second: func() -> u32;
+    /// Honoured before the first frame; returns the rate in effect.
+    set-frame-rate: func(hz: u32) -> u32;
+    unix-seconds: func() -> s64;
+    random-seed: func() -> u64;
+    host-name: func() -> string;
+    /// The bits of console:sdk/system.features.
+    host-features: func() -> u32;
+    set-title: func(title: string);
+
+    record key-event {
+        /// The ordinal of console:sdk/input.key.
+        key: u32,
+        pressed: bool,
+    }
+    read-events: func() -> list<key-event>;
+    /// The bits of console:sdk/input.capability.
+    input-capabilities: func() -> u32;
+
+    record mouse-state {
+        x: s32,
+        y: s32,
+        dx: s32,
+        dy: s32,
+        /// The bits of console:sdk/input.mouse-buttons.
+        buttons: u32,
+        wheel: s32,
+    }
+    /// Motion and wheel counts are since the previous call.
+    read-mouse: func() -> mouse-state;
+    capture-pointer: func(captured: u32) -> u32;
+    read-text: func() -> string;
+    now-ms: func() -> u64;
+
+    /// Interleaved signed 16-bit stereo at 44100 Hz. Writing returns the
+    /// frames accepted; the host plays a frame period's worth of the queue
+    /// after every frame.
+    audio-write: func(samples: list<s16>) -> u32;
+    audio-queued: func() -> u32;
+
+    record read-result {
+        status: s32,
+        data: list<u8>,
+    }
+    file-open: func(path: string, write: bool) -> s32;
+    file-size: func(handle: u32) -> s64;
+    file-read-at: func(handle: u32, offset: u64, length: u32) -> read-result;
+    file-write-at: func(handle: u32, offset: u64, data: list<u8>) -> s32;
+    file-close: func(handle: u32);
+
+    record entry {
+        name: string,
+        size: u64,
+        directory: bool,
+    }
+    record list-result {
+        status: s32,
+        entries: list<entry>,
+    }
+    /// The entries directly inside a directory, sorted by name; a nonzero
+    /// status means there is no such directory. The empty path or "." is
+    /// the root. Every other operation returns zero on success.
+    file-list-directory: func(path: string) -> list-result;
+    file-remove: func(path: string) -> s32;
+    file-rename: func(path: string, to: string) -> s32;
+    file-create-directory: func(path: string) -> s32;
+    arg-count: func() -> u32;
+    arg: func(index: u32) -> string;
+    exit: func(code: s32);
+}
+
+world platform {
+    import raw;
+
+    /// Called by the host after every game frame: the platform shows the
+    /// frame and finishes its own per-frame work.
+    export end-frame: func();
+
+    export console:sdk/gfx@0.1.0;
+    export console:sdk/input@0.1.0;
+    export console:sdk/audio@0.1.0;
+    export console:sdk/log@0.1.0;
+    export console:sdk/clock@0.1.0;
+    export console:sdk/system@0.1.0;
+    export console:sdk/files@0.1.0;
+    export console:sdk/process@0.1.0;
+}

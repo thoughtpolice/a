@@ -49,6 +49,8 @@ BAD_PREFIXES = [
     # vendored proto files from Google/Bazel
     "src/tools/cache-server/protos/google/",
     "src/tools/cache-server/protos/build/",
+    # musl's math sources, kept under their own copyright notices
+    "tilde/aseipp/wlink/demo/sdk/libc/musl/",
 ]
 
 BAD_SUFFIXES = [
