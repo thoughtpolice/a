@@ -139,12 +139,31 @@ TOOL_SOURCES = {
     "wat2wasm": ["src/tools/wat2wasm.cc"],
 }
 
+# The C runtime that wasm2c output links against.
+WASM_RT_SOURCES = [
+    "wasm-rt-impl.c",
+    "wasm-rt-mem-impl.c",
+    "wasm-rt-exceptions-impl.c",
+]
+
+WASM_RT_EXPORTED_HEADERS = [
+    "wasm-rt.h",
+    "wasm-rt-impl.h",
+    "wasm-rt-exceptions.h",
+]
+
+WASM_RT_PRIVATE_HEADERS = [
+    "wasm-rt-impl-tableops.inc",
+    "wasm-rt-mem-impl-helper.inc",
+]
+
 WABT_ARCHIVE_FILES = (
     ["include/wabt/{}".format(header) for header in WABT_HEADERS] +
     WABT_LIBRARY_SOURCES + [
         "src/opcode-code-table.c",
         "src/prebuilt/lexer-keywords.cc",
-    ] + [source for sources in TOOL_SOURCES.values() for source in sources]
+    ] + [source for sources in TOOL_SOURCES.values() for source in sources] +
+    ["wasm2c/{}".format(f) for f in WASM_RT_SOURCES + WASM_RT_EXPORTED_HEADERS + WASM_RT_PRIVATE_HEADERS]
 )
 
 shims.http_archive(
@@ -237,6 +256,22 @@ shims.cxx_library(
     preprocessor_flags = WABT_PREPROCESSOR_FLAGS,
     visibility = ["PUBLIC"],
     deps = [":opcode-code-table"],
+)
+
+shims.cxx_library(
+    name = "wasm-rt",
+    srcs = [":src[wasm2c/{}]".format(source) for source in WASM_RT_SOURCES],
+    exported_headers = {
+        header: ":src[wasm2c/{}]".format(header)
+        for header in WASM_RT_EXPORTED_HEADERS
+    },
+    header_namespace = "",
+    headers = {
+        header: ":src[wasm2c/{}]".format(header)
+        for header in WASM_RT_PRIVATE_HEADERS
+    },
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
 )
 
 MATH_LINKER_FLAGS = shims.select({
