@@ -113,10 +113,17 @@ buck2 run //path/to:parser-fuzz -- --workdir /var/tmp/parser-fuzz
 
 The generated binary is intentionally small. It contains the user harness,
 the transitively instrumented Rust/C/C++ code under test, and `fozzie_rt`. One
-persistent target process runs per controller worker. Inputs live in a shared
-mapping and fixed-size, little-endian Run/Done frames travel over a Unix socket in a private `/tmp` directory, independent of campaign path
-length.
-The parent owns timeouts and kills the target process group on failure.
+persistent target process runs per controller worker. Inputs arrive through a
+shared mapping, then the runtime copies each one into a guarded private arena
+and asks ASan to poison the bytes beyond its logical end. Fixed-size,
+little-endian Run/Done frames travel over a Unix socket in a private `/tmp` directory, independent of campaign path
+length. The parent owns
+timeouts and kills the target process group on failure; target stderr is
+continuously drained into a bounded per-worker tail buffer.
+
+Before each Run, the controller drains and resets that buffer under the same
+lock as its reader, keeping diagnostics from completed calls out of later
+findings. Harnesses must finish their stderr writes before returning.
 
 LLVM SanitizerCoverage supplies inline 8-bit counters, PC tables, and trace-cmp
 observations. The runtime turns nonzero counters into sparse, bucketed feature
@@ -131,6 +138,15 @@ the input and target digests, build/instrumentation schema, Buck label, campaign
 seed, failure class, target stderr, and a base64 reproduction command. Findings
 are rerun in a fresh target before a Buck test fails; flaky findings are still
 preserved and reported.
+
+Metadata schema 3 embeds a replay manifest with the original target path,
+argument, and input bytes. Small UTF-8 invocations retain an inline base64
+command; large inputs or non-UTF-8 arguments use
+`fozzie replay-artifact METADATA.json`, which checks input and target digests.
+Keep the metadata file when copying findings out of a Buck sandbox.
+
+The summary's `workdir_persisted` field reflects actual directory retention,
+including an explicit `--workdir` on a successful campaign.
 
 ## Compiler and semantic fuzzing
 

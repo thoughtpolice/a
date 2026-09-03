@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-use std::ffi::CString;
+use std::ffi::{CString, OsString};
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
-use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
@@ -13,6 +13,8 @@ use std::time::{Duration, Instant};
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+const DIAGNOSTIC: &str = "fozzie test oracle returned 17\n";
 
 fn executable(variable: &str) -> PathBuf {
     fs::canonicalize(std::env::var_os(variable).expect("Buck supplies the test executable"))
@@ -116,6 +118,18 @@ fn fixture(mode: &str, workdir: &Path) -> Command {
     command
 }
 
+fn metadata(workdir: &Path) -> Vec<serde_json::Value> {
+    fs::read_dir(workdir.join("artifacts"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension == "json")
+        })
+        .map(|path| serde_json::from_slice(&fs::read(path).unwrap()).unwrap())
+        .collect()
+}
+
 fn assert_targets_reaped(directory: &Path) {
     let calls = fs::read_to_string(directory.join("calls")).unwrap();
     for line in calls.lines() {
@@ -181,6 +195,43 @@ fn slow_setup_does_not_skip_a_failing_seed() {
 }
 
 #[test]
+fn nonzero_diagnostics_reach_replay_and_artifacts() {
+    let directory = tempfile::tempdir().unwrap();
+    let seed = directory.path().join("seed");
+    fs::write(&seed, b"NONZERO").unwrap();
+    let target = executable("FOZZIE_TEST_TARGET");
+    for _ in 0..8 {
+        let output = run(engine()
+            .args(["replay", "--target"])
+            .arg(&target)
+            .arg("--input")
+            .arg(&seed));
+        assert_eq!(output.status.code(), Some(1), "{output:?}");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains(DIAGNOSTIC),
+            "{output:?}"
+        );
+    }
+
+    let output = run(engine()
+        .args(["fuzz", "--target"])
+        .arg(target)
+        .arg("--workdir")
+        .arg(directory.path().join("campaign"))
+        .arg("--corpus")
+        .arg(seed)
+        .args(["--duration", "0", "--runs", "1", "--test-mode"]));
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let result = summary(&output);
+    assert_eq!(result["finding"]["confirmed"], true);
+    let metadata: serde_json::Value = serde_json::from_slice(
+        &fs::read(result["finding"]["metadata_path"].as_str().unwrap()).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(metadata["stderr"], DIAGNOSTIC);
+}
+
+#[test]
 fn supports_long_campaign_and_temporary_paths() {
     let directory = tempfile::tempdir().unwrap();
     let campaign = directory.path().join("long-campaign-".repeat(10));
@@ -222,4 +273,84 @@ fn two_workers_share_the_exact_execution_budget_and_exit() {
     assert!(calls.lines().any(|line| line.starts_with("0 ")));
     assert!(calls.lines().any(|line| line.starts_with("1 ")));
     assert_targets_reaped(directory.path());
+}
+
+#[test]
+fn stderr_from_a_successful_run_does_not_reach_the_next_finding() {
+    let directory = tempfile::tempdir().unwrap();
+    for trial in 0..8 {
+        let work = directory.path().join(trial.to_string());
+        let output = run(fixture("stderr", &work).args(["--runs", "2", "--test-mode"]));
+        assert!(output.status.success(), "{output:?}");
+        let records = metadata(&work);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0]["stderr"], "current failed run\n");
+    }
+}
+
+#[test]
+fn successful_workdir_retention_matches_the_summary() {
+    let directory = tempfile::tempdir().unwrap();
+    for durable in [false, true] {
+        let mut command = engine();
+        command
+            .args(["fuzz", "--target"])
+            .arg(executable("FOZZIE_TEST_TARGET"))
+            .args(["--duration", "0", "--runs", "1", "--test-mode"]);
+        if durable {
+            command
+                .arg("--workdir")
+                .arg(directory.path().join("campaign"));
+        }
+        let output = run(&mut command);
+        assert!(output.status.success(), "{output:?}");
+        let result = summary(&output);
+        assert_eq!(result["workdir_persisted"], durable);
+        assert_eq!(
+            Path::new(result["workdir"].as_str().unwrap()).exists(),
+            durable
+        );
+    }
+}
+
+#[test]
+fn artifact_replay_preserves_non_utf8_and_empty_arguments() {
+    let directory = tempfile::tempdir().unwrap();
+    let output = run(fixture("arguments", directory.path())
+        .arg("--target-arg")
+        .arg(OsString::from_vec(vec![b'-', 0xff, b'\'', b'\n']))
+        .args(["--target-arg", "", "--runs", "1", "--test-mode"]));
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let result = summary(&output);
+    assert!(
+        result["finding"]["repro"]
+            .as_str()
+            .unwrap()
+            .contains("replay-artifact")
+    );
+    let replay = run(engine()
+        .arg("replay-artifact")
+        .arg(result["finding"]["metadata_path"].as_str().unwrap()));
+    assert_eq!(replay.status.code(), Some(1), "{replay:?}");
+    assert!(String::from_utf8_lossy(&replay.stderr).contains("lossless arguments"));
+}
+
+#[test]
+fn large_inputs_replay_from_metadata_without_a_large_command_line() {
+    let directory = tempfile::tempdir().unwrap();
+    let seed = directory.path().join("seed");
+    fs::write(&seed, vec![b'x'; 200000]).unwrap();
+    let output = run(fixture("large-input", directory.path())
+        .arg("--corpus")
+        .arg(seed)
+        .args(["--max-input", "200000", "--runs", "1", "--test-mode"]));
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let result = summary(&output);
+    let command = result["finding"]["repro"].as_str().unwrap();
+    assert!(command.contains("replay-artifact"));
+    assert!(command.len() < 4096);
+    let replay = run(engine()
+        .arg("replay-artifact")
+        .arg(result["finding"]["metadata_path"].as_str().unwrap()));
+    assert_eq!(replay.status.code(), Some(1), "{replay:?}");
 }

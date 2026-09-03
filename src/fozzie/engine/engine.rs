@@ -24,6 +24,7 @@ pub fn run(cli: Cli) -> Result<ExitCode> {
     match cli.command {
         Command::Fuzz(options) => fuzz(options),
         Command::Replay(options) => replay(options),
+        Command::ReplayArtifact { metadata } => replay(crate::artifact::replay_options(&metadata)?),
         Command::Minimize(options) => minimize(options),
     }
 }
@@ -31,13 +32,13 @@ pub fn run(cli: Cli) -> Result<ExitCode> {
 fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
     let started = Instant::now();
     let executor_config = ExecutorConfig::from_options(&options.target)?;
-    let work = WorkRoot::new(options.workdir.as_deref())?;
+    let mut work = WorkRoot::new(options.workdir.as_deref())?;
     let corpus_path = work.path().join("corpus");
     let corpus = Corpus::load(&options.corpus, corpus_path, executor_config.max_input)?;
     let dictionary = load_dictionaries(&options.dictionaries, executor_config.max_input)?;
     let artifact_sink = ArtifactSink::new(
         work.path(),
-        executor_config.target.clone(),
+        &executor_config,
         options.target_label.clone(),
         options.seed,
         options.sanitizer.clone(),
@@ -120,8 +121,15 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
     let elapsed = started.elapsed();
     let finding = shared.finding.lock().unwrap().clone();
     let infrastructure_error = shared.infrastructure_error.lock().unwrap().clone();
+    let flaky_findings = shared.flaky_findings.load(Ordering::Relaxed);
+    if finding.is_some() || infrastructure_error.is_some() || flaky_findings != 0 {
+        work.preserve();
+    }
+    let workdir_persisted = work.temporary.is_none();
     let summary = Summary {
         seed: options.seed,
+        workdir: work.path().to_path_buf(),
+        workdir_persisted,
         elapsed_ms: elapsed.as_millis() as u64,
         executions: shared.executions.load(Ordering::Relaxed),
         executions_per_second: if elapsed.is_zero() {
@@ -135,7 +143,7 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
         worker_restarts: shared.restarts.load(Ordering::Relaxed),
         unstable_seeds: shared.unstable_seeds.load(Ordering::Relaxed),
         truncated_observations: shared.truncated_observations.load(Ordering::Relaxed),
-        flaky_findings: shared.flaky_findings.load(Ordering::Relaxed),
+        flaky_findings,
         finding: finding.clone(),
         infrastructure_error: infrastructure_error.clone(),
     };
@@ -182,7 +190,6 @@ fn calibrate(
             }
             Execution::Ok(first) => {
                 let first_features = first.features.iter().copied().collect::<HashSet<_>>();
-                absorb_observation(shared, &seed, first, false)?;
                 if let Some(second_id) = claim_execution(shared, run_limit, deadline) {
                     let second = executor.run(&seed)?;
                     match second {
@@ -195,10 +202,13 @@ fn calibrate(
                                 second.features.iter().copied().collect::<HashSet<_>>();
                             if first_features != second_features {
                                 shared.unstable_seeds.fetch_add(1, Ordering::Relaxed);
+                            } else {
+                                absorb_observation(shared, &seed, first, false)?;
                             }
-                            absorb_observation(shared, &seed, second, false)?;
                         }
                     }
+                } else {
+                    absorb_observation(shared, &seed, first, false)?;
                 }
             }
         }
@@ -314,16 +324,20 @@ fn handle_finding(
         return Ok(());
     }
 
+    // Publish the original observation before attempting confirmation. A
+    // second target failure, controller interruption, or full disk must never
+    // make the exact input that triggered a finding disappear.
+    let mut recorded = shared.artifacts.record(input, &finding, false, execution)?;
     executor.restart();
-    let confirmation = executor.run(input);
-    let confirmed = matches!(
-        confirmation,
-        Ok(Execution::Finding(Finding { ref kind, .. })) if *kind == finding.kind
-    );
-    let recorded = shared
-        .artifacts
-        .record(input, &finding, confirmed, execution)?;
+    let confirmed = match executor
+        .run(input)
+        .context("confirming finding in a fresh target")?
+    {
+        Execution::Finding(Finding { kind, .. }) => kind == finding.kind,
+        Execution::Ok(_) => false,
+    };
     if confirmed {
+        recorded = shared.artifacts.record(input, &finding, true, execution)?;
         *shared.finding.lock().unwrap() = Some(recorded);
         shared.stop.store(true, Ordering::Release);
     } else {
@@ -466,7 +480,7 @@ fn budget_available(shared: &Shared, limit: u64, deadline: Option<Instant>) -> b
 
 fn effective_jobs(requested: usize, test_mode: bool) -> usize {
     if test_mode {
-        return requested.max(1);
+        return 1;
     }
     if requested != 0 {
         return requested;
@@ -503,7 +517,7 @@ impl Shared {
 
 struct WorkRoot {
     path: PathBuf,
-    _temporary: Option<TempDir>,
+    temporary: Option<TempDir>,
 }
 
 impl WorkRoot {
@@ -514,14 +528,14 @@ impl WorkRoot {
                     .with_context(|| format!("creating work directory {}", path.display()))?;
                 Ok(Self {
                     path: fs::canonicalize(path)?,
-                    _temporary: None,
+                    temporary: None,
                 })
             }
             None => {
                 let directory = tempfile::Builder::new().prefix("fozzie-").tempdir()?;
                 Ok(Self {
                     path: directory.path().to_path_buf(),
-                    _temporary: Some(directory),
+                    temporary: Some(directory),
                 })
             }
         }
@@ -530,11 +544,20 @@ impl WorkRoot {
     fn path(&self) -> &Path {
         &self.path
     }
+
+    fn preserve(&mut self) {
+        if let Some(directory) = self.temporary.take() {
+            let path = directory.keep();
+            debug_assert_eq!(path, self.path);
+        }
+    }
 }
 
 #[derive(Serialize)]
 struct Summary {
     seed: u64,
+    workdir: PathBuf,
+    workdir_persisted: bool,
     elapsed_ms: u64,
     executions: u64,
     executions_per_second: f64,
@@ -562,6 +585,17 @@ mod tests {
     #[test]
     fn test_mode_defaults_to_one_worker() {
         assert_eq!(effective_jobs(0, true), 1);
-        assert_eq!(effective_jobs(4, true), 4);
+        assert_eq!(effective_jobs(4, true), 1);
+        assert_eq!(effective_jobs(4, false), 4);
+    }
+
+    #[test]
+    fn preserves_a_temporary_work_root_on_demand() {
+        let mut work = WorkRoot::new(None).unwrap();
+        let path = work.path().to_path_buf();
+        work.preserve();
+        drop(work);
+        assert!(path.is_dir());
+        fs::remove_dir_all(path).unwrap();
     }
 }

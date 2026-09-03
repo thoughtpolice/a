@@ -8,7 +8,6 @@ ENGINE_DEPS = [
     "third-party//rust:base64",
     "third-party//rust:blake3",
     "third-party//rust:clap",
-    "third-party//rust:crossbeam-channel",
     "third-party//rust:memmap2",
     "third-party//rust:serde",
     "third-party//rust:serde_json",

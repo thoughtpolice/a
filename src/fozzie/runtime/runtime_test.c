@@ -33,6 +33,20 @@ static const uintptr_t test_pcs[6] = {
     0x3000, 0,
 };
 static int initialize_calls;
+static const volatile void* last_unpoison_address;
+static size_t last_unpoison_size;
+static const volatile void* last_poison_address;
+static size_t last_poison_size;
+
+void __asan_unpoison_memory_region(const volatile void* address, size_t size) {
+    last_unpoison_address = address;
+    last_unpoison_size = size;
+}
+
+void __asan_poison_memory_region(const volatile void* address, size_t size) {
+    last_poison_address = address;
+    last_poison_size = size;
+}
 
 __attribute__((constructor)) static void register_test_instrumentation(void) {
     __sanitizer_cov_8bit_counters_init((char*)test_counters,
@@ -48,7 +62,9 @@ int LLVMFuzzerInitialize(int* argc, char*** argv) {
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-    if (initialize_calls != 1 || size != 1) {
+    if (initialize_calls != 1 || size != 1 || last_unpoison_address != data ||
+        last_unpoison_size != size || last_poison_address != data + size ||
+        last_poison_size != 64 - size) {
         return 99;
     }
     if (data[0] == 1) {

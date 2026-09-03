@@ -3,7 +3,7 @@
 
 use anyhow::{Context, Result, bail};
 use std::collections::HashSet;
-use std::fs::{self, OpenOptions};
+use std::fs;
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -71,10 +71,11 @@ impl Corpus {
             return Ok(false);
         }
         let hash = digest(&input);
-        if !self.hashes.insert(hash.clone()) {
+        if self.hashes.contains(&hash) {
             return Ok(false);
         }
-        persist_new(&self.output.join(hash), &input)?;
+        persist_new(&self.output.join(&hash), &input)?;
+        self.hashes.insert(hash);
         self.entries.push(Arc::new(input));
         Ok(true)
     }
@@ -94,16 +95,22 @@ pub fn digest(input: &[u8]) -> String {
 }
 
 pub fn persist_new(path: &Path, contents: &[u8]) -> Result<()> {
-    match OpenOptions::new().write(true).create_new(true).open(path) {
-        Ok(mut file) => {
-            file.write_all(contents)
-                .with_context(|| format!("writing {}", path.display()))?;
-            file.sync_all()
-                .with_context(|| format!("syncing {}", path.display()))?;
-            Ok(())
-        }
-        Err(error) if error.kind() == ErrorKind::AlreadyExists => Ok(()),
-        Err(error) => Err(error).with_context(|| format!("creating {}", path.display())),
+    let parent = path
+        .parent()
+        .context("content-addressed path has no parent")?;
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)
+        .with_context(|| format!("creating temporary file in {}", parent.display()))?;
+    temporary
+        .write_all(contents)
+        .with_context(|| format!("writing temporary file for {}", path.display()))?;
+    temporary
+        .as_file()
+        .sync_all()
+        .with_context(|| format!("syncing temporary file for {}", path.display()))?;
+    match temporary.persist_noclobber(path) {
+        Ok(_) => Ok(()),
+        Err(error) if error.error.kind() == ErrorKind::AlreadyExists => Ok(()),
+        Err(error) => Err(error.error).with_context(|| format!("publishing {}", path.display())),
     }
 }
 
@@ -138,5 +145,18 @@ mod tests {
         assert!(directory.path().join(digest(b"new")).is_file());
         let reloaded = Corpus::load(&[], directory.path().to_path_buf(), 8).unwrap();
         assert_eq!(reloaded.len(), 1);
+    }
+
+    #[test]
+    fn failed_publication_does_not_poison_the_in_memory_hash_set() {
+        let directory = tempfile::tempdir().unwrap();
+        let output = directory.path().join("corpus");
+        let mut corpus = Corpus::load(&[], output.clone(), 8).unwrap();
+        fs::remove_dir(&output).unwrap();
+
+        assert!(corpus.add_interesting(b"retry".to_vec()).is_err());
+        fs::create_dir(&output).unwrap();
+        assert!(corpus.add_interesting(b"retry".to_vec()).unwrap());
+        assert_eq!(fs::read(output.join(digest(b"retry"))).unwrap(), b"retry");
     }
 }

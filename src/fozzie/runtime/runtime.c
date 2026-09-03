@@ -48,7 +48,11 @@ struct runtime_state {
     int socket_fd;
     uint8_t* mapping;
     size_t mapping_size;
-    uint8_t* input;
+    uint8_t* shared_input;
+    uint8_t* target_input;
+    uint8_t* input_arena;
+    size_t input_arena_size;
+    size_t input_prefix_size;
     uint64_t input_capacity;
     uint8_t* features;
     uint32_t feature_capacity;
@@ -73,6 +77,19 @@ static _Atomic uint32_t comparison_count;
 static _Atomic bool comparisons_truncated;
 static _Atomic bool collecting;
 static _Atomic bool target_started;
+
+/* Present only in address-sanitized final binaries. */
+FOZZIE_OPTIONAL void __asan_poison_memory_region(const volatile void* address, size_t size);
+FOZZIE_OPTIONAL void __asan_unpoison_memory_region(const volatile void* address, size_t size);
+
+FOZZIE_NOCOV static bool bytes_are_zero(const uint8_t* bytes, size_t size) {
+    for (size_t index = 0; index < size; ++index) {
+        if (bytes[index] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
 
 FOZZIE_NOCOV static bool range_valid(uint64_t offset, uint64_t count, uint64_t stride,
     uint64_t total_size) {
@@ -111,7 +128,8 @@ FOZZIE_NOCOV static int decode_layout(
 
     if (total_size < FOZZIE_SHM_HEADER_SIZE || total_size > file_size || total_size > SIZE_MAX ||
         input_capacity == 0 || feature_stride != FOZZIE_FEATURE_ENTRY_SIZE ||
-        cmp_stride != FOZZIE_CMP_ENTRY_SIZE ||
+        cmp_stride != FOZZIE_CMP_ENTRY_SIZE || fozzie_load_le64(header->flags_le) != 0 ||
+        !bytes_are_zero(header->reserved, sizeof(header->reserved)) ||
         !range_valid(input_offset, input_capacity, 1, total_size) ||
         !range_valid(feature_offset, feature_capacity, feature_stride, total_size) ||
         !range_valid(cmp_offset, cmp_capacity, cmp_stride, total_size)) {
@@ -204,9 +222,41 @@ FOZZIE_NOCOV static int open_shared_memory(const char* path) {
         return FOZZIE_TARGET_EXIT_SHARED_MEMORY;
     }
 
-    state.input = state.mapping + fozzie_load_le64(header.input_offset_le);
+    state.shared_input = state.mapping + fozzie_load_le64(header.input_offset_le);
     state.features = state.mapping + fozzie_load_le64(header.feature_offset_le);
     state.comparisons = state.mapping + fozzie_load_le64(header.cmp_offset_le);
+    return FOZZIE_TARGET_EXIT_OK;
+}
+
+FOZZIE_NOCOV static int create_input_arena(void) {
+    long page_size_result = sysconf(_SC_PAGESIZE);
+    if (page_size_result <= 0) {
+        return FOZZIE_TARGET_EXIT_SHARED_MEMORY;
+    }
+    size_t page_size = (size_t)page_size_result;
+    size_t capacity = (size_t)state.input_capacity;
+    if (page_size > SIZE_MAX / 2 || capacity > SIZE_MAX - (page_size - 1)) {
+        return FOZZIE_TARGET_EXIT_SHARED_MEMORY;
+    }
+    size_t rounded_capacity = ((capacity + page_size - 1) / page_size) * page_size;
+    if (rounded_capacity > SIZE_MAX - 2 * page_size) {
+        return FOZZIE_TARGET_EXIT_SHARED_MEMORY;
+    }
+    state.input_arena_size = rounded_capacity + 2 * page_size;
+    state.input_arena = mmap(NULL, state.input_arena_size, PROT_NONE,
+        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (state.input_arena == MAP_FAILED) {
+        state.input_arena = NULL;
+        return FOZZIE_TARGET_EXIT_SHARED_MEMORY;
+    }
+    uint8_t* writable = state.input_arena + page_size;
+    if (mprotect(writable, rounded_capacity, PROT_READ | PROT_WRITE) != 0) {
+        munmap(state.input_arena, state.input_arena_size);
+        state.input_arena = NULL;
+        return FOZZIE_TARGET_EXIT_SHARED_MEMORY;
+    }
+    state.input_prefix_size = rounded_capacity - capacity;
+    state.target_input = writable + state.input_prefix_size;
     return FOZZIE_TARGET_EXIT_OK;
 }
 
@@ -240,6 +290,11 @@ FOZZIE_NOCOV static void cleanup_runtime(void) {
         munmap(state.mapping, state.mapping_size);
         state.mapping = NULL;
     }
+    if (state.input_arena != NULL) {
+        munmap(state.input_arena, state.input_arena_size);
+        state.input_arena = NULL;
+        state.target_input = NULL;
+    }
     if (state.shm_fd >= 0) {
         close(state.shm_fd);
         state.shm_fd = -1;
@@ -258,6 +313,9 @@ FOZZIE_NOCOV static int initialize_runtime(void) {
 
     registration_closed = true;
     int status = open_shared_memory(shm_path);
+    if (status == FOZZIE_TARGET_EXIT_OK) {
+        status = create_input_arena();
+    }
     if (status == FOZZIE_TARGET_EXIT_OK) {
         status = connect_control_socket(socket_path);
     }
@@ -288,6 +346,19 @@ FOZZIE_NOCOV static void reset_observations(void) {
     }
     atomic_store_explicit(&comparison_count, 0, memory_order_relaxed);
     atomic_store_explicit(&comparisons_truncated, false, memory_order_relaxed);
+}
+
+FOZZIE_NOCOV static void configure_input_bounds(size_t input_size) {
+    if (__asan_poison_memory_region == NULL || __asan_unpoison_memory_region == NULL) {
+        return;
+    }
+    if (state.input_prefix_size != 0) {
+        __asan_poison_memory_region(
+            state.target_input - state.input_prefix_size, state.input_prefix_size);
+    }
+    __asan_unpoison_memory_region(state.target_input, input_size);
+    __asan_poison_memory_region(
+        state.target_input + input_size, (size_t)state.input_capacity - input_size);
 }
 
 FOZZIE_NOCOV static uint8_t hit_bucket(uint8_t count) {
@@ -378,6 +449,9 @@ FOZZIE_NOCOV static int run_loop(void) {
                     size - sizeof(command.header))) {
                 return FOZZIE_TARGET_EXIT_PROTOCOL;
             }
+            if (!bytes_are_zero(command.stop.reserved_le, sizeof(command.stop.reserved_le))) {
+                return FOZZIE_TARGET_EXIT_PROTOCOL;
+            }
             return FOZZIE_TARGET_EXIT_OK;
         }
         if (command.header.type != FOZZIE_FRAME_RUN || size != FOZZIE_RUN_FRAME_SIZE ||
@@ -393,8 +467,10 @@ FOZZIE_NOCOV static int run_loop(void) {
         }
 
         reset_observations();
+        configure_input_bounds((size_t)input_size);
+        memcpy(state.target_input, state.shared_input, (size_t)input_size);
         atomic_store_explicit(&collecting, true, memory_order_release);
-        int harness_return = LLVMFuzzerTestOneInput(state.input, (size_t)input_size);
+        int harness_return = LLVMFuzzerTestOneInput(state.target_input, (size_t)input_size);
         atomic_store_explicit(&collecting, false, memory_order_release);
 
         uint32_t done_flags = 0;

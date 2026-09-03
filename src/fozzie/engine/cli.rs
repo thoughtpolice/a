@@ -18,6 +18,11 @@ pub enum Command {
     Fuzz(FuzzOptions),
     /// Execute one input and report whether the target fails.
     Replay(ReplayOptions),
+    /// Replay saved finding metadata, preserving argument bytes and checking digests.
+    ReplayArtifact {
+        /// Finding metadata JSON file.
+        metadata: PathBuf,
+    },
     /// Reduce a failing input while preserving its failure class.
     Minimize(MinimizeOptions),
 }
