@@ -5,14 +5,31 @@ SPDX-License-Identifier: Apache-2.0
 
 # wlink
 
-A static linker for WebAssembly components. It takes a set of components whose
-imports and exports plug into each other, evaluates the whole instantiation
-graph ahead of time, and emits **one standard core module**. Calls that cross
-a component boundary become fused adapters written as ordinary wasm; the only
-imports left are the ones nothing in the package satisfies.
+A static linker for WebAssembly components.
 
-The output runs on any core engine, including ahead-of-time translators such
-as `wasm2c`, and is plain input for any compiler that consumes core modules.
+WebAssembly components can be thought of in terms of "holes" represented by an
+interfaces. A component that relies on an interface, when compiled as a module,
+has a "hole" in the module that must be filled by a module which implements
+said interface (similar to a Functor in ML-derived languages, or "mixin modules"
+in Haskell). This is no different than a C program be compiled to an `.o` file,
+which must then have that definition filled later.
+
+Thus, components need to be linked together before they can be run. For a full
+webassembly component module to execute, all of the "holes" must be filled with
+a satisfying implementation. The task of `wlink` is to fill these holes, just
+like a typical object code linker, **and emit a standard WebAssembly Module**.
+
+`wlink` can also leave some of these holes "open" and thus create a residual
+program. This is a common case, typically where the final programs' "open" holes
+are interfaces implemented by the underlying host environment. The most obvious
+example of this pattern is the WASI interfaces used by a WASI program in the
+component module, which are implemented inside the host program.
+
+The output module from `wlink` should run on any standard WebAssembly engine,
+assuming appropriate holes are filled by the host, including ahead-of-time
+translators such as `wasm2c`. This making deployment of component-based
+applications (including non-WASI ones!) to existing standard webassembly
+runtimes a bit easier.
 
 ```
 wlink link -o linked.wasm platform=platform.wasm game=game.wasm
@@ -21,61 +38,32 @@ wlink print linked.wasm
 ```
 
 Inputs may be binaries or component text (`.wat`); `name=path` names a
-component, otherwise its file stem does.
+component, otherwise it is located by file stem.
 
-## How it links
+## Host ABI
 
-1. **Decode** (`component.rs`). Each component becomes its list of
-   definitions: core modules and instances, nested components and instances,
-   aliases, `canon lift`/`lower`, imports and exports. Types are resolved
-   through wasmparser's validator into a small interface-type model
-   (`types.rs`).
-2. **Plan** (`plan.rs`). The definitions are interpreted with a frame per
-   component instantiation, exactly as a runtime would instantiate them, but
-   producing a plan instead of running anything: a list of core module
-   instances in instantiation order with every import resolved, one adapter
-   per `lower` of a `lift`, the lowered imports nothing provides, and the
-   package's exports. Top-level components plug into each other by interface
-   name, so a `wac` composition step is not needed, though a composed
-   component links just the same.
-   Each component instantiation is a frame, the owner of a handle table;
-   resource types are created as the frames defining them are instantiated,
-   bound through type imports, exports, and aliases, and named by index in
-   every function type the plan records.
-3. **Adapt** (`adapter.rs`). Each adapter converts between the caller's and
-   the callee's canonical ABI by walking the value types: strings and lists
-   are copied into the callee's memory through its `realloc`, handles move
-   from the caller's table to the callee's, results are converted back
-   through the caller's, spilled parameter lists and results go through
-   memory as the ABI specifies, and `post-return` is honoured. Functions
-   whose values never touch memory or a table bind straight to the callee.
-   The same walk wraps host imports and exports that carry handles, so the
-   host only ever sees representations.
-4. **Merge** (`merge.rs`). Every instance's definitions are renumbered into
-   the output with `wasm-encoder`'s reencoder, multiple memories included.
-   Unsatisfied imports are exported in their lowered (flat) form and reached
-   through trampolines, each component's memory is exported as
-   `<component>:memory`, and a synthesized start runs every instance's start
-   in order. When handles are in play, `handles.rs` contributes one table in
-   a memory of its own, its maintenance functions, and the `resource.new`,
-   `resource.rep`, and `resource.drop` built-ins.
+Unsatisfied functions remain core imports with their canonical lowered
+signatures. Identical lowerings share an import. When the same module/name is
+lowered with different canonical options (for example, different memories),
+each import name gets a `$lowerN` suffix, where `N` is its index in the linked
+module's function imports. A name with only one lowering is unchanged.
 
-## What the prototype supports
+For an import `M` / `F`, the output exports its canonical memory as
+`wlink:import:M#F:memory` and its allocator as `wlink:import:M#F:realloc`, when
+those options are present. `F` includes the suffix when one is needed. Hosts
+must use that memory for pointer arguments and results, and that allocator for
+returned strings and lists. Component memories also retain their usual
+`<component>:memory` exports.
 
-The synchronous 0.2 ABI with UTF-8 strings: scalars, records, tuples, enums,
-flags, variants, options, results, strings, and lists, nested however the
-interface likes, and resource handles, owned and borrowed, wherever a value
-can hold them. Not yet: non-UTF-8 encodings, component start functions,
-component values, and everything async.
+Package function exports retain their core lifted signatures. For an export
+`F`, its canonical memory and allocator are exposed as
+`wlink:export:F:memory` and `wlink:export:F:realloc`, when present. If its lift
+specifies a post-return function, it is exported as `cabi_post_F`. The host
+must call it once after reading the result, passing the original core return
+values, before making another call into that component. It must not read the
+returned storage after post-return has reclaimed it.
 
-Strings and lists are relatively expensive when crossing a component
-interface, as they must be reallocated into the consumer's linear memory.
-Handles are cheap: a call moves them between tables that live in one
-synthesized memory of the linked module, exported as `wlink:handles`, and a
-borrowed handle passed to the component that implements the resource costs
-nothing at all.
-
-## Resources at the host boundary
+### Resources
 
 The host never sees a handle: wherever an import or export names a resource,
 the host passes and receives the resource's representation, the `i32` a
@@ -100,19 +88,29 @@ representation; the host calls it to destroy a resource it owns. An owned
 handle the host passes in is created in the component's table, and an owned
 handle it receives has been removed from it.
 
-## The demo SDK
+Core module instantiation order is preserved, including data and table
+initialization before each instance's start function. Nested component aliases
+retain the environment in which their component was defined.
 
-`demo/` is the shape the console is meant to take:
+## Feature support
 
-- `wit/sdk.wit` is `console:sdk`, the world games program against, with
-  records, flags, enums, and strings.
-- `wit/hal.wit` is `console:hal`, the scalar boundary a machine implements,
-  and the `platform` world that exports the SDK over it.
-- `platform/` implements the SDK in Rust for wasm32; `game/` is a game
-  against it. Both use hand-written canonical ABI bindings.
-- `host/main.c` implements the HAL over stdio and drives the frame loop of
-  the `wasm2c` translation of the linked package.
+Basic support for the component model 0.2 ABI:
 
-`buck2 test tilde//aseipp/wlink/...` links the demo, runs it under wasm2c, and
-checks that the linked package is plain core wasm with nothing but the HAL left
-imported.
+- UTF-8 strings
+- scalars, records, tuples, enums, flags, variants, options, results, strings,
+  and lists, nested however the interface likes
+- resource handles, owned and borrowed, wherever a value can hold them.
+
+Note that strings and lists are relatively expensive when crossing a component
+interface, as they must be reallocated into the consumers linear memory.
+Handles are cheap: a call moves them between tables that live in one
+synthesized memory of the linked module, exported as `wlink:handles`, and a
+borrowed handle passed to the component that implements the resource costs
+nothing at all.
+
+Not yet supported:
+
+- non-UTF-8 encodings
+- component start functions,
+- component values
+- everything async.

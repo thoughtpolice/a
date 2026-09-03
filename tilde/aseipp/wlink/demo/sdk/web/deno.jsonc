@@ -1,0 +1,30 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+{
+  // Everything here is self-contained: no registry is reachable at build time,
+  // and nothing is imported from one.
+  "lock": false,
+  "nodeModulesDir": "none",
+  "compilerOptions": {
+    "strict": true,
+    // The same sources are type-checked for three runtimes: the portable core,
+    // the Deno CLI, and the browser. `deno.webgpu` is what declares `GPU*` and
+    // `navigator.gpu`.
+    "lib": [
+      "esnext",
+      "dom",
+      "dom.iterable",
+      "dom.asynciterable",
+      "deno.ns",
+      "deno.webgpu"
+    ]
+  },
+  "fmt": {
+    "lineWidth": 100
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  }
+}
