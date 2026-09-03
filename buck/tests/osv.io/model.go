@@ -112,6 +112,18 @@ var genericExceptions = []exception{
 		ID:     "OSV-2024-398",
 		Reason: "wabt use of an uninitialized value in BinaryReaderObjdump::PrintInitExpr; OSS-Fuzz 65975 is open with no fix",
 	},
+	// The non-blocking gz* support added in zlib 1.3.1.2 lets gz_vacate() copy a
+	// stalled external input buffer into the smaller internal one, and only
+	// notices the overrun after the memmove(). The OSV range ends at a
+	// last-affected commit with no fix: v1.3.2 is both the newest release and
+	// upstream master, and the sole post-1.3.2 gzwrite.c commit on develop just
+	// guards a NULL pointer add. Reaching it needs gzprintf() on a non-blocking
+	// gzFile, and libz has no reverse dependencies in depot at all. Remove this
+	// once upstream ships a fixed release.
+	{
+		ID:     "CVE-2026-85091",
+		Reason: "zlib heap buffer overflow in gz_vacate() via gzprintf() after a non-blocking write stall; no fixed release exists and depot links no libz consumers",
+	},
 }
 
 var rustExceptions = []exception{
