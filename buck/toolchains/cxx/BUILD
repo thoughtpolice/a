@@ -76,6 +76,7 @@ compiler_type = shims.select({
 linker = shims.select({
     "toolchains//cfg/target:target[x86_64-unknown-uefi]": "lld",
     "toolchains//cfg/target:target[aarch64-unknown-uefi]": "lld",
+    "toolchains//cfg/target:target[wasm32-unknown-unknown]": "lld",
     "DEFAULT": shims.select({
         "config//os:windows": "link.exe",
         "config//os:macos": "clang++",
@@ -107,6 +108,7 @@ linux_common_ldflags = [
 link_flags = shims.select({
     "toolchains//cfg/target:target[x86_64-unknown-uefi]": [],
     "toolchains//cfg/target:target[aarch64-unknown-uefi]": [],
+    "toolchains//cfg/target:target[wasm32-unknown-unknown]": [],
     "toolchains//cfg/target:target[x86_64-unknown-linux-gnu]": [
         "-target",
         "x86_64-unknown-linux-gnu",
@@ -139,8 +141,17 @@ link_flags = shims.select({
 
 system_cxx_toolchain(
     name = "cxx",
+    # GNU ar cannot build the symbol index for WebAssembly object files.
+    archiver = shims.select({
+        "toolchains//cfg/target:target[wasm32-unknown-unknown]": "llvm-ar",
+        "DEFAULT": None,
+    }),
     c_flags = cxx_warn_flags + opt_flags + instrumentation_compiler_flags,
     compiler_type = compiler_type,
+    compiler_wrapper = shims.select({
+        "toolchains//cfg/target:target[wasm32-unknown-unknown]": "wasm-compiler.sh",
+        "DEFAULT": None,
+    }),
     cxx_flags = cxx_base_flags + cxx_warn_flags + opt_flags + instrumentation_compiler_flags,
     link_flags = link_flags,
     linker = linker,
