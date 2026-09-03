@@ -6,6 +6,7 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 depot.test_suite(
     name = "tests",
     tests = [
+        "root//src/fozzie/engine:all-tests",
         "root//src/fozzie/runtime:tests",
     ],
     visibility = ["PUBLIC"],

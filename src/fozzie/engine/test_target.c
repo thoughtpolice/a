@@ -1,0 +1,36 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+#include "fozzie/runtime/target.h"
+
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+    if (size == 7 && memcmp(data, "NONZERO", 7) == 0) {
+        static const char diagnostic[] = "fozzie test oracle returned 17\n";
+        if (write(STDERR_FILENO, diagnostic, sizeof(diagnostic) - 1) != (ssize_t)(sizeof(diagnostic) - 1)) {
+            return 18;
+        }
+        return 17;
+    }
+    if (size == 1 && data[0] == 'B') {
+        abort();
+    }
+    if (size == 4 && memcmp(data, "HANG", 4) == 0) {
+        for (;;) {
+        }
+    }
+
+    volatile uint8_t observation = 0;
+    if (size > 3 && data[0] == 'f') {
+        observation ^= data[1];
+    }
+    if (size > 7 && data[2] == data[7]) {
+        observation ^= data[2];
+    }
+    (void)observation;
+    return 0;
+}
