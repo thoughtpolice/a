@@ -1,0 +1,34 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+/// The SDK's own components for async games, between the game and the
+/// platform. The scheduler implements `console:sdk/tasks` over the
+/// platform; the launcher starts the game's `run` and gives the host the
+/// `init` and `frame` exports every console package has, so a host drives
+/// an async game as it drives any other, pumping the scheduler as it goes.
+package console:scheduler@0.1.0;
+
+/// How the launcher drives the scheduler.
+interface frames {
+    /// A frame begins: wakes the tasks whose waits are over and moves every
+    /// load along by its budget.
+    begin: func();
+}
+
+world scheduler {
+    import console:sdk/clock@0.1.0;
+    import console:sdk/files@0.1.0;
+
+    export console:sdk/tasks@0.1.0;
+    export frames;
+}
+
+world launcher {
+    import frames;
+    import console:sdk/main@0.1.0;
+
+    /// Starts the game's `run`.
+    export init: func();
+    /// Begins a frame; returns false once `run` has returned.
+    export frame: func(dt-ms: u32) -> bool;
+}
