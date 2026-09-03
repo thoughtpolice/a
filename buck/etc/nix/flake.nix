@@ -41,19 +41,19 @@
           ourRustVersion = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.complete);
 
           llvmPackages = pkgs.llvmPackages_latest;
-          ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_4;
+          ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_5;
 
           # these are needed in both devShell and buildInputs
-          darwinDeps = with pkgs; lib.optionals stdenv.isDarwin [ ];
+          darwinDeps = with pkgs; lib.optionals stdenv.hostPlatform.isDarwin [ ];
 
           # these are needed in both devShell and buildInputs
           linuxDeps =
             with pkgs;
-            lib.optionals stdenv.isLinux [
+            lib.optionals stdenv.hostPlatform.isLinux [
               mold
             ];
 
-          devcontainer = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux (
+          devcontainer = pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (
             import ./devcontainer-image.nix {
               inherit pkgs self system;
             }
@@ -97,7 +97,7 @@
                 nodejs
                 go_latest
                 uv
-                erlang_28
+                beam28Packages.erlang
               ])
               ++ darwinDeps
               ++ linuxDeps;
@@ -111,7 +111,7 @@
                 export RUST_BACKTRACE=1
                 export RUSTFLAGS="-Zthreads=0"
               ''
-              + lib.optionalString stdenv.isLinux ''
+              + lib.optionalString stdenv.hostPlatform.isLinux ''
                 export RUSTFLAGS+=" -C link-arg=-fuse-ld=mold -C link-arg=-Wl,--compress-debug-sections=zstd"
               '';
           };
