@@ -24,3 +24,15 @@ cxx_fuzz_binary(
     runs = 64,
     deps = [":packet-parser"],
 )
+
+cxx_fuzz_binary(
+    name = "packet-fuzz-asan",
+    srcs = ["packet_fuzz.c"],
+    corpus = [":seed"],
+    duration_seconds = 0,
+    jobs = 1,
+    runs = 16,
+    sanitizer = "address",
+    visibility = ["PUBLIC"],
+    deps = [":packet-parser"],
+)

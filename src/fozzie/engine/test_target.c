@@ -23,6 +23,12 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         for (;;) {
         }
     }
+    if (size == 5 && memcmp(data, "EXIT0", 5) == 0) {
+        _exit(0);
+    }
+    if (size == 6 && memcmp(data, "EXIT70", 6) == 0) {
+        _exit(70);
+    }
 
     volatile uint8_t observation = 0;
     if (size > 3 && data[0] == 'f') {

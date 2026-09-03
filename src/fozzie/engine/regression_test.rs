@@ -191,7 +191,9 @@ fn slow_setup_does_not_skip_a_failing_seed() {
     assert_eq!(output.status.code(), Some(1), "{output:?}");
     let result = summary(&output);
     assert_eq!(result["executions"], 1);
+    assert_eq!(result["verification_executions"], 1);
     assert_eq!(result["finding"]["confirmed"], true);
+    assert_eq!(result["finding"]["fingerprint"]["code"], 17);
 }
 
 #[test]
@@ -229,6 +231,22 @@ fn nonzero_diagnostics_reach_replay_and_artifacts() {
     )
     .unwrap();
     assert_eq!(metadata["stderr"], DIAGNOSTIC);
+}
+
+#[test]
+fn minimizes_a_bare_relative_filename() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::write(directory.path().join("input"), b"NONZERO").unwrap();
+    let output = run(engine()
+        .args(["minimize", "--target"])
+        .arg(executable("FOZZIE_TEST_TARGET"))
+        .args(["--input", "input"])
+        .current_dir(directory.path()));
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        fs::read(directory.path().join("input.minimized")).unwrap(),
+        b"NONZERO"
+    );
 }
 
 #[test]
@@ -353,4 +371,30 @@ fn large_inputs_replay_from_metadata_without_a_large_command_line() {
         .arg("replay-artifact")
         .arg(result["finding"]["metadata_path"].as_str().unwrap()));
     assert_eq!(replay.status.code(), Some(1), "{replay:?}");
+}
+#[test]
+fn simultaneous_candidates_are_preserved_before_verifier_arbitration() {
+    let directory = tempfile::tempdir().unwrap();
+    let work = directory.path().join("campaign");
+    let output = run(fixture("findings", &work)
+        .arg("--target-arg")
+        .arg(directory.path())
+        .args(["--jobs", "2", "--runs", "66"]));
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let records = metadata(&work);
+    let mut codes = records
+        .iter()
+        .map(|record| record["fingerprint"]["code"].as_i64().unwrap())
+        .collect::<Vec<_>>();
+    codes.sort_unstable();
+    codes.dedup();
+    assert_eq!(codes, [17, 18]);
+    assert_eq!(
+        records
+            .iter()
+            .filter(|record| record["confirmed"] == true)
+            .count(),
+        1
+    );
+    assert_targets_reaped(directory.path());
 }

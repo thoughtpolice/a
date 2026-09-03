@@ -891,7 +891,10 @@ let
       -static-libsan \
       "$TMPDIR/devcontainer-cxx.cc" \
       -o "$TMPDIR/devcontainer-cxx-asan"
-    test "$("$TMPDIR/devcontainer-cxx-asan")" = devcontainer
+    ASAN_OPTIONS=detect_leaks=0 \
+      "$TMPDIR/devcontainer-cxx-asan" \
+      > "$TMPDIR/devcontainer-cxx-asan.stdout"
+    test "$(<"$TMPDIR/devcontainer-cxx-asan.stdout")" = devcontainer
     test "$(${toolProfile}/bin/nm --defined-only \
       "$TMPDIR/devcontainer-cxx-asan" \
       | grep -c ' __asan_init$')" -eq 1
@@ -924,6 +927,50 @@ let
     fi
     grep -F 'AddressSanitizer: heap-buffer-overflow' \
       "$TMPDIR/devcontainer-asan-failure.log"
+
+    cat > "$TMPDIR/devcontainer-rust-asan.rs" <<'EOF'
+    // SPDX-FileCopyrightText: © 2026 Austin Seipp
+    // SPDX-License-Identifier: Apache-2.0
+    fn main() {
+        let layout = std::alloc::Layout::from_size_align(8, 1).unwrap();
+        unsafe {
+            let allocation = std::alloc::alloc(layout);
+            let offset = std::hint::black_box(8_usize);
+            std::ptr::write_volatile(allocation.add(offset), 1_u8);
+            std::alloc::dealloc(allocation, layout);
+        }
+    }
+    EOF
+    ${rustToolchain}/bin/rustc \
+      -C debuginfo=line-tables-only \
+      -C force-frame-pointers=yes \
+      -C linker=${toolProfile}/bin/clang++ \
+      -C link-arg=-fuse-ld=lld \
+      -C link-arg=-fsanitize=address \
+      -C link-arg=-static-libsan \
+      -C link-arg=-static-libgcc \
+      -C link-arg=-static-libstdc++ \
+      -C panic=abort \
+      -Z external-clangrt \
+      -Z sanitizer=address \
+      "$TMPDIR/devcontainer-rust-asan.rs" \
+      -o "$TMPDIR/devcontainer-rust-asan"
+    test "$(${toolProfile}/bin/nm --defined-only \
+      "$TMPDIR/devcontainer-rust-asan" \
+      | grep -c ' __asan_init$')" -eq 1
+    if ${toolProfile}/bin/readelf -d "$TMPDIR/devcontainer-rust-asan" \
+      | grep -E 'NEEDED.*(libasan|libclang_rt\.asan)'; then
+      exit 1
+    fi
+    if ASAN_OPTIONS=allow_addr2line=1:detect_leaks=0 \
+      "$TMPDIR/devcontainer-rust-asan" \
+      2> "$TMPDIR/devcontainer-rust-asan.log"; then
+      exit 1
+    fi
+    grep -F 'AddressSanitizer: heap-buffer-overflow' \
+      "$TMPDIR/devcontainer-rust-asan.log"
+    grep -F 'devcontainer-rust-asan.rs:' \
+      "$TMPDIR/devcontainer-rust-asan.log"
     ${toolProfile}/bin/clang \
       --target=aarch64-unknown-linux-gnu \
       -c "$TMPDIR/devcontainer-c.c" \

@@ -92,9 +92,11 @@ Importing seeds and dictionaries and hashing the target do not consume the
 execution time budget. A campaign that executes nothing fails.
 
 The test first calibrates its checked-in seeds, then fuzzes for the configured
-time or execution count. Exhausting the budget without a finding passes. A
-confirmed crash, hang, or nonzero harness result fails the test. Stochastic
-fuzz tests explicitly disable test-result caching and execute locally.
+time or primary execution count. Fresh-process verification runs are additional
+and reported separately in `FOZZIE_SUMMARY`. Exhausting the budget without a
+finding passes. A confirmed crash, hang, unexpected process exit, or nonzero
+harness result fails the test. Test mode forces one worker, disables result
+caching, and executes locally.
 
 Dictionary import streams and deduplicates entries in file order, retaining at
 most 8,192 entries and reading at most 16 MiB across all dictionary files.
@@ -102,8 +104,9 @@ Reaching either limit prints a diagnostic and skips the remaining data; a line
 longer than 1 MiB is rejected with its file and line number. Target hashing also
 streams, so large executables do not need an equally large temporary buffer.
 
-For a durable campaign, give `buck2 run` a work directory. Existing interesting
-inputs in that directory are loaded automatically on the next invocation:
+For a durable campaign, give `buck2 run` a work directory. External seeds are
+imported into its content-addressed corpus, so it is self-contained afterward;
+existing interesting inputs are loaded automatically on the next invocation:
 
 ```console
 buck2 run //path/to:parser-fuzz -- --workdir /var/tmp/parser-fuzz
@@ -135,9 +138,13 @@ descriptors or compiler-layout-dependent Rust/C structures cross the boundary.
 
 Fozzie preserves crashes and hangs as first-class artifacts. Metadata includes
 the input and target digests, build/instrumentation schema, Buck label, campaign
-seed, failure class, target stderr, and a base64 reproduction command. Findings
-are rerun in a fresh target before a Buck test fails; flaky findings are still
-preserved and reported.
+seed, structured finding fingerprint, bounded target stderr, and a base64
+reproduction command. Findings are rerun in a fresh target and must match the
+same signal/exit status and sanitizer signature before a Buck test fails;
+minimization preserves that same identity. Concurrent candidates wait for the
+verifier instead of being discarded, and flaky candidates remain durable. If
+no `--workdir` was supplied, a campaign with any finding or infrastructure
+failure retains its temporary directory and reports the path in the summary.
 
 Metadata schema 3 embeds a replay manifest with the original target path,
 argument, and input bytes. Small UTF-8 invocations retain an inline base64
@@ -171,8 +178,9 @@ other's internal scheduling model.
 The initial backend is Linux and requires a repeatable
 `LLVMFuzzerTestOneInput` harness. Persistent execution is fast but does not
 reset arbitrary global target state, so harnesses must make repeated calls
-independent. A slower spawn/file/stdin adapter and a forkserver are natural
-future executors for stateful programs.
+independent and must join or quiesce any work that can still touch the input
+before returning. A slower spawn/file/stdin adapter and a forkserver are
+natural future executors for stateful programs.
 
 Coverage feedback works without an external sanitizer runtime. The optional
 address profile uses the ASan-only compiler-rt carried by the pinned Clang

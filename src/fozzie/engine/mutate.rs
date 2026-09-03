@@ -124,12 +124,8 @@ fn load_dictionaries_with_limits(
             if trimmed.is_empty() || trimmed.starts_with('#') {
                 continue;
             }
-            let value = decode_quoted(
-                trimmed
-                    .split_once('=')
-                    .map_or(trimmed, |(_, value)| value.trim()),
-            )
-            .with_context(|| format!("{}:{line_number}", path.display()))?;
+            let value = parse_dictionary_entry(trimmed)
+                .with_context(|| format!("{}:{line_number}", path.display()))?;
             if !value.is_empty() && value.len() <= max_input && known.insert(value.clone()) {
                 entries.push(value);
             }
@@ -219,7 +215,9 @@ fn splice_with(output: &mut Vec<u8>, other: &[u8], max_input: usize, rng: &mut R
     let left = rng.below(output.len() + 1);
     let right = rng.below(other.len());
     output.truncate(left);
-    output.extend_from_slice(&other[right..other.len().min(right + max_input - output.len())]);
+    let available = max_input.saturating_sub(output.len());
+    let amount = (other.len() - right).min(available);
+    output.extend_from_slice(&other[right..right + amount]);
 }
 
 fn insert_dictionary(
@@ -239,6 +237,19 @@ fn insert_dictionary(
     let at = rng.below(output.len().min(max_input - token.len()) + 1);
     let replace = token.len().min(output.len().saturating_sub(at));
     output.splice(at..at + replace, token.iter().copied());
+}
+
+fn parse_dictionary_entry(value: &str) -> Result<Vec<u8>> {
+    // An unnamed entry starts with its opening quote, so any `=` belongs to
+    // the payload. Named entries use the first `=` as their separator.
+    let quoted = if value.starts_with('"') {
+        value
+    } else if let Some((_, quoted)) = value.split_once('=') {
+        quoted.trim()
+    } else {
+        value
+    };
+    decode_quoted(quoted)
 }
 
 fn decode_quoted(value: &str) -> Result<Vec<u8>> {
@@ -338,5 +349,25 @@ mod tests {
     #[test]
     fn parses_libfuzzer_dictionary_escapes() {
         assert_eq!(decode_quoted(r#""a\x00\\\"\n""#).unwrap(), b"a\0\\\"\n");
+    }
+
+    #[test]
+    fn parses_equals_in_raw_and_named_dictionary_entries() {
+        assert_eq!(
+            parse_dictionary_entry(r#""key=value""#).unwrap(),
+            b"key=value"
+        );
+        assert_eq!(
+            parse_dictionary_entry(r#"keyword = "left=right""#).unwrap(),
+            b"left=right"
+        );
+    }
+
+    #[test]
+    fn splice_handles_unbounded_max_input_without_overflow() {
+        let mut output = b"x".to_vec();
+        let mut rng = Rng::new(1);
+        splice_with(&mut output, b"abcd", usize::MAX, &mut rng);
+        assert_eq!(output, b"xbcd");
     }
 }

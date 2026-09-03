@@ -124,6 +124,16 @@ depot.write_file(
     contents = ["HANG"],
 )
 
+depot.write_file(
+    name = "exit-zero-seed",
+    contents = ["EXIT0"],
+)
+
+depot.write_file(
+    name = "exit-reserved-seed",
+    contents = ["EXIT70"],
+)
+
 depot.command_test(
     name = "executor-smoke-test",
     cmd = [
@@ -175,9 +185,39 @@ depot.command_test(
     target_compatible_with = ["config//os:linux"],
 )
 
+depot.command_test(
+    name = "executor-exit-zero-test",
+    cmd = [
+        "$(exe :fozzie)",
+        "replay",
+        "--target",
+        "$(exe :executor-test-target)",
+        "--input",
+        "$(location :exit-zero-seed)",
+        "--expect-finding",
+    ],
+    target_compatible_with = ["config//os:linux"],
+)
+
+depot.command_test(
+    name = "executor-exit-reserved-test",
+    cmd = [
+        "$(exe :fozzie)",
+        "replay",
+        "--target",
+        "$(exe :executor-test-target)",
+        "--input",
+        "$(location :exit-reserved-seed)",
+        "--expect-finding",
+    ],
+    target_compatible_with = ["config//os:linux"],
+)
+
 depot.test_suite(
     name = "all-tests",
     tests = [
+        ":executor-exit-reserved-test",
+        ":executor-exit-zero-test",
         ":executor-finding-test",
         ":executor-smoke-test",
         ":executor-timeout-test",

@@ -3,8 +3,8 @@
 
 use crate::artifact::{ArtifactSink, RecordedFinding};
 use crate::cli::{Cli, Command, FuzzOptions, MinimizeOptions, ReplayOptions};
-use crate::corpus::Corpus;
-use crate::executor::{Execution, ExecutorConfig, Finding, FindingKind, PersistentExecutor};
+use crate::corpus::{Corpus, persist_replace, read_bounded};
+use crate::executor::{Execution, ExecutorConfig, Finding, FindingFingerprint, PersistentExecutor};
 use crate::mutate::{MAX_DICTIONARY_ENTRIES, Rng, comparison_tokens, load_dictionaries, mutate};
 use anyhow::{Context, Result, bail};
 use base64::Engine as _;
@@ -65,7 +65,8 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
         unstable_seeds: AtomicU64::new(0),
         truncated_observations: AtomicU64::new(0),
         flaky_findings: AtomicU64::new(0),
-        finding_claimed: AtomicBool::new(false),
+        verification_executions: AtomicU64::new(0),
+        verifier: Mutex::new(()),
         stop: AtomicBool::new(false),
         finding: Mutex::new(None),
         infrastructure_error: Mutex::new(None),
@@ -122,6 +123,8 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
     let finding = shared.finding.lock().unwrap().clone();
     let infrastructure_error = shared.infrastructure_error.lock().unwrap().clone();
     let flaky_findings = shared.flaky_findings.load(Ordering::Relaxed);
+    let verification_executions = shared.verification_executions.load(Ordering::Relaxed);
+    let primary_executions = shared.executions.load(Ordering::Relaxed);
     if finding.is_some() || infrastructure_error.is_some() || flaky_findings != 0 {
         work.preserve();
     }
@@ -131,11 +134,13 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
         workdir: work.path().to_path_buf(),
         workdir_persisted,
         elapsed_ms: elapsed.as_millis() as u64,
-        executions: shared.executions.load(Ordering::Relaxed),
+        executions: primary_executions,
+        verification_executions,
+        total_executions: primary_executions.saturating_add(verification_executions),
         executions_per_second: if elapsed.is_zero() {
             0.0
         } else {
-            shared.executions.load(Ordering::Relaxed) as f64 / elapsed.as_secs_f64()
+            primary_executions as f64 / elapsed.as_secs_f64()
         },
         corpus_size: shared.corpus.lock().unwrap().len(),
         features: shared.features.lock().unwrap().len(),
@@ -316,24 +321,23 @@ fn handle_finding(
     finding: Finding,
     execution: u64,
 ) -> Result<()> {
-    if shared
-        .finding_claimed
-        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-        .is_err()
-    {
+    // Publish every candidate before arbitration. Another worker may own the
+    // verifier, but it must never make this exact input disappear.
+    let mut recorded = shared.artifacts.record(input, &finding, false, execution)?;
+    let _verifier = shared.verifier.lock().unwrap();
+    if shared.stop.load(Ordering::Acquire) {
         return Ok(());
     }
 
-    // Publish the original observation before attempting confirmation. A
-    // second target failure, controller interruption, or full disk must never
-    // make the exact input that triggered a finding disappear.
-    let mut recorded = shared.artifacts.record(input, &finding, false, execution)?;
     executor.restart();
+    shared
+        .verification_executions
+        .fetch_add(1, Ordering::Relaxed);
     let confirmed = match executor
         .run(input)
         .context("confirming finding in a fresh target")?
     {
-        Execution::Finding(Finding { kind, .. }) => kind == finding.kind,
+        Execution::Finding(candidate) => candidate.fingerprint == finding.fingerprint,
         Execution::Ok(_) => false,
     };
     if confirmed {
@@ -347,14 +351,17 @@ fn handle_finding(
             finding.kind,
             recorded.input_path.display()
         );
-        shared.finding_claimed.store(false, Ordering::Release);
     }
     Ok(())
 }
 
 fn replay(options: ReplayOptions) -> Result<ExitCode> {
-    let input = read_replay_input(options.input.as_deref(), options.base64.as_deref())?;
     let config = ExecutorConfig::from_options(&options.target)?;
+    let input = read_replay_input(
+        options.input.as_deref(),
+        options.base64.as_deref(),
+        config.max_input,
+    )?;
     let directory = tempfile::tempdir().context("creating replay directory")?;
     let mut executor = PersistentExecutor::new(config, directory.path().to_path_buf())?;
     match executor.run(&input)? {
@@ -385,18 +392,18 @@ fn replay(options: ReplayOptions) -> Result<ExitCode> {
 }
 
 fn minimize(options: MinimizeOptions) -> Result<ExitCode> {
-    let mut input = fs::read(&options.input)
-        .with_context(|| format!("reading failing input {}", options.input.display()))?;
     let config = ExecutorConfig::from_options(&options.target)?;
+    let mut input = read_bounded(&options.input, config.max_input)
+        .with_context(|| format!("reading failing input {}", options.input.display()))?;
     let directory = tempfile::tempdir().context("creating minimization directory")?;
     let mut executor = PersistentExecutor::new(config, directory.path().to_path_buf())?;
     let expected = match executor.run(&input)? {
-        Execution::Finding(finding) => finding.kind,
+        Execution::Finding(finding) => finding.fingerprint,
         Execution::Ok(_) => bail!("input does not fail in the target"),
     };
 
     let mut granularity = 2_usize;
-    while input.len() >= 2 {
+    while !input.is_empty() {
         let chunk = input.len().div_ceil(granularity);
         let mut reduced = false;
         let mut begin = 0;
@@ -421,14 +428,19 @@ fn minimize(options: MinimizeOptions) -> Result<ExitCode> {
         }
     }
 
-    let output = options
-        .output
-        .unwrap_or_else(|| PathBuf::from(format!("{}.minimized", options.input.display())));
-    fs::write(&output, &input)
-        .with_context(|| format!("writing minimized input {}", output.display()))?;
+    executor.restart();
+    if !preserves(&mut executor, &input, &expected)? {
+        bail!("minimized input did not preserve its finding in a fresh target");
+    }
+    let output = options.output.unwrap_or_else(|| {
+        let mut name = options.input.as_os_str().to_os_string();
+        name.push(".minimized");
+        PathBuf::from(name)
+    });
+    persist_replace(&output, &input)?;
     println!(
         "fozzie: minimized {:?} to {} bytes at {}",
-        expected,
+        expected.kind,
         input.len(),
         output.display()
     );
@@ -438,20 +450,28 @@ fn minimize(options: MinimizeOptions) -> Result<ExitCode> {
 fn preserves(
     executor: &mut PersistentExecutor,
     input: &[u8],
-    expected: &FindingKind,
+    expected: &FindingFingerprint,
 ) -> Result<bool> {
     Ok(matches!(
         executor.run(input)?,
-        Execution::Finding(Finding { kind, .. }) if &kind == expected
+        Execution::Finding(Finding { fingerprint, .. }) if &fingerprint == expected
     ))
 }
 
-fn read_replay_input(path: Option<&Path>, encoded: Option<&str>) -> Result<Vec<u8>> {
-    match (path, encoded) {
-        (Some(path), None) => fs::read(path).with_context(|| format!("reading {}", path.display())),
+fn read_replay_input(
+    path: Option<&Path>,
+    encoded: Option<&str>,
+    max_input: usize,
+) -> Result<Vec<u8>> {
+    let input = match (path, encoded) {
+        (Some(path), None) => read_bounded(path, max_input),
         (None, Some(encoded)) => STANDARD.decode(encoded).context("decoding --base64 input"),
         _ => bail!("exactly one of --input or --base64 is required"),
+    }?;
+    if input.len() > max_input {
+        bail!("replay input is larger than --max-input {max_input}");
     }
+    Ok(input)
 }
 
 fn claim_execution(shared: &Shared, limit: u64, deadline: Option<Instant>) -> Option<u64> {
@@ -499,7 +519,8 @@ struct Shared {
     unstable_seeds: AtomicU64,
     truncated_observations: AtomicU64,
     flaky_findings: AtomicU64,
-    finding_claimed: AtomicBool,
+    verification_executions: AtomicU64,
+    verifier: Mutex<()>,
     stop: AtomicBool,
     finding: Mutex<Option<RecordedFinding>>,
     infrastructure_error: Mutex<Option<String>>,
@@ -560,6 +581,8 @@ struct Summary {
     workdir_persisted: bool,
     elapsed_ms: u64,
     executions: u64,
+    verification_executions: u64,
+    total_executions: u64,
     executions_per_second: f64,
     corpus_size: usize,
     features: usize,
@@ -578,8 +601,9 @@ mod tests {
 
     #[test]
     fn requires_exactly_one_replay_source() {
-        assert!(read_replay_input(None, None).is_err());
-        assert!(read_replay_input(None, Some("YWJj")).is_ok_and(|bytes| bytes == b"abc"));
+        assert!(read_replay_input(None, None, 3).is_err());
+        assert!(read_replay_input(None, Some("YWJj"), 3).is_ok_and(|bytes| bytes == b"abc"));
+        assert!(read_replay_input(None, Some("YWJjZA=="), 3).is_err());
     }
 
     #[test]

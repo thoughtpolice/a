@@ -35,6 +35,7 @@
 struct counter_span {
     uint8_t* begin;
     uint8_t* end;
+    size_t size;
     uint64_t base;
 };
 
@@ -342,7 +343,7 @@ FOZZIE_NOCOV static bool send_hello(void) {
 FOZZIE_NOCOV static void reset_observations(void) {
     for (size_t span_index = 0; span_index < counter_span_count; ++span_index) {
         struct counter_span* span = &counter_spans[span_index];
-        memset(span->begin, 0, (size_t)(span->end - span->begin));
+        memset(span->begin, 0, span->size);
     }
     atomic_store_explicit(&comparison_count, 0, memory_order_relaxed);
     atomic_store_explicit(&comparisons_truncated, false, memory_order_relaxed);
@@ -384,14 +385,15 @@ FOZZIE_NOCOV static uint32_t scan_features(uint32_t* done_flags) {
     uint32_t written = 0;
     for (size_t span_index = 0; span_index < counter_span_count; ++span_index) {
         struct counter_span* span = &counter_spans[span_index];
-        for (uint8_t* counter = span->begin; counter != span->end; ++counter) {
+        for (size_t counter_index = 0; counter_index < span->size; ++counter_index) {
+            uint8_t* counter = span->begin + counter_index;
             uint8_t count = *counter;
             *counter = 0;
             if (count == 0) {
                 continue;
             }
 
-            uint64_t dense_id = span->base + (uint64_t)(counter - span->begin);
+            uint64_t dense_id = span->base + (uint64_t)counter_index;
             uint64_t feature_id = (dense_id << 3) | hit_bucket(count);
             if (written < state.feature_capacity) {
                 struct fozzie_feature_entry* entry = (struct fozzie_feature_entry*)(
@@ -513,15 +515,29 @@ FOZZIE_NOCOV void __sanitizer_cov_8bit_counters_init(char* begin, char* end) {
             return;
         }
     }
-    uint64_t span_size = (uint64_t)(end - begin);
-    if (begin > end || counter_span_count == FOZZIE_MAX_COUNTER_SPANS ||
-        counter_count > (UINT64_MAX >> 3) - span_size) {
+
+    const uintptr_t begin_address = (uintptr_t)begin;
+    const uintptr_t end_address = (uintptr_t)end;
+    const uint64_t max_counter_count = UINT64_MAX >> 3;
+    if (begin == NULL || end == NULL || end_address < begin_address ||
+        counter_span_count == FOZZIE_MAX_COUNTER_SPANS) {
+        registration_error = true;
+        return;
+    }
+    const uintptr_t span_bytes = end_address - begin_address;
+    if (span_bytes > SIZE_MAX || span_bytes > UINT64_MAX) {
+        registration_error = true;
+        return;
+    }
+    const uint64_t span_size = (uint64_t)span_bytes;
+    if (span_size > max_counter_count || counter_count > max_counter_count - span_size) {
         registration_error = true;
         return;
     }
     counter_spans[counter_span_count++] = (struct counter_span){
         .begin = (uint8_t*)begin,
         .end = (uint8_t*)end,
+        .size = (size_t)span_bytes,
         .base = counter_count,
     };
     counter_count += span_size;
@@ -536,9 +552,29 @@ FOZZIE_NOCOV void __sanitizer_cov_pcs_init(const uintptr_t* begin, const uintptr
             return;
         }
     }
-    ptrdiff_t words = end - begin;
-    if (begin > end || words < 0 || (words & 1) != 0 || pc_span_count == FOZZIE_MAX_PC_SPANS ||
-        pc_count > UINT64_MAX - (uint64_t)words / 2) {
+
+    const uintptr_t begin_address = (uintptr_t)begin;
+    const uintptr_t end_address = (uintptr_t)end;
+    const uintptr_t alignment = (uintptr_t)_Alignof(uintptr_t);
+    const uintptr_t entry_size = (uintptr_t)2 * (uintptr_t)sizeof(uintptr_t);
+    if (begin == NULL || end == NULL || end_address < begin_address ||
+        begin_address % alignment != 0 || end_address % alignment != 0 ||
+        pc_span_count == FOZZIE_MAX_PC_SPANS) {
+        registration_error = true;
+        return;
+    }
+    const uintptr_t span_bytes = end_address - begin_address;
+    if (span_bytes % entry_size != 0) {
+        registration_error = true;
+        return;
+    }
+    const uintptr_t entry_count_raw = span_bytes / entry_size;
+    if (entry_count_raw > UINT64_MAX) {
+        registration_error = true;
+        return;
+    }
+    const uint64_t entry_count = (uint64_t)entry_count_raw;
+    if (pc_count > UINT64_MAX - entry_count) {
         registration_error = true;
         return;
     }
@@ -546,7 +582,7 @@ FOZZIE_NOCOV void __sanitizer_cov_pcs_init(const uintptr_t* begin, const uintptr
         .begin = begin,
         .end = end,
     };
-    pc_count += (uint64_t)words / 2;
+    pc_count += entry_count;
 }
 
 FOZZIE_NOCOV static void record_comparison(

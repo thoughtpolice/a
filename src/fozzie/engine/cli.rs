@@ -23,7 +23,7 @@ pub enum Command {
         /// Finding metadata JSON file.
         metadata: PathBuf,
     },
-    /// Reduce a failing input while preserving its failure class.
+    /// Reduce a failing input while preserving its exact finding fingerprint.
     Minimize(MinimizeOptions),
 }
 
@@ -67,7 +67,7 @@ pub struct FuzzOptions {
     #[arg(long = "dictionary")]
     pub dictionaries: Vec<PathBuf>,
 
-    /// Durable campaign directory. A temporary directory is used when omitted.
+    /// Durable campaign directory. A temporary directory is retained on findings when omitted.
     #[arg(long)]
     pub workdir: Option<PathBuf>,
 
@@ -75,7 +75,7 @@ pub struct FuzzOptions {
     #[arg(long, default_value_t = 10)]
     pub duration: u64,
 
-    /// Maximum target executions; zero means no execution limit.
+    /// Maximum primary campaign executions; verification runs are extra and reported separately.
     #[arg(long, default_value_t = 0)]
     pub runs: u64,
 

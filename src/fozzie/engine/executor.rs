@@ -10,6 +10,7 @@ use crate::shm::{CmpObservation, SharedMemory};
 use anyhow::{Context, Error, Result, bail, ensure};
 use serde::Serialize;
 use std::collections::VecDeque;
+use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::io::{ErrorKind, Read};
 use std::os::fd::AsRawFd;
@@ -77,7 +78,7 @@ pub struct Observation {
     pub comparisons_truncated: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FindingKind {
     Crash,
@@ -86,11 +87,35 @@ pub enum FindingKind {
     Exit,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct FindingFingerprint {
+    pub kind: FindingKind,
+    pub code: Option<i32>,
+    pub sanitizer: Option<String>,
+}
+
 #[derive(Clone, Debug)]
 pub struct Finding {
     pub kind: FindingKind,
+    pub fingerprint: FindingFingerprint,
     pub detail: String,
     pub stderr: Vec<u8>,
+}
+
+impl Finding {
+    fn new(kind: FindingKind, code: Option<i32>, detail: String, stderr: Vec<u8>) -> Self {
+        let fingerprint = FindingFingerprint {
+            kind,
+            code,
+            sanitizer: sanitizer_signature(&stderr),
+        };
+        Self {
+            kind,
+            fingerprint,
+            detail,
+            stderr,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -155,7 +180,8 @@ impl PersistentExecutor {
         })
         .write_to(&mut session.socket)
         {
-            return self.failed_run(false, Error::new(error));
+            let timed_out = matches!(error.kind(), ErrorKind::TimedOut | ErrorKind::WouldBlock);
+            return self.failed_run(timed_out, Error::new(error));
         }
         let done = match DoneFrame::read_from(&mut session.socket) {
             Ok(done) => done,
@@ -202,11 +228,12 @@ impl PersistentExecutor {
             // taking the diagnostic snapshot used by artifacts and replay.
             let mut session = self.session.take().expect("completed run has a session");
             let stderr = session.terminate();
-            return Ok(Execution::Finding(Finding {
-                kind: FindingKind::NonzeroHarness,
-                detail: format!("LLVMFuzzerTestOneInput returned {}", done.harness_return),
+            return Ok(Execution::Finding(Finding::new(
+                FindingKind::NonzeroHarness,
+                Some(done.harness_return),
+                format!("LLVMFuzzerTestOneInput returned {}", done.harness_return),
                 stderr,
-            }));
+            )));
         }
 
         let features = session.shm.read_features(done.feature_count)?;
@@ -223,36 +250,32 @@ impl PersistentExecutor {
         let mut session = self.session.take().expect("failed run has a session");
         if timed_out {
             let stderr = session.terminate();
-            return Ok(Execution::Finding(Finding {
-                kind: FindingKind::Hang,
-                detail: format!("target exceeded {} ms", self.config.timeout.as_millis()),
+            return Ok(Execution::Finding(Finding::new(
+                FindingKind::Hang,
+                None,
+                format!("target exceeded {} ms", self.config.timeout.as_millis()),
                 stderr,
-            }));
+            )));
         }
 
         let outcome = session.wait_after_disconnect();
         let stderr = session.read_stderr();
         match outcome {
             Ok(DisconnectOutcome::Exited(status)) if status.signal().is_some() => {
-                Ok(Execution::Finding(Finding {
-                    kind: FindingKind::Crash,
-                    detail: format!("target terminated by signal {}", status.signal().unwrap()),
+                let signal = status.signal().unwrap();
+                Ok(Execution::Finding(Finding::new(
+                    FindingKind::Crash,
+                    Some(signal),
+                    format!("target terminated by signal {signal}"),
                     stderr,
-                }))
+                )))
             }
-            Ok(DisconnectOutcome::Exited(status)) if matches!(status.code(), Some(70..=74)) => {
-                bail!("target runtime failed with {status}: {error:#}")
-            }
-            Ok(DisconnectOutcome::Exited(status)) if !status.success() => {
-                Ok(Execution::Finding(Finding {
-                    kind: FindingKind::Exit,
-                    detail: format!("target exited with {status}"),
-                    stderr,
-                }))
-            }
-            Ok(DisconnectOutcome::Exited(status)) => {
-                bail!("target disconnected with {status}: {error:#}")
-            }
+            Ok(DisconnectOutcome::Exited(status)) => Ok(Execution::Finding(Finding::new(
+                FindingKind::Exit,
+                status.code(),
+                format!("target exited with {status}"),
+                stderr,
+            ))),
             Ok(DisconnectOutcome::Forced(status)) => bail!(
                 "target disconnected but remained alive for {} ms; Fozzie killed it ({status}): {error:#}",
                 SHUTDOWN_GRACE.as_millis()
@@ -260,6 +283,44 @@ impl PersistentExecutor {
             Err(wait_error) => Err(wait_error).context(format!("target disconnected: {error:#}")),
         }
     }
+}
+
+fn sanitizer_signature(stderr: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(stderr);
+    for (name, marker) in [
+        ("address", "SUMMARY: AddressSanitizer: "),
+        ("memory", "SUMMARY: MemorySanitizer: "),
+        ("thread", "SUMMARY: ThreadSanitizer: "),
+        (
+            "undefined-behavior",
+            "SUMMARY: UndefinedBehaviorSanitizer: ",
+        ),
+    ] {
+        if let Some(summary) = text.lines().find_map(|line| line.strip_prefix(marker)) {
+            return Some(format!("{name}:{}", summary.trim()));
+        }
+    }
+    for (name, marker) in [
+        ("address", "ERROR: AddressSanitizer: "),
+        ("memory", "WARNING: MemorySanitizer: "),
+        ("thread", "WARNING: ThreadSanitizer: "),
+    ] {
+        if let Some(rest) = text.split_once(marker).map(|(_, rest)| rest) {
+            let class = rest.split_whitespace().next().unwrap_or("unknown");
+            return Some(format!("{name}:{class}"));
+        }
+    }
+    text.contains("runtime error:")
+        .then(|| "undefined-behavior:runtime-error".to_owned())
+}
+
+fn runtime_options(existing: Option<&OsStr>, required: &str) -> OsString {
+    let mut options = existing.unwrap_or_default().to_os_string();
+    if !options.is_empty() {
+        options.push(":");
+    }
+    options.push(required);
+    options
 }
 
 struct ChildGuard {
@@ -480,6 +541,8 @@ impl Session {
         listener.set_nonblocking(true)?;
 
         let mut command = Command::new(&config.target);
+        let asan_options = std::env::var_os("ASAN_OPTIONS");
+        let ubsan_options = std::env::var_os("UBSAN_OPTIONS");
         command
             .args(&config.target_args)
             .env("FOZZIE_SHM_PATH", &shm_path)
@@ -487,9 +550,18 @@ impl Session {
             .env("RUST_BACKTRACE", "1")
             .env(
                 "ASAN_OPTIONS",
-                "abort_on_error=1:disable_coredump=0:symbolize=1",
+                runtime_options(
+                    asan_options.as_deref(),
+                    "abort_on_error=1:disable_coredump=0:symbolize=1:allow_addr2line=1:detect_leaks=0",
+                ),
             )
-            .env("UBSAN_OPTIONS", "abort_on_error=1:print_stacktrace=1")
+            .env(
+                "UBSAN_OPTIONS",
+                runtime_options(
+                    ubsan_options.as_deref(),
+                    "abort_on_error=1:print_stacktrace=1",
+                ),
+            )
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
@@ -659,5 +731,50 @@ mod tests {
         buffer.clear();
         buffer.append(b"current run");
         assert_eq!(buffer.snapshot(), b"current run");
+    }
+
+    #[test]
+    fn fingerprints_preserve_exit_and_sanitizer_identity() {
+        let address = Finding::new(
+            FindingKind::Crash,
+            Some(6),
+            "abort".to_owned(),
+            b"noise\nSUMMARY: AddressSanitizer: heap-buffer-overflow parser.cc:7 in parse\n"
+                .to_vec(),
+        );
+        let another_signal = Finding::new(
+            FindingKind::Crash,
+            Some(11),
+            "segmentation fault".to_owned(),
+            Vec::new(),
+        );
+        let another_site = Finding::new(
+            FindingKind::Crash,
+            Some(6),
+            "abort".to_owned(),
+            b"SUMMARY: AddressSanitizer: heap-buffer-overflow parser.cc:8 in parse\n".to_vec(),
+        );
+
+        assert_eq!(
+            address.fingerprint.sanitizer.as_deref(),
+            Some("address:heap-buffer-overflow parser.cc:7 in parse")
+        );
+        assert_ne!(address.fingerprint, another_signal.fingerprint);
+        assert_ne!(address.fingerprint, another_site.fingerprint);
+    }
+
+    #[test]
+    fn appends_required_sanitizer_options_after_user_options() {
+        assert_eq!(
+            runtime_options(
+                Some(OsStr::new("verbosity=1:abort_on_error=0")),
+                "abort_on_error=1"
+            ),
+            OsString::from("verbosity=1:abort_on_error=0:abort_on_error=1")
+        );
+        assert_eq!(
+            runtime_options(None, "symbolize=1:allow_addr2line=1"),
+            OsString::from("symbolize=1:allow_addr2line=1")
+        );
     }
 }

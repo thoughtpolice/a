@@ -24,3 +24,15 @@ rust_fuzz_binary(
     runs = 64,
     deps = [":decoder"],
 )
+
+rust_fuzz_binary(
+    name = "decoder-fuzz-asan",
+    srcs = ["decoder_fuzz.rs"],
+    corpus = [":seed"],
+    duration_seconds = 0,
+    jobs = 1,
+    runs = 16,
+    sanitizer = "address",
+    visibility = ["PUBLIC"],
+    deps = [":decoder"],
+)

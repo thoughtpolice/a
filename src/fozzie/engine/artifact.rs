@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::{ReplayOptions, TargetOptions};
-use crate::corpus::{digest, persist_new};
-use crate::executor::{ExecutorConfig, Finding, FindingKind};
+use crate::corpus::{digest, persist_new, persist_replace};
+use crate::executor::{ExecutorConfig, Finding, FindingFingerprint, FindingKind};
 use anyhow::{Context, Result, ensure};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::fs;
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, Read};
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::path::{Path, PathBuf};
 
@@ -32,6 +32,7 @@ pub struct ArtifactSink {
 #[derive(Clone, Debug, Serialize)]
 pub struct RecordedFinding {
     pub kind: FindingKind,
+    pub fingerprint: FindingFingerprint,
     pub confirmed: bool,
     pub input_digest: String,
     pub input_path: PathBuf,
@@ -46,6 +47,7 @@ struct FindingMetadata<'a> {
     fozzie_version: &'static str,
     instrumentation_schema: &'static str,
     kind: &'a FindingKind,
+    fingerprint: &'a FindingFingerprint,
     confirmed: bool,
     detail: &'a str,
     input_digest: &'a str,
@@ -193,7 +195,10 @@ impl ArtifactSink {
     ) -> Result<RecordedFinding> {
         let input_digest = digest(input);
         let kind = kind_name(&finding.kind);
-        let stem = format!("{kind}-{input_digest}");
+        let fingerprint_bytes =
+            serde_json::to_vec(&finding.fingerprint).context("encoding finding fingerprint")?;
+        let fingerprint_digest = digest(&fingerprint_bytes);
+        let stem = format!("{kind}-{input_digest}-{}", &fingerprint_digest[..16]);
         let input_path = self.directory.join(&stem);
         let metadata_path = self.directory.join(format!("{stem}.json"));
         persist_new(&input_path, input)?;
@@ -224,6 +229,7 @@ impl ArtifactSink {
             fozzie_version: option_env!("DEPOT_VERSION").unwrap_or("development"),
             instrumentation_schema: "fozzie-sancov-v1",
             kind: &finding.kind,
+            fingerprint: &finding.fingerprint,
             confirmed,
             detail: &finding.detail,
             input_digest: &input_digest,
@@ -254,6 +260,7 @@ impl ArtifactSink {
 
         Ok(RecordedFinding {
             kind: finding.kind.clone(),
+            fingerprint: finding.fingerprint.clone(),
             confirmed,
             input_digest,
             input_path,
@@ -289,21 +296,6 @@ impl ArtifactSink {
         ));
         (command.len() <= MAX_INLINE_COMMAND_BYTES).then_some(command)
     }
-}
-
-fn persist_replace(path: &Path, contents: &[u8]) -> Result<()> {
-    let parent = path.parent().context("artifact metadata has no parent")?;
-    let mut temporary = tempfile::NamedTempFile::new_in(parent)
-        .with_context(|| format!("creating temporary metadata in {}", parent.display()))?;
-    temporary
-        .write_all(contents)
-        .with_context(|| format!("writing temporary metadata for {}", path.display()))?;
-    temporary.as_file().sync_all()?;
-    temporary
-        .persist(path)
-        .map_err(|error| error.error)
-        .with_context(|| format!("publishing metadata {}", path.display()))?;
-    Ok(())
 }
 
 fn kind_name(kind: &FindingKind) -> &'static str {
@@ -357,6 +349,11 @@ mod tests {
         .unwrap();
         let finding = Finding {
             kind: FindingKind::Crash,
+            fingerprint: FindingFingerprint {
+                kind: FindingKind::Crash,
+                code: Some(6),
+                sanitizer: Some("address:heap-buffer-overflow".into()),
+            },
             detail: "signal 6".into(),
             stderr: b"backtrace".to_vec(),
         };
@@ -367,6 +364,11 @@ mod tests {
         assert_eq!(metadata["confirmed"], true);
         assert_eq!(metadata["target_label"], "//demo:fuzz");
         assert_eq!(metadata["sanitizer"], "address");
+        assert_eq!(metadata["fingerprint"]["code"], 6);
+        assert_eq!(
+            metadata["fingerprint"]["sanitizer"],
+            "address:heap-buffer-overflow"
+        );
         assert_eq!(metadata["schema_version"], 3);
         assert_eq!(metadata["target_args"][0], "--mode=a b");
         assert_eq!(metadata["timeout_ms"], 77);
