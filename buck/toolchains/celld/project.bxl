@@ -1,0 +1,86 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+"""Finds the celld units that own some files and builds their `[ide]` fragments.
+
+    buck2 bxl toolchains//celld/project.bxl:main -- --files /abs/a.ts /abs/b.ts
+
+Paths are absolute, so each resolves in the cell that holds it. A file's units are the celld targets
+whose sources include it (an owner query); a file no target owns yet, such as
+one just created, gets every celld unit of the package it would belong to,
+found through the build file names `buildfile.name` configures.
+Prints one JSON object per unit: its label and the absolute path of its
+fragment. The fragment's other outputs, the files of the unit's closure, are
+built too, so generated sources exist where its import map points.
+`celld-project` runs this when an editor opens a file it does not know; see
+project/discover.go.
+"""
+
+_KINDS = regex("(_js_library|_web_(svelte_library|deno_test|bundle|browser))$")
+
+def _units(nodes) -> list:
+    # This proxy merges celld's shared ambient environment. Other profiles
+    # retain their own [ide] fragments instead of inheriting Worker globals.
+    return [
+        node
+        for node in nodes
+        if _KINDS.match(node.rule_type) and node.get_attr("platform_name") == "celld"
+    ]
+
+def _dirname(path: str) -> str:
+    return path[:path.rfind("/")]
+
+def _build_file_names() -> list[str]:
+    """The configured build file names, in order: the project root's and
+    this cell's (Buck's default is BUCK)."""
+    names = {}
+    for value in [read_root_config("buildfile", "name"), read_config("buildfile", "name")]:
+        for name in (value or "BUCK").split(","):
+            name = name.strip()
+            if name:
+                names[name] = True
+    return names.keys()
+
+def _package_units(ctx: bxl.Context, path: str) -> list:
+    root = ctx.root()
+    names = _build_file_names()
+    directory = _dirname(path)
+    for _ in range(64):
+        if not directory.startswith(root + "/"):
+            break
+        for name in names:
+            build = directory + "/" + name
+            if ctx.fs.exists(build):
+                return _units(ctx.uquery().targets_in_buildfile(build))
+        directory = _dirname(directory)
+    return []
+
+def _main(ctx: bxl.Context) -> None:
+    labels = {}
+    for path in ctx.cli_args.files:
+        units = _units(ctx.uquery().owner(path))
+        if not units:
+            units = _package_units(ctx, path)
+        for unit in units:
+            labels[unit.label] = True
+    if not labels:
+        return
+    for target in ctx.configured_targets(labels.keys()):
+        providers = ctx.analysis(target).providers()
+        ide = providers[DefaultInfo].sub_targets["ide"][DefaultInfo]
+        ensured = ctx.output.ensure(ide.default_outputs[0])
+        ctx.output.ensure_multiple(cmd_args(ide.other_outputs))
+        ctx.output.print_json(
+            {
+                "fragment": ensured.abs_path(),
+                "label": str(target.label.raw_target()),
+            },
+            pretty = False,
+        )
+
+main = bxl_main(
+    impl = _main,
+    cli_args = {
+        "files": bxl.cli_args.list(bxl.cli_args.string()),
+    },
+)

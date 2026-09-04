@@ -8,6 +8,8 @@ FILE_LIST = glob(
     exclude = [
         "BUILD",
         "PACKAGE",
+        # A shell script, not a DotSlash file.
+        "celld-project",
     ],
 )
 

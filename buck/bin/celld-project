@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Deno's language server for celld TypeScript units, as rust-project is for
+# rust-analyzer: editors run `celld-project lsp`. Any other arguments go to the
+# toolchain's Deno, so this can stand in for a deno executable
+# (`celld-project --version`). See buck/toolchains/celld/README.md.
+#
+# The command line comes from `buck2 run --emit-shell toolchains//celld:project`
+# in the isolation dir discovery also uses, so building it neither waits for
+# nor invalidates the user's builds. It is cached in
+# buck-out/celld-project-lsp/command and rebuilt when anything under the paths
+# below is newer than the cache, or when the binary it names is gone. A cached
+# start costs a `find` over those paths and an exec.
+set -euo pipefail
+
+# The project holding the working directory (an editor may start this from
+# any directory of it), else the one holding this script.
+find_root() {
+  local dir=$1
+  while [ ! -e "$dir/.buckroot" ]; do
+    [ "$dir" = / ] && return 1
+    dir=$(dirname "$dir")
+  done
+  echo "$dir"
+}
+if ! root=$(find_root "$PWD") && ! root=$(find_root "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"); then
+  echo "celld-project: no .buckroot above $PWD" >&2
+  exit 1
+fi
+export CELLD_PROJECT_ROOT=$root
+
+cache=$root/buck-out/celld-project-lsp/command
+inputs=(
+  buck/toolchains/BUILD
+  buck/toolchains/celld/BUILD
+  buck/toolchains/celld/defs.bzl
+  buck/toolchains/celld/project
+  buck/toolchains/deno
+)
+
+command=()
+if [ -s "$cache" ] && [ -z "$(cd "$root" && find "${inputs[@]}" -newer "$cache" -print -quit 2>/dev/null)" ]; then
+  eval "command=($(<"$cache"))"
+fi
+if [ ${#command[@]} -eq 0 ] || [ ! -x "${command[0]}" ]; then
+  mkdir -p "$(dirname "$cache")"
+  tmp=$(mktemp "$cache.XXXXXX")
+  if ! (cd "$root" && buck/bin/buck2 --isolation-dir=celld-project run --emit-shell toolchains//celld:project) >"$tmp"; then
+    rm -f "$tmp"
+    echo "celld-project: building toolchains//celld:project failed" >&2
+    exit 1
+  fi
+  mv "$tmp" "$cache"
+  eval "command=($(<"$cache"))"
+fi
+exec "${command[@]}" "$@"

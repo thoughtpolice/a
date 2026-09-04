@@ -14,3 +14,24 @@ filesToWatch = ["BUILD", "PACKAGE"]
 [language-server.lean]
 command = "/bin/sh"
 args = ["-c", "exec \"$(buck2 root --kind project)/buck/toolchains/lean/lsp/lake\" serve"]
+
+# TypeScript and JavaScript go to Deno through celld-project, which gives the
+# celld units (no checked-in deno.json) their import maps from Buck; see
+# buck/toolchains/celld/README.md. enablePaths and the preload limit let Deno
+# find the hand-written deno.json packages past buck-out/ and work/.
+[language-server.celld-project]
+command = "celld-project"
+args = ["lsp"]
+config.deno = { enable = true, enablePaths = ["src", "tilde", "buck/toolchains"], documentPreloadLimit = 5000 }
+
+[[language]]
+name = "typescript"
+file-types = ["ts", "tsx"]
+language-servers = ["celld-project"]
+auto-format = true
+
+[[language]]
+name = "javascript"
+file-types = ["js", "jsx"]
+language-servers = ["celld-project"]
+auto-format = true

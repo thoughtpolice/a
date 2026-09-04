@@ -183,6 +183,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         "/hosts": [bzl_style],
         "/os-release": [bzl_style],
         "/profile": [bzl_style],
+        "/Dockerfile": [bzl_style],
         ".html": [html_style],
         ".svelte": [html_style],
         ".wat": [lisp_style],
