@@ -39,6 +39,38 @@ rustc_target_triple = shims.select({
     "toolchains//cfg/target:target[aarch64-pc-windows-msvc]": "aarch64-pc-windows-msvc",
 })
 
+fozzie_rustc_flags = [
+    # Keep fuzz builds representative of optimized production code while
+    # retaining enough information to symbolize coverage and diagnostics.
+    "-Copt-level=3",
+    "-Cdebuginfo=line-tables-only",
+    "-Cdebug-assertions=false",
+    "-Coverflow-checks=false",
+    "-Cforce-frame-pointers=yes",
+
+    # rustc exposes LLVM SanitizerCoverage through the sancov module pass.
+    "-Cpasses=sancov-module",
+    "-Cllvm-args=-sanitizer-coverage-level=4",
+    "-Cllvm-args=-sanitizer-coverage-inline-8bit-counters",
+    "-Cllvm-args=-sanitizer-coverage-pc-table",
+    "-Cllvm-args=-sanitizer-coverage-trace-compares",
+    "--cfg=fuzzing",
+]
+
+fozzie_asan_rustc_flags = fozzie_rustc_flags + [
+    # The Rust code is instrumented by rustc, while the final clang++ linker
+    # invocation owns the one compiler-rt instance for mixed-language targets.
+    "-Zsanitizer=address",
+    "-Zexternal-clangrt",
+    "--cfg=fozzie_asan",
+]
+
+instrumentation_rustc_flags = shims.select({
+    "toolchains//cfg/instrumentation:instrumentation[none]": [],
+    "toolchains//cfg/instrumentation:instrumentation[fozzie]": fozzie_rustc_flags,
+    "toolchains//cfg/instrumentation:instrumentation[fozzie-asan]": fozzie_asan_rustc_flags,
+})
+
 rustc_flags = shims.select({
     "mode//:build-mode[debug]": common_rustc_flags + [
         "-Cdebuginfo=2",
@@ -53,7 +85,7 @@ rustc_flags = shims.select({
         "toolchains//cfg/target:target[aarch64-unknown-uefi]": ["-Copt-level=z"],
         "DEFAULT": ["-Copt-level=3"],
     }),
-})
+}) + instrumentation_rustc_flags
 
 system_rust_toolchain(
     name = "rust",
