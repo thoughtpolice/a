@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+"""Finds the celld units that own some files and builds their `[ide]` fragments.
+
+    buck2 bxl toolchains//celld/project.bxl:main -- --files /abs/a.ts /abs/b.ts
+
+Paths are absolute, so each resolves in the cell that holds it. A file's units are the celld targets
+whose sources include it (an owner query); a file no target owns yet, such as
+one just created, gets every celld unit of the package it would belong to.
+Prints one JSON object per unit: its label and the absolute path of its
+fragment. `celld-project` runs this when an editor opens a file it does not
+know; see project/discover.go.
+"""
+
+_KINDS = regex("_celld_(library|test|worker)$")
+
+def _units(nodes) -> list:
+    return [node for node in nodes if _KINDS.match(node.rule_type)]
+
+def _dirname(path: str) -> str:
+    return path[:path.rfind("/")]
+
+def _package_units(ctx: bxl.Context, path: str) -> list:
+    root = ctx.root()
+    directory = _dirname(path)
+    for _ in range(64):
+        if not directory.startswith(root + "/"):
+            break
+        build = directory + "/BUILD"
+        if ctx.fs.exists(build):
+            return _units(ctx.uquery().targets_in_buildfile(build))
+        directory = _dirname(directory)
+    return []
+
+def _main(ctx: bxl.Context) -> None:
+    labels = {}
+    for path in ctx.cli_args.files:
+        units = _units(ctx.uquery().owner(path))
+        if not units:
+            units = _package_units(ctx, path)
+        for unit in units:
+            labels[unit.label] = True
+    if not labels:
+        return
+    for target in ctx.configured_targets(labels.keys()):
+        providers = ctx.analysis(target).providers()
+        fragment = providers[DefaultInfo].sub_targets["ide"][DefaultInfo].default_outputs[0]
+        ensured = ctx.output.ensure(fragment)
+        ctx.output.print_json(
+            {
+                "fragment": ensured.abs_path(),
+                "label": str(target.label.raw_target()),
+            },
+            pretty = False,
+        )
+
+main = bxl_main(
+    impl = _main,
+    cli_args = {
+        "files": bxl.cli_args.list(bxl.cli_args.string()),
+    },
+)

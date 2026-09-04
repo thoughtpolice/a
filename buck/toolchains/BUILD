@@ -48,6 +48,11 @@ shims.toolchain_alias(
 )
 
 shims.toolchain_alias(
+    name = "celld",
+    actual = "toolchains//celld:celld",
+)
+
+shims.toolchain_alias(
     name = "k6",
     actual = "toolchains//k6:k6",
 )

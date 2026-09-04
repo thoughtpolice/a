@@ -82,6 +82,7 @@ This monorepository uses Buck2 exclusively for its build system. You have variou
 - Use `deno.binary()` from `@toolchains//deno:defs.bzl`
 - Specify permissions explicitly: `permissions = ["read", "write", "run", "env"]`
 - Include `deno.jsonc` and `deno.lock` files for dependency management
+- celld (Workers) TypeScript uses `celld.library`/`celld.test`/`celld.worker` from `@toolchains//celld:defs.bzl` instead: declare `deps` and `import_name`, never write a `deno.json`; the toolchain enforces strict deps. Shared libraries live under `src/celld/<lib>`. Editors run the Deno language server through `buck/bin/celld-project lsp`, which feeds it the units' import maps from Buck. See `buck/toolchains/celld/README.md`.
 
 ### C++ projects
 - Use `depot.cxx_binary()` and `depot.cxx_library()`

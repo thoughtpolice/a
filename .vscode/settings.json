@@ -33,5 +33,14 @@
     "remote.extensionKind": {
         "aseipp.depot-buck2": ["workspace"],
     },
-    "deno.enable": true
+    "deno.enable": true,
+    // celld-project runs the pinned Deno and gives the celld units their
+    // import maps; anything but `lsp` goes to Deno itself. See
+    // buck/toolchains/celld/README.md.
+    "deno.path": "buck/bin/celld-project",
+    // The server discovers hand-written deno.json(c) files by walking the
+    // workspace, and stops after documentPreloadLimit entries: buck-out/ and
+    // work/ would use them all up before it reaches src/ or tilde/.
+    "deno.enablePaths": ["src", "tilde", "buck/toolchains"],
+    "deno.documentPreloadLimit": 5000
 }
