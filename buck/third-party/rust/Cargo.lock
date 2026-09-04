@@ -8001,6 +8001,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "base64 0.22.1",
+ "bitflags 2.13.1",
  "blake3",
  "brotli",
  "buck-resources",

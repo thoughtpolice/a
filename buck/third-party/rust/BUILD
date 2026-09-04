@@ -1303,6 +1303,12 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
+shims.alias(
+    name = "bitflags",
+    actual = ":bitflags-2",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "bitflags-2.13.1.crate",
     sha256 = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da",
