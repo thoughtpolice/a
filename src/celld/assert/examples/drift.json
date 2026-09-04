@@ -1,0 +1,152 @@
+{
+  "steps": [
+    {
+      "name": "the desired state is stored",
+      "request": {
+        "method": "PUT",
+        "path": "/desired/api",
+        "json": {
+          "replicas": 3,
+          "regions": [
+            "us",
+            "eu"
+          ],
+          "tls": {
+            "pin": {
+              "$bytes": "AQID"
+            },
+            "min": "1.3"
+          }
+        }
+      },
+      "expect": {
+        "status": 204
+      }
+    },
+    {
+      "name": "the same configuration with its keys in another order has not drifted",
+      "request": {
+        "method": "POST",
+        "path": "/observed/api",
+        "json": {
+          "tls": {
+            "min": "1.3",
+            "pin": {
+              "$bytes": "AQID"
+            }
+          },
+          "regions": [
+            "us",
+            "eu"
+          ],
+          "replicas": 3
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "drift": false
+          }
+        }
+      }
+    },
+    {
+      "name": "a changed byte in the pinned hash is drift, shown as bytes",
+      "request": {
+        "method": "POST",
+        "path": "/observed/api",
+        "json": {
+          "replicas": 3,
+          "regions": [
+            "us",
+            "eu"
+          ],
+          "tls": {
+            "pin": {
+              "$bytes": "AQIE"
+            },
+            "min": "1.3"
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "drift": true,
+            "differences": [
+              {
+                "key": "tls",
+                "desired": "{\"pin\":[1,2,3],\"min\":\"1.3\"}",
+                "observed": "{\"pin\":[1,2,4],\"min\":\"1.3\"}"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "list order matters; a missing key and an extra one are drift too",
+      "request": {
+        "method": "POST",
+        "path": "/observed/api",
+        "json": {
+          "replicas": 3,
+          "regions": [
+            "eu",
+            "us"
+          ],
+          "debug": true
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "drift": true,
+            "differences": [
+              {
+                "key": "debug",
+                "desired": "undefined",
+                "observed": "true"
+              },
+              {
+                "key": "regions",
+                "desired": "[\"us\",\"eu\"]",
+                "observed": "[\"eu\",\"us\"]"
+              },
+              {
+                "key": "tls",
+                "desired": "{\"pin\":[1,2,3],\"min\":\"1.3\"}",
+                "observed": "undefined"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a service with no desired state",
+      "request": {
+        "method": "POST",
+        "path": "/observed/db",
+        "json": {}
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "error": "no desired state for db"
+        }
+      }
+    },
+    {
+      "name": "a body that is not JSON",
+      "request": {
+        "method": "POST",
+        "path": "/observed/api",
+        "body": "replicas=3"
+      },
+      "expect": {
+        "status": 400
+      }
+    }
+  ]
+}

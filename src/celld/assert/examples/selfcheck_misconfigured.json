@@ -1,0 +1,40 @@
+{
+  "steps": [
+    {
+      "name": "a percentage where a rate belongs fails the health check with assert's message",
+      "request": {
+        "path": "/healthz"
+      },
+      "expect": {
+        "status": 503,
+        "json": {
+          "$exact": {
+            "ok": false,
+            "failed": "tax rate",
+            "error": "TAX_RATE is a rate from 0 to 1"
+          }
+        }
+      }
+    },
+    {
+      "name": "which is what would otherwise have been charged",
+      "request": {
+        "method": "POST",
+        "path": "/quote",
+        "json": {
+          "items": [
+            {
+              "cents": 1000,
+              "quantity": 1
+            }
+          ]
+        }
+      },
+      "expect": {
+        "json": {
+          "tax": 20000
+        }
+      }
+    }
+  ]
+}
