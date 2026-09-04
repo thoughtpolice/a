@@ -1,0 +1,94 @@
+{
+  "steps": [
+    {
+      "name": "every self-check passes with a sound configuration",
+      "request": {
+        "path": "/healthz"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "ok": true,
+            "checks": 4
+          }
+        }
+      }
+    },
+    {
+      "name": "a quote with the deployed 20% rate",
+      "request": {
+        "method": "POST",
+        "path": "/quote",
+        "json": {
+          "items": [
+            {
+              "cents": 250,
+              "quantity": 4
+            },
+            {
+              "cents": 199,
+              "quantity": 1
+            }
+          ]
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "subtotal": 1199,
+            "tax": 240,
+            "total": 1439
+          }
+        }
+      }
+    },
+    {
+      "name": "an empty order",
+      "request": {
+        "method": "POST",
+        "path": "/quote",
+        "json": {
+          "items": []
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "ok": false,
+            "code": "empty"
+          }
+        }
+      }
+    },
+    {
+      "name": "a bad item names its index",
+      "request": {
+        "method": "POST",
+        "path": "/quote",
+        "json": {
+          "items": [
+            {
+              "cents": 250,
+              "quantity": 4
+            },
+            {
+              "cents": 250,
+              "quantity": 0
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "ok": false,
+            "code": "bad_item",
+            "item": 1
+          }
+        }
+      }
+    }
+  ]
+}
