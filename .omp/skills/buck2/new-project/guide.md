@@ -67,7 +67,11 @@ dependencies rather than assuming every test should depend on a binary target.
 
 ### Deno
 
-Use `load("@toolchains//deno:defs.bzl", "deno")` and `deno.binary`.
+celld (Workers) TypeScript is not a Deno project here: it uses the
+`@toolchains//celld` rules, with no `deno.jsonc` or lockfile. Read
+`skill://celld` for it, and do not use `buck2_new_project`.
+
+For other Deno tools, use `load("@toolchains//deno:defs.bzl", "deno")` and `deno.binary`.
 The tool creates a CLI with `type = "run"`; change to `type = "serve"` when
 implementing a server. Grant only permissions the implementation needs.
 Add imported files to `srcs`; use the rule's `config` attribute for

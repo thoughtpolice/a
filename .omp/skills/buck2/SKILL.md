@@ -15,6 +15,7 @@ policies in `AGENTS.md`; use real cell-qualified targets and the build graph.
 | Task | Guide | Native OMP tool |
 | --- | --- | --- |
 | Create Rust, Deno, or C++ packages | [New project](new-project/guide.md) | `buck2_new_project` for Rust/Deno |
+| Create celld (Workers) libraries, apps, or runtime tests | `skill://celld` | none; celld rules, no `deno.json` |
 | Inspect dependencies, consumers, kinds, or attributes | [Query helper](query-helper/guide.md) | `buck2_query` |
 | Select changed/affected targets using jj revisions | [Target determination](target-determination/guide.md) | `buck2_targets` |
 | Diagnose an existing build failure | [Troubleshooting](build-troubleshoot/guide.md) | `buck2_build_doctor` |

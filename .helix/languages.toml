@@ -8,3 +8,24 @@ overrideCommand = ["rust-project", "check", "$saved_file"]
 command = ["rust-project", "develop-json", "--sysroot-mode=rustc", "{arg}"]
 progressLabel = "rust-analyzer[buck2]"
 filesToWatch = ["BUILD", "PACKAGE"]
+
+# TypeScript and JavaScript go to Deno through celld-project, which gives the
+# celld units (no checked-in deno.json) their import maps from Buck; see
+# buck/toolchains/celld/README.md. enablePaths and the preload limit let Deno
+# find the hand-written deno.json packages past buck-out/ and work/.
+[language-server.celld-project]
+command = "celld-project"
+args = ["lsp"]
+config.deno = { enable = true, enablePaths = ["src", "tilde", "buck/toolchains"], documentPreloadLimit = 5000 }
+
+[[language]]
+name = "typescript"
+file-types = ["ts", "tsx"]
+language-servers = ["celld-project"]
+auto-format = true
+
+[[language]]
+name = "javascript"
+file-types = ["js", "jsx"]
+language-servers = ["celld-project"]
+auto-format = true

@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+"""Writes a wasm module exporting `add(i32, i32) -> i32` to argv[1].
+
+The fixture's bytes, spelled out so the toolchain tests need no assembler.
+"""
+
+import sys
+
+MODULE = bytes(
+    [0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00]  # magic, version 1
+    + [0x01, 0x07, 0x01, 0x60, 0x02, 0x7F, 0x7F, 0x01, 0x7F]  # type 0: (i32, i32) -> i32
+    + [0x03, 0x02, 0x01, 0x00]  # function 0 has type 0
+    + [0x07, 0x07, 0x01, 0x03, *b"add", 0x00, 0x00]  # export "add" = function 0
+    + [0x0A, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6A, 0x0B]  # local.get 0, local.get 1, i32.add
+)
+
+with open(sys.argv[1], "wb") as f:
+    f.write(MODULE)

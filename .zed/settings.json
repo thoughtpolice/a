@@ -1,9 +1,17 @@
 {
     "lsp": {
+        // celld-project runs the pinned Deno's language server with the celld
+        // units' import maps; see buck/toolchains/celld/README.md.
         "deno": {
+            "binary": {
+                "path": "buck/bin/celld-project",
+                "arguments": ["lsp"]
+            },
             "settings": {
                 "deno": {
-                    "enable": true
+                    "enable": true,
+                    "enablePaths": ["src", "tilde", "buck/toolchains"],
+                    "documentPreloadLimit": 5000
                 }
             }
         },
