@@ -325,6 +325,9 @@ def _deno_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output("{}.js".format(ctx.label.name))
 
     check_args = ["--check"] if ctx.attrs.check else []
+    external_args = []
+    for module in ctx.attrs.external:
+        external_args.extend(["--external", module])
 
     # Build the command with hidden dependencies on all source files
     cmd = cmd_args(
@@ -333,7 +336,7 @@ def _deno_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
             "bundle",
         ] + config_args +
         unstable_features +
-        check_args +
+        check_args + external_args +
         [
             "--format",
             "esm",
@@ -383,6 +386,8 @@ _deno_bundle = rule(
         "srcs": attrs.list(attrs.source(), default = []),
         "main": attrs.source(),
         "config": attrs.option(attrs.source(), default = None),
+        # Preserve runtime-owned ESM imports, e.g. celld's cloudflare: modules.
+        "external": attrs.list(attrs.string(), default = []),
         "check": attrs.bool(default = True),
         "platform": attrs.enum(["browser", "deno"], default = "deno"),
         "unstable_features": attrs.list(attrs.string(), default = []),
@@ -393,7 +398,9 @@ _deno_bundle = rule(
 def deno_bundle(**kwargs):
     """
     Bundle a Deno TypeScript/JavaScript application into a single JavaScript
-    ESM file. Type checking is enabled by default.
+    ESM file. Type checking is enabled by default. ``external`` preserves the
+    listed module specifiers for the destination runtime instead of bundling
+    them; callers must provide any ambient declarations needed to type-check.
     """
     name = kwargs.get("name")
     tests = kwargs.pop("tests", [])
