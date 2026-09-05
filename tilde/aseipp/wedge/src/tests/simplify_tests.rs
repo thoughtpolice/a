@@ -450,6 +450,7 @@ fn every_linked_module_simplifies_to_a_verified_program() {
     for name in [
         "chain",
         "console",
+        "doom",
         "hal",
         "host-abi",
         "lists",
@@ -466,7 +467,7 @@ fn every_linked_module_simplifies_to_a_verified_program() {
         let wasm = std::fs::read(&path).unwrap_or_else(|error| panic!("read {name}: {error}"));
         let statistics = simplify_module(name, &wasm);
         eprintln!("wlink-{name}: {statistics}");
-        if matches!(name, "console") {
+        if matches!(name, "console" | "doom") {
             assert!(
                 statistics.instructions_folded > 0
                     && statistics.blocks_merged > 0

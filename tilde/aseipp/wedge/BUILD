@@ -132,10 +132,12 @@ IR_GOLDENS = [
 ]
 
 # Core modules wlink links from components, consumed as the build produces
-# them: the prototype console package and the linker's own fixture sets.
+# them: the prototype console package, PureDOOM on the same SDK, and the
+# linker's own fixture sets.
 WLINK_MODULES = {
     "wlink-chain.wasm": "tilde//aseipp/wlink:linked-chain.wasm",
     "wlink-console.wasm": "tilde//aseipp/wlink/demo:linked.wasm",
+    "wlink-doom.wasm": "tilde//aseipp/wlink/demo:doom-linked.wasm",
     "wlink-hal.wasm": "tilde//aseipp/wlink:linked-hal.wasm",
     "wlink-host-abi.wasm": "tilde//aseipp/wlink:linked-host-abi.wasm",
     "wlink-lists.wasm": "tilde//aseipp/wlink:linked-lists.wasm",
@@ -428,6 +430,7 @@ depot.filecheck.lit(
     defines = {
         "wlink_component": "$(location tilde//aseipp/wlink:component-consumer.wasm)",
         "wlink_console": "$(location tilde//aseipp/wlink/demo:linked.wasm)",
+        "wlink_doom": "$(location tilde//aseipp/wlink/demo:doom-linked.wasm)",
         "wlink_string": "$(location tilde//aseipp/wlink:linked-string.wasm)",
     },
     tools = {
@@ -840,7 +843,10 @@ depot.rust_test(
     crate_root = "src/tests/console_tests.rs",
     resources = {
         "console-host": "tilde//aseipp/wlink/demo:host",
+        "doom-host": "tilde//aseipp/wlink/demo:doom-host",
+        "freedoom2.wad": "tilde//aseipp/wlink/demo/doom:freedoom[freedoom2.wad]",
         "wlink-console.wasm": WLINK_MODULES["wlink-console.wasm"],
+        "wlink-doom.wasm": WLINK_MODULES["wlink-doom.wasm"],
     },
     visibility = [],
     deps = [

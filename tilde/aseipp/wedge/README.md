@@ -112,8 +112,8 @@ observe except as a fault. The interpreter is the executable meaning of the
 IR: the differential tests hold the frontend to it, and the simplification
 pass is checked against it. It is fast enough to run whole programs: the
 console packages `tilde//aseipp/wlink` links run on the HAL host in
-`wedge_testing::console` at some forty million IR instructions per second
-in an optimized build. That host implements the HAL's functions with typed
+`wedge_testing::console`, and PureDOOM initializes and renders under it at
+some forty million IR instructions per second in an optimized build. That host implements the HAL's functions with typed
 values; [witgen](../witgen/README.md)'s Rust bindings for the HAL lift and
 lower them through the interpreter's memories and the guest's allocator.
 
@@ -176,10 +176,10 @@ split into focused layers:
   whose self-test WABT's interpreter must pass before the compiler's view of
   its loops, multi-value calls, and memory effects is checked;
 - modules `tilde//aseipp/wlink` links from components, the prototype console
-  package among them, compiled exactly as the build produces them so the
-  linker's fused adapters, trampolines, and per-component memories stay
-  within what the frontend accepts, and so a whole game lowers to verified
-  IR with a CFG and its analyses per function;
+  package and PureDOOM on the same SDK among them, compiled exactly as the
+  build produces them so the linker's fused adapters, trampolines, and
+  per-component memories stay within what the frontend accepts, and so a
+  whole game lowers to verified IR with a CFG and its analyses per function;
 - sealed-block SSA, structured control, leaf families, advanced control, and
   semantic-effect contracts;
 - target-neutral multigraph analysis covering edge occurrences and payloads,
@@ -212,9 +212,13 @@ split into focused layers:
   Hegel: the result must verify and behave exactly like the original under
   the interpreter, invocation by invocation, state included, and the
   editing operations are checked on their own;
-- the console package runs whole: the prototype game must make the same
+- the console packages run whole: the prototype game must make the same
   HAL calls, in the same order and with the same arguments, as the demo's
-  stdio host makes through wasm2c.
+  stdio host makes through wasm2c, and PureDOOM must render the same frame
+  hashes as the SDK's headless host. Doom's initialization is two hundred
+  million instructions, so an unoptimized build compares it only when
+  `WEDGE_DOOM_FRAMES` asks; an optimized one (`buck2 test -m release`)
+  always does.
 
 Standardized recursive-type, executable-GC, and cast-branch forms that the
 pinned WABT cannot yet tokenize are covered with small self-contained binary
