@@ -73,6 +73,7 @@ depot.deno.test(
     env = {
         "CONSOLE_WEB_CONTRACT_WASM": "$(location //aseipp/wlink/demo:sdk-contract-linked.wasm)",
         "CONSOLE_WEB_GAME_WASM": "$(location //aseipp/wlink/demo:linked.wasm)",
+        "CONSOLE_WEB_IWAD": "$(location //aseipp/wlink/demo/doom:freedoom[freedoom2.wad])",
     },
     permissions = [
         "read",
