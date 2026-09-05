@@ -14,13 +14,13 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use wedge::Compiler;
-use wedge::cfg::ControlFlowGraph;
+use wedge::cfg::{ControlFlowGraph, ExitPolicy};
 use wedge::dump::CfgDump;
 use wedge::ir::{
     AddressType, Block, Callee, CompositeType, Effect, EffectAccess, EffectResource, ElementItem,
     ElementMode, EntityOrigin, ExportItem, ExportKind, Function, FunctionBody, FunctionId,
-    FunctionType, Immediate, ImportItem, Instruction, MemoryId, Program, TableId, TerminatorKind,
-    ValueId, ValueType,
+    FunctionType, Immediate, ImportItem, Instruction, Limits, MemoryId, Program, TableId,
+    TerminatorKind, ValueId, ValueType,
 };
 
 mod fixture_support;
@@ -28,9 +28,10 @@ mod fixture_support;
 use fixture_support::{exported_body, exported_function, instructions};
 
 /// Every module `tilde//aseipp/wlink` links for these tests.
-const LINKED_MODULES: [&str; 12] = [
+const LINKED_MODULES: [&str; 13] = [
     "chain",
     "console",
+    "doom",
     "hal",
     "host-abi",
     "lists",
@@ -1065,4 +1066,137 @@ fn list_copies_scale_the_length_by_the_element_size() {
             .iter()
             .all(|copy| (copy.destination, copy.source) == (consumer, producer))
     );
+}
+
+// PureDOOM as the console SDK's C guest: the whole game, the freestanding SDK,
+// and the platform in one module, the largest the linker produces.
+
+#[test]
+fn puredoom_keeps_the_console_interface_and_the_sdk_memory_layout() {
+    let program = linked("doom");
+    assert_console_sdk_interface(&program);
+    assert_open_imports_are_trampolined(&program);
+
+    // The C SDK links the game with 32 MiB of memory that may grow to
+    // 256 MiB; the platform's has no maximum.
+    let game = exported_memory(&program, "game:memory");
+    let platform = exported_memory(&program, "platform:memory");
+    assert_eq!(
+        program.memories[game.index()].ty.limits,
+        Limits {
+            min: 512,
+            max: Some(4096)
+        }
+    );
+    assert_eq!(program.memories[platform.index()].ty.limits.max, None);
+
+    // Strings and lists cross in both directions: paths and log lines go
+    // into the platform's memory, arguments and input events come back into
+    // the game's.
+    let directions: BTreeSet<(MemoryId, MemoryId)> = copying_adapters(&program)
+        .iter()
+        .flat_map(|adapter| {
+            cross_memory_copies(adapter.body.as_ref().expect("adapters are defined"))
+                .into_iter()
+                .map(|copy| (copy.destination, copy.source))
+        })
+        .collect();
+    assert_eq!(
+        directions,
+        BTreeSet::from([(platform, game), (game, platform)])
+    );
+}
+
+#[test]
+fn puredoom_reaches_the_hal_it_uses_through_the_platform() {
+    let program = linked("doom");
+    let hal = "console:hal/raw@0.1.0";
+    let service = |name: &str| imported_function_id(&program, hal, name);
+
+    // init reads the arguments and logs directly, and loads the WAD through
+    // the file callbacks PureDOOM stores and calls indirectly, so tables are
+    // followed at the indirect calls.
+    let from_init = reachable_from(&program, exported_function_id(&program, "init"));
+    for name in [
+        "arg-count",
+        "arg",
+        "write-log",
+        "file-open",
+        "file-read-at",
+        "file-close",
+        "exit",
+    ] {
+        assert!(
+            from_init.contains(&service(name)),
+            "init does not reach {name}"
+        );
+    }
+
+    // A frame reads input, runs the game, and presents the framebuffer.
+    let from_frame = reachable_from(&program, exported_function_id(&program, "frame"));
+    for name in ["read-events", "present", "now-ms", "exit", "write-log"] {
+        assert!(
+            from_frame.contains(&service(name)),
+            "frame does not reach {name}"
+        );
+    }
+}
+
+#[test]
+fn puredoom_lowers_whole_with_sound_cfg_analyses() {
+    let program = linked("doom");
+    let (mut bodies, mut blocks, mut loops) = (0usize, 0usize, 0usize);
+    for function in &program.functions {
+        let Some(body) = &function.body else {
+            continue;
+        };
+        bodies += 1;
+        let cfg = ControlFlowGraph::new(body)
+            .unwrap_or_else(|errors| panic!("func{}: {errors:?}", function.wasm_index));
+
+        let dominators = cfg.dominators();
+        assert!(dominators.is_reachable(body.entry));
+        assert_eq!(dominators.immediate_dominator(body.entry), None);
+        for &block in cfg.reachable_blocks() {
+            blocks += 1;
+            if block != body.entry {
+                let idom = dominators.immediate_dominator(block).unwrap_or_else(|| {
+                    panic!(
+                        "func{}: {block} has no immediate dominator",
+                        function.wasm_index
+                    )
+                });
+                assert!(dominators.strictly_dominates(idom, block));
+            }
+        }
+
+        // Whatever can complete normally can, in particular, exit.
+        let semantic = cfg.post_dominators(ExitPolicy::Semantic);
+        let normal = cfg.post_dominators(ExitPolicy::NormalCompletion);
+        for &block in cfg.reachable_blocks() {
+            if normal.can_reach_exit(block) {
+                assert!(semantic.can_reach_exit(block));
+            }
+        }
+
+        for natural in cfg.natural_loops() {
+            loops += 1;
+            assert!(natural.blocks.contains(&natural.header));
+            assert!(!natural.back_edges.is_empty());
+            for &block in &natural.blocks {
+                assert!(dominators.dominates(natural.header, block));
+            }
+            for &id in &natural.back_edges {
+                let edge = cfg.edge(id).expect("back edges belong to the graph");
+                assert_eq!(edge.target, natural.header);
+                assert!(natural.blocks.contains(&edge.source));
+            }
+        }
+    }
+
+    // The build links the whole game: PureDOOM alone is hundreds of functions
+    // with over a thousand loops, so anything smaller means it was dropped.
+    assert!(bodies >= 500, "only {bodies} bodies");
+    assert!(blocks >= 10_000, "only {blocks} blocks");
+    assert!(loops >= 1_000, "only {loops} loops");
 }

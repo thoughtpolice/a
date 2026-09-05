@@ -17,6 +17,27 @@ import subprocess
 import sys
 import tempfile
 
+DOOM_SCRIPT = """100 w down
+130 w up
+140 right down
+170 right up
+180 space down
+220 space up
+230 mouse 40 30 1 1
+240 text hi
+"""
+
+CONTRACT_SCRIPT = (
+    "0 a down\n0 a up\n0 pause down\n0 pause up\n0 page-up down\n0 page-up up\n"
+    "0 mouse 5 6 1 0\n0 text hi☃\n"
+)
+
+QUAKE2_SCRIPT = """40 w down
+80 w up
+90 right down
+110 right up
+"""
+
 # Arrows, Z and X are what every cart the console ships reads.
 LUAU_SCRIPT = """20 left down
 60 left up
@@ -34,6 +55,9 @@ LUAU_SCRIPT = """20 left down
 
 MODES = {
     # mode: (option, frames, script, guest arguments, timeout)
+    "doom": ("--iwad", 280, DOOM_SCRIPT, ("-warp", "1", "-skill", "3", "-nomonsters"), 180),
+    "sdk": ("--iwad", 100, CONTRACT_SCRIPT, (), 180),
+    "quake2": ("--pak", 120, QUAKE2_SCRIPT, ("+map", "demo1"), 420),
     # The console carries its cart rather than opening one the host names: the
     # native runner is given it as an argument and the browser package has it
     # mounted, so neither side takes an asset here.

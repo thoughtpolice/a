@@ -4,15 +4,16 @@
 //! The packages wlink links, run whole under the reference interpreter on
 //! the console HAL host and held to the native wasm2c hosts of
 //! `tilde//aseipp/wlink/demo`: the prototype game must make the same HAL
-//! calls in the same order.
+//! calls in the same order, and PureDOOM must render the same frames.
 
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::Instant;
 
 use wedge::Compiler;
-use wedge::interp::{Config, Instance, Value};
+use wedge::interp::{Config, Fault, Instance, Value};
 use wedge::ir::Program;
-use wedge_testing::console::{ConsoleHost, KeyEvent};
+use wedge_testing::console::{Console, ConsoleHost, KeyEvent, parse_script};
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -112,4 +113,106 @@ fn the_console_game_makes_the_same_hal_calls_as_its_stdio_host() {
     assert_eq!(transcript, native_output("console-host", &[]));
     assert_eq!(frames, 3);
     assert!(host.logs.iter().any(|(_, message)| message == "game: init"));
+}
+
+/// PureDOOM on the same package, paced and scripted like the SDK's
+/// headless host: after every frame the interpreter must have the frame
+/// hash and memory sizes `--trace` prints. Doom's initialization alone is
+/// two hundred million instructions, five seconds in an optimized build
+/// and a minute in an unoptimized one, so an unoptimized build runs the
+/// comparison only when `WEDGE_DOOM_FRAMES` asks for it; the variable
+/// also chooses how many frames to compare. Doom's renderer recurses
+/// through its BSP tree, and an unoptimized interpreter frame is large, so
+/// the test needs the stack the Rust test runner gives every test thread.
+#[test]
+fn doom_renders_the_same_frames_as_wasm2c() {
+    let requested: Option<u64> = std::env::var("WEDGE_DOOM_FRAMES")
+        .ok()
+        .and_then(|frames| frames.parse().ok());
+    if requested.is_none() && cfg!(debug_assertions) {
+        eprintln!("skipped: an unoptimized build compares Doom only when WEDGE_DOOM_FRAMES is set");
+        return;
+    }
+    let frames = requested.unwrap_or(3);
+    let script_text = "1 escape down\n2 escape up\n";
+    let game_arguments = ["-warp", "1", "-skill", "3", "-nomonsters"];
+
+    let script_path = std::env::temp_dir().join(format!("wedge-doom-{}.txt", std::process::id()));
+    std::fs::write(&script_path, script_text).expect("write the script");
+    let mut arguments: Vec<String> = [
+        "--iwad".to_owned(),
+        resource("freedoom2.wad").display().to_string(),
+        "--headless".to_owned(),
+        "--frames".to_owned(),
+        frames.to_string(),
+        "--script".to_owned(),
+        script_path.display().to_string(),
+        "--trace".to_owned(),
+        "--".to_owned(),
+    ]
+    .to_vec();
+    arguments.extend(game_arguments.iter().map(|argument| (*argument).to_owned()));
+    let native = native_output("doom-host", &arguments);
+    let _ = std::fs::remove_file(&script_path);
+    let expected: Vec<&str> = native
+        .lines()
+        .filter(|line| line.starts_with("frame="))
+        .collect();
+    assert_eq!(expected.len() as u64, frames, "{native}");
+
+    let program = linked("doom");
+    let mut host = ConsoleHost::new();
+    host.mount_readonly(
+        "doom2.wad",
+        std::fs::read(resource("freedoom2.wad")).expect("read the IWAD"),
+    )
+    .expect("mount the IWAD");
+    host.args = std::iter::once("doom")
+        .chain(game_arguments)
+        .map(str::to_owned)
+        .collect();
+    let started = Instant::now();
+    let mut console = Console::start(
+        &program,
+        host,
+        UNLIMITED,
+        35,
+        parse_script(script_text).expect("the script parses"),
+    )
+    .unwrap_or_else(|fault| panic!("Doom does not initialize: {fault}"));
+    eprintln!(
+        "init: {} instructions in {:.2?}",
+        u64::MAX - console.instance.fuel(),
+        started.elapsed()
+    );
+    let mut traces = Vec::new();
+    for _ in 0..frames {
+        let started = Instant::now();
+        let more = match console.frame() {
+            Ok(more) => more,
+            Err(Fault::Trap(_)) if console.host.exit.is_some() => false,
+            Err(fault) => panic!(
+                "frame {} faulted: {fault}\n{}",
+                console.frames() + 1,
+                console
+                    .host
+                    .logs
+                    .iter()
+                    .map(|(_, message)| message.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ),
+        };
+        let trace = console.trace();
+        eprintln!(
+            "{trace}: {} instructions in {:.2?}",
+            u64::MAX - console.instance.fuel(),
+            started.elapsed()
+        );
+        traces.push(trace.to_string());
+        if !more {
+            break;
+        }
+    }
+    assert_eq!(traces, expected);
 }
