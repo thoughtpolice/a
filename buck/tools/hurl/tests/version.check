@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# CHECK: hurl [[VERSION]]
+# CHECK: Features (libcurl):
+# CHECK: Features (built-in):
