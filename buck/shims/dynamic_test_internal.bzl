@@ -124,6 +124,37 @@ def dynamic_test_results(stdout: str, stderr: str, exit_code: int, target: str) 
         result["name"] = target + " - " + result["name"]
     return results
 
+def dynamic_runner_test_info(
+        ctx: AnalysisContext,
+        test_type: str,
+        command: list,
+        listing_command: list,
+        **kwargs) -> Provider:
+    """The InternalRunnerTestInfo of a rule whose binary speaks the line
+    protocol: the listing and result parsers are bound to the target's name,
+    and env, labels and contacts come from its attributes. Further keyword
+    arguments, such as supports_test_execution_caching, reach the provider
+    unchanged."""
+    target = ctx.label.package + ":" + ctx.label.name
+
+    def parse_test_listing(listing_content: str) -> list[dict[str, str]]:
+        return dynamic_listing_entries(listing_content, target)
+
+    def parse_test_result(stdout: str, stderr: str, exit_code: int) -> list[dict]:
+        return dynamic_test_results(stdout, stderr, exit_code, target)
+
+    return InternalRunnerTestInfo(
+        type = test_type,
+        command = command,
+        listing_command = listing_command,
+        env = ctx.attrs.env,
+        labels = ctx.attrs.labels,
+        contacts = ctx.attrs.contacts,
+        parse_test_listing = parse_test_listing,
+        parse_test_result = parse_test_result,
+        **kwargs
+    )
+
 def _dynamic_test_impl(ctx: AnalysisContext, internal: bool) -> list[Provider]:
     run = ctx.attrs.dep[RunInfo]
     batch_command = [run.args] + ctx.attrs.args
@@ -141,24 +172,12 @@ def _dynamic_test_impl(ctx: AnalysisContext, internal: bool) -> list[Provider]:
         ))
         return providers
 
-    target = ctx.label.package + ":" + ctx.label.name
-
-    def parse_test_listing(listing_content: str) -> list[dict[str, str]]:
-        return dynamic_listing_entries(listing_content, target)
-
-    def parse_test_result(stdout: str, stderr: str, exit_code: int) -> list[dict]:
-        return dynamic_test_results(stdout, stderr, exit_code, target)
-
-    providers.append(InternalRunnerTestInfo(
-        type = ctx.attrs.type,
+    providers.append(dynamic_runner_test_info(
+        ctx,
+        test_type = ctx.attrs.type,
         command = [run.args, "-run-test"] + ctx.attrs.args,
         listing_command = [run.args, "-list-tests"] + ctx.attrs.args,
-        env = ctx.attrs.env,
-        labels = ctx.attrs.labels,
-        contacts = ctx.attrs.contacts,
         supports_test_execution_caching = False,
-        parse_test_listing = parse_test_listing,
-        parse_test_result = parse_test_result,
     ))
     return providers
 
