@@ -306,13 +306,25 @@ def _command_test(**kwargs):
     kwargs = _fix_kwargs("command_test", kwargs)
     _command_test_rule(**kwargs)
 
-_command_rule = rule(
-    impl = lambda ctx: [
+def _command_impl(ctx: AnalysisContext) -> list[Provider]:
+    if (ctx.attrs.cmd == None) == (ctx.attrs.dep == None):
+        fail("command: exactly one of 'cmd' and 'dep' must be provided")
+
+    # A `dep` keeps the runnable's own argument list intact. Spelling it
+    # `$(exe :dep)` inside `cmd` would not: a macro expands to one argument,
+    # so a multi-argument RunInfo would arrive space-joined.
+    args = ctx.attrs.cmd if ctx.attrs.cmd else [ctx.attrs.dep[RunInfo].args] + ctx.attrs.args
+    return [
         DefaultInfo(),
-        RunInfo(args = cmd_args(ctx.attrs.cmd)),
-    ],
+        RunInfo(args = cmd_args(args)),
+    ]
+
+_command_rule = rule(
+    impl = _command_impl,
     attrs = {
-        "cmd": attrs.list(attrs.arg()),
+        "args": attrs.list(attrs.arg(), default = []),
+        "cmd": attrs.option(attrs.list(attrs.arg()), default = None),
+        "dep": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
     },
 )
 
