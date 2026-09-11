@@ -84,6 +84,16 @@ linker = shims.select({
     }),
 })
 
+# The toolchain otherwise derives the linker type from config//os, which the
+# wasm32 transition leaves at the host's, so on macOS a wasm link was treated
+# as a Darwin one and given ld64 flags such as -oso_prefix. Naming the type
+# also gives the outputs their .wasm suffix and lld's own spelling of
+# --whole-archive.
+linker_type = shims.select({
+    "toolchains//cfg/target:target[wasm32-unknown-unknown]": "wasm",
+    "DEFAULT": None,
+})
+
 linux_common_ldflags = [
     # emit relocations for BOLT
     "-Wl,--emit-relocs",
@@ -155,4 +165,5 @@ system_cxx_toolchain(
     cxx_flags = cxx_base_flags + cxx_warn_flags + opt_flags + instrumentation_compiler_flags,
     link_flags = link_flags,
     linker = linker,
+    linker_type = linker_type,
 )

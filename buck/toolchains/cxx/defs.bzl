@@ -120,6 +120,20 @@ def _cxx_toolchain_from_cxx_tools_info(ctx: AnalysisContext, cxx_tools_info: Cxx
             linker_type = LinkerType("gnu")
             pic_behavior = PicBehavior("supported")
 
+    # config//os still names the host under a transition that only moves the
+    # target triple, so the os alone would call a wasm32 link a Darwin or GNU
+    # one. The BUILD file says which linker type such a triple really wants.
+    if ctx.attrs.linker_type != None:
+        linker_type = LinkerType(ctx.attrs.linker_type)
+        if linker_type == LinkerType("wasm"):
+            binary_extension = "wasm"
+            shared_library_name_format = "{}.wasm"
+            shared_library_versioned_name_format = "{}.{}.wasm"
+
+            # llvm-ar, the archiver that indexes WebAssembly objects, reads
+            # argfiles on every host.
+            archiver_supports_argfiles = True
+
     if cxx_tools_info.compiler_type == "clang":
         llvm_link = RunInfo(args = ["llvm-link"])
     else:
@@ -236,6 +250,11 @@ system_cxx_toolchain = rule(
         "link_ordering": attrs.option(attrs.enum(LinkOrdering.values()), default = None),
         "link_style": attrs.string(default = "shared"),
         "linker": attrs.option(attrs.string(), default = None),
+        "linker_type": attrs.option(
+            attrs.enum(LinkerType.values()),
+            default = None,
+            doc = "Overrides the linker type derived from the target os, for a triple such as wasm32 that is built under the host's os.",
+        ),
         "post_link_flags": attrs.list(attrs.string(), default = []),
         "rc_compiler": attrs.option(attrs.string(), default = None),
         "rc_flags": attrs.list(attrs.string(), default = []),
@@ -288,6 +307,7 @@ cxx_tools_info_toolchain = rule(
             The default value of the `link_style` attribute for rules that use this toolchain.
             """,
         ),
+        "linker_type": attrs.option(attrs.enum(LinkerType.values()), default = None),
         "post_link_flags": attrs.list(attrs.string(), default = []),
         "rc_flags": attrs.list(attrs.string(), default = []),
         "_internal_tools": attrs.default_only(attrs.exec_dep(providers = [CxxInternalTools], default = "prelude//cxx/tools:internal_tools")),
