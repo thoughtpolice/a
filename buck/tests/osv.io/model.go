@@ -203,6 +203,34 @@ var rustExceptions = []exception{
 // the same as the Rust list above.
 var npmExceptions []exception
 
+// OSV still reports these two GNU tar vulnerabilities against Wolfi's latest
+// 1.35-r12, with no fixed version in either range. Accept them temporarily for
+// the minimos development images: avoid incremental restores (-g/-G) with
+// untrusted input or local writers, and do not rely on --one-top-level to
+// confine hard links. Remove these when a fixed Wolfi version clears OSV.
+// https://access.redhat.com/security/cve/CVE-2026-18477
+// https://access.redhat.com/security/cve/CVE-2026-18508
+// Chainguard publishes separate IDs for x86_64 and aarch64; both are returned
+// by OSV's Wolfi package query.
+var wolfiExceptions = []exception{
+	{
+		ID:     "CGA-482f-jcpj-938x",
+		Reason: "GNU tar CVE-2026-18508: --one-top-level does not confine hard links; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-g36v-8pg9-6573",
+		Reason: "GNU tar CVE-2026-18508: --one-top-level does not confine hard links; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-hgrg-pr2j-rw66",
+		Reason: "GNU tar CVE-2026-18477: incremental restore rename race with local writers; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-mj3q-7hxc-pp4g",
+		Reason: "GNU tar CVE-2026-18477: incremental restore rename race with local writers; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+}
+
 // exceptionSets binds each ecosystem's exception list to the subject kind it
 // applies to. An advisory is only excepted for the ecosystem that declared it,
 // so an npm entry can never silence the same advisory ID for a crate.
@@ -214,6 +242,7 @@ var exceptionSets = []struct {
 	{Kind: genericSubject, Label: "generic", Items: genericExceptions},
 	{Kind: rustSubject, Label: "Rust", Items: rustExceptions},
 	{Kind: npmSubject, Label: "npm", Items: npmExceptions},
+	{Kind: wolfiSubject, Label: "Wolfi", Items: wolfiExceptions},
 }
 
 func exceptionsFor(kind subjectKind) []exception {

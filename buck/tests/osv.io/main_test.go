@@ -534,28 +534,40 @@ func TestGroupAdvisoriesMatchesExceptionsThroughAliases(t *testing.T) {
 	}
 }
 
-func TestGroupAdvisoriesKeepsGenericExceptionsOutOfOtherEcosystems(t *testing.T) {
-	withExceptions(t, genericSubject, exception{ID: "OSV-generic-excepted", Reason: "accepted for a generic package"})
-	references := []vulnerabilityRef{{ID: "OSV-generic-excepted"}}
+func TestGroupAdvisoriesScopesExceptionsByEcosystem(t *testing.T) {
+	kinds := []struct {
+		name string
+		kind subjectKind
+	}{
+		{"generic", genericSubject},
+		{"Rust", rustSubject},
+		{"npm", npmSubject},
+		{"Wolfi", wolfiSubject},
+	}
+	references := []vulnerabilityRef{{ID: "OSV-excepted"}, {ID: "OSV-blocking"}}
 	details := map[string]vulnerability{
-		"OSV-generic-excepted": {ID: "OSV-generic-excepted", Summary: "fuzzer crash on malformed input"},
+		"OSV-excepted": {ID: "OSV-excepted", Summary: "accepted issue"},
+		"OSV-blocking": {ID: "OSV-blocking", Summary: "another issue"},
 	}
-	groups, err := groupAdvisories(genericSubject, references, details)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(groups) != 1 || groups[0].ExceptionReason == "" {
-		t.Fatalf("the generic exception did not apply: %#v", groups)
-	}
-
-	for _, kind := range []subjectKind{rustSubject, npmSubject, wolfiSubject} {
-		groups, err := groupAdvisories(kind, references, details)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if groups[0].ExceptionReason != "" {
-			t.Fatalf("the generic exception was incorrectly applied to subject kind %d", kind)
-		}
+	for _, owner := range kinds {
+		t.Run(owner.name, func(t *testing.T) {
+			withExceptions(t, owner.kind, exception{ID: "OSV-excepted", Reason: "accepted for this ecosystem"})
+			for _, scanned := range kinds {
+				groups, err := groupAdvisories(scanned.kind, references, details)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(groups) != 2 {
+					t.Fatalf("expected two independent advisories, got %#v", groups)
+				}
+				for _, group := range groups {
+					wantException := scanned.kind == owner.kind && group.Primary == "OSV-excepted"
+					if (group.ExceptionReason != "") != wantException {
+						t.Errorf("%s exception in %s scan: unexpected result for %s: %#v", owner.name, scanned.name, group.Primary, group)
+					}
+				}
+			}
+		})
 	}
 }
 
