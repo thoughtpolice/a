@@ -78,6 +78,10 @@
                 clang-tools
                 bolt
                 lldb
+                # The cxx toolchain archives WebAssembly objects with llvm-ar
+                # by name; the compiler wrapper only provides `ar`, which on
+                # Linux is GNU ar and cannot index them.
+                llvm
               ])
               ++ (with ocamlPackages; [
                 ocaml
