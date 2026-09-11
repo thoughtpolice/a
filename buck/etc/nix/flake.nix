@@ -38,14 +38,25 @@
             };
           };
 
-          ourRustVersion = pkgs.rust-bin.selectLatestNightlyWith (
-            toolchain:
-            toolchain.complete.override {
-              # Guest code for the game console SDK (tilde/aseipp/wlink) is
-              # built for wasm32; the host toolchain needs that target's std.
-              targets = [ "wasm32-unknown-unknown" ];
-            }
-          );
+          ourRustVersion =
+            (pkgs.rust-bin.selectLatestNightlyWith (
+              toolchain:
+              toolchain.complete.override {
+                # Guest code for the game console SDK (tilde/aseipp/wlink) is
+                # built for wasm32; the host toolchain needs that target's std.
+                targets = [ "wasm32-unknown-unknown" ];
+              }
+            )).overrideAttrs
+              (_: {
+                # rust-overlay propagates nixpkgs' default `stdenv.cc` so rustc
+                # can link out of the box. On Darwin that default LLVM is a
+                # major version behind llvmPackages_latest, and as a propagated
+                # dependency it lands first on PATH and last in the setup hooks,
+                # shadowing the clang listed below. Propagate the matching clang
+                # instead.
+                depsHostHostPropagated = [ llvmPackages.clang ];
+                propagatedBuildInputs = [ llvmPackages.clang ];
+              });
 
           llvmPackages = pkgs.llvmPackages_latest;
           ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_5;
@@ -70,7 +81,12 @@
           packages = devcontainer.packages or { };
           checks = devcontainer.checks or { };
 
-          devShells.default = pkgs.mkShell {
+          # mkShell's own stdenv puts its compiler wrapper first on PATH, and
+          # on Darwin that is nixpkgs' default LLVM, a major version behind
+          # llvmPackages_latest, so `clang` and `ld.lld` came from different
+          # releases. Building the shell on llvmPackages' stdenv keeps clang,
+          # lld, and the wrapper's libc++ and compiler-rt flags on one release.
+          devShells.default = (pkgs.mkShell.override { stdenv = llvmPackages.stdenv; }) {
             packages =
               (with llvmPackages; [
                 lld
