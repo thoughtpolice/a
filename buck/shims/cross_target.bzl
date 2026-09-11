@@ -66,8 +66,13 @@ def _cross_target_binary_impl(ctx: AnalysisContext) -> list[Provider]:
             actual = ctx.attrs.actual.label.raw_target(),
             n = len(outputs),
         ))
+
+    # The copy keeps the output's extension unless the name already ends in
+    # it, so a `game.wasm` target republishing `game_core.wasm` is not
+    # `game.wasm.wasm`.
     _, ext = paths.split_extension(outputs[0].short_path)
-    output = ctx.actions.copy_file(ctx.label.name + ext, outputs[0])
+    name = ctx.label.name
+    output = ctx.actions.copy_file(name if name.endswith(ext) else name + ext, outputs[0])
     return [
         DefaultInfo(default_output = output),
         RunInfo(args = cmd_args(output)),
