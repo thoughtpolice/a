@@ -8,6 +8,7 @@ third_party_meta([
     'by-name/ca/capnproto',
     'by-name/eg/egglog',
     'by-name/is/isocline',
+    'by-name/li/libhegel',
     'by-name/li/librseq',
     'by-name/li/liburing',
     'by-name/mi/mimalloc',

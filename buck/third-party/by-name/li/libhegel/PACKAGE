@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "OsvPurlInfo", "pkg")
+
+pkg.info(
+    # Keep in sync with hegeltest-c in third-party//rust:Cargo.toml.
+    version = "0.38.0",
+    description = "Hegel's property-based testing engine with a C ABI",
+    license = "MIT",
+    copyright = ["2026 Antithesis, LLC"],
+    visibility = ["PUBLIC"],
+    osv_info = OsvPurlInfo(
+        name = "pkg:cargo/hegeltest-c",
+        version = "0.38.0",
+    ),
+)
