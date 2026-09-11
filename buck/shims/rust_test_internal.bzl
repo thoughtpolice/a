@@ -17,9 +17,9 @@ implementation — but swaps
 
 This is the same "libtest CLI as a stable interface" contract cargo-nextest
 builds on: stable flags only, one process per test, results recovered from
-the human-readable harness report. It composes with `-Zpanic_abort_tests`
-(the toolchain default here) since that changes how the harness executes
-tests, not how it reports them.
+the human-readable harness report. It does not depend on the toolchain's
+panic strategy: whether libtest catches an unwinding panic or observes an
+aborting child process, it prints the same report.
 
 The runner appends each test's `filter` string as the final argument of
 `command`, hence `command` ends with `--exact` so the appended name selects

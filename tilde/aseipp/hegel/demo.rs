@@ -6,17 +6,14 @@
 //! `#[hegel::test]` / `#[hegel::state_machine]` macros end-to-end under
 //! the buck2 test runner.
 //!
-//! NOTE: our rust toolchain compiles everything with `-Cpanic=abort`, and
-//! hegel drives input rejection (`TestCase::assume`/`reject`), the
-//! `#[hegel::state_machine]` stateful driver, and shrink-on-failure through
-//! unwinding (`resume_unwind`), which aborts the process under panic=abort.
-//! Plain `#[hegel::test]` properties that draw from generators work fine,
-//! but: a failing property aborts on the first counterexample instead of
-//! reporting a minimized one, and `assume`/`reject`/`stateful::run` must
-//! be avoided entirely.
+//! The rust toolchain keeps rustc's default `panic=unwind`, which hegel
+//! depends on: input rejection (`TestCase::assume`/`reject`), the
+//! `#[hegel::state_machine]` stateful driver, and shrink-on-failure all
+//! travel through unwinding (`resume_unwind`). `assume_rejects_without_aborting`
+//! is the smoke test that rejection survives Buck's test build.
 
-use hegel::TestCase;
 use hegel::generators as gs;
+use hegel::{HealthCheck, TestCase};
 
 /// Run-length encode a byte slice into (count, value) pairs.
 fn rle_encode(data: &[u8]) -> Vec<(usize, u8)> {
@@ -37,6 +34,16 @@ fn rle_decode(runs: &[(usize, u8)]) -> Vec<u8> {
         out.extend(std::iter::repeat_n(v, n));
     }
     out
+}
+
+#[hegel::test(suppress_health_check = [HealthCheck::FilterTooMuch])]
+fn assume_rejects_without_aborting(tc: TestCase) {
+    // Half of the drawn cases are rejected, which hegel reports by unwinding
+    // out of `assume`; under `panic=abort` the first rejection would kill
+    // the process.
+    let keep = tc.draw(gs::booleans());
+    tc.assume(keep);
+    assert!(keep);
 }
 
 #[hegel::test]

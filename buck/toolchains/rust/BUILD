@@ -4,11 +4,12 @@
 load("@prelude//toolchains:rust.bzl", "system_rust_toolchain")
 load("@root//buck/shims:shims.bzl", "shims")
 
+# Panics unwind, rustc's default and what the prelude's toolchain assumes
+# (panic_runtime = unwind). Hegel property tests depend on it: rejected cases
+# and shrinking travel through unwinding. Targets whose specs abort, wasm32 and
+# UEFI, keep aborting, and Fozzie harness binaries opt back into
+# -Cpanic=abort so a panic is a finding.
 common_rustc_flags = [
-    # Always abort on panic; do this in tests, too
-    "-Cpanic=abort",
-    "-Zpanic_abort_tests",
-
     # don't use the parallel frontend; buck2 isn't jobserver aware, and so
     # this can lead to N processes using N threads a piece, oversubscribing
     # the CPU <https://github.com/facebook/buck2/issues/653>
