@@ -139,6 +139,7 @@ WLINK_MODULES = {
     "wlink-console.wasm": "tilde//aseipp/wlink/demo:linked.wasm",
     "wlink-doom.wasm": "tilde//aseipp/wlink/demo:doom-linked.wasm",
     "wlink-hal.wasm": "tilde//aseipp/wlink:linked-hal.wasm",
+    "wlink-quake2.wasm": "tilde//aseipp/wlink/demo/quake2:quake2-linked.wasm",
     "wlink-host-abi.wasm": "tilde//aseipp/wlink:linked-host-abi.wasm",
     "wlink-lists.wasm": "tilde//aseipp/wlink:linked-lists.wasm",
     "wlink-nested.wasm": "tilde//aseipp/wlink:linked-nested.wasm",
@@ -431,6 +432,7 @@ depot.filecheck.lit(
         "wlink_component": "$(location tilde//aseipp/wlink:component-consumer.wasm)",
         "wlink_console": "$(location tilde//aseipp/wlink/demo:linked.wasm)",
         "wlink_doom": "$(location tilde//aseipp/wlink/demo:doom-linked.wasm)",
+        "wlink_quake2": "$(location tilde//aseipp/wlink/demo/quake2:quake2-linked.wasm)",
         "wlink_string": "$(location tilde//aseipp/wlink:linked-string.wasm)",
     },
     tools = {
@@ -845,8 +847,11 @@ depot.rust_test(
         "console-host": "tilde//aseipp/wlink/demo:host",
         "doom-host": "tilde//aseipp/wlink/demo:doom-host",
         "freedoom2.wad": "tilde//aseipp/wlink/demo/doom:freedoom[freedoom2.wad]",
+        "pak0.pak": "tilde//aseipp/wlink/demo/quake2:demo-data[pak]",
+        "quake2-host": "tilde//aseipp/wlink/demo/quake2:quake2-host",
         "wlink-console.wasm": WLINK_MODULES["wlink-console.wasm"],
         "wlink-doom.wasm": WLINK_MODULES["wlink-doom.wasm"],
+        "wlink-quake2.wasm": WLINK_MODULES["wlink-quake2.wasm"],
     },
     visibility = [],
     deps = [

@@ -202,6 +202,12 @@ depot.command(
 )
 
 depot.alias(
+    name = "quake2",
+    actual = "//aseipp/wlink/demo/quake2:quake2",
+    visibility = ["PUBLIC"],
+)
+
+depot.alias(
     name = "luau",
     actual = "//aseipp/wlink/demo/luau:luau",
     visibility = ["PUBLIC"],

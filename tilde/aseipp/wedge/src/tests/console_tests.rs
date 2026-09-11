@@ -216,3 +216,105 @@ fn doom_renders_the_same_frames_as_wasm2c() {
     }
     assert_eq!(traces, expected);
 }
+
+/// Quake II on the same package, paced like its runner at 60 Hz and told to
+/// load the demo's first level: after every frame the interpreter must have
+/// the frame hash and memory sizes `--trace` prints. Loading the level is
+/// fifty million instructions and the player spawns on frame 93, after
+/// which every rendered frame is another eight million, so an optimized
+/// build compares a hundred frames, a few seconds, and an unoptimized one
+/// only when `WEDGE_QUAKE2_FRAMES` asks for it; the variable also chooses
+/// how many frames to compare.
+#[test]
+fn quake2_renders_the_same_frames_as_wasm2c() {
+    let requested: Option<u64> = std::env::var("WEDGE_QUAKE2_FRAMES")
+        .ok()
+        .and_then(|frames| frames.parse().ok());
+    if requested.is_none() && cfg!(debug_assertions) {
+        eprintln!(
+            "skipped: an unoptimized build compares Quake II only when WEDGE_QUAKE2_FRAMES is set"
+        );
+        return;
+    }
+    let frames = requested.unwrap_or(100);
+    let game_arguments = ["+map", "demo1"];
+
+    let script_path = std::env::temp_dir().join(format!("wedge-quake2-{}.txt", std::process::id()));
+    std::fs::write(&script_path, "").expect("write the script");
+    let mut arguments: Vec<String> = [
+        "--pak".to_owned(),
+        resource("pak0.pak").display().to_string(),
+        "--headless".to_owned(),
+        "--frames".to_owned(),
+        frames.to_string(),
+        "--script".to_owned(),
+        script_path.display().to_string(),
+        "--trace".to_owned(),
+        "--".to_owned(),
+    ]
+    .to_vec();
+    arguments.extend(game_arguments.iter().map(|argument| (*argument).to_owned()));
+    let native = native_output("quake2-host", &arguments);
+    let _ = std::fs::remove_file(&script_path);
+    let expected: Vec<&str> = native
+        .lines()
+        .filter(|line| line.starts_with("frame="))
+        .collect();
+    assert_eq!(expected.len() as u64, frames, "{native}");
+
+    let program = linked("quake2");
+    let mut host = ConsoleHost::new();
+    host.mount_readonly(
+        "baseq2/pak0.pak",
+        std::fs::read(resource("pak0.pak")).expect("read the pak"),
+    )
+    .expect("mount the pak");
+    host.args = std::iter::once("quake2")
+        .chain(game_arguments)
+        .map(str::to_owned)
+        .collect();
+    let started = Instant::now();
+    let mut console = Console::start(
+        &program,
+        host,
+        UNLIMITED,
+        60,
+        parse_script("").expect("the empty script parses"),
+    )
+    .unwrap_or_else(|fault| panic!("Quake II does not initialize: {fault}"));
+    eprintln!(
+        "init: {} instructions in {:.2?}",
+        u64::MAX - console.instance.fuel(),
+        started.elapsed()
+    );
+    let mut traces = Vec::new();
+    for _ in 0..frames {
+        let started = Instant::now();
+        let more = match console.frame() {
+            Ok(more) => more,
+            Err(Fault::Trap(_)) if console.host.exit.is_some() => false,
+            Err(fault) => panic!(
+                "frame {} faulted: {fault}\n{}",
+                console.frames() + 1,
+                console
+                    .host
+                    .logs
+                    .iter()
+                    .map(|(_, message)| message.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ),
+        };
+        let trace = console.trace();
+        eprintln!(
+            "{trace}: {} instructions in {:.2?}",
+            u64::MAX - console.instance.fuel(),
+            started.elapsed()
+        );
+        traces.push(trace.to_string());
+        if !more {
+            break;
+        }
+    }
+    assert_eq!(traces, expected);
+}
