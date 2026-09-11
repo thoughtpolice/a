@@ -66,7 +66,8 @@ def _info(
         inherit: bool = False,
         visibility: list[str] = [],
         within_view: list[str] = [],
-        target_compatible_with: None | list[str] = None) -> None:
+        target_compatible_with: None | list[str] = None,
+        compatible_with: None | list[str] = None) -> None:
     _copyright(copyright)
     _license(license)
     if description != None:
@@ -95,8 +96,15 @@ def _info(
             fail("Must specify upstream vendor metadata (vendor_info) when package is vendored code")
         _vendored(vendor_info)
 
+    # Buck2 rejects a target that carries both compatibility attributes, so a
+    # package supplies at most one default: target_compatible_with requires
+    # every entry to match, compatible_with any one of them.
+    if target_compatible_with != None and compatible_with != None:
+        fail("Specify either target_compatible_with or compatible_with, not both")
     if target_compatible_with != None:
         _meta_write_package_value("target_compatible_with", target_compatible_with)
+    if compatible_with != None:
+        _meta_write_package_value("compatible_with", compatible_with)
 
     package(
         inherit = inherit,

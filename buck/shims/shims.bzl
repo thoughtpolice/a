@@ -18,23 +18,30 @@ load("@toolchains//zuo:defs.bzl", _zuo = "zuo")
 
 # MARK: Package metadata handling
 
-def _apply_package_target_compatible_with(kwargs):
-    """Apply target_compatible_with from package metadata if not explicitly provided."""
+_COMPATIBILITY_ATTRIBUTES = ["target_compatible_with", "compatible_with"]
 
-    # If user explicitly sets target_compatible_with to None, we respect that and don't apply defaults
-    if "target_compatible_with" in kwargs and kwargs["target_compatible_with"] == None:
-        # Remove the None value so it doesn't get passed to the rule
-        kwargs.pop("target_compatible_with")
+def _apply_package_compatibility(kwargs):
+    """Apply the package-level compatibility default, if any, to rule kwargs.
+
+    `pkg.info` may set `target_compatible_with` (every entry must match) or
+    `compatible_with` (any entry may match). A target that sets either
+    attribute keeps its own value, and an explicit None on either opts out of
+    the package default. Buck2 rejects a target carrying both attributes, so
+    the default is only injected when the target set neither.
+    """
+    explicit = [attribute for attribute in _COMPATIBILITY_ATTRIBUTES if attribute in kwargs]
+    for attribute in explicit:
+        if kwargs[attribute] == None:
+            # Remove the None value so it doesn't get passed to the rule
+            kwargs.pop(attribute)
+    if explicit:
         return kwargs
 
-    # If user provides their own target_compatible_with, use it
-    if "target_compatible_with" in kwargs:
-        return kwargs
-
-    # Otherwise, check for package default
-    pkg_compat = read_package_value("meta.target_compatible_with")
-    if pkg_compat != None:
-        kwargs["target_compatible_with"] = pkg_compat
+    for attribute in _COMPATIBILITY_ATTRIBUTES:
+        pkg_compat = read_package_value("meta." + attribute)
+        if pkg_compat != None:
+            kwargs[attribute] = pkg_compat
+            return kwargs
 
     return kwargs
 
@@ -49,7 +56,7 @@ def _fix_kwargs(_rule_name: str, kwargs):
     be applied to rules. Add new fixes here as needed, and they can be
     customized per rule type.
     """
-    kwargs = _apply_package_target_compatible_with(kwargs)
+    kwargs = _apply_package_compatibility(kwargs)
 
     # Add more fixes here as needed in the future
     # Example of rule-specific handling:
