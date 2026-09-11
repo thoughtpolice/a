@@ -139,7 +139,13 @@ link_flags = shims.select({
             "shell32.lib",
             "user32.lib",
         ],
-        "config//os:macos": [],
+        # Darwin ships ASan only as a dylib, which the clang driver adds at
+        # link time. ld64 keeps the SanitizerCoverage sections Fozzie reads
+        # without help, so the coverage-only profile needs nothing here.
+        "config//os:macos": shims.select({
+            "toolchains//cfg/instrumentation:instrumentation[fozzie-asan]": ["-fsanitize=address"],
+            "DEFAULT": [],
+        }),
         # An os with no triple above it is reachable: a transition may move
         # config//os without moving the target triple, which is what a
         # cross-compiled binary built on a host whose default triple names

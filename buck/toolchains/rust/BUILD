@@ -72,12 +72,18 @@ fozzie_rustc_flags = [
 ]
 
 fozzie_asan_rustc_flags = fozzie_rustc_flags + [
+    "-Zsanitizer=address",
+    "--cfg=fozzie_asan",
+] + shims.select({
+    # rustc links with -nodefaultlibs, under which clang's Darwin driver adds
+    # no sanitizer runtime at all, and Darwin ships ASan only as a dylib. So
+    # rustc's own copy is the one runtime of a mixed-language target there;
+    # C objects bind to it through the stable ASan ABI.
+    "config//os:macos": [],
     # The Rust code is instrumented by rustc, while the final clang++ linker
     # invocation owns the one compiler-rt instance for mixed-language targets.
-    "-Zsanitizer=address",
-    "-Zexternal-clangrt",
-    "--cfg=fozzie_asan",
-]
+    "DEFAULT": ["-Zexternal-clangrt"],
+})
 
 instrumentation_rustc_flags = shims.select({
     "toolchains//cfg/instrumentation:instrumentation[none]": [],
