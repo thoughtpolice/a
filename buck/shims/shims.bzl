@@ -117,8 +117,15 @@ def _use_internal_test_runner(framework: str) -> bool:
         framework in [item.strip() for item in runner.split(",")]
     )
 
+# libtest runs every test on its own thread, sized from RUST_MIN_STACK
+# rather than the 8 MiB a main thread gets, and its 2 MiB default is too
+# small for a test that interprets or recurses deeply in an unoptimized
+# build. Give test threads the main thread's size.
+RUST_TEST_STACK_BYTES = 8 * 1024 * 1024
+
 def _depot_rust_test(**kwargs):
     """Define a Rust test using the configured Buck2 test runner."""
+    kwargs["env"] = {"RUST_MIN_STACK": str(RUST_TEST_STACK_BYTES)} | kwargs.pop("env", {})
     if _use_internal_test_runner("rust"):
         _depot_rust_rule("rust_test", fn = _rust_test_internal_rule, **kwargs)
     else:
