@@ -230,6 +230,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "arbitrary"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
+dependencies = [
+ "derive_arbitrary",
+]
+
+[[package]]
 name = "arc-swap"
 version = "1.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1737,6 +1746,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_arbitrary"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e567bd82dcff979e4b03460c307b3cdc9e96fde3d73bed1496d2bc75d9dd62a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "derive_more"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2705,6 +2725,12 @@ dependencies = [
  "tempfile",
  "xxhash-rust",
 ]
+
+[[package]]
+name = "flagset"
+version = "0.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7ac824320a75a52197e8f2d787f6a38b6718bb6897a35142d749af3c0e8f4fe"
 
 [[package]]
 name = "flatbuffers"
@@ -7996,6 +8022,7 @@ name = "rust-third-party"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "arbitrary",
  "argh",
  "ariadne",
  "async-stream",
@@ -8108,6 +8135,7 @@ dependencies = [
  "unicode-width 0.2.2",
  "uuid",
  "wasm-encoder",
+ "wasm-smith",
  "wasmparser",
  "wasmprinter",
  "wat",
@@ -10576,6 +10604,19 @@ checksum = "18a11585adb92fe9b55ad1d760e8d8fb5d87e0d2e303cb8eed57f078d54293a2"
 dependencies = [
  "anyhow",
  "indexmap 2.14.0",
+ "wasm-encoder",
+ "wasmparser",
+]
+
+[[package]]
+name = "wasm-smith"
+version = "0.258.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a84b31d645ea084a94e1a7c410e30219c165a0960b336f535f99162caf2cfd0c"
+dependencies = [
+ "anyhow",
+ "arbitrary",
+ "flagset",
  "wasm-encoder",
  "wasmparser",
 ]

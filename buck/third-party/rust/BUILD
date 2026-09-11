@@ -531,6 +531,34 @@ third_party_rust.rust_library(
     deps = [":object-0.37"],
 )
 
+shims.alias(
+    name = "arbitrary",
+    actual = ":arbitrary-1",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "arbitrary-1.4.2.crate",
+    sha256 = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1",
+    strip_prefix = "arbitrary-1.4.2",
+    urls = ["https://static.crates.io/crates/arbitrary/1.4.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "arbitrary-1",
+    srcs = [":arbitrary-1.4.2.crate"],
+    crate = "arbitrary",
+    crate_root = "arbitrary-1.4.2.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "derive",
+        "derive_arbitrary",
+    ],
+    visibility = [],
+    deps = [":derive_arbitrary-1"],
+)
+
 shims.http_archive(
     name = "arc-swap-1.9.2.crate",
     sha256 = "c049c0be4daef0b145cb3555416b3b8ef5b7888a38aea1a3a155801fe7b0810b",
@@ -4634,6 +4662,29 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "derive_arbitrary-1.4.2.crate",
+    sha256 = "1e567bd82dcff979e4b03460c307b3cdc9e96fde3d73bed1496d2bc75d9dd62a",
+    strip_prefix = "derive_arbitrary-1.4.2",
+    urls = ["https://static.crates.io/crates/derive_arbitrary/1.4.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "derive_arbitrary-1",
+    srcs = [":derive_arbitrary-1.4.2.crate"],
+    crate = "derive_arbitrary",
+    crate_root = "derive_arbitrary-1.4.2.crate/src/lib.rs",
+    edition = "2021",
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-2",
+    ],
+)
+
+shims.http_archive(
     name = "derive_more-1.0.0.crate",
     sha256 = "4a9b99b9cbbe49445b21764dc0625032a89b145a2642e67603e1c936f5458d05",
     strip_prefix = "derive_more-1.0.0",
@@ -6956,6 +7007,23 @@ third_party_rust.rust_library(
         ":tempfile-3",
         ":xxhash-rust-0.8",
     ],
+)
+
+shims.http_archive(
+    name = "flagset-0.4.7.crate",
+    sha256 = "b7ac824320a75a52197e8f2d787f6a38b6718bb6897a35142d749af3c0e8f4fe",
+    strip_prefix = "flagset-0.4.7",
+    urls = ["https://static.crates.io/crates/flagset/0.4.7/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "flagset-0.4",
+    srcs = [":flagset-0.4.7.crate"],
+    crate = "flagset",
+    crate_root = "flagset-0.4.7.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
 )
 
 shims.http_archive(
@@ -26267,6 +26335,37 @@ third_party_rust.rust_library(
     deps = [
         ":anyhow-1",
         ":indexmap-2",
+        ":wasm-encoder-0.258",
+        ":wasmparser-0.258",
+    ],
+)
+
+shims.alias(
+    name = "wasm-smith",
+    actual = ":wasm-smith-0.258",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "wasm-smith-0.258.0.crate",
+    sha256 = "a84b31d645ea084a94e1a7c410e30219c165a0960b336f535f99162caf2cfd0c",
+    strip_prefix = "wasm-smith-0.258.0",
+    urls = ["https://static.crates.io/crates/wasm-smith/0.258.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "wasm-smith-0.258",
+    srcs = [":wasm-smith-0.258.0.crate"],
+    crate = "wasm_smith",
+    crate_root = "wasm-smith-0.258.0.crate/src/lib.rs",
+    edition = "2024",
+    features = ["wasmparser"],
+    visibility = [],
+    deps = [
+        ":anyhow-1",
+        ":arbitrary-1",
+        ":flagset-0.4",
         ":wasm-encoder-0.258",
         ":wasmparser-0.258",
     ],
