@@ -4415,7 +4415,6 @@ third_party_rust.rust_library(
     crate = "dashu_base",
     crate_root = "dashu-base-0.4.3.crate/src/lib.rs",
     edition = "2021",
-    features = ["std"],
     visibility = [],
 )
 
@@ -4433,7 +4432,6 @@ third_party_rust.rust_library(
     crate = "dashu_int",
     crate_root = "dashu-int-0.4.3.crate/src/lib.rs",
     edition = "2021",
-    features = ["std"],
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -9866,57 +9864,66 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "hegeltest",
-    actual = ":hegeltest-0.32",
+    actual = ":hegeltest-0.42",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "hegeltest-0.32.5.crate",
-    sha256 = "9210d5784dde569ca02bc14fa941617a695b065c974e5c56ae03c4fd7048c79f",
-    strip_prefix = "hegeltest-0.32.5",
-    urls = ["https://static.crates.io/crates/hegeltest/0.32.5/download"],
+    name = "hegeltest-0.42.0.crate",
+    sha256 = "a0e3cc5b37bc8a65b99ca9e76a2c82a2be56e6917be13b3daedcfd535e58cd37",
+    strip_prefix = "hegeltest-0.42.0",
+    urls = ["https://static.crates.io/crates/hegeltest/0.42.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-0.32",
-    srcs = [":hegeltest-0.32.5.crate"],
+    name = "hegeltest-0.42",
+    srcs = [":hegeltest-0.42.0.crate"],
     crate = "hegel",
-    crate_root = "hegeltest-0.32.5.crate/src/lib.rs",
+    crate_root = "hegeltest-0.42.0.crate/src/lib.rs",
     edition = "2024",
-    features = ["default"],
+    features = [
+        "default",
+        "static-engine",
+    ],
     visibility = [],
     deps = [
-        ":crc32fast-1",
-        ":dashu-int-0.4",
-        ":hegeltest-c-0.33",
-        ":hegeltest-macros-0.32",
-        ":miniz_oxide-0.8",
+        ":hegeltest-c-0.38",
+        ":hegeltest-macros-0.42",
         ":parking_lot-0.12",
-        ":rand-0.10",
-        ":rustc-hash-2",
-        ":tempfile-3",
+        ":serde_json-1",
     ],
 )
 
+shims.alias(
+    name = "hegeltest-c",
+    actual = ":hegeltest-c-0.38",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
-    name = "hegeltest-c-0.33.3.crate",
-    sha256 = "01ec51d829e2104efa326683fc0d7bf21baa46bee4915d1b200cbbcf2ec1ac2d",
-    strip_prefix = "hegeltest-c-0.33.3",
-    urls = ["https://static.crates.io/crates/hegeltest-c/0.33.3/download"],
+    name = "hegeltest-c-0.38.0.crate",
+    sha256 = "bf4cfc5746a6c1762773f425e187405802d880ca463debb0057e4b3df1099b7d",
+    strip_prefix = "hegeltest-c-0.38.0",
+    urls = ["https://static.crates.io/crates/hegeltest-c/0.38.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-c-0.33",
-    srcs = [":hegeltest-c-0.33.3.crate"],
+    name = "hegeltest-c-0.38",
+    srcs = [":hegeltest-c-0.38.0.crate"],
     crate = "hegel_c",
-    crate_root = "hegeltest-c-0.33.3.crate/src/lib.rs",
+    crate_root = "hegeltest-c-0.38.0.crate/src/lib.rs",
     dlopen_enable = True,
     edition = "2024",
     env = {
-        "CARGO_PKG_VERSION": "0.33.3",
+        "CARGO_PKG_VERSION": "0.38.0",
     },
+    features = [
+        "default",
+        "std",
+    ],
+    linkable_alias = "hegeltest-c",
     platform = {
         "linux-arm64": dict(
             deps = [":rustix-1"],
@@ -9949,19 +9956,27 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.filegroup(
+    name = "hegeltest-c-0.38-headers",
+    srcs = {
+        "hegeltest-c-0.38.0.crate": ":hegeltest-c-0.38.0.crate",
+    },
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
-    name = "hegeltest-macros-0.32.5.crate",
-    sha256 = "7a79d57751ed94624b1fd65cf6c7f090cdc4ed48ebfffd74636b342c5885c07a",
-    strip_prefix = "hegeltest-macros-0.32.5",
-    urls = ["https://static.crates.io/crates/hegeltest-macros/0.32.5/download"],
+    name = "hegeltest-macros-0.42.0.crate",
+    sha256 = "75ee8fff99faee3fdbb5c7dafa28149d383f15b120f90f9acab746134c6e116d",
+    strip_prefix = "hegeltest-macros-0.42.0",
+    urls = ["https://static.crates.io/crates/hegeltest-macros/0.42.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-macros-0.32",
-    srcs = [":hegeltest-macros-0.32.5.crate"],
+    name = "hegeltest-macros-0.42",
+    srcs = [":hegeltest-macros-0.42.0.crate"],
     crate = "hegel_macros",
-    crate_root = "hegeltest-macros-0.32.5.crate/src/lib.rs",
+    crate_root = "hegeltest-macros-0.42.0.crate/src/lib.rs",
     edition = "2024",
     proc_macro = True,
     visibility = [],
@@ -14360,7 +14375,6 @@ third_party_rust.rust_library(
     crate_root = "miniz_oxide-0.8.9.crate/src/lib.rs",
     edition = "2021",
     features = [
-        "default",
         "simd",
         "simd-adler32",
         "with-alloc",

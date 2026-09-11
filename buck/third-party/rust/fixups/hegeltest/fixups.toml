@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# With static-engine, build.rs only emits environment variables used by the
+# disabled dynamic loader. Buck builds the engine through the Rust dependency.
+buildscript.run = false

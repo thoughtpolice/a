@@ -4,3 +4,8 @@
 # src/lib.rs bakes the crate version into hegel_version() via
 # env!("CARGO_PKG_VERSION").
 cargo_env = ["CARGO_PKG_VERSION"]
+
+[export_sources]
+name = "headers"
+srcs = ["include/hegel.h"]
+visibility = ["PUBLIC"]

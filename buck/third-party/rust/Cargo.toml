@@ -64,7 +64,9 @@ gix = { version = "0.80.0", default-features = false, features = [
     "max-performance-safe",
     "zlib-rs",
 ] }
-hegeltest = "0.32.5"
+hegeltest = { version = "0.42.0", features = ["static-engine"] }
+# Must match hegeltest's exact engine dependency.
+hegeltest-c = "=0.38.0"
 hex = "0.4.3"
 hmac = "0.12"
 http = "1.4.2"
