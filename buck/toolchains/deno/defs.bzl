@@ -134,6 +134,10 @@ def _deno_test_impl(ctx: AnalysisContext) -> list[Provider]:
         "test",
     ] + config_args + unstable_features + permissions + ctx.attrs.srcs)
 
+    # Files the tests read at runtime rather than import: naming them keeps the
+    # test's inputs complete without putting them on the command line.
+    cmd.add(cmd_args(hidden = ctx.attrs.data))
+
     # Create lint subtarget - lint test source files
     lint_cmd = cmd_args([
         deno,
@@ -156,6 +160,7 @@ def _deno_test_impl(ctx: AnalysisContext) -> list[Provider]:
         ExternalRunnerTestInfo(
             type = "custom",
             command = [cmd],
+            env = {"DENO_NO_UPDATE_CHECK": "1"} | ctx.attrs.env,
         ),
     ]
 
@@ -164,6 +169,10 @@ _deno_test = rule(
     attrs = {
         "srcs": attrs.list(attrs.source()),
         "config": attrs.option(attrs.source(), default = None),
+        # A `$(location ...)` value makes that artifact an input of the test,
+        # so a test can be handed a built file through the environment.
+        "env": attrs.dict(attrs.string(), attrs.arg(), default = {}),
+        "data": attrs.list(attrs.source(allow_directory = True), default = []),
         "unstable_features": attrs.list(attrs.string(), default = []),
         "permissions": attrs.list(attrs.string(), default = []),
         "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
@@ -229,6 +238,10 @@ def _deno_run_impl(ctx: AnalysisContext) -> list[Provider]:
     else:
         cmd.add(ctx.attrs.package_id)
 
+    # The modules the entry point reaches: they are inputs of the run even
+    # though only the entry point is named on the command line.
+    cmd.add(cmd_args(hidden = ctx.attrs.srcs))
+
     # Create lint subtarget only if src is provided
     sub_targets = {}
     if ctx.attrs.src:
@@ -236,10 +249,11 @@ def _deno_run_impl(ctx: AnalysisContext) -> list[Provider]:
         if ctx.attrs.config:
             config_args = ["--config", ctx.attrs.config]
 
+        files = [ctx.attrs.src] + ctx.attrs.srcs
         lint_cmd = cmd_args([
             deno,
             "lint",
-        ] + config_args + [ctx.attrs.src])
+        ] + config_args + files)
 
         sub_targets["lint"] = [
             DefaultInfo(),
@@ -248,6 +262,23 @@ def _deno_run_impl(ctx: AnalysisContext) -> list[Provider]:
                 command = [lint_cmd],
             ),
         ]
+
+        # ``deno run`` never type-checks, so without this the entry point and
+        # everything below it would ship unchecked.
+        if ctx.attrs.check:
+            check_cmd = cmd_args([
+                deno,
+                "check",
+            ] + config_args + files)
+
+            sub_targets["check"] = [
+                DefaultInfo(),
+                ExternalRunnerTestInfo(
+                    type = "custom",
+                    command = [check_cmd],
+                    env = {"DENO_NO_UPDATE_CHECK": "1"},
+                ),
+            ]
 
     # Create RunInfo
     return [
@@ -259,7 +290,9 @@ _deno_run = rule(
     impl = _deno_run_impl,
     attrs = {
         "src": attrs.option(attrs.source(), default = None),
+        "srcs": attrs.list(attrs.source(), default = []),
         "package_id": attrs.option(attrs.string(), default = None),
+        "check": attrs.bool(default = False),
         "permissions": attrs.list(attrs.string(), default = []),
         "unstable_features": attrs.list(attrs.string(), default = []),
         "config": attrs.option(attrs.source(), default = None),
@@ -292,6 +325,10 @@ def deno_run(name, src = None, package_id = None, **kwargs):
         lint_test = ":{}[lint]".format(name)
         if lint_test not in tests:
             tests = tests + [lint_test]
+        if kwargs.get("check"):
+            check_test = ":{}[check]".format(name)
+            if check_test not in tests:
+                tests = tests + [check_test]
 
     # Build kwargs for the rule, only including non-None values
     rule_kwargs = {
@@ -415,13 +452,55 @@ def deno_bundle(**kwargs):
         **kwargs
     )
 
+def _deno_fmt_check_impl(ctx: AnalysisContext) -> list[Provider]:
+    deno = ctx.attrs._deno_toolchain[DenoToolchain].deno
+
+    config_args = []
+    if ctx.attrs.config:
+        config_args = ["--config", ctx.attrs.config]
+
+    cmd = cmd_args([
+        deno,
+        "fmt",
+        "--check",
+    ] + config_args + ctx.attrs.srcs)
+
+    return [
+        DefaultInfo(),
+        RunInfo(args = cmd),
+        ExternalRunnerTestInfo(
+            type = "custom",
+            command = [cmd],
+            env = {"DENO_NO_UPDATE_CHECK": "1"},
+        ),
+    ]
+
+_deno_fmt_check = rule(
+    impl = _deno_fmt_check_impl,
+    attrs = {
+        "srcs": attrs.list(attrs.source()),
+        "config": attrs.option(attrs.source(), default = None),
+        "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
+    },
+)
+
+def deno_fmt_check(**kwargs):
+    """
+    Fail when ``deno fmt`` would rewrite one of ``srcs``. The repository's own
+    formatter does not know TypeScript, so a package that wants its sources
+    kept formatted declares this test and runs ``deno fmt`` by hand.
+    """
+    _deno_fmt_check(**kwargs)
+
 deno = struct(
     binary = deno_binary,
     test = deno_test,
     run = deno_run,
     bundle = deno_bundle,
+    fmt_check = deno_fmt_check,
     # Also expose raw rules if needed
     raw_binary = _deno_binary,
     raw_test = _deno_test,
     raw_bundle = _deno_bundle,
+    raw_fmt_check = _deno_fmt_check,
 )
