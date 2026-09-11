@@ -122,6 +122,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
     erlang_style = ("%% SPDX-FileCopyrightText: © ", "%% SPDX-License-Identifier: ")
     html_style = ("<!-- SPDX-FileCopyrightText: © ", "<!-- SPDX-License-Identifier: ")
     llvm_style = ("; SPDX-FileCopyrightText: © ", "; SPDX-License-Identifier: ")
+    lua_style = ("-- SPDX-FileCopyrightText: © ", "-- SPDX-License-Identifier: ")
 
     # lit-style test files use the comment syntax of whatever language the
     # tool under test reads, so they may carry the header in any of these.
@@ -159,6 +160,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".zuo": [lisp_style],
         ".sv": [cxx_style],
         ".erl": [erlang_style],
+        ".luau": [lua_style],
         ".test": lit_styles,
         ".check": lit_styles,
     }
