@@ -200,6 +200,12 @@ depot.command(
     visibility = ["PUBLIC"],
 )
 
+depot.alias(
+    name = "quake2",
+    actual = "//aseipp/wlink/demo/quake2:quake2",
+    visibility = ["PUBLIC"],
+)
+
 depot.command_test(
     name = "test-doom-e2e",
     cmd = [
