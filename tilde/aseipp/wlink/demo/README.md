@@ -53,6 +53,9 @@ Music (PureDOOM emits MIDI messages) and networking are not enabled. Configurati
 save directory in the terminal and in memory for a headless session; the IWAD
 is read-only. Existing engine limits still apply to maps and saves.
 
+[Quake II](quake2/README.md) runs on the same SDK from the same runner:
+`buck2 run tilde//aseipp/wlink/demo:quake2`.
+
 ## Play in the browser
 
 The same linked application also runs in a browser, against a host written in
@@ -68,7 +71,7 @@ is a plain directory: `index.html`, `console.js` (the host), `worklet.js` (the
 audio thread), `linked.wasm`, the application's assets at the virtual paths the
 guest opens them by, and `manifest.json` describing the rest. `:game-web`
 (the rectangle demo, no assets) and `:sdk-contract-web` are packaged the same
-way.
+way, and [Quake II](quake2/README.md) has `:quake2-web`.
 
 | Query parameter | Effect |
 | --- | --- |
