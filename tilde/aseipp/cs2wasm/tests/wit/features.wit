@@ -1,0 +1,162 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+/// Everything the gameplayc bindings can express, and a few things they
+/// cannot, so the generator's report is exercised too.
+package test:features@1.0.0;
+
+interface shapes {
+    /// A packed colour.
+    record color {
+        r: u8,
+        g: u8,
+        b: u8,
+        a: u8,
+    }
+
+    record rect {
+        x: s32,
+        y: s32,
+        w: u32,
+        h: u32,
+    }
+
+    /// A record inside a record flattens field by field.
+    record sprite {
+        bounds: rect,
+        tint: color,
+        visible: bool,
+    }
+
+    enum shape-kind {
+        circle,
+        square,
+        %list,
+    }
+
+    flags style {
+        filled,
+        outlined,
+        dashed,
+    }
+
+    /// A flag called `none` takes the name of the empty set.
+    flags mode {
+        none,
+        fast,
+    }
+
+    record tagged {
+        kind: shape-kind,
+        visible: bool,
+    }
+
+    /// An optional record as a field lowers like an optional parameter.
+    record window {
+        frame: rect,
+        tag: option<tagged>,
+    }
+
+    fill: func(bounds: rect, tint: color) -> u32;
+    blit: func(sprite: sprite, scale: f32) -> f64;
+    set-clip: func(bounds: option<rect>);
+    kind-of: func(sides: u32) -> shape-kind;
+    style-of: func(kind: shape-kind) -> style;
+    wide: func(a: s64, b: u64, c: s8, d: u16, e: char) -> s64;
+    /// Each option lowers on its own.
+    set-clips: func(first: option<rect>, second: option<rect>) -> u32;
+    show: func(window: window, overlay: option<tagged>) -> u32;
+    mode-of: func(mode: mode) -> mode;
+    /// A string cannot cross into a module without memory.
+    label: func(bounds: rect, text: string);
+    /// Nor can a record come back.
+    measure: func(sides: u32) -> rect;
+}
+
+interface handles {
+    use shapes.{rect};
+
+    /// A host object addressed by handle.
+    resource canvas {
+        constructor(width: u32, height: u32);
+        clear: func(value: u8);
+        area: func() -> u64;
+        merge: static func(first: borrow<canvas>, second: own<canvas>) -> own<canvas>;
+        take-clip: func(bounds: option<rect>) -> bool;
+    }
+
+    /// A constructor taking one s32, the shape of the handle wrapper's.
+    resource counter {
+        constructor(start: s32);
+        get: func() -> s32;
+    }
+
+    /// A constructor with an owned argument and an option.
+    resource layer {
+        constructor(base: own<canvas>, clip: option<rect>);
+    }
+
+    open: func(id: u32) -> own<canvas>;
+    dispose-all: func();
+}
+
+/// Handles of a resource another interface defines.
+interface gifts {
+    use handles.{canvas};
+
+    give: func(n: u32) -> own<canvas>;
+    swap: func(old: own<canvas>) -> own<canvas>;
+}
+
+/// Shares its name with test:other/util.
+interface util {
+    ping: func(x: u32) -> u32;
+}
+
+interface callbacks {
+    use shapes.{rect, color, shape-kind, window};
+    use handles.{canvas};
+
+    record hit {
+        where: rect,
+        what: shape-kind,
+    }
+
+    on-hit: func(hit: hit, tint: color) -> bool;
+    on-tick: func(frame: u64) -> s32;
+    on-window: func(window: window, extra: option<rect>) -> s32;
+    /// Handles cross exports as their i32 representation.
+    on-canvas: func(seen: borrow<canvas>, kept: own<canvas>) -> own<canvas>;
+}
+
+interface text-callbacks {
+    on-text: func(text: string);
+}
+
+/// Every export is implementable, so a module can be componentized against
+/// this world; two of its imports are not, and appear in the report.
+world test {
+    import shapes;
+    import handles;
+    import gifts;
+    import util;
+    import test:other/util;
+    import log: func(level: u32, code: s32);
+
+    export callbacks;
+    export run: func(steps: u32) -> u32;
+    export finish: func() -> s64;
+}
+
+/// Exports a module cannot implement without memory: `--strict` refuses it.
+world partial {
+    include test;
+    export text-callbacks;
+    export describe: func() -> string;
+}
+
+package test:other {
+    interface util {
+        ping: func(x: u32) -> u32;
+    }
+}

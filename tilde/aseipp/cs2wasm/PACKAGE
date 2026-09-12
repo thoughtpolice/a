@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    copyright = ["© 2026 Austin Seipp"],
+    license = "Apache-2.0",
+    description = "gameplayc: a C# to WebAssembly GC compiler, with witgen for WIT worlds; the compiler is published with .NET Native AOT",
+    version = "0.2.0",
+)

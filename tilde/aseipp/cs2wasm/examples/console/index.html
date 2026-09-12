@@ -1,0 +1,39 @@
+<!doctype html>
+<!-- SPDX-FileCopyrightText: © 2026 Austin Seipp -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Console Breakout</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #101020;
+        color: #d0d0e0;
+        font: 14px/1.4 system-ui, sans-serif;
+      }
+      main {
+        display: grid;
+        gap: 12px;
+        justify-items: center;
+      }
+      canvas {
+        width: min(96vw, 960px);
+        aspect-ratio: 4 / 3;
+        image-rendering: pixelated;
+        background: #000;
+        border: 1px solid #303050;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <canvas id="screen" width="960" height="720"></canvas>
+      <p id="status">Loading the module…</p>
+    </main>
+    <script type="module" src="app.mjs"></script>
+  </body>
+</html>
