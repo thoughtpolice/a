@@ -1,0 +1,39 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+/// An exported resource between two modules: `bank` keeps the accounts,
+/// which `teller` makes, lends, gives back and drops through `books`.
+package test:ledger@1.0.0;
+
+interface books {
+    /// An account `bank` keeps.
+    resource account {
+        /// An account of the owner's, holding nothing.
+        constructor(owner: string);
+        /// Adds to the balance: the new balance.
+        deposit: func(amount: u32) -> u32;
+        /// The balance, once `bank`'s task has yielded.
+        audit: async func() -> u32;
+        /// The owner and the balance.
+        statement: func() -> string;
+        /// Moves the other account's balance here; it is given up.
+        absorb: func(other: account);
+        /// An account opened with an amount in it.
+        open: static func(owner: string, amount: u32) -> account;
+    }
+
+    /// The balances of two accounts.
+    combined: func(a: borrow<account>, b: borrow<account>) -> u32;
+    /// The owners of the accounts whose last handles were dropped, in order.
+    closed: func() -> list<string>;
+}
+
+world bank {
+    export books;
+}
+
+world teller {
+    import books;
+    /// Goes through the accounts' members: what each told.
+    export run: async func() -> string;
+}

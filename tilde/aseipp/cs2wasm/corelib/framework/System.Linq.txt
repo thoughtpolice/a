@@ -1,0 +1,262 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# Every member the SDK's System.Linq references in other assemblies, by
+# signature (see src/Gameplay.Compiler/Frontend.Allowlist.cs). The compiler
+# refuses a System.Linq that references anything else. After an SDK
+# update, review what it reaches anew and regenerate this list with
+# GAMEPLAYC_DUMP_REFERENCES=DIR gameplayc ...
+System.AppContext::TryGetSwitch(String, Boolean&):Boolean
+System.ArgumentException::.ctor(String):Void
+System.ArgumentNullException::.ctor(String):Void
+System.ArgumentNullException::ThrowIfNull(Object, String):Void
+System.ArgumentOutOfRangeException::.ctor(String):Void
+System.ArgumentOutOfRangeException::ThrowIfGreaterThan<1>(!!0, !!0, String):Void
+System.ArgumentOutOfRangeException::ThrowIfLessThan<1>(!!0, !!0, String):Void
+System.ArgumentOutOfRangeException::ThrowIfNegative<1>(!!0, String):Void
+System.Array::Clear(System.Array):Void
+System.Array::Clear(System.Array, Int32, Int32):Void
+System.Array::Copy(System.Array, Int32, System.Array, Int32, Int32):Void
+System.Array::Empty<1>():!!0[]
+System.Array::Fill<1>(!!0[], !!0):Void
+System.Array::IndexOf<1>(!!0[], !!0, Int32, Int32):Int32
+System.Array::Resize<1>(!!0[]&, Int32):Void
+System.Array::Reverse<1>(!!0[]):Void
+System.Array::get_MaxLength():Int32
+System.Buffers.ArrayPool`1::Rent(Int32):!0[]
+System.Buffers.ArrayPool`1::Return(!0[], Boolean):Void
+System.Buffers.ArrayPool`1::get_Shared():System.Buffers.ArrayPool`1<!0>
+System.CLSCompliantAttribute::.ctor(Boolean):Void
+System.Collections.Generic.Comparer`1::Compare(!0, !0):Int32
+System.Collections.Generic.Comparer`1::get_Default():System.Collections.Generic.Comparer`1<!0>
+System.Collections.Generic.Dictionary`2+Enumerator::MoveNext():Boolean
+System.Collections.Generic.Dictionary`2+Enumerator::get_Current():System.Collections.Generic.KeyValuePair`2<!0, !1>
+System.Collections.Generic.Dictionary`2::.ctor(Int32, System.Collections.Generic.IEqualityComparer`1<!0>):Void
+System.Collections.Generic.Dictionary`2::.ctor(System.Collections.Generic.IEnumerable`1<System.Collections.Generic.KeyValuePair`2<!0, !1>>, System.Collections.Generic.IEqualityComparer`1<!0>):Void
+System.Collections.Generic.Dictionary`2::.ctor(System.Collections.Generic.IEqualityComparer`1<!0>):Void
+System.Collections.Generic.Dictionary`2::Add(!0, !1):Void
+System.Collections.Generic.Dictionary`2::GetEnumerator():System.Collections.Generic.Dictionary`2+Enumerator<!0, !1>
+System.Collections.Generic.EqualityComparer`1::Equals(!0, !0):Boolean
+System.Collections.Generic.EqualityComparer`1::get_Default():System.Collections.Generic.EqualityComparer`1<!0>
+System.Collections.Generic.HashSet`1::.ctor():Void
+System.Collections.Generic.HashSet`1::.ctor(Int32, System.Collections.Generic.IEqualityComparer`1<!0>):Void
+System.Collections.Generic.HashSet`1::.ctor(System.Collections.Generic.IEnumerable`1<!0>, System.Collections.Generic.IEqualityComparer`1<!0>):Void
+System.Collections.Generic.HashSet`1::.ctor(System.Collections.Generic.IEqualityComparer`1<!0>):Void
+System.Collections.Generic.HashSet`1::Add(!0):Boolean
+System.Collections.Generic.HashSet`1::Contains(!0):Boolean
+System.Collections.Generic.HashSet`1::Remove(!0):Boolean
+System.Collections.Generic.HashSet`1::UnionWith(System.Collections.Generic.IEnumerable`1<!0>):Void
+System.Collections.Generic.HashSet`1::get_Count():Int32
+System.Collections.Generic.ICollection`1::Add(!0):Void
+System.Collections.Generic.ICollection`1::Clear():Void
+System.Collections.Generic.ICollection`1::Contains(!0):Boolean
+System.Collections.Generic.ICollection`1::CopyTo(!0[], Int32):Void
+System.Collections.Generic.ICollection`1::Remove(!0):Boolean
+System.Collections.Generic.ICollection`1::get_Count():Int32
+System.Collections.Generic.ICollection`1::get_IsReadOnly():Boolean
+System.Collections.Generic.IComparer`1::Compare(!0, !0):Int32
+System.Collections.Generic.IEnumerable`1::GetEnumerator():System.Collections.Generic.IEnumerator`1<!0>
+System.Collections.Generic.IEnumerator`1::get_Current():!0
+System.Collections.Generic.IEqualityComparer`1::Equals(!0, !0):Boolean
+System.Collections.Generic.IEqualityComparer`1::GetHashCode(!0):Int32
+System.Collections.Generic.IList`1::IndexOf(!0):Int32
+System.Collections.Generic.IList`1::Insert(Int32, !0):Void
+System.Collections.Generic.IList`1::RemoveAt(Int32):Void
+System.Collections.Generic.IList`1::get_Item(Int32):!0
+System.Collections.Generic.IList`1::set_Item(Int32, !0):Void
+System.Collections.Generic.List`1+Enumerator::MoveNext():Boolean
+System.Collections.Generic.List`1+Enumerator::get_Current():!0
+System.Collections.Generic.List`1::.ctor():Void
+System.Collections.Generic.List`1::.ctor(Int32):Void
+System.Collections.Generic.List`1::.ctor(System.Collections.Generic.IEnumerable`1<!0>):Void
+System.Collections.Generic.List`1::Add(!0):Void
+System.Collections.Generic.List`1::AddRange(System.Collections.Generic.IEnumerable`1<!0>):Void
+System.Collections.Generic.List`1::GetEnumerator():System.Collections.Generic.List`1+Enumerator<!0>
+System.Collections.Generic.List`1::Reverse():Void
+System.Collections.Generic.List`1::ToArray():!0[]
+System.Collections.Generic.List`1::get_Count():Int32
+System.Collections.Generic.List`1::get_Item(Int32):!0
+System.Collections.Generic.List`1::set_Item(Int32, !0):Void
+System.Collections.Generic.Queue`1::.ctor():Void
+System.Collections.Generic.Queue`1::Dequeue():!0
+System.Collections.Generic.Queue`1::Enqueue(!0):Void
+System.Collections.Generic.Queue`1::get_Count():Int32
+System.Collections.ICollection::get_Count():Int32
+System.Collections.IEnumerable::GetEnumerator():System.Collections.IEnumerator
+System.Collections.IEnumerator::MoveNext():Boolean
+System.Collections.IEnumerator::Reset():Void
+System.Collections.IEnumerator::get_Current():Object
+System.Comparison`1::.ctor(Object, IntPtr):Void
+System.Decimal::op_GreaterThan(System.Decimal, System.Decimal):Boolean
+System.Decimal::op_LessThan(System.Decimal, System.Decimal):Boolean
+System.Diagnostics.CodeAnalysis.DoesNotReturnAttribute::.ctor():Void
+System.Diagnostics.CodeAnalysis.FeatureSwitchDefinitionAttribute::.ctor(String):Void
+System.Diagnostics.CodeAnalysis.MaybeNullWhenAttribute::.ctor(Boolean):Void
+System.Diagnostics.DebuggableAttribute::.ctor(System.Diagnostics.DebuggableAttribute+DebuggingModes):Void
+System.Diagnostics.DebuggerBrowsableAttribute::.ctor(System.Diagnostics.DebuggerBrowsableState):Void
+System.Diagnostics.DebuggerDisplayAttribute::.ctor(String):Void
+System.Diagnostics.DebuggerHiddenAttribute::.ctor():Void
+System.Diagnostics.DebuggerTypeProxyAttribute::.ctor(System.Type):Void
+System.Environment::get_CurrentManagedThreadId():Int32
+System.Exception::.ctor():Void
+System.Func`2::.ctor(Object, IntPtr):Void
+System.Func`2::Invoke(!0):!1
+System.Func`3::.ctor(Object, IntPtr):Void
+System.Func`3::Invoke(!0, !1):!2
+System.GC::AllocateUninitializedArray<1>(Int32, Boolean):!!0[]
+System.IDisposable::Dispose():Void
+System.Index::get_IsFromEnd():Boolean
+System.Index::get_Value():Int32
+System.Int128::op_Implicit(Int64):System.Int128
+System.Int128::op_Implicit(IntPtr):System.Int128
+System.Int32::CreateTruncating<1>(!!0):Int32
+System.IntPtr::get_MaxValue():IntPtr
+System.IntPtr::get_Size():Int32
+System.InvalidOperationException::.ctor(String):Void
+System.Math::Max(Int32, Int32):Int32
+System.Math::Max(Int64, Int64):Int64
+System.Math::Min(Int32, Int32):Int32
+System.Math::Min(Int64, Int64):Int64
+System.Math::Min(UInt32, UInt32):UInt32
+System.Math::Sqrt(Double):Double
+System.MemoryExtensions::AsSpan<1>(!!0[], Int32):System.Span`1<!!0>
+System.MemoryExtensions::AsSpan<1>(!!0[], Int32, Int32):System.Span`1<!!0>
+System.MemoryExtensions::Contains<1>(System.ReadOnlySpan`1<!!0>, !!0, System.Collections.Generic.IEqualityComparer`1<!!0>):Boolean
+System.MemoryExtensions::Count<1>(System.ReadOnlySpan`1<!!0>, !!0, System.Collections.Generic.IEqualityComparer`1<!!0>):Int32
+System.MemoryExtensions::IndexOf<1>(System.ReadOnlySpan`1<!!0>, !!0, System.Collections.Generic.IEqualityComparer`1<!!0>):Int32
+System.MemoryExtensions::Max<1>(System.ReadOnlySpan`1<!!0>, System.Collections.Generic.IComparer`1<!!0>):!!0
+System.MemoryExtensions::Min<1>(System.ReadOnlySpan`1<!!0>, System.Collections.Generic.IComparer`1<!!0>):!!0
+System.MemoryExtensions::SequenceEqual<1>(System.ReadOnlySpan`1<!!0>, System.ReadOnlySpan`1<!!0>, System.Collections.Generic.IEqualityComparer`1<!!0>):Boolean
+System.MemoryExtensions::Sort<1>(System.Span`1<!!0>):Void
+System.MemoryExtensions::Sort<1>(System.Span`1<!!0>, System.Comparison`1<!!0>):Void
+System.NotSupportedException::.ctor():Void
+System.Nullable`1::.ctor(!0):Void
+System.Nullable`1::GetValueOrDefault():!0
+System.Nullable`1::get_HasValue():Boolean
+System.Numerics.IAdditionOperators`3::op_Addition(!0, !1):!2
+System.Numerics.IAdditionOperators`3::op_CheckedAddition(!0, !1):!2
+System.Numerics.IComparisonOperators`3::op_GreaterThan(!0, !1):!2
+System.Numerics.IComparisonOperators`3::op_GreaterThanOrEqual(!0, !1):!2
+System.Numerics.IComparisonOperators`3::op_LessThan(!0, !1):!2
+System.Numerics.IComparisonOperators`3::op_LessThanOrEqual(!0, !1):!2
+System.Numerics.IDivisionOperators`3::op_Division(!0, !1):!2
+System.Numerics.IEqualityOperators`3::op_Equality(!0, !1):!2
+System.Numerics.IEqualityOperators`3::op_Inequality(!0, !1):!2
+System.Numerics.IIncrementOperators`1::op_Increment(!0):!0
+System.Numerics.IMinMaxValue`1::get_MinValue():!0
+System.Numerics.INumberBase`1::CreateChecked<1>(!!0):!0
+System.Numerics.INumberBase`1::CreateTruncating<1>(!!0):!0
+System.Numerics.INumberBase`1::IsNaN(!0):Boolean
+System.Numerics.INumberBase`1::IsPositive(!0):Boolean
+System.Numerics.INumberBase`1::IsZero(!0):Boolean
+System.Numerics.INumberBase`1::get_One():!0
+System.Numerics.INumberBase`1::get_Zero():!0
+System.Numerics.ISubtractionOperators`3::op_Subtraction(!0, !1):!2
+System.Numerics.Vector::Create<1>(System.ReadOnlySpan`1<!!0>):System.Numerics.Vector`1<!!0>
+System.Numerics.Vector::Sum<1>(System.Numerics.Vector`1<!!0>):!!0
+System.Numerics.Vector::Widen(System.Numerics.Vector`1<Int32>, System.Numerics.Vector`1<Int64>&, System.Numerics.Vector`1<Int64>&):Void
+System.Numerics.Vector::get_IsHardwareAccelerated():Boolean
+System.Numerics.Vector`1::.ctor(!0):Void
+System.Numerics.Vector`1::.ctor(System.ReadOnlySpan`1<!0>):Void
+System.Numerics.Vector`1::CopyTo(System.Span`1<!0>):Void
+System.Numerics.Vector`1::get_Count():Int32
+System.Numerics.Vector`1::get_Indices():System.Numerics.Vector`1<!0>
+System.Numerics.Vector`1::get_IsSupported():Boolean
+System.Numerics.Vector`1::get_Item(Int32):!0
+System.Numerics.Vector`1::get_Zero():System.Numerics.Vector`1<!0>
+System.Numerics.Vector`1::op_Addition(System.Numerics.Vector`1<!0>, System.Numerics.Vector`1<!0>):System.Numerics.Vector`1<!0>
+System.Numerics.Vector`1::op_BitwiseAnd(System.Numerics.Vector`1<!0>, System.Numerics.Vector`1<!0>):System.Numerics.Vector`1<!0>
+System.Numerics.Vector`1::op_BitwiseOr(System.Numerics.Vector`1<!0>, System.Numerics.Vector`1<!0>):System.Numerics.Vector`1<!0>
+System.Numerics.Vector`1::op_ExclusiveOr(System.Numerics.Vector`1<!0>, System.Numerics.Vector`1<!0>):System.Numerics.Vector`1<!0>
+System.Numerics.Vector`1::op_Inequality(System.Numerics.Vector`1<!0>, System.Numerics.Vector`1<!0>):Boolean
+System.Object::.ctor():Void
+System.Object::Equals(Object):Boolean
+System.Object::GetType():System.Type
+System.ObsoleteAttribute::.ctor(String, Boolean):Void
+System.OutOfMemoryException::.ctor():Void
+System.OverflowException::.ctor():Void
+System.Random::Next(Int32):Int32
+System.Random::Next(Int32, Int32):Int32
+System.Random::NextDouble():Double
+System.Random::NextInt64(Int64):Int64
+System.Random::Shuffle<1>(!!0[]):Void
+System.Random::Shuffle<1>(System.Span`1<!!0>):Void
+System.Random::get_Shared():System.Random
+System.Range::get_End():System.Index
+System.Range::get_Start():System.Index
+System.ReadOnlySpan`1::.ctor(!0[], Int32, Int32):Void
+System.ReadOnlySpan`1::CopyTo(System.Span`1<!0>):Void
+System.ReadOnlySpan`1::Slice(Int32):System.ReadOnlySpan`1<!0>
+System.ReadOnlySpan`1::Slice(Int32, Int32):System.ReadOnlySpan`1<!0>
+System.ReadOnlySpan`1::ToArray():!0[]
+System.ReadOnlySpan`1::get_IsEmpty():Boolean
+System.ReadOnlySpan`1::get_Item(Int32):!0&
+System.ReadOnlySpan`1::get_Length():Int32
+System.ReadOnlySpan`1::op_Implicit(!0[]):System.ReadOnlySpan`1<!0>
+System.Reflection.AssemblyCompanyAttribute::.ctor(String):Void
+System.Reflection.AssemblyCopyrightAttribute::.ctor(String):Void
+System.Reflection.AssemblyDefaultAliasAttribute::.ctor(String):Void
+System.Reflection.AssemblyDescriptionAttribute::.ctor(String):Void
+System.Reflection.AssemblyFileVersionAttribute::.ctor(String):Void
+System.Reflection.AssemblyInformationalVersionAttribute::.ctor(String):Void
+System.Reflection.AssemblyMetadataAttribute::.ctor(String, String):Void
+System.Reflection.AssemblyProductAttribute::.ctor(String):Void
+System.Reflection.AssemblyTitleAttribute::.ctor(String):Void
+System.Reflection.DefaultMemberAttribute::.ctor(String):Void
+System.Resources.NeutralResourcesLanguageAttribute::.ctor(String):Void
+System.Resources.ResourceManager::.ctor(System.Type):Void
+System.Resources.ResourceManager::GetString(String):String
+System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(Int32):Void
+System.Runtime.CompilerServices.CompilerFeatureRequiredAttribute::.ctor(String):Void
+System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor():Void
+System.Runtime.CompilerServices.ExtensionAttribute::.ctor():Void
+System.Runtime.CompilerServices.InlineArrayAttribute::.ctor(Int32):Void
+System.Runtime.CompilerServices.IsByRefLikeAttribute::.ctor():Void
+System.Runtime.CompilerServices.IsReadOnlyAttribute::.ctor():Void
+System.Runtime.CompilerServices.IteratorStateMachineAttribute::.ctor(System.Type):Void
+System.Runtime.CompilerServices.NullableAttribute::.ctor(Byte):Void
+System.Runtime.CompilerServices.NullableAttribute::.ctor(Byte[]):Void
+System.Runtime.CompilerServices.NullableContextAttribute::.ctor(Byte):Void
+System.Runtime.CompilerServices.NullablePublicOnlyAttribute::.ctor(Boolean):Void
+System.Runtime.CompilerServices.RefSafetyRulesAttribute::.ctor(Int32):Void
+System.Runtime.CompilerServices.RuntimeCompatibilityAttribute::.ctor():Void
+System.Runtime.CompilerServices.RuntimeHelpers::CreateSpan<1>(System.RuntimeFieldHandle):System.ReadOnlySpan`1<!!0>
+System.Runtime.CompilerServices.RuntimeHelpers::IsReferenceOrContainsReferences<1>():Boolean
+System.Runtime.CompilerServices.SkipLocalsInitAttribute::.ctor():Void
+System.Runtime.CompilerServices.TupleElementNamesAttribute::.ctor(String[]):Void
+System.Runtime.CompilerServices.Unsafe::Add<1>(!!0&, Int32):!!0&
+System.Runtime.CompilerServices.Unsafe::As<1>(Object):!!0
+System.Runtime.CompilerServices.Unsafe::As<2>(!!0&):!!1&
+System.Runtime.CompilerServices.Unsafe::AsRef<1>(!!0&):!!0&
+System.Runtime.CompilerServices.Unsafe::BitCast<2>(!!0):!!1
+System.Runtime.InteropServices.CollectionsMarshal::AsSpan<1>(System.Collections.Generic.List`1<!!0>):System.Span`1<!!0>
+System.Runtime.InteropServices.CollectionsMarshal::GetValueRefOrAddDefault<2>(System.Collections.Generic.Dictionary`2<!!0, !!1>, !!0, Boolean&):!!1&
+System.Runtime.InteropServices.CollectionsMarshal::SetCount<1>(System.Collections.Generic.List`1<!!0>, Int32):Void
+System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute::.ctor(System.Runtime.InteropServices.DllImportSearchPath):Void
+System.Runtime.InteropServices.MemoryMarshal::CreateReadOnlySpan<1>(!!0&, Int32):System.ReadOnlySpan`1<!!0>
+System.Runtime.InteropServices.MemoryMarshal::CreateSpan<1>(!!0&, Int32):System.Span`1<!!0>
+System.Runtime.Versioning.TargetFrameworkAttribute::.ctor(String):Void
+System.Span`1::.ctor(!0[], Int32, Int32):Void
+System.Span`1::CopyTo(System.Span`1<!0>):Void
+System.Span`1::Fill(!0):Void
+System.Span`1::Slice(Int32):System.Span`1<!0>
+System.Span`1::Slice(Int32, Int32):System.Span`1<!0>
+System.Span`1::get_Item(Int32):!0&
+System.Span`1::get_Length():Int32
+System.Span`1::op_Implicit(!0[]):System.Span`1<!0>
+System.Span`1::op_Implicit(System.Span`1<!0>):System.ReadOnlySpan`1<!0>
+System.String::Empty:String
+System.StringComparer::get_CurrentCulture():System.StringComparer
+System.Type::GetEnumUnderlyingType():System.Type
+System.Type::GetTypeFromHandle(System.RuntimeTypeHandle):System.Type
+System.Type::get_IsEnum():Boolean
+System.Type::get_IsValueType():Boolean
+System.Type::op_Equality(System.Type, System.Type):Boolean
+System.UInt128::op_Implicit(UInt64):System.UInt128
+System.UInt128::op_Implicit(UIntPtr):System.UInt128
+System.UInt32::CreateTruncating<1>(!!0):UInt32
+System.UIntPtr::get_MaxValue():UIntPtr
+System.ValueTuple`2::.ctor(!0, !1):Void
+System.ValueTuple`2::Item1:!0
+System.ValueTuple`2::Item2:!1
+System.ValueTuple`3::.ctor(!0, !1, !2):Void

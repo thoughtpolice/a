@@ -1,0 +1,207 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# dotnet/runtime's Matrix3x2.cs, as the gameplay CoreLib compiles it (corelib/Numerics.cs):
+# its Impl's rows are properties over the matrix's own fields here, which C#
+# only lets code set on a value already assigned, so each Impl local starts
+# as default. coresurface applies it (--patch) before compiling the file.
+--- a/Matrix3x2.cs
++++ b/Matrix3x2.cs
+@@ -373,7 +373,7 @@
+             ref readonly Impl left = ref value1.AsROImpl();
+             ref readonly Impl right = ref value2.AsROImpl();
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = left.X + right.X;
+             result.Y = left.Y + right.Y;
+@@ -423,7 +423,7 @@
+             ref readonly Impl left = ref value1.AsROImpl();
+             ref readonly Impl right = ref value2.AsROImpl();
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Transform2x2(left.X.AsVector128Unsafe(), in right).AsVector2();
+             result.Y = Transform2x2(left.Y.AsVector128Unsafe(), in right).AsVector2();
+@@ -449,7 +449,7 @@
+         {
+             ref readonly Impl left = ref value1.AsROImpl();
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = left.X * value2;
+             result.Y = left.Y * value2;
+@@ -469,7 +469,7 @@
+             ref readonly Impl left = ref value1.AsROImpl();
+             ref readonly Impl right = ref value2.AsROImpl();
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = left.X - right.X;
+             result.Y = left.Y - right.Y;
+@@ -487,7 +487,7 @@
+         {
+             ref readonly Impl impl = ref value.AsROImpl();
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = -impl.X;
+             result.Y = -impl.Y;
+@@ -511,7 +511,7 @@
+         {
+             Vector2 vector = Vector2.Create(value);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = vector;
+             result.Y = vector;
+@@ -526,7 +526,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix3x2 Create(Vector2 value)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = value;
+             result.Y = value;
+@@ -543,7 +543,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix3x2 Create(Vector2 x, Vector2 y, Vector2 z)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = x;
+             result.Y = y;
+@@ -565,7 +565,7 @@
+                                        float m21, float m22,
+                                        float m31, float m32)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.Create(m11, m12);
+             result.Y = Vector2.Create(m21, m22);
+@@ -619,7 +619,7 @@
+             // [ -s  c ]
+             // [  0  0 ]
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.Create(c, s);
+             result.Y = Vector2.Create(-s, c);
+@@ -676,7 +676,7 @@
+             // [ -s  c ]
+             // [  x  y ]
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.Create(c, s);
+             result.Y = Vector2.Create(-s, c);
+@@ -691,7 +691,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix3x2 CreateScale(Vector2 scales)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.CreateScalar(scales.X);
+             result.Y = Vector2.Create(0, scales.Y);
+@@ -707,7 +707,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix3x2 CreateScale(float xScale, float yScale)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.CreateScalar(xScale);
+             result.Y = Vector2.Create(0, yScale);
+@@ -724,7 +724,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix3x2 CreateScale(float xScale, float yScale, Vector2 centerPoint)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.CreateScalar(xScale);
+             result.Y = Vector2.Create(0, yScale);
+@@ -740,7 +740,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix3x2 CreateScale(Vector2 scales, Vector2 centerPoint)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.CreateScalar(scales.X);
+             result.Y = Vector2.Create(0, scales.Y);
+@@ -755,7 +755,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix3x2 CreateScale(float scale)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.CreateScalar(scale);
+             result.Y = Vector2.Create(0, scale);
+@@ -771,7 +771,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix3x2 CreateScale(float scale, Vector2 centerPoint)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.CreateScalar(scale);
+             result.Y = Vector2.Create(0, scale);
+@@ -787,7 +787,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix3x2 CreateSkew(float radiansX, float radiansY)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.Create(1, float.Tan(radiansY));
+             result.Y = Vector2.Create(float.Tan(radiansX), 1);
+@@ -810,7 +810,7 @@
+             float tx = -centerPoint.Y * xTan;
+             float ty = -centerPoint.X * yTan;
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.Create(1, yTan);
+             result.Y = Vector2.Create(xTan, 1);
+@@ -825,7 +825,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix3x2 CreateTranslation(Vector2 position)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.UnitX;
+             result.Y = Vector2.UnitY;
+@@ -841,7 +841,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix3x2 CreateTranslation(float xPosition, float yPosition)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.UnitX;
+             result.Y = Vector2.UnitY;
+@@ -901,7 +901,7 @@
+             ref readonly Impl left = ref matrix1.AsROImpl();
+             ref readonly Impl right = ref matrix2.AsROImpl();
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector2.Lerp(left.X, right.X, amount);
+             result.Y = Vector2.Lerp(left.Y, right.Y, amount);

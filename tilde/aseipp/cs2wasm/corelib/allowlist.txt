@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# What gameplay code may call (docs/IMPORTER.md, "API control"): rules over
+# the members the user's assembly references, by their type's metadata name
+# (a nested type's with '+') and their name, `Type::Member`, where `*`
+# matches any run of characters. The first rule that matches a reference
+# decides it; one no rule matches is refused, at the instruction that makes
+# it (src/Gameplay.Compiler/Frontend.Allowlist.cs). What exists at all is
+# the gameplay CoreLib's (corelib/surface.txt) and the imported framework
+# assemblies'; these rules keep gameplay code to part of it.
+
+# What C# emits for its own lowering: inline arrays and spans of constants,
+# collection expressions, iterators, runtime-async awaits.
+allow System.Runtime.CompilerServices.Unsafe::Add
+allow System.Runtime.CompilerServices.Unsafe::As
+allow System.Runtime.CompilerServices.Unsafe::AsRef
+allow System.Runtime.InteropServices.CollectionsMarshal::AsSpan
+allow System.Runtime.InteropServices.CollectionsMarshal::SetCount
+allow System.Runtime.InteropServices.MemoryMarshal::CreateSpan
+allow System.Runtime.InteropServices.MemoryMarshal::CreateReadOnlySpan
+allow System.Environment::get_CurrentManagedThreadId
+allow System.Runtime.CompilerServices.AsyncHelpers::Await
+allow System.Runtime.CompilerServices.AsyncHelpers::AwaitAwaiter
+allow System.Runtime.CompilerServices.AsyncHelpers::UnsafeAwaitAwaiter
+
+# Unsafe memory, the process and its hosting, reflection beyond a type's
+# name, files: not gameplay code's.
+deny System.Runtime.CompilerServices.Unsafe::*
+deny System.Runtime.InteropServices.*
+deny System.Environment::*
+deny System.AppContext::*
+deny System.GC::*
+deny System.IO.*
+allow System.Reflection.MemberInfo::get_Name
+allow System.Reflection.*Attribute::*
+deny System.Reflection.*
+deny System.Buffers.ArrayPool`1::*
+
+# Threads, the thread pool and work run elsewhere: a module has one
+# thread, and its frame loop (Gameplay.Frames) runs what async code posts
+# and what tasks queue to the default TaskScheduler (corelib/TaskScheduler.cs).
+deny System.Threading.Thread::*
+deny System.Threading.ThreadPool::*
+deny System.Threading.Timer::*
+deny System.Threading.Tasks.Parallel*
+
+# The rest of the framework's API the CoreLib and the imported assemblies
+# have, and the gameplay SDK's.
+allow System.*
+allow Gameplay.*
+deny *

@@ -1,0 +1,198 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# The framework types the gameplay CoreLib declares (see
+# corelib/generator/Program.cs): what gameplay code compiled against .NET's
+# reference assemblies can name. `namespace N` keeps N's top-level types,
+# `type N.T` one type, `exclude N.T` leaves one out; nested types follow
+# their containing type. A type CoreLib's own sources define (runtime/*.cs,
+# corelib/*.cs) is theirs, whatever this says. A kept type's members that
+# name a type left out are dropped with it.
+
+namespace System
+# The process, the operating system and hosting.
+exclude System.AppContext
+exclude System.AppDomain
+exclude System.AppDomainSetup
+exclude System.AppDomainUnloadedException
+exclude System.ApplicationId
+exclude System.AssemblyLoadEventArgs
+exclude System.AssemblyLoadEventHandler
+exclude System.CannotUnloadAppDomainException
+exclude System.ContextBoundObject
+exclude System.ContextMarshalException
+exclude System.ContextStaticAttribute
+exclude System.EnvironmentVariableTarget
+exclude System.LoaderOptimization
+exclude System.LoaderOptimizationAttribute
+exclude System.MTAThreadAttribute
+exclude System.OperatingSystem
+exclude System.PlatformID
+exclude System.ResolveEventArgs
+exclude System.ResolveEventHandler
+exclude System.STAThreadAttribute
+exclude System.UnhandledExceptionEventArgs
+exclude System.UnhandledExceptionEventHandler
+# The garbage collector and weak references.
+exclude System.GC
+exclude System.GCCollectionMode
+exclude System.GCGenerationInfo
+exclude System.GCKind
+exclude System.GCMemoryInfo
+exclude System.GCNotificationStatus
+exclude System.WeakReference
+exclude System.WeakReference`1
+# Unmanaged and varargs plumbing, reflection handles.
+exclude System.ArgIterator
+exclude System.ModuleHandle
+exclude System.RuntimeArgumentHandle
+exclude System.TypedReference
+exclude System.DBNull
+exclude System.IAsyncResult
+exclude System.AsyncCallback
+# Time zones and ambient time (DateTime and TimeSpan are CoreLib's own).
+exclude System.InvalidTimeZoneException
+exclude System.TimeProvider
+exclude System.TimeZone
+exclude System.TimeZoneInfo
+exclude System.TimeZoneNotFoundException
+# Threads.
+exclude System.Progress`1
+# URIs.
+exclude System.FileStyleUriParser
+exclude System.FtpStyleUriParser
+exclude System.GenericUriParser
+exclude System.GenericUriParserOptions
+exclude System.GopherStyleUriParser
+exclude System.HttpStyleUriParser
+exclude System.LdapStyleUriParser
+exclude System.NetPipeStyleUriParser
+exclude System.NetTcpStyleUriParser
+exclude System.NewsStyleUriParser
+exclude System.Uri
+exclude System.UriBuilder
+exclude System.UriComponents
+exclude System.UriCreationOptions
+exclude System.UriFormat
+exclude System.UriFormatException
+exclude System.UriHostNameType
+exclude System.UriKind
+exclude System.UriParser
+exclude System.UriPartial
+
+namespace System.Collections
+namespace System.Collections.Generic
+namespace System.Collections.ObjectModel
+namespace System.ComponentModel
+namespace System.Diagnostics
+namespace System.Diagnostics.CodeAnalysis
+# System.Linq is the SDK's; the CoreLib's Enumerable has only the decimal
+# aggregates System.Linq's calls over decimal run (runtime/Decimal.cs).
+type System.Linq.Enumerable
+
+namespace System.Globalization
+exclude System.Globalization.ChineseLunisolarCalendar
+exclude System.Globalization.DaylightTime
+exclude System.Globalization.EastAsianLunisolarCalendar
+exclude System.Globalization.HebrewCalendar
+exclude System.Globalization.HijriCalendar
+exclude System.Globalization.IdnMapping
+exclude System.Globalization.JapaneseCalendar
+exclude System.Globalization.JapaneseLunisolarCalendar
+exclude System.Globalization.JulianCalendar
+exclude System.Globalization.KoreanCalendar
+exclude System.Globalization.KoreanLunisolarCalendar
+exclude System.Globalization.PersianCalendar
+exclude System.Globalization.RegionInfo
+exclude System.Globalization.SortKey
+exclude System.Globalization.SortVersion
+exclude System.Globalization.TaiwanCalendar
+exclude System.Globalization.TaiwanLunisolarCalendar
+exclude System.Globalization.ThaiBuddhistCalendar
+exclude System.Globalization.UmAlQuraCalendar
+
+namespace System.Numerics
+# BFloat16 only so that BigInteger and Complex's conversions, which test for
+# it by typeof (folded per instantiation), compile; its members are none.
+type System.Numerics.BFloat16
+exclude System.Numerics.Decimal128
+exclude System.Numerics.Decimal32
+exclude System.Numerics.Decimal64
+exclude System.Numerics.IDecimalFloatingPointIeee754`1
+# Vector<T> is as wide as the machine's vectors; here there is none of it
+# (Vector.IsHardwareAccelerated is false), and the Vector static class is
+# the extension members of Vector2, Vector3 and Vector4 (dotnet/runtime's).
+exclude System.Numerics.Vector`1
+exclude System.Numerics.Colors.Argb
+exclude System.Numerics.Colors.Argb`1
+exclude System.Numerics.Colors.Rgba
+exclude System.Numerics.Colors.Rgba`1
+
+namespace System.Runtime.CompilerServices
+exclude System.Runtime.CompilerServices.CallConvCdecl
+exclude System.Runtime.CompilerServices.CallConvFastcall
+exclude System.Runtime.CompilerServices.CallConvMemberFunction
+exclude System.Runtime.CompilerServices.CallConvStdcall
+exclude System.Runtime.CompilerServices.CallConvSuppressGCTransition
+exclude System.Runtime.CompilerServices.CallConvSwift
+exclude System.Runtime.CompilerServices.CallConvThiscall
+exclude System.Runtime.CompilerServices.ConditionalWeakTable`2
+
+namespace System.Text
+exclude System.Text.Decoder
+exclude System.Text.DecoderExceptionFallback
+exclude System.Text.DecoderExceptionFallbackBuffer
+exclude System.Text.DecoderFallback
+exclude System.Text.DecoderFallbackBuffer
+exclude System.Text.DecoderFallbackException
+exclude System.Text.DecoderReplacementFallback
+exclude System.Text.DecoderReplacementFallbackBuffer
+exclude System.Text.Encoder
+exclude System.Text.EncoderExceptionFallback
+exclude System.Text.EncoderExceptionFallbackBuffer
+exclude System.Text.EncoderFallback
+exclude System.Text.EncoderFallbackBuffer
+exclude System.Text.EncoderFallbackException
+exclude System.Text.EncoderReplacementFallback
+exclude System.Text.EncoderReplacementFallbackBuffer
+exclude System.Text.Encoding
+exclude System.Text.EncodingExtensions
+exclude System.Text.EncodingInfo
+exclude System.Text.EncodingProvider
+
+type System.Reflection.DefaultMemberAttribute
+type System.Reflection.MemberInfo
+type System.Reflection.MemberTypes
+
+type System.Runtime.InteropServices.CharSet
+type System.Runtime.InteropServices.FieldOffsetAttribute
+type System.Runtime.InteropServices.InAttribute
+type System.Runtime.InteropServices.LayoutKind
+type System.Runtime.InteropServices.MemoryMarshal
+type System.Runtime.InteropServices.OutAttribute
+type System.Runtime.InteropServices.StructLayoutAttribute
+
+# Wasm SIMD's v128 (docs/IMPORTER.md, "SIMD"), and the wider vectors
+# only so that dotnet/runtime's sources that test their
+# IsHardwareAccelerated compile (the importer folds it to false).
+type System.Runtime.Intrinsics.Vector128
+type System.Runtime.Intrinsics.Vector128`1
+type System.Runtime.Intrinsics.Vector256
+type System.Runtime.Intrinsics.Vector256`1
+type System.Runtime.Intrinsics.Vector512
+type System.Runtime.Intrinsics.Vector512`1
+
+type System.Threading.Interlocked
+type System.Threading.LazyThreadSafetyMode
+type System.Threading.Lock
+type System.Threading.Monitor
+type System.Threading.Timeout
+type System.Threading.Volatile
+type System.Threading.Tasks.ConfigureAwaitOptions
+type System.Threading.Tasks.TaskContinuationOptions
+type System.Threading.Tasks.TaskCreationOptions
+type System.Threading.Tasks.TaskStatus
+type System.Threading.Tasks.Sources.IValueTaskSource
+type System.Threading.Tasks.Sources.IValueTaskSource`1
+type System.Threading.Tasks.Sources.ValueTaskSourceOnCompletedFlags
+type System.Threading.Tasks.Sources.ValueTaskSourceStatus

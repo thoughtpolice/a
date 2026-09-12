@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    copyright = ["© .NET Foundation and Contributors"],
+    license = "MIT",
+    description = """
+        Selected C# sources of dotnet/runtime at the .NET 11 RC1 tag, the
+        release the pinned SDK's targeting pack was built from: the
+        reference-assembly sources the gameplay CoreLib's surface is
+        generated from, and the implementation sources and resource
+        strings it takes where they fit (tilde/aseipp/cs2wasm/corelib).
+    """,
+    version = "11.0.0-rc.1.26425.128",
+    visibility = ["PUBLIC"],
+)

@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# dotnet/runtime's BigIntegerCalculator.GcdInv.cs, as the gameplay CoreLib
+# compiles it (corelib/BigInteger.cs): Lehmer's step cannot see 64-bit limbs
+# as their 32-bit halves here, so it takes the Int128 path .NET takes on
+# big-endian machines.
+--- a/BigIntegerCalculator.GcdInv.cs
++++ b/BigIntegerCalculator.GcdInv.cs
+@@ -410,7 +410,9 @@
+                     y[i] = (nuint)yDigit;
+                 }
+             }
+-            else if (BitConverter.IsLittleEndian)
++            // Gameplay: the limbs cannot be reinterpreted as their halves
++            // here; 64-bit limbs take the Int128 path below.
++            else if (false)
+             {
+                 // On 64-bit little-endian, reinterpret the nuint limbs as uint halves.
+                 // Since a,b,c,d are at most 31 bits and each half is 32 bits,

@@ -19,6 +19,25 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Generate C# bindings for a WIT world, for gameplayc.
+    Csharp {
+        /// WIT files or package directories, in dependency order; the world
+        /// comes from the last one.
+        #[arg(required = true)]
+        wit: Vec<PathBuf>,
+        /// The world to bind; the package's only world by default.
+        #[arg(long)]
+        world: Option<String>,
+        /// The C# namespace; `Ns.Pkg` from the package name by default.
+        #[arg(long)]
+        namespace: Option<String>,
+        /// Where to write the C# file; standard output by default.
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        /// Fail when any function or type could not be generated.
+        #[arg(long)]
+        strict: bool,
+    },
     /// Generate the bindings of a host that implements a world's imports,
     /// under wlink's host ABI.
     Host {
@@ -137,6 +156,18 @@ fn header(wit: &[PathBuf]) -> Vec<String> {
 
 fn main() -> Result<()> {
     match Cli::parse().command {
+        Command::Csharp {
+            wit,
+            world,
+            namespace,
+            output,
+            strict,
+        } => {
+            let (resolve, world) = witgen::load(&wit, world.as_deref())?;
+            let (source, report) =
+                witgen::csharp::csharp(&resolve, world, namespace.as_deref(), &header(&wit))?;
+            finish(source, &report, strict, output.as_deref())
+        }
         Command::Host {
             wit,
             world,

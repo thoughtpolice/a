@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# dotnet/runtime's BigIntegerCalculator.ShiftRot.cs, as the gameplay CoreLib
+# compiles it (corelib/BigInteger.cs): the words swapped aside are an array
+# of words, not a buffer of limbs seen as words.
+--- a/BigIntegerCalculator.ShiftRot.cs
++++ b/BigIntegerCalculator.ShiftRot.cs
+@@ -118,8 +118,8 @@
+             int tmpLength = Math.Min(lowerLength, upperLength);
+             int wordsPerLimb = nint.Size / sizeof(uint);
+             int nuintCount = (tmpLength + wordsPerLimb - 1) / wordsPerLimb;
+-            Span<nuint> tmpNuint = BigInteger.RentedBuffer.Create(nuintCount, out BigInteger.RentedBuffer tmpBuffer);
+-            Span<uint> tmp = MemoryMarshal.Cast<nuint, uint>(tmpNuint).Slice(0, tmpLength);
++            // Gameplay: an array of words, rather than limbs seen as words.
++            Span<uint> tmp = new uint[tmpLength];
+
+             if (upperLength < lowerLength)
+             {
+@@ -134,7 +134,6 @@
+                 tmp.CopyTo(lowerDst);
+             }
+
+-            tmpBuffer.Dispose();
+         }
+
+         public static void LeftShiftSelf(Span<nuint> bits, int shift, out nuint carry)
