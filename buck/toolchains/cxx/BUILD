@@ -15,21 +15,27 @@ cxx_warn_flags = shims.select({
 })
 
 cxx_base_flags = shims.select({
-    "config//os:linux": [
+    "toolchains//cfg/target:target[wasm32-unknown-unknown]": [
         "-std=gnu++17",
+        "-nostdinc++",
     ],
-    "config//os:macos": [
-        "-std=gnu++17",
-        "-stdlib=libc++",
-    ],
-    "config//os:windows": [
-        "/std:c++17",
-        "/Zc:__cplusplus",
-        "/Zc:inline",
-        "/Zc:wchar_t",
-        "/Zc:forScope",
-        "/fp:precise",
-    ],
+    "DEFAULT": shims.select({
+        "config//os:linux": [
+            "-std=gnu++17",
+        ],
+        "config//os:macos": [
+            "-std=gnu++17",
+            "-stdlib=libc++",
+        ],
+        "config//os:windows": [
+            "/std:c++17",
+            "/Zc:__cplusplus",
+            "/Zc:inline",
+            "/Zc:wchar_t",
+            "/Zc:forScope",
+            "/fp:precise",
+        ],
+    }),
 })
 
 opt_flags = shims.select({
