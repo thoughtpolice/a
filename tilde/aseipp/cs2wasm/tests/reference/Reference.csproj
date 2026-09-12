@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>Gameplay.Reference</AssemblyName>
+    <!-- The oracle runs on the CLR. Match gameplayc's C# binding options. -->
+    <PublishAot>false</PublishAot>
+    <SelfContained>false</SelfContained>
+    <Nullable>disable</Nullable>
+    <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Differential.cs" Link="Differential.cs" />
+    <Compile Include="../Constructors.cs" Link="Constructors.cs" />
+    <Compile Include="../FieldInitializers.cs" Link="FieldInitializers.cs" />
+    <Compile Include="../Syntax.cs" Link="Syntax.cs" />
+    <Compile Include="../../examples/HeapGameplay.cs" Link="HeapGameplay.cs" />
+  </ItemGroup>
+</Project>

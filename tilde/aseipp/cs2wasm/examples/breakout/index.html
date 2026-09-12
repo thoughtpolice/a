@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Breakout · C# to WebAssembly</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/app.mjs"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">C# → WebAssembly GC</p>
+          <h1>Breakout</h1>
+        </div>
+        <div class="score">
+          <span>Score</span><output id="score">0</output
+          ><small id="remaining">32 bricks left</small>
+        </div>
+      </header>
+      <div class="arena">
+        <canvas
+          id="game"
+          width="800"
+          height="600"
+          tabindex="0"
+          aria-label="Breakout game. Move the paddle with the arrow keys, A and D, or the pointer."
+        ></canvas>
+        <div id="overlay">
+          <h2 id="title">Clear the board.</h2>
+          <p id="subtitle">One ball. Thirty-two bricks. Keep it in play.</p>
+        </div>
+      </div>
+      <div class="controls" aria-label="Game controls">
+        <button id="play" type="button" disabled>Start</button>
+        <button id="step" type="button" disabled>Step</button>
+        <button id="reset" type="button" disabled>Reset</button>
+        <button id="rollback" type="button" disabled>Test rollback</button>
+      </div>
+      <p class="help">
+        Move: pointer, ← → or A / D <span>Pause: Space · Reset: R</span>
+      </p>
+      <p id="status" role="status" aria-live="polite">
+        Loading the compiled game…
+      </p>
+      <details>
+        <summary>How this example works</summary>
+        <p>
+          C# runs the physics and collisions inside WebAssembly. It allocates a
+          fresh array of body objects each tick and calls typed imports to queue
+          changes. JavaScript owns the world, commits successful ticks, and
+          draws the result.
+        </p>
+        <p>
+          “Test rollback” deliberately queues a movement and then traps. The
+          host discards that tick, preserving the world. Resume to continue with
+          the same instance.
+        </p>
+      </details>
+    </main>
+  </body>
+</html>

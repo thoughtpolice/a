@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>gameplayc</AssemblyName>
+    <RootNamespace>Gameplay.Compiler</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="src/Gameplay.Compiler/**/*.cs"
+             Exclude="src/Gameplay.Compiler/**/bin/**;src/Gameplay.Compiler/**/obj/**" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+    <PackageReference Include="Mono.Cecil" Version="0.11.6"
+                      PrivateAssets="all" ExcludeAssets="all" GeneratePathProperty="true" />
+  </ItemGroup>
+  <!-- Resolve the targeting pack through the SDK, including Nix and NuGet layouts.
+       GameplayReferencePath remains an explicit override. This DLL is embedded
+       as metadata, never loaded as executable code by gameplayc. -->
+  <Target Name="ResolveEmbeddedBindingReference" BeforeTargets="AssignTargetPaths"
+          DependsOnTargets="ResolveFrameworkReferences">
+    <PropertyGroup>
+      <GameplayReferencePath Condition="'$(GameplayReferencePath)' == ''">@(ResolvedTargetingPack->WithMetadataValue('Identity', 'Microsoft.NETCore.App')->'%(Path)/ref/$(TargetFramework)/System.Runtime.dll')</GameplayReferencePath>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(GameplayReferencePath)')"
+           Text="Missing System.Runtime reference DLL from the pinned SDK. Set GameplayReferencePath to the net11.0 targeting-pack System.Runtime.dll (not an implementation DLL)." />
+    <ItemGroup>
+      <EmbeddedResource Include="$(GameplayReferencePath)" LogicalName="Gameplay.Compiler.Binding.System.Runtime.dll" />
+    </ItemGroup>
+  </Target>
+  <Import Project="build/RoslynAot.targets" />
+</Project>

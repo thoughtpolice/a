@@ -1,0 +1,11 @@
+result*
+.dotnet/
+**/bin/
+**/obj/
+publish*
+artifacts/*
+!artifacts/encoding-tests.log
+!artifacts/encoding-probes/
+!artifacts/encoding-probes/**
+!artifacts/environment.txt
+.envrc.local

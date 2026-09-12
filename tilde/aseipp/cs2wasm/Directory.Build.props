@@ -1,0 +1,31 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <LangVersion>14.0</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <Deterministic>true</Deterministic>
+    <UseSharedCompilation>false</UseSharedCompilation>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
+  </PropertyGroup>
+
+  <!-- Native AOT publishing defaults to the SDK's host runtime identifier.
+       An explicit -r option can select a different target. -->
+  <PropertyGroup>
+    <PublishAot>true</PublishAot>
+    <SelfContained>true</SelfContained>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <OptimizationPreference>Speed</OptimizationPreference>
+    <StripSymbols>true</StripSymbols>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+
+  <!-- Use Nix's compiler wrapper so Native AOT links against matching libc and
+       ELF loader paths, even when a system clang is also on PATH. -->
+  <PropertyGroup Condition="'$(CppCompilerAndLinker)' == '' and '$(NIX_CC)' != '' and '$(OS)' != 'Windows_NT'">
+    <CppCompilerAndLinker>$(NIX_CC)/bin/cc</CppCompilerAndLinker>
+  </PropertyGroup>
+</Project>

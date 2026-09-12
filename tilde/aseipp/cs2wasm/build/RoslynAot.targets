@@ -1,0 +1,42 @@
+<Project>
+  <UsingTask TaskName="PrepareRoslynForAot"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <InputAssembly ParameterType="System.String" Required="true" />
+      <OutputAssembly ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Reference Include="$(PkgMono_Cecil)/lib/netstandard2.0/Mono.Cecil.dll" />
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Linq" />
+      <Using Namespace="Mono.Cecil" />
+      <Using Namespace="Mono.Cecil.Cil" />
+      <Code Type="Fragment" Language="cs" Source="$(MSBuildThisFileDirectory)PrepareRoslynAot.cs" />
+    </Task>
+  </UsingTask>
+
+  <Target Name="PrepareRoslynAotAssembly"
+          Inputs="@(IlcReference->WithMetadataValue('Filename', 'Microsoft.CodeAnalysis'));$(MSBuildThisFileDirectory)PrepareRoslynAot.cs;$(MSBuildThisFileFullPath)"
+          Outputs="$(NativeIntermediateOutputPath)roslyn/Microsoft.CodeAnalysis.dll">
+    <PrepareRoslynForAot
+      InputAssembly="@(IlcReference->WithMetadataValue('Filename', 'Microsoft.CodeAnalysis'))"
+      OutputAssembly="$(NativeIntermediateOutputPath)roslyn/Microsoft.CodeAnalysis.dll" />
+    <ItemGroup>
+      <FileWrites Include="$(NativeIntermediateOutputPath)roslyn/Microsoft.CodeAnalysis.dll" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Only the AOT compiler consumes the repaired copy. NuGet and managed
+       builds continue using the original, signed dependency. -->
+  <Target Name="UseRoslynAotAssembly"
+          BeforeTargets="WriteIlcRspFileForCompilation"
+          DependsOnTargets="PrepareRoslynAotAssembly"
+          Condition="'$(PublishAot)' == 'true'">
+    <ItemGroup>
+      <IlcReference Remove="@(IlcReference->WithMetadataValue('Filename', 'Microsoft.CodeAnalysis'))" />
+      <IlcReference Include="$(NativeIntermediateOutputPath)roslyn/Microsoft.CodeAnalysis.dll" />
+    </ItemGroup>
+  </Target>
+</Project>
