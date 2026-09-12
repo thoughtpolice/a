@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Hold fire and sweep across the field.
+10 z down
+40 left down
+90 left up
+100 right down
+190 right up
+200 up down
+230 up up
+240 left down
+300 left up
+310 z up
