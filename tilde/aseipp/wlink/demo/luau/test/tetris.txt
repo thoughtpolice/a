@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Slide a piece to the left wall, turn it, and drop it; then the same to the
+# right, with a soft drop in the middle.
+10 left down
+40 left up
+50 z down
+56 z up
+70 x down
+76 x up
+100 right down
+150 right up
+160 z down
+166 z up
+170 z down
+176 z up
+190 down down
+260 down up
+280 x down
+286 x up
+300 left down
+330 left up
+340 x down
+346 x up

@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Walk in, punch, kick, and guard.
+20 right down
+60 right up
+70 z down
+76 z up
+90 x down
+96 x up
+120 down down
+180 down up
+190 right down
+210 right up
+220 z down
+226 z up
+240 z down
+246 z up
+270 x down
+276 x up

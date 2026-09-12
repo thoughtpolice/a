@@ -150,3 +150,15 @@ grep -q '(export "frame"' "$out/wat"
 """,
     ],
 )
+
+depot.alias(
+    name = "luau",
+    actual = "//aseipp/wlink/demo/luau:luau",
+    visibility = ["PUBLIC"],
+)
+
+depot.export_file(
+    name = "parity-test.py",
+    src = "host/parity_test.py",
+    visibility = ["//aseipp/wlink/demo/..."],
+)
