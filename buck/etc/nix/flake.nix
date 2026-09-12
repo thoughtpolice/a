@@ -62,6 +62,33 @@
           llvmPackages = pkgs.llvmPackages_latest;
           ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_5;
 
+          dotnetSdk = pkgs.dotnetCorePackages.sdk_11_0;
+
+          # This dotnet-trace build is published to the dotnet-tools feed
+          # instead of nuget.org, so the package's nuget.org fetch is swapped
+          # out for a direct fetch of the nupkg.
+          dotnetTraceVersion = "10.0.731102";
+          dotnetTrace =
+            (pkgs.dotnetCorePackages.buildDotnetGlobalTool {
+              pname = "dotnet-trace";
+              version = dotnetTraceVersion;
+              nugetHash = lib.fakeHash;
+              executables = [ "dotnet-trace" ];
+              dotnet-sdk = dotnetSdk;
+              dotnet-runtime = dotnetSdk.runtime;
+            }).overrideAttrs
+              (_: {
+                buildInputs = [
+                  (pkgs.dotnetCorePackages.fetchNupkg {
+                    pname = "dotnet-trace";
+                    version = dotnetTraceVersion;
+                    url = "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-tools/nuget/v3/flat2/dotnet-trace/${dotnetTraceVersion}/dotnet-trace.${dotnetTraceVersion}.nupkg";
+                    hash = "sha256-BrnJ73Amfab5I92L6eGnV9acmANq+mtRVgTec1vt8K4=";
+                    installable = true;
+                  })
+                ];
+              });
+
           # these are needed in both devShell and buildInputs
           darwinDeps = with pkgs; lib.optionals stdenv.hostPlatform.isDarwin [ ];
 
@@ -126,6 +153,8 @@
                 go_latest
                 uv
                 beam28Packages.erlang
+                dotnetSdk
+                dotnetTrace
               ])
               ++ darwinDeps
               ++ linuxDeps;
