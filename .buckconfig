@@ -26,3 +26,11 @@ name = BUILD,BUCK
 # do this by loading noprelude.bzl into every BUILD file, which will stub out
 # these bad symbols with an error message.
 includes = root//buck/shims/noprelude.bzl
+
+[test]
+# Tests whose verdict depends on data this repository does not control -- a
+# vulnerability database, say -- fail for reasons unrelated to the commit under
+# test, so a sweep like `buck2 test root//...` leaves them out. Naming such a
+# target directly still runs it, as does `--no-default-test-filters`, which is
+# what CI's dedicated jobs pass.
+default_exclude_labels = external-data

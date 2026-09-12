@@ -394,6 +394,86 @@ jobs:
           TARGET_COUNT: ${{ steps.determine-targets.outputs.target-count }}
           REASONABLE_TARGET_COUNT: ${{ steps.determine-targets.outputs.reasonable-target-count }}
 
+  # The osv.io check asks osv.dev whether anything this repository pins is
+  # subject to a published advisory, so its verdict tracks that database rather
+  # than the commit under test: an advisory filed upstream overnight fails every
+  # build afterwards, including the many that touch nothing related. The
+  # `external-data` label keeps it out of the sweeps above (see `[test]
+  # default_exclude_labels` in .buckconfig) and it runs here instead, named
+  # directly and with the filters off so neither path can skip it.
+  #
+  # The answer does not depend on the host, so one runner reports it once. The
+  # job is advisory in both senses: it never fails the workflow, because a pin
+  # that needs bumping is not a reason to block an unrelated change. Read the
+  # advisories in the job summary and fix them on their own schedule, either by
+  # bumping the pin or by recording an exception in buck/tests/osv.io.
+  advisories:
+    name: advisories
+    continue-on-error: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install DotSlash
+        uses: ./.github/actions/install-dotslash
+      - name: Set up environment
+        shell: bash
+        run: echo "PATH=$GITHUB_WORKSPACE/buck/bin:$GITHUB_WORKSPACE/buck/bin/extra:$PATH" >> $GITHUB_ENV
+      - name: Configure Buck2 for CI
+        shell: bash
+        run: |
+          printf '\n' >> .buckconfig.local
+          cat buck/ci.buckconfig >> .buckconfig.local
+      - name: Init jj repository
+        shell: bash
+        run: dotslash ./buck/bin/extra/jj git init --colocate
+      - name: buck2 test root//buck/tests/osv.io:check
+        shell: bash
+        run: |
+          # Deliberately no retry loop: a failure here is a published advisory,
+          # not a flake, and re-running the check only reprints it.
+          buck2 test @buck/ci.buckargs -m debug root//buck/tests/osv.io:check \
+            --no-default-test-filters 2>&1 | tee "$RUNNER_TEMP/advisories.log"
+      - name: Summarize advisories
+        if: always()
+        shell: bash
+        run: |
+          LOG="$RUNNER_TEMP/advisories.log"
+          if [ ! -f "$LOG" ]; then
+            echo "The check produced no output; see the step above." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # Strip the console's color codes and timestamp prefixes, then keep
+          # the tally, the per-package `[FAIL]` blocks, and the scan totals a
+          # failing case reports. A block runs from its `[FAIL]` line to the
+          # next unindented line.
+          sed -E $'s/\033\[[0-9;]*m//g; s/^\[[^]]*\] //' "$LOG" | awk '
+            /^\[FAIL\]/ { block = 1; print; next }
+            block && /^[[:space:]]/ { print; next }
+            { block = 0 }
+            /^Scanned |^Tests finished:/ { print }
+          ' > "$RUNNER_TEMP/advisories.txt"
+
+          {
+            echo "## Advisories"
+            echo
+            echo "\`buck2 test root//buck/tests/osv.io:check\`, against osv.dev."
+            echo
+            if [ -s "$RUNNER_TEMP/advisories.txt" ]; then
+              echo '```'
+              cat "$RUNNER_TEMP/advisories.txt"
+              echo '```'
+            else
+              echo "The check reported nothing to summarize; see the step above."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   zizmor:
     name: zizmor
     runs-on: ubuntu-24.04

@@ -33,7 +33,14 @@ shims.go_test(
 
 # Under the internal runner this discovers one case per dependency set; each
 # case batches its OSV queries in memory and reports a per-package result.
+#
+# The verdict is a function of osv.dev's contents, not of this repository, so
+# an advisory published upstream turns every unrelated build red until the
+# affected pin is bumped. The `external-data` label keeps it out of repository
+# sweeps (see `[test] default_exclude_labels` in .buckconfig); naming this
+# target directly still runs it, and CI does so in the `advisories` job.
 shims.dynamic_test(
     name = "check",
     dep = ":osv.io",
+    labels = ["external-data"],
 )
