@@ -155,6 +155,13 @@
                 beam28Packages.erlang
                 dotnetSdk
                 dotnetTrace
+
+                # wasm tooling
+                wasm-tools
+                wasmtime
+                wabt
+                binaryen
+                spidermonkey_140
               ])
               ++ darwinDeps
               ++ linuxDeps;
