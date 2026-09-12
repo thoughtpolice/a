@@ -206,6 +206,12 @@ depot.alias(
     visibility = ["PUBLIC"],
 )
 
+depot.alias(
+    name = "luau",
+    actual = "//aseipp/wlink/demo/luau:luau",
+    visibility = ["PUBLIC"],
+)
+
 depot.command_test(
     name = "test-doom-e2e",
     cmd = [

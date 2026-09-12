@@ -38,17 +38,36 @@ QUAKE2_SCRIPT = """40 w down
 110 right up
 """
 
+# Arrows, Z and X are what every cart the console ships reads.
+LUAU_SCRIPT = """20 left down
+60 left up
+70 z down
+80 z up
+90 right down
+150 right up
+160 x down
+170 x up
+180 down down
+220 down up
+230 z down
+260 z up
+"""
+
 MODES = {
     # mode: (option, frames, script, guest arguments, timeout)
     "doom": ("--iwad", 280, DOOM_SCRIPT, ("-warp", "1", "-skill", "3", "-nomonsters"), 180),
     "sdk": ("--iwad", 100, CONTRACT_SCRIPT, (), 180),
     "quake2": ("--pak", 120, QUAKE2_SCRIPT, ("+map", "demo1"), 420),
+    # The console carries its cart rather than opening one the host names: the
+    # native runner is given it as an argument and the browser package has it
+    # mounted, so neither side takes an asset here.
+    "luau": (None, 300, LUAU_SCRIPT, (), 180),
 }
 
 
 def run(binary, option, asset, frames, script_path, args, timeout):
     command = [
-        *shlex.split(binary), option, asset,
+        *shlex.split(binary), *((option, asset) if option else ()),
         "--headless", "--frames", str(frames),
         "--script", str(script_path), "--trace",
         "--seed", "42", "--unix-time", "1234567", "--",
@@ -85,4 +104,5 @@ def main(mode, native, web, asset, directory):
 
 if __name__ == "__main__":
     with tempfile.TemporaryDirectory(prefix="wlink-parity-") as temporary:
-        main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], pathlib.Path(temporary))
+        asset = sys.argv[4] if len(sys.argv) > 4 else None
+        main(sys.argv[1], sys.argv[2], sys.argv[3], asset, pathlib.Path(temporary))
