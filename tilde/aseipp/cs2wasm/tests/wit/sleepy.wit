@@ -1,0 +1,17 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+/// Async imports a real component runtime completes: WASI 0.3's monotonic
+/// clock (only the function used), which Wasmtime provides with `-S p3`.
+package test:sleepy;
+
+package wasi:clocks@0.3.0 {
+    interface monotonic-clock {
+        wait-for: async func(how-long: u64);
+    }
+}
+
+world sleepy {
+    import wasi:clocks/monotonic-clock@0.3.0;
+    export nap: async func(ms: u32) -> u32;
+}

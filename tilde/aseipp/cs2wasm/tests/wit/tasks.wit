@@ -1,0 +1,135 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+/// Async functions through the component model's callback ABI (WASI 0.3's):
+/// async imports the host completes when it likes, async exports whose
+/// tasks wait for them, strings and lists either way, async methods and
+/// statics of an imported resource and of an exported one, and futures and
+/// streams.
+package test:tasks@1.0.0;
+
+interface host {
+    record point {
+        x: s32,
+        y: s32,
+    }
+
+    /// A scalar result, through the result's area.
+    add: async func(a: u32, b: u32) -> u32;
+    /// No result; the host reads the string when the call starts.
+    note: async func(text: string);
+    /// A record of scalars.
+    measure: async func(text: string, scale: s32) -> point;
+    /// An option of a scalar.
+    lookup: async func(key: u32) -> option<u64>;
+    /// More than four flat parameters go through memory.
+    sum5: async func(a: u32, b: u32, c: u32, d: u32, e: u32) -> u32;
+    /// A string result, which the host allocates when the call returns.
+    name-of: async func(id: u32) -> string;
+    /// Lists the host allocates, of strings too.
+    names: async func(count: u32) -> list<string>;
+    bytes-of: async func(text: string) -> list<u8>;
+    /// A record holding them.
+    profile: async func(id: u32) -> person;
+    /// A synchronous import's string, while async ones are pending.
+    label: func(id: u32) -> string;
+    /// The host sums what the module writes to the stream until it drops
+    /// its end.
+    sum-stream: async func(values: stream<u32>) -> u32;
+    /// A stream of words the host writes when it likes: strings it
+    /// allocates.
+    words: func(count: u32) -> stream<string>;
+    /// A future the host resolves when it likes, with a string.
+    later: async func(id: u32) -> future<string>;
+    /// What the module writes to the future.
+    wait-for: async func(value: future<u32>) -> u32;
+
+    record person {
+        name: string,
+        tags: list<string>,
+        age: u32,
+    }
+
+    /// A resource with async methods and statics.
+    resource counter {
+        constructor(start: u32);
+        /// Adds to the count; the new count.
+        bump: async func(by: u32) -> u32;
+        /// The count as text.
+        describe: async func() -> string;
+        /// A counter the host makes.
+        make: static async func(start: u32) -> counter;
+    }
+}
+
+interface jobs {
+    use host.{point};
+
+    /// Adds the values one host call at a time.
+    total: async func(values: list<u32>) -> u32;
+    /// Notes the name, then greets it.
+    greet: async func(who: string) -> string;
+    /// Measures both texts at once and adds the points.
+    both: async func(a: string, b: string) -> point;
+    /// What the host has for the key, or the key's square.
+    find: async func(key: u32) -> u64;
+    /// Waits for `release` (another export's call).
+    hold: async func() -> u32;
+    /// Completes what `hold` waits for.
+    release: async func(value: u32);
+    /// Returns its result, then goes on until its host call returns.
+    early: async func(value: u32) -> u32;
+    /// Adds one through the host unless the caller cancels first.
+    cancelable: async func(value: u32) -> u32;
+    /// Fails after a host call.
+    fail: async func(value: u32) -> u32;
+    /// Everything the host knows of the id, through its strings and lists.
+    card: async func(id: u32) -> string;
+    /// A counter made and bumped through async methods and statics.
+    tally: async func(start: u32, by: u32) -> string;
+    /// The numbers from one to n, which the module writes as the host
+    /// reads them.
+    count-to: async func(n: u32) -> stream<u32>;
+    /// What the host writes, joined.
+    concat: async func(parts: stream<string>) -> string;
+    /// A future the module resolves after a host call.
+    delayed: async func(value: u32) -> future<u64>;
+    /// Streams and futures through the host both ways.
+    pipes: async func(n: u32) -> string;
+    /// Reads of a stream the host never writes, canceled by a token and
+    /// by dropping the end.
+    abandon: async func(numbers: stream<u32>) -> string;
+
+    /// An account the module keeps, which the host holds handles of.
+    resource account {
+        /// An account of the owner's, holding nothing.
+        constructor(owner: string);
+        /// Deposits through the host's `add`: the new balance.
+        deposit: async func(amount: u32) -> u32;
+        /// The owner and the balance.
+        statement: func() -> string;
+        /// Moves the other account's balance here; it is given up.
+        absorb: func(other: account);
+        /// An account opened once the host has added the amounts.
+        open: static async func(owner: string, a: u32, b: u32) -> account;
+        /// The account made last, another handle of it.
+        latest: static func() -> account;
+    }
+
+    /// The balances of two accounts the host lends.
+    combined: func(a: borrow<account>, b: borrow<account>) -> u32;
+    /// The owners of the accounts the host has let go of, in order.
+    closed: func() -> list<string>;
+}
+
+world worker {
+    import host;
+    export jobs;
+    /// A world-level async export, with Task.Yield and WhenAll.
+    export run: async func(n: u32) -> u64;
+    /// A synchronous export next to them.
+    export plain: func(x: u32) -> u32;
+    /// A synchronous export of a string, which the host may allocate in
+    /// held memory: the glue frees it once read.
+    export measure: func(text: string) -> u32;
+}

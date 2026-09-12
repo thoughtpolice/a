@@ -1,0 +1,26 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+/// Exports only, so a component runtime can call them with nothing to
+/// import: strings, lists, records, tuples and options through memory.
+package test:echo;
+
+world echo {
+    record entry {
+        name: string,
+        values: list<u16>,
+    }
+
+    export shout: func(text: string) -> string;
+    export entries: func(names: list<string>) -> list<entry>;
+    export pick: func(items: list<tuple<string, u32>>, wanted: u32) -> option<string>;
+
+    variant mixed {
+        small(f32),
+        big(u64),
+        text(string),
+        nothing,
+    }
+
+    export classify: func(value: mixed) -> result<string, u32>;
+}

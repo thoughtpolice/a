@@ -1,0 +1,458 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# dotnet/runtime's Matrix4x4.cs, as the gameplay CoreLib compiles it (corelib/Numerics.cs):
+# its Impl's rows are properties over the matrix's own fields here, which C#
+# only lets code set on a value already assigned, so each Impl local starts
+# as default. coresurface applies it (--patch) before compiling the file.
+--- a/Matrix4x4.cs
++++ b/Matrix4x4.cs
+@@ -166,7 +166,7 @@
+             [MethodImpl(MethodImplOptions.AggressiveInlining)]
+             get
+             {
+-                Impl result;
++                Impl result = default;
+
+                 result.X = Vector128.CreateScalar(1.0f);
+                 result.Y = Vector128.Create(0.0f, 1.0f, 0.0f, 0.0f);
+@@ -487,7 +487,7 @@
+             ref readonly Impl left = ref value1.AsROImpl();
+             ref readonly Impl right = ref value2.AsROImpl();
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = left.X + right.X;
+             result.Y = left.Y + right.Y;
+@@ -540,7 +540,7 @@
+             ref readonly Impl left = ref value1.AsROImpl();
+             ref readonly Impl right = ref value2.AsROImpl();
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector4.Transform(left.X, in right);
+             result.Y = Vector4.Transform(left.Y, in right);
+@@ -560,7 +560,7 @@
+         {
+             ref readonly Impl left = ref value1.AsROImpl();
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = left.X * value2;
+             result.Y = left.Y * value2;
+@@ -581,7 +581,7 @@
+             ref readonly Impl left = ref value1.AsROImpl();
+             ref readonly Impl right = ref value2.AsROImpl();
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = left.X - right.X;
+             result.Y = left.Y - right.Y;
+@@ -599,7 +599,7 @@
+         {
+             ref readonly Impl impl = ref value.AsROImpl();
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = -impl.X;
+             result.Y = -impl.Y;
+@@ -624,7 +624,7 @@
+         {
+             Vector128<float> vector = Vector128.Create(value);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = vector;
+             result.Y = vector;
+@@ -643,7 +643,7 @@
+         {
+             ref readonly Matrix3x2.Impl impl = ref value.AsImpl();
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = impl.X.AsVector128();
+             result.Y = impl.Y.AsVector128();
+@@ -661,7 +661,7 @@
+         {
+             Vector128<float> vector = value.AsVector128();
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = vector;
+             result.Y = vector;
+@@ -680,7 +680,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix4x4 Create(Vector4 x, Vector4 y, Vector4 z, Vector4 w)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = x.AsVector128();
+             result.Y = y.AsVector128();
+@@ -714,7 +714,7 @@
+                                        float m31, float m32, float m33, float m34,
+                                        float m41, float m42, float m43, float m44)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(m11, m12, m13, m14);
+             result.Y = Vector128.Create(m21, m22, m23, m24);
+@@ -745,7 +745,7 @@
+             Vector128<float> axisX = Vector128.Normalize(Vector3.Cross(cameraUpVector.AsVector128(), axisZ));
+             Vector128<float> axisY = Vector3.Cross(axisZ, axisX);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = axisX;
+             result.Y = axisY;
+@@ -776,7 +776,7 @@
+             Vector128<float> axisX = Vector128.Normalize(Vector3.Cross(cameraUpVector.AsVector128(), axisZ));
+             Vector128<float> axisY = Vector3.Cross(axisZ, axisX);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = axisX;
+             result.Y = axisY;
+@@ -838,7 +838,7 @@
+             Vector128<float> axisX = Vector128.Normalize(Vector3.Cross(axisY, faceDir));
+             Vector128<float> axisZ = Vector128.Normalize(Vector3.Cross(axisX, axisY));
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = axisX;
+             result.Y = axisY;
+@@ -900,7 +900,7 @@
+             Vector128<float> axisX = Vector128.Normalize(Vector3.Cross(axisY, faceDir));
+             Vector128<float> axisZ = Vector128.Normalize(Vector3.Cross(axisX, axisY));
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = axisX;
+             result.Y = axisY;
+@@ -942,7 +942,7 @@
+             float yz = quaternion.GetElement(1) * quaternion.GetElement(2);
+             float wx = quaternion.GetElement(0) * quaternion.GetElement(3);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(
+                 1.0f - 2.0f * (yy + zz),
+@@ -1037,7 +1037,7 @@
+             Vector128<float> axisY = Vector3.Cross(axisZ, axisX);
+             Vector128<float> negativeCameraPosition = -cameraPosition;
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = axisX.WithElement(3, Vector128.Dot(axisX, negativeCameraPosition));
+             result.Y = axisY.WithElement(3, Vector128.Dot(axisY, negativeCameraPosition));
+@@ -1061,7 +1061,7 @@
+
+             float range = 1.0f / (zNearPlane - zFarPlane);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(2.0f / width, 0, 0, 0);
+             result.Y = Vector128.Create(0, 2.0f / height, 0, 0);
+@@ -1085,7 +1085,7 @@
+
+             float range = 1.0f / (zFarPlane - zNearPlane);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(2.0f / width, 0, 0, 0);
+             result.Y = Vector128.Create(0, 2.0f / height, 0, 0);
+@@ -1112,7 +1112,7 @@
+             float reciprocalHeight = 1.0f / (top - bottom);
+             float range = 1.0f / (zNearPlane - zFarPlane);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(reciprocalWidth + reciprocalWidth, 0, 0, 0);
+             result.Y = Vector128.Create(0, reciprocalHeight + reciprocalHeight, 0, 0);
+@@ -1144,7 +1144,7 @@
+             float reciprocalHeight = 1.0f / (top - bottom);
+             float range = 1.0f / (zFarPlane - zNearPlane);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(reciprocalWidth + reciprocalWidth, 0, 0, 0);
+             result.Y = Vector128.Create(0, reciprocalHeight + reciprocalHeight, 0, 0);
+@@ -1182,7 +1182,7 @@
+             float dblNearPlaneDistance = nearPlaneDistance + nearPlaneDistance;
+             float range = float.IsPositiveInfinity(farPlaneDistance) ? -1.0f : farPlaneDistance / (nearPlaneDistance - farPlaneDistance);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(dblNearPlaneDistance / width, 0, 0, 0);
+             result.Y = Vector128.Create(0, dblNearPlaneDistance / height, 0, 0);
+@@ -1215,7 +1215,7 @@
+             float dblNearPlaneDistance = nearPlaneDistance + nearPlaneDistance;
+             float range = float.IsPositiveInfinity(farPlaneDistance) ? 1.0f : farPlaneDistance / (farPlaneDistance - nearPlaneDistance);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(dblNearPlaneDistance / width, 0, 0, 0);
+             result.Y = Vector128.Create(0, dblNearPlaneDistance / height, 0, 0);
+@@ -1255,7 +1255,7 @@
+             float width = height / aspectRatio;
+             float range = float.IsPositiveInfinity(farPlaneDistance) ? -1.0f : farPlaneDistance / (nearPlaneDistance - farPlaneDistance);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(width, 0, 0, 0);
+             result.Y = Vector128.Create(0, height, 0, 0);
+@@ -1295,7 +1295,7 @@
+             float width = height / aspectRatio;
+             float range = float.IsPositiveInfinity(farPlaneDistance) ? 1.0f : farPlaneDistance / (farPlaneDistance - nearPlaneDistance);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(width, 0, 0, 0);
+             result.Y = Vector128.Create(0, height, 0, 0);
+@@ -1332,7 +1332,7 @@
+             float reciprocalHeight = 1.0f / (top - bottom);
+             float range = float.IsPositiveInfinity(farPlaneDistance) ? -1.0f : farPlaneDistance / (nearPlaneDistance - farPlaneDistance);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(dblNearPlaneDistance * reciprocalWidth, 0, 0, 0);
+             result.Y = Vector128.Create(0, dblNearPlaneDistance * reciprocalHeight, 0, 0);
+@@ -1374,7 +1374,7 @@
+             float reciprocalHeight = 1.0f / (top - bottom);
+             float range = float.IsPositiveInfinity(farPlaneDistance) ? 1.0f : farPlaneDistance / (farPlaneDistance - nearPlaneDistance);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(dblNearPlaneDistance * reciprocalWidth, 0, 0, 0);
+             result.Y = Vector128.Create(0, dblNearPlaneDistance * reciprocalHeight, 0, 0);
+@@ -1401,7 +1401,7 @@
+             Vector128<float> p = Plane.Normalize(value.AsVector128());
+             Vector128<float> s = p * Vector128.Create(-2.0f, -2.0f, -2.0f, 0.0f);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.MultiplyAddEstimate(s, Vector128.Create(p.GetElement(0)), Vector128.CreateScalar(1.0f));
+             result.Y = Vector128.MultiplyAddEstimate(s, Vector128.Create(p.GetElement(1)), Vector128.Create(0.0f, 1.0f, 0.0f, 0.0f));
+@@ -1424,7 +1424,7 @@
+             // [  0 -s  c  0 ]
+             // [  0  0  0  1 ]
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.CreateScalar(1.0f);
+             result.Y = Vector128.Create(0, c, s, 0);
+@@ -1451,7 +1451,7 @@
+             // [  0 -s  c  0 ]
+             // [  0  y  z  1 ]
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.CreateScalar(1.0f);
+             result.Y = Vector128.Create(0, c, s, 0);
+@@ -1474,7 +1474,7 @@
+             // [  s  0  c  0 ]
+             // [  0  0  0  1 ]
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(c, 0, -s, 0);
+             result.Y = Vector128.Create(0.0f, 1.0f, 0.0f, 0.0f);
+@@ -1501,7 +1501,7 @@
+             // [  s  0  c  0 ]
+             // [  x  0  z  1 ]
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(c, 0, -s, 0);
+             result.Y = Vector128.Create(0.0f, 1.0f, 0.0f, 0.0f);
+@@ -1524,7 +1524,7 @@
+             // [  0  0  1  0 ]
+             // [  0  0  0  1 ]
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(c, s, 0, 0);
+             result.Y = Vector128.Create(-s, c, 0, 0);
+@@ -1551,7 +1551,7 @@
+             // [  0  0  1  0 ]
+             // [  x  y  0  1 ]
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(c, s, 0, 0);
+             result.Y = Vector128.Create(-s, c, 0, 0);
+@@ -1569,7 +1569,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix4x4 CreateScale(float xScale, float yScale, float zScale)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(xScale, 0, 0, 0);
+             result.Y = Vector128.Create(0, yScale, 0, 0);
+@@ -1588,7 +1588,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix4x4 CreateScale(float xScale, float yScale, float zScale, Vector3 centerPoint)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(xScale, 0, 0, 0);
+             result.Y = Vector128.Create(0, yScale, 0, 0);
+@@ -1604,7 +1604,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix4x4 CreateScale(Vector3 scales)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(scales.X, 0, 0, 0);
+             result.Y = Vector128.Create(0, scales.Y, 0, 0);
+@@ -1621,7 +1621,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix4x4 CreateScale(Vector3 scales, Vector3 centerPoint)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(scales.X, 0, 0, 0);
+             result.Y = Vector128.Create(0, scales.Y, 0, 0);
+@@ -1637,7 +1637,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix4x4 CreateScale(float scale)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(scale, 0, 0, 0);
+             result.Y = Vector128.Create(0, scale, 0, 0);
+@@ -1654,7 +1654,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix4x4 CreateScale(float scale, Vector3 centerPoint)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(scale, 0, 0, 0);
+             result.Y = Vector128.Create(0, scale, 0, 0);
+@@ -1677,7 +1677,7 @@
+
+             p = -p;
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.MultiplyAddEstimate(l, Vector128.Create(p.GetElement(0)), Vector128.Create(dot, 0, 0, 0));
+             result.Y = Vector128.MultiplyAddEstimate(l, Vector128.Create(p.GetElement(1)), Vector128.Create(0, dot, 0, 0));
+@@ -1693,7 +1693,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix4x4 CreateTranslation(Vector3 position)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.CreateScalar(1.0f);
+             result.Y = Vector128.Create(0.0f, 1.0f, 0.0f, 0.0f);
+@@ -1711,7 +1711,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix4x4 CreateTranslation(float xPosition, float yPosition, float zPosition)
+         {
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.CreateScalar(1.0f);
+             result.Y = Vector128.Create(0.0f, 1.0f, 0.0f, 0.0f);
+@@ -1739,7 +1739,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix4x4 CreateViewport(float x, float y, float width, float height, float minDepth, float maxDepth)
+         {
+-            Impl result;
++            Impl result = default;
+
+             // 4x SIMD fields to get a lot better codegen
+             result.W = Vector128.Create(width, height, 0f, 0f);
+@@ -1771,7 +1771,7 @@
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         public static Matrix4x4 CreateViewportLeftHanded(float x, float y, float width, float height, float minDepth, float maxDepth)
+         {
+-            Impl result;
++            Impl result = default;
+
+             // 4x SIMD fields to get a lot better codegen
+             result.W = Vector128.Create(width, height, 0f, 0f);
+@@ -1798,7 +1798,7 @@
+             Vector128<float> axisX = Vector128.Normalize(Vector3.Cross(up.AsVector128(), axisZ));
+             Vector128<float> axisY = Vector3.Cross(axisZ, axisX);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = axisX;
+             result.Y = axisY;
+@@ -1978,6 +1978,7 @@
+
+         internal static bool Invert(in Impl matrix, out Impl result)
+         {
++            result = default;
+             // This implementation is based on the DirectX Math Library XMMatrixInverse method
+             // https://github.com/microsoft/DirectXMath/blob/master/Inc/DirectXMathMatrix.inl
+
+@@ -2236,7 +2237,7 @@
+             ref readonly Impl right = ref matrix2.AsROImpl();
+             Vector128<float> vAmount = Vector128.Create(amount);
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Lerp(left.X, right.X, vAmount);
+             result.Y = Vector128.Lerp(left.Y, right.Y, vAmount);
+@@ -2308,7 +2309,7 @@
+             float q23 = yz2 + wx2;
+             float q33 = 1.0f - xx2 - yy2;
+
+-            Impl result;
++            Impl result = default;
+
+             result.X = Vector128.Create(
+                 value.X.X * q11 + value.X.Y * q21 + value.X.Z * q31,
+@@ -2350,7 +2351,7 @@
+             // This implementation is based on the DirectX Math Library XMMatrixTranspose method
+             // https://github.com/microsoft/DirectXMath/blob/master/Inc/DirectXMathMatrix.inl
+
+-            Impl result;
++            Impl result = default;
+
+             Vector128<float> x = matrix.X;
+             Vector128<float> y = matrix.Y;

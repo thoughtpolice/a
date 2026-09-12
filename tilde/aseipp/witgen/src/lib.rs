@@ -4,6 +4,8 @@
 //! Bindings for WIT worlds. witgen reads a world with wit-parser, the crate
 //! wlink links components with, and writes code for one side of it:
 //!
+//! - [`csharp`]: C# for a module gameplayc compiles (tilde/aseipp/cs2wasm),
+//!   the world's imports to call and exports to implement.
 //! - [`host`]: the side of a world's imports a host implements itself,
 //!   under wlink's host ABI, in TypeScript, C (over wasm2c) or Rust.
 //!
@@ -19,6 +21,7 @@ use anyhow::{Context, Result, bail};
 use wit_parser::{PackageId, Resolve, TypeDefKind, WorldId};
 
 pub mod abi;
+pub mod csharp;
 pub mod host;
 pub mod names;
 

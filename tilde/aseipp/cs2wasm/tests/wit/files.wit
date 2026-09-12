@@ -1,0 +1,102 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+/// WASI 0.3's filesystem and standard output (only what is used), which
+/// Wasmtime provides with `-S p3`: an async method of a resource whose
+/// result holds a string, a stream of records holding strings with a
+/// future of its outcome, and a stream the module writes.
+package test:files;
+
+package wasi:filesystem@0.3.0 {
+    interface types {
+        variant descriptor-type {
+            block-device,
+            character-device,
+            directory,
+            fifo,
+            symbolic-link,
+            regular-file,
+            socket,
+            other(option<string>),
+        }
+
+        record directory-entry {
+            %type: descriptor-type,
+            name: string,
+        }
+
+        variant error-code {
+            access,
+            already,
+            bad-descriptor,
+            busy,
+            deadlock,
+            quota,
+            exist,
+            file-too-large,
+            illegal-byte-sequence,
+            in-progress,
+            interrupted,
+            invalid,
+            io,
+            is-directory,
+            loop,
+            too-many-links,
+            message-size,
+            name-too-long,
+            no-device,
+            no-entry,
+            no-lock,
+            insufficient-memory,
+            insufficient-space,
+            not-directory,
+            not-empty,
+            not-recoverable,
+            unsupported,
+            no-tty,
+            no-such-device,
+            overflow,
+            not-permitted,
+            pipe,
+            read-only,
+            invalid-seek,
+            text-file-busy,
+            cross-device,
+            other(option<string>),
+        }
+
+        resource descriptor {
+            read-directory: func() -> tuple<stream<directory-entry>, future<result<_, error-code>>>;
+            readlink-at: async func(path: string) -> result<string, error-code>;
+        }
+    }
+
+    interface preopens {
+        use types.{descriptor};
+
+        get-directories: func() -> list<tuple<descriptor, string>>;
+    }
+}
+
+package wasi:cli@0.3.0 {
+    interface types {
+        enum error-code {
+            io,
+            illegal-byte-sequence,
+            pipe,
+        }
+    }
+
+    interface stdout {
+        use types.{error-code};
+
+        write-via-stream: func(data: stream<u8>) -> future<result<_, error-code>>;
+    }
+}
+
+world files {
+    import wasi:filesystem/preopens@0.3.0;
+    import wasi:cli/stdout@0.3.0;
+    /// Reads the link, lists the directory and says so on standard output.
+    export probe: async func(link: string) -> string;
+}

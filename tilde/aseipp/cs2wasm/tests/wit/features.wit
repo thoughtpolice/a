@@ -1,0 +1,233 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+/// Everything the gameplayc bindings can express, and a few things they
+/// cannot, so the generator's report is exercised too.
+package test:features@1.0.0;
+
+interface shapes {
+    /// A packed colour.
+    record color {
+        r: u8,
+        g: u8,
+        b: u8,
+        /// Opacity: 0 is transparent.
+        a: u8,
+    }
+
+    record rect {
+        x: s32,
+        y: s32,
+        w: u32,
+        h: u32,
+    }
+
+    /// A record inside a record flattens field by field.
+    record sprite {
+        bounds: rect,
+        tint: color,
+        visible: bool,
+    }
+
+    enum shape-kind {
+        circle,
+        square,
+        %list,
+    }
+
+    flags style {
+        filled,
+        outlined,
+        dashed,
+    }
+
+    /// A flag called `none` takes the name of the empty set.
+    flags mode {
+        none,
+        fast,
+    }
+
+    record tagged {
+        kind: shape-kind,
+        visible: bool,
+    }
+
+    /// An optional record as a field lowers like an optional parameter.
+    record window {
+        frame: rect,
+        tag: option<tagged>,
+    }
+
+    fill: func(bounds: rect, tint: color) -> u32;
+    blit: func(sprite: sprite, scale: f32) -> f64;
+    set-clip: func(bounds: option<rect>);
+    kind-of: func(sides: u32) -> shape-kind;
+    style-of: func(kind: shape-kind) -> style;
+    wide: func(a: s64, b: u64, c: s8, d: u16, e: char) -> s64;
+    /// Each option lowers on its own.
+    set-clips: func(first: option<rect>, second: option<rect>) -> u32;
+    show: func(window: window, overlay: option<tagged>) -> u32;
+    mode-of: func(mode: mode) -> mode;
+    /// A string crosses through the boundary memory.
+    label: func(bounds: rect, text: string);
+    /// So does a record that comes back.
+    measure: func(sides: u32) -> rect;
+}
+
+/// Strings, lists, tuples, options and wide signatures: canonical ABI glue
+/// through the boundary memory.
+interface text {
+    record entry {
+        name: string,
+        size: u32,
+        tags: list<string>,
+    }
+
+    greet: func(name: string) -> string;
+    reverse: func(values: list<s32>) -> list<s32>;
+    entries: func(prefix: string, count: u32) -> list<entry>;
+    split: func(text: string, at: u32) -> tuple<string, string>;
+    find: func(values: list<u16>, wanted: u16) -> option<u32>;
+    maybe-name: func(id: u32) -> option<string>;
+    /// Seventeen flat parameters: they go through memory.
+    many: func(
+        a: u32, b: u32, c: u32, d: u32, e: u32, f: u32, g: u32, h: u32, i: u32,
+        j: u32, k: u32, l: u32, m: u32, n: u32, o: u32, p: u32, q: u32,
+    ) -> u64;
+    checksum: func(data: list<u8>) -> u32;
+    transpose: func(rows: list<list<u8>>) -> list<list<u8>>;
+    pairs: func(items: list<tuple<string, option<s64>>>) -> u32;
+
+    /// Variants: a C# 15 union of a class per case.
+    variant shape {
+        circle(f32),
+        rect(tuple<u32, u32>),
+        label(string),
+        empty,
+    }
+
+    /// Payloads of every width: flat, they join (f32 into i64 bits).
+    variant mixed {
+        small(f32),
+        big(u64),
+        text(string),
+        nothing,
+    }
+
+    /// A variant without payloads is an enum.
+    variant signal {
+        go,
+        stop,
+    }
+
+    area: func(shape: shape) -> f64;
+    parse: func(text: string) -> result<u32, string>;
+    mix: func(value: mixed) -> mixed;
+    signal-of: func(value: u32) -> signal;
+    validate: func(values: list<result<shape, u8>>) -> result<_, list<string>>;
+}
+
+interface handles {
+    use shapes.{rect};
+
+    /// A host object addressed by handle.
+    resource canvas {
+        constructor(width: u32, height: u32);
+        clear: func(value: u8);
+        area: func() -> u64;
+        merge: static func(first: borrow<canvas>, second: own<canvas>) -> own<canvas>;
+        take-clip: func(bounds: option<rect>) -> bool;
+    }
+
+    /// A constructor taking one s32, the shape of the handle wrapper's.
+    resource counter {
+        constructor(start: s32);
+        get: func() -> s32;
+    }
+
+    /// A constructor with an owned argument and an option.
+    resource layer {
+        constructor(base: own<canvas>, clip: option<rect>);
+    }
+
+    open: func(id: u32) -> own<canvas>;
+    dispose-all: func();
+}
+
+/// Handles of a resource another interface defines.
+interface gifts {
+    use handles.{canvas};
+
+    give: func(n: u32) -> own<canvas>;
+    swap: func(old: own<canvas>) -> own<canvas>;
+}
+
+/// Shares its name with test:other/util.
+interface util {
+    ping: func(x: u32) -> u32;
+}
+
+interface callbacks {
+    use shapes.{rect, color, shape-kind, window};
+    use handles.{canvas};
+
+    record hit {
+        where: rect,
+        what: shape-kind,
+    }
+
+    on-hit: func(hit: hit, tint: color) -> bool;
+    on-tick: func(frame: u64) -> s32;
+    on-window: func(window: window, extra: option<rect>) -> s32;
+    /// Handles cross exports as their i32 representation.
+    on-canvas: func(seen: borrow<canvas>, kept: own<canvas>) -> own<canvas>;
+}
+
+interface text-callbacks {
+    use text.{entry, shape, mixed};
+
+    on-text: func(text: string) -> string;
+    on-values: func(values: list<f64>) -> list<string>;
+    on-entry: func(entry: entry, extra: option<u8>) -> option<entry>;
+    on-many: func(
+        a: s32, b: s32, c: s32, d: s32, e: s32, f: s32, g: s32, h: s32, i: s32,
+        j: s32, k: s32, l: s32, m: s32, n: s32, o: s32, p: s32, q: string,
+    ) -> tuple<s64, string>;
+    on-shape: func(shape: shape) -> result<string, u32>;
+    on-mixed: func(values: list<mixed>) -> list<result<_, string>>;
+}
+
+/// What the bindings cannot express: a future without a payload.
+interface outcomes {
+    signal: func(done: future);
+}
+
+/// Every export is implementable, so a module can be componentized against
+/// this world.
+world test {
+    import shapes;
+    import handles;
+    import gifts;
+    import util;
+    import text;
+    import test:other/util;
+    import log: func(level: u32, code: s32);
+
+    export callbacks;
+    export text-callbacks;
+    export run: func(steps: u32) -> u32;
+    export finish: func() -> s64;
+    export describe: func() -> string;
+}
+
+/// Exports a module cannot implement: `--strict` refuses it.
+world partial {
+    include test;
+    export outcomes;
+}
+
+package test:other {
+    interface util {
+        ping: func(x: u32) -> u32;
+    }
+}

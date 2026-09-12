@@ -9,6 +9,9 @@ Bindings for WIT worlds, generated from the world with wit-parser, the crate
 [wlink](../wlink/README.md) links components with. One tool for each side of
 a world the repository writes code for by hand otherwise:
 
+- `witgen csharp`: C# for a module gameplayc compiles, the world's imports
+  to call and its exports to implement ([cs2wasm's
+  docs/WIT.md](../cs2wasm/docs/WIT.md)).
 - `witgen host`: the side of a world's imports a host implements itself,
   under wlink's host ABI, in TypeScript, C or Rust.
 - `witgen c` and `witgen rust`: a C or Rust guest's bindings, from

@@ -1,0 +1,80 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# dotnet/runtime's BigInteger.cs, as the gameplay CoreLib compiles it
+# (corelib/BigInteger.cs): a GC array of nuint limbs cannot be seen as
+# bytes or 32-bit words, so the constructor from bytes reads each limb a
+# byte at a time, TryGetBytes always takes its limb-by-limb loop, and a
+# rotation swaps the limbs' words through the CoreLib's
+# SwapUpperAndLowerWords. coresurface applies it (--patch).
+--- a/BigInteger.cs
++++ b/BigInteger.cs
+@@ -409,23 +409,19 @@
+                 // Copy the bytes to the nuint array, apart from those which represent the
+                 // most significant limb if it's not a full limb.
+                 // The limbs are stored in 'least significant first' order.
+-                if (isBigEndian)
++                // Gameplay: an array of limbs is not an array of bytes here,
++                // so each limb is read a byte at a time, the least
++                // significant first in either order.
++                for (int limb = 0; limb < wholeLimbCount; limb++)
+                 {
+-                    // The bytes parameter is in big-endian byte order.
+-                    // We need to read the limbs out in reverse.
+-
+-                    Span<byte> limbBytes = MemoryMarshal.AsBytes(val.AsSpan(0, wholeLimbCount));
+-
+-                    // We need to slice off the remainder from the beginning.
+-                    value.Slice(unalignedBytes).CopyTo(limbBytes);
++                    nuint limbValue = 0;
++                    for (int limbByte = nint.Size - 1; limbByte >= 0; limbByte--)
++                    {
++                        int significance = limb * nint.Size + limbByte;
++                        limbValue = (limbValue << 8) | (isBigEndian ? value[byteCount - 1 - significance] : value[significance]);
++                    }
+
+-                    limbBytes.Reverse();
+-                }
+-                else
+-                {
+-                    // The bytes parameter is in little-endian byte order.
+-                    // We can just copy the bytes directly into the nuint array.
+-                    value.Slice(0, wholeLimbCount * nint.Size).CopyTo(MemoryMarshal.AsBytes(val.AsSpan()));
++                    val[limb] = limbValue;
+                 }
+
+                 // In both of the above cases on big-endian architecture, we need to perform
+@@ -1659,7 +1655,9 @@
+
+             if (bits is not null)
+             {
+-                if (BitConverter.IsLittleEndian && sign > 0)
++                // Gameplay: the limbs are not bytes here; every sign takes the
++                // loop below.
++                if (false)
+                 {
+                     ReadOnlySpan<byte> srcBytes = MemoryMarshal.AsBytes(bits.AsSpan(..^1));
+
+@@ -3621,8 +3619,9 @@
+                         if (!BitConverter.IsLittleEndian)
+                             SwapHalvesWithinLimbs(zd);
+
+-                        Span<uint> words = MemoryMarshal.Cast<nuint, uint>(zd).Slice(0, zWordCount);
+-                        BigIntegerCalculator.SwapUpperAndLower(words, effectiveDigitShift);
++                        // Gameplay: the 32-bit words of the limbs, which are
++                        // not an array of words here.
++                        BigIntegerCalculator.SwapUpperAndLowerWords(zd, zWordCount, effectiveDigitShift);
+
+                         if (!BitConverter.IsLittleEndian)
+                             SwapHalvesWithinLimbs(zd);
+@@ -3646,8 +3645,8 @@
+                         if (!BitConverter.IsLittleEndian)
+                             SwapHalvesWithinLimbs(zd);
+
+-                        Span<uint> words = MemoryMarshal.Cast<nuint, uint>(zd).Slice(0, zWordCount);
+-                        BigIntegerCalculator.SwapUpperAndLower(words, zWordCount - effectiveDigitShift);
++                        // Gameplay: as above.
++                        BigIntegerCalculator.SwapUpperAndLowerWords(zd, zWordCount, zWordCount - effectiveDigitShift);
+
+                         if (!BitConverter.IsLittleEndian)
+                             SwapHalvesWithinLimbs(zd);
