@@ -7,7 +7,7 @@
   system,
 }:
 
-assert pkgs.lib.assertMsg pkgs.stdenv.isLinux
+assert pkgs.lib.assertMsg pkgs.stdenv.hostPlatform.isLinux
   "the development container image can only be built on Linux";
 
 let

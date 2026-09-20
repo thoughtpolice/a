@@ -3,8 +3,7 @@
 
 {
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    nixpkgs.url = "https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.zst";
 
     # For installing non-standard rustc versions
     rust-overlay.url = "github:oxalica/rust-overlay";
@@ -15,16 +14,18 @@
     {
       self,
       nixpkgs,
-      flake-utils,
       rust-overlay,
     }:
-    flake-utils.lib.eachSystem
-      [
+    let
+      inherit (nixpkgs) lib;
+
+      systems = [
         "aarch64-darwin"
         "aarch64-linux"
         "x86_64-linux"
-      ]
-      (
+      ];
+
+      outputsFor =
         system:
         let
           pkgs = import nixpkgs {
@@ -142,6 +143,16 @@
                 export RUSTFLAGS+=" -C link-arg=-fuse-ld=mold -C link-arg=-Wl,--compress-debug-sections=zstd"
               '';
           };
-        }
-      );
+        };
+
+      # Flake outputs are keyed by output then system, but evaluating one
+      # system costs a full `import nixpkgs`. Evaluate each system once, then
+      # regroup those results by output.
+      bySystem = lib.genAttrs systems outputsFor;
+    in
+    {
+      packages = lib.mapAttrs (_: attrs: attrs.packages) bySystem;
+      checks = lib.mapAttrs (_: attrs: attrs.checks) bySystem;
+      devShells = lib.mapAttrs (_: attrs: attrs.devShells) bySystem;
+    };
 }
