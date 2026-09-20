@@ -147,6 +147,16 @@ var rustExceptions = []exception{
 		ID:     "RUSTSEC-2026-0253",
 		Reason: "lru use-after-free in LruCache::pop(); fixed in lru 0.18.2, but sapling-streampager 0.12 (via jj-cli) requires lru 0.16, awaiting an upstream streampager bump",
 	},
+	// scc enters through dial9-perf-self-profile's memory profiler, which
+	// requires scc 2 while the fix landed in 3.8.4. The unsound path is
+	// `Array::insert` unwinding out of a user comparison, and dial9 only ever
+	// instantiates `scc::HashIndex<u64, (u64, u64), FxBuildHasher>`, whose key
+	// comparison is a primitive integer compare that cannot panic. Remove this
+	// once dial9-perf-self-profile moves to scc 3.
+	{
+		ID:     "RUSTSEC-2026-0205",
+		Reason: "scc Array::insert double-free if the comparison panics; fixed in scc 3.8.4, but dial9-perf-self-profile requires scc 2, and its only key type is u64",
+	},
 	// The im-rc stack is unmaintained with no fixed releases -- every version
 	// is affected -- and enters through egglog, which builds its persistent
 	// data structures on im-rc. Remove these once egglog drops im-rc.
@@ -165,36 +175,6 @@ var rustExceptions = []exception{
 	{
 		ID:     "RUSTSEC-2026-0255",
 		Reason: "sized-chunks panic-safety unsoundness in Chunk/RingBuffer/InlineArray; no fixed release exists, pulled in by egglog via im-rc, awaiting an upstream egglog migration",
-	},
-	// gix 0.80.x and its sub-crates are pinned by the jj-lib/jj-cli revision.
-	// Remove these after jj is bumped to a revision using gix 0.83 or newer.
-	{
-		ID:     "GHSA-f26g-jm89-4g65",
-		Reason: "gix-submodule command injection in .gitmodules; fixed in gix 0.83, awaiting a jj revision bump",
-	},
-	{
-		ID:     "GHSA-fr8x-3vfx-f45h",
-		Reason: "gix submodule-name path traversal; fixed in gix 0.83, awaiting a jj revision bump",
-	},
-	{
-		ID:     "GHSA-p3hw-mv63-rf9w",
-		Reason: "gix submodule validation bypass and trust inheritance; fixed in gix 0.83, awaiting a jj revision bump",
-	},
-	{
-		ID:     "GHSA-pg4w-g64p-qwhj",
-		Reason: "gix follows a symlinked .gitmodules outside the repository; fixed in gix 0.83, awaiting a jj revision bump",
-	},
-	{
-		ID:     "GHSA-f89h-2fjh-2r9q",
-		Reason: "gix-fs worktree escape through symlink prefix reuse; fixed in gix-fs 0.21.1, awaiting a jj revision bump",
-	},
-	{
-		ID:     "GHSA-x494-mj8g-cj27",
-		Reason: "gix-pack denial of service from crafted pack data; fixed in gix-pack 0.69.0, awaiting a jj revision bump",
-	},
-	{
-		ID:     "GHSA-9857-6mw7-fq2m",
-		Reason: "gix-transport curl backend credential leak on redirect; fixed in gix-transport 0.56.0, awaiting a jj revision bump",
 	},
 }
 
