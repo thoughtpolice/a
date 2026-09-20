@@ -2068,23 +2068,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "capnp",
-    actual = ":capnp-0.26",
+    actual = ":capnp-0.27",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "capnp-0.26.2.crate",
-    sha256 = "58ddce707ad9fb2ae92770523cd0e17a0cf34e79b66a9ca4db2dd993535fe718",
-    strip_prefix = "capnp-0.26.2",
-    urls = ["https://static.crates.io/crates/capnp/0.26.2/download"],
+    name = "capnp-0.27.2.crate",
+    sha256 = "93f7ce2b1b49d58b2b754f9146ef07e3244f9b67e7563bc1292fbd5f01b142f0",
+    strip_prefix = "capnp-0.27.2",
+    urls = ["https://static.crates.io/crates/capnp/0.27.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "capnp-0.26",
-    srcs = [":capnp-0.26.2.crate"],
+    name = "capnp-0.27",
+    srcs = [":capnp-0.27.2.crate"],
     crate = "capnp",
-    crate_root = "capnp-0.26.2.crate/src/lib.rs",
+    crate_root = "capnp-0.27.2.crate/src/lib.rs",
     edition = "2021",
     features = [
         "alloc",
@@ -2096,27 +2096,27 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "capnp-futures",
-    actual = ":capnp-futures-0.26",
+    actual = ":capnp-futures-0.27",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "capnp-futures-0.26.1.crate",
-    sha256 = "e2a0655816a8c19628e54f9f9c373549e4a7166effd0cf92c3d05e3426e85d4e",
-    strip_prefix = "capnp-futures-0.26.1",
-    urls = ["https://static.crates.io/crates/capnp-futures/0.26.1/download"],
+    name = "capnp-futures-0.27.0.crate",
+    sha256 = "c3a1724aec0e9587f267bf19708934afa545113a44f20acac4b3db9a92857056",
+    strip_prefix = "capnp-futures-0.27.0",
+    urls = ["https://static.crates.io/crates/capnp-futures/0.27.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "capnp-futures-0.26",
-    srcs = [":capnp-futures-0.26.1.crate"],
+    name = "capnp-futures-0.27",
+    srcs = [":capnp-futures-0.27.0.crate"],
     crate = "capnp_futures",
-    crate_root = "capnp-futures-0.26.1.crate/src/lib.rs",
+    crate_root = "capnp-futures-0.27.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":capnp-0.26",
+        ":capnp-0.27",
         ":futures-channel-0.3",
         ":futures-util-0.3",
     ],
@@ -2124,56 +2124,56 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "capnp-rpc",
-    actual = ":capnp-rpc-0.26",
+    actual = ":capnp-rpc-0.27",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "capnp-rpc-0.26.1.crate",
-    sha256 = "ea82a287f0c2abac618a94f17ad93097fefc7368196f33f4635ed08236ee7bd9",
-    strip_prefix = "capnp-rpc-0.26.1",
-    urls = ["https://static.crates.io/crates/capnp-rpc/0.26.1/download"],
+    name = "capnp-rpc-0.27.0.crate",
+    sha256 = "01c95bfe8fb2c366b5f54c8be5e9679bd36ec5e1df59e94f95fdd4af697aca13",
+    strip_prefix = "capnp-rpc-0.27.0",
+    urls = ["https://static.crates.io/crates/capnp-rpc/0.27.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "capnp-rpc-0.26",
-    srcs = [":capnp-rpc-0.26.1.crate"],
+    name = "capnp-rpc-0.27",
+    srcs = [":capnp-rpc-0.27.0.crate"],
     crate = "capnp_rpc",
-    crate_root = "capnp-rpc-0.26.1.crate/src/lib.rs",
+    crate_root = "capnp-rpc-0.27.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
-        ":capnp-0.26",
-        ":capnp-futures-0.26",
+        ":capnp-0.27",
+        ":capnp-futures-0.27",
         ":futures-0.3",
     ],
 )
 
 shims.alias(
     name = "capnpc",
-    actual = ":capnpc-0.26",
+    actual = ":capnpc-0.27",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "capnpc-0.26.0.crate",
-    sha256 = "13aea06b902f885cb0313b11e900e96cd57fef775e9e601a96e14e1d655f3cd3",
-    strip_prefix = "capnpc-0.26.0",
-    urls = ["https://static.crates.io/crates/capnpc/0.26.0/download"],
+    name = "capnpc-0.27.0.crate",
+    sha256 = "82ca16312ddb64529d31c8dc46148671c22e57b80134fa5f17811ad5a6a79492",
+    strip_prefix = "capnpc-0.27.0",
+    urls = ["https://static.crates.io/crates/capnpc/0.27.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "capnpc-0.26",
-    srcs = [":capnpc-0.26.0.crate"],
+    name = "capnpc-0.27",
+    srcs = [":capnpc-0.27.0.crate"],
     crate = "capnpc",
-    crate_root = "capnpc-0.26.0.crate/src/lib.rs",
+    crate_root = "capnpc-0.27.0.crate/src/lib.rs",
     edition = "2021",
     env = {
         "CARGO_BIN_NAME": "capnpc",
         "CARGO_CRATE_NAME": "capnpc",
-        "CARGO_MANIFEST_DIR": "capnpc-0.26.0.crate",
+        "CARGO_MANIFEST_DIR": "capnpc-0.27.0.crate",
         "CARGO_PKG_AUTHORS": "David Renshaw <dwrenshaw@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Cap'n Proto code generation",
         "CARGO_PKG_HOMEPAGE": "",
@@ -2181,14 +2181,14 @@ third_party_rust.rust_library(
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/capnproto/capnproto-rust",
         "CARGO_PKG_RUST_VERSION": "",
-        "CARGO_PKG_VERSION": "0.26.0",
+        "CARGO_PKG_VERSION": "0.27.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "26",
+        "CARGO_PKG_VERSION_MINOR": "27",
         "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
     },
     visibility = [],
-    deps = [":capnp-0.26"],
+    deps = [":capnp-0.27"],
 )
 
 shims.http_archive(
