@@ -15,7 +15,7 @@ Comprehensive OCI (Open Container Initiative) container image support for Buck2.
 
 ### Tools
 
-- **skopeo** (v1.20.0): Registry pull/push operations
+- **skopeo** (v1.24.1): Registry pull/push operations
 - **umoci** (v0.6.0): Unpack/repack filesystem bundles
 - **Pure Python**: Manifest and config manipulation (no external tools)
 

@@ -7,17 +7,17 @@ load("@root//buck/shims:shims.bzl", "shims")
 shims.http_file(
     name = "skopeo_x86_64",
     executable = True,
-    sha256 = "e5d3f410839313c0b28ef4659643146dad88653fc831aa15adf705421fa06fc0",
+    sha256 = "067d461564e606b4f54f30453a9f21a53aabc4f1bb0acd5193ffff5b1aececbc",
     target_compatible_with = ["config//os:linux"],
-    urls = ["https://github.com/lework/skopeo-binary/releases/download/v1.20.0/skopeo-linux-amd64"],
+    urls = ["https://github.com/lework/skopeo-binary/releases/download/v1.24.1/skopeo-linux-amd64"],
 )
 
 shims.http_file(
     name = "skopeo_arm64",
     executable = True,
-    sha256 = "c53670037b0a861ffaae1ce11baaca511d0722e4b537ab11c19a04660d8e6021",
+    sha256 = "a7e32a8f39110a55e0230e0f27bf50f1b2e4f36841793b07a7ba711877e63020",
     target_compatible_with = ["config//os:linux"],
-    urls = ["https://github.com/lework/skopeo-binary/releases/download/v1.20.0/skopeo-linux-arm64"],
+    urls = ["https://github.com/lework/skopeo-binary/releases/download/v1.24.1/skopeo-linux-arm64"],
 )
 
 skopeo_binary(
