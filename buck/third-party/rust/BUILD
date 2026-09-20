@@ -26415,23 +26415,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "wasm-encoder",
-    actual = ":wasm-encoder-0.258",
+    actual = ":wasm-encoder-0.259",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "wasm-encoder-0.258.0.crate",
-    sha256 = "e974fe6821a8cf64575d51ea2194e2c8f77e7b66e9afe7419ce8a97f9ee0d251",
-    strip_prefix = "wasm-encoder-0.258.0",
-    urls = ["https://static.crates.io/crates/wasm-encoder/0.258.0/download"],
+    name = "wasm-encoder-0.259.0.crate",
+    sha256 = "b1d0246511d901aacf25d2dc9111f0054947de5e093fe662099e709ff7530dc3",
+    strip_prefix = "wasm-encoder-0.259.0",
+    urls = ["https://static.crates.io/crates/wasm-encoder/0.259.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "wasm-encoder-0.258",
-    srcs = [":wasm-encoder-0.258.0.crate"],
+    name = "wasm-encoder-0.259",
+    srcs = [":wasm-encoder-0.259.0.crate"],
     crate = "wasm_encoder",
-    crate_root = "wasm-encoder-0.258.0.crate/src/lib.rs",
+    crate_root = "wasm-encoder-0.259.0.crate/src/lib.rs",
     edition = "2024",
     features = [
         "component-model",
@@ -26442,52 +26442,52 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":leb128fmt-0.1",
-        ":wasmparser-0.258",
+        ":wasmparser-0.259",
     ],
 )
 
 shims.http_archive(
-    name = "wasm-metadata-0.258.0.crate",
-    sha256 = "18a11585adb92fe9b55ad1d760e8d8fb5d87e0d2e303cb8eed57f078d54293a2",
-    strip_prefix = "wasm-metadata-0.258.0",
-    urls = ["https://static.crates.io/crates/wasm-metadata/0.258.0/download"],
+    name = "wasm-metadata-0.259.0.crate",
+    sha256 = "4e7bf119eb01f4a246864c10bd87c8f26c566350abb25aa4d5273c415bbab338",
+    strip_prefix = "wasm-metadata-0.259.0",
+    urls = ["https://static.crates.io/crates/wasm-metadata/0.259.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "wasm-metadata-0.258",
-    srcs = [":wasm-metadata-0.258.0.crate"],
+    name = "wasm-metadata-0.259",
+    srcs = [":wasm-metadata-0.259.0.crate"],
     crate = "wasm_metadata",
-    crate_root = "wasm-metadata-0.258.0.crate/src/lib.rs",
+    crate_root = "wasm-metadata-0.259.0.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
         ":anyhow-1",
         ":indexmap-2",
-        ":wasm-encoder-0.258",
-        ":wasmparser-0.258",
+        ":wasm-encoder-0.259",
+        ":wasmparser-0.259",
     ],
 )
 
 shims.alias(
     name = "wasm-smith",
-    actual = ":wasm-smith-0.258",
+    actual = ":wasm-smith-0.259",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "wasm-smith-0.258.0.crate",
-    sha256 = "a84b31d645ea084a94e1a7c410e30219c165a0960b336f535f99162caf2cfd0c",
-    strip_prefix = "wasm-smith-0.258.0",
-    urls = ["https://static.crates.io/crates/wasm-smith/0.258.0/download"],
+    name = "wasm-smith-0.259.0.crate",
+    sha256 = "8790c064265f6d6cdaa30a2e53ccb779a3d157a16286640a4b0d64d6e7df3aa4",
+    strip_prefix = "wasm-smith-0.259.0",
+    urls = ["https://static.crates.io/crates/wasm-smith/0.259.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "wasm-smith-0.258",
-    srcs = [":wasm-smith-0.258.0.crate"],
+    name = "wasm-smith-0.259",
+    srcs = [":wasm-smith-0.259.0.crate"],
     crate = "wasm_smith",
-    crate_root = "wasm-smith-0.258.0.crate/src/lib.rs",
+    crate_root = "wasm-smith-0.259.0.crate/src/lib.rs",
     edition = "2024",
     features = ["wasmparser"],
     visibility = [],
@@ -26495,30 +26495,30 @@ third_party_rust.rust_library(
         ":anyhow-1",
         ":arbitrary-1",
         ":flagset-0.4",
-        ":wasm-encoder-0.258",
-        ":wasmparser-0.258",
+        ":wasm-encoder-0.259",
+        ":wasmparser-0.259",
     ],
 )
 
 shims.alias(
     name = "wasmparser",
-    actual = ":wasmparser-0.258",
+    actual = ":wasmparser-0.259",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "wasmparser-0.258.0.crate",
-    sha256 = "d9a61719f93a87b16d325921e251800c4833f8fab50fa21c7de73aed50086313",
-    strip_prefix = "wasmparser-0.258.0",
-    urls = ["https://static.crates.io/crates/wasmparser/0.258.0/download"],
+    name = "wasmparser-0.259.0.crate",
+    sha256 = "0f7c12eac7bb587801590f6a67ff0bc84d0748513864b71108e4b311cc3df694",
+    strip_prefix = "wasmparser-0.259.0",
+    urls = ["https://static.crates.io/crates/wasmparser/0.259.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "wasmparser-0.258",
-    srcs = [":wasmparser-0.258.0.crate"],
+    name = "wasmparser-0.259",
+    srcs = [":wasmparser-0.259.0.crate"],
     crate = "wasmparser",
-    crate_root = "wasmparser-0.258.0.crate/src/lib.rs",
+    crate_root = "wasmparser-0.259.0.crate/src/lib.rs",
     edition = "2024",
     features = [
         "component-model",
@@ -26542,23 +26542,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "wasmprinter",
-    actual = ":wasmprinter-0.258",
+    actual = ":wasmprinter-0.259",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "wasmprinter-0.258.0.crate",
-    sha256 = "3a65e30fb2cd3cc5cb7761a6064787b2abf017e6566d8d0dedf2bb7f55ad5383",
-    strip_prefix = "wasmprinter-0.258.0",
-    urls = ["https://static.crates.io/crates/wasmprinter/0.258.0/download"],
+    name = "wasmprinter-0.259.0.crate",
+    sha256 = "0510ce2ff0ad7c5510ad3dfcb2cedba4cf5d9f7e08d1d06e4d8cf8e5638aef95",
+    strip_prefix = "wasmprinter-0.259.0",
+    urls = ["https://static.crates.io/crates/wasmprinter/0.259.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "wasmprinter-0.258",
-    srcs = [":wasmprinter-0.258.0.crate"],
+    name = "wasmprinter-0.259",
+    srcs = [":wasmprinter-0.259.0.crate"],
     crate = "wasmprinter",
-    crate_root = "wasmprinter-0.258.0.crate/src/lib.rs",
+    crate_root = "wasmprinter-0.259.0.crate/src/lib.rs",
     edition = "2024",
     features = [
         "component-model",
@@ -26569,23 +26569,23 @@ third_party_rust.rust_library(
     deps = [
         ":anyhow-1",
         ":termcolor-1",
-        ":wasmparser-0.258",
+        ":wasmparser-0.259",
     ],
 )
 
 shims.http_archive(
-    name = "wast-258.0.0.crate",
-    sha256 = "97f7defc7ecca8b19ac7f824598eadd0c53985ee00c74060d65051e9da5b58a1",
-    strip_prefix = "wast-258.0.0",
-    urls = ["https://static.crates.io/crates/wast/258.0.0/download"],
+    name = "wast-259.0.0.crate",
+    sha256 = "c69beba8d9da07af9a0971b559149a2ac4729895b55144de4fddbf5a02660648",
+    strip_prefix = "wast-259.0.0",
+    urls = ["https://static.crates.io/crates/wast/259.0.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "wast-258",
-    srcs = [":wast-258.0.0.crate"],
+    name = "wast-259",
+    srcs = [":wast-259.0.0.crate"],
     crate = "wast",
-    crate_root = "wast-258.0.0.crate/src/lib.rs",
+    crate_root = "wast-259.0.0.crate/src/lib.rs",
     edition = "2024",
     features = [
         "component-model",
@@ -26597,7 +26597,7 @@ third_party_rust.rust_library(
         ":leb128fmt-0.1",
         ":memchr-2",
         ":unicode-width-0.2",
-        ":wasm-encoder-0.258",
+        ":wasm-encoder-0.259",
     ],
 )
 
@@ -26608,25 +26608,25 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "wat-1.258.0.crate",
-    sha256 = "7555c008cca87f2ac58d9f83ccda7e7b44611093ce28eb28f052e7c78024b9bf",
-    strip_prefix = "wat-1.258.0",
-    urls = ["https://static.crates.io/crates/wat/1.258.0/download"],
+    name = "wat-1.259.0.crate",
+    sha256 = "c6eec44b0c80391b20fb7ad9ea440c72c5d382385bdf74444bb18321c425017e",
+    strip_prefix = "wat-1.259.0",
+    urls = ["https://static.crates.io/crates/wat/1.259.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "wat-1",
-    srcs = [":wat-1.258.0.crate"],
+    srcs = [":wat-1.259.0.crate"],
     crate = "wat",
-    crate_root = "wat-1.258.0.crate/src/lib.rs",
+    crate_root = "wat-1.259.0.crate/src/lib.rs",
     edition = "2024",
     features = [
         "component-model",
         "default",
     ],
     visibility = [],
-    deps = [":wast-258"],
+    deps = [":wast-259"],
 )
 
 shims.alias(
@@ -27904,38 +27904,38 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "wit-component",
-    actual = ":wit-component-0.258",
+    actual = ":wit-component-0.259",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "wit-component-0.258.0.crate",
-    sha256 = "481b5c47b2ecce0389b5e08a05557d6a190c9cd761773b8880a8017ee04dc7ef",
-    strip_prefix = "wit-component-0.258.0",
-    urls = ["https://static.crates.io/crates/wit-component/0.258.0/download"],
+    name = "wit-component-0.259.0.crate",
+    sha256 = "092f783dee3253265fcde131475055f8c275ac0176a9c0396db1dc7b5544bfb4",
+    strip_prefix = "wit-component-0.259.0",
+    urls = ["https://static.crates.io/crates/wit-component/0.259.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "wit-component-0.258",
-    srcs = [":wit-component-0.258.0.crate"],
+    name = "wit-component-0.259",
+    srcs = [":wit-component-0.259.0.crate"],
     crate = "wit_component",
-    crate_root = "wit-component-0.258.0.crate/src/lib.rs",
+    crate_root = "wit-component-0.259.0.crate/src/lib.rs",
     edition = "2024",
     env = {
         "CARGO_BIN_NAME": "wit_component",
         "CARGO_CRATE_NAME": "wit_component",
-        "CARGO_MANIFEST_DIR": "wit-component-0.258.0.crate",
+        "CARGO_MANIFEST_DIR": "wit-component-0.259.0.crate",
         "CARGO_PKG_AUTHORS": "Peter Huene <peter@huene.dev>",
         "CARGO_PKG_DESCRIPTION": "Tooling for working with `*.wit` and component files together.\n",
-        "CARGO_PKG_HOMEPAGE": "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-component",
+        "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "wit-component",
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-component",
-        "CARGO_PKG_RUST_VERSION": "1.85.0",
-        "CARGO_PKG_VERSION": "0.258.0",
+        "CARGO_PKG_RUST_VERSION": "1.88.0",
+        "CARGO_PKG_VERSION": "0.259.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "258",
+        "CARGO_PKG_VERSION_MINOR": "259",
         "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
     },
@@ -27948,32 +27948,32 @@ third_party_rust.rust_library(
         ":serde-1",
         ":serde_derive-1",
         ":serde_json-1",
-        ":wasm-encoder-0.258",
-        ":wasm-metadata-0.258",
-        ":wasmparser-0.258",
-        ":wit-parser-0.258",
+        ":wasm-encoder-0.259",
+        ":wasm-metadata-0.259",
+        ":wasmparser-0.259",
+        ":wit-parser-0.259",
     ],
 )
 
 shims.alias(
     name = "wit-parser",
-    actual = ":wit-parser-0.258",
+    actual = ":wit-parser-0.259",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "wit-parser-0.258.0.crate",
-    sha256 = "ff4daaa3cd97ae49ecd0a99dc009d453f93e0f083dd3be38c0f24a83a93e37ac",
-    strip_prefix = "wit-parser-0.258.0",
-    urls = ["https://static.crates.io/crates/wit-parser/0.258.0/download"],
+    name = "wit-parser-0.259.0.crate",
+    sha256 = "6390f4f02493ce678d509c859cf1698e38929fb75c8012a6ee2f7d6b6cb66cd7",
+    strip_prefix = "wit-parser-0.259.0",
+    urls = ["https://static.crates.io/crates/wit-parser/0.259.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "wit-parser-0.258",
-    srcs = [":wit-parser-0.258.0.crate"],
+    name = "wit-parser-0.259",
+    srcs = [":wit-parser-0.259.0.crate"],
     crate = "wit_parser",
-    crate_root = "wit-parser-0.258.0.crate/src/lib.rs",
+    crate_root = "wit-parser-0.259.0.crate/src/lib.rs",
     edition = "2024",
     features = [
         "decoding",
@@ -27994,7 +27994,7 @@ third_party_rust.rust_library(
         ":serde_derive-1",
         ":serde_json-1",
         ":unicode-ident-1",
-        ":wasmparser-0.258",
+        ":wasmparser-0.259",
     ],
 )
 

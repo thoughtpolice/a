@@ -181,14 +181,14 @@ tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
 unicode-width = "0.2.2"
 uuid = { version = "1.24.0", features = ["v4"] }
-wasm-encoder = { version = "0.258.0", features = ["wasmparser"] }
-wasm-smith = { version = "0.258.0", features = ["wasmparser"] }
-wasmparser = "0.258.0"
-wasmprinter = "0.258.0"
-wat = "1.258.0"
+wasm-encoder = { version = "0.259.0", features = ["wasmparser"] }
+wasm-smith = { version = "0.259.0", features = ["wasmparser"] }
+wasmparser = "0.259.0"
+wasmprinter = "0.259.0"
+wat = "1.259.0"
 watchman_client = "0.9.0"
-wit-component = "0.258.0"
-wit-parser = "0.258.0"
+wit-component = "0.259.0"
+wit-parser = "0.259.0"
 zeroize = "1.9"
 zip = { version = "8", default-features = false, features = ["deflate"] }
 # NOTE (zstd): stay on 0.13 while slatedb's foyer-storage pins it. 0.14 brings
@@ -215,7 +215,13 @@ dial9 = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "5bad
 jj-lib = { git = "https://github.com/martinvonz/jj", rev = "7c41cdeb16b6b321c64e789a966b6adf723816a5" }
 jj-cli = { git = "https://github.com/martinvonz/jj", rev = "7c41cdeb16b6b321c64e789a966b6adf723816a5" }
 
-# NOTE (starlark): bump to stable when possible
+# NOTE (starlark): 0.14.2 exists but neither form of it is usable yet. The
+# crates.io release hard-pins `blake3 = "=1.8.2"`, two patch releases behind
+# ours. The git tree relaxed that afterwards, but by then it had also moved
+# allocative/dupe/display_container to `buck2.git?branch=main` — an unpinned
+# branch — and raised thiserror, syn and stacker floors that pull tokio,
+# futures, jiff and ~200 other crates along with them. Revisit when the next
+# crates.io release drops the exact blake3 pin.
 starlark        = { git = "https://github.com/facebook/starlark-rust", rev = "469ff502b05594b9b1ec1818753f712996a79d38" }
 starlark_derive = { git = "https://github.com/facebook/starlark-rust", rev = "469ff502b05594b9b1ec1818753f712996a79d38" }
 
