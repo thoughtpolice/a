@@ -17,12 +17,18 @@ name = "Austin Seipp"
 # email has to be configured per-repository
 
 [ui]
+log-synthetic-elided-nodes = true
 default-command = "log"
+diff-instructions = false
+diff-editor = "oyui"
 diff-formatter = "difft"
 merge-editor = "vscode"
-log-synthetic-elided-nodes = true
 graph.style = "square"
 should-sign-off = true
+
+[merge-tools.oyui]
+program = "oyui"
+edit-args = ["diff", "$left", "$right"]
 
 [merge-tools.difft]
 program = "difft"
@@ -43,7 +49,6 @@ private-commits = 'blacklist()'
 write-change-id-header = true
 
 [snapshot]
-# FIXME (upstream): why isn't this on by default?
 auto-update-stale = true
 
 [gerrit]
