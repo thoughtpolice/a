@@ -4,14 +4,14 @@
 load("@root//buck/shims:shims.bzl", "shims")
 load(":defs.bzl", "deno_toolchain", "download_deno")
 
-DENO_VERSION = "2.9.5"
+DENO_VERSION = "2.9.7"
 
 ALL_DENO_VERSIONS = {
-    "2.9.5": [
-        ("aarch64-unknown-linux-gnu", "6b7cae3a8fc4385a59dea3146fcb8bad7fea4230e0ad36a8c692afacbc254be0"),
-        ("aarch64-apple-darwin", "b796aadd131f6930560c1ee040cf0d6f53933fbb987464e9ff46bd7ea4830615"),
-        ("x86_64-unknown-linux-gnu", "8b010a3b1a4a0188a67cdb8a7a27348b2a501af78aec7fc74f2ace167368d530"),
-        ("x86_64-pc-windows-msvc", "171efab55ac6b9881fd53ee4c20f8bf3bb1340ffc618483746909014db12216a"),
+    "2.9.7": [
+        ("aarch64-unknown-linux-gnu", "c832298b1ad4422481334855f6003e0f54145762c5a134f20a489511d2f65bbf"),
+        ("aarch64-apple-darwin", "5cd46d6268f6f78f5d88bdc7159d20bd44cdaa4b3303474839f87ec6fe7ae25c"),
+        ("x86_64-unknown-linux-gnu", "c6527f24f4b16031d3ae4fa9f658d5f11534c8d84ce7dc8502420280919c3490"),
+        ("x86_64-pc-windows-msvc", "a0c3101b4158d1dfb7d6a78a7bf0f3de80c96bb423c152beec8beb22786f2238"),
     ],
 }
 
