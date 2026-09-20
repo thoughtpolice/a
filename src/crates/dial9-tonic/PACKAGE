@@ -13,7 +13,7 @@ pkg.info(
         "2026 Austin Seipp",
     ],
     visibility = ['PUBLIC'],
-    # dial9-tokio-telemetry is Linux perf tooling; this crate inherited
+    # dial9 is Linux perf tooling; this crate inherited
     # the constraint from the cache-server package before moving here.
     target_compatible_with = [
         "config//os:linux",

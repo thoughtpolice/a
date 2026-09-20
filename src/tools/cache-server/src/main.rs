@@ -7,20 +7,21 @@ use std::{path::PathBuf, str::FromStr, sync::Arc};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use dial9_tokio_telemetry::memory_profiling::{
-    Dial9Allocator, MemoryProfiler, MemoryProfilingConfig,
-};
-use dial9_tokio_telemetry::telemetry::{
-    RotatingWriter, TelemetryHandle, TracedRuntime,
-    cpu_profile::{CpuProfilingConfig, SchedEventConfig},
+use dial9::cpu::{CpuProfilingConfig, SchedEventConfig};
+use dial9::memory::{Dial9Allocator, MemoryProfilingConfig};
+use dial9::process::ProcessResourceUsageConfig;
+use dial9::{
+    Dial9HandleTokioExt as _, Dial9TokioHandle, DiskBuffer, RecorderPerfExt as _,
+    TokioAttachOptions,
 };
 use tracing_subscriber::{filter, prelude::*};
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 // Wrap mimalloc in dial9's sampling allocator. This is a zero-cost passthrough
-// to mimalloc until `MemoryProfiler::install` is called (which only happens when
-// dial9 telemetry is enabled), at which point sampled allocations are recorded.
+// to mimalloc until the recorder installs the memory profiler (which only
+// happens when dial9 telemetry is enabled), at which point sampled allocations
+// are recorded.
 #[global_allocator]
 static GLOBAL_ALLOCATOR: Dial9Allocator<mimalloc::MiMalloc> =
     Dial9Allocator::new(mimalloc::MiMalloc);
@@ -163,6 +164,55 @@ struct ServeArgs {
     otel_sampling_ratio: Option<f64>,
 }
 
+/// Build and start the dial9 recorder that writes trace segments into
+/// `trace_dir`.
+///
+/// `base_path` names the segment *directory* — in 0.3 it was a file path that
+/// dial9 rotated around, and passing one now just makes a directory of that
+/// name. Sources whose kernel prerequisites are missing are left out; the
+/// recorder still records everything else.
+fn start_recorder(
+    trace_dir: &std::path::Path,
+    max_file_mib: u64,
+    max_total_mib: u64,
+    caps: &runtime::PerfCapabilities,
+) -> Result<dial9::Recorder> {
+    let writer = DiskBuffer::builder()
+        .base_path(trace_dir)
+        .max_file_size(max_file_mib * 1024 * 1024)
+        .max_total_size(max_total_mib * 1024 * 1024)
+        .build()
+        .with_context(|| format!("failed to open trace directory {}", trace_dir.display()))?;
+
+    // Sampling memory profiling rides on the Dial9Allocator that wraps
+    // mimalloc (a passthrough until the recorder starts). Sampled at ~512 KiB
+    // with liveset tracking off by default, so the steady-state overhead is
+    // negligible.
+    let mut recorder = dial9::recorder(writer)
+        .with_memory_profiling(
+            MemoryProfilingConfig::builder()
+                .sample_rate_bytes(512 * 1024)
+                .build(),
+        )
+        .with_process_resource_usage(ProcessResourceUsageConfig::default());
+    if caps.cpu_profiling {
+        recorder = recorder.with_cpu_profiling(CpuProfilingConfig::default());
+        recorder = recorder
+            .with_sched_events(SchedEventConfig::default().include_kernel(caps.kernel_stacks));
+    }
+    Ok(recorder.build())
+}
+
+/// How the server attaches its runtime to the recorder.
+///
+/// The attach is also what marks the calling thread as traced, so the spawn
+/// handle has to be taken after it.
+fn attach_options() -> TokioAttachOptions {
+    TokioAttachOptions::builder()
+        .task_tracking_enabled(true)
+        .build()
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -173,13 +223,16 @@ fn main() -> Result<()> {
     builder.worker_threads(rt_info.effective_cpus);
 
     if cli.disable_dial9 {
-        let (runtime, guard) = TracedRuntime::build_disabled(builder)?;
-        let handle = guard.handle();
-        let result = runtime.block_on(async_main(cli, handle, None, None, rt_info));
+        let recorder = dial9::recorder_disabled();
+        let runtime = recorder
+            .handle()
+            .attach_tokio_runtime(builder, TokioAttachOptions::default())?;
+        let result = dial9::block_on(
+            &runtime,
+            async_main(cli, Dial9TokioHandle::current(), None, None, rt_info),
+        );
         drop(runtime);
-        guard
-            .graceful_shutdown(std::time::Duration::from_secs(5))
-            .ok();
+        recorder.graceful_shutdown(std::time::Duration::from_secs(5));
         result
     } else {
         let trace_dir = cli
@@ -188,53 +241,32 @@ fn main() -> Result<()> {
             .unwrap_or_else(|| std::env::temp_dir().join("cache-server-traces"));
         let _ = std::fs::remove_dir_all(&trace_dir);
 
-        let trace_path = trace_dir.join("trace.bin");
-        let writer = RotatingWriter::builder()
-            .base_path(&trace_path)
-            .max_file_size(cli.trace_max_file_mib * 1024 * 1024)
-            .max_total_size(cli.trace_max_total_mib * 1024 * 1024)
-            .build()?;
-
         let caps = runtime::check_perf_capabilities();
+        let recorder = start_recorder(
+            &trace_dir,
+            cli.trace_max_file_mib,
+            cli.trace_max_total_mib,
+            &caps,
+        )?;
 
-        let mut traced = TracedRuntime::builder().with_task_tracking(true);
-        if caps.cpu_profiling {
-            traced = traced.with_cpu_profiling(CpuProfilingConfig::default());
-            traced = traced
-                .with_sched_events(SchedEventConfig::default().include_kernel(caps.kernel_stacks));
-        }
-        let (runtime, guard) = traced
-            .with_trace_path(&trace_path)
-            .build_and_start(builder, writer)?;
-        let handle = guard.handle();
+        let runtime = recorder
+            .handle()
+            .attach_tokio_runtime(builder, attach_options())?;
 
-        // Activate sampling memory profiling on top of the Dial9Allocator that
-        // wraps mimalloc (a passthrough until now). Sampled at ~512 KiB with
-        // liveset tracking off by default, so the steady-state overhead is
-        // negligible. The guard must outlive the runtime, so keep it bound here.
-        let _mem_profiler = MemoryProfiler::from_config(
-            MemoryProfilingConfig::builder()
-                .sample_rate_bytes(512 * 1024)
-                .build(),
-        )
-        .install(handle.clone())
-        .context("failed to install dial9 memory profiler")?;
+        // Only the attach marks this thread as traced, so a handle taken
+        // before it would spawn without wake tracking and say nothing.
+        let handle = Dial9TokioHandle::current();
 
-        let result = runtime.block_on(async_main(
-            cli,
-            handle,
-            Some(trace_dir),
-            Some(caps),
-            rt_info,
-        ));
+        let result = dial9::block_on(
+            &runtime,
+            async_main(cli, handle, Some(trace_dir), Some(caps), rt_info),
+        );
         // Drop the runtime first so worker threads exit and flush their
         // thread-local telemetry buffers to the central collector. Then
         // graceful_shutdown drains the collector, seals the final segment,
         // and gives the background worker time to symbolize + compress.
         drop(runtime);
-        guard
-            .graceful_shutdown(std::time::Duration::from_secs(5))
-            .ok();
+        recorder.graceful_shutdown(std::time::Duration::from_secs(5));
         result
     }
 }
@@ -264,7 +296,7 @@ fn default_ttl(days: u32) -> Option<jiff::SignedDuration> {
 
 async fn async_main(
     cli: Cli,
-    handle: TelemetryHandle,
+    handle: Dial9TokioHandle,
     trace_dir: Option<PathBuf>,
     perf_caps: Option<runtime::PerfCapabilities>,
     rt_info: runtime::RuntimeInfo,
@@ -314,7 +346,7 @@ impl Default for ServeArgs {
     }
 }
 
-async fn run_compactor(cli: &Cli, handle: TelemetryHandle) -> Result<()> {
+async fn run_compactor(cli: &Cli, handle: Dial9TokioHandle) -> Result<()> {
     let cli_console_layer = tracing_subscriber::fmt::layer().with_filter(
         filter::LevelFilter::from_str(cli.console_log.as_str()).context(
             "invalid --console-log filter (valid values: trace, debug, info, warn, error, off)",
@@ -361,7 +393,7 @@ async fn run_compactor(cli: &Cli, handle: TelemetryHandle) -> Result<()> {
 async fn run_server(
     cli: &Cli,
     args: &ServeArgs,
-    handle: TelemetryHandle,
+    handle: Dial9TokioHandle,
     trace_dir: Option<&PathBuf>,
     perf_caps: Option<&runtime::PerfCapabilities>,
     rt_info: &runtime::RuntimeInfo,
@@ -469,7 +501,7 @@ async fn run_server(
         request_timeout_secs = args.request_timeout,
         max_concurrent_requests = args.max_concurrent_requests,
         disable_compactor = args.disable_compactor,
-        dial9 = !cli.disable_dial9,
+        dial9 = dial9::Dial9Handle::current().is_enabled(),
         trace_dir = trace_dir.map_or("disabled".to_string(), |d| d.display().to_string()),
         "cache-server ready",
     );
@@ -545,6 +577,9 @@ pub mod reapi_grpc;
 pub mod service;
 pub mod store;
 pub mod tls;
+
+#[cfg(test_module_dial9)]
+mod test_dial9;
 
 #[cfg(test_module_tls)]
 mod test_tls;

@@ -1802,9 +1802,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "dial9"
+version = "0.5.1"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
+dependencies = [
+ "bon",
+ "dial9-core",
+ "dial9-macro",
+ "dial9-metrique",
+ "dial9-perf-self-profile",
+ "dial9-tokio-telemetry",
+ "dial9-trace-format",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "dial9-core"
+version = "0.5.1"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
+dependencies = [
+ "arc-swap",
+ "bon",
+ "bytes",
+ "crossbeam-queue",
+ "dial9-trace-format",
+ "flate2",
+ "futures-util",
+ "libc",
+ "metrique",
+ "metrique-timesource",
+ "tokio",
+ "tokio-util 0.7.18",
+ "tracing",
+ "ulid",
+]
+
+[[package]]
 name = "dial9-macro"
-version = "0.3.7"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=bd7a50c6873173c6d052a839f00f7fc576316a13#bd7a50c6873173c6d052a839f00f7fc576316a13"
+version = "0.5.0"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1812,38 +1849,53 @@ dependencies = [
 ]
 
 [[package]]
+name = "dial9-metrique"
+version = "0.5.1"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
+dependencies = [
+ "dial9-core",
+ "dial9-trace-format",
+ "metrique",
+ "metrique-writer",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "dial9-perf-self-profile"
-version = "0.4.3"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=bd7a50c6873173c6d052a839f00f7fc576316a13#bd7a50c6873173c6d052a839f00f7fc576316a13"
+version = "0.5.1"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
 dependencies = [
  "blazesym",
+ "bon",
+ "bytes",
+ "crossbeam-queue",
  "crossbeam-utils",
+ "dial9-core",
  "dial9-trace-format",
  "libc",
  "perf-event-data",
  "perf-event-open-sys2",
+ "scc",
+ "tokio",
  "tracing",
 ]
 
 [[package]]
 name = "dial9-tokio-telemetry"
-version = "0.3.13"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=bd7a50c6873173c6d052a839f00f7fc576316a13#bd7a50c6873173c6d052a839f00f7fc576316a13"
+version = "0.5.1"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
 dependencies = [
- "arc-swap",
  "bon",
  "bytes",
- "crossbeam-queue",
- "dial9-macro",
+ "dial9-core",
  "dial9-perf-self-profile",
  "dial9-trace-format",
  "flate2",
  "futures-util",
  "hostname",
  "libc",
- "metrique",
  "metrique-timesource",
- "metrique-writer",
  "pin-project-lite",
  "serde",
  "serde_json",
@@ -1855,18 +1907,20 @@ dependencies = [
 
 [[package]]
 name = "dial9-trace-format"
-version = "0.4.1"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=bd7a50c6873173c6d052a839f00f7fc576316a13#bd7a50c6873173c6d052a839f00f7fc576316a13"
+version = "0.5.0"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
 dependencies = [
  "dial9-trace-format-derive",
  "serde",
+ "typeid",
 ]
 
 [[package]]
 name = "dial9-trace-format-derive"
-version = "0.4.1"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=bd7a50c6873173c6d052a839f00f7fc576316a13#bd7a50c6873173c6d052a839f00f7fc576316a13"
+version = "0.5.0"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
 dependencies = [
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -5827,12 +5881,11 @@ dependencies = [
 
 [[package]]
 name = "metrique"
-version = "0.1.27"
+version = "0.1.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6737991308ea171744eac9bb26885d6caa0b747d3cca72f7a69f38e689a1886"
+checksum = "2b55bfa39e6f5e44a37a59a794915ce36d04371471cf62ae365cd9703f58a5e0"
 dependencies = [
  "itoa",
- "jiff",
  "metrique-core",
  "metrique-macro",
  "metrique-service-metrics",
@@ -5841,7 +5894,6 @@ dependencies = [
  "metrique-writer-core",
  "metrique-writer-macro",
  "ryu",
- "serde_json",
  "tokio",
 ]
 
@@ -5857,9 +5909,9 @@ dependencies = [
 
 [[package]]
 name = "metrique-macro"
-version = "0.1.18"
+version = "0.1.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6512443e1f72c1faa670da0e7cc347dbdd6f17b8e97c3a10d0de56365887f18d"
+checksum = "7605c49951713cce25af6bee77ed4432dde0839c5d9935bcb6f9643e6e82c7c3"
 dependencies = [
  "Inflector",
  "darling",
@@ -5886,9 +5938,9 @@ checksum = "2faca4e4480069ff02b1763b3b79f5cec7e8628e24d9dc5b6073f53d2577a4d9"
 
 [[package]]
 name = "metrique-writer"
-version = "0.1.24"
+version = "0.1.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "124326a2ac4c4f61562fa4d071735a1c463f9ba0317d1564f75dc01313dc12d7"
+checksum = "bb97854dd4e2a92fe54b30e6e19976dcc0b2b7d39da3e84e86e2ce1e2ed8ce0d"
 dependencies = [
  "ahash",
  "crossbeam-queue",
@@ -5907,9 +5959,9 @@ dependencies = [
 
 [[package]]
 name = "metrique-writer-core"
-version = "0.1.18"
+version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55b5bbb6d88bde29f6ed74a574cbe49e51ea0c36cccc7e63eee2040db5675b15"
+checksum = "71c9fc241cff4eedc2b6c3e2edece7f3edab2920e7531f62aac864ce933cdbb6"
 dependencies = [
  "derive-where",
  "itertools 0.14.0",
@@ -8040,7 +8092,7 @@ dependencies = [
  "crossbeam-channel",
  "crossterm",
  "dashmap",
- "dial9-tokio-telemetry",
+ "dial9",
  "dupe 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "dupe_derive 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "educe 0.7.4",
@@ -8439,6 +8491,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "scc"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46e6f046b7fef48e2660c57ed794263155d713de679057f2d0c169bfc6e756cc"
+dependencies = [
+ "sdd",
+]
+
+[[package]]
 name = "schannel"
 version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8541,6 +8602,12 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "sdd"
+version = "3.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "490dcfcbfef26be6800d11870ff2df8774fa6e86d047e3e8c8a76b25655e41ca"
 
 [[package]]
 name = "security-framework"

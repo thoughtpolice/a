@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use dial9_tokio_telemetry::telemetry::TelemetryHandle;
+use dial9::Dial9TokioHandle;
 use futures::{StreamExt as _, TryStreamExt as _};
 use prost::Message;
 use tokio_stream::wrappers::ReceiverStream;
@@ -34,7 +34,7 @@ const MAX_BATCH_DIGESTS: usize = 10_000;
 #[derive(Clone)]
 pub struct ContentAddressableStorageService {
     store: Arc<CacheStore>,
-    handle: TelemetryHandle,
+    handle: Dial9TokioHandle,
 }
 
 impl std::fmt::Debug for ContentAddressableStorageService {
@@ -46,7 +46,7 @@ impl std::fmt::Debug for ContentAddressableStorageService {
 }
 
 impl ContentAddressableStorageService {
-    pub fn new(store: Arc<CacheStore>, handle: TelemetryHandle) -> Self {
+    pub fn new(store: Arc<CacheStore>, handle: Dial9TokioHandle) -> Self {
         Self { store, handle }
     }
 }

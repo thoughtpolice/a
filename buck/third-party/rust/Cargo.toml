@@ -182,7 +182,17 @@ zstd = "0.13"
 
 ## Git repos come below
 
-dial9-tokio-telemetry = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "bd7a50c6873173c6d052a839f00f7fc576316a13", features = ["cpu-profiling", "memory-profiling"] }
+# NOTE (dial9): 0.5 replaced the `dial9-tokio-telemetry` crate with the `dial9`
+# facade; the rev is the `dial9-v0.5.1` tag. Tokio integration is a feature now
+# (`tokio`), and it is the only one that pulls a runtime in. `process-resource`
+# was on by default on unix in 0.3 and is opt-in here, so name it to keep the
+# rusage events cache-server traces already carried.
+dial9 = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "5badd12f1b61beb5508a5a8f3965384ba3d87527", features = [
+    "tokio",
+    "cpu-profiling",
+    "memory-profiling",
+    "process-resource",
+] }
 
 # NOTE (jj): adjust fixups.toml too
 jj-lib = { git = "https://github.com/martinvonz/jj", rev = "0c24fce22b29732837a00acdb3d43c4a218ac1f1" }

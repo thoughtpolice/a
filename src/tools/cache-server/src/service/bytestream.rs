@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use dial9_tokio_telemetry::telemetry::TelemetryHandle;
+use dial9::Dial9TokioHandle;
 use futures::StreamExt as _;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -27,7 +27,7 @@ const READ_CHUNK_SIZE: usize = 2 * 1024 * 1024; // 2 MiB
 #[derive(Clone)]
 pub struct ByteStreamService {
     store: Arc<CacheStore>,
-    handle: TelemetryHandle,
+    handle: Dial9TokioHandle,
 }
 
 impl std::fmt::Debug for ByteStreamService {
@@ -39,7 +39,7 @@ impl std::fmt::Debug for ByteStreamService {
 }
 
 impl ByteStreamService {
-    pub fn new(store: Arc<CacheStore>, handle: TelemetryHandle) -> Self {
+    pub fn new(store: Arc<CacheStore>, handle: Dial9TokioHandle) -> Self {
         Self { store, handle }
     }
 

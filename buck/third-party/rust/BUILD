@@ -12,7 +12,7 @@ load("@root//buck/shims:third_party_rust.bzl", "third_party_rust")
 shims.git_fetch(
     name = "dial9-tokio-telemetry-43aa6b6c06fdd4e0.git",
     repo = "https://github.com/dial9-rs/dial9-tokio-telemetry",
-    rev = "bd7a50c6873173c6d052a839f00f7fc576316a13",
+    rev = "5badd12f1b61beb5508a5a8f3965384ba3d87527",
     visibility = [],
 )
 
@@ -4853,8 +4853,84 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "dial9",
+    actual = ":dial9-0.5",
+    visibility = ["PUBLIC"],
+)
+
 third_party_rust.rust_library(
-    name = "dial9-macro-0.3",
+    name = "dial9-0.5",
+    srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
+    crate = "dial9",
+    crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9/src/lib.rs",
+    edition = "2024",
+    features = [
+        "cpu-profiling",
+        "default",
+        "memory-profiling",
+        "pipeline",
+        "process-resource",
+        "tokio",
+    ],
+    visibility = [],
+    deps = [
+        ":bon-3",
+        ":dial9-core-0.5",
+        ":dial9-macro-0.5",
+        ":dial9-perf-self-profile-0.5",
+        ":dial9-tokio-telemetry-0.5",
+        ":dial9-trace-format-0.5",
+        ":tokio-1",
+        ":tracing-0.1",
+    ],
+)
+
+third_party_rust.rust_library(
+    name = "dial9-core-0.5",
+    srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
+    crate = "dial9_core",
+    crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-core/src/lib.rs",
+    edition = "2024",
+    env = {
+        "CARGO_BIN_NAME": "dial9_core",
+        "CARGO_CRATE_NAME": "dial9_core",
+        "CARGO_MANIFEST_DIR": "dial9-tokio-telemetry-43aa6b6c06fdd4e0",
+        "CARGO_PKG_AUTHORS": "",
+        "CARGO_PKG_DESCRIPTION": "Telemetry event bus for dial9",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_NAME": "dial9-core",
+        "CARGO_PKG_README": "README.md",
+        "CARGO_PKG_REPOSITORY": "https://github.com/dial9-rs/dial9",
+        "CARGO_PKG_RUST_VERSION": "",
+        "CARGO_PKG_VERSION": "0.5.1",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "5",
+        "CARGO_PKG_VERSION_PATCH": "1",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = ["pipeline"],
+    visibility = [],
+    deps = [
+        ":arc-swap-1",
+        ":bon-3",
+        ":bytes-1",
+        ":crossbeam-queue-0.3",
+        ":dial9-trace-format-0.5",
+        ":flate2-1",
+        ":futures-util-0.3",
+        ":libc-0.2",
+        ":metrique-0.1",
+        ":metrique-timesource-0.1",
+        ":tokio-1",
+        ":tokio-util-0.7",
+        ":tracing-0.1",
+        ":ulid-1",
+    ],
+)
+
+third_party_rust.rust_library(
+    name = "dial9-macro-0.5",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_macro",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-macro/src/lib.rs",
@@ -4869,11 +4945,17 @@ third_party_rust.rust_library(
 )
 
 third_party_rust.rust_library(
-    name = "dial9-perf-self-profile-0.4",
+    name = "dial9-perf-self-profile-0.5",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_perf_self_profile",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/perf-self-profile/src/lib.rs",
     edition = "2024",
+    features = [
+        "cpu-profiling",
+        "memory-profiling",
+        "process-resource",
+        "symbolize-processor",
+    ],
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -4893,63 +4975,49 @@ third_party_rust.rust_library(
                 ":perf-event-open-sys2-5",
             ],
         ),
+        "macos-arm64": dict(
+            deps = [":libc-0.2"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":libc-0.2"],
+        ),
     },
     visibility = [],
     deps = [
-        ":dial9-trace-format-0.4",
+        ":bon-3",
+        ":bytes-1",
+        ":crossbeam-queue-0.3",
+        ":dial9-core-0.5",
+        ":dial9-trace-format-0.5",
+        ":scc-2",
+        ":tokio-1",
         ":tracing-0.1",
     ],
 )
 
-shims.alias(
-    name = "dial9-tokio-telemetry",
-    actual = ":dial9-tokio-telemetry-0.3",
-    visibility = ["PUBLIC"],
-)
-
 third_party_rust.rust_library(
-    name = "dial9-tokio-telemetry-0.3",
+    name = "dial9-tokio-telemetry-0.5",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_tokio_telemetry",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-tokio-telemetry/src/lib.rs",
     edition = "2024",
-    env = {
-        "CARGO_BIN_NAME": "dial9_tokio_telemetry",
-        "CARGO_CRATE_NAME": "dial9_tokio_telemetry",
-        "CARGO_MANIFEST_DIR": "dial9-tokio-telemetry-43aa6b6c06fdd4e0",
-        "CARGO_PKG_AUTHORS": "",
-        "CARGO_PKG_DESCRIPTION": "Low-overhead runtime telemetry for Tokio with poll timing, wake events, and CPU profiling",
-        "CARGO_PKG_HOMEPAGE": "",
-        "CARGO_PKG_NAME": "dial9-tokio-telemetry",
-        "CARGO_PKG_README": "README.md",
-        "CARGO_PKG_REPOSITORY": "https://github.com/dial9-rs/dial9-tokio-telemetry",
-        "CARGO_PKG_RUST_VERSION": "",
-        "CARGO_PKG_VERSION": "0.3.13",
-        "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "3",
-        "CARGO_PKG_VERSION_PATCH": "13",
-        "CARGO_PKG_VERSION_PRE": "",
-    },
     features = [
         "cpu-profiling",
         "memory-profiling",
+        "process-resource",
     ],
     visibility = [],
     deps = [
-        ":arc-swap-1",
         ":bon-3",
         ":bytes-1",
-        ":crossbeam-queue-0.3",
-        ":dial9-macro-0.3",
-        ":dial9-perf-self-profile-0.4",
-        ":dial9-trace-format-0.4",
+        ":dial9-core-0.5",
+        ":dial9-perf-self-profile-0.5",
+        ":dial9-trace-format-0.5",
         ":flate2-1",
         ":futures-util-0.3",
         ":hostname-0.4",
         ":libc-0.2",
-        ":metrique-0.1",
         ":metrique-timesource-0.1",
-        ":metrique-writer-0.1",
         ":pin-project-lite-0.2",
         ":serde-1",
         ":serde_json-1",
@@ -4961,7 +5029,7 @@ third_party_rust.rust_library(
 )
 
 third_party_rust.rust_library(
-    name = "dial9-trace-format-0.4",
+    name = "dial9-trace-format-0.5",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_trace_format",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-trace-format/src/lib.rs",
@@ -4972,13 +5040,14 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":dial9-trace-format-derive-0.4",
+        ":dial9-trace-format-derive-0.5",
         ":serde-1",
+        ":typeid-1",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "dial9-trace-format-derive-0.4",
+    name = "dial9-trace-format-derive-0.5",
     srcs = [":dial9-tokio-telemetry-43aa6b6c06fdd4e0.git"],
     crate = "dial9_trace_format_derive",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-trace-format-derive/src/lib.rs",
@@ -4986,6 +5055,7 @@ third_party_rust.rust_library(
     proc_macro = True,
     visibility = [],
     deps = [
+        ":proc-macro-crate-3",
         ":proc-macro2-1",
         ":quote-1",
         ":syn-2",
@@ -14049,28 +14119,26 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "metrique-0.1.27.crate",
-    sha256 = "d6737991308ea171744eac9bb26885d6caa0b747d3cca72f7a69f38e689a1886",
-    strip_prefix = "metrique-0.1.27",
-    urls = ["https://static.crates.io/crates/metrique/0.1.27/download"],
+    name = "metrique-0.1.31.crate",
+    sha256 = "2b55bfa39e6f5e44a37a59a794915ce36d04371471cf62ae365cd9703f58a5e0",
+    strip_prefix = "metrique-0.1.31",
+    urls = ["https://static.crates.io/crates/metrique/0.1.31/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "metrique-0.1",
-    srcs = [":metrique-0.1.27.crate"],
+    srcs = [":metrique-0.1.31.crate"],
     crate = "metrique",
-    crate_root = "metrique-0.1.27.crate/src/lib.rs",
+    crate_root = "metrique-0.1.31.crate/src/lib.rs",
     edition = "2024",
     features = [
         "default",
-        "local-format",
         "service-metrics",
     ],
     visibility = [],
     deps = [
         ":itoa-1",
-        ":jiff-0.2",
         ":metrique-core-0.1",
         ":metrique-macro-0.1",
         ":metrique-service-metrics-0.1",
@@ -14079,7 +14147,6 @@ third_party_rust.rust_library(
         ":metrique-writer-core-0.1",
         ":metrique-writer-macro-0.1",
         ":ryu-1",
-        ":serde_json-1",
         ":tokio-1",
     ],
 )
@@ -14106,18 +14173,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "metrique-macro-0.1.18.crate",
-    sha256 = "6512443e1f72c1faa670da0e7cc347dbdd6f17b8e97c3a10d0de56365887f18d",
-    strip_prefix = "metrique-macro-0.1.18",
-    urls = ["https://static.crates.io/crates/metrique-macro/0.1.18/download"],
+    name = "metrique-macro-0.1.22.crate",
+    sha256 = "7605c49951713cce25af6bee77ed4432dde0839c5d9935bcb6f9643e6e82c7c3",
+    strip_prefix = "metrique-macro-0.1.22",
+    urls = ["https://static.crates.io/crates/metrique-macro/0.1.22/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "metrique-macro-0.1",
-    srcs = [":metrique-macro-0.1.18.crate"],
+    srcs = [":metrique-macro-0.1.22.crate"],
     crate = "metrique_macro",
-    crate_root = "metrique-macro-0.1.18.crate/src/lib.rs",
+    crate_root = "metrique-macro-0.1.22.crate/src/lib.rs",
     edition = "2024",
     proc_macro = True,
     visibility = [],
@@ -14168,22 +14235,21 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "metrique-writer-0.1.24.crate",
-    sha256 = "124326a2ac4c4f61562fa4d071735a1c463f9ba0317d1564f75dc01313dc12d7",
-    strip_prefix = "metrique-writer-0.1.24",
-    urls = ["https://static.crates.io/crates/metrique-writer/0.1.24/download"],
+    name = "metrique-writer-0.1.27.crate",
+    sha256 = "bb97854dd4e2a92fe54b30e6e19976dcc0b2b7d39da3e84e86e2ce1e2ed8ce0d",
+    strip_prefix = "metrique-writer-0.1.27",
+    urls = ["https://static.crates.io/crates/metrique-writer/0.1.27/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "metrique-writer-0.1",
-    srcs = [":metrique-writer-0.1.24.crate"],
+    srcs = [":metrique-writer-0.1.27.crate"],
     crate = "metrique_writer",
-    crate_root = "metrique-writer-0.1.24.crate/src/lib.rs",
+    crate_root = "metrique-writer-0.1.27.crate/src/lib.rs",
     edition = "2024",
     features = [
         "background-queue",
-        "default",
         "metrics-rs-024",
         "tracing-subscriber-03",
     ],
@@ -14208,18 +14274,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "metrique-writer-core-0.1.18.crate",
-    sha256 = "55b5bbb6d88bde29f6ed74a574cbe49e51ea0c36cccc7e63eee2040db5675b15",
-    strip_prefix = "metrique-writer-core-0.1.18",
-    urls = ["https://static.crates.io/crates/metrique-writer-core/0.1.18/download"],
+    name = "metrique-writer-core-0.1.21.crate",
+    sha256 = "71c9fc241cff4eedc2b6c3e2edece7f3edab2920e7531f62aac864ce933cdbb6",
+    strip_prefix = "metrique-writer-core-0.1.21",
+    urls = ["https://static.crates.io/crates/metrique-writer-core/0.1.21/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "metrique-writer-core-0.1",
-    srcs = [":metrique-writer-core-0.1.18.crate"],
+    srcs = [":metrique-writer-core-0.1.21.crate"],
     crate = "metrique_writer_core",
-    crate_root = "metrique-writer-core-0.1.18.crate/src/lib.rs",
+    crate_root = "metrique-writer-core-0.1.21.crate/src/lib.rs",
     edition = "2024",
     features = ["serde"],
     visibility = [],
@@ -20807,6 +20873,24 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "scc-2.4.0.crate",
+    sha256 = "46e6f046b7fef48e2660c57ed794263155d713de679057f2d0c169bfc6e756cc",
+    strip_prefix = "scc-2.4.0",
+    urls = ["https://static.crates.io/crates/scc/2.4.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "scc-2",
+    srcs = [":scc-2.4.0.crate"],
+    crate = "scc",
+    crate_root = "scc-2.4.0.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [":sdd-3"],
+)
+
+shims.http_archive(
     name = "schannel-0.1.29.crate",
     sha256 = "91c1b7e4904c873ef0710c1f407dde2e6287de2bebc1bbbf7d430bb7cbffd939",
     strip_prefix = "schannel-0.1.29",
@@ -20951,6 +21035,23 @@ third_party_rust.rust_library(
         "default",
         "use_std",
     ],
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "sdd-3.0.10.crate",
+    sha256 = "490dcfcbfef26be6800d11870ff2df8774fa6e86d047e3e8c8a76b25655e41ca",
+    strip_prefix = "sdd-3.0.10",
+    urls = ["https://static.crates.io/crates/sdd/3.0.10/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "sdd-3",
+    srcs = [":sdd-3.0.10.crate"],
+    crate = "sdd",
+    crate_root = "sdd-3.0.10.crate/src/lib.rs",
+    edition = "2021",
     visibility = [],
 )
 
