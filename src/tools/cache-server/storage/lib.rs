@@ -43,7 +43,7 @@ pub use slatedb::CompactorBuilder;
 #[derive(Clone, Debug, Default)]
 pub struct CacheStoreSettings {
     /// If `Some`, all new writes will expire after this duration
-    /// (mapped to SlateDB's `Settings::default_ttl`). `None` means no expiry.
+    /// (mapped to SlateDB's `Settings::default_ttl_millis`). `None` means no expiry.
     pub default_ttl: Option<jiff::SignedDuration>,
     /// When `true`, the embedded compactor is disabled. Use this when running
     /// a standalone compactor process via [`CompactorBuilder`].
@@ -118,7 +118,7 @@ impl CacheStore {
             .default_ttl
             .map(|d| u64::try_from(d.as_millis()).expect("default TTL overflows u64 milliseconds"));
         let db_settings = slatedb::config::Settings {
-            default_ttl: default_ttl_ms,
+            default_ttl_millis: default_ttl_ms,
             compactor_options: if settings.disable_compactor {
                 None
             } else {

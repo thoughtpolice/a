@@ -143,7 +143,7 @@ sha2 = { version = "0.10", features = ["compress"] }
 # NOTE (aseipp): default features enable `aws`, which drags in object_store/aws
 # -> reqwest/rustls -> ring. cache-server only uses the memory/local backends,
 # so keep just `foyer` (the block cache) and let object_store default to `fs`.
-slatedb = { version = "0.14.1", default-features = false, features = ["foyer"] }
+slatedb = { version = "0.16.0", default-features = false, features = ["foyer"] }
 syn = { version = "2.0.119", features = ["full"] }
 tar = "0.4"
 tempfile = "3.27.0"

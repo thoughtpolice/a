@@ -6713,18 +6713,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "fail-parallel-0.5.2.crate",
-    sha256 = "c6f4a147ba57fcd64323c54c8f69fd4e045456a99574163010ccf5eea3168aaa",
-    strip_prefix = "fail-parallel-0.5.2",
-    urls = ["https://static.crates.io/crates/fail-parallel/0.5.2/download"],
+    name = "fail-parallel-0.6.0.crate",
+    sha256 = "c29b33a0187823f1fa88b36980227dc96c7504ede2288e7d2a77d9d6d88b260c",
+    strip_prefix = "fail-parallel-0.6.0",
+    urls = ["https://static.crates.io/crates/fail-parallel/0.6.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "fail-parallel-0.5",
-    srcs = [":fail-parallel-0.5.2.crate"],
+    name = "fail-parallel-0.6",
+    srcs = [":fail-parallel-0.6.0.crate"],
     crate = "fail_parallel",
-    crate_root = "fail-parallel-0.5.2.crate/src/lib.rs",
+    crate_root = "fail-parallel-0.6.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
@@ -22232,23 +22232,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "slatedb",
-    actual = ":slatedb-0.14",
+    actual = ":slatedb-0.16",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "slatedb-0.14.1.crate",
-    sha256 = "e6aba890a8fc5d2a3d283a77cfe712c0f27f0501bd75b07e14dece2dfc2cde86",
-    strip_prefix = "slatedb-0.14.1",
-    urls = ["https://static.crates.io/crates/slatedb/0.14.1/download"],
+    name = "slatedb-0.16.0.crate",
+    sha256 = "fb40332f41e231926df3a0ef742c05316b43368ba4b520433d2a1eba1ab00f0f",
+    strip_prefix = "slatedb-0.16.0",
+    urls = ["https://static.crates.io/crates/slatedb/0.16.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "slatedb-0.14",
-    srcs = [":slatedb-0.14.1.crate"],
+    name = "slatedb-0.16",
+    srcs = [":slatedb-0.16.0.crate"],
     crate = "slatedb",
-    crate_root = "slatedb-0.14.1.crate/src/lib.rs",
+    crate_root = "slatedb-0.16.0.crate/src/lib.rs",
     edition = "2021",
     features = ["foyer"],
     visibility = [],
@@ -22264,7 +22264,7 @@ third_party_rust.rust_library(
         ":crossbeam-skiplist-0.1",
         ":dotenvy-0.15",
         ":duration-str-0.11",
-        ":fail-parallel-0.5",
+        ":fail-parallel-0.6",
         ":figment-0.10",
         ":flatbuffers-25",
         ":foyer-0.22",
@@ -22278,8 +22278,8 @@ third_party_rust.rust_library(
         ":serde-1",
         ":serde_json-1",
         ":siphasher-1",
-        ":slatedb-common-0.14",
-        ":slatedb-txn-obj-0.14",
+        ":slatedb-common-0.16",
+        ":slatedb-txn-obj-0.16",
         ":smallvec-1",
         ":sysinfo-0.35",
         ":thiserror-1",
@@ -22294,18 +22294,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "slatedb-common-0.14.1.crate",
-    sha256 = "7f3fdad5676b104bec5daa2f367bdb340f4162ef3c1ead16da903297f235fb49",
-    strip_prefix = "slatedb-common-0.14.1",
-    urls = ["https://static.crates.io/crates/slatedb-common/0.14.1/download"],
+    name = "slatedb-common-0.16.0.crate",
+    sha256 = "6b77f238f348e95e1653a5235f880ac703011b82582bd556f2aba405abf8180e",
+    strip_prefix = "slatedb-common-0.16.0",
+    urls = ["https://static.crates.io/crates/slatedb-common/0.16.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "slatedb-common-0.14",
-    srcs = [":slatedb-common-0.14.1.crate"],
+    name = "slatedb-common-0.16",
+    srcs = [":slatedb-common-0.16.0.crate"],
     crate = "slatedb_common",
-    crate_root = "slatedb-common-0.14.1.crate/src/lib.rs",
+    crate_root = "slatedb-common-0.16.0.crate/src/lib.rs",
     edition = "2021",
     features = ["serde"],
     visibility = [],
@@ -22322,18 +22322,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "slatedb-txn-obj-0.14.1.crate",
-    sha256 = "5df001443952d76ae7380536b4a050f88b3cc9a7d3dce0f3782ea7ae9a12c29c",
-    strip_prefix = "slatedb-txn-obj-0.14.1",
-    urls = ["https://static.crates.io/crates/slatedb-txn-obj/0.14.1/download"],
+    name = "slatedb-txn-obj-0.16.0.crate",
+    sha256 = "1ad63b6c250219e26d71f497820f970274c301f896366daa56915f2a05df0e0a",
+    strip_prefix = "slatedb-txn-obj-0.16.0",
+    urls = ["https://static.crates.io/crates/slatedb-txn-obj/0.16.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "slatedb-txn-obj-0.14",
-    srcs = [":slatedb-txn-obj-0.14.1.crate"],
+    name = "slatedb-txn-obj-0.16",
+    srcs = [":slatedb-txn-obj-0.16.0.crate"],
     crate = "slatedb_txn_obj",
-    crate_root = "slatedb-txn-obj-0.14.1.crate/src/lib.rs",
+    crate_root = "slatedb-txn-obj-0.16.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
@@ -22344,7 +22344,7 @@ third_party_rust.rust_library(
         ":log-0.4",
         ":object_store-0.14",
         ":parking_lot-0.12",
-        ":slatedb-common-0.14",
+        ":slatedb-common-0.16",
         ":thiserror-1",
     ],
 )
