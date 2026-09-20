@@ -4836,9 +4836,9 @@ dependencies = [
 
 [[package]]
 name = "iocraft"
-version = "0.8.4"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aba598b3bb6724ec114b885638d12105223c44d7cf19e5eb38b12baa9a28a29d"
+checksum = "41b8c1ddc08a912247397bef7b99f9ed409eecc711557f5523fe362d880d6f98"
 dependencies = [
  "bitflags 2.13.1",
  "crossterm",

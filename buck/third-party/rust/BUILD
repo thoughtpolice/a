@@ -11590,25 +11590,28 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "iocraft",
-    actual = ":iocraft-0.8",
+    actual = ":iocraft-0.9",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "iocraft-0.8.4.crate",
-    sha256 = "aba598b3bb6724ec114b885638d12105223c44d7cf19e5eb38b12baa9a28a29d",
-    strip_prefix = "iocraft-0.8.4",
-    urls = ["https://static.crates.io/crates/iocraft/0.8.4/download"],
+    name = "iocraft-0.9.1.crate",
+    sha256 = "41b8c1ddc08a912247397bef7b99f9ed409eecc711557f5523fe362d880d6f98",
+    strip_prefix = "iocraft-0.9.1",
+    urls = ["https://static.crates.io/crates/iocraft/0.9.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "iocraft-0.8",
-    srcs = [":iocraft-0.8.4.crate"],
+    name = "iocraft-0.9",
+    srcs = [":iocraft-0.9.1.crate"],
     crate = "iocraft",
-    crate_root = "iocraft-0.8.4.crate/src/lib.rs",
+    crate_root = "iocraft-0.9.1.crate/src/lib.rs",
     edition = "2021",
-    features = ["default"],
+    features = [
+        "crossterm",
+        "default",
+    ],
     visibility = [],
     deps = [
         ":bitflags-2",
