@@ -10075,23 +10075,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "hegeltest",
-    actual = ":hegeltest-0.42",
+    actual = ":hegeltest-0.46",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "hegeltest-0.42.0.crate",
-    sha256 = "a0e3cc5b37bc8a65b99ca9e76a2c82a2be56e6917be13b3daedcfd535e58cd37",
-    strip_prefix = "hegeltest-0.42.0",
-    urls = ["https://static.crates.io/crates/hegeltest/0.42.0/download"],
+    name = "hegeltest-0.46.1.crate",
+    sha256 = "9f67041ef61905b0671d0120c9f02a8bee140ccf56ca256720a366ca77c942c4",
+    strip_prefix = "hegeltest-0.46.1",
+    urls = ["https://static.crates.io/crates/hegeltest/0.46.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-0.42",
-    srcs = [":hegeltest-0.42.0.crate"],
+    name = "hegeltest-0.46",
+    srcs = [":hegeltest-0.46.1.crate"],
     crate = "hegel",
-    crate_root = "hegeltest-0.42.0.crate/src/lib.rs",
+    crate_root = "hegeltest-0.46.1.crate/src/lib.rs",
     edition = "2024",
     features = [
         "default",
@@ -10099,36 +10099,35 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":hegeltest-c-0.38",
-        ":hegeltest-macros-0.42",
+        ":hegeltest-c-0.43",
+        ":hegeltest-macros-0.46",
         ":parking_lot-0.12",
-        ":serde_json-1",
     ],
 )
 
 shims.alias(
     name = "hegeltest-c",
-    actual = ":hegeltest-c-0.38",
+    actual = ":hegeltest-c-0.43",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "hegeltest-c-0.38.0.crate",
-    sha256 = "bf4cfc5746a6c1762773f425e187405802d880ca463debb0057e4b3df1099b7d",
-    strip_prefix = "hegeltest-c-0.38.0",
-    urls = ["https://static.crates.io/crates/hegeltest-c/0.38.0/download"],
+    name = "hegeltest-c-0.43.1.crate",
+    sha256 = "d2516a3430aa6acc6191042653161173d6fa5023558f1487ae440c401843fdf5",
+    strip_prefix = "hegeltest-c-0.43.1",
+    urls = ["https://static.crates.io/crates/hegeltest-c/0.43.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-c-0.38",
-    srcs = [":hegeltest-c-0.38.0.crate"],
+    name = "hegeltest-c-0.43",
+    srcs = [":hegeltest-c-0.43.1.crate"],
     crate = "hegel_c",
-    crate_root = "hegeltest-c-0.38.0.crate/src/lib.rs",
+    crate_root = "hegeltest-c-0.43.1.crate/src/lib.rs",
     dlopen_enable = True,
     edition = "2024",
     env = {
-        "CARGO_PKG_VERSION": "0.38.0",
+        "CARGO_PKG_VERSION": "0.43.1",
     },
     features = [
         "default",
@@ -10164,30 +10163,31 @@ third_party_rust.rust_library(
         ":once_cell-1",
         ":rand-0.10",
         ":rustc-hash-2",
+        ":toml-1",
     ],
 )
 
 shims.filegroup(
-    name = "hegeltest-c-0.38-headers",
+    name = "hegeltest-c-0.43-headers",
     srcs = {
-        "hegeltest-c-0.38.0.crate": ":hegeltest-c-0.38.0.crate",
+        "hegeltest-c-0.43.1.crate": ":hegeltest-c-0.43.1.crate",
     },
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "hegeltest-macros-0.42.0.crate",
-    sha256 = "75ee8fff99faee3fdbb5c7dafa28149d383f15b120f90f9acab746134c6e116d",
-    strip_prefix = "hegeltest-macros-0.42.0",
-    urls = ["https://static.crates.io/crates/hegeltest-macros/0.42.0/download"],
+    name = "hegeltest-macros-0.46.1.crate",
+    sha256 = "dd8ae855a2016aa70ae90ebf8f24bc077ac2c12dac177eba6d1091a997d0e81d",
+    strip_prefix = "hegeltest-macros-0.46.1",
+    urls = ["https://static.crates.io/crates/hegeltest-macros/0.46.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-macros-0.42",
-    srcs = [":hegeltest-macros-0.42.0.crate"],
+    name = "hegeltest-macros-0.46",
+    srcs = [":hegeltest-macros-0.46.1.crate"],
     crate = "hegel_macros",
-    crate_root = "hegeltest-macros-0.42.0.crate/src/lib.rs",
+    crate_root = "hegeltest-macros-0.46.1.crate/src/lib.rs",
     edition = "2024",
     proc_macro = True,
     visibility = [],
@@ -24797,18 +24797,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "toml-1.1.3+spec-1.1.0.crate",
-    sha256 = "53c96ecdfa941c8fc4fcaed14f99ada8ebed502eef533015095a07e3301d4c3c",
-    strip_prefix = "toml-1.1.3+spec-1.1.0",
-    urls = ["https://static.crates.io/crates/toml/1.1.3+spec-1.1.0/download"],
+    name = "toml-1.1.6+spec-1.1.0.crate",
+    sha256 = "920602543f0911ab71da12c50d59701da54c196d1a2bf5cb4b75667f137a406a",
+    strip_prefix = "toml-1.1.6+spec-1.1.0",
+    urls = ["https://static.crates.io/crates/toml/1.1.6+spec-1.1.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "toml-1",
-    srcs = [":toml-1.1.3+spec-1.1.0.crate"],
+    srcs = [":toml-1.1.6+spec-1.1.0.crate"],
     crate = "toml",
-    crate_root = "toml-1.1.3+spec-1.1.0.crate/src/lib.rs",
+    crate_root = "toml-1.1.6+spec-1.1.0.crate/src/lib.rs",
     edition = "2024",
     features = [
         "default",
@@ -24934,18 +24934,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "toml_parser-1.1.2+spec-1.1.0.crate",
-    sha256 = "a2abe9b86193656635d2411dc43050282ca48aa31c2451210f4202550afb7526",
-    strip_prefix = "toml_parser-1.1.2+spec-1.1.0",
-    urls = ["https://static.crates.io/crates/toml_parser/1.1.2+spec-1.1.0/download"],
+    name = "toml_parser-1.1.3+spec-1.1.0.crate",
+    sha256 = "1d38ac1cf9b95face32296c0a3ede1fdc270627c9d9c02a7274dd6d960dc4d56",
+    strip_prefix = "toml_parser-1.1.3+spec-1.1.0",
+    urls = ["https://static.crates.io/crates/toml_parser/1.1.3+spec-1.1.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "toml_parser-1",
-    srcs = [":toml_parser-1.1.2+spec-1.1.0.crate"],
+    srcs = [":toml_parser-1.1.3+spec-1.1.0.crate"],
     crate = "toml_parser",
-    crate_root = "toml_parser-1.1.2+spec-1.1.0.crate/src/lib.rs",
+    crate_root = "toml_parser-1.1.3+spec-1.1.0.crate/src/lib.rs",
     edition = "2024",
     features = [
         "alloc",

@@ -51,6 +51,12 @@ egglog-experimental = "3.0.0"
 egraph-serialize = { version = "0.3.0", default-features = false, features = ["serde"] }
 env_logger = "0.11"
 eyre = "0.6.12"
+# NOTE (fastcdc): stay on 4. 5.0 requires even min/avg/max sizes, and the
+# fastcdc2020 conformance vectors in storage/testdata are published at
+# MaxSize 65535 by both reference implementations — regenerating them at an
+# even size would leave the fixture checking our own output against itself.
+# Our production sizes are all even, and 5.0's tail-hash fix touches a field
+# we never read, so the bump buys nothing here.
 fastcdc = "4.0.1"
 figleter = "0.2.2"
 fjall = { version = "3.1.7", default_features = false, features = [
@@ -71,9 +77,9 @@ gix = { version = "0.87.1", default-features = false, features = [
     "sha1",
     "sha256",
 ] }
-hegeltest = { version = "0.42.0", features = ["static-engine"] }
+hegeltest = { version = "0.46.1", features = ["static-engine"] }
 # Must match hegeltest's exact engine dependency.
-hegeltest-c = "=0.38.0"
+hegeltest-c = "=0.43.1"
 hex = "0.4.3"
 hmac = "0.12"
 http = "1.4.2"
@@ -185,6 +191,9 @@ wit-component = "0.258.0"
 wit-parser = "0.258.0"
 zeroize = "1.9"
 zip = { version = "8", default-features = false, features = ["deflate"] }
+# NOTE (zstd): stay on 0.13 while slatedb's foyer-storage pins it. 0.14 brings
+# its own zstd-safe 8, so the bump buys a second Rust wrapper over the one
+# zstd-sys build and nothing else.
 zstd = "0.13"
 
 ## Git repos come below
