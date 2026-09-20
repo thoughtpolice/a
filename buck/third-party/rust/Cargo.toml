@@ -18,10 +18,13 @@ argh = "0.1.19"
 ariadne = "0.6.0"
 async-stream = "0.3.6"
 async-trait = "0.1"
+# NOTE (base64): stay on 0.22 until the ecosystem moves. hyper-util, reqwest,
+# tonic, attohttpc, portmapper, termwiz and tokio-websockets all still pin
+# 0.22, so bumping this crate only adds a third copy to the graph.
 base64 = "0.22.1"
 bitflags = "2.13.1"
 blake3 = "1.8.5"
-brotli = "8.0"
+brotli = "9.0"
 buck-resources = "1"
 bytes = "1.12.1"
 capnp = "0.27.2"

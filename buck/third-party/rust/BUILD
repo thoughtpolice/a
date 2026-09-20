@@ -218,38 +218,38 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "alloc-no-stdlib-2.0.4.crate",
-    sha256 = "cc7bb162ec39d46ab1ca8c77bf72e890535becd1751bb45f64c597edb4c8c6b3",
-    strip_prefix = "alloc-no-stdlib-2.0.4",
-    urls = ["https://static.crates.io/crates/alloc-no-stdlib/2.0.4/download"],
+    name = "alloc-no-stdlib-3.0.0.crate",
+    sha256 = "c2fb6cfd47bf496ff64095c20eaba0c201404ee38714d4142fcfa1dc334fcc7a",
+    strip_prefix = "alloc-no-stdlib-3.0.0",
+    urls = ["https://static.crates.io/crates/alloc-no-stdlib/3.0.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "alloc-no-stdlib-2",
-    srcs = [":alloc-no-stdlib-2.0.4.crate"],
+    name = "alloc-no-stdlib-3",
+    srcs = [":alloc-no-stdlib-3.0.0.crate"],
     crate = "alloc_no_stdlib",
-    crate_root = "alloc-no-stdlib-2.0.4.crate/src/lib.rs",
+    crate_root = "alloc-no-stdlib-3.0.0.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
 )
 
 shims.http_archive(
-    name = "alloc-stdlib-0.2.4.crate",
-    sha256 = "0e76a019e91224d279006ff972f1e984179a6e9feb050adba6ce8274aef23195",
-    strip_prefix = "alloc-stdlib-0.2.4",
-    urls = ["https://static.crates.io/crates/alloc-stdlib/0.2.4/download"],
+    name = "alloc-stdlib-0.3.0.crate",
+    sha256 = "0b5c1865780388bfa186411ab5f247819487fc4864c6e9c3106611fa347586e1",
+    strip_prefix = "alloc-stdlib-0.3.0",
+    urls = ["https://static.crates.io/crates/alloc-stdlib/0.3.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "alloc-stdlib-0.2",
-    srcs = [":alloc-stdlib-0.2.4.crate"],
+    name = "alloc-stdlib-0.3",
+    srcs = [":alloc-stdlib-0.3.0.crate"],
     crate = "alloc_stdlib",
-    crate_root = "alloc-stdlib-0.2.4.crate/src/lib.rs",
+    crate_root = "alloc-stdlib-0.3.0.crate/src/lib.rs",
     edition = "2015",
     visibility = [],
-    deps = [":alloc-no-stdlib-2"],
+    deps = [":alloc-no-stdlib-3"],
 )
 
 third_party_rust.rust_library(
@@ -1792,23 +1792,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "brotli",
-    actual = ":brotli-8",
+    actual = ":brotli-9",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "brotli-8.0.4.crate",
-    sha256 = "5cc91aac060a7a1e25823bdccbfb6af1875b88f17c6daac97894eed8207166b3",
-    strip_prefix = "brotli-8.0.4",
-    urls = ["https://static.crates.io/crates/brotli/8.0.4/download"],
+    name = "brotli-9.0.0.crate",
+    sha256 = "f8b851b75c23ca7873623d612fe49bd1989aeb03d08fb9432187eb253d3d4c6b",
+    strip_prefix = "brotli-9.0.0",
+    urls = ["https://static.crates.io/crates/brotli/9.0.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "brotli-8",
-    srcs = [":brotli-8.0.4.crate"],
+    name = "brotli-9",
+    srcs = [":brotli-9.0.0.crate"],
     crate = "brotli",
-    crate_root = "brotli-8.0.4.crate/src/lib.rs",
+    crate_root = "brotli-9.0.0.crate/src/lib.rs",
     edition = "2015",
     features = [
         "alloc-stdlib",
@@ -1817,25 +1817,25 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":alloc-no-stdlib-2",
-        ":alloc-stdlib-0.2",
-        ":brotli-decompressor-5",
+        ":alloc-no-stdlib-3",
+        ":alloc-stdlib-0.3",
+        ":brotli-decompressor-6",
     ],
 )
 
 shims.http_archive(
-    name = "brotli-decompressor-5.0.3.crate",
-    sha256 = "3a32acac15fe1967bc3986b2a6347dffc965602354ea6f450ad07e8bfd253583",
-    strip_prefix = "brotli-decompressor-5.0.3",
-    urls = ["https://static.crates.io/crates/brotli-decompressor/5.0.3/download"],
+    name = "brotli-decompressor-6.0.0.crate",
+    sha256 = "46087801e40b785410c352bee60e9b6226312709cf52d5fff92776cdf5cf6490",
+    strip_prefix = "brotli-decompressor-6.0.0",
+    urls = ["https://static.crates.io/crates/brotli-decompressor/6.0.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "brotli-decompressor-5",
-    srcs = [":brotli-decompressor-5.0.3.crate"],
+    name = "brotli-decompressor-6",
+    srcs = [":brotli-decompressor-6.0.0.crate"],
     crate = "brotli_decompressor",
-    crate_root = "brotli-decompressor-5.0.3.crate/src/lib.rs",
+    crate_root = "brotli-decompressor-6.0.0.crate/src/lib.rs",
     edition = "2015",
     features = [
         "alloc-stdlib",
@@ -1843,8 +1843,8 @@ third_party_rust.rust_library(
     ],
     visibility = [],
     deps = [
-        ":alloc-no-stdlib-2",
-        ":alloc-stdlib-0.2",
+        ":alloc-no-stdlib-3",
+        ":alloc-stdlib-0.3",
     ],
 )
 
