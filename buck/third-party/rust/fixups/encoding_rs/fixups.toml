@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The build script emits one `rustc-check-cfg` plus `slow_mm_packus_epi16`, a
+# codegen workaround for rustc 1.96-1.98. That cfg is only read under
+# `all(slow_mm_packus_epi16, feature = "simd-accel", target_feature = "sse2")`,
+# and we do not enable `simd-accel`, so running it would change nothing.
+buildscript.run = false

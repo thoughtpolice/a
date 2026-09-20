@@ -1,4 +1,14 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+# `src/lib.rs` does `include_str!(concat!(env!("CARGO_MANIFEST_DIR"), ...))` for
+# its README doc, so the cargo environment has to be supplied.
 cargo_env = true
+
+[env]
+# 1.4.1's crate description ends with a literal CRLF, and the carriage return
+# survives into the env file the prelude's rustc_action hands to rustc, which
+# then tries to execute the stray newline as a program. Nothing reads this
+# variable, so flatten it. Drop this when the upstream description loses the
+# CRLF.
+CARGO_PKG_DESCRIPTION = "Procedural macro to associate constants with enum variants."

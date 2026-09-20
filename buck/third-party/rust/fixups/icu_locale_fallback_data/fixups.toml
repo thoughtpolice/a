@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The build script sets `icu4x_custom_data` only when `ICU4X_DATA_DIR` is set in
+# the environment, which would point the crate at an out-of-tree data blob. We
+# want the baked-in data, so skipping the script is the behavior we want.
+buildscript.run = false

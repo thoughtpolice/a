@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The build script turns the enabled features into the short cfgs the crate
+# gates its DoT/DoH transports on. `transport-tls` and `transport-https` are
+# both on here, so those cfgs carry real code and the script has to run rather
+# than be replaced by a hand-written list that would go stale with the
+# features. It reads no crypto-provider feature, so `with_crypto_provider`
+# stays off and no ring/aws-lc-rs provider is compiled in.
+buildscript.run = true
