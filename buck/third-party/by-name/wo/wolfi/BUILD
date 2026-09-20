@@ -49,34 +49,34 @@ MINIMOS_BASE = {
     "ld-linux": ("2.43-r13", "f49b25afb455a17c0a6335bc97ade76be8b7b0674354a21b12d95a3a4e63e219"),
     "libacl1": ("2.4.0-r3", "10858ad8137f60ca54784978f41148c28377f82ed6ff96a74ac0459dfb519717"),
     "libaudit": ("4.2.1-r1", "61f35651d60ab459206f5dabad2796f37fb99dad2099da3f95c0d474bb69fbad"),
-    "libblkid": ("2.42.3-r2", "bffeba8e698a2669b10a70b8e5026c7b47aad25309043d587349fa22d32a4c8c"),
+    "libblkid": ("2.42.3-r4", "73376a7be9f64bbfe2101d32ad47b97a2816e8a97019c3c1d00a89eb9391548f"),
     "libcap-ng": ("0.9.6-r0", "28a94408e0676f58e3847e141b60d1e635ae728de31d2a73f26fb027ab3561b4"),
     "libexpat1": ("2.8.4-r0", "2aa592acf91515e05dcf42d86036093797d286a018dd8c32445c1c102efd0f59"),
     "libgcc": ("16.2.0-r1", "6c41a73a5e07bfa17ff3fa6c64d0a898905168c780a04f2092eacb53545106db"),
     "liblz4-1": ("1.10.0-r10", "6101590621fdf09d741a45780cd1e9d11d96cb2d1da73ac6bf71e85029c2a5ed"),
-    "libmount": ("2.42.3-r2", "5bd6a748960f279b88ba119120ff17cf66b64affaf7c3be6889ec9aadde88bf6"),
+    "libmount": ("2.42.3-r4", "abdd679d0f1b18fb1aa2dd09156cbc309fe87d8344676be9d6a179533d007551"),
     "libpcre2-8-0": ("10.48-r0", "1e09c9f7315a6895b6754077432f29b57dfe62fb7d108ccdd0033bdefa64c1a5"),
     "libseccomp": ("2.6.1-r1", "ae49829a768305713bbd66ce80fccea373a00be39b7b8d4fc1c5a8869c178bd0"),
-    "libselinux": ("3.11-r0", "6a03897e1a50cfea06e8575c532591e0e39b8f966797ca2532d08c165aab1606"),
+    "libselinux": ("3.11-r2", "2343075d9b8fa6a5851b8963697ef7c2d05d21286d2af448227ef08865cba4ef"),
     "libsepol": ("3.11-r3", "c26adbc3db13e06f5d9850269a72acc3c53e077411634faf2a84ae7cd18685b0"),
-    "libsystemd": ("261.2-r3", "21ca850ce5903cc7fa37bdbf63d4259c29384280662cc1e3ec835c4ee366d759"),
-    "libsystemd-shared": ("261.2-r3", "a1f44d43b7926a996ef20c8b52080acf8612659253225c77b4d02d8616b0da76"),
+    "libsystemd": ("261.3-r1", "a7ac75a9c8d09a078674396c5c23f5a31a9ea762b7cb5ca7d1588018f894d4d3"),
+    "libsystemd-shared": ("261.3-r1", "055a5e617dee1f28c81f53ee55d0c0b472f30e5397af1940c594fbbf5224a331"),
     "libzstd1": ("1.5.7-r10", "6660523fbffeca75cd601b0c61f201f0054a568bac72204bb13be0dba36da176"),
-    "mount": ("2.42.3-r2", "d6a5af138b3a55432480bde64bbd4c5094d909577940c173ad998fc9e9dd4432"),
-    "ncurses": ("6.6.20260905-r0", "092d8dd3fcdacc9e626ddbe04caefb2924c00e90f5f864bd5595473c32bbfdb8"),
-    "ncurses-terminfo-base": ("6.6.20260905-r0", "0013414219463a65b1cdabc01d7fe6b31e01905c4c0ff4536bb1cd5dc90a389e"),
-    "systemd": ("261.2-r3", "a0060c710e5d5cd06022ec7fbb96e29be093f9cf2cf5055f3713291f45611352"),
-    "systemd-logind-service": ("261.2-r3", "47ab7985603c55dedea3bcb9009df44e8352abc4d11cbcf6a6c8bce096cc2d1b"),
-    "systemd-systemctl": ("261.2-r3", "3ff40bd20cec0b6c4c71307f02a27aa768282cbcd62dff6a86ca6c6d3f92ae95"),
-    "umount": ("2.42.3-r2", "4a05797a30a2dd2d9228a1020d16199c22235d3a6c8e84d2f35b4f1dfdf349c5"),
-    "util-linux-login": ("2.42.3-r2", "14be6f9e0f39d965312096a9b17c48e171652e7efc1e470362510c97d86165f4"),
+    "mount": ("2.42.3-r4", "44007bb7e338406d22ba1fce83575f93c98d6351d9ccae39c84ee93a11c55de1"),
+    "ncurses": ("6.6.20260919-r0", "1da57712d34cdae9381bc8c5f891229da11be56b7d3d361b76ca09491bee836b"),
+    "ncurses-terminfo-base": ("6.6.20260919-r0", "85a89620ae73783e4b0b8bd84a218c889a8a5dfd3ac95a53ae3f2935910604a0"),
+    "systemd": ("261.3-r1", "19420aa5135ddc78da4296b93300c3d7728a73c3e701e86e2a3bc530e53733ef"),
+    "systemd-logind-service": ("261.3-r1", "f33e64e7be053ff553eb34532a0d88a8a555bfb0f568dd11890ba7b24368a2ab"),
+    "systemd-systemctl": ("261.3-r1", "2a51c95cbc31c6394ccff6829bcebdf4d6389933b34a15524e135aad1357c2ef"),
+    "umount": ("2.42.3-r4", "90ca1b356c41d2db8ca1589c58ee28a533a1224222c197543d9e98e633799f55"),
+    "util-linux-login": ("2.42.3-r4", "cd5ba7c4bb444cb5ca418463190a0542d16ef266f408dc0b29e130cb2653a3c8"),
     "wolfi-baselayout": ("20230201-r30", "0544802d073dac63485309a64a1f533735580bbbaa18b83a59058676c040c2fb"),
 }
 
 # TLS libraries shared by the minimos example services.
 CRYPTO = {
-    "libcrypto3": ("3.6.4-r5", "1c69d4cfd5b7733fa4305bd44501e6e22a34d43772fb8759fef9ec744a8bcd3d"),
-    "libssl3": ("3.6.4-r5", "9491057d92b32ca9baa1742f839110a925263c7a5883ba9c47d22c4745ff0f79"),
+    "libcrypto3": ("3.6.4-r7", "611a5b9749a7c8ba9c62cea80e5e868c6bb7b5f58a89125099a3e2c1436f7f34"),
+    "libssl3": ("3.6.4-r7", "f05850ab38a4d7206f804f5acd7c15c77ff0f209a1e096c5313286b70a317afb"),
 }
 
 # minimos example: valkey.
@@ -99,9 +99,9 @@ MEMCACHED = {
 # transition package, is what actually ships libcrypt.so.1.
 NGINX = {
     "libxcrypt": ("4.5.2-r5", "56db97bbb709ae6d15323e3e470584171f17ac46ae06e7f9dd66d343df7d014e"),
-    "nginx-mainline": ("1.31.5-r0", "258839e5b995be8dafbaf25c9fbbb980c8568733fcbbf7d0f75b585b0ae8465e"),
-    "nginx-mainline-mime-types": ("1.31.5-r0", "69a630c58dc83d968b247859dedd67684fa2b6792f9e75fb9291436821236486"),
-    "zlib": ("1.3.2-r5", "f9cdf26db1c5c27be8bc711e251f8988854d155f369a683b6813e7fdfff1ab9f"),
+    "nginx-mainline": ("1.31.6-r0", "e7cf286fcd87b8882f8d0aa9bb9a359930cc129f08edf60e028197bbb22c89e0"),
+    "nginx-mainline-mime-types": ("1.31.6-r0", "794664d7471aba650fea5f10b3bdd48951d0c9263f630eb9f85e9045f2176123"),
+    "zlib": ("1.3.2.1_rc20260601-r0", "113244c87aa28d7e98aca6d1460da28a0d73057a0dad84cc6e3442d639a7334a"),
 }
 
 # minimos dev/agent images (src/images/minimos/examples/dev): an
@@ -113,8 +113,8 @@ DEVTOOLS = {
     # bwrap is the sandbox launcher Codex (and other agents) use for
     # command execution; it works unprivileged because minimos keeps
     # user namespaces enabled.
-    "bubblewrap": ("0.11.2-r1", "dc09edb5d01a2709aaddc0e83bd2d7566c33f2e0c16497c39820561009d19e71"),
-    "coreutils": ("9.11-r4", "8821fcb552a94b18dfdb3e380cc6379c548d47d80a1d74d2c5967659fd15db45"),
+    "bubblewrap": ("0.12.0-r0", "168a99ed4cd858fc1373239ea5bcb1bfdd961907013bdf58a1902a792554782c"),
+    "coreutils": ("9.12-r2", "1c4cd0f5b5e65dc009d66a951b9964a874dc97e2d68bc611e21e2a60e50abc60"),
     "curl": ("8.22.0-r2", "830bbdaa76fbc8395d3db3aba20b7fa533e7fda365e1a5325b7135986339fc04"),
     "diffutils": ("3.12-r7", "84d9b94ec5ad3642687eeb8af391b23afd48254f87bb7faf4268bcc18d6c57c6"),
     "findutils": ("4.11.0-r2", "4d2afb15bb8612291076909d93331682f2b81b365b6a6a9fa6a908b06e390458"),
