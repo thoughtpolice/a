@@ -76,7 +76,7 @@ hmac = "0.12"
 http = "1.4.2"
 http-body-util = "0.1"
 hyper = "1.10.1"
-hyper-rustls = { version = "0.27.9", default-features = false, features = [
+hyper-rustls = { version = "0.27.10", default-features = false, features = [
     "http1",
     "native-tokio",
 ] }
@@ -118,7 +118,7 @@ rand = "0.10.2"
 ratatui = "0.30"
 rayon = "1.12.0"
 # NOTE (aseipp): no default features, ever: they pull in aws-lc-rs.
-rustls = { version = "0.23.42", default-features = false, features = ["std"] }
+rustls = { version = "0.23.45", default-features = false, features = ["std"] }
 # NOTE (aseipp): reqwest 0.13 flipped `default-tls` to rustls (which pulls
 # ring/aws-lc-rs). We build against BoringSSL, so disable default features and
 # select `native-tls` explicitly; the rest mirrors reqwest's default set.
@@ -162,7 +162,7 @@ tokio = { version = "1.53", features = [
 ]}
 tokio-openssl = "0.6.5"
 # NOTE: default features enable `aws_lc_rs`, so turn them off
-tokio-rustls = { version = "0.26.4", default-features = false, features = [
+tokio-rustls = { version = "0.26.5", default-features = false, features = [
     "logging",
 ] }
 tokio-stream = "0.1.18"

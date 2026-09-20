@@ -10705,18 +10705,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "hyper-rustls-0.27.9.crate",
-    sha256 = "33ca68d021ef39cf6463ab54c1d0f5daf03377b70561305bb89a8f83aab66e0f",
-    strip_prefix = "hyper-rustls-0.27.9",
-    urls = ["https://static.crates.io/crates/hyper-rustls/0.27.9/download"],
+    name = "hyper-rustls-0.27.10.crate",
+    sha256 = "dfa8e654703247911e29c23fbeaa261834bd9bb74efba2f9acddc37bfb127f53",
+    strip_prefix = "hyper-rustls-0.27.10",
+    urls = ["https://static.crates.io/crates/hyper-rustls/0.27.10/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "hyper-rustls-0.27",
-    srcs = [":hyper-rustls-0.27.9.crate"],
+    srcs = [":hyper-rustls-0.27.10.crate"],
     crate = "hyper_rustls",
-    crate_root = "hyper-rustls-0.27.9.crate/src/lib.rs",
+    crate_root = "hyper-rustls-0.27.10.crate/src/lib.rs",
     edition = "2021",
     features = [
         "http1",
@@ -20333,18 +20333,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "rustls-0.23.42.crate",
-    sha256 = "3c54fcab019b409d04215d3a17cb438fd7fbf192ee61461f20f4fe18704bc138",
-    strip_prefix = "rustls-0.23.42",
-    urls = ["https://static.crates.io/crates/rustls/0.23.42/download"],
+    name = "rustls-0.23.45.crate",
+    sha256 = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634",
+    strip_prefix = "rustls-0.23.45",
+    urls = ["https://static.crates.io/crates/rustls/0.23.45/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "rustls-0.23",
-    srcs = [":rustls-0.23.42.crate"],
+    srcs = [":rustls-0.23.45.crate"],
     crate = "rustls",
-    crate_root = "rustls-0.23.42.crate/src/lib.rs",
+    crate_root = "rustls-0.23.45.crate/src/lib.rs",
     edition = "2021",
     features = [
         "log",
@@ -20486,18 +20486,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "rustls-webpki-0.103.13.crate",
-    sha256 = "61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e",
-    strip_prefix = "rustls-webpki-0.103.13",
-    urls = ["https://static.crates.io/crates/rustls-webpki/0.103.13/download"],
+    name = "rustls-webpki-0.103.15.crate",
+    sha256 = "f3c3cf1d8b1e7d4927e2d154c3fcb02979afb9939629c62cd9048d4f07b60ac2",
+    strip_prefix = "rustls-webpki-0.103.15",
+    urls = ["https://static.crates.io/crates/rustls-webpki/0.103.15/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "rustls-webpki-0.103",
-    srcs = [":rustls-webpki-0.103.13.crate"],
+    srcs = [":rustls-webpki-0.103.15.crate"],
     crate = "webpki",
-    crate_root = "rustls-webpki-0.103.13.crate/src/lib.rs",
+    crate_root = "rustls-webpki-0.103.15.crate/src/lib.rs",
     edition = "2021",
     features = [
         "alloc",
@@ -24583,18 +24583,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "tokio-rustls-0.26.4.crate",
-    sha256 = "1729aa945f29d91ba541258c8df89027d5792d85a8841fb65e8bf0f4ede4ef61",
-    strip_prefix = "tokio-rustls-0.26.4",
-    urls = ["https://static.crates.io/crates/tokio-rustls/0.26.4/download"],
+    name = "tokio-rustls-0.26.5.crate",
+    sha256 = "b0c85f2c3ef0b1cd58b36682f4b17aaa995f0e5db534d85692b4903abce21f67",
+    strip_prefix = "tokio-rustls-0.26.5",
+    urls = ["https://static.crates.io/crates/tokio-rustls/0.26.5/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "tokio-rustls-0.26",
-    srcs = [":tokio-rustls-0.26.4.crate"],
+    srcs = [":tokio-rustls-0.26.5.crate"],
     crate = "tokio_rustls",
-    crate_root = "tokio-rustls-0.26.4.crate/src/lib.rs",
+    crate_root = "tokio-rustls-0.26.5.crate/src/lib.rs",
     edition = "2021",
     features = [
         "logging",
