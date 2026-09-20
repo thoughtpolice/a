@@ -5709,23 +5709,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "educe",
-    actual = ":educe-0.7",
+    actual = ":educe-0.8",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "educe-0.7.4.crate",
-    sha256 = "92c3e1715a2bf74bc8f68cd7bae12ff144f02669c602106ad1fa16f2ba62e646",
-    strip_prefix = "educe-0.7.4",
-    urls = ["https://static.crates.io/crates/educe/0.7.4/download"],
+    name = "educe-0.8.1.crate",
+    sha256 = "1ebdb1f8f8d2815bbe7b369a7da10343c82026a4503b68bd1279ba557611e96d",
+    strip_prefix = "educe-0.8.1",
+    urls = ["https://static.crates.io/crates/educe/0.8.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "educe-0.7",
-    srcs = [":educe-0.7.4.crate"],
+    name = "educe-0.8",
+    srcs = [":educe-0.8.1.crate"],
     crate = "educe",
-    crate_root = "educe-0.7.4.crate/src/lib.rs",
+    crate_root = "educe-0.8.1.crate/src/lib.rs",
     edition = "2024",
     features = [
         "Clone",
@@ -5748,7 +5748,7 @@ third_party_rust.rust_library(
         ":enum-ordinalize-4",
         ":proc-macro2-1",
         ":quote-1",
-        ":syn-2",
+        ":syn-3",
     ],
 )
 
@@ -23356,6 +23356,7 @@ third_party_rust.rust_library(
         "parsing",
         "printing",
         "proc-macro",
+        "visit",
         "visit-mut",
     ],
     visibility = [],

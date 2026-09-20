@@ -43,7 +43,7 @@ crossterm = "0.29.0"
 dashmap = "6.2.1"
 dupe = "0.9.1"
 dupe_derive = "0.9.1"
-educe = "0.7.4"
+educe = "0.8.1"
 # NOTE (egglog): the two must be bumped together, or the experimental crate
 # drags in a second copy of core egglog at its own major version
 egglog = "3.0.0"
