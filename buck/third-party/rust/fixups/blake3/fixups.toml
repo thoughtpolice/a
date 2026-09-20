@@ -28,9 +28,10 @@ srcs = [
 # https://github.com/BLAKE3-team/BLAKE3/issues/79.
 compiler_flags = ["-mavx512f", "-mavx512vl"]
 headers = ["c/*.h"]
+include_paths = ["c"]
 compatible_with = [
-    "prelude//os/constraints:linux",
-    "prelude//os/constraints:macos",
+    "//rust/fixups/blake3:linux-x86_64",
+    "//rust/fixups/blake3:macos-x86_64",
 ]
 
 [['cfg(all(target_arch = "x86_64", target_os = "windows", target_env = "gnu"))'.cxx_library]]
@@ -48,7 +49,8 @@ srcs = [
 # https://github.com/BLAKE3-team/BLAKE3/issues/79.
 compiler_flags = ["-mavx512f", "-mavx512vl"]
 headers = ["c/*.h"]
-compatible_with = ["prelude//os/constraints:windows"]
+include_paths = ["c"]
+compatible_with = ["//rust/fixups/blake3:windows-x86_64"]
 
 [['cfg(all(target_arch = "x86_64", target_os = "windows", target_env = "msvc"))'.cxx_library]]
 name = "simd_x86_windows_msvc"
@@ -62,7 +64,8 @@ srcs = [
     "c/blake3_avx512_x86-64_windows_msvc.asm"
 ]
 headers = ["c/*.h"]
-compatible_with = ["prelude//os/constraints:windows"]
+include_paths = ["c"]
+compatible_with = ["//rust/fixups/blake3:windows-x86_64"]
 
 ## ARM and AArch64 fixups
 
@@ -73,9 +76,13 @@ cfgs = ["blake3_neon"]
 name = "simd_neon-aarch64"
 srcs = ["c/blake3_neon.c"]
 headers = ["c/*.h"]
+include_paths = ["c"]
+compatible_with = ["prelude//cpu:arm64"]
 
 [['cfg(target_arch = "arm")'.cxx_library]]
 name = "simd_neon-armv7"
 srcs = ["c/blake3_neon.c"]
 compiler_flags = ["-mfpu=neon-vfpv4", "-mfloat-abi=hard"]
 headers = ["c/*.h"]
+include_paths = ["c"]
+compatible_with = ["prelude//cpu:arm32"]

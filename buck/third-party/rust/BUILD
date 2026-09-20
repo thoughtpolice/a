@@ -1524,10 +1524,12 @@ third_party_rust.rust_library(
 third_party_rust.cxx_library(
     name = "blake3-1-simd_neon-aarch64",
     srcs = [":blake3-1.8.7.crate[c/blake3_neon.c]"],
+    compatible_with = ["prelude//cpu:arm64"],
     headers = [
         ":blake3-1.8.7.crate[c/blake3.h]",
         ":blake3-1.8.7.crate[c/blake3_impl.h]",
     ],
+    preprocessor_flags = ["-I$(location :blake3-1.8.7.crate)/c"],
     visibility = [],
 )
 
@@ -1543,8 +1545,8 @@ third_party_rust.cxx_library(
         ":blake3-1.8.7.crate[c/blake3_sse41_x86-64_unix.S]",
     ],
     compatible_with = [
-        "prelude//os/constraints:linux",
-        "prelude//os/constraints:macos",
+        "//rust/fixups/blake3:linux-x86_64",
+        "//rust/fixups/blake3:macos-x86_64",
     ],
     compiler_flags = [
         "-mavx512f",
@@ -1554,6 +1556,7 @@ third_party_rust.cxx_library(
         ":blake3-1.8.7.crate[c/blake3.h]",
         ":blake3-1.8.7.crate[c/blake3_impl.h]",
     ],
+    preprocessor_flags = ["-I$(location :blake3-1.8.7.crate)/c"],
     visibility = [],
 )
 
@@ -1568,7 +1571,7 @@ third_party_rust.cxx_library(
         ":blake3-1.8.7.crate[c/blake3_sse2_x86-64_windows_gnu.S]",
         ":blake3-1.8.7.crate[c/blake3_sse41_x86-64_windows_gnu.S]",
     ],
-    compatible_with = ["prelude//os/constraints:windows"],
+    compatible_with = ["//rust/fixups/blake3:windows-x86_64"],
     compiler_flags = [
         "-mavx512f",
         "-mavx512vl",
@@ -1577,6 +1580,7 @@ third_party_rust.cxx_library(
         ":blake3-1.8.7.crate[c/blake3.h]",
         ":blake3-1.8.7.crate[c/blake3_impl.h]",
     ],
+    preprocessor_flags = ["-I$(location :blake3-1.8.7.crate)/c"],
     visibility = [],
 )
 
@@ -1591,11 +1595,12 @@ third_party_rust.cxx_library(
         ":blake3-1.8.7.crate[c/blake3_sse2_x86-64_windows_msvc.asm]",
         ":blake3-1.8.7.crate[c/blake3_sse41_x86-64_windows_msvc.asm]",
     ],
-    compatible_with = ["prelude//os/constraints:windows"],
+    compatible_with = ["//rust/fixups/blake3:windows-x86_64"],
     headers = [
         ":blake3-1.8.7.crate[c/blake3.h]",
         ":blake3-1.8.7.crate[c/blake3_impl.h]",
     ],
+    preprocessor_flags = ["-I$(location :blake3-1.8.7.crate)/c"],
     visibility = [],
 )
 
