@@ -108,10 +108,14 @@ memmap2 = "0.9.11"
 notify-debouncer-mini = { version = "0.7.0", features = ["crossbeam-channel"] }
 object_store = "0.14"
 openssl = "0.10.81"
+# NOTE (opentelemetry): the core stays on 0.32 until the edges catch up. 0.33
+# is out, but opentelemetry-resource-detectors 0.12 and tracing-opentelemetry
+# 0.33 — both the newest releases — still require opentelemetry ^0.32, so
+# moving the core would put two opentelemetry majors in the graph.
 opentelemetry = "0.32.0"
 opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.32.0", features = ["grpc-tonic"] }
-opentelemetry-resource-detectors = "0.11.0"
+opentelemetry-resource-detectors = "0.12.0"
 opentelemetry-appender-log = "0.32.0"
 opentelemetry-semantic-conventions = "0.32.1"
 tracing-opentelemetry = "0.33.0"
@@ -146,13 +150,18 @@ salsa = "0.28.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 # NOTE (aseipp): sha1/sha2 stay on the digest-0.10 family: 0.11 removed the
-# `compress` feature and generic_array, both used by cache-server hashing
+# `compress` feature and generic_array, both used by cache-server hashing.
+# hmac 0.13 requires digest 0.11 too, so it is pinned by the same constraint
+# and all three have to move together when they move.
 sha1 = { version = "0.10", features = ["compress"] }
 sha2 = { version = "0.10", features = ["compress"] }
 # NOTE (aseipp): default features enable `aws`, which drags in object_store/aws
 # -> reqwest/rustls -> ring. cache-server only uses the memory/local backends,
 # so keep just `foyer` (the block cache) and let object_store default to `fs`.
 slatedb = { version = "0.16.0", default-features = false, features = ["foyer"] }
+# NOTE (syn): 3.0 is out and already in the graph for the few crates that ask
+# for it, but nearly every proc macro still builds against 2.x. Moving this
+# entry would not remove the 2.x copy, so there is nothing to gain yet.
 syn = { version = "2.0.119", features = ["full"] }
 tar = "0.4"
 tempfile = "3.27.0"

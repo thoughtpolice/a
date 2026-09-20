@@ -17287,23 +17287,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "opentelemetry-resource-detectors",
-    actual = ":opentelemetry-resource-detectors-0.11",
+    actual = ":opentelemetry-resource-detectors-0.12",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "opentelemetry-resource-detectors-0.11.0.crate",
-    sha256 = "96c8b28af3391a756b248f470f59b35041dd3ac9b9633d2df40757df709314f1",
-    strip_prefix = "opentelemetry-resource-detectors-0.11.0",
-    urls = ["https://static.crates.io/crates/opentelemetry-resource-detectors/0.11.0/download"],
+    name = "opentelemetry-resource-detectors-0.12.0.crate",
+    sha256 = "90ca3c069db41e9a9319dc075cf05aac4841d7c174995270223f1f16ad2eab18",
+    strip_prefix = "opentelemetry-resource-detectors-0.12.0",
+    urls = ["https://static.crates.io/crates/opentelemetry-resource-detectors/0.12.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "opentelemetry-resource-detectors-0.11",
-    srcs = [":opentelemetry-resource-detectors-0.11.0.crate"],
+    name = "opentelemetry-resource-detectors-0.12",
+    srcs = [":opentelemetry-resource-detectors-0.12.0.crate"],
     crate = "opentelemetry_resource_detectors",
-    crate_root = "opentelemetry-resource-detectors-0.11.0.crate/src/lib.rs",
+    crate_root = "opentelemetry-resource-detectors-0.12.0.crate/src/lib.rs",
     edition = "2021",
     visibility = [],
     deps = [
