@@ -12301,18 +12301,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "jiff-0.2.32.crate",
-    sha256 = "961d16382652bfdd8c6f68b223b26a8c93e0d475c672f414411db31c6c5c900e",
-    strip_prefix = "jiff-0.2.32",
-    urls = ["https://static.crates.io/crates/jiff/0.2.32/download"],
+    name = "jiff-0.2.37.crate",
+    sha256 = "0ab1baf72f08796de0260609515130699b890ac25f30e610ad894bc5856cafdb",
+    strip_prefix = "jiff-0.2.37",
+    urls = ["https://static.crates.io/crates/jiff/0.2.37/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "jiff-0.2",
-    srcs = [":jiff-0.2.32.crate"],
+    srcs = [":jiff-0.2.37.crate"],
     crate = "jiff",
-    crate_root = "jiff-0.2.32.crate/src/lib.rs",
+    crate_root = "jiff-0.2.37.crate/src/lib.rs",
     edition = "2021",
     features = [
         "alloc",
@@ -12325,6 +12325,9 @@ third_party_rust.rust_library(
         "tzdb-concatenated",
         "tzdb-zoneinfo",
     ],
+    named_deps = {
+        "jcore": ":jiff-core-0.1",
+    },
     platform = {
         "windows-gnu": dict(
             deps = [
@@ -12339,6 +12342,28 @@ third_party_rust.rust_library(
             ],
         ),
     },
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "jiff-core-0.1.1.crate",
+    sha256 = "5e52fe76043ccecc9005d2305ebaadf7d7fc0cc89ca6baa10a94d6bc68c7128c",
+    strip_prefix = "jiff-core-0.1.1",
+    urls = ["https://static.crates.io/crates/jiff-core/0.1.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "jiff-core-0.1",
+    srcs = [":jiff-core-0.1.1.crate"],
+    crate = "jiff_core",
+    crate_root = "jiff-core-0.1.1.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "alloc",
+        "std",
+        "tz-fat",
+    ],
     visibility = [],
 )
 
@@ -17985,6 +18010,28 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "phf-0.14.0.crate",
+    sha256 = "010378780309880b08997fae13be7834dba947d36393bd372f2b1556deb2a2f6",
+    strip_prefix = "phf-0.14.0",
+    urls = ["https://static.crates.io/crates/phf/0.14.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "phf-0.14",
+    srcs = [":phf-0.14.0.crate"],
+    crate = "phf",
+    crate_root = "phf-0.14.0.crate/src/lib.rs",
+    edition = "2024",
+    features = [
+        "default",
+        "std",
+    ],
+    visibility = [],
+    deps = [":phf_shared-0.14"],
+)
+
+shims.http_archive(
     name = "phf_codegen-0.11.3.crate",
     sha256 = "aef8048c789fa5e851558d709946d6d79a8ff88c0440c587967f8e94bfb1216a",
     strip_prefix = "phf_codegen-0.11.3",
@@ -18069,6 +18116,25 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    visibility = [],
+    deps = [":siphasher-1"],
+)
+
+shims.http_archive(
+    name = "phf_shared-0.14.0.crate",
+    sha256 = "c6fd9027e2d9319be6349febd1db4e8d02aa544921200c9b777720ac34a3aa89",
+    strip_prefix = "phf_shared-0.14.0",
+    urls = ["https://static.crates.io/crates/phf_shared/0.14.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "phf_shared-0.14",
+    srcs = [":phf_shared-0.14.0.crate"],
+    crate = "phf_shared",
+    crate_root = "phf_shared-0.14.0.crate/src/lib.rs",
+    edition = "2024",
+    features = ["std"],
     visibility = [],
     deps = [":siphasher-1"],
 )
@@ -19070,12 +19136,6 @@ third_party_rust.rust_library(
     ],
 )
 
-shims.alias(
-    name = "quick-xml",
-    actual = ":quick-xml-0.41",
-    visibility = ["PUBLIC"],
-)
-
 shims.http_archive(
     name = "quick-xml-0.41.0.crate",
     sha256 = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1",
@@ -19090,6 +19150,31 @@ third_party_rust.rust_library(
     crate = "quick_xml",
     crate_root = "quick-xml-0.41.0.crate/src/lib.rs",
     edition = "2021",
+    features = ["default"],
+    visibility = [],
+    deps = [":memchr-2"],
+)
+
+shims.alias(
+    name = "quick-xml",
+    actual = ":quick-xml-0.42",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "quick-xml-0.42.0.crate",
+    sha256 = "41b1177fdf999d2321d3fb46ff47159d9c1fb9ad66a4879f8c50a0b504615e9b",
+    strip_prefix = "quick-xml-0.42.0",
+    urls = ["https://static.crates.io/crates/quick-xml/0.42.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "quick-xml-0.42",
+    srcs = [":quick-xml-0.42.0.crate"],
+    crate = "quick_xml",
+    crate_root = "quick-xml-0.42.0.crate/src/lib.rs",
+    edition = "2024",
     features = [
         "default",
         "overlapped-lists",
@@ -20687,23 +20772,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "s3s",
-    actual = ":s3s-0.15",
+    actual = ":s3s-0.16",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "s3s-0.15.0.crate",
-    sha256 = "652451a66fefda01a13dc7df24aa2af9e70c7058f98bc08fe2f7c552eaa9f1e3",
-    strip_prefix = "s3s-0.15.0",
-    urls = ["https://static.crates.io/crates/s3s/0.15.0/download"],
+    name = "s3s-0.16.1.crate",
+    sha256 = "87d22507a8ebd0ea64972c76dfedbc477418dc70afd98bfce928263894067d2f",
+    strip_prefix = "s3s-0.16.1",
+    urls = ["https://static.crates.io/crates/s3s/0.16.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "s3s-0.15",
-    srcs = [":s3s-0.15.0.crate"],
+    name = "s3s-0.16",
+    srcs = [":s3s-0.16.1.crate"],
     crate = "s3s",
-    crate_root = "s3s-0.15.0.crate/src/lib.rs",
+    crate_root = "s3s-0.16.1.crate/src/lib.rs",
     edition = "2024",
     visibility = [],
     deps = [
@@ -20726,14 +20811,19 @@ third_party_rust.rust_library(
         ":httparse-1",
         ":hyper-1",
         ":itoa-1",
+        ":jiff-0.2",
         ":md-5-0.11",
         ":memchr-2",
         ":mime-0.3",
         ":nom-8",
         ":numeric_cast-0.3",
+        ":phf-0.14",
         ":pin-project-lite-0.2",
-        ":quick-xml-0.41",
+        ":quick-xml-0.42",
         ":regex-1",
+        ":s3s-rfc2047-0.16",
+        ":s3s-sigv2-0.16",
+        ":s3s-sigv4-0.16",
         ":serde-1",
         ":serde_json-1",
         ":serde_urlencoded-0.7",
@@ -20752,6 +20842,83 @@ third_party_rust.rust_library(
         ":url-2",
         ":urlencoding-2",
         ":xxhash-rust-0.8",
+        ":zeroize-1",
+    ],
+)
+
+shims.http_archive(
+    name = "s3s-rfc2047-0.16.1.crate",
+    sha256 = "f9d3e6b36be7cca3da377b4cabcd668ffe5b16c3b73a83f7a8f7b63ff6a178ee",
+    strip_prefix = "s3s-rfc2047-0.16.1",
+    urls = ["https://static.crates.io/crates/s3s-rfc2047/0.16.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "s3s-rfc2047-0.16",
+    srcs = [":s3s-rfc2047-0.16.1.crate"],
+    crate = "s3s_rfc2047",
+    crate_root = "s3s-rfc2047-0.16.1.crate/src/lib.rs",
+    edition = "2024",
+    visibility = [],
+    deps = [
+        ":base64-simd-0.8",
+        ":thiserror-2",
+    ],
+)
+
+shims.http_archive(
+    name = "s3s-sigv2-0.16.1.crate",
+    sha256 = "d96880b5ad8d639c9224155126741708aeb62ad3682e0476d2fd14290af808ef",
+    strip_prefix = "s3s-sigv2-0.16.1",
+    urls = ["https://static.crates.io/crates/s3s-sigv2/0.16.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "s3s-sigv2-0.16",
+    srcs = [":s3s-sigv2-0.16.1.crate"],
+    crate = "s3s_sigv2",
+    crate_root = "s3s-sigv2-0.16.1.crate/src/lib.rs",
+    edition = "2024",
+    visibility = [],
+    deps = [
+        ":base64-simd-0.8",
+        ":hmac-0.13",
+        ":jiff-0.2",
+        ":sha1-0.11",
+        ":smallvec-1",
+        ":thiserror-2",
+    ],
+)
+
+shims.http_archive(
+    name = "s3s-sigv4-0.16.1.crate",
+    sha256 = "fed605cbaaa1cf4d82e8ee15098fb3e42d49c92bb6215eb1359f63bfc0c6b020",
+    strip_prefix = "s3s-sigv4-0.16.1",
+    urls = ["https://static.crates.io/crates/s3s-sigv4/0.16.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "s3s-sigv4-0.16",
+    srcs = [":s3s-sigv4-0.16.1.crate"],
+    crate = "s3s_sigv4",
+    crate_root = "s3s-sigv4-0.16.1.crate/src/lib.rs",
+    edition = "2024",
+    visibility = [],
+    deps = [
+        ":arrayvec-0.7",
+        ":base64-simd-0.8",
+        ":hex-simd-0.8",
+        ":hmac-0.13",
+        ":jiff-0.2",
+        ":nom-8",
+        ":serde-1",
+        ":sha2-0.11",
+        ":smallvec-1",
+        ":std-next-0.1",
+        ":thiserror-2",
         ":zeroize-1",
     ],
 )
