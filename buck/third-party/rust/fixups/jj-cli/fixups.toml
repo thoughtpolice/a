@@ -1,6 +1,10 @@
 buildscript.run = false
 
+# `mimalloc` is only used by jj's own cli/src/main.rs, which we do not build —
+# we build jj-cli as a library and bring our own allocator.
+omit_deps = ["mimalloc"]
+
 [env]
-JJ_VERSION = "0.30.0"
+JJ_VERSION = "0.45.1"
 JJ_DOCS_DIR = "docs/"
 CARGO_MANIFEST_DIR = "jj-5d9a3f8a30f872ad/cli"

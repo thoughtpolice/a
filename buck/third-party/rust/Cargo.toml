@@ -30,7 +30,9 @@ capnp-futures = "0.26.1"
 capnp-rpc = "0.26.1"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
 chumsky = { version = "0.13.0", features = ["either", "memoization", "pratt", "regex", "serde", "stacker"] }
-clap = { version = "4.6", features = ["derive"] }
+# NOTE (clap): `env` is used by our own `#[arg(env = ...)]` attributes. It used
+# to arrive for free through jj-cli, which stopped enabling it in 0.45.
+clap = { version = "4.6", features = ["derive", "env"] }
 console-subscriber = "0.5.0"
 cedar-policy = "4.11.2"
 crossbeam-channel = "0.5.16"
@@ -55,14 +57,16 @@ fjall = { version = "3.1.7", default_features = false, features = [
 flate2 = { version = "1.1", features = ["zlib-rs"], default-features = false }
 futures = "0.3.32"
 glob = "0.3"
-# NOTE (aseipp): version must stay in lockstep with jj-lib's gix requirement,
-# or the whole gix crate stack gets duplicated in the build graph
-gix = { version = "0.80.0", default-features = false, features = [
+# NOTE (aseipp): version and features must stay in lockstep with jj-lib's gix
+# requirement, or the whole gix crate stack gets duplicated in the build graph.
+# `zlib-rs` is gone as of gix 0.87; gix picks its own zlib backend now.
+gix = { version = "0.87.1", default-features = false, features = [
     "attributes",
     "blob-diff",
     "index",
     "max-performance-safe",
-    "zlib-rs",
+    "sha1",
+    "sha256",
 ] }
 hegeltest = { version = "0.42.0", features = ["static-engine"] }
 # Must match hegeltest's exact engine dependency.
@@ -194,9 +198,10 @@ dial9 = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "5bad
     "process-resource",
 ] }
 
-# NOTE (jj): adjust fixups.toml too
-jj-lib = { git = "https://github.com/martinvonz/jj", rev = "0c24fce22b29732837a00acdb3d43c4a218ac1f1" }
-jj-cli = { git = "https://github.com/martinvonz/jj", rev = "0c24fce22b29732837a00acdb3d43c4a218ac1f1" }
+# NOTE (jj): adjust fixups.toml too — `JJ_VERSION` there must match the rev.
+# This rev is the `v0.45.1` tag.
+jj-lib = { git = "https://github.com/martinvonz/jj", rev = "7c41cdeb16b6b321c64e789a966b6adf723816a5" }
+jj-cli = { git = "https://github.com/martinvonz/jj", rev = "7c41cdeb16b6b321c64e789a966b6adf723816a5" }
 
 # NOTE (starlark): bump to stable when possible
 starlark        = { git = "https://github.com/facebook/starlark-rust", rev = "469ff502b05594b9b1ec1818753f712996a79d38" }
