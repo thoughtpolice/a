@@ -161,6 +161,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".sv": [cxx_style],
         ".erl": [erlang_style],
         ".luau": [lua_style],
+        ".hurl": [bzl_style],
         ".test": lit_styles,
         ".check": lit_styles,
     }
@@ -297,8 +298,10 @@ def main():
         print(f"Checking {file}...")
         with open(file, "r", encoding="utf-8") as f:
             lines = f.readlines()
-            # quick path: if the file starts with '#!' it's a script, skip it
-            if lines[0].startswith("#!"):
+            # quick path: if the file starts with '#!' it's a script, skip it.
+            # An empty file has no first line to test, and no header either, so
+            # it falls through and is reported by the check below.
+            if lines and lines[0].startswith("#!"):
                 continue
             if not has_spdx_header(file, lines):
                 exit_code = 1
