@@ -1,6 +1,15 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# Things in tilde// can only depend on their own stuff
+# By default, PACKAGE visibility clauses only specify _default_ visibility; if a
+# target within the package specifies its own explicit visibility, eg is marked
+# as 'PUBLIC', then it overrides the default, and a target in root//... could
+# depend on it
+#
+# This configures all visibility clauses under tilde to always be intersection
+# based: the visibility of a target of its own specified visibility AND the
+# inherited clauses from parent packages.
+enforce_visibility_intersection()
 
+# Only things inside tilde//... can depend on things inside tilde//...
 package( inherit = False, visibility = [ "tilde//..." ] )
