@@ -1,0 +1,1 @@
+extern int zwrite __P((int, char *, size_t));

@@ -1,0 +1,4 @@
+static void yyunput ( c, yy_bp)
+int c;
+register char *yy_bp;
+YY_DECL_LAST_ARG

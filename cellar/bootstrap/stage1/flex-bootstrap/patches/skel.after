@@ -1,0 +1,5 @@
+# The two cat calls below only copy here documents; use shell builtins.
+cat() { while IFS= read -r line; do printf '%s\n' "$line"; done; }
+
+cat <<!
+/* File created from flex.skl via mkskel.sh */

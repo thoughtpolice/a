@@ -30,7 +30,7 @@ buck2 build cellar//bootstrap/stage1/musl:runtime-restored
 buck2 run cellar//bootstrap/stage1/musl:tcc -- example.c -o example
 ```
 
-The fourteen acceptance tests cover generated layouts and varargs, startup and
+The fifteen acceptance tests cover generated layouts and varargs, startup and
 environment, formatted output, allocation/reallocation, mmap, setjmp, floating
 arithmetic, fork/pipe/wait, fenv, signal-mask restoration, file-backed mmap with
 a nonzero offset, and concurrent threads with independent errno and a mutex.
@@ -43,3 +43,6 @@ The static TCC driver rescans libc after adding libtcc1, since its native
 varargs helpers introduce an `abort` reference. Driver-level regressions cover
 ordinary compilation and automatic runtime selection in all three musl-linked
 TCC stages.
+
+The runnable compiler marks musl headers as system headers. Package include
+directories take precedence, with a compile/run regression for that ordering.

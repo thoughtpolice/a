@@ -1,0 +1,3 @@
+  char const *m4 = getenv ("M4");
+  if (!m4 || !*m4)
+    complain (NULL, fatal, _("M4 must name the declared bootstrap m4 executable"));

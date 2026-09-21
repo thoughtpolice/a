@@ -1,0 +1,7 @@
+  /* The generator shell has no dependency on the executor's user database. */
+  if (current_user.user_name == 0)
+    {
+      current_user.user_name = savestring ("bootstrap");
+      current_user.shell = full_pathname (shell_name);
+      current_user.home_dir = savestring ("/");
+    }

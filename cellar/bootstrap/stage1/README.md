@@ -60,9 +60,9 @@ buck2 build cellar//bootstrap/stage1/tcc:runtime-boot2
 ```
 
 The target endpoint remains GCC 4.7.4 C/C++, binutils 2.30, musl 1.2.5, and the
-userland specified by the implementation plan. Those downstream packages have not
-yet been built. The Mes runtime is transitional and retains other upstream stubs;
-the delivered runtime will be musl.
+userland specified by the implementation plan. Those final toolchain and userland
+rebuilds remain to be implemented. The Mes runtime is transitional and retains
+other upstream stubs; the delivered runtime will be musl.
 
 The two Mes-linked release TCC 0.9.27 passes are also built, with 16 acceptance
 tests. The second pass preserves TCC 0.9.26 as predecessor and links the release
@@ -76,12 +76,38 @@ linked with musl by TCC 0.9.26, self-built TCC, rebuilt reduced musl, and rebuil
 TCC. The twelve Unicode/ctype/iconv tables regenerate from pinned source/data and
 match every published table value. Musl then rebuilds with those features
 restored. It retains native threads/TLS and still excludes complex functions.
-Fourteen musl and twenty-one musl-linked TCC tests cover these stages. The runnable
+Fifteen musl and twenty-one musl-linked TCC tests cover these stages. The runnable
 `musl:tcc` pairs the latest compiler with `musl:runtime-restored`.
 
 ```
 buck2 test cellar//bootstrap/stage1/musl: \
   cellar//bootstrap/stage1/musl-tables: cellar//bootstrap/stage1/tcc-musl: --local-only -j 8
+```
+
+The source-generator chain now reaches gawk 3.0.4: handwritten oyacc 6.6,
+Bash 2.05b's parser and builtin generators, Heirloom lex, Flex 2.5.11,
+Flex 2.6.4, and Bison 3.4.1. Both Flex versions regenerate their scanners and
+compare a further regeneration byte-for-byte. Bison progresses through the
+reference's handwritten parser, simplified grammar, and full upstream grammar;
+its final parser and header also match a further regeneration. GNU m4 1.4.7
+supplies the skeleton processors. All package generation uses declared actions
+and bootstrapped tools. Release-generated parser/scanner sources are excluded
+from consumed package inputs.
+
+These packages have 70 tests, including parser precedence and error handling,
+GLR parsing, destructor ownership, reentrant scanners and external scanner
+tables, m4 diversion spills and frozen state, shell pipelines and job control,
+and awk records, arrays, regular expressions, and shell I/O. Their shell helpers
+require a declared Bash executable, and their temporary files stay in action
+output directories. The shared shell adapter retains musl's spawn and stdio
+semantics; callers fail if its shell configuration is missing.
+
+```
+buck2 test cellar//bootstrap/stage1/oyacc: \
+  cellar//bootstrap/stage1/bash-bootstrap: cellar//bootstrap/stage1/heirloom-lex: \
+  cellar//bootstrap/stage1/m4: cellar//bootstrap/stage1/flex-bootstrap: \
+  cellar//bootstrap/stage1/flex: cellar//bootstrap/stage1/bison: \
+  cellar//bootstrap/stage1/gawk: --local-only -j 8
 ```
 
 Closure review:
@@ -109,6 +135,15 @@ executables and successful opens stayed in cellar sources, cellar artifacts,
 Buck's cellar action scratch directories, or `/dev/null`. Buck, its launcher,
 and test infrastructure remain trusted and are outside that process boundary.
 This is observed closure evidence, not proof of per-action input completeness.
+
+Incremental traced validation in the second workspace also covered the subsequent
+musl and generator stages. An initial trace exposed Bash's default heredoc
+temporary directory; after its correction, the Bash, m4, Flex, Bison, and final
+shared-shell/gawk traces reported no successful opens or executions outside the
+audited boundary. At `b9fb4257`, the Bash, m4, both Flex versions, Bison, and gawk
+executables were byte-identical across the two absolute workspace paths. These
+incremental runs extend the earlier fresh-workspace evidence; they are not a
+second uncached rebuild of the entire closure.
 
 To repeat the trace gate, start with a fresh JJ workspace and isolated daemon:
 

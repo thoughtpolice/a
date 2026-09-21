@@ -1,0 +1,7 @@
+ */
+
+extern int datapos, dataline, linenum, out_linenum;
+extern FILE *skelfile, *yyin, *backing_up_file;
+extern const char *skel[];
+extern int skel_ind;
+extern char *infilename, *outfilename, *headerfilename;

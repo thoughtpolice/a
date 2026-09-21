@@ -1,0 +1,8 @@
+
+
+<SECT2PROLOG>{
+	^"%{".*	++bracelevel; yyless( 2 );	/* eat only %{ */
+	^"%}".*	--bracelevel; yyless( 2 );	/* eat only %} */
+
+	^{WS}.*	ACTION_ECHO;	/* indented code in prolog */
+

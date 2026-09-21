@@ -1,0 +1,5 @@
+	int p[2];
+	register int pid;
+	const char *shell = getenv("BOOTSTRAP_SHELL");
+	if (!shell || !*shell)
+		fatal("BOOTSTRAP_SHELL must name the declared shell executable");

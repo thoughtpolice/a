@@ -1,0 +1,6 @@
+extern int num_input_files;
+extern char *program_name;
+
+extern char *action_array;
+extern int action_size;
+extern int defs1_offset, prolog_offset, action_offset, action_index;

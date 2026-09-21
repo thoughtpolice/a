@@ -471,7 +471,7 @@ compiler(
     archiver = "cellar//bootstrap/stage1/tcc-musl:tcc-musl2",
     cflags = [
         "-nostdinc",
-        "-I",
+        "-isystem",
         "$(location :headers)",
     ],
     compiler = "cellar//bootstrap/stage1/tcc-musl:tcc-musl2",
@@ -488,4 +488,39 @@ compiler(
         "cellar//bootstrap/platforms:linux",
         "cellar//bootstrap/platforms:amd64",
     ],
+)
+
+filegroup(
+    name = "test-headers",
+    srcs = {"regex.h": "tests/include/regex.h"},
+)
+
+c_object(
+    name = "include-order.o",
+    src = "tests/include-order.c",
+    headers = [":test-headers"],
+    includes = [":test-headers"],
+    object_name = "priority.o",
+    toolchain = ":tcc",
+)
+
+c_binary(
+    name = "include-order-program",
+    libraries = [
+        ":restored-libc.a",
+        "cellar//bootstrap/stage1/tcc-musl:musl2-libtcc1.a",
+        ":restored-libc.a",
+    ],
+    objects = [
+        ":restored-crt1.o",
+        ":restored-crti.o",
+        ":include-order.o",
+        ":restored-crtn.o",
+    ],
+    toolchain = ":tcc",
+)
+
+command_test(
+    name = "header-search-order",
+    tool = ":include-order-program",
 )

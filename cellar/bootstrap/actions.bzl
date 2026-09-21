@@ -71,6 +71,24 @@ concatenate = rule(impl = _concatenate_impl, attrs = {
     "output": attrs.string(default = "out"),
 })
 
+def _configured_tool_impl(ctx):
+    command = cmd_args(ctx.attrs.tool[RunInfo], ctx.attrs.args)
+    if ctx.attrs.env:
+        if ctx.attrs.env_tool == None:
+            fail("configured tool environments require an explicit environment helper")
+        assignments = [cmd_args(key + "=", value, delimiter = "") for key, value in ctx.attrs.env.items()]
+        command = cmd_args(ctx.attrs.env_tool[RunInfo], assignments, "--", command)
+    return [DefaultInfo(default_outputs = ctx.attrs.tool[DefaultInfo].default_outputs), RunInfo(args = command)]
+
+# Preserve artifact dependencies in both arguments and environment values.
+# Consumers must use RunInfo; DefaultInfo refers to the underlying executable.
+configured_tool = rule(impl = _configured_tool_impl, attrs = {
+    "tool": attrs.dep(providers = [RunInfo]),
+    "args": attrs.list(attrs.arg(), default = []),
+    "env": attrs.dict(attrs.string(), attrs.arg(), default = {}),
+    "env_tool": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
+})
+
 def _command_test_impl(ctx):
     command = cmd_args(ctx.attrs.tool[RunInfo], ctx.attrs.args, hidden = ctx.attrs.inputs)
     return [DefaultInfo(), ExternalRunnerTestInfo(

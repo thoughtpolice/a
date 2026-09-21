@@ -1,0 +1,7 @@
+/*  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR */
+/*  PURPOSE. */
+
+#define yyin_defined
+#include "flexdef.h"
+#include "parse.h"
+

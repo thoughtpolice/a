@@ -1,0 +1,2 @@
+    if (!(m4 = getenv("M4")) || !*m4)
+        flexerror (_("M4 must name the declared bootstrap m4 executable"));

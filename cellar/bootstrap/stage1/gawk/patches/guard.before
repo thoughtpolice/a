@@ -1,0 +1,2 @@
+	int p[2];
+	register int pid;
