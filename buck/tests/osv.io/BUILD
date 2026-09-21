@@ -10,6 +10,7 @@ SRCS = [
     "main.go",
     "model.go",
     "npm.go",
+    "nuget.go",
     "osv.go",
     "report.go",
     "wolfi.go",

@@ -575,7 +575,7 @@ func TestWriteTestListing(t *testing.T) {
 	var output bytes.Buffer
 	writeTestListing("all", &output)
 	want := "test: generic:all generic-packages\ntest: rust:all rust-packages\n" +
-		"test: npm:all npm-packages\ntest: wolfi:all wolfi-packages\n"
+		"test: npm:all npm-packages\ntest: wolfi:all wolfi-packages\ntest: nuget:all nuget-packages\n"
 	if output.String() != want {
 		t.Fatalf("listing = %q, want %q", output.String(), want)
 	}
@@ -651,6 +651,8 @@ func harnessOSVServer(t *testing.T) *httptest.Server {
 				case "pkg:npm/%40sveltejs/kit":
 					results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "GHSA-npm-excepted"}}}
 				case "pkg:apk/wolfi/vulnerable":
+					results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "OSV-2"}}}
+				case "pkg:nuget/Vulnerable.Package":
 					results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "OSV-2"}}}
 				}
 			}
@@ -742,6 +744,80 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 	if !strings.Contains(stdout.String(), "result: PASS cargo/clean@1.0.0 -\n") ||
 		!strings.Contains(stdout.String(), "result: PASS rust-packages ") {
 		t.Fatalf("unexpected output:\n%s", stdout.String())
+	}
+}
+
+func writeTempNuGetLock(t *testing.T, contents string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "nuget.lock")
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestParseNuGetLock(t *testing.T) {
+	packages, err := parseNuGetLock([]byte(`{"version": 1, "framework": {"tfm": "net11.0"}, "packages": [
+  {"id": "Mono.Cecil", "version": "0.11.6", "sha256": "ignored", "assemblies": ["Mono.Cecil"]},
+  {"id": "Microsoft.CodeAnalysis.CSharp", "version": "5.9.0"}
+]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	subjects, err := nugetSubjects(packages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(subjects) != 2 || subjects[0].Query.Package.PURL != "pkg:nuget/Mono.Cecil" || subjects[0].Query.Version != "0.11.6" || subjects[0].Kind != nugetSubject {
+		t.Fatalf("subjects = %#v", subjects)
+	}
+	for name, text := range map[string]string{
+		"version":   `{"version": 2, "packages": []}`,
+		"duplicate": `{"version": 1, "packages": [{"id": "A", "version": "1"}, {"id": "a", "version": "2"}]}`,
+		"missing":   `{"version": 1, "packages": [{"id": "A"}]}`,
+		"junk":      `not json`,
+	} {
+		if _, err := parseNuGetLock([]byte(text)); err == nil {
+			t.Fatalf("%s: parsed", name)
+		}
+	}
+	empty, err := parseNuGetLock([]byte(`{"version": 1, "packages": []}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if subjects, err := nugetSubjects(empty); err != nil || len(subjects) != 0 {
+		t.Fatalf("an empty lock should yield no subjects: %v %v", subjects, err)
+	}
+}
+
+func TestRunHarnessCaseNuGet(t *testing.T) {
+	lock := writeTempNuGetLock(t, `{"version": 1, "packages": [
+  {"id": "Clean.Package", "version": "1.0.0"},
+  {"id": "Vulnerable.Package", "version": "2.0.0"}
+]}`)
+	server := harnessOSVServer(t)
+	cfg := harnessConfig(server, "")
+	cfg.nugetLockPath = lock
+	var stdout, stderr bytes.Buffer
+	code := runHarnessTest(context.Background(), cfg, "nuget:all", &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("exit = %d, want 1; stderr: %s", code, stderr.String())
+	}
+	for _, want := range []string{
+		"result: PASS nuget/Clean.Package@1.0.0 -\n",
+		"result: FAIL nuget/Vulnerable.Package@2.0.0 - 1 blocking advisory group(s): OSV-2\n",
+		"Scanned 2 packages: 1 clean, 1 affected; 1 advisory groups (1 blocking, 0 excepted).",
+		"result: FAIL nuget-packages ",
+	} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("output is missing %q:\n%s", want, stdout.String())
+		}
+	}
+
+	cfg.nugetLockPath = writeTempNuGetLock(t, `{"version": 1, "packages": []}`)
+	stdout.Reset()
+	if code := runHarnessTest(context.Background(), cfg, "nuget:all", &stdout, &stderr); code != 0 || !strings.Contains(stdout.String(), "result: PASS nuget-packages ") {
+		t.Fatalf("an empty lock: exit %d\n%s", code, stdout.String())
 	}
 }
 
