@@ -11,18 +11,47 @@ depot.csharp.reference_assembly(
     assembly = "System.Runtime",
 )
 
-# `buck2 run tilde//aseipp/cs2wasm:gameplayc -- -o out.wasm examples/Gameplay.cs`
+# Roslyn 5.9.0 lacks three trimming annotations Native AOT needs, and reads
+# Assembly.Location for one diagnostic; build/PrepareRoslynAot.cs repairs a
+# private copy with Mono.Cecil. A build-time tool: it stays JIT-compiled
+# whatever profile the build asks for, so `-m aot` does not first
+# AOT-compile Cecil.
 depot.csharp.binary(
-    name = "gameplayc",
+    name = "prepare-roslyn-aot",
+    srcs = ["build/PrepareRoslynAot.cs"],
+    profile = "jit",
+    warnings_as_errors = True,
+    deps = ["third-party//csharp:Mono.Cecil"],
+)
+
+# Only ILCompiler consumes the repaired copy; csc keeps compiling against the
+# signed NuGet assembly.
+depot.genrule(
+    name = "Microsoft.CodeAnalysis.aot.dll",
+    out = "Microsoft.CodeAnalysis.dll",
+    cmd = "$(exe :prepare-roslyn-aot) $(location third-party//csharp:Microsoft.CodeAnalysis.Common) $OUT",
+)
+
+GAMEPLAYC = dict(
     srcs = glob(["src/Gameplay.Compiler/**/*.cs"]),
+    aot_assembly_overrides = {"Microsoft.CodeAnalysis.dll": ":Microsoft.CodeAnalysis.aot.dll"},
     implicit_usings = True,
     invariant_globalization = True,
     lang_version = "14.0",
     nullable = "enable",
+    optimization_preference = "speed",
     resources = {"Gameplay.Compiler.Binding.System.Runtime.dll": ":System.Runtime.ref"},
+    trimmer_single_warn = False,
     unsafe = False,
     warnings_as_errors = True,
     deps = ["third-party//csharp:Microsoft.CodeAnalysis.CSharp"],
+)
+
+# `buck2 run tilde//aseipp/cs2wasm:gameplayc -- -o out.wasm examples/Gameplay.cs`
+# follows the configuration: JIT by default, `-m aot` for the deliverable.
+depot.csharp.binary(
+    name = "gameplayc",
+    **GAMEPLAYC
 )
 
 depot.export_file(
@@ -30,8 +59,8 @@ depot.export_file(
     src = "examples/Gameplay.cs",
 )
 
-# The compiler runs and produces a Wasm module. Backticks: `$(` is buck2's
-# macro syntax inside a script attribute.
+# The configured compiler runs and produces a Wasm module. Backticks: `$(`
+# is buck2's macro syntax inside a script attribute.
 depot.command_test(
     name = "smoke",
     script = """
@@ -43,7 +72,28 @@ depot.command_test(
     """,
 )
 
-# The CLR oracle for tests/differential.mjs: the fixtures compiled on the
+# The deliverable the README describes, whatever the configuration says: the
+# acceptance suite runs a bare copy of the executable with no SDK reachable,
+# which only a Native AOT build survives.
+depot.csharp.binary(
+    name = "gameplayc-aot",
+    profile = "aot",
+    **GAMEPLAYC
+)
+
+depot.command_test(
+    name = "info",
+    script = """
+        info="`$(exe :gameplayc-aot) --info`"
+        printf '%s\\n' "$info"
+        case "$info" in
+            *"native-aot=True"*) ;;
+            *) echo "expected a Native AOT compiler" >&2; exit 1 ;;
+        esac
+    """,
+)
+
+# The CLR oracle for the differential test: the fixtures compiled on the
 # CLR's terms (see tests/reference/README.md), driven through reflection.
 depot.csharp.binary(
     name = "reference",
@@ -79,14 +129,39 @@ DENO_TEST = dict(
     permissions = ["all"],
 )
 
-depot.deno.run(
-    name = "encoding",
-    src = "tests/encoding.mjs",
-    **DENO_TEST
+[
+    depot.deno.run(
+        name = name,
+        src = "tests/{}.mjs".format(name),
+        **DENO_TEST
+    )
+    for name in [
+        "integration",
+        "differential",
+        "encoding",
+    ]
+]
+
+# tests/integration.mjs: the native, SDK-less, end-to-end acceptance suite.
+depot.run_test(
+    name = "integration-test",
+    args = ["$(location :gameplayc-aot)"],
+    dep = ":integration",
 )
 
 # tests/encoding.mjs: independently hand-assembled Wasm probes.
 depot.run_test(
     name = "encoding-test",
     dep = ":encoding",
+)
+
+# tests/differential.mjs: the same C# on the CLR and in Wasm. The oracle is
+# the toolchain's apphost, which finds its runtime through DOTNET_ROOT.
+depot.command_test(
+    name = "differential-test",
+    script = """
+        export DOTNET_ROOT="$PWD/$(location toolchains//csharp:dotnet)"
+        export GAMEPLAYC_REFERENCE="$(location :reference)/Gameplay.Reference"
+        $(exe :differential) $(location :gameplayc-aot)
+    """,
 )

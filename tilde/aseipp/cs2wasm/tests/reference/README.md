@@ -1,9 +1,10 @@
 # CLR differential oracle
 
-`tests/differential.mjs` runs the comparison against a Native AOT compiler
-executable (`GAMEPLAYC`) and the oracle built here:
+`buck2 test tilde//aseipp/cs2wasm:differential-test` runs the comparison. By
+hand, with a built compiler and oracle:
 
 ```sh
+GAMEPLAYC=$(buck2 build -m aot tilde//aseipp/cs2wasm:gameplayc --show-full-simple-output)
 ORACLE=$(buck2 build tilde//aseipp/cs2wasm:reference --show-full-simple-output)
 DOTNET_ROOT=$(buck2 build toolchains//csharp:dotnet --show-full-simple-output) \
 GAMEPLAYC_REFERENCE="$ORACLE/Gameplay.Reference" \

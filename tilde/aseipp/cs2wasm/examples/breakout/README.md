@@ -10,10 +10,11 @@ lose the ball to end the game. The browser must support WebAssembly GC.
 
 ## Build and play
 
-From this directory, run:
+From this directory, with a compiler built through Buck2, run:
 
 ```sh
-buck2 run tilde//aseipp/cs2wasm:gameplayc -- -o publish/breakout.wasm examples/breakout/Breakout.cs
+GAMEPLAYC=$(buck2 build -m aot tilde//aseipp/cs2wasm:gameplayc --show-full-simple-output)
+"$GAMEPLAYC" -o publish/breakout.wasm examples/breakout/Breakout.cs
 node examples/breakout/serve.mjs
 ```
 
@@ -172,7 +173,7 @@ For gameplay changes, edit `Breakout.cs`, compile it again, and reload the
 page:
 
 ```sh
-buck2 run tilde//aseipp/cs2wasm:gameplayc -- -o publish/breakout.wasm examples/breakout/Breakout.cs
+"$GAMEPLAYC" -o publish/breakout.wasm examples/breakout/Breakout.cs
 node examples/breakout/run.mjs
 ```
 

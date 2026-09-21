@@ -10,7 +10,11 @@ With `--all-tools`, the suite also runs independent validation and round-trip
 checks, executes exports in Wasmtime, and repeats the full behavioral suite
 after Binaryen optimization and in SpiderMonkey. It also compares the same
 C# fixtures against actual .NET execution over thousands of inputs.
-See [Building with Buck2](#building-with-buck2) for the build.
+`buck2 build -m aot tilde//aseipp/cs2wasm:gameplayc` writes the executable; see
+[Building with Buck2](#building-with-buck2).
+
+Roslyn's AOT compatibility fixes are applied to a private build copy; see
+[build/README.md](build/README.md) for the exact changes and upgrade checks.
 Windows and Linux x64 publishing have not been validated here. This remains a
 prototype with the limits described below.
 
@@ -69,25 +73,38 @@ The compiler is a `csharp.binary` in `BUILD`; the toolchain under
 nothing needs installing. From anywhere in the repository:
 
 ```sh
+# JIT-compiled, for quick iteration
 buck2 run tilde//aseipp/cs2wasm:gameplayc -- --info
-buck2 run tilde//aseipp/cs2wasm:gameplayc -- -o publish/gameplay.wasm examples/Gameplay.cs
+
+# The deliverable: one Native AOT executable
+buck2 build -m release -m aot tilde//aseipp/cs2wasm:gameplayc --show-simple-output
 ```
 
-This runs the compiler JIT-compiled on the pinned runtime; `-m release`
-builds it optimized. The Native AOT executable the acceptance suite needs is
-not produced here yet, so `tests/integration.mjs` and `tests/differential.mjs`
-have no Buck targets.
+`-m aot`, `-m r2r`, `-m pgojit` and `-m jit` choose how the compiler itself is
+packaged (see the toolchain's README); `:gameplayc-aot` is Native AOT whatever
+the modifiers say, because the acceptance suite needs it. The Roslyn AOT
+repair from [build/README.md](build/README.md) runs as `:prepare-roslyn-aot`,
+and only ILCompiler sees its output.
 
 The tests run under Buck2 as well; Deno executes the Node-flavoured scripts:
 
 ```sh
 buck2 test tilde//aseipp/cs2wasm:                   # everything below
 buck2 test tilde//aseipp/cs2wasm:smoke              # --info and one module
+buck2 test tilde//aseipp/cs2wasm:integration-test   # tests/integration.mjs
+buck2 test tilde//aseipp/cs2wasm:differential-test  # CLR oracle comparison
 buck2 test tilde//aseipp/cs2wasm:encoding-test      # hand-assembled probes
 ```
 
-`tests/integration.mjs` takes a Native AOT compiler executable and adds
-`--all-tools` to exercise every tool supplied by the development shell:
+To drive the scripts by hand, point them at a built compiler:
+
+```sh
+GAMEPLAYC=$(buck2 build -m aot tilde//aseipp/cs2wasm:gameplayc --show-full-simple-output)
+"$GAMEPLAYC" --info
+deno run --allow-all tests/integration.mjs "$GAMEPLAYC"
+```
+
+Add `--all-tools` to exercise every tool supplied by the development shell:
 
 ```sh
 deno run --allow-all tests/integration.mjs "$GAMEPLAYC" --all-tools
@@ -341,7 +358,7 @@ process survival must include containment of VM/native-host failures.
 - `tests/spidermonkey.mjs`: adapter for the Mozilla shell.
 - `tests/rejections.mjs`: unsupported-source fixtures.
 - `tests/encoding.mjs`: independently hand-assembled Wasm probes (actually run here).
-- `BUILD`: the Buck2 targets and tests.
+- `BUILD`: the Buck2 targets, tests and the Roslyn AOT repair step.
 
 ## References
 

@@ -15,11 +15,9 @@ resulting modules without a .NET runtime.
 From the repository root:
 
 ```sh
+GAMEPLAYC=$(buck2 build -m aot tilde//aseipp/cs2wasm:gameplayc --show-full-simple-output)
 ./examples/run-wasmtime.sh
 ```
-
-The script builds the compiler through Buck2 unless `GAMEPLAYC` names a
-Native AOT executable.
 
 The script compiles [Gameplay.cs](Gameplay.cs) and
 [HeapGameplay.cs](HeapGameplay.cs) into `publish/gameplay.wasm` and
@@ -43,7 +41,7 @@ result check fails. Wasmtime currently prints experimental notices for its
 To perform the steps individually:
 
 ```sh
-buck2 run tilde//aseipp/cs2wasm:gameplayc -- -o publish/gameplay.wasm examples/Gameplay.cs
+"$GAMEPLAYC" -o publish/gameplay.wasm examples/Gameplay.cs
 wasm-tools validate publish/gameplay.wasm
 wasmtime run --invoke Demo.Gameplay.SumSquares publish/gameplay.wasm 5
 wasmtime run --invoke Demo.Gameplay.VectorLengthSquared publish/gameplay.wasm 2 3 6
@@ -84,7 +82,7 @@ double counting and infinite traversal around the cycle.
 Run or inspect the larger module directly:
 
 ```sh
-buck2 run tilde//aseipp/cs2wasm:gameplayc -- -o publish/heap-gameplay.wasm examples/HeapGameplay.cs
+"$GAMEPLAYC" -o publish/heap-gameplay.wasm examples/HeapGameplay.cs
 wasmtime run --invoke Demo.HeapGameplay.ParticleSimulation publish/heap-gameplay.wasm 100 20
 wasmtime run --invoke Demo.HeapGameplay.MazeDistance publish/heap-gameplay.wasm 6 4
 wasm-tools print publish/heap-gameplay.wasm -o publish/heap-gameplay.wat
