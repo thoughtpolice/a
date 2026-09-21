@@ -87,7 +87,8 @@ any update to confirm nothing was missed or accidentally hand-edited.
 Tools that are NOT from upstream stage0-posix live in `stage0-posix/cellar-extra/`.
 They are compiled with the same M2-Mesoplanet toolchain but kept separate so
 `check-upstream.sh` can verify the upstream directories are unmodified. Current
-tools: `chdirexec`, `chdirenv`, `envexec`, `bytecmp`, `prepare-mes-src`.
+tools: `chdirexec`, `chdirenv`, `envexec`, `bytecmp`. Mes sources are assembled from explicit archive projections in
+`mes/BUILD`; no host copy utility or preprocessed syntax blob is consumed.
 
 ## TODO
 

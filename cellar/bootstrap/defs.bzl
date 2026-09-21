@@ -1,3 +1,9 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# BUILD files use this namespace because noprelude masks native select.
+bootstrap = struct(select = select)
+
 def __export_file_impl(ctx: AnalysisContext) -> list[Provider]:
     return [
         DefaultInfo(default_output = ctx.attrs.src),
@@ -21,7 +27,15 @@ def __filegroup_impl(ctx: AnalysisContext) -> list[Provider]:
         srcs = {src.short_path: src for src in ctx.attrs.srcs}
 
     output = ctx.actions.copied_dir(ctx.label.name, srcs)
-    return [DefaultInfo(default_output = output)]
+    projections = dict(srcs)
+    for path in srcs:
+        parts = path.split("/")
+        for end in range(1, len(parts)):
+            projections["/".join(parts[:end])] = None
+    return [DefaultInfo(default_output = output, sub_targets = {
+        path: [DefaultInfo(default_output = output.project(path))]
+        for path in projections
+    })]
 
 filegroup = rule(
     doc = """Create a directory that contains links to a list of srcs.
@@ -31,7 +45,7 @@ filegroup = rule(
     """,
     impl = __filegroup_impl,
     attrs = {
-        "srcs": attrs.option(attrs.named_set(attrs.source(), sorted = False), default = None),
+        "srcs": attrs.named_set(attrs.source(), sorted = False, default = {}),
     },
 )
 

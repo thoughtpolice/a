@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Graph evidence, not a substitute for uncached process/file tracing. Buck and
+# the kernel remain trusted; a permissive action sandbox does not prove closure.
+def _audit(ctx):
+    nodes = ctx.cquery().deps(ctx.configured_targets(ctx.cli_args.target))
+    cell = "depot-cellar"
+    errors = []
+    targets = []
+    for node in nodes:
+        targets.append({"label": str(node.label), "rule": node.rule_type})
+        if not node.rule_type.startswith(cell + "//"):
+            errors.append("rule defined outside cellar: " + node.rule_type)
+        if node.label.cell != cell:
+            errors.append("dependency outside cellar: " + str(node.label))
+    loads = []
+    injected = []
+    for file in ctx.cquery().allbuildfiles(nodes):
+        path = file.cell + "//" + file.path
+        loads.append(path)
+
+        # Buck injects its bundled prelude into every module, and the root
+        # configuration injects noprelude into BUILD files. They are reported
+        # as infrastructure; the rule-definition check above forbids using any
+        # of their rules. All explicit imports must remain cellar-local.
+        if file.cell == "prelude" or path == "depot//buck/shims/noprelude.bzl":
+            injected.append(path)
+        elif file.cell != cell:
+            errors.append("Starlark/buildfile outside cellar: " + path)
+    actions = []
+    for node in ctx.aquery().all_actions(nodes):
+        action = node.action()
+        if action == None:
+            continue
+        owner = str(action.owner())
+        if action.owner().cell != cell:
+            errors.append("action owner outside cellar: " + owner)
+        attributes = {name: getattr(node.attrs, name).value() for name in dir(node.attrs)}
+        actions.append({"owner": owner, "kind": node.rule_type, "attributes": attributes})
+    ctx.output.print_json({
+        "targets": targets,
+        "loads": sorted(loads),
+        "injected_loads": sorted(injected),
+        "actions": actions,
+        "errors": errors,
+    })
+    if errors:
+        fail("bootstrap closure audit failed: " + "; ".join(errors))
+
+closure = bxl_main(impl = _audit, cli_args = {
+    "target": bxl.cli_args.string(),
+})
