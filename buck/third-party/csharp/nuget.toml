@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# NuGet packages first-party C# may reference. `buck2 run
+# root//buck/tools/nugetify -- buckify` resolves this file into nuget.lock
+# and regenerates BUILD; see buck/tools/nugetify/README.md.
+
+# The targeting pack fixes the framework every package is consumed as and,
+# through its PackageOverrides.txt, which packages the framework already
+# provides. Keep its version on the runtime pinned in buck/toolchains/csharp.
+[framework]
+package = "Microsoft.NETCore.App.Ref"
+version = "11.0.0-rc.1.26425.128"
+
+# Package id, spelled as nuget.org spells it (that spelling is the target
+# name), pinned to one version. Transitive dependencies are resolved.
+[packages]

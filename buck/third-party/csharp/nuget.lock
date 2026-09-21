@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "framework": {
+    "package": "Microsoft.NETCore.App.Ref",
+    "version": "11.0.0-rc.1.26425.128",
+    "tfm": "net11.0"
+  },
+  "packages": []
+}
