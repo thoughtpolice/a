@@ -1,0 +1,24 @@
+            /* now we can generate the number */
+            /* XXX: should patch directly float number */
+            d = (double)bn[1] * 4294967296.0 + (double)bn[0];
+            d = ldexp(d, exp_val - frac_bits);
+            t = toup(ch);
+            if (t == 'F') {
+                ch = *p++;
+                tok = TOK_CFLOAT;
+                /* float : should handle overflow */
+                tokc.f = (float)d;
+            } else if (t == 'L') {
+                ch = *p++;
+#ifdef TCC_TARGET_PE
+                tok = TOK_CDOUBLE;
+                tokc.d = d;
+#else
+                tok = TOK_CLDOUBLE;
+                /* XXX: not large enough */
+                tokc.ld = (long double)d;
+#endif
+            } else {
+                tok = TOK_CDOUBLE;
+                tokc.d = d;
+            }

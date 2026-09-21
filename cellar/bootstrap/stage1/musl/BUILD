@@ -4,7 +4,7 @@
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
 load("@cellar//bootstrap:source.bzl", "download_file", "ungz", "untar", "write_file")
-load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object", "compiler", "sysroot")
+load("@cellar//bootstrap/stage1:defs.bzl", "bootstrap_artifact", "c_binary", "c_library", "c_object", "compiler", "sysroot")
 load(":sources.bzl", "ARCH_SOURCES", "BASE_SOURCES", "CRT_SOURCES", "HEADER_FILES", "INTERNAL_HEADERS")
 
 # The first compiler has no complex support. Unicode-derived functions are
@@ -49,6 +49,10 @@ LIBC_SOURCES = sorted([path for path in BASE_SOURCES if path not in REPLACED + R
 
 RESTORED_SOURCES = sorted(LIBC_SOURCES + REDUCED_OMISSIONS)
 
+GNU_REPLACED = [path.replace("/x86_64/", "/").rsplit(".", 1)[0] + ".c" for path in ARCH_SOURCES]
+
+GNU_SOURCES = sorted([path for path in BASE_SOURCES if path not in GNU_REPLACED and not path.startswith("src/complex/")] + ARCH_SOURCES)
+
 SOURCE_FILES = HEADER_FILES + [path for path in INTERNAL_HEADERS if path not in GENERATED_TABLES] + LIBC_SOURCES + CRT_SOURCES
 
 download_file(
@@ -67,7 +71,7 @@ untar(
     name = "musl-1.1.24",
     chdirenv = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
     # Generated headers are projected only for table-regeneration tests.
-    files = SOURCE_FILES + REDUCED_OMISSIONS + GENERATED_TABLES,
+    files = SOURCE_FILES + REDUCED_OMISSIONS + GENERATED_TABLES + [path for path in ARCH_SOURCES if path not in NATIVE_SOURCES],
     input = ":musl.tar",
     untar = "cellar//bootstrap/stage0-posix/mescc-tools-extra:untar",
 )
@@ -226,6 +230,19 @@ filegroup(
     },
 )
 
+# GNU as can consume the original native assembly, including x87 instructions
+# and PLT relocations. C still uses the TCC-specific syscall and varargs branches.
+filegroup(
+    name = "source-gnu",
+    srcs = PREPARED_SOURCE | {
+        path: ":musl-1.1.24[" + path + "]"
+        for path in REDUCED_OMISSIONS + ARCH_SOURCES
+    } | {
+        path: "cellar//bootstrap/stage1/musl-tables:generated[" + path.removeprefix("src/") + "]"
+        for path in GENERATED_TABLES
+    },
+)
+
 compiler(
     name = "rebuilt-predecessor",
     abi = "x86_64-sysv",
@@ -281,35 +298,75 @@ compiler(
 [
     [
         [
-            c_object(
-                name = stage + "-libc-{}.o".format(i),
-                src = tree + "[{}]".format(path),
-                defines = ["_XOPEN_SOURCE=700"],
-                flags = [
-                    "-std=c99",
-                    "-ffreestanding",
-                    "-Werror",
-                ],
-                headers = [tree],
-                # do not sort: native and internal headers override public headers.
-                includes = [
-                    tree + "[arch/x86_64]",
-                    tree + "[arch/generic]",
-                    tree + "[src/include]",
-                    tree + "[src/internal]",
-                    tree + "[include]",
-                ],
-                object_name = "m{}.o".format(i),
-                toolchain = tc,
-            )
+            [
+                c_object(
+                    name = stage + "-libc-{}.o".format(i),
+                    src = tree + "[{}]".format(path),
+                    defines = ["_XOPEN_SOURCE=700"],
+                    flags = [
+                        "-std=c99",
+                        "-ffreestanding",
+                        "-Werror",
+                    ],
+                    headers = [tree],
+                    # do not sort: native and internal headers override public headers.
+                    includes = [
+                        tree + "[arch/x86_64]",
+                        tree + "[arch/generic]",
+                        tree + "[src/include]",
+                        tree + "[src/internal]",
+                        tree + "[include]",
+                    ],
+                    object_name = "m{}.o".format(i),
+                    toolchain = tc,
+                ),
+            ] if stage != "gnu" or path.endswith(".c") else [
+                generate(
+                    name = stage + "-asm-{}".format(i),
+                    args = [
+                        "--64",
+                        "$(location " + tree + "[" + path + "])",
+                        "-o",
+                    ],
+                    output = "m{}.o".format(i),
+                    tool = "cellar//bootstrap/stage1/binutils:as",
+                ),
+                bootstrap_artifact(
+                    name = stage + "-libc-{}.o".format(i),
+                    src = ":" + stage + "-asm-{}".format(i),
+                    abi = "x86_64-sysv",
+                    kind = "object",
+                    object_format = "elf64-x86-64",
+                ),
+            ]
             for i, path in enumerate(sources)
         ],
-        c_object(
-            name = stage + "-syscall.o",
-            src = "runtime/syscall.S",
-            object_name = "syscall.o",
-            toolchain = tc,
-        ),
+        [
+            c_object(
+                name = stage + "-syscall.o",
+                src = "runtime/syscall.S",
+                object_name = "syscall.o",
+                toolchain = tc,
+            ),
+        ] if stage != "gnu" else [
+            generate(
+                name = "gnu-syscall-asm",
+                args = [
+                    "--64",
+                    "$(location :runtime/syscall.S)",
+                    "-o",
+                ],
+                output = "syscall.o",
+                tool = "cellar//bootstrap/stage1/binutils:as",
+            ),
+            bootstrap_artifact(
+                name = "gnu-syscall.o",
+                src = ":gnu-syscall-asm",
+                abi = "x86_64-sysv",
+                kind = "object",
+                object_format = "elf64-x86-64",
+            ),
+        ],
         c_library(
             name = stage + "-libc.a",
             objects = [":" + stage + "-libc-{}.o".format(i) for i in range(len(sources))] + [":" + stage + "-syscall.o"],
@@ -317,25 +374,45 @@ compiler(
             toolchain = tc,
         ),
         [
-            c_object(
-                name = stage + "-" + path.rsplit("/", 1)[1].rsplit(".", 1)[0] + ".o",
-                src = tree + "[{}]".format(path),
-                defines = [
-                    "CRT=1",
-                    "_XOPEN_SOURCE=700",
-                ],
-                headers = [tree],
-                # do not sort
-                includes = [
-                    tree + "[arch/x86_64]",
-                    tree + "[arch/generic]",
-                    tree + "[src/include]",
-                    tree + "[src/internal]",
-                    tree + "[include]",
-                ],
-                object_name = path.rsplit("/", 1)[1].rsplit(".", 1)[0] + ".o",
-                toolchain = tc,
-            )
+            [
+                c_object(
+                    name = stage + "-" + path.rsplit("/", 1)[1].rsplit(".", 1)[0] + ".o",
+                    src = tree + "[{}]".format(path),
+                    defines = [
+                        "CRT=1",
+                        "_XOPEN_SOURCE=700",
+                    ],
+                    headers = [tree],
+                    # do not sort
+                    includes = [
+                        tree + "[arch/x86_64]",
+                        tree + "[arch/generic]",
+                        tree + "[src/include]",
+                        tree + "[src/internal]",
+                        tree + "[include]",
+                    ],
+                    object_name = path.rsplit("/", 1)[1].rsplit(".", 1)[0] + ".o",
+                    toolchain = tc,
+                ),
+            ] if stage != "gnu" or path.endswith(".c") else [
+                generate(
+                    name = "gnu-" + path.rsplit("/", 1)[1] + "-asm",
+                    args = [
+                        "--64",
+                        "$(location " + tree + "[" + path + "])",
+                        "-o",
+                    ],
+                    output = path.rsplit("/", 1)[1].rsplit(".", 1)[0] + ".o",
+                    tool = "cellar//bootstrap/stage1/binutils:as",
+                ),
+                bootstrap_artifact(
+                    name = "gnu-" + path.rsplit("/", 1)[1].rsplit(".", 1)[0] + ".o",
+                    src = ":gnu-" + path.rsplit("/", 1)[1] + "-asm",
+                    abi = "x86_64-sysv",
+                    kind = "object",
+                    object_format = "elf64-x86-64",
+                ),
+            ]
             for path in CRT_SOURCES
         ],
         [
@@ -444,7 +521,10 @@ compiler(
                 "threads",
                 "fenv",
                 "syscalls",
-            ] + (["unicode"] if stage == "restored" else [])
+            ] + (["unicode"] if stage in [
+                "restored",
+                "gnu",
+            ] else []) + (["native-math"] if stage == "gnu" else [])
         ],
     ]
     for stage, tc, support_library, sources, tree in [
@@ -457,6 +537,7 @@ compiler(
         ),
         ("rebuilt", ":rebuilt-predecessor", "cellar//bootstrap/stage1/tcc-musl:musl1-libtcc1.a", LIBC_SOURCES, ":source"),
         ("restored", ":restored-predecessor", "cellar//bootstrap/stage1/tcc-musl:musl2-libtcc1.a", RESTORED_SOURCES, ":source-restored"),
+        ("gnu", "cellar//bootstrap/stage1/tcc-native:hexfloat", "cellar//bootstrap/stage1/tcc-musl:musl2-libtcc1.a", GNU_SOURCES, ":source-gnu"),
     ]
 ]
 
@@ -524,3 +605,5 @@ command_test(
     name = "header-search-order",
     tool = ":include-order-program",
 )
+
+export_file(name = "runtime/syscall.S")

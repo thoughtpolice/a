@@ -9,6 +9,7 @@ LibraryInfo = provider(fields = ["artifact", "abi", "object_format", "format"])
 SysrootInfo = provider(fields = ["root", "abi", "object_format"])
 CompilerInfo = provider(fields = [
     "command",
+    "linker",
     "archiver",
     "archive_flags",
     "archive_format",
@@ -34,8 +35,10 @@ def _compiler_impl(ctx):
         command.add("-B", sysroot.root)
     runtime = ctx.attrs.execution_runtime[DefaultInfo].default_outputs if ctx.attrs.execution_runtime else []
     command = cmd_args(command, hidden = runtime)
+    linker = ctx.attrs.linker[RunInfo] if ctx.attrs.linker else command
     return [DefaultInfo(), RunInfo(args = command), CompilerInfo(
         command = command,
+        linker = linker,
         archiver = ctx.attrs.archiver[RunInfo] if ctx.attrs.archiver else None,
         archive_flags = ctx.attrs.archive_flags,
         archive_format = ctx.attrs.archive_format,
@@ -51,6 +54,7 @@ def _compiler_impl(ctx):
 
 compiler = rule(impl = _compiler_impl, attrs = {
     "compiler": attrs.dep(providers = [RunInfo]),
+    "linker": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
     "archiver": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
     "archive_flags": attrs.list(attrs.string(), default = []),
     "archive_format": attrs.enum(["mes-concat", "ar"]),
@@ -158,7 +162,7 @@ def _binary_impl(ctx):
         libraries = [aliases.project("lib{}.o".format(i)) for i in range(len(libraries))]
     work = ctx.actions.declare_output("work", dir = True)
     output = work.project(ctx.attrs.output)
-    command = cmd_args(tc.command, tc.ldflags, ctx.attrs.flags, objects, libraries, "-o", ctx.attrs.output)
+    command = cmd_args(tc.linker, tc.ldflags, ctx.attrs.flags, objects, libraries, "-o", ctx.attrs.output)
     ctx.actions.run(
         cmd_args(ctx.attrs.chdir[RunInfo], work.as_output(), cmd_args(command, relative_to = work)),
         clear_environment = True,

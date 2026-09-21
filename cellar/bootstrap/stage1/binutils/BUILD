@@ -4,7 +4,7 @@
 load("@cellar//bootstrap:actions.bzl", "command_test", "concatenate", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
 load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
-load("@cellar//bootstrap/stage1:defs.bzl", "bootstrap_artifact", "c_binary", "c_library", "c_object")
+load("@cellar//bootstrap/stage1:defs.bzl", "bootstrap_artifact", "c_binary", "c_library", "c_object", "compiler")
 load(":sources.bzl", "BINUTILS_HEADERS", "COMMON_HEADERS")
 
 MUSL = "cellar//bootstrap/stage1/musl"
@@ -2849,4 +2849,47 @@ filegroup(
             "COPYING3.LIB",
         ]
     },
+)
+
+# The compile, archive and link commands have distinct executable providers.
+# This bridge is used by the last musl/TCC pass before GCC becomes available.
+compiler(
+    name = "tcc-with-binutils",
+    abi = "x86_64-sysv",
+    archive_flags = ["crsD"],
+    archive_format = "ar",
+    archiver = ":ar",
+    cflags = ["-nostdinc"],
+    compiler = "cellar//bootstrap/stage1/tcc-musl:tcc-musl2",
+    execution_runtime = MUSL + ":runtime-rebuilt",
+    family = "tcc",
+    ldflags = ["-static"],
+    linker = ":ld",
+    object_format = "elf64-x86-64",
+    stage = "musl-with-binutils",
+    sysroot = MUSL + ":runtime-restored",
+    target_compatible_with = [
+        "cellar//bootstrap/platforms:linux",
+        "cellar//bootstrap/platforms:amd64",
+    ],
+)
+
+c_library(
+    name = "gnu-test.a",
+    objects = [":as-fixture.o"],
+    output = "native.a",
+    toolchain = ":tcc-with-binutils",
+)
+
+c_binary(
+    name = "gnu-toolchain-test-bin",
+    libraries = [":gnu-test.a"] + LIBC,
+    objects = CRT + [":as-test.o"] + CRTN,
+    output = "gnu-toolchain-test",
+    toolchain = ":tcc-with-binutils",
+)
+
+command_test(
+    name = "gnu-toolchain-link",
+    tool = ":gnu-toolchain-test-bin",
 )

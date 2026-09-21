@@ -119,7 +119,7 @@ emulations, and gprof's text-derived C sources regenerate from their source inpu
 Only the native x86_64 ELF backend is enabled. LD has no default library search
 directories; callers supply their sysroot libraries explicitly.
 
-The 48 binutils tests cover native assembly and disassembly, static musl linking,
+The 49 binutils tests cover native assembly and disassembly, static musl linking,
 weak symbols, partial linking, linker scripts, deterministic and thin archives,
 MRI scripts, long archive member names, ELF inspection and modification,
 compressed DWARF, stripping, malformed inputs, and 64-bit profiling records.
@@ -133,6 +133,23 @@ additional tests. The complete final coreutils rebuild remains outstanding.
 buck2 test cellar//bootstrap/stage1/binutils: \
   cellar//bootstrap/stage1/coreutils: --local-only -j 8
 buck2 build cellar//bootstrap/stage1/binutils:installation
+```
+
+The pre-GCC sequence also rebuilds musl with GNU as/ar/ld, restoring its native
+x86_64 math assembly, and then rebuilds TCC and its support library against that
+libc. `tcc-native:tcc` supplies the resulting compiler and explicit sysroot.
+TCC's original hexadecimal-float reader rounded through `double`, corrupting
+long-double constants used by musl. The corrective compiler pass uses musl's
+typed conversion routines and a temporary x87 scaling implementation; the final
+pass uses the rebuilt libc without that temporary object. Twenty native-TCC and
+twenty-one musl tests cover exact floating representations, extreme exponents,
+fused operations, startup, threads/TLS, syscalls, Unicode, and driver linking.
+Missing sysroot headers and libraries fail instead of falling back to the host.
+
+```
+buck2 test cellar//bootstrap/stage1/tcc-native: \
+  cellar//bootstrap/stage1/musl: --local-only -j 8
+buck2 build cellar//bootstrap/stage1/tcc-native:installation
 ```
 
 Closure review:
@@ -178,6 +195,15 @@ calls, with no successful opens or executions outside the audited boundary.
 All fifteen binaries, four static libraries, twenty-two linker scripts, and four
 license files were byte-identical across the two workspace paths. This was an
 incremental validation of the new packages on the previously audited closure.
+
+At `81dac821`, the pre-GCC TCC installation's configured audit reported 7977
+targets and 8641 actions with no violations. The second workspace passed all 90
+binutils/musl/native-TCC tests with 1348 newly executed local actions and no remote
+cache. Its trace covered 1469 bootstrap processes and 79821 open calls with no
+successful opens or executions outside the audited boundary. All 233 installation
+files, including the static compiler, its libraries, CRT objects and headers,
+were byte-identical across the workspace paths. This extends the earlier
+incremental validation; it does not claim another full uncached bootstrap.
 
 To repeat the trace gate, start with a fresh JJ workspace and isolated daemon:
 
