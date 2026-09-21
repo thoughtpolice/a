@@ -52,6 +52,13 @@ def constraint(**_kwargs):
 def platform(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.platform() instead')
 
+# C# rules (the prelude's own csharp_library only knows Windows csc.exe)
+def csharp_library(**_kwargs):
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.csharp.library() instead')
+
+def prebuilt_dotnet_library(**_kwargs):
+    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.csharp.prebuilt_library() instead')
+
 # Test rules
 def sh_test(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.command_test() instead')

@@ -95,6 +95,11 @@ shims.toolchain_alias(
     actual = "toolchains//tar:tar",
 )
 
+shims.toolchain_alias(
+    name = "csharp",
+    actual = "toolchains//csharp:csharp",
+)
+
 remote_test_execution_toolchain(
     name = "remote_test_execution",
     visibility = ["PUBLIC"],
