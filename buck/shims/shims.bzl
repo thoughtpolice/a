@@ -440,13 +440,19 @@ def _config_setting(**kwargs):
 def _toolchain_alias(**kwargs):
     native.toolchain_alias(**kwargs)
 
+# Downloads take the package compatibility default like everything else:
+# a package pinned to one cpu (wolfi, minimos) fetches archives built for
+# it, and a host that can't use the archive shouldn't fetch it either.
 def _http_archive(**kwargs):
+    kwargs = _fix_kwargs("http_archive", kwargs)
     native.http_archive(**kwargs)
 
 def _http_file(**kwargs):
+    kwargs = _fix_kwargs("http_file", kwargs)
     native.http_file(**kwargs)
 
 def _git_fetch(**kwargs):
+    kwargs = _fix_kwargs("git_fetch", kwargs)
     native.git_fetch(**kwargs)
 
 def _test_suite(**kwargs):
