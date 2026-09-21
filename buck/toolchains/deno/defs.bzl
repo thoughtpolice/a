@@ -81,6 +81,8 @@ def _deno_binary_impl(ctx: AnalysisContext) -> list[Provider]:
         deno,
         "lint",
     ] + config_args + files_to_lint)
+    if ctx.attrs.lint_rules_exclude:
+        lint_cmd.add("--rules-exclude=" + ",".join(ctx.attrs.lint_rules_exclude))
 
     return [
         DefaultInfo(
@@ -115,6 +117,8 @@ _deno_binary = rule(
         "config": attrs.option(attrs.source(), default = None),
         "unstable_features": attrs.list(attrs.string(), default = []),
         "permissions": attrs.list(attrs.string(), default = []),
+        # Deno lint rules to switch off, for sources written to another runtime's conventions
+        "lint_rules_exclude": attrs.list(attrs.string(), default = []),
         "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
     },
 )
@@ -143,6 +147,8 @@ def _deno_test_impl(ctx: AnalysisContext) -> list[Provider]:
         deno,
         "lint",
     ] + config_args + ctx.attrs.srcs)
+    if ctx.attrs.lint_rules_exclude:
+        lint_cmd.add("--rules-exclude=" + ",".join(ctx.attrs.lint_rules_exclude))
 
     return [
         DefaultInfo(
@@ -175,6 +181,8 @@ _deno_test = rule(
         "data": attrs.list(attrs.source(allow_directory = True), default = []),
         "unstable_features": attrs.list(attrs.string(), default = []),
         "permissions": attrs.list(attrs.string(), default = []),
+        # Deno lint rules to switch off, for sources written to another runtime's conventions
+        "lint_rules_exclude": attrs.list(attrs.string(), default = []),
         "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
     },
 )
@@ -254,6 +262,8 @@ def _deno_run_impl(ctx: AnalysisContext) -> list[Provider]:
             deno,
             "lint",
         ] + config_args + files)
+        if ctx.attrs.lint_rules_exclude:
+            lint_cmd.add("--rules-exclude=" + ",".join(ctx.attrs.lint_rules_exclude))
 
         sub_targets["lint"] = [
             DefaultInfo(),
@@ -296,6 +306,8 @@ _deno_run = rule(
         "permissions": attrs.list(attrs.string(), default = []),
         "unstable_features": attrs.list(attrs.string(), default = []),
         "config": attrs.option(attrs.source(), default = None),
+        # Deno lint rules to switch off, for sources written to another runtime's conventions
+        "lint_rules_exclude": attrs.list(attrs.string(), default = []),
         "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
     },
 )
@@ -401,6 +413,8 @@ def _deno_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
         deno,
         "lint",
     ] + config_args + files_to_lint)
+    if ctx.attrs.lint_rules_exclude:
+        lint_cmd.add("--rules-exclude=" + ",".join(ctx.attrs.lint_rules_exclude))
 
     return [
         DefaultInfo(
@@ -428,6 +442,8 @@ _deno_bundle = rule(
         "check": attrs.bool(default = True),
         "platform": attrs.enum(["browser", "deno"], default = "deno"),
         "unstable_features": attrs.list(attrs.string(), default = []),
+        # Deno lint rules to switch off, for sources written to another runtime's conventions
+        "lint_rules_exclude": attrs.list(attrs.string(), default = []),
         "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
     },
 )
