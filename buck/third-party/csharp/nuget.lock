@@ -5,5 +5,51 @@
     "version": "11.0.0-rc.1.26425.128",
     "tfm": "net11.0"
   },
-  "packages": []
+  "packages": [
+    {
+      "id": "Microsoft.CodeAnalysis.Analyzers",
+      "version": "5.9.0-1.26328.17",
+      "direct": false,
+      "sha256": "a7ef4c9b2cf403bf54e4b52eb8fb89e946a286894f148ecbe7515d81c7b0f612",
+      "sha512": "i6S7Z6J2u5NSiyrjyeCyFB6QiJykwMMbtf8wupHIsVkybOW48Rc7XZO7jDXl8FhyKcW0PkD9k4CCXW6Q2WUW8w==",
+      "assemblies": [],
+      "symbols": [],
+      "dependencies": []
+    },
+    {
+      "id": "Microsoft.CodeAnalysis.Common",
+      "version": "5.9.0",
+      "direct": true,
+      "sha256": "77efd4715c24c8cd6b36f9b92980a2f5a86e4a7b53648d4f1ca3b79a3933a429",
+      "sha512": "zJKrcLzk55lrfCwd/VNpMitaxQqPuip674vavVni5EfVnrsiqupS7xBqltKi37VF9zPd4gZ6LcgUuoBwQp6fRw==",
+      "assets": "lib/net10.0",
+      "assemblies": [
+        "Microsoft.CodeAnalysis"
+      ],
+      "symbols": [
+        "Microsoft.CodeAnalysis"
+      ],
+      "dependencies": [
+        "Microsoft.CodeAnalysis.Analyzers"
+      ]
+    },
+    {
+      "id": "Microsoft.CodeAnalysis.CSharp",
+      "version": "5.9.0",
+      "direct": true,
+      "sha256": "7602c3dbaa122268f3b26c6cc0dd02eb9224dea9442ed27af5c3fe56d643993f",
+      "sha512": "pjIhVe62OXX1os6tkUW0lJ3eTmveLnq0YojCJoztOjEpE3ho6UFAm8gaHpM/tTLPutoWh6OQyDg52zAUalN2IQ==",
+      "assets": "lib/net10.0",
+      "assemblies": [
+        "Microsoft.CodeAnalysis.CSharp"
+      ],
+      "symbols": [
+        "Microsoft.CodeAnalysis.CSharp"
+      ],
+      "dependencies": [
+        "Microsoft.CodeAnalysis.Analyzers",
+        "Microsoft.CodeAnalysis.Common"
+      ]
+    }
+  ]
 }
