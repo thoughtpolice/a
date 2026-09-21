@@ -16,6 +16,7 @@ const (
 	rustSubject
 	npmSubject
 	wolfiSubject
+	nugetSubject
 )
 
 type osvPackage struct {
@@ -126,6 +127,9 @@ var genericExceptions = []exception{
 	},
 }
 
+// NuGet packages under third-party//csharp, scanned from nuget.lock.
+var nugetExceptions = []exception{}
+
 var rustExceptions = []exception{
 	{
 		ID:     "RUSTSEC-2024-0388",
@@ -223,6 +227,7 @@ var exceptionSets = []struct {
 	{Kind: rustSubject, Label: "Rust", Items: rustExceptions},
 	{Kind: npmSubject, Label: "npm", Items: npmExceptions},
 	{Kind: wolfiSubject, Label: "Wolfi", Items: wolfiExceptions},
+	{Kind: nugetSubject, Label: "NuGet", Items: nugetExceptions},
 }
 
 func exceptionsFor(kind subjectKind) []exception {

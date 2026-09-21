@@ -42,6 +42,8 @@ const (
 	npmCaseFilter     = "npm:all"
 	wolfiCaseName     = "wolfi-packages"
 	wolfiCaseFilter   = "wolfi:all"
+	nugetCaseName     = "nuget-packages"
+	nugetCaseFilter   = "nuget:all"
 )
 
 func writeTestListing(mode string, stdout io.Writer) {
@@ -57,6 +59,9 @@ func writeTestListing(mode string, stdout io.Writer) {
 	if mode == "all" || mode == "wolfi" {
 		fmt.Fprintf(stdout, "%s%s %s\n", testLinePrefix, wolfiCaseFilter, wolfiCaseName)
 	}
+	if mode == "all" || mode == "nuget" {
+		fmt.Fprintf(stdout, "%s%s %s\n", testLinePrefix, nugetCaseFilter, nugetCaseName)
+	}
 }
 
 func runHarnessTest(ctx context.Context, cfg config, filter string, stdout, stderr io.Writer) int {
@@ -69,6 +74,8 @@ func runHarnessTest(ctx context.Context, cfg config, filter string, stdout, stde
 		return runHarnessCase(ctx, cfg, "npm", npmCaseName, cfg.auditor(), stdout, stderr)
 	case wolfiCaseFilter:
 		return runHarnessCase(ctx, cfg, "wolfi", wolfiCaseName, cfg.auditor(), stdout, stderr)
+	case nugetCaseFilter:
+		return runHarnessCase(ctx, cfg, "nuget", nugetCaseName, cfg.auditor(), stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "ERROR: unknown test filter %q\n", filter)
 	return 2
@@ -90,6 +97,8 @@ func resultName(item subject) string {
 		return "npm/" + item.Name
 	case wolfiSubject:
 		return "wolfi/" + item.Name
+	case nugetSubject:
+		return "nuget/" + item.Name
 	}
 	return item.Name
 }
@@ -213,6 +222,18 @@ func collectSubjects(ctx context.Context, cfg config, mode string, auditor depen
 		fmt.Fprintf(output, "Loaded and validated %d pinned Wolfi packages from %s.\n", len(wolfi), wolfiTargetSet)
 		subjects = append(subjects, wolfi...)
 	}
+	if mode == "all" || mode == "nuget" {
+		packages, err := loadNuGetLock(cfg.nugetLockPath)
+		if err != nil {
+			return nil, err
+		}
+		nuget, err := nugetSubjects(packages)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Fprintf(output, "Loaded %d NuGet packages from %s.\n", len(nuget), cfg.nugetLockPath)
+		subjects = append(subjects, nuget...)
+	}
 	return subjects, nil
 }
 
@@ -222,6 +243,12 @@ func queryFindings(ctx context.Context, cfg config, subjects []subject, output i
 	client, err := newOSVClient(cfg.apiBase, cfg.httpTimeout)
 	if err != nil {
 		return nil, err
+	}
+	if len(subjects) == 0 {
+		// A dependency set may be empty (nuget.lock before its first
+		// package); that is a clean scan, not a query to make.
+		fmt.Fprintln(output, "No packages to query.")
+		return nil, nil
 	}
 	batchCount := (len(subjects) + cfg.batchSize - 1) / cfg.batchSize
 	fmt.Fprintf(output, "Querying OSV for %d packages in %d batches...\n", len(subjects), batchCount)

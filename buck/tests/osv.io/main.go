@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // 3p-osv verifies that depot's generic third-party packages have usable OSV
-// metadata and checks those packages, pinned Wolfi APKs, Cargo.lock, and
-// package-lock.json against osv.dev.
+// metadata and checks those packages, pinned Wolfi APKs, Cargo.lock,
+// nuget.lock, and package-lock.json against osv.dev.
 package main
 
 import (
@@ -29,12 +29,13 @@ type config struct {
 	buckIsolationDir string
 	cargoLockPath    string
 	npmLockPath      string
+	nugetLockPath    string
 	batchSize        int
 	concurrency      int
 	httpTimeout      time.Duration
 }
 
-var checkModes = []string{"all", "generic", "rust", "npm", "wolfi"}
+var checkModes = []string{"all", "generic", "rust", "npm", "wolfi", "nuget"}
 
 func isCheckMode(value string) bool {
 	return slices.Contains(checkModes, value)
@@ -61,15 +62,16 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	flags.StringVar(&cfg.buckIsolationDir, "buck-isolation-dir", "buck2-3p-osv-tests", "Buck2 isolation directory used for metadata audits")
 	flags.StringVar(&cfg.cargoLockPath, "cargo-lock", "buck/third-party/rust/Cargo.lock", "Cargo.lock to scan")
 	flags.StringVar(&cfg.npmLockPath, "npm-lock", "buck/tests/osv.io/testdata/package-lock.json", "npm package-lock.json to scan")
+	flags.StringVar(&cfg.nugetLockPath, "nuget-lock", "buck/third-party/csharp/nuget.lock", "nuget.lock to scan")
 	flags.IntVar(&cfg.batchSize, "batch-size", 100, "queries per OSV batch")
 	flags.IntVar(&cfg.concurrency, "concurrency", 8, "maximum concurrent OSV requests")
 	flags.DurationVar(&cfg.httpTimeout, "http-timeout", 60*time.Second, "timeout for each OSV request")
 	flags.BoolVar(&listTests, "list-tests", false, "print the Buck2 test cases for the selected mode and exit")
 	flags.BoolVar(&runTest, "run-test", false, "run the single Buck2 test case named by the trailing filter argument")
 	flags.Usage = func() {
-		fmt.Fprintln(stderr, "Usage: 3p-osv [flags] [all|generic|rust|npm|wolfi] [lockfile]")
+		fmt.Fprintln(stderr, "Usage: 3p-osv [flags] [all|generic|rust|npm|wolfi|nuget] [lockfile]")
 		fmt.Fprintln(stderr, "Checks all dependency sets when no mode is supplied.")
-		fmt.Fprintln(stderr, "A trailing lockfile overrides the scanned file in rust and npm mode.")
+		fmt.Fprintln(stderr, "A trailing lockfile overrides the scanned file in rust, npm and nuget mode.")
 		fmt.Fprintln(stderr, "Buck2 internal-runner protocol:")
 		fmt.Fprintln(stderr, "  3p-osv -list-tests [mode]         print one \"test: <filter> <name>\" line per case")
 		fmt.Fprintln(stderr, "  3p-osv -run-test [mode] <filter>  check one case and print \"result: ...\" lines")
@@ -130,6 +132,9 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 			remaining = nil
 		case "npm":
 			cfg.npmLockPath = remaining[0]
+			remaining = nil
+		case "nuget":
+			cfg.nugetLockPath = remaining[0]
 			remaining = nil
 		}
 	}
