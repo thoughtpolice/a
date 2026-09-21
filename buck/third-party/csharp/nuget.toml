@@ -15,3 +15,6 @@ version = "11.0.0-rc.1.26425.128"
 # Package id, spelled as nuget.org spells it (that spelling is the target
 # name), pinned to one version. Transitive dependencies are resolved.
 [packages]
+# Roslyn compiler
+"Microsoft.CodeAnalysis.Common" = "5.9.0"
+"Microsoft.CodeAnalysis.CSharp" = "5.9.0"

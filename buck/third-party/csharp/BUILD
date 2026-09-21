@@ -9,5 +9,28 @@ load("@root//buck/shims:third_party_csharp.bzl", "nuget")
 # Every package is consumed as net11.0 sees it. Microsoft.NETCore.App.Ref 11.0.0-rc.1.26425.128
 # decides which packages the framework already provides.
 
+# Microsoft.CodeAnalysis.Analyzers 5.9.0-1.26328.17 ships no assemblies for net11.0.
+
+nuget.package(
+    name = "Microsoft.CodeAnalysis.Common",
+    assemblies = ["Microsoft.CodeAnalysis"],
+    assets = "lib/net10.0",
+    sha256 = "77efd4715c24c8cd6b36f9b92980a2f5a86e4a7b53648d4f1ca3b79a3933a429",
+    symbols = ["Microsoft.CodeAnalysis"],
+    version = "5.9.0",
+    visibility = ["PUBLIC"],
+)
+
+nuget.package(
+    name = "Microsoft.CodeAnalysis.CSharp",
+    assemblies = ["Microsoft.CodeAnalysis.CSharp"],
+    assets = "lib/net10.0",
+    sha256 = "7602c3dbaa122268f3b26c6cc0dd02eb9224dea9442ed27af5c3fe56d643993f",
+    symbols = ["Microsoft.CodeAnalysis.CSharp"],
+    version = "5.9.0",
+    visibility = ["PUBLIC"],
+    deps = [":Microsoft.CodeAnalysis.Common"],
+)
+
 # The committed lock and this file agree (buck/tools/nugetify check).
 nuget.check(name = "buckify-check")
