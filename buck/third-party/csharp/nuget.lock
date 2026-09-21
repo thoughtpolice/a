@@ -50,6 +50,27 @@
         "Microsoft.CodeAnalysis.Analyzers",
         "Microsoft.CodeAnalysis.Common"
       ]
+    },
+    {
+      "id": "Mono.Cecil",
+      "version": "0.11.6",
+      "direct": true,
+      "sha256": "d2a23832aaa948ba9a01acc42b5726e34c5f995958f1b30d45c0e7c70b3a72d5",
+      "sha512": "HFkyJGsjyfMXaQolzj4UFtFo2IWHEGPS9gTPmX7Z6Z1BvM3Q4i1L5uSl6nKdBr2SzFQ2htu9dasBmdtg4JEvtA==",
+      "assets": "lib/netstandard2.0",
+      "assemblies": [
+        "Mono.Cecil",
+        "Mono.Cecil.Mdb",
+        "Mono.Cecil.Pdb",
+        "Mono.Cecil.Rocks"
+      ],
+      "symbols": [
+        "Mono.Cecil",
+        "Mono.Cecil.Mdb",
+        "Mono.Cecil.Pdb",
+        "Mono.Cecil.Rocks"
+      ],
+      "dependencies": []
     }
   ]
 }

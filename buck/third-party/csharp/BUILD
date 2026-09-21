@@ -32,5 +32,25 @@ nuget.package(
     deps = [":Microsoft.CodeAnalysis.Common"],
 )
 
+nuget.package(
+    name = "Mono.Cecil",
+    assemblies = [
+        "Mono.Cecil",
+        "Mono.Cecil.Mdb",
+        "Mono.Cecil.Pdb",
+        "Mono.Cecil.Rocks",
+    ],
+    assets = "lib/netstandard2.0",
+    sha256 = "d2a23832aaa948ba9a01acc42b5726e34c5f995958f1b30d45c0e7c70b3a72d5",
+    symbols = [
+        "Mono.Cecil",
+        "Mono.Cecil.Mdb",
+        "Mono.Cecil.Pdb",
+        "Mono.Cecil.Rocks",
+    ],
+    version = "0.11.6",
+    visibility = ["PUBLIC"],
+)
+
 # The committed lock and this file agree (buck/tools/nugetify check).
 nuget.check(name = "buckify-check")
