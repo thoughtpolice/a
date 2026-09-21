@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
+load("@cellar//bootstrap:actions.bzl", "command_test", "concatenate", "generate")
+load("@cellar//bootstrap:defs.bzl", "filegroup")
 load("@cellar//bootstrap:source.bzl", "write_file")
 load("@cellar//bootstrap/stage0-posix/mescc-tools-extra:defs.bzl", "cc")
 
@@ -82,4 +83,77 @@ command_test(
         "/nonexistent-bootstrap-program",
     ],
     tool = ":expect-exit",
+)
+
+filegroup(
+    name = "input-directory",
+    srcs = {"relative-input": ":expected-output"},
+)
+
+write_file(
+    name = "io-expected",
+    content = "declared:argument\ndeclared:argument\n",
+)
+
+generate(
+    name = "io-output",
+    args = [
+        "io",
+        "relative-input",
+    ],
+    capture = ":capture",
+    stdin = ":expected-output",
+    tool = ":capture-probe",
+    working_directory = ":input-directory",
+)
+
+command_test(
+    name = "capture-stdin-and-directory",
+    args = [
+        "$(location :io-output)",
+        "$(location :io-expected)",
+    ],
+    tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
+)
+
+command_test(
+    name = "capture-missing-input",
+    args = [
+        "1",
+        "$(location :capture)",
+        "--stdin",
+        "/nonexistent-bootstrap-input",
+        "/dev/null",
+        "$(location :capture-probe)",
+    ],
+    tool = ":expect-exit",
+)
+
+write_file(
+    name = "concat-tail",
+    content = "tail",
+)
+
+write_file(
+    name = "concat-expected",
+    content = "taildeclared:argument\ntail",
+)
+
+concatenate(
+    name = "concat-output",
+    inputs = [
+        ":concat-tail",
+        ":expected-output",
+        ":concat-tail",
+    ],
+    tool = "cellar//bootstrap/stage0-posix/mescc-tools-extra:catm",
+)
+
+command_test(
+    name = "concatenate-order",
+    args = [
+        "$(location :concat-output)",
+        "$(location :concat-expected)",
+    ],
+    tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
 )

@@ -11,8 +11,17 @@ def _generate_impl(ctx):
     if ctx.attrs.capture != None:
         if ctx.attrs.directory or ctx.attrs.chdir != None or ctx.attrs.output_flags:
             fail("stdout capture requires a file output without output flags or chdir")
-        command = cmd_args(ctx.attrs.capture[RunInfo], output.as_output(), command)
+        capture = cmd_args(ctx.attrs.capture[RunInfo])
+        if ctx.attrs.stdin != None:
+            capture.add("--stdin", ctx.attrs.stdin)
+        if ctx.attrs.working_directory != None:
+            capture.add("--cwd", ctx.attrs.working_directory)
+            command = cmd_args(command, relative_to = ctx.attrs.working_directory)
+            env = {key: cmd_args(value, relative_to = ctx.attrs.working_directory) for key, value in env.items()}
+        command = cmd_args(capture, output.as_output(), command)
     elif ctx.attrs.chdir != None:
+        if ctx.attrs.stdin != None or ctx.attrs.working_directory != None:
+            fail("stdin and working_directory require capture")
         if not ctx.attrs.directory:
             fail("a generator working directory must be a directory output")
         command = cmd_args(
@@ -22,6 +31,8 @@ def _generate_impl(ctx):
         )
         env = {key: cmd_args(value, relative_to = output) for key, value in env.items()}
     else:
+        if ctx.attrs.stdin != None or ctx.attrs.working_directory != None:
+            fail("stdin and working_directory require capture")
         command.add(ctx.attrs.output_flags, output.as_output())
     ctx.actions.run(command, env = env, clear_environment = True, category = "bootstrap_generate")
     return [DefaultInfo(
@@ -40,6 +51,24 @@ generate = rule(impl = _generate_impl, attrs = {
     "files": attrs.list(attrs.string(), default = []),
     "chdir": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
     "capture": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
+    "stdin": attrs.option(attrs.source(), default = None),
+    "working_directory": attrs.option(attrs.source(), default = None),
+})
+
+def _concatenate_impl(ctx):
+    output = ctx.actions.declare_output(ctx.attrs.output)
+    ctx.actions.run(
+        cmd_args(ctx.attrs.tool[RunInfo], output.as_output(), ctx.attrs.inputs),
+        clear_environment = True,
+        category = "bootstrap_concatenate",
+    )
+    return [DefaultInfo(default_output = output)]
+
+# catm accepts the output first, followed by an ordered list of inputs.
+concatenate = rule(impl = _concatenate_impl, attrs = {
+    "tool": attrs.dep(providers = [RunInfo]),
+    "inputs": attrs.list(attrs.source()),
+    "output": attrs.string(default = "out"),
 })
 
 def _command_test_impl(ctx):

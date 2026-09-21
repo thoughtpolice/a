@@ -47,6 +47,8 @@ REPLACED = [path.replace("/x86_64/", "/").rsplit(".", 1)[0] + ".c" for path in N
 
 LIBC_SOURCES = sorted([path for path in BASE_SOURCES if path not in REPLACED + REDUCED_OMISSIONS and not path.startswith("src/complex/")] + NATIVE_SOURCES)
 
+RESTORED_SOURCES = sorted(LIBC_SOURCES + REDUCED_OMISSIONS)
+
 SOURCE_FILES = HEADER_FILES + [path for path in INTERNAL_HEADERS if path not in GENERATED_TABLES] + LIBC_SOURCES + CRT_SOURCES
 
 download_file(
@@ -64,7 +66,8 @@ ungz(
 untar(
     name = "musl-1.1.24",
     chdirenv = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
-    files = SOURCE_FILES,
+    # Generated headers are projected only for table-regeneration tests.
+    files = SOURCE_FILES + REDUCED_OMISSIONS + GENERATED_TABLES,
     input = ":musl.tar",
     untar = "cellar//bootstrap/stage0-posix/mescc-tools-extra:untar",
 )
@@ -197,16 +200,29 @@ filegroup(
     srcs = {path: path for path in glob(["tests/*.c"])},
 )
 
+PREPARED_SOURCE = {path: ":musl-1.1.24[{}]".format(path) for path in SOURCE_FILES} | {
+    "include/bits/alltypes.h": ":alltypes.h",
+    "include/bits/syscall.h": ":syscall.h",
+    "include/stdarg.h": ":stdarg",
+    "src/internal/version.h": ":version.h",
+    "arch/x86_64/syscall_arch.h": ":syscalls",
+    "src/signal/x86_64/sigsetjmp.s": ":sigsetjmp",
+    "src/malloc/malloc.c": ":madvise",
+}
+
 filegroup(
     name = "source",
-    srcs = {path: ":musl-1.1.24[{}]".format(path) for path in SOURCE_FILES} | {
-        "include/bits/alltypes.h": ":alltypes.h",
-        "include/bits/syscall.h": ":syscall.h",
-        "include/stdarg.h": ":stdarg",
-        "src/internal/version.h": ":version.h",
-        "arch/x86_64/syscall_arch.h": ":syscalls",
-        "src/signal/x86_64/sigsetjmp.s": ":sigsetjmp",
-        "src/malloc/malloc.c": ":madvise",
+    srcs = PREPARED_SOURCE,
+)
+
+filegroup(
+    name = "source-restored",
+    srcs = PREPARED_SOURCE | {
+        path: ":musl-1.1.24[" + path + "]"
+        for path in REDUCED_OMISSIONS
+    } | {
+        path: "cellar//bootstrap/stage1/musl-tables:generated[" + path.removeprefix("src/") + "]"
+        for path in GENERATED_TABLES
     },
 )
 
@@ -236,31 +252,57 @@ compiler(
     ],
 )
 
+compiler(
+    name = "restored-predecessor",
+    abi = "x86_64-sysv",
+    archive_flags = [
+        "-ar",
+        "cr",
+    ],
+    archive_format = "ar",
+    archiver = "cellar//bootstrap/stage1/tcc-musl:tcc-musl2",
+    cflags = ["-nostdinc"],
+    compiler = "cellar//bootstrap/stage1/tcc-musl:tcc-musl2",
+    execution_runtime = ":runtime-rebuilt",
+    family = "tcc",
+    ldflags = [
+        "-nostdlib",
+        "-static",
+    ],
+    object_format = "elf64-x86-64",
+    stage = "musl-restored",
+    sysroot = "cellar//bootstrap/stage1/tcc-musl:runtime-musl2",
+    target_compatible_with = [
+        "cellar//bootstrap/platforms:linux",
+        "cellar//bootstrap/platforms:amd64",
+    ],
+)
+
 [
     [
         [
             c_object(
                 name = stage + "-libc-{}.o".format(i),
-                src = ":source[{}]".format(path),
+                src = tree + "[{}]".format(path),
                 defines = ["_XOPEN_SOURCE=700"],
                 flags = [
                     "-std=c99",
                     "-ffreestanding",
                     "-Werror",
                 ],
-                headers = [":source"],
+                headers = [tree],
                 # do not sort: native and internal headers override public headers.
                 includes = [
-                    ":source[arch/x86_64]",
-                    ":source[arch/generic]",
-                    ":source[src/include]",
-                    ":source[src/internal]",
-                    ":source[include]",
+                    tree + "[arch/x86_64]",
+                    tree + "[arch/generic]",
+                    tree + "[src/include]",
+                    tree + "[src/internal]",
+                    tree + "[include]",
                 ],
                 object_name = "m{}.o".format(i),
                 toolchain = tc,
             )
-            for i, path in enumerate(LIBC_SOURCES)
+            for i, path in enumerate(sources)
         ],
         c_object(
             name = stage + "-syscall.o",
@@ -270,26 +312,26 @@ compiler(
         ),
         c_library(
             name = stage + "-libc.a",
-            objects = [":" + stage + "-libc-{}.o".format(i) for i in range(len(LIBC_SOURCES))] + [":" + stage + "-syscall.o"],
+            objects = [":" + stage + "-libc-{}.o".format(i) for i in range(len(sources))] + [":" + stage + "-syscall.o"],
             output = "libc.a",
             toolchain = tc,
         ),
         [
             c_object(
                 name = stage + "-" + path.rsplit("/", 1)[1].rsplit(".", 1)[0] + ".o",
-                src = ":source[{}]".format(path),
+                src = tree + "[{}]".format(path),
                 defines = [
                     "CRT=1",
                     "_XOPEN_SOURCE=700",
                 ],
-                headers = [":source"],
+                headers = [tree],
                 # do not sort
                 includes = [
-                    ":source[arch/x86_64]",
-                    ":source[arch/generic]",
-                    ":source[src/include]",
-                    ":source[src/internal]",
-                    ":source[include]",
+                    tree + "[arch/x86_64]",
+                    tree + "[arch/generic]",
+                    tree + "[src/include]",
+                    tree + "[src/internal]",
+                    tree + "[include]",
                 ],
                 object_name = path.rsplit("/", 1)[1].rsplit(".", 1)[0] + ".o",
                 toolchain = tc,
@@ -402,15 +444,48 @@ compiler(
                 "threads",
                 "fenv",
                 "syscalls",
-            ]
+            ] + (["unicode"] if stage == "restored" else [])
         ],
     ]
-    for stage, tc, support_library in [
+    for stage, tc, support_library, sources, tree in [
         (
             "initial",
             ":predecessor",
             TCC + ":mes1-libtcc1.a",
+            LIBC_SOURCES,
+            ":source",
         ),
-        ("rebuilt", ":rebuilt-predecessor", "cellar//bootstrap/stage1/tcc-musl:musl1-libtcc1.a"),
+        ("rebuilt", ":rebuilt-predecessor", "cellar//bootstrap/stage1/tcc-musl:musl1-libtcc1.a", LIBC_SOURCES, ":source"),
+        ("restored", ":restored-predecessor", "cellar//bootstrap/stage1/tcc-musl:musl2-libtcc1.a", RESTORED_SOURCES, ":source-restored"),
     ]
 ]
+
+compiler(
+    name = "tcc",
+    abi = "x86_64-sysv",
+    archive_flags = [
+        "-ar",
+        "cr",
+    ],
+    archive_format = "ar",
+    archiver = "cellar//bootstrap/stage1/tcc-musl:tcc-musl2",
+    cflags = [
+        "-nostdinc",
+        "-I",
+        "$(location :headers)",
+    ],
+    compiler = "cellar//bootstrap/stage1/tcc-musl:tcc-musl2",
+    execution_runtime = ":runtime-rebuilt",
+    family = "tcc",
+    ldflags = [
+        "-nostdlib",
+        "-static",
+    ],
+    object_format = "elf64-x86-64",
+    stage = "musl-restored",
+    sysroot = ":runtime-restored",
+    target_compatible_with = [
+        "cellar//bootstrap/platforms:linux",
+        "cellar//bootstrap/platforms:amd64",
+    ],
+)

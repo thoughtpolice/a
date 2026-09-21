@@ -59,7 +59,8 @@ write_file(
         ("libtcc", ":tcc-0.9.27[libtcc.c]", "static-default", "libtcc.c"),
         ("tccelf-got", ":tcc-0.9.27[tccelf.c]", "check-reloc-null", "tccelf.c"),
         ("tccelf-static", ":tccelf-got", "static-calls", "tccelf.c"),
-        ("tccelf", ":tccelf-static", "got-before-tidy", "tccelf.c"),
+        ("tccelf-tidy", ":tccelf-static", "got-before-tidy", "tccelf.c"),
+        ("tccelf", ":tccelf-tidy", "runtime-rescan", "tccelf.c"),
         ("tccgen", ":tcc-0.9.27[tccgen.c]", "array-quals", "tccgen.c"),
     ]
 ]

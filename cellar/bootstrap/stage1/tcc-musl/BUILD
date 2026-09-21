@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@cellar//bootstrap:actions.bzl", "command_test")
+load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object", "compiler", "sysroot")
 load("@cellar//bootstrap/stage1/tcc:sources.bzl", "COMPILER_SOURCES")
@@ -195,6 +195,26 @@ DEFINES = [
             stage = stage,
             sysroot = ":runtime-" + stage,
             target_compatible_with = COMPAT,
+        ),
+        generate(
+            name = stage + "-driver-program",
+            args = [
+                "$(location " + MUSL + ":test-source[tests/runtime.c])",
+                "-o",
+            ],
+            output = "driver-program",
+            tool = ":" + stage,
+        ),
+        command_test(
+            name = stage + "-driver",
+            args = [
+                "0",
+                "$(location :" + stage + "-driver-program)",
+                "startup",
+                "ok",
+            ],
+            env = {"BOOTSTRAP_TEST": "present"},
+            tool = "cellar//bootstrap/stage1/tools:expect-exit",
         ),
         command_test(
             name = stage + "-version",

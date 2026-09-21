@@ -71,6 +71,19 @@ six tests cover backreferences, hold space, branching, long lines, final-newline
 handling, and diagnostics. Bootstrapped sed runs musl's actual header generator.
 The generated musl 1.1.24 headers pass native layout and SysV varargs checks.
 
+The native musl/TCC corrective sequence is now built: reduced musl, release TCC
+linked with musl by TCC 0.9.26, self-built TCC, rebuilt reduced musl, and rebuilt
+TCC. The twelve Unicode/ctype/iconv tables regenerate from pinned source/data and
+match every published table value. Musl then rebuilds with those features
+restored. It retains native threads/TLS and still excludes complex functions.
+Fourteen musl and twenty-one musl-linked TCC tests cover these stages. The runnable
+`musl:tcc` pairs the latest compiler with `musl:runtime-restored`.
+
+```
+buck2 test cellar//bootstrap/stage1/musl: \
+  cellar//bootstrap/stage1/musl-tables: cellar//bootstrap/stage1/tcc-musl: --local-only -j 8
+```
+
 Closure review:
 
 ```

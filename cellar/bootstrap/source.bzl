@@ -24,6 +24,7 @@ def __download_file(ctx: AnalysisContext) -> list[Provider]:
         output,
         ctx.attrs.urls[0],
         sha256 = hash,
+        size_bytes = ctx.attrs.size_bytes,
     )
 
     return [
@@ -33,6 +34,9 @@ def __download_file(ctx: AnalysisContext) -> list[Provider]:
 download_file = rule(impl = __download_file, attrs = {
     "urls": attrs.list(attrs.string()),
     "hash": attrs.option(attrs.string(), default = None),
+    # Content-addressed downloads need a size even when the server omits
+    # Content-Length (for example GitHub's archive endpoint).
+    "size_bytes": attrs.option(attrs.int(), default = None),
 })
 
 def __ungz(ctx: AnalysisContext) -> list[Provider]:

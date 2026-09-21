@@ -8,6 +8,16 @@
 int main(int argc, char **argv)
 {
     require(argc == 3, "capture-probe: missing arguments\n");
+    if(match(argv[1], "io"))
+    {
+        int c;
+        FILE *input = fopen(argv[2], "r");
+        require(input != NULL, "capture-probe: cannot open relative input\n");
+        while((c = fgetc(stdin)) != EOF) fputc(c, stdout);
+        while((c = fgetc(input)) != EOF) fputc(c, stdout);
+        fclose(input);
+        return 0;
+    }
     char *value = getenv("CAPTURE_TEST");
     if(value) fputs(value, stdout);
     fputc(':', stdout);
