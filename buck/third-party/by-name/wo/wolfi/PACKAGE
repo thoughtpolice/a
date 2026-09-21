@@ -16,4 +16,10 @@ pkg.info(
         "2022-2026 Chainguard, Inc. and the Wolfi contributors",
     ],
     visibility = ['PUBLIC'],
+    # The .apk files come from the x86_64 repository only (see wolfi.bzl),
+    # matching the linux/amd64 images minimos emits for exe.dev.
+    target_compatible_with = [
+        "config//os:linux",
+        "config//cpu:x86_64",
+    ],
 )
