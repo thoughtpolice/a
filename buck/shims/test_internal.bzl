@@ -44,7 +44,6 @@ def internal_runner_from_external(
         local_resources = external.local_resources,
         required_local_resources = external.required_local_resources,
         worker = external.worker,
-        supports_test_execution_caching = external.supports_test_execution_caching,
         parse_test_listing = parse_test_listing,
         parse_test_result = parse_test_result,
     )

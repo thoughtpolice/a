@@ -133,7 +133,7 @@ def dynamic_runner_test_info(
     """The InternalRunnerTestInfo of a rule whose binary speaks the line
     protocol: the listing and result parsers are bound to the target's name,
     and env, labels and contacts come from its attributes. Further keyword
-    arguments, such as supports_test_execution_caching, reach the provider
+    arguments, such as run_from_project_root, reach the provider
     unchanged."""
     target = ctx.label.package + ":" + ctx.label.name
 
@@ -177,7 +177,6 @@ def _dynamic_test_impl(ctx: AnalysisContext, internal: bool) -> list[Provider]:
         test_type = ctx.attrs.type,
         command = [run.args, "-run-test"] + ctx.attrs.args,
         listing_command = [run.args, "-list-tests"] + ctx.attrs.args,
-        supports_test_execution_caching = False,
     ))
     return providers
 
