@@ -120,8 +120,6 @@ def _filecheck_lit_impl(ctx: AnalysisContext, internal: bool) -> list[Provider]:
             listing_command = [cmd_args(filecheck, "-list-tests", common)],
             run_from_project_root = True,
             use_project_relative_paths = True,
-            # Results are a function of the test files, tools, and data alone.
-            supports_test_execution_caching = True,
         ))
     else:
         providers.append(ExternalRunnerTestInfo(

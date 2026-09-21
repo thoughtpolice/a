@@ -27,6 +27,19 @@ _GOARCH_CONSTRAINTS = {
     "arm64": "config//cpu:arm64",
 }
 
+# The constraint values behind the config_settings above, for composing an
+# os+cpu config_setting.
+_GOOS_CONSTRAINT_VALUES = {
+    "darwin": "config//os/constraints:os[macos]",
+    "linux": "config//os/constraints:os[linux]",
+    "windows": "config//os/constraints:os[windows]",
+}
+
+_GOARCH_CONSTRAINT_VALUES = {
+    "amd64": "config//cpu/constraints:cpu[x86_64]",
+    "arm64": "config//cpu/constraints:cpu[arm64]",
+}
+
 def _distr_select(hashes: list[(str, str)], f):
     """Nested os/cpu select over the downloaded distributions, mapping each
     triple to f(goos, goarch). These resolve in the exec configuration: the
@@ -41,6 +54,13 @@ def hermetic_go_toolchain(version: str, hashes: list[(str, str)]):
     """Download the official Go distribution for the given version and declare
     matching `:go-{version}` and `:go_bootstrap-{version}` toolchains."""
     for triple, sha256 in hashes:
+        goos, goarch = triple.split("-")
+        native.config_setting(
+            name = "{version}-{triple}-platform".format(version = version, triple = triple),
+            constraint_values = [_GOOS_CONSTRAINT_VALUES[goos], _GOARCH_CONSTRAINT_VALUES[goarch]],
+            visibility = [],
+        )
+
         ext = "zip" if triple.startswith("windows") else "tar.gz"
         native.http_archive(
             name = "{version}-{triple}".format(version = version, triple = triple),
@@ -92,4 +112,12 @@ def hermetic_go_toolchain(version: str, hashes: list[(str, str)]):
         env_go_os = env_go_os,
         go_distr = ":go_distr-{version}".format(version = version),
         linker_flags = linker_flags,
+        # The prelude's `go` subtarget resolves the distribution in the target
+        # configuration, so only offer it where one was downloaded (e.g. not
+        # arm64-windows). The prelude maps this with select_map, which can't
+        # see through a nested os/cpu select, hence the flat one.
+        run_go = select({
+            ":{version}-{triple}-platform".format(version = version, triple = triple): True
+            for triple, _ in hashes
+        } | {"DEFAULT": False}),
     )

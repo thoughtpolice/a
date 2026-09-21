@@ -1,7 +1,17 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# Things in the cellar are musty and dirty and old, and are not allowed to be
-# depended on by non-cellar code.
+# By default, PACKAGE visibility clauses only specify _default_ visibility; if a
+# target within the package specifies its own explicit visibility, eg is marked
+# as 'PUBLIC', then it overrides the default, and a target in root//... could
+# depend on it
+#
+# This configures all within_view clauses under cellar to always be intersection
+# based: the visibility of a target of its own specified visibility AND the
+# inherited clauses from parent packages.
+enforce_within_view_intersection()
 
-package( inherit = False, visibility = [ "cellar//..." ] )
+# The cellar is used as a bootstrapping ground. In this case, it should only
+# be able to see things within the cellar (ie no dependency on prelude, on
+# toolchains, root, etc). Other things, however, may depend on it.
+package( inherit = False, within_view = [ "cellar//..." ] )
