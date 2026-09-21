@@ -1,0 +1,2 @@
+static const char *program_name = NULL;
+static char *srcdir = ".";

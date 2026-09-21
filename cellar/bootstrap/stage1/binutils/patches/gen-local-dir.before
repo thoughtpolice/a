@@ -1,0 +1,2 @@
+  extern int chdir (char *);
+  char *srcdir = NULL;

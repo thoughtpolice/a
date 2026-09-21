@@ -1,0 +1,1 @@
+  for (pc = p_lowpc; pc < p_highpc && p_highpc - pc >= 5; ++pc)

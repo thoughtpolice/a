@@ -110,6 +110,31 @@ buck2 test cellar//bootstrap/stage1/oyacc: \
   cellar//bootstrap/stage1/gawk: --local-only -j 8
 ```
 
+Native binutils 2.30 now builds all fifteen requested programs: `as`, `ld`,
+`ar`, `ranlib`, `nm`, `objcopy`, `objdump`, `strip`, `readelf`, `elfedit`,
+`addr2line`, `size`, `strings`, `c++filt`, and `gprof`. Separate actions build
+libiberty, zlib, BFD, and opcodes. BFD headers, CRC/compression tables, x86 opcode
+tables, GAS floating constants, LD and ar parsers/scanners, linker scripts and
+emulations, and gprof's text-derived C sources regenerate from their source inputs.
+Only the native x86_64 ELF backend is enabled. LD has no default library search
+directories; callers supply their sysroot libraries explicitly.
+
+The 48 binutils tests cover native assembly and disassembly, static musl linking,
+weak symbols, partial linking, linker scripts, deterministic and thin archives,
+MRI scripts, long archive member names, ELF inspection and modification,
+compressed DWARF, stripping, malformed inputs, and 64-bit profiling records.
+Gprof's x86 call decoder sign-extends relative offsets and bounds instruction
+reads; a backward-call fixture covers that adaptation. The profiling fixtures
+are generated records, not a claim that a GCC-instrumented program has run yet.
+GNU cat and rm provide the linker generator's file operations and have seven
+additional tests. The complete final coreutils rebuild remains outstanding.
+
+```
+buck2 test cellar//bootstrap/stage1/binutils: \
+  cellar//bootstrap/stage1/coreutils: --local-only -j 8
+buck2 build cellar//bootstrap/stage1/binutils:installation
+```
+
 Closure review:
 
 ```
@@ -144,6 +169,15 @@ audited boundary. At `b9fb4257`, the Bash, m4, both Flex versions, Bison, and ga
 executables were byte-identical across the two absolute workspace paths. These
 incremental runs extend the earlier fresh-workspace evidence; they are not a
 second uncached rebuild of the entire closure.
+
+At `5c3e394f`, the binutils installation's configured audit reported 6715 targets,
+7426 actions, and no ownership or load violations. The second workspace ran all
+55 binutils/coreutils tests with 424 newly executed local actions and no remote
+cache. Its trace covered 1072 bootstrap processes, 69 executables, and 83963 open
+calls, with no successful opens or executions outside the audited boundary.
+All fifteen binaries, four static libraries, twenty-two linker scripts, and four
+license files were byte-identical across the two workspace paths. This was an
+incremental validation of the new packages on the previously audited closure.
 
 To repeat the trace gate, start with a fresh JJ workspace and isolated daemon:
 

@@ -1,0 +1,5 @@
+  if (srcdir != NULL)
+    if (chdir (srcdir) != 0)
+      fail (_("unable to change directory to \"%s\", errno = %s\n"),
+	    srcdir, xstrerror (errno));
+

@@ -1,0 +1,1 @@
+    echo >> e${EMULATION_NAME}.c "#line $lineno \"$em_script\""
