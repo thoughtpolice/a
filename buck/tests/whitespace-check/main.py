@@ -88,6 +88,7 @@ SKIP_PATTERNS = [
     r"^buck/third-party/zuo/local",
     r"^buck/third-party/zuo/zuo.*",
     r"^work/",  # work directory
+    r"^tilde/aseipp/dotfiles/claude/skills/synced/",
 ]
 
 
