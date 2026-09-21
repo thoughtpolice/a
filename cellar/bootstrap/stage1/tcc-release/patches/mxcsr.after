@@ -1,0 +1,3 @@
+    DEF_ASM_OP1(ldmxcsr, 0x0fae, 2, OPC_MODRM, OPT_EA )
+    DEF_ASM_OP1(stmxcsr, 0x0fae, 3, OPC_MODRM, OPT_EA )
+    DEF_ASM_OP1(fldcw, 0xd9, 5, OPC_MODRM, OPT_EA )

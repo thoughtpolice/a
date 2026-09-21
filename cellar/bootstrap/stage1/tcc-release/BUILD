@@ -53,7 +53,9 @@ write_file(
     for name, src, patch, output in [
         ("tcctools-remove", ":tcc-0.9.27[tcctools.c]", "remove-fileopen", "tcctools.c"),
         ("tcctools-open", ":tcctools-remove", "addback-fileopen", "tcctools.c"),
-        ("tcctools", ":tcctools-open", "weak-index", "tcctools.c"),
+        ("tcctools-index", ":tcctools-open", "weak-index", "tcctools.c"),
+        ("tcctools", ":tcctools-index", "empty-archive", "tcctools.c"),
+        ("x86_64-asm", ":tcc-0.9.27[x86_64-asm.h]", "mxcsr", "x86_64-asm.h"),
         ("libtcc", ":tcc-0.9.27[libtcc.c]", "static-default", "libtcc.c"),
         ("tccelf-got", ":tcc-0.9.27[tccelf.c]", "check-reloc-null", "tccelf.c"),
         ("tccelf-static", ":tccelf-got", "static-calls", "tccelf.c"),
@@ -68,6 +70,7 @@ filegroup(
     name = "source",
     srcs = {path: ":tcc-0.9.27[{}]".format(path) for path in TCC_FILES} | {
         "config.h": ":config.h",
+        "x86_64-asm.h": ":x86_64-asm",
         "tcctools.c": ":tcctools",
         "libtcc.c": ":libtcc",
         "tccelf.c": ":tccelf",
@@ -311,12 +314,24 @@ command_test(
 # The compiler remains linked with its predecessor runtime while doing so.
 MES = "cellar//bootstrap/mes"
 
+generate(
+    name = "abtol.c",
+    args = [
+        "$(location " + MES + ":mes-src[lib/mes/abtol.c])",
+        "$(location :patches/abtol.before)",
+        "$(location :patches/abtol.after)",
+    ],
+    output = "abtol.c",
+    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+)
+
 [
     c_object(
         name = "mes0-libc-{}.o".format(i),
         src = {
             "lib/mes/__buffered_read.c": BOOT + ":buffered-read.c",
             "lib/mes/abtod.c": BOOT + ":abtod.c",
+            "lib/mes/abtol.c": ":abtol.c",
             "lib/stub/ldexp.c": BOOT + ":runtime-source[runtime/ldexp.c]",
         }.get(
             path,
@@ -632,6 +647,48 @@ command_test(
     name = "mes1-version",
     args = ["-version"],
     tool = ":tcc-mes1",
+)
+
+# Musl's compatibility libraries contain no members. Its native fenv needs
+# both MXCSR instructions, including memory operands relative to the stack.
+c_library(
+    name = "empty.a",
+    objects = [],
+    output = "empty.a",
+    toolchain = ":mes1-compiler",
+)
+
+[
+    c_object(
+        name = "mxcsr-" + name + ".o",
+        src = "tests/mxcsr." + extension,
+        object_name = name + ".o",
+        toolchain = ":mes1-compiler",
+    )
+    for name, extension in [
+        ("main", "c"),
+        ("asm", "S"),
+    ]
+]
+
+c_binary(
+    name = "mxcsr-program",
+    libraries = [
+        ":empty.a",
+        ":mes0-libc.a",
+        ":mes1-libtcc1.a",
+    ],
+    objects = [
+        ":mes0-crt1.o",
+        ":mxcsr-main.o",
+        ":mxcsr-asm.o",
+    ],
+    toolchain = ":mes1-compiler",
+)
+
+command_test(
+    name = "mxcsr-and-empty-archive",
+    tool = ":mxcsr-program",
 )
 
 [

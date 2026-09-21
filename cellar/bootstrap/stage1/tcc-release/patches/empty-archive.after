@@ -1,0 +1,4 @@
+    if (!i_lib)
+        ret = 1;
+    if (!i_obj)
+        i_obj = argc;  // A compatibility library may have no members.

@@ -62,8 +62,14 @@ buck2 build cellar//bootstrap/stage1/tcc:runtime-boot2
 The target endpoint remains GCC 4.7.4 C/C++, binutils 2.30, musl 1.2.5, and the
 userland specified by the implementation plan. Those downstream packages have not
 yet been built. The Mes runtime is transitional and retains other upstream stubs;
-the delivered runtime will be musl. Source-closure tracing and a rebuild at a
-different absolute workspace path remain separate validation gates.
+the delivered runtime will be musl.
+
+The two Mes-linked release TCC 0.9.27 passes are also built, with 16 acceptance
+tests. The second pass preserves TCC 0.9.26 as predecessor and links the release
+against its rebuilt Mes runtime. Sed 4.0.9 now builds with that release compiler;
+six tests cover backreferences, hold space, branching, long lines, final-newline
+handling, and diagnostics. Bootstrapped sed runs musl's actual header generator.
+The generated musl 1.1.24 headers pass native layout and SysV varargs checks.
 
 Closure review:
 
@@ -79,3 +85,34 @@ bundled prelude into modules and the repository's noprelude shim into BUILD file
 the audit reports those infrastructure loads explicitly. No rule defined there
 is permitted in the configured dependency closure. The supplementary source audit
 rejects explicit imports outside cellar, including unused imports.
+
+At commit `b6c6c231`, a second JJ workspace at `/tmp/native-stage1-relocated`
+rebuilt the fixed-point closure locally without remote caching. All 48 tests
+passed (19 stage0, two Mes, 27 TCC); 2160 commands executed locally. The eight
+boot2 artifacts were byte-identical to those built under `/home/exedev/a`.
+The process/file trace covered both the initial stage0 actions and the completed
+run, including 3213 bootstrap processes and 101850 open calls. Its reviewed
+executables and successful opens stayed in cellar sources, cellar artifacts,
+Buck's cellar action scratch directories, or `/dev/null`. Buck, its launcher,
+and test infrastructure remain trusted and are outside that process boundary.
+This is observed closure evidence, not proof of per-action input completeness.
+
+To repeat the trace gate, start with a fresh JJ workspace and isolated daemon:
+
+```
+strace --seccomp-bpf -ff -ttt -s 65535 -yy -e trace=%file,%process \
+  -o /tmp/bootstrap-trace ./buck/bin/buck2 --isolation-dir bootstrap-audit test \
+  cellar//bootstrap/stage0-posix/seeds/linux-amd64: \
+  cellar//bootstrap/mes:mes-fixed-point cellar//bootstrap/mes:hello-test \
+  cellar//bootstrap/stage1/tcc: --local-only --no-remote-cache -j 8
+```
+
+After the tests finish, stop that isolated daemon from another terminal so strace
+can exit, then run the host-side audit (it is never a bootstrap action input):
+
+```
+./buck/bin/buck2 --isolation-dir bootstrap-audit kill
+python3 cellar/bootstrap/audit-trace.py --workspace "$PWD" \
+  --trace-prefix /tmp/bootstrap-trace > /tmp/bootstrap-trace-audit.json
+PYTHONDONTWRITEBYTECODE=1 python3 cellar/bootstrap/test-audit-trace.py
+```
