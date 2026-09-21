@@ -11,6 +11,7 @@ load("@root//buck/shims:dynamic_test_internal.bzl", _dynamic_test_external_rule 
 load("@root//buck/shims:go_test_internal.bzl", _go_test_internal_rule = "go_test_internal")
 load("@root//buck/shims:rust_test_internal.bzl", _rust_test_internal_rule = "rust_test_internal")
 load("@root//buck/tools/filecheck:defs.bzl", _filecheck_lit_external_rule = "filecheck_lit_external", _filecheck_lit_internal_rule = "filecheck_lit_internal", _filecheck_test_rule = "filecheck_test")
+load("@toolchains//csharp:defs.bzl", _csharp = "csharp")
 load("@toolchains//deno:defs.bzl", _deno = "deno")
 load("@toolchains//k6:defs.bzl", "k6_run")
 load("@toolchains//uv:defs.bzl", _uv_impl = "uv")
@@ -283,12 +284,16 @@ def _command_test_impl(ctx: AnalysisContext) -> list[Provider]:
         script_content = cmd_args("#!/bin/bash\nset -euo pipefail\n", ctx.attrs.script, delimiter = "")
         ctx.actions.write(script_file, script_content, allow_args = True)
 
+        # The artifacts the script names through $(location) and $(exe) are
+        # its inputs even though the command line only names the script;
+        # without them a test only works when something else built them.
+        command = cmd_args(["bash", script_file], hidden = [ctx.attrs.script])
         return [
             DefaultInfo(default_output = script_file),
-            RunInfo(args = cmd_args(["bash", script_file])),
+            RunInfo(args = command),
             ExternalRunnerTestInfo(
                 type = "custom",
-                command = ["bash", script_file],
+                command = [command],
             ),
         ]
 
@@ -501,6 +506,33 @@ def _depot_k6_run(**kwargs):
     kwargs = _fix_kwargs("k6_run", kwargs)
     k6_run(**kwargs)
 
+# MARK: C# toolchain wrappers
+
+def _depot_csharp_library(**kwargs):
+    """Wrapper for csharp.library that applies package defaults."""
+    kwargs = _fix_kwargs("csharp_library", kwargs)
+    _csharp.library(**kwargs)
+
+def _depot_csharp_binary(**kwargs):
+    """Wrapper for csharp.binary that applies package defaults."""
+    kwargs = _fix_kwargs("csharp_binary", kwargs)
+    _csharp.binary(**kwargs)
+
+def _depot_csharp_test(**kwargs):
+    """Wrapper for csharp.test that applies package defaults."""
+    kwargs = _fix_kwargs("csharp_test", kwargs)
+    _csharp.test(**kwargs)
+
+def _depot_csharp_prebuilt_library(**kwargs):
+    """Wrapper for csharp.prebuilt_library that applies package defaults."""
+    kwargs = _fix_kwargs("csharp_prebuilt_library", kwargs)
+    _csharp.prebuilt_library(**kwargs)
+
+def _depot_csharp_reference_assembly(**kwargs):
+    """Wrapper for csharp.reference_assembly that applies package defaults."""
+    kwargs = _fix_kwargs("csharp_reference_assembly", kwargs)
+    _csharp.reference_assembly(**kwargs)
+
 # MARK: Public API
 
 shims = struct(
@@ -546,6 +578,14 @@ shims = struct(
     ),
     k6 = struct(
         run = _depot_k6_run,
+    ),
+    csharp = struct(
+        library = _depot_csharp_library,
+        binary = _depot_csharp_binary,
+        test = _depot_csharp_test,
+        prebuilt_library = _depot_csharp_prebuilt_library,
+        reference_assembly = _depot_csharp_reference_assembly,
+        nuget_archive = _csharp.nuget_archive,
     ),
     deno = _deno,
     write_file = _write_file,
