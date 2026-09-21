@@ -1,0 +1,1 @@
+#elif (__GNUC__ || __TINYC__) && __riscv

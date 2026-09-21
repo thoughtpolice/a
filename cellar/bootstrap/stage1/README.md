@@ -39,11 +39,31 @@ source. It requires exactly one nonempty before block, checks allocation and I/O
 and writes a distinct output artifact. Its tests exercise replacement plus missing,
 ambiguous, empty, and oversize patterns.
 
+The native TCC 0.9.26 fixed point now passes. MesCC builds the amalgamated seed;
+boot0, boot1, and boot2 use separate translation units and identical feature
+configuration. Their conventional x86_64 runtimes compile each Mes libc source
+separately and use TCC's actual native support library. The seed's inability to
+evaluate floating constants is accounted for in runtime initialization and the
+compiler's negative-zero construction. MesCC's conditional register-spill fix is
+also covered by a regression and the Mes fixed point.
+
+All eight comparisons pass: `tcc`, `libtcc.a`, `crt1.o`, `crti.o`, `crtn.o`,
+`libc.a`, `libgetopt.a`, and `libtcc1.a`. The 27 TCC tests additionally cover
+startup arguments/environment, stack alignment, syscalls/errno, setjmp/longjmp,
+integer and floating arithmetic, mixed varargs, separate compilation, archives,
+weak symbols, diagnostics, and failure with missing sysroot headers/libraries.
+
+```
+buck2 test cellar//bootstrap/stage1/tcc: --local-only -j 8
+buck2 run cellar//bootstrap/stage1/tcc:tcc -- example.c -o example
+buck2 build cellar//bootstrap/stage1/tcc:runtime-boot2
+```
+
 The target endpoint remains GCC 4.7.4 C/C++, binutils 2.30, musl 1.2.5, and the
-userland specified by the implementation plan. This foundation does not claim that
-those downstream packages have been built. Gates still required include the native
-TCC fixed point, runtime feature tests, source-closure tracing, and relocation to a
-different absolute workspace path.
+userland specified by the implementation plan. Those downstream packages have not
+yet been built. The Mes runtime is transitional and retains other upstream stubs;
+the delivered runtime will be musl. Source-closure tracing and a rebuild at a
+different absolute workspace path remain separate validation gates.
 
 Closure review:
 

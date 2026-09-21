@@ -1,0 +1,4 @@
+  /* Let the kernel validate descriptors outside the buffering cache. */
+  if (filedes < 0 || filedes >= __FILEDES_MAX)
+    return _read (filedes, buffer, size);
+  size_t todo = size;

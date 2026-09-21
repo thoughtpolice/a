@@ -1,0 +1,6 @@
+             (jump-text (wrap-as (as info type label)))
+             (info (append-text info (if (null? test) '() ((car test) info))))
+             ;; Restore spilled registers on both branch outcomes. The move
+             ;; and pop preserve the test flags used by the following jump.
+             (info (free-register info))
+             (info (append-text info jump-text)))

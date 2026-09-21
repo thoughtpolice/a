@@ -8,7 +8,11 @@ def _generate_impl(ctx):
     output = ctx.actions.declare_output(ctx.attrs.output, dir = ctx.attrs.directory)
     command = cmd_args(ctx.attrs.tool[RunInfo], ctx.attrs.args, hidden = ctx.attrs.inputs)
     env = ctx.attrs.env
-    if ctx.attrs.chdir != None:
+    if ctx.attrs.capture != None:
+        if ctx.attrs.directory or ctx.attrs.chdir != None or ctx.attrs.output_flags:
+            fail("stdout capture requires a file output without output flags or chdir")
+        command = cmd_args(ctx.attrs.capture[RunInfo], output.as_output(), command)
+    elif ctx.attrs.chdir != None:
         if not ctx.attrs.directory:
             fail("a generator working directory must be a directory output")
         command = cmd_args(
@@ -35,6 +39,7 @@ generate = rule(impl = _generate_impl, attrs = {
     "directory": attrs.bool(default = False),
     "files": attrs.list(attrs.string(), default = []),
     "chdir": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
+    "capture": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
 })
 
 def _command_test_impl(ctx):

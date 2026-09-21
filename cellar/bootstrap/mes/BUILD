@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+load("@cellar//bootstrap:actions.bzl", "generate")
 load("@cellar//bootstrap:defs.bzl", "bootstrap", "export_file", "filegroup")
 load("@cellar//bootstrap:source.bzl", "download_file", "replace", "ungz", "untar", "write_file")
 load(":defs.bzl", "M1", "M2_Planet", "blood_elf", "hex2", "mes_binary", "mes_libs", "mescc_binary", "mescc_build_lib", "mescc_build_mes", "mescc_compile", "mescc_fixed_point_test", "mescc_test")
@@ -555,10 +556,35 @@ replace(
     tool = _TOOLS_EXTRA + ":replace",
 )
 
+# Preserve conditional values and stack depth when MesCC spills registers.
+[
+    generate(
+        name = name,
+        args = [
+            "$(location " + src + ")",
+            "$(location :patches/" + patch + ".before)",
+            "$(location :patches/" + patch + ".after)",
+        ],
+        output = "compile.scm",
+        target_compatible_with = [
+            "cellar//bootstrap/platforms:linux",
+            "cellar//bootstrap/platforms:amd64",
+        ],
+        tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    )
+    for name, src, patch in [
+        ("compile-values.scm", ":mes-0.27[module/mescc/compile.scm]", "conditional-values"),
+        ("compile.scm", ":compile-values.scm", "conditional-jump"),
+    ]
+]
+
+[export_file(name = path) for path in glob(["patches/*"])]
+
 filegroup(
     name = "mes-src",
     srcs = bootstrap.select({
         "cellar//bootstrap/platforms:amd64": {path: ":mes-0.27[{}]".format(path) for path in PREPARED_FILES} | {
+            "module/mescc/compile.scm": ":compile.scm",
             "include/mes/config.h": ":config.h",
             "bin/mescc.scm": ":mescc.scm",
             "mes/module/srfi/srfi-9.mes": ":mes-0.27[mes/module/srfi/srfi-9-struct.mes]",

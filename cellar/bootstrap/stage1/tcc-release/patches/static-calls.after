@@ -1,0 +1,1 @@
+(s1->static_link || ELFW(ST_VISIBILITY)(sym->st_other) != STV_DEFAULT ||

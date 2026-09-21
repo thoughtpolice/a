@@ -75,3 +75,28 @@ command_test(
     name = "mescc-runinfo",
     tool = ":separate-compilation",
 )
+
+c_object(
+    name = "conditional.o",
+    src = "conditional.c",
+    object_name = "conditional.o",
+    toolchain = ":mescc",
+)
+
+c_binary(
+    name = "conditional-program",
+    libraries = [
+        ":libc",
+        ":libmescc",
+    ],
+    objects = [
+        ":crt",
+        ":conditional.o",
+    ],
+    toolchain = ":mescc",
+)
+
+command_test(
+    name = "mescc-conditionals",
+    tool = ":conditional-program",
+)

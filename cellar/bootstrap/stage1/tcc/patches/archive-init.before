@@ -1,0 +1,20 @@
+    static ArHdr arhdr = {
+        "/               ",
+        "            ",
+        "0     ",
+        "0     ",
+        "0       ",
+        "          ",
+        ARFMAG
+        };
+
+    static ArHdr arhdro = {
+        "                ",
+        "            ",
+        "0     ",
+        "0     ",
+        "0       ",
+        "          ",
+        ARFMAG
+        };
+

@@ -1,0 +1,3 @@
+    static ArHdr arhdr;
+    static ArHdr arhdro;
+

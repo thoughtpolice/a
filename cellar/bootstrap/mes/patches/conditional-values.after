@@ -1,0 +1,20 @@
+        ((cond-expr ,test ,then ,else)
+         (let* ((info (append-text info (ast->comment `(cond-expr ,test (ellipsis) (ellipsis)))))
+                (here (number->string (length text)))
+                (label (string-append "_" (.function info) "_" here "_"))
+                (else-label (string-append label "else"))
+                (break-label (string-append label "break"))
+                (info ((test-jump-label->info info else-label) test))
+                (allocated (.allocated info))
+                (pushed (.pushed info))
+                (registers (.registers info))
+                (info (expr->register then info))
+                (info (append-text info (wrap-as (as info 'jump break-label))))
+                (info (append-text info (wrap-as `((#:label ,else-label)))))
+                ;; Both branches start with the same register/stack state and
+                ;; leave their value allocated. Freeing it here loses a spilled
+                ;; result; allocating again at the join cannot recover it.
+                (info (clone info #:allocated allocated #:pushed pushed #:registers registers))
+                (info (expr->register else info))
+                (info (append-text info (wrap-as `((#:label ,break-label))))))
+           info))

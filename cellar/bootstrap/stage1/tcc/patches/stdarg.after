@@ -1,0 +1,31 @@
+#elif __TINYC__ && __x86_64__
+
+/* SysV varargs, matching TCC lib/va_list.c. The MesCC ABI is unchanged. */
+#include <sys/types.h>
+typedef struct {
+    unsigned int gp_offset;
+    unsigned int fp_offset;
+    union {
+        unsigned int overflow_offset;
+        char *overflow_arg_area;
+    };
+    char *reg_save_area;
+} __va_list_struct;
+typedef __va_list_struct va_list[1];
+void __va_start(__va_list_struct *ap, void *fp);
+void *__va_arg(__va_list_struct *ap, int arg_type, int size, int align);
+#define va_start(ap, last) __va_start(ap, __builtin_frame_address(0))
+#define va_arg(ap, type) (*(type *)(__va_arg(ap, __builtin_va_arg_types(type), sizeof(type), __alignof__(type))))
+#define va_arg8(ap, type) va_arg(ap, type)
+#define va_copy(dest, src) (*(dest) = *(src))
+#define va_end(ap) ((void)0)
+
+int vexec (char const *file_name, va_list ap);
+int vfprintf (FILE *stream, char const *template, va_list ap);
+int vfscanf (FILE *stream, char const *template, va_list ap);
+int vprintf (char const *format, va_list ap);
+int vsprintf (char *str, char const *format, va_list ap);
+int vsnprintf (char *str, size_t size, char const *format, va_list ap);
+int vsscanf (char const *s, char const *template, va_list ap);
+
+#elif (__GNUC__ || __TINYC__) && __riscv

@@ -1,0 +1,8 @@
+#if HAVE_FLOAT
+            /* x86_64 uses little-endian IEEE float/double and 80-bit extended.
+               Construct -0 directly so a seed without floating constant
+               evaluation can still build the complete boot0 compiler. */
+            memset(&vtop->c, 0, sizeof(vtop->c));
+            ((unsigned char *)&vtop->c)[t == VT_FLOAT ? 3 :
+                t == VT_DOUBLE ? 7 : 9] = 0x80;
+#endif
