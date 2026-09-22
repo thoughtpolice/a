@@ -1,0 +1,162 @@
+{
+  "validated_revision": "ac91c0953356f0b2bc487f633c5cd01055c53f40",
+  "platform": "native Linux x86_64",
+  "reference_live_bootstrap_revision": "dd8ac27bf959344b9bcf5e876bdd7716879bbc70",
+  "tests": {
+    "total": 1344,
+    "gcc_and_cxx": 1001,
+    "final_userland_and_installation": 271,
+    "stage0_mes_tcc_musl": 72,
+    "both_workspaces_pass": true
+  },
+  "gcc_comparison": {
+    "objects": 891,
+    "archives": 4,
+    "excluded_objects": [
+      "cc1-checksum.o",
+      "cc1plus-checksum.o"
+    ],
+    "contract": "stage2/stage3 object and archive comparison, not executable identity"
+  },
+  "installations": {
+    "depot-cellar//bootstrap/stage1:all": {
+      "installed_files": 1286,
+      "static_executable_entries": 293,
+      "unique_static_executables": 143,
+      "compared_files": 1286,
+      "errors": []
+    },
+    "depot-cellar//bootstrap/stage1:toolchain": {
+      "installed_files": 979,
+      "static_executable_entries": 44,
+      "unique_static_executables": 22,
+      "compared_files": 979,
+      "errors": []
+    },
+    "depot-cellar//bootstrap/stage1:userland": {
+      "installed_files": 314,
+      "static_executable_entries": 249,
+      "unique_static_executables": 122,
+      "compared_files": 314,
+      "errors": []
+    }
+  },
+  "configured_closure": {
+    "targets": 15858,
+    "actions": 16349,
+    "errors": [],
+    "explicit_starlark_files": 88
+  },
+  "traced_validation": {
+    "local_actions": 3822,
+    "remote_cache_used": false,
+    "trace_files": 13898,
+    "bootstrap_processes": 13640,
+    "open_calls": 1083025,
+    "kernel_channels": {
+      "mktemp_entropy": 3,
+      "pipe_descriptor": 2
+    },
+    "errors": []
+  },
+  "scope": "Incremental validation reuses earlier audited foundation artifacts; this is not a wholly uncached seed-to-userland rebuild. Buck2 and the running kernel remain trusted infrastructure.",
+  "native_landlock_validation": {
+    "validated_revision": "c68560a427418305888dcbebb6b0b247663d6570",
+    "date": "2026-09-22",
+    "buck2_version": "2026-09-21-gbc5d4b2692f42b8935124235c7b55ad839110198-aseipp",
+    "kernel_release": "6.12.93",
+    "configuration": {
+      "mode": "@mode//sandbox",
+      "local_sandbox_mode": "native",
+      "execution_platforms": "root//buck/platforms:default",
+      "isolation_dir": "native-stage1-landlock-verified",
+      "local_only": true,
+      "remote_cache_used": false,
+      "http_connect_timeout_ms": 60000,
+      "http_read_timeout_ms": 60000
+    },
+    "build": {
+      "success": true,
+      "targets": [
+        "cellar//bootstrap/stage1:toolchain",
+        "cellar//bootstrap/stage1:userland",
+        "cellar//bootstrap/stage1:all"
+      ],
+      "build_id": "422cc711-0931-4fc9-9daa-609753dec606",
+      "preceding_successful_build_id": "cf2b9766-df56-405e-adea-d5b617a90799",
+      "preceding_successful_build_local_actions": 8525
+    },
+    "tests": {
+      "build_id": "30399b3c-ed84-4c97-b3a9-86c9b88eb1de",
+      "patterns": [
+        "cellar//bootstrap/stage1/...",
+        "cellar//bootstrap/mes:",
+        "cellar//bootstrap/stage0-posix/seeds/linux-amd64:"
+      ],
+      "total": 2083,
+      "passed": 2082,
+      "failed": 0,
+      "build_failures": 1,
+      "skipped": 0,
+      "exit_code": 3,
+      "stage0_golden_checks_passed": 19,
+      "mes_tests_passed": 2,
+      "tcc_tests_passed": 27,
+      "tcc_fixed_point_comparisons_passed": 8,
+      "gcc_stage2_stage3_objects_compared": 891,
+      "gcc_stage2_stage3_archives_compared": 4,
+      "blocked": [
+        {
+          "target": "cellar//bootstrap/stage1/bash:interactive-job-control-and-readline",
+          "action": "cellar//bootstrap/stage1/bash:pty-result",
+          "diagnostic": "pty: pty allocation: Permission denied",
+          "reason": "The native Landlock policy does not grant PTY access through /dev/ptmx and /dev/pts.",
+          "separate_direct_diagnostic": {
+            "same_compiled_helper_and_bash": true,
+            "landlock": false,
+            "exit_code": 0,
+            "passed_marker": true,
+            "buck_action_cache_used": false
+          }
+        }
+      ]
+    },
+    "enforcement_sample": {
+      "landlock_abi": 6,
+      "successful_restrict_self_calls": 13,
+      "failed_restrict_self_calls": 0,
+      "scope": "Startup syscall sample only; not a trace of every build or test action."
+    },
+    "installations": {
+      "depot-cellar//bootstrap/stage1:all": {
+        "installed_files": 1286,
+        "static_executable_entries": 293,
+        "unique_static_executables": 143,
+        "compared_files": 1286,
+        "errors": []
+      },
+      "depot-cellar//bootstrap/stage1:toolchain": {
+        "installed_files": 979,
+        "static_executable_entries": 44,
+        "unique_static_executables": 22,
+        "compared_files": 0,
+        "errors": []
+      },
+      "depot-cellar//bootstrap/stage1:userland": {
+        "installed_files": 314,
+        "static_executable_entries": 249,
+        "unique_static_executables": 122,
+        "compared_files": 0,
+        "errors": []
+      }
+    },
+    "installation_comparison": "All 1286 files in :all match the earlier default-isolation installation by SHA256 and mode; this comparison uses the same absolute workspace path.",
+    "configured_closure": {
+      "targets": 15858,
+      "actions": 16349,
+      "errors": [],
+      "explicit_starlark_files": 88
+    },
+    "scope": "Fresh isolation for the seed-to-userland build, with retries reusing only artifacts already built under native Landlock in that isolation. No remote cache and no reuse of default-isolation build artifacts. The full test gate remains nonzero because PTY allocation is denied. Native Landlock permits host system paths, so sandbox success supplements the earlier process/file audits and does not independently establish complete host dependency closure."
+  }
+}

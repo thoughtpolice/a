@@ -95,7 +95,11 @@ def _object_impl(ctx):
         if ctx.attrs.logical_source or ctx.attrs.logical_includes or ctx.attrs.source_alias:
             fail("logical source arguments require source_tree")
         source = ctx.attrs.src
-    command = cmd_args(tc.command, flags, "-c", source, "-o", ctx.attrs.object_name, hidden = ctx.attrs.headers)
+
+    # Register complete header trees before their projected source/include
+    # paths. Buck's native sandbox creates input links in visitation order;
+    # visiting a child first can hide its parent's other declared files.
+    command = cmd_args(cmd_args(hidden = ctx.attrs.headers), tc.command, flags, "-c", source, "-o", ctx.attrs.object_name)
     if ctx.attrs.source_tree != None:
         # The immutable tree is aliased inside this action's writable output.
         # GCC receives stable source/include spellings while its intermediate

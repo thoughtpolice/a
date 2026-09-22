@@ -1408,6 +1408,7 @@ OPTION_FILES = [
     "gcc/lto/lang.opt",
     "gcc/common.opt",
     "gcc/config/fused-madd.opt",
+    "gcc/config/gnu-user.opt",
     "gcc/config/i386/i386.opt",
     "gcc/config/linux.opt",
     "gcc/config/linux-android.opt",
@@ -4311,3 +4312,32 @@ export_file(name = "tests/floating-point-environment.c")
     "stage2",
     "stage3",
 ]]
+
+export_file(name = "tests/pthread-option.c")
+
+[[
+    generate(
+        name = stage + "-pthread-driver-program",
+        args = [
+            "-O2",
+            "-g0",
+            "-frandom-seed=bootstrap",
+            "-pthread",
+            "$(location :tests/pthread-option.c)",
+            "-o",
+            "program",
+        ],
+        chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
+        directory = True,
+        files = ["program"],
+        tool = ":" + stage + "-gcc",
+    ),
+    command_test(
+        name = stage + "-pthread-driver",
+        args = [
+            "0",
+            "$(location :" + stage + "-pthread-driver-program[program])",
+        ],
+        tool = "cellar//bootstrap/stage1/tools:expect-exit",
+    ),
+] for stage in STAGES]

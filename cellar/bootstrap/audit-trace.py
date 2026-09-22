@@ -10,7 +10,8 @@ all descendants remain inside it, including subsequent unsuccessful exec attempt
 Successful file opens use strace's resolved fd paths, so symlink escapes cannot
 be hidden by a workspace-relative spelling. This supplements the configured graph
 audit; it does not infer per-action input declarations from a syscall trace.
-Resolved pipe descriptors and typed terminal devices are counted separately as
+Resolved pipe descriptors, typed terminal devices and mktemp kernel entropy
+are counted separately as
 kernel communication channels, not source-file inputs or executable paths.
 """
 
@@ -95,6 +96,8 @@ def review(root, prefix):
             path = absolute(ast.literal_eval(quoted[0]), current)
             if success and bootstrap(path):
                 current["active"] = True
+            if success:
+                current["executable"] = os.path.realpath(path)
             if current["active"]:
                 if not bootstrap(os.path.realpath(path)):
                     errors.append({"pid": pid, "error": "executable outside bootstrap", "path": path})
@@ -116,6 +119,19 @@ def review(root, prefix):
                 r"|/dev/tty<char 5:0>"
                 r"|/dev/pts/[0-9]+<char (?:13[6-9]|14[0-3]):[0-9]+>)>", result,
             )
+            # GNU mktemp uses kernel entropy to choose private temporary names.
+            # This is neither a host source file nor a compiler random seed.
+            # Require the actual bootstrap executable and the resolved device
+            # type; compilers and ordinary files retain the strict boundary.
+            entropy = (
+                os.path.basename(current.get("executable", "")) == "mktemp"
+                and bootstrap(current.get("executable", "/"))
+                and opened == "/dev/urandom"
+                and re.fullmatch(r"[0-9]+</dev/urandom<char 1:9>>", result)
+            )
+            if entropy:
+                kernel_channels["mktemp_entropy"] += 1
+                continue
             if pipe and descriptor_path:
                 kernel_channels["pipe_descriptor"] += 1
                 continue

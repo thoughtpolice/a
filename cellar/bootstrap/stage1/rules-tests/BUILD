@@ -103,6 +103,92 @@ command_test(
     tool = ":conditional-program",
 )
 
+# Exercise a whole header tree together with projected source/include inputs.
+# Run with @mode//sandbox to check that adjacent private headers stay visible.
+filegroup(
+    name = "header-tree",
+    srcs = {
+        "include/public.h": "tree-public.h",
+        "src/main.c": "tree-input.c",
+        "src/private.h": "tree-private.h",
+    },
+)
+
+c_object(
+    name = "header-tree.o",
+    src = ":header-tree[src/main.c]",
+    headers = [":header-tree"],
+    includes = [":header-tree[include]"],
+    object_name = "headers.o",
+    toolchain = "cellar//bootstrap/stage1/tcc:tcc",
+)
+
+c_binary(
+    name = "header-tree-program",
+    flags = [
+        "-nostdlib",
+        "-static",
+    ],
+    libraries = [
+        "cellar//bootstrap/stage1/tcc:boot2-libc.a",
+        "cellar//bootstrap/stage1/tcc:boot2-libtcc1.a",
+        "cellar//bootstrap/stage1/tcc:boot2-libc.a",
+    ],
+    objects = [
+        "cellar//bootstrap/stage1/tcc:boot2-crt1.o",
+        ":header-tree.o",
+    ],
+    toolchain = "cellar//bootstrap/stage1/tcc:tcc",
+)
+
+command_test(
+    name = "header-tree-inputs",
+    tool = ":header-tree-program",
+)
+
+filegroup(
+    name = "generator-tree",
+    srcs = {
+        "generate.sh": "tree-generator.sh",
+        "private.sh": "tree-data.sh",
+    },
+)
+
+generate(
+    name = "generated-tree-file",
+    args = [
+        "$(location :generator-tree[generate.sh])",
+        "$(location :generator-tree)",
+    ],
+    inputs = [":generator-tree"],
+    tool = "cellar//bootstrap/stage1/bash-bootstrap:bash",
+)
+
+write_file(
+    name = "tree-expected",
+    content = "declared tree\n",
+)
+
+command_test(
+    name = "generator-tree-inputs",
+    args = [
+        "$(location :generated-tree-file)",
+        "$(location :tree-expected)",
+    ],
+    tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
+)
+
+command_test(
+    name = "command-tree-inputs",
+    args = [
+        "$(location :generator-tree[generate.sh])",
+        "$(location :generator-tree)",
+        "/dev/null",
+    ],
+    inputs = [":generator-tree"],
+    tool = "cellar//bootstrap/stage1/bash-bootstrap:bash",
+)
+
 # Logical source paths and GNU tar long names through the native GCC 4.0 and
 # musl 1.2.
 GCC = "cellar//bootstrap/stage1/gcc40-rebuilt"

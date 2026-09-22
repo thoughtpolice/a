@@ -6,7 +6,10 @@
 
 def _generate_impl(ctx):
     output = ctx.actions.declare_output(ctx.attrs.output, dir = ctx.attrs.directory)
-    command = cmd_args(ctx.attrs.tool[RunInfo], ctx.attrs.args, hidden = ctx.attrs.inputs)
+
+    # Visit complete input trees before projected arguments. The native
+    # sandbox otherwise creates partial parent directories for child paths.
+    command = cmd_args(cmd_args(hidden = ctx.attrs.inputs), ctx.attrs.tool[RunInfo], ctx.attrs.args)
     if ctx.attrs.source_tree != None:
         if ctx.attrs.chdir == None or ctx.attrs.source_alias == None:
             fail("logical generator sources require chdir and source_alias")
@@ -98,7 +101,7 @@ configured_tool = rule(impl = _configured_tool_impl, attrs = {
 })
 
 def _command_test_impl(ctx):
-    command = cmd_args(ctx.attrs.tool[RunInfo], ctx.attrs.args, hidden = ctx.attrs.inputs)
+    command = cmd_args(cmd_args(hidden = ctx.attrs.inputs), ctx.attrs.tool[RunInfo], ctx.attrs.args)
     return [DefaultInfo(), ExternalRunnerTestInfo(
         type = "simple",
         command = [command],
@@ -112,4 +115,22 @@ command_test = rule(impl = _command_test_impl, attrs = {
     "args": attrs.list(attrs.arg(), default = []),
     "env": attrs.dict(attrs.string(), attrs.arg(), default = {}),
     "inputs": attrs.list(attrs.source(), default = []),
+})
+
+def _installed_tool_impl(ctx):
+    path = ctx.attrs.path
+    if not path or path.startswith("/") or ".." in path.split("/"):
+        fail("installed executable must have a relative path within its installation")
+    executable = ctx.attrs.installation.project(path)
+
+    # Keep the complete installation visible before the executable projection
+    # creates its parent directories in the native sandbox.
+    command = cmd_args(cmd_args(hidden = ctx.attrs.installation), executable)
+    return [DefaultInfo(default_output = executable), RunInfo(args = command)]
+
+# A runnable projection retains the complete installation as an input: the
+# executable can locate its declared runtime, headers and helpers at runtime.
+installed_tool = rule(impl = _installed_tool_impl, attrs = {
+    "installation": attrs.source(),
+    "path": attrs.string(),
 })

@@ -43,6 +43,29 @@ class TraceBoundary(unittest.TestCase):
                 "unresolved successful open", "executable outside bootstrap",
             ])
 
+    def test_entropy_is_limited_to_mktemp_and_the_typed_kernel_device(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prefix = root / "trace"
+            trace = Path(str(prefix) + ".100")
+            trace.write_text(
+                f'1.000 execve("{root}/cellar/bootstrap/mktemp", [], []) = 0\n'
+                '1.001 open("/dev/urandom", O_RDONLY) = 3</dev/urandom<char 1:9>>\n'
+            )
+            report = audit.review(root, str(prefix))
+            self.assertEqual(report["errors"], [])
+            self.assertEqual(report["kernel_channels"], {"mktemp_entropy": 1})
+            with trace.open("a") as stream:
+                stream.write(
+                    '1.002 open("/dev/urandom", O_RDONLY) = 3</dev/urandom>\n'
+                    '1.003 open("/dev/urandom", O_RDONLY) = 3</dev/urandom<char 1:8>>\n'
+                    f'1.004 execve("{root}/cellar/bootstrap/gcc", [], []) = 0\n'
+                    '1.005 open("/dev/urandom", O_RDONLY) = 3</dev/urandom<char 1:9>>\n'
+                )
+            report = audit.review(root, str(prefix))
+            self.assertEqual(len(report["errors"]), 3)
+            self.assertTrue(all(e["error"] == "file outside bootstrap" for e in report["errors"]))
+
     def test_bootstrap_children_and_resolved_opens(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

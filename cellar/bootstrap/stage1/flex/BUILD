@@ -159,8 +159,8 @@ configured_tool(
         "--noprofile",
         "--norc",
         "-e",
-        "$(location :source[mkskel.sh])",
-        "$(location :source)",
+        "source/mkskel.sh",
+        "source",
         "$(location " + M4 + ")",
         "2.6.4",
     ],
@@ -178,6 +178,8 @@ generate(
     directory = True,
     env = {"TMPDIR": "."},
     files = ["skel.c"],
+    source_alias = "cellar//bootstrap/stage1/tools:source-alias",
+    source_tree = ":source",
     tool = ":skeleton-command",
 )
 

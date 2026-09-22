@@ -50,4 +50,4 @@ stage; later-stage object comparison is a separate acceptance gate.
 The stage2/stage3 gate compares all 124 C++ library objects and both archives
 byte-for-byte. All twelve execution tests pass for each of the three stages;
 `stage3-g++` is the final compiler command. These checks are included in the
-combined 998-test GCC/C++ gate.
+combined 1001-test GCC/C++ gate, including native `-pthread` driver selection.

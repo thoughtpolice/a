@@ -674,7 +674,7 @@ filegroup(
         "-Werror",
         "-std=" + standard,
         "source/tests/" + name + ".cc",
-    ] + (["source/tests/throw.cc"] if name in [
+    ] + (["-pthread"] if name == "threads" else []) + (["source/tests/throw.cc"] if name in [
         "exceptions",
         "supcxx",
     ] else []) + ([

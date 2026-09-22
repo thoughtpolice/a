@@ -1,0 +1,5 @@
+        if (strchr (sh_chars, *cp) != 0
+            || ((ISSPACE (*cp) || *cp == '\\' || *cp == '\'')
+                && strcmp (shell, default_shell) == 0))
+          *(ap++) = '\\';
+        *(ap++) = *cp;

@@ -3,12 +3,9 @@
 
 # Native GCC 4.7.4 bootstrap
 
-This package is under construction. Native static `stage1-cc1` and
-`stage1-cc1plus` now build with the rebuilt GCC 4.0.4 and musl 1.2.5.
-The GCC, G++, preprocessor and coverage drivers, static GCC support runtime
-and startup objects also build. The C++ standard library and later compiler
-stages are still pending.
-The initial gates regenerate Unicode, CRC and decimal conversion tables.
+All three native static C/C++ compiler stages and their target runtimes build.
+The final driver, front ends, libgcc, libgcov and libstdc++ are available through
+the stage1 installation. The graph retains every predecessor and generator.
 
 BUILD owns the source manifest, configurations, immutable transformations,
 generator tools, ordered table assembly and comparisons. All explicit rule
@@ -150,3 +147,12 @@ The driver adds upstream's x86 math startup files: `crtfastmath.o` for
 `-mpc80`. Each stage checks the floating-point modes a program starts with by
 default, with `-ffast-math` and with `-mpc32`, and the combined gate passes
 1007 tests.
+
+The native option inventory includes upstream `gnu-user.opt`, alongside the
+x86, Linux and Android option files. This supplies the ordinary `-pthread`,
+`-posix`, `-profile` and `-rdynamic` driver switches. The installation gate found
+that omission even though direct pthread runtime tests already passed. Each
+GCC stage now verifies `-pthread` preprocessing (`_REENTRANT`) and execution;
+C++ thread tests use the same option at both optimization levels. The corrected
+combined gate passes 1010 tests, retaining all 891 object and four archive
+comparisons and the same two checksum exclusions.

@@ -1,0 +1,2 @@
+  /* Needed for OS/2 */
+  initialize_main (&argc, &argv);

@@ -3,6 +3,99 @@
 
 # Source-regenerated native bootstrap
 
+The native Linux/x86_64 endpoint is implemented: static GCC 4.7.4 C/C++, binutils
+2.30, musl 1.2.5 and the complete selected userland. Package builds, generators,
+configurations and installation mappings are declared in cellar BUILD files.
+
+```
+./buck/bin/buck2 build cellar//bootstrap/stage1:all --show-output
+./buck/bin/buck2 build cellar//bootstrap/stage1:toolchain cellar//bootstrap/stage1:userland
+./buck/bin/buck2 run cellar//bootstrap/stage1:gcc -- hello.c -o hello
+./buck/bin/buck2 run cellar//bootstrap/stage1:g++ -- -std=gnu++11 -pthread hello.cc -o hello
+./buck/bin/buck2 test cellar//bootstrap/stage1: --local-only -j 8
+```
+
+`:toolchain` installs the native compiler, standard binutils, public C/C++ and
+unwind headers, CRT objects, libgcc, libgcov, libstdc++, libsupc++ and musl.
+`:userland` installs Bash 5.2.15, Make 4.2.1, coreutils 6.10, findutils 4.2.33,
+diffutils 2.7, sed 4.0.9, grep 2.4, gawk 3.0.4, tar 1.12, gzip 1.2.4,
+bzip2 1.0.8, patch 2.5.9, m4 1.4.7, Flex 2.6.4 and Bison 3.4.1.
+`:all` combines the two. Every command has a runnable target of the same name;
+`[` uses the target name `:lbracket`. The installation includes manifests,
+generator data, upstream licenses (including the statically linked compiler
+support libraries) and instructions under `share/`.
+
+A static launcher finds its installation through Linux `/proc/self/exe`, sets
+its declared shell/generator paths and supplies explicit compiler tool, header
+and runtime directories. It embeds no workspace path. Copy or move the entire
+tree, including paths containing spaces. Compiler search environment variables
+are cleared; project dependencies remain available through explicit arguments.
+Make keeps normal Makefile/command-line shell precedence. Its recursive command
+uses PATH, and its default shell path is escaped as one executable name.
+
+The six assembled-product tests cover versions, Make-driven static C/C++ builds,
+threads/TLS, varargs, exceptions/RTTI/STL, generated C/C++ parsers/scanners, shell
+pipelines, file/date operations, archives, locate databases and relocation.
+Removing installed headers, libc, cc1 or m4 produces errors instead of host
+fallback. The earlier cross-workspace gate passed 271 final-userland/installation
+tests, 1001 GCC/C++ tests and 72 stage0/Mes/TCC/musl checks. The installation has
+1286 files, 293 static executable entries (143 distinct executable contents), no symlinks
+and no embedded absolute workspace paths. The configured `:all` audit covers
+15858 targets and 16349 actions with no violations. Cross-workspace and traced
+validation passed at `ac91c095`; the complete results are recorded in
+[validation.json](validation.json).
+
+The GCC fixed-point contract is the upstream-style stage2/stage3 comparison of
+891 objects and four runtime archives, excluding only the two compiler checksum
+objects. It is not a claim of executable identity between compiler generations.
+Shared runtimes, multilib, cross compilation, Gold and additional GCC languages
+remain outside this native static endpoint. Buck2 and the running kernel remain
+trusted infrastructure.
+
+Native Landlock validation at `c68560a4` builds all three installation targets
+successfully. The full recursive gate passes 2082 tests, including all 19 stage0
+golden checks, the Mes fixed point, eight TCC fixed-point comparisons and all
+895 GCC/C++ object/archive comparisons. One additional test remains blocked:
+`bash:interactive-job-control-and-readline` cannot build its `pty-result` because
+the native policy denies `/dev/ptmx` and `/dev/pts` access. The full test command
+therefore exits nonzero. Running that same compiled PTY helper and Bash directly
+with terminal access passes; this separate diagnostic is outside Landlock and
+does not populate Buck's action cache.
+
+```
+./buck/bin/buck2 --isolation-dir native-stage1-landlock-verified build @mode//sandbox \
+  -c http.connect_timeout_ms=60000 -c http.read_timeout_ms=60000 \
+  cellar//bootstrap/stage1:toolchain cellar//bootstrap/stage1:userland \
+  cellar//bootstrap/stage1:all --local-only --no-remote-cache -j 8
+./buck/bin/buck2 --isolation-dir native-stage1-landlock-verified test @mode//sandbox \
+  -c http.connect_timeout_ms=60000 -c http.read_timeout_ms=60000 \
+  cellar//bootstrap/stage1/... cellar//bootstrap/mes: \
+  cellar//bootstrap/stage0-posix/seeds/linux-amd64: \
+  --local-only --no-remote-cache --no-default-test-filters -j 8
+```
+
+The isolation directory started empty. Retries after sandbox compatibility fixes
+reused artifacts produced under Landlock in that isolation; this was not one
+uninterrupted invocation. Download timeouts accommodate the pinned musl server.
+The registered execution platform uses native sandboxing. A startup syscall
+sample recorded 13 successful `landlock_restrict_self` calls with kernel ABI 6;
+it is not a trace of every action. The native policy permits host system paths,
+so these results supplement the earlier process/file audits rather than proving
+the complete absence of host dependencies on their own.
+
+The sandbox exposed input-directory ordering defects: a file projection visited
+before its complete parent tree could hide declared sibling files. Compilation,
+generation, test and installed-tool commands now visit complete trees first;
+three focused regression tests cover source/header and generator/test trees.
+Flex skeleton generation also uses its complete source tree at a stable logical
+path. All 1286 installed files retain identical contents and modes to the earlier
+build, and the static-format, workspace-path and cellar-only rule audits pass.
+The `native_landlock_validation` entry in [validation.json](validation.json)
+records this run separately from the earlier cross-workspace results, including
+the remaining PTY restriction.
+
+The following notes retain the staged implementation and earlier audit evidence.
+
 Principal recipe reference: live-bootstrap
 `dd8ac27bf959344b9bcf5e876bdd7716879bbc70`.
 
@@ -59,10 +152,8 @@ buck2 run cellar//bootstrap/stage1/tcc:tcc -- example.c -o example
 buck2 build cellar//bootstrap/stage1/tcc:runtime-boot2
 ```
 
-The target endpoint remains GCC 4.7.4 C/C++, binutils 2.30, musl 1.2.5, and the
-userland specified by the implementation plan. Those final toolchain and userland
-rebuilds remain to be implemented. The Mes runtime is transitional and retains
-other upstream stubs; the delivered runtime will be musl.
+The Mes runtime in this milestone is transitional and retains upstream stubs.
+The completed endpoint uses full static musl 1.2.5, as described above.
 
 The two Mes-linked release TCC 0.9.27 passes are also built, with 16 acceptance
 tests. The second pass preserves TCC 0.9.26 as predecessor and links the release
@@ -127,7 +218,8 @@ Gprof's x86 call decoder sign-extends relative offsets and bounds instruction
 reads; a backward-call fixture covers that adaptation. The profiling fixtures
 are generated records, not a claim that a GCC-instrumented program has run yet.
 GNU cat and rm provide the linker generator's file operations and have seven
-additional tests. The complete final coreutils rebuild remains outstanding.
+additional tests. The complete final coreutils rebuild is supplied by
+`coreutils-final`, with 96 native programs and the upstream groups script.
 
 ```
 buck2 test cellar//bootstrap/stage1/binutils: \
@@ -231,8 +323,8 @@ no boundary violations. All 246 installation files matched across the workspace
 paths, and the five included executables had neither ELF interpreter nor dynamic
 segments. This is incremental evidence on the previously validated closure.
 The coverage archive is built here; instrumented coverage behavior is not yet
-part of this gate. Final GCC 4.7 C++ and stage2/stage3 object comparisons remain
-outstanding.
+part of this historical gate; the final GCC 4.7 gate below adds coverage, C++
+and the stage2/stage3 object comparisons.
 
 Full native static musl 1.2.5 now builds with the first GCC 4.0.4, including
 complex math, mallocng and POSIX threads. Its five character/case tables regenerate
@@ -392,5 +484,48 @@ can exit, then run the host-side audit (it is never a bootstrap action input):
 ./buck/bin/buck2 --isolation-dir bootstrap-audit kill
 python3 cellar/bootstrap/audit-trace.py --workspace "$PWD" \
   --trace-prefix /tmp/bootstrap-trace > /tmp/bootstrap-trace-audit.json
+PYTHONDONTWRITEBYTECODE=1 python3 cellar/bootstrap/test-audit-trace.py
+```
+
+
+The final installation gate at `ac91c095` passes all 1344 tests in both
+`/home/exedev/a` and `/tmp/native-stage1-relocated`. All 1286 installed files
+match byte-for-byte, including permission modes. The separate toolchain and
+userland selections also match (979 and 314 files respectively). All 293 ELF
+executable entries are static, representing 143 distinct executable contents;
+the installation contains no symlinks or embedded absolute workspace prefixes.
+
+The final traced run used no remote cache and executed 3822 local actions.
+Its audit covers 13640 bootstrap processes and 1083025 open calls with no
+boundary violations. Three correctly typed `/dev/urandom` reads by GNU mktemp
+and two resolved pipe descriptors are counted as kernel services. The entropy
+exception applies only to mktemp; negative tests still reject compiler entropy
+reads, ordinary host files, untyped/wrong-type devices and foreign executables.
+A negative diff test uses an explicitly declared empty helper directory, so
+its expected failure stays inside the dependency closure. The first traced run
+identified those audit/fixture issues; the figures above are from the corrected
+rerun. No delivered program behavior was weakened to satisfy the audit.
+
+The configured installation closure contains 15858 targets and 16349 actions,
+with zero violations. All 88 explicitly loaded bootstrap Starlark files remain
+in cellar. The comparison inventory independently confirms all 891 GCC/C++
+object comparisons, all four runtime archives and only the two upstream
+checksum exclusions. This gate is incremental on the previously audited
+foundation outputs; it does not claim a wholly uncached seed-to-userland build.
+
+For the full final test gate, combine the stage1 package with gcc47, libstdcxx,
+bash, make, coreutils-final, findutils, diffutils, sed-final, grep, gawk-final,
+tar-final, gzip, bzip2, patch, m4-final, flex-final, bison-final, binutils-final,
+tools-final, tcc and musl12 package targets, plus the stage0 Linux/AMD64 golden
+check and Mes hello/fixed-point tests. Run with `--local-only --no-remote-cache`.
+Use the tracing procedure above in a second JJ workspace, materialize all three
+installation targets while the traced daemon is still running, then stop it.
+Compare each installation with the host-side auditor:
+
+```
+python3 cellar/bootstrap/audit-installation.py --root FIRST_INSTALLATION \
+  --workspace FIRST_WORKSPACE --compare SECOND_INSTALLATION \
+  --compare-workspace SECOND_WORKSPACE
+PYTHONDONTWRITEBYTECODE=1 python3 cellar/bootstrap/test-audit-installation.py
 PYTHONDONTWRITEBYTECODE=1 python3 cellar/bootstrap/test-audit-trace.py
 ```

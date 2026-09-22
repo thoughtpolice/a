@@ -2182,6 +2182,7 @@ generate(
         "CELLAR_BOOTSTRAP_IDENTITY": "1",
     },
     files = ["eelf_x86_64.c"] + ["ldscripts/" + name for name in LD_SCRIPTS],
+    inputs = [":ld-generator-source"],
     tool = "cellar//bootstrap/stage1/bash:bash",
 )
 

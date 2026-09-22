@@ -345,6 +345,11 @@ command_test(
     tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
 )
 
+filegroup(
+    name = "empty-helpers",
+    srcs = {},
+)
+
 command_test(
     name = "missing-declared-diff",
     args = [
@@ -354,6 +359,6 @@ command_test(
         "$(location :test-source[base])",
         "$(location :test-source[right])",
     ],
-    env = {"PATH": "/nonexistent-bootstrap-path"},
+    env = {"PATH": "$(location :empty-helpers)"},
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
 )

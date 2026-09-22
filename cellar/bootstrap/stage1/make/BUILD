@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
-load("@cellar//bootstrap:defs.bzl", "filegroup")
+load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
 load("@cellar//bootstrap:source.bzl", "download_file", "ungz", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 load(":sources.bzl", "FILES")
@@ -195,9 +195,45 @@ write_file(
     content = "\n".join(["#define " + name + " 1" for name in CONFIG_ON]) + "\n" + "\n".join(["#define " + name + " " + value for name, value in CONFIG_VALUES.items()]) + "\n",
 )
 
+[export_file(name = "patches/shell." + suffix) for suffix in [
+    "before",
+    "after",
+]]
+
+generate(
+    name = "main.c",
+    args = [
+        "$(location :make-4.2.1[main.c])",
+        "$(location :patches/shell.before)",
+        "$(location :patches/shell.after)",
+    ],
+    output = "main.c",
+    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+)
+
+[export_file(name = "patches/shell-path." + suffix) for suffix in [
+    "before",
+    "after",
+]]
+
+generate(
+    name = "job.c",
+    args = [
+        "$(location :make-4.2.1[job.c])",
+        "$(location :patches/shell-path.before)",
+        "$(location :patches/shell-path.after)",
+    ],
+    output = "job.c",
+    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+)
+
 filegroup(
     name = "source",
-    srcs = {path: ":make-4.2.1[" + path + "]" for path in FILES} | {"config.h": ":config.h"},
+    srcs = {path: ":make-4.2.1[" + path + "]" for path in FILES} | {
+        "config.h": ":config.h",
+        "main.c": ":main.c",
+        "job.c": ":job.c",
+    },
 )
 
 [c_object(
@@ -279,7 +315,6 @@ generate(
         "-j3",
         "-f",
         "source/Makefile",
-        "SHELL=$(location cellar//bootstrap/stage1/bash:bash)",
         "CC=$(location " + GCC + ":stage3-xgcc)",
         "AR=$(location cellar//bootstrap/stage1/binutils:ar)",
         "CFLAGS=-O2 -g0 -frandom-seed=bootstrap -B$(location " + GCC + ":stage3-native-tools)/ -B$(location " + GCC + ":stage3-runtime)/lib/ -nostdinc -isystem $(location " + GCC + ":compiler-headers) -isystem $(location " + GCC + ":stage3-runtime[include])",
@@ -288,6 +323,7 @@ generate(
     directory = True,
     env = {
         "CELLAR_BOOTSTRAP_IDENTITY": "1",
+        "BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash:bash)",
         "PATH": "/nonexistent-bootstrap-path",
         "TMPDIR": ".",
         "TZ": "UTC0",
@@ -332,4 +368,52 @@ command_test(
     ],
     env = {"PATH": "/nonexistent-bootstrap-path"},
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
+)
+
+command_test(
+    name = "empty-shell",
+    args = [
+        "2",
+        "$(location :make)",
+        "--version",
+    ],
+    env = {"BOOTSTRAP_SHELL": ""},
+    tool = "cellar//bootstrap/stage1/tools:expect-exit",
+)
+
+filegroup(
+    name = "shell-with-space",
+    srcs = {"shell with space": "cellar//bootstrap/stage1/bash:bash"},
+)
+
+write_file(
+    name = "shell-path.mk",
+    content = "all:\n\t@test -n \"$$BASH_VERSION\"\n\t@printf 'passed\\n' > passed\n",
+)
+
+generate(
+    name = "shell-path-result",
+    args = [
+        "--no-print-directory",
+        "-f",
+        "$(location :shell-path.mk)",
+    ],
+    chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
+    directory = True,
+    env = {
+        "BOOTSTRAP_SHELL": "$(location :shell-with-space)/shell with space",
+        "CELLAR_BOOTSTRAP_IDENTITY": "1",
+        "PATH": "/nonexistent-bootstrap-path",
+    },
+    files = ["passed"],
+    tool = ":make",
+)
+
+command_test(
+    name = "shell-path-with-spaces",
+    args = [
+        "$(location :shell-path-result[passed])",
+        "$(location :passed)",
+    ],
+    tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
 )

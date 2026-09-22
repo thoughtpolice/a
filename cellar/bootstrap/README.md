@@ -3,6 +3,11 @@
 
 # Full-Source Bootstrap project
 
+The [native stage1 bootstrap](stage1/README.md) now delivers static GCC 4.7.4
+C/C++, binutils 2.30, musl 1.2.5 and bootstrap userland through
+`cellar//bootstrap/stage1:all`. Its source regeneration, fixed-point comparisons,
+installation and validation are declared entirely in cellar.
+
 This is an attempt to port the GNU Guix _Full-Source Bootstrap_ project to Buck2
 rules. The goal is that one day we might actually emit a fully usable C
 compiler, right from the source code, that we can use to compile all third-party

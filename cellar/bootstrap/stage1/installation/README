@@ -1,0 +1,39 @@
+Native Linux x86_64 bootstrap installation
+
+The toolchain selection contains GCC/G++ 4.7.4, binutils 2.30, musl 1.2.5 and static C/C++ runtimes.
+The userland selection contains Bash 5.2.15, Make 4.2.1, coreutils 6.10, findutils 4.2.33, diffutils 2.7,
+sed 4.0.9, grep 2.4, gawk 3.0.4, tar 1.12, gzip 1.2.4, bzip2 1.0.8,
+patch 2.5.9, m4 1.4.7, Flex 2.6.4 and Bison 3.4.1.
+
+The all selection combines both.
+
+Keep the installation directory together when copying or moving it. Add its
+bin directory to PATH. The launchers locate their tools, headers, libraries
+and generator data relative to the installation using Linux /proc/self/exe.
+No absolute workspace path is compiled into them.
+
+    gcc hello.c -o hello
+    g++ -std=gnu++11 -pthread hello.cc -o hello
+    make -j4
+
+Compilation and linking are static by default. The selected target is native
+x86_64 only; shared executables, multilib and other GCC languages are omitted.
+The C++ language/library support is that of GCC 4.7.4. Explicit -nostdinc and
+-nostdinc++ suppress the corresponding installed default include directories.
+
+The compiler ignores inherited host compiler/include/library search variables;
+use explicit -I, -L and other compiler arguments for project dependencies.
+Launchers prepend this installation's bin to PATH and select the installed
+Bash. Bison, Flex, gawk, locate and updatedb also get the installed m4, Bison
+data, awk library and locate database. Other programs keep the caller's values
+of those settings. An unset TMPDIR defaults to /tmp. An explicitly set
+TMPDIR is preserved. Makefile and command-line SHELL settings keep their
+normal precedence over the installed default shell.
+
+The locate database defaults to var/locatedb within the installation. Create
+that directory before running updatedb, or select another output/database
+with updatedb --output and locate --database. The normal updatedb traversal
+and user options still apply.
+
+share/bootstrap/manifest.tsv records the installation layout and Buck source
+labels. share/licenses contains the upstream licenses and launcher notices.

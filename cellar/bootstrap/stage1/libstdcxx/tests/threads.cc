@@ -1,5 +1,8 @@
 /* SPDX-FileCopyrightText: 2026 Austin Seipp
  * SPDX-License-Identifier: MIT */
+#ifndef _REENTRANT
+#error -pthread must select the native preprocessor specification
+#endif
 #include <atomic>
 #include <cassert>
 #include <chrono>

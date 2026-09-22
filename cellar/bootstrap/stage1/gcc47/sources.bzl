@@ -399,6 +399,7 @@ MACHINE_GENERATOR_FILES = [
     "gcc/c-family/c.opt",
     "gcc/common.opt",
     "gcc/config/fused-madd.opt",
+    "gcc/config/gnu-user.opt",
     "gcc/config/i386/athlon.md",
     "gcc/config/i386/atom.md",
     "gcc/config/i386/bdver1.md",
