@@ -14,6 +14,35 @@ spec.loader.exec_module(audit)
 
 
 class TraceBoundary(unittest.TestCase):
+    def test_kernel_terminals_and_pipe_descriptors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prefix = root / "trace"
+            trace = Path(str(prefix) + ".100")
+            trace.write_text(
+                f'1.000 execve("{root}/cellar/bootstrap/seed", [], []) = 0\n'
+                '1.001 open("/dev/ptmx", O_RDWR) = 3</dev/ptmx<char 5:2 @/dev/pts/0>>\n'
+                '1.002 open("/dev/pts/0", O_RDWR) = 4</dev/pts/0<char 136:0>>\n'
+                '1.003 open("/dev/tty", O_RDWR) = 5</dev/tty<char 5:0>>\n'
+                '1.004 openat(AT_FDCWD, "/dev/fd/63", O_RDONLY) = 6<pipe:[123]>\n'
+            )
+            report = audit.review(root, str(prefix))
+            self.assertEqual(report["errors"], [])
+            self.assertEqual(report["kernel_channels"], {"pipe_descriptor": 1, "terminal_device": 3})
+            with trace.open("a") as stream:
+                stream.write(
+                    '1.005 open("/dev/fd/62", O_RDONLY) = 7</usr/include/stdio.h>\n'
+                    '1.006 open("/dev/pts/1", O_RDONLY) = 8</dev/pts/1>\n'
+                    '1.007 open("/dev/pts/2", O_RDONLY) = 9</dev/pts/2<char 1:1>>\n'
+                    '1.008 open("unrelated", O_RDONLY) = 10<pipe:[456]>\n'
+                    '1.009 execve("/dev/fd/63", [], []) = -1 ENOENT\n'
+                )
+            report = audit.review(root, str(prefix))
+            self.assertEqual([e["error"] for e in report["errors"]], [
+                "file outside bootstrap", "file outside bootstrap", "file outside bootstrap",
+                "unresolved successful open", "executable outside bootstrap",
+            ])
+
     def test_bootstrap_children_and_resolved_opens(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

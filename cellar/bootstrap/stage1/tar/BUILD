@@ -386,3 +386,8 @@ filegroup(
         "share/licenses/tar/COPYING": ":tar-1.12[COPYING]",
     },
 )
+
+[export_file(name = "tests/" + name + ".c") for name in [
+    "dates",
+    "roundtrip",
+]]

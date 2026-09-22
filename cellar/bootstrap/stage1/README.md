@@ -358,6 +358,23 @@ All seven final compiler/driver executables are static. The 48 foundation
 checks also passed. This completes the compiler stage comparison; final
 userland construction and installation assembly remain separate milestones.
 
+Final Bash 5.2.15, Make 4.2.1, gzip 1.2.4 and bzip2 1.0.8 passed their
+combined relocation gate at `6f60786e`: all 20 tests passed, including a real
+pseudoterminal job-control/Readline test, Make compilation and jobserver test,
+gzip metadata/integrity test, and bzip2 reference vectors and block recovery.
+All 17 installed files match across workspace paths; the nine executable
+installation entries represent five static executables and invocation aliases.
+The union of the three configured package audits covers 14477 targets and
+14979 actions without violations. The relocated run executed 2592 local
+actions; tracing covered 7780 bootstrap processes and 923993 open calls with
+no host-file or executable violations. The auditor separately recognizes
+two resolved pipe descriptors and three typed kernel terminal devices.
+Negative audit tests still reject ordinary host files, untyped device paths,
+wrong device types and foreign executables. The earlier trace exposed a test
+race; the committed child-readiness handshake fixes it, and the final run
+above is the acceptance evidence. This gate reuses earlier audited bootstrap
+outputs and does not claim a wholly uncached seed-to-userland rebuild.
+
 To repeat the trace gate, start with a fresh JJ workspace and isolated daemon:
 
 ```

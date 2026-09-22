@@ -1,0 +1,1 @@
+high_reg = (unsigned) POP_FAILURE_ITEM ();

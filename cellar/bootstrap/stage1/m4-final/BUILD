@@ -2,22 +2,32 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "configured_tool", "generate")
-load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
+load("@cellar//bootstrap:defs.bzl", "filegroup")
+load("@cellar//bootstrap:source.bzl", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
-load(":sources.bzl", "HEADERS")
+load("@cellar//bootstrap/stage1/m4:sources.bzl", "HEADERS")
 
-MUSL = "cellar//bootstrap/stage1/musl"
+GCC = "cellar//bootstrap/stage1/gcc47"
+
+MUSL = "cellar//bootstrap/stage1/musl12"
+
+CC = GCC + ":stage3-gcc"
 
 CRT = [
-    MUSL + ":restored-crt1.o",
-    MUSL + ":restored-crti.o",
+    MUSL + ":crt1.o",
+    MUSL + ":crti.o",
+    GCC + ":stage3-crtbeginT.o",
+]
+
+CRTN = [
+    GCC + ":stage3-crtend.o",
+    MUSL + ":crtn.o",
 ]
 
 LIBC = [
-    MUSL + ":restored-libc.a",
-    "cellar//bootstrap/stage1/tcc-musl:musl2-libtcc1.a",
-    MUSL + ":restored-libc.a",
+    MUSL + ":libc.a",
+    GCC + ":stage3-libgcc.a",
+    MUSL + ":libc.a",
 ]
 
 LIB = [
@@ -126,6 +136,7 @@ CONFIG_ON = [
 CONFIG_VALUES = {
     "_GNU_SOURCE": "1",
     "_GL_UNUSED": "",
+    "restrict": "__restrict",
     "__getopt_argv_const": "const",
     "VERSION": '"1.4.7"',
     "PACKAGE": '"m4"',
@@ -147,37 +158,33 @@ write_file(
               "\n".join(["#define " + name + " " + value for name, value in CONFIG_VALUES.items()]) + "\n",
 )
 
-download_file(
-    name = "m4-1.4.7.tar.bz2",
-    hash = "a88f3ddaa7c89cf4c34284385be41ca85e9135369c333fdfa232f3bf48223213",
-    urls = ["https://mirrors.kernel.org/gnu/m4/m4-1.4.7.tar.bz2"],
+filegroup(
+    name = "source",
+    srcs = {path: "cellar//bootstrap/stage1/m4:m4-1.4.7[" + path + "]" for path in FILES} | {
+        "lib/config.h": ":config.h",
+        "lib/getopt.h": "cellar//bootstrap/stage1/m4:m4-1.4.7[lib/getopt_.h]",
+    },
+)
+
+write_file(
+    name = "tmpfile.before",
+    content = "if (!directory || !*directory)",
+)
+
+write_file(
+    name = "tmpfile.after",
+    content = 'if (!directory) directory = "/tmp";\n    if (!*directory)',
 )
 
 generate(
-    name = "m4.tar",
+    name = "tmpfile.c",
     args = [
-        "--file",
-        "$(location :m4-1.4.7.tar.bz2)",
-        "--output",
+        "$(location cellar//bootstrap/stage1/m4:tmpfile.c)",
+        "$(location :tmpfile.before)",
+        "$(location :tmpfile.after)",
     ],
-    tool = "cellar//bootstrap/stage0-posix/mescc-tools-extra:unbz2",
-)
-
-untar(
-    name = "m4-1.4.7",
-    chdirenv = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
-    files = FILES,
-    input = ":m4.tar",
-    untar = "cellar//bootstrap/stage0-posix/mescc-tools-extra:untar",
-)
-
-filegroup(
-    name = "source",
-    srcs = {path: ":m4-1.4.7[" + path + "]" for path in FILES} | {
-        "lib/config.h": ":config.h",
-        "lib/getopt.h": ":m4-1.4.7[lib/getopt_.h]",
-        "musl-COPYRIGHT": MUSL + ":source-restored[COPYRIGHT]",
-    },
+    output = "tmpfile.c",
+    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
 )
 
 [
@@ -189,18 +196,19 @@ filegroup(
                 "system=bootstrap_system",
                 "popen=bootstrap_popen",
             ] if name == "builtin" else []) + (["tmpfile=m4_tmpfile"] if name == "tmpfile-safer" else []),
-            flags = ["-Werror"],
-            headers = [
-                ":source",
-                MUSL + ":headers",
+            flags = [
+                "-O2",
+                "-Werror=implicit-function-declaration",
             ],
-            # do not sort
-            includes = [
-                ":source[lib]",
-                ":source[src]",
+            logical_includes = [
+                "lib",
+                "src",
             ],
+            logical_source = directory + "/" + name + ".c",
             object_name = "m{}.o".format(i),
-            toolchain = MUSL + ":tcc",
+            source_alias = "cellar//bootstrap/stage1/tools:source-alias",
+            source_tree = ":source",
+            toolchain = CC,
         )
         for i, name in enumerate(names)
     ]
@@ -214,35 +222,40 @@ c_library(
     name = "libm4.a",
     objects = [":" + name + ".o" for name in LIB],
     output = "libm4.a",
-    toolchain = MUSL + ":tcc",
+    toolchain = CC,
 )
 
 c_object(
     name = "tmpfile.o",
-    src = "tmpfile.c",
-    flags = ["-Werror"],
+    src = ":tmpfile.c",
+    flags = [
+        "-O2",
+        "-Werror=implicit-function-declaration",
+    ],
     headers = [MUSL + ":headers"],
     object_name = "tmpfile.o",
-    toolchain = MUSL + ":tcc",
+    toolchain = CC,
 )
 
 c_binary(
     name = "m4-bin",
     libraries = [
         ":libm4.a",
-        "cellar//bootstrap/stage1/tools:libshell.a",
+        "cellar//bootstrap/stage1/tools-final:libshell.a",
     ] + LIBC,
     objects = CRT + [":" + name + ".o" for name in CORE] + [
         ":tmpfile.o",
-        MUSL + ":restored-crtn.o",
-    ],
+    ] + CRTN,
     output = "m4",
-    toolchain = MUSL + ":tcc",
+    toolchain = CC,
 )
 
 configured_tool(
     name = "m4",
-    env = {"BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash-bootstrap:bash)"},
+    env = {
+        "BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash:bash)",
+        "CELLAR_BOOTSTRAP_IDENTITY": "1",
+    },
     env_tool = "cellar//bootstrap/stage1/tools:withenv",
     tool = ":m4-bin",
 )
@@ -255,7 +268,7 @@ command_test(
 
 filegroup(
     name = "test-source",
-    srcs = {path: "tests/" + path for path in [
+    srcs = {path: "cellar//bootstrap/stage1/m4:test-source[" + path + "]" for path in [
         "macros.m4",
         "shell.m4",
         "reload.m4",
@@ -270,7 +283,10 @@ configured_tool(
         "result",
         "$(location :m4-bin)",
     ],
-    env = {"BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash-bootstrap:bash)"},
+    env = {
+        "BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash:bash)",
+        "CELLAR_BOOTSTRAP_IDENTITY": "1",
+    },
     env_tool = "cellar//bootstrap/stage1/tools:withenv",
     tool = "cellar//bootstrap/stage1/tools:capture",
 )
@@ -297,7 +313,7 @@ configured_tool(
             name = name,
             args = [
                 "$(location :" + name + "-output[result])",
-                "$(location :diversion-expected)" if name == "diversion" else "$(location :tests/" + name + ".expected)",
+                "$(location :diversion-expected)" if name == "diversion" else "$(location cellar//bootstrap/stage1/m4:tests/" + name + ".expected)",
             ],
             tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
         ),
@@ -314,17 +330,6 @@ configured_tool(
             ],
         ),
         ("diversion", "$(location :large-diversion)", []),
-    ]
-]
-
-[
-    export_file(
-        name = "tests/" + name + ".expected",
-    )
-    for name in [
-        "macros",
-        "shell",
-        "reload",
     ]
 ]
 
@@ -350,27 +355,19 @@ write_file(
     content = DIVERSION_TEXT,
 )
 
-export_file(
-    name = "tests/malformed.m4",
-)
-
-export_file(
-    name = "tests/missing-shell.m4",
-)
-
 command_test(
     name = "diagnostic",
     args = [
         "1",
         "$(location :m4-bin)",
-        "$(location :tests/malformed.m4)",
+        "$(location cellar//bootstrap/stage1/m4:tests/malformed.m4)",
     ],
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
 )
 
 command_test(
     name = "missing-shell",
-    args = ["$(location :tests/missing-shell.m4)"],
+    args = ["$(location cellar//bootstrap/stage1/m4:tests/missing-shell.m4)"],
     env = {"BOOTSTRAP_SHELL": ""},
     tool = ":m4-bin",
 )
@@ -386,4 +383,11 @@ command_test(
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
 )
 
-export_file(name = "tmpfile.c")
+filegroup(
+    name = "installation",
+    srcs = {
+        "bin/m4": ":m4-bin",
+        "share/licenses/m4/COPYING": ":source[COPYING]",
+        "share/licenses/m4/musl-COPYRIGHT": MUSL + ":source[COPYRIGHT]",
+    },
+)

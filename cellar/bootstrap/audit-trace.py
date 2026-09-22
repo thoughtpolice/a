@@ -10,6 +10,8 @@ all descendants remain inside it, including subsequent unsuccessful exec attempt
 Successful file opens use strace's resolved fd paths, so symlink escapes cannot
 be hidden by a workspace-relative spelling. This supplements the configured graph
 audit; it does not infer per-action input declarations from a syscall trace.
+Resolved pipe descriptors and typed terminal devices are counted separately as
+kernel communication channels, not source-file inputs or executable paths.
 """
 
 import argparse
@@ -32,6 +34,7 @@ def review(root, prefix):
     events, parents, pending = [], {}, {}
     errors, processes, executables = [], set(), set()
     counts = Counter()
+    kernel_channels = Counter()
     files = sorted(glob.glob(prefix + ".[0-9]*"))
     if not files:
         raise ValueError("no per-process trace files matched " + prefix)
@@ -101,6 +104,24 @@ def review(root, prefix):
         processes.add(pid)
         counts[name] += 1
         if name in ("open", "openat", "openat2", "creat") and success:
+            # Process substitution duplicates an existing pipe through /dev/fd.
+            # Terminal tests use kernel PTY devices. Require strace's resolved
+            # descriptor type as well as the precise device/descriptor path;
+            # these exceptions must never admit regular host files.
+            opened = ast.literal_eval(quoted[0]) if quoted else ""
+            pipe = re.fullmatch(r"[0-9]+<pipe:\[[0-9]+\]>", result)
+            descriptor_path = re.fullmatch(r"/(?:dev/fd|proc/(?:self|[0-9]+)/fd)/[0-9]+", opened)
+            terminal = re.fullmatch(
+                r"[0-9]+<(?:/dev/(?:ptmx|pts/ptmx)<char 5:2(?: @/dev/pts/[0-9]+)?>"
+                r"|/dev/tty<char 5:0>"
+                r"|/dev/pts/[0-9]+<char (?:13[6-9]|14[0-3]):[0-9]+>)>", result,
+            )
+            if pipe and descriptor_path:
+                kernel_channels["pipe_descriptor"] += 1
+                continue
+            if terminal:
+                kernel_channels["terminal_device"] += 1
+                continue
             match = re.match(r"[0-9]+<(/[^<>]*)(?:<[^>]*>)?>", result)
             if not match:
                 errors.append({"pid": pid, "error": "unresolved successful open", "result": result})
@@ -123,6 +144,7 @@ def review(root, prefix):
         "bootstrap_processes": len(processes),
         "executables": sorted(executables),
         "syscalls": dict(sorted(counts.items())),
+        "kernel_channels": dict(sorted(kernel_channels.items())),
         "errors": errors,
         "scope": "bootstrap executables and successful file opens; configured graph audited separately",
     }

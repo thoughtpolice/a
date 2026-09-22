@@ -3,25 +3,37 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "concatenate", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 
-MUSL = "cellar//bootstrap/stage1/musl"
+GCC = "cellar//bootstrap/stage1/gcc47"
 
-BASH = "cellar//bootstrap/stage1/bash-bootstrap:bash"
+MUSL = "cellar//bootstrap/stage1/musl12"
 
-M4 = "cellar//bootstrap/stage1/m4:m4-bin"
+CC = GCC + ":stage3-gcc"
+
+SOURCE_ALIAS = "cellar//bootstrap/stage1/tools:source-alias"
 
 CRT = [
-    MUSL + ":restored-crt1.o",
-    MUSL + ":restored-crti.o",
+    MUSL + ":crt1.o",
+    MUSL + ":crti.o",
+    GCC + ":stage3-crtbeginT.o",
+]
+
+CRTN = [
+    GCC + ":stage3-crtend.o",
+    MUSL + ":crtn.o",
 ]
 
 LIBC = [
-    MUSL + ":restored-libc.a",
-    "cellar//bootstrap/stage1/tcc-musl:musl2-libtcc1.a",
-    MUSL + ":restored-libc.a",
+    MUSL + ":libc.a",
+    GCC + ":stage3-libgcc.a",
+    MUSL + ":libc.a",
 ]
+
+BASH = "cellar//bootstrap/stage1/bash:bash"
+
+M4 = "cellar//bootstrap/stage1/m4-final:m4-bin"
 
 BASE = [
     "buf",
@@ -80,45 +92,6 @@ FILES = [
     "mkskel.sh",
 ]
 
-[export_file(name = path) for path in glob([
-    "patches/*.before",
-    "patches/*.after",
-])]
-
-download_file(
-    name = "flex-2.6.4.tar.gz",
-    hash = "e87aae032bf07c26f85ac0ed3250998c37621d95f8bd748b31f15b33c45ee995",
-    urls = ["https://github.com/westes/flex/releases/download/v2.6.4/flex-2.6.4.tar.gz"],
-)
-
-generate(
-    name = "flex.tar",
-    args = [
-        "--file",
-        "$(location :flex-2.6.4.tar.gz)",
-        "--output",
-    ],
-    tool = "cellar//bootstrap/stage0-posix/mescc-tools-extra:ungz",
-)
-
-untar(
-    name = "flex-2.6.4",
-    chdirenv = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
-    files = ["src/" + path for path in FILES] + ["COPYING"],
-    input = ":flex.tar",
-    untar = "cellar//bootstrap/stage0-posix/mescc-tools-extra:untar",
-)
-
-generate(
-    name = "main-source",
-    args = [
-        "$(location :flex-2.6.4[src/main.c])",
-        "$(location :patches/m4.before)",
-        "$(location :patches/m4.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
-)
-
 # Native Linux/musl, POSIX regex, no message catalogs or curses dependency.
 CONFIG = [
     "HAVE_ASSERT_H",
@@ -139,16 +112,15 @@ write_file(
 
 filegroup(
     name = "source",
-    srcs = {path: ":flex-2.6.4[src/" + path + "]" for path in FILES} | {
-        "COPYING": ":flex-2.6.4[COPYING]",
+    srcs = {path: "cellar//bootstrap/stage1/flex:source[" + path + "]" for path in FILES} | {
+        "COPYING": "cellar//bootstrap/stage1/flex:source[COPYING]",
         "config.h": ":config.h",
-        "main.c": ":main-source",
     },
 )
 
 filegroup(
     name = "generator-path",
-    srcs = {"sed": "cellar//bootstrap/stage1/sed:sed"},
+    srcs = {"sed": "cellar//bootstrap/stage1/sed-final:sed-bin"},
 )
 
 configured_tool(
@@ -167,6 +139,7 @@ configured_tool(
     env = {
         "PATH": "$(location :generator-path)",
         "BOOTSTRAP_SHELL": "$(location " + BASH + ")",
+        "CELLAR_BOOTSTRAP_IDENTITY": "1",
     },
     env_tool = "cellar//bootstrap/stage1/tools:withenv",
     tool = "cellar//bootstrap/stage1/tools:capture",
@@ -188,7 +161,7 @@ generate(
         "-l",
         "-o",
         "parse.c",
-        "$(location :source[parse.y])",
+        "source/parse.y",
     ],
     chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
     directory = True,
@@ -197,6 +170,8 @@ generate(
         "parse.c",
         "parse.h",
     ],
+    source_alias = SOURCE_ALIAS,
+    source_tree = ":source",
     tool = "cellar//bootstrap/stage1/oyacc:oyacc",
 )
 
@@ -235,14 +210,22 @@ filegroup(
             "_GNU_SOURCE=1",
             'VERSION="2.6.4"',
         ],
-        flags = ["-Werror"],
+        flags = [
+            "-O2",
+            "-Werror",
+            "-x",
+            "c",
+        ],
         headers = [
             ":prepared",
             MUSL + ":headers",
         ],
-        includes = [":prepared"],
+        logical_includes = ["."],
+        logical_source = name + ".c",
         object_name = "f{}.o".format(i),
-        toolchain = MUSL + ":tcc",
+        source_alias = SOURCE_ALIAS,
+        source_tree = ":prepared",
+        toolchain = CC,
     )
     for i, name in enumerate(BASE + [
         "parse",
@@ -254,6 +237,13 @@ filegroup(
 
 [
     [
+        filegroup(
+            name = stage + "-source",
+            srcs = {
+                "scan.c": ":" + stage + "-scanner",
+                "include": ":prepared",
+            },
+        ),
         c_object(
             name = stage + "-scan.o",
             src = ":" + stage + "-scanner",
@@ -261,14 +251,22 @@ filegroup(
                 "HAVE_CONFIG_H=1",
                 "_GNU_SOURCE=1",
             ],
-            flags = ["-Werror"],
+            flags = [
+                "-O2",
+                "-Werror",
+                "-x",
+                "c",
+            ],
             headers = [
                 ":prepared",
                 MUSL + ":headers",
             ],
-            includes = [":prepared"],
+            logical_includes = ["include"],
+            logical_source = "scan.c",
             object_name = "scan.o",
-            toolchain = MUSL + ":tcc",
+            source_alias = SOURCE_ALIAS,
+            source_tree = ":" + stage + "-source",
+            toolchain = CC,
         ),
         c_binary(
             name = "flex-" + stage + "-bin",
@@ -278,16 +276,16 @@ filegroup(
                 "skel",
             ]] + [
                 ":" + stage + "-scan.o",
-                MUSL + ":restored-crtn.o",
-            ],
+            ] + CRTN,
             output = "flex",
-            toolchain = MUSL + ":tcc",
+            toolchain = CC,
         ),
         configured_tool(
             name = "flex-" + stage,
             env = {
                 "M4": "$(location " + M4 + ")",
                 "BOOTSTRAP_SHELL": "$(location " + BASH + ")",
+                "CELLAR_BOOTSTRAP_IDENTITY": "1",
             },
             env_tool = "cellar//bootstrap/stage1/tools:withenv",
             tool = ":flex-" + stage + "-bin",
@@ -305,13 +303,15 @@ filegroup(
         args = [
             "-L",
             "-t",
-            "$(location :source[scan.l])",
+            "scan.l",
         ],
         capture = "cellar//bootstrap/stage1/tools:capture",
+        output = "scan.c",
         tool = predecessor,
+        working_directory = ":source",
     )
     for stage, predecessor in [
-        ("initial", "cellar//bootstrap/stage1/flex-bootstrap:flex"),
+        ("initial", "cellar//bootstrap/stage1/flex:flex"),
         ("regenerated", ":flex-initial"),
         ("again", ":flex-regenerated"),
     ]
@@ -329,7 +329,7 @@ c_library(
         ":libyywrap.o",
     ],
     output = "libfl.a",
-    toolchain = MUSL + ":tcc",
+    toolchain = CC,
 )
 
 command_test(
@@ -361,19 +361,23 @@ command_test(
         c_object(
             name = name + "-test.o",
             src = ":" + name + ".c",
-            flags = ["-Werror"],
+            flags = [
+                "-O2",
+                "-Werror",
+                "-x",
+                "c",
+            ],
             headers = [MUSL + ":headers"],
             object_name = "test.o",
-            toolchain = MUSL + ":tcc",
+            toolchain = CC,
         ),
         c_binary(
             name = name + "-test-bin",
             libraries = [":libfl.a"] + LIBC,
             objects = CRT + [
                 ":" + name + "-test.o",
-                MUSL + ":restored-crtn.o",
-            ],
-            toolchain = MUSL + ":tcc",
+            ] + CRTN,
+            toolchain = CC,
         ),
     ]
     for name, input, flags in [
@@ -455,8 +459,6 @@ command_test(
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
 )
 
-export_file(name = "api.l")
-
 generate(
     name = "api",
     args = [
@@ -465,7 +467,7 @@ generate(
         "api.c",
         "--header-file=api.h",
         "--tables-file=api.tables",
-        "$(location :api.l)",
+        "$(location cellar//bootstrap/stage1/flex:api.l)",
     ],
     chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
     directory = True,
@@ -482,18 +484,23 @@ generate(
     c_object(
         name = name + ".o",
         src = src,
-        flags = ["-Werror"],
+        flags = [
+            "-O2",
+            "-Werror",
+            "-x",
+            "c",
+        ],
         headers = [
             ":api",
             MUSL + ":headers",
         ],
         includes = [":api"],
         object_name = name + ".o",
-        toolchain = MUSL + ":tcc",
+        toolchain = CC,
     )
     for name, src in [
         ("api", ":api[api.c]"),
-        ("api-test", "api-test.c"),
+        ("api-test", "cellar//bootstrap/stage1/flex:api-test.c"),
     ]
 ]
 
@@ -503,9 +510,8 @@ c_binary(
     objects = CRT + [
         ":api.o",
         ":api-test.o",
-        MUSL + ":restored-crtn.o",
-    ],
-    toolchain = MUSL + ":tcc",
+    ] + CRTN,
+    toolchain = CC,
 )
 
 command_test(
@@ -514,4 +520,66 @@ command_test(
     tool = ":api-test-bin",
 )
 
-export_file(name = "api-test.c")
+export_file(name = "cpp.l")
+
+generate(
+    name = "cpp-scanner",
+    args = [
+        "-L",
+        "-+",
+        "-o",
+        "scanner.cc",
+        "$(location :cpp.l)",
+    ],
+    chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
+    directory = True,
+    files = ["scanner.cc"],
+    tool = ":flex",
+)
+
+filegroup(
+    name = "cpp-source",
+    srcs = {
+        "scanner.cc": ":cpp-scanner[scanner.cc]",
+        "FlexLexer.h": ":source[FlexLexer.h]",
+    },
+)
+
+generate(
+    name = "cpp-program",
+    args = [
+        "-O2",
+        "-g0",
+        "-frandom-seed=bootstrap",
+        "-Werror",
+        "-Isource",
+        "source/scanner.cc",
+        "-o",
+        "program",
+    ],
+    chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
+    directory = True,
+    files = ["program"],
+    source_alias = SOURCE_ALIAS,
+    source_tree = ":cpp-source",
+    tool = "cellar//bootstrap/stage1/libstdcxx:stage3-g++",
+)
+
+command_test(
+    name = "cpp-scanner-runtime",
+    args = [
+        "0",
+        "$(location :cpp-program[program])",
+    ],
+    tool = "cellar//bootstrap/stage1/tools:expect-exit",
+)
+
+filegroup(
+    name = "installation",
+    srcs = {
+        "bin/flex": ":flex-regenerated-bin",
+        "lib/libfl.a": ":libfl.a",
+        "include/FlexLexer.h": ":source[FlexLexer.h]",
+        "share/licenses/flex/COPYING": ":source[COPYING]",
+    },
+)
