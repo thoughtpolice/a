@@ -1,2 +1,0 @@
-const unsigned int 
-c_family_lang_mask = (CL_C | CL_CXX | CL_ObjC | CL_ObjCXX);

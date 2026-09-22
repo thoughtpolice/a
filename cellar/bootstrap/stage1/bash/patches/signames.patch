@@ -1,0 +1,5 @@
+--- before
++++ after
+@@ -1 +1 @@
+-  progname = argv[0];
++  progname = "mksignames";

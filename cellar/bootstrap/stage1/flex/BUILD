@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "concatenate", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 
 MUSL = "cellar//bootstrap/stage1/musl"
@@ -81,8 +81,7 @@ FILES = [
 ]
 
 [export_file(name = path) for path in glob([
-    "patches/*.before",
-    "patches/*.after",
+    "patches/*.patch",
 ])]
 
 download_file(
@@ -109,14 +108,10 @@ untar(
     untar = "cellar//bootstrap/stage0-posix/mescc-tools-extra:untar",
 )
 
-generate(
+exact_patch(
     name = "main-source",
-    args = [
-        "$(location :flex-2.6.4[src/main.c])",
-        "$(location :patches/m4.before)",
-        "$(location :patches/m4.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":flex-2.6.4[src/main.c]",
+    patch = ":patches/m4.patch",
 )
 
 # Native Linux/musl, POSIX regex, no message catalogs or curses dependency.
@@ -155,18 +150,18 @@ configured_tool(
     name = "skeleton-command",
     args = [
         "skel.c",
-        "$(location " + BASH + ")",
+        "$(exe " + BASH + ")",
         "--noprofile",
         "--norc",
         "-e",
         "source/mkskel.sh",
         "source",
-        "$(location " + M4 + ")",
+        "$(exe " + M4 + ")",
         "2.6.4",
     ],
     env = {
         "PATH": "$(location :generator-path)",
-        "BOOTSTRAP_SHELL": "$(location " + BASH + ")",
+        "BOOTSTRAP_SHELL": "$(exe " + BASH + ")",
     },
     env_tool = "cellar//bootstrap/stage1/tools:withenv",
     tool = "cellar//bootstrap/stage1/tools:capture",
@@ -288,8 +283,8 @@ filegroup(
         configured_tool(
             name = "flex-" + stage,
             env = {
-                "M4": "$(location " + M4 + ")",
-                "BOOTSTRAP_SHELL": "$(location " + BASH + ")",
+                "M4": "$(exe " + M4 + ")",
+                "BOOTSTRAP_SHELL": "$(exe " + BASH + ")",
             },
             env_tool = "cellar//bootstrap/stage1/tools:withenv",
             tool = ":flex-" + stage + "-bin",
@@ -435,10 +430,10 @@ command_test(
     name = "diagnostic",
     args = [
         "1",
-        "$(location cellar//bootstrap/stage1/tools:withenv)",
-        "M4=$(location " + M4 + ")",
+        "$(exe cellar//bootstrap/stage1/tools:withenv)",
+        "M4=$(exe " + M4 + ")",
         "--",
-        "$(location :flex-regenerated-bin)",
+        "$(exe :flex-regenerated-bin)",
         "-t",
         "$(location cellar//bootstrap/stage1/flex-bootstrap:malformed.l)",
     ],
@@ -449,7 +444,7 @@ command_test(
     name = "missing-m4",
     args = [
         "1",
-        "$(location :flex-regenerated-bin)",
+        "$(exe :flex-regenerated-bin)",
         "-t",
         "$(location cellar//bootstrap/stage1/flex-bootstrap:scanner.l)",
     ],

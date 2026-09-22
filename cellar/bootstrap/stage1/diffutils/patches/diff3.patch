@@ -1,0 +1,7 @@
+--- before
++++ after
+@@ -1 +1 @@
+-execve (diff_program, (char **) argv, environ);
+\ No newline at end of file
++execvp (diff_program, (char **) argv);
+\ No newline at end of file

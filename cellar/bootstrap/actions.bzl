@@ -1,8 +1,10 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# Native bootstrap tools deliberately use attrs.dep: cellar target constraints
-# differ from the repository execution platform's constraints.
+# Executed tools are configured for the cellar-owned Linux/x86_64 executor.
+
+load("@cellar//bootstrap:host.bzl", "host_test_executor")
+load("@cellar//bootstrap/platforms:rules.bzl", "native_attrs")
 
 def _generate_impl(ctx):
     output = ctx.actions.declare_output(ctx.attrs.output, dir = ctx.attrs.directory)
@@ -49,10 +51,10 @@ def _generate_impl(ctx):
         sub_targets = {path: [DefaultInfo(default_output = output.project(path))] for path in ctx.attrs.files},
     )]
 
-generate = rule(impl = _generate_impl, attrs = {
-    "tool": attrs.dep(providers = [RunInfo]),
+_generate_rule = rule(impl = _generate_impl, attrs = {
+    "tool": attrs.exec_dep(providers = [RunInfo]),
     "source_tree": attrs.option(attrs.source(), default = None),
-    "source_alias": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
+    "source_alias": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
     "args": attrs.list(attrs.arg(), default = []),
     "env": attrs.dict(attrs.string(), attrs.arg(), default = {}),
     "inputs": attrs.list(attrs.source(), default = []),
@@ -60,11 +62,14 @@ generate = rule(impl = _generate_impl, attrs = {
     "output_flags": attrs.list(attrs.string(), default = []),
     "directory": attrs.bool(default = False),
     "files": attrs.list(attrs.string(), default = []),
-    "chdir": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
-    "capture": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
+    "chdir": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
+    "capture": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
     "stdin": attrs.option(attrs.source(), default = None),
     "working_directory": attrs.option(attrs.source(), default = None),
 })
+
+def generate(**kwargs):
+    _generate_rule(**native_attrs(kwargs))
 
 def _concatenate_impl(ctx):
     output = ctx.actions.declare_output(ctx.attrs.output)
@@ -76,11 +81,14 @@ def _concatenate_impl(ctx):
     return [DefaultInfo(default_output = output)]
 
 # catm accepts the output first, followed by an ordered list of inputs.
-concatenate = rule(impl = _concatenate_impl, attrs = {
-    "tool": attrs.dep(providers = [RunInfo]),
+_concatenate_rule = rule(impl = _concatenate_impl, attrs = {
+    "tool": attrs.exec_dep(providers = [RunInfo]),
     "inputs": attrs.list(attrs.source()),
     "output": attrs.string(default = "out"),
 })
+
+def concatenate(**kwargs):
+    _concatenate_rule(**native_attrs(kwargs))
 
 def _configured_tool_impl(ctx):
     command = cmd_args(ctx.attrs.tool[RunInfo], ctx.attrs.args)
@@ -93,12 +101,15 @@ def _configured_tool_impl(ctx):
 
 # Preserve artifact dependencies in both arguments and environment values.
 # Consumers must use RunInfo; DefaultInfo refers to the underlying executable.
-configured_tool = rule(impl = _configured_tool_impl, attrs = {
-    "tool": attrs.dep(providers = [RunInfo]),
+_configured_tool_rule = rule(impl = _configured_tool_impl, attrs = {
+    "tool": attrs.exec_dep(providers = [RunInfo]),
     "args": attrs.list(attrs.arg(), default = []),
     "env": attrs.dict(attrs.string(), attrs.arg(), default = {}),
-    "env_tool": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
+    "env_tool": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
 })
+
+def configured_tool(**kwargs):
+    _configured_tool_rule(**native_attrs(kwargs))
 
 def _command_test_impl(ctx):
     command = cmd_args(cmd_args(hidden = ctx.attrs.inputs), ctx.attrs.tool[RunInfo], ctx.attrs.args)
@@ -106,16 +117,27 @@ def _command_test_impl(ctx):
         type = "simple",
         command = [command],
         env = ctx.attrs.env,
+        labels = ctx.attrs.labels,
+        default_executor = host_test_executor(ctx.attrs.host_executor) if ctx.attrs.host_executor else None,
         run_from_project_root = True,
         use_project_relative_paths = True,
     )]
 
-command_test = rule(impl = _command_test_impl, attrs = {
-    "tool": attrs.dep(providers = [RunInfo]),
+_command_test_rule = rule(impl = _command_test_impl, attrs = {
+    "tool": attrs.exec_dep(providers = [RunInfo]),
     "args": attrs.list(attrs.arg(), default = []),
     "env": attrs.dict(attrs.string(), attrs.arg(), default = {}),
     "inputs": attrs.list(attrs.source(), default = []),
+    "labels": attrs.list(attrs.string(), default = []),
+    "host_executor": attrs.option(attrs.dep(), default = None),
 })
+
+# `host_paths` runs the test where the host's system paths stay readable, for
+# checks that bootstrap programs ignore the host tools next to them.
+def command_test(host_paths = False, **kwargs):
+    if host_paths:
+        kwargs["host_executor"] = "cellar//bootstrap/platforms:host-tests"
+    _command_test_rule(**native_attrs(kwargs))
 
 def _installed_tool_impl(ctx):
     path = ctx.attrs.path
@@ -130,7 +152,10 @@ def _installed_tool_impl(ctx):
 
 # A runnable projection retains the complete installation as an input: the
 # executable can locate its declared runtime, headers and helpers at runtime.
-installed_tool = rule(impl = _installed_tool_impl, attrs = {
+_installed_tool_rule = rule(impl = _installed_tool_impl, attrs = {
     "installation": attrs.source(),
     "path": attrs.string(),
 })
+
+def installed_tool(**kwargs):
+    _installed_tool_rule(**native_attrs(kwargs))

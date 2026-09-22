@@ -1,6 +1,0 @@
-      base = try_dir (getenv ("TMPDIR"), base);
-      if (!base || !*base)
-        {
-          fputs ("libiberty: a writable TMPDIR is required\n", stderr);
-          exit (EXIT_FAILURE);
-        }

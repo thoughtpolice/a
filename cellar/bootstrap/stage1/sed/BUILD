@@ -263,7 +263,7 @@ command_test(
     name = "malformed-script",
     args = [
         "1",
-        "$(location :sed)",
+        "$(exe :sed)",
         "-e",
         "s/missing/",
         "$(location :backrefs-input)",

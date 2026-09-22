@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "concatenate", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
-load("@cellar//bootstrap:source.bzl", "write_file")
+load("@cellar//bootstrap:source.bzl", "exact_patch", "write_file")
 load("@cellar//bootstrap/stage0-posix/mescc-tools-extra:defs.bzl", "cc")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 
@@ -67,22 +67,29 @@ command_test(
     name = "capture-exit-status",
     args = [
         "37",
-        "$(location :capture)",
+        "$(exe :capture)",
         "/dev/null",
-        "$(location :capture-probe)",
+        "$(exe :capture-probe)",
         "37",
         "argument",
     ],
     tool = ":expect-exit",
 )
 
+# Missing executables stay inside a declared input directory, including in
+# process traces used to audit the bootstrap's execution closure.
+filegroup(
+    name = "missing-program-directory",
+    srcs = {},
+)
+
 command_test(
     name = "capture-exec-failure",
     args = [
         "127",
-        "$(location :capture)",
+        "$(exe :capture)",
         "/dev/null",
-        "/nonexistent-bootstrap-program",
+        "$(location :missing-program-directory)/missing-program",
     ],
     tool = ":expect-exit",
 )
@@ -122,11 +129,11 @@ command_test(
     name = "capture-missing-input",
     args = [
         "1",
-        "$(location :capture)",
+        "$(exe :capture)",
         "--stdin",
         "/nonexistent-bootstrap-input",
         "/dev/null",
-        "$(location :capture-probe)",
+        "$(exe :capture-probe)",
     ],
     tool = ":expect-exit",
 )
@@ -249,54 +256,32 @@ command_test(
     name = "withenv-failure",
     args = [
         "127",
-        "$(location :withenv)",
+        "$(exe :withenv)",
         "--",
-        "/nonexistent-bootstrap-program",
+        "$(location :missing-program-directory)/missing-program",
     ],
     tool = ":expect-exit",
 )
 
+POPEN_ENTRY = "FILE *popen(const char *cmd, const char *mode)\n{\n"
+
 # Use the matching musl implementations, preserving their signal/stdio semantics.
 # Only the shell path changes; an absent declared shell fails instead of finding
 # the executor's /bin/sh. These objects have private bootstrap symbol names.
-write_file(
-    name = "shell-path.before",
-    content = '"/bin/sh"',
-)
-
-write_file(
-    name = "shell-path.after",
-    content = "shell",
-)
-
 [
     [
-        write_file(
-            name = name + "-guard.before",
-            content = signature + "\n{\n",
-        ),
-        write_file(
-            name = name + "-guard.after",
-            content = signature + "\n{\n\tconst char *shell = getenv(\"BOOTSTRAP_SHELL\");\n" +
-                      "\tif (!shell || !*shell) { errno = ENOENT; return " + failure + "; }\n",
-        ),
-        generate(
+        exact_patch(
             name = name + "-guarded",
-            args = [
-                "$(location " + MUSL + ":source-restored[" + path + "])",
-                "$(location :" + name + "-guard.before)",
-                "$(location :" + name + "-guard.after)",
-            ],
-            tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+            src = MUSL + ":source-restored[" + path + "]",
+            after = prefix + "\tconst char *shell = getenv(\"BOOTSTRAP_SHELL\");\n" + null_command +
+                    "\tif (!shell || !*shell) { errno = ENOENT; return " + failure + "; }\n",
+            before = before,
         ),
-        generate(
+        exact_patch(
             name = name + "-source",
-            args = [
-                "$(location :" + name + "-guarded)",
-                "$(location :shell-path.before)",
-                "$(location :shell-path.after)",
-            ],
-            tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+            src = ":" + name + "-guarded",
+            after = "shell",
+            before = '"/bin/sh"',
         ),
         c_object(
             name = "shell-" + name + ".o",
@@ -323,9 +308,11 @@ write_file(
             toolchain = MUSL + ":restored-predecessor",
         ),
     ]
-    for name, path, signature, failure in [
-        ("system", "src/process/system.c", "int system(const char *cmd)", "-1"),
-        ("popen", "src/stdio/popen.c", "FILE *popen(const char *cmd, const char *mode)", "NULL"),
+    # system(NULL) reports whether a shell is available, after musl's
+    # cancellation point. popen has no such query and checks on entry.
+    for name, path, before, prefix, null_command, failure in [
+        ("system", "src/process/system.c", "\tif (!cmd) return 1;\n", "", "\tif (!cmd) return shell && *shell;\n", "-1"),
+        ("popen", "src/stdio/popen.c", POPEN_ENTRY, POPEN_ENTRY, "", "NULL"),
     ]
 ]
 

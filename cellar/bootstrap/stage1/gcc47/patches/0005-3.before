@@ -1,3 +1,0 @@
-/* Whether we have Bionic libc runtime */
-#undef TARGET_HAS_BIONIC
-#define TARGET_HAS_BIONIC (OPTION_BIONIC)

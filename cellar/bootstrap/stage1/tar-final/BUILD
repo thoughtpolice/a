@@ -153,7 +153,7 @@ command_test(
 
 generate(
     name = "roundtrip-work",
-    args = ["$(location :tar)"],
+    args = ["$(exe :tar)"],
     chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
     directory = True,
     env = {"TZ": "UTC0"},

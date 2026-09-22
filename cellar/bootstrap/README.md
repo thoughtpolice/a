@@ -8,10 +8,34 @@ C/C++, binutils 2.30, musl 1.2.5 and bootstrap userland through
 `cellar//bootstrap/stage1:all`. Its source regeneration, fixed-point comparisons,
 installation and validation are declared entirely in cellar.
 
-This is an attempt to port the GNU Guix _Full-Source Bootstrap_ project to Buck2
-rules. The goal is that one day we might actually emit a fully usable C
-compiler, right from the source code, that we can use to compile all third-party
-code.
+Cellar builds from anywhere in the repository. Inside `cellar/`, its
+`.buckroot` makes it a standalone Buck project with its own configuration, no
+prelude and no inherited PACKAGE policy. Elsewhere, the parent project builds
+the same `cellar//` targets and registers cellar's executor next to its own.
+All rules and platform definitions are local either way. Both target and
+execution configurations require **x86_64 Linux** throughout the native
+bootstrap. The closure audits run from `cellar/`, since only the standalone
+project shows that nothing outside cellar is loaded. CI does not build cellar
+yet.
+
+```sh
+buck2 build @cellar//bootstrap/platforms/sandbox \
+  cellar//bootstrap/stage1:all --show-output
+```
+
+Package notes that run `../buck/bin/buck2` assume `cellar/` as the working
+directory. The Buck binary itself is trusted infrastructure and can live
+outside cellar.
+
+The [platform guide](platforms/README.md) describes the cellar-local Linux
+executor and remote-only mode for Windows, macOS, and Linux clients. Remote
+workers must be x86_64 Linux; a live RBE build still needs an endpoint and
+validation. `buck2 run` executes the finished program on the client, so clients
+that cannot run Linux ELF programs should use remote `build` and `test`.
+
+The project began as a port of the GNU Guix _Full-Source Bootstrap_ approach.
+Its current native compiler sequence follows the pinned live-bootstrap recipes
+described in the [stage1 implementation notes](stage1/README.md).
 
 See the Guix blog for more background:
 <https://guix.gnu.org/blog/2023/the-full-source-bootstrap-building-from-source-all-the-way-down/>
@@ -22,21 +46,24 @@ And the following repositories, where most of this code was cribbed from:
 - https://github.com/oriansj/stage0-posix, commit
   `45d90f5955b6907dc6cdea9ebafce558359edcd3`
 
-Note that because this port uses buck2 itself, it isn't "trustable" in the same
-way the `kaem` based build is: buck2 is a foreign contaminant that could in
-theory poison the build process. But our goal is more to have a fully hermetic
-and "closed world" build.
+Buck2 and the running kernel remain trusted infrastructure. Source regeneration,
+compiler fixed points, declared dependency audits, and process/file tracing
+provide separate checks of the bootstrap; none removes that trust boundary.
 
 ## The full picture
 
-The first goal is to try and get roughly to where GNU Mes is today for
-bootstrapping Guix: an ancient triplet of GNU tools that we can use to start
-everything off. Once we have this, we might actually have gone far enough to see
-this through.
+The implemented compiler chain is stage0 → Mes/MesCC → TCC → GCC 4.0.4 →
+GCC 4.7.4 C/C++, with native binutils, musl, and a useful static userland.
+BUILD files describe package composition and source generators directly;
+package-wide configure, Make, or kaem scripts do not drive the graph.
 
-After that, we need to try and get to a modern baseline compiler as quickly as
-possible. Practically this means somehow getting to a modern build of LLVM with
-as few intermediate hops as we can.
+Small source adaptations use the M2-built [exact patch helper](stage1/simple-patch/README.md).
+Each change has one `.patch` file, or short `before`/`after` strings in BUILD.
+The helper requires one exact match and writes a separate output, retaining the
+original source tree and avoiding paired fragment files.
+
+A later goal is to reach a modern compiler such as LLVM with as few additional
+compiler generations as practical. This is outside the current native endpoint.
 
 In the long run, I think it might be possible to compile clang/lld to wasm,
 which we could then use as a way of bootstrapping a compiler/linker on all
@@ -82,7 +109,7 @@ filenames), while `bootstrap.c` comes from `M2libc/amd64/linux/bootstrap.c`:
 
 A validation script is included to verify all files match upstream:
 
-    ./stage0-posix/check-upstream.sh /path/to/stage0-posix
+    ./bootstrap/stage0-posix/check-upstream.sh /path/to/stage0-posix
 
 This checks all 164+ source files and reports any mismatches. Run it after
 any update to confirm nothing was missed or accidentally hand-edited.
@@ -95,18 +122,11 @@ They are compiled with the same M2-Mesoplanet toolchain but kept separate so
 tools: `chdirexec`, `chdirenv`, `envexec`, `bytecmp`. Mes sources are assembled from explicit archive projections in
 `mes/BUILD`; no host copy utility or preprocessed syntax blob is consumed.
 
-## TODO
+## Boundaries
 
-Roughly in the order they need to be accomplished:
-
-- stage0-posix
-  - [x] x86_64
-  - [ ] aarch64
-- [ ] mes + mescc
-  - [ ] mescc self-bootstrap
-- [ ] tinycc
-  - [ ] self-bootstrap
-- ancient tools
-  - [ ] glibc-2.2.5
-  - [ ] binutils-2.20.1
-  - [ ] gcc-2.95.3
+The current build produces only native x86_64 Linux programs. Other execution
+architectures, cross compilation, shared runtimes, multilib, additional GCC
+languages, Gold, kernel/OS bootstrapping, and modern GCC/LLVM remain deferred.
+Older stage0 architecture source mirrors do not register supported executors.
+Historical design alternatives in [CLAUDE_NOTES.md](CLAUDE_NOTES.md) are retained
+as research, not instructions for the current build.

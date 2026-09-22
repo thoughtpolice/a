@@ -13,6 +13,13 @@ audit; it does not infer per-action input declarations from a syscall trace.
 Resolved pipe descriptors, typed terminal devices and mktemp kernel entropy
 are counted separately as
 kernel communication channels, not source-file inputs or executable paths.
+Both the standalone cellar root (bootstrap/, artifacts in cell "cellar") and
+the parent repository root (cellar/bootstrap/, cell "depot-cellar") are
+recognized. Other cells and sibling workspace directories remain outside
+the bootstrap boundary. Buck's native sandbox mirrors project-relative paths
+under buck-out/<isolation>/tmp/sandbox/.tmpXXXXXX/. One such prefix may be
+removed before applying the same source, artifact, and scratch boundaries;
+the sandbox directory itself is not an allowed source or executable tree.
 """
 
 import argparse
@@ -28,6 +35,7 @@ import sys
 
 STRING = r'"(?:[^"\\]|\\.)*"'
 CALL = re.compile(r"^(\w+)\((.*)\)\s+= (.*)$")
+BOOTSTRAP_CELLS = {"cellar", "depot-cellar"}
 
 
 def review(root, prefix):
@@ -41,7 +49,7 @@ def review(root, prefix):
         raise ValueError("no per-process trace files matched " + prefix)
     for filename in files:
         pid = int(filename.rsplit(".", 1)[1])
-        for line in Path(filename).read_text().splitlines():
+        for index, line in enumerate(Path(filename).read_text().splitlines()):
             stamp, _, call = line.partition(" ")
             if not re.fullmatch(r"[0-9]+\.[0-9]+", stamp):
                 continue
@@ -54,10 +62,12 @@ def review(root, prefix):
             if not match:
                 continue
             name, args, result = match.groups()
-            events.append((float(stamp), pid, name, args, result))
+            events.append((float(stamp), pid, index, name, args, result))
             if name in ("fork", "vfork", "clone", "clone3") and re.fullmatch(r"[1-9][0-9]*", result):
                 parents[int(result)] = pid
-    events.sort()
+    # Timestamps have microsecond resolution, so one process can log several
+    # calls with the same stamp. Its own file order breaks those ties.
+    events.sort(key=lambda event: event[:3])
     states = {}
 
     def state(pid):
@@ -69,18 +79,59 @@ def review(root, prefix):
     def absolute(path, current):
         return os.path.normpath(path if path.startswith("/") else os.path.join(current["cwd"], path))
 
-    def bootstrap(path):
-        if path.startswith(root + "/cellar/bootstrap/"):
-            return True
+    def project_relative(path):
         relative = os.path.relpath(path, root).split("/")
-        return len(relative) > 5 and relative[0] == "buck-out" and relative[2:5] == ["art", "depot-cellar", "bootstrap"]
+        # SymlinkFarm::build_sync mirrors project-relative inputs, outputs and
+        # scratch under a tempfile::TempDir. Its outputs may be gone when this
+        # offline review runs, so recognize the precise recorded layout rather
+        # than depending on surviving symlinks. Unwrap at most once and retain
+        # the existing cell/package checks below; arbitrary sandbox files and
+        # nested/lookalike mirrors must not acquire bootstrap provenance.
+        if (len(relative) > 5 and relative[0] == "buck-out"
+                and relative[2:4] == ["tmp", "sandbox"]
+                and re.fullmatch(r"\.tmp[A-Za-z0-9]{6}", relative[4])):
+            relative = relative[5:]
+        return relative
+
+    def bootstrap(path):
+        relative = project_relative(path)
+        if relative[:1] == ["bootstrap"] and len(relative) > 1:
+            return True
+        if relative[:2] == ["cellar", "bootstrap"] and len(relative) > 2:
+            return True
+        if len(relative) <= 5 or relative[0] != "buck-out" or relative[2] != "art" or relative[3] not in BOOTSTRAP_CELLS:
+            return False
+        package = relative[4:]
+        # Content-based output paths put the package immediately after its
+        # cell. Older Buck layouts insert a configuration hash there.
+        if re.fullmatch(r"[0-9a-f]{16}", package[0]):
+            package = package[1:]
+        return len(package) > 1 and package[0] == "bootstrap"
 
     def allowed(path):
-        relative = os.path.relpath(path, root).split("/")
-        scratch = len(relative) > 4 and relative[0] == "buck-out" and relative[2:4] == ["tmp", "depot-cellar"]
+        relative = project_relative(path)
+        scratch = len(relative) > 4 and relative[0] == "buck-out" and relative[2] == "tmp" and relative[3] in BOOTSTRAP_CELLS
         return bootstrap(path) or scratch or path == "/dev/null"
 
-    for _, pid, name, args, result in events:
+    def exec_path(name, args, quoted, current):
+        """Resolve the executed path, or None when strace did not resolve dirfd."""
+        path = ast.literal_eval(quoted[0])
+        if name == "execve" or path.startswith("/"):
+            return absolute(path, current)
+        dirfd = args.split(",", 1)[0].strip()
+        if dirfd == "AT_FDCWD":
+            base = current["cwd"]
+        else:
+            match = re.fullmatch(r"[0-9]+<(/[^<>]*)(?:<[^>]*>)?>", dirfd)
+            if not match:
+                return None
+            base = match[1]
+        # fexecve passes the file itself as dirfd with an empty path.
+        if not path and "AT_EMPTY_PATH" in args.rsplit(",", 1)[-1]:
+            return os.path.normpath(base)
+        return os.path.normpath(os.path.join(base, path))
+
+    for _, pid, _, name, args, result in events:
         current = state(pid)
         success = not result.startswith("-1 ")
         quoted = re.findall(STRING, args)
@@ -93,7 +144,10 @@ def review(root, prefix):
             elif current["active"]:
                 errors.append({"pid": pid, "error": "unresolved fchdir", "args": args})
         if name in ("execve", "execveat"):
-            path = absolute(ast.literal_eval(quoted[0]), current)
+            path = exec_path(name, args, quoted, current)
+            if path is None:
+                errors.append({"pid": pid, "error": "unresolved execveat dirfd", "args": args})
+                continue
             if success and bootstrap(path):
                 current["active"] = True
             if success:

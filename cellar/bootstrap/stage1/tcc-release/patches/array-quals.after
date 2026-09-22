@@ -1,5 +1,0 @@
-        /* C99 parameter arrays may include qualifiers and static bounds. */
-        while (tok == TOK_RESTRICT1 || tok == TOK_RESTRICT2 ||
-               tok == TOK_RESTRICT3 || tok == TOK_CONST1 ||
-               tok == TOK_VOLATILE1 || tok == TOK_STATIC || tok == '*')
-            next();

@@ -1,1 +1,0 @@
-#if (defined __GNUC__ || defined __TINYC__) && defined __STDC__ && __STDC__

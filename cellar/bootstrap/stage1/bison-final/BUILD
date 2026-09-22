@@ -388,8 +388,8 @@ PARSER_STAGES = [("full", "cellar//bootstrap/stage1/bison:bison", ":source[src/p
         configured_tool(
             name = "bison-" + stage,
             env = {
-                "M4": "$(location cellar//bootstrap/stage1/m4-final:m4-bin)",
-                "BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash:bash)",
+                "M4": "$(exe cellar//bootstrap/stage1/m4-final:m4-bin)",
+                "BOOTSTRAP_SHELL": "$(exe cellar//bootstrap/stage1/bash:bash)",
                 "CELLAR_BOOTSTRAP_IDENTITY": "1",
                 "BISON_PKGDATADIR": "$(location :data)",
             },
@@ -465,7 +465,7 @@ PARSER_STAGES = [("full", "cellar//bootstrap/stage1/bison:bison", ":source[src/p
             name = stage + "-syntax-error",
             args = [
                 "2",
-                "$(location :" + stage + "-calculator-bin)",
+                "$(exe :" + stage + "-calculator-bin)",
                 "3+)",
                 "0",
             ],
@@ -583,7 +583,7 @@ command_test(
     name = "glr-syntax-error",
     args = [
         "2",
-        "$(location :glr-test-bin)",
+        "$(exe :glr-test-bin)",
         "abc",
         "0",
     ],
@@ -661,7 +661,7 @@ command_test(
     name = "missing-m4",
     args = [
         "1",
-        "$(location :bison-full-bin)",
+        "$(exe :bison-full-bin)",
         "-o",
         "/dev/null",
         "$(location cellar//bootstrap/stage1/bison:calculator.y)",

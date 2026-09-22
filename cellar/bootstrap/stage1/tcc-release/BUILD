@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object", "compiler", "sysroot")
 load("@cellar//bootstrap/stage1/tcc:sources.bzl", "COMPILER_SOURCES", "LIBC_SOURCES")
 load(":sources.bzl", "TCC_FILES")
@@ -40,15 +40,11 @@ write_file(
 
 # Architecture-independent reference fixes, plus direct static x86_64 calls.
 [
-    generate(
+    exact_patch(
         name = name,
-        args = [
-            "$(location " + src + ")",
-            "$(location :patches/" + patch + ".before)",
-            "$(location :patches/" + patch + ".after)",
-        ],
+        src = src,
         output = output,
-        tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+        patch = ":patches/" + patch + ".patch",
     )
     for name, src, patch, output in [
         ("tcctools-remove", ":tcc-0.9.27[tcctools.c]", "remove-fileopen", "tcctools.c"),
@@ -302,7 +298,7 @@ command_test(
     name = "mes0-diagnostics",
     args = [
         "1",
-        "$(location :tcc-mes0)",
+        "$(exe :tcc-mes0)",
         "-c",
         "$(location " + BOOT + ":test-source[tests/invalid.c])",
         "-o",
@@ -315,15 +311,11 @@ command_test(
 # The compiler remains linked with its predecessor runtime while doing so.
 MES = "cellar//bootstrap/mes"
 
-generate(
+exact_patch(
     name = "abtol.c",
-    args = [
-        "$(location " + MES + ":mes-src[lib/mes/abtol.c])",
-        "$(location :patches/abtol.before)",
-        "$(location :patches/abtol.after)",
-    ],
+    src = MES + ":mes-src[lib/mes/abtol.c]",
     output = "abtol.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/abtol.patch",
 )
 
 [
@@ -810,7 +802,7 @@ command_test(
     name = "mes1-diagnostics",
     args = [
         "1",
-        "$(location :tcc-mes0)",
+        "$(exe :tcc-mes0)",
         "-c",
         "$(location " + BOOT + ":test-source[tests/invalid.c])",
         "-o",

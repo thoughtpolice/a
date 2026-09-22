@@ -786,6 +786,27 @@ rustc_flags = select({
 - Release: Slow compilation, small binaries, optimized
 - Different cache entries (debug and release don't share artifacts)
 
+### Standalone Cells
+
+`cellar` is also a Buck project of its own, with a `.buckroot`, its own
+platforms and executors, and no prelude. It configures its targets the same
+way whether Buck starts inside `cellar/` or at the repository root. The root
+configuration handles such a cell in three places:
+
+- `[parser] target_platform_detector_spec` maps the cell's targets to its own
+  platform.
+- `root//buck/platforms:execution` registers the cell's executors after the
+  repository's own. Buck picks the first executor a target accepts, and a
+  target that none accepts is an error, never an unspecified executor.
+- `[platforms] standalone_cells` names the cell, so the configuration
+  constructor in `buck/shims/package.bzl` applies no modifiers to its
+  platforms. Build modes never reconfigure it, and its exec deps share its
+  target configuration.
+
+A client with no root platform, such as an x86_64 Mac, registers no root
+executor. Root targets then fail to configure there, but a standalone cell's
+remote executors still work.
+
 ### Platform Selection with `select()`
 
 `select()` enables platform-specific configuration:

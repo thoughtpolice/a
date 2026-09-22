@@ -1,1 +1,0 @@
-    DEF_ASM_OP1(fldcw, 0xd9, 5, OPC_MODRM, OPT_EA )

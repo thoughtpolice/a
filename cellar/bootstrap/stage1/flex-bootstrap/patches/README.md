@@ -17,3 +17,6 @@ The yyunput skeleton definition uses the existing YYFARGS2 macro, adding the
 scanner argument consistently in reentrant mode. The original handwritten
 argument list omitted it. The reentrant test exercises unput on a separate
 scanner instance. This adaptation is copyright 2026 Austin Seipp, BSD-2-Clause.
+
+Each patch without its own SPDX notice has a REUSE `.license` file beside it
+that records its copyright holders and license.

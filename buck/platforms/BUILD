@@ -2,9 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", "shims")
-load(":defs.bzl", "default_platforms", "generate_platforms")
+load(":defs.bzl", "default_platforms", "execution_platforms", "generate_platforms")
 
 generate_platforms(default_platforms)
+
+execution_platforms(
+    name = "execution",
+    registrations = [
+        ":default",
+        "cellar//bootstrap/platforms:execution",
+    ],
+)
 
 # The cpu each linux triple names in config//cpu/constraints. A linux triple
 # describes a machine the prelude can also name with a cpu and an os, so these

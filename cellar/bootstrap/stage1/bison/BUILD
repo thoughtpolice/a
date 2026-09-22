@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 load(":sources.bzl", "DATA", "HEADERS")
 
@@ -230,8 +230,7 @@ write_file(
 
 [export_file(name = path) for path in glob([
     "seed/*",
-    "patches/*.before",
-    "patches/*.after",
+    "patches/*.patch",
 ])]
 
 download_file(
@@ -259,14 +258,10 @@ untar(
 )
 
 [
-    generate(
+    exact_patch(
         name = name + "-source",
-        args = [
-            "$(location :bison-3.4.1[" + path + "])",
-            "$(location :patches/" + name + ".before)",
-            "$(location :patches/" + name + ".after)",
-        ],
-        tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+        src = ":bison-3.4.1[" + path + "]",
+        patch = ":patches/" + name + ".patch",
     )
     for name, path in [
         ("m4", "src/output.c"),
@@ -382,8 +377,8 @@ c_binary(
 configured_tool(
     name = "bison-seed",
     env = {
-        "M4": "$(location cellar//bootstrap/stage1/m4:m4-bin)",
-        "BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash-bootstrap:bash)",
+        "M4": "$(exe cellar//bootstrap/stage1/m4:m4-bin)",
+        "BOOTSTRAP_SHELL": "$(exe cellar//bootstrap/stage1/bash-bootstrap:bash)",
         "BISON_PKGDATADIR": "$(location :data)",
     },
     env_tool = "cellar//bootstrap/stage1/tools:withenv",
@@ -463,7 +458,7 @@ command_test(
     name = "seed-syntax-error",
     args = [
         "2",
-        "$(location :seed-calculator-bin)",
+        "$(exe :seed-calculator-bin)",
         "3+)",
         "0",
     ],
@@ -546,8 +541,8 @@ PARSER_STAGES = [
         configured_tool(
             name = "bison-" + stage,
             env = {
-                "M4": "$(location cellar//bootstrap/stage1/m4:m4-bin)",
-                "BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash-bootstrap:bash)",
+                "M4": "$(exe cellar//bootstrap/stage1/m4:m4-bin)",
+                "BOOTSTRAP_SHELL": "$(exe cellar//bootstrap/stage1/bash-bootstrap:bash)",
                 "BISON_PKGDATADIR": "$(location :data)",
             },
             env_tool = "cellar//bootstrap/stage1/tools:withenv",
@@ -619,7 +614,7 @@ PARSER_STAGES = [
             name = stage + "-syntax-error",
             args = [
                 "2",
-                "$(location :" + stage + "-calculator-bin)",
+                "$(exe :" + stage + "-calculator-bin)",
                 "3+)",
                 "0",
             ],
@@ -737,7 +732,7 @@ command_test(
     name = "glr-syntax-error",
     args = [
         "2",
-        "$(location :glr-test-bin)",
+        "$(exe :glr-test-bin)",
         "abc",
         "0",
     ],

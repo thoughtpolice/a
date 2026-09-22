@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "ungz", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "ungz", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 load(":sources.bzl", "HEADERS")
 
@@ -404,34 +404,22 @@ untar(
     "tests/*.sh",
 ])]
 
-generate(
+exact_patch(
     name = "shell-source",
-    args = [
-        "$(location :bash-2.05b[shell.c])",
-        "$(location :patches/user-info.before)",
-        "$(location :patches/user-info.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":bash-2.05b[shell.c]",
+    patch = ":patches/user-info.patch",
 )
 
-generate(
+exact_patch(
     name = "externs-source",
-    args = [
-        "$(location :bash-2.05b[externs.h])",
-        "$(location :patches/zcatfd.before)",
-        "$(location :patches/zcatfd.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":bash-2.05b[externs.h]",
+    patch = ":patches/zcatfd.patch",
 )
 
-generate(
+exact_patch(
     name = "redir-source",
-    args = [
-        "$(location :bash-2.05b[redir.c])",
-        "$(location :patches/heredoc.before)",
-        "$(location :patches/heredoc.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":bash-2.05b[redir.c]",
+    patch = ":patches/heredoc.patch",
 )
 
 SOURCE = {path: ":bash-2.05b[" + path + "]" for path in FILES} | {
@@ -633,7 +621,7 @@ command_test(
     name = "reject-syntax",
     args = [
         "2",
-        "$(location :bash)",
+        "$(exe :bash)",
         "--noprofile",
         "--norc",
         "-c",
@@ -647,7 +635,7 @@ command_test(
     name = "missing-command",
     args = [
         "127",
-        "$(location :bash)",
+        "$(exe :bash)",
         "--noprofile",
         "--norc",
         "-c",

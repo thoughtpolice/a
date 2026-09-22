@@ -1,2 +1,0 @@
-#undef SCALE
-#define SCALE(x)

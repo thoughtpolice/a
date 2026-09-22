@@ -1,3 +1,0 @@
-extern char *getenv(const char *name);
-extern int  strcmp (const char *s1, const char *s2);
-extern int  strncmp(const char *s1, const char *s2, int n);

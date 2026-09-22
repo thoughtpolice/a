@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
-load("@cellar//bootstrap:source.bzl", "write_file")
+load("@cellar//bootstrap:source.bzl", "exact_patch", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 
 GCC = "cellar//bootstrap/stage1/gcc47"
@@ -284,7 +284,7 @@ command_test(
     name = "malformed-script",
     args = [
         "1",
-        "$(location :sed-bin)",
+        "$(exe :sed-bin)",
         "-e",
         "s/missing/",
         "$(location :backrefs-input)",
@@ -293,30 +293,17 @@ command_test(
 )
 
 # Locale selection is needed even when message catalogs are disabled.
-write_file(
-    name = "locale.before",
-    content = "#if ENABLE_NLS\n#if HAVE_SETLOCALE\n  /* Set locale according to user's wishes.  */\n  setlocale (LC_ALL, \"\");\n#endif\n\n  /* Tell program which translations to use and where to find.  */",
-)
-
-write_file(
-    name = "locale.after",
-    content = "#if HAVE_SETLOCALE\n  /* Set locale according to user's wishes.  */\n  setlocale (LC_ALL, \"\");\n#endif\n\n#if ENABLE_NLS\n  /* Tell program which translations to use and where to find.  */",
-)
-
-generate(
+exact_patch(
     name = "locale-source",
-    args = [
-        "$(location cellar//bootstrap/stage1/sed:sed-4.0.9[sed/sed.c])",
-        "$(location :locale.before)",
-        "$(location :locale.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = "cellar//bootstrap/stage1/sed:sed-4.0.9[sed/sed.c]",
+    after = "#if HAVE_SETLOCALE\n  /* Set locale according to user's wishes.  */\n  setlocale (LC_ALL, \"\");\n#endif\n\n#if ENABLE_NLS\n  /* Tell program which translations to use and where to find.  */",
+    before = "#if ENABLE_NLS\n#if HAVE_SETLOCALE\n  /* Set locale according to user's wishes.  */\n  setlocale (LC_ALL, \"\");\n#endif\n\n  /* Tell program which translations to use and where to find.  */",
 )
 
 configured_tool(
     name = "sed",
     env = {
-        "BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash:bash)",
+        "BOOTSTRAP_SHELL": "$(exe cellar//bootstrap/stage1/bash:bash)",
         "CELLAR_BOOTSTRAP_IDENTITY": "1",
     },
     env_tool = "cellar//bootstrap/stage1/tools:withenv",
@@ -334,9 +321,9 @@ generate(
         "--noprofile",
         "--norc",
         "source/in-place.sh",
-        "$(location :sed-bin)",
-        "$(location cellar//bootstrap/stage1/coreutils-final:chmod)",
-        "$(location cellar//bootstrap/stage1/coreutils-final:stat)",
+        "$(exe :sed-bin)",
+        "$(exe cellar//bootstrap/stage1/coreutils-final:chmod)",
+        "$(exe cellar//bootstrap/stage1/coreutils-final:stat)",
     ],
     chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
     directory = True,
@@ -368,7 +355,7 @@ command_test(
     name = "missing-shell",
     args = [
         "4",
-        "$(location :sed-bin)",
+        "$(exe :sed-bin)",
         "e",
         "$(location :shell-command-input)",
     ],

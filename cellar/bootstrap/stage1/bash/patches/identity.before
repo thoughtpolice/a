@@ -1,3 +1,0 @@
-  struct passwd *entry;
-
-  /* Don't fetch this more than once. */

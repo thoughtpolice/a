@@ -930,7 +930,7 @@ command_test(
     name = "reject-malformed-magic",
     args = [
         "1",
-        "$(location :extract-magic)",
+        "$(exe :extract-magic)",
         "$(location :malformed-magic.c)",
     ],
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
@@ -940,7 +940,7 @@ command_test(
     name = "reject-invalid-wheel-size",
     args = [
         "1",
-        "$(location :wheel-gen)",
+        "$(exe :wheel-gen)",
         "0",
     ],
     tool = "cellar//bootstrap/stage1/tools:expect-exit",

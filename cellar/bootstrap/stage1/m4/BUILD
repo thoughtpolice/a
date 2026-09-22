@@ -242,7 +242,7 @@ c_binary(
 
 configured_tool(
     name = "m4",
-    env = {"BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash-bootstrap:bash)"},
+    env = {"BOOTSTRAP_SHELL": "$(exe cellar//bootstrap/stage1/bash-bootstrap:bash)"},
     env_tool = "cellar//bootstrap/stage1/tools:withenv",
     tool = ":m4-bin",
 )
@@ -268,9 +268,9 @@ configured_tool(
     name = "capture-m4",
     args = [
         "result",
-        "$(location :m4-bin)",
+        "$(exe :m4-bin)",
     ],
-    env = {"BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash-bootstrap:bash)"},
+    env = {"BOOTSTRAP_SHELL": "$(exe cellar//bootstrap/stage1/bash-bootstrap:bash)"},
     env_tool = "cellar//bootstrap/stage1/tools:withenv",
     tool = "cellar//bootstrap/stage1/tools:capture",
 )
@@ -362,7 +362,7 @@ command_test(
     name = "diagnostic",
     args = [
         "1",
-        "$(location :m4-bin)",
+        "$(exe :m4-bin)",
         "$(location :tests/malformed.m4)",
     ],
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
@@ -379,7 +379,7 @@ command_test(
     name = "missing-temporary-directory",
     args = [
         "1",
-        "$(location :m4-bin)",
+        "$(exe :m4-bin)",
         "$(location :large-diversion)",
     ],
     env = {"TMPDIR": ""},

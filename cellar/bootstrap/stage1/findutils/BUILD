@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 
 GCC = "cellar//bootstrap/stage1/gcc47"
@@ -503,24 +503,11 @@ HEADER_CONFIG = {
 ) for name, (template, values) in HEADER_CONFIG.items()]
 
 # Default xargs echo follows the explicitly supplied PATH.
-write_file(
-    name = "echo.before",
-    content = 'char *default_cmd = "/bin/echo";',
-)
-
-write_file(
-    name = "echo.after",
-    content = 'char *default_cmd = "echo";',
-)
-
-generate(
+exact_patch(
     name = "xargs.c",
-    args = [
-        "$(location :findutils-4.2.33[xargs/xargs.c])",
-        "$(location :echo.before)",
-        "$(location :echo.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":findutils-4.2.33[xargs/xargs.c]",
+    after = 'char *default_cmd = "echo";',
+    before = 'char *default_cmd = "/bin/echo";',
 )
 
 filegroup(
@@ -639,6 +626,29 @@ generate(
         "s|@bigram@|bigram|g",
         "-e",
         "s|PATH=/bin:/usr/bin:${BINDIR}|PATH=${BINDIR}:$PATH|",
+        # Quote every tool, database and temporary path so an installation
+        # or TMPDIR containing spaces still works. The su command strings
+        # keep upstream's form, since the installation delivers no su.
+        "-e",
+        "s|^    \\$find |    \"$find\" |",
+        "-e",
+        "s|\\$frcode \\$frcode_options|\"$frcode\" $frcode_options|",
+        "-e",
+        "s|^\\$bigram \\$bigram_opts < \\$filelist|\"$bigram\" $bigram_opts < \"$filelist\"|",
+        "-e",
+        "s|^\\$code \\$bigrams < \\$filelist|\"$code\" \"$bigrams\" < \"$filelist\"|",
+        "-e",
+        "s|> \\$bigrams$|> \"$bigrams\"|",
+        "-e",
+        "s|> \\$filelist$|> \"$filelist\"|",
+        "-e",
+        "s|rm -f \\$bigrams \\$filelist|rm -f \"$bigrams\" \"$filelist\"|",
+        "-e",
+        "s|\\$LOCATE_DB\\.n|\"$LOCATE_DB.n\"|g",
+        "-e",
+        "s|generate \"\\$LOCATE_DB\\.n\"\"|generate $LOCATE_DB.n\"|",
+        "-e",
+        "s|\\$LOCATE_DB$|\"$LOCATE_DB\"|",
         "$(location :source[locate/updatedb.sh])",
     ],
     capture = "cellar//bootstrap/stage1/tools:capture",
@@ -720,7 +730,7 @@ write_file(
                 "$(location :installation)",
                 "$(location cellar//bootstrap/stage1/coreutils-final:installation[bin])",
                 "$(location :script-tools[bin])",
-                "$(location cellar//bootstrap/stage1/bash:bash)",
+                "$(exe cellar//bootstrap/stage1/bash:bash)",
             ],
             chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
             directory = True,

@@ -116,7 +116,16 @@ global_config_paths = buck/mode
 # set the default execution platform for builds on this machine. NOTE: this
 # platform definition is where remote execution (optionally) is enabled via
 # ExecutionPlatformRegistrationInfo
-execution_platforms = root//buck/platforms:default
+execution_platforms = root//buck/platforms:execution
+
+[platforms]
+# Cells that are also standalone Buck projects, with their own .buckroot,
+# platforms and executors, and no prelude. Each builds the same way from either
+# root: the detector below maps its targets to its own platform, the execution
+# platforms above include its executor, and buck/shims/package.bzl applies no
+# modifiers to its platforms. Spell them canonically, as Buck names a label's
+# cell.
+standalone_cells = depot-cellar
 
 [parser]
 # set the default execution platform for several target patterns. this is
@@ -131,10 +140,13 @@ target_platform_detector_spec = \
 [project]
 # things that should not be scanned by buck2 for file changes. if you notice
 # something strange is being scanned, it might be worth adding here.
+# cellar/ is also a standalone project, whose builds from inside cellar/ write
+# their own buck-out there.
 ignore = \
   .jj, \
   .git, \
   .direnv, \
   .watchman-cookie**, \
   .gdb_history**, \
-  **.bck
+  **.bck, \
+  cellar/buck-out

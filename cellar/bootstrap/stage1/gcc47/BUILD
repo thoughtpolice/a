@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "concatenate", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "bootstrap_artifact", "c_binary", "c_library", "c_object", "compiler", "sysroot")
 load(":sources.bzl", "COMPILER_FILES", "DRIVER_FILES", "EARLY_GENERATOR_FILES", "GTYPE_FILES", "LIBRARY_FILES", "MACHINE_GENERATOR_FILES", "RUNTIME_FILES")
 
@@ -132,47 +132,21 @@ untar(
 
 # The checked-in header received the 2009 copyright update, but its generator's
 # output string did not. Preserve the published notice when regenerating it.
-write_file(
-    name = "unicode-notice.before",
-    content = "Copyright (C) 2003, 2005 Free Software Foundation, Inc.",
-)
-
-write_file(
-    name = "unicode-notice.after",
-    content = "Copyright (C) 2003, 2005, 2009 Free Software Foundation, Inc.",
-)
-
-generate(
+exact_patch(
     name = "makeucnid-notice.c",
-    args = [
-        "$(location :gcc-4.7.4[libcpp/makeucnid.c])",
-        "$(location :unicode-notice.before)",
-        "$(location :unicode-notice.after)",
-    ],
+    src = ":gcc-4.7.4[libcpp/makeucnid.c]",
+    after = "Copyright (C) 2003, 2005, 2009 Free Software Foundation, Inc.",
+    before = "Copyright (C) 2003, 2005 Free Software Foundation, Inc.",
     output = "makeucnid.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
 )
 
 # The final sentinel flush must not read element 65536 of the 65536-entry arrays.
-write_file(
-    name = "unicode-bound.before",
-    content = "\tlast_flag = flags[i];",
-)
-
-write_file(
-    name = "unicode-bound.after",
-    content = "\tif (i == 65536) break;\n\tlast_flag = flags[i];",
-)
-
-generate(
+exact_patch(
     name = "makeucnid.c",
-    args = [
-        "$(location :makeucnid-notice.c)",
-        "$(location :unicode-bound.before)",
-        "$(location :unicode-bound.after)",
-    ],
+    src = ":makeucnid-notice.c",
+    after = "\tif (i == 65536) break;\n\tlast_flag = flags[i];",
+    before = "\tlast_flag = flags[i];",
     output = "makeucnid.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
 )
 
 filegroup(
@@ -350,19 +324,26 @@ REPRODUCIBLE_FLAGS = [
         ),
     ]
     for kind, header in [
-        ("regenerated", ":stage1-decDPD.h"),
+        (
+            stage + "-regenerated",
+            ":" + stage + "-decDPD.h",
+        )
+        for stage in STAGES
+    ] + [
         ("fixture", ":gcc-4.7.4[libdecnumber/decDPD.h]"),
     ]
 ]
 
-command_test(
-    name = "decimal-regeneration",
+# Each stage compiles its own libdecnumber from the tables it generated, so a
+# miscompiled generator in any stage must fail here.
+[command_test(
+    name = stage + "-decimal-regeneration",
     args = [
-        "$(location :decimal-regenerated-values)",
+        "$(location :decimal-" + stage + "-regenerated-values)",
         "$(location :decimal-fixture-values)",
     ],
     tool = CMP,
-)
+) for stage in STAGES]
 
 generate(
     name = "bid-preamble",
@@ -451,19 +432,24 @@ export_file(name = "generators/bid-tables.c")
         ),
     ]
     for kind, header in [
-        ("regenerated", ":stage1-bid2dpd_dpd2bid.h"),
+        (
+            stage + "-regenerated",
+            ":" + stage + "-bid2dpd_dpd2bid.h",
+        )
+        for stage in STAGES
+    ] + [
         ("fixture", ":gcc-4.7.4[libdecnumber/bid/bid2dpd_dpd2bid.h]"),
     ]
 ]
 
-command_test(
-    name = "bid-regeneration",
+[command_test(
+    name = stage + "-bid-regeneration",
     args = [
-        "$(location :bid-regenerated-values)",
+        "$(location :bid-" + stage + "-regenerated-values)",
         "$(location :bid-fixture-values)",
     ],
     tool = CMP,
-)
+) for stage in STAGES]
 
 # Upstream REQUIRED_OFILES, libcpp_a_OBJS and native BID libdecnumber objects.
 
@@ -742,19 +728,14 @@ write_file(
 )
 
 [export_file(name = path) for path in [
-    "patches/tmpdir.before",
-    "patches/tmpdir.after",
+    "patches/tmpdir.patch",
 ]]
 
-generate(
+exact_patch(
     name = "make-temp-file.c",
-    args = [
-        "$(location :gcc-4.7.4[libiberty/make-temp-file.c])",
-        "$(location :patches/tmpdir.before)",
-        "$(location :patches/tmpdir.after)",
-    ],
+    src = ":gcc-4.7.4[libiberty/make-temp-file.c]",
     output = "make-temp-file.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/tmpdir.patch",
 )
 
 [
@@ -910,7 +891,7 @@ command_test(
     name = "libiberty-missing-tmpdir",
     args = [
         "1",
-        "$(location :libiberty-test-bin)",
+        "$(exe :libiberty-test-bin)",
         "temp",
     ],
     env = {"TMPDIR": "/nonexistent-bootstrap-tmp"},
@@ -946,7 +927,7 @@ command_test(
     name = "cpp-missing-include",
     args = [
         "1",
-        "$(location :cpp-test-bin)",
+        "$(exe :cpp-test-bin)",
         "$(location cellar//bootstrap/stage1/gcc40:cpp-bad.c)",
     ],
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
@@ -1017,20 +998,13 @@ TARGET_PATCHES = {
     "gcc/config/i386/linux64.h": ":patched-0007-0",
 }
 
-[export_file(name = "patches/" + stem + suffix) for name, source, stem in TARGET_PATCH_CHAIN for suffix in [
-    ".before",
-    ".after",
-]]
+[export_file(name = "patches/" + stem + ".patch") for name, source, stem in TARGET_PATCH_CHAIN]
 
 [
-    generate(
+    exact_patch(
         name = name,
-        args = [
-            "$(location " + source + ")",
-            "$(location :patches/" + stem + ".before)",
-            "$(location :patches/" + stem + ".after)",
-        ],
-        tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+        src = source,
+        patch = ":patches/" + stem + ".patch",
     )
     for name, source, stem in TARGET_PATCH_CHAIN
 ]
@@ -2072,7 +2046,7 @@ command_test(
     name = "machine-description-diagnostics",
     args = [
         "1",
-        "$(location :stage1-genconstants)",
+        "$(exe :stage1-genconstants)",
         "$(location :bad.md)",
     ],
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
@@ -2093,65 +2067,41 @@ write_file(
     content = '#ifndef GCC_TM_H\n#define GCC_TM_H 1\n#include "options.h"\n#include "insn-constants.h"\n#ifdef IN_GCC\n#include "config/i386/biarch64.h"\n#include "config/i386/i386.h"\n#include "config/linux-android.h"\n#include "config/i386/unix.h"\n#include "config/i386/att.h"\n#include "config/dbxelf.h"\n#include "config/elfos.h"\n#include "config/gnu-user.h"\n#include "config/glibc-stdint.h"\n#include "config/i386/x86-64.h"\n#include "config/i386/gnu-user64.h"\n#include "config/linux.h"\n#include "config/i386/linux64.h"\n#endif\n#if defined IN_GCC && !defined GENERATOR_FILE && !defined USED_FOR_TARGET\n#include "insn-flags.h"\n#endif\n#include "defaults.h"\n#undef TARGET_CAN_SPLIT_STACK\n#undef TARGET_THREAD_SPLIT_STACK_OFFSET\n#endif\n',
 )
 
-export_file(name = "patches/except-include.before")
+export_file(name = "patches/except-include.patch")
 
-export_file(name = "patches/except-include.after")
-
-generate(
+exact_patch(
     name = "except-include.c",
-    args = [
-        "$(location :gcc-4.7.4[gcc/cp/except.c])",
-        "$(location :patches/except-include.before)",
-        "$(location :patches/except-include.after)",
-    ],
+    src = ":gcc-4.7.4[gcc/cp/except.c]",
     output = "except-include.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/except-include.patch",
 )
 
-export_file(name = "patches/except-libfn.before")
+export_file(name = "patches/except-libfn.patch")
 
-export_file(name = "patches/except-libfn.after")
-
-generate(
+exact_patch(
     name = "except-libfn.c",
-    args = [
-        "$(location :except-include.c)",
-        "$(location :patches/except-libfn.before)",
-        "$(location :patches/except-libfn.after)",
-    ],
+    src = ":except-include.c",
     output = "except-libfn.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/except-libfn.patch",
 )
 
 # c-common.h already declares this object extern. Its definition need not
 # repeat the storage specifier, which warns in the C bootstrap with -Werror.
-export_file(name = "patches/c-family-mask.before")
+export_file(name = "patches/c-family-mask.patch")
 
-export_file(name = "patches/c-family-mask.after")
-
-generate(
+exact_patch(
     name = "c-opts.c",
-    args = [
-        "$(location :gcc-4.7.4[gcc/c-family/c-opts.c])",
-        "$(location :patches/c-family-mask.before)",
-        "$(location :patches/c-family-mask.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":gcc-4.7.4[gcc/c-family/c-opts.c]",
+    patch = ":patches/c-family-mask.patch",
 )
 
-export_file(name = "patches/gcov-program.before")
+export_file(name = "patches/gcov-program.patch")
 
-export_file(name = "patches/gcov-program.after")
-
-generate(
+exact_patch(
     name = "gcov-program.c",
-    args = [
-        "$(location :gcc-4.7.4[gcc/gcov-iov.c])",
-        "$(location :patches/gcov-program.before)",
-        "$(location :patches/gcov-program.after)",
-    ],
+    src = ":gcc-4.7.4[gcc/gcov-iov.c]",
     output = "gcov-program.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/gcov-program.patch",
 )
 
 [
@@ -2929,7 +2879,7 @@ write_file(
         name = "frontend-" + frontend + "-diagnostic",
         args = [
             "1",
-            "$(location :stage1-" + frontend + ")",
+            "$(exe :stage1-" + frontend + ")",
             "-quiet",
             "-frandom-seed=bootstrap",
             "-nostdinc",
@@ -2949,7 +2899,7 @@ command_test(
     name = "frontend-missing-header",
     args = [
         "1",
-        "$(location :stage1-cc1)",
+        "$(exe :stage1-cc1)",
         "-quiet",
         "-frandom-seed=bootstrap",
         "-nostdinc",
@@ -2960,34 +2910,22 @@ command_test(
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
 )
 
-export_file(name = "patches/driver-tool.before")
+export_file(name = "patches/driver-tool.patch")
 
-export_file(name = "patches/driver-tool.after")
-
-generate(
+exact_patch(
     name = "driver-tool.c",
-    args = [
-        "$(location :gcc-4.7.4[gcc/gcc.c])",
-        "$(location :patches/driver-tool.before)",
-        "$(location :patches/driver-tool.after)",
-    ],
+    src = ":gcc-4.7.4[gcc/gcc.c]",
     output = "gcc.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/driver-tool.patch",
 )
 
-export_file(name = "patches/driver-pipe.before")
+export_file(name = "patches/driver-pipe.patch")
 
-export_file(name = "patches/driver-pipe.after")
-
-generate(
+exact_patch(
     name = "driver-pipe.c",
-    args = [
-        "$(location :driver-tool.c)",
-        "$(location :patches/driver-pipe.before)",
-        "$(location :patches/driver-pipe.after)",
-    ],
+    src = ":driver-tool.c",
     output = "gcc.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/driver-pipe.patch",
 )
 
 write_file(
@@ -3289,7 +3227,7 @@ command_test(
     name = "driver-missing-assembler",
     args = [
         "1",
-        "$(location :stage1-xgcc)",
+        "$(exe :stage1-xgcc)",
         "-B$(location :no-assembler)/",
         "-pipe",
         "-frandom-seed=bootstrap",
@@ -3302,6 +3240,7 @@ command_test(
         "PATH": "/usr/bin:/bin",
         "TMPDIR": ".",
     },
+    host_paths = True,
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
 )
 
@@ -3309,11 +3248,12 @@ command_test(
     name = "driver-missing-cc1",
     args = [
         "1",
-        "$(location :stage1-xgcc)",
+        "$(exe :stage1-xgcc)",
         "-fsyntax-only",
         "$(location :tiny.c)",
     ],
     env = {"PATH": "/usr/bin:/bin"},
+    host_paths = True,
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
 )
 
@@ -3360,32 +3300,20 @@ command_test(
     ]},
 ) for stage in STAGES]
 
-export_file(name = "patches/runtime-eh.before")
+export_file(name = "patches/runtime-eh.patch")
 
-export_file(name = "patches/runtime-eh.after")
-
-generate(
+exact_patch(
     name = "runtime-eh",
-    args = [
-        "$(location :gcc-4.7.4[libgcc/unwind-dw2-fde-dip.c])",
-        "$(location :patches/runtime-eh.before)",
-        "$(location :patches/runtime-eh.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":gcc-4.7.4[libgcc/unwind-dw2-fde-dip.c]",
+    patch = ":patches/runtime-eh.patch",
 )
 
-export_file(name = "patches/runtime-context.before")
+export_file(name = "patches/runtime-context.patch")
 
-export_file(name = "patches/runtime-context.after")
-
-generate(
+exact_patch(
     name = "runtime-context",
-    args = [
-        "$(location :gcc-4.7.4[libgcc/config/i386/linux-unwind.h])",
-        "$(location :patches/runtime-context.before)",
-        "$(location :patches/runtime-context.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":gcc-4.7.4[libgcc/config/i386/linux-unwind.h]",
+    patch = ":patches/runtime-context.patch",
 )
 
 # The target runtime is compiled by the newly built GCC, not its predecessor.
@@ -4020,7 +3948,7 @@ command_test(
     name = "runtime-missing-library",
     args = [
         "1",
-        "$(location :stage1-xgcc)",
+        "$(exe :stage1-xgcc)",
         "-B$(location :stage1-native-tools)/",
         "-nostdlib",
         "$(location :driver-test-c.o)",
@@ -4032,6 +3960,7 @@ command_test(
         "TMPDIR": ".",
         "PATH": "/usr/bin:/bin",
     },
+    host_paths = True,
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
 )
 
@@ -4039,7 +3968,7 @@ command_test(
     name = "runtime-reject-glibc-split-stack",
     args = [
         "1",
-        "$(location :stage1-cc1)",
+        "$(exe :stage1-cc1)",
         "-quiet",
         "-frandom-seed=bootstrap",
         "-fsplit-stack",
@@ -4072,13 +4001,13 @@ c_binary(
 generate(
     name = "coverage-result",
     args = [
-        "$(location :stage1-xgcc)",
+        "$(exe :stage1-xgcc)",
         "$(location :stage1-native-tools)",
         "$(location :stage1-runtime)/lib/",
         "$(location :compiler-headers)",
         "$(location :stage1-runtime[include])",
         "$(location :tests/coverage.c)",
-        "$(location :stage1-gcov)",
+        "$(exe :stage1-gcov)",
     ],
     chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
     directory = True,
@@ -4286,13 +4215,13 @@ export_file(name = "tests/floating-point-environment.c")
     generate(
         name = stage + "-coverage-result",
         args = [
-            "$(location :" + stage + "-xgcc)",
+            "$(exe :" + stage + "-xgcc)",
             "$(location :" + stage + "-native-tools)",
             "$(location :" + stage + "-runtime)/lib/",
             "$(location :compiler-headers)",
             "$(location :" + stage + "-runtime[include])",
             "$(location :tests/coverage.c)",
-            "$(location :" + stage + "-gcov)",
+            "$(exe :" + stage + "-gcov)",
         ],
         chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
         directory = True,

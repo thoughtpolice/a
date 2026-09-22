@@ -1,1 +1,0 @@
-  char const *m4 = (m4 = getenv ("M4")) ? m4 : M4;

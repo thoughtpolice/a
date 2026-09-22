@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+load("@cellar//bootstrap/platforms:rules.bzl", "native_attrs")
+
 def __write_file(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
     ctx.actions.write(output, ctx.attrs.content)
@@ -50,13 +52,17 @@ def __ungz(ctx: AnalysisContext) -> list[Provider]:
             output.as_output(),
         ],
         category = "mes_stage0_ungz",
+        clear_environment = True,
     )
     return [DefaultInfo(default_output = output)]
 
-ungz = rule(impl = __ungz, attrs = {
-    "ungz": attrs.dep(),
+_ungz_rule = rule(impl = __ungz, attrs = {
+    "ungz": attrs.exec_dep(),
     "input": attrs.dep(),
 })
+
+def ungz(**kwargs):
+    _ungz_rule(**native_attrs(kwargs))
 
 def __untar(ctx: AnalysisContext) -> list[Provider]:
     # The tar contains a top-level directory (e.g. mes-0.27/) so we extract
@@ -77,6 +83,7 @@ def __untar(ctx: AnalysisContext) -> list[Provider]:
             cmd_args(input_tar, relative_to = parent),
         ],
         category = "mes_stage0_untar",
+        clear_environment = True,
     )
     return [
         DefaultInfo(
@@ -88,13 +95,16 @@ def __untar(ctx: AnalysisContext) -> list[Provider]:
         ),
     ]
 
-untar = rule(impl = __untar, attrs = {
-    "chdirenv": attrs.dep(providers = [RunInfo]),
-    "untar": attrs.dep(providers = [RunInfo]),
+_untar_rule = rule(impl = __untar, attrs = {
+    "chdirenv": attrs.exec_dep(providers = [RunInfo]),
+    "untar": attrs.exec_dep(providers = [RunInfo]),
     "input": attrs.dep(),
     "flags": attrs.list(attrs.string(), default = ["--non-strict", "--file"]),
     "files": attrs.list(attrs.string(), default = []),
 })
+
+def untar(**kwargs):
+    _untar_rule(**native_attrs(kwargs))
 
 def _replace_impl(ctx):
     output = ctx.actions.declare_output(ctx.label.name)
@@ -115,9 +125,60 @@ def _replace_impl(ctx):
     )
     return [DefaultInfo(default_output = output)]
 
-replace = rule(impl = _replace_impl, attrs = {
+_replace_rule = rule(impl = _replace_impl, attrs = {
     "src": attrs.source(),
     "before": attrs.string(),
     "after": attrs.string(),
-    "tool": attrs.dep(providers = [RunInfo]),
+    "tool": attrs.exec_dep(providers = [RunInfo]),
 })
+
+def replace(**kwargs):
+    _replace_rule(**native_attrs(kwargs))
+
+def _patch_block(text, prefix):
+    if not text:
+        return ("0,0", "")
+    lines = text.split("\n")
+    if text.endswith("\n"):
+        lines = lines[:-1]
+    body = "".join([prefix + line + "\n" for line in lines])
+    if not text.endswith("\n"):
+        body += "\\ No newline at end of file\n"
+    return ("1," + str(len(lines)), body)
+
+def _exact_patch_impl(ctx):
+    patch = ctx.attrs.patch
+    if patch == None:
+        if ctx.attrs.before == None or ctx.attrs.after == None:
+            fail("exact_patch requires a patch file or both before and after strings")
+        if not ctx.attrs.before:
+            fail("exact_patch requires a nonempty before string")
+        old_range, old_body = _patch_block(ctx.attrs.before, "-")
+        new_range, new_body = _patch_block(ctx.attrs.after, "+")
+        patch = ctx.actions.write(
+            "replacement.patch",
+            "--- before\n+++ after\n@@ -" + old_range + " +" + new_range + " @@\n" + old_body + new_body,
+        )
+    elif ctx.attrs.before != None or ctx.attrs.after != None:
+        fail("exact_patch cannot combine a patch file with before/after strings")
+    output = ctx.actions.declare_output(ctx.attrs.output)
+    ctx.actions.run(
+        cmd_args(ctx.attrs.tool[RunInfo], ctx.attrs.src, patch, output.as_output()),
+        category = "source_exact_patch",
+        clear_environment = True,
+    )
+    return [DefaultInfo(default_output = output)]
+
+# One unified hunk describes a byte-exact replacement, including partial lines.
+# The M2-built helper requires exactly one match and never modifies its input.
+_exact_patch_rule = rule(impl = _exact_patch_impl, attrs = {
+    "src": attrs.source(),
+    "patch": attrs.option(attrs.source(), default = None),
+    "before": attrs.option(attrs.string(), default = None),
+    "after": attrs.option(attrs.string(), default = None),
+    "output": attrs.string(default = "out"),
+    "tool": attrs.exec_dep(providers = [RunInfo], default = "cellar//bootstrap/stage1/simple-patch:simple-patch"),
+})
+
+def exact_patch(**kwargs):
+    _exact_patch_rule(**native_attrs(kwargs))

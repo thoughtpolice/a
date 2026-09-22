@@ -26,7 +26,7 @@ jobs:
           - os: macos-15
             abi: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
@@ -114,7 +114,7 @@ jobs:
             return $exit_code
           }
 
-          retry_command buck2 test @buck/ci.buckargs -m debug root//... tilde//... cellar//bootstrap/... \
+          retry_command buck2 test @buck/ci.buckargs -m debug root//... tilde//... \
             --build-report ${{ runner.temp }}/build-report.json \
             --build-report-options fill-out-failures --
       - name: Generate build report
@@ -146,7 +146,7 @@ jobs:
           - os: macos-15
             abi: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
@@ -252,15 +252,17 @@ jobs:
           # it is fixed, at either endpoint, whether or not the diff touched it.
           #
           # The universe must name every cell the full-test fallback below
-          # tests. tilde and cellar are separate cells, so depot//... does not
-          # reach them, and their targets were absent from the graph rather
-          # than merely unselected: a change under tilde/ could only ever pick
-          # up the repo-wide lint targets, never the tilde targets actually
-          # built from the sources it changed. Keep the two lists in step.
+          # tests. tilde is a separate cell, so depot//... does not reach it,
+          # and its targets were absent from the graph rather than merely
+          # unselected: a change under tilde/ could only ever pick up the
+          # repo-wide lint targets, never the tilde targets actually built
+          # from the sources it changed. Keep the two lists in step.
+          # cellar stays out of both for now. Its executor exists only on
+          # x86_64 Linux, and the arm64 and macOS runners cannot configure it.
           #
           # Spell the cells canonically. `buck2 audit cell --json`, which is
           # what tdutil reads, reports only canonical names, so the aliases
-          # the fallback uses -- tilde//, cellar//, root// -- are cells tdutil
+          # the fallback uses -- tilde//, root// -- are cells tdutil
           # has never heard of and it refuses the pattern outright.
           TARGETS_FILE="${{ runner.temp }}/affected-targets.txt"
           CAPTURE=()
@@ -277,8 +279,7 @@ jobs:
             --base-snapshot "${{ runner.temp }}/tdutil-snapshot.json" \
             "${CAPTURE[@]}" \
             --universe depot//... \
-            --universe depot-tilde//... \
-            --universe depot-cellar//bootstrap/stage0-posix/...
+            --universe depot-tilde//...
 
           if [ -f "$TARGETS_FILE" ]; then
             TARGET_COUNT=$(wc -l < "$TARGETS_FILE")
@@ -353,7 +354,7 @@ jobs:
           else
             echo "Falling back to full test"
             buck2 test @buck/ci.buckargs -m debug \
-              root//... tilde//... cellar//bootstrap/... \
+              root//... tilde//... \
               --build-report ${{ runner.temp }}/build-report.json \
               --build-report-options fill-out-failures --
           fi

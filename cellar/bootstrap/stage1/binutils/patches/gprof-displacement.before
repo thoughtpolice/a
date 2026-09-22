@@ -1,1 +1,0 @@
-	  destpc = bfd_get_32 (core_bfd, instructp + 1) + pc + 5;

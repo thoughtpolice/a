@@ -10,3 +10,6 @@ for isolated actions and pseudoterminal tests. When real/effective IDs match,
 it supplies the fixed bootstrap name, root home and /bin/bash shell without
 reading the host account database. Without the flag, upstream account lookup
 is unchanged. This patch is GPL-3.0-or-later like the surrounding shell.c.
+
+Each patch without its own SPDX notice has a REUSE `.license` file beside it
+that records its copyright holders and license.

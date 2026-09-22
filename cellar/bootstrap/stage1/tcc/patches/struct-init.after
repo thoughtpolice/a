@@ -1,3 +1,0 @@
-            SValue tmp;
-            /* MesCC needs aggregate assignment as a separate statement. */
-            tmp = vtop[0];

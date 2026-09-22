@@ -1,0 +1,15 @@
+--- before
++++ after
+@@ -1,11 +1,11 @@
+ 				}
+ 			}
+ 
++	"{"{NAME}"}"[[:space:]]?	 {
+     /* Check for :space: at the end of the rule so we don't
+      * wrap the expanded regex in '(' ')' -- breaking trailing
+      * context.
+      */
+-	"{"{NAME}"}"[[:space:]]?	 {
+ 			register Char *nmdefptr;
+             int end_is_ws, end_ch;
+             

@@ -4,6 +4,8 @@
 # These rules describe action mechanics only. Packages select sources, flags,
 # compiler predecessors, runtime libraries and installation layouts in BUILD.
 
+load("@cellar//bootstrap/platforms:rules.bzl", "native_attrs")
+
 ObjectInfo = provider(fields = ["artifact", "abi", "format"])
 LibraryInfo = provider(fields = ["artifact", "abi", "object_format", "format"])
 SysrootInfo = provider(fields = ["root", "abi", "object_format"])
@@ -52,21 +54,24 @@ def _compiler_impl(ctx):
         ldflags = ctx.attrs.ldflags,
     )]
 
-compiler = rule(impl = _compiler_impl, attrs = {
-    "compiler": attrs.dep(providers = [RunInfo]),
-    "linker": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
-    "archiver": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
+_compiler_rule = rule(impl = _compiler_impl, attrs = {
+    "compiler": attrs.exec_dep(providers = [RunInfo]),
+    "linker": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
+    "archiver": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
     "archive_flags": attrs.list(attrs.string(), default = []),
     "archive_format": attrs.enum(["mes-concat", "ar"]),
     "family": attrs.enum(["mescc", "tcc", "gcc"]),
     "stage": attrs.string(),
     "abi": attrs.enum(["x86_64-mes", "x86_64-sysv"]),
     "object_format": attrs.enum(["mes", "elf64-x86-64"]),
-    "execution_runtime": attrs.option(attrs.dep(), default = None),
+    "execution_runtime": attrs.option(attrs.exec_dep(), default = None),
     "sysroot": attrs.option(attrs.dep(providers = [SysrootInfo]), default = None),
     "cflags": attrs.list(attrs.arg(), default = []),
     "ldflags": attrs.list(attrs.arg(), default = []),
 })
+
+def compiler(**kwargs):
+    _compiler_rule(**native_attrs(kwargs))
 
 def _logical_path(path):
     if not path or path.startswith("/") or ".." in path.split("/"):
@@ -115,20 +120,23 @@ def _object_impl(ctx):
         ObjectInfo(artifact = obj, abi = tc.abi, format = tc.object_format),
     ]
 
-c_object = rule(impl = _object_impl, attrs = {
-    "toolchain": attrs.dep(providers = [CompilerInfo]),
+_c_object_rule = rule(impl = _object_impl, attrs = {
+    "toolchain": attrs.exec_dep(providers = [CompilerInfo]),
     "src": attrs.source(),
     "source_tree": attrs.option(attrs.source(), default = None),
     "logical_source": attrs.string(default = ""),
     "logical_includes": attrs.list(attrs.string(), default = []),
-    "source_alias": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
+    "source_alias": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
     "headers": attrs.list(attrs.source(), default = []),
     "includes": attrs.list(attrs.source(), default = []),
     "defines": attrs.list(attrs.string(), default = []),
     "flags": attrs.list(attrs.arg(), default = []),
     "object_name": attrs.string(default = "unit.o"),
-    "chdir": attrs.dep(providers = [RunInfo], default = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv"),
+    "chdir": attrs.exec_dep(providers = [RunInfo], default = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv"),
 })
+
+def c_object(**kwargs):
+    _c_object_rule(**native_attrs(kwargs))
 
 def _objects(deps, tc):
     result = []
@@ -164,11 +172,14 @@ def _archive_impl(ctx):
         format = tc.archive_format,
     )]
 
-c_library = rule(impl = _archive_impl, attrs = {
-    "toolchain": attrs.dep(providers = [CompilerInfo]),
+_c_library_rule = rule(impl = _archive_impl, attrs = {
+    "toolchain": attrs.exec_dep(providers = [CompilerInfo]),
     "objects": attrs.list(attrs.dep(providers = [ObjectInfo])),
     "output": attrs.string(),
 })
+
+def c_library(**kwargs):
+    _c_library_rule(**native_attrs(kwargs))
 
 def _binary_impl(ctx):
     tc = ctx.attrs.toolchain[CompilerInfo]
@@ -198,14 +209,17 @@ def _binary_impl(ctx):
     )
     return [DefaultInfo(default_output = output), RunInfo(args = cmd_args(output))]
 
-c_binary = rule(impl = _binary_impl, attrs = {
-    "toolchain": attrs.dep(providers = [CompilerInfo]),
+_c_binary_rule = rule(impl = _binary_impl, attrs = {
+    "toolchain": attrs.exec_dep(providers = [CompilerInfo]),
     "objects": attrs.list(attrs.dep(providers = [ObjectInfo])),
     "libraries": attrs.list(attrs.dep(providers = [LibraryInfo]), default = []),
     "flags": attrs.list(attrs.arg(), default = []),
     "output": attrs.string(default = "program"),
-    "chdir": attrs.dep(providers = [RunInfo], default = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv"),
+    "chdir": attrs.exec_dep(providers = [RunInfo], default = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv"),
 })
+
+def c_binary(**kwargs):
+    _c_binary_rule(**native_attrs(kwargs))
 
 def _import_impl(ctx):
     # Attach ABI metadata to an existing bootstrapped artifact. This does not
@@ -217,13 +231,16 @@ def _import_impl(ctx):
         info = LibraryInfo(artifact = artifact, abi = ctx.attrs.abi, object_format = ctx.attrs.object_format, format = ctx.attrs.archive_format)
     return [DefaultInfo(default_output = artifact), info]
 
-bootstrap_artifact = rule(impl = _import_impl, attrs = {
+_bootstrap_artifact_rule = rule(impl = _import_impl, attrs = {
     "src": attrs.source(),
     "kind": attrs.enum(["object", "library"]),
     "abi": attrs.enum(["x86_64-mes", "x86_64-sysv"]),
     "object_format": attrs.enum(["mes", "elf64-x86-64"]),
     "archive_format": attrs.enum(["mes-concat", "ar"], default = "mes-concat"),
 })
+
+def bootstrap_artifact(**kwargs):
+    _bootstrap_artifact_rule(**native_attrs(kwargs))
 
 def _sysroot_impl(ctx):
     files = dict(ctx.attrs.files)
@@ -247,10 +264,13 @@ def _sysroot_impl(ctx):
         for path in files
     }), SysrootInfo(root = output, abi = ctx.attrs.abi, object_format = ctx.attrs.object_format)]
 
-sysroot = rule(impl = _sysroot_impl, attrs = {
+_sysroot_rule = rule(impl = _sysroot_impl, attrs = {
     "abi": attrs.enum(["x86_64-mes", "x86_64-sysv"]),
     "object_format": attrs.enum(["mes", "elf64-x86-64"]),
     "files": attrs.dict(attrs.string(), attrs.source(), default = {}),
     "objects": attrs.dict(attrs.string(), attrs.dep(providers = [ObjectInfo]), default = {}),
     "libraries": attrs.dict(attrs.string(), attrs.dep(providers = [LibraryInfo]), default = {}),
 })
+
+def sysroot(**kwargs):
+    _sysroot_rule(**native_attrs(kwargs))

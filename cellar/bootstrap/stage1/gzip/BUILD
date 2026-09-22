@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "concatenate", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "ungz", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "ungz", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object")
 
 GCC = "cellar//bootstrap/stage1/gcc47"
@@ -140,14 +140,10 @@ concatenate(
 
 [export_file(name = path) for path in glob(["patches/*"])]
 
-generate(
+exact_patch(
     name = "getopt.c",
-    args = [
-        "$(location :gzip-1.2.4[getopt.c])",
-        "$(location :patches/prototypes.before)",
-        "$(location :patches/prototypes.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":gzip-1.2.4[getopt.c]",
+    patch = ":patches/prototypes.patch",
 )
 
 filegroup(
@@ -227,7 +223,7 @@ c_binary(
 
 generate(
     name = "roundtrip",
-    args = ["$(location :gzip)"],
+    args = ["$(exe :gzip)"],
     chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
     directory = True,
     env = {

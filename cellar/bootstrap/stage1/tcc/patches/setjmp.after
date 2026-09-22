@@ -1,7 +1,0 @@
-#elif __x86_64__ && __TINYC__
-typedef struct
-{
-  /* rbx, rbp, r12-r15, rsp and return address; see runtime/setjmp.S. */
-  long __registers[8];
-} __jmp_buf;
-#elif __riscv && (__GNUC__ || __TINYC__)

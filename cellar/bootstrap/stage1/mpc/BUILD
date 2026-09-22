@@ -194,7 +194,7 @@ TEST_ENV = {
             name = name + "-scratch",
             args = [
                 "stdout",
-                "$(location :test-" + name + "-program)",
+                "$(exe :test-" + name + "-program)",
             ],
             chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
             directory = True,

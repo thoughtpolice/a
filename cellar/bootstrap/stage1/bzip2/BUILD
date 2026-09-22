@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "untar")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 
 GCC = "cellar//bootstrap/stage1/gcc47"
@@ -115,24 +115,11 @@ generate(
 
 # musl uses the ISO C length modifier for unsigned long long.
 # The modified source retains bzip2's upstream copyright and license.
-write_file(
-    name = "format-before",
-    content = '#  define MaybeUInt64_FMT "%Lu"\n',
-)
-
-write_file(
-    name = "format-after",
-    content = '#  define MaybeUInt64_FMT "%llu"\n',
-)
-
-generate(
+exact_patch(
     name = "bzip2recover.c",
-    args = [
-        "$(location :bzip2-1.0.8[bzip2recover.c])",
-        "$(location :format-before)",
-        "$(location :format-after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":bzip2-1.0.8[bzip2recover.c]",
+    after = '#  define MaybeUInt64_FMT "%llu"\n',
+    before = '#  define MaybeUInt64_FMT "%Lu"\n',
 )
 
 filegroup(
@@ -239,10 +226,10 @@ generate(
         "-ec",
         '\"$1\" \"$2\" > source.bz2; \"$3\" source.bz2; \"$4\" -dc rec00001source.bz2 > restored',
         "recover-test",
-        "$(location cellar//bootstrap/stage1/coreutils:cat)",
+        "$(exe cellar//bootstrap/stage1/coreutils:cat)",
         "$(location :source[sample1.bz2])",
-        "$(location :bzip2recover)",
-        "$(location :bzip2)",
+        "$(exe :bzip2recover)",
+        "$(exe :bzip2)",
     ],
     chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
     directory = True,

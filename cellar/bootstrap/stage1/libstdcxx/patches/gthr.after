@@ -1,4 +1,0 @@
-// file will come before all others.
-
-// Static musl requires strong pthread references.
-#define _GLIBCXX_GTHREAD_USE_WEAK 0

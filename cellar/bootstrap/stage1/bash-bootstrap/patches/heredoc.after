@@ -1,1 +1,0 @@
-  fd = sh_mktmpfd ("sh-thd", MT_USERANDOM | MT_USETMPDIR, &filename);

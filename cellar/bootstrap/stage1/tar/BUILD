@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "ungz", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "ungz", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 
 PATCHES = {
@@ -205,25 +205,12 @@ generate(
 )
 
 [
-    [
-        write_file(
-            name = path.replace("/", "-") + ".before",
-            content = before,
-        ),
-        write_file(
-            name = path.replace("/", "-") + ".after",
-            content = after,
-        ),
-        generate(
-            name = path.replace("/", "-"),
-            args = [
-                "$(location :tar-1.12[" + path + "])",
-                "$(location :" + path.replace("/", "-") + ".before)",
-                "$(location :" + path.replace("/", "-") + ".after)",
-            ],
-            tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
-        ),
-    ]
+    exact_patch(
+        name = path.replace("/", "-"),
+        src = ":tar-1.12[" + path + "]",
+        after = after,
+        before = before,
+    )
     for path, (before, after) in PATCHES.items()
 ]
 
@@ -240,18 +227,12 @@ generate(
     tool = "cellar//bootstrap/stage1/bison:bison",
 )
 
-export_file(name = "patches/full-names.before")
+export_file(name = "patches/full-names.patch")
 
-export_file(name = "patches/full-names.after")
-
-generate(
+exact_patch(
     name = "list.c",
-    args = [
-        "$(location :tar-1.12[src/list.c])",
-        "$(location :patches/full-names.before)",
-        "$(location :patches/full-names.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":tar-1.12[src/list.c]",
+    patch = ":patches/full-names.patch",
 )
 
 filegroup(
@@ -357,7 +338,7 @@ command_test(
 
 generate(
     name = "roundtrip-work",
-    args = ["$(location :tar)"],
+    args = ["$(exe :tar)"],
     chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
     directory = True,
     env = {"TZ": "UTC0"},

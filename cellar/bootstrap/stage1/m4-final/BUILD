@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
-load("@cellar//bootstrap:source.bzl", "write_file")
+load("@cellar//bootstrap:source.bzl", "exact_patch", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 load("@cellar//bootstrap/stage1/m4:sources.bzl", "HEADERS")
 
@@ -166,25 +166,12 @@ filegroup(
     },
 )
 
-write_file(
-    name = "tmpfile.before",
-    content = "if (!directory || !*directory)",
-)
-
-write_file(
-    name = "tmpfile.after",
-    content = 'if (!directory) directory = "/tmp";\n    if (!*directory)',
-)
-
-generate(
+exact_patch(
     name = "tmpfile.c",
-    args = [
-        "$(location cellar//bootstrap/stage1/m4:tmpfile.c)",
-        "$(location :tmpfile.before)",
-        "$(location :tmpfile.after)",
-    ],
+    src = "cellar//bootstrap/stage1/m4:tmpfile.c",
+    after = 'if (!directory) directory = "/tmp";\n    if (!*directory)',
+    before = "if (!directory || !*directory)",
     output = "tmpfile.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
 )
 
 [
@@ -253,7 +240,7 @@ c_binary(
 configured_tool(
     name = "m4",
     env = {
-        "BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash:bash)",
+        "BOOTSTRAP_SHELL": "$(exe cellar//bootstrap/stage1/bash:bash)",
         "CELLAR_BOOTSTRAP_IDENTITY": "1",
     },
     env_tool = "cellar//bootstrap/stage1/tools:withenv",
@@ -281,10 +268,10 @@ configured_tool(
     name = "capture-m4",
     args = [
         "result",
-        "$(location :m4-bin)",
+        "$(exe :m4-bin)",
     ],
     env = {
-        "BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash:bash)",
+        "BOOTSTRAP_SHELL": "$(exe cellar//bootstrap/stage1/bash:bash)",
         "CELLAR_BOOTSTRAP_IDENTITY": "1",
     },
     env_tool = "cellar//bootstrap/stage1/tools:withenv",
@@ -359,7 +346,7 @@ command_test(
     name = "diagnostic",
     args = [
         "1",
-        "$(location :m4-bin)",
+        "$(exe :m4-bin)",
         "$(location cellar//bootstrap/stage1/m4:tests/malformed.m4)",
     ],
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
@@ -376,7 +363,7 @@ command_test(
     name = "missing-temporary-directory",
     args = [
         "1",
-        "$(location :m4-bin)",
+        "$(exe :m4-bin)",
         "$(location :large-diversion)",
     ],
     env = {"TMPDIR": ""},

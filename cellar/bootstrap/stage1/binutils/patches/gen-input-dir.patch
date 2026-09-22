@@ -1,0 +1,8 @@
+--- before
++++ after
+@@ -1 +1,2 @@
+-static const char *program_name = NULL;
+\ No newline at end of file
++static const char *program_name = NULL;
++static char *srcdir = ".";
+\ No newline at end of file

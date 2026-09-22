@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@prelude//cfg/modifier:cfg_constructor.bzl", "cfg_constructor_post_constraint_analysis", "cfg_constructor_pre_constraint_analysis")
+load("@prelude//cfg/modifier:cfg_constructor.bzl", "PostConstraintAnalysisParams", "cfg_constructor_post_constraint_analysis", "cfg_constructor_pre_constraint_analysis")
 load("@prelude//cfg/modifier:common.bzl", "MODIFIER_METADATA_KEY")
 load("@prelude//cfg/modifier:set_cfg_modifiers.bzl", "set_cfg_modifiers")
 
@@ -125,13 +125,50 @@ def third_party_meta(names: list[str]):
 
 # MARK: Modifiers
 
+def _pre_constraint_analysis(
+        *,
+        legacy_platform: PlatformInfo | None,
+        extra_data: struct,
+        configuring_exec_dep: bool,
+        **kwargs) -> (list[str], PostConstraintAnalysisParams):
+    """Leave platforms that standalone cells define as they are.
+
+    A standalone cell such as cellar is also a Buck project of its own, which
+    configures its targets without the prelude, modifiers or this
+    constructor. Its targets get its platform from the target platform
+    detector, and their exec deps get the platform of its executor, which
+    Buck passes here as `legacy_platform`. Dropping every modifier makes the
+    prelude return that platform unchanged, so a build mode like `-m release`
+    does not reconfigure the cell, exec deps share their target's
+    configuration, and each target is configured as it is in the standalone
+    project.
+    """
+    constraints = legacy_platform.configuration.constraints if legacy_platform else {}
+    if constraints and all([setting.cell in extra_data.standalone_cells for setting in constraints]):
+        return [], PostConstraintAnalysisParams(
+            legacy_platform = legacy_platform,
+            package_modifiers = [],
+            target_modifiers = [],
+            cli_modifiers = [],
+            extra_data = extra_data,
+            configuring_exec_dep = configuring_exec_dep,
+        )
+    return cfg_constructor_pre_constraint_analysis(
+        legacy_platform = legacy_platform,
+        extra_data = extra_data,
+        configuring_exec_dep = configuring_exec_dep,
+        **kwargs
+    )
+
 def set_cfg_constructor(aliases = dict()):
     native.set_cfg_constructor(
-        stage0 = cfg_constructor_pre_constraint_analysis,
+        stage0 = _pre_constraint_analysis,
         stage1 = cfg_constructor_post_constraint_analysis,
         key = MODIFIER_METADATA_KEY,
         aliases = struct(**aliases),
-        extra_data = struct(),
+        extra_data = struct(
+            standalone_cells = [cell.strip() for cell in read_root_config("platforms", "standalone_cells", "").split(",")],
+        ),
     )
 
 # MARK: Public API

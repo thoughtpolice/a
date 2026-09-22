@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 load(":sources.bzl", "HEADERS")
 
@@ -600,14 +600,10 @@ untar(
     "tests/*",
 ])]
 
-generate(
+exact_patch(
     name = "signames-generator-source",
-    args = [
-        "$(location :bash-5.2.15[support/mksignames.c])",
-        "$(location :patches/signames.before)",
-        "$(location :patches/signames.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":bash-5.2.15[support/mksignames.c]",
+    patch = ":patches/signames.patch",
 )
 
 generate(
@@ -620,14 +616,10 @@ generate(
     tool = "cellar//bootstrap/stage1/sed:sed",
 )
 
-generate(
+exact_patch(
     name = "shell.c",
-    args = [
-        "$(location :bash-5.2.15[shell.c])",
-        "$(location :patches/identity.before)",
-        "$(location :patches/identity.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":bash-5.2.15[shell.c]",
+    patch = ":patches/identity.patch",
 )
 
 SOURCE = {path: ":bash-5.2.15[" + path + "]" for path in FILES} | {
@@ -842,7 +834,7 @@ TEST_ENV = {
     name = name,
     args = [
         status,
-        "$(location :bash)",
+        "$(exe :bash)",
         "--noprofile",
         "--norc",
         "-c",
@@ -912,28 +904,15 @@ write_file(
     content = "set editing-mode emacs\nset enable-bracketed-paste off\n",
 )
 
-generate(
-    name = "pty-result",
-    args = [
-        "$(location :bash)",
-        "$(location :inputrc)",
-    ],
-    chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
-    directory = True,
-    files = ["passed"],
-    tool = ":pty-bin",
-)
-
-write_file(
-    name = "passed",
-    content = "passed\n",
-)
-
+# The terminal session runs as the test, not as a build action, so building
+# the package never needs a pseudo-terminal. The native executor grants the
+# sandboxed test /dev/ptmx and /dev/pts.
 command_test(
     name = "interactive-job-control-and-readline",
     args = [
-        "$(location :pty-result[passed])",
-        "$(location :passed)",
+        "$(exe :bash)",
+        "$(location :inputrc)",
     ],
-    tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
+    labels = ["terminal"],
+    tool = ":pty-bin",
 )

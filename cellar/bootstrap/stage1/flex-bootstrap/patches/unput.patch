@@ -1,0 +1,8 @@
+--- before
++++ after
+@@ -1,4 +1 @@
+-static void yyunput ( c, yy_bp)
+-int c;
+-register char *yy_bp;
+-YY_DECL_LAST_ARG
++static void yyunput YYFARGS2( int,c, register char *,yy_bp)

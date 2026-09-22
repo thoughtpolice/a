@@ -1,3 +1,0 @@
-		int saved_errno = errno;
-		__madvise((void *)a, b-a, MADV_DONTNEED);
-		errno = saved_errno;

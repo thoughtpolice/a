@@ -1,3 +1,0 @@
-  if (!string)
-    fatal ("declared compiler tool not found: %s", commands[0].prog);
-  commands[0].argv[0] = string;

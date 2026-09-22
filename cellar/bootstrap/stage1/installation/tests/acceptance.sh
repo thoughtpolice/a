@@ -121,6 +121,16 @@ relocation)
  "$moved/bin/bison" --no-lines -o relocated-parser.c source/calculator.y
  "$moved/bin/gcc" relocated-parser.c -o relocated-parser
  ./relocated-parser '4+7*3' 25
+ # Both database formats use the default database in the moved installation
+ # and temporary files under a directory whose name contains a space.
+ "$moved/bin/mkdir" -p located 'temporary files'
+ printf a > located/alpha
+ export LOCALUSER='' NETPATHS='' PRUNEFS='' PRUNEPATHS='' PRUNEREGEX='^/nonexistent-bootstrap-prune$'
+ for format in '' --old-format; do
+  TMPDIR="$PWD/temporary files" "$moved/bin/updatedb" $format --localpaths="$PWD/located" --changecwd="$PWD"
+  [[ $("$moved/bin/locate" alpha) == "$PWD/located/alpha" ]]
+  "$moved/bin/rm" "$moved/var/locatedb"
+ done
  # A moved installation must fail rather than find a host header/library/helper.
  export PATH=/usr/bin:/bin
  "$moved/bin/rm" "$moved/include/stdio.h"

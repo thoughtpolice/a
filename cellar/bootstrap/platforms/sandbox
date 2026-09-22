@@ -1,0 +1,4 @@
+--# SPDX-FileCopyrightText: 2026 Austin Seipp
+--# SPDX-License-Identifier: Apache-2.0
+--config=buck2.local_sandbox_mode=native
+--config=test.default_exclude_labels=nested-buck

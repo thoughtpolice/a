@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 load(":sources.bzl", "LIBRARY_SOURCES", "SOURCE_FILES", "TESTS", "TEST_SUPPORT")
 
@@ -110,25 +110,12 @@ untar(
 )
 
 # Test fixtures are passed explicitly at execution time, not compiled workspace paths.
-write_file(
-    name = "srcdir.before",
-    content = "  const char *srcdir = SRCDIR;",
-)
-
-write_file(
-    name = "srcdir.after",
-    content = "  const char *srcdir = getenv (\"MPFR_TEST_SRCDIR\");\n  if (srcdir == NULL) abort ();",
-)
-
-generate(
+exact_patch(
     name = "tests.c",
-    args = [
-        "$(location :mpfr-4.1.0[tests/tests.c])",
-        "$(location :srcdir.before)",
-        "$(location :srcdir.after)",
-    ],
+    src = ":mpfr-4.1.0[tests/tests.c]",
+    after = "  const char *srcdir = getenv (\"MPFR_TEST_SRCDIR\");\n  if (srcdir == NULL) abort ();",
+    before = "  const char *srcdir = SRCDIR;",
     output = "tests.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
 )
 
 filegroup(
@@ -160,7 +147,7 @@ generate(
     name = "patches-source",
     args = [
         "get_patches.c",
-        "$(location cellar//bootstrap/stage1/bash-bootstrap:bash)",
+        "$(exe cellar//bootstrap/stage1/bash-bootstrap:bash)",
         "$(location :source[tools/get_patches.sh])",
         "$(location :source[PATCHES])",
     ],

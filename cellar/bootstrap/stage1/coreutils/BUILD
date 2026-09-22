@@ -289,8 +289,8 @@ export_file(name = "tests/cat.sh")
                 "--norc",
                 "-e",
                 "$(location :tests/cat.sh)",
-                "$(location :cat)",
-                "$(location cellar//bootstrap/stage0-posix/cellar-extra:bytecmp)",
+                "$(exe :cat)",
+                "$(exe cellar//bootstrap/stage0-posix/cellar-extra:bytecmp)",
                 mode,
             ],
             chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
@@ -422,7 +422,7 @@ c_binary(
 
 generate(
     name = "rm-test-output",
-    args = ["$(location :rm)"],
+    args = ["$(exe :rm)"],
     chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
     directory = True,
     env = {

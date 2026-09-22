@@ -7,3 +7,6 @@ The replacement written by Austin Seipp in 2026 uses the same license. It copies
 complete 100-byte name and link fields into terminated local buffers instead
 of overwriting the final filename byte or reading beyond the link field.
 The bootstrapped patch helper requires exactly one matching source block.
+
+Each patch without its own SPDX notice has a REUSE `.license` file beside it
+that records its copyright holders and license.

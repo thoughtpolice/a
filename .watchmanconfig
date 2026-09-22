@@ -5,6 +5,7 @@
     ],
     "ignore_dirs": [
         "buck-out",
+        "cellar/buck-out",
         ".direnv",
         "buck/nix/setup/target",
         "work"

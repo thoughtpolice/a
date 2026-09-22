@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "ungz", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "ungz", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "bootstrap_artifact", "c_binary", "c_library", "c_object", "compiler", "sysroot")
 load(":sources.bzl", "ARCH_SOURCES", "BASE_SOURCES", "CRT_SOURCES", "HEADER_FILES", "INTERNAL_HEADERS")
 
@@ -78,15 +78,11 @@ untar(
 )
 
 [
-    generate(
+    exact_patch(
         name = name,
-        args = [
-            "$(location :musl-1.1.24[" + path + "])",
-            "$(location :patches/" + name + ".before)",
-            "$(location :patches/" + name + ".after)",
-        ],
+        src = ":musl-1.1.24[" + path + "]",
         output = name,
-        tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+        patch = ":patches/" + name + ".patch",
     )
     for name, path in [
         ("alltypes", "arch/x86_64/bits/alltypes.h.in"),

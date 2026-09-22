@@ -1,4 +1,34 @@
-<file:../.buckconfig.d/cells-common.include>
-
+# Configuration for Buck started inside cellar/, which .buckroot makes a
+# standalone project with no upstream prelude or repository shims. Started
+# elsewhere, Buck builds the same targets through the parent project.
 [cells]
 cellar = .
+
+[buildfile]
+name = BUILD,BUCK
+
+[build]
+execution_platforms = cellar//bootstrap/platforms:execution
+
+[parser]
+target_platform_detector_spec = target:cellar//...->cellar//bootstrap/platforms:default
+
+[buck2]
+# Skip generated trees before traversal; no external watcher or OS watch budget.
+file_watcher = fs_hash_crawler
+digest_algorithms = SHA256
+sqlite_materializer_state = true
+sqlite_dep_file_state = true
+defer_write_actions = true
+declare_output_has_content_based_path_default = true
+action_has_content_based_path_default = true
+create_unhashed_links = true
+restarter = true
+test_builds_targets = true
+
+[http]
+connect_timeout_ms = 60000
+read_timeout_ms = 60000
+
+[project]
+ignore = buck-out

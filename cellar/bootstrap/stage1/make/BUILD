@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "ungz", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "ungz", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 load(":sources.bzl", "FILES")
 
@@ -195,36 +195,22 @@ write_file(
     content = "\n".join(["#define " + name + " 1" for name in CONFIG_ON]) + "\n" + "\n".join(["#define " + name + " " + value for name, value in CONFIG_VALUES.items()]) + "\n",
 )
 
-[export_file(name = "patches/shell." + suffix) for suffix in [
-    "before",
-    "after",
-]]
+export_file(name = "patches/shell.patch")
 
-generate(
+exact_patch(
     name = "main.c",
-    args = [
-        "$(location :make-4.2.1[main.c])",
-        "$(location :patches/shell.before)",
-        "$(location :patches/shell.after)",
-    ],
+    src = ":make-4.2.1[main.c]",
     output = "main.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/shell.patch",
 )
 
-[export_file(name = "patches/shell-path." + suffix) for suffix in [
-    "before",
-    "after",
-]]
+export_file(name = "patches/shell-path.patch")
 
-generate(
+exact_patch(
     name = "job.c",
-    args = [
-        "$(location :make-4.2.1[job.c])",
-        "$(location :patches/shell-path.before)",
-        "$(location :patches/shell-path.after)",
-    ],
+    src = ":make-4.2.1[job.c]",
     output = "job.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/shell-path.patch",
 )
 
 filegroup(
@@ -315,15 +301,15 @@ generate(
         "-j3",
         "-f",
         "source/Makefile",
-        "CC=$(location " + GCC + ":stage3-xgcc)",
-        "AR=$(location cellar//bootstrap/stage1/binutils:ar)",
+        "CC=$(exe " + GCC + ":stage3-xgcc)",
+        "AR=$(exe cellar//bootstrap/stage1/binutils:ar)",
         "CFLAGS=-O2 -g0 -frandom-seed=bootstrap -B$(location " + GCC + ":stage3-native-tools)/ -B$(location " + GCC + ":stage3-runtime)/lib/ -nostdinc -isystem $(location " + GCC + ":compiler-headers) -isystem $(location " + GCC + ":stage3-runtime[include])",
     ],
     chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
     directory = True,
     env = {
         "CELLAR_BOOTSTRAP_IDENTITY": "1",
-        "BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash:bash)",
+        "BOOTSTRAP_SHELL": "$(exe cellar//bootstrap/stage1/bash:bash)",
         "PATH": "/nonexistent-bootstrap-path",
         "TMPDIR": ".",
         "TZ": "UTC0",
@@ -361,7 +347,7 @@ command_test(
     name = "diagnostics",
     args = [
         "2",
-        "$(location :make)",
+        "$(exe :make)",
         "-rR",
         "-f",
         "$(location :malformed.mk)",
@@ -374,7 +360,7 @@ command_test(
     name = "empty-shell",
     args = [
         "2",
-        "$(location :make)",
+        "$(exe :make)",
         "--version",
     ],
     env = {"BOOTSTRAP_SHELL": ""},

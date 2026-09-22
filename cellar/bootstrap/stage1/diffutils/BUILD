@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object")
 
 GCC = "cellar//bootstrap/stage1/gcc47"
@@ -168,57 +168,37 @@ untar(
     "tests/*",
 ])]
 
-[generate(
+[exact_patch(
     name = name + ".c",
-    args = [
-        "$(location :diffutils-2.7[" + name + ".c])",
-        "$(location :patches/" + name + ".before)",
-        "$(location :patches/" + name + ".after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":diffutils-2.7[" + name + ".c]",
+    patch = ":patches/" + name + ".patch",
 ) for name in [
     "diff3",
     "util",
 ]]
 
-generate(
+exact_patch(
     name = "regex-push",
-    args = [
-        "$(location :diffutils-2.7[regex.c])",
-        "$(location :patches/regex-push.before)",
-        "$(location :patches/regex-push.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":diffutils-2.7[regex.c]",
+    patch = ":patches/regex-push.patch",
 )
 
-generate(
+exact_patch(
     name = "regex-high",
-    args = [
-        "$(location :regex-push)",
-        "$(location :patches/regex-high.before)",
-        "$(location :patches/regex-high.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":regex-push",
+    patch = ":patches/regex-high.patch",
 )
 
-generate(
+exact_patch(
     name = "regex-low",
-    args = [
-        "$(location :regex-high)",
-        "$(location :patches/regex-low.before)",
-        "$(location :patches/regex-low.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":regex-high",
+    patch = ":patches/regex-low.patch",
 )
 
-generate(
+exact_patch(
     name = "regex-compare",
-    args = [
-        "$(location :regex-low)",
-        "$(location :patches/regex-compare.before)",
-        "$(location :patches/regex-compare.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":regex-low",
+    patch = ":patches/regex-compare.patch",
 )
 
 filegroup(
@@ -311,10 +291,10 @@ generate(
         "--noprofile",
         "--norc",
         "source/integration.sh",
-        "$(location :diff-bin)",
-        "$(location :cmp-bin)",
-        "$(location :diff3-bin)",
-        "$(location :sdiff-bin)",
+        "$(exe :diff-bin)",
+        "$(exe :cmp-bin)",
+        "$(exe :diff3-bin)",
+        "$(exe :sdiff-bin)",
     ],
     chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
     directory = True,
@@ -354,7 +334,7 @@ command_test(
     name = "missing-declared-diff",
     args = [
         "2",
-        "$(location :diff3-bin)",
+        "$(exe :diff3-bin)",
         "$(location :test-source[left])",
         "$(location :test-source[base])",
         "$(location :test-source[right])",

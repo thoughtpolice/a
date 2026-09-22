@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "ungz", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "ungz", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object")
 
 SOURCES = [
@@ -67,24 +67,11 @@ write_file(
 )
 
 # Keep temporary generator files inside the declared output directory.
-write_file(
-    name = "tmp.before",
-    content = "\ttmpdir = _PATH_TMP;\n",
-)
-
-write_file(
-    name = "tmp.after",
-    content = "\ttmpdir = getenv(\"TMPDIR\");\n\tif (!tmpdir || !*tmpdir) tmpdir = _PATH_TMP;\n",
-)
-
-generate(
+exact_patch(
     name = "main-source",
-    args = [
-        "$(location :oyacc-6.6[main.c])",
-        "$(location :tmp.before)",
-        "$(location :tmp.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":oyacc-6.6[main.c]",
+    after = "\ttmpdir = getenv(\"TMPDIR\");\n\tif (!tmpdir || !*tmpdir) tmpdir = _PATH_TMP;\n",
+    before = "\ttmpdir = _PATH_TMP;\n",
 )
 
 filegroup(
@@ -195,7 +182,7 @@ command_test(
     name = "syntax-error",
     args = [
         "2",
-        "$(location :calculator)",
+        "$(exe :calculator)",
         "(1+",
         "0",
     ],

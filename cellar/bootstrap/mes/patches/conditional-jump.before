@@ -1,4 +1,0 @@
-             (jump-text (wrap-as (as info type label)))
-             (info (append-text info (append (if (null? test) '() ((car test) info))
-                                             jump-text)))
-             (info (free-register info)))

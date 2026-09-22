@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "concatenate", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "exact_patch", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_library", "c_object")
 load(":sources.bzl", "HEADER_FILES", "SOURCES")
 
@@ -35,18 +35,12 @@ untar(
     untar = "cellar//bootstrap/stage1/tar:tar",
 )
 
-export_file(name = "patches/gthr.before")
+export_file(name = "patches/gthr.patch")
 
-export_file(name = "patches/gthr.after")
-
-generate(
+exact_patch(
     name = "os_defines.h",
-    args = [
-        "$(location :gcc-4.7.4[libstdc++-v3/config/os/generic/os_defines.h])",
-        "$(location :patches/gthr.before)",
-        "$(location :patches/gthr.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":gcc-4.7.4[libstdc++-v3/config/os/generic/os_defines.h]",
+    patch = ":patches/gthr.patch",
 )
 
 # Reviewed x86_64 musl configuration; no target configure process runs.

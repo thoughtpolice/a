@@ -1,2 +1,0 @@
-extern int zwrite __P((int, char *, size_t));
-extern int zcatfd __P((int, int, char *));

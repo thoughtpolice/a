@@ -104,7 +104,7 @@ command_test(
 )
 
 # Exercise a whole header tree together with projected source/include inputs.
-# Run with @mode//sandbox to check that adjacent private headers stay visible.
+# Run with @cellar//bootstrap/platforms/sandbox to check that adjacent private headers stay visible.
 filegroup(
     name = "header-tree",
     srcs = {

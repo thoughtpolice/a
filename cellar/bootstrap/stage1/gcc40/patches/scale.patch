@@ -1,0 +1,6 @@
+--- before
++++ after
+@@ -1 +1,2 @@
++#undef SCALE
+ #define SCALE(x)
+\ No newline at end of file

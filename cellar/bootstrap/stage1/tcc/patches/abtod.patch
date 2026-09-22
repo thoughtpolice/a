@@ -1,0 +1,81 @@
+--- before
++++ after
+@@ -1,31 +1,56 @@
++/* Accumulate the fractional scale per digit. Integer accumulation uses
++   double too, since the earlier abtol implementation has a 32-bit accumulator.
++   The seed cannot materialize floating constants, including constant casts.
++   Initialize nonzero doubles through integer variables until boot0. */
+ double
+ abtod (char const **p, int base)
+ {
+   char const *s = *p;
+-  double d = 0;
+-  int sign_p = 0;
+-  if (!base)
+-    base = 10;
+-  double dbase = base;
+-  long i = abtol (&s, base);
+-  long f = 0;
+-  long e = 0;
+-  if (*s == '.')
+-    {
++  int one = 1;
++  double value = 0;
++  double scale = one;
++  double radix;
++  int negative = 0;
++  int digit;
++  int exponent = 0;
++  int exponent_negative = 0;
++  if (!base) base = 10;
++  radix = base;
++  while (*s == ' ' || *s == '\t' || *s == '\n' || *s == '\r') s++;
++  if (*s == '-' || *s == '+') { negative = *s == '-'; s++; }
++  while (1) {
++    digit = *s >= '0' && *s <= '9' ? *s - '0' :
++            *s >= 'a' && *s <= 'f' ? *s - 'a' + 10 :
++            *s >= 'A' && *s <= 'F' ? *s - 'A' + 10 : base;
++    if (digit >= base) break;
++    value = value * radix + digit;
++    s++;
++  }
++  if (*s == '.') {
++    s++;
++    while (1) {
++      digit = *s >= '0' && *s <= '9' ? *s - '0' :
++              *s >= 'a' && *s <= 'f' ? *s - 'a' + 10 :
++              *s >= 'A' && *s <= 'F' ? *s - 'A' + 10 : base;
++      if (digit >= base) break;
++      value = value * radix + digit;
++      scale *= radix;
+       s++;
+-      f = abtol (&s, base);
+     }
+-  if (*s == 'e')
+-    {
+-      s++;
+-      e = abtol (&s, base);
++  }
++  value /= scale;
++  if ((base == 10 && (*s == 'e' || *s == 'E')) ||
++      (base == 16 && (*s == 'p' || *s == 'P'))) {
++    if (base == 16) { base = 2; radix = base; }
++    s++;
++    if (*s == '-' || *s == '+') { exponent_negative = *s == '-'; s++; }
++    while (*s >= '0' && *s <= '9') { exponent = exponent * 10 + *s - '0'; s++; }
++    while (exponent > 0) {
++      if (exponent_negative) value /= radix;
++      else value *= radix;
++      exponent--;
+     }
+-  d = i + f / dbase;
+-  if (e < 0)
+-    while (e++)
+-      d = d / dbase;
+-  while (e--)
+-    d = d * dbase;
++  }
+   *p = s;
+-  return sign_p ? -d : d;
++  return negative ? -value : value;
+ }

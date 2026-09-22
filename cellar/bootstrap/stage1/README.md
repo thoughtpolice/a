@@ -7,12 +7,26 @@ The native Linux/x86_64 endpoint is implemented: static GCC 4.7.4 C/C++, binutil
 2.30, musl 1.2.5 and the complete selected userland. Package builds, generators,
 configurations and installation mappings are declared in cellar BUILD files.
 
-```
-./buck/bin/buck2 build cellar//bootstrap/stage1:all --show-output
-./buck/bin/buck2 build cellar//bootstrap/stage1:toolchain cellar//bootstrap/stage1:userland
-./buck/bin/buck2 run cellar//bootstrap/stage1:gcc -- hello.c -o hello
-./buck/bin/buck2 run cellar//bootstrap/stage1:g++ -- -std=gnu++11 -pthread hello.cc -o hello
-./buck/bin/buck2 test cellar//bootstrap/stage1: --local-only -j 8
+The examples below run from `cellar/`, the standalone project, whose
+configuration and platform rules load no prelude, parent PACKAGE policy, or
+external Starlark rules. The same targets also build from the parent project,
+but the closure audits require the standalone one. Both target and execution compatibility require
+x86_64 Linux, and executable dependencies use Buck's execution configuration.
+See the [platform guide](../platforms/README.md) for remote Linux workers and
+Windows/macOS/Linux clients. RBE endpoint integration remains to be validated.
+`buck2 run` launches its final program on the client; the runnable compiler
+examples below therefore require a Linux x86_64 client.
+
+```sh
+cd cellar
+../buck/bin/buck2 build @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1:all --show-output
+../buck/bin/buck2 build @cellar//bootstrap/platforms/sandbox \
+  cellar//bootstrap/stage1:toolchain cellar//bootstrap/stage1:userland
+../buck/bin/buck2 run @cellar//bootstrap/platforms/sandbox \
+  cellar//bootstrap/stage1:gcc -- hello.c -o hello
+../buck/bin/buck2 run @cellar//bootstrap/platforms/sandbox \
+  cellar//bootstrap/stage1:g++ -- -std=gnu++11 -pthread hello.cc -o hello
+../buck/bin/buck2 test @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1: --local-only -j 8
 ```
 
 `:toolchain` installs the native compiler, standard binutils, public C/C++ and
@@ -38,9 +52,9 @@ threads/TLS, varargs, exceptions/RTTI/STL, generated C/C++ parsers/scanners, she
 pipelines, file/date operations, archives, locate databases and relocation.
 Removing installed headers, libc, cc1 or m4 produces errors instead of host
 fallback. The earlier cross-workspace gate passed 271 final-userland/installation
-tests, 1001 GCC/C++ tests and 72 stage0/Mes/TCC/musl checks. The installation has
-1286 files, 293 static executable entries (143 distinct executable contents), no symlinks
-and no embedded absolute workspace paths. The configured `:all` audit covers
+tests, 1001 GCC/C++ tests and 72 stage0/Mes/TCC/musl checks. At that checkpoint the
+installation had 1286 files, 293 static executable entries (143 distinct executable
+contents), no symlinks and no embedded absolute workspace paths. Its `:all` audit covered
 15858 targets and 16349 actions with no violations. Cross-workspace and traced
 validation passed at `ac91c095`; the complete results are recorded in
 [validation.json](validation.json).
@@ -48,37 +62,63 @@ validation passed at `ac91c095`; the complete results are recorded in
 The GCC fixed-point contract is the upstream-style stage2/stage3 comparison of
 891 objects and four runtime archives, excluding only the two compiler checksum
 objects. It is not a claim of executable identity between compiler generations.
+The [GNU SHA256 gate](sha256/README.md) separately builds the actual coreutils
+command with GCC stages 1, 2 and 3, compares its objects and executable, and
+tests GNU checksum syntax and the original seed hashes with every generation.
 Shared runtimes, multilib, cross compilation, Gold and additional GCC languages
 remain outside this native static endpoint. Buck2 and the running kernel remain
 trusted infrastructure.
 
-Native Landlock validation at `c68560a4` builds all three installation targets
-successfully. The full recursive gate passes 2082 tests, including all 19 stage0
-golden checks, the Mes fixed point, eight TCC fixed-point comparisons and all
-895 GCC/C++ object/archive comparisons. One additional test remains blocked:
-`bash:interactive-job-control-and-readline` cannot build its `pty-result` because
-the native policy denies `/dev/ptmx` and `/dev/pts` access. The full test command
-therefore exits nonzero. Running that same compiled PTY helper and Bash directly
-with terminal access passes; this separate diagnostic is outside Landlock and
-does not populate Buck's action cache.
+The standalone cleanup at `bc3e89bc` passed 2192 tests under native Landlock,
+including all 95 GNU SHA256 cases. The selected gate excludes only the PTY
+test deferred below; no tests were removed. All three installation targets
+build, and all 1286 installed files retain identical bytes and modes to the
+earlier parent-project build. The 36 configuration checks cover Linux, macOS
+and Windows clients, native target/exec compatibility, remote-only selection,
+and the copied executable seed. These are graph/provider checks, not a live
+RBE run. The seed copy has identical bytes and explicit executable metadata;
+the 19 original seed golden checks still pass.
 
-```
-./buck/bin/buck2 --isolation-dir native-stage1-landlock-verified build @mode//sandbox \
-  -c http.connect_timeout_ms=60000 -c http.read_timeout_ms=60000 \
+The cleanup replaces 104 paired patch fragments with single exact patches,
+preserving all 158 production replacements. The configured installation
+closure contains 15723 targets and 16341 actions, all in cellar; the separate
+SHA256 closure and all 95 explicit Starlark files also pass their audits.
+The `standalone_cleanup_validation` entry in [validation.json](validation.json)
+records this cleanup's build, test, trace and installation evidence, taken with
+the GCC 4.7 installation, separately from the historical results below.
+The corrected incremental trace covers 17618 bootstrap processes and 1089442
+file opens without closure violations, plus 8287 successful Landlock
+enforcement calls and no failures. It reuses earlier native foundation
+artifacts; it is not a wholly uncached seed-to-userland rebuild.
+
+Historical Landlock validation at `c68560a4`, before the standalone project
+conversion, built all three installation targets successfully. Its full
+recursive gate passed 2082 tests, including all 19 stage0 golden checks, the Mes
+fixed point, eight TCC fixed-point comparisons and all
+895 GCC/C++ object/archive comparisons. One additional test was blocked:
+`bash:interactive-job-control-and-readline` could not build its `pty-result` because
+the native policy denies `/dev/ptmx` and `/dev/pts` access. That PTY session
+now runs as the test itself rather than as a build action, and the native
+executor now grants `/dev/ptmx` and `/dev/pts`, so it passes in sandbox mode
+too. These historical results do not claim
+validation of later configuration or source changes. To run the same target
+selections with the current standalone configuration:
+
+```sh
+../buck/bin/buck2 --isolation-dir native-stage1-landlock-verified build @cellar//bootstrap/platforms/sandbox \
   cellar//bootstrap/stage1:toolchain cellar//bootstrap/stage1:userland \
   cellar//bootstrap/stage1:all --local-only --no-remote-cache -j 8
-./buck/bin/buck2 --isolation-dir native-stage1-landlock-verified test @mode//sandbox \
-  -c http.connect_timeout_ms=60000 -c http.read_timeout_ms=60000 \
+../buck/bin/buck2 --isolation-dir native-stage1-landlock-verified test @cellar//bootstrap/platforms/sandbox \
   cellar//bootstrap/stage1/... cellar//bootstrap/mes: \
   cellar//bootstrap/stage0-posix/seeds/linux-amd64: \
-  --local-only --no-remote-cache --no-default-test-filters -j 8
+  --local-only --no-remote-cache -j 8
 ```
 
-The isolation directory started empty. Retries after sandbox compatibility fixes
-reused artifacts produced under Landlock in that isolation; this was not one
-uninterrupted invocation. Download timeouts accommodate the pinned musl server.
-The registered execution platform uses native sandboxing. A startup syscall
-sample recorded 13 successful `landlock_restrict_self` calls with kernel ABI 6;
+The historical isolation directory started empty. Retries after sandbox
+compatibility fixes reused artifacts produced under Landlock in that isolation;
+this was not one uninterrupted invocation. Cellar now sets the download timeouts
+to 60 seconds in its own buckconfig. The historical startup syscall sample
+recorded 13 successful `landlock_restrict_self` calls with kernel ABI 6;
 it is not a trace of every action. The native policy permits host system paths,
 so these results supplement the earlier process/file audits rather than proving
 the complete absence of host dependencies on their own.
@@ -88,9 +128,9 @@ before its complete parent tree could hide declared sibling files. Compilation,
 generation, test and installed-tool commands now visit complete trees first;
 three focused regression tests cover source/header and generator/test trees.
 Flex skeleton generation also uses its complete source tree at a stable logical
-path. All 1286 installed files retain identical contents and modes to the earlier
-build, and the static-format, workspace-path and cellar-only rule audits pass.
-The `native_landlock_validation` entry in [validation.json](validation.json)
+path. All 1286 installed files retained identical contents and modes to the earlier
+build in that validation, and the static-format, workspace-path and cellar-only
+rule audits passed. The `native_landlock_validation` entry in [validation.json](validation.json)
 records this run separately from the earlier cross-workspace results, including
 the remaining PTY restriction.
 
@@ -116,7 +156,7 @@ three compiler stages and compares the last two interpreter executables.
 Validation:
 
 ```
-buck2 test cellar//bootstrap/stage0-posix/seeds/linux-amd64: \
+../buck/bin/buck2 test @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage0-posix/seeds/linux-amd64: \
   cellar//bootstrap/mes:hello-test cellar//bootstrap/mes:mes-fixed-point --local-only -j 8
 ```
 
@@ -129,8 +169,12 @@ MesCC, which has no default executable artifact.
 
 The immutable simple-patch adaptation is based on the pinned reference's MIT
 source. It requires exactly one nonempty before block, checks allocation and I/O,
-and writes a distinct output artifact. Its tests exercise replacement plus missing,
-ambiguous, empty, and oversize patterns.
+and writes a distinct output artifact. Each replacement is a single unified-hunk
+`.patch` file; short replacements can use `exact_patch` strings directly in BUILD.
+The helper reconstructs exact byte strings, including partial lines, rather than
+using file offsets or fuzzy matching. Its tests cover replacement, context lines,
+newline handling, deletion, missing and ambiguous matches, and malformed patches.
+See [simple-patch's format](simple-patch/README.md).
 
 The native TCC 0.9.26 fixed point now passes. MesCC builds the amalgamated seed;
 boot0, boot1, and boot2 use separate translation units and identical feature
@@ -147,9 +191,9 @@ integer and floating arithmetic, mixed varargs, separate compilation, archives,
 weak symbols, diagnostics, and failure with missing sysroot headers/libraries.
 
 ```
-buck2 test cellar//bootstrap/stage1/tcc: --local-only -j 8
-buck2 run cellar//bootstrap/stage1/tcc:tcc -- example.c -o example
-buck2 build cellar//bootstrap/stage1/tcc:runtime-boot2
+../buck/bin/buck2 test @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1/tcc: --local-only -j 8
+../buck/bin/buck2 run @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1/tcc:tcc -- example.c -o example
+../buck/bin/buck2 build @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1/tcc:runtime-boot2
 ```
 
 The Mes runtime in this milestone is transitional and retains upstream stubs.
@@ -171,7 +215,7 @@ Fifteen musl and twenty-one musl-linked TCC tests cover these stages. The runnab
 `musl:tcc` pairs the latest compiler with `musl:runtime-restored`.
 
 ```
-buck2 test cellar//bootstrap/stage1/musl: \
+../buck/bin/buck2 test @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1/musl: \
   cellar//bootstrap/stage1/musl-tables: cellar//bootstrap/stage1/tcc-musl: --local-only -j 8
 ```
 
@@ -194,7 +238,7 @@ output directories. The shared shell adapter retains musl's spawn and stdio
 semantics; callers fail if its shell configuration is missing.
 
 ```
-buck2 test cellar//bootstrap/stage1/oyacc: \
+../buck/bin/buck2 test @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1/oyacc: \
   cellar//bootstrap/stage1/bash-bootstrap: cellar//bootstrap/stage1/heirloom-lex: \
   cellar//bootstrap/stage1/m4: cellar//bootstrap/stage1/flex-bootstrap: \
   cellar//bootstrap/stage1/flex: cellar//bootstrap/stage1/bison: \
@@ -222,9 +266,9 @@ additional tests. The complete final coreutils rebuild is supplied by
 `coreutils-final`, with 96 native programs and the upstream groups script.
 
 ```
-buck2 test cellar//bootstrap/stage1/binutils: \
+../buck/bin/buck2 test @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1/binutils: \
   cellar//bootstrap/stage1/coreutils: --local-only -j 8
-buck2 build cellar//bootstrap/stage1/binutils:installation
+../buck/bin/buck2 build @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1/binutils:installation
 ```
 
 The pre-GCC sequence also rebuilds musl with GNU as/ar/ld, restoring its native
@@ -239,25 +283,26 @@ fused operations, startup, threads/TLS, syscalls, Unicode, and driver linking.
 Missing sysroot headers and libraries fail instead of falling back to the host.
 
 ```
-buck2 test cellar//bootstrap/stage1/tcc-native: \
+../buck/bin/buck2 test @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1/tcc-native: \
   cellar//bootstrap/stage1/musl: --local-only -j 8
-buck2 build cellar//bootstrap/stage1/tcc-native:installation
+../buck/bin/buck2 build @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1/tcc-native:installation
 ```
 
 Closure review:
 
 ```
-buck2 bxl cellar//bootstrap/audit.bxl:closure -- \
+../buck/bin/buck2 bxl @cellar//bootstrap/platforms/sandbox cellar//bootstrap/audit.bxl:closure -- \
   --target cellar//bootstrap/mes:mes-fixed-point > /tmp/mes-closure.json
-python3 cellar/bootstrap/audit-loads.py
+python3 bootstrap/audit-loads.py
 ```
 
 The BXL report includes every configured target's rule-definition path, action
-owner and command, and transitive Starlark loads. Buck automatically injects its
-bundled prelude into modules and the repository's noprelude shim into BUILD files;
-the audit reports those infrastructure loads explicitly. No rule defined there
-is permitted in the configured dependency closure. The supplementary source audit
-rejects explicit imports outside cellar, including unused imports.
+owner and command, transitive Starlark loads, and the execution platform registry.
+It rejects foreign rules, dependencies, loads, or action owners and checks the
+native Linux/x86_64 constraints. The standalone project has no prelude or injected
+BUILD shim; package decisions use Buck's built-in `select` directly. The
+supplementary source audit rejects explicit imports outside cellar, including
+unused imports.
 
 At commit `b6c6c231`, a second JJ workspace at `/tmp/native-stage1-relocated`
 rebuilt the fixed-point closure locally without remote caching. All 48 tests
@@ -467,11 +512,12 @@ race; the committed child-readiness handshake fixes it, and the final run
 above is the acceptance evidence. This gate reuses earlier audited bootstrap
 outputs and does not claim a wholly uncached seed-to-userland rebuild.
 
-To repeat the trace gate, start with a fresh JJ workspace and isolated daemon:
+To repeat the foundation trace gate with the current configuration, start with a
+fresh JJ workspace, enter its `cellar/` directory, and use an isolated daemon:
 
 ```
 strace --seccomp-bpf -ff -ttt -s 65535 -yy -e trace=%file,%process \
-  -o /tmp/bootstrap-trace ./buck/bin/buck2 --isolation-dir bootstrap-audit test \
+  -o /tmp/bootstrap-trace ../buck/bin/buck2 --isolation-dir bootstrap-audit test @cellar//bootstrap/platforms/sandbox \
   cellar//bootstrap/stage0-posix/seeds/linux-amd64: \
   cellar//bootstrap/mes:mes-fixed-point cellar//bootstrap/mes:hello-test \
   cellar//bootstrap/stage1/tcc: --local-only --no-remote-cache -j 8
@@ -481,14 +527,16 @@ After the tests finish, stop that isolated daemon from another terminal so strac
 can exit, then run the host-side audit (it is never a bootstrap action input):
 
 ```
-./buck/bin/buck2 --isolation-dir bootstrap-audit kill
-python3 cellar/bootstrap/audit-trace.py --workspace "$PWD" \
+../buck/bin/buck2 --isolation-dir bootstrap-audit kill
+python3 bootstrap/audit-trace.py --workspace "$PWD" \
   --trace-prefix /tmp/bootstrap-trace > /tmp/bootstrap-trace-audit.json
-PYTHONDONTWRITEBYTECODE=1 python3 cellar/bootstrap/test-audit-trace.py
 ```
 
+`buck2 test cellar//bootstrap:` runs the auditors' own regression tests with
+the host `python3`.
 
-The final installation gate at `ac91c095` passes all 1344 tests in both
+
+The historical final installation gate at `ac91c095` passed all 1344 tests in both
 `/home/exedev/a` and `/tmp/native-stage1-relocated`. All 1286 installed files
 match byte-for-byte, including permission modes. The separate toolchain and
 userland selections also match (979 and 314 files respectively). All 293 ELF
@@ -506,9 +554,9 @@ its expected failure stays inside the dependency closure. The first traced run
 identified those audit/fixture issues; the figures above are from the corrected
 rerun. No delivered program behavior was weakened to satisfy the audit.
 
-The configured installation closure contains 15858 targets and 16349 actions,
-with zero violations. All 88 explicitly loaded bootstrap Starlark files remain
-in cellar. The comparison inventory independently confirms all 891 GCC/C++
+That historical installation closure contained 15858 targets and 16349 actions,
+with zero violations. All 88 explicitly loaded bootstrap Starlark files remained
+in cellar. Its comparison inventory independently confirmed all 891 GCC/C++
 object comparisons, all four runtime archives and only the two upstream
 checksum exclusions. This gate is incremental on the previously audited
 foundation outputs; it does not claim a wholly uncached seed-to-userland build.
@@ -523,9 +571,8 @@ installation targets while the traced daemon is still running, then stop it.
 Compare each installation with the host-side auditor:
 
 ```
-python3 cellar/bootstrap/audit-installation.py --root FIRST_INSTALLATION \
+python3 bootstrap/audit-installation.py --root FIRST_INSTALLATION \
   --workspace FIRST_WORKSPACE --compare SECOND_INSTALLATION \
   --compare-workspace SECOND_WORKSPACE
-PYTHONDONTWRITEBYTECODE=1 python3 cellar/bootstrap/test-audit-installation.py
-PYTHONDONTWRITEBYTECODE=1 python3 cellar/bootstrap/test-audit-trace.py
+../buck/bin/buck2 test cellar//bootstrap:
 ```

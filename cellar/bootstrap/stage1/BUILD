@@ -397,9 +397,6 @@ TOOLCHAIN_FILES = {"include/" + p: MUSL + ":headers[" + p + "]" for p in MUSL_HE
     "lib/libsupc++.a": CXX + ":stage3-libsupc++.a",
     "lib/libgcc.a": GCC + ":stage3-libgcc.a",
     "lib/libgcov.a": GCC + ":stage3-libgcov.a",
-    "share/licenses/musl/COPYRIGHT": MUSL + ":installation[share/licenses/musl/COPYRIGHT]",
-    "share/licenses/gcc/COPYING3": GCC + ":gcc-4.7.4[COPYING3]",
-    "share/licenses/gcc/COPYING.RUNTIME": GCC + ":gcc-4.7.4[COPYING.RUNTIME]",
     "share/licenses/libstdc++": CXX + ":stage3-installation[share/licenses/libstdc++]",
     "share/licenses/binutils": PREFIX + "binutils-final:installation[share/licenses/binutils]",
     "share/licenses/gmp": PREFIX + "gmp:installation[share/licenses/gmp]",
@@ -477,7 +474,17 @@ USERLAND_FILES = {"libexec/bootstrap/" + name: PREFIX + target for name, target 
     "updatedb",
 ]}
 
+# updatedb and locate default to {root}/var/locatedb, so every installation
+# ships the directory that database lives in.
+filegroup(
+    name = "empty-directory",
+    srcs = {},
+)
+
+# Every installation links musl and libgcc into its programs, so each carries
+# their notices.
 COMMON_FILES = {
+    "var": ":empty-directory",
     "share/bootstrap/README": "installation/README",
     "share/licenses/bootstrap/LICENSE": "installation/LICENSE",
     "share/licenses/bootstrap/NOTICE": "installation/NOTICE",

@@ -1,3 +1,5 @@
+load("@cellar//bootstrap/platforms:rules.bzl", "native_attrs")
+
 def __cc(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
     tools = ctx.attrs.tools[DefaultInfo].default_outputs[0]
@@ -27,22 +29,24 @@ def __cc(ctx: AnalysisContext) -> list[Provider]:
         RunInfo(args = cmd_args(output)),
     ]
 
-cc = rule(impl = __cc, attrs = {
+_cc_rule = rule(impl = __cc, attrs = {
     "os": attrs.string(),
     "arch": attrs.string(),
     "src": attrs.source(),
-    "tools": attrs.dep(),
+    "tools": attrs.exec_dep(),
     "_m2_libc": attrs.default_only(
         attrs.dep(default = "cellar//bootstrap/stage0-posix/m2-libc:m2-libc"),
     ),
 })
 
+def cc(**kwargs):
+    _cc_rule(**native_attrs(kwargs))
+
 def create_all(sources):
     """Create cc targets for all mescc-tools-extra C sources.
 
-    Must be called from a BUILD file with glob() results since select() is
-    only available as a built-in in .bzl files (the cellar cell's noprelude
-    shim overrides it in BUILD files).
+    BUILD supplies the source inventory; this helper applies the shared
+    native compiler settings.
     """
     for src in sources:
         name = src.split(".")[0] if "." in src else src

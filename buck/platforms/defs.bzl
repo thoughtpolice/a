@@ -157,6 +157,53 @@ __execution_platform = rule(
     },
 )
 
+def _execution_platforms_impl(ctx: AnalysisContext) -> list[Provider]:
+    platforms = []
+    for dep in ctx.attrs.registrations:
+        platforms.extend(dep[ExecutionPlatformRegistrationInfo].platforms)
+    return [DefaultInfo(), ExecutionPlatformRegistrationInfo(platforms = platforms, fallback = "error")]
+
+# Buck reads a single build.execution_platforms target, so every executor the
+# repository offers is registered through this one list, and only its fallback
+# counts. Buck picks the first platform whose constraints a target accepts.
+# Root targets constrain nothing, so the host platform takes them all, while a
+# standalone cell's targets require its own constraints, which no root platform
+# carries. A target no platform accepts, like a cellar target on a client with
+# no cellar executor, is an error, never configured for an unspecified executor
+# that cannot run it.
+execution_platforms = rule(
+    impl = _execution_platforms_impl,
+    attrs = {
+        "registrations": attrs.list(attrs.dep(providers = [ExecutionPlatformRegistrationInfo])),
+    },
+    is_configuration_rule = True,
+)
+
+def _client_platform_impl(ctx: AnalysisContext) -> list[Provider]:
+    constraints = dict()
+    constraints.update(ctx.attrs.cpu_configuration[ConfigurationInfo].constraints)
+    constraints.update(ctx.attrs.os_configuration[ConfigurationInfo].constraints)
+    for x in ctx.attrs.constraints:
+        constraints.update(x[ConfigurationInfo].constraints)
+    cfg = ConfigurationInfo(constraints = constraints, values = {})
+    return [
+        DefaultInfo(),
+        PlatformInfo(label = str(ctx.label.raw_target()), configuration = cfg),
+        ExecutionPlatformRegistrationInfo(platforms = []),
+    ]
+
+# The platform of a client that no variant describes. It registers no executor,
+# so root targets fail to find one there, while standalone cells still register
+# theirs, such as cellar's remote Linux workers.
+__client_platform = rule(
+    impl = _client_platform_impl,
+    attrs = {
+        "cpu_configuration": attrs.dep(providers = [ConfigurationInfo]),
+        "os_configuration": attrs.dep(providers = [ConfigurationInfo]),
+        "constraints": attrs.list(attrs.dep(providers = [ConfigurationInfo]), default = []),
+    },
+)
+
 def _host_cpu_configuration() -> str:
     arch = host_info().arch
     if arch.is_aarch64:
@@ -180,7 +227,7 @@ def generate_platforms(variants, constraints = []):
     # We want to generate a remote-execution capable variant of every supported
     # platform (-re suffix) as well as a local variant (-local suffix) for the
     # current execution platform that buck2 is running on.
-    default_alias_prefix = "none//fake:nonexistent"
+    default_alias_prefix = None
     for (cpu, os) in variants:
         cpu_configuration = "config//cpu:{}".format(cpu)
         os_configuration = "config//os:{}".format(os)
@@ -230,7 +277,14 @@ def generate_platforms(variants, constraints = []):
         default = "none",
     )
 
-    if re_choice == "full-remote":
+    if default_alias_prefix == None:
+        __client_platform(
+            name = "default",
+            cpu_configuration = _host_cpu_configuration(),
+            os_configuration = _host_os_configuration(),
+            constraints = constraints,
+        )
+    elif re_choice == "full-remote":
         suffix = "remote" if host_info().os.is_linux and not host_info().arch.is_aarch64 else "cached"
         shims.alias(
             name = "default",

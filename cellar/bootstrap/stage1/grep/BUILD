@@ -277,7 +277,7 @@ write_file(
     name = name,
     args = [
         status,
-        "$(location :grep)",
+        "$(exe :grep)",
         pattern,
         "$(location :input)",
     ],

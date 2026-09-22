@@ -1,1 +1,0 @@
-  filename = concat (srcdir, "/i386-reg.tbl", (const char *) NULL);

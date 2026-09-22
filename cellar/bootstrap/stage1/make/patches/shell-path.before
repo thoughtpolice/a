@@ -1,3 +1,0 @@
-        if (strchr (sh_chars, *cp) != 0)
-          *(ap++) = '\\';
-        *(ap++) = *cp;

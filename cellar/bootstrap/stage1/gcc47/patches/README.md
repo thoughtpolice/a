@@ -5,15 +5,15 @@
 
 The numbered unified patches are preserved from live-bootstrap revision
 `dd8ac27bf959344b9bcf5e876bdd7716879bbc70`, with their original SPDX notices.
-BUILD applies exact before/after blocks from the native Linux, x86_64 and
+BUILD applies exact replacement blocks from the native Linux, x86_64 and
 stdint hunks using the bootstrapped immutable patch helper. Configure and
 Makefile hunks are represented by reviewed BUILD configuration instead.
 
-The numbered `.before` and `.after` fragments retain the corresponding unified
+The numbered single-hunk `.patch` fragments retain the corresponding upstream
 patch's copyright and GPL-2.0-or-later license. They are checked against the
 pinned GCC source with exactly one matching block; no fuzzy patching runs.
 
-`tmpdir.before` and `tmpdir.after` adapt libiberty's LGPL-2.0-or-later temporary
+`tmpdir.patch` adapts libiberty's LGPL-2.0-or-later temporary
 directory selection. The original source copyright is retained, and the
 replacement written by Austin Seipp in 2026 is licensed under LGPL-2.0-or-later.
 
@@ -44,4 +44,7 @@ license with the GCC Runtime Library Exception; the replacement is Copyright
 language-mask definition; `c-common.h` supplies the external declaration.
 This preserves linkage while allowing the C bootstrap's later stages to use
 -Werror. The source is Copyright 2002–2011 Free Software Foundation, Inc.,
-GPL-3.0-or-later; the 2026 Austin Seipp replacement uses the same license.
+GPL-3.0-or-later; the 2026 replacement by Austin Seipp uses the same license.
+
+Each patch without its own SPDX notice has a REUSE `.license` file beside it
+that records its copyright holders and license.

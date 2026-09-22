@@ -3,6 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
+load("@cellar//bootstrap:source.bzl", "exact_patch")
 load("@cellar//bootstrap/stage1:defs.bzl", "bootstrap_artifact", "c_binary", "c_library", "c_object", "compiler", "sysroot")
 load("@cellar//bootstrap/stage1/tcc:sources.bzl", "COMPILER_SOURCES")
 
@@ -49,15 +50,11 @@ LIBC = [
 ])]
 
 [
-    generate(
+    exact_patch(
         name = name,
-        args = [
-            "$(location " + source + ")",
-            "$(location :patches/" + name + ".before)",
-            "$(location :patches/" + name + ".after)",
-        ],
+        src = source,
         output = "tccpp.c",
-        tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+        patch = ":patches/" + name + ".patch",
     )
     for name, source in [
         (
@@ -483,7 +480,7 @@ filegroup(
         name = "gnu-missing-" + name,
         args = [
             "1",
-            "$(location :tcc-gnu)",
+            "$(exe :tcc-gnu)",
             "-B",
             "/nonexistent-bootstrap-sysroot",
         ] + flags + [

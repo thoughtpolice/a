@@ -1,9 +1,9 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
+load("@cellar//bootstrap:actions.bzl", "command_test")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "ungz", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "ungz", "untar", "write_file")
 load("@cellar//bootstrap/mes:manifest.bzl", "PREPARED_FILES")
 load("@cellar//bootstrap/stage1:defs.bzl", "bootstrap_artifact", "c_binary", "c_library", "c_object", "compiler", "sysroot")
 load(":sources.bzl", "COMPILER_SOURCES", "LIBC_SOURCES", "TCC_FILES")
@@ -65,15 +65,11 @@ untar(
 
 # Reference fixes: delay opening the archive until option parsing is complete.
 [
-    generate(
+    exact_patch(
         name = name,
-        args = [
-            "$(location " + src + ")",
-            "$(location :patches/" + patch + ".before)",
-            "$(location :patches/" + patch + ".after)",
-        ],
+        src = src,
         output = "tcctools.c",
-        tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+        patch = ":patches/" + patch + ".patch",
     )
     for name, src, patch in [
         ("tcctools-remove", ":tcc-0.9.26-1147-gee75a10c[tcctools.c]", "remove-fileopen"),
@@ -88,26 +84,18 @@ write_file(
     content = "/* Configuration is declared in BUILD. */\n",
 )
 
-generate(
+exact_patch(
     name = "x86_64-gen.c",
-    args = [
-        "$(location :tcc-0.9.26-1147-gee75a10c[x86_64-gen.c])",
-        "$(location :patches/struct-init.before)",
-        "$(location :patches/struct-init.after)",
-    ],
+    src = ":tcc-0.9.26-1147-gee75a10c[x86_64-gen.c]",
     output = "x86_64-gen.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/struct-init.patch",
 )
 
-generate(
+exact_patch(
     name = "tccelf.c",
-    args = [
-        "$(location :tcc-0.9.26-1147-gee75a10c[tccelf.c])",
-        "$(location :patches/static-calls.before)",
-        "$(location :patches/static-calls.after)",
-    ],
+    src = ":tcc-0.9.26-1147-gee75a10c[tccelf.c]",
     output = "tccelf.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/static-calls.patch",
 )
 
 filegroup(
@@ -215,15 +203,11 @@ command_test(
 
 # Conventional x86_64 headers are separate from the seed's Mes-ABI headers.
 [
-    generate(
+    exact_patch(
         name = name + ".h",
-        args = [
-            "$(location " + MES + ":mes-src[include/" + name + ".h])",
-            "$(location :patches/" + name + ".before)",
-            "$(location :patches/" + name + ".after)",
-        ],
+        src = MES + ":mes-src[include/" + name + ".h]",
         output = name + ".h",
-        tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+        patch = ":patches/" + name + ".patch",
     )
     for name in [
         "stdarg",
@@ -250,37 +234,25 @@ filegroup(
     },
 )
 
-generate(
+exact_patch(
     name = "buffered-read.c",
-    args = [
-        "$(location " + MES + ":mes-src[lib/mes/__buffered_read.c])",
-        "$(location :patches/read-bounds.before)",
-        "$(location :patches/read-bounds.after)",
-    ],
+    src = MES + ":mes-src[lib/mes/__buffered_read.c]",
     output = "__buffered_read.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/read-bounds.patch",
 )
 
-generate(
+exact_patch(
     name = "abtod.c",
-    args = [
-        "$(location " + MES + ":mes-src[lib/mes/abtod.c])",
-        "$(location :patches/abtod.before)",
-        "$(location :patches/abtod.after)",
-    ],
+    src = MES + ":mes-src[lib/mes/abtod.c]",
     output = "abtod.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/abtod.patch",
 )
 
-generate(
+exact_patch(
     name = "runtime-support.c",
-    args = [
-        "$(location :tcc-0.9.26-1147-gee75a10c[lib/libtcc1.c])",
-        "$(location :patches/runtime-float.before)",
-        "$(location :patches/runtime-float.after)",
-    ],
+    src = ":tcc-0.9.26-1147-gee75a10c[lib/libtcc1.c]",
     output = "libtcc1.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/runtime-float.patch",
 )
 
 # Each runtime is emitted by its named compiler. Its execution runtime is an
@@ -532,7 +504,7 @@ command_test(
     name = "seed-call",
     args = [
         "0",
-        "$(location :tcc-seed)",
+        "$(exe :tcc-seed)",
         "-nostdinc",
         "-c",
         "$(location :tests/seed-call.c)",
@@ -569,20 +541,16 @@ command_test(
     name = "initial-exit-status",
     args = [
         "37",
-        "$(location :initial-exit-program)",
+        "$(exe :initial-exit-program)",
     ],
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
 )
 
-generate(
+exact_patch(
     name = "native-tccgen.c",
-    args = [
-        "$(location :source[tccgen.c])",
-        "$(location :patches/negative-zero.before)",
-        "$(location :patches/negative-zero.after)",
-    ],
+    src = ":source[tccgen.c]",
     output = "tccgen.c",
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    patch = ":patches/negative-zero.patch",
 )
 
 filegroup(
@@ -733,7 +701,7 @@ STAGES = [
         name = stage + "-diagnostics",
         args = [
             "1",
-            "$(location :tcc-" + stage + ")",
+            "$(exe :tcc-" + stage + ")",
             "-c",
             "$(location :tests/invalid.c)",
             "-o",
@@ -764,7 +732,7 @@ filegroup(
         name = stage + "-missing-" + name,
         args = [
             "1",
-            "$(location :tcc-" + stage + ")",
+            "$(exe :tcc-" + stage + ")",
             "-B",
             "$(location :empty-sysroot)",
         ] + flags + [

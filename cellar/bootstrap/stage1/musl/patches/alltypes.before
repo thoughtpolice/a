@@ -1,2 +1,0 @@
-TYPEDEF __builtin_va_list va_list;
-TYPEDEF __builtin_va_list __isoc_va_list;

@@ -1,0 +1,62 @@
+--- before
++++ after
+@@ -1,45 +1,56 @@
++/* The seed cannot materialize floating constants. Construct 2^64 at runtime
++   from an exactly representable signed integer, retaining extended precision. */
++static XFtype two_to_64(void)
++{
++    long long quarter = 1ULL << 62;
++    XFtype result = quarter;
++    result += result;
++    result += result;
++    return result;
++}
++
+ /* XXX: fix tcc's code generator to do this instead */
+ float __floatundisf(unsigned long long a)
+ {
+     DWunion uu; 
+     XFtype r;
+ 
+     uu.ll = a;
+     if (uu.s.high >= 0) {
+         return (float)uu.ll;
+     } else {
+         r = (XFtype)uu.ll;
+-        r += 18446744073709551616.0;
++        r += two_to_64();
+         return (float)r;
+     }
+ }
+ 
+ double __floatundidf(unsigned long long a)
+ {
+     DWunion uu; 
+     XFtype r;
+ 
+     uu.ll = a;
+     if (uu.s.high >= 0) {
+         return (double)uu.ll;
+     } else {
+         r = (XFtype)uu.ll;
+-        r += 18446744073709551616.0;
++        r += two_to_64();
+         return (double)r;
+     }
+ }
+ 
+ long double __floatundixf(unsigned long long a)
+ {
+     DWunion uu; 
+     XFtype r;
+ 
+     uu.ll = a;
+     if (uu.s.high >= 0) {
+         return (long double)uu.ll;
+     } else {
+         r = (XFtype)uu.ll;
+-        r += 18446744073709551616.0;
++        r += two_to_64();
+         return (long double)r;
+     }
+ }

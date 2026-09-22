@@ -1,1 +1,0 @@
-execl(shell, "sh", "-c", cmd, NULL);

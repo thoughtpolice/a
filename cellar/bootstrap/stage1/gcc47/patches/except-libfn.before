@@ -1,1 +1,0 @@
-return !!libc_name_p (IDENTIFIER_POINTER (id), IDENTIFIER_LENGTH (id));

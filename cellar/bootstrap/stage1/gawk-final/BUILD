@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
-load("@cellar//bootstrap:source.bzl", "write_file")
+load("@cellar//bootstrap:source.bzl", "exact_patch", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object")
 
 GCC = "cellar//bootstrap/stage1/gcc47"
@@ -164,24 +164,11 @@ filegroup(
     },
 )
 
-write_file(
-    name = "io.before",
-    content = "if (!shell || !*shell)",
-)
-
-write_file(
-    name = "io.after",
-    content = 'if (!shell) shell = "/bin/sh";\n\tif (!*shell)',
-)
-
-generate(
+exact_patch(
     name = "io-source",
-    args = [
-        "$(location cellar//bootstrap/stage1/gawk:io-source)",
-        "$(location :io.before)",
-        "$(location :io.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = "cellar//bootstrap/stage1/gawk:io-source",
+    after = 'if (!shell) shell = "/bin/sh";\n\tif (!*shell)',
+    before = "if (!shell || !*shell)",
 )
 
 filegroup(
@@ -251,7 +238,7 @@ configured_tool(
     name = "gawk",
     env = {
         "CELLAR_BOOTSTRAP_IDENTITY": "1",
-        "BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash:bash)",
+        "BOOTSTRAP_SHELL": "$(exe cellar//bootstrap/stage1/bash:bash)",
         "AWKPATH": "$(location :data)",
     },
     env_tool = "cellar//bootstrap/stage1/tools:withenv",
@@ -268,11 +255,11 @@ configured_tool(
     name = "capture-gawk",
     args = [
         "result",
-        "$(location :gawk-bin)",
+        "$(exe :gawk-bin)",
     ],
     env = {
         "CELLAR_BOOTSTRAP_IDENTITY": "1",
-        "BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash:bash)",
+        "BOOTSTRAP_SHELL": "$(exe cellar//bootstrap/stage1/bash:bash)",
         "AWKPATH": "$(location :data)",
     },
     env_tool = "cellar//bootstrap/stage1/tools:withenv",
@@ -326,7 +313,7 @@ command_test(
     name = "diagnostic",
     args = [
         "2",
-        "$(location :gawk-bin)",
+        "$(exe :gawk-bin)",
         "BEGIN { x = /(/ }",
     ],
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
@@ -336,7 +323,7 @@ command_test(
     name = "missing-shell",
     args = [
         "2",
-        "$(location :gawk-bin)",
+        "$(exe :gawk-bin)",
         'BEGIN { "printf host" | getline x }',
     ],
     env = {

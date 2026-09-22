@@ -14,6 +14,149 @@ spec.loader.exec_module(audit)
 
 
 class TraceBoundary(unittest.TestCase):
+    def test_native_sandbox_mirror_activates_and_preserves_child_boundary(self):
+        for source, cell in [("bootstrap", "cellar"), ("cellar/bootstrap", "depot-cellar")]:
+            for configuration in ["", "0123456789abcdef/"]:
+                with self.subTest(source=source, cell=cell, configuration=configuration):
+                    with tempfile.TemporaryDirectory() as directory:
+                        root = Path(directory)
+                        mirror = root / "buck-out/native/tmp/sandbox/.tmpA1b2C3"
+                        artifact = mirror / f"buck-out/native/art/{cell}/{configuration}bootstrap/stage1/tool"
+                        prefix = root / "trace"
+                        Path(str(prefix) + ".100").write_text(
+                            f'1.000 chdir("{mirror}") = 0\n'
+                            f'1.001 execve("{source}/seed", [], []) = 0\n'
+                            '1.002 fork() = 101\n'
+                        )
+                        child = Path(str(prefix) + ".101")
+                        child.write_text(
+                            f'1.003 execve("{artifact}", [], []) = 0\n'
+                            f'1.004 open("header", O_RDONLY) = 3<{mirror}/{source}/header.h>\n'
+                            f'1.005 open("object", O_RDONLY) = 4<{artifact}.o>\n'
+                            f'1.006 open("scratch", O_RDWR) = 5<{mirror}/buck-out/native/tmp/{cell}/action/temp>\n'
+                            f'1.007 open("real-input", O_RDONLY) = 6<{root}/{source}/input.h>\n'
+                        )
+                        report = audit.review(root, str(prefix))
+                        self.assertEqual(report["errors"], [])
+                        self.assertEqual(report["bootstrap_processes"], 2)
+                        self.assertEqual(report["syscalls"], {"execve": 2, "fork": 1, "open": 4})
+                        with child.open("a") as stream:
+                            stream.write('1.008 open("host", O_RDONLY) = 7</usr/include/stdio.h>\n')
+                        report = audit.review(root, str(prefix))
+                        self.assertEqual(report["errors"], [{
+                            "pid": 101, "error": "file outside bootstrap", "path": "/usr/include/stdio.h",
+                        }])
+
+    def test_native_sandbox_mirror_does_not_allow_other_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = root / "buck-out/v2/tmp/sandbox"
+            mirror = base / ".tmpA1b2C3"
+            rejected = [
+                mirror / "etc/passwd",
+                mirror / "usr/include/stdio.h",
+                mirror / "buck-out/v2/art/other/bootstrap/header.h",
+                mirror / "buck-out/v2/art/cellar/other/header.h",
+                mirror / "buck-out/v2/tmp/other/action/file",
+                mirror / "bootstrap-other/header.h",
+                mirror / "cellar/bootstrap-other/header.h",
+                mirror / "buck-out/v2/tmp/sandbox/.tmpD4e5F6/bootstrap/header.h",
+                base / ".tmpA1b2C3-other/bootstrap/header.h",
+                base / ".tmpA1b2C34/bootstrap/header.h",
+                root / "buck-out/v2/tmp/sandbox-other/.tmpA1b2C3/bootstrap/header.h",
+            ]
+            prefix = root / "trace"
+            trace = Path(str(prefix) + ".100")
+            trace.write_text(f'1.000 execve("{mirror}/bootstrap/seed", [], []) = 0\n')
+            with trace.open("a") as stream:
+                for i, path in enumerate(rejected, 1):
+                    stream.write(f'1.{i:03} open("input", O_RDONLY) = 3<{path}>\n')
+                stream.write(
+                    f'1.100 execve("{mirror}/usr/bin/cc", [], []) = -1 ENOENT\n'
+                    f'1.101 execve("{mirror}/buck-out/v2/tmp/cellar/action/cc", [], []) = 0\n'
+                )
+            report = audit.review(root, str(prefix))
+            self.assertEqual(report["bootstrap_processes"], 1)
+            self.assertEqual([e["error"] for e in report["errors"]],
+                             ["file outside bootstrap"] * len(rejected)
+                             + ["executable outside bootstrap"] * 2)
+
+    def test_native_sandbox_mirror_symlink_escape(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            mirror = root / "buck-out/v2/tmp/sandbox/.tmpA1b2C3"
+            executable = mirror / "bootstrap/foreign-cc"
+            executable.parent.mkdir(parents=True)
+            executable.symlink_to("/usr/bin/cc")
+            prefix = root / "trace"
+            Path(str(prefix) + ".100").write_text(
+                f'1.000 execve("{executable}", [], []) = 0\n'
+                f'1.001 open("{mirror}/bootstrap/host-symlink", O_RDONLY) = 3</usr/include/stdio.h>\n'
+            )
+            report = audit.review(root, str(prefix))
+            self.assertEqual(report["bootstrap_processes"], 1)
+            self.assertEqual([e["error"] for e in report["errors"]], [
+                "executable outside bootstrap", "file outside bootstrap",
+            ])
+
+    def test_standalone_and_historical_output_layouts(self):
+        for source, cell in [("bootstrap", "cellar"), ("cellar/bootstrap", "depot-cellar")]:
+            for configuration in ["", "0123456789abcdef/"]:
+                with self.subTest(source=source, cell=cell, configuration=configuration):
+                    with tempfile.TemporaryDirectory() as directory:
+                        root = Path(directory)
+                        artifact = root / f"buck-out/native/art/{cell}/{configuration}bootstrap/stage1/tool"
+                        prefix = root / "trace"
+                        Path(str(prefix) + ".100").write_text(
+                            f'1.000 execve("{artifact}", [], []) = 0\n'
+                            f'1.001 open("header", O_RDONLY) = 3<{root}/{source}/header.h>\n'
+                            f'1.002 open("object", O_RDONLY) = 4<{artifact}.o>\n'
+                            f'1.003 open("scratch", O_RDWR) = 5<{root}/buck-out/native/tmp/{cell}/action/temp>\n'
+                            f'1.004 execve("{root}/{source}/seed", [], []) = 0\n'
+                        )
+                        report = audit.review(root, str(prefix))
+                        self.assertEqual(report["errors"], [])
+                        self.assertEqual(report["bootstrap_processes"], 1)
+                        self.assertEqual(report["syscalls"], {"execve": 2, "open": 3})
+
+    def test_standalone_source_seed_activates_boundary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prefix = root / "trace"
+            Path(str(prefix) + ".100").write_text(
+                f'1.000 execve("{root}/bootstrap/stage0-posix/seed", [], []) = 0\n'
+                '1.001 fork() = 101\n'
+            )
+            Path(str(prefix) + ".101").write_text(
+                f'1.002 open("header", O_RDONLY) = 3<{root}/bootstrap/header.h>\n'
+                f'1.003 open("other-cell", O_RDONLY) = 4<{root}/buck-out/v2/art/other/bootstrap/header.h>\n'
+                f'1.004 open("other-scratch", O_RDWR) = 5<{root}/buck-out/v2/tmp/other/action/file>\n'
+                f'1.005 open("lookalike", O_RDONLY) = 6<{root}/bootstrap-other/header.h>\n'
+                f'1.006 open("wrong-package", O_RDONLY) = 7<{root}/buck-out/v2/art/cellar/other/header.h>\n'
+                '1.007 execve("/usr/bin/cc", [], []) = -1 ENOENT\n'
+            )
+            report = audit.review(root, str(prefix))
+            self.assertEqual(report["bootstrap_processes"], 2)
+            self.assertEqual([e["error"] for e in report["errors"]], [
+                "file outside bootstrap", "file outside bootstrap", "file outside bootstrap",
+                "file outside bootstrap", "executable outside bootstrap",
+            ])
+
+    def test_trace_without_bootstrap_processes_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prefix = root / "trace"
+            Path(str(prefix) + ".100").write_text(
+                '1.000 execve("/usr/bin/buck2", [], []) = 0\n'
+                f'1.001 execve("{root}/buck-out/v2/art/other/bootstrap/tool", [], []) = 0\n'
+                f'1.002 open("input", O_RDONLY) = 3<{root}/bootstrap/input>\n'
+            )
+            report = audit.review(root, str(prefix))
+            self.assertEqual(report["bootstrap_processes"], 0)
+            self.assertEqual(report["errors"], [
+                {"error": "trace did not contain bootstrap processes and file opens"},
+            ])
+
     def test_kernel_terminals_and_pipe_descriptors(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -110,6 +253,47 @@ class TraceBoundary(unittest.TestCase):
             )
             report = audit.review(root, str(prefix))
             self.assertEqual(report["errors"][0]["path"], "/usr/lib/libc.a")
+
+    def test_same_timestamp_keeps_trace_order(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prefix = root / "trace"
+            # Sorting these by syscall name or arguments would run both chdirs
+            # before the clone, and the child would inherit /usr/bin.
+            Path(str(prefix) + ".100").write_text(
+                f'1.000 execve("{root}/bootstrap/seed", [], []) = 0\n'
+                f'1.001 chdir("{root}/bootstrap") = 0\n'
+                '1.001 clone(child_stack=NULL, flags=SIGCHLD) = 101\n'
+                '1.001 chdir("/usr/bin") = 0\n'
+                f'1.003 open("input", O_RDONLY) = 3<{root}/bootstrap/input>\n'
+            )
+            Path(str(prefix) + ".101").write_text('1.002 execve("tool", [], []) = 0\n')
+            report = audit.review(root, str(prefix))
+            self.assertEqual(report["errors"], [])
+            self.assertEqual(report["executables"], [f"{root}/bootstrap/seed", f"{root}/bootstrap/tool"])
+
+    def test_execveat_resolves_dirfd_and_empty_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prefix = root / "trace"
+            Path(str(prefix) + ".100").write_text(
+                f'1.000 chdir("{root}/bootstrap") = 0\n'
+                f'1.001 execveat(3<{root}/bootstrap/stage0>, "seed", [], [], 0) = 0\n'
+                '1.002 execveat(4</usr/bin>, "seed", [], [], 0) = -1 ENOENT\n'
+                '1.003 execveat(5</usr/bin/cc>, "", [], [], AT_EMPTY_PATH) = -1 EACCES\n'
+                '1.004 execveat(AT_FDCWD, "tool", [], [], 0) = -1 ENOENT\n'
+                '1.005 execveat(6, "tool", [], [], 0) = -1 ENOENT\n'
+                f'1.006 open("input", O_RDONLY) = 3<{root}/bootstrap/input>\n'
+            )
+            report = audit.review(root, str(prefix))
+            self.assertEqual(report["executables"], [
+                f"{root}/bootstrap/stage0/seed", f"{root}/bootstrap/tool", "/usr/bin/cc", "/usr/bin/seed",
+            ])
+            self.assertEqual([(e["error"], e.get("path")) for e in report["errors"]], [
+                ("executable outside bootstrap", "/usr/bin/seed"),
+                ("executable outside bootstrap", "/usr/bin/cc"),
+                ("unresolved execveat dirfd", None),
+            ])
 
 
 if __name__ == "__main__":

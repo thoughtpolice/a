@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "concatenate", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "ungz", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "ungz", "untar")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object")
 load(":sources.bzl", "FILES")
 
@@ -43,25 +43,12 @@ PATCHED_GENERATORS = {
     "iconv/mkcodepage.c": "mkcodepage",
 }
 
-write_file(
-    name = "return.before",
-    content = "\n}\n",
-)
-
-write_file(
-    name = "return.after",
-    content = "\n\treturn 0;\n}\n",
-)
-
 [
-    generate(
+    exact_patch(
         name = name + "-source",
-        args = [
-            "$(location :musl-chartable-tools-" + VERSION + "[" + path + "])",
-            "$(location :return.before)",
-            "$(location :return.after)",
-        ],
-        tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+        src = ":musl-chartable-tools-" + VERSION + "[" + path + "]",
+        after = "\n\treturn 0;\n}\n",
+        before = "\n}\n",
     )
     for path, name in PATCHED_GENERATORS.items()
 ]

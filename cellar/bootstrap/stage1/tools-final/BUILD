@@ -1,9 +1,9 @@
 # SPDX-FileCopyrightText: 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
+load("@cellar//bootstrap:actions.bzl", "command_test")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
-load("@cellar//bootstrap:source.bzl", "write_file")
+load("@cellar//bootstrap:source.bzl", "exact_patch")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 
 GCC = "cellar//bootstrap/stage1/gcc47"
@@ -29,47 +29,25 @@ LIBC = [
     MUSL + ":libc.a",
 ]
 
+POPEN_ENTRY = "FILE *popen(const char *cmd, const char *mode)\n{\n"
+
 # Private copies retain musl's signal and stdio semantics. Actions set a
 # declared BOOTSTRAP_SHELL; explicit empty values fail. An ordinary runtime
 # caller without the variable retains musl's /bin/sh default.
-write_file(
-    name = "shell-path.before",
-    content = 'posix_spawn(&pid, "/bin/sh",',
-)
-
-write_file(
-    name = "shell-path.after",
-    content = "posix_spawn(&pid, shell,",
-)
-
 [
     [
-        write_file(
-            name = name + "-guard.before",
-            content = signature + "\n{\n",
-        ),
-        write_file(
-            name = name + "-guard.after",
-            content = signature + "\n{\n\tconst char *shell = getenv(\"BOOTSTRAP_SHELL\");\n" +
-                      "\tif (!shell) shell = \"/bin/sh\";\n\tif (!*shell) { errno = ENOENT; return " + failure + "; }\n",
-        ),
-        generate(
+        exact_patch(
             name = name + "-guarded",
-            args = [
-                "$(location " + MUSL + ":source[" + path + "])",
-                "$(location :" + name + "-guard.before)",
-                "$(location :" + name + "-guard.after)",
-            ],
-            tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+            src = MUSL + ":source[" + path + "]",
+            after = prefix + "\tconst char *shell = getenv(\"BOOTSTRAP_SHELL\");\n\tif (!shell) shell = \"/bin/sh\";\n" +
+                    null_command + "\tif (!*shell) { errno = ENOENT; return " + failure + "; }\n",
+            before = before,
         ),
-        generate(
+        exact_patch(
             name = name + "-source",
-            args = [
-                "$(location :" + name + "-guarded)",
-                "$(location :shell-path.before)",
-                "$(location :shell-path.after)",
-            ],
-            tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+            src = ":" + name + "-guarded",
+            after = "posix_spawn(&pid, shell,",
+            before = 'posix_spawn(&pid, "/bin/sh",',
         ),
         c_object(
             name = "shell-" + name + ".o",
@@ -102,9 +80,11 @@ write_file(
             toolchain = CC,
         ),
     ]
-    for name, path, signature, failure in [
-        ("system", "src/process/system.c", "int system(const char *cmd)", "-1"),
-        ("popen", "src/stdio/popen.c", "FILE *popen(const char *cmd, const char *mode)", "NULL"),
+    # system(NULL) reports whether a shell is available, after musl's
+    # cancellation point. popen has no such query and checks on entry.
+    for name, path, before, prefix, null_command, failure in [
+        ("system", "src/process/system.c", "\tif (!cmd) return 1;\n", "", "\tif (!cmd) return *shell != 0;\n", "-1"),
+        ("popen", "src/stdio/popen.c", POPEN_ENTRY, POPEN_ENTRY, "", "NULL"),
     ]
 ]
 
@@ -144,7 +124,7 @@ c_binary(
 command_test(
     name = "shell-and-stream-semantics",
     env = {
-        "BOOTSTRAP_SHELL": "$(location cellar//bootstrap/stage1/bash:bash)",
+        "BOOTSTRAP_SHELL": "$(exe cellar//bootstrap/stage1/bash:bash)",
         "CELLAR_BOOTSTRAP_IDENTITY": "1",
         "PATH": "/nonexistent-bootstrap-path",
     },

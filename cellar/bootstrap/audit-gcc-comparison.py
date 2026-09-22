@@ -4,8 +4,9 @@
 """Validate comparison coverage from Buck uquery JSON, never as a build input.
 
 Pass the c_object target list and command_test targets with their args attribute
-for both stage1/gcc47 and stage1/libstdcxx. Only the two upstream compiler
-checksum objects may be excluded. The actual byte comparisons run in Buck.
+for one GCC port and its C++ library, such as stage1/gcc47 and stage1/libstdcxx.
+Only the two upstream compiler checksum objects may be excluded. The actual byte
+comparisons run in Buck.
 """
 
 import argparse
@@ -21,10 +22,12 @@ def audit(objects, tests):
     errors = []
     if not left or right != expected_right:
         errors.append("stage2/stage3 object inventories differ or are empty")
-    excluded = {
-        "depot-cellar//bootstrap/stage1/gcc47:stage2-cc1-checksum.o",
-        "depot-cellar//bootstrap/stage1/gcc47:stage2-cc1plus-checksum.o",
-    }
+    # Labels are cellar// inside cellar and depot-cellar// from the parent
+    # project; either way, one package holds the two checksum objects.
+    checksums = (":stage2-cc1-checksum.o", ":stage2-cc1plus-checksum.o")
+    excluded = {label for label in left if label.endswith(checksums)}
+    if len(excluded) != 2 or len({label.split(":")[0] for label in excluded}) != 1:
+        errors.append("expected one package's two checksum objects: " + repr(sorted(excluded)))
     compared = set()
     other = set()
     for label, attributes in tests.items():

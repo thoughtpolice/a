@@ -1,9 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@cellar//bootstrap:actions.bzl", "generate")
-load("@cellar//bootstrap:defs.bzl", "bootstrap", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "replace", "ungz", "untar", "write_file")
+load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "replace", "ungz", "untar", "write_file")
 load(":defs.bzl", "M1", "M2_Planet", "blood_elf", "hex2", "mes_binary", "mes_libs", "mescc_binary", "mescc_build_lib", "mescc_build_mes", "mescc_compile", "mescc_fixed_point_test", "mescc_test")
 load(":manifest.bzl", "PREPARED_FILES")
 load(":sources.bzl", "MES_SOURCES", "libc_mini_sources", "libc_sources", "libc_tcc_sources", "libmescc_sources")
@@ -28,17 +27,17 @@ VERSION = _VERSION
 # mes_cpu: mes source tree directory prefix (arm-mes-m2, x86_64-mes-m2)
 # cc_cpu: C preprocessor define (__arm__, __x86_64__)
 
-CPU_0 = bootstrap.select({
+CPU_0 = select({
     "cellar//bootstrap/platforms:amd64": "amd64",
     "cellar//bootstrap/platforms:aarch64": "armv7l",
 })
 
-MES_CPU = bootstrap.select({
+MES_CPU = select({
     "cellar//bootstrap/platforms:amd64": "x86_64",
     "cellar//bootstrap/platforms:aarch64": "arm",
 })
 
-TOOLS = bootstrap.select({
+TOOLS = select({
     "cellar//bootstrap/platforms:amd64": "cellar//bootstrap/stage0-posix/seeds/linux-amd64:bins",
     "cellar//bootstrap/platforms:aarch64": "cellar//bootstrap/stage0-posix/seeds/linux-arm64:bins",
 })
@@ -400,7 +399,7 @@ _M2_FILES_ARM = _M2_SRCS_ARM + [
 untar(
     name = "mes-{}".format(VERSION),
     chdirenv = _CELLAR_EXTRA + ":chdirenv",
-    files = bootstrap.select({
+    files = select({
         "cellar//bootstrap/platforms:amd64": _M2_FILES_AMD64 + PREPARED_FILES + ["scripts/mescc.scm.in"],
         "cellar//bootstrap/platforms:aarch64": _M2_FILES_ARM + PREPARED_FILES + ["scripts/mescc.scm.in"],
     }),
@@ -419,7 +418,7 @@ write_file(
 
 M2_Planet(
     name = "mes.M1",
-    srcs = [":config.h"] + bootstrap.select({
+    srcs = [":config.h"] + select({
         "cellar//bootstrap/platforms:amd64": [
             ":mes-{}[{}]".format(VERSION, f)
             for f in _M2_SRCS_AMD64
@@ -433,7 +432,7 @@ M2_Planet(
     }),
     arch_mes = MES_CPU,
     arch_stage0 = CPU_0,
-    defines = bootstrap.select({
+    defines = select({
         "cellar//bootstrap/platforms:amd64": [
             "__x86_64__=1",
             "__linux__=1",
@@ -450,7 +449,7 @@ M2_Planet(
 blood_elf(
     name = "mes.blood-elf-M1",
     srcs = [":mes.M1"],
-    args = bootstrap.select({
+    args = select({
         "cellar//bootstrap/platforms:amd64": [
             "--64",
             "--little-endian",
@@ -463,7 +462,7 @@ blood_elf(
 
 M1(
     name = "mes.hex2",
-    srcs = bootstrap.select({
+    srcs = select({
         "cellar//bootstrap/platforms:amd64": [
             "cellar//bootstrap/stage0-posix/m2-libc:amd64/amd64_defs.M1",
             ":mes-{}[lib/x86_64-mes/x86_64.M1]".format(VERSION),
@@ -478,7 +477,7 @@ M1(
         ":mes.M1",
         ":mes.blood-elf-M1",
     ],
-    args = bootstrap.select({
+    args = select({
         "cellar//bootstrap/platforms:amd64": [
             "--architecture",
             "amd64",
@@ -496,11 +495,11 @@ M1(
 
 hex2(
     name = "mes.bin",
-    srcs = bootstrap.select({
+    srcs = select({
         "cellar//bootstrap/platforms:amd64": ["cellar//bootstrap/stage0-posix/m2-libc:amd64/ELF-amd64.hex2"],
         "cellar//bootstrap/platforms:aarch64": ["cellar//bootstrap/stage0-posix/m2-libc:armv7l/ELF-armv7l.hex2"],
     }) + [":mes.hex2"],
-    args = bootstrap.select({
+    args = select({
         "cellar//bootstrap/platforms:amd64": [
             "--architecture",
             "amd64",
@@ -558,19 +557,15 @@ replace(
 
 # Preserve conditional values and stack depth when MesCC spills registers.
 [
-    generate(
+    exact_patch(
         name = name,
-        args = [
-            "$(location " + src + ")",
-            "$(location :patches/" + patch + ".before)",
-            "$(location :patches/" + patch + ".after)",
-        ],
+        src = src,
         output = "compile.scm",
+        patch = ":patches/" + patch + ".patch",
         target_compatible_with = [
             "cellar//bootstrap/platforms:linux",
             "cellar//bootstrap/platforms:amd64",
         ],
-        tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
     )
     for name, src, patch in [
         ("compile-values.scm", ":mes-0.27[module/mescc/compile.scm]", "conditional-values"),
@@ -582,7 +577,7 @@ replace(
 
 filegroup(
     name = "mes-src",
-    srcs = bootstrap.select({
+    srcs = select({
         "cellar//bootstrap/platforms:amd64": {path: ":mes-0.27[{}]".format(path) for path in PREPARED_FILES} | {
             "module/mescc/compile.scm": ":compile.scm",
             "include/mes/config.h": ":config.h",
@@ -624,7 +619,7 @@ mescc_compile(
     mes_cpu = MES_CPU,
     mes_m2 = ":mes.bin",
     nyacc = NYACC,
-    source_path = bootstrap.select({
+    source_path = select({
         "cellar//bootstrap/platforms:amd64": "lib/linux/x86_64-mes-mescc/crt1.c",
         "cellar//bootstrap/platforms:aarch64": "lib/linux/arm-mes-mescc/crt1.c",
     }),
@@ -640,7 +635,7 @@ mescc_build_lib(
     mes_cpu = MES_CPU,
     mes_m2 = ":mes.bin",
     nyacc = NYACC,
-    sources = bootstrap.select({
+    sources = select({
         "cellar//bootstrap/platforms:amd64": libc_mini_sources("x86_64"),
         "cellar//bootstrap/platforms:aarch64": libc_mini_sources("arm"),
     }),
@@ -656,7 +651,7 @@ mescc_build_lib(
     mes_cpu = MES_CPU,
     mes_m2 = ":mes.bin",
     nyacc = NYACC,
-    sources = bootstrap.select({
+    sources = select({
         "cellar//bootstrap/platforms:amd64": libmescc_sources("x86_64"),
         "cellar//bootstrap/platforms:aarch64": libmescc_sources("arm"),
     }),
@@ -672,7 +667,7 @@ mescc_build_lib(
     mes_cpu = MES_CPU,
     mes_m2 = ":mes.bin",
     nyacc = NYACC,
-    sources = bootstrap.select({
+    sources = select({
         "cellar//bootstrap/platforms:amd64": libc_sources("x86_64"),
         "cellar//bootstrap/platforms:aarch64": libc_sources("arm"),
     }),
@@ -688,7 +683,7 @@ mescc_build_lib(
     mes_cpu = MES_CPU,
     mes_m2 = ":mes.bin",
     nyacc = NYACC,
-    sources = bootstrap.select({
+    sources = select({
         "cellar//bootstrap/platforms:amd64": libc_tcc_sources("x86_64"),
         "cellar//bootstrap/platforms:aarch64": libc_tcc_sources("arm"),
     }),
@@ -741,7 +736,7 @@ mescc_build_mes(
         mes_cpu = MES_CPU,
         mes_m2 = mes_m2,
         nyacc = NYACC,
-        sources = bootstrap.select({
+        sources = select({
             "cellar//bootstrap/platforms:amd64": sources_fn("x86_64"),
             "cellar//bootstrap/platforms:aarch64": sources_fn("arm"),
         }),
@@ -768,7 +763,7 @@ mescc_build_mes(
         mes_cpu = MES_CPU,
         mes_m2 = mes_m2,
         nyacc = NYACC,
-        source_path = bootstrap.select({
+        source_path = select({
             "cellar//bootstrap/platforms:amd64": "lib/linux/x86_64-mes-mescc/crt1.c",
             "cellar//bootstrap/platforms:aarch64": "lib/linux/arm-mes-mescc/crt1.c",
         }),

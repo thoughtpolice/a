@@ -27,7 +27,7 @@ static void receive(const char *marker) {
   size_t used=0; struct pollfd p={master,POLLIN,0};
   output[0]=0;
   while(!strstr(output,marker)) {
-    ssize_t z; int r=poll(&p,1,8000);
+    ssize_t z; int r=poll(&p,1,60000);
     if(r<0&&errno==EINTR)continue;
     if(r<=0)fail("timeout");
     z=read(master,output+used,sizeof(output)-used-1);
@@ -48,7 +48,7 @@ static void continued(int sig) {
   if(write(1,s,sizeof(s)-1)<0)_exit(1);
 }
 int main(int argc,char **argv) {
-  char *slave,*helper,*bash,*inputrc,*jid;int st,fd;FILE *f;
+  char *slave,*helper,*bash,*inputrc,*jid;int st,fd;
   if(argc==2&&!strcmp(argv[1],"--job")) {
     signal(SIGINT,SIG_DFL);signal(SIGCONT,continued);
     if(write(1,"job-ready\n",10)!=10)_exit(1);
@@ -98,5 +98,5 @@ int main(int argc,char **argv) {
   job_pid=0;send_text("exit 0\n");
   if(waitpid(shell_pid,&st,0)!=shell_pid||!WIFEXITED(st)||WEXITSTATUS(st))fail("shell exit");
   shell_pid=0;close(master);free(helper);free(bash);free(inputrc);
-  f=fopen("passed","w");if(!f)fail("result");fputs("passed\n",f);if(fclose(f))fail("result close");return 0;
+  return 0;
 }

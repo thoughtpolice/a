@@ -1,0 +1,19 @@
+--- before
++++ after
+@@ -1,2 +1,16 @@
+   /* Needed for OS/2 */
+   initialize_main (&argc, &argv);
++
++  /* The assembled bootstrap supplies its relocatable default shell.  */
++  {
++    const char *bootstrap_shell = getenv ("BOOTSTRAP_SHELL");
++    if (bootstrap_shell)
++      {
++        if (!*bootstrap_shell)
++          {
++            fputs ("make: BOOTSTRAP_SHELL must not be empty\n", stderr);
++            return 2;
++          }
++        default_shell = bootstrap_shell;
++      }
++  }

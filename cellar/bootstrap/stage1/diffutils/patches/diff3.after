@@ -1,1 +1,0 @@
-execvp (diff_program, (char **) argv);

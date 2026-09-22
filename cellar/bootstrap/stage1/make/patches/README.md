@@ -8,3 +8,6 @@ SHELL overrides retain their precedence. Unset preserves upstream behavior.
 The job.c adaptation escapes whitespace, quotes and backslashes in the default
 shell executable path before Make reparses its internal command. It preserves
 normal explicit multiword SHELL settings and is covered by a space-path test.
+
+Each patch without its own SPDX notice has a REUSE `.license` file beside it
+that records its copyright holders and license.

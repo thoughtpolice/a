@@ -1,8 +1,0 @@
-
-        /* Perform relocation to GOT or PLT entries */
-        if (file_type == TCC_OUTPUT_EXE && s1->static_link)
-            fill_got(s1);
-        else if (s1->got)
-            fill_local_got_entries(s1);
-        /* GOT fixups still need the relocation sections removed by tidying. */
-        tidy_section_headers(s1, sec_order);

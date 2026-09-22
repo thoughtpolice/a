@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 
 MUSL = "cellar//bootstrap/stage1/musl"
@@ -68,8 +68,7 @@ FILES = [
 export_file(name = "scan.lex.l")
 
 [export_file(name = path) for path in glob([
-    "patches/*.before",
-    "patches/*.after",
+    "patches/*.patch",
 ])]
 
 download_file(
@@ -97,74 +96,46 @@ untar(
     untar = "cellar//bootstrap/stage0-posix/mescc-tools-extra:untar",
 )
 
-generate(
+exact_patch(
     name = "p0",
-    args = [
-        "$(location :flex-d160f0247ba1611aa59d28f027d6292ba24abb50[flexdef.h])",
-        "$(location :patches/p0.before)",
-        "$(location :patches/p0.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":flex-d160f0247ba1611aa59d28f027d6292ba24abb50[flexdef.h]",
+    patch = ":patches/p0.patch",
 )
 
-generate(
+exact_patch(
     name = "p1",
-    args = [
-        "$(location :p0)",
-        "$(location :patches/p1.before)",
-        "$(location :patches/p1.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":p0",
+    patch = ":patches/p1.patch",
 )
 
-generate(
+exact_patch(
     name = "p2",
-    args = [
-        "$(location :flex-d160f0247ba1611aa59d28f027d6292ba24abb50[scan.l])",
-        "$(location :patches/p2.before)",
-        "$(location :patches/p2.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":flex-d160f0247ba1611aa59d28f027d6292ba24abb50[scan.l]",
+    patch = ":patches/p2.patch",
 )
 
-generate(
+exact_patch(
     name = "p3",
-    args = [
-        "$(location :p2)",
-        "$(location :patches/p3.before)",
-        "$(location :patches/p3.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":p2",
+    patch = ":patches/p3.patch",
 )
 
-generate(
+exact_patch(
     name = "p4",
-    args = [
-        "$(location :p3)",
-        "$(location :patches/p4.before)",
-        "$(location :patches/p4.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":p3",
+    patch = ":patches/p4.patch",
 )
 
-generate(
+exact_patch(
     name = "skel",
-    args = [
-        "$(location :flex-d160f0247ba1611aa59d28f027d6292ba24abb50[mkskel.sh])",
-        "$(location :patches/skel.before)",
-        "$(location :patches/skel.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":flex-d160f0247ba1611aa59d28f027d6292ba24abb50[mkskel.sh]",
+    patch = ":patches/skel.patch",
 )
 
-generate(
+exact_patch(
     name = "unput",
-    args = [
-        "$(location :flex-d160f0247ba1611aa59d28f027d6292ba24abb50[flex.skl])",
-        "$(location :patches/unput.before)",
-        "$(location :patches/unput.after)",
-    ],
-    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+    src = ":flex-d160f0247ba1611aa59d28f027d6292ba24abb50[flex.skl]",
+    patch = ":patches/unput.patch",
 )
 
 # Native Linux/musl; no message catalogs or terminal-library dependency.
@@ -460,7 +431,7 @@ command_test(
     name = "diagnostic",
     args = [
         "1",
-        "$(location :flex-regenerated)",
+        "$(exe :flex-regenerated)",
         "-t",
         "$(location :malformed.l)",
     ],

@@ -1,6 +1,0 @@
-      base = try_dir (getenv ("TMPDIR"), base);
-      if (!base)
-        {
-          fputs ("bootstrap compiler requires a writable TMPDIR\n", stderr);
-          exit (1);
-        }

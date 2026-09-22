@@ -1,0 +1,7 @@
+--- before
++++ after
+@@ -1 +1 @@
+-execl (PR_PROGRAM, PR_PROGRAM, "-f", "-h", name, 0);
+\ No newline at end of file
++execlp (PR_PROGRAM, PR_PROGRAM, "-f", "-h", name, (char *) 0);
+\ No newline at end of file

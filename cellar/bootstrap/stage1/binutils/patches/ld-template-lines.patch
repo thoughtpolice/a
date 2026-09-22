@@ -1,0 +1,5 @@
+--- before
++++ after
+@@ -1 +1 @@
+-    echo >> e${EMULATION_NAME}.c "#line $lineno \"$em_script\""
++    echo >> e${EMULATION_NAME}.c "#line $lineno \"${em_script#${srcdir}/}\""

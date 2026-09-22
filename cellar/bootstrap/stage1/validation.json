@@ -158,5 +158,218 @@
       "explicit_starlark_files": 88
     },
     "scope": "Fresh isolation for the seed-to-userland build, with retries reusing only artifacts already built under native Landlock in that isolation. No remote cache and no reuse of default-isolation build artifacts. The full test gate remains nonzero because PTY allocation is denied. Native Landlock permits host system paths, so sandbox success supplements the earlier process/file audits and does not independently establish complete host dependency closure."
+  },
+  "standalone_cleanup_validation": {
+    "validated_revision": "bc3e89bce0389bdb391cf65273199306f631a944",
+    "date": "2026-09-22",
+    "buck2_version": "2026-09-21-gbc5d4b2692f42b8935124235c7b55ad839110198-aseipp",
+    "kernel_release": "6.12.93",
+    "configuration": {
+      "project_root": "cellar/",
+      "mode": "@cellar//bootstrap/platforms/sandbox",
+      "target_platform": "cellar//bootstrap/platforms:default",
+      "execution_platforms": "cellar//bootstrap/platforms:execution",
+      "target_and_execution_abi": "Linux x86_64",
+      "local_sandbox_mode": "native",
+      "isolation_dir": "v2",
+      "local_only": true,
+      "remote_cache_used": false,
+      "file_watcher": "fs_hash_crawler",
+      "http_connect_timeout_ms": 60000,
+      "http_read_timeout_ms": 60000,
+      "prelude_or_external_starlark_dependencies": false
+    },
+    "patch_cleanup": {
+      "paired_fragments_replaced": 104,
+      "single_patch_files": 104,
+      "paired_files_remaining": 0,
+      "production_replacements_compared": 158,
+      "equivalent_static_replacements": 129,
+      "equivalent_inline_replacements": 29,
+      "landlock_tests_passed": 20,
+      "conversion_errors": []
+    },
+    "platform_checks": {
+      "passed": 36,
+      "client_os": [
+        "Linux",
+        "macOS",
+        "Windows"
+      ],
+      "client_architectures": [
+        "x86_64",
+        "aarch64"
+      ],
+      "checks": [
+        "linux/x8664: local accepted",
+        "linux/x8664: remote graph accepted",
+        "linux/x8664: target remains native Linux",
+        "linux/x8664: remote-only Linux executor and Unix paths",
+        "linux/aarch64: local rejected",
+        "linux/aarch64: remote graph accepted",
+        "linux/aarch64: target remains native Linux",
+        "linux/aarch64: remote-only Linux executor and Unix paths",
+        "macos/aarch64: local rejected",
+        "macos/aarch64: remote graph accepted",
+        "macos/aarch64: target remains native Linux",
+        "macos/aarch64: remote-only Linux executor and Unix paths",
+        "macos/x8664: local rejected",
+        "macos/x8664: remote graph accepted",
+        "macos/x8664: target remains native Linux",
+        "macos/x8664: remote-only Linux executor and Unix paths",
+        "windows/x8664: local rejected",
+        "windows/x8664: remote graph accepted",
+        "windows/x8664: target remains native Linux",
+        "windows/x8664: remote-only Linux executor and Unix paths",
+        "windows/aarch64: local rejected",
+        "windows/aarch64: remote graph accepted",
+        "windows/aarch64: target remains native Linux",
+        "windows/aarch64: remote-only Linux executor and Unix paths",
+        "native execution dependency graph resolves",
+        "native target and execution dependencies share one configuration",
+        "linux-aarch64: incompatible target rejected",
+        "macos-x86_64: incompatible target rejected",
+        "windows-x86_64: incompatible target rejected",
+        "native Linux executor preserves Landlock selection",
+        "remote worker properties can be configured",
+        "Windows clients copy the seed into a generated artifact",
+        "the copied seed exposes its executable command",
+        "cellar//bootstrap/stage0-posix/seeds/linux-amd64:check: test commands support remote execution",
+        "cellar//bootstrap/mes:hello-test: test commands support remote execution",
+        "cellar//bootstrap/mes:mes-fixed-point: test commands support remote execution"
+      ],
+      "remote_worker_properties": {
+        "OSFamily": "Linux",
+        "Arch": "x86_64"
+      },
+      "remote_only": true,
+      "live_rbe_tested": false,
+      "scope": "Buck fake-host/fake-arch graph and provider analysis; no remote service is configured."
+    },
+    "executable_seed": {
+      "seed_bytes_equal": true,
+      "output_executable": true,
+      "source_mode": "0o755",
+      "output_mode": "0o755",
+      "sha256": "66c95985e668f20f2465c2b876f83fef066fd7c8c2dd3adb51a969f2d7120c8b",
+      "golden_checks_passed": 19,
+      "golden_build_id": "a51a715d-ce49-40c6-a8a8-d75ed131a469",
+      "mechanism": "Buck copy_file(executable_bit_override=True); original seed bytes and file unchanged."
+    },
+    "build": {
+      "success": true,
+      "build_id": "cfcad8e3-8ab2-4827-8b83-d78bf6e5ac30",
+      "targets": [
+        "cellar//bootstrap/stage1:all",
+        "cellar//bootstrap/stage1:toolchain",
+        "cellar//bootstrap/stage1:userland"
+      ]
+    },
+    "tests": {
+      "build_id": "8b942f8c-98e3-4b41-a4a5-6f808dc4eb42",
+      "selected_targets": 2120,
+      "passed": 2192,
+      "failed": 0,
+      "build_failures": 0,
+      "skipped": 0,
+      "omitted_by_runner": 0,
+      "exit_code": 0,
+      "selection": "kind(\".*test.*\", set(cellar//bootstrap/stage1/... cellar//bootstrap/mes: cellar//bootstrap/stage0-posix/seeds/linux-amd64:)) except set(cellar//bootstrap/stage1/bash:interactive-job-control-and-readline)",
+      "deferred_by_user": [
+        {
+          "target": "cellar//bootstrap/stage1/bash:interactive-job-control-and-readline",
+          "action": "cellar//bootstrap/stage1/bash:pty-result",
+          "reason": "Existing native Landlock policy denies /dev/ptmx and /dev/pts. Test and policy remain unchanged."
+        }
+      ],
+      "stage0_golden_checks_passed": 19,
+      "mes_tests_passed": 2,
+      "tcc_fixed_point_comparisons_passed": 8,
+      "gcc_stage2_stage3_objects_compared": 891,
+      "gcc_stage2_stage3_archives_compared": 4,
+      "preceding_traced_gate": {
+        "build_id": "9c6924be-9d4a-45cb-9125-0e84ced03870",
+        "passed": 2192,
+        "local_actions": 3875
+      }
+    },
+    "sha256": {
+      "upstream": "GNU coreutils 6.10",
+      "compiler_generations": [
+        "GCC 4.7.4 stage1",
+        "GCC 4.7.4 stage2",
+        "GCC 4.7.4 stage3"
+      ],
+      "passed_cases": 95,
+      "test_targets": 41,
+      "adjacent_stage_object_archive_and_executable_comparisons": 34,
+      "delivered_executable_comparisons": 1,
+      "gnu_cli_suites": 3,
+      "seed_golden_cases": 57,
+      "stage1_executable_independent_of_gcc_stages2_and3": true,
+      "scope": "Actual GNU 6.10 implementation, syntax and exit statuses. GCC compiler validity is separately checked by the stage2/stage3 object comparison, excluding only cc1-checksum.o and cc1plus-checksum.o."
+    },
+    "configured_closure": {
+      "installation": {
+        "targets": 15723,
+        "actions": 16341,
+        "starlark_and_build_files": 85,
+        "errors": []
+      },
+      "sha256": {
+        "targets": 14081,
+        "actions": 14715,
+        "starlark_and_build_files": 65,
+        "errors": []
+      }
+    },
+    "explicit_starlark_files_audited": 95,
+    "installations": {
+      "cellar//bootstrap/stage1:all": {
+        "installed_files": 1286,
+        "static_executable_entries": 293,
+        "unique_static_executables": 143,
+        "compared_files": 1286,
+        "errors": []
+      },
+      "cellar//bootstrap/stage1:toolchain": {
+        "installed_files": 979,
+        "static_executable_entries": 44,
+        "unique_static_executables": 22,
+        "compared_files": 0,
+        "errors": []
+      },
+      "cellar//bootstrap/stage1:userland": {
+        "installed_files": 314,
+        "static_executable_entries": 249,
+        "unique_static_executables": 122,
+        "compared_files": 0,
+        "errors": []
+      }
+    },
+    "installation_comparison": "All 1286 files in :all match the prior parent-project installation by SHA256 and mode. The earlier project root is /home/exedev/a; the standalone root is /home/exedev/a/cellar. This is not a new independent-checkout rebuild.",
+    "traced_validation": {
+      "trace_prefix": "/tmp/native-cleanup-verified-trace",
+      "local_actions": 3876,
+      "remote_cache_used": false,
+      "trace_files": 17918,
+      "bootstrap_processes": 17618,
+      "open_calls": 1089442,
+      "kernel_channels": {
+        "mktemp_entropy": 3,
+        "pipe_descriptor": 4
+      },
+      "successful_landlock_restrict_self_calls": 8287,
+      "failed_landlock_restrict_self_calls": 0,
+      "unfinished_landlock_restrict_self_calls": 0,
+      "sha_compatibility_actions_executed": 3,
+      "sha_account_file_opens": 0,
+      "declared_missing_executable_attempts": 4,
+      "trace_auditor_regression_tests_passed": 10,
+      "installation_auditor_regression_tests_passed": 2,
+      "errors": [],
+      "scope": "One frozen trace covers the corrected 2192-test gate, 19 seed golden checks after executable metadata normalization, the 2192-test committed rerun and installation builds. Bootstrap executions and successful file opens are audited; Buck orchestration and test infrastructure remain trusted. Earlier exploratory traces containing the five now-corrected fixture violations are not acceptance evidence."
+    },
+    "scope": "Incremental traced validation reuses foundation artifacts built under native Landlock in the standalone project; the final trace is not an entirely uncached seed-to-userland rebuild. The fresh standalone foundation gate separately passed 53 tests with 6517 local actions. No live RBE run was performed, and the user-deferred PTY test was excluded explicitly. Buck2 and the running kernel remain trusted infrastructure."
   }
 }

@@ -1,2 +1,0 @@
-static const char *const standard_exec_prefix_1 = "/usr/libexec/gcc/";
-static const char *const standard_exec_prefix_2 = "/usr/lib/gcc/";

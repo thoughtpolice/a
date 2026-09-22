@@ -19,12 +19,14 @@ int main(int argc, char **argv)
     int status;
     (void)argv;
     if (argc > 1) {
+        if (bootstrap_system(0) != 0) return 13;
         errno = 0;
         if (bootstrap_system("exit 0") != -1 || errno != ENOENT) return 1;
         errno = 0;
         if (bootstrap_popen("printf forbidden", "r") || errno != ENOENT) return 2;
         return 0;
     }
+    if (bootstrap_system(0) == 0) return 14;
     before.sa_handler = handler;
     sigemptyset(&before.sa_mask);
     if (sigaction(SIGINT, &before, 0)) return 3;

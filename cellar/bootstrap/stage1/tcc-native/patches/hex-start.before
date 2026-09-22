@@ -1,7 +1,0 @@
-static void parse_number(const char *p)
-{
-    int b, t, shift, frac_bits, s, exp_val, ch;
-    char *q;
-    unsigned int bn[BN_SIZE];
-    double d;
-

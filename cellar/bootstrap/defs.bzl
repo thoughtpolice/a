@@ -1,8 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# BUILD files use this namespace because noprelude masks native select.
-bootstrap = struct(select = select)
+load("@cellar//bootstrap/platforms:rules.bzl", "native_attrs")
 
 def __export_file_impl(ctx: AnalysisContext) -> list[Provider]:
     return [
@@ -119,6 +118,11 @@ def __stage0_answer_test(ctx: AnalysisContext) -> list[Provider]:
                     # argument, prints it, then hashes only the selected path.
                     "filter": line.strip(),
                 })
+
+        # An empty listing would otherwise pass with nothing checked. The
+        # runner rejects the empty answer, so this case always fails.
+        if not tests:
+            tests.append({"name": target + " - answers", "filter": ""})
         return tests
 
     def parse_test_result(stdout: str, stderr: str, exit_code: int) -> list[dict]:
@@ -130,19 +134,22 @@ def __stage0_answer_test(ctx: AnalysisContext) -> list[Provider]:
                 entries.append(entry)
 
         # The harness prints the expected entry before execing sha256sum,
-        # which prints the actual entry. Let Buck synthesize a result from a
-        # failed process or output that does not satisfy that contract.
-        if exit_code != 0 or len(entries) != 2 or entries[0][1] != entries[1][1]:
+        # which prints the actual entry. Buck synthesizes a failure from a
+        # nonzero exit. A clean exit passes only when sha256sum printed the
+        # expected hash for the same path.
+        if exit_code != 0:
             return []
 
-        expected, path = entries[0]
-        actual = entries[1][0]
-        if actual == expected:
+        path = entries[0][1] if entries else "answers"
+        if len(entries) != 2 or entries[0][1] != entries[1][1]:
+            status = "FAIL"
+            message = "sha256sum exited 0 without printing one entry for the checked path"
+        elif entries[0][0] == entries[1][0]:
             status = "PASS"
             message = None
         else:
             status = "FAIL"
-            message = "expected " + expected + ", got " + actual
+            message = "expected " + entries[0][0] + ", got " + entries[1][0]
 
         return [{
             "name": target + " - " + path,
@@ -151,7 +158,12 @@ def __stage0_answer_test(ctx: AnalysisContext) -> list[Provider]:
             "duration": None,
         }]
 
-    external = ExternalRunnerTestInfo(type = "simple", command = command)
+    external = ExternalRunnerTestInfo(
+        type = "simple",
+        command = command,
+        run_from_project_root = True,
+        use_project_relative_paths = True,
+    )
 
     return [
         DefaultInfo(),
@@ -164,9 +176,12 @@ def __stage0_answer_test(ctx: AnalysisContext) -> list[Provider]:
         ),
     ]
 
-stage0_answer_test = rule(impl = __stage0_answer_test, attrs = {
-    "chdirexec": attrs.dep(),
-    "command": attrs.dep(),
+_stage0_answer_test_rule = rule(impl = __stage0_answer_test, attrs = {
+    "chdirexec": attrs.exec_dep(),
+    "command": attrs.exec_dep(),
     "input": attrs.dep(),
-    "runner": attrs.dep(),
+    "runner": attrs.exec_dep(),
 })
+
+def stage0_answer_test(**kwargs):
+    _stage0_answer_test_rule(**native_attrs(kwargs))

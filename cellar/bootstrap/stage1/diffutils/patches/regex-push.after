@@ -1,1 +1,0 @@
-fail_stack.stack[fail_stack.avail++] = (fail_stack_elt_t) (uintptr_t) (item)
