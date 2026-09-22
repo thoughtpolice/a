@@ -1,0 +1,2 @@
+  if (string)
+    commands[0].argv[0] = string;

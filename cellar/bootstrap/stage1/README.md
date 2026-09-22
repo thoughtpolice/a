@@ -205,6 +205,35 @@ files, including the static compiler, its libraries, CRT objects and headers,
 were byte-identical across the workspace paths. This extends the earlier
 incremental validation; it does not claim another full uncached bootstrap.
 
+GCC 4.0.4 now builds as a native static C compiler using the pre-GCC TCC,
+musl 1.1.24, and GNU binutils. BUILD declares its libiberty/libcpp libraries,
+C parser, options, machine-description and garbage-collector generators, frontend,
+backend, driver, and runtime objects. The Unicode identifier generator is a C
+translation of the original transformation. Shipped generated compiler sources
+are excluded from consumed source trees. Target libgcc, libgcov, crtbeginT and
+crtend are built with the newly compiled GCC. Its transitional libgcc also
+contains a GCC-built copy of the TCC varargs helpers required by the input libc.
+`gcc40:gcc` and `gcc40:cpp` supply explicit tool and header paths through RunInfo;
+`gcc40:installation` exposes the binaries, private headers, sysroot and licenses.
+The raw driver requires explicit `-B` tool/runtime prefixes; it rejects missing
+tools instead of searching PATH. GCC 4.0 predates the `--sysroot` driver option.
+
+At `a94427d0`, all 41 GCC tests passed in both workspaces. They cover source
+regeneration, generator diagnostics, C compilation at O0/O2, driver preprocessing
+and piped compilation, static linking, separate objects/archives/weak symbols,
+128-bit arithmetic, complex arithmetic helpers, constructors/destructors, POSIX
+threads/TLS, forced unwinding with C cleanups, native signal-frame unwinding,
+math, Unicode, and missing declared tools/headers/libraries. The configured
+installation audit reported 8543 targets and 9173 actions without violations.
+The relocated run executed 534 new local actions with remote caching disabled;
+its trace covered 823 bootstrap processes and 186337 successful open calls with
+no boundary violations. All 246 installation files matched across the workspace
+paths, and the five included executables had neither ELF interpreter nor dynamic
+segments. This is incremental evidence on the previously validated closure.
+The coverage archive is built here; instrumented coverage behavior is not yet
+part of this gate. Final GCC 4.7 C++ and stage2/stage3 object comparisons remain
+outstanding.
+
 To repeat the trace gate, start with a fresh JJ workspace and isolated daemon:
 
 ```

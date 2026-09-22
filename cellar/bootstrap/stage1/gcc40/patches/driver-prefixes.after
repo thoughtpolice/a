@@ -1,0 +1,3 @@
+/* Cellar: tools are supplied explicitly with -B. */
+static const char *const standard_exec_prefix_1 = STANDARD_EXEC_PREFIX;
+static const char *const standard_exec_prefix_2 = STANDARD_EXEC_PREFIX;

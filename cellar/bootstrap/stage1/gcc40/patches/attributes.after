@@ -1,0 +1,1 @@
+const struct attribute_spec ix86_attribute_table[10];

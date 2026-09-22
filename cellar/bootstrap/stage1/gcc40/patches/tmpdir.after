@@ -1,0 +1,7 @@
+  base = try (getenv ("TMPDIR"), base);
+  if (!base)
+    {
+      fputs ("GCC requires a writable TMPDIR\n", stderr);
+      exit (1);
+    }
+
