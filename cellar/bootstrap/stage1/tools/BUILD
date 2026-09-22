@@ -34,6 +34,7 @@ cc(
     for name in [
         "capture",
         "capture-probe",
+        "source-alias",
     ]
 ]
 

@@ -7,6 +7,12 @@
 def _generate_impl(ctx):
     output = ctx.actions.declare_output(ctx.attrs.output, dir = ctx.attrs.directory)
     command = cmd_args(ctx.attrs.tool[RunInfo], ctx.attrs.args, hidden = ctx.attrs.inputs)
+    if ctx.attrs.source_tree != None:
+        if ctx.attrs.chdir == None or ctx.attrs.source_alias == None:
+            fail("logical generator sources require chdir and source_alias")
+        command = cmd_args(ctx.attrs.source_alias[RunInfo], ctx.attrs.source_tree, command)
+    elif ctx.attrs.source_alias != None:
+        fail("source_alias requires source_tree")
     env = ctx.attrs.env
     if ctx.attrs.capture != None:
         if ctx.attrs.directory or ctx.attrs.chdir != None or ctx.attrs.output_flags:
@@ -42,6 +48,8 @@ def _generate_impl(ctx):
 
 generate = rule(impl = _generate_impl, attrs = {
     "tool": attrs.dep(providers = [RunInfo]),
+    "source_tree": attrs.option(attrs.source(), default = None),
+    "source_alias": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
     "args": attrs.list(attrs.arg(), default = []),
     "env": attrs.dict(attrs.string(), attrs.arg(), default = {}),
     "inputs": attrs.list(attrs.source(), default = []),

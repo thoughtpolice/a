@@ -68,6 +68,11 @@ compiler = rule(impl = _compiler_impl, attrs = {
     "ldflags": attrs.list(attrs.arg(), default = []),
 })
 
+def _logical_path(path):
+    if not path or path.startswith("/") or ".." in path.split("/"):
+        fail("expected a relative path within the declared source tree: " + path)
+    return "source/" + path
+
 def _object_impl(ctx):
     tc = ctx.attrs.toolchain[CompilerInfo]
 
@@ -80,7 +85,22 @@ def _object_impl(ctx):
         flags.add("-D", define)
     for include in ctx.attrs.includes:
         flags.add("-I", include)
-    command = cmd_args(tc.command, flags, "-c", ctx.attrs.src, "-o", ctx.attrs.object_name, hidden = ctx.attrs.headers)
+    if ctx.attrs.source_tree != None:
+        if ctx.attrs.source_alias == None:
+            fail("logical source compilation requires a bootstrapped source_alias tool")
+        source = _logical_path(ctx.attrs.logical_source)
+        for include in ctx.attrs.logical_includes:
+            flags.add("-I", _logical_path(include))
+    else:
+        if ctx.attrs.logical_source or ctx.attrs.logical_includes or ctx.attrs.source_alias:
+            fail("logical source arguments require source_tree")
+        source = ctx.attrs.src
+    command = cmd_args(tc.command, flags, "-c", source, "-o", ctx.attrs.object_name, hidden = ctx.attrs.headers)
+    if ctx.attrs.source_tree != None:
+        # The immutable tree is aliased inside this action's writable output.
+        # GCC receives stable source/include spellings while its intermediate
+        # assembly and temporary files remain in the declared work directory.
+        command = cmd_args(ctx.attrs.source_alias[RunInfo], ctx.attrs.source_tree, command, hidden = ctx.attrs.src)
     ctx.actions.run(
         cmd_args(ctx.attrs.chdir[RunInfo], work.as_output(), cmd_args(command, relative_to = work)),
         clear_environment = True,
@@ -94,6 +114,10 @@ def _object_impl(ctx):
 c_object = rule(impl = _object_impl, attrs = {
     "toolchain": attrs.dep(providers = [CompilerInfo]),
     "src": attrs.source(),
+    "source_tree": attrs.option(attrs.source(), default = None),
+    "logical_source": attrs.string(default = ""),
+    "logical_includes": attrs.list(attrs.string(), default = []),
+    "source_alias": attrs.option(attrs.dep(providers = [RunInfo]), default = None),
     "headers": attrs.list(attrs.source(), default = []),
     "includes": attrs.list(attrs.source(), default = []),
     "defines": attrs.list(attrs.string(), default = []),

@@ -64,8 +64,8 @@ def __untar(ctx: AnalysisContext) -> list[Provider]:
     # chdirenv creates the directory if it doesn't exist, then cds into it.
     parent = ctx.actions.declare_output("_untar_work", dir = True)
     output = parent.project(ctx.label.name)
-    chdirenv = ctx.attrs.chdirenv[DefaultInfo].default_outputs[0]
-    untar_tool = ctx.attrs.untar[DefaultInfo].default_outputs[0]
+    chdirenv = ctx.attrs.chdirenv[RunInfo]
+    untar_tool = ctx.attrs.untar[RunInfo]
     input_tar = ctx.attrs.input[DefaultInfo].default_outputs[0]
 
     ctx.actions.run(
@@ -73,8 +73,7 @@ def __untar(ctx: AnalysisContext) -> list[Provider]:
             chdirenv,
             parent.as_output(),
             cmd_args(untar_tool, relative_to = parent),
-            "--non-strict",
-            "--file",
+            ctx.attrs.flags,
             cmd_args(input_tar, relative_to = parent),
         ],
         category = "mes_stage0_untar",
@@ -90,9 +89,10 @@ def __untar(ctx: AnalysisContext) -> list[Provider]:
     ]
 
 untar = rule(impl = __untar, attrs = {
-    "chdirenv": attrs.dep(),
-    "untar": attrs.dep(),
+    "chdirenv": attrs.dep(providers = [RunInfo]),
+    "untar": attrs.dep(providers = [RunInfo]),
     "input": attrs.dep(),
+    "flags": attrs.list(attrs.string(), default = ["--non-strict", "--file"]),
     "files": attrs.list(attrs.string(), default = []),
 })
 
