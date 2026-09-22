@@ -91,6 +91,11 @@ default_starlark_peak_memory = 5242880
 # requests: https://github.com/facebook/buck2/pull/1330
 deduplicate_get_digests_ttl_calls = true
 
+[http]
+# Give slower upstream source mirrors time to connect and deliver data.
+connect_timeout_ms = 60000
+read_timeout_ms = 60000
+
 [buck2_re_client]
 # for larger blobs: set a larger gRPC timeout window so we can upload them in time
 grpc_timeout = 900
