@@ -234,6 +234,36 @@ The coverage archive is built here; instrumented coverage behavior is not yet
 part of this gate. Final GCC 4.7 C++ and stage2/stage3 object comparisons remain
 outstanding.
 
+Full native static musl 1.2.5 now builds with the first GCC 4.0.4, including
+complex math, mallocng and POSIX threads. Its five character/case tables regenerate
+from pinned Unicode 12.1 data, and the eight unchanged iconv tables reuse the
+validated generator outputs. All thirteen tables match the release fixtures.
+`musl12:gcc` pairs the existing compiler with the new output sysroot; the compiler
+execution runtime remains the preceding musl until its next rebuild. See
+[musl12/README.md](musl12/README.md) for configuration and test coverage, including
+the pinned release's long-double complex precision limitations.
+
+At `921757a5`, the musl installation audit reported 9965 targets and 10559 actions
+without violations. All 24 package tests passed in the second workspace, with
+1392 newly executed local actions and no remote cache. The trace covered 4109
+bootstrap processes and 76434 successful open calls with no boundary violations.
+All 231 musl installation files were byte-identical across the workspace paths.
+The trace also includes the initial failed download attempt; exact archive sizes
+now avoid the timed-out HTTP HEAD requests. This remains incremental validation
+on the previously audited compiler closure.
+
+At `f38c1e70`, the GCC 4.0.4 rebuild with full musl 1.2.5 passed all 41 package
+tests and the preceding compiler's RTL test in both workspaces. Every generator
+and compiler object was rebuilt with the predecessor GCC; the new compiler then
+rebuilt its own runtime. GCC instruction-condition evaluation is now enabled,
+and the transitional TCC varargs helper is removed. The configured audit found
+10474 targets and 11063 actions without ownership or load violations. The second
+workspace executed 535 new local actions without remote caching. Its trace
+covered 1461 bootstrap processes with no boundary violations. All 246 installed
+files matched across absolute workspace paths, and the included executables
+were static ELF files. This is another incremental validation of the bootstrap
+closure, not the required future GCC 4.7 stage2/stage3 object comparison.
+
 To repeat the trace gate, start with a fresh JJ workspace and isolated daemon:
 
 ```

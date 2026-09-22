@@ -58,6 +58,7 @@ SOURCE_FILES = HEADER_FILES + [path for path in INTERNAL_HEADERS if path not in 
 download_file(
     name = "musl-1.1.24.tar.gz",
     hash = "1370c9a812b2cf2a7d92802510cca0058cc37e66a7bedd70051f0a34015022a3",
+    size_bytes = 1024988,
     urls = ["https://musl.libc.org/releases/musl-1.1.24.tar.gz"],
 )
 

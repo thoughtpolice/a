@@ -1,27 +1,35 @@
 # SPDX-FileCopyrightText: 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+# Second GCC 4.0.4 build: predecessor GCC plus full musl 1.2.5.
+# Shared handwritten patches/inventories remain in gcc40; each generator and
+# compiler action below belongs to this new stage.
+
 load("@cellar//bootstrap:actions.bzl", "command_test", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
 load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "bootstrap_artifact", "c_binary", "c_library", "c_object", "compiler", "sysroot")
-load(":sources.bzl", "GCC_HEADERS", "LIBRARY_HEADERS")
+load("@cellar//bootstrap/stage1/gcc40:sources.bzl", "GCC_HEADERS", "LIBRARY_HEADERS")
 
-PREDECESSOR = "cellar//bootstrap/stage1/tcc-native:tcc"
+PREDECESSOR = "cellar//bootstrap/stage1/musl12:gcc"
 
-MUSL = "cellar//bootstrap/stage1/musl"
+MUSL = "cellar//bootstrap/stage1/musl12"
 
 CRT = [
-    MUSL + ":gnu-crt1.o",
-    MUSL + ":gnu-crti.o",
+    MUSL + ":crt1.o",
+    MUSL + ":crti.o",
+    "cellar//bootstrap/stage1/gcc40:crtbeginT.o",
 ]
 
-CRTN = [MUSL + ":gnu-crtn.o"]
+CRTN = [
+    "cellar//bootstrap/stage1/gcc40:crtend.o",
+    MUSL + ":crtn.o",
+]
 
 LIBC = [
-    MUSL + ":gnu-libc.a",
-    "cellar//bootstrap/stage1/tcc-native:libtcc1.a",
-    MUSL + ":gnu-libc.a",
+    MUSL + ":libc.a",
+    "cellar//bootstrap/stage1/gcc40:libgcc.a",
+    MUSL + ":libc.a",
 ]
 
 LIBIBERTY = [
@@ -773,8 +781,11 @@ untar(
 
 c_object(
     name = "ucnid.o",
-    src = "generators/ucnid.c",
-    flags = ["-Werror"],
+    src = "cellar//bootstrap/stage1/gcc40:generators/ucnid.c",
+    flags = [
+        "-O2",
+        "-Werror",
+    ],
     headers = [MUSL + ":headers"],
     toolchain = PREDECESSOR,
 )
@@ -980,18 +991,13 @@ write_file(
     content = '#define LOCALEDIR "/nonexistent-bootstrap-locale"\n',
 )
 
-[export_file(name = path) for path in glob([
-    "patches/*",
-    "tests/*.c",
-])]
-
 [
     generate(
         name = name,
         args = [
             "$(location :gcc-4.0.4[" + source + "])",
-            "$(location :patches/" + patch + ".before)",
-            "$(location :patches/" + patch + ".after)",
+            "$(location cellar//bootstrap/stage1/gcc40:patches/" + patch + ".before)",
+            "$(location cellar//bootstrap/stage1/gcc40:patches/" + patch + ".after)",
         ],
         tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
     )
@@ -1018,7 +1024,10 @@ filegroup(
         name = "ib-" + name + ".o",
         src = ":library-source[libiberty/" + name + ".c]",
         defines = ["HAVE_CONFIG_H=1"],
-        flags = ["-Werror"],
+        flags = [
+            "-O2",
+            "-Werror",
+        ],
         headers = [
             ":library-source",
             MUSL + ":headers",
@@ -1044,7 +1053,10 @@ c_library(
     c_object(
         name = "cpp-" + name + ".o",
         src = ":library-source[libcpp/" + name + ".c]",
-        flags = ["-Werror"],
+        flags = [
+            "-O2",
+            "-Werror",
+        ],
         headers = [
             ":library-source",
             MUSL + ":headers",
@@ -1072,8 +1084,11 @@ c_library(
     [
         c_object(
             name = name + "-test.o",
-            src = "tests/" + name + ".c",
-            flags = ["-Werror"],
+            src = "cellar//bootstrap/stage1/gcc40:tests/" + name + ".c",
+            flags = [
+                "-O2",
+                "-Werror",
+            ],
             headers = [
                 ":library-source",
                 MUSL + ":headers",
@@ -1371,7 +1386,10 @@ GENERATOR_INCLUDES = [
         name = name + ".o",
         src = ":gcc-source[gcc/" + name + ".c]",
         defines = GENERATOR_DEFINES,
-        flags = ["-Werror"],
+        flags = [
+            "-O2",
+            "-Werror",
+        ],
         headers = [
             ":gcc-source",
             MUSL + ":headers",
@@ -1410,6 +1428,7 @@ GENERATOR_INCLUDES = [
         name = output,
         args = args,
         capture = "cellar//bootstrap/stage1/tools:capture",
+        output = output,
         tool = ":" + tool,
     )
     for output, tool, args in [
@@ -1448,7 +1467,10 @@ filegroup(
         name = name + ".o",
         src = ":min-insn-modes.c" if name == "min-insn-modes" else ":gcc-source[gcc/" + name + ".c]",
         defines = GENERATOR_DEFINES,
-        flags = ["-Werror"],
+        flags = [
+            "-O2",
+            "-Werror",
+        ],
         headers = [
             ":gcc-source",
             ":mode-headers",
@@ -1503,6 +1525,7 @@ BUILD_EARLY = [
         args = args + ["config/i386/i386.md"],
         capture = "cellar//bootstrap/stage1/tools:capture",
         inputs = [":gcc-source"],
+        output = output,
         tool = ":" + tool,
         working_directory = ":gcc-source[gcc]",
     )
@@ -1522,6 +1545,7 @@ filegroup(
     name = "early-headers",
     srcs = {name: ":" + name for name in [
         "tree-check.h",
+        "options.h",
         "genrtl.h",
         "insn-modes.h",
         "insn-constants.h",
@@ -1533,7 +1557,10 @@ c_object(
     name = "insn-conditions.o",
     src = ":insn-conditions.c",
     defines = GENERATOR_DEFINES,
-    flags = ["-Werror"],
+    flags = [
+        "-O2",
+        "-Werror",
+    ],
     headers = [
         ":gcc-source",
         ":early-headers",
@@ -1593,6 +1620,7 @@ MACHINE_OUTPUTS = [
         args = ["config/i386/i386.md"],
         capture = "cellar//bootstrap/stage1/tools:capture",
         inputs = [":gcc-source"],
+        output = output,
         tool = ":" + tool,
         working_directory = ":gcc-source[gcc]",
     )
@@ -1635,8 +1663,8 @@ generate(
     name = "gengtype-lex-source",
     args = [
         "$(location :gcc-source[gcc/gengtype-lex.l])",
-        "$(location :patches/gtype-input.before)",
-        "$(location :patches/gtype-input.after)",
+        "$(location cellar//bootstrap/stage1/gcc40:patches/gtype-input.before)",
+        "$(location cellar//bootstrap/stage1/gcc40:patches/gtype-input.after)",
     ],
     tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
 )
@@ -1687,7 +1715,10 @@ filegroup(
         name = name + ".o",
         src = src,
         defines = GENERATOR_DEFINES,
-        flags = ["-Werror"],
+        flags = [
+            "-O2",
+            "-Werror",
+        ],
         headers = [
             ":gcc-source",
             ":gengtype-headers",
@@ -1779,7 +1810,10 @@ generate(
         name = name + ".o",
         src = src,
         defines = GENERATOR_DEFINES,
-        flags = ["-Werror"],
+        flags = [
+            "-O2",
+            "-Werror",
+        ],
         headers = [
             ":gcc-source",
             ":machine-generated",
@@ -1794,8 +1828,8 @@ generate(
     )
     for name, src in [
         ("genrtl-test-support", ":genrtl.c"),
-        ("rtl-test", "tests/rtl.c"),
-        ("generated-files-test", "tests/generated-files.c"),
+        ("rtl-test", "cellar//bootstrap/stage1/gcc40:tests/rtl.c"),
+        ("generated-files-test", "cellar//bootstrap/stage1/gcc40:tests/generated-files.c"),
     ]
 ]
 
@@ -1873,8 +1907,8 @@ command_test(
         name = name + ".c",
         args = [
             "$(location :gcc-4.0.4[" + source + "])",
-            "$(location :patches/" + patch + ".before)",
-            "$(location :patches/" + patch + ".after)",
+            "$(location cellar//bootstrap/stage1/gcc40:patches/" + patch + ".before)",
+            "$(location cellar//bootstrap/stage1/gcc40:patches/" + patch + ".after)",
         ],
         tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
     )
@@ -1939,6 +1973,7 @@ generate(
             "$(location :gcc-source[gcc/" + script + "])",
         ] + args,
         capture = "cellar//bootstrap/stage1/tools:capture",
+        output = output,
         stdin = ":optionlist",
         tool = "cellar//bootstrap/stage1/gawk:gawk",
     )
@@ -1959,7 +1994,10 @@ c_object(
     name = "gcov-iov.o",
     src = ":gcc-source[gcc/gcov-iov.c]",
     defines = GENERATOR_DEFINES,
-    flags = ["-Werror"],
+    flags = [
+        "-O2",
+        "-Werror",
+    ],
     headers = [
         ":gcc-source",
         MUSL + ":headers",
@@ -2023,7 +2061,10 @@ COMPILER_HEADERS = [
         name = "cc-" + name + ".o",
         src = src,
         defines = COMPILER_DEFINES,
-        flags = ["-Werror"],
+        flags = [
+            "-O2",
+            "-Werror",
+        ],
         headers = COMPILER_HEADERS,
         includes = COMPILER_INCLUDES,
         object_name = "cc{}.o".format(i),
@@ -2096,8 +2137,8 @@ generate(
     name = "i386.c",
     args = [
         "$(location :i386-declaration.c)",
-        "$(location :patches/attribute-definition.before)",
-        "$(location :patches/attribute-definition.after)",
+        "$(location cellar//bootstrap/stage1/gcc40:patches/attribute-definition.before)",
+        "$(location cellar//bootstrap/stage1/gcc40:patches/attribute-definition.after)",
     ],
     tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
 )
@@ -2159,22 +2200,22 @@ generate(
         "O2",
     ]
     for name, src in [
-        ("c-language", ":tests/c-language.c"),
+        ("c-language", "cellar//bootstrap/stage1/gcc40:tests/c-language.c"),
         (
             "runtime",
-            MUSL + ":test-source[tests/runtime.c]",
+            "cellar//bootstrap/stage1/musl:test-source[tests/runtime.c]",
         ),
         (
             "threads",
-            MUSL + ":test-source[tests/threads.c]",
+            "cellar//bootstrap/stage1/musl:test-source[tests/threads.c]",
         ),
         (
             "native-math",
-            MUSL + ":test-source[tests/native-math.c]",
+            "cellar//bootstrap/stage1/musl:test-source[tests/native-math.c]",
         ),
         (
             "unicode",
-            MUSL + ":test-source[tests/unicode.c]",
+            "cellar//bootstrap/stage1/musl:test-source[tests/unicode.c]",
         ),
     ]
 ]
@@ -2204,7 +2245,7 @@ command_test(
         "$(location :cc1)",
         "-quiet",
         "-nostdinc",
-        "$(location :tests/c-language.c)",
+        "$(location cellar//bootstrap/stage1/gcc40:tests/c-language.c)",
         "-o",
         "/dev/null",
     ],
@@ -2216,8 +2257,8 @@ command_test(
         name = name,
         args = [
             "$(location :gcc-4.0.4[gcc/" + name + "])",
-            "$(location :patches/" + patch + ".before)",
-            "$(location :patches/" + patch + ".after)",
+            "$(location cellar//bootstrap/stage1/gcc40:patches/" + patch + ".before)",
+            "$(location cellar//bootstrap/stage1/gcc40:patches/" + patch + ".after)",
         ],
         tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
     )
@@ -2267,8 +2308,8 @@ write_file(
         name = name,
         args = [
             "$(location " + source + ")",
-            "$(location :patches/" + name + ".before)",
-            "$(location :patches/" + name + ".after)",
+            "$(location cellar//bootstrap/stage1/gcc40:patches/" + name + ".before)",
+            "$(location cellar//bootstrap/stage1/gcc40:patches/" + name + ".after)",
         ],
         tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
     )
@@ -2311,7 +2352,10 @@ DRIVER_DEFINES = COMPILER_DEFINES + [
         name = "driver-" + name + ".o",
         src = ":driver-source[" + name + ".c]",
         defines = DRIVER_DEFINES,
-        flags = ["-Werror"],
+        flags = [
+            "-O2",
+            "-Werror",
+        ],
         headers = COMPILER_HEADERS + [":driver-source"],
         includes = [":driver-source"] + COMPILER_INCLUDES,
         toolchain = PREDECESSOR,
@@ -2370,7 +2414,7 @@ configured_tool(
     name = "bootstrap-driver",
     args = [
         "-B$(location :native-tools)/",
-        "-B$(location " + MUSL + ":runtime-gnu)/lib/",
+        "-B$(location " + MUSL + ":runtime)/lib/",
         "-nostdinc",
         "-isystem",
         "$(location :compiler-headers)",
@@ -2393,13 +2437,13 @@ compiler(
         "-g0",
     ],
     compiler = ":bootstrap-driver",
-    execution_runtime = MUSL + ":runtime-gnu",
+    execution_runtime = MUSL + ":runtime",
     family = "gcc",
     ldflags = ["-static"],
     linker = "cellar//bootstrap/stage1/binutils:ld",
     object_format = "elf64-x86-64",
-    stage = "gcc-4.0.4-TCC-built",
-    sysroot = MUSL + ":runtime-gnu",
+    stage = "gcc-4.0.4-musl-rebuilt",
+    sysroot = MUSL + ":runtime",
     target_compatible_with = [
         "cellar//bootstrap/platforms:linux",
         "cellar//bootstrap/platforms:amd64",
@@ -2409,7 +2453,7 @@ compiler(
 [
     c_object(
         name = "driver-test-" + name + ".o",
-        src = ":tests/c-language.c",
+        src = "cellar//bootstrap/stage1/gcc40:tests/c-language.c",
         flags = flags,
         object_name = "sample.o",
         toolchain = ":bootstrap-gcc",
@@ -2533,8 +2577,8 @@ generate(
     name = "linux-unwind.h",
     args = [
         "$(location :gcc-4.0.4[gcc/config/i386/linux-unwind.h])",
-        "$(location :patches/unwind-context.before)",
-        "$(location :patches/unwind-context.after)",
+        "$(location cellar//bootstrap/stage1/gcc40:patches/unwind-context.before)",
+        "$(location cellar//bootstrap/stage1/gcc40:patches/unwind-context.after)",
     ],
     tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
 )
@@ -2718,7 +2762,7 @@ RUNTIME_INCLUDES = [
 
 c_library(
     name = "libgcc.a",
-    objects = [":libgcc" + name + ".o" for name in LIBGCC_FUNCTIONS + LIBGCC_DIVMOD] + [":" + name + ".o" for name in UNWIND_SOURCES] + [":tcc-libc-varargs.o"],
+    objects = [":libgcc" + name + ".o" for name in LIBGCC_FUNCTIONS + LIBGCC_DIVMOD] + [":" + name + ".o" for name in UNWIND_SOURCES],
     output = "libgcc.a",
     toolchain = ":bootstrap-gcc",
 )
@@ -2790,10 +2834,10 @@ sysroot(
     abi = "x86_64-sysv",
     files = {"include": MUSL + ":headers"},
     libraries = {
-        "lib/libc.a": MUSL + ":gnu-libc.a",
+        "lib/libc.a": MUSL + ":libc.a",
         "lib/libgcc.a": ":libgcc.a",
         "lib/libgcov.a": ":libgcov.a",
-    } | {"lib/lib" + name + ".a": MUSL + ":gnu-lib" + name + ".a" for name in [
+    } | {"lib/lib" + name + ".a": MUSL + ":lib" + name + ".a" for name in [
         "m",
         "pthread",
         "dl",
@@ -2804,9 +2848,9 @@ sysroot(
     ]},
     object_format = "elf64-x86-64",
     objects = {
-        "lib/crt1.o": MUSL + ":gnu-crt1.o",
-        "lib/crti.o": MUSL + ":gnu-crti.o",
-        "lib/crtn.o": MUSL + ":gnu-crtn.o",
+        "lib/crt1.o": MUSL + ":crt1.o",
+        "lib/crti.o": MUSL + ":crti.o",
+        "lib/crtn.o": MUSL + ":crtn.o",
         "lib/crtbeginT.o": ":crtbeginT.o",
         "lib/crtend.o": ":crtend.o",
     },
@@ -2839,12 +2883,12 @@ compiler(
         "-g0",
     ],
     compiler = ":gcc-command",
-    execution_runtime = MUSL + ":runtime-gnu",
+    execution_runtime = MUSL + ":runtime",
     family = "gcc",
     ldflags = ["-static"],
     linker = "cellar//bootstrap/stage1/binutils:ld",
     object_format = "elf64-x86-64",
-    stage = "gcc-4.0.4-TCC-built-with-native-runtime",
+    stage = "gcc-4.0.4-musl-rebuilt-with-native-runtime",
     sysroot = ":runtime",
     target_compatible_with = [
         "cellar//bootstrap/platforms:linux",
@@ -2886,41 +2930,27 @@ compiler(
         ),
     ]
     for name, src in [
-        ("libgcc", ":tests/libgcc.c"),
-        ("unwind", ":tests/unwind.c"),
-        ("c-language", ":tests/c-language.c"),
+        ("libgcc", "cellar//bootstrap/stage1/gcc40:tests/libgcc.c"),
+        ("unwind", "cellar//bootstrap/stage1/gcc40:tests/unwind.c"),
+        ("c-language", "cellar//bootstrap/stage1/gcc40:tests/c-language.c"),
         (
             "runtime",
-            MUSL + ":test-source[tests/runtime.c]",
+            "cellar//bootstrap/stage1/musl:test-source[tests/runtime.c]",
         ),
         (
             "threads",
-            MUSL + ":test-source[tests/threads.c]",
+            "cellar//bootstrap/stage1/musl:test-source[tests/threads.c]",
         ),
         (
             "native-math",
-            MUSL + ":test-source[tests/native-math.c]",
+            "cellar//bootstrap/stage1/musl:test-source[tests/native-math.c]",
         ),
         (
             "unicode",
-            MUSL + ":test-source[tests/unicode.c]",
+            "cellar//bootstrap/stage1/musl:test-source[tests/unicode.c]",
         ),
     ]
 ]
-
-# The input musl archive was built by TCC and still calls these SysV helpers.
-# Recompile this small compatibility object with GCC; the next musl rebuild
-# uses GCC builtins and no longer needs it.
-c_object(
-    name = "tcc-libc-varargs.o",
-    src = "cellar//bootstrap/stage1/tcc-release:source[lib/va_list.c]",
-    flags = [
-        "-O2",
-        "-Werror",
-    ],
-    object_name = "tccva.o",
-    toolchain = ":bootstrap-gcc",
-)
 
 [
     c_object(
@@ -2952,15 +2982,13 @@ c_binary(
     libraries = [
         ":separate.a",
         ":libgcc.a",
-        MUSL + ":gnu-libc.a",
+        MUSL + ":libc.a",
         ":libgcc.a",
-        MUSL + ":gnu-libc.a",
+        MUSL + ":libc.a",
     ],
     objects = CRT + [
-        ":crtbeginT.o",
         ":separate-features.o",
         ":separate-weak.o",
-        ":crtend.o",
     ] + CRTN,
     toolchain = ":gcc",
 )
@@ -2998,7 +3026,7 @@ command_test(
         "-B$(location :native-tools)/",
         "-nostdinc",
         "-fsyntax-only",
-        "$(location :tests/c-language.c)",
+        "$(location cellar//bootstrap/stage1/gcc40:tests/c-language.c)",
     ],
     env = {"PATH": "/usr/bin:/bin"},
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
@@ -3033,5 +3061,3 @@ filegroup(
         "share/licenses/gcc/COPYING.LIB": ":gcc-4.0.4[COPYING.LIB]",
     },
 )
-
-export_file(name = "generators/ucnid.c")

@@ -24,7 +24,11 @@ int main(void)
     CHECK(CODE_FOR_adddi3 < CODE_FOR_nothing && CODE_FOR_movdi < CODE_FOR_nothing);
     CHECK(MAX_RECOG_OPERANDS >= 10 && MAX_INSNS_PER_SPLIT >= 3);
     CHECK(SP_REG == 7 && BP_REG == 6);
+#if GCC_VERSION >= 3001
+    CHECK(insn_elision_unavailable == 0 && n_insn_conditions > 0);
+#else
     CHECK(insn_elision_unavailable == 1 && n_insn_conditions == 0);
+#endif
     reg = gen_rtx_raw_REG(DImode, 5);
     value = gen_rtx_raw_CONST_INT(VOIDmode, 0x123456789abcdefL);
     sum = gen_rtx_PLUS(DImode, reg, value);
