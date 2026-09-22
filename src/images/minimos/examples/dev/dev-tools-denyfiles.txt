@@ -7,3 +7,9 @@
 
 /usr/bin/ldconfig
 /usr/bin/ld.so
+
+# The base ships these three terminfo entries itself, and a second copy
+# would replace a base path, which the composition policy refuses.
+/etc/terminfo/d/dumb
+/etc/terminfo/l/linux
+/etc/terminfo/x/xterm-256color

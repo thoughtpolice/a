@@ -35,11 +35,12 @@ The first three examples are appliances: one service, no shell tools.
 `dev/` flips the image into a day-to-day machine: coreutils, findutils,
 grep/sed/gawk, tar/gzip/xz, git, jq, ripgrep, procps, less, curl, and
 bubblewrap from pinned Wolfi packages, plus a running
-`systemd --user` for uid 1000 — exedev is marked lingering, a drop-in
-resets the `PAMName=` our PAM-less rootfs can't satisfy (and sets
-`XDG_RUNTIME_DIR`, pam_systemd's other job), and a small culled layer
-restores the `systemd-user-runtime-dir` binary and `loginctl` that the
-base denylist drops.
+`systemd --user` for uid 1000. exedev is marked lingering, and a small
+culled layer restores the `systemd-user-runtime-dir` binary and `loginctl`
+that the base denylist drops. The base already carries the `user@.service`
+drop-ins that reset the `PAMName=` our PAM-less rootfs can't satisfy and set
+`XDG_RUNTIME_DIR`, pam_systemd's other job. They sit unused until something
+lingers, and the composition policy wouldn't let this layer add them anyway.
 
 The local root account is locked and has `nologin`; exe.dev maps external SSH
 names, including `root`, to the configured `exedev` uid 1000 account. On these

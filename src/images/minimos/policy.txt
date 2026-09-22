@@ -8,12 +8,27 @@
 #   composable PREFIX   a composition may create new paths under PREFIX
 #   sealed PREFIX       no composition may create anything under PREFIX
 #
-# Two unconditional rules come first and need no line here: a composition
-# layer can never replace a path a lower layer established (so every one
-# of the base's ~670 paths, PID 1, the shells, the account files, every
-# vendor unit, is covered without being named), and it can never write a
-# type-wide systemd drop-in directory (`service.d`, `user-.slice.d`, ...)
-# that would reconfigure units it does not own.
+# Some rules come first and need no line here. A composition layer can
+# never:
+#
+#   - replace a path a lower layer established. That covers every one of
+#     the base's ~670 paths without naming them: PID 1, the shells, the
+#     account files, every vendor unit.
+#   - write a type-wide systemd drop-in directory such as `service.d` or
+#     `user-.slice.d`, which would reconfigure units it does not own.
+#   - write a unit file, mask, alias or drop-in in /etc/systemd/system for
+#     a unit a lower layer already defines. systemd finds a unit by name
+#     across its whole search path, so a new path there can override a
+#     vendor unit the layer never touched. Links in `.wants/` and
+#     `.requires/` stay open, since they only start a unit as its own layer
+#     configured it.
+#   - add a program to one PATH directory under a name a lower layer ships
+#     in another. The image, the login shell and systemd each search those
+#     directories in a different order.
+#
+# Every layer, the base included, must also declare the parent directory
+# of each path it writes, so no directory's mode and owner are left to the
+# extractor.
 #
 # On top of that, a *new* path must fall under a composable prefix. This
 # is the inverse of naming the dangerous paths: a search directory nobody

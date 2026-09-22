@@ -170,8 +170,11 @@ minimos.overlay(
         "etc/systemd/system/multi-user.target.wants",
         "etc/systemd/system/sysinit.target.wants",
         "etc/systemd/system/system.slice.d",
+        "etc/systemd/system/user-workload.slice.d",
         "etc/systemd/system/user.slice.d",
+        "etc/systemd/system/user@.service.d",
         "etc/systemd/system.conf.d",
+        "etc/systemd/user.conf.d",
         "etc/systemd/journald.conf.d",
         "etc/dbus-1",
         "etc/dbus-1/system.d",
@@ -216,6 +219,10 @@ minimos.overlay(
         "etc/systemd/system/user.slice.d/50-minimos-qos.conf": "base/units/user.slice.d/50-minimos-qos.conf",
         "etc/systemd/system/user-workload.slice": "base/units/user-workload.slice",
         "etc/systemd/system/user-workload.slice.d/90-minimos-qos.conf": "base/units/user-workload.slice.d/90-minimos-qos.conf",
+        # Inert until some composition lingers an account (examples/dev);
+        # a drop-in for a base unit can only come from the base.
+        "etc/systemd/system/user@.service.d/50-no-pam.conf": "base/units/user@.service.d/50-no-pam.conf",
+        "etc/systemd/system/user@.service.d/60-minimos-delegate.conf": "base/units/user@.service.d/60-minimos-delegate.conf",
         "etc/systemd/system/dbus.service.d/50-minimos-hardening.conf": "base/units/dbus.service.d/50-minimos-hardening.conf",
         "etc/dbus-1/system.d/50-minimos-deny.conf": "base/config/dbus-minimos-deny.conf",
         "etc/sysctl.d/00-unprivileged-ports.conf": "base/config/sysctl.d/00-unprivileged-ports.conf",

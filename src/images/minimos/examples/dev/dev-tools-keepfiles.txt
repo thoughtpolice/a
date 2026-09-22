@@ -13,10 +13,8 @@
 /usr/libexec/git-core/**
 /usr/share/git-core/**
 
-# The full ncurses-terminfo-base set (the base image keeps only three
-# entries): interactive SSH sessions arrive with whatever TERM the
-# client uses, and less/top/watch want the real entry. Wolfi installs
-# the base set under /etc/terminfo; ncurses itself ships a few under
-# /usr/share/terminfo, and its search path covers both.
+# The rest of the ncurses-terminfo-base set. The base image keeps only
+# three entries, which the denyfile leaves to it. Interactive SSH sessions
+# arrive with whatever TERM the client uses, and less/top/watch want the
+# real entry. Wolfi installs the whole set under /etc/terminfo.
 /etc/terminfo/**
-/usr/share/terminfo/**

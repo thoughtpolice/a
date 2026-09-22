@@ -8,6 +8,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import sys
 import tarfile
 import tempfile
@@ -262,6 +263,10 @@ class SecurityTests(unittest.TestCase):
         self.assertFalse(globs.matches("/etc/exact.conf.bak"))
         self.assertFalse(globs.matches("/etc"))
         self.assertEqual(len(globs), 4)
+        # A literal and a pattern that match nothing are both reported, as
+        # written, and a path two entries match counts for both.
+        overlapping = cull.Globs(["/usr/bin/*", "/usr/bin/tool", "/etc/gone", "/opt/*"])
+        self.assertEqual(overlapping.unused(["/usr/bin/tool"]), ["/etc/gone", "/opt/*"])
 
     def test_cull_rejects_root_escaping_symlink(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -347,6 +352,9 @@ class SecurityTests(unittest.TestCase):
             keep = base / "keep"
             keep.write_text("/sentinel\n")
             output = base / "exact.tar"
+            # /sentinel exists only behind the child named rootfs, so the
+            # entry matches nothing and cull writes no layer at all. Had it
+            # treated that child as the root, the entry would have matched.
             with argv(
                 "cull.py",
                 "--rootfs",
@@ -356,9 +364,8 @@ class SecurityTests(unittest.TestCase):
                 "--out",
                 str(output),
             ):
-                self.assertEqual(cull.main(), 0)
-            with tarfile.open(output) as archive:
-                self.assertEqual(archive.getnames(), [])
+                self.assertEqual(cull.main(), 1)
+            self.assertFalse(output.exists())
 
             root_link = base / "root-link"
             root_link.symlink_to(root)
@@ -550,13 +557,29 @@ class SecurityTests(unittest.TestCase):
                 "etc/systemd": directory(),
                 "etc/systemd/system": directory(),
                 "etc/systemd/system/minimos-harden.service": regular(),
+                "etc/systemd/system/dbus.service.d": directory(),
+                "etc/systemd/system/dbus.service.d/50-minimos-hardening.conf": regular(),
+                # system.slice has no unit file; the base configures it
+                # through a drop-in alone.
+                "etc/systemd/system/system.slice.d": directory(),
+                "etc/systemd/system/user-workload.slice": regular(),
+                "etc/systemd/system/user-workload.slice.d": directory(),
                 "etc/sysctl.d": directory(),
                 "usr": directory(),
                 "usr/bin": directory(),
                 "usr/bin/bash": regular(0o755),
+                "usr/bin/mount": regular(0o755),
                 "usr/lib": directory(),
                 "usr/lib/systemd": directory(),
+                "usr/lib/systemd/system": directory(),
+                "usr/lib/systemd/system/dbus.service": regular(),
+                "usr/lib/systemd/system/default.target": symlink("graphical.target"),
+                "usr/lib/systemd/system/getty@.service": regular(),
+                "usr/lib/systemd/system/systemd-journald.service": regular(),
+                "usr/lib/systemd/system/user@.service": regular(),
                 "usr/lib/systemd/system-generators": directory(),
+                "usr/lib/systemd/user": directory(),
+                "usr/lib/systemd/user/systemd-journalctl.socket": regular(),
                 "usr/lib/minimos": directory(),
                 "usr/lib/minimos/login-shell": regular(0o755),
                 "var": directory(),
@@ -650,9 +673,19 @@ class SecurityTests(unittest.TestCase):
                 "var/www": directory(),
                 "var/www/index.html": regular(),
             },
-            "per-unit drop-in for a unit the composition targets": {
-                "etc/systemd/system/user@.service.d": directory(),
-                "etc/systemd/system/user@.service.d/50-no-pam.conf": regular(),
+            "per-unit drop-in for a unit the composition ships": {
+                "etc/systemd/system/app.service": regular(),
+                "etc/systemd/system/app.service.d": directory(),
+                "etc/systemd/system/app.service.d/50-limits.conf": regular(),
+            },
+            "enabling a vendor unit the base left unmasked": {
+                "etc/systemd/system/multi-user.target.wants": directory(),
+                "etc/systemd/system/multi-user.target.wants/user@1000.service":
+                    symlink("/usr/lib/systemd/system/user@.service"),
+            },
+            "program under a name no lower layer uses": {
+                "usr/bin/app": regular(0o755),
+                "usr/bin/app-helper": symlink("app"),
             },
             "lingering user manager and its helper binary": {
                 "usr/lib/systemd/systemd-user-runtime-dir": regular(0o755),
@@ -664,7 +697,9 @@ class SecurityTests(unittest.TestCase):
                 "etc/minimos": directory(),
                 "etc/minimos/require-user-scope": regular(0o444),
             },
-            "masked user units and interactive profile": {
+            # The user can override any of these from ~/.config/systemd/user,
+            # so the unit-name rule leaves the user tree alone.
+            "masked vendor user units and interactive profile": {
                 "etc/systemd/user": directory(),
                 "etc/systemd/user/systemd-journalctl.socket": symlink("/dev/null"),
                 "etc/profile": regular(),
@@ -691,6 +726,118 @@ class SecurityTests(unittest.TestCase):
                 scratch.apply_layer_state(
                     fixture, dict(state), set(parents), self.policy, Path("upper")
                 )
+
+    def test_composition_policy_refuses_lower_names(self) -> None:
+        # Every fixture here writes only new paths under composable prefixes,
+        # and each one was accepted before the policy compared names.
+        state, parents = self.base_state()
+        unit = "a unit that already exists below this layer"
+        program = "a lookup by name can run instead of"
+        refused = {
+            "drop-in for a base unit": (unit, {
+                "etc/systemd/system/minimos-harden.service.d": directory(),
+                "etc/systemd/system/minimos-harden.service.d/99.conf": regular(),
+            }),
+            "file in the base's own drop-in directory": (unit, {
+                "etc/systemd/system/dbus.service.d/99.conf": regular(),
+            }),
+            "drop-in for a unit the base only configures": (unit, {
+                "etc/systemd/system/system.slice.d/99.conf": regular(),
+            }),
+            "drop-in lifting the workload ceiling": (unit, {
+                "etc/systemd/system/user-workload.slice.d/99.conf": regular(),
+            }),
+            "mask of a vendor unit": (unit, {
+                "etc/systemd/system/systemd-journald.service": symlink("/dev/null"),
+            }),
+            "redirected default target": (unit, {
+                "etc/systemd/system/default.target": symlink("rescue.target"),
+            }),
+            "drop-in for a vendor template": (unit, {
+                "etc/systemd/system/user@.service.d": directory(),
+                "etc/systemd/system/user@.service.d/99.conf": regular(),
+            }),
+            "drop-in for one instance of a vendor template": (unit, {
+                "etc/systemd/system/user@1000.service.d": directory(),
+                "etc/systemd/system/user@1000.service.d/99.conf": regular(),
+            }),
+            "unit file for one instance of a vendor template": (unit, {
+                "etc/systemd/system/getty@tty1.service": regular(),
+            }),
+            "unit file for a unit PID 1 creates itself": (unit, {
+                "etc/systemd/system/-.mount": regular(),
+            }),
+            "new name aliasing a vendor unit": ("which aliases dbus.service", {
+                "etc/systemd/system/innocent.service":
+                    symlink("/usr/lib/systemd/system/dbus.service"),
+            }),
+            "base program shadowed from /usr/local/bin": (program, {
+                "usr/local": directory(),
+                "usr/local/bin": directory(),
+                "usr/local/bin/mount": regular(0o755),
+            }),
+            "base program shadowed from /usr/local/sbin": (program, {
+                "usr/local": directory(),
+                "usr/local/sbin": directory(),
+                "usr/local/sbin/bash": symlink("/opt/bash"),
+            }),
+            "undeclared parent directory": ("no layer declares its parent", {
+                "etc/app/app.conf": regular(),
+            }),
+        }
+        for name, (message, fixture) in refused.items():
+            with self.subTest(attack=name), self.assertRaisesRegex(
+                UnsafeInputError, re.escape(message)
+            ):
+                scratch.apply_layer_state(
+                    fixture, dict(state), set(parents), self.policy, Path("upper")
+                )
+
+    def test_composition_enables_but_cannot_reconfigure_lower_templates(self) -> None:
+        # This is the container-host pattern. One composition ships a
+        # template, and a composition stacked on it enables an instance.
+        state, parents = self.base_state()
+        scratch.apply_layer_state(
+            {"etc/systemd/system/container@.service": regular()},
+            state, parents, self.policy, Path("container-host"),
+        )
+        scratch.apply_layer_state(
+            {
+                "etc/systemd/system/multi-user.target.wants": directory(),
+                "etc/systemd/system/multi-user.target.wants/container@web.service":
+                    symlink("/etc/systemd/system/container@.service"),
+            },
+            dict(state), set(parents), self.policy, Path("workload"),
+        )
+        with self.assertRaisesRegex(UnsafeInputError, "reconfigures container@web.service"):
+            scratch.apply_layer_state(
+                {
+                    "etc/systemd/system/container@web.service.d": directory(),
+                    "etc/systemd/system/container@web.service.d/99.conf": regular(),
+                },
+                dict(state), set(parents), self.policy, Path("workload"),
+            )
+
+    def test_every_layer_declares_its_parents(self) -> None:
+        # The trusted base is held to this too. A directory it never declares
+        # has no state entry, so a composition could otherwise add it as a
+        # new path with its own owner.
+        with self.assertRaisesRegex(
+            UnsafeInputError, re.escape("parent directory /etc/systemd/user.conf.d")
+        ):
+            scratch.apply_layer_state(
+                {
+                    "etc": directory(),
+                    "etc/systemd": directory(),
+                    "etc/systemd/user.conf.d/minimos-overrides.conf": regular(),
+                },
+                {}, set(), scratch.CompositionPolicy(), Path("base"),
+            )
+        # A parent may come later in the same tar; extraction ends the same.
+        scratch.apply_layer_state(
+            {"etc/app.conf": regular(), "etc": directory()},
+            {}, set(), scratch.CompositionPolicy(), Path("base"),
+        )
 
     def test_effective_state_accepts_safe_deep_relative_symlink(self) -> None:
         state = {

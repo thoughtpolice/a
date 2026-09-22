@@ -13,9 +13,10 @@ load("@root//src/images/minimos:defs.bzl", "minimos")
 # The user manager works like this: exedev "lingers" (the baked
 # /var/lib/systemd/linger/exedev), so logind starts user@1000.service
 # at boot without any session; user@ BindsTo user-runtime-dir@, whose
-# binary the base denylist drops — a culled layer adds it (and
-# loginctl) back; and a drop-in resets the PAMName= that our PAM-less
-# rootfs could never satisfy.
+# binary the base denylist drops, so a culled layer adds it and
+# loginctl back. The base's own user@.service drop-ins reset the
+# PAMName= that our PAM-less rootfs could never satisfy and set the
+# delegation, so this package needs none.
 # --------------------------------------------------------------------------
 
 _WOLFI = "third-party//by-name/wo/wolfi"
@@ -92,14 +93,13 @@ minimos.apk_culled_layer(
     visibility = ["PUBLIC"],
 )
 
-# Linger + the PAM reset + login-shell environment. Parent directories
-# (/etc/systemd/system, /var) come from the base layers.
+# Linger + login-shell environment. Parent directories (/etc/systemd,
+# /var) come from the base layers.
 minimos.overlay(
     name = "dev-overlay-layer",
     dirs = [
         "etc/minimos",
         "etc/systemd/user",
-        "etc/systemd/system/user@.service.d",
         "var/lib",
         "var/lib/systemd",
         "var/lib/systemd/linger",
@@ -114,8 +114,6 @@ minimos.overlay(
     ],
     files = {
         "etc/profile": "profile",
-        "etc/systemd/system/user@.service.d/50-no-pam.conf": "user-no-pam.conf",
-        "etc/systemd/system/user@.service.d/60-minimos-delegate.conf": "user-delegate.conf",
     },
     symlinks = {
         # The broad upstream user unit tree contains socket surfaces whose

@@ -21,9 +21,7 @@
 /usr/lib/systemd/libsystemd-*.so*
 /usr/lib/systemd/*.so*
 /usr/lib/systemd/system-generators/*
-/usr/lib/systemd/system-environment-generators/*
 /usr/lib/systemd/user-generators/*
-/usr/lib/systemd/system-shutdown/*
 /usr/bin/systemctl
 /usr/bin/journalctl
 /usr/bin/busctl
@@ -99,9 +97,12 @@
 /usr/lib64
 
 # --- terminfo for the few programs that poke it ---
-/usr/share/terminfo/x/xterm-256color
-/usr/share/terminfo/l/linux
-/usr/share/terminfo/d/dumb
+# Bash's readline needs the entry for the session's TERM. Wolfi installs
+# ncurses-terminfo-base under /etc/terminfo, not /usr/share/terminfo, and
+# ncurses searches both.
+/etc/terminfo/x/xterm-256color
+/etc/terminfo/l/linux
+/etc/terminfo/d/dumb
 
 # --- the C.UTF-8 locale, so setlocale() under LANG=C.UTF-8 works
 # (valkey, for one, refuses to start when it doesn't) ---

@@ -7,7 +7,8 @@ those paths need at runtime, and emit the result as a tar file.
 
 Inputs:
   --rootfs DIR           the rootfs to cull (mkapkroot's output)
-  --keepfile FILE        allowlist of paths/globs (see keepfiles.txt for format)
+  --keepfile FILE        allowlist of paths/globs (see keepfiles.txt for format);
+                         an entry that matches nothing fails the run
   --denyfile FILE        optional denylist applied after allowlist (same format)
   --provided-rootfs DIR  optional tree a lower image layer already ships;
                          a library found there is neither copied nor
@@ -83,19 +84,20 @@ class Globs:
     """A keep or deny list, matched per POSIX path segment.
 
     `*` never crosses `/`, `**` may. Most entries name one exact path, so
-    those go in a set and cost one hash per lookup; only the patterns with
-    a wildcard are walked.
+    those go in a table and cost one hash per lookup; only the patterns with
+    a wildcard are walked. Both tables map an entry back to its line as
+    written, for reporting.
     """
 
     def __init__(self, globs: list[str]):
-        self.literals: set[tuple[str, ...]] = set()
-        self.patterns: list[tuple[str, ...]] = []
+        self.literals: dict[tuple[str, ...], str] = {}
+        self.patterns: dict[tuple[str, ...], str] = {}
         for glob in globs:
             parts = _segments(glob)
             if any(_GLOB_CHARS.intersection(part) for part in parts):
-                self.patterns.append(parts)
+                self.patterns[parts] = glob
             else:
-                self.literals.add(parts)
+                self.literals[parts] = glob
 
     def __len__(self) -> int:
         return len(self.literals) + len(self.patterns)
@@ -105,6 +107,17 @@ class Globs:
         if parts in self.literals:
             return True
         return any(_match(parts, pattern) for pattern in self.patterns)
+
+    def unused(self, paths: list[str]) -> list[str]:
+        """The entries, as written, that match none of `paths`."""
+        literals = dict(self.literals)
+        patterns = dict(self.patterns)
+        for path in paths:
+            parts = _segments(path)
+            literals.pop(parts, None)
+            for pattern in [p for p in patterns if _match(parts, p)]:
+                del patterns[pattern]
+        return sorted([*literals.values(), *patterns.values()])
 
 
 def read_globs(path: Path) -> Globs:
@@ -562,6 +575,19 @@ def main() -> int:
 
     kept = walk_kept(rootfs, keep)
     log(f"after allowlist: {len(kept)} paths")
+    # An unmatched entry is a typo or a file the package moved, and either
+    # way the image silently goes without it. A missing DT_NEEDED library
+    # already fails the build, so a missing named file should too. The
+    # check runs before the denylist, so an entry the denylist overrides
+    # on purpose still counts as matched.
+    unused = keep.unused(
+        ["/" + path.relative_to(rootfs).as_posix() for path in kept]
+    )
+    if unused:
+        log(f"error: {args.keepfile} entries match nothing in the rootfs:")
+        for entry in unused:
+            log(f"  {entry}")
+        return 1
 
     deny = None
     if args.denyfile is not None:

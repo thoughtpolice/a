@@ -108,7 +108,9 @@ def _apk_culled_layer(
     third-party//by-name/wo/wolfi, in order, later packages winning)
     into a scratch rootfs, then keeps only the paths listed in
     `keepfiles` plus the resolved .so closure of every kept ELF binary,
-    minus `denyfiles`. Both files are package-relative paths.
+    minus `denyfiles`. Both files are package-relative paths. A keep entry
+    that matches nothing in the packages fails the build, the same way an
+    unresolved soname does.
 
     The closure also resolves against `provided_by`, the layers already
     below this one in the image: a library one of them ships (glibc

@@ -100,6 +100,14 @@ the base already ships, or two overlays writing the same file. A culled
 layer's `.so` closure never does this, since it resolves against the base
 first and leaves out whatever the base carries.
 
+Three more messages come from the same policy. `which reconfigures X, a unit
+that already exists below this layer` means an overlay tried to override,
+mask or drop in a file for a unit it doesn't ship; configure your own units
+only. `which a lookup by name can run instead of /usr/bin/X` means a binary
+reuses the name of one a lower layer ships in another PATH directory; rename
+it or leave it out. `no layer declares its parent directory` means an overlay
+wrote a path without listing its directory in `dirs`.
+
 The worked versions of this pattern live in [examples/](examples/) with
 their own README.
 
@@ -122,11 +130,20 @@ What the base enforces:
   `mount`/`umount`, and every image's boot smoke fails if any layer
   regresses.
 - **A composition layer writes where it is allowed to, not everywhere it is
-  not forbidden.** Two rules need no list: a layer stacked on the base can
-  never redefine a path a lower layer established — every one of the base's
-  ~670 paths, from PID 1 to the account files to each vendor unit — and can
-  never write a type-wide systemd drop-in (`service.d`, `user-.slice.d`) that
-  would reconfigure units it does not own. Beyond that, a *new* path must fall
+  not forbidden.** Some rules need no list. A layer stacked on the base can
+  never redefine a path a lower layer established, which covers every one of
+  the base's ~670 paths, from PID 1 to the account files to each vendor unit.
+  It can never write a type-wide systemd drop-in such as `service.d` or
+  `user-.slice.d`. Paths are not the only way in, though, because systemd and
+  the shell both look things up by name. So in `/etc/systemd/system` a layer
+  can't add a unit file, mask, alias or drop-in for any unit a lower layer
+  defines, including instances of a lower template and the units PID 1
+  creates itself. It can still enable one through a `.wants/` link. A layer
+  also can't add a program under a name a lower layer ships in a different
+  PATH directory, so no `/usr/local/bin/mount` ahead of the base's
+  `/usr/bin/mount`. Every layer, the base too, must declare the parent
+  directory of each path it writes, so no directory's owner is left to the
+  extractor. Beyond that, a *new* path must fall
   under one of ten composable prefixes (`etc`, `usr/bin`, `usr/lib`, `var`,
   `home`, …), minus sealed carve-outs inside them: identity files, the
   `ld.so` hooks, every sysctl/tmpfiles/sysusers/modules search directory,

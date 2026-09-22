@@ -59,8 +59,9 @@ MAX_IMAGE_LAYERS = 128
 # and truncated-prefix "<prefix>-.<type>.d/" directories, both of which apply
 # to every matching unit at once. A composition may configure the units it
 # ships; it may not reconfigure the base's by dropping a file into one of
-# these. "nginx.service.d" and "user@.service.d" name one concrete unit and
-# stay allowed; "service.d" and "user-.slice.d" do not.
+# these. "nginx.service.d" names one unit and stays allowed when that unit is
+# the composition's own. LowerNames refuses it for a lower layer's unit.
+# "service.d" and "user-.slice.d" are never allowed.
 _UNIT_TYPES = (
     "service", "socket", "target", "device", "mount", "automount",
     "swap", "timer", "path", "slice", "scope",
@@ -68,6 +69,33 @@ _UNIT_TYPES = (
 _WILDCARD_DROPIN = re.compile(
     r"(?:{types}|.*-\.(?:{types}))\.d".format(types="|".join(_UNIT_TYPES))
 )
+_UNIT_NAME = re.compile(r"[^/]+\.(?:{types})".format(types="|".join(_UNIT_TYPES)))
+_UNIT_INSTANCE = re.compile(
+    r"(?P<prefix>[^/@]+)@[^/]+\.(?P<type>{types})".format(types="|".join(_UNIT_TYPES))
+)
+
+# The system manager's unit search path, spelled the way the effective state
+# spells it. The merged-usr links resolve /lib to usr/lib, and the directories
+# under /run never come from an image layer.
+_SYSTEM_UNIT_DIRS = frozenset({
+    "etc/systemd/system.control",
+    "etc/systemd/system",
+    "etc/systemd/system.attached",
+    "usr/local/lib/systemd/system",
+    "usr/lib/systemd/system",
+})
+# The one directory in that search path the policy opens to compositions.
+_COMPOSED_UNIT_DIR = "etc/systemd/system"
+# PID 1 creates these itself, so no layer ships a file that names them.
+_PERPETUAL_UNITS = frozenset({"-.slice", "-.mount", "init.scope"})
+
+# Every directory a lookup by program name searches. The image PATH, the
+# login shell, systemd's compiled-in search path and each unit's
+# Environment=PATH= order them differently, so a name that exists in two of
+# them runs whichever copy that caller lists first.
+_PROGRAM_DIRS = frozenset({
+    "usr/local/sbin", "usr/local/bin", "usr/sbin", "usr/bin", "sbin", "bin",
+})
 
 
 @dataclass(frozen=True)
@@ -99,9 +127,10 @@ class CompositionPolicy:
     a new systemd unit path, a new sysctl.d, an ld.so hook — is refused
     because it was never opened, not permitted because it was never denied.
 
-    Replacement is handled separately and unconditionally: a composition
+    Replacement is handled separately and unconditionally. A composition
     layer may not redefine any path a lower layer established, whatever the
-    prefix lists say.
+    prefix lists say, and LowerNames extends that to the names systemd and
+    PATH lookups resolve.
 
     A policy with no composable prefix enforces nothing; that is what the
     trusted base layers are checked against.
@@ -148,6 +177,79 @@ def load_policy(path: Path) -> CompositionPolicy:
     if not composable:
         raise UnsafeInputError(f"{path} opens no composable path")
     return CompositionPolicy(frozenset(composable), frozenset(sealed))
+
+
+@dataclass(frozen=True)
+class LowerNames:
+    """The unit and program names the layers below a composition answer to.
+
+    The replacement rule compares paths, but systemd finds a unit by name
+    across its whole search path and a shell finds a program by name across
+    PATH. A composition could otherwise take over something a lower layer
+    established without writing any path that layer wrote. It could mask a
+    vendor unit from /etc/systemd/system, drop in a file that reconfigures a
+    base unit, or put its own mount(8) in /usr/local/bin.
+
+    Only /etc/systemd/system is checked for units. Every unit in the user
+    tree runs as the user, who can override any of them from
+    ~/.config/systemd/user, so a lower layer's user unit guarantees nothing
+    a composition could take away.
+    """
+
+    units: frozenset[str]
+    programs: dict[str, str]
+
+    @classmethod
+    def of(cls, state: dict[str, LayerEntry]) -> "LowerNames":
+        units = set(_PERPETUAL_UNITS)
+        programs: dict[str, str] = {}
+        for path, entry in state.items():
+            parent, _, leaf = path.rpartition("/")
+            if parent in _SYSTEM_UNIT_DIRS:
+                # A drop-in directory configures its unit even where no layer
+                # ships the unit file, as the base does for system.slice.
+                unit = leaf.removesuffix(".d") if entry.kind == "directory" else leaf
+                if _UNIT_NAME.fullmatch(unit):
+                    units.add(unit)
+            elif parent in _PROGRAM_DIRS and entry.kind != "directory":
+                programs.setdefault(leaf, path)
+        return cls(frozenset(units), programs)
+
+    def owns_unit(self, unit: str) -> bool:
+        """Whether a lower layer defines `unit` or the template it instantiates."""
+        if unit in self.units:
+            return True
+        instance = _UNIT_INSTANCE.fullmatch(unit)
+        return instance is not None and (
+            f"{instance['prefix']}@.{instance['type']}" in self.units
+        )
+
+    def conflict(self, name: str, entry: LayerEntry) -> str | None:
+        """Why a new path at `name` takes over a lower name, or None if it doesn't.
+
+        Links in a `.wants/` or `.requires/` directory are left alone. They
+        start a unit as its own layer configured it, which is how a
+        composition enables an instance of a lower layer's template.
+        """
+        parent, _, leaf = name.rpartition("/")
+        if parent in _PROGRAM_DIRS and entry.kind != "directory" and leaf in self.programs:
+            return (
+                f"which a lookup by name can run instead of /{self.programs[leaf]} "
+                f"from a lower layer"
+            )
+        if not name.startswith(_COMPOSED_UNIT_DIR + "/"):
+            return None
+        head, _, rest = name.removeprefix(_COMPOSED_UNIT_DIR + "/").partition("/")
+        unit = head.removesuffix(".d")
+        if self.owns_unit(unit):
+            return f"which reconfigures {unit}, a unit that already exists below this layer"
+        if not rest and entry.kind == "symlink" and entry.linkname:
+            # systemd loads drop-ins for every name a unit has, so an alias
+            # would reopen the drop-in directory the check above closes.
+            target = entry.linkname.rstrip("/").rpartition("/")[2]
+            if self.owns_unit(target):
+                return f"which aliases {target}, a unit that already exists below this layer"
+        return None
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -303,6 +405,7 @@ def apply_layer_state(entries: dict[str, LayerEntry], state: dict[str, LayerEntr
                       parents_with_children: set[str], policy: CompositionPolicy,
                       layer: Path) -> None:
     """Merge a layer while enforcing policy against effective destinations."""
+    lower = LowerNames.of(state) if policy.enforce else None
     destinations: set[str] = set()
     for lexical_name, entry in entries.items():
         name = resolve_state_path(lexical_name, state, follow_final=False)
@@ -343,9 +446,26 @@ def apply_layer_state(entries: dict[str, LayerEntry], state: dict[str, LayerEntr
                     f"composition layer {layer} writes /{name}, which is not "
                     f"under a composable path"
                 )
+            elif reason := lower.conflict(name, entry):
+                raise UnsafeInputError(
+                    f"composition layer {layer} writes /{name}, {reason}"
+                )
 
         state[name] = entry
         parents_with_children.update(_ancestors(name))
+
+    # An extractor creates a missing parent with whatever mode and owner it
+    # picks, and no layer states them. A later layer could then "restate" that
+    # directory with its own owner as if it were new. The check runs after the
+    # whole layer is merged, because tar order within one layer doesn't matter
+    # to the result.
+    for name in sorted(destinations):
+        parent = name.rpartition("/")[0]
+        if parent and (parent not in state or state[parent].kind != "directory"):
+            raise UnsafeInputError(
+                f"layer {layer} writes /{name}, but no layer declares its "
+                f"parent directory /{parent}"
+            )
 
 
 def _blob_path(layout: Path, digest: str) -> Path:
