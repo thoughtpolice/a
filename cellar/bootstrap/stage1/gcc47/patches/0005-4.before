@@ -1,0 +1,5 @@
+Use GNU C library
+
+muclibc
+Target Report RejectNegative Var(linux_libc,LIBC_UCLIBC) Negative(mbionic)
+Use uClibc C library

@@ -300,6 +300,64 @@ processes with no boundary violations. Both installed files matched across
 workspace paths, and tar is a static ELF executable. This is incremental
 validation extending the existing audited closure.
 
+GCC 4.7.4's first generators and support libraries passed their gate at
+`2d9dbf96`: ten tests in both workspaces, 11231 configured targets and 11803
+actions with no closure violations. The relocated run executed 154 local
+actions; tracing covered 403 bootstrap processes and reported no boundary
+violations. All three library archives matched across absolute workspace
+paths. Unicode and CRC outputs match the published bytes; the decimal tests
+compare every value in both sets of regenerated conversion tables. This gate
+does not yet build GCC's compiler executables or C++ runtime.
+
+The GCC 4.7 generator graph passed its gate at `38c76fcc`: thirteen tests in
+both workspaces and 106 generated files identical across absolute paths. The
+configured audit covered 11381 targets and 11930 actions without violations.
+The relocated run executed 226 new local actions; tracing covered 550 bootstrap
+processes and 22906 open calls with no boundary violations. This extends the
+incremental closure evidence through the machine and garbage-collector
+generators; it is not yet a GCC compiler or runtime acceptance result.
+
+GCC 4.7's C/C++ front ends and five drivers passed their gate at `4446143b`:
+34 tests in both workspaces and seven byte-identical static executables. The
+configured audit covered 12262 targets and 12764 actions without violations.
+The relocated run executed 567 new local actions; tracing covered 1725 bootstrap
+processes and 272009 open calls without boundary violations. The initial
+front-end trace at `2b54a14c` had found three `/dev/urandom` reads in diagnostic
+tests; adding their missing fixed-seed arguments resolved those findings. This
+incremental gate does not yet cover new GCC target runtimes or stage comparison.
+
+The GCC 4.7 target support runtime passed its gate at `92fc88ca`: 45 tests in
+both workspaces, with all 244 compiler, driver and sysroot files identical
+across absolute paths. The configured audit covered 12548 targets and 13029
+actions without violations. The relocated run executed 889 new local actions;
+tracing covered 2603 bootstrap processes and 303628 open calls with no boundary
+violations. This includes binary128 and decimal arithmetic, pthread and
+signal-frame unwinding, static linking, and a gcov round trip. The C++ standard
+library and later compiler stages remain separate acceptance gates.
+
+The static C++ libraries passed their gate at `242da897`: twelve C++ tests
+and three tar tests passed in the relocated workspace, and all 619 installed
+C++ headers, archives and license files matched across absolute paths. The
+configured audit covered 12518 targets and 13058 actions without violations.
+The relocated run executed 973 local actions; tracing covered 2904 bootstrap
+processes and 468891 open calls without boundary violations. All twelve C++
+test programs are static ELF executables. This incremental gate also validates
+the full-width tar-header fix at `9db38fb9`; it does not establish a compiler
+stage2/stage3 comparison. See [libstdcxx/README.md](libstdcxx/README.md).
+
+The complete three-stage GCC/C++ gate passed at `88a5cead`: all 998 tests
+passed in both workspaces, including 891 object comparisons and four runtime
+archive comparisons. Only the two upstream compiler checksum objects are
+excluded; the inventory audit checks that no declared object was omitted.
+The configured closure audit reported 14267 targets and 14797 actions without
+violations. The relocated run executed 2985 local actions; tracing covered
+9766 bootstrap processes and 942372 open calls without boundary
+violations. All 1911 collected files matched across absolute paths: both host
+object inventories, final compiler/drivers, C sysroot and C++ installation.
+All seven final compiler/driver executables are static. The 48 foundation
+checks also passed. This completes the compiler stage comparison; final
+userland construction and installation assembly remain separate milestones.
+
 To repeat the trace gate, start with a fresh JJ workspace and isolated daemon:
 
 ```

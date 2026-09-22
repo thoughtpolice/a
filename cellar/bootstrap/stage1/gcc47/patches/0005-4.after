@@ -1,0 +1,9 @@
+Use GNU C library
+
+muclibc
+Target Report RejectNegative Var(linux_libc,LIBC_UCLIBC) Negative(mmusl)
+Use uClibc C library
+
+mmusl
+Target Report RejectNegative Var(linux_libc,LIBC_MUSL) Negative(mbionic)
+Use musl C library

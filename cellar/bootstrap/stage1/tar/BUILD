@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
-load("@cellar//bootstrap:defs.bzl", "filegroup")
+load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
 load("@cellar//bootstrap:source.bzl", "download_file", "ungz", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
 
@@ -240,11 +240,29 @@ generate(
     tool = "cellar//bootstrap/stage1/bison:bison",
 )
 
+export_file(name = "patches/full-names.before")
+
+export_file(name = "patches/full-names.after")
+
+generate(
+    name = "list.c",
+    args = [
+        "$(location :tar-1.12[src/list.c])",
+        "$(location :patches/full-names.before)",
+        "$(location :patches/full-names.after)",
+    ],
+    tool = "cellar//bootstrap/stage1/simple-patch:simple-patch",
+)
+
 filegroup(
     name = "source",
-    srcs = {p: ":tar-1.12[" + p + "]" for p in FILES if p != "src/arith.h" and p not in PATCHES} | {p: ":" + p.replace("/", "-") for p in PATCHES} | {
+    srcs = {p: ":tar-1.12[" + p + "]" for p in FILES if p not in [
+        "src/arith.h",
+        "src/list.c",
+    ] and p not in PATCHES} | {p: ":" + p.replace("/", "-") for p in PATCHES} | {
         "config.h": ":config.h",
         "src/arith.h": ":arith.h",
+        "src/list.c": ":list.c",
         "lib/getdate.c": ":getdate-parser[getdate.c]",
     },
 )

@@ -1,0 +1,47 @@
+      if (header->header.typeflag == GNUTYPE_LONGNAME
+	  || header->header.typeflag == GNUTYPE_LONGLINK)
+	{
+	  longp = ((header->header.typeflag == GNUTYPE_LONGNAME)
+		   ? &next_long_name
+		   : &next_long_link);
+
+	  set_next_block_after (header);
+	  if (*longp)
+	    free (*longp);
+	  bp = *longp = (char *) xmalloc ((size_t) current_stat.st_size);
+
+	  for (size = current_stat.st_size; size > 0; size -= written)
+	    {
+	      data_block = find_next_block ();
+	      if (data_block == NULL)
+		{
+		  ERROR ((0, 0, _("Unexpected EOF on archive file")));
+		  break;
+		}
+	      written = available_space_after (data_block);
+	      if (written > size)
+		written = size;
+
+	      memcpy (bp, data_block->buffer, (size_t) written);
+	      bp += written;
+	      set_next_block_after ((union block *)
+				    (data_block->buffer + written - 1));
+	    }
+
+	  /* Loop!  */
+
+	}
+      else
+	{
+	  char file_name[NAME_FIELD_SIZE + 1];
+	  char link_name[NAME_FIELD_SIZE + 1];
+	  memcpy (file_name, header->header.name, NAME_FIELD_SIZE);
+	  file_name[NAME_FIELD_SIZE] = '\0';
+	  memcpy (link_name, header->header.linkname, NAME_FIELD_SIZE);
+	  link_name[NAME_FIELD_SIZE] = '\0';
+	  assign_string (&current_file_name,
+			 (next_long_name ? next_long_name
+			  : file_name));
+	  assign_string (&current_link_name,
+			 (next_long_link ? next_long_link
+			  : link_name));
