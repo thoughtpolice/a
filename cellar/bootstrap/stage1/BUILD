@@ -399,12 +399,12 @@ TOOLCHAIN_FILES = {"include/" + p: MUSL + ":headers[" + p + "]" for p in MUSL_HE
     "lib/libgcc.a": GCC + ":stage3-libgcc.a",
     "lib/libgcov.a": GCC + ":stage3-libgcov.a",
     "share/licenses/libstdc++": CXX + ":stage3-installation[share/licenses/libstdc++]",
-    "share/licenses/binutils": PREFIX + "binutils-final:installation[share/licenses/binutils]",
+    "share/licenses/binutils": PREFIX + "binutils241:installation[share/licenses/binutils]",
     "share/licenses/gmp": PREFIX + "gmp:installation[share/licenses/gmp]",
     "share/licenses/mpfr": PREFIX + "mpfr:installation[share/licenses/mpfr]",
     "share/licenses/mpc": PREFIX + "mpc:installation[share/licenses/mpc]",
     "share/licenses/libbacktrace/LICENSE": GCC + ":libbacktrace-notice",
-    "share/ldscripts": PREFIX + "binutils-final:installation[share/ldscripts]",
+    "share/ldscripts": PREFIX + "binutils241:installation[share/ldscripts]",
 } | {"lib/lib" + name + ".a": MUSL + ":lib" + name + ".a" for name in LIBRARIES} | {
     "lib/" + name: MUSL + ":" + name
     for name in [
@@ -422,11 +422,11 @@ TOOLCHAIN_FILES = {"include/" + p: MUSL + ":headers[" + p + "]" for p in MUSL_HE
         "cc1": "cc1",
         "cc1plus": "cc1plus",
     }.items()
-} | {"libexec/gcc/x86_64-cellar-linux-musl/10.5.0/" + name: PREFIX + "binutils-final:" + name for name in [
+} | {"libexec/gcc/x86_64-cellar-linux-musl/10.5.0/" + name: PREFIX + "binutils241:" + name for name in [
     "as",
     "ld",
 ]} | {
-    "libexec/binutils/" + name: PREFIX + "binutils-final:" + name
+    "libexec/binutils/" + name: PREFIX + "binutils241:" + name
     for name in BINUTILS
 } | {"bin/" + name: ":launcher" for name in BINUTILS + [
     "gcc",

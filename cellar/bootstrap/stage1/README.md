@@ -4,9 +4,10 @@
 # Source-regenerated native bootstrap
 
 The native Linux/x86_64 endpoint is implemented: static GCC 10.5.0 C/C++, binutils
-2.30, musl 1.2.5 and the complete selected userland. GCC 4.7.4 builds
+2.41, musl 1.2.5 and the complete selected userland. GCC 4.7.4 builds
 [GCC 10.5.0](gcc10/README.md) and its [C++ library](libstdcxx10/README.md),
-which bootstrap through three stages whose stage2 and stage3 objects match. Package builds, generators,
+which bootstrap through three stages whose stage2 and stage3 objects match.
+GCC 10.5 then builds [binutils 2.41](binutils241/README.md). Package builds, generators,
 configurations and installation mappings are declared in cellar BUILD files.
 
 The examples below run from `cellar/`, the standalone project, whose
@@ -568,7 +569,7 @@ foundation outputs; it does not claim a wholly uncached seed-to-userland build.
 
 For the full final test gate, combine the stage1 package with gcc10, libstdcxx10,
 bash, make, coreutils-final, findutils, diffutils, sed-final, grep, gawk-final,
-tar-final, gzip, bzip2, patch, m4-final, flex-final, bison-final, binutils-final,
+tar-final, gzip, bzip2, patch, m4-final, flex-final, bison-final, binutils241,
 tools-final, tcc and musl12 package targets, plus the stage0 Linux/AMD64 golden
 check and Mes hello/fixed-point tests. Run with `--local-only --no-remote-cache`.
 Use the tracing procedure above in a second JJ workspace, materialize all three

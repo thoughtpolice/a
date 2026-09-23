@@ -1,6 +1,6 @@
 Native Linux x86_64 bootstrap installation
 
-The toolchain selection contains GCC/G++ 10.5.0, binutils 2.30, musl 1.2.5 and static C/C++ runtimes.
+The toolchain selection contains GCC/G++ 10.5.0, binutils 2.41, musl 1.2.5 and static C/C++ runtimes.
 The userland selection contains Bash 5.2.15, Make 4.2.1, coreutils 6.10, findutils 4.2.33, diffutils 2.7,
 sed 4.0.9, grep 2.4, gawk 3.0.4, tar 1.12, gzip 1.2.4, bzip2 1.0.8,
 patch 2.5.9, m4 1.4.7, Flex 2.6.4 and Bison 3.4.1.

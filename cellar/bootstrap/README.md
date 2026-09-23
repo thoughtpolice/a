@@ -4,7 +4,7 @@
 # Full-Source Bootstrap project
 
 The [native stage1 bootstrap](stage1/README.md) now delivers static GCC 10.5.0
-C/C++, binutils 2.30, musl 1.2.5 and bootstrap userland through
+C/C++, binutils 2.41, musl 1.2.5 and bootstrap userland through
 `cellar//bootstrap/stage1:all`. Its source regeneration, fixed-point comparisons,
 installation and validation are declared entirely in cellar.
 

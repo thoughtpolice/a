@@ -3,8 +3,10 @@
 
 # Final native binutils 2.30
 
-This package rebuilds all 15 delivered native programs with stage3 GCC 4.7.4
-and musl 1.2.5. BUILD explicitly composes libiberty, zlib, BFD, opcodes, GAS,
+This package rebuilds all 15 native programs with stage3 GCC 4.7.4 and musl
+1.2.5. The toolchain installed them until [binutils 2.41](../binutils241/README.md)
+replaced them; nothing depends on them now, and they are no longer part of the
+final test gate. BUILD explicitly composes libiberty, zlib, BFD, opcodes, GAS,
 LD, gprof and the native binutils commands. Its source pin, reviewed native
 configuration and immutable adaptations follow the earlier binutils package.
 That predecessor remains the assembler/linker used to build GCC, avoiding a
