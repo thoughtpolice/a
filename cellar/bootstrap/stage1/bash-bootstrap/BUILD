@@ -457,10 +457,12 @@ filegroup(
         ),
         c_binary(
             name = name,
+            end_objects = [
+                MUSL + ":restored-crtn.o",
+            ],
             libraries = LIBC,
             objects = CRT + [
                 ":" + name + ".o",
-                MUSL + ":restored-crtn.o",
             ],
             toolchain = MUSL + ":tcc",
         ),
@@ -577,6 +579,7 @@ GROUPS = {
 
 c_binary(
     name = "bash",
+    end_objects = [MUSL + ":restored-crtn.o"],
     libraries = [
         ":libbuiltins.a",
         ":libglob.a",
@@ -585,7 +588,7 @@ c_binary(
         ":libbuiltins.a",
         ":libsh.a",
     ] + LIBC,
-    objects = CRT + [":core-{}.o".format(i) for i in range(len(GROUPS["core"]))] + [MUSL + ":restored-crtn.o"],
+    objects = CRT + [":core-{}.o".format(i) for i in range(len(GROUPS["core"]))],
     output = "bash",
     toolchain = MUSL + ":tcc",
 )

@@ -225,10 +225,12 @@ filegroup(
 
 c_binary(
     name = "gawk-bin",
-    libraries = ["cellar//bootstrap/stage1/tools-final:libshell.a"] + LIBC,
-    objects = CRT + [":" + name + ".o" for name in SOURCES + ["awktab"]] + [
+    end_objects = [
         GCC + ":stage3-crtend.o",
         MUSL + ":crtn.o",
+    ],
+    libraries = ["cellar//bootstrap/stage1/tools-final:libshell.a"] + LIBC,
+    objects = CRT + [":" + name + ".o" for name in SOURCES + ["awktab"]] + [
     ],
     output = "gawk",
     toolchain = CC,

@@ -284,6 +284,10 @@ command_test(
 
 c_binary(
     name = "logical-paths-program",
+    end_objects = [
+        GCC + ":crtend.o",
+        MUSL + ":crtn.o",
+    ],
     libraries = [
         MUSL + ":libc.a",
         GCC + ":libgcc.a",
@@ -294,8 +298,6 @@ c_binary(
         MUSL + ":crti.o",
         GCC + ":crtbeginT.o",
         ":object-a",
-        GCC + ":crtend.o",
-        MUSL + ":crtn.o",
     ],
     toolchain = GCC + ":gcc",
 )

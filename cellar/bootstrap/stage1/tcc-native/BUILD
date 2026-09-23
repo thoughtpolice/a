@@ -113,11 +113,12 @@ c_library(
 
 c_binary(
     name = "tcc-hexfloat",
+    end_objects = CRTN,
     libraries = [":hexfloat-libtcc.a"] + LIBC,
     objects = CRT + [
         ":hexfloat-0.o",
         ":scalbnl.o",
-    ] + CRTN,
+    ],
     output = "tcc",
     toolchain = PREDECESSOR,
 )
@@ -164,8 +165,9 @@ compiler(
         ),
         c_binary(
             name = name + "-test-bin",
+            end_objects = CRTN,
             libraries = LIBC,
-            objects = CRT + [":" + name + "-test.o"] + CRTN,
+            objects = CRT + [":" + name + "-test.o"],
             toolchain = ":hexfloat",
         ),
         command_test(
@@ -260,8 +262,9 @@ c_library(
 
 c_binary(
     name = "tcc-gnu",
+    end_objects = GNU_CRTN,
     libraries = [":libtcc.a"] + GNU_LIBC,
-    objects = GNU_CRT + [":gnu-0.o"] + GNU_CRTN,
+    objects = GNU_CRT + [":gnu-0.o"],
     output = "tcc",
     toolchain = ":gnu-predecessor",
 )
@@ -407,12 +410,13 @@ compiler(
         ),
         c_binary(
             name = "gnu-" + name + "-test-bin",
+            end_objects = GNU_CRTN,
             libraries = [
                 MUSL + ":gnu-libc.a",
                 ":libtcc1.a",
                 MUSL + ":gnu-libc.a",
             ],
-            objects = GNU_CRT + [":gnu-" + name + "-test.o"] + GNU_CRTN,
+            objects = GNU_CRT + [":gnu-" + name + "-test.o"],
             toolchain = ":tcc",
         ),
         command_test(

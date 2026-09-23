@@ -259,6 +259,9 @@ c_object(
 
 c_binary(
     name = "cat",
+    end_objects = [
+        MUSL + ":restored-crtn.o",
+    ],
     flags = [
         "-static",
         "-nostdlib",
@@ -266,7 +269,6 @@ c_binary(
     libraries = [":libcat.a"] + LIBC,
     objects = CRT + [
         ":cat.o",
-        MUSL + ":restored-crtn.o",
     ],
     output = "cat",
     toolchain = MUSL + ":tcc",
@@ -379,6 +381,9 @@ c_library(
 
 c_binary(
     name = "rm",
+    end_objects = [
+        MUSL + ":restored-crtn.o",
+    ],
     libraries = [
         ":libremove.a",
         ":libcat.a",
@@ -386,7 +391,6 @@ c_binary(
     objects = CRT + [
         ":rm.o",
         ":remove.o",
-        MUSL + ":restored-crtn.o",
     ],
     output = "rm",
     toolchain = MUSL + ":tcc",
@@ -411,10 +415,12 @@ c_object(
 
 c_binary(
     name = "rm-test-bin",
+    end_objects = [
+        MUSL + ":restored-crtn.o",
+    ],
     libraries = LIBC,
     objects = CRT + [
         ":rm-test.o",
-        MUSL + ":restored-crtn.o",
     ],
     output = "rm-test",
     toolchain = MUSL + ":tcc",

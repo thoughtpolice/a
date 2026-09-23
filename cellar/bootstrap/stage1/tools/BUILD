@@ -180,6 +180,9 @@ c_object(
 
 c_binary(
     name = "withenv",
+    end_objects = [
+        MUSL + ":restored-crtn.o",
+    ],
     libraries = [
         MUSL + ":restored-libc.a",
         "cellar//bootstrap/stage1/tcc-musl:musl2-libtcc1.a",
@@ -189,7 +192,6 @@ c_binary(
         MUSL + ":restored-crt1.o",
         MUSL + ":restored-crti.o",
         ":withenv.o",
-        MUSL + ":restored-crtn.o",
     ],
     output = "withenv",
     toolchain = MUSL + ":tcc",

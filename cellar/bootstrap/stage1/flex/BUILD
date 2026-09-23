@@ -269,13 +269,15 @@ filegroup(
         ),
         c_binary(
             name = "flex-" + stage + "-bin",
+            end_objects = [
+                MUSL + ":restored-crtn.o",
+            ],
             libraries = LIBC,
             objects = CRT + [":" + name + ".o" for name in BASE + [
                 "parse",
                 "skel",
             ]] + [
                 ":" + stage + "-scan.o",
-                MUSL + ":restored-crtn.o",
             ],
             output = "flex",
             toolchain = MUSL + ":tcc",
@@ -365,10 +367,12 @@ command_test(
         ),
         c_binary(
             name = name + "-test-bin",
+            end_objects = [
+                MUSL + ":restored-crtn.o",
+            ],
             libraries = [":libfl.a"] + LIBC,
             objects = CRT + [
                 ":" + name + "-test.o",
-                MUSL + ":restored-crtn.o",
             ],
             toolchain = MUSL + ":tcc",
         ),
@@ -496,11 +500,13 @@ generate(
 
 c_binary(
     name = "api-test-bin",
+    end_objects = [
+        MUSL + ":restored-crtn.o",
+    ],
     libraries = LIBC,
     objects = CRT + [
         ":api.o",
         ":api-test.o",
-        MUSL + ":restored-crtn.o",
     ],
     toolchain = MUSL + ":tcc",
 )

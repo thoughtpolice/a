@@ -43,8 +43,9 @@ LIBC = [
         ),
         c_binary(
             name = name,
+            end_objects = CRTN,
             libraries = LIBC,
-            objects = CRT + [":" + name + ".o"] + CRTN,
+            objects = CRT + [":" + name + ".o"],
             output = name,
             toolchain = CC,
         ),

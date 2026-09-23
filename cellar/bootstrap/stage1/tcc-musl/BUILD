@@ -108,6 +108,9 @@ DEFINES = [
         ),
         c_binary(
             name = "tcc-" + stage,
+            end_objects = [
+                MUSL + ":" + libc_stage + "-crtn.o",
+            ],
             libraries = [
                 ":" + stage + "-libtcc.a",
                 MUSL + ":" + libc_stage + "-libc.a",
@@ -118,7 +121,6 @@ DEFINES = [
                 MUSL + ":" + libc_stage + "-crt1.o",
                 MUSL + ":" + libc_stage + "-crti.o",
                 ":" + stage + "-compiler-0.o",
-                MUSL + ":" + libc_stage + "-crtn.o",
             ],
             output = "tcc",
             toolchain = ":" + stage + "-predecessor",
@@ -232,6 +234,9 @@ DEFINES = [
                 ),
                 c_binary(
                     name = stage + "-" + name + "-program",
+                    end_objects = [
+                        MUSL + ":" + libc_stage + "-crtn.o",
+                    ],
                     libraries = [
                         MUSL + ":" + libc_stage + "-libc.a",
                         ":" + stage + "-libtcc1.a",
@@ -241,7 +246,6 @@ DEFINES = [
                         MUSL + ":" + libc_stage + "-crt1.o",
                         MUSL + ":" + libc_stage + "-crti.o",
                         ":" + stage + "-" + name + "-test.o",
-                        MUSL + ":" + libc_stage + "-crtn.o",
                     ],
                     toolchain = ":" + stage,
                 ),

@@ -120,6 +120,10 @@ filegroup(
     ),
     c_binary(
         name = stage + "-sha256sum",
+        end_objects = [
+            GCC + ":" + stage + "-crtend.o",
+            MUSL + ":crtn.o",
+        ],
         libraries = [
             ":" + stage + "-libsha256.a",
             MUSL + ":libc.a",
@@ -131,8 +135,6 @@ filegroup(
             MUSL + ":crti.o",
             GCC + ":" + stage + "-crtbeginT.o",
             ":" + stage + "-sha256sum.o",
-            GCC + ":" + stage + "-crtend.o",
-            MUSL + ":crtn.o",
         ],
         output = "sha256sum",
         toolchain = GCC + ":" + stage + "-gcc",

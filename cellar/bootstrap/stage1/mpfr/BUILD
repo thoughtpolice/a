@@ -249,12 +249,13 @@ c_library(
         ),
         c_binary(
             name = "test-" + name + "-program",
+            end_objects = CRTN,
             libraries = [
                 ":libtests.a",
                 ":libmpfr.a",
                 GMP + ":libgmp.a",
             ] + LIBC,
-            objects = CRT + [":test-" + name + ".o"] + CRTN,
+            objects = CRT + [":test-" + name + ".o"],
             toolchain = CC,
         ),
         command_test(
@@ -300,11 +301,12 @@ c_object(
 
 c_binary(
     name = "threads-program",
+    end_objects = CRTN,
     libraries = [
         ":libmpfr.a",
         GMP + ":libgmp.a",
     ] + LIBC,
-    objects = CRT + [":threads.o"] + CRTN,
+    objects = CRT + [":threads.o"],
     toolchain = CC,
 )
 

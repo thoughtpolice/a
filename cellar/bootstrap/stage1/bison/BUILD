@@ -368,8 +368,9 @@ filegroup(
 
 c_binary(
     name = "bison-seed-bin",
+    end_objects = [MUSL + ":restored-crtn.o"],
     libraries = [":libbison.a"] + LIBC,
-    objects = CRT + [":seed-{}.o".format(i) for i in range(len(CORE) + 4)] + [MUSL + ":restored-crtn.o"],
+    objects = CRT + [":seed-{}.o".format(i) for i in range(len(CORE) + 4)],
     output = "bison",
     toolchain = MUSL + ":tcc",
 )
@@ -430,10 +431,12 @@ c_object(
 
 c_binary(
     name = "seed-calculator-bin",
+    end_objects = [
+        MUSL + ":restored-crtn.o",
+    ],
     libraries = LIBC,
     objects = CRT + [
         ":seed-calculator.o",
-        MUSL + ":restored-crtn.o",
     ],
     toolchain = MUSL + ":tcc",
 )
@@ -533,8 +536,9 @@ PARSER_STAGES = [
         ],
         c_binary(
             name = "bison-" + stage + "-bin",
+            end_objects = [MUSL + ":restored-crtn.o"],
             libraries = [":libbison.a"] + LIBC,
-            objects = CRT + [":" + stage + "-{}.o".format(i) for i in range(len(CORE) + 4)] + [MUSL + ":restored-crtn.o"],
+            objects = CRT + [":" + stage + "-{}.o".format(i) for i in range(len(CORE) + 4)],
             output = "bison",
             toolchain = MUSL + ":tcc",
         ),
@@ -583,10 +587,12 @@ PARSER_STAGES = [
         ),
         c_binary(
             name = stage + "-calculator-bin",
+            end_objects = [
+                MUSL + ":restored-crtn.o",
+            ],
             libraries = LIBC,
             objects = CRT + [
                 ":" + stage + "-calculator.o",
-                MUSL + ":restored-crtn.o",
             ],
             toolchain = MUSL + ":tcc",
         ),
@@ -697,10 +703,12 @@ generate(
         ),
         c_binary(
             name = name + "-test-bin",
+            end_objects = [
+                MUSL + ":restored-crtn.o",
+            ],
             libraries = LIBC,
             objects = CRT + [
                 ":" + name + "-test.o",
-                MUSL + ":restored-crtn.o",
             ],
             toolchain = MUSL + ":tcc",
         ),

@@ -380,8 +380,9 @@ PARSER_STAGES = [("full", "cellar//bootstrap/stage1/bison:bison", ":source[src/p
         ],
         c_binary(
             name = "bison-" + stage + "-bin",
+            end_objects = CRTN,
             libraries = [":libbison.a"] + LIBC,
-            objects = CRT + [":" + stage + "-{}.o".format(i) for i in range(len(CORE) + 4)] + CRTN,
+            objects = CRT + [":" + stage + "-{}.o".format(i) for i in range(len(CORE) + 4)],
             output = "bison",
             toolchain = CC,
         ),
@@ -435,10 +436,11 @@ PARSER_STAGES = [("full", "cellar//bootstrap/stage1/bison:bison", ":source[src/p
         ),
         c_binary(
             name = stage + "-calculator-bin",
+            end_objects = CRTN,
             libraries = LIBC,
             objects = CRT + [
                 ":" + stage + "-calculator.o",
-            ] + CRTN,
+            ],
             toolchain = CC,
         ),
         command_test(
@@ -549,10 +551,11 @@ generate(
         ),
         c_binary(
             name = name + "-test-bin",
+            end_objects = CRTN,
             libraries = LIBC,
             objects = CRT + [
                 ":" + name + "-test.o",
-            ] + CRTN,
+            ],
             toolchain = CC,
         ),
     ]

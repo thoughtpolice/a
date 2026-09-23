@@ -226,13 +226,14 @@ c_object(
 
 c_binary(
     name = "m4-bin",
+    end_objects = CRTN,
     libraries = [
         ":libm4.a",
         "cellar//bootstrap/stage1/tools-final:libshell.a",
     ] + LIBC,
     objects = CRT + [":" + name + ".o" for name in CORE] + [
         ":tmpfile.o",
-    ] + CRTN,
+    ],
     output = "m4",
     toolchain = CC,
 )

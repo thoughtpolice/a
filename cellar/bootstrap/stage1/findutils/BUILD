@@ -561,11 +561,12 @@ ALL_SOURCES = PROGRAM_SOURCES + ["lib/" + n for n in FIND_LIB] + ["gnulib/lib/" 
 
 [c_binary(
     name = name + "-bin",
+    end_objects = CRTN,
     libraries = [
         ":libfind.a",
         ":libgnulib.a",
     ] + LIBC,
-    objects = CRT + [":" + n.replace("/", "-") + ".o" for n in sources] + CRTN,
+    objects = CRT + [":" + n.replace("/", "-") + ".o" for n in sources],
     output = name,
     toolchain = CC,
 ) for name, sources in PROGRAMS.items()]

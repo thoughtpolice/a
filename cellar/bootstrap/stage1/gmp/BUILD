@@ -209,8 +209,9 @@ GENERATORS = [
         ),
         c_binary(
             name = "gen-" + name,
+            end_objects = CRTN,
             libraries = LIBC,
-            objects = CRT + [":gen-" + name + ".o"] + CRTN,
+            objects = CRT + [":gen-" + name + ".o"],
             output = "gen-" + name,
             toolchain = CC,
         ),
@@ -401,11 +402,12 @@ c_library(
         ),
         c_binary(
             name = "test-" + name + "-program",
+            end_objects = CRTN,
             libraries = [
                 ":libtests.a",
                 ":libgmp.a",
             ] + LIBC,
-            objects = CRT + [":test-" + name + ".o"] + CRTN,
+            objects = CRT + [":test-" + name + ".o"],
             toolchain = CC,
         ),
         generate(

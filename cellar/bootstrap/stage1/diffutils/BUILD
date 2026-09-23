@@ -241,8 +241,9 @@ filegroup(
 
 [c_binary(
     name = name + "-bin",
+    end_objects = CRTN,
     libraries = LIBC,
-    objects = CRT + [":" + obj + ".c.o" for obj in objects] + CRTN,
+    objects = CRT + [":" + obj + ".c.o" for obj in objects],
     output = name,
     toolchain = CC,
 ) for name, objects in PROGRAMS.items()]

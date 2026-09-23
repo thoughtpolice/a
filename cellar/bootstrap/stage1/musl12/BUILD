@@ -189,8 +189,9 @@ PREDECESSOR_LIBS = [
         ),
         c_binary(
             name = name,
+            end_objects = PREDECESSOR_END,
             libraries = PREDECESSOR_LIBS,
-            objects = PREDECESSOR_CRT + [":" + name + ".o"] + PREDECESSOR_END,
+            objects = PREDECESSOR_CRT + [":" + name + ".o"],
             output = name,
             toolchain = PREDECESSOR,
         ),
@@ -332,8 +333,9 @@ c_object(
 
 c_binary(
     name = "headers-program",
+    end_objects = PREDECESSOR_END,
     libraries = PREDECESSOR_LIBS,
-    objects = PREDECESSOR_CRT + [":headers.o"] + PREDECESSOR_END,
+    objects = PREDECESSOR_CRT + [":headers.o"],
     toolchain = PREDECESSOR,
 )
 

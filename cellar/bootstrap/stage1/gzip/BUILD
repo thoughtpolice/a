@@ -95,8 +95,9 @@ c_object(
 
 c_binary(
     name = "makecrc",
+    end_objects = CRTN,
     libraries = LIBC,
-    objects = CRT + [":makecrc.o"] + CRTN,
+    objects = CRT + [":makecrc.o"],
     toolchain = CC,
 )
 
@@ -178,8 +179,9 @@ filegroup(
 
 c_binary(
     name = "gzip",
+    end_objects = CRTN,
     libraries = LIBC,
-    objects = CRT + [":" + path + ".o" for path in SOURCES] + CRTN,
+    objects = CRT + [":" + path + ".o" for path in SOURCES],
     output = "gzip",
     toolchain = CC,
 )
@@ -216,8 +218,9 @@ c_object(
 
 c_binary(
     name = "roundtrip-bin",
+    end_objects = CRTN,
     libraries = LIBC,
-    objects = CRT + [":roundtrip.o"] + CRTN,
+    objects = CRT + [":roundtrip.o"],
     toolchain = CC,
 )
 

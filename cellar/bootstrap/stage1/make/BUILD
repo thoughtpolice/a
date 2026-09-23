@@ -261,8 +261,9 @@ c_library(
 
 c_binary(
     name = "make",
+    end_objects = CRTN,
     libraries = [":libglob.a"] + LIBC,
-    objects = CRT + [":" + path + ".o" for path in SOURCES] + CRTN,
+    objects = CRT + [":" + path + ".o" for path in SOURCES],
     output = "make",
     toolchain = CC,
 )

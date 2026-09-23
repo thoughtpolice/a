@@ -166,6 +166,7 @@ c_library(
 
 c_binary(
     name = "sed-bin",
+    end_objects = CRTN,
     libraries = [
         ":libsed.a",
         "cellar//bootstrap/stage1/tools-final:libshell.a",
@@ -173,7 +174,7 @@ c_binary(
     objects = CRT + [":unit-" + str(i) + ".o" for i in range(
         len(LIB_SOURCES),
         len(LIB_SOURCES + SED_SOURCES),
-    )] + CRTN,
+    )],
     output = "sed",
     toolchain = CC,
 )

@@ -239,8 +239,9 @@ generate(
 
 c_binary(
     name = "gawk-bin",
+    end_objects = [MUSL + ":restored-crtn.o"],
     libraries = ["cellar//bootstrap/stage1/tools:libshell.a"] + LIBC,
-    objects = CRT + [":" + name + ".o" for name in SOURCES + ["awktab"]] + [MUSL + ":restored-crtn.o"],
+    objects = CRT + [":" + name + ".o" for name in SOURCES + ["awktab"]],
     output = "gawk",
     toolchain = MUSL + ":tcc",
 )

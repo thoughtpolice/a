@@ -850,8 +850,9 @@ untar(
         ),
         c_binary(
             name = name,
+            end_objects = CRTN,
             libraries = LIBC,
-            objects = CRT + [":" + name + ".o"] + CRTN,
+            objects = CRT + [":" + name + ".o"],
             toolchain = CC,
         ),
     ]
@@ -1425,8 +1426,9 @@ c_library(
 
 [c_binary(
     name = name,
+    end_objects = CRTN,
     libraries = [":libcoreutils.a"] + LIBC,
-    objects = CRT + [":src-" + source + ".o" for source in sources] + CRTN,
+    objects = CRT + [":src-" + source + ".o" for source in sources],
     output = "[" if name == "lbracket" else name,
     toolchain = CC,
 ) for name, sources in PROGRAMS.items()]
@@ -1685,8 +1687,9 @@ c_object(
 
 c_binary(
     name = "makecrctab",
+    end_objects = CRTN,
     libraries = LIBC,
-    objects = CRT + [":makecrctab.o"] + CRTN,
+    objects = CRT + [":makecrctab.o"],
     toolchain = CC,
 )
 

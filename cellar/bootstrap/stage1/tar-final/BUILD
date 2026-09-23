@@ -102,8 +102,9 @@ c_library(
 
 c_binary(
     name = "tar",
+    end_objects = CRTN,
     libraries = [":libtar.a"] + LIBC,
-    objects = CRT + [":src-" + n + ".o" for n in SOURCES] + CRTN,
+    objects = CRT + [":src-" + n + ".o" for n in SOURCES],
     output = "tar",
     toolchain = CC,
 )
@@ -134,8 +135,9 @@ filegroup(
         ),
         c_binary(
             name = name,
+            end_objects = CRTN,
             libraries = [":libtar.a"] + LIBC,
-            objects = CRT + [":" + name + ".o"] + CRTN,
+            objects = CRT + [":" + name + ".o"],
             toolchain = CC,
         ),
     ]

@@ -101,6 +101,7 @@ filegroup(
 
 c_binary(
     name = "oyacc",
+    end_objects = [MUSL + ":restored-crtn.o"],
     libraries = [
         MUSL + ":restored-libc.a",
         SUPPORT,
@@ -109,7 +110,7 @@ c_binary(
     objects = [
         MUSL + ":restored-crt1.o",
         MUSL + ":restored-crti.o",
-    ] + [":" + path + ".o" for path in SOURCES] + [MUSL + ":restored-crtn.o"],
+    ] + [":" + path + ".o" for path in SOURCES],
     output = "oyacc",
     toolchain = MUSL + ":tcc",
 )
@@ -148,6 +149,9 @@ c_object(
 
 c_binary(
     name = "calculator",
+    end_objects = [
+        MUSL + ":restored-crtn.o",
+    ],
     libraries = [
         MUSL + ":restored-libc.a",
         SUPPORT,
@@ -157,7 +161,6 @@ c_binary(
         MUSL + ":restored-crt1.o",
         MUSL + ":restored-crti.o",
         ":calculator.o",
-        MUSL + ":restored-crtn.o",
     ],
     toolchain = MUSL + ":tcc",
 )

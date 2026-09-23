@@ -263,13 +263,15 @@ filegroup(
         ),
         c_binary(
             name = "flex-" + stage,
+            end_objects = [
+                MUSL + ":restored-crtn.o",
+            ],
             libraries = (["cellar//bootstrap/stage1/heirloom-lex:libl.a"] if stage == "seed" else []) + LIBC,
             objects = CRT + [":" + name + ".o" for name in BASE + [
                 "parse",
                 "skel",
             ]] + [
                 ":" + stage + "-scanner.o",
-                MUSL + ":restored-crtn.o",
             ],
             output = "flex",
             toolchain = MUSL + ":tcc",
@@ -356,10 +358,12 @@ command_test(
         ),
         c_binary(
             name = name + "-test-bin",
+            end_objects = [
+                MUSL + ":restored-crtn.o",
+            ],
             libraries = [":libfl.a"] + LIBC,
             objects = CRT + [
                 ":" + name + "-test.o",
-                MUSL + ":restored-crtn.o",
             ],
             toolchain = MUSL + ":tcc",
         ),

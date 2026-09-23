@@ -938,8 +938,9 @@ def binutils_stage(
 
     c_binary(
         name = "crcgen",
+        end_objects = crtn,
         libraries = libc,
-        objects = crt + [":crcgen.o"] + crtn,
+        objects = crt + [":crcgen.o"],
         output = "crcgen",
         toolchain = toolchain,
     )
@@ -1019,8 +1020,9 @@ def binutils_stage(
 
     c_binary(
         name = "libiberty-test-bin",
+        end_objects = crtn,
         libraries = [":libiberty.a"] + libc,
-        objects = crt + [":libiberty-test.o"] + crtn,
+        objects = crt + [":libiberty-test.o"],
         output = "libiberty-test",
         toolchain = toolchain,
     )
@@ -1129,8 +1131,9 @@ def binutils_stage(
 
     c_binary(
         name = "zlib-tables",
+        end_objects = crtn,
         libraries = [":zlib-bootstrap.a"] + libc,
-        objects = crt + [":zlib-tables.o"] + crtn,
+        objects = crt + [":zlib-tables.o"],
         output = "zlib-tables",
         toolchain = toolchain,
     )
@@ -1175,8 +1178,9 @@ def binutils_stage(
 
     c_binary(
         name = "zlib-test-bin",
+        end_objects = crtn,
         libraries = [":libz.a"] + libc,
-        objects = crt + [":zlib-test.o"] + crtn,
+        objects = crt + [":zlib-test.o"],
         output = "zlib-test",
         toolchain = toolchain,
     )
@@ -1241,8 +1245,9 @@ def binutils_stage(
 
     c_binary(
         name = "chew",
+        end_objects = crtn,
         libraries = libc,
-        objects = crt + [":chew.o"] + crtn,
+        objects = crt + [":chew.o"],
         output = "chew",
         toolchain = toolchain,
     )
@@ -1395,8 +1400,9 @@ def binutils_stage(
 
     c_binary(
         name = "bfd-header-test-bin",
+        end_objects = crtn,
         libraries = libc,
-        objects = crt + [":bfd-header-test.o"] + crtn,
+        objects = crt + [":bfd-header-test.o"],
         output = "bfd-headers-test",
         toolchain = toolchain,
     )
@@ -1574,12 +1580,13 @@ def binutils_stage(
 
     c_binary(
         name = "bfd-test-bin",
+        end_objects = crtn,
         libraries = [
             ":libbfd.a",
             ":libiberty.a",
             ":libz.a",
         ] + libc,
-        objects = crt + [":bfd-test.o"] + crtn,
+        objects = crt + [":bfd-test.o"],
         output = "bfd-test",
         toolchain = toolchain,
     )
@@ -1698,8 +1705,9 @@ def binutils_stage(
 
     c_binary(
         name = "i386-gen",
+        end_objects = crtn,
         libraries = [":libiberty.a"] + libc,
-        objects = crt + [":i386-gen.o"] + crtn,
+        objects = crt + [":i386-gen.o"],
         output = "i386-gen",
         toolchain = toolchain,
     )
@@ -1800,13 +1808,14 @@ def binutils_stage(
 
     c_binary(
         name = "opcodes-test-bin",
+        end_objects = crtn,
         libraries = [
             ":libopcodes.a",
             ":libbfd.a",
             ":libiberty.a",
             ":libz.a",
         ] + libc,
-        objects = crt + [":opcodes-test.o"] + crtn,
+        objects = crt + [":opcodes-test.o"],
         output = "opcodes-test",
         toolchain = toolchain,
     )
@@ -1893,8 +1902,9 @@ def binutils_stage(
 
     c_binary(
         name = "flonum-gen",
+        end_objects = crtn,
         libraries = libc,
-        objects = crt + [":flonum-gen.o"] + crtn,
+        objects = crt + [":flonum-gen.o"],
         output = "flonum-gen",
         toolchain = toolchain,
     )
@@ -1954,13 +1964,14 @@ def binutils_stage(
 
     c_binary(
         name = "as",
+        end_objects = crtn,
         libraries = [
             ":libopcodes.a",
             ":libbfd.a",
             ":libiberty.a",
             ":libz.a",
         ] + libc,
-        objects = crt + [":gas-" + name.replace("/", "-") + ".o" for name in GAS] + crtn,
+        objects = crt + [":gas-" + name.replace("/", "-") + ".o" for name in GAS],
         output = "as",
         toolchain = toolchain,
     )
@@ -2002,11 +2013,12 @@ def binutils_stage(
 
     c_binary(
         name = "as-test-bin",
+        end_objects = crtn,
         libraries = libc,
         objects = crt + [
             ":as-test.o",
             ":as-fixture.o",
-        ] + crtn,
+        ],
         output = "as-test",
         toolchain = toolchain,
     )
@@ -2272,12 +2284,13 @@ def binutils_stage(
 
     c_binary(
         name = "ld",
+        end_objects = crtn,
         libraries = [
             ":libbfd.a",
             ":libiberty.a",
             ":libz.a",
         ] + libc,
-        objects = crt + [":ld-" + name + ".o" for name in LD] + crtn,
+        objects = crt + [":ld-" + name + ".o" for name in LD],
         output = "ld",
         toolchain = toolchain,
     )
@@ -2314,7 +2327,7 @@ def binutils_stage(
             args = [
                 "-static",
                 "--build-id=sha1",
-            ] + ["$(location " + obj + ")" for obj in crt + objects + crtn + libc] + ["-o"],
+            ] + ["$(location " + obj + ")" for obj in crt + objects + libc + crtn] + ["-o"],
             output = name,
             tool = ":ld",
         )
@@ -2573,6 +2586,7 @@ def binutils_stage(
     [
         c_binary(
             name = name,
+            end_objects = crtn,
             libraries = ([":libopcodes.a"] if name == "objdump" else []) + ([] if name in [
                 "readelf",
                 "elfedit",
@@ -2580,7 +2594,7 @@ def binutils_stage(
                 ":libiberty.a",
                 ":libz.a",
             ] + libc,
-            objects = crt + [":bin-" + source + ".o" for source in sources] + crtn,
+            objects = crt + [":bin-" + source + ".o" for source in sources],
             output = name,
             toolchain = toolchain,
         )
@@ -2743,12 +2757,13 @@ def binutils_stage(
 
     c_binary(
         name = "gprof",
+        end_objects = crtn,
         libraries = [
             ":libbfd.a",
             ":libiberty.a",
             ":libz.a",
         ] + libc,
-        objects = crt + [":gprof-" + name + ".o" for name in GPROF + GPROF_BLURBS] + crtn,
+        objects = crt + [":gprof-" + name + ".o" for name in GPROF + GPROF_BLURBS],
         output = "gprof",
         toolchain = toolchain,
     )
@@ -2778,12 +2793,13 @@ def binutils_stage(
 
     c_binary(
         name = "profile-data",
+        end_objects = crtn,
         libraries = [
             ":libbfd.a",
             ":libiberty.a",
             ":libz.a",
         ] + libc,
-        objects = crt + [":profile-data.o"] + crtn,
+        objects = crt + [":profile-data.o"],
         output = "profile-data",
         toolchain = toolchain,
     )

@@ -102,8 +102,9 @@ c_object(
 
 c_binary(
     name = "makecrc",
+    end_objects = CRTN,
     libraries = LIBC,
-    objects = CRT + [":makecrc.o"] + CRTN,
+    objects = CRT + [":makecrc.o"],
     toolchain = CC,
 )
 
@@ -155,8 +156,9 @@ c_library(
 
 [c_binary(
     name = name,
+    end_objects = CRTN,
     libraries = ([":libbz2.a"] if name == "bzip2" else []) + LIBC,
-    objects = CRT + [":" + name + ".o"] + CRTN,
+    objects = CRT + [":" + name + ".o"],
     output = name,
     toolchain = CC,
 ) for name in PROGRAMS]

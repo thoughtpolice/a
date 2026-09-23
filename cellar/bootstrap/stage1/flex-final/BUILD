@@ -272,13 +272,14 @@ filegroup(
         ),
         c_binary(
             name = "flex-" + stage + "-bin",
+            end_objects = CRTN,
             libraries = LIBC,
             objects = CRT + [":" + name + ".o" for name in BASE + [
                 "parse",
                 "skel",
             ]] + [
                 ":" + stage + "-scan.o",
-            ] + CRTN,
+            ],
             output = "flex",
             toolchain = CC,
         ),
@@ -375,10 +376,11 @@ command_test(
         ),
         c_binary(
             name = name + "-test-bin",
+            end_objects = CRTN,
             libraries = [":libfl.a"] + LIBC,
             objects = CRT + [
                 ":" + name + "-test.o",
-            ] + CRTN,
+            ],
             toolchain = CC,
         ),
     ]
@@ -508,11 +510,12 @@ generate(
 
 c_binary(
     name = "api-test-bin",
+    end_objects = CRTN,
     libraries = LIBC,
     objects = CRT + [
         ":api.o",
         ":api-test.o",
-    ] + CRTN,
+    ],
     toolchain = CC,
 )
 

@@ -181,13 +181,14 @@ TEST_ENV = {
         ),
         c_binary(
             name = "test-" + name + "-program",
+            end_objects = CRTN,
             libraries = [
                 ":libtests.a",
                 ":libmpc.a",
                 MPFR + ":libmpfr.a",
                 GMP + ":libgmp.a",
             ] + LIBC,
-            objects = CRT + [":test-" + name + ".o"] + CRTN,
+            objects = CRT + [":test-" + name + ".o"],
             toolchain = CC,
         ),
         generate(

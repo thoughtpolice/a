@@ -181,8 +181,19 @@ _c_library_rule = rule(impl = _archive_impl, attrs = {
 def c_library(**kwargs):
     _c_library_rule(**native_attrs(kwargs))
 
+# crtend.o ends .eh_frame with the zero terminator that ld keeps only from the
+# last input supplying the section, and crtn.o ends .init and .fini. As in a
+# compiler driver's link, both follow the libraries.
+_END_OBJECTS = [
+    "crtend.o",
+    "crtn.o",
+]
+
 def _binary_impl(ctx):
     tc = ctx.attrs.toolchain[CompilerInfo]
+    for dep in ctx.attrs.objects:
+        if any([dep.label.name.endswith(name) for name in _END_OBJECTS]):
+            fail("{} must be linked after the libraries: list it in end_objects".format(dep.label))
     objects = _objects(ctx.attrs.objects, tc)
     libraries = []
     for dep in ctx.attrs.libraries:
@@ -201,7 +212,8 @@ def _binary_impl(ctx):
         libraries = [aliases.project("lib{}.o".format(i)) for i in range(len(libraries))]
     work = ctx.actions.declare_output("work", dir = True)
     output = work.project(ctx.attrs.output)
-    command = cmd_args(tc.linker, tc.ldflags, ctx.attrs.flags, objects, libraries, "-o", ctx.attrs.output)
+    end_objects = _objects(ctx.attrs.end_objects, tc)
+    command = cmd_args(tc.linker, tc.ldflags, ctx.attrs.flags, objects, libraries, end_objects, "-o", ctx.attrs.output)
     ctx.actions.run(
         cmd_args(ctx.attrs.chdir[RunInfo], work.as_output(), cmd_args(command, relative_to = work)),
         clear_environment = True,
@@ -213,6 +225,7 @@ _c_binary_rule = rule(impl = _binary_impl, attrs = {
     "toolchain": attrs.exec_dep(providers = [CompilerInfo]),
     "objects": attrs.list(attrs.dep(providers = [ObjectInfo])),
     "libraries": attrs.list(attrs.dep(providers = [LibraryInfo]), default = []),
+    "end_objects": attrs.list(attrs.dep(providers = [ObjectInfo]), default = []),
     "flags": attrs.list(attrs.arg(), default = []),
     "output": attrs.string(default = "program"),
     "chdir": attrs.exec_dep(providers = [RunInfo], default = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv"),

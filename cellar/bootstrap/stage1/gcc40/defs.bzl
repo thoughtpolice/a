@@ -49,7 +49,7 @@ def gcc40_stage(
             and option generator outputs after their targets.
         options_h_in_early_headers: True adds options.h to early-headers.
         separate_crtbegin: objects linked before separate-program's objects.
-        separate_crtend: objects linked after separate-program's objects.
+        separate_crtend: objects linked after separate-program's libraries.
         libgcc_extra_objects: extra objects archived into libgcc.a.
     """
     file_prefix = "" if local_sources else _SHARED_SOURCES
@@ -812,8 +812,9 @@ def gcc40_stage(
 
     c_binary(
         name = "ucnid",
+        end_objects = crtn,
         libraries = libc,
-        objects = crt + [":ucnid.o"] + crtn,
+        objects = crt + [":ucnid.o"],
         toolchain = predecessor,
     )
 
@@ -1110,11 +1111,12 @@ def gcc40_stage(
             ),
             c_binary(
                 name = name + "-test-bin",
+                end_objects = crtn,
                 libraries = [
                     ":libcpp.a",
                     ":libiberty.a",
                 ] + libc,
-                objects = crt + [":" + name + "-test.o"] + crtn,
+                objects = crt + [":" + name + "-test.o"],
                 toolchain = predecessor,
             ),
         ]
@@ -1413,11 +1415,12 @@ int sum = PAIR(3,4);
     [
         c_binary(
             name = name,
+            end_objects = crtn,
             libraries = [":libiberty.a"] + libc,
             objects = crt + [
                 ":" + name + ".o",
                 ":errors.o",
-            ] + crtn,
+            ],
             toolchain = predecessor,
         )
         for name in [
@@ -1509,8 +1512,9 @@ int sum = PAIR(3,4);
     [
         c_binary(
             name = name,
+            end_objects = crtn,
             libraries = [":libiberty.a"] + libc,
-            objects = crt + [":" + name + ".o"] + BUILD_RTL + BUILD_EARLY + [":errors.o"] + ([":print-rtl.o"] if name == "genpreds" else []) + crtn,
+            objects = crt + [":" + name + ".o"] + BUILD_RTL + BUILD_EARLY + [":errors.o"] + ([":print-rtl.o"] if name == "genpreds" else []),
             toolchain = predecessor,
         )
         for name in [
@@ -1571,6 +1575,7 @@ int sum = PAIR(3,4);
     [
         c_binary(
             name = name,
+            end_objects = crtn,
             libraries = [":libiberty.a"] + libc,
             objects = crt + [":" + name + ".o"] + BUILD_RTL + [
                 ":gensupport.o",
@@ -1580,7 +1585,7 @@ int sum = PAIR(3,4);
             ] + ([
                 ":genautomata.o",
                 ":varray.o",
-            ] if name == "genattrtab" else []) + crtn,
+            ] if name == "genattrtab" else []),
             toolchain = predecessor,
         )
         for name in [
@@ -1728,13 +1733,14 @@ int sum = PAIR(3,4);
 
     c_binary(
         name = "gengtype",
+        end_objects = crtn,
         libraries = [":libiberty.a"] + libc,
         objects = crt + [
             ":gengtype.o",
             ":gengtype-lex.o",
             ":gengtype-yacc.o",
             ":errors.o",
-        ] + crtn,
+        ],
         toolchain = predecessor,
     )
 
@@ -1823,6 +1829,7 @@ int sum = PAIR(3,4);
 
     c_binary(
         name = "rtl-test-bin",
+        end_objects = crtn,
         libraries = [":libiberty.a"] + libc,
         objects = crt + [
             ":rtl-test.o",
@@ -1832,7 +1839,7 @@ int sum = PAIR(3,4);
             ":min-insn-modes.o",
             ":insn-conditions.o",
             ":errors.o",
-        ] + crtn,
+        ],
         toolchain = predecessor,
     )
 
@@ -1843,8 +1850,9 @@ int sum = PAIR(3,4);
 
     c_binary(
         name = "generated-files-test-bin",
+        end_objects = crtn,
         libraries = libc,
-        objects = crt + [":generated-files-test.o"] + crtn,
+        objects = crt + [":generated-files-test.o"],
         toolchain = predecessor,
     )
 
@@ -1989,8 +1997,9 @@ int sum = PAIR(3,4);
 
     c_binary(
         name = "gcov-iov",
+        end_objects = crtn,
         libraries = libc,
-        objects = crt + [":gcov-iov.o"] + crtn,
+        objects = crt + [":gcov-iov.o"],
         toolchain = predecessor,
     )
 
@@ -2101,12 +2110,13 @@ int sum = PAIR(3,4);
 
     c_binary(
         name = "cc1",
+        end_objects = crtn,
         libraries = [
             ":libbackend.a",
             ":libcpp.a",
             ":libiberty.a",
         ] + libc,
-        objects = crt + [":cc-" + name + ".o" for name in C_OBJECTS + ["main"]] + crtn,
+        objects = crt + [":cc-" + name + ".o" for name in C_OBJECTS + ["main"]],
         output = "cc1",
         toolchain = predecessor,
     )
@@ -2155,8 +2165,9 @@ int sum = PAIR(3,4);
             ),
             c_binary(
                 name = "cc1-" + name + "-" + opt + "-bin",
+                end_objects = crtn,
                 libraries = libc,
-                objects = crt + [":cc1-" + name + "-" + opt + ".o"] + crtn,
+                objects = crt + [":cc1-" + name + "-" + opt + ".o"],
                 toolchain = predecessor,
             ),
             command_test(
@@ -2334,6 +2345,7 @@ int sum = PAIR(3,4);
     [
         c_binary(
             name = name,
+            end_objects = crtn,
             libraries = [":libiberty.a"] + libc,
             objects = crt + [
                 ":driver-gcc.o",
@@ -2341,7 +2353,7 @@ int sum = PAIR(3,4);
                 ":driver-prefix.o",
                 ":cc-version.o",
                 ":cc-intl.o",
-            ] + crtn,
+            ],
             output = name,
             toolchain = predecessor,
         )
@@ -2439,8 +2451,9 @@ int sum = PAIR(3,4);
     [
         c_binary(
             name = "driver-test-" + name,
+            end_objects = crtn,
             libraries = libc,
-            objects = crt + [":driver-test-" + name + ".o"] + crtn,
+            objects = crt + [":driver-test-" + name + ".o"],
             toolchain = predecessor,
         )
         for name in [
@@ -2940,6 +2953,7 @@ int sum = PAIR(3,4);
 
     c_binary(
         name = "separate-program",
+        end_objects = separate_crtend + crtn,
         libraries = [
             ":separate.a",
             ":libgcc.a",
@@ -2950,7 +2964,7 @@ int sum = PAIR(3,4);
         objects = crt + separate_crtbegin + [
             ":separate-features.o",
             ":separate-weak.o",
-        ] + separate_crtend + crtn,
+        ],
         toolchain = ":gcc",
     )
 

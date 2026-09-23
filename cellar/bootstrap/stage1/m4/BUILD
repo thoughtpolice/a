@@ -228,13 +228,15 @@ c_object(
 
 c_binary(
     name = "m4-bin",
+    end_objects = [
+        MUSL + ":restored-crtn.o",
+    ],
     libraries = [
         ":libm4.a",
         "cellar//bootstrap/stage1/tools:libshell.a",
     ] + LIBC,
     objects = CRT + [":" + name + ".o" for name in CORE] + [
         ":tmpfile.o",
-        MUSL + ":restored-crtn.o",
     ],
     output = "m4",
     toolchain = MUSL + ":tcc",

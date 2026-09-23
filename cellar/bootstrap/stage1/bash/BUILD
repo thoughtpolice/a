@@ -663,8 +663,9 @@ INCLUDES = [
         ) for i, path in enumerate(paths)],
         c_binary(
             name = name,
+            end_objects = CRTN,
             libraries = LIBC,
-            objects = CRT + [":" + name + str(i) + ".o" for i in range(len(paths))] + CRTN,
+            objects = CRT + [":" + name + str(i) + ".o" for i in range(len(paths))],
             toolchain = CC,
         ),
     ]
@@ -780,6 +781,7 @@ GROUPS = {
 
 c_binary(
     name = "bash",
+    end_objects = CRTN,
     libraries = [
         ":libbuiltins.a",
         ":libglob.a",
@@ -789,7 +791,7 @@ c_binary(
         ":libsh.a",
         ":libbuiltins.a",
     ] + LIBC,
-    objects = CRT + [":core-" + str(i) + ".o" for i in range(len(GROUPS["core"]))] + CRTN,
+    objects = CRT + [":core-" + str(i) + ".o" for i in range(len(GROUPS["core"]))],
     output = "bash",
     toolchain = CC,
 )
@@ -894,8 +896,9 @@ c_object(
 
 c_binary(
     name = "pty-bin",
+    end_objects = CRTN,
     libraries = LIBC,
-    objects = CRT + [":pty.o"] + CRTN,
+    objects = CRT + [":pty.o"],
     toolchain = CC,
 )
 

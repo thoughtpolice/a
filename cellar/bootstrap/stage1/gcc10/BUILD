@@ -264,8 +264,9 @@ filegroup(
         ),
         c_binary(
             name = stage + "-gen-" + name,
+            end_objects = HOST_CRTN[stage],
             libraries = HOST_LIBC[stage],
-            objects = HOST_CRT[stage] + [":" + stage + "-gen-" + name + ".o"] + HOST_CRTN[stage],
+            objects = HOST_CRT[stage] + [":" + stage + "-gen-" + name + ".o"],
             toolchain = HOST_CC[stage],
         ),
     ]
@@ -377,8 +378,9 @@ filegroup(
         ),
         c_binary(
             name = "decimal-" + kind + "-program",
+            end_objects = HOST_CRTN["stage1"],
             libraries = HOST_LIBC["stage1"],
-            objects = HOST_CRT["stage1"] + [":decimal-" + kind + ".o"] + HOST_CRTN["stage1"],
+            objects = HOST_CRT["stage1"] + [":decimal-" + kind + ".o"],
             toolchain = HOST_CC["stage1"],
         ),
         generate(
@@ -439,8 +441,9 @@ generate(
         ),
         c_binary(
             name = stage + "-gen-bid",
+            end_objects = HOST_CRTN[stage],
             libraries = ["cellar//bootstrap/stage1/gmp:libgmp.a"] + HOST_LIBC[stage],
-            objects = HOST_CRT[stage] + [":" + stage + "-gen-bid.o"] + HOST_CRTN[stage],
+            objects = HOST_CRT[stage] + [":" + stage + "-gen-bid.o"],
             toolchain = HOST_CC[stage],
         ),
         generate(
@@ -479,8 +482,9 @@ generate(
         ),
         c_binary(
             name = "bid-" + kind + "-program",
+            end_objects = HOST_CRTN["stage1"],
             libraries = HOST_LIBC["stage1"],
-            objects = HOST_CRT["stage1"] + [":bid-" + kind + ".o"] + HOST_CRTN["stage1"],
+            objects = HOST_CRT["stage1"] + [":bid-" + kind + ".o"],
             toolchain = HOST_CC["stage1"],
         ),
         generate(
@@ -1019,12 +1023,13 @@ LANGUAGE_FLAGS = {
         ),
         c_binary(
             name = name + "-test-bin",
+            end_objects = HOST_CRTN["stage1"],
             libraries = [
                 ":stage1-libcpp.a",
                 ":stage1-libiberty.a",
                 ":stage1-libdecnumber.a",
             ] + (HOST_LIBCXX["stage1"] if language == "c++" else HOST_LIBC["stage1"]),
-            objects = HOST_CRT["stage1"] + [":" + name + "-test.o"] + HOST_CRTN["stage1"],
+            objects = HOST_CRT["stage1"] + [":" + name + "-test.o"],
             toolchain = HOST_CC["stage1"],
         ),
     ]
@@ -1550,12 +1555,13 @@ c_object(
 
 c_binary(
     name = "cfns-test-bin",
+    end_objects = HOST_CRTN["stage1"],
     libraries = HOST_LIBCXX["stage1"],
     objects = HOST_CRT["stage1"] + [
         ":cfns-main.o",
         ":cfns-generated.o",
         ":cfns-shipped.o",
-    ] + HOST_CRTN["stage1"],
+    ],
     toolchain = HOST_CC["stage1"],
 )
 
@@ -1986,8 +1992,9 @@ GENERATORS = {
 [
     c_binary(
         name = stage + "-" + name,
+        end_objects = HOST_CRTN[stage],
         libraries = ([":" + stage + "-libcpp.a"] if name == "genmatch" else []) + [":" + stage + "-libiberty.a"] + HOST_LIBCXX[stage],
-        objects = HOST_CRT[stage] + [":" + stage + "-build-" + obj + ".o" for obj in objects] + HOST_CRTN[stage],
+        objects = HOST_CRT[stage] + [":" + stage + "-build-" + obj + ".o" for obj in objects],
         toolchain = HOST_CC[stage],
     )
     for stage in STAGES
@@ -2468,11 +2475,12 @@ write_file(
         ),
         c_binary(
             name = stage + "-" + frontend,
+            end_objects = HOST_CRTN[stage],
             libraries = COMPILER_LIBRARIES[stage] + HOST_LIBCXX[stage],
             objects = HOST_CRT[stage] + [":" + stage + "-cc-" + name.replace("/", "-") + ".o" for name in objects] + [
                 ":" + stage + "-" + frontend + "-checksum.o",
                 ":" + stage + "-cc-main.o",
-            ] + HOST_CRTN[stage],
+            ],
             output = frontend,
             toolchain = HOST_CC[stage],
         ),
@@ -2566,8 +2574,9 @@ DRIVER_LIBRARIES = [
 [
     c_binary(
         name = stage + "-" + program,
+        end_objects = HOST_CRTN[stage],
         libraries = [":" + stage + "-" + name + ".a" for name in DRIVER_LIBRARIES] + ([":" + stage + "-libz.a"] if program == "gcov" else []) + HOST_LIBCXX[stage],
-        objects = HOST_CRT[stage] + [":" + stage + "-driver-" + name.replace("/", "-") + ".o" for name in objects] + HOST_CRTN[stage],
+        objects = HOST_CRT[stage] + [":" + stage + "-driver-" + name.replace("/", "-") + ".o" for name in objects],
         output = program,
         toolchain = HOST_CC[stage],
     )
@@ -3487,8 +3496,9 @@ c_object(
 
 c_binary(
     name = "coverage-runner",
+    end_objects = HOST_CRTN["stage1"],
     libraries = HOST_LIBC["stage1"],
-    objects = HOST_CRT["stage1"] + [":coverage-runner.o"] + HOST_CRTN["stage1"],
+    objects = HOST_CRT["stage1"] + [":coverage-runner.o"],
     toolchain = HOST_CC["stage1"],
 )
 

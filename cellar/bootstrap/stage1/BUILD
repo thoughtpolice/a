@@ -344,6 +344,10 @@ c_object(
 
 c_binary(
     name = "launcher",
+    end_objects = [
+        GCC + ":stage3-crtend.o",
+        MUSL + ":crtn.o",
+    ],
     libraries = [
         MUSL + ":libc.a",
         GCC + ":stage3-libgcc.a",
@@ -354,8 +358,6 @@ c_binary(
         MUSL + ":crti.o",
         GCC + ":stage3-crtbeginT.o",
         ":launcher.o",
-        GCC + ":stage3-crtend.o",
-        MUSL + ":crtn.o",
     ],
     output = "launcher",
     toolchain = GCC + ":stage3-gcc",

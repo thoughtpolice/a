@@ -107,8 +107,9 @@ c_library(
 
 c_binary(
     name = "gnu-toolchain-test-bin",
+    end_objects = CRTN,
     libraries = [":gnu-test.a"] + LIBC,
-    objects = CRT + [":as-test.o"] + CRTN,
+    objects = CRT + [":as-test.o"],
     output = "gnu-toolchain-test",
     toolchain = ":tcc-with-binutils",
 )

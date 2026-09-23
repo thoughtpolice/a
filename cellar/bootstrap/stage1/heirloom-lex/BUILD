@@ -123,8 +123,9 @@ filegroup(
 
 c_binary(
     name = "lex-bin",
+    end_objects = [MUSL + ":restored-crtn.o"],
     libraries = LIBC,
-    objects = CRT + [":lex-{}.o".format(i) for i in range(len(SOURCES) + 1)] + [MUSL + ":restored-crtn.o"],
+    objects = CRT + [":lex-{}.o".format(i) for i in range(len(SOURCES) + 1)],
     output = "lex",
     toolchain = MUSL + ":tcc",
 )
@@ -217,10 +218,12 @@ c_object(
 
 c_binary(
     name = "scanner",
+    end_objects = [
+        MUSL + ":restored-crtn.o",
+    ],
     libraries = [":libl.a"] + LIBC,
     objects = CRT + [
         ":scanner.o",
-        MUSL + ":restored-crtn.o",
     ],
     toolchain = MUSL + ":tcc",
 )

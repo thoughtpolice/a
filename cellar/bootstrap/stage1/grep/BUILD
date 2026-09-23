@@ -177,8 +177,9 @@ c_library(
 
 [c_binary(
     name = name,
+    end_objects = CRTN,
     libraries = [":libgrep.a"] + LIBC,
-    objects = CRT + [":" + name + "mat.o"] + CRTN,
+    objects = CRT + [":" + name + "mat.o"],
     output = name,
     toolchain = CC,
 ) for name in PROGRAMS]

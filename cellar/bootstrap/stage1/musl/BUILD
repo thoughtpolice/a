@@ -462,6 +462,9 @@ compiler(
         ),
         c_binary(
             name = stage + "-runtime-program",
+            end_objects = [
+                ":" + stage + "-crtn.o",
+            ],
             libraries = [
                 ":" + stage + "-libc.a",
                 support_library,
@@ -471,7 +474,6 @@ compiler(
                 ":" + stage + "-crt1.o",
                 ":" + stage + "-crti.o",
                 ":" + stage + "-runtime-test.o",
-                ":" + stage + "-crtn.o",
             ],
             toolchain = tc,
         ),
@@ -496,6 +498,9 @@ compiler(
                 ),
                 c_binary(
                     name = stage + "-" + name + "-program",
+                    end_objects = [
+                        ":" + stage + "-crtn.o",
+                    ],
                     libraries = [
                         ":" + stage + "-libc.a",
                         support_library,
@@ -505,7 +510,6 @@ compiler(
                         ":" + stage + "-crt1.o",
                         ":" + stage + "-crti.o",
                         ":" + stage + "-" + name + "-test.o",
-                        ":" + stage + "-crtn.o",
                     ],
                     toolchain = tc,
                 ),
@@ -584,6 +588,9 @@ c_object(
 
 c_binary(
     name = "include-order-program",
+    end_objects = [
+        ":restored-crtn.o",
+    ],
     libraries = [
         ":restored-libc.a",
         "cellar//bootstrap/stage1/tcc-musl:musl2-libtcc1.a",
@@ -593,7 +600,6 @@ c_binary(
         ":restored-crt1.o",
         ":restored-crti.o",
         ":include-order.o",
-        ":restored-crtn.o",
     ],
     toolchain = ":tcc",
 )

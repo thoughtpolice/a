@@ -214,8 +214,9 @@ filegroup(
 
 c_binary(
     name = "patch",
+    end_objects = CRTN,
     libraries = LIBC,
-    objects = CRT + [":" + name + ".o" for name in SOURCES] + CRTN,
+    objects = CRT + [":" + name + ".o" for name in SOURCES],
     output = "patch",
     toolchain = CC,
 )

@@ -116,8 +116,9 @@ c_object(
 
 c_binary(
     name = "shell-test",
+    end_objects = CRTN,
     libraries = [":libshell.a"] + LIBC,
-    objects = CRT + [":shell-test.o"] + CRTN,
+    objects = CRT + [":shell-test.o"],
     toolchain = CC,
 )
 

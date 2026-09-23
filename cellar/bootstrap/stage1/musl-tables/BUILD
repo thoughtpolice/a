@@ -73,6 +73,9 @@ TCC = "cellar//bootstrap/stage1/tcc-musl"
         ),
         c_binary(
             name = name,
+            end_objects = [
+                MUSL + ":rebuilt-crtn.o",
+            ],
             libraries = [
                 MUSL + ":rebuilt-libc.a",
                 TCC + ":musl2-libtcc1.a",
@@ -82,7 +85,6 @@ TCC = "cellar//bootstrap/stage1/tcc-musl"
                 MUSL + ":rebuilt-crt1.o",
                 MUSL + ":rebuilt-crti.o",
                 ":" + name + ".o",
-                MUSL + ":rebuilt-crtn.o",
             ],
             output = name,
             toolchain = TCC + ":musl2",

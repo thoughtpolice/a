@@ -216,8 +216,9 @@ REPRODUCIBLE_FLAGS = [
         ),
         c_binary(
             name = stage + "-gen-" + name,
+            end_objects = HOST_CRTN[stage],
             libraries = HOST_LIBC[stage],
-            objects = HOST_CRT[stage] + [":" + stage + "-gen-" + name + ".o"] + HOST_CRTN[stage],
+            objects = HOST_CRT[stage] + [":" + stage + "-gen-" + name + ".o"],
             toolchain = predecessor,
         ),
     ]
@@ -313,8 +314,9 @@ REPRODUCIBLE_FLAGS = [
         ),
         c_binary(
             name = "decimal-" + kind + "-program",
+            end_objects = CRTN,
             libraries = LIBC,
-            objects = CRT + [":decimal-" + kind + ".o"] + CRTN,
+            objects = CRT + [":decimal-" + kind + ".o"],
             toolchain = PREDECESSOR,
         ),
         generate(
@@ -382,8 +384,9 @@ export_file(name = "generators/bid-tables.c")
         ),
         c_binary(
             name = stage + "-gen-bid",
+            end_objects = HOST_CRTN[stage],
             libraries = ["cellar//bootstrap/stage1/gmp:libgmp.a"] + HOST_LIBC[stage],
-            objects = HOST_CRT[stage] + [":" + stage + "-gen-bid.o"] + HOST_CRTN[stage],
+            objects = HOST_CRT[stage] + [":" + stage + "-gen-bid.o"],
             toolchain = predecessor,
         ),
         generate(
@@ -421,8 +424,9 @@ export_file(name = "generators/bid-tables.c")
         ),
         c_binary(
             name = "bid-" + kind + "-program",
+            end_objects = CRTN,
             libraries = LIBC,
-            objects = CRT + [":bid-" + kind + ".o"] + CRTN,
+            objects = CRT + [":bid-" + kind + ".o"],
             toolchain = PREDECESSOR,
         ),
         generate(
@@ -837,12 +841,13 @@ LIBRARIES = {
         ),
         c_binary(
             name = name + "-test-bin",
+            end_objects = CRTN,
             libraries = [
                 ":stage1-libcpp.a",
                 ":stage1-libiberty.a",
                 ":stage1-libdecnumber.a",
             ] + LIBC,
-            objects = CRT + [":" + name + "-test.o"] + CRTN,
+            objects = CRT + [":" + name + "-test.o"],
             toolchain = PREDECESSOR,
         ),
     ]
@@ -1289,11 +1294,12 @@ BASE_GENERATED = [
 [
     c_binary(
         name = stage + "-" + name,
+        end_objects = HOST_CRTN[stage],
         libraries = [":" + stage + "-libiberty.a"] + HOST_LIBC[stage],
         objects = HOST_CRT[stage] + [
             ":" + stage + "-" + name + ".o",
             ":" + stage + "-errors.o",
-        ] + HOST_CRTN[stage],
+        ],
         toolchain = predecessor,
     )
     for stage, predecessor in STAGES.items()
@@ -1364,11 +1370,12 @@ c_object(
 
 c_binary(
     name = "modes-test-bin",
+    end_objects = CRTN,
     libraries = LIBC,
     objects = CRT + [
         ":modes-test.o",
         ":stage1-base-mode-object",
-    ] + CRTN,
+    ],
     toolchain = PREDECESSOR,
 )
 
@@ -1504,6 +1511,7 @@ RTL_SUPPORT = [
 [
     c_binary(
         name = stage + "-" + name,
+        end_objects = HOST_CRTN[stage],
         libraries = [":" + stage + "-libiberty.a"] + HOST_LIBC[stage],
         objects = HOST_CRT[stage] + [
             ":" + stage + "-" + name + ".o",
@@ -1512,7 +1520,7 @@ RTL_SUPPORT = [
         ] + ([":" + stage + "-" + support + ".o" for support in RTL_SUPPORT] + [":" + stage + "-base-mode-object"] if name not in [
             "genconstants",
             "genenums",
-        ] else []) + HOST_CRTN[stage],
+        ] else []),
         toolchain = predecessor,
     )
     for stage, predecessor in STAGES.items()
@@ -1580,8 +1588,9 @@ EARLY_MD_OUTPUTS = [
 [
     c_binary(
         name = stage + "-gencondmd",
+        end_objects = HOST_CRTN[stage],
         libraries = [":" + stage + "-libiberty.a"] + HOST_LIBC[stage],
-        objects = HOST_CRT[stage] + [":" + stage + "-gencondmd.o"] + HOST_CRTN[stage],
+        objects = HOST_CRT[stage] + [":" + stage + "-gencondmd.o"],
         toolchain = predecessor,
     )
     for stage, predecessor in STAGES.items()
@@ -1872,8 +1881,9 @@ VERSION_DEFINES = [
 [
     c_binary(
         name = stage + "-gengtype",
+        end_objects = HOST_CRTN[stage],
         libraries = [":" + stage + "-libiberty.a"] + HOST_LIBC[stage],
-        objects = HOST_CRT[stage] + [":" + stage + "-" + name + ".o" for name in GTYPE_OBJECTS + ["errors"]] + HOST_CRTN[stage],
+        objects = HOST_CRT[stage] + [":" + stage + "-" + name + ".o" for name in GTYPE_OBJECTS + ["errors"]],
         toolchain = predecessor,
     )
     for stage, predecessor in STAGES.items()
@@ -2021,13 +2031,14 @@ c_object(
 
 c_binary(
     name = "rtl-test-bin",
+    end_objects = CRTN,
     libraries = [":stage1-libiberty.a"] + LIBC,
     objects = CRT + [
         ":rtl-test.o",
         ":stage1-base-mode-object",
         ":stage1-read-md.o",
         ":stage1-errors.o",
-    ] + [":stage1-" + name + ".o" for name in RTL_SUPPORT] + CRTN,
+    ] + [":stage1-" + name + ".o" for name in RTL_SUPPORT],
     toolchain = PREDECESSOR,
 )
 
@@ -2130,8 +2141,9 @@ exact_patch(
         ),
         c_binary(
             name = stage + "-" + name,
+            end_objects = HOST_CRTN[stage],
             libraries = [":" + stage + "-libiberty.a"] + HOST_LIBC[stage],
-            objects = HOST_CRT[stage] + [":" + stage + "-" + name + ".o"] + HOST_CRTN[stage],
+            objects = HOST_CRT[stage] + [":" + stage + "-" + name + ".o"],
             toolchain = predecessor,
         ),
     ]
@@ -2760,8 +2772,9 @@ write_file(
         ),
         c_binary(
             name = stage + "-" + frontend,
+            end_objects = HOST_CRTN[stage],
             libraries = COMPILER_LIBRARIES[stage] + HOST_LIBC[stage],
-            objects = HOST_CRT[stage] + [":" + stage + "-cc-" + name.replace("/", "-") + ".o" for name in objects + ["main"]] + [":" + stage + "-" + frontend + "-checksum.o"] + HOST_CRTN[stage],
+            objects = HOST_CRT[stage] + [":" + stage + "-cc-" + name.replace("/", "-") + ".o" for name in objects + ["main"]] + [":" + stage + "-" + frontend + "-checksum.o"],
             output = frontend,
             toolchain = predecessor,
         ),
@@ -2820,8 +2833,9 @@ write_file(
         ),
         c_binary(
             name = "frontend-" + name + "-" + opt + "-bin",
+            end_objects = CRTN,
             libraries = LIBC,
-            objects = CRT + [":frontend-" + name + "-" + opt + ".o"] + CRTN,
+            objects = CRT + [":frontend-" + name + "-" + opt + ".o"],
             toolchain = PREDECESSOR,
         ),
         command_test(
@@ -3011,13 +3025,14 @@ DRIVER_DEFINES = COMPILER_DEFINES + [
 [
     c_binary(
         name = stage + "-" + program,
+        end_objects = HOST_CRTN[stage],
         libraries = [":" + stage + "-" + name + ".a" for name in [
             "libcommon-target",
             "libcommon",
             "libcpp",
             "libiberty",
         ]] + HOST_LIBC[stage],
-        objects = HOST_CRT[stage] + [":" + stage + "-driver-" + name + ".o" for name in objects] + HOST_CRTN[stage],
+        objects = HOST_CRT[stage] + [":" + stage + "-driver-" + name + ".o" for name in objects],
         output = program,
         toolchain = predecessor,
     )
@@ -3177,8 +3192,9 @@ filegroup(
         ),
         c_binary(
             name = "driver-test-" + name + "-bin",
+            end_objects = CRTN,
             libraries = LIBC,
-            objects = CRT + [":driver-test-" + name + ".o"] + CRTN,
+            objects = CRT + [":driver-test-" + name + ".o"],
             toolchain = PREDECESSOR,
         ),
         command_test(
@@ -3993,8 +4009,9 @@ c_object(
 
 c_binary(
     name = "coverage-runner",
+    end_objects = CRTN,
     libraries = LIBC,
-    objects = CRT + [":coverage-runner.o"] + CRTN,
+    objects = CRT + [":coverage-runner.o"],
     toolchain = PREDECESSOR,
 )
 
