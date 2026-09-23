@@ -374,6 +374,7 @@ def _deno_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output("{}.js".format(ctx.label.name))
 
     check_args = ["--check"] if ctx.attrs.check else []
+    minify_args = ["--minify"] if ctx.attrs.minify else []
     external_args = []
     for module in ctx.attrs.external:
         external_args.extend(["--external", module])
@@ -385,7 +386,7 @@ def _deno_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
             "bundle",
         ] + config_args +
         unstable_features +
-        check_args + external_args +
+        check_args + minify_args + external_args +
         [
             "--format",
             "esm",
@@ -440,6 +441,10 @@ _deno_bundle = rule(
         # Preserve runtime-owned ESM imports, e.g. celld's cloudflare: modules.
         "external": attrs.list(attrs.string(), default = []),
         "check": attrs.bool(default = True),
+        # Strip comments and whitespace from the output. A runtime that fetches
+        # the bundle over the network (celld loads a script from its bucket on
+        # every node start) benefits from the smaller file.
+        "minify": attrs.bool(default = False),
         "platform": attrs.enum(["browser", "deno"], default = "deno"),
         "unstable_features": attrs.list(attrs.string(), default = []),
         # Deno lint rules to switch off, for sources written to another runtime's conventions
@@ -454,6 +459,7 @@ def deno_bundle(**kwargs):
     ESM file. Type checking is enabled by default. ``external`` preserves the
     listed module specifiers for the destination runtime instead of bundling
     them; callers must provide any ambient declarations needed to type-check.
+    ``minify`` strips comments and whitespace from the output.
     """
     name = kwargs.get("name")
     tests = kwargs.pop("tests", [])
