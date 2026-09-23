@@ -110,6 +110,7 @@ untar(
         "COPYING.RUNTIME",
         "COPYING3",
         "COPYING3.LIB",
+        "libcody/LICENSE",
     ],
     flags = ["-xf"],
     input = ":gcc.tar",

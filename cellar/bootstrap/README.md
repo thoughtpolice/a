@@ -3,7 +3,7 @@
 
 # Full-Source Bootstrap project
 
-The [native stage1 bootstrap](stage1/README.md) now delivers static GCC 10.5.0
+The [native stage1 bootstrap](stage1/README.md) now delivers static GCC 13.5.0
 C/C++, binutils 2.41, musl 1.2.5 and bootstrap userland through
 `cellar//bootstrap/stage1:all`. Its source regeneration, fixed-point comparisons,
 installation and validation are declared entirely in cellar.
@@ -53,8 +53,8 @@ provide separate checks of the bootstrap; none removes that trust boundary.
 ## The full picture
 
 The implemented compiler chain is stage0 → Mes/MesCC → TCC → GCC 4.0.4 →
-GCC 4.7.4 → GCC 10.5.0 C/C++, with native binutils, musl, and a useful static
-userland.
+GCC 4.7.4 → GCC 10.5.0 → GCC 13.5.0 C/C++, with native binutils, musl, and a
+useful static userland.
 BUILD files describe package composition and source generators directly;
 package-wide configure, Make, or kaem scripts do not drive the graph.
 

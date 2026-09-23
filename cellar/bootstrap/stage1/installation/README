@@ -1,6 +1,6 @@
 Native Linux x86_64 bootstrap installation
 
-The toolchain selection contains GCC/G++ 10.5.0, binutils 2.41, musl 1.2.5 and static C/C++ runtimes.
+The toolchain selection contains GCC/G++ 13.5.0, binutils 2.41, musl 1.2.5 and static C/C++ runtimes.
 The userland selection contains Bash 5.2.15, Make 4.2.1, coreutils 6.10, findutils 4.2.33, diffutils 2.7,
 sed 4.0.9, grep 2.4, gawk 3.0.4, tar 1.12, gzip 1.2.4, bzip2 1.0.8,
 patch 2.5.9, m4 1.4.7, Flex 2.6.4 and Bison 3.4.1.
@@ -13,13 +13,14 @@ and generator data relative to the installation using Linux /proc/self/exe.
 No absolute workspace path is compiled into them.
 
     gcc hello.c -o hello
-    g++ -std=gnu++17 -pthread hello.cc -o hello
+    g++ -std=gnu++20 -pthread hello.cc -o hello
     make -j4
 
 Compilation and linking are static by default. The selected target is native
 x86_64 only; shared executables, multilib and other GCC languages are omitted.
-The C++ language/library support is that of GCC 10.5.0, whose default is
-C++14; C++17 and std::filesystem are available. Explicit -nostdinc and
+The C++ language/library support is that of GCC 13.5.0, whose default is
+C++17; C++20 facilities such as std::format, ranges and the time zone
+database, with the time zone data built into libstdc++, are available. Explicit -nostdinc and
 -nostdinc++ suppress the corresponding installed default include directories.
 
 The compiler ignores inherited host compiler/include/library search variables;

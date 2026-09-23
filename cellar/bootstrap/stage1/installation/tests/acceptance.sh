@@ -7,7 +7,7 @@ root=$(cd -- "$2" && pwd -P)
 export PATH="$root/bin" TMPDIR="$PWD" TZ=UTC0 LC_ALL=C.UTF-8
 case $case in
 versions)
- [[ $(gcc -dumpversion) == 10.5.0 ]]
+ [[ $(gcc -dumpversion) == 13.5.0 ]]
  [[ $(g++ -dumpmachine) == x86_64-cellar-linux-musl ]]
  [[ $(bash --version) == *'version 5.2.15'* ]]
  [[ $(make --version) == *'GNU Make 4.2.1'* ]]
@@ -64,6 +64,22 @@ int main(void) { __gcov_reset(); __gcov_dump(); return 0; }
 SOURCE
  gcc -O2 -Werror gcov-interface.c -lgcov -o gcov-interface
  ./gcov-interface
+ cat > cxx20.cc <<'SOURCE'
+#include <algorithm>
+#include <chrono>
+#include <format>
+#include <iostream>
+#include <ranges>
+#include <vector>
+int main() {
+  std::vector<int> values{3, 1, 2};
+  std::ranges::sort(values);
+  auto offset = std::chrono::locate_zone("Europe/London")->get_info(std::chrono::sys_days{std::chrono::year{2024} / 7 / 1}).offset;
+  std::cout << std::format("{} {} {}", values.front(), values.back(), offset.count()) << '\n';
+}
+SOURCE
+ g++ -std=gnu++20 -O2 -Werror cxx20.cc -o cxx20
+ [[ $(./cxx20) == '1 3 3600' ]]
  ;;
 generators)
  bison --no-lines -d -o parser.cc source/cpp.y
@@ -160,7 +176,7 @@ relocation)
  if "$moved/bin/gcc" source/native.c helper.o -pthread -o missing > missing.out 2> missing.err; then exit 1; fi
  "$moved/bin/grep" 'cannot find -lc' missing.err
  "$moved/bin/cp" "$root/lib/libc.a" "$moved/lib/libc.a"
- "$moved/bin/rm" "$moved/libexec/gcc/x86_64-cellar-linux-musl/10.5.0/cc1"
+ "$moved/bin/rm" "$moved/libexec/gcc/x86_64-cellar-linux-musl/13.5.0/cc1"
  if "$moved/bin/gcc" -c source/native.c -o missing.o > missing.out 2> missing.err; then exit 1; fi
  "$moved/bin/grep" 'declared compiler tool not found: cc1' missing.err
  "$moved/bin/rm" "$moved/libexec/bootstrap/m4"

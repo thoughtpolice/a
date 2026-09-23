@@ -7,11 +7,11 @@ load("@cellar//bootstrap:source.bzl", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object")
 load("@cellar//bootstrap/stage1/musl12:sources.bzl", "PUBLIC_HEADERS")
 
-GCC = "cellar//bootstrap/stage1/gcc10"
+GCC = "cellar//bootstrap/stage1/gcc13"
 
 MUSL = "cellar//bootstrap/stage1/musl12"
 
-CXX = "cellar//bootstrap/stage1/libstdcxx10"
+CXX = "cellar//bootstrap/stage1/libstdcxx13"
 
 PREFIX = "cellar//bootstrap/stage1/"
 
@@ -185,12 +185,12 @@ PROFILES = {name: (
     False,
     False,
 ) for name in BINUTILS} | {
-    "gcc": ("libexec/gcc/x86_64-cellar-linux-musl/10.5.0/gcc", [], True, False),
-    "cc": ("libexec/gcc/x86_64-cellar-linux-musl/10.5.0/gcc", [], True, False),
-    "g++": ("libexec/gcc/x86_64-cellar-linux-musl/10.5.0/g++", [], True, True),
-    "c++": ("libexec/gcc/x86_64-cellar-linux-musl/10.5.0/g++", [], True, True),
-    "cpp": ("libexec/gcc/x86_64-cellar-linux-musl/10.5.0/cpp", [], True, False),
-    "gcov": ("libexec/gcc/x86_64-cellar-linux-musl/10.5.0/gcov", [], False, False),
+    "gcc": ("libexec/gcc/x86_64-cellar-linux-musl/13.5.0/gcc", [], True, False),
+    "cc": ("libexec/gcc/x86_64-cellar-linux-musl/13.5.0/gcc", [], True, False),
+    "g++": ("libexec/gcc/x86_64-cellar-linux-musl/13.5.0/g++", [], True, True),
+    "c++": ("libexec/gcc/x86_64-cellar-linux-musl/13.5.0/g++", [], True, True),
+    "cpp": ("libexec/gcc/x86_64-cellar-linux-musl/13.5.0/cpp", [], True, False),
+    "gcov": ("libexec/gcc/x86_64-cellar-linux-musl/13.5.0/gcov", [], False, False),
     "yacc": (
         "libexec/bootstrap/bison",
         ["-y"],
@@ -254,7 +254,7 @@ PROGRAM_ENVIRONMENT = {
 }
 
 COMPILER_ARGUMENTS = [
-    "-B{root}/libexec/gcc/x86_64-cellar-linux-musl/10.5.0/",
+    "-B{root}/libexec/gcc/x86_64-cellar-linux-musl/13.5.0/",
     "-B{root}/lib/",
     "-L{root}/lib",
     "-nostdinc",
@@ -268,7 +268,7 @@ COMPILER_ARGUMENTS = [
 
 C_INCLUDES = [
     "-isystem",
-    "{root}/lib/gcc/x86_64-cellar-linux-musl/10.5.0/include",
+    "{root}/lib/gcc/x86_64-cellar-linux-musl/13.5.0/include",
     "-isystem",
     "{root}/include",
 ]
@@ -276,7 +276,7 @@ C_INCLUDES = [
 CXX_INCLUDES = [
     "-nostdinc++",
     "-isystem",
-    "{root}/include/c++/10.5.0",
+    "{root}/include/c++/13.5.0",
 ]
 
 COMPILER_UNSET = [
@@ -393,11 +393,12 @@ MUSL_HEADERS = {p.removeprefix(prefix): True for prefix in [
 }
 
 TOOLCHAIN_FILES = {"include/" + p: MUSL + ":headers[" + p + "]" for p in MUSL_HEADERS} | {
-    "include/c++/10.5.0": CXX + ":headers",
-    "lib/gcc/x86_64-cellar-linux-musl/10.5.0/include": GCC + ":compiler-headers",
+    "include/c++/13.5.0": CXX + ":headers",
+    "lib/gcc/x86_64-cellar-linux-musl/13.5.0/include": GCC + ":compiler-headers",
     "lib/libstdc++.a": CXX + ":stage3-libstdc++.a",
     "lib/libsupc++.a": CXX + ":stage3-libsupc++.a",
     "lib/libstdc++fs.a": CXX + ":stage3-libstdc++fs.a",
+    "lib/libstdc++exp.a": CXX + ":stage3-libstdc++exp.a",
     "lib/libgcc.a": GCC + ":stage3-libgcc.a",
     "lib/libgcov.a": GCC + ":stage3-libgcov.a",
     "share/licenses/libstdc++": CXX + ":stage3-installation[share/licenses/libstdc++]",
@@ -406,6 +407,7 @@ TOOLCHAIN_FILES = {"include/" + p: MUSL + ":headers[" + p + "]" for p in MUSL_HE
     "share/licenses/mpfr": PREFIX + "mpfr:installation[share/licenses/mpfr]",
     "share/licenses/mpc": PREFIX + "mpc:installation[share/licenses/mpc]",
     "share/licenses/libbacktrace/LICENSE": GCC + ":libbacktrace-notice",
+    "share/licenses/libcody/LICENSE": GCC + ":gcc-13.5.0[libcody/LICENSE]",
     "share/ldscripts": PREFIX + "binutils241:installation[share/ldscripts]",
 } | {"lib/lib" + name + ".a": MUSL + ":lib" + name + ".a" for name in LIBRARIES} | {
     "lib/" + name: MUSL + ":" + name
@@ -415,7 +417,7 @@ TOOLCHAIN_FILES = {"include/" + p: MUSL + ":headers[" + p + "]" for p in MUSL_HE
         "crtn.o",
     ]
 } | {"lib/" + name: GCC + ":stage3-" + name for name in GCC_OBJECTS} | {
-    "libexec/gcc/x86_64-cellar-linux-musl/10.5.0/" + name: GCC + ":stage3-" + target
+    "libexec/gcc/x86_64-cellar-linux-musl/13.5.0/" + name: GCC + ":stage3-" + target
     for name, target in {
         "gcc": "xgcc",
         "g++": "g++",
@@ -424,7 +426,7 @@ TOOLCHAIN_FILES = {"include/" + p: MUSL + ":headers[" + p + "]" for p in MUSL_HE
         "cc1": "cc1",
         "cc1plus": "cc1plus",
     }.items()
-} | {"libexec/gcc/x86_64-cellar-linux-musl/10.5.0/" + name: PREFIX + "binutils241:" + name for name in [
+} | {"libexec/gcc/x86_64-cellar-linux-musl/13.5.0/" + name: PREFIX + "binutils241:" + name for name in [
     "as",
     "ld",
 ]} | {
@@ -493,8 +495,8 @@ COMMON_FILES = {
     "share/licenses/bootstrap/LICENSE": "installation/LICENSE",
     "share/licenses/bootstrap/NOTICE": "installation/NOTICE",
     "share/licenses/musl/COPYRIGHT": MUSL + ":source[COPYRIGHT]",
-    "share/licenses/gcc/COPYING3": GCC + ":gcc-10.5.0[COPYING3]",
-    "share/licenses/gcc/COPYING.RUNTIME": GCC + ":gcc-10.5.0[COPYING.RUNTIME]",
+    "share/licenses/gcc/COPYING3": GCC + ":gcc-13.5.0[COPYING3]",
+    "share/licenses/gcc/COPYING.RUNTIME": GCC + ":gcc-13.5.0[COPYING.RUNTIME]",
 }
 
 INSTALLATIONS = {

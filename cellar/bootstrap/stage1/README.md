@@ -3,11 +3,13 @@
 
 # Source-regenerated native bootstrap
 
-The native Linux/x86_64 endpoint is implemented: static GCC 10.5.0 C/C++, binutils
+The native Linux/x86_64 endpoint is implemented: static GCC 13.5.0 C/C++, binutils
 2.41, musl 1.2.5 and the complete selected userland. GCC 4.7.4 builds
 [GCC 10.5.0](gcc10/README.md) and its [C++ library](libstdcxx10/README.md),
 which bootstrap through three stages whose stage2 and stage3 objects match.
-GCC 10.5 then builds [binutils 2.41](binutils241/README.md). Package builds, generators,
+GCC 10.5 then builds [binutils 2.41](binutils241/README.md), and with it
+[GCC 13.5.0](gcc13/README.md) and its [C++ library](libstdcxx13/README.md),
+which also bootstrap through three matching stages. Package builds, generators,
 configurations and installation mappings are declared in cellar BUILD files.
 
 The examples below run from `cellar/`, the standalone project, whose
@@ -28,13 +30,14 @@ cd cellar
 ../buck/bin/buck2 run @cellar//bootstrap/platforms/sandbox \
   cellar//bootstrap/stage1:gcc -- hello.c -o hello
 ../buck/bin/buck2 run @cellar//bootstrap/platforms/sandbox \
-  cellar//bootstrap/stage1:g++ -- -std=gnu++17 -pthread hello.cc -o hello
+  cellar//bootstrap/stage1:g++ -- -std=gnu++20 -pthread hello.cc -o hello
 ../buck/bin/buck2 test @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1: --local-only -j 8
 ```
 
 `:toolchain` installs the native compiler, standard binutils, public C/C++ and
 unwind headers, CRT objects, libgcc, libgcov, libstdc++, libsupc++, the
-Filesystem TS library libstdc++fs and musl.
+Filesystem TS library libstdc++fs, the experimental library libstdc++exp and
+musl.
 `:userland` installs Bash 5.2.15, Make 4.2.1, coreutils 6.10, findutils 4.2.33,
 diffutils 2.7, sed 4.0.9, grep 2.4, gawk 3.0.4, tar 1.12, gzip 1.2.4,
 bzip2 1.0.8, patch 2.5.9, m4 1.4.7, Flex 2.6.4 and Bison 3.4.1.
@@ -65,7 +68,7 @@ validation passed at `ac91c095`; the complete results are recorded in
 
 The GCC fixed-point contract is the upstream-style stage2/stage3 comparison of
 every object and archive a GCC stage builds, excluding only the two compiler
-checksum objects; the [GCC 10.5.0 port](gcc10/README.md) lists the installed
+checksum objects; the [GCC 13.5.0 port](gcc13/README.md) lists the installed
 compiler's inventory. It is not a claim of executable identity between compiler
 generations.
 The [GNU SHA256 gate](sha256/README.md) separately builds the actual coreutils
@@ -567,7 +570,7 @@ object comparisons, all four runtime archives and only the two upstream
 checksum exclusions. This gate is incremental on the previously audited
 foundation outputs; it does not claim a wholly uncached seed-to-userland build.
 
-For the full final test gate, combine the stage1 package with gcc10, libstdcxx10,
+For the full final test gate, combine the stage1 package with gcc13, libstdcxx13,
 bash, make, coreutils-final, findutils, diffutils, sed-final, grep, gawk-final,
 tar-final, gzip, bzip2, patch, m4-final, flex-final, bison-final, binutils241,
 tools-final, tcc and musl12 package targets, plus the stage0 Linux/AMD64 golden
