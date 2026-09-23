@@ -3611,3 +3611,48 @@ filegroup(
     srcs = {},
     tests = [":compare-" + name for name in COMPARED],
 )
+
+# The compilers link libbacktrace, whose BSD notice is in its source headers.
+generate(
+    name = "libbacktrace-notice",
+    args = [
+        "-n",
+        "-e",
+        "2,31{s|  \\*/$||;p;}",
+        "$(location :gcc-10.5.0[libbacktrace/backtrace.h])",
+    ],
+    capture = CAPTURE,
+    output = "LICENSE",
+    tool = SED,
+)
+
+# The notice runs from the copyright line to the end of the disclaimer.
+generate(
+    name = "libbacktrace-notice-extent.txt",
+    args = [
+        "-n",
+        "-e",
+        "1p",
+        "-e",
+        "$p",
+        "-e",
+        "$=",
+        "$(location :libbacktrace-notice)",
+    ],
+    capture = CAPTURE,
+    tool = SED,
+)
+
+write_file(
+    name = "libbacktrace-notice-expected.txt",
+    content = "   Copyright (C) 2012-2020 Free Software Foundation, Inc.\nPOSSIBILITY OF SUCH DAMAGE.\n30\n",
+)
+
+command_test(
+    name = "libbacktrace-license",
+    args = [
+        "$(location :libbacktrace-notice-extent.txt)",
+        "$(location :libbacktrace-notice-expected.txt)",
+    ],
+    tool = CMP,
+)

@@ -106,7 +106,7 @@ Stage2 and stage3 compare byte for byte: 712 host objects (support libraries,
 generators, compilers, drivers and zlib), the 238 libgcc and 27 libgcov
 objects, the six startup objects and ten archives, together with the 189
 libstdc++ objects and three archives. Only `cc1-checksum.o` and
-`cc1plus-checksum.o` are excluded. The combined gate passes 1342 tests.
+`cc1plus-checksum.o` are excluded. The combined gate passes 1343 tests.
 `audit-gcc-comparison.py` checks the comparison inventory, run as in the
 [GCC 4.7 port](../gcc47/README.md) over this package and `libstdcxx10`.
 

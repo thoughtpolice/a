@@ -7,7 +7,7 @@ root=$(cd -- "$2" && pwd -P)
 export PATH="$root/bin" TMPDIR="$PWD" TZ=UTC0 LC_ALL=C.UTF-8
 case $case in
 versions)
- [[ $(gcc -dumpversion) == 4.7.4 ]]
+ [[ $(gcc -dumpversion) == 10.5.0 ]]
  [[ $(g++ -dumpmachine) == x86_64-cellar-linux-musl ]]
  [[ $(bash --version) == *'version 5.2.15'* ]]
  [[ $(make --version) == *'GNU Make 4.2.1'* ]]
@@ -45,6 +45,25 @@ compilation)
  [[ $(./stripped) == 'native C 4294967325' ]]
  cpp -P source/helper.c > preprocessed.c
  grep 'long add_many' preprocessed.c
+ cat > modern.cc <<'SOURCE'
+#include <filesystem>
+#include <iostream>
+#include <optional>
+#include <string_view>
+int main() {
+  std::optional<std::string_view> name = "modern";
+  std::filesystem::create_directories("modern-tree/nested");
+  std::cout << *name << ' ' << std::filesystem::is_directory("modern-tree/nested") << '\n';
+}
+SOURCE
+ g++ -std=gnu++17 -O2 -Werror modern.cc -o modern
+ [[ $(./modern) == 'modern 1' ]]
+ cat > gcov-interface.c <<'SOURCE'
+#include <gcov.h>
+int main(void) { __gcov_reset(); __gcov_dump(); return 0; }
+SOURCE
+ gcc -O2 -Werror gcov-interface.c -lgcov -o gcov-interface
+ ./gcov-interface
  ;;
 generators)
  bison --no-lines -d -o parser.cc source/cpp.y
@@ -141,7 +160,7 @@ relocation)
  if "$moved/bin/gcc" source/native.c helper.o -pthread -o missing > missing.out 2> missing.err; then exit 1; fi
  "$moved/bin/grep" 'cannot find -lc' missing.err
  "$moved/bin/cp" "$root/lib/libc.a" "$moved/lib/libc.a"
- "$moved/bin/rm" "$moved/libexec/gcc/x86_64-cellar-linux-musl/4.7.4/cc1"
+ "$moved/bin/rm" "$moved/libexec/gcc/x86_64-cellar-linux-musl/10.5.0/cc1"
  if "$moved/bin/gcc" -c source/native.c -o missing.o > missing.out 2> missing.err; then exit 1; fi
  "$moved/bin/grep" 'declared compiler tool not found: cc1' missing.err
  "$moved/bin/rm" "$moved/libexec/bootstrap/m4"
