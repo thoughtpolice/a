@@ -1,0 +1,195 @@
+# SPDX-FileCopyrightText: 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
+load("@cellar//bootstrap:source.bzl", "write_file")
+load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object")
+
+GCC = "cellar//bootstrap/stage1/gcc47"
+
+MUSL = "cellar//bootstrap/stage1/musl12"
+
+CC = GCC + ":stage3-gcc"
+
+CRT = [
+    MUSL + ":crt1.o",
+    MUSL + ":crti.o",
+    GCC + ":stage3-crtbeginT.o",
+]
+
+CRTN = [
+    GCC + ":stage3-crtend.o",
+    MUSL + ":crtn.o",
+]
+
+LIBC = [
+    MUSL + ":libc.a",
+    GCC + ":stage3-libgcc.a",
+    MUSL + ":libc.a",
+]
+
+[
+    [
+        c_object(
+            name = name + ".o",
+            src = source,
+            flags = [
+                "-O2",
+                "-std=gnu99",
+                "-Wall",
+                "-Werror",
+            ],
+            toolchain = CC,
+        ),
+        c_binary(
+            name = name,
+            libraries = LIBC,
+            objects = CRT + [":" + name + ".o"] + CRTN,
+            output = name,
+            toolchain = CC,
+        ),
+    ]
+    for name, source in [
+        ("untar", "untar.c"),
+        ("archive-writer", "tests/archive.c"),
+    ]
+]
+
+generate(
+    name = "archive.tar",
+    capture = "cellar//bootstrap/stage1/tools:capture",
+    tool = ":archive-writer",
+)
+
+LONG_NAME = "a-directory-name-that-is-long-enough/to-need-a-pax-path-record-because/the-ustar-name-field-only-holds-one-hundred-bytes.txt"
+
+generate(
+    name = "extracted",
+    args = [
+        "-xf",
+        "$(location :archive.tar)",
+    ],
+    chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
+    directory = True,
+    files = [
+        LONG_NAME,
+        "top/link",
+        "top/prefix/run.sh",
+    ],
+    tool = ":untar",
+)
+
+write_file(
+    name = "long-contents",
+    content = "long path\n",
+)
+
+write_file(
+    name = "script-contents",
+    content = "exit\n",
+)
+
+[
+    command_test(
+        name = name,
+        args = [
+            "$(location :extracted[" + member + "])",
+            "$(location :" + expected + ")",
+        ],
+        tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
+    )
+    for name, member, expected in [
+        ("pax-path", LONG_NAME, "long-contents"),
+        ("ustar-prefix", "top/prefix/run.sh", "script-contents"),
+        ("symbolic-link", "top/link", "script-contents"),
+    ]
+]
+
+[
+    generate(
+        name = name + ".tar",
+        args = [name],
+        capture = "cellar//bootstrap/stage1/tools:capture",
+        tool = ":archive-writer",
+    )
+    for name in [
+        "symbolic-parent",
+        "pax-length",
+        "gnu-header",
+    ]
+]
+
+# untar extracts each archive's marker, then must exit 1 at a file beneath a
+# symbolic link or at a pax record too short to hold its own length.
+[
+    [
+        generate(
+            name = name + "-rejected",
+            args = [
+                "1",
+                "$(exe :untar)",
+                "-xf",
+                "$(location :" + name + ".tar)",
+            ],
+            chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
+            directory = True,
+            files = ["marker"],
+            tool = "cellar//bootstrap/stage1/tools:expect-exit",
+        ),
+        command_test(
+            name = "reject-" + name,
+            args = [
+                "$(location :" + name + "-rejected[marker])",
+                "$(location :script-contents)",
+            ],
+            tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
+        ),
+    ]
+    for name in [
+        "symbolic-parent",
+        "pax-length",
+    ]
+]
+
+# Old GNU headers keep access and change times where ustar has a prefix.
+generate(
+    name = "gnu-extracted",
+    args = [
+        "-xf",
+        "$(location :gnu-header.tar)",
+    ],
+    chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
+    directory = True,
+    files = ["gnu-file"],
+    tool = ":untar",
+)
+
+write_file(
+    name = "gnu-contents",
+    content = "gnu\n",
+)
+
+command_test(
+    name = "gnu-header",
+    args = [
+        "$(location :gnu-extracted[gnu-file])",
+        "$(location :gnu-contents)",
+    ],
+    tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
+)
+
+write_file(
+    name = "empty.tar",
+    content = "",
+)
+
+command_test(
+    name = "reject-truncated-archive",
+    args = [
+        "1",
+        "$(exe :untar)",
+        "-xf",
+        "$(location :empty.tar)",
+    ],
+    tool = "cellar//bootstrap/stage1/tools:expect-exit",
+)
