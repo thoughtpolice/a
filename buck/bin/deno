@@ -1,0 +1,67 @@
+#!/usr/bin/env dotslash
+
+{
+  "name": "deno",
+  "platforms": {
+    "macos-aarch64": {
+      "size": 38469316,
+      "hash": "sha256",
+      "digest": "5cd46d6268f6f78f5d88bdc7159d20bd44cdaa4b3303474839f87ec6fe7ae25c",
+      "format": "zip",
+      "path": "deno",
+      "providers": [
+        {
+          "url": "https://github.com/denoland/deno/releases/download/v2.9.7/deno-aarch64-apple-darwin.zip"
+        }
+      ]
+    },
+    "macos-x86_64": {
+      "size": 42295422,
+      "hash": "sha256",
+      "digest": "95daaff11c116a52ad54785e7914c8e9c9cdcaba793c5ed929c74ca2d8e6259a",
+      "format": "zip",
+      "path": "deno",
+      "providers": [
+        {
+          "url": "https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-apple-darwin.zip"
+        }
+      ]
+    },
+    "linux-aarch64": {
+      "size": 39821318,
+      "hash": "sha256",
+      "digest": "c832298b1ad4422481334855f6003e0f54145762c5a134f20a489511d2f65bbf",
+      "format": "zip",
+      "path": "deno",
+      "providers": [
+        {
+          "url": "https://github.com/denoland/deno/releases/download/v2.9.7/deno-aarch64-unknown-linux-gnu.zip"
+        }
+      ]
+    },
+    "linux-x86_64": {
+      "size": 41596794,
+      "hash": "sha256",
+      "digest": "c6527f24f4b16031d3ae4fa9f658d5f11534c8d84ce7dc8502420280919c3490",
+      "format": "zip",
+      "path": "deno",
+      "providers": [
+        {
+          "url": "https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-unknown-linux-gnu.zip"
+        }
+      ]
+    },
+    "windows-x86_64": {
+      "size": 42630221,
+      "hash": "sha256",
+      "digest": "a0c3101b4158d1dfb7d6a78a7bf0f3de80c96bb423c152beec8beb22786f2238",
+      "format": "zip",
+      "path": "deno.exe",
+      "providers": [
+        {
+          "url": "https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-pc-windows-msvc.zip"
+        }
+      ]
+    }
+  }
+}
