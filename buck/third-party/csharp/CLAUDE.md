@@ -1,5 +1,5 @@
 - This folder holds the NuGet packages first-party C# code may reference; buck/tools/nugetify generates it, like reindeer generates ../rust.
-- If you need a new NuGet package, add it to nuget.toml with its exact version and nuget.org spelling BEFORE you can use it, then regenerate:
+- If you need a new NuGet package, add it to nuget.toml with its exact version and nuget.org spelling BEFORE you can use it, then regenerate (a package only on another feed, like the Roslyn prerelease from dotnet-tools, needs that feed under `[sources]`):
 - `buck2 run root//buck/tools/nugetify -- buckify`
 - Never edit BUILD or nuget.lock by hand; `buck2 test third-party//csharp:buckify-check` fails when they disagree with nuget.toml.
 - Use packages as `third-party//csharp:<Package.Id>`; a package's other assemblies come along with it.

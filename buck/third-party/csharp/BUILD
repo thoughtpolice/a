@@ -9,15 +9,16 @@ load("@root//buck/shims:third_party_csharp.bzl", "nuget")
 # Every package is consumed as net11.0 sees it. Microsoft.NETCore.App.Ref 11.0.0-rc.1.26425.128
 # decides which packages the framework already provides.
 
-# Microsoft.CodeAnalysis.Analyzers 5.9.0-1.26328.17 ships no assemblies for net11.0.
+# Microsoft.CodeAnalysis.Analyzers 5.10.0-1.26365.3 ships no assemblies for net11.0.
 
 nuget.package(
     name = "Microsoft.CodeAnalysis.Common",
     assemblies = ["Microsoft.CodeAnalysis"],
     assets = "lib/net10.0",
-    sha256 = "77efd4715c24c8cd6b36f9b92980a2f5a86e4a7b53648d4f1ca3b79a3933a429",
+    sha256 = "953fa1bb754bc81fc3a46194c7e21eaf52976c99ee962180130f23842598fa06",
+    source = "https://pkgs.dev.azure.com/dnceng/9ee6d478-d288-47f7-aacc-f6e6d082ae6d/_packaging/d1622942-d16f-48e5-bc83-96f4539e7601/nuget/v3/flat2/",
     symbols = ["Microsoft.CodeAnalysis"],
-    version = "5.9.0",
+    version = "5.11.0-1.26425.128",
     visibility = ["PUBLIC"],
 )
 
@@ -25,9 +26,10 @@ nuget.package(
     name = "Microsoft.CodeAnalysis.CSharp",
     assemblies = ["Microsoft.CodeAnalysis.CSharp"],
     assets = "lib/net10.0",
-    sha256 = "7602c3dbaa122268f3b26c6cc0dd02eb9224dea9442ed27af5c3fe56d643993f",
+    sha256 = "b1fa8a53b4aa1d93633cdd7454479b9c82018d6c4e63f8a7d729269f5ffcc8a1",
+    source = "https://pkgs.dev.azure.com/dnceng/9ee6d478-d288-47f7-aacc-f6e6d082ae6d/_packaging/d1622942-d16f-48e5-bc83-96f4539e7601/nuget/v3/flat2/",
     symbols = ["Microsoft.CodeAnalysis.CSharp"],
-    version = "5.9.0",
+    version = "5.11.0-1.26425.128",
     visibility = ["PUBLIC"],
     deps = [":Microsoft.CodeAnalysis.Common"],
 )

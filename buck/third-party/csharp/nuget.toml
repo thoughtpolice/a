@@ -15,6 +15,12 @@ version = "11.0.0-rc.1.26425.128"
 # Package id, spelled as nuget.org spells it (that spelling is the target
 # name), pinned to one version. Transitive dependencies are resolved.
 [packages]
-# Roslyn compiler
-"Microsoft.CodeAnalysis.Common" = "5.9.0"
-"Microsoft.CodeAnalysis.CSharp" = "5.9.0"
+# Roslyn compiler: the build in the .NET 11 RC1 SDK (C# 15), from the
+# dotnet-tools feed, as nuget.org has no release of it.
+"Microsoft.CodeAnalysis.Common" = "5.11.0-1.26425.128"
+"Microsoft.CodeAnalysis.CSharp" = "5.11.0-1.26425.128"
+
+# Feeds besides nuget.org, tried in order after it (NuGet V3 flat-container
+# base URLs); the lock records which one each package came from.
+[sources]
+dotnet-tools = "https://pkgs.dev.azure.com/dnceng/9ee6d478-d288-47f7-aacc-f6e6d082ae6d/_packaging/d1622942-d16f-48e5-bc83-96f4539e7601/nuget/v3/flat2/"
