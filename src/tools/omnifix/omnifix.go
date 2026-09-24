@@ -38,6 +38,7 @@ func newDefaultFixer(stderr io.Writer) *fixer {
 		newGoFormatter(nil),
 		newNixFormatter(nil),
 		newBuildifierFormatter(nil),
+		newDenoFormatter(nil),
 	)
 }
 

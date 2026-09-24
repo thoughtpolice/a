@@ -6,6 +6,7 @@ load("@root//buck/shims:shims.bzl", "shims")
 SRCS = [
     "buildifier.go",
     "command.go",
+    "deno.go",
     "gofmt.go",
     "main.go",
     "nixfmt.go",
@@ -28,6 +29,7 @@ shims.go_test(
     name = "unit",
     srcs = SRCS + [
         "buildifier_test.go",
+        "deno_test.go",
         "gofmt_test.go",
         "main_test.go",
         "nixfmt_test.go",

@@ -14,4 +14,5 @@ you.
 
 OmniFix currently trims trailing whitespace, ensures a final newline, formats
 Rust source with `rustfmt`, formats Go source with `gofmt`, formats Nix source
-with `nixfmt`, and formats Buck and Starlark source with `buildifier`.
+with `nixfmt`, formats Buck and Starlark source with `buildifier`, and formats
+TypeScript and JavaScript with `deno fmt` (the pinned `buck/bin/deno`).
