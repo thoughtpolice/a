@@ -28,8 +28,11 @@ Deno.test("MCP tool definitions", () => {
 
   // Test conversion to MCP format
   const mcpTools = convertToMcpTools(TOOLS);
-  const sourceFetchTool = mcpTools.find(t => t.name === "source_fetch");
-  assertEquals(sourceFetchTool?.description, "Fetch source code from a repository and return the local path. Supports 'github:owner/repo' format.");
+  const sourceFetchTool = mcpTools.find((t) => t.name === "source_fetch");
+  assertEquals(
+    sourceFetchTool?.description,
+    "Fetch source code from a repository and return the local path. Supports 'github:owner/repo' format.",
+  );
 });
 
 // Test MCP resource definitions and conversion

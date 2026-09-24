@@ -18,7 +18,10 @@ async function runDiff(left: string, right: string): Promise<string> {
   // diff algorithm instead? maybe see if any libraries are available, or just
   // reimplement it outright?
 
-  const cmd = new Deno.Command("diff", { args: ["-Nur", left, right], clearEnv: true });
+  const cmd = new Deno.Command("diff", {
+    args: ["-Nur", left, right],
+    clearEnv: true,
+  });
   const { code, stdout, stderr } = await cmd.output();
   if (code === 2) {
     console.error("Failure running 'diff -Nur'!");
@@ -34,7 +37,7 @@ async function runDiff(left: string, right: string): Promise<string> {
  */
 async function runClaude(input: string): Promise<string> {
   const PROMPT =
-`You are being invoked to quickly summarize a patch that someone has written
+    `You are being invoked to quickly summarize a patch that someone has written
 for a software project. The input content the user will be a patch, in unified
 diff format. You must summarize what it does IN NO MORE THAN FIVE SENTENCES!
 You can use less than that, but make it EXTREMELY BRIEF AND TO THE POINT! Don't
@@ -47,11 +50,12 @@ CLAUDE)!!!`;
 
   const child = new Deno.Command("claude", {
     args: [
-      "-p",                             // print, no TUI
-      "--model=sonnet",                 // haiku isn't good enough :/
-      "--max-turns=1",                  // one-shot only
-      "--disallowedTools=\"*\"",        // disable tools
-      "--append-system-prompt", PROMPT, // custom prompt
+      "-p", // print, no TUI
+      "--model=sonnet", // haiku isn't good enough :/
+      "--max-turns=1", // one-shot only
+      '--disallowedTools="*"', // disable tools
+      "--append-system-prompt",
+      PROMPT, // custom prompt
     ],
     stdin: "piped",
     stdout: "piped",
@@ -79,7 +83,14 @@ CLAUDE)!!!`;
  */
 async function formatOutput(input: string): Promise<string> {
   const child = new Deno.Command("rich", {
-    args: ["-", "--force-terminal", "--markdown", "--emoji", "--panel", "heavy"],
+    args: [
+      "-",
+      "--force-terminal",
+      "--markdown",
+      "--emoji",
+      "--panel",
+      "heavy",
+    ],
     stdin: "piped",
     stdout: "piped",
     stderr: "piped",
@@ -87,7 +98,9 @@ async function formatOutput(input: string): Promise<string> {
   })
     .spawn();
   const writer = child.stdin.getWriter();
-  await writer.write(new TextEncoder().encode(":paperclip: **Claude Summary**: "));
+  await writer.write(
+    new TextEncoder().encode(":paperclip: **Claude Summary**: "),
+  );
   await writer.write(new TextEncoder().encode(input));
   await writer.close();
   await child.status;

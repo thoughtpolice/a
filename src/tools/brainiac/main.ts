@@ -28,7 +28,9 @@ function parseArgs(): { convertResourcesToTools: boolean } {
     console.error("Usage: brainiac [options]");
     console.error("");
     console.error("Options:");
-    console.error("  --convert-resources-to-tools  Convert resources to tools (default: false)");
+    console.error(
+      "  --convert-resources-to-tools  Convert resources to tools (default: false)",
+    );
     console.error("  --help, -h                    Show this help message");
     Deno.exit(0);
   }
@@ -55,7 +57,9 @@ async function main() {
 
   server.setRequestHandler(
     ListToolsRequestSchema,
-    () => ({ tools: convertToMcpTools(getTools(config.convertResourcesToTools)) }),
+    () => ({
+      tools: convertToMcpTools(getTools(config.convertResourcesToTools)),
+    }),
   );
 
   // Handle tool calls

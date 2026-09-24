@@ -6,7 +6,11 @@ import { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 
 import { ToolDefinition } from "./tools/types.ts";
 import { sourceFetchTool } from "./tools/source_fetch.ts";
-import { buck2BuildTool, buck2TestTool, targetDeterminationTool } from "./tools/buck2.ts";
+import {
+  buck2BuildTool,
+  buck2TestTool,
+  targetDeterminationTool,
+} from "./tools/buck2.ts";
 import { RESOURCE_TOOLS } from "./resource_tools.ts";
 
 // Registry of manual tools
@@ -20,7 +24,9 @@ const MANUAL_TOOLS: ToolDefinition<any>[] = [
 
 // Get tools based on configuration
 // deno-lint-ignore no-explicit-any
-export function getTools(convertResourcesToTools: boolean): ToolDefinition<any>[] {
+export function getTools(
+  convertResourcesToTools: boolean,
+): ToolDefinition<any>[] {
   if (convertResourcesToTools) {
     return [...MANUAL_TOOLS, ...RESOURCE_TOOLS];
   }
@@ -29,7 +35,10 @@ export function getTools(convertResourcesToTools: boolean): ToolDefinition<any>[
 
 // Legacy export for backward compatibility (uses all tools including resource tools)
 // deno-lint-ignore no-explicit-any
-export const TOOLS: ToolDefinition<any>[] = [...MANUAL_TOOLS, ...RESOURCE_TOOLS];
+export const TOOLS: ToolDefinition<any>[] = [
+  ...MANUAL_TOOLS,
+  ...RESOURCE_TOOLS,
+];
 
 // Convert tool definitions to MCP Tool format
 // deno-lint-ignore no-explicit-any

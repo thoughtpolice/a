@@ -3,7 +3,10 @@
 
 import { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 import { DynamicResourceDefinition } from "./types.ts";
-import { validateBuckTarget, executeBuck2Command as executeBuck2CommandUtil } from "../buck2_utils.ts";
+import {
+  executeBuck2Command as executeBuck2CommandUtil,
+  validateBuckTarget,
+} from "../buck2_utils.ts";
 
 interface Buck2TargetParams {
   target: string;

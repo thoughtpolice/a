@@ -56,7 +56,8 @@ Deno.test("Dynamic schema conversion", () => {
   assertEquals(buck2TestTool?.inputSchema.type, "object");
   assertEquals(buck2TestTool?.inputSchema.required, ["targets"]);
   assertEquals(
-    (buck2TestTool?.inputSchema.properties?.targets as Record<string, unknown>)?.type,
+    (buck2TestTool?.inputSchema.properties?.targets as Record<string, unknown>)
+      ?.type,
     "array",
   );
 
