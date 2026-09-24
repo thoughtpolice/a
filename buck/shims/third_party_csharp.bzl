@@ -15,10 +15,12 @@ def _package(
         assets: str,
         assemblies: list[str],
         symbols: list[str] = [],
+        source: str | None = None,
         deps: list[str] = [],
         visibility: list[str] = []):
-    """One NuGet package: the pinned .nupkg from nuget.org and a library of
-    the assemblies under `assets` inside it, named after the package.
+    """One NuGet package: the pinned .nupkg from nuget.org (or the feed at
+    `source`, a V3 flat-container base URL) and a library of the assemblies
+    under `assets` inside it, named after the package.
 
     The assembly named like the package is the library's own; the others
     ride along as extra assemblies, so a dependent compiles against every
@@ -29,6 +31,7 @@ def _package(
         package = name,
         version = version,
         sha256 = sha256,
+        source = source,
         sub_targets = ["{}/{}.dll".format(assets, assembly) for assembly in assemblies] +
                       ["{}/{}.pdb".format(assets, symbol) for symbol in symbols],
     )

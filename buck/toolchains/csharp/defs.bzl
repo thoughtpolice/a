@@ -267,21 +267,65 @@ def download_dotnet_sdk(version: str, hashes: dict[str, str]):
         actual = _exec_select(hashes.keys(), lambda rid: ":sdk-{}-{}".format(version, rid)),
     )
 
-def nuget_url(package: str, version: str) -> str:
-    """The flat-container URL nuget.org serves a package's .nupkg from."""
+def nuget_url(package: str, version: str, source: str | None = None) -> str:
+    """The flat-container URL nuget.org (or the feed whose V3 flat-container
+    base URL is `source`) serves a package's .nupkg from."""
     lower_package = package.lower()
     lower_version = version.lower()
-    return "https://api.nuget.org/v3-flatcontainer/{p}/{v}/{p}.{v}.nupkg".format(p = lower_package, v = lower_version)
+    base = source or "https://api.nuget.org/v3-flatcontainer/"
+    return "{b}{p}/{v}/{p}.{v}.nupkg".format(b = base, p = lower_package, v = lower_version)
 
-def nuget_archive(name: str, package: str, version: str, sha256: str, sub_targets: list[str] = [], visibility: list[str] = []):
-    """Download one pinned NuGet package (a zip file) from nuget.org. The
-    files named in `sub_targets` are addressable as `:name[path]`."""
+def _feed_archive_impl(ctx: AnalysisContext) -> list[Provider]:
+    # buck2's downloads start with a HEAD request, which Azure DevOps feeds
+    # refuse, so nugetify downloads the package (GET), checks its SHA-256
+    # and unpacks it, locally, where the network is.
+    contents = ctx.actions.declare_output("contents", dir = True)
+    ctx.actions.run(
+        cmd_args(
+            ctx.attrs._nugetify[RunInfo],
+            "fetch",
+            "-sha256",
+            ctx.attrs.sha256,
+            ctx.attrs.url,
+            contents.as_output(),
+        ),
+        category = "nuget_fetch",
+        local_only = True,
+    )
+    return [DefaultInfo(
+        default_output = contents,
+        sub_targets = {path: [DefaultInfo(default_output = contents.project(path))] for path in ctx.attrs.sub_targets},
+    )]
+
+_feed_archive = rule(
+    impl = _feed_archive_impl,
+    attrs = {
+        "sha256": attrs.string(),
+        "sub_targets": attrs.list(attrs.string(), default = []),
+        "url": attrs.string(),
+        "_nugetify": attrs.exec_dep(default = "root//buck/tools/nugetify:nugetify"),
+    },
+)
+
+def nuget_archive(name: str, package: str, version: str, sha256: str, sub_targets: list[str] = [], visibility: list[str] = [], source: str | None = None):
+    """Download one pinned NuGet package (a zip file) from nuget.org, or the
+    feed at `source`. The files named in `sub_targets` are addressable as
+    `:name[path]`."""
+    if source:
+        _feed_archive(
+            name = name,
+            sha256 = sha256,
+            sub_targets = sub_targets,
+            url = nuget_url(package, version, source),
+            visibility = visibility,
+        )
+        return
     native.http_archive(
         name = name,
         sha256 = sha256,
         sub_targets = sub_targets,
         type = "zip",
-        urls = [nuget_url(package, version)],
+        urls = [nuget_url(package, version, source)],
         visibility = visibility,
     )
 
