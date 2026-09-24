@@ -8,20 +8,22 @@
   "packages": [
     {
       "id": "Microsoft.CodeAnalysis.Analyzers",
-      "version": "5.9.0-1.26328.17",
+      "version": "5.10.0-1.26365.3",
       "direct": false,
-      "sha256": "a7ef4c9b2cf403bf54e4b52eb8fb89e946a286894f148ecbe7515d81c7b0f612",
-      "sha512": "i6S7Z6J2u5NSiyrjyeCyFB6QiJykwMMbtf8wupHIsVkybOW48Rc7XZO7jDXl8FhyKcW0PkD9k4CCXW6Q2WUW8w==",
+      "sha256": "0861306dde5750af16f57cfbfdddbc2faba6b06d188f61e820eaf34cabd7fcc7",
+      "sha512": "aW0+vO2PGD9PcacmcJsVnjvESq/MHp4NzQ2MKSUy4HcdSPvn8JQ9x47NYGrv6m61ajawMaozWqWxkzmCP1+IsA==",
+      "source": "https://pkgs.dev.azure.com/dnceng/9ee6d478-d288-47f7-aacc-f6e6d082ae6d/_packaging/d1622942-d16f-48e5-bc83-96f4539e7601/nuget/v3/flat2/",
       "assemblies": [],
       "symbols": [],
       "dependencies": []
     },
     {
       "id": "Microsoft.CodeAnalysis.Common",
-      "version": "5.9.0",
+      "version": "5.11.0-1.26425.128",
       "direct": true,
-      "sha256": "77efd4715c24c8cd6b36f9b92980a2f5a86e4a7b53648d4f1ca3b79a3933a429",
-      "sha512": "zJKrcLzk55lrfCwd/VNpMitaxQqPuip674vavVni5EfVnrsiqupS7xBqltKi37VF9zPd4gZ6LcgUuoBwQp6fRw==",
+      "sha256": "953fa1bb754bc81fc3a46194c7e21eaf52976c99ee962180130f23842598fa06",
+      "sha512": "iqDE0/gEjQactwLKTrp5xmIO7KZ0sBzYGf2OvhjvJJdKE95vbRSkgooUAmcJKAT5PnPykoo/VNk/U5CnyHMS0g==",
+      "source": "https://pkgs.dev.azure.com/dnceng/9ee6d478-d288-47f7-aacc-f6e6d082ae6d/_packaging/d1622942-d16f-48e5-bc83-96f4539e7601/nuget/v3/flat2/",
       "assets": "lib/net10.0",
       "assemblies": [
         "Microsoft.CodeAnalysis"
@@ -35,10 +37,11 @@
     },
     {
       "id": "Microsoft.CodeAnalysis.CSharp",
-      "version": "5.9.0",
+      "version": "5.11.0-1.26425.128",
       "direct": true,
-      "sha256": "7602c3dbaa122268f3b26c6cc0dd02eb9224dea9442ed27af5c3fe56d643993f",
-      "sha512": "pjIhVe62OXX1os6tkUW0lJ3eTmveLnq0YojCJoztOjEpE3ho6UFAm8gaHpM/tTLPutoWh6OQyDg52zAUalN2IQ==",
+      "sha256": "b1fa8a53b4aa1d93633cdd7454479b9c82018d6c4e63f8a7d729269f5ffcc8a1",
+      "sha512": "r+NkKcps00BPxNBYb9nHkozVnhQwCHqhlA7+6FfPgs8hTGXszQxDbj7qah7hVt8zNc9P4MZiTrVMQwoTyvpOvQ==",
+      "source": "https://pkgs.dev.azure.com/dnceng/9ee6d478-d288-47f7-aacc-f6e6d082ae6d/_packaging/d1622942-d16f-48e5-bc83-96f4539e7601/nuget/v3/flat2/",
       "assets": "lib/net10.0",
       "assemblies": [
         "Microsoft.CodeAnalysis.CSharp"
