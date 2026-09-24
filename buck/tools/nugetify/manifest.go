@@ -13,11 +13,14 @@ import (
 	"strings"
 )
 
-// manifest is nuget.toml: the targeting pack that fixes the framework, and
-// the packages first-party code may reference, each pinned to one version.
+// manifest is nuget.toml: the targeting pack that fixes the framework, the
+// packages first-party code may reference, each pinned to one version, and
+// the feeds besides nuget.org a package may come from, tried in order after
+// it.
 type manifest struct {
 	Framework packageRef
 	Packages  []packageRef
+	Sources   []string
 }
 
 type packageRef struct {
@@ -39,8 +42,9 @@ func loadManifest(path string) (*manifest, error) {
 }
 
 // parseManifest reads the subset of TOML the manifest uses: the [framework]
-// table with `package` and `version` keys, and the [packages] table mapping
-// a (usually quoted) package id to a version string. Parsing it here keeps
+// table with `package` and `version` keys, the [packages] table mapping a
+// (usually quoted) package id to a version string, and the [sources] table
+// naming NuGet V3 flat-container base URLs. Parsing it here keeps
 // the tool free of a TOML module the repository would otherwise have to
 // carry for two tables of strings.
 func parseManifest(r io.Reader) (*manifest, error) {
@@ -58,8 +62,8 @@ func parseManifest(r io.Reader) (*manifest, error) {
 				return nil, fmt.Errorf("line %d: malformed table header %q", line, text)
 			}
 			table = strings.TrimSpace(text[1 : len(text)-1])
-			if table != "framework" && table != "packages" {
-				return nil, fmt.Errorf("line %d: unsupported table %q; nuget.toml has [framework] and [packages]", line, table)
+			if table != "framework" && table != "packages" && table != "sources" {
+				return nil, fmt.Errorf("line %d: unsupported table %q; nuget.toml has [framework], [packages] and [sources]", line, table)
 			}
 			continue
 		}
@@ -91,6 +95,14 @@ func parseManifest(r io.Reader) (*manifest, error) {
 			}
 			seen[strings.ToLower(key)] = struct{}{}
 			result.Packages = append(result.Packages, packageRef{ID: key, Version: value})
+		case "sources":
+			if !strings.HasPrefix(value, "https://") {
+				return nil, fmt.Errorf("line %d: source %q is not an https URL", line, key)
+			}
+			if !strings.HasSuffix(value, "/") {
+				value += "/"
+			}
+			result.Sources = append(result.Sources, value)
 		default:
 			return nil, fmt.Errorf("line %d: key %q outside a table", line, key)
 		}
@@ -116,6 +128,15 @@ func parseManifest(r io.Reader) (*manifest, error) {
 		return strings.ToLower(result.Packages[i].ID) < strings.ToLower(result.Packages[j].ID)
 	})
 	return result, nil
+}
+
+func (m *manifest) hasSource(source string) bool {
+	for _, candidate := range m.Sources {
+		if candidate == source {
+			return true
+		}
+	}
+	return false
 }
 
 // validateID accepts NuGet package ids, which are also used verbatim as

@@ -37,6 +37,7 @@ func main() {
 func usage(stderr io.Writer, flags *flag.FlagSet) {
 	fmt.Fprintln(stderr, "Usage: nugetify [flags] buckify")
 	fmt.Fprintln(stderr, "       nugetify [flags] check [-manifest FILE] [-lock FILE] [-build FILE]")
+	fmt.Fprintln(stderr, "       nugetify fetch -sha256 HASH URL DIRECTORY")
 	fmt.Fprintln(stderr, "buckify resolves nuget.toml into nuget.lock and regenerates BUILD;")
 	fmt.Fprintln(stderr, "check exits 1 when the manifest, the lock and BUILD disagree.")
 	flags.PrintDefaults()
@@ -113,6 +114,22 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		}
 		fmt.Fprintln(stdout, "nuget.toml, nuget.lock and BUILD agree.")
 		return 0
+	case "fetch":
+		fetchFlags := flag.NewFlagSet("nugetify fetch", flag.ContinueOnError)
+		fetchFlags.SetOutput(stderr)
+		sum := fetchFlags.String("sha256", "", "the package's SHA-256, in hex")
+		if err := fetchFlags.Parse(rest[1:]); err != nil {
+			return 2
+		}
+		if *sum == "" || fetchFlags.NArg() != 2 {
+			fmt.Fprintln(stderr, "ERROR: fetch takes -sha256, a URL and a directory")
+			return 2
+		}
+		if err := fetchPackage(ctx, fetchFlags.Arg(0), *sum, fetchFlags.Arg(1)); err != nil {
+			fmt.Fprintf(stderr, "ERROR: %v\n", err)
+			return 1
+		}
+		return 0
 	}
 	fmt.Fprintf(stderr, "ERROR: unknown command %q\n", rest[0])
 	usage(stderr, flags)
@@ -157,6 +174,9 @@ func buckify(ctx context.Context, dir string, source packageSource, relock bool,
 	m, err := loadManifest(filepath.Join(dir, manifestName))
 	if err != nil {
 		return err
+	}
+	if feeds, ok := source.(*flatContainer); ok {
+		feeds.extra = m.Sources
 	}
 	lockPath := filepath.Join(dir, lockName)
 	var lock *lockFile

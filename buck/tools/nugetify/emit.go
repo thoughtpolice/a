@@ -44,6 +44,9 @@ func emitBuild(lock *lockFile) string {
 		writeList(&out, "assemblies", pkg.Assemblies)
 		fmt.Fprintf(&out, "    assets = %q,\n", pkg.Assets)
 		fmt.Fprintf(&out, "    sha256 = %q,\n", pkg.SHA256)
+		if pkg.Source != "" {
+			fmt.Fprintf(&out, "    source = %q,\n", pkg.Source)
+		}
 		if len(pkg.Symbols) > 0 {
 			writeList(&out, "symbols", pkg.Symbols)
 		}

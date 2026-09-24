@@ -19,6 +19,7 @@ type resolver struct {
 	target    framework
 	overrides map[string]version
 	fetched   map[string]*nupkg // lower id@version
+	origins   map[string]string // lower id@version: the feed, "" for nuget.org
 }
 
 // choice is the version currently selected for one package id.
@@ -30,7 +31,7 @@ type choice struct {
 }
 
 func resolve(ctx context.Context, source packageSource, m *manifest) (*lockFile, error) {
-	r := &resolver{source: source, fetched: make(map[string]*nupkg)}
+	r := &resolver{source: source, fetched: make(map[string]*nupkg), origins: make(map[string]string)}
 	if err := r.loadFramework(ctx, m.Framework); err != nil {
 		return nil, err
 	}
@@ -118,6 +119,7 @@ func resolve(ctx context.Context, source packageSource, m *manifest) (*lockFile,
 			Direct:       current.direct,
 			SHA256:       pkg.SHA256,
 			SHA512:       pkg.SHA512,
+			Source:       r.origins[strings.ToLower(pkg.ID+"@"+pkg.Version)],
 			Assets:       folder,
 			Assemblies:   assemblies,
 			Symbols:      symbols,
@@ -170,10 +172,11 @@ func (r *resolver) fetch(ctx context.Context, id, version string) (*nupkg, error
 	if pkg, ok := r.fetched[key]; ok {
 		return pkg, nil
 	}
-	data, err := r.source.fetch(ctx, id, version)
+	data, origin, err := r.source.fetch(ctx, id, version)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", id, version, err)
 	}
+	r.origins[key] = origin
 	pkg, err := readNupkg(data)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", id, version, err)

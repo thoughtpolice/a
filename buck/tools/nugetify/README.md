@@ -9,13 +9,18 @@ buck2 run root//buck/tools/nugetify -- buckify
 ```
 
 - `buck/third-party/csharp/nuget.toml` names the targeting pack and the
-  packages first-party code may reference, each pinned to one version.
+  packages first-party code may reference, each pinned to one version, and
+  under `[sources]` the feeds besides nuget.org (NuGet V3 flat-container
+  base URLs) a package may come from, tried in order after nuget.org.
 - `buck/third-party/csharp/nuget.lock` is the resolved graph: every package
   with its hashes, the `lib/` folder the framework consumes, the assemblies
   and symbols in it, and its dependencies. `buck/tests/osv.io` scans it.
 - `buck/third-party/csharp/BUILD` is rendered from the lock alone as
   `nuget.package(...)` calls; `buck/shims/third_party_csharp.bzl` turns each
-  into the archive download and the prebuilt library.
+  into the archive download and the prebuilt library. A package from another
+  feed carries its `source`; since buck2's downloads start with a HEAD
+  request, which Azure DevOps feeds refuse, `nugetify fetch` downloads it
+  with GET, checks its SHA-256 and unpacks it, in a local action.
 
 Resolution follows NuGet's restore: a dependency is taken at the lowest
 version its range allows, a package two dependents disagree on gets the

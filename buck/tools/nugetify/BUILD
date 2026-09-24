@@ -5,6 +5,7 @@ load("@root//buck/shims:shims.bzl", "shims")
 
 SRCS = [
     "emit.go",
+    "extract.go",
     "framework.go",
     "lock.go",
     "main.go",
@@ -33,6 +34,7 @@ shims.go_test(
         "manifest_test.go",
         "nupkg_test.go",
         "resolve_test.go",
+        "source_test.go",
         "version_test.go",
     ],
     cgo_enabled = False,

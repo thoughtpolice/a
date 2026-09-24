@@ -14,17 +14,18 @@ import (
 // fakeSource serves packages from memory and records what was asked for.
 type fakeSource struct {
 	packages map[string][]byte
+	origins  map[string]string
 	fetched  []string
 }
 
-func (f *fakeSource) fetch(_ context.Context, id, version string) ([]byte, error) {
+func (f *fakeSource) fetch(_ context.Context, id, version string) ([]byte, string, error) {
 	key := strings.ToLower(id + "@" + version)
 	f.fetched = append(f.fetched, key)
 	data, ok := f.packages[key]
 	if !ok {
-		return nil, fmt.Errorf("no such package")
+		return nil, "", fmt.Errorf("no such package")
 	}
-	return data, nil
+	return data, f.origins[key], nil
 }
 
 func (f *fakeSource) add(t *testing.T, id, version string, deps []testDependency, files ...string) {

@@ -38,6 +38,9 @@ type lockPackage struct {
 	// The nupkg's SHA-512 in base64, the contentHash NuGet's own lock files
 	// record, for comparison with them.
 	SHA512 string `json:"sha512"`
+	// The feed the package comes from when it is not nuget.org: a NuGet V3
+	// flat-container base URL the manifest lists under [sources].
+	Source string `json:"source,omitempty"`
 	// The folder inside the package whose assemblies the framework consumes,
 	// such as lib/net10.0; empty when the package ships none (analyzers,
 	// meta-packages).
@@ -134,6 +137,11 @@ func (l *lockFile) direct() []packageRef {
 func (l *lockFile) matches(m *manifest) bool {
 	if l.Framework.Package != m.Framework.ID || l.Framework.Version != m.Framework.Version {
 		return false
+	}
+	for _, pkg := range l.Packages {
+		if pkg.Source != "" && !m.hasSource(pkg.Source) {
+			return false
+		}
 	}
 	direct := l.direct()
 	if len(direct) != len(m.Packages) {
