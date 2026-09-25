@@ -1,0 +1,338 @@
+{
+  "steps": [
+    {
+      "name": "the first call is refused, so the client discovers the issuer and gets a token with client credentials",
+      "request": {
+        "path": "/forecast?city=Oslo"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "city": "Oslo",
+            "celsius": 4,
+            "conditions": "sleet"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "authorization": {
+              "$absent": true
+            },
+            "mcp-method": "tools/call",
+            "mcp-protocol-version": "2026-07-28"
+          },
+          "json": {
+            "method": "tools/call",
+            "params": {
+              "name": "forecast",
+              "arguments": {
+                "$exact": {
+                  "city": "Oslo"
+                }
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/.well-known/oauth-protected-resource/mcp"
+        },
+        {
+          "method": "GET",
+          "path": "/.well-known/oauth-authorization-server/as"
+        },
+        {
+          "method": "POST",
+          "path": "/as/token",
+          "headers": {
+            "authorization": {
+              "$regex": "^Basic "
+            },
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "text": {
+            "$regex": "^grant_type=client_credentials&scope=weather%3Aread&resource=http%3A%2F%2F127\\.0\\.0\\.1%3A\\d+%2Fmcp$"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer [A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "mcp-method": "tools/call",
+            "mcp-protocol-version": "2026-07-28"
+          },
+          "json": {
+            "method": "tools/call",
+            "params": {
+              "name": "forecast",
+              "arguments": {
+                "$exact": {
+                  "city": "Oslo"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "the token is reused: the next call goes straight to the tool",
+      "request": {
+        "path": "/forecast?city=Lisbon"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "city": "Lisbon",
+            "celsius": 21,
+            "conditions": "sunny"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer [A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "mcp-method": "tools/call",
+            "mcp-protocol-version": "2026-07-28"
+          },
+          "json": {
+            "method": "tools/call",
+            "params": {
+              "name": "forecast",
+              "arguments": {
+                "$exact": {
+                  "city": "Lisbon"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a tool error is the tool's message, as a 404",
+      "request": {
+        "path": "/forecast?city=Atlantis"
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "$exact": {
+            "error": "no forecast for Atlantis"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer [A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "mcp-method": "tools/call",
+            "mcp-protocol-version": "2026-07-28"
+          },
+          "json": {
+            "method": "tools/call",
+            "params": {
+              "name": "forecast",
+              "arguments": {
+                "$exact": {
+                  "city": "Atlantis"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a question from the tool is answered from the request, and the call retried with the server's state",
+      "request": {
+        "method": "POST",
+        "path": "/alerts",
+        "json": {
+          "city": "Oslo",
+          "email": "ops@example.com"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "message": "alerts for Oslo go to ops@example.com"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer [A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "mcp-method": "tools/call",
+            "mcp-protocol-version": "2026-07-28"
+          },
+          "json": {
+            "method": "tools/call",
+            "params": {
+              "name": "subscribe_alert",
+              "arguments": {
+                "city": "Oslo"
+              },
+              "inputResponses": {
+                "$absent": true
+              },
+              "requestState": {
+                "$absent": true
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer [A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "mcp-method": "tools/call",
+            "mcp-protocol-version": "2026-07-28"
+          },
+          "json": {
+            "method": "tools/call",
+            "params": {
+              "name": "subscribe_alert",
+              "arguments": {
+                "city": "Oslo"
+              },
+              "inputResponses": {
+                "$exact": {
+                  "contact": {
+                    "action": "accept",
+                    "content": {
+                      "email": "ops@example.com"
+                    }
+                  }
+                }
+              },
+              "requestState": {
+                "$regex": "^[A-Za-z0-9_.-]{40,}$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "without an email the Worker declines, and the tool says so",
+      "request": {
+        "method": "POST",
+        "path": "/alerts",
+        "json": {
+          "city": "Oslo"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "message": "no alerts for Oslo"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer [A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "mcp-method": "tools/call",
+            "mcp-protocol-version": "2026-07-28"
+          },
+          "json": {
+            "method": "tools/call",
+            "params": {
+              "name": "subscribe_alert",
+              "inputResponses": {
+                "$absent": true
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer [A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "mcp-method": "tools/call",
+            "mcp-protocol-version": "2026-07-28"
+          },
+          "json": {
+            "method": "tools/call",
+            "params": {
+              "name": "subscribe_alert",
+              "inputResponses": {
+                "$exact": {
+                  "contact": {
+                    "action": "decline"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "the upstream's tools",
+      "request": {
+        "path": "/tools"
+      },
+      "expect": {
+        "json": [
+          "forecast",
+          "subscribe_alert"
+        ]
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer [A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "mcp-method": "tools/list",
+            "mcp-protocol-version": "2026-07-28"
+          },
+          "json": {
+            "method": "tools/list",
+            "params": {
+              "cursor": {
+                "$absent": true
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

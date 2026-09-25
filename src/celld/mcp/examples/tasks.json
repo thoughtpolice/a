@@ -1,0 +1,725 @@
+{
+  "vars": {
+    "MCP_STATE_SECRET": "example-state-secret-0123456789abcdef",
+    "LISTEN_LIFETIME_MS": "1000"
+  },
+  "steps": [
+    {
+      "name": "server/discover advertises the tasks extension",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "server/discover"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "server/discover",
+          "params": {
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "result": {
+            "capabilities": {
+              "extensions": {
+                "$exact": {
+                  "io.modelcontextprotocol/tasks": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a task-only tool needs the extension: -32021 without it",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "build"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "method": "tools/call",
+          "params": {
+            "name": "build",
+            "arguments": {
+              "target": "app"
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "elicitation": {
+                  "form": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "id": 2,
+          "error": {
+            "code": -32021
+          }
+        }
+      }
+    },
+    {
+      "name": "the call answers at once with a task handle, stored before the answer",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "build"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "method": "tools/call",
+          "params": {
+            "name": "build",
+            "arguments": {
+              "target": "app"
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "extensions": {
+                  "io.modelcontextprotocol/tasks": {}
+                },
+                "elicitation": {
+                  "form": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 3,
+          "result": {
+            "resultType": "task",
+            "status": "working",
+            "pollIntervalMs": 100,
+            "ttlMs": 3600000,
+            "taskId": {
+              "$regex": "^[A-Za-z0-9_-]{24}$"
+            }
+          }
+        }
+      },
+      "save": {
+        "build": "json.result.taskId"
+      }
+    },
+    {
+      "name": "tasks/get polls until the body asks its question",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tasks/get",
+          "mcp-name": "{build}"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 4,
+          "method": "tasks/get",
+          "params": {
+            "taskId": "{build}",
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "extensions": {
+                  "io.modelcontextprotocol/tasks": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "until": {
+        "seconds": 20,
+        "interval": 0.1
+      },
+      "expect": {
+        "json": {
+          "id": 4,
+          "result": {
+            "resultType": "complete",
+            "taskId": "{build}",
+            "status": "input_required",
+            "statusMessage": "preparing app",
+            "inputRequests": {
+              "confirm": {
+                "method": "elicitation/create",
+                "params": {
+                  "mode": "form",
+                  "message": "Build app?"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "an answer that does not fit the form is refused",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tasks/update",
+          "mcp-name": "{build}"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 5,
+          "method": "tasks/update",
+          "params": {
+            "taskId": "{build}",
+            "inputResponses": {
+              "confirm": {
+                "action": "accept",
+                "content": {
+                  "ok": "yes"
+                }
+              }
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "extensions": {
+                  "io.modelcontextprotocol/tasks": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 5,
+          "error": {
+            "code": -32602
+          }
+        }
+      }
+    },
+    {
+      "name": "tasks/update delivers the answer",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tasks/update",
+          "mcp-name": "{build}"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 6,
+          "method": "tasks/update",
+          "params": {
+            "taskId": "{build}",
+            "inputResponses": {
+              "confirm": {
+                "action": "accept",
+                "content": {
+                  "ok": true
+                }
+              }
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "extensions": {
+                  "io.modelcontextprotocol/tasks": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 6,
+          "result": {
+            "resultType": "complete"
+          }
+        }
+      }
+    },
+    {
+      "name": "the body runs again with the answer, and tasks/get returns the tool's result",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tasks/get",
+          "mcp-name": "{build}"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 7,
+          "method": "tasks/get",
+          "params": {
+            "taskId": "{build}",
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "extensions": {
+                  "io.modelcontextprotocol/tasks": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "until": {
+        "seconds": 20,
+        "interval": 0.1
+      },
+      "expect": {
+        "json": {
+          "id": 7,
+          "result": {
+            "taskId": "{build}",
+            "status": "completed",
+            "result": {
+              "structuredContent": {
+                "artifact": "app.tar",
+                "runs": 2
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"artifact\":\"app.tar\",\"runs\":2}"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a listen stream sends the watched task's current state first, then closes gracefully",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "subscriptions/listen"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": "watch-build",
+          "method": "subscriptions/listen",
+          "params": {
+            "notifications": {
+              "taskIds": [
+                "{build}",
+                "not-a-task"
+              ]
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "extensions": {
+                  "io.modelcontextprotocol/tasks": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "headers": {
+          "content-type": {
+            "$regex": "^text/event-stream"
+          }
+        },
+        "sse": [
+          {
+            "event": "message",
+            "data": {
+              "method": "notifications/subscriptions/acknowledged",
+              "params": {
+                "notifications": {
+                  "$exact": {
+                    "taskIds": [
+                      "{build}"
+                    ]
+                  }
+                },
+                "_meta": {
+                  "io.modelcontextprotocol/subscriptionId": "watch-build"
+                }
+              }
+            }
+          },
+          {
+            "event": "message",
+            "data": {
+              "method": "notifications/tasks",
+              "params": {
+                "taskId": "{build}",
+                "status": "completed",
+                "_meta": {
+                  "io.modelcontextprotocol/subscriptionId": "watch-build"
+                }
+              }
+            }
+          },
+          {
+            "event": "message",
+            "data": {
+              "id": "watch-build",
+              "result": {
+                "_meta": {
+                  "io.modelcontextprotocol/subscriptionId": "watch-build"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "task notifications also need the extension",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "subscriptions/listen"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 9,
+          "method": "subscriptions/listen",
+          "params": {
+            "notifications": {
+              "taskIds": [
+                "{build}"
+              ]
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "id": 9,
+          "error": {
+            "code": -32021
+          }
+        }
+      }
+    },
+    {
+      "name": "a second task works until cancelled",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "soak"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 10,
+          "method": "tools/call",
+          "params": {
+            "name": "soak",
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "extensions": {
+                  "io.modelcontextprotocol/tasks": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 10,
+          "result": {
+            "resultType": "task",
+            "status": "working",
+            "ttlMs": 600000
+          }
+        }
+      },
+      "save": {
+        "soak": "json.result.taskId"
+      }
+    },
+    {
+      "name": "its rounds show as the status message",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tasks/get",
+          "mcp-name": "{soak}"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 11,
+          "method": "tasks/get",
+          "params": {
+            "taskId": "{soak}",
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "extensions": {
+                  "io.modelcontextprotocol/tasks": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "until": {
+        "seconds": 20,
+        "interval": 0.1
+      },
+      "expect": {
+        "json": {
+          "result": {
+            "status": "working",
+            "statusMessage": {
+              "$regex": "^round ([3-9]|\\d\\d+)$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "while it runs, a listen stream carries its status changes",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "subscriptions/listen"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": "watch-soak",
+          "method": "subscriptions/listen",
+          "params": {
+            "notifications": {
+              "taskIds": [
+                "{soak}"
+              ]
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "extensions": {
+                  "io.modelcontextprotocol/tasks": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "sse": {
+          "$contains": {
+            "data": {
+              "method": "notifications/tasks",
+              "params": {
+                "taskId": "{soak}",
+                "status": "working",
+                "statusMessage": {
+                  "$regex": "^round "
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "tasks/cancel asks the body to stop",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tasks/cancel",
+          "mcp-name": "{soak}"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 13,
+          "method": "tasks/cancel",
+          "params": {
+            "taskId": "{soak}",
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "extensions": {
+                  "io.modelcontextprotocol/tasks": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 13,
+          "result": {
+            "resultType": "complete"
+          }
+        }
+      }
+    },
+    {
+      "name": "the task ends cancelled",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tasks/get",
+          "mcp-name": "{soak}"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 14,
+          "method": "tasks/get",
+          "params": {
+            "taskId": "{soak}",
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "extensions": {
+                  "io.modelcontextprotocol/tasks": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "until": {
+        "seconds": 20,
+        "interval": 0.1
+      },
+      "expect": {
+        "json": {
+          "result": {
+            "status": "cancelled",
+            "statusMessage": "The client cancelled the task",
+            "result": {
+              "$absent": true
+            }
+          }
+        }
+      }
+    }
+  ]
+}

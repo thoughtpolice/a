@@ -1,0 +1,517 @@
+{
+  "vars": {
+    "MCP_STATE_SECRET": "example-state-secret-0123456789abcdef"
+  },
+  "steps": [
+    {
+      "name": "a staging deploy completes in one round",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "deploy"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "tools/call",
+          "params": {
+            "name": "deploy",
+            "arguments": {
+              "service": "api",
+              "environment": "staging"
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 1,
+          "result": {
+            "resultType": "complete",
+            "content": [
+              {
+                "type": "text",
+                "text": "deployed api to staging"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a client without form elicitation is refused with -32021 before the handler runs",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "deploy"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "method": "tools/call",
+          "params": {
+            "name": "deploy",
+            "arguments": {
+              "service": "api",
+              "environment": "production"
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "id": 2,
+          "error": {
+            "code": -32021,
+            "data": {
+              "requiredCapabilities": {
+                "elicitation": {
+                  "form": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a production deploy answers input_required with the form and a sealed requestState",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "deploy"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "method": "tools/call",
+          "params": {
+            "name": "deploy",
+            "arguments": {
+              "service": "api",
+              "environment": "production"
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "elicitation": {
+                  "form": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 3,
+          "result": {
+            "resultType": "input_required",
+            "inputRequests": {
+              "$exact": {
+                "confirm": {
+                  "method": "elicitation/create",
+                  "params": {
+                    "mode": "form",
+                    "message": "Deploy api to production?",
+                    "requestedSchema": {
+                      "type": "object",
+                      "properties": {
+                        "reason": {
+                          "type": "string",
+                          "description": "Why, for the audit log"
+                        }
+                      },
+                      "required": [
+                        "reason"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "requestState": {
+              "$regex": "^[A-Za-z0-9_.-]{40,}$"
+            },
+            "content": {
+              "$absent": true
+            }
+          }
+        }
+      },
+      "save": {
+        "state": "json.result.requestState"
+      }
+    },
+    {
+      "name": "the retry carries the answer and the exact state, under a new id, and completes",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "deploy"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 4,
+          "method": "tools/call",
+          "params": {
+            "name": "deploy",
+            "arguments": {
+              "service": "api",
+              "environment": "production"
+            },
+            "inputResponses": {
+              "confirm": {
+                "action": "accept",
+                "content": {
+                  "reason": "fixes the login outage"
+                }
+              }
+            },
+            "requestState": "{state}",
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "elicitation": {
+                  "form": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 4,
+          "result": {
+            "resultType": "complete",
+            "content": [
+              {
+                "type": "text",
+                "text": "deployed api to production: fixes the login outage"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a declined form reaches the handler as a decline",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "deploy"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 5,
+          "method": "tools/call",
+          "params": {
+            "name": "deploy",
+            "arguments": {
+              "service": "api",
+              "environment": "production"
+            },
+            "inputResponses": {
+              "confirm": {
+                "action": "decline"
+              }
+            },
+            "requestState": "{state}",
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "elicitation": {
+                  "form": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 5,
+          "result": {
+            "resultType": "complete",
+            "content": [
+              {
+                "type": "text",
+                "text": "api was not deployed"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "an answer that does not fit the requested schema is -32602",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "deploy"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 6,
+          "method": "tools/call",
+          "params": {
+            "name": "deploy",
+            "arguments": {
+              "service": "api",
+              "environment": "production"
+            },
+            "inputResponses": {
+              "confirm": {
+                "action": "accept",
+                "content": {}
+              }
+            },
+            "requestState": "{state}",
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "elicitation": {
+                  "form": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 6,
+          "error": {
+            "code": -32602
+          }
+        }
+      }
+    },
+    {
+      "name": "the state is bound to the arguments: reused for another service it is refused",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "deploy"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 7,
+          "method": "tools/call",
+          "params": {
+            "name": "deploy",
+            "arguments": {
+              "service": "billing",
+              "environment": "production"
+            },
+            "inputResponses": {
+              "confirm": {
+                "action": "accept",
+                "content": {
+                  "reason": "fixes the login outage"
+                }
+              }
+            },
+            "requestState": "{state}",
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "elicitation": {
+                  "form": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 7,
+          "error": {
+            "code": -32602,
+            "message": "Invalid requestState"
+          }
+        }
+      }
+    },
+    {
+      "name": "a state the client changed does not decrypt",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "deploy"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 8,
+          "method": "tools/call",
+          "params": {
+            "name": "deploy",
+            "arguments": {
+              "service": "api",
+              "environment": "production"
+            },
+            "inputResponses": {
+              "confirm": {
+                "action": "accept",
+                "content": {
+                  "reason": "fixes the login outage"
+                }
+              }
+            },
+            "requestState": "{state}AA",
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "elicitation": {
+                  "form": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 8,
+          "error": {
+            "code": -32602,
+            "message": "Invalid requestState"
+          }
+        }
+      }
+    },
+    {
+      "name": "answers without a requestState are ignored, so the server asks again",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "deploy"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 9,
+          "method": "tools/call",
+          "params": {
+            "name": "deploy",
+            "arguments": {
+              "service": "api",
+              "environment": "production"
+            },
+            "inputResponses": {
+              "confirm": {
+                "action": "accept",
+                "content": {
+                  "reason": "fixes the login outage"
+                }
+              }
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {
+                "elicitation": {
+                  "form": {}
+                }
+              },
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 9,
+          "result": {
+            "resultType": "input_required",
+            "inputRequests": {
+              "confirm": {
+                "method": "elicitation/create"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

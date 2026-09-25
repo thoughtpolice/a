@@ -1,0 +1,731 @@
+{
+  "steps": [
+    {
+      "name": "server/discover answers the versions, capabilities and instructions, with no session",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "server/discover"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": "discover",
+          "method": "server/discover",
+          "params": {
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "headers": {
+          "content-type": {
+            "$regex": "^application/json"
+          },
+          "mcp-session-id": {
+            "$absent": true
+          }
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": "discover",
+          "result": {
+            "resultType": "complete",
+            "supportedVersions": [
+              "2026-07-28"
+            ],
+            "capabilities": {
+              "tools": {
+                "$any": true
+              },
+              "resources": {
+                "$any": true
+              },
+              "prompts": {
+                "$any": true
+              }
+            },
+            "instructions": "Cooking helpers: unit conversion and recipes.",
+            "_meta": {
+              "io.modelcontextprotocol/serverInfo": {
+                "name": "kitchen",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "tools/list lists the tools sorted by name, with their JSON Schemas",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/list"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "method": "tools/list",
+          "params": {
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 2,
+          "result": {
+            "resultType": "complete",
+            "tools": [
+              {
+                "name": "convert",
+                "annotations": {
+                  "readOnlyHint": true
+                },
+                "inputSchema": {
+                  "type": "object",
+                  "required": [
+                    "amount",
+                    "from",
+                    "to"
+                  ],
+                  "properties": {
+                    "from": {
+                      "enum": [
+                        "ml",
+                        "tsp",
+                        "tbsp",
+                        "cup"
+                      ]
+                    }
+                  }
+                },
+                "outputSchema": {
+                  "type": "object"
+                }
+              },
+              {
+                "name": "scale_recipe",
+                "inputSchema": {
+                  "properties": {
+                    "servings": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "tools/call returns structured content and the same as text",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "convert"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "method": "tools/call",
+          "params": {
+            "name": "convert",
+            "arguments": {
+              "amount": 3,
+              "from": "tsp",
+              "to": "tbsp"
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 3,
+          "result": {
+            "resultType": "complete",
+            "structuredContent": {
+              "amount": 1,
+              "unit": "tbsp"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"amount\":1,\"unit\":\"tbsp\"}"
+              }
+            ],
+            "isError": {
+              "$absent": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "arguments that fail the input schema are a tool error the model can read, not a protocol error",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "convert"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 4,
+          "method": "tools/call",
+          "params": {
+            "name": "convert",
+            "arguments": {
+              "amount": -1,
+              "from": "pint",
+              "to": "ml"
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 4,
+          "result": {
+            "isError": true,
+            "content": [
+              {
+                "type": "text",
+                "text": {
+                  "$regex": "from"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a ToolError thrown by the handler is an isError result",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "scale_recipe"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 5,
+          "method": "tools/call",
+          "params": {
+            "name": "scale_recipe",
+            "arguments": {
+              "recipe": "waffles",
+              "servings": 2
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 5,
+          "result": {
+            "isError": true,
+            "content": [
+              {
+                "type": "text",
+                "text": "no recipe waffles"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "an unknown tool is JSON-RPC -32602",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "bake"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 6,
+          "method": "tools/call",
+          "params": {
+            "name": "bake",
+            "arguments": {},
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 6,
+          "error": {
+            "code": -32602
+          }
+        }
+      }
+    },
+    {
+      "name": "with a progressToken the call streams progress as server-sent events, then the result",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "scale_recipe"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 7,
+          "method": "tools/call",
+          "params": {
+            "name": "scale_recipe",
+            "arguments": {
+              "recipe": "pancakes",
+              "servings": 6
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              },
+              "progressToken": "scale-1"
+            }
+          }
+        }
+      },
+      "expect": {
+        "headers": {
+          "content-type": {
+            "$regex": "^text/event-stream"
+          },
+          "x-accel-buffering": "no"
+        },
+        "sse": [
+          {
+            "event": "message",
+            "data": {
+              "method": "notifications/progress",
+              "params": {
+                "progressToken": "scale-1",
+                "progress": 1,
+                "total": 3,
+                "message": "flour"
+              }
+            }
+          },
+          {
+            "event": "message",
+            "data": {
+              "method": "notifications/progress",
+              "params": {
+                "progressToken": "scale-1",
+                "progress": 2,
+                "total": 3,
+                "message": "milk"
+              }
+            }
+          },
+          {
+            "event": "message",
+            "data": {
+              "method": "notifications/progress",
+              "params": {
+                "progressToken": "scale-1",
+                "progress": 3,
+                "total": 3,
+                "message": "egg"
+              }
+            }
+          },
+          {
+            "event": "message",
+            "data": {
+              "jsonrpc": "2.0",
+              "id": 7,
+              "result": {
+                "resultType": "complete",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "300 g flour\n1.875 cup milk\n3 each egg"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "resources/read fills the URI template",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "resources/read",
+          "mcp-name": "recipes://pancakes"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 8,
+          "method": "resources/read",
+          "params": {
+            "uri": "recipes://pancakes",
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 8,
+          "result": {
+            "contents": [
+              {
+                "uri": "recipes://pancakes",
+                "mimeType": "application/json",
+                "text": {
+                  "$json": {
+                    "serves": 4,
+                    "ingredients": {
+                      "$len": 3
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a read that finds nothing is -32602 naming the URI",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "resources/read",
+          "mcp-name": "recipes://waffles"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 9,
+          "method": "resources/read",
+          "params": {
+            "uri": "recipes://waffles",
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 9,
+          "error": {
+            "code": -32602,
+            "data": {
+              "uri": "recipes://waffles"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "prompts/get fills in the arguments",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "prompts/get",
+          "mcp-name": "plan_meal"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 10,
+          "method": "prompts/get",
+          "params": {
+            "name": "plan_meal",
+            "arguments": {
+              "guests": "6"
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 10,
+          "result": {
+            "messages": [
+              {
+                "role": "user",
+                "content": {
+                  "type": "text",
+                  "text": "Plan a pancake brunch for 6 guests using the kitchen tools."
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a missing required prompt argument is -32602",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "prompts/get",
+          "mcp-name": "plan_meal"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 11,
+          "method": "prompts/get",
+          "params": {
+            "name": "plan_meal",
+            "arguments": {},
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 11,
+          "error": {
+            "code": -32602
+          }
+        }
+      }
+    },
+    {
+      "name": "headers that disagree with the body are 400 -32020",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "scale_recipe"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 12,
+          "method": "tools/call",
+          "params": {
+            "name": "convert",
+            "arguments": {
+              "amount": 1,
+              "from": "cup",
+              "to": "ml"
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "id": 12,
+          "error": {
+            "code": -32020,
+            "message": "Header mismatch: Mcp-Name header value 'scale_recipe' does not match body value 'convert'"
+          }
+        }
+      }
+    },
+    {
+      "name": "an unsupported protocol version is 400 -32022 listing the supported ones",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2025-06-18",
+          "mcp-method": "tools/list"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 13,
+          "method": "tools/list",
+          "params": {
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2025-06-18",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "id": 13,
+          "error": {
+            "code": -32022,
+            "data": {
+              "supported": [
+                "2026-07-28"
+              ],
+              "requested": "2025-06-18"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a notification is accepted with 202 and no body",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "notifications/cancelled"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "method": "notifications/cancelled",
+          "params": {
+            "requestId": 7
+          }
+        }
+      },
+      "expect": {
+        "status": 202,
+        "text": ""
+      }
+    },
+    {
+      "name": "the endpoint takes only POST: there is no GET stream to resume",
+      "request": {
+        "method": "GET",
+        "path": "/mcp",
+        "headers": {
+          "accept": "text/event-stream"
+        }
+      },
+      "expect": {
+        "status": 405,
+        "headers": {
+          "allow": "OPTIONS, POST"
+        }
+      }
+    }
+  ]
+}
