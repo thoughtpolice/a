@@ -1,0 +1,19 @@
+{
+  "steps": [
+    {
+      "name": "hostile tier runs a non-root command only after a successful gVisor guest-runtime check",
+      "request": { "path": "/call?class=hostile", "json": { "method": "exec", "args": [["id", "-u"]] } },
+      "expect": { "json": { "ok": true, "value": { "stdout": "1000\n", "success": true } } }
+    },
+    {
+      "name": "hostile file helpers preserve atomic content",
+      "request": { "path": "/call?class=hostile", "json": { "method": "writeFile", "args": ["probe", "runsc verified"] } },
+      "expect": { "json": { "ok": true } }
+    },
+    {
+      "name": "hostile read verifies the written bytes",
+      "request": { "path": "/call?class=hostile", "json": { "method": "readFile", "args": ["probe"] } },
+      "expect": { "json": { "ok": true, "value": { "content": "runsc verified" } } }
+    }
+  ]
+}

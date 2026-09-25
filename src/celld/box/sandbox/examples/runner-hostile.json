@@ -1,0 +1,28 @@
+{
+  "vars": {
+    "AUTH_SECRET": "dev-only-sandbox-examples-secret-do-not-deploy",
+    "UNSAFE_DEMO_AUTH": "1"
+  },
+  "steps": [
+    {
+      "name": "without the development opt-in the hostile class refuses to run on runc, with an opaque code",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "echo hi"
+        }
+      },
+      "expect": {
+        "status": 503,
+        "json": {
+          "$exact": {
+            "error": "unavailable"
+          }
+        }
+      }
+    }
+  ]
+}

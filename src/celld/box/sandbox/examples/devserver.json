@@ -1,0 +1,51 @@
+{
+  "vars": { "PREVIEW_PROTOCOL": "http", "UNSAFE_LOCAL_DEMO": "1" },
+  "steps": [
+    {
+      "name": "the server starts and its port is exposed",
+      "request": { "method": "POST", "path": "/start" },
+      "expect": {
+        "json": {
+          "process": { "status": "running", "name": "httpd", "command": ["httpd", "-f", "-p", "8080", "-h", "site"] },
+          "exposed": { "port": 8080, "name": "web", "token": { "$regex": "^[a-z2-7]{26}$" } }
+        }
+      },
+      "save": { "token": "json.exposed.token", "url": "json.exposed.url" }
+    },
+    {
+      "name": "starting again reuses the server, its token and its preview URL",
+      "request": { "method": "POST", "path": "/start" },
+      "expect": { "json": { "exposed": { "token": "{token}", "url": "{url}" } } }
+    },
+    {
+      "name": "a request to the preview host reaches the server",
+      "request": { "path": "/", "headers": { "host": "8080-dev-{token}.preview.localhost" } },
+      "expect": { "text": "<h1>hello from the dev server</h1>\n" }
+    },
+    {
+      "name": "the wrong token is a 404 from the sandbox's token check",
+      "request": { "path": "/", "headers": { "host": "8080-dev-aaaaaaaaaaaaaaaaaaaaaaaaaa.preview.localhost" } },
+      "expect": { "status": 404, "text": "not found" }
+    },
+    {
+      "name": "a host that is not a preview URL is the Worker's own 404, not the sandbox's",
+      "request": { "path": "/", "headers": { "host": "8080-dev-aaaaaaaaaaaaaaaa.preview.localhost" } },
+      "expect": { "status": 404, "json": { "$exact": { "error": "not_found" } } }
+    },
+    {
+      "name": "a port that was never exposed is a 404",
+      "request": { "path": "/", "headers": { "host": "9090-dev-{token}.preview.localhost" } },
+      "expect": { "status": 404 }
+    },
+    {
+      "name": "stopping kills the server",
+      "request": { "method": "POST", "path": "/stop" },
+      "expect": { "json": { "processes": [{ "status": "killed", "exitCode": 143 }] } }
+    },
+    {
+      "name": "and closes the preview",
+      "request": { "path": "/", "headers": { "host": "8080-dev-{token}.preview.localhost" } },
+      "expect": { "status": 404 }
+    }
+  ]
+}

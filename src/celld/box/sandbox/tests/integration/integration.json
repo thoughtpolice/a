@@ -1,0 +1,531 @@
+{
+  "steps": [
+    {
+      "name": "the first command starts the container and runs as uid 1000, not root",
+      "request": { "path": "/call", "json": { "method": "exec", "args": [["id", "-u"]] } },
+      "expect": { "json": { "ok": true, "value": { "stdout": "1000\n", "exitCode": 0, "success": true } } }
+    },
+    {
+      "name": "the pinned image provides all absolute runtime-probe helpers",
+      "request": { "path": "/call", "json": { "method": "exec", "args": [["/bin/sh", "-c", "test -x /bin/dmesg && test -x /bin/head && test -x /bin/grep"]] } },
+      "expect": { "json": { "ok": true, "value": { "stdout": "", "exitCode": 0, "success": true } } }
+    },
+    {
+      "name": "commands see only the sandbox environment, none of the container's",
+      "request": { "path": "/call", "json": { "method": "exec", "args": [["env"]] } },
+      "expect": {
+        "json": {
+          "ok": true,
+          "value": {
+            "stdout": {
+              "$regex": "^(HOME=/tmp/\\.celld-sandbox/home\\nLANG=C\\.UTF-8\\nPATH=[^\\n]*\\n|PATH=[^\\n]*\\nHOME=/tmp/\\.celld-sandbox/home\\nLANG=C\\.UTF-8\\n)$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "there is no network without enableInternet",
+      "request": {
+        "path": "/call",
+        "json": { "method": "execShell", "args": ["wget -q -T 3 -O /dev/null http://1.1.1.1/ 2>/dev/null; echo $?"] }
+      },
+      "expect": { "json": { "ok": true, "value": { "stdout": { "$not": "0\n" } } } }
+    },
+    {
+      "name": "binary files are written byte-exact",
+      "request": {
+        "path": "/call",
+        "json": { "method": "writeFile", "args": ["bin/data.bin", { "bytes64": "AAFoaf8ACg2A" }] }
+      },
+      "expect": { "json": { "ok": true } }
+    },
+    {
+      "name": "and read back byte-exact",
+      "request": {
+        "path": "/call",
+        "json": { "method": "readFile", "args": ["bin/data.bin", { "encoding": "bytes" }] }
+      },
+      "expect": {
+        "json": { "ok": true, "value": { "size": 9, "encoding": "bytes", "truncated": false, "content": { "bytes64": "AAFoaf8ACg2A" } } }
+      }
+    },
+    {
+      "name": "binary data is not passed off as text",
+      "request": { "path": "/call", "json": { "method": "readFile", "args": ["bin/data.bin"] } },
+      "expect": { "json": { "ok": false, "code": "not_text" } }
+    },
+    {
+      "name": "text round-trips",
+      "request": { "path": "/call", "json": { "method": "writeFile", "args": ["src/hello.txt", "héllo\n"] } },
+      "expect": { "json": { "ok": true } }
+    },
+    {
+      "name": "symbolic links out of the workspace are planted",
+      "request": {
+        "path": "/call",
+        "json": { "method": "execShell", "args": ["ln -s / src/root && ln -s /etc/passwd pw && cat src/hello.txt"] }
+      },
+      "expect": { "json": { "ok": true, "value": { "stdout": "héllo\n", "exitCode": 0 } } }
+    },
+    {
+      "name": "reading through a link to / is refused",
+      "request": { "path": "/call", "json": { "method": "readFile", "args": ["src/root/etc/passwd"] } },
+      "expect": { "json": { "ok": false, "code": "outside_workspace" } }
+    },
+    {
+      "name": "reading a link to a file outside is refused",
+      "request": { "path": "/call", "json": { "method": "readFile", "args": ["pw"] } },
+      "expect": { "json": { "ok": false, "code": "outside_workspace" } }
+    },
+    {
+      "name": "writing through a link is refused",
+      "request": { "path": "/call", "json": { "method": "writeFile", "args": ["src/root/tmp/planted", "x"] } },
+      "expect": { "json": { "ok": false, "code": "outside_workspace" } }
+    },
+    {
+      "name": "and so is plain traversal",
+      "request": { "path": "/call", "json": { "method": "readFile", "args": ["../etc/passwd"] } },
+      "expect": { "json": { "ok": false, "code": "outside_workspace" } }
+    },
+    {
+      "name": "listings show links as links without following them",
+      "request": { "path": "/call", "json": { "method": "listFiles", "args": ["", { "recursive": true }] } },
+      "expect": {
+        "json": {
+          "ok": true,
+          "value": {
+            "truncated": false,
+            "entries": [
+              { "path": "bin", "kind": "dir" },
+              { "path": "bin/data.bin", "kind": "file" },
+              { "path": "pw", "kind": "symlink" },
+              { "path": "src", "kind": "dir" },
+              { "path": "src/hello.txt", "kind": "file" },
+              { "path": "src/root", "kind": "symlink" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a listing stops at its limit and hands out a cursor (busybox find, tr, head)",
+      "request": { "path": "/call", "json": { "method": "listFiles", "args": ["", { "recursive": true, "limit": 4 }] } },
+      "expect": { "json": { "ok": true, "value": { "truncated": true, "cursor": { "$regex": "^[0-9]+\\.[A-Za-z0-9_-]+$" } } } },
+      "save": { "cursor": "json.value.cursor" }
+    },
+    {
+      "name": "and the cursor gives the rest",
+      "request": { "path": "/call", "json": { "method": "listFiles", "args": ["", { "recursive": true, "limit": 4, "cursor": "{cursor}" }] } },
+      "expect": { "json": { "ok": true, "value": { "truncated": false } } }
+    },
+    {
+      "name": "noFollow reads a path with no link on it (busybox readlink of /proc/self/fd)",
+      "request": { "path": "/call", "json": { "method": "readFile", "args": ["src/hello.txt", { "noFollow": true }] } },
+      "expect": { "json": { "ok": true, "value": { "content": "héllo\n" } } }
+    },
+    {
+      "name": "and refuses a link at the path",
+      "request": { "path": "/call", "json": { "method": "readFile", "args": ["pw", { "noFollow": true }] } },
+      "expect": { "json": { "ok": false, "code": "is_symlink" } }
+    },
+    {
+      "name": "or on its way",
+      "request": { "path": "/call", "json": { "method": "stat", "args": ["src/root/etc", { "noFollow": true }] } },
+      "expect": { "json": { "ok": false, "code": "is_symlink" } }
+    },
+    {
+      "name": "and lists a directory reached without links",
+      "request": { "path": "/call", "json": { "method": "listFiles", "args": ["src", { "noFollow": true }] } },
+      "expect": {
+        "json": { "ok": true, "value": { "truncated": false, "entries": [{ "path": "src/hello.txt", "kind": "file" }, { "path": "src/root", "kind": "symlink" }] } }
+      }
+    },
+    {
+      "name": "searchFiles finds lines without following links out of the workspace (busybox find -exec +)",
+      "request": { "path": "/call", "json": { "method": "searchFiles", "args": ["héllo"] } },
+      "expect": {
+        "json": { "ok": true, "value": { "truncated": false, "matches": [{ "path": "src/hello.txt", "line": 1, "text": "héllo" }] } }
+      }
+    },
+    {
+      "name": "a regular expression only /etc/passwd would match finds nothing through the links",
+      "request": { "path": "/call", "json": { "method": "searchFiles", "args": ["^root:.*:0:", { "regex": true }] } },
+      "expect": { "json": { "ok": true, "value": { "truncated": false, "matches": [] } } }
+    },
+    {
+      "name": "a search under a link out of the workspace is refused",
+      "request": { "path": "/call", "json": { "method": "searchFiles", "args": ["root", { "path": "src/root" }] } },
+      "expect": { "json": { "ok": false, "code": "outside_workspace" } }
+    },
+    {
+      "name": "a regular expression busybox grep cannot compile is refused (busybox compiles only on a line)",
+      "request": { "path": "/call", "json": { "method": "searchFiles", "args": ["[", { "regex": true }] } },
+      "expect": { "json": { "ok": false, "code": "invalid" } }
+    },
+    {
+      "name": "while a valid one with no hits finds nothing",
+      "request": { "path": "/call", "json": { "method": "searchFiles", "args": ["n[o]thing-here", { "regex": true }] } },
+      "expect": { "json": { "ok": true, "value": { "truncated": false, "matches": [] } } }
+    },
+    {
+      "name": "searchFiles with noFollow searches a directory reached without links",
+      "request": { "path": "/call", "json": { "method": "searchFiles", "args": ["héllo", { "path": "src", "noFollow": true }] } },
+      "expect": {
+        "json": { "ok": true, "value": { "truncated": false, "matches": [{ "path": "src/hello.txt", "line": 1, "text": "héllo" }] } }
+      }
+    },
+    {
+      "name": "and refuses a link on the way to its directory",
+      "request": { "path": "/call", "json": { "method": "searchFiles", "args": ["root", { "path": "src/root/etc", "noFollow": true }] } },
+      "expect": { "json": { "ok": false, "code": "is_symlink" } }
+    },
+    {
+      "name": "or at it",
+      "request": { "path": "/call", "json": { "method": "searchFiles", "args": ["root", { "path": "src/root", "noFollow": true }] } },
+      "expect": { "json": { "ok": false, "code": "is_symlink" } }
+    },
+    {
+      "name": "directories are made recursively from the deepest existing one",
+      "request": {"path": "/call", "json": {"method": "mkdir", "args": ["deep/er/still", {"recursive": true}]}},
+      "expect": {"json": {"ok": true}}
+    },
+    {
+      "name": "stat opens what it reports on",
+      "request": {"path": "/call", "json": {"method": "stat", "args": ["deep/er"]}},
+      "expect": {"json": {"ok": true, "value": {"kind": "dir", "symlink": false}}}
+    },
+    {
+      "name": "a file is renamed into a pinned directory",
+      "request": {"path": "/call", "json": {"method": "renameFile", "args": ["src/hello.txt", "deep/er/hello.txt"]}},
+      "expect": {"json": {"ok": true}}
+    },
+    {
+      "name": "and read back from there",
+      "request": {"path": "/call", "json": {"method": "readFile", "args": ["deep/er/hello.txt"]}},
+      "expect": {"json": {"ok": true, "value": {"content": "héllo\n"}}}
+    },
+    {
+      "name": "and moved back",
+      "request": {"path": "/call", "json": {"method": "moveFile", "args": ["deep/er/hello.txt", "src/hello.txt"]}},
+      "expect": {"json": {"ok": true}}
+    },
+    {
+      "name": "writing over a link replaces the link, not what it points at",
+      "request": {"path": "/call", "json": {"method": "writeFile", "args": ["pw", "not the password file"]}},
+      "expect": {"json": {"ok": true}}
+    },
+    {
+      "name": "which is now a plain file",
+      "request": {"path": "/call", "json": {"method": "stat", "args": ["pw"]}},
+      "expect": {"json": {"ok": true, "value": {"kind": "file", "symlink": false, "size": 21}}}
+    },
+    {
+      "name": "a tree is removed",
+      "request": {"path": "/call", "json": {"method": "remove", "args": ["deep", {"recursive": true}]}},
+      "expect": {"json": {"ok": true}}
+    },
+    {
+      "name": "a clone target that is a link is refused",
+      "request": {"path": "/call", "json": {"method": "execShell", "args": ["ln -s /tmp r2"]}},
+      "expect": {"json": {"ok": true, "value": {"exitCode": 0}}}
+    },
+    {
+      "name": "before git ever runs",
+      "request": {"path": "/call", "json": {"method": "gitCheckout", "args": ["https://example.invalid/org/r2.git"]}},
+      "expect": {"json": {"ok": false, "code": "exists"}}
+    },
+    {
+      "name": "a clone without git fails and leaves no directory",
+      "request": {"path": "/call", "json": {"method": "gitCheckout", "args": ["https://example.invalid/org/r3.git"]}},
+      "expect": {"json": {"ok": true, "value": {"exitCode": 127}}}
+    },
+    {
+      "name": "so the target is gone again",
+      "request": {"path": "/call", "json": {"method": "exists", "args": ["r3"]}},
+      "expect": {"json": {"ok": true, "value": {"exists": false}}}
+    },
+    {
+      "name": "the workspace lease is taken",
+      "request": { "path": "/call", "json": { "method": "acquireLease", "args": ["workspace"] } },
+      "expect": { "json": { "ok": true, "value": { "name": "workspace", "token": { "$regex": "^[a-z2-7]{26}$" } } } },
+      "save": { "lease": "json.value.token" }
+    },
+    {
+      "name": "a write without it is refused while it is held",
+      "request": { "path": "/call", "json": { "method": "writeFile", "args": ["leased.txt", "x"] } },
+      "expect": { "json": { "ok": false, "code": "lease_held" } }
+    },
+    {
+      "name": "and so is a command",
+      "request": { "path": "/call", "json": { "method": "exec", "args": [["touch", "leased.txt"]] } },
+      "expect": { "json": { "ok": false, "code": "lease_held" } }
+    },
+    {
+      "name": "a command declared read-only runs",
+      "request": { "path": "/call", "json": { "method": "exec", "args": [["true"], { "mutates": false }] } },
+      "expect": { "json": { "ok": true, "value": { "exitCode": 0 } } }
+    },
+    {
+      "name": "the holder writes with its token",
+      "request": { "path": "/call", "json": { "method": "writeFile", "args": ["leased.txt", "x", { "lease": "{lease}" }] } },
+      "expect": { "json": { "ok": true } }
+    },
+    {
+      "name": "and gives the lease up",
+      "request": { "path": "/call", "json": { "method": "releaseLease", "args": ["workspace", "{lease}"] } },
+      "expect": { "json": { "ok": true, "value": true } }
+    },
+    {
+      "name": "after which its token is refused as lost",
+      "request": { "path": "/call", "json": { "method": "remove", "args": ["leased.txt", { "lease": "{lease}" }] } },
+      "expect": { "json": { "ok": false, "code": "lease_lost" } }
+    },
+    {
+      "name": "and a call without a lease goes ahead",
+      "request": { "path": "/call", "json": { "method": "remove", "args": ["leased.txt"] } },
+      "expect": { "json": { "ok": true } }
+    },
+    {
+      "name": "a command past its deadline is killed",
+      "request": { "path": "/call", "json": { "method": "execShell", "args": ["sleep 20", { "timeoutMs": 500 }] } },
+      "expect": { "json": { "ok": true, "value": { "timedOut": true, "exitCode": null, "success": false } } }
+    },
+    {
+      "name": "output past the cap is cut",
+      "request": {
+        "path": "/call",
+        "json": { "method": "execShell", "args": ["head -c 5000 /dev/zero | tr '\\0' x", { "maxOutputBytes": 100 }] }
+      },
+      "expect": { "json": { "ok": true, "value": { "truncated": true, "stdout": { "$len": 100 } } } }
+    },
+    {
+      "name": "the deadline kills the command's children and grandchildren too",
+      "request": {"path": "/call", "json": {"method": "execShell", "args": ["sleep 301 & ( sleep 301 & ); sleep 301", {"timeoutMs": 500}]}},
+      "expect": {"json": {"ok": true, "value": {"timedOut": true}}}
+    },
+    {
+      "name": "none of them is left",
+      "request": {"path": "/call", "json": {"method": "execShell", "args": ["pgrep -f 'sleep 30[1]' || echo none"]}},
+      "expect": {"json": {"ok": true, "value": {"stdout": "none\n"}}}
+    },
+    {
+      "name": "what a command leaves in its process group dies when it exits",
+      "request": {"path": "/call", "json": {"method": "execShell", "args": ["sleep 302 > /dev/null 2>&1 &"]}},
+      "expect": {"json": {"ok": true, "value": {"exitCode": 0}}}
+    },
+    {
+      "name": "so nothing of it is left",
+      "request": {"path": "/call", "json": {"method": "execShell", "args": ["pgrep -f 'sleep 30[2]' || echo none"]}},
+      "expect": {"json": {"ok": true, "value": {"stdout": "none\n"}}}
+    },
+    {
+      "name": "in the trusted tier a process that calls setsid leaves the group",
+      "request": {"path": "/call", "json": {"method": "execShell", "args": ["rm -f d303; (setsid sh -c 'echo $$ > d303; exec sleep 303' > /dev/null 2>&1 &); while [ ! -s d303 ]; do sleep 0.05; done"]}},
+      "expect": {"json": {"ok": true, "value": {"exitCode": 0}}}
+    },
+    {
+      "name": "and outlives its command (the trusted tier does not contain it)",
+      "request": {"path": "/call", "json": {"method": "execShell", "args": ["pgrep -f 'sleep 30[3]' > /dev/null && echo alive; pkill -f 'sleep 30[3]'; true"]}},
+      "expect": {"json": {"ok": true, "value": {"stdout": "alive\n"}}}
+    },
+    {
+      "name": "with sweepEscapes a background process starts",
+      "request": {"path": "/call?class=sweeping", "json": {"method": "startShellProcess", "args": ["sleep 304 & wait"]}},
+      "expect": {"json": {"ok": true, "value": {"status": "running"}}},
+      "save": {"kept": "json.value.id"}
+    },
+    {
+      "name": "a command daemonizes with setsid and a double fork",
+      "request": {"path": "/call?class=sweeping", "json": {"method": "execShell", "args": ["rm -f d305; (setsid sh -c 'echo $$ > d305; exec sleep 305' > /dev/null 2>&1 &); while [ ! -s d305 ]; do sleep 0.05; done"]}},
+      "expect": {"json": {"ok": true, "value": {"exitCode": 0}}}
+    },
+    {
+      "name": "the sweep after it killed the daemon",
+      "request": {"path": "/call?class=sweeping", "json": {"method": "execShell", "args": ["pgrep -f 'sleep 30[5]' || echo none"]}},
+      "expect": {"json": {"ok": true, "value": {"stdout": "none\n"}}}
+    },
+    {
+      "name": "but kept the background process and its children",
+      "request": {"path": "/call?class=sweeping", "json": {"method": "execShell", "args": ["pgrep -f 'sleep 30[4]' > /dev/null && echo alive"]}},
+      "expect": {"json": {"ok": true, "value": {"stdout": "alive\n"}}}
+    },
+    {
+      "name": "which still runs",
+      "request": {"path": "/call?class=sweeping", "json": {"method": "getProcess", "args": ["{kept}"]}},
+      "expect": {"json": {"ok": true, "value": {"status": "running"}}}
+    },
+    {
+      "name": "and is killed with its group",
+      "request": {"path": "/call?class=sweeping", "json": {"method": "killProcess", "args": ["{kept}", "KILL"]}},
+      "expect": {"json": {"ok": true, "value": {"status": "killed"}}}
+    },
+    {
+      "name": "the hostile tier refuses a container that is not gVisor",
+      "request": {"path": "/call?class=hostile", "json": {"method": "exec", "args": [["true"]]}},
+      "expect": {"json": {"ok": false, "code": "unsafe_runtime"}}
+    },
+    {
+      "name": "a background process starts",
+      "request": {
+        "path": "/call",
+        "json": { "method": "startShellProcess", "args": ["echo started; sleep 1; echo finished; exit 3", { "name": "job" }] }
+      },
+      "expect": { "json": { "ok": true, "value": { "status": "running", "name": "job" } } },
+      "save": { "job": "json.value.id" }
+    },
+    {
+      "name": "and is waited for across requests",
+      "request": { "path": "/call", "json": { "method": "waitForExit", "args": ["{job}", { "timeoutMs": 15000 }] } },
+      "expect": { "json": { "ok": true, "value": { "status": "exited", "exitCode": 3 } } }
+    },
+    {
+      "name": "its output is kept",
+      "request": { "path": "/call", "json": { "method": "getProcessLogs", "args": ["{job}"] } },
+      "expect": { "json": { "ok": true, "value": { "stdout": "started\nfinished\n", "stderr": "", "truncated": false } } }
+    },
+    {
+      "name": "a server prints its address",
+      "request": {"path": "/call", "json": {"method": "startShellProcess", "args": ["printf '%s!\\n' aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; echo 'ready on :9090'; sleep 30"]}},
+      "expect": {"json": {"ok": true, "value": {"status": "running"}}},
+      "save": {"printer": "json.value.id"}
+    },
+    {
+      "name": "waitForLog matches a regular expression with grep in the container",
+      "request": {"path": "/call", "json": {"method": "waitForLog", "args": ["{printer}", "on :[0-9]+$", {"regex": true, "timeoutMs": 10000}]}},
+      "expect": {"json": {"ok": true, "value": {"matched": true, "line": "ready on :9090"}}}
+    },
+    {
+      "name": "a pattern that backtracks ends at its deadline",
+      "request": {"path": "/call", "json": {"method": "waitForLog", "args": ["{printer}", "(a+)+$", {"regex": true, "timeoutMs": 1500}]}},
+      "expect": {"json": {"ok": true, "value": {"matched": false}}}
+    },
+    {
+      "name": "and patterns are literal by default",
+      "request": {"path": "/call", "json": {"method": "waitForLog", "args": ["{printer}", "on :[0-9]+$", {"timeoutMs": 300}]}},
+      "expect": {"json": {"ok": true, "value": {"matched": false}}}
+    },
+    {
+      "name": "the printer is killed",
+      "request": {"path": "/call", "json": {"method": "killProcess", "args": ["{printer}", "KILL"]}},
+      "expect": {"json": {"ok": true, "value": {"status": "killed"}}}
+    },
+    {
+      "name": "a long process starts",
+      "request": { "path": "/call", "json": { "method": "startProcess", "args": [["sleep", "60"]] } },
+      "save": { "sleeper": "json.value.id" }
+    },
+    {
+      "name": "and is killed",
+      "request": { "path": "/call", "json": { "method": "killProcess", "args": ["{sleeper}"] } },
+      "expect": { "json": { "ok": true, "value": { "status": "killed", "exitCode": 143 } } }
+    },
+    {
+      "name": "a process with a timeout starts",
+      "request": { "path": "/call", "json": { "method": "startProcess", "args": [["sleep", "60"], { "timeoutMs": 1000 }] } },
+      "save": { "limited": "json.value.id" }
+    },
+    {
+      "name": "and is killed when it runs out",
+      "request": { "path": "/call", "json": { "method": "waitForExit", "args": ["{limited}", { "timeoutMs": 15000 }] } },
+      "expect": { "json": { "ok": true, "value": { "status": "timed_out", "exitCode": 137 } } }
+    },
+    {
+      "name": "a ticking process starts",
+      "request": {
+        "path": "/call",
+        "json": { "method": "startShellProcess", "args": ["for i in 1 2 3; do echo tick $i; sleep 0.3; done"] }
+      },
+      "save": { "ticker": "json.value.id" }
+    },
+    {
+      "name": "its logs stream as server-sent events until it exits",
+      "request": { "path": "/logs", "json": { "id": "{ticker}" } },
+      "expect": {
+        "headers": { "content-type": { "$regex": "text/event-stream" } },
+        "sse": { "$contains": { "event": "exit", "data": { "type": "exit", "status": "exited", "exitCode": 0 } } },
+        "text": { "$regex": "tick 1(.|\\n)*tick 2(.|\\n)*tick 3" }
+      }
+    },
+    {
+      "name": "a command's output streams too",
+      "request": { "path": "/stream", "json": { "argv": ["sh", "-c", "echo streamed; exit 4"] } },
+      "expect": {
+        "sse": [
+          { "event": "start", "data": { "type": "start", "pid": { "$gt": 0 } } },
+          { "event": "stdout", "data": { "type": "stdout", "data": "streamed\n" } },
+          { "event": "complete", "data": { "type": "complete", "exitCode": 4, "success": false } }
+        ]
+      }
+    },
+    {
+      "name": "a file streams in",
+      "request": { "method": "POST", "path": "/upload?path=big/up.txt", "body": "uploaded through a stream" },
+      "expect": { "json": { "path": "big/up.txt", "size": 25 } }
+    },
+    {
+      "name": "and back out",
+      "request": { "path": "/download?path=big/up.txt" },
+      "expect": { "text": "uploaded through a stream" }
+    },
+    {
+      "name": "a server starts in the background",
+      "request": {
+        "path": "/call",
+        "json": { "method": "startProcess", "args": [["httpd", "-f", "-p", "8080", "-h", "src"]] }
+      },
+      "save": { "server": "json.value.id" }
+    },
+    {
+      "name": "and its port answers",
+      "request": { "path": "/call", "json": { "method": "waitForPort", "args": [8080, { "path": "/hello.txt" }] } },
+      "expect": { "json": { "ok": true } }
+    },
+    {
+      "name": "destroying the container (destroyContainer) loses its processes",
+      "request": { "path": "/call", "json": { "method": "destroyContainer" } },
+      "expect": { "json": { "ok": true } }
+    },
+    {
+      "name": "the server is reported lost",
+      "request": { "path": "/call", "json": { "method": "getProcess", "args": ["{server}"] } },
+      "expect": { "json": { "ok": true, "value": { "status": "lost" } } }
+    },
+    {
+      "name": "destroy ends the sandbox and forgets what it stored",
+      "request": { "path": "/call", "json": { "method": "destroy" } },
+      "expect": { "json": { "ok": true } }
+    },
+    {
+      "name": "so the server's record is gone",
+      "request": { "path": "/call", "json": { "method": "getProcess", "args": ["{server}"] } },
+      "expect": { "json": { "ok": false, "code": "no_such_process" } }
+    },
+    {
+      "name": "the next call starts a fresh container with an empty workspace",
+      "request": { "path": "/call", "json": { "method": "exists", "args": ["src/hello.txt"] } },
+      "expect": { "json": { "ok": true, "value": { "exists": false } } }
+    },
+    {
+      "name": "which is the second generation",
+      "request": { "path": "/call", "json": { "method": "getState" } },
+      "expect": { "json": { "ok": true, "value": { "running": true, "generation": 2 } } }
+    },
+    {
+      "name": "a separate short-idle sandbox starts for the alarm regression",
+      "request": { "path": "/call?class=idle", "json": { "method": "exec", "args": [["true"]] } },
+      "expect": { "json": { "ok": true, "value": { "exitCode": 0 } } }
+    },
+    {
+      "name": "after sleepAfter without activity the alarm stops it",
+      "request": { "path": "/call?class=idle", "json": { "method": "getState" } },
+      "until": { "seconds": 30, "interval": 1 },
+      "expect": { "json": { "ok": true, "value": { "running": false, "status": "stopped" } } }
+    },
+    {
+      "name": "and the next call starts it again",
+      "request": { "path": "/call?class=idle", "json": { "method": "exec", "args": [["true"]] } },
+      "expect": { "json": { "ok": true, "value": { "exitCode": 0 } } }
+    }
+  ]
+}
