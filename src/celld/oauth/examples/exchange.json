@@ -1,0 +1,268 @@
+{
+  "vars": {
+    "SIGNING_JWK": {"kty": "EC", "crv": "P-256", "kid": "exchange-2026", "x": "ONi7SNx-gILilq8dSdfAwgQuhgE5RGiFcmKujk9GTOs", "y": "W_R9UM59BiDll929cUx723RPxowr5J7BlsdVrHd6rY4", "d": "SPF5jGBHH2hU9FnRZSAq8vvhyAIE9YopoVOuPEjde4E"},
+    "WEB_SECRET": "web-secret-0123456789",
+    "GATEWAY_SECRET": "gateway-secret-0123456789",
+    "STRANGER_SECRET": "stranger-secret-0123456789"
+  },
+  "steps": [
+    {
+      "name": "the metadata offers the token exchange grant",
+      "request": {
+        "path": "/.well-known/oauth-authorization-server"
+      },
+      "expect": {
+        "json": {
+          "grant_types_supported": {
+            "$contains": "urn:ietf:params:oauth:grant-type:token-exchange"
+          }
+        }
+      },
+      "save": {
+        "issuer": "json.issuer"
+      }
+    },
+    {
+      "name": "the web app gets a token for the gateway",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "authorization": "Basic d2ViOndlYi1zZWNyZXQtMDEyMzQ1Njc4OQ=="
+        },
+        "body": "grant_type=client_credentials&scope=orders%3Aread+orders%3Awrite"
+      },
+      "expect": {
+        "json": {
+          "token_type": "Bearer",
+          "scope": "orders:read orders:write"
+        }
+      },
+      "save": {
+        "subject": "json.access_token"
+      }
+    },
+    {
+      "name": "the gateway exchanges it for a read-only token for the orders backend",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "authorization": "Basic Z2F0ZXdheTpnYXRld2F5LXNlY3JldC0wMTIzNDU2Nzg5"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&subject_token={subject}&audience=orders&scope=orders%3Aread"
+      },
+      "expect": {
+        "json": {
+          "access_token": {
+            "$regex": "^ey"
+          },
+          "token_type": "Bearer",
+          "expires_in": 300,
+          "scope": "orders:read",
+          "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
+          "refresh_token": {
+            "$absent": true
+          }
+        },
+        "headers": {
+          "cache-control": "no-store"
+        }
+      },
+      "save": {
+        "exchanged": "json.access_token"
+      }
+    },
+    {
+      "name": "the new token: the same subject, the backend's audience, and who acted",
+      "request": {
+        "method": "POST",
+        "path": "/introspect",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "authorization": "Basic Z2F0ZXdheTpnYXRld2F5LXNlY3JldC0wMTIzNDU2Nzg5"
+        },
+        "body": "token={exchanged}"
+      },
+      "expect": {
+        "json": {
+          "active": true,
+          "sub": "web",
+          "client_id": "gateway",
+          "aud": "{issuer}/orders",
+          "scope": "orders:read",
+          "act": {
+            "$exact": {
+              "sub": "gateway"
+            }
+          },
+          "token_type": "Bearer"
+        }
+      }
+    },
+    {
+      "name": "without a scope, all of the subject token's",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "authorization": "Basic Z2F0ZXdheTpnYXRld2F5LXNlY3JldC0wMTIzNDU2Nzg5"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&subject_token={subject}&audience=billing"
+      },
+      "expect": {
+        "json": {
+          "scope": "orders:read orders:write"
+        }
+      }
+    },
+    {
+      "name": "a scope the subject token lacks: invalid_scope",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "authorization": "Basic Z2F0ZXdheTpnYXRld2F5LXNlY3JldC0wMTIzNDU2Nzg5"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&subject_token={subject}&audience=orders&scope=orders%3Adelete"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_scope",
+          "error_description": "the subject token does not carry orders:delete"
+        }
+      }
+    },
+    {
+      "name": "a backend nobody configured: invalid_target",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "authorization": "Basic Z2F0ZXdheTpnYXRld2F5LXNlY3JldC0wMTIzNDU2Nzg5"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&subject_token={subject}&audience=payroll"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_target"
+        }
+      }
+    },
+    {
+      "name": "a token this server did not issue: invalid_grant",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "authorization": "Basic Z2F0ZXdheTpnYXRld2F5LXNlY3JldC0wMTIzNDU2Nzg5"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&subject_token=eyJhbGciOiJFUzI1NiJ9.e30.c2ln&audience=orders"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_grant"
+        }
+      }
+    },
+    {
+      "name": "a client that may not act for others: unauthorized_client",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "authorization": "Basic c3RyYW5nZXI6c3RyYW5nZXItc2VjcmV0LTAxMjM0NTY3ODk="
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&subject_token={subject}&audience=orders"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "unauthorized_client"
+        }
+      }
+    },
+    {
+      "name": "the web app itself may not use the grant",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "authorization": "Basic d2ViOndlYi1zZWNyZXQtMDEyMzQ1Njc4OQ=="
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&subject_token={subject}&audience=orders"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "unauthorized_client",
+          "error_description": {
+            "$contains": "token-exchange"
+          }
+        }
+      }
+    },
+    {
+      "name": "only access tokens are issued: a refresh token is not",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "authorization": "Basic Z2F0ZXdheTpnYXRld2F5LXNlY3JldC0wMTIzNDU2Nzg5"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&subject_token={subject}&audience=orders&requested_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Arefresh_token"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_request"
+        }
+      }
+    },
+    {
+      "name": "a revoked subject token is no longer exchanged",
+      "request": {
+        "method": "POST",
+        "path": "/revoke",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "authorization": "Basic d2ViOndlYi1zZWNyZXQtMDEyMzQ1Njc4OQ=="
+        },
+        "body": "token={subject}"
+      },
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "name": "(after its revocation)",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "authorization": "Basic Z2F0ZXdheTpnYXRld2F5LXNlY3JldC0wMTIzNDU2Nzg5"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&subject_token={subject}&audience=orders"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_grant"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,256 @@
+{
+  "vars": {
+    "SIGNING_JWK": {"kty": "EC", "crv": "P-256", "kid": "device-2026", "x": "0OPOTWR75-T7VBj4JVMuukZ3l9WRXmEHTcvsE5N1frY", "y": "6Wdf8_wZwsG6pg2lk8t8vdR5B7yxq-r5RkOrfkn38cU", "d": "sKyeTVbxNlCViKp4K61SYEATE2nFPTCUcZVxvEMcccw"}
+  },
+  "steps": [
+    {
+      "name": "the TV starts: a device code to keep, a user code to show, where to type it",
+      "request": {
+        "method": "POST",
+        "path": "/device_authorization",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "client_id=tv&scope=media%3Aplay"
+      },
+      "expect": {
+        "json": {
+          "device_code": {
+            "$regex": "^[A-Za-z0-9_-]{43}$"
+          },
+          "user_code": {
+            "$regex": "^[BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4}$"
+          },
+          "verification_uri": {
+            "$regex": "^http://127\\.0\\.0\\.1:\\d+/device$"
+          },
+          "verification_uri_complete": {
+            "$regex": "/device\\?user_code="
+          },
+          "expires_in": 600,
+          "interval": 5
+        },
+        "headers": {
+          "cache-control": "no-store"
+        }
+      },
+      "save": {
+        "device": "json.device_code",
+        "user": "json.user_code"
+      }
+    },
+    {
+      "name": "a scope the server does not know is refused",
+      "request": {
+        "method": "POST",
+        "path": "/device_authorization",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "client_id=tv&scope=media%3Adelete"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_scope"
+        }
+      }
+    },
+    {
+      "name": "polling before the user decides: authorization_pending",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=tv&device_code={device}"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "authorization_pending"
+        }
+      }
+    },
+    {
+      "name": "polling again at once, inside the interval: slow_down",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=tv&device_code={device}"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "slow_down"
+        }
+      }
+    },
+    {
+      "name": "the verification page shows what the TV asks for",
+      "request": {
+        "path": "/device?user_code={user}"
+      },
+      "expect": {
+        "text": {
+          "$contains": "media:play"
+        },
+        "headers": {
+          "content-type": {
+            "$regex": "^text/html"
+          }
+        }
+      }
+    },
+    {
+      "name": "an unknown code shows nothing",
+      "request": {
+        "path": "/device?user_code=BCDF-GHJK"
+      },
+      "expect": {
+        "status": 404
+      }
+    },
+    {
+      "name": "the user approves",
+      "request": {
+        "method": "POST",
+        "path": "/device",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "user_code={user}&user=ada&decision=approve"
+      },
+      "expect": {
+        "text": {
+          "$contains": "Approved"
+        }
+      }
+    },
+    {
+      "name": "the user code is spent by the decision",
+      "request": {
+        "method": "POST",
+        "path": "/device",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "user_code={user}&user=mallory&decision=approve"
+      },
+      "expect": {
+        "status": 404
+      }
+    },
+    {
+      "name": "the next poll gets the tokens, for the user who approved",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=tv&device_code={device}"
+      },
+      "expect": {
+        "json": {
+          "token_type": "Bearer",
+          "scope": "media:play",
+          "expires_in": 300,
+          "access_token": {
+            "$regex": "^ey"
+          }
+        },
+        "headers": {
+          "cache-control": "no-store"
+        }
+      }
+    },
+    {
+      "name": "and the device code works once",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=tv&device_code={device}"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_grant"
+        }
+      }
+    },
+    {
+      "name": "a second TV starts",
+      "request": {
+        "method": "POST",
+        "path": "/device_authorization",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "client_id=tv&scope=media%3Apurchase"
+      },
+      "save": {
+        "device2": "json.device_code",
+        "user2": "json.user_code"
+      }
+    },
+    {
+      "name": "its user denies, and the decision survives a restart",
+      "request": {
+        "method": "POST",
+        "path": "/device",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "user_code={user2}&decision=deny"
+      },
+      "expect": {
+        "text": {
+          "$contains": "Denied"
+        }
+      }
+    },
+    {
+      "name": "the TV's poll gets access_denied",
+      "restart": true,
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=tv&device_code={device2}"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "access_denied"
+        }
+      }
+    },
+    {
+      "name": "a device code nobody issued is invalid_grant",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=tv&device_code=not-a-device-code"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_grant"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,544 @@
+{
+  "vars": {
+    "SIGNING_JWK": {"kty": "EC", "crv": "P-256", "kid": "server-2026", "x": "hMFpQHt_zg2DlrdEoyO7C6Bd0XbvUumIIxOjG-OOOVo", "y": "S_x6wSQ8yOjboEOdcO4GwXEMStEgEHeHg7njF23UomA", "d": "T0JpKgjnob4ZUNqMCiSL3SzflFTMEvNKyeYRUSYSi9c"},
+    "REPORTER_SECRET": "reporter-secret-0123456789",
+    "DEMO_PASSWORD": "correct horse"
+  },
+  "steps": [
+    {
+      "name": "the metadata names every endpoint and allows only S256",
+      "request": {
+        "path": "/.well-known/oauth-authorization-server"
+      },
+      "expect": {
+        "json": {
+          "issuer": {
+            "$regex": "^http://127\\.0\\.0\\.1:\\d+$"
+          },
+          "code_challenge_methods_supported": [
+            "S256"
+          ],
+          "pushed_authorization_request_endpoint": {
+            "$regex": "/par$"
+          },
+          "authorization_response_iss_parameter_supported": true,
+          "scopes_supported": [
+            "notes:read",
+            "notes:write"
+          ],
+          "grant_types_supported": {
+            "$contains": "refresh_token"
+          }
+        },
+        "headers": {
+          "cache-control": "max-age=300"
+        }
+      },
+      "save": {
+        "issuer": "json.issuer"
+      }
+    },
+    {
+      "name": "a request without PKCE cannot even be pushed",
+      "request": {
+        "method": "POST",
+        "path": "/par",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "client_id=cli&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcallback&scope=notes%3Aread"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_request",
+          "error_description": {
+            "$contains": "PKCE"
+          }
+        }
+      }
+    },
+    {
+      "name": "the CLI pushes its authorization request and gets a request_uri",
+      "request": {
+        "method": "POST",
+        "path": "/par",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "client_id=cli&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcallback&scope=notes%3Aread&state=xyz&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256"
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "request_uri": {
+            "$regex": "^urn:ietf:params:oauth:request_uri:"
+          },
+          "expires_in": 60
+        },
+        "headers": {
+          "cache-control": "no-store"
+        }
+      },
+      "save": {
+        "request_uri": "json.request_uri"
+      }
+    },
+    {
+      "name": "the authorization endpoint hands the browser to the host's login page",
+      "request": {
+        "path": "/authorize?client_id=cli&request_uri={request_uri}"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^/login\\?i="
+          }
+        }
+      },
+      "save": {
+        "login": "headers.location",
+        "interaction": {
+          "path": "headers.location",
+          "regex": "i=([^&]+)"
+        }
+      }
+    },
+    {
+      "name": "a pushed request is used once",
+      "request": {
+        "path": "/authorize?client_id=cli&request_uri={request_uri}"
+      },
+      "expect": {
+        "status": 400,
+        "text": {
+          "$contains": "invalid_request_uri"
+        }
+      }
+    },
+    {
+      "name": "the login page shows the client and the scopes",
+      "request": {
+        "path": "{login}"
+      },
+      "expect": {
+        "text": {
+          "$contains": "notes:read"
+        },
+        "headers": {
+          "content-type": {
+            "$regex": "^text/html"
+          }
+        }
+      }
+    },
+    {
+      "name": "a wrong password does not use up the interaction",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "i={interaction}&user=ada&password=nope&decision=allow"
+      },
+      "expect": {
+        "status": 401
+      }
+    },
+    {
+      "name": "signing in redirects to the CLI with a code, the state and iss (RFC 9207)",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "i={interaction}&user=ada&password=correct+horse&decision=allow"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:8765/callback\\?code=[A-Za-z0-9_-]{43}&state=xyz&iss=http%3A%2F%2F127\\.0\\.0\\.1%3A\\d+$"
+          }
+        }
+      },
+      "save": {
+        "code": {
+          "path": "headers.location",
+          "regex": "code=([^&]+)"
+        }
+      }
+    },
+    {
+      "name": "the interaction cannot be resumed twice",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "i={interaction}&user=ada&password=correct+horse&decision=allow"
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "name": "the code does not redeem without the PKCE verifier",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=authorization_code&client_id=cli&code={code}&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcallback&code_verifier=wrong-verifier-wrong-verifier-wrong-verifier"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_grant",
+          "error_description": "PKCE verification failed"
+        }
+      }
+    },
+    {
+      "name": "with it, the code is an access token for /api and a refresh token",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=authorization_code&client_id=cli&code={code}&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcallback&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+      },
+      "expect": {
+        "json": {
+          "token_type": "Bearer",
+          "expires_in": 300,
+          "scope": "notes:read",
+          "access_token": {
+            "$regex": "^ey"
+          },
+          "refresh_token": {
+            "$regex": "\\."
+          }
+        },
+        "headers": {
+          "cache-control": "no-store"
+        }
+      },
+      "save": {
+        "access": "json.access_token",
+        "refresh": "json.refresh_token"
+      }
+    },
+    {
+      "name": "the API without a token: 401 with a Bearer challenge and resource_metadata",
+      "request": {
+        "path": "/api/notes"
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": {
+            "$regex": "^Bearer resource_metadata=\"http://127\\.0\\.0\\.1:\\d+/\\.well-known/oauth-protected-resource/api\"$"
+          }
+        }
+      }
+    },
+    {
+      "name": "the protected resource metadata names this server",
+      "request": {
+        "path": "/.well-known/oauth-protected-resource/api"
+      },
+      "expect": {
+        "json": {
+          "resource": "{issuer}/api",
+          "authorization_servers": [
+            "{issuer}"
+          ],
+          "bearer_methods_supported": [
+            "header"
+          ]
+        }
+      }
+    },
+    {
+      "name": "with the token, the notes",
+      "request": {
+        "path": "/api/notes",
+        "headers": {
+          "authorization": "Bearer {access}"
+        }
+      },
+      "expect": {
+        "json": {
+          "owner": "ada",
+          "client": "cli",
+          "notes": [
+            {
+              "text": "buy oat milk"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "writing needs notes:write: 403 insufficient_scope",
+      "request": {
+        "method": "POST",
+        "path": "/api/notes",
+        "headers": {
+          "authorization": "Bearer {access}"
+        },
+        "json": {
+          "text": "hi"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "headers": {
+          "www-authenticate": {
+            "$regex": "^Bearer error=\"insufficient_scope\", .*scope=\"notes:write\", resource_metadata="
+          }
+        }
+      }
+    },
+    {
+      "name": "a garbled token: 401 invalid_token",
+      "request": {
+        "path": "/api/notes",
+        "headers": {
+          "authorization": "Bearer {access}x"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": {
+            "$regex": "Bearer error=\"invalid_token\""
+          }
+        }
+      }
+    },
+    {
+      "name": "the reporter introspects the token (RFC 7662)",
+      "request": {
+        "method": "POST",
+        "path": "/introspect",
+        "headers": {
+          "authorization": "Basic cmVwb3J0ZXI6cmVwb3J0ZXItc2VjcmV0LTAxMjM0NTY3ODk=",
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "token={access}"
+      },
+      "expect": {
+        "json": {
+          "active": true,
+          "sub": "ada",
+          "client_id": "cli",
+          "scope": "notes:read",
+          "token_type": "Bearer",
+          "aud": "{issuer}/api"
+        }
+      }
+    },
+    {
+      "name": "introspection needs client authentication",
+      "request": {
+        "method": "POST",
+        "path": "/introspect",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "token={access}"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "invalid_client"
+        }
+      }
+    },
+    {
+      "name": "after a restart, the refresh token rotates",
+      "restart": true,
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=refresh_token&client_id=cli&refresh_token={refresh}"
+      },
+      "expect": {
+        "json": {
+          "token_type": "Bearer",
+          "refresh_token": {
+            "$regex": "\\."
+          }
+        }
+      },
+      "save": {
+        "access2": "json.access_token",
+        "refresh2": "json.refresh_token"
+      }
+    },
+    {
+      "name": "and the access token still works: its key is SIGNING_JWK",
+      "request": {
+        "path": "/api/notes",
+        "headers": {
+          "authorization": "Bearer {access2}"
+        }
+      },
+      "expect": {
+        "json": {
+          "owner": "ada"
+        }
+      }
+    },
+    {
+      "name": "the old refresh token again is a replay: the whole family is revoked",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=refresh_token&client_id=cli&refresh_token={refresh}"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_grant",
+          "error_description": {
+            "$contains": "family is revoked"
+          }
+        }
+      }
+    },
+    {
+      "name": "so the rotated one no longer works either",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=refresh_token&client_id=cli&refresh_token={refresh2}"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_grant"
+        }
+      }
+    },
+    {
+      "name": "revoking an access token (RFC 7009)",
+      "request": {
+        "method": "POST",
+        "path": "/revoke",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "client_id=cli&token={access2}"
+      },
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "name": "the API sees the revocation at once",
+      "request": {
+        "path": "/api/notes",
+        "headers": {
+          "authorization": "Bearer {access2}"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": {
+            "$contains": "invalid_token"
+          }
+        }
+      }
+    },
+    {
+      "name": "and so does introspection",
+      "request": {
+        "method": "POST",
+        "path": "/introspect",
+        "headers": {
+          "authorization": "Basic cmVwb3J0ZXI6cmVwb3J0ZXItc2VjcmV0LTAxMjM0NTY3ODk=",
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "token={access2}"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "active": false
+          }
+        }
+      }
+    },
+    {
+      "name": "redeeming the code again is refused and revokes what it issued",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=authorization_code&client_id=cli&code={code}&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcallback&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_grant",
+          "error_description": "the code was already used"
+        }
+      }
+    },
+    {
+      "name": "the first access token is now refused",
+      "request": {
+        "path": "/api/notes",
+        "headers": {
+          "authorization": "Bearer {access}"
+        }
+      },
+      "expect": {
+        "status": 401
+      }
+    },
+    {
+      "name": "the JWKS has the public key only",
+      "request": {
+        "path": "/jwks"
+      },
+      "expect": {
+        "json": {
+          "keys": [
+            {
+              "kid": "server-2026",
+              "kty": "EC",
+              "crv": "P-256",
+              "alg": "ES256",
+              "use": "sig",
+              "d": {
+                "$absent": true
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
