@@ -159,152 +159,127 @@ need separate users with separate storage, cgroups, user managers and
 ID ranges, or separate VMs, and separate VMs are the only option these
 images offer today.
 
-## container-host/ — an appliance that runs other people's containers
+## container-host/: an appliance that runs containers
 
-The Bottlerocket-shaped composition: containerd, the CNI plugins and
-iptables its networking shells out to, and **gVisor as the only OCI
-runtime on the machine**. It ships no userland — the userland arrives
-inside the sandboxes — so it keeps the appliance layer checks the dev
-images waive.
+containerd, the CNI plugins and iptables its networking needs, and
+gVisor as the only OCI runtime. The image has no userland of its own, so
+it keeps the appliance checks the dev images waive.
 
-"Only runtime" is image content, not configuration. There is no runc, no
-crun, and no `containerd-shim-runc-v2` in any layer, so the conventional
-default runtime cannot start a container here at all; the boot smoke
-re-derives that from the built layers. containerd's CRI plugin, the one
-place containerd has a server-side default, names `runsc` as it. Sandbox
-behavior comes from `/etc/containerd/runsc/config.toml`, which the shim
-finds on its own — containerd only forwards runtime options a *client*
-asked for, and `nerdctl`/`ctr` send none, so that fallback path is the
-only way to configure every sandbox on the system at once.
+"Only runtime" describes the image's content, not its configuration. No
+layer has runc, crun or `containerd-shim-runc-v2`, so nothing else can
+start a container, and the boot smoke checks the built layers for them.
+containerd's CRI plugin, the only place containerd has a server-side
+default runtime, names `runsc`. Sandboxes are configured in
+`/etc/containerd/runsc/config.toml`, which the gVisor shim reads when a
+client sends no runtime options. nerdctl and ctr never send any, so that
+file is the only place to configure every sandbox.
 
 ### Running a workload
 
-A container is declared as data and started by systemd:
+Workloads are data, started by systemd. A layer stacked on this image
+ships an env file
 
 ```
-# /etc/minimos/containers/web.env, shipped by a layer stacked on this image
+# /etc/minimos/containers/web.env
 IMAGE=docker.io/library/nginx:1.29-alpine@sha256:<digest>
 RUN_ARGS=--publish 80:80 --memory 256m --cpus 1
 COMMAND=
 ```
 
-plus a `multi-user.target.wants/container@web.service` symlink to the
-`container@.service` template the image installs. That indirection is not
-ceremony — see below for why it is the only way in.
+and a `multi-user.target.wants/container@web.service` link to the
+`container@.service` template. The next section explains why that's the
+only way to start one.
 
-Two things the template enforces so a workload cannot quietly opt out:
+The template enforces two things a workload can't skip:
 
-- **`IMAGE` must be digest-pinned** (`…@sha256:…`), checked by an
-  `ExecStartPre` that fails the unit otherwise. Every other input to
-  these images is pinned by hash; a workload image is the one that
-  arrives at runtime from a registry, and a tag can be re-pointed between
-  the boot that was tested and the boot that runs. TLS proves who served
-  the bytes, not which bytes were promised.
-- **Container logs are bounded** (`--log-opt max-size=16m max-file=3`,
-  overridable from `RUN_ARGS`). Cgroups cap memory, CPU and pids but
-  never bytes written, so an unbounded json-file log is the likeliest way
-  this host fills its root filesystem. The content store is the other
-  way, and it is not bounded: containerd's GC reclaims unreferenced
-  content, not images you pulled and stopped using, so `nerdctl rmi` and
-  a disk-usage alarm remain the operator's job.
+- **`IMAGE` has to be pinned by digest.** An `ExecStartPre=` check fails
+  the unit otherwise. Every other input to these images is pinned by
+  hash, while a workload image comes from a registry at runtime, and a
+  tag can move between the boot you tested and the boot that runs.
+- **Container logs are capped** at `--log-opt max-size=16m max-file=3`,
+  which `RUN_ARGS` can override. Cgroups limit memory, CPU and pids but
+  not bytes written, so an unbounded log is the likeliest way to fill the
+  disk. Pulled images are the other way, and nothing bounds them.
+  containerd's garbage collector only removes unreferenced content, so
+  `nerdctl rmi` and watching disk usage stay the owner's job.
 
-### What the SSH owner can and cannot do
+### What the SSH owner can and can't do
 
-`containerd.service` hands its control socket to `exedev` (uid 1000)
-after startup, so `ctr` works over SSH for pulls, listing, inspection and
-task control. It **cannot start a container**, and that is not a
-permission that was withheld:
+`containerd.service` hands its socket to exedev after it starts, so
+`ctr` over SSH can pull, list, inspect and control tasks. It can't start
+a container, and no permission would change that:
 
-- `nerdctl` decides it is rootless from `geteuid()` alone. As uid 1000 it
-  never looks at the socket; it looks for a rootless containerd that does
-  not exist and exits.
-- `ctr run` builds the OCI spec client-side, which means reading
-  `/var/lib/containerd/…/snapshots/<n>/fs` directly. That path is root's,
-  and on cgroup-v2 the client would need `mount(2)` anyway.
+- `nerdctl` decides it's rootless from `geteuid()` alone. As uid 1000 it
+  looks for a rootless containerd that doesn't exist and exits.
+- `ctr run` builds the OCI spec on the client side, which means reading
+  `/var/lib/containerd/.../snapshots/<n>/fs`. That's root's, and on
+  cgroup v2 the client would need `mount(2)` anyway.
 
-So creating a container is a build-time act on this image, the same way
-creating a service is. This is a consequence of minimos having no path to
-uid 0 at runtime, not of container tooling being unusual: every container
-CLI assumes it either is root or has a rootless daemon of its own, and
-rootless containers need setuid `newuidmap`/`newgidmap` helpers that this
-image structurally refuses to ship.
+So creating a container is a build-time act here, like creating a
+service. Container CLIs assume they're root or have a rootless daemon,
+and rootless containers need setuid `newuidmap` and `newgidmap`, which no
+minimos image ships.
 
-Handing over the socket is itself a deliberate widening, and a total one:
-anything that can reach it can start a container that bind-mounts the
-host filesystem. It is the same bargain as membership in Docker's
-`docker` group, taken because a container host whose owner cannot even
-see what is running is not administrable. What gVisor buys is the layer
-underneath — the workload runs on a userspace kernel rather than directly
-on the host's syscall surface.
+The socket handover still gives the owner a way to root. Anything that
+can reach the socket can start a container that mounts the host
+filesystem, the same trade as Docker's `docker` group. It's there
+because a container host whose owner can't see what's running can't be
+run at all. gVisor is the boundary under the workloads, since each one
+runs on a userspace kernel instead of the host's syscalls.
 
-### The annotation every non-CRI client has to pass
+### The annotation non-CRI clients need
 
-gVisor's shim wires a container's stdio to runsc **only** when the OCI
-spec carries `io.kubernetes.cri.container-type=sandbox`: `newInit` sets
+gVisor's shim only connects a container's stdio to runsc when the OCI
+spec has `io.kubernetes.cri.container-type=sandbox`. `newInit` sets
 `p.Sandbox` from that annotation alone, and `Create` passes `opts.IO`
-only when `p.Sandbox` is set. Without it the shim captures runsc's output
-through a pipe that the sandbox process inherits and never closes, so
-`Create` blocks forever — the sandbox boots, logs `Watchdog.Start() not
-called within 30s`, and the task sits in `CREATED`. Nothing reports an
-error; it simply hangs.
+only when `p.Sandbox` is set. Without it the shim reads runsc's output
+through a pipe the sandbox inherits and never closes, so `Create` blocks
+forever. The sandbox logs `Watchdog.Start() not called within 30s`, the
+task sits in `CREATED`, and nothing reports an error.
 
-The CRI always sets that annotation, which is why the bug is invisible in
-Kubernetes. `container@.service` passes it explicitly, and the boot smoke
-asserts it is still there. Anything else that starts a container on this
-runtime, as root on this image or on any other containerd host, needs
-both flags:
+The CRI always sets the annotation, which is why Kubernetes never hits
+this. `container@.service` passes it, and the boot smoke checks it's
+still there. Anything else that starts a container on this runtime, as
+root on this image or on any other containerd host, needs both flags:
 
 ```
 nerdctl run --runtime=io.containerd.runsc.v1 \
     --annotation io.kubernetes.cri.container-type=sandbox \
-    --rm docker.io/library/alpine:3 uname -a        # -> 4.19.0-gvisor
+    --rm docker.io/library/alpine:3 uname -a        # Linux ... 4.19.0-gvisor
 ```
 
-### Verified on a real VM
+### Checked on a real VM
 
-Docker cannot start a gVisor sandbox inside the bounded boot smoke —
-nested seccomp and container policy stop it — so the smoke checks
-composition (no other runtime present, runsc executes, containerd's
-effective config, the socket handover, the annotation) and the runtime
-itself is a VM check. On an exe.dev VM, with a workload unit enabled:
+Docker can't start a gVisor sandbox inside the boot smoke, so the smoke
+checks the pieces: no other runtime, runsc runs, containerd's merged
+config, the socket handover, and the unit's annotation, digest and log
+guards. On an exe.dev VM with a workload enabled:
 
-- the container reports `Linux 4.19.0-gvisor`, i.e. the sentry, not the
-  host kernel;
-- CNI bridge networking works end to end — `nerdctl0` plus a veth pair,
-  and outbound HTTP from inside the sandbox succeeds. This is only true
-  because the platform kernel has nf_tables built in: minimos latches
-  `kernel.modules_disabled=1` during `sysinit.target`, so a backend that
-  needed to load a module would fail permanently. The image's `iptables`
-  symlinks therefore point at the nft multi binary, not Wolfi's legacy
-  default;
-- gVisor's KVM platform is unavailable (the hypervisor exposes
-  `/dev/kvm` but not working nested VMX), so sandboxes use systrap, which
-  needs no device.
+- the container reports `Linux 4.19.0-gvisor`, gVisor's kernel rather
+  than the host's
+- CNI bridge networking works, with `nerdctl0`, a veth pair and outbound
+  HTTP from inside the sandbox. That depends on the platform kernel
+  having nf_tables built in, since minimos shuts off module loading, and
+  it's why the image's `iptables` links point at the nft binary rather
+  than Wolfi's legacy default
+- gVisor's KVM platform isn't available, since the VM has `/dev/kvm` but
+  no working nested VMX, so sandboxes use systrap
 
-Container cgroups land at `/sys/fs/cgroup/<namespace>/<id>`, outside the
-base's slice hierarchy: nerdctl refuses the systemd cgroup manager for
-any runtime other than runc and falls back to cgroupfs, so the runtime
-config agrees with it rather than fighting it. Bound each workload in its
-own `RUN_ARGS` (`--memory`, `--cpus`, `--pids-limit`).
+Container cgroups live at `/sys/fs/cgroup/<namespace>/<id>`, outside the
+base's slices. nerdctl refuses the systemd cgroup manager for any runtime
+but runc, so the runtime config says cgroupfs too. Limit each workload
+in its `RUN_ARGS` with `--memory`, `--cpus` and `--pids-limit`.
 
-Two lines in containerd's own log survive on a clean boot, and neither is
-a systemd-priority warning — journald records service stdout at `info`,
-so the smoke's warning-free-journal check does not see them, and they are
-worth recognizing rather than chasing. `failed check for fsverity
-support` is the root filesystem answering that it has no fsverity;
-containerd probes and continues. `failed to load cni during init` is the
-CRI plugin reporting that `/etc/cni/net.d` is still empty — the image
-ships the directory but no network, because a container network is
-runtime state the CLI creates and removes, not image configuration.
-nerdctl writes its bridge definition there the first time a container
-needs one, and the CRI picks up the same directory.
+Two lines in containerd's log show up on a clean boot. journald records
+them at `info`, so the boot smoke doesn't flag them.
+`failed check for fsverity support` means the root filesystem has no
+fsverity, and containerd carries on. `failed to load cni during init`
+means `/etc/cni/net.d` is empty. The image ships the directory but no
+network, and nerdctl writes its bridge definition there the first time a
+container needs it.
 
-## Sandbox and shared-resource boundary
-
-`container-host/` is a *rootful* runtime composition:
-containerd runs as root, sandboxes are started by root-side systemd
-units, and the socket handed to uid 1000 is root-equivalent by
-construction. It ships no subordinate-ID helpers either — rootless
-containers need setuid `newuidmap`/`newgidmap`, which no minimos image
-will carry — so it is not a way to give an untrusted user containers.
-Its boundary is gVisor around the *workload*, not around the operator.
+The container host runs containers as root. containerd is root, systemd
+units start the sandboxes, and the socket handed to uid 1000 is as good
+as root. It ships no subordinate-ID helpers, so it can't give an
+untrusted user containers. gVisor protects the host from the workloads,
+not from the owner.
