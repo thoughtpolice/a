@@ -304,9 +304,10 @@ fi
 
 # Weight-based block-I/O scheduling is optional in the kernel. The aggregate
 # user ceiling uses io.max instead, which must be realized on the root
-# filesystem's backing device.
+# filesystem's backing device. Appliance images have no cat, so bash reads
+# the file.
 USER_IO_MAX=""
-if USER_IO_MAX=$(docker_exec /usr/bin/cat /sys/fs/cgroup/user.slice/io.max 2>/dev/null) &&
+if USER_IO_MAX=$(docker_exec /usr/bin/bash -c 'printf "%s" "$(</sys/fs/cgroup/user.slice/io.max)"' 2>/dev/null) &&
         [[ -n "$USER_IO_MAX" ]]; then
     for io_limit in rbps=500000000 wbps=250000000 riops=50000 wiops=25000; do
         if ! grep -Eq "(^|[[:space:]])${io_limit}([[:space:]]|$)" <<<"$USER_IO_MAX"; then
