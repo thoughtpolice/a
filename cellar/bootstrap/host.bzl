@@ -30,7 +30,7 @@ def _host_python_test_impl(ctx: AnalysisContext) -> list[Provider]:
 host_python_test = rule(impl = _host_python_test_impl, attrs = {
     "src": attrs.source(),
     "resources": attrs.list(attrs.source(), default = []),
-    "args": attrs.list(attrs.string(), default = []),
+    "args": attrs.list(attrs.arg(), default = []),
     "labels": attrs.list(attrs.string(), default = []),
     "_executor": attrs.dep(default = "cellar//bootstrap/platforms:host-tests"),
 })
