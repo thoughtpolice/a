@@ -1,0 +1,530 @@
+{
+  "vars": {
+    "IDENTITY_SECRET": "example-only-identity-secret-0123456789abcdef",
+    "API_TOKENS": {
+      "2d74ac755232423c96f42107c541672b5489040fd75fe5f8bc5c88993407cd3e": {
+        "subject": "ada",
+        "scopes": [
+          "bookmarks:read"
+        ]
+      },
+      "9811ab945c1216ac3beed6f5ec35fc4787aaf835b6a8a0e3543cc1b2ee3b75fc": {
+        "subject": "ada",
+        "scopes": [
+          "bookmarks:read",
+          "bookmarks:write"
+        ]
+      },
+      "e1c1f90612ddc96d199f97b712d03e3ba83773615aa6aca903d2638bdc9a344a": {
+        "subject": "bob",
+        "scopes": [
+          "bookmarks:read",
+          "bookmarks:write"
+        ]
+      }
+    }
+  },
+  "steps": [
+    {
+      "name": "the OpenAPI document is public and lists the routes with their scopes and answers",
+      "request": {
+        "path": "/openapi.json"
+      },
+      "expect": {
+        "json": {
+          "openapi": "3.1.0",
+          "info": {
+            "title": "Bookmarks"
+          },
+          "paths": {
+            "/bookmarks/{id}": {
+              "get": {
+                "security": [
+                  {
+                    "bearer": []
+                  }
+                ],
+                "x-required-scopes": [
+                  "bookmarks:read"
+                ]
+              },
+              "delete": {
+                "security": [
+                  {
+                    "bearer": []
+                  }
+                ],
+                "x-required-scopes": [
+                  "bookmarks:write"
+                ],
+                "responses": {
+                  "$exact": {
+                    "204": {
+                      "description": "Deleted"
+                    },
+                    "400": {
+                      "$any": true
+                    },
+                    "401": {
+                      "$any": true
+                    },
+                    "403": {
+                      "$any": true
+                    }
+                  }
+                }
+              }
+            },
+            "/bookmarks": {
+              "post": {
+                "responses": {
+                  "201": {
+                    "description": "The bookmark, with its id",
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$exact": {
+                            "$ref": "#/components/schemas/Bookmark"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "200": {
+                    "$absent": true
+                  }
+                },
+                "requestBody": {
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$exact": {
+                          "$ref": "#/components/schemas/NewBookmark"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/openapi.json": {
+              "$absent": true
+            }
+          },
+          "components": {
+            "securitySchemes": {
+              "bearer": {
+                "$exact": {
+                  "type": "http",
+                  "scheme": "bearer"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "every route but that one needs a token: 401 with a Bearer challenge and the security headers",
+      "request": {
+        "path": "/bookmarks"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "unauthorized",
+          "message": "authentication required",
+          "requestId": {
+            "$regex": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+          }
+        },
+        "headers": {
+          "www-authenticate": "Bearer realm=\"bookmarks\"",
+          "x-content-type-options": "nosniff",
+          "x-frame-options": "DENY",
+          "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+          "cache-control": "private, no-store",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": {
+            "$absent": true
+          },
+          "x-request-id": {
+            "$regex": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+          }
+        }
+      }
+    },
+    {
+      "name": "an unknown token is invalid_token",
+      "request": {
+        "path": "/bookmarks",
+        "headers": {
+          "authorization": "Bearer bm_forged_0000"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": "Bearer realm=\"bookmarks\", error=\"invalid_token\", error_description=\"the access token is not valid\""
+        }
+      }
+    },
+    {
+      "name": "a token in the query string is refused outright",
+      "request": {
+        "path": "/bookmarks?access_token=bm_reader_ppLa7JZWgcWG6HANDlils-v5dTS4Rdvvas2JCXBjgxs"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_request"
+        }
+      }
+    },
+    {
+      "name": "a read-only token cannot write: 403 insufficient_scope naming the scope",
+      "request": {
+        "path": "/bookmarks",
+        "headers": {
+          "authorization": "Bearer bm_reader_ppLa7JZWgcWG6HANDlils-v5dTS4Rdvvas2JCXBjgxs"
+        },
+        "json": {
+          "url": "https://example.com",
+          "title": "x"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "headers": {
+          "www-authenticate": "Bearer realm=\"bookmarks\", error=\"insufficient_scope\", error_description=\"this needs the scopes: bookmarks:write\", scope=\"bookmarks:write\""
+        }
+      }
+    },
+    {
+      "name": "an invalid body is a 400 with the issues by field",
+      "request": {
+        "path": "/bookmarks",
+        "headers": {
+          "authorization": "Bearer bm_writer_DBfccclRLZ3nnhxcOCxshHIZ_86cRR1P96TGwV4Yj6g"
+        },
+        "json": {
+          "url": "javascript:alert(1)",
+          "title": "  ",
+          "tags": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h",
+            "i"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "validation_failed",
+          "location": "body",
+          "formErrors": [],
+          "fieldErrors": {
+            "$exact": {
+              "url": [
+                "must be an http or https URL"
+              ],
+              "title": [
+                "must have at least 1 character"
+              ],
+              "tags": [
+                "must have at most 8 items"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a body that is not JSON is a 415",
+      "request": {
+        "method": "POST",
+        "path": "/bookmarks",
+        "headers": {
+          "authorization": "Bearer bm_writer_DBfccclRLZ3nnhxcOCxshHIZ_86cRR1P96TGwV4Yj6g",
+          "content-type": "text/plain"
+        },
+        "body": "url=https://example.com"
+      },
+      "expect": {
+        "status": 415,
+        "json": {
+          "error": "unsupported_media_type"
+        }
+      }
+    },
+    {
+      "name": "a body over 4 KiB is a 413 before it is parsed",
+      "request": {
+        "path": "/bookmarks",
+        "headers": {
+          "authorization": "Bearer bm_writer_DBfccclRLZ3nnhxcOCxshHIZ_86cRR1P96TGwV4Yj6g"
+        },
+        "json": {
+          "url": "https://example.com",
+          "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "expect": {
+        "status": 413,
+        "json": {
+          "message": "the body is larger than 4096 bytes"
+        }
+      }
+    },
+    {
+      "name": "a valid bookmark is created; its id is the request id",
+      "request": {
+        "path": "/bookmarks",
+        "headers": {
+          "authorization": "Bearer bm_writer_DBfccclRLZ3nnhxcOCxshHIZ_86cRR1P96TGwV4Yj6g"
+        },
+        "json": {
+          "url": "https://celld.example/docs",
+          "title": " celld docs ",
+          "tags": [
+            "docs"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "id": {
+            "$regex": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+          },
+          "url": "https://celld.example/docs",
+          "title": "celld docs",
+          "tags": [
+            "docs"
+          ],
+          "created": {
+            "$regex": "^\\d{4}-"
+          },
+          "owner": {
+            "$absent": true
+          }
+        },
+        "headers": {
+          "cache-control": "private, no-store"
+        }
+      },
+      "save": {
+        "id": "json.id"
+      }
+    },
+    {
+      "name": "it reads back without the stored owner field, which the response schema drops",
+      "request": {
+        "path": "/bookmarks/{id}",
+        "headers": {
+          "authorization": "Bearer bm_reader_ppLa7JZWgcWG6HANDlils-v5dTS4Rdvvas2JCXBjgxs"
+        }
+      },
+      "expect": {
+        "json": {
+          "id": "{id}",
+          "title": "celld docs",
+          "owner": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "name": "the list filters by tag",
+      "request": {
+        "path": "/bookmarks?tag=docs",
+        "headers": {
+          "authorization": "Bearer bm_reader_ppLa7JZWgcWG6HANDlils-v5dTS4Rdvvas2JCXBjgxs"
+        }
+      },
+      "expect": {
+        "json": {
+          "bookmarks": [
+            {
+              "id": "{id}",
+              "url": "https://celld.example/docs",
+              "title": "celld docs",
+              "tags": [
+                "docs"
+              ],
+              "created": {
+                "$any": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "and a repeated scalar query parameter is refused rather than guessed",
+      "request": {
+        "path": "/bookmarks?tag=a&tag=b",
+        "headers": {
+          "authorization": "Bearer bm_reader_ppLa7JZWgcWG6HANDlils-v5dTS4Rdvvas2JCXBjgxs"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "location": "query",
+          "fieldErrors": {
+            "tag": [
+              "expected string, received array"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "HEAD is served by GET without a body",
+      "request": {
+        "method": "HEAD",
+        "path": "/bookmarks/{id}",
+        "headers": {
+          "authorization": "Bearer bm_reader_ppLa7JZWgcWG6HANDlils-v5dTS4Rdvvas2JCXBjgxs"
+        }
+      },
+      "expect": {
+        "text": "",
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "name": "another user cannot see it",
+      "request": {
+        "path": "/bookmarks/{id}",
+        "headers": {
+          "authorization": "Bearer bm_other_jTjXwIxWWdn26GUOjEukGkUsHnyCJ0cGknxQUPrCe3U"
+        }
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "error": "not_found",
+          "message": "no such bookmark"
+        }
+      }
+    },
+    {
+      "name": "an id that is not a ULID is a 400 on the path",
+      "request": {
+        "path": "/bookmarks/not-a-ulid",
+        "headers": {
+          "authorization": "Bearer bm_reader_ppLa7JZWgcWG6HANDlils-v5dTS4Rdvvas2JCXBjgxs"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "location": "path"
+        }
+      }
+    },
+    {
+      "name": "an unrouted method is a 405 listing what is allowed",
+      "request": {
+        "method": "PATCH",
+        "path": "/bookmarks/{id}",
+        "headers": {
+          "authorization": "Bearer bm_writer_DBfccclRLZ3nnhxcOCxshHIZ_86cRR1P96TGwV4Yj6g"
+        },
+        "json": {}
+      },
+      "expect": {
+        "status": 405,
+        "headers": {
+          "allow": "DELETE, GET, HEAD, OPTIONS, PUT"
+        }
+      }
+    },
+    {
+      "name": "OPTIONS answers with Allow, no credential needed",
+      "request": {
+        "method": "OPTIONS",
+        "path": "/bookmarks"
+      },
+      "expect": {
+        "status": 204,
+        "headers": {
+          "allow": "GET, HEAD, OPTIONS, POST"
+        }
+      }
+    },
+    {
+      "name": "an update replaces the fields",
+      "request": {
+        "method": "PUT",
+        "path": "/bookmarks/{id}",
+        "headers": {
+          "authorization": "Bearer bm_writer_DBfccclRLZ3nnhxcOCxshHIZ_86cRR1P96TGwV4Yj6g"
+        },
+        "json": {
+          "url": "https://celld.example/docs/v2",
+          "title": "celld docs v2"
+        }
+      },
+      "expect": {
+        "json": {
+          "id": "{id}",
+          "url": "https://celld.example/docs/v2",
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "a delete is a 204",
+      "request": {
+        "method": "DELETE",
+        "path": "/bookmarks/{id}",
+        "headers": {
+          "authorization": "Bearer bm_writer_DBfccclRLZ3nnhxcOCxshHIZ_86cRR1P96TGwV4Yj6g"
+        }
+      },
+      "expect": {
+        "status": 204,
+        "text": ""
+      }
+    },
+    {
+      "name": "and then it is gone",
+      "request": {
+        "path": "/bookmarks/{id}",
+        "headers": {
+          "authorization": "Bearer bm_reader_ppLa7JZWgcWG6HANDlils-v5dTS4Rdvvas2JCXBjgxs"
+        }
+      },
+      "expect": {
+        "status": 404
+      }
+    },
+    {
+      "name": "an unknown path is a 404 with the security headers",
+      "request": {
+        "path": "/nope"
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "error": "not_found"
+        },
+        "headers": {
+          "x-content-type-options": "nosniff"
+        }
+      }
+    }
+  ]
+}

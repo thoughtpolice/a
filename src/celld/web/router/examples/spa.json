@@ -1,0 +1,232 @@
+{
+  "vars": {
+    "IDENTITY_SECRET": "example-only-identity-secret-0123456789abcdef",
+    "API_TOKENS": {
+      "fb970f310784b33ca61d56d13ca964ea4ff198cd5abd17090179b03ac937658b": {
+        "subject": "ada"
+      }
+    }
+  },
+  "steps": [
+    {
+      "name": "the SPA's preflight is answered before authentication",
+      "request": {
+        "method": "OPTIONS",
+        "path": "/api/profile",
+        "headers": {
+          "origin": "https://app.example.com",
+          "access-control-request-method": "PUT",
+          "access-control-request-headers": "authorization, content-type"
+        }
+      },
+      "expect": {
+        "status": 204,
+        "text": "",
+        "headers": {
+          "access-control-allow-origin": "https://app.example.com",
+          "access-control-allow-methods": "GET, PUT",
+          "access-control-allow-headers": "authorization, content-type",
+          "access-control-max-age": "3600",
+          "access-control-allow-credentials": {
+            "$absent": true
+          },
+          "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+        }
+      }
+    },
+    {
+      "name": "another origin's preflight is refused and its origin is never reflected",
+      "request": {
+        "method": "OPTIONS",
+        "path": "/api/profile",
+        "headers": {
+          "origin": "https://evil.example.net",
+          "access-control-request-method": "PUT",
+          "access-control-request-headers": "authorization, content-type"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "cors",
+          "message": "the cross-origin request is not allowed"
+        },
+        "headers": {
+          "access-control-allow-origin": {
+            "$absent": true
+          },
+          "vary": "Origin"
+        }
+      }
+    },
+    {
+      "name": "a preflight for a method the API does not allow cross-origin is refused",
+      "request": {
+        "method": "OPTIONS",
+        "path": "/api/profile",
+        "headers": {
+          "origin": "https://app.example.com",
+          "access-control-request-method": "DELETE",
+          "access-control-request-headers": "authorization, content-type"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "message": "the cross-origin request is not allowed"
+        }
+      }
+    },
+    {
+      "name": "and one asking for an unlisted header",
+      "request": {
+        "method": "OPTIONS",
+        "path": "/api/profile",
+        "headers": {
+          "origin": "https://app.example.com",
+          "access-control-request-method": "PUT",
+          "access-control-request-headers": "x-admin"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "message": "the cross-origin request is not allowed"
+        }
+      }
+    },
+    {
+      "name": "the SPA can read a 401, so it knows to sign in",
+      "request": {
+        "path": "/api/profile",
+        "headers": {
+          "origin": "https://app.example.com"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "access-control-allow-origin": "https://app.example.com",
+          "www-authenticate": "Bearer",
+          "vary": "Origin"
+        }
+      }
+    },
+    {
+      "name": "with a token it reads the profile, and X-Request-Id is exposed",
+      "request": {
+        "path": "/api/profile",
+        "headers": {
+          "origin": "https://app.example.com",
+          "authorization": "Bearer spa_ada_WYeeuxhYzxJwr7mY6Nr0iWvFFXYRI0myPOIn5VeL-bQ"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "subject": "ada",
+            "displayName": null
+          }
+        },
+        "headers": {
+          "access-control-allow-origin": "https://app.example.com",
+          "access-control-expose-headers": "x-request-id",
+          "vary": "Origin, Authorization, Cookie",
+          "cache-control": "private, no-store"
+        }
+      }
+    },
+    {
+      "name": "and updates it",
+      "request": {
+        "method": "PUT",
+        "path": "/api/profile",
+        "headers": {
+          "origin": "https://app.example.com",
+          "authorization": "Bearer spa_ada_WYeeuxhYzxJwr7mY6Nr0iWvFFXYRI0myPOIn5VeL-bQ"
+        },
+        "json": {
+          "displayName": "Ada L."
+        }
+      },
+      "expect": {
+        "json": {
+          "subject": "ada",
+          "displayName": "Ada L."
+        },
+        "headers": {
+          "access-control-allow-origin": "https://app.example.com"
+        }
+      }
+    },
+    {
+      "name": "another origin's request is still answered, but without CORS headers the browser hides it",
+      "request": {
+        "path": "/api/profile",
+        "headers": {
+          "origin": "https://evil.example.net",
+          "authorization": "Bearer spa_ada_WYeeuxhYzxJwr7mY6Nr0iWvFFXYRI0myPOIn5VeL-bQ"
+        }
+      },
+      "expect": {
+        "json": {
+          "displayName": "Ada L."
+        },
+        "headers": {
+          "access-control-allow-origin": {
+            "$absent": true
+          },
+          "vary": "Origin, Authorization, Cookie"
+        }
+      }
+    },
+    {
+      "name": "the opaque null origin (sandboxed frames, file:) is never allowed",
+      "request": {
+        "path": "/api/status",
+        "headers": {
+          "origin": "null"
+        }
+      },
+      "expect": {
+        "json": {
+          "ok": true
+        },
+        "headers": {
+          "access-control-allow-origin": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "name": "CORS is not access control: no token is a 401 from any origin",
+      "request": {
+        "path": "/api/profile",
+        "headers": {
+          "origin": "https://app.example.com"
+        }
+      },
+      "expect": {
+        "status": 401
+      }
+    },
+    {
+      "name": "requests without Origin (curl, servers) get no CORS headers",
+      "request": {
+        "path": "/api/status"
+      },
+      "expect": {
+        "json": {
+          "ok": true
+        },
+        "headers": {
+          "access-control-allow-origin": {
+            "$absent": true
+          },
+          "vary": "Origin"
+        }
+      }
+    }
+  ]
+}
