@@ -1,0 +1,176 @@
+{
+  "steps": [
+    {
+      "name": "IDs minted at a given time all carry it in their first ten characters",
+      "request": {
+        "method": "POST",
+        "path": "/ids",
+        "json": {
+          "count": 3,
+          "at": 1469922850259
+        }
+      },
+      "expect": {
+        "json": {
+          "ids": [
+            {
+              "$regex": "^01ARZ3NDEK[0-9A-HJKMNP-TV-Z]{16}$"
+            },
+            {
+              "$regex": "^01ARZ3NDEK[0-9A-HJKMNP-TV-Z]{16}$"
+            },
+            {
+              "$regex": "^01ARZ3NDEK[0-9A-HJKMNP-TV-Z]{16}$"
+            }
+          ],
+          "time": 1469922850259,
+          "date": "2016-07-30T23:54:10.259Z"
+        }
+      }
+    },
+    {
+      "name": "the factory never goes back in time: an earlier time keeps the last one",
+      "request": {
+        "method": "POST",
+        "path": "/ids",
+        "json": {
+          "count": 2,
+          "at": 1000
+        }
+      },
+      "expect": {
+        "json": {
+          "ids": [
+            {
+              "$regex": "^01ARZ3NDEK"
+            },
+            {
+              "$regex": "^01ARZ3NDEK"
+            }
+          ],
+          "time": 1469922850259
+        }
+      }
+    },
+    {
+      "name": "one ID minted now is a canonical ULID at the current time",
+      "request": {
+        "method": "POST",
+        "path": "/ids",
+        "json": {}
+      },
+      "expect": {
+        "json": {
+          "ids": [
+            {
+              "$regex": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+            }
+          ],
+          "time": {
+            "$gt": 1790000000000
+          }
+        }
+      }
+    },
+    {
+      "name": "a later time moves it forward again",
+      "request": {
+        "method": "POST",
+        "path": "/ids",
+        "json": {
+          "at": 1893456000000
+        }
+      },
+      "expect": {
+        "json": {
+          "ids": [
+            {
+              "$regex": "^01Q3DCBD00[0-9A-HJKMNP-TV-Z]{16}$"
+            }
+          ],
+          "time": 1893456000000,
+          "date": "2030-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "a time past the 48-bit limit is refused with the library's message",
+      "request": {
+        "method": "POST",
+        "path": "/ids",
+        "json": {
+          "at": 281474976710656
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "ULID time must be an integer from 0 to 281474976710655, got 281474976710656"
+        }
+      }
+    },
+    {
+      "name": "count is bounded",
+      "request": {
+        "method": "POST",
+        "path": "/ids",
+        "json": {
+          "count": 5000
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": {
+            "$contains": "1 to 1000"
+          }
+        }
+      }
+    },
+    {
+      "name": "an ID in lower case reads back in canonical spelling, with its time and UUID",
+      "request": {
+        "path": "/ids/01arz3ndektsv4rrffq69g5fav"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "time": 1469922850259,
+            "date": "2016-07-30T23:54:10.259Z",
+            "hex": "01563e3ab5d3d6764c61efb99302bd5b",
+            "uuid": "01563e3a-b5d3-d676-4c61-efb99302bd5b"
+          }
+        }
+      }
+    },
+    {
+      "name": "letters Crockford base32 leaves out are refused",
+      "request": {
+        "path": "/ids/01ARZ3NDEKTSV4RRFFQ69G5FAI"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": {
+            "$contains": "not a ULID"
+          }
+        }
+      }
+    },
+    {
+      "name": "a first character above 7 would need more than 128 bits",
+      "request": {
+        "path": "/ids/81ARZ3NDEKTSV4RRFFQ69G5FAV"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": {
+            "$contains": "not a ULID"
+          }
+        }
+      }
+    }
+  ]
+}
