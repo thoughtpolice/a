@@ -17,22 +17,42 @@ download_file(
     urls = ["https://mirrors.kernel.org/gnu/binutils/binutils-2.41.tar.xz"],
 )
 
-generate(
-    name = "binutils.tar",
-    args = [
-        "--file",
-        "$(location :binutils-2.41.tar.xz)",
-        "--output",
-    ],
-    tool = "cellar//bootstrap/stage0-posix/mescc-tools-extra:unxz",
-)
-
 untar(
     name = "binutils-2.41",
     chdirenv = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
+    decompress = "cellar//bootstrap/stage0-posix/mescc-tools-extra:unxz",
     files = FILES,
-    flags = ["-xf"],
-    input = ":binutils.tar",
+    flags = ["-x"],
+    input = ":binutils-2.41.tar.xz",
+    # The programs this package builds, without their test suites or
+    # translations, and without gold, gprofng or the simulators.
+    only = [
+        "COPYING",
+        "COPYING.LIB",
+        "COPYING3",
+        "COPYING3.LIB",
+        "bfd",
+        "binutils",
+        "gas",
+        "gprof",
+        "include",
+        "ld",
+        "libctf",
+        "libiberty",
+        "libsframe",
+        "opcodes",
+        "zlib",
+    ],
+    skip = [
+        "bfd/po",
+        "binutils/po",
+        "binutils/testsuite",
+        "gas/po",
+        "gas/testsuite",
+        "ld/po",
+        "ld/testsuite",
+        "opcodes/po",
+    ],
     untar = "cellar//bootstrap/stage1/pax:untar",
 )
 

@@ -52,6 +52,13 @@ watcher service or changes to operating-system watch limits. The parent
 project keeps its watchman watcher and ignores `cellar/buck-out`, where
 standalone builds write.
 
+Cellar rules declare every output with `has_content_based_path = False`. The
+parent project enables content-based output paths, under which an action
+writes each output to a placeholder path and Buck then copies it to its
+content-hashed path, keeping both. That deduplicates actions shared across
+configurations, but cellar builds everything in one configuration, so it
+would only store every output twice.
+
 ## Remote Linux workers
 
 Configure the RE connection using standard Buck `[buck2_re_client]` settings in

@@ -1,7 +1,7 @@
 load("@cellar//bootstrap/platforms:rules.bzl", "native_attrs")
 
 def __cc(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     tools = ctx.attrs.tools[DefaultInfo].default_outputs[0]
 
     m2libc = ctx.attrs._m2_libc[DefaultInfo].default_outputs[0]

@@ -3,7 +3,14 @@
  *
  * Extract a POSIX.1-2001 (pax) or ustar archive into the current directory.
  *
- *   untar -xf ARCHIVE
+ *   untar -xf ARCHIVE [--only PREFIX]... [--skip PREFIX]...
+ *   untar -x [--only PREFIX]... [--skip PREFIX]... -- COMMAND [ARGUMENT]...
+ *
+ * The second form reads the archive from the standard output of COMMAND, such
+ * as a decompressor, so no uncompressed copy is stored, and fails unless
+ * COMMAND exits successfully. With --only, just the members at or beneath one
+ * of its prefixes are extracted; --skip leaves out those at or beneath any of
+ * its prefixes. A link to a member left out fails.
  *
  * Member names come from pax "path"/"linkpath" records, GNU long-name
  * members, or the ustar prefix and name fields, in that order. Other pax
@@ -19,12 +26,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #define BLOCK 512
 
 static FILE *archive;
 static const char *archive_name;
+static char **only, **skipped;
+static int only_count, skip_count;
 
 static void fail(const char *message, const char *detail)
 {
@@ -115,6 +125,42 @@ static void check_name(const char *name)
     }
 }
 
+static int beneath(const char *name, const char *prefix)
+{
+    size_t length = strlen(prefix);
+    return !strncmp(name, prefix, length) && (!name[length] || name[length] == '/');
+}
+
+static int wanted(const char *name)
+{
+    int i, found = !only_count;
+    for (i = 0; i < only_count && !found; i++) found = beneath(name, only[i]);
+    for (i = 0; i < skip_count && found; i++) found = !beneath(name, skipped[i]);
+    return found;
+}
+
+/* Run the command with its standard output connected to the archive. */
+static pid_t open_command(char **command)
+{
+    int fds[2];
+    pid_t child;
+    if (pipe(fds)) fail("cannot create pipe", NULL);
+    child = fork();
+    if (child < 0) fail("cannot fork", NULL);
+    if (!child) {
+        if (dup2(fds[1], 1) < 0) _exit(127);
+        close(fds[0]);
+        close(fds[1]);
+        execv(command[0], command);
+        fprintf(stderr, "untar: cannot run %s\n", command[0]);
+        _exit(127);
+    }
+    close(fds[1]);
+    archive = fdopen(fds[0], "rb");
+    if (!archive) fail("cannot read command output", command[0]);
+    return child;
+}
+
 static void require_directory(const char *name)
 {
     struct stat info;
@@ -168,11 +214,38 @@ int main(int argc, char **argv)
 {
     unsigned char header[BLOCK];
     char *pax_path = NULL, *pax_link = NULL, *long_name = NULL, *long_link = NULL;
-    int zero_blocks = 0;
-    if (argc != 3 || strcmp(argv[1], "-xf")) fail("usage: untar -xf ARCHIVE", NULL);
-    archive_name = argv[2];
-    archive = fopen(archive_name, "rb");
-    if (!archive) fail("cannot open archive", archive_name);
+    int zero_blocks = 0, i, extract = 0;
+    char **command = NULL;
+    pid_t child = 0;
+    only = calloc(argc, sizeof *only);
+    skipped = calloc(argc, sizeof *skipped);
+    if (!only || !skipped) fail("out of memory", NULL);
+    for (i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "-x")) {
+            extract = 1;
+        } else if (!strcmp(argv[i], "-xf") && i + 1 < argc) {
+            extract = 1;
+            archive_name = argv[++i];
+        } else if (!strcmp(argv[i], "--only") && i + 1 < argc) {
+            only[only_count++] = argv[++i];
+        } else if (!strcmp(argv[i], "--skip") && i + 1 < argc) {
+            skipped[skip_count++] = argv[++i];
+        } else if (!strcmp(argv[i], "--") && i + 1 < argc) {
+            command = argv + i + 1;
+            break;
+        } else {
+            break;
+        }
+    }
+    if (!extract || (i < argc && !command) || (archive_name != NULL) == (command != NULL))
+        fail("usage: untar -xf ARCHIVE | -x [--only PREFIX] [--skip PREFIX] -- COMMAND...", NULL);
+    if (command) {
+        archive_name = command[0];
+        child = open_command(command);
+    } else {
+        archive = fopen(archive_name, "rb");
+        if (!archive) fail("cannot open archive", archive_name);
+    }
     umask(0);
 
     for (;;) {
@@ -180,7 +253,7 @@ int main(int argc, char **argv)
         char field[BLOCK];
         char *name, *target;
         mode_t mode;
-        int type, i;
+        int type;
         read_exact(header, BLOCK);
         for (i = 0; i < BLOCK && !header[i]; i++) ;
         if (i == BLOCK) {
@@ -233,6 +306,13 @@ int main(int argc, char **argv)
         }
         if (!name || !target) fail("out of memory", NULL);
         check_name(name);
+        if (!wanted(name)) {
+            skip(size);
+            free(name);
+            free(target);
+            pax_path = pax_link = long_name = long_link = NULL;
+            continue;
+        }
         make_parents(name, 1);
 
         switch (type) {
@@ -267,6 +347,18 @@ int main(int argc, char **argv)
         free(name);
         free(target);
         pax_path = pax_link = long_name = long_link = NULL;
+    }
+    if (command) {
+        /* Consume the padding after the end marker, so the command is never
+           cut off by a closed pipe, then require its success. */
+        char buffer[BLOCK * 64];
+        int status;
+        while (fread(buffer, 1, sizeof buffer, archive) == sizeof buffer) ;
+        if (ferror(archive)) fail("cannot read command output", archive_name);
+        if (fclose(archive)) fail("cannot close archive", archive_name);
+        if (waitpid(child, &status, 0) != child || !WIFEXITED(status) || WEXITSTATUS(status))
+            fail("decompression command failed", archive_name);
+        return 0;
     }
     if (fclose(archive)) fail("cannot close archive", archive_name);
     return 0;

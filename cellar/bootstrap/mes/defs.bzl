@@ -8,7 +8,7 @@
 load("@cellar//bootstrap/platforms:rules.bzl", "native_attrs")
 
 def __m2_planet(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     tools = ctx.attrs.tools[DefaultInfo].default_outputs[0]
     m2_planet = tools.project("M2-Planet")
 
@@ -46,7 +46,7 @@ def M2_Planet(**kwargs):
     _M2_Planet_rule(**native_attrs(kwargs))
 
 def _blood_elf_impl(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     tools = ctx.attrs.tools[DefaultInfo].default_outputs[0]
     cmd = [tools.project("blood-elf"), ctx.attrs.args]
     for f in ctx.attrs.srcs:
@@ -65,7 +65,7 @@ def blood_elf(**kwargs):
     _blood_elf_rule(**native_attrs(kwargs))
 
 def _m1_impl(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     tools = ctx.attrs.tools[DefaultInfo].default_outputs[0]
     cmd = [tools.project("M1"), ctx.attrs.args]
     for f in ctx.attrs.srcs:
@@ -84,7 +84,7 @@ def M1(**kwargs):
     _M1_rule(**native_attrs(kwargs))
 
 def _hex2_impl(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     tools = ctx.attrs.tools[DefaultInfo].default_outputs[0]
     cmd = [tools.project("hex2"), ctx.attrs.args]
     for f in ctx.attrs.srcs:
@@ -221,7 +221,7 @@ def _mescc_link_action(ctx, output, objects, category):
 def _mescc_compile_impl(ctx: AnalysisContext) -> list[Provider]:
     src_prefix = ctx.attrs.src_prefix[DefaultInfo].default_outputs[0]
     basename = _object_name(ctx.attrs.source_path)
-    outdir = ctx.actions.declare_output(ctx.label.name, dir = True)
+    outdir = ctx.actions.declare_output(ctx.label.name, dir = True, has_content_based_path = False)
     _mescc_compile_action(
         ctx,
         outdir,
@@ -267,7 +267,7 @@ def _mescc_build_lib_impl(ctx: AnalysisContext) -> list[Provider]:
     obj_files = []
     s_files = []
     for src_path, basename in zip(ctx.attrs.sources, _unique_object_names(ctx.attrs.sources)):
-        outdir = ctx.actions.declare_output("obj/" + basename, dir = True)
+        outdir = ctx.actions.declare_output("obj/" + basename, dir = True, has_content_based_path = False)
         _mescc_compile_action(
             ctx,
             outdir,
@@ -278,12 +278,12 @@ def _mescc_build_lib_impl(ctx: AnalysisContext) -> list[Provider]:
         obj_files.append(outdir.project(basename + ".o"))
         s_files.append(outdir.project(basename + ".s"))
 
-    archive = ctx.actions.declare_output(ctx.label.name)
+    archive = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     cmd = [catm, archive.as_output()] + obj_files
     ctx.actions.run(cmd, category = "mescc_archive", clear_environment = True)
 
     lib_name = ctx.label.name.replace(".a", "")
-    s_archive = ctx.actions.declare_output(lib_name + ".s")
+    s_archive = ctx.actions.declare_output(lib_name + ".s", has_content_based_path = False)
     cmd = [catm, s_archive.as_output()] + s_files
     ctx.actions.run(cmd, category = "mescc_archive_s", clear_environment = True)
 
@@ -313,7 +313,7 @@ def mescc_build_lib(**kwargs):
 # --------------------------------------------------------------------------- #
 
 def _mescc_link_impl(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     _mescc_link_action(ctx, output, ctx.attrs.objects, category = "mescc_link")
     return [
         DefaultInfo(default_output = output),
@@ -341,7 +341,7 @@ def _mescc_test_impl(ctx: AnalysisContext) -> list[Provider]:
     basename = _object_name(ctx.attrs.src.short_path)
 
     # mescc writes the object into its working directory.
-    compile_dir = ctx.actions.declare_output("test-obj", dir = True)
+    compile_dir = ctx.actions.declare_output("test-obj", dir = True, has_content_based_path = False)
     _mescc_compile_action(
         ctx,
         compile_dir,
@@ -349,7 +349,7 @@ def _mescc_test_impl(ctx: AnalysisContext) -> list[Provider]:
         category = "mescc_test_compile",
     )
 
-    binary = ctx.actions.declare_output(ctx.label.name + ".bin")
+    binary = ctx.actions.declare_output(ctx.label.name + ".bin", has_content_based_path = False)
     _mescc_link_action(ctx, binary, [compile_dir.project(basename + ".o")], category = "mescc_test_link")
 
     return [
@@ -414,7 +414,7 @@ def _mes_libs_impl(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.copied_dir(ctx.label.name, {
         mes_cpu + "-mes/" + name: src
         for name, src in ctx.attrs.libs.items()
-    })
+    }, has_content_based_path = False)
     return [DefaultInfo(default_output = output)]
 
 _mes_libs_rule = rule(impl = _mes_libs_impl, attrs = {
@@ -514,7 +514,7 @@ def _mescc_build_mes_impl(ctx: AnalysisContext) -> list[Provider]:
 
     obj_files = []
     for src_path, basename in zip(ctx.attrs.sources, _unique_object_names(ctx.attrs.sources)):
-        outdir = ctx.actions.declare_output("mes-obj/" + basename, dir = True)
+        outdir = ctx.actions.declare_output("mes-obj/" + basename, dir = True, has_content_based_path = False)
         _mescc_compile_action(
             ctx,
             outdir,
@@ -524,7 +524,7 @@ def _mescc_build_mes_impl(ctx: AnalysisContext) -> list[Provider]:
         )
         obj_files.append(outdir.project(basename + ".o"))
 
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     _mescc_link_action(ctx, output, obj_files, category = "mescc_link")
 
     return [

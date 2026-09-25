@@ -13,12 +13,21 @@ ownership. It rejects absolute names, names containing `..`, and members
 beneath a symbolic link or other non-directory, so an archive cannot write
 outside the extraction directory.
 
+`untar -x -- COMMAND ARGUMENTS...` reads the archive from a command's
+standard output instead of a file, so a release is decompressed and extracted
+in one action and no uncompressed copy is stored. The extraction fails unless
+the command exits successfully. `--only PREFIX` and `--skip PREFIX` select
+members by path, so packages extract only the directories they build from;
+the `untar` rule's `only` and `skip` attributes pass them.
+
 It is built with the final GCC 4.7.4 and static musl 1.2.5. The tests build a
 pax archive with a long path, a ustar prefix name, a directory and a symbolic
 link, extract it, and check that a truncated archive fails. Further archives
 check that extraction stops at a file beneath a symbolic link and at a pax
 record too short to hold its own length, and that an old GNU header's times
-do not become part of a member name.
+do not become part of a member name. Others extract with `--only` and
+`--skip`, from a command's output, and from a failing command, which must fail
+the extraction.
 
 ```
 buck2 test cellar//bootstrap/stage1/pax:

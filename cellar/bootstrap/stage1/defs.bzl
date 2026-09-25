@@ -83,7 +83,7 @@ def _object_impl(ctx):
 
     # MesCC creates assembly beside each object. Keep the whole scratch tree
     # declared and give all compiler generations the same short object name.
-    work = ctx.actions.declare_output("work", dir = True)
+    work = ctx.actions.declare_output("work", dir = True, has_content_based_path = False)
     obj = work.project(ctx.attrs.object_name)
     flags = cmd_args(tc.cflags, ctx.attrs.flags)
     for define in ctx.attrs.defines:
@@ -159,7 +159,7 @@ def _archive_impl(ctx):
         if name in names:
             fail("archive member name collision: " + name)
         names[name] = True
-    output = ctx.actions.declare_output(ctx.attrs.output)
+    output = ctx.actions.declare_output(ctx.attrs.output, has_content_based_path = False)
     ctx.actions.run(
         cmd_args(tc.archiver, tc.archive_flags, output.as_output(), objects),
         clear_environment = True,
@@ -208,9 +208,9 @@ def _binary_impl(ctx):
         aliases = ctx.actions.copied_dir("mes-libraries", {
             "lib{}.o".format(i): lib
             for i, lib in enumerate(libraries)
-        })
+        }, has_content_based_path = False)
         libraries = [aliases.project("lib{}.o".format(i)) for i in range(len(libraries))]
-    work = ctx.actions.declare_output("work", dir = True)
+    work = ctx.actions.declare_output("work", dir = True, has_content_based_path = False)
     output = work.project(ctx.attrs.output)
     end_objects = _objects(ctx.attrs.end_objects, tc)
     command = cmd_args(tc.linker, tc.ldflags, ctx.attrs.flags, objects, libraries, end_objects, "-o", ctx.attrs.output)
@@ -271,7 +271,7 @@ def _sysroot_impl(ctx):
         if path in files:
             fail("duplicate sysroot path: " + path)
         files[path] = lib.artifact
-    output = ctx.actions.copied_dir("sysroot", files)
+    output = ctx.actions.copied_dir("sysroot", files, has_content_based_path = False)
     return [DefaultInfo(default_output = output, sub_targets = {
         path: [DefaultInfo(default_output = output.project(path))]
         for path in files

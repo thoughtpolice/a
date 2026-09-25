@@ -20,8 +20,11 @@ digest_algorithms = SHA256
 sqlite_materializer_state = true
 sqlite_dep_file_state = true
 defer_write_actions = true
-declare_output_has_content_based_path_default = true
-action_has_content_based_path_default = true
+# One configuration gains nothing from content-based paths, which store each
+# locally built output twice. Cellar's rules also opt out when built from
+# the parent project.
+declare_output_has_content_based_path_default = false
+action_has_content_based_path_default = false
 create_unhashed_links = true
 restarter = true
 test_builds_targets = true

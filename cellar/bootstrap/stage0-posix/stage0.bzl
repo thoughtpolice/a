@@ -13,6 +13,7 @@ def _executable_seed_impl(ctx: AnalysisContext) -> list[Provider]:
         ctx.label.name,
         ctx.attrs.src,
         executable_bit_override = True,
+        has_content_based_path = False,
     )
     return [
         DefaultInfo(default_output = output),
@@ -27,7 +28,7 @@ def executable_seed(**kwargs):
     _executable_seed_rule(**native_attrs(kwargs))
 
 def __hex0(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     ctx.actions.run(
         [
             ctx.attrs.bin[DefaultInfo].default_outputs[0],
@@ -57,7 +58,7 @@ hex2_0 = hex0
 # catm removes the need for cat or shell support for redirection by providing
 # equivalent functionality via catm output_file input1 input2 ... inputN
 def __catm(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     ctx.actions.run(
         [
             ctx.attrs.bin[DefaultInfo].default_outputs[0],
@@ -79,7 +80,7 @@ def catm(**kwargs):
     _catm_rule(**native_attrs(kwargs))
 
 def __M0(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     ctx.actions.run(
         [
             ctx.attrs.bin[DefaultInfo].default_outputs[0],
@@ -102,7 +103,7 @@ def M0(**kwargs):
     _M0_rule(**native_attrs(kwargs))
 
 def __cc(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     ctx.actions.run(
         [
             ctx.attrs.bin[DefaultInfo].default_outputs[0],
@@ -136,7 +137,7 @@ def __M2(ctx: AnalysisContext) -> list[Provider]:
         cmd.append("--bootstrap-mode")
     if ctx.attrs.debug:
         cmd.append("--debug")
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     cmd.extend(["-o", output.as_output()])
 
     ctx.actions.run(cmd, category = "stage0_m2", clear_environment = True)
@@ -165,7 +166,7 @@ def __blood_elf(ctx: AnalysisContext) -> list[Provider]:
         cmd.append("--little-endian")
     for src in ctx.attrs.srcs:
         cmd.extend(["-f", src])
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     cmd.extend(["-o", output.as_output()])
 
     ctx.actions.run(cmd, category = "stage0_blood_elf", clear_environment = True)
@@ -193,7 +194,7 @@ def __m1_0(ctx: AnalysisContext) -> list[Provider]:
         cmd.append("--little-endian")
     for src in ctx.attrs.srcs:
         cmd.extend(["-f", src])
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     cmd.extend(["-o", output.as_output()])
 
     ctx.actions.run(cmd, category = "stage0_m1_zero", clear_environment = True)
@@ -223,7 +224,7 @@ def __hex2_1(ctx: AnalysisContext) -> list[Provider]:
         cmd.extend(["--base-address", ctx.attrs.base_address])
     for src in ctx.attrs.srcs:
         cmd.extend(["-f", src])
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     cmd.extend(["-o", output.as_output()])
 
     ctx.actions.run(cmd, category = "stage0_hex2_one", clear_environment = True)

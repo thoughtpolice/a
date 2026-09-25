@@ -33,16 +33,6 @@ download_file(
     urls = ["https://mirrors.kernel.org/gnu/gcc/gcc-10.5.0/gcc-10.5.0.tar.xz"],
 )
 
-generate(
-    name = "gcc.tar",
-    args = [
-        "--file",
-        "$(location :gcc-10.5.0.tar.xz)",
-        "--output",
-    ],
-    tool = "cellar//bootstrap/stage0-posix/mescc-tools-extra:unxz",
-)
-
 # Small support directories are projected whole. The gcc, libcpp and
 # libdecnumber trees use manifests that withhold the files BUILD regenerates.
 SOURCE_DIRECTORIES = [
@@ -95,13 +85,45 @@ FIXTURES = [
 untar(
     name = "gcc-10.5.0",
     chdirenv = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
+    decompress = "cellar//bootstrap/stage0-posix/mescc-tools-extra:unxz",
     files = SOURCE_DIRECTORIES + GENERATOR_INPUTS + FIXTURES + LIBCPP_FILES + LIBDECNUMBER_FILES + GCC_FILES + [
         "COPYING.RUNTIME",
         "COPYING3",
         "COPYING3.LIB",
     ],
-    flags = ["-xf"],
-    input = ":gcc.tar",
+    flags = ["-x"],
+    input = ":gcc-10.5.0.tar.xz",
+    # Only what this package and its C++ library read: no test suites,
+    # translations, manuals or other languages' front ends and runtimes.
+    only = [
+        "COPYING.RUNTIME",
+        "COPYING3",
+        "COPYING3.LIB",
+        "contrib",
+        "gcc",
+        "include",
+        "libbacktrace",
+        "libcpp",
+        "libdecnumber",
+        "libgcc",
+        "libiberty",
+        "libstdc++-v3",
+    ],
+    skip = [
+        "gcc/testsuite",
+        "gcc/po",
+        "gcc/doc",
+        "gcc/ada",
+        "gcc/fortran",
+        "gcc/go",
+        "gcc/jit",
+        "gcc/objc",
+        "gcc/objcp",
+        "libstdc++-v3/testsuite",
+        "libstdc++-v3/doc",
+        "libstdc++-v3/po",
+        "gcc/brig",
+    ],
     # GCC 10 archives use pax records, including for long member names.
     untar = "cellar//bootstrap/stage1/pax:untar",
 )

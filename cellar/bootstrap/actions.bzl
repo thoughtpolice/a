@@ -7,7 +7,7 @@ load("@cellar//bootstrap:host.bzl", "host_test_executor")
 load("@cellar//bootstrap/platforms:rules.bzl", "native_attrs")
 
 def _generate_impl(ctx):
-    output = ctx.actions.declare_output(ctx.attrs.output, dir = ctx.attrs.directory)
+    output = ctx.actions.declare_output(ctx.attrs.output, dir = ctx.attrs.directory, has_content_based_path = False)
 
     # Visit complete input trees before projected arguments. The native
     # sandbox otherwise creates partial parent directories for child paths.
@@ -72,7 +72,7 @@ def generate(**kwargs):
     _generate_rule(**native_attrs(kwargs))
 
 def _concatenate_impl(ctx):
-    output = ctx.actions.declare_output(ctx.attrs.output)
+    output = ctx.actions.declare_output(ctx.attrs.output, has_content_based_path = False)
     ctx.actions.run(
         cmd_args(ctx.attrs.tool[RunInfo], output.as_output(), ctx.attrs.inputs),
         clear_environment = True,

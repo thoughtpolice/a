@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "concatenate", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:source.bzl", "exact_patch", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "exact_patch", "project_files", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_library", "c_object")
 load(":sources.bzl", "HEADER_FILES", "SOURCES")
 
@@ -23,16 +23,11 @@ CAPTURE = "cellar//bootstrap/stage1/tools:capture"
 
 SED = "cellar//bootstrap/stage1/sed:sed"
 
-untar(
+# The compiler package extracts the same release; build from its tree.
+project_files(
     name = "gcc-4.7.4",
-    chdirenv = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
     files = SOURCES + ["gcc/DATESTAMP"],
-    flags = [
-        "--numeric-owner",
-        "-xf",
-    ],
-    input = GCC + ":gcc.tar",
-    untar = "cellar//bootstrap/stage1/tar:tar",
+    tree = GCC + ":gcc-4.7.4",
 )
 
 export_file(name = "patches/gthr.patch")

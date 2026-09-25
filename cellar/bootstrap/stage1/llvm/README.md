@@ -58,6 +58,12 @@ Binaries link with an 8 MiB `PT_GNU_STACK` size, because musl's 128 KiB
 default thread stack is too small for LLVM's recursive passes and musl takes
 new threads' stack size from that header.
 
+The tarball is decompressed and extracted in one action, keeping only the
+projects this build reads and the overlay, without their test suites, unit
+tests or manuals: 20,000 of its 197,000 files and about a seventh of its size.
+The inventory test checks that the inventory still comes out the same from that
+tree.
+
 ## Tests
 
 `gcc-clang` compiles the installation's C and C++ acceptance programs with

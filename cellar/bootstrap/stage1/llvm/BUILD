@@ -18,6 +18,17 @@ MUSL = "cellar//bootstrap/stage1/musl12"
 
 CHDIRENV = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv"
 
+LLVM_PROJECTS = [
+    "clang",
+    "cmake",
+    "libc",
+    "libunwind",
+    "lld",
+    "llvm",
+    "third-party",
+    "utils/bazel",
+]
+
 download_file(
     name = "llvm-project-23.1.0.src.tar.xz",
     hash = "ab1f0e3ec52448c33e8782eaf0422504b87c7b016b22514653ee0d8fcee479ff",
@@ -25,22 +36,25 @@ download_file(
     urls = ["https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.0/llvm-project-23.1.0.src.tar.xz"],
 )
 
-generate(
-    name = "llvm-project.tar",
-    args = [
-        "--file",
-        "$(location :llvm-project-23.1.0.src.tar.xz)",
-        "--output",
-    ],
-    tool = "cellar//bootstrap/stage0-posix/mescc-tools-extra:unxz",
-)
-
 untar(
     name = SOURCE[1:],
     chdirenv = CHDIRENV,
+    decompress = "cellar//bootstrap/stage0-posix/mescc-tools-extra:unxz",
     files = source_files(),
-    flags = ["-xf"],
-    input = ":llvm-project.tar",
+    flags = ["-x"],
+    input = ":llvm-project-23.1.0.src.tar.xz",
+    # The projects built here and the overlay describing them, without their
+    # test suites and manuals: about a seventh of the tarball.
+    only = LLVM_PROJECTS,
+    skip = [
+        project + "/" + directory
+        for project in LLVM_PROJECTS
+        for directory in [
+            "docs",
+            "test",
+            "unittests",
+        ]
+    ],
     untar = "cellar//bootstrap/stage1/pax:untar",
 )
 

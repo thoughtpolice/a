@@ -194,3 +194,115 @@ command_test(
     ],
     tool = "cellar//bootstrap/stage1/tools:expect-exit",
 )
+
+# --only and --skip select members by path prefix; each extraction must hold
+# its selected member and not the one left out.
+[
+    [
+        generate(
+            name = name + "-extracted",
+            args = [
+                "-xf",
+                "$(location :archive.tar)",
+            ] + filters,
+            chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
+            directory = True,
+            files = [kept],
+            tool = ":untar",
+        ),
+        command_test(
+            name = name + "-keeps",
+            args = [
+                "$(location :" + name + "-extracted[" + kept + "])",
+                "$(location :" + expected + ")",
+            ],
+            tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
+        ),
+        command_test(
+            name = name + "-leaves-out",
+            args = [
+                "1",
+                "$(exe cellar//bootstrap/stage0-posix/cellar-extra:bytecmp)",
+                "$(location :" + name + "-extracted)/" + left_out,
+                "$(location :" + left_out_expected + ")",
+            ],
+            tool = "cellar//bootstrap/stage1/tools:expect-exit",
+        ),
+    ]
+    for name, filters, kept, expected, left_out, left_out_expected in [
+        (
+            "only",
+            [
+                "--only",
+                LONG_NAME.split("/")[0],
+            ],
+            LONG_NAME,
+            "long-contents",
+            "top/prefix/run.sh",
+            "script-contents",
+        ),
+        (
+            "skip",
+            [
+                "--skip",
+                "top/prefix",
+            ],
+            LONG_NAME,
+            "long-contents",
+            "top/prefix/run.sh",
+            "script-contents",
+        ),
+    ]
+]
+
+# The archive can come from a command's standard output, as from a
+# decompressor, and a failing command fails the extraction.
+generate(
+    name = "command-extracted",
+    args = [
+        "-x",
+        "--",
+        "$(exe cellar//bootstrap/stage1/coreutils:cat)",
+        "$(location :archive.tar)",
+    ],
+    chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
+    directory = True,
+    files = ["top/prefix/run.sh"],
+    tool = ":untar",
+)
+
+command_test(
+    name = "command-input",
+    args = [
+        "$(location :command-extracted[top/prefix/run.sh])",
+        "$(location :script-contents)",
+    ],
+    tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
+)
+
+generate(
+    name = "failed-command-rejected",
+    args = [
+        "1",
+        "$(exe :untar)",
+        "-x",
+        "--",
+        "$(exe cellar//bootstrap/stage1/tools:expect-exit)",
+        "1",
+        "$(exe cellar//bootstrap/stage1/coreutils:cat)",
+        "$(location :archive.tar)",
+    ],
+    chdir = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv",
+    directory = True,
+    files = ["top/prefix/run.sh"],
+    tool = "cellar//bootstrap/stage1/tools:expect-exit",
+)
+
+command_test(
+    name = "reject-failed-command",
+    args = [
+        "$(location :failed-command-rejected[top/prefix/run.sh])",
+        "$(location :script-contents)",
+    ],
+    tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
+)

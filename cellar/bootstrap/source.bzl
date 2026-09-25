@@ -4,7 +4,7 @@
 load("@cellar//bootstrap/platforms:rules.bzl", "native_attrs")
 
 def __write_file(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     ctx.actions.write(output, ctx.attrs.content)
     return [DefaultInfo(default_output = output)]
 
@@ -21,7 +21,7 @@ def __download_file(ctx: AnalysisContext) -> list[Provider]:
         hash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         warning("expected a hash for the tarball, this will always fail")
 
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     ctx.actions.download_file(
         output,
         ctx.attrs.urls[0],
@@ -42,7 +42,7 @@ download_file = rule(impl = __download_file, attrs = {
 })
 
 def __ungz(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     ctx.actions.run(
         [
             ctx.attrs.ungz[DefaultInfo].default_outputs[0],
@@ -68,19 +68,33 @@ def __untar(ctx: AnalysisContext) -> list[Provider]:
     # The tar contains a top-level directory (e.g. mes-0.27/) so we extract
     # into a parent directory and project the actual output from it.
     # chdirenv creates the directory if it doesn't exist, then cds into it.
-    parent = ctx.actions.declare_output("_untar_work", dir = True)
+    parent = ctx.actions.declare_output("_untar_work", dir = True, has_content_based_path = False)
     output = parent.project(ctx.label.name)
     chdirenv = ctx.attrs.chdirenv[RunInfo]
     untar_tool = ctx.attrs.untar[RunInfo]
     input_tar = ctx.attrs.input[DefaultInfo].default_outputs[0]
+
+    # With a decompressor, the extractor reads the archive from its standard
+    # output, so no uncompressed copy of the archive is stored.
+    archive = cmd_args(input_tar, relative_to = parent)
+    if ctx.attrs.decompress != None:
+        archive = cmd_args("--", cmd_args(ctx.attrs.decompress[RunInfo], relative_to = parent), "--file", archive)
+
+    # Member prefixes are relative to the archive's top-level directory.
+    filters = []
+    for path in ctx.attrs.only:
+        filters += ["--only", ctx.label.name + "/" + path]
+    for path in ctx.attrs.skip:
+        filters += ["--skip", ctx.label.name + "/" + path]
 
     ctx.actions.run(
         [
             chdirenv,
             parent.as_output(),
             cmd_args(untar_tool, relative_to = parent),
+            filters,
             ctx.attrs.flags,
-            cmd_args(input_tar, relative_to = parent),
+            archive,
         ],
         category = "mes_stage0_untar",
         clear_environment = True,
@@ -101,13 +115,36 @@ _untar_rule = rule(impl = __untar, attrs = {
     "input": attrs.dep(),
     "flags": attrs.list(attrs.string(), default = ["--non-strict", "--file"]),
     "files": attrs.list(attrs.string(), default = []),
+    "decompress": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
+    "only": attrs.list(attrs.string(), default = []),
+    "skip": attrs.list(attrs.string(), default = []),
 })
 
 def untar(**kwargs):
     _untar_rule(**native_attrs(kwargs))
 
+def _project_files_impl(ctx: AnalysisContext) -> list[Provider]:
+    tree = ctx.attrs.tree[DefaultInfo].default_outputs[0]
+    return [DefaultInfo(
+        default_output = tree,
+        sub_targets = {
+            path: [DefaultInfo(default_output = tree.project(path))]
+            for path in ctx.attrs.files
+        },
+    )]
+
+# Name paths inside another target's directory, such as a source tree that
+# several packages build from, without extracting or copying it again.
+_project_files_rule = rule(impl = _project_files_impl, attrs = {
+    "tree": attrs.dep(),
+    "files": attrs.list(attrs.string(), default = []),
+})
+
+def project_files(**kwargs):
+    _project_files_rule(**native_attrs(kwargs))
+
 def _replace_impl(ctx):
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     ctx.actions.run(
         cmd_args(
             ctx.attrs.tool[RunInfo],
@@ -158,10 +195,11 @@ def _exact_patch_impl(ctx):
         patch = ctx.actions.write(
             "replacement.patch",
             "--- before\n+++ after\n@@ -" + old_range + " +" + new_range + " @@\n" + old_body + new_body,
+            has_content_based_path = False,
         )
     elif ctx.attrs.before != None or ctx.attrs.after != None:
         fail("exact_patch cannot combine a patch file with before/after strings")
-    output = ctx.actions.declare_output(ctx.attrs.output)
+    output = ctx.actions.declare_output(ctx.attrs.output, has_content_based_path = False)
     ctx.actions.run(
         cmd_args(ctx.attrs.tool[RunInfo], ctx.attrs.src, patch, output.as_output()),
         category = "source_exact_patch",

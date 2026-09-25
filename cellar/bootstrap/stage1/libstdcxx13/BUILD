@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "concatenate", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
-load("@cellar//bootstrap:source.bzl", "untar", "write_file")
+load("@cellar//bootstrap:source.bzl", "project_files", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "bootstrap_artifact", "c_library", "c_object")
 load(":sources.bzl", "HEADER_FILES", "LIBRARY_OBJECTS")
 
@@ -45,13 +45,11 @@ SOURCE_FILES = [
     "libstdc++-v3/src/c++20/tzdata.zi",
 ]
 
-untar(
+# The compiler package extracts the same release; build from its tree.
+project_files(
     name = "gcc-13.5.0",
-    chdirenv = CHDIRENV,
     files = SOURCE_DIRECTORIES + SOURCE_FILES + ["gcc/DATESTAMP"] + {source: None for source in HEADER_FILES.values()}.keys(),
-    flags = ["-xf"],
-    input = GCC + ":gcc.tar",
-    untar = "cellar//bootstrap/stage1/pax:untar",
+    tree = GCC + ":gcc-13.5.0",
 )
 
 # Reviewed x86_64 musl 1.2.5 configuration; no target configure process runs.

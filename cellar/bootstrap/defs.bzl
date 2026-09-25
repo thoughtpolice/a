@@ -25,7 +25,7 @@ def __filegroup_impl(ctx: AnalysisContext) -> list[Provider]:
     else:
         srcs = {src.short_path: src for src in ctx.attrs.srcs}
 
-    output = ctx.actions.copied_dir(ctx.label.name, srcs)
+    output = ctx.actions.copied_dir(ctx.label.name, srcs, has_content_based_path = False)
     projections = dict(srcs)
     for path in srcs:
         parts = path.split("/")
