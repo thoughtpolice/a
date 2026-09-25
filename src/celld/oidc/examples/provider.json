@@ -1,0 +1,464 @@
+{
+  "vars": {
+    "SIGNING_JWK": {"kty": "EC", "crv": "P-256", "x": "-aX_Sm5QiK6fmRUeBDm-orotbSDd6ld95yTpGiysCVw", "y": "aJj1OUG6RP-KD5nabcnnlo-Vi6Lz_y-FNth8R3BuScA", "d": "QbqKiZzU4ryhFExX5T9pNtJo1Qb2o-MJpf0qbq4imhU", "kid": "provider-1"},
+    "COOKIE_SECRET": "an-example-cookie-secret-0123456789"
+  },
+  "steps": [
+    {
+      "name": "the OpenID configuration names this origin and the provider's endpoints",
+      "request": {
+        "path": "/.well-known/openid-configuration"
+      },
+      "expect": {
+        "json": {
+          "issuer": {
+            "$regex": "^http://127\\.0\\.0\\.1:\\d+$"
+          },
+          "userinfo_endpoint": {
+            "$regex": "/userinfo$"
+          },
+          "end_session_endpoint": {
+            "$regex": "/end_session$"
+          },
+          "pushed_authorization_request_endpoint": {
+            "$regex": "/par$"
+          },
+          "id_token_signing_alg_values_supported": [
+            "ES256"
+          ],
+          "subject_types_supported": [
+            "public"
+          ],
+          "claims_parameter_supported": true,
+          "code_challenge_methods_supported": [
+            "S256"
+          ],
+          "scopes_supported": {
+            "$contains": "openid"
+          }
+        }
+      }
+    },
+    {
+      "name": "the client pushes its request: PKCE, a nonce, max_age and a claims request for UserInfo",
+      "request": {
+        "method": "POST",
+        "path": "/par",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "client_id=web&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcb&scope=openid+email&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&state=st-1&nonce=n-1&max_age=3600&claims=%7B%22userinfo%22%3A%7B%22phone_number%22%3Anull%7D%7D"
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "request_uri": {
+            "$regex": "^urn:ietf:params:oauth:request_uri:"
+          },
+          "expires_in": 60
+        }
+      },
+      "save": {
+        "request_uri": "json.request_uri"
+      }
+    },
+    {
+      "name": "a browser without a session is sent to the host's login page",
+      "request": {
+        "path": "/authorize?client_id=web&request_uri={request_uri}"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^/login\\?i=[A-Za-z0-9_-]+$"
+          }
+        }
+      },
+      "save": {
+        "login": "headers.location"
+      }
+    },
+    {
+      "name": "the login page is the host's own HTML",
+      "request": {
+        "path": "{login}"
+      },
+      "expect": {
+        "text": {
+          "$contains": "Sign in to web"
+        },
+        "headers": {
+          "content-type": {
+            "$regex": "^text/html"
+          }
+        }
+      },
+      "save": {
+        "interaction": {
+          "path": "text",
+          "regex": "name=\"i\" value=\"([A-Za-z0-9_-]+)\""
+        }
+      }
+    },
+    {
+      "name": "signing in resumes the authorization: a code for the client, with state and iss, and a session cookie",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "i={interaction}&user=ada&password=correct+horse+battery+staple"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:8765/cb\\?code=[A-Za-z0-9_-]{43}&state=st-1&iss=http%3A%2F%2F127\\.0\\.0\\.1%3A\\d+$"
+          },
+          "set-cookie": {
+            "$regex": "^op_session=v1\\.[^;]+; Path=/; Max-Age=28800; HttpOnly; SameSite=Lax$"
+          }
+        }
+      },
+      "save": {
+        "code": {
+          "path": "headers.location",
+          "regex": "code=([^&]+)"
+        },
+        "cookie": {
+          "path": "headers.set-cookie",
+          "regex": "^([^;]+)"
+        }
+      }
+    },
+    {
+      "name": "the code and the PKCE verifier redeem for an ID token, an access token and a refresh token",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=authorization_code&client_id=web&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcb&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code={code}"
+      },
+      "expect": {
+        "json": {
+          "token_type": "Bearer",
+          "expires_in": 300,
+          "scope": "openid email",
+          "id_token": {
+            "$regex": "^eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+          },
+          "access_token": {
+            "$regex": "^eyJ"
+          },
+          "refresh_token": {
+            "$any": true
+          }
+        },
+        "headers": {
+          "cache-control": "no-store"
+        }
+      },
+      "save": {
+        "access": "json.access_token",
+        "refresh": "json.refresh_token",
+        "id_token": "json.id_token"
+      }
+    },
+    {
+      "name": "UserInfo answers the email scope's claims and the claims request's phone number",
+      "request": {
+        "path": "/userinfo",
+        "headers": {
+          "authorization": "Bearer {access}"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "sub": "ada",
+            "email": "ada@example.com",
+            "email_verified": true,
+            "phone_number": "+44 20 7946 0000"
+          }
+        },
+        "headers": {
+          "cache-control": "no-store"
+        }
+      }
+    },
+    {
+      "name": "UserInfo without a token is a challenge for Bearer and DPoP",
+      "request": {
+        "path": "/userinfo"
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": {
+            "$regex": "^Bearer scope=\"openid\", resource_metadata=\"http://127\\.0\\.0\\.1:\\d+/\\.well-known/oauth-protected-resource/userinfo\", DPoP algs=\"ES256 "
+          }
+        }
+      }
+    },
+    {
+      "name": "and that resource metadata (RFC 9728) is served, naming this provider",
+      "request": {
+        "path": "/.well-known/oauth-protected-resource/userinfo"
+      },
+      "expect": {
+        "json": {
+          "resource": {
+            "$regex": "/userinfo$"
+          },
+          "authorization_servers": [
+            {
+              "$regex": "^http://127\\.0\\.0\\.1:\\d+$"
+            }
+          ],
+          "bearer_methods_supported": [
+            "header"
+          ]
+        }
+      }
+    },
+    {
+      "name": "prompt=none without a session answers login_required instead of the login page",
+      "request": {
+        "path": "/authorize?response_type=code&client_id=web&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcb&scope=openid&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&state=st-2&prompt=none"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:8765/cb\\?error=login_required&state=st-2&iss="
+          }
+        }
+      }
+    },
+    {
+      "name": "prompt=none with the session cookie signs in silently",
+      "request": {
+        "path": "/authorize?response_type=code&client_id=web&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcb&scope=openid&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&state=st-3&prompt=none&max_age=3600",
+        "headers": {
+          "cookie": "{cookie}"
+        }
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:8765/cb\\?code=[A-Za-z0-9_-]{43}&state=st-3&"
+          }
+        }
+      },
+      "save": {
+        "code2": {
+          "path": "headers.location",
+          "regex": "code=([^&]+)"
+        }
+      }
+    },
+    {
+      "name": "the silently issued code redeems once",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=authorization_code&client_id=web&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcb&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code={code2}"
+      },
+      "expect": {
+        "json": {
+          "token_type": "Bearer",
+          "scope": "openid"
+        }
+      },
+      "save": {
+        "access2": "json.access_token"
+      }
+    },
+    {
+      "name": "a code is used once: the second redemption fails",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=authorization_code&client_id=web&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcb&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code={code2}"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_grant"
+        }
+      }
+    },
+    {
+      "name": "and revokes what the first redemption issued (RFC 6749 section 4.1.2)",
+      "request": {
+        "path": "/userinfo",
+        "headers": {
+          "authorization": "Bearer {access2}"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": {
+            "$contains": "error=\"invalid_token\""
+          }
+        }
+      }
+    },
+    {
+      "name": "prompt=login sends even a signed-in browser back to the login page",
+      "request": {
+        "path": "/authorize?response_type=code&client_id=web&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcb&scope=openid&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&state=st-4&prompt=login",
+        "headers": {
+          "cookie": "{cookie}"
+        }
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^/login\\?i="
+          }
+        }
+      },
+      "save": {
+        "again": {
+          "path": "headers.location",
+          "regex": "i=([A-Za-z0-9_-]+)"
+        }
+      }
+    },
+    {
+      "name": "a wrong password denies that authorization",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "i={again}&user=ada&password=guess"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:8765/cb\\?error=access_denied&error_description=wrong\\+user\\+or\\+password&state=st-4&"
+          }
+        }
+      }
+    },
+    {
+      "name": "after a restart, the access token still works: the key is a secret, not per isolate",
+      "restart": true,
+      "request": {
+        "path": "/userinfo",
+        "headers": {
+          "authorization": "Bearer {access}"
+        }
+      },
+      "expect": {
+        "json": {
+          "sub": "ada"
+        }
+      }
+    },
+    {
+      "name": "the refresh token family survived the restart in the Durable Object",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=refresh_token&client_id=web&refresh_token={refresh}"
+      },
+      "expect": {
+        "json": {
+          "token_type": "Bearer",
+          "id_token": {
+            "$regex": "^eyJ"
+          },
+          "refresh_token": {
+            "$not": "{refresh}"
+          }
+        }
+      },
+      "save": {
+        "refresh2": "json.refresh_token"
+      }
+    },
+    {
+      "name": "logout only goes back to a registered URI",
+      "request": {
+        "path": "/end_session?post_logout_redirect_uri=https%3A%2F%2Fevil.example%2F&client_id=web&id_token_hint={id_token}"
+      },
+      "expect": {
+        "status": 400,
+        "text": {
+          "$contains": "post_logout_redirect_uri is not registered"
+        }
+      }
+    },
+    {
+      "name": "RP-initiated logout with the ID token as hint ends the session and clears its cookie",
+      "request": {
+        "path": "/end_session?post_logout_redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fbye&state=bye&id_token_hint={id_token}"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": "http://127.0.0.1:8765/bye?state=bye",
+          "set-cookie": {
+            "$regex": "^op_session=; Path=/; Max-Age=0;"
+          }
+        }
+      }
+    },
+    {
+      "name": "the ended session's access token gets no more UserInfo",
+      "request": {
+        "path": "/userinfo",
+        "headers": {
+          "authorization": "Bearer {access}"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": {
+            "$contains": "the login session has ended"
+          }
+        }
+      }
+    },
+    {
+      "name": "and its refresh token no more tokens",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=refresh_token&client_id=web&refresh_token={refresh2}"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_grant",
+          "error_description": "the login session has ended"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "steps": [
+    {
+      "name": "the leaf's trust chain resolves to the anchor, with the anchor's policy applied and its trust mark accepted",
+      "request": {
+        "path": "/resolve?entity=leaf"
+      },
+      "expect": {
+        "json": {
+          "subject": {
+            "$regex": "^http://127\\.0\\.0\\.1:\\d+/leaf$"
+          },
+          "trustAnchor": {
+            "$regex": "/ta$"
+          },
+          "statements": 3,
+          "expiresIn": {
+            "$gte": 86300
+          },
+          "metadata": {
+            "openid_relying_party": {
+              "client_name": "Leaf",
+              "redirect_uris": [
+                {
+                  "$regex": "/leaf/callback$"
+                }
+              ],
+              "token_endpoint_auth_method": "private_key_jwt",
+              "grant_types": [
+                "authorization_code",
+                "refresh_token"
+              ],
+              "contacts": [
+                "dev@leaf.example",
+                "ops@federation.example"
+              ],
+              "dpop_bound_access_tokens": true
+            }
+          },
+          "trustMarks": [
+            "https://federation.example/marks/certified"
+          ],
+          "rejectedTrustMarks": [
+            "https://federation.example/marks/self-asserted"
+          ]
+        }
+      },
+      "save": {
+        "leaf": "json.subject",
+        "anchor": "json.trustAnchor"
+      }
+    },
+    {
+      "name": "a subordinate whose metadata breaks the policy has no valid chain",
+      "request": {
+        "path": "/resolve?entity=rogue"
+      },
+      "expect": {
+        "status": 422,
+        "json": {
+          "error": "chain",
+          "message": {
+            "$contains": "token_endpoint_auth_method is not one of the values the policy allows"
+          }
+        }
+      }
+    },
+    {
+      "name": "nor does an entity the federation does not know: it has no configuration to fetch",
+      "request": {
+        "path": "/resolve?entity=nobody"
+      },
+      "expect": {
+        "status": 422,
+        "json": {
+          "error": "fetch",
+          "message": {
+            "$regex": "/nobody/\\.well-known/openid-federation answered 404$"
+          }
+        }
+      }
+    },
+    {
+      "name": "the anchor's entity configuration is a typed, signed statement",
+      "request": {
+        "path": "/ta/.well-known/openid-federation"
+      },
+      "expect": {
+        "headers": {
+          "content-type": "application/entity-statement+jwt"
+        },
+        "text": {
+          "$regex": "^eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+        }
+      }
+    },
+    {
+      "name": "its configuration is only read",
+      "request": {
+        "method": "POST",
+        "path": "/ta/.well-known/openid-federation",
+        "body": ""
+      },
+      "expect": {
+        "status": 405,
+        "headers": {
+          "allow": "GET"
+        }
+      }
+    },
+    {
+      "name": "the fetch endpoint answers the subordinate statement about the leaf",
+      "request": {
+        "path": "/ta/federation_fetch?sub={leaf}"
+      },
+      "expect": {
+        "headers": {
+          "content-type": "application/entity-statement+jwt"
+        },
+        "text": {
+          "$regex": "^eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+        }
+      }
+    },
+    {
+      "name": "and not_found for an entity that is not its subordinate",
+      "request": {
+        "path": "/ta/federation_fetch?sub=https://nobody.example"
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "error": "not_found"
+        }
+      }
+    },
+    {
+      "name": "and invalid_request for the anchor itself",
+      "request": {
+        "path": "/ta/federation_fetch?sub={anchor}"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_request"
+        }
+      }
+    },
+    {
+      "name": "the list endpoint names the subordinates, filtered by entity type",
+      "request": {
+        "path": "/ta/federation_list"
+      },
+      "expect": {
+        "json": [
+          {
+            "$regex": "/leaf$"
+          },
+          {
+            "$regex": "/rogue$"
+          }
+        ]
+      }
+    },
+    {
+      "name": "no subordinate is an OpenID provider",
+      "request": {
+        "path": "/ta/federation_list?entity_type=openid_provider"
+      },
+      "expect": {
+        "json": []
+      }
+    },
+    {
+      "name": "the anchor's resolve endpoint answers a signed resolution",
+      "request": {
+        "path": "/ta/federation_resolve?sub={leaf}&trust_anchor={anchor}&entity_type=openid_relying_party"
+      },
+      "expect": {
+        "headers": {
+          "content-type": "application/resolve-response+jwt"
+        },
+        "text": {
+          "$regex": "^eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+        }
+      }
+    },
+    {
+      "name": "and refuses one to an anchor it does not trust",
+      "request": {
+        "path": "/ta/federation_resolve?sub={leaf}&trust_anchor=https://other-anchor.example"
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "error": "invalid_trust_chain"
+        }
+      }
+    }
+  ]
+}
