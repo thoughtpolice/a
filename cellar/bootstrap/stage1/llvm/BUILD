@@ -45,15 +45,14 @@ LICENSED_PROJECTS = [
     "llvm",
 ]
 
-# The runtimes' sources, installed headers and notices.
+LICENSES = ["{}/LICENSE.TXT".format(project) for project in LICENSED_PROJECTS]
+
+# The runtimes' sources and installed headers.
 RUNTIME_PATHS = [
-    "compiler-rt/LICENSE.TXT",
     "compiler-rt/lib/builtins",
-    "libcxx/LICENSE.TXT",
     "libcxx/include",
     "libcxx/src",
     "libcxx/vendor",
-    "libcxxabi/LICENSE.TXT",
     "libcxxabi/include",
     "libcxxabi/src",
 ]
@@ -69,12 +68,13 @@ untar(
     name = SOURCE[1:],
     chdirenv = CHDIRENV,
     decompress = "cellar//bootstrap/stage0-posix/mescc-tools-extra:unxz",
-    files = source_files() + runtime_source_files() + ["{}/LICENSE.TXT".format(project) for project in LICENSED_PROJECTS],
+    files = source_files() + runtime_source_files() + LICENSES,
     flags = ["-x"],
     input = ":llvm-project-23.1.0.src.tar.xz",
     # The projects built here and the overlay describing them, without their
-    # test suites and manuals: about a seventh of the tarball.
-    only = LLVM_PROJECTS + RUNTIME_PATHS,
+    # test suites and manuals, and the notices of the projects only partly
+    # extracted: about a seventh of the tarball.
+    only = LLVM_PROJECTS + RUNTIME_PATHS + [path for path in LICENSES if path.split("/")[0] not in LLVM_PROJECTS],
     skip = [
         project + "/" + directory
         for project in LLVM_PROJECTS
@@ -466,8 +466,8 @@ filegroup(
         "share/licenses/mimalloc/LICENSE": "cellar//bootstrap/stage1/mimalloc:mimalloc-3.5.3[LICENSE]",
         "share/licenses/musl/COPYRIGHT": MUSL + ":source[COPYRIGHT]",
     } | {
-        "share/licenses/{}/LICENSE.TXT".format(project): "{}[{}/LICENSE.TXT]".format(SOURCE, project)
-        for project in LICENSED_PROJECTS
+        "share/licenses/" + path: "{}[{}]".format(SOURCE, path)
+        for path in LICENSES
     } | {
         "bin/" + alias: ":stage3-{}-alias".format(alias)
         for alias in ALIASES

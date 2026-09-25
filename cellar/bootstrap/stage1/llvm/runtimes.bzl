@@ -275,13 +275,9 @@ def runtime_source_files():
         "libunwind/include/" + path
         for path in RUNTIME_LISTS["libunwind/include"]["files"]
     ] + [
-        "compiler-rt/LICENSE.TXT",
-        "libcxx/LICENSE.TXT",
         "libcxx/include/__config_site.in",
         "libcxx/include/module.modulemap.in",
         "libcxx/vendor/llvm/default_assertion_handler.in",
-        "libcxxabi/LICENSE.TXT",
-        "libunwind/LICENSE.TXT",
     ])
 
 def clang_compilers(stage, tree, archiver):
