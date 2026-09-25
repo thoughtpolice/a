@@ -6,6 +6,7 @@ OCI (Open Container Initiative) image manipulation for Buck2.
 
 This module provides comprehensive OCI image support including:
 - Pulling images from registries (oci_pull)
+- Pushing images to registries with `buck2 run` (oci_push)
 - Building images from base + layers (oci_image)
 - Packaging native binaries and their Nix runtime (oci_native_binary_image)
 - Exporting Docker-compatible archives (oci_archive)
@@ -15,7 +16,7 @@ This module provides comprehensive OCI image support including:
 - Multi-platform image indexes (oci_index)
 
 Implementation uses:
-- skopeo for registry operations
+- skopeo for registry pulls and pushes
 - umoci for unpack/repack operations
 - Pure Python for manifest/config manipulation
 """
@@ -25,12 +26,14 @@ load(":image.bzl", _oci_image = "oci_image")
 load(":index.bzl", _oci_index = "oci_index")
 load(":native_binary.bzl", _native_binary_layer = "native_binary_layer", _oci_native_binary_image = "oci_native_binary_image")
 load(":pull.bzl", _oci_pull = "oci_pull")
+load(":push.bzl", _oci_push = "oci_push")
 load(":repack.bzl", _oci_repack = "oci_repack")
 load(":smoke.bzl", _oci_container_test = "oci_container_test")
 load(":unpack.bzl", _oci_unpack = "oci_unpack")
 
 # Export all rules
 oci_pull = _oci_pull
+oci_push = _oci_push
 oci_image = _oci_image
 oci_archive = _oci_archive
 oci_container_test = _oci_container_test

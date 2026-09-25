@@ -5,6 +5,8 @@ load("@root//buck/shims:shims.bzl", "shims")
 
 oci_pull = shims.oci.pull
 
+oci_push = shims.oci.push
+
 oci_image = shims.oci.image
 
 oci_unpack = shims.oci.unpack
@@ -117,6 +119,21 @@ oci_index(
         "linux/amd64",
         "linux/arm64",
     ],
+)
+
+# Test 9b: Push targets. Building one builds its image, and
+# `buck2 run :test_app_multiplatform_push -- --dry-run` shows the skopeo
+# commands a real run would use.
+oci_push(
+    name = "test_image_simple_push",
+    image = ":test_image_simple",
+)
+
+oci_push(
+    name = "test_app_multiplatform_push",
+    image = ":test_app_multiplatform",
+    repository = "ghcr.io/example/test-app",
+    tags = ["latest"],
 )
 
 # ============================================================================

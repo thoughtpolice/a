@@ -3,7 +3,7 @@
 
 load("@prelude//cfg/modifier:conditional_modifier.bzl", "conditional_modifier")
 load("@prelude//utils:buckconfig.bzl", "read_choice")
-load("@root//buck/lib/oci:defs.bzl", _native_binary_layer = "native_binary_layer", _oci_archive = "oci_archive", _oci_container_test = "oci_container_test", _oci_image = "oci_image", _oci_index = "oci_index", _oci_native_binary_image = "oci_native_binary_image", _oci_pull = "oci_pull", _oci_repack = "oci_repack", _oci_unpack = "oci_unpack")
+load("@root//buck/lib/oci:defs.bzl", _native_binary_layer = "native_binary_layer", _oci_archive = "oci_archive", _oci_container_test = "oci_container_test", _oci_image = "oci_image", _oci_index = "oci_index", _oci_native_binary_image = "oci_native_binary_image", _oci_pull = "oci_pull", _oci_push = "oci_push", _oci_repack = "oci_repack", _oci_unpack = "oci_unpack")
 load("@root//buck/lib/tar:defs.bzl", _tar_file = "tar_file")
 load("@root//buck/shims:cross_binary.bzl", _cross_binary_rule = "cross_binary")
 load("@root//buck/shims:cross_target.bzl", _cross_target_binary_rule = "cross_target_binary")
@@ -566,6 +566,7 @@ shims = struct(
     tar_file = lambda **kwargs: _tar_file(**_fix_kwargs("tar_file", kwargs)),
     oci = struct(
         pull = lambda **kwargs: _oci_pull(**_fix_kwargs("oci_pull", kwargs)),
+        push = lambda **kwargs: _oci_push(**_fix_kwargs("oci_push", kwargs)),
         image = lambda **kwargs: _oci_image(**_fix_kwargs("oci_image", kwargs)),
         archive = lambda **kwargs: _oci_archive(**_fix_kwargs("oci_archive", kwargs)),
         container_test = lambda **kwargs: _oci_container_test(**_fix_kwargs("oci_container_test", kwargs)),

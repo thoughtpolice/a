@@ -8,6 +8,7 @@ Comprehensive OCI (Open Container Initiative) container image support for Buck2.
 - **Build images**: Create images by layering tarballs on base images with full config control
 - **Package native binaries**: Strip and relocate ELF binaries, or carry their exact Nix runtime closure
 - **Export to Docker**: Produce archives accepted directly by `docker load`
+- **Push to registries**: `buck2 run` a push target to copy an image to any registry with skopeo
 - **Smoke-test with Docker**: Import an OCI layout, wait for readiness, and clean up automatically
 - **Unpack/repack images**: Extract image filesystems, modify them, and rebuild images
 - **Multi-platform support**: Build image indexes supporting multiple architectures
@@ -163,6 +164,50 @@ depot.oci.archive(
 The output can be imported with `docker load -i <output>`. `tag` controls the
 tag embedded in that archive; `source_tag` selects an existing tag from the OCI
 layout and defaults to `latest`, which is what `oci_image` produces.
+
+### `oci_push`
+
+Push an image or a multi-platform index to a registry. Pushing is a side
+effect, so it happens when the target runs, never during a build:
+
+```python
+depot.oci.push(
+    name = "worker-push",
+    image = ":worker-image",
+    # Optional. Lets `buck2 run :worker-push` with no arguments push
+    # ghcr.io/example/worker:latest, and `-- --tag v1` push :v1.
+    repository = "ghcr.io/example/worker",
+    tags = ["latest"],
+)
+```
+
+```bash
+buck2 run //path/to:worker-push -- ghcr.io/example/worker:v1
+buck2 run //path/to:worker-push -- --tag v1 --tag latest
+buck2 run //path/to:worker-push -- --dry-run ttl.sh/me-worker:1h
+```
+
+Each destination needs an explicit tag. When a push succeeds the target
+prints the image by digest, `ghcr.io/example/worker@sha256:...`, on stdout,
+so a script can capture the exact image it pushed. A destination with a
+skopeo transport prefix, such as `oci:/tmp/out:v1`, is written there instead
+of to a registry.
+
+The push stages a private copy of the layout first, hard-linked where
+possible, so rebuilding the image while a push runs can't change what gets
+pushed. An `oci_index` layout, which lists one manifest per platform, is
+wrapped in a single image index and pushed as one multi-platform image.
+skopeo retries failed requests three times (`--retry-times`), and it
+compresses each layer before asking the registry for it, so layers the
+repository already has aren't uploaded again.
+
+Credentials come from wherever skopeo looks for them: `REGISTRY_AUTH_FILE`,
+`docker login` state, or `--authfile PATH`. To log in with the pinned
+skopeo itself:
+
+```bash
+buck2 run depot-toolchains//oci:skopeo -- login ghcr.io
+```
 
 ### `oci_container_test`
 
@@ -321,7 +366,6 @@ docker run --rm worker:latest --version
 
 Possible future additions:
 
-- **oci_push**: Push images to registries
 - **oci_copy**: Copy images between registries
 - **oci_import**: Import from Docker tar format
 - **Layer caching**: Advanced layer deduplication
