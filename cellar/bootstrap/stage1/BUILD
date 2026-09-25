@@ -408,6 +408,7 @@ TOOLCHAIN_FILES = {"include/" + p: MUSL + ":headers[" + p + "]" for p in MUSL_HE
     "share/licenses/mpc": PREFIX + "mpc:installation[share/licenses/mpc]",
     "share/licenses/libbacktrace/LICENSE": GCC + ":libbacktrace-notice",
     "share/licenses/libcody/LICENSE": GCC + ":gcc-13.5.0[libcody/LICENSE]",
+    "share/licenses/mimalloc/LICENSE": PREFIX + "mimalloc:mimalloc-3.5.3[LICENSE]",
     "share/ldscripts": PREFIX + "binutils241:installation[share/ldscripts]",
 } | {"lib/lib" + name + ".a": MUSL + ":lib" + name + ".a" for name in LIBRARIES} | {
     "lib/" + name: MUSL + ":" + name

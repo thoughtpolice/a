@@ -132,10 +132,12 @@ llvm_stage(
             GCC + ":stage3-libgcc.a",
             MUSL + ":libc.a",
         ],
+        # mimalloc replaces musl's malloc, as for GCC 13's compilers.
         "objects": [
             MUSL + ":crt1.o",
             MUSL + ":crti.o",
             GCC + ":stage3-crtbeginT.o",
+            "cellar//bootstrap/stage1/mimalloc:mimalloc.o",
         ],
     },
     stage = "gcc",

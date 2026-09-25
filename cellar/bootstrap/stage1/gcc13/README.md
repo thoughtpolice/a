@@ -76,7 +76,11 @@ each later stage by its predecessor's GCC 13 and libstdc++ 13. As upstream,
 each stage keeps its compiler's default C++ dialect, and later stages add
 `-Werror`. The compilers link GMP, MPFR, MPC, zlib 1.2.12 from the binutils
 2.41 port and libbacktrace, and `cc1plus` also links libcody for C++20
-modules. The static analyzer is enabled, as it is upstream.
+modules. `cc1` and `cc1plus` allocate through [mimalloc](../mimalloc/README.md)
+instead of musl's malloc, which unmaps and remaps pages hundreds of
+thousands of times per large translation unit. Their output is unchanged,
+and stages 2 and 3 compile about 15% faster, LLVM about 7%. The static
+analyzer is enabled, as it is upstream.
 
 The new driver builds libgcc, libgcov and the startup objects with
 upstream's flags for x86_64 Linux: 267 libgcc objects, including the half

@@ -56,7 +56,8 @@ assertions, ABI-breaking checks, exceptions or RTTI. The overlay's host and
 default triples name glibc; this build uses `x86_64-unknown-linux-musl`.
 Binaries link with an 8 MiB `PT_GNU_STACK` size, because musl's 128 KiB
 default thread stack is too small for LLVM's recursive passes and musl takes
-new threads' stack size from that header.
+new threads' stack size from that header. They allocate through
+[mimalloc](../mimalloc/README.md), like GCC 13's compilers.
 
 The tarball is decompressed and extracted in one action, keeping only the
 projects this build reads and the overlay, without their test suites, unit
