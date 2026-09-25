@@ -1,0 +1,241 @@
+{
+  "steps": [
+    {
+      "name": "the first command starts the container and runs as uid 1000, not root",
+      "request": { "path": "/call", "json": { "method": "exec", "args": [["id", "-u"]] } },
+      "expect": { "json": { "ok": true, "value": { "stdout": "1000\n", "exitCode": 0, "success": true } } }
+    },
+    {
+      "name": "commands see only the sandbox environment, none of the container's",
+      "request": { "path": "/call", "json": { "method": "exec", "args": [["env"]] } },
+      "expect": {
+        "json": {
+          "ok": true,
+          "value": {
+            "stdout": {
+              "$regex": "^(HOME=/workspace\\nLANG=C\\.UTF-8\\nPATH=[^\\n]*\\n|PATH=[^\\n]*\\nHOME=/workspace\\nLANG=C\\.UTF-8\\n)$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "there is no network without enableInternet",
+      "request": {
+        "path": "/call",
+        "json": { "method": "execShell", "args": ["wget -q -T 3 -O /dev/null http://1.1.1.1/ 2>/dev/null; echo $?"] }
+      },
+      "expect": { "json": { "ok": true, "value": { "stdout": { "$not": "0\n" } } } }
+    },
+    {
+      "name": "binary files are written byte-exact",
+      "request": {
+        "path": "/call",
+        "json": { "method": "writeFile", "args": ["bin/data.bin", { "bytes64": "AAFoaf8ACg2A" }] }
+      },
+      "expect": { "json": { "ok": true } }
+    },
+    {
+      "name": "and read back byte-exact",
+      "request": {
+        "path": "/call",
+        "json": { "method": "readFile", "args": ["bin/data.bin", { "encoding": "bytes" }] }
+      },
+      "expect": {
+        "json": { "ok": true, "value": { "size": 9, "encoding": "bytes", "content": { "bytes64": "AAFoaf8ACg2A" } } }
+      }
+    },
+    {
+      "name": "binary data is not passed off as text",
+      "request": { "path": "/call", "json": { "method": "readFile", "args": ["bin/data.bin"] } },
+      "expect": { "json": { "ok": false, "code": "not_text" } }
+    },
+    {
+      "name": "text round-trips",
+      "request": { "path": "/call", "json": { "method": "writeFile", "args": ["src/hello.txt", "héllo\n"] } },
+      "expect": { "json": { "ok": true } }
+    },
+    {
+      "name": "symbolic links out of the workspace are planted",
+      "request": {
+        "path": "/call",
+        "json": { "method": "execShell", "args": ["ln -s / src/root && ln -s /etc/passwd pw && cat src/hello.txt"] }
+      },
+      "expect": { "json": { "ok": true, "value": { "stdout": "héllo\n", "exitCode": 0 } } }
+    },
+    {
+      "name": "reading through a link to / is refused",
+      "request": { "path": "/call", "json": { "method": "readFile", "args": ["src/root/etc/passwd"] } },
+      "expect": { "json": { "ok": false, "code": "outside_workspace" } }
+    },
+    {
+      "name": "reading a link to a file outside is refused",
+      "request": { "path": "/call", "json": { "method": "readFile", "args": ["pw"] } },
+      "expect": { "json": { "ok": false, "code": "outside_workspace" } }
+    },
+    {
+      "name": "writing through a link is refused",
+      "request": { "path": "/call", "json": { "method": "writeFile", "args": ["src/root/tmp/planted", "x"] } },
+      "expect": { "json": { "ok": false, "code": "outside_workspace" } }
+    },
+    {
+      "name": "and so is plain traversal",
+      "request": { "path": "/call", "json": { "method": "readFile", "args": ["../etc/passwd"] } },
+      "expect": { "json": { "ok": false, "code": "outside_workspace" } }
+    },
+    {
+      "name": "listings show links as links without following them",
+      "request": { "path": "/call", "json": { "method": "listFiles", "args": ["", { "recursive": true }] } },
+      "expect": {
+        "json": {
+          "ok": true,
+          "value": {
+            "truncated": false,
+            "entries": [
+              { "path": "bin", "kind": "dir" },
+              { "path": "bin/data.bin", "kind": "file" },
+              { "path": "pw", "kind": "symlink" },
+              { "path": "src", "kind": "dir" },
+              { "path": "src/hello.txt", "kind": "file" },
+              { "path": "src/root", "kind": "symlink" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a command past its deadline is killed",
+      "request": { "path": "/call", "json": { "method": "execShell", "args": ["sleep 20", { "timeoutMs": 500 }] } },
+      "expect": { "json": { "ok": true, "value": { "timedOut": true, "exitCode": null, "success": false } } }
+    },
+    {
+      "name": "output past the cap is cut",
+      "request": {
+        "path": "/call",
+        "json": { "method": "execShell", "args": ["head -c 5000 /dev/zero | tr '\\0' x", { "maxOutputBytes": 100 }] }
+      },
+      "expect": { "json": { "ok": true, "value": { "truncated": true, "stdout": { "$len": 100 } } } }
+    },
+    {
+      "name": "a background process starts",
+      "request": {
+        "path": "/call",
+        "json": { "method": "startShellProcess", "args": ["echo started; sleep 1; echo finished; exit 3", { "name": "job" }] }
+      },
+      "expect": { "json": { "ok": true, "value": { "status": "running", "name": "job" } } },
+      "save": { "job": "json.value.id" }
+    },
+    {
+      "name": "and is waited for across requests",
+      "request": { "path": "/call", "json": { "method": "waitForExit", "args": ["{job}", { "timeoutMs": 15000 }] } },
+      "expect": { "json": { "ok": true, "value": { "status": "exited", "exitCode": 3 } } }
+    },
+    {
+      "name": "its output is kept",
+      "request": { "path": "/call", "json": { "method": "getProcessLogs", "args": ["{job}"] } },
+      "expect": { "json": { "ok": true, "value": { "stdout": "started\nfinished\n", "stderr": "", "truncated": false } } }
+    },
+    {
+      "name": "a long process starts",
+      "request": { "path": "/call", "json": { "method": "startProcess", "args": [["sleep", "60"]] } },
+      "save": { "sleeper": "json.value.id" }
+    },
+    {
+      "name": "and is killed",
+      "request": { "path": "/call", "json": { "method": "killProcess", "args": ["{sleeper}"] } },
+      "expect": { "json": { "ok": true, "value": { "status": "killed", "exitCode": 143 } } }
+    },
+    {
+      "name": "a process with a timeout starts",
+      "request": { "path": "/call", "json": { "method": "startProcess", "args": [["sleep", "60"], { "timeoutMs": 1000 }] } },
+      "save": { "limited": "json.value.id" }
+    },
+    {
+      "name": "and is killed when it runs out",
+      "request": { "path": "/call", "json": { "method": "waitForExit", "args": ["{limited}", { "timeoutMs": 15000 }] } },
+      "expect": { "json": { "ok": true, "value": { "status": "timed_out", "exitCode": 137 } } }
+    },
+    {
+      "name": "a ticking process starts",
+      "request": {
+        "path": "/call",
+        "json": { "method": "startShellProcess", "args": ["for i in 1 2 3; do echo tick $i; sleep 0.3; done"] }
+      },
+      "save": { "ticker": "json.value.id" }
+    },
+    {
+      "name": "its logs stream as server-sent events until it exits",
+      "request": { "path": "/logs", "json": { "id": "{ticker}" } },
+      "expect": {
+        "headers": { "content-type": { "$regex": "text/event-stream" } },
+        "sse": { "$contains": { "event": "exit", "data": { "type": "exit", "status": "exited", "exitCode": 0 } } },
+        "text": { "$regex": "tick 1(.|\\n)*tick 2(.|\\n)*tick 3" }
+      }
+    },
+    {
+      "name": "a command's output streams too",
+      "request": { "path": "/stream", "json": { "argv": ["sh", "-c", "echo streamed; exit 4"] } },
+      "expect": {
+        "sse": [
+          { "event": "start", "data": { "type": "start", "pid": { "$gt": 0 } } },
+          { "event": "stdout", "data": { "type": "stdout", "data": "streamed\n" } },
+          { "event": "complete", "data": { "type": "complete", "exitCode": 4, "success": false } }
+        ]
+      }
+    },
+    {
+      "name": "a file streams in",
+      "request": { "method": "POST", "path": "/upload?path=big/up.txt", "body": "uploaded through a stream" },
+      "expect": { "json": { "path": "big/up.txt", "size": 25 } }
+    },
+    {
+      "name": "and back out",
+      "request": { "path": "/download?path=big/up.txt" },
+      "expect": { "text": "uploaded through a stream" }
+    },
+    {
+      "name": "a server starts in the background",
+      "request": {
+        "path": "/call",
+        "json": { "method": "startProcess", "args": [["httpd", "-f", "-p", "8080", "-h", "src"]] }
+      },
+      "save": { "server": "json.value.id" }
+    },
+    {
+      "name": "and its port answers",
+      "request": { "path": "/call", "json": { "method": "waitForPort", "args": [8080, { "path": "/hello.txt" }] } },
+      "expect": { "json": { "ok": true } }
+    },
+    {
+      "name": "destroying the container loses its processes",
+      "request": { "path": "/call", "json": { "method": "destroy" } },
+      "expect": { "json": { "ok": true } }
+    },
+    {
+      "name": "the server is reported lost",
+      "request": { "path": "/call", "json": { "method": "getProcess", "args": ["{server}"] } },
+      "expect": { "json": { "ok": true, "value": { "status": "lost" } } }
+    },
+    {
+      "name": "the next call starts a fresh container with an empty workspace",
+      "request": { "path": "/call", "json": { "method": "exists", "args": ["src/hello.txt"] } },
+      "expect": { "json": { "ok": true, "value": { "exists": false } } }
+    },
+    {
+      "name": "which is the second generation",
+      "request": { "path": "/call", "json": { "method": "getState" } },
+      "expect": { "json": { "ok": true, "value": { "running": true, "generation": 2 } } }
+    },
+    {
+      "name": "after sleepAfter without activity the alarm stops it",
+      "request": { "path": "/call", "json": { "method": "getState" } },
+      "until": { "seconds": 30, "interval": 1 },
+      "expect": { "json": { "ok": true, "value": { "running": false, "status": "stopped" } } }
+    },
+    {
+      "name": "and the next call starts it again",
+      "request": { "path": "/call", "json": { "method": "exec", "args": [["true"]] } },
+      "expect": { "json": { "ok": true, "value": { "exitCode": 0 } } }
+    }
+  ]
+}
