@@ -52,11 +52,19 @@ Environment=PATH=/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin
 # that was tested and the boot that runs. TLS proves who served the
 # bytes, not that they're the bytes you tested. So IMAGE has to name a
 # digest.
-ExecStartPre=/usr/bin/bash -c 'case "$IMAGE" in *@sha256:*) exit 0 ;; esac; echo "IMAGE must be pinned by digest (…@sha256:…), got: ${IMAGE:-<unset>}" >&2; exit 1'
+#
+# systemd expands ${NAME} anywhere in a command line, even inside quotes,
+# and would paste IMAGE's raw text into the script for bash to run. It
+# leaves ${IMAGE:-...} alone only because it doesn't support the :- form
+# there. $$ passes a literal $ through, so bash reads IMAGE from the
+# environment whatever systemd supports. A bare $IMAGE inside a word is
+# never expanded by systemd.
+ExecStartPre=/usr/bin/bash -c 'case "$IMAGE" in *@sha256:*) exit 0 ;; esac; echo "IMAGE must be pinned by digest (…@sha256:…), got: $${IMAGE:-<unset>}" >&2; exit 1'
 # Remove a container an unclean stop left behind, or its name would
-# collide. Usually there's nothing to remove and nerdctl fails, so its
-# error stays out of the journal.
-ExecStartPre=-/usr/bin/bash -c '/usr/bin/nerdctl rm --force %i 2>/dev/null || true'
+# collide. Usually there's nothing to remove and nerdctl fails. The `-`
+# prefix ignores that, and bash is only here to keep the error out of the
+# journal.
+ExecStartPre=-/usr/bin/bash -c '/usr/bin/nerdctl rm --force %i 2>/dev/null'
 # Container stdout goes to a json-file log on disk, and cgroups bound
 # memory, CPU and pids but never bytes written. An unbounded log is the
 # likeliest way this host fills its disk. --log-opt comes before
