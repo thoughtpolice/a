@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# build.rs only probes for core::error::Error to set has_core_error, which
+# faster-hex consults when its std feature is off. Every user here enables
+# std, so the probe changes nothing.
+buildscript.run = false

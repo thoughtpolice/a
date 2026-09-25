@@ -6947,18 +6947,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "faster-hex-0.10.0.crate",
-    sha256 = "7223ae2d2f179b803433d9c830478527e92b8117eab39460edae7f1614d9fb73",
-    strip_prefix = "faster-hex-0.10.0",
-    urls = ["https://static.crates.io/crates/faster-hex/0.10.0/download"],
+    name = "faster-hex-0.10.1.crate",
+    sha256 = "04839bdf9d8c10f66806fad16b852fc72aab80873aebc3cb69d85b4fa41543ed",
+    strip_prefix = "faster-hex-0.10.1",
+    urls = ["https://static.crates.io/crates/faster-hex/0.10.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "faster-hex-0.10",
-    srcs = [":faster-hex-0.10.0.crate"],
+    srcs = [":faster-hex-0.10.1.crate"],
     crate = "faster_hex",
-    crate_root = "faster-hex-0.10.0.crate/src/lib.rs",
+    crate_root = "faster-hex-0.10.1.crate/src/lib.rs",
     edition = "2018",
     features = [
         "alloc",
@@ -20915,18 +20915,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "salsa-0.28.4.crate",
-    sha256 = "5ad7a025e8eda1fcde5a8c442e2cdd34be28ba1c7bb5328c541b82cda212165f",
-    strip_prefix = "salsa-0.28.4",
-    urls = ["https://static.crates.io/crates/salsa/0.28.4/download"],
+    name = "salsa-0.28.5.crate",
+    sha256 = "27d2e6e19e39591cd99c01ac4141544b4d012cfd0831348629b8187fa9fe6d34",
+    strip_prefix = "salsa-0.28.5",
+    urls = ["https://static.crates.io/crates/salsa/0.28.5/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "salsa-0.28",
-    srcs = [":salsa-0.28.4.crate"],
+    srcs = [":salsa-0.28.5.crate"],
     crate = "salsa",
-    crate_root = "salsa-0.28.4.crate/src/lib.rs",
+    crate_root = "salsa-0.28.5.crate/src/lib.rs",
     edition = "2024",
     features = [
         "accumulator",
@@ -20960,36 +20960,36 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "salsa-macro-rules-0.28.4.crate",
-    sha256 = "40bc5a70f76d5f539e1e2f892006f523669845b6c879a70b3ed1996f47cfbb2e",
-    strip_prefix = "salsa-macro-rules-0.28.4",
-    urls = ["https://static.crates.io/crates/salsa-macro-rules/0.28.4/download"],
+    name = "salsa-macro-rules-0.28.5.crate",
+    sha256 = "baf90a551c38f25ed8489111d3d5827aa18e1b85963f5e6a298505b1d1e2cb7e",
+    strip_prefix = "salsa-macro-rules-0.28.5",
+    urls = ["https://static.crates.io/crates/salsa-macro-rules/0.28.5/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "salsa-macro-rules-0.28",
-    srcs = [":salsa-macro-rules-0.28.4.crate"],
+    srcs = [":salsa-macro-rules-0.28.5.crate"],
     crate = "salsa_macro_rules",
-    crate_root = "salsa-macro-rules-0.28.4.crate/src/lib.rs",
+    crate_root = "salsa-macro-rules-0.28.5.crate/src/lib.rs",
     edition = "2024",
     features = ["accumulator"],
     visibility = [],
 )
 
 shims.http_archive(
-    name = "salsa-macros-0.28.4.crate",
-    sha256 = "ea978f07c8d78cb5f4dd25bd005d9ff08f60909e089136d5fc36c847fa9005a9",
-    strip_prefix = "salsa-macros-0.28.4",
-    urls = ["https://static.crates.io/crates/salsa-macros/0.28.4/download"],
+    name = "salsa-macros-0.28.5.crate",
+    sha256 = "69dd77f86ec10e72e314f4ddf7c44c8d349e73cdff1aad524ba9668603fb0549",
+    strip_prefix = "salsa-macros-0.28.5",
+    urls = ["https://static.crates.io/crates/salsa-macros/0.28.5/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "salsa-macros-0.28",
-    srcs = [":salsa-macros-0.28.4.crate"],
+    srcs = [":salsa-macros-0.28.5.crate"],
     crate = "salsa_macros",
-    crate_root = "salsa-macros-0.28.4.crate/src/lib.rs",
+    crate_root = "salsa-macros-0.28.5.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
     proc_macro = True,
