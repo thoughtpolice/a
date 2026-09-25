@@ -5,8 +5,9 @@ load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
 load("@cellar//bootstrap:host.bzl", "host_python_test")
 load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
-load("@cellar//bootstrap/stage1:defs.bzl", "compiler")
-load(":defs.bzl", "SOURCE", "llvm_files", "llvm_stage", "resource_headers", "source_files")
+load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object", "compiler")
+load(":defs.bzl", "CAPTURE", "SOURCE", "llvm_files", "llvm_stage", "resource_headers", "source_files")
+load(":runtimes.bzl", "clang_compilers", "llvm_runtimes", "runtime_headers", "runtime_link", "runtime_source_files")
 
 GCC = "cellar//bootstrap/stage1/gcc13"
 
@@ -29,6 +30,19 @@ LLVM_PROJECTS = [
     "utils/bazel",
 ]
 
+# The runtimes' sources, installed headers and notices.
+RUNTIME_PATHS = [
+    "compiler-rt/LICENSE.TXT",
+    "compiler-rt/lib/builtins",
+    "libcxx/LICENSE.TXT",
+    "libcxx/include",
+    "libcxx/src",
+    "libcxx/vendor",
+    "libcxxabi/LICENSE.TXT",
+    "libcxxabi/include",
+    "libcxxabi/src",
+]
+
 download_file(
     name = "llvm-project-23.1.0.src.tar.xz",
     hash = "ab1f0e3ec52448c33e8782eaf0422504b87c7b016b22514653ee0d8fcee479ff",
@@ -40,12 +54,12 @@ untar(
     name = SOURCE[1:],
     chdirenv = CHDIRENV,
     decompress = "cellar//bootstrap/stage0-posix/mescc-tools-extra:unxz",
-    files = source_files(),
+    files = source_files() + runtime_source_files(),
     flags = ["-x"],
     input = ":llvm-project-23.1.0.src.tar.xz",
     # The projects built here and the overlay describing them, without their
     # test suites and manuals: about a seventh of the tarball.
-    only = LLVM_PROJECTS,
+    only = LLVM_PROJECTS + RUNTIME_PATHS,
     skip = [
         project + "/" + directory
         for project in LLVM_PROJECTS
@@ -240,6 +254,86 @@ command_test(
     ],
     tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
 )
+
+# The first Clang builds the C library and runtimes that the second stage
+# links against.
+runtime_headers()
+
+clang_compilers(
+    archiver = ":gcc-llvm-llvm-ar",
+    stage = "stage2",
+    tree = ":gcc-toolchain",
+)
+
+llvm_runtimes("stage2")
+
+export_file(name = "tests/runtimes.cc")
+
+RUNTIME_TESTS = {
+    "native-c": {
+        "expected": "native C 4294967325\n",
+        "sources": {
+            "native.c": "cellar//bootstrap/stage1:acceptance-source[native.c]",
+            "helper.c": "cellar//bootstrap/stage1:acceptance-source[helper.c]",
+        },
+    },
+    "native-cxx": {
+        "expected": "native C++ 4294967299\n",
+        "sources": {
+            "native.cc": "cellar//bootstrap/stage1:acceptance-source[native.cc]",
+            "helper.c": "cellar//bootstrap/stage1:acceptance-source[helper.c]",
+        },
+    },
+    "runtimes": {
+        "expected": "runtimes a/c 555555555 1.5e+300\n",
+        "sources": {"runtimes.cc": ":tests/runtimes.cc"},
+    },
+}
+
+[
+    [
+        [c_object(
+            name = "{}-{}-{}".format(stage, test, source),
+            src = src,
+            flags = [
+                "-O2",
+                "-pthread",
+            ] + (["-std=c++23"] if source.endswith(".cc") else []),
+            object_name = source.rsplit(".", 1)[0] + ".o",
+            toolchain = ":{}-{}".format(
+                stage,
+                "c++" if source.endswith(".cc") else "cc",
+            ),
+        ) for source, src in spec["sources"].items()],
+        c_binary(
+            name = "{}-{}".format(stage, test),
+            end_objects = runtime_link(stage)["end_objects"],
+            libraries = runtime_link(stage)["libraries"],
+            objects = runtime_link(stage)["objects"] + [":{}-{}-{}".format(stage, test, source) for source in spec["sources"]],
+            output = test,
+            toolchain = ":{}-c++".format(stage),
+        ),
+        generate(
+            name = "{}-{}-output".format(stage, test),
+            capture = CAPTURE,
+            tool = ":{}-{}".format(stage, test),
+        ),
+        write_file(
+            name = "{}-{}-expected".format(stage, test),
+            content = spec["expected"],
+        ),
+        command_test(
+            name = "{}-{}-test".format(stage, test),
+            args = [
+                "$(location :{}-{}-output)".format(stage, test),
+                "$(location :{}-{}-expected)".format(stage, test),
+            ],
+            tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
+        ),
+    ]
+    for stage in ["stage2"]
+    for test, spec in RUNTIME_TESTS.items()
+]
 
 # The committed inventory is what inventory.py makes from this tarball.
 export_file(name = "inventory.bzl")

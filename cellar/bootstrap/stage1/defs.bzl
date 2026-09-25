@@ -60,7 +60,7 @@ _compiler_rule = rule(impl = _compiler_impl, attrs = {
     "archiver": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
     "archive_flags": attrs.list(attrs.string(), default = []),
     "archive_format": attrs.enum(["mes-concat", "ar"]),
-    "family": attrs.enum(["mescc", "tcc", "gcc"]),
+    "family": attrs.enum(["mescc", "tcc", "gcc", "clang"]),
     "stage": attrs.string(),
     "abi": attrs.enum(["x86_64-mes", "x86_64-sysv"]),
     "object_format": attrs.enum(["mes", "elf64-x86-64"]),
@@ -154,8 +154,9 @@ def _archive_impl(ctx):
     objects = _objects(ctx.attrs.objects, tc)
     names = {}
     for obj in objects:
-        # The seed TCC archiver stores only 15 characters of a member name.
-        name = obj.basename[:15]
+        # The seed TCC archiver stores only 15 characters of a member name;
+        # binutils and LLVM archivers keep long names whole.
+        name = obj.basename[:15] if tc.family in ("mescc", "tcc") else obj.basename
         if name in names:
             fail("archive member name collision: " + name)
         names[name] = True
