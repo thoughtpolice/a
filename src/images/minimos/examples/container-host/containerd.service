@@ -11,6 +11,9 @@ After=network.target time-sync.target
 
 [Service]
 Type=notify
+# Out of system.slice, so shims can't use up the base services' tasks.
+# See containers.slice.
+Slice=containers.slice
 # containerd finds shims through its own PATH. The shim finds nothing
 # itself, since runsc-config.toml names runsc by absolute path.
 Environment=PATH=/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin
@@ -48,7 +51,8 @@ OOMScoreAdjust=-999
 # These limits bound the daemon and its shims, not containers. The
 # runtime puts each sandbox at /sys/fs/cgroup/<namespace>/<id>, outside
 # this unit, for the reason nerdctl.toml gives. A container's limits come
-# from `--memory`, `--cpus`, `--pids-limit` or `--cgroup-parent`.
+# from `--memory`, `--cpus`, `--pids-limit` or `--cgroup-parent`. The
+# daemon shares containers.slice's 8192 tasks with the container@ units.
 TasksMax=8192
 LimitNOFILE=1048576
 LimitNPROC=infinity

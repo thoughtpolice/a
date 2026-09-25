@@ -141,10 +141,12 @@ minimos.overlay(
     },
     # containerd is enabled by its [Install] section. The template has
     # none. A layer above enables each instance with a
-    # multi-user.target.wants link next to its .env file.
+    # multi-user.target.wants link next to its .env file. The slice needs
+    # no enabling, since the units that name it pull it in.
     units = [
         "containerd.service",
         "container@.service",
+        "containers.slice",
     ],
 )
 
