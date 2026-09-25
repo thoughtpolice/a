@@ -446,10 +446,9 @@ fi
 skipped_in_container systemd-growfs-root.service
 
 if [[ "$DEV" -eq 1 ]]; then
-    echo "boot_smoke: checking user manager, cgroup placement, core limits, and bubblewrap installation"
+    echo "boot_smoke: checking the user manager, login scope, core limits and bubblewrap"
     if ! docker_exec /usr/bin/systemctl is-active --quiet user@1000.service; then
-        echo "boot_smoke: FAIL — user@1000.service is not active" >&2
-        exit 1
+        fail "user@1000.service is not active"
     fi
     USER_OUTPUT=""
     if ! USER_OUTPUT=$(timeout --signal=KILL 15s docker exec \
@@ -460,17 +459,12 @@ if [[ "$DEV" -eq 1 ]]; then
         --env PATH=/nonexistent \
         "$CID" /usr/lib/minimos/login-shell -c \
         'set -euo pipefail; scope_unit=; printf "cgroup="; while IFS= read -r line; do printf "%s\n" "$line"; scope_unit=${line##*/}; done </proc/self/cgroup; test -n "$scope_unit"; printf "scope-io-accounting="; /usr/bin/systemctl --user show "$scope_unit" --property=IOAccounting --value; printf "default-io-accounting="; /usr/bin/systemctl --user show --property=DefaultIOAccounting --value; printf "core-soft="; ulimit -Sc; printf "core-hard="; ulimit -Hc; printf "user-state="; /usr/bin/systemctl --user is-system-running; printf "bwrap="; /usr/bin/bwrap --version' 2>&1); then
-        echo "boot_smoke: FAIL — bounded login probe failed:" >&2
-        echo "$USER_OUTPUT" >&2
         docker_exec /usr/bin/systemctl status --no-pager user@1000.service >&2 || true
         docker_exec /usr/bin/journalctl --no-pager -u user@1000.service -n 30 >&2 || true
-        exit 1
+        fail "the login probe failed:" "$USER_OUTPUT"
     fi
     probe_says() {
-        grep -q "$1" <<<"$USER_OUTPUT" && return 0
-        echo "boot_smoke: FAIL — login probe did not report $2:" >&2
-        echo "$USER_OUTPUT" >&2
-        exit 1
+        grep -q "$1" <<<"$USER_OUTPUT" || fail "the login probe didn't show $2:" "$USER_OUTPUT"
     }
     probe_says 'cgroup=0::/user.slice/user-1000.slice/user@1000.service/' \
         'a login shell inside the delegated user cgroup'
@@ -479,9 +473,8 @@ if [[ "$DEV" -eq 1 ]]; then
     probe_says 'core-soft=0' 'a zero soft core limit'
     probe_says 'core-hard=0' 'a zero hard core limit'
     probe_says 'user-state=running' 'a running user manager'
-    # Docker's built-in nested-container policy rejects bwrap's pivot_root.
-    # Keep that outer seccomp barrier intact here; the real-VM integration
-    # test performs the functional namespace/mount probe.
+    # Docker's nested-container policy rejects bwrap's pivot_root, so the
+    # functional sandbox check belongs to the VM test.
     probe_says 'bwrap=bubblewrap ' 'an installed bubblewrap'
 fi
 
@@ -489,106 +482,75 @@ if [[ "$CONTAINERS" -eq 1 ]]; then
     echo "boot_smoke: checking the gVisor runtime and containerd's configuration"
     for runtime_binary in runsc containerd-shim-runsc-v1; do
         if ! grep -q "/${runtime_binary}\$" <<<"$GVISOR_FOUND"; then
-            echo "boot_smoke: FAIL — no image layer ships $runtime_binary" >&2
-            exit 1
+            fail "no image layer ships $runtime_binary"
         fi
     done
 
-    # The binaries execute here, which is all a container-less harness can
-    # ask of them: docker's own seccomp and nested-container policy stop a
-    # sandbox from actually starting, so booting a container under gVisor
-    # is a real-VM integration check (see the example README).
+    # Docker's seccomp and nested-container policy keep a sandbox from
+    # starting here, so booting a gVisor container is a VM check. This
+    # only proves the binary runs.
     RUNSC_VERSION=$(docker_exec /usr/local/bin/runsc --version 2>&1 | head -1 || true)
     if [[ "$RUNSC_VERSION" != "runsc version"* ]]; then
-        echo "boot_smoke: FAIL — runsc did not report a version: ${RUNSC_VERSION:-(no output)}" >&2
-        exit 1
+        fail "runsc did not report a version: ${RUNSC_VERSION:-(no output)}"
     fi
     echo "boot_smoke: $RUNSC_VERSION"
 
-    # containerd's merged view of its configuration: this is the check
-    # that our TOML both parsed and outranked the compiled-in defaults,
-    # which a file with a mistyped plugin path would silently fail.
+    # containerd's merged configuration. A mistyped plugin path in our
+    # TOML would parse fine and change nothing.
     CONFIG_DUMP=$(docker_exec /usr/bin/containerd config dump 2>&1 || true)
     for setting in \
         "default_runtime_name = 'runsc'" \
         "runtime_type = 'io.containerd.runsc.v1'" \
         "ConfigPath = '/etc/containerd/runsc/config.toml'"; do
         if ! grep -qF "$setting" <<<"$CONFIG_DUMP"; then
-            echo "boot_smoke: FAIL — containerd's effective config lacks: $setting" >&2
-            echo "$CONFIG_DUMP" | head -40 >&2
-            exit 1
+            fail "containerd's effective config lacks: $setting" "$(head -40 <<<"$CONFIG_DUMP")"
         fi
     done
 
-    # A client round-trip proves the daemon is actually serving, which
-    # `systemctl is-active` alone does not: containerd notifies readiness
-    # before its plugins have all settled.
+    # containerd signals readiness before all its plugins settle, so ask
+    # it something.
     CTR_VERSION=$(docker_exec /usr/bin/ctr version 2>&1 || true)
     if ! grep -q '^  Version:' <<<"$CTR_VERSION"; then
-        echo "boot_smoke: FAIL — ctr could not reach containerd:" >&2
-        echo "${CTR_VERSION:-(no output)}" >&2
-        exit 1
+        fail "ctr could not reach containerd:" "${CTR_VERSION:-(no output)}"
     fi
     NERDCTL_NAMESPACES=$(docker_exec /usr/bin/nerdctl namespace ls 2>&1 || true)
     if ! grep -q 'NAME' <<<"$NERDCTL_NAMESPACES"; then
-        echo "boot_smoke: FAIL — nerdctl could not reach containerd:" >&2
-        echo "${NERDCTL_NAMESPACES:-(no output)}" >&2
-        exit 1
+        fail "nerdctl could not reach containerd:" "${NERDCTL_NAMESPACES:-(no output)}"
     fi
 
-    # The socket handover to uid 1000, end to end: the account exe.dev
-    # logs SSH sessions into has to be able to drive the daemon, or the
-    # image can only ever run what was baked into it. containerd's own
-    # [grpc] uid/gid keys no longer do this in 2.x — they parse and are
-    # ignored — so the unit does it with systemd-tmpfiles after startup,
-    # and this check is what would notice that regressing.
+    # The unit hands the socket to uid 1000 with systemd-tmpfiles after
+    # startup, since containerd 2.x ignores its own [grpc] uid/gid keys.
     OWNER_CTR=$(timeout --signal=KILL 15s docker exec --user 1000:1000 "$CID" \
         /usr/bin/ctr version 2>&1 || true)
     if ! grep -q '^  Version:' <<<"$OWNER_CTR"; then
-        echo "boot_smoke: FAIL — uid 1000 cannot reach the containerd socket:" >&2
-        echo "${OWNER_CTR:-(no output)}" >&2
         docker_exec /usr/bin/systemctl status --no-pager containerd.service >&2 || true
-        exit 1
+        fail "uid 1000 can't reach the containerd socket:" "${OWNER_CTR:-(no output)}"
     fi
 
-    # The workload template has to carry the CRI sandbox annotation.
-    # Without it gVisor's shim never wires the container's stdio and
-    # blocks in Create until the task times out — a failure that only
-    # appears when a container is actually started, which no bounded
-    # docker harness can do. Assert the flag is still there instead.
-    ANNOTATION=$(docker_exec /usr/bin/bash -c \
-        'unit=$(</etc/systemd/system/container@.service); case $unit in *"--annotation io.kubernetes.cri.container-type=sandbox"*) echo present ;; *) echo missing ;; esac' 2>&1 || true)
-    if [[ "$ANNOTATION" != "present" ]]; then
-        echo "boot_smoke: FAIL — container@.service lost the CRI sandbox annotation gVisor's shim needs" >&2
-        exit 1
-    fi
-
-    # The workload template refuses a tag-only image reference and bounds
-    # its own logs. Both are one line each in a unit nobody re-reads, and
-    # both fail open if dropped — an unpinned image still runs, and an
-    # unbounded log only shows up as a full disk weeks later.
-    for guard in '*@sha256:*' '--log-opt max-size'; do
-        FOUND=$(docker_exec /usr/bin/bash -c \
-            "unit=\$(</etc/systemd/system/container@.service); case \$unit in *'$guard'*) echo present ;; *) echo missing ;; esac" 2>&1 || true)
-        if [[ "$FOUND" != "present" ]]; then
-            echo "boot_smoke: FAIL — container@.service no longer carries: $guard" >&2
-            exit 1
+    # Lines in container@.service that only matter once a container
+    # starts, which can't happen here. Without the CRI annotation gVisor's
+    # shim hangs in Create. Without the digest check a tag-only image runs,
+    # and without the log bound a chatty container fills the disk.
+    CONTAINER_UNIT=$(read_in_image /etc/systemd/system/container@.service 2>&1 || true)
+    for guard in \
+        '--annotation io.kubernetes.cri.container-type=sandbox' \
+        '*@sha256:*' \
+        '--log-opt max-size'; do
+        if [[ "$CONTAINER_UNIT" != *"$guard"* ]]; then
+            fail "container@.service no longer contains: $guard"
         fi
     done
 
-    # Container networking shells out to `iptables`, and which backend
-    # answers is a boot-time property of the image's symlinks. The
-    # platform kernel has nf_tables built in and no module can be loaded
-    # after minimos-harden.service, so the legacy backend would be a
-    # runtime surprise rather than a build-time one.
+    # Container networking runs `iptables`, and the image's symlinks pick
+    # the backend. The platform kernel has nf_tables built in and module
+    # loading is shut off after boot, so the legacy backend would fail.
     IPTABLES_VERSION=$(docker_exec /usr/bin/iptables --version 2>&1 || true)
     if [[ "$IPTABLES_VERSION" != *"(nf_tables)"* ]]; then
-        echo "boot_smoke: FAIL — /usr/bin/iptables is not the nft backend: ${IPTABLES_VERSION:-(no output)}" >&2
-        exit 1
+        fail "/usr/bin/iptables is not the nft backend: ${IPTABLES_VERSION:-(no output)}"
     fi
 fi
 
 USERSPACE_MSG="no distro userspace"
 [[ "$USERLAND" -eq 1 ]] && USERSPACE_MSG="userland image, no package manager"
 [[ "$CONTAINERS" -eq 1 ]] && USERSPACE_MSG="$USERSPACE_MSG, gVisor is the only OCI runtime"
-echo "boot_smoke: PASS — systemd running, 0 failed units, required services active, $USERSPACE_MSG, no suid/world-writable, accounts stable"
+echo "boot_smoke: PASS: systemd running, 0 failed units, required units active, $USERSPACE_MSG, no setuid or world-writable files, accounts unchanged"
