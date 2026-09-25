@@ -36,6 +36,12 @@ shims.python_binary(
 )
 
 shims.python_binary(
+    name = "oci_push",
+    main = "oci_push.py",
+    visibility = ["PUBLIC"],
+)
+
+shims.python_binary(
     name = "native_binary_layer",
     main = "native_binary_layer.py",
     visibility = ["PUBLIC"],
