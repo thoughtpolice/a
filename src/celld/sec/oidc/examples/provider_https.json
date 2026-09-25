@@ -1,0 +1,140 @@
+{
+  "vars": {
+    "SIGNING_JWK": {
+      "kty": "EC",
+      "crv": "P-256",
+      "x": "-aX_Sm5QiK6fmRUeBDm-orotbSDd6ld95yTpGiysCVw",
+      "y": "aJj1OUG6RP-KD5nabcnnlo-Vi6Lz_y-FNth8R3BuScA",
+      "d": "QbqKiZzU4ryhFExX5T9pNtJo1Qb2o-MJpf0qbq4imhU",
+      "kid": "provider-1"
+    },
+    "COOKIE_SECRET": "an-example-cookie-secret-0123456789",
+    "SESSION_SID_KEY": "an-example-session-sid-key-0123456789",
+    "DEMO_PASSWORD": "correct horse battery staple",
+    "ISSUER": "https://op.example"
+  },
+  "steps": [
+    {
+      "name": "under an https issuer, the interaction cookie is __Host-: Secure, Path=/, no Domain",
+      "request": {
+        "path": "/authorize?response_type=code&client_id=web&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcb&scope=openid&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&state=st-1"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^/login\\?i=[A-Za-z0-9_-]+$"
+          }
+        },
+        "cookies": {
+          "$contains": {
+            "$regex": "^__Host-op_interaction=v1\\.[^;]+; Path=/; Max-Age=600; Secure; HttpOnly; SameSite=Lax$"
+          }
+        }
+      },
+      "save": {
+        "login": "headers.location",
+        "binding": {
+          "path": "cookies.0",
+          "regex": "^([^;]+)"
+        }
+      }
+    },
+    {
+      "name": "the login page opens with that cookie",
+      "request": {
+        "path": "{login}",
+        "headers": {
+          "cookie": "{binding}"
+        }
+      },
+      "expect": {
+        "text": {
+          "$contains": "Sign in to web"
+        }
+      },
+      "save": {
+        "interaction": {
+          "path": "text",
+          "regex": "name=\"i\" value=\"([A-Za-z0-9_-]+)\""
+        },
+        "csrf": {
+          "path": "text",
+          "regex": "name=\"_csrf\" value=\"([A-Za-z0-9_-]{43})\""
+        },
+        "csrf_cookie": {
+          "path": "cookies.0",
+          "regex": "^([^;]+)"
+        }
+      }
+    },
+    {
+      "name": "signing in sets __Host-op_session and clears __Host-op_interaction",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "cookie": "{binding}; {csrf_cookie}"
+        },
+        "body": "_csrf={csrf}&i={interaction}&user=ada&password=correct+horse+battery+staple"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:8765/cb\\?code=[A-Za-z0-9_-]{43}&state=st-1&iss=https%3A%2F%2Fop\\.example$"
+          }
+        },
+        "cookies": [
+          {
+            "$regex": "^__Host-op_interaction=; Path=/; Max-Age=0; Secure;"
+          },
+          {
+            "$regex": "^__Host-op_session=v1\\.[^;]+; Path=/; Max-Age=28800; Secure; HttpOnly; SameSite=Lax$"
+          }
+        ]
+      },
+      "save": {
+        "session": {
+          "path": "cookies.1",
+          "regex": "^__Host-op_session=([^;]+)"
+        }
+      }
+    },
+    {
+      "name": "that session signs in silently",
+      "request": {
+        "path": "/authorize?response_type=code&client_id=web&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcb&scope=openid&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&state=st-2&prompt=none",
+        "headers": {
+          "cookie": "__Host-op_session={session}"
+        }
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:8765/cb\\?code=[A-Za-z0-9_-]{43}&state=st-2&"
+          }
+        }
+      }
+    },
+    {
+      "name": "a session planted without the prefix (a cookie a sibling subdomain can set) is ignored",
+      "request": {
+        "path": "/authorize?response_type=code&client_id=web&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcb&scope=openid&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&state=st-3&prompt=none",
+        "headers": {
+          "cookie": "op_session={session}"
+        }
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:8765/cb\\?error=login_required&state=st-3&"
+          }
+        }
+      }
+    }
+  ]
+}
