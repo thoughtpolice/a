@@ -1,0 +1,88 @@
+{
+  "steps": [
+    {
+      "name": "the agent looks stock up, is denied an order, and answers",
+      "script": [
+        {
+          "turn": {
+            "reasoning": "Check stock first.",
+            "toolCalls": [
+              { "name": "stock", "arguments": { "sku": "B2" }, "callId": "call_stock" },
+              { "name": "reorder", "arguments": { "sku": "B2", "quantity": 10 }, "callId": "call_order" }
+            ]
+          }
+        },
+        { "turn": { "text": "B2 is out of stock, and I may not place orders.", "phase": "final_answer" } }
+      ],
+      "request": { "method": "POST", "path": "/ask", "json": { "question": "Is B2 in stock? Order 10 if not." } },
+      "expect": {
+        "json": {
+          "$exact": {
+            "answer": "B2 is out of stock, and I may not place orders.",
+            "stopReason": "completed",
+            "turns": 2,
+            "toolCalls": 2,
+            "outputs": ["0 in stock", "denied: write tools need approval"]
+          }
+        }
+      },
+      "upstream": [
+        {
+          "json": {
+            "input": {
+              "$contains": {
+                "type": "additional_tools",
+                "tools": [
+                  { "type": "function", "name": "stock", "strict": true, "parameters": { "required": ["sku"] } },
+                  { "type": "function", "name": "reorder", "strict": true }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "json": {
+            "input": {
+              "$contains": { "type": "function_call_output", "call_id": "call_order", "output": { "$contains": "need approval" } }
+            }
+          },
+          "text": { "$contains": "\"call_id\":\"call_stock\"" }
+        }
+      ]
+    },
+    {
+      "name": "with orders allowed, the write tool runs",
+      "script": [
+        { "turn": { "toolCalls": [{ "name": "reorder", "arguments": { "sku": "B2", "quantity": 10 } }] } },
+        { "turn": { "text": "Ordered 10 of B2." } }
+      ],
+      "request": { "method": "POST", "path": "/ask", "json": { "question": "Order 10 B2.", "allowOrders": true } },
+      "expect": { "json": { "answer": "Ordered 10 of B2.", "outputs": ["ordered 10 of B2"] } },
+      "upstream": { "$len": 2 }
+    },
+    {
+      "name": "arguments that break the tool's schema never reach it; the model is told why",
+      "script": [
+        { "turn": { "toolCalls": [{ "name": "stock", "arguments": { "sku": "not-a-sku" } }] } },
+        { "turn": { "text": "That SKU looks wrong." } }
+      ],
+      "request": { "method": "POST", "path": "/ask", "json": { "question": "Stock of not-a-sku?" } },
+      "expect": { "json": { "turns": 2, "outputs": [{ "$regex": "^error: invalid arguments" }] } },
+      "upstream": { "$len": 2 }
+    },
+    {
+      "name": "the loop stops at its turn budget",
+      "script": [
+        { "turn": { "toolCalls": [{ "name": "stock", "arguments": { "sku": "A1" } }] } },
+        { "turn": { "toolCalls": [{ "name": "stock", "arguments": { "sku": "A1" } }] } },
+        { "turn": { "toolCalls": [{ "name": "stock", "arguments": { "sku": "A1" } }] } },
+        { "turn": { "toolCalls": [{ "name": "stock", "arguments": { "sku": "A1" } }] } },
+        { "turn": { "toolCalls": [{ "name": "stock", "arguments": { "sku": "A1" } }] } },
+        { "turn": { "toolCalls": [{ "name": "stock", "arguments": { "sku": "A1" } }] } }
+      ],
+      "request": { "method": "POST", "path": "/ask", "json": { "question": "Loop forever" } },
+      "expect": { "json": { "stopReason": "max_turns", "turns": 6, "answer": "" } },
+      "upstream": { "$len": 6 }
+    }
+  ]
+}

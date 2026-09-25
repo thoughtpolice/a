@@ -1,0 +1,94 @@
+{
+  "steps": [
+    {
+      "name": "a script is written into the container's workspace",
+      "request": { "method": "PUT", "path": "/files/tools/run.sh", "body": "#!/bin/sh\necho old\n" },
+      "expect": { "status": 201, "json": { "path": "tools/run.sh", "size": 19 } }
+    },
+    {
+      "name": "a patch is staged and renamed into place",
+      "request": {
+        "method": "POST",
+        "path": "/patch",
+        "body": "*** Begin Patch\n*** Update File: tools/run.sh\n@@\n-echo old\n+echo new\n*** Add File: notes/todo.txt\n+ship it\n*** End Patch\n"
+      },
+      "expect": { "text": "Success. Updated the following files:\nA notes/todo.txt\nM tools/run.sh\n" }
+    },
+    {
+      "name": "the patched file has its new content",
+      "request": { "path": "/files/tools/run.sh" },
+      "expect": { "text": "#!/bin/sh\necho new\n" }
+    },
+    {
+      "name": "a patch that does not fit is refused and changes nothing",
+      "request": {
+        "method": "POST",
+        "path": "/patch",
+        "body": "*** Begin Patch\n*** Add File: notes/other.txt\n+x\n*** Update File: tools/run.sh\n@@\n-echo old\n+echo newer\n*** End Patch\n"
+      },
+      "expect": { "status": 422, "json": { "error": { "$contains": "tools/run.sh" } } }
+    },
+    {
+      "name": "so the file it would have added is not there",
+      "request": { "path": "/files/notes/other.txt" },
+      "expect": { "status": 404, "json": { "error": "not_found" } }
+    },
+    {
+      "name": "a sample is uploaded",
+      "request": { "method": "PUT", "path": "/files/sample", "body": "\u0001\u0002evil.example.com\u0000\u0003connect-back\u0000ab\u0000" },
+      "expect": { "status": 201 }
+    },
+    {
+      "name": "strings runs in the container and GPT gets its output",
+      "script": {
+        "turn": {
+          "text": "{\"summary\": \"Contains a C2 domain.\", \"architecture\": null, \"functions\": [], \"capabilities\": [\"network\"], \"indicators\": [{\"kind\": \"domain\", \"value\": \"evil.example.com\", \"context\": \"C2\"}], \"vulnerabilities\": [], \"openQuestions\": []}"
+        }
+      },
+      "request": { "method": "POST", "path": "/analyze/sample?tool=strings" },
+      "expect": {
+        "json": {
+          "$exact": {
+            "argv": ["strings", "-a", "-n", "6", "--", "sample"],
+            "truncated": false,
+            "summary": "Contains a C2 domain.",
+            "capabilities": ["network"],
+            "indicators": ["evil.example.com"]
+          }
+        }
+      },
+      "upstream": [
+        {
+          "json": {
+            "reasoning": { "effort": "medium" },
+            "text": { "format": { "type": "json_schema", "name": "re_notes", "strict": true } },
+            "input": {
+              "$contains": {
+                "type": "message",
+                "role": "user",
+                "content": [
+                  {
+                    "type": "input_text",
+                    "text": { "$regex": "^Context: strings output for sample\\n<disassembly>\\nevil\\.example\\.com\\nconnect-back\\n?</disassembly>$" }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "an unknown analyzer is refused before anything runs",
+      "request": { "method": "POST", "path": "/analyze/sample?tool=gdb" },
+      "expect": { "status": 400, "json": { "location": "query", "issues": [{ "path": ["tool"], "code": "invalid_value" }] } },
+      "upstream": { "$len": 0 }
+    },
+    {
+      "name": "a path outside the workspace is refused",
+      "request": { "method": "POST", "path": "/analyze/%2E%2E%2Fetc%2Fpasswd?tool=strings" },
+      "expect": { "status": 422, "json": { "error": { "$contains": "leaves the workspace" } } },
+      "upstream": { "$len": 0 }
+    }
+  ]
+}
