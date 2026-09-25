@@ -313,8 +313,8 @@ class SecurityTests(unittest.TestCase):
                 cull.write_tar(root, {item}, base / "out.tar")
 
     def test_cull_leaves_provided_libraries_out(self) -> None:
-        # The ELF parser is stood in for by a table: what matters here is
-        # which side of the provided boundary each soname lands on.
+        # A table stands in for the ELF parser. The test is about which side
+        # of the provided boundary each soname lands on.
         needed = {"app": ["libshared.so", "libown.so"], "libown.so": ["libshared.so"]}
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
@@ -338,6 +338,14 @@ class SecurityTests(unittest.TestCase):
                 )
                 needed["libown.so"] = ["libmissing.so"]
                 with self.assertRaises(UnsafeInputError):
+                    cull.close_elf(root, {app}, provided)
+                # The error names the file that needs the soname, even
+                # after an earlier soname of the same file resolved.
+                needed["app"] = ["libown.so", "libgone.so"]
+                needed["libown.so"] = []
+                with self.assertRaisesRegex(
+                    UnsafeInputError, re.escape("libgone.so (needed by app)")
+                ):
                     cull.close_elf(root, {app}, provided)
 
     def test_cull_uses_exact_root_and_bounds_hardlink_output_atomically(self) -> None:
