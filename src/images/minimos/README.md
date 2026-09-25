@@ -564,6 +564,12 @@ Hard-won facts about what the platform expects from a custom image:
   `kernel.modules_disabled=1` during `sysinit.target`. There is no RTC on
   these VMs (`timedatectl` reports `RTC time: n/a`), so chrony's `rtcsync`
   has nothing to write back to and is deliberately absent.
+- **The root filesystem grows at boot.** A new VM's filesystem already
+  fills its disk, but `resize` only grows the block device. exeuntu grows
+  the filesystem with an `x-systemd.growfs` line in `/etc/fstab`. minimos
+  has no fstab, so the base links `systemd-growfs-root.service` into
+  `local-fs.target`, with a drop-in that skips it under docker. It runs
+  on every boot and does nothing while `/` already fills the disk.
 - **The root disk does not support discard.** `/sys/block/vda/queue/
   discard_max_bytes` is 0, so `fstrim` would report the operation as
   unsupported and free nothing; there is no `fstrim.timer` here for that

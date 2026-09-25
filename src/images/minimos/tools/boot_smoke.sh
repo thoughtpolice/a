@@ -457,6 +457,25 @@ if ! grep -q ' 106/107 ' <<<"$CHRONY_STATE"; then
     exit 1
 fi
 
+# Root filesystem growth. local-fs.target must pull the unit in at boot,
+# and its ConditionVirtualization=!container must then skip it, because
+# systemd-growfs fails on docker's overlay root. Growing / is a VM check.
+GROWFS_WANTED_BY=$(docker_exec /usr/bin/systemctl show systemd-growfs-root.service \
+    --property=WantedBy --value 2>&1 || true)
+if [[ " $GROWFS_WANTED_BY " != *" local-fs.target "* ]]; then
+    echo "boot_smoke: FAIL — local-fs.target doesn't want systemd-growfs-root.service (WantedBy=$GROWFS_WANTED_BY)" >&2
+    exit 1
+fi
+GROWFS_EVALUATED=$(docker_exec /usr/bin/systemctl show systemd-growfs-root.service \
+    --property=ConditionTimestampMonotonic --value 2>&1 || true)
+GROWFS_CONDITION=$(docker_exec /usr/bin/systemctl show systemd-growfs-root.service \
+    --property=ConditionResult --value 2>&1 || true)
+if [[ ! "$GROWFS_EVALUATED" =~ ^[1-9][0-9]*$ || "$GROWFS_CONDITION" != "no" ]]; then
+    echo "boot_smoke: FAIL — systemd-growfs-root.service was not started and skipped at boot" >&2
+    echo "  (ConditionTimestampMonotonic=$GROWFS_EVALUATED ConditionResult=$GROWFS_CONDITION)" >&2
+    exit 1
+fi
+
 # `systemctl status` is half of the owner's debugging surface, and the
 # half that shows what is actually running inside a unit comes from a
 # separate bus method (GetUnitProcesses) that the base's deny policy has

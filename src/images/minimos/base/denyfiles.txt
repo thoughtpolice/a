@@ -10,14 +10,14 @@
 
 # Block-device / partition / boot-loader machinery: minimos images are
 # container rootfses booted by the exe.dev hypervisor; there is no ESP,
-# no LUKS, no fstab and no repartitioning.
+# no LUKS, no fstab and no repartitioning. systemd-growfs stays, since the
+# base runs systemd-growfs-root.service on VMs.
 /usr/lib/systemd/systemd-cryptsetup
 /usr/lib/systemd/systemd-integritysetup
 /usr/lib/systemd/systemd-veritysetup
 /usr/lib/systemd/systemd-repart
 /usr/lib/systemd/systemd-fsck
 /usr/lib/systemd/systemd-makefs
-/usr/lib/systemd/systemd-growfs
 /usr/lib/systemd/systemd-quotacheck
 /usr/lib/systemd/systemd-storage-block
 /usr/lib/systemd/systemd-storage-fs

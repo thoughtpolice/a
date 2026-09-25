@@ -167,9 +167,11 @@ minimos.overlay(
         "etc/systemd/system",
         "etc/systemd/system/dbus.service.d",
         "etc/systemd/system/init.scope.d",
+        "etc/systemd/system/local-fs.target.wants",
         "etc/systemd/system/multi-user.target.wants",
         "etc/systemd/system/sysinit.target.wants",
         "etc/systemd/system/system.slice.d",
+        "etc/systemd/system/systemd-growfs-root.service.d",
         "etc/systemd/system/user-workload.slice.d",
         "etc/systemd/system/user.slice.d",
         "etc/systemd/system/user@.service.d",
@@ -224,6 +226,7 @@ minimos.overlay(
         "etc/systemd/system/user@.service.d/50-no-pam.conf": "base/units/user@.service.d/50-no-pam.conf",
         "etc/systemd/system/user@.service.d/60-minimos-delegate.conf": "base/units/user@.service.d/60-minimos-delegate.conf",
         "etc/systemd/system/dbus.service.d/50-minimos-hardening.conf": "base/units/dbus.service.d/50-minimos-hardening.conf",
+        "etc/systemd/system/systemd-growfs-root.service.d/50-minimos-vm-only.conf": "base/units/systemd-growfs-root.service.d/50-minimos-vm-only.conf",
         "etc/dbus-1/system.d/50-minimos-deny.conf": "base/config/dbus-minimos-deny.conf",
         "etc/sysctl.d/00-unprivileged-ports.conf": "base/config/sysctl.d/00-unprivileged-ports.conf",
         "etc/sysctl.d/60-minimos-hardening.conf": "base/config/sysctl.d/60-minimos-hardening.conf",
@@ -255,6 +258,10 @@ minimos.overlay(
     # platform's `/bin/sh -c` bootstrap need is ours to provide.
     symlinks = {
         "usr/bin/sh": "dash",
+        # Grow / to fill its disk on every boot, so `resize` takes effect.
+        # exeuntu does this with an x-systemd.growfs line in /etc/fstab.
+        # minimos has no fstab, so the vendor unit is linked in directly.
+        "etc/systemd/system/local-fs.target.wants/systemd-growfs-root.service": "/usr/lib/systemd/system/systemd-growfs-root.service",
     },
     # Each unit is enabled where its own [Install] section says:
     # minimos-harden into sysinit.target, the other two into multi-user.
