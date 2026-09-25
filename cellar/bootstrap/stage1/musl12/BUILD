@@ -5,7 +5,8 @@ load("@cellar//bootstrap:actions.bzl", "command_test", "configured_tool", "gener
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
 load("@cellar//bootstrap:source.bzl", "download_file", "ungz", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "bootstrap_artifact", "c_binary", "c_library", "c_object", "compiler", "sysroot")
-load(":sources.bzl", "ARCH_SOURCES", "BASE_C_SOURCES", "CRT_SOURCES", "INTERNAL_HEADERS", "PUBLIC_HEADERS")
+load(":defs.bzl", "COMPAT_LIBRARIES", "INCLUDE_DIRECTORIES", "LIBC_SOURCES")
+load(":sources.bzl", "CRT_SOURCES", "INTERNAL_HEADERS", "PUBLIC_HEADERS")
 
 GCC = "cellar//bootstrap/stage1/gcc40"
 
@@ -37,10 +38,6 @@ CTYPE_TABLES = [
 ]
 
 GENERATED_TABLES = ["src/ctype/" + name + ".h" for name in CTYPE_TABLES] + ["src/locale/" + name + ".h" for name in ICONV_TABLES]
-
-REPLACED = [path.replace("/x86_64/", "/").rsplit(".", 1)[0] + ".c" for path in ARCH_SOURCES]
-
-LIBC_SOURCES = sorted([path for path in BASE_C_SOURCES if path not in REPLACED] + ARCH_SOURCES)
 
 SOURCE_FILES = PUBLIC_HEADERS + [path for path in INTERNAL_HEADERS if path not in GENERATED_TABLES] + LIBC_SOURCES + CRT_SOURCES + [
     "arch/x86_64/bits/alltypes.h.in",
@@ -370,13 +367,7 @@ LIBC_FLAGS = [
     "-Werror",
 ]
 
-LIBC_INCLUDES = [
-    ":source[arch/x86_64]",
-    ":source[arch/generic]",
-    ":source[src/include]",
-    ":source[src/internal]",
-    ":source[include]",
-]
+LIBC_INCLUDES = [":source[" + directory + "]" for directory in INCLUDE_DIRECTORIES]
 
 [
     c_object(
@@ -452,17 +443,6 @@ c_library(
         ),
     ]
     for path in CRT_SOURCES
-]
-
-COMPAT_LIBRARIES = [
-    "m",
-    "rt",
-    "pthread",
-    "crypt",
-    "util",
-    "xnet",
-    "resolv",
-    "dl",
 ]
 
 [

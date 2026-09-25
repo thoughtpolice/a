@@ -12,7 +12,8 @@ load("@cellar//bootstrap:actions.bzl", "generate", "installed_tool")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_library", "c_object", "compiler")
 load("@cellar//bootstrap/stage1/linux-headers:defs.bzl", LINUX_DIRECTORIES = "DIRECTORIES")
-load("@cellar//bootstrap/stage1/musl12:sources.bzl", "ARCH_SOURCES", "BASE_C_SOURCES", "CRT_SOURCES", "PUBLIC_HEADERS")
+load("@cellar//bootstrap/stage1/musl12:defs.bzl", "COMPAT_LIBRARIES", "INCLUDE_DIRECTORIES", "INSTALLED_HEADERS", "LIBC_SOURCES")
+load("@cellar//bootstrap/stage1/musl12:sources.bzl", "CRT_SOURCES")
 load(":defs.bzl", "CAPTURE", "SED", "SOURCE")
 load(":inventory.bzl", "LLVM_VERSION", "RUNTIME_LISTS")
 
@@ -383,33 +384,11 @@ MUSL_OPTIMIZED = [
     "src/string/",
 ]
 
-MUSL_INCLUDES = [
-    MUSL + ":source[arch/x86_64]",
-    MUSL + ":source[arch/generic]",
-    MUSL + ":source[src/include]",
-    MUSL + ":source[src/internal]",
-    MUSL + ":source[include]",
-]
-
-MUSL_REPLACED = [path.replace("/x86_64/", "/").rsplit(".", 1)[0] + ".c" for path in ARCH_SOURCES]
-
-MUSL_LIBC_SOURCES = sorted([path for path in BASE_C_SOURCES if path not in MUSL_REPLACED] + ARCH_SOURCES)
-
-# musl installs these empty, for programs that name them.
-MUSL_EMPTY_LIBRARIES = [
-    "m",
-    "rt",
-    "pthread",
-    "crypt",
-    "util",
-    "xnet",
-    "resolv",
-    "dl",
-]
+MUSL_INCLUDES = [MUSL + ":source[" + directory + "]" for directory in INCLUDE_DIRECTORIES]
 
 def _musl(stage):
     objects = []
-    for i, path in enumerate(MUSL_LIBC_SOURCES):
+    for i, path in enumerate(LIBC_SOURCES):
         directory = path.rsplit("/", 1)[0] + "/"
         c_object(
             name = "{}-musl-{}".format(stage, i),
@@ -428,7 +407,7 @@ def _musl(stage):
         output = "libc.a",
         toolchain = ":{}-bare-cc".format(stage),
     )
-    for name in MUSL_EMPTY_LIBRARIES:
+    for name in COMPAT_LIBRARIES:
         c_library(
             name = "{}-lib{}.a".format(stage, name),
             objects = [],
@@ -620,22 +599,6 @@ def runtime_link(stage):
         ],
     }
 
-# musl's installed headers: its include directory with the x86_64 and generic
-# architecture headers merged in, and the two it generates.
-MUSL_HEADERS = sorted({
-    path.removeprefix(prefix): None
-    for prefix in [
-        "include/",
-        "arch/generic/",
-        "arch/x86_64/",
-    ]
-    for path in PUBLIC_HEADERS
-    if path.startswith(prefix)
-}.keys() + [
-    "bits/alltypes.h",
-    "bits/syscall.h",
-])
-
 # libunwind's own interface. Clang searches a musl sysroot's headers before
 # its resource directory, whose <unwind.h> has the definitions GCC's also
 # has, such as _Unwind_Ptr, so libunwind's Itanium headers stay out.
@@ -663,7 +626,7 @@ def runtime_installation(stage):
         "libunwind.a",
     ]:
         files["lib/{}/{}".format(TRIPLE, library)] = ":{}-{}".format(stage, library)
-    for name in MUSL_EMPTY_LIBRARIES:
+    for name in COMPAT_LIBRARIES:
         files["lib/lib{}.a".format(name)] = ":{}-lib{}.a".format(stage, name)
     for name in [
         "crt1",
@@ -671,7 +634,7 @@ def runtime_installation(stage):
         "crtn",
     ]:
         files["lib/{}.o".format(name)] = ":{}-{}.o".format(stage, name)
-    for path in MUSL_HEADERS:
+    for path in INSTALLED_HEADERS:
         files["include/" + path] = "{}:headers[{}]".format(MUSL, path)
     for directory in LINUX_DIRECTORIES:
         files["include/" + directory] = "{}:headers[{}]".format(LINUX, directory)

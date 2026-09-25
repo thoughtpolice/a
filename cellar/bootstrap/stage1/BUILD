@@ -5,7 +5,7 @@ load("@cellar//bootstrap:actions.bzl", "command_test", "generate", "installed_to
 load("@cellar//bootstrap:defs.bzl", "filegroup")
 load("@cellar//bootstrap:source.bzl", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object")
-load("@cellar//bootstrap/stage1/musl12:sources.bzl", "PUBLIC_HEADERS")
+load("@cellar//bootstrap/stage1/musl12:defs.bzl", "INSTALLED_HEADERS")
 
 GCC = "cellar//bootstrap/stage1/gcc13"
 
@@ -383,16 +383,7 @@ GCC_OBJECTS = [
     "crtfastmath.o",
 ]
 
-MUSL_HEADERS = {p.removeprefix(prefix): True for prefix in [
-    "include/",
-    "arch/generic/",
-    "arch/x86_64/",
-] for p in PUBLIC_HEADERS if p.startswith(prefix)} | {
-    "bits/alltypes.h": True,
-    "bits/syscall.h": True,
-}
-
-TOOLCHAIN_FILES = {"include/" + p: MUSL + ":headers[" + p + "]" for p in MUSL_HEADERS} | {
+TOOLCHAIN_FILES = {"include/" + p: MUSL + ":headers[" + p + "]" for p in INSTALLED_HEADERS} | {
     "include/c++/13.5.0": CXX + ":headers",
     "lib/gcc/x86_64-cellar-linux-musl/13.5.0/include": GCC + ":compiler-headers",
     "lib/libstdc++.a": CXX + ":stage3-libstdc++.a",
