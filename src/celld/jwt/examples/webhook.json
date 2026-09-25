@@ -1,0 +1,274 @@
+{
+  "vars": {
+    "PARTNER_SECRETS": "acme=C7EfiVkxsx5vkzQw7wuWB1cFhTY5EWHXgbSO4YRYlmQ,globex=k3vQrDwxfrH4XmiAjKRpsve25YEeny1dV7YtaBIleb0"
+  },
+  "steps": [
+    {
+      "name": "a signed delivery is accepted",
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFjbWUifQ.eyJpc3MiOiJhY21lIiwiYXVkIjoiaHR0cHM6Ly9ob29rcy5leGFtcGxlL3dlYmhvb2tzIiwianRpIjoiZC0wMDEiLCJleHAiOjQxMDI0NDQ4MDAsImJvZHlfc2hhMjU2IjoiVEdZaV9ueUJ2UXYzb2NIZ3UxdTBZRnd6RXQwTXY3UlIyckxkbkhqc1pkcyJ9.SPS2IZJX10vDNsXIeGO4Dj7DnexkL8y-Mps1_6jeNnU",
+          "cf-connecting-ip": "192.0.2.10",
+          "content-type": "application/json"
+        },
+        "body": "{\"type\":\"invoice.paid\",\"invoice\":\"in_1\"}"
+      },
+      "expect": {
+        "status": 202,
+        "json": {
+          "$exact": {
+            "accepted": "d-001",
+            "partner": "acme",
+            "type": "invoice.paid"
+          }
+        }
+      }
+    },
+    {
+      "name": "the same delivery again is a replay",
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFjbWUifQ.eyJpc3MiOiJhY21lIiwiYXVkIjoiaHR0cHM6Ly9ob29rcy5leGFtcGxlL3dlYmhvb2tzIiwianRpIjoiZC0wMDEiLCJleHAiOjQxMDI0NDQ4MDAsImJvZHlfc2hhMjU2IjoiVEdZaV9ueUJ2UXYzb2NIZ3UxdTBZRnd6RXQwTXY3UlIyckxkbkhqc1pkcyJ9.SPS2IZJX10vDNsXIeGO4Dj7DnexkL8y-Mps1_6jeNnU",
+          "cf-connecting-ip": "192.0.2.10",
+          "content-type": "application/json"
+        },
+        "body": "{\"type\":\"invoice.paid\",\"invoice\":\"in_1\"}"
+      },
+      "expect": {
+        "status": 409,
+        "json": {
+          "error": "replayed"
+        }
+      }
+    },
+    {
+      "name": "a token only covers the body it was signed with",
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFjbWUifQ.eyJpc3MiOiJhY21lIiwiYXVkIjoiaHR0cHM6Ly9ob29rcy5leGFtcGxlL3dlYmhvb2tzIiwianRpIjoiZC0wMDIiLCJleHAiOjQxMDI0NDQ4MDAsImJvZHlfc2hhMjU2IjoiY1lpd0RpRlpuMXJSYS0tSHJPbnljY0M0ZnRSVFRoM3RNZkU0TDJrNUtfbyJ9.gnCKi_k65l4qruMzR_iNCFq46FkPspextr8J-8C4KmQ",
+          "cf-connecting-ip": "192.0.2.10",
+          "content-type": "application/json"
+        },
+        "body": "{\"type\":\"invoice.paid\",\"invoice\":\"in_1\"}"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "body_mismatch"
+        }
+      }
+    },
+    {
+      "name": "a refused attempt does not use up the token",
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFjbWUifQ.eyJpc3MiOiJhY21lIiwiYXVkIjoiaHR0cHM6Ly9ob29rcy5leGFtcGxlL3dlYmhvb2tzIiwianRpIjoiZC0wMDIiLCJleHAiOjQxMDI0NDQ4MDAsImJvZHlfc2hhMjU2IjoiY1lpd0RpRlpuMXJSYS0tSHJPbnljY0M0ZnRSVFRoM3RNZkU0TDJrNUtfbyJ9.gnCKi_k65l4qruMzR_iNCFq46FkPspextr8J-8C4KmQ",
+          "cf-connecting-ip": "192.0.2.10",
+          "content-type": "application/json"
+        },
+        "body": "{\"type\":\"invoice.paid\",\"invoice\":\"in_2\"}"
+      },
+      "expect": {
+        "status": 202,
+        "json": {
+          "accepted": "d-002"
+        }
+      }
+    },
+    {
+      "name": "another partner's key is chosen by kid; jti values are per partner",
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Imdsb2JleCJ9.eyJpc3MiOiJnbG9iZXgiLCJhdWQiOiJodHRwczovL2hvb2tzLmV4YW1wbGUvd2ViaG9va3MiLCJqdGkiOiJkLTAwMSIsImV4cCI6NDEwMjQ0NDgwMCwiYm9keV9zaGEyNTYiOiJLLXZITnEtaW1Edk1pR3FXYUVDQkpGZXp5UGFVSVpIaDlKVWtSNXgyZ3hzIn0.DjZbK4lY1zdX2N6lGTtptI0R0eXcVDO3FjE1RoJpIus",
+          "cf-connecting-ip": "198.51.100.20",
+          "content-type": "application/json"
+        },
+        "body": "{\"type\":\"customer.created\",\"customer\":\"cu_9\"}"
+      },
+      "expect": {
+        "status": 202,
+        "json": {
+          "partner": "globex",
+          "type": "customer.created"
+        }
+      }
+    },
+    {
+      "name": "a token naming one partner but signed with another's secret fails",
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Imdsb2JleCJ9.eyJpc3MiOiJnbG9iZXgiLCJhdWQiOiJodHRwczovL2hvb2tzLmV4YW1wbGUvd2ViaG9va3MiLCJqdGkiOiJkLTAwMyIsImV4cCI6NDEwMjQ0NDgwMCwiYm9keV9zaGEyNTYiOiJLLXZITnEtaW1Edk1pR3FXYUVDQkpGZXp5UGFVSVpIaDlKVWtSNXgyZ3hzIn0.a9yE-fFhyPHwS-X7nNnF-z6PykkoxKHzPvwPvcWuUlE",
+          "cf-connecting-ip": "192.0.2.10",
+          "content-type": "application/json"
+        },
+        "body": "{\"type\":\"customer.created\",\"customer\":\"cu_9\"}"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "bad_signature"
+        }
+      }
+    },
+    {
+      "name": "a kid with no key",
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImluaXRlY2gifQ.eyJpc3MiOiJpbml0ZWNoIiwiYXVkIjoiaHR0cHM6Ly9ob29rcy5leGFtcGxlL3dlYmhvb2tzIiwianRpIjoiZC0wMDQiLCJleHAiOjQxMDI0NDQ4MDAsImJvZHlfc2hhMjU2IjoiSy12SE5xLWltRHZNaUdxV2FFQ0JKRmV6eVBhVUlaSGg5SlVrUjV4Mmd4cyJ9.qWqeoE6kDUD6S2slUYM0pLYR9kydh3TnhZKF5mugPi0",
+          "cf-connecting-ip": "192.0.2.10",
+          "content-type": "application/json"
+        },
+        "body": "{\"type\":\"customer.created\",\"customer\":\"cu_9\"}"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "no_key"
+        }
+      }
+    },
+    {
+      "name": "iss must be the partner the kid names",
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFjbWUifQ.eyJpc3MiOiJnbG9iZXgiLCJhdWQiOiJodHRwczovL2hvb2tzLmV4YW1wbGUvd2ViaG9va3MiLCJqdGkiOiJkLTAwNSIsImV4cCI6NDEwMjQ0NDgwMCwiYm9keV9zaGEyNTYiOiJLLXZITnEtaW1Edk1pR3FXYUVDQkpGZXp5UGFVSVpIaDlKVWtSNXgyZ3hzIn0.5gTmYPyUOkvNvQzqGMQ_fvOw7t50-qN-zt11aKqX49Y",
+          "cf-connecting-ip": "192.0.2.10",
+          "content-type": "application/json"
+        },
+        "body": "{\"type\":\"customer.created\",\"customer\":\"cu_9\"}"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "issuer"
+        }
+      }
+    },
+    {
+      "name": "an expired delivery",
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFjbWUifQ.eyJpc3MiOiJhY21lIiwiYXVkIjoiaHR0cHM6Ly9ob29rcy5leGFtcGxlL3dlYmhvb2tzIiwianRpIjoiZC0wMDYiLCJleHAiOjE2MDAwMDAwMDAsImJvZHlfc2hhMjU2IjoiVEdZaV9ueUJ2UXYzb2NIZ3UxdTBZRnd6RXQwTXY3UlIyckxkbkhqc1pkcyJ9.UsVs6R5Kp9CHilWFGF6rqD8LeFHePTzoY4timPCxkq0",
+          "cf-connecting-ip": "192.0.2.10",
+          "content-type": "application/json"
+        },
+        "body": "{\"type\":\"invoice.paid\",\"invoice\":\"in_1\"}"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "expired"
+        }
+      }
+    },
+    {
+      "name": "a delivery for another endpoint",
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFjbWUifQ.eyJpc3MiOiJhY21lIiwiYXVkIjoiaHR0cHM6Ly9ob29rcy5leGFtcGxlL290aGVyIiwianRpIjoiZC0wMDciLCJleHAiOjQxMDI0NDQ4MDAsImJvZHlfc2hhMjU2IjoiVEdZaV9ueUJ2UXYzb2NIZ3UxdTBZRnd6RXQwTXY3UlIyckxkbkhqc1pkcyJ9.PGmrGzwis1pugWYcWmIkkLpmeJ46cpSLVPP2ef8-Yv0",
+          "cf-connecting-ip": "192.0.2.10",
+          "content-type": "application/json"
+        },
+        "body": "{\"type\":\"invoice.paid\",\"invoice\":\"in_1\"}"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "audience"
+        }
+      }
+    },
+    {
+      "name": "a token without a body hash",
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFjbWUifQ.eyJpc3MiOiJhY21lIiwiYXVkIjoiaHR0cHM6Ly9ob29rcy5leGFtcGxlL3dlYmhvb2tzIiwianRpIjoiZC0wMDgiLCJleHAiOjQxMDI0NDQ4MDB9.V5CO2qiM9P0mfXn-D-Eivds0dLcrSJmT9tENJho1ILg",
+          "cf-connecting-ip": "192.0.2.10",
+          "content-type": "application/json"
+        },
+        "body": "{\"type\":\"invoice.paid\",\"invoice\":\"in_1\"}"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "missing_claim"
+        }
+      }
+    },
+    {
+      "name": "no token",
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "cf-connecting-ip": "192.0.2.10"
+        },
+        "body": "{\"type\":\"invoice.paid\",\"invoice\":\"in_1\"}"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "no_token"
+        }
+      }
+    },
+    {
+      "name": "a good delivery from outside the partners' address blocks is refused first",
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Imdsb2JleCJ9.eyJpc3MiOiJnbG9iZXgiLCJhdWQiOiJodHRwczovL2hvb2tzLmV4YW1wbGUvd2ViaG9va3MiLCJqdGkiOiJkLTAwMSIsImV4cCI6NDEwMjQ0NDgwMCwiYm9keV9zaGEyNTYiOiJLLXZITnEtaW1Edk1pR3FXYUVDQkpGZXp5UGFVSVpIaDlKVWtSNXgyZ3hzIn0.DjZbK4lY1zdX2N6lGTtptI0R0eXcVDO3FjE1RoJpIus",
+          "cf-connecting-ip": "203.0.113.5",
+          "content-type": "application/json"
+        },
+        "body": "{\"type\":\"customer.created\",\"customer\":\"cu_9\"}"
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "source_not_allowed"
+        }
+      }
+    },
+    {
+      "name": "replay protection survives a restart",
+      "restart": true,
+      "request": {
+        "method": "POST",
+        "path": "/webhooks",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFjbWUifQ.eyJpc3MiOiJhY21lIiwiYXVkIjoiaHR0cHM6Ly9ob29rcy5leGFtcGxlL3dlYmhvb2tzIiwianRpIjoiZC0wMDEiLCJleHAiOjQxMDI0NDQ4MDAsImJvZHlfc2hhMjU2IjoiVEdZaV9ueUJ2UXYzb2NIZ3UxdTBZRnd6RXQwTXY3UlIyckxkbkhqc1pkcyJ9.SPS2IZJX10vDNsXIeGO4Dj7DnexkL8y-Mps1_6jeNnU",
+          "cf-connecting-ip": "192.0.2.10",
+          "content-type": "application/json"
+        },
+        "body": "{\"type\":\"invoice.paid\",\"invoice\":\"in_1\"}"
+      },
+      "expect": {
+        "status": 409
+      }
+    }
+  ]
+}

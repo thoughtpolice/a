@@ -1,0 +1,285 @@
+{
+  "vars": {
+    "SESSION_SECRET": "-Xm2L5KDE8LvL-rFfzirnnAVP7yPmPUDCC-YF_H3tRA"
+  },
+  "steps": [
+    {
+      "name": "a wrong password is refused",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "json": {
+          "user": "alice",
+          "password": "guess"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "bad_credentials"
+        }
+      }
+    },
+    {
+      "name": "a name that is not a user, even one every object has, is refused",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "json": {
+          "user": "constructor"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "bad_credentials"
+        }
+      }
+    },
+    {
+      "name": "logging in sets an HttpOnly session cookie that lasts SESSION_TTL",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "json": {
+          "user": "alice",
+          "password": "wonderland"
+        }
+      },
+      "expect": {
+        "json": {
+          "user": "alice",
+          "role": "admin",
+          "expires": {
+            "$regex": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ$"
+          }
+        },
+        "headers": {
+          "set-cookie": {
+            "$regex": "^session=eyJ[\\w-]+\\.eyJ[\\w-]+\\.[\\w-]{43}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3600$"
+          }
+        }
+      },
+      "save": {
+        "cookie": "headers.set-cookie",
+        "expires": "json.expires"
+      }
+    },
+    {
+      "name": "the cookie is the session",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "{cookie}"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "user": "alice",
+            "role": "admin",
+            "expires": "{expires}"
+          }
+        }
+      }
+    },
+    {
+      "name": "a token signed elsewhere with the right secret is just as good",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJib2IiLCJyb2xlIjoibWVtYmVyIiwianRpIjoiMDFBUlozTkRFS1RTVjRSUkZGUTY5RzVGQVYiLCJpc3MiOiJqd3QtZXhhbXBsZS1zZXNzaW9uIiwiYXVkIjoiand0LWV4YW1wbGUtc2Vzc2lvbiIsImV4cCI6NDEwMjQ0NDgwMH0.bUVItrVB1-FW6J3bn8vpSqf8DStEUxsR1C40vHeGlpY"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "json": {
+          "user": "bob",
+          "role": "member",
+          "expires": "2100-01-01T00:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "changing a claim breaks the signature",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJib2IiLCJyb2xlIjoiYWRtaW4iLCJqdGkiOiIwMUFSWjNOREVLVFNWNFJSRkZRNjlHNUZBViIsImlzcyI6Imp3dC1leGFtcGxlLXNlc3Npb24iLCJhdWQiOiJqd3QtZXhhbXBsZS1zZXNzaW9uIiwiZXhwIjo0MTAyNDQ0ODAwfQ.bUVItrVB1-FW6J3bn8vpSqf8DStEUxsR1C40vHeGlpY"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "bad_signature"
+        }
+      }
+    },
+    {
+      "name": "so does another secret",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJib2IiLCJyb2xlIjoibWVtYmVyIiwianRpIjoiMDFBUlozTkRFS1RTVjRSUkZGUTY5RzVGQVYiLCJpc3MiOiJqd3QtZXhhbXBsZS1zZXNzaW9uIiwiYXVkIjoiand0LWV4YW1wbGUtc2Vzc2lvbiIsImV4cCI6NDEwMjQ0NDgwMH0.lwFpHWDWzjUe_KQcKttXRVKpUfMFeyriv9uI0Mr1P0Y"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "bad_signature"
+        }
+      }
+    },
+    {
+      "name": "alg none is never accepted",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "session=eyJhbGciOiAibm9uZSJ9.eyJzdWIiOiAiYm9iIiwgInJvbGUiOiAibWVtYmVyIiwgImp0aSI6ICIwMUFSWjNOREVLVFNWNFJSRkZRNjlHNUZBViIsICJpc3MiOiAiand0LWV4YW1wbGUtc2Vzc2lvbiIsICJhdWQiOiAiand0LWV4YW1wbGUtc2Vzc2lvbiIsICJleHAiOiA0MTAyNDQ0ODAwfQ."
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "unsupported_alg"
+        }
+      }
+    },
+    {
+      "name": "only HS256 is allowed, so a token cannot choose HS512",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "session=eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJib2IiLCJyb2xlIjoibWVtYmVyIiwianRpIjoiMDFBUlozTkRFS1RTVjRSUkZGUTY5RzVGQVYiLCJpc3MiOiJqd3QtZXhhbXBsZS1zZXNzaW9uIiwiYXVkIjoiand0LWV4YW1wbGUtc2Vzc2lvbiIsImV4cCI6NDEwMjQ0NDgwMH0.GEFg1JPWDaWAdgXHJmgY1YhuhNiXxeGvVmZmEboffnMjxUJr6iW3QZJPaZSQlWM2KwC_AymbjosMg2jhYmKukg"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "alg_not_allowed"
+        }
+      }
+    },
+    {
+      "name": "an expired token",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJib2IiLCJyb2xlIjoibWVtYmVyIiwianRpIjoiMDFBUlozTkRFS1RTVjRSUkZGUTY5RzVGQVYiLCJpc3MiOiJqd3QtZXhhbXBsZS1zZXNzaW9uIiwiYXVkIjoiand0LWV4YW1wbGUtc2Vzc2lvbiIsImV4cCI6MTYwMDAwMDAwMH0.kJx-4neRU8W2CkZSZFcDblx9Bgc4Q0qltFI9UigQq_M"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "expired"
+        }
+      }
+    },
+    {
+      "name": "a token for another audience",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJib2IiLCJyb2xlIjoibWVtYmVyIiwianRpIjoiMDFBUlozTkRFS1RTVjRSUkZGUTY5RzVGQVYiLCJpc3MiOiJqd3QtZXhhbXBsZS1zZXNzaW9uIiwiYXVkIjoiYW5vdGhlci1hcHAiLCJleHAiOjQxMDI0NDQ4MDB9.P5ggFS7qWcSyEv6Arzm2dSU-uIrVWU3ih00M6TJ2RUQ"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "audience"
+        }
+      }
+    },
+    {
+      "name": "a token without a jti cannot be revoked, so it is refused",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJib2IiLCJyb2xlIjoibWVtYmVyIiwiaXNzIjoiand0LWV4YW1wbGUtc2Vzc2lvbiIsImF1ZCI6Imp3dC1leGFtcGxlLXNlc3Npb24iLCJleHAiOjQxMDI0NDQ4MDB9.MTvNt-trB4fRMAlfEO1JQNl_GrtIREm5w2YidQDB5zo"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "missing_claim"
+        }
+      }
+    },
+    {
+      "name": "no cookie, no session",
+      "request": {
+        "path": "/me"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "no_session"
+        }
+      }
+    },
+    {
+      "name": "logging out clears the cookie",
+      "request": {
+        "method": "POST",
+        "path": "/logout",
+        "headers": {
+          "cookie": "{cookie}"
+        }
+      },
+      "expect": {
+        "status": 204,
+        "headers": {
+          "set-cookie": {
+            "$contains": "Max-Age=0"
+          }
+        }
+      }
+    },
+    {
+      "name": "and revokes the token, although its signature is still good",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "{cookie}"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "revoked"
+        }
+      }
+    },
+    {
+      "name": "the revocation is stored, so it survives a restart",
+      "restart": true,
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "{cookie}"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "revoked"
+        }
+      }
+    },
+    {
+      "name": "other sessions are untouched",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJib2IiLCJyb2xlIjoibWVtYmVyIiwianRpIjoiMDFBUlozTkRFS1RTVjRSUkZGUTY5RzVGQVYiLCJpc3MiOiJqd3QtZXhhbXBsZS1zZXNzaW9uIiwiYXVkIjoiand0LWV4YW1wbGUtc2Vzc2lvbiIsImV4cCI6NDEwMjQ0NDgwMH0.bUVItrVB1-FW6J3bn8vpSqf8DStEUxsR1C40vHeGlpY"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "json": {
+          "user": "bob"
+        }
+      }
+    }
+  ]
+}

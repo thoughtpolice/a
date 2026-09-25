@@ -1,0 +1,341 @@
+{
+  "steps": [
+    {
+      "name": "the first JWKS request makes a key; only its public half is published",
+      "request": {
+        "path": "/.well-known/jwks.json"
+      },
+      "expect": {
+        "headers": {
+          "cache-control": "public, max-age=300"
+        },
+        "json": {
+          "keys": [
+            {
+              "kty": "EC",
+              "crv": "P-256",
+              "x": {
+                "$regex": "^[\\w-]{43}$"
+              },
+              "y": {
+                "$regex": "^[\\w-]{43}$"
+              },
+              "d": {
+                "$absent": true
+              },
+              "kid": {
+                "$regex": "^[\\w-]{43}$"
+              },
+              "alg": "ES256",
+              "use": "sig"
+            }
+          ]
+        }
+      },
+      "save": {
+        "kid1": "json.keys.0.kid"
+      }
+    },
+    {
+      "name": "an access token is issued",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "json": {
+          "sub": "svc-reports",
+          "scope": "read"
+        }
+      },
+      "expect": {
+        "headers": {
+          "cache-control": "no-store"
+        },
+        "json": {
+          "access_token": {
+            "$regex": "^eyJ[\\w-]+\\.eyJ[\\w-]+\\.[\\w-]{86}$"
+          },
+          "token_type": "Bearer",
+          "expires_in": 300
+        }
+      },
+      "save": {
+        "token1": "json.access_token"
+      }
+    },
+    {
+      "name": "introspection finds it active, with its claims",
+      "request": {
+        "method": "POST",
+        "path": "/introspect",
+        "json": {
+          "token": "{token1}"
+        }
+      },
+      "expect": {
+        "json": {
+          "active": true,
+          "iss": "https://issuer.example",
+          "aud": "https://api.example",
+          "sub": "svc-reports",
+          "scope": "read",
+          "client_id": "svc-reports",
+          "jti": {
+            "$regex": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+          },
+          "iat": {
+            "$gt": 1790000000
+          },
+          "exp": {
+            "$gt": 1790000000
+          }
+        }
+      }
+    },
+    {
+      "name": "a request without a subject is refused",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "json": {
+          "scope": "read"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_request"
+        }
+      }
+    },
+    {
+      "name": "rotating makes a new current key",
+      "request": {
+        "method": "POST",
+        "path": "/rotate"
+      },
+      "expect": {
+        "json": {
+          "kid": {
+            "$not": "{kid1}"
+          },
+          "alg": "ES256"
+        }
+      },
+      "save": {
+        "kid2": "json.kid"
+      }
+    },
+    {
+      "name": "the JWKS lists it first and keeps the previous one",
+      "request": {
+        "path": "/.well-known/jwks.json"
+      },
+      "expect": {
+        "json": {
+          "keys": [
+            {
+              "kid": "{kid2}"
+            },
+            {
+              "kid": "{kid1}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "so a token the previous key signed still verifies",
+      "request": {
+        "method": "POST",
+        "path": "/introspect",
+        "json": {
+          "token": "{token1}"
+        }
+      },
+      "expect": {
+        "json": {
+          "active": true,
+          "sub": "svc-reports"
+        }
+      }
+    },
+    {
+      "name": "new tokens are signed by the new key",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "json": {
+          "sub": "svc-billing"
+        }
+      },
+      "expect": {
+        "json": {
+          "access_token": {
+            "$regex": "^eyJ[\\w-]+\\.eyJ[\\w-]+\\.[\\w-]{86}$"
+          }
+        }
+      },
+      "save": {
+        "token2": "json.access_token"
+      }
+    },
+    {
+      "name": "and verify",
+      "request": {
+        "method": "POST",
+        "path": "/introspect",
+        "json": {
+          "token": "{token2}"
+        }
+      },
+      "expect": {
+        "json": {
+          "active": true,
+          "sub": "svc-billing",
+          "scope": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "name": "a second rotation",
+      "request": {
+        "method": "POST",
+        "path": "/rotate"
+      },
+      "expect": {
+        "json": {
+          "kid": {
+            "$regex": "^[\\w-]{43}$"
+          }
+        }
+      },
+      "save": {
+        "kid3": "json.kid"
+      }
+    },
+    {
+      "name": "drops the oldest key from the JWKS",
+      "request": {
+        "path": "/.well-known/jwks.json"
+      },
+      "expect": {
+        "json": {
+          "keys": [
+            {
+              "kid": "{kid3}"
+            },
+            {
+              "kid": "{kid2}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "so the first token no longer verifies",
+      "request": {
+        "method": "POST",
+        "path": "/introspect",
+        "json": {
+          "token": "{token1}"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "active": false,
+            "error": "no_key"
+          }
+        }
+      }
+    },
+    {
+      "name": "while the second still does",
+      "request": {
+        "method": "POST",
+        "path": "/introspect",
+        "json": {
+          "token": "{token2}"
+        }
+      },
+      "expect": {
+        "json": {
+          "active": true
+        }
+      }
+    },
+    {
+      "name": "an HMAC token is not one this issuer signs",
+      "request": {
+        "method": "POST",
+        "path": "/introspect",
+        "json": {
+          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoiaHR0cHM6Ly9hcGkuZXhhbXBsZSIsInN1YiI6IngiLCJleHAiOjQxMDI0NDQ4MDAsImp0aSI6IjAxQVJaM05ERUtUU1Y0UlJGRlE2OUc1RkFWIn0.AyWAUz7Ys9xPGCOSZNS3rBz0KSI0cHkIAgsivPOPzkc"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "active": false,
+            "error": "alg_not_allowed"
+          }
+        }
+      }
+    },
+    {
+      "name": "nor is something that is not a JWT",
+      "request": {
+        "method": "POST",
+        "path": "/introspect",
+        "json": {
+          "token": "not.a.token"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "active": false,
+            "error": "malformed"
+          }
+        }
+      }
+    },
+    {
+      "name": "the keys are stored, so they survive a restart",
+      "restart": true,
+      "request": {
+        "path": "/.well-known/jwks.json"
+      },
+      "expect": {
+        "json": {
+          "keys": [
+            {
+              "kid": "{kid3}"
+            },
+            {
+              "kid": "{kid2}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "and tokens signed before it still verify",
+      "request": {
+        "method": "POST",
+        "path": "/introspect",
+        "json": {
+          "token": "{token2}"
+        }
+      },
+      "expect": {
+        "json": {
+          "active": true,
+          "sub": "svc-billing"
+        }
+      }
+    }
+  ]
+}
