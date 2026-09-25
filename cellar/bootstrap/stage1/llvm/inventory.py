@@ -904,8 +904,12 @@ RUNTIME_LISTS = {
 
 def cmake_list(path, name):
     """The items of the first set(name ...) in a CMake file, one per line."""
-    with open(path) as f:
-        m = re.search(r"^set\({}\n(.*?)^\s*\)".format(re.escape(name)), f.read(), re.S | re.M)
+    try:
+        with open(path) as f:
+            text = f.read()
+    except OSError as e:
+        fail("cannot read", path + ":", e.strerror)
+    m = re.search(r"^set\({}\n(.*?)^\s*\)".format(re.escape(name)), text, re.S | re.M)
     if not m:
         fail("no set({} ...) in".format(name), path)
     items = [line.strip() for line in m.group(1).splitlines() if line.strip() and not line.strip().startswith("#")]
