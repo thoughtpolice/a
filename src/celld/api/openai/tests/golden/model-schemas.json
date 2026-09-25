@@ -1,0 +1,805 @@
+{
+  "formats": {
+    "Location": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "File path, or binary/section name for RE targets."
+        },
+        "startLine": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "description": "First line (1-based), or null."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "endLine": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Last line (1-based), or null."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "symbol": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "Function, method or address, or null."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "startLine",
+        "endLine",
+        "symbol"
+      ],
+      "additionalProperties": false
+    },
+    "Finding": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "A one-line statement of the problem."
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info"
+          ],
+          "description": "Impact if exploited, assuming realistic attacker access."
+        },
+        "cwe": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^CWE-[0-9]+$",
+              "description": "The most specific CWE id, such as CWE-89, or null if none fits."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "location": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "File path, or binary/section name for RE targets."
+            },
+            "startLine": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "First line (1-based), or null."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "endLine": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Last line (1-based), or null."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "symbol": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "description": "Function, method or address, or null."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "startLine",
+            "endLine",
+            "symbol"
+          ],
+          "additionalProperties": false
+        },
+        "evidence": {
+          "type": "string",
+          "description": "The code or behaviour that shows the problem, quoted or described precisely."
+        },
+        "exploitability": {
+          "type": "string",
+          "description": "How an attacker would reach and trigger it."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Probability that this is a real, reachable issue."
+        },
+        "remediation": {
+          "type": "string",
+          "description": "The concrete fix."
+        }
+      },
+      "required": [
+        "title",
+        "severity",
+        "cwe",
+        "location",
+        "evidence",
+        "exploitability",
+        "confidence",
+        "remediation"
+      ],
+      "additionalProperties": false
+    },
+    "SecurityReview": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "Two or three sentences on the overall security posture."
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "A one-line statement of the problem."
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low",
+                  "info"
+                ],
+                "description": "Impact if exploited, assuming realistic attacker access."
+              },
+              "cwe": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^CWE-[0-9]+$",
+                    "description": "The most specific CWE id, such as CWE-89, or null if none fits."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "location": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "File path, or binary/section name for RE targets."
+                  },
+                  "startLine": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "First line (1-based), or null."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "endLine": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Last line (1-based), or null."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "symbol": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "description": "Function, method or address, or null."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "path",
+                  "startLine",
+                  "endLine",
+                  "symbol"
+                ],
+                "additionalProperties": false
+              },
+              "evidence": {
+                "type": "string",
+                "description": "The code or behaviour that shows the problem, quoted or described precisely."
+              },
+              "exploitability": {
+                "type": "string",
+                "description": "How an attacker would reach and trigger it."
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Probability that this is a real, reachable issue."
+              },
+              "remediation": {
+                "type": "string",
+                "description": "The concrete fix."
+              }
+            },
+            "required": [
+              "title",
+              "severity",
+              "cwe",
+              "location",
+              "evidence",
+              "exploitability",
+              "confidence",
+              "remediation"
+            ],
+            "additionalProperties": false
+          },
+          "description": "Real issues only, most severe first; empty if none."
+        }
+      },
+      "required": [
+        "summary",
+        "findings"
+      ],
+      "additionalProperties": false
+    },
+    "ReNotes": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "What this code does, in a paragraph."
+        },
+        "architecture": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "Instruction set and ABI, if evident."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "functions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Symbol or address."
+              },
+              "purpose": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "name",
+              "purpose",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Behaviours such as network access, persistence, crypto, anti-analysis."
+        },
+        "indicators": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "domain",
+                  "ip",
+                  "url",
+                  "path",
+                  "registry",
+                  "mutex",
+                  "hash",
+                  "string",
+                  "other"
+                ]
+              },
+              "value": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "value",
+              "context"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "vulnerabilities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "A one-line statement of the problem."
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low",
+                  "info"
+                ],
+                "description": "Impact if exploited, assuming realistic attacker access."
+              },
+              "cwe": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^CWE-[0-9]+$",
+                    "description": "The most specific CWE id, such as CWE-89, or null if none fits."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "location": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "File path, or binary/section name for RE targets."
+                  },
+                  "startLine": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "First line (1-based), or null."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "endLine": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Last line (1-based), or null."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "symbol": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "description": "Function, method or address, or null."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "path",
+                  "startLine",
+                  "endLine",
+                  "symbol"
+                ],
+                "additionalProperties": false
+              },
+              "evidence": {
+                "type": "string",
+                "description": "The code or behaviour that shows the problem, quoted or described precisely."
+              },
+              "exploitability": {
+                "type": "string",
+                "description": "How an attacker would reach and trigger it."
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Probability that this is a real, reachable issue."
+              },
+              "remediation": {
+                "type": "string",
+                "description": "The concrete fix."
+              }
+            },
+            "required": [
+              "title",
+              "severity",
+              "cwe",
+              "location",
+              "evidence",
+              "exploitability",
+              "confidence",
+              "remediation"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "openQuestions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What to look at next."
+        }
+      },
+      "required": [
+        "summary",
+        "architecture",
+        "functions",
+        "capabilities",
+        "indicators",
+        "vulnerabilities",
+        "openQuestions"
+      ],
+      "additionalProperties": false
+    },
+    "Triage": {
+      "type": "object",
+      "properties": {
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "true_positive",
+            "false_positive",
+            "benign",
+            "needs_more_info",
+            "duplicate"
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info"
+          ]
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "P0",
+            "P1",
+            "P2",
+            "P3",
+            "P4"
+          ],
+          "description": "P0 drop everything, P4 backlog."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "escalate": {
+          "type": "boolean",
+          "description": "Whether a human must look at this now."
+        },
+        "nextSteps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "verdict",
+        "severity",
+        "priority",
+        "confidence",
+        "rationale",
+        "escalate",
+        "nextSteps"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "tools": {
+    "read_file": {
+      "type": "function",
+      "name": "read_file",
+      "description": "Reads a text file from the workspace and returns its lines, numbered from 1.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Workspace-relative path of the file."
+          },
+          "offset": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "description": "First line to return (1-based); null for 1."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Lines to return; null for 2000."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "offset",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "strict": true
+    },
+    "list_dir": {
+      "type": "function",
+      "name": "list_dir",
+      "description": "Lists the files under a workspace directory.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Workspace-relative directory; null for the root."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "depth": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Levels to descend; null for all."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "depth"
+        ],
+        "additionalProperties": false
+      },
+      "strict": true
+    },
+    "grep_files": {
+      "type": "function",
+      "name": "grep_files",
+      "description": "Searches workspace files for lines matching a regular expression.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "A JavaScript regular expression."
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Directory to search; null for the root."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "include": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "A glob that file paths must match, such as *.ts; null for all."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Most matches to return; null for 200."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "pattern",
+          "path",
+          "include",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "strict": true
+    },
+    "apply_patch": {
+      "type": "custom",
+      "name": "apply_patch",
+      "description": "The `apply_patch` tool can be used to edit files. This is a FREEFORM tool, so do not wrap the patch in JSON.",
+      "format": {
+        "type": "grammar",
+        "syntax": "lark",
+        "definition": "start: begin_patch hunk+ end_patch\nbegin_patch: \"*** Begin Patch\" LF\nend_patch: \"*** End Patch\" LF?\n\nhunk: add_hunk | delete_hunk | update_hunk\nadd_hunk: \"*** Add File: \" filename LF add_line+\ndelete_hunk: \"*** Delete File: \" filename LF\nupdate_hunk: \"*** Update File: \" filename LF change_move? change?\n\nfilename: /(.+)/\nadd_line: \"+\" /(.*)/ LF -> line\n\nchange_move: \"*** Move to: \" filename LF\nchange: (change_context | change_line)+ eof_line?\nchange_context: (\"@@\" | \"@@ \" /(.+)/) LF\nchange_line: (\"+\" | \"-\" | \" \") /(.*)/ LF\neof_line: \"*** End of File\" LF\n\n%import common.LF\n"
+      }
+    },
+    "exec_command": {
+      "type": "function",
+      "name": "exec_command",
+      "description": "Runs a command, returning its output and exit code.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cmd": {
+            "type": "string",
+            "description": "Shell command to execute."
+          },
+          "workdir": {
+            "type": "string",
+            "description": "Working directory for the command. Defaults to the turn cwd."
+          },
+          "tty": {
+            "type": "boolean",
+            "description": "True allocates a PTY for the command; false or omitted uses plain pipes."
+          },
+          "yield_time_ms": {
+            "type": "number",
+            "description": "Wait before yielding output. Defaults to 10000 ms; effective range is 250-30000 ms."
+          },
+          "max_output_tokens": {
+            "type": "number",
+            "description": "Output token budget. Defaults to 10000 tokens; larger requests may be capped by policy."
+          },
+          "shell": {
+            "type": "string",
+            "description": "Shell binary to launch. Defaults to the user's default shell."
+          },
+          "login": {
+            "type": "boolean",
+            "description": "True runs the shell with -l/-i semantics; false disables them. Defaults to true."
+          }
+        },
+        "required": [
+          "cmd"
+        ],
+        "additionalProperties": false
+      },
+      "strict": false
+    },
+    "shell": {
+      "type": "function",
+      "name": "shell",
+      "description": "Runs a shell command and returns its output.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The command to execute"
+          },
+          "workdir": {
+            "type": "string",
+            "description": "The working directory to execute the command in"
+          },
+          "timeout_ms": {
+            "type": "number",
+            "description": "The timeout for the command in milliseconds"
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "additionalProperties": false
+      },
+      "strict": false
+    }
+  }
+}

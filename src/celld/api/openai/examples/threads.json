@@ -1,0 +1,371 @@
+{
+  "vars": {
+    "THREADS_JWT_SECRET": "celld-openai-example-threads-jwt-secret-for-development-only",
+    "THREADS_OWNER_KEY": "celld-openai-example-threads-owner-key-for-development-only"
+  },
+  "steps": [
+    {
+      "name": "a request without a token is refused before any thread or model is touched",
+      "request": {
+        "method": "POST",
+        "path": "/threads/t1",
+        "json": {
+          "message": "Hi"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "unauthorized"
+        },
+        "headers": {
+          "www-authenticate": {
+            "$regex": "^Bearer"
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a token signed with another key is refused",
+      "request": {
+        "method": "POST",
+        "path": "/threads/t1",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3RocmVhZHMuZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImlhdCI6MTc5MDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.aZvMI3OJIBkK7Drt93y2QJC8TQdi_dC6aumFRpMcS9o"
+        },
+        "json": {
+          "message": "Hi"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "invalid_token"
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a new thread's first turn is stored",
+      "script": {
+        "turn": {
+          "reasoning": "Greet them.",
+          "encrypted": "ENC-FIRST",
+          "text": "Hello! What shall we study?"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/threads/t1",
+        "json": {
+          "message": "Hi"
+        },
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3RocmVhZHMuZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImlhdCI6MTc5MDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.Ssix9Yye4MI4nGgZXLw2jR664hwZOVC5svJxFvgFJXg"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "reply": "Hello! What shall we study?",
+            "turns": 1
+          }
+        }
+      },
+      "upstream": [
+        {
+          "headers": {
+            "session-id": "t1"
+          },
+          "json": {
+            "prompt_cache_key": "t1",
+            "input": [
+              {
+                "type": "additional_tools"
+              },
+              {
+                "role": "developer",
+                "content": [
+                  {
+                    "text": "You are a patient tutor. Keep answers short."
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "role": "user"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "the next turn replays the thread, encrypted reasoning included",
+      "script": {
+        "turn": {
+          "text": "Fractions it is."
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/threads/t1",
+        "json": {
+          "message": "Fractions"
+        },
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3RocmVhZHMuZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImlhdCI6MTc5MDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.Ssix9Yye4MI4nGgZXLw2jR664hwZOVC5svJxFvgFJXg"
+        }
+      },
+      "expect": {
+        "json": {
+          "reply": "Fractions it is.",
+          "turns": 2
+        }
+      },
+      "upstream": [
+        {
+          "json": {
+            "prompt_cache_key": "t1",
+            "input": {
+              "$contains": {
+                "type": "reasoning",
+                "encrypted_content": "ENC-FIRST"
+              }
+            }
+          },
+          "text": {
+            "$contains": "Hello! What shall we study?"
+          }
+        }
+      ]
+    },
+    {
+      "name": "the thread survives a restart, item by item",
+      "restart": true,
+      "request": {
+        "path": "/threads/t1",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3RocmVhZHMuZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImlhdCI6MTc5MDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.Ssix9Yye4MI4nGgZXLw2jR664hwZOVC5svJxFvgFJXg"
+        }
+      },
+      "expect": {
+        "json": {
+          "id": "t1",
+          "turns": 2,
+          "items": [
+            "message",
+            "reasoning",
+            "message",
+            "message",
+            "message"
+          ]
+        }
+      }
+    },
+    {
+      "name": "another caller cannot read alice's t1: thread ids are per caller",
+      "request": {
+        "path": "/threads/t1",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3RocmVhZHMuZXhhbXBsZS5jb20iLCJzdWIiOiJib2IiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.blW4n-J87ta-AxvLTwD4JVZ5OexCXdyrxu6WPHvAS0c"
+        }
+      },
+      "expect": {
+        "status": 404
+      }
+    },
+    {
+      "name": "while alice still sees both of her turns",
+      "request": {
+        "path": "/threads/t1",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3RocmVhZHMuZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImlhdCI6MTc5MDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.Ssix9Yye4MI4nGgZXLw2jR664hwZOVC5svJxFvgFJXg"
+        }
+      },
+      "expect": {
+        "json": {
+          "id": "t1",
+          "turns": 2
+        }
+      }
+    },
+    {
+      "name": "the pacer counted both calls",
+      "request": {
+        "path": "/pacer",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3RocmVhZHMuZXhhbXBsZS5jb20iLCJzdWIiOiJvcHMiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic2NvcGUiOiJwYWNlcjphZG1pbiJ9.3Ng3TI5HpZsmmtQ98rZdh03I2Z007prJEcV1vDb0WNM"
+        }
+      },
+      "expect": {
+        "json": {
+          "inFlight": 0,
+          "block": null,
+          "totals": {
+            "calls": 2,
+            "usageLimits": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "bob's own t1 is a new thread that replays none of alice's",
+      "request": {
+        "method": "POST",
+        "path": "/threads/t1",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3RocmVhZHMuZXhhbXBsZS5jb20iLCJzdWIiOiJib2IiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.blW4n-J87ta-AxvLTwD4JVZ5OexCXdyrxu6WPHvAS0c"
+        },
+        "json": {
+          "message": "Hello?"
+        }
+      },
+      "expect": {
+        "json": {
+          "reply": "echo: Hello?",
+          "turns": 1
+        }
+      },
+      "upstream": [
+        {
+          "text": {
+            "$not": {
+              "$contains": "Fractions"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "configuring the pacer needs a token",
+      "request": {
+        "method": "PUT",
+        "path": "/pacer",
+        "json": {
+          "maxConcurrent": 1
+        }
+      },
+      "expect": {
+        "status": 401
+      }
+    },
+    {
+      "name": "and the operator scope: an ordinary caller gets a 403",
+      "request": {
+        "method": "PUT",
+        "path": "/pacer",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3RocmVhZHMuZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImlhdCI6MTc5MDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.Ssix9Yye4MI4nGgZXLw2jR664hwZOVC5svJxFvgFJXg"
+        },
+        "json": {
+          "maxConcurrent": 1
+        }
+      },
+      "expect": {
+        "status": 403,
+        "headers": {
+          "www-authenticate": {
+            "$contains": "insufficient_scope"
+          }
+        }
+      }
+    },
+    {
+      "name": "an operator may configure it",
+      "request": {
+        "method": "PUT",
+        "path": "/pacer",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3RocmVhZHMuZXhhbXBsZS5jb20iLCJzdWIiOiJvcHMiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic2NvcGUiOiJwYWNlcjphZG1pbiJ9.3Ng3TI5HpZsmmtQ98rZdh03I2Z007prJEcV1vDb0WNM"
+        },
+        "json": {
+          "maxConcurrent": 4
+        }
+      },
+      "expect": {
+        "json": {
+          "maxConcurrent": 4
+        }
+      }
+    },
+    {
+      "name": "a usage limit is recorded by the pacer",
+      "script": {
+        "error": {
+          "status": 429,
+          "body": {
+            "error": {
+              "type": "usage_limit_reached",
+              "message": "You've hit your usage limit.",
+              "resets_at": 4102444800
+            }
+          }
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/threads/t2",
+        "json": {
+          "message": "One more"
+        },
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3RocmVhZHMuZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImlhdCI6MTc5MDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.Ssix9Yye4MI4nGgZXLw2jR664hwZOVC5svJxFvgFJXg"
+        }
+      },
+      "expect": {
+        "status": 502,
+        "json": {
+          "kind": "usage_limit"
+        }
+      },
+      "upstream": {
+        "$len": 1
+      }
+    },
+    {
+      "name": "and holds every caller, without a request, even after a restart",
+      "restart": true,
+      "request": {
+        "method": "POST",
+        "path": "/threads/t3",
+        "json": {
+          "message": "Anyone?"
+        },
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3RocmVhZHMuZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImlhdCI6MTc5MDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.Ssix9Yye4MI4nGgZXLw2jR664hwZOVC5svJxFvgFJXg"
+        }
+      },
+      "expect": {
+        "status": 502,
+        "json": {
+          "kind": "usage_limit",
+          "error": {
+            "$contains": "was not sent"
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "the hold is visible in the pacer",
+      "request": {
+        "path": "/pacer",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3RocmVhZHMuZXhhbXBsZS5jb20iLCJzdWIiOiJvcHMiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic2NvcGUiOiJwYWNlcjphZG1pbiJ9.3Ng3TI5HpZsmmtQ98rZdh03I2Z007prJEcV1vDb0WNM"
+        }
+      },
+      "expect": {
+        "json": {
+          "block": {
+            "reason": "usage_limit"
+          },
+          "totals": {
+            "usageLimits": 1
+          }
+        }
+      }
+    }
+  ]
+}

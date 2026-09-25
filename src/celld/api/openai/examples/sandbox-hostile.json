@@ -1,0 +1,26 @@
+{
+  "vars": {
+    "ANALYZER_JWT_SECRET": "celld-openai-example-jwt-secret-for-development-only",
+    "ANALYZER_CASE_KEY": "celld-openai-example-case-key-for-development-only"
+  },
+  "steps": [
+    {
+      "name": "without the development opt-in the hostile Analyzer refuses to run on runc",
+      "request": {
+        "method": "PUT",
+        "path": "/files/sample",
+        "body": "x",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "status": 503,
+        "json": {
+          "error": "unsafe_runtime"
+        }
+      },
+      "upstream": []
+    }
+  ]
+}
