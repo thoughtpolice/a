@@ -121,6 +121,7 @@ compiler(
         "cr",
     ],
     archive_format = "ar",
+    archive_member_name_limit = 15,
     archiver = TCC + ":tcc-mes1",
     cflags = [
         "-nostdinc",

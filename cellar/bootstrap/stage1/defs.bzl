@@ -15,6 +15,7 @@ CompilerInfo = provider(fields = [
     "archiver",
     "archive_flags",
     "archive_format",
+    "archive_member_name_limit",
     "family",
     "stage",
     "abi",
@@ -44,6 +45,7 @@ def _compiler_impl(ctx):
         archiver = ctx.attrs.archiver[RunInfo] if ctx.attrs.archiver else None,
         archive_flags = ctx.attrs.archive_flags,
         archive_format = ctx.attrs.archive_format,
+        archive_member_name_limit = ctx.attrs.archive_member_name_limit,
         family = ctx.attrs.family,
         stage = ctx.attrs.stage,
         abi = ctx.attrs.abi,
@@ -60,6 +62,9 @@ _compiler_rule = rule(impl = _compiler_impl, attrs = {
     "archiver": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
     "archive_flags": attrs.list(attrs.string(), default = []),
     "archive_format": attrs.enum(["mes-concat", "ar"]),
+    # The characters of a member name the archiver keeps, when it truncates
+    # them: the seed TCC archiver keeps 15.
+    "archive_member_name_limit": attrs.option(attrs.int(), default = None),
     "family": attrs.enum(["mescc", "tcc", "gcc", "clang"]),
     "stage": attrs.string(),
     "abi": attrs.enum(["x86_64-mes", "x86_64-sysv"]),
@@ -154,9 +159,8 @@ def _archive_impl(ctx):
     objects = _objects(ctx.attrs.objects, tc)
     names = {}
     for obj in objects:
-        # The seed TCC archiver stores only 15 characters of a member name;
-        # binutils and LLVM archivers keep long names whole.
-        name = obj.basename[:15] if tc.family in ("mescc", "tcc") else obj.basename
+        limit = tc.archive_member_name_limit
+        name = obj.basename[:limit] if limit else obj.basename
         if name in names:
             fail("archive member name collision: " + name)
         names[name] = True

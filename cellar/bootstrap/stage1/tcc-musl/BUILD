@@ -43,6 +43,7 @@ DEFINES = [
             "cr",
         ],
         archive_format = "ar",
+        archive_member_name_limit = 15,
         archiver = predecessor,
         cflags = [
             "-nostdinc",
@@ -180,6 +181,7 @@ DEFINES = [
                 "cr",
             ],
             archive_format = "ar",
+            archive_member_name_limit = 15,
             archiver = ":tcc-" + stage,
             cflags = [
                 "-nostdinc",

@@ -277,6 +277,7 @@ RUNTIMES = [
             "cr",
         ],
         archive_format = "ar",
+        archive_member_name_limit = 15,
         archiver = cc,
         cflags = ["-nostdinc"],
         compiler = cc,
@@ -421,6 +422,7 @@ RUNTIMES = [
             "cr",
         ],
         archive_format = "ar",
+        archive_member_name_limit = 15,
         archiver = cc,
         cflags = [
             "-nostdinc",
@@ -803,6 +805,7 @@ compiler(
         "cr",
     ],
     archive_format = "ar",
+    archive_member_name_limit = 15,
     archiver = ":tcc-boot2",
     compiler = ":tcc-boot2",
     execution_runtime = ":runtime-boot1",

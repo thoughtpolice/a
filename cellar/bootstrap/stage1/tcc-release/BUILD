@@ -154,6 +154,7 @@ compiler(
         "cr",
     ],
     archive_format = "ar",
+    archive_member_name_limit = 15,
     archiver = ":tcc-mes0",
     cflags = [
         "-nostdinc",
@@ -507,6 +508,7 @@ compiler(
         "cr",
     ],
     archive_format = "ar",
+    archive_member_name_limit = 15,
     archiver = BOOT + ":tcc-boot2",
     cflags = [
         "-nostdinc",
@@ -616,6 +618,7 @@ compiler(
         "cr",
     ],
     archive_format = "ar",
+    archive_member_name_limit = 15,
     archiver = ":tcc-mes1",
     cflags = [
         "-nostdinc",
