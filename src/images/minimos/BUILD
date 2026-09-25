@@ -4,17 +4,14 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 load("@root//src/images/minimos:defs.bzl", "minimos")
 
-# --------------------------------------------------------------------------
-# minimos: the base layer every image in this tree composes on. Two
-# layers — a culled Wolfi systemd rootfs and a first-party overlay —
-# plus a bootable reference image built from nothing else. Downstream
-# packages (see examples/) stack their own layers on top via
-# minimos.image().
-# --------------------------------------------------------------------------
+# The minimos base, which every image in this tree builds on. Two layers,
+# a culled Wolfi systemd rootfs and a first-party overlay, plus a
+# reference image made of nothing else. Packages under examples/ stack
+# their own layers on top with minimos.image().
 
-# The composition policy minimos.image() enforces on every layer stacked
-# above the base; tools/security_tests.py reads the same file so the
-# adversarial tests can never drift from what ships.
+# The composition policy minimos.image() enforces on every layer above
+# the base. tools/security_tests.py reads the same file, so the
+# adversarial tests always check what ships.
 depot.export_file(
     name = "policy.txt",
     src = "policy.txt",
@@ -22,14 +19,14 @@ depot.export_file(
 )
 
 # --------------------------------------------------------------------------
-# Layer 1: culled systemd rootfs, assembled from pinned Wolfi packages
-# (hash-verified .apk files; no donor image, no package manager) and
-# culled down per base/keepfiles.txt / base/denyfiles.txt:
-#   - systemd + dbus + logind and their .so closure
-#   - login shells and mount(8), which exe.dev requires (see README)
-# Wolfi builds systemd with optional deps behind dlopen, so the library
-# set below is a choice, not a closure: only the features minimos uses
-# ship (mount units, journal compression, seccomp sandboxing, ACLs).
+# Layer 1: systemd, dbus, logind and their .so closure, the login shells
+# and mount(8) exe.dev needs, and chronyd, culled per base/keepfiles.txt
+# and base/denyfiles.txt.
+#
+# Wolfi builds systemd with its optional libraries behind dlopen, so the
+# library set below is a choice rather than a closure. It covers the
+# features minimos uses: mount units, journal compression, seccomp
+# sandboxing and ACLs.
 # --------------------------------------------------------------------------
 
 minimos.apk_culled_layer(
@@ -38,12 +35,11 @@ minimos.apk_culled_layer(
         # rootfs skeleton and merged-usr symlinks
         "wolfi-baselayout",
         "ca-certificates-bundle",
-        # loader + libc (+ the C.UTF-8 locale the boot contract exports)
+        # loader and libc, plus the C.UTF-8 locale the boot contract exports
         "ld-linux",
         "glibc",
         "glibc-locale-posix",
         "libgcc",
-        # systemd proper
         "systemd",
         "systemd-systemctl",
         "systemd-logind-service",
@@ -55,7 +51,7 @@ minimos.apk_culled_layer(
         "libexpat1",
         "libaudit",
         "libcap-ng",
-        # dlopen'd systemd deps we choose to ship (see keepfiles.txt)
+        # systemd's dlopen'd libraries that minimos ships, see keepfiles.txt
         "libmount",
         "libblkid",
         "libseccomp",
@@ -65,13 +61,13 @@ minimos.apk_culled_layer(
         "libselinux",
         "libpcre2-8-0",
         "libsepol",
-        # bash links terminfo; the base ships a minimal terminfo set
+        # bash links terminfo, and the base keeps three entries
         "ncurses",
         "ncurses-terminfo-base",
-        # Time sync from the hypervisor's PTP clock (see chronyd.service).
+        # the clock, disciplined from the hypervisor's PTP device
         "chrony",
         "libcap",
-        # exe.dev boot contract: login shells + mount/umount + nologin
+        # exe.dev boot contract: login shells, mount/umount, nologin
         "bash",
         "dash",
         "mount",
@@ -80,73 +76,69 @@ minimos.apk_culled_layer(
     ],
     denyfiles = "base/denyfiles.txt",
     keepfiles = "base/keepfiles.txt",
-    # Nothing sits below the base, so every library in the closure ships.
+    # Nothing sits below the base, so the whole closure ships.
     provided_by = [],
     visibility = ["PUBLIC"],
 )
 
 # --------------------------------------------------------------------------
-# Layer 2: minimos first-party overlay
-#   - our systemd units and drop-ins
-#   - /etc/{passwd,group,shadow,nsswitch.conf,os-release,hosts}
-#   - hardening sysctls (netns-safe in /etc/sysctl.d, host-global in
-#     /usr/lib/minimos applied only on real VMs)
-#   - masks for units the culled rootfs can't (or must not) satisfy
+# Layer 2: the first-party overlay. Units and drop-ins, the baked account
+# files, the two sysctl tiers, and masks for vendor units the culled
+# rootfs can't or shouldn't run.
 # --------------------------------------------------------------------------
 
-# Units that ship in the culled layer but reference binaries the
-# denylist drops, hardware the VM doesn't have, or behaviour an
-# appliance doesn't want. Masked so systemctl reports them as "masked"
-# instead of "failed" and `is-system-running` returns "running".
+# Vendor units that ship in the culled layer but need a binary the
+# denylist drops, hardware the VM lacks, or behavior an appliance doesn't
+# want. A masked unit shows as "masked" rather than "failed", so
+# `systemctl is-system-running` can say "running".
 MASKED_UNITS = [
-    # Kernel filesystems — the host kernel mounts these for us on a real VM,
-    # and in Docker we deliberately don't.
+    # Kernel filesystems. The platform kernel mounts what it needs on a
+    # VM, and the docker smoke deliberately mounts none of them.
     "dev-hugepages.mount",
     "sys-kernel-debug.mount",
     "sys-kernel-tracing.mount",
     "sys-kernel-config.mount",
     "proc-sys-fs-binfmt_misc.automount",
     "proc-sys-fs-binfmt_misc.mount",
-    # ldconfig binary isn't in the image (we resolve .so deps at build time).
+    # The build resolves .so dependencies, so there is no ldconfig.
     "ldconfig.service",
-    # ask-password agents: nothing in an appliance asks for passphrases.
+    # Nothing on an appliance asks for a passphrase.
     "systemd-ask-password-wall.path",
     "systemd-ask-password-wall.service",
     "systemd-ask-password-console.path",
     "systemd-ask-password-console.service",
     "systemd-ask-password.socket",
-    # Optional root socket services which minimos does not use. Keep the
-    # management plane to journal/dbus/logind instead of exposing credential,
-    # hostname, and rfkill helpers to every local process.
+    # Root socket services minimos doesn't use. The management plane stays
+    # journald, dbus and logind, with no credential, hostname or rfkill
+    # helper listening for every local process.
     "systemd-creds.socket",
     "systemd-hostnamed.service",
     "systemd-hostnamed.socket",
     "systemd-journalctl.socket",
     "systemd-oomd.socket",
     "systemd-rfkill.socket",
-    # No gettys or consoles in an appliance image (agetty isn't shipped).
+    # No gettys or consoles, and agetty isn't shipped.
     "getty.target",
     "console-getty.service",
     "serial-getty@.service",
     "getty@.service",
     "container-getty@.service",
-    # Partitioning / boot-loader / hibernation surfaces whose binaries
-    # the denylist drops.
+    # Partitioning, boot loader and hibernation, whose binaries are denied.
     "systemd-repart.service",
     "systemd-boot-random-seed.service",
     "systemd-hibernate-clear.service",
-    # random-seed persistence: the platform provides entropy.
+    # The platform provides entropy, so no seed file is saved.
     "systemd-random-seed.service",
-    # Networking daemons we don't run (the platform configures the VM).
+    # The platform configures the network from the kernel command line.
     "systemd-networkd.service",
     "systemd-networkd.socket",
     "systemd-resolved.service",
-    # Accounts are baked into the overlay's /etc/{passwd,group,shadow};
-    # nothing may rewrite them at boot (sysusers.d is culled too, and
-    # the boot smoke asserts the files don't drift).
+    # Accounts are baked into /etc/{passwd,group,shadow} and nothing may
+    # rewrite them at boot. sysusers.d is culled too, and the boot smoke
+    # checks the files don't change.
     "systemd-sysusers.service",
-    # Socket-activated varlink services whose backing binaries the
-    # denylist drops; masked so sockets.target doesn't listen for them.
+    # Varlink sockets for binaries the denylist drops, masked so
+    # sockets.target doesn't listen for them.
     "systemd-bootctl.socket",
     "systemd-coredump.socket",
     "systemd-factory-reset.socket",
@@ -185,28 +177,25 @@ minimos.overlay(
         "tmp:1777",
         "var",
         "var/log",
-        # Every composition that keeps state under /var/lib restates this
-        # same entry; the base needs it for chrony's drift file.
         "var/lib",
-        # chronyd drops to uid 106 and writes its drift file here, so the
-        # directory is baked with that ownership rather than declared as
-        # StateDirectory= — systemd re-applies an Exec directory's owner
-        # (the unit's User=, i.e. root) on every exec, which would undo a
-        # chown from ExecStartPre= before the daemon ever ran.
+        # chronyd writes its drift file here after dropping to uid 106.
+        # StateDirectory= can't own it, because systemd resets an Exec
+        # directory to the unit's User=, root, on every exec.
         "var/lib/chrony:750:106:107",
         "root:700",
         "home",
-        # First-party config that isn't /etc: the VM-only sysctls and the
-        # exe-setup cleanup list (see those files for why).
-        "usr/lib/minimos",
-        # Mountpoint for the platform's injected tooling (sshd et al).
-        "exe.dev",
-        # Writable by uid 1000: the platform sshd logs the exe.dev user in
-        # as exedev, and exe-setup.service runs with User=exedev and
-        # WorkingDirectory=/home/exedev.
+        # The platform sshd logs everyone in as exedev, and exe-setup.service
+        # runs there as exedev.
         "home/exedev:700:1000:1000",
+        # First-party files that must stay out of the automatic search
+        # paths. Each file says why.
+        "usr/lib/minimos",
+        # Mountpoint for the platform's injected sshd and friends.
+        "exe.dev",
     ],
-    # Empty machine-id; systemd writes one on first boot.
+    # Empty rather than absent. systemd fills an empty machine-id with a
+    # fresh ID at boot, so no two VMs share one. A missing file would also
+    # count as systemd's "first boot" and apply preset policy to every unit.
     empty_files = [
         "etc/machine-id:444",
     ],
@@ -219,8 +208,8 @@ minimos.overlay(
         "etc/systemd/system/user.slice.d/50-minimos-qos.conf": "base/units/user.slice.d/50-minimos-qos.conf",
         "etc/systemd/system/user-workload.slice": "base/units/user-workload.slice",
         "etc/systemd/system/user-workload.slice.d/90-minimos-qos.conf": "base/units/user-workload.slice.d/90-minimos-qos.conf",
-        # Inert until some composition lingers an account (examples/dev);
-        # a drop-in for a base unit can only come from the base.
+        # Unused until a composition lingers an account, as examples/dev
+        # does. Only the base may ship a drop-in for a base unit.
         "etc/systemd/system/user@.service.d/50-no-pam.conf": "base/units/user@.service.d/50-no-pam.conf",
         "etc/systemd/system/user@.service.d/60-minimos-delegate.conf": "base/units/user@.service.d/60-minimos-delegate.conf",
         "etc/systemd/system/dbus.service.d/50-minimos-hardening.conf": "base/units/dbus.service.d/50-minimos-hardening.conf",
@@ -242,27 +231,26 @@ minimos.overlay(
         "etc/shadow": "base/config/shadow:640",
         "etc/nsswitch.conf": "base/config/nsswitch.conf",
         "etc/os-release": "base/config/os-release",
-        # No /etc/hostname: the platform passes the per-VM name on the
-        # kernel cmdline (ip=...:<name>:eth0:...), and a baked file
-        # would override it with the same name on every VM.
+        # No /etc/hostname. The platform puts each VM's name on the kernel
+        # command line (ip=...:<name>:eth0:...), and a baked file would
+        # give every VM the same name instead.
         "etc/hosts": "base/config/hosts",
         "etc/resolv.conf": "base/config/resolv.conf",
     },
     masks = MASKED_UNITS,
-    # /sbin/init needs no overlay entry: Wolfi's systemd package ships
-    # usr/bin/init -> ../lib/systemd/systemd and baselayout points
-    # /sbin at usr/bin. Wolfi has no /bin/sh at all, though — dash only
-    # installs /usr/bin/dash — so the sh every #!/bin/sh script and the
-    # platform's `/bin/sh -c` bootstrap need is ours to provide.
     symlinks = {
+        # /sbin/init needs nothing here, since Wolfi's systemd ships
+        # usr/bin/init and baselayout points /sbin at usr/bin. Wolfi has no
+        # /bin/sh, though. dash installs only /usr/bin/dash, and #!/bin/sh
+        # scripts and the platform's `/bin/sh -c` bootstrap both need sh.
         "usr/bin/sh": "dash",
         # Grow / to fill its disk on every boot, so `resize` takes effect.
         # exeuntu does this with an x-systemd.growfs line in /etc/fstab.
         # minimos has no fstab, so the vendor unit is linked in directly.
         "etc/systemd/system/local-fs.target.wants/systemd-growfs-root.service": "/usr/lib/systemd/system/systemd-growfs-root.service",
     },
-    # Each unit is enabled where its own [Install] section says:
-    # minimos-harden into sysinit.target, the other two into multi-user.
+    # Each unit is enabled per its own [Install] section, minimos-harden
+    # into sysinit.target and the other two into multi-user.target.
     units = [
         "base/units/chronyd.service",
         "base/units/exe-setup.service",
@@ -271,11 +259,8 @@ minimos.overlay(
     visibility = ["PUBLIC"],
 )
 
-# --------------------------------------------------------------------------
-# The base image itself: nothing but the two base layers. Bootable on
-# its own — this is what the boot-smoke test exercises.
-# --------------------------------------------------------------------------
-
+# The base image alone, bootable with no other layers. Its boot smoke
+# tests the base.
 minimos.image(
     name = "minimos",
     description = "Minimal systemd OCI image for exe.dev",
