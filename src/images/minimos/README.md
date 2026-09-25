@@ -104,6 +104,94 @@ to the rules like this:
   Rename it or leave it out.
 - `no layer declares its parent directory`: add the directory to `dirs`.
 
+## Running on exe.dev
+
+Build, push under a fresh tag, and boot. Run buck2 from the repository
+root, because `--show-full-simple-output` prints nothing from elsewhere.
+
+```
+TAG=ttl.sh/$USER-minimos-$(date +%s):1h
+docker load < $(buck2 build //src/images/minimos:minimos-docker --show-full-simple-output)
+docker tag minimos:latest $TAG
+docker push $TAG
+ssh exe.dev new --image=$TAG --name=minimos-test
+ssh exe.dev vm-logs minimos-test   # the console, even when SSH fails
+ssh exe.dev rm minimos-test
+```
+
+The same steps work for every example with its own target and image
+name. What the platform expects from a custom image:
+
+- **The Cmd has to be named `init`.** exe.dev's own init decides by file
+  name whether to exec a Cmd as PID 1 or run it as a child. `/sbin/init`
+  qualifies, and `minimos.image` fails the build for a `cmd` that doesn't
+  start with a program named `init`.
+- **The HTTPS proxy waits for SSH.** After boot the platform tries SSH
+  logins as `root` and as the `exe.dev/login-user` account, and the proxy
+  answers 503 until one works. The platform sshd maps every login name,
+  root included, to `exedev` (uid 1000). It refuses an account whose
+  shell doesn't exist, so the image ships the login wrapper, Bash, dash
+  as `sh`, and `nologin`, even though root never logs in.
+- **The platform brings its own sshd.** exe-init mounts `/exe.dev` with a
+  musl sshd, its host keys, authorized_keys and config, starts it outside
+  systemd, and then execs the Cmd. The image needs no OpenSSH, PAM or
+  crypto libraries for SSH.
+- **The proxy picks a port from ExposedPorts.** It takes 80 if the image
+  lists it, and otherwise the lowest listed port from 1024 up. With no
+  ports it uses 80. `ssh exe.dev share port <vm> <port>` overrides it.
+- **Mutable tags are cached.** exe.dev remembers what a tag resolved to,
+  for an hour for `latest`, `main` and `master` and a day for any other
+  tag. A VM created soon after a push can boot the old image, so push
+  each build under a new tag or use its digest.
+- **The root filesystem grows at boot.** A new VM's filesystem already
+  fills its disk, but `resize` only grows the block device. exeuntu grows
+  the filesystem with an `x-systemd.growfs` line in `/etc/fstab`. minimos
+  has no fstab, so the base links `systemd-growfs-root.service` into
+  `local-fs.target`, with a drop-in that skips it under docker. It runs
+  on every boot and does nothing while `/` already fills the disk.
+- **Setup scripts run as exedev, and may run again.**
+  `exe-setup.service` runs `/exe.dev/setup`, the `--setup-script` given
+  to `new`, as exedev with no capabilities and a read-only system. It can
+  set up `/home/exedev` and nothing else, so system changes belong in the
+  image. exe.dev's docs say the script runs once at first boot, but the
+  platform writes it back on every boot and the unit runs it again, so
+  make it safe to run twice. The unit deletes the file after each run,
+  so secrets in it don't stay on disk.
+- **Ship `mount(8)`.** `.mount` units run `/usr/bin/mount`, and without
+  it the boot ends `degraded` on a VM. Docker hides this by mounting
+  `/dev/mqueue` itself.
+- **Ship the C.UTF-8 locale.** The Cmd environment sets `LANG=C.UTF-8`
+  and systemd passes it to every unit. Without `/usr/lib/locale/C.utf8`
+  from Wolfi's `glibc-locale-posix`, `setlocale()` fails, and some
+  daemons, valkey for one, exit.
+- **The platform writes `/etc/resolv.conf` and `/etc/hosts`.** At boot
+  exe.dev replaces both, pointing DNS at `169.254.169.254` and adding the
+  VM's own name to `/etc/hosts`. The base still bakes both, with
+  `1.1.1.1` as the resolver, for docker and in case the platform stops
+  writing them. Platform names such as `chatgpt.int.exe.xyz` are in
+  public DNS too.
+- **Don't bake `/etc/hostname`.** Each VM's name comes from the kernel
+  command line, and a baked file would give every VM the same name.
+- **Time comes from `/dev/ptp0`.** Every VM has a KVM virtual PTP clock,
+  created by devtmpfs with no udev, and it needs no network or module.
+  There's no RTC (`timedatectl` shows `RTC time: n/a`), so chrony has no
+  `rtcsync`.
+- **The disk doesn't support discard.**
+  `/sys/block/vda/queue/discard_max_bytes` is 0, so there's no
+  `fstrim.timer`.
+- **The console is a log, not a terminal.** `ssh exe.dev vm-logs` shows
+  systemd's status lines and the platform sshd's errors, and works when
+  SSH doesn't. systemd 256 and later also write terminal escapes unless
+  `TERM` is dumb, which is why the image environment sets `TERM=dumb`
+  and `SYSTEMD_COLORS=0` on top of `--log-color=false`. SSH sessions get
+  their own `TERM` from the platform sshd.
+
+Logging in with `ssh <vm>.exe.xyz` lands in exedev's login wrapper.
+Appliance images give you Bash with core dumps off, and Bash builtins
+plus `systemctl` and `journalctl` are enough to look around. Dev images
+refuse the login unless the wrapper can place Bash in a bounded user
+scope, as `examples/README.md` explains.
+
 ## Security & hardening
 
 The threat model is "trusted workloads on a single-owner VM": the base
@@ -488,105 +576,3 @@ buck2 test //src/images/minimos:minimos-boot-smoke
 # --privileged; use the boot-smoke target above so the test stays bounded.
 docker load < $(buck2 build root//src/images/minimos:minimos-docker --show-full-simple-output)
 ```
-
-### `exe.dev` virtual machine
-
-```
-# exe.dev end-to-end (via ttl.sh — anonymous, TTL-based)
-docker load < $(buck2 build root//src/images/minimos:minimos-docker --show-full-simple-output)
-docker tag minimos:latest ttl.sh/$USER-minimos:1h
-docker push ttl.sh/$USER-minimos:1h
-ssh exe.dev new --image=ttl.sh/$USER-minimos:1h --name minimos-test
-# verify, then:
-ssh exe.dev rm minimos-test
-```
-
-The same loop works for any example — e.g. the nginx one:
-
-```
-docker load < $(buck2 build //src/images/minimos/examples/nginx:minimos-nginx-docker --show-full-simple-output)
-docker tag minimos-nginx:latest ttl.sh/$USER-minimos-nginx:1h
-docker push ttl.sh/$USER-minimos-nginx:1h
-ssh exe.dev new --image=ttl.sh/$USER-minimos-nginx:1h --name minimos-nginx
-# visit https://minimos-nginx.<your-domain> — index.html renders
-```
-
-## exe.dev integration notes
-
-Hard-won facts about what the platform expects from a custom image:
-
-- **Name the Cmd `init`.** exe.dev's own init execs a Cmd as PID 1 only
-  when its file name is `init`, and runs anything else as a child.
-  `/sbin/init` qualifies, and `minimos.image` fails the build for a `cmd`
-  that doesn't start with a program named `init`.
-- **exe.dev gates HTTP proxy readiness on an SSH login probe.** After boot,
-  the platform repeatedly tries `root` and the user named by the
-  `exe.dev/login-user` OCI label until a login succeeds; until then the HTTPS
-  proxy answers `503` no matter what is listening inside. The platform maps
-  external SSH names to that configured login user, so even `ssh root@...`
-  becomes uid 1000 rather than uid 0. The local `root` account remains locked
-  with `/usr/sbin/nologin`; `exedev` uses the minimos wrapper, which ultimately
-  runs Bash. The platform sshd `stat()`s account shell paths and refuses an
-  account whose path is missing, so the image must ship the wrapper, Bash,
-  Dash/`sh`, and `nologin` even though root is not interactive.
-- **The platform's sshd is self-contained.** exe-init injects
-  `/exe.dev/bin/sshd` (musl-linked against `/exe.dev/lib/ld-musl.so.1`,
-  with its own host keys, authorized_keys, and config under
-  `/exe.dev/etc/ssh/`) and starts it before exec'ing the image's Cmd as
-  PID 1. The image needs no OpenSSH, PAM, or crypto libraries for it.
-- **Setup scripts run as exedev, and may run again.**
-  `exe-setup.service` runs `/exe.dev/setup`, the `--setup-script` given
-  to `new`, as exedev with no capabilities and a read-only system. It can
-  set up `/home/exedev` and nothing else, so system changes belong in the
-  image. exe.dev's docs say the script runs once at first boot, but the
-  platform writes it back on every boot and the unit runs it again, so
-  make it safe to run twice. The unit deletes the file after each run,
-  so secrets in it don't stay on disk.
-- **Ship `mount(8)`.** systemd `.mount` units (`dev-mqueue.mount`, …)
-  shell out to `/usr/bin/mount`; without it the boot ends `degraded` in
-  an exe.dev VM. Docker hides this by premounting `/dev/mqueue`.
-- **Ship the C.UTF-8 locale.** The boot contract exports `LANG=C.UTF-8`
-  and systemd forwards it to every unit; without the locale data
-  (`/usr/lib/locale/C.utf8`, Wolfi's `glibc-locale-posix` package)
-  `setlocale()` fails, which some daemons (valkey) treat as fatal.
-- **The hypervisor hands out the time, via `/dev/ptp0`.** Every exe.dev VM
-  has a `KVM virtual PTP` clock there (`cat
-  /sys/class/ptp/ptp0/clock_name`), created by devtmpfs without any udev
-  involvement, so it is present in an image this minimal. It needs no
-  network and no `modprobe` — which matters, because minimos latches
-  `kernel.modules_disabled=1` during `sysinit.target`. There is no RTC on
-  these VMs (`timedatectl` reports `RTC time: n/a`), so chrony's `rtcsync`
-  has nothing to write back to and is deliberately absent.
-- **The root filesystem grows at boot.** A new VM's filesystem already
-  fills its disk, but `resize` only grows the block device. exeuntu grows
-  the filesystem with an `x-systemd.growfs` line in `/etc/fstab`. minimos
-  has no fstab, so the base links `systemd-growfs-root.service` into
-  `local-fs.target`, with a drop-in that skips it under docker. It runs
-  on every boot and does nothing while `/` already fills the disk.
-- **The root disk does not support discard.** `/sys/block/vda/queue/
-  discard_max_bytes` is 0, so `fstrim` would report the operation as
-  unsupported and free nothing; there is no `fstrim.timer` here for that
-  reason rather than by oversight.
-- **Bake `/etc/resolv.conf`.** The VM's interface comes up from the
-  kernel `ip=` cmdline parameter, which carries no DNS servers, and
-  nothing on the platform writes a resolv.conf into the image — without
-  one, glibc queries localhost and all resolution fails. The base bakes
-  `nameserver 1.1.1.1` (what the stock image uses). Platform-internal
-  names like `chatgpt.int.exe.xyz` resolve through public DNS (to a
-  link-local metadata address), so no special resolver is needed.
-- **ttl.sh tags are cached by the platform.** Pushing a changed image
-  under the same ttl.sh tag can boot the stale bytes on the next
-  `ssh exe.dev new`; use a fresh tag per push.
-- **Boot diagnostics:** `ssh exe.dev vm-logs <vm>` shows the VM's console
-  (systemd `--show-status` output and platform sshd stderr land there) —
-  it works even when you can't SSH in. That stream is a log dump, not a
-  terminal, and keeping it plain takes more than `--log-color=false`
-  since systemd 256: PID 1 also probes the terminal size and emits OSC
-  context sequences unless the terminal is dumb, so `minimos.image`
-  bakes `TERM=dumb` and `SYSTEMD_COLORS=0` into the image env (SSH
-  sessions are unaffected — the platform sshd sets its own TERM). Plain
-  `ssh <vm>.exe.xyz` enters through the exedev wrapper: appliance images get a
-  core-disabled Bash for triage, while dev/Codex images fail closed unless the
-  wrapper can place Bash in a bounded delegated user scope. Appliance images
-  have no coreutils, but Bash builtins and `systemctl`/`journalctl` are enough
-  for triage.
