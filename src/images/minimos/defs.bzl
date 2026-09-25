@@ -25,7 +25,9 @@ from source. There is no way to cull a foreign image.
 
 `minimos.image` always stacks the two base layers first and bakes in the
 exe.dev boot contract. The worked compositions live in examples/, and
-nginx is the fullest one.
+nginx is the fullest one. Push any image with its `-push` target:
+
+    buck2 run //pkg:my-app-push -- ttl.sh/$USER-my-app:1h
 """
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
@@ -208,10 +210,13 @@ def _image(
         visibility = None):
     """A bootable minimos image: the base layers with `layers` on top.
 
-    Emits three targets:
+    Emits four targets:
 
       <name>             the OCI image layout directory
       <name>-docker      a docker-archive tarball for `docker load`
+      <name>-push        `buck2 run` it with a destination such as
+                         ttl.sh/$USER-image:1h to push the image with
+                         skopeo. It prints the pushed image by digest.
       <name>-boot-smoke  a docker boot test, unless boot_smoke=False. It
                          requires systemd to reach `running` with no
                          failed units and every unit in boot_smoke_units
@@ -301,6 +306,12 @@ def _image(
         image = ":" + name,
         image_name = name,
         out = name + ".tar",
+        visibility = visibility,
+    )
+
+    depot.oci.push(
+        name = name + "-push",
+        image = ":" + name,
         visibility = visibility,
     )
 
