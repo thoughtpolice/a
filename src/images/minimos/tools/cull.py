@@ -15,12 +15,13 @@ Inputs:
                          searched for further dependencies
   --out FILE             output tar path
 
-For every kept ELF binary (ET_EXEC or ET_DYN), the transitive closure of
-its DT_NEEDED libraries is resolved against the rootfs's /usr/lib (and
-systemd's private /usr/lib/systemd) and added to the kept set. Symlinks
-are preserved (not followed) and the pointed-to path is added too.
+cull resolves the DT_NEEDED closure of every kept ELF file against the
+rootfs's /usr/lib and systemd's private /usr/lib/systemd, and keeps those
+libraries too. A kept symlink stays a symlink, and its target is kept.
+An unresolved soname fails the run. Setuid and setgid bits never make it
+into the output.
 
-Pure stdlib, no pyelftools, so the tool needs no third-party packages.
+The ELF parsing is stdlib-only, so the tool needs no third-party packages.
 """
 
 import argparse
@@ -36,11 +37,11 @@ from pathlib import Path, PurePosixPath
 from common import UnsafeInputError, atomic_output, link_parts
 
 
-# Wolfi is fully usr-merged: every library lives under /usr/lib and the
-# /lib, /lib64 and /usr/lib64 links point there, so this finds each one
-# at its canonical path. (A "/lib/..." result would make tar/docker
-# extract into the symlink target and as a new directory.) /usr/lib/systemd
-# is the RPATH systemd's binaries carry for libsystemd-core-*.so and
+# Wolfi is fully usr-merged. Every library lives under /usr/lib, and
+# /lib, /lib64 and /usr/lib64 link there, so searching /usr/lib finds each
+# one at its real path. A "/lib/..." member would make an extractor
+# create a directory in place of the merged-usr link. /usr/lib/systemd is
+# the RPATH systemd's binaries carry for libsystemd-core-*.so and
 # libsystemd-shared-*.so.
 LIB_SEARCH = [
     "/usr/lib/systemd",
@@ -395,10 +396,9 @@ def close_elf(rootfs: Path, kept: set[Path], provided: Path | None = None) -> se
                 continue
             resolved = resolve_lib(search, needed)
             if resolved is None:
-                # A neighbouring layer may provide it at runtime, but
-                # say so: a silently missing soname cost a debugging
-                # session once (libmount dlopen'd by systemd needed a
-                # libblkid nobody shipped).
+                # Collected rather than skipped. A silently missing soname
+                # once cost a debugging session, when the libmount systemd
+                # dlopens needed a libblkid nobody shipped.
                 unresolved.setdefault(needed, current)
                 continue
             if resolved in seen:
@@ -491,10 +491,10 @@ def write_tar(rootfs: Path, kept: set[Path], out: Path) -> None:
             info.gid = 0
             info.uname = ""
             info.gname = ""
-            # Setuid/setgid never survive into the image: nothing in a
-            # minimos rootfs escalates via file modes (services that
-            # need privilege start with it), and Wolfi ships
-            # mount/umount setuid-root. Sticky bits (e.g. /tmp) stay.
+            # Nothing in a minimos image gains privilege from its file
+            # mode, since services that need privilege start with it.
+            # Wolfi ships mount and umount setuid root, so the bits are
+            # cleared here as well as in mkapkroot. Sticky bits stay.
             info.mode = stat.S_IMODE(lst.st_mode) & ~(
                 stat.S_ISUID | stat.S_ISGID
             )
@@ -547,8 +547,8 @@ def _plain_directory(path: Path, what: str) -> Path | None:
     if metadata is None or not stat.S_ISDIR(metadata.st_mode) or path.is_symlink():
         log(f"error: {what} is not a directory: {path}")
         return None
-    # Resolve up front: the path-set logic compares against
-    # rootfs.resolve(), so a relative path would never match.
+    # The path sets are compared against rootfs.resolve(), so a relative
+    # path would never match.
     return path.resolve()
 
 

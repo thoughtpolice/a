@@ -4,12 +4,14 @@
 """
 Extract apk v2 package data sections into a rootfs directory.
 
-An .apk is three concatenated gzip streams — signature, control, data.
-gzip's multistream mode plus tarfile's ignore_zeros reads all three as
-one tar; the signature/control entries all start with "." (.SIGN...,
-.PKGINFO, install hooks) and are skipped, leaving only rootfs content.
-No apk-tools, no scriptlets, no network: package installation is just
-deterministic extraction, in argument order, later packages winning.
+An .apk is three concatenated gzip streams holding the signature, the
+control data and the package contents. gzip's multistream mode and
+tarfile's ignore_zeros read all three as one tar. The signature and
+control entries all start with "." (.SIGN..., .PKGINFO, install hooks),
+so skipping those leaves only rootfs content. Installing a package is
+plain extraction in argument order, with later packages winning. No
+apk-tools, scriptlets or network are involved, and setuid and setgid
+bits are dropped on the way.
 
 Usage: mkapkroot.py --dest DIR PKG.apk...
 """

@@ -2,12 +2,10 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 """
-Build an OCI image from scratch: one or more tar layers + config, no base.
+Build an OCI image from layer tars alone, with no base image.
 
-Unlike `buck/lib/oci:oci_image`, this does not inherit a base image's
-layers — the resulting image contains ONLY the provided tars. Written
-for `src/images/minimos/` where we want a true Bottlerocket-style
-appliance image.
+`buck/lib/oci:oci_image` always keeps a base image's layers. minimos
+images contain the given tars and nothing else, so they are built here.
 
 Usage:
   scratch_image.py build \\
@@ -122,10 +120,9 @@ class CompositionPolicy:
     directory out of a composable subtree and `composable` can reopen one
     named file inside it.
 
-    This is deliberately the inverse of an allow-everything-then-name-the-
-    dangerous-bits policy: a search directory nobody has thought about —
-    a new systemd unit path, a new sysctl.d, an ld.so hook — is refused
-    because it was never opened, not permitted because it was never denied.
+    Naming the dangerous paths instead would miss any search directory
+    nobody thought of, such as a new systemd unit path, a new sysctl.d or
+    a new ld.so hook. Here those are refused because nothing opened them.
 
     Replacement is handled separately and unconditionally. A composition
     layer may not redefine any path a lower layer established, whatever the
@@ -428,10 +425,10 @@ def apply_layer_state(entries: dict[str, LayerEntry], state: dict[str, LayerEntr
 
         if policy.enforce:
             if existing is not None:
-                # Restating an ancestor directory with identical ownership and
-                # mode is how every composition overlay declares its parents.
-                # Anything else redefines what a lower layer established —
-                # a binary, a unit, a library, an account file.
+                # A composition overlay may restate an ancestor directory
+                # with the same mode and owner to declare its parents.
+                # Anything else redefines a binary, unit, library or
+                # account file that a lower layer established.
                 if not (
                     entry.kind == "directory"
                     and existing.kind == "directory"
@@ -770,8 +767,8 @@ def _build(args, policy: CompositionPolicy) -> int:
             effective_state,
             parents_with_children,
             policy if index >= args.base_layer_count else CompositionPolicy(),
-            # Validation reads the private copy, but a policy violation is
-            # something a person has to go fix: name the layer they declared.
+            # Validation reads the private copy, but errors name the layer
+            # as declared, since that's what a person has to go fix.
             source_layer,
         )
         diff_ids.append(diff_id)
