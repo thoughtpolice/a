@@ -1,17 +1,17 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 #
-# Paths to DROP from the culled rootfs. Applied both before .so closure
-# (so denied binaries don't drag in extra libs) AND after.
+# Paths dropped from the culled base rootfs. cull.py applies this list
+# before the .so closure, so a denied binary pulls in no libraries, and
+# again after it.
 #
-# Wolfi builds systemd with every optional dependency behind dlopen, so
-# dropping a binary here really does drop its whole feature: none of
-# these pull libraries into the image. Units that reference denied
-# binaries are masked in the overlay (see BUILD).
+# Wolfi builds systemd's optional libraries behind dlopen, so dropping a
+# binary here drops its whole feature. BUILD masks the units that name a
+# denied binary.
 
-# Block-device / partition / boot-loader machinery: minimos images are
-# container rootfses booted by the exe.dev hypervisor; there is no ESP,
-# no LUKS, no fstab and no repartitioning. systemd-growfs stays, since the
-# base runs systemd-growfs-root.service on VMs.
+# Block devices, partitions and boot loaders. The hypervisor boots a raw
+# ext4 root with no ESP, LUKS, fstab or repartitioning. systemd-growfs
+# stays, since the base runs systemd-growfs-root.service on VMs.
 /usr/lib/systemd/systemd-cryptsetup
 /usr/lib/systemd/systemd-integritysetup
 /usr/lib/systemd/systemd-veritysetup
@@ -50,8 +50,8 @@
 /usr/bin/systemd-mstack
 /usr/bin/systemd-umount
 
-# Network management: exe.dev VMs get their network from the platform;
-# no networkd/resolved (their units are masked in the overlay).
+# Network management. The platform configures the network, and BUILD
+# masks the networkd and resolved units.
 /usr/lib/systemd/systemd-networkd
 /usr/lib/systemd/systemd-networkd-wait-online
 /usr/lib/systemd/systemd-network-generator
@@ -96,77 +96,67 @@
 /usr/bin/systemd-mute-console
 /usr/bin/sulogin
 
-# ldconfig: .so deps are resolved at build time; ldconfig.service is
-# masked in the overlay.
+# ldconfig. The build resolves .so dependencies, and BUILD masks
+# ldconfig.service.
 /usr/bin/ldconfig
 /usr/bin/ld.so
 /etc/apk/**
 
-# Vendor sysctl files. systemd-sysctl reads /usr/lib/sysctl.d on the same
-# pass as /etc/sysctl.d, so anything left here defeats the two-tier split:
-# host-global keys must reach the kernel only from
-# /usr/lib/minimos/sysctl-vm.conf, via minimos-harden.service, on a real VM.
+# Vendor sysctl files. systemd-sysctl reads /usr/lib/sysctl.d in the same
+# pass as /etc/sysctl.d, so host-global keys left here would reach a
+# docker host's kernel. Those keys belong in
+# /usr/lib/minimos/sysctl-vm.conf, which only minimos-harden.service
+# applies, and only on a VM.
 #   50-coredump.conf points kernel.core_pattern at the culled
-#     systemd-coredump binary and re-enables suid coredumps.
-#   50-default.conf carries kernel.sysrq, kernel.core_uses_pid and
-#     fs.protected_* — the netns-safe half is restated in
-#     sysctl.d/60-minimos-hardening.conf, the global half in sysctl-vm.conf
-#     at strictly stronger values.
-#   50-pid-max.conf sets kernel.pid_max, which is host-global;
-#     sysctl-vm.conf carries it instead.
+#     systemd-coredump and turns suid coredumps back on.
+#   50-default.conf mixes kernel.sysrq, kernel.core_uses_pid and
+#     fs.protected_* with network keys. 60-minimos-hardening.conf restates
+#     the network half, and sysctl-vm.conf carries the rest at stricter
+#     values.
+#   50-pid-max.conf sets kernel.pid_max, which is host-global and lives in
+#     sysctl-vm.conf instead.
 /usr/lib/sysctl.d/50-coredump.conf
 /usr/lib/sysctl.d/50-default.conf
 /usr/lib/sysctl.d/50-pid-max.conf
 
-# Vendor tmpfiles that provision image content from outside the image.
+# Vendor tmpfiles that provision the image from outside it.
 #   provision.conf writes /etc/hosts and /root/.ssh/authorized_keys from
-#     system credentials (SMBIOS/fw_cfg/cmdline). minimos bakes those files;
-#     nothing outside the image may rewrite them at boot, for the same reason
-#     sysusers.d is culled.
-#   static-nodes-permissions.conf chmods /dev/{fuse,net/tun,kvm,vfio/vfio,
-#     vhost-*} to 0666 and references audio/kvm groups the baked /etc/group
-#     does not define. Both the world-writable devices and the boot warnings
-#     are unwanted; a composition that needs one of those nodes should grant
-#     it deliberately via its own unit's DeviceAllow=.
+#     SMBIOS, fw_cfg or kernel command line credentials. minimos bakes
+#     those files, and nothing outside the image may rewrite them.
+#   static-nodes-permissions.conf makes /dev/{fuse,net/tun,kvm,vfio/vfio,
+#     vhost-*} mode 0666 and names audio and kvm groups the baked
+#     /etc/group lacks. A composition that needs one of those devices
+#     should grant it with DeviceAllow= in its own unit.
 #   20-systemd-shell-extra.conf links /etc/profile.d/70-systemd-shell-extra.sh
-#     to a script this image does not ship.
+#     to a script this image doesn't ship.
 /usr/lib/tmpfiles.d/provision.conf
 /usr/lib/tmpfiles.d/static-nodes-permissions.conf
 /usr/lib/tmpfiles.d/20-systemd-shell-extra.conf
 
-# Vendor tmpfiles for daemons this image culls. Dead weight is the least
-# of it:
-#   systemd-network.conf names the systemd-network account, which no
-#     longer exists here — `Failed to resolve user 'systemd-network'` on
-#     every boot, the same defect class as the oom1 bus policy.
-#   systemd-resolve.conf carries `L /etc/resolv.conf -> ../run/systemd/
-#     resolve/stub-resolv.conf`. It is inert today only because `L`
-#     leaves an existing file alone and minimos bakes that file; one
-#     upstream modifier change (`L+`) would silently redirect DNS to a
-#     stub no resolved is running to serve.
-#   systemd-pstore.conf creates state for a binary the denylist drops.
-#   20-systemd-ssh-generator.conf creates /run/sshd and a symlink into
-#     /usr/lib/systemd/ssh_config.d for the ssh proxy and generator,
-#     both of which are denied; the platform's sshd lives in /exe.dev and
-#     reads none of it, so this only leaves a dangling link in /etc/ssh.
+# Vendor tmpfiles for culled daemons.
+#   systemd-network.conf names the systemd-network account, which the
+#     baked passwd doesn't have, and fails to resolve it on every boot.
+#   systemd-resolve.conf has `L /etc/resolv.conf -> ../run/systemd/
+#     resolve/stub-resolv.conf`. `L` leaves the baked resolv.conf alone
+#     today, but an upstream switch to `L+` would point DNS at a stub no
+#     resolved serves.
+#   systemd-pstore.conf creates state for a denied binary.
+#   20-systemd-ssh-generator.conf creates /run/sshd and links into
+#     /usr/lib/systemd/ssh_config.d for the denied ssh proxy and
+#     generator. The platform sshd reads none of it.
 /usr/lib/tmpfiles.d/systemd-network.conf
 /usr/lib/tmpfiles.d/systemd-resolve.conf
 /usr/lib/tmpfiles.d/systemd-pstore.conf
 /usr/lib/tmpfiles.d/20-systemd-ssh-generator.conf
 
-# Bus policy for services this image does not have. /etc/dbus-1/** and
-# /usr/share/dbus-1/** are kept wholesale, so these arrive with systemd
-# even though every daemon they describe is culled (networkd, resolved,
-# oomd, localed, timedated) or masked (hostnamed). Two reasons to drop
-# them rather than leave them inert: oom1.conf names a `systemd-oom`
-# account the baked /etc/passwd does not define, which makes dbus
-# complain on every single boot ("Unknown username ... in message bus
-# configuration file"), and each file is a set of send/receive rules for
-# a bus name nothing can own — surface with no service behind it.
-# Removing network1/resolve1 also retires the last references to the
-# systemd-network and systemd-resolve accounts, which is why those (and
-# systemd-timesync, now that chrony does the clock) leave /etc/passwd in
-# the same change.
+# Bus policy for services this image doesn't have. Every daemon these
+# describe is culled, or masked in the case of hostnamed.
+# org.freedesktop.oom1.conf names a systemd-oom account the baked passwd
+# lacks, and dbus complains about it on every boot. The rest grant
+# send and receive rules for bus names nothing can own. Dropping
+# network1 and resolve1 also removed the last references to the
+# systemd-network and systemd-resolve accounts, so those left
+# /etc/passwd along with systemd-timesync.
 /usr/share/dbus-1/system.d/org.freedesktop.hostname1.conf
 /usr/share/dbus-1/system.d/org.freedesktop.locale1.conf
 /usr/share/dbus-1/system.d/org.freedesktop.network1.conf
@@ -174,28 +164,26 @@
 /usr/share/dbus-1/system.d/org.freedesktop.resolve1.conf
 /usr/share/dbus-1/system.d/org.freedesktop.timedate1.conf
 
-# chrony's vendor units, which the wholesale /usr/lib/systemd/system/**
-# keep would otherwise pull in. minimos ships its own chronyd.service in
-# /etc/systemd/system, which outranks these, but they are dropped rather
-# than shadowed: the vendor unit ends by *undoing* its own hardening
-# (`NoNewPrivileges=no`, plus AF_NETLINK back into RestrictAddressFamilies)
-# so that the mailonchange directive can run sendmail — a binary this
-# image does not have and a privilege transition it should never allow.
-# chrony-wait.service blocks boot until the clock is synchronized, which
-# is the wrong tradeoff for an appliance whose first source is local.
+# chrony's vendor units. minimos ships its own chronyd.service in
+# /etc/systemd/system, which would outrank this one, but the vendor unit
+# is dropped outright. It ends by undoing its own hardening,
+# `NoNewPrivileges=no` and AF_NETLINK, so mailonchange can run sendmail.
+# chrony-wait.service would hold up boot until the clock syncs, and the
+# base's only source is local.
 /usr/lib/systemd/system/chronyd.service
 /usr/lib/systemd/system/chrony-wait.service
 /usr/lib/systemd/system/chrony-wait.service.d/**
 
-# Generators run as root, before any unit, on every boot. These two turn
-# kernel-cmdline and credential input into units:
-# systemd.run=<cmd> and systemd.extra-unit.<name>/systemd.unit-dropin.<name>
-# (which land in /run/systemd/generator.early, above /etc/systemd/system).
-# On minimos, configuration changes are image rebuilds.
+# Generators run as root before any unit on every boot. These two turn
+# systemd.run=<cmd>, systemd.extra-unit.<name> and
+# systemd.unit-dropin.<name> from the kernel command line or credentials
+# into units in /run/systemd/generator.early, which outranks
+# /etc/systemd/system. On minimos a configuration change is an image
+# rebuild.
 /usr/lib/systemd/system-generators/systemd-debug-generator
 /usr/lib/systemd/system-generators/systemd-run-generator
 
-# util-linux-login ships more than the nologin we keep it for.
+# util-linux-login ships more than the nologin the base keeps.
 /usr/bin/login
 /usr/bin/last
 /usr/bin/lastb
@@ -203,7 +191,7 @@
 /usr/bin/newgrp
 /etc/pam.d/**
 
-# Distro /etc the overlay replaces (or that only apk cares about).
+# Distro /etc files the overlay replaces or only apk uses.
 /etc/passwd
 /etc/group
 /etc/shadow
