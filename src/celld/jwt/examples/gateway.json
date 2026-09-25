@@ -1,0 +1,341 @@
+{
+  "vars": {
+    "JWKS_COOLDOWN_MS": "3000"
+  },
+  "steps": [
+    {
+      "name": "a token comes from the authorization server through the gateway",
+      "request": {
+        "method": "POST",
+        "path": "/oauth/token",
+        "json": {
+          "client_id": "reporting-cli",
+          "scope": "profile"
+        }
+      },
+      "expect": {
+        "json": {
+          "token_type": "Bearer",
+          "expires_in": 300,
+          "access_token": {
+            "$regex": "^eyJ"
+          }
+        }
+      },
+      "save": {
+        "token1": "json.access_token"
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/oauth/token"
+        }
+      ]
+    },
+    {
+      "name": "the first API call fetches the issuer's JWKS and verifies the token",
+      "request": {
+        "path": "/api/whoami",
+        "headers": {
+          "authorization": "Bearer {token1}"
+        }
+      },
+      "expect": {
+        "json": {
+          "sub": "reporting-cli",
+          "scopes": [
+            "profile"
+          ],
+          "kid": {
+            "$regex": "^[\\w-]{43}$"
+          }
+        }
+      },
+      "save": {
+        "kid1": "json.kid"
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/.well-known/jwks.json",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    {
+      "name": "later calls use the cached set: nothing reaches the issuer",
+      "request": {
+        "path": "/api/whoami",
+        "headers": {
+          "authorization": "Bearer {token1}"
+        }
+      },
+      "expect": {
+        "json": {
+          "sub": "reporting-cli"
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a kid the set does not have is refused, and within the cooldown it does not cause a fetch",
+      "script": {
+        "next": {
+          "kid": "made-up"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/oauth/token",
+        "json": {
+          "client_id": "reporting-cli"
+        }
+      },
+      "save": {
+        "madeup": "json.access_token"
+      }
+    },
+    {
+      "name": "so it is no_key, straight from the cache",
+      "request": {
+        "path": "/api/whoami",
+        "headers": {
+          "authorization": "Bearer {madeup}"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": "Bearer realm=\"api\", error=\"invalid_token\", error_description=\"no_key\""
+        },
+        "json": {
+          "error": "no_key"
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/oauth/token"
+        }
+      ]
+    },
+    {
+      "name": "the issuer rotates its key",
+      "script": {
+        "rotate": true
+      },
+      "request": {
+        "method": "POST",
+        "path": "/oauth/token",
+        "json": {
+          "client_id": "reporting-cli",
+          "scope": "profile reports:read"
+        }
+      },
+      "save": {
+        "token2": "json.access_token"
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/oauth/token"
+        }
+      ]
+    },
+    {
+      "name": "a token from the new key makes the gateway fetch the JWKS again, once the cooldown allows",
+      "request": {
+        "path": "/api/whoami",
+        "headers": {
+          "authorization": "Bearer {token2}"
+        }
+      },
+      "until": {
+        "seconds": 15,
+        "interval": 0.5
+      },
+      "expect": {
+        "json": {
+          "sub": "reporting-cli",
+          "kid": {
+            "$not": "{kid1}"
+          },
+          "scopes": [
+            "profile",
+            "reports:read"
+          ]
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/.well-known/jwks.json",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    {
+      "name": "tokens from the old key still verify: the issuer still publishes it",
+      "request": {
+        "path": "/api/whoami",
+        "headers": {
+          "authorization": "Bearer {token1}"
+        }
+      },
+      "expect": {
+        "json": {
+          "kid": "{kid1}"
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a scope the endpoint needs",
+      "request": {
+        "path": "/api/reports",
+        "headers": {
+          "authorization": "Bearer {token2}"
+        }
+      },
+      "expect": {
+        "json": {
+          "reports": [
+            "q3-revenue"
+          ]
+        }
+      }
+    },
+    {
+      "name": "is missing from the first token: 403",
+      "request": {
+        "path": "/api/reports",
+        "headers": {
+          "authorization": "Bearer {token1}"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "headers": {
+          "www-authenticate": {
+            "$contains": "error=\"insufficient_scope\""
+          }
+        }
+      }
+    },
+    {
+      "name": "a token for another audience",
+      "script": {
+        "next": {
+          "claims": {
+            "aud": "https://other.example"
+          }
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/oauth/token",
+        "json": {
+          "client_id": "reporting-cli"
+        }
+      },
+      "save": {
+        "other": "json.access_token"
+      }
+    },
+    {
+      "name": "is refused",
+      "request": {
+        "path": "/api/whoami",
+        "headers": {
+          "authorization": "Bearer {other}"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "audience"
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/oauth/token"
+        }
+      ]
+    },
+    {
+      "name": "an expired token, past the 30 seconds of skew allowed",
+      "script": {
+        "next": {
+          "expiresIn": -60
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/oauth/token",
+        "json": {
+          "client_id": "reporting-cli"
+        }
+      },
+      "save": {
+        "expired": "json.access_token"
+      }
+    },
+    {
+      "name": "is refused",
+      "request": {
+        "path": "/api/whoami",
+        "headers": {
+          "authorization": "Bearer {expired}"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "expired"
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/oauth/token"
+        }
+      ]
+    },
+    {
+      "name": "a token that picks HS256 is refused before any key is looked at",
+      "request": {
+        "path": "/api/whoami",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiAiSFMyNTYiLCAidHlwIjogImF0K2p3dCJ9.eyJpc3MiOiAieCIsICJhdWQiOiAiaHR0cHM6Ly9hcGkuZXhhbXBsZSIsICJzdWIiOiAibWFsbG9yeSIsICJleHAiOiA0MTAyNDQ0ODAwfQ.lwep_a2Aqv0RqEfwe2B1tluhaz1ruz6ox-BJIFWiu7o"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "alg_not_allowed"
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "no token: a bare challenge",
+      "request": {
+        "path": "/api/whoami"
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": "Bearer realm=\"api\""
+        },
+        "json": {
+          "error": "unauthorized"
+        }
+      }
+    }
+  ]
+}
