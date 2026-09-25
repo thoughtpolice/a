@@ -58,8 +58,8 @@ printf 'int seven(void);\nint main(void) { return seven() - 7; }\n' > main.c
 # Every absolute path the driver gives the compiler and the linker lies in
 # the installation.
 "$cxx" -### -O2 -pthread "$tests/native.cc" -o native-cxx 2> commands
-while read -r line; do
-    for word in $line; do
+while read -r -a words; do
+    for word in "${words[@]}"; do
         word=${word#\"}
         word=${word%\"}
         case $word in
