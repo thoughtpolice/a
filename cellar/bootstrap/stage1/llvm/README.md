@@ -25,14 +25,17 @@ the tarball, describe every library: its sources, include directories,
 defines and TableGen invocations. [inventory.py](inventory.py) evaluates them
 for one configuration (x86_64 Linux, musl, GCC, the AArch64 and X86 targets,
 zlib and zstd off) and writes the closure of the requested tools to
-[inventory.bzl](inventory.bzl). It runs by hand on the host, never in the
-build:
+[inventory.bzl](inventory.bzl). It runs on the host through `buck2 run`, never
+in a build, and rewrites the inventory from the extracted tarball for the
+tools it already names, and for any more given after `--`:
 
 ```sh
-python3 inventory.py path/to/llvm-project-23.1.0.src inventory.bzl \
-  //llvm:llvm-min-tblgen //llvm:llvm-tblgen //clang:clang //lld:lld \
-  //llvm:llvm-ar
+buck2 run cellar//bootstrap/stage1/llvm:inventory
+buck2 run cellar//bootstrap/stage1/llvm:inventory -- //llvm:llvm-nm
 ```
+
+From inside `cellar/`, which is a project of its own, the same command
+extracts the tarball again into `cellar/buck-out`.
 
 The evaluation follows Bazel's rules. Globs stay within their package,
 selects resolve against the configuration, and a library's `defines` and

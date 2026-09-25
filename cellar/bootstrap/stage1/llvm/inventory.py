@@ -9,8 +9,9 @@ utils/bazel/llvm-project-overlay. They list every library's sources, include
 directories, defines and TableGen invocations. This evaluates them for one
 configuration, x86_64 Linux with musl and GCC, and writes the closure of the
 requested tools as Starlark data for the cellar BUILD files. It runs on the
-host by hand, against an extracted release tarball; nothing in the build runs
-it.
+host, against an extracted release tarball, and nothing in a build runs it;
+buck2 run cellar//bootstrap/stage1/llvm:inventory passes it the tarball, the
+committed inventory and the tools that inventory names.
 
     inventory.py path/to/llvm-project-23.1.0.src inventory.bzl \
         //llvm:llvm-min-tblgen //llvm:llvm-tblgen

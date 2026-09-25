@@ -3,11 +3,11 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:host.bzl", "host_python_test")
+load("@cellar//bootstrap:host.bzl", "host_python_binary", "host_python_test")
 load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object", "compiler")
 load(":defs.bzl", "CAPTURE", "SOURCE", "llvm_files", "llvm_stage", "resource_headers", "source_files", "target_name")
-load(":inventory.bzl", "BINARIES")
+load(":inventory.bzl", "BINARIES", "ROOTS")
 load(":runtimes.bzl", "clang_compilers", "llvm_runtimes", "runtime_headers", "runtime_installation", "runtime_link", "runtime_source_files")
 
 GCC = "cellar//bootstrap/stage1/gcc13"
@@ -513,6 +513,17 @@ command_test(
 
 # The committed inventory is what inventory.py makes from this tarball.
 export_file(name = "inventory.bzl")
+
+# Rewrites inventory.bzl from the extracted tarball for the roots it names,
+# and for any more given after --.
+host_python_binary(
+    name = "inventory",
+    src = "inventory.py",
+    args = [
+        "$(location {})".format(SOURCE),
+        "$(location :inventory.bzl)",
+    ] + ROOTS,
+)
 
 host_python_test(
     name = "inventory-test",
