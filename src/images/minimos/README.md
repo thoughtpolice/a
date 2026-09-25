@@ -254,197 +254,70 @@ What the base enforces:
   than `=vm`, so a hypervisor systemd can't identify still gets
   hardened. `systemd-sysctl` carries on past a key it can't set, so the
   unit reads `kernel.modules_disabled` back and fails if it isn't 1.
-- **A control-plane/workload QoS hierarchy.** PID 1 and the platform SSH
-  listener remain in `init.scope`; normal system services use `system.slice`.
-  Both request CPU/I/O weight 1000, a 10% memory low-watermark, and finite task
-  ceilings (512 and 2048 respectively). `user.slice` receives weight 100,
-  `MemoryHigh=70%`, `MemoryMax=80%`, no swap, and `TasksMax=3072`. It also
-  carries aggregate root-filesystem `io.max` ceilings: 500 MB/s reads,
-  250 MB/s writes, 50K read IOPS, and 25K write IOPS. systemd resolves `/` to
-  the actual backing device, so this does not assume an undocumented device
-  name.
-  `user-workload.slice` is a child of `user.slice`, with a tighter 65%/70%
-  memory policy, no swap, and `TasksMax=2048` for application units that
-  explicitly select it; `exe-setup.service` does so and has tighter per-unit
-  limits. Application services and interactive scopes therefore share the
-  parent 80% memory and 3072-task aggregate ceiling instead of being separate
-  overcommitted top-level classes. CPU weights are relative contention
-  priorities, not hard quotas. I/O weights are likewise best-effort and need a
-  kernel/device scheduler that exposes `io.weight`; exe.dev's current
-  weightless virtio stack does not, so the aggregate bandwidth/IOPS ceilings
-  are the enforced disk-I/O boundary there. A composed service stays in
-  `system.slice` unless its unit opts into the workload slice and supplies any
-  service-specific ceilings it needs.
-- **The base's own services are sandboxed, not just composed ones.** journald
-  and logind ship upstream hardening blocks; Wolfi's `dbus.service` ships none
-  at all, and it is the one always-on service every local uid can reach. A
-  base drop-in gives it the same block the examples use — `ProtectSystem=strict`,
-  `PrivateTmp=`, `ProtectProc=invisible`, `CapabilityBoundingSet=CAP_AUDIT_WRITE`,
-  `RestrictAddressFamilies=AF_UNIX`, `SystemCallFilter=@system-service` — with
-  `RuntimeDirectory=dbus` for the socket.
-- **Bus policy states the deny that systemd currently only implies.** The
-  vendor policy lets any uid *send* `StartUnit`, `StartTransientUnit`,
-  `MaskUnitFiles` and friends to PID 1, commented "Managed via polkit or other
-  criteria"; minimos ships no polkit, so the refusal rests entirely on
-  systemd's fallback for an unreachable authority. It works — an unprivileged
-  `StartUnit` is denied — but it is one mechanism, and it changes meaning the
-  day a container runtime pulls polkit in. `/etc/dbus-1/system.d/50-minimos-deny.conf`
-  denies the manager interfaces outright and re-allows the read-only surface
-  `systemctl status`/`journalctl` need. Cgroup delegation is the one exception:
-  a per-user manager asks PID 1 to `AttachProcessesToUnit` for a scope it owns,
-  and systemd authorizes that against the unit's owning uid rather than via
-  polkit, so denying it would break the dev images' bounded login scopes
-  instead of closing a hole.
-- **An account exists only if something runs as it.** The baked files
-  define root, three Wolfi skeleton accounts, `systemd-journal`,
-  `messagebus`, `chrony`, `exedev` and `nobody` — that is the whole
-  identity surface. `systemd-network`, `systemd-resolve` and
-  `systemd-timesync` were removed once their daemons were culled and
-  chrony took over the clock; the only files still naming them were bus
-  policies and tmpfiles for services this image does not have, which are
-  denied in the same breath. The rule cuts both ways, and the boot smoke
-  is where it is enforced: a vendor config that names an account the
-  image lacks fails the boot loudly (`Failed to resolve user
-  'systemd-network'`) rather than leaving a directory unowned.
-- **No hardware watchdog, and no pretending otherwise.** exe.dev VMs
-  expose no `/dev/watchdog` (there is no `/sys/class/watchdog` either),
-  so systemd's `RuntimeWatchdogSec=` has nothing to arm, and neither
-  containerd nor chronyd implements the `sd_notify` watchdog protocol —
-  a `WatchdogSec=` on them would kill working daemons on a timer. What
-  covers the same ground here is `kernel.panic_on_oops=1` plus
-  `kernel.panic=10` in the VM-only sysctls (reboot rather than limp), and
-  per-unit `Restart=`/`Timeout*Sec=`. If a future platform grows a
-  watchdog device, arming it is a two-line change to
-  `system.conf.d/minimos-overrides.conf`.
-- **Nothing outside the image provisions the image.** `provision.conf` (which
-  writes `/etc/hosts` and `/root/.ssh/authorized_keys` from SMBIOS/fw_cfg/
-  cmdline credentials), `static-nodes-permissions.conf` (which chmods
-  `/dev/{fuse,net/tun,kvm,vhost-*}` to 0666), and the `systemd-run` and
-  `systemd-debug` generators (which turn `systemd.run=` and
-  `systemd.extra-unit.*` into root-executed units ahead of everything in
-  `/etc/systemd/system`) are all denylisted. Configuration changes are image
-  rebuilds, for the same reason `sysusers.d` is culled.
-- **The clock has one source, and it is not the network.** exe.dev VMs
-  expose `/dev/ptp0`, the KVM virtual PTP clock — a paravirtual device that
-  reads the host's clock through a hypercall. chrony takes its time from
-  that and nothing else: no `server`, no `pool`, and `PrivateNetwork=yes`
-  on the unit so the config cannot quietly grow one. The alternative would
-  be unauthenticated UDP from a public pool, because Wolfi builds chrony
-  without NTS (`-NTS` in its feature line), and time is not a low-stakes
-  input — it decides whether an expired certificate looks valid.
-  `chronyd` also demonstrates what a privileged daemon looks like here: it
-  starts as root only because it checks `geteuid()` rather than its
-  capabilities, immediately drops to uid 106 with its own `+PRIVDROP`
-  support, and ends up holding `CAP_SYS_TIME` and nothing else
-  (`CapEff: 0000000002000000` on a running VM), with no supplementary
-  groups, a seccomp filter, no network namespace, and `DevicePolicy=closed`
-  admitting exactly one character device. The bounding set carries
-  `CAP_SETUID`/`CAP_SETGID` purely so that drop can happen — `setgroups()`
-  needs `CAP_SETGID` even for uid 0. Under `docker` the unit is
-  condition-gated off entirely: a container shares the host's clock, and
-  disciplining it from inside would be both futile and hostile.
-- **No coredump machinery**: `systemd-coredump` is culled, its
-  `core_pattern` sysctl denied, `DumpCore=no` + `DefaultLimitCORE=0`
-  set globally; the persistent journal is capped at 64M.
-- **Deliberate divergences from Bottlerocket.** User namespaces remain
-  available, with finite VM-only object-count ceilings, so unprivileged
-  bubblewrap works and a future rootless-runtime composition remains possible.
-  There is no global `NoNewPrivileges=` because a future container runtime may
-  need controlled privilege transitions; individual services set it through
-  their sandbox policy.
-- **Where a container runtime fits.** `examples/container-host` is the
-  Bottlerocket-shaped composition: containerd with gVisor as the only OCI
-  runtime present, so a container cannot be started outside a userspace
-  kernel — there is no runc, crun, or runc shim in any layer to start one
-  with. It also makes the one divergence this base cannot express on its
-  own: containerd's control socket is handed to uid 1000, which is
-  root-equivalent access, because a container host whose owner cannot see
-  what is running is not administrable. Everything else in that image —
-  baked accounts, no setuid, no package manager, the composition policy —
-  holds unchanged. See its section in [examples/](examples/README.md) for
-  what the owner can and cannot do, and for the gVisor shim behavior that
-  makes the CRI sandbox annotation mandatory for non-CRI clients.
+- **Control plane first.** PID 1 and the platform SSH listener run in
+  `init.scope`, and system services in `system.slice`. Both get CPU and
+  I/O weight 1000, a 10% memory reserve, and task caps of 512 and 2048.
+  `user.slice` gets weight 100, `MemoryHigh=70%`, `MemoryMax=80%`, no
+  swap, 3072 tasks, and `io.max` ceilings on the root disk of 500 MB/s
+  read, 250 MB/s write, 50K read IOPS and 25K write IOPS. exe.dev's
+  virtio disk has no `io.weight`, so those ceilings are what actually
+  limits disk I/O. `user-workload.slice` sits inside `user.slice` with
+  65%/70% memory and 2048 tasks, for services that opt in, as
+  `exe-setup.service` and the example services do.
+- **The base's own services are sandboxed.** journald and logind carry
+  upstream hardening. Wolfi's `dbus.service` carries none, and every
+  local uid can reach it, so a base drop-in gives it the same sandbox the
+  examples use, bounded to `CAP_AUDIT_WRITE` and `AF_UNIX`.
+- **The bus refuses unit management outright.** systemd's vendor bus
+  policy lets any uid send `StartUnit`, `MaskUnitFiles` and the like to
+  PID 1 and leaves the decision to polkit. With no polkit, only systemd's
+  fallback refuses them. `/etc/dbus-1/system.d/50-minimos-deny.conf`
+  denies the manager interfaces on the bus as well, and allows back the
+  read-only calls `systemctl status` and `journalctl` need, plus the
+  process moves a user manager asks PID 1 for.
+- **An account exists only if something uses it.** The baked files hold
+  root, three Wolfi skeleton accounts, `systemd-journal`, `messagebus`,
+  `chrony`, `exedev` and `nobody`. Vendor files that name an account the
+  image lacks are denied, and the boot smoke fails on any that slip
+  through, since a missing account shows up as a boot warning.
+- **Nothing outside the image configures it.** systemd's
+  `provision.conf` would write `/etc/hosts` and root's authorized_keys
+  from credentials, `static-nodes-permissions.conf` would make
+  `/dev/{fuse,net/tun,kvm,vhost-*}` world-writable, and the
+  `systemd-run` and `systemd-debug` generators would turn kernel
+  command-line options into root units ahead of `/etc/systemd/system`.
+  All four are denied.
+- **The clock doesn't come from the network.** chrony reads `/dev/ptp0`
+  and nothing else, with `PrivateNetwork=yes` on the unit. Wolfi builds
+  chrony without NTS, so network time would be unauthenticated UDP.
+  chronyd starts as root only because it checks for uid 0, drops to the
+  `chrony` account itself, and keeps only `CAP_SYS_TIME`. Under docker
+  the unit is skipped, since a container shares the host's clock.
+- **No core dumps.** `systemd-coredump` is culled, its `core_pattern` is
+  denied, and `DumpCore=no` and `DefaultLimitCORE=0` are set globally.
+- **No watchdog.** exe.dev VMs have no `/dev/watchdog`, and neither
+  containerd nor chronyd speaks systemd's watchdog protocol, so
+  `WatchdogSec=` would kill healthy daemons. `kernel.panic_on_oops=1`,
+  `kernel.panic=10` and per-unit `Restart=` cover the same ground.
 
-Hardening a composed service: copy the sandbox block from an example
-unit — `valkey.service` is the canonical one. The shape: `DynamicUser=`
-(which implies `NoNewPrivileges`, `ProtectSystem=strict`,
-`PrivateTmp`, `RemoveIPC`,
-`RestrictSUIDSGID`), `StateDirectory=`/`LogsDirectory=`/
-`RuntimeDirectory=` instead of hand-made `/var` dirs, an empty
-`CapabilityBoundingSet=`, the `Protect*`/`Restrict*` block,
-`SystemCallFilter=@system-service`, and — for loopback-only services —
-`IPAddressDeny=any` + `IPAddressAllow=localhost`. Trim only what your
-service demonstrably needs (e.g. drop `MemoryDenyWriteExecute=` for a
-JIT).
+Where minimos departs from Bottlerocket on purpose: user namespaces stay
+available, with finite VM-only limits, so unprivileged bubblewrap works
+and rootless runtimes stay possible. There's no global
+`NoNewPrivileges=`, since a container runtime may need privilege
+transitions. Each service sets it in its own sandbox.
 
-Interactive images (`examples/dev` and `examples/codex`) relax exactly one
-image-content rule: they ship a userland, so their boot smokes pass
-`boot_smoke_userland = True` to waive the no-coreutils layer check. The package
-manager, account, mode, and privilege-escalation invariants remain.
+To harden a new service, start from `examples/memcached/memcached.service`.
+It uses `DynamicUser=`, which implies `NoNewPrivileges=`,
+`ProtectSystem=strict`, `PrivateTmp=`, `RemoveIPC=` and
+`RestrictSUIDSGID=`, plus `StateDirectory=` and friends instead of
+hand-made `/var` directories, an empty `CapabilityBoundingSet=`, the
+`Protect*` and `Restrict*` settings, `SystemCallFilter=@system-service`,
+and, for loopback services, `IPAddressDeny=any` with
+`IPAddressAllow=localhost`. Loosen only what the service needs, such as
+`MemoryDenyWriteExecute=` for a JIT.
 
-The dev overlay also creates `/etc/minimos/require-user-scope` and a lingering
-`user@1000.service`. Because the platform SSH listener starts before PID 1, an
-SSH child initially inherits `init.scope`; the exedev login wrapper therefore
-uses `systemd-run --user --scope` for both interactive shells and SSH commands.
-It refuses the login instead of running it unbounded if the user bus is not
-ready. Each resulting scope delegates `cpu cpuset io memory pids`, has CPU/I/O
-weight 100, `MemoryHigh=65%`, `MemoryMax=75%`, no swap, and `TasksMax=2048`, all
-under the aggregate `user.slice` ceiling. This covers processes that enter
-through the configured login shell; a new platform subsystem that bypasses
-that shell needs its own placement test and policy.
-
-The user manager has separate defaults for I/O/memory/task accounting, a
-2048-task default, a 30-second stop timeout, and a zero hard core-file limit.
-The login wrapper disables `systemd-run`'s pre-execution `$` expansion before
-passing an SSH command to Bash, so shell syntax is interpreted exactly once in
-the bounded scope.
-
-The current exe.dev SFTP subsystem is a confirmed exception: its authenticated
-uid-1000 handler does not invoke the account shell and remains in
-`init.scope`. It therefore misses the user-slice memory and disk-I/O ceilings
-and inherits control-plane priority, though the init-scope 512-task ceiling
-still applies. Do not solve this by putting a blunt memory maximum on
-`init.scope`, because PID 1 and the platform listener share it. A production
-devenv-host integration needs exe.dev to place each authenticated SFTP or
-forwarding data handler in a bounded user scope. Until then, treat those
-channels as an acknowledged QoS bypass, not a tenant boundary.
-
-### Development sandbox and shared-resource boundary
-
-Bubblewrap is present for same-owner process sandboxing, including Codex's
-Linux command sandbox. On a real VM it runs without setuid by using an
-unprivileged user namespace. That is useful containment, but it is not a tenant boundary: the
-process still belongs to host uid 1000 outside the namespace, and any home
-directory, socket, device, or credential deliberately exposed to it remains a
-same-owner capability. The Docker boot smoke verifies bubblewrap installation;
-the real-VM test must verify namespace and mount startup. Neither check
-certifies every caller's mount, network, seccomp, or file-access policy.
-
-The dev and Codex images are **not general rootless OCI container hosts**.
-They contain no Docker/Podman/containerd/runc-style runtime, subordinate-ID
-mapping helpers, `/etc/subuid` or `/etc/subgid` allocation, rootless networking,
-or writable-layer storage driver. Keeping user namespaces and cgroup delegation
-available is prerequisite plumbing, not an implemented container runtime.
-
-For a same-owner devenv or sandbox that shares host resources:
-
-- expose explicit workspace paths rather than `/home/exedev`; use read-only
-  mounts for source caches and other inputs unless writes are necessary;
-- do not pass `/run/user/1000/bus`, a future container-runtime socket, an SSH
-  agent, `/exe.dev`, host devices, or the host cgroup tree into a sandbox;
-- keep `.ssh`, `.codex`, integration state, and unrelated repositories outside
-  shared mounts, and treat access to an exe.dev integration endpoint as an
-  authorization capability even though its upstream key is not stored in the
-  VM;
-- apply per-workload cgroup limits plus a filesystem quota or dedicated volume;
-  memory/PID/I/O cgroups do not stop an image store, log, or workspace from
-  filling the root filesystem.
-
-Mutually untrusted workloads need distinct host identities with disjoint
-storage, user managers, cgroups, and subordinate-ID ranges, or separate VMs.
-The shipped images define only the single `exedev` owner, so separate exe.dev
-VMs are the available strong boundary without building an additional
-multi-user/runtime composition.
+The dev, Codex and container-host images change some of this, and
+`examples/README.md` covers how and why.
 
 ## Tools
 
