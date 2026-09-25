@@ -1,0 +1,216 @@
+{
+  "steps": [
+    {
+      "name": "CF-Connecting-IP is the client when the edge set it",
+      "request": {
+        "path": "/whoami",
+        "headers": {
+          "cf-connecting-ip": "198.51.100.7"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "address": "198.51.100.7",
+            "version": 4,
+            "source": "cf-connecting-ip",
+            "hops": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "otherwise X-Forwarded-For is read from the right, skipping trusted proxies",
+      "request": {
+        "path": "/whoami",
+        "headers": {
+          "x-forwarded-for": "1.2.3.4, 198.51.100.7, 10.1.2.3, 10.0.0.2"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "address": "198.51.100.7",
+            "version": 4,
+            "source": "x-forwarded-for",
+            "hops": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "the client's own claim on the left is ignored once an untrusted hop is found",
+      "request": {
+        "path": "/admin/",
+        "headers": {
+          "x-forwarded-for": "192.0.2.1, 198.51.100.7, 10.0.0.2"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "198.51.100.7 may not reach /admin/"
+        }
+      }
+    },
+    {
+      "name": "IPv6 is written in canonical form",
+      "request": {
+        "path": "/whoami",
+        "headers": {
+          "cf-connecting-ip": "2001:0DB8:0000:0000:0000:0000:0000:0001"
+        }
+      },
+      "expect": {
+        "json": {
+          "address": "2001:db8::1",
+          "version": 6
+        }
+      }
+    },
+    {
+      "name": "an IPv4-mapped address is unmapped before matching",
+      "request": {
+        "path": "/whoami",
+        "headers": {
+          "cf-connecting-ip": "::ffff:198.51.100.7"
+        }
+      },
+      "expect": {
+        "json": {
+          "address": "198.51.100.7",
+          "version": 4
+        }
+      }
+    },
+    {
+      "name": "a denied block is refused everywhere, naming the block",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "203.0.113.99"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "203.0.113.99 is in 203.0.113.0/24"
+        }
+      }
+    },
+    {
+      "name": "a mapped address cannot slip past an IPv4 deny entry",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "::ffff:203.0.113.99"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "203.0.113.99 is in 203.0.113.0/24"
+        }
+      }
+    },
+    {
+      "name": "IPv6 deny entries match the whole block",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "2001:db8:bad:1234::42"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "2001:db8:bad:1234::42 is in 2001:db8:bad::/48"
+        }
+      }
+    },
+    {
+      "name": "an address in the admin list reaches /admin/",
+      "request": {
+        "path": "/admin/",
+        "headers": {
+          "cf-connecting-ip": "192.0.2.14"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "admin": true,
+            "via": "192.0.2.0/28"
+          }
+        }
+      }
+    },
+    {
+      "name": "one just past the /28 does not",
+      "request": {
+        "path": "/admin/",
+        "headers": {
+          "cf-connecting-ip": "192.0.2.16"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "name": "an IPv6 admin block",
+      "request": {
+        "path": "/admin/",
+        "headers": {
+          "cf-connecting-ip": "2001:db8:a:ffff::1"
+        }
+      },
+      "expect": {
+        "json": {
+          "via": "2001:db8:a::/48"
+        }
+      }
+    },
+    {
+      "name": "everyone else reaches the application",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "198.51.100.7"
+        }
+      },
+      "expect": {
+        "json": {
+          "hello": "198.51.100.7"
+        }
+      }
+    },
+    {
+      "name": "a header that is not an address is a 400",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "010.0.0.1"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "not an IP address: \"010.0.0.1\""
+        }
+      }
+    },
+    {
+      "name": "so is a request with no address at all",
+      "request": {
+        "path": "/"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "no client address"
+        }
+      }
+    }
+  ]
+}
