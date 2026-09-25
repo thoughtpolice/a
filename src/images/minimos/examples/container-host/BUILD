@@ -4,37 +4,32 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 load("@root//src/images/minimos:defs.bzl", "minimos")
 
-# --------------------------------------------------------------------------
-# minimos + containerd, with gVisor as the only OCI runtime on the
-# system. This is the Bottlerocket-shaped composition: an appliance whose
-# job is to run other people's containers, so it ships no userland of its
-# own — the userland arrives inside the sandboxes.
+# minimos + containerd, with gVisor as the only OCI runtime. The image is
+# an appliance for running containers, in the shape of Bottlerocket, and
+# ships no userland of its own. The userland comes inside the containers.
 #
-# "Only runtime" is an image-content property, not a setting: there is no
-# runc, no crun, and no containerd-shim-runc-v2 in any layer, so the
-# conventional default runtime cannot start a container here at all. The
-# boot smoke re-derives that from the built layers rather than trusting
-# this comment.
+# No layer has runc, crun or containerd-shim-runc-v2, so nothing but
+# gVisor can start a container here. The boot smoke checks that against
+# the built layers.
 #
 # Workloads are part of the image. A layer stacked on this one ships
 # /etc/minimos/containers/<name>.env and enables container@<name>.service
 # (see container@.service). The SSH owner can pull and inspect with ctr,
 # but can't start a container, as the example README explains.
-# --------------------------------------------------------------------------
 
-# gVisor point releases are immutable; the undotted `release/<date>` path
-# moves when a follow-up release ships that day. Pin the dotted one, so a
-# new release is a deliberate version bump instead of a hash mismatch.
+# gVisor's dotted release paths never change, while `release/<date>`
+# moves if a second release ships that day. Pinning the dotted one makes
+# an update a deliberate bump rather than a hash mismatch.
 _GVISOR_RELEASE = "20260914.0"
 
 _GVISOR_URL = "https://storage.googleapis.com/gvisor/releases/release/{}/x86_64".format(
     _GVISOR_RELEASE,
 )
 
-# runsc, its containerd shim, and the sidecars runsc execs from
-# gvisor-bin/ beside itself. Ship those too: the alternative is runsc's
-# embedded fallback, which upstream stops supporting after 2026-10, or a
-# download at sandbox start.
+# runsc, its containerd shim, and the helpers runsc runs from gvisor-bin/
+# next to itself. Without the helpers runsc falls back to embedded copies,
+# which upstream stops supporting after 2026-10, or downloads them when a
+# sandbox starts.
 _GVISOR_BINARIES = [
     "runsc",
     "containerd-shim-runsc-v1",
@@ -45,11 +40,10 @@ _GVISOR_BINARIES = [
     "gvisor-bin/runsc-metric-server",
 ]
 
-# runsc (Apache-2.0, © The gVisor Authors), its containerd shim and the
-# sidecar binaries runsc execs: static, no libc of their own, and Wolfi
-# has no gvisor package. Releases after 20260817.0 publish this archive
-# only, so the loose per-binary URLs are gone. The sha256 pin was
-# cross-checked against upstream's published .sha512 file at the same URL.
+# gVisor (Apache-2.0, © The gVisor Authors) as upstream's static release
+# binaries, since Wolfi has no gvisor package. Releases after 20260817.0
+# publish only this archive. The sha256 was checked against upstream's
+# .sha512 file at the same URL.
 depot.http_archive(
     name = "gvisor",
     sha256 = "94a1b9716797efcb0b348fc3283ddaa1ee5c7898b61eeccb08ee9ac7dc903c15",
@@ -58,9 +52,8 @@ depot.http_archive(
     urls = ["{}/gvisor.tar.bz2".format(_GVISOR_URL)],
 )
 
-# The runtime layer. /usr/local/bin is where gVisor's own documentation
-# installs runsc; the base has no /usr/local at all, so the layer
-# carries the directory chain.
+# gVisor's own docs install runsc in /usr/local/bin. The base has no
+# /usr/local, so this layer declares the directories.
 minimos.overlay(
     name = "gvisor-overlay-layer",
     dirs = [
@@ -74,11 +67,9 @@ minimos.overlay(
     },
 )
 
-# containerd, its two clients, the CNI plugins container networking
-# shells out to, and iptables' nft multi binary. Everything here is a
-# static Go binary except iptables and containerd itself, which need
-# nothing the base doesn't already ship (libc) or the closure doesn't
-# resolve (libxtables, libmnl, libnftnl).
+# containerd, ctr and nerdctl, the CNI plugins container networking runs,
+# and iptables' nft binary. iptables links libxtables, libmnl and
+# libnftnl, and the rest need at most the base's glibc.
 minimos.apk_culled_layer(
     name = "containerd-culled-layer",
     apks = [
@@ -92,8 +83,8 @@ minimos.apk_culled_layer(
     ],
 )
 
-# The host's configuration: what containerd is, how a sandbox is built,
-# and where the CLI looks for its pieces.
+# Configuration for containerd, the gVisor shim and nerdctl, and the
+# units that run them.
 minimos.overlay(
     name = "container-host-overlay-layer",
     dirs = [
@@ -102,16 +93,15 @@ minimos.overlay(
         "etc/systemd/system",
         "etc/systemd/system/multi-user.target.wants",
         "etc/containerd",
-        # The shim's fallback config location — see runsc-config.toml.
+        # Where the gVisor shim looks for its config. See runsc-config.toml.
         "etc/containerd/runsc",
-        # Where a composition stacked on this image declares its
-        # workloads: one <name>.env per container@<name>.service.
+        # One <name>.env per container@<name>.service, shipped by a layer
+        # stacked on this image.
         "etc/minimos",
         "etc/minimos/containers",
         "etc/nerdctl",
-        # Written by nerdctl the first time a container needs the bridge
-        # network; the image ships the directory, not the config, so the
-        # CLI stays the owner of its own network definitions.
+        # nerdctl writes its bridge network here the first time a
+        # container needs it. The image ships only the directory.
         "etc/cni",
         "etc/cni/net.d",
         "opt",
@@ -125,24 +115,23 @@ minimos.overlay(
     files = {
         "etc/containerd/config.toml": "containerd-config.toml",
         "etc/containerd/runsc/config.toml": "runsc-config.toml",
-        # Not under /etc/tmpfiles.d: this one is applied by the unit, not
-        # by the boot-time pass. See the file itself.
+        # Applied by containerd.service, not the boot-time tmpfiles pass.
+        # See the file.
         "etc/containerd/socket-access.conf": "socket-access.conf",
         "etc/nerdctl/nerdctl.toml": "nerdctl.toml",
     },
     symlinks = {
-        # CNI's conventional plugin directory. Wolfi installs the
-        # plugins into /usr/bin, and pointing cni_path there would hand
-        # the network setup path a directory full of unrelated binaries.
+        # CNI's usual plugin directory. Wolfi installs the plugins in
+        # /usr/bin, and cni_path shouldn't point at every other program
+        # there too.
         "opt/cni/bin/bridge": "/usr/bin/bridge",
         "opt/cni/bin/firewall": "/usr/bin/firewall",
         "opt/cni/bin/host-local": "/usr/bin/host-local",
         "opt/cni/bin/loopback": "/usr/bin/loopback",
         "opt/cni/bin/portmap": "/usr/bin/portmap",
         "opt/cni/bin/tuning": "/usr/bin/tuning",
-        # The applet names the CNI plugins exec. Wolfi's own iptables
-        # symlink points at the legacy backend, which this image does
-        # not carry (see keepfiles.txt).
+        # The names the CNI plugins run. Wolfi's own iptables link points
+        # at the legacy backend, which this image doesn't ship.
         "usr/bin/ip6tables": "xtables-nft-multi",
         "usr/bin/ip6tables-restore": "xtables-nft-multi",
         "usr/bin/ip6tables-save": "xtables-nft-multi",
@@ -150,10 +139,9 @@ minimos.overlay(
         "usr/bin/iptables-restore": "xtables-nft-multi",
         "usr/bin/iptables-save": "xtables-nft-multi",
     },
-    # The daemon is enabled by its [Install] section. The workload
-    # template has none, so it is installed and left alone: instances are
-    # what get enabled, and a composition layer does that by shipping its
-    # own .env plus a multi-user.target.wants symlink.
+    # containerd is enabled by its [Install] section. The template has
+    # none. A layer above enables each instance with a
+    # multi-user.target.wants link next to its .env file.
     units = [
         "containerd.service",
         "container@.service",
@@ -170,8 +158,8 @@ minimos.image(
         ":gvisor-overlay-layer",
         ":container-host-overlay-layer",
     ],
-    # exe.dev's proxy auto-picks 80; publish a container onto one of
-    # these with `nerdctl run -p 80:<port>`.
+    # exe.dev's proxy picks 80. A workload publishes onto it with
+    # `--publish 80:<port>` in its RUN_ARGS.
     ports = [
         "80/tcp",
         "8080/tcp",
