@@ -9,10 +9,7 @@ without knowing its internals — this load is the only one they need:
 
     load("@root//src/images/minimos:defs.bzl", "minimos")
 
-    minimos.apk_culled_layer(
-        name = "app-culled-layer",
-        apks = ["third-party//by-name/wo/wolfi:app.apk", ...],
-    )
+    minimos.apk_culled_layer(name = "app-culled-layer", apks = ["app"])
     minimos.overlay(name = "app-overlay-layer", files = {...}, units = [...])
     minimos.image(
         name = "my-app",
@@ -37,6 +34,8 @@ and `<name>-boot-smoke` (docker-based boot test).
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 _TOOLS = "//src/images/minimos/tools"
+
+_WOLFI = "third-party//by-name/wo/wolfi"
 
 _BASE_CULLED_LAYER = "//src/images/minimos:culled-layer"
 
@@ -73,6 +72,10 @@ def _tool(name):
 def _is_label(src):
     return src.startswith(":") or "//" in src
 
+def _apk(pkg):
+    """A bare Wolfi package name as its pinned .apk target; labels pass through."""
+    return pkg if _is_label(pkg) else "{}:{}.apk".format(_WOLFI, pkg)
+
 def _file_arg(arc, spec):
     """mkoverlay's SRC:ARC[:MODE[:UID:GID]] for one files= entry.
 
@@ -104,9 +107,10 @@ def _apk_culled_layer(
         visibility = None):
     """A rootfs layer culled out of pinned Wolfi .apk packages.
 
-    Extracts every package in `apks` (targets from
-    third-party//by-name/wo/wolfi, in order, later packages winning)
-    into a scratch rootfs, then keeps only the paths listed in
+    Extracts every package in `apks` into a scratch rootfs, in order,
+    later packages winning. An entry is a Wolfi package name
+    ("nginx-mainline" means third-party//by-name/wo/wolfi:nginx-mainline.apk)
+    or an .apk label. The layer then keeps only the paths listed in
     `keepfiles` plus the resolved .so closure of every kept ELF binary,
     minus `denyfiles`. Both files are package-relative paths. A keep entry
     that matches nothing in the packages fails the build, the same way an
@@ -129,7 +133,7 @@ def _apk_culled_layer(
     ]
     for layer in provided_by:
         cmd += ["--provided", _q("$(location {})".format(layer))]
-    cmd += [_q("$(location {})".format(apk)) for apk in apks]
+    cmd += [_q("$(location {})".format(_apk(apk))) for apk in apks]
     depot.genrule(
         name = name,
         out = name + ".tar",

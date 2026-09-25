@@ -9,19 +9,17 @@ load("@root//src/images/minimos:defs.bzl", "minimos")
 # you're building your first image on minimos, start from this one.
 # --------------------------------------------------------------------------
 
-_WOLFI = "third-party//by-name/wo/wolfi"
-
 # memcached + the libs it links that the base does not already ship;
 # glibc and libseccomp come from the base, which the .so closure
 # resolves against.
 minimos.apk_culled_layer(
     name = "memcached-culled-layer",
     apks = [
-        "{}:memcached.apk".format(_WOLFI),
-        "{}:libevent.apk".format(_WOLFI),
-        "{}:cyrus-sasl-mit-libs.apk".format(_WOLFI),
-        "{}:libssl3.apk".format(_WOLFI),
-        "{}:libcrypto3.apk".format(_WOLFI),
+        "memcached",
+        "libevent",
+        "cyrus-sasl-mit-libs",
+        "libssl3",
+        "libcrypto3",
     ],
 )
 

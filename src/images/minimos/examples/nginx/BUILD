@@ -9,8 +9,6 @@ load("@root//src/images/minimos:defs.bzl", "minimos")
 # with its own config, content, and multiple HTTP ports.
 # --------------------------------------------------------------------------
 
-_WOLFI = "third-party//by-name/wo/wolfi"
-
 # nginx + the libs it links that the base does not already ship (glibc
 # and libpcre2 do come from the base: the .so closure resolves against
 # it), plus its upstream mime.types. The mainline stream carries the
@@ -19,12 +17,12 @@ _WOLFI = "third-party//by-name/wo/wolfi"
 minimos.apk_culled_layer(
     name = "nginx-culled-layer",
     apks = [
-        "{}:nginx-mainline.apk".format(_WOLFI),
-        "{}:nginx-mainline-mime-types.apk".format(_WOLFI),
-        "{}:zlib.apk".format(_WOLFI),
-        "{}:libxcrypt.apk".format(_WOLFI),
-        "{}:libssl3.apk".format(_WOLFI),
-        "{}:libcrypto3.apk".format(_WOLFI),
+        "nginx-mainline",
+        "nginx-mainline-mime-types",
+        "zlib",
+        "libxcrypt",
+        "libssl3",
+        "libcrypto3",
     ],
 )
 
