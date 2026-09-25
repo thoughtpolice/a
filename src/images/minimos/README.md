@@ -283,8 +283,9 @@ What the base enforces:
   PID 1 and leaves the decision to polkit. With no polkit, only systemd's
   fallback refuses them. `/etc/dbus-1/system.d/50-minimos-deny.conf`
   denies the manager interfaces on the bus as well, and allows back the
-  read-only calls `systemctl status` and `journalctl` need, plus the
-  process moves a user manager asks PID 1 for.
+  read-only calls `systemctl status`, `systemctl list-unit-files` and
+  `journalctl` need, plus the process moves a user manager asks PID 1
+  for.
 - **An account exists only if something uses it.** The baked files hold
   root, three Wolfi skeleton accounts, `systemd-journal`, `messagebus`,
   `chrony`, `exedev` and `nobody`. Vendor files that name an account the

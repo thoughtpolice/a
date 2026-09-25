@@ -13,7 +13,8 @@
 #   - plain `[  OK  ]` status lines on the console
 #   - /etc/{passwd,group,shadow} to match the baked copies
 #   - the systemd-journal group to be able to read the journal
-#   - uid 1000 to see the process tree in `systemctl status`
+#   - uid 1000 to see the process tree in `systemctl status` and to list
+#     unit files
 #   - no loaded service to import credentials
 #   - the VM-only units to be wired up and skipped under docker
 #
@@ -411,6 +412,14 @@ STATUS_TREE=$(timeout --signal=KILL 15s docker exec --user 1000:1000 "$CID" \
 if ! grep -q '/usr/bin/dbus-daemon' <<<"$STATUS_TREE"; then
     fail "'systemctl status' as uid 1000 shows no process tree, is GetUnitProcesses denied?" \
         "$STATUS_TREE"
+fi
+
+# systemctl asks for unit files with ListUnitFilesByPatterns and doesn't
+# fall back when the bus refuses it.
+UNIT_FILES=$(timeout --signal=KILL 15s docker exec --user 1000:1000 "$CID" \
+    /usr/bin/systemctl list-unit-files --no-pager dbus.service 2>&1 || true)
+if ! grep -q '^dbus\.service ' <<<"$UNIT_FILES"; then
+    fail "'systemctl list-unit-files' fails as uid 1000:" "$UNIT_FILES"
 fi
 
 # No service may take configuration from credentials, which come from
