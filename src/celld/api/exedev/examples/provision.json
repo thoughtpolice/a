@@ -1,0 +1,97 @@
+{
+  "vars": { "OPERATOR_TOKEN_SHA256": "7af3af7187ccb3c2e9976628d256d18c87674388ce0d764a586946ed1c010722" },
+  "steps": [
+    {
+      "name": "a request with no token is refused before a run starts",
+      "request": { "method": "POST", "path": "/deploys", "json": { "id": "anon", "vm": "app-0", "version": "1.0" } },
+      "expect": { "status": 401, "headers": { "www-authenticate": { "$regex": "^Bearer" } } },
+      "upstream": []
+    },
+    {
+      "name": "a wrong token is refused the same way",
+      "request": {
+        "method": "POST",
+        "path": "/deploys",
+        "headers": { "authorization": "Bearer op_00000000000000000000000000000000" },
+        "json": { "id": "wrong", "vm": "app-0", "version": "1.0" }
+      },
+      "expect": { "status": 401 },
+      "upstream": []
+    },
+    {
+      "name": "a version that is not a plain version string never reaches the install script",
+      "request": {
+        "method": "POST",
+        "path": "/deploys",
+        "headers": { "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c" },
+        "json": { "id": "inj", "vm": "app-0", "version": "1.0'; id > app/PWNED; '" }
+      },
+      "expect": { "status": 400, "json": { "location": "body", "fieldErrors": { "$exact": { "version": { "$len": 1 } } } } },
+      "upstream": []
+    },
+    {
+      "name": "a deploy for a name that cannot be a VM never starts a run",
+      "request": { "headers": { "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c" }, "method": "POST", "path": "/deploys", "json": { "id": "bad", "vm": "App 0", "version": "1.0" } },
+      "expect": { "status": 400, "json": { "location": "body", "fieldErrors": { "$exact": { "vm": { "$len": 1 } } } } },
+      "upstream": []
+    },
+    {
+      "name": "a deploy starts a Workflow run",
+      "request": { "headers": { "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c" }, "method": "POST", "path": "/deploys", "json": { "id": "first", "vm": "app-0", "version": "1.0" } },
+      "expect": { "status": 202, "json": { "id": "first" } }
+    },
+    {
+      "name": "it creates the VM, installs the app detached and verifies it",
+      "request": { "headers": { "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c" }, "path": "/deploys/first" },
+      "until": { "seconds": 60, "interval": 0.5 },
+      "expect": {
+        "json": {
+          "status": "complete",
+          "output": {
+            "$exact": {
+              "created": true,
+              "bootstrap": { "exitCode": 0, "skipped": false, "output": "installed\n" },
+              "verified": true
+            }
+          }
+        }
+      },
+      "upstream": {
+        "$contains": { "text": { "$regex": "^new .*--name=app-0 .*--tag=app" } }
+      }
+    },
+    {
+      "name": "the same version again adopts the VM and skips the bootstrap",
+      "request": { "headers": { "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c" }, "method": "POST", "path": "/deploys", "json": { "id": "again", "vm": "app-0", "version": "1.0" } },
+      "expect": { "status": 202 }
+    },
+    {
+      "name": "nothing is created or installed twice",
+      "request": { "headers": { "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c" }, "path": "/deploys/again" },
+      "until": { "seconds": 60, "interval": 0.5 },
+      "expect": {
+        "json": {
+          "status": "complete",
+          "output": { "created": false, "bootstrap": { "skipped": true }, "verified": true }
+        }
+      },
+      "upstream": { "$not": { "$contains": { "text": { "$regex": "^new " } } } }
+    },
+    {
+      "name": "a new version is a new script, so it runs",
+      "request": { "headers": { "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c" }, "method": "POST", "path": "/deploys", "json": { "id": "upgrade", "vm": "app-0", "version": "2.0" } },
+      "expect": { "status": 202 }
+    },
+    {
+      "name": "and the check sees the new version",
+      "request": { "headers": { "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c" }, "path": "/deploys/upgrade" },
+      "until": { "seconds": 60, "interval": 0.5 },
+      "expect": {
+        "json": {
+          "status": "complete",
+          "output": { "created": false, "bootstrap": { "exitCode": 0, "skipped": false }, "verified": true }
+        }
+      }
+    }
+  ]
+}
