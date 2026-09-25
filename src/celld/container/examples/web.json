@@ -1,0 +1,61 @@
+{
+  "steps": [
+    {
+      "name": "the first request starts the container and waits for its port",
+      "request": { "path": "/" },
+      "expect": { "text": "hello from a celld container\n" }
+    },
+    {
+      "name": "it is healthy and onStart ran",
+      "request": { "path": "/state" },
+      "expect": { "json": { "state": { "status": "healthy", "running": true, "generation": 1 }, "hooks": ["start"] } }
+    },
+    {
+      "name": "after sleepAfter without requests the alarm stops it",
+      "request": { "path": "/state" },
+      "until": { "seconds": 30, "interval": 0.5 },
+      "expect": { "json": { "state": { "status": "stopped", "running": false }, "hooks": ["start", "stop:sleep"] } }
+    },
+    {
+      "name": "the next request starts it again",
+      "request": { "path": "/" },
+      "expect": { "text": "hello from a celld container\n" }
+    },
+    {
+      "name": "its main process is killed",
+      "request": { "method": "POST", "path": "/crash" },
+      "expect": { "json": { "crashed": true } }
+    },
+    {
+      "name": "the engine reports it gone",
+      "request": { "path": "/state" },
+      "until": { "seconds": 15, "interval": 0.2 },
+      "expect": { "json": { "state": { "running": false } } }
+    },
+    {
+      "name": "the next request notices the crash and restarts it",
+      "request": { "path": "/" },
+      "expect": { "text": "hello from a celld container\n" }
+    },
+    {
+      "name": "the crash counts against the restart policy",
+      "request": { "path": "/state" },
+      "expect": {
+        "json": {
+          "state": { "status": "healthy", "generation": 3, "restarts": 1 },
+          "hooks": ["start", "stop:sleep", "start", "stop:crash", "start"]
+        }
+      }
+    },
+    {
+      "name": "an explicit stop runs onStop",
+      "request": { "method": "POST", "path": "/stop" },
+      "expect": { "json": { "stopped": true } }
+    },
+    {
+      "name": "and leaves it stopped",
+      "request": { "path": "/state" },
+      "expect": { "json": { "state": { "status": "stopped", "running": false }, "hooks": { "$len": 6 } } }
+    }
+  ]
+}
