@@ -1,0 +1,25 @@
+{
+  "vars": { "GREETING": "Hello" },
+  "steps": [
+    {
+      "name": "a spec's vars reach the Worker",
+      "request": { "path": "/greet?name=celld" },
+      "expect": { "json": { "$exact": { "message": "Hello, celld!" } } }
+    },
+    {
+      "name": "a computed answer",
+      "request": { "method": "POST", "path": "/sum", "json": [1, 2, 3.5] },
+      "expect": { "json": { "sum": 6.5 } }
+    },
+    {
+      "name": "a body over the 4 KiB cap is a 413, however it is sent",
+      "request": { "method": "POST", "path": "/sum", "bodyBytes": 5000, "chunked": true },
+      "expect": { "status": 413, "json": { "$exact": { "error": "too_large" } } }
+    },
+    {
+      "name": "bad input is a 400",
+      "request": { "method": "POST", "path": "/sum", "json": ["one"] },
+      "expect": { "status": 400, "json": { "error": { "$contains": "numbers" } } }
+    }
+  ]
+}
