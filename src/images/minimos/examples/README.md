@@ -268,6 +268,12 @@ base's slices. nerdctl refuses the systemd cgroup manager for any runtime
 but runc, so the runtime config says cgroupfs too. Limit each workload
 in its `RUN_ARGS` with `--memory`, `--cpus` and `--pids-limit`.
 
+What manages them does live in a slice. Each container adds a gVisor
+shim under containerd and a nerdctl client in its `container@` unit,
+both multi-threaded Go. In `system.slice` they would share the 2048
+tasks journald, dbus and logind need, so the image puts containerd and
+every `container@` unit in its own `containers.slice` with room for 8192.
+
 Two lines in containerd's log show up on a clean boot. journald records
 them at `info`, so the boot smoke doesn't flag them.
 `failed check for fsverity support` means the root filesystem has no

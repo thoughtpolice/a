@@ -43,6 +43,8 @@ PartOf=containerd.service
 
 [Service]
 Type=simple
+# Beside containerd, out of system.slice. See containers.slice.
+Slice=containers.slice
 EnvironmentFile=/etc/minimos/containers/%i.env
 Environment=PATH=/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin
 # Every other input to these images is pinned by hash. A workload image
