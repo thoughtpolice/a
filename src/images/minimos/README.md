@@ -321,99 +321,57 @@ The dev, Codex and container-host images change some of this, and
 
 ## Tools
 
-All generic machinery lives in `tools/` and is only reached through the
-`defs.bzl` macros:
+The macros in `defs.bzl` are the only way in.
 
-- `mkapkroot.py` extracts apk v2 packages (three concatenated gzip tar
-  streams; the dotfile control entries are skipped) into a rootfs
-  directory — package installation as deterministic extraction, no
-  apk-tools involved.
-- `cull.py` consumes the exact rootfs path (assembled from apks via
-  `assemble_and_cull.sh`) and emits a tarball containing only the
-  allowlisted paths plus the recursive `.so` closure of every kept ELF
-  binary. The closure is resolved against the layers below first
-  (`--provided-rootfs`, the base's culled layer for every composition),
-  so a library the base ships is never copied and a composition lists
-  only the packages it adds. It fails on sonames it cannot resolve — Wolfi builds
-  systemd's optional deps behind dlopen, so keepfiles.txt names the
-  dlopen'd libraries we choose to ship and the check catches their missing
-  DT_NEEDED tails. It never guesses that a child named `rootfs` is a bundle
-  root, charges repeated hardlink paths against the expanded-content budget,
-  and atomically publishes only a complete bounded tar.
-- `mkoverlay.py` builds a deterministic overlay tar from CLI declarations
-  (dirs, files, symlinks, systemd units, masks; files and dirs take
-  optional mode/uid/gid) — this is what makes `minimos.overlay()`
-  possible without per-image Python. A unit is enabled the way
-  `systemctl enable` would do it offline, from its own `[Install]`
-  section. Inputs are descriptor-snapshotted and bounded; a failed
-  build preserves any prior output.
-- `scratch_image.py` assembles a fresh single-manifest OCI layout from
-  layer tars — we can't use `oci_image` because it preserves base-image
-  layers, and we want none. Before atomic publication it revalidates
-  `oci-layout`, schema/media versions, every descriptor size and digest,
-  config diff IDs, compression, effective cross-layer paths/types, and the
-  composition policy described above.
-- `boot_smoke.sh` backs the per-image `<name>-boot-smoke` test. Before loading
-  or executing an image, it scans the layers for package managers, unexpected
-  appliance userland, setuid/setgid bits, and non-sticky world-writable paths.
-  It then boots systemd with a private cgroup namespace, no network, bounded
-  memory/CPU/PIDs/logs/tmpfs, `no-new-privileges`, and an explicit capability
-  set instead of Docker `--privileged`. Skopeo, container exec/log reads, and
-  cleanup are bounded by timeouts. The pre-load validator receives the same
-  base-layer count and composition policy as construction, so it independently
-  re-attests those semantics. The runtime checks
-  require systemd to reach `running`, zero failed units, image-specific units,
-  plain console output, unchanged baked account files, and a warning-free boot
-  journal — the place where a silently-ignored hardening directive, or a vendor
-  config naming an account the image does not have, would otherwise hide behind
-  a successful boot. It also asserts the `systemd-journal` group can read the
-  system journal, because journald does not arrange that itself. Four lines
-  are tolerated, each matched anchored and whole and justified in the script:
-  one is an artifact of Docker's overlay root having no originating block
-  device (the same reason the `io.max` realization check defers to the VM);
-  one is the user manager re-arming a PSI trigger, which the kernel refuses
-  one-per-descriptor and systemd ignores — this one occurs on a real VM too,
-  with the io controller present and delegated; and two are systemd noting
-  that libbpf and libkmod are absent. Those last two are deliberate rather
-  than gaps. Without libbpf, `SocketBind*=`, `RestrictNetworkInterfaces=` and
-  `RestrictFileSystems=` are unavailable (the platform kernel has no BPF LSM
-  for the last one anyway), while `IPAddressDeny=`/`IPAddressAllow=` use raw
-  `bpf()` syscalls and were verified enforcing on a VM: a loopback connect is
-  refused under `IPAddressDeny=any` and permitted once
-  `IPAddressAllow=localhost` is added. libkmod is absent because module
-  loading is latched off.
+- `mkapkroot.py` extracts apk v2 packages, which are three concatenated
+  gzip tar streams, into a rootfs directory. It skips the control
+  entries and runs no scripts.
+- `cull.py` keeps the paths a keep list names plus the `.so` closure of
+  every kept ELF file, minus a deny list, and writes a tar. The closure
+  resolves against the layers below first, so a composition never copies
+  a library the base ships. An unresolved soname, or a keep entry that
+  matches nothing, fails the build. Wolfi builds systemd's optional
+  libraries behind dlopen, so the base keep list names the ones minimos
+  uses.
+- `mkoverlay.py` builds an overlay tar from command-line declarations,
+  with every mode and owner explicit and every timestamp zero. It
+  enables units the way `systemctl enable` would, from their `[Install]`
+  sections.
+- `scratch_image.py` assembles an OCI layout from layer tars alone, since
+  `oci_image` always keeps a base image's layers. It validates the
+  layout, every digest and every layer against the composition policy
+  before publishing it.
+- `boot_smoke.sh` runs each image's `<name>-boot-smoke` test. The header
+  of the script lists what it checks.
 
-  On a real VM the journal additionally carries kernel-transport messages the
-  image cannot influence (firmware/TSC notes, absent CPU features, mitigation
-  reporting). "Warning-free" means no line the image is responsible for.
-  Dev-image checks
-  additionally exercise the login wrapper's cgroup placement, zero core limit,
-  user manager, and bubblewrap installation. Docker's nested-container policy
-  rejects bubblewrap's `pivot_root`, so functional bubblewrap isolation is an
-  explicit real-VM integration check. Images built with
-  `boot_smoke_userland = True` skip only the appliance-userland scan.
+## Testing
 
-  This is a bounded integration test, not a sandbox for hostile images. PID 1
-  still needs capabilities such as `SYS_ADMIN` inside its container, and runs
-  without Docker's AppArmor profile: `docker-default` denies the mount
-  propagation change systemd makes before running generators, so PID 1 cannot
-  start under it. Seccomp and the capability bound stay in force. Run
-  untrusted or adversarial image fixtures only on a disposable Docker host/VM,
-  and use a real exe.dev VM to validate VM-only sysctls and platform behavior.
+`buck2 test //src/images/minimos/...` runs the security tests and a
+docker boot smoke for the base and every example. It needs docker and
+GNU `timeout` on the host.
 
-## Simple tests
+The boot smoke validates the image and scans its layers before docker
+loads anything. It then boots systemd with a private cgroup namespace,
+no network, bounded memory, CPU, PIDs, logs and tmpfs,
+`no-new-privileges` and an explicit capability set, not `--privileged`.
+It requires a `running` system, no failed units, and a boot journal with
+no warnings beyond four known lines, which the script explains.
 
-`buck2 test //src/images/minimos/...` runs the bounded Docker boot smoke for
-the base image and every example. The tests require Docker and GNU `timeout` on
-the host. They do not require, and must not be replaced with, an unrestricted
-`docker run --privileged` invocation.
+systemd still needs `SYS_ADMIN` in that container, and it runs without
+docker's AppArmor profile, whose mount rules stop PID 1 from starting.
+So it's a test for trusted build output, not a sandbox for hostile
+images.
 
-### Local smoke test
+Some things can only be checked on a VM, and the docker smoke only
+checks that they're wired up:
 
-```
-buck2 test //src/images/minimos:minimos-boot-smoke
+- the VM-only sysctls, including `kernel.modules_disabled=1`
+- `user.slice`'s `io.max`, since docker's root has no block device
+- chrony syncing from `/dev/ptp0`
+- the root filesystem growing after `new --disk` or `resize`
+- bubblewrap sandboxes on the dev images, which docker's seccomp blocks
+- gVisor containers on the container host
 
-# Optional: load the same artifact for static inspection. Do not boot it with
-# --privileged; use the boot-smoke target above so the test stays bounded.
-docker load < $(buck2 build root//src/images/minimos:minimos-docker --show-full-simple-output)
-```
+A real VM's journal also has kernel messages the image can't affect,
+about the TSC, CPU mitigations and missing KVM features. "No warnings"
+means none the image is responsible for.
