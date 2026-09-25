@@ -317,23 +317,6 @@ docker load -i "$archive"
 docker run --rm worker:latest --version
 ```
 
-## Comparison to Old Implementation
-
-### Old (crane-based)
-
-- Heavy dependency on crane
-- Inefficient: local registry server + multiple crane calls
-- Limited layer manipulation
-- Worked around crane bugs
-
-### New (skopeo + umoci + pure Python)
-
-- Minimal tool dependencies (only where needed)
-- Pure Python for core operations (faster, more flexible)
-- Direct OCI spec implementation
-- Full control over all image aspects
-- No workarounds needed
-
 ## Future Enhancements
 
 Possible future additions:
