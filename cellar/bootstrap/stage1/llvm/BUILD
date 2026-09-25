@@ -6,8 +6,9 @@ load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
 load("@cellar//bootstrap:host.bzl", "host_python_test")
 load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object", "compiler")
-load(":defs.bzl", "CAPTURE", "SOURCE", "llvm_files", "llvm_stage", "resource_headers", "source_files")
-load(":runtimes.bzl", "MUSL_EMPTY_LIBRARIES", "clang_compilers", "llvm_runtimes", "runtime_headers", "runtime_installation", "runtime_link", "runtime_source_files")
+load(":defs.bzl", "CAPTURE", "SOURCE", "llvm_files", "llvm_stage", "resource_headers", "source_files", "target_name")
+load(":inventory.bzl", "BINARIES")
+load(":runtimes.bzl", "clang_compilers", "llvm_runtimes", "runtime_headers", "runtime_installation", "runtime_link", "runtime_source_files")
 
 GCC = "cellar//bootstrap/stage1/gcc13"
 
@@ -320,27 +321,14 @@ STAGES = {
 ) for stage in STAGES.values() if stage in STAGES]
 
 # stage2's Clang compiles as the GCC-built one does, so stage3 reproduces
-# stage2 byte for byte: its programs, runtimes and startup files.
-COMPARED = [
-    "clang-clang",
-    "clang-clang-tblgen",
-    "lld-lld",
-    "llvm-llvm-ar",
-    "llvm-llvm-min-tblgen",
-    "llvm-llvm-tblgen",
-    "crt1.o",
-    "crti.o",
-    "crtn.o",
-    "clang_rt.crtbegin.o",
-    "clang_rt.crtend.o",
-    "libc.a",
-    "libclang_rt.builtins.a",
-    "libunwind.a",
-    "libc++abi.a",
-    "libc++.a",
-    "libc++experimental.a",
-    "mimalloc.o",
-] + ["lib{}.a".format(name) for name in MUSL_EMPTY_LIBRARIES]
+# stage2 byte for byte: every program in the inventory, and every runtime
+# the installation takes from stage3, with mimalloc, which the programs
+# link.
+COMPARED = [target_name(name) for name in BINARIES] + sorted({
+    label.removeprefix(":stage3-"): None
+    for label in runtime_installation("stage3").values()
+    if label.startswith(":stage3-")
+}.keys()) + ["mimalloc.o"]
 
 [command_test(
     name = "compare-" + name,
