@@ -305,16 +305,19 @@ STAGES = {
                 "c++": ":{}-c++".format(stage),
             },
         ),
-        filegroup(
-            name = stage + "-toolchain",
-            srcs = {
-                "bin/clang": ":{}-clang-clang".format(stage),
-                "bin/ld.lld": ":{}-lld-lld".format(stage),
-            } | resource_headers(stage),
-        ),
     ]
     for stage, previous in STAGES.items()
 ]
+
+# The tree a later stage's compilers run from. The installation lays out
+# the last stage itself.
+[filegroup(
+    name = stage + "-toolchain",
+    srcs = {
+        "bin/clang": ":{}-clang-clang".format(stage),
+        "bin/ld.lld": ":{}-lld-lld".format(stage),
+    } | resource_headers(stage),
+) for stage in STAGES.values() if stage in STAGES]
 
 # stage2's Clang compiles as the GCC-built one does, so stage3 reproduces
 # stage2 byte for byte: its programs, runtimes and startup files.
