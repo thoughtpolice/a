@@ -1,0 +1,72 @@
+{
+  "steps": [
+    {
+      "name": "a comment starts a Workflow run named by its id",
+      "script": { "answers": { "category": { "choice": "fine", "confidence": 0.95 } } },
+      "request": { "method": "POST", "path": "/comments", "json": { "id": "c1", "text": "Thanks, this helped." } },
+      "expect": { "status": 202, "json": { "id": "c1" } }
+    },
+    {
+      "name": "a fine comment is published after one question",
+      "request": { "path": "/comments/c1" },
+      "until": { "seconds": 30 },
+      "expect": {
+        "json": {
+          "status": "complete",
+          "output": { "$exact": { "verdict": "publish", "category": "fine", "severity": null } },
+          "stored": { "verdict": "publish" }
+        }
+      },
+      "upstream": [
+        {
+          "path": "/v1/systemone",
+          "json": { "state": "Thanks, this helped.", "questions": {
+            "category": {
+              "type": "choice",
+              "criteria": {
+                "fine": "On topic and civil",
+                "spam": "Advertising, scams or links unrelated to the post",
+                "abusive": "Insults, threats or harassment"
+              }
+            }
+          } }
+        }
+      ]
+    },
+    {
+      "name": "an abusive comment costs a second question about its severity",
+      "script": [
+        { "answers": { "category": { "choice": "abusive", "confidence": 0.9 } } },
+        { "answers": { "severity": { "score": 2 } } }
+      ],
+      "request": { "method": "POST", "path": "/comments", "json": { "id": "c2", "text": "I know where you live." } },
+      "expect": { "status": 202 }
+    },
+    {
+      "name": "it is removed, and each question was asked exactly once",
+      "request": { "path": "/comments/c2" },
+      "until": { "seconds": 30 },
+      "expect": {
+        "json": {
+          "status": "complete",
+          "output": { "verdict": "remove", "category": "abusive", "severity": "Threatening" }
+        }
+      },
+      "upstream": [
+        { "json": { "questions": { "category": { "type": "choice" } } } },
+        { "json": { "questions": { "severity": { "type": "score" } } } }
+      ]
+    },
+    {
+      "name": "a second POST with the same id does not ask again",
+      "request": { "method": "POST", "path": "/comments", "json": { "id": "c2", "text": "again" } },
+      "expect": { "status": 409 },
+      "upstream": []
+    },
+    {
+      "name": "an unknown comment is a 404",
+      "request": { "path": "/comments/nope" },
+      "expect": { "status": 404 }
+    }
+  ]
+}

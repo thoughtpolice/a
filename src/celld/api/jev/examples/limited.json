@@ -1,0 +1,192 @@
+{
+  "steps": [
+    {
+      "name": "the first ask of a pinned model misses the cache and reaches TypeSafe",
+      "script": {
+        "answers": {
+          "positive": {
+            "noul": 0.9
+          }
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/sentiment",
+        "json": {
+          "text": "Great product"
+        }
+      },
+      "expect": {
+        "json": {
+          "positive": 0.9,
+          "cache": "miss",
+          "attempts": 1
+        }
+      },
+      "upstream": [
+        {
+          "path": "/v1/systemone",
+          "json": {
+            "model": "jev-1.13.0",
+            "state": "Great product",
+            "questions": {
+              "positive": {
+                "type": "noul"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "the same question is answered from KV without a request",
+      "request": {
+        "method": "POST",
+        "path": "/sentiment",
+        "json": {
+          "text": "Great product"
+        }
+      },
+      "expect": {
+        "json": {
+          "positive": 0.9,
+          "cache": "hit"
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "the limiter object starts at Jev's documented limits",
+      "request": {
+        "path": "/limits"
+      },
+      "expect": {
+        "json": {
+          "limits": {
+            "requestsPerMinute": 1200,
+            "requestBurst": 20,
+            "tokensPerSecond": 250000,
+            "tokenBurst": 250000
+          },
+          "blockedUntil": 0
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "limits are changed and stored by the Durable Object",
+      "request": {
+        "method": "PUT",
+        "path": "/limits",
+        "json": {
+          "requestsPerMinute": 600,
+          "requestBurst": 5
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "requestsPerMinute": 600,
+            "requestBurst": 5,
+            "tokensPerSecond": 250000,
+            "tokenBurst": 250000
+          }
+        }
+      }
+    },
+    {
+      "name": "limits the schema refuses never reach the Durable Object",
+      "request": {
+        "method": "PUT",
+        "path": "/limits",
+        "json": {
+          "requestsPerMinute": -1,
+          "burst": 5
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "validation_failed",
+          "location": "body",
+          "formErrors": [
+            "unrecognized key: \"burst\""
+          ],
+          "fieldErrors": {
+            "$exact": {
+              "requestsPerMinute": [
+                "must be greater than 0"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "the stored limits survive a restart",
+      "restart": true,
+      "request": {
+        "path": "/limits"
+      },
+      "expect": {
+        "json": {
+          "limits": {
+            "requestsPerMinute": 600,
+            "requestBurst": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "a 429 is retried after its retry-after, which holds every caller",
+      "script": [
+        {
+          "status": 429,
+          "headers": {
+            "retry-after": "1"
+          }
+        },
+        {}
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/sentiment",
+        "json": {
+          "text": "Meh"
+        }
+      },
+      "expect": {
+        "json": {
+          "positive": 1,
+          "cache": "miss",
+          "attempts": 2
+        }
+      },
+      "upstream": [
+        {
+          "json": {
+            "state": "Meh"
+          }
+        },
+        {
+          "json": {
+            "state": "Meh"
+          }
+        }
+      ]
+    },
+    {
+      "name": "the throttle reached the shared limiter",
+      "request": {
+        "path": "/limits"
+      },
+      "expect": {
+        "json": {
+          "blockedUntil": {
+            "$gt": 0
+          }
+        }
+      }
+    }
+  ]
+}

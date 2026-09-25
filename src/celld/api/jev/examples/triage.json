@@ -1,0 +1,86 @@
+{
+  "steps": [
+    {
+      "name": "a ticket is asked about in one request and routed",
+      "request": {
+        "method": "POST",
+        "path": "/tickets",
+        "json": { "subject": "Refund", "body": "I was charged twice." }
+      },
+      "expect": {
+        "json": {
+          "$exact": { "team": "billing", "urgent": true, "mood": "Calm", "model": "jev-1.13.0" }
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/v1/systemone",
+          "headers": {
+            "authorization": "Bearer example-key",
+            "content-type": { "$regex": "^application/json" }
+          },
+          "json": {
+            "model": "jev-latest",
+            "state": { "ticket": { "subject": "Refund", "body": "I was charged twice." } },
+            "questions": {
+              "team": {
+                "type": "choice",
+                "criteria": {
+                  "billing": "Payments, invoicing, refunds",
+                  "technical": "Bugs, outages, integrations",
+                  "sales": "Pricing, plans, new accounts"
+                }
+              },
+              "urgent": { "type": "noul", "criteria": { "true": "Time-sensitive" } },
+              "mood": { "type": "score", "criteria": ["Calm", "Frustrated", "Very angry"] }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "the typed answers pick the team, urgency and mood",
+      "script": {
+        "answers": {
+          "team": { "choice": "technical", "confidence": 0.8 },
+          "urgent": { "noul": 0.2 },
+          "mood": { "score": 2 }
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/tickets",
+        "json": { "subject": "API down", "body": "Every call is a 500. Fix it now!" }
+      },
+      "expect": {
+        "json": { "team": "technical", "urgent": false, "mood": "Very angry" }
+      },
+      "upstream": { "$len": 1 }
+    },
+    {
+      "name": "a malformed ticket is refused before anything is sent",
+      "request": { "method": "POST", "path": "/tickets", "json": { "subject": "no body" } },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "validation_failed",
+          "location": "body",
+          "fieldErrors": { "$exact": { "body": ["missing required key"] } }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a rejected key is a 502 with the error's kind, and is not retried",
+      "script": { "status": 401, "body": { "detail": "invalid api key" } },
+      "request": {
+        "method": "POST",
+        "path": "/tickets",
+        "json": { "subject": "Hi", "body": "Hello" }
+      },
+      "expect": { "status": 502, "json": { "kind": "authentication" } },
+      "upstream": { "$len": 1 }
+    }
+  ]
+}

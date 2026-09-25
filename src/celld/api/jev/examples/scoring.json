@@ -1,0 +1,51 @@
+{
+  "steps": [
+    {
+      "name": "the composite weighs normalised scores and a probability",
+      "script": {
+        "answers": {
+          "python": { "score": 3 },
+          "design": { "score": 1 },
+          "leadership": { "noul": 0.5 }
+        }
+      },
+      "request": { "method": "POST", "path": "/screen", "json": { "resume": "Built Python services for a decade." } },
+      "expect": {
+        "json": {
+          "$exact": {
+            "fit": 0.7,
+            "shortlist": true,
+            "contributions": { "python": 0.5, "design": 0.1, "leadership": 0.1 },
+            "python": "Expert",
+            "design": "Some"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "json": {
+            "model": "jev-1.13.0",
+            "state": { "resume": "Built Python services for a decade." },
+            "questions": {
+              "python": { "type": "score", "criteria": ["None", "Some", "Solid", "Expert"] },
+              "design": { "type": "score" },
+              "leadership": { "type": "noul" }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a weak resume falls under the shortlist bar",
+      "script": {
+        "answers": {
+          "python": { "score": 1 },
+          "design": { "score": 0 },
+          "leadership": { "noul": 0.1 }
+        }
+      },
+      "request": { "method": "POST", "path": "/screen", "json": { "resume": "Took one Python course." } },
+      "expect": { "json": { "fit": 0.187, "shortlist": false, "python": "Some", "design": "None" } }
+    }
+  ]
+}
