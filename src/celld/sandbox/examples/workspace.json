@@ -1,0 +1,77 @@
+{
+  "steps": [
+    {
+      "name": "a file is written with its directories",
+      "request": { "method": "PUT", "path": "/files/notes/todo.txt", "body": "buy milk\n" },
+      "expect": { "status": 201, "json": { "path": "notes/todo.txt", "size": 9 } }
+    },
+    {
+      "name": "and read back",
+      "request": { "path": "/files/notes/todo.txt" },
+      "expect": { "text": "buy milk\n", "headers": { "content-type": "application/octet-stream" } }
+    },
+    {
+      "name": "a dotfile is written",
+      "request": { "method": "PUT", "path": "/files/.config", "body": "x=1" },
+      "expect": { "status": 201 }
+    },
+    {
+      "name": "listings hide dotfiles unless asked",
+      "request": { "path": "/list/?recursive=1" },
+      "expect": {
+        "json": {
+          "truncated": false,
+          "entries": [
+            { "path": "notes", "name": "notes", "kind": "dir" },
+            { "path": "notes/todo.txt", "name": "todo.txt", "kind": "file" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "and show them when asked",
+      "request": { "path": "/list/?hidden=1" },
+      "expect": { "json": { "entries": [{ "path": ".config" }, { "path": "notes" }] } }
+    },
+    {
+      "name": "stat reports size and kind",
+      "request": { "path": "/stat/notes/todo.txt" },
+      "expect": { "json": { "path": "notes/todo.txt", "kind": "file", "size": 9, "symlink": false } }
+    },
+    {
+      "name": "a file moves",
+      "request": { "path": "/move", "json": { "from": "notes/todo.txt", "to": "done.txt" } },
+      "expect": { "json": { "from": "notes/todo.txt", "to": "done.txt" } }
+    },
+    {
+      "name": "and is gone from where it was",
+      "request": { "path": "/files/notes/todo.txt" },
+      "expect": { "status": 404, "json": { "error": "not_found" } }
+    },
+    {
+      "name": "an encoded ../ is refused",
+      "request": { "path": "/files/%2E%2E%2F%2E%2E%2Fetc%2Fpasswd" },
+      "expect": { "status": 400, "json": { "error": "outside_workspace" } }
+    },
+    {
+      "name": "an absolute path elsewhere is refused",
+      "request": { "path": "/files/%2Fetc%2Fpasswd" },
+      "expect": { "status": 400, "json": { "error": "outside_workspace" } }
+    },
+    {
+      "name": "writing over a directory is a conflict",
+      "request": { "method": "PUT", "path": "/files/notes", "body": "x" },
+      "expect": { "status": 409, "json": { "error": "is_directory" } }
+    },
+    {
+      "name": "a file is deleted",
+      "request": { "method": "DELETE", "path": "/files/done.txt" },
+      "expect": { "status": 204 }
+    },
+    {
+      "name": "deleting it again is a 404",
+      "request": { "method": "DELETE", "path": "/files/done.txt" },
+      "expect": { "status": 404 }
+    }
+  ]
+}

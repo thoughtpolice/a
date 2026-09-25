@@ -1,0 +1,120 @@
+{
+  "steps": [
+    {
+      "name": "a job with a failing test is submitted",
+      "request": {
+        "path": "/jobs",
+        "json": {
+          "files": {
+            "lib/math.sh": "add() { echo $(($1 + $2)); }\nsub() { echo $(($1 + $2)); }\n",
+            "test.sh": ". ./lib/math.sh\nfail=0\ncheck() { if [ \"$2\" = \"$3\" ]; then echo \"ok $1\"; else echo \"not ok $1 - expected $3, got $2\"; fail=1; fi; sleep 0.3; }\ncheck add \"$(add 2 3)\" 5\ncheck sub \"$(sub 5 3)\" 2\nexit $fail\n"
+          },
+          "command": [
+            "sh",
+            "test.sh"
+          ]
+        }
+      },
+      "expect": {
+        "status": 202,
+        "json": {
+          "job": {
+            "$regex": "^[0-9A-Z]{26}$"
+          }
+        }
+      },
+      "save": {
+        "job": "json.job"
+      }
+    },
+    {
+      "name": "its output streams as events until it exits",
+      "request": {
+        "path": "/jobs/{job}/events"
+      },
+      "expect": {
+        "headers": {
+          "content-type": {
+            "$regex": "text/event-stream"
+          }
+        },
+        "text": {
+          "$regex": "ok add\\\\n(.|\\n)*not ok sub - expected 2, got 8\\\\n"
+        },
+        "sse": {
+          "$contains": {
+            "event": "exit",
+            "data": {
+              "type": "exit",
+              "status": "exited",
+              "exitCode": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "the finished job reports the failure",
+      "request": {
+        "path": "/jobs/{job}"
+      },
+      "expect": {
+        "json": {
+          "status": "exited",
+          "exitCode": 1,
+          "stdout": "ok add\nnot ok sub - expected 2, got 8\n"
+        }
+      }
+    },
+    {
+      "name": "a fixed job replaces the work tree",
+      "request": {
+        "path": "/jobs",
+        "json": {
+          "files": {
+            "test.sh": "echo ok all\n"
+          },
+          "command": [
+            "sh",
+            "test.sh"
+          ]
+        }
+      },
+      "expect": {
+        "status": 202
+      },
+      "save": {
+        "fixed": "json.job"
+      }
+    },
+    {
+      "name": "and passes",
+      "request": {
+        "path": "/jobs/{fixed}"
+      },
+      "until": {
+        "seconds": 20,
+        "interval": 0.2
+      },
+      "expect": {
+        "json": {
+          "status": "exited",
+          "exitCode": 0,
+          "stdout": "ok all\n"
+        }
+      }
+    },
+    {
+      "name": "an unknown job is a 404",
+      "request": {
+        "path": "/jobs/01ARZ3NDEKTSV4RRFFQ69G5FAV"
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "error": "no_such_process"
+        }
+      }
+    }
+  ]
+}

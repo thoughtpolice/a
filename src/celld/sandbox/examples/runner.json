@@ -1,0 +1,62 @@
+{
+  "steps": [
+    {
+      "name": "a script runs and its output comes back",
+      "request": { "path": "/run", "headers": { "x-user": "ada" }, "json": { "code": "echo hello from the runner" } },
+      "expect": { "json": { "success": true, "exitCode": 0, "stdout": "hello from the runner\n", "stderr": "", "timedOut": false } }
+    },
+    {
+      "name": "it runs as uid 1000 in the workspace",
+      "request": { "path": "/run", "headers": { "x-user": "ada" }, "json": { "code": "id -u; pwd" } },
+      "expect": { "json": { "stdout": "1000\n/workspace\n" } }
+    },
+    {
+      "name": "stdin and exit codes pass through",
+      "request": {
+        "path": "/run",
+        "headers": { "x-user": "ada" },
+        "json": { "code": "read name; echo \"hi $name\" >&2; exit 7", "stdin": "grace\n" }
+      },
+      "expect": { "json": { "success": false, "exitCode": 7, "stderr": "hi grace\n" } }
+    },
+    {
+      "name": "the container's own environment does not leak in",
+      "request": { "path": "/run", "headers": { "x-user": "ada" }, "json": { "code": "env | cut -d= -f1 | sort | tr '\\n' ' '" } },
+      "expect": { "json": { "stdout": { "$not": { "$contains": "CLOUDFLARE" } } } }
+    },
+    {
+      "name": "there is no network",
+      "request": {
+        "path": "/run",
+        "headers": { "x-user": "ada" },
+        "json": { "code": "wget -q -T 3 -O /dev/null http://1.1.1.1/ || echo offline" }
+      },
+      "expect": { "json": { "stdout": "offline\n" } }
+    },
+    {
+      "name": "a script past its deadline is killed",
+      "request": { "path": "/run", "headers": { "x-user": "ada" }, "json": { "code": "sleep 60", "timeoutMs": 500 } },
+      "expect": { "json": { "timedOut": true, "exitCode": null } }
+    },
+    {
+      "name": "a deadline beyond the class's cap is cut to it",
+      "request": { "path": "/run", "headers": { "x-user": "ada" }, "json": { "code": "sleep 60", "timeoutMs": 3600000 } },
+      "expect": { "json": { "timedOut": true, "durationMs": { "$lt": 15000 } } }
+    },
+    {
+      "name": "output past the cap is cut",
+      "request": { "path": "/run", "headers": { "x-user": "ada" }, "json": { "code": "yes | head -c 100000" } },
+      "expect": { "json": { "truncated": true, "stdout": { "$len": 16384 } } }
+    },
+    {
+      "name": "each user has their own sandbox",
+      "request": { "path": "/run", "headers": { "x-user": "bob" }, "json": { "code": "ls" } },
+      "expect": { "json": { "stdout": "main.sh\n" } }
+    },
+    {
+      "name": "a bad request is refused before any sandbox starts",
+      "request": { "path": "/run", "json": { "code": "", "extra": true } },
+      "expect": { "status": 400, "json": { "error": { "$regex": "code" } } }
+    }
+  ]
+}
