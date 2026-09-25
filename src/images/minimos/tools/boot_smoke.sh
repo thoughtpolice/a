@@ -132,9 +132,11 @@ BANNED_USERLAND="${BIN}(zsh|ash|fish|ksh|csh|tcsh|busybox|ls|cat|cp|rm)\$"
 BANNED_ALWAYS="${BIN}(apt|apt-get|dpkg|snap|apk|dnf|microdnf|yum|rpm|pacman|zypper|nix|nix-env|guix)\$"
 # A container host is sandboxed because gVisor is the only thing in the
 # image that can start a container. A runc, crun or runc shim arriving in
-# some package's dependencies would quietly end that.
-BANNED_RUNTIMES="${BIN}(runc|crun|youki|containerd-shim-runc-v[0-9]+)\$"
-GVISOR_RUNTIME="${BIN}(runsc|containerd-shim-runsc-v1)\$"
+# some package's dependencies would quietly end that. containerd runs a
+# shim or runtime from any absolute path a client names, so these match
+# anywhere in the tree, not just on PATH.
+BANNED_RUNTIMES='(^|/)(runc|crun|youki|containerd-shim-runc-v[0-9]+)$'
+GVISOR_RUNTIME='(^|/)(runsc|containerd-shim-runsc-v1)$'
 GVISOR_FOUND=""
 CHRONY_STATE=""
 ACCOUNT_BLOBS=()
