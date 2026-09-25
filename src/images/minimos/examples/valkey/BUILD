@@ -3,27 +3,25 @@
 
 load("@root//src/images/minimos:defs.bzl", "minimos")
 
-# --------------------------------------------------------------------------
-# minimos + valkey (the Redis-compatible fork): a service with its own
-# config file and state directory. valkey-cli rides along so the
-# coreutils-less image can verify itself over SSH.
-# --------------------------------------------------------------------------
+# minimos + valkey, the Redis-compatible fork: a service with its own
+# config file and state directory. valkey-cli comes along so the image,
+# which has no coreutils, can be checked over SSH.
 
-# valkey + the TLS libs it links; glibc comes from the base, which the
-# .so closure resolves against.
+# valkey and the TLS libraries it links. The .so closure finds glibc in
+# the base.
 minimos.apk_culled_layer(
     name = "valkey-culled-layer",
     apks = [
         "valkey",
-        # Separate package: the server apk only symlinks at valkey-cli.
+        # The server package only ships a symlink to valkey-cli.
         "valkey-cli",
         "libssl3",
         "libcrypto3",
     ],
 )
 
-# Just the config and unit; /var/lib/valkey is the unit's
-# StateDirectory, created at start and owned by its dynamic user.
+# The config and the unit. /var/lib/valkey is the unit's StateDirectory=,
+# which systemd creates at start for the dynamic user.
 minimos.overlay(
     name = "valkey-overlay-layer",
     dirs = [
@@ -46,7 +44,7 @@ minimos.image(
         ":valkey-culled-layer",
         ":valkey-overlay-layer",
     ],
-    # Metadata only: valkey.conf binds loopback.
+    # Metadata only. valkey.conf binds loopback.
     ports = ["6379/tcp"],
     version = "0.1.0",
     visibility = ["PUBLIC"],

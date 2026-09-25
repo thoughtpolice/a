@@ -3,17 +3,13 @@
 
 load("@root//src/images/minimos:defs.bzl", "minimos")
 
-# --------------------------------------------------------------------------
-# minimos + nginx: a culled nginx stacked on the minimos base, started
-# via systemd, serving a static page. The fullest example — a service
-# with its own config, content, and multiple HTTP ports.
-# --------------------------------------------------------------------------
+# minimos + nginx serving a static page. The fullest appliance example,
+# with its own config, content and several HTTP ports.
 
-# nginx + the libs it links that the base does not already ship (glibc
-# and libpcre2 do come from the base: the .so closure resolves against
-# it), plus its upstream mime.types. The mainline stream carries the
-# advisory fixes Wolfi has not backported to nginx-stable; it installs
-# the same paths, so the keep list is stream-independent.
+# nginx, its upstream mime.types, and the libraries it links that the
+# base doesn't ship. The .so closure finds glibc and libpcre2 in the base.
+# nginx-mainline carries security fixes Wolfi hasn't backported to
+# nginx-stable, and both install the same paths.
 minimos.apk_culled_layer(
     name = "nginx-culled-layer",
     apks = [
@@ -26,9 +22,8 @@ minimos.apk_culled_layer(
     ],
 )
 
-# Our nginx.conf, the systemd unit (enabled into multi-user.target), and
-# the docroot with its index.html. /run/nginx is the unit's RuntimeDirectory,
-# owned by its dynamic user; access records are bounded by journald policy.
+# nginx.conf, the unit, and the document root. /run/nginx is the unit's
+# RuntimeDirectory=, owned by its dynamic user.
 minimos.overlay(
     name = "nginx-overlay-layer",
     dirs = [
@@ -58,7 +53,8 @@ minimos.image(
         ":nginx-culled-layer",
         ":nginx-overlay-layer",
     ],
-    # exe.dev's proxy auto-picks 80; 8000/8080 are unprivileged alternates.
+    # exe.dev's proxy picks 80 when it's listed. 8000 and 8080 serve the
+    # same page and can be shared on their own ports.
     ports = [
         "80/tcp",
         "8000/tcp",
