@@ -1,0 +1,418 @@
+{
+  "vars": {
+    "OPERATOR_TOKEN_SHA256": "7af3af7187ccb3c2e9976628d256d18c87674388ce0d764a586946ed1c010722"
+  },
+  "steps": [
+    {
+      "name": "a request with no token is refused before anything reaches a VM",
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/run",
+        "json": {
+          "argv": [
+            "id"
+          ]
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": {
+            "$regex": "^Bearer"
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a wrong token is refused the same way",
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/run",
+        "headers": {
+          "authorization": "Bearer op_00000000000000000000000000000000"
+        },
+        "json": {
+          "argv": [
+            "id"
+          ]
+        }
+      },
+      "expect": {
+        "status": 401
+      },
+      "upstream": []
+    },
+    {
+      "name": "argv elements arrive as single arguments, nothing expanded",
+      "script": {
+        "seedVm": {
+          "name": "box"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/run",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        },
+        "json": {
+          "argv": [
+            "printf",
+            "%s|",
+            "two words",
+            "$(id -u)",
+            "it's; `x`"
+          ]
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "exitCode": 0,
+            "exitSource": "marker",
+            "output": "two words|$(id -u)|it's; `x`|"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "path": "/exec",
+          "text": {
+            "$regex": "^ssh box '\\( printf "
+          }
+        }
+      ]
+    },
+    {
+      "name": "a multi-line script runs on the VM and its exit code comes back",
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/run",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        },
+        "json": {
+          "script": "echo first line\necho \"home is $HOME\" | sed 's|/.*/||'\nexit 3\n"
+        }
+      },
+      "expect": {
+        "json": {
+          "exitCode": 3,
+          "output": "first line\nhome is box\n"
+        }
+      },
+      "upstream": [
+        {
+          "text": {
+            "$regex": "base64 -d"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a missing command is exit 127, not an error",
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/run",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        },
+        "json": {
+          "argv": [
+            "no-such-command"
+          ]
+        }
+      },
+      "expect": {
+        "json": {
+          "exitCode": 127,
+          "output": {
+            "$contains": "not found"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "text": {
+            "$contains": "( no-such-command ) </dev/null; rc=$?"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a job starts detached and returns at once",
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/jobs",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        },
+        "json": {
+          "id": "build-1",
+          "script": "sleep 1\necho built\nexit 0\n"
+        }
+      },
+      "expect": {
+        "status": 202,
+        "json": {
+          "id": "build-1",
+          "pid": {
+            "$gt": 0
+          }
+        }
+      },
+      "upstream": [
+        {
+          "text": {
+            "$contains": "mkdir"
+          }
+        },
+        {
+          "text": {
+            "$contains": "set -C"
+          }
+        },
+        {
+          "text": {
+            "$contains": "setsid nohup"
+          }
+        }
+      ]
+    },
+    {
+      "name": "polling sees it finish, with its log",
+      "request": {
+        "path": "/vms/box/jobs/build-1",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        }
+      },
+      "until": {
+        "seconds": 20,
+        "interval": 0.5
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "id": "build-1",
+            "done": true,
+            "exitCode": 0,
+            "log": "built\n"
+          }
+        }
+      }
+    },
+    {
+      "name": "a job id already used is refused, and nothing is detached",
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/jobs",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        },
+        "json": {
+          "id": "build-1",
+          "script": "echo again\n"
+        }
+      },
+      "expect": {
+        "status": 409,
+        "json": {
+          "$exact": {
+            "error": "job_exists"
+          }
+        }
+      },
+      "upstream": {
+        "$not": {
+          "$contains": {
+            "text": {
+              "$contains": "setsid nohup"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "so the finished job still reads as it was",
+      "request": {
+        "path": "/vms/box/jobs/build-1",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "id": "build-1",
+            "done": true,
+            "exitCode": 0,
+            "log": "built\n"
+          }
+        }
+      }
+    },
+    {
+      "name": "a status file that holds no exit code is not read as exit 0",
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/run",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        },
+        "json": {
+          "script": ": > jobs/blank.status\n: > jobs/blank.log\n"
+        }
+      },
+      "expect": {
+        "json": {
+          "exitCode": 0
+        }
+      }
+    },
+    {
+      "name": "so polling that job reports no exit code",
+      "request": {
+        "path": "/vms/box/jobs/blank",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "id": "blank",
+            "done": true,
+            "exitCode": null,
+            "log": ""
+          }
+        }
+      }
+    },
+    {
+      "name": "a job whose directory cannot be made is not started",
+      "script": {
+        "seedVm": {
+          "name": "box2"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/vms/box2/run",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        },
+        "json": {
+          "script": ": > jobs\n"
+        }
+      },
+      "expect": {
+        "json": {
+          "exitCode": 0
+        }
+      }
+    },
+    {
+      "name": "starting it is a 502 and nothing is detached",
+      "request": {
+        "method": "POST",
+        "path": "/vms/box2/jobs",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        },
+        "json": {
+          "id": "nope",
+          "script": "echo hi\n"
+        }
+      },
+      "expect": {
+        "status": 502
+      },
+      "upstream": {
+        "$not": {
+          "$contains": {
+            "text": {
+              "$contains": "setsid nohup"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a VM the account does not have is a lobby error",
+      "request": {
+        "method": "POST",
+        "path": "/vms/ghost/run",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        },
+        "json": {
+          "argv": [
+            "true"
+          ]
+        }
+      },
+      "expect": {
+        "status": 502,
+        "json": {
+          "kind": {
+            "$any": true
+          }
+        }
+      }
+    },
+    {
+      "name": "a name that cannot be a VM is refused by the route",
+      "request": {
+        "method": "POST",
+        "path": "/vms/Not_A_VM/run",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        },
+        "json": {
+          "argv": [
+            "true"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "validation_failed",
+          "location": "path",
+          "fieldErrors": {
+            "vm": {
+              "$len": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "argv and script together are one or the other",
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/run",
+        "headers": {
+          "authorization": "Bearer op_2091cb0cfd599bcfd3dfad37fb9dab3c"
+        },
+        "json": {
+          "argv": [
+            "true"
+          ],
+          "script": "true"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "location": "body",
+          "formErrors": [
+            "give argv or script"
+          ]
+        }
+      }
+    }
+  ]
+}
