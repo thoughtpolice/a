@@ -1,0 +1,161 @@
+{
+  "steps": [
+    {
+      "name": "the first call discovers the issuer, gets a token with private_key_jwt, and calls the API",
+      "request": {
+        "path": "/report"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "report": "daily",
+            "rows": [
+              {
+                "region": "north",
+                "orders": 42
+              }
+            ],
+            "for": "reports-service"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/.well-known/oauth-authorization-server/as"
+        },
+        {
+          "method": "POST",
+          "path": "/as/token",
+          "headers": {
+            "authorization": {
+              "$absent": true
+            },
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "text": {
+            "$regex": "^grant_type=client_credentials&scope=reports%3Aread&resource=http%3A%2F%2F127\\.0\\.0\\.1%3A\\d+%2Fapi&client_id=reports-service&client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer&client_assertion=ey[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/reports/daily",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer ey"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "the token is reused: the next call goes straight to the API",
+      "request": {
+        "path": "/report"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "report": "daily",
+            "rows": [
+              {
+                "region": "north",
+                "orders": 42
+              }
+            ],
+            "for": "reports-service"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/api/reports/daily",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer ey"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a scope the client may not have is refused by the authorization server",
+      "request": {
+        "path": "/report?scope=reports:write"
+      },
+      "expect": {
+        "status": 502,
+        "json": {
+          "error": "invalid_scope",
+          "message": "could not get a token: invalid_scope"
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/as/token",
+          "text": {
+            "$regex": "^grant_type=client_credentials&scope=reports%3Awrite&"
+          }
+        }
+      ]
+    },
+    {
+      "name": "after the issuer rotates its keys, the API refuses the held token; the Worker gets a new one and retries once",
+      "script": {
+        "rotate": true
+      },
+      "request": {
+        "path": "/report"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "report": "daily",
+            "rows": [
+              {
+                "region": "north",
+                "orders": 42
+              }
+            ],
+            "for": "reports-service"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/api/reports/daily",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer ey"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/as/token",
+          "headers": {
+            "authorization": {
+              "$absent": true
+            },
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "text": {
+            "$regex": "^grant_type=client_credentials&scope=reports%3Aread&resource=http%3A%2F%2F127\\.0\\.0\\.1%3A\\d+%2Fapi&client_id=reports-service&client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer&client_assertion=ey[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/reports/daily",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer ey"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

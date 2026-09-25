@@ -1,0 +1,128 @@
+{
+  "steps": [
+    {
+      "name": "the token request carries a proof; both servers ask for their nonce first; the token is DPoP-bound to the Worker's key",
+      "request": {
+        "path": "/files"
+      },
+      "expect": {
+        "json": {
+          "tokenType": "DPoP",
+          "key": {
+            "$regex": "^[A-Za-z0-9_-]{43}$"
+          },
+          "boundTo": {
+            "$regex": "^[A-Za-z0-9_-]{43}$"
+          },
+          "files": [
+            "q3-plan.md",
+            "budget.xlsx"
+          ]
+        }
+      },
+      "save": {
+        "jkt": "json.key"
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/.well-known/oauth-authorization-server/as"
+        },
+        {
+          "method": "POST",
+          "path": "/as/token",
+          "headers": {
+            "authorization": {
+              "$regex": "^Basic "
+            },
+            "dpop": {
+              "$regex": "^ey[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            }
+          },
+          "text": {
+            "$regex": "^grant_type=client_credentials&scope=files%3Aread&resource=http%3A%2F%2F127\\.0\\.0\\.1%3A\\d+%2Fapi$"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/as/token",
+          "headers": {
+            "authorization": {
+              "$regex": "^Basic "
+            },
+            "dpop": {
+              "$regex": "^ey[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            }
+          },
+          "text": {
+            "$regex": "^grant_type=client_credentials&scope=files%3Aread&resource=http%3A%2F%2F127\\.0\\.0\\.1%3A\\d+%2Fapi$"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/files",
+          "headers": {
+            "authorization": {
+              "$regex": "^DPoP ey"
+            },
+            "dpop": {
+              "$regex": "^ey"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/files",
+          "headers": {
+            "authorization": {
+              "$regex": "^DPoP ey"
+            },
+            "dpop": {
+              "$regex": "^ey"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "the API binds to the same key; the token and the API's nonce are reused, so one request",
+      "request": {
+        "path": "/files"
+      },
+      "expect": {
+        "json": {
+          "key": "{jkt}",
+          "boundTo": "{jkt}"
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/api/files",
+          "headers": {
+            "authorization": {
+              "$regex": "^DPoP ey"
+            },
+            "dpop": {
+              "$regex": "^ey"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "the Worker's last request replayed as is: refused, its proof's jti was used (checked in the fake)",
+      "script": {
+        "replay": true
+      },
+      "upstream": []
+    },
+    {
+      "name": "its bound token sent as a Bearer token: refused invalid_token (checked in the fake)",
+      "script": {
+        "downgrade": true
+      },
+      "upstream": []
+    }
+  ]
+}
