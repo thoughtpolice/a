@@ -31,8 +31,10 @@
 #                 and the file mode and account checks still apply.
 #   --dev         Check the lingering user manager and the login wrapper's
 #                 bounded scope.
-#   --containers  Check that gVisor is the only OCI runtime in any layer
-#                 and that containerd runs with it as the default.
+#   --containers  Check that gVisor is the only OCI runtime in any layer,
+#                 that containerd runs with it as the default, and that
+#                 containerd and its container@ units run in
+#                 containers.slice.
 
 set -euo pipefail
 
@@ -130,9 +132,11 @@ BANNED_USERLAND="${BIN}(zsh|ash|fish|ksh|csh|tcsh|busybox|ls|cat|cp|rm)\$"
 BANNED_ALWAYS="${BIN}(apt|apt-get|dpkg|snap|apk|dnf|microdnf|yum|rpm|pacman|zypper|nix|nix-env|guix)\$"
 # A container host is sandboxed because gVisor is the only thing in the
 # image that can start a container. A runc, crun or runc shim arriving in
-# some package's dependencies would quietly end that.
-BANNED_RUNTIMES="${BIN}(runc|crun|youki|containerd-shim-runc-v[0-9]+)\$"
-GVISOR_RUNTIME="${BIN}(runsc|containerd-shim-runsc-v1)\$"
+# some package's dependencies would quietly end that. containerd runs a
+# shim or runtime from any absolute path a client names, so these match
+# anywhere in the tree, not just on PATH.
+BANNED_RUNTIMES='(^|/)(runc|crun|youki|containerd-shim-runc-v[0-9]+)$'
+GVISOR_RUNTIME='(^|/)(runsc|containerd-shim-runsc-v1)$'
 GVISOR_FOUND=""
 CHRONY_STATE=""
 ACCOUNT_BLOBS=()
@@ -547,6 +551,21 @@ if [[ "$CONTAINERS" -eq 1 ]]; then
     NERDCTL_NAMESPACES=$(docker_exec /usr/bin/nerdctl namespace ls 2>&1 || true)
     if ! grep -q 'NAME' <<<"$NERDCTL_NAMESPACES"; then
         fail "nerdctl could not reach containerd:" "${NERDCTL_NAMESPACES:-(no output)}"
+    fi
+
+    # Shims and nerdctl clients count as tasks of the unit that started
+    # them. In system.slice they would share the 2048 tasks the base's own
+    # services need.
+    for unit in containerd.service container@smoke.service; do
+        slice=$(docker_exec /usr/bin/systemctl show "$unit" --property=Slice --value 2>&1 || true)
+        if [[ "$slice" != "containers.slice" ]]; then
+            fail "$unit runs in ${slice:-(no slice)}, expected containers.slice"
+        fi
+    done
+    CONTAINERS_TASKS_MAX=$(docker_exec /usr/bin/systemctl show containers.slice \
+        --property=TasksMax --value 2>&1 || true)
+    if [[ "$CONTAINERS_TASKS_MAX" != "8192" ]]; then
+        fail "containers.slice TasksMax=$CONTAINERS_TASKS_MAX, expected 8192"
     fi
 
     # The unit hands the socket to uid 1000 with systemd-tmpfiles after

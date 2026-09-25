@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+[Unit]
+Description=containerd, its shims and the container@ units
+
+[Slice]
+# The base caps system.slice at 2048 tasks for every system service
+# together. Each running container adds a gVisor shim under containerd and
+# a nerdctl client in its container@ unit, both multi-threaded Go, so in
+# system.slice enough containers would use up the tasks journald, dbus and
+# logind need to fork. This slice sits beside system.slice with its own
+# ceiling. It keeps the default CPU and I/O weight of 100, a tenth of what
+# the base gives the control plane.
+#
+# The sandboxes themselves live outside every slice, for the reason
+# nerdctl.toml gives, so this bounds only the processes that manage them.
+TasksMax=8192
