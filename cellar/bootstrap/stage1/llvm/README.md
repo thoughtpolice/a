@@ -134,9 +134,12 @@ that byte for byte for every program, runtime library and startup file.
 `:toolchain` installs `stage3` and its runtimes as a native installation
 that is its own sysroot.
 
-- `bin/clang`, `bin/clang++`, `bin/ld.lld`, `bin/llvm-ar` and
-  `bin/llvm-ranlib`, which are copies, and
-  `bin/x86_64-unknown-linux-musl.cfg`.
+- `bin/clang`, `bin/ld.lld`, `bin/llvm-ar` and
+  `bin/x86_64-unknown-linux-musl.cfg`. `bin/clang++` and `bin/llvm-ranlib`
+  are small launchers, built from [alias.c](alias.c), that run `clang` and
+  `llvm-ar` under their own names, which choose the driver and archiver
+  modes. Buck keeps no links inside an installation, and copies would cost
+  150 MB.
 - Clang's resource headers and compiler-rt under `lib/clang/23`.
 - libc++, libc++abi, libc++experimental and libunwind under
   `lib/x86_64-unknown-linux-musl`, and libc++'s headers under

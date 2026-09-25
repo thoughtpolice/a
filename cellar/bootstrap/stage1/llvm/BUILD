@@ -416,6 +416,40 @@ RUNTIME_TESTS = {
     for test, spec in RUNTIME_TESTS.items()
 ]
 
+# clang++ and llvm-ranlib run clang and llvm-ar under their own names, as
+# links to them would, since Buck keeps no links inside an installation.
+ALIASES = {
+    "clang++": "clang",
+    "llvm-ranlib": "llvm-ar",
+}
+
+export_file(name = "alias.c")
+
+[
+    [
+        c_object(
+            name = "stage3-{}-alias.o".format(alias),
+            src = ":alias.c",
+            defines = ['TARGET="{}"'.format(target)],
+            flags = [
+                "-std=c11",
+                "-O2",
+            ],
+            object_name = "alias.o",
+            toolchain = ":stage3-cc",
+        ),
+        c_binary(
+            name = "stage3-{}-alias".format(alias),
+            end_objects = runtime_link("stage3")["end_objects"],
+            libraries = runtime_link("stage3")["libraries"],
+            objects = runtime_link("stage3")["objects"] + [":stage3-{}-alias.o".format(alias)],
+            output = alias,
+            toolchain = ":stage3-cc",
+        ),
+    ]
+    for alias, target in ALIASES.items()
+]
+
 # The final toolchain: stage3 with its runtimes, in an installation that is
 # its own sysroot. The configuration file beside Clang selects them.
 write_file(
@@ -434,10 +468,8 @@ filegroup(
     name = "toolchain",
     srcs = {
         "bin/clang": ":stage3-clang-clang",
-        "bin/clang++": ":stage3-clang-clang",
         "bin/ld.lld": ":stage3-lld-lld",
         "bin/llvm-ar": ":stage3-llvm-llvm-ar",
-        "bin/llvm-ranlib": ":stage3-llvm-llvm-ar",
         "bin/x86_64-unknown-linux-musl.cfg": ":x86_64-unknown-linux-musl.cfg",
         "share/licenses/linux": LINUX + ":installation[share/licenses/linux]",
         "share/licenses/mimalloc/LICENSE": "cellar//bootstrap/stage1/mimalloc:mimalloc-3.5.3[LICENSE]",
@@ -445,6 +477,9 @@ filegroup(
     } | {
         "share/licenses/{}/LICENSE.TXT".format(project): "{}[{}/LICENSE.TXT]".format(SOURCE, project)
         for project in LICENSED_PROJECTS
+    } | {
+        "bin/" + alias: ":stage3-{}-alias".format(alias)
+        for alias in ALIASES
     } | resource_headers("stage3") | runtime_installation("stage3"),
 )
 

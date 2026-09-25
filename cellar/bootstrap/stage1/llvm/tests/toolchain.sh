@@ -73,7 +73,7 @@ while read -r -a words; do
     done
 done < commands
 # Nothing GCC compiled reaches the toolchain or the programs it links.
-for program in "$clang" "$tree/bin/ld.lld" "$tree/bin/llvm-ar" native-c native-cxx runtimes; do
+for program in "$tree"/bin/{clang,clang++,ld.lld,llvm-ar,llvm-ranlib} native-c native-cxx runtimes; do
     if "$grep" -a -q 'GCC: (GNU)' "$program"; then
         echo "$program holds GCC-compiled code" >&2
         exit 1
