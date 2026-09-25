@@ -95,6 +95,10 @@ _PROGRAM_DIRS = frozenset({
     "usr/local/sbin", "usr/local/bin", "usr/sbin", "usr/bin", "sbin", "bin",
 })
 
+# Directories that lookups by name read, beyond what the sealed prefixes
+# cover. A composition may add to them but may never point them elsewhere.
+_SEARCH_DIRS = _PROGRAM_DIRS | _SYSTEM_UNIT_DIRS
+
 
 @dataclass(frozen=True)
 class LayerEntry:
@@ -151,6 +155,21 @@ class CompositionPolicy:
             if (name == prefix or name.startswith(prefix + "/")) and len(prefix) >= best:
                 best, allowed = len(prefix), False
         return allowed
+
+    def redirected_by_link(self, name: str) -> str | None:
+        """The sealed prefix or search directory a new symlink at `name` moves.
+
+        Every other rule judges a path by where it resolves. A link at or
+        above a sealed prefix moves the whole prefix instead, and nothing
+        written through the link resolves under the prefix it moved. The
+        base ships no /usr/local, so a link there would carry
+        /usr/local/lib and /usr/local/bin into a composable tree, and
+        systemd and PATH would follow it.
+        """
+        for guarded in sorted(self.sealed | _SEARCH_DIRS):
+            if guarded == name or guarded.startswith(name + "/"):
+                return guarded
+        return None
 
 
 def load_policy(path: Path) -> CompositionPolicy:
@@ -221,7 +240,8 @@ class LowerNames:
             f"{instance['prefix']}@.{instance['type']}" in self.units
         )
 
-    def conflict(self, name: str, entry: LayerEntry) -> str | None:
+    def conflict(self, name: str, entry: LayerEntry,
+                 state: dict[str, LayerEntry]) -> str | None:
         """Why a new path at `name` takes over a lower name, or None if it doesn't.
 
         Links in a `.wants/` or `.requires/` directory are left alone. They
@@ -243,7 +263,10 @@ class LowerNames:
         if not rest and entry.kind == "symlink" and entry.linkname:
             # systemd loads drop-ins for every name a unit has, so an alias
             # would reopen the drop-in directory the check above closes.
-            target = entry.linkname.rstrip("/").rpartition("/")[2]
+            # systemd names the alias after the target's last component
+            # once "." and ".." and every link before it are resolved, so
+            # ".../dbus.service/." aliases dbus.service too.
+            target = resolve_link_target(name, entry.linkname, state).rpartition("/")[2]
             if self.owns_unit(target):
                 return f"which aliases {target}, a unit that already exists below this layer"
         return None
@@ -361,13 +384,37 @@ def validate_layer(path: Path) -> tuple[dict[str, LayerEntry], str]:
 def resolve_state_path(name: str, state: dict[str, LayerEntry], *,
                        follow_final: bool) -> str:
     """Resolve a member against the effective lower/current image state."""
-    pending = deque(canonical_member_name(name).split("/"))
+    return _resolve(canonical_member_name(name).split("/"), state,
+                    follow_final=follow_final, what=f"layer path /{name}")
+
+
+def resolve_link_target(name: str, target: str, state: dict[str, LayerEntry]) -> str:
+    """Where the symlink at `name` points, without following its last component."""
+    parts = target.split("/")
+    if not target.startswith("/"):
+        parts = name.split("/")[:-1] + parts
+    return _resolve(parts, state, follow_final=False, what=f"the target of /{name}")
+
+
+def _resolve(parts: list[str], state: dict[str, LayerEntry], *,
+             follow_final: bool, what: str) -> str:
+    """Walk `parts` from the image root the way the kernel would.
+
+    A ".." climbs from wherever the walk has got to, which after a link
+    can be far from where the text of the path points. The extractor
+    resolves it the same way, so a lexical reading would let a layer
+    write somewhere other than where this check thinks it does.
+    """
+    pending = deque(part for part in parts if part not in ("", "."))
     resolved: list[str] = []
     followed = 0
     while pending:
         part = pending.popleft()
-        if not part or part == ".." or part.startswith("/"):
-            raise UnsafeInputError(f"unsafe effective-rootfs component: {part!r}")
+        if part == "..":
+            if not resolved:
+                raise UnsafeInputError(f"{what} climbs above the image root")
+            resolved.pop()
+            continue
         candidate = "/".join(resolved + [part])
         entry = state.get(candidate)
         final = not pending
@@ -376,19 +423,18 @@ def resolve_state_path(name: str, state: dict[str, LayerEntry], *,
         ):
             followed += 1
             if followed > 40:
-                raise UnsafeInputError(f"too many symlinks while resolving /{name}")
-            if entry.linkname is None:
-                raise UnsafeInputError(f"symlink is missing a target: /{candidate}")
-            pending = deque(
-                link_parts(resolved, entry.linkname, what=f"symlink /{candidate}")
-                + list(pending)
+                raise UnsafeInputError(f"too many symlinks while resolving {what}")
+            link = entry.linkname
+            if not link or "\x00" in link or link.startswith("//"):
+                raise UnsafeInputError(f"symlink /{candidate} has an unsafe target: {link!r}")
+            if link.startswith("/"):
+                resolved = []
+            pending.extendleft(
+                piece for piece in reversed(link.split("/")) if piece not in ("", ".")
             )
-            resolved = []
             continue
         if entry is not None and entry.kind != "directory" and not final:
-            raise UnsafeInputError(
-                f"layer path /{name} descends through non-directory /{candidate}"
-            )
+            raise UnsafeInputError(f"{what} descends through non-directory /{candidate}")
         resolved.append(part)
     return "/".join(resolved)
 
@@ -443,7 +489,14 @@ def apply_layer_state(entries: dict[str, LayerEntry], state: dict[str, LayerEntr
                     f"composition layer {layer} writes /{name}, which is not "
                     f"under a composable path"
                 )
-            elif reason := lower.conflict(name, entry):
+            elif entry.kind == "symlink" and (
+                moved := policy.redirected_by_link(name)
+            ):
+                raise UnsafeInputError(
+                    f"composition layer {layer} makes /{name} a symlink, which "
+                    f"would move /{moved} somewhere else"
+                )
+            elif reason := lower.conflict(name, entry, state):
                 raise UnsafeInputError(
                     f"composition layer {layer} writes /{name}, {reason}"
                 )

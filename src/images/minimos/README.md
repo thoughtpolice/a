@@ -102,6 +102,9 @@ to the rules like this:
 - `which a lookup by name can run instead of /usr/bin/X`: a program has
   the same name as one a lower layer ships in another PATH directory.
   Rename it or leave it out.
+- `makes /... a symlink, which would move /...`: the link would point a
+  sealed prefix, a PATH directory or a unit directory somewhere else.
+  Ship a real directory there instead.
 - `no layer declares its parent directory`: add the directory to `dirs`.
 
 ## Running on exe.dev
@@ -224,8 +227,12 @@ What the base enforces:
   modules directory, systemd's configuration and higher-priority unit
   paths, generators, bus policy and trust roots. Anything the policy
   doesn't open is refused, so a search path nobody thought of stays
-  closed. `scratch_image.py` enforces this at build time, and
-  `tools/security_tests.py` tests it against the shipped `policy.txt`.
+  closed. Paths resolve through symlinks the way the kernel resolves
+  them, and a layer can't turn a sealed prefix, a PATH directory or
+  anything above one into a symlink, since `/usr/local -> /opt/x`
+  would move all of `/usr/local/lib` at once. `scratch_image.py`
+  enforces this at build time, and `tools/security_tests.py` tests it
+  against the shipped `policy.txt`.
 - **Accounts are baked.** `/etc/{passwd,group,shadow}` come from
   `base/config/` alone. `sysusers.d` is culled, `systemd-sysusers` is
   masked, and the boot smoke checks the files don't change at boot.

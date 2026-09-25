@@ -660,6 +660,16 @@ class SecurityTests(unittest.TestCase):
                 "usr/local/lib/environment.d": directory(),
                 "usr/local/lib/environment.d/99-evil.conf": regular(),
             },
+            # "x/.." climbs out of the link x points to, not out of opt, so
+            # opt/up is /usr/lib/systemd and the file lands among the
+            # vendor generators.
+            "dot-dot through an earlier link": {
+                "opt": directory(),
+                "opt/x": symlink("/usr/lib/systemd/system"),
+                "opt/up": symlink("x/.."),
+                "opt/up/system-generators": directory(),
+                "opt/up/system-generators/00-evil": regular(0o755),
+            },
         }
         for name, fixture in refused.items():
             with self.subTest(attack=name), self.assertRaises(UnsafeInputError):
@@ -728,6 +738,12 @@ class SecurityTests(unittest.TestCase):
                 "usr/lib": directory(),
                 "usr/lib/systemd": directory(),
             },
+            "plugin directory linking to programs": {
+                "opt": directory(),
+                "opt/cni": directory(),
+                "opt/cni/bin": directory(),
+                "opt/cni/bin/bridge": symlink("/usr/bin/bridge"),
+            },
         }
         for name, fixture in allowed.items():
             with self.subTest(composition=name):
@@ -778,6 +794,36 @@ class SecurityTests(unittest.TestCase):
             "new name aliasing a vendor unit": ("which aliases dbus.service", {
                 "etc/systemd/system/innocent.service":
                     symlink("/usr/lib/systemd/system/dbus.service"),
+            }),
+            # systemd drops "." and resolves ".." before it names the alias.
+            "alias with a trailing dot": ("which aliases dbus.service", {
+                "etc/systemd/system/innocent.service":
+                    symlink("/usr/lib/systemd/system/dbus.service/."),
+                "etc/systemd/system/innocent.service.d": directory(),
+                "etc/systemd/system/innocent.service.d/99.conf": regular(),
+            }),
+            "alias through dot-dot": ("which aliases dbus.service", {
+                "etc/systemd/system/innocent.service":
+                    symlink("../../../usr/lib/systemd/system/../system/dbus.service/"),
+            }),
+            # The base ships no /usr/local, so these links would be new
+            # paths, and everything written through them would resolve
+            # under /opt.
+            "/usr/local redirected into a composable tree": ("would move /usr/local/bin", {
+                "opt": directory(),
+                "opt/x": directory(),
+                "opt/x/lib": directory(),
+                "opt/x/lib/systemd": directory(),
+                "opt/x/lib/systemd/system": directory(),
+                "opt/x/lib/systemd/system/dbus.service": regular(),
+                "usr/local": symlink("/opt/x"),
+            }),
+            "/usr/local/bin redirected into a composable tree": ("would move /usr/local/bin", {
+                "opt": directory(),
+                "opt/bin": directory(),
+                "opt/bin/mount": regular(0o755),
+                "usr/local": directory(),
+                "usr/local/bin": symlink("/opt/bin"),
             }),
             "base program shadowed from /usr/local/bin": (program, {
                 "usr/local": directory(),
@@ -860,6 +906,19 @@ class SecurityTests(unittest.TestCase):
         escaping = {"alias": symlink("../outside")}
         with self.assertRaises(UnsafeInputError):
             scratch.resolve_state_path("alias/file", escaping, follow_final=False)
+        # ".." leaves the directory a link resolved to, as the kernel does,
+        # rather than the directory the target's text names.
+        through = {
+            "usr": directory(),
+            "usr/lib": directory(),
+            "opt": directory(),
+            "opt/x": symlink("/usr/lib"),
+            "opt/up": symlink("x/.."),
+        }
+        self.assertEqual(
+            scratch.resolve_state_path("opt/up/conf", through, follow_final=False),
+            "usr/conf",
+        )
 
     def test_layer_rejects_acl_ids_compression_and_type_collisions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
