@@ -1,76 +1,71 @@
 # minimos
 
-This is an attempt to create a Bottlerocket-like, appliance-style OCI image
-for exe.dev virtual machines. The goal is the smallest reasonable image that
-will boot and host working services. There is no distro userspace, coreutils,
-SSH daemon (the platform provides a self-contained `/exe.dev/bin/sshd`), or
-package manager. The base is systemd, its shared-library closure, and the
-minimum `/etc` it needs, plus `bash`, `dash`, and `nologin` for the platform
-bootstrap and account-shell contract described below, and `chronyd` — the one
-daemon every image needs, because a wrong clock is a wrong answer about
-certificate validity, token lifetime, and log order.
+minimos is a small appliance-style OCI image for exe.dev VMs, in the
+spirit of Bottlerocket. It boots systemd and runs services, and not much
+else. There's no distro userland, no coreutils, no package manager and
+no SSH daemon, since the platform brings its own sshd. The base is
+systemd and its libraries, the few `/etc` files it needs, `bash`, `dash`
+and `nologin` for the platform's login contract, and `chronyd`, because
+a wrong clock breaks certificate checks, token lifetimes and log order.
 
-Everything is assembled from pinned [Wolfi](https://wolfi.dev) packages —
-Chainguard's glibc-based rolling "undistro" built for exactly this kind
-of container-shaped, security-patched minimalism. The build downloads
-hash-verified `.apk` files (see `third-party//by-name/wo/wolfi`),
-extracts them with ~100 lines of stdlib Python, and culls the result;
-there is no donor image, no `apk` at build or run time, and no unpinned
-`latest` anywhere. Refreshing the OS is a version+hash bump in one BUILD
-file, gated by the boot-smoke tests.
+Everything comes from pinned [Wolfi](https://wolfi.dev) packages. The
+build downloads hash-checked `.apk` files (see
+`third-party//by-name/wo/wolfi`), extracts them with a small stdlib
+Python tool, and culls the result. There's no donor image, no `apk` at
+build or run time, and nothing unpinned. Updating the OS means bumping
+versions and hashes in one BUILD file and passing the boot smokes.
 
-minimos is structured as a **base layer**: this package builds the two
-layers every image starts from, and downstream packages compose services
-on top of them through the macros in `defs.bzl`.
+This package builds the two base layers. Other packages stack services
+on them with the macros in `defs.bzl`.
 
 ## Layout
 
 ```
 src/images/minimos/
-  BUILD                    — base layers + the :minimos reference image
-  defs.bzl                 — the composition API: minimos.image() & friends
-  base/                    — everything that goes INTO the base image
-    keepfiles.txt          —   allowlist culling the Wolfi rootfs to systemd
-    denyfiles.txt          —   paths dropped from the culled rootfs
-    config/                —   /etc files (passwd, group, sysctl.d, …)
-    units/                 —   systemd units and drop-ins
-  tools/                   — generic machinery (apk, cull, overlay, image, test)
-  examples/                — worked compositions; copy one to start yours
-    memcached/             —   the minimum: one binary, one unit
-    valkey/                —   config file + state dir + CLI for verification
-    nginx/                 —   static content, multiple HTTP ports
-    dev/                   —   interactive userland + per-user systemd manager
-    codex/                 —   dev machine + the Codex CLI coding agent
-    container-host/        —   containerd with gVisor as the only OCI runtime
+  BUILD            the base layers and the :minimos reference image
+  defs.bzl         minimos.apk_culled_layer, minimos.overlay, minimos.image
+  policy.txt       what a layer above the base may write
+  base/
+    keepfiles.txt  paths the base keeps from the Wolfi rootfs
+    denyfiles.txt  paths it drops again
+    config/        /etc and /usr/lib/minimos files
+    units/         systemd units and drop-ins
+  tools/           cull, overlay, image and boot smoke tools
+  examples/        worked compositions, see examples/README.md
+    memcached/     one binary and one unit, the smallest
+    valkey/        a config file, a state directory, a CLI
+    nginx/         static content on several ports
+    dev/           an interactive userland and a user manager
+    codex/         the dev image plus the Codex CLI
+    container-host/  containerd with gVisor as the only runtime
 ```
 
-## Composing an image on minimos
+## Composing an image
 
-`defs.bzl` exports a `minimos` struct; one load gives a downstream
-package everything it needs:
+One load gives a package everything:
 
 ```bzl
 load("@root//src/images/minimos:defs.bzl", "minimos")
 
-# 1. Cull the service binary + its .so closure out of pinned Wolfi
-#    packages (pin them in third-party//by-name/wo/wolfi first), driven
-#    by keepfiles.txt in your package. The closure resolves against the
-#    base layer too, so list only what the base doesn't already ship.
+# Cull the service and the libraries it links out of pinned Wolfi
+# packages, per keepfiles.txt in this package. Pin new packages in
+# third-party//by-name/wo/wolfi first. The .so closure resolves against
+# the base, so list only what the base doesn't ship.
 minimos.apk_culled_layer(
     name = "app-culled-layer",
-    apks = ["app", "libapp-deps"],  # Wolfi package names
+    apks = ["app", "libapp-deps"],
 )
 
-# 2. Declare your config/unit/content layer — no tar-writing script needed.
+# Config, units and content, declared rather than scripted.
 minimos.overlay(
     name = "app-overlay-layer",
     dirs = ["etc", "var", "var/lib/app"],
     files = {"etc/app.conf": "app.conf"},
-    units = ["app.service"],          # installed + enabled per its [Install]
+    units = ["app.service"],  # enabled per its [Install] section
 )
 
-# 3. Assemble: base layers first, yours on top. Emits <name>,
-#    <name>-docker, and <name>-boot-smoke.
+# The base layers go first and yours on top. This emits my-app,
+# my-app-docker and my-app-boot-smoke.
 minimos.image(
     name = "my-app",
     description = "minimos + my app",
@@ -80,36 +75,34 @@ minimos.image(
 )
 ```
 
-A service with no Wolfi package needs one pinned or built from source;
-there is no path for culling a foreign image, so every binary in every
-image shares the base's glibc.
+A service with no Wolfi package needs one pinned or built from source.
+There's no way to cull a foreign image, so every binary shares the
+base's glibc.
 
-`minimos.image` always stacks `:culled-layer` + `:overlay-layer` from this
-package underneath and bakes in the exe.dev boot contract: systemd as Cmd
-(`/sbin/init --log-target=syslog --show-status=true --log-color=false`),
-`PATH`/`LANG`, `User=root`, and the `exe.dev/login-user=exedev` label.
+`minimos.image` bakes in the exe.dev boot contract. The Cmd is
+`/sbin/init --log-target=syslog --show-status=true --log-color=false`,
+the user is root, the environment sets `PATH`, `LANG=C.UTF-8`,
+`TERM=dumb` and `SYSTEMD_COLORS=0`, and the `exe.dev/login-user` label
+names `exedev`.
 
-It also enforces a composition policy on everything stacked above those two
-layers: your layers may add paths under the composable prefixes, but may not
-redefine anything the base established or write into a sealed directory. If a
-build fails with `writes /… , which is not under a composable path` or
-`replaces /…, which a lower layer established`, that is this policy — see
-`policy.txt` and the reasoning in the hardening section below. The second
-message means two layers declare one path: a keep list matching something
-the base already ships, or two overlays writing the same file. A culled
-layer's `.so` closure never does this, since it resolves against the base
-first and leaves out whatever the base carries.
+It also enforces the composition policy in `policy.txt` on every layer
+above the base. A layer can add paths under the composable prefixes, but
+it can't redefine anything a lower layer set up. The error messages map
+to the rules like this:
 
-Three more messages come from the same policy. `which reconfigures X, a unit
-that already exists below this layer` means an overlay tried to override,
-mask or drop in a file for a unit it doesn't ship; configure your own units
-only. `which a lookup by name can run instead of /usr/bin/X` means a binary
-reuses the name of one a lower layer ships in another PATH directory; rename
-it or leave it out. `no layer declares its parent directory` means an overlay
-wrote a path without listing its directory in `dirs`.
-
-The worked versions of this pattern live in [examples/](examples/) with
-their own README.
+- `writes /..., which is not under a composable path`: the path is
+  outside the prefixes `policy.txt` opens, or inside one it seals.
+- `replaces /..., which a lower layer established`: two layers ship the
+  same path. Usually a keep list matched something the base already has,
+  or two overlays write the same file. A culled layer's .so closure never
+  causes this, because it leaves out what the base carries.
+- `which reconfigures X, a unit that already exists below this layer`:
+  an overlay tried to override, mask or drop in a file for a unit it
+  didn't ship. Configure your own units only.
+- `which a lookup by name can run instead of /usr/bin/X`: a program has
+  the same name as one a lower layer ships in another PATH directory.
+  Rename it or leave it out.
+- `no layer declares its parent directory`: add the directory to `dirs`.
 
 ## Security & hardening
 
