@@ -172,9 +172,10 @@ bfloat16 and x87 conversions and CPU detection.
 `toolchain-test` uses only `:toolchain`, with no `PATH`. `clang` and
 `clang++` build and run the same programs through the configuration file, a
 C program walks its stack through `libunwind.h`, and a program links a
-library that `llvm-ar` and `llvm-ranlib` made. Every absolute path the driver
-gives the compiler and linker must lie in the installation, the installed
-tools and the programs they link must hold no code GCC compiled, and
+library that `llvm-ar` and `llvm-ranlib` made. Every musl and Linux header
+must lie in the installation unchanged, since the two share directories such
+as `scsi`. Every absolute path the driver gives the compiler and linker must
+lie in the installation, the installed tools and the programs they link must hold no code GCC compiled, and
 `--target=aarch64-unknown-linux-musl` must still emit an AArch64 object.
 
 `gcc-tblgen` checks both generators' versions and optimized, assertion-free

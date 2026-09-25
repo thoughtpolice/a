@@ -7,6 +7,9 @@ tests=$2
 runtimes=$3
 od=$4
 grep=$5
+musl_headers=$6
+linux_headers=$7
+cmp=$8
 clang=$tree/bin/clang
 cxx=$tree/bin/clang++
 [[ $("$clang" --version) == *'clang version 23.1.0'* ]]
@@ -76,6 +79,17 @@ for program in "$clang" "$tree/bin/ld.lld" "$tree/bin/llvm-ar" native-c native-c
         exit 1
     fi
     "$grep" -a -q 'clang version 23.1.0' "$program"
+done
+# musl's and the kernel's headers share directories such as scsi. Every one
+# of them lies in the installation unchanged, so neither shadows the other.
+shopt -s globstar nullglob
+for headers in "$musl_headers" "$linux_headers"; do
+    installed=0
+    for header in "$headers"/**/*.h; do
+        "$cmp" -s "$header" "$tree/include/${header#"$headers"/}"
+        installed=$((installed + 1))
+    done
+    [[ $installed -gt 0 ]]
 done
 # The AArch64 back end emits an AArch64 ELF object (e_machine 183).
 printf 'int add(int a, int b) { return a + b; }\n' > add.c
