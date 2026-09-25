@@ -10,15 +10,16 @@ load("@root//src/images/minimos:defs.bzl", "minimos")
 # job is to run other people's containers, so it ships no userland of its
 # own — the userland arrives inside the sandboxes.
 #
-#   ssh exe.dev new --image=<pushed image> --name=host
-#   ssh host.exe.xyz nerdctl run --rm --runtime=io.containerd.runsc.v1 \
-#       docker.io/library/alpine:3 uname -a      # -> 4.19.0-gvisor
-#
 # "Only runtime" is an image-content property, not a setting: there is no
 # runc, no crun, and no containerd-shim-runc-v2 in any layer, so the
 # conventional default runtime cannot start a container here at all. The
 # boot smoke re-derives that from the built layers rather than trusting
 # this comment.
+#
+# Workloads are part of the image. A layer stacked on this one ships
+# /etc/minimos/containers/<name>.env and enables container@<name>.service
+# (see container@.service). The SSH owner can pull and inspect with ctr,
+# but can't start a container, as the example README explains.
 # --------------------------------------------------------------------------
 
 _WOLFI = "third-party//by-name/wo/wolfi"

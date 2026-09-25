@@ -126,7 +126,7 @@ A container is declared as data and started by systemd:
 
 ```
 # /etc/minimos/containers/web.env, shipped by a layer stacked on this image
-IMAGE=docker.io/library/nginx:1.29-alpine
+IMAGE=docker.io/library/nginx:1.29-alpine@sha256:<digest>
 RUN_ARGS=--publish 80:80 --memory 256m --cpus 1
 COMMAND=
 ```
@@ -193,7 +193,9 @@ error; it simply hangs.
 
 The CRI always sets that annotation, which is why the bug is invisible in
 Kubernetes. `container@.service` passes it explicitly, and the boot smoke
-asserts it is still there. Ad-hoc runs need both flags:
+asserts it is still there. Anything else that starts a container on this
+runtime, as root on this image or on any other containerd host, needs
+both flags:
 
 ```
 nerdctl run --runtime=io.containerd.runsc.v1 \
@@ -298,9 +300,9 @@ ssh exe.dev new --image=ttl.sh/$USER-minimos-memcached:1h --name mos-memcached
 ssh mos-memcached.exe.xyz  # bash + systemctl/journalctl; no coreutils
 ```
 
-ttl.sh tags are mutable but cached by digest on the platform side:
-when you push a changed image, use a fresh tag or the VM may boot the
-stale bytes.
+exe.dev caches what a tag resolved to, for an hour for `latest`, `main`
+and `master` and a day for any other tag. When you push a changed image,
+use a fresh tag or the VM may boot the old one.
 
 In-VM verification, coreutils-free (the appliance images):
 
