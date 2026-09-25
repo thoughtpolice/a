@@ -1,0 +1,298 @@
+{
+  "steps": [
+    {
+      "name": "the public route needs no token and fetches no keys",
+      "request": {
+        "path": "/health"
+      },
+      "expect": {
+        "json": {
+          "ok": true
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "no token: 401 with a bare Bearer challenge",
+      "request": {
+        "path": "/reports"
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": "Bearer realm=\"reports\""
+        }
+      }
+    },
+    {
+      "name": "a good token authenticates; the key set is fetched once",
+      "request": {
+        "path": "/whoami",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InJlcG9ydHMtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3JlcG9ydHMuZXhhbXBsZS5jb20iLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic3ViIjoiYWxpY2UiLCJzY29wZSI6InJlcG9ydHM6cmVhZCIsImNsaWVudF9pZCI6ImRhc2hib2FyZCJ9.oDug2yjf71ED2VUDurdkNVB1qEo1cZJ5nyG4RsCovLD4jLMQsdMLjQLbn5FwZ1PPr5HMbxUesxWQsIYEGSMwgg"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "subject": "alice",
+            "scopes": [
+              "reports:read"
+            ],
+            "clientId": "dashboard"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/jwks"
+        }
+      ]
+    },
+    {
+      "name": "and cached for the next request",
+      "request": {
+        "path": "/reports",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InJlcG9ydHMtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3JlcG9ydHMuZXhhbXBsZS5jb20iLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic3ViIjoiYWxpY2UiLCJzY29wZSI6InJlcG9ydHM6cmVhZCIsImNsaWVudF9pZCI6ImRhc2hib2FyZCJ9.oDug2yjf71ED2VUDurdkNVB1qEo1cZJ5nyG4RsCovLD4jLMQsdMLjQLbn5FwZ1PPr5HMbxUesxWQsIYEGSMwgg"
+        }
+      },
+      "expect": {
+        "json": {
+          "reports": []
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "reading is not writing: 403 insufficient_scope with the scope to ask for",
+      "request": {
+        "path": "/reports",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InJlcG9ydHMtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3JlcG9ydHMuZXhhbXBsZS5jb20iLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic3ViIjoiYWxpY2UiLCJzY29wZSI6InJlcG9ydHM6cmVhZCIsImNsaWVudF9pZCI6ImRhc2hib2FyZCJ9.oDug2yjf71ED2VUDurdkNVB1qEo1cZJ5nyG4RsCovLD4jLMQsdMLjQLbn5FwZ1PPr5HMbxUesxWQsIYEGSMwgg"
+        },
+        "json": {
+          "title": "Q3 revenue",
+          "quarter": "Q3"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "insufficient_scope"
+        },
+        "headers": {
+          "www-authenticate": "Bearer realm=\"reports\", error=\"insufficient_scope\", error_description=\"this needs the scopes: reports:write\", scope=\"reports:write\""
+        }
+      }
+    },
+    {
+      "name": "a writer can post; the body is validated",
+      "request": {
+        "path": "/reports",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InJlcG9ydHMtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3JlcG9ydHMuZXhhbXBsZS5jb20iLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic3ViIjoiYm9iIiwic2NvcGUiOiJyZXBvcnRzOnJlYWQgcmVwb3J0czp3cml0ZSIsImNsaWVudF9pZCI6ImRhc2hib2FyZCJ9.F31dJDZaBSfVt1ujZRb0MSPjXa1TaUpmc2NuAjykXN4w_O30mERIL17hx-VpQu0hQdWoLfiK5QG4ssf_DMuX5w"
+        },
+        "json": {
+          "title": "Q3 revenue",
+          "quarter": "Q5"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "fieldErrors": {
+            "quarter": {
+              "$len": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "and a valid report is stored with its author",
+      "request": {
+        "path": "/reports",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InJlcG9ydHMtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3JlcG9ydHMuZXhhbXBsZS5jb20iLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic3ViIjoiYm9iIiwic2NvcGUiOiJyZXBvcnRzOnJlYWQgcmVwb3J0czp3cml0ZSIsImNsaWVudF9pZCI6ImRhc2hib2FyZCJ9.F31dJDZaBSfVt1ujZRb0MSPjXa1TaUpmc2NuAjykXN4w_O30mERIL17hx-VpQu0hQdWoLfiK5QG4ssf_DMuX5w"
+        },
+        "json": {
+          "title": "Q3 revenue",
+          "quarter": "Q3"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "title": "Q3 revenue",
+          "quarter": "Q3",
+          "author": "bob"
+        }
+      }
+    },
+    {
+      "name": "the auditor role opens /audit",
+      "request": {
+        "path": "/audit",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InJlcG9ydHMtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3JlcG9ydHMuZXhhbXBsZS5jb20iLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic3ViIjoiY2Fyb2wiLCJzY29wZSI6InJlcG9ydHM6cmVhZCIsInJvbGVzIjpbImF1ZGl0b3IiXSwiY2xpZW50X2lkIjoiZGFzaGJvYXJkIn0.MVs3oLK76_TFv4UXUWiuHYbmgpKH1LQw-j0wm6_2sOBwuEPw_IaNyVMfmtjvAkZ2d8EEbpRfEaHBGeziN2sCKg"
+        }
+      },
+      "expect": {
+        "json": {
+          "auditor": "carol"
+        }
+      }
+    },
+    {
+      "name": "without it, 403 forbidden",
+      "request": {
+        "path": "/audit",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InJlcG9ydHMtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3JlcG9ydHMuZXhhbXBsZS5jb20iLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic3ViIjoiYm9iIiwic2NvcGUiOiJyZXBvcnRzOnJlYWQgcmVwb3J0czp3cml0ZSIsImNsaWVudF9pZCI6ImRhc2hib2FyZCJ9.F31dJDZaBSfVt1ujZRb0MSPjXa1TaUpmc2NuAjykXN4w_O30mERIL17hx-VpQu0hQdWoLfiK5QG4ssf_DMuX5w"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "forbidden",
+          "message": "this needs one of the roles: auditor"
+        },
+        "headers": {
+          "www-authenticate": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "name": "a token for another audience is refused",
+      "request": {
+        "path": "/whoami",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InJlcG9ydHMtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2JpbGxpbmcuZXhhbXBsZS5jb20iLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic3ViIjoiYWxpY2UiLCJzY29wZSI6InJlcG9ydHM6cmVhZCJ9.gbDq8YsWYmJYPgj1Xhxu5f5vOnGbnDGnPz1ssiMkW0zOEWRor1pZStlX4TfFLXt2ZBdR404UKUpRxXMlitfBFg"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "invalid_token",
+          "message": "the access token is for another audience"
+        },
+        "headers": {
+          "www-authenticate": "Bearer realm=\"reports\", error=\"invalid_token\", error_description=\"the access token is for another audience\"",
+          "cache-control": "no-store"
+        }
+      }
+    },
+    {
+      "name": "an expired token is refused",
+      "request": {
+        "path": "/whoami",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InJlcG9ydHMtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3JlcG9ydHMuZXhhbXBsZS5jb20iLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEwMCwic3ViIjoiYWxpY2UiLCJzY29wZSI6InJlcG9ydHM6cmVhZCJ9._WXNb-hlC53GNq1zhlkTr3Mdn1NMMum0aOMgbChm-tdE6L239xWzRKT1yfJIBqFKsLRQIgGFioVgvAyp5Xogjw"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "invalid_token",
+          "message": "the access token expired"
+        },
+        "headers": {
+          "www-authenticate": "Bearer realm=\"reports\", error=\"invalid_token\", error_description=\"the access token expired\"",
+          "cache-control": "no-store"
+        }
+      }
+    },
+    {
+      "name": "a token signed by another key with the same kid is refused",
+      "request": {
+        "path": "/whoami",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InJlcG9ydHMtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3JlcG9ydHMuZXhhbXBsZS5jb20iLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic3ViIjoibWFsbG9yeSIsInNjb3BlIjoicmVwb3J0czpyZWFkIHJlcG9ydHM6d3JpdGUifQ.4GCjn9vqj6cakRwL__ehP1j7Ikgx8HXtuL2uLQ6pFwo4Nglv1mLVUiFvZ0BR0_Tz_QHQGGgDlPNli7DcGsSqoA"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "invalid_token",
+          "message": "the access token is not valid"
+        },
+        "headers": {
+          "www-authenticate": "Bearer realm=\"reports\", error=\"invalid_token\", error_description=\"the access token is not valid\"",
+          "cache-control": "no-store"
+        }
+      }
+    },
+    {
+      "name": "an HS256 token is refused: only ES256 is accepted",
+      "request": {
+        "path": "/whoami",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InJlcG9ydHMtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3JlcG9ydHMuZXhhbXBsZS5jb20iLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic3ViIjoibWFsbG9yeSIsInNjb3BlIjoicmVwb3J0czp3cml0ZSJ9.7-MtstPC5Jkfv0l_l6ZgdC0aOguA7a8TvKL32h8uYYk"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "invalid_token",
+          "message": "the access token's algorithm is not accepted"
+        },
+        "headers": {
+          "www-authenticate": "Bearer realm=\"reports\", error=\"invalid_token\", error_description=\"the access token's algorithm is not accepted\"",
+          "cache-control": "no-store"
+        }
+      }
+    },
+    {
+      "name": "an unsigned alg=none token is refused",
+      "request": {
+        "path": "/whoami",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJub25lIiwidHlwIjoiYXQrand0In0.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3JlcG9ydHMuZXhhbXBsZS5jb20iLCJzdWIiOiJtYWxsb3J5Iiwic2NvcGUiOiJyZXBvcnRzOndyaXRlIiwiZXhwIjo0MTAyNDQ0ODAwfQ."
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "invalid_token",
+          "message": "the access token's algorithm is not accepted"
+        },
+        "headers": {
+          "www-authenticate": "Bearer realm=\"reports\", error=\"invalid_token\", error_description=\"the access token's algorithm is not accepted\"",
+          "cache-control": "no-store"
+        }
+      }
+    },
+    {
+      "name": "a token in the query string is a 400 invalid_request",
+      "request": {
+        "path": "/whoami?access_token=eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InJlcG9ydHMtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL3JlcG9ydHMuZXhhbXBsZS5jb20iLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMCwic3ViIjoiYWxpY2UiLCJzY29wZSI6InJlcG9ydHM6cmVhZCIsImNsaWVudF9pZCI6ImRhc2hib2FyZCJ9.oDug2yjf71ED2VUDurdkNVB1qEo1cZJ5nyG4RsCovLD4jLMQsdMLjQLbn5FwZ1PPr5HMbxUesxWQsIYEGSMwgg"
+      },
+      "expect": {
+        "status": 400,
+        "headers": {
+          "www-authenticate": "Bearer realm=\"reports\", error=\"invalid_request\", error_description=\"access tokens in the query string are refused\""
+        }
+      }
+    },
+    {
+      "name": "a malformed Authorization header is a 400",
+      "request": {
+        "path": "/whoami",
+        "headers": {
+          "authorization": "Bearer two tokens"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_request",
+          "message": "the bearer token is malformed"
+        }
+      }
+    }
+  ]
+}

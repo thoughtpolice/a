@@ -1,0 +1,305 @@
+{
+  "steps": [
+    {
+      "name": "no key: 401 with the ApiKey challenge",
+      "request": {
+        "path": "/deliveries",
+        "headers": {
+          "cf-connecting-ip": "192.0.2.10"
+        },
+        "json": {
+          "id": "evt_0001",
+          "event": "invoice.paid",
+          "data": {
+            "invoice": "in_42",
+            "amount": 4200
+          }
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": "ApiKey realm=\"api\", header=\"x-webhook-key\""
+        }
+      }
+    },
+    {
+      "name": "an unknown key: 401 invalid_credentials",
+      "request": {
+        "path": "/deliveries",
+        "headers": {
+          "x-webhook-key": "whk_guess_0000",
+          "cf-connecting-ip": "192.0.2.10"
+        },
+        "json": {
+          "id": "evt_0001",
+          "event": "invoice.paid",
+          "data": {
+            "invoice": "in_42",
+            "amount": 4200
+          }
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "invalid_credentials",
+          "message": "the API key is not valid"
+        },
+        "headers": {
+          "www-authenticate": "ApiKey realm=\"api\", header=\"x-webhook-key\", error=\"invalid_credentials\", error_description=\"the API key is not valid\""
+        }
+      }
+    },
+    {
+      "name": "a malformed key: 400",
+      "request": {
+        "path": "/deliveries",
+        "headers": {
+          "x-webhook-key": "two keys",
+          "cf-connecting-ip": "192.0.2.10"
+        },
+        "json": {
+          "id": "evt_0001",
+          "event": "invoice.paid",
+          "data": {
+            "invoice": "in_42",
+            "amount": 4200
+          }
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_request",
+          "message": "the API key is malformed"
+        }
+      }
+    },
+    {
+      "name": "the reading key cannot deliver",
+      "request": {
+        "path": "/deliveries",
+        "headers": {
+          "x-webhook-key": "whk_read_9c3e7a1f5d2b8e46",
+          "cf-connecting-ip": "192.0.2.10"
+        },
+        "json": {
+          "id": "evt_0001",
+          "event": "invoice.paid",
+          "data": {
+            "invoice": "in_42",
+            "amount": 4200
+          }
+        }
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "insufficient_scope"
+        }
+      }
+    },
+    {
+      "name": "the right key from outside the sender's network is refused",
+      "request": {
+        "path": "/deliveries",
+        "headers": {
+          "x-webhook-key": "whk_live_4f7a2c9e1b8d6a30",
+          "cf-connecting-ip": "198.51.100.7"
+        },
+        "json": {
+          "id": "evt_0001",
+          "event": "invoice.paid",
+          "data": {
+            "invoice": "in_42",
+            "amount": 4200
+          }
+        }
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "forbidden",
+          "message": "not allowed"
+        }
+      }
+    },
+    {
+      "name": "a spoofed X-Forwarded-For from an untrusted peer is ignored",
+      "request": {
+        "path": "/deliveries",
+        "headers": {
+          "x-webhook-key": "whk_live_4f7a2c9e1b8d6a30",
+          "cf-connecting-ip": "198.51.100.7",
+          "x-forwarded-for": "192.0.2.10"
+        },
+        "json": {
+          "id": "evt_0001",
+          "event": "invoice.paid",
+          "data": {
+            "invoice": "in_42",
+            "amount": 4200
+          }
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "name": "an invalid body is a 400 naming the fields",
+      "request": {
+        "path": "/deliveries",
+        "headers": {
+          "x-webhook-key": "whk_live_4f7a2c9e1b8d6a30",
+          "cf-connecting-ip": "192.0.2.10"
+        },
+        "json": {
+          "id": "evt 1",
+          "event": "invoice.stolen",
+          "data": []
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "location": "body",
+          "fieldErrors": {
+            "id": {
+              "$len": 1
+            },
+            "event": {
+              "$len": 1
+            },
+            "data": [
+              "expected object, received array"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a delivery from the sender's network is accepted",
+      "request": {
+        "path": "/deliveries",
+        "headers": {
+          "x-webhook-key": "whk_live_4f7a2c9e1b8d6a30",
+          "cf-connecting-ip": "192.0.2.10"
+        },
+        "json": {
+          "id": "evt_0001",
+          "event": "invoice.paid",
+          "data": {
+            "invoice": "in_42",
+            "amount": 4200
+          }
+        }
+      },
+      "expect": {
+        "status": 202,
+        "json": {
+          "$exact": {
+            "accepted": true,
+            "id": "evt_0001"
+          }
+        }
+      }
+    },
+    {
+      "name": "the same delivery again is a duplicate, not a second run",
+      "request": {
+        "path": "/deliveries",
+        "headers": {
+          "x-webhook-key": "whk_live_4f7a2c9e1b8d6a30",
+          "cf-connecting-ip": "192.0.2.11"
+        },
+        "json": {
+          "id": "evt_0001",
+          "event": "invoice.paid",
+          "data": {
+            "invoice": "in_42",
+            "amount": 4200
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "duplicate": true,
+            "id": "evt_0001"
+          }
+        }
+      }
+    },
+    {
+      "name": "through a trusted proxy, X-Forwarded-For names the sender",
+      "request": {
+        "path": "/deliveries",
+        "headers": {
+          "x-webhook-key": "whk_live_4f7a2c9e1b8d6a30",
+          "cf-connecting-ip": "10.0.0.2",
+          "x-forwarded-for": "6.6.6.6, 192.0.2.44"
+        },
+        "json": {
+          "id": "evt_0002",
+          "event": "invoice.paid",
+          "data": {
+            "invoice": "in_42",
+            "amount": 4200
+          }
+        }
+      },
+      "expect": {
+        "status": 202
+      }
+    },
+    {
+      "name": "which is what was recorded",
+      "request": {
+        "path": "/deliveries/evt_0002",
+        "headers": {
+          "x-webhook-key": "whk_read_9c3e7a1f5d2b8e46"
+        }
+      },
+      "expect": {
+        "json": {
+          "id": "evt_0002",
+          "from": "192.0.2.44",
+          "sender": "billing",
+          "data": {
+            "amount": 4200
+          }
+        }
+      }
+    },
+    {
+      "name": "the sending key cannot read",
+      "request": {
+        "path": "/deliveries/evt_0002",
+        "headers": {
+          "x-webhook-key": "whk_live_4f7a2c9e1b8d6a30"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "name": "an unknown delivery is a 404",
+      "request": {
+        "path": "/deliveries/evt_9999",
+        "headers": {
+          "x-webhook-key": "whk_read_9c3e7a1f5d2b8e46"
+        }
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "error": "not_found",
+          "message": "no such delivery"
+        }
+      }
+    }
+  ]
+}

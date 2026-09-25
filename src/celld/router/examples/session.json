@@ -1,0 +1,305 @@
+{
+  "steps": [
+    {
+      "name": "the app needs a session",
+      "request": {
+        "path": "/"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "unauthorized"
+        },
+        "headers": {
+          "www-authenticate": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "name": "the login page is HTML with the page CSP and a fresh CSRF token cookie",
+      "request": {
+        "path": "/login"
+      },
+      "expect": {
+        "text": {
+          "$contains": "name=\"_csrf\""
+        },
+        "headers": {
+          "content-security-policy": {
+            "$regex": "^default-src 'none'; script-src 'self'"
+          },
+          "x-frame-options": "DENY",
+          "set-cookie": {
+            "$regex": "^__Host-csrf=[A-Za-z0-9_-]{43}; Path=/; Secure; HttpOnly; SameSite=Strict$"
+          },
+          "x-csrf-token": {
+            "$regex": "^[A-Za-z0-9_-]{43}$"
+          }
+        }
+      },
+      "save": {
+        "csrf": "headers.x-csrf-token"
+      }
+    },
+    {
+      "name": "a login form posted from another site is refused (login CSRF)",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "cookie": "__Host-csrf={csrf}",
+          "sec-fetch-site": "cross-site",
+          "origin": "https://evil.example.net"
+        },
+        "body": "user=ada&password=correct+horse+battery+staple&_csrf={csrf}"
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "csrf",
+          "message": "cross-site request refused (Sec-Fetch-Site: cross-site)"
+        }
+      }
+    },
+    {
+      "name": "so is one without the token",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "cookie": "__Host-csrf={csrf}",
+          "sec-fetch-site": "same-origin"
+        },
+        "body": "user=ada&password=correct+horse+battery+staple"
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "message": "the CSRF token is missing"
+        }
+      }
+    },
+    {
+      "name": "a wrong password is a 401 and sets no session",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "cookie": "__Host-csrf={csrf}",
+          "sec-fetch-site": "same-origin"
+        },
+        "body": "user=ada&password=hunter2&_csrf={csrf}"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "invalid_credentials"
+        },
+        "headers": {
+          "set-cookie": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "name": "the right password starts an encrypted session and redirects home",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "cookie": "__Host-csrf={csrf}",
+          "sec-fetch-site": "same-origin"
+        },
+        "body": "user=ada&password=correct+horse+battery+staple&_csrf={csrf}"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": "/",
+          "set-cookie": {
+            "$regex": "^__Host-session=e1\\.k1\\.[^;]+; Max-Age=28800; Path=/; Secure; HttpOnly; SameSite=Lax$"
+          }
+        }
+      },
+      "save": {
+        "session": "headers.set-cookie"
+      }
+    },
+    {
+      "name": "the session opens the app (the spec replays the Set-Cookie line; its attributes read as harmless extra cookies)",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cookie": "{session}; __Host-csrf={csrf}"
+        }
+      },
+      "expect": {
+        "text": {
+          "$contains": "Signed in as ada"
+        },
+        "headers": {
+          "cache-control": "no-store"
+        }
+      }
+    },
+    {
+      "name": "a cross-site POST with the session cookie is blocked",
+      "request": {
+        "method": "POST",
+        "path": "/notes",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "cookie": "{session}; __Host-csrf={csrf}",
+          "sec-fetch-site": "cross-site",
+          "origin": "https://evil.example.net"
+        },
+        "body": "text=pwned&_csrf={csrf}"
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "csrf"
+        }
+      }
+    },
+    {
+      "name": "so is one from a sibling subdomain (same-site is not same-origin)",
+      "request": {
+        "method": "POST",
+        "path": "/notes",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "cookie": "{session}; __Host-csrf={csrf}",
+          "sec-fetch-site": "same-site",
+          "origin": "https://blog.example.com"
+        },
+        "body": "text=pwned&_csrf={csrf}"
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "csrf"
+        }
+      }
+    },
+    {
+      "name": "an older browser's cross-origin POST is caught by Origin",
+      "request": {
+        "method": "POST",
+        "path": "/notes",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "cookie": "{session}; __Host-csrf={csrf}",
+          "origin": "https://evil.example.net"
+        },
+        "body": "text=pwned&_csrf={csrf}"
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "message": "cross-site request refused (Origin: https://evil.example.net)"
+        }
+      }
+    },
+    {
+      "name": "a same-origin POST with a wrong token is refused",
+      "request": {
+        "method": "POST",
+        "path": "/notes",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "cookie": "{session}; __Host-csrf={csrf}",
+          "sec-fetch-site": "same-origin"
+        },
+        "body": "text=hi&_csrf=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "message": "the CSRF token is wrong"
+        }
+      }
+    },
+    {
+      "name": "a same-origin POST with the token goes through",
+      "request": {
+        "method": "POST",
+        "path": "/notes",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "cookie": "{session}; __Host-csrf={csrf}",
+          "sec-fetch-site": "same-origin"
+        },
+        "body": "text=%3Cb%3Ehello%3C%2Fb%3E&_csrf={csrf}"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": "/"
+        }
+      }
+    },
+    {
+      "name": "and the note is shown, escaped",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cookie": "{session}; __Host-csrf={csrf}"
+        }
+      },
+      "expect": {
+        "text": {
+          "$contains": "<li>&#60;b&#62;hello&#60;/b&#62;</li>"
+        }
+      }
+    },
+    {
+      "name": "a tampered session cookie is refused and cleared",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cookie": "__Host-session=e1.k1.AAAAAAAAAAAAAAAA.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "invalid_credentials",
+          "message": "the session is not valid"
+        },
+        "headers": {
+          "set-cookie": {
+            "$regex": "^__Host-session=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; Secure; HttpOnly; SameSite=Lax$"
+          }
+        }
+      }
+    },
+    {
+      "name": "logging out (with the token in its header) expires the cookie",
+      "request": {
+        "method": "POST",
+        "path": "/logout",
+        "headers": {
+          "cookie": "{session}; __Host-csrf={csrf}",
+          "x-csrf-token": "{csrf}"
+        }
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": "/login",
+          "set-cookie": {
+            "$regex": "^__Host-session=; Max-Age=0"
+          }
+        }
+      }
+    }
+  ]
+}
