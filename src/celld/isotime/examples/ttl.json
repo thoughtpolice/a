@@ -1,0 +1,159 @@
+{
+  "steps": [
+    {
+      "name": "an entry stored for two seconds",
+      "request": {
+        "method": "PUT",
+        "path": "/entries/greeting?ttl=PT2S",
+        "body": "hello"
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "key": "greeting",
+          "ttl": "PT2S",
+          "expires": {
+            "$regex": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ$"
+          }
+        }
+      }
+    },
+    {
+      "name": "reads back with its expiry and what is left of its TTL, as a duration",
+      "request": {
+        "path": "/entries/greeting"
+      },
+      "expect": {
+        "text": "hello",
+        "headers": {
+          "x-expires-at": {
+            "$regex": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ$"
+          },
+          "x-ttl-remaining": {
+            "$regex": "^PT[12]S$"
+          }
+        }
+      }
+    },
+    {
+      "name": "without a ttl the DEFAULT_TTL variable applies",
+      "request": {
+        "method": "PUT",
+        "path": "/entries/config",
+        "body": "{\"mode\":\"fast\"}"
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "ttl": "P1D"
+        }
+      }
+    },
+    {
+      "name": "a day is left of it",
+      "request": {
+        "path": "/entries/config"
+      },
+      "expect": {
+        "text": "{\"mode\":\"fast\"}",
+        "headers": {
+          "x-ttl-remaining": {
+            "$regex": "^(P1D|PT23H59M5\\dS)$"
+          }
+        }
+      }
+    },
+    {
+      "name": "a TTL in months is measured from the moment of writing",
+      "request": {
+        "method": "PUT",
+        "path": "/entries/monthly?ttl=P1M",
+        "body": "v"
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "ttl": "P1M"
+        }
+      }
+    },
+    {
+      "name": "a zero TTL is refused",
+      "request": {
+        "method": "PUT",
+        "path": "/entries/x?ttl=PT0S",
+        "body": "v"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "a TTL must be longer than zero: PT0S"
+        }
+      }
+    },
+    {
+      "name": "so is one that is not a duration",
+      "request": {
+        "method": "PUT",
+        "path": "/entries/x?ttl=10m",
+        "body": "v"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "not an ISO 8601 duration: 10m"
+        }
+      }
+    },
+    {
+      "name": "and a fractional year, which has no length and is not a duration Temporal can hold",
+      "request": {
+        "method": "PUT",
+        "path": "/entries/x?ttl=P0.5Y",
+        "body": "v"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "not an ISO 8601 duration: P0.5Y"
+        }
+      }
+    },
+    {
+      "name": "once the TTL runs out the entry is gone",
+      "request": {
+        "path": "/entries/greeting"
+      },
+      "until": {
+        "seconds": 10
+      },
+      "expect": {
+        "status": 404
+      }
+    },
+    {
+      "name": "and the object's alarm deletes it from storage",
+      "request": {
+        "path": "/stats"
+      },
+      "until": {
+        "seconds": 10
+      },
+      "expect": {
+        "json": {
+          "stored": 2
+        }
+      }
+    },
+    {
+      "name": "live entries survive a restart",
+      "restart": true,
+      "request": {
+        "path": "/entries/config"
+      },
+      "expect": {
+        "text": "{\"mode\":\"fast\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,320 @@
+{
+  "steps": [
+    {
+      "name": "an instant with an offset, in UTC and at another offset, to the second",
+      "request": {
+        "method": "POST",
+        "path": "/convert",
+        "json": {
+          "at": "2026-09-25T10:15:30.25+02:00",
+          "to": "-05:00",
+          "precision": 0
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "epochMs": 1790324130250,
+            "epochNanoseconds": "1790324130250000000",
+            "utc": "2026-09-25T08:15:30Z",
+            "converted": "2026-09-25T03:15:30-05:00"
+          }
+        }
+      }
+    },
+    {
+      "name": "the default is UTC with milliseconds, like toISOString",
+      "request": {
+        "method": "POST",
+        "path": "/convert",
+        "json": {
+          "at": "2026-09-25T10:15:30.25+02:00"
+        }
+      },
+      "expect": {
+        "json": {
+          "utc": "2026-09-25T08:15:30.250Z",
+          "converted": "2026-09-25T08:15:30.250Z"
+        }
+      }
+    },
+    {
+      "name": "half-hour offsets",
+      "request": {
+        "method": "POST",
+        "path": "/convert",
+        "json": {
+          "at": "2026-09-25T10:15:30.25+02:00",
+          "to": "+05:30"
+        }
+      },
+      "expect": {
+        "json": {
+          "converted": "2026-09-25T13:45:30.250+05:30"
+        }
+      }
+    },
+    {
+      "name": "an IANA time zone, with its rules and its name",
+      "request": {
+        "method": "POST",
+        "path": "/convert",
+        "json": {
+          "at": "2026-09-25T10:15:30.25+02:00",
+          "to": "America/New_York",
+          "precision": 0
+        }
+      },
+      "expect": {
+        "json": {
+          "converted": "2026-09-25T04:15:30-04:00[America/New_York]"
+        }
+      }
+    },
+    {
+      "name": "the same zone in winter has another offset",
+      "request": {
+        "method": "POST",
+        "path": "/convert",
+        "json": {
+          "at": "2026-12-25T10:15:30Z",
+          "to": "America/New_York",
+          "precision": 0
+        }
+      },
+      "expect": {
+        "json": {
+          "converted": "2026-12-25T05:15:30-05:00[America/New_York]"
+        }
+      }
+    },
+    {
+      "name": "converting can change the date",
+      "request": {
+        "method": "POST",
+        "path": "/convert",
+        "json": {
+          "at": "2026-12-31T23:30:00Z",
+          "to": "+01:00",
+          "precision": 0
+        }
+      },
+      "expect": {
+        "json": {
+          "converted": "2027-01-01T00:30:00+01:00"
+        }
+      }
+    },
+    {
+      "name": "an instant keeps nanoseconds",
+      "request": {
+        "method": "POST",
+        "path": "/convert",
+        "json": {
+          "at": "2026-09-25T08:15:30.123456789Z",
+          "precision": 9
+        }
+      },
+      "expect": {
+        "json": {
+          "epochMs": 1790324130123,
+          "epochNanoseconds": "1790324130123456789",
+          "utc": "2026-09-25T08:15:30.123456789Z"
+        }
+      }
+    },
+    {
+      "name": "precision -1 writes minutes only",
+      "request": {
+        "method": "POST",
+        "path": "/convert",
+        "json": {
+          "at": "2026-09-25T08:15:30Z",
+          "precision": -1
+        }
+      },
+      "expect": {
+        "json": {
+          "utc": "2026-09-25T08:15Z"
+        }
+      }
+    },
+    {
+      "name": "-00:00 is the same instant as Z",
+      "request": {
+        "method": "POST",
+        "path": "/convert",
+        "json": {
+          "at": "2026-09-25T08:15:30-00:00",
+          "precision": 0
+        }
+      },
+      "expect": {
+        "json": {
+          "utc": "2026-09-25T08:15:30Z"
+        }
+      }
+    },
+    {
+      "name": "an offset without a colon is not RFC 3339, though Temporal takes it",
+      "request": {
+        "method": "POST",
+        "path": "/convert",
+        "json": {
+          "at": "2026-09-25T08:15:30Z",
+          "to": "+0530"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "to is Z, ±HH:MM or an IANA time zone"
+        }
+      }
+    },
+    {
+      "name": "nor is a zone that does not exist",
+      "request": {
+        "method": "POST",
+        "path": "/convert",
+        "json": {
+          "at": "2026-09-25T08:15:30Z",
+          "to": "Mars/Olympus_Mons"
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "name": "precision is bounded",
+      "request": {
+        "method": "POST",
+        "path": "/convert",
+        "json": {
+          "at": "2026-09-25T08:15:30Z",
+          "precision": 12
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "precision is -1 to 9"
+        }
+      }
+    },
+    {
+      "name": "a local date-time is not an instant",
+      "request": {
+        "method": "POST",
+        "path": "/convert",
+        "json": {
+          "at": "2026-09-25T08:15:30"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "at is not an RFC 3339 date-time with a zone"
+        }
+      }
+    },
+    {
+      "name": "classifying strings: what the RFC 3339 profile accepts and refuses",
+      "request": {
+        "method": "POST",
+        "path": "/classify",
+        "json": {
+          "values": [
+            "2026-09-25",
+            "10:15",
+            "10:15:30.5Z",
+            "2026-09-25T10:15:30Z",
+            "2026-09-25T10:15:30",
+            "P1DT12H",
+            "2026-09-25t10:15:30z",
+            "2026-09-25 10:15:30Z",
+            "24:00",
+            "23:59:60",
+            "2026-09-25T10:15:30+0200",
+            "2023-02-29",
+            "26-09-25",
+            "P1.5D"
+          ]
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "2026-09-25": "date",
+            "10:15": "time",
+            "10:15:30.5Z": "time",
+            "2026-09-25T10:15:30Z": "datetime",
+            "2026-09-25T10:15:30": "local datetime",
+            "P1DT12H": "duration",
+            "2026-09-25t10:15:30z": null,
+            "2026-09-25 10:15:30Z": null,
+            "24:00": null,
+            "23:59:60": null,
+            "2026-09-25T10:15:30+0200": null,
+            "2023-02-29": null,
+            "26-09-25": null,
+            "P1.5D": null
+          }
+        }
+      }
+    },
+    {
+      "name": "what Temporal.Instant.from lets through that the strict check does not",
+      "request": {
+        "method": "POST",
+        "path": "/instants",
+        "json": {
+          "values": [
+            "2026-09-25T10:15:30Z",
+            "2026-09-25t10:15:30z",
+            "2026-09-25 10:15:30+0200",
+            "+002026-09-25T10:15:30Z",
+            "2026-09-25T10:15:30+02:00[Europe/Paris]",
+            "2026-09-25T10:15:30Z[u-ca=gregory]",
+            "2026-09-25T10:15:30"
+          ]
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "2026-09-25T10:15:30Z": {
+              "strict": "2026-09-25T10:15:30Z",
+              "temporal": "2026-09-25T10:15:30Z"
+            },
+            "2026-09-25t10:15:30z": {
+              "strict": null,
+              "temporal": "2026-09-25T10:15:30Z"
+            },
+            "2026-09-25 10:15:30+0200": {
+              "strict": null,
+              "temporal": "2026-09-25T08:15:30Z"
+            },
+            "+002026-09-25T10:15:30Z": {
+              "strict": null,
+              "temporal": "2026-09-25T10:15:30Z"
+            },
+            "2026-09-25T10:15:30+02:00[Europe/Paris]": {
+              "strict": null,
+              "temporal": "2026-09-25T08:15:30Z"
+            },
+            "2026-09-25T10:15:30Z[u-ca=gregory]": {
+              "strict": null,
+              "temporal": "2026-09-25T10:15:30Z"
+            },
+            "2026-09-25T10:15:30": {
+              "strict": null,
+              "temporal": null
+            }
+          }
+        }
+      }
+    }
+  ]
+}

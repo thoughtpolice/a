@@ -1,0 +1,405 @@
+{
+  "steps": [
+    {
+      "name": "a reminder at a date-time with an offset is due at that instant",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "call the bank",
+          "at": "2030-01-01T09:00:00+01:00"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "id": {
+            "$regex": "^01Q3E7TA00[0-9A-HJKMNP-TV-Z]{16}$"
+          },
+          "text": "call the bank",
+          "due": "2030-01-01T08:00:00Z",
+          "local": "2030-01-01T09:00:00+01:00"
+        }
+      }
+    },
+    {
+      "name": "a duration counts from its anchor, and the local time can cross a year",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "new year",
+          "in": "PT15M",
+          "from": "2029-12-31T23:50:00-05:00"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "id": {
+            "$regex": "^01Q3DXSW30[0-9A-HJKMNP-TV-Z]{16}$"
+          },
+          "due": "2030-01-01T05:05:00Z",
+          "local": "2030-01-01T00:05:00-05:00"
+        }
+      }
+    },
+    {
+      "name": "a month from January 31 is the last day of February",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "rent",
+          "in": "P1M",
+          "from": "2024-01-31T09:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "due": "2024-02-29T09:00:00Z",
+          "local": "2024-02-29T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "weeks and fractions of a second carry through",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "review",
+          "in": "P1W",
+          "from": "2030-02-01T12:00:00.5Z"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "due": "2030-02-08T12:00:00.5Z"
+        }
+      }
+    },
+    {
+      "name": "with a zone, a local date-time is read in it",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "picnic",
+          "at": "2030-07-01T09:00",
+          "zone": "Europe/Paris"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "due": "2030-07-01T07:00:00Z",
+          "local": "2030-07-01T09:00:00+02:00[Europe/Paris]"
+        }
+      }
+    },
+    {
+      "name": "a day across the spring-forward keeps the wall-clock time: 23 hours",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "standup",
+          "in": "P1D",
+          "from": "2029-03-10T09:00",
+          "zone": "America/New_York"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "due": "2029-03-11T13:00:00Z",
+          "local": "2029-03-11T09:00:00-04:00[America/New_York]"
+        }
+      }
+    },
+    {
+      "name": "while PT24H is exactly 24 hours",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "medicine",
+          "in": "PT24H",
+          "from": "2029-03-10T09:00",
+          "zone": "america/new_york"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "due": "2029-03-11T14:00:00Z",
+          "local": "2029-03-11T10:00:00-04:00[America/New_York]"
+        }
+      }
+    },
+    {
+      "name": "a wall-clock time the zone skips is refused, not guessed",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "x",
+          "at": "2029-03-11T02:30",
+          "zone": "America/New_York"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "at is skipped or repeated in America/New_York: 2029-03-11T02:30"
+        }
+      }
+    },
+    {
+      "name": "an unknown zone is refused",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "x",
+          "at": "2030-01-01T09:00",
+          "zone": "Mars/Olympus_Mons"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "zone is not a time zone: Mars/Olympus_Mons"
+        }
+      }
+    },
+    {
+      "name": "without an anchor a duration counts from now",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "stretch",
+          "in": "PT1S"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "due": {
+            "$regex": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(\\.\\d{1,3})?Z$"
+          }
+        }
+      }
+    },
+    {
+      "name": "the object's alarm marks what is due; the list is in due order because the keys are",
+      "request": {
+        "path": "/reminders"
+      },
+      "until": {
+        "seconds": 15
+      },
+      "expect": {
+        "json": {
+          "reminders": [
+            {
+              "text": "rent",
+              "due": "2024-02-29T09:00:00Z",
+              "fired": true
+            },
+            {
+              "text": "stretch",
+              "fired": true
+            },
+            {
+              "text": "standup",
+              "local": "2029-03-11T09:00:00-04:00[America/New_York]",
+              "fired": false
+            },
+            {
+              "text": "medicine",
+              "due": "2029-03-11T14:00:00Z",
+              "fired": false
+            },
+            {
+              "text": "new year",
+              "due": "2030-01-01T05:05:00Z",
+              "local": "2030-01-01T00:05:00-05:00",
+              "fired": false
+            },
+            {
+              "text": "call the bank",
+              "due": "2030-01-01T08:00:00Z",
+              "fired": false
+            },
+            {
+              "text": "review",
+              "fired": false
+            },
+            {
+              "text": "picnic",
+              "local": "2030-07-01T09:00:00+02:00[Europe/Paris]",
+              "fired": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "reminders survive a restart",
+      "restart": true,
+      "request": {
+        "path": "/reminders"
+      },
+      "expect": {
+        "json": {
+          "reminders": {
+            "$len": 8
+          }
+        }
+      }
+    },
+    {
+      "name": "text that is not a duration is refused",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "x",
+          "in": "15 minutes"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "in is not an ISO 8601 duration: \"15 minutes\""
+        }
+      }
+    },
+    {
+      "name": "so is a fractional month, which has no length",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "x",
+          "in": "P1.5M",
+          "from": "2030-01-01T00:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "in is not an ISO 8601 duration: \"P1.5M\""
+        }
+      }
+    },
+    {
+      "name": "without a zone, a local date-time names no instant",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "x",
+          "at": "2030-01-01T09:00:00"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "at needs a zone (Z, \u00b1HH:MM or a zone field): 2030-01-01T09:00:00"
+        }
+      }
+    },
+    {
+      "name": "a date the calendar does not have is refused",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "x",
+          "at": "2023-02-29T09:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "at is not an RFC 3339 date-time: 2023-02-29T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "so is a leap second",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "x",
+          "at": "2016-12-31T23:59:60Z"
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "name": "and a Temporal-style zone annotation, which RFC 3339 does not have",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "x",
+          "at": "2030-01-01T09:00:00+01:00[Europe/Paris]"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "at is not an RFC 3339 date-time: 2030-01-01T09:00:00+01:00[Europe/Paris]"
+        }
+      }
+    },
+    {
+      "name": "in and at together are ambiguous",
+      "request": {
+        "method": "POST",
+        "path": "/reminders",
+        "json": {
+          "text": "x",
+          "in": "PT1M",
+          "at": "2030-01-01T00:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "name": "deleting an unknown reminder is a 404",
+      "request": {
+        "method": "DELETE",
+        "path": "/reminders/01ARZ3NDEKTSV4RRFFQ69G5FAV"
+      },
+      "expect": {
+        "status": 404
+      }
+    },
+    {
+      "name": "nothing was added by the refused requests",
+      "request": {
+        "path": "/reminders"
+      },
+      "expect": {
+        "json": {
+          "reminders": {
+            "$len": 8
+          }
+        }
+      }
+    }
+  ]
+}

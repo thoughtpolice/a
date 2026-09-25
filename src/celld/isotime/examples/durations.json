@@ -1,0 +1,376 @@
+{
+  "steps": [
+    {
+      "name": "hours and minutes have a fixed length",
+      "request": {
+        "path": "/durations/PT1H30M"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "components": {
+              "hours": 1,
+              "minutes": 30
+            },
+            "ms": 5400000,
+            "exact": "PT1H30M"
+          }
+        }
+      }
+    },
+    {
+      "name": "the shortest text for a length carries minutes into hours",
+      "request": {
+        "path": "/durations/PT90M"
+      },
+      "expect": {
+        "json": {
+          "ms": 5400000,
+          "exact": "PT1H30M"
+        }
+      }
+    },
+    {
+      "name": "weeks are a calendar unit in Temporal: they need an anchor too",
+      "request": {
+        "path": "/durations/P2W"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "components": {
+              "weeks": 2
+            },
+            "ms": null,
+            "note": "years, months and weeks have no fixed length; give an anchor"
+          }
+        }
+      }
+    },
+    {
+      "name": "anchored, two weeks are fourteen days",
+      "request": {
+        "path": "/durations/P2W?anchor=2026-09-25T00:00:00Z"
+      },
+      "expect": {
+        "json": {
+          "ms": 1209600000,
+          "exact": "P14D"
+        }
+      }
+    },
+    {
+      "name": "the last component may have a fraction, with a comma or a point",
+      "request": {
+        "path": "/durations/PT0,5S"
+      },
+      "expect": {
+        "json": {
+          "components": {
+            "milliseconds": 500
+          },
+          "ms": 500,
+          "exact": "PT0.5S"
+        }
+      }
+    },
+    {
+      "name": "a month has no length on its own",
+      "request": {
+        "path": "/durations/P1M"
+      },
+      "expect": {
+        "json": {
+          "components": {
+            "months": 1
+          },
+          "ms": null,
+          "note": "years, months and weeks have no fixed length; give an anchor"
+        }
+      }
+    },
+    {
+      "name": "from January 31, 2024 a month is 29 days",
+      "request": {
+        "path": "/durations/P1M?anchor=2024-01-31T00:00:00Z"
+      },
+      "expect": {
+        "json": {
+          "ms": 2505600000,
+          "exact": "P29D"
+        }
+      }
+    },
+    {
+      "name": "from April 1 it is 30",
+      "request": {
+        "path": "/durations/P1M?anchor=2024-04-01T00:00:00Z"
+      },
+      "expect": {
+        "json": {
+          "ms": 2592000000,
+          "exact": "P30D"
+        }
+      }
+    },
+    {
+      "name": "a unit without a P is not a duration",
+      "request": {
+        "path": "/durations/1H"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "the path is not an ISO 8601 duration"
+        }
+      }
+    },
+    {
+      "name": "nor is a T with nothing after it",
+      "request": {
+        "path": "/durations/P1DT"
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "name": "nor a fraction before the last component",
+      "request": {
+        "path": "/durations/P1.5DT1H"
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "name": "nor a fractional day, which Temporal cannot hold",
+      "request": {
+        "path": "/durations/P1.5D"
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "name": "a day after February 28 in a leap year",
+      "request": {
+        "method": "POST",
+        "path": "/add",
+        "json": {
+          "start": "2024-02-28T12:00:00Z",
+          "duration": "P1D"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "end": "2024-02-29T12:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "a year after February 29 is clamped to February 28",
+      "request": {
+        "method": "POST",
+        "path": "/add",
+        "json": {
+          "start": "2024-02-29T00:00:00Z",
+          "duration": "P1Y"
+        }
+      },
+      "expect": {
+        "json": {
+          "end": "2025-02-28T00:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "an offset is applied before the arithmetic",
+      "request": {
+        "method": "POST",
+        "path": "/add",
+        "json": {
+          "start": "2026-09-25T23:30:00-05:00",
+          "duration": "PT45M"
+        }
+      },
+      "expect": {
+        "json": {
+          "end": "2026-09-26T05:15:00Z"
+        }
+      }
+    },
+    {
+      "name": "in a zone, a day across the fall-back is 25 hours: 10:00Z to 11:00Z",
+      "request": {
+        "method": "POST",
+        "path": "/add",
+        "json": {
+          "start": "2026-10-24T12:00:00+02:00",
+          "duration": "P1D",
+          "zone": "Europe/Berlin"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "end": "2026-10-25T11:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "an unknown zone is refused",
+      "request": {
+        "method": "POST",
+        "path": "/add",
+        "json": {
+          "start": "2026-10-31T12:00:00Z",
+          "duration": "P1D",
+          "zone": "Nowhere/Special"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "zone is not a time zone: Nowhere/Special"
+        }
+      }
+    },
+    {
+      "name": "the duration between two instants, down to the millisecond",
+      "request": {
+        "method": "POST",
+        "path": "/between",
+        "json": {
+          "start": "2026-09-25T10:00:00+02:00",
+          "end": "2026-09-26T09:30:15.25Z"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "duration": "P1DT1H30M15.25S",
+            "ms": 91815250
+          }
+        }
+      }
+    },
+    {
+      "name": "no time between an instant and itself",
+      "request": {
+        "method": "POST",
+        "path": "/between",
+        "json": {
+          "start": "2026-09-25T10:00:00+02:00",
+          "end": "2026-09-25T08:00:00Z"
+        }
+      },
+      "expect": {
+        "json": {
+          "duration": "PT0S",
+          "ms": 0
+        }
+      }
+    },
+    {
+      "name": "durations are never negative",
+      "request": {
+        "method": "POST",
+        "path": "/between",
+        "json": {
+          "start": "2026-09-26T00:00:00Z",
+          "end": "2026-09-25T00:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "end is before start"
+        }
+      }
+    },
+    {
+      "name": "a monthly series counts from the start, so it keeps the end of the month",
+      "request": {
+        "method": "POST",
+        "path": "/series",
+        "json": {
+          "start": "2024-01-31T00:00:00Z",
+          "every": "P1M",
+          "count": 4
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "dates": [
+              "2024-01-31T00:00:00Z",
+              "2024-02-29T00:00:00Z",
+              "2024-03-31T00:00:00Z",
+              "2024-04-30T00:00:00Z"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a fortnightly one",
+      "request": {
+        "method": "POST",
+        "path": "/series",
+        "json": {
+          "start": "2026-12-21T09:00:00+01:00",
+          "every": "P2W",
+          "count": 3
+        }
+      },
+      "expect": {
+        "json": {
+          "dates": [
+            "2026-12-21T08:00:00Z",
+            "2027-01-04T08:00:00Z",
+            "2027-01-18T08:00:00Z"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a fractional month is refused",
+      "request": {
+        "method": "POST",
+        "path": "/series",
+        "json": {
+          "start": "2024-01-31T00:00:00Z",
+          "every": "P0.5M",
+          "count": 2
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "every is not an ISO 8601 duration"
+        }
+      }
+    },
+    {
+      "name": "a date-time needs a zone",
+      "request": {
+        "method": "POST",
+        "path": "/add",
+        "json": {
+          "start": "2024-01-31T00:00:00",
+          "duration": "P1D"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "start is not an RFC 3339 date-time with a zone"
+        }
+      }
+    }
+  ]
+}
