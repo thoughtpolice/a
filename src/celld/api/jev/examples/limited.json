@@ -1,0 +1,253 @@
+{
+  "vars": {
+    "JEV_LIMITS": "{\"requestsPerMinute\": 6, \"requestBurst\": 5}"
+  },
+  "steps": [
+    {
+      "name": "the first ask of a pinned model misses the cache and reaches TypeSafe",
+      "script": {
+        "answers": {
+          "positive": {
+            "noul": 0.9
+          }
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/sentiment",
+        "json": {
+          "text": "Great product"
+        }
+      },
+      "expect": {
+        "json": {
+          "positive": 0.9,
+          "cache": "miss",
+          "attempts": 1
+        }
+      },
+      "upstream": [
+        {
+          "path": "/v1/systemone",
+          "json": {
+            "model": "jev-1.13.0",
+            "state": "Great product",
+            "questions": {
+              "positive": {
+                "type": "noul"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "the same question is answered from KV without a request",
+      "request": {
+        "method": "POST",
+        "path": "/sentiment",
+        "json": {
+          "text": "Great product"
+        }
+      },
+      "expect": {
+        "json": {
+          "positive": 0.9,
+          "cache": "hit"
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "the limiter has the configured limits, with one request spent",
+      "request": {
+        "path": "/limits"
+      },
+      "expect": {
+        "json": {
+          "allowed": true,
+          "policies": [
+            {
+              "name": "requests",
+              "limit": 6,
+              "windowMs": 60000,
+              "burst": 5,
+              "remaining": 4
+            },
+            {
+              "name": "tokens",
+              "limit": 250000,
+              "windowMs": 1000,
+              "burst": 250000
+            }
+          ]
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a 429 is retried after its retry-after",
+      "script": [
+        {
+          "status": 429,
+          "headers": {
+            "retry-after": "1"
+          }
+        },
+        {}
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/sentiment",
+        "json": {
+          "text": "Meh"
+        }
+      },
+      "expect": {
+        "json": {
+          "positive": 1,
+          "cache": "miss",
+          "attempts": 2
+        }
+      },
+      "upstream": [
+        {
+          "json": {
+            "state": "Meh"
+          }
+        },
+        {
+          "json": {
+            "state": "Meh"
+          }
+        }
+      ]
+    },
+    {
+      "name": "an upstream error reaches the caller as its kind only, never TypeSafe's text",
+      "script": {
+        "status": 400,
+        "body": {
+          "detail": "internal note: key acme-prod-7 is over quota"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/sentiment",
+        "json": {
+          "text": "Fine I guess"
+        }
+      },
+      "expect": {
+        "status": 502,
+        "json": {
+          "$exact": {
+            "error": "upstream_error",
+            "kind": "bad_request"
+          }
+        }
+      },
+      "upstream": {
+        "$len": 1
+      }
+    },
+    {
+      "name": "a body over the 64 KiB cap is refused before it is parsed",
+      "request": {
+        "method": "POST",
+        "path": "/sentiment",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "bodyBytes": 65537,
+        "chunked": true
+      },
+      "expect": {
+        "status": 413,
+        "json": {
+          "error": "payload_too_large"
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a retry-after past the retry budget fails the ask and holds the key",
+      "script": {
+        "status": 429,
+        "headers": {
+          "retry-after": "45"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/sentiment",
+        "json": {
+          "text": "Awful"
+        }
+      },
+      "expect": {
+        "status": 502,
+        "json": {
+          "$exact": {
+            "error": "upstream_error",
+            "kind": "rate_limited"
+          }
+        }
+      },
+      "upstream": {
+        "$len": 1
+      }
+    },
+    {
+      "name": "the hold reached the shared limiter",
+      "request": {
+        "path": "/limits"
+      },
+      "expect": {
+        "json": {
+          "allowed": false,
+          "retryAfterMs": {
+            "$gt": 40000
+          },
+          "remaining": 0
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "while it holds, an ask fails at once without reaching TypeSafe",
+      "request": {
+        "method": "POST",
+        "path": "/sentiment",
+        "json": {
+          "text": "Anything else"
+        }
+      },
+      "expect": {
+        "status": 502,
+        "json": {
+          "$exact": {
+            "error": "upstream_error",
+            "kind": "timeout"
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "the hold survives a restart",
+      "restart": true,
+      "request": {
+        "path": "/limits"
+      },
+      "expect": {
+        "json": {
+          "allowed": false,
+          "retryAfterMs": {
+            "$gt": 20000
+          }
+        }
+      }
+    }
+  ]
+}
