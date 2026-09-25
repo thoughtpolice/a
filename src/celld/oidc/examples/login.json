@@ -1,0 +1,265 @@
+{
+  "vars": {
+    "COOKIE_SECRET": "an-example-cookie-secret-0123456789"
+  },
+  "steps": [
+    {
+      "name": "without a session, /me is a 401",
+      "request": {
+        "path": "/me"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "not signed in"
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a local next is required",
+      "request": {
+        "path": "/login?next=https://evil.example/"
+      },
+      "expect": {
+        "status": 400
+      },
+      "upstream": []
+    },
+    {
+      "name": "/login discovers the provider, pushes the request and sends the browser there with a sealed login cookie",
+      "request": {
+        "path": "/login?next=/me"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:\\d+/authorize\\?client_id=web&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3A[A-Za-z0-9_-]+$"
+          },
+          "set-cookie": {
+            "$regex": "^oidc-login=v1\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+; Path=/; Max-Age=600; HttpOnly; SameSite=Lax$"
+          }
+        }
+      },
+      "save": {
+        "authorize": "headers.location",
+        "login_cookie": {
+          "path": "headers.set-cookie",
+          "regex": "^([^;]+)"
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/.well-known/openid-configuration"
+        },
+        {
+          "method": "POST",
+          "path": "/par",
+          "text": {
+            "$regex": "^nonce=[A-Za-z0-9_-]{22}&response_type=code&client_id=web&redirect_uri=http%3A%2F%2F127\\.0\\.0\\.1%3A\\d+%2Fcallback&code_challenge=[A-Za-z0-9_-]{43}&code_challenge_method=S256&state=[A-Za-z0-9_-]{22}&scope=openid\\+profile\\+email$"
+          }
+        }
+      ]
+    },
+    {
+      "name": "the provider signs the user in and sends the browser back with a code, state and iss",
+      "request": {
+        "url": "{authorize}"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:\\d+/callback\\?code=[A-Za-z0-9_-]{43}&state=[A-Za-z0-9_-]{22}&iss=http%3A%2F%2F127\\.0\\.0\\.1%3A\\d+$"
+          }
+        }
+      },
+      "save": {
+        "callback": "headers.location"
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": {
+            "$regex": "^/authorize\\?client_id=web&request_uri="
+          }
+        }
+      ]
+    },
+    {
+      "name": "a callback from a browser that did not start the login is refused before anything is redeemed",
+      "request": {
+        "url": "{callback}"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "state_mismatch"
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "the browser that started it gets the session: the code redeemed, the ID token checked against the provider's keys",
+      "request": {
+        "url": "{callback}",
+        "headers": {
+          "cookie": "{login_cookie}"
+        }
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": "/me",
+          "set-cookie": {
+            "$regex": "^app_session=v1\\.[^;]+; Path=/; Max-Age=3600; HttpOnly; SameSite=Lax$"
+          }
+        }
+      },
+      "save": {
+        "session": {
+          "path": "headers.set-cookie",
+          "regex": "^([^;]+)"
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/token",
+          "text": {
+            "$regex": "^grant_type=authorization_code&code=[A-Za-z0-9_-]{43}&redirect_uri=http%3A%2F%2F127\\.0\\.0\\.1%3A\\d+%2Fcallback&code_verifier=[A-Za-z0-9_-]{43}&client_id=web$"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/jwks"
+        }
+      ]
+    },
+    {
+      "name": "/me answers the provider's UserInfo for the signed-in user",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "{session}"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "subject": "user-1",
+            "claims": {
+              "sub": "user-1",
+              "name": "Ada Lovelace",
+              "given_name": "Ada",
+              "family_name": "Lovelace",
+              "email": "ada@example.com",
+              "email_verified": true
+            }
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/userinfo",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer eyJ"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "replaying the callback redeems the code again, which the provider refuses",
+      "request": {
+        "url": "{callback}",
+        "headers": {
+          "cookie": "{login_cookie}"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_grant"
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/token"
+        }
+      ]
+    },
+    {
+      "name": "and a replayed code revokes the tokens it issued (RFC 6749 section 4.1.2), so the session's UserInfo call now fails",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "{session}"
+        }
+      },
+      "expect": {
+        "status": 502,
+        "json": {
+          "error": "invalid_token"
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/userinfo"
+        }
+      ]
+    },
+    {
+      "name": "a forged session cookie is no session",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "cookie": "app_session=v1.AAAAAAAAAAAAAAAA.AAAA"
+        }
+      },
+      "expect": {
+        "status": 401
+      },
+      "upstream": []
+    },
+    {
+      "name": "/logout clears the session and sends the browser to the provider's end_session with the ID token as hint",
+      "request": {
+        "path": "/logout",
+        "headers": {
+          "cookie": "{session}"
+        }
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:\\d+/end_session\\?id_token_hint=eyJ[A-Za-z0-9_.-]+&client_id=web$"
+          },
+          "set-cookie": {
+            "$regex": "^app_session=; Path=/; Max-Age=0; HttpOnly"
+          }
+        }
+      },
+      "save": {
+        "logout": "headers.location"
+      },
+      "upstream": []
+    },
+    {
+      "name": "the provider signs the user out",
+      "request": {
+        "url": "{logout}"
+      },
+      "expect": {
+        "text": "You are signed out."
+      }
+    }
+  ]
+}

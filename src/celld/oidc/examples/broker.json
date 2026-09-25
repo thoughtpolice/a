@@ -1,0 +1,323 @@
+{
+  "vars": {
+    "SIGNING_JWK": {"kty": "EC", "crv": "P-256", "x": "RL4vTGWgK3Uao0D44Br8yFapODH1esX40XTjsT8KsDk", "y": "ek1MK10Skpyubh6T6COWpAj3ZliJqMpn1DRSXRRuMHg", "d": "RB-pUcIppmx4WKTR9YDylmznv8e8-fsMSFdsE1CyVL4", "kid": "broker-1"},
+    "BROKER_DPOP_JWK": {"kty": "EC", "crv": "P-256", "x": "yErecVgTXoVAjyLJ7vj8jKaLpZSaWnCmtvyD3355TJo", "y": "oVzBSRQa7y6bGLSDW9FUEyekRiWiaSGgBWxwIluV7S4", "d": "GoPjZHe3Jm4BZYe3watiISdCHkx5YqztMzpGaoqHkI4", "kid": "broker-dpop"},
+    "COOKIE_SECRET": "the-broker-cookie-secret-0123456789",
+    "INTROSPECTION_SECRET": "api-introspection-secret-0123456789"
+  },
+  "steps": [
+    {
+      "name": "the broker is an OpenID Provider in its own right",
+      "request": {
+        "path": "/.well-known/openid-configuration"
+      },
+      "expect": {
+        "json": {
+          "issuer": {
+            "$regex": "^http://127\\.0\\.0\\.1:\\d+$"
+          },
+          "grant_types_supported": {
+            "$contains": "urn:ietf:params:oauth:grant-type:token-exchange"
+          },
+          "dpop_signing_alg_values_supported": {
+            "$contains": "ES256"
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "the downstream client pushes its request to the broker",
+      "request": {
+        "method": "POST",
+        "path": "/par",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "client_id=app&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcb&scope=openid+email+profile&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&state=down-1&nonce=n-1"
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "request_uri": "json.request_uri"
+      },
+      "upstream": []
+    },
+    {
+      "name": "the broker sends the browser upstream, having pushed its own request there bound to its DPoP key",
+      "request": {
+        "path": "/authorize?client_id=app&request_uri={request_uri}"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:\\d+/authorize\\?client_id=broker&request_uri=urn"
+          },
+          "set-cookie": {
+            "$regex": "^oidc-broker=v1\\.[^;]+; Path=/; Max-Age=600; HttpOnly; SameSite=Lax$"
+          }
+        }
+      },
+      "save": {
+        "upstream_authorize": "headers.location",
+        "broker_cookie": {
+          "path": "headers.set-cookie",
+          "regex": "^([^;]+)"
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/.well-known/openid-configuration"
+        },
+        {
+          "method": "POST",
+          "path": "/par",
+          "headers": {
+            "authorization": {
+              "$regex": "^Basic "
+            },
+            "dpop": {
+              "$regex": "^eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            }
+          },
+          "text": {
+            "$regex": "^nonce=[A-Za-z0-9_-]{22}&response_type=code&client_id=broker&redirect_uri=http%3A%2F%2F127\\.0\\.0\\.1%3A\\d+%2Fupstream%2Fcallback&code_challenge=[A-Za-z0-9_-]{43}&code_challenge_method=S256&state=[A-Za-z0-9_-]{22}&scope=openid\\+profile\\+email&dpop_jkt=[A-Za-z0-9_-]{43}$"
+          }
+        }
+      ]
+    },
+    {
+      "name": "upstream, the user signs in and comes back to the broker with a code",
+      "request": {
+        "url": "{upstream_authorize}"
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:\\d+/upstream/callback\\?code=[A-Za-z0-9_-]{43}&state=[A-Za-z0-9_-]{22}&iss="
+          }
+        }
+      },
+      "save": {
+        "upstream_callback": "headers.location"
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": {
+            "$regex": "^/authorize\\?client_id=broker&"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a callback without the browser's broker cookie is refused, and nothing is redeemed",
+      "request": {
+        "url": "{upstream_callback}"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "access_denied"
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "with it, the broker redeems the upstream code with its DPoP proof, reads upstream UserInfo with DPoP, and resumes downstream",
+      "request": {
+        "url": "{upstream_callback}",
+        "headers": {
+          "cookie": "{broker_cookie}"
+        }
+      },
+      "expect": {
+        "status": 303,
+        "headers": {
+          "location": {
+            "$regex": "^http://127\\.0\\.0\\.1:8765/cb\\?code=[A-Za-z0-9_-]{43}&state=down-1&iss="
+          },
+          "set-cookie": {
+            "$regex": "^oidc-broker=; Path=/; Max-Age=0"
+          }
+        }
+      },
+      "save": {
+        "code": {
+          "path": "headers.location",
+          "regex": "code=([^&]+)"
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/token",
+          "headers": {
+            "authorization": {
+              "$regex": "^Basic "
+            },
+            "dpop": {
+              "$regex": "^eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            }
+          },
+          "text": {
+            "$regex": "^grant_type=authorization_code&code="
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/jwks"
+        },
+        {
+          "method": "GET",
+          "path": "/userinfo",
+          "headers": {
+            "authorization": {
+              "$regex": "^DPoP eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "dpop": {
+              "$regex": "^eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "the downstream client redeems the broker's code for the broker's own tokens",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=authorization_code&client_id=app&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcb&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code={code}"
+      },
+      "expect": {
+        "json": {
+          "token_type": "Bearer",
+          "scope": "openid email profile",
+          "id_token": {
+            "$regex": "^eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+          },
+          "refresh_token": {
+            "$any": true
+          }
+        }
+      },
+      "save": {
+        "access": "json.access_token"
+      },
+      "upstream": []
+    },
+    {
+      "name": "the broker's token carries the upstream authentication: acr and amr, for the brokered subject",
+      "request": {
+        "method": "POST",
+        "path": "/introspect",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "authorization": "Basic YXBpOmFwaS1pbnRyb3NwZWN0aW9uLXNlY3JldC0wMTIzNDU2Nzg5"
+        },
+        "body": "token={access}"
+      },
+      "expect": {
+        "json": {
+          "active": true,
+          "sub": "upstream:alice",
+          "client_id": "app",
+          "acr": "urn:upstream:mfa",
+          "amr": [
+            "pwd",
+            "otp"
+          ],
+          "token_type": "Bearer",
+          "cnf": {
+            "$absent": true
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "the broker's UserInfo answers the upstream claims, without asking upstream again",
+      "request": {
+        "path": "/userinfo",
+        "headers": {
+          "authorization": "Bearer {access}"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "sub": "upstream:alice",
+            "name": "Alice Liddell",
+            "email": "alice@upstream.example",
+            "email_verified": true
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "the client exchanges its token for one for the API, with no more scope",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&client_id=app&subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&resource=https%3A%2F%2Fapi.example&scope=email&subject_token={access}"
+      },
+      "expect": {
+        "json": {
+          "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
+          "token_type": "Bearer",
+          "scope": "email",
+          "access_token": {
+            "$regex": "^eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "an exchange for a scope the subject token lacks is refused",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&client_id=app&subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&resource=https%3A%2F%2Fapi.example&scope=phone&subject_token={access}"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_scope",
+          "error_description": "the subject token does not carry phone"
+        }
+      }
+    },
+    {
+      "name": "so is one with a subject token the broker did not issue",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&client_id=app&subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&resource=https%3A%2F%2Fapi.example&subject_token=not-a-token"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "invalid_grant"
+        }
+      }
+    }
+  ]
+}
