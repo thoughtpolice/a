@@ -54,71 +54,77 @@ The dev and Codex images have coreutils, so check them like any machine:
 `systemctl --user is-system-running`, `loginctl list-users`,
 `git --version`, `codex --version`.
 
-## dev/ and codex/ — machines, not appliances
+## dev/ and codex/: machines, not appliances
 
-The first three examples are appliances: one service, no shell tools.
-`dev/` flips the image into a day-to-day machine: coreutils, findutils,
-grep/sed/gawk, tar/gzip/xz, git, jq, ripgrep, procps, less, curl, and
-bubblewrap from pinned Wolfi packages, plus a running
-`systemd --user` for uid 1000. exedev is marked lingering, and a small
-culled layer restores the `systemd-user-runtime-dir` binary and `loginctl`
-that the base denylist drops. The base already carries the `user@.service`
-drop-ins that reset the `PAMName=` our PAM-less rootfs can't satisfy and set
-`XDG_RUNTIME_DIR`, pam_systemd's other job. They sit unused until something
-lingers, and the composition policy wouldn't let this layer add them anyway.
+memcached, valkey and nginx are appliances, one service and no shell
+tools. `dev/` is a machine to work on. It adds coreutils, findutils,
+grep, sed, gawk, tar, gzip, xz, git, jq, ripgrep, procps, less, curl and
+bubblewrap from pinned Wolfi packages, and runs `systemd --user` for
+uid 1000.
 
-The local root account is locked and has `nologin`; exe.dev maps external SSH
-names, including `root`, to the configured `exedev` uid 1000 account. On these
-dev images, `/etc/minimos/require-user-scope` makes the exedev shell wrapper
-fail closed unless it can start the requested Bash shell or command with
-`systemd-run --user --scope`. This moves it out of the platform listener's
-`init.scope` and underneath `user@1000.service`. The user manager and each SSH
-scope delegate `cpu cpuset io memory pids`; each scope has CPU/I/O weight 100,
-`MemoryHigh=65%`, `MemoryMax=75%`, no swap, and `TasksMax=2048`. The parent
-`user.slice` has a 70%/80% memory high/max policy, no swap, and a 3072-task
-aggregate ceiling. It also caps aggregate root-filesystem I/O at 500/250 MB/s
-read/write and 50K/25K read/write IOPS. CPU and supported I/O weights remain
-work-conserving contention priorities, not per-tenant entitlements; on
-exe.dev's current weightless block scheduler, the hard bandwidth/IOPS values
-are the effective I/O policy. The user manager enables I/O/memory/task
-accounting and applies a zero hard core-file limit to user-created services.
+exedev lingers, so logind starts `user@1000.service` at boot, and a
+small culled layer brings back `systemd-user-runtime-dir` and
+`loginctl`, which the base denies. The base already has the
+`user@.service` drop-ins that clear `PAMName=`, which a rootfs with no
+PAM can't satisfy, and set `XDG_RUNTIME_DIR`, which pam_systemd would
+otherwise set. They do nothing until an account lingers, and the
+composition policy wouldn't let this layer add them anyway.
 
-Shell and remote-command channels take that wrapper path. The current exe.dev
-SFTP subsystem does not: live validation found its authenticated uid-1000
-handler still in `init.scope`, outside `user.slice`'s memory and I/O ceilings.
-The 512-task init-scope limit remains, but SFTP/forwarding must be moved by the
-platform into a bounded user scope before these images can claim complete
-per-session QoS. Capping all of `init.scope` is unsafe because it also contains
-PID 1 and the platform listener.
+### Where SSH sessions run
 
-The dev boot smoke passes `--userland`, which waives the appliance's
-no-coreutils check but keeps the package-manager, file-mode, and baked-account
-invariants. Its `--dev` checks also exercise the user manager, wrapper cgroup
-placement, zero core limits, and bubblewrap installation. Docker's nested
-container policy rejects bubblewrap's `pivot_root`, so a real exe.dev deployment
-must additionally exercise a functional bubblewrap namespace/mount probe along
-with platform SSH, VM-only sysctls, and the realized `user.slice/io.max`
-values; Docker overlay storage may not expose a resolvable originating block
-device to the private test cgroup.
+The platform starts its SSH listener before PID 1, so every SSH child
+starts in `init.scope`. The dev overlay ships
+`/etc/minimos/require-user-scope`, which makes exedev's login wrapper
+start each shell or command with `systemd-run --user --scope`, under
+`user@1000.service`. If the user bus isn't up, the wrapper refuses the
+login rather than run it unbounded. It also turns off `systemd-run`'s
+`$` expansion, so Bash sees the SSH command exactly once.
 
-`codex/` stacks OpenAI's Codex CLI on top as a plain overlay: the
-static musl binary from the pinned GitHub release lands at
-`/usr/local/bin/codex`, and `~/.codex/config.toml` preconfigures the
-`exe-chatgpt` model provider. Attach an exe.dev integration named `chatgpt`
-when creating the VM; that integration makes
-`https://chatgpt.int.exe.xyz/v1` available to the VM and proxies it to the
-owning account without putting an API key in the image. A tag alone does not
-attach an integration. Codex's Linux command sandbox uses the image's
-unprivileged bubblewrap and the user namespaces minimos keeps enabled.
+Each scope gets CPU and I/O weight 100, `MemoryHigh=65%`,
+`MemoryMax=75%`, no swap and 2048 tasks, and delegates
+`cpu cpuset io memory pids` so builds and runtimes can divide it
+further. All of that sits under `user.slice`'s 70%/80% memory, 3072
+tasks, and root-disk ceilings of 500 MB/s read, 250 MB/s write, 50K
+read IOPS and 25K write IOPS. The user manager has its own defaults too,
+with accounting on, 2048 tasks per service, a 30-second stop timeout and
+no core files.
+
+This only covers what comes in through the login shell. exe.dev's SFTP
+handler doesn't use the account's shell, so SFTP sessions stay in
+`init.scope`, outside `user.slice`'s memory and I/O ceilings, with only
+its 512-task cap. Capping all of `init.scope` would also cap PID 1 and
+the SSH listener, so the fix belongs on the platform side, which would
+need to put each SFTP or forwarding handler in a bounded user scope.
+Until then, treat those channels as a known gap in the resource limits.
+
+### The dev boot smoke
+
+`boot_smoke_userland = True` waives the no-coreutils check and nothing
+else. Package managers, file modes and the baked accounts are still
+checked. `boot_smoke_dev = True` checks the user manager, the login
+scope's cgroup and accounting, the zero core limits, and that bubblewrap
+is installed. Docker's seccomp policy blocks bubblewrap's `pivot_root`,
+so a working bubblewrap sandbox has to be checked on a VM.
+
+### codex/
+
+`codex/` adds OpenAI's Codex CLI to the dev image, as the static musl
+binary from a pinned GitHub release at `/usr/local/bin/codex`, with
+`~/.codex/config.toml` pointing at the `exe-chatgpt` provider. Create the
+VM with exe.dev's `chatgpt` integration. That makes
+`https://chatgpt.int.exe.xyz/v1` reachable from the VM and proxies it to
+the owning account, so no API key is ever in the image. A tag with the
+same name doesn't attach the integration. Codex's command sandbox uses
+the image's bubblewrap and the user namespaces minimos keeps.
 
 ```
 ssh exe.dev new --image=<pushed image> --name=agent --integration=chatgpt
 ssh agent.exe.xyz
-codex            # interactive; provider comes from ~/.codex/config.toml
-codex exec 'summarize this repo'   # non-interactive
+codex                              # interactive
+codex exec 'summarize this repo'   # one-shot
 ```
 
-The same provider can be configured ad hoc on a stock codex install:
+The same provider works with any Codex install:
 
 ```
 codex \
@@ -126,6 +132,32 @@ codex \
   -c 'model_providers.exe-chatgpt.name="exe-chatgpt"' \
   -c 'model_providers.exe-chatgpt.base_url="https://chatgpt.int.exe.xyz/v1"'
 ```
+
+### What bubblewrap does and doesn't isolate
+
+Bubblewrap limits what a process can see inside its namespaces. On a VM
+it runs without setuid, through an unprivileged user namespace. Outside
+the namespace the process is still uid 1000, so it's no boundary between
+users who don't trust each other, and it can't hide anything its caller
+mounts or connects into it. For sandboxes that share the owner's
+resources:
+
+- share named workspace directories rather than all of `/home/exedev`,
+  and mount caches and sources read-only where possible
+- keep `/run/user/1000/bus`, runtime sockets, SSH agents, `/exe.dev`,
+  host devices, host cgroups, `.ssh`, `.codex` and unrelated repos out
+- give each workload its own cgroup limits and a quota or separate
+  volume, since cgroups don't stop a full disk
+- treat network access to an attached exe.dev integration as a
+  credential, even though its API key lives outside the VM
+
+The dev and Codex images aren't rootless container hosts. They have no
+Docker, Podman, containerd or runc, no subordinate-ID helpers or ranges,
+no rootless networking and no storage driver. Cgroup delegation and user
+namespaces are only groundwork. Workloads that don't trust each other
+need separate users with separate storage, cgroups, user managers and
+ID ranges, or separate VMs, and separate VMs are the only option these
+images offer today.
 
 ## container-host/ — an appliance that runs other people's containers
 
@@ -269,36 +301,10 @@ needs one, and the CRI picks up the same directory.
 
 ## Sandbox and shared-resource boundary
 
-`dev/` and `codex/` provide same-owner process sandboxing, not a general
-rootless OCI host. They do not ship Docker, Podman, containerd, runc/crun,
-subordinate-ID helpers or allocations, rootless networking, or a writable-layer
-storage driver. Cgroup delegation and usable user namespaces are prerequisite
-plumbing for a future runtime composition, not evidence that arbitrary
-devenv/container images work today.
-
-`container-host/` is that runtime composition, and it is a *rootful* one:
+`container-host/` is a *rootful* runtime composition:
 containerd runs as root, sandboxes are started by root-side systemd
 units, and the socket handed to uid 1000 is root-equivalent by
 construction. It ships no subordinate-ID helpers either — rootless
 containers need setuid `newuidmap`/`newgidmap`, which no minimos image
 will carry — so it is not a way to give an untrusted user containers.
 Its boundary is gVisor around the *workload*, not around the operator.
-
-Bubblewrap changes what a process can see inside its namespaces, but outside
-them the process is still owned by host uid 1000. It is not a security boundary
-between mutually untrusted users, and it cannot hide a host resource that its
-caller deliberately mounts or connects. For same-owner development sandboxes:
-
-- share named workspace directories, not all of `/home/exedev`, and make caches
-  and source inputs read-only whenever possible;
-- do not expose `/run/user/1000/bus`, a runtime-control socket, SSH agent,
-  `/exe.dev`, host devices, host cgroups, `.ssh`, `.codex`, or unrelated repos;
-- give each workload its own cgroup ceilings and a filesystem quota or dedicated
-  volume, because cgroups do not prevent disk exhaustion;
-- treat network reachability to an attached exe.dev integration as an
-  authorization capability, even though no upstream API key is stored locally.
-
-Mutually untrusted workloads require separate host users with disjoint storage,
-cgroups, user managers, and subordinate-ID ranges, or separate VMs. The shipped
-examples implement only the single `exedev` owner; separate exe.dev VMs are the
-available strong boundary without building a different multi-user runtime.
