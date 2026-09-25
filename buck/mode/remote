@@ -1,1 +1,7 @@
+--# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+--# SPDX-License-Identifier: Apache-2.0
+--# Execute on BuildBuddy. The bootstrap's executor goes remote-only too, on
+--# an image with no shell or tools, since its actions read only their inputs.
 --config=buck2_re_client.default_mode=full-remote
+--config=bootstrap.execution=remote
+--config=bootstrap.remote_properties={"container-image":"docker://gcr.io/distroless/static-debian12@sha256:d75cdd72874d4790092fcb1b058493ecf6bb5bf2b2b897045b00ff01d91843f2"}

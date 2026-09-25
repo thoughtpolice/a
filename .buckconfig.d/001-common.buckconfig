@@ -100,6 +100,18 @@ read_timeout_ms = 60000
 # for larger blobs: set a larger gRPC timeout window so we can upload them in time
 grpc_timeout = 900
 
+# BuildBuddy runs the remote cache and executors that the cached and remote
+# modes use. Its API key comes from BUILDBUDDY_API_KEY in the environment the
+# Buck daemon starts in, for instance from .envrc.local, and never from the
+# repository; restart the daemon after changing it. Buck substitutes the
+# variable when it first connects, so local builds never need it. Buck takes
+# only grpc:// or no scheme, and tls decides whether it speaks https.
+engine_address = grpc://remote.buildbuddy.io
+action_cache_address = grpc://remote.buildbuddy.io
+cas_address = grpc://remote.buildbuddy.io
+tls = true
+http_headers = x-buildbuddy-api-key:$BUILDBUDDY_API_KEY
+
 [buck2_resource_control]
 status = if_available
 enable_suspension = true

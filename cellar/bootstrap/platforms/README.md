@@ -61,11 +61,26 @@ would only store every output twice.
 
 ## Remote Linux workers
 
-Configure the RE connection using standard Buck `[buck2_re_client]` settings in
-`cellar/.buckconfig.local` or an explicit `--config-file`: `engine_address`,
-`action_cache_address`, `cas_address`, and the endpoint's TLS/authentication
-settings. The repository does not contain an RE endpoint or credentials.
-The scheduler must advertise workers with properties `OSFamily=Linux` and
+From the parent project, `@mode//remote` builds on BuildBuddy, whose endpoint
+the parent's common configuration names. Buck reads the API key from
+`BUILDBUDDY_API_KEY` in the environment its daemon starts in; the repository
+holds no credentials. The mode makes this executor remote-only and runs every
+action in the distroless `static` image, pinned by digest, which holds no
+shell and no tools. Bootstrap actions read only their inputs, as the local
+sandbox already enforces, so an image with nothing to lean on keeps remote
+builds as hermetic as local ones.
+
+```sh
+buck2 build @mode//remote cellar//bootstrap/stage1:all
+buck2 test @mode//remote --unstable-allow-compatible-tests-on-re \
+  cellar//bootstrap/stage1/...
+```
+
+The standalone project names no endpoint. Configure the RE connection using
+standard Buck `[buck2_re_client]` settings in `cellar/.buckconfig.local` or an
+explicit `--config-file`: `engine_address`, `action_cache_address`,
+`cas_address`, and the endpoint's TLS/authentication settings. The scheduler
+must advertise workers with properties `OSFamily=Linux` and
 `Arch=amd64`, the Go and OCI spelling that BuildBuddy's executors register.
 Add scheduler-specific properties, such as a worker image, using:
 
@@ -75,7 +90,7 @@ remote_properties = {"container-image":"your-bootstrap-worker"}
 remote_use_case = buck2-bootstrap
 ```
 
-From any supported Buck client OS:
+Then, from any supported Buck client OS:
 
 ```sh
 buck2 build @cellar//bootstrap/platforms/remote cellar//bootstrap/stage1:all
