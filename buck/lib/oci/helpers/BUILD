@@ -41,6 +41,27 @@ shims.python_binary(
     visibility = ["PUBLIC"],
 )
 
+shims.python_library(
+    name = "oci_push_lib",
+    srcs = ["oci_push.py"],
+    base_module = "",
+)
+
+shims.python_binary(
+    name = "oci_push_test",
+    base_module = "",
+    main = "oci_push_test.py",
+    deps = [":oci_push_lib"],
+)
+
+# Pushes small generated layouts with the pinned skopeo to local oci:
+# destinations, so it needs no registry or network.
+shims.run_test(
+    name = "test-oci-push",
+    args = ["$(exe depot-toolchains//oci:skopeo)"],
+    dep = ":oci_push_test",
+)
+
 shims.python_binary(
     name = "native_binary_layer",
     main = "native_binary_layer.py",
