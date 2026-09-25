@@ -62,22 +62,30 @@ def _cmake_configure(values):
     """
     args = []
     for name, value in values.items():
+        # Names go into the patterns as they are.
+        if not name.replace("_", "").isalnum():
+            fail("not a CMake variable name: " + name)
         if value == False:
             expressions = [
                 "s|^#cmakedefine01 {0}$|#define {0} 0|",
                 "s|^#cmakedefine {0}$|/* #undef {0} */|",
                 "s|^#cmakedefine {0} .*$|/* #undef {0} */|",
-                "s|@{0}@||g",
             ]
+            text = ""
         else:
             expressions = [
                 "s|^#cmakedefine01 {0}$|#define {0} 1|",
                 "s|^#cmakedefine {0}$|#define {0}|",
                 "s|^#cmakedefine {0} |#define {0} |",
-                "s|@{0}@|" + ("1" if value == True else value) + "|g",
             ]
+            text = "1" if value == True else value
         for expression in expressions:
             args += ["-e", expression.format(name)]
+
+        # sed reads a backslash, an ampersand, the delimiter and a newline in
+        # replacement text specially.
+        text = text.replace("\\", "\\\\").replace("&", "\\&").replace("|", "\\|").replace("\n", "\\n")
+        args += ["-e", "s|@" + name + "@|" + text + "|g"]
     return args
 
 # libc++'s CMake configuration for static x86_64 Linux with musl: the stable
