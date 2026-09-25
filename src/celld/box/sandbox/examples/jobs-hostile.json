@@ -1,0 +1,17 @@
+{
+  "vars": {
+    "AUTH_SECRET": "dev-only-sandbox-examples-secret-do-not-deploy",
+    "UNSAFE_DEMO_AUTH": "1"
+  },
+  "steps": [
+    {
+      "name": "production jobs class refuses arbitrary commands under runc",
+      "request": {
+        "path": "/jobs",
+        "headers": { "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w" },
+        "json": { "files": { "job.sh": "echo unsafe" }, "command": ["sh", "job.sh"] }
+      },
+      "expect": { "status": 503, "json": { "error": "unavailable" } }
+    }
+  ]
+}

@@ -1,0 +1,442 @@
+{
+  "vars": {
+    "AUTH_SECRET": "dev-only-sandbox-examples-secret-do-not-deploy",
+    "UNSAFE_CI_ON_RUNC": "1",
+    "UNSAFE_DEMO_AUTH": "1"
+  },
+  "steps": [
+    {
+      "name": "a job without a token is refused",
+      "request": {
+        "path": "/jobs",
+        "json": {
+          "files": {
+            "t.sh": "echo hi"
+          },
+          "command": [
+            "sh",
+            "t.sh"
+          ]
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "unauthorized"
+        }
+      }
+    },
+    {
+      "name": "a job with a failing test is submitted",
+      "request": {
+        "path": "/jobs",
+        "json": {
+          "files": {
+            "lib/math.sh": "add() { echo $(($1 + $2)); }\nsub() { echo $(($1 + $2)); }\n",
+            "test.sh": ". ./lib/math.sh\nfail=0\ncheck() { if [ \"$2\" = \"$3\" ]; then echo \"ok $1\"; else echo \"not ok $1 - expected $3, got $2\"; fail=1; fi; sleep 0.3; }\ncheck add \"$(add 2 3)\" 5\ncheck sub \"$(sub 5 3)\" 2\nexit $fail\n"
+          },
+          "command": [
+            "sh",
+            "test.sh"
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        }
+      },
+      "expect": {
+        "status": 202,
+        "json": {
+          "job": {
+            "$regex": "^[0-9A-Z]{26}$"
+          }
+        }
+      },
+      "save": {
+        "job": "json.job"
+      }
+    },
+    {
+      "name": "its output streams as events until it exits",
+      "request": {
+        "path": "/jobs/{job}/events",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        }
+      },
+      "expect": {
+        "headers": {
+          "content-type": {
+            "$regex": "text/event-stream"
+          }
+        },
+        "text": {
+          "$regex": "ok add\\\\n(.|\\n)*not ok sub - expected 2, got 8\\\\n"
+        },
+        "sse": {
+          "$contains": {
+            "event": "exit",
+            "data": {
+              "type": "exit",
+              "status": "exited",
+              "exitCode": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "the finished job reports the failure",
+      "request": {
+        "path": "/jobs/{job}",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        }
+      },
+      "expect": {
+        "json": {
+          "status": "exited",
+          "exitCode": 1,
+          "stdout": "ok add\nnot ok sub - expected 2, got 8\n"
+        }
+      }
+    },
+    {
+      "name": "a job with more output than the log keeps is submitted",
+      "request": {
+        "path": "/jobs",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "files": {},
+          "command": [
+            "sh",
+            "-c",
+            "yes | head -c 200000"
+          ]
+        }
+      },
+      "expect": {
+        "status": 202
+      },
+      "save": {
+        "loud": "json.job"
+      }
+    },
+    {
+      "name": "its answer says the output was cut",
+      "request": {
+        "path": "/jobs/{loud}",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        }
+      },
+      "until": {
+        "seconds": 20,
+        "interval": 0.2
+      },
+      "expect": {
+        "json": {
+          "status": "exited",
+          "exitCode": 0,
+          "truncated": true
+        }
+      }
+    },
+    {
+      "name": "a slow job starts in its own directory",
+      "request": {
+        "path": "/jobs",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "files": {
+            "data.txt": "first\n",
+            "test.sh": "sleep 1.5; cat data.txt; pwd\n"
+          },
+          "command": [
+            "sh",
+            "test.sh"
+          ]
+        }
+      },
+      "expect": {
+        "status": 202
+      },
+      "save": {
+        "slow": "json.job"
+      }
+    },
+    {
+      "name": "a newer job with the same file names starts while it runs",
+      "request": {
+        "path": "/jobs",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "files": {
+            "data.txt": "second\n",
+            "test.sh": "cat data.txt\n"
+          },
+          "command": [
+            "sh",
+            "test.sh"
+          ]
+        }
+      },
+      "expect": {
+        "status": 202
+      },
+      "save": {
+        "fixed": "json.job"
+      }
+    },
+    {
+      "name": "and passes with its own files",
+      "request": {
+        "path": "/jobs/{fixed}",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        }
+      },
+      "until": {
+        "seconds": 20,
+        "interval": 0.2
+      },
+      "expect": {
+        "json": {
+          "status": "exited",
+          "exitCode": 0,
+          "stdout": "second\n"
+        }
+      }
+    },
+    {
+      "name": "while the older job still reads its own, untouched",
+      "request": {
+        "path": "/jobs/{slow}",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        }
+      },
+      "until": {
+        "seconds": 20,
+        "interval": 0.2
+      },
+      "expect": {
+        "json": {
+          "status": "exited",
+          "exitCode": 0,
+          "stdout": {
+            "$regex": "^first\\n/workspace/jobs/[0-9a-f-]{36}\\n$"
+          }
+        }
+      }
+    },
+    {
+      "name": "another caller cannot read a job's logs",
+      "request": {
+        "path": "/jobs/{job}",
+        "headers": {
+          "authorization": "Bearer bob.y5DBkYqhIVUK_fAFCFmHIEwSKySMRHntRCzElHBIK5Y"
+        }
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "error": "not_found"
+        }
+      }
+    },
+    {
+      "name": "or follow them",
+      "request": {
+        "path": "/jobs/{job}/events",
+        "headers": {
+          "authorization": "Bearer bob.y5DBkYqhIVUK_fAFCFmHIEwSKySMRHntRCzElHBIK5Y"
+        }
+      },
+      "expect": {
+        "status": 404
+      }
+    },
+    {
+      "name": "a file path that leaves the job's directory is refused",
+      "request": {
+        "path": "/jobs",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "files": {
+            "../escape.sh": "x"
+          },
+          "command": [
+            "true"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "bad_request"
+        }
+      }
+    },
+    {
+      "name": "a job body over the 8 MiB cap is a 413, even sent chunked",
+      "request": {
+        "method": "POST",
+        "path": "/jobs",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "bodyBytes": 8388609,
+        "chunked": true
+      },
+      "expect": {
+        "status": 413,
+        "json": {
+          "$exact": {
+            "error": "too_large"
+          }
+        }
+      }
+    },
+    {
+      "name": "an object with more keys than a job can use is refused while the body is parsed, before the schema builds anything",
+      "request": {
+        "path": "/jobs",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "files": {
+            "f0.txt": "x",
+            "f1.txt": "x",
+            "f2.txt": "x",
+            "f3.txt": "x",
+            "f4.txt": "x",
+            "f5.txt": "x",
+            "f6.txt": "x",
+            "f7.txt": "x",
+            "f8.txt": "x",
+            "f9.txt": "x",
+            "f10.txt": "x",
+            "f11.txt": "x",
+            "f12.txt": "x",
+            "f13.txt": "x",
+            "f14.txt": "x",
+            "f15.txt": "x",
+            "f16.txt": "x",
+            "f17.txt": "x",
+            "f18.txt": "x",
+            "f19.txt": "x",
+            "f20.txt": "x",
+            "f21.txt": "x",
+            "f22.txt": "x",
+            "f23.txt": "x",
+            "f24.txt": "x",
+            "f25.txt": "x",
+            "f26.txt": "x",
+            "f27.txt": "x",
+            "f28.txt": "x",
+            "f29.txt": "x",
+            "f30.txt": "x",
+            "f31.txt": "x",
+            "f32.txt": "x",
+            "f33.txt": "x",
+            "f34.txt": "x",
+            "f35.txt": "x",
+            "f36.txt": "x",
+            "f37.txt": "x",
+            "f38.txt": "x",
+            "f39.txt": "x",
+            "f40.txt": "x",
+            "f41.txt": "x",
+            "f42.txt": "x",
+            "f43.txt": "x",
+            "f44.txt": "x",
+            "f45.txt": "x",
+            "f46.txt": "x",
+            "f47.txt": "x",
+            "f48.txt": "x",
+            "f49.txt": "x",
+            "f50.txt": "x",
+            "f51.txt": "x",
+            "f52.txt": "x",
+            "f53.txt": "x",
+            "f54.txt": "x",
+            "f55.txt": "x",
+            "f56.txt": "x",
+            "f57.txt": "x",
+            "f58.txt": "x",
+            "f59.txt": "x",
+            "f60.txt": "x",
+            "f61.txt": "x",
+            "f62.txt": "x",
+            "f63.txt": "x",
+            "f64.txt": "x"
+          },
+          "command": [
+            "true"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "error": "bad_request"
+          }
+        }
+      }
+    },
+    {
+      "name": "its owner deletes a finished job",
+      "request": {
+        "method": "DELETE",
+        "path": "/jobs/{job}",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        }
+      },
+      "expect": {
+        "status": 204
+      }
+    },
+    {
+      "name": "which is then gone",
+      "request": {
+        "path": "/jobs/{job}",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        }
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "error": "not_found"
+        }
+      }
+    },
+    {
+      "name": "an unknown job is a 404",
+      "request": {
+        "path": "/jobs/01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        }
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "error": "not_found"
+        }
+      }
+    }
+  ]
+}

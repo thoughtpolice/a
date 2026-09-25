@@ -1,0 +1,327 @@
+{
+  "vars": {
+    "AUTH_SECRET": "dev-only-sandbox-examples-secret-do-not-deploy",
+    "UNSAFE_RUNNER_ON_RUNC": "1",
+    "UNSAFE_DEMO_AUTH": "1"
+  },
+  "steps": [
+    {
+      "name": "a run without a token is refused before any sandbox starts",
+      "request": {
+        "path": "/run",
+        "json": {
+          "code": "echo hi"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "unauthorized"
+        }
+      }
+    },
+    {
+      "name": "an identity header is not a token",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "x-user": "ada"
+        },
+        "json": {
+          "code": "echo hi"
+        }
+      },
+      "expect": {
+        "status": 401
+      }
+    },
+    {
+      "name": "a forged token is refused",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "json": {
+          "code": "echo hi"
+        }
+      },
+      "expect": {
+        "status": 401
+      }
+    },
+    {
+      "name": "a script runs and its output comes back, on the tier the answer names",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "echo hello from the runner"
+        }
+      },
+      "expect": {
+        "json": {
+          "success": true,
+          "exitCode": 0,
+          "stdout": "hello from the runner\n",
+          "stderr": "",
+          "timedOut": false,
+          "tier": "trusted (unsafe)",
+          "runId": {
+            "$regex": "^[0-9a-f-]{36}$"
+          }
+        }
+      }
+    },
+    {
+      "name": "it runs as uid 1000 in a directory of its own",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "id -u; pwd; ls"
+        }
+      },
+      "expect": {
+        "json": {
+          "stdout": {
+            "$regex": "^1000\\n/workspace/runs/[0-9a-f-]{36}\\nmain.sh\\n$"
+          }
+        }
+      }
+    },
+    {
+      "name": "which is gone after the run",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "ls ..; echo end"
+        }
+      },
+      "expect": {
+        "json": {
+          "stdout": {
+            "$regex": "^[0-9a-f-]{36}\\nend\\n$"
+          }
+        }
+      }
+    },
+    {
+      "name": "stdin and exit codes pass through",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "read name; echo \"hi $name\" >&2; exit 7",
+          "stdin": "grace\n"
+        }
+      },
+      "expect": {
+        "json": {
+          "success": false,
+          "exitCode": 7,
+          "stderr": "hi grace\n"
+        }
+      }
+    },
+    {
+      "name": "the container's own environment does not leak in",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "env | cut -d= -f1 | sort | tr '\\n' ' '"
+        }
+      },
+      "expect": {
+        "json": {
+          "stdout": {
+            "$not": {
+              "$contains": "CLOUDFLARE"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "there is no network",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "wget -q -T 3 -O /dev/null http://1.1.1.1/ || echo offline"
+        }
+      },
+      "expect": {
+        "json": {
+          "stdout": "offline\n"
+        }
+      }
+    },
+    {
+      "name": "a script past its deadline is killed",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "sleep 60",
+          "timeoutMs": 500
+        }
+      },
+      "expect": {
+        "json": {
+          "timedOut": true,
+          "exitCode": null
+        }
+      }
+    },
+    {
+      "name": "a killed run leaves no directory",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "ls .. | grep -vcx \"$(basename \"$PWD\")\""
+        }
+      },
+      "expect": {
+        "json": {
+          "stdout": "0\n"
+        }
+      }
+    },
+    {
+      "name": "a deadline beyond the class's cap is cut to it",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "sleep 60",
+          "timeoutMs": 60000
+        }
+      },
+      "expect": {
+        "json": {
+          "timedOut": true,
+          "durationMs": {
+            "$lt": 15000
+          }
+        }
+      }
+    },
+    {
+      "name": "output past the cap is cut",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "yes | head -c 100000"
+        }
+      },
+      "expect": {
+        "json": {
+          "truncated": true,
+          "stdout": {
+            "$len": 16384
+          }
+        }
+      }
+    },
+    {
+      "name": "a caller leaves a file in their sandbox",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "echo ada-secret > /workspace/mine.txt; cat /workspace/mine.txt"
+        }
+      },
+      "expect": {
+        "json": {
+          "stdout": "ada-secret\n"
+        }
+      }
+    },
+    {
+      "name": "another caller has another sandbox and cannot see it",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer bob.y5DBkYqhIVUK_fAFCFmHIEwSKySMRHntRCzElHBIK5Y"
+        },
+        "json": {
+          "code": "cat /workspace/mine.txt || echo absent"
+        }
+      },
+      "expect": {
+        "json": {
+          "stdout": "absent\n"
+        }
+      }
+    },
+    {
+      "name": "a bad timeout is a 400",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "x",
+          "timeoutMs": 0
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "bad_request"
+        }
+      }
+    },
+    {
+      "name": "a bad request is refused before any sandbox starts",
+      "request": {
+        "path": "/run",
+        "headers": {
+          "authorization": "Bearer ada.8UExLMxXeQkdoI_XpTgwAVFGn2_14yFRHhJ22IH2n2w"
+        },
+        "json": {
+          "code": "",
+          "extra": true
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "bad_request",
+          "fields": {
+            "$any": true
+          }
+        }
+      }
+    }
+  ]
+}
