@@ -405,16 +405,16 @@ def close_elf(rootfs: Path, kept: set[Path], provided: Path | None = None) -> se
                 continue
             seen.add(resolved)
             kept.add(resolved)
-            current, links = resolve_virtual(rootfs, resolved, follow_final=True)
+            target, links = resolve_virtual(rootfs, resolved, follow_final=True)
             for link in links:
                 if link not in seen:
                     seen.add(link)
                     kept.add(link)
-            if current is not None and current not in seen:
-                seen.add(current)
-                kept.add(current)
-            if current is not None and is_elf(current):
-                queue.append(current)
+            if target is not None and target not in seen:
+                seen.add(target)
+                kept.add(target)
+            if target is not None and is_elf(target):
+                queue.append(target)
     if unresolved:
         details = ", ".join(
             f"{soname} (needed by {ref.name})"
