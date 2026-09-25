@@ -1,0 +1,68 @@
+{
+  "steps": [
+    {
+      "name": "a ULID converts to the UUID with the same bits",
+      "request": { "path": "/convert/01ARZ3NDEKTSV4RRFFQ69G5FAV" },
+      "expect": {
+        "json": {
+          "$exact": {
+            "ulid": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "uuid": "01563e3a-b5d3-d676-4c61-efb99302bd5b",
+            "time": 1469922850259,
+            "date": "2016-07-30T23:54:10.259Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "and back, in either case",
+      "request": { "path": "/convert/01563E3A-B5D3-D676-4C61-EFB99302BD5B" },
+      "expect": { "json": { "ulid": "01ARZ3NDEKTSV4RRFFQ69G5FAV", "uuid": "01563e3a-b5d3-d676-4c61-efb99302bd5b" } }
+    },
+    {
+      "name": "every UUID is some ULID, including the largest",
+      "request": { "path": "/convert/ffffffff-ffff-ffff-ffff-ffffffffffff" },
+      "expect": { "json": { "ulid": "7ZZZZZZZZZZZZZZZZZZZZZZZZZ", "time": 281474976710655 } }
+    },
+    {
+      "name": "anything else is refused",
+      "request": { "path": "/convert/not-an-id" },
+      "expect": { "status": 400, "json": { "error": "not a ULID or a UUID: \"not-an-id\"" } }
+    },
+    {
+      "name": "a record is stored under its UUID",
+      "request": { "method": "PUT", "path": "/items/01ARZ3NDEKTSV4RRFFQ69G5FAV", "json": { "name": "widget" } },
+      "expect": { "status": 201, "json": { "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV", "key": "01563e3a-b5d3-d676-4c61-efb99302bd5b" } }
+    },
+    {
+      "name": "and served under its canonical ULID",
+      "request": { "path": "/items/01ARZ3NDEKTSV4RRFFQ69G5FAV" },
+      "expect": { "json": { "$exact": { "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV", "key": "01563e3a-b5d3-d676-4c61-efb99302bd5b", "item": { "name": "widget" } } } }
+    },
+    {
+      "name": "a lower-case ULID redirects to the canonical URL",
+      "request": { "path": "/items/01arz3ndektsv4rrffq69g5fav" },
+      "expect": { "status": 301, "headers": { "location": { "$regex": "/items/01ARZ3NDEKTSV4RRFFQ69G5FAV$" } } }
+    },
+    {
+      "name": "so does the UUID",
+      "request": { "path": "/items/01563e3a-b5d3-d676-4c61-efb99302bd5b" },
+      "expect": { "status": 301, "headers": { "location": { "$regex": "/items/01ARZ3NDEKTSV4RRFFQ69G5FAV$" } } }
+    },
+    {
+      "name": "a PUT to another spelling is redirected with a 308, which keeps the method",
+      "request": { "method": "PUT", "path": "/items/01arz3ndektsv4rrffq69g5fav", "json": { "name": "gadget" } },
+      "expect": { "status": 308, "headers": { "location": { "$regex": "/items/01ARZ3NDEKTSV4RRFFQ69G5FAV$" } } }
+    },
+    {
+      "name": "the record is unchanged",
+      "request": { "path": "/items/01ARZ3NDEKTSV4RRFFQ69G5FAV" },
+      "expect": { "json": { "item": { "name": "widget" } } }
+    },
+    {
+      "name": "an unknown record is a 404",
+      "request": { "path": "/items/01ARZ3NDEKTSV4RRFFQ69G5FAW" },
+      "expect": { "status": 404 }
+    }
+  ]
+}

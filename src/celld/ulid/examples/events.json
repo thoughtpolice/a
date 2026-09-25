@@ -1,0 +1,297 @@
+{
+  "steps": [
+    {
+      "name": "an event appended at a given time gets a ULID carrying that time",
+      "request": {
+        "method": "POST",
+        "path": "/streams/orders/events",
+        "json": {
+          "type": "created",
+          "at": 1790000000000,
+          "data": {
+            "total": 42
+          }
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "id": {
+            "$regex": "^01M3250V00[0-9A-HJKMNP-TV-Z]{16}$"
+          },
+          "at": 1790000000000
+        }
+      }
+    },
+    {
+      "name": "a second event in the same millisecond is keyed after the first",
+      "request": {
+        "method": "POST",
+        "path": "/streams/orders/events",
+        "json": {
+          "type": "paid",
+          "at": 1790000000000
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "id": {
+            "$regex": "^01M3250V00[0-9A-HJKMNP-TV-Z]{16}$"
+          },
+          "at": 1790000000000
+        }
+      }
+    },
+    {
+      "name": "a later event",
+      "request": {
+        "method": "POST",
+        "path": "/streams/orders/events",
+        "json": {
+          "type": "shipped",
+          "at": 1790000060000
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "id": {
+            "$regex": "^01M3252NK0[0-9A-HJKMNP-TV-Z]{16}$"
+          },
+          "at": 1790000060000
+        }
+      }
+    },
+    {
+      "name": "an event older than the newest is refused: the log only moves forward",
+      "request": {
+        "method": "POST",
+        "path": "/streams/orders/events",
+        "json": {
+          "type": "late",
+          "at": 1790000000000
+        }
+      },
+      "expect": {
+        "status": 409,
+        "json": {
+          "error": {
+            "$contains": "only moves forward"
+          }
+        }
+      }
+    },
+    {
+      "name": "an event needs a type",
+      "request": {
+        "method": "POST",
+        "path": "/streams/orders/events",
+        "json": {
+          "data": 1
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "name": "listing in key order is listing in time order, same-millisecond events in arrival order",
+      "request": {
+        "path": "/streams/orders/events"
+      },
+      "expect": {
+        "json": {
+          "events": [
+            {
+              "id": {
+                "$regex": "^01M3250V00[0-9A-HJKMNP-TV-Z]{16}$"
+              },
+              "at": 1790000000000,
+              "type": "created",
+              "data": {
+                "total": 42
+              }
+            },
+            {
+              "id": {
+                "$regex": "^01M3250V00[0-9A-HJKMNP-TV-Z]{16}$"
+              },
+              "at": 1790000000000,
+              "type": "paid",
+              "data": null
+            },
+            {
+              "id": {
+                "$regex": "^01M3252NK0[0-9A-HJKMNP-TV-Z]{16}$"
+              },
+              "at": 1790000060000,
+              "type": "shipped",
+              "data": null
+            }
+          ],
+          "next": null
+        }
+      }
+    },
+    {
+      "name": "a time filter is a key range",
+      "request": {
+        "path": "/streams/orders/events?since=1790000060000"
+      },
+      "expect": {
+        "json": {
+          "events": [
+            {
+              "type": "shipped"
+            }
+          ],
+          "next": null
+        }
+      }
+    },
+    {
+      "name": "a full page carries the last ID as the cursor for the next",
+      "request": {
+        "path": "/streams/orders/events?limit=2"
+      },
+      "expect": {
+        "json": {
+          "events": [
+            {
+              "type": "created"
+            },
+            {
+              "type": "paid"
+            }
+          ],
+          "next": {
+            "$regex": "^01M3250V00[0-9A-HJKMNP-TV-Z]{16}$"
+          }
+        }
+      }
+    },
+    {
+      "name": "any ULID is a cursor: this one is the last possible one of the first millisecond",
+      "request": {
+        "path": "/streams/orders/events?after=01M3250V00ZZZZZZZZZZZZZZZZ"
+      },
+      "expect": {
+        "json": {
+          "events": [
+            {
+              "type": "shipped",
+              "id": {
+                "$regex": "^01M3252NK0[0-9A-HJKMNP-TV-Z]{16}$"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a cursor that is not a ULID is refused",
+      "request": {
+        "path": "/streams/orders/events?after=nope"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "after is a ULID"
+        }
+      }
+    },
+    {
+      "name": "the log survives a restart",
+      "restart": true,
+      "request": {
+        "path": "/streams/orders/events"
+      },
+      "expect": {
+        "json": {
+          "events": [
+            {
+              "type": "created"
+            },
+            {
+              "type": "paid"
+            },
+            {
+              "type": "shipped"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "after a restart, an event in the newest event's millisecond still sorts after it",
+      "request": {
+        "method": "POST",
+        "path": "/streams/orders/events",
+        "json": {
+          "type": "delivered",
+          "at": 1790000060000
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "id": {
+            "$regex": "^01M3252NK0[0-9A-HJKMNP-TV-Z]{16}$"
+          },
+          "at": 1790000060000
+        }
+      }
+    },
+    {
+      "name": "so the new event comes last",
+      "request": {
+        "path": "/streams/orders/events?since=1790000060000"
+      },
+      "expect": {
+        "json": {
+          "events": [
+            {
+              "type": "shipped"
+            },
+            {
+              "type": "delivered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "each stream is its own object and its own log",
+      "request": {
+        "path": "/streams/invoices/events"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "events": [],
+            "next": null
+          }
+        }
+      }
+    },
+    {
+      "name": "an event appended now is keyed by the current time",
+      "request": {
+        "method": "POST",
+        "path": "/streams/invoices/events",
+        "json": {
+          "type": "opened"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "at": {
+            "$gt": 1790000060000
+          }
+        }
+      }
+    }
+  ]
+}
