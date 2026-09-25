@@ -1,0 +1,84 @@
+{
+  "steps": [
+    {
+      "name": "Jev routes the effort, approves a safe query and grades the answer",
+      "script": [
+        { "jev": { "answers": { "effort": { "choice": "low", "confidence": 0.9 } } } },
+        { "jev": { "answers": { "safe": { "noul": 0.95 } } } },
+        { "jev": { "answers": { "quality": { "score": 4 } } } },
+        { "turn": { "toolCalls": [{ "name": "run_sql", "arguments": { "query": "SELECT count(*) FROM users WHERE created_at >= today()" } }] } },
+        { "turn": { "text": "42 users signed up today." } }
+      ],
+      "request": { "method": "POST", "path": "/tasks", "json": { "task": "How many users signed up today?" } },
+      "expect": {
+        "json": {
+          "$exact": {
+            "effort": "low",
+            "decided": true,
+            "answer": "42 users signed up today.",
+            "toolOutputs": ["42"],
+            "score": 1,
+            "level": 4
+          }
+        }
+      },
+      "upstream": [
+        {
+          "path": "/v1/systemone",
+          "json": {
+            "state": "How many users signed up today?",
+            "questions": { "effort": { "type": "choice", "criteria": { "low": { "$any": true }, "xhigh": { "$any": true } } } }
+          }
+        },
+        { "path": "/openai/v1/responses", "json": { "reasoning": { "effort": "low" } } },
+        {
+          "path": "/v1/systemone",
+          "json": {
+            "state": {
+              "task": "How many users signed up today?",
+              "tool": { "name": "run_sql", "risk": "write" },
+              "call": { "$contains": "SELECT count(*)" }
+            },
+            "questions": { "safe": { "type": "noul" } }
+          }
+        },
+        { "path": "/openai/v1/responses", "json": { "reasoning": { "effort": "low" } } },
+        {
+          "path": "/v1/systemone",
+          "json": {
+            "state": { "task": "How many users signed up today?", "output": "42 users signed up today." },
+            "questions": { "quality": { "type": "score", "criteria": { "$len": 5 } } }
+          }
+        }
+      ]
+    },
+    {
+      "name": "an unsure route falls back to high effort, and an unsafe call is denied",
+      "script": [
+        { "jev": { "answers": { "effort": { "choice": "medium", "confidence": 0.3 } } } },
+        { "jev": { "answers": { "safe": { "noul": 0.1 } } } },
+        { "jev": { "answers": { "quality": { "score": 1 } } } },
+        { "turn": { "toolCalls": [{ "name": "run_sql", "arguments": { "query": "DROP TABLE users" } }] } },
+        { "turn": { "text": "I was not allowed to drop the table." } }
+      ],
+      "request": { "method": "POST", "path": "/tasks", "json": { "task": "Clean up the users table" } },
+      "expect": {
+        "json": {
+          "effort": "high",
+          "decided": false,
+          "toolOutputs": [{ "$regex": "^denied: judged unsafe \\(p\\(safe\\) = 0\\.10\\)" }],
+          "score": 0.25,
+          "level": 1
+        }
+      },
+      "upstream": { "$len": 5 }
+    },
+    {
+      "name": "a TypeSafe outage fails the task cleanly",
+      "script": [{ "jev": { "status": 401 } }],
+      "request": { "method": "POST", "path": "/tasks", "json": { "task": "Anything" } },
+      "expect": { "status": 502, "json": { "kind": "authentication" } },
+      "upstream": [{ "path": "/v1/systemone" }]
+    }
+  ]
+}

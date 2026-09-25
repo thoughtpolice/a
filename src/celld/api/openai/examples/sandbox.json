@@ -1,0 +1,371 @@
+{
+  "vars": {
+    "ANALYZER_JWT_SECRET": "celld-openai-example-jwt-secret-for-development-only",
+    "ANALYZER_CASE_KEY": "celld-openai-example-case-key-for-development-only",
+    "UNSAFE_ANALYZER_ON_RUNC": "1"
+  },
+  "steps": [
+    {
+      "name": "a script is written into the container's workspace",
+      "request": {
+        "method": "PUT",
+        "path": "/files/tools/run.sh",
+        "body": "#!/bin/sh\necho old\n",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "path": "tools/run.sh",
+          "size": 19
+        }
+      }
+    },
+    {
+      "name": "the runc development fixture explicitly opts into the unsafe trusted tier, and the answers say so",
+      "request": {
+        "method": "PUT",
+        "path": "/files/tier-check",
+        "body": "x",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "tier": "trusted (unsafe)"
+        }
+      }
+    },
+    {
+      "name": "a patch is staged and renamed into place",
+      "request": {
+        "method": "POST",
+        "path": "/patch",
+        "body": "*** Begin Patch\n*** Update File: tools/run.sh\n@@\n-echo old\n+echo new\n*** Add File: notes/todo.txt\n+ship it\n*** End Patch\n",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "text": "Success. Updated the following files:\nA notes/todo.txt\nM tools/run.sh\n"
+      }
+    },
+    {
+      "name": "the patched file has its new content",
+      "request": {
+        "path": "/files/tools/run.sh",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "text": "#!/bin/sh\necho new\n"
+      }
+    },
+    {
+      "name": "a regular expression runs in the container's busybox (find and grep), over regular files",
+      "request": {
+        "path": "/search?pattern=ec%2Bho%20ne%5Bw%5D",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "json": {
+          "matches": [
+            {
+              "path": "tools/run.sh",
+              "line": 2,
+              "text": "echo new"
+            }
+          ],
+          "truncated": false
+        }
+      }
+    },
+    {
+      "name": "a search of a directory answers paths from the workspace root",
+      "request": {
+        "path": "/search?pattern=echo&dir=tools",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "json": {
+          "matches": [
+            {
+              "path": "tools/run.sh",
+              "line": 2,
+              "text": "echo new"
+            }
+          ],
+          "truncated": false
+        }
+      }
+    },
+    {
+      "name": "a pattern grep refuses is a 422",
+      "request": {
+        "path": "/search?pattern=%5B",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "status": 422,
+        "json": {
+          "error": "unprocessable_content",
+          "message": {
+            "$contains": "bad pattern"
+          }
+        }
+      },
+      "upstream": {
+        "$len": 0
+      }
+    },
+    {
+      "name": "a request without a token is refused before any sandbox is touched",
+      "request": {
+        "path": "/files/tools/run.sh"
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "unauthorized"
+        },
+        "headers": {
+          "www-authenticate": {
+            "$regex": "^Bearer"
+          }
+        }
+      }
+    },
+    {
+      "name": "a token signed with another key is refused",
+      "request": {
+        "path": "/files/tools/run.sh",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.qijWNwLh0s9nOPbGTrDOaVd7XSKC0dmxM0YKNS72wMs"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "json": {
+          "error": "invalid_token"
+        }
+      }
+    },
+    {
+      "name": "another caller has a sandbox of its own, whatever x-case says",
+      "request": {
+        "path": "/files/tools/run.sh",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYm9iIiwiaWF0IjoxNzkwMDAwMDAwLCJleHAiOjQxMDI0NDQ4MDB9.mUCZJpLExPUIkFRxCwLxnIfSRU0Y1eI10ntoruFUoM4",
+          "x-case": "default"
+        }
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "error": "not_found"
+        }
+      }
+    },
+    {
+      "name": "a patch that does not fit is refused and changes nothing",
+      "request": {
+        "method": "POST",
+        "path": "/patch",
+        "body": "*** Begin Patch\n*** Add File: notes/other.txt\n+x\n*** Update File: tools/run.sh\n@@\n-echo old\n+echo newer\n*** End Patch\n",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "status": 422,
+        "json": {
+          "error": {
+            "$contains": "tools/run.sh"
+          }
+        }
+      }
+    },
+    {
+      "name": "so the file it would have added is not there",
+      "request": {
+        "path": "/files/notes/other.txt",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "error": "not_found"
+        }
+      }
+    },
+    {
+      "name": "a sample is uploaded",
+      "request": {
+        "method": "PUT",
+        "path": "/files/sample",
+        "body": "\u0001\u0002evil.example.com\u0000\u0003connect-back\u0000ab\u0000",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "name": "strings runs in the container and GPT gets its output",
+      "script": {
+        "turn": {
+          "text": "{\"summary\": \"Contains a C2 domain.\", \"architecture\": null, \"functions\": [], \"capabilities\": [\"network\"], \"indicators\": [{\"kind\": \"domain\", \"value\": \"evil.example.com\", \"context\": \"C2\"}], \"vulnerabilities\": [], \"openQuestions\": []}"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/analyze/sample?tool=strings",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "tier": "trusted (unsafe)",
+            "argv": [
+              "strings",
+              "-a",
+              "-n",
+              "6",
+              "--",
+              "sample"
+            ],
+            "truncated": false,
+            "summary": "Contains a C2 domain.",
+            "capabilities": [
+              "network"
+            ],
+            "indicators": [
+              "evil.example.com"
+            ]
+          }
+        }
+      },
+      "upstream": [
+        {
+          "json": {
+            "reasoning": {
+              "effort": "medium"
+            },
+            "text": {
+              "format": {
+                "type": "json_schema",
+                "name": "re_notes",
+                "strict": true
+              }
+            },
+            "input": {
+              "$contains": {
+                "type": "message",
+                "role": "user",
+                "content": [
+                  {
+                    "type": "input_text",
+                    "text": {
+                      "$regex": "^Context: strings output for sample\\n<disassembly>\\nevil\\.example\\.com\\nconnect-back\\n?</disassembly>$"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "an unknown analyzer is refused before anything runs",
+      "request": {
+        "method": "POST",
+        "path": "/analyze/sample?tool=gdb",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "location": "query",
+          "issues": [
+            {
+              "path": [
+                "tool"
+              ],
+              "code": "invalid_value"
+            }
+          ]
+        }
+      },
+      "upstream": {
+        "$len": 0
+      }
+    },
+    {
+      "name": "a path outside the workspace is refused",
+      "request": {
+        "method": "POST",
+        "path": "/analyze/%2E%2E%2Fetc%2Fpasswd?tool=strings",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "status": 422,
+        "json": {
+          "error": "unprocessable_content",
+          "message": {
+            "$contains": "leaves the workspace"
+          }
+        }
+      },
+      "upstream": {
+        "$len": 0
+      }
+    },
+    {
+      "name": "an unexpected failure is an opaque 500 naming only the request id",
+      "request": {
+        "method": "POST",
+        "path": "/analyze/missing?tool=strings",
+        "headers": {
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FuYWx5emVyLmV4YW1wbGUuY29tIiwic3ViIjoiYWxpY2UiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.EJJUrBP1ElyxbiuotNkWp28TKnbz76XAHY41sxmSpyw"
+        }
+      },
+      "expect": {
+        "status": 500,
+        "json": {
+          "$exact": {
+            "error": "internal_error",
+            "message": "internal error",
+            "requestId": {
+              "$any": true
+            }
+          }
+        }
+      },
+      "upstream": {
+        "$len": 0
+      }
+    }
+  ]
+}
