@@ -1,0 +1,246 @@
+{
+  "steps": [
+    {
+      "name": "an IPv4 block written with host bits set",
+      "request": {
+        "path": "/cidr/192.0.2.77/26"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "block": "192.0.2.64/26",
+            "version": 4,
+            "address": "192.0.2.77",
+            "network": "192.0.2.64",
+            "last": "192.0.2.127",
+            "netmask": "255.255.255.192",
+            "hostmask": "0.0.0.63",
+            "prefix": 26,
+            "size": "64",
+            "hostBitsSet": true
+          }
+        }
+      }
+    },
+    {
+      "name": "strict mode refuses host bits and names the network",
+      "request": {
+        "path": "/cidr/192.0.2.77/26?strict"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "192.0.2.77/26 has host bits set; the network is 192.0.2.64/26"
+        }
+      }
+    },
+    {
+      "name": "an IPv6 block, whose size does not fit a JSON number",
+      "request": {
+        "path": "/cidr/2001:DB8::/32"
+      },
+      "expect": {
+        "json": {
+          "block": "2001:db8::/32",
+          "version": 6,
+          "last": "2001:db8:ffff:ffff:ffff:ffff:ffff:ffff",
+          "netmask": "ffff:ffff::",
+          "size": "79228162514264337593543950336",
+          "hostBitsSet": false
+        }
+      }
+    },
+    {
+      "name": "a /0 holds every address",
+      "request": {
+        "path": "/cidr/0.0.0.0/0"
+      },
+      "expect": {
+        "json": {
+          "last": "255.255.255.255",
+          "netmask": "0.0.0.0",
+          "size": "4294967296"
+        }
+      }
+    },
+    {
+      "name": "a prefix too long for the version is not a block",
+      "request": {
+        "path": "/cidr/10.0.0.0/33"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "not a CIDR block: \"10.0.0.0/33\""
+        }
+      }
+    },
+    {
+      "name": "leading zeros in an octet are refused, as some parsers read them as octal",
+      "request": {
+        "path": "/cidr/010.0.0.0/8"
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "name": "addresses are written canonically (RFC 5952)",
+      "request": {
+        "path": "/ip/2001:0db8:0000:0000:0001:0000:0000:0001"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "address": "2001:db8::1:0:0:1",
+            "version": 6,
+            "ipv4": null,
+            "ipv6": "2001:db8::1:0:0:1"
+          }
+        }
+      }
+    },
+    {
+      "name": "an IPv4-mapped address and the IPv4 address inside",
+      "request": {
+        "path": "/ip/::FFFF:c000:0201"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "address": "::ffff:192.0.2.1",
+            "version": 6,
+            "ipv4": "192.0.2.1",
+            "ipv6": "::ffff:192.0.2.1"
+          }
+        }
+      }
+    },
+    {
+      "name": "an IPv4 address maps into IPv6",
+      "request": {
+        "path": "/ip/192.0.2.1"
+      },
+      "expect": {
+        "json": {
+          "ipv4": "192.0.2.1",
+          "ipv6": "::ffff:192.0.2.1"
+        }
+      }
+    },
+    {
+      "name": "membership, where versions never mix",
+      "request": {
+        "method": "POST",
+        "path": "/contains",
+        "json": {
+          "block": "10.0.0.0/8",
+          "addresses": [
+            "10.20.30.40",
+            "11.0.0.1",
+            "::ffff:10.0.0.1"
+          ]
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "block": "10.0.0.0/8",
+            "contains": {
+              "10.20.30.40": true,
+              "11.0.0.1": false,
+              "::ffff:10.0.0.1": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "every bad address is reported, not only the first",
+      "request": {
+        "method": "POST",
+        "path": "/contains",
+        "json": {
+          "block": "10.0.0.0/8",
+          "addresses": [
+            "10.0.0.1",
+            "10.0.0.256",
+            "fe80::1%eth0"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "invalid": [
+              "10.0.0.256",
+              "fe80::1%eth0"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a summary sorts, drops duplicates and covered blocks, and says what covers them",
+      "request": {
+        "method": "POST",
+        "path": "/summarize",
+        "json": {
+          "blocks": [
+            "2001:db8::/32",
+            "10.1.0.0/16",
+            "192.0.2.0/24",
+            "10.0.0.0/8",
+            "2001:db8:1::/48",
+            "192.0.2.9/24"
+          ]
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "blocks": [
+              "10.0.0.0/8",
+              "192.0.2.0/24",
+              "2001:db8::/32"
+            ],
+            "covered": [
+              {
+                "block": "10.1.0.0/16",
+                "by": "10.0.0.0/8"
+              },
+              {
+                "block": "2001:db8:1::/48",
+                "by": "2001:db8::/32"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a summary reports every bad block",
+      "request": {
+        "method": "POST",
+        "path": "/summarize",
+        "json": {
+          "blocks": [
+            "10.0.0.0/8",
+            "10.0.0.0",
+            "10.0.0.0/08"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "invalid": [
+            "10.0.0.0",
+            "10.0.0.0/08"
+          ]
+        }
+      }
+    }
+  ]
+}

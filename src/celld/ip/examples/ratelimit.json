@@ -1,0 +1,204 @@
+{
+  "steps": [
+    {
+      "name": "a fresh bucket is full",
+      "request": {
+        "path": "/buckets/192.0.2.10"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "bucket": "192.0.2.0/24",
+            "remaining": 3
+          }
+        }
+      }
+    },
+    {
+      "name": "a request spends a token from its /24",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "192.0.2.10"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "x-ratelimit-bucket": "192.0.2.0/24",
+          "x-ratelimit-remaining": "2"
+        },
+        "json": {
+          "hello": "192.0.2.10"
+        }
+      }
+    },
+    {
+      "name": "another address in the same /24 shares the budget",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "192.0.2.200"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "x-ratelimit-bucket": "192.0.2.0/24",
+          "x-ratelimit-remaining": "1"
+        }
+      }
+    },
+    {
+      "name": "so does the same network written as IPv4-mapped IPv6",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "::ffff:192.0.2.77"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "x-ratelimit-bucket": "192.0.2.0/24",
+          "x-ratelimit-remaining": "0"
+        }
+      }
+    },
+    {
+      "name": "the /24 is spent: 429 with retry-after",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "192.0.2.10"
+        }
+      },
+      "expect": {
+        "status": 429,
+        "headers": {
+          "x-ratelimit-bucket": "192.0.2.0/24",
+          "x-ratelimit-remaining": "0"
+        },
+        "json": {
+          "error": "slow down",
+          "bucket": "192.0.2.0/24"
+        }
+      }
+    },
+    {
+      "name": "retry-after counts to the next token at one a minute",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "192.0.2.11"
+        }
+      },
+      "expect": {
+        "status": 429,
+        "headers": {
+          "retry-after": {
+            "$regex": "^(5[0-9]|60)$"
+          }
+        }
+      }
+    },
+    {
+      "name": "the next /24 has its own bucket",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "192.0.3.10"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "x-ratelimit-bucket": "192.0.3.0/24",
+          "x-ratelimit-remaining": "2"
+        }
+      }
+    },
+    {
+      "name": "IPv6 clients are bucketed by /64",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "2001:db8:1:2::1"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "x-ratelimit-bucket": "2001:db8:1:2::/64",
+          "x-ratelimit-remaining": "2"
+        }
+      }
+    },
+    {
+      "name": "a new address in the same /64 does not get a new budget",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "2001:db8:1:2:ffff:ffff:ffff:fffe"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "x-ratelimit-bucket": "2001:db8:1:2::/64",
+          "x-ratelimit-remaining": "1"
+        }
+      }
+    },
+    {
+      "name": "the neighbouring /64 does",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "2001:db8:1:3::1"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "x-ratelimit-bucket": "2001:db8:1:3::/64",
+          "x-ratelimit-remaining": "2"
+        }
+      }
+    },
+    {
+      "name": "peeking spends nothing",
+      "request": {
+        "path": "/buckets/2001:db8:1:2::abcd"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "bucket": "2001:db8:1:2::/64",
+            "remaining": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "peeking twice shows the same level",
+      "request": {
+        "path": "/buckets/2001:db8:1:2::abcd"
+      },
+      "expect": {
+        "json": {
+          "remaining": 1
+        }
+      }
+    },
+    {
+      "name": "a request without an address is refused before any bucket",
+      "request": {
+        "path": "/"
+      },
+      "expect": {
+        "status": 400
+      }
+    }
+  ]
+}

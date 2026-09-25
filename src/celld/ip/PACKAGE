@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    copyright = ["© 2026 Austin Seipp"],
+    license = "Apache-2.0",
+    description = "IPv4/IPv6 addresses and CIDR blocks for celld",
+    version = "0.1.0",
+)
