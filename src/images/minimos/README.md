@@ -106,21 +106,24 @@ to the rules like this:
 
 ## Running on exe.dev
 
-Build, push under a fresh tag, and boot. Run buck2 from the repository
-root, because `--show-full-simple-output` prints nothing from elsewhere.
+Every image has a `-push` target that builds it, pushes it with the
+pinned skopeo, and prints it by digest. Boot the VM from that digest,
+which exe.dev can't serve stale:
 
 ```
-TAG=ttl.sh/$USER-minimos-$(date +%s):1h
-docker load < $(buck2 build //src/images/minimos:minimos-docker --show-full-simple-output)
-docker tag minimos:latest $TAG
-docker push $TAG
-ssh exe.dev new --image=$TAG --name=minimos-test
+IMAGE=$(buck2 run //src/images/minimos:minimos-push -- ttl.sh/$USER-minimos:1h)
+ssh exe.dev new --image=$IMAGE --name=minimos-test
 ssh exe.dev vm-logs minimos-test   # the console, even when SSH fails
 ssh exe.dev rm minimos-test
 ```
 
-The same steps work for every example with its own target and image
-name. What the platform expects from a custom image:
+ttl.sh needs no account and deletes an image once its tag's time runs
+out, a day at most. Pushing to the same repository again skips the
+layers it already has. For a registry that needs credentials, log in
+once with `buck2 run depot-toolchains//oci:skopeo -- login <registry>`,
+and give `ssh exe.dev new` the same credentials with `--registry-auth`.
+
+What the platform expects from a custom image:
 
 - **The Cmd has to be named `init`.** exe.dev's own init decides by file
   name whether to exec a Cmd as PID 1 or run it as a child. `/sbin/init`
@@ -141,8 +144,8 @@ name. What the platform expects from a custom image:
   ports it uses 80. `ssh exe.dev share port <vm> <port>` overrides it.
 - **Mutable tags are cached.** exe.dev remembers what a tag resolved to,
   for an hour for `latest`, `main` and `master` and a day for any other
-  tag. A VM created soon after a push can boot the old image, so push
-  each build under a new tag or use its digest.
+  tag. A VM created soon after a push can boot the old image, so boot
+  from the digest the push target prints.
 - **The root filesystem grows at boot.** A new VM's filesystem already
   fills its disk, but `resize` only grows the block device. exeuntu grows
   the filesystem with an `x-systemd.growfs` line in `/etc/fstab`. minimos

@@ -14,7 +14,7 @@ PACKAGE, keep and deny lists, units and config.
 | `container-host/` | containerd with gVisor as the only OCI runtime        | `:minimos-container-host` |
 
 Every `minimos.image()` emits `<name>`, `<name>-docker` for `docker load`,
-and `<name>-boot-smoke`, so
+`<name>-push` for pushing to a registry, and `<name>-boot-smoke`, so
 
 ```
 buck2 test //src/images/minimos/examples/...
@@ -32,15 +32,13 @@ Locally:
 buck2 test //src/images/minimos/examples/memcached:minimos-memcached-boot-smoke
 ```
 
-On exe.dev, push under a fresh tag each time. exe.dev caches what a tag
-resolved to for up to a day, so reusing a tag can boot the old image.
+On exe.dev, push with the image's `-push` target and boot from the
+digest it prints. exe.dev caches what a tag resolved to for up to a day,
+and a digest can't go stale.
 
 ```
-TAG=ttl.sh/$USER-minimos-memcached-$(date +%s):1h
-docker load < $(buck2 build //src/images/minimos/examples/memcached:minimos-memcached-docker --show-full-simple-output)
-docker tag minimos-memcached:latest $TAG
-docker push $TAG
-ssh exe.dev new --image=$TAG --name=mos-memcached
+IMAGE=$(buck2 run //src/images/minimos/examples/memcached:minimos-memcached-push -- ttl.sh/$USER-minimos-memcached:1h)
+ssh exe.dev new --image=$IMAGE --name=mos-memcached
 ssh mos-memcached.exe.xyz   # bash, systemctl and journalctl, no coreutils
 ```
 
