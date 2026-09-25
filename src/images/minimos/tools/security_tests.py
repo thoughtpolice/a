@@ -981,6 +981,26 @@ class SecurityTests(unittest.TestCase):
             }
             self.assertEqual(first, second)
 
+    def test_scratch_build_reads_each_layer_once(self) -> None:
+        # The dev and codex layers run to hundreds of megabytes, so a build
+        # parses and hashes each one once and trusts that pass afterwards.
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            layers = [base / "one.tar", base / "two.tar"]
+            for index, layer in enumerate(layers):
+                write_tar(layer, [(tar_member(f"file-{index}", b"data"), b"data")])
+            output = base / "layout"
+            with mock.patch.object(
+                scratch, "validate_layer", wraps=scratch.validate_layer
+            ) as parsed, mock.patch.object(
+                scratch, "sha256_file", wraps=scratch.sha256_file
+            ) as hashed:
+                self.build_layout(output, *layers)
+            self.assertEqual(parsed.call_count, len(layers))
+            # Only the manifest and the config are hashed again.
+            self.assertEqual(hashed.call_count, 2)
+            scratch.validate_oci_layout(output)
+
     def test_oci_validator_rejects_diffid_schema_and_composed_collision(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)

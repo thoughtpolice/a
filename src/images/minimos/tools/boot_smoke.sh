@@ -137,10 +137,12 @@ BANNED_RUNTIMES="${BIN}(runc|crun|youki|containerd-shim-runc-v[0-9]+)\$"
 GVISOR_RUNTIME="${BIN}(runsc|containerd-shim-runsc-v1)\$"
 GVISOR_FOUND=""
 CHRONY_STATE=""
+ACCOUNT_BLOBS=()
 for blob in "$OCI_LAYOUT"/blobs/sha256/*; do
     [[ -f "$blob" ]] || continue
+    # One read per layer. The dev layers run to hundreds of megabytes.
     set +e
-    listing=$(timeout --signal=KILL 10s tar -tf "$blob" 2>/dev/null)
+    verbose=$(timeout --signal=KILL 10s tar -tvf "$blob" 2>/dev/null)
     tar_status=$?
     set -e
     if [[ "$tar_status" -eq 124 || "$tar_status" -eq 137 ]]; then
@@ -149,6 +151,12 @@ for blob in "$OCI_LAYOUT"/blobs/sha256/*; do
     # The manifest and config are JSON rather than tar. The validator above
     # has checked them, so only layers take part in this scan.
     [[ "$tar_status" -eq 0 ]] || continue
+    # GNU tar's verbose line is the mode, owner/group, size, date and time,
+    # then the name, with " -> target" after a symlink.
+    listing=$(sed -E 's/^([^ ]+ +){5}//; s/ -> .*$//' <<<"$verbose")
+    if grep -qxE 'etc/(passwd|group|shadow)' <<<"$listing"; then
+        ACCOUNT_BLOBS+=("$blob")
+    fi
     if [[ "$USERLAND" -eq 0 ]] && grep -qE "$BANNED_USERLAND" <<<"$listing"; then
         fail "distro userspace in an image layer:" "$(grep -E "$BANNED_USERLAND" <<<"$listing")"
     fi
@@ -161,13 +169,6 @@ for blob in "$OCI_LAYOUT"/blobs/sha256/*; do
                 "$(grep -E "$BANNED_RUNTIMES" <<<"$listing")"
         fi
         GVISOR_FOUND+=$'\n'$(grep -E "$GVISOR_RUNTIME" <<<"$listing" || true)
-    fi
-    set +e
-    verbose=$(timeout --signal=KILL 10s tar -tvf "$blob" 2>/dev/null)
-    tar_status=$?
-    set -e
-    if [[ "$tar_status" -ne 0 ]]; then
-        fail "layer became unreadable while checking modes: $blob"
     fi
     suid=$(awk '$1 !~ /^l/ && (substr($1,4,1) ~ /[sS]/ || substr($1,7,1) ~ /[sS]/)' <<<"$verbose")
     if [[ -n "$suid" ]]; then
@@ -370,21 +371,16 @@ if grep -q $'\x1b' <<<"$CONSOLE"; then
     fail "ANSI escapes on the console:" "$(grep -m 3 $'\x1b' <<<"$CONSOLE" | cat -v)"
 fi
 
-# Exactly one layer, the base overlay, ships each account file, and
+# Exactly one layer, the base overlay, ships the account files, and
 # nothing rewrites them at boot. A difference here means something new
-# has started editing accounts.
+# has started editing accounts. The scan above noted which layers list
+# them, so only that small layer is read again.
+if [[ "${#ACCOUNT_BLOBS[@]}" -ne 1 ]]; then
+    fail "the account files are in ${#ACCOUNT_BLOBS[@]} layers, expected only the base overlay"
+fi
 for f in passwd group shadow; do
-    baked=""
-    found=0
-    for blob in "$OCI_LAYOUT"/blobs/sha256/*; do
-        [[ -f "$blob" ]] || continue
-        if b=$(timeout --signal=KILL 10s tar -xOf "$blob" "etc/$f" 2>/dev/null); then
-            baked="$b"
-            found=$((found + 1))
-        fi
-    done
-    if [[ "$found" -ne 1 ]]; then
-        fail "etc/$f is in $found layers, expected only the base overlay"
+    if ! baked=$(timeout --signal=KILL 10s tar -xOf "${ACCOUNT_BLOBS[0]}" "etc/$f" 2>/dev/null); then
+        fail "the base overlay doesn't ship etc/$f"
     fi
     booted=$(read_in_image "/etc/$f")
     if [[ "$booted" != "${baked%$'\n'}" ]]; then

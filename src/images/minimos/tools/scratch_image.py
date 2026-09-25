@@ -524,7 +524,7 @@ def _blob_path(layout: Path, digest: str) -> Path:
 
 
 def _descriptor_blob(layout: Path, descriptor: dict, *, what: str,
-                     max_size: int | None = None) -> Path:
+                     max_size: int | None = None, hash_content: bool = True) -> Path:
     digest = descriptor.get("digest")
     size = descriptor.get("size")
     if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
@@ -542,7 +542,7 @@ def _descriptor_blob(layout: Path, descriptor: dict, *, what: str,
         raise UnsafeInputError(f"{what} blob is not a regular file: {digest}")
     if metadata.st_size != size:
         raise UnsafeInputError(f"{what} size does not match descriptor: {digest}")
-    if sha256_file(blob) != digest:
+    if hash_content and sha256_file(blob) != digest:
         raise UnsafeInputError(f"{what} digest does not match content: {digest}")
     return blob
 
@@ -559,9 +559,13 @@ def _read_json(path: Path, *, what: str) -> dict:
     return value
 
 
-def validate_oci_layout(layout: Path, *, base_layer_count: int = 0,
-                        policy: CompositionPolicy | None = None) -> dict:
-    """Validate a complete minimos OCI layout and its effective layer state."""
+def _read_layout_chain(layout: Path) -> tuple[Path, dict, list, list]:
+    """Check an OCI layout's JSON from index.json down to the config.
+
+    Returns the resolved layout directory, the config, the manifest's
+    layer descriptors and the config's diff IDs. The layer blobs
+    themselves are left to the caller.
+    """
     try:
         layout_metadata = layout.lstat()
     except FileNotFoundError:
@@ -621,8 +625,6 @@ def validate_oci_layout(layout: Path, *, base_layer_count: int = 0,
     layers = manifest.get("layers")
     if not isinstance(layers, list) or not layers or len(layers) > MAX_IMAGE_LAYERS:
         raise UnsafeInputError("OCI manifest has an invalid layer count")
-    if base_layer_count < 0 or base_layer_count > len(layers):
-        raise UnsafeInputError("OCI base layer count is invalid")
 
     rootfs = config.get("rootfs")
     if not isinstance(rootfs, dict) or rootfs.get("type") != "layers":
@@ -638,6 +640,28 @@ def validate_oci_layout(layout: Path, *, base_layer_count: int = 0,
         )
     ):
         raise UnsafeInputError("OCI config has invalid rootfs diff_ids")
+
+    architecture = config.get("architecture")
+    operating_system = config.get("os")
+    if not isinstance(architecture, str) or not architecture:
+        raise UnsafeInputError("OCI config has an invalid architecture")
+    if not isinstance(operating_system, str) or not operating_system:
+        raise UnsafeInputError("OCI config has an invalid operating system")
+    platform = manifest_descriptor.get("platform")
+    if not isinstance(platform, dict) or (
+        platform.get("architecture") != architecture
+        or platform.get("os") != operating_system
+    ):
+        raise UnsafeInputError("OCI index platform disagrees with the config")
+    return layout, config, layers, diff_ids
+
+
+def validate_oci_layout(layout: Path, *, base_layer_count: int = 0,
+                        policy: CompositionPolicy | None = None) -> dict:
+    """Validate a complete minimos OCI layout and its effective layer state."""
+    layout, config, layers, diff_ids = _read_layout_chain(layout)
+    if base_layer_count < 0 or base_layer_count > len(layers):
+        raise UnsafeInputError("OCI base layer count is invalid")
 
     policy = policy or CompositionPolicy()
     effective_state: dict[str, LayerEntry] = {}
@@ -674,19 +698,6 @@ def validate_oci_layout(layout: Path, *, base_layer_count: int = 0,
         computed_diff_ids.append(diff_id)
     if computed_diff_ids != diff_ids:
         raise UnsafeInputError("OCI config diff_ids do not match layer contents")
-
-    architecture = config.get("architecture")
-    operating_system = config.get("os")
-    if not isinstance(architecture, str) or not architecture:
-        raise UnsafeInputError("OCI config has an invalid architecture")
-    if not isinstance(operating_system, str) or not operating_system:
-        raise UnsafeInputError("OCI config has an invalid operating system")
-    platform = manifest_descriptor.get("platform")
-    if not isinstance(platform, dict) or (
-        platform.get("architecture") != architecture
-        or platform.get("os") != operating_system
-    ):
-        raise UnsafeInputError("OCI index platform disagrees with the config")
     return config
 
 
@@ -899,14 +910,18 @@ def _build(args, policy: CompositionPolicy) -> int:
         json.dumps(index, indent=2, sort_keys=True)
     )
 
-    # Re-read the completed layout through the same release-gate validator used
-    # by the boot smoke. This cross-checks descriptors, diff IDs, and effective
-    # composition-policy semantics before the directory is published.
-    validate_oci_layout(
-        output,
-        base_layer_count=args.base_layer_count,
-        policy=policy,
-    )
+    # Read the JSON back through the validator's own checks, so a mistake in
+    # writing index.json, the manifest or the config fails here rather than
+    # in docker or on exe.dev. The layers need no second pass. ingest_layer
+    # hashed each blob as it copied it, and validate_layer and
+    # apply_layer_state parsed that same private copy and enforced the
+    # policy on it. The boot smoke still re-checks everything.
+    _, _, written_layers, written_diff_ids = _read_layout_chain(output)
+    if written_layers != layer_descriptors or written_diff_ids != diff_ids:
+        raise UnsafeInputError("the written layout disagrees with the layers it was built from")
+    for index, descriptor in enumerate(written_layers):
+        _descriptor_blob(output, descriptor, what=f"OCI layer {index}",
+                         max_size=MAX_LAYER_BLOB_SIZE, hash_content=False)
 
     # Publish only a complete layout. Buck normally supplies an absent output;
     # a pre-created empty directory is also safe to replace. Non-empty paths
