@@ -1,0 +1,166 @@
+{
+  "steps": [
+    {
+      "name": "a confident, low-stakes intent is acted on",
+      "script": {
+        "answers": {
+          "intent": {
+            "choice": "check_balance",
+            "confidence": 0.91
+          },
+          "human": {
+            "noul": 0.05
+          }
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/route",
+        "json": {
+          "message": "How much is in checking?"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "decision": "act",
+            "choice": "check_balance",
+            "confidence": 0.91,
+            "alternatives": [
+              "transfer_money",
+              "close_account"
+            ],
+            "human": "no"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "json": {
+            "state": "How much is in checking?",
+            "questions": {
+              "intent": {
+                "type": "choice",
+                "instructions": "What does this message to a bank's chat want to do?",
+                "criteria": {
+                  "$exact": {
+                    "check_balance": null,
+                    "transfer_money": null,
+                    "close_account": null,
+                    "other": null
+                  }
+                }
+              },
+              "human": {
+                "type": "noul"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "the same confidence is not enough to move money: review",
+      "script": {
+        "answers": {
+          "intent": {
+            "choice": "transfer_money",
+            "confidence": 0.8
+          },
+          "human": {
+            "noul": 0.5
+          }
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/route",
+        "json": {
+          "message": "Send $500 to Sam"
+        }
+      },
+      "expect": {
+        "json": {
+          "decision": "review",
+          "choice": "transfer_money",
+          "human": "uncertain"
+        }
+      },
+      "upstream": [
+        {
+          "json": {
+            "state": "Send $500 to Sam"
+          }
+        }
+      ]
+    },
+    {
+      "name": "below the floor, whatever was chosen is escalated",
+      "script": {
+        "answers": {
+          "intent": {
+            "choice": "close_account",
+            "confidence": 0.55
+          },
+          "human": {
+            "noul": 0.9
+          }
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/route",
+        "json": {
+          "message": "I am done with you people"
+        }
+      },
+      "expect": {
+        "json": {
+          "decision": "escalate",
+          "choice": "close_account",
+          "confidence": 0.55,
+          "human": "yes"
+        }
+      },
+      "upstream": [
+        {
+          "json": {
+            "state": "I am done with you people"
+          }
+        }
+      ]
+    },
+    {
+      "name": "an overloaded API is retried; the answer still routes",
+      "script": [
+        {
+          "status": 529
+        },
+        {
+          "answers": {
+            "intent": {
+              "choice": "other",
+              "confidence": 0.7
+            }
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/route",
+        "json": {
+          "message": "What are your hours?"
+        }
+      },
+      "expect": {
+        "json": {
+          "decision": "act",
+          "choice": "other"
+        }
+      },
+      "upstream": {
+        "$len": 2
+      }
+    }
+  ]
+}
