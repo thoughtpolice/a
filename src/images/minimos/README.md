@@ -192,100 +192,68 @@ plus `systemctl` and `journalctl` are enough to look around. Dev images
 refuse the login unless the wrapper can place Bash in a bounded user
 scope, as `examples/README.md` explains.
 
-## Security & hardening
+## Security and hardening
 
-The threat model is "trusted workloads on a single-owner VM": the base
-is hardened against a compromised *service* and against kernel-surface
-abuse, not against the VM's own administrative user or mutually untrusted
-tenants. Bottlerocket gets its guarantees
-from a dm-verity rootfs, an always-enforcing SELinux policy, and a
-signed kernel — none of which exist on a platform-provided kernel with a
-mutable ext4 root. What transfers is the rest of its posture, and the
-two levers Bottlerocket itself barely uses (its units carry no sandbox
-directives at all): runtime sysctls and per-unit systemd sandboxing.
+The threat model is trusted workloads on a single-owner VM. The base is
+hardened against a compromised service and against abuse of the
+kernel's interfaces, not against the VM's owner or between tenants who
+don't trust each other. Bottlerocket rests on a dm-verity root, an
+enforcing SELinux policy and a signed kernel. None of those exist with a
+platform-provided kernel and a writable ext4 root, so minimos leans on
+two things Bottlerocket barely uses, runtime sysctls and per-unit
+systemd sandboxing, whose directives Bottlerocket's units don't use.
 
 What the base enforces:
 
-- **Nothing is setuid/setgid and nothing is world-writable** (sans
-  sticky dirs). `cull.py` strips the bits Wolfi ships on
-  `mount`/`umount`, and every image's boot smoke fails if any layer
-  regresses.
-- **A composition layer writes where it is allowed to, not everywhere it is
-  not forbidden.** Some rules need no list. A layer stacked on the base can
-  never redefine a path a lower layer established, which covers every one of
-  the base's ~670 paths, from PID 1 to the account files to each vendor unit.
-  It can never write a type-wide systemd drop-in such as `service.d` or
-  `user-.slice.d`. Paths are not the only way in, though, because systemd and
-  the shell both look things up by name. So in `/etc/systemd/system` a layer
-  can't add a unit file, mask, alias or drop-in for any unit a lower layer
-  defines, including instances of a lower template and the units PID 1
-  creates itself. It can still enable one through a `.wants/` link. A layer
-  also can't add a program under a name a lower layer ships in a different
-  PATH directory, so no `/usr/local/bin/mount` ahead of the base's
-  `/usr/bin/mount`. Every layer, the base too, must declare the parent
-  directory of each path it writes, so no directory's owner is left to the
-  extractor. Beyond that, a *new* path must fall
-  under one of ten composable prefixes (`etc`, `usr/bin`, `usr/lib`, `var`,
-  `home`, …), minus sealed carve-outs inside them: identity files, the
-  `ld.so` hooks, every sysctl/tmpfiles/sysusers/modules search directory,
-  systemd's manager config and unit paths that outrank `/etc/systemd/system`,
-  the generator directories, bus policy, and the trust roots. The default is
-  refusal, so a search path nobody anticipated — a future systemd unit
-  directory, a new loader hook — is denied because it was never opened rather
-  than allowed because it was never denied. `scratch_image.py` enforces this
-  at build time, independently of the boot smoke. The rules live in
-  `policy.txt`, which `tools/security_tests.py` loads too, so the
-  adversarial cases cannot drift from what ships.
+- **No setuid, setgid or world-writable files**, sticky directories
+  aside. `mkapkroot.py` and `cull.py` both drop the setuid bits Wolfi
+  ships on `mount` and `umount`, `mkoverlay.py` refuses such modes, and
+  every boot smoke fails if a layer has one.
+- **Layers above the base write only where they're allowed to.** A
+  composition layer can't redefine any of the base's paths, write a
+  drop-in for a whole unit type such as `service.d`, or add a unit file,
+  mask, alias or drop-in in `/etc/systemd/system` for a unit a lower
+  layer defines. It can still enable one with a `.wants/` link. It can't
+  add a program under a name a lower layer uses in another PATH
+  directory, so no `/usr/local/bin/mount`. A new path must sit under a
+  composable prefix and outside every sealed one, which carve out
+  identity files, `ld.so` hooks, every sysctl, tmpfiles, sysusers and
+  modules directory, systemd's configuration and higher-priority unit
+  paths, generators, bus policy and trust roots. Anything the policy
+  doesn't open is refused, so a search path nobody thought of stays
+  closed. `scratch_image.py` enforces this at build time, and
+  `tools/security_tests.py` tests it against the shipped `policy.txt`.
 - **Accounts are baked.** `/etc/{passwd,group,shadow}` come from
-  `base/config/` only; `sysusers.d` is culled and `systemd-sysusers`
-  masked, and the boot smoke asserts the files are byte-identical after
-  boot. All accounts are locked (`!*`); there is no PAM, no login(1),
-  no sudo.
-- **No login path to uid 0.** The local `root` account is locked and uses
-  `/usr/sbin/nologin`; `exedev` is also password-locked and is authenticated
-  by the platform. exe.dev maps external SSH names — including a request for
-  `root` — to the image's `exe.dev/login-user` (`exedev`, uid 1000), so
-  `ssh root@...` does not produce a root shell. `exedev` uses
-  `/usr/lib/minimos/login-shell`, which sets `umask 077`, disables core dumps,
-  and then starts Bash. The image ships no sudo, su, polkit, or setuid helper;
-  uid 0 remains for PID 1 and explicitly root system services. Administration
-  means rebuilding the image. `exedev` is in `systemd-journal` so the VM's
-  single owner can still use `journalctl` and `systemctl status` over SSH —
-  which takes more than the group membership, because journald creates
-  `/var/log/journal/<machine-id>` as 0755 root:root and does not inherit the
-  parent's setgid group. `/etc/tmpfiles.d/systemd.conf` corrects the directory
-  and the first journal file; the boot smoke asserts the group can actually
-  read the journal, since an appliance whose owner cannot read logs has no
-  other way to investigate anything.
-- **Two-tier sysctls.** Everything reachable from the automatic sysctl search
-  path is network-namespace-scoped, so this rootfs cannot change a host's
-  global `fs.*`, `dev.*`, `user.*`, `kernel.*`, or `vm.*` state when it boots
-  under Docker. That holds for `/usr/lib/sysctl.d` as much as `/etc/sysctl.d`:
-  systemd's own `50-default.conf` and `50-pid-max.conf` mix host-global
-  `kernel.pid_max`, `kernel.sysrq` and `fs.protected_*` keys into that path,
-  so both are denylisted alongside `50-coredump.conf`, and their
-  namespace-scoped half (rp_filter, source-route rejection,
-  promote-secondaries) is restated in `60-minimos-hardening.conf`. That tier
-  also rejects redirects/router advertisements, enables syncookies, and
-  restores `net.ipv4.ip_unprivileged_port_start=1024`; a service that really
-  needs a low port must receive the narrow capability in its own unit.
-  The host-global keys live outside the search path at
-  `/usr/lib/minimos/sysctl-vm.conf`, applied during `sysinit.target` by
-  `minimos-harden.service`. They latch module loading off, restrict dmesg/kptr,
-  unprivileged BPF and io_uring, apply KSPP filesystem/tty settings, disable
-  suid coredumps and sysrq, set panic-on-oops/reboot behavior, and put finite
-  ceilings on inotify, mmap, and all supported per-user namespace counts. The
-  VM-only file is never applied by the Docker smoke harness.
-
-  That unit is gated `ConditionVirtualization=!container` rather than `=vm`, so
-  the failure direction is right: an unrecognized hypervisor still gets
-  hardened and a container is still refused, where `=vm` would have let a VM
-  whose virtualization systemd could not identify skip the whole tier in
-  silence. Because `systemd-sysctl` logs and continues when a key will not
-  take, the unit reads `kernel.modules_disabled` back afterwards and fails if
-  it did not latch. Keys absent from the platform kernel — `kernel.sysrq`,
-  `kernel.yama.ptrace_scope` and friends — carry the `-` prefix, without which
-  they would log a warning on every boot.
+  `base/config/` alone. `sysusers.d` is culled, `systemd-sysusers` is
+  masked, and the boot smoke checks the files don't change at boot.
+  Every account is locked, and there's no PAM, login(1) or sudo.
+- **No login reaches uid 0.** root is locked with `nologin`, and every
+  SSH login lands in `exedev`, whose password is locked too. Its shell,
+  `/usr/lib/minimos/login-shell`, sets `umask 077`, turns off core dumps
+  and starts Bash. There's no sudo, su, polkit or setuid helper, so
+  changing the system means rebuilding the image. exedev is in
+  `systemd-journal` so the owner can read logs. journald creates
+  `/var/log/journal/<machine-id>` as root:root without the parent's
+  setgid group, so `/etc/tmpfiles.d/systemd.conf` fixes the group, and
+  the boot smoke checks the group can read the journal.
+- **Sysctls come in two tiers.** Everything in the automatic search path
+  is scoped to a network namespace, so booting the rootfs under docker
+  can't change the host kernel. That's why systemd's own
+  `50-default.conf`, `50-pid-max.conf` and `50-coredump.conf` are denied
+  and their network half restated in `60-minimos-hardening.conf`. That
+  file also refuses redirects and router advertisements, turns on
+  syncookies, and puts `ip_unprivileged_port_start` back to 1024, so a
+  service that needs a low port gets `CAP_NET_BIND_SERVICE` in its own
+  unit. The host-global keys live in `/usr/lib/minimos/sysctl-vm.conf`,
+  outside the search path. `minimos-harden.service` applies them during
+  `sysinit.target`, turning off module loading, restricting dmesg,
+  kernel pointers, unprivileged BPF and io_uring, applying KSPP
+  filesystem and tty settings, turning off suid core dumps and sysrq,
+  rebooting on an oops, and capping inotify, memory maps and namespace
+  counts. The unit is gated `ConditionVirtualization=!container` rather
+  than `=vm`, so a hypervisor systemd can't identify still gets
+  hardened. `systemd-sysctl` carries on past a key it can't set, so the
+  unit reads `kernel.modules_disabled` back and fails if it isn't 1.
 - **A control-plane/workload QoS hierarchy.** PID 1 and the platform SSH
   listener remain in `init.scope`; normal system services use `system.slice`.
   Both request CPU/I/O weight 1000, a 10% memory low-watermark, and finite task
