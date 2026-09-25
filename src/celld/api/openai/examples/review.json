@@ -1,0 +1,163 @@
+{
+  "steps": [
+    {
+      "name": "a diff is reviewed against the SecurityReview schema",
+      "script": {
+        "turn": {
+          "text": "{\"summary\": \"The new endpoint builds SQL from user input.\", \"findings\": [{\"title\": \"SQL injection in user lookup\", \"severity\": \"high\", \"cwe\": \"CWE-89\", \"location\": {\"path\": \"src/users.py\", \"startLine\": 12, \"endLine\": 12, \"symbol\": \"find_user\"}, \"evidence\": \"f\\\"SELECT * FROM users WHERE name = '{name}'\\\"\", \"exploitability\": \"Any caller of /users?name= controls the query.\", \"confidence\": 0.93, \"remediation\": \"Use a parameterised query.\"}, {\"title\": \"Verbose error page\", \"severity\": \"low\", \"cwe\": \"CWE-209\", \"location\": {\"path\": \"src/users.py\", \"startLine\": 20, \"endLine\": 22, \"symbol\": null}, \"evidence\": \"traceback returned to the client\", \"exploitability\": \"Leaks internals.\", \"confidence\": 0.6, \"remediation\": \"Log the traceback instead.\"}]}"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/review",
+        "json": {
+          "diff": "diff --git a/src/users.py b/src/users.py\n--- a/src/users.py\n+++ b/src/users.py\n@@ -10,3 +10,4 @@ def find_user(db, name):\n-    return db.execute(\"SELECT * FROM users WHERE name = ?\", (name,))\n+    query = f\"SELECT * FROM users WHERE name = '{name}'\"\n+    return db.execute(query)\n",
+          "context": "internet-facing user service"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "summary": "The new endpoint builds SQL from user input.",
+            "chunks": 1,
+            "block": true,
+            "findings": [
+              {
+                "title": "SQL injection in user lookup",
+                "severity": "high",
+                "cwe": "CWE-89",
+                "where": "src/users.py:12",
+                "confidence": 0.93,
+                "fix": "Use a parameterised query."
+              }
+            ]
+          }
+        }
+      },
+      "upstream": [
+        {
+          "json": {
+            "reasoning": {
+              "effort": "high"
+            },
+            "text": {
+              "format": {
+                "type": "json_schema",
+                "name": "security_review",
+                "strict": true
+              }
+            },
+            "input": {
+              "$contains": {
+                "type": "message",
+                "role": "user",
+                "content": [
+                  {
+                    "type": "input_text",
+                    "text": {
+                      "$regex": "^Context: internet-facing user service\\n<diff>\\n[\\s\\S]*name = '\\{name\\}'[\\s\\S]*</diff>$"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a clean review blocks nothing",
+      "script": {
+        "turn": {
+          "text": "{\"summary\": \"Nothing to report.\", \"findings\": []}"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/review",
+        "json": {
+          "diff": "diff --git a/src/users.py b/src/users.py\n--- a/src/users.py\n+++ b/src/users.py\n@@ -10,3 +10,4 @@ def find_user(db, name):\n-    return db.execute(\"SELECT * FROM users WHERE name = ?\", (name,))\n+    query = f\"SELECT * FROM users WHERE name = '{name}'\"\n+    return db.execute(query)\n"
+        }
+      },
+      "expect": {
+        "json": {
+          "block": false,
+          "findings": []
+        }
+      },
+      "upstream": {
+        "$len": 1
+      }
+    },
+    {
+      "name": "an alert is triaged against the Triage schema",
+      "script": {
+        "turn": {
+          "text": "{\"verdict\": \"true_positive\", \"severity\": \"critical\", \"priority\": \"P0\", \"confidence\": 0.88, \"rationale\": \"Mimikatz on a domain controller.\", \"escalate\": true, \"nextSteps\": [\"Isolate DC01\", \"Reset the krbtgt password twice\"]}"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/triage",
+        "json": {
+          "alert": "mimikatz.exe sekurlsa::logonpasswords on DC01",
+          "context": "DC01 is tier 0"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "verdict": "true_positive",
+            "severity": "critical",
+            "priority": "P0",
+            "confidence": 0.88,
+            "rationale": "Mimikatz on a domain controller.",
+            "escalate": true,
+            "nextSteps": [
+              "Isolate DC01",
+              "Reset the krbtgt password twice"
+            ]
+          }
+        }
+      },
+      "upstream": [
+        {
+          "json": {
+            "reasoning": {
+              "effort": "medium"
+            },
+            "text": {
+              "format": {
+                "name": "triage"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "an answer outside the schema is a 502, not a guess",
+      "script": {
+        "turn": {
+          "text": "{\"verdict\": \"true_positive\", \"severity\": \"critical\", \"priority\": \"P9\", \"confidence\": 0.88, \"rationale\": \"Mimikatz on a domain controller.\", \"escalate\": true, \"nextSteps\": [\"Isolate DC01\", \"Reset the krbtgt password twice\"]}"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/triage",
+        "json": {
+          "alert": "odd login"
+        }
+      },
+      "expect": {
+        "status": 502,
+        "json": {
+          "kind": "output",
+          "error": {
+            "$contains": "priority"
+          }
+        }
+      }
+    }
+  ]
+}

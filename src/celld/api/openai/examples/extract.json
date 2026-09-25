@@ -1,0 +1,86 @@
+{
+  "steps": [
+    {
+      "name": "the answer is checked against the schema and typed",
+      "script": {
+        "turn": {
+          "text": "{\"vendor\":\"ACME Corp\",\"currency\":\"USD\",\"dueDate\":\"2026-10-31\",\"lines\":[{\"item\":\"widget\",\"quantity\":2,\"unitPrice\":3.1},{\"item\":\"gadget\",\"quantity\":1,\"unitPrice\":10}]}"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/extract",
+        "json": { "text": "ACME Corp: 2 widgets at $3.10, 1 gadget at $10, due Oct 31 2026" }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "invoice": {
+              "vendor": "ACME Corp",
+              "currency": "USD",
+              "dueDate": "2026-10-31",
+              "lines": [
+                { "item": "widget", "quantity": 2, "unitPrice": 3.1 },
+                { "item": "gadget", "quantity": 1, "unitPrice": 10 }
+              ]
+            },
+            "total": 16.2
+          }
+        }
+      },
+      "upstream": [
+        {
+          "path": "/openai/v1/responses",
+          "json": {
+            "text": {
+              "format": {
+                "type": "json_schema",
+                "name": "invoice",
+                "strict": true,
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["vendor", "currency", "dueDate", "lines"],
+                  "properties": {
+                    "currency": { "enum": ["USD", "EUR", "GBP"] },
+                    "dueDate": { "type": ["string", "null"], "format": "date" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a body without text is refused by the router, before any call",
+      "request": { "method": "POST", "path": "/extract", "json": { "text": "" } },
+      "expect": { "status": 400, "json": { "location": "body", "issues": [{ "path": ["text"], "code": "too_small" }] } },
+      "upstream": []
+    },
+    {
+      "name": "a refusal is a 422 with the model's words",
+      "script": { "turn": { "refusal": "I can't help with that." } },
+      "request": { "method": "POST", "path": "/extract", "json": { "text": "something odd" } },
+      "expect": { "status": 422, "json": { "kind": "refusal", "error": { "$contains": "can't help" } } }
+    },
+    {
+      "name": "an answer that breaks the schema is refused with every path",
+      "script": {
+        "turn": { "text": "{\"vendor\":\"X\",\"currency\":\"JPY\",\"dueDate\":\"soon\",\"lines\":[],\"note\":1}" }
+      },
+      "request": { "method": "POST", "path": "/extract", "json": { "text": "X, in yen" } },
+      "expect": {
+        "status": 502,
+        "json": {
+          "kind": "output",
+          "issues": [
+            { "path": ["currency"], "message": { "$contains": "\"USD\"" } },
+            { "path": ["dueDate"] },
+            { "path": [], "message": "unrecognized key: \"note\"" }
+          ]
+        }
+      }
+    }
+  ]
+}

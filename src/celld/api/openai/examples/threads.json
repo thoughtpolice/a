@@ -1,0 +1,81 @@
+{
+  "steps": [
+    {
+      "name": "a new thread's first turn is stored",
+      "script": { "turn": { "reasoning": "Greet them.", "encrypted": "ENC-FIRST", "text": "Hello! What shall we study?" } },
+      "request": { "method": "POST", "path": "/threads/t1", "json": { "message": "Hi" } },
+      "expect": { "json": { "$exact": { "reply": "Hello! What shall we study?", "turns": 1 } } },
+      "upstream": [
+        {
+          "headers": { "session-id": "t1" },
+          "json": {
+            "prompt_cache_key": "t1",
+            "input": [
+              { "type": "additional_tools" },
+              { "role": "developer", "content": [{ "text": "You are a patient tutor. Keep answers short." }] },
+              { "type": "message", "role": "user" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "the next turn replays the thread, encrypted reasoning included",
+      "script": { "turn": { "text": "Fractions it is." } },
+      "request": { "method": "POST", "path": "/threads/t1", "json": { "message": "Fractions" } },
+      "expect": { "json": { "reply": "Fractions it is.", "turns": 2 } },
+      "upstream": [
+        {
+          "json": {
+            "prompt_cache_key": "t1",
+            "input": {
+              "$contains": { "type": "reasoning", "encrypted_content": "ENC-FIRST" }
+            }
+          },
+          "text": { "$contains": "Hello! What shall we study?" }
+        }
+      ]
+    },
+    {
+      "name": "the thread survives a restart, item by item",
+      "restart": true,
+      "request": { "path": "/threads/t1" },
+      "expect": {
+        "json": {
+          "id": "t1",
+          "turns": 2,
+          "items": ["message", "reasoning", "message", "message", "message"]
+        }
+      }
+    },
+    {
+      "name": "the pacer counted both calls",
+      "request": { "path": "/pacer" },
+      "expect": { "json": { "inFlight": 0, "block": null, "totals": { "calls": 2, "usageLimits": 0 } } }
+    },
+    {
+      "name": "a usage limit is recorded by the pacer",
+      "script": {
+        "error": {
+          "status": 429,
+          "body": { "error": { "type": "usage_limit_reached", "message": "You've hit your usage limit.", "resets_at": 4102444800 } }
+        }
+      },
+      "request": { "method": "POST", "path": "/threads/t2", "json": { "message": "One more" } },
+      "expect": { "status": 502, "json": { "kind": "usage_limit" } },
+      "upstream": { "$len": 1 }
+    },
+    {
+      "name": "and holds every caller, without a request, even after a restart",
+      "restart": true,
+      "request": { "method": "POST", "path": "/threads/t3", "json": { "message": "Anyone?" } },
+      "expect": { "status": 502, "json": { "kind": "usage_limit", "error": { "$contains": "was not sent" } } },
+      "upstream": []
+    },
+    {
+      "name": "the hold is visible in the pacer",
+      "request": { "path": "/pacer" },
+      "expect": { "json": { "block": { "reason": "usage_limit" }, "totals": { "usageLimits": 1 } } }
+    }
+  ]
+}

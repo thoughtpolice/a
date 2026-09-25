@@ -1,0 +1,89 @@
+{
+  "steps": [
+    {
+      "name": "a message gets the model's whole answer",
+      "script": { "turn": { "text": "Hi there.", "usage": { "input": 120, "cached": 100, "output": 5 } } },
+      "request": { "method": "POST", "path": "/chat", "json": { "message": "Hello" } },
+      "expect": {
+        "json": {
+          "text": "Hi there.",
+          "model": "gpt-6-astra",
+          "usage": { "inputTokens": 120, "cachedInputTokens": 100, "outputTokens": 5 }
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/openai/v1/responses",
+          "headers": {
+            "accept": "text/event-stream",
+            "authorization": { "$absent": true },
+            "session-id": { "$any": true }
+          },
+          "json": {
+            "model": "gpt-6-astra",
+            "stream": true,
+            "store": false,
+            "include": { "$contains": "reasoning.encrypted_content" },
+            "reasoning": { "effort": "low" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a streamed answer arrives as one SSE event per delta",
+      "script": { "turn": { "text": ["Hel", "lo ", "world"] } },
+      "request": { "method": "POST", "path": "/chat", "json": { "message": "Stream please", "stream": true } },
+      "expect": {
+        "headers": { "content-type": "text/event-stream" },
+        "sse": [
+          { "event": "delta", "data": { "text": "Hel" } },
+          { "event": "delta", "data": { "text": "lo " } },
+          { "event": "delta", "data": { "text": "world" } },
+          { "event": "done", "data": { "usage": { "outputTokens": { "$any": true } } } }
+        ]
+      },
+      "upstream": { "$len": 1 }
+    },
+    {
+      "name": "a stream cut off before any text is retried, and says so",
+      "script": [
+        { "turn": { "text": "lost", "cutAfter": 1 } },
+        { "turn": { "text": ["second ", "try"] } }
+      ],
+      "request": { "method": "POST", "path": "/chat", "json": { "message": "Flaky", "stream": true } },
+      "expect": {
+        "sse": [
+          { "event": "retry", "data": {} },
+          { "event": "delta", "data": { "text": "second " } },
+          { "event": "delta", "data": { "text": "try" } },
+          { "event": "done", "data": { "$any": true } }
+        ]
+      },
+      "upstream": { "$len": 2 }
+    },
+    {
+      "name": "a usage limit is a 502 carrying its kind, not retried",
+      "script": {
+        "error": {
+          "status": 429,
+          "body": { "error": { "type": "usage_limit_reached", "message": "You've hit your usage limit.", "resets_at": 4102444800 } }
+        }
+      },
+      "request": { "method": "POST", "path": "/chat", "json": { "message": "One more" } },
+      "expect": { "status": 502, "json": { "kind": "usage_limit" } },
+      "upstream": { "$len": 1 }
+    },
+    {
+      "name": "a blank message is refused by the body schema; the model is never called",
+      "request": { "method": "POST", "path": "/chat", "json": { "message": "   " } },
+      "expect": { "status": 400, "json": { "location": "body", "issues": [{ "path": ["message"], "code": "too_small" }] } },
+      "upstream": []
+    },
+    {
+      "name": "unscripted, the fake echoes the message (handy under chat-dev)",
+      "request": { "method": "POST", "path": "/chat", "json": { "message": "ping" } },
+      "expect": { "json": { "text": "echo: ping" } }
+    }
+  ]
+}
