@@ -3,9 +3,9 @@
 
 """Composable minimos appliance images.
 
-minimos is a base layer: culled Wolfi systemd + the first-party overlay
-that makes it boot on exe.dev. Downstream packages compose on top of it
-without knowing its internals — this load is the only one they need:
+minimos is a base layer: culled Wolfi systemd plus the first-party
+overlay that makes it boot on exe.dev. Downstream packages build on it
+with this one load:
 
     load("@root//src/images/minimos:defs.bzl", "minimos")
 
@@ -18,17 +18,14 @@ without knowing its internals — this load is the only one they need:
         ports = ["80/tcp"],
     )
 
-Service binaries come from pinned Wolfi packages (hash-verified .apk
-files, see third-party//by-name/wo/wolfi) so they share one glibc with
-the base. A service with no Wolfi package needs one pinned or built
-from source; there is no path for culling a foreign image.
+Service binaries come from pinned Wolfi packages (see
+third-party//by-name/wo/wolfi), so every binary in every image links the
+base's glibc. A service with no Wolfi package needs one pinned or built
+from source. There is no way to cull a foreign image.
 
-The worked compositions live in examples/ — nginx is the fullest one.
-
-`minimos.image` always stacks the two base layers first, bakes in the
-exe.dev boot contract (systemd Cmd, login-user label, PATH/LANG), and
-emits `<name>` (OCI layout dir), `<name>-docker` (docker-archive tar),
-and `<name>-boot-smoke` (docker-based boot test).
+`minimos.image` always stacks the two base layers first and bakes in the
+exe.dev boot contract. The worked compositions live in examples/, and
+nginx is the fullest one.
 """
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
@@ -39,25 +36,23 @@ _WOLFI = "third-party//by-name/wo/wolfi"
 
 _BASE_CULLED_LAYER = "//src/images/minimos:culled-layer"
 
-# Every image built with minimos.image() starts from these. Layer order
-# matters: the culled systemd rootfs first, then the overlay that
-# configures it.
+# Every image starts from these, culled rootfs first and then the
+# overlay that configures it.
 _BASE_LAYERS = [
     _BASE_CULLED_LAYER,
     "//src/images/minimos:overlay-layer",
 ]
 
 # What a composition layer may write. scratch_image enforces it while an
-# image is built and the boot smoke re-checks the finished image; the
-# file itself explains the model.
+# image is built and the boot smoke checks the finished image again. The
+# file itself explains the rules.
 _POLICY = "//src/images/minimos:policy.txt"
 
-# The exe.dev boot contract: --log-target=syslog keeps the kernel
-# console clean for the platform, --show-status prints unit startup
-# progress there, which `ssh exe.dev vm-logs` captures. vm-logs is a log
-# dump, not a terminal, so --log-color=false keeps ANSI escapes out of
-# that stream; it only affects PID 1's console output — systemctl et al
-# in SSH sessions still colorize.
+# systemd as PID 1. --log-target=syslog sends the manager's own messages
+# to the journal, and --show-status prints unit progress on the console,
+# which `ssh exe.dev vm-logs` shows. That console is a log dump rather
+# than a terminal, so --log-color=false keeps ANSI escapes out of it.
+# The flag only affects PID 1; systemctl in an SSH session still colors.
 _DEFAULT_CMD = "/sbin/init,--log-target=syslog,--show-status=true,--log-color=false"
 
 def _q(s):
@@ -80,12 +75,12 @@ def _file_arg(arc, spec):
     """mkoverlay's SRC:ARC[:MODE[:UID:GID]] for one files= entry.
 
     A source is a package-relative path or a label (":target",
-    "//pkg:target", "cell//pkg:target[sub]"); Buck locates a label, and
-    it is not listed in srcs. The mode and owner are the trailing numeric
-    fields, so a label's own colons are left alone.
+    "//pkg:target", "cell//pkg:target[sub]"). Buck locates a label, so it
+    is not listed in srcs. The mode and owner are the trailing numeric
+    fields, which leaves a label's own colons alone.
 
-    Returns the argument and the package-relative source to depend on
-    (None for a label).
+    Returns the argument and the package-relative source to depend on,
+    or None for a label.
     """
     parts = spec.split(":")
     tail = []
@@ -107,20 +102,18 @@ def _apk_culled_layer(
         visibility = None):
     """A rootfs layer culled out of pinned Wolfi .apk packages.
 
-    Extracts every package in `apks` into a scratch rootfs, in order,
-    later packages winning. An entry is a Wolfi package name
-    ("nginx-mainline" means third-party//by-name/wo/wolfi:nginx-mainline.apk)
-    or an .apk label. The layer then keeps only the paths listed in
-    `keepfiles` plus the resolved .so closure of every kept ELF binary,
-    minus `denyfiles`. Both files are package-relative paths. A keep entry
-    that matches nothing in the packages fails the build, the same way an
-    unresolved soname does.
+    `apks` names Wolfi packages ("nginx-mainline" means
+    third-party//by-name/wo/wolfi:nginx-mainline.apk) or .apk labels.
+    They are extracted in order into a scratch rootfs, later packages
+    winning. The layer keeps the paths `keepfiles` lists plus the .so
+    closure of every kept ELF binary, minus `denyfiles`. Both are
+    package-relative paths. A keep entry that matches nothing fails the
+    build, the same way an unresolved soname does.
 
-    The closure also resolves against `provided_by`, the layers already
-    below this one in the image: a library one of them ships (glibc
-    above all) is neither listed in `apks` nor copied, so a composition
-    names only what it adds. The base's own culled layer passes an
-    empty list. A soname neither side has fails the build.
+    The closure resolves against `provided_by` too, the layers already
+    below this one. A library one of them ships, glibc above all, is
+    neither copied nor needed in `apks`, so a composition names only what
+    it adds. The base's own culled layer passes an empty list.
     """
     cmd = [
         "sh",
@@ -153,20 +146,18 @@ def _overlay(
         visibility = None):
     """A first-party overlay layer, declared instead of scripted.
 
-    dirs:        ["path", "path:mode", "path:mode:uid:gid"] (octal mode)
-    files:       {"in/image/path": "src", "in/image/path": "src:mode",
-                  "in/image/path": "src:mode:uid:gid"}; src is a file in
-                 this package or a label for a build artifact
+    dirs:        ["path", "path:mode", "path:mode:uid:gid"], octal mode
+    files:       {"in/image/path": "src[:mode[:uid:gid]]"}, where src is a
+                 file in this package or a label for a build artifact
     symlinks:    {"in/image/path": "target"}
-    units:       ["foo.service"] — installed to /etc/systemd/system and
-                 enabled the way its own [Install] section says
-                 (WantedBy=/RequiredBy=); a unit without one is
-                 installed but not enabled
-    masks:       ["bar.service"] — masked (symlink to /dev/null)
-    empty_files: ["path", "path:mode"]
+    units:       ["foo.service"], installed in /etc/systemd/system and
+                 enabled the way the unit's own [Install] section says.
+                 A unit without one is installed but not enabled.
+    masks:       ["bar.service"], linked to /dev/null
+    empty_files: ["path", "path:mode", "path:mode:uid:gid"]
 
-    Parent directories are not implied; list them in dirs or rely on a
-    lower layer to provide them.
+    Parent directories are not implied. List them in dirs unless a lower
+    layer already declares them.
     """
     args = [
         _tool("mkoverlay"),
@@ -215,28 +206,29 @@ def _image(
         boot_smoke_dev = False,
         boot_smoke_containers = False,
         visibility = None):
-    """A bootable minimos-based OCI image: base layers + `layers` on top.
+    """A bootable minimos image: the base layers with `layers` on top.
 
     Emits three targets:
-      <name>            — OCI image layout directory
-      <name>-docker     — docker-archive tarball for `docker load`
-      <name>-boot-smoke — docker-based boot test (unless boot_smoke=False);
-                          asserts systemd reaches `running` with no failed
-                          units, plus any units in boot_smoke_units.
 
-    boot_smoke_userland=True marks an image that deliberately ships an
-    interactive userland (coreutils and friends): the smoke's
-    no-distro-userspace layer check is skipped for it, while the
-    package-manager ban and the suid/world-writable/account invariants
-    still apply.
+      <name>             the OCI image layout directory
+      <name>-docker      a docker-archive tarball for `docker load`
+      <name>-boot-smoke  a docker boot test, unless boot_smoke=False. It
+                         requires systemd to reach `running` with no
+                         failed units and every unit in boot_smoke_units
+                         active.
 
-    boot_smoke_containers=True marks a container host: the smoke then
-    asserts that gVisor is the only OCI runtime in the image (no runc,
-    crun, or runc shim in any layer) and that containerd came up with
-    runsc configured as its default runtime.
+    `ports` become ExposedPorts. exe.dev's proxy forwards to port 80 if it
+    is listed, or else the lowest listed port from 1024 up.
 
     `cmd` is a comma-separated argv. exe.dev only runs a Cmd as PID 1 when
     its program is named `init`, so a replacement has to keep that name.
+
+    The boot_smoke_* flags turn on checks for special image kinds.
+    boot_smoke_userland marks an image that ships an interactive userland
+    on purpose, which waives the no-coreutils scan and nothing else.
+    boot_smoke_dev checks the lingering user manager and the login
+    wrapper's scope placement. boot_smoke_containers checks that gVisor is
+    the only OCI runtime in any layer and is containerd's default.
     """
     program = cmd.split(",")[0]
     if program.rpartition("/")[2] != "init":
@@ -267,11 +259,10 @@ def _image(
     image_env = {
         "PATH": "/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin",
         "LANG": "C.UTF-8",
-        # The console this Cmd runs on is a log dump (`ssh exe.dev
-        # vm-logs`), not a terminal. --log-color=false alone no longer
-        # keeps it clean: systemd 256+ also probes the terminal size and
-        # emits OSC context sequences unless the terminal is dumb. SSH
-        # sessions are unaffected — the platform sshd sets its own TERM.
+        # systemd 256 and later probe the terminal size and write OSC
+        # context sequences to the console unless TERM is dumb, which
+        # --log-color=false does not cover. SSH sessions are unaffected
+        # because the platform sshd sets its own TERM.
         "TERM": "dumb",
         "SYSTEMD_COLORS": "0",
     }
@@ -284,8 +275,8 @@ def _image(
         args += ["--port", _q(port)]
 
     image_labels = {
-        # exe.dev maps external SSH names (including root) to this account.
-        # The local uid-0 account is locked and has nologin.
+        # exe.dev maps every external SSH login name, root included, to
+        # this account. The local root account is locked with nologin.
         "exe.dev/login-user": "exedev",
         "org.opencontainers.image.title": name,
         "org.opencontainers.image.version": version,

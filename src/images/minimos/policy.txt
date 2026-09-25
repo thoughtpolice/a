@@ -26,16 +26,16 @@
 #     in another. The image, the login shell and systemd each search those
 #     directories in a different order.
 #
-# Every layer, the base included, must also declare the parent directory
-# of each path it writes, so no directory's mode and owner are left to the
-# extractor.
+# The parent directory of every path a layer writes must be declared by
+# that layer or one below it, the base included, so no directory's mode
+# and owner are left to the extractor.
 #
-# On top of that, a *new* path must fall under a composable prefix. This
-# is the inverse of naming the dangerous paths: a search directory nobody
-# anticipated is refused because it was never opened, rather than allowed
-# because it was never denied. Longest match wins and ties are sealed, so
-# a sealed line can carve a directory out of a composable subtree and a
-# composable line can reopen one path inside a sealed one.
+# On top of that, a new path must fall under a composable prefix. Naming
+# the dangerous paths instead would miss any search directory nobody
+# thought of, and here those are refused because nothing opened them.
+# The longest matching prefix wins and ties are sealed, so a sealed line
+# can carve a directory out of a composable subtree and a composable line
+# can reopen one path inside a sealed one.
 
 composable etc
 composable home
@@ -48,10 +48,11 @@ composable usr/local
 composable usr/share
 composable var
 
-# Carved back out of the composable prefixes above: directories where merely
-# adding a file changes identity, privilege, or boot policy for the whole
-# image. Everything outside the composable prefixes (/run, /root, /boot,
-# /dev, the merged-usr links, ...) is already denied and needs no line.
+# Carved back out of the composable prefixes above. In these directories
+# adding a single file changes identity, privilege or boot policy for the
+# whole image. Everything outside the composable prefixes, such as /run,
+# /root, /boot, /dev and the merged-usr links, is already refused and
+# needs no line.
 
 # Identity and authentication.
 sealed etc/passwd
@@ -68,7 +69,7 @@ sealed etc/sudoers
 sealed etc/sudoers.d
 sealed etc/doas.conf
 
-# Accounts created at boot: the base bakes /etc and masks systemd-sysusers.
+# Accounts created at boot. The base bakes /etc and masks systemd-sysusers.
 sealed etc/sysusers.d
 sealed usr/lib/sysusers.d
 
@@ -96,36 +97,34 @@ sealed etc/environment
 sealed etc/environment.d
 sealed usr/lib/environment.d
 
-# The manager's own configuration tree: system.conf and its drop-ins,
-# journald/logind config, presets, generators, and every unit search path
-# that outranks /etc/systemd/system (system.control, system.attached).
-# Sealed wholesale so a directory a future systemd adds is refused too;
-# the two unit trees a composition legitimately owns are reopened below.
+# systemd's configuration tree holds system.conf and its drop-ins,
+# journald and logind config, presets, generators, and the unit paths
+# that outrank /etc/systemd/system, system.control and system.attached.
+# It's sealed whole so a directory a later systemd adds is refused too,
+# and the two unit trees a composition owns are reopened below.
 sealed etc/systemd
 composable etc/systemd/system
 composable etc/systemd/user
 
-# systemd's private directory: PID 1 itself, its helpers, the vendor unit
-# tree, and its generator directories. Sealed wholesale for the same
-# reason, with one file reopened: a per-user manager needs the helper
-# user@.service BindsTo=, and the base denylist drops it, so examples/dev
-# culls it back in.
+# systemd's private directory holds PID 1, its helpers, the vendor unit
+# tree and the generators. It's sealed whole for the same reason. One
+# file is reopened, the helper user@.service binds to, because the base
+# denies it and examples/dev culls it back in for its user manager.
 sealed usr/lib/systemd
 composable usr/lib/systemd/systemd-user-runtime-dir
 
-# /usr/local/lib is searched for every drop-in kind named above (units,
-# sysusers.d, sysctl.d, tmpfiles.d, environment.d, binfmt.d,
-# modules-load.d) and is not on the loader's default path, so nothing a
-# composition ships belongs there. Sealed whole rather than enumerated;
-# a composition that really needs a library directory under it can
-# reopen that one directory by name.
+# systemd searches /usr/local/lib for units, sysusers.d, sysctl.d,
+# tmpfiles.d, environment.d, binfmt.d and modules-load.d, and the loader
+# doesn't search it at all, so nothing a composition ships belongs there.
+# A composition that needs a library directory under it can reopen that
+# one directory by name.
 sealed usr/local/lib
 
 # minimos's own boot and login chain lives here.
 sealed usr/lib/minimos
 
-# Bus policy: the vendor files grant every uid the right to *send* to PID 1
-# and rely on systemd's authorization for the deny.
+# Bus policy. The vendor files let every uid send to PID 1 and leave the
+# refusal to systemd's own authorization checks.
 sealed etc/dbus-1
 sealed usr/share/dbus-1
 
