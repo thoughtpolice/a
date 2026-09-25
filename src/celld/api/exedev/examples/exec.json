@@ -1,0 +1,210 @@
+{
+  "steps": [
+    {
+      "name": "argv elements arrive as single arguments, nothing expanded",
+      "script": {
+        "seedVm": {
+          "name": "box"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/run",
+        "json": {
+          "argv": [
+            "printf",
+            "%s|",
+            "two words",
+            "$(id -u)",
+            "it's; `x`"
+          ]
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "exitCode": 0,
+            "exitSource": "marker",
+            "output": "two words|$(id -u)|it's; `x`|"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "path": "/exec",
+          "text": {
+            "$regex": "^ssh box '\\( printf "
+          }
+        }
+      ]
+    },
+    {
+      "name": "a multi-line script runs on the VM and its exit code comes back",
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/run",
+        "json": {
+          "script": "echo first line\necho \"home is $HOME\" | sed 's|/.*/||'\nexit 3\n"
+        }
+      },
+      "expect": {
+        "json": {
+          "exitCode": 3,
+          "output": "first line\nhome is box\n"
+        }
+      },
+      "upstream": [
+        {
+          "text": {
+            "$regex": "base64 -d"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a missing command is exit 127, not an error",
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/run",
+        "json": {
+          "argv": [
+            "no-such-command"
+          ]
+        }
+      },
+      "expect": {
+        "json": {
+          "exitCode": 127,
+          "output": {
+            "$contains": "not found"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "text": {
+            "$contains": "( no-such-command ) </dev/null; rc=$?"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a job starts detached and returns at once",
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/jobs",
+        "json": {
+          "id": "build-1",
+          "script": "sleep 1\necho built\nexit 0\n"
+        }
+      },
+      "expect": {
+        "status": 202,
+        "json": {
+          "id": "build-1",
+          "pid": {
+            "$gt": 0
+          }
+        }
+      },
+      "upstream": [
+        {
+          "text": {
+            "$contains": "mkdir"
+          }
+        },
+        {
+          "text": {
+            "$contains": "setsid nohup"
+          }
+        }
+      ]
+    },
+    {
+      "name": "polling sees it finish, with its log",
+      "request": {
+        "path": "/vms/box/jobs/build-1"
+      },
+      "until": {
+        "seconds": 20,
+        "interval": 0.5
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "id": "build-1",
+            "done": true,
+            "exitCode": 0,
+            "log": "built\n"
+          }
+        }
+      }
+    },
+    {
+      "name": "a VM the account does not have is a lobby error",
+      "request": {
+        "method": "POST",
+        "path": "/vms/ghost/run",
+        "json": {
+          "argv": [
+            "true"
+          ]
+        }
+      },
+      "expect": {
+        "status": 502,
+        "json": {
+          "kind": {
+            "$any": true
+          }
+        }
+      }
+    },
+    {
+      "name": "a name that cannot be a VM is refused by the route",
+      "request": {
+        "method": "POST",
+        "path": "/vms/Not_A_VM/run",
+        "json": {
+          "argv": [
+            "true"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "validation_failed",
+          "location": "path",
+          "fieldErrors": {
+            "vm": {
+              "$len": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "argv and script together are one or the other",
+      "request": {
+        "method": "POST",
+        "path": "/vms/box/run",
+        "json": {
+          "argv": [
+            "true"
+          ],
+          "script": "true"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "location": "body",
+          "formErrors": [
+            "give argv or script"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "steps": [
+    {
+      "name": "an anonymous browser is sent to the proxy's login, keeping the path",
+      "request": { "path": "/forecast?city=Austin", "headers": { "Accept": "text/html,application/xhtml+xml,*/*;q=0.8" } },
+      "expect": {
+        "status": 302,
+        "headers": { "location": "/__exe.dev/login?redirect=%2Fforecast%3Fcity%3DAustin" }
+      },
+      "upstream": []
+    },
+    {
+      "name": "an anonymous API client gets a 401 instead",
+      "request": { "path": "/me", "headers": { "Accept": "application/json" } },
+      "expect": {
+        "status": 401,
+        "headers": { "cache-control": "no-store", "location": { "$absent": true } },
+        "json": { "error": "unauthorized" }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a public route serves anonymous visitors",
+      "request": { "path": "/health" },
+      "expect": { "json": { "$exact": { "ok": true } } },
+      "upstream": []
+    },
+    {
+      "name": "the proxy's identity headers say who is calling",
+      "request": {
+        "path": "/me",
+        "headers": {
+          "X-ExeDev-UserID": "usr_123",
+          "X-ExeDev-Email": "ada@example.com",
+          "X-ExeDev-Token-Ctx": "{\"role\":\"deploy\"}",
+          "X-Forwarded-Host": "app.exe.xyz"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": { "userId": "usr_123", "email": "ada@example.com", "tokenCtx": { "role": "deploy" }, "via": "app.exe.xyz" }
+        }
+      }
+    },
+    {
+      "name": "the integration is called on its own host, on the caller's behalf",
+      "request": {
+        "path": "/forecast?city=S%C3%A3o%20Paulo",
+        "headers": { "X-ExeDev-UserID": "usr_123", "X-ExeDev-Email": "ada@example.com" }
+      },
+      "expect": {
+        "json": { "integration": "weather", "method": "GET", "path": "/v1/forecast?city=S%C3%A3o+Paulo" }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "host": { "$regex": "^weather\\.localhost:\\d+$" },
+          "path": "/v1/forecast?city=S%C3%A3o+Paulo",
+          "headers": { "x-on-behalf-of": "ada@example.com", "authorization": { "$absent": true } }
+        }
+      ]
+    },
+    {
+      "name": "the integration's own answer and status pass through",
+      "script": { "integration": { "status": 503, "body": { "error": "upstream weather service down" } } },
+      "request": {
+        "path": "/forecast?city=Oslo",
+        "headers": { "X-ExeDev-UserID": "usr_123", "X-ExeDev-Email": "ada@example.com" }
+      },
+      "expect": { "status": 503, "json": { "error": "upstream weather service down" } },
+      "upstream": { "$len": 1 }
+    }
+  ]
+}

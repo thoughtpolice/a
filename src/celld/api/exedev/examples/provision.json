@@ -1,0 +1,68 @@
+{
+  "steps": [
+    {
+      "name": "a deploy for a name that cannot be a VM never starts a run",
+      "request": { "method": "POST", "path": "/deploys", "json": { "id": "bad", "vm": "App 0", "version": "1.0" } },
+      "expect": { "status": 400, "json": { "location": "body", "fieldErrors": { "$exact": { "vm": { "$len": 1 } } } } },
+      "upstream": []
+    },
+    {
+      "name": "a deploy starts a Workflow run",
+      "request": { "method": "POST", "path": "/deploys", "json": { "id": "first", "vm": "app-0", "version": "1.0" } },
+      "expect": { "status": 202, "json": { "id": "first" } }
+    },
+    {
+      "name": "it creates the VM, installs the app detached and verifies it",
+      "request": { "path": "/deploys/first" },
+      "until": { "seconds": 60, "interval": 0.5 },
+      "expect": {
+        "json": {
+          "status": "complete",
+          "output": {
+            "$exact": {
+              "created": true,
+              "bootstrap": { "exitCode": 0, "skipped": false, "output": "installed\n" },
+              "verified": true
+            }
+          }
+        }
+      },
+      "upstream": {
+        "$contains": { "text": { "$regex": "^new .*--name=app-0 .*--tag=app" } }
+      }
+    },
+    {
+      "name": "the same version again adopts the VM and skips the bootstrap",
+      "request": { "method": "POST", "path": "/deploys", "json": { "id": "again", "vm": "app-0", "version": "1.0" } },
+      "expect": { "status": 202 }
+    },
+    {
+      "name": "nothing is created or installed twice",
+      "request": { "path": "/deploys/again" },
+      "until": { "seconds": 60, "interval": 0.5 },
+      "expect": {
+        "json": {
+          "status": "complete",
+          "output": { "created": false, "bootstrap": { "skipped": true }, "verified": true }
+        }
+      },
+      "upstream": { "$not": { "$contains": { "text": { "$regex": "^new " } } } }
+    },
+    {
+      "name": "a new version is a new script, so it runs",
+      "request": { "method": "POST", "path": "/deploys", "json": { "id": "upgrade", "vm": "app-0", "version": "2.0" } },
+      "expect": { "status": 202 }
+    },
+    {
+      "name": "and the check sees the new version",
+      "request": { "path": "/deploys/upgrade" },
+      "until": { "seconds": 60, "interval": 0.5 },
+      "expect": {
+        "json": {
+          "status": "complete",
+          "output": { "created": false, "bootstrap": { "exitCode": 0, "skipped": false }, "verified": true }
+        }
+      }
+    }
+  ]
+}

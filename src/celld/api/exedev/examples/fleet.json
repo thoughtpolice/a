@@ -1,0 +1,317 @@
+{
+  "steps": [
+    {
+      "name": "a spec that breaks the rules is refused with its issues",
+      "request": {
+        "method": "PUT",
+        "path": "/fleets/web",
+        "json": {
+          "prefix": "Web Tier",
+          "size": -1,
+          "replicas": 3
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "validation_failed",
+          "location": "body",
+          "formErrors": [
+            "unrecognized key: \"replicas\""
+          ],
+          "fieldErrors": {
+            "$exact": {
+              "prefix": [
+                "must be 1-42 lowercase letters, digits and hyphens"
+              ],
+              "size": [
+                "must be at least 0"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a fleet of two is configured",
+      "request": {
+        "method": "PUT",
+        "path": "/fleets/web",
+        "json": {
+          "prefix": "web",
+          "size": 2,
+          "tags": [
+            "prod"
+          ],
+          "comment": "web tier",
+          "prune": true
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "ok": true
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "the dry run lists the account and plans two creates",
+      "request": {
+        "path": "/fleets/web/plan"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "desired": [
+              "web-0",
+              "web-1"
+            ],
+            "actions": [
+              {
+                "kind": "create",
+                "vm": "web-0"
+              },
+              {
+                "kind": "create",
+                "vm": "web-1"
+              }
+            ]
+          }
+        }
+      },
+      "upstream": [
+        {
+          "text": {
+            "$regex": "^ls$"
+          }
+        }
+      ]
+    },
+    {
+      "name": "reconcile creates both VMs, tagged with the owner tag",
+      "request": {
+        "method": "POST",
+        "path": "/fleets/web/reconcile"
+      },
+      "expect": {
+        "json": {
+          "converged": false,
+          "actions": [
+            {
+              "kind": "create",
+              "vm": "web-0",
+              "ok": true
+            },
+            {
+              "kind": "create",
+              "vm": "web-1",
+              "ok": true
+            }
+          ]
+        }
+      },
+      "upstream": {
+        "$contains": {
+          "text": {
+            "$regex": "^new .*--name=web-0 .*--tag=fleet-web.*--tag=prod"
+          }
+        }
+      }
+    },
+    {
+      "name": "the next run sees them and converges without a mutation",
+      "request": {
+        "method": "POST",
+        "path": "/fleets/web/reconcile"
+      },
+      "expect": {
+        "json": {
+          "converged": true,
+          "observed": [
+            "web-0",
+            "web-1"
+          ],
+          "actions": []
+        }
+      },
+      "upstream": [
+        {
+          "text": {
+            "$regex": "^ls$"
+          }
+        }
+      ]
+    },
+    {
+      "name": "the ledger survives a restart",
+      "restart": true,
+      "request": {
+        "path": "/fleets/web"
+      },
+      "expect": {
+        "json": {
+          "spec": {
+            "prefix": "web",
+            "size": 2
+          },
+          "ledger": [
+            {
+              "name": "web-0",
+              "phase": "present",
+              "tags": [
+                "fleet-web",
+                "prod"
+              ]
+            },
+            {
+              "name": "web-1",
+              "phase": "present",
+              "tags": [
+                "fleet-web",
+                "prod"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "scaling up while a new VM's answer is lost adopts it instead of creating twice",
+      "script": {
+        "fail": {
+          "path": "new",
+          "status": 504,
+          "execute": true
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "path": "/fleets/web",
+        "json": {
+          "prefix": "web",
+          "size": 3,
+          "tags": [
+            "prod"
+          ],
+          "comment": "web tier",
+          "prune": true
+        }
+      },
+      "expect": {
+        "json": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "name": "the ambiguous create is adopted after a fresh listing",
+      "request": {
+        "method": "POST",
+        "path": "/fleets/web/reconcile"
+      },
+      "expect": {
+        "json": {
+          "actions": [
+            {
+              "kind": "create",
+              "vm": "web-2",
+              "ok": true,
+              "note": {
+                "$any": true
+              }
+            }
+          ]
+        }
+      },
+      "upstream": {
+        "$len": 3
+      }
+    },
+    {
+      "name": "shrinking with prune deletes only the fleet's surplus VMs",
+      "request": {
+        "method": "PUT",
+        "path": "/fleets/web",
+        "json": {
+          "prefix": "web",
+          "size": 1,
+          "tags": [
+            "prod"
+          ],
+          "comment": "web tier",
+          "prune": true
+        }
+      },
+      "expect": {
+        "json": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "name": "reconcile deletes web-1 and web-2, which it owns",
+      "request": {
+        "method": "POST",
+        "path": "/fleets/web/reconcile"
+      },
+      "expect": {
+        "json": {
+          "converged": false,
+          "actions": [
+            {
+              "kind": "delete",
+              "vm": "web-1",
+              "ok": true
+            },
+            {
+              "kind": "delete",
+              "vm": "web-2",
+              "ok": true
+            }
+          ]
+        }
+      },
+      "upstream": {
+        "$contains": {
+          "text": {
+            "$regex": "^rm .*web-1"
+          }
+        }
+      }
+    },
+    {
+      "name": "the next run converges on the one VM left",
+      "request": {
+        "method": "POST",
+        "path": "/fleets/web/reconcile"
+      },
+      "expect": {
+        "json": {
+          "converged": true,
+          "observed": [
+            "web-0"
+          ],
+          "actions": []
+        }
+      }
+    },
+    {
+      "name": "and the ledger forgot the deleted VMs",
+      "request": {
+        "path": "/fleets/web"
+      },
+      "expect": {
+        "json": {
+          "ledger": [
+            {
+              "name": "web-0",
+              "phase": "present"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
