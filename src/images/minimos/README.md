@@ -522,6 +522,10 @@ ssh exe.dev new --image=ttl.sh/$USER-minimos-nginx:1h --name minimos-nginx
 
 Hard-won facts about what the platform expects from a custom image:
 
+- **Name the Cmd `init`.** exe.dev's own init execs a Cmd as PID 1 only
+  when its file name is `init`, and runs anything else as a child.
+  `/sbin/init` qualifies, and `minimos.image` fails the build for a `cmd`
+  that doesn't start with a program named `init`.
 - **exe.dev gates HTTP proxy readiness on an SSH login probe.** After boot,
   the platform repeatedly tries `root` and the user named by the
   `exe.dev/login-user` OCI label until a login succeeds; until then the HTTPS

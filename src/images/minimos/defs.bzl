@@ -230,7 +230,18 @@ def _image(
     asserts that gVisor is the only OCI runtime in the image (no runc,
     crun, or runc shim in any layer) and that containerd came up with
     runsc configured as its default runtime.
+
+    `cmd` is a comma-separated argv. exe.dev only runs a Cmd as PID 1 when
+    its program is named `init`, so a replacement has to keep that name.
     """
+    program = cmd.split(",")[0]
+    if program.rpartition("/")[2] != "init":
+        fail(
+            ("minimos.image {}: cmd must start with a program named `init`, got {}. " +
+             "exe.dev runs any other Cmd as a child of its own init, not as PID 1.")
+                .format(name, repr(program)),
+        )
+
     policy_args = [
         "--base-layer-count",
         str(len(_BASE_LAYERS)),
