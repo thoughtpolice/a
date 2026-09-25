@@ -76,7 +76,10 @@ def _execution_platform_impl(ctx):
     if remote:
         properties = dict(ctx.attrs.remote_properties)
         properties["OSFamily"] = "Linux"
-        properties["Arch"] = "x86_64"
+
+        # The Go and OCI name, which BuildBuddy's executors register. Its
+        # scheduler folds the case of both values but leaves x86_64 unmatched.
+        properties["Arch"] = "amd64"
         options.update({
             "remote_execution_properties": properties,
             "remote_execution_use_case": ctx.attrs.remote_use_case,

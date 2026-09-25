@@ -72,7 +72,7 @@ def audit(buck, isolation_dir, project, parent, results):
         check(provider.returncode == 0 and "Remote(" in provider.stdout
               and "Local(" not in provider.stdout and "Hybrid(" not in provider.stdout
               and '"OSFamily": "Linux"' in provider.stdout
-              and '"Arch": "x86_64"' in provider.stdout
+              and '"Arch": "amd64"' in provider.stdout
               and "path_separator: Unix" in provider.stdout,
               f"{host}/{arch}: remote-only Linux executor and Unix paths", provider)
 

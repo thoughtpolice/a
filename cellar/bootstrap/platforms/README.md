@@ -66,7 +66,8 @@ Configure the RE connection using standard Buck `[buck2_re_client]` settings in
 `action_cache_address`, `cas_address`, and the endpoint's TLS/authentication
 settings. The repository does not contain an RE endpoint or credentials.
 The scheduler must advertise workers with properties `OSFamily=Linux` and
-`Arch=x86_64`. Add scheduler-specific properties, such as a worker image, using:
+`Arch=amd64`, the Go and OCI spelling that BuildBuddy's executors register.
+Add scheduler-specific properties, such as a worker image, using:
 
 ```ini
 [bootstrap]
