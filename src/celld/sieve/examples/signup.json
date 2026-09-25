@@ -1,0 +1,226 @@
+{
+  "steps": [
+    {
+      "name": "a valid signup, normalized and with defaults filled in",
+      "request": {
+        "method": "POST",
+        "path": "/users",
+        "json": {
+          "username": "  Ada_L ",
+          "email": "ada@example.com"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "username": "ada_l",
+          "email": "ada@example.com",
+          "plan": "free",
+          "tags": [],
+          "id": {
+            "$regex": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+          }
+        }
+      },
+      "save": {
+        "id": "json.id"
+      }
+    },
+    {
+      "name": "the user reads back by id",
+      "request": {
+        "path": "/users/{id}"
+      },
+      "expect": {
+        "json": {
+          "username": "ada_l",
+          "id": "{id}"
+        }
+      }
+    },
+    {
+      "name": "every problem is reported at once, by field",
+      "request": {
+        "method": "POST",
+        "path": "/users",
+        "json": {
+          "username": "x",
+          "email": "nope",
+          "plan": "gold",
+          "tags": [
+            "a",
+            ""
+          ],
+          "admin": true
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "formErrors": [
+              "unrecognized key: \"admin\""
+            ],
+            "fieldErrors": {
+              "username": [
+                "must have at least 3 characters"
+              ],
+              "email": [
+                "invalid email address"
+              ],
+              "plan": [
+                "expected one of \"free\" | \"team\" | \"enterprise\""
+              ],
+              "tags": [
+                "must have at least 1 character"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a taken username is found by an async refinement, after normalizing",
+      "request": {
+        "method": "POST",
+        "path": "/users",
+        "json": {
+          "username": "ADA_L",
+          "email": "other@example.com"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "formErrors": [],
+            "fieldErrors": {
+              "username": [
+                "is taken"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "custom messages, and array bounds",
+      "request": {
+        "method": "POST",
+        "path": "/users",
+        "json": {
+          "username": "9lives",
+          "email": "a@b.co",
+          "tags": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "formErrors": [],
+            "fieldErrors": {
+              "username": [
+                "use a letter, then letters, digits and underscores"
+              ],
+              "tags": [
+                "must have at most 5 items"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a valid signup with every field",
+      "request": {
+        "method": "POST",
+        "path": "/users",
+        "json": {
+          "username": "lives9",
+          "email": "l9@example.com",
+          "plan": "team",
+          "tags": [
+            "beta"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "username": "lives9",
+          "plan": "team",
+          "tags": [
+            "beta"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a body that is not an object",
+      "request": {
+        "method": "POST",
+        "path": "/users",
+        "json": [
+          "ada"
+        ]
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "formErrors": [
+              "expected object, received array"
+            ],
+            "fieldErrors": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "an id that is not a ULID",
+      "request": {
+        "path": "/users/42"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "formErrors": [
+              "not a user id"
+            ],
+            "fieldErrors": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "an unknown user",
+      "request": {
+        "path": "/users/01ARZ3NDEKTSV4RRFFQ69G5FAV"
+      },
+      "expect": {
+        "status": 404
+      }
+    },
+    {
+      "name": "a lower-case id passes: the schema upper-cases it before checking",
+      "request": {
+        "path": "/users/01arz3ndektsv4rrffq69g5fav"
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "error": "no such user"
+        }
+      }
+    }
+  ]
+}

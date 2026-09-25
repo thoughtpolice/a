@@ -1,0 +1,296 @@
+{
+  "steps": [
+    {
+      "name": "the tag picks the handler, which sees its option's fields (the currency upper-cased)",
+      "request": {
+        "method": "POST",
+        "path": "/events",
+        "json": {
+          "type": "order.created",
+          "order": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+          "at": "2026-09-25T10:00:00+02:00",
+          "items": [
+            {
+              "sku": "ABC-1234",
+              "quantity": 2
+            }
+          ],
+          "total": {
+            "amount": 4200,
+            "currency": "eur"
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "handled": [
+              "order 01ARZ3NDEKTSV4RRFFQ69G5FAV: 1 line(s), 42.00 EUR"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "an unknown refund reason falls back to other",
+      "request": {
+        "method": "POST",
+        "path": "/events",
+        "json": {
+          "type": "order.refunded",
+          "order": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+          "at": "2026-09-26T10:00:00Z",
+          "amount": {
+            "amount": 1000,
+            "currency": "EUR"
+          },
+          "reason": "changed my mind"
+        }
+      },
+      "expect": {
+        "json": {
+          "handled": [
+            "refund on 01ARZ3NDEKTSV4RRFFQ69G5FAV: 10.00 EUR (other)"
+          ]
+        }
+      }
+    },
+    {
+      "name": "two tags can share one option through an enum",
+      "request": {
+        "method": "POST",
+        "path": "/events",
+        "json": {
+          "type": "test"
+        }
+      },
+      "expect": {
+        "json": {
+          "handled": [
+            "test received"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a batch is handled in order",
+      "request": {
+        "method": "POST",
+        "path": "/events",
+        "json": [
+          {
+            "type": "order.created",
+            "order": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "at": "2026-09-25T10:00:00+02:00",
+            "items": [
+              {
+                "sku": "ABC-1234",
+                "quantity": 2
+              }
+            ],
+            "total": {
+              "amount": 4200,
+              "currency": "eur"
+            }
+          },
+          {
+            "type": "customer.deleted",
+            "customer": "4f9a2c1e-8b7d-4e6f-9a0b-1c2d3e4f5a6b",
+            "at": "2026-09-27T00:00:00Z"
+          },
+          {
+            "type": "ping"
+          }
+        ]
+      },
+      "expect": {
+        "json": {
+          "handled": [
+            {
+              "$contains": "order 01ARZ"
+            },
+            "erase customer 4f9a2c1e-8b7d-4e6f-9a0b-1c2d3e4f5a6b",
+            "pong"
+          ]
+        }
+      }
+    },
+    {
+      "name": "an unknown type names the tags there are",
+      "request": {
+        "method": "POST",
+        "path": "/events",
+        "json": {
+          "type": "order.shipped"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "issues": [
+              {
+                "path": "type",
+                "code": "invalid_union",
+                "message": "unknown type; expected \"order.created\" | \"order.refunded\" | \"customer.deleted\" | \"ping\" | \"test\"",
+                "options": [
+                  "order.created",
+                  "order.refunded",
+                  "customer.deleted",
+                  "ping",
+                  "test"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a bad event reports every field of its own option, and no other option's",
+      "request": {
+        "method": "POST",
+        "path": "/events",
+        "json": [
+          {
+            "type": "ping"
+          },
+          {
+            "type": "order.created",
+            "order": "nope",
+            "at": "2026-09-25T10:00:00",
+            "items": [
+              {
+                "sku": "abc",
+                "quantity": 0
+              }
+            ],
+            "total": {
+              "amount": -1,
+              "currency": "euro",
+              "cents": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "issues": [
+              {
+                "path": "[1].order",
+                "code": "invalid_format",
+                "message": "invalid ULID"
+              },
+              {
+                "path": "[1].at",
+                "code": "invalid_format",
+                "message": "invalid ISO 8601 datetime"
+              },
+              {
+                "path": "[1].items[0].sku",
+                "code": "invalid_format",
+                "message": "expected a SKU like ABC-1234"
+              },
+              {
+                "path": "[1].items[0].quantity",
+                "code": "too_small",
+                "message": "must be greater than 0"
+              },
+              {
+                "path": "[1].total.amount",
+                "code": "too_small",
+                "message": "must be at least 0"
+              },
+              {
+                "path": "[1].total.currency",
+                "code": "too_big",
+                "message": "must have exactly 3 characters"
+              },
+              {
+                "path": "[1].total",
+                "code": "unrecognized_keys",
+                "message": "unrecognized key: \"cents\""
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "the same issues as text, one line each",
+      "request": {
+        "method": "POST",
+        "path": "/events",
+        "json": [
+          {
+            "type": "ping"
+          },
+          {
+            "type": "order.created",
+            "order": "nope",
+            "at": "2026-09-25T10:00:00",
+            "items": [
+              {
+                "sku": "abc",
+                "quantity": 0
+              }
+            ],
+            "total": {
+              "amount": -1,
+              "currency": "euro",
+              "cents": true
+            }
+          }
+        ],
+        "headers": {
+          "accept": "text/plain"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "text": "[1].order: invalid ULID\n[1].at: invalid ISO 8601 datetime\n[1].items[0].sku: expected a SKU like ABC-1234\n[1].items[0].quantity: must be greater than 0\n[1].total.amount: must be at least 0\n[1].total.currency: must have exactly 3 characters\n[1].total: unrecognized key: \"cents\""
+      }
+    },
+    {
+      "name": "an empty batch",
+      "request": {
+        "method": "POST",
+        "path": "/events",
+        "json": []
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "issues": [
+            {
+              "path": "",
+              "code": "too_small"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a body that is neither an event nor a list",
+      "request": {
+        "method": "POST",
+        "path": "/events",
+        "json": "ping"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "issues": [
+            {
+              "path": "",
+              "code": "invalid_union",
+              "message": "expected an event or a list of events"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

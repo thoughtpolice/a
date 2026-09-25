@@ -1,0 +1,277 @@
+{
+  "steps": [
+    {
+      "name": "the build-time schema file is served as a static asset",
+      "request": {
+        "path": "/schema.json"
+      },
+      "expect": {
+        "headers": {
+          "content-type": {
+            "$regex": "^application/json"
+          }
+        },
+        "json": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$defs": {
+            "Priority": {
+              "$exact": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "normal",
+                  "high",
+                  "urgent"
+                ],
+                "description": "How urgent a ticket is."
+              }
+            },
+            "Ticket": {
+              "title": "Ticket",
+              "required": [
+                "title",
+                "body",
+                "priority",
+                "reporter",
+                "labels"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "reporter": {
+                  "$exact": {
+                    "$ref": "#/$defs/Contact"
+                  }
+                },
+                "due": {
+                  "$exact": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            },
+            "TicketPatch": {
+              "required": {
+                "$absent": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "it matches what the Worker's own schemas export now",
+      "request": {
+        "path": "/schema-check"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "same": true,
+            "defs": [
+              "Contact",
+              "Priority",
+              "Ticket",
+              "TicketPatch"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "one schema, as parsing accepts it: defaults make fields optional",
+      "request": {
+        "path": "/schemas/Ticket?io=input"
+      },
+      "expect": {
+        "headers": {
+          "content-type": "application/schema+json"
+        },
+        "json": {
+          "title": "Ticket",
+          "required": [
+            "title",
+            "reporter"
+          ],
+          "additionalProperties": {
+            "$absent": true
+          },
+          "properties": {
+            "body": {
+              "default": ""
+            },
+            "priority": {
+              "$exact": {
+                "$ref": "#/$defs/Priority",
+                "default": "normal"
+              }
+            }
+          },
+          "$defs": {
+            "Priority": {
+              "type": "string",
+              "enum": [
+                "low",
+                "normal",
+                "high",
+                "urgent"
+              ],
+              "description": "How urgent a ticket is."
+            },
+            "Contact": {
+              "required": [
+                "name",
+                "email"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "and as parsing returns it: every defaulted field is present, and unknown keys are stripped",
+      "request": {
+        "path": "/schemas/Ticket"
+      },
+      "expect": {
+        "json": {
+          "required": [
+            "title",
+            "body",
+            "priority",
+            "reporter",
+            "labels"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "name": "an unknown name lists the known ones",
+      "request": {
+        "path": "/schemas/Nope"
+      },
+      "expect": {
+        "status": 404,
+        "json": {
+          "names": [
+            "Contact",
+            "Priority",
+            "Ticket",
+            "TicketPatch"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a ticket parsed by the same schema: trimmed, defaults filled in",
+      "request": {
+        "method": "POST",
+        "path": "/tickets",
+        "json": {
+          "title": "  Printer on fire  ",
+          "reporter": {
+            "name": "Ada",
+            "email": "ada@example.com"
+          },
+          "due": "2026-10-01",
+          "extra": 1
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "$exact": {
+            "title": "Printer on fire",
+            "body": "",
+            "priority": "normal",
+            "reporter": {
+              "name": "Ada",
+              "email": "ada@example.com"
+            },
+            "labels": [],
+            "due": "2026-10-01"
+          }
+        }
+      }
+    },
+    {
+      "name": "what the schema forbids, the parser refuses",
+      "request": {
+        "method": "POST",
+        "path": "/tickets",
+        "json": {
+          "title": "hi",
+          "priority": "meh",
+          "reporter": {
+            "email": "nope"
+          },
+          "labels": [
+            "Bad Label"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "formErrors": [],
+            "fieldErrors": {
+              "title": [
+                "must have at least 5 characters"
+              ],
+              "priority": [
+                "expected one of \"low\" | \"normal\" | \"high\" | \"urgent\""
+              ],
+              "reporter": [
+                "missing required key",
+                "invalid email address"
+              ],
+              "labels": [
+                "must match /^[a-z0-9-]+$/"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a patch sets only what it names",
+      "request": {
+        "method": "PATCH",
+        "path": "/tickets/7",
+        "json": {
+          "priority": "urgent"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "priority": "urgent"
+          }
+        }
+      }
+    },
+    {
+      "name": "and cannot change the reporter",
+      "request": {
+        "method": "PATCH",
+        "path": "/tickets/7",
+        "json": {
+          "reporter": {
+            "name": "x",
+            "email": "x@example.com"
+          }
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "formErrors": [
+            "unrecognized key: \"reporter\""
+          ]
+        }
+      }
+    }
+  ]
+}

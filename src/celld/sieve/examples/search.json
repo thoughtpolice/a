@@ -1,0 +1,182 @@
+{
+  "steps": [
+    {
+      "name": "no parameters: every default",
+      "request": {
+        "path": "/search"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "filters": {
+              "tag": [],
+              "archived": false,
+              "limit": 20,
+              "page": 1,
+              "sort": "relevance"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "text becomes numbers, booleans, lists and checked formats",
+      "request": {
+        "path": "/search?q=%20disk%20&tag=Ops&tag=prod&limit=50&archived=true&from=2026-01-01&to=2026-09-25&network=10.0.0.0/8&sort=newest"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "filters": {
+              "q": "disk",
+              "tag": [
+                "ops",
+                "prod"
+              ],
+              "archived": true,
+              "limit": 50,
+              "page": 1,
+              "from": "2026-01-01",
+              "to": "2026-09-25",
+              "network": "10.0.0.0/8",
+              "sort": "newest"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a key given once is still a list where a list is expected",
+      "request": {
+        "path": "/search?tag=solo"
+      },
+      "expect": {
+        "json": {
+          "filters": {
+            "tag": [
+              "solo"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "archived=false is false, which Boolean(\"false\") would not give",
+      "request": {
+        "path": "/search?archived=false"
+      },
+      "expect": {
+        "json": {
+          "filters": {
+            "archived": false
+          }
+        }
+      }
+    },
+    {
+      "name": "every bad parameter is reported, by name",
+      "request": {
+        "path": "/search?limit=500&page=0&archived=maybe&from=2026-02-30&network=10.0.0.1/33&sort=best"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "formErrors": [],
+            "fieldErrors": {
+              "archived": [
+                "expected one of \"true\" | \"false\""
+              ],
+              "limit": [
+                "must be at most 100"
+              ],
+              "page": [
+                "must be greater than 0"
+              ],
+              "from": [
+                "invalid ISO 8601 date"
+              ],
+              "network": [
+                "invalid IPv4 CIDR block"
+              ],
+              "sort": [
+                "expected one of \"newest\" | \"oldest\" | \"relevance\""
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "text that is not a number",
+      "request": {
+        "path": "/search?limit=abc"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "fieldErrors": {
+            "limit": [
+              "expected number, received NaN"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a number that is not an integer, and an empty search",
+      "request": {
+        "path": "/search?limit=2.5&q="
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "fieldErrors": {
+            "q": [
+              "must have at least 1 character"
+            ],
+            "limit": [
+              "expected int, received number"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a backwards range is blamed on to",
+      "request": {
+        "path": "/search?from=2026-09-25&to=2026-01-01"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "formErrors": [],
+            "fieldErrors": {
+              "to": [
+                "must not be before from"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a misspelled parameter is refused, not ignored",
+      "request": {
+        "path": "/search?limt=10"
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "$exact": {
+            "formErrors": [
+              "unrecognized key: \"limt\""
+            ],
+            "fieldErrors": {}
+          }
+        }
+      }
+    }
+  ]
+}
