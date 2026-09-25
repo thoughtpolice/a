@@ -105,6 +105,16 @@ sealed etc/environment
 sealed etc/environment.d
 sealed usr/lib/environment.d
 
+# Credential stores. ImportCredential= makes systemd look here for the
+# units that take configuration as credentials, so a tmpfiles.extra in
+# /etc/credstore would reach systemd-tmpfiles as root, and a sysctl.extra
+# would reach systemd-sysctl. /usr/local/lib/credstore is sealed with
+# /usr/local/lib, and nothing opens /run.
+sealed etc/credstore
+sealed etc/credstore.encrypted
+sealed usr/lib/credstore
+sealed usr/lib/credstore.encrypted
+
 # systemd's configuration tree holds system.conf and its drop-ins,
 # journald and logind config, presets, generators, and the unit paths
 # that outrank /etc/systemd/system, system.control and system.attached.

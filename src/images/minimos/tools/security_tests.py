@@ -660,6 +660,14 @@ class SecurityTests(unittest.TestCase):
                 "usr/local/lib/environment.d": directory(),
                 "usr/local/lib/environment.d/99-evil.conf": regular(),
             },
+            "credentials systemd-tmpfiles imports": {
+                "etc/credstore": directory(0o700),
+                "etc/credstore/tmpfiles.extra": regular(0o600),
+            },
+            "encrypted credentials systemd-sysctl imports": {
+                "usr/lib/credstore.encrypted": directory(0o700),
+                "usr/lib/credstore.encrypted/sysctl.extra": regular(0o600),
+            },
             # "x/.." climbs out of the link x points to, not out of opt, so
             # opt/up is /usr/lib/systemd and the file lands among the
             # vendor generators.

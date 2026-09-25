@@ -224,15 +224,15 @@ What the base enforces:
   directory, so no `/usr/local/bin/mount`. A new path must sit under a
   composable prefix and outside every sealed one, which carve out
   identity files, `ld.so` hooks, every sysctl, tmpfiles, sysusers and
-  modules directory, systemd's configuration and higher-priority unit
-  paths, generators, bus policy and trust roots. Anything the policy
-  doesn't open is refused, so a search path nobody thought of stays
-  closed. Paths resolve through symlinks the way the kernel resolves
-  them, and a layer can't turn a sealed prefix, a PATH directory or
-  anything above one into a symlink, since `/usr/local -> /opt/x`
-  would move all of `/usr/local/lib` at once. `scratch_image.py`
-  enforces this at build time, and `tools/security_tests.py` tests it
-  against the shipped `policy.txt`.
+  modules directory, credential stores, systemd's configuration and
+  higher-priority unit paths, generators, bus policy and trust roots.
+  Anything the policy doesn't open is refused, so a search path nobody
+  thought of stays closed. Paths resolve through symlinks the way the
+  kernel resolves them, and a layer can't turn a sealed prefix, a PATH
+  directory or anything above one into a symlink, since
+  `/usr/local -> /opt/x` would move all of `/usr/local/lib` at once.
+  `scratch_image.py` enforces this at build time, and
+  `tools/security_tests.py` tests it against the shipped `policy.txt`.
 - **Accounts are baked.** `/etc/{passwd,group,shadow}` come from
   `base/config/` alone. `sysusers.d` is culled, `systemd-sysusers` is
   masked, and the boot smoke checks the files don't change at boot.
@@ -296,7 +296,14 @@ What the base enforces:
   `/dev/{fuse,net/tun,kvm,vhost-*}` world-writable, and the
   `systemd-run` and `systemd-debug` generators would turn kernel
   command-line options into root units ahead of `/etc/systemd/system`.
-  All four are denied.
+  All four are denied. Credentials are the other way in. PID 1 collects
+  them from the kernel command line, SMBIOS and fw_cfg, and
+  `ImportCredential=` also reads `/etc/credstore` and its siblings, so a
+  `tmpfiles.extra` or `sysctl.extra` would run as root beside the
+  image's sealed config. The base resets `ImportCredential=` on every
+  vendor unit that runs here and imports credentials, the policy seals
+  the credential stores, and the boot smoke fails if any loaded service
+  still imports one.
 - **The clock doesn't come from the network.** chrony reads `/dev/ptp0`
   and nothing else, with `PrivateNetwork=yes` on the unit. Wolfi builds
   chrony without NTS, so network time would be unauthenticated UDP.

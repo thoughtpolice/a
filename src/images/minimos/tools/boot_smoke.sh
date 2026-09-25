@@ -14,6 +14,7 @@
 #   - /etc/{passwd,group,shadow} to match the baked copies
 #   - the systemd-journal group to be able to read the journal
 #   - uid 1000 to see the process tree in `systemctl status`
+#   - no loaded service to import credentials
 #   - the VM-only units to be wired up and skipped under docker
 #
 # Needs docker and GNU timeout on the host. This is a smoke test for a
@@ -410,6 +411,31 @@ STATUS_TREE=$(timeout --signal=KILL 15s docker exec --user 1000:1000 "$CID" \
 if ! grep -q '/usr/bin/dbus-daemon' <<<"$STATUS_TREE"; then
     fail "'systemctl status' as uid 1000 shows no process tree, is GetUnitProcesses denied?" \
         "$STATUS_TREE"
+fi
+
+# No service may take configuration from credentials, which come from
+# outside the image. Every loaded service is checked, including ones
+# nothing has started yet, so a vendor unit that starts importing
+# credentials in some future systemd fails here instead of going unseen.
+LOADED_SERVICES=$(docker_exec /usr/bin/systemctl list-units --all --type=service \
+    --no-legend --no-pager --plain 2>&1 | awk '{print $1}')
+IMPORTING=$(docker_exec /usr/bin/systemctl show --property=Id,ImportCredential \
+    -- $LOADED_SERVICES 2>&1 | awk '
+        /^Id=/ { id = substr($0, 4) }
+        /^ImportCredential=./ { imports = substr($0, 18) }
+        /^$/ { if (imports != "") print id ": " imports; id = imports = "" }
+        END { if (imports != "") print id ": " imports }')
+if [[ -n "$IMPORTING" ]]; then
+    fail "services import credentials:" "$IMPORTING"
+fi
+# That check passes just as well if systemctl stops reporting the
+# property. systemd-network-generator keeps its vendor imports, since
+# nothing starts it and its binary isn't shipped, so it has to show some.
+IMPORT_PROBE=$(docker_exec /usr/bin/systemctl show systemd-network-generator.service \
+    --property=ImportCredential --value 2>&1 || true)
+if [[ "$IMPORT_PROBE" != *network.* ]]; then
+    fail "systemctl no longer reports ImportCredential, so no import would be seen:" \
+        "${IMPORT_PROBE:-(no output)}"
 fi
 
 # Units that only make sense on a VM. Each must be pulled in at boot and
