@@ -541,6 +541,14 @@ Hard-won facts about what the platform expects from a custom image:
   with its own host keys, authorized_keys, and config under
   `/exe.dev/etc/ssh/`) and starts it before exec'ing the image's Cmd as
   PID 1. The image needs no OpenSSH, PAM, or crypto libraries for it.
+- **Setup scripts run as exedev, and may run again.**
+  `exe-setup.service` runs `/exe.dev/setup`, the `--setup-script` given
+  to `new`, as exedev with no capabilities and a read-only system. It can
+  set up `/home/exedev` and nothing else, so system changes belong in the
+  image. exe.dev's docs say the script runs once at first boot, but the
+  platform writes it back on every boot and the unit runs it again, so
+  make it safe to run twice. The unit deletes the file after each run,
+  so secrets in it don't stay on disk.
 - **Ship `mount(8)`.** systemd `.mount` units (`dev-mqueue.mount`, …)
   shell out to `/usr/bin/mount`; without it the boot ends `degraded` in
   an exe.dev VM. Docker hides this by premounting `/dev/mqueue`.

@@ -1,8 +1,18 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
+#
+# Runs the script given to `ssh exe.dev new --setup-script`, which the
+# platform writes to /exe.dev/setup. exe.dev documents it as running once
+# at first boot, but the platform writes the file back on every boot, so
+# this unit runs it again each time. Setup scripts need to be safe to run
+# twice.
+#
+# The script runs as exedev with no capabilities and a read-only system,
+# so it can set up /home/exedev and nothing else. Anything system-wide
+# belongs in the image.
 
 [Unit]
-Description=Run /exe.dev/setup on first boot
+Description=Run the exe.dev setup script
 ConditionPathExists=/exe.dev/setup
 Wants=minimos-harden.service
 After=minimos-harden.service network.target
@@ -13,18 +23,17 @@ User=exedev
 Group=exedev
 Slice=user-workload.slice
 WorkingDirectory=/home/exedev
+# bash reads the file itself, so the script needs no exec bit and no #!
+# line that resolves here. The base has no /usr/bin/env, for one.
 ExecStart=/bin/bash /exe.dev/setup
-# Platform semantic (the stock image does `sudo rm` here): the setup
-# script is deleted after its one run — it may carry user secrets, and
-# ConditionPathExists= would re-run it every boot otherwise. There is
-# no rm in this image, so systemd-tmpfiles does the unlink; the `+`
-# prefix runs this one command as root (/exe.dev is root-owned).
+# Delete the script once it has run, as the stock image does with
+# `sudo rm`, so any secrets in it don't stay on disk. There is no rm here,
+# so systemd-tmpfiles does the unlink, and the `+` runs it as root because
+# /exe.dev belongs to root. ExecStopPost= runs even when the script fails.
 ExecStopPost=-+/usr/bin/systemd-tmpfiles --remove /usr/lib/minimos/exe-setup-clean.conf
 Environment=HOME=/home/exedev
 Environment=USER=exedev
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-# The script runs unprivileged and nothing in the image is setuid;
-# lock that in.
 NoNewPrivileges=yes
 CapabilityBoundingSet=
 ProtectSystem=strict
