@@ -1,0 +1,527 @@
+{
+  "steps": [
+    {
+      "name": "the Protected Resource Metadata says what this is and where tokens come from",
+      "request": {
+        "path": "/.well-known/oauth-protected-resource/mcp"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "resource": "https://notes.example.com/mcp",
+            "authorization_servers": [
+              "https://auth.example.com"
+            ],
+            "bearer_methods_supported": [
+              "header"
+            ],
+            "scopes_supported": [
+              "notes:read",
+              "notes:write"
+            ],
+            "resource_name": "Notes"
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a request without a token is 401 with a challenge naming the metadata",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/list"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "method": "tools/list",
+          "params": {
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": "Bearer resource_metadata=\"https://notes.example.com/.well-known/oauth-protected-resource/mcp\""
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a token that is not a JWT is invalid_token",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "whoami",
+          "authorization": "Bearer not-a-jwt"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "method": "tools/call",
+          "params": {
+            "name": "whoami",
+            "arguments": {},
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": {
+            "$regex": "^Bearer error=\"invalid_token\", error_description=\"[^\"]+\", resource_metadata=\"https://notes\\.example\\.com/\\.well-known/oauth-protected-resource/mcp\"$"
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a valid token is checked against the issuer's key set, fetched once",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "whoami",
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6ImV4YW1wbGUtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImF1ZCI6Imh0dHBzOi8vbm90ZXMuZXhhbXBsZS5jb20vbWNwIiwic2NvcGUiOiJub3RlczpyZWFkIiwiY2xpZW50X2lkIjoibm90ZXMtYXBwIiwiaWF0IjoxNzkwMDAwMDAwLCJleHAiOjQxMDI0NDQ4MDAsImp0aSI6InNwZWMtdG9rZW4tMSJ9.VDCNJZmuff115oqjHb6ILp4moMdTWjlHrWp-5YYRc7IFiFzSLpCNOUZQfFh7xQ_a-HlggMtRgMyT0OKxfplFdQ"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 4,
+          "method": "tools/call",
+          "params": {
+            "name": "whoami",
+            "arguments": {},
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 4,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"subject\":\"alice\",\"scopes\":[\"notes:read\"],\"client\":\"notes-app\"}"
+              }
+            ]
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/jwks",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a tool whose scope the token has runs; the key set comes from the cache",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "list_notes",
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6ImV4YW1wbGUtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImF1ZCI6Imh0dHBzOi8vbm90ZXMuZXhhbXBsZS5jb20vbWNwIiwic2NvcGUiOiJub3RlczpyZWFkIiwiY2xpZW50X2lkIjoibm90ZXMtYXBwIiwiaWF0IjoxNzkwMDAwMDAwLCJleHAiOjQxMDI0NDQ4MDAsImp0aSI6InNwZWMtdG9rZW4tMSJ9.VDCNJZmuff115oqjHb6ILp4moMdTWjlHrWp-5YYRc7IFiFzSLpCNOUZQfFh7xQ_a-HlggMtRgMyT0OKxfplFdQ"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 5,
+          "method": "tools/call",
+          "params": {
+            "name": "list_notes",
+            "arguments": {},
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 5,
+          "result": {
+            "structuredContent": {
+              "notes": []
+            }
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a tool needing a scope the token lacks is 403 insufficient_scope, naming the scope",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "add_note",
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6ImV4YW1wbGUtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImF1ZCI6Imh0dHBzOi8vbm90ZXMuZXhhbXBsZS5jb20vbWNwIiwic2NvcGUiOiJub3RlczpyZWFkIiwiY2xpZW50X2lkIjoibm90ZXMtYXBwIiwiaWF0IjoxNzkwMDAwMDAwLCJleHAiOjQxMDI0NDQ4MDAsImp0aSI6InNwZWMtdG9rZW4tMSJ9.VDCNJZmuff115oqjHb6ILp4moMdTWjlHrWp-5YYRc7IFiFzSLpCNOUZQfFh7xQ_a-HlggMtRgMyT0OKxfplFdQ"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 6,
+          "method": "tools/call",
+          "params": {
+            "name": "add_note",
+            "arguments": {
+              "text": "buy milk"
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 403,
+        "headers": {
+          "www-authenticate": "Bearer error=\"insufficient_scope\", error_description=\"Missing scopes: notes:write\", scope=\"notes:write\", resource_metadata=\"https://notes.example.com/.well-known/oauth-protected-resource/mcp\""
+        }
+      }
+    },
+    {
+      "name": "a token with the scope can write",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "add_note",
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6ImV4YW1wbGUtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJzdWIiOiJib2IiLCJhdWQiOiJodHRwczovL25vdGVzLmV4YW1wbGUuY29tL21jcCIsInNjb3BlIjoibm90ZXM6cmVhZCBub3Rlczp3cml0ZSIsImNsaWVudF9pZCI6Im5vdGVzLWFwcCIsImlhdCI6MTc5MDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwLCJqdGkiOiJzcGVjLXRva2VuLTIifQ.UwJkLjhnzWjxq3iqqy12PyWggxHlQ5K78e0iPS49tMn6XS7aco1QdQD_X_zcsMFUUMY2PjAoJdOc8veQO-XYCQ"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 7,
+          "method": "tools/call",
+          "params": {
+            "name": "add_note",
+            "arguments": {
+              "text": "buy milk"
+            },
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 7,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "1 notes"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "notes are kept per subject",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "list_notes",
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6ImV4YW1wbGUtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJzdWIiOiJib2IiLCJhdWQiOiJodHRwczovL25vdGVzLmV4YW1wbGUuY29tL21jcCIsInNjb3BlIjoibm90ZXM6cmVhZCBub3Rlczp3cml0ZSIsImNsaWVudF9pZCI6Im5vdGVzLWFwcCIsImlhdCI6MTc5MDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwLCJqdGkiOiJzcGVjLXRva2VuLTIifQ.UwJkLjhnzWjxq3iqqy12PyWggxHlQ5K78e0iPS49tMn6XS7aco1QdQD_X_zcsMFUUMY2PjAoJdOc8veQO-XYCQ"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 8,
+          "method": "tools/call",
+          "params": {
+            "name": "list_notes",
+            "arguments": {},
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 8,
+          "result": {
+            "structuredContent": {
+              "notes": [
+                "buy milk"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "and alice still has none",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "list_notes",
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6ImV4YW1wbGUtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImF1ZCI6Imh0dHBzOi8vbm90ZXMuZXhhbXBsZS5jb20vbWNwIiwic2NvcGUiOiJub3RlczpyZWFkIiwiY2xpZW50X2lkIjoibm90ZXMtYXBwIiwiaWF0IjoxNzkwMDAwMDAwLCJleHAiOjQxMDI0NDQ4MDAsImp0aSI6InNwZWMtdG9rZW4tMSJ9.VDCNJZmuff115oqjHb6ILp4moMdTWjlHrWp-5YYRc7IFiFzSLpCNOUZQfFh7xQ_a-HlggMtRgMyT0OKxfplFdQ"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 9,
+          "method": "tools/call",
+          "params": {
+            "name": "list_notes",
+            "arguments": {},
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "json": {
+          "id": 9,
+          "result": {
+            "structuredContent": {
+              "notes": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "an expired token is refused",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "whoami",
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6ImV4YW1wbGUtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImF1ZCI6Imh0dHBzOi8vbm90ZXMuZXhhbXBsZS5jb20vbWNwIiwic2NvcGUiOiJub3RlczpyZWFkIiwiY2xpZW50X2lkIjoibm90ZXMtYXBwIiwiaWF0IjoxNzkwMDAwMDAwLCJleHAiOjE3OTAwMDM2MDAsImp0aSI6InNwZWMtdG9rZW4tMyJ9.eL5gQa2WNvjQqYbxE3lh052GGPigOzod7-EnAjMtOJjAho8t1nz_XqJd-G-DXNvceq4nYSV-XduMsEfbXnvD-w"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 10,
+          "method": "tools/call",
+          "params": {
+            "name": "whoami",
+            "arguments": {},
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": {
+            "$regex": "^Bearer error=\"invalid_token\", error_description=\"[^\"]+\", resource_metadata=\"https://notes\\.example\\.com/\\.well-known/oauth-protected-resource/mcp\"$"
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a token minted for another resource is refused (RFC 8707 audience)",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "whoami",
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6ImV4YW1wbGUtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImF1ZCI6Imh0dHBzOi8vY2FsZW5kYXIuZXhhbXBsZS5jb20vbWNwIiwic2NvcGUiOiJub3RlczpyZWFkIiwiY2xpZW50X2lkIjoibm90ZXMtYXBwIiwiaWF0IjoxNzkwMDAwMDAwLCJleHAiOjQxMDI0NDQ4MDAsImp0aSI6InNwZWMtdG9rZW4tNCJ9.5JQPQEe4vmbpHltInU32ctq2JXmhnTS-5RbcY7eFKuR1wDM2Msd7GGw5RRuLfiK4hu_9VXu0QwMGWdRZeL5Chg"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 11,
+          "method": "tools/call",
+          "params": {
+            "name": "whoami",
+            "arguments": {},
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": {
+            "$regex": "^Bearer error=\"invalid_token\", error_description=\"[^\"]+\", resource_metadata=\"https://notes\\.example\\.com/\\.well-known/oauth-protected-resource/mcp\"$"
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a signature that does not verify is refused",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "whoami",
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6ImV4YW1wbGUtMjAyNiJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImF1ZCI6Imh0dHBzOi8vbm90ZXMuZXhhbXBsZS5jb20vbWNwIiwic2NvcGUiOiJub3RlczpyZWFkIiwiY2xpZW50X2lkIjoibm90ZXMtYXBwIiwiaWF0IjoxNzkwMDAwMDAwLCJleHAiOjQxMDI0NDQ4MDAsImp0aSI6InNwZWMtdG9rZW4tNSJ9.qURqZfCnU2-eIdcVtM4-dsZ0a5iKfd2wJ7oy0u2QeWcuA-OFQHVXFXrBE7cd5lzNWWx9IeUl3j5CQpepzTOYAw"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 12,
+          "method": "tools/call",
+          "params": {
+            "name": "whoami",
+            "arguments": {},
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": {
+            "$regex": "^Bearer error=\"invalid_token\", error_description=\"[^\"]+\", resource_metadata=\"https://notes\\.example\\.com/\\.well-known/oauth-protected-resource/mcp\"$"
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "an unknown key id is refused without refetching the key set so soon",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": "whoami",
+          "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6ImV4YW1wbGUtMjAyNyJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJzdWIiOiJhbGljZSIsImF1ZCI6Imh0dHBzOi8vbm90ZXMuZXhhbXBsZS5jb20vbWNwIiwic2NvcGUiOiJub3RlczpyZWFkIiwiY2xpZW50X2lkIjoibm90ZXMtYXBwIiwiaWF0IjoxNzkwMDAwMDAwLCJleHAiOjQxMDI0NDQ4MDAsImp0aSI6InNwZWMtdG9rZW4tNiJ9.lXBuiKFsgm8eZlqOyJMzrZJu9G_CpU0IkNu9VzokBiLJD0TUN6DZn6SqVDHsQeWYe9F5iPof6vn0xSsuqBnIhQ"
+        },
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 13,
+          "method": "tools/call",
+          "params": {
+            "name": "whoami",
+            "arguments": {},
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "example-spec",
+                "version": "1.0.0"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "www-authenticate": {
+            "$regex": "^Bearer error=\"invalid_token\", error_description=\"[^\"]+\", resource_metadata=\"https://notes\\.example\\.com/\\.well-known/oauth-protected-resource/mcp\"$"
+          }
+        }
+      },
+      "upstream": []
+    }
+  ]
+}
