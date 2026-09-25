@@ -58,7 +58,7 @@ load("@root//src/images/minimos:defs.bzl", "minimos")
 #    base layer too, so list only what the base doesn't already ship.
 minimos.apk_culled_layer(
     name = "app-culled-layer",
-    apks = ["third-party//by-name/wo/wolfi:app.apk", ...],
+    apks = ["app", "libapp-deps"],  # Wolfi package names
 )
 
 # 2. Declare your config/unit/content layer — no tar-writing script needed.

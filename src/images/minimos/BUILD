@@ -12,8 +12,6 @@ load("@root//src/images/minimos:defs.bzl", "minimos")
 # minimos.image().
 # --------------------------------------------------------------------------
 
-_WOLFI = "third-party//by-name/wo/wolfi"
-
 # The composition policy minimos.image() enforces on every layer stacked
 # above the base; tools/security_tests.py reads the same file so the
 # adversarial tests can never drift from what ships.
@@ -38,47 +36,47 @@ minimos.apk_culled_layer(
     name = "culled-layer",
     apks = [
         # rootfs skeleton and merged-usr symlinks
-        "{}:wolfi-baselayout.apk".format(_WOLFI),
-        "{}:ca-certificates-bundle.apk".format(_WOLFI),
+        "wolfi-baselayout",
+        "ca-certificates-bundle",
         # loader + libc (+ the C.UTF-8 locale the boot contract exports)
-        "{}:ld-linux.apk".format(_WOLFI),
-        "{}:glibc.apk".format(_WOLFI),
-        "{}:glibc-locale-posix.apk".format(_WOLFI),
-        "{}:libgcc.apk".format(_WOLFI),
+        "ld-linux",
+        "glibc",
+        "glibc-locale-posix",
+        "libgcc",
         # systemd proper
-        "{}:systemd.apk".format(_WOLFI),
-        "{}:systemd-systemctl.apk".format(_WOLFI),
-        "{}:systemd-logind-service.apk".format(_WOLFI),
-        "{}:libsystemd.apk".format(_WOLFI),
-        "{}:libsystemd-shared.apk".format(_WOLFI),
+        "systemd",
+        "systemd-systemctl",
+        "systemd-logind-service",
+        "libsystemd",
+        "libsystemd-shared",
         # dbus and its DT_NEEDED libraries
-        "{}:dbus.apk".format(_WOLFI),
-        "{}:dbus-libs.apk".format(_WOLFI),
-        "{}:libexpat1.apk".format(_WOLFI),
-        "{}:libaudit.apk".format(_WOLFI),
-        "{}:libcap-ng.apk".format(_WOLFI),
+        "dbus",
+        "dbus-libs",
+        "libexpat1",
+        "libaudit",
+        "libcap-ng",
         # dlopen'd systemd deps we choose to ship (see keepfiles.txt)
-        "{}:libmount.apk".format(_WOLFI),
-        "{}:libblkid.apk".format(_WOLFI),
-        "{}:libseccomp.apk".format(_WOLFI),
-        "{}:libacl1.apk".format(_WOLFI),
-        "{}:libzstd1.apk".format(_WOLFI),
-        "{}:liblz4-1.apk".format(_WOLFI),
-        "{}:libselinux.apk".format(_WOLFI),
-        "{}:libpcre2-8-0.apk".format(_WOLFI),
-        "{}:libsepol.apk".format(_WOLFI),
+        "libmount",
+        "libblkid",
+        "libseccomp",
+        "libacl1",
+        "libzstd1",
+        "liblz4-1",
+        "libselinux",
+        "libpcre2-8-0",
+        "libsepol",
         # bash links terminfo; the base ships a minimal terminfo set
-        "{}:ncurses.apk".format(_WOLFI),
-        "{}:ncurses-terminfo-base.apk".format(_WOLFI),
+        "ncurses",
+        "ncurses-terminfo-base",
         # Time sync from the hypervisor's PTP clock (see chronyd.service).
-        "{}:chrony.apk".format(_WOLFI),
-        "{}:libcap.apk".format(_WOLFI),
+        "chrony",
+        "libcap",
         # exe.dev boot contract: login shells + mount/umount + nologin
-        "{}:bash.apk".format(_WOLFI),
-        "{}:dash.apk".format(_WOLFI),
-        "{}:mount.apk".format(_WOLFI),
-        "{}:umount.apk".format(_WOLFI),
-        "{}:util-linux-login.apk".format(_WOLFI),
+        "bash",
+        "dash",
+        "mount",
+        "umount",
+        "util-linux-login",
     ],
     denyfiles = "base/denyfiles.txt",
     keepfiles = "base/keepfiles.txt",

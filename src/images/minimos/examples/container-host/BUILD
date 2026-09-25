@@ -22,8 +22,6 @@ load("@root//src/images/minimos:defs.bzl", "minimos")
 # but can't start a container, as the example README explains.
 # --------------------------------------------------------------------------
 
-_WOLFI = "third-party//by-name/wo/wolfi"
-
 # gVisor point releases are immutable; the undotted `release/<date>` path
 # moves when a follow-up release ships that day. Pin the dotted one, so a
 # new release is a deliberate version bump instead of a hash mismatch.
@@ -84,13 +82,13 @@ minimos.overlay(
 minimos.apk_culled_layer(
     name = "containerd-culled-layer",
     apks = [
-        "{}:containerd-2.apk".format(_WOLFI),
-        "{}:ctr-2.apk".format(_WOLFI),
-        "{}:nerdctl.apk".format(_WOLFI),
-        "{}:cni-plugins.apk".format(_WOLFI),
-        "{}:iptables.apk".format(_WOLFI),
-        "{}:libmnl.apk".format(_WOLFI),
-        "{}:libnftnl.apk".format(_WOLFI),
+        "containerd-2",
+        "ctr-2",
+        "nerdctl",
+        "cni-plugins",
+        "iptables",
+        "libmnl",
+        "libnftnl",
     ],
 )
 

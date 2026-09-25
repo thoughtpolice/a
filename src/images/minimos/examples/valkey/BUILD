@@ -9,18 +9,16 @@ load("@root//src/images/minimos:defs.bzl", "minimos")
 # coreutils-less image can verify itself over SSH.
 # --------------------------------------------------------------------------
 
-_WOLFI = "third-party//by-name/wo/wolfi"
-
 # valkey + the TLS libs it links; glibc comes from the base, which the
 # .so closure resolves against.
 minimos.apk_culled_layer(
     name = "valkey-culled-layer",
     apks = [
-        "{}:valkey.apk".format(_WOLFI),
+        "valkey",
         # Separate package: the server apk only symlinks at valkey-cli.
-        "{}:valkey-cli.apk".format(_WOLFI),
-        "{}:libssl3.apk".format(_WOLFI),
-        "{}:libcrypto3.apk".format(_WOLFI),
+        "valkey-cli",
+        "libssl3",
+        "libcrypto3",
     ],
 )
 
