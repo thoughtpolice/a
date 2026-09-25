@@ -65,7 +65,7 @@ minimos.overlay(
 )
 
 # The base layers go first and yours on top. This emits my-app,
-# my-app-docker and my-app-boot-smoke.
+# my-app-docker, my-app-push and my-app-boot-smoke.
 minimos.image(
     name = "my-app",
     description = "minimos + my app",
