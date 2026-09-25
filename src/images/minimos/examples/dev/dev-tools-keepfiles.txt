@@ -1,11 +1,9 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 #
-# Interactive userland for the dev/agent image. The apk list is tools
-# plus the libraries they link; /usr/bin/* keeps every tool entry point
-# (including glibc's handful — getent, ldd, iconv — which are useful on
-# a dev box), and cull.py adds the .so closure automatically. The
-# libraries the base already ships are dropped in the denyfile.
+# Every program the dev tool packages install in /usr/bin, glibc's
+# getent, ldd and iconv included. cull.py adds the libraries they link,
+# except those the base already ships.
 
 /usr/bin/*
 
@@ -13,8 +11,7 @@
 /usr/libexec/git-core/**
 /usr/share/git-core/**
 
-# The rest of the ncurses-terminfo-base set. The base image keeps only
-# three entries, which the denyfile leaves to it. Interactive SSH sessions
-# arrive with whatever TERM the client uses, and less/top/watch want the
-# real entry. Wolfi installs the whole set under /etc/terminfo.
+# The rest of the terminfo set. SSH sessions arrive with whatever TERM
+# the client uses, and less, top and watch want the matching entry. The
+# base keeps three entries, and the denyfile leaves those to it.
 /etc/terminfo/**

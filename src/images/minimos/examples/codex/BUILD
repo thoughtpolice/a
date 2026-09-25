@@ -4,18 +4,14 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 load("@root//src/images/minimos:defs.bzl", "minimos")
 
-# --------------------------------------------------------------------------
-# minimos + Codex: the dev-machine layers (coreutils, git, user
-# manager) with OpenAI's Codex CLI overlaid on PATH, preconfigured for
-# exe.dev's ChatGPT integration. This is the "dedicated coding agent
-# session" composition:
+# minimos + Codex: the dev machine's layers plus OpenAI's Codex CLI, set
+# up for exe.dev's ChatGPT integration. A VM for one coding agent:
 #
 #   ssh exe.dev new --image=<pushed image> --integration=chatgpt --name=agent
 #   ssh agent.exe.xyz codex exec 'say hello'
 #
-# The named integration lets the VM reach the proxied endpoint baked into
-# ~/.codex/config.toml; tags and integrations are separate exe.dev features.
-# --------------------------------------------------------------------------
+# The chatgpt integration is what lets the VM reach the endpoint in
+# ~/.codex/config.toml. A tag of the same name doesn't.
 
 _DEV = "//src/images/minimos/examples/dev"
 
@@ -25,10 +21,9 @@ _CODEX_VERSION = "0.155.1"
 # target triple; the overlay installs it as `codex`.
 _CODEX_BINARY = "codex-x86_64-unknown-linux-musl"
 
-# The Codex CLI (Apache-2.0, © OpenAI), consumed as the prebuilt
-# static musl binary from the upstream GitHub release — hash-pinned
-# like every other input, no npm involved. Upstream tags CLI releases
-# as rust-v<version>.
+# The Codex CLI (Apache-2.0, © OpenAI) as the static musl binary from the
+# upstream GitHub release, hash-pinned like every other input. Upstream
+# tags CLI releases rust-v<version>.
 depot.http_archive(
     name = "codex",
     sha256 = "a0ef8b2debc3bf747e07b1a039354de31300ac0dcc2276498ba281470b5d9115",
@@ -40,8 +35,7 @@ depot.http_archive(
     ],
 )
 
-# The base has no /usr/local at all, so the layer carries the whole
-# directory chain.
+# The base has no /usr/local, so this layer declares the directories.
 minimos.overlay(
     name = "codex-overlay-layer",
     dirs = [
