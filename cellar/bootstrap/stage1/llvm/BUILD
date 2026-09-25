@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
-load("@cellar//bootstrap:defs.bzl", "export_file")
+load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
 load("@cellar//bootstrap:host.bzl", "host_python_test")
 load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "compiler")
-load(":defs.bzl", "SOURCE", "llvm_files", "llvm_stage", "source_files")
+load(":defs.bzl", "SOURCE", "llvm_files", "llvm_stage", "resource_headers", "source_files")
 
 GCC = "cellar//bootstrap/stage1/gcc13"
 
@@ -154,9 +154,66 @@ generate(
     tool = "cellar//bootstrap/stage1/bash:bash",
 )
 
+# Clang finds LLD and its resource headers beside itself.
+filegroup(
+    name = "gcc-toolchain",
+    srcs = {
+        "bin/clang": ":gcc-clang-clang",
+        "bin/ld.lld": ":gcc-lld-lld",
+    } | resource_headers("gcc"),
+)
+
+filegroup(
+    name = "gcc13-runtime",
+    srcs = {
+        "crt1.o": MUSL + ":crt1.o",
+        "crti.o": MUSL + ":crti.o",
+        "crtn.o": MUSL + ":crtn.o",
+        "libc.a": MUSL + ":libc.a",
+        "crtbeginT.o": GCC + ":stage3-crtbeginT.o",
+        "crtend.o": GCC + ":stage3-crtend.o",
+        "libgcc.a": GCC + ":stage3-libgcc.a",
+        "libstdc++.a": LIBSTDCXX + ":stage3-libstdc++.a",
+    },
+)
+
+export_file(name = "tests/clang.sh")
+
+generate(
+    name = "gcc-clang-result",
+    args = [
+        "--noprofile",
+        "--norc",
+        "$(location :tests/clang.sh)",
+        "$(location :gcc-toolchain)",
+        "$(location {}:headers)".format(MUSL),
+        "$(location {}:headers)".format(LIBSTDCXX),
+        "$(location :gcc13-runtime)",
+        "$(location cellar//bootstrap/stage1:acceptance-source)",
+        "$(exe cellar//bootstrap/stage1/coreutils-final:od)",
+    ],
+    chdir = CHDIRENV,
+    directory = True,
+    env = {
+        "PATH": "/nonexistent-bootstrap-path",
+        "LC_ALL": "C",
+    },
+    files = ["passed"],
+    tool = "cellar//bootstrap/stage1/bash:bash",
+)
+
 write_file(
     name = "passed",
     content = "passed\n",
+)
+
+command_test(
+    name = "gcc-clang",
+    args = [
+        "$(location :gcc-clang-result[passed])",
+        "$(location :passed)",
+    ],
+    tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
 )
 
 command_test(

@@ -9,8 +9,8 @@ The native Linux/x86_64 endpoint is implemented: static GCC 13.5.0 C/C++, binuti
 which bootstrap through three stages whose stage2 and stage3 objects match.
 GCC 10.5 then builds [binutils 2.41](binutils241/README.md), and with it
 [GCC 13.5.0](gcc13/README.md) and its [C++ library](libstdcxx13/README.md),
-which also bootstrap through three matching stages. GCC 13.5 then builds the
-TableGen generators of [LLVM 23.1.0](llvm/README.md). Package builds, generators,
+which also bootstrap through three matching stages. GCC 13.5 then builds
+Clang and LLD from [LLVM 23.1.0](llvm/README.md). Package builds, generators,
 configurations and installation mappings are declared in cellar BUILD files.
 
 The examples below run from `cellar/`, the standalone project, whose

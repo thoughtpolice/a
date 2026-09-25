@@ -6,8 +6,10 @@
 This package builds LLVM from the `llvm-project-23.1.0.src.tar.xz` release
 tarball with the final [GCC 13.5 stage](../gcc13/README.md), its
 [C++ library](../libstdcxx13/README.md), binutils 2.41 and musl 1.2.5. The
-`gcc` stage delivers `llvm-min-tblgen` and `llvm-tblgen`, statically linked
-for x86_64 Linux.
+`gcc` stage delivers Clang, LLD and the TableGen generators they need, with
+the AArch64 and X86 back ends, statically linked for x86_64 Linux.
+`:gcc-toolchain` holds `bin/clang`, `bin/ld.lld` and Clang's resource headers
+under `lib/clang/23/include`, where Clang finds them beside itself.
 
 ```sh
 buck2 test @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1/llvm:
@@ -25,7 +27,7 @@ build:
 
 ```sh
 python3 inventory.py path/to/llvm-project-23.1.0.src inventory.bzl \
-  //llvm:llvm-min-tblgen //llvm:llvm-tblgen
+  //llvm:llvm-min-tblgen //llvm:llvm-tblgen //clang:clang //lld:lld
 ```
 
 The evaluation follows Bazel's rules. Globs stay within their package,
@@ -57,6 +59,12 @@ default thread stack is too small for LLVM's recursive passes and musl takes
 new threads' stack size from that header.
 
 ## Tests
+
+`gcc-clang` compiles the installation's C and C++ acceptance programs with
+Clang, against musl and libstdc++ 13, links them statically with LLD and GCC
+13's runtime, and runs them: threads, TLS, varargs, iconv, setjmp, the STL,
+RTTI and exceptions. It also checks both versions, the musl default target,
+and that `--target=aarch64-unknown-linux-musl` emits an AArch64 object.
 
 `gcc-tblgen` checks both generators' versions and optimized, assertion-free
 builds. `llvm-tblgen` must reproduce the value type table that the build took

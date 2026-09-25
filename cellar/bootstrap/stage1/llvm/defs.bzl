@@ -10,11 +10,17 @@ load("@cellar//bootstrap:actions.bzl", "concatenate", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
 load("@cellar//bootstrap:source.bzl", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_library", "c_object")
-load(":inventory.bzl", "BINARIES", "DEFINES", "FILES", "LIBRARIES", "OVERLAY_FILES", "TABLEGEN")
+load(":inventory.bzl", "BINARIES", "DEFINES", "FILES", "LIBRARIES", "LLVM_VERSION", "OVERLAY_FILES", "RESOURCE_HEADERS", "TABLEGEN")
 
 SOURCE = ":llvm-project-23.1.0.src"
 
 CHDIRENV = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv"
+
+CAPTURE = "cellar//bootstrap/stage1/tools:capture"
+
+SED = "cellar//bootstrap/stage1/sed:sed"
+
+CATM = "cellar//bootstrap/stage0-posix/mescc-tools-extra:catm"
 
 # Generated headers are grouped by the program that makes them. A library
 # compiles against the tree of the latest generator it needs, so the
@@ -35,22 +41,21 @@ def _level(generators):
         level = max(level, GENERATORS.index(generator))
     return level
 
-CAPTURE = "cellar//bootstrap/stage1/tools:capture"
-
-SED = "cellar//bootstrap/stage1/sed:sed"
-
-CATM = "cellar//bootstrap/stage0-posix/mescc-tools-extra:catm"
-
 def source_files():
     """Every tarball path the stages project out of the extracted source."""
     paths = {}
     for entry in LIBRARIES.values() + BINARIES.values():
         for src in entry["srcs"]:
-            paths[src] = None
+            if src not in FILES:
+                paths[src] = None
     for gen in TABLEGEN.values():
         paths[gen["td_file"]] = None
     for physical in OVERLAY_FILES.values():
         paths[physical] = None
+    generated = _generated_paths()
+    for path in RESOURCE_HEADERS:
+        if path not in generated:
+            paths[path] = None
     for recipe in FILES.values():
         for path in [recipe.get("template"), recipe.get("wrap")] + [path for path, _ in recipe.get("bundle", [])]:
             if path:
@@ -71,6 +76,9 @@ def llvm_files():
     """Configuration files shared by every stage, made from the tarball."""
     for path, recipe in FILES.items():
         name = "file-" + target_name(path)
+
+        # Compilers choose a language by extension, so outputs keep the name.
+        output = path.rsplit("/", 1)[-1]
         if "content" in recipe:
             write_file(
                 name = name,
@@ -81,6 +89,7 @@ def llvm_files():
                 name = name,
                 args = _sed_script(recipe["substitutions"]) + ["$(location {}[{}])".format(SOURCE, recipe["template"])],
                 capture = CAPTURE,
+                output = output,
                 tool = SED,
             )
         elif "wrap" in recipe:
@@ -99,6 +108,7 @@ def llvm_files():
                     "{}[{}]".format(SOURCE, recipe["wrap"]),
                     ":" + name + "-suffix",
                 ],
+                output = output,
                 tool = CATM,
             )
         else:
@@ -129,8 +139,20 @@ def llvm_files():
             concatenate(
                 name = name,
                 inputs = parts,
+                output = output,
                 tool = CATM,
             )
+
+def _generated_paths():
+    return {out: None for gen in TABLEGEN.values() for opts, outs in gen["outs"] for out in outs}
+
+def resource_headers(stage):
+    """Clang's resource directory headers, some made by clang-tblgen."""
+    outputs = _tablegen_outputs(stage)
+    return {
+        "lib/clang/{}/include/{}".format(LLVM_VERSION.split(".")[0], path[len("clang/lib/Headers/"):]): outputs.get(path, "{}[{}]".format(SOURCE, path))
+        for path in RESOURCE_HEADERS
+    }
 
 def _tablegen_outputs(stage):
     outputs = {}
@@ -185,7 +207,7 @@ def _objects(stage, name, entry, toolchains, flags, defines):
         target = "{}-{}-{}".format(stage, target_name(name), i)
         c_object(
             name = target,
-            src = SOURCE + "[" + src + "]",
+            src = (":file-" + target_name(src)) if src in FILES else SOURCE + "[" + src + "]",
             defines = [defines.get(d.split("=")[0], d) for d in DEFINES[entry["defines"]]],
             flags = flags[language] + copts + includes,
             headers = [SOURCE, generated],
