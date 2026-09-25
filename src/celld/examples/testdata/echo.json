@@ -1,0 +1,85 @@
+{
+  "vars": {
+    "ECHO_JWK": { "kty": "EC", "crv": "P-256", "x": "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU", "note": "a \"quoted\" \\ value" },
+    "ECHO_TEXT": "  '\"spaced\"' # $HOME  "
+  },
+  "steps": [
+    {
+      "name": "a relayed body reaches the upstream and its echo comes back",
+      "request": { "method": "POST", "path": "/relay", "body": "hello" },
+      "expect": {
+        "json": { "method": "POST", "path": "/echo", "body": "hello" },
+        "headers": { "content-type": { "$regex": "^application/json" } }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/echo",
+          "host": { "$regex": "^127\\.0\\.0\\.1:\\d+$" },
+          "headers": { "x-relayed-by": "echo-example" },
+          "text": "hello",
+          "json": { "$absent": true }
+        }
+      ]
+    },
+    {
+      "name": "a scripted answer replaces the echo, status included",
+      "script": { "status": 503, "body": { "error": "busy" } },
+      "request": { "method": "POST", "path": "/relay", "json": { "n": 1 } },
+      "expect": { "status": 503, "json": { "$exact": { "error": "busy" } } },
+      "upstream": [{ "json": { "n": 1 }, "text": { "$json": { "n": 1 } } }]
+    },
+    {
+      "name": "a note is stored without reaching the upstream",
+      "request": { "method": "PUT", "path": "/notes/greeting", "body": "hi" },
+      "expect": { "status": 204, "text": "" },
+      "upstream": []
+    },
+    {
+      "name": "the note survives a restart of celld dev",
+      "restart": true,
+      "request": { "path": "/notes/greeting" },
+      "expect": { "json": { "key": "greeting", "value": "hi" } }
+    },
+    {
+      "name": "until retries a request until it matches",
+      "request": { "path": "/notes/missing" },
+      "expect": { "status": 404, "json": { "error": { "$contains": "no such" } } },
+      "until": { "seconds": 2 }
+    },
+    {
+      "name": "variables arrive byte for byte: an object as compact JSON, and quotes, spaces, # and $ as written",
+      "request": { "path": "/vars" },
+      "expect": {
+        "json": {
+          "$exact": {
+            "jwk": { "kty": "EC", "crv": "P-256", "x": "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU", "note": "a \"quoted\" \\ value" },
+            "jwkText": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU\",\"note\":\"a \\\"quoted\\\" \\\\ value\"}",
+            "text": "  '\"spaced\"' # $HOME  "
+          }
+        }
+      }
+    },
+    {
+      "name": "every Set-Cookie is visible, and $exact evaluates the matchers inside it",
+      "request": { "path": "/cookies" },
+      "expect": {
+        "cookies": [{ "$regex": "^first=1;" }, { "$regex": "^second=2;" }],
+        "headers": { "set-cookie": { "$regex": "^second=" } },
+        "text": { "$exact": { "$regex": "^two cookies$" } }
+      }
+    },
+    {
+      "name": "server-sent events are parsed for the sse matcher",
+      "request": { "path": "/stream" },
+      "expect": {
+        "headers": { "content-type": "text/event-stream" },
+        "sse": [
+          { "event": "word", "data": { "index": 0, "word": "one" } },
+          { "event": "word", "data": { "index": 1, "word": "two" } },
+          { "event": null, "data": "[DONE]" }
+        ]
+      }
+    }
+  ]
+}
