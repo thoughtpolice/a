@@ -25,6 +25,14 @@
 #   - add a program to one PATH directory under a name a lower layer ships
 #     in another. The image, the login shell and systemd each search those
 #     directories in a different order.
+#   - make a symlink of a sealed prefix, a PATH directory or a unit
+#     directory, or of any directory above one. The rules judge each path
+#     by where it resolves, and a link like /usr/local -> /opt/x would move
+#     /usr/local/lib and /usr/local/bin under /opt all at once.
+#
+# Paths resolve through symlinks the way the kernel and the extractor
+# resolve them, so a ".." in a link target climbs out of wherever the
+# links before it led.
 #
 # The parent directory of every path a layer writes must be declared by
 # that layer or one below it, the base included, so no directory's mode

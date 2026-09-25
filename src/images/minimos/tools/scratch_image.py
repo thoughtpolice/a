@@ -95,6 +95,10 @@ _PROGRAM_DIRS = frozenset({
     "usr/local/sbin", "usr/local/bin", "usr/sbin", "usr/bin", "sbin", "bin",
 })
 
+# Directories that lookups by name read, beyond what the sealed prefixes
+# cover. A composition may add to them but may never point them elsewhere.
+_SEARCH_DIRS = _PROGRAM_DIRS | _SYSTEM_UNIT_DIRS
+
 
 @dataclass(frozen=True)
 class LayerEntry:
@@ -151,6 +155,21 @@ class CompositionPolicy:
             if (name == prefix or name.startswith(prefix + "/")) and len(prefix) >= best:
                 best, allowed = len(prefix), False
         return allowed
+
+    def redirected_by_link(self, name: str) -> str | None:
+        """The sealed prefix or search directory a new symlink at `name` moves.
+
+        Every other rule judges a path by where it resolves. A link at or
+        above a sealed prefix moves the whole prefix instead, and nothing
+        written through the link resolves under the prefix it moved. The
+        base ships no /usr/local, so a link there would carry
+        /usr/local/lib and /usr/local/bin into a composable tree, and
+        systemd and PATH would follow it.
+        """
+        for guarded in sorted(self.sealed | _SEARCH_DIRS):
+            if guarded == name or guarded.startswith(name + "/"):
+                return guarded
+        return None
 
 
 def load_policy(path: Path) -> CompositionPolicy:
@@ -221,7 +240,8 @@ class LowerNames:
             f"{instance['prefix']}@.{instance['type']}" in self.units
         )
 
-    def conflict(self, name: str, entry: LayerEntry) -> str | None:
+    def conflict(self, name: str, entry: LayerEntry,
+                 state: dict[str, LayerEntry]) -> str | None:
         """Why a new path at `name` takes over a lower name, or None if it doesn't.
 
         Links in a `.wants/` or `.requires/` directory are left alone. They
@@ -243,7 +263,10 @@ class LowerNames:
         if not rest and entry.kind == "symlink" and entry.linkname:
             # systemd loads drop-ins for every name a unit has, so an alias
             # would reopen the drop-in directory the check above closes.
-            target = entry.linkname.rstrip("/").rpartition("/")[2]
+            # systemd names the alias after the target's last component
+            # once "." and ".." and every link before it are resolved, so
+            # ".../dbus.service/." aliases dbus.service too.
+            target = resolve_link_target(name, entry.linkname, state).rpartition("/")[2]
             if self.owns_unit(target):
                 return f"which aliases {target}, a unit that already exists below this layer"
         return None
@@ -361,13 +384,37 @@ def validate_layer(path: Path) -> tuple[dict[str, LayerEntry], str]:
 def resolve_state_path(name: str, state: dict[str, LayerEntry], *,
                        follow_final: bool) -> str:
     """Resolve a member against the effective lower/current image state."""
-    pending = deque(canonical_member_name(name).split("/"))
+    return _resolve(canonical_member_name(name).split("/"), state,
+                    follow_final=follow_final, what=f"layer path /{name}")
+
+
+def resolve_link_target(name: str, target: str, state: dict[str, LayerEntry]) -> str:
+    """Where the symlink at `name` points, without following its last component."""
+    parts = target.split("/")
+    if not target.startswith("/"):
+        parts = name.split("/")[:-1] + parts
+    return _resolve(parts, state, follow_final=False, what=f"the target of /{name}")
+
+
+def _resolve(parts: list[str], state: dict[str, LayerEntry], *,
+             follow_final: bool, what: str) -> str:
+    """Walk `parts` from the image root the way the kernel would.
+
+    A ".." climbs from wherever the walk has got to, which after a link
+    can be far from where the text of the path points. The extractor
+    resolves it the same way, so a lexical reading would let a layer
+    write somewhere other than where this check thinks it does.
+    """
+    pending = deque(part for part in parts if part not in ("", "."))
     resolved: list[str] = []
     followed = 0
     while pending:
         part = pending.popleft()
-        if not part or part == ".." or part.startswith("/"):
-            raise UnsafeInputError(f"unsafe effective-rootfs component: {part!r}")
+        if part == "..":
+            if not resolved:
+                raise UnsafeInputError(f"{what} climbs above the image root")
+            resolved.pop()
+            continue
         candidate = "/".join(resolved + [part])
         entry = state.get(candidate)
         final = not pending
@@ -376,19 +423,18 @@ def resolve_state_path(name: str, state: dict[str, LayerEntry], *,
         ):
             followed += 1
             if followed > 40:
-                raise UnsafeInputError(f"too many symlinks while resolving /{name}")
-            if entry.linkname is None:
-                raise UnsafeInputError(f"symlink is missing a target: /{candidate}")
-            pending = deque(
-                link_parts(resolved, entry.linkname, what=f"symlink /{candidate}")
-                + list(pending)
+                raise UnsafeInputError(f"too many symlinks while resolving {what}")
+            link = entry.linkname
+            if not link or "\x00" in link or link.startswith("//"):
+                raise UnsafeInputError(f"symlink /{candidate} has an unsafe target: {link!r}")
+            if link.startswith("/"):
+                resolved = []
+            pending.extendleft(
+                piece for piece in reversed(link.split("/")) if piece not in ("", ".")
             )
-            resolved = []
             continue
         if entry is not None and entry.kind != "directory" and not final:
-            raise UnsafeInputError(
-                f"layer path /{name} descends through non-directory /{candidate}"
-            )
+            raise UnsafeInputError(f"{what} descends through non-directory /{candidate}")
         resolved.append(part)
     return "/".join(resolved)
 
@@ -443,7 +489,14 @@ def apply_layer_state(entries: dict[str, LayerEntry], state: dict[str, LayerEntr
                     f"composition layer {layer} writes /{name}, which is not "
                     f"under a composable path"
                 )
-            elif reason := lower.conflict(name, entry):
+            elif entry.kind == "symlink" and (
+                moved := policy.redirected_by_link(name)
+            ):
+                raise UnsafeInputError(
+                    f"composition layer {layer} makes /{name} a symlink, which "
+                    f"would move /{moved} somewhere else"
+                )
+            elif reason := lower.conflict(name, entry, state):
                 raise UnsafeInputError(
                     f"composition layer {layer} writes /{name}, {reason}"
                 )
@@ -471,7 +524,7 @@ def _blob_path(layout: Path, digest: str) -> Path:
 
 
 def _descriptor_blob(layout: Path, descriptor: dict, *, what: str,
-                     max_size: int | None = None) -> Path:
+                     max_size: int | None = None, hash_content: bool = True) -> Path:
     digest = descriptor.get("digest")
     size = descriptor.get("size")
     if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
@@ -489,7 +542,7 @@ def _descriptor_blob(layout: Path, descriptor: dict, *, what: str,
         raise UnsafeInputError(f"{what} blob is not a regular file: {digest}")
     if metadata.st_size != size:
         raise UnsafeInputError(f"{what} size does not match descriptor: {digest}")
-    if sha256_file(blob) != digest:
+    if hash_content and sha256_file(blob) != digest:
         raise UnsafeInputError(f"{what} digest does not match content: {digest}")
     return blob
 
@@ -506,9 +559,13 @@ def _read_json(path: Path, *, what: str) -> dict:
     return value
 
 
-def validate_oci_layout(layout: Path, *, base_layer_count: int = 0,
-                        policy: CompositionPolicy | None = None) -> dict:
-    """Validate a complete minimos OCI layout and its effective layer state."""
+def _read_layout_chain(layout: Path) -> tuple[Path, dict, list, list]:
+    """Check an OCI layout's JSON from index.json down to the config.
+
+    Returns the resolved layout directory, the config, the manifest's
+    layer descriptors and the config's diff IDs. The layer blobs
+    themselves are left to the caller.
+    """
     try:
         layout_metadata = layout.lstat()
     except FileNotFoundError:
@@ -568,8 +625,6 @@ def validate_oci_layout(layout: Path, *, base_layer_count: int = 0,
     layers = manifest.get("layers")
     if not isinstance(layers, list) or not layers or len(layers) > MAX_IMAGE_LAYERS:
         raise UnsafeInputError("OCI manifest has an invalid layer count")
-    if base_layer_count < 0 or base_layer_count > len(layers):
-        raise UnsafeInputError("OCI base layer count is invalid")
 
     rootfs = config.get("rootfs")
     if not isinstance(rootfs, dict) or rootfs.get("type") != "layers":
@@ -585,6 +640,28 @@ def validate_oci_layout(layout: Path, *, base_layer_count: int = 0,
         )
     ):
         raise UnsafeInputError("OCI config has invalid rootfs diff_ids")
+
+    architecture = config.get("architecture")
+    operating_system = config.get("os")
+    if not isinstance(architecture, str) or not architecture:
+        raise UnsafeInputError("OCI config has an invalid architecture")
+    if not isinstance(operating_system, str) or not operating_system:
+        raise UnsafeInputError("OCI config has an invalid operating system")
+    platform = manifest_descriptor.get("platform")
+    if not isinstance(platform, dict) or (
+        platform.get("architecture") != architecture
+        or platform.get("os") != operating_system
+    ):
+        raise UnsafeInputError("OCI index platform disagrees with the config")
+    return layout, config, layers, diff_ids
+
+
+def validate_oci_layout(layout: Path, *, base_layer_count: int = 0,
+                        policy: CompositionPolicy | None = None) -> dict:
+    """Validate a complete minimos OCI layout and its effective layer state."""
+    layout, config, layers, diff_ids = _read_layout_chain(layout)
+    if base_layer_count < 0 or base_layer_count > len(layers):
+        raise UnsafeInputError("OCI base layer count is invalid")
 
     policy = policy or CompositionPolicy()
     effective_state: dict[str, LayerEntry] = {}
@@ -621,19 +698,6 @@ def validate_oci_layout(layout: Path, *, base_layer_count: int = 0,
         computed_diff_ids.append(diff_id)
     if computed_diff_ids != diff_ids:
         raise UnsafeInputError("OCI config diff_ids do not match layer contents")
-
-    architecture = config.get("architecture")
-    operating_system = config.get("os")
-    if not isinstance(architecture, str) or not architecture:
-        raise UnsafeInputError("OCI config has an invalid architecture")
-    if not isinstance(operating_system, str) or not operating_system:
-        raise UnsafeInputError("OCI config has an invalid operating system")
-    platform = manifest_descriptor.get("platform")
-    if not isinstance(platform, dict) or (
-        platform.get("architecture") != architecture
-        or platform.get("os") != operating_system
-    ):
-        raise UnsafeInputError("OCI index platform disagrees with the config")
     return config
 
 
@@ -846,14 +910,18 @@ def _build(args, policy: CompositionPolicy) -> int:
         json.dumps(index, indent=2, sort_keys=True)
     )
 
-    # Re-read the completed layout through the same release-gate validator used
-    # by the boot smoke. This cross-checks descriptors, diff IDs, and effective
-    # composition-policy semantics before the directory is published.
-    validate_oci_layout(
-        output,
-        base_layer_count=args.base_layer_count,
-        policy=policy,
-    )
+    # Read the JSON back through the validator's own checks, so a mistake in
+    # writing index.json, the manifest or the config fails here rather than
+    # in docker or on exe.dev. The layers need no second pass. ingest_layer
+    # hashed each blob as it copied it, and validate_layer and
+    # apply_layer_state parsed that same private copy and enforced the
+    # policy on it. The boot smoke still re-checks everything.
+    _, _, written_layers, written_diff_ids = _read_layout_chain(output)
+    if written_layers != layer_descriptors or written_diff_ids != diff_ids:
+        raise UnsafeInputError("the written layout disagrees with the layers it was built from")
+    for index, descriptor in enumerate(written_layers):
+        _descriptor_blob(output, descriptor, what=f"OCI layer {index}",
+                         max_size=MAX_LAYER_BLOB_SIZE, hash_content=False)
 
     # Publish only a complete layout. Buck normally supplies an absent output;
     # a pre-created empty directory is also safe to replace. Non-empty paths
