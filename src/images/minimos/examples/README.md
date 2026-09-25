@@ -1,33 +1,58 @@
 # minimos examples
 
-Worked compositions on the minimos base layer, in rough order of
-complexity. Copy the closest one as a starting point; each is a complete
-package (BUILD + PACKAGE + keep/deny lists + unit + config).
+Worked compositions on the minimos base, roughly in order of complexity.
+Copy the closest one to start. Each is a complete package with BUILD,
+PACKAGE, keep and deny lists, units and config.
 
-| example           | shows                                                     | image target              |
-| ----------------- | --------------------------------------------------------- | ------------------------- |
-| `memcached/`      | the minimum: one culled binary, one flags-only unit       | `:minimos-memcached`      |
-| `valkey/`         | a config file, a state dir, a CLI kept for verification   | `:minimos-valkey`         |
-| `nginx/`          | static content, multiple HTTP ports, exe.dev proxy usage  | `:minimos-nginx`          |
-| `dev/`            | an interactive userland + a lingering per-user manager    | `:minimos-dev`            |
-| `codex/`          | a GitHub-release binary overlaid on the dev machine       | `:minimos-codex`          |
-| `container-host/` | containerd with gVisor as the only OCI runtime            | `:minimos-container-host` |
+| example           | shows                                                 | image target              |
+| ----------------- | ----------------------------------------------------- | ------------------------- |
+| `memcached/`      | one culled binary and one unit that carries its flags | `:minimos-memcached`      |
+| `valkey/`         | a config file, a state directory, a CLI for checking  | `:minimos-valkey`         |
+| `nginx/`          | static content on several HTTP ports                  | `:minimos-nginx`          |
+| `dev/`            | an interactive userland and a lingering user manager  | `:minimos-dev`            |
+| `codex/`          | a GitHub release binary added to the dev image        | `:minimos-codex`          |
+| `container-host/` | containerd with gVisor as the only OCI runtime        | `:minimos-container-host` |
 
-Every `minimos.image()` emits `<name>`, `<name>-docker` (for
-`docker load`), and `<name>-boot-smoke` (docker-based boot test), so:
+Every `minimos.image()` emits `<name>`, `<name>-docker` for `docker load`,
+and `<name>-boot-smoke`, so
 
 ```
 buck2 test //src/images/minimos/examples/...
 ```
 
-boots them all under docker and asserts systemd reaches `running` with
-each example's service active. The harness statically rejects unsafe image
-metadata before execution, then uses a private cgroup namespace, no network,
-bounded memory/CPU/PIDs/logs/tmpfs, timeouts, `no-new-privileges`, and an
-explicit capability set. It does not use Docker `--privileged`. Systemd still
-needs `SYS_ADMIN` inside the test container, so treat this as an integration
-test for trusted build artifacts; run adversarial images only on a disposable
-Docker host or VM.
+boots each one under docker and checks that systemd reaches `running`
+with the example's service active. See the top-level README for what the
+boot smoke does and doesn't cover.
+
+## Trying one out
+
+Locally:
+
+```
+buck2 test //src/images/minimos/examples/memcached:minimos-memcached-boot-smoke
+```
+
+On exe.dev, push under a fresh tag each time. exe.dev caches what a tag
+resolved to for up to a day, so reusing a tag can boot the old image.
+
+```
+TAG=ttl.sh/$USER-minimos-memcached-$(date +%s):1h
+docker load < $(buck2 build //src/images/minimos/examples/memcached:minimos-memcached-docker --show-full-simple-output)
+docker tag minimos-memcached:latest $TAG
+docker push $TAG
+ssh exe.dev new --image=$TAG --name=mos-memcached
+ssh mos-memcached.exe.xyz   # bash, systemctl and journalctl, no coreutils
+```
+
+Checking the appliance images from inside, without coreutils:
+
+- memcached: `exec 3<>/dev/tcp/127.0.0.1/11211; printf 'version\r\n' >&3; read -r v <&3; echo "$v"`
+- valkey: `valkey-cli ping` prints `PONG`
+- nginx: open `https://<vm>.exe.xyz/` from anywhere
+
+The dev and Codex images have coreutils, so check them like any machine:
+`systemctl --user is-system-running`, `loginctl list-users`,
+`git --version`, `codex --version`.
 
 ## dev/ and codex/ — machines, not appliances
 
@@ -277,39 +302,3 @@ Mutually untrusted workloads require separate host users with disjoint storage,
 cgroups, user managers, and subordinate-ID ranges, or separate VMs. The shipped
 examples implement only the single `exedev` owner; separate exe.dev VMs are the
 available strong boundary without building a different multi-user runtime.
-
-## Trying one out
-
-Local (memcached shown; substitute any example):
-
-```
-buck2 test //src/images/minimos/examples/memcached:minimos-memcached-boot-smoke
-
-# Optional static inspection; use the target above, not a privileged Docker
-# invocation, to boot the image locally.
-docker load < $(buck2 build //src/images/minimos/examples/memcached:minimos-memcached-docker --show-full-simple-output)
-```
-
-On exe.dev (push to ttl.sh, boot a VM, then poke it over SSH):
-
-```
-docker load < $(buck2 build //src/images/minimos/examples/memcached:minimos-memcached-docker --show-full-simple-output)
-docker tag minimos-memcached:latest ttl.sh/$USER-minimos-memcached:1h
-docker push ttl.sh/$USER-minimos-memcached:1h
-ssh exe.dev new --image=ttl.sh/$USER-minimos-memcached:1h --name mos-memcached
-ssh mos-memcached.exe.xyz  # bash + systemctl/journalctl; no coreutils
-```
-
-exe.dev caches what a tag resolved to, for an hour for `latest`, `main`
-and `master` and a day for any other tag. When you push a changed image,
-use a fresh tag or the VM may boot the old one.
-
-In-VM verification, coreutils-free (the appliance images):
-
-- memcached: `exec 3<>/dev/tcp/127.0.0.1/11211; printf 'version\r\n' >&3; read -r v <&3; echo "$v"`
-- valkey: `valkey-cli ping` → `PONG`
-- nginx: visit `https://<vm>.exe.xyz/` (or `curl` from anywhere)
-
-The dev/codex images have real coreutils, so verify like a normal
-machine: `systemctl --user is-system-running`, `loginctl list-users`,
-`git --version`, `codex --version`.
