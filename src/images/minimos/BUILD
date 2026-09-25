@@ -127,6 +127,11 @@ MASKED_UNITS = [
     "systemd-repart.service",
     "systemd-boot-random-seed.service",
     "systemd-hibernate-clear.service",
+    # Root filesystem checks, whose binaries are denied too. Nothing
+    # starts them, but units ordered after them load them, and both import
+    # credentials.
+    "systemd-fsck-root.service",
+    "systemd-quotacheck-root.service",
     # The platform provides entropy, so no seed file is saved.
     "systemd-random-seed.service",
     # The platform configures the network from the kernel command line.
@@ -147,6 +152,20 @@ MASKED_UNITS = [
     "systemd-storage-block.socket",
     "systemd-storage-fs.socket",
     "systemd-sysext.socket",
+]
+
+# Vendor units that run on minimos and import credentials, each of which
+# gets base/units/no-credentials.conf as a drop-in, so nothing configures
+# the image from outside it. The other vendor units that import
+# credentials are masked above or run a binary the denylist drops.
+NO_CREDENTIAL_UNITS = [
+    "systemd-journald.service",
+    "systemd-sysctl.service",
+    "systemd-tmpfiles-clean.service",
+    "systemd-tmpfiles-setup-dev-early.service",
+    "systemd-tmpfiles-setup-dev.service",
+    "systemd-tmpfiles-setup.service",
+    "systemd-vconsole-setup.service",
 ]
 
 minimos.overlay(
@@ -192,6 +211,9 @@ minimos.overlay(
         "usr/lib/minimos",
         # Mountpoint for the platform's injected sshd and friends.
         "exe.dev",
+    ] + [
+        "etc/systemd/system/{}.d".format(unit)
+        for unit in NO_CREDENTIAL_UNITS
     ],
     # Empty rather than absent. systemd fills an empty machine-id with a
     # fresh ID at boot, so no two VMs share one. A missing file would also
@@ -236,6 +258,9 @@ minimos.overlay(
         # give every VM the same name instead.
         "etc/hosts": "base/config/hosts",
         "etc/resolv.conf": "base/config/resolv.conf",
+    } | {
+        "etc/systemd/system/{}.d/50-minimos-no-credentials.conf".format(unit): "base/units/no-credentials.conf"
+        for unit in NO_CREDENTIAL_UNITS
     },
     masks = MASKED_UNITS,
     symlinks = {
