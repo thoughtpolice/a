@@ -5,6 +5,7 @@ load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file")
 load("@cellar//bootstrap:source.bzl", "download_file", "untar")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object")
+load(":defs.bzl", "mimalloc_object")
 
 GCC = "cellar//bootstrap/stage1/gcc10"
 
@@ -40,24 +41,8 @@ untar(
     untar = "cellar//bootstrap/stage1/pax:untar",
 )
 
-# src/static.c includes the whole allocator. With MI_MALLOC_OVERRIDE, it
-# defines malloc and the rest of the C allocation interface, which musl lets
-# a static program replace.
-c_object(
+mimalloc_object(
     name = "mimalloc.o",
-    src = ":mimalloc-3.5.3[src/static.c]",
-    defines = [
-        "MI_MALLOC_OVERRIDE=1",
-        "NDEBUG",
-    ],
-    flags = [
-        "-std=gnu11",
-        "-O2",
-        "-fno-builtin-malloc",
-    ],
-    headers = [":mimalloc-3.5.3"],
-    includes = [":mimalloc-3.5.3[include]"],
-    object_name = "mimalloc.o",
     toolchain = GCC + ":stage3-gcc",
 )
 

@@ -12,6 +12,7 @@ load("@cellar//bootstrap:actions.bzl", "generate", "installed_tool")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_library", "c_object", "compiler")
 load("@cellar//bootstrap/stage1/linux-headers:defs.bzl", LINUX_DIRECTORIES = "DIRECTORIES")
+load("@cellar//bootstrap/stage1/mimalloc:defs.bzl", "mimalloc_object")
 load("@cellar//bootstrap/stage1/musl12:defs.bzl", "COMPAT_LIBRARIES", "INCLUDE_DIRECTORIES", "INSTALLED_HEADERS", "LIBC_SOURCES")
 load("@cellar//bootstrap/stage1/musl12:sources.bzl", "CRT_SOURCES")
 load(":defs.bzl", "CAPTURE", "SED", "SOURCE")
@@ -22,8 +23,6 @@ TRIPLE = "x86_64-unknown-linux-musl"
 MUSL = "cellar//bootstrap/stage1/musl12"
 
 LINUX = "cellar//bootstrap/stage1/linux-headers"
-
-MIMALLOC = "cellar//bootstrap/stage1/mimalloc"
 
 REPRODUCIBLE_FLAGS = [
     "-g0",
@@ -559,22 +558,8 @@ def llvm_runtimes(stage):
         "-D_LIBCPP_ENABLE_EXPERIMENTAL",
     ]})
 
-    # As mimalloc's own package builds it for GCC 13.
-    c_object(
+    mimalloc_object(
         name = stage + "-mimalloc.o",
-        src = MIMALLOC + ":mimalloc-3.5.3[src/static.c]",
-        defines = [
-            "MI_MALLOC_OVERRIDE=1",
-            "NDEBUG",
-        ],
-        flags = [
-            "-std=gnu11",
-            "-O2",
-            "-fno-builtin-malloc",
-        ],
-        headers = [MIMALLOC + ":mimalloc-3.5.3"],
-        includes = [MIMALLOC + ":mimalloc-3.5.3[include]"],
-        object_name = "mimalloc.o",
         toolchain = cc,
     )
 
