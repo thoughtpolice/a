@@ -144,7 +144,12 @@ def _pre_constraint_analysis(
     project.
     """
     constraints = legacy_platform.configuration.constraints if legacy_platform else {}
-    if constraints and all([setting.cell in extra_data.standalone_cells for setting in constraints]):
+    standalone = bool(constraints)
+    for setting in constraints:
+        if setting.cell not in extra_data.standalone_cells:
+            standalone = False
+            break
+    if standalone:
         return [], PostConstraintAnalysisParams(
             legacy_platform = legacy_platform,
             package_modifiers = [],
