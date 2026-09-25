@@ -480,11 +480,14 @@ LIBUNWIND_FLAGS = [
     _source("libunwind/include"),
 ]
 
+# Static libc++abi objects hide everything the headers leave unannotated,
+# as upstream builds them everywhere but Windows.
 LIBCXXABI_FLAGS = [
     "-std=c++23",
     "-O2",
     "-fstrict-aliasing",
     "-fsized-deallocation",
+    "-fvisibility=hidden",
     "-D_DEBUG",
     "-D_LIBCXXABI_BUILDING_LIBRARY",
     "-D_LIBCPP_BUILDING_LIBRARY",
