@@ -14,6 +14,8 @@ objtree=$(cd "$3" && pwd)
 headers_install=$(cd "${4%/*}" && pwd)/${4##*/}
 arch=$5
 PATH=$(cd "$6" && pwd)
+shift 6
+directories="$*"
 bash=$(cd "${BASH%/*}" && pwd)/${BASH##*/}
 dst=$PWD
 
@@ -79,3 +81,10 @@ for obj in include/uapi "arch/$arch/include/uapi"; do
         install_header "$gen/$header" "$header"
     done
 done
+# Installations merge exactly these directories with the C library's.
+cd "$dst"
+installed=$(echo *)
+if [ "$installed" != "$directories" ]; then
+    echo "installed directories changed: $installed" >&2
+    exit 1
+fi

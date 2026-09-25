@@ -5,6 +5,7 @@ load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
 load("@cellar//bootstrap:source.bzl", "download_file", "exact_patch", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object")
+load(":defs.bzl", "DIRECTORIES")
 
 GCC = "cellar//bootstrap/stage1/gcc13"
 
@@ -159,13 +160,14 @@ generate(
         "$(location :headers_install.sh)",
         ARCH,
         "$(location :script-tools[bin])",
-    ],
+    ] + DIRECTORIES,
     chdir = CHDIRENV,
     directory = True,
     env = {
         "PATH": "/nonexistent-bootstrap-path",
         "LC_ALL": "C",
     },
+    files = DIRECTORIES,
     tool = BASH,
 )
 

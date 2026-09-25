@@ -11,9 +11,10 @@
 load("@cellar//bootstrap:actions.bzl", "generate", "installed_tool")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_library", "c_object", "compiler")
-load("@cellar//bootstrap/stage1/musl12:sources.bzl", "ARCH_SOURCES", "BASE_C_SOURCES", "CRT_SOURCES")
+load("@cellar//bootstrap/stage1/linux-headers:defs.bzl", LINUX_DIRECTORIES = "DIRECTORIES")
+load("@cellar//bootstrap/stage1/musl12:sources.bzl", "ARCH_SOURCES", "BASE_C_SOURCES", "CRT_SOURCES", "PUBLIC_HEADERS")
 load(":defs.bzl", "CAPTURE", "SED", "SOURCE")
-load(":inventory.bzl", "RUNTIME_LISTS")
+load(":inventory.bzl", "LLVM_VERSION", "RUNTIME_LISTS")
 
 TRIPLE = "x86_64-unknown-linux-musl"
 
@@ -607,3 +608,62 @@ def runtime_link(stage):
             ":{}-clang_rt.crtbegin.o".format(stage),
         ],
     }
+
+# musl's installed headers: its include directory with the x86_64 and generic
+# architecture headers merged in, and the two it generates.
+MUSL_HEADERS = sorted({
+    path.removeprefix(prefix): None
+    for prefix in [
+        "include/",
+        "arch/generic/",
+        "arch/x86_64/",
+    ]
+    for path in PUBLIC_HEADERS
+    if path.startswith(prefix)
+}.keys() + [
+    "bits/alltypes.h",
+    "bits/syscall.h",
+])
+
+# libunwind's own interface. Clang searches a musl sysroot's headers before
+# its resource directory, whose <unwind.h> has the definitions GCC's also
+# has, such as _Unwind_Ptr, so libunwind's Itanium headers stay out.
+LIBUNWIND_INSTALLED_HEADERS = [
+    "__libunwind_config.h",
+    "libunwind.h",
+]
+
+def runtime_installation(stage):
+    """Where a stage's C library, headers and runtimes lie in an installation
+    that is its own sysroot, as Clang's driver looks for them."""
+    resource = "lib/clang/{}/lib/{}/".format(LLVM_VERSION.split(".")[0], TRIPLE)
+    files = {
+        resource + "libclang_rt.builtins.a": ":{}-libclang_rt.builtins.a".format(stage),
+        resource + "clang_rt.crtbegin.o": ":{}-clang_rt.crtbegin.o".format(stage),
+        resource + "clang_rt.crtend.o": ":{}-clang_rt.crtend.o".format(stage),
+        "include/c++": ":libcxx-headers[c++]",
+        "include/{}/c++".format(TRIPLE): ":libcxx-headers[{}/c++]".format(TRIPLE),
+        "lib/libc.a": ":{}-libc.a".format(stage),
+    }
+    for library in [
+        "libc++.a",
+        "libc++abi.a",
+        "libc++experimental.a",
+        "libunwind.a",
+    ]:
+        files["lib/{}/{}".format(TRIPLE, library)] = ":{}-{}".format(stage, library)
+    for name in MUSL_EMPTY_LIBRARIES:
+        files["lib/lib{}.a".format(name)] = ":{}-lib{}.a".format(stage, name)
+    for name in [
+        "crt1",
+        "crti",
+        "crtn",
+    ]:
+        files["lib/{}.o".format(name)] = ":{}-{}.o".format(stage, name)
+    for path in MUSL_HEADERS:
+        files["include/" + path] = "{}:headers[{}]".format(MUSL, path)
+    for directory in LINUX_DIRECTORIES:
+        files["include/" + directory] = "{}:headers[{}]".format(LINUX, directory)
+    for path in LIBUNWIND_INSTALLED_HEADERS:
+        files["include/" + path] = ":libunwind-headers[{}]".format(path)
+    return files

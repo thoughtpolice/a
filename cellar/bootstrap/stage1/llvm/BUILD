@@ -7,7 +7,7 @@ load("@cellar//bootstrap:host.bzl", "host_python_test")
 load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object", "compiler")
 load(":defs.bzl", "CAPTURE", "SOURCE", "llvm_files", "llvm_stage", "resource_headers", "source_files")
-load(":runtimes.bzl", "clang_compilers", "llvm_runtimes", "runtime_headers", "runtime_link", "runtime_source_files")
+load(":runtimes.bzl", "MUSL_EMPTY_LIBRARIES", "clang_compilers", "llvm_runtimes", "runtime_headers", "runtime_installation", "runtime_link", "runtime_source_files")
 
 GCC = "cellar//bootstrap/stage1/gcc13"
 
@@ -16,6 +16,8 @@ LIBSTDCXX = "cellar//bootstrap/stage1/libstdcxx13"
 BINUTILS = "cellar//bootstrap/stage1/binutils241"
 
 MUSL = "cellar//bootstrap/stage1/musl12"
+
+LINUX = "cellar//bootstrap/stage1/linux-headers"
 
 CHDIRENV = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv"
 
@@ -28,6 +30,18 @@ LLVM_PROJECTS = [
     "llvm",
     "third-party",
     "utils/bazel",
+]
+
+# The projects whose code the toolchain installs, each with its own notice.
+LICENSED_PROJECTS = [
+    "clang",
+    "compiler-rt",
+    "libc",
+    "libcxx",
+    "libcxxabi",
+    "libunwind",
+    "lld",
+    "llvm",
 ]
 
 # The runtimes' sources, installed headers and notices.
@@ -54,7 +68,7 @@ untar(
     name = SOURCE[1:],
     chdirenv = CHDIRENV,
     decompress = "cellar//bootstrap/stage0-posix/mescc-tools-extra:unxz",
-    files = source_files() + runtime_source_files(),
+    files = source_files() + runtime_source_files() + ["{}/LICENSE.TXT".format(project) for project in LICENSED_PROJECTS],
     flags = ["-x"],
     input = ":llvm-project-23.1.0.src.tar.xz",
     # The projects built here and the overlay describing them, without their
@@ -107,39 +121,45 @@ llvm_files()
 
 # As in an LLVM release build, without assertions, exceptions or RTTI. The
 # overlay's triples name glibc; this LLVM runs on and defaults to musl.
+LLVM_DEFINES = {
+    name: '{}="x86_64-unknown-linux-musl"'.format(name)
+    for name in [
+        "LLVM_HOST_TRIPLE",
+        "LLVM_DEFAULT_TARGET_TRIPLE",
+    ]
+}
+
+LLVM_FLAGS = {
+    "c": [
+        "-std=gnu11",
+        "-O2",
+        "-DNDEBUG",
+    ],
+    "c++": [
+        "-std=c++17",
+        "-O2",
+        "-DNDEBUG",
+        "-fno-exceptions",
+        "-fno-rtti",
+    ],
+}
+
+# musl's default 128 KiB thread stack is too small for LLVM's recursive
+# passes. Its threads take the size from PT_GNU_STACK.
+STACK_FLAGS = [
+    "-z",
+    "stack-size=8388608",
+]
+
 llvm_stage(
-    defines = {
-        name: '{}="x86_64-unknown-linux-musl"'.format(name)
-        for name in [
-            "LLVM_HOST_TRIPLE",
-            "LLVM_DEFAULT_TARGET_TRIPLE",
-        ]
-    },
-    flags = {
-        "c": [
-            "-std=gnu11",
-            "-O2",
-            "-DNDEBUG",
-        ],
-        "c++": [
-            "-std=c++17",
-            "-O2",
-            "-DNDEBUG",
-            "-fno-exceptions",
-            "-fno-rtti",
-        ],
-    },
+    defines = LLVM_DEFINES,
+    flags = LLVM_FLAGS,
     link = {
         "end_objects": [
             GCC + ":stage3-crtend.o",
             MUSL + ":crtn.o",
         ],
-        # musl's default 128 KiB thread stack is too small for LLVM's
-        # recursive passes. Its threads take the size from PT_GNU_STACK.
-        "flags": [
-            "-z",
-            "stack-size=8388608",
-        ],
+        "flags": STACK_FLAGS,
         "libraries": [
             LIBSTDCXX + ":stage3-libstdc++.a",
             MUSL + ":libc.a",
@@ -255,17 +275,78 @@ command_test(
     tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
 )
 
-# The first Clang builds the C library and runtimes that the second stage
-# links against.
+# Each later stage is compiled, archived and linked by the previous stage's
+# Clang, llvm-ar and LLD, against the C library and runtimes that Clang builds.
 runtime_headers()
 
-clang_compilers(
-    archiver = ":gcc-llvm-llvm-ar",
-    stage = "stage2",
-    tree = ":gcc-toolchain",
-)
+STAGES = {
+    "stage2": "gcc",
+    "stage3": "stage2",
+}
 
-llvm_runtimes("stage2")
+[
+    [
+        clang_compilers(
+            archiver = ":{}-llvm-llvm-ar".format(previous),
+            stage = stage,
+            tree = ":{}-toolchain".format(previous),
+        ),
+        llvm_runtimes(stage),
+        llvm_stage(
+            defines = LLVM_DEFINES,
+            flags = LLVM_FLAGS,
+            link = runtime_link(stage) | {
+                "flags": STACK_FLAGS,
+                "objects": runtime_link(stage)["objects"] + [":{}-mimalloc.o".format(stage)],
+            },
+            stage = stage,
+            toolchains = {
+                "c": ":{}-cc".format(stage),
+                "c++": ":{}-c++".format(stage),
+            },
+        ),
+        filegroup(
+            name = stage + "-toolchain",
+            srcs = {
+                "bin/clang": ":{}-clang-clang".format(stage),
+                "bin/ld.lld": ":{}-lld-lld".format(stage),
+            } | resource_headers(stage),
+        ),
+    ]
+    for stage, previous in STAGES.items()
+]
+
+# stage2's Clang compiles as the GCC-built one does, so stage3 reproduces
+# stage2 byte for byte: its programs, runtimes and startup files.
+COMPARED = [
+    "clang-clang",
+    "clang-clang-tblgen",
+    "lld-lld",
+    "llvm-llvm-ar",
+    "llvm-llvm-min-tblgen",
+    "llvm-llvm-tblgen",
+    "crt1.o",
+    "crti.o",
+    "crtn.o",
+    "clang_rt.crtbegin.o",
+    "clang_rt.crtend.o",
+    "libc.a",
+    "libclang_rt.builtins.a",
+    "libunwind.a",
+    "libc++abi.a",
+    "libc++.a",
+    "libc++experimental.a",
+    "mimalloc.o",
+] + ["lib{}.a".format(name) for name in MUSL_EMPTY_LIBRARIES]
+
+[command_test(
+    name = "compare-" + name,
+    args = [
+        "$(location :stage2-{})".format(name),
+        "$(location :stage3-{})".format(name),
+    ],
+    tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
+) for name in COMPARED]
 
 export_file(name = "tests/runtimes.cc")
 
@@ -331,9 +412,75 @@ RUNTIME_TESTS = {
             tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
         ),
     ]
-    for stage in ["stage2"]
+    for stage in STAGES
     for test, spec in RUNTIME_TESTS.items()
 ]
+
+# The final toolchain: stage3 with its runtimes, in an installation that is
+# its own sysroot. The configuration file beside Clang selects them.
+write_file(
+    name = "x86_64-unknown-linux-musl.cfg",
+    content = "\n".join([
+        "--sysroot=<CFGDIR>/..",
+        "-rtlib=compiler-rt",
+        "-unwindlib=libunwind",
+        "-stdlib=libc++",
+        "-fuse-ld=lld",
+        "-static",
+    ]) + "\n",
+)
+
+filegroup(
+    name = "toolchain",
+    srcs = {
+        "bin/clang": ":stage3-clang-clang",
+        "bin/clang++": ":stage3-clang-clang",
+        "bin/ld.lld": ":stage3-lld-lld",
+        "bin/llvm-ar": ":stage3-llvm-llvm-ar",
+        "bin/llvm-ranlib": ":stage3-llvm-llvm-ar",
+        "bin/x86_64-unknown-linux-musl.cfg": ":x86_64-unknown-linux-musl.cfg",
+        "share/licenses/linux": LINUX + ":installation[share/licenses/linux]",
+        "share/licenses/mimalloc/LICENSE": "cellar//bootstrap/stage1/mimalloc:mimalloc-3.5.3[LICENSE]",
+        "share/licenses/musl/COPYRIGHT": MUSL + ":source[COPYRIGHT]",
+    } | {
+        "share/licenses/{}/LICENSE.TXT".format(project): "{}[{}/LICENSE.TXT]".format(SOURCE, project)
+        for project in LICENSED_PROJECTS
+    } | resource_headers("stage3") | runtime_installation("stage3"),
+)
+
+export_file(name = "tests/toolchain.sh")
+
+generate(
+    name = "toolchain-result",
+    args = [
+        "--noprofile",
+        "--norc",
+        "$(location :tests/toolchain.sh)",
+        "$(location :toolchain)",
+        "$(location cellar//bootstrap/stage1:acceptance-source)",
+        "$(location :tests/runtimes.cc)",
+        "$(exe cellar//bootstrap/stage1/coreutils-final:od)",
+        "$(exe cellar//bootstrap/stage1/grep:grep)",
+    ],
+    chdir = CHDIRENV,
+    directory = True,
+    env = {
+        "PATH": "/nonexistent-bootstrap-path",
+        "TMPDIR": ".",
+        "LC_ALL": "C",
+    },
+    files = ["passed"],
+    tool = "cellar//bootstrap/stage1/bash:bash",
+)
+
+command_test(
+    name = "toolchain-test",
+    args = [
+        "$(location :toolchain-result[passed])",
+        "$(location :passed)",
+    ],
+    tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
+)
 
 # The committed inventory is what inventory.py makes from this tarball.
 export_file(name = "inventory.bzl")

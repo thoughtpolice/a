@@ -10,8 +10,9 @@ tarball with the final [GCC 13.5 stage](../gcc13/README.md), its
 need, with the AArch64 and X86 back ends, statically linked for x86_64 Linux.
 `:gcc-toolchain` holds `bin/clang`, `bin/ld.lld` and Clang's resource headers
 under `lib/clang/23/include`, where Clang finds them beside itself. That Clang
-then builds musl and Clang's own runtimes, so that the programs it compiles
-need nothing from GCC.
+then builds musl and Clang's own runtimes, and with them LLVM again, twice.
+The third build reproduces the second byte for byte, and `:toolchain`
+installs it: a Clang toolchain that built itself and needs nothing from GCC.
 
 ```sh
 buck2 test @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1/llvm:
@@ -105,12 +106,52 @@ musl's `libc.a` holds those functions, so this build leaves them out. Clang
 enables no stack protector by default, so musl's startup code needs no
 exceptions either.
 
-The `stage2-` compilers are the `gcc` stage's Clang, LLD and llvm-ar, which
-link with LLD directly and ask it for the `PT_GNU_EH_FRAME` header libunwind
-reads, as Clang's driver does. The `stage2-` runtimes are what those
-compilers build. `libcxx-headers` holds the headers libc++ and libc++abi
-install, with the generated configuration, and `libunwind-headers` those of
-libunwind.
+A stage's compilers are the previous stage's Clang, LLD and llvm-ar: the
+`stage2-` compilers come from the `gcc` stage, and the `stage3-` compilers
+from `stage2`. They link with LLD directly and ask it for the
+`PT_GNU_EH_FRAME` header libunwind reads, as Clang's driver does. A stage's
+runtimes are what its compilers build. `libcxx-headers` holds the headers
+libc++ and libc++abi install, with the generated configuration, and
+`libunwind-headers` those of libunwind.
+
+## Self-build
+
+The `gcc` stage is the first of three. Each later stage is the whole
+inventory again, compiled by the previous stage's Clang, archived by its
+llvm-ar and linked by its LLD against the runtimes that Clang built, with
+mimalloc compiled by the same Clang. Both use the `gcc` stage's flags.
+
+- `stage2` is compiled by the `gcc` stage's Clang.
+- `stage3` is compiled by `stage2`'s Clang.
+
+The `gcc` stage's Clang and `stage2`'s Clang come from the same source, so
+they should translate alike even though GCC compiled one and Clang the other.
+Then `stage3` comes out the same as `stage2`, and the `compare-` tests check
+that byte for byte for every program, runtime library and startup file.
+
+## Installation
+
+`:toolchain` installs `stage3` and its runtimes as a native installation
+that is its own sysroot.
+
+- `bin/clang`, `bin/clang++`, `bin/ld.lld`, `bin/llvm-ar` and
+  `bin/llvm-ranlib`, which are copies, and
+  `bin/x86_64-unknown-linux-musl.cfg`.
+- Clang's resource headers and compiler-rt under `lib/clang/23`.
+- libc++, libc++abi, libc++experimental and libunwind under
+  `lib/x86_64-unknown-linux-musl`, and libc++'s headers under
+  `include/c++/v1` and `include/x86_64-unknown-linux-musl/c++/v1`.
+- musl's headers, libraries and startup files under `include` and `lib`,
+  with the Linux UAPI headers and `libunwind.h` beside musl's. Clang
+  searches a musl sysroot's headers before its own, so libunwind's
+  `unwind.h`, which lacks GCC's `_Unwind_Ptr` and kin, stays out in favor
+  of Clang's.
+- The notices of every project it holds, under `share/licenses`.
+
+Clang reads the configuration file named for its default target from its
+own directory. The file names the installation as the sysroot and selects
+compiler-rt, libunwind, libc++, LLD and static linking, so `bin/clang` and
+`bin/clang++` build static programs from nothing outside the installation.
 
 ## Tests
 
@@ -120,13 +161,21 @@ Clang, against musl and libstdc++ 13, links them statically with LLD and GCC
 RTTI and exceptions. It also checks both versions, the musl default target,
 and that `--target=aarch64-unknown-linux-musl` emits an AArch64 object.
 
-`stage2-native-c-test`, `stage2-native-cxx-test` and `stage2-runtimes-test`
-link the installation's acceptance programs and
-[tests/runtimes.cc](tests/runtimes.cc) with LLD against only the `stage2-`
+For `stage2` and `stage3`, `-native-c-test`, `-native-cxx-test` and
+`-runtimes-test` link the installation's acceptance programs and
+[tests/runtimes.cc](tests/runtimes.cc) with LLD against only that stage's
 runtimes, and compare their output: exceptions unwound by libunwind,
 `thread_local` destructors, futex waits, LLVM libc's float parsing inside
 libc++, `std::filesystem` and `std::format`, and compiler-rt's 128-bit, half,
 bfloat16 and x87 conversions and CPU detection.
+
+`toolchain-test` uses only `:toolchain`, with no `PATH`. `clang` and
+`clang++` build and run the same programs through the configuration file, a
+C program walks its stack through `libunwind.h`, and a program links a
+library that `llvm-ar` and `llvm-ranlib` made. Every absolute path the driver
+gives the compiler and linker must lie in the installation, the installed
+tools and the programs they link must hold no code GCC compiled, and
+`--target=aarch64-unknown-linux-musl` must still emit an AArch64 object.
 
 `gcc-tblgen` checks both generators' versions and optimized, assertion-free
 builds. `llvm-tblgen` must reproduce the value type table that the build took

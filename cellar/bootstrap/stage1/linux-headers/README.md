@@ -42,7 +42,9 @@ leaves out for the architecture, passes through the kernel's
 `headers_install.sh`. That script removes kernel annotations and runs
 unifdef, which GCC 13 builds from `scripts/unifdef.c` with the kernel's host
 compiler flags. install.sh stops if a Kbuild file names exclusions it does not
-know.
+know, or if the headers land in top-level directories other than those
+[defs.bzl](defs.bzl) lists, which installations merge with the C library's
+`include` directory.
 
 The scripts run with the bootstrap's Bash, sed, grep, find and coreutils. The
 bootstrap's GNU sed 4.0.9 predates the `-E` spelling of extended regular
