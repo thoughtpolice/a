@@ -1,0 +1,204 @@
+{
+  "steps": [
+    {
+      "name": "a fresh account lists no VMs",
+      "request": {
+        "path": "/vms"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "vms": []
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/exec",
+          "headers": {
+            "authorization": {
+              "$regex": "^Bearer exe1\\."
+            }
+          },
+          "text": "ls"
+        }
+      ]
+    },
+    {
+      "name": "a VM is created with quoted, attached flag values",
+      "request": {
+        "method": "POST",
+        "path": "/vms",
+        "json": {
+          "name": "web-0",
+          "tags": [
+            "web",
+            "prod"
+          ],
+          "comment": "front end; don't touch"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "$exact": {
+            "name": "web-0",
+            "url": "https://web-0.exe.xyz"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "text": "new --name=web-0 \"--comment=front end; don't touch\" --tag=web --tag=prod --no-email"
+        }
+      ]
+    },
+    {
+      "name": "the new VM is listed",
+      "request": {
+        "path": "/vms"
+      },
+      "expect": {
+        "json": {
+          "vms": [
+            {
+              "name": "web-0",
+              "status": "running",
+              "url": "https://web-0.exe.xyz"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a taken name is a 409 carrying the lobby's message",
+      "request": {
+        "method": "POST",
+        "path": "/vms",
+        "json": {
+          "name": "web-0"
+        }
+      },
+      "expect": {
+        "status": 409,
+        "json": {
+          "kind": "command_failed",
+          "error": {
+            "$contains": "web-0"
+          }
+        }
+      }
+    },
+    {
+      "name": "a name that is not a DNS label is refused by the route's schema before anything is sent",
+      "request": {
+        "method": "POST",
+        "path": "/vms",
+        "json": {
+          "name": "--help",
+          "tags": [
+            "a,b"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "validation_failed",
+          "location": "body",
+          "fieldErrors": {
+            "$exact": {
+              "name": [
+                "must be a VM name: 1-63 lowercase letters, digits and hyphens, not starting or ending with a hyphen"
+              ],
+              "tags": [
+                "must be a value without whitespace or commas, not starting with '-'"
+              ]
+            }
+          }
+        }
+      },
+      "upstream": {
+        "$len": 2
+      }
+    },
+    {
+      "name": "a comment over the documented 200 bytes is refused by the client, still before sending",
+      "request": {
+        "method": "POST",
+        "path": "/vms",
+        "json": {
+          "name": "web-1",
+          "comment": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "kind": "invalid_request",
+          "error": {
+            "$contains": "comment"
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a VM is deleted",
+      "request": {
+        "method": "DELETE",
+        "path": "/vms/web-0"
+      },
+      "expect": {
+        "status": 204
+      },
+      "upstream": [
+        {
+          "text": "rm web-0"
+        }
+      ]
+    },
+    {
+      "name": "and is gone",
+      "request": {
+        "path": "/vms"
+      },
+      "expect": {
+        "json": {
+          "vms": []
+        }
+      },
+      "upstream": [
+        {
+          "text": "ls"
+        }
+      ]
+    },
+    {
+      "name": "a transient lobby failure on a read is retried",
+      "script": {
+        "fail": {
+          "path": "ls",
+          "status": 503
+        }
+      },
+      "request": {
+        "path": "/vms"
+      },
+      "expect": {
+        "json": {
+          "vms": []
+        }
+      },
+      "upstream": [
+        {
+          "text": "ls"
+        },
+        {
+          "text": "ls"
+        }
+      ]
+    }
+  ]
+}
