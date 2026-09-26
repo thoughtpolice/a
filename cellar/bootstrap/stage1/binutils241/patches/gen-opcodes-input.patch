@@ -1,0 +1,10 @@
+--- before
++++ after
+@@ -1,2 +1,5 @@
+-  filename = "i386-opc.tbl";
+-  fp = stdin;
++  filename = concat (srcdir, "/i386-opc.i", (const char *) NULL);
++  fp = fopen (filename, "r");
++  if (fp == NULL)
++    fail ("can't find %s for reading, errno = %s\n", filename,
++	  xstrerror (errno));
