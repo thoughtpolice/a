@@ -4,9 +4,10 @@
 # Native bootstrap stages
 
 The packages under `stage1/` take the chain from MesCC to GCC 13.5 and binutils
-2.41, a userland of GNU tools and CPython 3.14.7, all static x86_64 programs
-linked against musl 1.2.5. This page describes the stages in the order they
-build and how each one is checked. Each package's README has the details.
+2.41, a userland of GNU tools, CPython 3.14.7 and an LLVM 23.1 toolchain that
+built itself, all static x86_64 programs linked against musl. This page
+describes the stages in the order they build and how each one is checked. Each
+package's README has the details.
 
 ## Principles
 
@@ -28,7 +29,8 @@ build and how each one is checked. Each package's README has the details.
 - **Fixed points.** Mes and TCC 0.9.26 each rebuild themselves until the last
   two generations match. GCC 4.7.4, 10.5 and 13.5 each build three stages and
   compare every object and archive of stage 2 and stage 3, except the two
-  compiler checksum objects.
+  compiler checksum objects. LLVM's second and third stages match for every
+  program and runtime.
 - **Static programs.** Every program links statically. `c_binary` takes its
   startup objects, C library and compiler runtime from a `link_runtime`, so
   each link names every input. Compilers get explicit tool, header and library
@@ -181,8 +183,18 @@ With the [Linux 6.18 UAPI headers](linux-headers/README.md), the final GCC 13.5
 builds [zlib 1.3.2](zlib/README.md) and [CPython 3.14.7](python/README.md), one
 static interpreter with its extension modules built in. Its `regeneration-test`
 reruns CPython's own generators with the new interpreter and requires the
-output to match the release. The audit scripts' tests use this interpreter, not
-the host's.
+output to match the release. The audit scripts' tests, LLVM's inventory check
+and the Python scripts that LLVM's build runs use this interpreter, not the
+host's.
+
+### LLVM
+
+The final GCC 13.5 builds Clang, LLD and llvm-ar from
+[LLVM 23.1.0](llvm/README.md). That Clang builds musl 1.2.5, compiler-rt,
+libunwind, libc++abi and libc++, and with them LLVM again. The second stage's
+Clang builds its own runtimes and LLVM a third time. The second and third
+stages match byte for byte, and `llvm:toolchain` installs the third, a Clang
+toolchain that needs nothing from GCC.
 
 ## Building and testing
 

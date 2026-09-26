@@ -5,8 +5,8 @@
 
 This project builds a native x86_64 Linux toolchain from source, starting from
 a 229-byte `hex0` seed. The chain ends with GCC 13.5 and binutils 2.41, a
-userland of GNU tools and CPython 3.14.7, all static x86_64 programs linked
-against musl 1.2.5.
+userland of GNU tools, CPython 3.14.7 and an LLVM 23.1 toolchain that built
+itself, all static x86_64 programs linked against musl.
 
 It follows the approach of GNU Guix's [full-source bootstrap][guix] and the
 recipes of [live-bootstrap] at `dd8ac27bf959344b9bcf5e876bdd7716879bbc70`.
@@ -27,7 +27,8 @@ buck2 test -j8 cellar//bootstrap/...
 ```
 
 `cellar//bootstrap/stage1:all` installs GCC 13.5, binutils 2.41, musl 1.2.5 and
-the userland; `buck2 build --show-output` prints where. A cold build of
+the userland, and `cellar//bootstrap/stage1/llvm:toolchain` installs Clang, LLD
+and their runtimes; `buck2 build --show-output` prints where. A cold build of
 everything takes hours on one machine.
 
 Every target and action is x86_64 Linux, on the repository's own
@@ -69,6 +70,7 @@ Each stage builds the next one from source. The
 | [GCC 13.5](stage1/gcc13/README.md) | [mimalloc](stage1/mimalloc/README.md), GCC 13.5.0 C/C++ | GCC 10.5, binutils 2.41 | stage 2 and 3 objects match |
 | [Installation](stage1/installation/README.md) | relocatable toolchain and userland trees | GCC 13.5 | programs build and run from the installation alone |
 | [CPython](stage1/python/README.md) | [Linux headers](stage1/linux-headers/README.md), [zlib 1.3.2](stage1/zlib/README.md), CPython 3.14.7 | GCC 13.5, musl 1.2.5 | generated sources match the release |
+| [LLVM](stage1/llvm/README.md) | Clang, LLD, llvm-ar 23.1, then musl and runtimes | GCC 13.5, then Clang | stage 2 and 3 match |
 
 ## Trust boundary
 
