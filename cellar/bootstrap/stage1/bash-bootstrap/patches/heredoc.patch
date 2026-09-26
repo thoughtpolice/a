@@ -1,0 +1,5 @@
+--- before
++++ after
+@@ -1 +1 @@
+-  fd = sh_mktmpfd ("sh-thd", MT_USERANDOM, &filename);
++  fd = sh_mktmpfd ("sh-thd", MT_USERANDOM | MT_USETMPDIR, &filename);

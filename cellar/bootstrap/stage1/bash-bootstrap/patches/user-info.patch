@@ -1,0 +1,30 @@
+--- before
++++ after
+@@ -1,22 +1,7 @@
+-  struct passwd *entry;
+-
+-  /* Don't fetch this more than once. */
++  /* The generator shell has no dependency on the executor's user database. */
+   if (current_user.user_name == 0)
+     {
+-      entry = getpwuid (current_user.uid);
+-      if (entry)
+-	{
+-	  current_user.user_name = savestring (entry->pw_name);
+-	  current_user.shell = (entry->pw_shell && entry->pw_shell[0])
+-				? savestring (entry->pw_shell)
+-				: savestring ("/bin/sh");
+-	  current_user.home_dir = savestring (entry->pw_dir);
+-	}
+-      else
+-	{
+-	  current_user.user_name = savestring ("I have no name!");
+-	  current_user.shell = savestring ("/bin/sh");
+-	  current_user.home_dir = savestring ("/");
+-	}
+-      endpwent ();
++      current_user.user_name = savestring ("bootstrap");
++      current_user.shell = full_pathname (shell_name);
++      current_user.home_dir = savestring ("/");
+     }
+\ No newline at end of file

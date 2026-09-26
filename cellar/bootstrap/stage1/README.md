@@ -3,10 +3,10 @@
 
 # Native bootstrap stages
 
-The packages under `stage1/` take the chain from MesCC to musl 1.1.24 and a
-static x86_64 TCC 0.9.27 linked against it. This page describes the stages in
-the order they build and how each one is checked. Each package's README has the
-details.
+The packages under `stage1/` take the chain from MesCC to musl 1.1.24, with TCC
+0.9.27 and a set of parser, scanner and macro tools linked against it, all
+static x86_64 programs. This page describes the stages in the order they build
+and how each one is checked. Each package's README has the details.
 
 ## Principles
 
@@ -76,6 +76,17 @@ that compiler rebuilds itself and musl. [musl-tables](musl-tables/README.md)
 regenerates the Unicode, ctype and iconv tables from pinned data, and they
 match every published value. The rebuilt TCC then compiles musl again with
 them, as the `restored` pass.
+
+### Parser and scanner tools
+
+TCC and musl 1.1.24 build the tools that regenerate parsers and scanners:
+[oyacc](oyacc/README.md), the [Bash 2.05b](bash-bootstrap/README.md) that runs
+generator scripts, [Heirloom lex](heirloom-lex/README.md),
+[Flex 2.5.11](flex-bootstrap/README.md) and [2.6.4](flex/README.md),
+[Bison 3.4.1](bison/README.md), [m4 1.4.7](m4/README.md) and
+[gawk 3.0.4](gawk/README.md). Flex and Bison regenerate their own scanner and
+parser, and the result matches a further regeneration. `tools:libshell.a` gives
+m4 and gawk a `system` and `popen` that run a declared shell.
 
 ## Building and testing
 
