@@ -122,8 +122,9 @@ enable_suspension = true
 # target directly still runs it, as does `--no-default-test-filters`, which is
 # what CI's dedicated jobs pass. Tests labeled `terminal` need a pseudo-terminal,
 # which a remote action's empty root lacks, so sweeps leave them out too; name
-# one with `--local-only` to run it.
-default_exclude_labels = external-data,terminal
+# one with `--local-only` to run it. Tests labeled `slow` take long enough that
+# sweeps leave them out as well.
+default_exclude_labels = external-data,terminal,slow
 
 [tdutil]
 # Paths outside Buck's own well-known configuration names whose modification

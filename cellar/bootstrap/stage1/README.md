@@ -3,11 +3,10 @@
 
 # Native bootstrap stages
 
-The packages under `stage1/` take the chain from MesCC to GCC 13.5, binutils
-2.41 and a userland of GNU tools, all static x86_64 programs linked against
-musl 1.2.5 and installed as relocatable directory trees. This page describes
-the stages in the order they build and how each one is checked. Each package's
-README has the details.
+The packages under `stage1/` take the chain from MesCC to GCC 13.5 and binutils
+2.41, a userland of GNU tools and CPython 3.14.7, all static x86_64 programs
+linked against musl 1.2.5. This page describes the stages in the order they
+build and how each one is checked. Each package's README has the details.
 
 ## Principles
 
@@ -175,6 +174,15 @@ tool explicit paths within it, so the installation can move anywhere and embeds
 no workspace path. The `installed-` tests build and run programs with the
 installation alone, regenerate parsers and scanners with it, and move it before
 running it again.
+
+### CPython
+
+With the [Linux 6.18 UAPI headers](linux-headers/README.md), the final GCC 13.5
+builds [zlib 1.3.2](zlib/README.md) and [CPython 3.14.7](python/README.md), one
+static interpreter with its extension modules built in. Its `regeneration-test`
+reruns CPython's own generators with the new interpreter and requires the
+output to match the release. The audit scripts' tests use this interpreter, not
+the host's.
 
 ## Building and testing
 
