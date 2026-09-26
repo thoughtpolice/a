@@ -3,10 +3,10 @@
 
 # Native bootstrap stages
 
-The packages under `stage1/` take the chain from MesCC to binutils 2.30, static
-x86_64 programs that TCC builds against musl 1.1.24. This page describes the
-stages in the order they build and how each one is checked. Each package's
-README has the details.
+The packages under `stage1/` take the chain from MesCC to TCC 0.9.27 and
+binutils 2.30, static x86_64 programs linked against musl 1.1.24. This page
+describes the stages in the order they build and how each one is checked. Each
+package's README has the details.
 
 ## Principles
 
@@ -95,6 +95,14 @@ the other programs, with BFD headers, opcode tables, parsers and linker scripts
 regenerated. [GNU cat and rm](coreutils/README.md), built the same way, run its
 generators. The regenerated BFD headers and x86 tables match the release's
 copies.
+
+### TCC with GNU binutils
+
+[tcc-native](tcc-native/README.md) fixes TCC's hexadecimal float reader, which
+corrupted the `long double` constants in musl. That TCC builds musl 1.1.24 once
+more, with GNU as assembling all of musl's native assembly, including the x87
+math, and then builds the last TCC against that musl. GNU ar and ld archive and
+link both compilers.
 
 ## Building and testing
 
