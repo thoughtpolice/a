@@ -151,7 +151,9 @@ that is its own sysroot.
   with the Linux UAPI headers and `libunwind.h` beside musl's. Clang
   searches a musl sysroot's headers before its own, so libunwind's
   `unwind.h`, which lacks GCC's `_Unwind_Ptr` and kin, stays out in favor
-  of Clang's.
+  of Clang's. [headers.sh](headers.sh) copies these header trees into one
+  `include` directory, since musl and the kernel share directories such as
+  `scsi`, and fails if two trees hold the same file.
 - The notices of every project it holds, under `share/licenses`.
 
 Clang reads the configuration file named for its default target from its

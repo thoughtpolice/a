@@ -9,13 +9,12 @@
 # them follow the CMake conditions for this configuration.
 
 load("@cellar//bootstrap:actions.bzl", "generate", "installed_tool")
-load("@cellar//bootstrap:defs.bzl", "filegroup")
+load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_library", "c_object", "compiler")
-load("@cellar//bootstrap/stage1/linux-headers:defs.bzl", LINUX_DIRECTORIES = "DIRECTORIES")
 load("@cellar//bootstrap/stage1/mimalloc:defs.bzl", "mimalloc_object")
-load("@cellar//bootstrap/stage1/musl12:defs.bzl", "COMPAT_LIBRARIES", "INCLUDE_DIRECTORIES", "INSTALLED_HEADERS", "LIBC_SOURCES")
+load("@cellar//bootstrap/stage1/musl12:defs.bzl", "COMPAT_LIBRARIES", "INCLUDE_DIRECTORIES", "LIBC_SOURCES")
 load("@cellar//bootstrap/stage1/musl12:sources.bzl", "CRT_SOURCES")
-load(":defs.bzl", "CAPTURE", "SED", "SOURCE")
+load(":defs.bzl", "CAPTURE", "CHDIRENV", "SED", "SOURCE")
 load(":inventory.bzl", "LLVM_VERSION", "RUNTIME_LISTS")
 
 TRIPLE = "x86_64-unknown-linux-musl"
@@ -126,8 +125,17 @@ LIBCXX_CONFIG_SITE = {
     "_LIBCPP_EXTRA_SITE_DEFINES": False,
 }
 
+# libunwind's own interface. Clang searches a musl sysroot's headers before
+# its resource directory, whose <unwind.h> has the definitions GCC's also
+# has, such as _Unwind_Ptr, so libunwind's Itanium headers stay out.
+LIBUNWIND_INSTALLED_HEADERS = [
+    "__libunwind_config.h",
+    "libunwind.h",
+]
+
 def runtime_headers():
-    """The headers libc++, libc++abi and libunwind install."""
+    """The headers libc++, libc++abi and libunwind install, and the include
+    directory an installation holds."""
     generate(
         name = "libcxx-config-site",
         args = _cmake_configure(LIBCXX_CONFIG_SITE) + ["$(location {}[libcxx/include/__config_site.in])".format(SOURCE)],
@@ -168,6 +176,38 @@ def runtime_headers():
             path: "{}[libunwind/include/{}]".format(SOURCE, path)
             for path in RUNTIME_LISTS["libunwind/include"]["files"]
         },
+    )
+
+    filegroup(
+        name = "libunwind-installed-headers",
+        srcs = {path: ":libunwind-headers[{}]".format(path) for path in LIBUNWIND_INSTALLED_HEADERS},
+    )
+
+    # An installation's include directory. musl and the kernel share
+    # directories such as scsi, the kernel's files are known only once they
+    # are installed, and a filegroup cannot merge trees at one path.
+    export_file(name = "headers.sh")
+
+    generate(
+        name = "installed-headers",
+        args = [
+            "--noprofile",
+            "--norc",
+            "$(location :headers.sh)",
+            "$(exe cellar//bootstrap/stage1/coreutils-final:mkdir)",
+            "$(exe cellar//bootstrap/stage1/coreutils-final:cp)",
+            "$(location {}:headers)".format(MUSL),
+            "$(location {}:headers)".format(LINUX),
+            "$(location :libcxx-headers)",
+            "$(location :libunwind-installed-headers)",
+        ],
+        chdir = CHDIRENV,
+        directory = True,
+        env = {
+            "PATH": "/nonexistent-bootstrap-path",
+            "LC_ALL": "C",
+        },
+        tool = "cellar//bootstrap/stage1/bash:bash",
     )
 
 def _builtins_sources():
@@ -580,14 +620,6 @@ def runtime_link(stage):
         ],
     }
 
-# libunwind's own interface. Clang searches a musl sysroot's headers before
-# its resource directory, whose <unwind.h> has the definitions GCC's also
-# has, such as _Unwind_Ptr, so libunwind's Itanium headers stay out.
-LIBUNWIND_INSTALLED_HEADERS = [
-    "__libunwind_config.h",
-    "libunwind.h",
-]
-
 def runtime_installation(stage):
     """Where a stage's C library, headers and runtimes lie in an installation
     that is its own sysroot, as Clang's driver looks for them."""
@@ -596,8 +628,7 @@ def runtime_installation(stage):
         resource + "libclang_rt.builtins.a": ":{}-libclang_rt.builtins.a".format(stage),
         resource + "clang_rt.crtbegin.o": ":{}-clang_rt.crtbegin.o".format(stage),
         resource + "clang_rt.crtend.o": ":{}-clang_rt.crtend.o".format(stage),
-        "include/c++": ":libcxx-headers[c++]",
-        "include/{}/c++".format(TRIPLE): ":libcxx-headers[{}/c++]".format(TRIPLE),
+        "include": ":installed-headers",
         "lib/libc.a": ":{}-libc.a".format(stage),
     }
     for library in [
@@ -615,10 +646,4 @@ def runtime_installation(stage):
         "crtn",
     ]:
         files["lib/{}.o".format(name)] = ":{}-{}.o".format(stage, name)
-    for path in INSTALLED_HEADERS:
-        files["include/" + path] = "{}:headers[{}]".format(MUSL, path)
-    for directory in LINUX_DIRECTORIES:
-        files["include/" + directory] = "{}:headers[{}]".format(LINUX, directory)
-    for path in LIBUNWIND_INSTALLED_HEADERS:
-        files["include/" + path] = ":libunwind-headers[{}]".format(path)
     return files

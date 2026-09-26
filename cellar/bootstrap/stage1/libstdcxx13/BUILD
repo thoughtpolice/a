@@ -443,10 +443,18 @@ write_file(
     content = "",
 )
 
+# A file listed for its own projection may already lie in a listed
+# directory, and the tree takes it from there.
+TREE_FILES = [
+    path
+    for path in SOURCE_FILES
+    if not [directory for directory in SOURCE_DIRECTORIES if path.startswith(directory + "/")]
+]
+
 [
     filegroup(
         name = stage + "-source",
-        srcs = {path: ":gcc-13.5.0[" + path + "]" for path in SOURCE_DIRECTORIES + SOURCE_FILES} | {
+        srcs = {path: ":gcc-13.5.0[" + path + "]" for path in SOURCE_DIRECTORIES + TREE_FILES} | {
             "headers": ":headers",
             "build/bits/largefile-config.h": ":largefile-config.h",
             "config.h": ":config.h",

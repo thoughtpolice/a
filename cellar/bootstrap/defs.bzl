@@ -25,12 +25,19 @@ def __filegroup_impl(ctx: AnalysisContext) -> list[Provider]:
     else:
         srcs = {src.short_path: src for src in ctx.attrs.srcs}
 
-    output = ctx.actions.copied_dir(ctx.label.name, srcs, has_content_based_path = False)
+    # Buck records a copied directory's contents by inserting each source in
+    # turn, and a directory replaces whatever lies at its path, while the
+    # copy on disk merges them. A source inside another would differ between
+    # the local tree and what remote workers receive, so none may overlap.
     projections = dict(srcs)
     for path in srcs:
         parts = path.split("/")
         for end in range(1, len(parts)):
-            projections["/".join(parts[:end])] = None
+            parent = "/".join(parts[:end])
+            if parent in srcs:
+                fail("{} lies inside {}, which is also a source".format(path, parent))
+            projections[parent] = None
+    output = ctx.actions.copied_dir(ctx.label.name, srcs, has_content_based_path = False)
     return [DefaultInfo(default_output = output, sub_targets = {
         path: [DefaultInfo(default_output = output.project(path))]
         for path in projections
