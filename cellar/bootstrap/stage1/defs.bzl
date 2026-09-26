@@ -20,6 +20,7 @@ CompilerInfo = provider(fields = [
     "object_format",
     "cflags",
     "ldflags",
+    "env",
 ])
 
 def _compiler_impl(ctx):
@@ -46,6 +47,7 @@ def _compiler_impl(ctx):
         object_format = ctx.attrs.object_format,
         cflags = ctx.attrs.cflags,
         ldflags = ctx.attrs.ldflags,
+        env = ctx.attrs.env,
     )]
 
 _compiler_rule = rule(impl = _compiler_impl, attrs = {
@@ -64,6 +66,8 @@ _compiler_rule = rule(impl = _compiler_impl, attrs = {
     "sysroot": attrs.option(attrs.dep(providers = [SysrootInfo]), default = None),
     "cflags": attrs.list(attrs.arg(), default = []),
     "ldflags": attrs.list(attrs.arg(), default = []),
+    # Variables the compiler needs in its otherwise empty environment.
+    "env": attrs.dict(attrs.string(), attrs.string(), default = {}),
 })
 
 def compiler(**kwargs):
@@ -108,6 +112,7 @@ def _object_impl(ctx):
         command = cmd_args(ctx.attrs.source_alias[RunInfo], ctx.attrs.source_tree, command, hidden = ctx.attrs.src)
     ctx.actions.run(
         cmd_args(ctx.attrs.chdir[RunInfo], work.as_output(), cmd_args(command, relative_to = work)),
+        env = tc.env,
         clear_environment = True,
         category = "bootstrap_compile",
     )
