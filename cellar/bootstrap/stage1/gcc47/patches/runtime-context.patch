@@ -1,0 +1,7 @@
+--- before
++++ after
+@@ -1 +1 @@
+-struct ucontext *uc_ = context->cfa;
+\ No newline at end of file
++ucontext_t *uc_ = context->cfa;
+\ No newline at end of file
