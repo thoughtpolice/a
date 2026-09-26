@@ -1,0 +1,22 @@
+{
+  "vars": {
+    "PER_MINUTE": "0"
+  },
+  "steps": [
+    {
+      "name": "a refill rate of zero fails every request loudly instead of refusing clients with retry-after: Infinity",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "192.0.2.10"
+        }
+      },
+      "expect": {
+        "status": 500,
+        "json": {
+          "error": "ratelimit misconfigured: PER_MINUTE must be greater than 0, got 0"
+        }
+      }
+    }
+  ]
+}
