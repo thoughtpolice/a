@@ -4,8 +4,8 @@
 # Full-source bootstrap
 
 This project builds a native x86_64 Linux toolchain from source, starting from
-a 229-byte `hex0` seed. The chain ends with musl 1.2.5 and a static x86_64 GCC
-4.0.4 that runs on it and targets it.
+a 229-byte `hex0` seed. The chain ends with GCC 4.7.4, a static x86_64 C and
+C++ compiler linked against musl 1.2.5.
 
 It follows the approach of GNU Guix's [full-source bootstrap][guix] and the
 recipes of [live-bootstrap] at `dd8ac27bf959344b9bcf5e876bdd7716879bbc70`.
@@ -53,6 +53,7 @@ Each stage builds the next one from source. The
 | [TCC with GNU binutils](stage1/tcc-native/README.md) | musl 1.1.24 and TCC 0.9.27 again | TCC, binutils 2.30 | exact floating constants |
 | [GCC 4.0.4](stage1/gcc40/README.md) | GCC 4.0.4 C compiler | TCC, binutils 2.30 | `ucnid.h` matches the release |
 | [musl 1.2.5](stage1/musl12/README.md) | musl 1.2.5, [GCC 4.0.4 again](stage1/gcc40-rebuilt/README.md) | GCC 4.0.4 | tables match the release |
+| [GCC 4.7.4](stage1/gcc47/README.md) | [GMP](stage1/gmp/README.md), [MPFR](stage1/mpfr/README.md), [MPC](stage1/mpc/README.md), [tar](stage1/tar/README.md), GCC 4.7.4 C/C++ | GCC 4.0.4, musl 1.2.5 | stage 2 and 3 objects match |
 
 ## Trust boundary
 
@@ -74,7 +75,7 @@ the build. These scripts check it from outside:
 
   ```sh
   ../buck/bin/buck2 bxl cellar//bootstrap/audit.bxl:closure -- \
-    --target cellar//bootstrap/stage1/gcc40-rebuilt:gcc
+    --target cellar//bootstrap/stage1/gcc47:stage3-gcc
   ```
 
 - `audit-loads.py` checks that every explicit load in cellar names a cellar
@@ -94,6 +95,9 @@ the build. These scripts check it from outside:
   ../buck/bin/buck2 --isolation-dir trace kill
   python3 bootstrap/audit-trace.py --workspace "$PWD" --trace-prefix /tmp/trace
   ```
+
+- `audit-gcc-comparison.py` checks that a GCC port's stage comparisons cover
+  every object it builds.
 
 None of these removes the trust in Buck and the kernel.
 

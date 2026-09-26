@@ -1,9 +1,9 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@cellar//bootstrap:actions.bzl", "command_test", "compare_test", "generate")
+load("@cellar//bootstrap:actions.bzl", "command_test", "compare_test", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
-load("@cellar//bootstrap:source.bzl", "write_file")
+load("@cellar//bootstrap:source.bzl", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "bootstrap_artifact", "c_binary", "c_library", "c_object", "compiler")
 
 # Separate compilation through an archive with MesCC, and conditional values
@@ -282,4 +282,50 @@ c_binary(
 command_test(
     name = "logical-paths",
     tool = ":logical-paths-program",
+)
+
+# GNU tar 1.12 writes a member name longer than 100 bytes, and untar with
+# that tar as its extractor reads it back.
+LONG_NAME = "long-" + "abcdefghij" * 20
+
+filegroup(
+    name = "archive-tree",
+    srcs = {"gnu-extraction/" + LONG_NAME: ":sample.c"},
+)
+
+generate(
+    name = "gnu-archive",
+    args = [
+        "--numeric-owner",
+        "-cf",
+        "-",
+        "gnu-extraction",
+    ],
+    capture = True,
+    tool = "cellar//bootstrap/stage1/tar:tar",
+    working_directory = ":archive-tree",
+)
+
+# Extraction requires the -x carried by RunInfo, not the default executable.
+configured_tool(
+    name = "gnu-extractor",
+    args = [
+        "--numeric-owner",
+        "-x",
+    ],
+    tool = "cellar//bootstrap/stage1/tar:tar",
+)
+
+untar(
+    name = "gnu-extraction",
+    files = [LONG_NAME],
+    flags = ["-f"],
+    input = ":gnu-archive",
+    untar = ":gnu-extractor",
+)
+
+compare_test(
+    name = "gnu-extraction-provider",
+    actual = ":gnu-extraction[" + LONG_NAME + "]",
+    expected = ":sample.c",
 )

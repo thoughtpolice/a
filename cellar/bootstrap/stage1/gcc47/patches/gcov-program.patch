@@ -1,0 +1,7 @@
+--- before
++++ after
+@@ -1 +1 @@
+-printf ("/* Generated automatically by the program `%s'\n", argv[0]);
+\ No newline at end of file
++printf ("/* Generated automatically by the program `gcov-iov'\n");
+\ No newline at end of file

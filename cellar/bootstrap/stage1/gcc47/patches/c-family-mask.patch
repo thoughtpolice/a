@@ -1,0 +1,7 @@
+--- before
++++ after
+@@ -1,2 +1,2 @@
+-extern const unsigned int 
++const unsigned int 
+ c_family_lang_mask = (CL_C | CL_CXX | CL_ObjC | CL_ObjCXX);
+\ No newline at end of file
