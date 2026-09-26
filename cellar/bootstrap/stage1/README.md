@@ -3,7 +3,7 @@
 
 # Native bootstrap stages
 
-The packages under `stage1/` take the chain from MesCC to GCC 4.7.4 and a
+The packages under `stage1/` take the chain from MesCC to GCC 10.5 and a
 userland of GNU tools, all static x86_64 programs linked against musl 1.2.5.
 This page describes the stages in the order they build and how each one is
 checked. Each package's README has the details.
@@ -26,9 +26,9 @@ checked. Each package's README has the details.
   them with bootstrapped tools. Where the generator and its input are the ones
   upstream used, a test compares the result with the shipped file.
 - **Fixed points.** Mes and TCC 0.9.26 each rebuild themselves until the last
-  two generations match. GCC 4.7.4 builds three stages and compares every
-  object and archive of stage 2 and stage 3, except the two compiler checksum
-  objects.
+  two generations match. GCC 4.7.4 and 10.5 each build three stages and compare
+  every object and archive of stage 2 and stage 3, except the two compiler
+  checksum objects.
 - **Static programs.** Every program links statically. `c_binary` takes its
   startup objects, C library and compiler runtime from a `link_runtime`, so
   each link names every input. Compilers get explicit tool, header and library
@@ -139,6 +139,14 @@ Stage 3 of GCC 4.7.4 builds the userland against musl 1.2.5:
 [Flex](flex-final/README.md) and [Bison](bison-final/README.md). The
 [SHA256 check](sha256/README.md) builds GNU sha256sum with each of the three
 GCC 4.7.4 stages and requires identical objects and programs.
+
+### GCC 10.5
+
+GCC 4.7.4 and binutils 2.30 build [GCC 10.5.0](gcc10/README.md) and its
+[C++ library](libstdcxx10/README.md) in three stages through the
+[shared GCC port](gcc/README.md). GCC 4.7.4 also builds the
+[pax extractor](pax/README.md) that unpacks the release. Stage 2 and stage 3
+match.
 
 ## Building and testing
 
