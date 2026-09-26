@@ -5,8 +5,9 @@
 
 The packages under `stage1/` take the chain from MesCC to GCC 13.5, binutils
 2.41 and a userland of GNU tools, all static x86_64 programs linked against
-musl 1.2.5. This page describes the stages in the order they build and how each
-one is checked. Each package's README has the details.
+musl 1.2.5 and installed as relocatable directory trees. This page describes
+the stages in the order they build and how each one is checked. Each package's
+README has the details.
 
 ## Principles
 
@@ -162,13 +163,28 @@ binutils 2.41 then build [GCC 13.5.0](gcc13/README.md) and its
 `cc1` and `cc1plus` allocate through mimalloc, which each stage's host compiler
 builds. Stage 2 and stage 3 match.
 
+### Installation
+
+[installation](installation/README.md) assembles the delivered programs into
+relocatable directory trees. `stage1:toolchain` holds GCC 13.5 for C and C++,
+binutils 2.41, musl 1.2.5 and the C and C++ runtimes, `stage1:userland` holds
+the userland, and `stage1:all` holds both. In `installation`, every installed
+command also has a runnable target of the same name, and `[` is `:lbracket`. A
+static launcher finds its installation through `/proc/self/exe` and gives each
+tool explicit paths within it, so the installation can move anywhere and embeds
+no workspace path. The `installed-` tests build and run programs with the
+installation alone, regenerate parsers and scanners with it, and move it before
+running it again.
+
 ## Building and testing
 
 From `cellar/`:
 
 ```sh
 ../buck/bin/buck2 build @cellar//bootstrap/platforms/sandbox \
-  cellar//bootstrap/stage1/...
+  cellar//bootstrap/stage1:all --show-output
+../buck/bin/buck2 run @cellar//bootstrap/platforms/sandbox \
+  cellar//bootstrap/stage1/installation:gcc -- hello.c -o hello
 ../buck/bin/buck2 test @cellar//bootstrap/platforms/sandbox \
   cellar//bootstrap/stage1/...
 ```

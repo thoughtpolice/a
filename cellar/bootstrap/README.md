@@ -5,7 +5,8 @@
 
 This project builds a native x86_64 Linux toolchain from source, starting from
 a 229-byte `hex0` seed. The chain ends with GCC 13.5, binutils 2.41 and a
-userland of GNU tools, all static x86_64 programs linked against musl 1.2.5.
+userland of GNU tools, all static x86_64 programs linked against musl 1.2.5 and
+installed as relocatable directory trees.
 
 It follows the approach of GNU Guix's [full-source bootstrap][guix] and the
 recipes of [live-bootstrap] at `dd8ac27bf959344b9bcf5e876bdd7716879bbc70`.
@@ -24,15 +25,17 @@ targets as well. From `cellar/`:
 
 ```sh
 ../buck/bin/buck2 build @cellar//bootstrap/platforms/sandbox \
-  cellar//bootstrap/...
+  cellar//bootstrap/stage1:all --show-output
 ../buck/bin/buck2 test @cellar//bootstrap/platforms/sandbox \
   cellar//bootstrap/...
 ```
 
-The `sandbox` mode runs every action under Buck's Landlock sandbox with
-cellar's path lists. From the parent project, `@mode//buildbuddy` builds on
-BuildBuddy instead. The [platform guide](platforms/README.md) describes local,
-sandboxed and remote execution.
+`stage1:all` installs GCC 13.5, binutils 2.41, musl 1.2.5 and the userland. A
+cold build of everything takes hours on one machine. The `sandbox` mode runs
+every action under Buck's Landlock sandbox with cellar's path lists. From the
+parent project, `@mode//buildbuddy` builds on BuildBuddy instead. The
+[platform guide](platforms/README.md) describes local, sandboxed and remote
+execution.
 
 Target and execution platforms are always x86_64 Linux. `buck2 run` runs its
 program on the client, so it needs an x86_64 Linux client.
@@ -58,6 +61,7 @@ Each stage builds the next one from source. The
 | [GCC 10.5](stage1/gcc10/README.md) | GCC 10.5.0 C/C++, [pax](stage1/pax/README.md) | GCC 4.7.4 | stage 2 and 3 objects match |
 | [binutils 2.41](stage1/binutils241/README.md) | as, ld, ar and the rest | GCC 10.5 | regenerated tables match the release |
 | [GCC 13.5](stage1/gcc13/README.md) | [mimalloc](stage1/mimalloc/README.md), GCC 13.5.0 C/C++ | GCC 10.5, binutils 2.41 | stage 2 and 3 objects match |
+| [Installation](stage1/installation/README.md) | relocatable toolchain and userland trees | GCC 13.5 | programs build and run from the installation alone |
 
 ## Trust boundary
 
@@ -79,7 +83,7 @@ the build. These scripts check it from outside:
 
   ```sh
   ../buck/bin/buck2 bxl cellar//bootstrap/audit.bxl:closure -- \
-    --target cellar//bootstrap/stage1/gcc13:stage3-gcc
+    --target cellar//bootstrap/stage1:all
   ```
 
 - `audit-loads.py` checks that every explicit load in cellar names a cellar
@@ -102,6 +106,10 @@ the build. These scripts check it from outside:
 
 - `audit-gcc-comparison.py` checks that a GCC port's stage comparisons cover
   every object it builds.
+
+- `audit-installation.py` checks that an installation holds only static
+  executables, no symlinks and no workspace paths, and can compare two
+  installations built in different workspaces.
 
 None of these removes the trust in Buck and the kernel.
 

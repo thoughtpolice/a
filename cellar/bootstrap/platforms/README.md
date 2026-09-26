@@ -16,7 +16,7 @@ either root. The Buck executable can live anywhere. It is infrastructure, not
 an input to bootstrap compiler actions.
 
 ```sh
-buck2 build @cellar//bootstrap/platforms/sandbox cellar//bootstrap/...
+buck2 build @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1:all
 ```
 
 Both the target and execution configuration are always native x86_64 Linux.
@@ -72,9 +72,9 @@ sandbox already enforces, so an image with nothing to lean on keeps remote
 builds as hermetic as local ones.
 
 ```sh
-buck2 build @mode//buildbuddy cellar//bootstrap/...
+buck2 build @mode//buildbuddy cellar//bootstrap/stage1:all
 buck2 test @mode//buildbuddy --unstable-allow-compatible-tests-on-re \
-  cellar//bootstrap/...
+  cellar//bootstrap/stage1/...
 ```
 
 The standalone project names no endpoint. Configure the RE connection with
@@ -94,9 +94,9 @@ remote_use_case = buck2-bootstrap
 Then, from any supported Buck client OS:
 
 ```sh
-buck2 build @cellar//bootstrap/platforms/remote cellar//bootstrap/...
+buck2 build @cellar//bootstrap/platforms/remote cellar//bootstrap/stage1:all
 buck2 test @cellar//bootstrap/platforms/remote \
-  --unstable-allow-compatible-tests-on-re cellar//bootstrap/...
+  --unstable-allow-compatible-tests-on-re cellar//bootstrap/stage1/...
 ```
 
 Remote mode disables local execution completely, including fallbacks, and uses
