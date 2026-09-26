@@ -125,7 +125,9 @@ The test starts a second Buck daemon for the standalone project, in the
 `platform-audit` isolation directory, and finds `buck2` on `PATH`. Run from the
 parent project, it repeats every check with a daemon for the parent, and also
 checks that the parent's build modes leave cellar's configuration unchanged.
-It carries the `nested-buck` label, which the `sandbox` mode file excludes.
+It carries the `nested-buck` label, which the `sandbox` mode file excludes,
+as does the parent's `remote` mode, since a remote worker has no `python3`,
+`buck2` or checkout. Naming the target still runs it.
 
 It checks native local execution, local rejection on macOS/Windows/ARM Linux,
 remote-only Linux execution and Unix paths on every client, unsupported target

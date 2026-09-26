@@ -5,3 +5,8 @@
 --config=buck2_re_client.default_mode=full-remote
 --config=bootstrap.execution=remote
 --config=bootstrap.remote_properties={"container-image":"docker://gcr.io/distroless/static-debian12@sha256:d75cdd72874d4790092fcb1b058493ecf6bb5bf2b2b897045b00ff01d91843f2"}
+--# The cellar's configuration test drives a second Buck daemon with the
+--# client's python3 and checkout, which a remote worker has neither of, so
+--# sweeps leave it out as they leave out tests of external data. The list
+--# replaces the one in .buckconfig and so repeats it.
+--config=test.default_exclude_labels=external-data,nested-buck
