@@ -3,10 +3,10 @@
 
 # Native bootstrap stages
 
-The packages under `stage1/` take the chain from MesCC to GCC 10.5 and a
-userland of GNU tools, all static x86_64 programs linked against musl 1.2.5.
-This page describes the stages in the order they build and how each one is
-checked. Each package's README has the details.
+The packages under `stage1/` take the chain from MesCC to GCC 10.5, binutils
+2.41 and a userland of GNU tools, all static x86_64 programs linked against
+musl 1.2.5. This page describes the stages in the order they build and how each
+one is checked. Each package's README has the details.
 
 ## Principles
 
@@ -147,6 +147,12 @@ GCC 4.7.4 and binutils 2.30 build [GCC 10.5.0](gcc10/README.md) and its
 [shared GCC port](gcc/README.md). GCC 4.7.4 also builds the
 [pax extractor](pax/README.md) that unpacks the release. Stage 2 and stage 3
 match.
+
+### binutils 2.41
+
+The final GCC 10.5 builds [binutils 2.41](binutils241/README.md) with the
+`binutils_stage` macro of binutils 2.30. Its regenerated BFD headers, x86
+tables and bundled zlib tables match the release byte for byte.
 
 ## Building and testing
 
