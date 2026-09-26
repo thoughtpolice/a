@@ -30,18 +30,16 @@ type jjClient struct {
 	repository string
 }
 
+// discoverJJ finds the workspace containing start. That directory is the
+// command's working directory rather than its -R: -R names a workspace root
+// exactly and never searches upward, while the default discovery walks toward
+// the filesystem root the way every jj command run by hand does, and tdutil is
+// invoked from wherever its caller happens to be.
 func discoverJJ(ctx context.Context, runner processRunner, executable, start string) (*jjClient, error) {
 	result, err := runner.run(ctx, commandSpec{
 		path: executable,
-		args: []string{
-			"--no-pager",
-			"--color=never",
-			"-R",
-			start,
-			"--ignore-working-copy",
-			"workspace",
-			"root",
-		},
+		args: []string{"--no-pager", "--color=never", "--ignore-working-copy", "workspace", "root"},
+		dir:  start,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("running `jj workspace root`: %w", err)

@@ -122,14 +122,19 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 	logProgress(stderr, &args, "%d changed path(s)", len(changed))
 
 	var affected []affectedTarget
-	if len(changed) != 0 {
-		pidAlive := app.pidAlive
-		if pidAlive == nil {
-			pidAlive = processIsAlive
+	if len(changed) == 0 {
+		// Nothing is collected for an empty diff, so a snapshot or cache
+		// write asked of this run has nothing to record. Both promise to
+		// report rather than fail, and silence here would read as a refresh
+		// that happened.
+		if args.snapshotHeadTo != nil {
+			_, _ = fmt.Fprintf(stderr, "tdutil: head snapshot %s not written (the tree diff is empty, so no graph was collected)\n", *args.snapshotHeadTo)
 		}
-		sweepOrphanedWorkspaces(ctx, jj, pidAlive, func(format string, values ...any) {
-			logProgress(stderr, &args, format, values...)
-		})
+		if cache != nil && cache.write {
+			_, _ = fmt.Fprintf(stderr, "tdutil: head snapshot not cached (the tree diff is empty, so no graph was collected)\n")
+		}
+	} else {
+		sweepWorkspaces(ctx, app, jj, &args, stderr)
 
 		if args.quick {
 			// Quick mode consults only the working-copy graph: no base
@@ -163,10 +168,11 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 			logProgress(stderr, &args, "parsed %d working-copy targets", len(quickSnapshot.targets))
 			// Quick mode plans both endpoints against the same tree, so a
 			// pattern either has evidence and is queried or fails the run.
+			decline := snapshotDecline(&args, "head", true, true)
 			if args.snapshotHeadTo != nil {
-				captureHeadSnapshot(ctx, app.runner, &args, jj.repository, revisions.head, true, &quickSnapshot, config, stderr)
+				captureHeadSnapshot(ctx, app.runner, &args, cache, jj.repository, revisions.head, decline, &quickSnapshot, config, stderr)
 			}
-			cache.storeSnapshot(ctx, &args, "head", revisions.head, true, &quickSnapshot, stderr)
+			cache.storeSnapshot(ctx, &args, "head", revisions.head, decline, &quickSnapshot, stderr)
 			affected, err = determine(
 				&quickSnapshot,
 				&quickSnapshot,
@@ -270,27 +276,30 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					len(baseSnapshot.targets),
 					len(headSnapshot.targets),
 				)
+				headDecline := snapshotDecline(&args, "head", plan.headCoversEveryPattern(), headInPlace)
 				if args.snapshotHeadTo != nil {
 					captureHeadSnapshot(
 						ctx,
 						app.runner,
 						&args,
+						cache,
 						jj.repository,
 						revisions.head,
-						plan.headCoversEveryPattern(),
+						headDecline,
 						&headSnapshot,
 						config,
 						stderr,
 					)
 				}
-				cache.storeSnapshot(ctx, &args, "head", revisions.head, plan.headCoversEveryPattern(), &headSnapshot, stderr)
+				cache.storeSnapshot(ctx, &args, "head", revisions.head, headDecline, &headSnapshot, stderr)
 				// A run which missed the cache collected the base graph
 				// anyway, and that graph is the one every later run against
 				// this base will ask for. Storing it is what turns a repeated
 				// local run into a head-only collection, and it costs only the
 				// serialization, since the collection has already happened.
 				if baseDocument == nil {
-					cache.storeSnapshot(ctx, &args, "base", revisions.base, plan.baseCoversEveryPattern(), &baseSnapshot, stderr)
+					baseDecline := snapshotDecline(&args, "base", plan.baseCoversEveryPattern(), false)
+					cache.storeSnapshot(ctx, &args, "base", revisions.base, baseDecline, &baseSnapshot, stderr)
 				}
 				affected, analysisErr = determine(
 					&baseSnapshot,
@@ -349,8 +358,11 @@ func runSnapshotCapture(
 	if err != nil {
 		return err
 	}
+	// The working copy stands in for the revision only when a jj snapshot
+	// has compared the two. --ignore-working-copy is the request not to take
+	// one, so under it the revision is materialized like any other.
 	inPlace := false
-	if !args.noHeadInPlace {
+	if !args.noHeadInPlace && !args.ignoreWorkingCopy {
 		inPlace, err = headMatchesWorkingCopy(ctx, jj, headCommit)
 		if err != nil {
 			return err
@@ -370,6 +382,7 @@ func runSnapshotCapture(
 		if err != nil {
 			return err
 		}
+		sweepWorkspaces(ctx, app, jj, args, stderr)
 		headWorkspace, err := createWorkspace(ctx, jj, headCommit, app.tempDir(), currentDir, localConfig)
 		if err != nil {
 			return err
@@ -383,22 +396,19 @@ func runSnapshotCapture(
 		}
 	}
 
-	version, err := buckVersionString(ctx, app.runner, args.buck)
+	identity, err := runIdentity(ctx, app.runner, args, cache, jj.repository, config)
 	if err != nil {
 		return err
 	}
-	digest, err := localBuckConfigDigest(jj.repository)
-	if err != nil {
-		return err
-	}
-	document := buildSnapshotDocument(version, headCommit, args.universe, buckArgs, digest, config.digest(), &collected)
+	document := buildSnapshotDocumentFor(identity, headCommit, &collected)
 	if err := writeSnapshotDocument(*args.snapshotTo, document); err != nil {
 		return err
 	}
 	logProgress(stderr, args, "wrote base snapshot for %s (%d targets) to %s", headCommit, len(collected.targets), *args.snapshotTo)
 	// Capture plans every pattern against one tree, so a pattern either has
-	// evidence and is queried or fails the run before reaching here.
-	cache.storeSnapshot(ctx, args, "captured", headCommit, true, &collected, stderr)
+	// evidence and is queried or fails the run before reaching here, and the
+	// tree is the revision's by construction.
+	cache.storeSnapshot(ctx, args, "captured", headCommit, "", &collected, stderr)
 	return nil
 }
 
@@ -414,8 +424,9 @@ func captureHeadSnapshot(
 	ctx context.Context,
 	runner processRunner,
 	args *cliArgs,
+	cache *snapshotCache,
 	repository, headCommit string,
-	universeIsComplete bool,
+	declineReason string,
 	collected *snapshot,
 	config tdutilConfig,
 	stderr io.Writer,
@@ -424,21 +435,16 @@ func captureHeadSnapshot(
 	decline := func(reason string) {
 		_, _ = fmt.Fprintf(stderr, "tdutil: head snapshot %s not written (%s)\n", path, reason)
 	}
-	if !universeIsComplete {
-		decline("the head graph does not cover every requested universe pattern")
+	if declineReason != "" {
+		decline(declineReason)
 		return
 	}
-	version, err := buckVersionString(ctx, runner, args.buck)
+	identity, err := runIdentity(ctx, runner, args, cache, repository, config)
 	if err != nil {
 		decline(err.Error())
 		return
 	}
-	digest, err := localBuckConfigDigest(repository)
-	if err != nil {
-		decline(err.Error())
-		return
-	}
-	document := buildSnapshotDocument(version, headCommit, args.universe, args.buckArgs, digest, config.digest(), collected)
+	document := buildSnapshotDocumentFor(identity, headCommit, collected)
 	if err := writeSnapshotDocument(path, document); err != nil {
 		decline(err.Error())
 		return
@@ -451,9 +457,39 @@ func writeSnapshotDocument(path string, document *snapshotDocument) error {
 		return encodeSnapshotDocumentTo(output, document)
 	})
 	if err != nil {
-		return fmt.Errorf("writing base snapshot `%s`: %w", path, err)
+		return fmt.Errorf("writing snapshot `%s`: %w", path, err)
 	}
 	return nil
+}
+
+// snapshotDecline is why a collected graph cannot be recorded under its
+// commit, or empty when it can. A graph collected over fewer patterns than
+// were requested would break the promise a reader takes a document's universe
+// for. One read from the working copy under --ignore-working-copy came from a
+// tree nothing has compared with the commit, since that flag is precisely the
+// request not to look; without it, resolving the revisions snapshotted the
+// working copy first, which is what makes an in-place graph the commit's.
+func snapshotDecline(args *cliArgs, which string, universeIsComplete, inPlace bool) string {
+	if !universeIsComplete {
+		return "the " + which + " graph does not cover every requested universe pattern"
+	}
+	if inPlace && args.ignoreWorkingCopy {
+		return "the " + which + " graph was read from the working copy under --ignore-working-copy, so the tree on disk is not known to be that commit's"
+	}
+	return ""
+}
+
+// sweepWorkspaces runs the orphan sweep with the application's pid probe. It
+// precedes every workspace creation, so a run that materializes a revision
+// never adds to a pile of registrations a killed predecessor left behind.
+func sweepWorkspaces(ctx context.Context, app application, jj *jjClient, args *cliArgs, stderr io.Writer) {
+	pidAlive := app.pidAlive
+	if pidAlive == nil {
+		pidAlive = processIsAlive
+	}
+	sweepOrphanedWorkspaces(ctx, jj, pidAlive, func(format string, values ...any) {
+		logProgress(stderr, args, format, values...)
+	})
 }
 
 // headMatchesWorkingCopy reports whether the resolved head revision has the

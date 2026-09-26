@@ -104,7 +104,7 @@ func TestRealBuck2GraphRoundTripsThroughTheCache(t *testing.T) {
 
 	args := cliArgs{buck: buck, universe: universe, cacheWrite: true}
 	var stderr strings.Builder
-	cache.storeSnapshot(ctx, &args, "base", integrationTestCommit, true, &collected, &stderr)
+	cache.storeSnapshot(ctx, &args, "base", integrationTestCommit, "", &collected, &stderr)
 	if stderr.Len() != 0 {
 		t.Fatalf("storing a real graph reported %q", stderr.String())
 	}

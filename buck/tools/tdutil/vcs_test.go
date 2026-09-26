@@ -4,11 +4,45 @@
 package main
 
 import (
+	"context"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
+
+type recordingRunner struct {
+	spec   commandSpec
+	stdout string
+}
+
+func (runner *recordingRunner) run(_ context.Context, spec commandSpec) (processResult, error) {
+	runner.spec = spec
+	return processResult{stdout: []byte(runner.stdout)}, nil
+}
+
+// Discovery runs from the caller's directory and lets jj search upward. -R
+// names a workspace root exactly, so with it discovery failed from every
+// subdirectory of the repository, which is where a caller usually is.
+func TestVCSDiscoveryRunsFromTheStartDirectoryWithoutR(t *testing.T) {
+	root := t.TempDir()
+	runner := &recordingRunner{stdout: root + "\n"}
+	start := root + "/src/pkg"
+	jj, err := discoverJJ(context.Background(), runner, "jj", start)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if jj.repository != root {
+		t.Fatalf("repository = %q, want %q", jj.repository, root)
+	}
+	if runner.spec.dir != start {
+		t.Fatalf("dir = %q, want the start directory %q", runner.spec.dir, start)
+	}
+	if slices.Contains(runner.spec.args, "-R") {
+		t.Fatalf("args = %q, want no -R", runner.spec.args)
+	}
+}
 
 // Port of vcs.rs::parses_one_revision.
 func TestVCSParsesOneRevision(t *testing.T) {

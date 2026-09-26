@@ -21,7 +21,9 @@ import (
 // which is repeated verbatim into a diagnostic rather than decoded.
 //
 // The required bucket policy is correspondingly small: GetObject and PutObject
-// alone. Retention belongs to a lifecycle rule, which is why there is no
+// on the objects, plus ListBucket on the bucket, without which S3 reports a
+// missing key as 403 rather than 404 and a cold miss looks like an outage.
+// Retention belongs to a lifecycle rule, which is why there is no
 // DeleteObject here and no way for a misconfigured run to remove anything.
 //
 // Speaking only S3 also reaches well beyond S3. An endpoint override points
@@ -155,12 +157,17 @@ func (store *s3Store) objectURL(key string) *url.URL {
 	if store.prefix != "" {
 		object = store.prefix + "/" + key
 	}
+	// An endpoint override may itself carry a path, as a gateway serving the
+	// store under a prefix does; the object path extends it rather than
+	// replacing it.
 	address := *store.endpoint
+	base := strings.TrimSuffix(address.Path, "/")
+	address.RawPath = ""
 	if store.pathStyle {
-		address.Path = "/" + store.bucket + "/" + object
+		address.Path = base + "/" + store.bucket + "/" + object
 	} else {
 		address.Host = store.bucket + "." + address.Host
-		address.Path = "/" + object
+		address.Path = base + "/" + object
 	}
 	return &address
 }
@@ -208,6 +215,9 @@ func (store *s3Store) put(ctx context.Context, key string, payload stagedBlob) e
 func (store *s3Store) roundTrip(ctx context.Context, method, key, payloadSHA256 string, payload *stagedBlob) (*http.Response, error) {
 	address := store.objectURL(key)
 	var lastErr error
+	// A status error already names the request; only a transport error
+	// needs that added.
+	lastWasStatus := false
 	for attempt := 0; attempt <= s3TransportRetries; attempt++ {
 		if attempt > 0 {
 			delay := time.Duration(200*(1<<(attempt-1))) * time.Millisecond
@@ -230,14 +240,17 @@ func (store *s3Store) roundTrip(ctx context.Context, method, key, payloadSHA256 
 			_ = body.Close()
 		}
 		if err != nil {
-			lastErr = err
+			lastErr, lastWasStatus = err, false
 			continue
 		}
 		if response.StatusCode >= 500 {
-			lastErr = s3StatusError(method, address, response)
+			lastErr, lastWasStatus = s3StatusError(method, address, response), true
 			continue
 		}
 		return response, nil
+	}
+	if lastWasStatus {
+		return nil, lastErr
 	}
 	return nil, fmt.Errorf("%s %s: %w", method, address.Redacted(), lastErr)
 }

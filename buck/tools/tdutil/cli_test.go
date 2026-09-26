@@ -225,6 +225,25 @@ func TestCLIParsesCacheFlags(t *testing.T) {
 	}
 }
 
+// A switch given an inline value honours it. `--cache-write=false` is how a
+// CI matrix expression spells "not on this run", and reading it as true would
+// write to the cache from exactly the runs which must not.
+func TestCLISwitchesHonourInlineValues(t *testing.T) {
+	args := mustRunArgs(t, "--cache", "/tmp/c", "--cache-write=false")
+	if args.cacheWrite {
+		t.Error("--cache-write=false enabled writing")
+	}
+	args = mustRunArgs(t, "--quick=1", "--verbose=false", "--json=true")
+	if !args.quick || args.verbose || args.format != formatJSON {
+		t.Errorf("quick = %v, verbose = %v, format = %v", args.quick, args.verbose, args.format)
+	}
+	for _, argv := range [][]string{{"--verbose=no"}, {"--quick=maybe"}, {"--json="}, {"--help=1"}, {"--version=true"}} {
+		if _, err := parseCLI(argv); err == nil {
+			t.Errorf("%q was accepted", argv)
+		}
+	}
+}
+
 // cli.go rejects combinations that would do nothing rather than accepting and
 // ignoring them, so a flag that had no effect is never silent.
 func TestCLIRejectsMeaninglessCacheCombinations(t *testing.T) {
@@ -233,6 +252,7 @@ func TestCLIRejectsMeaninglessCacheCombinations(t *testing.T) {
 		"quick reads no base graph":   {"--quick", "--cache", "/tmp/cache"},
 		"capture reads no base graph": {"--snapshot-to", "/tmp/s.json", "--cache", "/tmp/cache"},
 		"bad timeout":                 {"--cache", "/tmp/c", "--cache-timeout", "soon"},
+		"zero timeout fails every op": {"--cache", "/tmp/c", "--cache-timeout", "0"},
 		"bad max age":                 {"--cache", "/tmp/c", "--cache-max-age", "-3d"},
 	} {
 		if _, err := parseCLI(argv); err == nil {
@@ -272,7 +292,10 @@ func TestCLIParsesDaySuffixedDurations(t *testing.T) {
 			t.Errorf("parseDurationFlag(%q) = %s, want %s", raw, got, want)
 		}
 	}
-	for _, raw := range []string{"", "soon", "d", "-1h", "14 d", "14days"} {
+	// Unbounded day counts would reach a float-to-integer conversion whose
+	// out-of-range result Go leaves to the hardware, so they are refused
+	// before it rather than accepted differently per host.
+	for _, raw := range []string{"", "soon", "d", "-1h", "14 d", "14days", "Infd", "NaNd", "1e30d"} {
 		if _, err := parseDurationFlag("--cache-max-age", raw); err == nil {
 			t.Errorf("parseDurationFlag(%q) was accepted", raw)
 		}

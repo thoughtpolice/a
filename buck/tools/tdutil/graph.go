@@ -4,6 +4,8 @@
 package main
 
 import (
+	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -26,7 +28,7 @@ type graph struct {
 	repoFiles       map[string]fileNode
 }
 
-func newGraph(base, head *snapshot, config tdutilConfig) *graph {
+func newGraph(base, head *snapshot, config tdutilConfig) (*graph, error) {
 	result := &graph{
 		targets:        make(map[string]target, len(base.targets)+len(head.targets)),
 		baseTargets:    base.targets,
@@ -64,8 +66,12 @@ func newGraph(base, head *snapshot, config tdutilConfig) *graph {
 		candidates = append(candidates, label)
 	}
 	sort.Strings(candidates)
-	result.headReverseDeps = buildReverseDeps(head.targets, candidates, config)
-	return result
+	reverseDeps, err := buildReverseDeps(head.targets, candidates, config)
+	if err != nil {
+		return nil, err
+	}
+	result.headReverseDeps = reverseDeps
+	return result, nil
 }
 
 func (g *graph) target(label string) (target, bool) {
@@ -125,7 +131,16 @@ func indexImports(input *snapshot, imports, reverseImports map[string]labelSet) 
 	}
 }
 
-func buildReverseDeps(targets map[string]target, ciDepCandidates []string, config tdutilConfig) graphIndex {
+// buildReverseDeps indexes each head target under its dependencies. Plain
+// deps are labels; ci_deps are patterns, resolved against the sorted union of
+// both endpoints' labels so that one naming a removed target still reaches
+// the dependents which declared it.
+//
+// A pattern of a shape that can name nothing is an error rather than a silent
+// no-op. An invalid ci_srcs glob already fails the run, and a ci_deps typo
+// which merely matched nothing would leave its target unselected when the
+// dependency changes, with nothing to say so.
+func buildReverseDeps(targets map[string]target, sortedCandidates []string, config tdutilConfig) (graphIndex, error) {
 	result := make(graphIndex, len(targets))
 	for _, target := range targets {
 		for _, dependency := range target.deps {
@@ -135,7 +150,22 @@ func buildReverseDeps(targets map[string]target, ciDepCandidates []string, confi
 	for _, dependent := range targets {
 		for _, rawPattern := range dependent.ciDeps {
 			pattern := makeAbsolutePattern(rawPattern, dependent.packageName)
-			for _, candidate := range ciDepCandidates {
+			if !strings.Contains(pattern, "//") {
+				return nil, fmt.Errorf(
+					"invalid `%s` pattern `%s` on target `%s`: expected `:name`, `//package:name`, `//package:`, or `//package/...`",
+					config.ciDepsAttribute, rawPattern, dependent.label,
+				)
+			}
+			// Every shape opens with a literal — the whole label, or the
+			// package a package or recursive pattern names — and the labels
+			// carrying it are contiguous in the sorted candidates, so only
+			// those are offered to the predicate.
+			prefix := patternLiteralPrefix(pattern)
+			start, _ := slices.BinarySearch(sortedCandidates, prefix)
+			for _, candidate := range sortedCandidates[start:] {
+				if !strings.HasPrefix(candidate, prefix) {
+					break
+				}
 				if targetPatternMatches(pattern, candidate) {
 					insertIndex(result, candidate, dependent.label)
 				}
@@ -156,7 +186,25 @@ func buildReverseDeps(targets map[string]target, ciDepCandidates []string, confi
 			insertIndex(result, hint.label, destination)
 		}
 	}
-	return result
+	return result, nil
+}
+
+// patternLiteralPrefix is the part of a pattern that every label it can match
+// begins with, mirroring the shapes targetPatternMatches accepts.
+func patternLiteralPrefix(pattern string) string {
+	if _, name, ok := strings.Cut(pattern, ":"); ok && name != "" {
+		return pattern
+	}
+	if strings.HasSuffix(pattern, ":") {
+		return pattern
+	}
+	if prefix, ok := strings.CutSuffix(pattern, "/..."); ok {
+		return prefix
+	}
+	if prefix, ok := strings.CutSuffix(pattern, "..."); ok {
+		return prefix
+	}
+	return pattern
 }
 
 func makeAbsolutePattern(pattern, packageName string) string {

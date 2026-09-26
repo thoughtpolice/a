@@ -153,6 +153,10 @@ skipping base materialization and its cold daemon whenever the cache hits.
 The command snapshots the current JJ working copy by default, so `@` includes
 edits that have not yet been observed by another JJ command. Use
 `--ignore-working-copy` only when stale working-copy state is intentional.
+Under it nothing has compared the tree on disk with the head commit, so a head
+graph read in place is neither recorded by `--snapshot-head-to` nor cached,
+and `--snapshot-to` materializes its revision instead of reading the working
+copy.
 
 ## Snapshot caches
 
@@ -200,14 +204,19 @@ a local directory, so the common local case needs no `file://` ceremony.
 
 `s3://BUCKET/PREFIX` speaks S3 with hand-rolled SigV4, since every Go tool here
 is built from the standard library alone. It uses two verbs — `GET` and `PUT` —
-so the bucket policy it needs is `s3:GetObject` and `s3:PutObject` and nothing
-else. With no `ListBucket` and no `DeleteObject` it is structurally incapable of
-removing anything.
+so the bucket policy it needs is `s3:GetObject` and `s3:PutObject` on the
+objects, plus `s3:ListBucket` on the bucket itself: S3 answers a `GET` for a
+missing key with `404 Not Found` only when the caller may list the bucket, and
+without that every cold miss arrives as `403 AccessDenied` and is reported as
+an unusable cache rather than as the ordinary miss it is. With no
+`DeleteObject` it is structurally incapable of removing anything.
 
 `AWS_ENDPOINT_URL_S3` or `AWS_ENDPOINT_URL` points that same implementation at
 GCS's XML API, R2, MinIO, or any other S3-compatible store. Addressing follows
 the endpoint: virtual-host style for AWS, where path-style is on its way out for
-new buckets, and path-style everywhere else, which is what MinIO requires.
+new buckets, and path-style everywhere else, which is what MinIO requires. A
+path on the endpoint is kept, so a gateway serving the store under a prefix
+works too.
 
 Credentials come from `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and
 `AWS_SESSION_TOKEN`, and from nowhere else. That covers CI, where
@@ -298,7 +307,10 @@ is rejected rather than reused.
 4. Seed impact from added/removed/hash-changed targets, changed inputs, BUILD
    and inherited PACKAGE files, transitive Buck-reported imports, and CI annotations.
 5. Walk head-graph reverse dependencies (including `ci_deps`) and emit only
-   targets which still exist at the head revision.
+   targets which still exist at the head revision. A `ci_deps` entry is
+   `:name`, `//package:name`, `//package:`, or `//package/...`; any other
+   shape is refused, as an invalid `ci_srcs` glob is, rather than matching
+   nothing.
 
 Cell-qualified Buck paths are mapped through `buck2 audit cell` separately in
 each workspace; the tool never assumes that stripping `cell//` yields a JJ
