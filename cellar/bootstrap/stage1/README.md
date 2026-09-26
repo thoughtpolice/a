@@ -3,10 +3,10 @@
 
 # Native bootstrap stages
 
-The packages under `stage1/` take the chain from MesCC to GCC 4.7.4, a static
-x86_64 C and C++ compiler linked against musl 1.2.5. This page describes the
-stages in the order they build and how each one is checked. Each package's
-README has the details.
+The packages under `stage1/` take the chain from MesCC to GCC 4.7.4 and a
+userland of GNU tools, all static x86_64 programs linked against musl 1.2.5.
+This page describes the stages in the order they build and how each one is
+checked. Each package's README has the details.
 
 ## Principles
 
@@ -125,6 +125,20 @@ The rebuilt GCC 4.0.4 builds [GMP](gmp/README.md), [MPFR](mpfr/README.md),
 [MPC](mpc/README.md) and [GNU tar 1.12](tar/README.md), then
 [GCC 4.7.4](gcc47/README.md) with C++ and its
 [C++ library](libstdcxx/README.md) in three stages. Stage 2 and stage 3 match.
+
+### Userland
+
+Stage 3 of GCC 4.7.4 builds the userland against musl 1.2.5:
+[Bash 5.2.15](bash/README.md), [Make 4.2.1](make/README.md),
+[coreutils 6.10](coreutils-final/README.md),
+[findutils 4.2.33](findutils/README.md), [diffutils 2.7](diffutils/README.md),
+[sed](sed-final/README.md), [grep 2.4](grep/README.md),
+[gawk](gawk-final/README.md), [tar](tar-final/README.md),
+[gzip 1.2.4](gzip/README.md), [bzip2 1.0.8](bzip2/README.md),
+[patch 2.5.9](patch/README.md), [m4](m4-final/README.md),
+[Flex](flex-final/README.md) and [Bison](bison-final/README.md). The
+[SHA256 check](sha256/README.md) builds GNU sha256sum with each of the three
+GCC 4.7.4 stages and requires identical objects and programs.
 
 ## Building and testing
 

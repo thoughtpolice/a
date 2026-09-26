@@ -1,0 +1,7 @@
+--- before
++++ after
+@@ -1 +1 @@
+-fail_stack.stack[fail_stack.avail++] = (fail_stack_elt_t) item
+\ No newline at end of file
++fail_stack.stack[fail_stack.avail++] = (fail_stack_elt_t) (uintptr_t) (item)
+\ No newline at end of file
