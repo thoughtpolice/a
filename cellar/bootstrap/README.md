@@ -5,8 +5,8 @@
 
 This project builds a native x86_64 Linux toolchain from source, starting from
 a 229-byte `hex0` seed. The chain ends with GCC 13.5 and binutils 2.41, a
-userland of GNU tools and CPython 3.14.7, all static x86_64 programs linked
-against musl 1.2.5.
+userland of GNU tools, CPython 3.14.7 and an LLVM 23.1 toolchain that built
+itself, all static x86_64 programs linked against musl.
 
 It follows the approach of GNU Guix's [full-source bootstrap][guix] and the
 recipes of [live-bootstrap] at `dd8ac27bf959344b9bcf5e876bdd7716879bbc70`.
@@ -25,15 +25,17 @@ targets as well. From `cellar/`:
 
 ```sh
 ../buck/bin/buck2 build @cellar//bootstrap/platforms/sandbox \
-  cellar//bootstrap/stage1:all --show-output
+  cellar//bootstrap/stage1:all cellar//bootstrap/stage1/llvm:toolchain \
+  --show-output
 ../buck/bin/buck2 test @cellar//bootstrap/platforms/sandbox \
   cellar//bootstrap/...
 ```
 
-`stage1:all` installs GCC 13.5, binutils 2.41, musl 1.2.5 and the userland. A
-cold build of everything takes hours on one machine. The `sandbox` mode runs
-every action under Buck's Landlock sandbox with cellar's path lists. From the
-parent project, `@mode//buildbuddy` builds on BuildBuddy instead. The
+`stage1:all` installs GCC 13.5, binutils 2.41, musl 1.2.5 and the userland;
+`stage1/llvm:toolchain` installs Clang, LLD and their runtimes. A cold build of
+everything takes hours on one machine. The `sandbox` mode runs every action
+under Buck's Landlock sandbox with cellar's path lists. From the parent
+project, `@mode//buildbuddy` builds on BuildBuddy instead. The
 [platform guide](platforms/README.md) describes local, sandboxed and remote
 execution.
 
@@ -63,6 +65,7 @@ Each stage builds the next one from source. The
 | [GCC 13.5](stage1/gcc13/README.md) | [mimalloc](stage1/mimalloc/README.md), GCC 13.5.0 C/C++ | GCC 10.5, binutils 2.41 | stage 2 and 3 objects match |
 | [Installation](stage1/installation/README.md) | relocatable toolchain and userland trees | GCC 13.5 | programs build and run from the installation alone |
 | [CPython](stage1/python/README.md) | [Linux headers](stage1/linux-headers/README.md), [zlib 1.3.2](stage1/zlib/README.md), CPython 3.14.7 | GCC 13.5, musl 1.2.5 | generated sources match the release |
+| [LLVM](stage1/llvm/README.md) | Clang, LLD, llvm-ar 23.1, then musl and runtimes | GCC 13.5, then Clang | stage 2 and 3 match |
 
 ## Trust boundary
 

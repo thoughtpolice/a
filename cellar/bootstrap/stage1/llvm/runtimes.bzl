@@ -1,0 +1,699 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The C library and Clang's runtimes that one compiler stage builds: musl,
+# the compiler-rt builtins and startup files, libunwind, libc++abi, libc++
+# and mimalloc. Each is compiled as its upstream build compiles it for static
+# x86_64 Linux with musl, optimized like the LLVM stages and without warning
+# flags. The literal source lists come from inventory.bzl; the choices among
+# them follow the CMake conditions for this configuration.
+
+load("@cellar//bootstrap:actions.bzl", "generate", "installed_tool")
+load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
+load("@cellar//bootstrap/stage1:defs.bzl", "c_library", "c_object", "compiler", "link_runtime")
+load("@cellar//bootstrap/stage1/mimalloc:defs.bzl", "mimalloc_object")
+load("@cellar//bootstrap/stage1/musl12:defs.bzl", "COMPAT_LIBRARIES", "INCLUDE_DIRECTORIES", "LIBC_SOURCES")
+load("@cellar//bootstrap/stage1/musl12:sources.bzl", "CRT_SOURCES")
+load(":defs.bzl", "LLVM_MAJOR", "PYTHON", "SED", "SOURCE", "sed_replacement")
+load(":inventory.bzl", "RUNTIME_LISTS")
+
+TRIPLE = "x86_64-unknown-linux-musl"
+
+MUSL = "cellar//bootstrap/stage1/musl12"
+
+LINUX = "cellar//bootstrap/stage1/linux-headers"
+
+# --- Sources ---
+
+# The runtimes' part of the tarball, extracted apart from the compiler's.
+# The runtimes also read two directories of the compiler's tree that LLVM
+# itself compiles with: LLVM libc's shared headers, for libc++'s float
+# parsing, and SipHash, for the builtins.
+RUNTIMES_SOURCE = ":runtimes-source"
+
+RUNTIME_PROJECTS = [
+    "compiler-rt",
+    "libcxx",
+    "libcxxabi",
+    "libunwind",
+]
+
+# The runtimes' sources and installed headers, the script that maps libc++'s
+# headers for include-what-you-use, and each project's notice.
+RUNTIME_PATHS = [
+    "compiler-rt/lib/builtins",
+    "libcxx/include",
+    "libcxx/src",
+    "libcxx/utils/generate_iwyu_mapping.py",
+    "libcxx/utils/libcxx/__init__.py",
+    "libcxx/utils/libcxx/header_information.py",
+    "libcxx/vendor",
+    "libcxxabi/include",
+    "libcxxabi/src",
+    "libunwind/include",
+    "libunwind/src",
+] + [project + "/LICENSE.TXT" for project in RUNTIME_PROJECTS]
+
+def _runtimes_path(path):
+    return "$(location {})/{}".format(RUNTIMES_SOURCE, path)
+
+def _compiler_path(path):
+    return "$(location {})/{}".format(SOURCE, path)
+
+def _builtins_sources():
+    lists = RUNTIME_LISTS["compiler-rt/lib/builtins"]
+
+    # Outside Fuchsia, bare metal and GPUs, with unwind.h from Clang's
+    # resource directory; atomic.c is left out by default.
+    generic = lists["GENERIC_SOURCES"] + [
+        "emutls.c",
+        "enable_execute_stack.c",
+        "eprintf.c",
+        "gcc_personality_v0.c",
+        "clear_cache.c",
+    ]
+    sources = generic + lists["GENERIC_TF_SOURCES"] + [
+        "cpu_model/x86.c",
+        "i386/fp_mode.c",
+        "x86_64/floatdidf.c",
+        "x86_64/floatdisf.c",
+        "x86_64/floatundidf.S",
+        "x86_64/floatundisf.S",
+    ] + lists["x86_80_BIT_SOURCES"] + [
+        "x86_64/floatdixf.c",
+        "x86_64/floatundixf.S",
+    ] + lists["BF16_SOURCES"]
+
+    # filter_builtin_sources: a file in an architecture directory replaces
+    # the generic C file of the same name.
+    replaced = {}
+    for path in sources:
+        if "/" in path:
+            name = path.rsplit("/", 1)[1]
+            replaced[name.removesuffix(".S") + ".c" if name.endswith(".S") else name] = True
+    return ["compiler-rt/lib/builtins/" + path for path in sources if path not in replaced]
+
+BUILTINS_SOURCES = _builtins_sources()
+
+CRT_OBJECTS = ["crtbegin", "crtend"]
+
+LIBUNWIND_SOURCES = ["libunwind/src/" + path for path in (
+    RUNTIME_LISTS["libunwind/src"]["LIBUNWIND_CXX_SOURCES"] +
+    RUNTIME_LISTS["libunwind/src"]["LIBUNWIND_C_SOURCES"] +
+    RUNTIME_LISTS["libunwind/src"]["LIBUNWIND_ASM_SOURCES"]
+)]
+
+# With exceptions, threads and the new and delete operators, on Unix.
+LIBCXXABI_SOURCES = ["libcxxabi/src/" + path for path in RUNTIME_LISTS["libcxxabi/src"]["LIBCXXABI_SOURCES"] + [
+    "stdlib_new_delete.cpp",
+    "cxa_exception.cpp",
+    "cxa_personality.cpp",
+    "cxa_thread_atexit.cpp",
+]]
+
+# With threads, the random device, localization and the filesystem library;
+# compiler-rt supplies the 128-bit multiplication filesystem needs.
+LIBCXX_SOURCES = ["libcxx/src/" + path for path in [
+    path
+    for path in RUNTIME_LISTS["libcxx/src"]["LIBCXX_SOURCES"]
+    if path.endswith(".cpp")
+] + [
+    "atomic.cpp",
+    "barrier.cpp",
+    "condition_variable_destructor.cpp",
+    "condition_variable.cpp",
+    "future.cpp",
+    "mutex_destructor.cpp",
+    "mutex.cpp",
+    "shared_mutex.cpp",
+    "thread.cpp",
+    "random.cpp",
+    "fstream.cpp",
+    "ios.cpp",
+    "ios.instantiations.cpp",
+    "iostream.cpp",
+    "locale.cpp",
+    "ostream.cpp",
+    "regex.cpp",
+    "strstream.cpp",
+    "text_encoding.cpp",
+    "filesystem/directory_entry.cpp",
+    "filesystem/directory_iterator.cpp",
+    "filesystem/operations.cpp",
+]]
+
+# With the time zone database, which libc++ enables on Linux.
+LIBCXX_EXPERIMENTAL_SOURCES = ["libcxx/src/" + path for path in RUNTIME_LISTS["libcxx/src"]["LIBCXX_EXPERIMENTAL_SOURCES"] + [
+    "experimental/chrono_exception.cpp",
+    "experimental/time_zone.cpp",
+    "experimental/tzdb.cpp",
+    "experimental/tzdb_list.cpp",
+]]
+
+def runtime_source_files():
+    """Every path the runtimes project out of their tree."""
+    return sorted(BUILTINS_SOURCES + LIBUNWIND_SOURCES + LIBCXXABI_SOURCES + LIBCXX_SOURCES + LIBCXX_EXPERIMENTAL_SOURCES + [
+        "compiler-rt/lib/builtins/{}.c".format(name)
+        for name in CRT_OBJECTS
+    ] + [
+        "libcxx/include/" + path
+        for path in RUNTIME_LISTS["libcxx/include"]["files"]
+    ] + [
+        "libcxxabi/include/" + path
+        for path in RUNTIME_LISTS["libcxxabi/include"]["files"]
+    ] + [
+        "libunwind/include/" + path
+        for path in RUNTIME_LISTS["libunwind/include"]["files"]
+    ] + [
+        "libcxx/include/__config_site.in",
+        "libcxx/include/module.modulemap.in",
+        "libcxx/utils/generate_iwyu_mapping.py",
+        "libcxx/vendor/llvm/default_assertion_handler.in",
+    ] + [project + "/LICENSE.TXT" for project in RUNTIME_PROJECTS])
+
+# --- Compilers ---
+
+REPRODUCIBLE_FLAGS = [
+    "-g0",
+    "-Wno-builtin-macro-redefined",
+    '-D__DATE__="Jan  1 1970"',
+    '-D__TIME__="00:00:00"',
+    '-D__TIMESTAMP__="Thu Jan  1 00:00:00 1970"',
+]
+
+# The C library headers and the kernel's, as a native /usr/include merges
+# them, in place of the host's.
+C_INCLUDES = [
+    "-nostdlibinc",
+    "-isystem",
+    "$(location {}:headers)".format(MUSL),
+    "-isystem",
+    "$(location {}:headers)".format(LINUX),
+]
+
+CXX_INCLUDES = [
+    "-nostdinc++",
+    "-isystem",
+    "$(location :libcxx-headers)/{}/c++/v1".format(TRIPLE),
+    "-isystem",
+    "$(location :libcxx-headers)/c++/v1",
+]
+
+def clang_compilers(stage, tree, archiver):
+    """The compilers that build a stage: the Clang, LLD and resource headers
+    in tree, with archiver as their llvm-ar.
+
+    stage-cc compiles C against musl and the kernel headers, stage-c++ adds
+    libc++, and stage-bare-cc names no headers, for musl itself.
+    """
+    installed_tool(
+        name = stage + "-driver",
+        installation = tree,
+        path = "bin/clang",
+    )
+    installed_tool(
+        name = stage + "-linker",
+        installation = tree,
+        path = "bin/ld.lld",
+    )
+    for name, includes in {
+        "bare-cc": [],
+        "cc": C_INCLUDES,
+        "c++": CXX_INCLUDES + C_INCLUDES,
+    }.items():
+        compiler(
+            name = "{}-{}".format(stage, name),
+            abi = "x86_64-sysv",
+            archive_flags = ["crsD"],
+            archive_format = "ar",
+            archiver = archiver,
+            cflags = REPRODUCIBLE_FLAGS + includes,
+            compiler = ":{}-driver".format(stage),
+            family = "clang",
+            # libunwind finds the unwind tables of a static program through
+            # PT_GNU_EH_FRAME, as Clang's driver always asks LLD to write.
+            ldflags = [
+                "-static",
+                "--eh-frame-hdr",
+            ],
+            linker = ":{}-linker".format(stage),
+            object_format = "elf64-x86-64",
+        )
+
+# --- Headers ---
+
+def _cmake_configure(values):
+    """sed arguments doing what CMake's configure_file does with values.
+
+    A string sets a variable, True sets it to a true value and False leaves
+    it unset. A template line naming a variable not in values survives as a
+    #cmakedefine, which no compiler accepts.
+    """
+    args = []
+    for name, value in values.items():
+        # Names go into the patterns as they are.
+        if not name.replace("_", "").isalnum():
+            fail("not a CMake variable name: " + name)
+        if value == False:
+            expressions = [
+                "s|^#cmakedefine01 {0}$|#define {0} 0|",
+                "s|^#cmakedefine {0}$|/* #undef {0} */|",
+                "s|^#cmakedefine {0} .*$|/* #undef {0} */|",
+            ]
+            text = ""
+        else:
+            expressions = [
+                "s|^#cmakedefine01 {0}$|#define {0} 1|",
+                "s|^#cmakedefine {0}$|#define {0}|",
+                "s|^#cmakedefine {0} |#define {0} |",
+            ]
+            text = "1" if value == True else value
+        for expression in expressions:
+            args += ["-e", expression.format(name)]
+        args += ["-e", "s|@" + name + "@|" + sed_replacement(text) + "|g"]
+    return args
+
+# libc++'s CMake configuration for static x86_64 Linux with musl: the stable
+# ABI, threads through pthreads (which the headers detect themselves), every
+# optional library feature, and no hardening by default.
+LIBCXX_CONFIG_SITE = {
+    "_LIBCPP_ABI_VERSION": "1",
+    "_LIBCPP_ABI_NAMESPACE": "__1",
+    "_LIBCPP_ABI_FORCE_ITANIUM": False,
+    "_LIBCPP_ABI_FORCE_MICROSOFT": False,
+    "_LIBCPP_HAS_THREADS": True,
+    "_LIBCPP_HAS_MONOTONIC_CLOCK": True,
+    "_LIBCPP_HAS_MUSL_LIBC": True,
+    "_LIBCPP_HAS_THREAD_API_PTHREAD": False,
+    "_LIBCPP_HAS_THREAD_API_EXTERNAL": False,
+    "_LIBCPP_HAS_THREAD_API_WIN32": False,
+    "_LIBCPP_HAS_THREAD_API_C11": False,
+    "_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS": False,
+    "_LIBCPP_HAS_VENDOR_AVAILABILITY_ANNOTATIONS": False,
+    "_LIBCPP_NO_VCRUNTIME": False,
+    "_LIBCPP_TYPEINFO_COMPARISON_IMPLEMENTATION": False,
+    "_LIBCPP_HAS_FILESYSTEM": True,
+    "_LIBCPP_HAS_RANDOM_DEVICE": True,
+    "_LIBCPP_HAS_LOCALIZATION": True,
+    "_LIBCPP_HAS_UNICODE": True,
+    "_LIBCPP_HAS_WIDE_CHARACTERS": True,
+    "_LIBCPP_HAS_TIME_ZONE_DATABASE": True,
+    "_LIBCPP_INSTRUMENTED_WITH_ASAN": False,
+    "_LIBCPP_PSTL_BACKEND_SERIAL": False,
+    "_LIBCPP_PSTL_BACKEND_STD_THREAD": True,
+    "_LIBCPP_PSTL_BACKEND_LIBDISPATCH": False,
+    "_LIBCPP_HARDENING_MODE_DEFAULT": "2",
+    "_LIBCPP_ASSERTION_SEMANTIC_DEFAULT": "2",
+    "_LIBCPP_LIBC_PICOLIBC": False,
+    "_LIBCPP_LIBC_NEWLIB": False,
+    "_LIBCPP_LIBC_LLVM_LIBC": False,
+    "_LIBCPP_ABI_DEFINES": False,
+    "_LIBCPP_EXTRA_SITE_DEFINES": False,
+}
+
+# libunwind's own interface. Clang searches a musl sysroot's headers before
+# its resource directory, whose <unwind.h> has the definitions GCC's also
+# has, such as _Unwind_Ptr, so libunwind's Itanium headers stay out.
+LIBUNWIND_INSTALLED_HEADERS = [
+    "__libunwind_config.h",
+    "libunwind.h",
+]
+
+def runtime_headers():
+    """The headers libc++, libc++abi and libunwind install, and the include
+    directory an installation holds."""
+    generate(
+        name = "libcxx-config-site",
+        args = _cmake_configure(LIBCXX_CONFIG_SITE) + ["$(location {}[libcxx/include/__config_site.in])".format(RUNTIMES_SOURCE)],
+        capture = True,
+        output = "__config_site",
+        tool = SED,
+    )
+
+    # With per-target runtime directories, __config_site stays out of the
+    # module map.
+    generate(
+        name = "libcxx-module-map",
+        args = _cmake_configure({"LIBCXX_CONFIG_SITE_MODULE_ENTRY": False}) + ["$(location {}[libcxx/include/module.modulemap.in])".format(RUNTIMES_SOURCE)],
+        capture = True,
+        output = "module.modulemap",
+        tool = SED,
+    )
+
+    # libc++'s build maps its private headers to the public ones that
+    # include-what-you-use should suggest. The script reads the include
+    # directory beside it in the extracted tree.
+    generate(
+        name = "libcxx-iwyu-mapping",
+        args = ["$(location {}[libcxx/utils/generate_iwyu_mapping.py])".format(RUNTIMES_SOURCE)],
+        inputs = [RUNTIMES_SOURCE],
+        output = "libcxx.imp",
+        output_flags = ["-o"],
+        tool = PYTHON,
+    )
+
+    # libc++abi installs its headers beside libc++'s.
+    filegroup(
+        name = "libcxx-headers",
+        srcs = {
+            "c++/v1/" + path: "{}[libcxx/include/{}]".format(RUNTIMES_SOURCE, path)
+            for path in RUNTIME_LISTS["libcxx/include"]["files"]
+        } | {
+            "c++/v1/" + path: "{}[libcxxabi/include/{}]".format(RUNTIMES_SOURCE, path)
+            for path in RUNTIME_LISTS["libcxxabi/include"]["files"]
+        } | {
+            "c++/v1/__assertion_handler": RUNTIMES_SOURCE + "[libcxx/vendor/llvm/default_assertion_handler.in]",
+            "c++/v1/module.modulemap": ":libcxx-module-map",
+            "c++/v1/libcxx.imp": ":libcxx-iwyu-mapping",
+            TRIPLE + "/c++/v1/__config_site": ":libcxx-config-site",
+        },
+    )
+
+    filegroup(
+        name = "libunwind-headers",
+        srcs = {
+            path: "{}[libunwind/include/{}]".format(RUNTIMES_SOURCE, path)
+            for path in RUNTIME_LISTS["libunwind/include"]["files"]
+        },
+    )
+
+    filegroup(
+        name = "libunwind-installed-headers",
+        srcs = {path: ":libunwind-headers[{}]".format(path) for path in LIBUNWIND_INSTALLED_HEADERS},
+    )
+
+    # An installation's include directory. musl and the kernel share
+    # directories such as scsi, the kernel's files are known only once they
+    # are installed, and a filegroup cannot merge trees at one path.
+    export_file(name = "headers.sh")
+
+    generate(
+        name = "installed-headers",
+        args = [
+            "--noprofile",
+            "--norc",
+            "$(location :headers.sh)",
+            "$(exe cellar//bootstrap/stage1/coreutils-final:mkdir)",
+            "$(exe cellar//bootstrap/stage1/coreutils-final:cp)",
+            "$(location {}:headers)".format(MUSL),
+            "$(location {}:headers)".format(LINUX),
+            "$(location :libcxx-headers)",
+            "$(location :libunwind-installed-headers)",
+        ],
+        chdir = True,
+        directory = True,
+        env = {
+            "PATH": "/nonexistent-bootstrap-path",
+            "LC_ALL": "C",
+        },
+        tool = "cellar//bootstrap/stage1/bash:bash",
+    )
+
+# --- musl, built by Clang ---
+
+# musl's configure and Makefile with Clang: its C99 freestanding flags, -O2
+# with -O3 for the string, allocation and internal code, and no unwind
+# tables. Clang takes neither GCC's alignment and loop options nor, without
+# -fstack-protector, needs musl's stack protector exceptions.
+MUSL_FLAGS = [
+    "-std=c99",
+    "-nostdinc",
+    "-ffreestanding",
+    "-fexcess-precision=standard",
+    "-frounding-math",
+    "-fno-strict-aliasing",
+    "-Wa,--noexecstack",
+    "-O2",
+    "-fno-align-functions",
+    "-fomit-frame-pointer",
+    "-fno-unwind-tables",
+    "-fno-asynchronous-unwind-tables",
+    "-ffunction-sections",
+    "-fdata-sections",
+    "-w",
+    "-Qunused-arguments",
+]
+
+MUSL_OPTIMIZED = [
+    "src/internal/",
+    "src/malloc/",
+    "src/string/",
+]
+
+MUSL_INCLUDES = [MUSL + ":source[" + directory + "]" for directory in INCLUDE_DIRECTORIES]
+
+def _musl(stage):
+    objects = []
+    for i, path in enumerate(LIBC_SOURCES):
+        directory = path.rsplit("/", 1)[0] + "/"
+        c_object(
+            name = "{}-musl-{}".format(stage, i),
+            src = "{}:source[{}]".format(MUSL, path),
+            defines = ["_XOPEN_SOURCE=700"],
+            flags = MUSL_FLAGS + (["-O3"] if directory in MUSL_OPTIMIZED else []),
+            headers = [MUSL + ":source"],
+            includes = MUSL_INCLUDES,
+            object_name = "{}.o".format(i),
+            toolchain = ":{}-bare-cc".format(stage),
+        )
+        objects.append(":{}-musl-{}".format(stage, i))
+    c_library(
+        name = stage + "-libc.a",
+        objects = objects,
+        output = "libc.a",
+        toolchain = ":{}-bare-cc".format(stage),
+    )
+    for name in COMPAT_LIBRARIES:
+        c_library(
+            name = "{}-lib{}.a".format(stage, name),
+            objects = [],
+            output = "lib{}.a".format(name),
+            toolchain = ":{}-bare-cc".format(stage),
+        )
+    for path in CRT_SOURCES:
+        name = path.rsplit("/", 1)[1].rsplit(".", 1)[0]
+        c_object(
+            name = "{}-{}.o".format(stage, name),
+            src = "{}:source[{}]".format(MUSL, path),
+            defines = [
+                "CRT",
+                "_XOPEN_SOURCE=700",
+            ],
+            flags = MUSL_FLAGS,
+            headers = [MUSL + ":source"],
+            includes = MUSL_INCLUDES,
+            object_name = name + ".o",
+            toolchain = ":{}-bare-cc".format(stage),
+        )
+
+# --- Runtime libraries ---
+
+# COMPILER_RT_STANDALONE_BUILD: position-independent, hidden and without
+# builtin assumptions, as the runtimes build compiles the builtins.
+BUILTINS_FLAGS = [
+    "-std=c11",
+    "-O2",
+    "-DNDEBUG",
+    "-fPIC",
+    "-fno-builtin",
+    "-fvisibility=hidden",
+    "-fomit-frame-pointer",
+    "-DVISIBILITY_HIDDEN",
+    "-DCOMPILER_RT_HAS_FLOAT16",
+    "-isystem",
+    _compiler_path("third-party/siphash/include"),
+]
+
+CRT_FLAGS = [
+    "-std=c11",
+    "-O2",
+    "-DNDEBUG",
+    "-DCRT_HAS_INITFINI_ARRAY",
+    "-DEH_USE_FRAME_REGISTRY",
+    "-fPIC",
+]
+
+# Upstream keeps libunwind's and libc++abi's assertions in release builds.
+LIBUNWIND_FLAGS = [
+    "-O2",
+    "-nostdinc++",
+    "-funwind-tables",
+    "-D_DEBUG",
+    "-D_LIBUNWIND_IS_NATIVE_ONLY",
+    "-D_LIBUNWIND_HAVE_GETAUXVAL",
+    "-I",
+    _runtimes_path("libunwind/include"),
+]
+
+# Static libc++abi objects hide everything the headers leave unannotated,
+# as upstream builds them everywhere but Windows.
+LIBCXXABI_FLAGS = [
+    "-std=c++23",
+    "-O2",
+    "-fstrict-aliasing",
+    "-fsized-deallocation",
+    "-fvisibility=hidden",
+    "-D_DEBUG",
+    "-D_LIBCXXABI_BUILDING_LIBRARY",
+    "-D_LIBCPP_BUILDING_LIBRARY",
+    "-D_LIBCPP_AVAILABILITY_MINIMUM_HEADER_VERSION=2",
+    "-I",
+    _runtimes_path("libcxxabi/include"),
+    "-I",
+    _runtimes_path("libcxx/src"),
+    "-I",
+    _runtimes_path("libunwind/include"),
+]
+
+# cxx_add_common_build_flags, with libc++abi as the ABI library.
+LIBCXX_FLAGS = [
+    "-std=c++26",
+    "-O2",
+    "-DNDEBUG",
+    "-faligned-allocation",
+    "-fvisibility-inlines-hidden",
+    "-fvisibility=hidden",
+    "-fsized-deallocation",
+    "-D_LIBCPP_BUILDING_LIBRARY",
+    "-D_LIBCPP_AVAILABILITY_MINIMUM_HEADER_VERSION=2",
+    "-D_LIBCPP_REMOVE_TRANSITIVE_INCLUDES",
+]
+
+def _library(stage, name, output, sources, toolchain, flags, trees = [RUNTIMES_SOURCE]):
+    """An archive of one object per source, named after it; flags maps an
+    extension to the flags of its sources, and trees are the source trees
+    they read."""
+    objects = []
+    for i, path in enumerate(sources):
+        target = "{}-{}-{}".format(stage, name, i)
+        c_object(
+            name = target,
+            src = "{}[{}]".format(RUNTIMES_SOURCE, path),
+            flags = flags[path.rsplit(".", 1)[1]],
+            headers = trees,
+            object_name = path.rsplit("/", 1)[1].rsplit(".", 1)[0] + ".o",
+            toolchain = toolchain,
+        )
+        objects.append(":" + target)
+    if output:
+        c_library(
+            name = "{}-{}".format(stage, output),
+            objects = objects,
+            output = output,
+            toolchain = toolchain,
+        )
+    return objects
+
+def llvm_runtimes(stage):
+    """The C library and runtimes the stage's compilers build.
+
+    stage-libc.a and musl's startup files, stage-libclang_rt.builtins.a,
+    stage-clang_rt.crtbegin.o and crtend.o, stage-libunwind.a,
+    stage-libc++abi.a, stage-libc++.a, which also holds libc++abi as
+    LIBCXX_ENABLE_STATIC_ABI_LIBRARY arranges, stage-libc++experimental.a
+    and stage-mimalloc.o. stage-link-runtime links a static program against
+    them.
+    """
+    cc = ":{}-cc".format(stage)
+    cxx = ":{}-c++".format(stage)
+    _musl(stage)
+    _library(stage, "builtins", "libclang_rt.builtins.a", BUILTINS_SOURCES, cc, {
+        "c": BUILTINS_FLAGS,
+        "S": BUILTINS_FLAGS,
+    }, trees = [RUNTIMES_SOURCE, SOURCE])
+    for name in CRT_OBJECTS:
+        c_object(
+            name = "{}-clang_rt.{}.o".format(stage, name),
+            src = "{}[compiler-rt/lib/builtins/{}.c]".format(RUNTIMES_SOURCE, name),
+            flags = CRT_FLAGS,
+            object_name = "clang_rt.{}.o".format(name),
+            toolchain = cc,
+        )
+    _library(stage, "libunwind", "libunwind.a", LIBUNWIND_SOURCES, cc, {
+        "c": LIBUNWIND_FLAGS + [
+            "-std=c99",
+            "-fexceptions",
+        ],
+        "cpp": LIBUNWIND_FLAGS + [
+            "-std=c++17",
+            "-fstrict-aliasing",
+            "-fno-exceptions",
+            "-fno-rtti",
+        ],
+        "S": LIBUNWIND_FLAGS,
+    })
+    abi = _library(stage, "libcxxabi", "libc++abi.a", LIBCXXABI_SOURCES, cxx, {"cpp": LIBCXXABI_FLAGS})
+    cxx_objects = _library(stage, "libcxx", None, LIBCXX_SOURCES, cxx, {"cpp": LIBCXX_FLAGS + [
+        "-DLIBCXX_BUILDING_LIBCXXABI",
+        "-DLIBC_NAMESPACE=__llvm_libc_common_utils",
+        "-I",
+        _runtimes_path("libcxx/src"),
+        "-I",
+        _runtimes_path("libcxxabi/include"),
+        "-isystem",
+        _compiler_path("libc"),
+    ]}, trees = [RUNTIMES_SOURCE, SOURCE])
+    c_library(
+        name = stage + "-libc++.a",
+        objects = cxx_objects + abi,
+        output = "libc++.a",
+        toolchain = cxx,
+    )
+    _library(stage, "libcxx-experimental", "libc++experimental.a", LIBCXX_EXPERIMENTAL_SOURCES, cxx, {"cpp": LIBCXX_FLAGS + [
+        "-D_LIBCPP_ENABLE_EXPERIMENTAL",
+    ]})
+
+    mimalloc_object(
+        name = stage + "-mimalloc.o",
+        toolchain = cc,
+    )
+
+    link_runtime(
+        name = stage + "-link-runtime",
+        end_objects = [
+            ":{}-clang_rt.crtend.o".format(stage),
+            ":{}-crtn.o".format(stage),
+        ],
+        libraries = [
+            ":{}-libc++.a".format(stage),
+            ":{}-libunwind.a".format(stage),
+            ":{}-libc.a".format(stage),
+            ":{}-libclang_rt.builtins.a".format(stage),
+            ":{}-libc.a".format(stage),
+        ],
+        start_objects = [
+            ":{}-crt1.o".format(stage),
+            ":{}-crti.o".format(stage),
+            ":{}-clang_rt.crtbegin.o".format(stage),
+        ],
+    )
+
+# --- Installation ---
+
+def runtime_installation(stage):
+    """Where a stage's C library, headers and runtimes lie in an installation
+    that is its own sysroot, as Clang's driver looks for them."""
+    resource = "lib/clang/{}/lib/{}/".format(LLVM_MAJOR, TRIPLE)
+    files = {
+        resource + "libclang_rt.builtins.a": ":{}-libclang_rt.builtins.a".format(stage),
+        resource + "clang_rt.crtbegin.o": ":{}-clang_rt.crtbegin.o".format(stage),
+        resource + "clang_rt.crtend.o": ":{}-clang_rt.crtend.o".format(stage),
+        "include": ":installed-headers",
+        "lib/libc.a": ":{}-libc.a".format(stage),
+    }
+    for library in [
+        "libc++.a",
+        "libc++abi.a",
+        "libc++experimental.a",
+        "libunwind.a",
+    ]:
+        files["lib/{}/{}".format(TRIPLE, library)] = ":{}-{}".format(stage, library)
+    for name in COMPAT_LIBRARIES:
+        files["lib/lib{}.a".format(name)] = ":{}-lib{}.a".format(stage, name)
+    for name in [
+        "crt1",
+        "crti",
+        "crtn",
+    ]:
+        files["lib/{}.o".format(name)] = ":{}-{}.o".format(stage, name)
+    return files
