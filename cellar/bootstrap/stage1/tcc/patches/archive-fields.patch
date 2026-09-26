@@ -1,0 +1,14 @@
+--- before
++++ after
+@@ -1 +1,10 @@
++    /* MesCC does not initialize string arrays within an aggregate. */
++    memset(&arhdr, ' ', sizeof(arhdr));
++    arhdr.ar_name[0] = '/';
++    arhdr.ar_uid[0] = '0';
++    arhdr.ar_gid[0] = '0';
++    arhdr.ar_mode[0] = '0';
++    memcpy(arhdr.ar_fmag, ARFMAG, 2);
++    arhdro = arhdr;
++    memset(arhdro.ar_name, ' ', sizeof(arhdro.ar_name));
+     i_lib = 0; i_obj = 0;
+\ No newline at end of file
