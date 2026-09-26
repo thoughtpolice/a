@@ -3,8 +3,8 @@
 
 # Native bootstrap stages
 
-The packages under `stage1/` take the chain from MesCC to musl 1.2.5 and a
-static x86_64 GCC 4.0.4 that runs on it and targets it. This page describes the
+The packages under `stage1/` take the chain from MesCC to GCC 4.7.4, a static
+x86_64 C and C++ compiler linked against musl 1.2.5. This page describes the
 stages in the order they build and how each one is checked. Each package's
 README has the details.
 
@@ -26,7 +26,9 @@ README has the details.
   them with bootstrapped tools. Where the generator and its input are the ones
   upstream used, a test compares the result with the shipped file.
 - **Fixed points.** Mes and TCC 0.9.26 each rebuild themselves until the last
-  two generations match.
+  two generations match. GCC 4.7.4 builds three stages and compares every
+  object and archive of stage 2 and stage 3, except the two compiler checksum
+  objects.
 - **Static programs.** Every program links statically. `c_binary` takes its
   startup objects, C library and compiler runtime from a `link_runtime`, so
   each link names every input. Compilers get explicit tool, header and library
@@ -116,6 +118,13 @@ copy.
 GCC 4.0.4 builds [musl 1.2.5](musl12/README.md) with regenerated character,
 case-mapping and iconv tables, which match the release, and then builds
 [GCC 4.0.4 again](gcc40-rebuilt/README.md) against it.
+
+### GCC 4.7.4
+
+The rebuilt GCC 4.0.4 builds [GMP](gmp/README.md), [MPFR](mpfr/README.md),
+[MPC](mpc/README.md) and [GNU tar 1.12](tar/README.md), then
+[GCC 4.7.4](gcc47/README.md) with C++ and its
+[C++ library](libstdcxx/README.md) in three stages. Stage 2 and stage 3 match.
 
 ## Building and testing
 
