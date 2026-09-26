@@ -1,0 +1,14 @@
+--- before
++++ after
+@@ -1 +1,10 @@
+-  yyin = fopen (fname, "r");
++  const char *root = getenv ("BOOTSTRAP_GCC_SOURCE");
++  char *path;
++  if (!root || !*root)
++    {
++      fputs ("BOOTSTRAP_GCC_SOURCE is required\n", stderr);
++      exit (1);
++    }
++  path = concat (root, "/", fname, NULL);
++  yyin = fopen (path, "r");
++  free (path);

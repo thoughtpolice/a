@@ -37,9 +37,13 @@ tests read only their declared inputs and `/proc/self`, never the host's
 `/dev/ptmx` and `/dev/pts`, so a test can open a pseudo-terminal.
 
 `:configuration-test` runs the host's `python3` and `buck2`, so it takes the
-executor of `:host-tests`, which keeps Buck's default read paths. `:host-tests`
-is never registered, so it only changes how that test runs, not how anything is
-configured.
+executor of `:host-tests`, which keeps Buck's default read paths.
+`command_test(host_paths = True)` gives the same executor to the GCC tests that
+put the host's `/usr/bin` on `PATH` to check that the compiler ignores it.
+`:host-tests` is never registered, so it only changes how those tests run, not
+how anything is configured. Under a remote mode it is remote too. On the
+distroless image of `@mode//remote`, which has no programs in `/usr/bin`, the
+GCC tests pass without testing anything.
 
 The standalone project uses Buck's built-in `fs_hash_crawler` watcher. It
 detects source changes by scanning and hashing the source tree, skipping

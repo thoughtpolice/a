@@ -1,0 +1,25 @@
+--- before
++++ after
+@@ -1,17 +1,7 @@
+   base = try (getenv ("TMPDIR"), base);
+-  base = try (getenv ("TMP"), base);
+-  base = try (getenv ("TEMP"), base);
++  if (!base)
++    {
++      fputs ("GCC requires a writable TMPDIR\n", stderr);
++      exit (1);
++    }
+ 
+-#ifdef P_tmpdir
+-  base = try (P_tmpdir, base);
+-#endif
+-
+-  /* Try /var/tmp, /usr/tmp, then /tmp.  */
+-  base = try (vartmp, base);
+-  base = try (usrtmp, base);
+-  base = try (tmp, base);
+- 
+-  /* If all else fails, use the current directory!  */
+-  if (base == 0)
+-    base = ".";
+-
