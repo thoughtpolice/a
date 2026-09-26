@@ -1,0 +1,21 @@
+--- before
++++ after
+@@ -1,2 +1,17 @@
++/* TCC uses the SysV register-save-area layout and libtcc1 helpers. */
++#if defined(__TINYC__) && !defined(__DEFINED___builtin_va_list)
++#define __DEFINED___builtin_va_list
++struct __va_list_struct {
++    unsigned int gp_offset;
++    unsigned int fp_offset;
++    union {
++        unsigned int overflow_offset;
++        char *overflow_arg_area;
++    };
++    char *reg_save_area;
++};
++typedef struct __va_list_struct __builtin_va_list[1];
++#endif
++
+ TYPEDEF __builtin_va_list va_list;
+ TYPEDEF __builtin_va_list __isoc_va_list;
+\ No newline at end of file
