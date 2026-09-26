@@ -53,8 +53,10 @@ asks for 1 MiB.
 `lib/python3.14`, without the test suite, the Tk GUI modules and ensurepip.
 The interpreter finds its prefix from the library's `os.py` and its exec
 prefix from `lib-dynload`, which holds only a note, so it runs from any
-directory with no environment. `:python3` runs it from its installation, and
-the cellar's Python tests run it with `command_test`.
+directory with no environment. `:python3` runs it from its installation,
+with `PYTHONDONTWRITEBYTECODE` set, so imports write no bytecode into an
+installation that is an action's input, and the cellar's Python tests run
+it with `command_test`.
 [generators/sysconfigdata.py](generators/sysconfigdata.py) writes the
 `_sysconfigdata` module `sysconfig` and `zoneinfo` read, as `python -m
 sysconfig --generate-posix-vars` does, from `pyconfig.h` and the Makefile
@@ -66,10 +68,13 @@ variables this build sets.
 use. `regeneration-test` checks the generated sources, as above.
 `regrtest-test` runs CPython's own tests of what `pyconfig.h` decides, 43
 files and nearly 8,000 cases, from an installation with the test suite in its
-library. BUILD names the cases it leaves out and why: some CPython skips on
-musl, but it cannot recognize musl in a static executable; some need the
-test modules; one runs a shell. `test_subprocess` is left out whole, since it
-needs `/bin/sh`, `cat` and `sleep`, which a remote executor's image lacks.
+library. It runs from a copy of the installation in its output directory,
+since the isolated interpreters tests start ignore `PYTHONDONTWRITEBYTECODE`
+and would write bytecode beside the library. BUILD names the cases it leaves
+out and why: some CPython skips on musl, but it cannot recognize musl in a
+static executable; some need the test modules; one runs a shell.
+`test_subprocess` is left out whole, since it needs `/bin/sh`, `cat` and
+`sleep`, which a remote executor's image lacks.
 
 ```
 buck2 test cellar//bootstrap/stage1/python:

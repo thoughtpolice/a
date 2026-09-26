@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@cellar//bootstrap:actions.bzl", "command_test", "generate", "installed_tool")
+load("@cellar//bootstrap:actions.bzl", "command_test", "configured_tool", "generate", "installed_tool")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
 load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary")
@@ -445,6 +445,7 @@ generate(
         "$(location :generators/sysconfigdata.py)",
         "$(location :pyconfig.h)",
     ] + ["{}={}".format(name, value) for name, value in SYSCONFIG_VARIABLES.items()],
+    env = {"PYTHONDONTWRITEBYTECODE": "1"},
     output = SYSCONFIGDATA,
     tool = ":base-python3",
 )
@@ -456,9 +457,18 @@ filegroup(
 
 # The interpreter as run from its installation, where it finds its library.
 installed_tool(
-    name = "python3",
+    name = "python3-bin",
     installation = ":installation",
     path = "bin/python3",
+)
+
+# Imports write no bytecode beside the library's modules, since the
+# installation is an input of whatever runs it.
+configured_tool(
+    name = "python3",
+    env = {"PYTHONDONTWRITEBYTECODE": "1"},
+    env_tool = "cellar//bootstrap/stage1/tools:withenv",
+    tool = ":python3-bin",
 )
 
 export_file(name = "tests/smoke.py")
@@ -501,7 +511,7 @@ generate(
         "--noprofile",
         "--norc",
         "$(location :tests/regen.sh)",
-        "$(exe :python3)",
+        "$(exe :python3-bin)",
         "$(exe cellar//bootstrap/stage1/coreutils-final:cp)",
         "$(exe cellar//bootstrap/stage1/coreutils-final:chmod)",
         "$(exe cellar//bootstrap/stage1/coreutils-final:rm)",
@@ -593,12 +603,6 @@ filegroup(
     },
 )
 
-installed_tool(
-    name = "test-python3",
-    installation = ":test-installation",
-    path = "bin/python3",
-)
-
 # The cases the run leaves out. CPython skips the first group on musl, but
 # platform.libc_ver() finds musl only by its dynamic loader's name, which a
 # static executable lacks.
@@ -620,25 +624,33 @@ REGRTEST_IGNORED = [
     "test.test_posix.PosixTester.test_getgroups",
 ]
 
-# The interpreter runs from a normalized absolute path, as it would when
-# installed, in its output directory.
+# The tests run in the output directory, from a writable copy of the
+# installation at a normalized absolute path, as if installed there. The
+# isolated interpreters tests start ignore PYTHONDONTWRITEBYTECODE, so
+# bytecode lands in the copy rather than in the installation's artifact.
 generate(
     name = "regrtest",
     args = [
         "--noprofile",
         "--norc",
         "-ec",
-        "export HOME=\"$PWD\" TMPDIR=\"$PWD\"; python=`cd \"${1%/*}\" && pwd`/${1##*/}; \"$python\" -m test --quiet --fail-env-changed \"${@:3}\"; printf 'passed\\n' > \"$2\"",
+        "export HOME=\"$PWD\" TMPDIR=\"$PWD\"; \"$3\" -R \"$1\" installation; \"$4\" -R u+w installation; \"$PWD/installation/bin/python3\" -m test --quiet --fail-env-changed \"${@:6}\"; \"$5\" -rf installation; printf 'passed\\n' > \"$2\"",
         "regrtest",
-        "$(exe :test-python3)",
+        "$(location :test-installation)",
         "result",
+        "$(exe cellar//bootstrap/stage1/coreutils-final:cp)",
+        "$(exe cellar//bootstrap/stage1/coreutils-final:chmod)",
+        "$(exe cellar//bootstrap/stage1/coreutils-final:rm)",
     ] + REGRTESTS + [
         "--ignore=" + case
         for case in REGRTEST_IGNORED
     ],
     chdir = CHDIRENV,
     directory = True,
-    env = {"PATH": "/nonexistent-bootstrap-path"},
+    env = {
+        "PATH": "/nonexistent-bootstrap-path",
+        "PYTHONDONTWRITEBYTECODE": "1",
+    },
     files = ["result"],
     tool = "cellar//bootstrap/stage1/bash:bash",
 )
