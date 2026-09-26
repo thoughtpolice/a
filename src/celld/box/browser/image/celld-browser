@@ -1,0 +1,46 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Invoked only after BrowserSandbox has attested gVisor. No caller-supplied
+# flags, environment-based Chromium wrapper, privilege escalation or sandbox
+# disabling switches belong in this trusted launcher.
+set -eu
+[ "$#" -eq 0 ] || exit 64
+[ "$(/usr/bin/id -u)" -eq 1000 ] || exit 77
+[ -d /workspace/site ] || exit 66
+umask 077
+
+browser_pid=
+relay_pid=
+site_pid=
+cleanup() {
+  trap - EXIT INT TERM
+  for child in "$browser_pid" "$relay_pid" "$site_pid"; do
+    [ -z "$child" ] || kill "$child" 2>/dev/null || :
+  done
+  wait 2>/dev/null || :
+}
+trap cleanup EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
+
+# CDP is an unrestricted browser-control capability, not an application API.
+# Its relay is for the owning Worker only; never expose either port publicly.
+/bin/busybox httpd -f -p 127.0.0.1:8080 -h /workspace/site &
+site_pid=$!
+/usr/bin/socat TCP4-LISTEN:9222,bind=0.0.0.0,reuseaddr,fork,max-children=16 TCP4:127.0.0.1:9223 &
+relay_pid=$!
+/usr/lib/chromium/chromium-headless-shell \
+  --headless \
+  --ozone-platform=headless \
+  --disable-gpu \
+  --disable-software-rasterizer \
+  --disable-dev-shm-usage \
+  --no-first-run \
+  --no-default-browser-check \
+  --remote-debugging-port=9223 \
+  --user-data-dir=/workspace/browser-profile \
+  about:blank &
+browser_pid=$!
+wait "$browser_pid"
