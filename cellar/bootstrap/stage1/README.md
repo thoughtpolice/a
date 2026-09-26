@@ -3,10 +3,10 @@
 
 # Native bootstrap stages
 
-The packages under `stage1/` take the chain from MesCC to musl 1.1.24, with TCC
-0.9.27 and a set of parser, scanner and macro tools linked against it, all
-static x86_64 programs. This page describes the stages in the order they build
-and how each one is checked. Each package's README has the details.
+The packages under `stage1/` take the chain from MesCC to binutils 2.30, static
+x86_64 programs that TCC builds against musl 1.1.24. This page describes the
+stages in the order they build and how each one is checked. Each package's
+README has the details.
 
 ## Principles
 
@@ -87,6 +87,14 @@ generator scripts, [Heirloom lex](heirloom-lex/README.md),
 [gawk 3.0.4](gawk/README.md). Flex and Bison regenerate their own scanner and
 parser, and the result matches a further regeneration. `tools:libshell.a` gives
 m4 and gawk a `system` and `popen` that run a declared shell.
+
+### binutils 2.30
+
+TCC and musl 1.1.24 build [binutils 2.30](binutils/README.md): as, ld, ar and
+the other programs, with BFD headers, opcode tables, parsers and linker scripts
+regenerated. [GNU cat and rm](coreutils/README.md), built the same way, run its
+generators. The regenerated BFD headers and x86 tables match the release's
+copies.
 
 ## Building and testing
 

@@ -4,9 +4,8 @@
 # Full-source bootstrap
 
 This project builds a native x86_64 Linux toolchain from source, starting from
-a 229-byte `hex0` seed. The chain ends with musl 1.1.24, with TCC 0.9.27 and a
-set of parser, scanner and macro tools linked against it, all static x86_64
-programs.
+a 229-byte `hex0` seed. The chain ends with binutils 2.30, static x86_64
+programs that TCC builds against musl 1.1.24.
 
 It follows the approach of GNU Guix's [full-source bootstrap][guix] and the
 recipes of [live-bootstrap] at `dd8ac27bf959344b9bcf5e876bdd7716879bbc70`.
@@ -50,6 +49,7 @@ Each stage builds the next one from source. The
 | [TCC](stage1/tcc/README.md) | TCC 0.9.26, then [TCC 0.9.27](stage1/tcc-release/README.md) | MesCC, Mes libc | two TCC 0.9.26 generations match |
 | [musl 1.1.24](stage1/musl/README.md) | [sed](stage1/sed/README.md), musl with [regenerated tables](stage1/musl-tables/README.md), [TCC against musl](stage1/tcc-musl/README.md) | TCC | tables match the release |
 | Parser tools | [oyacc](stage1/oyacc/README.md), [Bash 2.05b](stage1/bash-bootstrap/README.md), [lex](stage1/heirloom-lex/README.md), [Flex](stage1/flex/README.md), [Bison](stage1/bison/README.md), [m4](stage1/m4/README.md), [gawk](stage1/gawk/README.md) | TCC, musl 1.1.24 | Flex and Bison regenerate themselves |
+| [binutils 2.30](stage1/binutils/README.md) | as, ld, ar and the rest, [GNU cat and rm](stage1/coreutils/README.md) | TCC, musl 1.1.24 | BFD headers and x86 tables match the release |
 
 ## Trust boundary
 
