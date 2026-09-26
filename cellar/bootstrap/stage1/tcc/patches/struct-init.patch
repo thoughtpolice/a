@@ -1,0 +1,9 @@
+--- before
++++ after
+@@ -1 +1,3 @@
+-            SValue tmp = vtop[0];
+\ No newline at end of file
++            SValue tmp;
++            /* MesCC needs aggregate assignment as a separate statement. */
++            tmp = vtop[0];
+\ No newline at end of file
