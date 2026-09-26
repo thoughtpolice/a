@@ -4,14 +4,17 @@
 # Full-source bootstrap
 
 This project builds a native x86_64 Linux toolchain from source, starting from
-a 229-byte `hex0` seed. The chain ends with M2-Planet, M2-Mesoplanet, the
-mescc-tools and mescc-tools-extra, all static x86_64 programs.
+a 229-byte `hex0` seed. The chain ends with Mes 0.27, a static x86_64 program
+linked against its own C library, and Mes's C compiler, MesCC.
 
-It follows the approach of GNU Guix's [full-source bootstrap][guix]. BUILD
-files declare every action: each assembly, compilation and link. No kaem script
-drives the build.
+It follows the approach of GNU Guix's [full-source bootstrap][guix] and the
+recipes of [live-bootstrap] at `dd8ac27bf959344b9bcf5e876bdd7716879bbc70`.
+BUILD files declare every action: each source, generator, compiler invocation,
+archive and link. No configure script, Makefile or kaem script drives the
+build.
 
 [guix]: https://guix.gnu.org/blog/2023/the-full-source-bootstrap-building-from-source-all-the-way-down/
+[live-bootstrap]: https://github.com/fosslinux/live-bootstrap
 
 ## Building and testing
 
@@ -42,16 +45,19 @@ Each stage builds the next one from source. The
 | Stage | Builds | With | Checks |
 |---|---|---|---|
 | [stage0](stage0-posix/) | hex0 to M2-Planet, M2-Mesoplanet, the mescc-tools and mescc-tools-extra | the hex0 seed | upstream's SHA256 answers |
+| [Mes](mes/) | Mes 0.27 and MesCC, [NYACC](nyacc/) tables | M2-Planet | two Mes generations match |
 
 ## Trust boundary
 
 The bootstrap trusts Buck2, the running kernel and the hex0 seed. An earlier
-step built every other program that a build action runs, from sources in this
-tree. Actions run with an empty environment, and in the `sandbox` mode they
-read only their declared inputs and `/proc/self`. Only the platform
-configuration test runs host programs, the client's `python3` and `buck2`.
+stage built every other program that a build action runs, from source, and a
+SHA256 hash pins every source archive. Actions run with an empty environment,
+and in the `sandbox` mode they read only their declared inputs and
+`/proc/self`. Only the platform configuration test runs host programs, the
+client's `python3` and `buck2`.
 
-These scripts check the build from outside:
+Source regeneration and the fixed-point comparisons check the chain from inside
+the build. These scripts check it from outside:
 
 - `audit.bxl` walks a target's configured closure and fails if any rule,
   dependency, load or action owner lies outside cellar, or if any target is not
@@ -60,7 +66,7 @@ These scripts check the build from outside:
 
   ```sh
   ../buck/bin/buck2 bxl cellar//bootstrap/audit.bxl:closure -- \
-    --target cellar//bootstrap/stage1/simple-patch:simple-patch
+    --target cellar//bootstrap/mes:mescc
   ```
 
 - `audit-loads.py` checks that every explicit load in cellar names a cellar

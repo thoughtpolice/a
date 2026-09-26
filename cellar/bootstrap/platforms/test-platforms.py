@@ -129,6 +129,8 @@ def audit(buck, isolation_dir, project, parent, results):
     # cannot execute their Linux ELF commands. No remote action is run here.
     for target, provider_name in [
         ("cellar//bootstrap/stage0-posix/seeds/linux-amd64:check", "InternalRunnerTestInfo"),
+        ("cellar//bootstrap/mes:hello-test", "ExternalRunnerTestInfo"),
+        ("cellar//bootstrap/mes:mes-fixed-point", "ExternalRunnerTestInfo"),
     ]:
         test_provider = run([
             "audit", "providers", "@cellar//bootstrap/platforms/remote",
