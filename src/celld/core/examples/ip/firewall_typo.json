@@ -1,0 +1,22 @@
+{
+  "vars": {
+    "DENY": "203.0.113.0/24, 2001:db8:bad::/480"
+  },
+  "steps": [
+    {
+      "name": "a typo in a list fails every request loudly instead of matching nothing",
+      "request": {
+        "path": "/",
+        "headers": {
+          "cf-connecting-ip": "198.51.100.7"
+        }
+      },
+      "expect": {
+        "status": 500,
+        "json": {
+          "error": "firewall misconfigured: not a CIDR block: \"2001:db8:bad::/480\""
+        }
+      }
+    }
+  ]
+}

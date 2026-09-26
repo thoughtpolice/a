@@ -1,0 +1,37 @@
+{
+  "vars": {
+    "DEFAULT_TTL": "1 day"
+  },
+  "steps": [
+    {
+      "name": "a DEFAULT_TTL that is not a duration fails every write loudly, not as the caller's fault",
+      "request": {
+        "method": "PUT",
+        "path": "/entries/x",
+        "body": "v"
+      },
+      "expect": {
+        "status": 500,
+        "json": {
+          "error": "ttl misconfigured: DEFAULT_TTL: not an ISO 8601 duration: 1 day"
+        }
+      }
+    },
+    {
+      "name": "even one with its own ttl",
+      "request": {
+        "method": "PUT",
+        "path": "/entries/x?ttl=PT1M",
+        "body": "v"
+      },
+      "expect": {
+        "status": 500,
+        "json": {
+          "error": {
+            "$regex": "^ttl misconfigured"
+          }
+        }
+      }
+    }
+  ]
+}
