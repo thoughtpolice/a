@@ -274,11 +274,12 @@ minimos.overlay(
         # minimos has no fstab, so the vendor unit is linked in directly.
         "etc/systemd/system/local-fs.target.wants/systemd-growfs-root.service": "/usr/lib/systemd/system/systemd-growfs-root.service",
     },
-    # Each unit is enabled per its own [Install] section, minimos-harden
-    # into sysinit.target and the other two into multi-user.target.
+    # Each unit is enabled per its own [Install] section, the two minimos
+    # units into sysinit.target and the other two into multi-user.target.
     units = [
         "base/units/chronyd.service",
         "base/units/exe-setup.service",
+        "base/units/minimos-clocksource.service",
         "base/units/minimos-harden.service",
     ],
     visibility = ["PUBLIC"],

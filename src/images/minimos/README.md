@@ -314,6 +314,15 @@ What the base enforces:
   chronyd starts as root only because it checks for uid 0, drops to the
   `chrony` account itself, and keeps only `CAP_SYS_TIME`. Under docker
   the unit is skipped, since a container shares the host's clock.
+- **The kernel keeps time with kvm-clock, not the TSC.** Cloud
+  Hypervisor reports an invariant TSC without keeping the vCPUs' TSCs
+  in step. After months of uptime `CLOCK_MONOTONIC` can jump back by up
+  to a millisecond when a process changes vCPU, as
+  [exe.dev#222](https://github.com/boldsoftware/exe.dev/issues/222)
+  reports. `minimos-clocksource.service` switches to kvm-clock early in
+  boot and
+  fails if the kernel doesn't take it. It's VM-only, like
+  `minimos-harden.service`, since the clocksource is host-global.
 - **No core dumps.** `systemd-coredump` is culled, its `core_pattern` is
   denied, and `DumpCore=no` and `DefaultLimitCORE=0` are set globally.
 - **No watchdog.** exe.dev VMs have no `/dev/watchdog`, and neither
