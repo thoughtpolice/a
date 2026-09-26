@@ -36,7 +36,8 @@ program on the client, so it needs an x86_64 Linux client.
 
 ## The chain
 
-Each stage builds the next one from source.
+Each stage builds the next one from source. The
+[stage1 overview](stage1/README.md) describes each stage and its checks.
 
 | Stage | Builds | With | Checks |
 |---|---|---|---|
@@ -49,6 +50,23 @@ step built every other program that a build action runs, from sources in this
 tree. Actions run with an empty environment, and in the `sandbox` mode they
 read only their declared inputs and `/proc/self`. Only the platform
 configuration test runs host programs, the client's `python3` and `buck2`.
+
+These scripts check the build from outside:
+
+- `audit.bxl` walks a target's configured closure and fails if any rule,
+  dependency, load or action owner lies outside cellar, or if any target is not
+  configured for x86_64 Linux. Run it from `cellar/`, where the standalone
+  project cannot load anything outside cellar:
+
+  ```sh
+  ../buck/bin/buck2 bxl cellar//bootstrap/audit.bxl:closure -- \
+    --target cellar//bootstrap/stage1/simple-patch:simple-patch
+  ```
+
+- `audit-loads.py` checks that every explicit load in cellar names a cellar
+  file.
+
+None of these removes the trust in Buck and the kernel.
 
 ## Updating stage0-posix
 

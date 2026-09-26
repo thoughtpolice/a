@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Graph evidence, not a substitute for uncached process/file tracing. Buck and
+# the kernel remain trusted; a permissive action sandbox does not prove closure.
+def _audit(ctx):
+    root = ctx.configured_targets(ctx.cli_args.target)
+    if root == None:
+        fail("bootstrap audit target is incompatible")
+    nodes = ctx.cquery().deps(root)
+    registration = read_root_config("build", "execution_platforms", "")
+    if not registration:
+        fail("bootstrap execution platform registry is missing")
+    nodes = nodes + ctx.cquery().deps(ctx.configured_targets(registration))
+    cell = root.label.cell
+    errors = []
+    targets = []
+    for node in nodes:
+        config = node.configuration_info()
+        constraints = {} if config == None else {
+            str(setting): str(value.label)
+            for setting, value in config.constraints.items()
+        }
+        targets.append({"label": str(node.label), "rule": node.rule_type, "constraints": constraints})
+        if not node.rule_type.startswith(cell + "//"):
+            errors.append("rule defined outside cellar: " + node.rule_type)
+        if node.label.cell != cell:
+            errors.append("dependency outside cellar: " + str(node.label))
+        if config != None:
+            for setting, value in [("os", "linux"), ("cpu", "amd64")]:
+                prefix = cell + "//bootstrap/platforms:"
+                if constraints.get(prefix + setting) != prefix + value:
+                    errors.append("non-native target configuration: " + str(node.label))
+    loads = []
+    for file in ctx.cquery().allbuildfiles(nodes):
+        path = file.cell + "//" + file.path
+        loads.append(path)
+
+        # The standalone cellar root has no prelude cell. Include the actual
+        # execution registry above; audit-loads.py also checks PACKAGE imports.
+        if file.cell != cell:
+            errors.append("Starlark/buildfile outside cellar: " + path)
+    actions = []
+    for node in ctx.aquery().all_actions(nodes):
+        action = node.action()
+        if action == None:
+            continue
+        owner = str(action.owner())
+        if action.owner().cell != cell:
+            errors.append("action owner outside cellar: " + owner)
+        attributes = {name: getattr(node.attrs, name).value() for name in dir(node.attrs)}
+        actions.append({"owner": owner, "kind": node.rule_type, "attributes": attributes})
+    ctx.output.print_json({
+        "targets": targets,
+        "loads": sorted(loads),
+        "actions": actions,
+        "errors": errors,
+    })
+    if errors:
+        fail("bootstrap closure audit failed: " + "; ".join(errors))
+
+closure = bxl_main(impl = _audit, cli_args = {
+    "target": bxl.cli_args.string(),
+})
