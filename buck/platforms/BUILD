@@ -10,6 +10,7 @@ execution_platforms(
     name = "execution",
     registrations = [
         ":default",
+        "cellar//bootstrap/platforms:execution",
     ],
 )
 

@@ -1,29 +1,58 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
 load(
     "@cellar//bootstrap:defs.bzl",
     "export_file",
     "filegroup",
     "stage0_answer_test",
 )
+load("@cellar//bootstrap/platforms:rules.bzl", "native_attrs")
 
-def __hex0(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
-    ctx.actions.run(
-        [
-            ctx.attrs.bin,
-            ctx.attrs.src,
-            output.as_output(),
-        ],
-        category = "stage0_hex012",
+def _executable_seed_impl(ctx: AnalysisContext) -> list[Provider]:
+    # Windows source metadata has no executable bit. Normalize the artifact's
+    # metadata before it is uploaded to a Linux worker; preserve the seed bytes.
+    output = ctx.actions.copy_file(
+        ctx.label.name,
+        ctx.attrs.src,
+        executable_bit_override = True,
+        has_content_based_path = False,
     )
     return [
         DefaultInfo(default_output = output),
         RunInfo(args = cmd_args(output)),
     ]
 
-hex0 = rule(impl = __hex0, attrs = {
-    "bin": attrs.source(),
+_executable_seed_rule = rule(impl = _executable_seed_impl, attrs = {
     "src": attrs.source(),
 })
+
+def executable_seed(**kwargs):
+    _executable_seed_rule(**native_attrs(kwargs))
+
+def __hex0(ctx: AnalysisContext) -> list[Provider]:
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
+    ctx.actions.run(
+        [
+            ctx.attrs.bin[DefaultInfo].default_outputs[0],
+            ctx.attrs.src,
+            output.as_output(),
+        ],
+        category = "stage0_hex012",
+        clear_environment = True,
+    )
+    return [
+        DefaultInfo(default_output = output),
+        RunInfo(args = cmd_args(output)),
+    ]
+
+_hex0_rule = rule(impl = __hex0, attrs = {
+    "bin": attrs.exec_dep(),
+    "src": attrs.source(),
+})
+
+def hex0(**kwargs):
+    _hex0_rule(**native_attrs(kwargs))
 
 # hex1 and hex2 have the same APIs
 hex1 = hex0
@@ -32,64 +61,76 @@ hex2_0 = hex0
 # catm removes the need for cat or shell support for redirection by providing
 # equivalent functionality via catm output_file input1 input2 ... inputN
 def __catm(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     ctx.actions.run(
         [
-            ctx.attrs.bin,
+            ctx.attrs.bin[DefaultInfo].default_outputs[0],
             output.as_output(),
         ] + ctx.attrs.inputs,
         category = "stage0_catm",
+        clear_environment = True,
     )
     return [
         DefaultInfo(default_output = output),
     ]
 
-catm = rule(impl = __catm, attrs = {
-    "bin": attrs.source(),
+_catm_rule = rule(impl = __catm, attrs = {
+    "bin": attrs.exec_dep(),
     "inputs": attrs.list(attrs.source()),
 })
 
+def catm(**kwargs):
+    _catm_rule(**native_attrs(kwargs))
+
 def __M0(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     ctx.actions.run(
         [
-            ctx.attrs.bin,
+            ctx.attrs.bin[DefaultInfo].default_outputs[0],
             ctx.attrs.src,
             output.as_output(),
         ],
         category = "stage0_m0",
+        clear_environment = True,
     )
     return [
         DefaultInfo(default_output = output),
     ]
 
-M0 = rule(impl = __M0, attrs = {
-    "bin": attrs.source(),
+_M0_rule = rule(impl = __M0, attrs = {
+    "bin": attrs.exec_dep(),
     "src": attrs.source(),
 })
 
+def M0(**kwargs):
+    _M0_rule(**native_attrs(kwargs))
+
 def __cc(ctx: AnalysisContext) -> list[Provider]:
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     ctx.actions.run(
         [
-            ctx.attrs.bin,
+            ctx.attrs.bin[DefaultInfo].default_outputs[0],
             ctx.attrs.src,
             output.as_output(),
         ],
         category = "stage0_cc",
+        clear_environment = True,
     )
     return [
         DefaultInfo(default_output = output),
     ]
 
-cc = rule(impl = __cc, attrs = {
-    "bin": attrs.source(),
+_cc_rule = rule(impl = __cc, attrs = {
+    "bin": attrs.exec_dep(),
     "src": attrs.source(),
 })
 
+def cc(**kwargs):
+    _cc_rule(**native_attrs(kwargs))
+
 def __M2(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
-        ctx.attrs.bin,
+        ctx.attrs.bin[DefaultInfo].default_outputs[0],
         "--architecture",
         ctx.attrs.arch,
     ]
@@ -99,25 +140,28 @@ def __M2(ctx: AnalysisContext) -> list[Provider]:
         cmd.append("--bootstrap-mode")
     if ctx.attrs.debug:
         cmd.append("--debug")
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     cmd.extend(["-o", output.as_output()])
 
-    ctx.actions.run(cmd, category = "stage0_m2")
+    ctx.actions.run(cmd, category = "stage0_m2", clear_environment = True)
     return [
         DefaultInfo(default_output = output),
     ]
 
-M2 = rule(impl = __M2, attrs = {
-    "bin": attrs.source(),
+_M2_rule = rule(impl = __M2, attrs = {
+    "bin": attrs.exec_dep(),
     "arch": attrs.string(),
     "srcs": attrs.list(attrs.source()),
     "bootstrap": attrs.bool(default = False),
     "debug": attrs.bool(default = False),
 })
 
+def M2(**kwargs):
+    _M2_rule(**native_attrs(kwargs))
+
 def __blood_elf(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
-        ctx.attrs.bin,
+        ctx.attrs.bin[DefaultInfo].default_outputs[0],
     ]
     if ctx.attrs.sixtyfour:
         cmd.append("--64")
@@ -125,24 +169,27 @@ def __blood_elf(ctx: AnalysisContext) -> list[Provider]:
         cmd.append("--little-endian")
     for src in ctx.attrs.srcs:
         cmd.extend(["-f", src])
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     cmd.extend(["-o", output.as_output()])
 
-    ctx.actions.run(cmd, category = "stage0_blood_elf")
+    ctx.actions.run(cmd, category = "stage0_blood_elf", clear_environment = True)
     return [
         DefaultInfo(default_output = output),
     ]
 
-blood_elf = rule(impl = __blood_elf, attrs = {
-    "bin": attrs.source(),
+_blood_elf_rule = rule(impl = __blood_elf, attrs = {
+    "bin": attrs.exec_dep(),
     "sixtyfour": attrs.bool(),
     "little_endian": attrs.bool(),
     "srcs": attrs.list(attrs.source()),
 })
 
+def blood_elf(**kwargs):
+    _blood_elf_rule(**native_attrs(kwargs))
+
 def __m1_0(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
-        ctx.attrs.bin,
+        ctx.attrs.bin[DefaultInfo].default_outputs[0],
         "--architecture",
         ctx.attrs.arch,
     ]
@@ -150,24 +197,27 @@ def __m1_0(ctx: AnalysisContext) -> list[Provider]:
         cmd.append("--little-endian")
     for src in ctx.attrs.srcs:
         cmd.extend(["-f", src])
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     cmd.extend(["-o", output.as_output()])
 
-    ctx.actions.run(cmd, category = "stage0_m1_zero")
+    ctx.actions.run(cmd, category = "stage0_m1_zero", clear_environment = True)
     return [
         DefaultInfo(default_output = output),
     ]
 
-M1_0 = rule(impl = __m1_0, attrs = {
-    "bin": attrs.source(),
+_M1_0_rule = rule(impl = __m1_0, attrs = {
+    "bin": attrs.exec_dep(),
     "arch": attrs.string(),
     "little_endian": attrs.bool(),
     "srcs": attrs.list(attrs.source()),
 })
 
+def M1_0(**kwargs):
+    _M1_0_rule(**native_attrs(kwargs))
+
 def __hex2_1(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
-        ctx.attrs.bin,
+        ctx.attrs.bin[DefaultInfo].default_outputs[0],
         "--architecture",
         ctx.attrs.arch,
     ]
@@ -177,22 +227,25 @@ def __hex2_1(ctx: AnalysisContext) -> list[Provider]:
         cmd.extend(["--base-address", ctx.attrs.base_address])
     for src in ctx.attrs.srcs:
         cmd.extend(["-f", src])
-    output = ctx.actions.declare_output(ctx.label.name)
+    output = ctx.actions.declare_output(ctx.label.name, has_content_based_path = False)
     cmd.extend(["-o", output.as_output()])
 
-    ctx.actions.run(cmd, category = "stage0_hex2_one")
+    ctx.actions.run(cmd, category = "stage0_hex2_one", clear_environment = True)
     return [
         DefaultInfo(default_output = output),
         RunInfo(args = cmd_args(output)),
     ]
 
-hex2_1 = rule(impl = __hex2_1, attrs = {
-    "bin": attrs.source(),
+_hex2_1_rule = rule(impl = __hex2_1, attrs = {
+    "bin": attrs.exec_dep(),
     "arch": attrs.string(),
     "little_endian": attrs.bool(),
     "base_address": attrs.string(),
     "srcs": attrs.list(attrs.source()),
 })
+
+def hex2_1(**kwargs):
+    _hex2_1_rule(**native_attrs(kwargs))
 
 M1 = M1_0
 hex2 = hex2_1
@@ -207,15 +260,13 @@ hex2 = hex2_1
 #   arch            architecture identifier passed to M2/M1/hex2 rules
 #                   ("amd64", "aarch64", ...).
 #   m2libc_dir      subdirectory within m2-libc for this arch's libc
-#                   ("amd64", "aarch64", ...). Only differs from `arch` in
-#                   capitalization on some architectures; kept separate for
-#                   clarity and future-proofing.
+#                   ("amd64", "aarch64", ...). It can differ from `arch` in
+#                   capitalization.
 #   catm_src        name of the hand-written catm source file in the current
 #                   package. On amd64 this is "catm.hex2" (built with hex2-0);
-#                   on aarch64 it is "catm.hex1" (built with hex1). Upstream
-#                   stage0-posix chose the earlier hex level for aarch64 for
-#                   historical reasons, so we match it.
-#   catm_bin        target to use to assemble `catm_src` — ":hex2-0" on amd64
+#                   on aarch64 it is "catm.hex1" (built with hex1), the
+#                   earlier hex level that upstream stage0-posix uses there.
+#   catm_bin        target that assembles `catm_src`, ":hex2-0" on amd64
 #                   and ":hex1" on aarch64.
 def stage0_binaries(
         arch,
@@ -302,14 +353,16 @@ def stage0_binaries(
         m2libc + ":bootstrappable.c",
     ]
 
-    # Final set of filegroup outputs: these are what the `:bins` filegroup
-    # exposes to downstream (namely mescc-tools-extra).
+    # The M2libc definitions and ELF headers that the later phases assemble
+    # and link with.
     defs_m1 = m2libc + ":" + m2libc_dir + "/" + m2libc_dir + "_defs.M1"
     libc_core_m1 = m2libc + ":" + m2libc_dir + "/libc-core.M1"
     libc_full_m1 = m2libc + ":" + m2libc_dir + "/libc-full.M1"
     elf_hex2 = m2libc + ":" + m2libc_dir + "/ELF-" + m2libc_dir + ".hex2"
     elf_debug_hex2 = m2libc + ":" + m2libc_dir + "/ELF-" + m2libc_dir + "-debug.hex2"
 
+    # The final tools, which mescc-tools-extra, Mes and the cellar helpers
+    # build with.
     filegroup(
         name = "bins",
         srcs = [
@@ -324,7 +377,8 @@ def stage0_binaries(
     )
 
     # Phase 0a: build hex0 from the bootstrap binary
-    hex0(name = "hex0", bin = "hex0-seed", src = "hex0.hex0", **compat)
+    executable_seed(name = "hex0-seed", src = "hex0-seed", **compat)
+    hex0(name = "hex0", bin = ":hex0-seed", src = "hex0.hex0", **compat)
 
     # Phase 1: build hex1 from hex0
     hex0(name = "hex1", bin = ":hex0", src = "hex1.hex0", **compat)
@@ -912,12 +966,12 @@ def stage0_binaries(
 #   3) assembles the platform-specific filegroup (named via `filegroup_name`)
 #      laying out the produced binaries under `<arch_dir_upper>/bin/`, mirroring
 #      the upstream stage0-posix directory layout that `<arch>.answers` expects;
-#   4) declares the `:check` test that runs sha256sum over that filegroup
-#      against the golden answers.
+#   4) declares the dynamic `:check` test that discovers every golden answer
+#      and runs sha256sum once per filegroup entry.
 #
-# All targets are gated via `target_compatible_with` constraints from
-# cellar//bootstrap/platforms so they are skipped on incompatible hosts
-# instead of failing at build time.
+# Every target requires Linux and `arch`, so a platform without both skips
+# them instead of failing to build them. Only amd64 has an execution
+# platform, so the other architectures' graphs never build.
 #
 # Arguments:
 #   arch              target architecture passed to M2/M1/hex2 rules.
@@ -980,9 +1034,7 @@ def stage0_platform(
 
     stage0_answer_test(
         name = "check",
-        command = mtex + ":sha256sum",
-        chdirexec = mtex + ":chdirexec",
         input = ":" + filegroup_name,
-        args = ["--check", "answers"],
+        sha256sum = mtex + ":sha256sum",
         **compat
     )

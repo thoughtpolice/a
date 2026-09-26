@@ -1,51 +1,65 @@
-# Full-Source Bootstrap project
+<!-- SPDX-FileCopyrightText: 2026 Austin Seipp -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
-This is an attempt to port the GNU Guix _Full-Source Bootstrap_ project to Buck2
-rules. The goal is that one day we might actually emit a fully usable C
-compiler, right from the source code, that we can use to compile all third-party
-code.
+# Full-source bootstrap
 
-See the Guix blog for more background:
-<https://guix.gnu.org/blog/2023/the-full-source-bootstrap-building-from-source-all-the-way-down/>
+This project builds a native x86_64 Linux toolchain from source, starting from
+a 229-byte `hex0` seed. The chain ends with M2-Planet, M2-Mesoplanet, the
+mescc-tools and mescc-tools-extra, all static x86_64 programs.
 
-And the following repositories, where most of this code was cribbed from:
+It follows the approach of GNU Guix's [full-source bootstrap][guix]. BUILD
+files declare every action: each assembly, compilation and link. No kaem script
+drives the build.
 
-- https://github.com/oriansj/bootstrap-seeds
-- https://github.com/oriansj/stage0-posix, commit
-  `45d90f5955b6907dc6cdea9ebafce558359edcd3`
+[guix]: https://guix.gnu.org/blog/2023/the-full-source-bootstrap-building-from-source-all-the-way-down/
 
-Note that because this port uses buck2 itself, it isn't "trustable" in the same
-way the `kaem` based build is: buck2 is a foreign contaminant that could in
-theory poison the build process. But our goal is more to have a fully hermetic
-and "closed world" build.
+## Building and testing
 
-## The full picture
+`cellar/` is a Buck project of its own, with its own configuration and
+platforms and no prelude. The parent repository builds the same `cellar//`
+targets as well. From `cellar/`:
 
-The first goal is to try and get roughly to where GNU Mes is today for
-bootstrapping Guix: an ancient triplet of GNU tools that we can use to start
-everything off. Once we have this, we might actually have gone far enough to see
-this through.
+```sh
+../buck/bin/buck2 build @cellar//bootstrap/platforms/sandbox \
+  cellar//bootstrap/...
+../buck/bin/buck2 test @cellar//bootstrap/platforms/sandbox \
+  cellar//bootstrap/...
+```
 
-After that, we need to try and get to a modern baseline compiler as quickly as
-possible. Practically this means somehow getting to a modern build of LLVM with
-as few intermediate hops as we can.
+The `sandbox` mode runs every action under Buck's Landlock sandbox with
+cellar's path lists. From the parent project, `@mode//buildbuddy` builds on
+BuildBuddy instead. The [platform guide](platforms/README.md) describes local,
+sandboxed and remote execution.
 
-In the long run, I think it might be possible to compile clang/lld to wasm,
-which we could then use as a way of bootstrapping a compiler/linker on all
-modern platforms all the way from hex0. That wasm binary can then be hosted
-somewhere and used as a baseline compiler for all platforms to start a full
-toolchain bootstrap. We'd have to cross compile from linux to macOS/Windows at
-this stage, which is the biggest hang-up, I think. But the goal would be to have
-a set of binaries for each main platform that can be built from scratch up-to
-bit identical outputs.
+Target and execution platforms are always x86_64 Linux. `buck2 run` runs its
+program on the client, so it needs an x86_64 Linux client.
 
-## Updating from upstream stage0-posix
+## The chain
 
-All source files under `stage0-posix/` are direct copies from the upstream
-stage0-posix repository and its submodules. They must not be hand-edited; they
-should only be updated by copying from upstream.
+Each stage builds the next one from source.
 
-The directory names differ from upstream's submodule names:
+| Stage | Builds | With | Checks |
+|---|---|---|---|
+| [stage0](stage0-posix/) | hex0 to M2-Planet, M2-Mesoplanet, the mescc-tools and mescc-tools-extra | the hex0 seed | upstream's SHA256 answers |
+
+## Trust boundary
+
+The bootstrap trusts Buck2, the running kernel and the hex0 seed. An earlier
+step built every other program that a build action runs, from sources in this
+tree. Actions run with an empty environment, and in the `sandbox` mode they
+read only their declared inputs and `/proc/self`. Only the platform
+configuration test runs host programs, the client's `python3` and `buck2`.
+
+## Updating stage0-posix
+
+The C, M1, hex and answer files under `stage0-posix/`, outside `cellar-extra/`,
+are copies from the upstream
+[stage0-posix](https://github.com/oriansj/stage0-posix) repository at
+`45d90f5955b6907dc6cdea9ebafce558359edcd3` and its submodules, and the
+`hex0-seed` binaries come from
+[bootstrap-seeds](https://github.com/oriansj/bootstrap-seeds). Never edit them
+by hand; copy new versions from upstream. The directory names differ from
+upstream's submodule names:
 
 | Cellar directory       | Upstream submodule    |
 |------------------------|-----------------------|
@@ -55,48 +69,24 @@ The directory names differ from upstream's submodule names:
 | `mescc-tools/`         | `mescc-tools/`        |
 | `mescc-tools-extra/`   | `mescc-tools-extra/`  |
 
-The `seeds/linux-amd64/` directory contains files from multiple upstream
-locations. Most seed files come from the `AMD64/` submodule (with renamed
-filenames), while `bootstrap.c` comes from `M2libc/amd64/linux/bootstrap.c`:
+Each `seeds/linux-<arch>/` directory gathers files from the `AMD64/` or
+`AArch64/` submodule under shorter names, plus `bootstrap.c` from `M2libc`.
+Only amd64 builds; cellar keeps the AArch64 copies as upstream ships them.
+After an update, compare every copy with the upstream checkout:
 
-| Seed file       | Upstream source                       |
-|-----------------|---------------------------------------|
-| `bootstrap.c`   | `M2libc/amd64/linux/bootstrap.c`      |
-| `cc.M1`         | `AMD64/cc_amd64.M1`                   |
-| `defs.M1`       | `AMD64/amd64_defs.M1`                 |
-| `libc-core.M1`  | `AMD64/libc-core.M1`                  |
-| `ELF.hex2`      | `AMD64/ELF-amd64.hex2`                |
-| `hex0.hex0`     | `AMD64/hex0_AMD64.hex0`               |
-| `hex1.hex0`     | `AMD64/hex1_AMD64.hex0`               |
-| `hex2.hex1`     | `AMD64/hex2_AMD64.hex1`               |
-| `catm.hex2`     | `AMD64/catm_AMD64.hex2`               |
-| `M0.hex2`       | `AMD64/M0_AMD64.hex2`                 |
+```sh
+bootstrap/stage0-posix/check-upstream.sh /path/to/stage0-posix
+```
 
-A validation script is included to verify all files match upstream:
+The script's comments give each seed file's upstream name. It fails on any file
+that is missing upstream or differs from it.
 
-    ./stage0-posix/check-upstream.sh /path/to/stage0-posix
+Cellar's own helpers live in `stage0-posix/cellar-extra/`, which the script
+does not check. M2-Mesoplanet builds them like mescc-tools-extra:
 
-This checks all 164+ source files and reports any mismatches. Run it after
-any update to confirm nothing was missed or accidentally hand-edited.
-
-## Extra note: `chdirexec`
-
-An extra tool that is NOT provided by upstream stage0-posix or mescc-tools is
-`chdirexec` which is used as a workaround for moving `$CWD` in a buck build
-step. Ideally, its use will go away in the future.
-
-## TODO
-
-Roughly in the order they need to be accomplished:
-
-- stage0-posix
-  - [x] x86_64
-  - [ ] aarch64
-- [ ] mes + mescc
-  - [ ] mescc self-bootstrap
-- [ ] tinycc
-  - [ ] self-bootstrap
-- ancient tools
-  - [ ] glibc-2.2.5
-  - [ ] binutils-2.20.1
-  - [ ] gcc-2.95.3
+- `answer-test` lists stage0's answers file and checks one entry of it for the
+  answer test.
+- `bytecmp` compares two files byte for byte.
+- `chdirenv` runs a command in a directory it creates, keeping the environment.
+- `chdirexec` runs a command in a directory with an empty environment.
+- `envexec` runs a command with only the given environment variables.

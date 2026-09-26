@@ -19,21 +19,16 @@ fi
 
 RESULT_FILE=$(mktemp)
 trap 'rm -f "$RESULT_FILE"' EXIT
-echo "0 0 0" > "$RESULT_FILE"
+echo "0 0" > "$RESULT_FILE"
 
 record_error() {
-    read errors checked skipped < "$RESULT_FILE"
-    echo "$((errors + 1)) $checked $skipped" > "$RESULT_FILE"
+    read errors checked < "$RESULT_FILE"
+    echo "$((errors + 1)) $checked" > "$RESULT_FILE"
 }
 
 record_checked() {
-    read errors checked skipped < "$RESULT_FILE"
-    echo "$errors $((checked + 1)) $skipped" > "$RESULT_FILE"
-}
-
-record_skipped() {
-    read errors checked skipped < "$RESULT_FILE"
-    echo "$errors $checked $((skipped + 1))" > "$RESULT_FILE"
+    read errors checked < "$RESULT_FILE"
+    echo "$errors $((checked + 1))" > "$RESULT_FILE"
 }
 
 check_file() {
@@ -57,14 +52,7 @@ check_file() {
     fi
 }
 
-# Files known to be cellar-only (not from upstream)
-is_cellar_only() {
-    case "$1" in
-        */chdirexec.c) return 0 ;;  # Buck2 CWD workaround, not upstream
-    esac
-    return 1
-}
-
+# Cellar's own tools live in cellar-extra/, which this script does not check.
 echo "=== Checking m2-libc against M2libc ==="
 for f in $(find "$CELLAR_DIR/m2-libc" -type f \( -name '*.c' -o -name '*.h' -o -name '*.M1' -o -name '*.hex2' \) | sort); do
     rel="${f#$CELLAR_DIR/m2-libc/}"
@@ -91,11 +79,6 @@ done
 
 echo "=== Checking mescc-tools-extra against mescc-tools-extra ==="
 for f in $(find "$CELLAR_DIR/mescc-tools-extra" -type f \( -name '*.c' -o -name '*.h' \) | sort); do
-    if is_cellar_only "$f"; then
-        echo "SKIP (cellar-only): $f"
-        record_skipped
-        continue
-    fi
     rel="${f#$CELLAR_DIR/mescc-tools-extra/}"
     check_file "$f" "$UPSTREAM/mescc-tools-extra/$rel"
 done
@@ -151,9 +134,8 @@ check_file "$SEEDS/catm.hex1"    "$UPSTREAM/AArch64/catm_AArch64.hex1"
 check_file "$SEEDS/M0.hex2"      "$UPSTREAM/AArch64/M0_AArch64.hex2"
 
 echo "=== Summary ==="
-read errors checked skipped < "$RESULT_FILE"
+read errors checked < "$RESULT_FILE"
 echo "Checked: $checked files"
-echo "Skipped: $skipped cellar-only files"
 echo "Errors:  $errors"
 
 if [ "$errors" -gt 0 ]; then
