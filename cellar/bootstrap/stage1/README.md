@@ -13,6 +13,8 @@ which also bootstrap through three matching stages. GCC 13.5 then builds
 Clang and LLD from [LLVM 23.1.0](llvm/README.md), and that Clang builds musl
 and its own runtimes against the [Linux 6.18 UAPI headers](linux-headers/README.md),
 then rebuilds itself through two more stages that match.
+GCC 13.5 also builds [CPython 3.14](python/README.md), which regenerates its
+own generated sources to match the release and runs the cellar's Python tests.
 Package builds, generators, configurations and installation mappings are
 declared in cellar BUILD files.
 
