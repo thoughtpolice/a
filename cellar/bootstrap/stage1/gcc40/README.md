@@ -8,13 +8,13 @@ musl 1.1.24's GNU-built libraries, with binutils 2.30 as the assembler and
 linker. No configure or Make process runs.
 
 `defs.bzl` declares the whole build as the `gcc40_stage` macro, which this
-package calls once. It
+package and [gcc40-rebuilt](../gcc40-rebuilt/README.md) each call once. It
 covers libiberty and libcpp, the option, machine-description and
 garbage-collector generators, the C front end, backend and drivers, and the
 target runtime, which the new compiler builds itself: libgcc, libgcov,
 `crtbeginT.o` and `crtend.o`. `sources.bzl` lists the archive's headers, and
 the macro derives the other archive files from its object lists. The patches,
-tests and `generators/ucnid.c` live in this package.
+tests and `generators/ucnid.c` in this package serve both builds.
 
 The generators run on the predecessor and write every generated source the
 compiler uses. The archive's generated files are left out of the source tree

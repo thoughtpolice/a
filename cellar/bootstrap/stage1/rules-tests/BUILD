@@ -188,3 +188,98 @@ command_test(
     inputs = [":generator-tree"],
     tool = "cellar//bootstrap/stage1/bash-bootstrap:bash",
 )
+
+# Logical source paths give identical objects and preprocessor output from
+# two source trees, through GCC 4.0.4 rebuilt against musl 1.2.5.
+GCC = "cellar//bootstrap/stage1/gcc40-rebuilt"
+
+write_file(
+    name = "sample.c",
+    content = """#include <string.h>
+#include "detail.h"
+const char *source_name = __FILE__;
+int main(void) {
+    return strcmp(source_name, "source/sample.c") ||
+           strcmp(header_name, "source/include/detail.h");
+}
+""",
+)
+
+write_file(
+    name = "detail.h",
+    content = "static const char *header_name = __FILE__;\n",
+)
+
+[
+    [
+        write_file(
+            name = "identity-" + stage,
+            content = stage,
+        ),
+        filegroup(
+            name = "tree-" + stage,
+            srcs = {
+                "sample.c": ":sample.c",
+                "include/detail.h": ":detail.h",
+                "stage-identity": ":identity-" + stage,
+            },
+        ),
+        c_object(
+            name = "object-" + stage,
+            src = ":tree-" + stage + "[sample.c]",
+            flags = [
+                "-O2",
+                "-Werror",
+            ],
+            logical_includes = ["include"],
+            logical_source = "sample.c",
+            object_name = "sample.o",
+            source_tree = ":tree-" + stage,
+            toolchain = GCC + ":gcc",
+        ),
+        generate(
+            name = "preprocessed-" + stage,
+            args = [
+                "-E",
+                "-P",
+                "-Isource/include",
+                "source/sample.c",
+                "-o",
+                "preprocessed.c",
+            ],
+            chdir = True,
+            directory = True,
+            files = ["preprocessed.c"],
+            source_tree = ":tree-" + stage,
+            tool = GCC + ":gcc",
+        ),
+    ]
+    for stage in [
+        "a",
+        "b",
+    ]
+]
+
+compare_test(
+    name = "logical-object-identity",
+    actual = ":object-a",
+    expected = ":object-b",
+)
+
+compare_test(
+    name = "logical-generator-identity",
+    actual = ":preprocessed-a[preprocessed.c]",
+    expected = ":preprocessed-b[preprocessed.c]",
+)
+
+c_binary(
+    name = "logical-paths-program",
+    objects = [":object-a"],
+    runtime = GCC + ":link-runtime",
+    toolchain = GCC + ":gcc",
+)
+
+command_test(
+    name = "logical-paths",
+    tool = ":logical-paths-program",
+)
