@@ -42,8 +42,9 @@ GENERATED_TABLES = [
 ]
 
 # TCC's assembler lacks x87 instructions that musl's native math uses, so the
-# passes take the generic C math. They keep the native startup, TLS, syscall,
-# setjmp and string assembly.
+# passes TCC assembles take the generic C math. They keep the native startup,
+# TLS, syscall, setjmp and string assembly. The gnu pass, which GNU as
+# assembles, keeps all native sources.
 NATIVE_SOURCES = [path for path in ARCH_SOURCES if not path.startswith("src/math/")]
 
 REPLACED = [path.replace("/x86_64/", "/").rsplit(".", 1)[0] + ".c" for path in NATIVE_SOURCES]
@@ -51,6 +52,10 @@ REPLACED = [path.replace("/x86_64/", "/").rsplit(".", 1)[0] + ".c" for path in N
 LIBC_SOURCES = sorted([path for path in BASE_SOURCES if path not in REPLACED + REDUCED_OMISSIONS and not path.startswith("src/complex/")] + NATIVE_SOURCES)
 
 RESTORED_SOURCES = sorted(LIBC_SOURCES + REDUCED_OMISSIONS)
+
+GNU_REPLACED = [path.replace("/x86_64/", "/").rsplit(".", 1)[0] + ".c" for path in ARCH_SOURCES]
+
+GNU_SOURCES = sorted([path for path in BASE_SOURCES if path not in GNU_REPLACED and not path.startswith("src/complex/")] + ARCH_SOURCES)
 
 SOURCE_FILES = HEADER_FILES + [path for path in INTERNAL_HEADERS if path not in GENERATED_TABLES] + LIBC_SOURCES + CRT_SOURCES
 
@@ -212,6 +217,19 @@ filegroup(
     },
 )
 
+# GNU as can consume the original native assembly, including x87 instructions
+# and PLT relocations. C still uses the TCC-specific syscall and varargs branches.
+filegroup(
+    name = "source-gnu",
+    srcs = PREPARED_SOURCE | {
+        path: ":musl-1.1.24[" + path + "]"
+        for path in REDUCED_OMISSIONS + ARCH_SOURCES
+    } | {
+        path: "cellar//bootstrap/stage1/musl-tables:generated[" + path.removeprefix("src/") + "]"
+        for path in GENERATED_TABLES
+    },
+)
+
 musl_pass(
     name = "initial",
     libtcc1 = TCC + ":mes1-libtcc1.a",
@@ -308,6 +326,22 @@ c_binary(
 command_test(
     name = "header-search-order",
     tool = ":include-order-program",
+)
+
+# The musl-TCC corrected for hexadecimal floats, archiving and linking with
+# GNU binutils, builds musl once more. GNU as assembles all native sources,
+# including the x87 math.
+musl_pass(
+    name = "gnu",
+    assembler = "cellar//bootstrap/stage1/binutils:as",
+    extra_tests = [
+        "unicode",
+        "native-math",
+    ],
+    libtcc1 = TCC_MUSL + ":musl2-libtcc1.a",
+    sources = GNU_SOURCES,
+    toolchain = "cellar//bootstrap/stage1/tcc-native:hexfloat",
+    tree = ":source-gnu",
 )
 
 export_file(name = "runtime/syscall.S")

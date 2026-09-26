@@ -3,7 +3,7 @@
 
 # musl 1.1.24
 
-Static musl 1.1.24 is built in three passes, each by a newer TCC. BUILD
+Static musl 1.1.24 is built in four passes, each by a newer TCC. BUILD
 declares every source, native override, generated header and CRT object; each
 object gets a short unique archive member name, and C compiles with `-Werror`.
 Bootstrapped sed runs musl's own `alltypes.h` and `syscall.h` generators.
@@ -13,6 +13,7 @@ Bootstrapped sed runs musl's own `alltypes.h` and `syscall.h` generators.
 | `initial` | `tcc-release:tcc-mes1`, linked against Mes libc | reduced |
 | `rebuilt` | `tcc-musl:tcc-musl1` | reduced |
 | `restored` | `tcc-musl:tcc-musl2` | reduced plus the table users |
+| `gnu` | `tcc-native:hexfloat`, with GNU as | all native assembly |
 
 The reduced sources leave out complex functions, which TCC cannot compile,
 and the Unicode, ctype and iconv functions that use generated tables. They
@@ -30,6 +31,10 @@ sysroot, and `tcc-link-runtime` is what programs it links need around their
 objects. `:tcc` marks the musl headers as system headers, so package include
 directories come first.
 
+The last pass follows the GNU binutils build. GNU as assembles all of musl's
+native assembly, including the x87 math, and the compiler is TCC with its
+hexadecimal float fix.
+
 The patches adapt SysV varargs to TCC's support library, call Linux syscalls
 through an assembly entry where TCC's inline assembly runs out of registers,
 drop PLT syntax from static sigsetjmp calls, and keep errno across malloc's
@@ -40,9 +45,10 @@ The tests check the generated layouts and varargs, then run each pass's
 programs: startup and environment, formatted output, allocation, mmap,
 setjmp, floating arithmetic, fork, pipes and wait, fenv, signal masks,
 file-backed mmap at a nonzero offset, and threads with their own errno and a
-shared mutex. The restored pass also checks Unicode classification, case
-mapping, widths, multibyte decoding and iconv conversions. The programs use
-memfd for temporary files and need no host userland.
+shared mutex. The restored and gnu passes also check Unicode classification,
+case mapping, widths, multibyte decoding and iconv conversions, and the gnu
+pass checks the native math. The programs use memfd for temporary files and
+need no host userland.
 
 ```
 buck2 test cellar//bootstrap/stage1/musl: --local-only -j 8
