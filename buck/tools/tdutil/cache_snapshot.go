@@ -167,6 +167,23 @@ func openSnapshotCache(
 	}, nil
 }
 
+// runIdentity is the invocation's snapshot identity. Opening a cache resolved
+// exactly that, so it is reused; without one it is resolved here, at the cost
+// of one `buck2 --version`.
+func runIdentity(
+	ctx context.Context,
+	runner processRunner,
+	args *cliArgs,
+	cache *snapshotCache,
+	repository string,
+	config tdutilConfig,
+) (snapshotIdentity, error) {
+	if cache != nil {
+		return cache.identity, nil
+	}
+	return resolveSnapshotIdentity(ctx, runner, args.buck, repository, args.universe, args.buckArgs, config)
+}
+
 // obtainBaseDocument resolves the base endpoint from a recorded document: the
 // local file first because it is free, then the cache. Every way this can fail
 // — a missing file, a cold cache, a backend that will not answer, a document
@@ -189,20 +206,14 @@ func obtainBaseDocument(
 		return nil
 	}
 
-	identity := snapshotIdentity{}
-	if cache != nil {
-		identity = cache.identity
-	} else {
-		resolved, err := resolveSnapshotIdentity(ctx, runner, args.buck, repository, args.universe, args.buckArgs, config)
-		if err != nil {
-			_, _ = fmt.Fprintf(
-				stderr,
-				"tdutil: base snapshot %s ignored (%v); collecting the base graph instead\n",
-				*args.baseSnapshot, err,
-			)
-			return nil
-		}
-		identity = resolved
+	identity, err := runIdentity(ctx, runner, args, cache, repository, config)
+	if err != nil {
+		_, _ = fmt.Fprintf(
+			stderr,
+			"tdutil: base snapshot %s ignored (%v); collecting the base graph instead\n",
+			*args.baseSnapshot, err,
+		)
+		return nil
 	}
 
 	if args.baseSnapshot != nil {
@@ -244,14 +255,15 @@ func obtainBaseDocument(
 // than failing. The determined targets are the run's deliverable and a
 // snapshot is only a cache, which is the same bargain the local capture makes.
 //
-// A graph collected over fewer patterns than were requested is declined
-// outright: a reader treats a document's universe as proof that capture
-// queried all of it, and a partial graph would quietly break that.
+// A graph the caller cannot vouch for is declined outright with the reason
+// snapshotDecline supplies: a reader treats a document as proof of what it
+// records, and a partial graph, or one from a tree nothing has compared with
+// the commit, would quietly break that.
 func (cache *snapshotCache) storeSnapshot(
 	ctx context.Context,
 	args *cliArgs,
 	which, commit string,
-	universeIsComplete bool,
+	declineReason string,
 	collected *snapshot,
 	stderr io.Writer,
 ) {
@@ -261,8 +273,8 @@ func (cache *snapshotCache) storeSnapshot(
 	decline := func(reason string) {
 		_, _ = fmt.Fprintf(stderr, "tdutil: %s snapshot not cached (%s)\n", which, reason)
 	}
-	if !universeIsComplete {
-		decline("the " + which + " graph does not cover every requested universe pattern")
+	if declineReason != "" {
+		decline(declineReason)
 		return
 	}
 	document := buildSnapshotDocumentFor(cache.identity, commit, collected)

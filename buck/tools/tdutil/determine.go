@@ -36,7 +36,10 @@ func determine(base, head *snapshot, changed []string, options determineOptions)
 	}
 	changedPaths := sortedSet(changedSet)
 
-	graph := newGraph(base, head, options.config)
+	graph, err := newGraph(base, head, options.config)
+	if err != nil {
+		return nil, err
+	}
 	ciPatterns, err := compileCIPatterns(graph, options.config)
 	if err != nil {
 		return nil, err
@@ -69,14 +72,9 @@ func determine(base, head *snapshot, changed []string, options determineOptions)
 			addRoot(roots, label, fmt.Sprintf("input `%s` changed", changedPath))
 		}
 	}
-	for _, changedPath := range changedPaths {
-		if isPackageFile(pathBase(changedPath)) {
-			addDescendantPackages(graph, pathParent(changedPath), changedPath, roots)
-		} else if options.config.buildFiles.isBuildFile(changedPath) {
-			addPackage(graph, pathParent(changedPath), changedPath, roots)
-		}
-	}
-
+	// The importers include the changed paths themselves, so a changed build
+	// or PACKAGE file dirties its packages here along with everything that
+	// loads it.
 	importingFiles := sortedSet(graph.transitiveImporters(changedPaths))
 	for _, importedPath := range importingFiles {
 		for label := range graph.labelsForRule(importedPath) {

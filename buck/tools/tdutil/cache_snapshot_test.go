@@ -48,7 +48,7 @@ func TestSnapshotCacheRoundTripsADocument(t *testing.T) {
 		t.Fatalf("cold fetch error = %v, want a miss", err)
 	}
 
-	cache.storeSnapshot(context.Background(), &args, "base", cacheTestCommit, true, &collected, &stderr)
+	cache.storeSnapshot(context.Background(), &args, "base", cacheTestCommit, "", &collected, &stderr)
 	if stderr.Len() != 0 {
 		t.Fatalf("storing reported %q", stderr.String())
 	}
@@ -77,14 +77,14 @@ func TestSnapshotCacheDoesNotWriteWithoutOptIn(t *testing.T) {
 	args := cacheTestArgs(cache)
 	var stderr bytes.Buffer
 
-	cache.storeSnapshot(context.Background(), &args, "head", cacheTestCommit, true, &collected, &stderr)
+	cache.storeSnapshot(context.Background(), &args, "head", cacheTestCommit, "", &collected, &stderr)
 	if _, err := os.Stat(root); !os.IsNotExist(err) {
 		t.Fatalf("a read-only cache created storage: %v", err)
 	}
 
 	// A nil cache is the no-cache case and must be equally inert.
 	var absent *snapshotCache
-	absent.storeSnapshot(context.Background(), &args, "head", cacheTestCommit, true, &collected, &stderr)
+	absent.storeSnapshot(context.Background(), &args, "head", cacheTestCommit, "", &collected, &stderr)
 	if stderr.Len() != 0 {
 		t.Fatalf("an absent cache reported %q", stderr.String())
 	}
@@ -98,7 +98,7 @@ func TestSnapshotCacheDeclinesAPartialUniverse(t *testing.T) {
 	args := cacheTestArgs(cache)
 	var stderr bytes.Buffer
 
-	cache.storeSnapshot(context.Background(), &args, "base", cacheTestCommit, false, &collected, &stderr)
+	cache.storeSnapshot(context.Background(), &args, "base", cacheTestCommit, "the base graph does not cover every requested universe pattern", &collected, &stderr)
 	if !strings.Contains(stderr.String(), "universe pattern") {
 		t.Fatalf("decline reason = %q", stderr.String())
 	}
@@ -122,7 +122,7 @@ func TestSnapshotCacheWriteFailureIsReportedNotFatal(t *testing.T) {
 	args := cacheTestArgs(cache)
 	var stderr bytes.Buffer
 
-	cache.storeSnapshot(context.Background(), &args, "head", cacheTestCommit, true, &collected, &stderr)
+	cache.storeSnapshot(context.Background(), &args, "head", cacheTestCommit, "", &collected, &stderr)
 	if !strings.Contains(stderr.String(), "bucket is on fire") {
 		t.Fatalf("write failure reported as %q", stderr.String())
 	}
@@ -135,7 +135,7 @@ func TestSnapshotCacheRevalidatesWhatItFetched(t *testing.T) {
 	collected := snapshotTestGraph(t)
 	args := cacheTestArgs(cache)
 	var stderr bytes.Buffer
-	cache.storeSnapshot(context.Background(), &args, "base", cacheTestCommit, true, &collected, &stderr)
+	cache.storeSnapshot(context.Background(), &args, "base", cacheTestCommit, "", &collected, &stderr)
 
 	// Same key, different buck2: the object is where this identity looks, but
 	// it no longer describes the graph this run would collect.
@@ -189,7 +189,7 @@ func TestObtainBaseDocumentFallsThroughToTheCache(t *testing.T) {
 	collected := snapshotTestGraph(t)
 	args := cacheTestArgs(cache)
 	var stderr bytes.Buffer
-	cache.storeSnapshot(context.Background(), &args, "base", cacheTestCommit, true, &collected, &stderr)
+	cache.storeSnapshot(context.Background(), &args, "base", cacheTestCommit, "", &collected, &stderr)
 	stderr.Reset()
 
 	absent := filepath.Join(t.TempDir(), "absent.json")

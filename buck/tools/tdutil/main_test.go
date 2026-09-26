@@ -764,9 +764,10 @@ func TestApplicationSnapshotHeadToDeclinesAnIncompleteUniverse(t *testing.T) {
 		context.Background(),
 		app.runner,
 		&args,
+		nil,
 		t.TempDir(),
 		strings.Repeat("c", 40),
-		false,
+		snapshotDecline(&args, "head", false, false),
 		&collected,
 		defaultTdutilConfig(),
 		&stderr,
@@ -1071,5 +1072,119 @@ func TestApplicationCancellationStillUsesLiveCleanupContext(t *testing.T) {
 		if _, statErr := os.Stat(root); !os.IsNotExist(statErr) {
 			t.Fatalf("workspace root retained: %s (err=%v)", root, statErr)
 		}
+	}
+}
+
+// An empty diff collects nothing, so a ride-along snapshot or a cache write
+// has nothing to record. Both promise to report rather than fail, and that
+// report must not be skipped along with the collection: a CI refresh which
+// wrote nothing and said nothing looks exactly like one that worked.
+func TestApplicationEqualTreeReportsSkippedHeadSnapshotAndCacheWrite(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	runner.diff = nil
+	path := filepath.Join(t.TempDir(), "head-snapshot.json")
+	var stderr bytes.Buffer
+	err := runApplication(
+		context.Background(),
+		app,
+		[]string{"--snapshot-head-to", path, "--cache", t.TempDir(), "--cache-write"},
+		&bytes.Buffer{},
+		&stderr,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stderr.String(), "head snapshot "+path+" not written") ||
+		!strings.Contains(stderr.String(), "head snapshot not cached") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("a snapshot was written from an empty diff: %v", err)
+	}
+}
+
+// Under --ignore-working-copy nothing has compared the tree on disk with the
+// head commit, so a head graph read in place is the disk's rather than
+// provably the commit's, and is recorded under neither name. The base graph
+// came from a materialized workspace and is cached as usual.
+func TestApplicationIgnoreWorkingCopyDoesNotRecordAnInPlaceHeadGraph(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	path := filepath.Join(t.TempDir(), "head-snapshot.json")
+	cacheDir := t.TempDir()
+	var stderr bytes.Buffer
+	err := runApplication(
+		context.Background(),
+		app,
+		[]string{"--ignore-working-copy", "--from", "base", "--snapshot-head-to", path, "--cache", cacheDir, "--cache-write"},
+		&bytes.Buffer{},
+		&stderr,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const reason = "was read from the working copy under --ignore-working-copy"
+	if !strings.Contains(stderr.String(), "head snapshot "+path+" not written (the head graph "+reason) ||
+		!strings.Contains(stderr.String(), "head snapshot not cached (the head graph "+reason) {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("a head snapshot was written from an unverified tree: %v", err)
+	}
+	_, _, adds, _, _, _, _ := runner.snapshot()
+	if adds != 1 {
+		t.Fatalf("adds = %d, want the base materialized and the head read in place", adds)
+	}
+	var cached []string
+	_ = filepath.Walk(cacheDir, func(path string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() {
+			cached = append(cached, info.Name())
+		}
+		return nil
+	})
+	if len(cached) != 1 || !strings.HasPrefix(cached[0], strings.Repeat("a", 40)) {
+		t.Fatalf("cached objects = %v, want only the base graph", cached)
+	}
+}
+
+// A capture is a document labelled with its revision, so under
+// --ignore-working-copy the revision is materialized rather than read from a
+// working copy nothing has compared with it.
+func TestApplicationSnapshotCaptureMaterializesUnderIgnoreWorkingCopy(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	path := filepath.Join(t.TempDir(), "snapshot.json")
+	err := runApplication(context.Background(), app, []string{"--snapshot-to", path, "--ignore-working-copy"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, adds, _, _, _, _ := runner.snapshot()
+	if adds != 1 {
+		t.Fatalf("adds = %d, want the revision materialized rather than read in place", adds)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("no snapshot written: %v", err)
+	}
+}
+
+// A capture which materializes its revision creates a workspace like any
+// other run, so it sweeps the registrations of dead predecessors first.
+func TestApplicationSnapshotCaptureSweepsOrphanedRegistrations(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	runner.workspaceList = []byte("default\ntdutil-dead-1f-0\n")
+	app.pidAlive = func(pid int) bool { return pid != 0xdead }
+	path := filepath.Join(t.TempDir(), "base-snapshot.json")
+	err := runApplication(
+		context.Background(),
+		app,
+		[]string{"--snapshot-to", path, "--to", "head"},
+		&bytes.Buffer{},
+		&bytes.Buffer{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, adds, _, _, _, _ := runner.snapshot()
+	forgotten := runner.forgottenWorkspaces()
+	if adds != 1 || len(forgotten) == 0 || forgotten[0] != "tdutil-dead-1f-0" {
+		t.Fatalf("capture lifecycle = adds %d, forgotten %#v; want the orphan swept before the add", adds, forgotten)
 	}
 }

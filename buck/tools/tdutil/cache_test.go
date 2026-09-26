@@ -166,8 +166,10 @@ func TestDirStorePrunesPastItsMaxAge(t *testing.T) {
 
 	stale := filepath.Join(root, "old-identity", "stale.json.gz")
 	aged := time.Now().Add(-24 * time.Hour)
-	if err := os.Chtimes(stale, aged, aged); err != nil {
-		t.Fatal(err)
+	for _, path := range []string{stale, filepath.Dir(stale)} {
+		if err := os.Chtimes(path, aged, aged); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// Pruning happens on write, and reaches the whole tree rather than only
@@ -184,6 +186,40 @@ func TestDirStorePrunesPastItsMaxAge(t *testing.T) {
 		if _, err := store.get(context.Background(), key); err != nil {
 			t.Fatalf("fresh object %s was pruned: %v", key, err)
 		}
+	}
+}
+
+// Two runs may share a cache directory. Pruning collects empty directories,
+// and a writer's directory is empty between its creation and its temporary
+// file's, so a recent empty directory is left alone, and a writer whose
+// directory was collected anyway recreates it rather than declining.
+func TestDirStorePruneLeavesFreshDirectoriesAndWritersRecover(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "cache")
+	store, err := newDirStore(root, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh := filepath.Join(root, "writer-identity")
+	if err := os.MkdirAll(fresh, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	storeString(t, store, "identity/object.json.gz", "object")
+	if _, err := os.Stat(fresh); err != nil {
+		t.Fatalf("a freshly created empty directory was pruned: %v", err)
+	}
+
+	raced := false
+	store.(*dirStore).beforeWrite = func() {
+		if !raced {
+			raced = true
+			if err := os.Remove(filepath.Join(root, "raced")); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	storeString(t, store, "raced/object.json.gz", "raced")
+	if _, err := store.get(context.Background(), "raced/object.json.gz"); err != nil {
+		t.Fatalf("the write did not recover from its directory's removal: %v", err)
 	}
 }
 

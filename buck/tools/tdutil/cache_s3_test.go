@@ -134,6 +134,19 @@ func TestS3StoreAddressingFollowsTheEndpoint(t *testing.T) {
 	if address.String() != wantMinio {
 		t.Fatalf("endpoint object URL = %s, want %s", address, wantMinio)
 	}
+
+	// A gateway that fronts the store under a prefix keeps that prefix.
+	environment["AWS_ENDPOINT_URL"] = "https://proxy.example/s3/"
+	withAWSEnvironment(t, environment)
+	store, err = openBlobStore("s3://example-bucket/tdutil", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	address = store.(*s3Store).objectURL("v2-2/id/commit.json.gz")
+	const wantGateway = "https://proxy.example/s3/example-bucket/tdutil/v2-2/id/commit.json.gz"
+	if address.String() != wantGateway {
+		t.Fatalf("gateway object URL = %s, want %s", address, wantGateway)
+	}
 }
 
 // Missing credentials are fatal at startup rather than a warning later. They

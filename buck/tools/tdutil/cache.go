@@ -228,6 +228,10 @@ func validateCacheKey(key string) error {
 type dirStore struct {
 	root   string
 	maxAge time.Duration
+	// beforeWrite, when set, runs between an object's directory being
+	// created and its file being written. It is the seam through which the
+	// test removes the directory there, as another run's prune can.
+	beforeWrite func()
 }
 
 func newDirStore(root string, maxAge time.Duration) (blobStore, error) {
@@ -270,18 +274,31 @@ func (store *dirStore) put(_ context.Context, key string, payload stagedBlob) er
 	if err != nil {
 		return err
 	}
-	source, err := payload.open()
-	if err != nil {
-		return err
+	write := func() error {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return err
+		}
+		if store.beforeWrite != nil {
+			store.beforeWrite()
+		}
+		source, err := payload.open()
+		if err != nil {
+			return err
+		}
+		defer func() { _ = source.Close() }()
+		return writeFileAtomically(path, 0o644, func(output io.Writer) error {
+			_, copyErr := io.Copy(output, source)
+			return copyErr
+		})
 	}
-	defer func() { _ = source.Close() }()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
+	err = write()
+	// Another run sharing the directory prunes empty directories, and
+	// between its creation and the temporary file's the object's directory
+	// is exactly that. The write is repeated once from the creation; a
+	// second disappearance is reported.
+	if errors.Is(err, fs.ErrNotExist) {
+		err = write()
 	}
-	err = writeFileAtomically(path, 0o644, func(output io.Writer) error {
-		_, copyErr := io.Copy(output, source)
-		return copyErr
-	})
 	if err != nil {
 		return err
 	}
@@ -313,13 +330,20 @@ func (store *dirStore) prune() {
 		if err != nil {
 			return nil
 		}
+		info, err := entry.Info()
+		if err != nil {
+			return nil
+		}
 		if entry.IsDir() {
-			if path != store.root {
+			// A directory's age is read before its entries are touched,
+			// since removing them modifies it. One made recently belongs to
+			// a writer which has yet to put its file there.
+			if path != store.root && info.ModTime().Before(cutoff) {
 				directories = append(directories, path)
 			}
 			return nil
 		}
-		if info, err := entry.Info(); err == nil && info.ModTime().Before(cutoff) {
+		if info.ModTime().Before(cutoff) {
 			_ = os.Remove(path)
 		}
 		return nil

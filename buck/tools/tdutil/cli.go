@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -187,11 +188,32 @@ func parseCLI(argv []string) (cliAction, error) {
 			}
 			return argv[index], nil
 		}
+		// A switch takes no argument of its own, but an inline value is
+		// honoured rather than dropped: `--cache-write=false`, as a CI
+		// expression spells it, must not enable writing.
+		setSwitch := func(name string, flag *bool) error {
+			if !hasInline {
+				*flag = true
+				return nil
+			}
+			parsed, err := strconv.ParseBool(inline)
+			if err != nil {
+				return fmt.Errorf("invalid %s value `%s`: expected true or false", name, inline)
+			}
+			*flag = parsed
+			return nil
+		}
 
 		switch flag {
 		case "-h", "--help":
+			if hasInline {
+				return cliAction{}, fmt.Errorf("%s takes no value", flag)
+			}
 			return cliAction{kind: actionHelp}, nil
 		case "-V", "--version":
+			if hasInline {
+				return cliAction{}, fmt.Errorf("%s takes no value", flag)
+			}
 			return cliAction{kind: actionVersion}, nil
 		case "--from":
 			raw, err := value("--from")
@@ -233,7 +255,13 @@ func parseCLI(argv []string) (cliAction, error) {
 				return cliAction{}, fmt.Errorf("unknown output format `%s` (expected text, json, or json-lines)", raw)
 			}
 		case "--json":
-			format = formatJSON
+			json := false
+			if err := setSwitch("--json", &json); err != nil {
+				return cliAction{}, err
+			}
+			if json {
+				format = formatJSON
+			}
 		case "--depth":
 			raw, err := value("--depth")
 			if err != nil {
@@ -249,7 +277,9 @@ func parseCLI(argv []string) (cliAction, error) {
 			}
 			depth = intPointer(int(parsed))
 		case "--quick":
-			quick = true
+			if err := setSwitch("--quick", &quick); err != nil {
+				return cliAction{}, err
+			}
 		case "--snapshot-to":
 			raw, err := value("--snapshot-to")
 			if err != nil {
@@ -275,7 +305,9 @@ func parseCLI(argv []string) (cliAction, error) {
 			}
 			cache = stringPointer(raw)
 		case "--cache-write":
-			cacheWrite = true
+			if err := setSwitch("--cache-write", &cacheWrite); err != nil {
+				return cliAction{}, err
+			}
 		case "--cache-timeout":
 			raw, err := value("--cache-timeout")
 			if err != nil {
@@ -325,13 +357,21 @@ func parseCLI(argv []string) (cliAction, error) {
 			}
 			isolationDir = raw
 		case "--ignore-working-copy":
-			ignoreWorkingCopy = true
+			if err := setSwitch("--ignore-working-copy", &ignoreWorkingCopy); err != nil {
+				return cliAction{}, err
+			}
 		case "--keep-workspaces":
-			keepWorkspaces = true
+			if err := setSwitch("--keep-workspaces", &keepWorkspaces); err != nil {
+				return cliAction{}, err
+			}
 		case "--no-head-in-place":
-			noHeadInPlace = true
+			if err := setSwitch("--no-head-in-place", &noHeadInPlace); err != nil {
+				return cliAction{}, err
+			}
 		case "-v", "--verbose":
-			verbose = true
+			if err := setSwitch("--verbose", &verbose); err != nil {
+				return cliAction{}, err
+			}
 		default:
 			return cliAction{}, fmt.Errorf("unknown option `%s`", flag)
 		}
@@ -358,6 +398,12 @@ func parseCLI(argv []string) (cliAction, error) {
 	}
 	if cacheWrite && cache == nil {
 		return cliAction{}, fmt.Errorf("--cache-write has nowhere to write; name a cache with --cache")
+	}
+	// A zero bound is not "unbounded": every cache operation would start
+	// past its deadline and fail, which reads as an outage rather than as the
+	// misspelled flag it is.
+	if cacheTimeout <= 0 {
+		return cliAction{}, fmt.Errorf("--cache-timeout must be positive; it bounds each cache operation")
 	}
 	// Quick mode consults no base graph, so a cache it may only read from
 	// would do nothing; it can still produce a capture worth storing.
@@ -439,7 +485,15 @@ func parseDurationFlag(name, raw string) (time.Duration, error) {
 		if err != nil {
 			return 0, invalid
 		}
-		parsed = time.Duration(count * float64(24*time.Hour))
+		// Go leaves a float-to-integer conversion that does not fit
+		// implementation-defined, so an unbounded count is rejected before
+		// the conversion rather than silently becoming whatever this host's
+		// hardware saturates to.
+		nanoseconds := count * float64(24*time.Hour)
+		if math.IsNaN(nanoseconds) || math.IsInf(nanoseconds, 0) || math.Abs(nanoseconds) >= math.MaxInt64 {
+			return 0, invalid
+		}
+		parsed = time.Duration(nanoseconds)
 	} else {
 		var err error
 		if parsed, err = time.ParseDuration(raw); err != nil {
