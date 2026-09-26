@@ -1,0 +1,27 @@
+--- before
++++ after
+@@ -1,24 +0,0 @@
+-    case bfd_arch_alpha:
+-      alpha_find_call (parent, p_lowpc, p_highpc);
+-      break;
+-
+-    case bfd_arch_vax:
+-      vax_find_call (parent, p_lowpc, p_highpc);
+-      break;
+-
+-    case bfd_arch_sparc:
+-      sparc_find_call (parent, p_lowpc, p_highpc);
+-      break;
+-
+-    case bfd_arch_tahoe:
+-      tahoe_find_call (parent, p_lowpc, p_highpc);
+-      break;
+-
+-    case bfd_arch_mips:
+-      mips_find_call (parent, p_lowpc, p_highpc);
+-      break;
+-
+-    case bfd_arch_aarch64:
+-      aarch64_find_call (parent, p_lowpc, p_highpc);
+-      break;
+-
