@@ -1,0 +1,5 @@
+--- before
++++ after
+@@ -1 +1 @@
+-#if defined __GNUC__ && defined __STDC__ && __STDC__
++#if (defined __GNUC__ || defined __TINYC__) && defined __STDC__ && __STDC__
