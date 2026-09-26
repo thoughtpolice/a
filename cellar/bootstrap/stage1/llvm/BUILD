@@ -46,11 +46,15 @@ LICENSED_PROJECTS = [
 
 LICENSES = ["{}/LICENSE.TXT".format(project) for project in LICENSED_PROJECTS]
 
-# The runtimes' sources and installed headers.
+# The runtimes' sources and installed headers, and the script that maps
+# libc++'s headers for include-what-you-use.
 RUNTIME_PATHS = [
     "compiler-rt/lib/builtins",
     "libcxx/include",
     "libcxx/src",
+    "libcxx/utils/generate_iwyu_mapping.py",
+    "libcxx/utils/libcxx/__init__.py",
+    "libcxx/utils/libcxx/header_information.py",
     "libcxx/vendor",
     "libcxxabi/include",
     "libcxxabi/src",

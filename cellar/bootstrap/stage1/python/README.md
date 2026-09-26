@@ -5,9 +5,10 @@
 
 The final GCC 13.5 stage and musl 1.2.5 build CPython 3.14.7 from its
 release tarball, as one static executable with every extension module built
-in. It serves the tests and tools that need Python, so they run on a
-bootstrap executor instead of the host's `python3`. No configure or Make
-process runs.
+in. It serves the tests, tools and build steps that need Python, so they run
+on a bootstrap executor instead of the host's `python3`. The LLVM build runs
+two of LLVM's scripts with it, and the LLVM inventory generator runs on it.
+No configure or Make process runs.
 
 ## Generated sources
 

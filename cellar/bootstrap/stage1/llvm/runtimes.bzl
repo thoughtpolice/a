@@ -14,7 +14,7 @@ load("@cellar//bootstrap/stage1:defs.bzl", "c_library", "c_object", "compiler")
 load("@cellar//bootstrap/stage1/mimalloc:defs.bzl", "mimalloc_object")
 load("@cellar//bootstrap/stage1/musl12:defs.bzl", "COMPAT_LIBRARIES", "INCLUDE_DIRECTORIES", "LIBC_SOURCES")
 load("@cellar//bootstrap/stage1/musl12:sources.bzl", "CRT_SOURCES")
-load(":defs.bzl", "CAPTURE", "CHDIRENV", "SED", "SOURCE")
+load(":defs.bzl", "CAPTURE", "CHDIRENV", "PYTHON", "SED", "SOURCE")
 load(":inventory.bzl", "LLVM_VERSION", "RUNTIME_LISTS")
 
 TRIPLE = "x86_64-unknown-linux-musl"
@@ -154,6 +154,18 @@ def runtime_headers():
         tool = SED,
     )
 
+    # libc++'s build maps its private headers to the public ones that
+    # include-what-you-use should suggest. The script reads the include
+    # directory beside it in the extracted tree.
+    generate(
+        name = "libcxx-iwyu-mapping",
+        args = ["$(location {}[libcxx/utils/generate_iwyu_mapping.py])".format(SOURCE)],
+        inputs = [SOURCE],
+        output = "libcxx.imp",
+        output_flags = ["-o"],
+        tool = PYTHON,
+    )
+
     # libc++abi installs its headers beside libc++'s.
     filegroup(
         name = "libcxx-headers",
@@ -166,6 +178,7 @@ def runtime_headers():
         } | {
             "c++/v1/__assertion_handler": SOURCE + "[libcxx/vendor/llvm/default_assertion_handler.in]",
             "c++/v1/module.modulemap": ":libcxx-module-map",
+            "c++/v1/libcxx.imp": ":libcxx-iwyu-mapping",
             TRIPLE + "/c++/v1/__config_site": ":libcxx-config-site",
         },
     )
@@ -317,6 +330,7 @@ def runtime_source_files():
     ] + [
         "libcxx/include/__config_site.in",
         "libcxx/include/module.modulemap.in",
+        "libcxx/utils/generate_iwyu_mapping.py",
         "libcxx/vendor/llvm/default_assertion_handler.in",
     ])
 

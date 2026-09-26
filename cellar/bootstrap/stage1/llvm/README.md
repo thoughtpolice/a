@@ -52,8 +52,11 @@ libc++ installs and the generic compiler-rt builtins, and
 
 The inventory holds no LLVM source text. Files the overlay writes from
 templates are recorded as recipes, which [defs.bzl](defs.bzl) applies to the
-tarball with sed and catm. Only the few lines the overlay writes itself,
-such as `VCSRevision.h`, are inline.
+tarball with sed and catm. A file the overlay makes with one of LLVM's
+Python scripts, such as the HTML logger's page bundled into Clang, is
+recorded as that script and its arguments, and the build runs it with the
+[bootstrapped Python](../python/README.md). Only the few lines the overlay
+writes itself, such as `VCSRevision.h`, are inline.
 
 ## Configuration
 
@@ -99,7 +102,8 @@ without warning flags.
   `libc++experimental.a`, and no hardening by default. `libc++.a` also holds
   libc++abi, as `LIBCXX_ENABLE_STATIC_ABI_LIBRARY` arranges, because a static
   link names only `-lc++`. libunwind and libc++abi keep their assertions, as
-  upstream builds them by default.
+  upstream builds them by default. libc++'s own script writes `libcxx.imp`,
+  the include-what-you-use mapping of its private headers to public ones.
 - mimalloc, compiled as for GCC 13.
 
 Clang compiles them against musl's headers and the
@@ -146,8 +150,8 @@ that is its own sysroot.
   150 MB.
 - Clang's resource headers and compiler-rt under `lib/clang/23`.
 - libc++, libc++abi, libc++experimental and libunwind under
-  `lib/x86_64-unknown-linux-musl`, and libc++'s headers under
-  `include/c++/v1` and `include/x86_64-unknown-linux-musl/c++/v1`.
+  `lib/x86_64-unknown-linux-musl`, and libc++'s headers and `libcxx.imp`
+  under `include/c++/v1` and `include/x86_64-unknown-linux-musl/c++/v1`.
 - musl's headers, libraries and startup files under `include` and `lib`,
   with the Linux UAPI headers and `libunwind.h` beside musl's. Clang
   searches a musl sysroot's headers before its own, so libunwind's

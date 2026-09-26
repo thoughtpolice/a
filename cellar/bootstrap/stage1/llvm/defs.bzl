@@ -22,6 +22,8 @@ SED = "cellar//bootstrap/stage1/sed:sed"
 
 CATM = "cellar//bootstrap/stage0-posix/mescc-tools-extra:catm"
 
+PYTHON = "cellar//bootstrap/stage1/python:python3"
+
 # Generated headers are grouped by the program that makes them. A library
 # compiles against the tree of the latest generator it needs, so the
 # TableGen binaries themselves never wait on their own outputs.
@@ -57,8 +59,8 @@ def source_files():
         if path not in generated:
             paths[path] = None
     for recipe in FILES.values():
-        for path in [recipe.get("template"), recipe.get("wrap")] + [path for path, _ in recipe.get("bundle", [])]:
-            if path:
+        for path in [recipe.get("template"), recipe.get("wrap"), recipe.get("script")] + recipe.get("args", []):
+            if path and path not in FILES:
                 paths[path] = None
     return sorted(paths.keys())
 
@@ -112,36 +114,25 @@ def llvm_files():
                 tool = CATM,
             )
         else:
-            # clang/utils/bundle_resources.py: a raw string per input line.
-            parts = []
-            for i, (source, final_newline) in enumerate(recipe["bundle"]):
-                write_file(
-                    name = "{}-{}-head".format(name, i),
-                    content = "const char {}[] = \n".format(source.rsplit("/", 1)[-1].replace(".", "_")),
-                )
-                generate(
-                    name = "{}-{}-lines".format(name, i),
-                    args = [
-                        "-e",
-                        's|^|  R"x(|',
-                        "-e",
-                        's|$|)x" "\\\\n"|',
-                        "$(location {}[{}])".format(SOURCE, source),
-                    ],
-                    capture = CAPTURE,
-                    tool = SED,
-                )
-                write_file(
-                    name = "{}-{}-tail".format(name, i),
-                    content = ('  R"x()x" "\\n"\n' if final_newline else "") + "  ;\n",
-                )
-                parts += [":{}-{}-{}".format(name, i, part) for part in ["head", "lines", "tail"]]
-            concatenate(
+            # The script runs in its output directory and names its output
+            # among its arguments.
+            generate(
                 name = name,
-                inputs = parts,
-                output = output,
-                tool = CATM,
+                args = ["$(location {}[{}])".format(SOURCE, recipe["script"])] + [
+                    output if arg == path else "$(location {}[{}])".format(SOURCE, arg)
+                    for arg in recipe["args"]
+                ],
+                chdir = CHDIRENV,
+                directory = True,
+                files = [output],
+                tool = PYTHON,
             )
+
+def _file(path):
+    """The target that holds a file the inventory makes from the tarball."""
+    if "script" in FILES[path]:
+        return ":file-{}[{}]".format(target_name(path), path.rsplit("/", 1)[-1])
+    return ":file-" + target_name(path)
 
 def _generated_paths():
     return {out: None for gen in TABLEGEN.values() for opts, outs in gen["outs"] for out in outs}
@@ -163,7 +154,7 @@ def _tablegen_outputs(stage):
     return outputs
 
 def _generated_trees(stage):
-    files = {path: ":file-" + target_name(path) for path in FILES}
+    files = {path: _file(path) for path in FILES}
     files.update({path: SOURCE + "[" + physical + "]" for path, physical in OVERLAY_FILES.items()})
     outputs = _tablegen_outputs(stage)
     for level, generator in enumerate(GENERATORS):
@@ -207,7 +198,7 @@ def _objects(stage, name, entry, toolchains, flags, defines):
         target = "{}-{}-{}".format(stage, target_name(name), i)
         c_object(
             name = target,
-            src = (":file-" + target_name(src)) if src in FILES else SOURCE + "[" + src + "]",
+            src = _file(src) if src in FILES else SOURCE + "[" + src + "]",
             defines = [defines.get(d.split("=")[0], d) for d in DEFINES[entry["defines"]]],
             flags = flags[language] + copts + includes,
             headers = [SOURCE, generated],

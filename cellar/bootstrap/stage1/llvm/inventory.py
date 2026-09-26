@@ -385,7 +385,7 @@ class Workspace:
             "cc_binary": rule_function("cc_binary"),
             "cc_test": ignore,
             "cc_shared_library": ignore,
-            "py_binary": ignore,
+            "py_binary": rule_function("py_binary"),
             "py_library": ignore,
             "py_test": ignore,
             "sh_binary": ignore,
@@ -640,16 +640,22 @@ class Inventory:
             targets = self.ws.attr(rule, "targets")
             replacement = "\n".join("LLVM_{}({})\n".format(macro, t) for t in targets)
             self.files[out] = {"template": self.physical(template), "substitutions": [[placeholder, replacement]]}
-        elif kind == "run_binary" and rule.attrs["name"] == "analysis_htmllogger_gen":
-            # clang/utils/bundle_resources.py: one string per input file.
-            inputs = []
-            for arg in self.ws.attr(rule, "args")[1:]:
-                path = self.physical(self.files_of(re.match(r"\$\(execpath (.*)\)", arg).group(1), rule.package)[0])
-                with open(os.path.join(self.ws.root, path)) as f:
-                    # The script splits on newlines, so a final newline
-                    # contributes one more, empty, line.
-                    inputs.append([path, f.read().endswith("\n")])
-            self.files[out] = {"bundle": inputs}
+        elif kind == "run_binary":
+            # A Python script, which the build runs with the bootstrapped
+            # python3. Its arguments are tarball paths and its output.
+            tool = self.ws.rule(parse_label(self.ws.attr(rule, "tool"), rule.package))
+            if tool is None or tool.kind != "py_binary" or out is None:
+                fail("cannot run", rule.label)
+            (script,) = [self.physical(f) for src in self.ws.attr(tool, "srcs")
+                         for f in self.files_of(src, tool.package)]
+            args = []
+            for arg in self.ws.attr(rule, "args"):
+                label = re.fullmatch(r"\$\(execpath (.*)\)", arg).group(1)
+                if label in outputs:
+                    args.append(out)
+                else:
+                    args.append(self.physical(self.files_of(label, rule.package)[0]))
+            self.files[out] = {"script": script, "args": args}
         elif kind == "genrule" and rule.attrs["name"] == "instrumentor_variables_gen":
             (src,) = self.ws.attr(rule, "srcs")
             self.files[out] = {

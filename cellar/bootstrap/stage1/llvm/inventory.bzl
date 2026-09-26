@@ -9191,20 +9191,13 @@ FILES = {
         "content": "#define CLANG_VERSION 23.1.0\n#define CLANG_VERSION_MAJOR 23\n#define CLANG_VERSION_MAJOR_STRING \"23\"\n#define CLANG_VERSION_MINOR 1\n#define CLANG_VERSION_PATCHLEVEL 0\n#define MAX_CLANG_ABI_COMPAT_VERSION 23\n#define CLANG_VERSION_STRING \"23.1.0\"\n",
     },
     "clang/lib/Analysis/FlowSensitive/HTMLLogger.inc": {
-        "bundle": [
-            [
-                "clang/lib/Analysis/FlowSensitive/HTMLLogger.html",
-                True,
-            ],
-            [
-                "clang/lib/Analysis/FlowSensitive/HTMLLogger.css",
-                True,
-            ],
-            [
-                "clang/lib/Analysis/FlowSensitive/HTMLLogger.js",
-                True,
-            ],
+        "args": [
+            "clang/lib/Analysis/FlowSensitive/HTMLLogger.inc",
+            "clang/lib/Analysis/FlowSensitive/HTMLLogger.html",
+            "clang/lib/Analysis/FlowSensitive/HTMLLogger.css",
+            "clang/lib/Analysis/FlowSensitive/HTMLLogger.js",
         ],
+        "script": "clang/utils/bundle_resources.py",
     },
     "lld/Common/VCSVersion.inc": {
         "content": "#undef LLD_REVISION\n#undef LLD_REPOSITORY\n",
