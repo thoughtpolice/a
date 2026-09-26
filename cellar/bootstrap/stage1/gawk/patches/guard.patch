@@ -1,0 +1,11 @@
+--- before
++++ after
+@@ -1,2 +1,5 @@
+ 	int p[2];
+-	register int pid;
+\ No newline at end of file
++	register int pid;
++	const char *shell = getenv("BOOTSTRAP_SHELL");
++	if (!shell || !*shell)
++		fatal("BOOTSTRAP_SHELL must name the declared shell executable");
+\ No newline at end of file

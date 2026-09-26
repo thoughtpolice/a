@@ -1,8 +1,9 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@cellar//bootstrap:actions.bzl", "command_test")
+load("@cellar//bootstrap:actions.bzl", "command_test", "compare_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
+load("@cellar//bootstrap:source.bzl", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "bootstrap_artifact", "c_binary", "c_library", "c_object", "compiler")
 
 # Separate compilation through an archive with MesCC, and conditional values
@@ -145,4 +146,45 @@ c_binary(
 command_test(
     name = "header-tree-inputs",
     tool = ":header-tree-program",
+)
+
+# The same for generator and test inputs, run by the bootstrap Bash.
+filegroup(
+    name = "generator-tree",
+    srcs = {
+        "generate.sh": "tree-generator.sh",
+        "private.sh": "tree-data.sh",
+    },
+)
+
+generate(
+    name = "generated-tree-file",
+    args = [
+        "$(location :generator-tree[generate.sh])",
+        "$(location :generator-tree)",
+    ],
+    inputs = [":generator-tree"],
+    tool = "cellar//bootstrap/stage1/bash-bootstrap:bash",
+)
+
+write_file(
+    name = "tree-expected",
+    content = "declared tree\n",
+)
+
+compare_test(
+    name = "generator-tree-inputs",
+    actual = ":generated-tree-file",
+    expected = ":tree-expected",
+)
+
+command_test(
+    name = "command-tree-inputs",
+    args = [
+        "$(location :generator-tree[generate.sh])",
+        "$(location :generator-tree)",
+        "/dev/null",
+    ],
+    inputs = [":generator-tree"],
+    tool = "cellar//bootstrap/stage1/bash-bootstrap:bash",
 )
