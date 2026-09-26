@@ -4,7 +4,7 @@
 # Full-source bootstrap
 
 This project builds a native x86_64 Linux toolchain from source, starting from
-a 229-byte `hex0` seed. The chain ends with GCC 10.5, binutils 2.41 and a
+a 229-byte `hex0` seed. The chain ends with GCC 13.5, binutils 2.41 and a
 userland of GNU tools, all static x86_64 programs linked against musl 1.2.5.
 
 It follows the approach of GNU Guix's [full-source bootstrap][guix] and the
@@ -57,6 +57,7 @@ Each stage builds the next one from source. The
 | Userland | Bash 5.2, Make 4.2, coreutils and other GNU tools | GCC 4.7.4 | [sha256sum](stage1/sha256/README.md) across GCC generations |
 | [GCC 10.5](stage1/gcc10/README.md) | GCC 10.5.0 C/C++, [pax](stage1/pax/README.md) | GCC 4.7.4 | stage 2 and 3 objects match |
 | [binutils 2.41](stage1/binutils241/README.md) | as, ld, ar and the rest | GCC 10.5 | regenerated tables match the release |
+| [GCC 13.5](stage1/gcc13/README.md) | [mimalloc](stage1/mimalloc/README.md), GCC 13.5.0 C/C++ | GCC 10.5, binutils 2.41 | stage 2 and 3 objects match |
 
 ## Trust boundary
 
@@ -78,7 +79,7 @@ the build. These scripts check it from outside:
 
   ```sh
   ../buck/bin/buck2 bxl cellar//bootstrap/audit.bxl:closure -- \
-    --target cellar//bootstrap/stage1/gcc10:stage3-gcc
+    --target cellar//bootstrap/stage1/gcc13:stage3-gcc
   ```
 
 - `audit-loads.py` checks that every explicit load in cellar names a cellar

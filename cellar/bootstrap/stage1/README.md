@@ -3,7 +3,7 @@
 
 # Native bootstrap stages
 
-The packages under `stage1/` take the chain from MesCC to GCC 10.5, binutils
+The packages under `stage1/` take the chain from MesCC to GCC 13.5, binutils
 2.41 and a userland of GNU tools, all static x86_64 programs linked against
 musl 1.2.5. This page describes the stages in the order they build and how each
 one is checked. Each package's README has the details.
@@ -26,9 +26,9 @@ one is checked. Each package's README has the details.
   them with bootstrapped tools. Where the generator and its input are the ones
   upstream used, a test compares the result with the shipped file.
 - **Fixed points.** Mes and TCC 0.9.26 each rebuild themselves until the last
-  two generations match. GCC 4.7.4 and 10.5 each build three stages and compare
-  every object and archive of stage 2 and stage 3, except the two compiler
-  checksum objects.
+  two generations match. GCC 4.7.4, 10.5 and 13.5 each build three stages and
+  compare every object and archive of stage 2 and stage 3, except the two
+  compiler checksum objects.
 - **Static programs.** Every program links statically. `c_binary` takes its
   startup objects, C library and compiler runtime from a `link_runtime`, so
   each link names every input. Compilers get explicit tool, header and library
@@ -153,6 +153,14 @@ match.
 The final GCC 10.5 builds [binutils 2.41](binutils241/README.md) with the
 `binutils_stage` macro of binutils 2.30. Its regenerated BFD headers, x86
 tables and bundled zlib tables match the release byte for byte.
+
+### GCC 13.5
+
+The final GCC 10.5 builds [mimalloc 3.5.3](mimalloc/README.md). GCC 10.5 and
+binutils 2.41 then build [GCC 13.5.0](gcc13/README.md) and its
+[C++ library](libstdcxx13/README.md) in three stages through the shared port.
+`cc1` and `cc1plus` allocate through mimalloc, which each stage's host compiler
+builds. Stage 2 and stage 3 match.
 
 ## Building and testing
 
