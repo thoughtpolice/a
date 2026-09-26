@@ -25,9 +25,10 @@ the tarball, describe every library: its sources, include directories,
 defines and TableGen invocations. [inventory.py](inventory.py) evaluates them
 for one configuration (x86_64 Linux, musl, GCC, the AArch64 and X86 targets,
 zlib and zstd off) and writes the closure of the requested tools to
-[inventory.bzl](inventory.bzl). It runs on the host through `buck2 run`, never
-in a build, and rewrites the inventory from the extracted tarball for the
-tools it already names, and for any more given after `--`:
+[inventory.bzl](inventory.bzl). No build runs it. `buck2 run` runs it with
+the [bootstrapped Python](../python/README.md) and rewrites the inventory
+from the extracted tarball for the tools it already names, and for any more
+given after `--`:
 
 ```sh
 buck2 run cellar//bootstrap/stage1/llvm:inventory

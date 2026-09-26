@@ -1,9 +1,8 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
+load("@cellar//bootstrap:actions.bzl", "command_test", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:host.bzl", "host_python_binary")
 load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object", "compiler")
 load(":defs.bzl", "CAPTURE", "SOURCE", "llvm_files", "llvm_stage", "resource_headers", "source_files", "target_name")
@@ -514,18 +513,19 @@ command_test(
 # The committed inventory is what inventory.py makes from this tarball.
 export_file(name = "inventory.bzl")
 
+export_file(name = "inventory.py")
+
 # Rewrites inventory.bzl from the extracted tarball for the roots it names,
 # and for any more given after --.
-host_python_binary(
+configured_tool(
     name = "inventory",
-    src = "inventory.py",
     args = [
+        "$(location :inventory.py)",
         "$(location {})".format(SOURCE),
         "$(location :inventory.bzl)",
     ] + ROOTS,
+    tool = "cellar//bootstrap/stage1/python:python3",
 )
-
-export_file(name = "inventory.py")
 
 command_test(
     name = "inventory-test",

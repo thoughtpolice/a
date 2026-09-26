@@ -35,16 +35,3 @@ host_python_test = rule(impl = _host_python_test_impl, attrs = {
     "labels": attrs.list(attrs.string(), default = []),
     "_executor": attrs.dep(default = "cellar//bootstrap/platforms:host-tests"),
 })
-
-def _host_python_binary_impl(ctx: AnalysisContext) -> list[Provider]:
-    return [
-        DefaultInfo(),
-        RunInfo(args = cmd_args("python3", ctx.attrs.src, ctx.attrs.args)),
-    ]
-
-# The same kind of host-side tool, run with buck2 run, such as a generator
-# whose output is committed. Nothing in a build runs it.
-host_python_binary = rule(impl = _host_python_binary_impl, attrs = {
-    "src": attrs.source(),
-    "args": attrs.list(attrs.arg(), default = []),
-})
