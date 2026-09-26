@@ -29,6 +29,8 @@ MUSL = "cellar//bootstrap/stage1/musl12"
 
 LINUX = "cellar//bootstrap/stage1/linux-headers"
 
+ZLIB = "cellar//bootstrap/stage1/zlib"
+
 CC = GCC + ":stage3-gcc"
 
 SOURCE = ":Python-3.14.7"
@@ -52,7 +54,8 @@ CRTN = [
     MUSL + ":crtn.o",
 ]
 
-LIBC = [
+LIBRARIES = [
+    ZLIB + ":libz.a",
     MUSL + ":libc.a",
     GCC + ":stage3-libgcc.a",
     MUSL + ":libc.a",
@@ -240,6 +243,12 @@ MULTIPROCESSING = {
     "includes": ["Modules/_multiprocessing"],
 }
 
+# binascii computes CRC-32 with zlib when configure finds it.
+LIBZ = {
+    "defines": [],
+    "headers": [ZLIB + ":headers"],
+}
+
 MODULE_FLAGS = {
     "_decimal": LIBMPDEC,
     "pyexpat": LIBEXPAT,
@@ -252,12 +261,15 @@ MODULE_FLAGS = {
     "_hmac": LIBHACL,
     "_posixshmem": MULTIPROCESSING,
     "_multiprocessing": MULTIPROCESSING,
+    "binascii": LIBZ | {"defines": ["USE_ZLIB_CRC32"]},
+    "zlib": LIBZ,
 }
 
 [
     python_object(
         defines = ["Py_BUILD_CORE_BUILTIN"] + MODULE_FLAGS.get(module, {}).get("defines", []),
         flags = CFLAGS,
+        includes = MODULE_FLAGS.get(module, {}).get("headers", []),
         logical_includes = MODULE_FLAGS.get(module, {}).get("includes", []),
         path = "Modules/" + source,
         toolchain = CC,
@@ -307,7 +319,7 @@ c_binary(
     name = "_freeze_module",
     end_objects = CRTN,
     flags = STACK_FLAGS,
-    libraries = LIBC,
+    libraries = LIBRARIES,
     objects = CRT + [
         ":Programs/_freeze_module.o",
         ":Modules/getpath_noop.o",
@@ -370,7 +382,7 @@ c_binary(
     name = "python",
     end_objects = CRTN,
     flags = STACK_FLAGS,
-    libraries = LIBC,
+    libraries = LIBRARIES,
     objects = CRT + [
         ":Programs/python.o",
         ":Modules/getpath.o",
@@ -544,7 +556,8 @@ command_test(
 )
 
 # The regression tests of what pyconfig.h decides: the system interfaces,
-# time, numbers, text, hashing, sockets, signals and threads. They run where
+# time, numbers, text, hashing, sockets, signals and threads, and of zlib and
+# the archive formats built on it. They run where
 # build actions do, which may be an image with no shell or other programs, so
 # test_subprocess, which needs /bin/sh, cat and sleep, is left out.
 REGRTESTS = [
@@ -561,6 +574,7 @@ REGRTESTS = [
     "test_fileio",
     "test_float",
     "test_grp",
+    "test_gzip",
     "test_hashlib",
     "test_hmac",
     "test_io",
@@ -584,12 +598,16 @@ REGRTESTS = [
     "test_str",
     "test_struct",
     "test_sys",
+    "test_tarfile",
     "test_tempfile",
     "test_termios",
     "test_threading",
     "test_time",
     "test_unicodedata",
     "test_xml_etree",
+    "test_zipfile",
+    "test_zipimport",
+    "test_zlib",
     "test_zoneinfo",
 ]
 
@@ -626,8 +644,9 @@ REGRTEST_IGNORED = [
 
 # The tests run in the output directory, from a writable copy of the
 # installation at a normalized absolute path, as if installed there. The
-# isolated interpreters tests start ignore PYTHONDONTWRITEBYTECODE, so
-# bytecode lands in the copy rather than in the installation's artifact.
+# isolated interpreters tests start ignore PYTHONDONTWRITEBYTECODE, and
+# test_zipfile compiles modules with py_compile, so bytecode lands in the copy
+# rather than in the installation's artifact.
 generate(
     name = "regrtest",
     args = [

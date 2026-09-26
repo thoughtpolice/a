@@ -413,6 +413,10 @@ PYCONFIG_ON = [
     # Run probe; musl parses POSIX TZ rules and fills tm_zone. A cross build defaults this off.
     "HAVE_WORKING_TZSET",
     "HAVE_WRITEV",
+    # Without pkg-config, configure finds zlib.h and checks libz for
+    # inflateCopy.
+    "HAVE_ZLIB_COPY",
+    "HAVE_ZLIB_H",
     "HAVE___UINT128_T",
     # Autoconf 2.72 AC_HEADER_MAJOR only checks that sys/sysmacros.h exists, after sys/mkdev.h fails.
     "MAJOR_IN_SYSMACROS",
@@ -676,8 +680,6 @@ PYCONFIG_OFF = [
     "HAVE_UUID_H",
     "HAVE_UUID_UUID_H",
     "HAVE_ZDICT_H",
-    "HAVE_ZLIB_COPY",
-    "HAVE_ZLIB_H",
     "HAVE_ZSTD_H",
     "HAVE__GETPTY",
     "MAJOR_IN_MKDEV",

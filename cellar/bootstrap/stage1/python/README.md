@@ -36,9 +36,11 @@ each one, as the Makefile's native build does.
 [pyconfig.bzl](pyconfig.bzl) lists `pyconfig.h` as configure would write it
 for x86_64 musl with GCC 13.5, a static interpreter without dynamic module
 loading. [sources.bzl](sources.bzl) holds the Makefile's object lists and
-the modules of `Modules/Setup.bootstrap.in` and `Setup.stdlib.in` that need
-no external library; zlib, bz2, lzma, zstd, dbm, readline, ctypes, curses,
-sqlite3, ssl, uuid and tkinter are left out, as are the test modules. [generators/makesetup.awk](generators/makesetup.awk) writes
+the modules of `Modules/Setup.bootstrap.in` and `Setup.stdlib.in` that the
+bundled libraries and [zlib](../zlib/README.md) serve. bz2, lzma, zstd, dbm,
+readline, ctypes, curses, sqlite3, ssl, uuid and tkinter need libraries the
+final GCC stage does not build, and the test modules are left out.
+[generators/makesetup.awk](generators/makesetup.awk) writes
 `Modules/config.c` as `Modules/makesetup` does.
 
 Where configure's result differs from a plain run, a comment in
@@ -67,15 +69,16 @@ variables this build sets.
 
 `smoke-test` exercises what the cellar's scripts and CPython's generators
 use. `regeneration-test` checks the generated sources, as above.
-`regrtest-test` runs CPython's own tests of what `pyconfig.h` decides, 43
-files and nearly 8,000 cases, from an installation with the test suite in its
-library. It runs from a copy of the installation in its output directory,
-since the isolated interpreters tests start ignore `PYTHONDONTWRITEBYTECODE`
-and would write bytecode beside the library. BUILD names the cases it leaves
-out and why: some CPython skips on musl, but it cannot recognize musl in a
-static executable; some need the test modules; one runs a shell.
-`test_subprocess` is left out whole, since it needs `/bin/sh`, `cat` and
-`sleep`, which a remote executor's image lacks.
+`regrtest-test` runs CPython's own tests of what `pyconfig.h` decides and of
+the zlib-based modules, 48 files, from an installation with the test suite in
+its library. It runs from a copy of the installation in its output
+directory, since the isolated interpreters tests start ignore
+`PYTHONDONTWRITEBYTECODE` and `test_zipfile` compiles modules with
+`py_compile`, and either would write bytecode beside the library. BUILD
+names the cases it leaves out and why: some CPython skips on musl, but it
+cannot recognize musl in a static executable; some need the test modules;
+one runs a shell. `test_subprocess` is left out whole, since it needs
+`/bin/sh`, `cat` and `sleep`, which a remote executor's image lacks.
 
 ```
 buck2 test cellar//bootstrap/stage1/python:

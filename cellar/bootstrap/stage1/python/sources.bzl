@@ -231,10 +231,10 @@ BOOTSTRAP_MODULES = {
     "pwd": ["pwdmodule"],
 }
 
-# The Setup.stdlib.in modules configure enables here with no external library.
-# zlib, bz2, lzma, zstd, dbm, readline, ctypes, curses, sqlite3, ssl, hashlib
-# (OpenSSL), uuid and tkinter need libraries the bootstrap lacks; the test
-# modules are left out.
+# The Setup.stdlib.in modules configure enables here, with zlib the only
+# external library. bz2, lzma, zstd, dbm, readline, ctypes, curses, sqlite3,
+# ssl, hashlib (OpenSSL), uuid and tkinter need libraries the final GCC
+# stage does not build; the test modules are left out.
 STDLIB_MODULES = {
     "array": ["arraymodule"],
     "_asyncio": ["_asynciomodule"],
@@ -260,6 +260,7 @@ STDLIB_MODULES = {
     "_statistics": ["_statisticsmodule"],
     "_decimal": ["_decimal/_decimal"],
     "binascii": ["binascii"],
+    "zlib": ["zlibmodule"],
     "_md5": ["md5module"],
     "_sha1": ["sha1module"],
     "_sha2": ["sha2module"],
