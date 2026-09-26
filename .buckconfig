@@ -32,5 +32,6 @@ includes = root//buck/shims/noprelude.bzl
 # vulnerability database, say -- fail for reasons unrelated to the commit under
 # test, so a sweep like `buck2 test root//...` leaves them out. Naming such a
 # target directly still runs it, as does `--no-default-test-filters`, which is
-# what CI's dedicated jobs pass.
-default_exclude_labels = external-data
+# what CI's dedicated jobs pass. Tests labeled `slow` take long enough that
+# sweeps leave them out too.
+default_exclude_labels = external-data,slow

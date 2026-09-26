@@ -126,7 +126,9 @@ checks that the parent's build modes leave cellar's configuration unchanged. It
 carries the `nested-buck` label. The `sandbox` mode excludes that label, since
 the native sandbox cannot host a second daemon, and cellar's and the parent's
 `remote` modes exclude it, since a remote worker has no `python3`, `buck2` or
-checkout. Naming the target still runs it.
+checkout. Naming the target still runs it. Setting the excluded labels replaces
+the project's default list, so these modes also name `slow`, which every sweep
+leaves out.
 
 It checks native local execution, local rejection on macOS, Windows and ARM
 Linux, remote-only Linux execution and Unix paths on every client, unsupported

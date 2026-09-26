@@ -1,4 +1,4 @@
 --# SPDX-FileCopyrightText: 2026 Austin Seipp
 --# SPDX-License-Identifier: Apache-2.0
 --config=bootstrap.execution=remote
---config=test.default_exclude_labels=nested-buck
+--config=test.default_exclude_labels=nested-buck,slow

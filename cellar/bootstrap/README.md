@@ -4,9 +4,9 @@
 # Full-source bootstrap
 
 This project builds a native x86_64 Linux toolchain from source, starting from
-a 229-byte `hex0` seed. The chain ends with GCC 13.5, binutils 2.41 and a
-userland of GNU tools, all static x86_64 programs linked against musl 1.2.5 and
-installed as relocatable directory trees.
+a 229-byte `hex0` seed. The chain ends with GCC 13.5 and binutils 2.41, a
+userland of GNU tools and CPython 3.14.7, all static x86_64 programs linked
+against musl 1.2.5.
 
 It follows the approach of GNU Guix's [full-source bootstrap][guix] and the
 recipes of [live-bootstrap] at `dd8ac27bf959344b9bcf5e876bdd7716879bbc70`.
@@ -62,6 +62,7 @@ Each stage builds the next one from source. The
 | [binutils 2.41](stage1/binutils241/README.md) | as, ld, ar and the rest | GCC 10.5 | regenerated tables match the release |
 | [GCC 13.5](stage1/gcc13/README.md) | [mimalloc](stage1/mimalloc/README.md), GCC 13.5.0 C/C++ | GCC 10.5, binutils 2.41 | stage 2 and 3 objects match |
 | [Installation](stage1/installation/README.md) | relocatable toolchain and userland trees | GCC 13.5 | programs build and run from the installation alone |
+| [CPython](stage1/python/README.md) | [Linux headers](stage1/linux-headers/README.md), [zlib 1.3.2](stage1/zlib/README.md), CPython 3.14.7 | GCC 13.5, musl 1.2.5 | generated sources match the release |
 
 ## Trust boundary
 

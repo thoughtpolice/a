@@ -29,6 +29,11 @@ create_unhashed_links = true
 restarter = true
 test_builds_targets = true
 
+[test]
+# Sweeps like `buck2 test cellar//bootstrap/...` leave out tests labeled
+# `slow`. Naming one, or passing --include slow, still runs it.
+default_exclude_labels = slow
+
 [http]
 connect_timeout_ms = 60000
 read_timeout_ms = 60000

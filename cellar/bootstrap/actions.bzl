@@ -14,7 +14,7 @@ SOURCE_ALIAS = "cellar//bootstrap/stage1/tools:source-alias"
 WITHENV = "cellar//bootstrap/stage1/tools:withenv"
 BYTECMP = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp"
 
-def _generate_impl(ctx):
+def _generate_action(ctx):
     output = ctx.actions.declare_output(ctx.attrs.output, dir = ctx.attrs.directory, has_content_based_path = False)
 
     # Visit complete input trees before projected arguments. The native
@@ -54,12 +54,16 @@ def _generate_impl(ctx):
             fail("stdin and working_directory require capture")
         command.add(ctx.attrs.output_flags, output.as_output())
     ctx.actions.run(command, env = env, clear_environment = True, category = "bootstrap_generate")
+    return output
+
+def _generate_impl(ctx):
+    output = _generate_action(ctx)
     return [DefaultInfo(
         default_output = output,
         sub_targets = {path: [DefaultInfo(default_output = output.project(path))] for path in ctx.attrs.files},
     )]
 
-_generate_rule = rule(impl = _generate_impl, attrs = {
+_GENERATE_ATTRS = {
     "tool": attrs.exec_dep(providers = [RunInfo]),
     "source_tree": attrs.option(attrs.source(), default = None),
     "source_alias": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
@@ -74,19 +78,24 @@ _generate_rule = rule(impl = _generate_impl, attrs = {
     "capture": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
     "stdin": attrs.option(attrs.source(), default = None),
     "working_directory": attrs.option(attrs.source(), default = None),
-})
+}
+
+_generate_rule = rule(impl = _generate_impl, attrs = _GENERATE_ATTRS)
 
 # `chdir = True` runs the tool inside its directory output, and
 # `capture = True` writes the tool's standard output to the output file. A
 # `source_tree` is aliased into the action by the source-alias helper.
 def generate(chdir = False, capture = False, **kwargs):
+    _generate_rule(**native_attrs(_generator_helpers(chdir, capture, kwargs)))
+
+def _generator_helpers(chdir, capture, kwargs):
     if chdir:
         kwargs["chdir"] = CHDIRENV
     if capture:
         kwargs["capture"] = CAPTURE
     if kwargs.get("source_tree") != None:
         kwargs.setdefault("source_alias", SOURCE_ALIAS)
-    _generate_rule(**native_attrs(kwargs))
+    return kwargs
 
 def _concatenate_impl(ctx):
     output = ctx.actions.declare_output(ctx.attrs.output, has_content_based_path = False)
@@ -174,6 +183,30 @@ PASSED = "cellar//bootstrap:passed"
 
 def result_test(name, result, **kwargs):
     compare_test(name = name, actual = result, expected = PASSED, **kwargs)
+
+def _generated_result_test_impl(ctx):
+    output = _generate_action(ctx)
+    command = cmd_args(ctx.attrs._bytecmp[RunInfo], output.project(ctx.attrs.result), ctx.attrs._passed)
+    return [DefaultInfo(), ExternalRunnerTestInfo(
+        type = "simple",
+        command = [command],
+        labels = ctx.attrs.labels,
+        run_from_project_root = True,
+        use_project_relative_paths = True,
+    )]
+
+_generated_result_test_rule = rule(impl = _generated_result_test_impl, attrs = _GENERATE_ATTRS | {
+    "result": attrs.string(),
+    "labels": attrs.list(attrs.string(), default = []),
+    "_bytecmp": attrs.exec_dep(providers = [RunInfo], default = BYTECMP),
+    "_passed": attrs.source(default = PASSED),
+})
+
+# A result test whose checking action belongs to the test target itself, not
+# to a separate generator. A test sweep that leaves the test out by its label
+# then runs none of the check either.
+def generated_result_test(result = "result", chdir = False, capture = False, **kwargs):
+    _generated_result_test_rule(result = result, **native_attrs(_generator_helpers(chdir, capture, kwargs)))
 
 def _installed_tool_impl(ctx):
     path = ctx.attrs.path
