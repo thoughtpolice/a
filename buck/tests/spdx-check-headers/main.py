@@ -97,7 +97,10 @@ BAD_FILES = [
     "tilde/aseipp/dotfiles/claude/commands/LICENSE",
     # REASON: these system account databases have no portable comment syntax;
     # adding a header would create malformed records in the resulting image.
-    "src/images/minimos/base/config/group",
+    # minimos's group file is not listed. It has always carried "#" comments,
+    # and exe.dev's sshd resolved group membership with them in place.
+    # glibc and Go skip comment lines, and musl skips a line without all
+    # four group fields, so the header is safe there too.
     "src/images/minimos/base/config/passwd",
     "src/images/minimos/base/config/shadow",
 ]
@@ -174,6 +177,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".service": [bzl_style],
         # systemd resource-control units; same "#" comments as ".service".
         ".slice": [bzl_style],
+        "/group": [bzl_style],
         "/hostname": [bzl_style],
         "/hosts": [bzl_style],
         "/os-release": [bzl_style],

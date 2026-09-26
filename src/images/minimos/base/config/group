@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
 root:x:0:
 daemon:x:1:
 bin:x:2:

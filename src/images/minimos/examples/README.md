@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: © 2026 Austin Seipp -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 # minimos examples
 
 Worked compositions on the minimos base, roughly in order of complexity.

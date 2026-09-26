@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: © 2026 Austin Seipp -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 # minimos
 
 minimos is a small appliance-style OCI image for exe.dev VMs, in the
