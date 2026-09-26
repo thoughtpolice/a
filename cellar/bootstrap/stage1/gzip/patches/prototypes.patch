@@ -1,0 +1,8 @@
+--- before
++++ after
+@@ -1,3 +1,2 @@
+-extern char *getenv(const char *name);
+-extern int  strcmp (const char *s1, const char *s2);
+-extern int  strncmp(const char *s1, const char *s2, int n);
++#include <stdlib.h>
++#include <string.h>

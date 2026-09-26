@@ -1,0 +1,7 @@
+--- before
++++ after
+@@ -1 +1 @@
+-low_reg = (unsigned) POP_FAILURE_ITEM ();
+\ No newline at end of file
++low_reg = (unsigned) (uintptr_t) POP_FAILURE_ITEM ();
+\ No newline at end of file
