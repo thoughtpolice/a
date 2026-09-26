@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "OsvPurlInfo", "pkg")
+
+pkg.info(
+    version = "4.13.0",
+    description = """
+        Cedar's authorization engine (policies, schemas, validation, partial
+        evaluation) compiled to WebAssembly, from the npm package.
+    """,
+    license = "Apache-2.0",
+    copyright = ["Cedar Contributors"],
+    visibility = ["PUBLIC"],
+    osv_info = OsvPurlInfo(
+        name = "pkg:npm/%40cedar-policy/cedar-wasm",
+    ),
+)
