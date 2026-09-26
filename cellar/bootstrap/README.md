@@ -4,8 +4,8 @@
 # Full-source bootstrap
 
 This project builds a native x86_64 Linux toolchain from source, starting from
-a 229-byte `hex0` seed. The chain ends with TCC 0.9.27, a static x86_64 program
-linked against Mes libc.
+a 229-byte `hex0` seed. The chain ends with musl 1.1.24 and a static x86_64 TCC
+0.9.27 linked against it.
 
 It follows the approach of GNU Guix's [full-source bootstrap][guix] and the
 recipes of [live-bootstrap] at `dd8ac27bf959344b9bcf5e876bdd7716879bbc70`.
@@ -47,6 +47,7 @@ Each stage builds the next one from source. The
 | [stage0](stage0-posix/) | hex0 to M2-Planet, M2-Mesoplanet, the mescc-tools and mescc-tools-extra | the hex0 seed | upstream's SHA256 answers |
 | [Mes](mes/) | Mes 0.27 and MesCC, [NYACC](nyacc/) tables | M2-Planet | two Mes generations match |
 | [TCC](stage1/tcc/README.md) | TCC 0.9.26, then [TCC 0.9.27](stage1/tcc-release/README.md) | MesCC, Mes libc | two TCC 0.9.26 generations match |
+| [musl 1.1.24](stage1/musl/README.md) | [sed](stage1/sed/README.md), musl with [regenerated tables](stage1/musl-tables/README.md), [TCC against musl](stage1/tcc-musl/README.md) | TCC | tables match the release |
 
 ## Trust boundary
 
@@ -67,11 +68,26 @@ the build. These scripts check it from outside:
 
   ```sh
   ../buck/bin/buck2 bxl cellar//bootstrap/audit.bxl:closure -- \
-    --target cellar//bootstrap/stage1/tcc:tcc
+    --target cellar//bootstrap/stage1/musl:tcc
   ```
 
 - `audit-loads.py` checks that every explicit load in cellar names a cellar
   file.
+
+- `audit-trace.py` reads an `strace` of a build and fails if a bootstrap
+  process opened or ran anything outside cellar's sources, outputs and scratch
+  directories. Trace an uncached build in its own daemon, and stop that daemon
+  from another terminal once it finishes, so that `strace` exits:
+
+  ```sh
+  strace --seccomp-bpf -ff -ttt -s 65535 -yy \
+    -e trace=%file,%process -o /tmp/trace \
+    ../buck/bin/buck2 --isolation-dir trace test \
+    @cellar//bootstrap/platforms/sandbox cellar//bootstrap/mes: \
+    --local-only --no-remote-cache
+  ../buck/bin/buck2 --isolation-dir trace kill
+  python3 bootstrap/audit-trace.py --workspace "$PWD" --trace-prefix /tmp/trace
+  ```
 
 None of these removes the trust in Buck and the kernel.
 

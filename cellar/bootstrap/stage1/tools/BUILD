@@ -1,10 +1,11 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@cellar//bootstrap:actions.bzl", "command_test", "compare_test", "concatenate", "generate")
+load("@cellar//bootstrap:actions.bzl", "command_test", "compare_test", "concatenate", "configured_tool", "generate")
 load("@cellar//bootstrap:defs.bzl", "filegroup")
 load("@cellar//bootstrap:source.bzl", "write_file")
 load("@cellar//bootstrap/stage0-posix/mescc-tools-extra:defs.bzl", "cc")
+load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object")
 
 # M2-Mesoplanet builds these helpers with the stage0 tools, so every stage
 # can use them.
@@ -142,4 +143,59 @@ compare_test(
     name = "concatenate-order",
     actual = ":concat-output",
     expected = ":concat-expected",
+)
+
+# withenv is built with TCC against musl 1.1.24.
+
+MUSL = "cellar//bootstrap/stage1/musl"
+
+c_object(
+    name = "withenv.o",
+    src = "withenv.c",
+    flags = ["-Werror"],
+    headers = [MUSL + ":headers"],
+    object_name = "withenv.o",
+    toolchain = MUSL + ":tcc",
+)
+
+c_binary(
+    name = "withenv",
+    objects = [":withenv.o"],
+    output = "withenv",
+    runtime = MUSL + ":tcc-link-runtime",
+    toolchain = MUSL + ":tcc",
+)
+
+configured_tool(
+    name = "configured-probe",
+    args = [
+        "0",
+        "argument",
+    ],
+    env = {"CAPTURE_TEST": "declared"},
+    tool = ":capture-probe",
+)
+
+generate(
+    name = "configured-output",
+    capture = True,
+    env = {"CAPTURE_TEST": "overridden"},
+    tool = ":configured-probe",
+)
+
+compare_test(
+    name = "configured-environment",
+    actual = ":configured-output",
+    expected = ":expected-output",
+)
+
+command_test(
+    name = "withenv-failure",
+    args = [
+        "127",
+        "$(exe :withenv)",
+        "--",
+        "$(location :missing-program-directory)/missing-program",
+    ],
+    tool = ":expect-exit",
 )

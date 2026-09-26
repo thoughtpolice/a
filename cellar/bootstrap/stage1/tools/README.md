@@ -18,5 +18,13 @@ use them:
   stages. Temporary compiler files stay in the output directory.
 - `capture-probe` only serves the tests here.
 
+One more is built with TCC against musl 1.1.24:
+
+- `withenv` sets explicit variables on top of the caller's environment, then
+  runs the command without a PATH search. `configured_tool(env = ...)` uses
+  it. The Mes wrappers use cellar-extra's `envexec` instead, which replaces
+  the environment.
+
 The tests here cover captured output, exit status, standard input, working
-directories, missing programs and inputs, and concatenation order.
+directories, missing programs and inputs, concatenation order and configured
+environments.

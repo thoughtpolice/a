@@ -6,11 +6,12 @@
 load("@cellar//bootstrap:host.bzl", "host_test_executor")
 load("@cellar//bootstrap/platforms:rules.bzl", "native_attrs")
 
-# The M2-built helpers that actions run around a tool. BUILD files ask for
-# them by role, as `chdir = True` or `capture = True`.
+# The M2-built and TCC-built helpers that actions run around a tool. BUILD
+# files ask for them by role, as `chdir = True` or `capture = True`.
 CHDIRENV = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv"
 CAPTURE = "cellar//bootstrap/stage1/tools:capture"
 SOURCE_ALIAS = "cellar//bootstrap/stage1/tools:source-alias"
+WITHENV = "cellar//bootstrap/stage1/tools:withenv"
 BYTECMP = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp"
 
 def _generate_impl(ctx):
@@ -109,8 +110,6 @@ def concatenate(**kwargs):
 def _configured_tool_impl(ctx):
     command = cmd_args(ctx.attrs.tool[RunInfo], ctx.attrs.args)
     if ctx.attrs.env:
-        if ctx.attrs.env_tool == None:
-            fail("configured tool environments require an explicit environment helper")
         assignments = [cmd_args(key + "=", value, delimiter = "") for key, value in ctx.attrs.env.items()]
         command = cmd_args(ctx.attrs.env_tool[RunInfo], assignments, "--", command)
     return [DefaultInfo(default_outputs = ctx.attrs.tool[DefaultInfo].default_outputs), RunInfo(args = command)]
@@ -125,6 +124,8 @@ _configured_tool_rule = rule(impl = _configured_tool_impl, attrs = {
 })
 
 def configured_tool(**kwargs):
+    if kwargs.get("env"):
+        kwargs.setdefault("env_tool", WITHENV)
     _configured_tool_rule(**native_attrs(kwargs))
 
 def _command_test_impl(ctx):

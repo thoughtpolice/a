@@ -3,9 +3,9 @@
 
 # Native bootstrap stages
 
-The packages under `stage1/` take the chain from MesCC to TCC 0.9.27, a static
-x86_64 program linked against Mes libc. This page describes the stages in the
-order they build and how each one is checked. Each package's README has the
+The packages under `stage1/` take the chain from MesCC to musl 1.1.24 and a
+static x86_64 TCC 0.9.27 linked against it. This page describes the stages in
+the order they build and how each one is checked. Each package's README has the
 details.
 
 ## Principles
@@ -23,7 +23,8 @@ details.
   occurs exactly once, and writes a new file.
 - **Regenerated sources.** Parsers, scanners, tables and other generated files
   that a release ships are never compiler inputs. Declared actions regenerate
-  them with bootstrapped tools.
+  them with bootstrapped tools. Where the generator and its input are the ones
+  upstream used, a test compares the result with the shipped file.
 - **Fixed points.** Mes and TCC 0.9.26 each rebuild themselves until the last
   two generations match.
 - **Static programs.** Every program links statically. `c_binary` takes its
@@ -65,6 +66,16 @@ Mes libc. That compiler builds TCC again with separate translation units, three
 times, and `tcc:fixed-point` requires the last two generations' compiler,
 libraries and startup objects to match. TCC 0.9.26 then builds
 [TCC 0.9.27](tcc-release/README.md), still against Mes libc.
+
+### musl 1.1.24
+
+TCC 0.9.27 builds [musl 1.1.24](musl/README.md). [Sed 4.0.9](sed/README.md),
+built with the same compiler, runs musl's header generators. In
+[tcc-musl](tcc-musl/README.md), TCC 0.9.26 links TCC 0.9.27 against musl, and
+that compiler rebuilds itself and musl. [musl-tables](musl-tables/README.md)
+regenerates the Unicode, ctype and iconv tables from pinned data, and they
+match every published value. The rebuilt TCC then compiles musl again with
+them, as the `restored` pass.
 
 ## Building and testing
 
