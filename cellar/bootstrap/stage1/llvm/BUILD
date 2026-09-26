@@ -3,7 +3,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "command_test", "generate")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap:host.bzl", "host_python_binary", "host_python_test")
+load("@cellar//bootstrap:host.bzl", "host_python_binary")
 load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object", "compiler")
 load(":defs.bzl", "CAPTURE", "SOURCE", "llvm_files", "llvm_stage", "resource_headers", "source_files", "target_name")
@@ -525,12 +525,15 @@ host_python_binary(
     ] + ROOTS,
 )
 
-host_python_test(
+export_file(name = "inventory.py")
+
+command_test(
     name = "inventory-test",
-    src = "inventory.py",
     args = [
+        "$(location :inventory.py)",
         "--check",
         "$(location {})".format(SOURCE),
         "$(location :inventory.bzl)",
     ],
+    tool = "cellar//bootstrap/stage1/python:python3",
 )

@@ -1,16 +1,23 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@cellar//bootstrap:host.bzl", "host_python_test")
+load("@cellar//bootstrap:actions.bzl", "command_test")
+load("@cellar//bootstrap:defs.bzl", "export_file")
 
-host_python_test(
-    name = "audit-trace-test",
-    src = "test-audit-trace.py",
-    resources = ["audit-trace.py"],
-)
-
-host_python_test(
-    name = "audit-installation-test",
-    src = "test-audit-installation.py",
-    resources = ["audit-installation.py"],
-)
+# The audit scripts' tests run with the bootstrapped Python, as build
+# actions do, so they need nothing from the host.
+[
+    [
+        export_file(name = "test-{}.py".format(name)),
+        command_test(
+            name = name + "-test",
+            args = ["$(location :test-{}.py)".format(name)],
+            inputs = [name + ".py"],
+            tool = "cellar//bootstrap/stage1/python:python3",
+        ),
+    ]
+    for name in [
+        "audit-trace",
+        "audit-installation",
+    ]
+]

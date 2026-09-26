@@ -25,8 +25,9 @@ def _host_python_test_impl(ctx: AnalysisContext) -> list[Provider]:
         ),
     ]
 
-# The audit scripts are host-side validation tools, never inputs to bootstrap
-# actions, so their tests run with the client's python3 from PATH.
+# A test that needs the client itself, such as one that starts a second Buck
+# daemon, runs with the client's python3 from PATH. Other Python tests run
+# the bootstrapped interpreter with command_test.
 host_python_test = rule(impl = _host_python_test_impl, attrs = {
     "src": attrs.source(),
     "resources": attrs.list(attrs.source(), default = []),
