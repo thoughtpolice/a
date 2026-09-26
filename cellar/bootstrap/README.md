@@ -40,7 +40,8 @@ buck2 test -j8 @mode//sandbox -c buck2.local_sandbox_read_paths=/proc/self \
 
 ## The chain
 
-Each stage builds the next one from source.
+Each stage builds the next one from source. The
+[stage1 overview](stage1/README.md) describes each stage and its checks.
 
 | Stage | Builds | With | Checks |
 |---|---|---|---|
@@ -52,6 +53,24 @@ The bootstrap trusts Buck2, the running kernel and the hex0 seed. An earlier
 step built every other program that a build action runs, from sources in this
 tree. Actions run with an empty environment, and in the sandbox above they
 read only their declared inputs and `/proc/self`.
+
+These scripts check the build from outside:
+
+- `audit.bxl` walks a target's configured closure and fails if any rule,
+  dependency, load or action owner lies outside cellar, or if any target is not
+  configured for x86_64 Linux. The execution platforms and constraints are the
+  repository's, and Buck loads the prelude and the root's buildfile includes
+  into every BUILD file; the audit allows those and nothing else:
+
+  ```sh
+  buck2 bxl cellar//bootstrap/audit.bxl:closure -- \
+    --target cellar//bootstrap/stage1/simple-patch:simple-patch
+  ```
+
+- `audit-loads.py` checks that every explicit load in cellar names a cellar
+  file, but for the configuration modifiers cellar's `PACKAGE` sets.
+
+None of these removes the trust in Buck and the kernel.
 
 ## Updating stage0-posix
 
