@@ -4,8 +4,8 @@
 # Full-source bootstrap
 
 This project builds a native x86_64 Linux toolchain from source, starting from
-a 229-byte `hex0` seed. The chain ends with TCC 0.9.27 and binutils 2.30,
-static x86_64 programs linked against musl 1.1.24.
+a 229-byte `hex0` seed. The chain ends with GCC 4.0.4 and binutils 2.30, static
+x86_64 programs linked against musl 1.1.24.
 
 It follows the approach of GNU Guix's [full-source bootstrap][guix] and the
 recipes of [live-bootstrap] at `dd8ac27bf959344b9bcf5e876bdd7716879bbc70`.
@@ -55,6 +55,7 @@ Each stage builds the next one from source. The
 | Parser tools | [oyacc](stage1/oyacc/README.md), [Bash 2.05b](stage1/bash-bootstrap/README.md), [lex](stage1/heirloom-lex/README.md), [Flex](stage1/flex/README.md), [Bison](stage1/bison/README.md), [m4](stage1/m4/README.md), [gawk](stage1/gawk/README.md) | TCC, musl 1.1.24 | Flex and Bison regenerate themselves |
 | [binutils 2.30](stage1/binutils/README.md) | as, ld, ar and the rest, [GNU cat and rm](stage1/coreutils/README.md) | TCC, musl 1.1.24 | BFD headers and x86 tables match the release |
 | [TCC with GNU binutils](stage1/tcc-native/README.md) | musl 1.1.24 and TCC 0.9.27 again | TCC, binutils 2.30 | exact floating constants |
+| [GCC 4.0.4](stage1/gcc40/README.md) | GCC 4.0.4 C compiler | TCC, binutils 2.30 | `ucnid.h` matches the release |
 
 ## Trust boundary
 
@@ -75,7 +76,7 @@ the build. These scripts check it from outside:
 
   ```sh
   buck2 bxl cellar//bootstrap/audit.bxl:closure -- \
-    --target cellar//bootstrap/stage1/tcc-native:tcc
+    --target cellar//bootstrap/stage1/gcc40:gcc
   ```
 
 - `audit-loads.py` checks that every explicit load in cellar names a cellar

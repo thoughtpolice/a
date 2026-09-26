@@ -3,7 +3,7 @@
 
 # Native bootstrap stages
 
-The packages under `stage1/` take the chain from MesCC to TCC 0.9.27 and
+The packages under `stage1/` take the chain from MesCC to GCC 4.0.4 and
 binutils 2.30, static x86_64 programs linked against musl 1.1.24. This page
 describes the stages in the order they build and how each one is checked. Each
 package's README has the details.
@@ -103,6 +103,13 @@ corrupted the `long double` constants in musl. That TCC builds musl 1.1.24 once
 more, with GNU as assembling all of musl's native assembly, including the x87
 math, and then builds the last TCC against that musl. GNU ar and ld archive and
 link both compilers.
+
+### GCC 4.0.4
+
+The last TCC and binutils 2.30 build [GCC 4.0.4](gcc40/README.md), a C
+compiler, against musl 1.1.24. Generators that TCC builds write every generated
+source the compiler uses, and the regenerated `ucnid.h` matches the release's
+copy.
 
 ## Building and testing
 
