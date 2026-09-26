@@ -1,0 +1,34 @@
+--- before
++++ after
+@@ -1,26 +1,6 @@
+-#ifdef VMS
+-      /* Try VMS standard temp logical.  */
+-      base = try_dir ("/sys$scratch", base);
+-#else
+       base = try_dir (getenv ("TMPDIR"), base);
+-      base = try_dir (getenv ("TMP"), base);
+-      base = try_dir (getenv ("TEMP"), base);
+-#endif
+-      
+-#ifdef P_tmpdir
+-      /* We really want a directory name here as if concatenated with say \dir
+-	 we do not end up with a double \\ which defines an UNC path.  */
+-      if (strcmp (P_tmpdir, "\\") == 0)
+-	base = try_dir ("\\.", base);
+-      else
+-	base = try_dir (P_tmpdir, base);
+-#endif
+-
+-      /* Try /var/tmp, /usr/tmp, then /tmp.  */
+-      base = try_dir (vartmp, base);
+-      base = try_dir (usrtmp, base);
+-      base = try_dir (tmp, base);
+-      
+-      /* If all else fails, use the current directory!  */
+-      if (base == 0)
+-	base = ".";
++      if (!base || !*base)
++        {
++          fputs ("libiberty: a writable TMPDIR is required\n", stderr);
++          exit (EXIT_FAILURE);
++        }

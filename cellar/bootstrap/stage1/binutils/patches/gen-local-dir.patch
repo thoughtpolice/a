@@ -1,0 +1,5 @@
+--- before
++++ after
+@@ -1,2 +0,0 @@
+-  extern int chdir (char *);
+-  char *srcdir = NULL;

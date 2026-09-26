@@ -1,0 +1,7 @@
+--- before
++++ after
+@@ -1 +1 @@
+-  filename = "i386-reg.tbl";
+\ No newline at end of file
++  filename = concat (srcdir, "/i386-reg.tbl", (const char *) NULL);
+\ No newline at end of file

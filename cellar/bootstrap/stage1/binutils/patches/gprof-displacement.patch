@@ -1,0 +1,5 @@
+--- before
++++ after
+@@ -1 +1 @@
+-	  destpc = bfd_get_32 (core_bfd, instructp + 1) + pc + 5;
++	  destpc = (bfd_signed_vma) bfd_get_signed_32 (core_bfd, instructp + 1) + pc + 5;
