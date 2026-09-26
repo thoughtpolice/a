@@ -14,18 +14,25 @@ No configure or Make process runs.
 
 The tarball ships sources that Python scripts generate: the PEG parser, the
 bytecode interpreter's cases and metadata, the AST, token and keyword
-tables, Argument Clinic's argument parsers, the frozen module list and the
-global object tables, and the CJK codecs' and Unicode database's tables.
-The build compiles them as shipped. The
-`regeneration-test` then has the interpreter built from them run each
-generator as `make regen-all`, `make clinic` and `make regen-limited-abi`
-would, in a copy of the source tree, and requires the copy to equal the
-original. Everything it regenerates matches byte for byte. The Levenshtein
-test examples are drawn at random, so [tests/levenshtein.py](tests/levenshtein.py)
-checks each shipped example against the generator's own distance function
-and format instead. The Unicode database, the CJK codecs' mapping tables and
-`stdlib_module_names.h` are not regenerated: the first two need the Unicode
-consortium's data files, the last a build directory.
+tables, Argument Clinic's argument parsers, the frozen module list, the
+global object tables and the standard library's module names, and the CJK
+codecs' and Unicode database's tables. The build compiles them as shipped.
+The `regeneration-test` then has the interpreter built from them run each
+generator as `make regen-all`, `make clinic`, `make regen-limited-abi`,
+`make regen-stdlib-module-names` and `make regen-unicodedata` would, and the
+CJK mapping generators, in a copy of the source tree, and requires the copy
+to equal the original. Everything it regenerates matches byte for byte.
+
+[regen_data.bzl](regen_data.bzl) pins the data the last two download: the
+Unicode Character Database 16.0.0, and 3.2.0 for IDNA, and the East Asian
+mapping tables on unicode.org. The Big5-HKSCS table's source lies behind the
+Hong Kong government's click-through license, so `mappings_hk.h` alone is
+compiled as shipped without a check. The module names come from an
+interpreter run in the tree as from a build directory, with the Setup files
+configure would write and the sysconfig data this build installs. The
+Levenshtein test examples are drawn at random, so
+[tests/levenshtein.py](tests/levenshtein.py) checks each shipped example
+against the generator's own distance function and format instead.
 
 The frozen modules are not shipped. `_freeze_module`, built from everything
 but the path configuration and the frozen modules, compiles and marshals
@@ -35,11 +42,14 @@ each one, as the Makefile's native build does.
 
 [pyconfig.bzl](pyconfig.bzl) lists `pyconfig.h` as configure would write it
 for x86_64 musl with GCC 13.5, a static interpreter without dynamic module
-loading. [sources.bzl](sources.bzl) holds the Makefile's object lists and
-the modules of `Modules/Setup.bootstrap.in` and `Setup.stdlib.in` that the
-bundled libraries and [zlib](../zlib/README.md) serve. bz2, lzma, zstd, dbm,
-readline, ctypes, curses, sqlite3, ssl, uuid and tkinter need libraries the
-final GCC stage does not build, and the test modules are left out.
+loading. [sources.bzl](sources.bzl) holds the Makefile's object lists, the
+modules of `Modules/Setup.bootstrap.in` and `Setup.stdlib.in` that the
+bundled libraries and [zlib](../zlib/README.md) serve, and the state
+configure records for each module. bz2, lzma, zstd, dbm, readline, ctypes,
+curses, sqlite3, ssl, uuid and tkinter need libraries the final GCC stage
+does not build, and the test modules are left out as
+`--disable-test-modules` would. BUILD checks that it builds exactly the
+modules whose state is `yes`.
 [generators/makesetup.awk](generators/makesetup.awk) writes
 `Modules/config.c` as `Modules/makesetup` does.
 
@@ -63,7 +73,7 @@ it with `command_test`.
 [generators/sysconfigdata.py](generators/sysconfigdata.py) writes the
 `_sysconfigdata` module `sysconfig` and `zoneinfo` read, as `python -m
 sysconfig --generate-posix-vars` does, from `pyconfig.h` and the Makefile
-variables this build sets.
+variables this build sets, with every module's state.
 
 ## Tests
 

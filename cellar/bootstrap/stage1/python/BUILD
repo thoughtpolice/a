@@ -7,9 +7,11 @@ load("@cellar//bootstrap:source.bzl", "download_file", "untar", "write_file")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary")
 load(":defs.bzl", "python_object")
 load(":pyconfig.bzl", "PYCONFIG_OFF", "PYCONFIG_ON", "PYCONFIG_VALUES")
+load(":regen_data.bzl", "CJK_MAPPINGS", "UNICODE_DATA")
 load(
     ":sources.bzl",
     "BOOTSTRAP_MODULES",
+    "CONFIGURE_MODULES",
     "FROZEN_MODULES",
     "LIBEXPAT_SOURCES",
     "LIBHACL_SOURCES",
@@ -42,6 +44,8 @@ CAPTURE = "cellar//bootstrap/stage1/tools:capture"
 CHDIRENV = "cellar//bootstrap/stage0-posix/cellar-extra:chdirenv"
 
 GAWK = "cellar//bootstrap/stage1/gawk-final:gawk"
+
+SED = "cellar//bootstrap/stage1/sed:sed"
 
 CRT = [
     MUSL + ":crt1.o",
@@ -84,6 +88,8 @@ untar(
     files = C_DIRECTORIES + ["Lib/" + entry for entry in LIB_ENTRIES] + [
         "LICENSE",
         "Lib/test",
+        "Modules/Setup.bootstrap.in",
+        "Modules/Setup.stdlib.in",
         "Modules/config.c.in",
         "Modules/getpath.py",
         "Tools/freeze/flag.py",
@@ -118,6 +124,42 @@ write_file(
 
 # Every module is built in, in the order of Setup.bootstrap and Setup.stdlib.
 MODULES = BOOTSTRAP_MODULES | STDLIB_MODULES
+
+# The build holds exactly the modules configure would build.
+[
+    fail("{} is built, but configure records it as {}".format(name, state) if name in MODULES else "configure builds {}".format(name))
+    for name, state in CONFIGURE_MODULES.items()
+    if (state == "yes") != (name in MODULES)
+]
+
+# configure writes the Setup files from their templates, commenting out the
+# modules it does not build. MODULE_BUILDTYPE=static builds the rest in.
+[
+    generate(
+        name = "Setup." + kind,
+        args = [
+            "-e",
+            "s/@MODULE_BUILDTYPE@/static/",
+        ] + [
+            arg
+            for name, state in CONFIGURE_MODULES.items()
+            for arg in [
+                "-e",
+                "s/@MODULE_{}_TRUE@/{}/".format(
+                    name.upper(),
+                    "" if state == "yes" else "#",
+                ),
+            ]
+        ] + ["$(location {}[Modules/Setup.{}.in])".format(SOURCE, kind)],
+        capture = CAPTURE,
+        output = "Setup." + kind,
+        tool = SED,
+    )
+    for kind in [
+        "bootstrap",
+        "stdlib",
+    ]
+]
 
 export_file(name = "generators/makesetup.awk")
 
@@ -445,6 +487,15 @@ SYSCONFIG_VARIABLES = {
     "SOABI": "cpython-314-x86_64-linux-musl",
     "TZPATH": "/usr/share/zoneinfo:/usr/lib/zoneinfo:/usr/share/lib/zoneinfo:/etc/zoneinfo",
     "VERSION": VERSION,
+} | {
+    "MODULE_{}_STATE".format(name.upper()): state
+    for name, state in CONFIGURE_MODULES.items()
+} | {
+    # makesetup's lists, from Setup.stdlib before Setup.bootstrap.
+    "MODBUILT_NAMES": " ".join(list(STDLIB_MODULES.keys()) + list(BOOTSTRAP_MODULES.keys())),
+    "MODDISABLED_NAMES": "",
+    "MODSHARED_NAMES": "",
+    "MODULE_BUILDTYPE": "static",
 }
 
 export_file(name = "generators/sysconfigdata.py")
@@ -509,10 +560,36 @@ command_test(
     tool = "cellar//bootstrap/stage0-posix/cellar-extra:bytecmp",
 )
 
+[
+    download_file(
+        name = name,
+        hash = data["sha256"],
+        size_bytes = data["size"],
+        urls = [data["url"]],
+    )
+    for name, data in (UNICODE_DATA | CJK_MAPPINGS).items()
+]
+
+filegroup(
+    name = "unicode-data",
+    srcs = {name: ":" + name for name in UNICODE_DATA},
+)
+
+filegroup(
+    name = "cjk-mappings",
+    srcs = {name: ":" + name for name in CJK_MAPPINGS},
+)
+
+# The directory pybuilddir.txt names in a build, where the build keeps the
+# sysconfig data.
+filegroup(
+    name = "build-directory",
+    srcs = {"lib.linux-x86_64-{}/{}".format(VERSION, SYSCONFIGDATA): ":" + SYSCONFIGDATA},
+)
+
 # Every generated source the tarball ships is an input above. The
-# interpreter built from them regenerates each, but the Unicode database, the
-# CJK mapping tables and stdlib_module_names.h, and the regenerated tree must
-# equal the shipped one.
+# interpreter built from them regenerates each but the Big5-HKSCS table, and
+# the regenerated tree must equal the shipped one.
 export_file(name = "tests/regen.sh")
 
 export_file(name = "tests/levenshtein.py")
@@ -530,6 +607,11 @@ generate(
         "$(exe cellar//bootstrap/stage1/diffutils:diff-bin)",
         "$(location {})".format(SOURCE),
         "$(location :tests/levenshtein.py)",
+        "$(location :unicode-data)",
+        "$(location :cjk-mappings)",
+        "$(location :Setup.stdlib)",
+        "$(location :Setup.bootstrap)",
+        "$(location :build-directory)",
     ],
     chdir = CHDIRENV,
     directory = True,

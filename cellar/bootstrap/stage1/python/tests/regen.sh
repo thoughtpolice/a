@@ -2,24 +2,28 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Regenerates CPython's generated sources in a copy of the source tree with
-# the interpreter built from them, as make regen-all, clinic and
-# regen-limited-abi would, then requires the copy to equal the original. The
-# random Levenshtein examples are checked by tests/levenshtein.py instead. The
-# Unicode database, the CJK mapping tables and stdlib_module_names.h are not
-# regenerated: the first two need the Unicode consortium's data files, the
-# last a build directory.
+# the interpreter built from them, as make regen-all, clinic,
+# regen-limited-abi and regen-stdlib-module-names would, and as make
+# regen-unicodedata and the CJK mapping generators would with the data they
+# download, then requires the copy to equal the original. The random Levenshtein examples are checked by
+# tests/levenshtein.py instead, and the Big5-HKSCS table is not regenerated.
 set -euo pipefail
 trap 'echo "regeneration failed at line $LINENO" >&2' ERR
 absolute() {
     printf '%s/%s\n' "$(cd "${1%/*}" && pwd)" "${1##*/}"
 }
 python=$(absolute "$1")
-cp=$2
-chmod=$3
-rm=$4
+cp=$(absolute "$2")
+chmod=$(absolute "$3")
+rm=$(absolute "$4")
 diff=$(absolute "$5")
 source=$(cd "$6" && pwd)
 levenshtein=$(absolute "$7")
+unicode=$(cd "$8" && pwd)
+cjk=$(cd "$9" && pwd)
+setup_stdlib=$(absolute "${10}")
+setup_bootstrap=$(absolute "${11}")
+build=$(cd "${12}" && pwd)
 "$cp" -R "$source" tree
 "$chmod" -R u+w tree
 cd tree
@@ -83,6 +87,44 @@ peg pegen -q c Grammar/python.gram Grammar/Tokens -o Parser/parser.c
 
 # regen-limited-abi
 "$python" Tools/build/stable_abi.py --generate-all Misc/stable_abi.toml > /dev/null
+
+# regen-unicodedata reads the Unicode Character Database from where it would
+# download it.
+"$cp" -R "$unicode" Tools/unicode/data
+"$python" Tools/unicode/makeunicodedata.py > /dev/null
+"$rm" -rf Tools/unicode/data
+
+# The CJK mapping generators read python-mappings and write their tables
+# beside themselves, to be copied into Modules/cjkcodecs. The Big5-HKSCS
+# table's source lies behind a click-through license, so genmap_tchinese.py
+# makes only the Big5 and CP950 tables.
+cd Tools/unicode
+"$cp" "$cjk"/* python-mappings
+"$python" genmap_schinese.py > /dev/null
+"$python" genmap_korean.py > /dev/null
+"$python" genmap_japanese.py > /dev/null
+"$python" -c 'import genmap_tchinese; genmap_tchinese.main_tw()' > /dev/null
+for path in "$cjk"/*; do
+    "$rm" "python-mappings/${path##*/}"
+done
+for table in mappings_*.h; do
+    "$cp" "$table" ../../Modules/cjkcodecs
+    "$rm" "$table"
+done
+cd ../..
+
+# regen-stdlib-module-names runs the interpreter from the build directory,
+# where it takes the tree's Lib and the directory pybuilddir.txt names as its
+# library, and lists the modules the configured Setup files and sysconfig
+# name.
+"$cp" "$python" python
+"$cp" -R "$build" build
+printf 'build/lib.linux-x86_64-3.14' > pybuilddir.txt
+"$cp" "$setup_stdlib" Modules/Setup.stdlib
+"$cp" "$setup_bootstrap" Modules/Setup.bootstrap
+printf '# Edit this file for local setup changes\n' > Modules/Setup.local
+./python Tools/build/generate_stdlib_module_names.py > Python/stdlib_module_names.h
+"$rm" -rf python build pybuilddir.txt Modules/Setup.stdlib Modules/Setup.bootstrap Modules/Setup.local
 
 cd ..
 "$diff" -r "$source" tree
