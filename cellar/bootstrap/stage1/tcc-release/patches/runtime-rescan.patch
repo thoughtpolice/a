@@ -1,0 +1,7 @@
+--- before
++++ after
+@@ -1 +1,4 @@
+         tcc_add_support(s1, TCC_LIBTCC1);
++        /* Static libtcc1 varargs may introduce new libc references. */
++        if (s1->static_link)
++            tcc_add_library_err(s1, "c");

@@ -3,10 +3,10 @@
 
 # Native bootstrap stages
 
-The packages under `stage1/` hold the typed rules for C programs, the helpers
-those rules run and tests of the rules with MesCC. This page describes the
-principles the rules follow and the stages in the order they build, with how
-each one is checked. Each package's README has the details.
+The packages under `stage1/` take the chain from MesCC to TCC 0.9.27, a static
+x86_64 program linked against Mes libc. This page describes the stages in the
+order they build and how each one is checked. Each package's README has the
+details.
 
 ## Principles
 
@@ -24,7 +24,8 @@ each one is checked. Each package's README has the details.
 - **Regenerated sources.** Parsers, scanners, tables and other generated files
   that a release ships are never compiler inputs. Declared actions regenerate
   them with bootstrapped tools.
-- **Fixed points.** Mes rebuilds itself until the last two generations match.
+- **Fixed points.** Mes and TCC 0.9.26 each rebuild themselves until the last
+  two generations match.
 - **Static programs.** Every program links statically. `c_binary` takes its
   startup objects, C library and compiler runtime from a `link_runtime`, so
   each link names every input. Compilers get explicit tool, header and library
@@ -37,7 +38,8 @@ each one is checked. Each package's README has the details.
 
 A check that runs as a build action writes `passed` once every check succeeds,
 and `result_test` compares that file. `compare_test` compares two outputs byte
-for byte. `rules-tests` checks the rules themselves with MesCC.
+for byte. `rules-tests` checks the rules themselves, starting with MesCC and
+TCC.
 
 ## Stages
 
@@ -56,6 +58,14 @@ M2-Planet builds the [Mes 0.27](../mes/) interpreter, which regenerates
 that interpreter, builds Mes's C libraries and Mes again, three times over, and
 `mes:mes-fixed-point` requires the last two interpreters to match.
 
+### TCC
+
+MesCC builds [TCC 0.9.26](tcc/README.md) from one amalgamated source against
+Mes libc. That compiler builds TCC again with separate translation units, three
+times, and `tcc:fixed-point` requires the last two generations' compiler,
+libraries and startup objects to match. TCC 0.9.26 then builds
+[TCC 0.9.27](tcc-release/README.md), still against Mes libc.
+
 ## Building and testing
 
 From `cellar/`:
@@ -68,5 +78,5 @@ From `cellar/`:
 ```
 
 Each package also tests on its own, for example
-`cellar//bootstrap/stage1/simple-patch:`. The [top-level README](../README.md)
-describes the audits that check the build from outside.
+`cellar//bootstrap/stage1/tcc:`. The [top-level README](../README.md) describes
+the audits that check the build from outside.

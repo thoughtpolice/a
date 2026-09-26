@@ -1,0 +1,11 @@
+--- before
++++ after
+@@ -1,2 +1,4 @@
+-    if (!i_obj)  // i_obj implies also i_lib. we require both.
+-        ret = 1;
+\ No newline at end of file
++    if (!i_lib)
++        ret = 1;
++    if (!i_obj)
++        i_obj = argc;  // A compatibility library may have no members.
+\ No newline at end of file
