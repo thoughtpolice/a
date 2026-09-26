@@ -449,8 +449,8 @@ fi
 
 # Units that only make sense on a VM. Each must be pulled in at boot and
 # then skipped here by ConditionVirtualization=!container. chronyd would
-# be setting the host's clock, and systemd-growfs would fail on an
-# overlay root.
+# be setting the host's clock, minimos-clocksource would be switching the
+# host's clocksource, and systemd-growfs would fail on an overlay root.
 skipped_in_container() {
     local unit="$1" evaluated result
     evaluated=$(docker_exec /usr/bin/systemctl show "$unit" \
@@ -479,6 +479,7 @@ if [[ " $GROWFS_WANTED_BY " != *" local-fs.target "* ]]; then
     fail "local-fs.target doesn't want systemd-growfs-root.service (WantedBy=$GROWFS_WANTED_BY)"
 fi
 skipped_in_container systemd-growfs-root.service
+skipped_in_container minimos-clocksource.service
 
 if [[ "$DEV" -eq 1 ]]; then
     echo "boot_smoke: checking the user manager, login scope, core limits and bubblewrap"
