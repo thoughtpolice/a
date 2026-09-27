@@ -4,67 +4,51 @@
 [Unit]
 Description=containerd container runtime
 Documentation=https://containerd.io
-# time-sync.target because pulling an image validates a registry
-# certificate; see the same note in container@.service for what that
-# ordering does and does not guarantee.
+# Pulling an image checks a registry certificate, so start after the
+# clock. See container@.service for what this ordering does and doesn't
+# promise.
 After=network.target time-sync.target
 
 [Service]
 Type=notify
-# containerd resolves shim binaries through its own PATH, and the shim
-# resolves nothing at all (runsc is named by absolute path in the shim
-# config). State it here rather than inheriting whatever the manager's
-# default happens to be.
+# containerd finds shims through its own PATH. The shim finds nothing
+# itself, since runsc-config.toml names runsc by absolute path.
 Environment=PATH=/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin
 ExecStart=/usr/bin/containerd
-# Hand the control socket to the account exe.dev logs SSH sessions into
-# (see socket-access.conf). This is the one place this image widens the
-# base's "no login path to uid 0", and it widens it all the way: anything
-# that can reach this socket can start a container that bind-mounts the
-# host filesystem, so socket access is root-equivalent — the same bargain
-# as membership in Docker's `docker` group.
+# Hand the control socket to exedev, the account every SSH login lands
+# in. This is the one place the image gives the owner a way to root.
+# Anything that can use the socket can start a container that mounts the
+# host filesystem, the same trade as Docker's `docker` group.
 #
-# The alternative is not a safer machine but an unusable one. On a
-# single-owner VM whose purpose is running containers, and whose owner
-# already chose the image it boots, refusing the owner the ability to
-# start a container means they can only ever run what was baked in at
-# build time. What gVisor buys is the workload boundary underneath:
-# every container started through this socket runs on a userspace kernel
-# rather than directly on the host's syscall surface.
+# Without it the owner couldn't even see what's running on a machine
+# whose whole job is running containers. gVisor is the boundary under
+# the workloads, since every container runs on its userspace kernel
+# rather than the host's syscalls.
 #
-# Not `-` prefixed: if the socket cannot be handed over, this image is
-# not the machine it claims to be, and the unit should say so loudly.
+# No `-` prefix. If the handover fails the unit should fail with it.
 ExecStartPost=/usr/bin/systemd-tmpfiles --create /etc/containerd/socket-access.conf
 Restart=on-failure
 RestartSec=5s
 StandardOutput=journal
 StandardError=journal
 
-# containerd's own cgroup subtree is its to manage: it places shims
-# itself, and systemd must not tidy up underneath it.
+# containerd places its shims in its own cgroup subtree, and systemd must
+# leave that subtree alone.
 Delegate=yes
-# Only kill the daemon on stop. Shims and running sandboxes survive a
-# containerd restart, which is the entire point of the shim design.
+# Stop only the daemon. Shims and running sandboxes survive a containerd
+# restart, which is why shims exist.
 KillMode=process
 OOMScoreAdjust=-999
 
-# Ceilings, not sandboxing. Two things are deliberate here:
+# Limits, but no sandbox. containerd mounts filesystems, creates devices,
+# writes cgroups and enters namespaces for every container, so a systemd
+# sandbox tight enough to matter would break it. gVisor is what contains
+# the workloads.
 #
-#   * There is no Protect*/Restrict*/SystemCall* block. containerd
-#     mounts filesystems, creates devices, writes cgroups, and enters
-#     namespaces on behalf of every container; a unit sandbox tight
-#     enough to matter would break it, and one loose enough to work
-#     would only be decoration. The isolation boundary on this image is
-#     gVisor — a userspace kernel between the container and the host
-#     syscall surface — not systemd's sandbox on the daemon that starts
-#     it. Hardening the daemon does not contain the workload; the
-#     runtime does.
-#   * The limits below bound the daemon and its shims. They do not bound
-#     containers: the runtime creates each sandbox's cgroup at
-#     /sys/fs/cgroup/<namespace>/<id>, outside this unit's tree (see
-#     nerdctl.toml for why the client speaks cgroupfs paths), so
-#     per-container limits are a `nerdctl run --memory/--cpus/
-#     --pids-limit` matter, or a --cgroup-parent naming a bounded tree.
+# These limits bound the daemon and its shims, not containers. The
+# runtime puts each sandbox at /sys/fs/cgroup/<namespace>/<id>, outside
+# this unit, for the reason nerdctl.toml gives. A container's limits come
+# from `--memory`, `--cpus`, `--pids-limit` or `--cgroup-parent`.
 TasksMax=8192
 LimitNOFILE=1048576
 LimitNPROC=infinity

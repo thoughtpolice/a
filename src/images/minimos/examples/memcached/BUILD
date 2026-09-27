@@ -3,15 +3,12 @@
 
 load("@root//src/images/minimos:defs.bzl", "minimos")
 
-# --------------------------------------------------------------------------
-# minimos + memcached: the smallest possible composition. One culled
-# binary, one systemd unit carrying its flags, no config files — if
-# you're building your first image on minimos, start from this one.
-# --------------------------------------------------------------------------
+# minimos + memcached, the smallest composition: one culled binary and one
+# unit that carries its flags, with no config files. Start here for a
+# first image.
 
-# memcached + the libs it links that the base does not already ship;
-# glibc and libseccomp come from the base, which the .so closure
-# resolves against.
+# memcached and the libraries it links that the base doesn't ship. The
+# .so closure finds glibc and libseccomp in the base.
 minimos.apk_culled_layer(
     name = "memcached-culled-layer",
     apks = [
@@ -23,7 +20,7 @@ minimos.apk_culled_layer(
     ],
 )
 
-# Just the unit; parent dirs for it come from the base overlay.
+# Just the unit. The base overlay declares its parent directories.
 minimos.overlay(
     name = "memcached-overlay-layer",
     units = [
@@ -39,8 +36,8 @@ minimos.image(
         ":memcached-culled-layer",
         ":memcached-overlay-layer",
     ],
-    # Metadata only: the unit binds loopback, so nothing is reachable
-    # from outside the VM without editing the flags.
+    # Metadata only. The unit binds loopback, so nothing outside the VM
+    # can reach it without changing the flags.
     ports = ["11211/tcp"],
     version = "0.1.0",
     visibility = ["PUBLIC"],

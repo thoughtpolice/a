@@ -1,23 +1,23 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 #
-# Allowlist of paths inside the assembled Wolfi rootfs that we want to
-# preserve in the minimos image. One glob per line; empty lines and `#`
-# comments are ignored. Resolved .so closure of every kept ELF binary is
-# added automatically by cull.py — do not list individual libraries here.
+# Paths from the assembled Wolfi rootfs that the minimos base keeps. One
+# glob per line, where `*` stays within a path segment and `**` crosses
+# them. cull.py adds the .so closure of every kept ELF binary, so
+# libraries a binary links need no line here. An entry that matches
+# nothing fails the build.
 #
-# Wolfi is fully usr-merged: /bin, /sbin -> usr/bin and /lib, /lib64 ->
-# usr/lib (there is no /usr/sbin split and no multiarch directory).
-# os.walk() with followlinks=False doesn't descend through those
-# symlinks, so everything is matched under /usr/bin and /usr/lib.
+# Wolfi is fully usr-merged. /bin and /sbin link to usr/bin, /lib and
+# /lib64 link to usr/lib, and cull.py doesn't descend through those
+# links, so everything is matched under /usr/bin and /usr/lib.
 
-# --- PID 1 / systemd core ---
-# /sbin/init resolves through the /sbin -> usr/bin merge symlink to this
-# init -> ../lib/systemd/systemd link the systemd package ships.
+# --- PID 1 and systemd ---
+# /sbin/init reaches this init -> ../lib/systemd/systemd link through the
+# /sbin -> usr/bin merge.
 /usr/bin/init
 /usr/lib/systemd/systemd
 /usr/lib/systemd/systemd-*
-# systemd's internal libs live next to it, linked via RPATH — the ELF
-# resolver needs them to be picked up explicitly.
+# systemd's private libraries, found through the RPATH its binaries carry.
 /usr/lib/systemd/libsystemd-*.so*
 /usr/lib/systemd/*.so*
 /usr/lib/systemd/system-generators/*
@@ -33,7 +33,7 @@
 /usr/bin/reboot
 /usr/bin/shutdown
 
-# --- dbus (bus broker for systemctl & friends) ---
+# --- dbus, the bus systemctl and friends talk over ---
 /usr/bin/dbus-daemon
 /usr/bin/dbus-send
 /usr/share/dbus-1/system.conf
@@ -44,39 +44,36 @@
 /usr/share/dbus-1/services/**
 /etc/dbus-1/**
 
-# --- systemd unit files ---
-# The rootfs is assembled from a curated package set, so unlike a distro
-# donor image the unit tree is already ours: keep it wholesale. Units
-# for binaries the denylist drops are masked in the overlay.
+# --- unit files ---
+# The package set is curated, so the whole vendor unit tree is kept. The
+# overlay masks units whose binaries the denylist drops.
 /usr/lib/systemd/system/**
 /usr/lib/systemd/system-preset/*
 /usr/lib/systemd/user/**
 /usr/lib/systemd/user-preset/*
 
-# --- tmpfiles / sysctl defaults ---
-# sysusers.d is deliberately NOT kept: accounts are baked into the
-# overlay's /etc files and nothing may create more at boot
-# (systemd-sysusers.service is also masked in the overlay).
+# --- tmpfiles and sysctl defaults ---
+# No sysusers.d. Accounts are baked into the overlay's /etc files, and
+# the overlay masks systemd-sysusers.service as well.
 /usr/lib/tmpfiles.d/*.conf
 /usr/lib/sysctl.d/*.conf
 
-# --- journal message catalog (journalctl -x) ---
+# --- journal message catalog, for journalctl -x ---
 /usr/lib/systemd/catalog/*
 
-# --- NSS modules used by systemd accounts ---
+# --- the NSS modules nsswitch.conf names ---
 /usr/lib/libnss_systemd.so.2
 /usr/lib/libnss_myhostname.so.2
 /usr/lib/libnss_files.so.2
 /usr/lib/libnss_dns.so.2
-/usr/lib/libnss_compat.so.2
 
-# --- dynamic loader (explicit; .so resolver may miss it) ---
+# --- the dynamic loader, which no DT_NEEDED entry names ---
 /usr/lib/ld-linux-x86-64.so.2
 
-# --- dlopen'd systemd deps: systemd links these lazily (declared via
-# .note.dlopen ELF notes, invisible to the DT_NEEDED closure), so they
-# must be kept explicitly. Ship only the features minimos uses:
-# mount units, journal compression, sandboxing, ACL tmpfiles lines. ---
+# --- libraries systemd dlopens ---
+# systemd declares these in .note.dlopen ELF notes, which the DT_NEEDED
+# closure can't see. The set covers mount units, journal compression,
+# sandboxing and ACL lines in tmpfiles.
 /usr/lib/libmount.so.*
 /usr/lib/libzstd.so.*
 /usr/lib/liblz4.so.*
@@ -84,11 +81,10 @@
 /usr/lib/libacl.so.*
 /usr/lib/libaudit.so.*
 /usr/lib/libselinux.so.*
-# glibc dlopens libgcc_s for pthread_cancel unwinding.
+# glibc dlopens libgcc_s to unwind in pthread_cancel.
 /usr/lib/libgcc_s.so.*
 
-# --- top-level merged-usr symlinks (/bin, /sbin, /lib, /lib64) ---
-# cull.py preserves them as-is; target dirs are matched via /usr/*.
+# --- the merged-usr links /bin, /sbin, /lib and /lib64 ---
 /lib
 /lib64
 /bin
@@ -96,35 +92,35 @@
 /usr/sbin
 /usr/lib64
 
-# --- terminfo for the few programs that poke it ---
-# Bash's readline needs the entry for the session's TERM. Wolfi installs
-# ncurses-terminfo-base under /etc/terminfo, not /usr/share/terminfo, and
-# ncurses searches both.
+# --- terminfo ---
+# Bash's readline needs an entry for the session's TERM. Wolfi installs
+# ncurses-terminfo-base under /etc/terminfo, which ncurses searches.
 /etc/terminfo/x/xterm-256color
 /etc/terminfo/l/linux
 /etc/terminfo/d/dumb
 
-# --- the C.UTF-8 locale, so setlocale() under LANG=C.UTF-8 works
-# (valkey, for one, refuses to start when it doesn't) ---
+# --- the C.UTF-8 locale ---
+# The boot contract exports LANG=C.UTF-8, and valkey for one refuses to
+# start when setlocale() fails.
 /usr/lib/locale/C.utf8/**
 
-# --- certificates (in case any service does outbound TLS) ---
+# --- CA certificates for services that make TLS connections ---
 /etc/ssl/certs/ca-certificates.crt
 /etc/ssl/cert.pem
 
-# --- login shells for the exe.dev platform sshd ---
-# Every login shell named in /etc/passwd must exist on disk: the
-# platform sshd stat()s them and refuses the user otherwise, and exe.dev
-# gates HTTP proxy readiness on an SSH login succeeding.
+# --- login shells ---
+# The platform sshd refuses an account whose /etc/passwd shell doesn't
+# exist, and exe.dev holds the HTTPS proxy until an SSH login succeeds.
 /usr/bin/bash
 /usr/bin/nologin
 /usr/bin/dash
 
-# --- mount/umount: systemd .mount units shell out to these ---
+# --- mount and umount, which .mount units run ---
 /usr/bin/mount
 /usr/bin/umount
 
-# --- chronyd: the clock. Not chronyc — its control socket can set the
-# time, so it would be a privileged tool no account here could use
-# anyway; what went wrong is answered from the journal instead. ---
+# --- chronyd ---
+# No chronyc. Its control socket can set the clock, so it would be a
+# privileged tool no account here could use, and the journal already
+# says what chronyd is doing.
 /usr/bin/chronyd

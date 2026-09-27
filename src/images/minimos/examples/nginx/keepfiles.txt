@@ -1,16 +1,9 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 #
-# Allowlist for culling the nginx packages down to just the nginx
-# binary (plus its .so closure, resolved automatically) and the one
-# upstream config file we reuse verbatim: mime.types.
-#
-# Everything else nginx needs — our nginx.conf, the systemd unit, the
-# index.html, and any runtime directories — comes from the nginx overlay
-# layer (the :nginx-overlay-layer target in BUILD).
+# The nginx binary, and upstream's mime.types. Everything else nginx
+# needs comes from :nginx-overlay-layer. Wolfi compiles the standard
+# modules in, so there's no module directory to keep.
 
-# nginx itself. Wolfi compiles the standard modules in, so there is no
-# /usr/lib/nginx module tree to carry.
 /usr/bin/nginx
-
-# mime.types is large and annoying to hand-ship; grab Wolfi's copy.
 /etc/nginx/mime.types

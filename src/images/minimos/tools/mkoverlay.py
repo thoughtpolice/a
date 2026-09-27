@@ -4,10 +4,9 @@
 """
 Build a deterministic overlay tar for a minimos-based image from CLI args.
 
-This is the generic layer builder behind `minimos.overlay()` (see
-../defs.bzl): directories, files, symlinks, and systemd units are all
-declared in the BUILD file, so composed images don't need a bespoke
-tar-writing script each.
+This is the layer builder behind `minimos.overlay()` in ../defs.bzl.
+Directories, files, symlinks and systemd units are all declared in the
+BUILD file, so no image needs its own tar-writing script.
 
 Usage:
   mkoverlay.py --out overlay.tar \\
@@ -30,10 +29,10 @@ Usage:
              is installed and left disabled.
   --mask     mask a unit: /etc/systemd/system/UNIT -> /dev/null
 
-Parent directories are NOT created implicitly — declare them with --dir
-(or rely on a lower layer providing them). All entries get mtime=0 and
-uid/gid 0 unless overridden, so the same args always produce the same
-bytes.
+Parent directories are not created implicitly. Declare them with --dir
+unless a lower layer already does. Every entry gets mtime 0 and uid/gid
+0 unless the spec says otherwise, so the same arguments always produce
+the same bytes.
 """
 
 import argparse

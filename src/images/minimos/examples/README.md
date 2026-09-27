@@ -1,99 +1,133 @@
+<!-- SPDX-FileCopyrightText: © 2026 Austin Seipp -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 # minimos examples
 
-Worked compositions on the minimos base layer, in rough order of
-complexity. Copy the closest one as a starting point; each is a complete
-package (BUILD + PACKAGE + keep/deny lists + unit + config).
+Worked compositions on the minimos base, roughly in order of complexity.
+Copy the closest one to start. Each is a complete package with BUILD,
+PACKAGE, keep and deny lists, units and config.
 
-| example           | shows                                                     | image target              |
-| ----------------- | --------------------------------------------------------- | ------------------------- |
-| `memcached/`      | the minimum: one culled binary, one flags-only unit       | `:minimos-memcached`      |
-| `valkey/`         | a config file, a state dir, a CLI kept for verification   | `:minimos-valkey`         |
-| `nginx/`          | static content, multiple HTTP ports, exe.dev proxy usage  | `:minimos-nginx`          |
-| `dev/`            | an interactive userland + a lingering per-user manager    | `:minimos-dev`            |
-| `codex/`          | a GitHub-release binary overlaid on the dev machine       | `:minimos-codex`          |
-| `container-host/` | containerd with gVisor as the only OCI runtime            | `:minimos-container-host` |
+| example           | shows                                                 | image target              |
+| ----------------- | ----------------------------------------------------- | ------------------------- |
+| `memcached/`      | one culled binary and one unit that carries its flags | `:minimos-memcached`      |
+| `valkey/`         | a config file, a state directory, a CLI for checking  | `:minimos-valkey`         |
+| `nginx/`          | static content on several HTTP ports                  | `:minimos-nginx`          |
+| `dev/`            | an interactive userland and a lingering user manager  | `:minimos-dev`            |
+| `codex/`          | a GitHub release binary added to the dev image        | `:minimos-codex`          |
+| `container-host/` | containerd with gVisor as the only OCI runtime        | `:minimos-container-host` |
 
-Every `minimos.image()` emits `<name>`, `<name>-docker` (for
-`docker load`), and `<name>-boot-smoke` (docker-based boot test), so:
+Every `minimos.image()` emits `<name>`, `<name>-docker` for `docker load`,
+and `<name>-boot-smoke`, so
 
 ```
 buck2 test //src/images/minimos/examples/...
 ```
 
-boots them all under docker and asserts systemd reaches `running` with
-each example's service active. The harness statically rejects unsafe image
-metadata before execution, then uses a private cgroup namespace, no network,
-bounded memory/CPU/PIDs/logs/tmpfs, timeouts, `no-new-privileges`, and an
-explicit capability set. It does not use Docker `--privileged`. Systemd still
-needs `SYS_ADMIN` inside the test container, so treat this as an integration
-test for trusted build artifacts; run adversarial images only on a disposable
-Docker host or VM.
+boots each one under docker and checks that systemd reaches `running`
+with the example's service active. See the top-level README for what the
+boot smoke does and doesn't cover.
 
-## dev/ and codex/ — machines, not appliances
+## Trying one out
 
-The first three examples are appliances: one service, no shell tools.
-`dev/` flips the image into a day-to-day machine: coreutils, findutils,
-grep/sed/gawk, tar/gzip/xz, git, jq, ripgrep, procps, less, curl, and
-bubblewrap from pinned Wolfi packages, plus a running
-`systemd --user` for uid 1000. exedev is marked lingering, and a small
-culled layer restores the `systemd-user-runtime-dir` binary and `loginctl`
-that the base denylist drops. The base already carries the `user@.service`
-drop-ins that reset the `PAMName=` our PAM-less rootfs can't satisfy and set
-`XDG_RUNTIME_DIR`, pam_systemd's other job. They sit unused until something
-lingers, and the composition policy wouldn't let this layer add them anyway.
+Locally:
 
-The local root account is locked and has `nologin`; exe.dev maps external SSH
-names, including `root`, to the configured `exedev` uid 1000 account. On these
-dev images, `/etc/minimos/require-user-scope` makes the exedev shell wrapper
-fail closed unless it can start the requested Bash shell or command with
-`systemd-run --user --scope`. This moves it out of the platform listener's
-`init.scope` and underneath `user@1000.service`. The user manager and each SSH
-scope delegate `cpu cpuset io memory pids`; each scope has CPU/I/O weight 100,
-`MemoryHigh=65%`, `MemoryMax=75%`, no swap, and `TasksMax=2048`. The parent
-`user.slice` has a 70%/80% memory high/max policy, no swap, and a 3072-task
-aggregate ceiling. It also caps aggregate root-filesystem I/O at 500/250 MB/s
-read/write and 50K/25K read/write IOPS. CPU and supported I/O weights remain
-work-conserving contention priorities, not per-tenant entitlements; on
-exe.dev's current weightless block scheduler, the hard bandwidth/IOPS values
-are the effective I/O policy. The user manager enables I/O/memory/task
-accounting and applies a zero hard core-file limit to user-created services.
+```
+buck2 test //src/images/minimos/examples/memcached:minimos-memcached-boot-smoke
+```
 
-Shell and remote-command channels take that wrapper path. The current exe.dev
-SFTP subsystem does not: live validation found its authenticated uid-1000
-handler still in `init.scope`, outside `user.slice`'s memory and I/O ceilings.
-The 512-task init-scope limit remains, but SFTP/forwarding must be moved by the
-platform into a bounded user scope before these images can claim complete
-per-session QoS. Capping all of `init.scope` is unsafe because it also contains
-PID 1 and the platform listener.
+On exe.dev, push under a fresh tag each time. exe.dev caches what a tag
+resolved to for up to a day, so reusing a tag can boot the old image.
 
-The dev boot smoke passes `--userland`, which waives the appliance's
-no-coreutils check but keeps the package-manager, file-mode, and baked-account
-invariants. Its `--dev` checks also exercise the user manager, wrapper cgroup
-placement, zero core limits, and bubblewrap installation. Docker's nested
-container policy rejects bubblewrap's `pivot_root`, so a real exe.dev deployment
-must additionally exercise a functional bubblewrap namespace/mount probe along
-with platform SSH, VM-only sysctls, and the realized `user.slice/io.max`
-values; Docker overlay storage may not expose a resolvable originating block
-device to the private test cgroup.
+```
+TAG=ttl.sh/$USER-minimos-memcached-$(date +%s):1h
+docker load < $(buck2 build //src/images/minimos/examples/memcached:minimos-memcached-docker --show-full-simple-output)
+docker tag minimos-memcached:latest $TAG
+docker push $TAG
+ssh exe.dev new --image=$TAG --name=mos-memcached
+ssh mos-memcached.exe.xyz   # bash, systemctl and journalctl, no coreutils
+```
 
-`codex/` stacks OpenAI's Codex CLI on top as a plain overlay: the
-static musl binary from the pinned GitHub release lands at
-`/usr/local/bin/codex`, and `~/.codex/config.toml` preconfigures the
-`exe-chatgpt` model provider. Attach an exe.dev integration named `chatgpt`
-when creating the VM; that integration makes
-`https://chatgpt.int.exe.xyz/v1` available to the VM and proxies it to the
-owning account without putting an API key in the image. A tag alone does not
-attach an integration. Codex's Linux command sandbox uses the image's
-unprivileged bubblewrap and the user namespaces minimos keeps enabled.
+Checking the appliance images from inside, without coreutils:
+
+- memcached: `exec 3<>/dev/tcp/127.0.0.1/11211; printf 'version\r\n' >&3; read -r v <&3; echo "$v"`
+- valkey: `valkey-cli ping` prints `PONG`
+- nginx: open `https://<vm>.exe.xyz/` from anywhere
+
+The dev and Codex images have coreutils, so check them like any machine:
+`systemctl --user is-system-running`, `loginctl list-users`,
+`git --version`, `codex --version`.
+
+## dev/ and codex/: machines, not appliances
+
+memcached, valkey and nginx are appliances, one service and no shell
+tools. `dev/` is a machine to work on. It adds coreutils, findutils,
+grep, sed, gawk, tar, gzip, xz, git, jq, ripgrep, procps, less, curl and
+bubblewrap from pinned Wolfi packages, and runs `systemd --user` for
+uid 1000.
+
+exedev lingers, so logind starts `user@1000.service` at boot, and a
+small culled layer brings back `systemd-user-runtime-dir` and
+`loginctl`, which the base denies. The base already has the
+`user@.service` drop-ins that clear `PAMName=`, which a rootfs with no
+PAM can't satisfy, and set `XDG_RUNTIME_DIR`, which pam_systemd would
+otherwise set. They do nothing until an account lingers, and the
+composition policy wouldn't let this layer add them anyway.
+
+### Where SSH sessions run
+
+The platform starts its SSH listener before PID 1, so every SSH child
+starts in `init.scope`. The dev overlay ships
+`/etc/minimos/require-user-scope`, which makes exedev's login wrapper
+start each shell or command with `systemd-run --user --scope`, under
+`user@1000.service`. If the user bus isn't up, the wrapper refuses the
+login rather than run it unbounded. It also turns off `systemd-run`'s
+`$` expansion, so Bash sees the SSH command exactly once.
+
+Each scope gets CPU and I/O weight 100, `MemoryHigh=65%`,
+`MemoryMax=75%`, no swap and 2048 tasks, and delegates
+`cpu cpuset io memory pids` so builds and runtimes can divide it
+further. All of that sits under `user.slice`'s 70%/80% memory, 3072
+tasks, and root-disk ceilings of 500 MB/s read, 250 MB/s write, 50K
+read IOPS and 25K write IOPS. The user manager has its own defaults too,
+with accounting on, 2048 tasks per service, a 30-second stop timeout and
+no core files.
+
+This only covers what comes in through the login shell. exe.dev's SFTP
+handler doesn't use the account's shell, so SFTP sessions stay in
+`init.scope`, outside `user.slice`'s memory and I/O ceilings, with only
+its 512-task cap. Capping all of `init.scope` would also cap PID 1 and
+the SSH listener, so the fix belongs on the platform side, which would
+need to put each SFTP or forwarding handler in a bounded user scope.
+Until then, treat those channels as a known gap in the resource limits.
+
+### The dev boot smoke
+
+`boot_smoke_userland = True` waives the no-coreutils check and nothing
+else. Package managers, file modes and the baked accounts are still
+checked. `boot_smoke_dev = True` checks the user manager, the login
+scope's cgroup and accounting, the zero core limits, and that bubblewrap
+is installed. Docker's seccomp policy blocks bubblewrap's `pivot_root`,
+so a working bubblewrap sandbox has to be checked on a VM.
+
+### codex/
+
+`codex/` adds OpenAI's Codex CLI to the dev image, as the static musl
+binary from a pinned GitHub release at `/usr/local/bin/codex`, with
+`~/.codex/config.toml` pointing at the `exe-chatgpt` provider. Create the
+VM with exe.dev's `chatgpt` integration. That makes
+`https://chatgpt.int.exe.xyz/v1` reachable from the VM and proxies it to
+the owning account, so no API key is ever in the image. A tag with the
+same name doesn't attach the integration. Codex's command sandbox uses
+the image's bubblewrap and the user namespaces minimos keeps.
 
 ```
 ssh exe.dev new --image=<pushed image> --name=agent --integration=chatgpt
 ssh agent.exe.xyz
-codex            # interactive; provider comes from ~/.codex/config.toml
-codex exec 'summarize this repo'   # non-interactive
+codex                              # interactive
+codex exec 'summarize this repo'   # one-shot
 ```
 
-The same provider can be configured ad hoc on a stock codex install:
+The same provider works with any Codex install:
 
 ```
 codex \
@@ -102,212 +136,153 @@ codex \
   -c 'model_providers.exe-chatgpt.base_url="https://chatgpt.int.exe.xyz/v1"'
 ```
 
-## container-host/ — an appliance that runs other people's containers
+### What bubblewrap does and doesn't isolate
 
-The Bottlerocket-shaped composition: containerd, the CNI plugins and
-iptables its networking shells out to, and **gVisor as the only OCI
-runtime on the machine**. It ships no userland — the userland arrives
-inside the sandboxes — so it keeps the appliance layer checks the dev
-images waive.
+Bubblewrap limits what a process can see inside its namespaces. On a VM
+it runs without setuid, through an unprivileged user namespace. Outside
+the namespace the process is still uid 1000, so it's no boundary between
+users who don't trust each other, and it can't hide anything its caller
+mounts or connects into it. For sandboxes that share the owner's
+resources:
 
-"Only runtime" is image content, not configuration. There is no runc, no
-crun, and no `containerd-shim-runc-v2` in any layer, so the conventional
-default runtime cannot start a container here at all; the boot smoke
-re-derives that from the built layers. containerd's CRI plugin, the one
-place containerd has a server-side default, names `runsc` as it. Sandbox
-behavior comes from `/etc/containerd/runsc/config.toml`, which the shim
-finds on its own — containerd only forwards runtime options a *client*
-asked for, and `nerdctl`/`ctr` send none, so that fallback path is the
-only way to configure every sandbox on the system at once.
+- share named workspace directories rather than all of `/home/exedev`,
+  and mount caches and sources read-only where possible
+- keep `/run/user/1000/bus`, runtime sockets, SSH agents, `/exe.dev`,
+  host devices, host cgroups, `.ssh`, `.codex` and unrelated repos out
+- give each workload its own cgroup limits and a quota or separate
+  volume, since cgroups don't stop a full disk
+- treat network access to an attached exe.dev integration as a
+  credential, even though its API key lives outside the VM
+
+The dev and Codex images aren't rootless container hosts. They have no
+Docker, Podman, containerd or runc, no subordinate-ID helpers or ranges,
+no rootless networking and no storage driver. Cgroup delegation and user
+namespaces are only groundwork. Workloads that don't trust each other
+need separate users with separate storage, cgroups, user managers and
+ID ranges, or separate VMs, and separate VMs are the only option these
+images offer today.
+
+## container-host/: an appliance that runs containers
+
+containerd, the CNI plugins and iptables its networking needs, and
+gVisor as the only OCI runtime. The image has no userland of its own, so
+it keeps the appliance checks the dev images waive.
+
+"Only runtime" describes the image's content, not its configuration. No
+layer has runc, crun or `containerd-shim-runc-v2`, so nothing else can
+start a container, and the boot smoke checks the built layers for them.
+containerd's CRI plugin, the only place containerd has a server-side
+default runtime, names `runsc`. Sandboxes are configured in
+`/etc/containerd/runsc/config.toml`, which the gVisor shim reads when a
+client sends no runtime options. nerdctl and ctr never send any, so that
+file is the only place to configure every sandbox.
 
 ### Running a workload
 
-A container is declared as data and started by systemd:
+Workloads are data, started by systemd. A layer stacked on this image
+ships an env file
 
 ```
-# /etc/minimos/containers/web.env, shipped by a layer stacked on this image
-IMAGE=docker.io/library/nginx:1.29-alpine
+# /etc/minimos/containers/web.env
+IMAGE=docker.io/library/nginx:1.29-alpine@sha256:<digest>
 RUN_ARGS=--publish 80:80 --memory 256m --cpus 1
 COMMAND=
 ```
 
-plus a `multi-user.target.wants/container@web.service` symlink to the
-`container@.service` template the image installs. That indirection is not
-ceremony — see below for why it is the only way in.
+and a `multi-user.target.wants/container@web.service` link to the
+`container@.service` template. The next section explains why that's the
+only way to start one.
 
-Two things the template enforces so a workload cannot quietly opt out:
+The template enforces two things a workload can't skip:
 
-- **`IMAGE` must be digest-pinned** (`…@sha256:…`), checked by an
-  `ExecStartPre` that fails the unit otherwise. Every other input to
-  these images is pinned by hash; a workload image is the one that
-  arrives at runtime from a registry, and a tag can be re-pointed between
-  the boot that was tested and the boot that runs. TLS proves who served
-  the bytes, not which bytes were promised.
-- **Container logs are bounded** (`--log-opt max-size=16m max-file=3`,
-  overridable from `RUN_ARGS`). Cgroups cap memory, CPU and pids but
-  never bytes written, so an unbounded json-file log is the likeliest way
-  this host fills its root filesystem. The content store is the other
-  way, and it is not bounded: containerd's GC reclaims unreferenced
-  content, not images you pulled and stopped using, so `nerdctl rmi` and
-  a disk-usage alarm remain the operator's job.
+- **`IMAGE` has to be pinned by digest.** An `ExecStartPre=` check fails
+  the unit otherwise. Every other input to these images is pinned by
+  hash, while a workload image comes from a registry at runtime, and a
+  tag can move between the boot you tested and the boot that runs.
+- **Container logs are capped** at `--log-opt max-size=16m max-file=3`,
+  which `RUN_ARGS` can override. Cgroups limit memory, CPU and pids but
+  not bytes written, so an unbounded log is the likeliest way to fill the
+  disk. Pulled images are the other way, and nothing bounds them.
+  containerd's garbage collector only removes unreferenced content, so
+  `nerdctl rmi` and watching disk usage stay the owner's job.
 
-### What the SSH owner can and cannot do
+### What the SSH owner can and can't do
 
-`containerd.service` hands its control socket to `exedev` (uid 1000)
-after startup, so `ctr` works over SSH for pulls, listing, inspection and
-task control. It **cannot start a container**, and that is not a
-permission that was withheld:
+`containerd.service` hands its socket to exedev after it starts, so
+`ctr` over SSH can pull, list, inspect and control tasks. It can't start
+a container, and no permission would change that:
 
-- `nerdctl` decides it is rootless from `geteuid()` alone. As uid 1000 it
-  never looks at the socket; it looks for a rootless containerd that does
-  not exist and exits.
-- `ctr run` builds the OCI spec client-side, which means reading
-  `/var/lib/containerd/…/snapshots/<n>/fs` directly. That path is root's,
-  and on cgroup-v2 the client would need `mount(2)` anyway.
+- `nerdctl` decides it's rootless from `geteuid()` alone. As uid 1000 it
+  looks for a rootless containerd that doesn't exist and exits.
+- `ctr run` builds the OCI spec on the client side, which means reading
+  `/var/lib/containerd/.../snapshots/<n>/fs`. That's root's, and on
+  cgroup v2 the client would need `mount(2)` anyway.
 
-So creating a container is a build-time act on this image, the same way
-creating a service is. This is a consequence of minimos having no path to
-uid 0 at runtime, not of container tooling being unusual: every container
-CLI assumes it either is root or has a rootless daemon of its own, and
-rootless containers need setuid `newuidmap`/`newgidmap` helpers that this
-image structurally refuses to ship.
+So creating a container is a build-time act here, like creating a
+service. Container CLIs assume they're root or have a rootless daemon,
+and rootless containers need setuid `newuidmap` and `newgidmap`, which no
+minimos image ships.
 
-Handing over the socket is itself a deliberate widening, and a total one:
-anything that can reach it can start a container that bind-mounts the
-host filesystem. It is the same bargain as membership in Docker's
-`docker` group, taken because a container host whose owner cannot even
-see what is running is not administrable. What gVisor buys is the layer
-underneath — the workload runs on a userspace kernel rather than directly
-on the host's syscall surface.
+The socket handover still gives the owner a way to root. Anything that
+can reach the socket can start a container that mounts the host
+filesystem, the same trade as Docker's `docker` group. It's there
+because a container host whose owner can't see what's running can't be
+run at all. gVisor is the boundary under the workloads, since each one
+runs on a userspace kernel instead of the host's syscalls.
 
-### The annotation every non-CRI client has to pass
+### The annotation non-CRI clients need
 
-gVisor's shim wires a container's stdio to runsc **only** when the OCI
-spec carries `io.kubernetes.cri.container-type=sandbox`: `newInit` sets
+gVisor's shim only connects a container's stdio to runsc when the OCI
+spec has `io.kubernetes.cri.container-type=sandbox`. `newInit` sets
 `p.Sandbox` from that annotation alone, and `Create` passes `opts.IO`
-only when `p.Sandbox` is set. Without it the shim captures runsc's output
-through a pipe that the sandbox process inherits and never closes, so
-`Create` blocks forever — the sandbox boots, logs `Watchdog.Start() not
-called within 30s`, and the task sits in `CREATED`. Nothing reports an
-error; it simply hangs.
+only when `p.Sandbox` is set. Without it the shim reads runsc's output
+through a pipe the sandbox inherits and never closes, so `Create` blocks
+forever. The sandbox logs `Watchdog.Start() not called within 30s`, the
+task sits in `CREATED`, and nothing reports an error.
 
-The CRI always sets that annotation, which is why the bug is invisible in
-Kubernetes. `container@.service` passes it explicitly, and the boot smoke
-asserts it is still there. Ad-hoc runs need both flags:
+The CRI always sets the annotation, which is why Kubernetes never hits
+this. `container@.service` passes it, and the boot smoke checks it's
+still there. Anything else that starts a container on this runtime, as
+root on this image or on any other containerd host, needs both flags:
 
 ```
 nerdctl run --runtime=io.containerd.runsc.v1 \
     --annotation io.kubernetes.cri.container-type=sandbox \
-    --rm docker.io/library/alpine:3 uname -a        # -> 4.19.0-gvisor
+    --rm docker.io/library/alpine:3 uname -a        # Linux ... 4.19.0-gvisor
 ```
 
-### Verified on a real VM
+### Checked on a real VM
 
-Docker cannot start a gVisor sandbox inside the bounded boot smoke —
-nested seccomp and container policy stop it — so the smoke checks
-composition (no other runtime present, runsc executes, containerd's
-effective config, the socket handover, the annotation) and the runtime
-itself is a VM check. On an exe.dev VM, with a workload unit enabled:
+Docker can't start a gVisor sandbox inside the boot smoke, so the smoke
+checks the pieces: no other runtime, runsc runs, containerd's merged
+config, the socket handover, and the unit's annotation, digest and log
+guards. On an exe.dev VM with a workload enabled:
 
-- the container reports `Linux 4.19.0-gvisor`, i.e. the sentry, not the
-  host kernel;
-- CNI bridge networking works end to end — `nerdctl0` plus a veth pair,
-  and outbound HTTP from inside the sandbox succeeds. This is only true
-  because the platform kernel has nf_tables built in: minimos latches
-  `kernel.modules_disabled=1` during `sysinit.target`, so a backend that
-  needed to load a module would fail permanently. The image's `iptables`
-  symlinks therefore point at the nft multi binary, not Wolfi's legacy
-  default;
-- gVisor's KVM platform is unavailable (the hypervisor exposes
-  `/dev/kvm` but not working nested VMX), so sandboxes use systrap, which
-  needs no device.
+- the container reports `Linux 4.19.0-gvisor`, gVisor's kernel rather
+  than the host's
+- CNI bridge networking works, with `nerdctl0`, a veth pair and outbound
+  HTTP from inside the sandbox. That depends on the platform kernel
+  having nf_tables built in, since minimos shuts off module loading, and
+  it's why the image's `iptables` links point at the nft binary rather
+  than Wolfi's legacy default
+- gVisor's KVM platform isn't available, since the VM has `/dev/kvm` but
+  no working nested VMX, so sandboxes use systrap
 
-Container cgroups land at `/sys/fs/cgroup/<namespace>/<id>`, outside the
-base's slice hierarchy: nerdctl refuses the systemd cgroup manager for
-any runtime other than runc and falls back to cgroupfs, so the runtime
-config agrees with it rather than fighting it. Bound each workload in its
-own `RUN_ARGS` (`--memory`, `--cpus`, `--pids-limit`).
+Container cgroups live at `/sys/fs/cgroup/<namespace>/<id>`, outside the
+base's slices. nerdctl refuses the systemd cgroup manager for any runtime
+but runc, so the runtime config says cgroupfs too. Limit each workload
+in its `RUN_ARGS` with `--memory`, `--cpus` and `--pids-limit`.
 
-Two lines in containerd's own log survive on a clean boot, and neither is
-a systemd-priority warning — journald records service stdout at `info`,
-so the smoke's warning-free-journal check does not see them, and they are
-worth recognizing rather than chasing. `failed check for fsverity
-support` is the root filesystem answering that it has no fsverity;
-containerd probes and continues. `failed to load cni during init` is the
-CRI plugin reporting that `/etc/cni/net.d` is still empty — the image
-ships the directory but no network, because a container network is
-runtime state the CLI creates and removes, not image configuration.
-nerdctl writes its bridge definition there the first time a container
-needs one, and the CRI picks up the same directory.
+Two lines in containerd's log show up on a clean boot. journald records
+them at `info`, so the boot smoke doesn't flag them.
+`failed check for fsverity support` means the root filesystem has no
+fsverity, and containerd carries on. `failed to load cni during init`
+means `/etc/cni/net.d` is empty. The image ships the directory but no
+network, and nerdctl writes its bridge definition there the first time a
+container needs it.
 
-## Sandbox and shared-resource boundary
-
-`dev/` and `codex/` provide same-owner process sandboxing, not a general
-rootless OCI host. They do not ship Docker, Podman, containerd, runc/crun,
-subordinate-ID helpers or allocations, rootless networking, or a writable-layer
-storage driver. Cgroup delegation and usable user namespaces are prerequisite
-plumbing for a future runtime composition, not evidence that arbitrary
-devenv/container images work today.
-
-`container-host/` is that runtime composition, and it is a *rootful* one:
-containerd runs as root, sandboxes are started by root-side systemd
-units, and the socket handed to uid 1000 is root-equivalent by
-construction. It ships no subordinate-ID helpers either — rootless
-containers need setuid `newuidmap`/`newgidmap`, which no minimos image
-will carry — so it is not a way to give an untrusted user containers.
-Its boundary is gVisor around the *workload*, not around the operator.
-
-Bubblewrap changes what a process can see inside its namespaces, but outside
-them the process is still owned by host uid 1000. It is not a security boundary
-between mutually untrusted users, and it cannot hide a host resource that its
-caller deliberately mounts or connects. For same-owner development sandboxes:
-
-- share named workspace directories, not all of `/home/exedev`, and make caches
-  and source inputs read-only whenever possible;
-- do not expose `/run/user/1000/bus`, a runtime-control socket, SSH agent,
-  `/exe.dev`, host devices, host cgroups, `.ssh`, `.codex`, or unrelated repos;
-- give each workload its own cgroup ceilings and a filesystem quota or dedicated
-  volume, because cgroups do not prevent disk exhaustion;
-- treat network reachability to an attached exe.dev integration as an
-  authorization capability, even though no upstream API key is stored locally.
-
-Mutually untrusted workloads require separate host users with disjoint storage,
-cgroups, user managers, and subordinate-ID ranges, or separate VMs. The shipped
-examples implement only the single `exedev` owner; separate exe.dev VMs are the
-available strong boundary without building a different multi-user runtime.
-
-## Trying one out
-
-Local (memcached shown; substitute any example):
-
-```
-buck2 test //src/images/minimos/examples/memcached:minimos-memcached-boot-smoke
-
-# Optional static inspection; use the target above, not a privileged Docker
-# invocation, to boot the image locally.
-docker load < $(buck2 build //src/images/minimos/examples/memcached:minimos-memcached-docker --show-full-simple-output)
-```
-
-On exe.dev (push to ttl.sh, boot a VM, then poke it over SSH):
-
-```
-docker load < $(buck2 build //src/images/minimos/examples/memcached:minimos-memcached-docker --show-full-simple-output)
-docker tag minimos-memcached:latest ttl.sh/$USER-minimos-memcached:1h
-docker push ttl.sh/$USER-minimos-memcached:1h
-ssh exe.dev new --image=ttl.sh/$USER-minimos-memcached:1h --name mos-memcached
-ssh mos-memcached.exe.xyz  # bash + systemctl/journalctl; no coreutils
-```
-
-ttl.sh tags are mutable but cached by digest on the platform side:
-when you push a changed image, use a fresh tag or the VM may boot the
-stale bytes.
-
-In-VM verification, coreutils-free (the appliance images):
-
-- memcached: `exec 3<>/dev/tcp/127.0.0.1/11211; printf 'version\r\n' >&3; read -r v <&3; echo "$v"`
-- valkey: `valkey-cli ping` → `PONG`
-- nginx: visit `https://<vm>.exe.xyz/` (or `curl` from anywhere)
-
-The dev/codex images have real coreutils, so verify like a normal
-machine: `systemctl --user is-system-running`, `loginctl list-users`,
-`git --version`, `codex --version`.
+The container host runs containers as root. containerd is root, systemd
+units start the sandboxes, and the socket handed to uid 1000 is as good
+as root. It ships no subordinate-ID helpers, so it can't give an
+untrusted user containers. gVisor protects the host from the workloads,
+not from the owner.

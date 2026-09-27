@@ -3,13 +3,12 @@
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
-# Generic image-building machinery consumed by the minimos.* macros in
-# ../defs.bzl. Nothing minimos-specific lives here — image content is
-# declared by the packages that build images.
+# Image-building tools behind the minimos.* macros in ../defs.bzl. Image
+# content belongs to the packages that build images, not here.
 #
 # The Python is stdlib-only, so each tool is a plain python_binary on the
-# repository's interpreter and the macros run it with $(exe). common.py
-# holds the archive-hardening checks the tools share.
+# repository's interpreter, run by the macros with $(exe). common.py holds
+# the archive checks the tools share.
 
 depot.python_library(
     name = "common",

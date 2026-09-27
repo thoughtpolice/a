@@ -3,25 +3,20 @@
 
 load("@root//src/images/minimos:defs.bzl", "minimos")
 
-# --------------------------------------------------------------------------
-# minimos-dev: an interactive machine instead of a sealed appliance —
-# coreutils and friends for day-to-day SSH use, and a running per-user
-# systemd manager so buck2, coding agents, and `systemd-run --user`
-# get cgroup delegation. The layers are PUBLIC on purpose: heavier
-# compositions (examples/codex) stack on them.
+# minimos-dev: a machine to work on rather than an appliance. It has
+# coreutils and the usual tools for SSH use, and a per-user systemd
+# manager so buck2, coding agents and `systemd-run --user` get cgroup
+# delegation. The layers are public so examples/codex can stack on them.
 #
-# The user manager works like this: exedev "lingers" (the baked
-# /var/lib/systemd/linger/exedev), so logind starts user@1000.service
-# at boot without any session; user@ BindsTo user-runtime-dir@, whose
-# binary the base denylist drops, so a culled layer adds it and
-# loginctl back. The base's own user@.service drop-ins reset the
-# PAMName= that our PAM-less rootfs could never satisfy and set the
-# delegation, so this package needs none.
-# --------------------------------------------------------------------------
+# exedev lingers through the baked /var/lib/systemd/linger/exedev, so
+# logind starts user@1000.service at boot with no session. user@ binds to
+# user-runtime-dir@, whose binary the base denies, so a small culled layer
+# brings it back along with loginctl. The base's own user@.service
+# drop-ins handle the missing PAM and the delegation.
 
-# systemd-user-runtime-dir + loginctl, culled out of the same pinned
-# systemd package the base uses; the base's libraries satisfy the .so
-# closure, so this layer is exactly two binaries.
+# systemd-user-runtime-dir and loginctl from the same systemd package the
+# base uses. The base has every library they link, so the layer is two
+# files.
 minimos.apk_culled_layer(
     name = "user-manager-culled-layer",
     apks = [
@@ -31,10 +26,8 @@ minimos.apk_culled_layer(
     visibility = ["PUBLIC"],
 )
 
-# Interactive userland: coreutils and friends, git, jq, ripgrep. The
-# tail of the list is the runtime libraries they link that the base
-# doesn't ship (the curl chain is most of it); the .so closure resolves
-# the rest against the base layer.
+# The interactive tools, then the libraries they link that the base
+# doesn't ship. curl's dependencies are most of that list.
 minimos.apk_culled_layer(
     name = "dev-tools-culled-layer",
     apks = [
@@ -55,7 +48,7 @@ minimos.apk_culled_layer(
         "ripgrep",
         "sed",
         "xz",
-        # Libraries the tools link that the base image doesn't carry.
+        # Libraries the tools link that the base doesn't ship.
         "gdbm",
         "keyutils-libs",
         "krb5-libs",
@@ -79,9 +72,9 @@ minimos.apk_culled_layer(
         "libssl3",
         "libcrypto3",
         "zlib",
-        # Three packages the base also ships, here for what the base culls
-        # out of them: glibc's tools (getent, ldd, iconv), ncurses's
-        # libncursesw and terminfo tools, and the full terminfo set.
+        # Packages the base also uses, listed again for the parts the base
+        # culls: glibc's getent, ldd and iconv, ncurses's libncursesw and
+        # terminfo tools, and the full terminfo set.
         "glibc",
         "ncurses",
         "ncurses-terminfo-base",
@@ -91,8 +84,8 @@ minimos.apk_culled_layer(
     visibility = ["PUBLIC"],
 )
 
-# Linger + login-shell environment. Parent directories (/etc/systemd,
-# /var) come from the base layers.
+# The linger marker and the login environment. The base declares the
+# parent directories.
 minimos.overlay(
     name = "dev-overlay-layer",
     dirs = [
@@ -102,11 +95,11 @@ minimos.overlay(
         "var/lib/systemd",
         "var/lib/systemd/linger",
     ],
-    # Lingering is a zero-length marker file named after the account:
-    # logind sees it at boot and starts user@1000 with no session.
+    # Lingering is an empty file named after the account. logind sees it
+    # at boot and starts user@1000 with no session.
     empty_files = [
-        # Makes the base login wrapper fail closed unless it can hand the SSH
-        # command to the bounded, delegated user manager.
+        # Tells the login wrapper to refuse any login it can't move into a
+        # bounded scope under the user manager.
         "etc/minimos/require-user-scope:444",
         "var/lib/systemd/linger/exedev",
     ],
@@ -114,8 +107,7 @@ minimos.overlay(
         "etc/profile": "profile",
     },
     symlinks = {
-        # The broad upstream user unit tree contains socket surfaces whose
-        # backing binaries the image deliberately culls.
+        # Vendor user sockets for binaries the image culls.
         "etc/systemd/user/systemd-ask-password.socket": "/dev/null",
         "etc/systemd/user/systemd-journalctl.socket": "/dev/null",
         "etc/systemd/user/systemd-storage-fs.socket": "/dev/null",

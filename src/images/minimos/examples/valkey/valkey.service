@@ -13,8 +13,8 @@ RestartSec=2s
 StandardOutput=journal
 StandardError=journal
 
-# Bound the database and its client workload. MemoryHigh starts reclaim before
-# the hard cap; the remaining gap covers allocator and connection overhead.
+# MemoryHigh= starts reclaim before the hard cap, and the gap covers
+# allocator and connection overhead.
 Slice=user-workload.slice
 CPUWeight=100
 IOWeight=100
@@ -24,17 +24,13 @@ MemorySwapMax=0
 TasksMax=64
 OOMPolicy=kill
 
-# Sandbox — see the README's hardening section. StateDirectory= creates
-# /var/lib/valkey owned by the dynamic user (valkey.conf's `dir`), so
-# the overlay doesn't hand-make root-owned state dirs. DynamicUser=
-# implies NoNewPrivileges, ProtectSystem=strict, ProtectHome=read-only,
-# PrivateTmp, RemoveIPC, and RestrictSUIDSGID. ProtectHome=yes below
-# tightens the implied read-only view to an inaccessible one.
+# The same sandbox as memcached.service. StateDirectory= creates
+# /var/lib/valkey, valkey.conf's `dir`, owned by the dynamic user.
 DynamicUser=yes
 StateDirectory=valkey
 CapabilityBoundingSet=
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
-# valkey.conf binds loopback only; cut it off from the network entirely.
+# valkey.conf binds loopback, so the service gets no other network.
 IPAddressDeny=any
 IPAddressAllow=localhost
 PrivateDevices=yes

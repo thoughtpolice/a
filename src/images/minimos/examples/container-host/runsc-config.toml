@@ -1,37 +1,31 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 #
-# /etc/containerd/runsc/config.toml — the gVisor shim's own configuration.
+# /etc/containerd/runsc/config.toml, the gVisor shim's own configuration.
 #
-# This path matters. containerd only hands a shim the options a *client*
-# asked for, and the runtime options a client can send are a CRI concept:
-# `nerdctl run` and `ctr run` send none at all. The gVisor shim closes
-# that gap by falling back to /run/containerd/runsc/config.toml and then
-# /etc/containerd/runsc/config.toml, so this file — unlike anything in
-# containerd's own config — governs *every* sandbox on the system no
-# matter which client created it.
+# containerd only passes a shim the runtime options a client sent, and
+# `nerdctl run` and `ctr run` send none. When it gets none, the gVisor
+# shim reads /run/containerd/runsc/config.toml and then this file. That
+# makes this the one config that covers every sandbox, whichever client
+# started it.
 #
-# Top-level keys are shim options; the [runsc_config] table is passed
-# through as `--key=value` flags to runsc itself.
+# Top-level keys are shim options. The [runsc_config] table goes to runsc
+# as `--key=value` flags.
 
-# Absolute path, so a sandbox never depends on the PATH containerd was
-# started with. The gVisor release binary lands here (see BUILD).
+# An absolute path, so a sandbox doesn't depend on containerd's PATH.
 binary_name = "/usr/local/bin/runsc"
 
 [runsc_config]
-  # gVisor's default platform, stated because the alternative is not
-  # available here: the exe.dev hypervisor exposes /dev/kvm but not
-  # working nested VMX, so the KVM platform cannot be used. systrap
-  # traps guest syscalls with seccomp and a signal handler, needs no
-  # device, and was verified working on the platform kernel (6.12).
+  # gVisor's default, stated because the KVM platform isn't an option.
+  # exe.dev VMs have /dev/kvm but no working nested VMX. systrap catches
+  # syscalls with seccomp and a signal handler, needs no device, and
+  # works on the platform's 6.12 kernel.
   platform = "systrap"
 
-  # Deliberately no systemd-cgroup here, though this is a systemd image
-  # and transient scopes would sit more neatly under the base's slices.
-  # The client picks the cgroupsPath syntax and the runtime has to parse
-  # the same one, and nerdctl refuses the systemd manager for any runtime
-  # that is not runc — "cannot set cgroup manager to systemd for runtime
-  # io.containerd.runsc.v1", after which it emits a cgroupfs path anyway.
-  # A runtime told to expect slice:prefix:name would then be handed
-  # /default/<id>, so the two must agree on cgroupfs. nerdctl.toml states
-  # the same thing from the client side.
+  # No systemd-cgroup, though scopes under the base's slices would be
+  # tidier. The client picks the cgroupsPath syntax and the runtime has
+  # to parse it. nerdctl refuses the systemd manager for any runtime but
+  # runc ("cannot set cgroup manager to systemd for runtime
+  # io.containerd.runsc.v1") and sends a cgroupfs path anyway, so a
+  # runsc expecting slice:prefix:name would get /default/<id>.
+  # nerdctl.toml says cgroupfs from the client side.
