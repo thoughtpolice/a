@@ -146,6 +146,12 @@ name. What the platform expects from a custom image:
   for an hour for `latest`, `main` and `master` and a day for any other
   tag. A VM created soon after a push can boot the old image, so push
   each build under a new tag or use its digest.
+- **The root filesystem grows at boot.** A new VM's filesystem already
+  fills its disk, but `resize` only grows the block device. exeuntu grows
+  the filesystem with an `x-systemd.growfs` line in `/etc/fstab`. minimos
+  has no fstab, so the base links `systemd-growfs-root.service` into
+  `local-fs.target`, with a drop-in that skips it under docker. It runs
+  on every boot and does nothing while `/` already fills the disk.
 - **Setup scripts run as exedev, and may run again.**
   `exe-setup.service` runs `/exe.dev/setup`, the `--setup-script` given
   to `new`, as exedev with no capabilities and a read-only system. It can
@@ -365,6 +371,7 @@ checks that they're wired up:
 - the VM-only sysctls, including `kernel.modules_disabled=1`
 - `user.slice`'s `io.max`, since docker's root has no block device
 - chrony syncing from `/dev/ptp0`
+- the root filesystem growing after `new --disk` or `resize`
 - bubblewrap sandboxes on the dev images, which docker's seccomp blocks
 - gVisor containers on the container host
 
