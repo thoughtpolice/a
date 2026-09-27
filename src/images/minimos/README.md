@@ -171,7 +171,7 @@ What the platform expects from a custom image:
   `/dev/mqueue` itself.
 - **Ship the C.UTF-8 locale.** The Cmd environment sets `LANG=C.UTF-8`
   and systemd passes it to every unit. Without `/usr/lib/locale/C.utf8`
-  from Wolfi's `glibc-locale-posix`, `setlocale()` fails, and some
+  from Wolfi's `glibc-2.44-locale-posix`, `setlocale()` fails, and some
   daemons, valkey for one, exit.
 - **The platform writes `/etc/resolv.conf` and `/etc/hosts`.** At boot
   exe.dev replaces both, pointing DNS at `169.254.169.254` and adding the
@@ -359,10 +359,12 @@ The macros in `defs.bzl` are the only way in.
 - `cull.py` keeps the paths a keep list names plus the `.so` closure of
   every kept ELF file, minus a deny list, and writes a tar. The closure
   resolves against the layers below first, so a composition never copies
-  a library the base ships. An unresolved soname, or a keep entry that
-  matches nothing, fails the build. Wolfi builds systemd's optional
-  libraries behind dlopen, so the base keep list names the ones minimos
-  uses.
+  a library the base ships. An unresolved soname, a symbol version the
+  shipped library doesn't define, or a keep entry that matches nothing
+  fails the build. The version check is what catches a Wolfi package
+  built against a newer glibc than the base pins. Wolfi builds systemd's
+  optional libraries behind dlopen, so the base keep list names the ones
+  minimos uses.
 - `mkoverlay.py` builds an overlay tar from command-line declarations,
   with every mode and owner explicit and every timestamp zero. It
   enables units the way `systemctl enable` would, from their `[Install]`
