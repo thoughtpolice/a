@@ -1,0 +1,375 @@
+{
+  "vars": {
+    "API_KEYS": {
+      "6a75d7a1de4f474ec679705f6861b9175aede7bbca858296d87146a6eb80bd80": {
+        "subject": "alice"
+      },
+      "9b9203d13fdd8bd058b530082ddd562cce9673b9424a2447ebc50819991a8857": {
+        "subject": "bob"
+      },
+      "c42eb082f02925e4010cab98de445aef681d05ea7e21884a65d9c2602170b5df": {
+        "subject": "root",
+        "roles": [
+          "admin"
+        ]
+      }
+    }
+  },
+  "steps": [
+    {
+      "name": "a request without a key is refused",
+      "request": {
+        "path": "/docs"
+      },
+      "expect": {
+        "status": 401
+      }
+    },
+    {
+      "name": "a forged key is refused",
+      "request": {
+        "path": "/docs",
+        "headers": {
+          "x-api-key": "docs_alice_forged"
+        }
+      },
+      "expect": {
+        "status": 401
+      }
+    },
+    {
+      "name": "alice creates a private document",
+      "request": {
+        "method": "POST",
+        "path": "/docs",
+        "headers": {
+          "x-api-key": "docs_alice_2mTIqUW4ZWkNGhKOVaNEvtPpW0mG0dL0"
+        },
+        "json": {
+          "title": "Plan"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "id": {
+            "$regex": "^[0-9a-f-]{36}$"
+          }
+        }
+      },
+      "save": {
+        "plan": "json.id"
+      }
+    },
+    {
+      "name": "alice creates a public one",
+      "request": {
+        "method": "POST",
+        "path": "/docs",
+        "headers": {
+          "x-api-key": "docs_alice_2mTIqUW4ZWkNGhKOVaNEvtPpW0mG0dL0"
+        },
+        "json": {
+          "title": "Notes",
+          "public": true
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "notes": "json.id"
+      }
+    },
+    {
+      "name": "alice reads her document; the owners policy allowed it",
+      "request": {
+        "path": "/docs/{plan}",
+        "headers": {
+          "x-api-key": "docs_alice_2mTIqUW4ZWkNGhKOVaNEvtPpW0mG0dL0"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "id": "{plan}",
+            "title": "Plan",
+            "reasons": [
+              "owners"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "bob cannot read it",
+      "request": {
+        "path": "/docs/{plan}",
+        "headers": {
+          "x-api-key": "docs_bob_Vq3lK8cYtZr2nGx7HjD0pWsE5fUaMbN1"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "name": "a document that does not exist is 404",
+      "request": {
+        "path": "/docs/nope",
+        "headers": {
+          "x-api-key": "docs_bob_Vq3lK8cYtZr2nGx7HjD0pWsE5fUaMbN1"
+        }
+      },
+      "expect": {
+        "status": 404
+      }
+    },
+    {
+      "name": "alice lists both; bob only the public one (one filtered SQL query)",
+      "request": {
+        "path": "/docs",
+        "headers": {
+          "x-api-key": "docs_alice_2mTIqUW4ZWkNGhKOVaNEvtPpW0mG0dL0"
+        }
+      },
+      "expect": {
+        "json": {
+          "docs": {
+            "$len": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "bob lists the public document",
+      "request": {
+        "path": "/docs",
+        "headers": {
+          "x-api-key": "docs_bob_Vq3lK8cYtZr2nGx7HjD0pWsE5fUaMbN1"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "docs": [
+              {
+                "id": "{notes}",
+                "title": "Notes"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "bob cannot share alice's document with himself",
+      "request": {
+        "method": "PUT",
+        "path": "/docs/{plan}/viewers/bob",
+        "headers": {
+          "x-api-key": "docs_bob_Vq3lK8cYtZr2nGx7HjD0pWsE5fUaMbN1"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "name": "alice shares it with bob",
+      "request": {
+        "method": "PUT",
+        "path": "/docs/{plan}/viewers/bob",
+        "headers": {
+          "x-api-key": "docs_alice_2mTIqUW4ZWkNGhKOVaNEvtPpW0mG0dL0"
+        }
+      },
+      "expect": {
+        "status": 204
+      }
+    },
+    {
+      "name": "sharing again changes nothing",
+      "request": {
+        "method": "PUT",
+        "path": "/docs/{plan}/viewers/bob",
+        "headers": {
+          "x-api-key": "docs_alice_2mTIqUW4ZWkNGhKOVaNEvtPpW0mG0dL0"
+        }
+      },
+      "expect": {
+        "status": 204
+      }
+    },
+    {
+      "name": "bob reads it through the link",
+      "request": {
+        "path": "/docs/{plan}",
+        "headers": {
+          "x-api-key": "docs_bob_Vq3lK8cYtZr2nGx7HjD0pWsE5fUaMbN1"
+        }
+      },
+      "expect": {
+        "json": {
+          "reasons": [
+            "viewer/{plan}/apiKey\u0000\u0000\u0000\u0000bob"
+          ]
+        }
+      }
+    },
+    {
+      "name": "the share survives a restart",
+      "restart": true,
+      "request": {
+        "path": "/docs",
+        "headers": {
+          "x-api-key": "docs_bob_Vq3lK8cYtZr2nGx7HjD0pWsE5fUaMbN1"
+        }
+      },
+      "expect": {
+        "json": {
+          "docs": {
+            "$len": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "alice stops sharing",
+      "request": {
+        "method": "DELETE",
+        "path": "/docs/{plan}/viewers/bob",
+        "headers": {
+          "x-api-key": "docs_alice_2mTIqUW4ZWkNGhKOVaNEvtPpW0mG0dL0"
+        }
+      },
+      "expect": {
+        "status": 204
+      }
+    },
+    {
+      "name": "bob cannot read it again",
+      "request": {
+        "path": "/docs/{plan}",
+        "headers": {
+          "x-api-key": "docs_bob_Vq3lK8cYtZr2nGx7HjD0pWsE5fUaMbN1"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "name": "only admins edit policies",
+      "request": {
+        "method": "PUT",
+        "path": "/policies/everyone",
+        "headers": {
+          "x-api-key": "docs_alice_2mTIqUW4ZWkNGhKOVaNEvtPpW0mG0dL0"
+        },
+        "json": {
+          "text": "permit(principal, action, resource);"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "name": "a policy that does not validate is refused with Cedar's diagnostics",
+      "request": {
+        "method": "PUT",
+        "path": "/policies/titles",
+        "headers": {
+          "x-api-key": "docs_admin_Q9wErTyUiOpAsDfGhJkLzXcVbNm1234"
+        },
+        "json": {
+          "text": "permit (principal, action == Action::\"read\", resource)\nwhen { resource.titel == \"Plan\" };"
+        }
+      },
+      "expect": {
+        "status": 422,
+        "json": {
+          "errors": [
+            {
+              "$regex": "attribute `titel` on entity type `Doc` not found[\\s\\S]*2 \\| when \\{ resource.titel[\\s\\S]*did you mean `title`"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a policy that can never apply is refused too",
+      "request": {
+        "method": "PUT",
+        "path": "/policies/dead",
+        "headers": {
+          "x-api-key": "docs_admin_Q9wErTyUiOpAsDfGhJkLzXcVbNm1234"
+        },
+        "json": {
+          "text": "permit (principal, action, resource) when { resource has nope && resource.nope };"
+        }
+      },
+      "expect": {
+        "status": 422,
+        "json": {
+          "errors": [
+            {
+              "$regex": "policy is impossible"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a valid policy is stored and applies at once",
+      "request": {
+        "method": "PUT",
+        "path": "/policies/plans-are-public",
+        "headers": {
+          "x-api-key": "docs_admin_Q9wErTyUiOpAsDfGhJkLzXcVbNm1234"
+        },
+        "json": {
+          "text": "permit (principal, action == Action::\"read\", resource) when { resource.title == \"Plan\" };"
+        }
+      },
+      "expect": {
+        "json": {
+          "version": {
+            "$gt": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "bob reads the plan by the new policy",
+      "request": {
+        "path": "/docs/{plan}",
+        "headers": {
+          "x-api-key": "docs_bob_Vq3lK8cYtZr2nGx7HjD0pWsE5fUaMbN1"
+        }
+      },
+      "expect": {
+        "json": {
+          "reasons": [
+            "plans-are-public"
+          ]
+        }
+      }
+    },
+    {
+      "name": "bodies are capped",
+      "request": {
+        "method": "POST",
+        "path": "/docs",
+        "headers": {
+          "x-api-key": "docs_alice_2mTIqUW4ZWkNGhKOVaNEvtPpW0mG0dL0"
+        },
+        "bodyBytes": 20000
+      },
+      "expect": {
+        "status": 413
+      }
+    }
+  ]
+}
