@@ -1,9 +1,8 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 #
-# Every program the dev tool packages install in /usr/bin, glibc's
-# getent, ldd and iconv included. cull.py adds the libraries they link,
-# except those the base already ships.
+# Every program the dev tool packages install in /usr/bin. cull.py adds
+# the libraries they link, except those the base already ships.
 
 /usr/bin/*
 

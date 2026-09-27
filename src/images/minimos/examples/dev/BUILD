@@ -73,9 +73,9 @@ minimos.apk_culled_layer(
         "libcrypto3",
         "zlib",
         # Packages the base also uses, listed again for the parts the base
-        # culls: glibc's getent, ldd and iconv, ncurses's libncursesw and
-        # terminfo tools, and the full terminfo set.
-        "glibc",
+        # culls: glibc's libresolv, which krb5 links, ncurses's libncursesw
+        # and terminfo tools, and the full terminfo set.
+        "glibc-2.44",
         "ncurses",
         "ncurses-terminfo-base",
     ],

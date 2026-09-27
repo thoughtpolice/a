@@ -36,9 +36,9 @@ minimos.apk_culled_layer(
         "wolfi-baselayout",
         "ca-certificates-bundle",
         # loader and libc, plus the C.UTF-8 locale the boot contract exports
-        "ld-linux",
-        "glibc",
-        "glibc-locale-posix",
+        "ld-linux-2.44",
+        "glibc-2.44",
+        "glibc-2.44-locale-posix",
         "libgcc",
         "systemd",
         "systemd-systemctl",

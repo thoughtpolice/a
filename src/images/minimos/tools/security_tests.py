@@ -348,6 +348,44 @@ class SecurityTests(unittest.TestCase):
                 ):
                     cull.close_elf(root, {app}, provided)
 
+    def test_cull_checks_symbol_versions_against_the_shipped_library(self) -> None:
+        # The provided copy of libshared.so is the one in the image, so its
+        # versions count even when the rootfs has a newer one.
+        versions = {
+            "app": ([("libshared.so", "V_2"), ("libown.so", "OWN_1")], set()),
+            "libown.so": ([], {"OWN_1"}),
+            "provided/libshared.so": ([], {"V_1", "V_2"}),
+            "rootfs/libshared.so": ([], {"V_1", "V_2", "V_3"}),
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            root = base / "rootfs"
+            provided = base / "provided"
+            for tree in (root, provided):
+                (tree / "usr" / "lib").mkdir(parents=True)
+                (tree / "usr" / "lib" / "libshared.so").write_bytes(b"shared")
+            (root / "usr" / "bin").mkdir()
+            app = root / "usr" / "bin" / "app"
+            app.write_bytes(b"app")
+            own = root / "usr" / "lib" / "libown.so"
+            own.write_bytes(b"own")
+
+            def lookup(path: Path):
+                if path.name == "libshared.so":
+                    return versions[f"{path.parents[2].name}/libshared.so"]
+                return versions[path.name]
+
+            with mock.patch.object(cull, "is_elf", lambda path: True), \
+                    mock.patch.object(cull, "elf_versions", lookup):
+                cull.check_versions(root, {app, own}, provided)
+                versions["app"][0].append(("libshared.so", "V_3"))
+                with self.assertRaisesRegex(
+                    UnsafeInputError, re.escape("V_3 from libshared.so (needed by app)")
+                ):
+                    cull.check_versions(root, {app, own}, provided)
+                # Without the provided tree, the rootfs copy is the shipped one.
+                cull.check_versions(root, {app, own}, None)
+
     def test_cull_uses_exact_root_and_bounds_hardlink_output_atomically(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)

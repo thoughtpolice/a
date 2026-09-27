@@ -18,8 +18,9 @@ Inputs:
 cull resolves the DT_NEEDED closure of every kept ELF file against the
 rootfs's /usr/lib and systemd's private /usr/lib/systemd, and keeps those
 libraries too. A kept symlink stays a symlink, and its target is kept.
-An unresolved soname fails the run. Setuid and setgid bits never make it
-into the output.
+An unresolved soname fails the run, and so does a symbol version that
+the library the loader would pick doesn't define. Setuid and setgid bits
+never make it into the output.
 
 The ELF parsing is stdlib-only, so the tool needs no third-party packages.
 """
@@ -33,6 +34,7 @@ import struct
 import sys
 import tarfile
 from pathlib import Path, PurePosixPath
+from typing import NamedTuple
 
 from common import UnsafeInputError, atomic_output, link_parts
 
@@ -52,6 +54,13 @@ DT_NULL = 0
 DT_NEEDED = 1
 DT_STRTAB = 5
 DT_STRSZ = 10
+DT_VERDEF = 0x6FFFFFFC
+DT_VERDEFNUM = 0x6FFFFFFD
+DT_VERNEED = 0x6FFFFFFE
+DT_VERNEEDNUM = 0x6FFFFFFF
+# A weak version reference only makes the loader warn when it's missing.
+VER_FLG_WEAK = 0x2
+MAX_VERSION_ENTRIES = 4096
 MAX_ELF_SIZE = 256 * 1024 * 1024
 MAX_OUTPUT_ENTRIES = 200_000
 MAX_OUTPUT_FILE_SIZE = 512 * 1024 * 1024
@@ -215,8 +224,23 @@ def is_elf(full: Path) -> bool:
         return False
 
 
-def elf_needed(full: Path) -> list[str]:
-    """Parse DT_NEEDED from a bounded ELF64-LE file, failing closed."""
+class ElfDynamic(NamedTuple):
+    """What the loader reads from an ELF file's dynamic table."""
+
+    needed: list[str]
+    # (soname, version) for every non-weak version the file requires, such
+    # as ("libc.so.6", "GLIBC_2.34").
+    verneed: list[tuple[str, str]]
+    # The version names the file defines, if it's a library that has them.
+    verdef: set[str]
+
+
+_NO_DYNAMIC = ElfDynamic([], [], set())
+
+
+def elf_dynamic(full: Path) -> ElfDynamic:
+    """Parse DT_NEEDED and the symbol version tables from a bounded ELF64-LE
+    file, failing closed."""
     try:
         size = full.stat().st_size
         if size < 0 or size > MAX_ELF_SIZE:
@@ -224,10 +248,10 @@ def elf_needed(full: Path) -> list[str]:
         with open(full, "rb") as f:
             data = f.read()
     except OSError:
-        return []
+        return _NO_DYNAMIC
 
     if data[:4] != b"\x7fELF":
-        return []
+        return _NO_DYNAMIC
     if len(data) < 64:
         raise UnsafeInputError(f"truncated ELF header: {full}")
     # e_ident: [4]=EI_CLASS (1=32,2=64), [5]=EI_DATA (1=LE,2=BE)
@@ -256,15 +280,14 @@ def elf_needed(full: Path) -> list[str]:
             dyn_size = struct.unpack_from("<Q", data, off + 0x20)[0]
             break
     if dyn_offset is None:
-        return []
+        return _NO_DYNAMIC
     if dyn_size is None or dyn_offset > len(data) or dyn_size > len(data) - dyn_offset:
         raise UnsafeInputError(f"ELF dynamic table exceeds file bounds: {full}")
     if dyn_size % 16:
         raise UnsafeInputError(f"ELF dynamic table is misaligned: {full}")
 
     # walk .dynamic: array of {d_tag: int64, d_val: uint64}
-    strtab_vaddr = None
-    strtab_size = None
+    tags: dict[int, int] = {}
     needed_offsets: list[int] = []
     for i in range(dyn_size // 16):
         off = dyn_offset + i * 16
@@ -275,54 +298,118 @@ def elf_needed(full: Path) -> list[str]:
             break
         elif d_tag == DT_NEEDED:
             needed_offsets.append(d_val)
-        elif d_tag == DT_STRTAB:
-            strtab_vaddr = d_val
-        elif d_tag == DT_STRSZ:
-            strtab_size = d_val
+        elif d_tag in (DT_STRTAB, DT_STRSZ, DT_VERDEF, DT_VERDEFNUM,
+                       DT_VERNEED, DT_VERNEEDNUM):
+            tags[d_tag] = d_val
 
-    if not needed_offsets:
-        return []
+    if not needed_offsets and DT_VERNEED not in tags and DT_VERDEF not in tags:
+        return _NO_DYNAMIC
+    strtab_vaddr = tags.get(DT_STRTAB)
+    strtab_size = tags.get(DT_STRSZ)
     if strtab_vaddr is None or strtab_size is None or strtab_size > MAX_ELF_SIZE:
         raise UnsafeInputError(f"ELF has invalid dynamic string table: {full}")
 
-    # resolve strtab vaddr -> file offset via LOAD program headers
-    file_strtab = None
-    for i in range(e_phnum):
-        off = e_phoff + i * e_phentsize
-        if off + 0x38 > len(data):
-            break
-        p_type = struct.unpack_from("<I", data, off)[0]
-        if p_type != 1:  # PT_LOAD
-            continue
-        p_offset = struct.unpack_from("<Q", data, off + 0x08)[0]
-        p_vaddr = struct.unpack_from("<Q", data, off + 0x10)[0]
-        p_filesz = struct.unpack_from("<Q", data, off + 0x20)[0]
-        if p_offset > len(data) or p_filesz > len(data) - p_offset:
-            raise UnsafeInputError(f"ELF load segment exceeds file bounds: {full}")
-        if p_vaddr <= strtab_vaddr < p_vaddr + p_filesz:
-            file_strtab = p_offset + (strtab_vaddr - p_vaddr)
-            break
-    if file_strtab is None:
-        raise UnsafeInputError(f"ELF string table is not in a load segment: {full}")
+    def file_offset(vaddr: int, what: str) -> int:
+        """Map a virtual address to its file offset through the PT_LOAD headers."""
+        for i in range(e_phnum):
+            off = e_phoff + i * e_phentsize
+            if off + 0x38 > len(data):
+                break
+            p_type = struct.unpack_from("<I", data, off)[0]
+            if p_type != 1:  # PT_LOAD
+                continue
+            p_offset = struct.unpack_from("<Q", data, off + 0x08)[0]
+            p_vaddr = struct.unpack_from("<Q", data, off + 0x10)[0]
+            p_filesz = struct.unpack_from("<Q", data, off + 0x20)[0]
+            if p_offset > len(data) or p_filesz > len(data) - p_offset:
+                raise UnsafeInputError(f"ELF load segment exceeds file bounds: {full}")
+            if p_vaddr <= vaddr < p_vaddr + p_filesz:
+                return p_offset + (vaddr - p_vaddr)
+        raise UnsafeInputError(f"ELF {what} is not in a load segment: {full}")
+
+    file_strtab = file_offset(strtab_vaddr, "string table")
     if file_strtab > len(data) or strtab_size > len(data) - file_strtab:
         raise UnsafeInputError(f"ELF string table exceeds file bounds: {full}")
 
-    out = []
-    for n_off in needed_offsets:
+    def string(n_off: int, what: str) -> str:
         if n_off >= strtab_size:
-            raise UnsafeInputError(f"ELF DT_NEEDED offset is out of bounds: {full}")
+            raise UnsafeInputError(f"ELF {what} offset is out of bounds: {full}")
         pos = file_strtab + n_off
         end = data.find(b"\x00", pos, file_strtab + strtab_size)
         if end < 0 or end - pos > 256:
-            raise UnsafeInputError(f"ELF has an invalid DT_NEEDED string: {full}")
+            raise UnsafeInputError(f"ELF has an invalid {what} string: {full}")
         try:
-            name = data[pos:end].decode("ascii")
+            return data[pos:end].decode("ascii")
         except UnicodeDecodeError as error:
-            raise UnsafeInputError(f"ELF has a non-ASCII DT_NEEDED name: {full}") from error
+            raise UnsafeInputError(f"ELF has a non-ASCII {what} name: {full}") from error
+
+    def entries(tag: int, count_tag: int, size: int, what: str):
+        """Yield the file offset of each entry in a vn_next/vd_next chain."""
+        if tag not in tags:
+            return
+        count = tags.get(count_tag, 0)
+        if count > MAX_VERSION_ENTRIES:
+            raise UnsafeInputError(f"ELF has too many {what} entries: {full}")
+        off = file_offset(tags[tag], what)
+        for _ in range(count):
+            if off + size > len(data):
+                raise UnsafeInputError(f"ELF {what} entry exceeds file bounds: {full}")
+            yield off
+            step = struct.unpack_from("<I", data, off + size - 4)[0]
+            if step == 0:
+                break
+            off += step
+
+    needed = []
+    for n_off in needed_offsets:
+        name = string(n_off, "DT_NEEDED")
         if not name or name in (".", "..") or "/" in name or "\x00" in name:
             raise UnsafeInputError(f"ELF has an unsafe DT_NEEDED name: {name!r}")
-        out.append(name)
-    return out
+        needed.append(name)
+
+    # Elf64_Verneed {vn_version, vn_cnt: u16; vn_file, vn_aux, vn_next: u32}
+    # heads a list of Elf64_Vernaux {vna_hash: u32; vna_flags, vna_other:
+    # u16; vna_name, vna_next: u32}, one per version needed from vn_file.
+    verneed = []
+    for off in entries(DT_VERNEED, DT_VERNEEDNUM, 16, "version need"):
+        _, vn_cnt, vn_file, vn_aux, _ = struct.unpack_from("<HHIII", data, off)
+        if vn_cnt > MAX_VERSION_ENTRIES:
+            raise UnsafeInputError(f"ELF has too many version need entries: {full}")
+        soname = string(vn_file, "version need file")
+        aux = off + vn_aux
+        for _ in range(vn_cnt):
+            if aux + 16 > len(data):
+                raise UnsafeInputError(f"ELF version need entry exceeds file bounds: {full}")
+            _, vna_flags, _, vna_name, vna_next = struct.unpack_from("<IHHII", data, aux)
+            if not vna_flags & VER_FLG_WEAK:
+                verneed.append((soname, string(vna_name, "version need")))
+            if vna_next == 0:
+                break
+            aux += vna_next
+
+    # Elf64_Verdef {vd_version, vd_flags, vd_ndx, vd_cnt: u16; vd_hash,
+    # vd_aux, vd_next: u32}. Its first Elf64_Verdaux {vda_name, vda_next:
+    # u32} names the version, and any later ones name its parents.
+    verdef = set()
+    for off in entries(DT_VERDEF, DT_VERDEFNUM, 20, "version definition"):
+        _, _, _, vd_cnt, _, vd_aux, _ = struct.unpack_from("<HHHHIII", data, off)
+        if vd_cnt == 0:
+            continue
+        if off + vd_aux + 8 > len(data):
+            raise UnsafeInputError(f"ELF version definition exceeds file bounds: {full}")
+        vda_name = struct.unpack_from("<I", data, off + vd_aux)[0]
+        verdef.add(string(vda_name, "version definition"))
+
+    return ElfDynamic(needed, verneed, verdef)
+
+
+def elf_needed(full: Path) -> list[str]:
+    return elf_dynamic(full).needed
+
+
+def elf_versions(full: Path) -> tuple[list[tuple[str, str]], set[str]]:
+    info = elf_dynamic(full)
+    return info.verneed, info.verdef
 
 
 def lib_search_dirs(rootfs: Path) -> list[Path]:
@@ -422,6 +509,48 @@ def close_elf(rootfs: Path, kept: set[Path], provided: Path | None = None) -> se
         )
         raise UnsafeInputError(f"unresolved required ELF libraries: {details}")
     return kept
+
+
+def check_versions(rootfs: Path, kept: set[Path], provided: Path | None = None) -> None:
+    """Fail if a kept ELF file needs a symbol version its library lacks.
+
+    The loader refuses to run a program when the library it finds doesn't
+    define a version the program was linked against, and a soname that
+    resolves says nothing about that. Wolfi rebuilt jq against glibc 2.44
+    while the base still shipped 2.43, and jq built fine and only failed
+    when someone ran it. Each soname resolves the way close_elf resolves
+    it, in `provided` first, since that copy is the one in the image.
+    """
+    search = lib_search_dirs(rootfs)
+    provided_search = lib_search_dirs(provided) if provided is not None else []
+    defined: dict[str, set[str] | None] = {}
+
+    def versions_of(soname: str) -> set[str] | None:
+        if soname not in defined:
+            for root, dirs in ((provided, provided_search), (rootfs, search)):
+                library = resolve_lib(dirs, soname)
+                if library is not None:
+                    target, _ = resolve_virtual(root, library, follow_final=True)
+                    defined[soname] = elf_versions(target)[1] if target is not None else None
+                    break
+            else:
+                defined[soname] = None
+        return defined[soname]
+
+    missing: dict[tuple[str, str], Path] = {}
+    for path in sorted(p for p in kept if is_elf(p)):
+        for soname, version in elf_versions(path)[0]:
+            have = versions_of(soname)
+            # close_elf has already failed on any soname that doesn't
+            # resolve.
+            if have is not None and version not in have:
+                missing.setdefault((soname, version), path)
+    if missing:
+        details = ", ".join(
+            f"{version} from {soname} (needed by {ref.name})"
+            for (soname, version), ref in sorted(missing.items())
+        )
+        raise UnsafeInputError(f"symbol versions the image's libraries don't define: {details}")
 
 
 def ensure_parent_dirs(rootfs: Path, kept: set[Path]) -> set[Path]:
@@ -603,6 +732,8 @@ def main() -> int:
 
     if deny is not None:
         kept = apply_denylist(rootfs, kept, deny, stage="post-closure")
+
+    check_versions(rootfs, kept, provided)
 
     kept = ensure_parent_dirs(rootfs, kept)
     log(f"after parent-dir fill: {len(kept)} paths")

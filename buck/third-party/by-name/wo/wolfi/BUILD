@@ -48,9 +48,15 @@ MINIMOS_BASE = {
     "dash": ("0.5.13.5-r1", "d973a5a053e8fd523aa4274c3475b5165f45f761ea74b232aa46881b9f628805"),
     "dbus": ("1.16.2-r6", "a767b8a109b9f3478175e02387516c02029d04c1c8804b59e585ab6beacd1af5"),
     "dbus-libs": ("1.16.2-r6", "ed8f47cdb202574ef1af9d8bb1d03bd9feb887a9420a75dc4462795ab6a8ae2a"),
-    "glibc": ("2.43-r13", "495a506a1630939614ac7aa98cc63af8b76762ee981864310b800374ef1652cd"),
-    "glibc-locale-posix": ("2.43-r13", "5b28c532c3d2af5e8086da69ece4277ef2e0958f4576805aebd25474240a60c2"),
-    "ld-linux": ("2.43-r13", "f49b25afb455a17c0a6335bc97ade76be8b7b0674354a21b12d95a3a4e63e219"),
+    # Wolfi publishes glibc as one package stream per release. The plain
+    # glibc names stopped at 2.43-r13, and the updater only follows the
+    # names pinned here, so moving to the next release means renaming
+    # these three. Other packages build against the newest release, and
+    # minimos's cull.py fails the build when one needs a newer glibc than
+    # this.
+    "glibc-2.44": ("2.44-r7", "dea23a14ef24d4b92417a3aab1b6e640589d71d29c068116664526681350058b"),
+    "glibc-2.44-locale-posix": ("2.44-r7", "974a2eec09f1b14eb215ce9ff0eb678a9b451d9da658411e398d480be0c0b07f"),
+    "ld-linux-2.44": ("2.44-r7", "b1355fa173448048cb2ae37635eae78cb580d2a0d67cd84f3fee7a2fcc03a6cf"),
     "libacl1": ("2.4.0-r3", "10858ad8137f60ca54784978f41148c28377f82ed6ff96a74ac0459dfb519717"),
     "libaudit": ("4.2.1-r1", "61f35651d60ab459206f5dabad2796f37fb99dad2099da3f95c0d474bb69fbad"),
     "libblkid": ("2.42.3-r4", "73376a7be9f64bbfe2101d32ad47b97a2816e8a97019c3c1d00a89eb9391548f"),
