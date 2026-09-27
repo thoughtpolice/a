@@ -2,11 +2,12 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# exe.dev starts its SSH listener before PID 1, so children initially inherit
-# init.scope and bypass systemd's user slices. Development images install the
-# require-user-scope marker; there, every command and interactive shell must be
-# handed to the lingering user manager. Appliance images have no user manager
-# and retain a core-limited Bash fallback for systemctl/journalctl triage.
+# exedev's login shell. exe.dev starts its SSH listener before PID 1, so
+# every SSH child starts in init.scope, outside the user slices. Dev
+# images ship /etc/minimos/require-user-scope, and there each command and
+# shell moves into a bounded scope under the lingering user manager, or
+# the login is refused. Appliance images have no user manager and get
+# plain Bash with core dumps off, enough for systemctl and journalctl.
 
 set -euo pipefail
 

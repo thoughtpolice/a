@@ -1,12 +1,9 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 #
-# Allowlist culling the valkey packages. valkey-sentinel and the
-# valkey-check-* names are symlinks onto the multi-call valkey-server
-# binary, so the glob keeps the whole family in one line; the .so
-# closure is resolved automatically by cull.py.
-#
-# valkey-cli rides along deliberately: the image has no coreutils, so
-# the cli doubles as the in-VM verification tool (`valkey-cli ping`).
+# valkey-sentinel and the valkey-check-* names link to the multi-call
+# valkey-server, so one glob keeps the family. valkey-cli is how you
+# check the service from inside the VM (`valkey-cli ping`), since the
+# image has no coreutils.
 
 /usr/bin/valkey-*

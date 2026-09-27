@@ -4,34 +4,29 @@
 [Unit]
 Description=Clock discipline from the hypervisor PTP device (chrony)
 Documentation=man:chronyd(8) man:chrony.conf(5)
-# A container shares the host's clock, so adjusting it from inside is
-# both futile and hostile — the same reasoning that gates
-# minimos-harden.service, and the reason the docker boot smoke never
-# runs this unit. `!container` rather than `=vm` so an unrecognized
-# hypervisor still gets a disciplined clock.
+# A container shares the host's clock and has no business setting it,
+# which also keeps this unit out of the docker boot smoke. `!container`
+# rather than `vm` so a hypervisor systemd can't identify still gets a
+# disciplined clock.
 ConditionVirtualization=!container
-# The only source this image trusts. If a future platform stops exposing
-# the KVM PTP device, the unit is skipped visibly — `systemctl status`
-# says the condition failed — instead of running with no sources at all
-# and looking healthy while the clock free-runs.
+# /dev/ptp0 is the only source chrony.conf names. Without it the unit is
+# skipped, and `systemctl status` shows the failed condition, instead of
+# running with no source and looking healthy.
 ConditionPathExists=/dev/ptp0
 Wants=time-sync.target
 Before=time-sync.target
 
 [Service]
 Type=notify
-# /dev/ptp0 is a devtmpfs node, 0600 root:root, with no udev here to
-# re-own it — so the one privileged act this service needs is done here,
-# as root (`+`), from a list kept outside tmpfiles.d so the boot-time
-# pass never runs it on a machine with no PTP device. The unit's
-# ConditionPathExists= has already established that the device is there.
+# /dev/ptp0 is a devtmpfs node owned 0600 root:root, and there is no udev
+# to change that. The `+` runs this one command as root to hand the
+# device to the chrony group. See chrony-ptp.conf for why the list lives
+# outside tmpfiles.d.
 #
-# Note this is the only path handled this way. StateDirectory= is not
-# used for /var/lib/chrony, because systemd re-applies an Exec
-# directory's ownership on *every* exec — including the main one, after
-# ExecStartPre= has run — so a directory chowned here would be handed
-# straight back to root before chronyd could write its drift file. The
-# state directory is baked into the image owned by chrony instead.
+# /var/lib/chrony is baked into the image owned by chrony instead of
+# declared as StateDirectory=. systemd resets an Exec directory's owner
+# on every exec, the main one included, so a chown from here would be
+# undone before chronyd wrote its drift file.
 ExecStartPre=+/usr/bin/systemd-tmpfiles --create /usr/lib/minimos/chrony-ptp.conf
 ExecStart=/usr/bin/chronyd -n -f /etc/chrony/chrony.conf
 Restart=on-failure
@@ -39,39 +34,33 @@ RestartSec=5s
 StandardOutput=journal
 StandardError=journal
 
-# Starts as root and drops to the baked `chrony` account itself, using
-# its own +PRIVDROP support (Wolfi compiles in `-u chrony`, which is why
-# that account exists in /etc/passwd at all). Running it as User=chrony
-# from the outset with an ambient CAP_SYS_TIME was tried first and does
-# not work: chronyd tests for uid 0, not for the capability, and exits
-# with "Fatal error : Not superuser".
+# chronyd starts as root and drops to the chrony account on its own. Wolfi
+# compiles in `-u chrony`, which is why that account exists. User=chrony
+# with an ambient CAP_SYS_TIME doesn't work, because chronyd checks for
+# uid 0 rather than the capability and exits with "Fatal error : Not
+# superuser".
 #
-# What is left of root is the capability it exists to use plus the two
-# it needs to stop being root: a bounding set of CAP_SYS_TIME alone
-# fails, because setgroups() in the privilege drop needs CAP_SETGID even
-# for uid 0 ("Fatal error : setgroups() failed"). CAP_DAC_OVERRIDE,
-# CAP_SYS_ADMIN and the rest stay out of reach at every point, and
-# chronyd itself keeps only CAP_SYS_TIME once the drop completes.
+# The bounding set is CAP_SYS_TIME plus the two capabilities the drop
+# itself needs. setgroups() requires CAP_SETGID even as uid 0, and
+# without it chronyd exits with "Fatal error : setgroups() failed". After
+# the drop chronyd holds CAP_SYS_TIME and nothing else.
 CapabilityBoundingSet=CAP_SYS_TIME CAP_SETUID CAP_SETGID
 NoNewPrivileges=yes
 RestrictSUIDSGID=yes
 
-# The PTP character device, and nothing else. DevicePolicy=closed leaves
-# only the standard null/zero/full/random/urandom/tty set alongside it.
+# Only the PTP device, next to the null/zero/full/random/urandom/tty set
+# that DevicePolicy=closed always allows.
 DevicePolicy=closed
 DeviceAllow=char-ptp r
 
-# There is no network in this service's world: no NTP client, no NTP
-# server, no DNS. That is the whole design (see chrony.conf), so state it
-# where the kernel enforces it rather than trusting the config to stay
-# source-free.
+# chronyd needs no network at all, so the kernel enforces that instead of
+# trusting chrony.conf to stay free of servers.
 PrivateNetwork=yes
 RestrictAddressFamilies=AF_UNIX
 
-# /var/lib/chrony is baked (chrony:chrony 0750) rather than declared as
-# StateDirectory=, for the ownership reason above; ProtectSystem=strict
-# then has to be told it is writable. /run/chrony holds only the pidfile,
-# which is written before the privilege drop, so root ownership is fine.
+# ProtectSystem=strict needs to be told the baked state directory is
+# writable. /run/chrony holds only the pidfile, which chronyd writes
+# before the drop, so root ownership is fine.
 RuntimeDirectory=chrony
 ProtectSystem=strict
 ReadWritePaths=/var/lib/chrony
@@ -90,22 +79,18 @@ RestrictRealtime=yes
 LockPersonality=yes
 MemoryDenyWriteExecute=yes
 SystemCallArchitectures=native
-# @clock is the one group @system-service leaves out that this service
-# exists to use: adjtimex, clock_settime, clock_adjtime. capset is named
-# on its own because chronyd drops the capabilities it was handed and
-# keeps only CAP_SYS_TIME; the alternative, @privileged, would open the
-# door to mount, chroot, and the rest of the root syscall surface.
+# @clock adds adjtimex, clock_settime and clock_adjtime, which
+# @system-service leaves out. capset lets chronyd drop the capabilities
+# it doesn't keep. @privileged would also allow mount, chroot and the rest
+# of the root syscalls.
 SystemCallFilter=@system-service @clock capset
 SystemCallErrorNumber=EPERM
 UMask=077
 
-# Deliberately NOT ProtectClock=yes. Every other unit in this image
-# should carry it; on this one it would block the single syscall the
-# service exists to make, and it would do so silently.
+# No ProtectClock=yes, unlike every other unit here. It would silently
+# block the one syscall this service exists to make.
 
-# Control-plane placement (system.slice, weight 1000 from the base
-# drop-in) with an appliance-sized ceiling: chronyd is one process and a
-# few megabytes.
+# chronyd is one process and a few megabytes.
 MemoryHigh=48M
 MemoryMax=64M
 MemorySwapMax=0

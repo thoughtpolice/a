@@ -1,10 +1,10 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 #
-# Codex preconfigured for exe.dev's ChatGPT integration: create the VM
-# with `--integration=chatgpt` and the platform proxies this endpoint to
-# upstream ChatGPT on the account that owns the VM — no API key ever
-# lands in the image. Override per-invocation with `codex -c ...`.
+# Codex set up for exe.dev's ChatGPT integration. Create the VM with
+# `--integration=chatgpt`, and the platform proxies this endpoint to
+# ChatGPT on the account that owns the VM, so no API key is ever in the
+# image. `codex -c ...` overrides it for one run.
 
 model_provider = "exe-chatgpt"
 

@@ -2,10 +2,10 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# Docker mounts a private cgroup v2 namespace read-only. PID 1 needs to create
-# its own hierarchy, so the bounded boot smoke uses this protected entrypoint
-# to remount only that namespaced view, then executes the OCI image's verified
-# Cmd argv unchanged.
+# The boot smoke's entrypoint. Docker mounts the container's private
+# cgroup v2 namespace read-only, and systemd needs to build its hierarchy
+# there. This remounts that one view writable and then runs the image's
+# Cmd unchanged. Nothing uses it on a VM.
 
 set -euo pipefail
 

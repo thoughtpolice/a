@@ -1,15 +1,14 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 #
-# glibc is in the apk list for its tools, but its loader tools stay
-# culled, same as the base: .so resolution happens at build time and
-# ldconfig.service is masked.
+# glibc is listed for its tools, but ldconfig and ld.so stay out, as in
+# the base. The build resolves libraries, and ldconfig.service is masked.
 
 /usr/bin/ldconfig
 /usr/bin/ld.so
 
-# The base ships these three terminfo entries itself, and a second copy
-# would replace a base path, which the composition policy refuses.
+# The base ships these three entries, and the composition policy refuses
+# a second copy of a base path.
 /etc/terminfo/d/dumb
 /etc/terminfo/l/linux
 /etc/terminfo/x/xterm-256color
