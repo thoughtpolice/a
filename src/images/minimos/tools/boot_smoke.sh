@@ -2,33 +2,35 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 #
-# Load a minimos-based OCI image into the local docker daemon, boot it
-# under systemd, wait for `systemctl is-system-running` to settle, and
-# assert:
-#   - state is "running" (not "degraded", "initializing", "maintenance")
-#   - zero failed units
-#   - a minimum set of running services (dbus, journald, logind), plus
-#     any extra units passed as arguments
-#   - no distro userspace beyond the deliberate exe.dev login shells
-#   - no setuid/setgid or world-writable (sans sticky) entries in any layer
-#   - /etc/{passwd,group,shadow} don't drift from the baked copies at boot
-#   - a warning-free boot journal
+# Boot a minimos OCI image under docker and check it. Before anything
+# runs, the layers are scanned for package managers, setuid or setgid
+# files, and world-writable paths outside sticky directories. Then
+# systemd boots in a bounded container, and the test requires:
 #
-# Expects docker to be available on the host. Test fails if it isn't —
-# this is a dev-machine smoke test, not a hermetic unit test.
+#   - `systemctl is-system-running` to reach "running", with no failed units
+#   - dbus, journald, logind and every EXTRA_UNIT to be active
+#   - a boot journal with no warnings beyond four known lines
+#   - plain `[  OK  ]` status lines on the console
+#   - /etc/{passwd,group,shadow} to match the baked copies
+#   - the systemd-journal group to be able to read the journal
+#   - uid 1000 to see the process tree in `systemctl status`
+#   - the VM-only units to be wired up and skipped under docker
+#
+# Needs docker and GNU timeout on the host. This is a smoke test for a
+# dev machine, not a hermetic unit test, and a sandbox for trusted build
+# output rather than hostile images.
 #
 # Usage: boot_smoke.sh SKOPEO SCRATCH_IMAGE OCI_LAYOUT --image-cmd CSV
 #        [--base-layer-count N] [--policy FILE]
 #        [--userland] [--dev] [--containers] [EXTRA_UNIT...]
 #
-# --userland: the image deliberately ships an interactive userland
-# (coreutils, extra shells) — skip the no-distro-userspace layer check.
-# Package managers stay banned, and so do the suid/world-writable and
-# account-drift checks: those are invariants for dev images too.
-#
-# --containers: the image is a container host — additionally assert that
-# gVisor is the only OCI runtime present and that containerd came up with
-# it configured as the default.
+#   --userland    The image ships an interactive userland on purpose, so
+#                 coreutils and other shells are allowed. Package managers
+#                 and the file mode and account checks still apply.
+#   --dev         Check the lingering user manager and the login wrapper's
+#                 bounded scope.
+#   --containers  Check that gVisor is the only OCI runtime in any layer
+#                 and that containerd runs with it as the default.
 
 set -euo pipefail
 
@@ -88,18 +90,28 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if ! command -v docker >/dev/null 2>&1; then
-    echo "boot_smoke: docker not available; cannot run this test" >&2
+# fail MESSAGE [DETAIL]: report a failure, plus any multi-line detail, and exit.
+fail() {
+    echo "boot_smoke: FAIL: $1" >&2
+    if [[ -n "${2:-}" ]]; then
+        printf '%s\n' "$2" >&2
+    fi
     exit 1
+}
+
+if ! command -v docker >/dev/null 2>&1; then
+    fail "docker is not available"
 fi
 if ! command -v timeout >/dev/null 2>&1; then
-    echo "boot_smoke: timeout not available; refusing an unbounded host test" >&2
-    exit 1
+    fail "timeout is not available, and this test won't run unbounded"
 fi
 
-# Verify descriptor linkage/digests and reject unsafe metadata in every
-# manifest-referenced layer before loading or executing anything. The content
-# scan below then adds appliance/package policy checks.
+# ---------------------------------------------------------------------------
+# Static checks, before docker loads or runs anything.
+# ---------------------------------------------------------------------------
+
+# Descriptors, digests, layer metadata and the composition policy, through
+# the same validator scratch_image ran at build time.
 VALIDATOR_ARGS=(
     validate "$OCI_LAYOUT"
     --expected-cmd "$IMAGE_CMD_CSV"
@@ -110,15 +122,13 @@ if [[ -n "$POLICY" ]]; then
 fi
 timeout --signal=KILL 30s "$VALIDATOR" "${VALIDATOR_ARGS[@]}"
 
-# Every directory a binary on the image's PATH can live in.
+# Every directory a program on the image's PATH can live in.
 BIN='^(\./)?(usr/)?(local/)?(bin|sbin)/'
 BANNED_USERLAND="${BIN}(zsh|ash|fish|ksh|csh|tcsh|busybox|ls|cat|cp|rm)\$"
 BANNED_ALWAYS="${BIN}(apt|apt-get|dpkg|snap|apk|dnf|microdnf|yum|rpm|pacman|zypper|nix|nix-env|guix)\$"
-# A container host runs its workloads under gVisor because gVisor is the
-# only thing in the image that can start a container at all. That is an
-# image-content property, so check it against the built layers: a runc,
-# crun, or runc shim arriving through some package's dependency tail
-# would turn "sandboxed" back into "sandboxed by configuration".
+# A container host is sandboxed because gVisor is the only thing in the
+# image that can start a container. A runc, crun or runc shim arriving in
+# some package's dependencies would quietly end that.
 BANNED_RUNTIMES="${BIN}(runc|crun|youki|containerd-shim-runc-v[0-9]+)\$"
 GVISOR_RUNTIME="${BIN}(runsc|containerd-shim-runsc-v1)\$"
 GVISOR_FOUND=""
@@ -130,28 +140,21 @@ for blob in "$OCI_LAYOUT"/blobs/sha256/*; do
     tar_status=$?
     set -e
     if [[ "$tar_status" -eq 124 || "$tar_status" -eq 137 ]]; then
-        echo "boot_smoke: FAIL — timed out inspecting image blob $blob" >&2
-        exit 1
+        fail "timed out listing image blob $blob"
     fi
-    # OCI manifests and configs are JSON blobs rather than tar archives.
-    # Layer metadata has already passed scratch_image.py's mandatory parser;
-    # only tar-readable blobs participate in this independent content scan.
+    # The manifest and config are JSON rather than tar. The validator above
+    # has checked them, so only layers take part in this scan.
     [[ "$tar_status" -eq 0 ]] || continue
     if [[ "$USERLAND" -eq 0 ]] && grep -qE "$BANNED_USERLAND" <<<"$listing"; then
-        echo "boot_smoke: FAIL — distro userspace present in an image layer:" >&2
-        grep -E "$BANNED_USERLAND" <<<"$listing" >&2
-        exit 1
+        fail "distro userspace in an image layer:" "$(grep -E "$BANNED_USERLAND" <<<"$listing")"
     fi
     if grep -qE "$BANNED_ALWAYS" <<<"$listing"; then
-        echo "boot_smoke: FAIL — package manager present in an image layer:" >&2
-        grep -E "$BANNED_ALWAYS" <<<"$listing" >&2
-        exit 1
+        fail "package manager in an image layer:" "$(grep -E "$BANNED_ALWAYS" <<<"$listing")"
     fi
     if [[ "$CONTAINERS" -eq 1 ]]; then
         if grep -qE "$BANNED_RUNTIMES" <<<"$listing"; then
-            echo "boot_smoke: FAIL — an OCI runtime other than gVisor is present in an image layer:" >&2
-            grep -E "$BANNED_RUNTIMES" <<<"$listing" >&2
-            exit 1
+            fail "an OCI runtime other than gVisor is in an image layer:" \
+                "$(grep -E "$BANNED_RUNTIMES" <<<"$listing")"
         fi
         GVISOR_FOUND+=$'\n'$(grep -E "$GVISOR_RUNTIME" <<<"$listing" || true)
     fi
@@ -160,41 +163,49 @@ for blob in "$OCI_LAYOUT"/blobs/sha256/*; do
     tar_status=$?
     set -e
     if [[ "$tar_status" -ne 0 ]]; then
-        echo "boot_smoke: FAIL — layer became unreadable during metadata inspection: $blob" >&2
-        exit 1
+        fail "layer became unreadable while checking modes: $blob"
     fi
     suid=$(awk '$1 !~ /^l/ && (substr($1,4,1) ~ /[sS]/ || substr($1,7,1) ~ /[sS]/)' <<<"$verbose")
     if [[ -n "$suid" ]]; then
-        echo "boot_smoke: FAIL — setuid/setgid entries in an image layer:" >&2
-        echo "$suid" >&2
-        exit 1
+        fail "setuid or setgid entries in an image layer:" "$suid"
     fi
     CHRONY_STATE+=$'\n'$(awk '$NF ~ /^(\.\/)?var\/lib\/chrony\/?$/' <<<"$verbose" || true)
     ww=$(awk '$1 !~ /^l/ && substr($1,9,1) == "w" && !($1 ~ /^d/ && substr($1,10,1) ~ /[tT]/)' <<<"$verbose")
     if [[ -n "$ww" ]]; then
-        echo "boot_smoke: FAIL — world-writable entries in an image layer:" >&2
-        echo "$ww" >&2
-        exit 1
+        fail "world-writable entries in an image layer:" "$ww"
     fi
 done
+
+# chronyd writes its drift file after dropping to uid 106, so the baked
+# state directory has to belong to chrony. StateDirectory= can't do this,
+# because systemd resets an Exec directory to the unit's User= on every
+# exec. A chronyd that can't save drift still starts and still syncs, and
+# relearns the clock's frequency on every boot, so nothing else would
+# notice.
+if ! grep -q ' 106/107 ' <<<"$CHRONY_STATE"; then
+    fail "/var/lib/chrony is not baked as chrony:chrony (106/107):" \
+        "${CHRONY_STATE:-(absent from every layer)}"
+fi
+
+# ---------------------------------------------------------------------------
+# Boot.
+# ---------------------------------------------------------------------------
 
 echo "boot_smoke: loading $OCI_LAYOUT into docker as $TAG"
 timeout --signal=KILL 90s "$SKOPEO" --insecure-policy copy \
     "oci:$OCI_LAYOUT:latest" "docker-daemon:$TAG"
 
 echo "boot_smoke: running systemd with a private cgroup namespace and bounded capabilities"
-# Boot the image's baked Cmd (the flags minimos.image sets) on a pty, so
-# the --show-status stream lands in `docker logs` the same way it lands
-# on the exe.dev VM console. systemd's own log messages go to the
-# journal (--log-target=syslog); on failure we dump them from there.
+# The image's own Cmd boots on a pty, so the --show-status lines land in
+# `docker logs` the way they land on the exe.dev console. systemd's log
+# messages go to the journal, and a failure dumps them from there.
 #
-# AppArmor is the one outer layer PID 1 cannot run under. docker-default
-# denies mount propagation changes, and systemd forks its generators into
-# a private mount namespace whose first act is making / MS_SLAVE. That
-# fails inside the child, which the manager only sees as an exit status
-# (EPROTO), so its fallback for privilege errors never fires and PID 1
-# exits. Seccomp, the capability bound, and no-new-privileges stay on; on
-# hosts without AppArmor this option changes nothing.
+# AppArmor is the one outer layer PID 1 can't run under. docker-default
+# denies mount propagation changes, and systemd starts its generators in
+# a private mount namespace that first makes / MS_SLAVE. That fails in the
+# child, the manager only sees an exit status, and PID 1 exits. Seccomp,
+# the capability bound and no-new-privileges stay on, and on a host
+# without AppArmor the option changes nothing.
 RUN_OUTPUT=""
 if ! RUN_OUTPUT=$(timeout --signal=KILL 30s docker run -d -t \
     --cidfile "$CID_FILE" \
@@ -232,18 +243,21 @@ if ! RUN_OUTPUT=$(timeout --signal=KILL 30s docker run -d -t \
     --entrypoint /usr/lib/minimos/docker-boot-wrapper \
     "$TAG" "${IMAGE_CMD[@]}" \
     2>&1); then
-    echo "boot_smoke: docker failed to start the bounded container: $RUN_OUTPUT" >&2
-    exit 1
+    fail "docker could not start the container:" "$RUN_OUTPUT"
 fi
 CID=$(<"$CID_FILE")
 if [[ ! "$CID" =~ ^[0-9a-f]{12,64}$ ]]; then
-    echo "boot_smoke: docker returned an invalid container ID: $CID" >&2
-    exit 1
+    fail "docker returned an invalid container ID: $CID"
 fi
 echo "boot_smoke: container $CID"
 
 docker_exec() {
     timeout --signal=KILL 10s docker exec "$CID" "$@"
+}
+
+# The image has no coreutils, so files inside it are read with bash.
+read_in_image() {
+    docker_exec /usr/bin/bash -c 'printf "%s" "$(<"$1")"' _ "$1"
 }
 
 DEADLINE=$(( $(date +%s) + 45 ))
@@ -263,93 +277,74 @@ done
 echo "boot_smoke: final systemctl is-system-running -> $STATE"
 
 if [[ "$STATE" != "running" ]]; then
-    echo "boot_smoke: FAIL — system not running (state=$STATE)" >&2
     echo "=== failed units ==="
     docker_exec /usr/bin/systemctl --no-pager list-units --state=failed || true
     echo "=== recent journal ==="
     docker_exec /usr/bin/journalctl --no-pager -n 50 || true
-    echo "=== bounded console ==="
+    echo "=== console ==="
     timeout --signal=KILL 10s docker logs --tail 200 "$CID" || true
-    exit 1
+    fail "system not running (state=$STATE)"
 fi
 
-FAILED=$(docker_exec /usr/bin/systemctl --no-pager --no-legend list-units --state=failed 2>&1 | wc -l)
-if [[ "$FAILED" -gt 0 ]]; then
-    echo "boot_smoke: FAIL — $FAILED unit(s) in failed state" >&2
-    docker_exec /usr/bin/systemctl --no-pager list-units --state=failed
-    exit 1
+FAILED=$(docker_exec /usr/bin/systemctl --no-pager --no-legend list-units --state=failed 2>&1)
+if [[ -n "$FAILED" ]]; then
+    fail "units in failed state:" "$FAILED"
 fi
 
-# Assert the expected minimum running set, plus whatever the image under
-# test adds (e.g. nginx.service for the nginx composition).
-EXPECTED=(dbus.service systemd-journald.service systemd-logind.service)
-for unit in "${EXPECTED[@]}" "${EXTRA_UNITS[@]}"; do
+for unit in dbus.service systemd-journald.service systemd-logind.service "${EXTRA_UNITS[@]}"; do
     if ! docker_exec /usr/bin/systemctl is-active --quiet "$unit"; then
-        echo "boot_smoke: FAIL — required service $unit is not active" >&2
-        docker_exec /usr/bin/systemctl status --no-pager "$unit" || true
-        exit 1
+        docker_exec /usr/bin/systemctl status --no-pager "$unit" >&2 || true
+        fail "required unit $unit is not active"
     fi
 done
 
-# user-workload.slice inherits systemd's generic user-.slice.d drop-ins.
-# Assert the realized value so a vendor default cannot silently replace the
-# fixed host-safety ceiling.
+# ---------------------------------------------------------------------------
+# Runtime checks.
+# ---------------------------------------------------------------------------
+
+# user-workload.slice matches systemd's generic user-.slice.d drop-ins by
+# name. Check the value systemd settled on, so a vendor default can't
+# quietly replace the ceiling.
 WORKLOAD_TASKS_MAX=$(docker_exec /usr/bin/systemctl show \
     user-workload.slice --property=TasksMax --value 2>&1)
 if [[ "$WORKLOAD_TASKS_MAX" != "2048" ]]; then
-    echo "boot_smoke: FAIL — user-workload.slice TasksMax=$WORKLOAD_TASKS_MAX, expected 2048" >&2
     docker_exec /usr/bin/systemctl cat user-workload.slice >&2 || true
-    exit 1
+    fail "user-workload.slice TasksMax=$WORKLOAD_TASKS_MAX, expected 2048"
 fi
 
-# Weight-based block-I/O scheduling is optional in the kernel. The aggregate
-# user ceiling uses io.max instead, which must be realized on the root
-# filesystem's backing device.
-USER_IO_MAX=""
-if USER_IO_MAX=$(docker_exec /usr/bin/cat /sys/fs/cgroup/user.slice/io.max 2>/dev/null) &&
-        [[ -n "$USER_IO_MAX" ]]; then
+# user.slice's I/O ceiling is io.max on the root filesystem's device.
+# Docker's overlay root has no block device behind it, so the file is
+# usually empty here and the real check happens on a VM.
+USER_IO_MAX=$(read_in_image /sys/fs/cgroup/user.slice/io.max 2>/dev/null || true)
+if [[ -n "$USER_IO_MAX" ]]; then
     for io_limit in rbps=500000000 wbps=250000000 riops=50000 wiops=25000; do
         if ! grep -Eq "(^|[[:space:]])${io_limit}([[:space:]]|$)" <<<"$USER_IO_MAX"; then
-            echo "boot_smoke: FAIL — user.slice io.max lacks $io_limit: $USER_IO_MAX" >&2
-            exit 1
+            fail "user.slice io.max lacks $io_limit: $USER_IO_MAX"
         fi
     done
 else
-    # Docker's overlay-backed root cannot always be resolved to an originating
-    # block device from this private cgroup namespace. The real-VM integration
-    # check must assert the nonempty, exact io.max policy.
-    echo "boot_smoke: Docker does not expose a resolvable backing device; deferring io.max realization to the VM test"
+    echo "boot_smoke: no block device behind the docker root; io.max is checked on a VM"
 fi
 
-# A minimos boot is warning-free, and that is an assertion rather than an
-# aspiration. Two classes of real defect show up here and nowhere else: a
-# hardening directive silently ignored by a manager that still reports the
-# unit "active", and a vendor config referencing an account, device, or path
-# the baked image does not have. Both otherwise leave the boot "successful".
+# The boot journal must be free of warnings. Two kinds of real defect only
+# show up here, a hardening directive the manager ignored while the unit
+# still reports active, and a vendor config naming an account, device or
+# path the image lacks.
 #
-# Every tolerated line is listed below, anchored whole, with the reason it is
-# not a defect. Nothing is matched by substring: a new warning that merely
-# resembles one of these still fails the test.
+# Each tolerated line is matched whole, with the reason it's harmless:
 #
-#   block device — harness-only, and confirmed so on a real VM: docker's
-#     overlay root has no originating block device, so PID 1 cannot resolve
-#     user.slice's io.max. Same root cause as the deferred io.max realization
-#     check above. An exe.dev VM's virtio root resolves it and programs the
-#     exact rbps/wbps/riops/wiops values.
-#   io pressure — NOT a harness artifact; it appears on a real VM too. The
-#     user manager arms a PSI trigger and the kernel allows only one per file
-#     descriptor, so a re-arm returns EBUSY and systemd says "ignoring". The
-#     io controller itself is present and delegated all the way down to
-#     user@1000.service — verified on a VM — so nothing is silently disabled.
-#   libbpf / kmod — deliberate: two optional libraries this image does not
-#     ship. libbpf gates SocketBind*=, RestrictNetworkInterfaces= and
-#     RestrictFileSystems=, none of which minimos uses (and the platform
-#     kernel has no BPF LSM for the last one). IPAddressDeny=/IPAddressAllow=
-#     do NOT go through it — they use raw bpf() syscalls, and were verified
-#     enforcing: a loopback connect is refused under IPAddressDeny=any and
-#     permitted once IPAddressAllow=localhost is added. libkmod is absent
-#     because module loading is latched off; that line appears only on a VM,
-#     since PID 1 skips module setup in a container.
+#   block device: docker's overlay root has no block device, so PID 1
+#     can't resolve user.slice's io.max. A VM's virtio root can.
+#   io pressure: this also happens on VMs. The user manager re-arms a PSI
+#     trigger, the kernel allows one per file descriptor and returns
+#     EBUSY, and systemd ignores it. The io controller is delegated all
+#     the way to user@1000.service either way.
+#   libbpf and kmod: minimos ships neither library on purpose. libbpf only
+#     gates SocketBind*=, RestrictNetworkInterfaces= and
+#     RestrictFileSystems=, which minimos doesn't use.
+#     IPAddressDeny=/IPAddressAllow= use raw bpf() calls and work without
+#     it. Module loading is shut off, so there's nothing for libkmod to
+#     do, and that line only appears on VMs.
 BOOT_WARNINGS=$(docker_exec /usr/bin/journalctl -b -p warning --no-pager -o cat 2>&1 | \
     grep -vEe '^$' \
          -e "^'/' is not a block device node, and file system block device cannot be determined or is not local\.$" \
@@ -358,30 +353,22 @@ BOOT_WARNINGS=$(docker_exec /usr/bin/journalctl -b -p warning --no-pager -o cat 
          -e '^Failed to initialize kmod context: Operation not supported$' \
     || true)
 if [[ -n "$BOOT_WARNINGS" ]]; then
-    echo "boot_smoke: FAIL — boot is not warning-clean:" >&2
-    echo "$BOOT_WARNINGS" >&2
-    exit 1
+    fail "the boot journal has warnings:" "$BOOT_WARNINGS"
 fi
 
-# Console contract: the boot status stream must be present (this is
-# exactly what `ssh exe.dev vm-logs` shows) and free of ANSI escapes —
-# minimos.image passes --show-status=true --log-color=false to systemd.
+# `ssh exe.dev vm-logs` shows this console, so it needs the status lines
+# and no ANSI escapes.
 CONSOLE=$(timeout --signal=KILL 10s docker logs --tail 400 "$CID" 2>&1)
 if ! grep -q '\[  OK  \]' <<<"$CONSOLE"; then
-    echo "boot_smoke: FAIL — no '[  OK  ]' status lines on the boot console" >&2
-    exit 1
+    fail "no '[  OK  ]' status lines on the console"
 fi
 if grep -q $'\x1b' <<<"$CONSOLE"; then
-    echo "boot_smoke: FAIL — ANSI escapes on the boot console (vm-logs must stay plain):" >&2
-    grep -m 3 $'\x1b' <<<"$CONSOLE" | cat -v >&2
-    exit 1
+    fail "ANSI escapes on the console:" "$(grep -m 3 $'\x1b' <<<"$CONSOLE" | cat -v)"
 fi
 
-# Account bake contract: exactly one layer ships each account file
-# (the base overlay), and nothing rewrites them at runtime —
-# systemd-sysusers is masked and its configs are culled, so a drift
-# here means some new machinery started editing accounts at boot.
-# bash's $(<file) is the coreutils-free read on the booted side.
+# Exactly one layer, the base overlay, ships each account file, and
+# nothing rewrites them at boot. A difference here means something new
+# has started editing accounts.
 for f in passwd group shadow; do
     baked=""
     found=0
@@ -393,90 +380,68 @@ for f in passwd group shadow; do
         fi
     done
     if [[ "$found" -ne 1 ]]; then
-        echo "boot_smoke: FAIL — etc/$f present in $found layers (must be exactly one, the base overlay)" >&2
-        exit 1
+        fail "etc/$f is in $found layers, expected only the base overlay"
     fi
-    booted=$(docker_exec /usr/bin/bash -c "printf '%s' \"\$(</etc/$f)\"")
+    booted=$(read_in_image "/etc/$f")
     if [[ "$booted" != "${baked%$'\n'}" ]]; then
-        echo "boot_smoke: FAIL — /etc/$f drifted from the baked copy at runtime:" >&2
-        diff <(printf '%s\n' "${baked%$'\n'}") <(printf '%s\n' "$booted") >&2 || true
-        exit 1
+        fail "/etc/$f changed at boot:" \
+            "$(diff <(printf '%s\n' "${baked%$'\n'}") <(printf '%s\n' "$booted") || true)"
     fi
 done
 
-# The single owner has to be able to read the system journal: it is the only
-# way to investigate anything on an image with no shell tools and no root
-# login. That rests on journald's files landing in the systemd-journal group,
-# which journald does not arrange by itself — it creates the per-machine
-# directory 0755 root:root, and tmpfiles has to correct it. Exercise the
-# group, not the account, because `docker exec --user` does not resolve
-# supplementary groups out of the image's /etc/group the way the platform
+# The owner reads logs through the systemd-journal group, which only
+# works because tmpfiles fixes the group on journald's directory. Test
+# the group directly, because `docker exec --user` doesn't pick up
+# supplementary groups from the image's /etc/group the way the platform
 # sshd does.
 JOURNAL_READ=$(timeout --signal=KILL 15s docker exec --user 1000:105 "$CID" \
     /usr/bin/journalctl -b -n 1 --no-pager -o cat 2>&1 || true)
 if [[ -z "$JOURNAL_READ" || "$JOURNAL_READ" == *"insufficient permissions"* || "$JOURNAL_READ" == *"No journal files"* ]]; then
-    echo "boot_smoke: FAIL — systemd-journal group cannot read the system journal:" >&2
-    echo "${JOURNAL_READ:-(no output)}" >&2
     docker_exec /usr/bin/systemd-tmpfiles --cat-config >&2 2>/dev/null || true
-    exit 1
+    fail "the systemd-journal group can't read the journal:" "${JOURNAL_READ:-(no output)}"
 fi
 
-# The clock. chronyd is condition-gated off in a container — it would be
-# adjusting the *host's* clock — so what a bounded docker harness can
-# check is that the image would run it on a VM and that the binary the
-# cull produced is complete. The functional check (a PTP-disciplined
-# clock) belongs to the VM test.
-CHRONY_ENABLED=$(docker_exec /usr/bin/systemctl is-enabled chronyd.service 2>&1 || true)
-if [[ "$CHRONY_ENABLED" != "enabled" ]]; then
-    echo "boot_smoke: FAIL — chronyd.service is not enabled: ${CHRONY_ENABLED:-(no output)}" >&2
-    exit 1
-fi
-CHRONY_CONDITION=$(docker_exec /usr/bin/systemctl show chronyd.service \
-    --property=ConditionResult --value 2>&1 || true)
-if [[ "$CHRONY_CONDITION" != "no" ]]; then
-    echo "boot_smoke: FAIL — chronyd.service ran inside a container (ConditionResult=$CHRONY_CONDITION);" >&2
-    echo "  a container shares the host clock and must never discipline it" >&2
-    exit 1
-fi
-CHRONY_VERSION=$(docker_exec /usr/bin/chronyd -v 2>&1 | head -1 || true)
-if [[ "$CHRONY_VERSION" != *"chronyd (chrony) version"* ]]; then
-    echo "boot_smoke: FAIL — chronyd did not report a version: ${CHRONY_VERSION:-(no output)}" >&2
-    exit 1
-fi
-# chronyd writes its drift file after dropping to uid 106, so the baked
-# state directory has to belong to that account. systemd cannot express
-# this — StateDirectory= re-applies the unit's User= (root) on every
-# exec, silently taking the directory back — which is exactly why this
-# one is baked, and exactly the kind of thing that would rot unnoticed:
-# a chronyd that cannot save drift still starts, still syncs, and just
-# re-learns the clock's frequency from scratch on every boot.
-if ! grep -q ' 106/107 ' <<<"$CHRONY_STATE"; then
-    echo "boot_smoke: FAIL — /var/lib/chrony is not baked as chrony:chrony (106/107):" >&2
-    echo "${CHRONY_STATE:-(absent from every layer)}" >&2
-    exit 1
-fi
-
-# `systemctl status` is half of the owner's debugging surface, and the
-# half that shows what is actually running inside a unit comes from a
-# separate bus method (GetUnitProcesses) that the base's deny policy has
-# to re-allow by name. When it is missing the command still succeeds and
-# still prints the unit — only the process tree under CGroup: goes
-# quietly empty. Assert the tree, not the exit status, and do it as uid
-# 1000, because root is not who has this problem.
+# The process tree in `systemctl status` comes from GetUnitProcesses,
+# which the base's bus policy has to allow by name. Without it the
+# command still succeeds and just shows no processes, so check the tree
+# itself, as uid 1000.
 STATUS_TREE=$(timeout --signal=KILL 15s docker exec --user 1000:1000 "$CID" \
     /usr/bin/systemctl status --no-pager dbus.service 2>&1 || true)
 if ! grep -q '/usr/bin/dbus-daemon' <<<"$STATUS_TREE"; then
-    echo "boot_smoke: FAIL — 'systemctl status' as uid 1000 shows no process tree;" >&2
-    echo "  the bus policy is probably denying GetUnitProcesses again" >&2
-    echo "$STATUS_TREE" >&2
-    exit 1
+    fail "'systemctl status' as uid 1000 shows no process tree, is GetUnitProcesses denied?" \
+        "$STATUS_TREE"
+fi
+
+# Units that only make sense on a VM. Each must be pulled in at boot and
+# then skipped here by ConditionVirtualization=!container. chronyd would
+# be setting the host's clock.
+skipped_in_container() {
+    local unit="$1" evaluated result
+    evaluated=$(docker_exec /usr/bin/systemctl show "$unit" \
+        --property=ConditionTimestampMonotonic --value 2>&1 || true)
+    result=$(docker_exec /usr/bin/systemctl show "$unit" \
+        --property=ConditionResult --value 2>&1 || true)
+    if [[ ! "$evaluated" =~ ^[1-9][0-9]*$ ]]; then
+        fail "$unit was never started at boot"
+    fi
+    if [[ "$result" != "no" ]]; then
+        fail "$unit ran inside a container (ConditionResult=$result)"
+    fi
+}
+CHRONY_ENABLED=$(docker_exec /usr/bin/systemctl is-enabled chronyd.service 2>&1 || true)
+if [[ "$CHRONY_ENABLED" != "enabled" ]]; then
+    fail "chronyd.service is not enabled: ${CHRONY_ENABLED:-(no output)}"
+fi
+skipped_in_container chronyd.service
+CHRONY_VERSION=$(docker_exec /usr/bin/chronyd -v 2>&1 | head -1 || true)
+if [[ "$CHRONY_VERSION" != *"chronyd (chrony) version"* ]]; then
+    fail "chronyd did not report a version: ${CHRONY_VERSION:-(no output)}"
 fi
 
 if [[ "$DEV" -eq 1 ]]; then
-    echo "boot_smoke: checking user manager, cgroup placement, core limits, and bubblewrap installation"
+    echo "boot_smoke: checking the user manager, login scope, core limits and bubblewrap"
     if ! docker_exec /usr/bin/systemctl is-active --quiet user@1000.service; then
-        echo "boot_smoke: FAIL — user@1000.service is not active" >&2
-        exit 1
+        fail "user@1000.service is not active"
     fi
     USER_OUTPUT=""
     if ! USER_OUTPUT=$(timeout --signal=KILL 15s docker exec \
@@ -487,17 +452,12 @@ if [[ "$DEV" -eq 1 ]]; then
         --env PATH=/nonexistent \
         "$CID" /usr/lib/minimos/login-shell -c \
         'set -euo pipefail; scope_unit=; printf "cgroup="; while IFS= read -r line; do printf "%s\n" "$line"; scope_unit=${line##*/}; done </proc/self/cgroup; test -n "$scope_unit"; printf "scope-io-accounting="; /usr/bin/systemctl --user show "$scope_unit" --property=IOAccounting --value; printf "default-io-accounting="; /usr/bin/systemctl --user show --property=DefaultIOAccounting --value; printf "core-soft="; ulimit -Sc; printf "core-hard="; ulimit -Hc; printf "user-state="; /usr/bin/systemctl --user is-system-running; printf "bwrap="; /usr/bin/bwrap --version' 2>&1); then
-        echo "boot_smoke: FAIL — bounded login probe failed:" >&2
-        echo "$USER_OUTPUT" >&2
         docker_exec /usr/bin/systemctl status --no-pager user@1000.service >&2 || true
         docker_exec /usr/bin/journalctl --no-pager -u user@1000.service -n 30 >&2 || true
-        exit 1
+        fail "the login probe failed:" "$USER_OUTPUT"
     fi
     probe_says() {
-        grep -q "$1" <<<"$USER_OUTPUT" && return 0
-        echo "boot_smoke: FAIL — login probe did not report $2:" >&2
-        echo "$USER_OUTPUT" >&2
-        exit 1
+        grep -q "$1" <<<"$USER_OUTPUT" || fail "the login probe didn't show $2:" "$USER_OUTPUT"
     }
     probe_says 'cgroup=0::/user.slice/user-1000.slice/user@1000.service/' \
         'a login shell inside the delegated user cgroup'
@@ -506,9 +466,8 @@ if [[ "$DEV" -eq 1 ]]; then
     probe_says 'core-soft=0' 'a zero soft core limit'
     probe_says 'core-hard=0' 'a zero hard core limit'
     probe_says 'user-state=running' 'a running user manager'
-    # Docker's built-in nested-container policy rejects bwrap's pivot_root.
-    # Keep that outer seccomp barrier intact here; the real-VM integration
-    # test performs the functional namespace/mount probe.
+    # Docker's nested-container policy rejects bwrap's pivot_root, so the
+    # functional sandbox check belongs to the VM test.
     probe_says 'bwrap=bubblewrap ' 'an installed bubblewrap'
 fi
 
@@ -516,106 +475,75 @@ if [[ "$CONTAINERS" -eq 1 ]]; then
     echo "boot_smoke: checking the gVisor runtime and containerd's configuration"
     for runtime_binary in runsc containerd-shim-runsc-v1; do
         if ! grep -q "/${runtime_binary}\$" <<<"$GVISOR_FOUND"; then
-            echo "boot_smoke: FAIL — no image layer ships $runtime_binary" >&2
-            exit 1
+            fail "no image layer ships $runtime_binary"
         fi
     done
 
-    # The binaries execute here, which is all a container-less harness can
-    # ask of them: docker's own seccomp and nested-container policy stop a
-    # sandbox from actually starting, so booting a container under gVisor
-    # is a real-VM integration check (see the example README).
+    # Docker's seccomp and nested-container policy keep a sandbox from
+    # starting here, so booting a gVisor container is a VM check. This
+    # only proves the binary runs.
     RUNSC_VERSION=$(docker_exec /usr/local/bin/runsc --version 2>&1 | head -1 || true)
     if [[ "$RUNSC_VERSION" != "runsc version"* ]]; then
-        echo "boot_smoke: FAIL — runsc did not report a version: ${RUNSC_VERSION:-(no output)}" >&2
-        exit 1
+        fail "runsc did not report a version: ${RUNSC_VERSION:-(no output)}"
     fi
     echo "boot_smoke: $RUNSC_VERSION"
 
-    # containerd's merged view of its configuration: this is the check
-    # that our TOML both parsed and outranked the compiled-in defaults,
-    # which a file with a mistyped plugin path would silently fail.
+    # containerd's merged configuration. A mistyped plugin path in our
+    # TOML would parse fine and change nothing.
     CONFIG_DUMP=$(docker_exec /usr/bin/containerd config dump 2>&1 || true)
     for setting in \
         "default_runtime_name = 'runsc'" \
         "runtime_type = 'io.containerd.runsc.v1'" \
         "ConfigPath = '/etc/containerd/runsc/config.toml'"; do
         if ! grep -qF "$setting" <<<"$CONFIG_DUMP"; then
-            echo "boot_smoke: FAIL — containerd's effective config lacks: $setting" >&2
-            echo "$CONFIG_DUMP" | head -40 >&2
-            exit 1
+            fail "containerd's effective config lacks: $setting" "$(head -40 <<<"$CONFIG_DUMP")"
         fi
     done
 
-    # A client round-trip proves the daemon is actually serving, which
-    # `systemctl is-active` alone does not: containerd notifies readiness
-    # before its plugins have all settled.
+    # containerd signals readiness before all its plugins settle, so ask
+    # it something.
     CTR_VERSION=$(docker_exec /usr/bin/ctr version 2>&1 || true)
     if ! grep -q '^  Version:' <<<"$CTR_VERSION"; then
-        echo "boot_smoke: FAIL — ctr could not reach containerd:" >&2
-        echo "${CTR_VERSION:-(no output)}" >&2
-        exit 1
+        fail "ctr could not reach containerd:" "${CTR_VERSION:-(no output)}"
     fi
     NERDCTL_NAMESPACES=$(docker_exec /usr/bin/nerdctl namespace ls 2>&1 || true)
     if ! grep -q 'NAME' <<<"$NERDCTL_NAMESPACES"; then
-        echo "boot_smoke: FAIL — nerdctl could not reach containerd:" >&2
-        echo "${NERDCTL_NAMESPACES:-(no output)}" >&2
-        exit 1
+        fail "nerdctl could not reach containerd:" "${NERDCTL_NAMESPACES:-(no output)}"
     fi
 
-    # The socket handover to uid 1000, end to end: the account exe.dev
-    # logs SSH sessions into has to be able to drive the daemon, or the
-    # image can only ever run what was baked into it. containerd's own
-    # [grpc] uid/gid keys no longer do this in 2.x — they parse and are
-    # ignored — so the unit does it with systemd-tmpfiles after startup,
-    # and this check is what would notice that regressing.
+    # The unit hands the socket to uid 1000 with systemd-tmpfiles after
+    # startup, since containerd 2.x ignores its own [grpc] uid/gid keys.
     OWNER_CTR=$(timeout --signal=KILL 15s docker exec --user 1000:1000 "$CID" \
         /usr/bin/ctr version 2>&1 || true)
     if ! grep -q '^  Version:' <<<"$OWNER_CTR"; then
-        echo "boot_smoke: FAIL — uid 1000 cannot reach the containerd socket:" >&2
-        echo "${OWNER_CTR:-(no output)}" >&2
         docker_exec /usr/bin/systemctl status --no-pager containerd.service >&2 || true
-        exit 1
+        fail "uid 1000 can't reach the containerd socket:" "${OWNER_CTR:-(no output)}"
     fi
 
-    # The workload template has to carry the CRI sandbox annotation.
-    # Without it gVisor's shim never wires the container's stdio and
-    # blocks in Create until the task times out — a failure that only
-    # appears when a container is actually started, which no bounded
-    # docker harness can do. Assert the flag is still there instead.
-    ANNOTATION=$(docker_exec /usr/bin/bash -c \
-        'unit=$(</etc/systemd/system/container@.service); case $unit in *"--annotation io.kubernetes.cri.container-type=sandbox"*) echo present ;; *) echo missing ;; esac' 2>&1 || true)
-    if [[ "$ANNOTATION" != "present" ]]; then
-        echo "boot_smoke: FAIL — container@.service lost the CRI sandbox annotation gVisor's shim needs" >&2
-        exit 1
-    fi
-
-    # The workload template refuses a tag-only image reference and bounds
-    # its own logs. Both are one line each in a unit nobody re-reads, and
-    # both fail open if dropped — an unpinned image still runs, and an
-    # unbounded log only shows up as a full disk weeks later.
-    for guard in '*@sha256:*' '--log-opt max-size'; do
-        FOUND=$(docker_exec /usr/bin/bash -c \
-            "unit=\$(</etc/systemd/system/container@.service); case \$unit in *'$guard'*) echo present ;; *) echo missing ;; esac" 2>&1 || true)
-        if [[ "$FOUND" != "present" ]]; then
-            echo "boot_smoke: FAIL — container@.service no longer carries: $guard" >&2
-            exit 1
+    # Lines in container@.service that only matter once a container
+    # starts, which can't happen here. Without the CRI annotation gVisor's
+    # shim hangs in Create. Without the digest check a tag-only image runs,
+    # and without the log bound a chatty container fills the disk.
+    CONTAINER_UNIT=$(read_in_image /etc/systemd/system/container@.service 2>&1 || true)
+    for guard in \
+        '--annotation io.kubernetes.cri.container-type=sandbox' \
+        '*@sha256:*' \
+        '--log-opt max-size'; do
+        if [[ "$CONTAINER_UNIT" != *"$guard"* ]]; then
+            fail "container@.service no longer contains: $guard"
         fi
     done
 
-    # Container networking shells out to `iptables`, and which backend
-    # answers is a boot-time property of the image's symlinks. The
-    # platform kernel has nf_tables built in and no module can be loaded
-    # after minimos-harden.service, so the legacy backend would be a
-    # runtime surprise rather than a build-time one.
+    # Container networking runs `iptables`, and the image's symlinks pick
+    # the backend. The platform kernel has nf_tables built in and module
+    # loading is shut off after boot, so the legacy backend would fail.
     IPTABLES_VERSION=$(docker_exec /usr/bin/iptables --version 2>&1 || true)
     if [[ "$IPTABLES_VERSION" != *"(nf_tables)"* ]]; then
-        echo "boot_smoke: FAIL — /usr/bin/iptables is not the nft backend: ${IPTABLES_VERSION:-(no output)}" >&2
-        exit 1
+        fail "/usr/bin/iptables is not the nft backend: ${IPTABLES_VERSION:-(no output)}"
     fi
 fi
 
 USERSPACE_MSG="no distro userspace"
 [[ "$USERLAND" -eq 1 ]] && USERSPACE_MSG="userland image, no package manager"
 [[ "$CONTAINERS" -eq 1 ]] && USERSPACE_MSG="$USERSPACE_MSG, gVisor is the only OCI runtime"
-echo "boot_smoke: PASS — systemd running, 0 failed units, required services active, $USERSPACE_MSG, no suid/world-writable, accounts stable"
+echo "boot_smoke: PASS: systemd running, 0 failed units, required units active, $USERSPACE_MSG, no setuid or world-writable files, accounts unchanged"
