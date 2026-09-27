@@ -125,6 +125,10 @@ ssh exe.dev rm minimos-test
 The same steps work for every example with its own target and image
 name. What the platform expects from a custom image:
 
+- **The Cmd has to be named `init`.** exe.dev's own init decides by file
+  name whether to exec a Cmd as PID 1 or run it as a child. `/sbin/init`
+  qualifies, and `minimos.image` fails the build for a `cmd` that doesn't
+  start with a program named `init`.
 - **The HTTPS proxy waits for SSH.** After boot the platform tries SSH
   logins as `root` and as the `exe.dev/login-user` account, and the proxy
   answers 503 until one works. The platform sshd maps every login name,

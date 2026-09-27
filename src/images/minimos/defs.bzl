@@ -220,6 +220,9 @@ def _image(
     `ports` become ExposedPorts. exe.dev's proxy forwards to port 80 if it
     is listed, or else the lowest listed port from 1024 up.
 
+    `cmd` is a comma-separated argv. exe.dev only runs a Cmd as PID 1 when
+    its program is named `init`, so a replacement has to keep that name.
+
     The boot_smoke_* flags turn on checks for special image kinds.
     boot_smoke_userland marks an image that ships an interactive userland
     on purpose, which waives the no-coreutils scan and nothing else.
@@ -227,6 +230,14 @@ def _image(
     wrapper's scope placement. boot_smoke_containers checks that gVisor is
     the only OCI runtime in any layer and is containerd's default.
     """
+    program = cmd.split(",")[0]
+    if program.rpartition("/")[2] != "init":
+        fail(
+            ("minimos.image {}: cmd must start with a program named `init`, got {}. " +
+             "exe.dev runs any other Cmd as a child of its own init, not as PID 1.")
+                .format(name, repr(program)),
+        )
+
     policy_args = [
         "--base-layer-count",
         str(len(_BASE_LAYERS)),
