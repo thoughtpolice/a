@@ -175,7 +175,7 @@ CONTAINERS = {
     "iptables": ("1.8.13-r4", "696cbf0f9ca46dd1a0f0c74a73c0c8b16ece2cdc15542b2b40a6ee20de0615e2"),
     "libmnl": ("1.0.5-r8", "916046fd5e2a6e707b00b6f2f3ae9534eca0eec3426a5e6a2a849bfa6d39c388"),
     "libnftnl": ("1.3.2-r0", "845c6e710018d5bbd6640658929f4d61db9ec9bce918cdec1682d98954e2e936"),
-    "nerdctl": ("2.3.5-r14", "fa3bf1ddaa1e3572ddca64d49fcbebd725cf4c462580c7efc4b8c95d8da91e6f"),
+    "nerdctl": ("2.4.0-r1", "707932fab47d62f40cc0fe6095769f3d0c6cad6918313c7dae62c203d790b893"),
 }
 
 wolfi_apks(MINIMOS_BASE)
