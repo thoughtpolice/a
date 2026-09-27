@@ -69,10 +69,11 @@ upstream's submodule names:
 | `mescc-tools/`         | `mescc-tools/`        |
 | `mescc-tools-extra/`   | `mescc-tools-extra/`  |
 
-Each `seeds/linux-<arch>/` directory gathers files from the `AMD64/` or
-`AArch64/` submodule under shorter names, plus `bootstrap.c` from `M2libc`.
-Only amd64 builds; cellar keeps the AArch64 copies as upstream ships them.
-After an update, compare every copy with the upstream checkout:
+`seeds/linux-amd64/` gathers files from the `AMD64/` submodule under shorter
+names, plus `bootstrap.c` from `M2libc`. `m2-libc/` keeps every architecture's
+files, because M2-Mesoplanet opens every file an `#include` names, including
+those behind another architecture's `#if`. After an update, compare every copy
+with the upstream checkout:
 
 ```sh
 bootstrap/stage0-posix/check-upstream.sh /path/to/stage0-posix

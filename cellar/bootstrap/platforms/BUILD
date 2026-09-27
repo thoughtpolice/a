@@ -18,14 +18,6 @@ constraint_value(
     setting = ":cpu",
 )
 
-# No execution platform supports it. The stage0 packages keep upstream's
-# AArch64 sources behind it, and the configuration test uses it for an
-# unsupported target.
-constraint_value(
-    name = "aarch64",
-    setting = ":cpu",
-)
-
 # The client operating system never changes the bootstrap target ABI.
 platform(
     name = "default",

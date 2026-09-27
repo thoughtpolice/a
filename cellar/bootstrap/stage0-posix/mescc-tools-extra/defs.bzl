@@ -54,13 +54,10 @@ def create_all(sources):
             name = name,
             src = src,
             os = "Linux",
-            arch = select({
-                "cellar//bootstrap/platforms:amd64": "amd64",
-                "cellar//bootstrap/platforms:aarch64": "aarch64",
-            }),
-            tools = select({
-                "cellar//bootstrap/platforms:amd64": "cellar//bootstrap/stage0-posix/seeds/linux-amd64:bins",
-                "cellar//bootstrap/platforms:aarch64": "cellar//bootstrap/stage0-posix/seeds/linux-arm64:bins",
-            }),
-            target_compatible_with = ["cellar//bootstrap/platforms:linux"],
+            arch = "amd64",
+            tools = "cellar//bootstrap/stage0-posix/seeds/linux-amd64:bins",
+            target_compatible_with = [
+                "cellar//bootstrap/platforms:linux",
+                "cellar//bootstrap/platforms:amd64",
+            ],
         )

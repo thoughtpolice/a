@@ -25,9 +25,7 @@ names the executor that `:execution` registers. This shared identity keeps
 compiler execution dependencies in the same configuration as delivered
 programs. Executable rules declare both target and execution compatibility;
 executable inputs use `attrs.exec_dep` so Buck checks and configures their
-execution ABI. The `:aarch64` constraint remains for unsupported
-source-selection branches and negative tests; it does not register another
-execution platform.
+execution ABI.
 
 Local execution is available only on an x86_64 Linux client. Other clients get
 no local platform, and both this project's registration and the parent's use

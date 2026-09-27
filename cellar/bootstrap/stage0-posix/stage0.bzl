@@ -251,28 +251,15 @@ M1 = M1_0
 hex2 = hex2_1
 
 # -----------------------------------------------------------------------------
-# stage0_binaries: generate the full phase 0-15 build graph for a single target
-# architecture. Called from each seeds/linux-<arch>/BUILD with architecture
-# parameters; all the heavy lifting (source file lists, rule wiring) lives here
-# so the per-arch BUILD files stay small.
+# stage0_binaries: generate the full phase 0-15 build graph from the seeds in
+# the calling package. The source file lists and rule wiring live here, so
+# seeds/linux-amd64/BUILD stays small.
 #
 # Arguments:
-#   arch            architecture identifier passed to M2/M1/hex2 rules
-#                   ("amd64", "aarch64", ...).
-#   m2libc_dir      subdirectory within m2-libc for this arch's libc
-#                   ("amd64", "aarch64", ...). It can differ from `arch` in
-#                   capitalization.
-#   catm_src        name of the hand-written catm source file in the current
-#                   package. On amd64 this is "catm.hex2" (built with hex2-0);
-#                   on aarch64 it is "catm.hex1" (built with hex1), the
-#                   earlier hex level that upstream stage0-posix uses there.
-#   catm_bin        target that assembles `catm_src`, ":hex2-0" on amd64
-#                   and ":hex1" on aarch64.
+#   arch            architecture passed to the M2, M1 and hex2 rules, which is
+#                   also the name of its subdirectory in m2-libc ("amd64").
 def stage0_binaries(
         arch,
-        m2libc_dir,
-        catm_src,
-        catm_bin,
         compat = {}):
     m2libc = "cellar//bootstrap/stage0-posix/m2-libc"
     m2planet = "cellar//bootstrap/stage0-posix/m2-planet"
@@ -280,17 +267,16 @@ def stage0_binaries(
     mescctools = "cellar//bootstrap/stage0-posix/mescc-tools"
 
     # Source lists that show up verbatim in the upstream kaem scripts for every
-    # phase from 8 onward. Everything except the final few hand-written sources
-    # is shared across architectures; the arch-specific libc pieces are pulled
-    # from m2-libc via `m2libc_dir`.
+    # phase from 8 onward. The architecture's libc pieces come from its m2-libc
+    # subdirectory.
     arch_linux_sources = [
         m2libc + ":sys/types.h",
         m2libc + ":stddef.h",
         m2libc + ":sys/utsname.h",
-        m2libc + ":" + m2libc_dir + "/linux/unistd.c",
-        m2libc + ":" + m2libc_dir + "/linux/fcntl.c",
+        m2libc + ":" + arch + "/linux/unistd.c",
+        m2libc + ":" + arch + "/linux/fcntl.c",
         m2libc + ":fcntl.c",
-        m2libc + ":" + m2libc_dir + "/linux/sys/stat.c",
+        m2libc + ":" + arch + "/linux/sys/stat.c",
         m2libc + ":ctype.c",
         m2libc + ":stdlib.c",
         m2libc + ":stdarg.h",
@@ -304,10 +290,10 @@ def stage0_binaries(
     arch_linux_sources_no_stat = [
         m2libc + ":sys/types.h",
         m2libc + ":stddef.h",
-        m2libc + ":" + m2libc_dir + "/linux/fcntl.c",
+        m2libc + ":" + arch + "/linux/fcntl.c",
         m2libc + ":fcntl.c",
         m2libc + ":sys/utsname.h",
-        m2libc + ":" + m2libc_dir + "/linux/unistd.c",
+        m2libc + ":" + arch + "/linux/unistd.c",
         m2libc + ":stdarg.h",
         m2libc + ":string.c",
         m2libc + ":ctype.c",
@@ -324,8 +310,8 @@ def stage0_binaries(
         m2libc + ":sys/types.h",
         m2libc + ":stddef.h",
         m2libc + ":sys/utsname.h",
-        m2libc + ":" + m2libc_dir + "/linux/unistd.c",
-        m2libc + ":" + m2libc_dir + "/linux/fcntl.c",
+        m2libc + ":" + arch + "/linux/unistd.c",
+        m2libc + ":" + arch + "/linux/fcntl.c",
         m2libc + ":fcntl.c",
         m2libc + ":ctype.c",
         m2libc + ":stdlib.c",
@@ -341,8 +327,8 @@ def stage0_binaries(
         m2libc + ":sys/types.h",
         m2libc + ":stddef.h",
         m2libc + ":sys/utsname.h",
-        m2libc + ":" + m2libc_dir + "/linux/unistd.c",
-        m2libc + ":" + m2libc_dir + "/linux/fcntl.c",
+        m2libc + ":" + arch + "/linux/unistd.c",
+        m2libc + ":" + arch + "/linux/fcntl.c",
         m2libc + ":fcntl.c",
         m2libc + ":ctype.c",
         m2libc + ":stdlib.c",
@@ -355,11 +341,11 @@ def stage0_binaries(
 
     # The M2libc definitions and ELF headers that the later phases assemble
     # and link with.
-    defs_m1 = m2libc + ":" + m2libc_dir + "/" + m2libc_dir + "_defs.M1"
-    libc_core_m1 = m2libc + ":" + m2libc_dir + "/libc-core.M1"
-    libc_full_m1 = m2libc + ":" + m2libc_dir + "/libc-full.M1"
-    elf_hex2 = m2libc + ":" + m2libc_dir + "/ELF-" + m2libc_dir + ".hex2"
-    elf_debug_hex2 = m2libc + ":" + m2libc_dir + "/ELF-" + m2libc_dir + "-debug.hex2"
+    defs_m1 = m2libc + ":" + arch + "/" + arch + "_defs.M1"
+    libc_core_m1 = m2libc + ":" + arch + "/libc-core.M1"
+    libc_full_m1 = m2libc + ":" + arch + "/libc-full.M1"
+    elf_hex2 = m2libc + ":" + arch + "/ELF-" + arch + ".hex2"
+    elf_debug_hex2 = m2libc + ":" + arch + "/ELF-" + arch + "-debug.hex2"
 
     # The final tools, which mescc-tools-extra, Mes and the cellar helpers
     # build with.
@@ -386,9 +372,8 @@ def stage0_binaries(
     # Phase 2a: build hex2 from hex1
     hex1(name = "hex2-0", bin = ":hex1", src = "hex2.hex1", **compat)
 
-    # Phase 2b: build catm. On amd64 this uses hex2-0 + catm.hex2; on aarch64
-    # it uses hex1 + catm.hex1 (see docstring above).
-    hex2_0(name = "catm", bin = catm_bin, src = catm_src, **compat)
+    # Phase 2b: build catm from hex2
+    hex2_0(name = "catm", bin = ":hex2-0", src = "catm.hex2", **compat)
 
     # Phase 3: build M0 from hex2
     catm(
@@ -741,11 +726,11 @@ def stage0_binaries(
         srcs = [
             m2libc + ":sys/types.h",
             m2libc + ":stddef.h",
-            m2libc + ":" + m2libc_dir + "/linux/fcntl.c",
+            m2libc + ":" + arch + "/linux/fcntl.c",
             m2libc + ":fcntl.c",
             m2libc + ":sys/utsname.h",
-            m2libc + ":" + m2libc_dir + "/linux/unistd.c",
-            m2libc + ":" + m2libc_dir + "/linux/sys/stat.c",
+            m2libc + ":" + arch + "/linux/unistd.c",
+            m2libc + ":" + arch + "/linux/sys/stat.c",
             m2libc + ":ctype.c",
             m2libc + ":stdlib.c",
             m2libc + ":stdarg.h",
@@ -807,10 +792,10 @@ def stage0_binaries(
         srcs = [
             m2libc + ":sys/types.h",
             m2libc + ":stddef.h",
-            m2libc + ":" + m2libc_dir + "/linux/fcntl.c",
+            m2libc + ":" + arch + "/linux/fcntl.c",
             m2libc + ":fcntl.c",
             m2libc + ":sys/utsname.h",
-            m2libc + ":" + m2libc_dir + "/linux/unistd.c",
+            m2libc + ":" + arch + "/linux/unistd.c",
             m2libc + ":ctype.c",
             m2libc + ":stdlib.c",
             m2libc + ":stdarg.h",
@@ -959,35 +944,28 @@ def stage0_binaries(
     )
 
 # -----------------------------------------------------------------------------
-# stage0_platform: the single entry point each seeds/linux-<arch>/BUILD calls.
+# stage0_platform: the single entry point seeds/linux-amd64/BUILD calls.
 # It:
 #   1) creates the exported `:answers` file target;
 #   2) invokes `stage0_binaries` to wire up the full build graph;
-#   3) assembles the platform-specific filegroup (named via `filegroup_name`)
-#      laying out the produced binaries under `<arch_dir_upper>/bin/`, mirroring
-#      the upstream stage0-posix directory layout that `<arch>.answers` expects;
+#   3) assembles the filegroup named `filegroup_name`, laying out the produced
+#      binaries under `<arch_dir_upper>/bin/`, mirroring the upstream
+#      stage0-posix directory layout that `<arch>.answers` expects;
 #   4) declares the dynamic `:check` test that discovers every golden answer
 #      and runs sha256sum once per filegroup entry.
 #
 # Every target requires Linux and `arch`, so a platform without both skips
-# them instead of failing to build them. Only amd64 has an execution
-# platform, so the other architectures' graphs never build.
+# them instead of failing to build them.
 #
 # Arguments:
 #   arch              target architecture passed to M2/M1/hex2 rules.
-#   m2libc_dir        subdirectory within m2-libc for this arch's libc.
-#   arch_dir_upper    layout directory under the answers file ("AMD64",
-#                     "AArch64", ...). Matches upstream stage0-posix naming.
+#   arch_dir_upper    layout directory under the answers file ("AMD64").
+#                     Matches upstream stage0-posix naming.
 #   filegroup_name    name of the filegroup that holds the binaries + answers.
-#   catm_src          hand-written catm source file (see stage0_binaries).
-#   catm_bin          target to assemble catm_src with (see stage0_binaries).
 def stage0_platform(
         arch,
-        m2libc_dir,
         arch_dir_upper,
-        filegroup_name,
-        catm_src,
-        catm_bin):
+        filegroup_name):
     compat = {"target_compatible_with": [
         "cellar//bootstrap/platforms:linux",
         "cellar//bootstrap/platforms:" + arch,
@@ -997,9 +975,6 @@ def stage0_platform(
 
     stage0_binaries(
         arch = arch,
-        m2libc_dir = m2libc_dir,
-        catm_src = catm_src,
-        catm_bin = catm_bin,
         compat = compat,
     )
 

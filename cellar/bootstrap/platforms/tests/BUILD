@@ -14,11 +14,16 @@ constraint_value(
     setting = "cellar//bootstrap/platforms:os",
 )
 
+constraint_value(
+    name = "aarch64",
+    setting = "cellar//bootstrap/platforms:cpu",
+)
+
 platform(
     name = "linux-aarch64",
     constraint_values = [
         "cellar//bootstrap/platforms:linux",
-        "cellar//bootstrap/platforms:aarch64",
+        ":aarch64",
     ],
 )
 
