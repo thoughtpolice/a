@@ -1,0 +1,233 @@
+{
+  "vars": {
+    "API_KEYS": {
+      "45375eb9554c068b8b25b953ab3a802d8d75b14290bfc276638531d118f7b5b0": {
+        "subject": "ana",
+        "roles": [
+          "analyst"
+        ],
+        "claims": {
+          "region": "eu"
+        }
+      },
+      "82f1d5b033e95d291d99e8246fbf2f00fa2a7bce1cede199f8522c2e591d55a6": {
+        "subject": "sam",
+        "roles": [
+          "analyst"
+        ],
+        "claims": {
+          "region": "us",
+          "mfa": true
+        }
+      },
+      "14077c61a8a3739d6ed0fc87e6fc7979c0c0aaffc3e3e015846ec5fb2ad0fdfb": {
+        "subject": "root",
+        "roles": [
+          "auditor"
+        ],
+        "claims": {
+          "mfa": true
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "name": "no key, no reports",
+      "request": {
+        "path": "/reports/eu-sales"
+      },
+      "expect": {
+        "status": 401
+      }
+    },
+    {
+      "name": "a forged key is refused",
+      "request": {
+        "path": "/reports/eu-sales",
+        "headers": {
+          "x-api-key": "gate_ana_forged"
+        }
+      },
+      "expect": {
+        "status": 401
+      }
+    },
+    {
+      "name": "an analyst reads a report of her region",
+      "request": {
+        "path": "/reports/eu-sales",
+        "headers": {
+          "x-api-key": "gate_ana_R7tYuIoPaSdFgHjKlZxCvBnM98765432"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "region": "eu",
+            "level": 1,
+            "title": "EU sales",
+            "reasons": [
+              "regional-analysts"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "not another region's",
+      "request": {
+        "path": "/reports/us-sales",
+        "headers": {
+          "x-api-key": "gate_ana_R7tYuIoPaSdFgHjKlZxCvBnM98765432"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "name": "nor a level 3 report, even in her region",
+      "request": {
+        "path": "/reports/eu-payroll",
+        "headers": {
+          "x-api-key": "gate_ana_R7tYuIoPaSdFgHjKlZxCvBnM98765432"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "name": "an unknown report is a deny, not a 404",
+      "request": {
+        "path": "/reports/nope",
+        "headers": {
+          "x-api-key": "gate_ana_R7tYuIoPaSdFgHjKlZxCvBnM98765432"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "name": "another analyst reads his region",
+      "request": {
+        "path": "/reports/us-sales",
+        "headers": {
+          "x-api-key": "gate_sam_W2eRtYuIoPlKjHgFdSaZxCvBnM135790"
+        }
+      },
+      "expect": {
+        "json": {
+          "title": "US sales"
+        }
+      }
+    },
+    {
+      "name": "an auditor with mfa reads level 3",
+      "request": {
+        "path": "/reports/eu-payroll",
+        "headers": {
+          "x-api-key": "gate_root_Z1xCvBnMaSdFgHjKlQwErTyUiOp24680"
+        }
+      },
+      "expect": {
+        "json": {
+          "title": "EU payroll",
+          "reasons": [
+            "auditors"
+          ]
+        }
+      }
+    },
+    {
+      "name": "analysts cannot export",
+      "request": {
+        "path": "/reports/us-sales/export",
+        "headers": {
+          "x-api-key": "gate_sam_W2eRtYuIoPlKjHgFdSaZxCvBnM135790"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "name": "an auditor exports as CSV",
+      "request": {
+        "path": "/reports/eu-sales/export",
+        "headers": {
+          "x-api-key": "gate_root_Z1xCvBnMaSdFgHjKlQwErTyUiOp24680"
+        }
+      },
+      "expect": {
+        "text": "title,region,level\nEU sales,eu,1\n",
+        "headers": {
+          "content-type": "text/csv"
+        }
+      }
+    },
+    {
+      "name": "the actions an analyst may take",
+      "request": {
+        "path": "/reports/eu-sales/actions",
+        "headers": {
+          "x-api-key": "gate_ana_R7tYuIoPaSdFgHjKlZxCvBnM98765432"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "actions": [
+              "view"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "and an auditor",
+      "request": {
+        "path": "/reports/eu-payroll/actions",
+        "headers": {
+          "x-api-key": "gate_root_Z1xCvBnMaSdFgHjKlQwErTyUiOp24680"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "actions": [
+              "view",
+              "export"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a malformed id is a deny on an authorized route (authorization runs before validation)",
+      "request": {
+        "path": "/reports/NOT%20OK",
+        "headers": {
+          "x-api-key": "gate_ana_R7tYuIoPaSdFgHjKlZxCvBnM98765432"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "name": "and a 400 where validation runs first",
+      "request": {
+        "path": "/reports/NOT%20OK/actions",
+        "headers": {
+          "x-api-key": "gate_ana_R7tYuIoPaSdFgHjKlZxCvBnM98765432"
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    }
+  ]
+}
