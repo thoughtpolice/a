@@ -266,8 +266,8 @@ def _image(
         "LANG": "C.UTF-8",
         # systemd 256 and later probe the terminal size and write OSC
         # context sequences to the console unless TERM is dumb, which
-        # --log-color=false does not cover. SSH sessions are unaffected
-        # because the platform sshd sets its own TERM.
+        # --log-color=false does not cover. SSH sessions don't inherit
+        # it, and interactive ones get the client's TERM.
         "TERM": "dumb",
         "SYSTEMD_COLORS": "0",
     }

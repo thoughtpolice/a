@@ -12,6 +12,7 @@
 #   - a boot journal with no warnings beyond four known lines
 #   - plain `[  OK  ]` status lines on the console
 #   - /etc/{passwd,group,shadow} to match the baked copies
+#   - getent to give exedev's login wrapper as its shell
 #   - the systemd-journal group to be able to read the journal
 #   - uid 1000 to see the process tree in `systemctl status` and to list
 #     unit files
@@ -391,11 +392,20 @@ for f in passwd group shadow; do
     fi
 done
 
+# exe.dev's SSH server runs `getent passwd` to find the login shell.
+# When that fails it runs the first bash on its own PATH instead, and
+# every session skips the login wrapper, and with it the dev images'
+# bounded user scope. The wrapper can't notice that, so check the lookup.
+LOGIN_ENTRY=$(docker_exec /usr/bin/getent passwd exedev 2>&1 || true)
+if [[ "$LOGIN_ENTRY" != *:/usr/lib/minimos/login-shell ]]; then
+    fail "getent doesn't give the login wrapper as exedev's shell:" "${LOGIN_ENTRY:-(no output)}"
+fi
+
 # The owner reads logs through the systemd-journal group, which only
 # works because tmpfiles fixes the group on journald's directory. Test
 # the group directly, because `docker exec --user` doesn't pick up
-# supplementary groups from the image's /etc/group the way the platform
-# sshd does.
+# supplementary groups from the image's /etc/group the way the platform's
+# SSH server does.
 JOURNAL_READ=$(timeout --signal=KILL 15s docker exec --user 1000:105 "$CID" \
     /usr/bin/journalctl -b -n 1 --no-pager -o cat 2>&1 || true)
 if [[ -z "$JOURNAL_READ" || "$JOURNAL_READ" == *"insufficient permissions"* || "$JOURNAL_READ" == *"No journal files"* ]]; then

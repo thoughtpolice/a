@@ -1,10 +1,10 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 #
-# Login environment for minimos dev images. The platform sshd runs no
-# PAM, so nothing else connects a session to the user manager. exedev's
-# runtime directory exists from boot because the account lingers. Keep
-# this POSIX, since both bash and dash read it.
+# Login environment for minimos dev images. The platform's SSH server
+# runs no PAM, so nothing else connects a session to the user manager.
+# exedev's runtime directory exists from boot because the account
+# lingers. Keep this POSIX, since both bash and dash read it.
 
 umask 077
 
@@ -14,8 +14,8 @@ if [ -z "${XDG_RUNTIME_DIR:-}" ] && [ -d "/run/user/$(id -u)" ]; then
     export XDG_RUNTIME_DIR="/run/user/$(id -u)"
 fi
 
-# Tools such as codex land in /usr/local/bin, which the platform sshd's
-# default PATH doesn't always include.
+# Tools such as codex land in /usr/local/bin, which a session's
+# inherited PATH doesn't always include.
 case ":$PATH:" in
     *:/usr/local/bin:*) ;;
     *) export PATH="/usr/local/bin:$PATH" ;;

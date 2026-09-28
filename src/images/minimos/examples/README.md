@@ -73,13 +73,20 @@ composition policy wouldn't let this layer add them anyway.
 
 ### Where SSH sessions run
 
-The platform starts its SSH listener before PID 1, so every SSH child
-starts in `init.scope`. The dev overlay ships
-`/etc/minimos/require-user-scope`, which makes exedev's login wrapper
-start each shell or command with `systemd-run --user --scope`, under
+The platform's SSH server starts before PID 1, so every SSH child
+starts in `init.scope`. It looks up exedev's shell with
+`getent passwd`, and starts the login wrapper that names with `-c` and
+the command, or with `-l` for an interactive login. The dev overlay
+ships `/etc/minimos/require-user-scope`, which makes the wrapper start
+each shell or command with `systemd-run --user --scope`, under
 `user@1000.service`. If the user bus isn't up, the wrapper refuses the
 login rather than run it unbounded. It also turns off `systemd-run`'s
 `$` expansion, so Bash sees the SSH command exactly once.
+
+All of this hangs on the `getent` lookup. When it fails, the platform
+runs the first `bash` on its own PATH instead, and every session runs
+unbounded in `init.scope` with no `XDG_RUNTIME_DIR`. The docker boot
+smoke starts the wrapper itself, so it checks the lookup separately.
 
 Each scope gets CPU and I/O weight 100, `MemoryHigh=65%`,
 `MemoryMax=75%`, no swap and 2048 tasks, and delegates
@@ -94,7 +101,7 @@ This only covers what comes in through the login shell. exe.dev's SFTP
 handler doesn't use the account's shell, so SFTP sessions stay in
 `init.scope`, outside `user.slice`'s memory and I/O ceilings, with only
 its 512-task cap. Capping all of `init.scope` would also cap PID 1 and
-the SSH listener, so the fix belongs on the platform side, which would
+the SSH server, so the fix belongs on the platform side, which would
 need to put each SFTP or forwarding handler in a bounded user scope.
 Until then, treat those channels as a known gap in the resource limits.
 
