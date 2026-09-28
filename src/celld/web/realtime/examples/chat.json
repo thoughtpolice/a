@@ -1,0 +1,164 @@
+{
+  "vars": {
+    "API_KEYS": {
+      "9c569a410c81c536af26d168c85a576178fca9c6b43e649de81e8ce03b96350e": {
+        "subject": "ada",
+        "roles": ["member"]
+      },
+      "06278711905e2e21353ab0bc7546c4fad84b7cb0fea44e0ecf12b08434947050": {
+        "subject": "bob",
+        "roles": ["member"]
+      },
+      "0161d48d85cc67820b3eadafbfbaf9bfa8bc1d38dfa3f0e7522e565b2e5af9e1": {
+        "subject": "vic",
+        "roles": ["viewer"]
+      },
+      "c2a87e30bd35c3169902c917b178ec6c52f5423f2e8d5db29af0af610269644b": {
+        "subject": "root",
+        "roles": ["admin"]
+      }
+    }
+  },
+  "steps": [
+    {
+      "name": "the socket needs a key",
+      "request": {
+        "path": "/rooms/lobby/socket",
+        "headers": { "upgrade": "websocket" }
+      },
+      "expect": { "status": 401 }
+    },
+    {
+      "name": "a plain GET is not a WebSocket",
+      "request": {
+        "path": "/rooms/lobby/socket",
+        "headers": { "x-api-key": "example-key-ada" }
+      },
+      "expect": {
+        "status": 426,
+        "json": { "error": "upgrade_required" },
+        "headers": { "upgrade": "websocket" }
+      }
+    },
+    {
+      "name": "another site's page cannot open one, even with the visitor's credentials",
+      "request": {
+        "path": "/rooms/lobby/socket",
+        "headers": {
+          "x-api-key": "example-key-ada",
+          "upgrade": "websocket",
+          "origin": "https://evil.example"
+        }
+      },
+      "expect": { "status": 403, "json": { "error": "forbidden_origin" } }
+    },
+    {
+      "name": "a bad room name is refused before any room exists",
+      "request": {
+        "path": "/rooms/a%2Fb/history",
+        "headers": { "x-api-key": "example-key-ada" }
+      },
+      "expect": { "status": 400, "json": { "error": "bad_room" } }
+    },
+    {
+      "name": "only admins announce",
+      "request": {
+        "method": "POST",
+        "path": "/rooms/lobby/announcements",
+        "headers": { "x-api-key": "example-key-ada" },
+        "json": { "text": "hello" }
+      },
+      "expect": { "status": 403 }
+    },
+    {
+      "name": "an admin's announcement is the room's first message",
+      "request": {
+        "method": "POST",
+        "path": "/rooms/lobby/announcements",
+        "headers": { "x-api-key": "example-key-root" },
+        "json": { "text": "the lobby is open" }
+      },
+      "expect": { "status": 201, "json": { "$exact": { "seq": 1 } } }
+    },
+    {
+      "name": "an announcement is checked like any message",
+      "request": {
+        "method": "POST",
+        "path": "/rooms/lobby/announcements",
+        "headers": { "x-api-key": "example-key-root" },
+        "json": { "text": "" }
+      },
+      "expect": { "status": 400 }
+    },
+    {
+      "name": "an oversized one is a 413",
+      "request": {
+        "method": "POST",
+        "path": "/rooms/lobby/announcements",
+        "headers": { "x-api-key": "example-key-root", "content-type": "application/json" },
+        "bodyBytes": 4096
+      },
+      "expect": { "status": 413 }
+    },
+    {
+      "name": "the room keeps it for a page's first render",
+      "request": {
+        "path": "/rooms/lobby/history",
+        "headers": { "x-api-key": "example-key-vic" }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "messages": [
+              {
+                "channel": "announcements",
+                "seq": 1,
+                "prev": 0,
+                "data": { "text": "the lobby is open" },
+                "from": null,
+                "at": { "$gt": 0 }
+              }
+            ],
+            "complete": true
+          }
+        }
+      }
+    },
+    {
+      "name": "nobody is in the room yet",
+      "request": {
+        "path": "/rooms/lobby/presence",
+        "headers": { "x-api-key": "example-key-ada" }
+      },
+      "expect": { "json": { "$exact": { "presence": [] } } }
+    },
+    {
+      "name": "the history is in the room's storage, so it survives a restart",
+      "restart": true,
+      "request": {
+        "path": "/rooms/lobby/history?after=0",
+        "headers": { "x-api-key": "example-key-ada" }
+      },
+      "expect": { "json": { "messages": [{ "seq": 1 }] } }
+    },
+    {
+      "name": "and the numbering carries on",
+      "request": {
+        "method": "POST",
+        "path": "/rooms/lobby/announcements",
+        "headers": { "x-api-key": "example-key-root" },
+        "json": { "text": "welcome back" }
+      },
+      "expect": { "status": 201, "json": { "seq": 2 } }
+    },
+    {
+      "name": "removing a member with no sockets closes none",
+      "request": {
+        "method": "DELETE",
+        "path": "/rooms/lobby/members/aaaca25b7e94ef424296b5a31d3457305584abca3952f983e8abfdb127127692",
+        "headers": { "x-api-key": "example-key-root" }
+      },
+      "expect": { "json": { "$exact": { "closed": 0 } } }
+    }
+  ]
+}
