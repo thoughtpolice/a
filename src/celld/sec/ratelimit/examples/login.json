@@ -1,0 +1,173 @@
+{
+  "vars": {
+    "SESSION_SECRET": "example-only-secret-0123456789abcdef",
+    "RATE_LIMIT_SECRET": "example-only-rate-limit-secret-0123456789",
+    "USERS": {
+      "ada": "pbkdf2-sha256$600000$ZXhhbXBsZS1zYWx0LWFkYS0wMQ$X2DDUd_hw-IVwI_50tBLgmnoklmuVu_HuXP3FfnabSQ",
+      "grace": "pbkdf2-sha256$600000$ZXhhbXBsZS1zYWx0LWdyYWNlLTAx$UzhVldc0S5kwQeEDllIM_-TNkDWlGgS_-J6iTjlwbAY"
+    }
+  },
+  "steps": [
+    {
+      "name": "a wrong password is a 401, and the answer says the address has two attempts left",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": { "cf-connecting-ip": "192.0.2.10" },
+        "json": { "user": "ada", "password": "guess" }
+      },
+      "expect": {
+        "status": 401,
+        "json": { "error": "invalid_credentials" },
+        "headers": {
+          "ratelimit-policy": "\"address\";q=10;w=60",
+          "ratelimit": { "$regex": "^\"address\";r=2;t=[0-9]+$" },
+          "set-cookie": { "$absent": true }
+        }
+      }
+    },
+    {
+      "name": "a second wrong password",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": { "cf-connecting-ip": "192.0.2.10" },
+        "json": { "user": "ada", "password": "hunter2" }
+      },
+      "expect": {
+        "status": 401,
+        "headers": { "ratelimit": { "$regex": "^\"address\";r=1;t=[0-9]+$" } }
+      }
+    },
+    {
+      "name": "a third wrong password spends the address's burst",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": { "cf-connecting-ip": "192.0.2.10" },
+        "json": { "user": "ada", "password": "letmein" }
+      },
+      "expect": {
+        "status": 401,
+        "headers": { "ratelimit": { "$regex": "^\"address\";r=0;t=[0-9]+$" } }
+      }
+    },
+    {
+      "name": "the address's next attempt is refused before the password is checked, whoever it names",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": { "cf-connecting-ip": "192.0.2.10" },
+        "json": { "user": "grace", "password": "tea for two and two for tea" }
+      },
+      "expect": {
+        "status": 429,
+        "json": { "error": "rate_limited", "message": "too many requests" },
+        "headers": {
+          "retry-after": { "$regex": "^[1-6]$" },
+          "ratelimit": { "$regex": "^\"address\";r=0;t=[0-9]+$" },
+          "set-cookie": { "$absent": true }
+        }
+      }
+    },
+    {
+      "name": "three failures lock ada's sign-in, from any address and with the right password",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": { "cf-connecting-ip": "192.0.2.20" },
+        "json": { "user": "ada", "password": "correct horse battery staple" }
+      },
+      "expect": {
+        "status": 429,
+        "json": {
+          "error": "rate_limited",
+          "message": "too many failed sign-ins for this account"
+        },
+        "headers": {
+          "retry-after": { "$regex": "^(2[0-9][0-9]|300)$" },
+          "set-cookie": { "$absent": true }
+        }
+      }
+    },
+    {
+      "name": "the user name counts without regard to case",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": { "cf-connecting-ip": "192.0.2.20" },
+        "json": { "user": "ADA", "password": "correct horse battery staple" }
+      },
+      "expect": {
+        "status": 429,
+        "json": { "message": "too many failed sign-ins for this account" }
+      }
+    },
+    {
+      "name": "another account signs in, and gets an encrypted session",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": { "cf-connecting-ip": "192.0.2.30" },
+        "json": { "user": "grace", "password": "tea for two and two for tea" }
+      },
+      "expect": {
+        "json": { "$exact": { "user": "grace" } },
+        "headers": {
+          "set-cookie": {
+            "$regex": "^__Host-session=e1\\.k1\\.[^;]+; Max-Age=28800; Path=/; Secure; HttpOnly; SameSite=Lax$"
+          }
+        }
+      },
+      "save": {
+        "session": { "path": "headers.set-cookie", "regex": "^(__Host-session=[^;]+)" }
+      }
+    },
+    {
+      "name": "the session says who it is",
+      "request": {
+        "path": "/me",
+        "headers": { "cookie": "{session}" }
+      },
+      "expect": { "json": { "$exact": { "user": "grace" } } }
+    },
+    {
+      "name": "a forged session is refused",
+      "request": {
+        "path": "/me",
+        "headers": { "cookie": "__Host-session=e1.k1.forged" }
+      },
+      "expect": { "status": 401, "json": { "error": "invalid_credentials" } }
+    },
+    {
+      "name": "the lock is in the Durable Object's storage, so it survives a restart",
+      "restart": true,
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": { "cf-connecting-ip": "192.0.2.40" },
+        "json": { "user": "ada", "password": "correct horse battery staple" }
+      },
+      "expect": {
+        "status": 429,
+        "json": { "message": "too many failed sign-ins for this account" }
+      }
+    },
+    {
+      "name": "an oversized body is a 413, charged to its address first",
+      "request": {
+        "method": "POST",
+        "path": "/login",
+        "headers": {
+          "cf-connecting-ip": "192.0.2.50",
+          "content-type": "application/json"
+        },
+        "bodyBytes": 5000
+      },
+      "expect": {
+        "status": 413,
+        "headers": { "ratelimit": { "$regex": "^\"address\";r=2;t=[0-9]+$" } }
+      }
+    }
+  ]
+}

@@ -1,0 +1,158 @@
+{
+  "vars": {
+    "API_KEYS": {
+      "457c6a6848a0bbde7277ab01d5b82d9dbd88e96ca457819589954be69b69b1ad": {
+        "subject": "alice"
+      },
+      "06278711905e2e21353ab0bc7546c4fad84b7cb0fea44e0ecf12b08434947050": {
+        "subject": "bob"
+      }
+    }
+  },
+  "steps": [
+    {
+      "name": "no key is a 401, charged to the address",
+      "request": {
+        "path": "/reports",
+        "headers": { "cf-connecting-ip": "203.0.113.5" }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "ratelimit-policy": "\"address\";q=60;w=60",
+          "ratelimit": { "$regex": "^\"address\";r=59;t=[0-9]+$" }
+        }
+      }
+    },
+    {
+      "name": "so is a forged key: guessing spends the guesser's budget",
+      "request": {
+        "path": "/reports",
+        "headers": { "cf-connecting-ip": "203.0.113.5", "x-api-key": "forged" }
+      },
+      "expect": {
+        "status": 401,
+        "headers": {
+          "ratelimit": { "$regex": "^\"address\";r=58;t=[0-9]+$" }
+        }
+      }
+    },
+    {
+      "name": "alice's report carries the address's policy and both of her key's",
+      "request": {
+        "path": "/reports",
+        "headers": {
+          "cf-connecting-ip": "203.0.113.5",
+          "x-api-key": "example-key-alice"
+        }
+      },
+      "expect": {
+        "json": { "$exact": { "reports": [], "for": "alice" } },
+        "headers": {
+          "ratelimit-policy": "\"address\";q=60;w=60, \"minute\";q=4;w=60, \"day\";q=6;w=86400",
+          "ratelimit": {
+            "$regex": "^\"address\";r=5[0-9];t=[0-9]+, \"minute\";r=3;t=[0-9]+, \"day\";r=5;t=[0-9]+$"
+          }
+        }
+      }
+    },
+    {
+      "name": "an export costs three units, the rest of her minute",
+      "request": {
+        "method": "POST",
+        "path": "/exports",
+        "headers": {
+          "cf-connecting-ip": "203.0.113.5",
+          "x-api-key": "example-key-alice"
+        },
+        "json": { "report": "q3" }
+      },
+      "expect": {
+        "status": 202,
+        "json": { "$exact": { "exporting": "q3" } },
+        "headers": {
+          "ratelimit": { "$regex": "\"minute\";r=0;t=[0-9]+, \"day\";r=2;t=[0-9]+$" }
+        }
+      }
+    },
+    {
+      "name": "her next report is refused by the minute, and the day keeps its units",
+      "request": {
+        "path": "/reports",
+        "headers": {
+          "cf-connecting-ip": "203.0.113.5",
+          "x-api-key": "example-key-alice"
+        }
+      },
+      "expect": {
+        "status": 429,
+        "json": { "error": "rate_limited" },
+        "headers": {
+          "retry-after": { "$regex": "^1[45]$" },
+          "ratelimit": { "$regex": "\"minute\";r=0;t=[0-9]+, \"day\";r=2;t=[0-9]+$" }
+        }
+      }
+    },
+    {
+      "name": "bob, from the same address, has quotas of his own",
+      "request": {
+        "path": "/reports",
+        "headers": {
+          "cf-connecting-ip": "203.0.113.5",
+          "x-api-key": "example-key-bob"
+        }
+      },
+      "expect": {
+        "json": { "for": "bob" },
+        "headers": {
+          "ratelimit": { "$regex": "\"minute\";r=3;t=[0-9]+, \"day\";r=5;t=[0-9]+$" }
+        }
+      }
+    },
+    {
+      "name": "an oversized export is a 413 before anything is charged to his key",
+      "request": {
+        "method": "POST",
+        "path": "/exports",
+        "headers": {
+          "cf-connecting-ip": "203.0.113.5",
+          "x-api-key": "example-key-bob",
+          "content-type": "application/json"
+        },
+        "bodyBytes": 2000
+      },
+      "expect": {
+        "status": 413,
+        "headers": { "ratelimit-policy": "\"address\";q=60;w=60" }
+      }
+    },
+    {
+      "name": "so his minute still had three units",
+      "request": {
+        "path": "/reports",
+        "headers": {
+          "cf-connecting-ip": "203.0.113.5",
+          "x-api-key": "example-key-bob"
+        }
+      },
+      "expect": {
+        "headers": {
+          "ratelimit": { "$regex": "\"minute\";r=2;t=[0-9]+, \"day\";r=4;t=[0-9]+$" }
+        }
+      }
+    },
+    {
+      "name": "an unknown path is charged to the address too",
+      "request": {
+        "path": "/nope",
+        "headers": { "cf-connecting-ip": "203.0.113.5" }
+      },
+      "expect": {
+        "status": 404,
+        "headers": {
+          "ratelimit": { "$regex": "^\"address\";r=5[0-9];t=[0-9]+$" }
+        }
+      }
+    }
+  ]
+}
