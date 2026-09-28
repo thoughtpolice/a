@@ -119,6 +119,9 @@ minimos.overlay(
         # See the file.
         "etc/containerd/socket-access.conf": "socket-access.conf",
         "etc/nerdctl/nerdctl.toml": "nerdctl.toml",
+        # nerdctl holds a published port with `sleep infinity`, and the
+        # image has no coreutils. See the file.
+        "usr/bin/sleep": "sleep:755",
     },
     symlinks = {
         # CNI's usual plugin directory. Wolfi installs the plugins in

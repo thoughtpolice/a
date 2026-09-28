@@ -260,8 +260,9 @@ nerdctl run --runtime=io.containerd.runsc.v1 \
 
 Docker can't start a gVisor sandbox inside the boot smoke, so the smoke
 checks the pieces: no other runtime, runsc runs, containerd's merged
-config, the socket handover, and the unit's annotation, digest and log
-guards. On an exe.dev VM with a workload enabled:
+config, the socket handover, the unit's annotation, digest and log
+guards, and the `sleep` that published ports need. On an exe.dev VM
+with a workload enabled:
 
 - the container reports `Linux 4.19.0-gvisor`, gVisor's kernel rather
   than the host's
@@ -270,6 +271,11 @@ guards. On an exe.dev VM with a workload enabled:
   having nf_tables built in, since minimos shuts off module loading, and
   it's why the image's `iptables` links point at the nft binary rather
   than Wolfi's legacy default
+- `--publish` serves the container's port on the VM. nerdctl's OCI hook
+  holds each published port with `sleep infinity`, found on PATH. The
+  image has no coreutils, so it ships `sleep` as a short Bash script.
+  Without one, every container with a published port fails to start
+  with `cannot start the port reserver process`
 - gVisor's KVM platform isn't available, since the VM has `/dev/kvm` but
   no working nested VMX, so sandboxes use systrap
 

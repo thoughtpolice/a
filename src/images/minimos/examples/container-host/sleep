@@ -1,0 +1,25 @@
+#!/usr/bin/bash
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# sleep(1) for a host with no coreutils. For a container with published
+# ports, nerdctl's OCI hook starts `sleep infinity` from PATH, gives it
+# the host's listening sockets to hold, and kills it when the container
+# stops. Without a sleep, every --publish fails with "cannot start the
+# port reserver process". This takes the one argument sleep needs here,
+# `infinity` or a number of seconds.
+
+if [[ $# -ne 1 || ! $1 =~ ^(infinity|[0-9]+(\.[0-9]+)?)$ ]]; then
+    echo "usage: sleep infinity|SECONDS" >&2
+    exit 1
+fi
+
+# This process holds both ends of the pipe and never writes to it, so
+# read waits for its timeout, or forever.
+exec {pipe}<> <(:)
+if [[ $1 == infinity ]]; then
+    read -r -u "$pipe"
+else
+    read -r -t "$1" -u "$pipe"
+fi
+exit 0
