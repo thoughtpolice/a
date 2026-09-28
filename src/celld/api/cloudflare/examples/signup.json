@@ -1,0 +1,285 @@
+{
+  "steps": [
+    {
+      "name": "the page carries the widget for the configured sitekey",
+      "request": {
+        "path": "/"
+      },
+      "expect": {
+        "text": {
+          "$regex": "data-sitekey=\"0x4AAAAAAA[A-Za-z0-9]+\" data-action=\"signup\""
+        },
+        "headers": {
+          "content-type": {
+            "$regex": "^text/html"
+          }
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "a visitor solves the challenge on the site",
+      "request": {
+        "url": "{upstream}/__turnstile/token",
+        "method": "POST",
+        "json": {
+          "hostname": "example.com",
+          "action": "signup"
+        }
+      },
+      "save": {
+        "token": "json.token"
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/__turnstile/token"
+        }
+      ]
+    },
+    {
+      "name": "their token signs them up, after siteverify says yes",
+      "request": {
+        "method": "POST",
+        "path": "/signup",
+        "headers": {
+          "cf-connecting-ip": "192.0.2.10"
+        },
+        "json": {
+          "email": "Ada@Example.com",
+          "token": "{token}"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "$exact": {
+            "status": "added"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/turnstile/v0/siteverify",
+          "text": {
+            "$regex": "secret=0x4AAAAAAA.*response=.*remoteip=192.0.2.10"
+          }
+        }
+      ]
+    },
+    {
+      "name": "the same token does not work twice",
+      "request": {
+        "method": "POST",
+        "path": "/signup",
+        "json": {
+          "email": "grace@example.com",
+          "token": "{token}"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "error": "challenge_failed",
+          "codes": [
+            "timeout-or-duplicate"
+          ]
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/turnstile/v0/siteverify"
+        }
+      ]
+    },
+    {
+      "name": "a token from a page on another host is refused",
+      "request": {
+        "url": "{upstream}/__turnstile/token",
+        "method": "POST",
+        "json": {
+          "hostname": "evil.example.net",
+          "action": "signup"
+        }
+      },
+      "save": {
+        "foreign": "json.token"
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/__turnstile/token"
+        }
+      ]
+    },
+    {
+      "name": "even though siteverify accepts it",
+      "request": {
+        "method": "POST",
+        "path": "/signup",
+        "json": {
+          "email": "grace@example.com",
+          "token": "{foreign}"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "json": {
+          "codes": [
+            "hostname-mismatch"
+          ]
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/turnstile/v0/siteverify"
+        }
+      ]
+    },
+    {
+      "name": "a second visitor gets a token",
+      "request": {
+        "url": "{upstream}/__turnstile/token",
+        "method": "POST",
+        "json": {
+          "hostname": "example.com",
+          "action": "signup"
+        }
+      },
+      "save": {
+        "second": "json.token"
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/__turnstile/token"
+        }
+      ]
+    },
+    {
+      "name": "and an address already on the list is told so, not added twice",
+      "request": {
+        "method": "POST",
+        "path": "/signup",
+        "json": {
+          "email": "ada@example.com",
+          "token": "{second}"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "status": "already_on_the_list"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/turnstile/v0/siteverify"
+        }
+      ]
+    },
+    {
+      "name": "no token, no siteverify",
+      "request": {
+        "method": "POST",
+        "path": "/signup",
+        "json": {
+          "email": "grace@example.com",
+          "token": ""
+        }
+      },
+      "expect": {
+        "status": 400
+      },
+      "upstream": []
+    },
+    {
+      "name": "bodies over the cap are refused",
+      "request": {
+        "method": "POST",
+        "path": "/signup",
+        "bodyBytes": 20000
+      },
+      "expect": {
+        "status": 413
+      },
+      "upstream": []
+    },
+    {
+      "name": "the list survives a restart",
+      "restart": true,
+      "request": {
+        "url": "{upstream}/__turnstile/token",
+        "method": "POST",
+        "json": {
+          "hostname": "example.com",
+          "action": "signup"
+        }
+      },
+      "save": {
+        "third": "json.token"
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/__turnstile/token"
+        }
+      ]
+    },
+    {
+      "name": "so Ada is still there",
+      "request": {
+        "method": "POST",
+        "path": "/signup",
+        "json": {
+          "email": "ada@example.com",
+          "token": "{third}"
+        }
+      },
+      "expect": {
+        "json": {
+          "status": "already_on_the_list"
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/turnstile/v0/siteverify"
+        }
+      ]
+    },
+    {
+      "name": "when siteverify is down the sign-up fails closed",
+      "script": {
+        "fail": {
+          "path": "/turnstile/v0/siteverify",
+          "status": 503,
+          "html": true,
+          "times": 3
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/signup",
+        "json": {
+          "email": "grace@example.com",
+          "token": "whatever"
+        }
+      },
+      "expect": {
+        "status": 503,
+        "json": {
+          "error": "verification_unavailable"
+        }
+      },
+      "upstream": {
+        "$len": 3
+      }
+    }
+  ]
+}

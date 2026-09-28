@@ -1,0 +1,494 @@
+{
+  "vars": {
+    "ADMIN_KEY_SHA256": "0c7a26163e25b84441eac2efb45e739330b3400a48b3428516636e5810cbbec2"
+  },
+  "steps": [
+    {
+      "name": "without the operator's key nothing reaches Cloudflare",
+      "request": {
+        "method": "POST",
+        "path": "/purge",
+        "json": {
+          "urls": [
+            "https://example.com/"
+          ]
+        }
+      },
+      "expect": {
+        "status": 401
+      },
+      "upstream": []
+    },
+    {
+      "name": "a wrong key is refused the same way",
+      "request": {
+        "path": "/tunnel/token",
+        "headers": {
+          "x-api-key": "op_guess"
+        }
+      },
+      "expect": {
+        "status": 401
+      },
+      "upstream": []
+    },
+    {
+      "name": "publishing a hostname makes the tunnel, its ingress rule and a proxied CNAME",
+      "request": {
+        "method": "POST",
+        "path": "/hostnames",
+        "headers": {
+          "x-api-key": "op_4e4f4f2dd1b5f6e5e1b1a3b76f0cfc54"
+        },
+        "json": {
+          "hostname": "app.example.com",
+          "service": "http://localhost:8080"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "tunnel": {
+              "$regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "hostname": "app.example.com",
+            "target": {
+              "$regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.cfargotunnel\\.com$"
+            }
+          }
+        }
+      },
+      "save": {
+        "tunnel": "json.tunnel"
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": {
+            "$regex": "^/client/v4/accounts/[0-9a-f]{32}/cfd_tunnel\\?name=web&is_deleted=false"
+          }
+        },
+        {
+          "method": "POST",
+          "path": {
+            "$regex": "^/client/v4/accounts/[0-9a-f]{32}/cfd_tunnel$"
+          },
+          "json": {
+            "name": "web",
+            "config_src": "cloudflare"
+          }
+        },
+        {
+          "method": "GET",
+          "path": {
+            "$regex": "^/client/v4/accounts/[0-9a-f]{32}/cfd_tunnel/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/configurations$"
+          }
+        },
+        {
+          "method": "PUT",
+          "path": {
+            "$regex": "^/client/v4/accounts/[0-9a-f]{32}/cfd_tunnel/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/configurations$"
+          },
+          "json": {
+            "config": {
+              "ingress": [
+                {
+                  "hostname": "app.example.com",
+                  "service": "http://localhost:8080"
+                },
+                {
+                  "service": "http_status:404"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": {
+            "$regex": "^/client/v4/zones/[0-9a-f]{32}/dns_records\\?name\\.exact=app\\.example\\.com&type=CNAME"
+          }
+        },
+        {
+          "method": "POST",
+          "path": {
+            "$regex": "^/client/v4/zones/[0-9a-f]{32}/dns_records$"
+          },
+          "json": {
+            "type": "CNAME",
+            "proxied": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "publishing it again reuses the tunnel and overwrites the record",
+      "request": {
+        "method": "POST",
+        "path": "/hostnames",
+        "headers": {
+          "x-api-key": "op_4e4f4f2dd1b5f6e5e1b1a3b76f0cfc54"
+        },
+        "json": {
+          "hostname": "app.example.com",
+          "service": "http://localhost:8081"
+        }
+      },
+      "expect": {
+        "json": {
+          "tunnel": "{tunnel}",
+          "hostname": "app.example.com"
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": {
+            "$regex": "^/client/v4/accounts/[0-9a-f]{32}/cfd_tunnel\\?"
+          }
+        },
+        {
+          "method": "GET",
+          "path": {
+            "$regex": "^/client/v4/accounts/[0-9a-f]{32}/cfd_tunnel/.*/configurations$"
+          }
+        },
+        {
+          "method": "PUT",
+          "path": {
+            "$regex": "^/client/v4/accounts/[0-9a-f]{32}/cfd_tunnel/.*/configurations$"
+          }
+        },
+        {
+          "method": "GET",
+          "path": {
+            "$regex": "^/client/v4/zones/[0-9a-f]{32}/dns_records\\?"
+          }
+        },
+        {
+          "method": "PUT",
+          "path": {
+            "$regex": "^/client/v4/zones/[0-9a-f]{32}/dns_records/[0-9a-f]{32}$"
+          }
+        }
+      ]
+    },
+    {
+      "name": "the operator gets the token cloudflared runs with",
+      "request": {
+        "path": "/tunnel/token",
+        "headers": {
+          "x-api-key": "op_4e4f4f2dd1b5f6e5e1b1a3b76f0cfc54"
+        }
+      },
+      "expect": {
+        "json": {
+          "tunnel": "{tunnel}",
+          "token": {
+            "$regex": "^[A-Za-z0-9+/=]{40,}$"
+          }
+        }
+      },
+      "upstream": {
+        "$len": 2
+      }
+    },
+    {
+      "name": "a service cloudflared does not know is refused before any change",
+      "request": {
+        "method": "POST",
+        "path": "/hostnames",
+        "headers": {
+          "x-api-key": "op_4e4f4f2dd1b5f6e5e1b1a3b76f0cfc54"
+        },
+        "json": {
+          "hostname": "files.example.com",
+          "service": "ftp://files"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "bad_request",
+          "message": {
+            "$contains": "service"
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": {
+            "$regex": "^/client/v4/accounts/[0-9a-f]{32}/cfd_tunnel\\?"
+          }
+        }
+      ]
+    },
+    {
+      "name": "purging URLs is one request for up to 100 of them",
+      "request": {
+        "method": "POST",
+        "path": "/purge",
+        "headers": {
+          "x-api-key": "op_4e4f4f2dd1b5f6e5e1b1a3b76f0cfc54"
+        },
+        "json": {
+          "urls": [
+            "https://example.com/",
+            "https://example.com/app.js",
+            "https://example.com/app.css"
+          ]
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "purged": 3,
+            "requests": 1
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": {
+            "$regex": "^/client/v4/zones/[0-9a-f]{32}/purge_cache$"
+          },
+          "json": {
+            "files": [
+              "https://example.com/",
+              "https://example.com/app.js",
+              "https://example.com/app.css"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a purge that failed on the way is sent again, since purging twice changes nothing",
+      "script": {
+        "fail": {
+          "pathSuffix": "/purge_cache",
+          "status": 502,
+          "html": true
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/purge",
+        "headers": {
+          "x-api-key": "op_4e4f4f2dd1b5f6e5e1b1a3b76f0cfc54"
+        },
+        "json": {
+          "urls": [
+            "https://example.com/"
+          ]
+        }
+      },
+      "expect": {
+        "json": {
+          "purged": 1,
+          "requests": 1
+        }
+      },
+      "upstream": {
+        "$len": 2
+      }
+    },
+    {
+      "name": "Intel says what it knows about a domain",
+      "script": {
+        "domain": {
+          "domain": "evil.example",
+          "popularity_rank": 99000,
+          "risk_types": [
+            {
+              "id": 131,
+              "name": "Phishing",
+              "super_category_id": 21
+            }
+          ],
+          "content_categories": [
+            {
+              "id": 155,
+              "name": "Security threats"
+            }
+          ]
+        }
+      },
+      "request": {
+        "path": "/domains/evil.example",
+        "headers": {
+          "x-api-key": "op_4e4f4f2dd1b5f6e5e1b1a3b76f0cfc54"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "domain": "evil.example",
+            "risks": [
+              "Phishing"
+            ],
+            "categories": [
+              "Security threats"
+            ],
+            "rank": 99000
+          }
+        }
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": {
+            "$regex": "^/client/v4/accounts/[0-9a-f]{32}/intel/domain\\?domain=evil\\.example$"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a Cloudflare refusal is a 502 with its codes, not its text",
+      "script": {
+        "fail": {
+          "pathSuffix": "/intel/domain",
+          "status": 403,
+          "errors": [
+            {
+              "code": 10000,
+              "message": "Authentication error"
+            }
+          ]
+        }
+      },
+      "request": {
+        "path": "/domains/example.com",
+        "headers": {
+          "x-api-key": "op_4e4f4f2dd1b5f6e5e1b1a3b76f0cfc54"
+        }
+      },
+      "expect": {
+        "status": 502,
+        "json": {
+          "$exact": {
+            "error": "cloudflare",
+            "status": 403,
+            "codes": [
+              10000
+            ]
+          }
+        }
+      },
+      "upstream": {
+        "$len": 1
+      }
+    },
+    {
+      "name": "a scan is submitted unlisted",
+      "script": {
+        "maliciousUrl": "https://evil.example/login"
+      },
+      "request": {
+        "method": "POST",
+        "path": "/scans",
+        "headers": {
+          "x-api-key": "op_4e4f4f2dd1b5f6e5e1b1a3b76f0cfc54"
+        },
+        "json": {
+          "url": "https://evil.example/login"
+        }
+      },
+      "expect": {
+        "status": 202,
+        "json": {
+          "id": {
+            "$regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          }
+        }
+      },
+      "save": {
+        "scan": "json.id"
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": {
+            "$regex": "^/client/v4/accounts/[0-9a-f]{32}/urlscanner/v2/scan$"
+          },
+          "json": {
+            "url": "https://evil.example/login",
+            "visibility": "Unlisted"
+          }
+        }
+      ]
+    },
+    {
+      "name": "while it runs its result is a 202",
+      "request": {
+        "path": "/scans/{scan}",
+        "headers": {
+          "x-api-key": "op_4e4f4f2dd1b5f6e5e1b1a3b76f0cfc54"
+        }
+      },
+      "expect": {
+        "status": 202,
+        "json": {
+          "status": "running"
+        }
+      },
+      "upstream": {
+        "$len": 1
+      }
+    },
+    {
+      "name": "then it has a verdict",
+      "request": {
+        "path": "/scans/{scan}",
+        "headers": {
+          "x-api-key": "op_4e4f4f2dd1b5f6e5e1b1a3b76f0cfc54"
+        }
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "status": "done",
+            "malicious": true,
+            "page": "https://evil.example/login"
+          }
+        }
+      },
+      "upstream": {
+        "$len": 1
+      }
+    },
+    {
+      "name": "a scan id that is not a UUID never reaches Cloudflare",
+      "request": {
+        "path": "/scans/..%2F..%2Fzones",
+        "headers": {
+          "x-api-key": "op_4e4f4f2dd1b5f6e5e1b1a3b76f0cfc54"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "json": {
+          "error": "bad_request"
+        }
+      },
+      "upstream": []
+    },
+    {
+      "name": "bodies over the cap are refused",
+      "request": {
+        "method": "POST",
+        "path": "/purge",
+        "headers": {
+          "x-api-key": "op_4e4f4f2dd1b5f6e5e1b1a3b76f0cfc54"
+        },
+        "bodyBytes": 20000
+      },
+      "expect": {
+        "status": 413
+      },
+      "upstream": []
+    }
+  ]
+}

@@ -23,6 +23,7 @@ Examples so far: [assert](../core/examples/assert), [ulid](../core/examples/ulid
 [container](../box/container/examples), [sandbox](../box/sandbox/examples),
 [jev](../api/jev/examples),
 [exedev](../api/exedev/examples), [openai](../api/openai/examples),
+[cloudflare](../api/cloudflare/examples),
 [mcp](../mcp/examples), [oauth](../sec/oauth/examples),
 [oidc](../sec/oidc/examples), [cedar](../sec/cedar/examples),
 [ratelimit](../sec/ratelimit/examples), [webauthn](../sec/webauthn/examples),
