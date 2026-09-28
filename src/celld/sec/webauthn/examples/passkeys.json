@@ -1,0 +1,401 @@
+{
+  "vars": {
+    "RP_ID": "localhost",
+    "RP_ORIGINS": "http://localhost:9876",
+    "SESSION_SECRET": "example-only-secret-0123456789abcdef"
+  },
+  "steps": [
+    {
+      "name": "the page loads its script from this origin, under the router's page CSP",
+      "request": { "path": "/" },
+      "expect": {
+        "text": { "$contains": "<script type=\"module\" src=\"/client.js\">" },
+        "headers": {
+          "content-security-policy": { "$regex": "^default-src 'none'; script-src 'self';" }
+        }
+      }
+    },
+    {
+      "name": "the script is the bundled browser client",
+      "request": { "path": "/client.js" },
+      "expect": {
+        "headers": { "content-type": "text/javascript; charset=utf-8" },
+        "text": { "$contains": "/passkeys" }
+      }
+    },
+    {
+      "name": "signing up starts a registration: a passkey, user verification, no attestation",
+      "request": {
+        "method": "POST",
+        "path": "/passkeys/signup/options",
+        "json": { "name": "ada@example.com" }
+      },
+      "expect": {
+        "json": {
+          "rp": { "$exact": { "id": "localhost", "name": "localhost" } },
+          "user": { "name": "ada@example.com", "displayName": "ada@example.com", "id": { "$regex": "^[A-Za-z0-9_-]{86}$" } },
+          "pubKeyCredParams": [
+            { "type": "public-key", "alg": -8 },
+            { "type": "public-key", "alg": -7 },
+            { "type": "public-key", "alg": -257 }
+          ],
+          "excludeCredentials": [],
+          "authenticatorSelection": {
+            "$exact": { "residentKey": "required", "requireResidentKey": true, "userVerification": "required" }
+          },
+          "attestation": "none"
+        },
+        "headers": {
+          "set-cookie": {
+            "$regex": "^__Host-webauthn-accounts-create=e1\\.k1\\.[^;]+; Max-Age=300; Path=/; Secure; HttpOnly; SameSite=Strict$"
+          }
+        }
+      },
+      "save": {
+        "signup": "json",
+        "signupCookie": { "path": "headers.set-cookie", "regex": "^(__Host-webauthn-accounts-create=[^;]+)" }
+      }
+    },
+    {
+      "name": "the phone makes a passkey for it",
+      "request": {
+        "method": "POST",
+        "url": "{upstream}/create",
+        "json": { "device": "phone", "options": "{signup}" }
+      },
+      "expect": { "json": { "type": "public-key", "response": { "attestationObject": { "$any": true } } } },
+      "save": { "registration": "json", "phoneId": "json.id" }
+    },
+    {
+      "name": "the verified passkey creates the account and signs it in",
+      "request": {
+        "method": "POST",
+        "path": "/passkeys/signup/verify",
+        "headers": { "cookie": "{signupCookie}" },
+        "json": "{registration}"
+      },
+      "expect": {
+        "status": 201,
+        "json": {
+          "$exact": {
+            "user": { "subject": { "$regex": "^[0-9A-Z]{26}$" }, "name": "ada@example.com" },
+            "credential": { "id": "{phoneId}" }
+          }
+        },
+        "cookies": [
+          { "$regex": "^__Host-webauthn-accounts-create=; Max-Age=0;" },
+          { "$regex": "^__Host-session=e1\\.k1\\.[^;]+; Max-Age=28800; Path=/; Secure; HttpOnly; SameSite=Lax$" }
+        ]
+      },
+      "save": {
+        "subject": "json.user.subject",
+        "session": { "path": "cookies.1", "regex": "^(__Host-session=[^;]+)" }
+      }
+    },
+    {
+      "name": "the session is the new account",
+      "request": { "path": "/me", "headers": { "cookie": "{session}" } },
+      "expect": { "json": { "$exact": { "subject": "{subject}" } } }
+    },
+    {
+      "name": "the same registration again is refused: its challenge is used up",
+      "request": {
+        "method": "POST",
+        "path": "/passkeys/signup/verify",
+        "headers": { "cookie": "{signupCookie}" },
+        "json": "{registration}"
+      },
+      "expect": { "status": 400, "json": { "error": "challenge_expired" } }
+    },
+    {
+      "name": "a sign-in starts with no allowed credentials: the browser offers its passkeys",
+      "request": { "method": "POST", "path": "/passkeys/login/options", "json": {} },
+      "expect": {
+        "json": {
+          "$exact": {
+            "challenge": { "$regex": "^[A-Za-z0-9_-]{43}$" },
+            "timeout": 300000,
+            "rpId": "localhost",
+            "allowCredentials": [],
+            "userVerification": "required"
+          }
+        }
+      },
+      "save": {
+        "login": "json",
+        "loginCookie": { "path": "headers.set-cookie", "regex": "^(__Host-webauthn-accounts-get=[^;]+)" }
+      }
+    },
+    {
+      "name": "the phone signs, but a forged signature",
+      "request": {
+        "method": "POST",
+        "url": "{upstream}/get",
+        "json": { "device": "phone", "options": "{login}", "overrides": { "badSignature": true } }
+      },
+      "save": { "forged": "json" }
+    },
+    {
+      "name": "a forged signature is refused, and says only its code",
+      "request": {
+        "method": "POST",
+        "path": "/passkeys/login/verify",
+        "headers": { "cookie": "{loginCookie}" },
+        "json": "{forged}"
+      },
+      "expect": {
+        "status": 401,
+        "json": { "error": "bad_signature", "message": "the passkey was not accepted" },
+        "headers": { "set-cookie": { "$regex": "^__Host-webauthn-accounts-get=; Max-Age=0;" } }
+      }
+    },
+    {
+      "name": "a sign-in from another origin is refused",
+      "request": { "method": "POST", "path": "/passkeys/login/options", "json": {} },
+      "save": {
+        "login": "json",
+        "loginCookie": { "path": "headers.set-cookie", "regex": "^(__Host-webauthn-accounts-get=[^;]+)" }
+      }
+    },
+    {
+      "name": "(the phone, on a page at https://evil.example)",
+      "request": {
+        "method": "POST",
+        "url": "{upstream}/get",
+        "json": { "device": "phone", "options": "{login}", "overrides": { "origin": "https://evil.example" } }
+      },
+      "save": { "phished": "json" }
+    },
+    {
+      "name": "the origin in the signed client data is not ours",
+      "request": {
+        "method": "POST",
+        "path": "/passkeys/login/verify",
+        "headers": { "cookie": "{loginCookie}" },
+        "json": "{phished}"
+      },
+      "expect": { "status": 401, "json": { "error": "origin_not_allowed" } }
+    },
+    {
+      "name": "the passkey is in the Durable Object's storage, so it signs in after a restart",
+      "restart": true,
+      "request": { "method": "POST", "path": "/passkeys/login/options", "json": {} },
+      "save": {
+        "login": "json",
+        "loginCookie": { "path": "headers.set-cookie", "regex": "^(__Host-webauthn-accounts-get=[^;]+)" }
+      }
+    },
+    {
+      "name": "(the phone signs)",
+      "request": {
+        "method": "POST",
+        "url": "{upstream}/get",
+        "json": { "device": "phone", "options": "{login}" }
+      },
+      "save": { "assertion": "json" }
+    },
+    {
+      "name": "the sign-in is verified and gives the same account a session",
+      "request": {
+        "method": "POST",
+        "path": "/passkeys/login/verify",
+        "headers": { "cookie": "{loginCookie}" },
+        "json": "{assertion}"
+      },
+      "expect": {
+        "json": {
+          "$exact": {
+            "user": { "subject": "{subject}", "name": "ada@example.com" },
+            "credential": { "id": "{phoneId}" }
+          }
+        }
+      },
+      "save": { "session": { "path": "cookies.1", "regex": "^(__Host-session=[^;]+)" } }
+    },
+    {
+      "name": "adding a passkey needs the session",
+      "request": { "method": "POST", "path": "/passkeys/register/options", "json": {} },
+      "expect": { "status": 401 }
+    },
+    {
+      "name": "with it, the options exclude the phone, which already has one",
+      "request": {
+        "method": "POST",
+        "path": "/passkeys/register/options",
+        "headers": { "cookie": "{session}" },
+        "json": {}
+      },
+      "expect": {
+        "json": {
+          "user": { "name": "ada@example.com" },
+          "excludeCredentials": [{ "type": "public-key", "id": "{phoneId}", "transports": ["hybrid", "internal"] }]
+        }
+      },
+      "save": {
+        "add": "json",
+        "addCookie": { "path": "headers.set-cookie", "regex": "^(__Host-webauthn-accounts-create=[^;]+)" }
+      }
+    },
+    {
+      "name": "(the phone refuses to register twice)",
+      "request": {
+        "method": "POST",
+        "url": "{upstream}/create",
+        "json": { "device": "phone", "options": "{add}" }
+      },
+      "expect": { "status": 400, "json": { "error": "InvalidStateError" } }
+    },
+    {
+      "name": "(a security key registers)",
+      "request": {
+        "method": "POST",
+        "url": "{upstream}/create",
+        "json": { "device": "key", "options": "{add}" }
+      },
+      "save": { "keyRegistration": "json", "keyId": "json.id" }
+    },
+    {
+      "name": "the security key joins the account",
+      "request": {
+        "method": "POST",
+        "path": "/passkeys/register/verify",
+        "headers": { "cookie": "{session}; {addCookie}" },
+        "json": "{keyRegistration}"
+      },
+      "expect": { "status": 201, "json": { "$exact": { "credential": { "id": "{keyId}" } } } }
+    },
+    {
+      "name": "the account lists both, the synced passkey and the device-bound key",
+      "request": { "path": "/passkeys/credentials", "headers": { "cookie": "{session}" } },
+      "expect": {
+        "json": {
+          "rpId": "localhost",
+          "userHandle": { "$regex": "^[A-Za-z0-9_-]{86}$" },
+          "credentials": [
+            { "id": "{phoneId}", "name": "Synced passkey", "backupEligible": true, "backupState": true },
+            { "id": "{keyId}", "name": "Passkey", "backupEligible": false, "backupState": false, "lastUsedAt": null }
+          ]
+        }
+      }
+    },
+    {
+      "name": "passkeys can be renamed",
+      "request": {
+        "method": "PATCH",
+        "path": "/passkeys/credentials/{keyId}",
+        "headers": { "cookie": "{session}" },
+        "json": { "name": "YubiKey" }
+      },
+      "expect": { "json": { "$exact": { "id": "{keyId}", "name": "YubiKey" } } }
+    },
+    {
+      "name": "and deleted",
+      "request": {
+        "method": "DELETE",
+        "path": "/passkeys/credentials/{phoneId}",
+        "headers": { "cookie": "{session}" }
+      },
+      "expect": { "status": 204 }
+    },
+    {
+      "name": "but not the last one, which would lock the account out",
+      "request": {
+        "method": "DELETE",
+        "path": "/passkeys/credentials/{keyId}",
+        "headers": { "cookie": "{session}" }
+      },
+      "expect": { "status": 409, "json": { "error": "last_passkey" } }
+    },
+    {
+      "name": "the deleted passkey is still on the phone",
+      "request": { "method": "POST", "path": "/passkeys/login/options", "json": {} },
+      "save": {
+        "login": "json",
+        "loginCookie": { "path": "headers.set-cookie", "regex": "^(__Host-webauthn-accounts-get=[^;]+)" }
+      }
+    },
+    {
+      "name": "(the phone signs with it)",
+      "request": {
+        "method": "POST",
+        "url": "{upstream}/get",
+        "json": { "device": "phone", "options": "{login}" }
+      },
+      "save": { "stale": "json" }
+    },
+    {
+      "name": "which the server no longer knows, so the page can signal the browser to drop it",
+      "request": {
+        "method": "POST",
+        "path": "/passkeys/login/verify",
+        "headers": { "cookie": "{loginCookie}" },
+        "json": "{stale}"
+      },
+      "expect": { "status": 401, "json": { "error": "unknown_credential" } }
+    },
+    {
+      "name": "the security key signs in, counting its signatures",
+      "request": { "method": "POST", "path": "/passkeys/login/options", "json": {} },
+      "save": {
+        "login": "json",
+        "loginCookie": { "path": "headers.set-cookie", "regex": "^(__Host-webauthn-accounts-get=[^;]+)" }
+      }
+    },
+    {
+      "name": "(the key signs, as signature number 1)",
+      "request": {
+        "method": "POST",
+        "url": "{upstream}/get",
+        "json": { "device": "key", "options": "{login}" }
+      },
+      "save": { "counted": "json" }
+    },
+    {
+      "name": "the key's sign-in is accepted",
+      "request": {
+        "method": "POST",
+        "path": "/passkeys/login/verify",
+        "headers": { "cookie": "{loginCookie}" },
+        "json": "{counted}"
+      },
+      "expect": { "json": { "user": { "subject": "{subject}" }, "credential": { "id": "{keyId}" } } }
+    },
+    {
+      "name": "a cloned key, whose counter repeats, is refused",
+      "request": { "method": "POST", "path": "/passkeys/login/options", "json": {} },
+      "save": {
+        "login": "json",
+        "loginCookie": { "path": "headers.set-cookie", "regex": "^(__Host-webauthn-accounts-get=[^;]+)" }
+      }
+    },
+    {
+      "name": "(the clone signs with counter 1 again)",
+      "request": {
+        "method": "POST",
+        "url": "{upstream}/get",
+        "json": { "device": "key", "options": "{login}", "overrides": { "signCount": 1 } }
+      },
+      "save": { "cloned": "json" }
+    },
+    {
+      "name": "the counter did not advance",
+      "request": {
+        "method": "POST",
+        "path": "/passkeys/login/verify",
+        "headers": { "cookie": "{loginCookie}" },
+        "json": "{cloned}"
+      },
+      "expect": { "status": 401, "json": { "error": "counter_regressed" } }
+    },
+    {
+      "name": "an oversized body is a 413",
+      "request": {
+        "method": "POST",
+        "path": "/passkeys/login/verify",
+        "headers": { "content-type": "application/json" },
+        "bodyBytes": 70000
+      },
+      "expect": { "status": 413 }
+    }
+  ]
+}

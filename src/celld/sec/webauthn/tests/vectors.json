@@ -1,0 +1,328 @@
+{
+  "source": "Web Authentication Level 3, W3C Recommendation 25 August 2026, section 16 (Test Vectors): https://www.w3.org/TR/webauthn-3/#sctn-test-vectors",
+  "rpId": "example.org",
+  "origin": "https://example.org",
+  "topOrigin": "https://example.com",
+  "vectors": [
+    {
+      "section": "16.2",
+      "title": "16.2. ES256 Credential with No Attestation",
+      "registration": {
+        "challenge": "AMMPt4UxxGTStncdq417YDwBFi8vpIa-pw8oOuVW4TA",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiQU1NUHQ0VXh4R1RTdG5jZHE0MTdZRHdCRmk4dnBJYS1wdzhvT3VWVzRUQSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2UsImV4dHJhRGF0YSI6ImNsaWVudERhdGFKU09OIG1heSBiZSBleHRlbmRlZCB3aXRoIGFkZGl0aW9uYWwgZmllbGRzIGluIHRoZSBmdXR1cmUsIHN1Y2ggYXMgdGhpczogQmtRZURqZGNUQnJYQmlBd0pUTEU1USJ9",
+        "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVikv6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LVZAAAAAIRGzLmrHbN0dQsjZ_9vOh8AIPkfOR20ybL94OpwGJy6P7Y_V5umEiszrZT_PsMwCEvkpQECAyYgASFYIK_voW-XypstI-uGzLZAmNINuQhWBi6yScM6m2cvJt9hIlggkwpWuHovymYzSwNFir-HlxfBLMaO1zKQry4mZHlrkiA",
+        "credentialId": "-R85HbTJsv3g6nAYnLo_tj9Xm6YSKzOtlP8-wzAIS-Q",
+        "algorithm": -7,
+        "fmt": "none",
+        "flags": "59",
+        "aaguid": "8446ccb9ab1db374750b2367ff6f3a1f"
+      },
+      "authentication": {
+        "challenge": "OcDnUhQXulTUPo3JUXT0I97pvzzYBP9tZchXyav01Ag",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiT2NEblVoUVh1bFRVUG8zSlVYVDBJOTdwdnp6WUJQOXRaY2hYeWF2MDFBZyIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUZAAAAAA",
+        "signature": "MEYCIQD1Ck4uRAkknEqFO6NhKC8JhB303UVHoTqHeAIY3v_NOAIhAISArA8Lk1OBdPV1vxGh3V14xuSGAT-TcpXqE2U-Mx6H",
+        "flags": "19"
+      }
+    },
+    {
+      "section": "16.3",
+      "title": "16.3. ES256 Credential with Self Attestation",
+      "registration": {
+        "challenge": "eGnCt3LUtY66k3jPjynibPk1qnffDaifqZwL3Ap29-U",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiZUduQ3QzTFV0WTY2azNqUGp5bmliUGsxcW5mZkRhaWZxWndMM0FwMjktVSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2UsImV4dHJhRGF0YSI6ImNsaWVudERhdGFKU09OIG1heSBiZSBleHRlbmRlZCB3aXRoIGFkZGl0aW9uYWwgZmllbGRzIGluIHRoZSBmdXR1cmUsIHN1Y2ggYXMgdGhpczogVTloVFh2S0UyVVJrTW5iXzB4WUhWZyJ9",
+        "attestationObject": "o2NmbXRmcGFja2VkZ2F0dFN0bXSiY2FsZyZjc2lnWEYwRAIgBnogdUq5JQBdvzeAl8khIAMVgccyKNH7T1uIG819qYMCIH_HsUdVjHwOujrxi9nRIfo9OibRf-PyICchePRztgBtaGF1dGhEYXRhWKS_q8N0MpWLBjNg061kYcnEc1rn-O3UZZKl4PAUUrLktV0AAAAA34UOCdtq-9-rUWl3kVBs_AAgRV7zTiBDqH2z1K_rObvLbMMt-TR8eJqGXs3KEpy-9YylAQIDJiABIVgg6xUcgXayJcxlFVn-zwevRQ_YWAIEZlazTBj2zxk4Q8UiWCCSe4qkJ6K-G4g00jOi009h8Tv9RBGcMl1YluGD_uSE8g",
+        "credentialId": "RV7zTiBDqH2z1K_rObvLbMMt-TR8eJqGXs3KEpy-9Yw",
+        "algorithm": -7,
+        "fmt": "packed",
+        "flags": "5d",
+        "aaguid": "df850e09db6afbdfab51697791506cfc"
+      },
+      "authentication": {
+        "challenge": "RHihCxNSNI3RYME1Ow1Gm12xnrkcJ_ffpv7Tn-Jq8gs",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiUkhpaEN4TlNOSTNSWU1FMU93MUdtMTJ4bnJrY0pfZmZwdjdUbi1KcThncyIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2UsImV4dHJhRGF0YSI6ImNsaWVudERhdGFKU09OIG1heSBiZSBleHRlbmRlZCB3aXRoIGFkZGl0aW9uYWwgZmllbGRzIGluIHRoZSBmdXR1cmUsIHN1Y2ggYXMgdGhpczogZ1RiNTNyejZFaFNXb21YR3ppbUMxUSJ9",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUJAAAAAA",
+        "signature": "MEQCIDMQuUMZA8QB8b4r3I0jpAB2gtu93PhGmUlHt_Rl2vhAAiBOlN0ABHsxYGGzuZdyt-_ZWZSoPvWEs7a4Jeo1UCUbZg",
+        "flags": "09"
+      }
+    },
+    {
+      "section": "16.4",
+      "title": "16.4. ES256 Credential with \"crossOrigin\": true in clientDataJSON",
+      "registration": {
+        "challenge": "O-WqzQNTcUJHI0CrWWnyQPHYdxbiC2gHrCMGVfpLO0k",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiTy1XcXpRTlRjVUpISTBDcldXbnlRUEhZZHhiaUMyZ0hyQ01HVmZwTE8wayIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6dHJ1ZSwiZXh0cmFEYXRhIjoiY2xpZW50RGF0YUpTT04gbWF5IGJlIGV4dGVuZGVkIHdpdGggYWRkaXRpb25hbCBmaWVsZHMgaW4gdGhlIGZ1dHVyZSwgc3VjaCBhcyB0aGlzOiB6WnF1RXREUjlEV3FwVzV0QldURnVnIn0",
+        "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVikv6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LVFAAAAAIg_T2AU8ZwJ2HqjgSO-SNAAIG4QUMDSyi8Hx1XLLGanTGT6QwZcGPk4NU2ZFdsr1c5XpQECAyYgASFYICIgCkc_kLEQeIUVUNA7TkSiJ5-MTsonsxU97f4D5Ol9Ilggy9C-ledGrW9agZG-EXVuTAQg5y9ltGbTm8VrixI6nG4",
+        "credentialId": "bhBQwNLKLwfHVcssZqdMZPpDBlwY-Tg1TZkV2yvVzlc",
+        "algorithm": -7,
+        "fmt": "none",
+        "flags": "45",
+        "aaguid": "883f4f6014f19c09d87aa38123be48d0"
+      },
+      "authentication": {
+        "challenge": "h2qlF7qD_e5l_P_bykyE7q5dVPgEGh_IXJkeW7snMTc",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiaDJxbEY3cURfZTVsX1BfYnlreUU3cTVkVlBnRUdoX0lYSmtlVzdzbk1UYyIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6dHJ1ZSwiZXh0cmFEYXRhIjoiY2xpZW50RGF0YUpTT04gbWF5IGJlIGV4dGVuZGVkIHdpdGggYWRkaXRpb25hbCBmaWVsZHMgaW4gdGhlIGZ1dHVyZSwgc3VjaCBhcyB0aGlzOiA5MnBjVFZEMEFieS1xNGR0bWo2ZWZnIn0",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUFAAAAAA",
+        "signature": "MEYCIQDrEvzyOxJ2TA8SLiI3H6uS4oOHn9eY847hhByVG25A5wIhAMdiN_-dt3s8VvMIN82moJrPoukVVE5gnAczsRhANtHP",
+        "flags": "05"
+      }
+    },
+    {
+      "section": "16.5",
+      "title": "16.5. ES256 Credential with \"topOrigin\" in clientDataJSON",
+      "registration": {
+        "challenge": "Th9MYZhpnjPBTxkhU_Sdfg6ONXfVrEFsXzrckqQfJ-U",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiVGg5TVlaaHBualBCVHhraFVfU2RmZzZPTlhmVnJFRnNYenJja3FRZkotVSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6dHJ1ZSwidG9wT3JpZ2luIjoiaHR0cHM6Ly9leGFtcGxlLmNvbSJ9",
+        "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVikv6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LVBAAAAAJdYb9CXmadkAcIARVCZ7yoAILitWbmWBHqxjizrVyBsNi2ldFh5NIH0qOvxAcfKfMDxpQECAyYgASFYIKHEfB2C2k6-gs1yIHECs4BnBwGZO8NTmK4uVyZCf-AdIlgghsEIDYKYcCjH9U7LGwEYXeJDs1kpSg7SEM1HSA8K3Ig",
+        "credentialId": "uK1ZuZYEerGOLOtXIGw2LaV0WHk0gfSo6_EBx8p8wPE",
+        "algorithm": -7,
+        "fmt": "none",
+        "flags": "41",
+        "aaguid": "97586fd09799a76401c200455099ef2a"
+      },
+      "authentication": {
+        "challenge": "1UpcjKS2Ko47syHjsrxzhW-FoQFQ2yk5rBlXOeseoGY",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiMVVwY2pLUzJLbzQ3c3lIanNyeHpoVy1Gb1FGUTJ5azVyQmxYT2VzZW9HWSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6dHJ1ZSwidG9wT3JpZ2luIjoiaHR0cHM6Ly9leGFtcGxlLmNvbSIsImV4dHJhRGF0YSI6ImNsaWVudERhdGFKU09OIG1heSBiZSBleHRlbmRlZCB3aXRoIGFkZGl0aW9uYWwgZmllbGRzIGluIHRoZSBmdXR1cmUsIHN1Y2ggYXMgdGhpczogVWlGb0pNVlJRSERBRldGaTR2eFVwUSJ9",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUFAAAAAA",
+        "signature": "MEUCIQC1pwyBeA1fzJpPKunKrpkFj4rMr1i5H7WTKWRsKKxv_AIgEuEBwWXbPI6ZV_DFTdbKm1a8O9LygL0vqmwdAsblwXE",
+        "flags": "05"
+      }
+    },
+    {
+      "section": "16.6",
+      "title": "16.6. ES256 Credential with very long credential ID",
+      "registration": {
+        "challenge": "ERPHJlzPXmUSQoL6HXgZp6FMuFOapM2-x0h-XzXY7Gw",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiRVJQSEpselBYbVVTUW9MNkhYZ1pwNkZNdUZPYXBNMi14MGgtWHpYWTdHdyIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVkEg7-rw3QylYsGM2DTrWRhycRzWuf47dRlkqXg8BRSsuS1SQAAAACPM2DCzRsKwU_-B5XF0mOOA_86dhpOFnStbEMFhpQ1wO7pwoYXLCKbuRtItK2hQMCGNBcDEwXM5bSieojX_nKKX1pifedxtLQOd_GHmAwST5_oMtcTYBBDagVsznFmgFh9Ixh88fwsYq6G_D5Qjulhf_x0-8EEiOwW7F6QljKGaaiYcJtlXlSXOMZmwa5igdw7X3M8JR0-77du5wo4BcqRvMGOScjcf2Pry0hrqMPWq1K4j_csalu0fDLz7oaDo93Iq_YIcESOyKIbW9yxg8ferYcCVVdabflusbaioQGXgMup5Ih7F_8RZLu8wQ6w2G7XWYTNP6NBkQMCRQff2c6PksVq95FMsLtQuHuoKjErt9zZMCjb3NatsmaXlmcVgzUXHjaC03dVcB7b-dhyhGopHUnlfvCdoexjf1BS7SqnQH9-YYJ0aOlLRhhE9MZ75fqcYFWlZvj9_CnUv3ip_ydfVSzGi6VD-jli7qNv0eqEU3ZFd9Ah0KGB78H2EAqy5BEAOeIe4WlwvadDK2E0SSFVr8EmKVs6LszRLGamjjQJaemV4-jJxHbjlc_CEgNBQRB3lHTxyXl0BmN9vkFPEyUZ078M5PAXNO8OGhLDrWBP8V12axYk22pafMv_e8NcmQjflKuid-CvSPBP89FjgcR-WjftOYimejseyqkmM2szOR__BBKPhpmRyfq9kFtv487vX4tjDsHF0mNtWxlhrVylAEFw9vXkgnkqrZibAof-keXEeUAzlxUvH6Vqp5sVbrR-bI6j6xdcNM-zitjncodGObECPU0BOVyU5VgxZxzAIqpvoeAqAsLkq8d29pYOUfg7cajA8ge2o0dXOXeBLJqlSAsAEapzm9S3bBjAAMxHV8zsy5IPAHxAwA435ashR2zZ9gVKj_-1WhCPXHBuLOogSdgf0yH_R9KldhsIAJVasdT0iJ9VqE4mAcaE8XpK3nRT6klZHQtZyNmnZQUvYiGc9u9KXdlTnwYX1uu-vOfAAEVUddGESeJcSe-aHj7-GMCQguviBY18NH3vqpLwZkVTuAXH12u_zl8zCsoiCskKeJOA_EeeoNh5MgWBPMpZCpEvaZrVL5kaG8ClA8PsSyppZxnjwmWRqHEn9zBcx-cvTI45NV67BqWxBCmQ84cQ7nqmEu5DdLuC6HhYWnCpbCprR_EBpP8VS-T9dqMWdXelzFTZFnwVTGmsNUheRMyJi3GeG-PMnA-1YkuPig2uEJR6Qb-Ei2wbsz0QBuwHfX4obj8qe0hDcWOQEZRJ_ich6Bpe0jM9MxxxIHZdpY-trnPBnZqMRQnPisHp2Yt5mlJ0UJBpc5tYI_P7SWZjggAzQmmI7vylPlgOD54N_gmS_C5TqX4FNjn5hXcFj5lb29Qc79ulAQIDJiABIVggO4F2t1BEicxZMEbXmIq7eQWnQt5qws3HSKhzxmPpDLEiWCAUNtXtyadfI5me751ZUKXCRVUU7hAUCEcg-EGga4KKEQ",
+        "credentialId": "OnYaThZ0rWxDBYaUNcDu6cKGFywim7kbSLStoUDAhjQXAxMFzOW0onqI1_5yil9aYn3ncbS0Dnfxh5gMEk-f6DLXE2AQQ2oFbM5xZoBYfSMYfPH8LGKuhvw-UI7pYX_8dPvBBIjsFuxekJYyhmmomHCbZV5UlzjGZsGuYoHcO19zPCUdPu-3bucKOAXKkbzBjknI3H9j68tIa6jD1qtSuI_3LGpbtHwy8-6Gg6PdyKv2CHBEjsiiG1vcsYPH3q2HAlVXWm35brG2oqEBl4DLqeSIexf_EWS7vMEOsNhu11mEzT-jQZEDAkUH39nOj5LFaveRTLC7ULh7qCoxK7fc2TAo29zWrbJml5ZnFYM1Fx42gtN3VXAe2_nYcoRqKR1J5X7wnaHsY39QUu0qp0B_fmGCdGjpS0YYRPTGe-X6nGBVpWb4_fwp1L94qf8nX1UsxoulQ_o5Yu6jb9HqhFN2RXfQIdChge_B9hAKsuQRADniHuFpcL2nQythNEkhVa_BJilbOi7M0Sxmpo40CWnplePoycR245XPwhIDQUEQd5R08cl5dAZjfb5BTxMlGdO_DOTwFzTvDhoSw61gT_FddmsWJNtqWnzL_3vDXJkI35Sronfgr0jwT_PRY4HEflo37TmIpno7HsqpJjNrMzkf_wQSj4aZkcn6vZBbb-PO71-LYw7BxdJjbVsZYa1cpQBBcPb15IJ5Kq2YmwKH_pHlxHlAM5cVLx-laqebFW60fmyOo-sXXDTPs4rY53KHRjmxAj1NATlclOVYMWccwCKqb6HgKgLC5KvHdvaWDlH4O3GowPIHtqNHVzl3gSyapUgLABGqc5vUt2wYwADMR1fM7MuSDwB8QMAON-WrIUds2fYFSo__tVoQj1xwbizqIEnYH9Mh_0fSpXYbCACVWrHU9IifVahOJgHGhPF6St50U-pJWR0LWcjZp2UFL2IhnPbvSl3ZU58GF9brvrznwABFVHXRhEniXEnvmh4-_hjAkILr4gWNfDR976qS8GZFU7gFx9drv85fMwrKIgrJCniTgPxHnqDYeTIFgTzKWQqRL2ma1S-ZGhvApQPD7EsqaWcZ48JlkahxJ_cwXMfnL0yOOTVeuwalsQQpkPOHEO56phLuQ3S7guh4WFpwqWwqa0fxAaT_FUvk_XajFnV3pcxU2RZ8FUxprDVIXkTMiYtxnhvjzJwPtWJLj4oNrhCUekG_hItsG7M9EAbsB31-KG4_KntIQ3FjkBGUSf4nIegaXtIzPTMccSB2XaWPra5zwZ2ajEUJz4rB6dmLeZpSdFCQaXObWCPz-0lmY4IAM0JpiO78pT5YDg-eDf4JkvwuU6l-BTY5-YV3BY-ZW9vUHO_b",
+        "algorithm": -7,
+        "fmt": "none",
+        "flags": "49",
+        "aaguid": "8f3360c2cd1b0ac14ffe0795c5d2638e"
+      },
+      "authentication": {
+        "challenge": "7x3rpW3OSPZ0pEfM9juVmSWM6HZI5cOW8u8ModpGDjs",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiN3gzcnBXM09TUFowcEVmTTlqdVZtU1dNNkhaSTVjT1c4dThNb2RwR0RqcyIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUNAAAAAA",
+        "signature": "MEUCID7O-D-xKgyueEEFX5-HEDqZ_RS0JBlLvwbEYj0-5uP9AiEA0qzjRtsmKxN0prcPqlH1GKQt3KE6QSXOb1BSp1usn7Y",
+        "flags": "0d"
+      }
+    },
+    {
+      "section": "16.7",
+      "title": "16.7. Packed Attestation with ES256 Credential",
+      "registration": {
+        "challenge": "wRhKX934BF4T3Ef1S2H1pla2ZrWQGPFthw6SVumVIBI",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoid1JoS1g5MzRCRjRUM0VmMVMySDFwbGEyWnJXUUdQRnRodzZTVnVtVklCSSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2UsImV4dHJhRGF0YSI6ImNsaWVudERhdGFKU09OIG1heSBiZSBleHRlbmRlZCB3aXRoIGFkZGl0aW9uYWwgZmllbGRzIGluIHRoZSBmdXR1cmUsIHN1Y2ggYXMgdGhpczogOWE4Yk5ZaktDZ1dyQlhVLWZDbDFhZyJ9",
+        "attestationObject": "o2NmbXRmcGFja2VkZ2F0dFN0bXSjY2FsZyZjc2lnWEcwRQIgPxnsSyKfRquMRe_ym5BP8QwDkNxAvxIW8Ep49M66NCUCIQD-cEGjJ1mv8FoPnybHCpmceihEUbqJI0odNIPCXiGSW2N4NWOBWQIlMIICITCCAcigAwIBAgIRAIjCIPg8jvH-r-lN6uRfqtAwCgYIKoZIzj0EAwIwYjEeMBwGA1UEAwwVV2ViQXV0aG4gdGVzdCB2ZWN0b3JzMQwwCgYDVQQKDANXM0MxJTAjBgNVBAsMHEF1dGhlbnRpY2F0b3IgQXR0ZXN0YXRpb24gQ0ExCzAJBgNVBAYTAkFBMCAXDTI0MDEwMTAwMDAwMFoYDzMwMjQwMTAxMDAwMDAwWjBfMR4wHAYDVQQDDBVXZWJBdXRobiB0ZXN0IHZlY3RvcnMxDDAKBgNVBAoMA1czQzEiMCAGA1UECwwZQXV0aGVudGljYXRvciBBdHRlc3RhdGlvbjELMAkGA1UEBhMCQUEwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASpG6Q4lAndOKQoFBlAyo_rGsDXtDUFWBBKN3ekkyLzeYRA83izOYqy07t7-RMiyS6yNVb1mtCoNv7Ex2Y7Dk3Do2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB_wQEAwIHgDAdBgNVHQ4EFgQUpYm6ctBghCqxH3T7JGve2rFvm5swHwYDVR0jBBgwFoAURa_3FbDdeGdB_umW68FlR6OTGx4wCgYIKoZIzj0EAwIDRwAwRAIgFya52F7Nil7VEWNyLKOiCIb9myQqCqBFPUQhFgdd79UCIH70ceUwrIeWGoin8NDBewkf_GuSONMPefY1tBe-WRDnaGF1dGhEYXRhWKS_q8N0MpWLBjNg061kYcnEc1rn-O3UZZKl4PAUUrLktU0AAAAAh2yk9SBxw-myVQnvLN9-1gAgyab1s0YtAoc_6gxWhiI0-Z8IFygITlEbt3YCAaiQVKWlAQIDJiABIVggHPJ_JdpZEgikI5wuMk8QT1hVJUeaKe3u3YMPSOd66uUiWCBZ5LfabAEG4gbOOQyTq5ihWl7DiH5X8Mwr7OgDuSDEIw",
+        "credentialId": "yab1s0YtAoc_6gxWhiI0-Z8IFygITlEbt3YCAaiQVKU",
+        "algorithm": -7,
+        "fmt": "packed",
+        "flags": "4d",
+        "aaguid": "876ca4f52071c3e9b25509ef2cdf7ed6"
+      },
+      "authentication": {
+        "challenge": "sRBvpGpXvvF4FRHAVX3ImKA0E9Xw8X0kRjDBlMfhrbU",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoic1JCdnBHcFh2dkY0RlJIQVZYM0ltS0EwRTlYdzhYMGtSakRCbE1maHJiVSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2UsImV4dHJhRGF0YSI6ImNsaWVudERhdGFKU09OIG1heSBiZSBleHRlbmRlZCB3aXRoIGFkZGl0aW9uYWwgZmllbGRzIGluIHRoZSBmdXR1cmUsIHN1Y2ggYXMgdGhpczogQVpNd3lNeEliRDgtdWd1Rk5wNnI4USJ9",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUNAAAAAA",
+        "signature": "MEUCIGlJadPuko3m8C7yOpxkTX13mRZFFzSpS0MlQvSYoevpAiEAiwgZyCQhipcVLNCZxVv7FHeynZAKSaZAGDFPm_zNoWM",
+        "flags": "0d"
+      }
+    },
+    {
+      "section": "16.8",
+      "title": "16.8. Packed Attestation with ES384 Credential",
+      "registration": {
+        "challenge": "VnsDCz4Ya8HRad1Ft5-eDYbx_WNHTaPq3lvbjbN5oMM",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiVm5zREN6NFlhOEhSYWQxRnQ1LWVEWWJ4X1dOSFRhUHEzbHZiamJONW9NTSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "attestationObject": "o2NmbXRmcGFja2VkZ2F0dFN0bXSjY2FsZyZjc2lnWEcwRQIhAMVuzJcLeEODPg9GH94mIz9h6zlRYdSBVYwIucbtYWdbAiAp9eBQM3Bc0PmwoH4UlGjsMIpPhJBkCe_c6x2iCnUY1mN4NWOBWQIlMIICITCCAcegAwIBAgIQPQpViLuH67HUzuShgHwbfDAKBggqhkjOPQQDAjBiMR4wHAYDVQQDDBVXZWJBdXRobiB0ZXN0IHZlY3RvcnMxDDAKBgNVBAoMA1czQzElMCMGA1UECwwcQXV0aGVudGljYXRvciBBdHRlc3RhdGlvbiBDQTELMAkGA1UEBhMCQUEwIBcNMjQwMTAxMDAwMDAwWhgPMzAyNDAxMDEwMDAwMDBaMF8xHjAcBgNVBAMMFVdlYkF1dGhuIHRlc3QgdmVjdG9yczEMMAoGA1UECgwDVzNDMSIwIAYDVQQLDBlBdXRoZW50aWNhdG9yIEF0dGVzdGF0aW9uMQswCQYDVQQGEwJBQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABBflzJHWdtNw42qn3kDCWqy0WjhF8T0pMgiOziJwubQxJBwhnCLQwlbJQ4reAPLAXmL475Brm5l66fPEYMLbZvWjYDBeMAwGA1UdEwEB_wQCMAAwDgYDVR0PAQH_BAQDAgeAMB0GA1UdDgQWBBTHyN2VOCoiMOTA3TZkM4-pCBaanDAfBgNVHSMEGDAWgBRFr_cVsN14Z0H-6ZbrwWVHo5MbHjAKBggqhkjOPQQDAgNIADBFAiBUBozJrgOJN7fEaMMH7bnGkn_962ogBwxIPrQDMPmfEAIhAM9BlTkZw8BGk9ax9CphN1PyBOcOhfxumxcDYXC4NZbgaGF1dGhEYXRhWMW_q8N0MpWLBjNg061kYcnEc1rn-O3UZZKl4PAUUrLktVkAAAAA6VDc2jva4dCHzaOAqJeEiwAglTri3Z8osaHVgCyD4fZYM7uXaaCN6C2BK8J8E_xvBqmlAQIDOCIgAiFYMEhmvYsB2nienrgG5eqwWuWmOFQilqsFei8bvOm1j4oIuRcTkLWKN6x__8LF9FhX2iJYMCoLAkx_S3IHKh-WvTCnJhqulXHdOYcOsp5VwJQcawjolimh6hIWqmTOV8KAe_OQGg",
+        "credentialId": "lTri3Z8osaHVgCyD4fZYM7uXaaCN6C2BK8J8E_xvBqk",
+        "algorithm": -35,
+        "fmt": "packed",
+        "flags": "59",
+        "aaguid": "e950dcda3bdae1d087cda380a897848b"
+      },
+      "authentication": {
+        "challenge": "_0HD0l29iWb7YeKO9eRwQeE37SaFIEEtdiAroK0tFFM",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiXzBIRDBsMjlpV2I3WWVLTzllUndRZUUzN1NhRklFRXRkaUFyb0swdEZGTSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUNAAAAAA",
+        "signature": "MGUCMQDk77tGdF7QDmfE1Rqyusqyr2L_qLfF_s7G19m_JYInUDSnE6PdcxaF7uga369qpj8CMBYWVTU_B-AYo8JTn43nyMTPiNTDLSvin-Tnb6CW7MlFi7_giV1XEpqzJBMObwaS2w",
+        "flags": "0d"
+      }
+    },
+    {
+      "section": "16.9",
+      "title": "16.9. Packed Attestation with ES512 Credential",
+      "registration": {
+        "challenge": "TuIgzZKwfhFFHLTCAcV1W9h5hI5JKpsS15E1xidk3C_Sjq1ICMr-WtHej6ngjUqO6v6k37Mzh3sCvFA_R107DBOUp2g7qvTyR3gp97jPdQlImFVYdIwHMGg5b8_c0_JFvyA45rs411MnaKrRO-jBGPcnci50JhOQQenKylA4hMU",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiVHVJZ3paS3dmaEZGSExUQ0FjVjFXOWg1aEk1Sktwc1MxNUUxeGlkazNDX1NqcTFJQ01yLVd0SGVqNm5nalVxTzZ2NmszN016aDNzQ3ZGQV9SMTA3REJPVXAyZzdxdlR5UjNncDk3alBkUWxJbUZWWWRJd0hNR2c1YjhfYzBfSkZ2eUE0NXJzNDExTW5hS3JSTy1qQkdQY25jaTUwSmhPUVFlbkt5bEE0aE1VIiwib3JpZ2luIjoiaHR0cHM6Ly9leGFtcGxlLm9yZyIsImNyb3NzT3JpZ2luIjpmYWxzZSwiZXh0cmFEYXRhIjoiY2xpZW50RGF0YUpTT04gbWF5IGJlIGV4dGVuZGVkIHdpdGggYWRkaXRpb25hbCBmaWVsZHMgaW4gdGhlIGZ1dHVyZSwgc3VjaCBhcyB0aGlzOiBvM3FWak9MMnRUV200R3hreklfUWdnIn0",
+        "attestationObject": "o2NmbXRmcGFja2VkZ2F0dFN0bXSjY2FsZyZjc2lnWEcwRQIhAM4Vj2wEqlwUwN0-EQPPk2ZIlvtcM3pm29fboxVG_w1BAiBxy80NO44him0FN04O-AMTKdJQWQAqwWA9AtX9igopy2N4NWOBWQInMIICIzCCAcigAwIBAgIRAIoSi36-UrmTg1d55tm4E1UwCgYIKoZIzj0EAwIwYjEeMBwGA1UEAwwVV2ViQXV0aG4gdGVzdCB2ZWN0b3JzMQwwCgYDVQQKDANXM0MxJTAjBgNVBAsMHEF1dGhlbnRpY2F0b3IgQXR0ZXN0YXRpb24gQ0ExCzAJBgNVBAYTAkFBMCAXDTI0MDEwMTAwMDAwMFoYDzMwMjQwMTAxMDAwMDAwWjBfMR4wHAYDVQQDDBVXZWJBdXRobiB0ZXN0IHZlY3RvcnMxDDAKBgNVBAoMA1czQzEiMCAGA1UECwwZQXV0aGVudGljYXRvciBBdHRlc3RhdGlvbjELMAkGA1UEBhMCQUEwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASUC2iIUpFTbi98YMBaz7JS5-689DBEJd2Tq3sZYvIEkr8Y3A8ShiWZ6B-3ZKySFR-aePy7NdeibIxSlJsYEzwGo2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB_wQEAwIHgDAdBgNVHQ4EFgQUP_rYY6vNPcVxe4olIYn0Gvl-fzEwHwYDVR0jBBgwFoAURa_3FbDdeGdB_umW68FlR6OTGx4wCgYIKoZIzj0EAwIDSQAwRgIhAIMsi2TE8BiL0y4b7GPhMwHNwDFl0--EDR89q7mlcZ-DAiEArdV6nVvt7JjykiLfyX6nldBV7hOgKhU9Ar6c4Art65FoYXV0aERhdGFY6b-rw3QylYsGM2DTrWRhycRzWuf47dRlkqXg8BRSsuS1TQAAAAA52M5qPPYQJXdQg6c45cJUACDRfVr34_N8VmIqZ8hGLJ4cYzbfzLi2HTWdxHN426WM5KUBAgM4IyADIVhCAIMkCiw60ho9wKbao9i8BaRtfNmCW6AQrioiaGwtbWY9fV9niYf7HnZ1QuY9wZeukV4l-O4oRlGvKQZpEKLMCD9QIlhCAXM330erXM5dcW74yv-pejASaJsfMm6mxDobqVlscvcfASI5AUNVK0K-dytMNf-5YSIMdDtIamAepMttVBL1sHjT",
+        "credentialId": "0X1a9-PzfFZiKmfIRiyeHGM238y4th01ncRzeNuljOQ",
+        "algorithm": -36,
+        "fmt": "packed",
+        "flags": "4d",
+        "aaguid": "39d8ce6a3cf61025775083a738e5c254"
+      },
+      "authentication": {
+        "challenge": "CNMZDG3LPU8MtlmgMzv16hJN3zagzTPVIEsNeiKozCby5PFp0gAoXHez-yLg8cf0mofUvi0l6S15eAjdqqm1cV79OmrakznTBSpofbxdL4yHGwRR4GkfV60ThUG3ty56qJM3KewcZkvy5N7a4WFtCOzvqAoqU7EDZjzlqIEEiCk",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiQ05NWkRHM0xQVThNdGxtZ016djE2aEpOM3phZ3pUUFZJRXNOZWlLb3pDYnk1UEZwMGdBb1hIZXoteUxnOGNmMG1vZlV2aTBsNlMxNWVBamRxcW0xY1Y3OU9tcmFrem5UQlNwb2ZieGRMNHlIR3dSUjRHa2ZWNjBUaFVHM3R5NTZxSk0zS2V3Y1prdnk1TjdhNFdGdENPenZxQW9xVTdFRFpqemxxSUVFaUNrIiwib3JpZ2luIjoiaHR0cHM6Ly9leGFtcGxlLm9yZyIsImNyb3NzT3JpZ2luIjpmYWxzZX0",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUZAAAAAA",
+        "signature": "MIGHAkIAm9oC_jhOd7y5-0KwfDlbelPsnZYW3QMIq4SVwhQcg2TH0W4hKkpPuOOYf_bJnq_WTYSE_SjD_Hlo9lipAz0bsbgCQWOD6fPuIMaRtmYgKZ_vNr6i3005ySsurZL1jnt5qw2YZNLr87Dcxm6hMjRJLM7m6dQh20PJWby5TBYtyUlBNsn2",
+        "flags": "19"
+      }
+    },
+    {
+      "section": "16.10",
+      "title": "16.10. Packed Attestation with RS256 Credential",
+      "registration": {
+        "challenge": "vqjwdwAJvVfywN9v6p90Oifkthu-kjyGLHqtep_I5KY",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoidnFqd2R3QUp2VmZ5d045djZwOTBPaWZrdGh1LWtqeUdMSHF0ZXBfSTVLWSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "attestationObject": "o2NmbXRmcGFja2VkZ2F0dFN0bXSjY2FsZyZjc2lnWEcwRQIhAIuMXG6owULAMuC-aeE1PURGHFyRCZQc3alRuXbrlbazAiBNUvQGwZ4lSz_5WJvRgHD7BVrI2xL90KZzS-qdcWjpAGN4NWOBWQImMIICIjCCAcegAwIBAgIQH2-3pezoG0WJa5g6mV2l8zAKBggqhkjOPQQDAjBiMR4wHAYDVQQDDBVXZWJBdXRobiB0ZXN0IHZlY3RvcnMxDDAKBgNVBAoMA1czQzElMCMGA1UECwwcQXV0aGVudGljYXRvciBBdHRlc3RhdGlvbiBDQTELMAkGA1UEBhMCQUEwIBcNMjQwMTAxMDAwMDAwWhgPMzAyNDAxMDEwMDAwMDBaMF8xHjAcBgNVBAMMFVdlYkF1dGhuIHRlc3QgdmVjdG9yczEMMAoGA1UECgwDVzNDMSIwIAYDVQQLDBlBdXRoZW50aWNhdG9yIEF0dGVzdGF0aW9uMQswCQYDVQQGEwJBQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABLeza3VCoREgtEPHlNDJn9wloGt2WGQT2B4IYWPvb-FHpVevw04oYdkFfW1GXUcFoDEFUL3utfNe41uUJauFmYGjYDBeMAwGA1UdEwEB_wQCMAAwDgYDVR0PAQH_BAQDAgeAMB0GA1UdDgQWBBT7N7ZHvM-55U2YnqqswWM4aHA_szAfBgNVHSMEGDAWgBRFr_cVsN14Z0H-6ZbrwWVHo5MbHjAKBggqhkjOPQQDAgNJADBGAiEAuGvBKdkq_KfZhpo59w8TmjBbQHOjnrZU2BQkvtV1fZECIQDPn3xgyrfEp9Pn8AIPKBqT1P0Kn5USG5ifVpMqaIhfumhhdXRoRGF0YVkCG7-rw3QylYsGM2DTrWRhycRzWuf47dRlkqXg8BRSsuS1XQAAAABCj4h4KYuYYqNq2MdSe_7yACCZKhisyD9nUzYAwROKS0xL0jbeE2Kc8CXtF8sAsAt036QBAwM5AQAgWQG0A_____________________________________________________________________________________________________________________________________________________________________________________________________________________f_________________________________________________________________________________________________________________________________________________________gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASFDAQAB",
+        "credentialId": "mSoYrMg_Z1M2AMETiktMS9I23hNinPAl7RfLALALdN8",
+        "algorithm": -257,
+        "fmt": "packed",
+        "flags": "5d",
+        "aaguid": "428f8878298b9862a36ad8c7527bfef2"
+      },
+      "authentication": {
+        "challenge": "KV9Z9fqP5ixayp4nYmx4yNo3aubYzS3SmuutYB4bxMU",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiS1Y5WjlmcVA1aXhheXA0bllteDR5Tm8zYXViWXpTM1NtdXV0WUI0YnhNVSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUZAAAAAA",
+        "signature": "AQY9UtfDm01DL8cGPF2T5YK9yxaInNcfiI1n2IDqcwpChJjTvI4e4R8rHsvmwpKxGMVf-q3e-oytClTdE3xR8e7Gc_G7bE0XidaCaiIrItD1hfyQH9yTMhLledGZuJ1nKqRIkTM-ahNVU2Al6CslWQJWw1OCKbVXNwg7L2uTd-SeJHLxGVL3n90NoYC1_9kBtASajwgbtAcRvvdsYq7ZQ1cfLQV1MEy1SdaNiJL5UIajD5Nxau6Bj43AbpbA1eDtTPqf2Hc9kEZLaM8UD3mGZm_5yeMwKs0FNdYNdp9GXiq1fviqvIn8z-97oypkFUqLPSa-Ipj0cLjMU3fb49_UsLRfjwHmO95s_Ha2J3H5twqifPQBUsrZOqWs14T9S5D2duLqgo0L8kAK67quQVPlg49Tf4i2IoNGeCqTqJm-Zux33kWz788xHaYyHJLmsM0Rv-ZTvz6YzujjQfAtZ9u2-cmNnoF4CQz7W3D7xtVBWZrHlK4vHU3hKG7I3owtr3sdFchDjpDZJN9cGQRSIKTIQ4wbl5u-AWzz0O7sI8OZnUiCzGRbd23pMHVmEs3G3TmBYP8Cpg",
+        "flags": "19"
+      }
+    },
+    {
+      "section": "16.11",
+      "title": "16.11. Packed Attestation with Ed25519 Credential",
+      "registration": {
+        "challenge": "qKv52r3GsN9jRms5vanoo0o04YUzelnxxXmZBnbTs70",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoicUt2NTJyM0dzTjlqUm1zNXZhbm9vMG8wNFlVemVsbnh4WG1aQm5iVHM3MCIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2UsImV4dHJhRGF0YSI6ImNsaWVudERhdGFKU09OIG1heSBiZSBleHRlbmRlZCB3aXRoIGFkZGl0aW9uYWwgZmllbGRzIGluIHRoZSBmdXR1cmUsIHN1Y2ggYXMgdGhpczogQl9EVDVnN1pEXy05T1RMWVg1SXZFUSJ9",
+        "attestationObject": "o2NmbXRmcGFja2VkZ2F0dFN0bXSjY2FsZyZjc2lnWEgwRgIhANg_YL2AJpU3WDIYhYrvsDrFfUX6BuQv6q4zLRh_YtqfAiEAoCvTy29-HSg8k7rR8_S1pMBJRGPaf9vyVpSRFnVNHxdjeDVjgVkCJzCCAiMwggHIoAMCAQICEQCyz8nqM8hkOw4adgRj6vFkMAoGCCqGSM49BAMCMGIxHjAcBgNVBAMMFVdlYkF1dGhuIHRlc3QgdmVjdG9yczEMMAoGA1UECgwDVzNDMSUwIwYDVQQLDBxBdXRoZW50aWNhdG9yIEF0dGVzdGF0aW9uIENBMQswCQYDVQQGEwJBQTAgFw0yNDAxMDEwMDAwMDBaGA8zMDI0MDEwMTAwMDAwMFowXzEeMBwGA1UEAwwVV2ViQXV0aG4gdGVzdCB2ZWN0b3JzMQwwCgYDVQQKDANXM0MxIjAgBgNVBAsMGUF1dGhlbnRpY2F0b3IgQXR0ZXN0YXRpb24xCzAJBgNVBAYTAkFBMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE3St6VktzuMC4HExi5SGSXE0RmOyfWD2_HuvjZLZc2cKam980aqqB-2uVB-UkmlL9r4454msLfcRZkqfiM7cPcKNgMF4wDAYDVR0TAQH_BAIwADAOBgNVHQ8BAf8EBAMCB4AwHQYDVR0OBBYEFAridUa8fsyxtLWXvTVPDAsfH4-OMB8GA1UdIwQYMBaAFEWv9xWw3XhnQf7pluvBZUejkxseMAoGCCqGSM49BAMCA0kAMEYCIQCg1DTstfw7_X2l9BkEUXrSg2JJ9WG9g0unpDioq3pM6AIhAPrIRbt6AlE7WOnzGWVNvkmw8CuVg1usVoxx-KGM3emraGF1dGhEYXRhWIG_q8N0MpWLBjNg061kYcnEc1rn-O3UZZKl4PAUUrLktUEAAAAA1aozWB6MpHjiD-cT9dMv8gAgzp-EDtllmVgM0UD7x7syMGM_UPYQQa_3Mwiuccqoor2kAQEDJyAGIVggROBt3TMcNqjcZnurUryuY0hskWql4znmrOuqhJNL-DI",
+        "credentialId": "zp-EDtllmVgM0UD7x7syMGM_UPYQQa_3Mwiuccqoor0",
+        "algorithm": -8,
+        "fmt": "packed",
+        "flags": "41",
+        "aaguid": "d5aa33581e8ca478e20fe713f5d32ff2"
+      },
+      "authentication": {
+        "challenge": "iVlX4BxjOmmDSKLYoxpUt9sn6MHEOyCA15riGQJnv9I",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiaVZsWDRCeGpPbW1EU0tMWW94cFV0OXNuNk1IRU95Q0ExNXJpR1FKbnY5SSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUBAAAAAA",
+        "signature": "9cWcfkbDT2-MwZcQHd-ZNPollfaOsZE6Y36EGeubpM_fxI-FOTvA1AsBHw1v7LCX1mB1JXEyI6DcDUU5k9rgCw",
+        "flags": "01"
+      }
+    },
+    {
+      "section": "16.12",
+      "title": "16.12. Packed Attestation with Ed448 Credential",
+      "registration": {
+        "challenge": "JXjQgBtaAFtUUeVAEheIywGUnhh7kdsT9YdVQD778zc",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiSlhqUWdCdGFBRnRVVWVWQUVoZUl5d0dVbmhoN2tkc1Q5WWRWUUQ3Nzh6YyIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2UsImV4dHJhRGF0YSI6ImNsaWVudERhdGFKU09OIG1heSBiZSBleHRlbmRlZCB3aXRoIGFkZGl0aW9uYWwgZmllbGRzIGluIHRoZSBmdXR1cmUsIHN1Y2ggYXMgdGhpczogQlFxQTNpZUhWU0hNVERNV3dHMmtLdyJ9",
+        "attestationObject": "o2NmbXRmcGFja2VkZ2F0dFN0bXSjY2FsZyZjc2lnWEcwRQIhAMVDC2tT9rj9Hl-kaufruPnprg0Q68dI6Hbi2XmzmxOCAiAIxc2orxdPLTwFDV0U7sByEDE2TLEpJKBmM9SSTGvK02N4NWOBWQInMIICIzCCAcigAwIBAgIRAM_0IoaX1uWsR0gLI5BnfwUwCgYIKoZIzj0EAwIwYjEeMBwGA1UEAwwVV2ViQXV0aG4gdGVzdCB2ZWN0b3JzMQwwCgYDVQQKDANXM0MxJTAjBgNVBAsMHEF1dGhlbnRpY2F0b3IgQXR0ZXN0YXRpb24gQ0ExCzAJBgNVBAYTAkFBMCAXDTI0MDEwMTAwMDAwMFoYDzMwMjQwMTAxMDAwMDAwWjBfMR4wHAYDVQQDDBVXZWJBdXRobiB0ZXN0IHZlY3RvcnMxDDAKBgNVBAoMA1czQzEiMCAGA1UECwwZQXV0aGVudGljYXRvciBBdHRlc3RhdGlvbjELMAkGA1UEBhMCQUEwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAS4Wq95DIJAN8_p_FarjXzm-_r_Lj_nyNdFc0w8bjxs6IDVBczbHiw3OGgOb0n0deTY0LbCkGDm4NemOS-2kJTOo2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB_wQEAwIHgDAdBgNVHQ4EFgQU-o-BwtzA4ZSuUDTH553PbZ2Fk-IwHwYDVR0jBBgwFoAURa_3FbDdeGdB_umW68FlR6OTGx4wCgYIKoZIzj0EAwIDSQAwRgIhAOdh9UIVrZLyfCwUue6j456MIkKegz7Lpb6RiYeqcuDmAiEA1acU30ecI4WGt9nmaE6oSZEIcDiw_vaim1e2a3TfBf1oYXV0aERhdGFYm7-rw3QylYsGM2DTrWRhycRzWuf47dRlkqXg8BRSsuS1WQAAAABByROu2pJf4CJzMi40wq5nACAiT83jJOawde3lUJiiS53c5fWnxx0jcD79Uoo4-KXzPKQBAQM4NCAHIVg5gFHvT5RnC1q_F9oulVi6brqU64cENjkVtNZm3ih60ynenx8HUhGrpgLcbnpeUrFajuHJhKn4iHOA",
+        "credentialId": "Ik_N4yTmsHXt5VCYokud3OX1p8cdI3A-_VKKOPil8zw",
+        "algorithm": -53,
+        "fmt": "packed",
+        "flags": "59",
+        "aaguid": "41c913aeda925fe02273322e34c2ae67"
+      },
+      "authentication": {
+        "challenge": "GpQvQB2Njjb-iIw1witxgheAL8ZoW_E5xHsxFAgShpM",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiR3BRdlFCMk5qamItaUl3MXdpdHhnaGVBTDhab1dfRTV4SHN4RkFnU2hwTSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2UsImV4dHJhRGF0YSI6ImNsaWVudERhdGFKU09OIG1heSBiZSBleHRlbmRlZCB3aXRoIGFkZGl0aW9uYWwgZmllbGRzIGluIHRoZSBmdXR1cmUsIHN1Y2ggYXMgdGhpczogWEtIamdiWGdDZUFYWU5zdXRqSXhidyJ9",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUdAAAAAA",
+        "signature": "Bx25IUMOE8oaYH7tuWy9MP1jlGoG5zEhfK1v2CujuTDUgjCKLBAXUqJRjP9wkY1KIPKb0u2k9FqAu6bErYWxD7chsYSXJbfb7zFdX7EBxtq4kLBtlKi1KnS1hI9o5hUq8khnt1VdKyK4lVy_9ch95zsA",
+        "flags": "1d"
+      }
+    },
+    {
+      "section": "16.13",
+      "title": "16.13. TPM Attestation with ES256 Credential",
+      "registration": {
+        "challenge": "z8gs3xzu6HYSCqiPA2TwkQGTRgz7l6MXsv4JBpT5opk",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiejhnczN4enU2SFlTQ3FpUEEyVHdrUUdUUmd6N2w2TVhzdjRKQnBUNW9wayIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "attestationObject": "o2NmbXRjdHBtZ2F0dFN0bXSmY2FsZyZjc2lnWEYwRAIgZuWCamUgkQMP1ETjPD7KK8bcVIzzBFATrds4qmRXohACID86XJXJ5wfQ5VUEG8yGmO5OvATibMi65FlwVHF4mFF2Y3ZlcmMyLjBjeDVjgVkCOjCCAjYwggHcoAMCAQICEDEfxC2gqxDEOpsb86deNOIwCgYIKoZIzj0EAwIwYjEeMBwGA1UEAwwVV2ViQXV0aG4gdGVzdCB2ZWN0b3JzMQwwCgYDVQQKDANXM0MxJTAjBgNVBAsMHEF1dGhlbnRpY2F0b3IgQXR0ZXN0YXRpb24gQ0ExCzAJBgNVBAYTAkFBMCAXDTI0MDEwMTAwMDAwMFoYDzMwMjQwMTAxMDAwMDAwWjAAMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExU4_EJCU9g12mbfbXYOFaf_R8-HJ6JfNnrQAY_lALj6ZN-k2zx_NXrdD_0Q8l6su3NfI4ObPbP1BO4qxn_-naaOB0zCB0DAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB_wQEAwIHgDAdBgNVHQ4EFgQUX1Rstpc9SYHoD83HRjhZ9YeWgOQwHwYDVR0jBBgwFoAURa_3FbDdeGdB_umW68FlR6OTGx4wEAYDVR0lBAkwBwYFZ4EFCAMwXgYDVR0RAQH_BFQwUqRQME4xTDAUBgVngQUCAQwLaWQ6MDAwMDAwMDAwFAYFZ4EFAgMMC2lkOjAwMDAwMDAwMB4GBWeBBQICDBVXZWJBdXRobiB0ZXN0IHZlY3RvcnMwCgYIKoZIzj0EAwIDSAAwRQIgY8mieXuAZvHbNN1gnxq2aVYH56mOn_gJCmiFPJqfyUkCIQClWDGjn1uKKqmmiDeCnKv0P-oqXOpIWa6FHKx45qw-l2dwdWJBcmVhWFYAIwALAAQAAAAAABAAEAADABAAIEEgJpjJ2XU_tLs_J80J_muK_bdkOO4q5U18na3hDYZLACDYc1EVzbMwpj6h1uQ9UAD0vVb5m86D7h1zMB_CcBFtB2hjZXJ0SW5mb1hp_1RDR4AXAAAAICd9DgVXndATIVpiJz9_Oj5-GR6tJlSjA211paPuN6awAAAAAAAAAAARERERIiIiIjMAAAAAAAAAAAAiAAucQtiq1ZOTMbmvNxGvF58XEjF4CYyafQyon80fyADzxwAAaGF1dGhEYXRhWKS_q8N0MpWLBjNg061kYcnEc1rn-O3UZZKl4PAUUrLktU0AAAAAS5Kjd_xfYQfEyFwZCtv9mQAg7Ce-x1IciUu7ghEF6jckyQ53DPH6NUFX7xjQ8Y94vqmlAQIDJiABIVggQSAmmMnZdT-0uz8nzQn-a4r9t2Q47irlTXydreENhksiWCDYc1EVzbMwpj6h1uQ9UAD0vVb5m86D7h1zMB_CcBFtBw",
+        "credentialId": "7Ce-x1IciUu7ghEF6jckyQ53DPH6NUFX7xjQ8Y94vqk",
+        "algorithm": -7,
+        "fmt": "tpm",
+        "flags": "4d",
+        "aaguid": "4b92a377fc5f6107c4c85c190adbfd99"
+      },
+      "authentication": {
+        "challenge": "AAk7ZsIdW16J96BwghGJB-o-UC00OzFLjFpU1i2yAvs",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiQUFrN1pzSWRXMTZKOTZCd2doR0pCLW8tVUMwME96RkxqRnBVMWkyeUF2cyIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUNAAAAAA",
+        "signature": "MEUCIGDcdrFgfscWxuXrqNBWaV7WvEey49enKcNOdZ46tmqgAiEA0BCp6P3ctkxDnf3KYo3bM88kXVZ9FX2fZvlCYBvtmzg",
+        "flags": "0d"
+      }
+    },
+    {
+      "section": "16.14",
+      "title": "16.14. Android Key Attestation with ES256 Credential",
+      "registration": {
+        "challenge": "PeHwtzZdzN4_8MvyXib_p7r_h-8QbID8hl3EAtmWAFA",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiUGVId3R6WmR6TjRfOE12eVhpYl9wN3JfaC04UWJJRDhobDNFQXRtV0FGQSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2UsImV4dHJhRGF0YSI6ImNsaWVudERhdGFKU09OIG1heSBiZSBleHRlbmRlZCB3aXRoIGFkZGl0aW9uYWwgZmllbGRzIGluIHRoZSBmdXR1cmUsIHN1Y2ggYXMgdGhpczogVlYxY1F1UjJxTE1fYW1QZm9IekwwZyJ9",
+        "attestationObject": "o2NmbXRrYW5kcm9pZC1rZXlnYXR0U3RtdKNjYWxnJmNzaWdYSDBGAiEA6VUSmCqj8hbP8uh8jsVwV7hSn2dOqr7Mqif9A9h3nxkCIQCvtr9FnaSoJvANAfxrYHEv8x3E6zMWGcj4dLsX5DFOlGN4NWOBWQJ8MIICeDCCAh6gAwIBAgIQH_kfdrY_RIEvmYslCwKGvzAKBggqhkjOPQQDAjBiMR4wHAYDVQQDDBVXZWJBdXRobiB0ZXN0IHZlY3RvcnMxDDAKBgNVBAoMA1czQzElMCMGA1UECwwcQXV0aGVudGljYXRvciBBdHRlc3RhdGlvbiBDQTELMAkGA1UEBhMCQUEwIBcNMjQwMTAxMDAwMDAwWhgPMzAyNDAxMDEwMDAwMDBaMF8xHjAcBgNVBAMMFVdlYkF1dGhuIHRlc3QgdmVjdG9yczEMMAoGA1UECgwDVzNDMSIwIAYDVQQLDBlBdXRoZW50aWNhdG9yIEF0dGVzdGF0aW9uMQswCQYDVQQGEwJBQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJkWllcDbQiaKpghp9AGPTQfGkYTOJNZY276tfPL8azP3ZHFVUMXbqmbZEQG3R3WN3S2r2WsdZ4G_0CxyKsC32ujgbYwgbMwDAYDVR0TAQH_BAIwADAOBgNVHQ8BAf8EBAMCB4AwHQYDVR0OBBYEFBrIHlBkHo0TOauffrJfDNWqwFSwMB8GA1UdIwQYMBaAFEWv9xWw3XhnQf7pluvBZUejkxseMFMGCisGAQQB1nkCAREERTBDAgIBLAoBAAIBAAoBAAQgtDUCjXtqj4O7Rh1BwZsFOp082zA1Gk83TNTN6NvvtgYEADAAMA6hBTEDAgECv4U-AwIBADAKBggqhkjOPQQDAgNIADBFAiATVPkUmZb24YMIUtpim4bTfBDaD_4XRxxn1Idl7YP2OwIhAIbbV0aUTOzfzgcdngQQcs6sPRxQQ4LyBWdumh8C12MlaGF1dGhEYXRhWKS_q8N0MpWLBjNg061kYcnEc1rn-O3UZZKl4PAUUrLktV0AAAAArelwXhznCFuJmlQNAhmb-AAgCkcpUZeItu2KLXcrSU4YYkTYx5jAUpYNvIwQyRUXZ5WlAQIDJiABIVggmRaWVwNtCJoqmCGn0AY9NB8aRhM4k1ljbvq188vxrM8iWCDdkcVVQxduqZtkRAbdHdY3dLavZax1ngb_QLHIqwLfaw",
+        "credentialId": "CkcpUZeItu2KLXcrSU4YYkTYx5jAUpYNvIwQyRUXZ5U",
+        "algorithm": -7,
+        "fmt": "android-key",
+        "flags": "5d",
+        "aaguid": "ade9705e1ce7085b899a540d02199bf8"
+      },
+      "authentication": {
+        "challenge": "5O4Fyp287XQRZUDyTtmtxiquhQdWBSKET_p-6hT3r4Y",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiNU80RnlwMjg3WFFSWlVEeVR0bXR4aXF1aFFkV0JTS0VUX3AtNmhUM3I0WSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2UsImV4dHJhRGF0YSI6ImNsaWVudERhdGFKU09OIG1heSBiZSBleHRlbmRlZCB3aXRoIGFkZGl0aW9uYWwgZmllbGRzIGluIHRoZSBmdXR1cmUsIHN1Y2ggYXMgdGhpczogcXhKeEItX3hncnd5TUw2MThkclNuQSJ9",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUJAAAAAA",
+        "signature": "MEUCIQCiteN9pDzrY1ZvbigXxsvvJhBz0Mrf0hP_Yim9M93qbAIgPXfrMgL8krm1u4Q-8ILHdm-MfyMZTJJwj_Lz0d52Wo8",
+        "flags": "09"
+      }
+    },
+    {
+      "section": "16.15",
+      "title": "16.15. Apple Anonymous Attestation with ES256 Credential",
+      "registration": {
+        "challenge": "9_aIIThSAHd1AJz4wJb9qJ1guan7WlDdgd2YmK9aBgk",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiOV9hSUlUaFNBSGQxQUp6NHdKYjlxSjFndWFuN1dsRGRnZDJZbUs5YUJnayIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2UsImV4dHJhRGF0YSI6ImNsaWVudERhdGFKU09OIG1heSBiZSBleHRlbmRlZCB3aXRoIGFkZGl0aW9uYWwgZmllbGRzIGluIHRoZSBmdXR1cmUsIHN1Y2ggYXMgdGhpczogVGpMUG5wT2FYUVVyRk5jYkgydFRaQSJ9",
+        "attestationObject": "o2NmbXRlYXBwbGVnYXR0U3RtdKFjeDVjgVkCXDCCAlgwggH-oAMCAQICEDlCdWE9UxC4GinOkPSLYcEwCgYIKoZIzj0EAwIwYjEeMBwGA1UEAwwVV2ViQXV0aG4gdGVzdCB2ZWN0b3JzMQwwCgYDVQQKDANXM0MxJTAjBgNVBAsMHEF1dGhlbnRpY2F0b3IgQXR0ZXN0YXRpb24gQ0ExCzAJBgNVBAYTAkFBMCAXDTI0MDEwMTAwMDAwMFoYDzMwMjQwMTAxMDAwMDAwWjBfMR4wHAYDVQQDDBVXZWJBdXRobiB0ZXN0IHZlY3RvcnMxDDAKBgNVBAoMA1czQzEiMCAGA1UECwwZQXV0aGVudGljYXRvciBBdHRlc3RhdGlvbjELMAkGA1UEBhMCQUEwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASKPVsbTFQ6cGv25LAK_ts8kwtpDdKGk0_ikR93nMd2Gvco4ao7D_Zmkhktqndrg9344zQNLZoOq9_DJOs-LxNso4GWMIGTMAwGA1UdEwEB_wQCMAAwDgYDVR0PAQH_BAQDAgeAMB0GA1UdDgQWBBQS8c5sCuObQDv8kgAxe8GDpOTXZjAfBgNVHSMEGDAWgBRFr_cVsN14Z0H-6ZbrwWVHo5MbHjAzBgkqhkiG92NkCAIEJjAkoSIEINeobnIz-4Q-sO60B9i3b_fk-C0hjPXbtGHXUgc_XLKaMAoGCCqGSM49BAMCA0gAMEUCIHD1wu3jAA6drjWNQSsmpKy_GPTN64D1sT_NVk0JDDnsAiEA9nLiw9vhF8mxSQs8Zgq_Xc10OYGHCC2stYtnRN5KymBoYXV0aERhdGFYpL-rw3QylYsGM2DTrWRhycRzWuf47dRlkqXg8BRSsuS1SQAAAAB0ghCiAHZhanM7IRQzb8OEACCcSliGr5KD2b4-nsVZeN7f3OLjs2XKsZOuhQwWI4-vuKUBAgMmIAEhWCCKPVsbTFQ6cGv25LAK_ts8kwtpDdKGk0_ikR93nMd2GiJYIPco4ao7D_Zmkhktqndrg9344zQNLZoOq9_DJOs-LxNs",
+        "credentialId": "nEpYhq-Sg9m-Pp7FWXje39zi47NlyrGTroUMFiOPr7g",
+        "algorithm": -7,
+        "fmt": "apple",
+        "flags": "49",
+        "aaguid": "748210a20076616a733b2114336fc384"
+      },
+      "authentication": {
+        "challenge": "0-spZGQeJv7QI0A6ct3gk7GcS6kAjD-d2D_P00embQU",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiMC1zcFpHUWVKdjdRSTBBNmN0M2drN0djUzZrQWpELWQyRF9QMDBlbWJRVSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUJAAAAAA",
+        "signature": "MEYCIQDuNdt5XOKAROH4Ix1os9eamIL3QVqjXBtax00kJRBzyAIhANzGVpFlCkEtDO74Q3EMCYJ6zybHhFvdrAfuyVhj5_xM",
+        "flags": "09"
+      }
+    },
+    {
+      "section": "16.16",
+      "title": "16.16. FIDO U2F Attestation with ES256 Credential",
+      "registration": {
+        "challenge": "4HQ3KZC5yqUHoiffxnsAN4DEUyU4DRqQwg-B7X0IDAY",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiNEhRM0taQzV5cVVIb2lmZnhuc0FONERFVXlVNERScVF3Zy1CN1gwSURBWSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "attestationObject": "o2NmbXRoZmlkby11MmZnYXR0U3RtdKJjc2lnWEcwRQIhAPQYh6IAY7smhny5dRl4rM6luBeRpo9PTdbqH7alwIbDAiBOXgCqOJV3fmYI8fN1-VRQBF2j2leg5P1FHfNaMdLZimN4NWOBWQIlMIICITCCAcegAwIBAgIQBPZtxlQup3Gd6kFtMlokATAKBggqhkjOPQQDAjBiMR4wHAYDVQQDDBVXZWJBdXRobiB0ZXN0IHZlY3RvcnMxDDAKBgNVBAoMA1czQzElMCMGA1UECwwcQXV0aGVudGljYXRvciBBdHRlc3RhdGlvbiBDQTELMAkGA1UEBhMCQUEwIBcNMjQwMTAxMDAwMDAwWhgPMzAyNDAxMDEwMDAwMDBaMF8xHjAcBgNVBAMMFVdlYkF1dGhuIHRlc3QgdmVjdG9yczEMMAoGA1UECgwDVzNDMSIwIAYDVQQLDBlBdXRoZW50aWNhdG9yIEF0dGVzdGF0aW9uMQswCQYDVQQGEwJBQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABFb_-nCT3t5Grv7vtuUgx8zHiWdjbi-SWCunFFX2TpOTLf875ODU72jj47c6oIfiagoKMLAtwqojCdtMOi_JNt6jYDBeMAwGA1UdEwEB_wQCMAAwDgYDVR0PAQH_BAQDAgeAMB0GA1UdDgQWBBRCCCLrGQi1zTkRAX-8rUZBwF4FozAfBgNVHSMEGDAWgBRFr_cVsN14Z0H-6ZbrwWVHo5MbHjAKBggqhkjOPQQDAgNIADBFAiANC3d_CgsYGtKDAnWswxUP1gkkMLzQNP13vre9-MLVRgIhANSGTt2V2qOScICFXfGZ8XFymbJKXuzvvQF0Vam5NNj2aGF1dGhEYXRhWKS_q8N0MpWLBjNg061kYcnEc1rn-O3UZZKl4PAUUrLktUEAAAAAr7PC78BU30JQE9XIjnnDwQAgpLpuLSz-xDZI19JcXtVlm8GPK3gVOFJ-vUkt4DJWvfSlAQIDJiABIVggsNYt5rMPhvC6x6kBaVE5HC4xhJ4uZGYcvSsTzX1VCK0iWCBQOwvaKjV6mks0R1oo5ltmC0iYqePpu_CCDUNJQpft0A",
+        "credentialId": "pLpuLSz-xDZI19JcXtVlm8GPK3gVOFJ-vUkt4DJWvfQ",
+        "algorithm": -7,
+        "fmt": "fido-u2f",
+        "flags": "41",
+        "aaguid": "afb3c2efc054df425013d5c88e79c3c1"
+      },
+      "authentication": {
+        "challenge": "-QxhKYHYT1mUON4aUA92km6SzIS--OAsbiNVPwBIVDU",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiLVF4aEtZSFlUMW1VT040YVVBOTJrbTZTeklTLS1PQXNiaU5WUHdCSVZEVSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5vcmciLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "authenticatorData": "v6vDdDKViwYzYNOtZGHJxHNa5_jt1GWSpeDwFFKy5LUBAAAAAA",
+        "signature": "MEQCIGFyRZlY_qkHtykrkvVVA0v9iEiV8oenYgDBuihyORNwAiBHJ7FmFH4mohu8KSHRkuv-1Wm3lDhTjlwSi14o5pJt1w",
+        "flags": "01"
+      }
+    }
+  ],
+  "derSignatureExample": {
+    "source": "https://www.w3.org/TR/webauthn-3/#sctn-signature-attestation-types",
+    "der": "304302210089909504e14f1e29dba8158fa7c387e888ffbe07d824bb2143205506ab159c3e021e56554fb5819b12845e85be2f78371cf3cb95e387f451cb362b9478d183d2",
+    "p1363": "89909504e14f1e29dba8158fa7c387e888ffbe07d824bb2143205506ab159c3e000056554fb5819b12845e85be2f78371cf3cb95e387f451cb362b9478d183d2"
+  }
+}
