@@ -25,7 +25,7 @@ Examples so far: [assert](../core/examples/assert), [ulid](../core/examples/ulid
 [exedev](../api/exedev/examples), [openai](../api/openai/examples),
 [mcp](../mcp/examples), [oauth](../sec/oauth/examples),
 [oidc](../sec/oidc/examples), [cedar](../sec/cedar/examples),
-[ratelimit](../sec/ratelimit/examples).
+[ratelimit](../sec/ratelimit/examples), [webauthn](../sec/webauthn/examples).
 
 ## One example
 
