@@ -108,12 +108,15 @@
 /etc/ssl/certs/ca-certificates.crt
 /etc/ssl/cert.pem
 
-# --- login shells ---
-# The platform sshd refuses an account whose /etc/passwd shell doesn't
-# exist, and exe.dev holds the HTTPS proxy until an SSH login succeeds.
+# --- login shells, and getent to find them ---
+# exe.dev's SSH server runs `getent passwd` to find the login shell. When
+# that fails it runs the first bash on its own PATH and skips exedev's
+# login wrapper. A session whose shell doesn't exist fails, and exe.dev
+# holds the HTTPS proxy until an SSH login succeeds.
 /usr/bin/bash
 /usr/bin/nologin
 /usr/bin/dash
+/usr/bin/getent
 
 # --- mount and umount, which .mount units run ---
 /usr/bin/mount

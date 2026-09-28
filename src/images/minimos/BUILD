@@ -19,9 +19,9 @@ depot.export_file(
 )
 
 # --------------------------------------------------------------------------
-# Layer 1: systemd, dbus, logind and their .so closure, the login shells
-# and mount(8) exe.dev needs, and chronyd, culled per base/keepfiles.txt
-# and base/denyfiles.txt.
+# Layer 1: systemd, dbus, logind and their .so closure, the login shells,
+# getent and mount(8) exe.dev needs, and chronyd, culled per
+# base/keepfiles.txt and base/denyfiles.txt.
 #
 # Wolfi builds systemd with its optional libraries behind dlopen, so the
 # library set below is a choice rather than a closure. It covers the
@@ -67,9 +67,10 @@ minimos.apk_culled_layer(
         # the clock, disciplined from the hypervisor's PTP device
         "chrony",
         "libcap",
-        # exe.dev boot contract: login shells, mount/umount, nologin
+        # exe.dev boot contract: login shells, getent, mount/umount, nologin
         "bash",
         "dash",
+        "posix-libc-utils-bin-2.44",
         "mount",
         "umount",
         "util-linux-login",
@@ -203,13 +204,13 @@ minimos.overlay(
         "var/lib/chrony:750:106:107",
         "root:700",
         "home",
-        # The platform sshd logs everyone in as exedev, and exe-setup.service
-        # runs there as exedev.
+        # The platform's SSH server logs everyone in as exedev, and
+        # exe-setup.service runs there as exedev.
         "home/exedev:700:1000:1000",
         # First-party files that must stay out of the automatic search
         # paths. Each file says why.
         "usr/lib/minimos",
-        # Mountpoint for the platform's injected sshd and friends.
+        # Mountpoint for the platform's injected SSH server and friends.
         "exe.dev",
     ] + [
         "etc/systemd/system/{}.d".format(unit)

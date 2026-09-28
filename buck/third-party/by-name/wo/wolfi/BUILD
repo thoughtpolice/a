@@ -51,9 +51,9 @@ MINIMOS_BASE = {
     # Wolfi publishes glibc as one package stream per release. The plain
     # glibc names stopped at 2.43-r13, and the updater only follows the
     # names pinned here, so moving to the next release means renaming
-    # these three. Other packages build against the newest release, and
-    # minimos's cull.py fails the build when one needs a newer glibc than
-    # this.
+    # every -2.44 pin. Other packages build against the newest release,
+    # and minimos's cull.py fails the build when one needs a newer glibc
+    # than this.
     "glibc-2.44": ("2.44-r7", "dea23a14ef24d4b92417a3aab1b6e640589d71d29c068116664526681350058b"),
     "glibc-2.44-locale-posix": ("2.44-r7", "974a2eec09f1b14eb215ce9ff0eb678a9b451d9da658411e398d480be0c0b07f"),
     "ld-linux-2.44": ("2.44-r7", "b1355fa173448048cb2ae37635eae78cb580d2a0d67cd84f3fee7a2fcc03a6cf"),
@@ -79,6 +79,8 @@ MINIMOS_BASE = {
     "mount": ("2.42.3-r4", "44007bb7e338406d22ba1fce83575f93c98d6351d9ccae39c84ee93a11c55de1"),
     "ncurses": ("6.6.20260919-r0", "1da57712d34cdae9381bc8c5f891229da11be56b7d3d361b76ca09491bee836b"),
     "ncurses-terminfo-base": ("6.6.20260919-r0", "85a89620ae73783e4b0b8bd84a218c889a8a5dfd3ac95a53ae3f2935910604a0"),
+    # getent, which exe.dev's SSH server runs to find the login shell.
+    "posix-libc-utils-bin-2.44": ("2.44-r7", "99fabf78ac10f6f206a05a7d6bb30fa161a68216264961faa6460dd090c3924c"),
     "systemd": ("261.3-r1", "19420aa5135ddc78da4296b93300c3d7728a73c3e701e86e2a3bc530e53733ef"),
     "systemd-logind-service": ("261.3-r1", "f33e64e7be053ff553eb34532a0d88a8a555bfb0f568dd11890ba7b24368a2ab"),
     "systemd-systemctl": ("261.3-r1", "2a51c95cbc31c6394ccff6829bcebdf4d6389933b34a15524e135aad1357c2ef"),

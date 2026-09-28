@@ -6,10 +6,11 @@
 minimos is a small appliance-style OCI image for exe.dev VMs, in the
 spirit of Bottlerocket. It boots systemd and runs services, and not much
 else. There's no distro userland, no coreutils, no package manager and
-no SSH daemon, since the platform brings its own sshd. The base is
-systemd and its libraries, the few `/etc` files it needs, `bash`, `dash`
-and `nologin` for the platform's login contract, and `chronyd`, because
-a wrong clock breaks certificate checks, token lifetimes and log order.
+no SSH daemon, since the platform brings its own SSH server. The base
+is systemd and its libraries, the few `/etc` files it needs, `bash`,
+`dash`, `nologin` and `getent` for the platform's login contract, and
+`chronyd`, because a wrong clock breaks certificate checks, token
+lifetimes and log order.
 
 Everything comes from pinned [Wolfi](https://wolfi.dev) packages. The
 build downloads hash-checked `.apk` files (see
@@ -137,14 +138,23 @@ What the platform expects from a custom image:
   start with a program named `init`.
 - **The HTTPS proxy waits for SSH.** After boot the platform tries SSH
   logins as `root` and as the `exe.dev/login-user` account, and the proxy
-  answers 503 until one works. The platform sshd maps every login name,
-  root included, to `exedev` (uid 1000). It refuses an account whose
-  shell doesn't exist, so the image ships the login wrapper, Bash, dash
-  as `sh`, and `nologin`, even though root never logs in.
-- **The platform brings its own sshd.** exe-init mounts `/exe.dev` with a
-  musl sshd, its host keys, authorized_keys and config, starts it outside
-  systemd, and then execs the Cmd. The image needs no OpenSSH, PAM or
-  crypto libraries for SSH.
+  answers 503 until one works. The platform's SSH server maps every
+  login name, root included, to `exedev` (uid 1000).
+- **The login shell comes from `getent`.** For each session the
+  platform's SSH server runs `getent passwd exedev` and starts the shell
+  it names, with `-c` and the command for `ssh <vm> <command>`, or with
+  `-l` for an interactive login. Without a working `getent` it runs the
+  first `bash` on its own PATH, `/usr/sbin/bash` here, and exedev's login
+  wrapper never runs. A named shell that doesn't exist fails the session.
+  So the base ships `getent`, the login wrapper, Bash, dash as `sh`, and
+  `nologin`, even though root never logs in.
+- **The platform brings its own SSH server.** exe-init mounts `/exe.dev`
+  with its binaries, host keys and authorized_keys, starts
+  `exe-init guestd` outside systemd, and then execs the Cmd. guestd takes
+  the platform's SSH connections over vsock and runs each session as its
+  own child. exe-init also starts a musl `sshd` from `/exe.dev/bin` on
+  port 22 inside the VM. The image needs no OpenSSH, PAM or crypto
+  libraries for SSH.
 - **The proxy picks a port from ExposedPorts.** It takes 80 if the image
   lists it, and otherwise the lowest listed port from 1024 up. With no
   ports it uses 80. `ssh exe.dev share port <vm> <port>` overrides it.
@@ -189,11 +199,12 @@ What the platform expects from a custom image:
   `/sys/block/vda/queue/discard_max_bytes` is 0, so there's no
   `fstrim.timer`.
 - **The console is a log, not a terminal.** `ssh exe.dev vm-logs` shows
-  systemd's status lines and the platform sshd's errors, and works when
-  SSH doesn't. systemd 256 and later also write terminal escapes unless
-  `TERM` is dumb, which is why the image environment sets `TERM=dumb`
-  and `SYSTEMD_COLORS=0` on top of `--log-color=false`. SSH sessions get
-  their own `TERM` from the platform sshd.
+  exe-init's log and systemd's status lines, and works when SSH doesn't.
+  exe-init logs the shell it will fall back to as `using shell`. systemd
+  256 and later also write terminal escapes unless `TERM` is dumb, which
+  is why the image environment sets `TERM=dumb` and `SYSTEMD_COLORS=0` on
+  top of `--log-color=false`. SSH sessions don't inherit it, and
+  interactive ones get the client's `TERM`.
 
 Logging in with `ssh <vm>.exe.xyz` lands in exedev's login wrapper.
 Appliance images give you Bash with core dumps off, and Bash builtins
@@ -267,7 +278,7 @@ What the base enforces:
   than `=vm`, so a hypervisor systemd can't identify still gets
   hardened. `systemd-sysctl` carries on past a key it can't set, so the
   unit reads `kernel.modules_disabled` back and fails if it isn't 1.
-- **Control plane first.** PID 1 and the platform SSH listener run in
+- **Control plane first.** PID 1 and the platform's SSH server run in
   `init.scope`, and system services in `system.slice`. Both get CPU and
   I/O weight 1000, a 10% memory reserve, and task caps of 512 and 2048.
   `user.slice` gets weight 100, `MemoryHigh=70%`, `MemoryMax=80%`, no
