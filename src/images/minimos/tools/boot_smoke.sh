@@ -602,6 +602,15 @@ if [[ "$CONTAINERS" -eq 1 ]]; then
         fi
     done
 
+    # nerdctl's OCI hook holds each published port open in a `sleep
+    # infinity` it finds on PATH, and every --publish fails without one.
+    # The image's sleep is a Bash script, so check it waits.
+    RESERVER=$(docker_exec /usr/bin/bash -c \
+        'sleep infinity & pid=$!; sleep 1; kill -0 "$pid" && echo waiting; kill "$pid"' 2>&1 || true)
+    if [[ "$RESERVER" != waiting ]]; then
+        fail "\`sleep infinity\` doesn't wait, so --publish would fail:" "${RESERVER:-(no output)}"
+    fi
+
     # Container networking runs `iptables`, and the image's symlinks pick
     # the backend. The platform kernel has nf_tables built in and module
     # loading is shut off after boot, so the legacy backend would fail.
