@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    copyright = ["© 2026 Austin Seipp"],
+    license = "Apache-2.0",
+    description = "Realtime rooms for celld: WebSocket channels, history and presence in hibernating Durable Objects, with a reconnecting client",
+    version = "0.1.0",
+)
