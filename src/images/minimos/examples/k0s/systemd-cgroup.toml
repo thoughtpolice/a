@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# k0s imports every file in /etc/k0s/containerd.d into the containerd
+# config it writes. runc places containers through systemd, to match the
+# kubelet's cgroup driver in k0s.yaml. The kubelet asks containerd which
+# driver it uses, so both have to agree.
+
+version = 3
+
+[plugins."io.containerd.cri.v1.runtime".containerd.runtimes.runc.options]
+SystemdCgroup = true

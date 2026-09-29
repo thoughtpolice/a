@@ -1,0 +1,12 @@
+#!/usr/bin/bash
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# kubectl, as the kubectl built into k0s. Without KUBECONFIG, k0s's own
+# kubectl reads the admin kubeconfig under /var/lib/k0s, which only root
+# can, so everyone else gets ~/.kube/config, which for exedev links to
+# the copy k0s-kubeconfig.service hands over.
+if [[ ! -v KUBECONFIG && $EUID -ne 0 ]]; then
+    export KUBECONFIG=$HOME/.kube/config
+fi
+exec /usr/local/bin/k0s kubectl "$@"

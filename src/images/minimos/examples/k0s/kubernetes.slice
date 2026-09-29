@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+[Unit]
+Description=k0s and the control plane it supervises
+
+[Slice]
+# The base caps system.slice at 2048 tasks for every system service
+# together. k0s runs the API server, kine, containerd, the kubelet and a
+# shim per pod, all multi-threaded Go, so in system.slice it would use up
+# the tasks journald, dbus and logind need. This slice sits beside
+# system.slice with its own ceiling. Pods themselves run in the
+# kubelet's kubepods.slice.
+TasksMax=8192

@@ -15,6 +15,7 @@ PACKAGE, keep and deny lists, units and config.
 | `dev/`            | an interactive userland and a lingering user manager  | `:minimos-dev`            |
 | `codex/`          | a GitHub release binary added to the dev image        | `:minimos-codex`          |
 | `container-host/` | containerd with gVisor as the only OCI runtime        | `:minimos-container-host` |
+| `k0s/`            | a Kubernetes node whose cluster state lives in S3     | `:minimos-k0s`            |
 
 Every `minimos.image()` emits `<name>`, `<name>-docker` for `docker load`,
 `<name>-push` for pushing to a registry, and `<name>-boot-smoke`, so
@@ -303,3 +304,84 @@ units start the sandboxes, and the socket handed to uid 1000 is as good
 as root. It ships no subordinate-ID helpers, so it can't give an
 untrusted user containers. gVisor protects the host from the workloads,
 not from the owner.
+
+## k0s/: a Kubernetes node that keeps its state in S3
+
+[k0s](https://k0sproject.io) is Kubernetes as one static binary. It
+carries the API server, scheduler, controller manager, kubelet,
+containerd, runc, konnectivity, kine and iptables, and unpacks them
+under `/var/lib/k0s/bin` when it starts, so the image adds that binary
+and some configuration to the base. `k0scontroller.service` runs a
+controller and a worker together, with `--no-taints` so pods run on it.
+
+Cluster state goes through kine, k0s's etcd shim, to its
+[T4](https://github.com/k3s-io/kine/tree/master/pkg/drivers/t4)
+driver. T4 keeps a local Pebble database under `/var/lib/k0s/t4`,
+uploads its WAL segments and checkpoints to an S3 bucket, and elects a
+leader with a lock object there, so the datastore needs no quorum of
+nodes. `k0s.yaml` points it at an exe.dev S3 integration, which signs
+each request at the edge. T4's S3 client refuses to start without keys,
+so it gets placeholders, and the integration replaces its signature.
+Create the VM with the integration's tag or `--integration`:
+
+```
+ssh exe.dev new --image=<pushed image> --name=k0s-1 --cpu=1 --memory=2GB --tag=s3-testing
+ssh k0s-1.exe.xyz kubectl get nodes
+```
+
+`k0s.yaml` names this repository's test integration, `s3-testing`, its
+bucket and a `k0s-test/` folder. The integration is pinned to its
+bucket and wants path-style requests that name it, which is what T4's
+client sends to a custom endpoint. Point the three `s3-` settings at
+your own integration to use another bucket.
+
+k0s keeps the cluster's CA and every certificate on the node's own
+disk, not in the datastore. A new VM pointed at a folder that already
+holds a cluster restores state it has no certificates for, so give each
+cluster its own folder, and empty it before starting over.
+
+### What the image changes from k0s's defaults
+
+- **The owner gets the admin kubeconfig.** Nothing on the image can
+  become root, and k0s keeps its kubeconfig in a root-only directory.
+  `k0s-kubeconfig.service` writes a copy to
+  `/var/lib/k0s-kubeconfig/admin.conf` for exedev's group, exedev's
+  `~/.kube/config` links to it, and `/usr/local/bin/kubectl` runs k0s's
+  built-in kubectl with it. That's cluster-admin for anyone who can log
+  in, the same trade as the container host's containerd socket.
+- **Pods run in systemd's slices.** By default k0s's kubelet makes
+  cgroups under `/kubepods`, beside systemd's tree, and moves itself
+  into `/system.slice/containerd.service`, a cgroup no unit owns. The
+  default worker profile in `k0s.yaml` selects the systemd cgroup
+  driver and leaves the kubelet in `k0scontroller.service`, and a
+  containerd drop-in sets `SystemdCgroup = true` to match, since the
+  kubelet takes its driver from containerd. Pods land in
+  `kubepods.slice`, and `--runtime-cgroups` points the kubelet at the
+  unit containerd actually runs in.
+- **k0s gets its own slice.** `kubernetes.slice` holds k0s and
+  everything it supervises, with 8192 tasks, beside `system.slice` and
+  its 2048, for the same reason the container host has
+  `containers.slice`.
+
+### What stays different on minimos
+
+- The control plane runs as root. k0s runs the API server, kine,
+  konnectivity and the scheduler as their own accounts when they exist,
+  and minimos's accounts are baked into the base, which a layer can't
+  extend. k0s logs a warning for each and runs it as root.
+- k0s's preflight check wants `modprobe`, and logs a warning without
+  it. Everything Kubernetes needs is built into exe.dev's kernel:
+  overlayfs, bridge netfilter, VXLAN, ipset, IPVS and the xtables
+  matches kube-proxy and kube-router use.
+- exe.dev's smallest VM has 2 GB of memory. A settled node with
+  CoreDNS, metrics-server, kube-router and konnectivity uses about
+  730 MiB of it.
+
+### Checked on a real VM
+
+On one exe.dev VM with 1 vCPU and 2 GB of memory, the node reaches
+`Ready` within a minute of boot. A two-replica nginx deployment rolls
+out, its service answers through kube-proxy, CoreDNS resolves it,
+`kubectl top` works through metrics-server, and T4 streams WAL
+segments and checkpoints into the bucket.
+
