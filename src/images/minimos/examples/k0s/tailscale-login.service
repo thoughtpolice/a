@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# Joins the tailnet with an auth key the node mints through exe.dev's
+# tailscale integration. See tailscale-login. Without the integration
+# attached it fails and retries, and k0s waits for it.
+
+[Unit]
+Description=Join the tailnet through the exe.dev tailscale integration
+ConditionVirtualization=!container
+Requires=tailscaled.service
+After=tailscaled.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/k0s/cluster.env
+ExecStart=/usr/libexec/minimos-k0s/tailscale-login
+RuntimeDirectory=tailscale-login
+RuntimeDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target

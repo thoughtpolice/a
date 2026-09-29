@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# glibc is listed for libresolv. Its ldconfig and ld.so stay out, as in
+# the base.
+
+/usr/bin/ldconfig
+/usr/bin/ld.so

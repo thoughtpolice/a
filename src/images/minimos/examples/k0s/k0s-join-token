@@ -1,0 +1,40 @@
+#!/usr/bin/bash
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Prints a token another node can join this cluster with as a
+# controller, valid for an hour. `k0s token create` reads k0s's
+# root-only state, which exedev can't, so this builds the same token
+# from the cluster's CA certificate, which is public, and registers its
+# bootstrap secret through kubectl with exedev's admin kubeconfig.
+#
+# The new node's start script looks for it in ~exedev/k0s-join.token,
+# which a setup script can write before k0s first starts there. The
+# token is base64, so it needs no quoting:
+#
+#   echo "echo $(ssh k0s-1.exe.xyz k0s-join-token) >~/k0s-join.token" |
+#       ssh exe.dev new --image=... --name=k0s-2 --setup-script=/dev/stdin
+
+set -euo pipefail
+shopt -s nullglob
+
+addr=$(tailscale ip -4)
+addr=${addr%%$'\n'*}
+
+# The image has no mktemp or rm, so the files go in /tmp, which a reboot
+# empties, and are emptied once used.
+ca=/tmp/k0s-cluster-ca.crt
+kubectl get configmap kube-root-ca.crt --namespace=kube-system \
+    --output='jsonpath={.data.ca\.crt}' >"$ca"
+
+before=(/tmp/token_*)
+k0s token pre-shared --role=controller --cert="$ca" \
+    --url="https://$addr:9443" --valid=1h --out=/tmp
+for file in /tmp/token_*; do
+    [[ " ${before[*]} " == *" $file "* ]] && continue
+    id=${file#/tmp/token_}
+    kubectl apply --filename="/tmp/bootstrap-token-$id.yaml" >&2
+    printf '%s\n' "$(<"$file")"
+    : >"$file"
+    : >"/tmp/bootstrap-token-$id.yaml"
+done

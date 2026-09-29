@@ -6,9 +6,10 @@ load("@root//src/images/minimos:defs.bzl", "minimos")
 
 # minimos + k0s: a Kubernetes node whose cluster state lives in S3. Each
 # node runs a k0s controller and a worker, and k0s's kine keeps the
-# datastore with its T4 driver, which needs no quorum. See k0s.yaml.
+# datastore with its T4 driver, which needs no quorum. The nodes reach
+# each other over Tailscale. See k0s.yaml.in and the example README.
 #
-#   ssh exe.dev new --image=<pushed image> --name=k0s-1 --tag=s3-testing
+#   ssh exe.dev new --image=<pushed image> --name=k0s-1 --tag=s3-testing,mos-k0s
 #   ssh k0s-1.exe.xyz kubectl get nodes
 
 _K0S_VERSION = "1.36.4+k0s.1"
@@ -27,6 +28,41 @@ depot.http_file(
     ],
 )
 
+# Tailscale, and curl for the API calls the start scripts make through
+# exe.dev's integrations. Both tailscale binaries are static, and cull.py
+# adds the libraries curl links.
+minimos.apk_culled_layer(
+    name = "k0s-tools-culled-layer",
+    apks = [
+        "tailscale",
+        "curl",
+        # Libraries curl links that the base doesn't ship.
+        "cyrus-sasl-mit-libs",
+        "keyutils-libs",
+        "krb5-libs",
+        "libbrotlicommon1",
+        "libbrotlidec1",
+        "libbrotlienc1",
+        "libcom_err",
+        "libcurl-openssl4",
+        "libidn2",
+        "libldap-2.7",
+        "libnghttp2-14",
+        "libpsl",
+        "libunistring",
+        "libverto",
+        "nghttp3",
+        "openssl-4.0-libcrypto",
+        "openssl-4.0-libssl",
+        "ngtcp2",
+        "zlib",
+        # krb5's libresolv, which the base culls.
+        "glibc-2.44",
+    ],
+    denyfiles = "k0s-tools-denyfiles.txt",
+    keepfiles = "k0s-tools-keepfiles.txt",
+)
+
 # The base has no /usr/local, so this layer declares the directories.
 minimos.overlay(
     name = "k0s-overlay-layer",
@@ -35,17 +71,23 @@ minimos.overlay(
         "etc/k0s/containerd.d",
         "etc/systemd/system/k0scontroller.service.wants",
         "home/exedev/.kube:700:1000:1000",
+        "usr/libexec",
+        "usr/libexec/minimos-k0s",
         "usr/local",
         "usr/local/bin",
         "var/lib/k0s-kubeconfig:750:0:1000",
     ],
     files = {
+        "etc/k0s/cluster.env": "cluster.env",
         "etc/k0s/containerd.d/systemd-cgroup.toml": "systemd-cgroup.toml",
-        "etc/k0s/k0s.yaml": "k0s.yaml",
+        "etc/k0s/k0s.yaml.in": "k0s.yaml.in",
         # Applied by k0s-kubeconfig.service, not the boot-time tmpfiles
         # pass. See the file.
         "etc/k0s/kubeconfig-access.conf": "kubeconfig-access.conf",
+        "usr/libexec/minimos-k0s/start": "start:755",
+        "usr/libexec/minimos-k0s/tailscale-login": "tailscale-login:755",
         "usr/local/bin/k0s": ":k0s:755",
+        "usr/local/bin/k0s-join-token": "k0s-join-token:755",
         "usr/local/bin/kubectl": "kubectl:755",
     },
     symlinks = {
@@ -55,6 +97,8 @@ minimos.overlay(
         "k0s-kubeconfig.service",
         "k0scontroller.service",
         "kubernetes.slice",
+        "tailscale-login.service",
+        "tailscaled.service",
     ],
 )
 
@@ -62,6 +106,7 @@ minimos.image(
     name = "minimos-k0s",
     description = "minimos + a k0s controller and worker that keeps its state in S3",
     layers = [
+        ":k0s-tools-culled-layer",
         ":k0s-overlay-layer",
     ],
     version = "0.1.0",

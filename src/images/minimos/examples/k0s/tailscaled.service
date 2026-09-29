@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# Tailscale's node agent. exe.dev VMs have no network between them, so
+# the cluster's nodes talk over the tailnet. tailscale-login.service
+# puts the node on it.
+
+[Unit]
+Description=Tailscale node agent
+Documentation=https://tailscale.com/kb/
+ConditionVirtualization=!container
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port=41641
+# Relay everything through Tailscale's DERP servers. exe.dev VMs can't
+# reach each other directly anyway, since every VM has the same private
+# address and none takes inbound UDP. Left to probe, tailscaled offers
+# peers every local address, Calico's vxlan.calico included, and a peer
+# that picks it sends WireGuard into Calico's VXLAN, which runs over
+# Tailscale. That loop amplifies traffic until connections between
+# nodes stall. This is one of Tailscale's debug knobs, not a supported
+# flag, but it's the only way to stop tailscaled probing.
+Environment=TS_DEBUG_ALWAYS_USE_DERP=true
+RuntimeDirectory=tailscale
+StateDirectory=tailscale
+StateDirectoryMode=0700
+Restart=on-failure
+RestartSec=5s
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

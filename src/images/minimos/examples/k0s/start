@@ -1,0 +1,60 @@
+#!/usr/bin/bash
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Starts k0s as a controller and a worker on this node's tailnet
+# address. It fills k0s.yaml.in into /etc/k0s/k0s.yaml, then either
+# starts the node's existing controller, joins a cluster with the token
+# the setup script left in ~exedev/k0s-join.token, or bootstraps a new
+# cluster when the S3 folder holds none.
+
+set -euo pipefail
+
+addr=$(tailscale ip -4)
+addr=${addr%%$'\n'*}
+if [[ ! $addr =~ ^100\. ]]; then
+    echo "k0s-start: no tailnet address (got '$addr')" >&2
+    exit 1
+fi
+
+conf=$(</etc/k0s/k0s.yaml.in)
+conf=${conf//@ADDRESS@/$addr}
+conf=${conf//@S3_ENDPOINT@/$S3_ENDPOINT}
+conf=${conf//@S3_BUCKET@/$S3_BUCKET}
+conf=${conf//@S3_FOLDER@/$S3_FOLDER}
+printf '%s\n' "$conf" >/etc/k0s/k0s.yaml
+
+args=(
+    controller
+    --config=/etc/k0s/k0s.yaml
+    --enable-worker
+    --no-taints
+    # Every node is a controller on one tailnet, so each API server
+    # reaches kubelets and pods directly, and konnectivity's tunnels
+    # have nothing to add.
+    --disable-components=konnectivity-server
+    # containerd runs in this unit, not the
+    # /system.slice/containerd.service k0s names by default, and every
+    # VM's eth0 has the same address, so the kubelet has to be told
+    # which one is the node's.
+    "--kubelet-extra-args=--runtime-cgroups=/kubernetes.slice/k0scontroller.service --node-ip=$addr"
+)
+
+# k0s treats a node with a CA as already joined, and ignores a token.
+token=/home/exedev/k0s-join.token
+if [[ ! -e /var/lib/k0s/pki/ca.crt ]]; then
+    if [[ -s $token ]]; then
+        args+=("--token-file=$token")
+    else
+        # A second bootstrap would write a cluster with its own CA into
+        # a folder that already holds one.
+        code=$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' \
+            "$S3_ENDPOINT/$S3_BUCKET/$S3_FOLDER/manifest/latest")
+        if [[ $code != 404 ]]; then
+            echo "k0s-start: $S3_FOLDER already holds a cluster (HTTP $code), and this node has no join token in $token" >&2
+            exit 1
+        fi
+    fi
+fi
+
+exec /usr/local/bin/k0s "${args[@]}"

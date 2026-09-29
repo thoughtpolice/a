@@ -15,7 +15,7 @@ PACKAGE, keep and deny lists, units and config.
 | `dev/`            | an interactive userland and a lingering user manager  | `:minimos-dev`            |
 | `codex/`          | a GitHub release binary added to the dev image        | `:minimos-codex`          |
 | `container-host/` | containerd with gVisor as the only OCI runtime        | `:minimos-container-host` |
-| `k0s/`            | a Kubernetes node whose cluster state lives in S3     | `:minimos-k0s`            |
+| `k0s/`            | Kubernetes nodes that keep their state in S3          | `:minimos-k0s`            |
 
 Every `minimos.image()` emits `<name>`, `<name>-docker` for `docker load`,
 `<name>-push` for pushing to a registry, and `<name>-boot-smoke`, so
@@ -305,39 +305,60 @@ as root. It ships no subordinate-ID helpers, so it can't give an
 untrusted user containers. gVisor protects the host from the workloads,
 not from the owner.
 
-## k0s/: a Kubernetes node that keeps its state in S3
+## k0s/: a Kubernetes cluster that keeps its state in S3
 
 [k0s](https://k0sproject.io) is Kubernetes as one static binary. It
 carries the API server, scheduler, controller manager, kubelet,
-containerd, runc, konnectivity, kine and iptables, and unpacks them
-under `/var/lib/k0s/bin` when it starts, so the image adds that binary
-and some configuration to the base. `k0scontroller.service` runs a
-controller and a worker together, with `--no-taints` so pods run on it.
+containerd, runc, kine and iptables, and unpacks them under
+`/var/lib/k0s/bin` when it starts, so the image adds that binary, some
+configuration, Tailscale and curl to the base. Every node runs a
+controller and a worker together, with `--no-taints` so pods run on
+all of them.
 
 Cluster state goes through kine, k0s's etcd shim, to its
 [T4](https://github.com/k3s-io/kine/tree/master/pkg/drivers/t4)
 driver. T4 keeps a local Pebble database under `/var/lib/k0s/t4`,
 uploads its WAL segments and checkpoints to an S3 bucket, and elects a
-leader with a lock object there, so the datastore needs no quorum of
-nodes. `k0s.yaml` points it at an exe.dev S3 integration, which signs
-each request at the edge. T4's S3 client refuses to start without keys,
-so it gets placeholders, and the integration replaces its signature.
-Create the VM with the integration's tag or `--integration`:
+leader with a lock object there. The leader streams its WAL to the
+other nodes, which forward their writes to it, so the datastore needs
+no quorum and any node can lead. The bucket is reached through an
+exe.dev S3 integration, which signs each request at the edge. T4's S3
+client refuses to start without keys, so it gets placeholders, and the
+integration replaces its signature.
+
+exe.dev VMs have no network between them, and every VM has the same
+private address, so the nodes talk over Tailscale. An exe.dev
+`tailscale` integration holds a Tailscale API token, and each node
+mints itself a single-use, pre-approved, ephemeral auth key through it
+at boot, so no node ever holds the token. `cluster.env` names both
+integrations, the bucket and the cluster's folder.
+
+### Building a cluster
+
+Create the integrations once, attached to a tag the nodes carry. The
+tailscale integration takes an API access token (`tskey-api-...`), not
+an auth key:
 
 ```
-ssh exe.dev new --image=<pushed image> --name=k0s-1 --cpu=1 --memory=2GB --tag=s3-testing
+printf %s "$TAILSCALE_API_TOKEN" | ssh exe.dev integrations add tailscale --name=tailscale --key=- --attach=tag:mos-k0s
+```
+
+The first node bootstraps the cluster, since its folder is empty. The
+others join as controllers with a token from a running node, which
+`k0s-join-token` makes as exedev, and a setup script writes it to
+`~/k0s-join.token` before k0s first starts:
+
+```
+ssh exe.dev new --image=$IMAGE --name=k0s-1 --cpu=1 --memory=2GB --tag=s3-testing,mos-k0s
+echo "echo $(ssh k0s-1.exe.xyz k0s-join-token) >~/k0s-join.token" |
+    ssh exe.dev new --image=$IMAGE --name=k0s-2 --cpu=1 --memory=2GB --tag=s3-testing,mos-k0s --setup-script=/dev/stdin
 ssh k0s-1.exe.xyz kubectl get nodes
 ```
 
-`k0s.yaml` names this repository's test integration, `s3-testing`, its
-bucket and a `k0s-test/` folder. The integration is pinned to its
-bucket and wants path-style requests that name it, which is what T4's
-client sends to a custom endpoint. Point the three `s3-` settings at
-your own integration to use another bucket.
-
-k0s keeps the cluster's CA and every certificate on the node's own
-disk, not in the datastore. A new VM pointed at a folder that already
-holds a cluster restores state it has no certificates for, so give each
+A node with neither certificates nor a token refuses to start when its
+folder already holds a cluster. k0s keeps the CA and every certificate
+on each node's own disk, not in the datastore, so a second bootstrap
+would write a cluster with a different CA over the first. Give each
 cluster its own folder, and empty it before starting over.
 
 ### What the image changes from k0s's defaults
@@ -349,39 +370,89 @@ cluster its own folder, and empty it before starting over.
   `~/.kube/config` links to it, and `/usr/local/bin/kubectl` runs k0s's
   built-in kubectl with it. That's cluster-admin for anyone who can log
   in, the same trade as the container host's containerd socket.
+  `k0s token create` reads root-only state too, so `k0s-join-token`
+  builds the same token from the cluster's public CA certificate and
+  registers its bootstrap secret with kubectl.
+- **Everything uses the tailnet address.** The start script renders
+  `k0s.yaml.in` with the node's Tailscale address as the API address,
+  T4's peer address, the kubelet's node IP and the interface Calico
+  picks. eth0's address is the same on every VM.
+- **Calico carries pods in VXLAN.** Tailscale only delivers packets
+  addressed to tailnet nodes, so pod traffic between nodes goes in
+  VXLAN between their tailnet addresses, with an MTU of 1230 to fit
+  inside Tailscale's 1280. kube-router routes pod addresses directly,
+  and IPIP isn't in exe.dev's kernel.
+- **Calico's packet marks move.** Felix marks every packet from a pod
+  with `0x80000` by default, and Tailscale routes packets marked
+  `0x80000/0xff0000` around the tailnet, out eth0, so pods couldn't
+  reach another node's kubelet or API server.
+  `FELIX_IPTABLESMARKMASK=0xff000000` moves Felix's marks clear of
+  Tailscale's and kube-proxy's.
+- **Tailscale relays everything and leaves the firewall alone.** Left
+  to probe, tailscaled offers peers every local address, and a peer
+  that picked Calico's `vxlan.calico` address sent WireGuard into
+  VXLAN, which runs over Tailscale, and the loop moved gigabytes until
+  connections stalled. VMs can't reach each other directly anyway, so
+  `TS_DEBUG_ALWAYS_USE_DERP` keeps all traffic on Tailscale's relays,
+  which is a debug knob rather than a supported flag.
+  `--netfilter-mode=off` keeps tailscaled's native nftables rules out
+  of the tables `iptables-nft` shares with Calico, whose
+  `iptables-nft-save` can't read them.
+- **No konnectivity.** Every node is a controller on one tailnet, so
+  each API server reaches kubelets and pods directly, and
+  konnectivity's tunnels would only add a component.
 - **Pods run in systemd's slices.** By default k0s's kubelet makes
   cgroups under `/kubepods`, beside systemd's tree, and moves itself
   into `/system.slice/containerd.service`, a cgroup no unit owns. The
-  default worker profile in `k0s.yaml` selects the systemd cgroup
-  driver and leaves the kubelet in `k0scontroller.service`, and a
-  containerd drop-in sets `SystemdCgroup = true` to match, since the
-  kubelet takes its driver from containerd. Pods land in
-  `kubepods.slice`, and `--runtime-cgroups` points the kubelet at the
-  unit containerd actually runs in.
-- **k0s gets its own slice.** `kubernetes.slice` holds k0s and
-  everything it supervises, with 8192 tasks, beside `system.slice` and
-  its 2048, for the same reason the container host has
-  `containers.slice`.
+  default worker profile selects the systemd cgroup driver and leaves
+  the kubelet in `k0scontroller.service`, a containerd drop-in sets
+  `SystemdCgroup = true` to match, and `--runtime-cgroups` names the
+  unit containerd actually runs in. k0s itself runs in its own
+  `kubernetes.slice`, beside `system.slice` and its 2048-task cap.
 
 ### What stays different on minimos
 
-- The control plane runs as root. k0s runs the API server, kine,
-  konnectivity and the scheduler as their own accounts when they exist,
-  and minimos's accounts are baked into the base, which a layer can't
-  extend. k0s logs a warning for each and runs it as root.
-- k0s's preflight check wants `modprobe`, and logs a warning without
-  it. Everything Kubernetes needs is built into exe.dev's kernel:
-  overlayfs, bridge netfilter, VXLAN, ipset, IPVS and the xtables
-  matches kube-proxy and kube-router use.
-- exe.dev's smallest VM has 2 GB of memory. A settled node with
-  CoreDNS, metrics-server, kube-router and konnectivity uses about
-  730 MiB of it.
+- The control plane runs as root. k0s runs the API server, kine and the
+  scheduler as their own accounts when they exist, and minimos's
+  accounts are baked into the base, which a layer can't extend. k0s
+  logs a warning for each and runs it as root.
+- k0s's preflight check wants `modprobe` and warns without it.
+  Everything Kubernetes needs is built into exe.dev's kernel: overlayfs,
+  bridge netfilter, VXLAN, ipset, IPVS and the xtables matches.
+- exe.dev's smallest VM has 2 GB of memory. A settled node uses
+  1.3 to 1.5 GB of it.
+- The nodes join the integration token's tailnet as untagged devices
+  owned by its user, so they can reach that user's other devices, and
+  those devices can reach them. A tag and an ACL would fence them off.
 
-### Checked on a real VM
+### T4 failover in kine 0.16.5 loses writes
 
-On one exe.dev VM with 1 vCPU and 2 GB of memory, the node reaches
-`Ready` within a minute of boot. A two-replica nginx deployment rolls
-out, its service answers through kube-proxy, CoreDNS resolves it,
-`kubectl top` works through metrics-server, and T4 streams WAL
-segments and checkpoints into the bucket.
+k0s 1.36.4 bundles kine 0.16.5, which builds T4 from t4 1.0.6, and in
+that version a lost leader goes wrong twice:
 
+- Followers notice slowly. The peer client sets no gRPC keepalives, and
+  a deleted tailnet node drops packets rather than resetting
+  connections, so a follower's stream only fails when TCP gives up
+  retransmitting, after about 16 minutes. The API is down until then,
+  since followers serve no reads without a leader.
+- Followers take over together. Both followers timed out at the same
+  moment. One won the lock, wrote, and acknowledged a write, then the
+  other won a newer term from an older revision, and the first stepped
+  down. The acknowledged write never reached the new leader. The node
+  that stepped down stayed up with a closed datastore, and after a
+  restart it followed the new leader from its own diverged history,
+  so the two nodes served different data.
+
+t4 1.1.2 exchanges heartbeats between the leader and its followers and
+fixes takeover catch-up, but no kine release pins it yet, and k0s
+unpacks its own kine at every start, so a newer one can't be swapped in.
+
+### Checked on real VMs
+
+Three exe.dev VMs with 1 vCPU and 2 GB each reach `Ready` about two
+minutes after the first one starts. From a pod on each node, a pod on
+every node, a service by name, and every node's kubelet and API server
+all answer. `kubectl logs` and `exec` reach pods on every node,
+`kubectl top` reports all three, the `kubernetes` service lists all
+three API servers, and T4 streams the WAL from its leader to the
+others and into the bucket.

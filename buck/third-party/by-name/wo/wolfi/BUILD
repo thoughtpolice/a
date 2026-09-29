@@ -198,6 +198,12 @@ CONTAINERS = {
     "nerdctl": ("2.4.1-r3", "d65c03075a54a094290b1211f39a6e08bf79d38f5cdd2cd1232e89bd4ef0f5a0"),
 }
 
+# minimos example: k0s. Tailscale links the nodes, since exe.dev VMs
+# have no network between them. Both binaries are static Go.
+K0S = {
+    "tailscale": ("1.102.4-r0", "e536c88a079d0ae2f4b0806b4dd08b67efe8122d31419c90bcd9cd6805f09404"),
+}
+
 wolfi_apks(MINIMOS_BASE)
 
 wolfi_apks(CRYPTO)
@@ -211,3 +217,5 @@ wolfi_apks(NGINX)
 wolfi_apks(DEVTOOLS)
 
 wolfi_apks(CONTAINERS)
+
+wolfi_apks(K0S)

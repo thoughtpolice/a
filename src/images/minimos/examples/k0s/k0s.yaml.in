@@ -1,0 +1,73 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# k0s's cluster configuration. Every node in the cluster runs a
+# controller and a worker from this file. The start script fills in the
+# @NAME@ placeholders from cluster.env and the node's tailnet address,
+# and writes the result to /etc/k0s/k0s.yaml, where k0s's own commands
+# look for it.
+#
+# The cluster's state lives in S3, through kine's T4 driver. T4 keeps a
+# local Pebble database, uploads its WAL and checkpoints to the bucket,
+# and elects a leader with a lock object there, so no node needs a
+# quorum. The bucket is reached through an exe.dev S3 integration, which
+# signs each request at the edge with credentials the VM never holds.
+# minio-go, which T4 uses, won't start without keys, so it gets
+# placeholders, and the integration replaces its signature.
+
+apiVersion: k0s.k0sproject.io/v1beta1
+kind: ClusterConfig
+metadata:
+  name: k0s
+spec:
+  # exe.dev VMs have no network between them, and every VM has the same
+  # private address, so the nodes reach each other over Tailscale.
+  api:
+    address: @ADDRESS@
+    sans:
+      - @ADDRESS@
+  storage:
+    type: kine
+    kine:
+      # node-id defaults to the hostname, which is the VM's name.
+      dataSource: t4:///var/lib/k0s/t4
+      extraArgs:
+        s3-endpoint: @S3_ENDPOINT@
+        s3-bucket: @S3_BUCKET@
+        s3-folder: @S3_FOLDER@
+        s3-region: auto
+        s3-access-key: signed-by-exe-dev
+        s3-secret-key: signed-by-exe-dev
+        # The T4 leader streams its WAL to the others over this port.
+        peer-bind-address: @ADDRESS@:3380
+        peer-advertise-address: @ADDRESS@:3380
+  network:
+    # Tailscale only carries packets addressed to tailnet nodes, so pod
+    # traffic between nodes goes in VXLAN between their tailnet
+    # addresses. kube-router routes pod addresses directly and has no
+    # VXLAN mode, and IPIP isn't in exe.dev's kernel. The MTU leaves
+    # room for VXLAN's 50 bytes inside Tailscale's 1280.
+    provider: calico
+    calico:
+      mode: vxlan
+      mtu: 1230
+      ipAutodetectionMethod: interface=tailscale0
+      envVars:
+        # Felix marks every packet from a pod with 0x80000 by default,
+        # and Tailscale routes packets marked 0x80000/0xff0000 around the
+        # tailnet, out eth0. Pods could reach each other through VXLAN,
+        # but not another node's tailnet address, where the kubelets
+        # and the other API servers are. Felix's marks go in the top
+        # byte instead, clear of Tailscale's and kube-proxy's.
+        FELIX_IPTABLESMARKMASK: "0xff000000"
+  workerProfiles:
+    # k0s's default kubelet makes its own cgroups under /kubepods, beside
+    # systemd's slices, and moves itself into
+    # /system.slice/containerd.service, a cgroup no unit owns. With the
+    # systemd driver, pods land in kubepods.slice, and the kubelet stays
+    # in k0scontroller.service with the rest of k0s.
+    - name: default
+      values:
+        cgroupDriver: systemd
+        kubeletCgroups: ""
+        kubeReservedCgroup: ""

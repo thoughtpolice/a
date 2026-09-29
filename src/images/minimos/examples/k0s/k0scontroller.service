@@ -4,13 +4,9 @@
 # The k0s controller, with a worker in the same process tree. It's what
 # `k0s install controller --enable-worker` would write, baked into the
 # image instead. k0s supervises kine, the API server, the scheduler, the
-# controller manager, konnectivity, containerd and the kubelet as its
-# own children, and unpacks their binaries under /var/lib/k0s/bin.
-#
-# --no-taints lets pods run here, since every node is a controller.
-# containerd runs in this unit's cgroup, not the
-# /system.slice/containerd.service k0s tells the kubelet to find it in,
-# so --runtime-cgroups points the kubelet's stats at the right place.
+# controller manager, containerd and the kubelet as its own children,
+# and unpacks their binaries under /var/lib/k0s/bin. The start script
+# picks k0s's flags; see the script.
 
 [Unit]
 Description=k0s controller and worker
@@ -18,13 +14,15 @@ Documentation=https://docs.k0sproject.io
 # Docker can't give k0s the cgroups, devices and kernel access a
 # kubelet needs, so the boot smoke checks this is skipped there.
 ConditionVirtualization=!container
-After=network-online.target time-sync.target
+After=network-online.target time-sync.target tailscale-login.service exe-setup.service
 Wants=network-online.target
+Requires=tailscale-login.service
 
 [Service]
 Type=simple
 Slice=kubernetes.slice
-ExecStart=/usr/local/bin/k0s controller --config=/etc/k0s/k0s.yaml --enable-worker --no-taints --kubelet-extra-args=--runtime-cgroups=/kubernetes.slice/k0scontroller.service
+EnvironmentFile=/etc/k0s/cluster.env
+ExecStart=/usr/libexec/minimos-k0s/start
 # The kubelet makes its own cgroups under kubepods.slice, and containerd
 # its shims, so systemd has to hand the subtree over. KillMode=process
 # leaves the shims and their pods running across a k0s restart, as

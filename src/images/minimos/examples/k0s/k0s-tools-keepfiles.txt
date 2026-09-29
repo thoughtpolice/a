@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# The two tailscale binaries and curl. cull.py adds the libraries curl
+# links, except those the base already ships.
+
+/usr/bin/curl
+/usr/bin/tailscale
+/usr/bin/tailscaled
