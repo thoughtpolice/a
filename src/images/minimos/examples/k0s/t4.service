@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# T4, the cluster's datastore, which k0s uses as an external etcd. See
+# t4-start. It needs the tailnet for its peers and the S3 integration
+# for durability, and nothing on the host beyond that, so it runs as a
+# transient user with no capabilities.
+
+[Unit]
+Description=T4, the cluster's datastore
+Documentation=https://github.com/t4db/t4
+ConditionVirtualization=!container
+Requires=tailscale-login.service
+After=tailscale-login.service network-online.target exe-setup.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+Slice=kubernetes.slice
+EnvironmentFile=/etc/k0s/cluster.env
+# `+` runs the check as root, outside the sandbox, so it can see k0s's
+# certificates and exedev's join token.
+ExecStartPre=+/usr/libexec/minimos-k0s/check-bootstrap
+ExecStart=/usr/libexec/minimos-k0s/t4-start
+Restart=always
+RestartSec=5s
+DynamicUser=yes
+StateDirectory=t4
+UMask=0077
+LimitCORE=0
+LimitNOFILE=65536
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

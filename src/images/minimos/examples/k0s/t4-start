@@ -1,0 +1,40 @@
+#!/usr/bin/bash
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Runs T4, the cluster's datastore, on this node's tailnet address. T4
+# keeps a local Pebble database, uploads its WAL and checkpoints to the
+# cluster's S3 folder, and elects a leader with a lock object there. The
+# leader streams its WAL to the other nodes over the peer port, and they
+# forward writes to it. k0s's API server reaches the local node over the
+# etcd v3 API on loopback.
+
+set -euo pipefail
+
+addr=$(tailscale ip -4)
+addr=${addr%%$'\n'*}
+if [[ ! $addr =~ ^100\. ]]; then
+    echo "t4-start: no tailnet address (got '$addr')" >&2
+    exit 1
+fi
+
+# T4's S3 client refuses to start without keys. The exe.dev integration
+# signs every request itself, so these are placeholders it replaces.
+#
+# A new leader replays every WAL segment since the last checkpoint before
+# it serves, one GET at a time. With T4's default 15-minute interval, a
+# takeover 14 minutes after a checkpoint took over a minute through the
+# integration, and one minute brings it down to about 20 seconds.
+exec /usr/local/bin/t4 run \
+    --data-dir="$STATE_DIRECTORY" \
+    --listen=127.0.0.1:2379 \
+    --metrics-addr=127.0.0.1:2381 \
+    --checkpoint-interval-min=1 \
+    --peer-listen="$addr:3380" \
+    --advertise-peer="$addr:3380" \
+    --s3-endpoint="$S3_ENDPOINT" \
+    --s3-bucket="$S3_BUCKET" \
+    --s3-prefix="$S3_FOLDER" \
+    --s3-region=auto \
+    --s3-access-key-id=signed-by-exe-dev \
+    --s3-secret-access-key=signed-by-exe-dev

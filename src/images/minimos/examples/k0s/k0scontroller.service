@@ -3,10 +3,10 @@
 #
 # The k0s controller, with a worker in the same process tree. It's what
 # `k0s install controller --enable-worker` would write, baked into the
-# image instead. k0s supervises kine, the API server, the scheduler, the
+# image instead. k0s supervises the API server, the scheduler, the
 # controller manager, containerd and the kubelet as its own children,
 # and unpacks their binaries under /var/lib/k0s/bin. The start script
-# picks k0s's flags; see the script.
+# picks k0s's flags, and t4.service is its datastore.
 
 [Unit]
 Description=k0s controller and worker
@@ -14,14 +14,16 @@ Documentation=https://docs.k0sproject.io
 # Docker can't give k0s the cgroups, devices and kernel access a
 # kubelet needs, so the boot smoke checks this is skipped there.
 ConditionVirtualization=!container
-After=network-online.target time-sync.target tailscale-login.service exe-setup.service
-Wants=network-online.target
+After=network-online.target time-sync.target tailscale-login.service exe-setup.service t4.service
+# Wants=, not Requires=, on T4: systemd carries an explicit restart
+# through Requires=, and t4-watchdog restarts T4 without taking k0s down
+# with it. The API server retries until T4 answers again.
+Wants=network-online.target t4.service
 Requires=tailscale-login.service
 
 [Service]
 Type=simple
 Slice=kubernetes.slice
-EnvironmentFile=/etc/k0s/cluster.env
 ExecStart=/usr/libexec/minimos-k0s/start
 # The kubelet makes its own cgroups under kubepods.slice, and containerd
 # its shims, so systemd has to hand the subtree over. KillMode=process

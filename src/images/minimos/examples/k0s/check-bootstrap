@@ -1,0 +1,25 @@
+#!/usr/bin/bash
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Refuses to start T4 on a node that would bootstrap a second cluster
+# into a folder that already holds one. k0s keeps the cluster's CA on
+# each node's disk, not in the datastore, so a node with no certificates
+# and no join token would start a cluster with its own CA over the
+# existing one. A node that already has k0s's certificates, a join token
+# or T4 data of its own is part of the folder's cluster.
+
+set -euo pipefail
+shopt -s nullglob
+
+local_state=(/var/lib/private/t4/*)
+if [[ -e /var/lib/k0s/pki/ca.crt || -s /home/exedev/k0s-join.token || ${#local_state[@]} -gt 0 ]]; then
+    exit 0
+fi
+
+code=$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' \
+    "$S3_ENDPOINT/$S3_BUCKET/$S3_FOLDER/manifest/latest")
+if [[ $code != 404 ]]; then
+    echo "check-bootstrap: $S3_FOLDER already holds a cluster (HTTP $code), and this node has no join token in /home/exedev/k0s-join.token" >&2
+    exit 1
+fi

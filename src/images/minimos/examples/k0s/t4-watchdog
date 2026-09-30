@@ -1,0 +1,31 @@
+#!/usr/bin/bash
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Restarts T4 when it has fenced itself. When two followers take over a
+# lost leader one after the other, t4 1.1.15 steps the first down and
+# fences it. The process stays up and answers every request with "t4:
+# node is closed" until it's restarted, and after a restart it follows
+# the new leader. Its /healthz and gRPC health service keep reporting
+# healthy, so this asks for a key instead, every 15 seconds. T4's main
+# branch exits instead (t4db/t4#307), and once a release carries that,
+# t4.service's Restart=always makes this unnecessary.
+
+set -uo pipefail
+
+# An etcd v3 Range request as a gRPC frame: no compression, a 6-byte
+# message, then RangeRequest{key: "/k0s"} (field 1, length 4).
+request='\x00\x00\x00\x00\x06\x0a\x04/k0s'
+
+exec {pipe}<> <(:)
+while true; do
+    read -r -t 15 -u "$pipe"
+    trailers=$(printf "$request" | curl -sS --max-time 5 --http2-prior-knowledge \
+        -o /dev/null -D - -X POST -H 'content-type: application/grpc' \
+        -H 'te: trailers' --data-binary @- \
+        http://127.0.0.1:2379/etcdserverpb.KV/Range 2>/dev/null)
+    if [[ $trailers == *"node is closed"* ]]; then
+        echo "t4-watchdog: t4 has fenced itself; restarting it" >&2
+        systemctl restart t4.service
+    fi
+done

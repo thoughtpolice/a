@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# Restarts t4.service when T4 has fenced itself. See t4-watchdog. It
+# runs as root because it restarts a unit, and logs only when it does.
+
+[Unit]
+Description=Restart T4 when it fences itself
+ConditionVirtualization=!container
+After=t4.service
+
+[Service]
+ExecStart=/usr/libexec/minimos-k0s/t4-watchdog
+Restart=always
+RestartSec=15s
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

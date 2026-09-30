@@ -2,18 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # k0s's cluster configuration. Every node in the cluster runs a
-# controller and a worker from this file. The start script fills in the
-# @NAME@ placeholders from cluster.env and the node's tailnet address,
-# and writes the result to /etc/k0s/k0s.yaml, where k0s's own commands
-# look for it.
+# controller and a worker from this file. The start script fills in
+# the node's tailnet address and writes the result to /etc/k0s/k0s.yaml,
+# where k0s's own commands look for it.
 #
-# The cluster's state lives in S3, through kine's T4 driver. T4 keeps a
-# local Pebble database, uploads its WAL and checkpoints to the bucket,
-# and elects a leader with a lock object there, so no node needs a
-# quorum. The bucket is reached through an exe.dev S3 integration, which
-# signs each request at the edge with credentials the VM never holds.
-# minio-go, which T4 uses, won't start without keys, so it gets
-# placeholders, and the integration replaces its signature.
+# The cluster's state lives in S3, through T4, which each node runs as
+# t4.service and k0s uses as an external etcd. See t4-start.
 
 apiVersion: k0s.k0sproject.io/v1beta1
 kind: ClusterConfig
@@ -26,21 +20,17 @@ spec:
     address: @ADDRESS@
     sans:
       - @ADDRESS@
+  # k0s 1.36.4 bundles kine 0.16.5, whose T4 driver uses t4 1.0.6. Its
+  # followers noticed a lost leader only when TCP gave up, took over two
+  # at a time, and lost acknowledged writes. t4 1.1.2 and later fix
+  # that, and no kine release uses them yet, so each node runs T4 itself.
   storage:
-    type: kine
-    kine:
-      # node-id defaults to the hostname, which is the VM's name.
-      dataSource: t4:///var/lib/k0s/t4
-      extraArgs:
-        s3-endpoint: @S3_ENDPOINT@
-        s3-bucket: @S3_BUCKET@
-        s3-folder: @S3_FOLDER@
-        s3-region: auto
-        s3-access-key: signed-by-exe-dev
-        s3-secret-key: signed-by-exe-dev
-        # The T4 leader streams its WAL to the others over this port.
-        peer-bind-address: @ADDRESS@:3380
-        peer-advertise-address: @ADDRESS@:3380
+    type: etcd
+    etcd:
+      externalCluster:
+        endpoints:
+          - http://127.0.0.1:2379
+        etcdPrefix: /k0s
   network:
     # Tailscale only carries packets addressed to tailnet nodes, so pod
     # traffic between nodes goes in VXLAN between their tailnet

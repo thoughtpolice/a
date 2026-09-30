@@ -309,22 +309,22 @@ not from the owner.
 
 [k0s](https://k0sproject.io) is Kubernetes as one static binary. It
 carries the API server, scheduler, controller manager, kubelet,
-containerd, runc, kine and iptables, and unpacks them under
-`/var/lib/k0s/bin` when it starts, so the image adds that binary, some
-configuration, Tailscale and curl to the base. Every node runs a
+containerd, runc and iptables, and unpacks them under
+`/var/lib/k0s/bin` when it starts, so the image adds that binary, T4,
+Tailscale, curl and some configuration to the base. Every node runs a
 controller and a worker together, with `--no-taints` so pods run on
 all of them.
 
-Cluster state goes through kine, k0s's etcd shim, to its
-[T4](https://github.com/k3s-io/kine/tree/master/pkg/drivers/t4)
-driver. T4 keeps a local Pebble database under `/var/lib/k0s/t4`,
-uploads its WAL segments and checkpoints to an S3 bucket, and elects a
-leader with a lock object there. The leader streams its WAL to the
-other nodes, which forward their writes to it, so the datastore needs
-no quorum and any node can lead. The bucket is reached through an
-exe.dev S3 integration, which signs each request at the edge. T4's S3
-client refuses to start without keys, so it gets placeholders, and the
-integration replaces its signature.
+Cluster state lives in [T4](https://github.com/t4db/t4), a key-value
+store that speaks the etcd v3 API. Each node runs it as `t4.service`,
+and k0s uses it as an external etcd on loopback. T4 keeps a local
+Pebble database, uploads its WAL segments and checkpoints to an S3
+bucket, and elects a leader with a lock object there. The leader
+streams its WAL to the other nodes, which forward their writes to it,
+so the datastore needs no quorum and any node can lead. The bucket is
+reached through an exe.dev S3 integration, which signs each request at
+the edge. T4's S3 client refuses to start without keys, so it gets
+placeholders, and the integration replaces its signature.
 
 exe.dev VMs have no network between them, and every VM has the same
 private address, so the nodes talk over Tailscale. An exe.dev
@@ -355,8 +355,8 @@ echo "echo $(ssh k0s-1.exe.xyz k0s-join-token) >~/k0s-join.token" |
 ssh k0s-1.exe.xyz kubectl get nodes
 ```
 
-A node with neither certificates nor a token refuses to start when its
-folder already holds a cluster. k0s keeps the CA and every certificate
+A node with no certificates, no token and no T4 data of its own
+won't start T4 when its folder already holds a cluster. k0s keeps the CA and every certificate
 on each node's own disk, not in the datastore, so a second bootstrap
 would write a cluster with a different CA over the first. Give each
 cluster its own folder, and empty it before starting over.
@@ -412,10 +412,11 @@ cluster its own folder, and empty it before starting over.
 
 ### What stays different on minimos
 
-- The control plane runs as root. k0s runs the API server, kine and the
+- The control plane runs as root. k0s runs the API server and the
   scheduler as their own accounts when they exist, and minimos's
   accounts are baked into the base, which a layer can't extend. k0s
-  logs a warning for each and runs it as root.
+  logs a warning for each and runs it as root. T4 runs as a transient
+  systemd user with no capabilities, in a sandbox.
 - k0s's preflight check wants `modprobe` and warns without it.
   Everything Kubernetes needs is built into exe.dev's kernel: overlayfs,
   bridge netfilter, VXLAN, ipset, IPVS and the xtables matches.
@@ -425,34 +426,53 @@ cluster its own folder, and empty it before starting over.
   owned by its user, so they can reach that user's other devices, and
   those devices can reach them. A tag and an ACL would fence them off.
 
-### T4 failover in kine 0.16.5 loses writes
+### Why T4 runs on its own
 
-k0s 1.36.4 bundles kine 0.16.5, which builds T4 from t4 1.0.6, and in
-that version a lost leader goes wrong twice:
+k0s 1.36.4 bundles kine 0.16.5, whose T4 driver uses t4 1.0.6, and in
+that version a lost leader went wrong twice. Followers set no gRPC
+keepalives, and a deleted tailnet node drops packets rather than
+resetting connections, so they noticed only when TCP gave up after
+about 16 minutes. Then both followers took over at once, a write the
+first had acknowledged never reached the second, and the two ended up
+serving different data. t4 1.1.2 exchanges heartbeats between the
+leader and its followers and fixes takeover catch-up, no kine release
+uses it yet, and k0s unpacks its own kine at every start, so the image
+runs t4 1.1.15's server itself.
 
-- Followers notice slowly. The peer client sets no gRPC keepalives, and
-  a deleted tailnet node drops packets rather than resetting
-  connections, so a follower's stream only fails when TCP gives up
-  retransmitting, after about 16 minutes. The API is down until then,
-  since followers serve no reads without a leader.
-- Followers take over together. Both followers timed out at the same
-  moment. One won the lock, wrote, and acknowledged a write, then the
-  other won a newer term from an older revision, and the first stepped
-  down. The acknowledged write never reached the new leader. The node
-  that stepped down stayed up with a closed datastore, and after a
-  restart it followed the new leader from its own diverged history,
-  so the two nodes served different data.
+With t4 1.1.15, followers miss a lost leader's heartbeats within 2
+seconds and try to take over about 20 seconds later. One wins the lock
+and the other follows it. The winner then catches up from the bucket
+before it serves, which takes 20 seconds or more, while the follower
+gives up after five failed connections, about 8 seconds, and takes over
+as well. The first winner finds its lock superseded and fences itself.
+The process stays up and answers every request with
+`t4: node is closed`, while its health checks still pass.
+`t4-watchdog.service` sends it a read every 15 seconds and restarts it
+when it's fenced, and after the restart it follows the new leader.
+T4's main branch makes a fenced node exit (t4db/t4#307), which no 1.1
+release has yet.
 
-t4 1.1.2 exchanges heartbeats between the leader and its followers and
-fixes takeover catch-up, but no kine release pins it yet, and k0s
-unpacks its own kine at every start, so a newer one can't be swapped in.
+Catching up means replaying every WAL segment since the last
+checkpoint, one GET at a time through the integration. T4 checkpoints
+every 15 minutes by default, and a takeover 14 minutes after one took
+over a minute, so `t4-start` sets the interval to one minute.
 
 ### Checked on real VMs
 
-Three exe.dev VMs with 1 vCPU and 2 GB each reach `Ready` about two
+Three exe.dev VMs with 1 vCPU and 2 GB each reach `Ready` about three
 minutes after the first one starts. From a pod on each node, a pod on
 every node, a service by name, and every node's kubelet and API server
 all answer. `kubectl logs` and `exec` reach pods on every node,
 `kubectl top` reports all three, the `kubernetes` service lists all
 three API servers, and T4 streams the WAL from its leader to the
 others and into the bucket.
+
+Deleting the T4 leader's VM while writing ConfigMaps through a
+follower, writes failed for 48 to 74 seconds with one-minute
+checkpoints, and for 100 to 131 seconds with T4's default. In all four
+runs both survivors took over in turn, and the watchdog restarted the
+one that fenced itself. Afterwards both survivors held exactly the
+writes that had been acknowledged, with the same resource versions. A
+new node joined with a token from a survivor in one to two minutes,
+restored T4 from the bucket's checkpoint, and passed the same network
+checks.

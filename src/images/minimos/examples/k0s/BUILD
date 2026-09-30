@@ -5,9 +5,9 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 load("@root//src/images/minimos:defs.bzl", "minimos")
 
 # minimos + k0s: a Kubernetes node whose cluster state lives in S3. Each
-# node runs a k0s controller and a worker, and k0s's kine keeps the
-# datastore with its T4 driver, which needs no quorum. The nodes reach
-# each other over Tailscale. See k0s.yaml.in and the example README.
+# node runs a k0s controller and a worker, and T4, a datastore that keeps
+# its WAL in S3 and needs no quorum. The nodes reach each other over
+# Tailscale. See k0s.yaml.in and the example README.
 #
 #   ssh exe.dev new --image=<pushed image> --name=k0s-1 --tag=s3-testing,mos-k0s
 #   ssh k0s-1.exe.xyz kubectl get nodes
@@ -63,6 +63,19 @@ minimos.apk_culled_layer(
     keepfiles = "k0s-tools-keepfiles.txt",
 )
 
+_T4_VERSION = "1.1.15"
+
+# T4 (Apache-2.0, © the T4 authors) as upstream's static release binary,
+# whose hash matches the release's checksums.txt. It speaks the etcd v3
+# API, and k0s uses it as an external etcd.
+depot.http_file(
+    name = "t4",
+    sha256 = "99f47fad187bf25541109d0febc7fc356fce3a0d39b494170210f35b43313c52",
+    urls = [
+        "https://github.com/t4db/t4/releases/download/v{}/t4-linux-amd64".format(_T4_VERSION),
+    ],
+)
+
 # The base has no /usr/local, so this layer declares the directories.
 minimos.overlay(
     name = "k0s-overlay-layer",
@@ -84,11 +97,15 @@ minimos.overlay(
         # Applied by k0s-kubeconfig.service, not the boot-time tmpfiles
         # pass. See the file.
         "etc/k0s/kubeconfig-access.conf": "kubeconfig-access.conf",
+        "usr/libexec/minimos-k0s/check-bootstrap": "check-bootstrap:755",
         "usr/libexec/minimos-k0s/start": "start:755",
+        "usr/libexec/minimos-k0s/t4-start": "t4-start:755",
+        "usr/libexec/minimos-k0s/t4-watchdog": "t4-watchdog:755",
         "usr/libexec/minimos-k0s/tailscale-login": "tailscale-login:755",
         "usr/local/bin/k0s": ":k0s:755",
         "usr/local/bin/k0s-join-token": "k0s-join-token:755",
         "usr/local/bin/kubectl": "kubectl:755",
+        "usr/local/bin/t4": ":t4:755",
     },
     symlinks = {
         "home/exedev/.kube/config": "/var/lib/k0s-kubeconfig/admin.conf",
@@ -97,6 +114,8 @@ minimos.overlay(
         "k0s-kubeconfig.service",
         "k0scontroller.service",
         "kubernetes.slice",
+        "t4-watchdog.service",
+        "t4.service",
         "tailscale-login.service",
         "tailscaled.service",
     ],

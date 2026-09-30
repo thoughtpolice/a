@@ -6,7 +6,8 @@
 # address. It fills k0s.yaml.in into /etc/k0s/k0s.yaml, then either
 # starts the node's existing controller, joins a cluster with the token
 # the setup script left in ~exedev/k0s-join.token, or bootstraps a new
-# cluster when the S3 folder holds none.
+# one. t4.service has already refused to start for a node that would
+# bootstrap a second cluster into an occupied folder.
 
 set -euo pipefail
 
@@ -19,9 +20,6 @@ fi
 
 conf=$(</etc/k0s/k0s.yaml.in)
 conf=${conf//@ADDRESS@/$addr}
-conf=${conf//@S3_ENDPOINT@/$S3_ENDPOINT}
-conf=${conf//@S3_BUCKET@/$S3_BUCKET}
-conf=${conf//@S3_FOLDER@/$S3_FOLDER}
 printf '%s\n' "$conf" >/etc/k0s/k0s.yaml
 
 args=(
@@ -42,19 +40,8 @@ args=(
 
 # k0s treats a node with a CA as already joined, and ignores a token.
 token=/home/exedev/k0s-join.token
-if [[ ! -e /var/lib/k0s/pki/ca.crt ]]; then
-    if [[ -s $token ]]; then
-        args+=("--token-file=$token")
-    else
-        # A second bootstrap would write a cluster with its own CA into
-        # a folder that already holds one.
-        code=$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' \
-            "$S3_ENDPOINT/$S3_BUCKET/$S3_FOLDER/manifest/latest")
-        if [[ $code != 404 ]]; then
-            echo "k0s-start: $S3_FOLDER already holds a cluster (HTTP $code), and this node has no join token in $token" >&2
-            exit 1
-        fi
-    fi
+if [[ ! -e /var/lib/k0s/pki/ca.crt && -s $token ]]; then
+    args+=("--token-file=$token")
 fi
 
 exec /usr/local/bin/k0s "${args[@]}"
