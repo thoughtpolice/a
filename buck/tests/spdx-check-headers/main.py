@@ -69,6 +69,7 @@ BAD_SUFFIXES = [
     ".buckroot",
     ".generated.bzl",
     ".buckargs",
+    ".patch",
     "Cargo.toml",
     "reindeer.toml",
 ]
