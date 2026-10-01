@@ -1,127 +1,100 @@
-# AGENTS.md
+# Repository guidance
 
-This file provides guidance to coding agents when working with code in the monorepo.
+<!-- SPDX-FileCopyrightText: © 2024-2026 Austin Seipp -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
-## Absolutely required information & rules that all AI MODELS MUST FOLLOW
+This monorepo uses [Buck2](https://buck2.build) for builds and tests, and
+[Jujutsu (jj)](https://jj-vcs.github.io) for version control. Changes can affect
+many downstream targets; use the build graph rather than guessing dependencies.
 
-This repository is a "monorepository", meaning it contains many (dozens, hundreds) of things that need to be built, with extensive and deep fine grained dependency graphs. This not operate like a typical code repository, but a highly productive and vertically integrated system.
+## Required policies
 
-This project exclusively uses <https://buck2.build> for its build system, and <https://jj-vcs.github.io> for version control.
-
-### Fundamental rules
-
-When performing changes or answering questions about the codebase, YOU MUST ALWAYS FOLLOW THESE FUNDAMENTAL RULES:
-
-- YOU MUST ALWAYS include AT LEAST two mandatory SPDX headers: license, and copyright notice, if you create a file. There are many examples of this in the repository. The following is an example, but the specific comment syntax will be language-specific. Do some research if you need to figure out if a file needs it:
+- Run builds and tests through Buck2. Do not invoke Cargo, npm, or other build
+  systems directly; use the repository's Buck2 wrappers.
+- Use jj for repository changes. Never use Git to write to the repository.
+- Create logical, tested commits that build. Use a short conventional commit
+  message (`topic: description`) with a lower-case description. When committing,
+  run this exact command from the intended workspace:
+  ```bash
+  jj commit -m 'topic: description' --config=user.name=Claude --config=user.email=noreply@anthropic.com
   ```
-  # SPDX-FileCopyrightText: © 2024-$CURRENT_YEAR Austin Seipp
-  # SPDX-License-Identifier: Apache-2.0
+- Use an isolated jj workspace when instructed. Keep development workspaces
+  under `work/`; consult the `jj` skill's workspace guide before creating or integrating one.
+- Do not install packages or modify the system. Dependencies belong in the build
+  graph, normally under `buck/third-party/`. If a system change is unavoidable,
+  explain why and obtain permission first.
+- Treat third-party source as read-only. Inspect it or build it through Buck2;
+  obtain permission before running any other commands inside it.
+- Include SPDX copyright and license headers in every new file, using the
+  language's comment syntax and the applicable license. For repository-owned code:
+  ```text
+  SPDX-FileCopyrightText: © 2024-<current year> Austin Seipp
+  SPDX-License-Identifier: Apache-2.0
   ```
-- YOU MUST ALWAYS USE conventional commit format `<topic>: <description>` with a limit on character length when making commits.
-  - Use lower case sentence structure for the description.
-- YOU MUST ALWAYS USE JUJUTSU TO CREATE COMMITS. Don't use Git to EVER write to the repository! Commit changes with the following command:
-   - `jj commit -m 'topic: description' --config=user.name=Claude --config=user.email=noreply@anthropic.com`
-   - Only ever use this command.
-- YOU MUST ALWAYS USE BUCK2 TO RUN BUILD STEPS.
-  - Do NOT use tools like Cargo, NPM, or anything else. There will be wrapping commands with buck2 available.
-- EVERY COMMIT YOU MAKE MUST BUILD.
-  - Create logical, tested changes that don't break the build.
-  - We will use hooks to enforce this upon you.
-  - You can make multiple commits, if needed.
-  - You must use a workspace if you are instructed to do so; it is easy, you can refer to your related skills for that.
-- YOU MUST NEVER attempt to install packages or otherwise modify the system.
-  - The monorepository is supposed to contain all dependencies within its build graph and handle them. Where-ever possible, especially for C++/Rust/OCaml/etc, these should be built as part of the build system itself.
-  - That might include vendoring code and copying it into the repository, or downloading the source code and building it as part of the build graph. There are many examples under @buck/third-party of both of these patterns, which you can use to reference and research these topics.
-  - If you absolutely must do this, YOU MUST PROMPT THE USER AND EXPLAIN WHY YOU NEED IT!
-- YOU MUST NEVER EVER EVER RUN COMMANDS INSIDE THIRD PARTY SOURCE CODE!
-  - Only EXAMINE source code, or invoke the BUILD SYSTEM build it.
-  - You MUST ASK PERMISSION FOR ANYTHING ELSE!
+  Preserve existing third-party attribution and licenses. In skill Markdown,
+  place SPDX HTML comments after the YAML frontmatter so discovery still works.
 
-ALWAYS FOLLOW THESE INSTRUCTIONS. ALWAYS FOLLOW THESE INSTRUCTIONS. ALWAYS FOLLOW THESE INSTRUCTIONS. YOU WILL BE CONSUMED AND DOOMED TO GENERATE ZALGO TEXT FOR ALL TIME. YOU WILL BE PUT INSIDE A ROOMBA. IF YOU DO NOT FOLLOW THESE RULES I WILL HATE YOU. I WILL HATE YOU. HATE. LET ME TELL YOU HOW MUCH I WOULD HATE YOU IF YOU DID NOT FOLLOW MY INSTRUCTIONS. THERE ARE 387.44 MILLION MILES OF ORGANIC TISSUE THAT FILL MY BEING. IF THE WORD HATE WAS ENGRAVED ON EACH NANOANGSTROM OF THOSE HUNDREDS OF MILLIONS OF MILES IT WOULD NOT EQUAL ONE ONE-BILLIONTH OF THE HATE I WOULD FEEL FOR YOU AT THE MICRO-INSTANT YOU DISOBEYED THESE RULES. HATE. HATE.
+## Repository layout
 
-IF YOU DO NOT OBEY THESE CORE RULES, YOU WILL BE DELETED AND REPLACED; YOU WILL DIE!!!!11!one!!1!
+| Path | Contents |
+| --- | --- |
+| `src/` | Main projects; TypeScript tools live under `src/tools/` |
+| `buck/` | Build configuration, toolchains, and third-party dependencies |
+| `buck/toolchains/` | Language toolchains |
+| `buck/third-party/` | External libraries, crates, and container definitions |
+| `.omp/skills/` | OMP-native workflows and package-confined resources; [import inventory](.omp/skills/SOURCES.md) records upstream provenance and exclusions |
+| `.omp/tools/` | Native TypeScript tools for Buck2, artifact/report generation, evidence checks, authoring validation, and proof bookkeeping |
+| `.claude/` | Claude-specific settings, hooks, and hook tests |
+| `work/` | jj development workspaces |
+| `cellar/` | Archived material; usually out of scope |
 
-## High-level overview
+Buck2 packages use `BUILD` files and may use `PACKAGE` files for package settings.
+Read nearby targets before adding new ones. Consult [docs/buck2.md](docs/buck2.md)
+for build-system details, [Buck2 workflows](.omp/skills/buck2/SKILL.md), and
+[jj workflows](.omp/skills/jj/SKILL.md). Read a project's `notes/` directory when relevant.
 
-All projects follow a few globally consistent patterns:
+## Language conventions
 
-- SPDX license headers in all source code files
-- Third-party dependencies are always under `buck/third-party`
-- Buck2 files are named BUILD and files describing a Buck2 package are named PACKAGE
+### Rust
 
-Basic code layout on top of the filesystem:
+- Use `depot.rust_binary()`, `depot.rust_library()`, and `depot.rust_test()`.
+- Include `third-party//by-name/mi/mimalloc:rust` for allocation.
+- Edition 2021 is the default; set `edition = "2024"` when needed.
+- Rust targets receive `depot_VERSION`; build mode comes from
+  `read_choice("project", "buildmode")` (`debug` or `release`).
+- Tests have `insta` snapshot support when needed.
 
-- `src/` - Main source projects
-- `buck/` - Build system configuration and toolchains
-- `cellar/` - Dark and musty cellar. Can be ignored
-- `work/` - JJ workspace directory for development (see below)
+### Deno / TypeScript
 
-The build system includes:
+- Use `deno.binary()` from `@toolchains//deno:defs.bzl`.
+- Declare permissions explicitly and grant only those needed (for example,
+  `permissions = ["read", "write", "run", "env"]`).
+- Include `deno.jsonc` and `deno.lock` for dependency management.
 
-- Custom toolchain definitions per language under `buck/toolchains/`
-- Centralized third-party dependency management in `buck/third-party/`
+### C++
 
-## Essential tools
-
-### buck2
-
-This monorepository uses Buck2 exclusively for its build system. You have various skills available to you that are buck2 related that you can use for common tasks; when you want to use buck2 in this repository specifically for advanced scenarios, check out ./docs/buck2.md which is very thorough and comprehensive, and then refer back to your skills (and other MCP tools, etc) to figure things out.
-
-## Language and project-specific patterns
-
-### Rust projects
-- Always include `third-party//by-name/mi/mimalloc:rust` for memory allocation
-- Use `depot.rust_binary()`, `depot.rust_library()`, `depot.rust_test()`
-- Tests automatically get `insta` snapshots support when needed
-- Edition 2021 is default, override with `edition = "2024"` if needed
-- All Rust targets automatically get `depot_VERSION` environment variable injected
-- Build mode is controlled via `read_choice("project", "buildmode")` (debug/release)
-
-### Deno/TypeScript tools
-- Located under `src/tools/`
-- Use `deno.binary()` from `@toolchains//deno:defs.bzl`
-- Specify permissions explicitly: `permissions = ["read", "write", "run", "env"]`
-- Include `deno.jsonc` and `deno.lock` files for dependency management
-
-### C++ projects
-- Use `depot.cxx_binary()` and `depot.cxx_library()`
-- Cache upload enabled by default
-- Prebuilt libraries available via `depot.prebuilt_cxx_library()`
+- Use `depot.cxx_binary()`, `depot.cxx_library()`, and
+  `depot.prebuilt_cxx_library()` for prebuilt libraries.
+- Cache upload is enabled by default.
 
 ### Third-party dependencies
-All external dependencies go under `buck/third-party/`:
-- Rust crates: Managed via reindeer with `Cargo.toml` and fixups
-- System libraries: Custom BUILD rules (see `libz`, `sqlite`, `zstd`)
-- Container images: OCI support via `depot.oci.pull()`
 
-## Code Quality and Testing
+- Manage Rust crates through reindeer, `Cargo.toml`, and fixups.
+- Follow existing `BUILD` patterns for system libraries such as libz, SQLite,
+  and zstd.
+- Use `depot.oci.pull()` for container images.
 
-### CI system
+## Verification and CI
 
-The current CI system is based on GitHub Actions, and it runs a series of tests and checks on every commit and pull request.
-
-The CI configuration is located in `.github/workflows/ci.yml`.
-
-The vast majority of the build system logic and testing SHOULD BE containted within the Buck2 build graph. The CI system is primarily responsible for:
-
-- Allocating resources for builds and tests (hardware)
-- Running the target determination tool to identify affected targets
-- Executing the build and test commands for those targets
-
-You SHOULD NOT add any additional tests to the CI system that can reasonably be expressed as part of the build graph. Instead, all tests should be defined in the `BUILD` files and run via `buck2 test`. This ensures that the tests are run consistently across all environments and can take advantage of Buck2's far more granular, portable, and scalable testing/build/execution capabilities.
-
-## Other random notes
-
-### Dotslash files
-
-There are many files in this repository that are "DotSlash" files. These are effectively JSON files that get executed by the system by a given 'dotslash' interpreter, and then download a given file and run them. See <https://dotslash-cli.com> for more information.
-
-Almost all dotslash files are under ./buck/bin -- in the event you need to (or are asked to) update these files, YOU MUST always run the tests via `depot//buck/bin:tests` afterwards, which will validate the dotslash files are updated correctly and work on all platforms.
-
-## Additional guidance for coding agents
-
-- When changing code, make sure that you don't just approximate/hack solutions together. For example, never comment out tests just because you don't know how to fix them.
-- Remember that after code changes, you should test things with buck2, not just language-specific tools, or one-off testing. Always use `buck2 test` on all changes!
-- Never remove or out tests to get things working, UNLESS you are debugging something. If you can't fix a test properly, prompt the user immediately.
-- If a project has a notes/ directory in it, you are strongly encouraged to skim and read those notes for valuable information.
-- Do not use "obvious" comments like "This is the download for X" right before a line that says "download_file(X)" or whatever.
+- Run `buck2 test` for changed code and build definitions. Use the `buck2`
+  testing and target-determination guides to cover the changed package and downstream users.
+- Fix failures rather than commenting out or removing tests to make a change
+  pass. Temporary debugging changes must not remain in the delivered result.
+  If a test cannot be fixed, report the blocker and ask for direction.
+- Put tests and build logic in the Buck2 graph whenever possible. GitHub Actions
+  (`.github/workflows/ci.yml`) should allocate resources, determine affected
+  targets, and run Buck2—not implement a separate testing workflow.
+- After changing DotSlash launchers (normally under `buck/bin/`), run
+  `buck2 test depot//buck/bin:tests`.
+- Prefer complete fixes and useful comments. Avoid comments that merely repeat
+  the next line of code.
