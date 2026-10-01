@@ -38,9 +38,9 @@ Capture `modernization_snapshot` **before** edits, with output outside the sourc
 root. It hashes source paths and bytes; `modernization_proof` recomputes them.
 Preserve original source, fixtures, raw runner results/logs and the exact Buck2
 targets/run provenance. Do not replace missing evidence with hand-typed counts.
-Use `skill://buck2-new-project` for new target scaffolding,
-`skill://buck2-target-determination` for target selection, and
-`skill://buck2-test-workflow` for permitted build/test execution. Native helpers
+Use `skill://buck2/new-project/guide.md` for new target scaffolding,
+`skill://buck2/target-determination/guide.md` for target selection, and
+`skill://buck2/test-workflow/guide.md` for permitted build/test execution. Native helpers
 never run a process; they read artifacts only. A unavailable legacy runtime is
 an explicit trace-based proof limitation, not a fabricated dual run.
 

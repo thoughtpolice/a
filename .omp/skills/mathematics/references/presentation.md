@@ -38,7 +38,7 @@ invoked directly, and there is no pretend PDF implementation or compiler probe.
 No LaTeX/tectonic PDF Buck2 target was identified in this repository at migration.
 
 If typesetting becomes available through a real repository target, discover its
-actual label and contract with `skill://buck2-query-helper` and native Buck2
+actual label and contract with `skill://buck2/query-helper/guide.md` and native Buck2
 query tools, inspect its declared sources and outputs, and build/run only that
 real target via Buck2. Never invent a target label or wrap an installed external
 build system to claim this optional capability exists. If none is available,
