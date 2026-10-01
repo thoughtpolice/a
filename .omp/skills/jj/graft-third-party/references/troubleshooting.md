@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: © 2024-2026 Austin Seipp -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 # Troubleshooting Jj Graft Third Party
 
 This document covers common issues when grafting third-party repositories into the monorepo.
@@ -11,14 +14,14 @@ This document covers common issues when grafting third-party repositories into t
 **Cause:** The branch name doesn't match what the upstream repository uses.
 
 **Solution:**
-1. Run `jj git fetch --remote=<remote-name>` and check the output for available branches
-2. Look for lines like `remote: <remote-name>/<branch-name>`
+1. Run `jj git fetch --remote=<remote-name>`.
+2. List remote bookmarks with `jj bookmark list --remote=<remote-name>`.
 3. Use the correct branch name (common names: `main`, `master`, `trunk`, `develop`)
 
 **Example:**
 ```bash
 jj git fetch --remote=tokio
-# Output shows: remote: tokio/main
+# Verify main@tokio with: jj bookmark list --remote=tokio
 # Use: jj workspace add --name=tokio -r main@tokio work/tokio
 ```
 
@@ -31,23 +34,18 @@ jj git fetch --remote=tokio
 **Solution:**
 1. Verify the repository URL is correct and publicly accessible
 2. For private repos, ensure SSH keys or credentials are configured
-3. Try cloning the repo with plain git first to verify access:
-   ```bash
-   git clone <repository-url> /tmp/test-clone
-   rm -rf /tmp/test-clone
-   ```
+3. Retry with `jj git fetch --remote=<name>` after fixing access. Do not use Git to write repositories or run commands inside third-party source without permission.
 
 ### Issue: Workspace creation fails with "already exists"
 
 **Symptom:** `jj workspace add` reports that a workspace with that name already exists.
 
-**Cause:** A workspace with the same name already exists (possibly forgotten but not removed).
+**Cause:** The workspace name is registered, or the destination directory already exists.
 
 **Solution:**
 1. List all workspaces: `jj workspace list`
-2. Either:
-   - Choose a different name for the new workspace
-   - Remove the existing workspace: `jj workspace forget <workspace-name>`
+2. Choose a fresh name and destination. Do not overwrite an existing directory.
+3. If retiring an old workspace, inspect and preserve its changes before forgetting it; forgetting does not remove its directory.
 
 ### Issue: Changes in workspace don't appear in main repo
 
@@ -57,7 +55,7 @@ jj git fetch --remote=tokio
 
 **Solution:**
 - Changes are visible in the main repo's log, but may not be in your current view
-- Use `jj log` from within the workspace to see all commits
+- Use `jj log -r 'ancestors(@)'` from within the workspace to inspect its ancestry.
 - From the main repo, reference the workspace: `jj log -r <workspace-name>@`
 - The commits exist and are tracked; workspace commits are just like any other commits in the unified history
 
@@ -68,10 +66,10 @@ jj git fetch --remote=tokio
 **Cause:** Local modifications conflict with upstream changes.
 
 **Solution:**
-1. Fetch latest upstream: `jj git fetch --remote=<remote-name>`
-2. View the conflicts: `jj status`
-3. Resolve conflicts manually in affected files
-4. Continue the rebase: `jj rebase --continue`
+1. Fetch latest upstream: `jj git fetch --remote=<remote-name>`.
+2. Inspect the error. jj records conflicts in commits; there is no `jj rebase --continue`.
+3. Inspect the affected local revision with `jj show <revision>`. With permission to operate in third-party source, use `jj -R work/<directory> status` and resolve affected files there.
+4. Snapshot resolved files with `jj -R work/<directory> status`; inspect the diff and run the permitted Buck2 verification.
 
 ### Issue: Large repository causes slow operations
 
@@ -80,10 +78,10 @@ jj git fetch --remote=tokio
 **Cause:** The upstream repository is large (many commits, large files).
 
 **Solution:**
-1. For examination only, use `jj-clone-third-party` instead
+1. For examination only, use the [third-party cloning guide](../../clone-third-party/guide.md) instead
 2. If grafting is necessary, consider:
-   - Using a shallow clone (though jj doesn't directly support this)
-   - Fetching specific tags/commits instead of the full history
+   - Limiting refs with `jj git fetch --remote=<name> --branch=<branch>` (this still fetches that branch's ancestry)
+   - Fetching a known tag with `--tag=<tag>`; resolve its imported revision rather than assuming `<tag>@<remote>` syntax
    - Only grafting when absolutely necessary for development
 
 ### Issue: Workspace forget doesn't remove directory
@@ -93,7 +91,7 @@ jj git fetch --remote=tokio
 **Cause:** `jj workspace forget` only removes the workspace reference, not the files.
 
 **Solution:**
-This is expected. Remove the directory manually:
+This is expected. First preserve wanted revisions with a bookmark, stop workspace processes, and verify the exact disposable directory from the main repository root:
 ```bash
 rm -rf work/<directory-name>
 ```
@@ -102,7 +100,7 @@ rm -rf work/<directory-name>
 
 ### 1. Verify Repository Access First
 
-Before grafting, verify you can access the repository:
+From the main repository root, verify access without writing with Git:
 ```bash
 git ls-remote <repository-url>
 ```
@@ -112,7 +110,7 @@ git ls-remote <repository-url>
 After fetching, verify available branches before creating workspace:
 ```bash
 jj git fetch --remote=<name>
-# Check output for branch names
+jj bookmark list --remote=<name>
 ```
 
 ### 3. Use Descriptive Workspace Names
@@ -123,7 +121,7 @@ Avoid conflicts by using descriptive, unique workspace names:
 
 ### 4. Clean Up Regularly
 
-Remove unused workspaces and remotes:
+Inspect changes and preserve wanted revisions with bookmarks before forgetting. Stop processes and verify each disposable directory before deleting it; removing a remote is optional:
 ```bash
 jj workspace list  # Check active workspaces
 jj workspace forget <unused-workspace>
