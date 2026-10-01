@@ -7,14 +7,6 @@
   },
   "permissions": {
     "allow": [
-      "mcp__brainiac__source_fetch",
-      "mcp__brainiac__buck2_build",
-      "mcp__brainiac__buck2_test",
-      "mcp__brainiac__target_determination",
-      "mcp__brainiac__get_config",
-      "mcp__brainiac__get_server_info",
-      "mcp__brainiac__get_buck2_targets",
-      "mcp__brainiac__get_buck2_target_providers",
       "Bash(true)",
       "Bash(env)",
       "Bash(curl:*)",
@@ -44,9 +36,6 @@
     "deny": [],
     "defaultMode": "acceptEdits"
   },
-  "enabledMcpjsonServers": [
-    "brainiac"
-  ],
   "hooks": {
     "PostToolUse": [
       {

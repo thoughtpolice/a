@@ -4,12 +4,6 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 depot.export_file(
-    name = "settings.json",
-    src = "settings.json",
-    visibility = ["//src/tools/brainiac/..."],
-)
-
-depot.export_file(
     name = "tdutil-pre-commit-script",
     src = "hooks/pre-commit-test.py",
 )

@@ -50,7 +50,7 @@ buck2 test <target>
 buck2 test //src/buildflow:buildflow
 
 # Test a specific library
-buck2 test //src/tools/brainiac:brainiac
+buck2 test //src/lib/mylib:mylib
 
 # Test a specific test target
 buck2 test //src/lib/mylib:test-parser
@@ -77,8 +77,8 @@ buck2 test <package-path>/...
 # Test all targets in buildflow package
 buck2 test //src/buildflow/...
 
-# Test all targets in brainiac package
-buck2 test //src/tools/brainiac/...
+# Test all targets in mylib package
+buck2 test //src/lib/mylib/...
 
 # Test entire depot (use cautiously - very slow)
 buck2 test //...
@@ -97,18 +97,7 @@ Use target determination to find which other packages are affected by the change
 - Transitive dependents
 - Packages that need rebuilding due to API changes
 
-**Using the MCP tool (preferred)**:
-
-```bash
-# Use the target determination MCP tool
-mcp__brainiac__target_determination(
-  from: "trunk()",
-  to: "@",
-  universe: ["root//...", "third-party//..."]
-)
-```
-
-**Using buck2-target-determination skill (alternative)**:
+**Using buck2-target-determination skill (preferred)**:
 
 Invoke the `buck2-target-determination` skill to run target determination analysis. This will identify affected targets based on the current changes.
 
@@ -118,8 +107,8 @@ Invoke the `buck2-target-determination` skill to run target determination analys
 # Find reverse dependencies manually
 buck2 uquery "rdeps(//..., <your-target>)"
 
-# Example: find everything that depends on brainiac
-buck2 uquery "rdeps(//..., //src/tools/brainiac:brainiac)"
+# Example: find everything that depends on buildflow
+buck2 uquery "rdeps(//..., //src/buildflow:buildflow)"
 ```
 
 **Output**: List of affected target patterns.
