@@ -687,6 +687,15 @@ depot.rust_binary(
 - Third-party cell is typically PUBLIC visibility
 - Main cells may restrict visibility for internal targets
 
+### Iroh Rust Dependencies
+
+The Rust dependency manifest provides `iroh` 1.3.0, `iroh-gossip` 0.101.0,
+`iroh-blobs` 0.103.0, and `iroh-tickets` 1.0.0 as `third-party//rust:<crate>`
+targets. Gossip includes networking and metrics; blobs includes filesystem
+storage and metrics, but not its optional RPC feature, which enables ring.
+Use `src/crates/iroh-boring` to construct endpoints with the repository's
+BoringSSL provider. Upstream still marks this blobs release as not production quality.
+
 ### The Shim System
 
 **Critical**: All BUILD files in this monorepo automatically load `buck/shims/noprelude.bzl`, which **blocks** direct use of native Buck2 rules.

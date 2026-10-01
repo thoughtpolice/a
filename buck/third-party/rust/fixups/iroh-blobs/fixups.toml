@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# build.rs defines the wasm_browser cfg alias used throughout the crate.
+buildscript.run = true
