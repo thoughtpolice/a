@@ -9,11 +9,6 @@ depot.export_file(
 )
 
 depot.export_file(
-    name = "tdutil-helper-script",
-    src = "skills/buck2-target-determination/scripts/tdutil_helper.py",
-)
-
-depot.export_file(
     name = "tdutil-script-tests",
     src = "tests/test_tdutil_scripts.py",
 )
@@ -24,7 +19,6 @@ depot.command_test(
         "python3",
         "$(location :tdutil-script-tests)",
         "$(location :tdutil-pre-commit-script)",
-        "$(location :tdutil-helper-script)",
     ],
 )
 

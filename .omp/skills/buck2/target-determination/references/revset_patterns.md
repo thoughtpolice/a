@@ -6,6 +6,10 @@ This reference provides comprehensive jj revset patterns for use with Buck2 targ
 
 A revset is a jj expression that selects commits. Each `tdutil` endpoint must resolve to exactly one commit.
 
+The default comparison is `fork_point(trunk() | @)` to `@`, over `depot//...`
+in this repository. Scope-only arguments keep those endpoints. Use explicit
+endpoints for current-commit selection; `@-` must resolve to a single parent.
+
 ### Common Revset Symbols
 
 - `@` - Current working copy commit
@@ -30,7 +34,7 @@ A revset is a jj expression that selects commits. Each `tdutil` endpoint must re
 
 #### Current Commit Changes (Most Common)
 ```bash
-buck2 run root//buck/tools/tdutil:tdutil -- depot//src/...
+buck2 run root//buck/tools/tdutil:tdutil -- --from '@-' --to '@' --universe depot//src/...
 ```
 Compares parent commit to current commit. Use this after making changes to test what you modified.
 
@@ -39,7 +43,9 @@ Compares parent commit to current commit. Use this after making changes to test 
 buck2 run root//buck/tools/tdutil:tdutil -- \
   --from 'trunk()' --to '@' --universe depot//src/...
 ```
-Compares trunk (main branch) to current commit. Use this to see all changes in your branch.
+Compares the current trunk tree directly to the working copy. This can include
+differences caused by trunk advancing; use the default fork-point comparison
+to select only branch changes since divergence.
 
 #### Last N Commits
 ```bash
@@ -72,15 +78,17 @@ to snapshot the working copy before resolving it.
 
 #### Pull Request Changes
 ```bash
-buck2 run root//buck/tools/tdutil:tdutil -- 'trunk()' '@' depot//...
+buck2 run root//buck/tools/tdutil:tdutil -- --universe depot//...
 ```
-Compares PR branch to main. Use in CI to test only PR changes.
+Uses the default fork point of trunk and the working copy as the base.
 
 #### Full Repository Build
 ```bash
-buck2 run root//buck/tools/tdutil:tdutil -- 'root()' '@' depot//...
+buck2 test depot//...
 ```
-Compares empty repo to current state. Effectively builds everything. Use for full verification.
+For full verification, test the universe directly (or build it for artifact
+validation). JJ's `root()` is an empty tree without Buck configuration; it is
+not a reliable historical endpoint for a full-graph comparison.
 
 #### Release Branch Changes
 ```bash
@@ -136,7 +144,7 @@ buck2 run root//buck/tools/tdutil:tdutil -- '@-' '@' third-party//...
 buck2 run root//buck/tools/tdutil:tdutil -- '@-' '@' toolchains//...
 
 # Main code only (no third-party)
-buck2 run root//buck/tools/tdutil:tdutil -- '@-' '@' root//src/...
+buck2 run root//buck/tools/tdutil:tdutil -- '@-' '@' depot//src/...
 ```
 
 ## Common Use Cases
@@ -155,7 +163,7 @@ buck2 test "@$TARGETS_FILE"
 TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/tdutil-targets.XXXXXX")"
 trap 'rm -f -- "$TARGETS_FILE"' EXIT
 # See all changes in feature branch vs main
-buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" 'trunk()' '@' depot//src/...
+buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" --universe depot//src/...
 buck2 build "@$TARGETS_FILE"
 ```
 
@@ -174,7 +182,7 @@ cat "$TARGETS_FILE"
 TARGETS_FILE="$(mktemp "${TMPDIR:-/tmp}/tdutil-targets.XXXXXX")"
 trap 'rm -f -- "$TARGETS_FILE"' EXIT
 # In CI, test only PR changes
-buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" 'trunk()' '@' depot//...
+buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" --universe depot//...
 buck2 test "@$TARGETS_FILE"
 ```
 
@@ -194,9 +202,9 @@ buck2 run root//buck/tools/tdutil:tdutil -- \
 ### Empty Revset Results
 
 If tdutil returns no targets:
-- Verify revsets resolve: `jj log -r '@-' -r '@'`
+- Verify endpoints separately: `jj log -r '@-'` and `jj log -r '@'`; each must select one commit.
 - Check what changed: `jj diff --from '@-' --to '@'`
-- Ask jj to snapshot and show the working copy: `jj status`
+- Normal tdutil snapshots the working copy; use `jj status` to inspect it, not as a required prerequisite.
 - Expand scope: `depot//src/...` → `depot//...`
 
 ### Working with Bookmarks
@@ -213,9 +221,9 @@ buck2 run root//buck/tools/tdutil:tdutil -- 'main' 'feature-branch' depot//src/.
 
 1. **Always quote revsets** - Shell parsing can break unquoted revsets
 2. **Test revsets first** - Use `jj log -r 'REVSET'` to verify
-3. **Start narrow** - Use `depot//src/myproject/...` then expand if needed
+3. **Choose a sufficient universe** - Include downstream consumers; a source-only scope omits build tooling and quality tests.
 4. **Include working-copy changes** - Leave snapshotting enabled when comparing to `@`
-5. **Use trunk() for branches** - More reliable than hardcoding `main@origin`
+5. **Use the fork point for branch changes** - The default excludes unrelated changes from an advanced trunk.
 6. **Reuse one temporary output** - Keep `$TARGETS_FILE` for multiple commands in the workflow
 
 ## Quick Reference Table
@@ -223,10 +231,10 @@ buck2 run root//buck/tools/tdutil:tdutil -- 'main' 'feature-branch' depot//src/.
 | Use Case | Pattern | Example |
 |----------|---------|---------|
 | Current changes | `'@-' '@'` | Test uncommitted work |
-| Branch changes | `'trunk()' '@'` | PR or feature branch |
+| Branch changes | `'fork_point(trunk() | @)' '@'` (default) | PR or feature branch |
 | Last N commits | N repeated `-` signs | `'@---' '@'` for last 3 |
 | Specific range | `'abc' 'def'` | Between two commits |
-| Full build | `'root()' '@'` | Everything from scratch |
+| Full validation | `buck2 test depot//...` | Test the universe directly |
 | Since release | `'v1.0' '@'` | Changes since tag |
 
 ## Examples with Real Workflows
@@ -238,7 +246,7 @@ trap 'rm -f -- "$TARGETS_FILE"' EXIT
 
 # Morning: sync with main
 jj git fetch
-jj rebase -d trunk()
+jj rebase -d 'trunk()'
 
 # Work on feature
 jj new -m "feat: implement auth"
@@ -254,7 +262,7 @@ buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" '@-' '@' de
 buck2 test "@$TARGETS_FILE"
 
 # Final test before committing
-jj commit -m "feat: implement authentication"
+jj commit -m 'topic: description' --config=user.name=Claude --config=user.email=noreply@anthropic.com
 ```
 
 ### Code Review
@@ -267,7 +275,7 @@ jj git fetch
 jj new pr-branch@origin
 
 # See what changed
-buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" 'trunk()' '@' depot//src/...
+buck2 run root//buck/tools/tdutil:tdutil -- --output "$TARGETS_FILE" --universe depot//src/...
 
 # Analyze affected targets
 cat "$TARGETS_FILE"

@@ -88,8 +88,7 @@ buck2 query "owner('src/lib/foo.rs') + owner('src/lib/bar.rs')"
 # All paths from A to B
 buck2 query "allpaths('//src/app', '//src/lib:common')"
 
-# Shortest path
-buck2 query "allpaths('//src/app', '//src/lib:common')" --output-attribute= | head -1
+# allpaths returns a set of targets on paths, not an ordered shortest path.
 ```
 
 ## Set Operations
@@ -98,17 +97,17 @@ buck2 query "allpaths('//src/app', '//src/lib:common')" --output-attribute= | he
 
 ```bash
 # Combine two sets
-buck2 query "//src/lib:... + //src/tools:..."
+buck2 query "//src/lib/... + //src/tools/..."
 
 # All targets in multiple packages
-buck2 query "//src/lib/a:... + //src/lib/b:... + //src/lib/c:..."
+buck2 query "//src/lib/a/... + //src/lib/b/... + //src/lib/c/..."
 ```
 
 ### Intersection (^)
 
 ```bash
 # Dependencies that are third-party
-buck2 query "deps('//src/tools:mytool') ^ //third-party/..."
+buck2 query "deps('//src/tools:mytool') ^ third-party//..."
 
 # Rust binaries in tools
 buck2 query "kind('rust_binary', '//...') ^ //src/tools/..."
@@ -121,7 +120,7 @@ buck2 query "kind('rust_binary', '//...') ^ //src/tools/..."
 buck2 query "//src/... - kind('.*_test', '//src/...')"
 
 # Dependencies excluding third-party
-buck2 query "deps('//src/app') - //third-party/..."
+buck2 query "deps('//src/app') - third-party//..."
 ```
 
 ## Common Patterns
@@ -140,11 +139,11 @@ buck2 query "rdeps('//src/...', '//src/lib:mylib') ^ kind('.*_test', '//src/...'
 
 ```bash
 # All third-party deps used by src
-buck2 query "deps('//src/...') ^ //third-party/..."
+buck2 query "deps('//src/...') ^ third-party//..."
 
 # Count third-party deps per target
 for t in $(buck2 targets //src/tools:); do
-  count=$(buck2 query "deps('$t') ^ //third-party/..." | wc -l)
+  count=$(buck2 query "deps('$t') ^ third-party//..." | wc -l)
   echo "$count $t"
 done | sort -rn
 ```
@@ -245,10 +244,10 @@ buck2 query "deps('//target')" --json | jq
 buck2 query "deps('//target')" --output-attribute srcs
 
 # Multiple attributes
-buck2 query "deps('//target')" --output-attribute srcs,deps,visibility
+buck2 query "deps('//target')" --output-attribute 'srcs|deps|visibility'
 
 # All attributes
-buck2 query "//target" --json
+buck2 query "//target" --output-attribute '.*' --json
 ```
 
 ### Graphviz Output
@@ -305,7 +304,7 @@ buck2 query "//target" --output-attribute srcs --json | \
 
 # Extract all deps with their types
 buck2 query "deps('//target', 1)" --output-attribute buck.type --json | \
-  jq -r '.[] | "\(.name) [\(."buck.type")]"'
+  jq -r 'to_entries[] | "\(.key) [\(.value."buck.type")]"'
 ```
 
 ## Performance Tips
