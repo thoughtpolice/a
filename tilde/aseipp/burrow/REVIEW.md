@@ -313,7 +313,7 @@ Useful ground truth for future changes.
 - Hook rejection surfaces as `Err(LocallyRejected)` from `incoming.await`.
 - Both SPDX headers are present, mimalloc is wired, tests run under
   `buck2 test`, and no tests were removed. The only convention oddity is in
-  the repo's `CLAUDE.md`, which names `depot_VERSION` while the shims inject
+  the repo's `AGENTS.md`, which names `depot_VERSION` while the shims inject
   `DEPOT_VERSION`.
 
 ## Not done

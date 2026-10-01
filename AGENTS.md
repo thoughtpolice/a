@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in the monorepo.
+This file provides guidance to coding agents when working with code in the monorepo.
 
 ## Absolutely required information & rules that all AI MODELS MUST FOLLOW
 
@@ -118,7 +118,7 @@ There are many files in this repository that are "DotSlash" files. These are eff
 
 Almost all dotslash files are under ./buck/bin -- in the event you need to (or are asked to) update these files, YOU MUST always run the tests via `depot//buck/bin:tests` afterwards, which will validate the dotslash files are updated correctly and work on all platforms.
 
-## Custom memory entries for Claude follow:
+## Additional guidance for coding agents
 
 - When changing code, make sure that you don't just approximate/hack solutions together. For example, never comment out tests just because you don't know how to fix them.
 - Remember that after code changes, you should test things with buck2, not just language-specific tools, or one-off testing. Always use `buck2 test` on all changes!

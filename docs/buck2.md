@@ -2916,7 +2916,7 @@ See `$ROOT/a/work/README.md` for more on jj workspaces.
 - **Tweag Buck2 Codelab**: https://github.com/tweag/buck2_codelab
 
 For monorepo-specific workflows, see:
-- `$ROOT/a/CLAUDE.md` - Development workflows and commit patterns
+- `$ROOT/a/AGENTS.md` - Development workflows and commit patterns
 - `$ROOT/a/docs/jj.md` - Jujutsu version control reference
 - `$ROOT/a/work/README.md` - Using jj workspaces for parallel development
 
