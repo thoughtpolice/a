@@ -1,0 +1,61 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+/// A host's bindings for every kind of value they carry.
+package test:host@0.1.0;
+
+/// What the host implements.
+interface things {
+    enum color {
+        red,
+        /// The middle one.
+        green,
+        blue,
+    }
+
+    flags perms {
+        read,
+        write,
+        exec,
+    }
+
+    record point {
+        x: s32,
+        y: s32,
+    }
+
+    record item {
+        name: string,
+        tag: list<u8>,
+        color: color,
+        weight: f64,
+        at: point,
+    }
+
+    record listing {
+        status: s32,
+        items: list<item>,
+        codes: list<u16>,
+    }
+
+    /// Every scalar, folded into one.
+    scalars: func(a: bool, b: u8, c: s8, d: u16, e: s16, f: u32, g: s32, h: u64, i: s64, j: f32, k: f64, l: char) -> u64;
+    negate: func(value: s16) -> s16;
+    halve: func(value: f64) -> f64;
+    enums: func(c: color, p: perms) -> color;
+    letter: func(c: char) -> char;
+    text: func(message: string) -> string;
+    bytes: func(data: list<u8>) -> list<u8>;
+    numbers: func(values: list<s16>, wide: list<u64>, floats: list<f32>) -> list<u32>;
+    points: func(points: list<point>) -> list<point>;
+    record-param: func(p: point, name: string) -> point;
+    tuples: func(t: tuple<u8, string, f32>) -> tuple<u32, string>;
+    list-items: func(path: string) -> listing;
+    spilled: func(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32, g: u32, h: u32, i: string, j: string, k: string, l: string, m: u64, n: point) -> u32;
+    nothing: func();
+}
+
+world host-test {
+    import things;
+    import shout: func(word: string) -> bool;
+}
