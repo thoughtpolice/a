@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@prelude//cfg/modifier:set_cfg_modifiers.bzl", "set_cfg_modifiers")
+
+# Everything here is built for AArch64 Linux. The x86_64 predecessors it uses
+# keep their own configuration through amd64_dep.
+set_cfg_modifiers(["config//cpu/constraints:arm64"])
