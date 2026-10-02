@@ -60,6 +60,7 @@ TEST_MODULES = {
     "bytestream": {},
     "resource_names": {},
     "remote_asset": {},
+    "request_timeout": {},
     "tls": {
         "resources": {
             "cert.pem": "//src/crates/rustls-transport:test-cert",

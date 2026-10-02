@@ -178,3 +178,48 @@ async fn writes_in_flight_do_not_exist_yet() {
     assert!(!store.cas_blob_fresh(&digest).await.expect("fresh"));
     writer.abort();
 }
+
+/// A git blob record round-trips, is per digest function, and expires with
+/// its TTL like everything else.
+#[tokio::test]
+async fn git_blob_records_round_trip_and_expire() {
+    let store = store_with_ttl(Duration::from_millis(300)).await;
+    let (digest, data) = blob(b"recorded");
+    let record = GitBlobRecord {
+        git_id: [0x5a; 20],
+        digest,
+        size: data.len() as u64,
+        blob_expires_at_ms: store.new_blob_expiry(),
+    };
+    store
+        .cas_put_batch(vec![(digest, data, Compression::Identity)], vec![record])
+        .await
+        .expect("put");
+
+    assert_eq!(
+        store
+            .git_blob(DigestFn::Sha256, &[0x5a; 20])
+            .await
+            .expect("get"),
+        Some(record)
+    );
+    assert_eq!(
+        store
+            .git_blob(DigestFn::Blake3, &[0x5a; 20])
+            .await
+            .expect("get"),
+        None
+    );
+    assert!(store.is_fresh(record.blob_expires_at_ms));
+
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert_eq!(
+        store
+            .git_blob(DigestFn::Sha256, &[0x5a; 20])
+            .await
+            .expect("get"),
+        None
+    );
+    assert!(!store.is_fresh(record.blob_expires_at_ms));
+    store.close().await.expect("close");
+}
