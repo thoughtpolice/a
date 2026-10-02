@@ -3627,6 +3627,10 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    rustc_flags = [
+        "--cfg=stable_arm_crc32_intrinsics",
+        "--cfg=stable_vpclmulqdq",
+    ],
     visibility = [],
     deps = [":cfg-if-1"],
 )
