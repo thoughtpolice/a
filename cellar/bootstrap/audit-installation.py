@@ -15,7 +15,7 @@ import struct
 import sys
 
 
-def inspect(root, workspace=None):
+def inspect(root, workspace=None, cpu="x86_64"):
     root = Path(root).resolve()
     files, executables, errors = {}, [], []
     for path in sorted(root.rglob('*')):
@@ -35,8 +35,8 @@ def inspect(root, workspace=None):
             errors.append('not ELF64 little endian: ' + name)
             continue
         kind, machine = struct.unpack_from('<HH', content, 16)
-        if machine != 62:
-            errors.append('not native x86_64 ELF: ' + name)
+        if machine != {"x86_64": 62, "aarch64": 183}[cpu]:
+            errors.append('not native ' + cpu + ' ELF: ' + name)
         if kind == 1:  # Installed CRT objects.
             continue
         if kind != 2:
@@ -77,13 +77,14 @@ def inspect(root, workspace=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', required=True)
+    parser.add_argument('--cpu', choices=['x86_64', 'aarch64'], default='x86_64')
     parser.add_argument('--workspace')
     parser.add_argument('--compare')
     parser.add_argument('--compare-workspace')
     args = parser.parse_args()
-    files, executables, errors = inspect(args.root, args.workspace)
+    files, executables, errors = inspect(args.root, args.workspace, args.cpu)
     if args.compare:
-        other, _, other_errors = inspect(args.compare, args.compare_workspace)
+        other, _, other_errors = inspect(args.compare, args.compare_workspace, args.cpu)
         errors += ['comparison: ' + error for error in other_errors]
         for name in sorted(files.keys() | other.keys()):
             if files.get(name) != other.get(name):

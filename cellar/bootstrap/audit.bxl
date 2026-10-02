@@ -8,9 +8,9 @@ def _audit(ctx):
     if root == None:
         fail("bootstrap audit target is incompatible")
 
-    # The bootstrap configures on the repository's x86_64 Linux platform, so
-    # the execution platform registry and the constraints are the root's by
-    # design; the closure audited is the target's own.
+    # The bootstrap configures on the repository's x86_64 and arm64 Linux
+    # platforms, so the execution platform registry and the constraints are
+    # the root's by design; the closure audited is the target's own.
     nodes = ctx.cquery().deps(root)
     cell = root.label.cell
     errors = []
@@ -22,15 +22,18 @@ def _audit(ctx):
             for setting, value in config.constraints.items()
         }
         targets.append({"label": str(node.label), "rule": node.rule_type, "constraints": constraints})
-        if not node.rule_type.startswith(cell + "//"):
+
+        # Buck gives a target with an incoming-edge transition, amd64_dep's, a
+        # forward node to the same target in its new configuration.
+        if node.rule_type != "forward" and not node.rule_type.startswith(cell + "//"):
             errors.append("rule defined outside cellar: " + node.rule_type)
         if node.label.cell != cell:
             errors.append("dependency outside cellar: " + str(node.label))
         if config != None:
             values = constraints.values()
-            for native in ["//cpu/constraints:cpu[x86_64]", "//os/constraints:os[linux]"]:
-                if not [value for value in values if value.endswith(native)]:
-                    errors.append("non-native target configuration: " + str(node.label))
+            for allowed in [["//os/constraints:os[linux]"], ["//cpu/constraints:cpu[x86_64]", "//cpu/constraints:cpu[arm64]"]]:
+                if not [value for value in values if value.endswith(tuple(allowed))]:
+                    errors.append("unsupported bootstrap target configuration: " + str(node.label))
 
     # Buck loads the prelude, and the root's buildfile includes, into every
     # BUILD file of the repository; the rule check above keeps their rules out

@@ -6,7 +6,9 @@
 This project builds a native x86_64 Linux toolchain from source, starting from
 a 229-byte `hex0` seed. The chain ends with GCC 13.5 and binutils 2.41, a
 userland of GNU tools, CPython 3.14.7 and an LLVM 23.1 toolchain that built
-itself, all static x86_64 programs linked against musl.
+itself, all static x86_64 programs linked against musl. That LLVM then cross-builds
+an AArch64 LLVM stage0, which runs on ARM to rebuild itself and its runtimes
+twice. The resulting ARM installation is also entirely static.
 
 It follows the approach of GNU Guix's [full-source bootstrap][guix] and the
 recipes of [live-bootstrap] at `dd8ac27bf959344b9bcf5e876bdd7716879bbc70`.
@@ -31,19 +33,34 @@ the userland, and `cellar//bootstrap/stage1/llvm:toolchain` installs Clang, LLD
 and their runtimes; `buck2 build --show-output` prints where. A cold build of
 everything takes hours on one machine.
 
-Every target and action is x86_64 Linux, on the repository's own
-`root//buck/platforms:x86_64-linux` platform. An x86_64 Linux client runs the
-actions itself. Any other client, such as an arm64 Linux one, needs remote
-execution: `@mode//buildbuddy` runs them on BuildBuddy's x86_64 Linux workers,
-in an image with no shell or tools, and `docs/buck2.md` describes how Buck picks
-those workers. `buck2 run` runs its program on the client, so it needs an
-x86_64 Linux client.
+The x86_64 chain's targets and actions are x86_64 Linux, on the repository's
+own `root//buck/platforms:x86_64-linux` platform. The AArch64 stages under
+`stage2/aarch64` build for arm64 Linux: the x86_64 LLVM cross-builds their
+stage0 on x86_64 executors, and the native stages run on arm64 Linux ones. A
+client runs the actions of its own architecture itself, and the others need
+remote execution: with `buck2_re_client.default_mode = full-remote`, as
+`@mode//buildbuddy` sets, Buck registers the remote workers of every Linux
+CPU, and `docs/buck2.md` describes how it picks them. Without an executor for
+arm64, the native AArch64 stages cannot build.
+
+`cellar//bootstrap:toolchain` names the client architecture's installation,
+and `-m config//cpu/constraints:x86_64` or `-m config//cpu/constraints:arm64`
+picks one. `buck2 run` runs its program on the client.
 
 To check that no local action reads anything from the host, run them under
 Buck's Landlock sandbox, letting them read only their inputs and `/proc/self`:
 
 ```sh
 buck2 test -j8 @mode//sandbox -c buck2.local_sandbox_read_paths=/proc/self \
+  cellar//bootstrap/...
+```
+
+Remote workers that offer `container-image=empty`, as gonzo's do, run each
+action in a root holding its inputs and nothing else, with no shell, `/dev` or
+`/tmp`. Building everything there checks that nothing reads the host:
+
+```sh
+buck2 build -M none --remote-only -c buck2_re_client.container_image=empty \
   cellar//bootstrap/...
 ```
 
@@ -71,6 +88,7 @@ Each stage builds the next one from source. The
 | [Installation](stage1/installation/README.md) | relocatable toolchain and userland trees | GCC 13.5 | programs build and run from the installation alone |
 | [CPython](stage1/python/README.md) | [Linux headers](stage1/linux-headers/README.md), [zlib 1.3.2](stage1/zlib/README.md), CPython 3.14.7 | GCC 13.5, musl 1.2.5 | generated sources match the release |
 | [LLVM](stage1/llvm/README.md) | Clang, LLD, llvm-ar 23.1, then musl and runtimes | GCC 13.5, then Clang | stage 2 and 3 match |
+| [AArch64 LLVM](stage2/aarch64/llvm/README.md) | ARM stage0, then two native self-builds and a static installation | x86 LLVM, then ARM LLVM | native stages and runtimes match; installation build requires the comparison |
 
 ## Trust boundary
 
@@ -85,9 +103,10 @@ the build. These scripts check it from outside:
 
 - `audit.bxl` walks a target's configured closure and fails if any rule,
   dependency, load or action owner lies outside cellar, or if any target is not
-  configured for x86_64 Linux. The execution platforms and constraints are the
-  repository's, and Buck loads the prelude and the root's buildfile includes
-  into every BUILD file; the audit allows those and nothing else:
+  configured for x86_64 or arm64 Linux. The execution platforms and
+  constraints are the repository's, and Buck loads the prelude and the root's
+  buildfile includes into every BUILD file; the audit allows those and nothing
+  else:
 
   ```sh
   buck2 bxl cellar//bootstrap/audit.bxl:closure -- \

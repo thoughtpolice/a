@@ -77,6 +77,16 @@ amd64_dep = rule(impl = _alias_impl, cfg = _to_amd64, attrs = {
 
 alias = rule(impl = _alias_impl, attrs = {"actual": attrs.dep()})
 
+def cpu_alias(name, actual, **kwargs):
+    """`name` gives the providers of `actual[cpu]` for the configuration's
+    CPU, amd64 or arm64; built from the command line, the client's own."""
+    alias(
+        name = name,
+        actual = select({_CPUS[cpu]: label for cpu, label in actual.items()}),
+        modifiers = linux_constraints("arm64" if host_info().arch.is_aarch64 else "amd64"),
+        **kwargs
+    )
+
 def __export_file_impl(ctx: AnalysisContext) -> list[Provider]:
     return [
         DefaultInfo(default_output = ctx.attrs.src),
