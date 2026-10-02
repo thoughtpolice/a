@@ -6,3 +6,10 @@
 # of this source tree.
 
 buildscript.run = false
+
+# The build script only probes the rustc version, to switch on the hardware
+# CRC paths whose intrinsics have since been stabilized: ARM CRC32 (1.80) and
+# x86 VPCLMULQDQ (1.89). Without these the aarch64 build falls back to the
+# portable slice-by-16 loop, which SlateDB runs over every block it writes
+# and reads.
+cfgs = ["stable_arm_crc32_intrinsics", "stable_vpclmulqdq"]
