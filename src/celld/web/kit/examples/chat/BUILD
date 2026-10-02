@@ -7,15 +7,17 @@ load("@toolchains//web/tailwind:defs.bzl", "tailwind")
 
 VIEW_SOURCES = [
     "Page.svelte",
-    "draft.svelte.ts",
+    "chat.svelte.ts",
+    "model.ts",
 ] + glob(["components/*.svelte"])
 
 celld.library(
     name = "contracts",
-    import_name = "@celld/web/fieldnotes/contracts",
+    import_name = "@celld/web/switchboard/contracts",
     exports = {".": "contract.ts"},
     deps = [
         "root//src/celld/sieve:sieve",
+        "root//src/celld/web/realtime:realtime",
         "root//src/celld/web/router:router",
     ],
 )
@@ -23,27 +25,31 @@ celld.library(
 celld.svelte_library(
     name = "views",
     srcs = VIEW_SOURCES,
-    import_name = "@celld/web/fieldnotes/views",
+    import_name = "@celld/web/switchboard/views",
     exports = {
         ".": "Page.svelte",
-        "./draft": "draft.svelte.ts",
+        "./model": "model.ts",
     },
     deps = [
         "root//src/celld/web/interactions:interactions",
         "root//src/celld/web/kit:kit",
+        "root//src/celld/web/realtime:realtime",
+        "root//src/celld/web/router:router",
         ":contracts",
     ],
 )
 
 celld.library(
     name = "server",
-    import_name = "@celld/web/fieldnotes/server",
+    import_name = "@celld/web/switchboard/server",
     exports = {
         ".": "server.ts",
-        "./notebook": "notebook.ts",
+        "./rooms": "rooms.ts",
     },
     deps = [
+        "root//src/celld/sieve:sieve",
         "root//src/celld/web/kit:kit",
+        "root//src/celld/web/realtime:realtime",
         "root//src/celld/web/router:router",
         ":contracts",
         ":views",
@@ -51,7 +57,7 @@ celld.library(
 )
 
 tailwind.css(
-    name = "fieldnotes-styles",
+    name = "styles",
     src = "styles.css",
     srcs = VIEW_SOURCES,
     css_srcs = ["root//src/celld/web/ui:ui.css"],
@@ -62,23 +68,49 @@ celld.browser(
     name = "browser",
     main = "browser.ts",
     minify = True,
-    styles = [":fieldnotes-styles"],
+    styles = [":styles"],
     deps = [
         "root//src/celld/web/kit:kit",
-        "root//src/celld/web/router:router",
         ":contracts",
-        ":server",
         ":views",
     ],
 )
 
 celld_example(
-    name = "fieldnotes",
+    name = "switchboard",
     assets = ":browser",
     assets_binding = "ASSETS",
     assets_run_worker_first = True,
-    bindings = {"NOTEBOOK": "Notebook"},
+    bindings = {
+        "ROOMS": "ChatRoom",
+        "DIRECTORY": "ChannelDirectory",
+    },
     main = "worker.ts",
     minify = True,
     deps = [":server"],
+)
+
+celld.test(
+    name = "runtime-test",
+    srcs = [
+        "runtime_test.ts",
+        "switchboard.json",
+    ],
+    env = {
+        "CELLD": "$(exe toolchains//celld:cli)",
+        "PROJECT": "$(location :switchboard)",
+    },
+    permissions = [
+        "env",
+        "net=127.0.0.1",
+        "read",
+        "run",
+        "write",
+    ],
+    deps = [
+        "root//src/celld/core:core",
+        "root//src/celld/web/realtime:realtime",
+        "root//src/celld/web/realtime/examples:dev-server",
+        ":contracts",
+    ],
 )

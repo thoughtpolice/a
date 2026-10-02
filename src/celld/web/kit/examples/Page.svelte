@@ -46,16 +46,16 @@
 
   <div class="text-sm text-muted data-[state=error]:text-error" data-state={navigation.status} role="status" aria-live="polite">
     {#if navigation.status === 'pending'}
-      <p class="mt-4 rounded-md border border-slate-200 bg-surface px-4 py-3">Loading page… Your notebook stays here until the next page is ready.</p>
+      <p class="ui-notice mt-4 px-4">Loading page… Your notebook stays here until the next page is ready.</p>
     {:else if navigation.status === 'error'}
-      <p class="mt-4 rounded-md border border-error/20 bg-error/5 px-4 py-3">This page could not be loaded. Your notebook is unchanged. Try the link again or reload the page.</p>
+      <p class="ui-notice mt-4 px-4" data-tone="error">This page could not be loaded. Your notebook is unchanged. Try the link again or reload the page.</p>
     {/if}
   </div>
 
   <main id="fieldnotes-main" class="py-6 sm:py-8 aria-busy:cursor-progress" aria-busy={navigation.status === 'pending'}>
     {#if view === 'notes'}
       <div class="mb-6 max-w-2xl sm:mb-8">
-        <h1 class="text-[28px] leading-8 font-bold tracking-tight sm:text-[32px] sm:leading-10" data-page-focus>Your notebook</h1>
+        <h1 class="ui-heading text-[28px] leading-8 font-bold sm:text-[32px] sm:leading-10" data-page-focus>Your notebook</h1>
         <p class="mt-2 text-muted">A place for things worth noticing. Write a thought, keep it for later.</p>
       </div>
 

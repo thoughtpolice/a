@@ -6,7 +6,97 @@
 Worker SSR and browser hydration use one compiled component source. Buck
 selects server/client output; the browser entry imports no server runtime.
 
-## Full-stack example
+## Full-stack examples
+
+### Switchboard: live channel chat
+
+[`examples/chat/`](examples/chat/) is an IRC-style browser chat backed by real
+SQLite Durable Objects and `@celld/web/realtime`, not seeded messages or users.
+
+```sh
+buck2 run root//src/celld/web/kit/examples/chat:switchboard-dev
+buck2 test root//src/celld/web/kit/examples/chat/...
+```
+
+Open `http://127.0.0.1:9876/`. To retain its prepared project and SQLite storage,
+use `-- --port 9877 --state /tmp/switchboard`; use a fresh state directory after
+rebuilding when you want changed code.
+
+- Public channels have persistent names, topics and the latest 200 messages.
+  The catalog is capped at 32 channels; messages are trimmed and limited to
+  2000 UTF-16 code units. Duplicate creation never replaces a topic.
+- Guest nicknames use encrypted, Secure, HttpOnly session cookies. Typed HTTP
+  mutations require CSRF tokens; sockets require the authenticated guest and a
+  matching Origin. Only literal loopback development addresses permit plain
+  HTTP credentials. Use `127.0.0.1`, not `localhost`.
+- The Svelte UI has live presence, five-second typing expiry, per-channel
+  drafts, background unread counts, loaded-history search and responsive rails.
+  Enter sends, Shift-Enter adds a line, and IME composition does not send.
+  Reading older messages preserves scroll position and exposes a jump-to-tail
+  control rather than moving the reader.
+- Ordinary links and enter/create/send/leave forms also work without
+  JavaScript, including phone layouts. Those pages show a server snapshot;
+  search, typing, live updates and keyboard shortcuts require hydration.
+- HTTP snapshots and socket replay share ordered sequence numbers. Promoting
+  an unvisited background room resumes from its HTTP cursor, recovering gaps
+  even when a later live frame arrived first. Navigation waits for
+  cookie-changing actions and rejects stale reads after logout.
+- A disconnected send retains its draft. An uncertain acknowledgement warns
+  the user to check the transcript before retrying; publishing is not promised
+  to be exactly once.
+
+`Page.svelte` composes the rails, header, transcript, composer and dialogs.
+`model.ts` owns their concrete `ChatModel` contract; `chat.svelte.ts` owns
+per-page rune state, room clients, replay and navigation. The session and
+channel forms are reused by ordinary server-rendered sections and enhanced
+native modals; modal behavior comes from the existing interaction actions.
+`contract.ts` is the shared Sieve HTTP/message contract. `rooms.ts` owns the
+SQLite catalog and validated realtime rooms; `server.ts` and `worker.ts` own
+guest authentication, CSRF, SSR and asset serving.
+
+The HTTP spec and ten real-runtime scenarios cover authorization, CSRF,
+identity spoofing, grouped presence, ordered messages, native redirects,
+escaping, channel isolation, restart/replay, both payload/catalog bounds and
+HTTPS tunnel-origin authentication.
+
+**Public guest demonstration, not private chat:** nicknames are not verified
+accounts, all history is public, and there is no moderation system. Do not
+enter sensitive information. The public `SESSION_SECRET` in the test spec is
+development-only; deployment must supply its own secret of at least 32 UTF-8
+bytes. The packaged Worker has no fallback secret.
+
+#### HTTPS quick tunnels
+
+Cloudflared terminates HTTPS and forwards plain HTTP to celld. Switchboard
+must know the external origin; it does not trust arbitrary forwarded headers.
+
+1. Keep `cloudflared tunnel --url http://127.0.0.1:9876` running and copy its
+   generated `https://…trycloudflare.com` origin.
+2. Restart Switchboard with that exact origin and a fresh session secret:
+
+   ```sh
+   SECRET="$(openssl rand -hex 32)"
+   buck2 run root//src/celld/web/kit/examples/chat:switchboard-dev -- \
+     --var PUBLIC_ORIGIN=https://your-generated-host.trycloudflare.com \
+     --var SESSION_SECRET="$SECRET"
+   ```
+
+3. Open the HTTPS tunnel URL and choose a nickname again.
+
+Keep the tunnel running while restarting Switchboard so its hostname stays
+the same. A new tunnel hostname requires updating `PUBLIC_ORIGIN` and
+restarting the runner. If using `--state`, choose a fresh directory after a
+code rebuild: retained projects contain their previous build.
+
+`PUBLIC_ORIGIN` accepts only an HTTPS origin, with no path or query. It governs
+session transport security, CSRF, redirects and WebSocket Origin checks
+together. Requests with a different Origin remain forbidden, including
+interactive forms opened directly on the local HTTP URL while configured
+for the tunnel. Omitting it preserves loopback-only HTTP development.
+Do not expose the public test-fixture session secret through a tunnel.
+
+
+### Fieldnotes: shared notebook
 
 [`examples/`](examples/) contains **Fieldnotes**, a real shared notebook backed
 by a SQLite Durable Object, not seeded browser data.
@@ -16,7 +106,7 @@ buck2 run root//src/celld/web/kit/examples:fieldnotes-dev
 buck2 test root//src/celld/web/kit/examples/...
 ```
 
-Open `http://127.0.0.1:9876/`. The dev runner prepares a private project and
+Both runners default to `http://127.0.0.1:9876/`. The dev runner prepares a private project and
 temporary storage; Ctrl-C stops it. Add `-- --port 9877 --state /tmp/fieldnotes`
 to keep the prepared project and its SQLite storage across runs. A retained
 state directory also retains that project’s built code: choose a fresh directory
@@ -62,6 +152,29 @@ runtime restart.
 **Local-only anonymous demonstration:** every visitor sees the same notebook.
 It has no private accounts or access control; do not enter sensitive information
 or deploy it publicly as a private note service.
+
+## Shared presentation styles
+
+Both examples use [`../ui/styles.css`](../ui/styles.css), exported as
+`root//src/celld/web/ui:ui.css`. Declare it in `tailwind.css(css_srcs = [...])`
+and import `@import "./ui.css";` after the Tailwind import. That is the declared
+artifact's staged name, not a filesystem path out of the consumer package.
+
+Applications supply the six `@theme` color tokens `canvas`, `surface`, `ink`,
+`muted`, `accent` and `error`, plus their font tokens and document/layout rules.
+The shared component layer uses those tokens rather than a fixed palette:
+
+- `ui-button` with `ui-button-primary` / `ui-button-quiet`; `ui-input`,
+  `ui-label`, `ui-hint`, `ui-error` and `ui-fieldset`.
+- `ui-notice[data-tone]`, `ui-panel`, `ui-heading`, `ui-link` and `ui-body`.
+- `ui-nav-link`, `ui-tab`, menu, dialog, disclosure, tooltip, prose and
+  keyboard-list styles, including their ARIA-driven active states.
+
+Disabled fieldsets dim once, not once per nested control. Markup keeps short
+semantic class names; app-specific geometry stays in its stylesheet or a few
+local layout utilities. These classes do not replace the existing
+`@celld/web/interactions` keyboard, focus and ownership contracts.
+
 
 
 ## Server pages
