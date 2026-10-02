@@ -9,7 +9,7 @@ VERSION = pkg.version()
 
 shims.http_archive(
     name = "src",
-    sha256 = "ca02384e007f46950598500dfaebde5ff9948c1d231f5a81b058799afa64bbbb",
+    sha256 = "3b4a15153a59905995f7070296ed604bb5ccc00cabb8b93446931aff77224d47",
     strip_prefix = "mimalloc-{VERSION}".format(VERSION = VERSION),
     sub_targets = [
         "include/mimalloc-override.h",
@@ -22,6 +22,8 @@ shims.http_archive(
         "include/mimalloc/bits.h",
         "include/mimalloc-new-delete.h",
         "include/mimalloc-stats.h",
+        "include/mimalloc-profile.h",
+        "include/mimalloc/prim-tls.h",
         "src/page.c",
         "src/page-map.c",
         "src/free.c",
@@ -29,6 +31,7 @@ shims.http_archive(
         "src/libc.c",
         "src/bitmap.h",
         "src/prim/prim.c",
+        "src/prim/prim-tls.c",
         "src/prim/unix/prim.c",
         "src/prim/wasi/prim.c",
         "src/prim/osx/alloc-override-zone.c",
@@ -37,7 +40,6 @@ shims.http_archive(
         "src/random.c",
         "src/stats.c",
         "src/options.c",
-        "src/arena-meta.c",
         "src/alloc.c",
         "src/bitmap.c",
         "src/heap.c",
@@ -47,6 +49,9 @@ shims.http_archive(
         "src/arena.c",
         "src/page-queue.c",
         "src/init.c",
+        "src/sample-guarded.c",
+        "src/sample-profile.c",
+        "src/subproc.c",
         "src/alloc-posix.c",
         "src/theap.c",
         "src/threadlocal.c",
@@ -70,6 +75,8 @@ EXPORTED_HEADERS = {
     "mimalloc/bits.h": ":src[include/mimalloc/bits.h]",
     "mimalloc-new-delete.h": ":src[include/mimalloc-new-delete.h]",
     "mimalloc-stats.h": ":src[include/mimalloc-stats.h]",
+    "mimalloc-profile.h": ":src[include/mimalloc-profile.h]",
+    "mimalloc/prim-tls.h": ":src[include/mimalloc/prim-tls.h]",
 }
 
 MIMALLOC_CORE_SRCS = [
@@ -77,7 +84,6 @@ MIMALLOC_CORE_SRCS = [
     ":src[src/alloc-aligned.c]",
     ":src[src/alloc-posix.c]",
     ":src[src/arena.c]",
-    ":src[src/arena-meta.c]",
     ":src[src/bitmap.c]",
     ":src[src/heap.c]",
     ":src[src/init.c]",
@@ -87,8 +93,12 @@ MIMALLOC_CORE_SRCS = [
     ":src[src/page.c]",
     ":src[src/page-map.c]",
     ":src[src/prim/prim.c]",
+    ":src[src/prim/prim-tls.c]",
     ":src[src/random.c]",
+    ":src[src/sample-guarded.c]",
+    ":src[src/sample-profile.c]",
     ":src[src/stats.c]",
+    ":src[src/subproc.c]",
     ":src[src/theap.c]",
     ":src[src/threadlocal.c]",
 ]

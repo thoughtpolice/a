@@ -321,8 +321,8 @@ impl Stats {
 
     /// Malloc requested bytes (total requested by application)
     #[inline]
-    pub fn malloc_requested(&self) -> &StatCount {
-        unsafe { &*(&self.0.malloc_requested as *const mi_stat_count_t as *const StatCount) }
+    pub fn malloc_requested(&self) -> &StatCounter {
+        unsafe { &*(&self.0.malloc_requested as *const mi_stat_counter_t as *const StatCounter) }
     }
 
     /// Memory segments
