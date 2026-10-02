@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Upstream build.rs generates fixture tests only; library sources need no output.
+buildscript.run = false
