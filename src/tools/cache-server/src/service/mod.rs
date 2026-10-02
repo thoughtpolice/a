@@ -25,6 +25,7 @@ mod operations;
 pub use operations::OperationsService;
 
 mod git_clone;
+mod oci_image;
 
 mod remote_asset;
 pub use remote_asset::{FETCH_TIMEOUT_MARGIN, FetchConfig, FetchService, PushService};
