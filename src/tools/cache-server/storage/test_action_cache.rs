@@ -206,3 +206,108 @@ async fn ac_put_at_limit_accepted() {
 
     store.close().await.unwrap();
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Entries kept in memory once read
+// ---------------------------------------------------------------------------------------------------------------------
+
+/// An entry, once read, is served from memory (here, even after it is gone
+/// from the database underneath); with the cache off, nothing is kept.
+#[tokio::test]
+async fn entries_are_served_from_memory_once_read() {
+    for budget in [None, Some(0)] {
+        let store = CacheStore::open(
+            StoreBackend::Memory,
+            CacheStoreSettings {
+                action_result_cache_bytes: budget,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        let digest = ContentDigest::new(DigestFn::Sha256, [7; 32]);
+        let result = Bytes::from_static(b"an action result");
+        store.ac_put(&digest, result.clone()).await.unwrap();
+        assert_eq!(store.ac_get(&digest).await.unwrap(), Some(result.clone()));
+
+        let key = prefixed_key(PREFIX_ACTION, digest.function, &digest.hash);
+        store
+            .db
+            .delete(key)
+            .await
+            .unwrap()
+            .await_durable()
+            .await
+            .unwrap();
+        let again = store.ac_get(&digest).await.unwrap();
+        if budget == Some(0) {
+            assert_eq!(again, None, "no cache, nothing kept");
+        } else {
+            assert_eq!(again, Some(result), "served from memory");
+        }
+    }
+}
+
+/// A write replaces what is kept of the entry.
+#[tokio::test]
+async fn a_write_replaces_the_kept_entry() {
+    let store = open_memory_store().await;
+    let digest = ContentDigest::new(DigestFn::Sha256, [8; 32]);
+    store
+        .ac_put(&digest, Bytes::from_static(b"first"))
+        .await
+        .unwrap();
+    assert_eq!(
+        store.ac_get(&digest).await.unwrap().as_deref(),
+        Some(&b"first"[..])
+    );
+    store
+        .ac_put(&digest, Bytes::from_static(b"second"))
+        .await
+        .unwrap();
+    assert_eq!(
+        store.ac_get(&digest).await.unwrap().as_deref(),
+        Some(&b"second"[..])
+    );
+}
+
+/// Readers racing a writer never leave a replaced entry behind: once a write
+/// returns, every read sees it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn reads_racing_writes_never_keep_a_replaced_entry() {
+    let store = std::sync::Arc::new(open_memory_store().await);
+    let digest = ContentDigest::new(DigestFn::Sha256, [9; 32]);
+    store
+        .ac_put(&digest, Bytes::from(0u32.to_be_bytes().to_vec()))
+        .await
+        .unwrap();
+    let done = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    // Fewer readers than workers, each yielding between reads: a read
+    // served from memory never waits, and readers that never yield would
+    // starve the writer and the store's own flushes.
+    let readers: Vec<_> = (0..4)
+        .map(|_| {
+            let (store, done) = (store.clone(), done.clone());
+            tokio::spawn(async move {
+                while !done.load(std::sync::atomic::Ordering::Relaxed) {
+                    store.ac_get(&digest).await.unwrap();
+                    tokio::task::yield_now().await;
+                }
+            })
+        })
+        .collect();
+
+    for version in 1..=200u32 {
+        let value = Bytes::from(version.to_be_bytes().to_vec());
+        store.ac_put(&digest, value.clone()).await.unwrap();
+        assert_eq!(
+            store.ac_get(&digest).await.unwrap(),
+            Some(value),
+            "version {version}"
+        );
+    }
+    done.store(true, std::sync::atomic::Ordering::Relaxed);
+    for reader in readers {
+        reader.await.unwrap();
+    }
+}

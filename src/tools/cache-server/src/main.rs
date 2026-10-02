@@ -160,6 +160,35 @@ struct ServeArgs {
     )]
     meta_cache_mib: u64,
 
+    /// In-memory cache of small blobs (64 KiB or less) in MiB, kept once
+    /// read so reading them again skips the store's LSM; 0 turns it off.
+    #[arg(
+        long,
+        default_value_t = store::DEFAULT_SMALL_BLOB_CACHE_BYTES / (1024 * 1024),
+        env = "CACHE_SERVER_SMALL_BLOB_CACHE_MIB"
+    )]
+    small_blob_cache_mib: u64,
+
+    /// In-memory cache of action cache entries in MiB, kept once read so
+    /// reading them again skips the store's LSM, and dropped when written; 0
+    /// turns it off.
+    #[arg(
+        long,
+        default_value_t = store::DEFAULT_ACTION_RESULT_CACHE_BYTES / (1024 * 1024),
+        env = "CACHE_SERVER_ACTION_RESULT_CACHE_MIB"
+    )]
+    action_result_cache_mib: u64,
+
+    /// In-memory cache of blob manifests (of blobs over 4 KiB) in MiB, kept
+    /// once read so reading the blob again skips one of the store's
+    /// lookups; 0 turns it off.
+    #[arg(
+        long,
+        default_value_t = store::DEFAULT_MANIFEST_CACHE_BYTES / (1024 * 1024),
+        env = "CACHE_SERVER_MANIFEST_CACHE_MIB"
+    )]
+    manifest_cache_mib: u64,
+
     /// Most MiB of writes held in memory before they are flushed to the
     /// store's L0 SSTs; past it, writes wait for a flush. It must exceed the
     /// 64 MiB L0 SST size (default: SlateDB's, 1024).
@@ -506,6 +535,9 @@ impl Default for ServeArgs {
             block_cache_mib: store::DEFAULT_BLOCK_CACHE_BYTES / (1024 * 1024),
             meta_cache_mib: store::DEFAULT_META_CACHE_BYTES / (1024 * 1024),
             write_buffer_mib: None,
+            small_blob_cache_mib: store::DEFAULT_SMALL_BLOB_CACHE_BYTES / (1024 * 1024),
+            action_result_cache_mib: store::DEFAULT_ACTION_RESULT_CACHE_BYTES / (1024 * 1024),
+            manifest_cache_mib: store::DEFAULT_MANIFEST_CACHE_BYTES / (1024 * 1024),
             object_store_cache_dir: None,
             object_store_cache_gib: 16,
             disk_reserve_gib: None,
@@ -664,6 +696,10 @@ async fn run_server(
             .enabled
             .then(|| telemetry::OtelMetricsRecorder::new() as Arc<dyn store::MetricsRecorder>),
         disk_reserve_bytes: args.disk_reserve_gib.map(|gib| gib * 1024 * MIB),
+        presence_cache_entries: None,
+        small_blob_cache_bytes: Some(args.small_blob_cache_mib * MIB),
+        action_result_cache_bytes: Some(args.action_result_cache_mib * MIB),
+        manifest_cache_bytes: Some(args.manifest_cache_mib * MIB),
     };
 
     let cache_store = store::CacheStore::open(backend, store_settings)

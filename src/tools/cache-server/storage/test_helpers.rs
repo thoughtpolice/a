@@ -31,3 +31,17 @@ pub fn make_data(size: usize) -> Vec<u8> {
     }
     data
 }
+
+/// Helper: `size` deterministic bytes no codec can shrink (xorshift).
+pub fn noise(size: usize) -> Vec<u8> {
+    let mut state = 0x9E37_79B9_7F4A_7C15u64;
+    let mut data = Vec::with_capacity(size + 8);
+    while data.len() < size {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        data.extend_from_slice(&state.to_le_bytes());
+    }
+    data.truncate(size);
+    data
+}
