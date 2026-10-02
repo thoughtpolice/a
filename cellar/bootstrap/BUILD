@@ -2,8 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@cellar//bootstrap:actions.bzl", "command_test")
-load("@cellar//bootstrap:defs.bzl", "export_file")
+load("@cellar//bootstrap:defs.bzl", "cpu_alias", "export_file")
 load("@cellar//bootstrap:source.bzl", "write_file")
+
+# The default installation follows the client architecture. An explicit
+# --modifier changes the requested output, while fixed bootstrap predecessors
+# keep their own configurations through amd64_dep.
+cpu_alias(
+    name = "toolchain",
+    actual = {
+        "amd64": "cellar//bootstrap/stage1/llvm:toolchain",
+        "arm64": "cellar//bootstrap/stage2/aarch64/llvm:toolchain",
+    },
+)
 
 # What a checking action writes once every check passes; see result_test.
 write_file(

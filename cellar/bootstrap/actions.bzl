@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# Executed tools are configured for root's x86_64 Linux execution platform.
+# Actions run on x86_64 Linux executors unless a target's `exec_cpu`, or its
+# toolchain's, names another CPU; see native_attrs.
 
 load("@cellar//bootstrap:defs.bzl", "native_attrs")
 

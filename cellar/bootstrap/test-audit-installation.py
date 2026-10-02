@@ -31,6 +31,16 @@ def elf(interpreter=False, dynamic=False, machine=62):
 
 
 class InstallationBoundary(unittest.TestCase):
+    def test_aarch64_requires_its_own_machine_type(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'program'
+            path.write_bytes(elf(machine=183))
+            path.chmod(0o755)
+            self.assertEqual(audit.inspect(temp, cpu='aarch64')[2], [])
+            self.assertIn('not native x86_64 ELF: program', audit.inspect(temp)[2])
+            path.write_bytes(elf())
+            self.assertIn('not native aarch64 ELF: program', audit.inspect(temp, cpu='aarch64')[2])
+
     def test_dynamic_dependencies_and_machine_are_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / 'program'
