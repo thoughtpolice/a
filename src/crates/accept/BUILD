@@ -4,6 +4,7 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
+    "third-party//rust:libc",
     "third-party//rust:tokio",
     "third-party//rust:tracing",
 ]
