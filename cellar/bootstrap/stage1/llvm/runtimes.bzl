@@ -10,7 +10,7 @@
 
 load("@cellar//bootstrap:actions.bzl", "generate", "installed_tool")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
-load("@cellar//bootstrap/stage1:defs.bzl", "c_library", "c_object", "compiler", "link_runtime")
+load("@cellar//bootstrap/stage1:defs.bzl", "c_library", "c_object", "c_toolchain", "compiler", "link_runtime")
 load("@cellar//bootstrap/stage1/mimalloc:defs.bzl", "mimalloc_object")
 load("@cellar//bootstrap/stage1/musl12:defs.bzl", "COMPAT_LIBRARIES", "INCLUDE_DIRECTORIES", "LIBC_SOURCES")
 load("@cellar//bootstrap/stage1/musl12:sources.bzl", "CRT_SOURCES")
@@ -95,6 +95,28 @@ def _builtins_sources():
 
 BUILTINS_SOURCES = _builtins_sources()
 
+# AArch64's native runtime, including quad precision and CPU dispatch.
+_AARCH64_BUILTINS = ["compiler-rt/lib/builtins/" + path for path in RUNTIME_LISTS["compiler-rt/lib/builtins"]["GENERIC_SOURCES"] +
+                                                                    RUNTIME_LISTS["compiler-rt/lib/builtins"]["GENERIC_TF_SOURCES"] +
+                                                                    RUNTIME_LISTS["compiler-rt/lib/builtins"]["BF16_SOURCES"] + [
+    "emutls.c",
+    "enable_execute_stack.c",
+    "eprintf.c",
+    "gcc_personality_v0.c",
+    "clear_cache.c",
+    "cpu_model/aarch64.c",
+    "aarch64/fp_mode.c",
+    "aarch64/emupac.cpp",
+    "aarch64/sme-abi.S",
+    "aarch64/sme-abi-assert.c",
+    "aarch64/sme-libc-opt-memset-memchr.S",
+    "aarch64/sme-libc-opt-memcpy-memmove.S",
+    "aarch64/sme-libc-opt-memcpy-memmove-sve.S",
+]]
+
+_AARCH64_REPLACED = {"compiler-rt/lib/builtins/" + path.rsplit("/", 1)[1]: None for path in _AARCH64_BUILTINS if "/" in path.removeprefix("compiler-rt/lib/builtins/")}
+AARCH64_BUILTINS = [path for path in _AARCH64_BUILTINS if path not in _AARCH64_REPLACED]
+
 CRT_OBJECTS = ["crtbegin", "crtend"]
 
 LIBUNWIND_SOURCES = ["libunwind/src/" + path for path in (
@@ -152,7 +174,7 @@ LIBCXX_EXPERIMENTAL_SOURCES = ["libcxx/src/" + path for path in RUNTIME_LISTS["l
 
 def runtime_source_files():
     """Every path the runtimes project out of their tree."""
-    return sorted(BUILTINS_SOURCES + LIBUNWIND_SOURCES + LIBCXXABI_SOURCES + LIBCXX_SOURCES + LIBCXX_EXPERIMENTAL_SOURCES + [
+    return sorted({path: None for path in BUILTINS_SOURCES + AARCH64_BUILTINS + ["compiler-rt/lib/builtins/aarch64/lse.S"] + LIBUNWIND_SOURCES + LIBCXXABI_SOURCES + LIBCXX_SOURCES + LIBCXX_EXPERIMENTAL_SOURCES + [
         "compiler-rt/lib/builtins/{}.c".format(name)
         for name in CRT_OBJECTS
     ] + [
@@ -169,7 +191,7 @@ def runtime_source_files():
         "libcxx/include/module.modulemap.in",
         "libcxx/utils/generate_iwyu_mapping.py",
         "libcxx/vendor/llvm/default_assertion_handler.in",
-    ] + [project + "/LICENSE.TXT" for project in RUNTIME_PROJECTS])
+    ] + [project + "/LICENSE.TXT" for project in RUNTIME_PROJECTS]}.keys())
 
 # --- Compilers ---
 
@@ -199,35 +221,41 @@ CXX_INCLUDES = [
     "$(location :libcxx-headers)/c++/v1",
 ]
 
-def clang_compilers(stage, tree, archiver):
+def clang_compilers(stage, tree, archiver, config = None, tool_cpu = None, chdir = None):
     """The compilers that build a stage: the Clang, LLD and resource headers
     in tree, with archiver as their llvm-ar.
 
     stage-cc compiles C against musl and the kernel headers, stage-c++ adds
     libc++, and stage-bare-cc names no headers, for musl itself.
     """
+    kwargs = {"target_cpu": tool_cpu} if config else {}
+    c_includes = ["-nostdlibinc", "-isystem", "$(location {}:headers)".format(config.musl), "-isystem", "$(location {}:headers)".format(config.linux)] if config else C_INCLUDES
+    cxx_includes = ["-nostdinc++", "-isystem", "$(location :libcxx-headers)/{}/c++/v1".format(config.triple), "-isystem", "$(location :libcxx-headers)/c++/v1"] if config else CXX_INCLUDES
     installed_tool(
         name = stage + "-driver",
         installation = tree,
         path = "bin/clang",
+        **kwargs
     )
     installed_tool(
         name = stage + "-linker",
         installation = tree,
         path = "bin/ld.lld",
+        **kwargs
     )
     for name, includes in {
         "bare-cc": [],
-        "cc": C_INCLUDES,
-        "c++": CXX_INCLUDES + C_INCLUDES,
+        "cc": c_includes,
+        "c++": cxx_includes + c_includes,
     }.items():
-        compiler(
+        compiler_rule = c_toolchain if config else compiler
+        compiler_rule(
             name = "{}-{}".format(stage, name),
-            abi = "x86_64-sysv",
+            abi = config.abi if config else "x86_64-sysv",
             archive_flags = ["crsD"],
             archive_format = "ar",
             archiver = archiver,
-            cflags = REPRODUCIBLE_FLAGS + includes,
+            cflags = REPRODUCIBLE_FLAGS + (["--target=" + config.triple] if config else []) + includes,
             compiler = ":{}-driver".format(stage),
             family = "clang",
             # libunwind finds the unwind tables of a static program through
@@ -237,7 +265,8 @@ def clang_compilers(stage, tree, archiver):
                 "--eh-frame-hdr",
             ],
             linker = ":{}-linker".format(stage),
-            object_format = "elf64-x86-64",
+            object_format = config.object_format if config else "elf64-x86-64",
+            **({"target_cpu": config.cpu, "chdir": chdir} if config else {})
         )
 
 # --- Headers ---
@@ -319,7 +348,11 @@ LIBUNWIND_INSTALLED_HEADERS = [
     "libunwind.h",
 ]
 
-def runtime_headers():
+def runtime_headers(config = None):
+    triple = config.triple if config else TRIPLE
+    musl = config.musl if config else MUSL
+    linux = config.linux if config else LINUX
+    kwargs = {"target_cpu": config.cpu} if config else {}
     """The headers libc++, libc++abi and libunwind install, and the include
     directory an installation holds."""
     generate(
@@ -328,6 +361,7 @@ def runtime_headers():
         capture = True,
         output = "__config_site",
         tool = SED,
+        **kwargs
     )
 
     # With per-target runtime directories, __config_site stays out of the
@@ -338,6 +372,7 @@ def runtime_headers():
         capture = True,
         output = "module.modulemap",
         tool = SED,
+        **kwargs
     )
 
     # libc++'s build maps its private headers to the public ones that
@@ -350,6 +385,7 @@ def runtime_headers():
         output = "libcxx.imp",
         output_flags = ["-o"],
         tool = PYTHON,
+        **kwargs
     )
 
     # libc++abi installs its headers beside libc++'s.
@@ -365,7 +401,7 @@ def runtime_headers():
             "c++/v1/__assertion_handler": RUNTIMES_SOURCE + "[libcxx/vendor/llvm/default_assertion_handler.in]",
             "c++/v1/module.modulemap": ":libcxx-module-map",
             "c++/v1/libcxx.imp": ":libcxx-iwyu-mapping",
-            TRIPLE + "/c++/v1/__config_site": ":libcxx-config-site",
+            triple + "/c++/v1/__config_site": ":libcxx-config-site",
         },
     )
 
@@ -385,7 +421,8 @@ def runtime_headers():
     # An installation's include directory. musl and the kernel share
     # directories such as scsi, the kernel's files are known only once they
     # are installed, and a filegroup cannot merge trees at one path.
-    export_file(name = "headers.sh")
+    if not config:
+        export_file(name = "headers.sh")
 
     generate(
         name = "installed-headers",
@@ -395,8 +432,8 @@ def runtime_headers():
             "$(location :headers.sh)",
             "$(exe cellar//bootstrap/stage1/coreutils-final:mkdir)",
             "$(exe cellar//bootstrap/stage1/coreutils-final:cp)",
-            "$(location {}:headers)".format(MUSL),
-            "$(location {}:headers)".format(LINUX),
+            "$(location {}:headers)".format(musl),
+            "$(location {}:headers)".format(linux),
             "$(location :libcxx-headers)",
             "$(location :libunwind-installed-headers)",
         ],
@@ -407,6 +444,7 @@ def runtime_headers():
             "LC_ALL": "C",
         },
         tool = "cellar//bootstrap/stage1/bash:bash",
+        **kwargs
     )
 
 # --- musl, built by Clang ---
@@ -442,19 +480,25 @@ MUSL_OPTIMIZED = [
 
 MUSL_INCLUDES = [MUSL + ":source[" + directory + "]" for directory in INCLUDE_DIRECTORIES]
 
-def _musl(stage):
+def _musl(stage, config = None):
+    musl = config.musl if config else MUSL
+    libc_sources = config.libc_sources if config else LIBC_SOURCES
+    crt_sources = config.crt_sources if config else CRT_SOURCES
+    includes = [musl + ":source[" + directory + "]" for directory in config.include_directories] if config else MUSL_INCLUDES
+    kwargs = {"target_cpu": config.cpu} if config else {}
     objects = []
-    for i, path in enumerate(LIBC_SOURCES):
+    for i, path in enumerate(libc_sources):
         directory = path.rsplit("/", 1)[0] + "/"
         c_object(
             name = "{}-musl-{}".format(stage, i),
-            src = "{}:source[{}]".format(MUSL, path),
+            src = "{}:source[{}]".format(musl, path),
             defines = ["_XOPEN_SOURCE=700"],
             flags = MUSL_FLAGS + (["-O3"] if directory in MUSL_OPTIMIZED else []),
-            headers = [MUSL + ":source"],
-            includes = MUSL_INCLUDES,
+            headers = [musl + ":source"],
+            includes = includes,
             object_name = "{}.o".format(i),
             toolchain = ":{}-bare-cc".format(stage),
+            **kwargs
         )
         objects.append(":{}-musl-{}".format(stage, i))
     c_library(
@@ -462,6 +506,7 @@ def _musl(stage):
         objects = objects,
         output = "libc.a",
         toolchain = ":{}-bare-cc".format(stage),
+        **kwargs
     )
     for name in COMPAT_LIBRARIES:
         c_library(
@@ -469,21 +514,23 @@ def _musl(stage):
             objects = [],
             output = "lib{}.a".format(name),
             toolchain = ":{}-bare-cc".format(stage),
+            **kwargs
         )
-    for path in CRT_SOURCES:
+    for path in crt_sources:
         name = path.rsplit("/", 1)[1].rsplit(".", 1)[0]
         c_object(
             name = "{}-{}.o".format(stage, name),
-            src = "{}:source[{}]".format(MUSL, path),
+            src = "{}:source[{}]".format(musl, path),
             defines = [
                 "CRT",
                 "_XOPEN_SOURCE=700",
             ],
             flags = MUSL_FLAGS,
-            headers = [MUSL + ":source"],
-            includes = MUSL_INCLUDES,
+            headers = [musl + ":source"],
+            includes = includes,
             object_name = name + ".o",
             toolchain = ":{}-bare-cc".format(stage),
+            **kwargs
         )
 
 # --- Runtime libraries ---
@@ -559,7 +606,7 @@ LIBCXX_FLAGS = [
     "-D_LIBCPP_REMOVE_TRANSITIVE_INCLUDES",
 ]
 
-def _library(stage, name, output, sources, toolchain, flags, trees = [RUNTIMES_SOURCE]):
+def _library(stage, name, output, sources, toolchain, flags, trees = [RUNTIMES_SOURCE], config = None):
     """An archive of one object per source, named after it; flags maps an
     extension to the flags of its sources, and trees are the source trees
     they read."""
@@ -573,6 +620,7 @@ def _library(stage, name, output, sources, toolchain, flags, trees = [RUNTIMES_S
             headers = trees,
             object_name = path.rsplit("/", 1)[1].rsplit(".", 1)[0] + ".o",
             toolchain = toolchain,
+            **({"target_cpu": config.cpu} if config else {})
         )
         objects.append(":" + target)
     if output:
@@ -581,10 +629,11 @@ def _library(stage, name, output, sources, toolchain, flags, trees = [RUNTIMES_S
             objects = objects,
             output = output,
             toolchain = toolchain,
+            **({"target_cpu": config.cpu} if config else {})
         )
     return objects
 
-def llvm_runtimes(stage):
+def llvm_runtimes(stage, config = None):
     """The C library and runtimes the stage's compilers build.
 
     stage-libc.a and musl's startup files, stage-libclang_rt.builtins.a,
@@ -594,13 +643,32 @@ def llvm_runtimes(stage):
     and stage-mimalloc.o. stage-link-runtime links a static program against
     them.
     """
+    kwargs = {"target_cpu": config.cpu} if config else {}
     cc = ":{}-cc".format(stage)
     cxx = ":{}-c++".format(stage)
-    _musl(stage)
-    _library(stage, "builtins", "libclang_rt.builtins.a", BUILTINS_SOURCES, cc, {
-        "c": BUILTINS_FLAGS,
-        "S": BUILTINS_FLAGS,
-    }, trees = [RUNTIMES_SOURCE, SOURCE])
+    _musl(stage, config)
+    builtin_flags = BUILTINS_FLAGS + (["-DCOMPILER_RT_AARCH64_FMV_USES_GLOBAL_CONSTRUCTOR=1"] if config else [])
+    builtins = _library(stage, "builtins", None if config else "libclang_rt.builtins.a", AARCH64_BUILTINS if config else BUILTINS_SOURCES, cc, {
+        "c": builtin_flags,
+        "S": builtin_flags,
+        "cpp": builtin_flags + ["-std=c++17", "-fno-exceptions", "-fno-rtti"],
+    }, trees = [RUNTIMES_SOURCE, SOURCE], config = config)
+    if config:
+        for op in ["cas", "swp", "ldadd", "ldclr", "ldeor", "ldset"]:
+            for size in ([1, 2, 4, 8, 16] if op == "cas" else [1, 2, 4, 8]):
+                for model in [1, 2, 3, 4, 5]:
+                    name = "{}-outline-{}{}-{}".format(stage, op, size, model)
+                    c_object(
+                        name = name,
+                        src = RUNTIMES_SOURCE + "[compiler-rt/lib/builtins/aarch64/lse.S]",
+                        flags = builtin_flags + ["-I", _runtimes_path("compiler-rt/lib/builtins")],
+                        defines = ["L_" + op, "SIZE=" + str(size), "MODEL=" + str(model)],
+                        object_name = name.removeprefix(stage + "-") + ".o",
+                        toolchain = cc,
+                        **kwargs
+                    )
+                    builtins.append(":" + name)
+        c_library(name = stage + "-libclang_rt.builtins.a", output = "libclang_rt.builtins.a", objects = builtins, toolchain = cc, **kwargs)
     for name in CRT_OBJECTS:
         c_object(
             name = "{}-clang_rt.{}.o".format(stage, name),
@@ -608,6 +676,7 @@ def llvm_runtimes(stage):
             flags = CRT_FLAGS,
             object_name = "clang_rt.{}.o".format(name),
             toolchain = cc,
+            **kwargs
         )
     _library(stage, "libunwind", "libunwind.a", LIBUNWIND_SOURCES, cc, {
         "c": LIBUNWIND_FLAGS + [
@@ -621,8 +690,8 @@ def llvm_runtimes(stage):
             "-fno-rtti",
         ],
         "S": LIBUNWIND_FLAGS,
-    })
-    abi = _library(stage, "libcxxabi", "libc++abi.a", LIBCXXABI_SOURCES, cxx, {"cpp": LIBCXXABI_FLAGS})
+    }, config = config)
+    abi = _library(stage, "libcxxabi", "libc++abi.a", LIBCXXABI_SOURCES, cxx, {"cpp": LIBCXXABI_FLAGS}, config = config)
     cxx_objects = _library(stage, "libcxx", None, LIBCXX_SOURCES, cxx, {"cpp": LIBCXX_FLAGS + [
         "-DLIBCXX_BUILDING_LIBCXXABI",
         "-DLIBC_NAMESPACE=__llvm_libc_common_utils",
@@ -632,20 +701,22 @@ def llvm_runtimes(stage):
         _runtimes_path("libcxxabi/include"),
         "-isystem",
         _compiler_path("libc"),
-    ]}, trees = [RUNTIMES_SOURCE, SOURCE])
+    ]}, trees = [RUNTIMES_SOURCE, SOURCE], config = config)
     c_library(
         name = stage + "-libc++.a",
         objects = cxx_objects + abi,
         output = "libc++.a",
         toolchain = cxx,
+        **kwargs
     )
     _library(stage, "libcxx-experimental", "libc++experimental.a", LIBCXX_EXPERIMENTAL_SOURCES, cxx, {"cpp": LIBCXX_FLAGS + [
         "-D_LIBCPP_ENABLE_EXPERIMENTAL",
-    ]})
+    ]}, config = config)
 
     mimalloc_object(
         name = stage + "-mimalloc.o",
         toolchain = cc,
+        **({"source": config.mimalloc, "target_cpu": config.cpu} if config else {})
     )
 
     link_runtime(
@@ -666,14 +737,16 @@ def llvm_runtimes(stage):
             ":{}-crti.o".format(stage),
             ":{}-clang_rt.crtbegin.o".format(stage),
         ],
+        **kwargs
     )
 
 # --- Installation ---
 
-def runtime_installation(stage):
+def runtime_installation(stage, config = None):
     """Where a stage's C library, headers and runtimes lie in an installation
     that is its own sysroot, as Clang's driver looks for them."""
-    resource = "lib/clang/{}/lib/{}/".format(LLVM_MAJOR, TRIPLE)
+    triple = config.triple if config else TRIPLE
+    resource = "lib/clang/{}/lib/{}/".format(LLVM_MAJOR, triple)
     files = {
         resource + "libclang_rt.builtins.a": ":{}-libclang_rt.builtins.a".format(stage),
         resource + "clang_rt.crtbegin.o": ":{}-clang_rt.crtbegin.o".format(stage),
@@ -687,7 +760,7 @@ def runtime_installation(stage):
         "libc++experimental.a",
         "libunwind.a",
     ]:
-        files["lib/{}/{}".format(TRIPLE, library)] = ":{}-{}".format(stage, library)
+        files["lib/{}/{}".format(triple, library)] = ":{}-{}".format(stage, library)
     for name in COMPAT_LIBRARIES:
         files["lib/lib{}.a".format(name)] = ":{}-lib{}.a".format(stage, name)
     for name in [

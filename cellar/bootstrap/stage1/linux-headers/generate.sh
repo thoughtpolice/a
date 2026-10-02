@@ -44,7 +44,7 @@ kbuild() {
     fi
 }
 mandatory=$(kbuild "$src/include/uapi/asm-generic/Kbuild" mandatory-y)
-generated=" $(kbuild "$src/$asm/Kbuild" generated-y | tr '\n' ' ') "
+generated=" $(kbuild "$src/$asm/Kbuild" generated-y | tr '\n' ' ') $(kbuild "$src/$asm/Kbuild" syscall-y | tr '\n' ' ') "
 generic=$(kbuild "$src/$asm/Kbuild" generic-y)
 for header in $mandatory; do
     case $generated in
@@ -69,6 +69,12 @@ x86)
     "${syshdr[@]}" --abis i386 "$syscalls/syscall_32.tbl" "$out/unistd_32.h"
     "${syshdr[@]}" --abis common,64 "$syscalls/syscall_64.tbl" "$out/unistd_64.h"
     "${syshdr[@]}" --abis common,x32 --offset __X32_SYSCALL_BIT "$syscalls/syscall_64.tbl" "$out/unistd_x32.h"
+    ;;
+arm64)
+    # scripts/Makefile.asm-headers and arch/arm64/kernel/Makefile.syscalls.
+    "$BASH" "$src/scripts/syscallhdr.sh" --emit-nr \
+        --abis common,64,renameat,rlimit,memfd_secret \
+        "$src/arch/arm64/tools/syscall_64.tbl" "$out/unistd_64.h"
     ;;
 *)
     echo "no archheaders rules for $arch" >&2
