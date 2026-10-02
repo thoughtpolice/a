@@ -1,0 +1,36 @@
+/* SPDX-FileCopyrightText: © 2024-2026 Austin Seipp */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+@import "tailwindcss" source(none);
+
+@theme {
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-accent: #2563eb;
+  --color-error: #b91c1c;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* Headless actions own visibility, even when a panel has display utilities. */
+[hidden] {
+  display: none !important;
+}
