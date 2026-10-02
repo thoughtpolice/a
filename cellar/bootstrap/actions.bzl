@@ -90,9 +90,9 @@ def generate(chdir = False, capture = False, **kwargs):
 
 def _generator_helpers(chdir, capture, kwargs):
     if chdir:
-        kwargs["chdir"] = CHDIRENV
+        kwargs["chdir"] = CHDIRENV if chdir == True else chdir
     if capture:
-        kwargs["capture"] = CAPTURE
+        kwargs["capture"] = CAPTURE if capture == True else capture
     if kwargs.get("source_tree") != None:
         kwargs.setdefault("source_alias", SOURCE_ALIAS)
     return kwargs
