@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The generated preamble names the generator's package and version.
+cargo_env = true
+
+# build.rs only exists so OUT_DIR is set for the crate's own tests.
+buildscript.run = false
