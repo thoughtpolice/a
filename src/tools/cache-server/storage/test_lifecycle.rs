@@ -114,3 +114,56 @@ async fn a_store_made_without_the_split_is_refused() {
     .expect_err("mismatched store");
     assert!(err.to_string().contains("segment extractor"), "{err}");
 }
+
+/// Writes stop while the disk under a local store is below its reserve;
+/// reads of what is stored carry on.
+#[tokio::test]
+async fn a_full_disk_refuses_writes_but_serves_reads() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let open = |reserve| {
+        let backend = StoreBackend::LocalFs(dir.path().to_str().expect("utf-8").into());
+        CacheStore::open(
+            backend,
+            CacheStoreSettings {
+                disk_reserve_bytes: Some(reserve),
+                ..Default::default()
+            },
+        )
+    };
+    let data = Bytes::from_static(b"stored before the disk filled");
+    let digest = ContentDigest::compute(DigestFn::Sha256, &data);
+    let store = open(0).await.expect("open without a reserve");
+    store
+        .cas_put_blob(&digest, data.clone(), Compression::Identity)
+        .await
+        .expect("put");
+    store.close().await.expect("close");
+
+    // A reserve no disk can meet.
+    let store = open(u64::MAX).await.expect("open with a reserve");
+    let more = Bytes::from_static(b"one too many");
+    let err = store
+        .cas_put_blob(
+            &ContentDigest::compute(DigestFn::Sha256, &more),
+            more,
+            Compression::Identity,
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(err, StoreError::DiskFull { .. }), "{err:?}");
+    let err = store
+        .ac_put(&digest, Bytes::from_static(b"result"))
+        .await
+        .unwrap_err();
+    assert!(matches!(err, StoreError::DiskFull { .. }), "{err:?}");
+    assert_eq!(store.cas_get_blob(&digest).await.expect("get"), Some(data));
+    store.close().await.expect("close");
+}
+
+#[test]
+fn the_default_disk_reserve_is_a_tenth_and_at_least_a_gib() {
+    assert_eq!(default_reserve(4 << 40), (4 << 40) / 10);
+    assert_eq!(default_reserve(2 << 30), 1 << 30);
+    let (free, total) = filesystem_space(std::path::Path::new("/")).expect("statvfs /");
+    assert!(free <= total && total > 0);
+}

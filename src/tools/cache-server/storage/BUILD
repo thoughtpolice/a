@@ -14,6 +14,7 @@ DEPS = [
     "third-party//rust:flate2",
     "third-party//rust:hex",
     "third-party//rust:jiff",
+    "third-party//rust:libc",
     "third-party//rust:rayon",
     "third-party//rust:sha2",
     "third-party//rust:slatedb",
