@@ -9,6 +9,7 @@
 //! the global allocator appropriately.
 
 mod cgroup;
+pub mod fds;
 mod mimalloc_config;
 pub mod psi;
 
@@ -129,6 +130,11 @@ pub struct RuntimeInfo {
     /// files.
     pub cgroup_dir: Option<std::path::PathBuf>,
 
+    /// The open-files limit in effect (raised to the hard limit by
+    /// [`init`]), if it could be read.
+    pub open_files: Option<u64>,
+    open_files_before: Option<u64>,
+
     // Diagnostic fields for deferred logging.
     cgroup_version: &'static str,
     raw_cpu: Option<String>,
@@ -180,6 +186,14 @@ impl RuntimeInfo {
                 .map(|p| p.to_string_lossy().into_owned()),
             in_cgroup = self.in_cgroup,
             "runtime resource limits"
+        );
+
+        tracing::info!(
+            open_files = self.open_files,
+            raised_from = self
+                .open_files_before
+                .filter(|&b| Some(b) != self.open_files),
+            "open files limit"
         );
 
         let arena_reserve_kib = mimalloc::option_get(mimalloc::MiOption::ArenaReserve);
@@ -261,6 +275,7 @@ pub fn init() -> RuntimeInfo {
     });
 
     mimalloc_config::configure(limits.memory_limit_bytes);
+    let open_files = fds::raise_open_files_limit();
 
     RuntimeInfo {
         effective_cpus,
@@ -272,6 +287,8 @@ pub fn init() -> RuntimeInfo {
         raw_cpu: limits.diag.raw_cpu,
         raw_memory: limits.diag.raw_memory,
         cpu_quota: limits.cpu_quota_cpus,
+        open_files: open_files.map(|(_, after)| after),
+        open_files_before: open_files.map(|(before, _)| before),
     }
 }
 
