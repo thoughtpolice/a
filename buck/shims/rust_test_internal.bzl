@@ -171,12 +171,26 @@ def _rust_test_internal_impl(ctx: AnalysisContext) -> list[Provider]:
         listing_command = harness + ["--list", "--format", "terse"],
         parse_test_listing = parse_test_listing,
         parse_test_result = parse_test_result,
+        local_resources = {
+            name: dep.label
+            for name, dep in ctx.attrs.local_resources.items()
+        },
     ))
     return providers
 
 rust_test_internal = rule(
     impl = _rust_test_internal_impl,
-    attrs = _prelude_rust_test.attrs,
+    attrs = _prelude_rust_test.attrs | {
+        # Buck starts these services, injects their environment into each
+        # test, and keys their pools by target: tests in one target may run
+        # against the same instance one after another.
+        "local_resources": attrs.dict(
+            attrs.string(),
+            attrs.dep(providers = [LocalResourceInfo]),
+            default = {},
+            doc = "Named Buck-managed services each test needs while it runs.",
+        ),
+    },
     uses_plugins = _prelude_rust_test.uses_plugins,
     supports_incoming_transition = _prelude_rust_test.supports_incoming_transition,
     doc = "rust_test whose harness runs through Buck2's internal runner, one process per discovered test.",
