@@ -1,0 +1,35 @@
+{
+  "steps": [
+    {
+      "name": "a fresh notebook is empty and has the negotiated JSON page contract",
+      "request": { "path": "/", "headers": { "accept": "application/json" } },
+      "expect": { "json": { "$exact": { "view": "notes", "notes": [] } }, "headers": { "content-type": { "$regex": "^application/json" }, "vary": { "$contains": "Accept" } } }
+    },
+    {
+      "name": "an invalid title is rejected before any note is stored",
+      "request": { "path": "/notes", "method": "POST", "headers": { "content-type": "application/x-www-form-urlencoded", "accept": "application/json" }, "body": "title=X&body=" },
+      "expect": { "status": 400, "json": { "fieldErrors": { "title": { "$any": true } } } }
+    },
+    {
+      "name": "the explicit form body cap is enforced",
+      "request": { "path": "/notes", "method": "POST", "headers": { "content-type": "application/x-www-form-urlencoded", "accept": "application/json" }, "bodyBytes": 2049 },
+      "expect": { "status": 413 }
+    },
+    {
+      "name": "both rejected requests leave the notebook empty",
+      "request": { "path": "/", "headers": { "accept": "application/json" } },
+      "expect": { "json": { "view": "notes", "notes": [] } }
+    },
+    {
+      "name": "a valid form is stored and the updated page is returned",
+      "request": { "path": "/notes", "method": "POST", "headers": { "content-type": "application/x-www-form-urlencoded", "accept": "application/json" }, "body": "title=Sky+%26+%3Cscript%3Ealert%281%29%3C%2Fscript%3E&body=Clear+sky+after+rain." },
+      "expect": { "json": { "$exact": { "view": "notes", "notes": [{ "id": 1, "title": "Sky & <script>alert(1)</script>", "body": "Clear sky after rain." }] } } }
+    },
+    {
+      "name": "the guide uses the same persisted note snapshot after a runtime restart",
+      "restart": true,
+      "request": { "path": "/guide", "headers": { "accept": "application/json" } },
+      "expect": { "json": { "$exact": { "view": "guide", "notes": [{ "id": 1, "title": "Sky & <script>alert(1)</script>", "body": "Clear sky after rain." }] } } }
+    }
+  ]
+}

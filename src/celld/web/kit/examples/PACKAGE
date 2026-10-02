@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    copyright = ["© 2024-2026 Austin Seipp"],
+    license = "Apache-2.0",
+    description = "A persistent native-compiled Svelte notebook using the first-party celld web kit",
+    version = "0.1.0",
+)
