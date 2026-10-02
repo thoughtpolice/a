@@ -3,7 +3,7 @@
 
 //! Happy Fun Ball. Do not taunt.
 
-use std::{path::PathBuf, str::FromStr, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
@@ -14,7 +14,7 @@ use dial9::{
     Dial9HandleTokioExt as _, Dial9TokioHandle, DiskBuffer, RecorderPerfExt as _,
     TokioAttachOptions,
 };
-use tracing_subscriber::{filter, prelude::*};
+use tracing_subscriber::{filter, filter::FilterExt as _, prelude::*};
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -43,7 +43,8 @@ struct Cli {
     )]
     store: String,
 
-    /// `tracing` filter for the console logs.
+    /// Which events the console log shows: a level (`info`), or directives
+    /// in `RUST_LOG` syntax, e.g. `info,slatedb::garbage_collector=debug`.
     #[arg(long, default_value = "info", env = "CACHE_SERVER_LOG", global = true)]
     console_log: String,
 
@@ -58,7 +59,9 @@ struct Cli {
 
     // --- Tracing options ---
     /// Directory for dial9 runtime trace output. Defaults to
-    /// $TMPDIR/cache-server-traces.
+    /// $TMPDIR/cache-server-traces. Each subcommand records into its own
+    /// subdirectory (`serve/`, `compact/`), which keeps earlier runs' traces
+    /// within --trace-max-total-mib.
     #[arg(long, env = "CACHE_SERVER_TRACE_DIR", global = true)]
     trace_dir: Option<PathBuf>,
 
@@ -79,6 +82,17 @@ struct Cli {
         global = true
     )]
     trace_max_total_mib: u64,
+
+    /// Record one in this many kernel context switches (when the kernel
+    /// allows scheduler events at all). Each carries a stack, and a busy
+    /// server switches tens of thousands of times a second.
+    #[arg(
+        long,
+        default_value_t = 10,
+        env = "CACHE_SERVER_TRACE_SCHED_SAMPLE_INTERVAL",
+        global = true
+    )]
+    trace_sched_sample_interval: u64,
 
     /// Disable dial9 scheduler tracing (use a plain tokio runtime).
     #[arg(
@@ -136,6 +150,12 @@ struct ServeArgs {
         env = "CACHE_SERVER_MAX_CONCURRENT_REQUESTS"
     )]
     max_concurrent_requests: usize,
+
+    /// Most connections open at once; past it, new ones wait in the listen
+    /// backlog. Defaults to three quarters of the open-files limit (which
+    /// the server raises to its hard limit), keeping the rest for the store.
+    #[arg(long, env = "CACHE_SERVER_MAX_CONNECTIONS")]
+    max_connections: Option<usize>,
 
     /// Disable the embedded compactor (use with standalone `compact` subcommand)
     #[arg(long, default_value_t = false)]
@@ -299,6 +319,8 @@ fn start_recorder(
     trace_dir: &std::path::Path,
     max_file_mib: u64,
     max_total_mib: u64,
+    sched_sample_interval: u64,
+    metadata: Vec<(String, String)>,
     caps: &runtime::PerfCapabilities,
 ) -> Result<dial9::Recorder> {
     let writer = DiskBuffer::builder()
@@ -318,13 +340,122 @@ fn start_recorder(
                 .sample_rate_bytes(512 * 1024)
                 .build(),
         )
-        .with_process_resource_usage(ProcessResourceUsageConfig::default());
+        .with_process_resource_usage(ProcessResourceUsageConfig::default())
+        .segment_metadata(metadata);
     if caps.cpu_profiling {
         recorder = recorder.with_cpu_profiling(CpuProfilingConfig::default());
-        recorder = recorder
-            .with_sched_events(SchedEventConfig::default().include_kernel(caps.kernel_stacks));
+        recorder = recorder.with_sched_events(
+            SchedEventConfig::default()
+                .sampling_interval(sched_sample_interval.max(1))
+                .include_kernel(caps.kernel_stacks),
+        );
     }
     Ok(recorder.build())
+}
+
+/// What every trace segment says about the process that wrote it, so
+/// segments from different hosts, versions, and runs can be told apart.
+fn trace_metadata(cli: &Cli, command: &str) -> Vec<(String, String)> {
+    let hostname = std::fs::read_to_string("/proc/sys/kernel/hostname")
+        .map(|h| h.trim().to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+    [
+        ("service.name", "buck2-cache-server".to_string()),
+        (
+            "service.version",
+            option_env!("depot_VERSION").unwrap_or("dev").to_string(),
+        ),
+        ("host.name", hostname),
+        ("process.pid", std::process::id().to_string()),
+        ("cache_server.command", command.to_string()),
+        ("cache_server.store", cli.store.clone()),
+    ]
+    .into_iter()
+    .map(|(k, v)| (k.to_string(), v))
+    .collect()
+}
+
+/// Claim `base/command` as this process's trace directory.
+///
+/// dial9 keeps a trace directory within its size budget across restarts by
+/// itself (numbering on from, and evicting, the segments it finds), so
+/// earlier runs' traces stay for post-mortems instead of being wiped. Two
+/// writers in one directory would truncate and delete each other's
+/// segments, though, so the directory is locked for the life of the
+/// process: `None` if another process holds it.
+fn claim_trace_dir(
+    base: &std::path::Path,
+    command: &str,
+) -> Result<Option<(PathBuf, std::fs::File)>> {
+    let dir = base.join(command);
+    std::fs::create_dir_all(&dir)
+        .with_context(|| format!("failed to create trace directory {}", dir.display()))?;
+    let lock = std::fs::File::options()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(dir.join(".lock"))
+        .with_context(|| format!("failed to open the lock in {}", dir.display()))?;
+    match lock.try_lock() {
+        Ok(()) => {}
+        Err(std::fs::TryLockError::WouldBlock) => return Ok(None),
+        Err(std::fs::TryLockError::Error(e)) => {
+            return Err(e).with_context(|| format!("failed to lock {}", dir.display()));
+        }
+    }
+    set_aside_raw_segments(&dir)?;
+    Ok(Some((dir, lock)))
+}
+
+/// Rename raw `trace.N.bin` segments, left by a run that died (or whose
+/// shutdown drain timed out) before symbolizing them, to
+/// `trace.N.bin.unsymbolized`.
+///
+/// dial9's worker symbolizes whatever raw segments it finds against *this*
+/// process's memory map, which would label an earlier run's stacks with the
+/// wrong functions. The new name is still part of the segment's family, so
+/// it counts against the size budget and is evicted with it.
+fn set_aside_raw_segments(dir: &std::path::Path) -> Result<()> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            continue;
+        };
+        let raw = name
+            .strip_prefix("trace.")
+            .and_then(|rest| rest.strip_suffix(".bin"))
+            .is_some_and(|index| index.parse::<u32>().is_ok());
+        if raw {
+            let aside = dir.join(format!("{name}.unsymbolized"));
+            std::fs::rename(entry.path(), &aside)
+                .with_context(|| format!("failed to set aside {}", entry.path().display()))?;
+        }
+    }
+    Ok(())
+}
+
+/// Toggle dial9 recording on each SIGUSR1, so an operator can pause tracing
+/// on a busy server (or resume it) without a restart.
+fn spawn_recording_toggle() -> Result<()> {
+    let mut usr1 = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::user_defined1())
+        .context("failed to install SIGUSR1 handler")?;
+    // Housekeeping, so a plain spawn: nothing about it is worth tracing.
+    tokio::spawn(async move {
+        while usr1.recv().await.is_some() {
+            let handle = dial9::Dial9Handle::current();
+            if handle.is_enabled() {
+                handle.disable();
+            } else {
+                handle.enable();
+            }
+            tracing::info!(
+                recording = handle.is_enabled(),
+                "SIGUSR1: toggled dial9 recording"
+            );
+        }
+    });
+    Ok(())
 }
 
 /// How the server attaches its runtime to the recorder.
@@ -346,7 +477,30 @@ fn main() -> Result<()> {
     builder.enable_all();
     builder.worker_threads(rt_info.effective_cpus);
 
-    if cli.disable_dial9 {
+    let command = match cli.command {
+        Some(Command::Compact) => "compact",
+        Some(Command::Serve(_)) | None => "serve",
+    };
+    let claimed = if cli.disable_dial9 {
+        None
+    } else {
+        let base = cli
+            .trace_dir
+            .clone()
+            .unwrap_or_else(|| std::env::temp_dir().join("cache-server-traces"));
+        let claimed = claim_trace_dir(&base, command)?;
+        if claimed.is_none() {
+            // Logging is not up yet.
+            eprintln!(
+                "warning: another process is recording into {}; running without dial9 \
+                 tracing (give this one its own --trace-dir)",
+                base.join(command).display()
+            );
+        }
+        claimed
+    };
+
+    let Some((trace_dir, _trace_lock)) = claimed else {
         let recorder = dial9::recorder_disabled();
         let runtime = recorder
             .handle()
@@ -357,42 +511,39 @@ fn main() -> Result<()> {
         );
         drop(runtime);
         recorder.graceful_shutdown(std::time::Duration::from_secs(5));
-        result
-    } else {
-        let trace_dir = cli
-            .trace_dir
-            .clone()
-            .unwrap_or_else(|| std::env::temp_dir().join("cache-server-traces"));
-        let _ = std::fs::remove_dir_all(&trace_dir);
+        return result;
+    };
 
-        let caps = runtime::check_perf_capabilities();
-        let recorder = start_recorder(
-            &trace_dir,
-            cli.trace_max_file_mib,
-            cli.trace_max_total_mib,
-            &caps,
-        )?;
+    let caps = runtime::check_perf_capabilities();
+    let recorder = start_recorder(
+        &trace_dir,
+        cli.trace_max_file_mib,
+        cli.trace_max_total_mib,
+        cli.trace_sched_sample_interval,
+        trace_metadata(&cli, command),
+        &caps,
+    )?;
 
-        let runtime = recorder
-            .handle()
-            .attach_tokio_runtime(builder, attach_options())?;
+    let runtime = recorder
+        .handle()
+        .attach_tokio_runtime(builder, attach_options())?;
 
-        // Only the attach marks this thread as traced, so a handle taken
-        // before it would spawn without wake tracking and say nothing.
-        let handle = Dial9TokioHandle::current();
+    // Only the attach marks this thread as traced, so a handle taken
+    // before it would spawn without wake tracking and say nothing.
+    let handle = Dial9TokioHandle::current();
 
-        let result = dial9::block_on(
-            &runtime,
-            async_main(cli, handle, Some(trace_dir), Some(caps), rt_info),
-        );
-        // Drop the runtime first so worker threads exit and flush their
-        // thread-local telemetry buffers to the central collector. Then
-        // graceful_shutdown drains the collector, seals the final segment,
-        // and gives the background worker time to symbolize + compress.
-        drop(runtime);
-        recorder.graceful_shutdown(std::time::Duration::from_secs(5));
-        result
-    }
+    let result = dial9::block_on(
+        &runtime,
+        async_main(cli, handle, Some(trace_dir), Some(caps), rt_info),
+    );
+    // Drop the runtime first so worker threads exit and flush their
+    // thread-local telemetry buffers to the central collector. Then
+    // graceful_shutdown drains the collector, seals the final segment,
+    // and gives the background worker time to symbolize + compress. The
+    // trace lock is held until after it.
+    drop(runtime);
+    recorder.graceful_shutdown(std::time::Duration::from_secs(5));
+    result
 }
 
 /// Read the registry credentials in the Docker `config.json` at `path`.
@@ -481,6 +632,23 @@ mod parse_backend_tests {
     }
 }
 
+#[cfg(test)]
+mod console_filter_tests {
+    use super::*;
+
+    fn filter(arg: &str) -> Result<filter::EnvFilter> {
+        console_filter(&Cli::parse_from(["cache-server", "--console-log", arg]))
+    }
+
+    #[test]
+    fn levels_and_directives() {
+        filter("warn").expect("a level");
+        filter("info,slatedb::garbage_collector=debug").expect("directives");
+        let err = filter("info,slatedb=loud").unwrap_err();
+        assert!(format!("{err:#}").contains("--console-log"), "{err:#}");
+    }
+}
+
 fn default_ttl(days: u32) -> Option<jiff::SignedDuration> {
     if days == 0 {
         None
@@ -497,7 +665,7 @@ async fn async_main(
     rt_info: runtime::RuntimeInfo,
 ) -> Result<()> {
     match cli.command {
-        Some(Command::Compact) => run_compactor(&cli, handle).await,
+        Some(Command::Compact) => run_compactor(&cli).await,
         Some(Command::Serve(ref args)) => {
             run_server(
                 &cli,
@@ -531,6 +699,7 @@ impl Default for ServeArgs {
             request_timeout: 900,
             fetch_timeout: 1800,
             max_concurrent_requests: 8192,
+            max_connections: None,
             disable_compactor: false,
             block_cache_mib: store::DEFAULT_BLOCK_CACHE_BYTES / (1024 * 1024),
             meta_cache_mib: store::DEFAULT_META_CACHE_BYTES / (1024 * 1024),
@@ -556,15 +725,52 @@ impl Default for ServeArgs {
     }
 }
 
-async fn run_compactor(cli: &Cli, handle: Dial9TokioHandle) -> Result<()> {
-    let cli_console_layer = tracing_subscriber::fmt::layer().with_filter(
-        filter::LevelFilter::from_str(cli.console_log.as_str()).context(
-            "invalid --console-log filter (valid values: trace, debug, info, warn, error, off)",
-        )?,
-    );
+/// Most times a second any one log statement reaches a log layer (see
+/// [`telemetry::LogStormGuard`]).
+const LOG_STATEMENT_RATE: u32 = 20;
+
+/// Every 10 s, say how many log events `guards` dropped, if any.
+fn spawn_suppression_report(guards: Vec<telemetry::LogStormGuard>) {
+    const EVERY: std::time::Duration = std::time::Duration::from_secs(10);
+    // Housekeeping, so a plain spawn.
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(EVERY);
+        loop {
+            tick.tick().await;
+            let dropped: u64 = guards.iter().map(|g| g.take_suppressed()).sum();
+            if dropped > 0 {
+                tracing::warn!(
+                    dropped,
+                    "dropped {dropped} log events in the last {}s from statements logging \
+                     more than {LOG_STATEMENT_RATE} times a second",
+                    EVERY.as_secs()
+                );
+            }
+        }
+    });
+}
+
+/// The console log filter `--console-log` asks for.
+fn console_filter(cli: &Cli) -> Result<filter::EnvFilter> {
+    filter::EnvFilter::builder()
+        .parse(&cli.console_log)
+        .with_context(|| {
+            format!(
+                "invalid --console-log filter {:?} (a level such as `info`, or directives \
+                 such as `info,slatedb=debug`)",
+                cli.console_log
+            )
+        })
+}
+
+async fn run_compactor(cli: &Cli) -> Result<()> {
+    let storm_guard = telemetry::LogStormGuard::new(LOG_STATEMENT_RATE);
+    let cli_console_layer =
+        tracing_subscriber::fmt::layer().with_filter(console_filter(cli)?.and(storm_guard.clone()));
     tracing_subscriber::registry()
         .with(cli_console_layer)
         .init();
+    spawn_suppression_report(vec![storm_guard]);
 
     // The compactor takes no OTEL flags; the standard environment variables
     // (OTEL_EXPORTER_OTLP_ENDPOINT, ...) enable metrics export.
@@ -592,9 +798,12 @@ async fn run_compactor(cli: &Cli, handle: Dial9TokioHandle) -> Result<()> {
         "standalone compactor running"
     );
 
+    spawn_recording_toggle()?;
+    // Housekeeping, so a plain spawn: its polls are still recorded, but
+    // nothing waits on it to need wake tracking.
     let compactor_task = {
         let c = Arc::clone(&compactor);
-        handle.spawn(async move { c.run().await })
+        tokio::spawn(async move { c.run().await })
     };
 
     let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
@@ -636,24 +845,30 @@ async fn run_server(
     } else {
         None
     };
-    let cli_console_layer = tracing_subscriber::fmt::layer().with_filter(
-        filter::LevelFilter::from_str(cli.console_log.as_str()).context(
-            "invalid --console-log filter (valid values: trace, debug, info, warn, error, off)",
-        )?,
-    );
+    // Each layer gets its own guard: one shared would count an event both
+    // layers see twice.
+    let console_guard = telemetry::LogStormGuard::new(LOG_STATEMENT_RATE);
+    let otel_guard = telemetry::LogStormGuard::new(LOG_STATEMENT_RATE);
+    let cli_console_layer = tracing_subscriber::fmt::layer()
+        .with_filter(console_filter(cli)?.and(console_guard.clone()));
 
-    let otel_layer = telemetry::init_otel_layer(&otel_config)?;
+    // Request spans are INFO. Below that are every dependency's internals,
+    // tokio's span per spawned task among them, which would be exported too.
+    let otel_layer = telemetry::init_otel_layer(&otel_config)?
+        .map(|layer| layer.with_filter(filter::LevelFilter::INFO.and(otel_guard.clone())));
 
     tracing_subscriber::registry()
         .with(tokio_console_layer)
         .with(cli_console_layer)
         .with(otel_layer)
         .init();
+    spawn_suppression_report(vec![console_guard, otel_guard]);
 
     rt_info.emit_diagnostics();
     if let Some(caps) = perf_caps {
         caps.emit_warnings();
     }
+    spawn_recording_toggle()?;
 
     let pressure_monitor = runtime::psi::PressureMonitor::spawn(
         rt_info.pressure_dir().map(std::path::Path::to_path_buf),
@@ -745,6 +960,10 @@ async fn run_server(
         );
     }
 
+    let max_connections = args
+        .max_connections
+        .unwrap_or_else(|| runtime::fds::max_connections(rt_info.open_files.unwrap_or(1024)));
+
     tracing::info!(
         %address,
         store = %cli.store,
@@ -755,6 +974,7 @@ async fn run_server(
         request_timeout_secs = args.request_timeout,
         fetch_timeout_secs = args.fetch_timeout,
         max_concurrent_requests = args.max_concurrent_requests,
+        max_connections,
         disable_compactor = args.disable_compactor,
         dial9 = dial9::Dial9Handle::current().is_enabled(),
         load_shedding = pressure_monitor.is_some(),
@@ -802,6 +1022,7 @@ async fn run_server(
 
     let request_timeout =
         (args.request_timeout > 0).then(|| std::time::Duration::from_secs(args.request_timeout));
+
     let fetch_config = service::FetchConfig {
         cpus: rt_info.effective_cpus,
         git_spool_dir: args.git_spool_dir.clone(),
@@ -820,6 +1041,7 @@ async fn run_server(
                 cache_store.clone(),
                 request_timeout,
                 Some(args.max_concurrent_requests),
+                max_connections,
                 fetch_config,
                 handle,
                 pressure_monitor,

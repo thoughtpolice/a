@@ -50,6 +50,7 @@ impl Server {
                     store,
                     None,
                     Some(8192),
+                    1024,
                     crate::service::FetchConfig::default(),
                     Dial9TokioHandle::disabled(),
                     None,

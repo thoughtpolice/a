@@ -30,6 +30,7 @@ pub async fn start_reapi_grpc(
     store: Arc<CacheStore>,
     request_timeout: Option<Duration>,
     max_concurrent_requests: Option<usize>,
+    max_connections: usize,
     fetch_config: crate::service::FetchConfig,
     handle: Dial9TokioHandle,
     pressure_monitor: Option<runtime::psi::PressureMonitor>,
@@ -88,7 +89,18 @@ pub async fn start_reapi_grpc(
 
     let effective_limit = max_concurrent_requests.unwrap_or(8192);
 
-    let listener = tokio::net::TcpListener::bind(address).await?;
+    // Connections are capped below the open-files limit (TLS handshakes in
+    // flight included), so the store always has descriptors left. At the
+    // cap, the connection that has gone longest without a request makes
+    // room for a newcomer.
+    let listener = accept::Limited::new(
+        tokio::net::TcpListener::bind(address).await?,
+        max_connections,
+    );
+    let limits = dial9_tonic::ConnectionLimits {
+        make_room: Some(listener.room_wanted()),
+        ..Default::default()
+    };
 
     match tls {
         Some(config) => {
@@ -100,6 +112,7 @@ pub async fn start_reapi_grpc(
                 pressure_monitor,
                 handle,
                 shutdown,
+                limits,
             )
             .await
         }
@@ -112,6 +125,7 @@ pub async fn start_reapi_grpc(
                 pressure_monitor,
                 handle,
                 shutdown,
+                limits,
             )
             .await
         }
@@ -162,6 +176,7 @@ async fn serve_stack<A: Accept>(
     pressure_monitor: Option<runtime::psi::PressureMonitor>,
     handle: Dial9TokioHandle,
     shutdown: impl Future<Output = ()> + Send + 'static,
+    limits: dial9_tonic::ConnectionLimits,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let svc = tower::limit::ConcurrencyLimit::new(
         crate::request_timeout::RequestTimeout::new(routes, timeouts),
@@ -174,8 +189,8 @@ async fn serve_stack<A: Accept>(
                 runtime::psi::PressureLevel::High,
             )
             .layer(svc);
-            dial9_tonic::serve_traced(acceptor, svc, handle, shutdown).await
+            dial9_tonic::serve_traced_with(acceptor, svc, handle, shutdown, limits).await
         }
-        None => dial9_tonic::serve_traced(acceptor, svc, handle, shutdown).await,
+        None => dial9_tonic::serve_traced_with(acceptor, svc, handle, shutdown, limits).await,
     }
 }

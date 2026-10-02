@@ -20,7 +20,6 @@ BUILD_DEPS = [
     "//src/tools/cache-server/telemetry:telemetry",
     # crates.io
     "third-party//rust:bytes",
-    "third-party//rust:dashmap",
     "third-party//rust:futures",
     "third-party//rust:hex",
     "third-party//rust:jiff",
@@ -38,7 +37,6 @@ BUILD_DEPS = [
     "third-party//rust:tonic",
     "third-party//rust:tower",
     "third-party//rust:hyper",
-    "third-party//rust:hyper-util",
     "third-party//rust:tonic-prost",
     "third-party//rust:tonic-health",
     "third-party//rust:tonic-reflection",
