@@ -35,6 +35,13 @@ pub enum StoreError {
     /// Blob exceeds the maximum allowed reassembly size.
     #[error("blob too large: {size} bytes exceeds limit of {limit} bytes")]
     BlobTooLarge { size: usize, limit: usize },
+
+    /// The disk under a local store has less free space than its reserve,
+    /// so writes are refused until it recovers.
+    #[error(
+        "the cache's disk is nearly full ({free} bytes free, {reserve} reserved); not storing more until it drains"
+    )]
+    DiskFull { free: u64, reserve: u64 },
 }
 
 impl StoreError {

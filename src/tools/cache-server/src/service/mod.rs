@@ -13,7 +13,7 @@ mod capabilities;
 pub use capabilities::CapabilitiesService;
 
 mod cas;
-pub use cas::ContentAddressableStorageService;
+pub use cas::{CasServer, ContentAddressableStorageService};
 
 mod execution;
 pub use execution::ExecutionService;

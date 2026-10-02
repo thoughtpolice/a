@@ -8,17 +8,19 @@ use dial9::Dial9TokioHandle;
 use futures::{StreamExt as _, TryStreamExt as _};
 use prost::Message;
 use tokio_stream::wrappers::ReceiverStream;
+use tonic::codegen::http;
 
 use protos::build::bazel::remote::execution::v2::{
     BatchReadBlobsRequest, BatchReadBlobsResponse, BatchUpdateBlobsRequest,
     BatchUpdateBlobsResponse, Digest, Directory, FindMissingBlobsRequest, FindMissingBlobsResponse,
     GetTreeRequest, GetTreeResponse, SpliceBlobRequest, SpliceBlobResponse, SplitBlobRequest,
-    SplitBlobResponse, batch_read_blobs_response, batch_update_blobs_response,
-    content_addressable_storage_server,
+    SplitBlobResponse, batch_read_blobs_response, batch_update_blobs_request,
+    batch_update_blobs_response, content_addressable_storage_server,
 };
 
 use crate::store::{
-    CacheStore, Compression, ContentDigest, MAX_BLOB_REASSEMBLE_SIZE, MAX_MANIFEST_CHUNK_COUNT,
+    CPU_INLINE_BYTES, CacheStore, Compression, ContentDigest, DigestFn, MAX_BLOB_REASSEMBLE_SIZE,
+    MAX_MANIFEST_CHUNK_COUNT,
 };
 
 use super::helpers::{
@@ -28,6 +30,9 @@ use super::helpers::{
 };
 
 const MAX_BATCH_DIGESTS: usize = 10_000;
+
+/// Most bytes the compressed blobs of one BatchUpdateBlobs may expand to.
+const MAX_BATCH_DECOMPRESSED_SIZE: i64 = 64 * 1024 * 1024;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -48,6 +53,46 @@ impl std::fmt::Debug for ContentAddressableStorageService {
 impl ContentAddressableStorageService {
     pub fn new(store: Arc<CacheStore>, handle: Dial9TokioHandle) -> Self {
         Self { store, handle }
+    }
+
+    /// GetTree, its Directories in each page sent as they are stored.
+    pub(super) async fn get_tree_raw(
+        &self,
+        req: tonic::Request<GetTreeRequest>,
+    ) -> Result<tonic::Response<RawTreePages>, tonic::Status> {
+        let store = self.store.clone();
+        let handle = self.handle.clone();
+        instrumented_rpc("cas.get_tree", async move {
+            let inner = req.into_inner();
+            let digest_fn = resolve_digest_function(inner.digest_function)?;
+            let root_cd = parse_and_validate_digest(&inner.root_digest, digest_fn)?;
+
+            telemetry::wide!("tree.root_digest", hex::encode(root_cd.hash));
+
+            // Pre-check root exists so missing root returns a proper RPC error
+            if !store
+                .cas_blob_exists(&root_cd)
+                .await
+                .map_err(store_error_to_status)?
+            {
+                return Err(tonic::Status::not_found(format!(
+                    "directory blob not found: {root_cd}"
+                )));
+            }
+
+            // Stream directories as they are read instead of accumulating
+            // them all in memory first.
+            let (tx, rx) = tokio::sync::mpsc::channel(8);
+            handle.spawn(async move {
+                let result = stream_tree(&store, root_cd, digest_fn, &tx).await;
+                if let Err(status) = result {
+                    let _ = tx.send(Err(status)).await;
+                }
+            });
+
+            Ok(tonic::Response::new(ReceiverStream::new(rx)))
+        })
+        .await
     }
 }
 
@@ -153,100 +198,80 @@ impl content_addressable_storage_server::ContentAddressableStorage
                     "total batch size {total_size} exceeds limit {MAX_BATCH_TOTAL_SIZE}"
                 )));
             }
+            // Compressed uploads are held decompressed until stored, so what
+            // they expand to is bounded too.
+            let declared_size = inner
+                .requests
+                .iter()
+                .filter(|r| r.compressor != Compression::Identity as i32)
+                .filter_map(|r| r.digest.as_ref())
+                .try_fold(0i64, |acc, d| acc.checked_add(d.size_bytes.max(0)))
+                .ok_or_else(|| tonic::Status::invalid_argument("declared batch size overflowed"))?;
+            if declared_size > MAX_BATCH_DECOMPRESSED_SIZE {
+                return Err(tonic::Status::invalid_argument(format!(
+                    "compressed blobs in the batch declare {declared_size} bytes, over the \
+                     {MAX_BATCH_DECOMPRESSED_SIZE} limit; upload large blobs with ByteStream"
+                )));
+            }
+
+            // Decompressing and hashing are CPU work: off the async workers
+            // unless there is little of it.
+            let requests = inner.requests;
+            let compressed = requests
+                .iter()
+                .any(|r| r.compressor != Compression::Identity as i32);
+            let check_all = move || {
+                requests
+                    .into_iter()
+                    .map(|r| check_upload(r, digest_fn))
+                    .collect::<Vec<_>>()
+            };
+            let checked = if compressed || total_size as usize >= CPU_INLINE_BYTES {
+                tokio::task::spawn_blocking(check_all)
+                    .await
+                    .map_err(|e| tonic::Status::internal(format!("blob check failed: {e}")))?
+            } else {
+                check_all()
+            };
+
+            // Every valid blob in one write, so the batch waits for one
+            // flush rather than one per blob.
+            let valid: Vec<(ContentDigest, Bytes)> = checked
+                .iter()
+                .filter_map(|(_, result)| result.as_ref().ok().cloned())
+                .collect();
+            let stored = if valid.is_empty() {
+                Ok(())
+            } else {
+                store
+                    .cas_put_verified_blobs(valid)
+                    .await
+                    .map(|_| ())
+                    .map_err(store_error_to_status)
+            };
 
             let m = telemetry::metrics();
-            let svc_attr = telemetry::KeyValue::new("service", "cas");
-
-            let responses: Vec<_> = futures::stream::iter(inner.requests.into_iter())
-                .map(|upload_req| {
-                    let store = store.clone();
-                    let m = m.clone();
-                    let svc_attr = svc_attr.clone();
-                    async move {
-                        let compressor = match Compression::from_proto_i32(upload_req.compressor) {
-                            Some(c) => c,
-                            None => {
-                                return batch_update_blobs_response::Response {
-                                    digest: upload_req.digest.clone(),
-                                    status: Some(rpc_status(
-                                        tonic::Code::InvalidArgument as i32,
-                                        format!(
-                                            "unsupported compressor: {}",
-                                            upload_req.compressor
-                                        ),
-                                    )),
-                                };
-                            }
-                        };
-
-                        let data: Bytes = if compressor != Compression::Identity {
-                            let size_hint = upload_req
-                                .digest
-                                .as_ref()
-                                .map(|d| {
-                                    if d.size_bytes > 0 {
-                                        d.size_bytes as usize
-                                    } else {
-                                        0
-                                    }
-                                })
-                                .unwrap_or(0)
-                                .min(MAX_BLOB_REASSEMBLE_SIZE);
-                            match compressor.decompress_with_size_hint(&upload_req.data, size_hint)
-                            {
-                                Ok(d) => Bytes::from(d.into_owned()),
-                                Err(e) => {
-                                    return batch_update_blobs_response::Response {
-                                        digest: upload_req.digest.clone(),
-                                        status: Some(rpc_status(
-                                            tonic::Code::InvalidArgument as i32,
-                                            format!("decompression error: {e}"),
-                                        )),
-                                    };
-                                }
-                            }
-                        } else {
-                            upload_req.data
-                        };
-
-                        let result = validate_blob_data(&upload_req.digest, &data, digest_fn);
-                        match result {
-                            Ok(cd) => {
-                                let data_len = data.len() as u64;
-                                m.blob_size.record(data_len, &[svc_attr.clone()]);
-                                match store.cas_put_blob(&cd, data, Compression::Identity).await {
-                                    Ok(()) => {
-                                        m.bytes_written.add(data_len, &[svc_attr.clone()]);
-                                        batch_update_blobs_response::Response {
-                                            digest: upload_req.digest.clone(),
-                                            status: Some(rpc_status_ok()),
-                                        }
-                                    }
-                                    Err(e) => {
-                                        let status = store_error_to_status(e);
-                                        batch_update_blobs_response::Response {
-                                            digest: upload_req.digest.clone(),
-                                            status: Some(rpc_status(
-                                                status.code() as i32,
-                                                status.message(),
-                                            )),
-                                        }
-                                    }
-                                }
-                            }
-                            Err(status) => batch_update_blobs_response::Response {
-                                digest: upload_req.digest.clone(),
-                                status: Some(rpc_status(
-                                    tonic::Code::InvalidArgument as i32,
-                                    status.message(),
-                                )),
-                            },
+            let svc_attr = [telemetry::KeyValue::new("service", "cas")];
+            let responses = checked
+                .into_iter()
+                .map(|(digest, result)| {
+                    let status = match (result, &stored) {
+                        (Err(status), _) => {
+                            rpc_status(tonic::Code::InvalidArgument as i32, status.message())
                         }
+                        (Ok((_, data)), Ok(())) => {
+                            m.blob_size.record(data.len() as u64, &svc_attr);
+                            m.bytes_written.add(data.len() as u64, &svc_attr);
+                            rpc_status_ok()
+                        }
+                        (Ok(_), Err(status)) => rpc_status(status.code() as i32, status.message()),
+                    };
+                    batch_update_blobs_response::Response {
+                        digest,
+                        status: Some(status),
                     }
                 })
-                .buffered(32)
-                .collect()
-                .await;
+                .collect();
 
             Ok(tonic::Response::new(BatchUpdateBlobsResponse { responses }))
         })
@@ -400,137 +425,24 @@ impl content_addressable_storage_server::ContentAddressableStorage
         .await
     }
 
-    type GetTreeStream = ReceiverStream<Result<GetTreeResponse, tonic::Status>>;
+    type GetTreeStream =
+        futures::stream::BoxStream<'static, Result<GetTreeResponse, tonic::Status>>;
 
+    /// GetTree as the generated service declares it. The server answers
+    /// GetTree with [`CasServer`], which sends the pages of
+    /// [`get_tree_raw`](Self::get_tree_raw) as they are; this decodes them,
+    /// for callers of the generated trait.
     async fn get_tree(
         &self,
         req: tonic::Request<GetTreeRequest>,
     ) -> Result<tonic::Response<Self::GetTreeStream>, tonic::Status> {
-        let store = self.store.clone();
-        let handle = self.handle.clone();
-        instrumented_rpc("cas.get_tree", async move {
-            let inner = req.into_inner();
-            let digest_fn = resolve_digest_function(inner.digest_function)?;
-            let root_cd = parse_and_validate_digest(&inner.root_digest, digest_fn)?;
-
-            telemetry::wide!("tree.root_digest", hex::encode(root_cd.hash));
-
-            const MAX_TREE_DIRECTORIES: usize = 100_000;
-            const MAX_TREE_BYTES: u64 = 256 * 1024 * 1024;
-
-            // Pre-check root exists so missing root returns a proper RPC error
-            if !store
-                .cas_blob_exists(&root_cd)
-                .await
-                .map_err(store_error_to_status)?
-            {
-                return Err(tonic::Status::not_found(format!(
-                    "directory blob not found: {root_cd}"
-                )));
-            }
-
-            // Stream directories as they are decoded instead of
-            // accumulating them all in memory first.
-            let (tx, rx) = tokio::sync::mpsc::channel(32);
-            handle.spawn(async move {
-                let mut queue = std::collections::VecDeque::new();
-                let mut visited = std::collections::HashSet::new();
-                queue.push_back(root_cd.clone());
-                visited.insert(root_cd);
-                let mut dir_count: usize = 0;
-                let mut total_bytes_read: u64 = 0;
-
-                while let Some(dir_digest) = queue.pop_front() {
-                    if dir_count >= MAX_TREE_DIRECTORIES {
-                        let _ = tx
-                            .send(Err(tonic::Status::resource_exhausted(format!(
-                                "get_tree exceeded maximum of {MAX_TREE_DIRECTORIES} directories"
-                            ))))
-                            .await;
-                        return;
-                    }
-
-                    let data = match get_blob(&store, &dir_digest).await {
-                        Ok(Some(d)) => d,
-                        Ok(None) => {
-                            let _ = tx
-                                .send(Err(tonic::Status::not_found(format!(
-                                    "directory blob not found: {dir_digest}"
-                                ))))
-                                .await;
-                            return;
-                        }
-                        Err(e) => {
-                            let _ = tx.send(Err(e)).await;
-                            return;
-                        }
-                    };
-
-                    total_bytes_read = match total_bytes_read.checked_add(data.len() as u64) {
-                        Some(v) => v,
-                        None => {
-                            let _ = tx
-                                .send(Err(tonic::Status::resource_exhausted(
-                                    "get_tree total bytes overflowed u64",
-                                )))
-                                .await;
-                            return;
-                        }
-                    };
-                    if total_bytes_read > MAX_TREE_BYTES {
-                        let _ = tx
-                            .send(Err(tonic::Status::resource_exhausted(format!(
-                                "get_tree response exceeded {MAX_TREE_BYTES} byte limit"
-                            ))))
-                            .await;
-                        return;
-                    }
-
-                    let dir = match Directory::decode(data.as_ref()) {
-                        Ok(d) => d,
-                        Err(e) => {
-                            let _ = tx
-                                .send(Err(tonic::Status::internal(format!(
-                                    "failed to decode directory: {e}"
-                                ))))
-                                .await;
-                            return;
-                        }
-                    };
-
-                    for sub_dir_node in &dir.directories {
-                        if let Some(ref d) = sub_dir_node.digest {
-                            if let Some(hash) = crate::store::parse_digest_hash(&d.hash) {
-                                let sub_cd = ContentDigest::new(digest_fn, hash);
-                                if visited.insert(sub_cd.clone()) {
-                                    queue.push_back(sub_cd);
-                                }
-                            }
-                        }
-                    }
-
-                    dir_count += 1;
-                    if tx
-                        .send(Ok(GetTreeResponse {
-                            directories: vec![dir],
-                            next_page_token: String::new(),
-                        }))
-                        .await
-                        .is_err()
-                    {
-                        return;
-                    }
-                }
-
-                telemetry::metrics().bytes_read.add(
-                    total_bytes_read,
-                    &[telemetry::KeyValue::new("service", "cas")],
-                );
-            });
-
-            Ok(tonic::Response::new(ReceiverStream::new(rx)))
-        })
-        .await
+        let pages = self.get_tree_raw(req).await?.into_inner();
+        let pages = pages.map(|page| {
+            let page = page?;
+            GetTreeResponse::decode(page.encode_to_vec().as_slice())
+                .map_err(|e| tonic::Status::internal(format!("failed to decode directory: {e}")))
+        });
+        Ok(tonic::Response::new(pages.boxed()))
     }
 
     #[tracing::instrument(skip(self, req))]
@@ -693,3 +605,254 @@ impl content_addressable_storage_server::ContentAddressableStorage
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+/// Decompress one BatchUpdateBlobs upload and check it against its digest.
+/// Returns the digest as sent, for the response, and the blob or why it was
+/// refused.
+fn check_upload(
+    upload: batch_update_blobs_request::Request,
+    digest_fn: DigestFn,
+) -> (
+    Option<Digest>,
+    Result<(ContentDigest, Bytes), tonic::Status>,
+) {
+    let Some(compressor) = Compression::from_proto_i32(upload.compressor) else {
+        let status = tonic::Status::invalid_argument(format!(
+            "unsupported compressor: {}",
+            upload.compressor
+        ));
+        return (upload.digest, Err(status));
+    };
+    let data = if compressor == Compression::Identity {
+        upload.data
+    } else {
+        // No more than the blob is said to be: anything past that fails
+        // verification anyway, and a payload of a few KiB must not get to
+        // expand to megabytes first.
+        let declared = upload
+            .digest
+            .as_ref()
+            .map_or(0, |d| usize::try_from(d.size_bytes).unwrap_or(0))
+            .min(MAX_BLOB_REASSEMBLE_SIZE);
+        match compressor.decompress_at_most(&upload.data, declared) {
+            Ok(d) => Bytes::from(d.into_owned()),
+            Err(e) => {
+                let status = tonic::Status::invalid_argument(format!("decompression error: {e}"));
+                return (upload.digest, Err(status));
+            }
+        }
+    };
+    let result = validate_blob_data(&upload.digest, &data, digest_fn).map(|cd| (cd, data));
+    (upload.digest, result)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+/// Most directories one GetTree walks.
+const MAX_TREE_DIRECTORIES: usize = 100_000;
+/// Most Directory bytes one GetTree returns.
+const MAX_TREE_BYTES: u64 = 256 * 1024 * 1024;
+/// Directory reads a GetTree keeps in flight.
+const TREE_READS_IN_FLIGHT: usize = 64;
+/// A GetTree response message is sent once its Directories reach this many
+/// bytes (well below gRPC's default 4 MiB message limit).
+const TREE_PAGE_BYTES: usize = 1024 * 1024;
+
+/// Walk the tree under `root` breadth first, sending its Directories to
+/// `tx` in pages. Reads run ahead of the walk, so a store with high latency
+/// (S3) is paid once per window of directories rather than once per
+/// directory. Returns early, quietly, if the receiver goes away.
+///
+/// Each Directory goes out as the bytes it is stored as: the walk reads only
+/// its subdirectories' digests ([`DirectoryLinks`]), and neither decodes its
+/// files nor encodes it again.
+async fn stream_tree(
+    store: &Arc<CacheStore>,
+    root: ContentDigest,
+    digest_fn: DigestFn,
+    tx: &tokio::sync::mpsc::Sender<Result<RawGetTreeResponse, tonic::Status>>,
+) -> Result<(), tonic::Status> {
+    let read = |digest: ContentDigest| async move { (get_blob(store, &digest).await, digest) };
+    let mut queue = std::collections::VecDeque::from([root]);
+    let mut visited = std::collections::HashSet::from([root]);
+    let mut reads = futures::stream::FuturesOrdered::new();
+    let mut dir_count: usize = 0;
+    let mut total_bytes_read: u64 = 0;
+    let mut page = Vec::new();
+    let mut page_bytes = 0;
+
+    loop {
+        while reads.len() < TREE_READS_IN_FLIGHT {
+            let Some(digest) = queue.pop_front() else {
+                break;
+            };
+            if dir_count + reads.len() >= MAX_TREE_DIRECTORIES {
+                return Err(tonic::Status::resource_exhausted(format!(
+                    "get_tree exceeded maximum of {MAX_TREE_DIRECTORIES} directories"
+                )));
+            }
+            reads.push_back(read(digest));
+        }
+        let Some((data, digest)) = reads.next().await else {
+            break;
+        };
+        let data = data?.ok_or_else(|| {
+            tonic::Status::not_found(format!("directory blob not found: {digest}"))
+        })?;
+
+        total_bytes_read += data.len() as u64;
+        if total_bytes_read > MAX_TREE_BYTES {
+            return Err(tonic::Status::resource_exhausted(format!(
+                "get_tree response exceeded {MAX_TREE_BYTES} byte limit"
+            )));
+        }
+
+        let links = DirectoryLinks::decode(data.as_ref())
+            .map_err(|e| tonic::Status::internal(format!("failed to decode directory: {e}")))?;
+        for link in &links.directories {
+            if let Some(ref d) = link.digest {
+                if let Some(hash) = crate::store::parse_digest_hash(&d.hash) {
+                    let sub_cd = ContentDigest::new(digest_fn, hash);
+                    if visited.insert(sub_cd) {
+                        queue.push_back(sub_cd);
+                    }
+                }
+            }
+        }
+
+        dir_count += 1;
+        page_bytes += data.len();
+        page.push(data);
+        if page_bytes >= TREE_PAGE_BYTES {
+            page_bytes = 0;
+            let directories = std::mem::take(&mut page);
+            if tx.send(Ok(tree_page(directories))).await.is_err() {
+                return Ok(());
+            }
+        }
+    }
+    if !page.is_empty() {
+        let _ = tx.send(Ok(tree_page(page))).await;
+    }
+
+    telemetry::metrics().bytes_read.add(
+        total_bytes_read,
+        &[telemetry::KeyValue::new("service", "cas")],
+    );
+    Ok(())
+}
+
+fn tree_page(directories: Vec<Bytes>) -> RawGetTreeResponse {
+    RawGetTreeResponse {
+        directories,
+        next_page_token: String::new(),
+    }
+}
+
+/// The pages of a GetTree, as [`get_tree_raw`](ContentAddressableStorageService::get_tree_raw) streams them.
+type RawTreePages = ReceiverStream<Result<RawGetTreeResponse, tonic::Status>>;
+
+/// A [`GetTreeResponse`] as it goes on the wire, each Directory the bytes it
+/// is stored as. `repeated bytes` and `repeated Directory` are encoded
+/// alike, so clients decode this as a GetTreeResponse.
+#[derive(Clone, PartialEq, prost::Message)]
+pub(crate) struct RawGetTreeResponse {
+    #[prost(bytes = "bytes", repeated, tag = "1")]
+    pub directories: Vec<Bytes>,
+    #[prost(string, tag = "2")]
+    pub next_page_token: String,
+}
+
+/// The part of a [`Directory`] a tree walk follows: its subdirectories'
+/// digests. Decoding into this skips the files, symlinks, and names a full
+/// Directory would allocate, while still checking the whole message is
+/// well-formed protobuf.
+#[derive(Clone, PartialEq, prost::Message)]
+struct DirectoryLinks {
+    #[prost(message, repeated, tag = "2")]
+    directories: Vec<DirectoryLink>,
+}
+
+/// A DirectoryNode, but for its name.
+#[derive(Clone, PartialEq, prost::Message)]
+struct DirectoryLink {
+    #[prost(message, optional, tag = "2")]
+    digest: Option<Digest>,
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+/// The CAS gRPC service, as the generated server serves it but for GetTree,
+/// which this answers itself so that its pages carry stored Directories as
+/// they are ([`RawGetTreeResponse`]). Configured as the generated server is
+/// here: tonic's defaults.
+#[derive(Clone)]
+pub struct CasServer {
+    service: ContentAddressableStorageService,
+    generated: content_addressable_storage_server::ContentAddressableStorageServer<
+        ContentAddressableStorageService,
+    >,
+}
+
+impl CasServer {
+    pub fn new(service: ContentAddressableStorageService) -> Self {
+        Self {
+            generated: content_addressable_storage_server::ContentAddressableStorageServer::new(
+                service.clone(),
+            ),
+            service,
+        }
+    }
+}
+
+impl tonic::server::NamedService for CasServer {
+    const NAME: &'static str = <content_addressable_storage_server::ContentAddressableStorageServer<
+        ContentAddressableStorageService,
+    > as tonic::server::NamedService>::NAME;
+}
+
+const GET_TREE_PATH: &str = "/build.bazel.remote.execution.v2.ContentAddressableStorage/GetTree";
+
+impl<B> tower::Service<http::Request<B>> for CasServer
+where
+    B: tonic::codegen::Body + Send + 'static,
+    B::Error: Into<tonic::codegen::StdError> + Send + 'static,
+{
+    type Response = http::Response<tonic::body::Body>;
+    type Error = std::convert::Infallible;
+    type Future = tonic::codegen::BoxFuture<Self::Response, Self::Error>;
+
+    fn poll_ready(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        tower::Service::<http::Request<B>>::poll_ready(&mut self.generated, cx)
+    }
+
+    fn call(&mut self, req: http::Request<B>) -> Self::Future {
+        if req.uri().path() != GET_TREE_PATH {
+            return tower::Service::call(&mut self.generated, req);
+        }
+        let method = GetTree(self.service.clone());
+        Box::pin(async move {
+            let codec = tonic_prost::ProstCodec::<RawGetTreeResponse, GetTreeRequest>::default();
+            Ok(tonic::server::Grpc::new(codec)
+                .server_streaming(method, req)
+                .await)
+        })
+    }
+}
+
+/// GetTree, served by [`CasServer`].
+struct GetTree(ContentAddressableStorageService);
+
+impl tonic::server::ServerStreamingService<GetTreeRequest> for GetTree {
+    type Response = RawGetTreeResponse;
+    type ResponseStream = RawTreePages;
+    type Future = tonic::codegen::BoxFuture<tonic::Response<RawTreePages>, tonic::Status>;
+
+    fn call(&mut self, request: tonic::Request<GetTreeRequest>) -> Self::Future {
+        let service = self.0.clone();
+        Box::pin(async move { service.get_tree_raw(request).await })
+    }
+}

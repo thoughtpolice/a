@@ -806,3 +806,140 @@ async fn bytestream_write_rejects_oversized_declared_size_upfront() {
     assert_eq!(status.code(), tonic::Code::InvalidArgument);
     assert!(status.message().contains("exceeds limit"));
 }
+
+/// A Write of a blob the cache already has is answered from its first
+/// message, with the full size, without waiting for the rest; the client
+/// stops sending (REAPI's early return).
+#[tokio::test]
+async fn bytestream_write_of_a_stored_blob_returns_at_once() {
+    let store = make_store().await;
+    let bs = make_bs(store.clone());
+
+    let data = vec![7u8; 3 * 1024 * 1024];
+    let cd = ContentDigest::new(DigestFn::Sha256, sha256(&data));
+    store
+        .cas_put_blob(&cd, Bytes::from(data.clone()), Compression::Identity)
+        .await
+        .unwrap();
+
+    let resource_name = format!(
+        "uploads/early/blobs/{}/{}",
+        hex::encode(sha256(&data)),
+        data.len()
+    );
+    // Only the first 1 KiB of the blob is ever sent, and the stream never
+    // ends: the answer cannot depend on reading the rest.
+    let first = WriteRequest {
+        resource_name,
+        write_offset: 0,
+        finish_write: false,
+        data: Bytes::copy_from_slice(&data[..1024]),
+    };
+    let mut rest = futures::stream::pending::<Result<WriteRequest, tonic::Status>>();
+    let resp = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        bs.write_core(first, &mut rest),
+    )
+    .await
+    .expect("answered without the rest of the stream")
+    .unwrap();
+    assert_eq!(resp.committed_size, data.len() as i64);
+}
+
+/// The compressed form of the early return reports -1.
+#[tokio::test]
+async fn bytestream_compressed_write_of_a_stored_blob_reports_minus_one() {
+    let store = make_store().await;
+    let bs = make_bs(store.clone());
+
+    let data = b"stored already, compressed this time";
+    let cd = ContentDigest::new(DigestFn::Sha256, sha256(data));
+    store
+        .cas_put_blob(&cd, Bytes::from_static(data), Compression::Identity)
+        .await
+        .unwrap();
+
+    let compressed = Bytes::from(Compression::Zstd.compress(data).unwrap().into_owned());
+    let resp = bs
+        .write_from_messages(vec![WriteRequest {
+            resource_name: format!(
+                "uploads/early/compressed-blobs/zstd/{}/{}",
+                hex::encode(sha256(data)),
+                data.len()
+            ),
+            write_offset: 0,
+            finish_write: true,
+            data: compressed,
+        }])
+        .await
+        .unwrap();
+    assert_eq!(resp.committed_size, -1);
+}
+
+/// The empty blob reads as present without ever being uploaded.
+#[tokio::test]
+async fn bytestream_reads_the_empty_blob_without_an_upload() {
+    let store = make_store().await;
+    let bs = make_bs(store);
+    let resp = bs
+        .read(tonic::Request::new(ReadRequest {
+            resource_name: format!("blobs/{}/0", hex::encode(sha256(b""))),
+            read_offset: 0,
+            read_limit: 0,
+        }))
+        .await
+        .unwrap();
+    let mut stream = resp.into_inner();
+    while let Some(chunk) = tokio_stream::StreamExt::next(&mut stream).await {
+        assert!(chunk.unwrap().data.is_empty());
+    }
+}
+
+/// Reads share a read-ahead budget, but a stalled read cannot hold up
+/// another: each always has its next chunk in flight. Dropping a read gives
+/// its share back.
+#[tokio::test]
+async fn a_stalled_read_cannot_starve_another() {
+    use super::bytestream::ChunkReader;
+
+    let store = make_store().await;
+    let data = Bytes::from(make_data(24 * 1024 * 1024));
+    let cd = ContentDigest::new(DigestFn::Sha256, sha256(&data));
+    store
+        .cas_put_blob(&cd, data.clone(), Compression::Identity)
+        .await
+        .unwrap();
+    let (manifest, _) = store.cas_get_manifest(&cd).await.unwrap().unwrap();
+    let chunks: Vec<([u8; 32], u64)> = manifest.chunks.iter().map(|c| (c.hash, c.size)).collect();
+    assert!(chunks.len() > 4, "{} chunks", chunks.len());
+
+    // Room for about two chunks ahead, server-wide.
+    let budget_kib = 4096;
+    let budget = Arc::new(tokio::sync::Semaphore::new(budget_kib));
+    let mut stalled = ChunkReader::new(
+        store.clone(),
+        DigestFn::Sha256,
+        chunks.clone(),
+        budget.clone(),
+    );
+    let (first, _, first_share) = stalled.next().await.expect("a chunk");
+    assert!(first.unwrap().is_some());
+    assert!(
+        budget.available_permits() < budget_kib,
+        "the stalled read reads ahead"
+    );
+
+    let mut other = ChunkReader::new(store.clone(), DigestFn::Sha256, chunks, budget.clone());
+    let mut got = Vec::new();
+    while let Some((chunk, _, _share)) = other.next().await {
+        got.extend_from_slice(&chunk.unwrap().unwrap());
+    }
+    assert_eq!(
+        got, data,
+        "the other read completes while the first is stalled"
+    );
+
+    drop(first_share);
+    drop(stalled);
+    assert_eq!(budget.available_permits(), budget_kib);
+}

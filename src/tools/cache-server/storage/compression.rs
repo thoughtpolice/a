@@ -68,7 +68,15 @@ impl Compression {
     /// All codecs are capped at `MAX_CHUNK_DECOMPRESSED_SIZE` to prevent
     /// decompression bombs.
     pub fn decompress<'a>(&self, data: &'a [u8]) -> Result<Cow<'a, [u8]>> {
-        self.decompress_inner(data, None)
+        self.decompress_inner(data, None, MAX_CHUNK_DECOMPRESSED_SIZE)
+    }
+
+    /// Decompress `data`, failing if it expands past `limit` bytes (or the
+    /// per-chunk ceiling, whichever is less). For payloads whose true size is
+    /// known: a few KiB that claim to be a few KiB cannot expand to 16 MiB.
+    pub fn decompress_at_most<'a>(&self, data: &'a [u8], limit: usize) -> Result<Cow<'a, [u8]>> {
+        let limit = limit.min(MAX_CHUNK_DECOMPRESSED_SIZE);
+        self.decompress_inner(data, Some(limit), limit)
     }
 
     /// Decompress `data` with a known expected size.
@@ -81,21 +89,18 @@ impl Compression {
         data: &'a [u8],
         expected_size: usize,
     ) -> Result<Cow<'a, [u8]>> {
-        self.decompress_inner(data, Some(expected_size))
+        self.decompress_inner(data, Some(expected_size), MAX_CHUNK_DECOMPRESSED_SIZE)
     }
 
-    /// Unified decompression with optional size hint.
-    ///
-    /// The decompression ceiling is always `MAX_CHUNK_DECOMPRESSED_SIZE`.
-    /// The `size_hint` only influences initial buffer capacity for
-    /// pre-allocation — it never restricts the decompression output.
+    /// Unified decompression with optional size hint, failing past `limit`
+    /// bytes of output. The `size_hint` only influences initial buffer
+    /// capacity for pre-allocation.
     fn decompress_inner<'a>(
         &self,
         data: &'a [u8],
         size_hint: Option<usize>,
+        limit: usize,
     ) -> Result<Cow<'a, [u8]>> {
-        let limit = MAX_CHUNK_DECOMPRESSED_SIZE;
-
         match self {
             Compression::Identity => Ok(Cow::Borrowed(data)),
             Compression::Zstd => {

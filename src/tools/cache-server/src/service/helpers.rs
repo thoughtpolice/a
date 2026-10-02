@@ -18,6 +18,7 @@ pub const MAX_BATCH_TOTAL_SIZE: i64 = 4_000_000;
 /// Map a [`StoreError`] to an appropriate [`tonic::Status`].
 ///
 /// - `BlobTooLarge` / `DigestMismatch` → `INVALID_ARGUMENT`
+/// - `DiskFull` → `RESOURCE_EXHAUSTED`
 /// - Retryable `Database` errors, and a stopped database → `UNAVAILABLE`,
 ///   so clients retry elsewhere
 /// - Everything else → `INTERNAL`
@@ -27,6 +28,7 @@ pub fn store_error_to_status(e: StoreError) -> tonic::Status {
             tonic::Status::invalid_argument(e.to_string())
         }
         StoreError::ChunkMissing { .. } => tonic::Status::not_found(e.to_string()),
+        StoreError::DiskFull { .. } => tonic::Status::resource_exhausted(e.to_string()),
         StoreError::Database(_) if e.is_retryable() || e.is_closed() => {
             tonic::Status::unavailable(e.to_string())
         }

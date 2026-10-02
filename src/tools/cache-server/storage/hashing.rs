@@ -119,6 +119,15 @@ impl ContentDigest {
         }
     }
 
+    /// Whether this is the digest of the empty blob, which REAPI has servers
+    /// treat as always stored, uploaded or not.
+    pub fn is_empty_blob(&self) -> bool {
+        static EMPTY: std::sync::LazyLock<[[u8; 32]; 3]> = std::sync::LazyLock::new(|| {
+            [DigestFn::Sha256, DigestFn::Blake3, DigestFn::Sha256Tree].map(|f| f.hash_data(&[]))
+        });
+        EMPTY[self.function as usize] == self.hash
+    }
+
     /// Parse from `"function:hex"` format (e.g. `"sha256:e3b0c4..."`).
     pub fn parse(s: &str) -> Option<Self> {
         let (fn_str, hex_str) = s.split_once(':')?;
