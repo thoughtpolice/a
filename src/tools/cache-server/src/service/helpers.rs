@@ -101,6 +101,53 @@ pub fn validate_blob_data(
     Ok(ContentDigest::new(digest_fn, hash))
 }
 
+/// The value of the qualifier called `name`, if the request has one.
+pub fn qualifier<'a>(qualifiers: &'a [(String, String)], name: &str) -> Option<&'a str> {
+    qualifiers
+        .iter()
+        .find(|(n, _)| n == name)
+        .map(|(_, value)| value.as_str())
+}
+
+/// The fetch timeout a request asked for, with negative parts as zero.
+pub fn request_timeout(timeout: Option<&prost_types::Duration>) -> Option<std::time::Duration> {
+    timeout.map(|d| {
+        std::time::Duration::from_secs(d.seconds.max(0) as u64)
+            + std::time::Duration::from_nanos(d.nanos.max(0) as u64)
+    })
+}
+
+/// The gRPC code reporting that an origin answered with HTTP `status`.
+pub fn http_status_code(status: u16) -> tonic::Code {
+    match status {
+        404 => tonic::Code::NotFound,
+        401 | 403 => tonic::Code::PermissionDenied,
+        _ => tonic::Code::Unavailable,
+    }
+}
+
+/// The status reporting a failed HTTP fetch.
+pub fn http_fetch_status(e: &fetch_http::HttpFetchError) -> protos::google::rpc::Status {
+    use fetch_http::HttpFetchError;
+    use tonic::Code;
+    let code = match e {
+        HttpFetchError::RequestFailed(_) => Code::Unavailable,
+        HttpFetchError::HttpStatus(status, _) => http_status_code(*status),
+        HttpFetchError::TooLarge { .. } => Code::ResourceExhausted,
+        HttpFetchError::IntegrityMismatch(_) => Code::Aborted,
+        HttpFetchError::InvalidUri(_) => Code::InvalidArgument,
+        HttpFetchError::BlockedAddress(_) => Code::PermissionDenied,
+    };
+    let message = match e {
+        HttpFetchError::RequestFailed(msg)
+        | HttpFetchError::IntegrityMismatch(msg)
+        | HttpFetchError::InvalidUri(msg)
+        | HttpFetchError::BlockedAddress(msg) => msg.clone(),
+        other => other.to_string(),
+    };
+    rpc_status(code as i32, message)
+}
+
 /// Build a `google.rpc.Status` proto with the given code and message.
 pub fn rpc_status(code: i32, msg: impl Into<String>) -> protos::google::rpc::Status {
     protos::google::rpc::Status {

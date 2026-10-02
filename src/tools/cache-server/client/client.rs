@@ -1,8 +1,11 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
+use std::path::Path;
+
 use anyhow::{Context, Result};
 use bytes::Bytes;
+use prost::Message as _;
 use sha2::{Digest as Sha2Digest, Sha256};
 use tokio::sync::mpsc;
 use tonic::transport::Channel;
@@ -270,21 +273,7 @@ impl ReapiClient {
             total: size,
         });
 
-        let data = if (size as usize) <= BATCH_THRESHOLD {
-            self.download_batch(hash, size, &progress_tx).await?
-        } else {
-            self.download_bytestream(hash, size, &progress_tx).await?
-        };
-
-        // Verify hash
-        let actual_hash = {
-            let mut hasher = Sha256::new();
-            hasher.update(&data);
-            hex::encode(hasher.finalize())
-        };
-        if actual_hash != hash {
-            anyhow::bail!("hash mismatch: expected {hash}, got {actual_hash}");
-        }
+        let data = self.read_blob(hash, size, &progress_tx).await?;
 
         tokio::fs::write(output_path, &data)
             .await
@@ -295,6 +284,23 @@ impl ReapiClient {
             size,
             output_path: output_path.display().to_string(),
         })
+    }
+
+    /// Download a blob from CAS and check it against the digest it was
+    /// requested by.
+    async fn read_blob(
+        &mut self,
+        hash: &str,
+        size: u64,
+        progress_tx: &mpsc::UnboundedSender<ProgressUpdate>,
+    ) -> Result<Bytes> {
+        let data = if (size as usize) <= BATCH_THRESHOLD {
+            self.download_batch(hash, size, progress_tx).await?
+        } else {
+            self.download_bytestream(hash, size, progress_tx).await?
+        };
+        verify_digest(hash, size, &data)?;
+        Ok(data)
     }
 
     async fn download_batch(
@@ -411,15 +417,43 @@ impl ReapiClient {
         Ok(())
     }
 
-    /// Fetch a remote asset by URI + qualifiers and download it to a file.
+    /// Fetch a remote asset by URI + qualifiers and download it.
     ///
-    /// Resolves the URI via the FetchBlob RPC, then downloads the blob from
-    /// CAS using the returned digest.
+    /// For git repositories (detected via `resource_type=application/x-git` or
+    /// VCS qualifiers), uses the FetchDirectory RPC and recursively downloads
+    /// the directory tree. For everything else, uses FetchBlob and downloads a
+    /// single file.
     pub async fn fetch_asset(
         &mut self,
         uri: &str,
         qualifiers: Vec<(String, String)>,
         output_path: &std::path::Path,
+        progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
+    ) -> Result<FetchResult> {
+        if Self::is_directory_fetch(&qualifiers) {
+            self.fetch_directory_asset(uri, qualifiers, output_path, progress_tx)
+                .await
+        } else {
+            self.fetch_blob_asset(uri, qualifiers, output_path, progress_tx)
+                .await
+        }
+    }
+
+    /// Returns true if the qualifiers indicate a directory fetch (git clone).
+    fn is_directory_fetch(qualifiers: &[(String, String)]) -> bool {
+        qualifiers.iter().any(|(name, value)| {
+            (name == "resource_type" && value == "application/x-git")
+                || name == "vcs.branch"
+                || name == "vcs.commit"
+        })
+    }
+
+    /// Fetch a blob asset via FetchBlob RPC.
+    async fn fetch_blob_asset(
+        &mut self,
+        uri: &str,
+        qualifiers: Vec<(String, String)>,
+        output_path: &Path,
         progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
     ) -> Result<FetchResult> {
         let req = asset::FetchBlobRequest {
@@ -439,6 +473,12 @@ impl ReapiClient {
             .context("FetchBlob RPC failed")?
             .into_inner();
 
+        if let Some(ref status) = resp.status {
+            if status.code != 0 {
+                anyhow::bail!("FetchBlob failed: {}", status.message);
+            }
+        }
+
         let digest = resp
             .blob_digest
             .context("FetchBlob response missing blob_digest")?;
@@ -457,6 +497,134 @@ impl ReapiClient {
             hash,
             size,
             output_path: output_path.display().to_string(),
+        })
+    }
+
+    /// Fetch a directory asset via FetchDirectory RPC, then download the tree.
+    async fn fetch_directory_asset(
+        &mut self,
+        uri: &str,
+        qualifiers: Vec<(String, String)>,
+        output_path: &Path,
+        progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
+    ) -> Result<FetchResult> {
+        let req = asset::FetchDirectoryRequest {
+            instance_name: self.instance_name.clone(),
+            uris: vec![uri.to_string()],
+            qualifiers: qualifiers
+                .into_iter()
+                .map(|(name, value)| asset::Qualifier { name, value })
+                .collect(),
+            ..Default::default()
+        };
+
+        let resp = self
+            .fetch
+            .fetch_directory(req)
+            .await
+            .context("FetchDirectory RPC failed")?
+            .into_inner();
+
+        if let Some(ref status) = resp.status {
+            if status.code != 0 {
+                anyhow::bail!("FetchDirectory failed: {}", status.message);
+            }
+        }
+
+        let digest = resp
+            .root_directory_digest
+            .context("FetchDirectory response missing root_directory_digest")?;
+        let hash = digest.hash.clone();
+        let size = digest.size_bytes as u64;
+
+        // Create the output directory and download the tree recursively
+        tokio::fs::create_dir_all(output_path)
+            .await
+            .with_context(|| format!("failed to create {}", output_path.display()))?;
+        self.download_directory_tree(&hash, size, output_path, &progress_tx)
+            .await?;
+
+        Ok(FetchResult {
+            uri: if resp.uri.is_empty() {
+                uri.to_string()
+            } else {
+                resp.uri
+            },
+            hash,
+            size,
+            output_path: output_path.display().to_string(),
+        })
+    }
+
+    /// Recursively download a Directory tree from CAS to disk.
+    ///
+    /// The tree comes from the server, so nothing in it is trusted: every
+    /// blob is checked against its digest, every entry name must be a single
+    /// path component, and entries are created exclusively, so the download
+    /// fails rather than writing through anything already present under
+    /// `output_dir`. Symlinks are created last, once nothing else remains to
+    /// be written below them.
+    fn download_directory_tree<'a>(
+        &'a mut self,
+        hash: &'a str,
+        size: u64,
+        output_dir: &'a Path,
+        progress_tx: &'a mpsc::UnboundedSender<ProgressUpdate>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+        Box::pin(async move {
+            let data = self.read_blob(hash, size, progress_tx).await?;
+            let dir = reapi::Directory::decode(data.as_ref())
+                .context("failed to decode Directory proto")?;
+            check_entry_names(&dir)?;
+
+            for file in &dir.files {
+                let digest = file.digest.as_ref().context("FileNode missing digest")?;
+                let file_path = output_dir.join(&file.name);
+                let file_data = self
+                    .read_blob(&digest.hash, digest.size_bytes as u64, progress_tx)
+                    .await?;
+                write_new_file(&file_path, &file_data).await?;
+
+                // Set executable bit on Unix
+                #[cfg(unix)]
+                if file.is_executable {
+                    use std::os::unix::fs::PermissionsExt;
+                    let perms = std::fs::Permissions::from_mode(0o755);
+                    tokio::fs::set_permissions(&file_path, perms)
+                        .await
+                        .with_context(|| {
+                            format!("failed to set permissions on {}", file_path.display())
+                        })?;
+                }
+            }
+
+            for subdir in &dir.directories {
+                let digest = subdir
+                    .digest
+                    .as_ref()
+                    .context("DirectoryNode missing digest")?;
+                let subdir_path = output_dir.join(&subdir.name);
+                tokio::fs::create_dir(&subdir_path)
+                    .await
+                    .with_context(|| format!("failed to create {}", subdir_path.display()))?;
+                self.download_directory_tree(
+                    &digest.hash,
+                    digest.size_bytes as u64,
+                    &subdir_path,
+                    progress_tx,
+                )
+                .await?;
+            }
+
+            for symlink in &dir.symlinks {
+                let link_path = output_dir.join(&symlink.name);
+                #[cfg(unix)]
+                tokio::fs::symlink(&symlink.target, &link_path)
+                    .await
+                    .with_context(|| format!("failed to create symlink {}", link_path.display()))?;
+            }
+
+            Ok(())
         })
     }
 
@@ -484,5 +652,137 @@ impl ReapiClient {
             Err(status) if status.code() == tonic::Code::NotFound => Ok(None),
             Err(e) => Err(e).context("GetActionResult RPC failed"),
         }
+    }
+}
+
+/// Check downloaded bytes against the digest they were requested by.
+fn verify_digest(hash: &str, size: u64, data: &[u8]) -> Result<()> {
+    if data.len() as u64 != size {
+        anyhow::bail!(
+            "size mismatch for {hash}: expected {size} bytes, got {}",
+            data.len()
+        );
+    }
+    let actual_hash = hex::encode(Sha256::digest(data));
+    if actual_hash != hash {
+        anyhow::bail!("hash mismatch: expected {hash}, got {actual_hash}");
+    }
+    Ok(())
+}
+
+/// Reject a Directory unless its files, subdirectories, and symlinks have
+/// distinct names that are each a single path component.
+///
+/// REAPI requires this of every Directory, and the client joins these names
+/// onto local paths, so a name such as `..` or `a/b`, or a symlink sharing
+/// its name with a subdirectory, could otherwise lead outside the output.
+fn check_entry_names(dir: &reapi::Directory) -> Result<()> {
+    let mut seen = std::collections::HashSet::new();
+    let names = (dir.files.iter().map(|f| &f.name))
+        .chain(dir.directories.iter().map(|d| &d.name))
+        .chain(dir.symlinks.iter().map(|s| &s.name));
+    for name in names {
+        if name.is_empty() || name == "." || name == ".." || name.contains(['/', '\0']) {
+            anyhow::bail!("invalid directory entry name {name:?}");
+        }
+        if !seen.insert(name.as_str()) {
+            anyhow::bail!("duplicate directory entry name {name:?}");
+        }
+    }
+    Ok(())
+}
+
+/// Write `data` to a file that must not exist yet.
+///
+/// Creating with `O_EXCL` also refuses a symlink at `path`, so the write can
+/// never follow one to somewhere else.
+async fn write_new_file(path: &Path, data: &[u8]) -> Result<()> {
+    use tokio::io::AsyncWriteExt as _;
+    let mut file = tokio::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .await
+        .with_context(|| format!("failed to create {}", path.display()))?;
+    file.write_all(data)
+        .await
+        .with_context(|| format!("failed to write {}", path.display()))?;
+    // A tokio file finishes its last write in the background unless flushed.
+    file.flush()
+        .await
+        .with_context(|| format!("failed to write {}", path.display()))?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn digest_of(data: &[u8]) -> (String, u64) {
+        (hex::encode(Sha256::digest(data)), data.len() as u64)
+    }
+
+    #[test]
+    fn verify_digest_checks_hash_and_size() {
+        let (hash, size) = digest_of(b"hello");
+        verify_digest(&hash, size, b"hello").unwrap();
+        assert!(verify_digest(&hash, size, b"jello").is_err());
+        assert!(verify_digest(&hash, size + 1, b"hello").is_err());
+    }
+
+    fn file(name: &str) -> reapi::FileNode {
+        reapi::FileNode {
+            name: name.to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn entry_names_must_be_single_components() {
+        for name in ["", ".", "..", "../x", "a/b", "/etc", "nul\0byte"] {
+            let dir = reapi::Directory {
+                files: vec![file(name)],
+                ..Default::default()
+            };
+            assert!(check_entry_names(&dir).is_err(), "{name:?} accepted");
+        }
+        let dir = reapi::Directory {
+            files: vec![file("a"), file(".hidden"), file("..dots")],
+            ..Default::default()
+        };
+        check_entry_names(&dir).unwrap();
+    }
+
+    #[test]
+    fn entry_names_must_be_distinct_across_kinds() {
+        let dir = reapi::Directory {
+            directories: vec![reapi::DirectoryNode {
+                name: "a".to_string(),
+                ..Default::default()
+            }],
+            symlinks: vec![reapi::SymlinkNode {
+                name: "a".to_string(),
+                target: "/elsewhere".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        assert!(check_entry_names(&dir).is_err());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn new_files_never_follow_symlinks() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = root.path().join("outside");
+        let link = root.path().join("link");
+        std::os::unix::fs::symlink(&outside, &link).unwrap();
+        assert!(write_new_file(&link, b"data").await.is_err());
+        assert!(!outside.exists(), "the write followed the symlink");
+
+        let fresh = root.path().join("fresh");
+        write_new_file(&fresh, b"data").await.unwrap();
+        assert_eq!(std::fs::read(&fresh).unwrap(), b"data");
+        assert!(write_new_file(&fresh, b"again").await.is_err());
     }
 }

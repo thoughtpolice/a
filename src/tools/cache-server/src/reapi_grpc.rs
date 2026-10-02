@@ -30,6 +30,7 @@ pub async fn start_reapi_grpc(
     store: Arc<CacheStore>,
     request_timeout: Option<Duration>,
     max_concurrent_requests: Option<usize>,
+    fetch_config: crate::service::FetchConfig,
     handle: Dial9TokioHandle,
     pressure_monitor: Option<runtime::psi::PressureMonitor>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -67,7 +68,7 @@ pub async fn start_reapi_grpc(
     let execution_service = service::ExecutionService::default();
     let capabilities_service = service::CapabilitiesService::default();
     let operations_service = service::OperationsService::default();
-    let fetch_service = service::FetchService::new(store.clone());
+    let fetch_service = service::FetchService::new(store.clone(), handle.clone(), fetch_config);
     let push_service = service::PushService::new(store.clone());
     let logstream_service = service::LogStreamSvc::default();
     let reflection_service = tonic_reflection::server::Builder::configure()

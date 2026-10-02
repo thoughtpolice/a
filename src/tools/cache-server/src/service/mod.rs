@@ -24,8 +24,10 @@ pub use logstream::LogStreamSvc;
 mod operations;
 pub use operations::OperationsService;
 
+mod git_clone;
+
 mod remote_asset;
-pub use remote_asset::{FetchService, PushService};
+pub use remote_asset::{FetchConfig, FetchService, PushService};
 
 #[cfg(test)]
 mod test_helpers;

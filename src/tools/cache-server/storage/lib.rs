@@ -12,14 +12,14 @@ mod writer;
 // Re-export public API so the external interface is unchanged.
 pub use compression::{Compression, StreamingDecompressor};
 pub use error::{Result, StoreError};
-pub use hashing::{ContentDigest, DigestFn, parse_digest_hash};
+pub use hashing::{ContentDigest, DigestFn, IncrementalHasher, parse_digest_hash};
 pub use manifest::{BlobManifest, ChunkInfo, MAX_MANIFEST_CHUNK_COUNT};
 pub use writer::CasBlobWriter;
 
 // Crate-internal re-exports used by sibling modules and tests.
 pub(crate) use compression::MAX_CHUNK_DECOMPRESSED_SIZE;
 pub(crate) use hashing::{
-    IncrementalHasher, SHA256TREE_IV, SHA256TREE_LEAF_SIZE, sha256_block_cipher, sha256tree_hash,
+    SHA256TREE_IV, SHA256TREE_LEAF_SIZE, sha256_block_cipher, sha256tree_hash,
 };
 pub use manifest::unix_now_secs;
 
