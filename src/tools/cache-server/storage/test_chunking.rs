@@ -150,6 +150,7 @@ async fn manifest_put_get_roundtrip() {
             },
         ],
         created_at: 0,
+        inline: None,
     };
 
     store
@@ -200,6 +201,7 @@ async fn manifest_overwrite() {
             size: 100,
         }],
         created_at: 0,
+        inline: None,
     };
     store
         .cas_put_manifest(
@@ -222,6 +224,7 @@ async fn manifest_overwrite() {
             },
         ],
         created_at: 0,
+        inline: None,
     };
     store
         .cas_put_manifest(
@@ -306,6 +309,7 @@ async fn splice_blob_simulation() {
             },
         ],
         created_at: 0,
+        inline: None,
     };
     store
         .cas_put_manifest(
@@ -392,6 +396,7 @@ async fn splice_blob_with_zstd_compression() {
             },
         ],
         created_at: 0,
+        inline: None,
     };
     store
         .cas_put_manifest(
@@ -456,6 +461,7 @@ async fn splice_blob_with_brotli_compression() {
             },
         ],
         created_at: 0,
+        inline: None,
     };
     store
         .cas_put_manifest(

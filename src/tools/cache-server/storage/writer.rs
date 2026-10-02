@@ -10,7 +10,7 @@ use tracing::{debug, instrument};
 use super::compression::Compression;
 use super::error::{Result, StoreError};
 use super::hashing::{ContentDigest, DigestFn, IncrementalHasher};
-use super::manifest::{BlobManifest, ChunkInfo, unix_now_secs};
+use super::manifest::{BlobManifest, ChunkInfo, INLINE_BLOB_MAX, unix_now_secs};
 use super::{
     CDC_MAX_SIZE, CacheStore, MAX_BLOB_REASSEMBLE_SIZE, PREFIX_CHUNK, PREFIX_MANIFEST,
     SMALL_BLOB_THRESHOLD, cdc_ranges, compress_and_batch_chunks, prefixed_key, tagged_chunk,
@@ -41,7 +41,7 @@ pub struct CasBlobWriter<'a> {
 }
 
 /// Chunks are handed to the store once this many bytes of them are pending.
-const WRITE_AHEAD_BYTES: usize = 8 * 1024 * 1024;
+pub(crate) const WRITE_AHEAD_BYTES: usize = 8 * 1024 * 1024;
 
 impl<'a> CasBlobWriter<'a> {
     pub(crate) fn new(
@@ -143,14 +143,20 @@ impl<'a> CasBlobWriter<'a> {
             });
         }
 
+        // A blob small enough is stored in its manifest. It is all still
+        // buffered: chunks are cut only from megabytes of buffer.
+        let inline = (total_bytes > 0 && total_bytes <= INLINE_BLOB_MAX)
+            .then(|| std::mem::take(&mut self.buffer).freeze());
+        let blob_hash = self.hasher.finalize();
+
         // Empty blob (0 bytes written): skip chunk processing entirely.
         // The manifest will have an empty chunk list, which cas_get_blob
         // handles by returning empty Bytes. Hash verification and manifest
         // creation proceed normally below.
         if !self.buffer.is_empty() {
             if total_bytes < SMALL_BLOB_THRESHOLD {
-                // Small blob: single chunk, no CDC
-                let chunk_hash = self.digest_fn.hash_data(&self.buffer);
+                // Small blob: single chunk, no CDC, the blob itself.
+                let chunk_hash = blob_hash;
                 let buf_size = self.buffer.len() as u64;
                 let compressed = self
                     .compression
@@ -182,8 +188,6 @@ impl<'a> CasBlobWriter<'a> {
             }
         }
 
-        let blob_hash = self.hasher.finalize();
-
         if let Some(exp) = expected {
             if blob_hash != exp.hash {
                 return Err(StoreError::DigestMismatch {
@@ -193,9 +197,13 @@ impl<'a> CasBlobWriter<'a> {
             }
         }
 
-        let manifest = BlobManifest {
-            chunks: self.chunk_infos,
-            created_at: unix_now_secs(),
+        let manifest = match inline {
+            Some(data) => BlobManifest::inline(blob_hash, data),
+            None => BlobManifest {
+                chunks: self.chunk_infos,
+                created_at: unix_now_secs(),
+                inline: None,
+            },
         };
         let manifest_key = prefixed_key(PREFIX_MANIFEST, self.digest_fn, &blob_hash);
         self.batch.put_bytes(
@@ -204,7 +212,8 @@ impl<'a> CasBlobWriter<'a> {
         );
         // Durable in order: once the manifest is, so are the chunks written
         // ahead of it.
-        self.store.commit(self.batch).await?;
+        let digest = ContentDigest::new(self.digest_fn, blob_hash);
+        self.store.commit_blobs(self.batch, [digest]).await?;
 
         debug!(
             total_bytes,

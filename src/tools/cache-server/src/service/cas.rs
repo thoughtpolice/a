@@ -458,8 +458,10 @@ impl content_addressable_storage_server::ContentAddressableStorage
 
             telemetry::wide!("blob.digest", hex::encode(blob_cd.hash));
 
-            let (manifest, _compression) = store
-                .cas_get_manifest(&blob_cd)
+            // Each chunk is stored as a blob before it is named, so the
+            // client can fetch the ones it lacks.
+            let manifest = store
+                .cas_split_blob(&blob_cd)
                 .await
                 .map_err(store_error_to_status)?
                 .ok_or_else(|| tonic::Status::not_found("blob not found"))?;

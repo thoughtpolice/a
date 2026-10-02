@@ -3,18 +3,27 @@
 
 //! Content-addressable chunk storage backed by SlateDB with FastCDC chunking.
 
+mod action_results;
 mod compression;
+mod db_cache;
 mod error;
+mod expiring;
 mod hashing;
 mod manifest;
+mod manifest_cache;
+mod presence;
+mod small_blobs;
 mod space;
 mod writer;
 
 // Re-export public API so the external interface is unchanged.
+pub use action_results::DEFAULT_ACTION_RESULT_CACHE_BYTES;
 pub use compression::{Compression, StreamingDecompressor};
 pub use error::{Result, StoreError};
 pub use hashing::{ContentDigest, DigestFn, IncrementalHasher, parse_digest_hash};
-pub use manifest::{BlobManifest, ChunkInfo, MAX_MANIFEST_CHUNK_COUNT};
+pub use manifest::{BlobManifest, ChunkInfo, INLINE_BLOB_MAX, MAX_MANIFEST_CHUNK_COUNT};
+pub use manifest_cache::DEFAULT_MANIFEST_CACHE_BYTES;
+pub use small_blobs::DEFAULT_SMALL_BLOB_CACHE_BYTES;
 pub use space::{default_reserve, filesystem_space};
 pub use writer::CasBlobWriter;
 
@@ -33,8 +42,7 @@ use std::sync::Arc;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use futures::{Stream, StreamExt as _, TryStreamExt as _};
-use slatedb::config::{DurabilityLevel, ReadOptions};
-use slatedb::db_cache::foyer::{FoyerCache, FoyerCacheOptions};
+use slatedb::config::{DurabilityLevel, PutOptions, ReadOptions, Ttl};
 use slatedb::db_cache::{CacheTarget, SplitCache};
 use slatedb::{BlockCachePolicy, Db, PrefixExtractor, PrefixTarget, WriteBatch};
 use tracing::{debug, instrument, warn};
@@ -83,6 +91,22 @@ pub struct CacheStoreSettings {
     /// less than this many bytes free. `None` keeps [`default_reserve`];
     /// `Some(0)` turns the check off.
     pub disk_reserve_bytes: Option<u64>,
+    /// How many stored blobs to remember, so that checking for them again
+    /// (FindMissingBlobs, mostly) skips the LSM. `None` keeps about a
+    /// million, some 80 MiB.
+    pub presence_cache_entries: Option<usize>,
+    /// Bytes of small blobs (those stored in their manifests) to keep once
+    /// read, so reading them again skips the LSM. `None` keeps
+    /// [`DEFAULT_SMALL_BLOB_CACHE_BYTES`]; `Some(0)` keeps none.
+    pub small_blob_cache_bytes: Option<u64>,
+    /// Bytes of action cache entries to keep once read, so reading them
+    /// again skips the LSM. `None` keeps
+    /// [`DEFAULT_ACTION_RESULT_CACHE_BYTES`]; `Some(0)` keeps none.
+    pub action_result_cache_bytes: Option<u64>,
+    /// Bytes of blob manifests (of blobs not stored in them) to keep once
+    /// read, so reading the blob again skips the manifest's lookup. `None`
+    /// keeps [`DEFAULT_MANIFEST_CACHE_BYTES`]; `Some(0)` keeps none.
+    pub manifest_cache_bytes: Option<u64>,
 }
 
 impl std::fmt::Debug for CacheStoreSettings {
@@ -97,6 +121,10 @@ impl std::fmt::Debug for CacheStoreSettings {
             .field("object_store_cache", &self.object_store_cache)
             .field("metrics_recorder", &self.metrics_recorder.is_some())
             .field("disk_reserve_bytes", &self.disk_reserve_bytes)
+            .field("presence_cache_entries", &self.presence_cache_entries)
+            .field("small_blob_cache_bytes", &self.small_blob_cache_bytes)
+            .field("action_result_cache_bytes", &self.action_result_cache_bytes)
+            .field("manifest_cache_bytes", &self.manifest_cache_bytes)
             .finish()
     }
 }
@@ -141,7 +169,7 @@ const CDC_MAX_SIZE: usize = CDC_AVG_SIZE * 4; // 2 MiB
 const SMALL_BLOB_THRESHOLD: usize = CDC_MAX_SIZE;
 
 /// Chunk reads a blob stream keeps in flight ahead of its consumer.
-pub const STREAM_PREFETCH_CHUNKS: usize = 8;
+const STREAM_PREFETCH_CHUNKS: usize = 8;
 
 /// Maximum total blob size for reassembly (2 GiB).
 pub const MAX_BLOB_REASSEMBLE_SIZE: usize = 2 * 1024 * 1024 * 1024;
@@ -320,7 +348,9 @@ pub fn block_cache_policy() -> BlockCachePolicy {
 /// Metadata then never shares an SST, or a compaction, with megabytes of
 /// chunk data: a manifest or action cache lookup probes only that kind's
 /// SSTs, which are small, dense, and well covered by bloom filters and the
-/// block cache, and compacting metadata rewrites no chunks.
+/// block cache, and compacting metadata rewrites no chunks. (Manifests also
+/// hold blobs of up to [`INLINE_BLOB_MAX`], about a block each, which is
+/// what lets one lookup read a small blob.)
 ///
 /// SlateDB stamps the extractor's name into the manifest of a new store and
 /// refuses to open a store with a different one (or none), so the name and
@@ -337,6 +367,12 @@ impl PrefixExtractor for KeyKind {
         (!bytes.is_empty()).then_some(1)
     }
 }
+
+/// Chunks at most this large are read through the block cache. Small
+/// blobs are mostly Directory protos and small outputs, read over and over
+/// (every GetTree of a tree reads each of its Directories); the block
+/// holding one is a few KiB, where the block of a large chunk is the chunk.
+const CACHED_CHUNK_BYTES: u64 = 64 * 1024;
 
 /// Reads of chunk data, which must not displace metadata in the block cache
 /// (see [`block_cache_policy`]).
@@ -376,6 +412,71 @@ pub struct CacheStore {
     refresh_window_ms: Option<i64>,
     /// Local stores: the free space writes need.
     disk: Option<Arc<space::DiskReserve>>,
+    /// Blobs known durably stored, so existence checks skip the LSM.
+    presence: presence::PresenceCache,
+    /// Small blobs recently read, so reading them again skips the LSM.
+    small_blobs: Option<small_blobs::SmallBlobCache>,
+    /// Action cache entries recently read, dropped when written.
+    action_results: Option<action_results::ActionResultCache>,
+    /// Blob manifests recently read, so reading the blob again skips the
+    /// manifest's lookup.
+    manifests: Option<manifest_cache::ManifestCache>,
+}
+
+/// A blob's manifest, as read, and what keeping the blob once its data is
+/// read takes.
+struct ManifestRead {
+    manifest: BlobManifest,
+    compression: Compression,
+    /// When the stored manifest expires (ms since the epoch; `None` never,
+    /// or answered from memory).
+    expires_at: Option<i64>,
+    /// When the read began (ms since the epoch).
+    read_at: i64,
+    /// Whether the manifest cache answered, so that a chunk found missing
+    /// may mean only that its entry is out of date.
+    cached: bool,
+}
+
+impl ManifestRead {
+    fn new(
+        manifest: BlobManifest,
+        compression: Compression,
+        expires_at: Option<i64>,
+        read_at: i64,
+    ) -> Self {
+        Self {
+            manifest,
+            compression,
+            expires_at,
+            read_at,
+            cached: false,
+        }
+    }
+}
+
+/// Where a manifest read may be answered from.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ManifestSource {
+    /// The caches of blobs and manifests read, else the store.
+    Cached,
+    /// The store alone.
+    Store,
+}
+
+/// A blob's manifest, read to read the blob a chunk at a time with
+/// [`CacheStore::cas_read_chunk`].
+pub struct BlobChunks {
+    digest: ContentDigest,
+    read: ManifestRead,
+}
+
+impl BlobChunks {
+    /// The blob's chunks, in order: for a blob stored in its manifest, one,
+    /// the blob itself.
+    pub fn chunks(&self) -> &[ChunkInfo] {
+        &self.read.manifest.chunks
+    }
 }
 
 /// A git blob's CAS digest, recorded when an ingest stores (or finds) the
@@ -458,8 +559,11 @@ pub fn create_object_store(
                     "create store directory {path}: {e}"
                 )))
             })?;
+            // Reads on threads of its own, one trip each, rather than two
+            // trips through Tokio's blocking pool (see local-object-store).
+            let threads = std::thread::available_parallelism().map_or(8, |n| n.get().clamp(4, 32));
             Arc::new(
-                slatedb::object_store::local::LocalFileSystem::new_with_prefix(path).map_err(
+                local_object_store::PooledLocalFileSystem::new_with_prefix(path, threads).map_err(
                     |e| StoreError::Database(slatedb::Error::unavailable(e.to_string())),
                 )?,
             )
@@ -519,19 +623,17 @@ impl CacheStore {
             (None, _) => {}
         }
 
-        let cache_options = |bytes: Option<u64>, default| FoyerCacheOptions {
-            max_capacity: bytes.unwrap_or(default),
-            ..FoyerCacheOptions::default()
-        };
         let db_cache = SplitCache::new()
-            .with_block_cache(Some(Arc::new(FoyerCache::new_with_opts(cache_options(
-                settings.block_cache_bytes,
-                DEFAULT_BLOCK_CACHE_BYTES,
-            )))))
-            .with_meta_cache(Some(Arc::new(FoyerCache::new_with_opts(cache_options(
-                settings.meta_cache_bytes,
-                DEFAULT_META_CACHE_BYTES,
-            )))))
+            .with_block_cache(Some(Arc::new(db_cache::QuickDbCache::new(
+                settings
+                    .block_cache_bytes
+                    .unwrap_or(DEFAULT_BLOCK_CACHE_BYTES),
+            ))))
+            .with_meta_cache(Some(Arc::new(db_cache::QuickDbCache::new(
+                settings
+                    .meta_cache_bytes
+                    .unwrap_or(DEFAULT_META_CACHE_BYTES),
+            ))))
             .build();
 
         let mut builder = Db::builder(DB_PATH, object_store)
@@ -566,6 +668,27 @@ impl CacheStore {
             default_ttl_ms,
             refresh_window_ms: default_ttl_ms.map(|ttl| ttl / 2),
             disk,
+            presence: presence::PresenceCache::new(
+                settings
+                    .presence_cache_entries
+                    .unwrap_or(presence::DEFAULT_ENTRIES)
+                    .max(1),
+            ),
+            small_blobs: small_blobs::SmallBlobCache::new(
+                settings
+                    .small_blob_cache_bytes
+                    .unwrap_or(DEFAULT_SMALL_BLOB_CACHE_BYTES),
+            ),
+            action_results: action_results::ActionResultCache::new(
+                settings
+                    .action_result_cache_bytes
+                    .unwrap_or(DEFAULT_ACTION_RESULT_CACHE_BYTES),
+            ),
+            manifests: manifest_cache::ManifestCache::new(
+                settings
+                    .manifest_cache_bytes
+                    .unwrap_or(DEFAULT_MANIFEST_CACHE_BYTES),
+            ),
         })
     }
 
@@ -730,6 +853,7 @@ impl CacheStore {
         if blobs.is_empty() && git_blobs.is_empty() {
             return Ok(());
         }
+        let digests: Vec<ContentDigest> = blobs.iter().map(|(digest, _, _)| *digest).collect();
         let cheap = blobs_are_cheap(&blobs);
         let prepare_all = move || -> Result<Vec<([u8; 34], Bytes)>> {
             let mut puts = Vec::with_capacity(blobs.len() * 2);
@@ -749,7 +873,7 @@ impl CacheStore {
             let key = GitBlobRecord::key(record.digest.function, &record.git_id);
             batch.put_bytes(Bytes::copy_from_slice(&key), record.value());
         }
-        self.commit(batch).await
+        self.commit_blobs(batch, digests).await
     }
 
     /// Store `blobs`, each already checked against its digest, in a single
@@ -889,23 +1013,48 @@ impl CacheStore {
             spawn_cpu(move || prepare_blob(&digest, &data, compression)).await?
         };
         debug!(chunk_count = puts.len() - 1, "blob prepared");
-        self.commit(batch_of(puts)).await
+        self.commit_blobs(batch_of(puts), [*digest]).await
     }
 
     /// Reassemble a blob from its manifest and chunks.
     /// Decompresses chunks transparently based on compression recorded in manifest.
     #[instrument(skip(self), fields(%digest))]
     pub async fn cas_get_blob(&self, digest: &ContentDigest) -> Result<Option<Bytes>> {
-        let digest_fn = digest.function;
-        let hash = &digest.hash;
-
-        let (manifest, _compression) = match self.cas_get_manifest(digest).await? {
-            Some(m) => m,
-            None => return Ok(None),
+        let Some(read) = self.read_manifest(digest, ManifestSource::Cached).await? else {
+            return Ok(None);
         };
+        if !read.cached {
+            return self.assemble_blob(digest, read).await;
+        }
+        match self.assemble_blob(digest, read).await {
+            // The kept manifest may name chunks the store no longer has
+            // (see `manifest_cache`), and is dropped: read the store's.
+            Err(StoreError::ChunkMissing { .. }) => {
+                let Some(read) = self.read_manifest(digest, ManifestSource::Store).await? else {
+                    return Ok(None);
+                };
+                self.assemble_blob(digest, read).await
+            }
+            other => other,
+        }
+    }
 
-        let total_size: u64 = manifest
-            .chunks
+    /// The blob `read` describes, its chunks read and checked.
+    async fn assemble_blob(
+        &self,
+        digest: &ContentDigest,
+        read: ManifestRead,
+    ) -> Result<Option<Bytes>> {
+        if let Some(data) = &read.manifest.inline {
+            return Ok(Some(data.clone()));
+        }
+        let chunks = &read.manifest.chunks;
+        if let [chunk] = chunks[..] {
+            // The blob is its one chunk, checked against the blob's hash.
+            return Ok(Some(self.read_chunk(digest, &read, chunk).await?));
+        }
+
+        let total_size: u64 = chunks
             .iter()
             .try_fold(0u64, |acc, c| acc.checked_add(c.size))
             .ok_or_else(|| StoreError::ManifestCorrupted("total blob size overflows u64".into()))?;
@@ -915,92 +1064,78 @@ impl CacheStore {
                 limit: MAX_BLOB_REASSEMBLE_SIZE,
             });
         }
-        // Read chunks sequentially into a pre-allocated buffer so that each
-        // chunk's raw + decompressed data can be dropped before the next iteration,
-        // keeping peak memory at ~1x blob size instead of 2x.
+        // Chunks are copied into a buffer of the blob's size as they arrive,
+        // in order, up to 32 in flight, so that each chunk's raw and
+        // decompressed data can be dropped before the next is read: peak
+        // memory stays near the blob's size rather than twice it.
         let mut buf = BytesMut::with_capacity(total_size as usize);
-        let mut hasher = if manifest.chunks.len() != 1 {
-            Some(IncrementalHasher::new(digest_fn, total_size as usize))
-        } else {
-            None
-        };
-        // Collect owned (hash, size) pairs so the stream closure captures
-        // Copy values rather than &ChunkInfo references. This avoids a
-        // Higher-Ranked Trait Bound (HRTB) issue that prevents the returned
-        // future from being boxed (e.g. when called from #[tonic::async_trait]
-        // methods).
-        let chunk_specs: Vec<([u8; 32], u64)> = manifest
-            .chunks
-            .iter()
-            .map(|ci| (ci.hash, ci.size))
-            .collect();
-
-        // Fetch chunks concurrently (up to 32 in-flight), yielded in order
-        let mut stream = futures::stream::iter(chunk_specs)
-            .map(|(chunk_hash, chunk_size)| async move {
-                (
-                    self.cas_get_raw_chunk(digest_fn, &chunk_hash).await,
-                    chunk_hash,
-                    chunk_size,
-                )
-            })
+        let mut hasher = IncrementalHasher::new(digest.function, total_size as usize);
+        let read = &read;
+        let mut stream = futures::stream::iter(chunks.clone())
+            .map(|chunk| self.read_chunk(digest, read, chunk))
             .buffered(32);
-
-        // Decompress, verify, and assemble as each chunk arrives
-        while let Some((raw_result, chunk_hash, chunk_size)) = stream.next().await {
-            let (chunk_compression, compressed) = match raw_result? {
-                Some(c) => c,
-                None => {
-                    warn!(chunk_hash = %hex::encode(chunk_hash), "chunk missing from store");
-                    return Err(StoreError::ChunkMissing {
-                        hash: hex::encode(chunk_hash),
-                    });
-                }
-            };
-            let decompressed = chunk_compression
-                .decompress_with_size_hint_async(compressed, chunk_size as usize)
-                .await?;
-            if decompressed.len() != chunk_size as usize {
-                return Err(StoreError::ChunkSizeMismatch {
-                    expected: chunk_size,
-                    actual: decompressed.len(),
-                });
-            }
-            let computed = digest_fn.hash_data(&decompressed);
-            if computed != chunk_hash {
-                warn!(
-                    expected = %hex::encode(chunk_hash),
-                    actual = %hex::encode(computed),
-                    "chunk digest mismatch",
-                );
-                return Err(StoreError::DigestMismatch {
-                    expected: hex::encode(chunk_hash),
-                    actual: hex::encode(computed),
-                });
-            }
-            if let Some(ref mut h) = hasher {
-                h.update(&decompressed);
-            }
-            buf.put(decompressed.as_ref());
+        while let Some(data) = stream.next().await {
+            let data = data?;
+            hasher.update(&data);
+            buf.put(data.as_ref());
         }
-
-        // For single-chunk blobs, the per-chunk hash check above already
-        // verified the same hash, so skip the redundant whole-blob hash.
-        if let Some(h) = hasher {
-            let computed = h.finalize();
-            if computed != *hash {
-                return Err(StoreError::DigestMismatch {
-                    expected: hex::encode(hash),
-                    actual: hex::encode(computed),
-                });
-            }
+        let computed = hasher.finalize();
+        if computed != digest.hash {
+            return Err(StoreError::DigestMismatch {
+                expected: hex::encode(digest.hash),
+                actual: hex::encode(computed),
+            });
         }
         Ok(Some(buf.freeze()))
     }
 
+    /// `chunk` of `digest`'s blob as `read` describes it, decompressed and
+    /// checked against its hash; for a blob stored in its manifest, its
+    /// data. A chunk missing from the store is [`StoreError::ChunkMissing`],
+    /// and drops a kept manifest that named it (see `manifest_cache`), so
+    /// the next read takes the store's. A blob of one chunk is kept once
+    /// read (see `small_blobs`).
+    async fn read_chunk(
+        &self,
+        digest: &ContentDigest,
+        read: &ManifestRead,
+        chunk: ChunkInfo,
+    ) -> Result<Bytes> {
+        if let Some(data) = &read.manifest.inline {
+            return Ok(data.clone());
+        }
+        let Some((compression, compressed)) = self
+            .cas_get_raw_chunk(digest.function, &chunk.hash, Some(chunk.size))
+            .await?
+        else {
+            warn!(chunk_hash = %hex::encode(chunk.hash), "chunk missing from store");
+            if read.cached {
+                self.forget_manifest(digest);
+            }
+            return Err(StoreError::ChunkMissing {
+                hash: hex::encode(chunk.hash),
+            });
+        };
+        let data = compression
+            .decompress_with_size_hint_async(compressed, chunk.size as usize)
+            .await?;
+        if data.len() != chunk.size as usize {
+            return Err(StoreError::ChunkSizeMismatch {
+                expected: chunk.size,
+                actual: data.len(),
+            });
+        }
+        verify_digest(&ContentDigest::new(digest.function, chunk.hash), &data)
+            .inspect_err(|e| warn!(%e, "chunk digest mismatch"))?;
+        if read.manifest.chunks.len() == 1 {
+            self.keep_small_blob(digest, &data, read);
+        }
+        Ok(data)
+    }
+
     /// Stream a blob's decompressed chunks in order.
     ///
-    /// Peak memory is O(max_chunk_size × [`STREAM_PREFETCH_CHUNKS`]) instead
+    /// Peak memory is O(max_chunk_size × `STREAM_PREFETCH_CHUNKS`) instead
     /// of O(blob_size): that many chunk reads run ahead of the consumer, so a
     /// remote object store's latency is paid once per window rather than once
     /// per chunk. Returns `Ok(None)` if the blob does not exist. Each yielded
@@ -1014,48 +1149,35 @@ impl CacheStore {
         &self,
         digest: &ContentDigest,
     ) -> Result<Option<impl Stream<Item = Result<Bytes>> + '_>> {
-        let digest_fn = digest.function;
-
-        let (manifest, _compression) = match self.cas_get_manifest(digest).await? {
-            Some(m) => m,
-            None => return Ok(None),
+        let Some(blob) = self.cas_blob_chunks(digest).await? else {
+            return Ok(None);
         };
-
-        // Owned (hash, size) pairs, as in `cas_get_blob`, keep the stream's
-        // futures free of borrows from the manifest.
-        let chunk_specs: Vec<([u8; 32], u64)> = manifest
-            .chunks
-            .iter()
-            .map(|ci| (ci.hash, ci.size))
-            .collect();
-        let stream = futures::stream::iter(chunk_specs)
-            .map(move |(chunk_hash, chunk_size)| async move {
-                let (chunk_compression, compressed) = self
-                    .cas_get_raw_chunk(digest_fn, &chunk_hash)
-                    .await?
-                    .ok_or_else(|| StoreError::ChunkMissing {
-                        hash: hex::encode(chunk_hash),
-                    })?;
-                let decompressed = chunk_compression
-                    .decompress_with_size_hint_async(compressed, chunk_size as usize)
-                    .await?;
-                if decompressed.len() != chunk_size as usize {
-                    return Err(StoreError::ChunkSizeMismatch {
-                        expected: chunk_size,
-                        actual: decompressed.len(),
-                    });
-                }
-                let computed = digest_fn.hash_data(&decompressed);
-                if computed != chunk_hash {
-                    return Err(StoreError::DigestMismatch {
-                        expected: hex::encode(chunk_hash),
-                        actual: hex::encode(computed),
-                    });
-                }
-                Ok(decompressed)
+        let chunks = blob.chunks().to_vec();
+        let blob = Arc::new(blob);
+        let stream = futures::stream::iter(chunks)
+            .map(move |chunk| {
+                let blob = blob.clone();
+                async move { self.cas_read_chunk(&blob, chunk).await }
             })
             .buffered(STREAM_PREFETCH_CHUNKS);
         Ok(Some(stream))
+    }
+
+    /// `digest`'s manifest, to read its blob a chunk at a time, or `None` if
+    /// the blob is not stored.
+    pub async fn cas_blob_chunks(&self, digest: &ContentDigest) -> Result<Option<BlobChunks>> {
+        let read = self.read_manifest(digest, ManifestSource::Cached).await?;
+        Ok(read.map(|read| BlobChunks {
+            digest: *digest,
+            read,
+        }))
+    }
+
+    /// `chunk`, one of `blob`'s chunks, decompressed and checked against its
+    /// hash. Unlike a whole read, a stream of chunks does not check the
+    /// blob's hash: a caller that needs it hashes what it reads.
+    pub async fn cas_read_chunk(&self, blob: &BlobChunks, chunk: ChunkInfo) -> Result<Bytes> {
+        self.read_chunk(&blob.digest, &blob.read, chunk).await
     }
 
     /// Whether a blob is stored, durably and unexpired (by its manifest).
@@ -1100,6 +1222,24 @@ impl CacheStore {
         if digest.is_empty_blob() {
             return Ok(Some(None));
         }
+        let now = now_millis();
+        if let Some(expires_at) = self.presence.get(digest, now) {
+            return Ok(Some(expires_at));
+        }
+        let found = self.stored_blob_expiry(digest).await?;
+        if let Some(expires_at) = found {
+            self.presence.insert(*digest, expires_at, now);
+        }
+        Ok(found)
+    }
+
+    /// When `digest`'s blob expires as stored, read past the presence cache:
+    /// the cache notes expiries by this process's clock, and the store sets
+    /// them by SlateDB's, which may run a few milliseconds apart.
+    async fn stored_blob_expiry(&self, digest: &ContentDigest) -> Result<Option<Option<i64>>> {
+        if digest.is_empty_blob() {
+            return Ok(Some(None));
+        }
         let key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
         Ok(self
             .get_live(&key, &durable_read_options())
@@ -1107,28 +1247,262 @@ impl CacheStore {
             .map(|(_, expires_at)| expires_at))
     }
 
+    /// [`commit`](Self::commit) `batch`, which stores the blobs `digests`,
+    /// and note them stored (see `presence`): they expire no earlier than a
+    /// TTL after the write began.
+    pub(crate) async fn commit_blobs(
+        &self,
+        batch: WriteBatch,
+        digests: impl IntoIterator<Item = ContentDigest>,
+    ) -> Result<()> {
+        let written_at = now_millis();
+        self.commit(batch).await?;
+        let expires_at = self
+            .default_ttl_ms
+            .map(|ttl| written_at.saturating_add(ttl));
+        let now = now_millis();
+        for digest in digests {
+            self.presence.insert(digest, expires_at, now);
+        }
+        Ok(())
+    }
+
     // -----------------------------------------------------------------------------------------------------------------
     // Chunk-level CAS API (for SplitBlob/SpliceBlob)
     // -----------------------------------------------------------------------------------------------------------------
 
     /// Get the manifest (chunk list) for a blob, along with its compression.
+    ///
+    /// A blob stored in its manifest comes with its data, checked against
+    /// its digest, and is its own one chunk. Small blobs are kept once read
+    /// (see `small_blobs`), and come back the same way, data and all, so
+    /// reading one again skips the LSM.
     pub async fn cas_get_manifest(
         &self,
         digest: &ContentDigest,
     ) -> Result<Option<(BlobManifest, Compression)>> {
+        Ok(self
+            .read_manifest(digest, ManifestSource::Cached)
+            .await?
+            .map(|read| (read.manifest, read.compression)))
+    }
+
+    /// Note that a read of `digest`'s blob found one of its chunks missing,
+    /// so that the next read takes its manifest from the store.
+    fn forget_manifest(&self, digest: &ContentDigest) {
+        if let Some(cache) = &self.manifests {
+            cache.remove(digest);
+        }
+    }
+
+    /// [`cas_get_manifest`](Self::cas_get_manifest), from `source`, with what
+    /// keeping the blob, once its chunk is read, takes.
+    async fn read_manifest(
+        &self,
+        digest: &ContentDigest,
+        source: ManifestSource,
+    ) -> Result<Option<ManifestRead>> {
+        let now = now_millis();
         if digest.is_empty_blob() {
             // Always stored, as REAPI requires: a blob of no chunks.
             let manifest = BlobManifest {
                 chunks: Vec::new(),
                 created_at: 0,
+                inline: None,
             };
-            return Ok(Some((manifest, Compression::Identity)));
+            return Ok(Some(ManifestRead::new(
+                manifest,
+                Compression::Identity,
+                None,
+                now,
+            )));
+        }
+        if source == ManifestSource::Cached {
+            if let Some((manifest, compression)) =
+                self.small_blobs.as_ref().and_then(|c| c.get(digest, now))
+            {
+                return Ok(Some(ManifestRead::new(manifest, compression, None, now)));
+            }
+            if let Some((manifest, compression, expires_at)) =
+                self.manifests.as_ref().and_then(|c| c.get(digest, now))
+            {
+                let mut read = ManifestRead::new(manifest, compression, expires_at, now);
+                read.cached = true;
+                return Ok(Some(read));
+            }
         }
         let key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
-        match self.get_live(&key, &ReadOptions::default()).await? {
-            Some((data, _)) => Ok(Some(BlobManifest::from_bytes(data)?)),
-            None => Ok(None),
+        let Some((data, expires_at)) = self.get_live(&key, &ReadOptions::default()).await? else {
+            return Ok(None);
+        };
+        let (mut manifest, compression) = BlobManifest::from_bytes(data)?;
+        if let Some(data) = &manifest.inline {
+            verify_digest(digest, data)
+                .inspect_err(|e| warn!(%digest, %e, "inline blob digest mismatch"))?;
+            manifest.chunks = vec![ChunkInfo {
+                hash: digest.hash,
+                size: data.len() as u64,
+            }];
         }
+        let read = ManifestRead::new(manifest, compression, expires_at, now);
+        if let Some(data) = &read.manifest.inline {
+            self.keep_small_blob(digest, data, &read);
+        } else if let Some(cache) = &self.manifests {
+            cache.insert(*digest, &read.manifest, compression, expires_at, now);
+        }
+        Ok(Some(read))
+    }
+
+    /// Keep `data`, the blob `read` describes, verified, if it is small
+    /// enough (see `small_blobs`).
+    fn keep_small_blob(&self, digest: &ContentDigest, data: &Bytes, read: &ManifestRead) {
+        if let Some(cache) = &self.small_blobs {
+            cache.insert(
+                *digest,
+                data,
+                read.compression,
+                read.manifest.created_at,
+                read.expires_at,
+                read.read_at,
+            );
+        }
+    }
+
+    /// The manifest of `digest`'s blob, as [`cas_get_manifest`] gives it,
+    /// with each of its chunks made a CAS blob in its own right: a SplitBlob
+    /// answer promises a client can fetch the chunks it lacks by their
+    /// digests. `None` if the blob is not stored.
+    ///
+    /// A chunk becomes a blob through a manifest naming the chunk already
+    /// stored, expiring with the blob (whose chunks were written with it, so
+    /// expire with it too): when the store says the blob does, not when the
+    /// presence cache does, so the manifest never outlives the chunk. A blob past half its TTL, which FindMissingBlobs
+    /// would already call missing, is first renewed, its chunks rewritten as
+    /// an upload of it would rewrite them: SplitBlob extends the life of the
+    /// blob it splits, and of its chunks. A chunk already stored as a fresh
+    /// blob needs no manifest, nor does a blob that is its own one chunk.
+    ///
+    /// [`cas_get_manifest`]: Self::cas_get_manifest
+    pub async fn cas_split_blob(&self, digest: &ContentDigest) -> Result<Option<BlobManifest>> {
+        let Some(expires_at) = self.stored_blob_expiry(digest).await? else {
+            return Ok(None);
+        };
+        // From the store, not the caches: the chunk manifests written below
+        // must name the chunks the stored manifest does, which a kept one
+        // (see `manifest_cache`) may not.
+        let Some(read) = self.read_manifest(digest, ManifestSource::Store).await? else {
+            return Ok(None);
+        };
+        let (manifest, compression) = (read.manifest, read.compression);
+        let mut seen = std::collections::HashSet::new();
+        let chunks: Vec<(ContentDigest, u64)> = manifest
+            .chunks
+            .iter()
+            .map(|c| (ContentDigest::new(digest.function, c.hash), c.size))
+            .filter(|(chunk, _)| chunk != digest && seen.insert(*chunk))
+            .collect();
+        let digests = chunks.iter().map(|(chunk, _)| *chunk).collect();
+        let expiries = self.cas_blob_expiries(digests).await?;
+        let unnamed: Vec<(ContentDigest, u64)> = chunks
+            .into_iter()
+            .zip(expiries)
+            .filter(|(_, expiry)| !expiry.is_some_and(|expires| self.is_fresh(expires)))
+            .map(|(chunk, _)| chunk)
+            .collect();
+
+        if !self.is_fresh(expires_at) {
+            self.renew_split_blob(digest, &manifest, compression, &unnamed)
+                .await?;
+        } else if !unnamed.is_empty() {
+            let with_blob = PutOptions {
+                ttl: match expires_at {
+                    Some(at) => Ttl::ExpireAtMillis(at),
+                    None => Ttl::NoExpiry,
+                },
+            };
+            let mut batch = WriteBatch::new();
+            for (chunk, size) in &unnamed {
+                let key = prefixed_key(PREFIX_MANIFEST, chunk.function, &chunk.hash);
+                batch.put_bytes_with_options(
+                    Bytes::copy_from_slice(&key),
+                    one_chunk_manifest(chunk, *size)?,
+                    &with_blob,
+                );
+            }
+            self.commit(batch).await?;
+            let now = now_millis();
+            for (chunk, _) in unnamed {
+                self.presence.insert(chunk, expires_at, now);
+            }
+        }
+        Ok(Some(manifest))
+    }
+
+    /// Write `digest`'s blob again, as an upload of it would, along with
+    /// manifests naming each of `unnamed` (its chunks not yet blobs) as a
+    /// blob. The chunks are copied as stored, a few MiB at a time, and the
+    /// manifests committed after them all.
+    async fn renew_split_blob(
+        &self,
+        digest: &ContentDigest,
+        manifest: &BlobManifest,
+        compression: Compression,
+        unnamed: &[(ContentDigest, u64)],
+    ) -> Result<()> {
+        if manifest.inline.is_none() {
+            let mut seen = std::collections::HashSet::new();
+            let hashes: Vec<[u8; 32]> = manifest
+                .chunks
+                .iter()
+                .map(|c| c.hash)
+                .filter(|hash| seen.insert(*hash))
+                .collect();
+            let digest_fn = digest.function;
+            let mut stored = futures::stream::iter(hashes)
+                .map(|hash| async move {
+                    let key = prefixed_key(PREFIX_CHUNK, digest_fn, &hash);
+                    let value = self
+                        .db
+                        .get_with_options(&key, &chunk_read_options())
+                        .await?;
+                    Ok::<_, StoreError>((
+                        key,
+                        value.ok_or_else(|| StoreError::ChunkMissing {
+                            hash: hex::encode(hash),
+                        })?,
+                    ))
+                })
+                .buffered(STREAM_PREFETCH_CHUNKS);
+            let mut batch = WriteBatch::new();
+            let mut pending = 0;
+            while let Some(chunk) = stored.next().await {
+                let (key, value) = chunk?;
+                pending += value.len();
+                batch.put_bytes(Bytes::copy_from_slice(&key), value);
+                if pending >= writer::WRITE_AHEAD_BYTES {
+                    self.write_ahead(std::mem::take(&mut batch)).await?;
+                    pending = 0;
+                }
+            }
+            self.write_ahead(batch).await?;
+        }
+
+        // Durable in order: once the manifests are, so are the chunks.
+        let mut batch = WriteBatch::new();
+        let key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
+        batch.put_bytes(
+            Bytes::copy_from_slice(&key),
+            manifest.to_bytes(compression)?,
+        );
+        for (chunk, size) in unnamed {
+            let key = prefixed_key(PREFIX_MANIFEST, chunk.function, &chunk.hash);
+            batch.put_bytes(
+                Bytes::copy_from_slice(&key),
+                one_chunk_manifest(chunk, *size)?,
+            );
+        }
+        let stored = std::iter::once(*digest).chain(unnamed.iter().map(|(chunk, _)| *chunk));
+        self.commit_blobs(batch, stored).await
     }
 
     /// Store a manifest for a blob (used by SpliceBlob).
@@ -1142,7 +1516,12 @@ impl CacheStore {
         compression: Compression,
     ) -> Result<()> {
         let key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
-        self.db_put(&key, manifest.to_bytes(compression)?).await
+        let mut batch = WriteBatch::new();
+        batch.put_bytes(
+            Bytes::copy_from_slice(&key),
+            manifest.to_bytes(compression)?,
+        );
+        self.commit_blobs(batch, [*digest]).await
     }
 
     /// Atomically store a blob from pre-existing chunk data.
@@ -1216,28 +1595,32 @@ impl CacheStore {
         let manifest = BlobManifest {
             chunks: chunk_infos,
             created_at: unix_now_secs(),
+            inline: None,
         };
         let manifest_key = prefixed_key(PREFIX_MANIFEST, digest_fn, &blob_digest.hash);
         batch.put_bytes(
             Bytes::copy_from_slice(&manifest_key),
             manifest.to_bytes(compression)?,
         );
-        self.commit(batch).await?;
-        Ok(())
+        self.commit_blobs(batch, [*blob_digest]).await
     }
 
     /// Fetch a raw chunk without decompression, returning its compression tag.
+    ///
+    /// A chunk known to be small (`size`) is read through the block cache:
+    /// see [`CACHED_CHUNK_BYTES`].
     async fn cas_get_raw_chunk(
         &self,
         digest_fn: DigestFn,
         hash: &[u8; 32],
+        size: Option<u64>,
     ) -> Result<Option<(Compression, Bytes)>> {
         let key = prefixed_key(PREFIX_CHUNK, digest_fn, hash);
-        match self
-            .db
-            .get_with_options(&key, &chunk_read_options())
-            .await?
-        {
+        let options = match size {
+            Some(size) if size <= CACHED_CHUNK_BYTES => ReadOptions::default(),
+            _ => chunk_read_options(),
+        };
+        match self.db.get_with_options(&key, &options).await? {
             Some(raw) => Ok(Some(parse_chunk_tag(raw)?)),
             None => Ok(None),
         }
@@ -1267,9 +1650,14 @@ impl CacheStore {
     /// Fetch a chunk, decompressing it after retrieval.
     ///
     /// The compression algorithm is auto-detected from the stored 1-byte header.
+    ///
+    /// The chunks a client names (SpliceBlob) are CAS blobs, which need not
+    /// be stored as one chunk under their own hash: a small one is stored
+    /// in its manifest, and a large one is split. Without a chunk under the
+    /// digest, this reads the blob of that digest.
     pub async fn cas_get_chunk(&self, digest: &ContentDigest) -> Result<Option<Bytes>> {
         match self
-            .cas_get_raw_chunk(digest.function, &digest.hash)
+            .cas_get_raw_chunk(digest.function, &digest.hash, None)
             .await?
         {
             Some((compression, compressed)) => {
@@ -1283,11 +1671,12 @@ impl CacheStore {
                 }
                 Ok(Some(decompressed))
             }
-            None => Ok(None),
+            None => self.cas_get_blob(digest).await,
         }
     }
 
-    /// Check if a chunk exists.
+    /// Check if a chunk exists: [`cas_get_chunk`](Self::cas_get_chunk)
+    /// would find it, as a chunk or as a blob.
     // TODO(perf): SlateDB lacks contains_key; this fetches the full value
     pub async fn cas_chunk_exists(&self, digest: &ContentDigest) -> Result<bool> {
         let key = prefixed_key(PREFIX_CHUNK, digest.function, &digest.hash);
@@ -1295,7 +1684,7 @@ impl CacheStore {
             .db
             .get_with_options(&key, &chunk_read_options())
             .await?;
-        Ok(result.is_some())
+        Ok(result.is_some() || self.cas_blob_exists(digest).await?)
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -1326,17 +1715,36 @@ impl CacheStore {
             });
         }
         let key = prefixed_key(PREFIX_ACTION, digest.function, &digest.hash);
-        self.db_put(&key, data).await
+        let written = self.db_put(&key, data).await;
+        // Whether or not the write went through, what was kept of the entry
+        // may no longer be what the store holds.
+        if let Some(cache) = &self.action_results {
+            cache.invalidate(digest);
+        }
+        written
     }
 
-    /// Fetch an action cache entry.
+    /// Fetch an action cache entry. Entries read are kept (see
+    /// `action_results`), so reading one again skips the LSM.
     #[instrument(skip(self), fields(%digest))]
     pub async fn ac_get(&self, digest: &ContentDigest) -> Result<Option<Bytes>> {
         let key = prefixed_key(PREFIX_ACTION, digest.function, &digest.hash);
-        Ok(self
-            .get_live(&key, &ReadOptions::default())
-            .await?
-            .map(|(data, _)| data))
+        let Some(cache) = &self.action_results else {
+            return Ok(self
+                .get_live(&key, &ReadOptions::default())
+                .await?
+                .map(|(data, _)| data));
+        };
+        let now = now_millis();
+        if let Some(data) = cache.get(digest, now) {
+            return Ok(Some(data));
+        }
+        let start = cache.read_start(digest);
+        let Some((data, expires_at)) = self.get_live(&key, &ReadOptions::default()).await? else {
+            return Ok(None);
+        };
+        cache.insert(*digest, start, data.clone(), expires_at, now);
+        Ok(Some(data))
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -1388,6 +1796,20 @@ impl CacheStore {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+/// The manifest of a blob that is one chunk, `chunk` of `size` bytes, stored
+/// under its own hash.
+fn one_chunk_manifest(chunk: &ContentDigest, size: u64) -> Result<Bytes> {
+    BlobManifest {
+        chunks: vec![ChunkInfo {
+            hash: chunk.hash,
+            size,
+        }],
+        created_at: unix_now_secs(),
+        inline: None,
+    }
+    .to_bytes(Compression::Identity)
+}
 
 /// Prepend a 1-byte compression tag to compressed chunk data for self-describing storage.
 pub(crate) fn tagged_chunk(compression: Compression, compressed: &[u8]) -> Bytes {
@@ -1466,7 +1888,8 @@ fn verify_digest(digest: &ContentDigest, data: &[u8]) -> Result<()> {
 }
 
 /// The key-value pairs that store `data` as the blob `digest`: its chunks
-/// (one for a small blob, FastCDC-split otherwise), then its manifest.
+/// (one for a small blob, FastCDC-split otherwise), then its manifest; or
+/// for a blob of at most [`INLINE_BLOB_MAX`], a manifest holding it.
 ///
 /// CPU-bound for large blobs (chunking, hashing, and compressing every
 /// chunk), which it spreads over the rayon pool: call it from a blocking
@@ -1483,6 +1906,11 @@ fn prepare_blob(
         });
     }
     let digest_fn = digest.function;
+    let manifest_key = prefixed_key(PREFIX_MANIFEST, digest_fn, &digest.hash);
+    if !data.is_empty() && data.len() <= INLINE_BLOB_MAX {
+        let manifest = BlobManifest::inline(digest.hash, data.clone());
+        return Ok(vec![(manifest_key, manifest.to_bytes(compression)?)]);
+    }
     let chunk = |hash: [u8; 32], piece: &[u8]| -> Result<(ChunkInfo, [u8; 34], Bytes)> {
         let tagged = tagged_chunk(compression, &compression.compress(piece)?);
         let info = ChunkInfo {
@@ -1513,12 +1941,12 @@ fn prepare_blob(
     let mut manifest = BlobManifest {
         chunks: Vec::with_capacity(chunks.len()),
         created_at: unix_now_secs(),
+        inline: None,
     };
     for (info, key, value) in chunks {
         manifest.chunks.push(info);
         puts.push((key, value));
     }
-    let manifest_key = prefixed_key(PREFIX_MANIFEST, digest_fn, &digest.hash);
     puts.push((manifest_key, manifest.to_bytes(compression)?));
     Ok(puts)
 }
@@ -1720,6 +2148,8 @@ mod test_hashing;
 mod test_lifecycle;
 #[cfg(test_module_manifest)]
 mod test_manifest;
+#[cfg(test_module_properties)]
+mod test_properties;
 #[cfg(test_module_streaming)]
 mod test_streaming;
 #[cfg(test_module_tuning)]

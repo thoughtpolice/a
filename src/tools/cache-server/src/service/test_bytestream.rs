@@ -241,6 +241,77 @@ async fn bytestream_read_offset_and_limit() {
     assert_eq!(received, b"fgh");
 }
 
+/// Reads of every range agree with the blob on both sides of the inline
+/// limit: a blob stored in its manifest, and one stored as a chunk.
+#[tokio::test]
+async fn bytestream_reads_ranges_of_inline_and_chunked_blobs() {
+    let store = make_store().await;
+    let bs = make_bs(store.clone());
+
+    for size in [
+        crate::store::INLINE_BLOB_MAX,
+        crate::store::INLINE_BLOB_MAX + 1,
+    ] {
+        let data = make_data(size);
+        let cd = ContentDigest::new(DigestFn::Sha256, sha256(&data));
+        store
+            .cas_put_blob(&cd, Bytes::from(data.clone()), Compression::Identity)
+            .await
+            .unwrap();
+        let resource_name = format!("blobs/{}/{size}", hex::encode(cd.hash));
+        for (offset, limit) in [
+            (0, 0),
+            (1, 0),
+            (size - 1, 0),
+            (size, 0),
+            (10, 100),
+            (0, size),
+        ] {
+            let resp = bs
+                .read(tonic::Request::new(ReadRequest {
+                    resource_name: resource_name.clone(),
+                    read_offset: offset as i64,
+                    read_limit: limit as i64,
+                }))
+                .await
+                .unwrap();
+            let mut stream = resp.into_inner();
+            let mut received = Vec::new();
+            while let Some(chunk) = tokio_stream::StreamExt::next(&mut stream).await {
+                received.extend_from_slice(&chunk.unwrap().data);
+            }
+            let end = if limit == 0 {
+                size
+            } else {
+                (offset + limit).min(size)
+            };
+            assert_eq!(
+                received,
+                &data[offset..end],
+                "{size} bytes at {offset}+{limit}"
+            );
+        }
+
+        let resp = bs
+            .read(tonic::Request::new(ReadRequest {
+                resource_name: format!("compressed-blobs/zstd/{}/{size}", hex::encode(cd.hash)),
+                read_offset: 0,
+                read_limit: 0,
+            }))
+            .await
+            .unwrap();
+        let mut stream = resp.into_inner();
+        let mut received = Vec::new();
+        while let Some(chunk) = tokio_stream::StreamExt::next(&mut stream).await {
+            received.extend_from_slice(&chunk.unwrap().data);
+        }
+        assert_eq!(
+            &*Compression::Zstd.decompress(&received).unwrap(),
+            &data[..]
+        );
+    }
+}
+
 // =================================================================================================================
 // ByteStream write tests
 // =================================================================================================================
@@ -909,30 +980,25 @@ async fn a_stalled_read_cannot_starve_another() {
         .cas_put_blob(&cd, data.clone(), Compression::Identity)
         .await
         .unwrap();
-    let (manifest, _) = store.cas_get_manifest(&cd).await.unwrap().unwrap();
-    let chunks: Vec<([u8; 32], u64)> = manifest.chunks.iter().map(|c| (c.hash, c.size)).collect();
+    let blob = Arc::new(store.cas_blob_chunks(&cd).await.unwrap().unwrap());
+    let chunks = blob.chunks().to_vec();
     assert!(chunks.len() > 4, "{} chunks", chunks.len());
 
     // Room for about two chunks ahead, server-wide.
     let budget_kib = 4096;
     let budget = Arc::new(tokio::sync::Semaphore::new(budget_kib));
-    let mut stalled = ChunkReader::new(
-        store.clone(),
-        DigestFn::Sha256,
-        chunks.clone(),
-        budget.clone(),
-    );
+    let mut stalled = ChunkReader::new(store.clone(), blob.clone(), chunks.clone(), budget.clone());
     let (first, _, first_share) = stalled.next().await.expect("a chunk");
-    assert!(first.unwrap().is_some());
+    first.unwrap();
     assert!(
         budget.available_permits() < budget_kib,
         "the stalled read reads ahead"
     );
 
-    let mut other = ChunkReader::new(store.clone(), DigestFn::Sha256, chunks, budget.clone());
+    let mut other = ChunkReader::new(store.clone(), blob, chunks, budget.clone());
     let mut got = Vec::new();
     while let Some((chunk, _, _share)) = other.next().await {
-        got.extend_from_slice(&chunk.unwrap().unwrap());
+        got.extend_from_slice(&chunk.unwrap());
     }
     assert_eq!(
         got, data,
