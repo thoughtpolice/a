@@ -7,6 +7,10 @@
 //! for that dimension. This module never panics on I/O failure.
 
 use std::fs;
+use std::path::{Path, PathBuf};
+
+/// Where the cgroup v2 hierarchy is mounted.
+const CGROUP_V2_ROOT: &str = "/sys/fs/cgroup";
 
 /// Raw limits and diagnostic info read from the cgroup filesystem.
 pub(crate) struct CgroupLimits {
@@ -16,6 +20,10 @@ pub(crate) struct CgroupLimits {
 
     /// Hard memory limit in bytes, if one is set.
     pub memory_limit_bytes: Option<u64>,
+
+    /// The cgroup whose `memory.max` is `memory_limit_bytes`: this
+    /// process's own, or one above it (cgroup v2 only).
+    pub memory_limit_dir: Option<PathBuf>,
 
     /// Diagnostic info about the detection process.
     pub diag: CgroupDiag,
@@ -45,12 +53,14 @@ pub(crate) fn detect() -> CgroupLimits {
         let raw_cpu = fs::read_to_string(dir.join("cpu.max")).ok();
         let raw_memory = fs::read_to_string(dir.join("memory.max")).ok();
 
-        let cpu = raw_cpu.as_deref().and_then(parse_cpu_max_contents);
-        let mem = raw_memory.as_deref().and_then(parse_memory_max_contents);
+        let root = Path::new(CGROUP_V2_ROOT);
+        let cpu = tightest_limit(&dir, root, "cpu.max", parse_cpu_max_contents);
+        let mem = tightest_limit(&dir, root, "memory.max", parse_memory_max_contents);
 
         return CgroupLimits {
-            cpu_quota_cpus: cpu,
-            memory_limit_bytes: mem,
+            cpu_quota_cpus: cpu.map(|(cpus, _)| cpus),
+            memory_limit_bytes: mem.as_ref().map(|&(bytes, _)| bytes),
+            memory_limit_dir: mem.map(|(_, dir)| dir),
             diag: CgroupDiag {
                 cgroup_dir: Some(dir_str),
                 raw_cpu: raw_cpu.map(|s| s.trim().to_owned()),
@@ -78,6 +88,7 @@ pub(crate) fn detect() -> CgroupLimits {
     CgroupLimits {
         cpu_quota_cpus: cpu,
         memory_limit_bytes: mem,
+        memory_limit_dir: None,
         diag: CgroupDiag {
             cgroup_dir: None,
             raw_cpu: raw_cpu_str,
@@ -110,6 +121,26 @@ fn parse_cgroup_v2_path(contents: &str) -> Option<std::path::PathBuf> {
         }
     }
     None
+}
+
+/// The tightest limit `parse` reads from `file` in the cgroup `dir` or in
+/// any above it up to `root`, and the cgroup that sets it. A limit on an
+/// ancestor binds every cgroup below it: a service's `MemoryMax=` is set on
+/// its unit or slice, and a container's process may sit in a cgroup of its
+/// own beneath the one carrying the container's limits.
+fn tightest_limit<T: PartialOrd>(
+    dir: &Path,
+    root: &Path,
+    file: &str,
+    parse: fn(&str) -> Option<T>,
+) -> Option<(T, PathBuf)> {
+    dir.ancestors()
+        .take_while(|cgroup| cgroup.starts_with(root))
+        .filter_map(|cgroup| {
+            let limit = parse(&fs::read_to_string(cgroup.join(file)).ok()?)?;
+            Some((limit, cgroup.to_path_buf()))
+        })
+        .reduce(|tightest, next| if next.0 < tightest.0 { next } else { tightest })
 }
 
 /// Parse `cpu.max` → `"$quota $period"` from the process's cgroup.
@@ -298,6 +329,75 @@ mod tests {
     fn parse_memory_v1_real_limit() {
         let limit = parse_memory_v1_value(1024 * 1024 * 1024).unwrap();
         assert_eq!(limit, 1024 * 1024 * 1024);
+    }
+
+    // -- tightest_limit -------------------------------------------------------
+
+    /// A cgroup tree under a temporary root: each `(path, file, contents)`
+    /// written in place.
+    fn cgroups(files: &[(&str, &str, &str)]) -> tempfile::TempDir {
+        let root = tempfile::tempdir().unwrap();
+        for (dir, file, contents) in files {
+            let dir = root.path().join(dir);
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join(file), contents).unwrap();
+        }
+        root
+    }
+
+    #[test]
+    fn an_ancestors_memory_limit_binds() {
+        let root = cgroups(&[
+            ("", "memory.max", "max\n"),
+            ("system.slice", "memory.max", "1073741824\n"),
+            ("system.slice/cache.service", "memory.max", "max\n"),
+        ]);
+        let dir = root.path().join("system.slice/cache.service");
+        let (limit, set_by) =
+            tightest_limit(&dir, root.path(), "memory.max", parse_memory_max_contents).unwrap();
+        assert_eq!(limit, 1 << 30);
+        assert_eq!(set_by, root.path().join("system.slice"));
+    }
+
+    #[test]
+    fn the_tightest_limit_binds_wherever_it_is_set() {
+        let root = cgroups(&[
+            ("a", "memory.max", "1073741824"),
+            ("a/b", "memory.max", "536870912"),
+            ("a/b/c", "memory.max", "2147483648"),
+            ("a", "cpu.max", "200000 100000"),
+            ("a/b/c", "cpu.max", "max 100000"),
+        ]);
+        let dir = root.path().join("a/b/c");
+        let memory = tightest_limit(&dir, root.path(), "memory.max", parse_memory_max_contents);
+        assert_eq!(memory, Some((512 << 20, root.path().join("a/b"))));
+        let cpu = tightest_limit(&dir, root.path(), "cpu.max", parse_cpu_max_contents);
+        assert_eq!(cpu, Some((2.0, root.path().join("a"))));
+    }
+
+    #[test]
+    fn no_limit_anywhere_is_none() {
+        let root = cgroups(&[("a/b", "memory.max", "max")]);
+        let dir = root.path().join("a/b");
+        assert_eq!(
+            tightest_limit(&dir, root.path(), "memory.max", parse_memory_max_contents),
+            None
+        );
+    }
+
+    #[test]
+    fn nothing_above_the_root_is_read() {
+        let outside = cgroups(&[("", "memory.max", "1024"), ("root/a", "memory.max", "max")]);
+        let root = outside.path().join("root");
+        assert_eq!(
+            tightest_limit(
+                &root.join("a"),
+                &root,
+                "memory.max",
+                parse_memory_max_contents
+            ),
+            None
+        );
     }
 
     // -- parse_cgroup_v2_path -------------------------------------------------

@@ -112,8 +112,13 @@ pub struct RuntimeInfo {
     /// pools (e.g. `tokio::runtime::Builder::worker_threads`).
     pub effective_cpus: usize,
 
-    /// Memory limit in bytes, if a cgroup limit is set.
+    /// Memory limit in bytes, if a cgroup limit is set: the tightest on
+    /// this process's cgroup or any above it.
     pub memory_limit: Option<u64>,
+
+    /// The cgroup that sets [`memory_limit`](Self::memory_limit): this
+    /// process's own, or one above it.
+    pub memory_limit_dir: Option<std::path::PathBuf>,
 
     /// Whether the process is running inside a cgroup with at least one
     /// resource limit set.
@@ -134,14 +139,15 @@ pub struct RuntimeInfo {
 impl RuntimeInfo {
     /// The cgroup whose pressure should drive load shedding, if any.
     ///
-    /// Only a cgroup with a memory limit qualifies: then its pressure is the
-    /// thing that would get this process killed. Without a limit, the PSI
+    /// Only the cgroup whose memory limit binds this process qualifies,
+    /// whether that is the process's own or one above it: then its pressure
+    /// is the thing that would get this process killed. Without a limit, the PSI
     /// covers every other process in the scope (on a workstation, the whole
     /// login session, including the very build whose uploads would be
     /// rejected), and rejecting work makes that pressure worse, because
     /// buck2 answers UNAVAILABLE by re-running the actions locally.
     pub fn pressure_dir(&self) -> Option<&std::path::Path> {
-        self.memory_limit.and(self.cgroup_dir.as_deref())
+        self.memory_limit_dir.as_deref()
     }
 
     /// Log cgroup detection results and mimalloc configuration.
@@ -168,6 +174,10 @@ impl RuntimeInfo {
             cpu_quota = self.cpu_quota.map(|c| format!("{c:.2}")),
             effective_cpus = self.effective_cpus,
             memory_limit_mib = self.memory_limit.map(|b| b / (1024 * 1024)),
+            memory_limit_dir = self
+                .memory_limit_dir
+                .as_deref()
+                .map(|p| p.to_string_lossy().into_owned()),
             in_cgroup = self.in_cgroup,
             "runtime resource limits"
         );
@@ -204,6 +214,31 @@ impl RuntimeInfo {
     }
 }
 
+/// The CPUs a CPU quota of `quota` lets this process keep busy, if one is
+/// set: rounded up (2.5 CPUs keep three threads busy), but no more than the
+/// `affinity` CPUs it may run on. Without a quota, std's count, which takes
+/// both into account (rounding a quota down), serves as well.
+fn quota_cpus(quota: Option<f64>, affinity: Option<usize>) -> Option<usize> {
+    let cpus = (quota?.ceil() as usize).max(1);
+    Some(affinity.map_or(cpus, |affinity| cpus.min(affinity)))
+}
+
+/// The CPUs this process may run on (its affinity mask, as `taskset` or a
+/// cgroup's `cpuset` restricts it), if the kernel says.
+fn affinity_cpus() -> Option<usize> {
+    #[cfg(target_os = "linux")]
+    {
+        // SAFETY: `set` is a plain bitmask of the size the call is given.
+        let mut set: libc::cpu_set_t = unsafe { std::mem::zeroed() };
+        let size = std::mem::size_of::<libc::cpu_set_t>();
+        if unsafe { libc::sched_getaffinity(0, size, &mut set) } == 0 {
+            let count = unsafe { libc::CPU_COUNT(&set) };
+            return usize::try_from(count).ok().filter(|&count| count > 0);
+        }
+    }
+    None
+}
+
 /// Detect cgroup limits and configure the runtime accordingly.
 ///
 /// Call once at startup, before building tokio runtimes.
@@ -219,18 +254,18 @@ pub fn init() -> RuntimeInfo {
 
     let in_cgroup = limits.cpu_quota_cpus.is_some() || limits.memory_limit_bytes.is_some();
 
-    let effective_cpus = match limits.cpu_quota_cpus {
-        Some(cpus) => (cpus.ceil() as usize).max(1),
-        None => std::thread::available_parallelism()
+    let effective_cpus = quota_cpus(limits.cpu_quota_cpus, affinity_cpus()).unwrap_or_else(|| {
+        std::thread::available_parallelism()
             .map(|n| n.get())
-            .unwrap_or(1),
-    };
+            .unwrap_or(1)
+    });
 
     mimalloc_config::configure(limits.memory_limit_bytes);
 
     RuntimeInfo {
         effective_cpus,
         memory_limit: limits.memory_limit_bytes,
+        memory_limit_dir: limits.memory_limit_dir,
         in_cgroup,
         cgroup_dir: limits.diag.cgroup_dir.map(std::path::PathBuf::from),
         cgroup_version: limits.diag.version,
@@ -270,6 +305,23 @@ fn evaluate(perf_event_paranoid: Option<i32>, kptr_restrict: Option<i32>) -> (bo
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_quota_rounds_up_within_the_affinity_mask() {
+        assert_eq!(quota_cpus(None, Some(8)), None, "no quota: std's count");
+        assert_eq!(quota_cpus(Some(2.5), Some(8)), Some(3));
+        assert_eq!(quota_cpus(Some(0.2), Some(8)), Some(1));
+        assert_eq!(quota_cpus(Some(16.0), Some(4)), Some(4), "pinned to 4 CPUs");
+        assert_eq!(quota_cpus(Some(16.0), None), Some(16));
+    }
+
+    /// The mask is what std counts too, before any quota lowers it.
+    #[test]
+    fn the_affinity_mask_bounds_std_count() {
+        let affinity = affinity_cpus().expect("an affinity mask");
+        let std_count = std::thread::available_parallelism().map_or(1, |n| n.get());
+        assert!(std_count <= affinity, "std {std_count}, mask {affinity}");
+    }
 
     #[test]
     fn permissive_paranoid_one() {
