@@ -7,7 +7,6 @@ use std::fmt;
 use std::str::FromStr;
 
 use anyhow::Context as _;
-use sha2::digest::generic_array::GenericArray;
 use sha2::{Digest as _, Sha256};
 
 // SHA256TREE: data at or below this size uses plain SHA-256
@@ -142,13 +141,12 @@ impl fmt::Display for ContentDigest {
 /// Raw SHA-256 block cipher: process one 64-byte block with state `h`.
 /// Returns the new state without Davies-Meyer feedforward.
 ///
-/// Uses `sha2::compress256` (which leverages SHA-NI/NEON when available)
-/// and subtracts the IV to undo the Davies-Meyer feedforward that
-/// `compress256` applies internally.
+/// Uses `compress256` (which uses the SHA-NI or ARMv8 SHA-2 instructions
+/// when the CPU has them) and subtracts the IV to undo the Davies-Meyer
+/// feedforward that `compress256` applies internally.
 pub(crate) fn sha256_block_cipher(h: &[u32; 8], block: &[u8; 64]) -> [u32; 8] {
     let mut state = *h;
-    let ga = *GenericArray::from_slice(block);
-    sha2::compress256(&mut state, core::slice::from_ref(&ga));
+    sha2::block_api::compress256(&mut state, core::slice::from_ref(block));
     // Undo Davies-Meyer feedforward: compress256 computes state[i] += h[i]
     for i in 0..8 {
         state[i] = state[i].wrapping_sub(h[i]);

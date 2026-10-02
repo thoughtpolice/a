@@ -8986,6 +8986,12 @@ third_party_rust.rust_library(
     deps = [":bstr-1"],
 )
 
+shims.alias(
+    name = "gix-features",
+    actual = ":gix-features-0.49",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "gix-features-0.49.1.crate",
     sha256 = "39c0e59d9d253dcccc38c3a46b91bfb9b46bd63eed54fe1a719e12194884d52a",
@@ -9116,6 +9122,12 @@ third_party_rust.rust_library(
         ":gix-features-0.49",
         ":gix-path-0.12",
     ],
+)
+
+shims.alias(
+    name = "gix-hash",
+    actual = ":gix-hash-0.26",
+    visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
@@ -9327,6 +9339,12 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "gix-object",
+    actual = ":gix-object-0.64",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "gix-object-0.64.1.crate",
     sha256 = "56fef799ca40cdeab4de5a3e74a696d8fa9b9c6264592646bf022e026f13ce2c",
@@ -9397,6 +9415,12 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "gix-pack",
+    actual = ":gix-pack-0.74",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "gix-pack-0.74.2.crate",
     sha256 = "3d199d515cbdcf05f531f3859be9771fc12acac7b7fe0f5b581b2c1ab1c3a61e",
@@ -9418,6 +9442,7 @@ third_party_rust.rust_library(
         "parallel",
         "sha1",
         "sha256",
+        "streaming-input",
     ],
     visibility = [],
     deps = [
@@ -9430,8 +9455,10 @@ third_party_rust.rust_library(
         ":gix-hashtable-0.16",
         ":gix-object-0.64",
         ":gix-path-0.12",
+        ":gix-tempfile-24",
         ":gix-zlib-0.1",
         ":memmap2-0.9",
+        ":parking_lot-0.12",
         ":smallvec-1",
         ":thiserror-2",
         ":uluru-3",
@@ -9985,6 +10012,12 @@ third_party_rust.rust_library(
         ":gix-path-0.12",
         ":gix-validate-0.11",
     ],
+)
+
+shims.alias(
+    name = "gix-zlib",
+    actual = ":gix-zlib-0.1",
+    visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
@@ -10616,26 +10649,8 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "hmac",
-    actual = ":hmac-0.12",
+    actual = ":hmac-0.13",
     visibility = ["PUBLIC"],
-)
-
-shims.http_archive(
-    name = "hmac-0.12.1.crate",
-    sha256 = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e",
-    strip_prefix = "hmac-0.12.1",
-    urls = ["https://static.crates.io/crates/hmac/0.12.1/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "hmac-0.12",
-    srcs = [":hmac-0.12.1.crate"],
-    crate = "hmac",
-    crate_root = "hmac-0.12.1.crate/src/lib.rs",
-    edition = "2018",
-    visibility = [],
-    deps = [":digest-0.10"],
 )
 
 shims.http_archive(
@@ -19880,6 +19895,12 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "quick_cache",
+    actual = ":quick_cache-0.6",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "quick_cache-0.6.24.crate",
     sha256 = "b9c6658afe513a3b484e3abfdaa0d03ef3c0bbf017542c178dd55f94eb3051f9",
@@ -22679,12 +22700,6 @@ third_party_rust.rust_library(
     ],
 )
 
-shims.alias(
-    name = "sha1",
-    actual = ":sha1-0.10",
-    visibility = ["PUBLIC"],
-)
-
 shims.http_archive(
     name = "sha1-0.10.7.crate",
     sha256 = "a978451301f4db1d02937a4ab3ccce137717b81826e79b7d49ffe3244a13c3b8",
@@ -22699,17 +22714,19 @@ third_party_rust.rust_library(
     crate = "sha1",
     crate_root = "sha1-0.10.7.crate/src/lib.rs",
     edition = "2018",
-    features = [
-        "compress",
-        "default",
-        "std",
-    ],
+    features = ["compress"],
     visibility = [],
     deps = [
         ":cfg-if-1",
         ":cpufeatures-0.2",
         ":digest-0.10",
     ],
+)
+
+shims.alias(
+    name = "sha1",
+    actual = ":sha1-0.11",
+    visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
@@ -22777,12 +22794,6 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
-shims.alias(
-    name = "sha2",
-    actual = ":sha2-0.10",
-    visibility = ["PUBLIC"],
-)
-
 shims.http_archive(
     name = "sha2-0.10.9.crate",
     sha256 = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283",
@@ -22798,7 +22809,6 @@ third_party_rust.rust_library(
     crate_root = "sha2-0.10.9.crate/src/lib.rs",
     edition = "2018",
     features = [
-        "compress",
         "default",
         "std",
     ],
@@ -22808,6 +22818,12 @@ third_party_rust.rust_library(
         ":cpufeatures-0.2",
         ":digest-0.10",
     ],
+)
+
+shims.alias(
+    name = "sha2",
+    actual = ":sha2-0.11",
+    visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
@@ -23224,6 +23240,12 @@ third_party_rust.rust_library(
         ":uuid-1",
         ":walkdir-2",
     ],
+)
+
+shims.alias(
+    name = "slatedb-common",
+    actual = ":slatedb-common-0.16",
+    visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
