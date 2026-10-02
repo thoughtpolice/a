@@ -3801,8 +3801,10 @@ dependencies = [
  "gix-hashtable",
  "gix-object",
  "gix-path",
+ "gix-tempfile",
  "gix-zlib",
  "memmap2",
+ "parking_lot",
  "smallvec",
  "thiserror 2.0.20",
  "uluru",
@@ -4376,15 +4378,6 @@ checksum = "1f7685beb53fc20efc2605f32f5d51e9ba18b8ef237961d1760169d2290d3bee"
 dependencies = [
  "outref",
  "vsimd",
-]
-
-[[package]]
-name = "hmac"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
-dependencies = [
- "digest 0.10.7",
 ]
 
 [[package]]
@@ -8634,11 +8627,16 @@ dependencies = [
  "flate2",
  "futures 0.3.34",
  "gix",
+ "gix-features",
+ "gix-hash",
+ "gix-object",
+ "gix-pack",
+ "gix-zlib",
  "glob",
  "hegeltest",
  "hegeltest-c",
  "hex",
- "hmac 0.12.1",
+ "hmac",
  "http",
  "http-body-util",
  "hyper",
@@ -8676,6 +8674,7 @@ dependencies = [
  "prost",
  "prost-types",
  "quick-xml",
+ "quick_cache",
  "quote",
  "rand 0.10.3",
  "ratatui",
@@ -8686,9 +8685,10 @@ dependencies = [
  "salsa",
  "serde",
  "serde_json",
- "sha1 0.10.7",
- "sha2 0.10.9",
+ "sha1 0.11.0",
+ "sha2 0.11.0",
  "slatedb",
+ "slatedb-common",
  "starlark",
  "starlark_derive",
  "syn 2.0.119",
@@ -8901,7 +8901,7 @@ dependencies = [
  "crc-fast",
  "futures 0.3.34",
  "hex-simd",
- "hmac 0.13.0",
+ "hmac",
  "http",
  "http-body",
  "http-body-util",
@@ -8959,7 +8959,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d96880b5ad8d639c9224155126741708aeb62ad3682e0476d2fd14290af808ef"
 dependencies = [
  "base64-simd",
- "hmac 0.13.0",
+ "hmac",
  "jiff",
  "sha1 0.11.0",
  "smallvec",
@@ -8975,7 +8975,7 @@ dependencies = [
  "arrayvec 0.7.8",
  "base64-simd",
  "hex-simd",
- "hmac 0.13.0",
+ "hmac",
  "jiff",
  "nom 8.0.0",
  "serde",
