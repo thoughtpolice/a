@@ -941,13 +941,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--check", action="store_true", help="compare with the existing output instead")
     parser.add_argument("--runtimes", help="extracted runtimes, if not in the source directory")
+    parser.add_argument("--cpu", default="x86_64", choices=["x86_64", "aarch64"])
+    parser.add_argument("--compiler", default="gcc", choices=["gcc", "clang"])
+    parser.add_argument("--base", help="write only fields differing from this inventory")
     parser.add_argument("source", help="extracted llvm-project-*.src directory")
     parser.add_argument("output", help="inventory .bzl to write")
     parser.add_argument("binaries", nargs="*", help="binaries whose closure to write")
     args = parser.parse_args()
-    if args.check:
+    CONSTRAINTS.discard("@platforms//cpu:x86_64")
+    CONSTRAINTS.add("@platforms//cpu:" + args.cpu)
+    SETTINGS["@rules_cc//cc/compiler:compiler"] = args.compiler
+    if args.check or args.base:
         env = {}
-        with open(args.output) as f:
+        with open(args.base or args.output) as f:
             exec(f.read(), env)
         args.binaries = env["ROOTS"]
     if not args.binaries:
@@ -984,6 +990,12 @@ def main():
         ("RESOURCE_HEADERS", resource_headers),
         ("RUNTIME_LISTS", runtime_lists),
     ]
+    if args.base:
+        # Retain complete changed entries: BUILD code merges these maps into
+        # the base inventory. The overlay remains the source of every choice.
+        sections = [(name, {key: entry for key, entry in value.items()
+                            if env[name].get(key) != entry} if isinstance(value, dict) else value)
+                    for name, value in sections if env[name] != value]
     text = HEADER.format(version=version) + "".join(
         "\n{} = {}\n".format(name, starlark(value)) for name, value in sections
     )
