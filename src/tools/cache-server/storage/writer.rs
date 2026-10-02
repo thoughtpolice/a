@@ -19,9 +19,14 @@ use super::{
 /// Streaming writer that builds a CAS blob incrementally from arbitrary-sized pieces.
 ///
 /// Internally accumulates data, runs FastCDC when the buffer is large enough,
-/// and writes complete chunks to a `WriteBatch`. On [`finalize`](Self::finalize),
-/// the remaining buffer is flushed as the final chunk, the manifest is written,
-/// and the entire batch is committed atomically.
+/// and hands complete chunks to the store every [`WRITE_AHEAD_BYTES`], so a
+/// blob of any size holds only a few MiB here; the store's own write
+/// backpressure bounds the rest. On [`finalize`](Self::finalize), the
+/// remaining buffer is flushed as the final chunk and the manifest written
+/// last. The blob exists for readers only once its manifest does, and the
+/// manifest is committed (and waited on) after every chunk, so a reader never
+/// sees a blob with chunks missing; an upload abandoned partway leaves chunks
+/// no manifest names, which expire with the default TTL.
 pub struct CasBlobWriter<'a> {
     store: &'a CacheStore,
     pub(crate) digest_fn: DigestFn,
@@ -30,8 +35,13 @@ pub struct CasBlobWriter<'a> {
     buffer: BytesMut,
     chunk_infos: Vec<ChunkInfo>,
     batch: WriteBatch,
+    /// Chunk bytes in `batch`.
+    batch_bytes: usize,
     bytes_written: usize,
 }
+
+/// Chunks are handed to the store once this many bytes of them are pending.
+const WRITE_AHEAD_BYTES: usize = 8 * 1024 * 1024;
 
 impl<'a> CasBlobWriter<'a> {
     pub(crate) fn new(
@@ -47,6 +57,7 @@ impl<'a> CasBlobWriter<'a> {
             buffer: BytesMut::new(),
             chunk_infos: Vec::new(),
             batch: WriteBatch::new(),
+            batch_bytes: 0,
             bytes_written: 0,
         }
     }
@@ -106,6 +117,13 @@ impl<'a> CasBlobWriter<'a> {
             )
             .await?;
             self.chunk_infos.extend(new_chunks);
+            self.batch_bytes += consumed.len();
+            if self.batch_bytes >= WRITE_AHEAD_BYTES {
+                self.batch_bytes = 0;
+                self.store
+                    .write_ahead(std::mem::take(&mut self.batch))
+                    .await?;
+            }
         }
         Ok(())
     }
@@ -184,6 +202,8 @@ impl<'a> CasBlobWriter<'a> {
             bytes::Bytes::copy_from_slice(&manifest_key),
             manifest.to_bytes(self.compression)?,
         );
+        // Durable in order: once the manifest is, so are the chunks written
+        // ahead of it.
         self.store.commit(self.batch).await?;
 
         debug!(

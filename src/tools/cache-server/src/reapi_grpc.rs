@@ -74,7 +74,7 @@ pub async fn start_reapi_grpc(
     // Build routes using tonic::service::Routes directly — we bypass tonic's
     // transport layer so we can run our own traced accept loop.
     let routes = tonic::service::Routes::new(CapabilitiesServer::new(capabilities_service))
-        .add_service(ContentAddressableStorageServer::new(cas_service))
+        .add_service(service::CasServer::new(cas_service))
         .add_service(ActionCacheServer::new(action_cache_service))
         .add_service(ExecutionServer::new(execution_service))
         .add_service(ByteStreamServer::new(bytestream_service))

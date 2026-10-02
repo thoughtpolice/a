@@ -505,6 +505,182 @@ async fn get_tree_nested_directories() {
     assert_eq!(dirs.len(), 2);
 }
 
+/// Directories go out as the bytes they are stored as: a field this server
+/// does not know survives, where decoding and encoding them again would drop
+/// it, and each page still decodes as a GetTreeResponse.
+#[tokio::test]
+async fn get_tree_sends_directories_as_stored() {
+    use protos::build::bazel::remote::execution::v2::{DirectoryNode, GetTreeResponse};
+    let store = make_store().await;
+    let cas = make_cas(store.clone());
+
+    let child = put_dir(&store, &Directory::default()).await;
+    let root = Directory {
+        directories: vec![DirectoryNode {
+            name: "sub".into(),
+            digest: Some(child),
+        }],
+        ..Default::default()
+    };
+    // A field from some later REAPI: tag 99, the varint 7.
+    let mut stored = root.encode_to_vec();
+    prost::encoding::encode_key(99, prost::encoding::WireType::Varint, &mut stored);
+    prost::encoding::encode_varint(7, &mut stored);
+    let cd = ContentDigest::new(DigestFn::Sha256, sha256(&stored));
+    store
+        .cas_put_blob(&cd, Bytes::from(stored.clone()), Compression::Identity)
+        .await
+        .unwrap();
+
+    let pages = cas
+        .get_tree_raw(tonic::Request::new(get_tree_request(make_digest(&stored))))
+        .await
+        .unwrap()
+        .into_inner();
+    let pages: Vec<_> = futures::StreamExt::collect(pages).await;
+    assert_eq!(pages.len(), 1);
+    let page = pages.into_iter().next().unwrap().unwrap();
+    assert_eq!(page.directories.len(), 2);
+    assert_eq!(page.directories[0], stored, "the root, byte for byte");
+
+    let decoded = GetTreeResponse::decode(page.encode_to_vec().as_slice()).unwrap();
+    assert_eq!(decoded.directories, [root, Directory::default()]);
+}
+
+/// A blob that is not a Directory is refused, as it was when Directories
+/// were decoded whole.
+#[tokio::test]
+async fn get_tree_refuses_a_malformed_directory() {
+    let store = make_store().await;
+    let cas = make_cas(store.clone());
+    // A length-delimited field 2 that runs past the end.
+    let garbage = vec![0x12, 0x05, 0x01];
+    let cd = ContentDigest::new(DigestFn::Sha256, sha256(&garbage));
+    store
+        .cas_put_blob(&cd, Bytes::from(garbage.clone()), Compression::Identity)
+        .await
+        .unwrap();
+
+    let mut stream = cas
+        .get_tree(tonic::Request::new(get_tree_request(make_digest(&garbage))))
+        .await
+        .unwrap()
+        .into_inner();
+    let first = tokio_stream::StreamExt::next(&mut stream).await.unwrap();
+    assert_eq!(first.unwrap_err().code(), tonic::Code::Internal);
+}
+
+/// Store `dir` and return its digest.
+async fn put_dir(store: &Arc<CacheStore>, dir: &Directory) -> Digest {
+    let bytes = dir.encode_to_vec();
+    let cd = ContentDigest::new(DigestFn::Sha256, sha256(&bytes));
+    store
+        .cas_put_blob(&cd, Bytes::from(bytes.clone()), Compression::Identity)
+        .await
+        .unwrap();
+    make_digest(&bytes)
+}
+
+fn get_tree_request(root: Digest) -> protos::build::bazel::remote::execution::v2::GetTreeRequest {
+    protos::build::bazel::remote::execution::v2::GetTreeRequest {
+        instance_name: String::new(),
+        root_digest: Some(root),
+        page_size: 0,
+        page_token: String::new(),
+        digest_function: 0,
+    }
+}
+
+/// A tree of more directories than one read-ahead window, holding more
+/// Directory bytes than one page: every directory arrives, once, root first,
+/// in fewer messages than directories.
+#[tokio::test]
+async fn get_tree_wide_tree_is_paged() {
+    let store = make_store().await;
+    let cas = make_cas(store.clone());
+
+    // 300 leaves with ~8 KiB of file names each, under 3 middle directories.
+    let mut middles = Vec::new();
+    for m in 0..3 {
+        let mut leaves = Vec::new();
+        for l in 0..100 {
+            let files = (0..64)
+                .map(|f| FileNode {
+                    name: format!("m{m}-l{l}-file-{f:03}-{}", "x".repeat(96)),
+                    digest: Some(make_digest(b"")),
+                    is_executable: false,
+                    node_properties: None,
+                })
+                .collect();
+            let leaf = Directory {
+                files,
+                ..Default::default()
+            };
+            leaves.push(DirectoryNode {
+                name: format!("leaf{l:03}"),
+                digest: Some(put_dir(&store, &leaf).await),
+            });
+        }
+        let middle = Directory {
+            directories: leaves,
+            ..Default::default()
+        };
+        middles.push(DirectoryNode {
+            name: format!("middle{m}"),
+            digest: Some(put_dir(&store, &middle).await),
+        });
+    }
+    let root = Directory {
+        directories: middles,
+        ..Default::default()
+    };
+    let root_digest = put_dir(&store, &root).await;
+
+    let mut stream = cas
+        .get_tree(tonic::Request::new(get_tree_request(root_digest)))
+        .await
+        .unwrap()
+        .into_inner();
+    let mut dirs = Vec::new();
+    let mut messages = 0;
+    while let Some(msg) = tokio_stream::StreamExt::next(&mut stream).await {
+        messages += 1;
+        dirs.extend(msg.unwrap().directories);
+    }
+    assert_eq!(dirs.len(), 1 + 3 + 300);
+    assert_eq!(dirs[0], root);
+    assert!(messages > 1 && messages < dirs.len(), "{messages} messages");
+    let distinct: std::collections::HashSet<Vec<u8>> =
+        dirs.iter().map(|d| d.encode_to_vec()).collect();
+    assert_eq!(distinct.len(), dirs.len());
+}
+
+#[tokio::test]
+async fn get_tree_missing_subdirectory_is_not_found() {
+    let store = make_store().await;
+    let cas = make_cas(store.clone());
+    let root = Directory {
+        directories: vec![DirectoryNode {
+            name: "gone".into(),
+            digest: Some(make_digest(b"never stored")),
+        }],
+        ..Default::default()
+    };
+    let root_digest = put_dir(&store, &root).await;
+
+    let mut stream = cas
+        .get_tree(tonic::Request::new(get_tree_request(root_digest)))
+        .await
+        .unwrap()
+        .into_inner();
+    let mut statuses = Vec::new();
+    while let Some(msg) = tokio_stream::StreamExt::next(&mut stream).await {
+        statuses.push(msg.map(|r| r.directories.len()));
+    }
+    let err = statuses.pop().unwrap().unwrap_err();
+    assert_eq!(err.code(), tonic::Code::NotFound, "{err}");
+}
+
 #[tokio::test]
 async fn get_tree_not_found() {
     let store = make_store().await;
@@ -1210,4 +1386,116 @@ async fn capabilities_reports_blob_size_limit() {
         cache_caps.max_cas_blob_size_bytes,
         crate::store::MAX_BLOB_REASSEMBLE_SIZE as i64
     );
+}
+
+/// REAPI: servers MUST behave as though empty blobs are always available,
+/// uploaded or not. Clients skip uploading them, so an empty input root
+/// (whose Directory encodes to nothing) is never stored.
+#[tokio::test]
+async fn the_empty_blob_is_always_stored() {
+    let store = make_store().await;
+    let cas = make_cas(store.clone());
+    let empty = make_digest(b"");
+
+    let missing = cas
+        .find_missing_blobs(tonic::Request::new(FindMissingBlobsRequest {
+            instance_name: String::new(),
+            blob_digests: vec![empty.clone(), make_blake3_digest(b"")],
+            digest_function: 0,
+        }))
+        .await
+        .unwrap()
+        .into_inner()
+        .missing_blob_digests;
+    // The BLAKE3 digest is not a SHA-256 one, and SHA-256 is what this
+    // request names; only the SHA-256 empty blob is known to be empty.
+    assert_eq!(missing, vec![make_blake3_digest(b"")]);
+
+    let read = cas
+        .batch_read_blobs(tonic::Request::new(BatchReadBlobsRequest {
+            instance_name: String::new(),
+            digests: vec![empty.clone()],
+            acceptable_compressors: vec![],
+            digest_function: 0,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(read.responses.len(), 1);
+    assert_eq!(read.responses[0].status.as_ref().unwrap().code, 0);
+    assert!(read.responses[0].data.is_empty());
+
+    // The empty Directory is the empty blob.
+    assert!(Directory::default().encode_to_vec().is_empty());
+    let resp = cas
+        .get_tree(tonic::Request::new(get_tree_request(empty)))
+        .await
+        .unwrap();
+    let mut stream = resp.into_inner();
+    let mut dirs = Vec::new();
+    while let Some(msg) = tokio_stream::StreamExt::next(&mut stream).await {
+        dirs.extend(msg.unwrap().directories);
+    }
+    assert_eq!(dirs, vec![Directory::default()]);
+}
+
+/// Compressed uploads expand no further than their digests say: a small
+/// payload claiming to be small but expanding to megabytes is refused, and
+/// a batch whose compressed blobs claim more than the batch limit at all is
+/// refused whole.
+#[tokio::test]
+async fn batch_update_blobs_bounds_decompression() {
+    use protos::build::bazel::remote::execution::v2::batch_update_blobs_request;
+
+    let store = make_store().await;
+    let cas = make_cas(store);
+    let zeros = vec![0u8; 8 << 20];
+    let bomb = Bytes::from(Compression::Zstd.compress(&zeros).unwrap().into_owned());
+    let upload = |digest: Digest| batch_update_blobs_request::Request {
+        digest: Some(digest),
+        data: bomb.clone(),
+        compressor: Compression::Zstd as i32,
+    };
+
+    // Claims 100 bytes, expands to 8 MiB.
+    let resp = cas
+        .batch_update_blobs(tonic::Request::new(BatchUpdateBlobsRequest {
+            instance_name: String::new(),
+            requests: vec![upload(Digest {
+                hash: hex::encode(sha256(&zeros)),
+                size_bytes: 100,
+            })],
+            digest_function: 0,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(
+        resp.responses[0].status.as_ref().unwrap().code,
+        tonic::Code::InvalidArgument as i32
+    );
+
+    // Honest about its size, and valid, but 9 of them would be 72 MiB.
+    let honest = make_digest(&zeros);
+    let err = cas
+        .batch_update_blobs(tonic::Request::new(BatchUpdateBlobsRequest {
+            instance_name: String::new(),
+            requests: (0..9).map(|_| upload(honest.clone())).collect(),
+            digest_function: 0,
+        }))
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::InvalidArgument, "{err:?}");
+
+    // One of them is fine.
+    let resp = cas
+        .batch_update_blobs(tonic::Request::new(BatchUpdateBlobsRequest {
+            instance_name: String::new(),
+            requests: vec![upload(honest)],
+            digest_function: 0,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(resp.responses[0].status.as_ref().unwrap().code, 0);
 }

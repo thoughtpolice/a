@@ -7,6 +7,7 @@ mod compression;
 mod error;
 mod hashing;
 mod manifest;
+mod space;
 mod writer;
 
 // Re-export public API so the external interface is unchanged.
@@ -14,6 +15,7 @@ pub use compression::{Compression, StreamingDecompressor};
 pub use error::{Result, StoreError};
 pub use hashing::{ContentDigest, DigestFn, IncrementalHasher, parse_digest_hash};
 pub use manifest::{BlobManifest, ChunkInfo, MAX_MANIFEST_CHUNK_COUNT};
+pub use space::{default_reserve, filesystem_space};
 pub use writer::CasBlobWriter;
 
 // Crate-internal re-exports used by sibling modules and tests.
@@ -77,6 +79,10 @@ pub struct CacheStoreSettings {
     /// Where SlateDB reports its metrics (and those of the embedded
     /// compactor and garbage collector); `None` discards them.
     pub metrics_recorder: Option<Arc<dyn MetricsRecorder>>,
+    /// Local stores only: refuse writes while the disk under the store has
+    /// less than this many bytes free. `None` keeps [`default_reserve`];
+    /// `Some(0)` turns the check off.
+    pub disk_reserve_bytes: Option<u64>,
 }
 
 impl std::fmt::Debug for CacheStoreSettings {
@@ -90,6 +96,7 @@ impl std::fmt::Debug for CacheStoreSettings {
             .field("write_buffer_bytes", &self.write_buffer_bytes)
             .field("object_store_cache", &self.object_store_cache)
             .field("metrics_recorder", &self.metrics_recorder.is_some())
+            .field("disk_reserve_bytes", &self.disk_reserve_bytes)
             .finish()
     }
 }
@@ -367,6 +374,8 @@ pub struct CacheStore {
     /// A value with less than this long (ms) to live is due for a rewrite:
     /// half the default TTL, or `None` without one.
     refresh_window_ms: Option<i64>,
+    /// Local stores: the free space writes need.
+    disk: Option<Arc<space::DiskReserve>>,
 }
 
 /// A git blob's CAS digest, recorded when an ingest stores (or finds) the
@@ -533,12 +542,30 @@ impl CacheStore {
         if let Some(recorder) = settings.metrics_recorder.clone() {
             builder = builder.with_metrics_recorder(recorder);
         }
+        let disk = match (&backend, settings.disk_reserve_bytes) {
+            (_, Some(0)) => None,
+            (StoreBackend::LocalFs(path), reserve) => {
+                let disk = space::DiskReserve::watch(path.into(), reserve).map_err(|e| {
+                    StoreError::Database(slatedb::Error::unavailable(format!(
+                        "measuring free space under {path}: {e}"
+                    )))
+                })?;
+                tracing::info!(
+                    path,
+                    reserve = disk.reserve(),
+                    "keeping a free disk space reserve"
+                );
+                Some(disk)
+            }
+            _ => None,
+        };
         let db = builder.build().await?;
         let default_ttl_ms = default_ttl_ms.map(|ttl| i64::try_from(ttl).unwrap_or(i64::MAX));
         Ok(CacheStore {
             db,
             default_ttl_ms,
             refresh_window_ms: default_ttl_ms.map(|ttl| ttl / 2),
+            disk,
         })
     }
 
@@ -599,8 +626,14 @@ impl CacheStore {
         Ok(Some((entry.value, entry.expire_ts)))
     }
 
+    /// Fails while the disk under a local store is below its reserve.
+    fn check_space(&self) -> Result<()> {
+        self.disk.as_ref().map_or(Ok(()), |disk| disk.check())
+    }
+
     /// `Db::put`, returning once the value is durable.
     async fn db_put(&self, key: &[u8], value: Bytes) -> Result<()> {
+        self.check_space()?;
         self.db
             .put_bytes(Bytes::copy_from_slice(key), value)
             .await?
@@ -617,7 +650,17 @@ impl CacheStore {
     /// a blob present that a crash then takes away, so every write here
     /// waits. Concurrent waits are satisfied by the same flush.
     pub(crate) async fn commit(&self, batch: WriteBatch) -> Result<()> {
+        self.check_space()?;
         self.db.write(batch).await?.await_durable().await?;
+        Ok(())
+    }
+
+    /// Write `batch` without waiting for it to be durable. Writes become
+    /// durable in order, so a later [`commit`](Self::commit) returning
+    /// means this one is durable too.
+    pub(crate) async fn write_ahead(&self, batch: WriteBatch) -> Result<()> {
+        self.check_space()?;
+        self.db.write(batch).await?;
         Ok(())
     }
 
@@ -707,6 +750,24 @@ impl CacheStore {
             batch.put_bytes(Bytes::copy_from_slice(&key), record.value());
         }
         self.commit(batch).await
+    }
+
+    /// Store `blobs`, each already checked against its digest, in a single
+    /// write: one wait for durability however many there are. Blobs already
+    /// stored with at least half their TTL left are skipped. Returns how many
+    /// were written.
+    pub async fn cas_put_verified_blobs(
+        &self,
+        blobs: Vec<(ContentDigest, Bytes)>,
+    ) -> Result<usize> {
+        let mut seen = std::collections::HashSet::new();
+        let blobs: Vec<_> = blobs
+            .into_iter()
+            .filter(|(digest, _)| seen.insert(*digest))
+            .map(|(digest, data)| (digest, data, None))
+            .collect();
+        let count = blobs.len();
+        Ok(count - self.cas_put_git_blobs(blobs).await?)
     }
 
     /// What `git_id` was stored as, if a durable, unexpired record says.
@@ -1036,6 +1097,9 @@ impl CacheStore {
     /// `None` if the blob is not durably stored (or has expired), else when
     /// it expires (ms since the epoch; `None` never).
     async fn cas_blob_expiry(&self, digest: &ContentDigest) -> Result<Option<Option<i64>>> {
+        if digest.is_empty_blob() {
+            return Ok(Some(None));
+        }
         let key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
         Ok(self
             .get_live(&key, &durable_read_options())
@@ -1052,6 +1116,14 @@ impl CacheStore {
         &self,
         digest: &ContentDigest,
     ) -> Result<Option<(BlobManifest, Compression)>> {
+        if digest.is_empty_blob() {
+            // Always stored, as REAPI requires: a blob of no chunks.
+            let manifest = BlobManifest {
+                chunks: Vec::new(),
+                created_at: 0,
+            };
+            return Ok(Some((manifest, Compression::Identity)));
+        }
         let key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
         match self.get_live(&key, &ReadOptions::default()).await? {
             Some((data, _)) => Ok(Some(BlobManifest::from_bytes(data)?)),

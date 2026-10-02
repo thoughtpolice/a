@@ -61,6 +61,7 @@ TEST_MODULES = {
     "resource_names": {},
     "remote_asset": {},
     "request_timeout": {},
+    "serve": {},
     "tls": {
         "resources": {
             "cert.pem": "//src/crates/rustls-transport:test-cert",

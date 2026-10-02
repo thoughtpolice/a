@@ -527,3 +527,60 @@ async fn finalize_verified_wrong_digest_large_blob() {
 
     store.close().await.unwrap();
 }
+
+/// A large upload hands its chunks to the store as it goes, so a blob of any
+/// size holds only a few MiB in the writer, yet the blob does not exist for
+/// readers until finalize writes its manifest.
+#[tokio::test]
+async fn a_large_blob_is_written_ahead_but_hidden_until_finalized() {
+    let store = open_memory_store().await;
+    let data = Bytes::from(make_data(24 * 1024 * 1024));
+    let blob = ContentDigest::new(DigestFn::Sha256, sha256(&data));
+    let first = fastcdc::v2020::FastCDC::with_level(
+        &data,
+        CDC_MIN_SIZE,
+        CDC_AVG_SIZE,
+        CDC_MAX_SIZE,
+        fastcdc::v2020::Normalization::Level2,
+    )
+    .next()
+    .expect("a chunk");
+    let first = ContentDigest::new(
+        DigestFn::Sha256,
+        sha256(&data[first.offset..first.offset + first.length]),
+    );
+
+    let mut writer = store.cas_blob_writer(DigestFn::Sha256, Compression::Identity);
+    for piece in data.chunks(1024 * 1024) {
+        writer.write(piece).await.unwrap();
+    }
+    assert!(
+        store.cas_chunk_exists(&first).await.unwrap(),
+        "the first chunk should be in the store before the upload ends"
+    );
+    assert!(!store.cas_blob_exists(&blob).await.unwrap());
+    assert!(store.cas_get_manifest(&blob).await.unwrap().is_none());
+
+    writer.finalize_verified(&blob).await.unwrap();
+    assert!(store.cas_blob_exists(&blob).await.unwrap());
+    assert_eq!(store.cas_get_blob(&blob).await.unwrap(), Some(data));
+}
+
+/// An upload that fails verification leaves no blob behind, whatever it
+/// wrote ahead.
+#[tokio::test]
+async fn a_written_ahead_blob_that_fails_verification_never_appears() {
+    let store = open_memory_store().await;
+    let data = make_data(24 * 1024 * 1024);
+    let claimed = ContentDigest::new(DigestFn::Sha256, sha256(b"something else"));
+
+    let mut writer = store.cas_blob_writer(DigestFn::Sha256, Compression::Identity);
+    for piece in data.chunks(1024 * 1024) {
+        writer.write(piece).await.unwrap();
+    }
+    let err = writer.finalize_verified(&claimed).await.unwrap_err();
+    assert!(matches!(err, StoreError::DigestMismatch { .. }), "{err:?}");
+    let actual = ContentDigest::new(DigestFn::Sha256, sha256(&data));
+    assert!(!store.cas_blob_exists(&claimed).await.unwrap());
+    assert!(!store.cas_blob_exists(&actual).await.unwrap());
+}

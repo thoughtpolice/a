@@ -305,3 +305,25 @@ async fn decompress_with_huge_size_hint_succeeds() {
         .unwrap();
     assert_eq!(result.as_ref(), data);
 }
+
+/// A payload that expands past what it claims fails rather than expanding.
+#[test]
+fn decompress_at_most_stops_at_the_limit() {
+    let data = vec![0u8; 1 << 20];
+    for codec in [Compression::Zstd, Compression::Deflate, Compression::Brotli] {
+        let packed = codec.compress(&data).unwrap().into_owned();
+        assert!(
+            packed.len() < 64 * 1024,
+            "{codec:?} should pack zeros small"
+        );
+        assert_eq!(
+            codec.decompress_at_most(&packed, data.len()).unwrap().len(),
+            data.len(),
+            "{codec:?}: exactly the limit is fine"
+        );
+        assert!(
+            codec.decompress_at_most(&packed, 1000).is_err(),
+            "{codec:?}: past the limit must fail"
+        );
+    }
+}

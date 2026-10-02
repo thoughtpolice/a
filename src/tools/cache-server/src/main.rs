@@ -171,6 +171,12 @@ struct ServeArgs {
     #[arg(long, env = "CACHE_SERVER_OBJECT_STORE_CACHE_DIR")]
     object_store_cache_dir: Option<PathBuf>,
 
+    /// Local stores only: refuse uploads while the store's disk has fewer
+    /// than this many GiB free, so it never fills (default: a tenth of the
+    /// filesystem, at least 1 GiB; 0 turns the check off). Reads continue.
+    #[arg(long, env = "CACHE_SERVER_DISK_RESERVE_GIB")]
+    disk_reserve_gib: Option<u64>,
+
     /// Most GiB the object store cache holds.
     #[arg(
         long,
@@ -470,6 +476,7 @@ impl Default for ServeArgs {
             write_buffer_mib: None,
             object_store_cache_dir: None,
             object_store_cache_gib: 16,
+            disk_reserve_gib: None,
             tls_cert: None,
             tls_key: None,
             git_spool_dir: None,
@@ -618,6 +625,7 @@ async fn run_server(
         metrics_recorder: otel_config
             .enabled
             .then(|| telemetry::OtelMetricsRecorder::new() as Arc<dyn store::MetricsRecorder>),
+        disk_reserve_bytes: args.disk_reserve_gib.map(|gib| gib * 1024 * MIB),
     };
 
     let cache_store = store::CacheStore::open(backend, store_settings)
@@ -793,6 +801,9 @@ mod test_dial9;
 
 #[cfg(test_module_request_timeout)]
 mod test_request_timeout;
+
+#[cfg(test_module_serve)]
+mod test_serve;
 
 #[cfg(test_module_tls)]
 mod test_tls;
