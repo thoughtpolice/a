@@ -1,21 +1,81 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# Every bootstrap program is a static x86_64 Linux executable, and each stage
-# runs the previous stage's programs, so the rules require x86_64 Linux of both
-# the target and the executor: locally on an x86_64 Linux client, and on
-# remote x86_64 Linux workers from any other.
-NATIVE_CONSTRAINTS = [
-    "config//cpu/constraints:x86_64",
-    "config//os/constraints:linux",
-]
+_CPUS = {
+    "amd64": "config//cpu/constraints:x86_64",
+    "arm64": "config//cpu/constraints:arm64",
+}
+_LINUX = "config//os/constraints:linux"
 
-def native_attrs(kwargs):
-    """Require the bootstrap's native ABI for both outputs and action tools."""
+def linux_constraints(cpu):
+    """The constraints of static Linux programs for `cpu`, amd64 or arm64."""
+    return [_CPUS[cpu], _LINUX]
+
+# Every seed and every stage up to the x86_64 toolchains is a static x86_64
+# Linux executable, and each stage runs the previous stage's programs, so
+# those rules require x86_64 Linux of both the target and the executor:
+# locally on an x86_64 Linux client, and on remote x86_64 Linux workers from
+# any other.
+NATIVE_CONSTRAINTS = linux_constraints("amd64")
+
+def native_attrs(kwargs, toolchain = False):
+    """Require the bootstrap's native ABI for both outputs and action tools.
+
+    `target_cpu` builds for that CPU instead, and the target's actions run on
+    the executor of `exec_cpu`, amd64 unless given. An exec dep is configured
+    by its own package and target modifiers whichever executor runs it, so a
+    tool cannot choose its executor; a rule whose actions run where its
+    `toolchain_dep` compiler does passes `toolchain` and leaves the choice to
+    the toolchain's own `exec_cpu`.
+    """
     result = dict(kwargs)
-    for key in ["target_compatible_with", "exec_compatible_with"]:
-        result[key] = NATIVE_CONSTRAINTS + result.get(key, [])
+    cpu = result.pop("target_cpu", None)
+    exec_cpu = result.pop("exec_cpu", "amd64")
+    target = NATIVE_CONSTRAINTS
+    if cpu != None:
+        target = linux_constraints(cpu)
+        result.setdefault("modifiers", target)
+    result["target_compatible_with"] = target + result.get("target_compatible_with", [])
+    if not toolchain:
+        result["exec_compatible_with"] = linux_constraints(exec_cpu) + result.get("exec_compatible_with", [])
     return result
+
+def _to_amd64_impl(platform: PlatformInfo, refs: struct) -> PlatformInfo:
+    constraints = dict(platform.configuration.constraints)
+    for ref in [refs.cpu, refs.os]:
+        value = ref[ConstraintValueInfo]
+        constraints[value.setting.label] = value
+    return PlatformInfo(
+        # The name the prelude's modifiers give a configuration with no named
+        # constraints, as every x86_64 cellar target's is. The same name and
+        # constraints make the same configuration, so the seed chain's
+        # artifacts stay shared.
+        label = "cfg:<empty>",
+        configuration = ConfigurationInfo(
+            constraints = constraints,
+            values = platform.configuration.values,
+        ),
+    )
+
+_to_amd64 = transition(
+    impl = _to_amd64_impl,
+    refs = {
+        "cpu": _CPUS["amd64"],
+        "os": _LINUX,
+    },
+)
+
+def _alias_impl(ctx: AnalysisContext) -> list[Provider]:
+    return ctx.attrs.actual.providers
+
+# `actual` as x86_64 Linux builds it, however the target reaching it is
+# configured: a fixed predecessor keeps its configuration when an AArch64
+# stage consumes its sources or tools.
+amd64_dep = rule(impl = _alias_impl, cfg = _to_amd64, attrs = {
+    "actual": attrs.dep(),
+})
+
+alias = rule(impl = _alias_impl, attrs = {"actual": attrs.dep()})
 
 def __export_file_impl(ctx: AnalysisContext) -> list[Provider]:
     return [
