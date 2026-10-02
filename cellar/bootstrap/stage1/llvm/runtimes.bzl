@@ -4,7 +4,7 @@
 # The C library and Clang's runtimes that one compiler stage builds: musl,
 # the compiler-rt builtins and startup files, libunwind, libc++abi, libc++
 # and mimalloc. Each is compiled as its upstream build compiles it for static
-# x86_64 Linux with musl, optimized like the LLVM stages and without warning
+# x86_64 or AArch64 Linux with musl, optimized like LLVM without warning
 # flags. The literal source lists come from inventory.bzl; the choices among
 # them follow the CMake conditions for this configuration.
 
@@ -647,13 +647,14 @@ def llvm_runtimes(stage, config = None):
     cc = ":{}-cc".format(stage)
     cxx = ":{}-c++".format(stage)
     _musl(stage, config)
-    builtin_flags = BUILTINS_FLAGS + (["-DCOMPILER_RT_AARCH64_FMV_USES_GLOBAL_CONSTRUCTOR=1"] if config else [])
-    builtins = _library(stage, "builtins", None if config else "libclang_rt.builtins.a", AARCH64_BUILTINS if config else BUILTINS_SOURCES, cc, {
+    builtin_flags = BUILTINS_FLAGS + (config.builtins_flags if config else [])
+    outline_atomics = config.outline_atomics if config else False
+    builtins = _library(stage, "builtins", None if outline_atomics else "libclang_rt.builtins.a", config.builtins_sources if config else BUILTINS_SOURCES, cc, {
         "c": builtin_flags,
         "S": builtin_flags,
         "cpp": builtin_flags + ["-std=c++17", "-fno-exceptions", "-fno-rtti"],
     }, trees = [RUNTIMES_SOURCE, SOURCE], config = config)
-    if config:
+    if outline_atomics:
         for op in ["cas", "swp", "ldadd", "ldclr", "ldeor", "ldset"]:
             for size in ([1, 2, 4, 8, 16] if op == "cas" else [1, 2, 4, 8]):
                 for model in [1, 2, 3, 4, 5]:

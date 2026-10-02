@@ -29,7 +29,7 @@ def _compiler_impl(ctx):
         "x86_64-sysv": ("elf64-x86-64", "ar"),
         "aarch64-aapcs": ("elf64-aarch64", "ar"),
     }[ctx.attrs.abi]
-    if (ctx.attrs.object_format, ctx.attrs.archive_format) != expected:
+    if (ctx.attrs.object_format, ctx.attrs.archive_format) != expected or (ctx.attrs.family == "mescc") != (ctx.attrs.abi == "x86_64-mes"):
         fail("compiler family requires object/archive formats {}".format(expected))
     sysroot = ctx.attrs.sysroot[SysrootInfo] if ctx.attrs.sysroot else None
     if sysroot and (sysroot.abi != ctx.attrs.abi or sysroot.object_format != ctx.attrs.object_format):
@@ -75,7 +75,9 @@ _COMPILER_ATTRS = {
 
 _compiler_rule = rule(impl = _compiler_impl, attrs = _COMPILER_ATTRS)
 
-_c_toolchain_rule = rule(impl = _compiler_impl, attrs = _COMPILER_ATTRS, is_toolchain_rule = True)
+_c_toolchain_rule = rule(impl = _compiler_impl, attrs = _COMPILER_ATTRS | {
+    "chdir": attrs.exec_dep(providers = [RunInfo]),
+}, is_toolchain_rule = True)
 
 def c_toolchain(**kwargs):
     """Target runtimes and flags, with compiler tools resolved on the executor."""

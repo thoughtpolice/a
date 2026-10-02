@@ -1,14 +1,14 @@
 # SPDX-FileCopyrightText: 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@cellar//bootstrap:actions.bzl", "command_test", "compare_test", "generate")
+load("@cellar//bootstrap:actions.bzl", "command_test", "compare_test", "generate", "result_test")
 load("@cellar//bootstrap:defs.bzl", "export_file", "filegroup")
 load("@cellar//bootstrap:source.bzl", "write_file")
 load("@cellar//bootstrap/platforms:defs.bzl", "amd64_dep")
 load("@cellar//bootstrap/stage1:defs.bzl", "c_binary", "c_object")
 load("@cellar//bootstrap/stage1/llvm:defs.bzl", "PYTHON", "llvm_files", "llvm_stage", "resource_headers", "target_name")
 load("@cellar//bootstrap/stage1/llvm:inventory.bzl", "BINARIES", BASE_LIBRARIES = "LIBRARIES")
-load("@cellar//bootstrap/stage1/llvm:runtimes.bzl", "clang_compilers", "llvm_runtimes", "runtime_headers")
+load("@cellar//bootstrap/stage1/llvm:runtimes.bzl", "clang_compilers", "llvm_runtimes", "runtime_headers", "runtime_installation")
 load(":config.bzl", "AARCH64")
 load(":inventory.bzl", "DEFINES", "LIBRARIES")
 
@@ -123,6 +123,53 @@ filegroup(
         "bin/ld.lld": ":stage0-lld-lld",
     } | resource_headers("stage0"),
 )
+
+# Each native stage rebuilds the complete compiler and runtime closure. Tools
+# inside its toolchain_dep select ARM execution, while source generators such
+# as Python and sed independently retain their x86 execution dependencies.
+[
+    [
+        clang_compilers(
+            archiver = ":" + previous + "-llvm-llvm-ar",
+            chdir = ":chdir",
+            config = AARCH64,
+            stage = stage,
+            tool_cpu = "arm64",
+            tree = ":" + previous + "-toolchain",
+        ),
+        llvm_runtimes(
+            stage,
+            config = AARCH64,
+        ),
+        llvm_stage(
+            chdir = ":chdir",
+            defines = LLVM_DEFINES,
+            flags = LLVM_FLAGS,
+            inventory_defines = DEFINES,
+            libraries = BASE_LIBRARIES | LIBRARIES,
+            link_flags = LINK_FLAGS,
+            link_objects = [":" + stage + "-mimalloc.o"],
+            runtime = ":" + stage + "-link-runtime",
+            stage = stage,
+            target_cpu = "arm64",
+            toolchains = {
+                "c": ":" + stage + "-cc",
+                "c++": ":" + stage + "-c++",
+            },
+        ),
+        filegroup(
+            name = stage + "-toolchain",
+            srcs = {
+                "bin/clang": ":" + stage + "-clang-clang",
+                "bin/ld.lld": ":" + stage + "-lld-lld",
+            } | resource_headers(stage),
+        ),
+    ]
+    for stage, previous in [
+        ("stage1", "stage0"),
+        ("stage2", "stage1"),
+    ]
+]
 
 export_file(name = "inventory.bzl")
 
@@ -253,6 +300,191 @@ TESTS = {
             target_cpu = "arm64",
         ),
     ]
-    for stage in ["stage0"]
+    for stage in [
+        "stage0",
+        "stage1",
+        "stage2",
+    ]
     for test, spec in TESTS.items()
 ]
+
+# The third ARM build must reproduce the second before an installation can be
+# published. This is a build action as well as a test, so `build ...` verifies
+# the fixed point without relying on a separately invoked test sweep.
+COMPARED = [target_name(name) for name in BINARIES] + sorted({
+    label.removeprefix(":stage2-"): None
+    for label in runtime_installation(
+        "stage2",
+        config = AARCH64,
+    ).values()
+    if label.startswith(":stage2-")
+}.keys()) + ["mimalloc.o"]
+
+export_file(name = "compare.c")
+
+c_object(
+    name = "compare.o",
+    src = ":compare.c",
+    flags = [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Werror",
+    ],
+    target_cpu = "arm64",
+    toolchain = ":stage0-cc",
+)
+
+c_binary(
+    name = "compare",
+    objects = [":compare.o"],
+    runtime = ":stage0-link-runtime",
+    target_cpu = "arm64",
+    toolchain = ":stage0-cc",
+)
+
+generate(
+    name = "fixed-point",
+    args = ["$(location :{}-{})".format(stage, name) for name in COMPARED for stage in [
+        "stage1",
+        "stage2",
+    ]],
+    output = "passed",
+    target_cpu = "arm64",
+    tool = ":compare",
+)
+
+ALIASES = {
+    "clang++": "clang",
+    "llvm-ranlib": "llvm-ar",
+}
+
+amd64_dep(
+    name = "alias.c",
+    actual = X86 + ":alias.c",
+)
+
+[
+    [
+        c_object(
+            name = alias + ".o",
+            src = ":alias.c",
+            defines = ['TARGET="{}"'.format(target)],
+            flags = [
+                "-std=c11",
+                "-O2",
+            ],
+            target_cpu = "arm64",
+            toolchain = ":stage2-cc",
+        ),
+        c_binary(
+            name = alias,
+            objects = [":" + alias + ".o"],
+            runtime = ":stage2-link-runtime",
+            target_cpu = "arm64",
+            toolchain = ":stage2-cc",
+        ),
+    ]
+    for alias, target in ALIASES.items()
+]
+
+write_file(
+    name = AARCH64.triple + ".cfg",
+    content = "\n".join([
+        "--sysroot=<CFGDIR>/..",
+        "-rtlib=compiler-rt",
+        "-unwindlib=libunwind",
+        "-stdlib=libc++",
+        "-fuse-ld=lld",
+        "-static",
+    ]) + "\n",
+)
+
+filegroup(
+    name = "toolchain",
+    srcs = {
+               "bin/clang": ":stage2-clang-clang",
+               "bin/ld.lld": ":stage2-lld-lld",
+               "bin/llvm-ar": ":stage2-llvm-llvm-ar",
+               "bin/" + AARCH64.triple + ".cfg": ":" + AARCH64.triple + ".cfg",
+               "share/bootstrap/fixed-point": ":fixed-point",
+               "share/licenses/linux": AARCH64.linux + ":installation[share/licenses/linux]",
+               "share/licenses/musl/COPYRIGHT": AARCH64.musl + ":source[COPYRIGHT]",
+               "share/licenses/mimalloc/LICENSE": ":mimalloc-source[LICENSE]",
+           } | {"bin/" + alias: ":" + alias for alias in ALIASES} |
+           {"share/licenses/" + project + "/LICENSE.TXT": ":compiler-source[" + project + "/LICENSE.TXT]" for project in [
+               "clang",
+               "libc",
+               "lld",
+               "llvm",
+           ]} |
+           {"share/licenses/" + project + "/LICENSE.TXT": ":runtimes-source[" + project + "/LICENSE.TXT]" for project in [
+               "compiler-rt",
+               "libcxx",
+               "libcxxabi",
+               "libunwind",
+           ]} |
+           resource_headers("stage2") | runtime_installation(
+        "stage2",
+        config = AARCH64,
+    ),
+)
+
+export_file(name = "toolchain-check.c")
+
+c_object(
+    name = "toolchain-check.o",
+    src = ":toolchain-check.c",
+    flags = [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+    ],
+    target_cpu = "arm64",
+    toolchain = ":stage0-cc",
+)
+
+c_binary(
+    name = "toolchain-check",
+    objects = [":toolchain-check.o"],
+    runtime = ":stage0-link-runtime",
+    target_cpu = "arm64",
+    toolchain = ":stage0-cc",
+)
+
+generate(
+    name = "toolchain-result",
+    args = [
+        "$(location :toolchain)",
+        "$(location :acceptance-source)",
+        "$(location :tests/runtimes.cc)",
+    ],
+    chdir = ":chdir",
+    directory = True,
+    env = {
+        "PATH": "/nonexistent-bootstrap-path",
+        "LC_ALL": "C",
+        "TMPDIR": ".",
+    },
+    files = ["passed"],
+    inputs = [
+        ":toolchain",
+        ":acceptance-source",
+    ],
+    target_cpu = "arm64",
+    tool = ":toolchain-check",
+)
+
+result_test(
+    name = "toolchain-test",
+    result = ":toolchain-result[passed]",
+    target_cpu = "arm64",
+)
+
+result_test(
+    name = "fixed-point-test",
+    result = ":fixed-point",
+    target_cpu = "arm64",
+)
