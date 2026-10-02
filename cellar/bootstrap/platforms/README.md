@@ -1,151 +1,161 @@
 <!-- SPDX-FileCopyrightText: 2026 Austin Seipp -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# Native bootstrap configuration
+# Bootstrap configurations and execution
 
-Buck builds cellar targets from anywhere in the repository. Inside `cellar/`,
-its `.buckroot` makes a standalone project with no prelude cell, injected BUILD
-symbols, ancestor PACKAGE policies, or external platform rules. From the parent
-project, `root//buck/platforms:execution` registers `:execution` after the
-repository's own executor. Buck picks the first executor whose constraints a
-target accepts, and only cellar's carries `:linux` and `:amd64`. The parent
-names cellar in `[platforms] standalone_cells`, so its configuration
-constructor applies none of the parent's modifiers, such as build modes, to
-cellar's platforms, and Buck configures every cellar target the same way from
-either root. The Buck executable can live anywhere. It is infrastructure, not
-an input to bootstrap compiler actions.
+From the repository root, one command builds the x86 seed chain, cross-builds
+an ARM compiler, runs its two native self-builds, and verifies the fixed point:
 
 ```sh
-buck2 build @cellar//bootstrap/platforms/sandbox cellar//bootstrap/stage1:all
+buck2 build @mode//buildbuddy cellar//bootstrap/...
 ```
 
-Both the target and execution configuration are always native x86_64 Linux.
-`:default` supplies cellar's own `:linux` and `:amd64` constraints and also
-names the executor that `:execution` registers. This shared identity keeps
-compiler execution dependencies in the same configuration as delivered
-programs. Executable rules declare both target and execution compatibility;
-executable inputs use `attrs.exec_dep` so Buck checks and configures their
-execution ABI.
+`cellar//bootstrap:toolchain` selects the client's architecture. The explicit
+installations are `stage1/llvm:toolchain` for x86_64 and
+`stage2/aarch64/llvm:toolchain` for AArch64. Both can be dependencies of the same
+build. `--modifier amd64` or `--modifier aarch64` changes the requested
+architecture of the selector; no build-wide cross-compilation mode is needed.
 
-Local execution is available only on an x86_64 Linux client. Other clients get
-no local platform, and both this project's registration and the parent's use
-`fallback = "error"`. No host or unspecified fallback may execute Linux
-binaries on Windows, macOS, or ARM Linux. The `sandbox` mode selects Buck's
-native Landlock policy, with cellar's own path lists. Bootstrap actions and
-tests read only their declared inputs and `/proc/self`, never the host's
-`/usr`, `/etc` or `/nix/store`. Writes keep Buck's default device nodes and add
-`/dev/ptmx` and `/dev/pts`, so a test can open a pseudo-terminal.
+## Three different architecture choices
 
-`:configuration-test` runs the host's `python3` and `buck2`, so it takes the
-executor of `:host-tests`, which keeps Buck's default read paths.
-`command_test(host_paths = True)` gives the same executor to the GCC tests that
-put the host's `/usr/bin` on `PATH` to check that the compiler ignores it.
-`:host-tests` is never registered, so it only changes how those tests run, not
-how anything is configured. Under a remote mode it is remote too. On the
-distroless image of `@mode//remote`, which has no programs in `/usr/bin`, the
-GCC tests pass without testing anything.
+| Choice | Meaning | Representation |
+|---|---|---|
+| Target configuration | ABI of the artifact being built | cellar's `:os` and `:cpu` constraints |
+| Execution configuration | ABI of the tools executing an action | execution platform resolution and `attrs.exec_dep` |
+| LLVM back ends | Machines the resulting compiler can generate code for | the upstream-derived LLVM inventory, currently X86 and AArch64 |
 
-The standalone project uses Buck's built-in `fs_hash_crawler` watcher. It
-detects source changes by scanning and hashing the source tree, skipping
-`buck-out` before descending into generated directories. This avoids recursive
-watches and scans of the large compiler output trees, including source aliases,
-without an external watcher service or changes to operating-system watch
-limits. The parent project keeps its watchman watcher and ignores
+For example, an ARM stage0 object has the ARM target configuration and the
+x86 execution configuration. Its C toolchain keeps ARM headers, flags and
+runtime dependencies in the target configuration; its Clang, LLD, llvm-ar and
+working-directory helper are execution dependencies and require x86. In the
+next stage those executables require ARM. Python, sed and archive extraction
+can still run on x86 in that same graph.
+
+The original seed rules keep their executable compiler descriptors. The new
+`c_toolchain` rule is an actual Buck toolchain (`is_toolchain_rule = True`).
+`c_object`, `c_library` and `c_binary` with `target_cpu` use
+`attrs.toolchain_dep`, which retains the target configuration and inherits the
+consumer's executor. This is why moving to ARM does not accidentally change
+the sysroot to x86 or try to execute an ARM compiler on an x86 worker.
+
+`:default` remains the canonical **x86 seed platform**, preserving the existing
+cache paths. `:linux-arm64` is the canonical ARM platform. Each executor uses
+the same configuration identity as its target platform. There is no extra
+"local", "remote", or bootstrap-stage constraint: changing where an action
+runs does not create another copy of its compiler graph.
+
+## Modifiers and transitions
+
+Cellar owns its small modifier constructor and needs no prelude. Its precedence
+for a top-level target is platform, PACKAGE, target, then CLI. It accepts
+constraint labels and the aliases `amd64`/`x86_64`, `arm64`/`aarch64`, and
+`linux`. The ARM packages use PACKAGE modifiers; individual cross-built tools
+can declare a different target architecture. Compatibility attributes enforce
+those declarations even when a CLI modifier requests an unsupported ABI.
+
+An execution dependency receives the executor's configuration, ignoring target
+architecture modifiers. A package requesting ARM cannot relabel an x86
+executor. The parent project's unrelated build-mode modifiers do not enter the
+bootstrap configuration.
+
+Modifiers select requested roots; they do not establish fixed architecture
+boundaries inside an aggregate graph. `amd64_dep` uses an outgoing transition
+to keep the seed-chain predecessors, generated tables and source trees in
+`:default`, even below an ARM target. It forwards the original providers and
+artifacts without copying or rebuilding them. Adding another architecture
+therefore shares the entire existing seed chain.
+
+Buck uses the root project's configuration constructor even for an external
+cell. The parent's constructor delegates cellar configurations to the same
+functions used by `cellar/PACKAGE`. The standalone project and parent project
+consequently produce the same constraint sets and configuration identities.
+The configuration regression verifies both entry points.
+
+## Local execution and BuildBuddy
+
+`@mode//buildbuddy` configures the service connection and selects
+`bootstrap.execution=auto`. Execution is resolved for each action:
+
+- Linux programs may run locally only when their CPU matches the client.
+- CPUs listed in `bootstrap.remote_cpus` may run remotely; the default is
+  `amd64`, matching the currently available workers.
+- Local actions also read and populate the remote cache. Automatic local
+  execution uses Buck's native Landlock sandbox by default.
+- Every registration uses `fallback = "error"`. There is no emulation, host
+  tool lookup, or unspecified execution fallback.
+
+Thus an ARM Linux client uses remote x86 workers and its native ARM executor.
+An x86 Linux client can use local and remote x86 execution. To enable ARM
+workers when the service has them, set `bootstrap.remote_cpus=amd64,arm64` in
+the service configuration; the target graph is unchanged. A remote worker must
+advertise `OSFamily=Linux` and `Arch=amd64` or `Arch=arm64`, the scheduler's Go
+and OCI spellings, and its container image must support that architecture.
+
+The BuildBuddy mode pins a distroless static image with no shell or toolchain.
+The API key comes from `BUILDBUDDY_API_KEY` in the daemon's environment, never
+the repository. Additional scheduler properties come from
+`bootstrap.remote_properties`. The standalone project supplies no RE endpoint;
+configure `[buck2_re_client]` in `cellar/.buckconfig.local` or an explicit
+`--config-file` when using it independently: `engine_address`,
+`action_cache_address`, `cas_address`, TLS and authentication settings.
+
+The explicit `native`, `sandbox` and `remote` modes remain useful diagnostics.
+`bootstrap.execution=local` registers only locally executable platforms;
+`remote` registers both Linux architectures as remote-only and therefore
+requires workers for any architecture the requested graph executes. The
+`sandbox` mode restricts read access to declared inputs and `/proc/self`, with
+Buck's device write paths plus pseudo-terminals. Auto mode uses those same
+paths. `buck2.local_sandbox_mode` can explicitly override the default.
+
+`buck2 run` executes its final program on the client. Execution platform
+selection applies to build actions and tests; it does not remotely execute the
+final program of a `run` command.
+
+## Materialization
+
+The graph works with Buck's deferred materializer. `-M none` avoids explicitly
+materializing requested outputs, but native ARM actions still materialize the
+inputs they must execute or read. A normal build materializes requested
+outputs. A recursive pattern requests intermediate targets too; request
+`cellar//bootstrap:toolchain` when only the installation should be materialized.
+No rule uses host filesystem existence or materialization state to select an
+architecture.
+
+Cellar outputs opt out of content-based paths. Canonical configurations and
+explicit transitions share the seed artifacts without storing each output
+again at a content-hashed path. The standalone project uses `fs_hash_crawler`
+and skips `buck-out` before traversal. The parent keeps Watchman and ignores
 `cellar/buck-out`, where standalone builds write.
 
-Cellar rules declare every output with `has_content_based_path = False`. The
-parent project enables content-based output paths, under which an action writes
-each output to a placeholder path and Buck then copies it to its content-hashed
-path, keeping both. That deduplicates actions shared across configurations, but
-cellar builds everything in one configuration, so it would only store every
-output twice.
-
-## Remote Linux workers
-
-From the parent project, `@mode//buildbuddy` builds on BuildBuddy, whose endpoint
-the parent's common configuration names. Buck reads the API key from
-`BUILDBUDDY_API_KEY` in the environment its daemon starts in; the repository
-holds no credentials. The mode makes cellar's executor remote-only and runs
-every action in the distroless `static` image, pinned by digest, which holds no
-shell and no tools. Bootstrap actions read only their inputs, as the local
-sandbox already enforces, so an image with nothing to lean on keeps remote
-builds as hermetic as local ones.
+## Verification and extension
 
 ```sh
-buck2 build @mode//buildbuddy cellar//bootstrap/stage1:all
-buck2 test @mode//buildbuddy --unstable-allow-compatible-tests-on-re \
-  cellar//bootstrap/stage1/...
+python3 cellar/bootstrap/platforms/test-platforms.py
+buck2 audit execution-platform-resolution @mode//buildbuddy \
+  cellar//bootstrap/stage2/aarch64/llvm:stage0-musl-0 \
+  cellar//bootstrap/stage2/aarch64/llvm:stage1-musl-0
 ```
 
-The standalone project names no endpoint. Configure the RE connection with
-standard Buck `[buck2_re_client]` settings in `cellar/.buckconfig.local` or an
-explicit `--config-file`: `engine_address`, `action_cache_address`,
-`cas_address`, and the endpoint's TLS and authentication settings. The
-scheduler must advertise workers with the properties `OSFamily=Linux` and
-`Arch=amd64`, the Go and OCI spelling that BuildBuddy's executors register. Add
-scheduler-specific properties, such as a worker image, using:
+The regression checks fake Linux, macOS and Windows clients, both CPU types,
+local rejection, remote properties, canonical configurations, modifier
+precedence, fixed predecessor transitions, native TableGen, toolchain
+execution resolution and sandbox permissions. It runs no compiler actions.
+Its Buck test is labeled `nested-buck`, excluded by sandbox and remote modes
+because it launches host Python and nested daemons. `:host-tests` is never
+registered for build actions and retains Buck's host read paths. GCC driver
+tests using `command_test(host_paths = True)` also use that test executor to
+check that the compiler ignores programs in the host's `/usr/bin`.
 
-```ini
-[bootstrap]
-remote_properties = {"container-image":"your-bootstrap-worker"}
-remote_use_case = buck2-bootstrap
-```
+A new architecture needs a CPU constraint and platform, compatible executors,
+an upstream-derived source/runtime inventory and a bootstrap predecessor. A
+new operating system also needs its own OS constraint, executor path semantics
+and runtime/ABI implementation. Keep infrastructure availability in executor
+registration, output ABI in target constraints, compiler tools in exec deps,
+and fixed bootstrap ancestors behind transitions. Do not add a global mode
+that changes the architecture of every node in the graph.
 
-Then, from any supported Buck client OS:
-
-```sh
-buck2 build @cellar//bootstrap/platforms/remote cellar//bootstrap/stage1:all
-buck2 test @cellar//bootstrap/platforms/remote \
-  --unstable-allow-compatible-tests-on-re cellar//bootstrap/stage1/...
-```
-
-Remote mode disables local execution completely, including fallbacks, and uses
-Unix argument paths even when the client runs Windows. The two mandatory worker
-properties select Linux x86_64; additional properties do not change the ABI.
-Buck copies the raw stage0 seed with its explicit executable-bit override,
-which keeps the seed's bytes and gives Linux workers executable metadata even
-when the source file comes from a Windows client. `buck2 run` still runs its
-final program on the client, so use `build` or remote `test` when the client
-cannot execute Linux ELF binaries. Buck's source downloads and orchestration
-also stay on the client.
-
-## Configuration checks
-
-The configuration test uses Buck's `--fake-host` and `--fake-arch` flags to
-analyze the stage0 seed graph as each client would. It runs no actions and
-needs no RE service:
-
-```sh
-buck2 test cellar//bootstrap/platforms:configuration-test
-```
-
-The test starts a second Buck daemon for the standalone project, in the
-`platform-audit` isolation directory, and finds `buck2` on `PATH`. Run from the
-parent project, it repeats every check with a daemon for the parent, and also
-checks that the parent's build modes leave cellar's configuration unchanged. It
-carries the `nested-buck` label. The `sandbox` mode excludes that label, since
-the native sandbox cannot host a second daemon, and cellar's and the parent's
-`remote` modes exclude it, since a remote worker has no `python3`, `buck2` or
-checkout. Naming the target still runs it. Setting the excluded labels replaces
-the project's default list, so these modes also name `slow`, which every sweep
-leaves out.
-
-It checks native local execution, local rejection on macOS, Windows and ARM
-Linux, remote-only Linux execution and Unix paths on every client, unsupported
-target rejection, the sandbox's read paths and devices, the host test executor,
-and custom worker properties. Only the negative fixtures under `tests/` declare
-non-native target platforms. It also checks that a Windows client copies the
-seed into a generated artifact with an executable command, and that test
-commands, such as stage0's answer test, run from the project root with
-project-relative paths. A native build then runs that copy, and stage0's
-answers check everything it builds.
-
-These rules use built-in `ConfigurationInfo`, `PlatformInfo`,
-`ExecutionPlatformInfo`, `ExecutionPlatformRegistrationInfo`, and
-`CommandExecutorConfig`. See Buck's
-[configuration documentation][configurations],
-[remote execution documentation][remote-execution] and [Starlark APIs][api].
-
-[configurations]: https://buck2.build/docs/rule_authors/configurations/
-[remote-execution]: https://buck2.build/docs/users/remote_execution/
-[api]: https://buck2.build/docs/api/
+The design follows the local Buck2 documentation in
+`~/src/buck2/docs/concepts/modifiers.md`, `concepts/transitions.md`,
+`rule_authors/configurations.md`, `rule_authors/writing_toolchains.md`, and
+`rfcs/implemented/execution_modifiers.md`. In particular, modifiers alone do
+not replace transitions or toolchain dependencies.

@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# Executed tools are configured for the cellar-owned Linux/x86_64 executor.
+# Executable dependencies determine each action's execution architecture.
 
 load("@cellar//bootstrap:host.bzl", "host_test_executor")
 load("@cellar//bootstrap/platforms:rules.bzl", "native_attrs")

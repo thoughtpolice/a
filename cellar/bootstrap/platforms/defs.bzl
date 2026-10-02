@@ -74,7 +74,7 @@ def _execution_platform_impl(ctx):
         "use_windows_path_separators": False,
         "use_persistent_workers": False,
     }
-    if remote:
+    if ctx.attrs.mode != "local":
         properties = dict(ctx.attrs.remote_properties)
         properties["OSFamily"] = "Linux"
 
@@ -82,6 +82,9 @@ def _execution_platform_impl(ctx):
         # scheduler folds the case of both values but leaves x86_64 unmatched.
         properties["Arch"] = ctx.attrs.cpu
         options.update({
+            # Local cache actions and remote actions must use identical RE
+            # metadata, and cache reads alone do not enable result uploads.
+            "allow_cache_uploads": ctx.attrs.cache_uploads,
             "remote_execution_properties": properties,
             "remote_execution_use_case": ctx.attrs.remote_use_case,
             "remote_output_paths": "strict",
@@ -94,8 +97,8 @@ def _execution_platform_impl(ctx):
 
     configuration = ctx.attrs.platform[PlatformInfo].configuration
     executor = ExecutionPlatformInfo(
-        # Native tools and outputs share one configuration, avoiding duplicate
-        # compiler chains along execution dependencies.
+        # Tools and outputs of one ABI share one configuration, avoiding
+        # duplicate compiler chains along execution dependencies.
         label = ctx.attrs.platform.label.raw_target(),
         configuration = configuration,
         executor_config = CommandExecutorConfig(**options),
@@ -112,6 +115,7 @@ _execution_platform = rule(impl = _execution_platform_impl, is_configuration_rul
     "native_host": attrs.bool(),
     "cpu": attrs.string(),
     "remote_cpus": attrs.list(attrs.string()),
+    "cache_uploads": attrs.bool(),
     "remote_properties": attrs.dict(attrs.string(), attrs.string()),
     "remote_use_case": attrs.string(),
     "sandbox": attrs.string(),
@@ -120,16 +124,18 @@ _execution_platform = rule(impl = _execution_platform_impl, is_configuration_rul
 
 def execution_platform(name, platform, cpu = "amd64", **kwargs):
     host = host_info()
+    mode = read_root_config("bootstrap", "execution", "local")
     _execution_platform(
         name = name,
         platform = platform,
-        mode = read_root_config("bootstrap", "execution", "local"),
+        mode = mode,
         cpu = cpu,
         native_host = host.os.is_linux and (host.arch.is_x86_64 if cpu == "amd64" else host.arch.is_aarch64 if cpu == "arm64" else False),
         remote_cpus = read_root_config("bootstrap", "remote_cpus", "amd64").split(","),
+        cache_uploads = read_root_config("buck2_re_client", "cache_upload", "true") == "true",
         remote_properties = json.decode(read_root_config("bootstrap", "remote_properties", "{}")),
         remote_use_case = read_root_config("bootstrap", "remote_use_case", "buck2-bootstrap"),
-        sandbox = read_root_config("buck2", "local_sandbox_mode", "disabled"),
+        sandbox = read_root_config("buck2", "local_sandbox_mode", "native" if mode == "auto" else "disabled"),
         **kwargs
     )
 

@@ -154,8 +154,17 @@ def audit(buck, isolation_dir, project, parent, results):
                      "--fake-host", "linux", "--fake-arch", "aarch64", EXECUTOR])
     check(automatic.returncode == 0 and '"Arch": "amd64"' in automatic.stdout
           and "Local(" in automatic.stdout and "Remote(" in automatic.stdout
-          and "linux-arm64" in automatic.stdout,
-          "ARM client registers local ARM and remote x86 together", automatic)
+          and "linux-arm64" in automatic.stdout and "sandbox_mode: Native" in automatic.stdout,
+          "ARM client registers sandboxed local ARM and remote x86 together", automatic)
+    cached = run(["audit", "providers", "-c", "bootstrap.execution=auto",
+                  "--fake-host", "linux", "--fake-arch", "aarch64",
+                  "cellar//bootstrap/platforms:execution-arm64"])
+    check(cached.returncode == 0 and '"Arch": "arm64"' in cached.stdout
+          and '"OSFamily": "Linux"' in cached.stdout
+          and '"buck2-bootstrap"' in cached.stdout
+          and "cache_upload_behavior: Enabled" in cached.stdout
+          and "remote_cache_enabled: true" in cached.stdout,
+          "native ARM uses architecture-specific cache metadata and uploads", cached)
     mixed = run(["cquery", "-c", "bootstrap.execution=auto", "--json",
                  "--fake-host", "linux", "--fake-arch", "aarch64",
                  "deps(cellar//bootstrap/platforms/tests:seed-from-arm64)"])
@@ -166,6 +175,25 @@ def audit(buck, isolation_dir, project, parent, results):
                     "--modifier", "aarch64", SEED])
     check(SEED not in override.stdout and "incompatible" in override.stderr.lower(),
           "CLI architecture modifier cannot execute the x86 seed as ARM", override)
+
+    arm = "cellar//bootstrap/stage2/aarch64/llvm:"
+    for target, executor in [("stage0-musl-0", "default"),
+                             ("stage1-musl-0", "linux-arm64"),
+                             ("stage1-tblgen-llvm-vt_gen-0", "linux-arm64")]:
+        execution = run(["audit", "execution-platform-resolution",
+                         "-c", "bootstrap.execution=auto", "--fake-host", "linux",
+                         "--fake-arch", "aarch64", arm + target])
+        check(execution.returncode == 0 and
+              re.search(r"Execution platform: [^\n]*bootstrap/platforms:" + executor + r"\n", execution.stdout)
+              and "platforms:linux-arm64#" in execution.stdout,
+              target + ": ARM target uses " + executor + " executor", execution)
+    for modifier, platform in [(None, "linux-arm64"), ("amd64", "default")]:
+        selected = run(["cquery", "-c", "bootstrap.execution=auto",
+                        "--fake-host", "linux", "--fake-arch", "aarch64",
+                        *(["--modifier", modifier] if modifier else []),
+                        "cellar//bootstrap:toolchain"])
+        check(selected.returncode == 0 and "platforms:" + platform + "#" in selected.stdout,
+              "default installation follows " + (modifier or "the native ARM client"), selected)
 
 
 if __name__ == "__main__":

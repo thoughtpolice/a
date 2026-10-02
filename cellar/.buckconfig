@@ -19,10 +19,12 @@ file_watcher = fs_hash_crawler
 digest_algorithms = SHA256
 sqlite_materializer_state = true
 sqlite_dep_file_state = true
+# Native actions participate in the same remote cache as cross-build actions.
+default_allow_cache_upload = true
 defer_write_actions = true
-# One configuration gains nothing from content-based paths, which store each
-# locally built output twice. Cellar's rules also opt out when built from
-# the parent project.
+# Explicit transitions share the seed chain across architectures. Avoid keeping
+# a second local copy of every output under a content-based path; the rules also
+# opt out when built from the parent project.
 declare_output_has_content_based_path_default = false
 action_has_content_based_path_default = false
 create_unhashed_links = true

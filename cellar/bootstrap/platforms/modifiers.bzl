@@ -44,7 +44,7 @@ def modifier_stage1(*, refs, params):
     config = ConfigurationInfo(constraints = constraints, values = base.configuration.values)
 
     # Preserve canonical identities, including the already cached seed graph.
-    for candidate in [base] + [refs[label][PlatformInfo] for label in _PLATFORMS]:
+    for candidate in [refs[label][PlatformInfo] for label in _PLATFORMS] + [base]:
         if candidate.configuration == config:
             return candidate
     return PlatformInfo(label = "cellar-modifiers", configuration = config)

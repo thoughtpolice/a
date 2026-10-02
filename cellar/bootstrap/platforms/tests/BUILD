@@ -11,7 +11,7 @@ amd64_dep(
     modifiers = ["cellar//bootstrap/platforms:arm64"],
 )
 
-# Deliberately unsupported targets used only by the configuration regression.
+# Platforms incompatible with the fixed x86 seed, used by the regression.
 constraint_value(
     name = "macos",
     setting = "cellar//bootstrap/platforms:os",
@@ -22,16 +22,11 @@ constraint_value(
     setting = "cellar//bootstrap/platforms:os",
 )
 
-constraint_value(
-    name = "aarch64",
-    setting = "cellar//bootstrap/platforms:cpu",
-)
-
 platform(
     name = "linux-aarch64",
     constraint_values = [
         "cellar//bootstrap/platforms:linux",
-        ":aarch64",
+        "cellar//bootstrap/platforms:arm64",
     ],
 )
 

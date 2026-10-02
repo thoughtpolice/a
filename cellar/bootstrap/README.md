@@ -6,7 +6,9 @@
 This project builds a native x86_64 Linux toolchain from source, starting from
 a 229-byte `hex0` seed. The chain ends with GCC 13.5 and binutils 2.41, a
 userland of GNU tools, CPython 3.14.7 and an LLVM 23.1 toolchain that built
-itself, all static x86_64 programs linked against musl.
+itself, all static x86_64 programs linked against musl. That LLVM then cross-builds
+an AArch64 LLVM stage0, which runs on ARM to rebuild itself and its runtimes
+twice. The resulting ARM installation is also entirely static.
 
 It follows the approach of GNU Guix's [full-source bootstrap][guix] and the
 recipes of [live-bootstrap] at `dd8ac27bf959344b9bcf5e876bdd7716879bbc70`.
@@ -35,12 +37,15 @@ targets as well. From `cellar/`:
 `stage1/llvm:toolchain` installs Clang, LLD and their runtimes. A cold build of
 everything takes hours on one machine. The `sandbox` mode runs every action
 under Buck's Landlock sandbox with cellar's path lists. From the parent
-project, `@mode//buildbuddy` builds on BuildBuddy instead. The
-[platform guide](platforms/README.md) describes local, sandboxed and remote
-execution.
+project, `@mode//buildbuddy` combines BuildBuddy with sandboxed native
+execution. The [platform guide](platforms/README.md) describes local,
+sandboxed and remote execution.
 
-Target and execution platforms are always x86_64 Linux. `buck2 run` runs its
-program on the client, so it needs an x86_64 Linux client.
+A single `buck2 build @mode//buildbuddy cellar//bootstrap/...` builds both
+chains. On ARM Linux, x86 tools run remotely and ARM tools run locally.
+`cellar//bootstrap:toolchain` selects the native installation, and accepts
+`--modifier amd64` or `--modifier aarch64` for an explicit output architecture.
+`buck2 run` runs its final program on the client.
 
 ## The chain
 
@@ -66,24 +71,25 @@ Each stage builds the next one from source. The
 | [Installation](stage1/installation/README.md) | relocatable toolchain and userland trees | GCC 13.5 | programs build and run from the installation alone |
 | [CPython](stage1/python/README.md) | [Linux headers](stage1/linux-headers/README.md), [zlib 1.3.2](stage1/zlib/README.md), CPython 3.14.7 | GCC 13.5, musl 1.2.5 | generated sources match the release |
 | [LLVM](stage1/llvm/README.md) | Clang, LLD, llvm-ar 23.1, then musl and runtimes | GCC 13.5, then Clang | stage 2 and 3 match |
+| [AArch64 LLVM](stage2/aarch64/llvm/README.md) | ARM stage0, then two native self-builds and a static installation | x86 LLVM, then ARM LLVM | native stages and runtimes match; installation build requires the comparison |
 
 ## Trust boundary
 
 The bootstrap trusts Buck2, the running kernel and the hex0 seed. An earlier
 stage built every other program that a build action runs, from source, and a
 SHA256 hash pins every source archive. Actions run with an empty environment,
-and in the `sandbox` mode they read only their declared inputs and
-`/proc/self`. Only tests run host programs. The platform configuration test
-runs the client's `python3` and `buck2`, and some GCC driver tests put the
-host's `/usr/bin` on `PATH` to check that GCC ignores it.
+and native actions in `sandbox` and BuildBuddy's automatic mode read only
+their declared inputs and `/proc/self`. Only tests run host programs. The
+platform configuration test runs the client's `python3` and `buck2`, and some
+GCC driver tests put the host's `/usr/bin` on `PATH` to check that GCC ignores it.
 
 Source regeneration and the fixed-point comparisons check the chain from inside
 the build. These scripts check it from outside:
 
 - `audit.bxl` walks a target's configured closure and fails if any rule,
   dependency, load or action owner lies outside cellar, or if any target is not
-  configured for x86_64 Linux. Run it from `cellar/`, where the standalone
-  project cannot load anything outside cellar:
+  configured for a supported Linux bootstrap architecture. Run it from
+  `cellar/`, where the standalone project cannot load anything outside cellar:
 
   ```sh
   ../buck/bin/buck2 bxl cellar//bootstrap/audit.bxl:closure -- \

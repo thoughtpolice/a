@@ -27,10 +27,10 @@ def _audit(ctx):
         if node.label.cell != cell:
             errors.append("dependency outside cellar: " + str(node.label))
         if config != None:
-            for setting, value in [("os", "linux"), ("cpu", "amd64")]:
+            for setting, values in [("os", ["linux"]), ("cpu", ["amd64", "arm64"])]:
                 prefix = cell + "//bootstrap/platforms:"
-                if constraints.get(prefix + setting) != prefix + value:
-                    errors.append("non-native target configuration: " + str(node.label))
+                if constraints.get(prefix + setting) not in [prefix + value for value in values]:
+                    errors.append("unsupported bootstrap target configuration: " + str(node.label))
     loads = []
     for file in ctx.cquery().allbuildfiles(nodes):
         path = file.cell + "//" + file.path

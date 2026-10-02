@@ -121,9 +121,9 @@ execution_platforms = root//buck/platforms:execution
 [platforms]
 # Cells that are also standalone Buck projects, with their own .buckroot,
 # platforms and executors, and no prelude. Each builds the same way from either
-# root: the detector below maps its targets to its own platform, the execution
-# platforms above include its executor, and buck/shims/package.bzl applies no
-# modifiers to its platforms. Spell them canonically, as Buck names a label's
+# root: the detector below maps its targets to its own default platform, the
+# registry above includes its executors, and buck/shims/package.bzl delegates
+# to its modifier constructor. Spell cells canonically, as Buck names a label's
 # cell.
 standalone_cells = depot-cellar
 

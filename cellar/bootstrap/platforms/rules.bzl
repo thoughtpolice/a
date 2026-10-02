@@ -7,7 +7,10 @@ NATIVE_CONSTRAINTS = [
 ]
 
 def native_attrs(kwargs):
-    """Require the bootstrap's native ABI for both outputs and action tools."""
+    """Constrain seed actions to x86, or select an explicit output CPU.
+
+    Cross targets leave execution selection to their tools and toolchains.
+    """
     result = dict(kwargs)
     cpu = result.pop("target_cpu", None)
     if cpu != None:
