@@ -17,9 +17,9 @@
     Fieldnotes
   </a>
   <nav class="order-3 flex w-full gap-6 sm:order-none sm:w-auto" aria-label="Notebook pages">
-    <a id="notes-link" href="/" class="border-b-2 border-transparent py-2 font-medium text-muted hover:text-ink aria-[current=page]:border-accent aria-[current=page]:text-ink" aria-current={view === 'notes' ? 'page' : undefined}>Notebook</a>
-    <a id="guide-link" href="/guide" class="border-b-2 border-transparent py-2 font-medium text-muted hover:text-ink aria-[current=page]:border-accent aria-[current=page]:text-ink" aria-current={view === 'guide' ? 'page' : undefined}>Guide</a>
+    <a id="notes-link" href="/" class="ui-nav-link" aria-current={view === 'notes' ? 'page' : undefined}>Notebook</a>
+    <a id="guide-link" href="/guide" class="ui-nav-link" aria-current={view === 'guide' ? 'page' : undefined}>Guide</a>
   </nav>
-  <button id="keyboard-help" class="ml-auto min-h-11 rounded-md border border-slate-200 bg-surface px-3 text-sm font-medium hover:border-slate-400 hover:bg-slate-50" type="button" bind:this={trigger}>Keyboard help</button>
+  <button id="keyboard-help" class="ui-button ml-auto text-sm" type="button" bind:this={trigger}>Keyboard help</button>
 </header>
 <KeyboardHelp {trigger} />

@@ -1,0 +1,39 @@
+{
+  "SPDX-FileCopyrightText": "© 2024-2026 Austin Seipp",
+  "SPDX-License-Identifier": "Apache-2.0",
+  "vars": {
+    "SESSION_SECRET": "switchboard-example-only-secret-0123456789abcdef"
+  },
+  "steps": [
+    {
+      "name": "the public lobby renders real server HTML",
+      "request": { "path": "/" },
+      "expect": { "status": 200, "headers": { "content-type": { "$contains": "text/html" } } }
+    },
+    {
+      "name": "the public catalog starts with empty real channels",
+      "request": { "path": "/channels/lobby", "headers": { "accept": "application/json" } },
+      "expect": { "status": 200, "json": { "channel": { "name": "lobby" }, "channels": { "$len": 3 }, "messages": [], "members": [], "viewer": null, "csrf": { "$regex": ".+" } } }
+    },
+    {
+      "name": "an unknown channel is not silently created",
+      "request": { "path": "/channels/not-created", "headers": { "accept": "application/json" } },
+      "expect": { "status": 404 }
+    },
+    {
+      "name": "anonymous guests cannot connect a socket",
+      "request": { "path": "/channels/lobby/socket", "headers": { "upgrade": "websocket" } },
+      "expect": { "status": 401 }
+    },
+    {
+      "name": "oversized form bodies are rejected before reading",
+      "request": { "method": "POST", "path": "/session", "headers": { "content-type": "application/x-www-form-urlencoded" }, "bodyBytes": 32769 },
+      "expect": { "status": 413 }
+    },
+    {
+      "name": "static assets do not accept mutations",
+      "request": { "method": "POST", "path": "/app.js" },
+      "expect": { "status": 405 }
+    }
+  ]
+}
