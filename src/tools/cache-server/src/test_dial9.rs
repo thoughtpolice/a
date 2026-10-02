@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use dial9::{Dial9Handle, Dial9HandleTokioExt as _, Dial9TokioHandle};
 
-use crate::{attach_options, start_recorder};
+use crate::{attach_options, claim_trace_dir, start_recorder};
 
 #[test]
 fn records_a_sealed_segment() {
@@ -21,7 +21,8 @@ fn records_a_sealed_segment() {
     let trace_dir = tmp.path().join("traces");
 
     let caps = runtime::check_perf_capabilities();
-    let recorder = start_recorder(&trace_dir, 1, 8, &caps).expect("start recorder");
+    let metadata = vec![("service.name".to_string(), "test".to_string())];
+    let recorder = start_recorder(&trace_dir, 1, 8, 10, metadata, &caps).expect("start recorder");
     assert!(
         recorder.handle().is_enabled(),
         "build() starts recording; a disabled recorder here means the writer failed"
@@ -86,5 +87,64 @@ fn records_a_sealed_segment() {
             .any(|(name, is_file)| *is_file && !name.ends_with(".active")),
         "no sealed segment file under {}: {entries:?}",
         trace_dir.display(),
+    );
+}
+
+#[test]
+fn a_trace_directory_has_one_writer() {
+    let tmp = tempfile::tempdir().expect("temp dir");
+    let (dir, lock) = claim_trace_dir(tmp.path(), "serve")
+        .expect("claim")
+        .expect("first claim succeeds");
+    assert_eq!(dir, tmp.path().join("serve"));
+    assert!(
+        claim_trace_dir(tmp.path(), "serve")
+            .expect("claim")
+            .is_none()
+    );
+    // Another subcommand records alongside.
+    assert!(
+        claim_trace_dir(tmp.path(), "compact")
+            .expect("claim")
+            .is_some()
+    );
+    drop(lock);
+    assert!(
+        claim_trace_dir(tmp.path(), "serve")
+            .expect("claim")
+            .is_some()
+    );
+}
+
+#[test]
+fn raw_segments_from_an_earlier_run_are_set_aside() {
+    let tmp = tempfile::tempdir().expect("temp dir");
+    let dir = tmp.path().join("serve");
+    std::fs::create_dir_all(&dir).expect("trace dir");
+    for name in [
+        "trace.3.bin",
+        "trace.4.bin.gz",
+        "trace.5.bin.active",
+        "notes.bin",
+    ] {
+        std::fs::write(dir.join(name), name).expect("write");
+    }
+    let _claim = claim_trace_dir(tmp.path(), "serve")
+        .expect("claim")
+        .expect("claimed");
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .expect("read dir")
+        .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        [
+            ".lock",
+            "notes.bin",
+            "trace.3.bin.unsymbolized",
+            "trace.4.bin.gz",
+            "trace.5.bin.active",
+        ]
     );
 }
