@@ -30,7 +30,7 @@ pub(crate) use std::borrow::Cow;
 use std::sync::Arc;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
-use futures::{Stream, StreamExt as _};
+use futures::{Stream, StreamExt as _, TryStreamExt as _};
 use slatedb::config::{DurabilityLevel, ReadOptions};
 use slatedb::db_cache::foyer::{FoyerCache, FoyerCacheOptions};
 use slatedb::db_cache::{CacheTarget, SplitCache};
@@ -123,6 +123,7 @@ const PREFIX_MANIFEST: u8 = b'm';
 const PREFIX_CHUNK: u8 = b'c';
 const PREFIX_ACTION: u8 = b'a';
 const PREFIX_ASSET: u8 = b'r';
+const PREFIX_GIT_BLOB: u8 = b'g';
 
 // FastCDC parameters: avg 512 KiB, min = avg/4, max = avg*4
 const CDC_AVG_SIZE: usize = 524_288; // 512 KiB
@@ -301,6 +302,7 @@ pub fn block_cache_policy() -> BlockCachePolicy {
         data(PREFIX_ACTION),
         data(PREFIX_MANIFEST),
         data(PREFIX_ASSET),
+        data(PREFIX_GIT_BLOB),
     ])
 }
 
@@ -360,9 +362,69 @@ fn now_millis() -> i64 {
 /// Main storage engine wrapping SlateDB with CDC-aware blob storage.
 pub struct CacheStore {
     db: Db,
+    /// The TTL (ms) new values get, if any.
+    default_ttl_ms: Option<i64>,
     /// A value with less than this long (ms) to live is due for a rewrite:
     /// half the default TTL, or `None` without one.
     refresh_window_ms: Option<i64>,
+}
+
+/// A git blob's CAS digest, recorded when an ingest stores (or finds) the
+/// blob, so a later ingest of the same blob — found by its git object id —
+/// can skip decompressing and hashing it.
+///
+/// Git object ids are SHA-1, hashed (by gitoxide, as by git) with SHA-1
+/// collision detection, so one repository cannot claim another's blob.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GitBlobRecord {
+    /// The blob's git object id.
+    pub git_id: [u8; 20],
+    /// The blob's CAS digest.
+    pub digest: ContentDigest,
+    /// The blob's size in bytes.
+    pub size: u64,
+    /// When the CAS blob expires (ms since the epoch; `None` never), as far
+    /// as was known when this was recorded. A blob's expiry only ever moves
+    /// later (when it is written again), so this never overstates it.
+    pub blob_expires_at_ms: Option<i64>,
+}
+
+impl GitBlobRecord {
+    fn key(digest_fn: DigestFn, git_id: &[u8; 20]) -> [u8; 22] {
+        let mut key = [0u8; 22];
+        key[0] = PREFIX_GIT_BLOB;
+        key[1] = digest_fn as u8;
+        key[2..].copy_from_slice(git_id);
+        key
+    }
+
+    /// `[32-byte hash][u64 LE size][i64 LE expiry, i64::MAX for none]`
+    fn value(&self) -> Bytes {
+        let mut buf = BytesMut::with_capacity(48);
+        buf.put_slice(&self.digest.hash);
+        buf.put_u64_le(self.size);
+        buf.put_i64_le(self.blob_expires_at_ms.unwrap_or(i64::MAX));
+        buf.freeze()
+    }
+
+    fn decode(git_id: [u8; 20], digest_fn: DigestFn, mut value: Bytes) -> Result<Self> {
+        if value.len() != 48 {
+            return Err(StoreError::ManifestCorrupted(format!(
+                "git blob record of {} bytes",
+                value.len()
+            )));
+        }
+        let mut hash = [0u8; 32];
+        value.copy_to_slice(&mut hash);
+        let size = value.get_u64_le();
+        let expires = value.get_i64_le();
+        Ok(Self {
+            git_id,
+            digest: ContentDigest::new(digest_fn, hash),
+            size,
+            blob_expires_at_ms: (expires != i64::MAX).then_some(expires),
+        })
+    }
 }
 
 impl std::fmt::Debug for CacheStore {
@@ -472,9 +534,11 @@ impl CacheStore {
             builder = builder.with_metrics_recorder(recorder);
         }
         let db = builder.build().await?;
+        let default_ttl_ms = default_ttl_ms.map(|ttl| i64::try_from(ttl).unwrap_or(i64::MAX));
         Ok(CacheStore {
             db,
-            refresh_window_ms: default_ttl_ms.map(|ttl| i64::try_from(ttl / 2).unwrap_or(i64::MAX)),
+            default_ttl_ms,
+            refresh_window_ms: default_ttl_ms.map(|ttl| ttl / 2),
         })
     }
 
@@ -609,7 +673,18 @@ impl CacheStore {
         &self,
         blobs: Vec<(ContentDigest, Bytes, Compression)>,
     ) -> Result<()> {
-        if blobs.is_empty() {
+        self.cas_put_batch(blobs, Vec::new()).await
+    }
+
+    /// [`cas_put_blob_batch`](Self::cas_put_blob_batch), also recording
+    /// `git_blobs` in the same write.
+    #[instrument(skip_all, fields(count = blobs.len(), git_blobs = git_blobs.len()))]
+    pub async fn cas_put_batch(
+        &self,
+        blobs: Vec<(ContentDigest, Bytes, Compression)>,
+        git_blobs: Vec<GitBlobRecord>,
+    ) -> Result<()> {
+        if blobs.is_empty() && git_blobs.is_empty() {
             return Ok(());
         }
         let cheap = blobs_are_cheap(&blobs);
@@ -626,7 +701,83 @@ impl CacheStore {
             spawn_cpu(prepare_all).await?
         };
 
-        self.commit(batch_of(puts)).await
+        let mut batch = batch_of(puts);
+        for record in &git_blobs {
+            let key = GitBlobRecord::key(record.digest.function, &record.git_id);
+            batch.put_bytes(Bytes::copy_from_slice(&key), record.value());
+        }
+        self.commit(batch).await
+    }
+
+    /// What `git_id` was stored as, if a durable, unexpired record says.
+    /// Only a blob with at least half its TTL left counts.
+    pub async fn git_blob(
+        &self,
+        digest_fn: DigestFn,
+        git_id: &[u8; 20],
+    ) -> Result<Option<GitBlobRecord>> {
+        let key = GitBlobRecord::key(digest_fn, git_id);
+        let Some((value, _)) = self.get_live(&key, &durable_read_options()).await? else {
+            return Ok(None);
+        };
+        let record = GitBlobRecord::decode(*git_id, digest_fn, value)?;
+        Ok(self.is_fresh(record.blob_expires_at_ms).then_some(record))
+    }
+
+    /// The earliest a blob written from now on can expire (ms since the
+    /// epoch), or `None` without a TTL.
+    fn new_blob_expiry(&self) -> Option<i64> {
+        self.default_ttl_ms
+            .map(|ttl| now_millis().saturating_add(ttl))
+    }
+
+    /// Whether something expiring at `expires_at_ms` (ms since the epoch;
+    /// `None` never) has at least half its TTL left: fresh enough to skip
+    /// writing it again (see [`cas_blob_fresh`](Self::cas_blob_fresh)).
+    fn is_fresh(&self, expires_at_ms: Option<i64>) -> bool {
+        match (expires_at_ms, self.refresh_window_ms) {
+            (None, _) | (_, None) => true,
+            (Some(expires_at), Some(window)) => expires_at - now_millis() >= window,
+        }
+    }
+
+    /// Store `blobs`, each already checked against its digest, in a single
+    /// write, leaving out those already stored with at least half their TTL
+    /// left, and record the git blob each given a git id came from (see
+    /// [`git_blob`](Self::git_blob)), expiring with it. Returns how many
+    /// were left out.
+    pub async fn cas_put_git_blobs(
+        &self,
+        blobs: Vec<(ContentDigest, Bytes, Option<[u8; 20]>)>,
+    ) -> Result<usize> {
+        // Taken before the write, so it can only understate the new expiry.
+        let written_expiry = self.new_blob_expiry();
+        let total = blobs.len();
+        let digests = blobs.iter().map(|(digest, _, _)| *digest).collect();
+        let expiries = self.cas_blob_expiries(digests).await?;
+        let mut writes = Vec::with_capacity(blobs.len());
+        let mut records = Vec::new();
+        for ((digest, data, git_id), expiry) in blobs.into_iter().zip(expiries) {
+            let size = data.len() as u64;
+            let blob_expires_at_ms = match expiry.filter(|expires| self.is_fresh(*expires)) {
+                Some(expires) => expires,
+                None => {
+                    writes.push((digest, data, Compression::Identity));
+                    written_expiry
+                }
+            };
+            if let Some(git_id) = git_id {
+                records.push(GitBlobRecord {
+                    git_id,
+                    digest,
+                    size,
+                    blob_expires_at_ms,
+                });
+            }
+        }
+        let skipped = total - writes.len();
+        self.cas_put_batch(writes, records).await?;
+        Ok(skipped)
     }
 
     async fn cas_put_blob_inner(
@@ -849,7 +1000,7 @@ impl CacheStore {
     /// Whether a blob is stored, durably and unexpired (by its manifest).
     // TODO(perf): SlateDB lacks contains_key; this fetches the full value
     pub async fn cas_blob_exists(&self, digest: &ContentDigest) -> Result<bool> {
-        Ok(self.blob_expiry(digest).await?.is_some())
+        Ok(self.cas_blob_expiry(digest).await?.is_some())
     }
 
     /// Whether a blob is stored with at least half its TTL left: stored, as
@@ -861,18 +1012,30 @@ impl CacheStore {
     /// stored, at the cost of one re-upload per half-life; unused ones
     /// expire.
     pub async fn cas_blob_fresh(&self, digest: &ContentDigest) -> Result<bool> {
-        Ok(match self.blob_expiry(digest).await? {
+        Ok(match self.cas_blob_expiry(digest).await? {
             None => false,
-            Some(None) => true,
-            Some(Some(expires_at)) => self
-                .refresh_window_ms
-                .is_none_or(|window| expires_at - now_millis() >= window),
+            Some(expires_at) => self.is_fresh(expires_at),
         })
     }
 
+    /// The expiry of each of `digests`, as
+    /// [`cas_blob_expiry`](Self::cas_blob_expiry) gives it.
+    async fn cas_blob_expiries(
+        &self,
+        digests: Vec<ContentDigest>,
+    ) -> Result<Vec<Option<Option<i64>>>> {
+        // An owned list: a stream over a borrowing iterator trips rustc's
+        // higher-ranked lifetime limits (rust#100013) in boxed RPC futures.
+        futures::stream::iter(digests)
+            .map(|digest| async move { self.cas_blob_expiry(&digest).await })
+            .buffered(64)
+            .try_collect()
+            .await
+    }
+
     /// `None` if the blob is not durably stored (or has expired), else when
-    /// it expires.
-    async fn blob_expiry(&self, digest: &ContentDigest) -> Result<Option<Option<i64>>> {
+    /// it expires (ms since the epoch; `None` never).
+    async fn cas_blob_expiry(&self, digest: &ContentDigest) -> Result<Option<Option<i64>>> {
         let key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
         Ok(self
             .get_live(&key, &durable_read_options())
