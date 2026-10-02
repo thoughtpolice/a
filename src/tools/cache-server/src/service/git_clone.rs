@@ -5,17 +5,29 @@
 //!
 //! The target commit is fetched shallow by [`fetch_git::clone_repo`], which
 //! spools the pack to disk and indexes it. The tree is then converted on
-//! blocking threads, since every step is CPU work:
+//! blocking threads, since the work is mostly CPU:
 //!
 //! 1. **List** the trees under the target: each distinct tree once,
 //!    children before parents, and the blobs they name.
-//! 2. **Store the blobs**, decoded and hashed on several threads at once.
-//! 3. **Store the Directory protos**, built bottom-up from the blob digests.
+//! 2. **Look up** each blob's git object id in the records earlier ingests
+//!    left: a blob already stored, with enough of its TTL left, needs no
+//!    decoding, hashing, or writing.
+//! 3. **Store the other blobs**, decoded and hashed on several threads.
+//! 4. **Store the Directory protos**, built bottom-up from the blob digests.
 //!
 //! CAS writes are grouped into size-bounded batches, each one durable write,
-//! and uploaded while the conversion carries on. A byte budget covers all
-//! data decoded but not yet stored, so memory stays proportional to the pack
-//! index and the tree listing rather than to the repository.
+//! and uploaded while the conversion carries on. The uploader leaves out
+//! blobs and Directories already stored with enough TTL left (fetching a new
+//! commit of a repository writes only what changed), and records each git
+//! blob's digest for the next ingest. A byte budget covers all data decoded
+//! but not yet stored, so memory stays proportional to the pack index and
+//! the tree listing rather than to the repository.
+//!
+//! Skipping happens a blob at a time, never a subtree at a time: a fresh
+//! Directory says nothing about how long what it references will last, while
+//! every blob checked (or written) now lasts at least half a TTL more — so
+//! a fresh root, as the asset cache sees it, still means its whole tree is
+//! there.
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -36,8 +48,9 @@ use protos::build::bazel::remote::execution::v2::{
 use fetch_git::pack::{GitPack, ObjectKind};
 use fetch_git::tree::GitTreeEntry;
 use fetch_git::{CloneOptions, GitFetchError};
+use futures::stream::TryStreamExt as _;
 
-use crate::store::{CacheStore, Compression, ContentDigest, DigestFn};
+use crate::store::{CacheStore, ContentDigest, DigestFn};
 
 use super::helpers::{http_status_code, qualifier, rpc_status};
 
@@ -317,8 +330,13 @@ fn list_trees(pack: &GitPack, root: [u8; 20], stop: &AtomicBool) -> Result<Listi
 // Upload stream
 // ---------------------------------------------------------------------------------------------------------------------
 
-/// A pending CAS blob write.
-type BlobWrite = (ContentDigest, Bytes, Compression);
+/// A pending CAS write: a blob, or a Directory proto.
+struct CasWrite {
+    digest: ContentDigest,
+    data: Bytes,
+    /// The git blob the data came from, whose digest is recorded with it.
+    git_id: Option<[u8; 20]>,
+}
 
 /// Bytes decoded but not yet stored, shared by a conversion's threads.
 struct Budget {
@@ -390,7 +408,7 @@ impl Drop for Held {
 
 /// CAS writes on their way to storage, with the budget their data holds.
 struct Batch {
-    writes: Vec<BlobWrite>,
+    writes: Vec<CasWrite>,
     bytes: usize,
     held: Held,
 }
@@ -447,12 +465,20 @@ impl<'a> Sink<'a> {
         Ok(())
     }
 
-    /// Queue a write of `data`, whose budget was reserved.
-    fn push(&mut self, digest: ContentDigest, data: Bytes) -> Result<(), GitCloneError> {
+    /// Queue a write of `data`, whose budget was reserved, decoded from the
+    /// git blob `git_id` if it is one.
+    fn push(
+        &mut self,
+        digest: ContentDigest,
+        data: Bytes,
+        git_id: Option<[u8; 20]>,
+    ) -> Result<(), GitCloneError> {
         self.batch.bytes += data.len();
-        self.batch
-            .writes
-            .push((digest, data, Compression::Identity));
+        self.batch.writes.push(CasWrite {
+            digest,
+            data,
+            git_id,
+        });
         if self.batch.bytes >= self.batch_bytes {
             self.send()?;
         }
@@ -472,12 +498,22 @@ impl<'a> Sink<'a> {
     }
 }
 
+/// What a conversion's uploads did.
+#[derive(Debug, Default)]
+struct UploadCounts {
+    /// Blobs and Directories written.
+    written: AtomicUsize,
+    /// Blobs and Directories left out as already stored with enough TTL.
+    skipped: AtomicUsize,
+}
+
 /// Store every batch `rx` delivers, `uploads` at a time, until every sender
 /// is gone.
 async fn upload_batches(
     store: &CacheStore,
     mut rx: tokio::sync::mpsc::Receiver<Batch>,
     uploads: usize,
+    counts: &UploadCounts,
 ) -> Result<(), GitCloneError> {
     let mut in_flight = FuturesUnordered::new();
     let mut open = true;
@@ -485,7 +521,7 @@ async fn upload_batches(
         tokio::select! {
             batch = rx.recv(), if open && in_flight.len() < uploads => match batch {
                 Some(Batch { writes, held, .. }) => in_flight.push(async move {
-                    let stored = store.cas_put_blob_batch(writes).await;
+                    let stored = upload(store, writes, counts).await;
                     drop(held);
                     stored
                 }),
@@ -497,6 +533,48 @@ async fn upload_batches(
         }
     }
     Ok(())
+}
+
+/// Store `writes` in one batch, leaving out those already stored with
+/// enough TTL left, and record the digest of every git blob among them.
+async fn upload(
+    store: &CacheStore,
+    writes: Vec<CasWrite>,
+    counts: &UploadCounts,
+) -> crate::store::Result<()> {
+    let total = writes.len();
+    let blobs = writes
+        .into_iter()
+        .map(|write| (write.digest, write.data, write.git_id))
+        .collect();
+    let skipped = store.cas_put_git_blobs(blobs).await?;
+    counts.skipped.fetch_add(skipped, Ordering::Relaxed);
+    counts.written.fetch_add(total - skipped, Ordering::Relaxed);
+    Ok(())
+}
+
+/// The digests of those `files` that earlier ingests recorded as stored,
+/// with enough TTL left that they need no decoding, hashing, or writing.
+async fn known_blobs(
+    store: &CacheStore,
+    digest_fn: DigestFn,
+    files: &[[u8; 20]],
+) -> Result<HashMap<[u8; 20], ([u8; 32], i64)>, GitCloneError> {
+    // Owned ids: futures borrowing the closure's argument trip rustc's
+    // higher-ranked lifetime limits (rust#100013) once the enclosing RPC
+    // future is boxed `Send`.
+    futures::stream::iter(files.iter().copied())
+        .map(|git_id| async move { store.git_blob(digest_fn, &git_id).await })
+        .buffer_unordered(64)
+        .try_filter_map(|record| async move {
+            Ok(record.map(|record| {
+                let size = i64::try_from(record.size).unwrap_or(i64::MAX);
+                (record.git_id, (record.digest.hash, size))
+            }))
+        })
+        .try_collect()
+        .await
+        .map_err(|e| GitCloneError::StoreError(e.to_string()))
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -513,6 +591,21 @@ impl Drop for StopOnDrop {
     }
 }
 
+/// What a conversion found and did.
+#[derive(Debug, Default)]
+struct ConvertStats {
+    /// Distinct trees under the root.
+    trees: usize,
+    /// Distinct file blobs under the root.
+    blobs: usize,
+    /// Of those, the blobs recorded as stored, which were not decoded.
+    blobs_known: usize,
+    /// Blobs and Directories written.
+    written: usize,
+    /// Blobs and Directories decoded or built, but already stored.
+    skipped: usize,
+}
+
 /// Convert the git tree `tree_sha` into REAPI Directories in CAS, returning
 /// the root Directory's digest once it and everything it references are
 /// stored.
@@ -522,20 +615,55 @@ async fn convert_tree(
     tree_sha: [u8; 20],
     digest_fn: DigestFn,
     settings: ConvertSettings,
-) -> Result<([u8; 32], i64), GitCloneError> {
-    let (tx, rx) = tokio::sync::mpsc::channel(settings.uploads);
+) -> Result<(([u8; 32], i64), ConvertStats), GitCloneError> {
     let stop = StopOnDrop(Arc::new(AtomicBool::new(false)));
+    let task_failed = |e: tokio::task::JoinError| {
+        GitCloneError::StoreError(format!("conversion task failed: {e}"))
+    };
+
+    let listing = {
+        let (pack, flag) = (Arc::clone(&pack), Arc::clone(&stop.0));
+        tokio::task::spawn_blocking(move || list_trees(&pack, tree_sha, &flag))
+            .await
+            .map_err(task_failed)??
+    };
+    let known = known_blobs(store, digest_fn, &listing.files).await?;
+    let unknown: Vec<[u8; 20]> = listing
+        .files
+        .iter()
+        .filter(|git_id| !known.contains_key(*git_id))
+        .copied()
+        .collect();
+    let mut stats = ConvertStats {
+        trees: listing.trees.len(),
+        blobs: listing.files.len(),
+        blobs_known: known.len(),
+        ..ConvertStats::default()
+    };
+
+    let (tx, rx) = tokio::sync::mpsc::channel(settings.uploads);
     let flag = Arc::clone(&stop.0);
     let convert = tokio::task::spawn_blocking(move || {
         let budget = Budget::new(settings.budget_bytes);
-        let converted = convert_blocking(&pack, tree_sha, digest_fn, settings, &tx, &budget, &flag);
+        let converted = store_tree(
+            &pack,
+            listing.trees,
+            &unknown,
+            known,
+            digest_fn,
+            settings,
+            &tx,
+            &budget,
+            &flag,
+        );
         if converted.is_err() {
             flag.store(true, Ordering::Relaxed);
         }
         converted
     });
+    let counts = UploadCounts::default();
     let upload = async {
-        let uploaded = upload_batches(store, rx, settings.uploads).await;
+        let uploaded = upload_batches(store, rx, settings.uploads, &counts).await;
         if uploaded.is_err() {
             stop.0.store(true, Ordering::Relaxed);
         }
@@ -544,28 +672,31 @@ async fn convert_tree(
     let (converted, uploaded) = tokio::join!(convert, upload);
     // An upload failure stops the conversion, so report it first.
     uploaded?;
-    converted.map_err(|e| GitCloneError::StoreError(format!("conversion task failed: {e}")))?
+    let root = converted.map_err(task_failed)??;
+    stats.written = counts.written.into_inner();
+    stats.skipped = counts.skipped.into_inner();
+    Ok((root, stats))
 }
 
-/// The blocking side of [`convert_tree`].
-fn convert_blocking(
+/// The blocking side of [`convert_tree`]: store the `unknown` blobs, then
+/// every Directory, given the digests of the `known` blobs.
+#[allow(clippy::too_many_arguments)]
+fn store_tree(
     pack: &GitPack,
-    tree_sha: [u8; 20],
+    trees: Vec<([u8; 20], Vec<GitTreeEntry>)>,
+    unknown: &[[u8; 20]],
+    mut known: HashMap<[u8; 20], ([u8; 32], i64)>,
     digest_fn: DigestFn,
     settings: ConvertSettings,
     tx: &tokio::sync::mpsc::Sender<Batch>,
     budget: &Arc<Budget>,
     stop: &AtomicBool,
 ) -> Result<([u8; 32], i64), GitCloneError> {
-    let listing = list_trees(pack, tree_sha, stop)?;
-    tracing::debug!(
-        trees = listing.trees.len(),
-        blobs = listing.files.len(),
-        "listed git tree",
-    );
-    let blobs = store_blobs(pack, &listing.files, digest_fn, settings, tx, budget, stop)?;
+    known.extend(store_blobs(
+        pack, unknown, digest_fn, settings, tx, budget, stop,
+    )?);
     let mut sink = Sink::new(tx, budget, stop, settings.batch_bytes);
-    let root = store_directories(pack, listing.trees, &blobs, digest_fn, &mut sink)?;
+    let root = store_directories(pack, trees, &known, digest_fn, &mut sink)?;
     sink.send()?;
     Ok(root)
 }
@@ -612,7 +743,11 @@ fn store_blobs(
             }
             let hash = digest_fn.hash_data(&data);
             digests.push((*sha, (hash, data.len() as i64)));
-            sink.push(ContentDigest::new(digest_fn, hash), Bytes::from(data))?;
+            sink.push(
+                ContentDigest::new(digest_fn, hash),
+                Bytes::from(data),
+                Some(*sha),
+            )?;
         }
         sink.send()?;
         Ok(digests)
@@ -756,6 +891,7 @@ fn store_directories(
         sink.push(
             ContentDigest::new(digest_fn, stored.0),
             Bytes::from(dir_bytes),
+            None,
         )?;
         directories_stored.insert(tree_sha, stored);
         root = Some(stored);
@@ -824,11 +960,19 @@ pub(super) async fn fetch_git_directory(
         ConvertSettings::new(threads),
     )
     .await;
-    tracing::info!(
-        ok = converted.is_ok(),
-        rss_mib = rss_mib().unwrap_or(0),
-        "tree-to-REAPI conversion complete",
-    );
+    match &converted {
+        Ok((_, stats)) => tracing::info!(
+            trees = stats.trees,
+            blobs = stats.blobs,
+            blobs_known = stats.blobs_known,
+            written = stats.written,
+            skipped = stats.skipped,
+            rss_mib = rss_mib().unwrap_or(0),
+            "tree-to-REAPI conversion complete",
+        ),
+        Err(e) => tracing::info!(error = %e, "tree-to-REAPI conversion failed"),
+    }
+    let converted = converted.map(|(root, _)| root);
     // Unmapping a multi-GiB pack and closing its spool file frees all of it
     // synchronously, which would stall this worker thread.
     tokio::task::spawn_blocking(move || drop(pack));
@@ -844,6 +988,7 @@ pub(super) async fn fetch_git_directory(
 mod tests {
     use super::*;
     use crate::service::test_helpers::make_store;
+    use crate::store::Compression;
 
     // --- is_git_uri ---
 
@@ -992,6 +1137,7 @@ mod tests {
             ConvertSettings::new(4),
         )
         .await
+        .map(|(root, _)| root)
     }
 
     #[tokio::test]
@@ -1514,7 +1660,7 @@ mod tests {
             uploads: 2,
             budget_bytes: 8 * 1024,
         };
-        let (root_hash, _) = tokio::time::timeout(
+        let ((root_hash, _), _) = tokio::time::timeout(
             std::time::Duration::from_secs(60),
             convert_tree(pack, &store, tree_sha, digest_fn, settings),
         )
@@ -1565,9 +1711,17 @@ mod tests {
         let pack = test_pack(&[(BLOB, blob), (TREE, tree)]).await;
         let (tx, _rx) = tokio::sync::mpsc::channel(1);
         let stop = AtomicBool::new(true);
-        let err = convert_blocking(
+        assert!(matches!(
+            list_trees(&pack, tree_sha, &stop),
+            Err(GitCloneError::Stopped)
+        ));
+
+        let listing = list_trees(&pack, tree_sha, &AtomicBool::new(false)).unwrap();
+        let err = store_tree(
             &pack,
-            tree_sha,
+            listing.trees,
+            &listing.files,
+            HashMap::new(),
             DigestFn::Sha256,
             ConvertSettings::new(2),
             &tx,
@@ -1576,6 +1730,115 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(err, GitCloneError::Stopped), "{err}");
+    }
+
+    // --- incremental ingest ---
+
+    /// A pack for `{a.txt: a, sub/b.txt: b}`, and its root tree's id.
+    async fn small_repo(a: &[u8], b: &[u8]) -> (Arc<GitPack>, [u8; 20]) {
+        let a_sha = sha1_of(ObjectKind::Blob, a);
+        let b_sha = sha1_of(ObjectKind::Blob, b);
+        let sub = make_tree_data(&[(100644, "b.txt", b_sha)]);
+        let sub_sha = sha1_of(ObjectKind::Tree, &sub);
+        let root = make_tree_data(&[(100644, "a.txt", a_sha), (40000, "sub", sub_sha)]);
+        let root_sha = sha1_of(ObjectKind::Tree, &root);
+        let pack = test_pack(&[
+            (BLOB, a.to_vec()),
+            (BLOB, b.to_vec()),
+            (TREE, sub),
+            (TREE, root),
+        ])
+        .await;
+        (pack, root_sha)
+    }
+
+    async fn ingest(
+        store: &CacheStore,
+        (pack, root): (Arc<GitPack>, [u8; 20]),
+    ) -> (([u8; 32], i64), ConvertStats) {
+        convert_tree(pack, store, root, DigestFn::Sha256, ConvertSettings::new(2))
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_second_ingest_of_the_same_tree_writes_nothing() {
+        let store = make_store().await;
+        let (first_root, first) = ingest(&store, small_repo(b"a", b"b").await).await;
+        assert_eq!((first.blobs, first.blobs_known), (2, 0));
+        assert_eq!((first.written, first.skipped), (4, 0));
+
+        let (root, second) = ingest(&store, small_repo(b"a", b"b").await).await;
+        assert_eq!(root, first_root);
+        // Both blobs were known, so neither was decoded; the Directories
+        // were rebuilt (cheaply) but found stored.
+        assert_eq!((second.blobs, second.blobs_known), (2, 2));
+        assert_eq!((second.written, second.skipped), (0, 2));
+    }
+
+    #[tokio::test]
+    async fn a_new_commit_writes_only_what_changed() {
+        let store = make_store().await;
+        ingest(&store, small_repo(b"a", b"b").await).await;
+        let ((root_hash, _), stats) = ingest(&store, small_repo(b"a, changed", b"b").await).await;
+        assert_eq!(stats.blobs_known, 1, "b.txt is unchanged");
+        // The new a.txt and the new root; `sub` is unchanged.
+        assert_eq!((stats.written, stats.skipped), (2, 1));
+
+        let root = ContentDigest::new(DigestFn::Sha256, root_hash);
+        let dir = Directory::decode(store.cas_get_blob(&root).await.unwrap().unwrap()).unwrap();
+        let a = ContentDigest::new(
+            DigestFn::Sha256,
+            crate::store::parse_digest_hash(&dir.files[0].digest.as_ref().unwrap().hash).unwrap(),
+        );
+        assert_eq!(
+            &store.cas_get_blob(&a).await.unwrap().unwrap()[..],
+            b"a, changed"
+        );
+    }
+
+    /// Blobs in the last half of their TTL are not trusted from their
+    /// records: they are decoded and written again, which renews them.
+    #[tokio::test]
+    async fn blobs_past_half_their_ttl_are_renewed() {
+        let store = CacheStore::open(
+            crate::store::StoreBackend::Memory,
+            crate::store::CacheStoreSettings {
+                default_ttl: Some(jiff::SignedDuration::from_millis(1200)),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        ingest(&store, small_repo(b"a", b"b").await).await;
+
+        tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+        let (_, aging) = ingest(&store, small_repo(b"a", b"b").await).await;
+        assert_eq!(aging.blobs_known, 0);
+        assert_eq!((aging.written, aging.skipped), (4, 0));
+
+        let (_, renewed) = ingest(&store, small_repo(b"a", b"b").await).await;
+        assert_eq!(renewed.blobs_known, 2);
+        assert_eq!(renewed.written, 0);
+    }
+
+    /// A blob a client uploaded is found stored: not written again, but
+    /// recorded, so the next ingest need not decode it either.
+    #[tokio::test]
+    async fn blobs_stored_by_clients_are_recorded_not_rewritten() {
+        let store = make_store().await;
+        let digest = ContentDigest::compute(DigestFn::Sha256, b"b");
+        store
+            .cas_put_blob(&digest, Bytes::from_static(b"b"), Compression::Identity)
+            .await
+            .unwrap();
+
+        let (_, first) = ingest(&store, small_repo(b"a", b"b").await).await;
+        assert_eq!(first.blobs_known, 0);
+        assert_eq!((first.written, first.skipped), (3, 1));
+
+        let (_, second) = ingest(&store, small_repo(b"a", b"b").await).await;
+        assert_eq!(second.blobs_known, 2);
     }
 
     /// A tiny flush threshold forces multiple mid-walk uploads across
@@ -1620,7 +1883,7 @@ mod tests {
             batch_bytes: 64,
             ..ConvertSettings::new(4)
         };
-        let (root_hash, _) = convert_tree(pack, &store, root_sha, digest_fn, settings)
+        let ((root_hash, _), _) = convert_tree(pack, &store, root_sha, digest_fn, settings)
             .await
             .unwrap();
 

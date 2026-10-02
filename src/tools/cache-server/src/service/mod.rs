@@ -27,7 +27,7 @@ pub use operations::OperationsService;
 mod git_clone;
 
 mod remote_asset;
-pub use remote_asset::{FetchConfig, FetchService, PushService};
+pub use remote_asset::{FETCH_TIMEOUT_MARGIN, FetchConfig, FetchService, PushService};
 
 #[cfg(test)]
 mod test_helpers;

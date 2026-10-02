@@ -49,6 +49,13 @@ pub async fn start_reapi_grpc(
         }
     };
 
+    let timeouts = crate::request_timeout::RequestTimeouts {
+        default: request_timeout,
+        fetch: fetch_config
+            .max_fetch_time
+            .map(|max| max + service::FETCH_TIMEOUT_MARGIN),
+    };
+
     let cas_service = service::ContentAddressableStorageService::new(store.clone(), handle.clone());
     let action_cache_service = service::ActionCacheService::new(store.clone());
     let bytestream_service = service::ByteStreamService::new(store.clone(), handle.clone());
@@ -88,7 +95,7 @@ pub async fn start_reapi_grpc(
             serve_stack(
                 TlsAccept::new(listener, config),
                 routes,
-                request_timeout,
+                timeouts,
                 effective_limit,
                 pressure_monitor,
                 handle,
@@ -100,7 +107,7 @@ pub async fn start_reapi_grpc(
             serve_stack(
                 listener,
                 routes,
-                request_timeout,
+                timeouts,
                 effective_limit,
                 pressure_monitor,
                 handle,
@@ -143,50 +150,32 @@ async fn set_services_status(
 /// Serve the prepared routes over any transport: plain TCP, TLS, or later
 /// an iroh acceptor.
 ///
-/// Applies the global concurrency limit, then optionally a per-request
-/// timeout. When a pressure monitor is available, wraps the outermost
-/// layer with a gate that rejects requests under severe memory pressure
-/// (UNAVAILABLE). The branches avoid complex type-erasure; serve_traced
-/// is generic.
+/// Applies the per-route request timeouts, then the global concurrency
+/// limit. When a pressure monitor is available, wraps the outermost layer
+/// with a gate that rejects requests under severe memory pressure
+/// (UNAVAILABLE).
 async fn serve_stack<A: Accept>(
     acceptor: A,
     routes: tonic::service::Routes,
-    request_timeout: Option<Duration>,
+    timeouts: crate::request_timeout::RequestTimeouts,
     effective_limit: usize,
     pressure_monitor: Option<runtime::psi::PressureMonitor>,
     handle: Dial9TokioHandle,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    match (request_timeout, pressure_monitor) {
-        (Some(timeout), Some(monitor)) => {
+    let svc = tower::limit::ConcurrencyLimit::new(
+        crate::request_timeout::RequestTimeout::new(routes, timeouts),
+        effective_limit,
+    );
+    match pressure_monitor {
+        Some(monitor) => {
             let svc = crate::pressure_gate::PressureGateLayer::new(
                 monitor,
                 runtime::psi::PressureLevel::High,
             )
-            .layer(tower::limit::ConcurrencyLimit::new(
-                tower::timeout::Timeout::new(routes, timeout),
-                effective_limit,
-            ));
+            .layer(svc);
             dial9_tonic::serve_traced(acceptor, svc, handle, shutdown).await
         }
-        (Some(timeout), None) => {
-            let svc = tower::limit::ConcurrencyLimit::new(
-                tower::timeout::Timeout::new(routes, timeout),
-                effective_limit,
-            );
-            dial9_tonic::serve_traced(acceptor, svc, handle, shutdown).await
-        }
-        (None, Some(monitor)) => {
-            let svc = crate::pressure_gate::PressureGateLayer::new(
-                monitor,
-                runtime::psi::PressureLevel::High,
-            )
-            .layer(tower::limit::ConcurrencyLimit::new(routes, effective_limit));
-            dial9_tonic::serve_traced(acceptor, svc, handle, shutdown).await
-        }
-        (None, None) => {
-            let svc = tower::limit::ConcurrencyLimit::new(routes, effective_limit);
-            dial9_tonic::serve_traced(acceptor, svc, handle, shutdown).await
-        }
+        None => dial9_tonic::serve_traced(acceptor, svc, handle, shutdown).await,
     }
 }

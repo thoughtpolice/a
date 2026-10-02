@@ -153,8 +153,10 @@ pub struct FetchConfig {
     /// Directory for spooling git packfiles during clones (system temp when
     /// `None`).
     pub git_spool_dir: Option<PathBuf>,
-    /// The server's own limit on any request, if it has one.
-    pub server_timeout: Option<Duration>,
+    /// The longest any fetch may run, whatever its request asks for; `None`
+    /// for no limit. Fetch requests are cut off [`FETCH_TIMEOUT_MARGIN`]
+    /// after it, so a fetch out of time still answers for itself.
+    pub max_fetch_time: Option<Duration>,
     /// HTTP fetches allowed to run at once. Each may hold up to
     /// [`fetch_http::MAX_HTTP_FETCH_SIZE`] in memory.
     pub max_http_fetches: usize,
@@ -180,7 +182,7 @@ impl Default for FetchConfig {
         Self {
             cpus: std::thread::available_parallelism().map_or(1, usize::from),
             git_spool_dir: None,
-            server_timeout: None,
+            max_fetch_time: None,
             max_http_fetches: 16,
             max_git_clones: 2,
         }
@@ -250,10 +252,11 @@ const DEFAULT_HTTP_FETCH_TIMEOUT: Duration = Duration::from_secs(60);
 /// timeout. Large repositories take minutes to download and index.
 const DEFAULT_GIT_FETCH_TIMEOUT: Duration = Duration::from_secs(1800);
 
-/// A fetch gives up this long before the server's own request timeout, so
-/// the client receives a `DEADLINE_EXCEEDED` answer rather than a dropped
-/// request.
-const SERVER_TIMEOUT_MARGIN: Duration = Duration::from_secs(2);
+/// How much longer than [`FetchConfig::max_fetch_time`] the server lets a
+/// Fetch request run, so a fetch that runs out of time answers
+/// `DEADLINE_EXCEEDED` itself, with its own message, before the server's
+/// limit cuts it off.
+pub const FETCH_TIMEOUT_MARGIN: Duration = Duration::from_secs(2);
 
 /// The answer for a fetch that ran out of time.
 fn deadline_exceeded(budget: Duration) -> protos::google::rpc::Status {
@@ -292,8 +295,8 @@ impl FetchService {
         default: Duration,
     ) -> (tokio::time::Instant, Duration) {
         let mut budget = request_timeout(requested).unwrap_or(default);
-        if let Some(server) = self.config.server_timeout {
-            budget = budget.min(server.saturating_sub(SERVER_TIMEOUT_MARGIN));
+        if let Some(max) = self.config.max_fetch_time {
+            budget = budget.min(max);
         }
         (tokio::time::Instant::now() + budget, budget)
     }

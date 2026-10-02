@@ -117,9 +117,16 @@ struct ServeArgs {
     #[arg(long, default_value_t = false)]
     tokio_console: bool,
 
-    /// Per-request timeout in seconds (0 = no timeout)
+    /// Per-request timeout in seconds (0 = no timeout), for every RPC but
+    /// Remote Asset fetches (see --fetch-timeout)
     #[arg(long, default_value_t = 900, env = "CACHE_SERVER_REQUEST_TIMEOUT")]
     request_timeout: u64,
+
+    /// The longest a Remote Asset fetch may run, in seconds (0 = no limit).
+    /// Git clones get this long unless the request asks for less, HTTP
+    /// fetches 60 s unless it asks for more.
+    #[arg(long, default_value_t = 1800, env = "CACHE_SERVER_FETCH_TIMEOUT")]
+    fetch_timeout: u64,
 
     /// Maximum concurrent requests across all connections (default 8192).
     /// Also limited to 256 per individual connection.
@@ -455,6 +462,7 @@ impl Default for ServeArgs {
             address: "127.0.0.1:8080".to_string(),
             tokio_console: false,
             request_timeout: 900,
+            fetch_timeout: 1800,
             max_concurrent_requests: 8192,
             disable_compactor: false,
             block_cache_mib: store::DEFAULT_BLOCK_CACHE_BYTES / (1024 * 1024),
@@ -663,6 +671,7 @@ async fn run_server(
         tls = tls_config.is_some(),
         otel = otel_config.enabled,
         request_timeout_secs = args.request_timeout,
+        fetch_timeout_secs = args.fetch_timeout,
         max_concurrent_requests = args.max_concurrent_requests,
         disable_compactor = args.disable_compactor,
         dial9 = dial9::Dial9Handle::current().is_enabled(),
@@ -714,7 +723,8 @@ async fn run_server(
     let fetch_config = service::FetchConfig {
         cpus: rt_info.effective_cpus,
         git_spool_dir: args.git_spool_dir.clone(),
-        server_timeout: request_timeout,
+        max_fetch_time: (args.fetch_timeout > 0)
+            .then(|| std::time::Duration::from_secs(args.fetch_timeout)),
         max_http_fetches: args.max_concurrent_http_fetches,
         max_git_clones: args.max_concurrent_git_clones,
     };
@@ -773,12 +783,16 @@ async fn run_server(
 
 mod pressure_gate;
 pub mod reapi_grpc;
+mod request_timeout;
 pub mod service;
 pub mod store;
 pub mod tls;
 
 #[cfg(test_module_dial9)]
 mod test_dial9;
+
+#[cfg(test_module_request_timeout)]
+mod test_request_timeout;
 
 #[cfg(test_module_tls)]
 mod test_tls;
