@@ -1,0 +1,136 @@
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
+//! [`MultipartUpload`] implementation over S3 multipart uploads.
+
+use std::sync::{Arc, Mutex};
+
+use object_store::path::Path;
+use object_store::{Attributes, MultipartUpload, PutPayload, PutResult, UploadPart};
+
+use crate::client::{S3Client, generic_msg};
+
+/// An in-progress S3 multipart upload.
+///
+/// Parts may be uploaded concurrently: each [`put_part`](MultipartUpload)
+/// call reserves the next part number immediately and returns a future that
+/// performs the actual `UploadPart` request.
+#[derive(Debug)]
+pub(crate) struct S3MultipartUpload {
+    state: Arc<UploadState>,
+    part_idx: usize,
+}
+
+#[derive(Debug)]
+struct UploadState {
+    client: Arc<S3Client>,
+    location: Path,
+    upload_id: String,
+    /// What the upload was created with, which identifies its object if a
+    /// completion's outcome has to be reconciled.
+    attributes: Attributes,
+    /// ETags and sizes of completed parts, indexed by zero-based part index.
+    parts: Mutex<Vec<Option<(String, u64)>>>,
+}
+
+impl S3MultipartUpload {
+    pub(crate) fn new(
+        client: Arc<S3Client>,
+        location: Path,
+        upload_id: String,
+        attributes: Attributes,
+    ) -> Self {
+        Self {
+            state: Arc::new(UploadState {
+                client,
+                location,
+                upload_id,
+                attributes,
+                parts: Mutex::new(Vec::new()),
+            }),
+            part_idx: 0,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl MultipartUpload for S3MultipartUpload {
+    fn put_part(&mut self, data: PutPayload) -> UploadPart {
+        let idx = self.part_idx;
+        self.part_idx += 1;
+        let state = Arc::clone(&self.state);
+        let size = data.content_length() as u64;
+        Box::pin(async move {
+            let e_tag = state
+                .client
+                .put_part(&state.location, &state.upload_id, idx, data)
+                .await?;
+            let mut parts = state.parts.lock().expect("parts mutex never poisoned");
+            if parts.len() <= idx {
+                parts.resize(idx + 1, None);
+            }
+            parts[idx] = Some((e_tag, size));
+            Ok(())
+        })
+    }
+
+    async fn complete(&mut self) -> object_store::Result<PutResult> {
+        let (mut part_etags, size) = {
+            let parts = self.state.parts.lock().expect("parts mutex never poisoned");
+            let mut size = 0;
+            let part_etags = parts
+                .iter()
+                .enumerate()
+                .map(|(idx, part)| {
+                    let (e_tag, part_size) = part.as_ref().ok_or_else(|| {
+                        generic_msg(format!("part {idx} was not uploaded before complete"))
+                    })?;
+                    size += part_size;
+                    Ok(e_tag.clone())
+                })
+                .collect::<object_store::Result<Vec<_>>>()?;
+            (part_etags, size)
+        };
+        if part_etags.len() != self.part_idx {
+            return Err(generic_msg(format!(
+                "{} of {} parts uploaded before complete",
+                part_etags.len(),
+                self.part_idx,
+            )));
+        }
+
+        // completing an upload with zero parts is invalid; upload one empty
+        // part so empty multipart writes still produce an (empty) object
+        if part_etags.is_empty() {
+            let e_tag = self
+                .state
+                .client
+                .put_part(
+                    &self.state.location,
+                    &self.state.upload_id,
+                    0,
+                    PutPayload::new(),
+                )
+                .await?;
+            part_etags.push(e_tag);
+        }
+
+        self.state
+            .client
+            .complete_multipart(
+                &self.state.location,
+                &self.state.upload_id,
+                part_etags,
+                size,
+                &self.state.attributes,
+            )
+            .await
+    }
+
+    async fn abort(&mut self) -> object_store::Result<()> {
+        self.state
+            .client
+            .abort_multipart(&self.state.location, &self.state.upload_id)
+            .await
+    }
+}
