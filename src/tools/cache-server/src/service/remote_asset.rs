@@ -20,11 +20,11 @@ use crate::store::{
     AssetEntry, CacheStore, Compression, ContentDigest, DigestFn, IncrementalHasher, unix_now_secs,
 };
 
-use super::git_clone;
 use super::helpers::{
     http_fetch_status, instrumented_rpc, parse_and_validate_digest, qualifier, request_timeout,
     resolve_digest_function, rpc_status, rpc_status_ok, store_error_to_status,
 };
+use super::{git_clone, oci_image};
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Qualifier helpers
@@ -55,13 +55,17 @@ const FETCH_BLOB_QUALIFIERS: &[&str] = &[
 ];
 
 /// Qualifiers understood by `FetchDirectory`. Note `checksum.sri` is absent:
-/// there is no checksum-verified directory fetch path.
+/// there is no checksum-verified directory fetch path (an OCI image's URI
+/// pins its digest instead). `oci.platform` (`os/architecture[/variant]`,
+/// as in `linux/arm64/v8`) picks the manifest an OCI image index resolves
+/// to.
 const FETCH_DIRECTORY_QUALIFIERS: &[&str] = &[
     "vcs.branch",
     "vcs.commit",
     "directory",
     "resource_type",
     "bazel.canonical_id",
+    "oci.platform",
 ];
 
 /// Whether `qualifiers` ask for a tree: a git commit or branch, a
@@ -130,9 +134,10 @@ fn secs_to_timestamp(secs: u64) -> Option<prost_types::Timestamp> {
 // FetchService
 // ---------------------------------------------------------------------------------------------------------------------
 
-/// Resolves Push'd asset mappings from the store. For HTTP/HTTPS URIs with a
-/// `checksum.sri` qualifier, fetches content from origin, validates its
-/// integrity, stores it in CAS, and creates an asset mapping.
+/// Resolves Push'd asset mappings from the store, and fetches what it does
+/// not have from origin into CAS, recording an asset mapping for it: blobs
+/// over HTTP (checked against a `checksum.sri` qualifier when there is one),
+/// and directories from git repositories and OCI registries.
 #[derive(Clone)]
 pub struct FetchService {
     store: Arc<CacheStore>,
@@ -141,7 +146,9 @@ pub struct FetchService {
     config: Arc<FetchConfig>,
     http_slots: Arc<tokio::sync::Semaphore>,
     git_slots: Arc<tokio::sync::Semaphore>,
+    oci_slots: Arc<tokio::sync::Semaphore>,
     fetches: Arc<InFlight>,
+    registries: Arc<oci_image::Registries>,
 }
 
 /// Settings for a [`FetchService`].
@@ -163,6 +170,11 @@ pub struct FetchConfig {
     /// Git clones allowed to run at once. Each spools its pack to disk and
     /// holds the pack's index in memory.
     pub max_git_clones: usize,
+    /// OCI image fetches allowed to run at once. Each streams its layers
+    /// into the store a few at a time, holding a few MiB of each.
+    pub max_oci_fetches: usize,
+    /// Credentials for OCI registries that refuse anonymous pulls.
+    pub oci_credentials: fetch_oci::RegistryCredentials,
 }
 
 impl FetchConfig {
@@ -185,6 +197,8 @@ impl Default for FetchConfig {
             max_fetch_time: None,
             max_http_fetches: 16,
             max_git_clones: 2,
+            max_oci_fetches: 4,
+            oci_credentials: fetch_oci::RegistryCredentials::default(),
         }
     }
 }
@@ -252,6 +266,10 @@ const DEFAULT_HTTP_FETCH_TIMEOUT: Duration = Duration::from_secs(60);
 /// timeout. Large repositories take minutes to download and index.
 const DEFAULT_GIT_FETCH_TIMEOUT: Duration = Duration::from_secs(1800);
 
+/// How long an OCI image fetch and its ingest may take when the request sets
+/// no timeout: an image may be gigabytes.
+const DEFAULT_OCI_FETCH_TIMEOUT: Duration = Duration::from_secs(600);
+
 /// How much longer than [`FetchConfig::max_fetch_time`] the server lets a
 /// Fetch request run, so a fetch that runs out of time answers
 /// `DEADLINE_EXCEEDED` itself, with its own message, before the server's
@@ -280,9 +298,21 @@ impl FetchService {
             handle,
             http_slots: Arc::new(tokio::sync::Semaphore::new(config.max_http_fetches.max(1))),
             git_slots: Arc::new(tokio::sync::Semaphore::new(config.max_git_clones.max(1))),
+            oci_slots: Arc::new(tokio::sync::Semaphore::new(config.max_oci_fetches.max(1))),
+            registries: Arc::new(oci_image::Registries {
+                credentials: config.oci_credentials.clone(),
+                ..Default::default()
+            }),
             config: Arc::new(config),
             fetches: Arc::default(),
         }
+    }
+
+    /// This service, reaching OCI registries over plain HTTP.
+    #[cfg(test)]
+    pub(super) fn with_plain_http_registries(mut self) -> Self {
+        Arc::make_mut(&mut self.registries).plain_http = true;
+        self
     }
 
     /// When a fetch must be done by, and how long that gives it: the time the
@@ -490,6 +520,101 @@ impl FetchService {
         )
         .await
     }
+
+    /// Fetch the OCI image `uri` into CAS, resolving an image index to
+    /// `platform`, and record its layout's tree as an asset (see
+    /// [`fetch_asset`](Self::fetch_asset)).
+    async fn fetch_oci_asset(
+        &self,
+        digest_fn: DigestFn,
+        uri: &str,
+        qualifiers: &[(String, String)],
+        oldest_content_accepted: u64,
+        platform: Option<&fetch_oci::Platform>,
+    ) -> Result<Result<AssetEntry, fetch_oci::OciFetchError>, tonic::Status> {
+        let fetch = async {
+            let reference = match fetch_oci::parse_oci_uri(uri) {
+                Ok(reference) => reference,
+                Err(e) => return Ok(Err(e)),
+            };
+            let repository = self.registries.open(
+                &self.ssl_connector,
+                &self.handle,
+                &reference,
+                platform.cloned(),
+            );
+            let fetched =
+                oci_image::fetch_image(&self.store, digest_fn, &repository, &reference.digest, uri);
+            let stored = match fetched.await? {
+                Ok(stored) => stored,
+                Err(e) => return Ok(Err(e)),
+            };
+            tracing::info!(
+                uri,
+                files = stored.files,
+                mib = stored.bytes / (1024 * 1024),
+                downloaded = stored.downloaded,
+                written = stored.written,
+                "stored OCI image",
+            );
+            let (root, root_size) = stored.root;
+            Ok(Ok((root.hash, root_size)))
+        };
+        let slots = &self.oci_slots;
+        self.fetch_asset(
+            slots,
+            true,
+            digest_fn,
+            uri,
+            qualifiers,
+            oldest_content_accepted,
+            fetch,
+        )
+        .await
+    }
+
+    /// Fetch the blob (or manifest) the OCI URI `uri`'s digest names into
+    /// CAS, checked against `sri_checksums` as well, and record it as an
+    /// asset (see [`fetch_asset`](Self::fetch_asset)).
+    async fn fetch_oci_blob_asset(
+        &self,
+        digest_fn: DigestFn,
+        uri: &str,
+        qualifiers: &[(String, String)],
+        oldest_content_accepted: u64,
+        sri_checksums: &[fetch_http::SriChecksum],
+    ) -> Result<Result<AssetEntry, fetch_oci::OciFetchError>, tonic::Status> {
+        let fetch = async {
+            let reference = match fetch_oci::parse_oci_uri(uri) {
+                Ok(reference) => reference,
+                Err(e) => return Ok(Err(e)),
+            };
+            let repository =
+                self.registries
+                    .open(&self.ssl_connector, &self.handle, &reference, None);
+            let fetched = oci_image::fetch_blob(
+                &self.store,
+                digest_fn,
+                &repository,
+                &reference,
+                sri_checksums,
+            );
+            Ok(fetched
+                .await?
+                .map(|(digest, size)| (digest.hash, size as i64)))
+        };
+        let slots = &self.oci_slots;
+        self.fetch_asset(
+            slots,
+            false,
+            digest_fn,
+            uri,
+            qualifiers,
+            oldest_content_accepted,
+            fetch,
+        )
+        .await
+    }
 }
 
 #[tonic::async_trait]
@@ -547,8 +672,8 @@ impl fetch_server::Fetch for FetchService {
                 }
             }
 
-            // Phase 2: try HTTP fetch for http(s) URIs, unless the qualifiers
-            // name a tree, which only FetchDirectory fetches.
+            // Phase 2: fetch from origin, unless the qualifiers name a tree,
+            // which only FetchDirectory fetches.
             if names_a_tree(&qualifiers) {
                 return Ok(failure(rpc_status(
                     tonic::Code::NotFound as i32,
@@ -556,8 +681,8 @@ impl fetch_server::Fetch for FetchService {
                      FetchDirectory fetches git repositories",
                 )));
             }
-            let has_http_uris = inner.uris.iter().any(|u| fetch_http::is_http_uri(u));
-            if has_http_uris {
+            let fetchable = |uri: &str| fetch_http::is_http_uri(uri) || fetch_oci::is_oci_uri(uri);
+            if inner.uris.iter().any(|u| fetchable(u)) {
                 // Parse SRI checksums if provided; empty vec means no validation
                 let sri_checksums = match qualifier(&qualifiers, "checksum.sri") {
                     Some(sri_value) => match fetch_http::parse_sri(sri_value) {
@@ -571,41 +696,56 @@ impl fetch_server::Fetch for FetchService {
                     },
                     None => vec![],
                 };
-                let (deadline, budget) =
-                    svc.deadline(inner.timeout.as_ref(), DEFAULT_HTTP_FETCH_TIMEOUT);
+                let default_timeout = if inner.uris.iter().any(|u| fetch_oci::is_oci_uri(u)) {
+                    DEFAULT_OCI_FETCH_TIMEOUT
+                } else {
+                    DEFAULT_HTTP_FETCH_TIMEOUT
+                };
+                let (deadline, budget) = svc.deadline(inner.timeout.as_ref(), default_timeout);
 
                 let mut last_error = None;
                 for uri in &inner.uris {
-                    if !fetch_http::is_http_uri(uri) {
-                        continue;
-                    }
-
-                    let fetched = tokio::time::timeout_at(
-                        deadline,
-                        svc.fetch_http_asset(
+                    // The origin's error, if any, as the status reporting it.
+                    let fetched = if fetch_http::is_http_uri(uri) {
+                        let fetch = svc.fetch_http_asset(
                             digest_fn,
                             uri,
                             &qualifiers,
                             oldest_content_accepted,
                             &sri_checksums,
-                        ),
-                    )
-                    .await;
+                        );
+                        tokio::time::timeout_at(deadline, fetch)
+                            .await
+                            .map(|r| r.map(|r| r.map_err(|e| http_fetch_status(&e))))
+                    } else if fetch_oci::is_oci_uri(uri) {
+                        let fetch = svc.fetch_oci_blob_asset(
+                            digest_fn,
+                            uri,
+                            &qualifiers,
+                            oldest_content_accepted,
+                            &sri_checksums,
+                        );
+                        tokio::time::timeout_at(deadline, fetch)
+                            .await
+                            .map(|r| r.map(|r| r.map_err(|e| oci_image::oci_fetch_status(&e))))
+                    } else {
+                        continue;
+                    };
                     let Ok(fetched) = fetched else {
                         return Ok(failure(deadline_exceeded(budget)));
                     };
                     match fetched? {
                         Ok(entry) => return Ok(found(uri, &entry)),
-                        Err(e) => {
-                            tracing::warn!(uri, error = %e, "HTTP fetch failed, trying next URI");
-                            last_error = Some(e);
+                        Err(status) => {
+                            tracing::warn!(uri, error = %status.message, "fetch failed, trying next URI");
+                            last_error = Some(status);
                         }
                     }
                 }
 
-                // All HTTP URIs failed — return the last error
-                if let Some(e) = last_error {
-                    return Ok(failure(http_fetch_status(&e)));
+                // Every fetchable URI failed: report the last failure.
+                if let Some(status) = last_error {
+                    return Ok(failure(status));
                 }
             }
 
@@ -670,6 +810,19 @@ impl fetch_server::Fetch for FetchService {
                 }
             }
 
+            let platform = match qualifier(&qualifiers, "oci.platform")
+                .map(str::parse::<fetch_oci::Platform>)
+                .transpose()
+            {
+                Ok(platform) => platform,
+                Err(msg) => {
+                    return Ok(failure(rpc_status(
+                        tonic::Code::InvalidArgument as i32,
+                        format!("invalid oci.platform: {msg}"),
+                    )));
+                }
+            };
+
             // Phase 2: clone git repositories, at the commit or branch the
             // VCS qualifiers name, or without them, the default branch.
             let git = git_clone::has_vcs_qualifiers(&qualifiers)
@@ -678,6 +831,12 @@ impl fetch_server::Fetch for FetchService {
                     .iter()
                     .any(|u| git_clone::is_git_uri(u, &qualifiers));
             if git {
+                if platform.is_some() {
+                    return Ok(failure(rpc_status(
+                        tonic::Code::InvalidArgument as i32,
+                        "the oci.platform qualifier applies only to OCI image fetches",
+                    )));
+                }
                 let (deadline, budget) =
                     svc.deadline(inner.timeout.as_ref(), DEFAULT_GIT_FETCH_TIMEOUT);
 
@@ -711,6 +870,47 @@ impl fetch_server::Fetch for FetchService {
 
                 if let Some(e) = last_error {
                     return Ok(failure(e.to_rpc_status()));
+                }
+            } else if inner.uris.iter().any(|u| fetch_oci::is_oci_uri(u)) {
+                // Phase 2, without VCS qualifiers: fetch OCI images, whose
+                // layouts have no subdirectory worth asking for.
+                if qualifier(&qualifiers, "directory").is_some() {
+                    return Ok(failure(rpc_status(
+                        tonic::Code::InvalidArgument as i32,
+                        "the directory qualifier applies only to git fetches",
+                    )));
+                }
+                let (deadline, budget) =
+                    svc.deadline(inner.timeout.as_ref(), DEFAULT_OCI_FETCH_TIMEOUT);
+
+                let mut last_error = None;
+                for uri in &inner.uris {
+                    if !fetch_oci::is_oci_uri(uri) {
+                        continue;
+                    }
+
+                    let fetch = svc.fetch_oci_asset(
+                        digest_fn,
+                        uri,
+                        &qualifiers,
+                        oldest_content_accepted,
+                        platform.as_ref(),
+                    );
+                    let fetched = tokio::time::timeout_at(deadline, fetch).await;
+                    let Ok(fetched) = fetched else {
+                        return Ok(failure(deadline_exceeded(budget)));
+                    };
+                    match fetched? {
+                        Ok(entry) => return Ok(found(uri, &entry)),
+                        Err(e) => {
+                            tracing::warn!(uri, error = %e, "OCI fetch failed, trying next URI");
+                            last_error = Some(e);
+                        }
+                    }
+                }
+
+                if let Some(e) = last_error {
+                    return Ok(failure(oci_image::oci_fetch_status(&e)));
                 }
             }
 

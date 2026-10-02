@@ -100,6 +100,11 @@ enum Command {
         /// Output file path
         #[arg(short, long)]
         output: PathBuf,
+
+        /// Fetch the URI as a single blob, even one that would otherwise be
+        /// fetched as a directory (one layer of a container image, say)
+        #[arg(long)]
+        blob: bool,
     },
 
     /// Tag a CAS blob as a remote asset with URIs and optional qualifiers
@@ -154,7 +159,8 @@ fn run_command(server: String, instance: String, cmd: Command) -> Result<()> {
                 uri,
                 qualifier,
                 output,
-            } => cmd_fetch(&mut client, &uri, qualifier, &output).await,
+                blob,
+            } => cmd_fetch(&mut client, &uri, qualifier, &output, blob).await,
             Command::Tag {
                 hash,
                 size,
@@ -229,14 +235,21 @@ async fn cmd_fetch(
     uri: &str,
     qualifier_args: Vec<String>,
     output: &PathBuf,
+    blob: bool,
 ) -> Result<()> {
     let qualifiers = parse_qualifiers(&qualifier_args)?;
     let (progress_tx, _progress_rx) = tokio::sync::mpsc::unbounded_channel();
 
-    let result = client
-        .fetch_asset(uri, qualifiers, output, progress_tx)
-        .await
-        .with_context(|| format!("failed to fetch asset {uri}"))?;
+    let result = if blob {
+        client
+            .fetch_blob_asset(uri, qualifiers, output, progress_tx)
+            .await
+    } else {
+        client
+            .fetch_asset(uri, qualifiers, output, progress_tx)
+            .await
+    }
+    .with_context(|| format!("failed to fetch asset {uri}"))?;
 
     eprintln!(
         "fetched {} -> {} ({})",
