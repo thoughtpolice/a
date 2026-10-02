@@ -1137,3 +1137,567 @@ async fn fetch_directory_non_http_git_uri_with_vcs_returns_not_found() {
         tonic::Code::NotFound as i32,
     );
 }
+
+// =================================================================================================================
+// OCI images: FetchDirectory stores an image's layout as a Directory tree
+// =================================================================================================================
+
+use protos::build::bazel::remote::asset::v1::FetchDirectoryResponse;
+
+/// A loopback registry answering GETs of fixed paths (404 for any other),
+/// counting the requests it sees.
+struct FakeRegistry {
+    port: u16,
+    requests: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl FakeRegistry {
+    async fn start(routes: std::collections::HashMap<String, Bytes>) -> Self {
+        use std::sync::atomic::Ordering;
+        use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+
+        fetch_http::ALLOW_LOOPBACK_FOR_TESTS.store(true, Ordering::Relaxed);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let requests = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let (seen, routes) = (requests.clone(), Arc::new(routes));
+        tokio::spawn(async move {
+            while let Ok((mut stream, _)) = listener.accept().await {
+                let (seen, routes) = (seen.clone(), routes.clone());
+                tokio::spawn(async move {
+                    let mut request = Vec::new();
+                    let mut buf = [0u8; 1024];
+                    while !request.windows(4).any(|w| w == b"\r\n\r\n") {
+                        match stream.read(&mut buf).await {
+                            Ok(0) | Err(_) => return,
+                            Ok(n) => request.extend_from_slice(&buf[..n]),
+                        }
+                    }
+                    seen.fetch_add(1, Ordering::SeqCst);
+                    let request = String::from_utf8_lossy(&request);
+                    let path = request.split(' ').nth(1).unwrap_or_default();
+                    let (status, body) = match routes.get(path) {
+                        Some(body) => ("200 OK", body.clone()),
+                        None => ("404 Not Found", Bytes::new()),
+                    };
+                    let head = format!(
+                        "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        body.len()
+                    );
+                    let _ = stream.write_all(head.as_bytes()).await;
+                    let _ = stream.write_all(&body).await;
+                });
+            }
+        });
+        Self { port, requests }
+    }
+
+    fn uri(&self, reference: &str) -> String {
+        format!("oci://127.0.0.1:{}/team/image{reference}", self.port)
+    }
+
+    fn url(&self, path: &str) -> String {
+        format!("http://127.0.0.1:{}{path}", self.port)
+    }
+
+    fn requests(&self) -> usize {
+        self.requests.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+fn oci_digest(data: &[u8]) -> String {
+    format!("sha256:{}", hex::encode(sha256(data)))
+}
+
+/// An image: a manifest naming a config and layers. One layer is listed
+/// twice (as images list an empty layer once per step that made one), and
+/// one is too large to share a write with the others.
+struct TestImage {
+    manifest: Bytes,
+    config: Bytes,
+    layers: Vec<Bytes>,
+}
+
+impl TestImage {
+    fn new() -> Self {
+        let small = Bytes::from_static(b"a small layer");
+        Self::with(vec![
+            small.clone(),
+            Bytes::from(noise(17 * 1024 * 1024)),
+            small,
+        ])
+    }
+
+    fn with(layers: Vec<Bytes>) -> Self {
+        let config = Bytes::from_static(
+            br#"{"architecture":"amd64","os":"linux","rootfs":{"type":"layers","diff_ids":[]}}"#,
+        );
+        let descriptor = |media_type: &str, data: &Bytes| {
+            format!(
+                r#"{{"mediaType":"{media_type}","digest":"{}","size":{}}}"#,
+                oci_digest(data),
+                data.len()
+            )
+        };
+        let layer_descriptors: Vec<_> = layers
+            .iter()
+            .map(|l| descriptor("application/vnd.oci.image.layer.v1.tar+gzip", l))
+            .collect();
+        let manifest = format!(
+            r#"{{"schemaVersion":2,"mediaType":"application/vnd.oci.image.manifest.v1+json","config":{},"layers":[{}]}}"#,
+            descriptor("application/vnd.oci.image.config.v1+json", &config),
+            layer_descriptors.join(",")
+        );
+        Self {
+            manifest: Bytes::from(manifest),
+            config,
+            layers,
+        }
+    }
+
+    /// The registry paths serving this image, as `team/image`.
+    fn routes(&self) -> std::collections::HashMap<String, Bytes> {
+        let mut routes = std::collections::HashMap::new();
+        routes.insert(
+            format!("/v2/team/image/manifests/{}", oci_digest(&self.manifest)),
+            self.manifest.clone(),
+        );
+        for blob in std::iter::once(&self.config).chain(&self.layers) {
+            routes.insert(
+                format!("/v2/team/image/blobs/{}", oci_digest(blob)),
+                blob.clone(),
+            );
+        }
+        routes
+    }
+
+    fn reference(&self) -> String {
+        format!("@{}", oci_digest(&self.manifest))
+    }
+
+    /// The distinct blobs of the layout, by file name under `blobs/sha256`.
+    fn blobs(&self) -> std::collections::BTreeMap<String, Bytes> {
+        [&self.manifest, &self.config]
+            .into_iter()
+            .chain(&self.layers)
+            .map(|blob| (hex::encode(sha256(blob)), blob.clone()))
+            .collect()
+    }
+}
+
+fn oci_fetch(
+    uri: String,
+    digest_fn: DigestFn,
+    qualifiers: Vec<Qualifier>,
+) -> tonic::Request<FetchDirectoryRequest> {
+    tonic::Request::new(FetchDirectoryRequest {
+        instance_name: String::new(),
+        timeout: None,
+        oldest_content_accepted: None,
+        uris: vec![uri],
+        qualifiers,
+        digest_function: digest_fn.to_proto_i32(),
+    })
+}
+
+fn make_oci_fetch(store: Arc<CacheStore>) -> super::remote_asset::FetchService {
+    make_fetch(store).with_plain_http_registries()
+}
+
+async fn read_cas(store: &CacheStore, digest_fn: DigestFn, digest: &Digest) -> Bytes {
+    let mut hash = [0u8; 32];
+    hex::decode_to_slice(&digest.hash, &mut hash).unwrap();
+    let data = store
+        .cas_get_blob(&ContentDigest::new(digest_fn, hash))
+        .await
+        .unwrap()
+        .unwrap_or_else(|| panic!("{} is not in CAS", digest.hash));
+    assert_eq!(data.len() as i64, digest.size_bytes);
+    data
+}
+
+async fn read_directory(store: &CacheStore, digest_fn: DigestFn, digest: &Digest) -> Directory {
+    Directory::decode(read_cas(store, digest_fn, digest).await).unwrap()
+}
+
+fn names<'a>(names: impl IntoIterator<Item = &'a String>) -> Vec<&'a str> {
+    names.into_iter().map(String::as_str).collect()
+}
+
+#[tokio::test]
+async fn fetch_directory_stores_an_oci_image_layout() {
+    for digest_fn in [DigestFn::Sha256, DigestFn::Blake3] {
+        let image = TestImage::new();
+        let registry = FakeRegistry::start(image.routes()).await;
+        let store = make_store().await;
+        let fetch = make_oci_fetch(store.clone());
+
+        let uri = registry.uri(&image.reference());
+        let resp = fetch
+            .fetch_directory(oci_fetch(uri.clone(), digest_fn, vec![]))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.status.unwrap().code, 0, "{digest_fn:?}");
+        assert_eq!(resp.uri, uri);
+
+        let root = read_directory(&store, digest_fn, &resp.root_directory_digest.unwrap()).await;
+        assert_eq!(
+            names(root.files.iter().map(|f| &f.name)),
+            ["index.json", "oci-layout"]
+        );
+        assert_eq!(names(root.directories.iter().map(|d| &d.name)), ["blobs"]);
+        let layout = read_cas(&store, digest_fn, root.files[1].digest.as_ref().unwrap()).await;
+        assert_eq!(&layout[..], br#"{"imageLayoutVersion":"1.0.0"}"#);
+        let index = read_cas(&store, digest_fn, root.files[0].digest.as_ref().unwrap()).await;
+        let index = String::from_utf8(index.to_vec()).unwrap();
+        assert!(index.contains(&oci_digest(&image.manifest)), "{index}");
+
+        let blobs_dir = read_directory(
+            &store,
+            digest_fn,
+            root.directories[0].digest.as_ref().unwrap(),
+        )
+        .await;
+        assert!(blobs_dir.files.is_empty());
+        assert_eq!(
+            names(blobs_dir.directories.iter().map(|d| &d.name)),
+            ["sha256"]
+        );
+        let sha256_dir = read_directory(
+            &store,
+            digest_fn,
+            blobs_dir.directories[0].digest.as_ref().unwrap(),
+        )
+        .await;
+        let expected = image.blobs();
+        assert_eq!(
+            names(sha256_dir.files.iter().map(|f| &f.name)),
+            names(expected.keys()),
+            "one file per distinct blob, sorted"
+        );
+        for file in &sha256_dir.files {
+            let data = read_cas(&store, digest_fn, file.digest.as_ref().unwrap()).await;
+            assert!(data == expected[&file.name], "{digest_fn:?}: {}", file.name);
+        }
+    }
+}
+
+#[tokio::test]
+async fn fetch_directory_answers_a_fetched_oci_image_from_the_cache() {
+    let image = TestImage::with(vec![Bytes::from_static(b"layer")]);
+    let registry = FakeRegistry::start(image.routes()).await;
+    let fetch = make_oci_fetch(make_store().await);
+    let uri = registry.uri(&image.reference());
+
+    let first = fetch
+        .fetch_directory(oci_fetch(uri.clone(), DigestFn::Sha256, vec![]))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(first.status.unwrap().code, 0);
+    let requests = registry.requests();
+    assert_eq!(requests, 3, "the manifest, the config, and one layer");
+
+    let again = fetch
+        .fetch_directory(oci_fetch(uri, DigestFn::Sha256, vec![]))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(again.status.unwrap().code, 0);
+    assert_eq!(again.root_directory_digest, first.root_directory_digest);
+    assert_eq!(registry.requests(), requests, "answered from the cache");
+}
+
+#[tokio::test]
+async fn fetching_an_oci_image_again_downloads_only_what_is_new() {
+    let v1 = TestImage::with(vec![
+        Bytes::from_static(b"base"),
+        Bytes::from_static(b"app v1"),
+    ]);
+    let v2 = TestImage::with(vec![
+        Bytes::from_static(b"base"),
+        Bytes::from_static(b"app v2"),
+    ]);
+    let mut routes = v1.routes();
+    routes.extend(v2.routes());
+    let registry = FakeRegistry::start(routes).await;
+    let store = make_store().await;
+    let (ssl, handle) = (
+        fetch_http::build_ssl_connector(),
+        dial9::Dial9TokioHandle::disabled(),
+    );
+    let registries = super::oci_image::Registries {
+        plain_http: true,
+        ..Default::default()
+    };
+
+    let fetch_image = async |image: &TestImage| {
+        let uri = registry.uri(&image.reference());
+        let reference = fetch_oci::parse_oci_uri(&uri).unwrap();
+        let repository = registries.open(&ssl, &handle, &reference, None);
+        let before = registry.requests();
+        let stored = super::oci_image::fetch_image(
+            &store,
+            DigestFn::Sha256,
+            &repository,
+            &reference.digest,
+            &uri,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        (stored, registry.requests() - before)
+    };
+
+    let (first, requests) = fetch_image(&v1).await;
+    assert_eq!(
+        (first.downloaded, requests),
+        (2, 4),
+        "the manifest, config, and layers"
+    );
+    assert_eq!(
+        first.written, 7,
+        "oci-layout, index.json, the manifest and config, blobs/sha256, blobs, and the root"
+    );
+    let (same, requests) = fetch_image(&v1).await;
+    assert_eq!((same.downloaded, same.written, requests), (0, 0, 2));
+    assert_eq!(same.root, first.root);
+    let (next, requests) = fetch_image(&v2).await;
+    assert_eq!((next.downloaded, requests), (1, 3), "only the new layer");
+    assert_eq!(
+        next.written, 5,
+        "the new index.json and manifest, and the Directories naming them"
+    );
+}
+
+#[tokio::test]
+async fn fetch_directory_reports_oci_failures() {
+    let image = TestImage::with(vec![Bytes::from_static(b"layer")]);
+    let mut routes = image.routes();
+    // A registry serving the wrong bytes, of the right length, for a layer.
+    let corrupt = TestImage::with(vec![Bytes::from_static(b"other layer")]);
+    routes.extend(corrupt.routes());
+    routes.insert(
+        format!("/v2/team/image/blobs/{}", oci_digest(&corrupt.layers[0])),
+        Bytes::from_static(b"OTHER LAYER"),
+    );
+    let registry = FakeRegistry::start(routes).await;
+    let fetch = make_oci_fetch(make_store().await);
+    let code = |resp: FetchDirectoryResponse| tonic::Code::from(resp.status.unwrap().code);
+
+    let missing = TestImage::with(vec![Bytes::from_static(b"never pushed")]);
+    let cases = [
+        (
+            registry.uri(&missing.reference()),
+            vec![],
+            tonic::Code::NotFound,
+        ),
+        (
+            registry.uri(&corrupt.reference()),
+            vec![],
+            tonic::Code::Aborted,
+        ),
+        (
+            registry.uri(":latest"),
+            vec![],
+            tonic::Code::InvalidArgument,
+        ),
+        (
+            registry.uri(&image.reference()),
+            vec![Qualifier {
+                name: "directory".into(),
+                value: "blobs".into(),
+            }],
+            tonic::Code::InvalidArgument,
+        ),
+    ];
+    for (uri, qualifiers, expected) in cases {
+        let resp = fetch
+            .fetch_directory(oci_fetch(uri.clone(), DigestFn::Sha256, qualifiers))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(code(resp), expected, "{uri}");
+    }
+
+    let platform = |value: &str| {
+        vec![Qualifier {
+            name: "oci.platform".into(),
+            value: value.into(),
+        }]
+    };
+    for (qualifiers, expected) in [
+        (platform("linux"), tonic::Code::InvalidArgument),
+        (platform("linux/arm64"), tonic::Code::NotFound),
+    ] {
+        let resp = fetch
+            .fetch_directory(oci_fetch(
+                registry.uri(&image.reference()),
+                DigestFn::Sha256,
+                qualifiers,
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(code(resp), expected);
+    }
+    let mut git = oci_fetch(
+        registry.url("/repo.git"),
+        DigestFn::Sha256,
+        platform("linux/amd64"),
+    );
+    git.get_mut().qualifiers.push(Qualifier {
+        name: "vcs.branch".into(),
+        value: "main".into(),
+    });
+    let resp = fetch.fetch_directory(git).await.unwrap().into_inner();
+    assert_eq!(code(resp), tonic::Code::InvalidArgument);
+}
+
+#[tokio::test]
+async fn fetch_directory_takes_the_requested_platform_from_an_index() {
+    let amd64 = TestImage::with(vec![Bytes::from_static(b"amd64 layer")]);
+    let arm64 = TestImage::with(vec![Bytes::from_static(b"arm64 layer")]);
+    let index = Bytes::from(
+        serde_json::to_vec(&serde_json::json!({
+            "schemaVersion": 2,
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "manifests": [
+                {
+                    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+                    "digest": oci_digest(&amd64.manifest),
+                    "size": amd64.manifest.len(),
+                    "platform": { "os": "linux", "architecture": "amd64" },
+                },
+                {
+                    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+                    "digest": oci_digest(&arm64.manifest),
+                    "size": arm64.manifest.len(),
+                    "platform": { "os": "linux", "architecture": "arm64", "variant": "v8" },
+                },
+            ],
+        }))
+        .unwrap(),
+    );
+    let mut routes = amd64.routes();
+    routes.extend(arm64.routes());
+    routes.insert(
+        format!("/v2/team/image/manifests/{}", oci_digest(&index)),
+        index.clone(),
+    );
+    let registry = FakeRegistry::start(routes).await;
+    let store = make_store().await;
+    let fetch = make_oci_fetch(store.clone());
+    let uri = registry.uri(&format!("@{}", oci_digest(&index)));
+
+    let mut layouts = Vec::new();
+    for qualifiers in [
+        vec![],
+        vec![Qualifier {
+            name: "oci.platform".into(),
+            value: "linux/arm64".into(),
+        }],
+    ] {
+        let resp = fetch
+            .fetch_directory(oci_fetch(uri.clone(), DigestFn::Sha256, qualifiers))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.status.unwrap().code, 0);
+        let root = read_directory(
+            &store,
+            DigestFn::Sha256,
+            &resp.root_directory_digest.unwrap(),
+        )
+        .await;
+        let index = read_cas(
+            &store,
+            DigestFn::Sha256,
+            root.files[0].digest.as_ref().unwrap(),
+        )
+        .await;
+        layouts.push(String::from_utf8(index.to_vec()).unwrap());
+    }
+    assert!(
+        layouts[0].contains(&oci_digest(&amd64.manifest)),
+        "{}",
+        layouts[0]
+    );
+    assert!(
+        layouts[1].contains(&oci_digest(&arm64.manifest)),
+        "{}",
+        layouts[1]
+    );
+}
+
+/// FetchBlob of an `oci://` URI fetches whatever its digest names: a layer,
+/// or a manifest.
+#[tokio::test]
+async fn fetch_blob_fetches_a_blob_from_a_registry() {
+    use base64::Engine as _;
+    let image = TestImage::new();
+    let registry = FakeRegistry::start(image.routes()).await;
+    let store = make_store().await;
+    let fetch = make_oci_fetch(store.clone());
+    let blob_fetch = |blob: &Bytes, digest_fn: DigestFn, qualifiers: Vec<Qualifier>| {
+        let mut req = http_fetch(registry.uri(&format!("@{}", oci_digest(blob))));
+        req.get_mut().digest_function = digest_fn.to_proto_i32();
+        req.get_mut().qualifiers = qualifiers;
+        req
+    };
+
+    for digest_fn in [DigestFn::Sha256, DigestFn::Blake3] {
+        for blob in [&image.layers[1], &image.manifest] {
+            let resp = fetch
+                .fetch_blob(blob_fetch(blob, digest_fn, vec![]))
+                .await
+                .unwrap()
+                .into_inner();
+            assert_eq!(resp.status.unwrap().code, 0, "{digest_fn:?}");
+            let digest = resp.blob_digest.unwrap();
+            assert_eq!(digest.size_bytes, blob.len() as i64);
+            assert!(
+                read_cas(&store, digest_fn, &digest).await == *blob,
+                "{digest_fn:?}"
+            );
+        }
+    }
+
+    let sri = |data: &[u8]| {
+        vec![Qualifier {
+            name: "checksum.sri".into(),
+            value: format!(
+                "sha256-{}",
+                base64::engine::general_purpose::STANDARD.encode(sha256(data))
+            ),
+        }]
+    };
+    let layer = &image.layers[0];
+    let resp = fetch
+        .fetch_blob(blob_fetch(layer, DigestFn::Sha256, sri(layer)))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(resp.status.unwrap().code, 0);
+    let resp = fetch
+        .fetch_blob(blob_fetch(layer, DigestFn::Sha256, sri(b"something else")))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(
+        tonic::Code::from(resp.status.unwrap().code),
+        tonic::Code::Aborted
+    );
+
+    let missing = Bytes::from_static(b"never pushed");
+    let resp = fetch
+        .fetch_blob(blob_fetch(&missing, DigestFn::Sha256, vec![]))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(
+        tonic::Code::from(resp.status.unwrap().code),
+        tonic::Code::NotFound
+    );
+}

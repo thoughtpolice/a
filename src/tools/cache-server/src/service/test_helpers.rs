@@ -111,3 +111,18 @@ pub fn make_fetch_with(
 pub fn make_push(store: Arc<CacheStore>) -> super::remote_asset::PushService {
     super::remote_asset::PushService::new(store)
 }
+
+/// `size` deterministic bytes without repeats (xorshift), which FastCDC cuts
+/// into chunks of its average size.
+pub fn noise(size: usize) -> Vec<u8> {
+    let mut state = 0x9E37_79B9_7F4A_7C15u64;
+    let mut data = Vec::with_capacity(size + 8);
+    while data.len() < size {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        data.extend_from_slice(&state.to_le_bytes());
+    }
+    data.truncate(size);
+    data
+}

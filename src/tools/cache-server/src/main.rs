@@ -219,6 +219,24 @@ struct ServeArgs {
     )]
     max_concurrent_git_clones: usize,
 
+    /// Remote Asset OCI image fetches allowed to run at once. Each streams
+    /// a few layers at a time into the store; identical concurrent requests
+    /// share one fetch.
+    #[arg(
+        long,
+        default_value_t = 4,
+        env = "CACHE_SERVER_MAX_CONCURRENT_OCI_FETCHES"
+    )]
+    max_concurrent_oci_fetches: usize,
+
+    /// A Docker `config.json` whose `auths` hold credentials for OCI
+    /// registries that refuse anonymous pulls: per registry host, an `auth`
+    /// (base64 of `username:password`) or a `username` and `password`.
+    /// Credentials go only to the registry they are for and to the token
+    /// service its challenges name, and only over TLS.
+    #[arg(long, env = "CACHE_SERVER_OCI_AUTH_FILE")]
+    oci_auth_file: Option<PathBuf>,
+
     // --- OTEL options ---
     /// Enable OpenTelemetry export (also enabled if OTEL_EXPORTER_OTLP_ENDPOINT is set)
     #[arg(long)]
@@ -346,6 +364,20 @@ fn main() -> Result<()> {
         recorder.graceful_shutdown(std::time::Duration::from_secs(5));
         result
     }
+}
+
+/// Read the registry credentials in the Docker `config.json` at `path`.
+fn read_oci_credentials(path: &std::path::Path) -> Result<fetch_oci::RegistryCredentials> {
+    let json = std::fs::read(path)
+        .with_context(|| format!("failed to read --oci-auth-file {}", path.display()))?;
+    let credentials = fetch_oci::RegistryCredentials::from_docker_config(&json)
+        .map_err(anyhow::Error::msg)
+        .with_context(|| format!("invalid --oci-auth-file {}", path.display()))?;
+    tracing::info!(
+        registries = ?credentials.registries().collect::<Vec<_>>(),
+        "read OCI registry credentials",
+    );
+    Ok(credentials)
 }
 
 fn parse_backend(store: &str) -> Result<store::StoreBackend> {
@@ -482,6 +514,8 @@ impl Default for ServeArgs {
             git_spool_dir: None,
             max_concurrent_http_fetches: 16,
             max_concurrent_git_clones: 2,
+            max_concurrent_oci_fetches: 4,
+            oci_auth_file: None,
             otel_enabled: false,
             otel_endpoint: None,
             otel_service_name: "buck2-cache-server".to_string(),
@@ -600,6 +634,10 @@ async fn run_server(
     );
 
     let backend = parse_backend(&cli.store)?;
+    let oci_credentials = match &args.oci_auth_file {
+        Some(path) => read_oci_credentials(path)?,
+        None => fetch_oci::RegistryCredentials::default(),
+    };
 
     // Before the store opens: SlateDB registers its metrics as it is built,
     // and instruments created before the meter provider is installed stay
@@ -735,6 +773,8 @@ async fn run_server(
             .then(|| std::time::Duration::from_secs(args.fetch_timeout)),
         max_http_fetches: args.max_concurrent_http_fetches,
         max_git_clones: args.max_concurrent_git_clones,
+        max_oci_fetches: args.max_concurrent_oci_fetches,
+        oci_credentials,
     };
     let result = tokio::select! {
         r = reapi_grpc::start_reapi_grpc(

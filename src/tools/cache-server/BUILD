@@ -13,6 +13,7 @@ BUILD_DEPS = [
     "//src/crates/rustls-transport:rustls-transport",
     "//src/tools/cache-server/fetch-git:fetch-git",
     "//src/tools/cache-server/fetch-http:fetch-http",
+    "//src/tools/cache-server/fetch-oci:fetch-oci",
     "//src/tools/cache-server/protos:protos",
     "//src/tools/cache-server/runtime:runtime",
     "//src/tools/cache-server/storage:storage",
@@ -76,7 +77,9 @@ ALL_TEST_RESOURCES = {
 }
 
 TEST_DEPS = BUILD_DEPS + [
+    "third-party//rust:base64",
     "third-party//rust:buck-resources",
+    "third-party//rust:serde_json",
     "third-party//rust:tempfile",
 ]
 

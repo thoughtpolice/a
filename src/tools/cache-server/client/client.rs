@@ -420,9 +420,9 @@ impl ReapiClient {
     /// Fetch a remote asset by URI + qualifiers and download it.
     ///
     /// For git repositories (detected via `resource_type=application/x-git` or
-    /// VCS qualifiers), uses the FetchDirectory RPC and recursively downloads
-    /// the directory tree. For everything else, uses FetchBlob and downloads a
-    /// single file.
+    /// VCS qualifiers) and container images (`oci://` and `docker://` URIs),
+    /// uses the FetchDirectory RPC and recursively downloads the directory
+    /// tree. For everything else, uses FetchBlob and downloads a single file.
     pub async fn fetch_asset(
         &mut self,
         uri: &str,
@@ -430,7 +430,7 @@ impl ReapiClient {
         output_path: &std::path::Path,
         progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
     ) -> Result<FetchResult> {
-        if Self::is_directory_fetch(&qualifiers) {
+        if Self::is_directory_fetch(uri, &qualifiers) {
             self.fetch_directory_asset(uri, qualifiers, output_path, progress_tx)
                 .await
         } else {
@@ -439,17 +439,22 @@ impl ReapiClient {
         }
     }
 
-    /// Returns true if the qualifiers indicate a directory fetch (git clone).
-    fn is_directory_fetch(qualifiers: &[(String, String)]) -> bool {
-        qualifiers.iter().any(|(name, value)| {
-            (name == "resource_type" && value == "application/x-git")
-                || name == "vcs.branch"
-                || name == "vcs.commit"
-        })
+    /// Returns true if the URI and qualifiers indicate a directory fetch: a
+    /// git clone, or a container image, which arrives as an OCI image layout.
+    fn is_directory_fetch(uri: &str, qualifiers: &[(String, String)]) -> bool {
+        let scheme = uri.split_once("://").map_or("", |(scheme, _)| scheme);
+        scheme.eq_ignore_ascii_case("oci")
+            || scheme.eq_ignore_ascii_case("docker")
+            || qualifiers.iter().any(|(name, value)| {
+                (name == "resource_type" && value == "application/x-git")
+                    || name == "vcs.branch"
+                    || name == "vcs.commit"
+            })
     }
 
-    /// Fetch a blob asset via FetchBlob RPC.
-    async fn fetch_blob_asset(
+    /// Fetch a blob asset via FetchBlob RPC, whatever the URI and qualifiers
+    /// suggest.
+    pub async fn fetch_blob_asset(
         &mut self,
         uri: &str,
         qualifiers: Vec<(String, String)>,
@@ -720,6 +725,28 @@ mod tests {
 
     fn digest_of(data: &[u8]) -> (String, u64) {
         (hex::encode(Sha256::digest(data)), data.len() as u64)
+    }
+
+    #[test]
+    fn git_and_image_fetches_are_directories() {
+        let digest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let commit = [("vcs.commit".to_string(), "abc".to_string())];
+        assert!(ReapiClient::is_directory_fetch(
+            "https://example.com/r",
+            &commit
+        ));
+        assert!(ReapiClient::is_directory_fetch(
+            &format!("oci://ghcr.io/a/b@{digest}"),
+            &[]
+        ));
+        assert!(ReapiClient::is_directory_fetch(
+            &format!("Docker://docker.io/a/b@{digest}"),
+            &[]
+        ));
+        assert!(!ReapiClient::is_directory_fetch(
+            "https://example.com/oci://x",
+            &[]
+        ));
     }
 
     #[test]
