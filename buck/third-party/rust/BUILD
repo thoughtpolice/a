@@ -28898,6 +28898,139 @@ third_party_rust.rust_library(
 )
 
 shims.alias(
+    name = "wit-bindgen-c",
+    actual = ":wit-bindgen-c-0.62",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "wit-bindgen-c-0.62.0.crate",
+    sha256 = "f2b1a046e4ba8ac72963a29ec460023006954b2d2bac5f42415918c871f51111",
+    strip_prefix = "wit-bindgen-c-0.62.0",
+    urls = ["https://static.crates.io/crates/wit-bindgen-c/0.62.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "wit-bindgen-c-0.62",
+    srcs = [":wit-bindgen-c-0.62.0.crate"],
+    crate = "wit_bindgen_c",
+    crate_root = "wit-bindgen-c-0.62.0.crate/src/lib.rs",
+    edition = "2024",
+    env = {
+        "CARGO_BIN_NAME": "wit_bindgen_c",
+        "CARGO_CRATE_NAME": "wit_bindgen_c",
+        "CARGO_MANIFEST_DIR": "wit-bindgen-c-0.62.0.crate",
+        "CARGO_PKG_AUTHORS": "Alex Crichton <alex@alexcrichton.com>",
+        "CARGO_PKG_DESCRIPTION": "C bindings generator for WIT and the component model, typically used through the\n`wit-bindgen-cli` crate.\n",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_NAME": "wit-bindgen-c",
+        "CARGO_PKG_README": "README.md",
+        "CARGO_PKG_REPOSITORY": "https://github.com/bytecodealliance/wit-bindgen",
+        "CARGO_PKG_RUST_VERSION": "1.88.0",
+        "CARGO_PKG_VERSION": "0.62.0",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "62",
+        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = ["clap"],
+    visibility = [],
+    deps = [
+        ":anyhow-1",
+        ":clap-4",
+        ":heck-0.5",
+        ":indexmap-2",
+        ":wasm-encoder-0.259",
+        ":wasm-metadata-0.259",
+        ":wit-bindgen-core-0.62",
+        ":wit-component-0.259",
+    ],
+)
+
+shims.alias(
+    name = "wit-bindgen-core",
+    actual = ":wit-bindgen-core-0.62",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "wit-bindgen-core-0.62.0.crate",
+    sha256 = "72ad22a37ecbc0e1fdca34d2b670ba41368cb0920735643e00fdf39a16ee5431",
+    strip_prefix = "wit-bindgen-core-0.62.0",
+    urls = ["https://static.crates.io/crates/wit-bindgen-core/0.62.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "wit-bindgen-core-0.62",
+    srcs = [":wit-bindgen-core-0.62.0.crate"],
+    crate = "wit_bindgen_core",
+    crate_root = "wit-bindgen-core-0.62.0.crate/src/lib.rs",
+    edition = "2024",
+    features = ["clap"],
+    visibility = [],
+    deps = [
+        ":anyhow-1",
+        ":clap-4",
+        ":heck-0.5",
+        ":wit-parser-0.259",
+    ],
+)
+
+shims.alias(
+    name = "wit-bindgen-rust",
+    actual = ":wit-bindgen-rust-0.62",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "wit-bindgen-rust-0.62.0.crate",
+    sha256 = "84ba5213d4332c260a0d4e69e34b0f7e4b85ddae10b6ebfbac00d9c185ba628a",
+    strip_prefix = "wit-bindgen-rust-0.62.0",
+    urls = ["https://static.crates.io/crates/wit-bindgen-rust/0.62.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "wit-bindgen-rust-0.62",
+    srcs = [":wit-bindgen-rust-0.62.0.crate"],
+    crate = "wit_bindgen_rust",
+    crate_root = "wit-bindgen-rust-0.62.0.crate/src/lib.rs",
+    edition = "2024",
+    env = {
+        "CARGO_BIN_NAME": "wit_bindgen_rust",
+        "CARGO_CRATE_NAME": "wit_bindgen_rust",
+        "CARGO_MANIFEST_DIR": "wit-bindgen-rust-0.62.0.crate",
+        "CARGO_PKG_AUTHORS": "Alex Crichton <alex@alexcrichton.com>",
+        "CARGO_PKG_DESCRIPTION": "Rust bindings generator for WIT and the component model, typically used through\nthe `wit-bindgen` crate's `generate!` macro.\n",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_NAME": "wit-bindgen-rust",
+        "CARGO_PKG_README": "",
+        "CARGO_PKG_REPOSITORY": "https://github.com/bytecodealliance/wit-bindgen",
+        "CARGO_PKG_RUST_VERSION": "",
+        "CARGO_PKG_VERSION": "0.62.0",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "62",
+        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = ["clap"],
+    visibility = [],
+    deps = [
+        ":anyhow-1",
+        ":clap-4",
+        ":heck-0.5",
+        ":indexmap-2",
+        ":prettyplease-0.3",
+        ":syn-3",
+        ":wasm-metadata-0.259",
+        ":wit-bindgen-core-0.62",
+        ":wit-component-0.259",
+    ],
+)
+
+shims.alias(
     name = "wit-component",
     actual = ":wit-component-0.259",
     visibility = ["PUBLIC"],

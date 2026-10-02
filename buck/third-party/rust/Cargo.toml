@@ -219,6 +219,12 @@ wasmparser = "0.259.0"
 wasmprinter = "0.259.0"
 wat = "1.259.0"
 watchman_client = "0.9.0"
+# NOTE (wit-bindgen): the generators behind wit-bindgen's CLI, which `witgen c`
+# and `witgen rust` run in the build graph. 0.62 is the release on this
+# wasm-tools (wit-parser 0.259); move them together.
+wit-bindgen-c = { version = "0.62.0", features = ["clap"] }
+wit-bindgen-core = "0.62.0"
+wit-bindgen-rust = { version = "0.62.0", features = ["clap"] }
 wit-component = "0.259.0"
 wit-parser = "0.259.0"
 zeroize = "1.9"

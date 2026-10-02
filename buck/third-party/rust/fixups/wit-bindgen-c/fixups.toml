@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The generated preamble names the generator's package and version.
+cargo_env = true
