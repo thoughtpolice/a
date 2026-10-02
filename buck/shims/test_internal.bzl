@@ -26,8 +26,16 @@ def internal_runner_from_external(
         command,
         listing_command,
         parse_test_listing,
-        parse_test_result):
-    """Copy execution policy from a prelude external test into an internal one."""
+        parse_test_result,
+        local_resources = {}):
+    """Copy execution policy from a prelude external test into an internal one.
+
+    `local_resources` maps names to `LocalResourceInfo` targets for services
+    that each test needs while it runs, in addition to any the prelude rule
+    declared. Discovery does not wait for them.
+    """
+    all_local_resources = dict(external.local_resources or {})
+    all_local_resources.update(local_resources)
     return InternalRunnerTestInfo(
         # The provider constructor calls this `type`, while its readable field
         # is exposed as `test_type`.
@@ -41,8 +49,11 @@ def internal_runner_from_external(
         use_project_relative_paths = external.use_project_relative_paths,
         default_executor = external.default_executor,
         executor_overrides = external.executor_overrides,
-        local_resources = external.local_resources,
-        required_local_resources = external.required_local_resources,
+        local_resources = all_local_resources,
+        required_local_resources = (external.required_local_resources or []) + [
+            RequiredTestLocalResource(name, listing = False, execution = True)
+            for name in local_resources
+        ],
         worker = external.worker,
         parse_test_listing = parse_test_listing,
         parse_test_result = parse_test_result,

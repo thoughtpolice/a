@@ -138,6 +138,8 @@ def _depot_rust_test(**kwargs):
     if _use_internal_test_runner("rust"):
         _depot_rust_rule("rust_test", fn = _rust_test_internal_rule, **kwargs)
     else:
+        if kwargs.pop("local_resources", None):
+            fail("depot.rust_test: local_resources needs the internal test runner (test.use_internal_runner)")
         _depot_rust_rule("rust_test", **kwargs)
 
 def _depot_go_test(**kwargs):
