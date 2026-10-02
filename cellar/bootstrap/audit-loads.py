@@ -16,10 +16,12 @@ import sys
 root = Path(__file__).resolve().parent.parent
 
 # cellar's PACKAGE configures every cellar target for x86_64 Linux through the
-# prelude's configuration modifiers; that sets the configuration, and adds no
-# rule or input to any build.
+# prelude's configuration modifiers, and the AArch64 stage's for arm64; that
+# sets the configuration, and adds no rule or input to any build.
+MODIFIERS = {"@prelude//cfg/modifier:set_cfg_modifiers.bzl"}
 CONFIGURATION = {
-    Path("PACKAGE"): {"@prelude//cfg/modifier:set_cfg_modifiers.bzl"},
+    Path("PACKAGE"): MODIFIERS,
+    Path("bootstrap/stage2/aarch64/PACKAGE"): MODIFIERS,
 }
 
 errors = []

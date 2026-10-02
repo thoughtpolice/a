@@ -5,7 +5,7 @@ load("@cellar//bootstrap/stage1:defs.bzl", "c_object")
 
 _SOURCE = "cellar//bootstrap/stage1/mimalloc:mimalloc-3.5.3"
 
-def mimalloc_object(name, toolchain):
+def mimalloc_object(name, toolchain, source = _SOURCE, **kwargs):
     """mimalloc as one object, compiled by toolchain.
 
     src/static.c includes the whole allocator. With MI_MALLOC_OVERRIDE, it
@@ -14,7 +14,7 @@ def mimalloc_object(name, toolchain):
     """
     c_object(
         name = name,
-        src = _SOURCE + "[src/static.c]",
+        src = source + "[src/static.c]",
         defines = [
             "MI_MALLOC_OVERRIDE=1",
             "NDEBUG",
@@ -24,8 +24,9 @@ def mimalloc_object(name, toolchain):
             "-O2",
             "-fno-builtin-malloc",
         ],
-        headers = [_SOURCE],
-        includes = [_SOURCE + "[include]"],
+        headers = [source],
+        includes = [source + "[include]"],
         object_name = "mimalloc.o",
         toolchain = toolchain,
+        **kwargs
     )

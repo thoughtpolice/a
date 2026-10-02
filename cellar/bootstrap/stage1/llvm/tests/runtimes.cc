@@ -98,9 +98,14 @@ int main() {
   if (static_cast<float>(half) != 1.5f || static_cast<float>(brain) != 1.5f)
     return 7;
 
+#if defined(__x86_64__)
   __builtin_cpu_init();
   if (!__builtin_cpu_supports("sse2"))
     return 8;
+#elif defined(__aarch64__)
+  if (!__builtin_cpu_supports("simd"))
+    return 8;
+#endif
 
   std::filesystem::path path = std::filesystem::path("a/b/../c").lexically_normal();
   if (!std::filesystem::exists(std::filesystem::current_path()))
