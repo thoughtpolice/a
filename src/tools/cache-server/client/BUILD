@@ -45,6 +45,20 @@ depot.rust_binary(
     ],
 )
 
+depot.rust_test(
+    name = "tests",
+    srcs = glob(
+        ["**/*.rs"],
+        exclude = ["buck_log_*.rs"],
+    ),
+    crate_root = "main.rs",
+    deps = REAPI_CLIENT_DEPS + [
+        "third-party//rust:crossterm",
+        "third-party//rust:ratatui",
+        "third-party//rust:tempfile",
+    ],
+)
+
 depot.rust_binary(
     name = "buck-log-uploader",
     srcs = [
