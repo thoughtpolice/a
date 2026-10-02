@@ -185,7 +185,7 @@ pub(crate) fn sha256tree_hash(data: &[u8]) -> [u8; 32] {
 /// Incremental hasher that avoids concatenating all chunk data just to compute a whole-blob hash.
 /// SHA-256 and BLAKE3 support true streaming; SHA256TREE accumulates leaf hashes (one per 1 KiB
 /// leaf) instead of the full data, reducing memory from O(blob_size) to O(blob_size / 1024 * 32).
-pub(crate) enum IncrementalHasher {
+pub enum IncrementalHasher {
     Sha256(Sha256),
     Blake3(blake3::Hasher),
     Sha256Tree {
@@ -196,7 +196,7 @@ pub(crate) enum IncrementalHasher {
 }
 
 impl IncrementalHasher {
-    pub(crate) fn new(digest_fn: DigestFn, _size_hint: usize) -> Self {
+    pub fn new(digest_fn: DigestFn, _size_hint: usize) -> Self {
         match digest_fn {
             DigestFn::Sha256 => IncrementalHasher::Sha256(Sha256::new()),
             DigestFn::Blake3 => IncrementalHasher::Blake3(blake3::Hasher::new()),
@@ -208,7 +208,7 @@ impl IncrementalHasher {
         }
     }
 
-    pub(crate) fn update(&mut self, data: &[u8]) {
+    pub fn update(&mut self, data: &[u8]) {
         match self {
             IncrementalHasher::Sha256(h) => {
                 h.update(data);
@@ -237,7 +237,7 @@ impl IncrementalHasher {
         }
     }
 
-    pub(crate) fn finalize(self) -> [u8; 32] {
+    pub fn finalize(self) -> [u8; 32] {
         match self {
             IncrementalHasher::Sha256(h) => h.finalize().into(),
             IncrementalHasher::Blake3(h) => *h.finalize().as_bytes(),

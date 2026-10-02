@@ -142,6 +142,31 @@ struct ServeArgs {
     #[arg(long, env = "CACHE_SERVER_TLS_KEY", requires = "tls_cert")]
     tls_key: Option<PathBuf>,
 
+    /// Directory for spooling git packfiles during clones. Large repository
+    /// fetches write multi-GiB temporary files here; point it at real disk
+    /// (the default system temp dir is often RAM-backed tmpfs).
+    #[arg(long, env = "CACHE_SERVER_GIT_SPOOL_DIR")]
+    git_spool_dir: Option<std::path::PathBuf>,
+
+    /// Remote Asset HTTP fetches allowed to run at once. Each may hold up to
+    /// 256 MiB in memory; identical concurrent requests share one fetch.
+    #[arg(
+        long,
+        default_value_t = 16,
+        env = "CACHE_SERVER_MAX_CONCURRENT_HTTP_FETCHES"
+    )]
+    max_concurrent_http_fetches: usize,
+
+    /// Remote Asset git clones allowed to run at once. Each spools its pack
+    /// under --git-spool-dir and holds the pack's index in memory; identical
+    /// concurrent requests share one clone.
+    #[arg(
+        long,
+        default_value_t = 2,
+        env = "CACHE_SERVER_MAX_CONCURRENT_GIT_CLONES"
+    )]
+    max_concurrent_git_clones: usize,
+
     // --- OTEL options ---
     /// Enable OpenTelemetry export (also enabled if OTEL_EXPORTER_OTLP_ENDPOINT is set)
     #[arg(long)]
@@ -338,6 +363,9 @@ impl Default for ServeArgs {
             disable_compactor: false,
             tls_cert: None,
             tls_key: None,
+            git_spool_dir: None,
+            max_concurrent_http_fetches: 16,
+            max_concurrent_git_clones: 2,
             otel_enabled: false,
             otel_endpoint: None,
             otel_service_name: "buck2-cache-server".to_string(),
@@ -530,18 +558,24 @@ async fn run_server(
         tracing::warn!("drain timeout (10s), forcing shutdown");
     };
 
+    let request_timeout =
+        (args.request_timeout > 0).then(|| std::time::Duration::from_secs(args.request_timeout));
+    let fetch_config = service::FetchConfig {
+        cpus: rt_info.effective_cpus,
+        git_spool_dir: args.git_spool_dir.clone(),
+        server_timeout: request_timeout,
+        max_http_fetches: args.max_concurrent_http_fetches,
+        max_git_clones: args.max_concurrent_git_clones,
+    };
     let result = tokio::select! {
         r = reapi_grpc::start_reapi_grpc(
                 address,
                 tls_config,
                 shutdown,
                 cache_store.clone(),
-                if args.request_timeout > 0 {
-                    Some(std::time::Duration::from_secs(args.request_timeout))
-                } else {
-                    None
-                },
+                request_timeout,
                 Some(args.max_concurrent_requests),
+                fetch_config,
                 handle,
                 pressure_monitor,
         ) => r,

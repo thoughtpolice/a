@@ -9,8 +9,9 @@ pub use sha2::{Digest as _, Sha256};
 
 pub use protos::build::bazel::remote::execution::v2::{
     ActionResult, BatchReadBlobsRequest, BatchUpdateBlobsRequest, Digest, Directory, DirectoryNode,
-    FindMissingBlobsRequest, SpliceBlobRequest, SplitBlobRequest, action_cache_server::ActionCache,
-    batch_update_blobs_request, capabilities_server::Capabilities,
+    FileNode, FindMissingBlobsRequest, SpliceBlobRequest, SplitBlobRequest, SymlinkNode,
+    action_cache_server::ActionCache, batch_update_blobs_request,
+    capabilities_server::Capabilities,
     content_addressable_storage_server::ContentAddressableStorage,
 };
 pub use protos::google::bytestream::{ReadRequest, WriteRequest, byte_stream_server::ByteStream};
@@ -97,7 +98,14 @@ pub fn make_data(size: usize) -> Vec<u8> {
 }
 
 pub fn make_fetch(store: Arc<CacheStore>) -> super::remote_asset::FetchService {
-    super::remote_asset::FetchService::new(store)
+    make_fetch_with(store, Default::default())
+}
+
+pub fn make_fetch_with(
+    store: Arc<CacheStore>,
+    config: super::remote_asset::FetchConfig,
+) -> super::remote_asset::FetchService {
+    super::remote_asset::FetchService::new(store, test_handle(), config)
 }
 
 pub fn make_push(store: Arc<CacheStore>) -> super::remote_asset::PushService {
