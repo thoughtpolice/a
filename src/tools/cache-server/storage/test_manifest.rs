@@ -16,6 +16,7 @@ fn manifest_v3_roundtrip_single_chunk() {
             size: 1024,
         }],
         created_at: 1700000000,
+        inline: None,
     };
     let bytes = manifest.to_bytes(Compression::Identity).unwrap();
     assert_eq!(bytes.len(), 14 + 40); // V3 header + 1 entry
@@ -34,6 +35,7 @@ fn manifest_v3_roundtrip_with_zstd() {
             size: 2048,
         }],
         created_at: 0,
+        inline: None,
     };
     let bytes = manifest.to_bytes(Compression::Zstd).unwrap();
     let (decoded, comp) = BlobManifest::from_bytes(bytes).unwrap();
@@ -50,6 +52,7 @@ fn manifest_v3_roundtrip_with_deflate() {
             size: 4096,
         }],
         created_at: 0,
+        inline: None,
     };
     let bytes = manifest.to_bytes(Compression::Deflate).unwrap();
     let (decoded, comp) = BlobManifest::from_bytes(bytes).unwrap();
@@ -65,6 +68,7 @@ fn manifest_v3_roundtrip_with_brotli() {
             size: 8192,
         }],
         created_at: 0,
+        inline: None,
     };
     let bytes = manifest.to_bytes(Compression::Brotli).unwrap();
     let (decoded, comp) = BlobManifest::from_bytes(bytes).unwrap();
@@ -88,6 +92,7 @@ fn manifest_v3_roundtrip_multiple_chunks() {
     let manifest = BlobManifest {
         chunks,
         created_at: 0,
+        inline: None,
     };
     let bytes = manifest.to_bytes(Compression::Zstd).unwrap();
     assert_eq!(bytes.len(), 14 + 100 * 40);
@@ -106,6 +111,7 @@ fn manifest_v3_roundtrip_empty() {
     let manifest = BlobManifest {
         chunks: vec![],
         created_at: 0,
+        inline: None,
     };
     let bytes = manifest.to_bytes(Compression::Identity).unwrap();
     assert_eq!(bytes.len(), 14); // V3 header (version + compression + created_at + count)
@@ -171,6 +177,7 @@ fn manifest_preserves_chunk_order() {
     let manifest = BlobManifest {
         chunks,
         created_at: 0,
+        inline: None,
     };
     let (decoded, _) =
         BlobManifest::from_bytes(manifest.to_bytes(Compression::Identity).unwrap()).unwrap();
@@ -219,6 +226,7 @@ fn manifest_to_bytes_valid() {
             size: 1024,
         }],
         created_at: 0,
+        inline: None,
     };
     assert!(manifest.to_bytes(Compression::Identity).is_ok());
 }
@@ -235,6 +243,7 @@ fn manifest_v3_roundtrip_with_timestamp() {
             size: 1024,
         }],
         created_at: 1700000000,
+        inline: None,
     };
     let bytes = manifest.to_bytes(Compression::Identity).unwrap();
     let (decoded, comp) = BlobManifest::from_bytes(bytes).unwrap();
@@ -248,6 +257,7 @@ fn manifest_v3_zero_timestamp() {
     let manifest = BlobManifest {
         chunks: vec![],
         created_at: 0,
+        inline: None,
     };
     let bytes = manifest.to_bytes(Compression::Identity).unwrap();
     let (decoded, _) = BlobManifest::from_bytes(bytes).unwrap();
@@ -268,6 +278,7 @@ fn manifest_trailing_bytes_accepted() {
             size: 1024,
         }],
         created_at: 1700000000,
+        inline: None,
     };
     let mut bytes = BytesMut::from(manifest.to_bytes(Compression::Identity).unwrap().as_ref());
     bytes.put_slice(&[0xFF; 16]); // trailing bytes
@@ -277,4 +288,67 @@ fn manifest_trailing_bytes_accepted() {
     assert_eq!(decoded.chunks.len(), 1);
     assert_eq!(decoded.chunks[0].hash, [0xAB; 32]);
     assert_eq!(decoded.chunks[0].size, 1024);
+}
+
+// =================================================================================================================
+// V4: a blob stored in its manifest
+// =================================================================================================================
+
+#[test]
+fn manifest_v4_roundtrip() {
+    let data = Bytes::from(vec![0x5A; 3000]);
+    for compression in [
+        Compression::Identity,
+        Compression::Zstd,
+        Compression::Deflate,
+        Compression::Brotli,
+    ] {
+        let manifest = BlobManifest::inline([0xCD; 32], data.clone());
+        let bytes = manifest.to_bytes(compression).unwrap();
+        assert_eq!(bytes[0], 4);
+        if compression != Compression::Identity {
+            assert!(bytes.len() < data.len(), "{compression:?} shrinks a run");
+        }
+        let (decoded, comp) = BlobManifest::from_bytes(bytes).unwrap();
+        assert_eq!(comp, compression);
+        assert_eq!(decoded.created_at, manifest.created_at);
+        assert_eq!(decoded.inline, Some(data.clone()));
+        // The hash lives in the key: the reader names the chunk.
+        assert!(decoded.chunks.is_empty());
+    }
+}
+
+#[test]
+fn manifest_v4_keeps_payloads_compression_would_grow() {
+    let data = Bytes::from(noise(INLINE_BLOB_MAX));
+    let manifest = BlobManifest::inline([0x01; 32], data.clone());
+    let bytes = manifest.to_bytes(Compression::Zstd).unwrap();
+    assert_eq!(bytes.len(), 10 + data.len());
+    let (decoded, comp) = BlobManifest::from_bytes(bytes).unwrap();
+    assert_eq!(comp, Compression::Identity);
+    assert_eq!(decoded.inline, Some(data));
+}
+
+#[test]
+fn manifest_v4_payload_is_bounded() {
+    // A corrupt payload that inflates past any inline blob is refused, not
+    // decompressed into memory.
+    let zeros = vec![0u8; 2 << 20];
+    let bomb = Compression::Zstd.compress(&zeros).unwrap();
+    let mut buf = BytesMut::new();
+    buf.put_u8(4);
+    buf.put_u8(Compression::Zstd as u8);
+    buf.put_u64(0);
+    buf.put_slice(&bomb);
+    assert!(BlobManifest::from_bytes(buf.freeze()).is_err());
+}
+
+#[test]
+fn manifest_v3_header_without_count_is_rejected() {
+    let mut buf = BytesMut::new();
+    buf.put_u8(3);
+    buf.put_u8(Compression::Identity as u8);
+    buf.put_u64(0);
+    let result = BlobManifest::from_bytes(buf.freeze());
+    assert!(matches!(result, Err(StoreError::ManifestCorrupted(_))));
 }

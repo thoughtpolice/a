@@ -6,14 +6,17 @@ use std::sync::Arc;
 use bytes::Bytes;
 use prost::Message;
 
+use futures::StreamExt as _;
 use protos::build::bazel::remote::execution::v2::{
-    ActionResult, GetActionResultRequest, UpdateActionResultRequest, action_cache_server,
+    ActionResult, Digest, GetActionResultRequest, Tree, UpdateActionResultRequest,
+    action_cache_server,
 };
 
-use crate::store::CacheStore;
+use crate::store::{CacheStore, DigestFn};
 
 use super::helpers::{
-    instrumented_rpc, parse_and_validate_digest, resolve_digest_function, store_error_to_status,
+    instrumented_rpc, parse_and_validate_digest, parse_and_validate_digest_ref,
+    resolve_digest_function, store_error_to_status,
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -56,12 +59,19 @@ impl action_cache_server::ActionCache for ActionCacheService {
             let svc_attr = telemetry::KeyValue::new("service", "ac");
             match data {
                 Some(data) => {
-                    m.cache_hits.add(1, &[svc_attr]);
-                    telemetry::wide!("cache.hit", true);
-
                     let result = ActionResult::decode(data.as_ref()).map_err(|e| {
                         tonic::Status::internal(format!("failed to decode action result: {e}"))
                     })?;
+                    if !outputs_stored(&store, digest_fn, &result).await? {
+                        m.cache_misses.add(1, &[svc_attr]);
+                        telemetry::wide!("cache.hit", false);
+                        telemetry::wide!("cache.outputs_missing", true);
+                        return Err(tonic::Status::not_found(
+                            "action result found, but not all of its outputs are still stored",
+                        ));
+                    }
+                    m.cache_hits.add(1, &[svc_attr]);
+                    telemetry::wide!("cache.hit", true);
                     Ok(tonic::Response::new(result))
                 }
                 None => {
@@ -109,6 +119,97 @@ impl action_cache_server::ActionCache for ActionCacheService {
         })
         .await
     }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+/// Output lookups an action cache hit keeps in flight.
+const OUTPUT_CHECKS_IN_FLIGHT: usize = 32;
+
+/// Whether every blob `result` names is stored, by the rule FindMissingBlobs
+/// answers with: output files, the files of output directories (and their
+/// Tree blobs), stdout, and stderr.
+///
+/// A client told an action ran need not download its outputs (Bazel's
+/// "build without the bytes"); it later names them as inputs, or fetches
+/// them at the end. A hit whose outputs have expired, or are close enough to
+/// it that FindMissingBlobs already calls them missing, would fail that
+/// client later, so it is reported as a miss instead: the client runs the
+/// action again, and uploading its outputs renews them.
+async fn outputs_stored(
+    store: &CacheStore,
+    digest_fn: DigestFn,
+    result: &ActionResult,
+) -> Result<bool, tonic::Status> {
+    let mut named = Vec::new();
+    let mut trees = Vec::new();
+    for file in &result.output_files {
+        named.extend(file.digest.clone());
+    }
+    for dir in &result.output_directories {
+        named.extend(dir.root_directory_digest.clone());
+        if let Some(tree) = &dir.tree_digest {
+            named.push(tree.clone());
+            trees.push(tree.clone());
+        }
+    }
+    named.extend(result.stdout_digest.clone());
+    named.extend(result.stderr_digest.clone());
+    if !all_stored(store, digest_fn, named).await? {
+        return Ok(false);
+    }
+
+    for tree in trees {
+        let Ok(tree_cd) = parse_and_validate_digest_ref(&tree, digest_fn) else {
+            return Ok(false);
+        };
+        let Some(data) = store
+            .cas_get_blob(&tree_cd)
+            .await
+            .map_err(store_error_to_status)?
+        else {
+            return Ok(false);
+        };
+        let Ok(tree) = Tree::decode(data.as_ref()) else {
+            return Ok(false);
+        };
+        let files = tree
+            .root
+            .iter()
+            .chain(&tree.children)
+            .flat_map(|dir| &dir.files)
+            .filter_map(|file| file.digest.clone())
+            .collect();
+        if !all_stored(store, digest_fn, files).await? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+/// Whether every one of `digests` is stored with at least half its TTL left;
+/// a malformed one counts as missing.
+async fn all_stored(
+    store: &CacheStore,
+    digest_fn: DigestFn,
+    digests: Vec<Digest>,
+) -> Result<bool, tonic::Status> {
+    let mut parsed = Vec::with_capacity(digests.len());
+    for digest in &digests {
+        match parse_and_validate_digest_ref(digest, digest_fn) {
+            Ok(cd) => parsed.push(cd),
+            Err(_) => return Ok(false),
+        }
+    }
+    let mut checks = futures::stream::iter(parsed)
+        .map(|cd| async move { store.cas_blob_fresh(&cd).await })
+        .buffer_unordered(OUTPUT_CHECKS_IN_FLIGHT);
+    while let Some(fresh) = checks.next().await {
+        if !fresh.map_err(store_error_to_status)? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

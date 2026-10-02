@@ -223,3 +223,132 @@ async fn git_blob_records_round_trip_and_expire() {
     assert!(!store.is_fresh(record.blob_expires_at_ms));
     store.close().await.expect("close");
 }
+
+/// `len` bytes that FastCDC cuts into several distinct chunks.
+fn large_blob(len: usize) -> (ContentDigest, Bytes) {
+    let data = Bytes::from(super::test_helpers::noise(len));
+    (ContentDigest::compute(DigestFn::Sha256, &data), data)
+}
+
+/// The chunks of a blob, as digests.
+fn chunk_digests(manifest: &BlobManifest) -> Vec<ContentDigest> {
+    manifest
+        .chunks
+        .iter()
+        .map(|c| ContentDigest::new(DigestFn::Sha256, c.hash))
+        .collect()
+}
+
+/// When `digest`'s manifest expires, read from the store itself rather than
+/// the presence cache.
+async fn stored_expiry(store: &CacheStore, digest: &ContentDigest) -> Option<Option<i64>> {
+    let key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
+    store
+        .get_live(&key, &durable_read_options())
+        .await
+        .expect("get")
+        .map(|(_, expires_at)| expires_at)
+}
+
+/// Splitting a blob makes each of its chunks a blob, stored until the blob
+/// itself expires: no sooner, as a client fetching them relies on, and no
+/// later, as the chunk data under them goes when the blob's does.
+#[tokio::test]
+async fn split_chunks_are_blobs_that_expire_with_theirs() {
+    let store = store_with_ttl(Duration::from_secs(60)).await;
+    let (digest, data) = large_blob(4 << 20);
+    store
+        .cas_put_blob(&digest, data, Compression::Identity)
+        .await
+        .expect("put");
+    let (manifest, _) = store.cas_get_manifest(&digest).await.expect("get").unwrap();
+    let chunks = chunk_digests(&manifest);
+    assert!(chunks.len() > 2);
+    for chunk in &chunks {
+        assert_eq!(stored_expiry(&store, chunk).await, None, "not a blob yet");
+    }
+
+    // The presence cache notes expiries by this process's clock and SlateDB
+    // stores them by its own, a few milliseconds apart either way. Chunks
+    // take the stored one, so they never outlive the chunk data under them.
+    let expires_at = stored_expiry(&store, &digest).await.flatten().unwrap();
+    store
+        .presence
+        .insert(digest, Some(expires_at + 5), now_millis());
+
+    let split = store.cas_split_blob(&digest).await.expect("split").unwrap();
+    assert_eq!(chunk_digests(&split), chunks);
+    for chunk in &chunks {
+        assert_eq!(
+            stored_expiry(&store, chunk).await.flatten(),
+            Some(expires_at)
+        );
+        assert!(store.cas_blob_fresh(chunk).await.expect("fresh"));
+        let data = store
+            .cas_get_blob(chunk)
+            .await
+            .expect("read")
+            .expect("a blob");
+        assert_eq!(DigestFn::Sha256.hash_data(&data), chunk.hash);
+    }
+    store.close().await.expect("close");
+}
+
+/// Splitting a blob past half its TTL renews it, chunk data included, as
+/// an upload of it would.
+#[tokio::test]
+async fn splitting_a_blob_past_half_its_ttl_renews_it() {
+    let store = store_with_ttl(Duration::from_millis(4000)).await;
+    let (digest, data) = large_blob(4 << 20);
+    store
+        .cas_put_blob(&digest, data.clone(), Compression::Identity)
+        .await
+        .expect("put");
+    let first = stored_expiry(&store, &digest).await.flatten().unwrap();
+
+    tokio::time::sleep(Duration::from_millis(2300)).await;
+    assert!(!store.cas_blob_fresh(&digest).await.expect("fresh"));
+    let manifest = store.cas_split_blob(&digest).await.expect("split").unwrap();
+
+    let renewed = stored_expiry(&store, &digest).await.flatten().unwrap();
+    assert!(renewed >= first + 2000, "{first} -> {renewed}");
+    assert!(store.cas_blob_fresh(&digest).await.expect("fresh"));
+    for chunk in chunk_digests(&manifest) {
+        assert!(store.cas_blob_fresh(&chunk).await.expect("fresh"));
+        let key = prefixed_key(PREFIX_CHUNK, chunk.function, &chunk.hash);
+        let stored = store.db.get_key_value(&key).await.expect("get").unwrap();
+        assert!(
+            stored.expire_ts.unwrap() >= first + 2000,
+            "chunk data renewed"
+        );
+    }
+
+    // Past the first expiry, everything still reads.
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+    assert_eq!(store.cas_get_blob(&digest).await.expect("read"), Some(data));
+    store.close().await.expect("close");
+}
+
+/// A blob that cannot be renewed because a chunk is gone is reported as
+/// such, not split into chunks a client cannot fetch.
+#[tokio::test]
+async fn splitting_a_blob_with_a_chunk_gone_fails() {
+    let store = store_with_ttl(Duration::from_millis(2000)).await;
+    let (digest, data) = large_blob(4 << 20);
+    store
+        .cas_put_blob(&digest, data, Compression::Identity)
+        .await
+        .expect("put");
+    let (manifest, _) = store.cas_get_manifest(&digest).await.expect("get").unwrap();
+    let gone = &manifest.chunks[1];
+    let key = prefixed_key(PREFIX_CHUNK, DigestFn::Sha256, &gone.hash);
+    store.db.delete(&key).await.expect("delete");
+
+    tokio::time::sleep(Duration::from_millis(1100)).await;
+    let result = store.cas_split_blob(&digest).await;
+    assert!(
+        matches!(result, Err(StoreError::ChunkMissing { .. })),
+        "{result:?}"
+    );
+    store.close().await.expect("close");
+}

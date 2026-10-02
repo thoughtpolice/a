@@ -13,7 +13,8 @@ use protos::google::bytestream::{
 };
 
 use crate::store::{
-    CacheStore, Compression, ContentDigest, MAX_BLOB_REASSEMBLE_SIZE, parse_digest_hash,
+    BlobChunks, CacheStore, ChunkInfo, Compression, ContentDigest, MAX_BLOB_REASSEMBLE_SIZE,
+    parse_digest_hash,
 };
 
 use super::helpers::{
@@ -34,14 +35,13 @@ const READ_AHEAD_CHUNKS: usize = 8;
 /// Chunk data all Reads together may hold ahead of their clients (KiB).
 const READ_AHEAD_BUDGET_KIB: usize = 1 << 20;
 
-type ChunkFetch = futures::future::BoxFuture<
-    'static,
-    (
-        crate::store::Result<Option<bytes::Bytes>>,
-        u64,
-        Option<tokio::sync::OwnedSemaphorePermit>,
-    ),
->;
+/// A chunk read, its size, and the share of the budget it holds until
+/// dropped.
+type ChunkRead = (
+    crate::store::Result<bytes::Bytes>,
+    u64,
+    Option<tokio::sync::OwnedSemaphorePermit>,
+);
 
 /// The chunks of one Read, in order, read ahead of the client.
 ///
@@ -53,41 +53,35 @@ type ChunkFetch = futures::future::BoxFuture<
 /// Read either: at worst it reads one chunk at a time.
 pub(crate) struct ChunkReader {
     store: Arc<CacheStore>,
-    digest_fn: crate::store::DigestFn,
-    chunks: std::iter::Peekable<std::vec::IntoIter<([u8; 32], u64)>>,
-    in_flight: futures::stream::FuturesOrdered<ChunkFetch>,
+    blob: Arc<BlobChunks>,
+    chunks: std::iter::Peekable<std::vec::IntoIter<ChunkInfo>>,
+    in_flight: futures::stream::FuturesOrdered<futures::future::BoxFuture<'static, ChunkRead>>,
     budget: Arc<tokio::sync::Semaphore>,
 }
 
 impl ChunkReader {
+    /// A reader of `chunks`, some of `blob`'s.
     pub(crate) fn new(
         store: Arc<CacheStore>,
-        digest_fn: crate::store::DigestFn,
-        chunks: Vec<([u8; 32], u64)>,
+        blob: Arc<BlobChunks>,
+        chunks: Vec<ChunkInfo>,
         budget: Arc<tokio::sync::Semaphore>,
     ) -> Self {
         Self {
             store,
-            digest_fn,
+            blob,
             chunks: chunks.into_iter().peekable(),
             in_flight: futures::stream::FuturesOrdered::new(),
             budget,
         }
     }
 
-    /// The next chunk (`None` if missing from the store), its size, and the
-    /// share of the budget it holds until dropped.
-    pub(crate) async fn next(
-        &mut self,
-    ) -> Option<(
-        crate::store::Result<Option<bytes::Bytes>>,
-        u64,
-        Option<tokio::sync::OwnedSemaphorePermit>,
-    )> {
+    pub(crate) async fn next(&mut self) -> Option<ChunkRead> {
         while self.in_flight.len() < READ_AHEAD_CHUNKS {
-            let Some(&(hash, size)) = self.chunks.peek() else {
+            let Some(&chunk) = self.chunks.peek() else {
                 break;
             };
+            let size = chunk.size;
             let share = if self.in_flight.is_empty() {
                 None
             } else {
@@ -98,10 +92,9 @@ impl ChunkReader {
                 }
             };
             self.chunks.next();
-            let store = self.store.clone();
-            let digest = ContentDigest::new(self.digest_fn, hash);
+            let (store, blob) = (self.store.clone(), self.blob.clone());
             self.in_flight.push_back(Box::pin(async move {
-                (store.cas_get_chunk(&digest).await, size, share)
+                (store.cas_read_chunk(&blob, chunk).await, size, share)
             }));
         }
         self.in_flight.next().await
@@ -398,13 +391,13 @@ impl byte_stream_server::ByteStream for ByteStreamService {
             })?;
             let cd = ContentDigest::new(parsed.digest_fn, hash);
 
-            let (manifest, _compression) = store
-                .cas_get_manifest(&cd)
+            let blob = store
+                .cas_blob_chunks(&cd)
                 .await
                 .map_err(store_error_to_status)?
                 .ok_or_else(|| tonic::Status::not_found("blob not found"))?;
 
-            let total_blob_size: u64 = manifest.chunks.iter().map(|ci| ci.size).sum();
+            let total_blob_size: u64 = blob.chunks().iter().map(|ci| ci.size).sum();
             if inner.read_offset as u64 > total_blob_size {
                 return Err(tonic::Status::out_of_range(format!(
                     "read_offset {} exceeds blob size {total_blob_size}",
@@ -419,12 +412,8 @@ impl byte_stream_server::ByteStream for ByteStreamService {
                 usize::MAX
             };
 
-            let chunk_specs: Vec<([u8; 32], u64)> = manifest
-                .chunks
-                .iter()
-                .map(|ci| (ci.hash, ci.size))
-                .collect();
-            let digest_fn = parsed.digest_fn;
+            let chunks = blob.chunks().to_vec();
+            let blob = Arc::new(blob);
             let compressor = parsed.compressor;
             let (tx, rx) = tokio::sync::mpsc::channel(READ_QUEUE_MESSAGES);
             let read_ahead = read_ahead.clone();
@@ -440,19 +429,11 @@ impl byte_stream_server::ByteStream for ByteStreamService {
                     // streams transparently. Peak memory is O(prefetch * max_chunk)
                     // instead of O(blob).
                     let mut total_read: u64 = 0;
-                    let mut chunks = ChunkReader::new(store, digest_fn, chunk_specs, read_ahead);
+                    let mut chunks = ChunkReader::new(store, blob, chunks, read_ahead);
 
                     while let Some((result, _chunk_size, _ahead)) = chunks.next().await {
                         let chunk_data = match result {
-                            Ok(Some(d)) => d,
-                            Ok(None) => {
-                                let _ = tx
-                                    .send(Err(tonic::Status::not_found(
-                                        "blob data incomplete: chunk missing from storage",
-                                    )))
-                                    .await;
-                                return;
-                            }
+                            Ok(d) => d,
                             Err(e) => {
                                 let _ = tx.send(Err(store_error_to_status(e))).await;
                                 return;
@@ -488,10 +469,10 @@ impl byte_stream_server::ByteStream for ByteStreamService {
                     // Skip chunks entirely before read_offset to avoid
                     // unnecessary fetches, then read the rest ahead.
                     let mut pre_skip_pos: usize = 0;
-                    let relevant_chunks: Vec<_> = chunk_specs
+                    let relevant_chunks: Vec<_> = chunks
                         .into_iter()
-                        .filter(|&(_hash, chunk_size)| {
-                            if let Some(end) = pre_skip_pos.checked_add(chunk_size as usize) {
+                        .filter(|chunk| {
+                            if let Some(end) = pre_skip_pos.checked_add(chunk.size as usize) {
                                 if end <= offset {
                                     pre_skip_pos = end;
                                     return false;
@@ -504,8 +485,7 @@ impl byte_stream_server::ByteStream for ByteStreamService {
                     let mut bytes_remaining = limit;
                     let mut total_sent: u64 = 0;
 
-                    let mut chunks =
-                        ChunkReader::new(store, digest_fn, relevant_chunks, read_ahead);
+                    let mut chunks = ChunkReader::new(store, blob, relevant_chunks, read_ahead);
 
                     while let Some((result, chunk_size, _ahead)) = chunks.next().await {
                         let chunk_end = match global_pos.checked_add(chunk_size as usize) {
@@ -519,15 +499,7 @@ impl byte_stream_server::ByteStream for ByteStreamService {
                         };
 
                         let chunk_data = match result {
-                            Ok(Some(d)) => d,
-                            Ok(None) => {
-                                let _ = tx
-                                    .send(Err(tonic::Status::not_found(
-                                        "blob data incomplete: chunk missing from storage",
-                                    )))
-                                    .await;
-                                return;
-                            }
+                            Ok(d) => d,
                             Err(e) => {
                                 let _ = tx.send(Err(store_error_to_status(e))).await;
                                 return;

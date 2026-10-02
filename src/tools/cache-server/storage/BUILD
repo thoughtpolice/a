@@ -4,8 +4,10 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
+    "//src/tools/cache-server/local-object-store:local-object-store",
     "//src/tools/cache-server/s3-store:s3-store",
     "third-party//rust:anyhow",
+    "third-party//rust:async-trait",
     "third-party//rust:blake3",
     "third-party//rust:brotli",
     "third-party//rust:bytes",
@@ -15,6 +17,7 @@ DEPS = [
     "third-party//rust:hex",
     "third-party//rust:jiff",
     "third-party//rust:libc",
+    "third-party//rust:quick_cache",
     "third-party//rust:rayon",
     "third-party//rust:sha2",
     "third-party//rust:slatedb",
@@ -69,6 +72,7 @@ TEST_MODULES = {
     "tuning": {},
     "expiry": {},
     "lifecycle": {},
+    "properties": {},
 }
 
 ALL_TEST_RESOURCES = {
@@ -79,6 +83,7 @@ ALL_TEST_RESOURCES = {
 
 TEST_DEPS = DEPS + [
     "third-party//rust:buck-resources",
+    "third-party//rust:hegeltest",
     "third-party//rust:tempfile",
 ]
 

@@ -69,7 +69,8 @@ async fn each_kind_of_key_has_its_own_tree() {
     let store = CacheStore::open(backend(), CacheStoreSettings::default())
         .await
         .expect("open");
-    let data = Bytes::from_static(b"one of each");
+    // Too large to be stored in its manifest: a chunk and a manifest.
+    let data = Bytes::from(vec![7u8; INLINE_BLOB_MAX + 1]);
     let digest = ContentDigest::compute(DigestFn::Sha256, &data);
     store
         .cas_put_blob(&digest, data.clone(), Compression::Identity)
