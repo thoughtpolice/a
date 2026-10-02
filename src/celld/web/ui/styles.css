@@ -1,0 +1,241 @@
+/* SPDX-FileCopyrightText: © 2024-2026 Austin Seipp */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+@layer components {
+  .ui-button {
+    @apply inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-md border border-ink/15 bg-surface px-3 py-2 font-medium text-ink;
+    overflow-wrap: anywhere;
+  }
+
+  .ui-button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  .ui-button:not(:disabled):hover {
+    @apply border-muted bg-canvas;
+  }
+
+  .ui-button-primary {
+    @apply border-transparent bg-accent px-4 font-semibold text-surface;
+  }
+
+  .ui-button-primary:not(:disabled):hover {
+    @apply border-transparent;
+    background: color-mix(in oklab, var(--color-accent) 85%, var(--color-ink));
+  }
+
+  .ui-button-quiet {
+    @apply border-transparent bg-transparent text-muted;
+  }
+
+  .ui-button-quiet:not(:disabled):hover {
+    @apply border-transparent bg-ink/5 text-ink;
+  }
+
+  .ui-input {
+    @apply block min-h-11 w-full min-w-0 rounded-md border border-muted/50 bg-surface px-3 py-2 text-base leading-6 text-ink;
+  }
+
+  .ui-input:where(textarea) {
+    @apply resize-y;
+  }
+
+  .ui-input:focus {
+    @apply border-accent;
+  }
+
+  .ui-input[aria-invalid="true"] {
+    @apply border-error ring-1 ring-error;
+  }
+
+  .ui-button:disabled,
+  .ui-input:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  .ui-fieldset {
+    @apply min-w-0 disabled:opacity-60;
+  }
+
+  /* A disabled form dims once, rather than compounding each control's opacity. */
+  .ui-fieldset:disabled .ui-button,
+  .ui-fieldset:disabled .ui-input {
+    opacity: 1;
+  }
+
+  .ui-button:focus-visible,
+  .ui-input:focus-visible,
+  .ui-link:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+
+  .ui-label {
+    @apply mb-2 block font-medium text-ink;
+  }
+
+  .ui-hint {
+    @apply text-xs leading-5 text-muted;
+    overflow-wrap: anywhere;
+  }
+
+  .ui-error {
+    @apply text-sm text-error empty:hidden;
+    overflow-wrap: anywhere;
+  }
+
+  .ui-notice {
+    @apply rounded-md border border-ink/15 bg-surface p-3 text-sm text-muted;
+    overflow-wrap: anywhere;
+  }
+
+  .ui-notice[data-tone="error"] {
+    @apply border-error/20 bg-error/5 text-error;
+  }
+
+  .ui-notice[data-tone="success"] {
+    @apply border-accent/20 bg-accent/5 text-ink;
+  }
+
+  .ui-panel {
+    @apply min-w-0 rounded-lg border border-ink/15 bg-surface text-ink;
+  }
+
+  .ui-heading {
+    @apply text-xl leading-7 font-semibold tracking-tight text-ink;
+    overflow-wrap: anywhere;
+  }
+
+  .ui-link {
+    @apply inline-flex min-h-11 items-center font-medium text-accent underline underline-offset-4;
+    overflow-wrap: anywhere;
+  }
+
+  .ui-link:hover {
+    color: color-mix(in oklab, var(--color-accent) 85%, var(--color-ink));
+  }
+
+  .ui-nav-link {
+    @apply border-b-2 border-transparent py-2 font-medium text-muted;
+  }
+
+  .ui-nav-link:hover,
+  .ui-nav-link[aria-current="page"] {
+    @apply text-ink;
+  }
+
+  .ui-nav-link[aria-current="page"] {
+    @apply border-accent;
+  }
+
+  .ui-tab {
+    @apply border-transparent bg-transparent text-muted;
+  }
+
+  .ui-tab[aria-selected="true"],
+  .ui-tab[aria-selected="true"]:not(:disabled):hover {
+    @apply border-transparent bg-ink text-surface;
+  }
+
+  .ui-menu-trigger {
+    @apply text-sm;
+  }
+
+  .ui-menu-trigger[aria-expanded="true"] {
+    @apply border-accent;
+  }
+
+  .ui-menu {
+    @apply absolute right-0 top-full z-10 mt-2 w-44 rounded-md p-1 shadow-lg;
+  }
+
+  .ui-menu-item {
+    @apply w-full justify-start text-left text-sm text-ink;
+  }
+
+  .ui-menu-item:focus {
+    @apply bg-ink/5;
+  }
+
+  .ui-dialog {
+    @apply m-auto overflow-auto shadow-xl;
+    width: min(600px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+  }
+
+  .ui-dialog::backdrop {
+    background: color-mix(in oklab, var(--color-ink) 50%, transparent);
+  }
+
+  .ui-disclosure-trigger {
+    @apply flex min-h-11 w-full items-center justify-between gap-2 border-b border-ink/15 py-2 text-left font-medium;
+  }
+
+  .ui-disclosure-trigger:hover {
+    @apply text-accent;
+  }
+
+  .ui-disclosure-trigger::after {
+    content: "−";
+    font-size: 1.125rem;
+    color: var(--color-muted);
+  }
+
+  .ui-disclosure-trigger[aria-expanded="false"]::after {
+    content: "+";
+  }
+
+  .ui-tooltip {
+    @apply absolute bottom-full left-0 z-20 w-full rounded-md bg-ink p-3 text-sm text-surface shadow-lg;
+  }
+
+  .ui-body {
+    @apply whitespace-pre-wrap text-muted;
+    overflow-wrap: anywhere;
+  }
+
+  .ui-prose {
+    @apply max-w-[75ch] divide-y divide-ink/15;
+  }
+
+  .ui-prose section {
+    @apply py-6;
+  }
+
+  .ui-prose h2 {
+    @apply mb-3;
+  }
+
+  .ui-prose h3 {
+    @apply mb-2 font-semibold;
+  }
+
+  .ui-prose p {
+    @apply mb-3 text-muted;
+  }
+
+  .ui-prose code {
+    @apply rounded bg-ink/5 px-1 text-sm text-ink;
+    overflow-wrap: anywhere;
+  }
+
+  .ui-keyboard-list {
+    @apply my-6 divide-y divide-ink/15;
+  }
+
+  .ui-keyboard-list > div {
+    @apply py-3;
+  }
+
+  .ui-keyboard-list dt {
+    @apply mb-1 font-medium;
+  }
+
+  .ui-keyboard-list dd {
+    @apply text-sm leading-6 text-muted;
+  }
+
+  .ui-keyboard-list kbd {
+    @apply rounded border border-ink/15 bg-canvas px-1 font-sans text-xs whitespace-nowrap;
+  }
+}
