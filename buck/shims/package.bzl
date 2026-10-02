@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@prelude//cfg/modifier:cfg_constructor.bzl", "PostConstraintAnalysisParams", "cfg_constructor_post_constraint_analysis", "cfg_constructor_pre_constraint_analysis")
+load("@prelude//cfg/modifier:cfg_constructor.bzl", "cfg_constructor_post_constraint_analysis", "cfg_constructor_pre_constraint_analysis")
+load("@cellar//bootstrap/platforms:modifiers.bzl", "modifier_stage0", "modifier_stage1")
 load("@prelude//cfg/modifier:common.bzl", "MODIFIER_METADATA_KEY")
 load("@prelude//cfg/modifier:set_cfg_modifiers.bzl", "set_cfg_modifiers")
 
@@ -130,18 +131,12 @@ def _pre_constraint_analysis(
         legacy_platform: PlatformInfo | None,
         extra_data: struct,
         configuring_exec_dep: bool,
-        **kwargs) -> (list[str], PostConstraintAnalysisParams):
-    """Leave platforms that standalone cells define as they are.
+        **kwargs):
+    """Delegate cellar configurations to its standalone modifier constructor.
 
-    A standalone cell such as cellar is also a Buck project of its own, which
-    configures its targets without the prelude, modifiers or this
-    constructor. Its targets get its platform from the target platform
-    detector, and their exec deps get the platform of its executor, which
-    Buck passes here as `legacy_platform`. Dropping every modifier makes the
-    prelude return that platform unchanged, so a build mode like `-m release`
-    does not reconfigure the cell, exec deps share their target's
-    configuration, and each target is configured as it is in the standalone
-    project.
+    Buck uses the root project's constructor even for external cells. Calling
+    the same functions here and from cellar/PACKAGE keeps both roots identical.
+    The parent's build-mode modifiers stay outside the bootstrap configuration.
     """
     constraints = legacy_platform.configuration.constraints if legacy_platform else {}
     standalone = bool(constraints)
@@ -149,15 +144,22 @@ def _pre_constraint_analysis(
         if setting.cell not in extra_data.standalone_cells:
             standalone = False
             break
-    if standalone:
-        return [], PostConstraintAnalysisParams(
+    # During executor selection Buck also tries the parent's platforms for
+    # cellar tools. Recognize cellar's package metadata even on that trial
+    # configuration, so it is rejected by compatibility instead of parsed as
+    # prelude metadata.
+    cellar_modifiers = any([
+        type(modifier) == "string" and modifier.startswith(("cellar//", "depot-cellar//"))
+        for modifier in (kwargs.get("package_modifiers") or []) + (kwargs.get("target_modifiers") or [])
+    ])
+    if standalone or cellar_modifiers:
+        refs, params = modifier_stage0(
             legacy_platform = legacy_platform,
-            package_modifiers = [],
-            target_modifiers = [],
-            cli_modifiers = [],
             extra_data = extra_data,
             configuring_exec_dep = configuring_exec_dep,
+            **kwargs
         )
+        return refs, struct(cellar = params)
     return cfg_constructor_pre_constraint_analysis(
         legacy_platform = legacy_platform,
         extra_data = extra_data,
@@ -165,10 +167,15 @@ def _pre_constraint_analysis(
         **kwargs
     )
 
+def _post_constraint_analysis(*, refs, params):
+    if hasattr(params, "cellar"):
+        return modifier_stage1(refs = refs, params = params.cellar)
+    return cfg_constructor_post_constraint_analysis(refs = refs, params = params)
+
 def set_cfg_constructor(aliases = dict()):
     native.set_cfg_constructor(
         stage0 = _pre_constraint_analysis,
-        stage1 = cfg_constructor_post_constraint_analysis,
+        stage1 = _post_constraint_analysis,
         key = MODIFIER_METADATA_KEY,
         aliases = struct(**aliases),
         extra_data = struct(

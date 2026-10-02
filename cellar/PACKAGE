@@ -1,6 +1,10 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+load("@cellar//bootstrap/platforms:modifiers.bzl", "init_modifiers")
+
+init_modifiers()
+
 # By default, PACKAGE visibility clauses only specify _default_ visibility; if a
 # target within the package specifies its own explicit visibility, eg is marked
 # as 'PUBLIC', then it overrides the default, and a target in root//... could

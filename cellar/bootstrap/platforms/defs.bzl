@@ -57,19 +57,20 @@ _SANDBOX_WRITE_PATHS = [
 ]
 
 def _execution_platform_impl(ctx):
-    remote = ctx.attrs.mode == "remote"
-    if ctx.attrs.mode not in ["local", "remote"]:
-        fail("bootstrap.execution must be local or remote")
+    remote = ctx.attrs.mode == "remote" or (ctx.attrs.mode == "auto" and ctx.attrs.cpu in ctx.attrs.remote_cpus)
+    local = ctx.attrs.mode != "remote" and ctx.attrs.native_host
+    if ctx.attrs.mode not in ["local", "remote", "auto"]:
+        fail("bootstrap.execution must be local, remote or auto")
 
     # An unsupported client may analyze a remote graph, but must never execute
     # these Linux ELF programs locally or fall back to an unspecified executor.
-    if not remote and not ctx.attrs.native_host:
+    if not remote and not local:
         return [DefaultInfo(), ExecutionPlatformRegistrationInfo(platforms = [], fallback = "error")]
 
     options = {
-        "local_enabled": not remote,
+        "local_enabled": local,
         "remote_enabled": remote,
-        "remote_cache_enabled": remote,
+        "remote_cache_enabled": ctx.attrs.mode != "local",
         "use_windows_path_separators": False,
         "use_persistent_workers": False,
     }
@@ -79,13 +80,13 @@ def _execution_platform_impl(ctx):
 
         # The Go and OCI name, which BuildBuddy's executors register. Its
         # scheduler folds the case of both values but leaves x86_64 unmatched.
-        properties["Arch"] = "amd64"
+        properties["Arch"] = ctx.attrs.cpu
         options.update({
             "remote_execution_properties": properties,
             "remote_execution_use_case": ctx.attrs.remote_use_case,
             "remote_output_paths": "strict",
         })
-    else:
+    if local:
         options["local_sandbox_mode"] = ctx.attrs.sandbox
         options["local_sandbox_write_paths"] = _SANDBOX_WRITE_PATHS
         if ctx.attrs.sandbox_read_paths != None:
@@ -109,21 +110,59 @@ _execution_platform = rule(impl = _execution_platform_impl, is_configuration_rul
     "platform": attrs.dep(providers = [PlatformInfo]),
     "mode": attrs.string(),
     "native_host": attrs.bool(),
+    "cpu": attrs.string(),
+    "remote_cpus": attrs.list(attrs.string()),
     "remote_properties": attrs.dict(attrs.string(), attrs.string()),
     "remote_use_case": attrs.string(),
     "sandbox": attrs.string(),
     "sandbox_read_paths": attrs.option(attrs.list(attrs.string()), default = None),
 })
 
-def execution_platform(name, platform, **kwargs):
+def execution_platform(name, platform, cpu = "amd64", **kwargs):
     host = host_info()
     _execution_platform(
         name = name,
         platform = platform,
         mode = read_root_config("bootstrap", "execution", "local"),
-        native_host = host.os.is_linux and host.arch.is_x86_64,
+        cpu = cpu,
+        native_host = host.os.is_linux and (host.arch.is_x86_64 if cpu == "amd64" else host.arch.is_aarch64 if cpu == "arm64" else False),
+        remote_cpus = read_root_config("bootstrap", "remote_cpus", "amd64").split(","),
         remote_properties = json.decode(read_root_config("bootstrap", "remote_properties", "{}")),
         remote_use_case = read_root_config("bootstrap", "remote_use_case", "buck2-bootstrap"),
         sandbox = read_root_config("buck2", "local_sandbox_mode", "disabled"),
         **kwargs
     )
+
+def _execution_platforms_impl(ctx):
+    return [DefaultInfo(), ExecutionPlatformRegistrationInfo(
+        platforms = [platform for dep in ctx.attrs.platforms for platform in dep[ExecutionPlatformRegistrationInfo].platforms],
+        fallback = "error",
+    )]
+
+execution_platforms = rule(impl = _execution_platforms_impl, is_configuration_rule = True, attrs = {
+    "platforms": attrs.list(attrs.dep(providers = [ExecutionPlatformRegistrationInfo])),
+})
+
+def _platform_transition_impl(ctx):
+    destination = ctx.attrs.platform[PlatformInfo]
+
+    def change_platform(platform):
+        _ = platform
+        return destination
+
+    return [DefaultInfo(), TransitionInfo(impl = change_platform)]
+
+# A fixed bootstrap predecessor must retain its configuration even when an
+# aarch64 target consumes its sources or cross compiler.
+platform_transition = rule(impl = _platform_transition_impl, is_configuration_rule = True, attrs = {
+    "platform": attrs.dep(providers = [PlatformInfo]),
+})
+
+def _alias_impl(ctx):
+    return ctx.attrs.actual.providers
+
+amd64_dep = rule(impl = _alias_impl, attrs = {
+    "actual": attrs.transition_dep(cfg = "cellar//bootstrap/platforms:to-amd64"),
+})
+
+alias = rule(impl = _alias_impl, attrs = {"actual": attrs.dep()})

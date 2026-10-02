@@ -150,6 +150,23 @@ def audit(buck, isolation_dir, project, parent, results):
         check(release.returncode == 0 and release.stdout == local_native.stdout,
               "build modes leave the configuration unchanged", release)
 
+    automatic = run(["audit", "providers", "-c", "bootstrap.execution=auto",
+                     "--fake-host", "linux", "--fake-arch", "aarch64", EXECUTOR])
+    check(automatic.returncode == 0 and '"Arch": "amd64"' in automatic.stdout
+          and "Local(" in automatic.stdout and "Remote(" in automatic.stdout
+          and "linux-arm64" in automatic.stdout,
+          "ARM client registers local ARM and remote x86 together", automatic)
+    mixed = run(["cquery", "-c", "bootstrap.execution=auto", "--json",
+                 "--fake-host", "linux", "--fake-arch", "aarch64",
+                 "deps(cellar//bootstrap/platforms/tests:seed-from-arm64)"])
+    check(mixed.returncode == 0 and "linux-arm64#" in mixed.stdout
+          and "platforms:default#" in mixed.stdout,
+          "ARM target and transitioned x86 seed coexist", mixed)
+    override = run(["cquery", "@cellar//bootstrap/platforms/remote",
+                    "--modifier", "aarch64", SEED])
+    check(SEED not in override.stdout and "incompatible" in override.stderr.lower(),
+          "CLI architecture modifier cannot execute the x86 seed as ARM", override)
+
 
 if __name__ == "__main__":
     main()

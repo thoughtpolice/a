@@ -1,7 +1,15 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@cellar//bootstrap/platforms:defs.bzl", "constraint_value", "platform")
+load("@cellar//bootstrap/platforms:defs.bzl", "amd64_dep", "constraint_value", "platform")
+
+# Both configurations must coexist in one graph; modifiers on an aggregate
+# cannot replace the fixed seed dependency's incoming architecture.
+amd64_dep(
+    name = "seed-from-arm64",
+    actual = "cellar//bootstrap/stage0-posix/seeds/linux-amd64:hex2-0",
+    modifiers = ["cellar//bootstrap/platforms:arm64"],
+)
 
 # Deliberately unsupported targets used only by the configuration regression.
 constraint_value(
