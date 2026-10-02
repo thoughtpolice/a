@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+load("@cellar//bootstrap/stage1/llvm:runtimes.bzl", "AARCH64_BUILTINS")
 load("@cellar//bootstrap/stage2/aarch64/musl:defs.bzl", "INCLUDE_DIRECTORIES", "LIBC_SOURCES")
 load("@cellar//bootstrap/stage2/aarch64/musl:sources.bzl", "CRT_SOURCES")
 
@@ -15,4 +16,7 @@ AARCH64 = struct(
     crt_sources = CRT_SOURCES,
     include_directories = INCLUDE_DIRECTORIES,
     mimalloc = ":mimalloc-source",
+    builtins_sources = AARCH64_BUILTINS,
+    builtins_flags = ["-DCOMPILER_RT_AARCH64_FMV_USES_GLOBAL_CONSTRUCTOR=1"],
+    outline_atomics = True,
 )
