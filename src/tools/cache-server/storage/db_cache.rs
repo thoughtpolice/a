@@ -21,7 +21,7 @@
 
 use std::sync::Arc;
 
-use slatedb::db_cache::{CacheLoader, CachedEntry, CachedKey, DbCache};
+use slatedb::db_cache::{CacheFetch, CacheLoader, CachedEntry, CachedKey, DbCache};
 
 type Entries = quick_cache::sync::Cache<CachedKey, CachedEntry, EntryWeight>;
 
@@ -58,19 +58,20 @@ impl QuickDbCache {
     }
 
     /// The entry for `key`, loading it with `loader` on a miss. Concurrent
-    /// misses on one key wait for a single load.
+    /// misses on one key wait for a single load; only that one is a miss,
+    /// since the others are answered without reading storage.
     async fn fetch(
         &self,
         key: CachedKey,
         loader: CacheLoader,
-    ) -> Result<CachedEntry, slatedb::Error> {
+    ) -> Result<CacheFetch, slatedb::Error> {
         match self.entries.get_value_or_guard_async(&key).await {
-            Ok(entry) => Ok(entry),
+            Ok(entry) => Ok(CacheFetch::hit(entry)),
             Err(guard) => {
                 // A failed load drops the guard, and the next caller loads.
                 let entry = loader().await?;
                 let _ = guard.insert(entry.clone());
-                Ok(entry)
+                Ok(CacheFetch::miss(entry))
             }
         }
     }
@@ -131,7 +132,7 @@ impl DbCache for QuickDbCache {
         &self,
         key: CachedKey,
         loader: CacheLoader,
-    ) -> Result<CachedEntry, slatedb::Error> {
+    ) -> Result<CacheFetch, slatedb::Error> {
         self.fetch(key, loader).await
     }
 
@@ -139,7 +140,7 @@ impl DbCache for QuickDbCache {
         &self,
         key: CachedKey,
         loader: CacheLoader,
-    ) -> Result<CachedEntry, slatedb::Error> {
+    ) -> Result<CacheFetch, slatedb::Error> {
         self.fetch(key, loader).await
     }
 
@@ -147,7 +148,7 @@ impl DbCache for QuickDbCache {
         &self,
         key: CachedKey,
         loader: CacheLoader,
-    ) -> Result<CachedEntry, slatedb::Error> {
+    ) -> Result<CacheFetch, slatedb::Error> {
         self.fetch(key, loader).await
     }
 
@@ -155,7 +156,7 @@ impl DbCache for QuickDbCache {
         &self,
         key: CachedKey,
         loader: CacheLoader,
-    ) -> Result<CachedEntry, slatedb::Error> {
+    ) -> Result<CacheFetch, slatedb::Error> {
         self.fetch(key, loader).await
     }
 }

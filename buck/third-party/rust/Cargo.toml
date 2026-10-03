@@ -178,10 +178,10 @@ sha2 = "0.11"
 # NOTE (aseipp): default features enable `aws`, which drags in object_store/aws
 # -> reqwest/rustls -> ring. cache-server only uses the memory/local backends,
 # so keep just `foyer` (the block cache) and let object_store default to `fs`.
-slatedb = { version = "0.16.0", default-features = false, features = ["foyer"] }
+slatedb = { version = "0.17.0", default-features = false, features = ["foyer"] }
 # The `MetricsRecorder` trait SlateDB reports its metrics through (the
 # cache-server exports them over OTLP); slatedb does not re-export it.
-slatedb-common = "=0.16.0"
+slatedb-common = "=0.17.0"
 # NOTE (syn): 3.0 is out and already in the graph for the few crates that ask
 # for it, but nearly every proc macro still builds against 2.x. Moving this
 # entry would not remove the 2.x copy, so there is nothing to gain yet.
