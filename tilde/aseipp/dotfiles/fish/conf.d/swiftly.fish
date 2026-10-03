@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# Added by swiftly
-source "/home/a/.local/share/swiftly/env.fish"
+if test -d $HOME/.local/share/swiftly
+    source $HOME/.local/share/swiftly/env.fish
+end
