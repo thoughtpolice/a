@@ -3,8 +3,14 @@
 
 load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 
+# develop past 1.3.2: it fixes the gzwrite heap overflows of CVE-2026-85091
+# (gz_vacate() after a non-blocking write stall) and CVE-2026-76844 (a stale
+# next_in after a failed write()), which no release does yet. Move back to a
+# release tarball once one includes them.
+GIT_COMMIT = "767c4c947852e143f582c85f14cf573411df1b35"
+
 pkg.info(
-    version = "1.3.2",
+    version = "1.3.2+g767c4c94",
     description = """
         Data compression library and format.
     """,
@@ -16,6 +22,6 @@ pkg.info(
 
     osv_info = OsvGitRepoInfo(
         url = "https://github.com/madler/zlib",
-        commit = "da607da739fa6047df13e66a2af6b8bec7c2a498",
+        commit = GIT_COMMIT,
     ),
 )

@@ -1,15 +1,14 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:package.bzl", "pkg")
 load("@root//buck/shims:shims.bzl", "shims")
 
-VERSION = pkg.version()
+GIT_COMMIT = "767c4c947852e143f582c85f14cf573411df1b35"
 
 shims.http_archive(
     name = "src",
-    sha256 = "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16",
-    strip_prefix = "zlib-{VERSION}".format(VERSION = VERSION),
+    sha256 = "cafa75b907cd067b471fba32a2772c010a859086241ef70d3d57eda6aeea3a64",
+    strip_prefix = "zlib-{}".format(GIT_COMMIT),
     sub_targets = [
         "adler32.c",
         "compress.c",
@@ -40,7 +39,7 @@ shims.http_archive(
     ],
     type = "tar.gz",
     urls = [
-        "https://github.com/madler/zlib/releases/download/v{VERSION}/zlib-{VERSION}.tar.gz".format(VERSION = VERSION),
+        "https://github.com/madler/zlib/archive/{}.tar.gz".format(GIT_COMMIT),
     ],
 )
 
