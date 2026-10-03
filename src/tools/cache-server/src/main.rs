@@ -633,6 +633,48 @@ mod parse_backend_tests {
 }
 
 #[cfg(test)]
+mod bare_invocation_tests {
+    use super::*;
+
+    /// No subcommand runs `serve` exactly as `serve` with no flags would,
+    /// environment and all.
+    #[test]
+    fn runs_serve_as_given_no_flags() {
+        let Some(Command::Serve(serve)) = Cli::parse_from(["cache-server", "serve"]).command else {
+            panic!("`serve` parses as the serve subcommand");
+        };
+        assert!(Cli::parse_from(["cache-server"]).command.is_none());
+        assert_eq!(format!("{:?}", bare_serve_args()), format!("{serve:?}"));
+    }
+
+    /// `serve`'s environment variables reach the bare invocation. Checked
+    /// in a child run of this test binary: setting a variable in this
+    /// process would race other tests reading the environment.
+    #[test]
+    fn takes_the_environment() {
+        let child = std::process::Command::new(std::env::current_exe().expect("test binary"))
+            .args(["--exact", "bare_invocation_tests::listens_where_told"])
+            .env("CACHE_SERVER_ADDRESS", "127.0.0.1:4321")
+            .output()
+            .expect("run the child");
+        let stdout = String::from_utf8_lossy(&child.stdout);
+        assert!(
+            child.status.success() && stdout.contains("1 passed"),
+            "{stdout}{}",
+            String::from_utf8_lossy(&child.stderr)
+        );
+    }
+
+    /// The address `CACHE_SERVER_ADDRESS` sets, if any, else the default.
+    #[test]
+    fn listens_where_told() {
+        let expected =
+            std::env::var("CACHE_SERVER_ADDRESS").unwrap_or_else(|_| "127.0.0.1:8080".into());
+        assert_eq!(bare_serve_args().address, expected);
+    }
+}
+
+#[cfg(test)]
 mod console_filter_tests {
     use super::*;
 
@@ -680,7 +722,7 @@ async fn async_main(
         None => {
             run_server(
                 &cli,
-                &ServeArgs::default(),
+                &bare_serve_args(),
                 handle,
                 trace_dir.as_ref(),
                 perf_caps.as_ref(),
@@ -691,38 +733,11 @@ async fn async_main(
     }
 }
 
-impl Default for ServeArgs {
-    fn default() -> Self {
-        Self {
-            address: "127.0.0.1:8080".to_string(),
-            tokio_console: false,
-            request_timeout: 900,
-            fetch_timeout: 1800,
-            max_concurrent_requests: 8192,
-            max_connections: None,
-            disable_compactor: false,
-            block_cache_mib: store::DEFAULT_BLOCK_CACHE_BYTES / (1024 * 1024),
-            meta_cache_mib: store::DEFAULT_META_CACHE_BYTES / (1024 * 1024),
-            write_buffer_mib: None,
-            small_blob_cache_mib: store::DEFAULT_SMALL_BLOB_CACHE_BYTES / (1024 * 1024),
-            action_result_cache_mib: store::DEFAULT_ACTION_RESULT_CACHE_BYTES / (1024 * 1024),
-            manifest_cache_mib: store::DEFAULT_MANIFEST_CACHE_BYTES / (1024 * 1024),
-            object_store_cache_dir: None,
-            object_store_cache_gib: 16,
-            disk_reserve_gib: None,
-            tls_cert: None,
-            tls_key: None,
-            git_spool_dir: None,
-            max_concurrent_http_fetches: 16,
-            max_concurrent_git_clones: 2,
-            max_concurrent_oci_fetches: 4,
-            oci_auth_file: None,
-            otel_enabled: false,
-            otel_endpoint: None,
-            otel_service_name: "buck2-cache-server".to_string(),
-            otel_sampling_ratio: None,
-        }
-    }
+/// What `serve` runs with when no subcommand is given: as if it were given
+/// without flags, so each takes its default or the value its environment
+/// variable sets.
+fn bare_serve_args() -> ServeArgs {
+    ServeArgs::parse_from(["serve"])
 }
 
 /// Most times a second any one log statement reaches a log layer (see
