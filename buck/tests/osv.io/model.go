@@ -119,6 +119,22 @@ var genericExceptions = []exception{
 var nugetExceptions = []exception{}
 
 var rustExceptions = []exception{
+	// Two unmaintained crates the iroh libraries bring in, with no release to
+	// move to: postcard 1.1.3, the newest, takes heapless 0.7 with its `cas`
+	// feature, and genawaiter 0.99.1, the newest, which bao-tree and
+	// iroh-blobs build on, takes proc-macro-error for its macros. heapless
+	// only uses atomic-polyfill on targets without atomic compare-and-swap,
+	// which depot never builds for (no rule exists for it), and
+	// proc-macro-error only runs at build time. Remove these once postcard
+	// moves to heapless 0.8+ and bao-tree/iroh-blobs drop genawaiter.
+	{
+		ID:     "RUSTSEC-2023-0089",
+		Reason: "atomic-polyfill is unmaintained; a cfg(no atomic CAS) dependency of heapless 0.7 via postcard 1.1.3 (iroh), never built for depot's targets, awaiting a postcard release on heapless 0.8+",
+	},
+	{
+		ID:     "RUSTSEC-2024-0370",
+		Reason: "proc-macro-error is unmaintained; a build-time dependency of genawaiter's macros via bao-tree and iroh-blobs, awaiting their move off genawaiter",
+	},
 	{
 		ID:     "RUSTSEC-2024-0388",
 		Reason: "derivative is unmaintained; pulled in by starlark-rust, awaiting upstream migration",
