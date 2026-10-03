@@ -256,6 +256,15 @@ pub fn tuned_settings(backend: &StoreBackend) -> slatedb::config::Settings {
             std::time::Duration::from_secs(1)
         };
         compactor.poll_interval = poll;
+        // Each compaction protects the SSTs it replaces with a checkpoint, so
+        // reads that began before it can finish, and garbage collection
+        // keeps them until it expires: 15 minutes by default, which under a
+        // stream of uploads made replaced data most of the store (about five
+        // times the live data on S3). Every read here is a point lookup that
+        // takes milliseconds, even against S3, so half a minute is ample;
+        // uploading 40 GB to a local store with two minutes peaked at 220 GB
+        // on disk, with half a minute at 140 GB.
+        compactor.checkpoint_lifetime = std::time::Duration::from_secs(30);
         if let Some(worker) = compactor.worker.as_mut() {
             worker.compactions_poll_interval = poll;
             // SlateDB requires the worker's filter threshold to match the
@@ -279,20 +288,26 @@ pub fn tuned_settings(backend: &StoreBackend) -> slatedb::config::Settings {
     }
 
     if let Some(gc) = settings.garbage_collector_options.as_mut() {
-        // Every compaction keeps the SSTs it replaces for 15 minutes (SlateDB
-        // writes a checkpoint of the old manifest before committing, with a
-        // fixed lifetime), and collection then runs only every 10 minutes:
-        // under a stream of uploads, the replaced data waited up to 25
-        // minutes to go, and was most of the disk in use. Collect every
-        // minute instead. Flushed WAL is pinned by nothing (this store has no
-        // readers tailing it), so it goes after a minute too, not five.
-        let every_minute = Some(std::time::Duration::from_secs(60));
+        // Collection of replaced SSTs runs only every 10 minutes by default,
+        // on top of the compactor's checkpoint lifetime (above) and the
+        // 5-minute minimum age it keeps any SST for: under a stream of
+        // uploads, replaced data waited up to 25 minutes to go, and was most
+        // of the disk in use. Collect every half minute instead, as soon as
+        // the checkpoint lets go. The minimum age is not what keeps a
+        // compaction's or a flush's output safe before the manifest names
+        // it: collection spares SSTs newer than the oldest compaction under
+        // way and the newest L0 SST regardless. Flushed WAL is pinned by
+        // nothing (this store has no readers tailing it), so it goes after a
+        // minute, not five.
+        let minute = std::time::Duration::from_secs(60);
+        let half_minute = std::time::Duration::from_secs(30);
         if let Some(wal) = gc.wal_options.as_mut() {
-            wal.interval = every_minute;
-            wal.min_age = std::time::Duration::from_secs(60);
+            wal.interval = Some(minute);
+            wal.min_age = minute;
         }
         if let Some(compacted) = gc.compacted_options.as_mut() {
-            compacted.interval = every_minute;
+            compacted.interval = Some(half_minute);
+            compacted.min_age = half_minute;
         }
 
         // WAL fence collection ships dry-run, so it deletes nothing and logs a
@@ -650,9 +665,13 @@ impl CacheStore {
             ))))
             .build();
 
+        // The cache is this store's alone, so its entries need no scope of
+        // their own; and it lives in memory, so there is nothing for
+        // `DbCache::close` to save when the store closes.
+        const DB_CACHE_ID: u64 = 0;
         let mut builder = Db::builder(DB_PATH, object_store)
             .with_settings(db_settings)
-            .with_db_cache(Arc::new(db_cache))
+            .with_db_cache(Arc::new(db_cache), DB_CACHE_ID)
             .with_block_cache_policy(block_cache_policy())
             .with_segment_extractor(Arc::new(KeyKind));
         if let Some(recorder) = settings.metrics_recorder.clone() {

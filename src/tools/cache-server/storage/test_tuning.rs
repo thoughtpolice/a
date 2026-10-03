@@ -310,9 +310,9 @@ async fn a_local_store_ignores_the_object_store_cache() {
     store.close().await.expect("close");
 }
 
-/// Replaced SSTs are pinned for 15 minutes by SlateDB itself; collection
-/// should follow soon after rather than up to 10 minutes later, and flushed
-/// WAL should not linger at all.
+/// Replaced SSTs are pinned for 15 minutes by SlateDB itself; they should
+/// be pinned briefly, collection should follow soon after rather than up to
+/// 10 minutes later, and flushed WAL should not linger at all.
 #[test]
 fn garbage_is_collected_promptly() {
     let minute = std::time::Duration::from_secs(60);
@@ -332,5 +332,10 @@ fn garbage_is_collected_promptly() {
             compacted.interval.expect("interval") <= minute,
             "{backend:?}"
         );
+        assert!(compacted.min_age <= minute, "{backend:?}");
+        let compactor = tuned_settings(&backend)
+            .compactor_options
+            .expect("compactor");
+        assert!(compactor.checkpoint_lifetime <= minute, "{backend:?}");
     }
 }
