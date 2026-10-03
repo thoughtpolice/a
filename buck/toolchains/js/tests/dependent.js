@@ -1,0 +1,5 @@
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+import { value } from "@fixture/private";
+export const answer = value;

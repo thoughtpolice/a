@@ -1,0 +1,5 @@
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+import { count, greet } from "@fixture/plain";
+document.body.textContent = `${greet("browser")}; live=${count}`;

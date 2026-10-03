@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", "shims")
-load(":defs.bzl", "deno_toolchain", "download_deno")
+load(":defs.bzl", "download_deno")
+load(":toolchain.bzl", "deno_toolchain")
 
 DENO_VERSION = "2.9.7"
 
@@ -43,6 +44,35 @@ ALL_DENO_VERSIONS = {
 shims.toolchain_alias(
     name = "deno",
     actual = ":deno-{DENO_VERSION}".format(DENO_VERSION = DENO_VERSION),
+)
+
+shims.python_library(
+    name = "depconfig-lib",
+    srcs = ["depconfig.py"],
+    base_module = "",
+    deps = ["@toolchains//web:webc-lib"],
+)
+
+shims.python_binary(
+    name = "depconfig",
+    base_module = "",
+    main = "depconfig.py",
+    deps = ["@toolchains//web:webc-lib"],
+)
+
+shims.python_binary(
+    name = "depconfig-test-runner",
+    main = "depconfig_test.py",
+    deps = [":depconfig-lib"],
+)
+
+shims.command_test(
+    name = "depconfig-test",
+    cmd = [
+        "$(exe :depconfig-test-runner)",
+        "$(exe toolchains//web:deno)",
+    ],
+    visibility = ["PUBLIC"],
 )
 
 # Export deno runtime binaries for use in containers
