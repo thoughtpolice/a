@@ -46,6 +46,16 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     if (size == 1 && data[0] == 'B') {
         abort();
     }
+    if (size == 10 && memcmp(data, "SLOWREPORT", 10) == 0) {
+        // Mimics a sanitizer that is still symbolizing its report when the
+        // run deadline passes.
+        static const char report[] = "==1==ERROR: AddressSanitizer: slow-report\n";
+        if (write(STDERR_FILENO, report, sizeof(report) - 1) != (ssize_t)(sizeof(report) - 1)) {
+            return 18;
+        }
+        sleep(1);
+        abort();
+    }
     if (size == 4 && memcmp(data, "HANG", 4) == 0) {
         for (;;) {
         }

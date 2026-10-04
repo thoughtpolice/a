@@ -151,6 +151,11 @@ depot.write_file(
 )
 
 depot.write_file(
+    name = "slow-report-seed",
+    contents = ["SLOWREPORT"],
+)
+
+depot.write_file(
     name = "exit-zero-seed",
     contents = ["EXIT0"],
 )
@@ -207,6 +212,25 @@ depot.command_test(
         "--expect-finding",
         "--expect-kind",
         "crash",
+    ],
+)
+
+depot.command_test(
+    name = "executor-slow-sanitizer-report-test",
+    cmd = [
+        "$(exe :fozzie)",
+        "replay",
+        "--target",
+        "$(exe :executor-test-target)",
+        "--input",
+        "$(location :slow-report-seed)",
+        "--timeout-ms",
+        "25",
+        "--expect-finding",
+        "--expect-kind",
+        "crash",
+        "--expect-sanitizer",
+        "address",
     ],
 )
 
@@ -303,6 +327,7 @@ depot.test_suite(
         ":executor-exit-zero-test",
         ":executor-finding-test",
         ":executor-fork-crash-test",
+        ":executor-slow-sanitizer-report-test",
         ":executor-smoke-test",
         ":executor-timeout-test",
         ":regression-tests",

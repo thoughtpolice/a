@@ -27,6 +27,10 @@ use tempfile::TempDir;
 
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
 const SHUTDOWN_GRACE: Duration = Duration::from_millis(100);
+/// How long a target that has begun a sanitizer report past its deadline may
+/// take to finish dying. Symbolizing the report can take seconds, notably
+/// with `atos` on macOS.
+const SANITIZER_REPORT_GRACE: Duration = Duration::from_secs(10);
 const STDERR_CAPACITY: usize = 1024 * 1024;
 const MAX_COUNTER_COUNT: u64 = u64::MAX >> 3;
 const ASAN_REQUIRED_OPTIONS: &str = "abort_on_error=1:disable_coredump=0:symbolize=1:allow_addr2line=1:detect_leaks=0:allow_user_poisoning=1";
@@ -290,6 +294,30 @@ impl PersistentExecutor {
                 let stderr = session.finish_after_exit();
                 return Ok(classify_exit(status, stderr));
             }
+            // A target already inside a sanitizer report is crashing, not
+            // hung; let it finish so the finding keeps its real signal and a
+            // complete report.
+            if sanitizer_signature(&session.read_stderr()).is_some() {
+                match session.wait_for_exit(SANITIZER_REPORT_GRACE)? {
+                    DisconnectOutcome::Exited(status) => {
+                        return Ok(classify_exit(status, session.read_stderr()));
+                    }
+                    DisconnectOutcome::Forced(status) if terminated_on_its_own(status) => {
+                        return Ok(classify_exit(status, session.read_stderr()));
+                    }
+                    DisconnectOutcome::Forced(_) => {}
+                }
+                return Ok(Execution::Finding(Finding::new(
+                    FindingKind::Hang,
+                    None,
+                    format!(
+                        "target exceeded {} ms and did not finish its sanitizer report within {} s",
+                        self.config.timeout.as_millis(),
+                        SANITIZER_REPORT_GRACE.as_secs()
+                    ),
+                    session.read_stderr(),
+                )));
+            }
             let (status, stderr) = session.terminate();
             // A target already dying of its own accord when the deadline
             // passed is not hung; the kill merely hurried it along. macOS in
@@ -306,7 +334,7 @@ impl PersistentExecutor {
             )));
         }
 
-        let outcome = session.wait_after_disconnect();
+        let outcome = session.wait_for_exit(SHUTDOWN_GRACE);
         let stderr = session.read_stderr();
         match outcome {
             Ok(DisconnectOutcome::Exited(status)) => Ok(classify_exit(status, stderr)),
@@ -959,8 +987,9 @@ impl Session {
         self.read_stderr()
     }
 
-    fn wait_after_disconnect(&mut self) -> std::io::Result<DisconnectOutcome> {
-        let deadline = Instant::now() + SHUTDOWN_GRACE;
+    /// Waits up to `grace` for the target to exit, then kills it.
+    fn wait_for_exit(&mut self, grace: Duration) -> std::io::Result<DisconnectOutcome> {
+        let deadline = Instant::now() + grace;
         let child = self.child.as_mut().expect("live session has child");
         loop {
             if let Some(status) = child.try_wait()? {
