@@ -62,6 +62,8 @@
           llvmPackages = pkgs.llvmPackages_latest;
           ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_5;
 
+          lean4 = pkgs.callPackage ./lean4.nix { };
+
           dotnetSdk = pkgs.dotnetCorePackages.sdk_11_0;
 
           # This dotnet-trace build is published to the dotnet-tools feed
@@ -155,6 +157,7 @@
                 beam28Packages.erlang
                 dotnetSdk
                 dotnetTrace
+                lean4
 
                 # wasm tooling
                 wasm-tools
