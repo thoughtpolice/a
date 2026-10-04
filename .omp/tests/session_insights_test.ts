@@ -1,7 +1,14 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
@@ -573,7 +580,10 @@ Deno.test("inherited relative results are never rebased onto a fork's different 
 });
 
 Deno.test("history intersections respect paths, authors, ordering and unavailable versus zero", async () => {
-  const root = await mkdtemp(join(tmpdir(), "omp-receipt-history-"));
+  // Resolve macOS's /var -> /private/var symlink so journal paths match.
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), "omp-receipt-history-")),
+  );
   try {
     const editTime = "2026-09-01T12:00:00Z";
     const j = journal("receipt", [

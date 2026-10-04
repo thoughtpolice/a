@@ -1,6 +1,13 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
-import { mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  realpath,
+  rm,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -11,7 +18,10 @@ function assert(value: unknown, why: string): asserts value {
   if (!value) throw new Error(why);
 }
 Deno.test("proof requires all current measured checks, counts distinct fresh inputs and detects a silent canary", async () => {
-  const root = await mkdtemp(join(tmpdir(), "omp-modernization-proof-"));
+  // Resolve macOS's /var -> /private/var symlink; the tools reject it.
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), "omp-modernization-proof-")),
+  );
   try {
     await mkdir(join(root, "candidate"));
     await mkdir(join(root, "source"));

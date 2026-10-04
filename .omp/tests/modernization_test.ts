@@ -3,6 +3,7 @@
 import {
   mkdir,
   mkdtemp,
+  realpath,
   rm,
   symlink,
   utimes,
@@ -44,7 +45,11 @@ async function rejects(
   throw new Error("Unsafe or unrecognized input was accepted");
 }
 async function fixture(action: (root: string) => Promise<void>): Promise<void> {
-  const root = await mkdtemp(join(tmpdir(), "omp-modernization-"));
+  // The tools reject symlinked roots, and macOS tmpdir() lives under the
+  // /var -> /private/var symlink.
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), "omp-modernization-")),
+  );
   try {
     await action(root);
   } finally {
