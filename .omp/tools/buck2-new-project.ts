@@ -122,7 +122,8 @@ export default function factory(pi: ToolAPI): Tool<Params> {
       }
       const visibility = params.visibility ?? ["PUBLIC"];
       if (
-        !Array.isArray(visibility) || visibility.some((value) =>
+        !Array.isArray(visibility) ||
+        visibility.some((value) =>
           typeof value !== "string" || !value || hasControlCharacters(value)
         )
       ) throw new Error("Invalid visibility list");
@@ -131,7 +132,8 @@ export default function factory(pi: ToolAPI): Tool<Params> {
         throw new Error("Permissions apply only to Deno projects");
       }
       if (
-        !Array.isArray(permissions) || permissions.some((value) =>
+        !Array.isArray(permissions) ||
+        permissions.some((value) =>
           !/^(read|write|net|env|run|sys|ffi|import)(=.+)?$/.test(value) ||
           hasControlCharacters(value)
         )

@@ -85,9 +85,9 @@ export async function proofPack(root: string, value: unknown) {
       "Results predate candidate code; run the current Buck2 target again",
     );
   } else if (
-    clean.counts.skipped && (!clean.perTest || clean.cases.some((t) =>
-      t.outcome === "SKIP" && !t.reason.trim()
-    ))
+    clean.counts.skipped &&
+    (!clean.perTest ||
+      clean.cases.some((t) => t.outcome === "SKIP" && !t.reason.trim()))
   ) add("tests", "gap", "Skipped tests lack individual reasons");
   else add("tests", "pass", `${clean.counts.executed} measured tests executed`);
   if (track === "uplift") {
@@ -248,7 +248,8 @@ export async function proofPack(root: string, value: unknown) {
       expected = object(original.files),
       current = await snapshot(resolve(root, text(spec.sourceRoot)));
     if (
-      original.version !== 1 || Object.values(expected).some((hash) =>
+      original.version !== 1 ||
+      Object.values(expected).some((hash) =>
         typeof hash !== "string" || !/^[0-9a-f]{64}$/.test(hash)
       )
     ) throw new Error("Unrecognized source snapshot");

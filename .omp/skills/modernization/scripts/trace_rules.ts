@@ -175,7 +175,8 @@ export async function traceRules(root: string, value: unknown) {
               .test(line);
         }
         if (
-          !retired && line.trim().startsWith("|") && selected.some((f) =>
+          !retired && line.trim().startsWith("|") &&
+          selected.some((f) =>
             line.includes(f) || line.includes(f.slice(prefix.length))
           )
         ) {

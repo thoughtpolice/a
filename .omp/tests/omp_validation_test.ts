@@ -37,9 +37,9 @@ Deno.test("native agents reject reserved names and preserve restricted tools", (
     blocking: "true",
   }, "Work");
   assert(
-    !malformed.valid && malformed.diagnostics.some((d) =>
-      d.field === "tools"
-    ) && malformed.diagnostics.some((d) => d.field === "blocking"),
+    !malformed.valid &&
+      malformed.diagnostics.some((d) => d.field === "tools") &&
+      malformed.diagnostics.some((d) => d.field === "blocking"),
     "Dropped native semantics must be reported",
   );
 });

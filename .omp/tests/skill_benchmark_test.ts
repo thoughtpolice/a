@@ -158,9 +158,10 @@ Deno.test("unpaired cases contribute only to their own summaries", () => {
     "Variant measurements retained",
   );
   assert(
-    output.pairedDelta.time_seconds.n === 0 && output.pairs.every((p) =>
-      p.missing.some((s) => s.startsWith("Unpaired"))
-    ),
+    output.pairedDelta.time_seconds.n === 0 &&
+      output.pairs.every((p) =>
+        p.missing.some((s) => s.startsWith("Unpaired"))
+      ),
     "Unmatched run IDs do not form a manufactured pair",
   );
 });

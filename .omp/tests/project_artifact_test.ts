@@ -442,9 +442,9 @@ Deno.test("refresh collection limits include retained stale records and allow ex
   }, previous);
   const restored = parseArtifactHTML(refreshed.html);
   assert(
-    restored.evidence.length === 2000 && restored.evidence.some((e) =>
-      e.id === "new"
-    ) && !restored.evidence.some((e) => e.id === "old-1998"),
+    restored.evidence.length === 2000 &&
+      restored.evidence.some((e) => e.id === "new") &&
+      !restored.evidence.some((e) => e.id === "old-1998"),
     "A bounded successful refresh remains readable and preserves precisely the nonremoved evidence",
   );
 });

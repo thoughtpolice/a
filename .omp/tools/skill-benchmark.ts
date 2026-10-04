@@ -90,9 +90,9 @@ export function aggregateBenchmark(
   artifacts: ArtifactRun[],
 ): Benchmark {
   if (
-    variants.length !== 2 || !variants.every((v) =>
-      typeof v === "string" && v.trim()
-    ) || variants[0] === variants[1]
+    variants.length !== 2 ||
+    !variants.every((v) => typeof v === "string" && v.trim()) ||
+    variants[0] === variants[1]
   ) throw new Error("Select two distinct variants in primary, baseline order");
   if (!artifacts.length || artifacts.length > 1000) {
     throw new Error("Expected 1–1000 explicitly selected runs");

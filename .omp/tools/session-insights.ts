@@ -436,9 +436,10 @@ function addUsage(target: UsageMetrics, raw: unknown): void {
   const all = [...buckets, ...extra];
   meterAdd(
     target.totalTokens,
-    count(usage.totalTokens) ?? (all.every((n) => n !== null)
-      ? all.reduce<number>((sum, n) => sum + (n ?? 0), 0)
-      : null),
+    count(usage.totalTokens) ??
+      (all.every((n) => n !== null)
+        ? all.reduce<number>((sum, n) => sum + (n ?? 0), 0)
+        : null),
   );
   meterAdd(target.orchestrationInput, extra[0]);
   meterAdd(target.orchestrationOutput, extra[1]);
@@ -1040,7 +1041,9 @@ export function parseHistory(output: string): HistoryCommit[] {
         typeof p !== "string" || isAbsolute(p) || p.split("/").includes("..") ||
         p.includes("\0")
       )
-    ) throw new Error("Unsupported jj history record");
+    ) {
+      throw new Error("Unsupported jj history record");
+    }
     return {
       commit: String(row.commit),
       author: row.author,
@@ -1311,7 +1314,7 @@ export function reportCsv(report: Insights | Receipt): string {
           p.operationsWithUnknownLines,
           p.historyStatus,
           p.commitsIntersectingChangedFiles,
-        ]
+        ],
       ),
     ]
     : [
@@ -1333,7 +1336,7 @@ export function reportCsv(report: Insights | Receipt): string {
           d.usage.totalTokens.observedSum,
           d.usage.totalTokens.missingRecords,
           d.activeMs,
-        ]
+        ],
       ),
     ];
   rows.push([], ...report.caveats.map((note) => [`Note: ${note}`]));

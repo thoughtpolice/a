@@ -356,7 +356,7 @@ export function parseLog(raw: string): Counts {
       if (m) {
         const counts = Object.fromEntries(
           [...m[2]?.matchAll(/(\w+)=(\d+)/g) ?? []].map(
-            (x) => [x[1], Number(x[2])]
+            (x) => [x[1], Number(x[2])],
           ),
         );
         const f = (counts.failures ?? 0) + (counts.errors ?? 0),
@@ -416,7 +416,7 @@ export function parseLog(raw: string): Counts {
     } else if ((m = line.match(/^(Tests: \d+, Assertions: \d+.*?)\.?\s*$/))) {
       const c = Object.fromEntries(
         [...m[1].matchAll(/([A-Za-z]+):\s*(\d+)/g)].map(
-          (x) => [x[1].toLowerCase(), Number(x[2])]
+          (x) => [x[1].toLowerCase(), Number(x[2])],
         ),
       );
       const f = (c.failures ?? 0) + (c.errors ?? 0),
@@ -430,7 +430,7 @@ export function parseLog(raw: string): Counts {
     ) {
       const c = Object.fromEntries(
         [...m[1].matchAll(/(\d+)\s+([a-z]+)/g)].map(
-          (x) => [x[2], Number(x[1])]
+          (x) => [x[2], Number(x[1])],
         ),
       );
       if (

@@ -557,9 +557,9 @@ Deno.test("mixed batch replay accepts new work and provenance does not suppress 
       stems: [...request.stems, "new"],
     });
     assert(
-      replay.verdict === "ANSWERS" && replay.answers?.map((row) =>
-            row.status
-          ).join(",") === "no answer,partial,answered,partial",
+      replay.verdict === "ANSWERS" &&
+        replay.answers?.map((row) => row.status).join(",") ===
+          "no answer,partial,answered,partial",
       "Formerly empty stem blocked classification of new batch work",
     );
     assert(

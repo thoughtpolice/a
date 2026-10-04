@@ -113,10 +113,9 @@ export async function walk(root: string, skip = true): Promise<string[]> {
   async function visit(dir: string, depth: number): Promise<void> {
     if (depth > 40) throw new Error("Source depth exceeds 40");
     for (
-      const entry
-        of (await readdir(await workspacePath(root, dir), {
-          withFileTypes: true,
-        })).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+      const entry of (await readdir(await workspacePath(root, dir), {
+        withFileTypes: true,
+      })).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
     ) {
       if (++entries > 20000) throw new Error("Source exceeds 20000 entries");
       const path = join(dir, entry.name);

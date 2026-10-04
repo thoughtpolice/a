@@ -283,7 +283,7 @@ Deno.test("runtime overlaps select runtime-only sessions without importing outsi
         s.wallMs,
         s.activeMs,
         s.agent,
-      ]
+      ],
     ),
     [[
       Date.parse(selection.since),
@@ -295,7 +295,7 @@ Deno.test("runtime overlaps select runtime-only sessions without importing outsi
   );
   equal(
     report.days.map(
-      (d) => [d.date, d.sessions, d.prompts, d.usage.records, d.activeMs]
+      (d) => [d.date, d.sessions, d.prompts, d.usage.records, d.activeMs],
     ),
     [["2026-09-01", 1, 0, 0, 20000]],
   );
@@ -621,14 +621,12 @@ Deno.test("history intersections respect paths, authors, ordering and unavailabl
       typebox: { Type: schemas },
       exec: (_command, args) =>
         Promise.resolve(
-          unavailable
-            ? { ...ok, code: 1 }
-            : {
-              ...ok,
-              stdout: args.includes("root")
-                ? root + "\n"
-                : records.map((r) => JSON.stringify(r)).join("\n"),
-            },
+          unavailable ? { ...ok, code: 1 } : {
+            ...ok,
+            stdout: args.includes("root")
+              ? root + "\n"
+              : records.map((r) => JSON.stringify(r)).join("\n"),
+          },
         ),
     };
     const params = {

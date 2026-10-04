@@ -179,13 +179,12 @@ export default function (pi: ToolAPI): Tool<Params> {
       };
       const execute = async (args: string[], purpose: string) => {
         const output = await run(pi, args, signal);
-        const command =
-          commands.push({
-            args,
-            code: output.code,
-            stdout: output.stdout,
-            stderr: output.stderr,
-          }) - 1;
+        const command = commands.push({
+          args,
+          code: output.code,
+          stdout: output.stdout,
+          stderr: output.stderr,
+        }) - 1;
         if (output.code !== 0) {
           issues.push({
             kind: "diagnostic_command_failed",

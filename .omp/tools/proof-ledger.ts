@@ -397,9 +397,8 @@ function gateReason(input: string, known: Set<string>): string | undefined {
     audits.push({ cites, locator: source });
   }
   if (
-    audits.length < 2 || new Set(audits.map((audit) =>
-        audit.locator
-      )).size < 2 ||
+    audits.length < 2 ||
+    new Set(audits.map((audit) => audit.locator)).size < 2 ||
     !audits.some((audit) => audit.cites.has(goal.id))
   ) {
     return `Need two distinct completed-query [AUDIT] certifications of the live support chain, at least one citing goal entry ${goal.id}`;
@@ -669,16 +668,14 @@ async function checkPlan(
       priorText(all, round) + numbered,
       await finishedLocators(directory),
     );
-    outcome = reason
-      ? correction(reason)
-      : {
-        verdict: "CONCLUDE",
-        round,
-        attempt,
-        reason: round < minRounds
-          ? "Audited support chain accepted before minimum round"
-          : "Audited support chain accepted",
-      };
+    outcome = reason ? correction(reason) : {
+      verdict: "CONCLUDE",
+      round,
+      attempt,
+      reason: round < minRounds
+        ? "Audited support chain accepted before minimum round"
+        : "Audited support chain accepted",
+    };
     if (reason && !final) {
       moves.push({
         from: doneName,

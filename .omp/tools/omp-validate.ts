@@ -161,8 +161,7 @@ export function validateMetadata(
       "Expected skill-name array",
     );
     for (const field of ["blocking", "readSummarize"]) {
-      optional(field, (v) =>
-        typeof v === "boolean", "Expected boolean");
+      optional(field, (v) => typeof v === "boolean", "Expected boolean");
     }
     for (const field of ["prewalk", "advisor"]) {
       optional(
@@ -234,8 +233,11 @@ export function validateMetadata(
   }
   if (kind === "mcp") {
     for (const field of ["disabledServers", "enabledServers"]) {
-      optional(field, (v) =>
-        Array.isArray(v) && v.every(nonempty), "Expected server-name array");
+      optional(
+        field,
+        (v) => Array.isArray(v) && v.every(nonempty),
+        "Expected server-name array",
+      );
     }
     optional(
       "$schema",
@@ -281,8 +283,7 @@ export function validateMetadata(
           check(field, nonempty, "Expected nonempty string");
         }
         for (const field of ["enabled", "instructions"]) {
-          check(field, (v) =>
-            typeof v === "boolean", "Expected boolean");
+          check(field, (v) => typeof v === "boolean", "Expected boolean");
         }
         check(
           "timeout",
@@ -300,10 +301,12 @@ export function validateMetadata(
           "Expected string array",
         );
         for (const field of ["env", "headers"]) {
-          check(field, (v) =>
-            record(v) && Object.values(v).every((x) =>
-              typeof x === "string"
-            ), "Expected string-valued mapping");
+          check(
+            field,
+            (v) =>
+              record(v) && Object.values(v).every((x) => typeof x === "string"),
+            "Expected string-valued mapping",
+          );
         }
         for (const field of ["auth", "oauth"]) {
           check(field, record, "Expected object");

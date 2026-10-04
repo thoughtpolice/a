@@ -102,18 +102,16 @@ Deno.test("proof requires all current measured checks, counts distinct fresh inp
     };
     const proven = await proofPack(root, request);
     assert(
-      proven.verdict === "PROVEN" && proven.checks.every((c) =>
-        c.state === "pass"
-      ),
+      proven.verdict === "PROVEN" &&
+        proven.checks.every((c) => c.state === "pass"),
       "Complete current evidence did not establish all checks",
     );
     for (const c of fresh.cases) c.input = "fresh-0.input";
     await writeFile(join(root, "fresh.json"), JSON.stringify(fresh));
     const reused = await proofPack(root, request);
     assert(
-      reused.verdict === "PARTLY PROVEN" && reused.checks.find((c) =>
-            c.id === "fresh"
-          )?.state === "gap",
+      reused.verdict === "PARTLY PROVEN" &&
+        reused.checks.find((c) => c.id === "fresh")?.state === "gap",
       "Ten output pairs for one input counted as ten inputs",
     );
     await writeFile(
@@ -123,9 +121,8 @@ Deno.test("proof requires all current measured checks, counts distinct fresh inp
     await utimes(join(root, "canary.xml"), 20, 20);
     const silent = await proofPack(root, request);
     assert(
-      silent.verdict === "NOT PROVEN" && silent.checks.find((c) =>
-            c.id === "canary"
-          )?.state === "fail",
+      silent.verdict === "NOT PROVEN" &&
+        silent.checks.find((c) => c.id === "canary")?.state === "fail",
       "Undetected deliberate break did not fail proof",
     );
   } finally {

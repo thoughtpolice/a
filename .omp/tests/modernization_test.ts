@@ -468,9 +468,8 @@ Deno.test("proof recomputes current evidence and never upgrades unknown, stale o
     };
     const gap = await proofPack(root, basic);
     assert(
-      gap.verdict === "PARTLY PROVEN" && gap.checks.find((c) =>
-            c.id === "source"
-          )?.state === "pass",
+      gap.verdict === "PARTLY PROVEN" &&
+        gap.checks.find((c) => c.id === "source")?.state === "pass",
       "Missing evidence became proven",
     );
     await writeFile(join(root, "results.json"), '{"A#works":"PASS"}');

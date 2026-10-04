@@ -312,9 +312,9 @@ export async function compare(
     }
   }
   return {
-    ok: rows.length > 0 && rows.every((r) =>
-      r.verdict === "same" && r.selfCheck
-    ) && rows.some((r) => !r.empty),
+    ok: rows.length > 0 &&
+      rows.every((r) => r.verdict === "same" && r.selfCheck) &&
+      rows.some((r) => !r.empty),
     oldest,
     cases: rows,
   };

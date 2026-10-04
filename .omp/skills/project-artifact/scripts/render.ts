@@ -591,45 +591,42 @@ export function renderArtifact(state: ArtifactState): string {
       }</ul>`
       : ""
   }`;
-  const work =
-    table(
-      [
-        "ID / workstream",
-        "Owner / dependencies",
-        "Status / freshness",
-        "Evidence",
-      ],
-      state.workstreams.map((
-        w,
-      ) => [
-        `<strong>${escape(w.id)}</strong><br>${escape(w.title)}`,
-        `${escape(w.owner)}${
-          w.depends_on?.length
-            ? `<br>After ${w.depends_on.map(escape).join(", ")}`
-            : ""
-        }`,
-        `${pill(w.status)}<br>${freshness(w)}`,
-        refs(w.evidence),
-      ]),
-    ) + state.workstreams.map((w) =>
-      `<article><h3>${escape(w.id)} — ${escape(w.title)}</h3>${
-        w.detail ? `<p>${escape(w.detail)}</p>` : ""
-      }${
-        w.verification
-          ? `<h4>Verification</h4><p>${escape(w.verification)}</p>`
+  const work = table(
+    [
+      "ID / workstream",
+      "Owner / dependencies",
+      "Status / freshness",
+      "Evidence",
+    ],
+    state.workstreams.map((
+      w,
+    ) => [
+      `<strong>${escape(w.id)}</strong><br>${escape(w.title)}`,
+      `${escape(w.owner)}${
+        w.depends_on?.length
+          ? `<br>After ${w.depends_on.map(escape).join(", ")}`
           : ""
-      }${
-        w.number
-          ? `<p>PR ${escape(w.repo ?? "")} #${w.number} · Stage ${
-            escape(w.workstream ?? "")
-          } · ${w.draft ? "Draft" : "Ready for review"} · CI: ${
-            escape(w.ci ?? "")
-          } · Unresolved threads: ${w.unresolved} · ${
-            escape(w.state ?? "")
-          }</p>`
-          : ""
-      }</article>`
-    ).join("");
+      }`,
+      `${pill(w.status)}<br>${freshness(w)}`,
+      refs(w.evidence),
+    ]),
+  ) + state.workstreams.map((w) =>
+    `<article><h3>${escape(w.id)} — ${escape(w.title)}</h3>${
+      w.detail ? `<p>${escape(w.detail)}</p>` : ""
+    }${
+      w.verification
+        ? `<h4>Verification</h4><p>${escape(w.verification)}</p>`
+        : ""
+    }${
+      w.number
+        ? `<p>PR ${escape(w.repo ?? "")} #${w.number} · Stage ${
+          escape(w.workstream ?? "")
+        } · ${w.draft ? "Draft" : "Ready for review"} · CI: ${
+          escape(w.ci ?? "")
+        } · Unresolved threads: ${w.unresolved} · ${escape(w.state ?? "")}</p>`
+        : ""
+    }</article>`
+  ).join("");
   const evidence = state.evidence.map((e) =>
     `<article id="e-${escape(e.id)}"><h3>${escape(e.label)}</h3>${
       freshness(e)

@@ -113,11 +113,11 @@ export async function buildReport(root: string, value: unknown) {
           total: rules.length,
           byPriority: Object.fromEntries(
             [...new Set(rules.map((r) => r.priority))].map(
-              (p) => [p, rules.filter((r) => r.priority === p).length]
+              (p) => [p, rules.filter((r) => r.priority === p).length],
             ),
           ),
           needsConfirmation: rules.filter((r) => r.confidence !== "High").map(
-            (r) => r.id
+            (r) => r.id,
           ),
         };
       }
@@ -156,18 +156,17 @@ export async function buildReport(root: string, value: unknown) {
       warnings.push(`Topology: ${String(error)}`);
     }
   }
-  const next =
-    [
-      "preflight",
-      "assess",
-      "map",
-      "rules",
-      "review",
-      "plan",
-      "build",
-      "verify",
-      "harden",
-    ].find((stage) => !stages.has(stage)) ?? "status";
+  const next = [
+    "preflight",
+    "assess",
+    "map",
+    "rules",
+    "review",
+    "plan",
+    "build",
+    "verify",
+    "harden",
+  ].find((stage) => !stages.has(stage)) ?? "status";
   const introduction =
     `${verdict}. Next artifact to inspect: ${next}. Artifact presence is not phase completion or human approval. Saved proof assertions are never trusted; the proof request is re-evaluated against current files.`;
   const markup = sections.map((s) =>
@@ -181,22 +180,21 @@ export async function buildReport(root: string, value: unknown) {
     }</h1><p>${html(introduction)}</p><h2>Report notes</h2><ul>${
       warnings.map((w) => `<li>${html(w)}</li>`).join("")
     }</ul>${markup}</body></html>`;
-  const markdown =
-    [
-      `# ${md(title)}`,
-      "",
-      md(introduction),
-      "",
-      "## Report notes",
-      ...warnings.map((w) => `- ${md(w)}`),
-      ...sections.flatMap(
-        (s) => [
-          "",
-          `## ${md(s.title)}`,
-          "",
-          ...s.body.split("\n").map((line) => md(line)),
-        ]
-      ),
-    ].join("\n") + "\n";
+  const markdown = [
+    `# ${md(title)}`,
+    "",
+    md(introduction),
+    "",
+    "## Report notes",
+    ...warnings.map((w) => `- ${md(w)}`),
+    ...sections.flatMap(
+      (s) => [
+        "",
+        `## ${md(s.title)}`,
+        "",
+        ...s.body.split("\n").map((line) => md(line)),
+      ],
+    ),
+  ].join("\n") + "\n";
   return { html: htmlReport, markdown, verdict, next, warnings, facts };
 }

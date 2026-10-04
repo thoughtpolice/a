@@ -102,11 +102,9 @@ export function renderRules(value: unknown) {
     ...cards,
     "## Rules requiring domain-owner confirmation",
     "",
-    ...(questions.length
-      ? questions
-      : [
-        "No confirmation questions supplied; this does not imply human approval.",
-      ]),
+    ...(questions.length ? questions : [
+      "No confirmation questions supplied; this does not imply human approval.",
+    ]),
   );
   for (
     const [key, heading] of [
