@@ -7,7 +7,8 @@
 Opens buck/toolchains/lean/tests/Main.lean, whose imports live in two other
 Buck targets, and checks that the server reports no errors, hovers a
 definition from one of them, and jumps to its source. NativeEval.lean
-checks that precompiled libraries load. The shim's Buck
+checks that precompiled libraries load, and Greeting/Basic.lean that
+references reach files the server never opened. The shim's Buck
 calls run in their own isolation directory, whose daemon this stops at the
 end.
 """
@@ -146,10 +147,22 @@ def main():
         if not any(t.endswith("/buck/toolchains/lean/tests/Greeting.lean") for t in targets):
             fail("unexpected definition: {}".format(definition))
 
+        # References to answer, from files in three other targets that the
+        # server has not opened, through the .ilean index `lake serve` built.
+        basic_uri, basic_text = open_file(server, os.path.join(tests, "Greeting/Basic.lean"))
+        at = position(basic_text, "answer :")
+        refs = server.request(
+            "textDocument/references",
+            {"textDocument": {"uri": basic_uri}, "position": at, "context": {"includeDeclaration": False}},
+        )
+        found = {os.path.basename(r["uri"]) for r in refs or []}
+        if not {"Greeting.lean", "Native.lean", "Proofs.lean"} <= found:
+            fail("unexpected references to answer: {}".format(sorted(found)))
+
         server.request("shutdown", None)
         server.send({"method": "exit", "params": None})
         server.proc.wait(timeout=30)
-        print("ok: diagnostics, precompiled libraries, hover and definition through Buck")
+        print("ok: diagnostics, precompiled libraries, hover, definition and references through Buck")
     finally:
         if server.proc.poll() is None:
             server.proc.kill()

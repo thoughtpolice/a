@@ -14,7 +14,8 @@ runs.
 Commands:
   setup-file FILE [-]   build the imports of FILE and print its setup
   src-path              print LEAN_SRC_PATH for every Lean target
-  serve [-- ARGS]       run `lean --server` with the environment set up
+  serve [-- ARGS]       build every Lean module, then run `lean --server` with
+                        the environment set up
   --version             a version new enough for clients that check
 
 Exit status follows Lake: 2 means FILE belongs to no Lean target (the
@@ -26,10 +27,14 @@ The server asks for a dependency build only on "Restart File" and passes
 header edit regardless, which is what Buck's caching makes cheap.
 """
 
+import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
+import time
 
 BXL = "toolchains//lean/lsp/lean.bxl"
 
@@ -139,8 +144,49 @@ def setup_file(argv: list[str]):
     )
 
 
-def roots(root: str) -> dict:
-    return bxl(root, "roots", [arg for p in SRC_PATTERNS for arg in ("--pattern", p)], "Finding Lean source roots")
+def index(root: str, build: bool) -> dict:
+    args = [arg for p in SRC_PATTERNS for arg in ("--pattern", p)]
+    what = "Finding Lean source roots"
+    if build:
+        args += ["--build", "true"]
+        what = "Building every Lean module for find-references"
+    return bxl(root, "index", args, what)
+
+
+def ilean_dir(ileans: dict[str, str]) -> str:
+    """A directory with every module's .ilean, for LEAN_PATH.
+
+    The watchdog reads each .ilean under LEAN_PATH when it starts, which is
+    what lets it find references in files nobody has opened. The .ilean files
+    sit one per directory in buck-out, beside .olean files whose names do
+    not fit LEAN_PATH's layout, so they get links of their own under
+    ileans/. Each set of .ilean files gets its own directory, named after
+    its contents, so servers started at different times never share one
+    that changes under them.
+    """
+    links = {name + ".ilean": os.path.join(path, name + ".ilean") for name, path in ileans.items()}
+    digest = hashlib.sha256(json.dumps(links, sort_keys=True).encode()).hexdigest()[:16]
+    cache = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "depot-lean-lsp")
+    lib = os.path.join(cache, digest)
+    if not os.path.isdir(lib):
+        os.makedirs(cache, exist_ok=True)
+        tmp = tempfile.mkdtemp(dir=cache, prefix=".tmp-")
+        os.mkdir(os.path.join(tmp, "ileans"))
+        for name, target in links.items():
+            os.symlink(target, os.path.join(tmp, "ileans", name))
+        try:
+            os.rename(tmp, lib)
+        except OSError:
+            # Another server made the same one first.
+            shutil.rmtree(tmp)
+
+    # Directories from earlier indexes, left by servers that have exited.
+    week = time.time() - 7 * 24 * 3600
+    for entry in os.listdir(cache):
+        path = os.path.join(cache, entry)
+        if entry != digest and os.path.getmtime(path) < week:
+            shutil.rmtree(path, ignore_errors=True)
+    return lib
 
 
 def build_lean(cflags: str) -> str:
@@ -162,12 +208,23 @@ def serve(argv: list[str]):
     if argv[:1] == ["--"]:
         argv = argv[1:]
     root = project_root(os.getcwd())
-    found = roots(root)
+    found = index(root, build=True)
+    if found["failed"]:
+        print(
+            "{} Lean module(s) did not build, so find-references misses them: {}".format(
+                len(found["failed"]), ", ".join(found["failed"])
+            ),
+            file=sys.stderr,
+        )
+    lean_path = [ilean_dir(found["ileans"])]
+    if os.environ.get("LEAN_PATH"):
+        lean_path.append(os.environ["LEAN_PATH"])
     bin = build_lean(found["cflags"])
     env = dict(
         os.environ,
         LAKE=os.path.realpath(__file__),
         LEAN_SRC_PATH=os.pathsep.join(found["roots"]),
+        LEAN_PATH=os.pathsep.join(lean_path),
         # The workers, and anything lake runs, find it here.
         PATH=bin + os.pathsep + os.environ.get("PATH", ""),
     )
@@ -186,7 +243,7 @@ def main():
     elif command == "setup-file":
         setup_file(rest)
     elif command == "src-path":
-        print(os.pathsep.join(roots(project_root(os.getcwd()))["roots"]))
+        print(os.pathsep.join(index(project_root(os.getcwd()), build=False)["roots"]))
     elif command == "serve":
         serve(rest)
     else:

@@ -14,16 +14,26 @@ import closure, and prints the paths Buck built. Lake never runs.
 | `lake` | the Lake stand-in: `setup-file`, `serve`, `src-path` |
 | `lean.bxl` | the Buck queries `lake` makes |
 
-`lake serve` sets `LAKE` to itself and `LEAN_SRC_PATH` to the source root
-of every Lean target (found through `lean.bxl:roots`), then execs
-`lean --server`. The server takes module names, go-to-definition targets
-and import completion from `LEAN_SRC_PATH`.
+`lake serve` builds every Lean module in the repository, then execs
+`lean --server` from the Lean that Buck builds with (the one
+`toolchains//lean:check` found), not whichever is first on the editor's
+PATH, with four variables set:
 
-The `lean` it runs is the one Buck builds with, the one
-`toolchains//lean:check` found, not whichever is first on the editor's
-PATH. Its `bin` goes first on the server's PATH too, for the workers. The
-server loads .olean files that Lean wrote, and a different Lean fails on
-them.
+- `LAKE` names `lake` itself.
+- `LEAN_SRC_PATH` lists the source root of every Lean target. The server
+  takes module names, go-to-definition targets and import completion from
+  it.
+- `PATH` starts with that Lean's `bin`, for the workers and `lake`.
+- `LEAN_PATH` starts with a directory of links to every module's .ilean,
+  under `~/.cache/depot-lean-lsp/`. The server reads them all when it
+  starts, which is how find-references reaches files nobody has opened.
+
+`lean.bxl:index` does the building and finds the roots. A module that does
+not build is left out of the index with a note in the server's log, rather
+than keeping the server from starting.
+
+The server loads .olean files and precompiled libraries that Buck's Lean
+wrote, and a different Lean fails on them.
 
 ## Setup
 
@@ -50,5 +60,9 @@ the Nix shell instead.
   falls back to LEAN_PATH.
 - The setup carries the target's `package`, `options` and precompiled
   libraries, so the editor elaborates the way the build does.
+- The index is as fresh as the server. References to code built after the
+  server started appear once it restarts ("Restart Server" in VS Code);
+  files open in the editor are always current.
+- The first start after a large change waits for that build.
 - `buck2` runs in the default daemon. Set `BUCK_ISOLATION_DIR` in the
   editor's environment to use another.

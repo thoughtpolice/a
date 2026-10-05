@@ -125,5 +125,3 @@ dev shell and restart Buck (`buck2 kill`) so actions see the new PATH.
   way crates need reindeer; nothing generates those yet.
 - Precompiling a library's modules for its own other modules, as Lake's
   `precompileModules` does. `precompile` serves importers in other targets.
-- `.ilean` indexing across the whole repository for find-references in the
-  editor.
