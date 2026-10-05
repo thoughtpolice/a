@@ -48,7 +48,7 @@ the Nix shell instead.
   otherwise. `lake` ignores that and builds every time.
 - A file that belongs to no Lean target gets exit status 2, and the server
   falls back to LEAN_PATH.
-- The setup carries the target's `package` and `options`, so the editor
-  elaborates with the settings the build uses.
+- The setup carries the target's `package`, `options` and precompiled
+  libraries, so the editor elaborates the way the build does.
 - `buck2` runs in the default daemon. Set `BUCK_ISOLATION_DIR` in the
   editor's environment to use another.

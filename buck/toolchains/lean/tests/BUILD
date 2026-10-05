@@ -18,13 +18,25 @@ depot.lean.library(
 depot.cxx_library(
     name = "native-c",
     srcs = ["native.c"],
-    deps = ["toolchains//lean:runtime"],
+    deps = ["toolchains//lean:headers"],
 )
 
+# Precompiled, so :native-eval can run mulAdd while it elaborates; the
+# interpreter cannot run an @[extern] function on its own.
 depot.lean.library(
     name = "native",
     srcs = ["Native.lean"],
-    deps = [":native-c"],
+    precompile = True,
+    deps = [
+        ":greeting",
+        ":native-c",
+    ],
+)
+
+depot.lean.test(
+    name = "native-eval",
+    srcs = ["NativeEval.lean"],
+    deps = [":native"],
 )
 
 depot.lean.binary(

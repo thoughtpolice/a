@@ -25,12 +25,21 @@ lean_toolchain_check(
     tool = ":tool",
 )
 
-# lean.h for C code, and Lean's runtime and standard library for the link.
-# Generated C needs both; so does C++ code implementing @[extern] functions.
+# lean.h, for C and C++ code implementing @[extern] functions. That code
+# depends on this rather than :runtime, so that a precompiled library's
+# shared object can include it without Lean's static runtime.
+shims.cxx_library(
+    name = "headers",
+    exported_preprocessor_flags = ["@$(location :check[cflags])"],
+    visibility = ["PUBLIC"],
+)
+
+# lean.h and Lean's runtime and standard library, for the generated C and
+# for programs that call Lean code.
 shims.cxx_library(
     name = "runtime",
+    exported_deps = [":headers"],
     exported_post_linker_flags = ["@$(location :check[ldflags])"],
-    exported_preprocessor_flags = ["@$(location :check[cflags])"],
     preferred_linkage = "static",
     visibility = ["PUBLIC"],
 )
