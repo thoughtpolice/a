@@ -8,3 +8,9 @@ overrideCommand = ["rust-project", "check", "$saved_file"]
 command = ["rust-project", "develop-json", "--sysroot-mode=rustc", "{arg}"]
 progressLabel = "rust-analyzer[buck2]"
 filesToWatch = ["BUILD", "PACKAGE"]
+
+# The Lean server takes each file's imports from Buck instead of Lake (see
+# buck/toolchains/lean/lsp). Helix starts servers in the workspace root.
+[language-server.lean]
+command = "/bin/sh"
+args = ["-c", "exec \"$(buck2 root --kind project)/buck/toolchains/lean/lsp/lake\" serve"]

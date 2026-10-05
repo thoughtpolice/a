@@ -1,5 +1,17 @@
 {
     "lsp": {
+        // The Lean 4 extension's server takes each file's imports from Buck
+        // instead of Lake (see buck/toolchains/lean/lsp). Zed starts it in
+        // the worktree root.
+        "lean4-lsp": {
+            "binary": {
+                "path": "/bin/sh",
+                "arguments": [
+                    "-c",
+                    "exec \"$(buck2 root --kind project)/buck/toolchains/lean/lsp/lake\" serve"
+                ]
+            }
+        },
         "deno": {
             "settings": {
                 "deno": {
