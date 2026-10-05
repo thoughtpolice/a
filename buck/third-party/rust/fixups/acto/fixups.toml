@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The build script only probes the rustc release channel to emit a
+# CHANNEL_* cfg, which nothing in the crate reads.
+buildscript.run = false

@@ -59,6 +59,32 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "acto-0.8.2.crate",
+    sha256 = "598381761ee991bf2f1455f700380e2191fb370dc9df1ee764f348b7f089d8b6",
+    strip_prefix = "acto-0.8.2",
+    urls = ["https://static.crates.io/crates/acto/0.8.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "acto-0.8",
+    srcs = [":acto-0.8.2.crate"],
+    crate = "acto",
+    crate_root = "acto-0.8.2.crate/src/lib.rs",
+    edition = "2021",
+    features = ["tokio"],
+    visibility = [],
+    deps = [
+        ":parking_lot-0.12",
+        ":pin-project-lite-0.2",
+        ":smol_str-0.1",
+        ":sync_wrapper-1",
+        ":tokio-1",
+        ":tracing-0.1",
+    ],
+)
+
+shims.http_archive(
     name = "adler2-2.0.1.crate",
     sha256 = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa",
     strip_prefix = "adler2-2.0.1",
@@ -3559,6 +3585,41 @@ third_party_rust.rust_library(
             deps = [":libc-0.2"],
         ),
     },
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "crc-3.4.0.crate",
+    sha256 = "5eb8a2a1cd12ab0d987a5d5e825195d372001a4094a0376319d5a0ad71c1ba0d",
+    strip_prefix = "crc-3.4.0",
+    urls = ["https://static.crates.io/crates/crc/3.4.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "crc-3",
+    srcs = [":crc-3.4.0.crate"],
+    crate = "crc",
+    crate_root = "crc-3.4.0.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [":crc-catalog-2"],
+)
+
+shims.http_archive(
+    name = "crc-catalog-2.5.0.crate",
+    sha256 = "217698eaf96b4a3f0bc4f3662aaa55bdf913cd54d7204591faa790070c6d0853",
+    strip_prefix = "crc-catalog-2.5.0",
+    urls = ["https://static.crates.io/crates/crc-catalog/2.5.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "crc-catalog-2",
+    srcs = [":crc-catalog-2.5.0.crate"],
+    crate = "crc_catalog",
+    crate_root = "crc-catalog-2.5.0.crate/src/lib.rs",
+    edition = "2018",
     visibility = [],
 )
 
@@ -10647,6 +10708,34 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.http_archive(
+    name = "hickory-proto-0.26.3.crate",
+    sha256 = "12b92608f679a6fa515dd1d15c1ff89443026e391200a2c840c7afcba482893d",
+    strip_prefix = "hickory-proto-0.26.3",
+    urls = ["https://static.crates.io/crates/hickory-proto/0.26.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "hickory-proto-0.26",
+    srcs = [":hickory-proto-0.26.3.crate"],
+    crate = "hickory_proto",
+    crate_root = "hickory-proto-0.26.3.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [
+        ":data-encoding-2",
+        ":idna-1",
+        ":ipnet-2",
+        ":once_cell-1",
+        ":rand-0.10",
+        ":thiserror-2",
+        ":tinyvec-1",
+        ":tracing-0.1",
+        ":url-2",
+    ],
+)
+
 shims.alias(
     name = "hmac",
     actual = ":hmac-0.13",
@@ -12451,6 +12540,78 @@ third_party_rust.rust_library(
         ":pin-project-1",
         ":smallvec-1",
         ":tokio-1",
+    ],
+)
+
+shims.alias(
+    name = "iroh-mainline-address-lookup",
+    actual = ":iroh-mainline-address-lookup-0.6",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "iroh-mainline-address-lookup-0.6.0.crate",
+    sha256 = "c10c07e607e6c31c99f61a075e8d06a1d621c738797e801afb3e80fed861440e",
+    strip_prefix = "iroh-mainline-address-lookup-0.6.0",
+    urls = ["https://static.crates.io/crates/iroh-mainline-address-lookup/0.6.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "iroh-mainline-address-lookup-0.6",
+    srcs = [":iroh-mainline-address-lookup-0.6.0.crate"],
+    crate = "iroh_mainline_address_lookup",
+    crate_root = "iroh-mainline-address-lookup-0.6.0.crate/src/lib.rs",
+    edition = "2024",
+    visibility = [],
+    deps = [
+        ":derive_more-2",
+        ":iroh-1",
+        ":iroh-base-1",
+        ":iroh-dns-1",
+        ":n0-error-1",
+        ":n0-future-0.3",
+        ":n0-mainline-0.7",
+        ":tokio-1",
+        ":tracing-0.1",
+        ":url-2",
+    ],
+)
+
+shims.alias(
+    name = "iroh-mdns-address-lookup",
+    actual = ":iroh-mdns-address-lookup-0.6",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "iroh-mdns-address-lookup-0.6.0.crate",
+    sha256 = "7afb03c296022fcb724a7bb76dbb8dcca6aac4f4eb65df161e084b7276c93d8c",
+    strip_prefix = "iroh-mdns-address-lookup-0.6.0",
+    urls = ["https://static.crates.io/crates/iroh-mdns-address-lookup/0.6.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "iroh-mdns-address-lookup-0.6",
+    srcs = [":iroh-mdns-address-lookup-0.6.0.crate"],
+    crate = "iroh_mdns_address_lookup",
+    crate_root = "iroh-mdns-address-lookup-0.6.0.crate/src/lib.rs",
+    edition = "2024",
+    visibility = [],
+    deps = [
+        ":data-encoding-2",
+        ":derive_more-2",
+        ":futures-util-0.3",
+        ":iroh-1",
+        ":iroh-base-1",
+        ":n0-error-1",
+        ":n0-future-0.3",
+        ":n0-watcher-1",
+        ":swarm-discovery-0.6",
+        ":tokio-1",
+        ":tokio-stream-0.1",
+        ":tracing-0.1",
     ],
 )
 
@@ -15535,6 +15696,46 @@ third_party_rust.buildscript_run(
     version = "0.3.2",
 )
 
+shims.alias(
+    name = "n0-mainline",
+    actual = ":n0-mainline-0.7",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "n0-mainline-0.7.1.crate",
+    sha256 = "b739fb0145326fa2287f704a5a3bceb5d21c5b6f1b09436403b504f85c2e6ded",
+    strip_prefix = "n0-mainline-0.7.1",
+    urls = ["https://static.crates.io/crates/n0-mainline/0.7.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "n0-mainline-0.7",
+    srcs = [":n0-mainline-0.7.1.crate"],
+    crate = "n0_mainline",
+    crate_root = "n0-mainline-0.7.1.crate/src/lib.rs",
+    edition = "2024",
+    features = ["default"],
+    visibility = [],
+    deps = [
+        ":crc-3",
+        ":dyn-clone-1",
+        ":ed25519-dalek-3",
+        ":futures-core-0.3",
+        ":lru-0.18",
+        ":n0-error-1",
+        ":noq-udp-1",
+        ":rand-0.10",
+        ":serde-1",
+        ":serde_bencode-0.2",
+        ":serde_bytes-0.11",
+        ":sha1_smol-1",
+        ":tokio-1",
+        ":tracing-0.1",
+    ],
+)
+
 shims.http_archive(
     name = "n0-watcher-1.0.0.crate",
     sha256 = "bbc618745ad0b7414b149d0517ad8b5573b2fb4d4e2717add3d2446ce1fdd826",
@@ -17423,11 +17624,17 @@ third_party_rust.rust_library(
     edition = "2021",
     features = [
         "alloc",
+        "critical-section",
         "default",
+        "portable-atomic",
         "race",
         "std",
     ],
     visibility = [],
+    deps = [
+        ":critical-section-1",
+        ":portable-atomic-1",
+    ],
 )
 
 shims.http_archive(
@@ -22262,6 +22469,27 @@ third_party_rust.buildscript_run(
 )
 
 shims.http_archive(
+    name = "serde_bencode-0.2.4.crate",
+    sha256 = "a70dfc7b7438b99896e7f8992363ab8e2c4ba26aa5ec675d32d1c3c2c33d413e",
+    strip_prefix = "serde_bencode-0.2.4",
+    urls = ["https://static.crates.io/crates/serde_bencode/0.2.4/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "serde_bencode-0.2",
+    srcs = [":serde_bencode-0.2.4.crate"],
+    crate = "serde_bencode",
+    crate_root = "serde_bencode-0.2.4.crate/src/lib.rs",
+    edition = "2018",
+    visibility = [],
+    deps = [
+        ":serde-1",
+        ":serde_bytes-0.11",
+    ],
+)
+
+shims.http_archive(
     name = "serde_bser-0.4.0.crate",
     sha256 = "a56b4bcc15e42e5b5ae16c6f75582bef80d36c6ffe2c03b1b5317754b38f8717",
     strip_prefix = "serde_bser-0.4.0",
@@ -23384,6 +23612,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "smol_str-0.1.24.crate",
+    sha256 = "fad6c857cbab2627dcf01ec85a623ca4e7dcb5691cbaa3d7fb7653671f0d09c9",
+    strip_prefix = "smol_str-0.1.24",
+    urls = ["https://static.crates.io/crates/smol_str/0.1.24/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "smol_str-0.1",
+    srcs = [":smol_str-0.1.24.crate"],
+    crate = "smol_str",
+    crate_root = "smol_str-0.1.24.crate/src/lib.rs",
+    edition = "2018",
+    visibility = [],
+)
+
+shims.http_archive(
     name = "smol_str-0.3.6.crate",
     sha256 = "4aaa7368fcf4852a4c2dd92df0cace6a71f2091ca0a23391ce7f3a31833f1523",
     strip_prefix = "smol_str-0.3.6",
@@ -24037,6 +24282,32 @@ third_party_rust.rust_library(
         "std",
     ],
     visibility = [],
+)
+
+shims.http_archive(
+    name = "swarm-discovery-0.6.3.crate",
+    sha256 = "1b4877f20f064de34b77d79237c9caa37c393590af8ef5a2f3253d59be5a338b",
+    strip_prefix = "swarm-discovery-0.6.3",
+    urls = ["https://static.crates.io/crates/swarm-discovery/0.6.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "swarm-discovery-0.6",
+    srcs = [":swarm-discovery-0.6.3.crate"],
+    crate = "swarm_discovery",
+    crate_root = "swarm-discovery-0.6.3.crate/src/lib.rs",
+    edition = "2021",
+    visibility = [],
+    deps = [
+        ":acto-0.8",
+        ":hickory-proto-0.26",
+        ":rand-0.10",
+        ":socket2-0.6",
+        ":thiserror-2",
+        ":tokio-1",
+        ":tracing-0.1",
+    ],
 )
 
 shims.http_archive(
