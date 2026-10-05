@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", "shims")
-load(":defs.bzl", "lean_toolchain", "lean_toolchain_check")
+load(":defs.bzl", "cxx_toolchain_for_exec", "lean_toolchain", "lean_toolchain_check")
 
 # Lean comes from the Nix dev shell (buck/etc/nix/lean4.nix), like the C++
 # and Rust compilers, so all three link with the same Nix linker wrapper.
@@ -41,6 +41,12 @@ shims.cxx_library(
     exported_deps = [":headers"],
     exported_post_linker_flags = ["@$(location :check[ldflags])"],
     preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)
+
+# Builds the shared objects of precompiled modules, which load into lean.
+cxx_toolchain_for_exec(
+    name = "exec-cxx",
     visibility = ["PUBLIC"],
 )
 

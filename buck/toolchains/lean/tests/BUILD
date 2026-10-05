@@ -33,6 +33,20 @@ depot.lean.library(
     ],
 )
 
+# One precompiled library whose modules run each other's native code.
+depot.lean.library(
+    name = "native-local",
+    srcs = [
+        "NativeLocal/Eval.lean",
+        "NativeLocal/Ffi.lean",
+    ],
+    precompile = True,
+    deps = [
+        ":greeting",
+        ":native-c",
+    ],
+)
+
 depot.lean.test(
     name = "native-eval",
     srcs = ["NativeEval.lean"],

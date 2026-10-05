@@ -35,7 +35,8 @@ Lean attributes, shared by all three rules:
 | `lean_flags` | `[]` | extra `lean` arguments |
 | `compiler_flags` | `[]` | extra C compiler flags for the generated code |
 
-`library` also takes `precompile` (below).
+All three also take `precompile` (below); for `binary` and `test` it
+covers their own modules only.
 
 `test` adds `leanchecker` (default on: replay the test's own modules
 through the kernel), `executable` (build `srcs` into a program and run it),
@@ -86,8 +87,10 @@ would otherwise replace the fuzz runtime's weak `main`.
 
 Without native code, Lean interprets what it runs while elaborating: an
 imported tactic, a `#eval`, a `#guard`. It cannot interpret an `@[extern]`
-function at all. `precompile = True` on a library makes importers in other
-targets load it as native code instead:
+function at all. `precompile = True` runs a target's code natively instead,
+both in other targets that import it and in its own modules.
+
+Importers in other targets load the library whole:
 
 - `<name>[shared]` is a shared object of the library's code and the C/C++
   behind its `@[extern]` functions. Lean symbols it does not define resolve
@@ -98,10 +101,25 @@ targets load it as native code instead:
 - The shared objects are built for the machine running Lean, so a fuzzing
   configuration does not leave coverage hooks in them.
 
+The target's own modules cannot load that object, which includes them. As
+with Lake's `precompileModules`, each module instead gets a shared object
+of its own code, `<name>--lean[Module.Name.so]`. A module importing others
+from its target loads, in order:
+
+1. the shared objects of every Lean library under the target,
+2. one holding the target's `@[extern]` C/C++ code, so that no symbol is
+   defined in more than one loaded object,
+3. the objects of the imported modules, each after the ones it imports.
+
+All of these are built for the machine running Lean, so a fuzzing
+configuration does not leave coverage hooks in them. The language server
+loads the same objects in the same order.
+
 C and C++ code implementing `@[extern]` functions depends on
 `toolchains//lean:headers` (lean.h only), not `:runtime`, so that the
-shared object can include it. `tests/NativeEval.lean` runs C code from
-`:native` in `#guard`s.
+shared objects can include it. `tests/NativeEval.lean` runs C code from
+`:native` in `#guard`s, and `tests/NativeLocal/Eval.lean` runs code from
+the module beside it.
 
 The subtargets of `<name>--lean` are `[Module.Name]` (its .olean, .ir.sig
 and .ir directories), `[Module.Name.c]` and `[imports.json]`.
@@ -123,5 +141,3 @@ dev shell and restart Buck (`buck2 kill`) so actions see the new PATH.
 
 - Lake packages. A third-party Lean package needs a `library` target, the
   way crates need reindeer; nothing generates those yet.
-- Precompiling a library's modules for its own other modules, as Lake's
-  `precompileModules` does. `precompile` serves importers in other targets.

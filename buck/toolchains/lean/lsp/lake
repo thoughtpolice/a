@@ -94,6 +94,26 @@ def closure(header_imports: list[str], graph: dict, known: set[str]) -> list[str
     return sorted(seen)
 
 
+def topo(names: list[str], graph: dict) -> list[str]:
+    """`names` ordered so that each comes after those of them it imports."""
+    wanted = set(names)
+    order = []
+    seen = set()
+
+    def visit(name):
+        if name in seen:
+            return
+        seen.add(name)
+        for i in graph[name]["imports"]:
+            if i["module"] in wanted:
+                visit(i["module"])
+        order.append(name)
+
+    for name in sorted(names):
+        visit(name)
+    return order
+
+
 def setup_file(argv: list[str]):
     file = os.path.realpath(argv[0])
     header = json.load(sys.stdin) if "-" in argv[1:] else None
@@ -120,6 +140,7 @@ def setup_file(argv: list[str]):
 
     needed = closure([i["module"] for i in header["imports"]], graph, set(target["modules"]))
     arts = {}
+    built = {}
     if needed:
         built = bxl(
             root,
@@ -127,9 +148,15 @@ def setup_file(argv: list[str]):
             ["--target", target["target"]] + [arg for m in needed for arg in ("--module", m)],
             "Building {} imported module(s) of {}".format(len(needed), target["target"]),
         )
-        arts = import_arts(["{}={}".format(m, ",".join(built[m])) for m in needed])
+        arts = import_arts(["{}={}".format(m, ",".join(built[m]["dirs"])) for m in needed])
 
-    dynlibs, plugins = native_libs(target["dynlibs"])
+    # In a precompiled target, the imports from the target itself load module
+    # by module after what their code refers to, as in the build.
+    shared = [m for m in topo(needed, graph) if "shared" in built.get(m, {})]
+    if shared:
+        dynlibs, plugins = native_libs(target["local_dynlibs"] + [built[m]["shared"] for m in shared])
+    else:
+        dynlibs, plugins = native_libs(target["dynlibs"])
     json.dump(
         {
             "name": module or "_",

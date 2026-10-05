@@ -7,7 +7,8 @@
            every module it can import, the built import graphs and the
            precompiled libraries it loads
   build    build the given modules of a target's import closure and print
-           where their artifacts are
+           where their artifacts are, with the shared objects of the
+           target's own modules if it precompiles them
   index    the source roots of every Lean target, for LEAN_SRC_PATH, the
            include flags naming the build's Lean, and with --build true where
            each module that builds keeps its .ilean
@@ -31,6 +32,7 @@ def _target_impl(ctx: bxl.Context) -> None:
     info = ctx.analysis(node).providers()[LeanLibraryInfo]
     graphs = ctx.output.ensure_multiple(info.graphs)
     dynlibs = ctx.output.ensure_multiple(info.dynlibs)
+    local_dynlibs = ctx.output.ensure_multiple(info.local_dynlibs)
     module = None
     for name in info.own:
         if get_path_without_materialization(info.modules[name].src, ctx, abs = True) == ctx.cli_args.file:
@@ -38,9 +40,11 @@ def _target_impl(ctx: bxl.Context) -> None:
     ctx.output.print_json({
         "dynlibs": [d.abs_path() for d in dynlibs],
         "graphs": [g.abs_path() for g in graphs],
+        "local_dynlibs": [d.abs_path() for d in local_dynlibs],
         "module": module,
         "modules": sorted(info.modules.keys()),
         "options": info.options,
+        "own": info.own,
         "package": info.package,
         "target": str(node.label.raw_target()),
     })
@@ -52,7 +56,12 @@ def _build_impl(ctx: bxl.Context) -> None:
     for name in ctx.cli_args.module:
         m = info.modules[name]
         elab, sig, ir = ctx.output.ensure_multiple([m.elab, m.sig, m.ir])
-        out[name] = [elab.abs_path(), sig.abs_path(), ir.abs_path()]
+        out[name] = {"dirs": [elab.abs_path(), sig.abs_path(), ir.abs_path()]}
+
+        # Only the target's own modules load one by one; a precompiled
+        # library elsewhere comes whole, through the target's dynlibs.
+        if m.shared and name in info.own:
+            out[name]["shared"] = ctx.output.ensure(m.shared).abs_path()
     ctx.output.print_json(out)
 
 def _index_impl(ctx: bxl.Context) -> None:
