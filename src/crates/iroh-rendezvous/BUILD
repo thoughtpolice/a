@@ -8,6 +8,7 @@ DEPS = [
     "third-party//rust:futures",
     "third-party//rust:hex",
     "third-party//rust:iroh",
+    "third-party//rust:iroh-gossip",
     "third-party//rust:n0-mainline",
     "third-party//rust:tokio",
     "third-party//rust:tracing",
@@ -26,5 +27,8 @@ depot.rust_test(
     name = "iroh-rendezvous-unittest",
     srcs = glob(["*.rs"]),
     crate_root = "lib.rs",
-    deps = DEPS,
+    deps = DEPS + [
+        "root//src/crates/iroh-boring:iroh-boring",
+        "root//src/crates/iroh-dial:iroh-dial",
+    ],
 )

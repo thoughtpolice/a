@@ -6,15 +6,27 @@
 //! `iroh-dial` reaches an endpoint whose ID you already have. This crate is
 //! for the step before that: endpoints that agree on a topic name, and
 //! nothing else, find each other's IDs. A typical use is bootstrapping a
-//! gossip swarm, whose members then tell each other about everyone else:
+//! gossip swarm, whose members then tell each other about everyone else,
+//! which [`Rendezvous::join_gossip`] does in one call:
 //!
 //! ```ignore
+//! let endpoint = iroh_boring::builder()
+//!     .preset(iroh_dial::Global::default())
+//!     .bind()
+//!     .await?;
+//! let gossip = Gossip::builder().spawn(endpoint.clone());
+//! let _router = Router::builder(endpoint.clone())
+//!     .accept(iroh_gossip::ALPN, gossip.clone())
+//!     .spawn();
+//!
 //! let rendezvous = Rendezvous::new(endpoint.secret_key().clone())?;
-//! let topic = Topic::new("my-app/lobby");
-//! let _announcing = rendezvous.spawn_announcer(topic.clone());
-//! let peers = rendezvous.find(&topic).await?;
-//! let swarm = gossip.subscribe(topic.public_id().into(), peers).await?;
+//! let mut swarm = rendezvous.join_gossip(&gossip, Topic::new("my-app/lobby")).await?;
+//! swarm.joined().await?;
+//! swarm.sender().broadcast("hello".into()).await?;
 //! ```
+//!
+//! [`Rendezvous::announce`] and [`Rendezvous::find`] are there for anything
+//! other than gossip.
 //!
 //! # How it works
 //!
@@ -56,7 +68,10 @@ use iroh::{EndpointId, SecretKey, Signature};
 use n0_mainline::errors::{PutMutableError, PutQueryError};
 use n0_mainline::{ActorShutdown, Dht, MutableItem, SigningKey};
 
+pub use gossip::{Swarm, Upkeep};
 pub use n0_mainline;
+
+mod gossip;
 
 /// How long one signing key, and so one set of records, stays current.
 /// Finding reads this bucket and the previous one, so an announcement is
@@ -362,8 +377,14 @@ impl Rendezvous {
     /// handle is dropped. Failures are retried sooner and logged, since the
     /// DHT is expected to be unreachable now and then.
     pub fn spawn_announcer(&self, topic: Topic) -> Announcer {
+        self.spawn_announcer_after(topic, Duration::ZERO)
+    }
+
+    /// [`Self::spawn_announcer`], for a caller that just announced.
+    fn spawn_announcer_after(&self, topic: Topic, first: Duration) -> Announcer {
         let this = self.clone();
         Announcer(tokio::spawn(async move {
+            tokio::time::sleep(first).await;
             loop {
                 let wait = match this.announce(&topic).await {
                     Ok(()) => ANNOUNCE_INTERVAL,
