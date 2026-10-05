@@ -125,6 +125,49 @@ def report(proc: subprocess.CompletedProcess, what: str):
 # MARK: toolchain
 
 
+def defines_main(libdir: str, flag: str) -> bool:
+    """Whether -l<name> names one of Lean's programs rather than a library.
+
+    leanc links every archive of the toolchain, and since 4.35 that includes
+    LeanExport, the archive of a command-line tool with its own main. A
+    program defining main itself never pulls that member in, but a fuzz
+    harness only has the weak main of its runtime, and the linker then takes
+    the strong one from the archive.
+    """
+    if not flag.startswith("-l"):
+        return False
+    archive = os.path.join(libdir, "lib{}.a".format(flag[2:]))
+    if not os.path.exists(archive):
+        return False
+    out = run(["nm", "--defined-only", "--extern-only", archive], capture_output=True, text=True, check=True).stdout
+    return any(line.split()[-2:] == ["T", "main"] for line in out.splitlines() if line.strip())
+
+
+def libstdcxx_dirs(cxx: list[str]) -> list[str]:
+    """Where the C++ toolchain's link finds libstdc++.so.
+
+    The Nix compiler wrapper adds the -L that picks it, so the driver's own
+    -print-file-name does not know; a traced link of an empty program does.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        src = os.path.join(tmp, "main.cpp")
+        with open(src, "w") as f:
+            f.write("int main() { return 0; }\n")
+        proc = run(
+            cxx + [src, "-o", os.path.join(tmp, "main"), "-lstdc++", "-Wl,--trace"],
+            capture_output=True,
+            text=True,
+        )
+    if proc.returncode != 0:
+        fail("cannot link with {}:\n{}".format(" ".join(cxx), proc.stderr))
+    dirs = []
+    for line in proc.stdout.splitlines() + proc.stderr.splitlines():
+        path = line.strip()
+        if os.path.basename(path).startswith("libstdc++.so") and os.path.isabs(path):
+            dirs.append(os.path.dirname(os.path.realpath(path)))
+    return dirs
+
+
 def cmd_toolchain(args):
     with open(args.nix_expr) as f:
         m = re.search(r'^\s*version = "([^"]+)";', f.read(), re.MULTILINE)
@@ -163,9 +206,13 @@ def cmd_toolchain(args):
             "buck/toolchains/lean/defs.bzl says {}; update it".format(codegen, args.expect_cflags)
         )
 
+    libdir = os.path.join(run(["lean", "--print-prefix"], capture_output=True, text=True, check=True).stdout.strip(), "lib", "lean")
+    ldflags = [flag for flag in ldflags if not defines_main(libdir, flag)]
+
     # The Nix ld wrapper adds a runpath for -L directories but not for shared
-    # objects named by absolute path (gmp, openssl), and lld bypasses the
-    # wrapper altogether.
+    # objects named by absolute path (gmp, openssl). lld, which the fozzie
+    # configurations link with, bypasses the wrapper altogether and adds none,
+    # so every library Lean's runtime needs gets one here, libstdc++ included.
     rpaths = []
     for i, flag in enumerate(ldflags):
         if flag.startswith("/") and ".so" in os.path.basename(flag):
@@ -174,7 +221,8 @@ def cmd_toolchain(args):
             rpaths.append(flag[2:])
         elif flag == "-L":
             rpaths.append(ldflags[i + 1])
-    libdir = os.path.join(run(["lean", "--print-prefix"], capture_output=True, text=True, check=True).stdout.strip(), "lib", "lean")
+    if args.cxx:
+        rpaths += libstdcxx_dirs(args.cxx)
     for d in dict.fromkeys(rpaths):
         if d != libdir:
             ldflags.append("-Wl,-rpath," + d)
@@ -330,6 +378,7 @@ def main():
     p = sub.add_parser("toolchain")
     p.add_argument("--nix-expr", required=True)
     p.add_argument("--expect-cflag", dest="expect_cflags", action="append", default=[])
+    p.add_argument("--cxx", action="append", default=[], help="the C++ toolchain's linker driver, one word per flag")
     p.add_argument("--cflags-out", required=True)
     p.add_argument("--ldflags-out", required=True)
     p.set_defaults(func=cmd_toolchain)

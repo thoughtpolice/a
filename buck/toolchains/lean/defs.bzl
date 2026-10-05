@@ -28,6 +28,8 @@ can implement `@[extern]` declarations, through plain `deps`.
 LeanLibraryInfo, the per-module artifacts the Lean side needs.
 """
 
+load("@prelude//cxx:cxx_toolchain_types.bzl", "CxxToolchainInfo")
+
 # What `leanc --print-cflags` passes when compiling generated C, minus its
 # -I flag. The toolchain check fails if the installed Lean disagrees.
 LEAN_C_FLAGS = [
@@ -118,6 +120,7 @@ def _lean_toolchain_check_impl(ctx: AnalysisContext) -> list[Provider]:
             "--nix-expr",
             ctx.attrs.nix_expr,
             ["--expect-cflag=" + flag for flag in LEAN_C_FLAGS],
+            cmd_args(ctx.attrs._cxx_toolchain[CxxToolchainInfo].linker_info.linker, format = "--cxx={}"),
             "--cflags-out",
             cflags.as_output(),
             "--ldflags-out",
@@ -149,6 +152,7 @@ lean_toolchain_check = rule(
         "nix_expr": attrs.source(),
         "nix_lock": attrs.source(),
         "tool": attrs.exec_dep(providers = [RunInfo]),
+        "_cxx_toolchain": attrs.toolchain_dep(default = "toolchains//:cxx", providers = [CxxToolchainInfo]),
     },
 )
 
