@@ -5,23 +5,25 @@
 //!
 //! Gossip needs a few endpoint IDs to start from, after which members
 //! introduce each other. [`Rendezvous::join_gossip`] supplies them: it
-//! announces this endpoint in the topic, subscribes with whoever is
-//! already there, and keeps looking in the background so that two
-//! endpoints that started at the same moment, each finding nobody, still
-//! meet.
+//! announces this endpoint in the topic, subscribes, and joins each member
+//! the DHT turns up the moment a DHT node mentions it. It keeps looking in
+//! the background, so two endpoints that started at the same moment, each
+//! finding nobody, still meet.
 
 use std::collections::HashSet;
+use std::pin::pin;
 use std::time::Duration;
 
+use futures::stream::{BoxStream, StreamExt};
 use iroh::EndpointId;
-use iroh_gossip::api::{ApiError, GossipReceiver, GossipSender};
+use iroh_gossip::api::{ApiError, GossipReceiver, GossipSender, GossipTopic};
 use iroh_gossip::{Gossip, TopicId};
 
-use crate::{ANNOUNCE_INTERVAL, Announcer, RETRY_INTERVAL, Rendezvous, Topic};
+use crate::{ANNOUNCE_INTERVAL, Announcer, Rendezvous, Topic};
 
-/// How soon the background search first looks again. It doubles from
-/// here up to [`ANNOUNCE_INTERVAL`].
-const FIRST_REFIND: Duration = Duration::from_secs(5);
+/// How soon the background search looks again after its first pass. It
+/// doubles from here up to [`ANNOUNCE_INTERVAL`].
+const FIRST_REFIND: Duration = Duration::from_secs(2);
 
 impl Topic {
     /// The gossip topic every member of this one subscribes to.
@@ -35,35 +37,17 @@ impl Rendezvous {
     /// endpoint this rendezvous announces and be able to reach other
     /// members by ID alone, as one with `iroh_dial::Global` can.
     ///
-    /// Returns as soon as the subscription exists; await
-    /// [`Swarm::joined`] to wait for a first neighbor. The first member of
-    /// a topic has nobody to join, so that wait lasts until someone else
-    /// arrives.
+    /// Returns as soon as the subscription exists, before any DHT traffic
+    /// has finished; await [`Swarm::joined`] to wait for a first neighbor.
+    /// The first member of a topic has nobody to join, so that wait lasts
+    /// until someone else arrives.
     pub async fn join_gossip(&self, gossip: &Gossip, topic: Topic) -> Result<Swarm, ApiError> {
-        // Announce before anything else, so a member who arrives next can
-        // find this one. A failure is not fatal, but the announcer has to
-        // retry soon: until it lands, nobody can find this member.
-        let next = match self.announce(&topic).await {
-            Ok(()) => ANNOUNCE_INTERVAL,
-            Err(err) => {
-                tracing::warn!(?topic, "announcing: {err}");
-                RETRY_INTERVAL
-            }
-        };
-        let announcer = self.spawn_announcer_after(topic.clone(), next);
-
-        let first = self.find(&topic).await.unwrap_or_default();
-        let (sender, receiver) = gossip
-            .subscribe(topic.gossip_id(), first.clone())
-            .await?
-            .split();
-
-        let finder = tokio::spawn(keep_finding(
-            self.clone(),
-            topic,
-            sender.clone(),
-            first.into_iter().collect(),
-        ));
+        let announcer = self.spawn_announcer(topic.clone());
+        let (sender, receiver) = gossip.subscribe(topic.gossip_id(), vec![]).await?.split();
+        // The finder's own subscription, so it can watch neighbors come and
+        // go without taking events from the caller's receiver.
+        let watch = gossip.subscribe(topic.gossip_id(), vec![]).await?;
+        let finder = tokio::spawn(keep_finding(self.clone(), topic, gossip.clone(), watch));
         Ok(Swarm {
             sender,
             receiver,
@@ -75,28 +59,67 @@ impl Rendezvous {
     }
 }
 
-/// Asks gossip to join every member the DHT turns up that it has not
-/// already been told about. Gossip's own membership protocol does the
-/// rest, so this only matters until the swarm is connected, but it stays
-/// on at a low rate to heal a split.
-async fn keep_finding(
-    rendezvous: Rendezvous,
-    topic: Topic,
-    sender: GossipSender,
-    mut asked: HashSet<EndpointId>,
-) {
+/// Asks gossip to join each member the DHT turns up, as soon as it turns
+/// up. Gossip's own membership protocol does the rest, so this only
+/// matters until the swarm is connected, but it stays on at a low rate to
+/// heal a split.
+///
+/// A member is asked again only while this endpoint has no neighbors at
+/// all. Two members usually find each other within moments of starting,
+/// before either has published its addresses, so the first dial often
+/// fails and has to be retried. Once connected, though, most members are
+/// deliberately not neighbors (gossip keeps only a few), and asking them
+/// all again on every pass would churn the swarm.
+async fn keep_finding(rendezvous: Rendezvous, topic: Topic, gossip: Gossip, watch: GossipTopic) {
+    let (mut sender, mut events) = watch.split();
+    let mut asked = HashSet::new();
+    let mut found: Option<BoxStream<'static, EndpointId>> = None;
     let mut wait = FIRST_REFIND;
-    loop {
-        tokio::time::sleep(wait).await;
-        wait = (wait * 2).min(ANNOUNCE_INTERVAL);
+    let next_pass = tokio::time::sleep(Duration::ZERO);
+    let mut next_pass = pin!(next_pass);
 
-        let Ok(found) = rendezvous.find(&topic).await else {
-            return;
-        };
-        let new: Vec<_> = found.into_iter().filter(|id| asked.insert(*id)).collect();
-        if !new.is_empty() && sender.join_peers(new).await.is_err() {
-            return;
+    loop {
+        tokio::select! {
+            // Polling the receiver is what keeps its neighbor set current.
+            event = events.next() => {
+                if !matches!(event, Some(Ok(_))) {
+                    // Lagged or closed: the neighbor set is unreliable, so
+                    // start a fresh subscription, or stop with gossip.
+                    let Ok(watch) = gossip.subscribe(topic.gossip_id(), vec![]).await else {
+                        return;
+                    };
+                    (sender, events) = watch.split();
+                }
+            }
+            id = next_found(&mut found) => match id {
+                Some(id) => {
+                    let isolated = events.neighbors().next().is_none();
+                    let fresh = asked.insert(id);
+                    if (fresh || isolated) && sender.join_peers(vec![id]).await.is_err() {
+                        return;
+                    }
+                }
+                None => {
+                    found = None;
+                    next_pass.as_mut().reset(tokio::time::Instant::now() + wait);
+                    wait = (wait * 2).min(ANNOUNCE_INTERVAL);
+                }
+            },
+            () = &mut next_pass, if found.is_none() => {
+                let Ok(stream) = rendezvous.find_stream(&topic).await else {
+                    return;
+                };
+                found = Some(stream.boxed());
+            }
         }
+    }
+}
+
+/// The next endpoint from the pass in progress, or never if none is.
+async fn next_found(found: &mut Option<BoxStream<'static, EndpointId>>) -> Option<EndpointId> {
+    match found {
+        Some(found) => found.next().await,
+        None => std::future::pending().await,
     }
 }
 

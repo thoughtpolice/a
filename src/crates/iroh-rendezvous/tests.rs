@@ -137,6 +137,49 @@ async fn members_find_each_other_and_only_each_other() {
     );
 }
 
+/// The stream hands over each member once, leaves out the finder, and
+/// agrees with the collected answer.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_streaming_find_yields_each_member_once() {
+    let testnet = Testnet::new(5).await.expect("starting a DHT testnet");
+    let topic = Topic::new("lobby");
+    let members = [
+        member(&testnet).await,
+        member(&testnet).await,
+        member(&testnet).await,
+    ];
+    for member in &members {
+        // Twice, so several slot versions and duplicate entries exist.
+        member.announce_at(&topic, NOW).await.expect("announcing");
+        member
+            .announce_at(&topic, NOW + Duration::from_secs(1))
+            .await
+            .expect("announcing");
+    }
+
+    use futures::StreamExt;
+    let streamed: Vec<_> = members[0]
+        .find_stream_at(&topic, NOW)
+        .await
+        .expect("finding")
+        .collect()
+        .await;
+    let mut sorted = streamed.clone();
+    sorted.sort();
+    sorted.dedup();
+    assert_eq!(
+        sorted.len(),
+        streamed.len(),
+        "a member came twice: {streamed:?}"
+    );
+
+    let mut collected = members[0].find_at(&topic, NOW).await.expect("finding");
+    collected.sort();
+    assert_eq!(sorted, collected);
+    assert_eq!(collected.len(), 2);
+    assert!(!collected.contains(&members[0].id()));
+}
+
 /// An announcement stays visible through the next bucket, then ages out
 /// without anyone deleting it.
 #[tokio::test(flavor = "multi_thread")]
@@ -224,13 +267,23 @@ async fn gossip_swarms_meet_through_the_dht() {
         for swarm in &mut swarms {
             swarm.joined().await.expect("waiting for a neighbor");
         }
-        swarms[0]
-            .sender()
-            .broadcast(b"hello, lobby"[..].into())
-            .await
-            .expect("broadcasting");
+        // Having a neighbor does not mean every link is up yet, and gossip
+        // does not replay a broadcast to members who connect after it, so
+        // keep saying hello until everyone has heard it. Each one differs,
+        // since gossip drops a message it has already seen.
+        let sender = swarms[0].sender().clone();
+        let _hello = AbortOnDrop(tokio::spawn(async move {
+            let mut n = 0u64;
+            loop {
+                let hello = format!("hello, lobby #{n}");
+                sender.broadcast(hello.into()).await.expect("broadcasting");
+                tokio::time::sleep(Duration::from_millis(200)).await;
+                n += 1;
+            }
+        }));
         for swarm in &mut swarms[1..] {
-            assert_eq!(next_message(swarm).await, b"hello, lobby");
+            let heard = next_message(swarm).await;
+            assert!(heard.starts_with(b"hello, lobby #"), "{heard:?}");
         }
     })
     .await
@@ -265,13 +318,11 @@ async fn live_gossip_over_the_public_dht() {
         .join_gossip(&peers[0].gossip, topic.clone())
         .await
         .expect("joining");
-    eprintln!("first member announced after {:?}", started.elapsed());
     let mut second = peers[1]
         .rendezvous
         .join_gossip(&peers[1].gossip, topic.clone())
         .await
         .expect("joining");
-    eprintln!("second member subscribed after {:?}", started.elapsed());
 
     tokio::time::timeout(Duration::from_secs(120), async {
         second.joined().await.expect("waiting for a neighbor");
@@ -291,6 +342,14 @@ async fn live_gossip_over_the_public_dht() {
     drop((first, second));
     for peer in peers {
         peer.router.shutdown().await.expect("shutting down");
+    }
+}
+
+struct AbortOnDrop(tokio::task::JoinHandle<()>);
+
+impl Drop for AbortOnDrop {
+    fn drop(&mut self) {
+        self.0.abort();
     }
 }
 

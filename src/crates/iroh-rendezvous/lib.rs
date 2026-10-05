@@ -58,12 +58,12 @@
 //!   plenty to join a swarm, which is the point; it is not a member list.
 
 use std::cmp::Reverse;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::io;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use futures::future::join_all;
+use futures::stream::{self, Stream, StreamExt};
 use iroh::{EndpointId, SecretKey, Signature};
 use n0_mainline::errors::{PutMutableError, PutQueryError};
 use n0_mainline::{ActorShutdown, Dht, MutableItem, SigningKey};
@@ -337,6 +337,10 @@ impl Rendezvous {
 
     /// The endpoints announced in `topic` during this bucket or the last,
     /// most recent first, leaving out this one.
+    ///
+    /// This waits for every DHT node asked to answer, which can take tens
+    /// of seconds on the public network. [`Self::find_stream`] hands over
+    /// each endpoint as soon as the first node mentions it.
     pub async fn find(&self, topic: &Topic) -> Result<Vec<EndpointId>, ActorShutdown> {
         self.find_at(topic, unix_now()).await
     }
@@ -346,25 +350,11 @@ impl Rendezvous {
         topic: &Topic,
         now: Duration,
     ) -> Result<Vec<EndpointId>, ActorShutdown> {
-        let current = now.as_secs() / BUCKET.as_secs();
-        let reads = [current, current.saturating_sub(1)]
-            .into_iter()
-            .flat_map(|bucket| (0..SLOTS).map(move |slot| (bucket, slot)))
-            .map(|(bucket, slot)| async move {
-                let key = topic.signer(bucket).verifying_key().to_bytes();
-                let item = self
-                    .dht
-                    .get_mutable_most_recent(&key, Some(&[slot]))
-                    .await?;
-                Ok::<_, ActorShutdown>(item.map(|item| decode_slot(item.value(), topic, bucket)))
-            });
-
         let mut latest = HashMap::new();
-        for entries in join_all(reads).await {
-            for entry in entries?.into_iter().flatten() {
-                let at = latest.entry(entry.id).or_insert(entry.at);
-                *at = (*at).max(entry.at);
-            }
+        let mut entries = self.entries_at(topic, now).await?;
+        while let Some(entry) = entries.next().await {
+            let at = latest.entry(entry.id).or_insert(entry.at);
+            *at = (*at).max(entry.at);
         }
         latest.remove(&self.id());
 
@@ -373,18 +363,64 @@ impl Rendezvous {
         Ok(found.into_iter().map(|(id, _)| id).collect())
     }
 
+    /// The endpoints announced in `topic` during this bucket or the last,
+    /// each one once and as soon as any DHT node mentions it, leaving out
+    /// this one. The stream ends once every node asked has answered.
+    pub async fn find_stream(
+        &self,
+        topic: &Topic,
+    ) -> Result<impl Stream<Item = EndpointId> + use<>, ActorShutdown> {
+        self.find_stream_at(topic, unix_now()).await
+    }
+
+    async fn find_stream_at(
+        &self,
+        topic: &Topic,
+        now: Duration,
+    ) -> Result<impl Stream<Item = EndpointId> + use<>, ActorShutdown> {
+        let mut seen = HashSet::from([self.id()]);
+        let entries = self.entries_at(topic, now).await?;
+        Ok(entries
+            .filter_map(move |entry| std::future::ready(seen.insert(entry.id).then_some(entry.id))))
+    }
+
+    /// Every entry that verifies in every slot of this bucket and the last,
+    /// as DHT nodes answer.
+    ///
+    /// Nodes may hold different versions of a slot. All of them count:
+    /// each entry was signed for this topic and bucket by the endpoint it
+    /// names, so an older version is no less true, only less complete.
+    async fn entries_at(
+        &self,
+        topic: &Topic,
+        now: Duration,
+    ) -> Result<impl Stream<Item = Entry> + use<>, ActorShutdown> {
+        let current = now.as_secs() / BUCKET.as_secs();
+        let mut buckets = vec![current, current.saturating_sub(1)];
+        buckets.dedup();
+
+        let mut reads = Vec::new();
+        for bucket in buckets {
+            let key = topic.signer(bucket).verifying_key().to_bytes();
+            for slot in 0..SLOTS {
+                let topic = topic.clone();
+                let answers = self.dht.get_mutable(&key, Some(&[slot]), None).await?;
+                reads.push(
+                    answers.flat_map(move |item| {
+                        stream::iter(decode_slot(item.value(), &topic, bucket))
+                    }),
+                );
+            }
+        }
+        Ok(stream::select_all(reads))
+    }
+
     /// Announces in `topic` every [`ANNOUNCE_INTERVAL`], until the returned
     /// handle is dropped. Failures are retried sooner and logged, since the
     /// DHT is expected to be unreachable now and then.
     pub fn spawn_announcer(&self, topic: Topic) -> Announcer {
-        self.spawn_announcer_after(topic, Duration::ZERO)
-    }
-
-    /// [`Self::spawn_announcer`], for a caller that just announced.
-    fn spawn_announcer_after(&self, topic: Topic, first: Duration) -> Announcer {
         let this = self.clone();
         Announcer(tokio::spawn(async move {
-            tokio::time::sleep(first).await;
             loop {
                 let wait = match this.announce(&topic).await {
                     Ok(()) => ANNOUNCE_INTERVAL,
