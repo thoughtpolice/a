@@ -7,9 +7,10 @@
 //! feature-gated on its bundled ring and aws-lc-rs stacks, which we build
 //! with disabled. [`builder`] is what is left once you strip that away: an
 //! endpoint builder on `rustls-boring`, with no relays, no address lookup
-//! and no ALPN. The caller adds whichever of those it wants. Because the
-//! provider offers X25519MLKEM768 first, two endpoints built this way
-//! negotiate a post-quantum hybrid key exchange.
+//! and no ALPN. The caller adds whichever of those it wants; `iroh-dial`
+//! has a preset that adds relays and every kind of address lookup.
+//! Because the provider offers X25519MLKEM768 first, two endpoints built
+//! this way negotiate a post-quantum hybrid key exchange.
 //!
 //! Installing the provider as the process default is part of binding
 //! rather than something a caller should remember. iroh's relay client
