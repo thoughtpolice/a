@@ -1,0 +1,91 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:shims.bzl", depot = "shims")
+
+# Two Lean libraries (one with its @[extern] function in C), a Lean program
+# using both, proofs, and a C++ program calling into Lean.
+
+depot.lean.library(
+    name = "greeting",
+    srcs = [
+        "Greeting.lean",
+        "Greeting/Basic.lean",
+    ],
+)
+
+depot.cxx_library(
+    name = "native-c",
+    srcs = ["native.c"],
+    deps = ["toolchains//lean:runtime"],
+)
+
+depot.lean.library(
+    name = "native",
+    srcs = ["Native.lean"],
+    deps = [":native-c"],
+)
+
+depot.lean.binary(
+    name = "hello",
+    srcs = ["Main.lean"],
+    deps = [
+        ":greeting",
+        ":native",
+    ],
+)
+
+# Backticks because `$(` is buck2's own macro syntax here.
+depot.command_test(
+    name = "hello-output",
+    script = """
+        out="`$(exe :hello)`"
+        printf '%s\\n' "$out"
+        case "$out" in
+            *"hello, lean (42)"*"mulAdd 6 7 0 = 42"*) ;;
+            *) echo "unexpected output" >&2; exit 1 ;;
+        esac
+    """,
+)
+
+# The same program as a test, which passes because it exits 0 without
+# arguments.
+depot.lean.test(
+    name = "hello-test",
+    srcs = ["Main.lean"],
+    executable = True,
+    deps = [
+        ":greeting",
+        ":native",
+    ],
+)
+
+# split_codegen, kept to a program whose every module takes it, and whose
+# code needs nothing from the standard library's code generator data. The
+# toolchain's README says why it goes no further.
+depot.lean.test(
+    name = "split-codegen",
+    srcs = [
+        "Split/Main.lean",
+        "Split/Shapes.lean",
+    ],
+    executable = True,
+    split_codegen = True,
+)
+
+depot.lean.test(
+    name = "proofs",
+    srcs = ["Proofs.lean"],
+    deps = [":greeting"],
+)
+
+depot.cxx_binary(
+    name = "interop",
+    srcs = ["interop.cpp"],
+    deps = [":greeting"],
+)
+
+depot.run_test(
+    name = "interop-test",
+    dep = ":interop",
+)
