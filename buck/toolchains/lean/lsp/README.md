@@ -37,16 +37,31 @@ wrote, and a different Lean fails on them.
 
 ## Setup
 
-VS Code picks up `bin/lean` from the repository's `.vscode/settings.json`:
+The repository configures three editors. Each needs `buck2` on its PATH,
+which the Nix shell (direnv) provides.
 
-```json
-"lean4.envPathExtensions": ["buck/toolchains/lean/lsp/bin"]
-```
+| Editor | Where | How |
+| --- | --- | --- |
+| VS Code (vscode-lean4) | `.vscode/settings.json` | `lean4.envPathExtensions` puts `bin/` ahead of the Nix shell's lean |
+| Helix | `.helix/languages.toml` | `[language-server.lean]` runs `lake serve` from here |
+| Zed (the Lean 4 extension) | `.zed/settings.json` | `lsp.lean4-lsp.binary` runs `lake serve` from here |
 
-Other editors need `buck/toolchains/lean/lsp/bin` ahead of the Nix
-shell's lean on PATH, or `lake serve` as the server command. No lakefile
-may sit at the workspace root; with one, editors start `lake serve` from
-the Nix shell instead.
+Helix and Zed start servers in the workspace root and find this
+directory through `buck2 root`.
+
+Helix since workspace trust (#15177, 2026-03) reads `.helix/` only for a
+trusted workspace, and the grant covers a hash of that directory, so any
+change to `.helix/` needs trusting again. Until then it starts the stock
+`lake serve` from PATH, which reports `unknown module prefix` on every
+import from another Buck target. Run `:workspace-trust` once in the
+repository (and again after `.helix/` changes), or list the checkout under
+`[editor.workspace-trust] trusted` in your own config.
+
+Any other editor works the same way: run
+`buck/toolchains/lean/lsp/lake serve` as the Lean server, or put `bin/`
+ahead of the Nix shell's lean on PATH. No lakefile may sit at the
+workspace root; with one, editors start `lake serve` from the Nix shell
+instead.
 
 ## Behaviour
 
