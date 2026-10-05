@@ -8,8 +8,9 @@
            precompiled libraries it loads
   build    build the given modules of a target's import closure and print
            where their artifacts are
-  roots    the source roots of every Lean target, for LEAN_SRC_PATH, and
-           the include flags naming the build's Lean
+  index    the source roots of every Lean target, for LEAN_SRC_PATH, the
+           include flags naming the build's Lean, and with --build true where
+           each module that builds keeps its .ilean
 """
 
 load("@toolchains//lean:defs.bzl", "LeanLibraryInfo")
@@ -54,16 +55,34 @@ def _build_impl(ctx: bxl.Context) -> None:
         out[name] = [elab.abs_path(), sig.abs_path(), ir.abs_path()]
     ctx.output.print_json(out)
 
-def _roots_impl(ctx: bxl.Context) -> None:
+def _index_impl(ctx: bxl.Context) -> None:
     nodes = ctx.cquery().kind("^lean_modules$", ctx.target_universe(ctx.cli_args.pattern).target_set())
     roots = {}
-    for analysis in ctx.analysis(nodes).values():
-        info = analysis.providers()[LeanLibraryInfo]
+    labels = {}
+    for node in nodes:
+        info = ctx.analysis(node).providers()[LeanLibraryInfo]
         for name in info.own:
             src = info.modules[name].src
             path = get_path_without_materialization(src, ctx, abs = True)
             suffix = name.replace(".", "/") + ".lean"
             roots[path[:-len(suffix)].rstrip("/")] = True
+            labels[name] = node.label.with_sub_target(["elab", name])
+
+    # The directory holding every module's .ilean (NAME.ilean), for
+    # find-references across the repository. A
+    # module that fails to build (an unfinished proof, say) is left out
+    # rather than failing the editor's start.
+    ileans = {}
+    failed = []
+    if ctx.cli_args.build:
+        results = ctx.build(labels.values())
+        for name, label in labels.items():
+            result = results[label]
+            if len([f for f in result.failures()]) > 0:
+                failed.append(name)
+                continue
+            for elab in ctx.output.ensure_multiple(result.artifacts()):
+                ileans[name] = elab.abs_path()
 
     # The include flags toolchains//lean:check found, which name the Lean
     # the build uses. The server runs that one too, whatever is on PATH.
@@ -72,6 +91,8 @@ def _roots_impl(ctx: bxl.Context) -> None:
 
     ctx.output.print_json({
         "cflags": cflags.abs_path(),
+        "failed": sorted(failed),
+        "ileans": ileans,
         "roots": sorted(roots.keys()),
     })
 
@@ -90,9 +111,10 @@ build = bxl_main(
     },
 )
 
-roots = bxl_main(
-    impl = _roots_impl,
+index = bxl_main(
+    impl = _index_impl,
     cli_args = {
+        "build": cli_args.bool(default = False, doc = "Build every module and list its .ilean"),
         "pattern": cli_args.list(cli_args.string()),
     },
 )

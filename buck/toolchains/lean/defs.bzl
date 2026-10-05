@@ -377,7 +377,13 @@ def _lean_modules_impl(ctx: AnalysisContext) -> list[Provider]:
         f = compile,
     )
 
-    sub_targets = {"imports.json": [DefaultInfo(default_output = graph)]}
+    sub_targets = {
+        "elab": [DefaultInfo(
+            default_outputs = [m.elab for m in own.values()],
+            sub_targets = {m.name: [DefaultInfo(default_output = m.elab)] for m in own.values()},
+        )],
+        "imports.json": [DefaultInfo(default_output = graph)],
+    }
     for m in own.values():
         sub_targets[m.name] = [DefaultInfo(default_outputs = [m.elab, m.sig, m.ir])]
         sub_targets[m.name + ".c"] = [DefaultInfo(default_output = m.c)]
