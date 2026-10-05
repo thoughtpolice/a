@@ -190,6 +190,7 @@ def has_spdx_header(file: str, lines: list[str]) -> bool:
         ".sv": [cxx_style],
         ".erl": [erlang_style],
         ".luau": [lua_style],
+        ".lean": [lua_style],
         ".hurl": [bzl_style],
         ".test": lit_styles,
         ".check": lit_styles,

@@ -100,6 +100,11 @@ shims.toolchain_alias(
     actual = "toolchains//csharp:csharp",
 )
 
+shims.toolchain_alias(
+    name = "lean",
+    actual = "toolchains//lean:lean",
+)
+
 remote_test_execution_toolchain(
     name = "remote_test_execution",
     visibility = ["PUBLIC"],

@@ -14,6 +14,7 @@ load("@root//buck/tools/filecheck:defs.bzl", _filecheck_lit_external_rule = "fil
 load("@toolchains//csharp:defs.bzl", _csharp = "csharp")
 load("@toolchains//deno:defs.bzl", _deno = "deno")
 load("@toolchains//k6:defs.bzl", "k6_run")
+load("@toolchains//lean:defs.bzl", _lean = "lean")
 load("@toolchains//uv:defs.bzl", _uv_impl = "uv")
 load("@toolchains//zuo:defs.bzl", _zuo = "zuo")
 
@@ -541,6 +542,23 @@ def _depot_csharp_reference_assembly(**kwargs):
     kwargs = _fix_kwargs("csharp_reference_assembly", kwargs)
     _csharp.reference_assembly(**kwargs)
 
+# MARK: Lean toolchain wrappers
+
+# The Lean macros emit C++ targets for the generated code; those go through
+# the depot wrappers like any other C++ target.
+
+def _depot_lean_library(**kwargs):
+    kwargs = _fix_kwargs("lean_library", kwargs)
+    _lean.library(cxx_library = _depot_cxx_library, **kwargs)
+
+def _depot_lean_binary(**kwargs):
+    kwargs = _fix_kwargs("lean_binary", kwargs)
+    _lean.binary(cxx_binary = _depot_cxx_binary, **kwargs)
+
+def _depot_lean_test(**kwargs):
+    kwargs = _fix_kwargs("lean_test", kwargs)
+    _lean.test(cxx_binary = _depot_cxx_binary, **kwargs)
+
 # MARK: Public API
 
 shims = struct(
@@ -591,6 +609,11 @@ shims = struct(
     ),
     k6 = struct(
         run = _depot_k6_run,
+    ),
+    lean = struct(
+        library = _depot_lean_library,
+        binary = _depot_lean_binary,
+        test = _depot_lean_test,
     ),
     csharp = struct(
         library = _depot_csharp_library,
