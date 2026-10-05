@@ -132,6 +132,13 @@ changes, and every Lean action takes its output as an input, so a Lean
 upgrade rebuilds all Lean code. If it fails after a Nix change, reload the
 dev shell and restart Buck (`buck2 kill`) so actions see the new PATH.
 
+## Demo
+
+`demo/` is a small program that uses all of this: a checksummed record
+log with proofs of its round trips, C code checked against a Lean
+specification at build time, a C++ client and a fuzzer. See
+[demo/README.md](demo/README.md).
+
 ## Editors
 
 `lsp/` makes `lean --server` take each file's imports from Buck. See
