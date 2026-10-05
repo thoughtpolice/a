@@ -284,7 +284,10 @@ def _command_test_impl(ctx: AnalysisContext) -> list[Provider]:
     else:
         script_file = ctx.actions.declare_output("{}.sh".format(ctx.label.name))
         script_content = cmd_args("#!/bin/bash\nset -euo pipefail\n", ctx.attrs.script, delimiter = "")
-        ctx.actions.write(script_file, script_content, allow_args = True)
+        # Absolute, because `buck2 test` runs the script from the project root
+        # but `buck2 run` from wherever it was typed, and a $(location) or
+        # $(exe) path relative to the root breaks in the second.
+        ctx.actions.write(script_file, script_content, allow_args = True, absolute = True)
 
         # The artifacts the script names through $(location) and $(exe) are
         # its inputs even though the command line only names the script;
