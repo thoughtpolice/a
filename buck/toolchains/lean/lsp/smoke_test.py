@@ -6,7 +6,8 @@
 
 Opens buck/toolchains/lean/tests/Main.lean, whose imports live in two other
 Buck targets, and checks that the server reports no errors, hovers a
-definition from one of them, and jumps to its source. The shim's Buck
+definition from one of them, and jumps to its source. NativeEval.lean
+checks that precompiled libraries load. The shim's Buck
 calls run in their own isolation directory, whose daemon this stops at the
 end.
 """
@@ -97,35 +98,43 @@ def position(text: str, word: str) -> dict:
     fail("{} not in file".format(word))
 
 
-def main():
-    root = project_root()
-    path = os.path.join(root, "buck/toolchains/lean/tests/Main.lean")
+def open_file(server: Server, path: str) -> tuple[str, str]:
+    """Open a file and fail on any error the server reports in it."""
     uri = "file://" + path
     with open(path) as f:
         text = f.read()
+    server.send(
+        {
+            "method": "textDocument/didOpen",
+            "params": {"textDocument": {"uri": uri, "languageId": "lean", "version": 1, "text": text}},
+        }
+    )
+    diagnostics = []
+
+    def record(msg):
+        if msg.get("method") == "textDocument/publishDiagnostics" and msg["params"]["uri"] == uri:
+            diagnostics[:] = msg["params"]["diagnostics"]
+
+    server.request("textDocument/waitForDiagnostics", {"uri": uri, "version": 1}, on_message=record)
+    errors = [d["message"] for d in diagnostics if d.get("severity") == 1]
+    if errors:
+        fail("errors in {}:\n{}".format(os.path.basename(path), "\n".join(errors)))
+    return uri, text
+
+
+def main():
+    root = project_root()
+    tests = os.path.join(root, "buck/toolchains/lean/tests")
 
     server = Server(root)
     try:
         server.request("initialize", {"processId": os.getpid(), "rootUri": "file://" + root, "capabilities": {}})
         server.send({"method": "initialized", "params": {}})
-        server.send(
-            {
-                "method": "textDocument/didOpen",
-                "params": {"textDocument": {"uri": uri, "languageId": "lean", "version": 1, "text": text}},
-            }
-        )
 
-        diagnostics = []
+        # Its #guards run C code, which takes :native's shared object.
+        open_file(server, os.path.join(tests, "NativeEval.lean"))
 
-        def record(msg):
-            if msg.get("method") == "textDocument/publishDiagnostics" and msg["params"]["uri"] == uri:
-                diagnostics[:] = msg["params"]["diagnostics"]
-
-        server.request("textDocument/waitForDiagnostics", {"uri": uri, "version": 1}, on_message=record)
-        errors = [d["message"] for d in diagnostics if d.get("severity") == 1]
-        if errors:
-            fail("errors in Main.lean:\n" + "\n".join(errors))
-
+        uri, text = open_file(server, os.path.join(tests, "Main.lean"))
         doc = {"uri": uri}
         at = position(text, "greeting")
         hover = server.request("textDocument/hover", {"textDocument": doc, "position": at})
@@ -140,7 +149,7 @@ def main():
         server.request("shutdown", None)
         server.send({"method": "exit", "params": None})
         server.proc.wait(timeout=30)
-        print("ok: diagnostics, hover and definition through Buck")
+        print("ok: diagnostics, precompiled libraries, hover and definition through Buck")
     finally:
         if server.proc.poll() is None:
             server.proc.kill()

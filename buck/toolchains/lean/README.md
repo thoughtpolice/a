@@ -20,8 +20,8 @@ All of them are reachable as `depot.lean.*` from `@root//buck/shims:shims.bzl`.
 `srcs` are .lean files. A file's module name is its path below `root`
 (default: the package directory), so `Foo/Bar.lean` is `Foo.Bar`. `deps`
 take Lean libraries and C++ libraries alike: a C++ library there
-implements `@[extern]` functions and is linked into every program using
-the Lean library.
+(depending on `toolchains//lean:headers`) implements `@[extern]`
+functions and is linked into every program using the Lean library.
 
 Lean attributes, shared by all three rules:
 
@@ -34,6 +34,8 @@ Lean attributes, shared by all three rules:
 | `split_codegen` | `False` | generates code for `module` files in a separate `leanir` action (below) |
 | `lean_flags` | `[]` | extra `lean` arguments |
 | `compiler_flags` | `[]` | extra C compiler flags for the generated code |
+
+`library` also takes `precompile` (below).
 
 `test` adds `leanchecker` (default on: replay the test's own modules
 through the kernel), `executable` (build `srcs` into a program and run it),
@@ -80,6 +82,27 @@ library Lean needs, libstdc++ included. It also leaves out the toolchain
 archives that hold a program's `main` (LeanExport, since 4.35), which
 would otherwise replace the fuzz runtime's weak `main`.
 
+## Precompiled libraries
+
+Without native code, Lean interprets what it runs while elaborating: an
+imported tactic, a `#eval`, a `#guard`. It cannot interpret an `@[extern]`
+function at all. `precompile = True` on a library makes importers in other
+targets load it as native code instead:
+
+- `<name>[shared]` is a shared object of the library's code and the C/C++
+  behind its `@[extern]` functions. Lean symbols it does not define resolve
+  against the lean process and the libraries loaded before it.
+- An importer's setup lists that object and the shared objects of every
+  Lean library under it, dependencies first, as `dynlibs`. Lean runs the
+  initializers of each imported module it finds native code for.
+- The shared objects are built for the machine running Lean, so a fuzzing
+  configuration does not leave coverage hooks in them.
+
+C and C++ code implementing `@[extern]` functions depends on
+`toolchains//lean:headers` (lean.h only), not `:runtime`, so that the
+shared object can include it. `tests/NativeEval.lean` runs C code from
+`:native` in `#guard`s.
+
 The subtargets of `<name>--lean` are `[Module.Name]` (its .olean, .ir.sig
 and .ir directories), `[Module.Name.c]` and `[imports.json]`.
 
@@ -100,9 +123,7 @@ dev shell and restart Buck (`buck2 kill`) so actions see the new PATH.
 
 - Lake packages. A third-party Lean package needs a `library` target, the
   way crates need reindeer; nothing generates those yet.
-- Precompiled modules (`--plugin`/`--load-dynlib`). `@[extern]` functions
-  and other compiled code from dependencies run in the interpreter during
-  elaboration, and an `@[extern]` without an interpreter fallback cannot be
-  `#eval`ed by its importers.
+- Precompiling a library's modules for its own other modules, as Lake's
+  `precompileModules` does. `precompile` serves importers in other targets.
 - `.ilean` indexing across the whole repository for find-references in the
   editor.

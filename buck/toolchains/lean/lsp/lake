@@ -37,7 +37,7 @@ BXL = "toolchains//lean/lsp/lean.bxl"
 SRC_PATTERNS = ["root//...", "toolchains//...", "depot-tilde//..."]
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
-from tool import import_arts  # noqa: E402
+from tool import import_arts, native_libs  # noqa: E402
 
 STDLIB_ROOTS = {"Init", "Lake", "LakeMain", "Lean", "LeanChecker", "LeanExport", "LeanIR", "Leanc", "Std"}
 
@@ -124,14 +124,15 @@ def setup_file(argv: list[str]):
         )
         arts = import_arts(["{}={}".format(m, ",".join(built[m])) for m in needed])
 
+    dynlibs, plugins = native_libs(target["dynlibs"])
     json.dump(
         {
             "name": module or "_",
             "package": target["package"],
             "isModule": header.get("isModule", False),
             "importArts": arts,
-            "dynlibs": [],
-            "plugins": [],
+            "dynlibs": dynlibs,
+            "plugins": plugins,
             "options": target["options"],
         },
         sys.stdout,

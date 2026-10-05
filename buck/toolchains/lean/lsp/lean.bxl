@@ -4,7 +4,8 @@
 """Queries the Lean language server shim (lake.py) asks of Buck.
 
   target   the Lean target owning a source file, its package and options,
-           every module it can import and the built import graphs
+           every module it can import, the built import graphs and the
+           precompiled libraries it loads
   build    build the given modules of a target's import closure and print
            where their artifacts are
   roots    the source roots of every Lean target, for LEAN_SRC_PATH, and
@@ -28,11 +29,13 @@ def _target_impl(ctx: bxl.Context) -> None:
     node = list(nodes)[0]
     info = ctx.analysis(node).providers()[LeanLibraryInfo]
     graphs = ctx.output.ensure_multiple(info.graphs)
+    dynlibs = ctx.output.ensure_multiple(info.dynlibs)
     module = None
     for name in info.own:
         if get_path_without_materialization(info.modules[name].src, ctx, abs = True) == ctx.cli_args.file:
             module = name
     ctx.output.print_json({
+        "dynlibs": [d.abs_path() for d in dynlibs],
         "graphs": [g.abs_path() for g in graphs],
         "module": module,
         "modules": sorted(info.modules.keys()),

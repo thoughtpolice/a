@@ -92,14 +92,30 @@ def import_arts(imports: list[str]) -> dict:
     return arts
 
 
+def native_libs(dynlibs: list[str]) -> tuple[list[str], list[str]]:
+    """The setup's dynlibs and plugins for loading precompiled libraries.
+
+    Lean runs the initializers of every imported module it finds native code
+    for, so the libraries load as plain dynlibs. Like Lake, this also loads
+    the toolchain's libLake_shared.so as a plugin first: the dynamic loader
+    does not find it for a library that needs it, because lean's runpath does
+    not apply to the libraries it loads.
+    """
+    if not dynlibs:
+        return [], []
+    libdir = run(["lean", "--print-libdir"], capture_output=True, text=True, check=True).stdout.strip()
+    return [os.path.abspath(d) for d in dynlibs], [os.path.join(libdir, "libLake_shared.so")]
+
+
 def write_setup(tmp: str, args, arts: dict, options: dict) -> str:
+    dynlibs, plugins = native_libs(getattr(args, "dynlibs", []))
     setup = {
         "name": args.module,
         "package": args.package,
         "isModule": False,
         "importArts": arts,
-        "dynlibs": [],
-        "plugins": [],
+        "dynlibs": dynlibs,
+        "plugins": plugins,
         "options": options,
     }
     path = os.path.join(tmp, "setup.json")
@@ -403,6 +419,7 @@ def main():
     elab.add_argument("--postpone", action="store_true")
     elab.add_argument("--allow-sorry", action="store_true")
     elab.add_argument("--lean-flag", dest="lean_flags", action="append", default=[])
+    elab.add_argument("--dynlib", dest="dynlibs", action="append", default=[], help="a precompiled library to load")
     ir = sub.choices["ir"]
     ir.add_argument("--self-dir", required=True)
     ir.add_argument("--ir-out", required=True)

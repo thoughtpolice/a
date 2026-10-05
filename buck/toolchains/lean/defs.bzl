@@ -29,6 +29,7 @@ LeanLibraryInfo, the per-module artifacts the Lean side needs.
 """
 
 load("@prelude//cxx:cxx_toolchain_types.bzl", "CxxToolchainInfo")
+load("@prelude//linking:link_info.bzl", "LinkStrategy", "MergedLinkInfo", "get_link_args_for_strategy", "unpack_link_args")
 
 # What `leanc --print-cflags` passes when compiling generated C, minus its
 # -I flag. The toolchain check fails if the installed Lean disagrees.
@@ -105,6 +106,21 @@ LeanLibraryInfo = provider(
         # Import graphs (JSON, written by `tool.py deps`) of this library and
         # every library reachable through deps
         "graphs": provider_field(list[Artifact]),
+        # Shared objects of precompiled libraries that this library's modules
+        # load while elaborating, in load order
+        "dynlibs": provider_field(list[Artifact]),
+    },
+)
+
+LeanDynlibInfo = provider(
+    doc = "The shared objects a Lean library's importers load while elaborating",
+    fields = {
+        # This library's shared object after those of every Lean library it
+        # depends on, which is everything loading it takes
+        "closure": provider_field(list[Artifact]),
+        # What an importer loads: the closure of every precompiled library
+        # reachable from here, dependencies first
+        "importers": provider_field(list[Artifact]),
     },
 )
 
@@ -240,6 +256,7 @@ def _lean_modules_impl(ctx: AnalysisContext) -> list[Provider]:
     options_json = json.encode(options)
 
     dep_infos = [d[LeanLibraryInfo] for d in ctx.attrs.deps if LeanLibraryInfo in d]
+    dynlibs = _ordered([lib for d in ctx.attrs.plugin_deps if LeanDynlibInfo in d for lib in d[LeanDynlibInfo].importers])
     modules = {}
     graphs = {}
     for info in dep_infos:
@@ -313,6 +330,7 @@ def _lean_modules_impl(ctx: AnalysisContext) -> list[Provider]:
                 outputs[m.elab].as_output(),
                 [_import_arg(dep, needs_ir) for dep in closure],
                 ["--lean-flag=" + flag for flag in lean_flags],
+                cmd_args(dynlibs, format = "--dynlib={}"),
                 hidden = toolchain.stamp,
             )
             if allow_sorry:
@@ -375,6 +393,7 @@ def _lean_modules_impl(ctx: AnalysisContext) -> list[Provider]:
             own = list(own.keys()),
             modules = modules,
             graphs = dep_graphs + [graph],
+            dynlibs = dynlibs,
         ),
     ]
 
@@ -405,26 +424,80 @@ lean_modules = rule(
         # import closure. It is off by default.
         "split_codegen": attrs.bool(default = False),
         "lean_flags": attrs.list(attrs.string(), default = []),
+        # `deps` again, configured for the machine running Lean: precompiled
+        # libraries load into the lean process, so their shared objects are
+        # built for it rather than for the target (a fuzzing configuration
+        # would leave coverage hooks in them that lean cannot resolve).
+        "plugin_deps": attrs.list(attrs.exec_dep(), default = []),
         "_lean_toolchain": attrs.toolchain_dep(default = "toolchains//:lean", providers = [LeanToolchainInfo]),
     },
 )
 
 # MARK: Libraries
 
+def _ordered(artifacts: list[Artifact]) -> list[Artifact]:
+    """The artifacts without repeats, each where it first appears."""
+    return list({a: True for a in artifacts}.keys())
+
 def _lean_library_impl(ctx: AnalysisContext) -> list[Provider]:
     native = ctx.attrs.native
+    cxx = ctx.attrs._cxx_toolchain[CxxToolchainInfo]
+
+    # The library as a shared object for the lean process to load. It holds
+    # this library's code and the C/C++ behind its @[extern] functions, and
+    # leaves every Lean symbol it does not define (the runtime, the standard
+    # library, other Lean libraries) to whatever the process loaded before
+    # it. Built only when an importer asks for it.
+    shared = ctx.actions.declare_output("lib{}.so".format(ctx.label.name))
+    externs = get_link_args_for_strategy(
+        ctx.actions,
+        ctx.label,
+        cxx.linker_info,
+        [d[MergedLinkInfo] for d in ctx.attrs.deps if LeanLibraryInfo not in d and MergedLinkInfo in d],
+        LinkStrategy("static_pic"),
+        False,
+        None,
+    )
+    ctx.actions.run(
+        cmd_args(
+            cxx.linker_info.linker,
+            cxx.linker_info.linker_flags,
+            "-shared",
+            "-o",
+            shared.as_output(),
+            "-Wl,--whole-archive",
+            native[DefaultInfo].sub_targets["static-pic"][DefaultInfo].default_outputs,
+            "-Wl,--no-whole-archive",
+            unpack_link_args(externs),
+        ),
+        category = "lean_plugin",
+    )
+
+    dep_dynlibs = [d[LeanDynlibInfo] for d in ctx.attrs.deps if LeanDynlibInfo in d]
+    closure = _ordered([lib for d in dep_dynlibs for lib in d.closure] + [shared])
+    importers = closure if ctx.attrs.precompile else _ordered([lib for d in dep_dynlibs for lib in d.importers])
+
     providers = [p for p in native.providers if not isinstance(p, DefaultInfo)]
     providers.append(ctx.attrs.lean[LeanLibraryInfo])
+    providers.append(LeanDynlibInfo(closure = closure, importers = importers))
     providers.append(DefaultInfo(
         default_outputs = ctx.attrs.lean[DefaultInfo].default_outputs + native[DefaultInfo].default_outputs,
+        sub_targets = {"shared": [DefaultInfo(default_output = shared)]},
     ))
     return providers
 
 lean_library_rule = rule(
     impl = _lean_library_impl,
     attrs = {
+        "deps": attrs.list(attrs.dep(), default = []),
         "lean": attrs.dep(providers = [LeanLibraryInfo]),
         "native": attrs.dep(),
+        # Importers in other targets load this library (and the Lean
+        # libraries under it) as native code while they elaborate, instead
+        # of interpreting it. Needed to run its @[extern] functions at
+        # elaboration time, and faster for tactics and other metaprograms.
+        "precompile": attrs.bool(default = False),
+        "_cxx_toolchain": attrs.toolchain_dep(default = "toolchains//:cxx", providers = [CxxToolchainInfo]),
     },
 )
 
@@ -495,6 +568,7 @@ def _modules_target(name: str, srcs: list[str], root: str, deps: list[str], lean
         name = name,
         modules = modules,
         deps = deps,
+        plugin_deps = deps,
         **dict(lean_kwargs, **shared)
     )
     return [":{}[{}.c]".format(name, m) for m in modules.keys()]
@@ -514,9 +588,10 @@ def lean_library(
     libraries and the C++ libraries implementing any @[extern] functions.
     `compiler_flags` go to the C compiler, after the toolchain's.
 
-    The other Lean attributes (`package`, `options`, `allow_sorry`,
-    `warnings_as_errors`, `split_codegen`, `lean_flags`) are documented on
-    `lean_modules`.
+    `precompile` makes importers in other targets load this library as
+    native code (see `lean_library_rule`). The other Lean attributes
+    (`package`, `options`, `allow_sorry`, `warnings_as_errors`,
+    `split_codegen`, `lean_flags`) are documented on `lean_modules`.
     """
     cxx_library = cxx_library or native.cxx_library
     shared = _split(kwargs, _SHARED_ATTRS)
@@ -536,6 +611,7 @@ def lean_library(
     )
     lean_library_rule(
         name = name,
+        deps = deps,
         lean = ":{}--lean".format(name),
         native = ":{}--native".format(name),
         **dict(shared, **kwargs)
