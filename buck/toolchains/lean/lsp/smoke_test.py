@@ -6,8 +6,9 @@
 
 Opens buck/toolchains/lean/tests/Main.lean, whose imports live in two other
 Buck targets, and checks that the server reports no errors, hovers a
-definition from one of them, and jumps to its source. NativeEval.lean
-checks that precompiled libraries load, and Greeting/Basic.lean that
+definition from one of them, and jumps to its source. NativeEval.lean and
+NativeLocal/Eval.lean check that precompiled code loads, both a whole
+library and a module of the same target, and Greeting/Basic.lean that
 references reach files the server never opened. The shim's Buck
 calls run in their own isolation directory, whose daemon this stops at the
 end.
@@ -132,8 +133,10 @@ def main():
         server.request("initialize", {"processId": os.getpid(), "rootUri": "file://" + root, "capabilities": {}})
         server.send({"method": "initialized", "params": {}})
 
-        # Its #guards run C code, which takes :native's shared object.
+        # Their #guards run C code, which takes :native's shared object and
+        # NativeLocal.Ffi's, from a target that precompiles module by module.
         open_file(server, os.path.join(tests, "NativeEval.lean"))
+        open_file(server, os.path.join(tests, "NativeLocal/Eval.lean"))
 
         uri, text = open_file(server, os.path.join(tests, "Main.lean"))
         doc = {"uri": uri}
