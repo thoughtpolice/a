@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+"""A stand-in for Lake that answers the Lean language server from Buck.
+
+Each Lean file worker runs `$LAKE setup-file <file> -` with the file's
+import header on stdin, and reads a module setup from stdout: which file
+holds each module the header imports, plus the package and options to
+elaborate with. This program finds the Buck target owning the file, builds
+the import closure with Buck, and prints that setup. Lean's own Lake never
+runs.
+
+Commands:
+  setup-file FILE [-]   build the imports of FILE and print its setup
+  src-path              print LEAN_SRC_PATH for every Lean target
+  serve [-- ARGS]       run `lean --server` with the environment set up
+  --version             a version new enough for clients that check
+
+Exit status follows Lake: 2 means FILE belongs to no Lean target (the
+server then falls back to LEAN_PATH), anything else non-zero is an error
+the editor shows on the file.
+
+The server asks for a dependency build only on "Restart File" and passes
+--no-build otherwise. Imports here are built on every open and every
+header edit regardless, which is what Buck's caching makes cheap.
+"""
+
+import json
+import os
+import subprocess
+import sys
+
+BXL = "toolchains//lean/lsp/lean.bxl"
+
+# Cells holding Lean targets, for LEAN_SRC_PATH.
+SRC_PATTERNS = ["root//...", "toolchains//...", "depot-tilde//..."]
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
+from tool import import_arts  # noqa: E402
+
+STDLIB_ROOTS = {"Init", "Lake", "LakeMain", "Lean", "LeanChecker", "LeanExport", "LeanIR", "Leanc", "Std"}
+
+
+def project_root(start: str) -> str:
+    out = subprocess.run(
+        ["buck2", "root", "--kind", "project"],
+        cwd=start,
+        capture_output=True,
+        text=True,
+    )
+    if out.returncode != 0:
+        sys.stderr.write(out.stderr)
+        sys.exit(1)
+    return out.stdout.strip()
+
+
+def bxl(root: str, function: str, args: list[str], what: str):
+    """Run a BXL function and return its JSON, or exit with Buck's output.
+
+    Buck's console output is kept back: the server shows every stderr line
+    as a diagnostic on the file, so only failures are worth passing on.
+    """
+    print(what, file=sys.stderr, flush=True)
+    proc = subprocess.run(
+        ["buck2", "bxl", "--console=simple", "{}:{}".format(BXL, function), "--"] + args,
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        sys.stderr.write(proc.stderr)
+        sys.exit(1)
+    return json.loads(proc.stdout)
+
+
+def closure(header_imports: list[str], graph: dict, known: set[str]) -> list[str]:
+    seen = set()
+    stack = list(header_imports)
+    while stack:
+        name = stack.pop()
+        if name in seen or (name not in known and name.split(".")[0] in STDLIB_ROOTS):
+            continue
+        if name not in known:
+            print("{} is not provided by this target or its dependencies".format(name), file=sys.stderr)
+            sys.exit(1)
+        seen.add(name)
+        stack += [i["module"] for i in graph[name]["imports"]]
+    return sorted(seen)
+
+
+def setup_file(argv: list[str]):
+    file = os.path.realpath(argv[0])
+    header = json.load(sys.stdin) if "-" in argv[1:] else None
+
+    root = project_root(os.path.dirname(file))
+    target = bxl(root, "target", ["--file", file], "Finding the Buck target")
+    if not target:
+        sys.exit(2)
+
+    graph = {}
+    for path in target["graphs"]:
+        with open(path) as f:
+            graph.update(json.load(f))
+
+    module = target.get("module")
+    if header is None:
+        if module not in graph:
+            print("no import header for {}".format(file), file=sys.stderr)
+            sys.exit(1)
+        header = {
+            "isModule": graph[module]["isModule"],
+            "imports": [{"module": i["module"]} for i in graph[module]["imports"]],
+        }
+
+    needed = closure([i["module"] for i in header["imports"]], graph, set(target["modules"]))
+    arts = {}
+    if needed:
+        built = bxl(
+            root,
+            "build",
+            ["--target", target["target"]] + [arg for m in needed for arg in ("--module", m)],
+            "Building {} imported module(s) of {}".format(len(needed), target["target"]),
+        )
+        arts = import_arts(["{}={}".format(m, ",".join(built[m])) for m in needed])
+
+    json.dump(
+        {
+            "name": module or "_",
+            "package": target["package"],
+            "isModule": header.get("isModule", False),
+            "importArts": arts,
+            "dynlibs": [],
+            "plugins": [],
+            "options": target["options"],
+        },
+        sys.stdout,
+    )
+
+
+def roots(root: str) -> dict:
+    return bxl(root, "roots", [arg for p in SRC_PATTERNS for arg in ("--pattern", p)], "Finding Lean source roots")
+
+
+def build_lean(cflags: str) -> str:
+    """The bin directory of the Lean that Buck builds with.
+
+    The server loads .olean files and precompiled libraries that this Lean
+    wrote, and a different one fails on them in confusing ways (undefined
+    symbols in a precompiled library, for one), so it runs this Lean
+    rather than whatever the editor's PATH holds. toolchains//lean:check
+    found it, and its include flag names it.
+    """
+    with open(cflags) as f:
+        flags = f.read().split()
+    include = flags[flags.index("-I") + 1]
+    return os.path.join(os.path.dirname(include), "bin")
+
+
+def serve(argv: list[str]):
+    if argv[:1] == ["--"]:
+        argv = argv[1:]
+    root = project_root(os.getcwd())
+    found = roots(root)
+    bin = build_lean(found["cflags"])
+    env = dict(
+        os.environ,
+        LAKE=os.path.realpath(__file__),
+        LEAN_SRC_PATH=os.pathsep.join(found["roots"]),
+        # The workers, and anything lake runs, find it here.
+        PATH=bin + os.pathsep + os.environ.get("PATH", ""),
+    )
+    lean = os.path.join(bin, "lean")
+    os.execve(lean, [lean, "--server"] + argv, env)
+
+
+def main():
+    argv = sys.argv[1:]
+    if not argv:
+        print(__doc__, file=sys.stderr)
+        sys.exit(1)
+    command, rest = argv[0], argv[1:]
+    if command == "--version":
+        print("Lake version 5.0.0 (buck2 shim)")
+    elif command == "setup-file":
+        setup_file(rest)
+    elif command == "src-path":
+        print(os.pathsep.join(roots(project_root(os.getcwd()))["roots"]))
+    elif command == "serve":
+        serve(rest)
+    else:
+        # For available-imports and the rest, a non-zero exit makes the
+        # server fall back to its own answer.
+        print("lake shim: unsupported command {}".format(command), file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

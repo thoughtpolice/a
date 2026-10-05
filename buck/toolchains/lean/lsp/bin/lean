@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Editors put this directory ahead of the Nix shell's lean on PATH (VS Code
+# through lean4.envPathExtensions). For `lean --server` it hands over to the
+# Buck-backed Lake stand-in, which sets LAKE and LEAN_SRC_PATH; everything
+# else goes straight to the real lean.
+
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# The next lean on PATH after this one.
+path=""
+IFS=: read -ra dirs <<<"$PATH"
+for d in "${dirs[@]}"; do
+    [[ "$d" -ef "$here" ]] || path="${path:+$path:}$d"
+done
+export PATH="$path"
+
+for arg in "$@"; do
+    if [[ "$arg" == "--server" ]]; then
+        args=()
+        for a in "$@"; do
+            [[ "$a" == "--server" ]] || args+=("$a")
+        done
+        exec "$here/../lake" serve -- "${args[@]}"
+    fi
+done
+exec lean "$@"
