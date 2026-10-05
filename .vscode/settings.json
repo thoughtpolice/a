@@ -33,5 +33,9 @@
     "remote.extensionKind": {
         "aseipp.depot-buck2": ["workspace"],
     },
-    "deno.enable": true
+    "deno.enable": true,
+
+    // Puts buck/toolchains/lean/lsp/bin/lean ahead of the Nix shell's, so the
+    // Lean server gets its imports from Buck instead of Lake.
+    "lean4.envPathExtensions": ["buck/toolchains/lean/lsp/bin"]
 }

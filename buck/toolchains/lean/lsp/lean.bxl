@@ -1,0 +1,95 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+"""Queries the Lean language server shim (lake.py) asks of Buck.
+
+  target   the Lean target owning a source file, its package and options,
+           every module it can import and the built import graphs
+  build    build the given modules of a target's import closure and print
+           where their artifacts are
+  roots    the source roots of every Lean target, for LEAN_SRC_PATH, and
+           the include flags naming the build's Lean
+"""
+
+load("@toolchains//lean:defs.bzl", "LeanLibraryInfo")
+
+def _owners(ctx: bxl.Context, file: str):
+    universe = ctx.target_universe(ctx.uquery().owner(file))
+    return ctx.cquery().kind("^lean_modules$", ctx.cquery().owner(file, universe.target_set()))
+
+def _target_impl(ctx: bxl.Context) -> None:
+    nodes = _owners(ctx, ctx.cli_args.file)
+    if len(nodes) == 0:
+        ctx.output.print_json({})
+        return
+
+    # A file can belong to more than one target (a test and a library, say);
+    # any of them describes its imports.
+    node = list(nodes)[0]
+    info = ctx.analysis(node).providers()[LeanLibraryInfo]
+    graphs = ctx.output.ensure_multiple(info.graphs)
+    module = None
+    for name in info.own:
+        if get_path_without_materialization(info.modules[name].src, ctx, abs = True) == ctx.cli_args.file:
+            module = name
+    ctx.output.print_json({
+        "graphs": [g.abs_path() for g in graphs],
+        "module": module,
+        "modules": sorted(info.modules.keys()),
+        "options": info.options,
+        "package": info.package,
+        "target": str(node.label.raw_target()),
+    })
+
+def _build_impl(ctx: bxl.Context) -> None:
+    node = ctx.configured_targets(ctx.cli_args.target)
+    info = ctx.analysis(node).providers()[LeanLibraryInfo]
+    out = {}
+    for name in ctx.cli_args.module:
+        m = info.modules[name]
+        elab, sig, ir = ctx.output.ensure_multiple([m.elab, m.sig, m.ir])
+        out[name] = [elab.abs_path(), sig.abs_path(), ir.abs_path()]
+    ctx.output.print_json(out)
+
+def _roots_impl(ctx: bxl.Context) -> None:
+    nodes = ctx.cquery().kind("^lean_modules$", ctx.target_universe(ctx.cli_args.pattern).target_set())
+    roots = {}
+    for analysis in ctx.analysis(nodes).values():
+        info = analysis.providers()[LeanLibraryInfo]
+        for name in info.own:
+            src = info.modules[name].src
+            path = get_path_without_materialization(src, ctx, abs = True)
+            suffix = name.replace(".", "/") + ".lean"
+            roots[path[:-len(suffix)].rstrip("/")] = True
+
+    # The include flags toolchains//lean:check found, which name the Lean
+    # the build uses. The server runs that one too, whatever is on PATH.
+    check = ctx.analysis(ctx.configured_targets("toolchains//lean:check")).providers()[DefaultInfo]
+    cflags = ctx.output.ensure(check.sub_targets["cflags"][DefaultInfo].default_outputs[0])
+
+    ctx.output.print_json({
+        "cflags": cflags.abs_path(),
+        "roots": sorted(roots.keys()),
+    })
+
+target = bxl_main(
+    impl = _target_impl,
+    cli_args = {
+        "file": cli_args.string(doc = "Absolute path of a source file"),
+    },
+)
+
+build = bxl_main(
+    impl = _build_impl,
+    cli_args = {
+        "module": cli_args.list(cli_args.string()),
+        "target": cli_args.string(),
+    },
+)
+
+roots = bxl_main(
+    impl = _roots_impl,
+    cli_args = {
+        "pattern": cli_args.list(cli_args.string()),
+    },
+)

@@ -84,6 +84,11 @@ changes, and every Lean action takes its output as an input, so a Lean
 upgrade rebuilds all Lean code. If it fails after a Nix change, reload the
 dev shell and restart Buck (`buck2 kill`) so actions see the new PATH.
 
+## Editors
+
+`lsp/` makes `lean --server` take each file's imports from Buck. See
+[lsp/README.md](lsp/README.md).
+
 ## What is not here
 
 - Lake packages. A third-party Lean package needs a `library` target, the
