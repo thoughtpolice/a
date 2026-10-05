@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    version = "0.1.0",
+    description = """
+        Find iroh endpoints by shared topic on the BitTorrent mainline DHT.
+    """,
+    license = "MIT OR Apache-2.0",
+    copyright = [
+        "2026 Austin Seipp",
+    ],
+    visibility = ["PUBLIC"],
+)
