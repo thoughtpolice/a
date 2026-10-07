@@ -10,7 +10,8 @@ contains boundary, malformed-source, projection, composed-map, lint and
 formatting-transition regressions.
 
 `toolchains//:web` selects the runtime-neutral build toolchain;
-`@toolchains//web:defs.bzl` exports its `web` namespace. Celld is a separate
+`@toolchains//web:defs.bzl` exports its `web` namespace, and
+`@toolchains//web/tailwind:defs.bzl` exports `tailwind`. Celld is a separate
 [platform adapter](../celld/README.md), not a dependency of these rules.
 
 ## Buck2 rules
@@ -39,6 +40,7 @@ web.quality(name = "quality", srcs = glob(["src/**/*.ts", "src/**/*.svelte"]))
 | `web.browser` | Client `app.js`, reachable `app.css`, and authored-source maps |
 | `web.quality` | Runtime-independent native lint, plus opt-in `[format]` |
 | `web.deno_test` | Explicit Deno test execution, not a generic runtime abstraction |
+| `tailwind.css` | Global CSS from the pinned Tailwind compiler; see [Tailwind CSS](#tailwind-css) |
 
 Units accept `srcs`, direct `deps`, optional `types`, `lib`, `externals`,
 `svelte_runtime`, and `server_conditions`. Libraries declare `import_name` and
@@ -101,7 +103,52 @@ never a general application-import bypass. Checking remains real `deno check`;
 native parse success alone is not type checking.
 
 The fixtures in `tests/` cover portable ESM, generic browser/SSR compilation,
-native-only quality, optional Deno policy, and source-graph boundaries.
+native-only quality, optional Deno policy, source-graph boundaries and Tailwind
+compilation through the toolchain.
+
+## Tailwind CSS
+
+```python
+load("@toolchains//web:defs.bzl", "web")
+load("@toolchains//web/tailwind:defs.bzl", "tailwind")
+
+tailwind.css(
+    name = "styles",
+    src = "styles.css",
+    srcs = glob(["src/**/*.svelte", "src/**/*.ts"]),
+    minify = True,
+)
+web.browser(name = "client", main = "client.ts", deps = [":views"], styles = [":styles"])
+```
+
+`tailwind.css` compiles one entry stylesheet to `<name>.css` with the pinned
+upstream Tailwind standalone compiler. The entry must import Tailwind with
+`source(none)`, which turns off upstream's automatic file discovery. `srcs`
+lists the files Tailwind scans for class candidates, and `css_srcs` lists the
+CSS files the entry may import by relative path. `minify = True` passes
+`--minify` to the compiler. Give the output to `web.browser` through `styles`
+so it comes before component CSS.
+
+The runner stages only declared inputs in a fresh directory and runs the
+compiler with a minimal environment. Before compiling, it rejects:
+
+- `@plugin` and `@config`, which would load undeclared JavaScript;
+- `@import`, `@reference` or `@tailwind utilities` without `source(none)`;
+- an import or file `@source` path that is absolute, climbs above the package,
+  or names a file missing from `css_srcs` or `srcs`.
+
+Imports of `tailwindcss/theme.css` and `tailwindcss/preflight.css`, and
+`@source inline(...)`, keep upstream semantics.
+
+`WebToolchain` carries the compiler and runner as `tailwind_compiler` and
+`tailwind_runner`. The default compiler, `toolchains//web/tailwind:compiler`,
+selects a SHA-256-pinned release binary (version 4.3.3) for the execution
+platform, Linux or macOS on x86_64 or arm64. An unsupported host fails
+selection instead of falling back to `PATH`. To use another build, set
+`tailwind_compiler` on `toolchains//web:web`.
+`toolchains//web/tailwind:compiler-test` checks the runner's contract against
+the real compiler, and `toolchains//web/tests:tailwind-test` builds the rule
+through the toolchain.
 
 ## Native executable
 

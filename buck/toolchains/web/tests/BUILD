@@ -5,6 +5,7 @@ load("@root//buck/shims:shims.bzl", "shims")
 load("@toolchains//deno:defs.bzl", "deno")
 load("@toolchains//js:defs.bzl", "js")
 load("@toolchains//web:defs.bzl", "web")
+load("@toolchains//web/tailwind:defs.bzl", "tailwind")
 
 shims.python_binary(
     name = "native-graph-runner",
@@ -98,6 +99,25 @@ web.browser(
     deps = [":views"],
 )
 
+tailwind.css(
+    name = "tailwind",
+    src = "tailwind.css",
+    srcs = ["tailwind.html"],
+)
+
+shims.python_binary(
+    name = "tailwind-test-runner",
+    main = "tailwind_test.py",
+)
+
+shims.command_test(
+    name = "tailwind-test",
+    cmd = [
+        "$(exe :tailwind-test-runner)",
+        "$(location :tailwind)",
+    ],
+)
+
 deno.run(
     name = "svelte-deno-run",
     src = "svelte_deno.ts",
@@ -139,6 +159,7 @@ shims.test_suite(
         ":ssr[check]",
         ":ssr[lint]",
         ":svelte-check-test",
+        ":tailwind-test",
         ":views[check]",
         ":views[lint]",
     ],
