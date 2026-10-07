@@ -11,8 +11,8 @@ formatting-transition regressions.
 
 ## Native executable
 
-All native commands can be used directly without a runtime or generated
-configuration.
+All native commands can be used directly without the Python driver, a runtime,
+or generated configuration. The driver target is `toolchains//web:webc`.
 
 ## Compile protocol
 
