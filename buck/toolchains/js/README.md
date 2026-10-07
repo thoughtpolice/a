@@ -8,6 +8,7 @@ Separate source identity, executable runtime and release format:
 | Concern | Rule |
 | --- | --- |
 | Reusable declared JS/TS modules | `js.library` |
+| Deno executable/test/bundle | `deno.binary`, `deno.run`, `deno.test`, `deno.bundle` |
 | Unbundled npm or Deno distribution | `js.package` |
 
 Source libraries share `JsLibraryInfo` from `@toolchains//js:providers.bzl`.
@@ -63,6 +64,28 @@ Owned transitive modules must be declared by the vendor library just as for
 repository libraries. Type-checking and bundling keep `--no-remote --no-npm`;
 all package bytes are declared artifact inputs. Release dependency constraints
 are a separate, explicit decision below. This is not a registry install rule.
+
+## Runtime consumers
+
+```python
+load("@toolchains//deno:defs.bzl", "deno")
+
+deno.binary(name = "cli", type = "run", main = "cli.ts", deps = [":core"])
+deno.test(name = "test", srcs = ["core_test.ts"], deps = [":core"])
+deno.run(name = "run", src = "cli.ts", deps = [":core"], check = True)
+deno.bundle(name = "deno-esm", main = "cli.ts", deps = [":core"])
+```
+
+Deno rules retain the original optional `config` and its package/workspace/lock
+origin, adding a generated `--import-map`. Both compiled binaries and source
+`RunInfo` use the same config/dependencies. Lint keeps the original config because
+Deno lint has no import-map option. Library scopes preserve each library's direct
+imports without exposing root siblings or transitive exports.
+Deps-backed binaries/tests and explicitly checked runs/bundles validate every
+original code root through a mandatory real Deno check action before execution.
+Runtime execution then avoids a duplicate full implementation-JSDoc graph pass;
+the successful check stamp is a required build input, not optional validation.
+`deno.run(package_id = ...)` cannot combine registry execution with source `deps`.
 
 ## Distribution
 

@@ -46,6 +46,35 @@ shims.toolchain_alias(
     actual = ":deno-{DENO_VERSION}".format(DENO_VERSION = DENO_VERSION),
 )
 
+shims.python_library(
+    name = "depconfig-lib",
+    srcs = ["depconfig.py"],
+    base_module = "",
+    deps = ["@toolchains//web:webc-lib"],
+)
+
+shims.python_binary(
+    name = "depconfig",
+    base_module = "",
+    main = "depconfig.py",
+    deps = ["@toolchains//web:webc-lib"],
+)
+
+shims.python_binary(
+    name = "depconfig-test-runner",
+    main = "depconfig_test.py",
+    deps = [":depconfig-lib"],
+)
+
+shims.command_test(
+    name = "depconfig-test",
+    cmd = [
+        "$(exe :depconfig-test-runner)",
+        "$(exe toolchains//web:deno)",
+    ],
+    visibility = ["PUBLIC"],
+)
+
 # Export deno runtime binaries for use in containers
 [
     shims.filegroup(

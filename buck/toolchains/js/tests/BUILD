@@ -92,6 +92,12 @@ shims.export_file(
     src = "private/api.js",
 )
 
+deno.test(
+    name = "external-test",
+    srcs = ["external_test.ts"],
+    deps = [":external"],
+)
+
 js.package(
     name = "tokens-npm",
     format = "npm",
@@ -135,6 +141,42 @@ js.package(
     format = "deno",
     library = ":typed",
     version = "1.0.0",
+)
+
+deno.binary(
+    name = "deno-binary",
+    srcs = ["config-value.ts"],
+    config = "deno.jsonc",
+    main = "deno-entry.ts",
+    type = "run",
+    deps = [":plain"],
+)
+
+deno.run(
+    name = "deno-run",
+    src = "deno-entry.ts",
+    srcs = ["config-value.ts"],
+    check = True,
+    config = "deno.jsonc",
+    deps = [":plain"],
+)
+
+deno.test(
+    name = "deno-test",
+    srcs = [
+        "config-value.ts",
+        "deno_test.ts",
+    ],
+    config = "deno.jsonc",
+    deps = [":plain"],
+)
+
+deno.bundle(
+    name = "deno-bundle",
+    srcs = ["config-value.ts"],
+    config = "deno.jsonc",
+    main = "deno-entry.ts",
+    deps = [":plain"],
 )
 
 deno.test(
