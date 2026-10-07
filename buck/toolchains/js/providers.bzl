@@ -42,3 +42,12 @@ JsLibraryInfo = provider(
         "wasm": provider_field(dict[str, typing.Any]),
     },
 )
+
+JsPackageInfo = provider(
+    doc = "A relocatable package directory and optional npm release tarball.",
+    fields = {
+        "directory": provider_field(typing.Any),
+        "format": provider_field(str),
+        "tarball": provider_field(typing.Any),
+    },
+)

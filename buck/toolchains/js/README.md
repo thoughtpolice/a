@@ -8,6 +8,7 @@ Separate source identity, executable runtime and release format:
 | Concern | Rule |
 | --- | --- |
 | Reusable declared JS/TS modules | `js.library` |
+| Unbundled npm or Deno distribution | `js.package` |
 
 Source libraries share `JsLibraryInfo` from `@toolchains//js:providers.bzl`.
 A runtime consumer takes `deps`; a distribution takes `library`. Neither needs
@@ -60,5 +61,54 @@ js.library(
 
 Owned transitive modules must be declared by the vendor library just as for
 repository libraries. Type-checking and bundling keep `--no-remote --no-npm`;
-all package bytes are declared artifact inputs. This is not a
-registry install rule.
+all package bytes are declared artifact inputs. Release dependency constraints
+are a separate, explicit decision below. This is not a registry install rule.
+
+## Distribution
+
+```python
+js.package(
+    name = "npm",
+    library = ":core",
+    format = "npm",
+    version = "1.2.0",
+    dependencies = {"@example/support": "^1.0.0"},
+    declarations = True,
+)
+js.package(
+    name = "deno",
+    library = ":core",
+    format = "deno",
+    version = "1.2.0",
+    dependencies = {"@example/support": "jsr:@example/support@^1.0.0"},
+)
+```
+
+- Default output: relocatable directory with owned sources under `modules/` and
+  explicit exports. Dependencies remain external, never copied or bundled.
+- npm: `package.json`, ESM JavaScript with rewritten relative extensions, authored
+  source maps/embedded content, and deterministic `package.tgz` via `[tarball]`.
+  Filesystem-valid long/Unicode filenames are supported by normalized PAX.
+- `declarations = True`: native isolated `.d.ts`/`.d.mts` for TypeScript modules;
+  public exports need explicit annotations where isolated declarations require
+  them. JavaScript JSDoc is preserved, not converted into synthetic declarations.
+- Deno: authored JS/TS bytes and assets preserved, plus `deno.json` with exports
+  and release imports. No compiler erasure or stale map-producing literal edits.
+- `dependencies` must cover direct first-party dependencies and imported external
+  packages. Unused mappings, undeclared first-party shortcuts and unknown exports
+  fail. Build-time archive pins are not inferred as publication constraints.
+- npm values are semver constraints or `npm:` aliases. Deno values are explicit
+  `npm:`/`jsr:` references, or relative package directories ending in `/` for
+  first-party sibling distributions produced with this module layout.
+- Packages are ESM `.js`/`.mjs`/`.ts`/`.mts`, not CommonJS, JSX, compiled Svelte or
+  Wasm distributions. Generated/runtime-dependent library distributions fail
+  explicitly; use the runtime bundle rules for those applications. No registry
+  installation, archive upload or publishing occurs in `js.package`.
+
+`JsPackageInfo` carries `directory`, `format` and optional `tarball`. An npm
+consumer supplies normal package-manager installation/resolution; a Deno
+consumer references the package's exports/import map. Build/test all fixtures
+through `buck2 test toolchains//js/...`.
+The package consumer regression compares mapped exception coordinates with an
+actual execution of the authored source, so fixture edits cannot stale a pinned
+line number.
