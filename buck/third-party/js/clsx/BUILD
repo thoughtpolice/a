@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", "shims")
+load("@toolchains//js:defs.bzl", "js")
 
 shims.http_archive(
     name = "archive",
@@ -14,4 +15,12 @@ shims.http_archive(
     type = "tar.gz",
     urls = ["https://registry.npmjs.org/clsx/-/clsx-2.1.1.tgz"],
     visibility = ["PUBLIC"],
+)
+
+js.library(
+    name = "library",
+    srcs = [":archive[clsx.d.mts]"],
+    import_name = "clsx",
+    visibility = ["PUBLIC"],
+    exports = {".": ":archive[dist/clsx.mjs]"},
 )
