@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", "shims")
-load(":defs.bzl", "deno_toolchain", "download_deno")
+load(":defs.bzl", "download_deno")
+load(":toolchain.bzl", "deno_toolchain")
 
 DENO_VERSION = "2.9.7"
 
