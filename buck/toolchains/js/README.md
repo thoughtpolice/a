@@ -8,6 +8,7 @@ Separate source identity, executable runtime and release format:
 | Concern | Rule |
 | --- | --- |
 | Reusable declared JS/TS modules | `js.library` |
+| Native Svelte sources | `web.svelte_library` |
 | Deno executable/test/bundle | `deno.binary`, `deno.run`, `deno.test`, `deno.bundle` |
 | Browser/server ESM bundle | `web.browser`, `web.bundle` |
 | Worker policy and deployment | `celld.library`, `celld.worker`, `celld.project` |
@@ -85,7 +86,9 @@ Deno rules retain the original optional `config` and its package/workspace/lock
 origin, adding a generated `--import-map`. Both compiled binaries and source
 `RunInfo` use the same config/dependencies. Lint keeps the original config because
 Deno lint has no import-map option. Library scopes preserve each library's direct
-imports without exposing root siblings or transitive exports.
+imports without exposing root siblings or transitive exports. Deno source
+consumers can also use Svelte libraries: runtime forwards compiled server code,
+while types forward the real compiler projection and pinned public declarations.
 Deps-backed binaries/tests and explicitly checked runs/bundles validate every
 original code root through a mandatory real Deno check action before execution.
 Runtime execution then avoids a duplicate full implementation-JSDoc graph pass;

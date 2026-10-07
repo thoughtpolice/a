@@ -34,6 +34,7 @@ web.quality(name = "quality", srcs = glob(["src/**/*.ts", "src/**/*.svelte"]))
 | Rule | Output / behavior |
 | --- | --- |
 | `js.library` | Declared JS/TS sources and public subpaths; [source/release API](../js/README.md) |
+| `web.svelte_library` | Native client/server output, CSS/maps and check projections |
 | `web.bundle` | Checked server ESM; optional native Oxc minification/map composition |
 | `web.browser` | Client `app.js`, reachable `app.css`, and authored-source maps |
 | `web.quality` | Runtime-independent native lint, plus opt-in `[format]` |
@@ -71,7 +72,7 @@ Third-party ESM is supplied through checksum-pinned archive-backed `js.library`
 dependencies, retaining offline checks/bundles and declared artifact inputs.
 
 Every checked unit exposes `[check]`, `[lint]`, `[format]`, `[config]` and `[ide]`;
-minified bundles also expose `[map]`.
+Svelte libraries also expose `[generated]`, and minified bundles `[map]`.
 Native lint is the default. `deno_lint = True` additionally enforces Deno's
 configured policy, even when native lint fails; celld enables this explicitly.
 `web.quality` needs neither Deno nor platform configuration and can be added to
@@ -99,8 +100,8 @@ fail. Pinned Svelte runtime inputs and wasm shims have bounded trust exceptions,
 never a general application-import bypass. Checking remains real `deno check`;
 native parse success alone is not type checking.
 
-The fixtures in `tests/` cover portable ESM, native-only quality, optional Deno
-policy, and source-graph boundaries.
+The fixtures in `tests/` cover portable ESM, generic browser/SSR compilation,
+native-only quality, optional Deno policy, and source-graph boundaries.
 
 ## Native executable
 

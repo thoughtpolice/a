@@ -1,11 +1,11 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-"""Runtime-neutral JavaScript/TypeScript build rules."""
+"""Runtime-neutral JavaScript/TypeScript and native Svelte build rules."""
 
 load("@prelude//:paths.bzl", "paths")
 load("@toolchains//deno:toolchain.bzl", "DenoToolchain")
-load("@toolchains//js:units.bzl", "UNIT_ATTRS", "dedupe", "is_code", "make_unit", "target_label", "with_tests")
+load("@toolchains//js:units.bzl", "LIBRARY_ATTRS", "UNIT_ATTRS", "dedupe", "is_code", "make_library", "make_unit", "target_label", "with_tests")
 load("@toolchains//web:toolchain.bzl", "WebToolchain", "web_toolchain_attr")
 
 WebBundleInfo = provider(
@@ -24,6 +24,40 @@ def _is_test_file(path: str) -> bool:
             stem = base[:-len(suffix)]
             return stem == "test" or stem.endswith("_test") or stem.endswith(".test")
     return False
+
+def _svelte_generated(ctx: AnalysisContext, srcs: list[Artifact]) -> struct:
+    sources = [src for src in srcs if is_code(src.short_path) or src.short_path.endswith(".svelte")]
+    has_svelte = False
+    for src in sources:
+        if src.short_path.endswith(".svelte") or ".svelte." in src.short_path:
+            has_svelte = True
+            break
+    if not has_svelte:
+        fail("{}: svelte_library needs a component or rune module".format(target_label(ctx.label)))
+    files = [{"source": src, "name": src} for src in sources]
+    manifest = ctx.actions.write_json("web/svelte-sources.json", {"files": files})
+    directory = ctx.actions.declare_output("web/svelte", dir = True)
+    ctx.actions.run(
+        cmd_args(
+            ctx.attrs._web_toolchain[WebToolchain].native,
+            "compile",
+            "--manifest",
+            manifest,
+            "--out-dir",
+            directory.as_output(),
+            hidden = sources,
+        ),
+        category = "web_svelte",
+        allow_cache_upload = True,
+    )
+    data = [{"source": src, "name": src} for src in srcs if src not in sources]
+    return struct(directory = directory, files = files, data = data)
+
+def _web_svelte_library_impl(ctx: AnalysisContext) -> list[Provider]:
+    srcs = dedupe(ctx.attrs.srcs + ctx.attrs.exports.values())
+    return make_library(ctx, generated = _svelte_generated(ctx, srcs))
+
+_web_svelte_library = rule(impl = _web_svelte_library_impl, attrs = LIBRARY_ATTRS)
 
 def _web_deno_test_impl(ctx: AnalysisContext) -> list[Provider]:
     unit = make_unit(ctx, ctx.attrs.srcs, {}, None, ctx.attrs.fake_runtime)
@@ -172,6 +206,10 @@ _web_browser = rule(
     },
 )
 
+def web_svelte_library(name: str, **kwargs):
+    """Native-compiled components/runes with real Deno projection checking."""
+    _web_svelte_library(name = name, **with_tests(name, kwargs, ["check", "lint"]))
+
 def web_deno_test(name: str, **kwargs):
     """Explicit Deno test execution over declared authored sources."""
     if "lib" not in kwargs:
@@ -235,6 +273,7 @@ web_quality = rule(
 )
 
 web = struct(
+    svelte_library = web_svelte_library,
     bundle = web_bundle,
     browser = web_browser,
     deno_test = web_deno_test,

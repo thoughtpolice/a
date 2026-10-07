@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", "shims")
+load("@toolchains//deno:defs.bzl", "deno")
 load("@toolchains//js:defs.bzl", "js")
 load("@toolchains//web:defs.bzl", "web")
 
@@ -76,10 +77,58 @@ web.quality(
     ],
 )
 
+web.svelte_library(
+    name = "views",
+    import_name = "@fixture/views",
+    exports = {".": "Page.svelte"},
+)
+
+web.bundle(
+    name = "ssr",
+    main = "ssr.ts",
+    minify = True,
+    svelte_runtime = True,
+    deps = [":views"],
+)
+
+web.browser(
+    name = "browser",
+    main = "browser.ts",
+    minify = True,
+    deps = [":views"],
+)
+
+deno.run(
+    name = "svelte-deno-run",
+    src = "svelte_deno.ts",
+    srcs = ["ssr.ts"],
+    check = True,
+    deps = [":views"],
+)
+
+deno.test(
+    name = "svelte-deno-test",
+    srcs = [
+        "ssr.ts",
+        "svelte_deno_test.ts",
+    ],
+    deps = [":views"],
+)
+
+deno.binary(
+    name = "svelte-deno-binary",
+    srcs = ["ssr.ts"],
+    main = "svelte_deno.ts",
+    type = "run",
+    deps = [":views"],
+)
+
 shims.test_suite(
     name = "tests",
     tests = [
         "toolchains//web/native:tests",
+        ":browser[check]",
+        ":browser[lint]",
         ":native-graph-test",
         ":native-quality-test",
         ":portable-bundle[check]",
@@ -87,7 +136,11 @@ shims.test_suite(
         ":portable[check]",
         ":portable[lint]",
         ":quality",
+        ":ssr[check]",
+        ":ssr[lint]",
         ":svelte-check-test",
+        ":views[check]",
+        ":views[lint]",
     ],
     visibility = ["PUBLIC"],
 )
