@@ -5,8 +5,17 @@
 
 Lean is driven directly, one action per module, with no Lake. A library's
 sources are parsed for their imports by one `lean --deps-json` action, and
-a dynamic action reads that import graph (and those of the library's
-dependencies) to lay out the per-module actions:
+a dynamic action (`dynamic_actions`, run by `dynamic_output_new`) reads
+that import graph, and takes the resolved graphs of the library's direct
+Lean dependencies as the dynamic values their own dynamic actions returned
+(`LeanGraphInfo`), to lay out the per-module actions. It runs once the
+import headers are parsed, before anything compiles, and each module's
+action takes only the artifacts of the modules it imports. So a module
+compiles as soon as its imports are done, whichever targets they live in:
+`tests:granular` queries the action graph behind one module of a library
+and checks that the dependency's unrelated module is not in it.
+
+The per-module actions:
 
   elab   `lean --setup` produces the module's .olean files, .ilean, IR
          and C. The setup file maps every module in the import closure to
@@ -96,6 +105,19 @@ LeanModule = record(
     shared = field(Artifact | None, default = None),
 )
 
+LeanGraphInfo = provider(
+    doc = "A Lean library's import graph, resolved; what its importers' dynamic actions read",
+    fields = {
+        # Every module reachable from the library, its own included, to its
+        # header as `tool.py deps` writes it: {"isModule": bool, "imports":
+        # [{"module": str, "meta": bool, "all": bool}, ...]}
+        "graph": provider_field(typing.Any),
+        # Every module reachable from the library to the sorted names of the
+        # non-stdlib modules it imports, directly or not
+        "closures": provider_field(typing.Any),
+    },
+)
+
 LeanLibraryInfo = provider(
     doc = "Lean modules and everything they import",
     fields = {
@@ -106,8 +128,12 @@ LeanLibraryInfo = provider(
         # Every module reachable through deps, this library's included,
         # keyed by module name
         "modules": provider_field(typing.Any),
+        # This library's LeanGraphInfo, as the dynamic value the compile
+        # action of each importer takes. It resolves once this library's
+        # import headers are parsed, not once its modules compile.
+        "graph": provider_field(DynamicValue),
         # Import graphs (JSON, written by `tool.py deps`) of this library and
-        # every library reachable through deps
+        # every library reachable through deps, for the language server
         "graphs": provider_field(list[Artifact]),
         # Shared objects of precompiled libraries that this library's modules
         # load while elaborating, in load order
@@ -236,28 +262,6 @@ def _modules(srcs: list[str], root: str) -> dict[str, str]:
 def _is_stdlib(name: str) -> bool:
     return name.split(".")[0] in STDLIB_ROOTS
 
-def _closure(name: str, graph: dict, modules: dict) -> list[str]:
-    """Every non-stdlib module `name` imports, directly or not, sorted."""
-    seen = {}
-    stack = [name]
-    for _ in range(len(graph) + 1):
-        if not stack:
-            break
-        next = []
-        for current in stack:
-            for imp in graph[current]["imports"]:
-                dep = imp["module"]
-                if dep in seen or (dep not in modules and _is_stdlib(dep)):
-                    continue
-                if dep == name:
-                    fail("module {} imports itself through {}".format(name, current))
-                if dep not in modules:
-                    fail("module {} imports {}, which no dependency of this target provides".format(current, dep))
-                seen[dep] = True
-                next.append(dep)
-        stack = next
-    return sorted(seen.keys())
-
 def _import_arg(module: LeanModule, with_ir: bool, for_leanir: bool = False) -> cmd_args:
     if for_leanir:
         dirs = [module.elab, module.sig]
@@ -333,28 +337,198 @@ def _precompile_modules(ctx: AnalysisContext, toolchain: LeanToolchainInfo, own:
             identifier = m.name,
         )
 
+def _compile_impl(
+        actions: AnalysisActions,
+        graph: ArtifactValue,
+        deps: list[ResolvedDynamicValue],
+        outputs: dict[str, tuple],
+        srcs: dict[str, Artifact],
+        shared: dict[str, Artifact],
+        modules: dict[str, LeanModule],
+        toolchain: LeanToolchainInfo,
+        package: str,
+        options_json: str,
+        lean_flags: list[str],
+        split_codegen: bool,
+        allow_sorry: bool,
+        precompile: bool,
+        dynlibs: list[Artifact],
+        local_dynlibs: list[Artifact]) -> list[Provider]:
+    """The per-module actions of a `lean_modules` target, laid out from its
+    import graph (`graph`, the output of `tool.py deps`) and the resolved
+    graphs of its direct Lean dependencies (`deps`, their `LeanGraphInfo`).
+
+    `outputs` has, per own module, its elab, sig, ir and C outputs;
+    `modules` has the dependencies' modules, whose artifacts are inputs
+    here. Returns this target's `LeanGraphInfo` for its importers.
+    """
+    import_graph = {}
+    closures = {}
+    for dep in deps:
+        info = dep.providers[LeanGraphInfo]
+        import_graph.update(info.graph)
+        closures.update(info.closures)
+    import_graph.update(graph.read_json())
+
+    own = {}
+    for name, (elab, sig, ir, c) in outputs.items():
+        own[name] = LeanModule(
+            name = name,
+            src = srcs[name],
+            elab = elab.as_input(),
+            sig = sig.as_input(),
+            ir = ir.as_input(),
+            c = c.as_input(),
+            shared = shared.get(name),
+        )
+    all_modules = dict(modules)
+    all_modules.update(own)
+
+    # Each own module's closure from those of its imports, which are either a
+    # dependency's (resolved already) or an own module's earlier in import
+    # order. `_topo` reports an import cycle among the own modules. The
+    # actions are declared in the same order, since one taking an own
+    # module's output as an input needs the action producing it declared.
+    order = _topo(own.keys(), import_graph)
+    for name in order:
+        closure = {}
+        for i in import_graph[name]["imports"]:
+            dep = i["module"]
+            if dep not in all_modules:
+                if _is_stdlib(dep):
+                    continue
+                fail("module {} imports {}, which no dependency of this target provides".format(name, dep))
+            closure[dep] = True
+            for below in closures[dep]:
+                closure[below] = True
+        closures[name] = sorted(closure.keys())
+
+    for name in order:
+        m = own[name]
+        header = import_graph[name]
+        closure = [all_modules[dep] for dep in closures[name]]
+        elab_out, sig_out, ir_out, c_out = outputs[name]
+
+        # Native code for the target's own modules this one imports, after
+        # everything that code refers to.
+        module_dynlibs = dynlibs
+        local = [dep.name for dep in closure if dep.name in own]
+        if precompile and local:
+            module_dynlibs = _ordered(local_dynlibs + [own[dep].shared for dep in _topo(local, import_graph)])
+
+        # The interpreter runs imported code for `meta` and `import all`
+        # imports, and for anything a non-module file elaborates; those need
+        # the IR of everything below them. So does generating code in the
+        # elab action, which inlines and specializes imported definitions.
+        # Only a split `module` file goes without.
+        split = header["isModule"] and split_codegen
+        needs_ir = not split
+        for i in header["imports"]:
+            if i["meta"] or i["all"]:
+                needs_ir = True
+
+        elab = cmd_args(
+            toolchain.tool,
+            "elab",
+            "--module",
+            name,
+            "--package",
+            package,
+            "--options",
+            options_json,
+            "--src",
+            m.src,
+            "--elab-out",
+            elab_out,
+            [_import_arg(dep, needs_ir) for dep in closure],
+            ["--lean-flag=" + flag for flag in lean_flags],
+            cmd_args(module_dynlibs, format = "--dynlib={}"),
+            hidden = toolchain.stamp,
+        )
+        if allow_sorry:
+            elab.add("--allow-sorry")
+        if split:
+            elab.add("--postpone")
+        else:
+            elab.add("--c-out", c_out, "--empty-dir", sig_out, "--empty-dir", ir_out)
+        actions.run(elab, category = "lean_elab", identifier = name)
+
+        if split:
+            actions.run(
+                cmd_args(
+                    toolchain.tool,
+                    "ir",
+                    "--module",
+                    name,
+                    "--package",
+                    package,
+                    "--options",
+                    options_json,
+                    "--self-dir",
+                    m.elab,
+                    "--sig-out",
+                    sig_out,
+                    "--ir-out",
+                    ir_out,
+                    "--c-out",
+                    c_out,
+                    [_import_arg(dep, True, for_leanir = True) for dep in closure],
+                    hidden = toolchain.stamp,
+                ),
+                category = "lean_ir",
+                identifier = name,
+            )
+
+    return [LeanGraphInfo(graph = import_graph, closures = closures)]
+
+# The compile step of a `lean_modules` target. Only `graph` is read before it
+# runs, and the dependencies' dynamic values resolve as soon as their own
+# compile steps have run (not once their modules have compiled); the
+# artifacts in `modules`, `shared`, `dynlibs` and `local_dynlibs` are inputs
+# of the actions declared inside, nothing more.
+_compile = dynamic_actions(
+    impl = _compile_impl,
+    attrs = {
+        "allow_sorry": dynattrs.value(bool),
+        "deps": dynattrs.list(dynattrs.dynamic_value()),
+        "dynlibs": dynattrs.value(list[Artifact]),
+        "graph": dynattrs.artifact_value(),
+        "lean_flags": dynattrs.value(list[str]),
+        "local_dynlibs": dynattrs.value(list[Artifact]),
+        "modules": dynattrs.value(dict[str, LeanModule]),
+        "options_json": dynattrs.value(str),
+        # Module name to (elab, sig, ir, c)
+        "outputs": dynattrs.dict(str, dynattrs.tuple(dynattrs.output(), dynattrs.output(), dynattrs.output(), dynattrs.output())),
+        "package": dynattrs.value(str),
+        "precompile": dynattrs.value(bool),
+        "shared": dynattrs.value(dict[str, Artifact]),
+        "split_codegen": dynattrs.value(bool),
+        "srcs": dynattrs.value(dict[str, Artifact]),
+        "toolchain": dynattrs.value(LeanToolchainInfo),
+    },
+)
+
 def _lean_modules_impl(ctx: AnalysisContext) -> list[Provider]:
     toolchain = ctx.attrs._lean_toolchain[LeanToolchainInfo]
     package = ctx.attrs.package or ctx.label.name
     options = dict(ctx.attrs.options)
     if ctx.attrs.warnings_as_errors:
         options["warningAsError"] = True
-    options_json = json.encode(options)
 
     dep_infos = [d[LeanLibraryInfo] for d in ctx.attrs.deps if LeanLibraryInfo in d]
     plugin_infos = [d[LeanDynlibInfo] for d in ctx.attrs.plugin_deps if LeanDynlibInfo in d]
     dynlibs = _ordered([lib for d in plugin_infos for lib in d.importers])
     precompile = ctx.attrs.precompile
-    modules = {}
+    dep_modules = {}
     graphs = {}
     for info in dep_infos:
-        modules.update(info.modules)
+        dep_modules.update(info.modules)
         for g in info.graphs:
             graphs[g] = True
 
     own = {}
     for name, src in ctx.attrs.modules.items():
-        if name in modules:
+        if name in dep_modules:
             fail("module {} is also provided by a dependency".format(name))
         own[name] = LeanModule(
             name = name,
@@ -365,6 +539,7 @@ def _lean_modules_impl(ctx: AnalysisContext) -> list[Provider]:
             c = ctx.actions.declare_output("c", name.replace(".", "/") + ".c"),
             shared = ctx.actions.declare_output("shared", "lib{}.so".format(name)) if precompile else None,
         )
+    modules = dict(dep_modules)
     modules.update(own)
 
     local_dynlibs = _precompile_externs(ctx, plugin_infos) if precompile else []
@@ -382,98 +557,24 @@ def _lean_modules_impl(ctx: AnalysisContext) -> list[Provider]:
         category = "lean_deps",
     )
     dep_graphs = list(graphs.keys())
-    split_codegen = ctx.attrs.split_codegen
-    allow_sorry = ctx.attrs.allow_sorry
-    lean_flags = ctx.attrs.lean_flags
 
-    def compile(ctx: AnalysisContext, artifacts, outputs) -> None:
-        import_graph = {}
-        for g in [graph] + dep_graphs:
-            import_graph.update(artifacts[g].read_json())
-
-        for name, m in own.items():
-            header = import_graph[name]
-            closure = [modules[dep] for dep in _closure(name, import_graph, modules)]
-
-            # Native code for the target's own modules this one imports,
-            # after everything that code refers to.
-            module_dynlibs = dynlibs
-            local = [dep.name for dep in closure if dep.name in own]
-            if precompile and local:
-                module_dynlibs = _ordered(local_dynlibs + [own[dep].shared for dep in _topo(local, import_graph)])
-
-            # The interpreter runs imported code for `meta` and `import all`
-            # imports, and for anything a non-module file elaborates; those
-            # need the IR of everything below them. So does generating code
-            # in the elab action, which inlines and specializes imported
-            # definitions. Only a split `module` file goes without.
-            split = header["isModule"] and split_codegen
-            needs_ir = not split
-            for i in header["imports"]:
-                if i["meta"] or i["all"]:
-                    needs_ir = True
-
-            elab = cmd_args(
-                toolchain.tool,
-                "elab",
-                "--module",
-                name,
-                "--package",
-                package,
-                "--options",
-                options_json,
-                "--src",
-                m.src,
-                "--elab-out",
-                outputs[m.elab].as_output(),
-                [_import_arg(dep, needs_ir) for dep in closure],
-                ["--lean-flag=" + flag for flag in lean_flags],
-                cmd_args(module_dynlibs, format = "--dynlib={}"),
-                hidden = toolchain.stamp,
-            )
-            if allow_sorry:
-                elab.add("--allow-sorry")
-            if split:
-                elab.add("--postpone")
-            else:
-                elab.add("--c-out", outputs[m.c].as_output(), "--empty-dir", outputs[m.sig].as_output(), "--empty-dir", outputs[m.ir].as_output())
-            ctx.actions.run(elab, category = "lean_elab", identifier = name)
-
-            if split:
-                ctx.actions.run(
-                    cmd_args(
-                        toolchain.tool,
-                        "ir",
-                        "--module",
-                        name,
-                        "--package",
-                        package,
-                        "--options",
-                        options_json,
-                        "--self-dir",
-                        outputs[m.elab],
-                        "--sig-out",
-                        outputs[m.sig].as_output(),
-                        "--ir-out",
-                        outputs[m.ir].as_output(),
-                        "--c-out",
-                        outputs[m.c].as_output(),
-                        [_import_arg(dep, True, for_leanir = True) for dep in closure],
-                        hidden = toolchain.stamp,
-                    ),
-                    category = "lean_ir",
-                    identifier = name,
-                )
-
-    outputs = []
-    for m in own.values():
-        outputs += [m.elab, m.sig, m.ir, m.c]
-    ctx.actions.dynamic_output(
-        dynamic = [graph] + dep_graphs,
-        inputs = [],
-        outputs = [o.as_output() for o in outputs],
-        f = compile,
-    )
+    graph_value = ctx.actions.dynamic_output_new(_compile(
+        graph = graph,
+        deps = [info.graph for info in dep_infos],
+        outputs = {m.name: (m.elab.as_output(), m.sig.as_output(), m.ir.as_output(), m.c.as_output()) for m in own.values()},
+        srcs = {m.name: m.src for m in own.values()},
+        shared = {m.name: m.shared for m in own.values() if m.shared},
+        modules = dep_modules,
+        toolchain = toolchain,
+        package = package,
+        options_json = json.encode(options),
+        lean_flags = ctx.attrs.lean_flags,
+        split_codegen = ctx.attrs.split_codegen,
+        allow_sorry = ctx.attrs.allow_sorry,
+        precompile = precompile,
+        dynlibs = dynlibs,
+        local_dynlibs = local_dynlibs,
+    ))
     if precompile:
         _precompile_modules(ctx, toolchain, own.values())
 
@@ -500,6 +601,7 @@ def _lean_modules_impl(ctx: AnalysisContext) -> list[Provider]:
             options = options,
             own = list(own.keys()),
             modules = modules,
+            graph = graph_value,
             graphs = dep_graphs + [graph],
             dynlibs = dynlibs,
             local_dynlibs = local_dynlibs,

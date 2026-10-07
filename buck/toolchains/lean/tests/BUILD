@@ -106,6 +106,35 @@ depot.lean.test(
     deps = [":greeting"],
 )
 
+# Two libraries for granular_test.py: building the one module of
+# :granular-lib must compile Granular.Xyz and never ask for Granular.Unused.
+depot.lean.library(
+    name = "granular-other",
+    srcs = [
+        "Granular/Unused.lean",
+        "Granular/Xyz.lean",
+    ],
+)
+
+depot.lean.library(
+    name = "granular-lib",
+    srcs = ["Granular/Abc.lean"],
+    deps = [":granular-other"],
+)
+
+depot.python_binary(
+    name = "granular-test",
+    main = "granular_test.py",
+)
+
+# Queries the action graph behind Granular.Abc in a Buck daemon of its own
+# (like lsp:smoke), so it needs the checkout rather than declared inputs.
+depot.run_test(
+    name = "granular",
+    ci_srcs = ["buck/toolchains/lean/**"],
+    dep = ":granular-test",
+)
+
 depot.cxx_binary(
     name = "interop",
     srcs = ["interop.cpp"],

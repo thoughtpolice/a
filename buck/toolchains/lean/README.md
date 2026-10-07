@@ -45,8 +45,19 @@ through the kernel), `executable` (build `srcs` into a program and run it),
 ## How a library builds
 
 1. One `lean --deps-json` action parses every source's import header.
-2. A dynamic action reads that import graph and the graphs of all Lean
-   dependencies, and declares the per-module actions below.
+2. A dynamic action (`dynamic_actions`, run by `dynamic_output_new`) reads
+   that import graph and declares the per-module actions below. It takes
+   the resolved graphs of the direct Lean dependencies as dynamic values
+   (`LeanGraphInfo`: every reachable module's header and import closure),
+   which their own dynamic actions returned, and returns this library's
+   the same way. A library's dynamic action therefore runs as soon as its
+   import headers are parsed, never waiting for anything to compile, and
+   each module's action depends on the artifacts of the modules it
+   imports, wherever they live: `lib:Abc` importing `other:Xyz` compiles
+   as soon as `Xyz` has, while `other`'s remaining modules are still
+   building. `tests:granular` queries the action graph behind one such
+   module (`buck2 aquery`) and checks that the unrelated module is not in
+   it.
 3. `lean --setup` elaborates each module and writes its IR and C. The
    setup file lists the exact .olean files of every module in the import
    closure, so Lean never searches LEAN_PATH; stdlib modules come from the
