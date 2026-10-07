@@ -42,6 +42,14 @@ pub enum StoreError {
         "the cache's disk is nearly full ({free} bytes free, {reserve} reserved); not storing more until it drains"
     )]
     DiskFull { free: u64, reserve: u64 },
+
+    /// The oldest write under way has waited past the limit, so new ones are
+    /// refused until the store catches up.
+    #[error(
+        "the cache is {} ms behind on storing writes; not taking more until it catches up",
+        waited.as_millis()
+    )]
+    Behind { waited: std::time::Duration },
 }
 
 impl StoreError {

@@ -4,6 +4,7 @@
 //! Content-addressable chunk storage backed by SlateDB with FastCDC chunking.
 
 mod action_results;
+mod backlog;
 mod compression;
 mod db_cache;
 mod error;
@@ -18,6 +19,7 @@ mod writer;
 
 // Re-export public API so the external interface is unchanged.
 pub use action_results::DEFAULT_ACTION_RESULT_CACHE_BYTES;
+pub use backlog::DEFAULT_MAX_WRITE_WAIT;
 pub use compression::{Compression, StreamingDecompressor};
 pub use error::{Result, StoreError};
 pub use hashing::{ContentDigest, DigestFn, IncrementalHasher, parse_digest_hash};
@@ -91,6 +93,10 @@ pub struct CacheStoreSettings {
     /// less than this many bytes free. `None` keeps [`default_reserve`];
     /// `Some(0)` turns the check off.
     pub disk_reserve_bytes: Option<u64>,
+    /// Refuse new writes while the oldest under way has waited longer than
+    /// this (see [`backlog`]). `None` keeps [`DEFAULT_MAX_WRITE_WAIT`];
+    /// `Some(ZERO)` lets writes wait as long as the store takes.
+    pub max_write_wait: Option<std::time::Duration>,
     /// How many stored blobs to remember, so that checking for them again
     /// (FindMissingBlobs, mostly) skips the LSM. `None` keeps about a
     /// million, some 80 MiB.
@@ -121,6 +127,7 @@ impl std::fmt::Debug for CacheStoreSettings {
             .field("object_store_cache", &self.object_store_cache)
             .field("metrics_recorder", &self.metrics_recorder.is_some())
             .field("disk_reserve_bytes", &self.disk_reserve_bytes)
+            .field("max_write_wait", &self.max_write_wait)
             .field("presence_cache_entries", &self.presence_cache_entries)
             .field("small_blob_cache_bytes", &self.small_blob_cache_bytes)
             .field("action_result_cache_bytes", &self.action_result_cache_bytes)
@@ -441,6 +448,8 @@ pub struct CacheStore {
     refresh_window_ms: Option<i64>,
     /// Local stores: the free space writes need.
     disk: Option<Arc<space::DiskReserve>>,
+    /// Writes under way, refused while the oldest has waited too long.
+    backlog: Option<backlog::Backlog>,
     /// Blobs known durably stored, so existence checks skip the LSM.
     presence: presence::PresenceCache,
     /// Small blobs recently read, so reading them again skips the LSM.
@@ -701,6 +710,10 @@ impl CacheStore {
             default_ttl_ms,
             refresh_window_ms: default_ttl_ms.map(|ttl| ttl / 2),
             disk,
+            backlog: match settings.max_write_wait.unwrap_or(DEFAULT_MAX_WRITE_WAIT) {
+                std::time::Duration::ZERO => None,
+                limit => Some(backlog::Backlog::new(limit)),
+            },
             presence: presence::PresenceCache::new(
                 settings
                     .presence_cache_entries
@@ -782,14 +795,22 @@ impl CacheStore {
         Ok(Some((entry.value, entry.expire_ts)))
     }
 
-    /// Fails while the disk under a local store is below its reserve.
-    fn check_space(&self) -> Result<()> {
-        self.disk.as_ref().map_or(Ok(()), |disk| disk.check())
+    /// Admit a write: refused while the disk under a local store is below
+    /// its reserve, or while the store is behind on writes. Hold what it
+    /// returns until the write is done.
+    fn admit_write(&self) -> Result<Option<backlog::Ticket<'_>>> {
+        if let Some(disk) = &self.disk {
+            disk.check()?;
+        }
+        self.backlog
+            .as_ref()
+            .map(backlog::Backlog::admit)
+            .transpose()
     }
 
     /// `Db::put`, returning once the value is durable.
     async fn db_put(&self, key: &[u8], value: Bytes) -> Result<()> {
-        self.check_space()?;
+        let _write = self.admit_write()?;
         self.db
             .put_bytes(Bytes::copy_from_slice(key), value)
             .await?
@@ -806,7 +827,7 @@ impl CacheStore {
     /// a blob present that a crash then takes away, so every write here
     /// waits. Concurrent waits are satisfied by the same flush.
     pub(crate) async fn commit(&self, batch: WriteBatch) -> Result<()> {
-        self.check_space()?;
+        let _write = self.admit_write()?;
         self.db.write(batch).await?.await_durable().await?;
         Ok(())
     }
@@ -815,7 +836,7 @@ impl CacheStore {
     /// durable in order, so a later [`commit`](Self::commit) returning
     /// means this one is durable too.
     pub(crate) async fn write_ahead(&self, batch: WriteBatch) -> Result<()> {
-        self.check_space()?;
+        let _write = self.admit_write()?;
         self.db.write(batch).await?;
         Ok(())
     }

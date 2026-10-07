@@ -226,6 +226,17 @@ struct ServeArgs {
     #[arg(long, env = "CACHE_SERVER_DISK_RESERVE_GIB")]
     disk_reserve_gib: Option<u64>,
 
+    /// Refuse new uploads (RESOURCE_EXHAUSTED) while the oldest write under
+    /// way has waited longer than this many milliseconds for the store,
+    /// rather than queue them behind it; 0 lets writes wait as long as the
+    /// store takes. Reads are never refused.
+    #[arg(
+        long,
+        default_value_t = store::DEFAULT_MAX_WRITE_WAIT.as_millis() as u64,
+        env = "CACHE_SERVER_MAX_WRITE_WAIT_MS"
+    )]
+    max_write_wait_ms: u64,
+
     /// Most GiB the object store cache holds.
     #[arg(
         long,
@@ -926,6 +937,7 @@ async fn run_server(
             .enabled
             .then(|| telemetry::OtelMetricsRecorder::new() as Arc<dyn store::MetricsRecorder>),
         disk_reserve_bytes: args.disk_reserve_gib.map(|gib| gib * 1024 * MIB),
+        max_write_wait: Some(std::time::Duration::from_millis(args.max_write_wait_ms)),
         presence_cache_entries: None,
         small_blob_cache_bytes: Some(args.small_blob_cache_mib * MIB),
         action_result_cache_bytes: Some(args.action_result_cache_mib * MIB),
