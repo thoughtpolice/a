@@ -9,6 +9,99 @@ subprocess. Build and test it through Buck2; `toolchains//web/native:tests`
 contains boundary, malformed-source, projection, composed-map, lint and
 formatting-transition regressions.
 
+`toolchains//:web` selects the runtime-neutral build toolchain;
+`@toolchains//web:defs.bzl` exports its `web` namespace. Celld is a separate
+[platform adapter](../celld/README.md), not a dependency of these rules.
+
+## Buck2 rules
+
+```python
+load("@toolchains//web:defs.bzl", "web")
+load("@toolchains//js:defs.bzl", "js")
+
+js.library(
+    name = "shared",
+    import_name = "@app/shared",
+    exports = {".": "src/mod.ts"},
+    srcs = glob(["src/**/*.ts"]),
+    visibility = ["PUBLIC"],
+)
+web.bundle(name = "server", main = "server.ts", deps = [":shared"], minify = True)
+web.browser(name = "client", main = "client.ts", deps = [":shared"])
+web.quality(name = "quality", srcs = glob(["src/**/*.ts", "src/**/*.svelte"]))
+```
+
+| Rule | Output / behavior |
+| --- | --- |
+| `js.library` | Declared JS/TS sources and public subpaths; [source/release API](../js/README.md) |
+| `web.bundle` | Checked server ESM; optional native Oxc minification/map composition |
+| `web.browser` | Client `app.js`, reachable `app.css`, and authored-source maps |
+| `web.quality` | Runtime-independent native lint, plus opt-in `[format]` |
+| `web.deno_test` | Explicit Deno test execution, not a generic runtime abstraction |
+
+Units accept `srcs`, direct `deps`, optional `types`, `lib`, `externals`,
+`svelte_runtime`, and `server_conditions`. Libraries declare `import_name` and
+`exports`; `wasm` maps subpaths to modules. Browser targets also accept ordered
+global `styles`. The shared library provider is `JsLibraryInfo`, defined in
+`@toolchains//js:providers.bzl`; ESM targets expose `WebBundleInfo`, carrying the
+bundle, map and external wasm artifacts. `js.library` defaults to ECMAScript
+only, while web consumers select their browser/server profile. `deno.binary`,
+`deno.run`, `deno.test`, `deno.bundle` and celld consume the same library `deps`.
+
+Deno is the current explicit checker/bundler backend (`_deno_toolchain`), not
+the target JavaScript runtime. Oxc owns parsing, correctness lint, formatting,
+minification and map composition; rsvelte owns native component/rune compilation.
+Checked units default to standard ECMAScript/DOM libraries, **not** Deno or
+Worker globals. Choose `lib` and ambient `types` for the target environment.
+`bundle_platform` selects the backend's `browser` (portable ESM) or `deno`
+resolution mode; `server_conditions` defaults to `["default"]`, with explicit
+`["node", "default"]` or Worker conditions when required. The toolchain does not
+install or require Bun to produce ESM that Bun can execute.
+
+`externals` explicitly names runtime-provided specifiers/patterns that remain
+unbundled. For example, a host adapter can supply `types = ["host.d.ts"]` and
+`externals = ["host:*"]`. Those value imports are forbidden in a browser graph;
+type-only and unreachable server imports do not enter client bundles.
+Externals cannot exempt relative/file-URL source ownership or shadow a dependency
+export or pinned runtime import; checking and bundling must resolve the same API.
+`runtime_modules` supplies declared stand-ins for `web.deno_test(fake_runtime = True)`.
+Celld supplies its own platform declarations and constructor fakes through these
+attributes. No cloudflare, npm, JSR, Node or remote import is implicitly admitted.
+Third-party ESM is supplied through checksum-pinned archive-backed `js.library`
+dependencies, retaining offline checks/bundles and declared artifact inputs.
+
+Every checked unit exposes `[check]`, `[lint]`, `[format]`, `[config]` and `[ide]`;
+minified bundles also expose `[map]`.
+Native lint is the default. `deno_lint = True` additionally enforces Deno's
+configured policy, even when native lint fails; celld enables this explicitly.
+`web.quality` needs neither Deno nor platform configuration and can be added to
+any package's explicit JS/TS/Svelte sources without changing how it runs.
+The celld editor proxy discovers only celld-profile units. Other environments
+retain their own `[ide]` fragment rather than inheriting Worker/Deno globals.
+
+```text
+buck2 test toolchains//web/...
+buck2 run 'TARGET[format]' -- --check
+buck2 run 'TARGET[format]' -- --write
+buck2 run toolchains//web:native -- lint path/to/source.ts
+buck2 run toolchains//web:native -- format --check path/to/source.ts
+```
+
+Formatting is opt-in. With no flag it prints formatted source as JSON; `--check`
+is read-only and `--write` updates only explicit authored inputs. Do not use write
+mode on generated/read-only artifacts.
+
+`webc.py` writes generated import maps and walks native parser facts offline.
+Only exported specifiers of direct dependencies and relative paths within a
+unit's declared sources are allowed. Computed dynamic imports, unresolved
+literal edges, transitive dependency shortcuts, collisions and symlink escapes
+fail. Pinned Svelte runtime inputs and wasm shims have bounded trust exceptions,
+never a general application-import bypass. Checking remains real `deno check`;
+native parse success alone is not type checking.
+
+The fixtures in `tests/` cover portable ESM, native-only quality, optional Deno
+policy, and source-graph boundaries.
+
 ## Native executable
 
 All native commands can be used directly without the Python driver, a runtime,

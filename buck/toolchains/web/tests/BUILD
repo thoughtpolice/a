@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", "shims")
+load("@toolchains//js:defs.bzl", "js")
+load("@toolchains//web:defs.bzl", "web")
 
 shims.python_binary(
     name = "native-graph-runner",
@@ -49,12 +51,42 @@ shims.command_test(
     ],
 )
 
+js.library(
+    name = "portable",
+    import_name = "@fixture/portable",
+    lib = [
+        "dom",
+        "esnext",
+    ],
+    exports = {".": "portable.ts"},
+)
+
+web.bundle(
+    name = "portable-bundle",
+    main = "entry.ts",
+    minify = True,
+    deps = [":portable"],
+)
+
+web.quality(
+    name = "quality",
+    srcs = [
+        "entry.ts",
+        "portable.ts",
+    ],
+)
+
 shims.test_suite(
     name = "tests",
     tests = [
         "toolchains//web/native:tests",
         ":native-graph-test",
         ":native-quality-test",
+        ":portable-bundle[check]",
+        ":portable-bundle[lint]",
+        ":portable[check]",
+        ":portable[lint]",
+        ":quality",
         ":svelte-check-test",
     ],
     visibility = ["PUBLIC"],

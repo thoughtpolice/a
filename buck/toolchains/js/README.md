@@ -9,6 +9,8 @@ Separate source identity, executable runtime and release format:
 | --- | --- |
 | Reusable declared JS/TS modules | `js.library` |
 | Deno executable/test/bundle | `deno.binary`, `deno.run`, `deno.test`, `deno.bundle` |
+| Browser/server ESM bundle | `web.browser`, `web.bundle` |
+| Worker policy and deployment | `celld.library`, `celld.worker`, `celld.project` |
 | Unbundled npm or Deno distribution | `js.package` |
 
 Source libraries share `JsLibraryInfo` from `@toolchains//js:providers.bzl`.
@@ -69,11 +71,14 @@ are a separate, explicit decision below. This is not a registry install rule.
 
 ```python
 load("@toolchains//deno:defs.bzl", "deno")
+load("@toolchains//web:defs.bzl", "web")
 
 deno.binary(name = "cli", type = "run", main = "cli.ts", deps = [":core"])
 deno.test(name = "test", srcs = ["core_test.ts"], deps = [":core"])
 deno.run(name = "run", src = "cli.ts", deps = [":core"], check = True)
 deno.bundle(name = "deno-esm", main = "cli.ts", deps = [":core"])
+web.browser(name = "browser", main = "browser.ts", deps = [":core"])
+web.bundle(name = "server", main = "server.ts", deps = [":core"])
 ```
 
 Deno rules retain the original optional `config` and its package/workspace/lock
@@ -86,6 +91,11 @@ original code root through a mandatory real Deno check action before execution.
 Runtime execution then avoids a duplicate full implementation-JSDoc graph pass;
 the successful check stamp is a required build input, not optional validation.
 `deno.run(package_id = ...)` cannot combine registry execution with source `deps`.
+
+`celld.worker(deps = [":core"])` works directly; the Worker adapter retains its
+ambient types, `cloudflare:*` policy and packaging. `celld.library` is the same
+source-library implementation with Worker defaults and its existing `mod.ts`
+export default. A portable library itself should not inherit those globals.
 
 ## Distribution
 

@@ -4,6 +4,7 @@
 load("@root//buck/shims:shims.bzl", "shims")
 load("@toolchains//deno:defs.bzl", "deno")
 load("@toolchains//js:defs.bzl", "js")
+load("@toolchains//web:defs.bzl", "web")
 
 js.library(
     name = "tokens",
@@ -176,6 +177,13 @@ deno.bundle(
     srcs = ["config-value.ts"],
     config = "deno.jsonc",
     main = "deno-entry.ts",
+    deps = [":plain"],
+)
+
+web.browser(
+    name = "browser",
+    main = "browser.ts",
+    minify = True,
     deps = [":plain"],
 )
 
