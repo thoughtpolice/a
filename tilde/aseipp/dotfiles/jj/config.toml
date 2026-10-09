@@ -32,7 +32,7 @@ edit-args = ["diff", "$left", "$right"]
 
 [merge-tools.difft]
 program = "difft"
-diff-args = ["--color=always", "$left", "$right"]
+diff-args = ["--color=always", "--width", "$width", "$left", "$right"]
 diff-invocation-mode = "file-by-file"
 
 [merge-tools.claude]
