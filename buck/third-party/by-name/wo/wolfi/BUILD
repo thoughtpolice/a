@@ -177,13 +177,13 @@ DEVTOOLS = {
 # platform kernel has nf_tables built in, which matters because minimos
 # latches module loading off before anything could load one.
 CONTAINERS = {
-    "cni-plugins": ("1.9.1-r14", "f320196135be0fb5c37fbc1fa189175770196073b8029b2ea02ff7c082167aa8"),
-    "containerd-2": ("2.4.0-r0", "e9e7b2ae66af49fabf1f312e65b6ef5d4b4ad2d9ae7f0402cad67794f15475e7"),
-    "ctr-2": ("2.4.0-r0", "c201f8a43f90dc41fbb97cc76a7d172e47eb6c4bf755322b43bfa7d9cba0fe45"),
+    "cni-plugins": ("1.9.1-r16", "fdc7dcd4160ea4083cb5d7e97a3152066c76ed6551cca7913aca7cfd7c60096f"),
+    "containerd-2": ("2.4.1-r2", "711924bc8c2d001459d21d4d005edf21bbc5c71e512c83cde22dd0f942270a14"),
+    "ctr-2": ("2.4.1-r2", "1fa17fdc7dd75856a1d3fe3a048d53337f0f4c235d17b1aa5d64fcc909a3a00f"),
     "iptables": ("1.8.13-r4", "696cbf0f9ca46dd1a0f0c74a73c0c8b16ece2cdc15542b2b40a6ee20de0615e2"),
     "libmnl": ("1.0.5-r8", "916046fd5e2a6e707b00b6f2f3ae9534eca0eec3426a5e6a2a849bfa6d39c388"),
     "libnftnl": ("1.3.2-r0", "845c6e710018d5bbd6640658929f4d61db9ec9bce918cdec1682d98954e2e936"),
-    "nerdctl": ("2.4.0-r1", "707932fab47d62f40cc0fe6095769f3d0c6cad6918313c7dae62c203d790b893"),
+    "nerdctl": ("2.4.1-r3", "d65c03075a54a094290b1211f39a6e08bf79d38f5cdd2cd1232e89bd4ef0f5a0"),
 }
 
 wolfi_apks(MINIMOS_BASE)
