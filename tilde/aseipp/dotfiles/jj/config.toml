@@ -119,6 +119,9 @@ fix = 'stack(@, 1)'
 'stack(x)' = 'stack(x, 2)'
 'stack(x, n)' = 'ancestors(reachable(x, mutable()), n)'
 
+# I use this all the time
+'stack1()' = 'stack(@,1)'
+
 # The current set of "open" works. It is defined as: all stacks that are
 # reachable from my working copy, or any other commit I wrote.
 # n = 1, meaning that nothing from `trunk()` is included, so all resulting
