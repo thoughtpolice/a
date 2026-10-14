@@ -11,7 +11,8 @@ packages without naming a dependency, as it does the standard library.
 
 Like the stdlib, every package is built, once per configuration, by the first
 link that needs them, and the result is cached. A compile only sees the
-packages its sources import.
+packages its sources import. Nothing is built with cgo, as no Go target is
+(see buck/platforms/BUILD), so a file that imports "C" is left out.
 
 Go rules pass dependencies as a map from import path to archive, and the keys
 must be known before any source has been read. They come from
@@ -20,16 +21,13 @@ platform the toolchain targets. `:manifest-test` fails when that file no
 longer matches the pinned modules.
 """
 
-load("@prelude//decls:common.bzl", "buck")
 load("@prelude//decls:toolchains_common.bzl", "toolchains_common")
-load("@prelude//go:cgo_builder.bzl", "CGoBuildContext")
 load("@prelude//go:compile.bzl", "GoPkgCompileInfo")
-load("@prelude//go:go_stdlib.bzl", "get_cgo_build_context")
 load("@prelude//go:link.bzl", "GoPkgLinkInfo")
 load("@prelude//go:package_builder.bzl", "BuildPackageGoList", "BuildPackageParams", "build_package")
 load("@prelude//go:packages.bzl", "GoPkg", "GoStdlib", "GoStdlibDynamicValue", "merge_pkgs")
-load("@prelude//go:toolchain.bzl", "GoToolchainInfo", "evaluate_cgo_enabled", "get_toolchain_env_vars")
-load("@prelude//go/transitions:defs.bzl", "build_tags_attr", "cgo_enabled_attr", "go_stdlib_transition")
+load("@prelude//go:toolchain.bzl", "GoToolchainInfo", "get_toolchain_env_vars")
+load("@prelude//go/transitions:defs.bzl", "build_tags_attr", "go_stdlib_transition")
 load("@prelude//linking:shared_libraries.bzl", "merge_shared_libraries")
 load("@root//buck/shims:shims.bzl", "shims")
 
@@ -61,8 +59,6 @@ def _go_x_library_impl(ctx: AnalysisContext) -> list[Provider]:
     if platform not in GO_X_PLATFORMS:
         fail("golang.org/x packages are not listed for {}; add it to GO_X_PLATFORMS and regenerate packages.bzl".format(platform))
 
-    cgo_enabled = evaluate_cgo_enabled(ctx.attrs._cgo_enabled)
-    cgo_build_context = get_cgo_build_context(ctx)
     tags = go_toolchain.build_tags + ctx.attrs._build_tags
 
     # Declare every package up front: these are the keys dependents see.
@@ -95,9 +91,6 @@ def _go_x_library_impl(ctx: AnalysisContext) -> list[Provider]:
                 ["-goos", go_toolchain.env_go_os],
                 ["-goarch", go_toolchain.env_go_arch],
                 ["-tags", ",".join(tags)] if tags else [],
-                ["-race"] if go_toolchain.race and cgo_enabled else [],
-                ["-asan"] if go_toolchain.asan and cgo_enabled else [],
-                ["-cgo"] if cgo_enabled else [],
                 pkg_dir,
             ],
             env = get_toolchain_env_vars(go_toolchain),
@@ -109,7 +102,6 @@ def _go_x_library_impl(ctx: AnalysisContext) -> list[Provider]:
         ctx.actions.dynamic_output_new(_build_x_package(
             target_label = ctx.label,
             go_toolchain = go_toolchain,
-            cgo_build_context = cgo_build_context,
             go_stdlib_value = go_stdlib.dynamic_value,
             analysis = analysis,
             import_path = import_path,
@@ -135,7 +127,6 @@ def _build_x_package_impl(
         actions: AnalysisActions,
         target_label: Label,
         go_toolchain: GoToolchainInfo,
-        cgo_build_context: None | CGoBuildContext,
         go_stdlib_value: ResolvedDynamicValue,
         analysis: ArtifactValue,
         import_path: str,
@@ -172,19 +163,19 @@ def _build_x_package_impl(
         actions = actions,
         target_label = target_label,
         go_toolchain = go_toolchain,
-        cgo_build_context = cgo_build_context,
+        cgo_build_context = None,
         go_list = BuildPackageGoList(
             pkg_name = go_list["Name"],
             go_files = go_files,
-            cgo_files = files("CgoFiles"),
+            cgo_files = [],
             s_files = files("SFiles"),
             h_files = files("HFiles"),
             c_cxx_files = files("CFiles") + files("CXXFiles"),
             syso_files = [],
             imports = set(go_list.get("Imports", [])),
             embed_patterns = embed_patterns,
-            cgo_cflags = go_list.get("CgoCFLAGS", []),
-            cgo_cppflags = go_list.get("CgoCPPFLAGS", []),
+            cgo_cflags = [],
+            cgo_cppflags = [],
         ),
         params = BuildPackageParams(
             main = False,
@@ -210,7 +201,6 @@ _build_x_package = dynamic_actions(
     impl = _build_x_package_impl,
     attrs = {
         "analysis": dynattrs.artifact_value(),
-        "cgo_build_context": dynattrs.value(None | CGoBuildContext),
         "go_stdlib_value": dynattrs.dynamic_value(),
         "go_toolchain": dynattrs.value(GoToolchainInfo),
         "import_path": dynattrs.value(str),
@@ -233,9 +223,6 @@ go_x_library = rule(
         "modules": attrs.dict(attrs.string(), attrs.source(allow_directory = True)),
         "packages": attrs.dict(attrs.string(), attrs.option(attrs.list(attrs.string()))),
         "_build_tags": build_tags_attr,
-        "_cgo_enabled": cgo_enabled_attr,
-        "_cxx_toolchain": toolchains_common.cxx(),
-        "_exec_os_type": buck.exec_os_type_arg(),
         "_go_stdlib": attrs.default_only(attrs.dep(default = "prelude//go/tools:stdlib")),
         "_go_toolchain": toolchains_common.go(),
     },
