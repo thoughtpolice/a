@@ -5,37 +5,6 @@
     "ENABLE_BACKGROUND_TASKS": "true",
     "CLAUDE_CODE_ENABLE_UNIFIED_READ_TOOL": "true"
   },
-  "permissions": {
-    "allow": [
-      "Bash(true)",
-      "Bash(env)",
-      "Bash(curl:*)",
-      "Bash(grep:*)",
-      "Bash(tar)",
-      "Bash(rg:*)",
-      "Bash(ls:*)",
-      "Bash(cp:*)",
-      "Bash(find:*)",
-      "Bash(tar:*)",
-      "Bash(cat:*)",
-      "Bash(tree:*)",
-      "Bash(mkdir:*)",
-      "Bash(wget:*)",
-      "Bash(python3:*)",
-      "Bash(sha256sum:*)",
-      "Bash(deno:*)",
-      "Bash(buck2:*)",
-      "WebFetch(domain:jj-vcs.github.io)",
-      "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:github.com)",
-      "WebFetch(domain:api.github.com)",
-      "WebFetch(domain:docs.rs)",
-      "WebFetch(domain:docs.deno.com)",
-      "WebSearch"
-    ],
-    "deny": [],
-    "defaultMode": "acceptEdits"
-  },
   "hooks": {
     "PostToolUse": [
       {
