@@ -184,6 +184,15 @@ var rustExceptions = []exception{
 		ID:     "RUSTSEC-2026-0255",
 		Reason: "sized-chunks panic-safety unsoundness in Chunk/RingBuffer/InlineArray; no fixed release exists, pulled in by egglog via im-rc, awaiting an upstream egglog migration",
 	},
+	// unsafe-libyaml is archived upstream, with 0.2.11 as its last release. It
+	// arrives through slatedb, which turns on figment's yaml provider
+	// (serde_yaml) unconditionally for loading Settings from files. The cache
+	// server, slatedb's only user, builds its Settings in code, so the YAML
+	// parser never runs. Remove this once slatedb or figment drops serde_yaml.
+	{
+		ID:     "RUSTSEC-2024-0449",
+		Reason: "unsafe-libyaml is unmaintained; pulled in by slatedb via figment and serde_yaml for settings files the cache server never loads, awaiting slatedb/figment moving off serde_yaml",
+	},
 }
 
 // npmExceptions accepts advisories against packages in the scanned
