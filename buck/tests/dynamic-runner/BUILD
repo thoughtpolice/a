@@ -6,7 +6,6 @@ load("@root//buck/shims:shims.bzl", "shims")
 shims.go_binary(
     name = "fixture",
     srcs = ["main.go"],
-    cgo_enabled = False,
     tests = [":dynamic-runner"],
 )
 

@@ -16,8 +16,6 @@ SRCS = [
 shims.go_binary(
     name = "build-report",
     srcs = SRCS,
-    cgo_enabled = False,
-    link_mode = "internal",
     tests = [":unit"],
     visibility = ["PUBLIC"],
 )
@@ -33,5 +31,4 @@ shims.go_test(
         "rawreport_test.go",
         "text_test.go",
     ],
-    cgo_enabled = False,
 )

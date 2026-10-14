@@ -31,8 +31,6 @@ TEST_SRCS = [
 shims.go_binary(
     name = "filecheck",
     srcs = SRCS,
-    cgo_enabled = False,
-    link_mode = "internal",
     tests = [
         ":self-tests",
         ":unit",
@@ -44,15 +42,12 @@ shims.go_binary(
 shims.go_test(
     name = "unit",
     srcs = SRCS + TEST_SRCS,
-    cgo_enabled = False,
 )
 
 # A stand-in compiler for the self-tests below; see tests/toy/main.go.
 shims.go_binary(
     name = "toy",
     srcs = ["tests/toy/main.go"],
-    cgo_enabled = False,
-    link_mode = "internal",
     tests = [":toy-version"],
 )
 

@@ -19,8 +19,6 @@ SRCS = [
 shims.go_binary(
     name = "nugetify",
     srcs = SRCS,
-    cgo_enabled = False,
-    link_mode = "internal",
     tests = [":unit"],
     visibility = ["PUBLIC"],
 )
@@ -37,5 +35,4 @@ shims.go_test(
         "source_test.go",
         "version_test.go",
     ],
-    cgo_enabled = False,
 )

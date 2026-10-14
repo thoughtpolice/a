@@ -10,8 +10,6 @@ load("@root//buck/tools/barf:defs.bzl", "barf")
 shims.go_binary(
     name = "check-arguments",
     srcs = ["check_arguments.go"],
-    cgo_enabled = False,
-    link_mode = "internal",
 )
 
 shims.write_file(

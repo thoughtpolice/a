@@ -6,8 +6,6 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 depot.go_binary(
     name = "resource",
     srcs = ["main.go"],
-    cgo_enabled = False,
-    link_mode = "internal",
     tests = [":test"],
     visibility = ["PUBLIC"],
 )
@@ -18,6 +16,5 @@ depot.go_test(
         "main.go",
         "main_test.go",
     ],
-    cgo_enabled = False,
     visibility = ["PUBLIC"],
 )

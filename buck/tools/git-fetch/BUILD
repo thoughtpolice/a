@@ -11,8 +11,6 @@ shims.go_binary(
         ["*.go"],
         exclude = ["*_test.go"],
     ),
-    cgo_enabled = False,
-    link_mode = "internal",
     # What `-m release` adds for Go, which compiles optimized either way.
     # This runs as an exec dep of every git_fetch, which `-m release`
     # never reaches, and a stripped binary is less to download from the
@@ -27,7 +25,6 @@ shims.go_binary(
 shims.go_test(
     name = "unit",
     srcs = glob(["*.go"]),
-    cgo_enabled = False,
 )
 
 # A real fetch over the network, through the macro reindeer emits. The

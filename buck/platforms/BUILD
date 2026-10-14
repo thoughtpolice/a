@@ -4,7 +4,15 @@
 load("@root//buck/shims:shims.bzl", "shims")
 load(":defs.bzl", "default_platforms", "generate_platforms")
 
-generate_platforms(default_platforms)
+# Go builds without cgo everywhere, the standard library included: no Go code
+# here calls C, and a pure Go binary needs no C toolchain to link, for the host
+# or any other platform. The prelude's own default for this constraint is cgo
+# on, and its go_binary and go_test rules would set it back on for a target that
+# asked; the Go shims refuse to.
+generate_platforms(
+    default_platforms,
+    constraints = ["prelude//go/constraints:cgo_enabled[false]"],
+)
 
 # The cpu each linux triple names in config//cpu/constraints. A linux triple
 # describes a machine the prelude can also name with a cpu and an os, so these

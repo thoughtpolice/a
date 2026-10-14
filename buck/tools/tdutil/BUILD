@@ -54,8 +54,6 @@ TEST_SRCS = [
 shims.go_binary(
     name = "tdutil",
     srcs = SRCS,
-    cgo_enabled = False,
-    link_mode = "internal",
     tests = [
         ":integration",
         ":unit",
@@ -66,7 +64,6 @@ shims.go_binary(
 shims.go_test(
     name = "unit",
     srcs = SRCS + TEST_SRCS,
-    cgo_enabled = False,
 )
 
 # Cross-compiled variants of :tdutil, one per (cpu, os) we ship. tdutil is pure
@@ -75,7 +72,8 @@ shims.go_test(
 # GOARCH/GOOS, along with the target triple the other toolchains read. The
 # distribution itself is an exec_dep and stays on the host.
 #
-# This only holds while cgo_enabled = False. With cgo the link would need a C
+# This only holds because the platforms turn cgo off (buck/platforms/BUILD),
+# and cross_binary keeps that constraint. With cgo the link would need a C
 # cross-toolchain for each of these.
 #
 # Note these have to be a transition (cross_binary) rather than per-target
@@ -122,5 +120,4 @@ shims.filegroup(
 shims.go_test(
     name = "integration",
     srcs = SRCS + ["integration_test.go"],
-    cgo_enabled = False,
 )

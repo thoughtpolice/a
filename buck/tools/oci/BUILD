@@ -11,8 +11,6 @@ shims.go_binary(
         ["*.go"],
         exclude = ["*_test.go"],
     ),
-    cgo_enabled = False,
-    link_mode = "internal",
     tests = [":unit"],
     visibility = ["PUBLIC"],
 )
@@ -20,7 +18,6 @@ shims.go_binary(
 shims.go_test(
     name = "unit",
     srcs = glob(["*.go"]),
-    cgo_enabled = False,
     env = {
         "PATCHELF": "$(exe third-party//by-name/pa/patchelf:patchelf)",
     },

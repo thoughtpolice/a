@@ -149,6 +149,11 @@ def _depot_rust_test(**kwargs):
 _GO_X = "toolchains//golang/x:x"
 
 def _go_kwargs(rule_name: str, kwargs):
+    # The platforms turn cgo off for every Go target; see buck/platforms/BUILD.
+    # These attributes would turn it back on for one target, or repeat that.
+    for attr in ["cgo_enabled", "override_cgo_enabled"]:
+        if attr in kwargs:
+            fail("{}: cgo is off for every Go target (buck/platforms/BUILD); remove `{}`".format(rule_name, attr))
     kwargs = _fix_kwargs(rule_name, kwargs)
     kwargs["deps"] = kwargs.get("deps", []) + [_GO_X]
     return kwargs

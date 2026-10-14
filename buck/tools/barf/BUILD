@@ -11,8 +11,6 @@ shims.go_binary(
         ["*.go"],
         exclude = ["*_test.go"],
     ),
-    cgo_enabled = False,
-    link_mode = "internal",
     tests = [
         "root//buck/tools/barf/tests:custom-arguments",
         "root//buck/tools/barf/tests:default-arguments",
@@ -24,5 +22,4 @@ shims.go_binary(
 shims.go_test(
     name = "unit",
     srcs = glob(["*.go"]),
-    cgo_enabled = False,
 )

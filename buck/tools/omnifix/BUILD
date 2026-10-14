@@ -19,8 +19,6 @@ SRCS = [
 shims.go_binary(
     name = "omnifix",
     srcs = SRCS,
-    cgo_enabled = False,
-    link_mode = "internal",
     tests = [":unit"],
     visibility = ["PUBLIC"],
 )
@@ -38,5 +36,4 @@ shims.go_test(
         "rustfmt_test.go",
         "whitespace_test.go",
     ],
-    cgo_enabled = False,
 )

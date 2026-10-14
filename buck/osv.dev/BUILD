@@ -19,7 +19,6 @@ SRCS = [
 shims.go_binary(
     name = "osv.dev",
     srcs = SRCS,
-    cgo_enabled = False,
     tests = [
         ":check",
         ":unit",
@@ -29,7 +28,6 @@ shims.go_binary(
 shims.go_test(
     name = "unit",
     srcs = SRCS + ["main_test.go"],
-    cgo_enabled = False,
 )
 
 # Under the internal runner this discovers one case per dependency set; each
