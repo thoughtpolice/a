@@ -9,6 +9,6 @@ fi
 
 # nix-direnv watches flake.nix and flake.lock on its own; the packages the
 # flake imports need listing so editing one reloads the shell.
-watch_file buck/etc/nix/*.nix
+watch_file buck/nix/*.nix
 
-use flake ./buck/etc/nix
+use flake ./buck/nix

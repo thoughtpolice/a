@@ -4,7 +4,7 @@
 # Lean toolchain
 
 Builds Lean 4 with Buck2, one action per module, without Lake. Lean comes
-from the Nix dev shell (`buck/etc/nix/lean4.nix`), the same way the C++ and
+from the Nix dev shell (`buck/nix/lean4.nix`), the same way the C++ and
 Rust compilers do, so all three link through the same Nix linker wrapper.
 
 ## Rules
@@ -138,7 +138,7 @@ and .ir directories), `[Module.Name.c]` and `[imports.json]`.
 ## Toolchain version
 
 `:check` runs `lean --version` and compares it to the `version` in
-`buck/etc/nix/lean4.nix`. It reruns whenever that file or the flake lock
+`buck/nix/lean4.nix`. It reruns whenever that file or the flake lock
 changes, and every Lean action takes its output as an input, so a Lean
 upgrade rebuilds all Lean code. If it fails after a Nix change, reload the
 dev shell and restart Buck (`buck2 kill`) so actions see the new PATH.

@@ -48,7 +48,7 @@ def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
     try:
         return subprocess.run(cmd, **kwargs)
     except FileNotFoundError:
-        fail("'{}' is not on PATH; enter the Nix shell (buck/etc/nix)".format(cmd[0]))
+        fail("'{}' is not on PATH; enter the Nix shell (buck/nix)".format(cmd[0]))
 
 
 def lean_version() -> str:

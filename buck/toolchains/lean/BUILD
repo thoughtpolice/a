@@ -4,7 +4,7 @@
 load("@root//buck/shims:shims.bzl", "shims")
 load(":defs.bzl", "cxx_toolchain_for_exec", "lean_toolchain", "lean_toolchain_check")
 
-# Lean comes from the Nix dev shell (buck/etc/nix/lean4.nix), like the C++
+# Lean comes from the Nix dev shell (buck/nix/lean4.nix), like the C++
 # and Rust compilers, so all three link with the same Nix linker wrapper.
 
 # Composes every lean, leanir and leanchecker invocation; see tool.py.
@@ -20,8 +20,8 @@ shims.python_binary(
 # Lean action, so a new Lean rebuilds everything Lean.
 lean_toolchain_check(
     name = "check",
-    nix_expr = "root//buck/etc/nix:lean4.nix",
-    nix_lock = "root//buck/etc/nix:flake.lock",
+    nix_expr = "root//buck/nix:lean4.nix",
+    nix_lock = "root//buck/nix:flake.lock",
     tool = ":tool",
 )
 
