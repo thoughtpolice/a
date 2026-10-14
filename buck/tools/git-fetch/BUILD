@@ -59,3 +59,9 @@ shims.command_test(
         test "`ls "$git_dir"/objects/pack | sed 's/.*[.]//' | sort | tr '\\n' ' '`" = "idx pack "
     """,
 )
+
+# Regenerates the test cases; run by hand.
+shims.lint_files(
+    name = "scripts",
+    srcs = ["tests/gen-cases.py"],
+)

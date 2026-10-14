@@ -27,3 +27,9 @@ depot.test_suite(
     name = "tests",
     tests = [":test-tools"],
 )
+
+# Sources the new-project skill copies into a new package.
+depot.lint_files(
+    name = "templates",
+    srcs = glob(["skills/*/*/assets/templates/**/*"]),
+)

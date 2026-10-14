@@ -179,3 +179,9 @@ system_cxx_toolchain(
     linker = linker,
     linker_type = linker_type,
 )
+
+# Read by the toolchain rule, which the shims do not wrap.
+shims.lint_files(
+    name = "scripts",
+    srcs = ["wasm-compiler.sh"],
+)

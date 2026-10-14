@@ -16,3 +16,12 @@ shims.run_test(
     ci_srcs = ["buck/toolchains/lean/**"],
     dep = ":smoke-test",
 )
+
+# The wrappers an editor runs in place of lean and lake.
+shims.lint_files(
+    name = "wrappers",
+    srcs = [
+        "bin/lean",
+        "lake",
+    ],
+)

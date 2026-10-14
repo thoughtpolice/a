@@ -113,3 +113,5 @@ system_rust_toolchain(
     rustc_flags = rustc_flags,
     rustc_target_triple = rustc_target_triple,
 )
+
+shims.lint_package()

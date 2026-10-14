@@ -2,5 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@prelude//toolchains:genrule.bzl", "system_genrule_toolchain")
+load("@root//buck/shims:shims.bzl", "shims")
 
 system_genrule_toolchain(name = "genrule")
+
+shims.lint_package()

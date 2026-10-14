@@ -11,3 +11,16 @@ shims.constraint(
         "release",
     ],
 )
+
+# Mode files are arguments Buck2 reads from the command line (`-m local`).
+shims.lint_files(
+    name = "modes",
+    srcs = [
+        "cached",
+        "cached-upload",
+        "local",
+        "remote",
+        "sandbox",
+        "sandbox-symlink",
+    ],
+)

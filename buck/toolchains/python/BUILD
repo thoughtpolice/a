@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@prelude//toolchains:python.bzl", "remote_python_toolchain")
+load("@root//buck/shims:shims.bzl", "shims")
 
 PYTHON_VERSION = "3.14.6"
 
@@ -75,3 +76,5 @@ remote_python_toolchain(
     },
     visibility = ["PUBLIC"],
 )
+
+shims.lint_package()

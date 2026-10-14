@@ -18,3 +18,9 @@ load("@root//buck/shims:shims.bzl", "shims")
         "lean4.nix",
     ]
 ]
+
+# The devcontainer image and the flake are built by Nix, not Buck2.
+shims.lint_files(
+    name = "nix",
+    srcs = glob(["**/*.nix"]),
+)

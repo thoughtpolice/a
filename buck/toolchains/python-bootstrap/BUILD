@@ -73,3 +73,5 @@ standalone_python_bootstrap_toolchain(
         ("smoltar-x86_64-pc-windows-msvc.exe", "9b4ea3d1f3414574f16c23c2434d26e4f3cf67804db9d07d50ef3a00d7963184"),
     ]
 ]
+
+shims.lint_package()

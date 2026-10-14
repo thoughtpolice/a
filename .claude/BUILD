@@ -28,3 +28,9 @@ depot.test_suite(
         ":test-tdutil-scripts",
     ],
 )
+
+# The hooks Claude Code runs itself.
+depot.lint_files(
+    name = "hooks",
+    srcs = glob(["hooks/*.py"]),
+)
