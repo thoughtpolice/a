@@ -1,8 +1,0 @@
-{
-  "imports": {
-    "@std/async": "jsr:@std/async@1",
-    "@std/cli": "jsr:@std/cli@1",
-    "@std/fs": "jsr:@std/fs@1",
-    "@std/io": "jsr:@std/io@0"
-  }
-}
