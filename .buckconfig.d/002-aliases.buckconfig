@@ -1,4 +1,4 @@
 [alias]
 tdutil = root//buck/tools/tdutil:tdutil
-omnifix = root//src/tools/omnifix:omnifix
+omnifix = root//buck/tools/omnifix:omnifix
 fozzie = root//src/fozzie:fozzie

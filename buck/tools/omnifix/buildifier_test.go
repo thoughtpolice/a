@@ -15,7 +15,7 @@ func TestBuildifierMatchesStarlarkFiles(t *testing.T) {
 		path string
 		want bool
 	}{
-		{path: "src/tools/omnifix/BUILD", want: true},
+		{path: "buck/tools/omnifix/BUILD", want: true},
 		{path: "src/protos/BUCK", want: true},
 		{path: "rules/defs.bzl", want: true},
 		{path: "buck/tools/query.bxl", want: true},
