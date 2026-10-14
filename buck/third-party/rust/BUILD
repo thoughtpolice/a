@@ -8677,7 +8677,11 @@ third_party_rust.rust_library(
     features = [
         "attributes",
         "blob-diff",
+        "blocking-http-transport-reqwest",
+        "blocking-http-transport-reqwest-native-tls",
+        "blocking-network-client",
         "command",
+        "credentials",
         "excludes",
         "index",
         "max-control",
@@ -8687,6 +8691,7 @@ third_party_rust.rust_library(
         "parallel",
         "sha1",
         "sha256",
+        "worktree-mutation",
     ],
     visibility = [],
     deps = [
@@ -8695,6 +8700,7 @@ third_party_rust.rust_library(
         ":gix-command-0.10",
         ":gix-commitgraph-0.39",
         ":gix-config-0.60",
+        ":gix-credentials-0.40",
         ":gix-date-0.16",
         ":gix-diff-0.67",
         ":gix-discover-0.55",
@@ -8708,11 +8714,13 @@ third_party_rust.rust_library(
         ":gix-ignore-0.22",
         ":gix-index-0.55",
         ":gix-lock-24",
+        ":gix-negotiate-0.35",
         ":gix-object-0.64",
         ":gix-odb-0.84",
         ":gix-pack-0.74",
         ":gix-path-0.12",
         ":gix-pathspec-0.20",
+        ":gix-prompt-0.17",
         ":gix-protocol-0.65",
         ":gix-quote-0.8",
         ":gix-ref-0.67",
@@ -8724,11 +8732,13 @@ third_party_rust.rust_library(
         ":gix-submodule-0.34",
         ":gix-tempfile-24",
         ":gix-trace-0.1",
+        ":gix-transport-0.59",
         ":gix-traverse-0.61",
         ":gix-url-0.38",
         ":gix-utils-0.3",
         ":gix-validate-0.11",
         ":gix-worktree-0.56",
+        ":gix-worktree-state-0.34",
         ":gix-zlib-0.1",
         ":nonempty-0.12",
         ":smallvec-1",
@@ -8939,6 +8949,36 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "gix-credentials-0.40.0.crate",
+    sha256 = "16c11822054fd4b80a1ab722b703f2e7c691b20484d898374289b742c1f49e50",
+    strip_prefix = "gix-credentials-0.40.0",
+    urls = ["https://static.crates.io/crates/gix-credentials/0.40.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "gix-credentials-0.40",
+    srcs = [":gix-credentials-0.40.0.crate"],
+    crate = "gix_credentials",
+    crate_root = "gix-credentials-0.40.0.crate/src/lib.rs",
+    edition = "2024",
+    visibility = [],
+    deps = [
+        ":bstr-1",
+        ":gix-command-0.10",
+        ":gix-config-value-0.19",
+        ":gix-date-0.16",
+        ":gix-path-0.12",
+        ":gix-prompt-0.17",
+        ":gix-quote-0.8",
+        ":gix-sec-0.14",
+        ":gix-trace-0.1",
+        ":gix-url-0.38",
+        ":thiserror-2",
+    ],
+)
+
+shims.http_archive(
     name = "gix-date-0.16.0.crate",
     sha256 = "e63d9aa18f29facd571c8953e66224ee0075b9e16622024794555ed4acceea85",
     strip_prefix = "gix-date-0.16.0",
@@ -9071,6 +9111,7 @@ third_party_rust.rust_library(
         "crc32",
         "default",
         "fs-read-dir",
+        "io-pipe",
         "once_cell",
         "parallel",
         "prodash",
@@ -9093,6 +9134,7 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
+        ":bytes-1",
         ":crc32fast-1",
         ":crossbeam-channel-0.5",
         ":gix-path-0.12",
@@ -9400,6 +9442,31 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.http_archive(
+    name = "gix-negotiate-0.35.1.crate",
+    sha256 = "91068ecee956121d663635b873ae87ad9c5d3f2d6788facfd12829140b39c897",
+    strip_prefix = "gix-negotiate-0.35.1",
+    urls = ["https://static.crates.io/crates/gix-negotiate/0.35.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "gix-negotiate-0.35",
+    srcs = [":gix-negotiate-0.35.1.crate"],
+    crate = "gix_negotiate",
+    crate_root = "gix-negotiate-0.35.1.crate/src/lib.rs",
+    edition = "2024",
+    visibility = [],
+    deps = [
+        ":bitflags-2",
+        ":gix-commitgraph-0.39",
+        ":gix-date-0.16",
+        ":gix-hash-0.26",
+        ":gix-object-0.64",
+        ":gix-revwalk-0.35",
+    ],
+)
+
 shims.alias(
     name = "gix-object",
     actual = ":gix-object-0.64",
@@ -9604,6 +9671,54 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "gix-prompt-0.17.0.crate",
+    sha256 = "802256e13ecb2133ba5f9e6acbaa6b08bac027b1c5929f85f6adbb56ba3a4f28",
+    strip_prefix = "gix-prompt-0.17.0",
+    urls = ["https://static.crates.io/crates/gix-prompt/0.17.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "gix-prompt-0.17",
+    srcs = [":gix-prompt-0.17.0.crate"],
+    crate = "gix_prompt",
+    crate_root = "gix-prompt-0.17.0.crate/src/lib.rs",
+    edition = "2024",
+    platform = {
+        "linux-arm64": dict(
+            deps = [
+                ":parking_lot-0.12",
+                ":rustix-1",
+            ],
+        ),
+        "linux-x86_64": dict(
+            deps = [
+                ":parking_lot-0.12",
+                ":rustix-1",
+            ],
+        ),
+        "macos-arm64": dict(
+            deps = [
+                ":parking_lot-0.12",
+                ":rustix-1",
+            ],
+        ),
+        "macos-x86_64": dict(
+            deps = [
+                ":parking_lot-0.12",
+                ":rustix-1",
+            ],
+        ),
+    },
+    visibility = [],
+    deps = [
+        ":gix-command-0.10",
+        ":gix-config-value-0.19",
+        ":thiserror-2",
+    ],
+)
+
+shims.http_archive(
     name = "gix-protocol-0.65.1.crate",
     sha256 = "68878c37ae168b474c762d70adc8a8e0f9323ed0d80444a672e2eb561fa16691",
     strip_prefix = "gix-protocol-0.65.1",
@@ -9617,15 +9732,27 @@ third_party_rust.rust_library(
     crate = "gix_protocol",
     crate_root = "gix-protocol-0.65.1.crate/src/lib.rs",
     edition = "2024",
+    features = [
+        "blocking-client",
+        "fetch",
+        "handshake",
+    ],
     visibility = [],
     deps = [
         ":bstr-1",
+        ":gix-credentials-0.40",
         ":gix-date-0.16",
         ":gix-features-0.49",
         ":gix-hash-0.26",
+        ":gix-lock-24",
         ":gix-macros-0.1",
+        ":gix-negotiate-0.35",
+        ":gix-object-0.64",
         ":gix-ref-0.67",
+        ":gix-refspec-0.45",
+        ":gix-revwalk-0.35",
         ":gix-shallow-0.13",
+        ":gix-trace-0.1",
         ":gix-transport-0.59",
         ":gix-utils-0.3",
         ":nonempty-0.12",
@@ -9931,17 +10058,48 @@ third_party_rust.rust_library(
     crate = "gix_transport",
     crate_root = "gix-transport-0.59.2.crate/src/lib.rs",
     edition = "2024",
-    features = ["default"],
+    env = {
+        "CARGO_BIN_NAME": "gix_transport",
+        "CARGO_CRATE_NAME": "gix_transport",
+        "CARGO_MANIFEST_DIR": "gix-transport-0.59.2.crate",
+        "CARGO_PKG_AUTHORS": "Sebastian Thiel <sebastian.thiel@icloud.com>",
+        "CARGO_PKG_DESCRIPTION": "A crate of the gitoxide project dedicated to implementing the git transport layer",
+        "CARGO_PKG_HOMEPAGE": "",
+        "CARGO_PKG_NAME": "gix-transport",
+        "CARGO_PKG_README": "",
+        "CARGO_PKG_REPOSITORY": "https://github.com/GitoxideLabs/gitoxide",
+        "CARGO_PKG_RUST_VERSION": "1.85",
+        "CARGO_PKG_VERSION": "0.59.2",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "59",
+        "CARGO_PKG_VERSION_PATCH": "2",
+        "CARGO_PKG_VERSION_PRE": "",
+    },
+    features = [
+        "base64",
+        "blocking-client",
+        "default",
+        "gix-credentials",
+        "http-client",
+        "http-client-reqwest",
+        "http-client-reqwest-native-tls",
+        "parking_lot",
+        "reqwest",
+    ],
     visibility = [],
     deps = [
+        ":base64-0.22",
         ":bstr-1",
         ":gix-command-0.10",
+        ":gix-credentials-0.40",
         ":gix-features-0.49",
         ":gix-packetline-0.22",
         ":gix-path-0.12",
         ":gix-quote-0.8",
         ":gix-sec-0.14",
         ":gix-url-0.38",
+        ":parking_lot-0.12",
+        ":reqwest-0.13",
         ":thiserror-2",
     ],
 )
@@ -10072,6 +10230,35 @@ third_party_rust.rust_library(
         ":gix-object-0.64",
         ":gix-path-0.12",
         ":gix-validate-0.11",
+    ],
+)
+
+shims.http_archive(
+    name = "gix-worktree-state-0.34.1.crate",
+    sha256 = "4c14faa5b9527823c656a033e841dde11ca5b774f1bca7a9cdc23db677e55d56",
+    strip_prefix = "gix-worktree-state-0.34.1",
+    urls = ["https://static.crates.io/crates/gix-worktree-state/0.34.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "gix-worktree-state-0.34",
+    srcs = [":gix-worktree-state-0.34.1.crate"],
+    crate = "gix_worktree_state",
+    crate_root = "gix-worktree-state-0.34.1.crate/src/lib.rs",
+    edition = "2024",
+    visibility = [],
+    deps = [
+        ":bstr-1",
+        ":gix-features-0.49",
+        ":gix-filter-0.34",
+        ":gix-fs-0.22",
+        ":gix-index-0.55",
+        ":gix-object-0.64",
+        ":gix-path-0.12",
+        ":gix-worktree-0.56",
+        ":io-close-0.3",
+        ":thiserror-2",
     ],
 )
 
@@ -12005,6 +12192,43 @@ third_party_rust.rust_library(
     crate = "inventory",
     crate_root = "inventory-0.3.24.crate/src/lib.rs",
     edition = "2021",
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "io-close-0.3.7.crate",
+    sha256 = "9cadcf447f06744f8ce713d2d6239bb5bde2c357a452397a9ed90c625da390bc",
+    strip_prefix = "io-close-0.3.7",
+    urls = ["https://static.crates.io/crates/io-close/0.3.7/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "io-close-0.3",
+    srcs = [":io-close-0.3.7.crate"],
+    crate = "io_close",
+    crate_root = "io-close-0.3.7.crate/src/lib.rs",
+    edition = "2018",
+    platform = {
+        "linux-arm64": dict(
+            deps = [":libc-0.2"],
+        ),
+        "linux-x86_64": dict(
+            deps = [":libc-0.2"],
+        ),
+        "macos-arm64": dict(
+            deps = [":libc-0.2"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":libc-0.2"],
+        ),
+        "windows-gnu": dict(
+            deps = [":winapi-0.3"],
+        ),
+        "windows-msvc": dict(
+            deps = [":winapi-0.3"],
+        ),
+    },
     visibility = [],
 )
 
@@ -28211,6 +28435,7 @@ third_party_rust.rust_library(
         "processthreadsapi",
         "profileapi",
         "shlobj",
+        "std",
         "synchapi",
         "sysinfoapi",
         "winbase",
@@ -28261,6 +28486,7 @@ third_party_rust.rust_binary(
         "processthreadsapi",
         "profileapi",
         "shlobj",
+        "std",
         "synchapi",
         "sysinfoapi",
         "winbase",
@@ -28303,6 +28529,7 @@ third_party_rust.buildscript_run(
         "processthreadsapi",
         "profileapi",
         "shlobj",
+        "std",
         "synchapi",
         "sysinfoapi",
         "winbase",

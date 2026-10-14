@@ -72,10 +72,12 @@ glob = "0.3"
 gix = { version = "0.87.1", default-features = false, features = [
     "attributes",
     "blob-diff",
+    "blocking-http-transport-reqwest-native-tls",
     "index",
     "max-performance-safe",
     "sha1",
     "sha256",
+    "worktree-mutation",
 ] }
 # Pack indexing and object access for the cache-server's git fetcher, pinned
 # to the versions gix (above) resolves so they stay one crate stack.

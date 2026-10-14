@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The HTTP client's User-Agent embeds env!("CARGO_PKG_VERSION").
+cargo_env = true
