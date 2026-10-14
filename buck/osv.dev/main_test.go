@@ -573,33 +573,47 @@ func TestGroupAdvisoriesScopesExceptionsByEcosystem(t *testing.T) {
 
 func TestWriteTestListing(t *testing.T) {
 	var output bytes.Buffer
-	writeTestListing("all", &output)
+	writeTestListing(config{}, "all", &output)
 	want := "test: generic:all generic-packages\ntest: rust:all rust-packages\n" +
-		"test: npm:all npm-packages\ntest: wolfi:all wolfi-packages\ntest: nuget:all nuget-packages\n"
+		"test: wolfi:all wolfi-packages\ntest: nuget:all nuget-packages\n"
 	if output.String() != want {
 		t.Fatalf("listing = %q, want %q", output.String(), want)
 	}
 
 	output.Reset()
-	writeTestListing("rust", &output)
+	writeTestListing(config{npmLockPath: "package-lock.json"}, "all", &output)
+	want = "test: generic:all generic-packages\ntest: rust:all rust-packages\n" +
+		"test: npm:all npm-packages\ntest: wolfi:all wolfi-packages\ntest: nuget:all nuget-packages\n"
+	if output.String() != want {
+		t.Fatalf("listing with a package-lock.json = %q, want %q", output.String(), want)
+	}
+
+	output.Reset()
+	writeTestListing(config{}, "rust", &output)
 	if output.String() != "test: rust:all rust-packages\n" {
 		t.Fatalf("unexpected rust listing %q", output.String())
 	}
 
 	output.Reset()
-	writeTestListing("generic", &output)
+	writeTestListing(config{}, "generic", &output)
 	if output.String() != "test: generic:all generic-packages\n" {
 		t.Fatalf("unexpected generic listing %q", output.String())
 	}
 
 	output.Reset()
-	writeTestListing("npm", &output)
+	writeTestListing(config{}, "npm", &output)
+	if output.String() != "" {
+		t.Fatalf("npm was listed without a package-lock.json: %q", output.String())
+	}
+
+	output.Reset()
+	writeTestListing(config{npmLockPath: "package-lock.json"}, "npm", &output)
 	if output.String() != "test: npm:all npm-packages\n" {
 		t.Fatalf("unexpected npm listing %q", output.String())
 	}
 
 	output.Reset()
-	writeTestListing("wolfi", &output)
+	writeTestListing(config{}, "wolfi", &output)
 	if output.String() != "test: wolfi:all wolfi-packages\n" {
 		t.Fatalf("unexpected Wolfi listing %q", output.String())
 	}
@@ -929,6 +943,17 @@ func TestRunHarnessCaseNPMMissingLockfile(t *testing.T) {
 	}
 }
 
+func TestRunHarnessCaseNPMWithoutLockfile(t *testing.T) {
+	server := harnessOSVServer(t)
+	cfg := harnessConfig(server, "")
+
+	var stdout, stderr bytes.Buffer
+	code := runHarnessTest(context.Background(), cfg, "npm:all", &stdout, &stderr)
+	if code != 2 || !strings.Contains(stderr.String(), "-npm-lock") {
+		t.Fatalf("exit = %d, stderr = %q", code, stderr.String())
+	}
+}
+
 func TestRunHarnessCaseGeneric(t *testing.T) {
 	server := harnessOSVServer(t)
 	cfg := harnessConfig(server, "")
@@ -1088,7 +1113,7 @@ func TestRealMainHarnessFlags(t *testing.T) {
 
 	stdout.Reset()
 	stderr.Reset()
-	code = realMain(context.Background(), []string{"-list-tests", "npm"}, &stdout, &stderr)
+	code = realMain(context.Background(), []string{"-list-tests", "npm", "package-lock.json"}, &stdout, &stderr)
 	if code != 0 || stdout.String() != "test: npm:all npm-packages\n" {
 		t.Fatalf("exit = %d, stdout = %q, stderr = %q", code, stdout.String(), stderr.String())
 	}

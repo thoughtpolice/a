@@ -46,14 +46,17 @@ const (
 	nugetCaseFilter   = "nuget:all"
 )
 
-func writeTestListing(mode string, stdout io.Writer) {
+// writeTestListing prints the cases for mode. The repository has no npm
+// project of its own, so the npm case is listed only when a package-lock.json
+// was supplied.
+func writeTestListing(cfg config, mode string, stdout io.Writer) {
 	if mode == "all" || mode == "generic" {
 		fmt.Fprintf(stdout, "%s%s %s\n", testLinePrefix, genericCaseFilter, genericCaseName)
 	}
 	if mode == "all" || mode == "rust" {
 		fmt.Fprintf(stdout, "%s%s %s\n", testLinePrefix, rustCaseFilter, rustCaseName)
 	}
-	if mode == "all" || mode == "npm" {
+	if (mode == "all" || mode == "npm") && cfg.npmLockPath != "" {
 		fmt.Fprintf(stdout, "%s%s %s\n", testLinePrefix, npmCaseFilter, npmCaseName)
 	}
 	if mode == "all" || mode == "wolfi" {
@@ -201,7 +204,10 @@ func collectSubjects(ctx context.Context, cfg config, mode string, auditor depen
 		fmt.Fprintf(output, "Loaded %d third-party Rust crates from %s (%d source-less workspace packages skipped).\n", len(rust), cfg.cargoLockPath, skipped)
 		subjects = append(subjects, rust...)
 	}
-	if mode == "all" || mode == "npm" {
+	if mode == "npm" && cfg.npmLockPath == "" {
+		return nil, fmt.Errorf("npm mode needs a package-lock.json from -npm-lock or a trailing argument")
+	}
+	if (mode == "all" || mode == "npm") && cfg.npmLockPath != "" {
 		packages, skips, err := loadPackageLock(cfg.npmLockPath)
 		if err != nil {
 			return nil, err

@@ -3,7 +3,7 @@
 
 // 3p-osv verifies that depot's generic third-party packages have usable OSV
 // metadata and checks those packages, pinned Wolfi APKs, Cargo.lock,
-// nuget.lock, and package-lock.json against osv.dev.
+// nuget.lock, and an optional package-lock.json against osv.dev.
 package main
 
 import (
@@ -61,7 +61,7 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	flags.StringVar(&cfg.buckPath, "buck", "./buck/bin/buck2", "path to the Buck2 dotslash executable")
 	flags.StringVar(&cfg.buckIsolationDir, "buck-isolation-dir", "buck2-3p-osv-tests", "Buck2 isolation directory used for metadata audits")
 	flags.StringVar(&cfg.cargoLockPath, "cargo-lock", "buck/third-party/rust/Cargo.lock", "Cargo.lock to scan")
-	flags.StringVar(&cfg.npmLockPath, "npm-lock", "buck/osv.dev/testdata/package-lock.json", "npm package-lock.json to scan")
+	flags.StringVar(&cfg.npmLockPath, "npm-lock", "", "npm package-lock.json to scan; npm is skipped in all mode when unset")
 	flags.StringVar(&cfg.nugetLockPath, "nuget-lock", "buck/third-party/csharp/nuget.lock", "nuget.lock to scan")
 	flags.IntVar(&cfg.batchSize, "batch-size", 100, "queries per OSV batch")
 	flags.IntVar(&cfg.concurrency, "concurrency", 8, "maximum concurrent OSV requests")
@@ -144,7 +144,7 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		return 2
 	}
 	if listTests {
-		writeTestListing(mode, stdout)
+		writeTestListing(cfg, mode, stdout)
 		return 0
 	}
 

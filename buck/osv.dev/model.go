@@ -195,8 +195,8 @@ var rustExceptions = []exception{
 	},
 }
 
-// npmExceptions accepts advisories against packages in the scanned
-// package-lock.json files. Every entry needs a reason and an exit condition,
+// npmExceptions accepts advisories against packages in a package-lock.json
+// passed with -npm-lock. Every entry needs a reason and an exit condition,
 // the same as the Rust list above.
 var npmExceptions []exception
 
