@@ -220,7 +220,8 @@ def _image(
       <name>-boot-smoke  a docker boot test, unless boot_smoke=False. It
                          requires systemd to reach `running` with no
                          failed units and every unit in boot_smoke_units
-                         active.
+                         active. Without a usable docker it runs the
+                         static image checks and skips the boot.
 
     `ports` become ExposedPorts. exe.dev's proxy forwards to port 80 if it
     is listed, or else the lowest listed port from 1024 up.
@@ -316,21 +317,22 @@ def _image(
     )
 
     if boot_smoke:
-        depot.command_test(
+        # A dynamic test, so a host without docker reports the boot as
+        # skipped after the static checks pass, rather than failing.
+        depot.dynamic_test(
             name = name + "-boot-smoke",
-            cmd = [
-                      "bash",
-                      "$(location {}:boot_smoke.sh)".format(_TOOLS),
-                      "$(exe root//buck/tools/oci:oci)",
-                      _tool("scratch_image"),
-                      "$(location :{})".format(name),
-                      "--image-cmd",
-                      cmd,
-                  ] + policy_args +
-                  (["--userland"] if boot_smoke_userland else []) +
-                  (["--dev"] if boot_smoke_dev else []) +
-                  (["--containers"] if boot_smoke_containers else []) +
-                  boot_smoke_units,
+            dep = _TOOLS + ":boot-smoke",
+            args = [
+                       "$(exe root//buck/tools/oci:oci)",
+                       _tool("scratch_image"),
+                       "$(location :{})".format(name),
+                       "--image-cmd",
+                       cmd,
+                   ] + policy_args +
+                   (["--userland"] if boot_smoke_userland else []) +
+                   (["--dev"] if boot_smoke_dev else []) +
+                   (["--containers"] if boot_smoke_containers else []) +
+                   boot_smoke_units,
         )
 
 minimos = struct(

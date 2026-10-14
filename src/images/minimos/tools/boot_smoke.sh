@@ -23,9 +23,15 @@
 # dev machine, not a hermetic unit test, and a sandbox for trusted build
 # output rather than hostile images.
 #
-# Usage: boot_smoke.sh OCI SCRATCH_IMAGE OCI_LAYOUT --image-cmd CSV
-#        [--base-layer-count N] [--policy FILE]
-#        [--userland] [--dev] [--containers] [EXTRA_UNIT...]
+# Under `buck2 test` the script speaks the shims.dynamic_test protocol
+# (buck/shims/dynamic_test_internal.bzl) with one case, `boot`, so that a
+# host without a usable docker runs the static checks and then reports
+# the boot as skipped. Run plainly, as `buck2 run` does, a missing docker
+# is a failure.
+#
+# Usage: boot_smoke.sh [-list-tests | -run-test] OCI SCRATCH_IMAGE OCI_LAYOUT
+#        --image-cmd CSV [--base-layer-count N] [--policy FILE]
+#        [--userland] [--dev] [--containers] [EXTRA_UNIT...] [boot]
 #
 #   --userland    The image ships an interactive userland on purpose, so
 #                 coreutils and other shells are allowed. Package managers
@@ -38,6 +44,24 @@
 #                 containers.slice.
 
 set -euo pipefail
+
+PROTOCOL=0
+case "${1:-}" in
+    -list-tests)
+        echo "test: boot boot"
+        exit 0
+        ;;
+    -run-test)
+        PROTOCOL=1
+        shift
+        # The runner appends the case's filter last.
+        if [[ $# -eq 0 || "${!#}" != boot ]]; then
+            echo "boot_smoke: expected the filter \`boot\` last" >&2
+            exit 2
+        fi
+        set -- "${@:1:$#-1}"
+        ;;
+esac
 
 OCI="${1:?oci tool binary}"
 VALIDATOR="${2:?scratch_image binary}"
@@ -104,9 +128,6 @@ fail() {
     exit 1
 }
 
-if ! command -v docker >/dev/null 2>&1; then
-    fail "docker is not available"
-fi
 if ! command -v timeout >/dev/null 2>&1; then
     fail "timeout is not available, and this test won't run unbounded"
 fi
@@ -198,6 +219,25 @@ fi
 # ---------------------------------------------------------------------------
 # Boot.
 # ---------------------------------------------------------------------------
+
+DOCKER_PROBLEM=""
+if ! command -v docker >/dev/null 2>&1; then
+    DOCKER_PROBLEM="docker is not installed"
+elif ! DOCKER_INFO=$(timeout --signal=KILL 15s docker info --format '{{.ServerVersion}}' 2>&1); then
+    DOCKER_PROBLEM="docker can't reach its daemon"
+fi
+if [[ -n "$DOCKER_PROBLEM" ]]; then
+    if [[ "$PROTOCOL" -eq 0 ]]; then
+        fail "$DOCKER_PROBLEM" "${DOCKER_INFO:-}"
+    fi
+    echo "result: SKIP boot - $DOCKER_PROBLEM; the static image checks passed"
+    if [[ -n "${DOCKER_INFO:-}" ]]; then
+        while IFS= read -r line; do
+            echo "result-details: $line"
+        done <<<"$DOCKER_INFO"
+    fi
+    exit 0
+fi
 
 echo "boot_smoke: loading $OCI_LAYOUT into docker as $TAG"
 timeout --signal=KILL 90s "$OCI" load --image "$OCI_LAYOUT" --tag "$TAG"

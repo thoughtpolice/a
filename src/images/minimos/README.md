@@ -391,7 +391,9 @@ The macros in `defs.bzl` are the only way in.
 
 `buck2 test //src/images/minimos/...` runs the security tests and a
 docker boot smoke for the base and every example. It needs docker and
-GNU `timeout` on the host.
+GNU `timeout` on the host. Without a docker it can use, the boot smoke
+still runs its static checks and reports the boot as skipped; `buck2
+run` on the same target fails instead.
 
 The boot smoke validates the image and scans its layers before docker
 loads anything. It then boots systemd with a private cgroup namespace,

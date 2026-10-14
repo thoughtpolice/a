@@ -56,11 +56,21 @@ depot.export_file(
     visibility = ["PUBLIC"],
 )
 
+# The runnable behind every minimos.image() boot smoke, which passes the
+# image's own arguments to it.
+depot.command(
+    name = "boot-smoke",
+    cmd = [
+        "bash",
+        "$(location :boot_smoke.sh)",
+    ],
+    visibility = ["PUBLIC"],
+)
+
 depot.export_file(
     name = "boot_smoke.sh",
     src = "boot_smoke.sh",
     mode = "reference",
-    visibility = ["PUBLIC"],
 )
 
 # The tests import the tools as modules, so they land at the root of the
