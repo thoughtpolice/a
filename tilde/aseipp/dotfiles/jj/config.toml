@@ -259,16 +259,6 @@ fold = [ "squash" ]
 "text warning" = { bold = true, fg = "red" }
 
 [template-aliases]
-# Code to hyperlink something for the terminal.
-# FIXME (upstream): should this go upstream?
-'hyperlink(url, text)' = '''
-  concat(
-    raw_escape_sequence("\e]8;;" ++ url ++ "\e\\"),
-    label("text link", text),
-    raw_escape_sequence("\e]8;;\e\\"),
-  )
-'''
-
 # Basic customizations.
 'format_short_signature(signature)' = '"<" ++ if(signature.email(), signature.email(), label("text warning", "NO EMAIL")) ++ ">"'
 'format_timestamp(ts)' = '"[" ++ ts.ago() ++ "]"'
