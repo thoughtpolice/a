@@ -537,6 +537,69 @@ oci_repack(
 )
 
 # ============================================================================
+# Native binaries
+# ============================================================================
+
+shims.cxx_binary(
+    name = "native_hello",
+    srcs = ["hello.c"],
+    target_compatible_with = ["config//cpu:x86_64"],
+)
+
+# The binary's own Nix runtime, copied in.
+shims.oci.native_binary_image(
+    name = "native_hello_image",
+    base = "third-party//oci-images:chainguard_glibc_dynamic_amd64",
+    binary = ":native_hello",
+    destination = "/usr/local/bin/hello",
+    target_compatible_with = ["config//cpu:x86_64"],
+)
+
+# Repointed at the base's glibc instead.
+shims.oci.native_binary_image(
+    name = "native_hello_repointed_image",
+    base = "third-party//oci-images:chainguard_glibc_dynamic_amd64",
+    binary = ":native_hello",
+    destination = "/usr/local/bin/hello",
+    include_nix_store = False,
+    interpreter = "/lib64/ld-linux-x86-64.so.2",
+    rpath = "/usr/lib",
+    target_compatible_with = ["config//cpu:x86_64"],
+)
+
+# The first layer carries a glibc from the Nix store and the second none.
+# Unpacking puts each binary where its interpreter can find it.
+shims.oci.unpack(
+    name = "native_hello_unpacked",
+    image = ":native_hello_image",
+    target_compatible_with = ["config//cpu:x86_64"],
+)
+
+shims.oci.unpack(
+    name = "native_hello_repointed_unpacked",
+    image = ":native_hello_repointed_image",
+    target_compatible_with = ["config//cpu:x86_64"],
+)
+
+shims.command_test(
+    name = "native-binary-layers",
+    script = """
+        nix="$(location :native_hello_unpacked)/rootfs"
+        test -x "$nix/usr/local/bin/hello"
+        ls -d "$nix"/nix/store/*-glibc-* >/dev/null
+        interp="`grep -ao '/nix/store/[a-z0-9]*-glibc-[^/]*/lib/ld-linux-x86-64.so.2' "$nix/usr/local/bin/hello" | head -1`"
+        test -e "$nix$interp"
+
+        repointed="$(location :native_hello_repointed_unpacked)/rootfs"
+        test -x "$repointed/usr/local/bin/hello"
+        test ! -e "$repointed/nix"
+        grep -aq /lib64/ld-linux-x86-64.so.2 "$repointed/usr/local/bin/hello"
+        ! grep -aq /nix/store/ "$repointed/usr/local/bin/hello"
+    """,
+    target_compatible_with = ["config//cpu:x86_64"],
+)
+
+# ============================================================================
 # Every image and index above, checked descriptor by descriptor
 # ============================================================================
 
@@ -580,6 +643,8 @@ LAYOUTS = [
     "test_multiplatform_full",
     "test_repacked",
     "test_repacked_on_base",
+    "native_hello_image",
+    "native_hello_repointed_image",
 ]
 
 shims.command_test(

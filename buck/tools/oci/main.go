@@ -27,17 +27,18 @@ type command struct {
 }
 
 var commands = map[string]command{
-	"archive":  {"write a layout's image as a tar that docker load accepts", runArchive},
-	"image":    {"stack layers and configuration on a base image", runImage},
-	"index":    {"combine single-platform images into one multi-platform index", runIndex},
-	"load":     {"load a layout's image into the docker daemon", runLoad},
-	"pull":     {"copy an image from a registry into a layout", runPull},
-	"push":     {"copy a layout's image to registries, layouts or archives", runPush},
-	"repack":   {"turn a bundle's root filesystem back into an image", runRepack},
-	"smoke":    {"run an image under docker until it logs readiness", runSmoke},
-	"tar":      {"write a reproducible tar of files and directories", runTar},
-	"unpack":   {"apply an image's layers to a root filesystem bundle", runUnpack},
-	"validate": {"check a layout's descriptors, digests and configs", runValidate},
+	"archive":      {"write a layout's image as a tar that docker load accepts", runArchive},
+	"image":        {"stack layers and configuration on a base image", runImage},
+	"index":        {"combine single-platform images into one multi-platform index", runIndex},
+	"load":         {"load a layout's image into the docker daemon", runLoad},
+	"native-layer": {"package a native ELF executable and its Nix runtime as a layer", runNativeLayer},
+	"pull":         {"copy an image from a registry into a layout", runPull},
+	"push":         {"copy a layout's image to registries, layouts or archives", runPush},
+	"repack":       {"turn a bundle's root filesystem back into an image", runRepack},
+	"smoke":        {"run an image under docker until it logs readiness", runSmoke},
+	"tar":          {"write a reproducible tar of files and directories", runTar},
+	"unpack":       {"apply an image's layers to a root filesystem bundle", runUnpack},
+	"validate":     {"check a layout's descriptors, digests and configs", runValidate},
 }
 
 // usageError is reported with the command's usage rather than as a failure.

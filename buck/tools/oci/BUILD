@@ -21,4 +21,7 @@ shims.go_test(
     name = "unit",
     srcs = glob(["*.go"]),
     cgo_enabled = False,
+    env = {
+        "PATCHELF": "$(exe third-party//by-name/pa/patchelf:patchelf)",
+    },
 )

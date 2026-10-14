@@ -33,17 +33,17 @@ def _native_binary_layer_impl(ctx: AnalysisContext) -> list[Provider]:
 
     output = ctx.actions.declare_output(ctx.label.name + ".tar.gz")
     command = cmd_args([
-        ctx.attrs._layer_helper[RunInfo],
+        ctx.attrs._oci_toolchain[OciToolchainInfo].oci[RunInfo],
+        "native-layer",
         "--binary",
         packaged_binary,
         "--output",
         output.as_output(),
         "--destination",
         ctx.attrs.destination,
+        "--include-nix-store={}".format("true" if ctx.attrs.include_nix_store else "false"),
         "--patchelf",
         ctx.attrs._oci_toolchain[OciToolchainInfo].patchelf[RunInfo],
-        "--include-nix-store",
-        "true" if ctx.attrs.include_nix_store else "false",
     ], hidden = [packaged_binary])
     if ctx.attrs.interpreter != None:
         command.add(["--interpreter", ctx.attrs.interpreter])
@@ -87,9 +87,6 @@ native_binary_layer = rule(
             attrs.string(),
             default = None,
             doc = "Replacement ELF RUNPATH for a compatible container base",
-        ),
-        "_layer_helper": attrs.default_only(
-            attrs.exec_dep(default = "//buck/lib/oci/helpers:native_binary_layer"),
         ),
         "_oci_toolchain": attrs.toolchain_dep(
             default = "toolchains//:oci",
