@@ -113,8 +113,8 @@ to the rules like this:
 
 ## Running on exe.dev
 
-Every image has a `-push` target that builds it, pushes it with the
-pinned skopeo, and prints it by digest. Boot the VM from that digest,
+Every image has a `-push` target that builds it, pushes it, and prints
+it by digest. Boot the VM from that digest,
 which exe.dev can't serve stale:
 
 ```
@@ -127,8 +127,8 @@ ssh exe.dev rm minimos-test
 ttl.sh needs no account and deletes an image once its tag's time runs
 out, a day at most. Pushing to the same repository again skips the
 layers it already has. For a registry that needs credentials, log in
-once with `buck2 run depot-toolchains//oci:skopeo -- login <registry>`,
-and give `ssh exe.dev new` the same credentials with `--registry-auth`.
+once with `docker login <registry>` or `podman login <registry>`, and
+give `ssh exe.dev new` the same credentials with `--registry-auth`.
 
 What the platform expects from a custom image:
 

@@ -15,10 +15,9 @@ This module provides comprehensive OCI image support including:
 - Repacking filesystems to images (oci_repack)
 - Multi-platform image indexes (oci_index)
 
-Implementation uses:
-- skopeo for registry pulls and pushes
-- umoci for unpack/repack operations
-- Pure Python for manifest/config manipulation
+Every rule runs the Go tool in buck/tools/oci, which reads and writes
+image layouts and speaks the registry API itself. native_binary_layer also
+runs patchelf, built from source in third-party//by-name/pa/patchelf.
 """
 
 load(":archive.bzl", _oci_archive = "oci_archive")

@@ -8,21 +8,24 @@ Comprehensive OCI (Open Container Initiative) container image support for Buck2.
 - **Build images**: Create images by layering tarballs on base images with full config control
 - **Package native binaries**: Strip and relocate ELF binaries, or carry their exact Nix runtime closure
 - **Export to Docker**: Produce archives accepted directly by `docker load`
-- **Push to registries**: `buck2 run` a push target to copy an image to any registry with skopeo
-- **Smoke-test with Docker**: Import an OCI layout, wait for readiness, and clean up automatically
+- **Push to registries**: `buck2 run` a push target to copy an image to any registry
+- **Smoke-test with Docker**: Load an OCI layout, wait for readiness, and clean up automatically
 - **Unpack/repack images**: Extract image filesystems, modify them, and rebuild images
 - **Multi-platform support**: Build image indexes supporting multiple architectures
-- **Pure implementation**: Core image building uses pure Python OCI spec implementation
-- **Battle-tested tools**: Uses skopeo for registry ops and umoci for filesystem operations
+- **Self-contained**: One Go tool, built from source, does all of it
 
 ## Architecture
 
 ### Tools
 
-- **skopeo** (v1.24.1): Registry pull/push operations
-- **umoci** (v0.6.0): Unpack/repack filesystem bundles
-- **patchelf** (v0.19.1): Repoint native binaries at compatible base runtimes
-- **Pure Python**: Manifest and config manipulation (no external tools)
+- **`buck/tools/oci`**: A Go program, with only the standard library and
+  `golang.org/x`, behind every rule here and `tar_file`. It reads and writes
+  OCI image layouts, speaks the registry HTTP API with token authentication,
+  writes Docker archives, applies layers with whiteouts, and finds a native
+  binary's Nix closure. Run `buck2 run //buck/tools/oci:oci -- help` for its
+  commands.
+- **patchelf** (v0.19.1): Repoints native binaries at compatible base runtimes,
+  built from source in `third-party//by-name/pa/patchelf`.
 
 ### Design Principles
 
@@ -143,7 +146,7 @@ depot.oci.native_binary_image(
 ```
 
 Only use the second form when the base runtime has been validated against the
-toolchain. A statically linked PatchELF is pinned in the OCI toolchain, so this
+toolchain. PatchELF is built from source as part of the OCI toolchain, so this
 mode does not depend on a host package. The `strip` setting accepts `none`,
 `debug` (the default), or `all`.
 
@@ -161,7 +164,9 @@ depot.oci.archive(
 )
 ```
 
-The output can be imported with `docker load -i <output>`. `tag` controls the
+The output can be imported with `docker load -i <output>`. Like `docker save`
+since Docker 25, it is both a legacy Docker archive and an OCI image layout,
+and it holds the image's layers as they are. `tag` controls the
 tag embedded in that archive; `source_tag` selects an existing tag from the OCI
 layout and defaults to `latest`, which is what `oci_image` produces.
 
@@ -189,32 +194,34 @@ buck2 run //path/to:worker-push -- --dry-run ttl.sh/me-worker:1h
 
 Each destination needs an explicit tag. When a push succeeds the target
 prints the image by digest, `ghcr.io/example/worker@sha256:...`, on stdout,
-so a script can capture the exact image it pushed. A destination with a
-skopeo transport prefix, such as `oci:/tmp/out:v1`, is written there instead
-of to a registry.
+so a script can capture the exact image it pushed. `oci:PATH[:TAG]` writes
+into an image layout instead of a registry, and
+`docker-archive:PATH:NAME[:TAG]` writes an archive for `docker load`.
 
-The push stages a private copy of the layout first, hard-linked where
-possible, so rebuilding the image while a push runs can't change what gets
-pushed. An `oci_index` layout, which lists one manifest per platform, is
-wrapped in a single image index and pushed as one multi-platform image.
-skopeo retries failed requests three times (`--retry-times`), and it
-compresses each layer before asking the registry for it, so layers the
-repository already has aren't uploaded again.
+The push opens every blob of the layout before it starts, and checks each
+one's digest as it uploads it, so rebuilding the image while a push runs
+can't change what gets pushed. An `oci_index` layout, which lists one
+manifest per platform, is wrapped in a single image index and pushed as one
+multi-platform image. Failed requests are retried three times
+(`--retry-times`), and a layer the repository already has isn't uploaded
+again.
 
-Credentials come from wherever skopeo looks for them: `REGISTRY_AUTH_FILE`,
-`docker login` state, or `--authfile PATH`. To log in with the pinned
-skopeo itself:
+Credentials come from the files skopeo, podman and docker use, in this
+order: `REGISTRY_AUTH_FILE`, `$XDG_RUNTIME_DIR/containers/auth.json`,
+`~/.config/containers/auth.json`, then `~/.docker/config.json`, whose
+credential helpers work too. `--authfile PATH` replaces them all. Log in
+with whichever you have:
 
 ```bash
-buck2 run depot-toolchains//oci:skopeo -- login ghcr.io
+docker login ghcr.io   # or: podman login ghcr.io
 ```
 
 ### `oci_container_test`
 
 Run an image under Docker and require both a fixed readiness log line and a
-still-running container. The test imports the OCI layout through the pinned
-Skopeo tool and removes its temporary container and tag on normal, failure, and
-SIGTERM exit paths:
+still-running container. The test streams the OCI layout to `docker load`
+and removes its temporary container and tag on normal, failure, and SIGTERM
+exit paths:
 
 ```python
 depot.oci.container_test(
@@ -245,11 +252,19 @@ oci_unpack(
 - `image` (dep): OCI image to unpack
 - `tag` (string): Tag to unpack (default: "latest")
 
-**Output:** OCI runtime bundle directory (contains `rootfs/` and `config.json`)
+**Output:** OCI runtime bundle directory: `rootfs/`, a rootless `config.json`
+for a runtime such as `runc` or `crun`, and `oci-unpack.json`, which records
+each path's original owner and mode for `oci_repack`. The unpack is rootless:
+files belong to the user running the build, device nodes are skipped, and the
+owner can always read every file and enter every directory.
 
 ### `oci_repack`
 
-Repack a modified filesystem bundle back into an OCI image.
+Repack a bundle from `oci_unpack` back into an OCI image. Without `base`, the
+whole root filesystem becomes the image's one layer. With `base`, which has to
+be the image the bundle was unpacked from, the image is the base plus one layer
+of what changed, with whiteouts for removed paths. Paths whose content is
+unchanged keep their recorded owners and modes.
 
 ```python
 load("@buck//lib/oci:defs.bzl", "oci_repack")
@@ -263,7 +278,7 @@ oci_repack(
 
 **Attributes:**
 - `bundle` (dep): Bundle directory (from `oci_unpack` or manual creation)
-- `base` (dep, optional): Base image to repack from
+- `base` (dep, optional): The image the bundle was unpacked from
 - `tag` (string): Tag for output image (default: "latest")
 
 **Output:** OCI image layout directory
@@ -343,17 +358,16 @@ All blobs (manifests, configs, layers) are stored by their SHA256 digest:
 
 ## Testing
 
-Test images can be inspected with standard OCI tools:
+`buck2 test //buck/lib/oci/... //buck/tools/oci/...` runs the tool's unit
+tests, which include a registry served over TLS, and validates every test
+image blob by blob. Images can also be checked and inspected by hand:
 
 ```bash
-# Inspect with skopeo
-skopeo inspect oci:buck-out/v2/.../image
-
-# Inspect with umoci
-umoci stat --image buck-out/v2/.../image:latest
+# Check descriptors, digests and diff IDs
+buck2 run //buck/tools/oci:oci -- validate buck-out/v2/.../image
 
 # Extract and examine
-umoci unpack --image buck-out/v2/.../image:latest bundle
+buck2 run //buck/tools/oci:oci -- unpack --image buck-out/v2/.../image --output bundle
 ls -la bundle/rootfs/
 
 # Build and load a Docker archive
@@ -374,5 +388,5 @@ Possible future additions:
 ## References
 
 - [OCI Image Specification](https://github.com/opencontainers/image-spec)
-- [skopeo](https://github.com/containers/skopeo)
-- [umoci](https://umo.ci/)
+- [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
+- [patchelf](https://github.com/NixOS/patchelf)
