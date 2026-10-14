@@ -71,6 +71,15 @@ for build-system details, [Buck2 workflows](.omp/skills/buck2/SKILL.md), and
   `permissions = ["read", "write", "run", "env"]`).
 - Include `deno.jsonc` and `deno.lock` for dependency management.
 
+### Go
+
+- Use `shims.go_binary()`, `shims.go_library()`, and `shims.go_test()`.
+- Every Go target can import the pinned `golang.org/x` modules (crypto, net,
+  oauth2, sys, term, text, time) with no `deps` entry, like the standard
+  library. Other external modules are not supported. To change a version,
+  edit `buck/toolchains/golang/x/BUILD`, then run
+  `buck2 run toolchains//golang/x:manifest -- -w buck/toolchains/golang/x/packages.bzl`.
+
 ### C++
 
 - Use `depot.cxx_binary()`, `depot.cxx_library()`, and

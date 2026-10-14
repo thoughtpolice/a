@@ -141,9 +141,21 @@ def _depot_rust_test(**kwargs):
             fail("depot.rust_test: local_resources needs the internal test runner (test.use_internal_runner)")
         _depot_rust_rule("rust_test", **kwargs)
 
+# MARK: Go
+
+# The golang.org/x packages the toolchain builds; see
+# buck/toolchains/golang/x/defs.bzl. Every Go target depends on them, so
+# their import paths resolve like the standard library's.
+_GO_X = "toolchains//golang/x:x"
+
+def _go_kwargs(rule_name: str, kwargs):
+    kwargs = _fix_kwargs(rule_name, kwargs)
+    kwargs["deps"] = kwargs.get("deps", []) + [_GO_X]
+    return kwargs
+
 def _depot_go_test(**kwargs):
     """Define a Go test using the configured Buck2 test runner."""
-    kwargs = _fix_kwargs("go_test", kwargs)
+    kwargs = _go_kwargs("go_test", kwargs)
     if _use_internal_test_runner("go"):
         _go_test_internal_rule(**kwargs)
     else:
@@ -532,8 +544,8 @@ shims = struct(
     rust_test = _depot_rust_test,
     ocaml_binary = lambda **kwargs: native.ocaml_binary(**_fix_kwargs("ocaml_binary", kwargs)),
     ocaml_library = lambda **kwargs: native.ocaml_library(**_fix_kwargs("ocaml_library", kwargs)),
-    go_binary = lambda **kwargs: native.go_binary(**_fix_kwargs("go_binary", kwargs)),
-    go_library = lambda **kwargs: native.go_library(**_fix_kwargs("go_library", kwargs)),
+    go_binary = lambda **kwargs: native.go_binary(**_go_kwargs("go_binary", kwargs)),
+    go_library = lambda **kwargs: native.go_library(**_go_kwargs("go_library", kwargs)),
     go_test = _depot_go_test,
     erlang_app = lambda **kwargs: native.erlang_app(**_fix_kwargs("erlang_app", kwargs)),
     erlang_test = lambda **kwargs: native.erlang_test(**_fix_kwargs("erlang_test", kwargs)),
