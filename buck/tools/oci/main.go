@@ -33,8 +33,10 @@ var commands = map[string]command{
 	"load":     {"load a layout's image into the docker daemon", runLoad},
 	"pull":     {"copy an image from a registry into a layout", runPull},
 	"push":     {"copy a layout's image to registries, layouts or archives", runPush},
+	"repack":   {"turn a bundle's root filesystem back into an image", runRepack},
 	"smoke":    {"run an image under docker until it logs readiness", runSmoke},
 	"tar":      {"write a reproducible tar of files and directories", runTar},
+	"unpack":   {"apply an image's layers to a root filesystem bundle", runUnpack},
 	"validate": {"check a layout's descriptors, digests and configs", runValidate},
 }
 

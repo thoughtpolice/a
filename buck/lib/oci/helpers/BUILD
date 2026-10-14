@@ -6,18 +6,6 @@ load("@root//buck/shims:shims.bzl", "shims")
 # OCI image manipulation helpers
 
 shims.python_binary(
-    name = "oci_unpack",
-    main = "oci_unpack.py",
-    visibility = ["PUBLIC"],
-)
-
-shims.python_binary(
-    name = "oci_repack",
-    main = "oci_repack.py",
-    visibility = ["PUBLIC"],
-)
-
-shims.python_binary(
     name = "native_binary_layer",
     main = "native_binary_layer.py",
     visibility = ["PUBLIC"],

@@ -5,13 +5,9 @@ load(":toolchain.bzl", "OciToolchainInfo")
 
 def _oci_unpack_impl(ctx: AnalysisContext) -> list[Provider]:
     """
-    Unpack an OCI image to a filesystem bundle using umoci.
-    Returns a directory containing the unpacked filesystem.
+    Unpack an OCI image to a runtime bundle: rootfs/ and config.json.
     """
     output = ctx.actions.declare_output(ctx.label.name, dir = True)
-
-    # Get umoci from toolchain
-    umoci = ctx.attrs._oci_toolchain[OciToolchainInfo].umoci[RunInfo]
 
     # Get image
     image = ctx.attrs.image[DefaultInfo].default_outputs[0]
@@ -19,9 +15,8 @@ def _oci_unpack_impl(ctx: AnalysisContext) -> list[Provider]:
     # Build command
     cmd = cmd_args(
         [
-            ctx.attrs._unpack_helper[RunInfo],
-            "--umoci",
-            umoci,
+            ctx.attrs._oci_toolchain[OciToolchainInfo].oci[RunInfo],
+            "unpack",
             "--image",
             image,
             "--tag",
@@ -50,9 +45,6 @@ oci_unpack = rule(
         "tag": attrs.string(
             default = "latest",
             doc = "Tag to unpack",
-        ),
-        "_unpack_helper": attrs.default_only(
-            attrs.exec_dep(default = "//buck/lib/oci/helpers:oci_unpack"),
         ),
         "_oci_toolchain": attrs.toolchain_dep(
             default = "toolchains//:oci",

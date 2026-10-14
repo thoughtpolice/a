@@ -13,6 +13,8 @@ oci_unpack = shims.oci.unpack
 
 oci_index = shims.oci.index
 
+oci_repack = shims.oci.repack
+
 oci_archive = shims.oci.archive
 
 tar_file = shims.tar_file
@@ -514,22 +516,25 @@ oci_index(
 # Repack workflow tests
 # ============================================================================
 
-# TODO: Fix repack tests - umoci needs source image blobs
-# Commented out for now
+oci_unpack(
+    name = "test_for_repack_unpacked",
+    image = ":test_complete_app",
+    tag = "latest",
+)
 
-# load("@root//buck/lib/oci:defs.bzl", "oci_repack")
-#
-# oci_unpack(
-#     name = "test_for_repack_unpacked",
-#     image = ":test_complete_app",
-#     tag = "latest",
-# )
-#
-# oci_repack(
-#     name = "test_repacked",
-#     bundle = ":test_for_repack_unpacked",
-#     tag = "repacked",
-# )
+# The whole root filesystem as one layer.
+oci_repack(
+    name = "test_repacked",
+    bundle = ":test_for_repack_unpacked",
+    tag = "repacked",
+)
+
+# On the image it came from, with nothing changed, so no layer is added.
+oci_repack(
+    name = "test_repacked_on_base",
+    base = ":test_complete_app",
+    bundle = ":test_for_repack_unpacked",
+)
 
 # ============================================================================
 # Every image and index above, checked descriptor by descriptor
@@ -573,6 +578,8 @@ LAYOUTS = [
     "test_platform_specific_amd64",
     "test_platform_specific_arm64",
     "test_multiplatform_full",
+    "test_repacked",
+    "test_repacked_on_base",
 ]
 
 shims.command_test(
