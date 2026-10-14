@@ -345,23 +345,6 @@ def _command(**kwargs):
     kwargs = _fix_kwargs("command", kwargs)
     _command_rule(**kwargs)
 
-# Every path in the repository, for `ci_srcs` on tests that read the whole tree
-# rather than a declared set of sources.
-#
-# The dot forms are not redundant. The target determinator compiles `ci_srcs`
-# with Rust glob semantics, in which a wildcard never matches a path component
-# beginning with '.', so a bare "**" silently misses .github/, .claude/,
-# .buckconfig and buck/.gitattributes. A path with two dot-leading components
-# is still unmatched; the three in the repository today are all file types the
-# whitespace and SPDX checks already exclude.
-CI_SRCS_ANY_PATH = [
-    "**",
-    ".*",
-    ".*/**",
-    "**/.*",
-    "**/.*/**",
-]
-
 def _run_test_impl(ctx: AnalysisContext) -> list[Provider]:
     command = [ctx.attrs.dep[RunInfo].args] + ctx.attrs.args
     return [
@@ -653,7 +636,6 @@ shims = struct(
     lint_files = _srclint.lint_files,
     lint_package = _srclint.lint_package,
     run_test = _run_test,
-    ci_srcs_any_path = CI_SRCS_ANY_PATH,
     dynamic_test = _depot_dynamic_test,
     filecheck = struct(
         test = _depot_filecheck_test,
