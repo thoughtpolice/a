@@ -1,6 +1,7 @@
 vendor = false
 precise_srcs = true
 include_top_level = true
+third_party_metadata = true
 
 [buck]
 file_name = "BUILD"

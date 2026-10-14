@@ -51,6 +51,13 @@ third_party_rust.rust_library(
         "lazy_static",
         "regex",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "Inflector",
+            "version": "0.11.4",
+            "licenses": ["BSD-2-Clause"],
+        },
+    },
     visibility = [],
     deps = [
         ":lazy_static-1",
@@ -73,6 +80,13 @@ third_party_rust.rust_library(
     crate_root = "acto-0.8.2.crate/src/lib.rs",
     edition = "2021",
     features = ["tokio"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "acto",
+            "version": "0.8.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":parking_lot-0.12",
@@ -98,6 +112,13 @@ third_party_rust.rust_library(
     crate = "adler2",
     crate_root = "adler2-2.0.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "adler2",
+            "version": "2.0.1",
+            "licenses": ["0BSD OR MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -115,6 +136,13 @@ third_party_rust.rust_library(
     crate = "aead",
     crate_root = "aead-0.5.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "aead",
+            "version": "0.5.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":crypto-common-0.1",
@@ -136,6 +164,13 @@ third_party_rust.rust_library(
     crate = "aes",
     crate_root = "aes-0.8.4.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "aes",
+            "version": "0.8.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -159,6 +194,13 @@ third_party_rust.rust_library(
     crate_root = "aes-gcm-0.10.3.crate/src/lib.rs",
     edition = "2021",
     features = ["aes"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "aes-gcm",
+            "version": "0.10.3",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":aead-0.5",
@@ -190,6 +232,13 @@ third_party_rust.rust_library(
         "runtime-rng",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ahash",
+            "version": "0.8.12",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -218,6 +267,13 @@ third_party_rust.rust_library(
         "perf-literal",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "aho-corasick",
+            "version": "1.1.5",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":memchr-2"],
 )
@@ -240,6 +296,13 @@ third_party_rust.rust_library(
         "alloc",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "aliasable",
+            "version": "0.1.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -257,6 +320,13 @@ third_party_rust.rust_library(
     crate = "alloc_no_stdlib",
     crate_root = "alloc-no-stdlib-3.0.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "alloc-no-stdlib",
+            "version": "3.0.0",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     visibility = [],
 )
 
@@ -274,6 +344,13 @@ third_party_rust.rust_library(
     crate = "alloc_stdlib",
     crate_root = "alloc-stdlib-0.3.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "alloc-stdlib",
+            "version": "0.3.0",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     visibility = [],
     deps = [":alloc-no-stdlib-3"],
 )
@@ -289,6 +366,14 @@ third_party_rust.rust_library(
         "hashbrown",
         "num-bigint",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "allocative",
+            "namespace": "facebook",
+            "version": "0.3.4",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":allocative_derive-0.3",
@@ -305,6 +390,14 @@ third_party_rust.rust_library(
     crate = "allocative_derive",
     crate_root = "starlark-rust-a9d911d33fd77ff2/allocative/allocative_derive/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "allocative_derive",
+            "namespace": "facebook",
+            "version": "0.3.3",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -333,6 +426,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "allocator-api2",
+            "version": "0.2.21",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -351,6 +451,13 @@ third_party_rust.rust_library(
     crate_root = "annotate-snippets-0.9.2.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "annotate-snippets",
+            "version": "0.9.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":unicode-width-0.1"],
 )
@@ -374,6 +481,13 @@ third_party_rust.rust_library(
         "simd",
         "zero-copy",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ansi-to-tui",
+            "version": "8.0.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":nom-8",
@@ -403,6 +517,13 @@ third_party_rust.rust_library(
         "default",
         "wincon",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "anstream",
+            "version": "1.0.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":anstyle-wincon-3"],
@@ -440,6 +561,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "anstyle",
+            "version": "1.0.14",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -461,6 +589,13 @@ third_party_rust.rust_library(
         "default",
         "utf8",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "anstyle-parse",
+            "version": "1.0.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":utf8parse-0.2"],
 )
@@ -479,6 +614,13 @@ third_party_rust.rust_library(
     crate = "anstyle_query",
     crate_root = "anstyle-query-1.1.5.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "anstyle-query",
+            "version": "1.1.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":windows-sys-0.61"],
@@ -504,6 +646,13 @@ third_party_rust.rust_library(
     crate = "anstyle_wincon",
     crate_root = "anstyle-wincon-3.0.11.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "anstyle-wincon",
+            "version": "3.0.11",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":anstyle-1",
@@ -536,6 +685,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "anyhow",
+            "version": "1.0.104",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -553,6 +709,13 @@ third_party_rust.rust_library(
     crate = "ar_archive_writer",
     crate_root = "ar_archive_writer-0.5.3.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "ar_archive_writer",
+            "version": "0.5.3",
+            "licenses": ["Apache-2.0 WITH LLVM-exception"],
+        },
+    },
     visibility = [],
     deps = [":object-0.39"],
 )
@@ -581,6 +744,13 @@ third_party_rust.rust_library(
         "derive",
         "derive_arbitrary",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "arbitrary",
+            "version": "1.4.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":derive_arbitrary-1"],
 )
@@ -599,6 +769,13 @@ third_party_rust.rust_library(
     crate = "arc_swap",
     crate_root = "arc-swap-1.9.2.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "arc-swap",
+            "version": "1.9.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":rustversion-1"],
 )
@@ -628,6 +805,13 @@ third_party_rust.rust_library(
         "help",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "argh",
+            "version": "0.1.19",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     visibility = [],
     deps = [
         ":argh_derive-0.1",
@@ -650,6 +834,13 @@ third_party_rust.rust_library(
     crate_root = "argh_derive-0.1.19.crate/src/lib.rs",
     edition = "2018",
     features = ["help"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "argh_derive",
+            "version": "0.1.19",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -675,6 +866,13 @@ third_party_rust.rust_library(
     crate_root = "argh_shared-0.1.19.crate/src/lib.rs",
     edition = "2018",
     features = ["serde"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "argh_shared",
+            "version": "0.1.19",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     visibility = [],
     deps = [":serde-1"],
 )
@@ -699,6 +897,13 @@ third_party_rust.rust_library(
     crate = "ariadne",
     crate_root = "ariadne-0.6.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "ariadne",
+            "version": "0.6.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":unicode-width-0.2",
@@ -724,6 +929,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "arrayvec",
+            "version": "0.5.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -745,6 +957,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "arrayvec",
+            "version": "0.7.8",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -762,6 +981,13 @@ third_party_rust.rust_library(
     crate = "ascii_canvas",
     crate_root = "ascii-canvas-3.0.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "ascii-canvas",
+            "version": "3.0.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":term-0.7"],
 )
@@ -780,6 +1006,13 @@ third_party_rust.rust_library(
     crate = "ascii_canvas",
     crate_root = "ascii-canvas-4.0.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "ascii-canvas",
+            "version": "4.0.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":term-1"],
 )
@@ -802,6 +1035,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "async-channel",
+            "version": "2.5.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":concurrent-queue-2",
@@ -831,6 +1071,13 @@ third_party_rust.rust_library(
     crate = "async_stream",
     crate_root = "async-stream-0.3.6.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "async-stream",
+            "version": "0.3.6",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":async-stream-impl-0.3",
@@ -853,6 +1100,13 @@ third_party_rust.rust_library(
     crate = "async_stream_impl",
     crate_root = "async-stream-impl-0.3.6.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "async-stream-impl",
+            "version": "0.3.6",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -882,6 +1136,13 @@ third_party_rust.rust_library(
     crate = "async_trait",
     crate_root = "async-trait-0.1.92.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "async-trait",
+            "version": "0.1.92",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -912,6 +1173,13 @@ third_party_rust.rust_library(
         "mutex",
         "oneshot",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "asyncband",
+            "version": "0.7.2",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -929,6 +1197,13 @@ third_party_rust.rust_library(
     crate = "atoi",
     crate_root = "atoi-3.1.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "atoi",
+            "version": "3.1.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":num-traits-0.2"],
 )
@@ -951,6 +1226,13 @@ third_party_rust.rust_library(
         "default",
         "fallback",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "atomic",
+            "version": "0.6.1",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":bytemuck-1"],
 )
@@ -969,6 +1251,13 @@ third_party_rust.rust_library(
     crate = "atomic_waker",
     crate_root = "atomic-waker-1.1.2.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "atomic-waker",
+            "version": "1.1.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -1003,6 +1292,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "attohttpc",
+            "version": "0.30.1",
+            "licenses": ["MPL-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":base64-0.22",
@@ -1026,6 +1322,13 @@ third_party_rust.rust_library(
     crate = "autocfg",
     crate_root = "autocfg-1.5.1.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "autocfg",
+            "version": "1.5.1",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -1043,6 +1346,13 @@ third_party_rust.rust_library(
     crate = "axum",
     crate_root = "axum-0.8.9.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "axum",
+            "version": "0.8.9",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":axum-core-0.5",
@@ -1079,6 +1389,13 @@ third_party_rust.rust_library(
     crate = "axum_core",
     crate_root = "axum-core-0.5.6.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "axum-core",
+            "version": "0.5.6",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bytes-1",
@@ -1116,6 +1433,13 @@ third_party_rust.rust_library(
         "tokio",
         "tokio-sleep",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "backon",
+            "version": "1.6.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":fastrand-2",
@@ -1144,6 +1468,13 @@ third_party_rust.rust_library(
         "tokio_fsm",
         "validate",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "bao-tree",
+            "version": "0.16.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":blake3-1",
@@ -1174,6 +1505,13 @@ third_party_rust.rust_library(
     crate = "base16ct",
     crate_root = "base16ct-1.0.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "base16ct",
+            "version": "1.0.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -1202,6 +1540,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "base64",
+            "version": "0.22.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -1225,6 +1570,13 @@ third_party_rust.rust_library(
         "simd-unsafe",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "base64",
+            "version": "0.23.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -1248,6 +1600,13 @@ third_party_rust.rust_library(
         "detect",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "base64-simd",
+            "version": "0.8.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":outref-0.5",
@@ -1270,6 +1629,13 @@ third_party_rust.rust_library(
     crate_root = "base64ct-1.8.3.crate/src/lib.rs",
     edition = "2024",
     features = ["alloc"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "base64ct",
+            "version": "1.8.3",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -1288,6 +1654,13 @@ third_party_rust.rust_library(
     crate_root = "beef-0.5.2.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "beef",
+            "version": "0.5.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -1305,6 +1678,13 @@ third_party_rust.rust_library(
     crate = "binary_merge",
     crate_root = "binary-merge-0.1.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "binary-merge",
+            "version": "0.1.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -1322,6 +1702,13 @@ third_party_rust.rust_library(
     crate = "bincode",
     crate_root = "bincode-1.3.3.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "bincode",
+            "version": "1.3.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":serde-1"],
 )
@@ -1344,6 +1731,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "bit-set",
+            "version": "0.5.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":bit-vec-0.6"],
 )
@@ -1362,6 +1756,13 @@ third_party_rust.rust_library(
     crate = "bit_set",
     crate_root = "bit-set-0.8.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "bit-set",
+            "version": "0.8.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":bit-vec-0.8"],
 )
@@ -1381,6 +1782,13 @@ third_party_rust.rust_library(
     crate_root = "bit-vec-0.6.3.crate/src/lib.rs",
     edition = "2015",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "bit-vec",
+            "version": "0.6.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -1398,6 +1806,13 @@ third_party_rust.rust_library(
     crate = "bit_vec",
     crate_root = "bit-vec-0.8.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "bit-vec",
+            "version": "0.8.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -1416,6 +1831,13 @@ third_party_rust.rust_library(
     crate_root = "bitflags-1.3.2.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "bitflags",
+            "version": "1.3.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -1443,6 +1865,13 @@ third_party_rust.rust_library(
         "serde",
         "serde_core",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "bitflags",
+            "version": "2.13.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":serde_core-1"],
 )
@@ -1465,6 +1894,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "bitmaps",
+            "version": "2.1.0",
+            "licenses": ["MPL-2.0+"],
+        },
+    },
     visibility = [],
     deps = [":typenum-1"],
 )
@@ -1487,6 +1923,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "blake2",
+            "version": "0.10.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":digest-0.10"],
 )
@@ -1535,6 +1978,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "blake3",
+            "version": "1.8.7",
+            "licenses": ["CC0-1.0 OR Apache-2.0 OR Apache-2.0 WITH LLVM-exception"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             rustc_flags = ["--cfg=blake3_neon"],
@@ -1609,6 +2059,13 @@ third_party_rust.cxx_library(
         ":blake3-1.8.7.crate[c/blake3.h]",
         ":blake3-1.8.7.crate[c/blake3_impl.h]",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "blake3",
+            "version": "1.8.7",
+            "licenses": ["CC0-1.0 OR Apache-2.0 OR Apache-2.0 WITH LLVM-exception"],
+        },
+    },
     preprocessor_flags = ["-I$(location :blake3-1.8.7.crate)/c"],
     visibility = [],
 )
@@ -1636,6 +2093,13 @@ third_party_rust.cxx_library(
         ":blake3-1.8.7.crate[c/blake3.h]",
         ":blake3-1.8.7.crate[c/blake3_impl.h]",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "blake3",
+            "version": "1.8.7",
+            "licenses": ["CC0-1.0 OR Apache-2.0 OR Apache-2.0 WITH LLVM-exception"],
+        },
+    },
     preprocessor_flags = ["-I$(location :blake3-1.8.7.crate)/c"],
     visibility = [],
 )
@@ -1660,6 +2124,13 @@ third_party_rust.cxx_library(
         ":blake3-1.8.7.crate[c/blake3.h]",
         ":blake3-1.8.7.crate[c/blake3_impl.h]",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "blake3",
+            "version": "1.8.7",
+            "licenses": ["CC0-1.0 OR Apache-2.0 OR Apache-2.0 WITH LLVM-exception"],
+        },
+    },
     preprocessor_flags = ["-I$(location :blake3-1.8.7.crate)/c"],
     visibility = [],
 )
@@ -1680,6 +2151,13 @@ third_party_rust.cxx_library(
         ":blake3-1.8.7.crate[c/blake3.h]",
         ":blake3-1.8.7.crate[c/blake3_impl.h]",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "blake3",
+            "version": "1.8.7",
+            "licenses": ["CC0-1.0 OR Apache-2.0 OR Apache-2.0 WITH LLVM-exception"],
+        },
+    },
     preprocessor_flags = ["-I$(location :blake3-1.8.7.crate)/c"],
     visibility = [],
 )
@@ -1708,6 +2186,13 @@ third_party_rust.rust_library(
         "dwarf",
         "zlib",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "blazesym",
+            "version": "0.2.6",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     rustc_flags = ["@$(location :blazesym-0.2-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -1735,6 +2220,13 @@ third_party_rust.rust_binary(
         "dwarf",
         "zlib",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "blazesym",
+            "version": "0.2.6",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     visibility = [],
 )
 
@@ -1766,6 +2258,13 @@ third_party_rust.rust_library(
     crate = "block_buffer",
     crate_root = "block-buffer-0.10.4.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "block-buffer",
+            "version": "0.10.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":generic-array-0.14"],
 )
@@ -1784,6 +2283,13 @@ third_party_rust.rust_library(
     crate = "block_buffer",
     crate_root = "block-buffer-0.12.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "block-buffer",
+            "version": "0.12.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":hybrid-array-0.4"],
 )
@@ -1803,6 +2309,13 @@ third_party_rust.rust_library(
     crate_root = "block2-0.6.2.crate/src/lib.rs",
     edition = "2021",
     features = ["alloc"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "block2",
+            "version": "0.6.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":objc2-0.6"],
 )
@@ -1826,6 +2339,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "bon",
+            "version": "3.10.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":bon-macros-3"],
 )
@@ -1849,6 +2369,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "bon-macros",
+            "version": "3.10.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -1875,6 +2402,13 @@ third_party_rust.rust_library(
     crate = "boxcar",
     crate_root = "boxcar-0.2.14.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "boxcar",
+            "version": "0.2.14",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -1903,6 +2437,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "brotli",
+            "version": "9.0.0",
+            "licenses": ["BSD-3-Clause AND MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":alloc-no-stdlib-3",
@@ -1929,6 +2470,13 @@ third_party_rust.rust_library(
         "alloc-stdlib",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "brotli-decompressor",
+            "version": "6.0.0",
+            "licenses": ["BSD-3-Clause OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":alloc-no-stdlib-3",
@@ -1957,6 +2505,13 @@ third_party_rust.rust_library(
         "std",
         "unicode",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "bstr",
+            "version": "1.13.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":memchr-2",
@@ -1985,6 +2540,13 @@ third_party_rust.rust_library(
     crate = "buck_resources",
     crate_root = "buck-resources-1.0.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "buck-resources",
+            "version": "1.0.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":dunce-1",
@@ -2010,6 +2572,13 @@ third_party_rust.rust_library(
     crate_root = "bumpalo-3.20.3.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "bumpalo",
+            "version": "3.20.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -2027,6 +2596,13 @@ third_party_rust.rust_library(
     crate = "bytemuck",
     crate_root = "bytemuck-1.25.2.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "bytemuck",
+            "version": "1.25.2",
+            "licenses": ["Zlib OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -2048,6 +2624,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "byteorder",
+            "version": "1.5.0",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -2069,6 +2652,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "byteorder-lite",
+            "version": "0.1.0",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -2097,6 +2687,13 @@ third_party_rust.rust_library(
         "serde",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "bytes",
+            "version": "1.12.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":serde-1"],
 )
@@ -2115,6 +2712,13 @@ third_party_rust.rust_library(
     crate = "bytestring",
     crate_root = "bytestring-1.5.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "bytestring",
+            "version": "1.5.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":bytes-1"],
 )
@@ -2134,6 +2738,13 @@ third_party_rust.rust_library(
     crate_root = "byteview-0.10.2.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "byteview",
+            "version": "0.10.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -2151,6 +2762,13 @@ third_party_rust.rust_library(
     crate = "c_enum",
     crate_root = "c-enum-0.2.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "c-enum",
+            "version": "0.2.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -2179,6 +2797,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "capnp",
+            "version": "0.27.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -2202,6 +2827,13 @@ third_party_rust.rust_library(
     crate = "capnp_futures",
     crate_root = "capnp-futures-0.27.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "capnp-futures",
+            "version": "0.27.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":capnp-0.27",
@@ -2230,6 +2862,13 @@ third_party_rust.rust_library(
     crate = "capnp_rpc",
     crate_root = "capnp-rpc-0.27.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "capnp-rpc",
+            "version": "0.27.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":capnp-0.27",
@@ -2275,6 +2914,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "capnpc",
+            "version": "0.27.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":capnp-0.27"],
 )
@@ -2293,6 +2939,13 @@ third_party_rust.rust_library(
     crate = "cassowary",
     crate_root = "cassowary-0.3.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "cassowary",
+            "version": "0.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -2311,6 +2964,13 @@ third_party_rust.rust_library(
     crate_root = "castaway-0.2.4.crate/src/lib.rs",
     edition = "2018",
     features = ["alloc"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "castaway",
+            "version": "0.2.4",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":rustversion-1"],
 )
@@ -2330,6 +2990,13 @@ third_party_rust.rust_library(
     crate_root = "cc-1.4.7.crate/src/lib.rs",
     edition = "2021",
     features = ["parallel"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "cc",
+            "version": "1.4.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -2396,6 +3063,13 @@ third_party_rust.rust_library(
         "default",
         "ipaddr",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "cedar-policy",
+            "version": "4.13.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :cedar-policy-4-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -2444,6 +3118,13 @@ third_party_rust.rust_binary(
         "default",
         "ipaddr",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "cedar-policy",
+            "version": "4.13.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -2510,6 +3191,13 @@ third_party_rust.rust_library(
         "default",
         "ipaddr",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "cedar-policy-core",
+            "version": "4.13.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :cedar-policy-core-4-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -2564,6 +3252,13 @@ third_party_rust.rust_binary(
         "default",
         "ipaddr",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "cedar-policy-core",
+            "version": "4.13.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":lalrpop-0.22"],
 )
@@ -2607,6 +3302,13 @@ third_party_rust.rust_library(
     crate = "cedar_policy_formatter",
     crate_root = "cedar-policy-formatter-4.13.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "cedar-policy-formatter",
+            "version": "4.13.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":cedar-policy-core-4",
@@ -2633,6 +3335,13 @@ third_party_rust.rust_library(
     crate = "cfg_if",
     crate_root = "cfg-if-1.0.5.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "cfg-if",
+            "version": "1.0.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -2650,6 +3359,13 @@ third_party_rust.rust_library(
     crate = "cfg_aliases",
     crate_root = "cfg_aliases-0.1.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "cfg_aliases",
+            "version": "0.1.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -2667,6 +3383,13 @@ third_party_rust.rust_library(
     crate = "cfg_aliases",
     crate_root = "cfg_aliases-0.2.2.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "cfg_aliases",
+            "version": "0.2.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -2685,6 +3408,13 @@ third_party_rust.rust_library(
     crate_root = "chacha20-0.10.2.crate/src/lib.rs",
     edition = "2024",
     features = ["rng"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "chacha20",
+            "version": "0.10.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-x86_64": dict(
             deps = [":cpufeatures-0.3"],
@@ -2741,6 +3471,13 @@ third_party_rust.rust_library(
         "winapi",
         "windows-link",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "chrono",
+            "version": "0.4.45",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":iana-time-zone-0.1"],
@@ -2798,6 +3535,13 @@ third_party_rust.rust_library(
         "stacker",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "chumsky",
+            "version": "0.13.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":either-1",
@@ -2824,6 +3568,13 @@ third_party_rust.rust_library(
     crate = "cipher",
     crate_root = "cipher-0.4.4.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "cipher",
+            "version": "0.4.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":crypto-common-0.1",
@@ -2866,6 +3617,13 @@ third_party_rust.rust_library(
         "usage",
         "wrap_help",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "clap",
+            "version": "4.6.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":clap_builder-4",
@@ -2887,6 +3645,13 @@ third_party_rust.rust_library(
     crate = "clap_markdown",
     crate_root = "clap-markdown-0.1.5.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "clap-markdown",
+            "version": "0.1.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":clap-4"],
 )
@@ -2918,6 +3683,13 @@ third_party_rust.rust_library(
         "usage",
         "wrap_help",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "clap_builder",
+            "version": "4.6.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":anstream-1",
@@ -2946,6 +3718,13 @@ third_party_rust.rust_library(
         "default",
         "unstable-dynamic",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "clap_complete",
+            "version": "4.6.11",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":clap-4",
@@ -2970,6 +3749,13 @@ third_party_rust.rust_library(
     crate_root = "clap_complete_nushell-4.6.2.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "clap_complete_nushell",
+            "version": "4.6.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":clap-4",
@@ -2995,6 +3781,13 @@ third_party_rust.rust_library(
         "default",
         "deprecated",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "clap_derive",
+            "version": "4.6.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -3019,6 +3812,13 @@ third_party_rust.rust_library(
     crate = "clap_lex",
     crate_root = "clap_lex-1.1.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "clap_lex",
+            "version": "1.1.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -3037,6 +3837,13 @@ third_party_rust.rust_library(
     crate_root = "clap_mangen-0.3.3.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "clap_mangen",
+            "version": "0.3.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":clap-4",
@@ -3058,6 +3865,13 @@ third_party_rust.rust_library(
     crate = "clipboard_win",
     crate_root = "clipboard-win-5.4.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "clipboard-win",
+            "version": "5.4.1",
+            "licenses": ["BSL-1.0"],
+        },
+    },
     visibility = [],
     deps = [":error-code-3"],
 )
@@ -3076,6 +3890,13 @@ third_party_rust.rust_library(
     crate = "clru",
     crate_root = "clru-0.6.3.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "clru",
+            "version": "0.6.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":hashbrown-0.16"],
 )
@@ -3094,6 +3915,13 @@ third_party_rust.rust_library(
     crate = "cmov",
     crate_root = "cmov-0.5.4.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "cmov",
+            "version": "0.5.4",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -3103,6 +3931,14 @@ third_party_rust.rust_library(
     crate = "cmp_any",
     crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/cmp_any/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "cmp_any",
+            "namespace": "facebook",
+            "version": "0.8.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -3120,6 +3956,13 @@ third_party_rust.rust_library(
     crate = "cobs",
     crate_root = "cobs-0.3.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "cobs",
+            "version": "0.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":thiserror-2"],
 )
@@ -3138,6 +3981,13 @@ third_party_rust.rust_library(
     crate = "colorchoice",
     crate_root = "colorchoice-1.0.5.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "colorchoice",
+            "version": "1.0.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -3156,6 +4006,13 @@ third_party_rust.rust_library(
     crate_root = "compact_str-0.9.1.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "compact_str",
+            "version": "0.9.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":castaway-0.2",
@@ -3181,6 +4038,13 @@ third_party_rust.rust_library(
     crate = "compare",
     crate_root = "compare-0.0.6.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "compare",
+            "version": "0.0.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -3199,6 +4063,13 @@ third_party_rust.rust_library(
     crate_root = "concurrent-queue-2.5.0.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "concurrent-queue",
+            "version": "2.5.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":crossbeam-utils-0.8"],
 )
@@ -3221,6 +4092,13 @@ third_party_rust.rust_library(
         "alloc",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "console",
+            "version": "0.16.6",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [
@@ -3254,6 +4132,13 @@ third_party_rust.rust_library(
     crate_root = "console-api-0.9.0.crate/src/lib.rs",
     edition = "2021",
     features = ["transport"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "console-api",
+            "version": "0.9.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":futures-core-0.3",
@@ -3289,6 +4174,13 @@ third_party_rust.rust_library(
         "default",
         "env-filter",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "console-subscriber",
+            "version": "0.5.0",
+            "licenses": ["MIT"],
+        },
+    },
     rustc_flags = ["--cfg=tokio_unstable"],
     visibility = [],
     deps = [
@@ -3327,6 +4219,13 @@ third_party_rust.rust_library(
     crate = "const_oid",
     crate_root = "const-oid-0.10.2.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "const-oid",
+            "version": "0.10.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -3348,6 +4247,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "constant_time_eq",
+            "version": "0.4.2",
+            "licenses": ["CC0-1.0 OR MIT-0 OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -3365,6 +4271,13 @@ third_party_rust.rust_library(
     crate = "convert_case",
     crate_root = "convert_case-0.6.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "convert_case",
+            "version": "0.6.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":unicode-segmentation-1"],
 )
@@ -3383,6 +4296,13 @@ third_party_rust.rust_library(
     crate = "convert_case",
     crate_root = "convert_case-0.10.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "convert_case",
+            "version": "0.10.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":unicode-segmentation-1"],
 )
@@ -3402,6 +4322,13 @@ third_party_rust.rust_library(
     crate_root = "cordyceps-0.3.5.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "cordyceps",
+            "version": "0.3.5",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -3423,6 +4350,13 @@ third_party_rust.rust_library(
         "default",
         "link",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "core-foundation",
+            "version": "0.9.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":core-foundation-sys-0.8",
@@ -3448,6 +4382,13 @@ third_party_rust.rust_library(
         "default",
         "link",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "core-foundation",
+            "version": "0.10.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":core-foundation-sys-0.8",
@@ -3473,6 +4414,13 @@ third_party_rust.rust_library(
         "default",
         "link",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "core-foundation-sys",
+            "version": "0.8.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -3490,6 +4438,13 @@ third_party_rust.rust_library(
     crate = "core_affinity",
     crate_root = "core_affinity-0.8.3.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "core_affinity",
+            "version": "0.8.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":libc-0.2",
@@ -3512,6 +4467,13 @@ third_party_rust.rust_library(
     crate_root = "core_detect-1.0.0.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "core_detect",
+            "version": "1.0.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -3534,6 +4496,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "cpp_demangle",
+            "version": "0.5.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":cfg-if-1"],
 )
@@ -3552,6 +4521,13 @@ third_party_rust.rust_library(
     crate = "cpufeatures",
     crate_root = "cpufeatures-0.2.17.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "cpufeatures",
+            "version": "0.2.17",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -3577,6 +4553,13 @@ third_party_rust.rust_library(
     crate = "cpufeatures",
     crate_root = "cpufeatures-0.3.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "cpufeatures",
+            "version": "0.3.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -3602,6 +4585,13 @@ third_party_rust.rust_library(
     crate = "crc",
     crate_root = "crc-3.4.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "crc",
+            "version": "3.4.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":crc-catalog-2"],
 )
@@ -3620,6 +4610,13 @@ third_party_rust.rust_library(
     crate = "crc_catalog",
     crate_root = "crc-catalog-2.5.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "crc-catalog",
+            "version": "2.5.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -3663,6 +4660,13 @@ third_party_rust.rust_library(
         "panic-handler",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crc-fast",
+            "version": "1.10.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":digest-0.10",
@@ -3688,6 +4692,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crc32fast",
+            "version": "1.5.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = [
         "--cfg=stable_arm_crc32_intrinsics",
         "--cfg=stable_vpclmulqdq",
@@ -3710,6 +4721,13 @@ third_party_rust.rust_library(
     crate = "critical_section",
     crate_root = "critical-section-1.2.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "critical-section",
+            "version": "1.2.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -3736,6 +4754,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crossbeam",
+            "version": "0.8.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":crossbeam-channel-0.5",
@@ -3770,6 +4795,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crossbeam-channel",
+            "version": "0.5.17",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":crossbeam-utils-0.8"],
 )
@@ -3792,6 +4824,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crossbeam-deque",
+            "version": "0.8.8",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":crossbeam-epoch-0.9",
@@ -3834,6 +4873,13 @@ third_party_rust.rust_library(
         "alloc",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crossbeam-epoch",
+            "version": "0.9.21",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":crossbeam-utils-0.8"],
 )
@@ -3857,6 +4903,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crossbeam-queue",
+            "version": "0.3.14",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":crossbeam-utils-0.8"],
 )
@@ -3880,6 +4933,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crossbeam-skiplist",
+            "version": "0.1.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":crossbeam-epoch-0.9",
@@ -3922,6 +4982,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crossbeam-utils",
+            "version": "0.8.23",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -3970,6 +5037,13 @@ third_party_rust.rust_library(
         "events",
         "windows",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crossterm",
+            "version": "0.29.0",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -4040,6 +5114,13 @@ third_party_rust.rust_library(
     crate = "crossterm_winapi",
     crate_root = "crossterm_winapi-0.9.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "crossterm_winapi",
+            "version": "0.9.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":winapi-0.3"],
 )
@@ -4080,6 +5161,13 @@ third_party_rust.rust_library(
         "default",
         "limit_128",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crunchy",
+            "version": "0.2.4",
+            "licenses": ["MIT"],
+        },
+    },
     rustc_flags = ["@$(location :crunchy-0.2-build-script-run[rustc_flags])"],
     visibility = [],
 )
@@ -4111,6 +5199,13 @@ third_party_rust.rust_binary(
         "default",
         "limit_128",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crunchy",
+            "version": "0.2.4",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -4152,6 +5247,13 @@ third_party_rust.rust_library(
     crate_root = "crypto-common-0.1.7.crate/src/lib.rs",
     edition = "2018",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crypto-common",
+            "version": "0.1.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":generic-array-0.14",
@@ -4174,6 +5276,13 @@ third_party_rust.rust_library(
     crate_root = "crypto-common-0.2.2.crate/src/lib.rs",
     edition = "2024",
     features = ["rand_core"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "crypto-common",
+            "version": "0.2.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":hybrid-array-0.4",
@@ -4201,6 +5310,13 @@ third_party_rust.rust_library(
         "named-colors",
         "phf",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "csscolorparser",
+            "version": "0.6.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":lab-0.11",
@@ -4222,6 +5338,13 @@ third_party_rust.rust_library(
     crate = "csv",
     crate_root = "csv-1.4.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "csv",
+            "version": "1.4.0",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":csv-core-0.1",
@@ -4246,6 +5369,13 @@ third_party_rust.rust_library(
     crate_root = "csv-core-0.1.13.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "csv-core",
+            "version": "0.1.13",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":memchr-2"],
 )
@@ -4264,6 +5394,13 @@ third_party_rust.rust_library(
     crate = "ctor",
     crate_root = "ctor-0.1.26.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "ctor",
+            "version": "0.1.26",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -4286,6 +5423,13 @@ third_party_rust.rust_library(
     crate = "ctr",
     crate_root = "ctr-0.9.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "ctr",
+            "version": "0.9.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":cipher-0.4"],
 )
@@ -4305,6 +5449,13 @@ third_party_rust.rust_library(
     crate_root = "ctrlc-3.5.2.crate/src/lib.rs",
     edition = "2021",
     features = ["termination"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ctrlc",
+            "version": "3.5.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":nix-0.31"],
@@ -4348,6 +5499,13 @@ third_party_rust.rust_library(
     crate = "ctutils",
     crate_root = "ctutils-0.4.2.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "ctutils",
+            "version": "0.4.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":cmov-0.5"],
 )
@@ -4378,6 +5536,13 @@ third_party_rust.rust_library(
         "serde",
         "zeroize",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "curve25519-dalek",
+            "version": "5.0.0",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     platform = {
         "linux-x86_64": dict(
             deps = [
@@ -4431,6 +5596,13 @@ third_party_rust.rust_binary(
         "serde",
         "zeroize",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "curve25519-dalek",
+            "version": "5.0.0",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     visibility = [],
     deps = [":rustc_version-0.4"],
 )
@@ -4465,6 +5637,13 @@ third_party_rust.rust_library(
     crate = "curve25519_dalek_derive",
     crate_root = "curve25519-dalek-derive-0.1.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "curve25519-dalek-derive",
+            "version": "0.1.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -4492,6 +5671,13 @@ third_party_rust.rust_library(
         "default",
         "suggestions",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "darling",
+            "version": "0.23.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":darling_core-0.23",
@@ -4517,6 +5703,13 @@ third_party_rust.rust_library(
         "default",
         "suggestions",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "darling",
+            "version": "0.24.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":darling_core-0.24",
@@ -4542,6 +5735,13 @@ third_party_rust.rust_library(
         "strsim",
         "suggestions",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "darling_core",
+            "version": "0.23.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":ident_case-1",
@@ -4570,6 +5770,13 @@ third_party_rust.rust_library(
         "strsim",
         "suggestions",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "darling_core",
+            "version": "0.24.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":ident_case-1",
@@ -4594,6 +5801,13 @@ third_party_rust.rust_library(
     crate = "darling_macro",
     crate_root = "darling_macro-0.23.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "darling_macro",
+            "version": "0.23.0",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -4617,6 +5831,13 @@ third_party_rust.rust_library(
     crate = "darling_macro",
     crate_root = "darling_macro-0.24.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "darling_macro",
+            "version": "0.24.1",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -4647,6 +5868,13 @@ third_party_rust.rust_library(
     crate_root = "dashmap-6.2.1.crate/src/lib.rs",
     edition = "2018",
     features = ["raw-api"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "dashmap",
+            "version": "6.2.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -4672,6 +5900,13 @@ third_party_rust.rust_library(
     crate = "dashu_base",
     crate_root = "dashu-base-0.4.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dashu-base",
+            "version": "0.4.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -4689,6 +5924,13 @@ third_party_rust.rust_library(
     crate = "dashu_int",
     crate_root = "dashu-int-0.4.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dashu-int",
+            "version": "0.4.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -4718,6 +5960,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "data-encoding",
+            "version": "2.11.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -4735,6 +5984,13 @@ third_party_rust.rust_library(
     crate = "data_encoding_macro",
     crate_root = "data-encoding-macro-0.1.21.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "data-encoding-macro",
+            "version": "0.1.21",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":data-encoding-2",
@@ -4756,6 +6012,13 @@ third_party_rust.rust_library(
     crate = "data_encoding_macro_internal",
     crate_root = "data-encoding-macro-internal-0.1.19.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "data-encoding-macro-internal",
+            "version": "0.1.19",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -4779,6 +6042,13 @@ third_party_rust.rust_library(
     crate_root = "datasketches-0.3.0.crate/src/lib.rs",
     edition = "2024",
     features = ["countmin"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "datasketches",
+            "version": "0.3.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -4813,6 +6083,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "debugserver-types",
+            "version": "0.5.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":schemafy-0.5",
@@ -4835,6 +6112,13 @@ third_party_rust.rust_library(
     crate = "deltae",
     crate_root = "deltae-0.3.2.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "deltae",
+            "version": "0.3.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -4858,6 +6142,13 @@ third_party_rust.rust_library(
         "pem",
         "zeroize",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "der",
+            "version": "0.8.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":const-oid-0.10",
@@ -4884,6 +6175,13 @@ third_party_rust.rust_library(
         "default",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "deranged",
+            "version": "0.5.8",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":serde_core-1"],
 )
@@ -4902,6 +6200,13 @@ third_party_rust.rust_library(
     crate = "derivative",
     crate_root = "derivative-2.2.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "derivative",
+            "version": "2.2.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -4925,6 +6230,13 @@ third_party_rust.rust_library(
     crate = "derive_where",
     crate_root = "derive-where-1.7.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "derive-where",
+            "version": "1.7.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -4948,6 +6260,13 @@ third_party_rust.rust_library(
     crate = "derive_arbitrary",
     crate_root = "derive_arbitrary-1.4.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "derive_arbitrary",
+            "version": "1.4.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -5000,6 +6319,13 @@ third_party_rust.rust_library(
         "try_unwrap",
         "unwrap",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "derive_more",
+            "version": "1.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":derive_more-impl-1"],
 )
@@ -5035,6 +6361,13 @@ third_party_rust.rust_library(
         "try_from",
         "try_into",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "derive_more",
+            "version": "2.1.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":derive_more-impl-2"],
 )
@@ -5080,6 +6413,13 @@ third_party_rust.rust_library(
         "try_unwrap",
         "unwrap",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "derive_more-impl",
+            "version": "1.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -5121,6 +6461,13 @@ third_party_rust.rust_library(
         "try_from",
         "try_into",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "derive_more-impl",
+            "version": "2.1.1",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -5152,6 +6499,14 @@ third_party_rust.rust_library(
         "process-resource",
         "tokio",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "dial9",
+            "namespace": "dial9-rs",
+            "version": "0.5.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bon-3",
@@ -5189,6 +6544,14 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = ["pipeline"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "dial9-core",
+            "namespace": "dial9-rs",
+            "version": "0.5.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":arc-swap-1",
@@ -5214,6 +6577,14 @@ third_party_rust.rust_library(
     crate = "dial9_macro",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-macro/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dial9-macro",
+            "namespace": "dial9-rs",
+            "version": "0.5.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -5235,6 +6606,14 @@ third_party_rust.rust_library(
         "process-resource",
         "symbolize-processor",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "dial9-perf-self-profile",
+            "namespace": "dial9-rs",
+            "version": "0.5.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -5285,6 +6664,14 @@ third_party_rust.rust_library(
         "memory-profiling",
         "process-resource",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "dial9-tokio-telemetry",
+            "namespace": "dial9-rs",
+            "version": "0.5.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bon-3",
@@ -5317,6 +6704,14 @@ third_party_rust.rust_library(
         "serde",
         "serde-deserialize",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "dial9-trace-format",
+            "namespace": "dial9-rs",
+            "version": "0.5.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":dial9-trace-format-derive-0.5",
@@ -5331,6 +6726,14 @@ third_party_rust.rust_library(
     crate = "dial9_trace_format_derive",
     crate_root = "dial9-tokio-telemetry-43aa6b6c06fdd4e0/dial9-trace-format-derive/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dial9-trace-format-derive",
+            "namespace": "dial9-rs",
+            "version": "0.5.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -5359,6 +6762,13 @@ third_party_rust.rust_library(
         "alloc",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "diatomic-waker",
+            "version": "0.2.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -5376,6 +6786,13 @@ third_party_rust.rust_library(
     crate = "diff",
     crate_root = "diff-0.1.13.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "diff",
+            "version": "0.1.13",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -5402,6 +6819,13 @@ third_party_rust.rust_library(
         "std",
         "subtle",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "digest",
+            "version": "0.10.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":block-buffer-0.10",
@@ -5432,6 +6856,13 @@ third_party_rust.rust_library(
         "oid",
         "rand_core",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "digest",
+            "version": "0.11.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     named_deps = {
         "common": ":crypto-common-0.2",
     },
@@ -5457,6 +6888,13 @@ third_party_rust.rust_library(
     crate = "dirs",
     crate_root = "dirs-6.0.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dirs",
+            "version": "6.0.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":dirs-sys-0.5"],
 )
@@ -5475,6 +6913,13 @@ third_party_rust.rust_library(
     crate = "dirs_next",
     crate_root = "dirs-next-2.0.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dirs-next",
+            "version": "2.0.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -5496,6 +6941,13 @@ third_party_rust.rust_library(
     crate = "dirs_sys",
     crate_root = "dirs-sys-0.5.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dirs-sys",
+            "version": "0.5.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -5534,6 +6986,13 @@ third_party_rust.rust_library(
     crate = "dirs_sys_next",
     crate_root = "dirs-sys-next-0.1.2.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dirs-sys-next",
+            "version": "0.1.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -5579,6 +7038,13 @@ third_party_rust.rust_library(
         "objc2",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "dispatch2",
+            "version": "0.3.1",
+            "licenses": ["Zlib OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -5594,6 +7060,14 @@ third_party_rust.rust_library(
     crate = "display_container",
     crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/display_container/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "display_container",
+            "namespace": "facebook",
+            "version": "0.9.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":either-1",
@@ -5615,6 +7089,13 @@ third_party_rust.rust_library(
     crate = "displaydoc",
     crate_root = "displaydoc-0.2.7.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "displaydoc",
+            "version": "0.2.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -5639,6 +7120,13 @@ third_party_rust.rust_library(
     crate_root = "document-features-0.2.12.crate/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "document-features",
+            "version": "0.2.12",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [":litrs-1"],
@@ -5658,6 +7146,13 @@ third_party_rust.rust_library(
     crate = "dot_generator",
     crate_root = "dot-generator-0.2.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dot-generator",
+            "version": "0.2.0",
+            "licenses": [],
+        },
+    },
     visibility = [],
     deps = [":dot-structures-0.1"],
 )
@@ -5676,6 +7171,13 @@ third_party_rust.rust_library(
     crate = "dot_structures",
     crate_root = "dot-structures-0.1.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dot-structures",
+            "version": "0.1.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -5693,6 +7195,13 @@ third_party_rust.rust_library(
     crate = "dotenvy",
     crate_root = "dotenvy-0.15.7.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dotenvy",
+            "version": "0.15.7",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -5710,6 +7219,13 @@ third_party_rust.rust_library(
     crate = "dunce",
     crate_root = "dunce-1.0.5.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dunce",
+            "version": "1.0.5",
+            "licenses": ["CC0-1.0 OR MIT-0 OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -5733,6 +7249,13 @@ third_party_rust.rust_library(
     crate = "dupe",
     crate_root = "dupe-0.9.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dupe",
+            "version": "0.9.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":dupe_derive-0.9"],
 )
@@ -5743,6 +7266,14 @@ third_party_rust.rust_library(
     crate = "dupe",
     crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dupe",
+            "namespace": "facebook",
+            "version": "0.9.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":dupe_derive-0.9-469ff502"],
 )
@@ -5767,6 +7298,13 @@ third_party_rust.rust_library(
     crate = "dupe_derive",
     crate_root = "dupe_derive-0.9.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dupe_derive",
+            "version": "0.9.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -5782,6 +7320,14 @@ third_party_rust.rust_library(
     crate = "dupe_derive",
     crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/dupe_derive/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dupe_derive",
+            "namespace": "facebook",
+            "version": "0.9.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -5809,6 +7355,13 @@ third_party_rust.rust_library(
         "serde",
         "time",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "duration-str",
+            "version": "0.11.3",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":rust_decimal-1",
@@ -5833,6 +7386,13 @@ third_party_rust.rust_library(
     crate = "dyn_clone",
     crate_root = "dyn-clone-1.0.20.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dyn-clone",
+            "version": "1.0.20",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -5856,6 +7416,13 @@ third_party_rust.rust_library(
         "pkcs8",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ed25519",
+            "version": "3.0.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":pkcs8-0.11",
@@ -5889,6 +7456,13 @@ third_party_rust.rust_library(
         "signature",
         "zeroize",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ed25519-dalek",
+            "version": "3.0.0",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     visibility = [],
     deps = [
         ":curve25519-dalek-5",
@@ -5931,6 +7505,13 @@ third_party_rust.rust_library(
         "PartialOrd",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "educe",
+            "version": "0.7.6",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -5976,6 +7557,13 @@ third_party_rust.rust_library(
         "PartialOrd",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "educe",
+            "version": "0.8.1",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -6030,6 +7618,13 @@ third_party_rust.rust_library(
         "graphviz",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "egglog",
+            "version": "3.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":clap-4",
@@ -6072,6 +7667,13 @@ third_party_rust.rust_library(
     crate = "egglog_add_primitive",
     crate_root = "egglog-add-primitive-3.0.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "egglog-add-primitive",
+            "version": "3.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -6095,6 +7697,13 @@ third_party_rust.rust_library(
     crate_root = "egglog-ast-3.0.0.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "egglog-ast",
+            "version": "3.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":ordered-float-5"],
 )
@@ -6113,6 +7722,13 @@ third_party_rust.rust_library(
     crate = "egglog_bridge",
     crate_root = "egglog-bridge-3.0.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "egglog-bridge",
+            "version": "3.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":anyhow-1",
@@ -6148,6 +7764,13 @@ third_party_rust.rust_library(
     crate = "egglog_concurrency",
     crate_root = "egglog-concurrency-3.0.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "egglog-concurrency",
+            "version": "3.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":arc-swap-1",
@@ -6173,6 +7796,13 @@ third_party_rust.rust_library(
     crate_root = "egglog-core-relations-3.0.0.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "egglog-core-relations",
+            "version": "3.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":anyhow-1",
@@ -6223,6 +7853,13 @@ third_party_rust.rust_library(
         "bin",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "egglog-experimental",
+            "version": "3.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":egglog-3",
@@ -6249,6 +7886,13 @@ third_party_rust.rust_library(
     crate_root = "egglog-numeric-id-3.0.0.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "egglog-numeric-id",
+            "version": "3.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -6266,6 +7910,13 @@ third_party_rust.rust_library(
     crate = "egglog_reports",
     crate_root = "egglog-reports-3.0.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "egglog-reports",
+            "version": "3.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":clap-4",
@@ -6292,6 +7943,13 @@ third_party_rust.rust_library(
     crate = "egglog_union_find",
     crate_root = "egglog-union-find-3.0.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "egglog-union-find",
+            "version": "3.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":crossbeam-0.8",
@@ -6324,6 +7982,13 @@ third_party_rust.rust_library(
         "graphviz",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "egraph-serialize",
+            "version": "0.3.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":graphviz-rust-0.9",
@@ -6354,6 +8019,13 @@ third_party_rust.rust_library(
         "std",
         "use_std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "either",
+            "version": "1.18.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -6371,6 +8043,13 @@ third_party_rust.rust_library(
     crate = "ena",
     crate_root = "ena-0.14.4.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "ena",
+            "version": "0.14.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":log-0.4"],
 )
@@ -6393,6 +8072,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "encode_unicode",
+            "version": "1.0.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -6414,6 +8100,13 @@ third_party_rust.rust_library(
         "alloc",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "encoding_rs",
+            "version": "0.8.41",
+            "licenses": ["(Apache-2.0 OR MIT) AND BSD-3-Clause"],
+        },
+    },
     platform = {
         "linux-x86_64": dict(
             deps = [
@@ -6463,6 +8156,13 @@ third_party_rust.rust_library(
     crate = "endian_type",
     crate_root = "endian-type-0.1.2.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "endian-type",
+            "version": "0.1.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -6497,6 +8197,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "enum-assoc",
+            "version": "1.4.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -6520,6 +8227,13 @@ third_party_rust.rust_library(
     crate = "enum_map",
     crate_root = "enum-map-2.7.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "enum-map",
+            "version": "2.7.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":enum-map-derive-0.17"],
 )
@@ -6538,6 +8252,13 @@ third_party_rust.rust_library(
     crate = "enum_map_derive",
     crate_root = "enum-map-derive-0.17.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "enum-map-derive",
+            "version": "0.17.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -6562,6 +8283,13 @@ third_party_rust.rust_library(
     crate_root = "enum-ordinalize-4.4.2.crate/src/lib.rs",
     edition = "2024",
     features = ["derive"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "enum-ordinalize",
+            "version": "4.4.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":enum-ordinalize-derive-4"],
 )
@@ -6580,6 +8308,13 @@ third_party_rust.rust_library(
     crate = "enum_ordinalize_derive",
     crate_root = "enum-ordinalize-derive-4.4.2.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "enum-ordinalize-derive",
+            "version": "4.4.2",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -6603,6 +8338,13 @@ third_party_rust.rust_library(
     crate = "enum_dispatch",
     crate_root = "enum_dispatch-0.3.13.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "enum_dispatch",
+            "version": "0.3.13",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -6627,6 +8369,13 @@ third_party_rust.rust_library(
     crate = "enumflags2",
     crate_root = "enumflags2-0.7.12.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "enumflags2",
+            "version": "0.7.12",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":enumflags2_derive-0.7"],
 )
@@ -6645,6 +8394,13 @@ third_party_rust.rust_library(
     crate = "enumflags2_derive",
     crate_root = "enumflags2_derive-0.7.12.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "enumflags2_derive",
+            "version": "0.7.12",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -6672,6 +8428,13 @@ third_party_rust.rust_library(
         "regex",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "env_filter",
+            "version": "2.0.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":log-0.4",
@@ -6706,6 +8469,13 @@ third_party_rust.rust_library(
         "humantime",
         "regex",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "env_logger",
+            "version": "0.11.11",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":anstream-1",
@@ -6730,6 +8500,13 @@ third_party_rust.rust_library(
     crate = "equivalent",
     crate_root = "equivalent-1.0.2.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "equivalent",
+            "version": "1.0.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -6751,6 +8528,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "erased-serde",
+            "version": "0.3.31",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":serde-1"],
 )
@@ -6777,6 +8561,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "erased-serde",
+            "version": "0.4.10",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :erased-serde-0.4-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -6796,6 +8587,13 @@ third_party_rust.rust_binary(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "erased-serde",
+            "version": "0.4.10",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -6829,6 +8627,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "errno",
+            "version": "0.3.14",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":libc-0.2"],
 )
@@ -6847,6 +8652,13 @@ third_party_rust.rust_library(
     crate = "error_code",
     crate_root = "error-code-3.4.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "error-code",
+            "version": "3.4.0",
+            "licenses": ["BSL-1.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -6864,6 +8676,13 @@ third_party_rust.rust_library(
     crate = "etcetera",
     crate_root = "etcetera-0.11.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "etcetera",
+            "version": "0.11.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":windows-sys-0.61"],
@@ -6894,6 +8713,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "euclid",
+            "version": "0.22.14",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":num-traits-0.2"],
 )
@@ -6916,6 +8742,13 @@ third_party_rust.rust_library(
         "parking",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "event-listener",
+            "version": "5.4.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":parking-2",
@@ -6938,6 +8771,13 @@ third_party_rust.rust_library(
     crate_root = "event-listener-strategy-0.5.4.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "event-listener-strategy",
+            "version": "0.5.4",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":event-listener-5",
@@ -6970,6 +8810,13 @@ third_party_rust.rust_library(
         "default",
         "track-caller",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "eyre",
+            "version": "0.6.14",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":indenter-0.3",
@@ -6991,6 +8838,13 @@ third_party_rust.rust_library(
     crate = "fail_parallel",
     crate_root = "fail-parallel-0.6.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "fail-parallel",
+            "version": "0.6.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":log-0.4",
@@ -7019,6 +8873,13 @@ third_party_rust.rust_library(
         "perf",
         "unicode",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "fancy-regex",
+            "version": "0.11.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bit-set-0.5",
@@ -7041,6 +8902,13 @@ third_party_rust.rust_library(
     crate_root = "fastant-0.1.11.crate/src/lib.rs",
     edition = "2021",
     features = ["atomic"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "fastant",
+            "version": "0.1.11",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":small_ctor-0.1",
@@ -7069,6 +8937,13 @@ third_party_rust.rust_library(
     crate_root = "fastcdc-4.0.1.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "fastcdc",
+            "version": "4.0.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -7090,6 +8965,13 @@ third_party_rust.rust_library(
         "alloc",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "faster-hex",
+            "version": "0.10.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":heapless-0.8"],
 )
@@ -7113,6 +8995,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "fastrand",
+            "version": "2.5.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -7130,6 +9019,13 @@ third_party_rust.rust_library(
     crate = "fd_lock",
     crate_root = "fd-lock-4.0.4.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "fd-lock",
+            "version": "4.0.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":rustix-1"],
@@ -7174,6 +9070,13 @@ third_party_rust.rust_library(
     crate = "figleter",
     crate_root = "figleter-0.2.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "figleter",
+            "version": "0.2.2",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -7201,6 +9104,13 @@ third_party_rust.rust_library(
         "toml",
         "yaml",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "figment",
+            "version": "0.10.19",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":pear-0.2",
@@ -7226,6 +9136,13 @@ third_party_rust.rust_library(
     crate = "filedescriptor",
     crate_root = "filedescriptor-0.8.3.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "filedescriptor",
+            "version": "0.8.3",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":winapi-0.3"],
@@ -7255,6 +9172,13 @@ third_party_rust.rust_library(
     crate = "filetime",
     crate_root = "filetime-0.2.29.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "filetime",
+            "version": "0.2.29",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -7287,6 +9211,13 @@ third_party_rust.rust_library(
     crate = "find_msvc_tools",
     crate_root = "find-msvc-tools-0.1.13.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "find-msvc-tools",
+            "version": "0.1.13",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -7309,6 +9240,13 @@ third_party_rust.rust_library(
         "default",
         "grapheme_clusters",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "finl_unicode",
+            "version": "1.5.0",
+            "licenses": ["(MIT OR Apache-2.0) AND Unicode-DFS-2016"],
+        },
+    },
     visibility = [],
 )
 
@@ -7330,6 +9268,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "fixedbitset",
+            "version": "0.4.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -7351,6 +9296,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "fixedbitset",
+            "version": "0.5.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -7378,6 +9330,13 @@ third_party_rust.rust_library(
         "lz4",
         "metrics",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "fjall",
+            "version": "3.1.10",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     named_deps = {
         "byteorder": ":byteorder-lite-0.1",
     },
@@ -7408,6 +9367,13 @@ third_party_rust.rust_library(
     crate = "flagset",
     crate_root = "flagset-0.4.7.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "flagset",
+            "version": "0.4.7",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -7429,6 +9395,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "flatbuffers",
+            "version": "25.12.19",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":bitflags-2"],
 )
@@ -7462,6 +9435,13 @@ third_party_rust.rust_library(
         "rust_backend",
         "zlib-rs",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "flate2",
+            "version": "1.1.10",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":crc32fast-1",
@@ -7484,6 +9464,13 @@ third_party_rust.rust_library(
     crate = "flume",
     crate_root = "flume-0.12.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "flume",
+            "version": "0.12.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     named_deps = {
         "spin1": ":spin-0.9",
     },
@@ -7508,6 +9495,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "fnv",
+            "version": "1.0.7",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -7525,6 +9519,13 @@ third_party_rust.rust_library(
     crate = "foldhash",
     crate_root = "foldhash-0.1.5.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "foldhash",
+            "version": "0.1.5",
+            "licenses": ["Zlib"],
+        },
+    },
     visibility = [],
 )
 
@@ -7542,6 +9543,13 @@ third_party_rust.rust_library(
     crate = "foldhash",
     crate_root = "foldhash-0.2.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "foldhash",
+            "version": "0.2.0",
+            "licenses": ["Zlib"],
+        },
+    },
     visibility = [],
 )
 
@@ -7559,6 +9567,13 @@ third_party_rust.rust_library(
     crate = "foreign_types",
     crate_root = "foreign-types-0.3.2.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "foreign-types",
+            "version": "0.3.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":foreign-types-shared-0.1"],
 )
@@ -7577,6 +9592,13 @@ third_party_rust.rust_library(
     crate = "foreign_types_shared",
     crate_root = "foreign-types-shared-0.1.1.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "foreign-types-shared",
+            "version": "0.1.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -7599,6 +9621,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "form_urlencoded",
+            "version": "1.2.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":percent-encoding-2"],
 )
@@ -7640,6 +9669,13 @@ third_party_rust.rust_library(
         "runtime-tokio",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "foyer",
+            "version": "0.22.6",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     named_deps = {
         "tokio": ":foyer-tokio-0.22",
     },
@@ -7688,6 +9724,13 @@ third_party_rust.rust_binary(
         "runtime-tokio",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "foyer",
+            "version": "0.22.6",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -7730,6 +9773,13 @@ third_party_rust.rust_library(
     crate_root = "foyer-common-0.22.6.crate/src/lib.rs",
     edition = "2024",
     features = ["serde"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "foyer-common",
+            "version": "0.22.6",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     named_deps = {
         "tokio": ":foyer-tokio-0.22",
     },
@@ -7765,6 +9815,13 @@ third_party_rust.rust_library(
         "alloc",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "foyer-intrusive-collections",
+            "version": "0.10.0-dev",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":memoffset-0.9"],
 )
@@ -7783,6 +9840,13 @@ third_party_rust.rust_library(
     crate = "foyer_memory",
     crate_root = "foyer-memory-0.22.6.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "foyer-memory",
+            "version": "0.22.6",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     named_deps = {
         "intrusive_collections": ":foyer-intrusive-collections-0.10",
         "tokio": ":foyer-tokio-0.22",
@@ -7822,6 +9886,13 @@ third_party_rust.rust_library(
     crate_root = "foyer-storage-0.22.6.crate/src/lib.rs",
     edition = "2024",
     features = ["serde"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "foyer-storage",
+            "version": "0.22.6",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     named_deps = {
         "tokio": ":foyer-tokio-0.22",
     },
@@ -7886,6 +9957,13 @@ third_party_rust.rust_library(
         "runtime-tokio",
         "time",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "foyer-tokio",
+            "version": "0.22.6",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     named_deps = {
         "runtime_tokio": ":tokio-1",
     },
@@ -7906,6 +9984,13 @@ third_party_rust.rust_library(
     crate = "fs4",
     crate_root = "fs4-0.13.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "fs4",
+            "version": "0.13.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":rustix-1"],
@@ -7943,6 +10028,13 @@ third_party_rust.rust_library(
     crate = "fsevent_sys",
     crate_root = "fsevent-sys-4.1.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "fsevent-sys",
+            "version": "4.1.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":libc-0.2"],
 )
@@ -7966,6 +10058,13 @@ third_party_rust.rust_library(
         "use_std",
         "with-deprecated",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "futures",
+            "version": "0.1.31",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -7998,6 +10097,13 @@ third_party_rust.rust_library(
         "futures-executor",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "futures",
+            "version": "0.3.34",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":futures-channel-0.3",
@@ -8025,6 +10131,13 @@ third_party_rust.rust_library(
     crate_root = "futures-buffered-0.2.13.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "futures-buffered",
+            "version": "0.2.13",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":cordyceps-0.3",
@@ -8073,6 +10186,13 @@ third_party_rust.rust_library(
         "sink",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "futures-channel",
+            "version": "0.3.34",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":futures-core-0.3",
@@ -8099,6 +10219,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "futures-concurrency",
+            "version": "7.7.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":fixedbitset-0.5",
@@ -8145,6 +10272,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "futures-core",
+            "version": "0.3.34",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -8166,6 +10300,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "futures-executor",
+            "version": "0.3.34",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":futures-core-0.3",
@@ -8192,6 +10333,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "futures-io",
+            "version": "0.3.34",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -8218,6 +10366,13 @@ third_party_rust.rust_library(
         "race",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "futures-lite",
+            "version": "2.6.1",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":fastrand-2",
@@ -8242,6 +10397,13 @@ third_party_rust.rust_library(
     crate = "futures_macro",
     crate_root = "futures-macro-0.3.34.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "futures-macro",
+            "version": "0.3.34",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -8270,6 +10432,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "futures-sink",
+            "version": "0.3.34",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -8308,6 +10477,13 @@ third_party_rust.rust_library(
         "alloc",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "futures-task",
+            "version": "0.3.34",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -8361,6 +10537,13 @@ third_party_rust.rust_library(
         "slab",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "futures-util",
+            "version": "0.3.34",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     named_deps = {
         "futures_01": ":futures-0.1",
     },
@@ -8393,6 +10576,13 @@ third_party_rust.rust_library(
     crate = "fxhash",
     crate_root = "fxhash-0.2.1.crate/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "fxhash",
+            "version": "0.2.1",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":byteorder-1"],
 )
@@ -8419,6 +10609,13 @@ third_party_rust.rust_library(
         "proc-macro-hack",
         "proc_macro",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "genawaiter",
+            "version": "0.99.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":futures-core-0.3",
@@ -8443,6 +10640,13 @@ third_party_rust.rust_library(
     crate_root = "genawaiter-macro-0.99.1.crate/src/lib.rs",
     edition = "2018",
     features = ["proc_macro"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "genawaiter-macro",
+            "version": "0.99.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -8460,6 +10664,13 @@ third_party_rust.rust_library(
     crate = "genawaiter_proc_macro",
     crate_root = "genawaiter-proc-macro-0.99.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "genawaiter-proc-macro",
+            "version": "0.99.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -8489,6 +10700,13 @@ third_party_rust.rust_library(
         "check_generation",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "generational-box",
+            "version": "0.5.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":parking_lot-0.12"],
 )
@@ -8508,6 +10726,13 @@ third_party_rust.rust_library(
     crate_root = "generic-array-0.14.7.crate/src/lib.rs",
     edition = "2015",
     features = ["more_lengths"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "generic-array",
+            "version": "0.14.7",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":typenum-1"],
 )
@@ -8527,6 +10752,13 @@ third_party_rust.rust_library(
     crate_root = "getrandom-0.3.4.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "getrandom",
+            "version": "0.3.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -8563,6 +10795,13 @@ third_party_rust.rust_library(
         "std",
         "sys_rng",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "getrandom",
+            "version": "0.4.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -8598,6 +10837,13 @@ third_party_rust.rust_library(
     crate = "ghash",
     crate_root = "ghash-0.5.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "ghash",
+            "version": "0.5.1",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":opaque-debug-0.3",
@@ -8628,6 +10874,13 @@ third_party_rust.rust_library(
         "std",
         "write",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gimli",
+            "version": "0.33.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":fnv-1",
@@ -8693,6 +10946,13 @@ third_party_rust.rust_library(
         "sha256",
         "worktree-mutation",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix",
+            "version": "0.87.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":gix-actor-0.42",
@@ -8760,6 +11020,13 @@ third_party_rust.rust_library(
     crate = "gix_actor",
     crate_root = "gix-actor-0.42.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-actor",
+            "version": "0.42.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -8783,6 +11050,13 @@ third_party_rust.rust_library(
     crate_root = "gix-attributes-0.35.0.crate/src/lib.rs",
     edition = "2024",
     features = ["parallel"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-attributes",
+            "version": "0.35.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -8811,6 +11085,13 @@ third_party_rust.rust_library(
     crate = "gix_bitmap",
     crate_root = "gix-bitmap-0.4.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-bitmap",
+            "version": "0.4.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":gix-error-0.3"],
 )
@@ -8829,6 +11110,13 @@ third_party_rust.rust_library(
     crate = "gix_chunk",
     crate_root = "gix-chunk-0.8.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-chunk",
+            "version": "0.8.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":gix-error-0.3"],
 )
@@ -8847,6 +11135,13 @@ third_party_rust.rust_library(
     crate = "gix_command",
     crate_root = "gix-command-0.10.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-command",
+            "version": "0.10.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -8870,6 +11165,13 @@ third_party_rust.rust_library(
     crate = "gix_commitgraph",
     crate_root = "gix-commitgraph-0.39.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-commitgraph",
+            "version": "0.39.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -8895,6 +11197,13 @@ third_party_rust.rust_library(
     crate = "gix_config",
     crate_root = "gix-config-0.60.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-config",
+            "version": "0.60.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -8925,6 +11234,13 @@ third_party_rust.rust_library(
     crate = "gix_config_value",
     crate_root = "gix-config-value-0.19.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-config-value",
+            "version": "0.19.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -8962,6 +11278,13 @@ third_party_rust.rust_library(
     crate = "gix_credentials",
     crate_root = "gix-credentials-0.40.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-credentials",
+            "version": "0.40.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -8992,6 +11315,13 @@ third_party_rust.rust_library(
     crate = "gix_date",
     crate_root = "gix-date-0.16.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-date",
+            "version": "0.16.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -9016,6 +11346,13 @@ third_party_rust.rust_library(
     crate_root = "gix-diff-0.67.1.crate/src/lib.rs",
     edition = "2024",
     features = ["blob"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-diff",
+            "version": "0.67.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     named_deps = {
         "imara_diff": ":gix-imara-diff-0.2",
     },
@@ -9050,6 +11387,13 @@ third_party_rust.rust_library(
     crate = "gix_discover",
     crate_root = "gix-discover-0.55.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-discover",
+            "version": "0.55.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":dunce-1"],
@@ -9083,6 +11427,13 @@ third_party_rust.rust_library(
     crate = "gix_error",
     crate_root = "gix-error-0.3.2.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-error",
+            "version": "0.3.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":bstr-1"],
 )
@@ -9118,6 +11469,13 @@ third_party_rust.rust_library(
         "progress",
         "walkdir",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-features",
+            "version": "0.49.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -9162,6 +11520,13 @@ third_party_rust.rust_library(
     crate_root = "gix-filter-0.34.0.crate/src/lib.rs",
     edition = "2024",
     features = ["parallel"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-filter",
+            "version": "0.34.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -9194,6 +11559,13 @@ third_party_rust.rust_library(
     crate = "gix_fs",
     crate_root = "gix-fs-0.22.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-fs",
+            "version": "0.22.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -9218,6 +11590,13 @@ third_party_rust.rust_library(
     crate = "gix_glob",
     crate_root = "gix-glob-0.27.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-glob",
+            "version": "0.27.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -9252,6 +11631,13 @@ third_party_rust.rust_library(
         "sha1",
         "sha256",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-hash",
+            "version": "0.26.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":faster-hex-0.10",
@@ -9280,6 +11666,13 @@ third_party_rust.rust_library(
         "sha1",
         "sha256",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-hashtable",
+            "version": "0.16.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":gix-hash-0.26",
@@ -9302,6 +11695,13 @@ third_party_rust.rust_library(
     crate = "gix_ignore",
     crate_root = "gix-ignore-0.22.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-ignore",
+            "version": "0.22.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -9327,6 +11727,13 @@ third_party_rust.rust_library(
     crate_root = "gix-imara-diff-0.2.5.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-imara-diff",
+            "version": "0.2.5",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -9348,6 +11755,13 @@ third_party_rust.rust_library(
     crate = "gix_index",
     crate_root = "gix-index-0.55.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-index",
+            "version": "0.55.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -9411,6 +11825,13 @@ third_party_rust.rust_library(
     crate = "gix_lock",
     crate_root = "gix-lock-24.0.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-lock",
+            "version": "24.0.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":gix-tempfile-24",
@@ -9433,6 +11854,13 @@ third_party_rust.rust_library(
     crate = "gix_macros",
     crate_root = "gix-macros-0.1.6.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-macros",
+            "version": "0.1.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -9456,6 +11884,13 @@ third_party_rust.rust_library(
     crate = "gix_negotiate",
     crate_root = "gix-negotiate-0.35.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-negotiate",
+            "version": "0.35.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -9492,6 +11927,13 @@ third_party_rust.rust_library(
         "sha256",
         "signature",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-object",
+            "version": "0.64.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -9524,6 +11966,13 @@ third_party_rust.rust_library(
     crate = "gix_odb",
     crate_root = "gix-odb-0.84.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-odb",
+            "version": "0.84.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":arc-swap-1",
@@ -9572,6 +12021,13 @@ third_party_rust.rust_library(
         "sha256",
         "streaming-input",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-pack",
+            "version": "0.74.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":clru-0.6",
@@ -9611,6 +12067,13 @@ third_party_rust.rust_library(
         "blocking-io",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-packetline",
+            "version": "0.22.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -9634,6 +12097,13 @@ third_party_rust.rust_library(
     crate = "gix_path",
     crate_root = "gix-path-0.12.6.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-path",
+            "version": "0.12.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -9658,6 +12128,13 @@ third_party_rust.rust_library(
     crate_root = "gix-pathspec-0.20.0.crate/src/lib.rs",
     edition = "2024",
     features = ["parallel"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-pathspec",
+            "version": "0.20.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -9684,6 +12161,13 @@ third_party_rust.rust_library(
     crate = "gix_prompt",
     crate_root = "gix-prompt-0.17.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-prompt",
+            "version": "0.17.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -9737,6 +12221,13 @@ third_party_rust.rust_library(
         "fetch",
         "handshake",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-protocol",
+            "version": "0.65.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -9774,6 +12265,13 @@ third_party_rust.rust_library(
     crate = "gix_quote",
     crate_root = "gix-quote-0.8.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-quote",
+            "version": "0.8.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -9796,6 +12294,13 @@ third_party_rust.rust_library(
     crate = "gix_ref",
     crate_root = "gix-ref-0.67.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-ref",
+            "version": "0.67.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":gix-actor-0.42",
@@ -9827,6 +12332,13 @@ third_party_rust.rust_library(
     crate = "gix_refspec",
     crate_root = "gix-refspec-0.45.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-refspec",
+            "version": "0.45.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -9851,6 +12363,13 @@ third_party_rust.rust_library(
     crate = "gix_revision",
     crate_root = "gix-revision-0.49.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-revision",
+            "version": "0.49.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -9878,6 +12397,13 @@ third_party_rust.rust_library(
     crate = "gix_revwalk",
     crate_root = "gix-revwalk-0.35.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-revwalk",
+            "version": "0.35.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":gix-commitgraph-0.39",
@@ -9905,6 +12431,13 @@ third_party_rust.rust_library(
     crate = "gix_sec",
     crate_root = "gix-sec-0.14.2.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-sec",
+            "version": "0.14.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -9949,6 +12482,13 @@ third_party_rust.rust_library(
     crate = "gix_shallow",
     crate_root = "gix-shallow-0.13.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-shallow",
+            "version": "0.13.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -9973,6 +12513,13 @@ third_party_rust.rust_library(
     crate = "gix_submodule",
     crate_root = "gix-submodule-0.34.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-submodule",
+            "version": "0.34.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -10003,6 +12550,13 @@ third_party_rust.rust_library(
         "default",
         "hp-hashmap",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-tempfile",
+            "version": "24.0.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -10041,6 +12595,13 @@ third_party_rust.rust_library(
     crate_root = "gix-trace-0.1.21.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-trace",
+            "version": "0.1.21",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -10086,6 +12647,13 @@ third_party_rust.rust_library(
         "parking_lot",
         "reqwest",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-transport",
+            "version": "0.59.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":base64-0.22",
@@ -10118,6 +12686,13 @@ third_party_rust.rust_library(
     crate = "gix_traverse",
     crate_root = "gix-traverse-0.61.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-traverse",
+            "version": "0.61.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -10146,6 +12721,13 @@ third_party_rust.rust_library(
     crate = "gix_url",
     crate_root = "gix-url-0.38.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-url",
+            "version": "0.38.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -10171,6 +12753,13 @@ third_party_rust.rust_library(
     crate_root = "gix-utils-0.3.6.crate/src/lib.rs",
     edition = "2024",
     features = ["bstr"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-utils",
+            "version": "0.3.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -10194,6 +12783,13 @@ third_party_rust.rust_library(
     crate = "gix_validate",
     crate_root = "gix-validate-0.11.4.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-validate",
+            "version": "0.11.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":bstr-1"],
 )
@@ -10217,6 +12813,13 @@ third_party_rust.rust_library(
         "gix-features",
         "parallel",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-worktree",
+            "version": "0.56.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -10247,6 +12850,13 @@ third_party_rust.rust_library(
     crate = "gix_worktree_state",
     crate_root = "gix-worktree-state-0.34.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-worktree-state",
+            "version": "0.34.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bstr-1",
@@ -10282,6 +12892,13 @@ third_party_rust.rust_library(
     crate = "gix_zlib",
     crate_root = "gix-zlib-0.1.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-zlib",
+            "version": "0.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":thiserror-2",
@@ -10309,6 +12926,13 @@ third_party_rust.rust_library(
     crate = "glob",
     crate_root = "glob-0.3.4.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "glob",
+            "version": "0.3.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -10330,6 +12954,13 @@ third_party_rust.rust_library(
         "default",
         "log",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "globset",
+            "version": "0.4.20",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":aho-corasick-1",
@@ -10375,6 +13006,13 @@ third_party_rust.rust_library(
         "default",
         "graphviz-exec",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "graphviz-rust",
+            "version": "0.9.9",
+            "licenses": [],
+        },
+    },
     visibility = [],
     deps = [
         ":dot-generator-0.2",
@@ -10401,6 +13039,13 @@ third_party_rust.rust_library(
     crate = "h2",
     crate_root = "h2-0.4.19.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "h2",
+            "version": "0.4.19",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":atomic-waker-1",
@@ -10431,6 +13076,13 @@ third_party_rust.rust_library(
     crate = "hash32",
     crate_root = "hash32-0.2.1.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "hash32",
+            "version": "0.2.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":byteorder-1"],
 )
@@ -10449,6 +13101,13 @@ third_party_rust.rust_library(
     crate = "hash32",
     crate_root = "hash32-0.3.1.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "hash32",
+            "version": "0.3.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":byteorder-1"],
 )
@@ -10474,6 +13133,13 @@ third_party_rust.rust_library(
         "inline-more",
         "raw",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "hashbrown",
+            "version": "0.14.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":ahash-0.8",
@@ -10503,6 +13169,13 @@ third_party_rust.rust_library(
         "inline-more",
         "raw-entry",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "hashbrown",
+            "version": "0.15.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":allocator-api2-0.2",
@@ -10534,6 +13207,13 @@ third_party_rust.rust_library(
         "raw-entry",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "hashbrown",
+            "version": "0.16.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":allocator-api2-0.2",
@@ -10566,6 +13246,13 @@ third_party_rust.rust_library(
         "raw-entry",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "hashbrown",
+            "version": "0.17.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":allocator-api2-0.2",
@@ -10589,6 +13276,13 @@ third_party_rust.rust_library(
     crate = "hashlink",
     crate_root = "hashlink-0.12.2.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "hashlink",
+            "version": "0.12.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":hashbrown-0.17"],
 )
@@ -10608,6 +13302,13 @@ third_party_rust.rust_library(
     crate_root = "hdrhistogram-7.6.0.crate/src/lib.rs",
     edition = "2024",
     features = ["serialization"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "hdrhistogram",
+            "version": "7.6.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":base64-0.22",
@@ -10637,6 +13338,13 @@ third_party_rust.rust_library(
         "cas",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "heapless",
+            "version": "0.7.17",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-x86_64": dict(
             deps = [":spin-0.9"],
@@ -10673,6 +13381,13 @@ third_party_rust.rust_library(
     crate = "heapless",
     crate_root = "heapless-0.8.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "heapless",
+            "version": "0.8.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":hash32-0.3",
@@ -10695,6 +13410,13 @@ third_party_rust.rust_library(
     crate_root = "heck-0.4.1.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "heck",
+            "version": "0.4.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -10712,6 +13434,13 @@ third_party_rust.rust_library(
     crate = "heck",
     crate_root = "heck-0.5.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "heck",
+            "version": "0.5.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -10739,6 +13468,13 @@ third_party_rust.rust_library(
         "default",
         "static-engine",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "hegeltest",
+            "version": "0.46.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":hegeltest-c-0.43",
@@ -10776,6 +13512,13 @@ third_party_rust.rust_library(
         "std",
     ],
     linkable_alias = "hegeltest-c",
+    metadata = {
+        "third-party.metadata": {
+            "name": "hegeltest-c",
+            "version": "0.43.1",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":rustix-1"],
@@ -10831,6 +13574,13 @@ third_party_rust.rust_library(
     crate = "hegel_macros",
     crate_root = "hegeltest-macros-0.46.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "hegeltest-macros",
+            "version": "0.46.1",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -10865,6 +13615,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "hex",
+            "version": "0.4.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -10888,6 +13645,13 @@ third_party_rust.rust_library(
         "detect",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "hex-simd",
+            "version": "0.8.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":outref-0.5",
@@ -10909,6 +13673,13 @@ third_party_rust.rust_library(
     crate = "hickory_proto",
     crate_root = "hickory-proto-0.26.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "hickory-proto",
+            "version": "0.26.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":data-encoding-2",
@@ -10943,6 +13714,13 @@ third_party_rust.rust_library(
     crate = "hmac",
     crate_root = "hmac-0.13.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "hmac",
+            "version": "0.13.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":digest-0.11"],
 )
@@ -10961,6 +13739,13 @@ third_party_rust.rust_library(
     crate = "home",
     crate_root = "home-0.5.12.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "home",
+            "version": "0.5.12",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":windows-sys-0.61"],
@@ -10987,6 +13772,13 @@ third_party_rust.rust_library(
     crate_root = "hostname-0.4.2.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "hostname",
+            "version": "0.4.2",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -11035,6 +13827,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "http",
+            "version": "1.5.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bytes-1",
@@ -11056,6 +13855,13 @@ third_party_rust.rust_library(
     crate = "http_body",
     crate_root = "http-body-1.1.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "http-body",
+            "version": "1.1.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bytes-1",
@@ -11084,6 +13890,13 @@ third_party_rust.rust_library(
     crate_root = "http-body-util-0.1.5.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "http-body-util",
+            "version": "0.1.5",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bytes-1",
@@ -11112,6 +13925,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "httparse",
+            "version": "1.10.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -11129,6 +13949,13 @@ third_party_rust.rust_library(
     crate = "httpdate",
     crate_root = "httpdate-1.0.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "httpdate",
+            "version": "1.0.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -11146,6 +13973,13 @@ third_party_rust.rust_library(
     crate = "humantime",
     crate_root = "humantime-2.4.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "humantime",
+            "version": "2.4.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -11163,6 +13997,13 @@ third_party_rust.rust_library(
     crate = "hybrid_array",
     crate_root = "hybrid-array-0.4.15.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "hybrid-array",
+            "version": "0.4.15",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":typenum-1"],
 )
@@ -11194,6 +14035,13 @@ third_party_rust.rust_library(
         "http2",
         "server",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "hyper",
+            "version": "1.11.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":atomic-waker-1",
@@ -11240,6 +14088,13 @@ third_party_rust.rust_library(
         "rustls-native-certs",
         "tls12",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "hyper-rustls",
+            "version": "0.27.10",
+            "licenses": ["Apache-2.0 OR ISC OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":http-1",
@@ -11267,6 +14122,13 @@ third_party_rust.rust_library(
     crate = "hyper_timeout",
     crate_root = "hyper-timeout-0.5.2.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "hyper-timeout",
+            "version": "0.5.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":hyper-1",
@@ -11292,6 +14154,13 @@ third_party_rust.rust_library(
     crate_root = "hyper-tls-0.6.0.crate/src/lib.rs",
     edition = "2018",
     features = ["alpn"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "hyper-tls",
+            "version": "0.6.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bytes-1",
@@ -11339,6 +14208,13 @@ third_party_rust.rust_library(
         "service",
         "tokio",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "hyper-util",
+            "version": "0.1.20",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "macos-arm64": dict(
             deps = [":system-configuration-0.7"],
@@ -11388,6 +14264,13 @@ third_party_rust.rust_library(
     crate_root = "iana-time-zone-0.1.65.crate/src/lib.rs",
     edition = "2021",
     features = ["fallback"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "iana-time-zone",
+            "version": "0.1.65",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "macos-arm64": dict(
             deps = [":core-foundation-sys-0.8"],
@@ -11413,6 +14296,13 @@ third_party_rust.rust_library(
     crate = "icu_collections",
     crate_root = "icu_collections-2.3.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "icu_collections",
+            "version": "2.3.0",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":displaydoc-0.2",
@@ -11442,6 +14332,13 @@ third_party_rust.rust_library(
         "alloc",
         "zerovec",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "icu_locale_core",
+            "version": "2.3.0",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":displaydoc-0.2",
@@ -11467,6 +14364,13 @@ third_party_rust.rust_library(
     crate_root = "icu_locale_fallback-2.3.0.crate/src/lib.rs",
     edition = "2024",
     features = ["compiled_data"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "icu_locale_fallback",
+            "version": "2.3.0",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":icu_locale_core-2",
@@ -11492,6 +14396,13 @@ third_party_rust.rust_library(
     crate = "icu_locale_fallback_data",
     crate_root = "icu_locale_fallback_data-2.3.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "icu_locale_fallback_data",
+            "version": "2.3.0",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -11510,6 +14421,13 @@ third_party_rust.rust_library(
     crate_root = "icu_normalizer-2.3.0.crate/src/lib.rs",
     edition = "2024",
     features = ["compiled_data"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "icu_normalizer",
+            "version": "2.3.0",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":icu_collections-2",
@@ -11534,6 +14452,13 @@ third_party_rust.rust_library(
     crate = "icu_normalizer_data",
     crate_root = "icu_normalizer_data-2.3.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "icu_normalizer_data",
+            "version": "2.3.0",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -11552,6 +14477,13 @@ third_party_rust.rust_library(
     crate_root = "icu_properties-2.3.0.crate/src/lib.rs",
     edition = "2024",
     features = ["compiled_data"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "icu_properties",
+            "version": "2.3.0",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":displaydoc-0.2",
@@ -11578,6 +14510,13 @@ third_party_rust.rust_library(
     crate = "icu_properties_data",
     crate_root = "icu_properties_data-2.3.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "icu_properties_data",
+            "version": "2.3.0",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -11599,6 +14538,13 @@ third_party_rust.rust_library(
         "alloc",
         "baked",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "icu_provider",
+            "version": "2.3.1",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":displaydoc-0.2",
@@ -11627,6 +14573,13 @@ third_party_rust.rust_library(
     crate_root = "icu_segmenter-2.3.0.crate/src/lib.rs",
     edition = "2024",
     features = ["compiled_data"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "icu_segmenter",
+            "version": "2.3.0",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":icu_collections-2",
@@ -11654,6 +14607,13 @@ third_party_rust.rust_library(
     crate = "icu_segmenter_data",
     crate_root = "icu_segmenter_data-2.3.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "icu_segmenter_data",
+            "version": "2.3.0",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -11671,6 +14631,13 @@ third_party_rust.rust_library(
     crate = "id_arena",
     crate_root = "id-arena-2.3.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "id-arena",
+            "version": "2.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -11688,6 +14655,13 @@ third_party_rust.rust_library(
     crate = "ident_case",
     crate_root = "ident_case-1.0.1.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "ident_case",
+            "version": "1.0.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -11709,6 +14683,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "identity-hash",
+            "version": "0.1.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -11731,6 +14712,13 @@ third_party_rust.rust_library(
         "compiled_data",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "idna",
+            "version": "1.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":idna_adapter-1",
@@ -11754,6 +14742,13 @@ third_party_rust.rust_library(
     crate_root = "idna_adapter-1.2.2.crate/src/lib.rs",
     edition = "2024",
     features = ["compiled_data"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "idna_adapter",
+            "version": "1.2.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":icu_normalizer-2",
@@ -11786,6 +14781,13 @@ third_party_rust.rust_library(
         "hyper-util",
         "tokio",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "igd-next",
+            "version": "0.17.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":attohttpc-0.30",
@@ -11820,6 +14822,13 @@ third_party_rust.rust_library(
     env = {
         "OUT_DIR": "$(location :im-rc-15-build-script-run[out_dir])",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "im-rc",
+            "version": "15.1.0",
+            "licenses": ["MPL-2.0+"],
+        },
+    },
     rustc_flags = ["@$(location :im-rc-15-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -11837,6 +14846,13 @@ third_party_rust.rust_binary(
     crate = "build_script_build",
     crate_root = "im-rc-15.1.0.crate/build.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "im-rc",
+            "version": "15.1.0",
+            "licenses": ["MPL-2.0+"],
+        },
+    },
     visibility = [],
     deps = [":version_check-0.9"],
 )
@@ -11863,6 +14879,13 @@ third_party_rust.rust_library(
     crate_root = "indenter-0.3.4.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "indenter",
+            "version": "0.3.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -11891,6 +14914,13 @@ third_party_rust.rust_library(
         "serde",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "indexmap",
+            "version": "2.14.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":equivalent-1",
@@ -11913,6 +14943,13 @@ third_party_rust.rust_library(
     crate = "indoc",
     crate_root = "indoc-2.0.7.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "indoc",
+            "version": "2.0.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
 )
@@ -11931,6 +14968,13 @@ third_party_rust.rust_library(
     crate = "inlinable_string",
     crate_root = "inlinable_string-0.1.15.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "inlinable_string",
+            "version": "0.1.15",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -11948,6 +14992,13 @@ third_party_rust.rust_library(
     crate = "inotify",
     crate_root = "inotify-0.11.5.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "inotify",
+            "version": "0.11.5",
+            "licenses": ["ISC"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -11970,6 +15021,13 @@ third_party_rust.rust_library(
     crate = "inotify_sys",
     crate_root = "inotify-sys-0.1.8.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "inotify-sys",
+            "version": "0.1.8",
+            "licenses": ["ISC"],
+        },
+    },
     visibility = [],
     deps = [":libc-0.2"],
 )
@@ -11988,6 +15046,13 @@ third_party_rust.rust_library(
     crate = "inout",
     crate_root = "inout-0.1.4.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "inout",
+            "version": "0.1.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":generic-array-0.14"],
 )
@@ -12007,6 +15072,13 @@ third_party_rust.rust_library(
     crate_root = "inplace-vec-builder-0.1.1.crate/src/lib.rs",
     edition = "2021",
     features = ["smallvec"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "inplace-vec-builder",
+            "version": "0.1.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":smallvec-1"],
 )
@@ -12036,6 +15108,13 @@ third_party_rust.rust_library(
         "console",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "insta",
+            "version": "1.48.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":console-0.16",
@@ -12059,6 +15138,13 @@ third_party_rust.rust_library(
     crate = "instability",
     crate_root = "instability-0.3.13.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "instability",
+            "version": "0.3.13",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -12089,6 +15175,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "interim",
+            "version": "0.2.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":chrono-0.4",
@@ -12110,6 +15203,13 @@ third_party_rust.rust_library(
     crate = "interval_heap",
     crate_root = "interval-heap-0.0.5.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "interval-heap",
+            "version": "0.0.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":compare-0.0.6"],
 )
@@ -12128,6 +15228,13 @@ third_party_rust.rust_library(
     crate = "into_attr",
     crate_root = "into-attr-0.1.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "into-attr",
+            "version": "0.1.1",
+            "licenses": [],
+        },
+    },
     visibility = [],
     deps = [":dot-structures-0.1"],
 )
@@ -12146,6 +15253,13 @@ third_party_rust.rust_library(
     crate = "into_attr_derive",
     crate_root = "into-attr-derive-0.2.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "into-attr-derive",
+            "version": "0.2.1",
+            "licenses": [],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -12175,6 +15289,13 @@ third_party_rust.rust_library(
         "alloc",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "intrusive-collections",
+            "version": "0.10.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -12192,6 +15313,13 @@ third_party_rust.rust_library(
     crate = "inventory",
     crate_root = "inventory-0.3.24.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "inventory",
+            "version": "0.3.24",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -12209,6 +15337,13 @@ third_party_rust.rust_library(
     crate = "io_close",
     crate_root = "io-close-0.3.7.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "io-close",
+            "version": "0.3.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -12246,6 +15381,13 @@ third_party_rust.rust_library(
     crate = "io_uring",
     crate_root = "io-uring-0.7.15.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "io-uring",
+            "version": "0.7.15",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -12278,6 +15420,13 @@ third_party_rust.rust_library(
         "crossterm",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "iocraft",
+            "version": "0.9.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -12305,6 +15454,13 @@ third_party_rust.rust_library(
     crate = "iocraft_macros",
     crate_root = "iocraft-macros-0.2.4.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "iocraft-macros",
+            "version": "0.2.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -12332,6 +15488,13 @@ third_party_rust.rust_library(
         "computer",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ipconfig",
+            "version": "0.3.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":socket2-0.6",
@@ -12360,6 +15523,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ipnet",
+            "version": "2.12.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -12407,6 +15577,13 @@ third_party_rust.rust_library(
         "portmapper",
     ],
     linkable_alias = "iroh",
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh",
+            "version": "1.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     named_deps = {
         "webpki_types": ":rustls-pki-types-1",
     },
@@ -12480,6 +15657,13 @@ third_party_rust.rust_binary(
         "metrics",
         "portmapper",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh",
+            "version": "1.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":cfg_aliases-0.2"],
 )
@@ -12526,6 +15710,13 @@ third_party_rust.rust_library(
         "key",
         "relay",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-base",
+            "version": "1.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":curve25519-dalek-5",
@@ -12568,6 +15759,13 @@ third_party_rust.rust_library(
         "fs-store",
         "metrics",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-blobs",
+            "version": "0.103.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :iroh-blobs-0.103-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -12614,6 +15812,13 @@ third_party_rust.rust_binary(
         "fs-store",
         "metrics",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-blobs",
+            "version": "0.103.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":cfg_aliases-0.2"],
 )
@@ -12647,6 +15852,13 @@ third_party_rust.rust_library(
         "OUT_DIR": "$(location :iroh-dns-1-build-script-run[out_dir])",
     },
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-dns",
+            "version": "1.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :iroh-dns-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -12674,6 +15886,13 @@ third_party_rust.rust_binary(
     crate_root = "iroh-dns-1.3.0.crate/build.rs",
     edition = "2024",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-dns",
+            "version": "1.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":cfg_aliases-0.2"],
 )
@@ -12713,6 +15932,13 @@ third_party_rust.rust_library(
         "net",
     ],
     linkable_alias = "iroh-gossip",
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-gossip",
+            "version": "0.101.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":blake3-1",
@@ -12757,6 +15983,13 @@ third_party_rust.rust_library(
         "tokio",
         "tokio-io",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-io",
+            "version": "0.6.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bytes-1",
@@ -12787,6 +16020,13 @@ third_party_rust.rust_library(
     crate = "iroh_mainline_address_lookup",
     crate_root = "iroh-mainline-address-lookup-0.6.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-mainline-address-lookup",
+            "version": "0.6.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":derive_more-2",
@@ -12822,6 +16062,13 @@ third_party_rust.rust_library(
     crate = "iroh_mdns_address_lookup",
     crate_root = "iroh-mdns-address-lookup-0.6.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-mdns-address-lookup",
+            "version": "0.6.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":data-encoding-2",
@@ -12857,6 +16104,13 @@ third_party_rust.rust_library(
         "default",
         "metrics",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-metrics",
+            "version": "1.0.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":iroh-metrics-derive-1",
@@ -12883,6 +16137,13 @@ third_party_rust.rust_library(
     crate = "iroh_metrics_derive",
     crate_root = "iroh-metrics-derive-1.0.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-metrics-derive",
+            "version": "1.0.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -12927,6 +16188,13 @@ third_party_rust.rust_library(
         "OUT_DIR": "$(location :iroh-relay-1-build-script-run[out_dir])",
     },
     features = ["metrics"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-relay",
+            "version": "1.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     named_deps = {
         "webpki_types": ":rustls-pki-types-1",
     },
@@ -12992,6 +16260,13 @@ third_party_rust.rust_binary(
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = ["metrics"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-relay",
+            "version": "1.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":cfg_aliases-0.2"],
 )
@@ -13036,6 +16311,13 @@ third_party_rust.rust_library(
     crate = "iroh_tickets",
     crate_root = "iroh-tickets-1.0.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-tickets",
+            "version": "1.0.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":data-encoding-2",
@@ -13061,6 +16343,13 @@ third_party_rust.rust_library(
     crate = "iroh_util",
     crate_root = "iroh-util-0.6.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "iroh-util",
+            "version": "0.6.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":derive_more-2",
@@ -13093,6 +16382,13 @@ third_party_rust.rust_library(
         "stream",
         "varint-util",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "irpc",
+            "version": "0.17.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":futures-util-0.3",
@@ -13122,6 +16418,13 @@ third_party_rust.rust_library(
     crate = "irpc_derive",
     crate_root = "irpc-derive-0.17.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "irpc-derive",
+            "version": "0.17.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -13145,6 +16448,13 @@ third_party_rust.rust_library(
     crate = "is_terminal",
     crate_root = "is-terminal-0.4.17.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "is-terminal",
+            "version": "0.4.17",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -13182,6 +16492,13 @@ third_party_rust.rust_library(
     crate = "is_executable",
     crate_root = "is_executable-1.0.6.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "is_executable",
+            "version": "1.0.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":windows-sys-0.61"],
@@ -13208,6 +16525,13 @@ third_party_rust.rust_library(
     crate_root = "is_terminal_polyfill-1.70.2.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "is_terminal_polyfill",
+            "version": "1.70.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -13229,6 +16553,13 @@ third_party_rust.rust_library(
         "use_alloc",
         "use_std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "itertools",
+            "version": "0.10.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":either-1"],
 )
@@ -13252,6 +16583,13 @@ third_party_rust.rust_library(
         "use_alloc",
         "use_std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "itertools",
+            "version": "0.13.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":either-1"],
 )
@@ -13275,6 +16613,13 @@ third_party_rust.rust_library(
         "use_alloc",
         "use_std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "itertools",
+            "version": "0.14.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":either-1"],
 )
@@ -13298,6 +16643,13 @@ third_party_rust.rust_library(
         "use_alloc",
         "use_std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "itertools",
+            "version": "0.15.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":either-1"],
 )
@@ -13316,6 +16668,13 @@ third_party_rust.rust_library(
     crate = "itoa",
     crate_root = "itoa-1.0.18.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "itoa",
+            "version": "1.0.18",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -13350,6 +16709,13 @@ third_party_rust.rust_library(
         "tzdb-concatenated",
         "tzdb-zoneinfo",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "jiff",
+            "version": "0.2.37",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     named_deps = {
         "jcore": ":jiff-core-0.1",
     },
@@ -13389,6 +16755,13 @@ third_party_rust.rust_library(
         "std",
         "tz-fat",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "jiff-core",
+            "version": "0.1.1",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -13406,6 +16779,13 @@ third_party_rust.rust_library(
     crate = "jiff_tzdb",
     crate_root = "jiff-tzdb-0.1.8.crate/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "jiff-tzdb",
+            "version": "0.1.8",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -13423,6 +16803,13 @@ third_party_rust.rust_library(
     crate = "jiff_tzdb_platform",
     crate_root = "jiff-tzdb-platform-0.1.3.crate/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "jiff-tzdb-platform",
+            "version": "0.1.3",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":jiff-tzdb-0.1"],
 )
@@ -13449,6 +16836,14 @@ third_party_rust.rust_library(
         "git",
         "watchman",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "jj-cli",
+            "namespace": "martinvonz",
+            "version": "0.45.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -13536,6 +16931,14 @@ third_party_rust.rust_library(
     crate = "jj_core",
     crate_root = "jj-5d9a3f8a30f872ad/core/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "jj-core",
+            "namespace": "martinvonz",
+            "version": "0.45.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [
@@ -13579,6 +16982,14 @@ third_party_rust.rust_library(
     crate = "jj_core_proc_macros",
     crate_root = "jj-5d9a3f8a30f872ad/core/proc-macros/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "jj-core-proc-macros",
+            "namespace": "martinvonz",
+            "version": "0.45.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -13608,6 +17019,14 @@ third_party_rust.rust_library(
         "git",
         "watchman",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "jj-lib",
+            "namespace": "martinvonz",
+            "version": "0.45.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":rustix-1"],
@@ -13679,6 +17098,13 @@ third_party_rust.rust_library(
     crate = "jobserver",
     crate_root = "jobserver-0.1.35.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "jobserver",
+            "version": "0.1.35",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -13717,6 +17143,13 @@ third_party_rust.rust_library(
     crate_root = "kasuari-0.4.12.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "kasuari",
+            "version": "0.4.12",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":hashbrown-0.16",
@@ -13738,6 +17171,13 @@ third_party_rust.rust_library(
     crate = "keccak",
     crate_root = "keccak-0.1.6.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "keccak",
+            "version": "0.1.6",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":cpufeatures-0.2"],
@@ -13763,6 +17203,13 @@ third_party_rust.rust_library(
     crate = "lab",
     crate_root = "lab-0.11.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "lab",
+            "version": "0.11.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -13801,6 +17248,13 @@ third_party_rust.rust_library(
         "default",
         "lexer",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "lalrpop",
+            "version": "0.19.12",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":ascii-canvas-3",
@@ -13857,6 +17311,13 @@ third_party_rust.rust_library(
         "pico-args",
         "unicode",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "lalrpop",
+            "version": "0.22.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":ascii-canvas-4",
@@ -13896,6 +17357,13 @@ third_party_rust.rust_library(
         "regex",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "lalrpop-util",
+            "version": "0.19.12",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":regex-1"],
 )
@@ -13921,6 +17389,13 @@ third_party_rust.rust_library(
         "std",
         "unicode",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "lalrpop-util",
+            "version": "0.22.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":regex-automata-0.4",
@@ -13948,6 +17423,13 @@ third_party_rust.rust_library(
     crate = "landlock",
     crate_root = "landlock-0.4.7.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "landlock",
+            "version": "0.4.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":enumflags2-0.7",
@@ -13970,6 +17452,13 @@ third_party_rust.rust_library(
     crate = "lazy_static",
     crate_root = "lazy_static-1.5.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "lazy_static",
+            "version": "1.5.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -13987,6 +17476,13 @@ third_party_rust.rust_library(
     crate = "leb128fmt",
     crate_root = "leb128fmt-0.1.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "leb128fmt",
+            "version": "0.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -14017,6 +17513,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "libc",
+            "version": "0.2.189",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             features = ["extra_traits"],
@@ -14045,6 +17548,13 @@ third_party_rust.rust_binary(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "libc",
+            "version": "0.2.189",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             features = ["extra_traits"],
@@ -14101,6 +17611,13 @@ third_party_rust.rust_library(
     crate = "libm",
     crate_root = "libm-0.2.16.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "libm",
+            "version": "0.2.16",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -14118,6 +17635,13 @@ third_party_rust.rust_library(
     crate = "line_clipping",
     crate_root = "line-clipping-0.3.8.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "line-clipping",
+            "version": "0.3.8",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":bitflags-2"],
 )
@@ -14146,6 +17670,13 @@ third_party_rust.rust_library(
         "serde",
         "serde_impl",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "linked-hash-map",
+            "version": "0.5.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":serde-1"],
 )
@@ -14164,6 +17695,13 @@ third_party_rust.rust_library(
     crate = "linked_hash_set",
     crate_root = "linked_hash_set-0.1.6.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "linked_hash_set",
+            "version": "0.1.6",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":linked-hash-map-0.5"],
 )
@@ -14191,6 +17729,13 @@ third_party_rust.rust_library(
         "no_std",
         "prctl",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "linux-raw-sys",
+            "version": "0.12.1",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -14209,6 +17754,13 @@ third_party_rust.rust_library(
     crate_root = "litemap-0.8.3.crate/src/lib.rs",
     edition = "2021",
     features = ["alloc"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "litemap",
+            "version": "0.8.3",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -14226,6 +17778,13 @@ third_party_rust.rust_library(
     crate = "litrs",
     crate_root = "litrs-1.0.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "litrs",
+            "version": "1.0.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -14247,6 +17806,13 @@ third_party_rust.rust_library(
         "atomic_usize",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "lock_api",
+            "version": "0.4.14",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":scopeguard-1"],
 )
@@ -14276,6 +17842,13 @@ third_party_rust.rust_library(
         "kv",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "log",
+            "version": "0.4.34",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -14299,6 +17872,13 @@ third_party_rust.rust_library(
         "logos-derive",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "logos",
+            "version": "0.12.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":logos-derive-0.12"],
 )
@@ -14323,6 +17903,13 @@ third_party_rust.rust_library(
         "logos-derive",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "logos",
+            "version": "0.15.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":logos-derive-0.15"],
 )
@@ -14347,6 +17934,13 @@ third_party_rust.rust_library(
         "logos-derive",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "logos",
+            "version": "0.16.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":logos-derive-0.16"],
 )
@@ -14365,6 +17959,13 @@ third_party_rust.rust_library(
     crate = "logos_codegen",
     crate_root = "logos-codegen-0.15.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "logos-codegen",
+            "version": "0.15.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["--cfg=rust_1_82"],
     visibility = [],
     deps = [
@@ -14392,6 +17993,13 @@ third_party_rust.rust_library(
     crate = "logos_codegen",
     crate_root = "logos-codegen-0.16.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "logos-codegen",
+            "version": "0.16.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["--cfg=rust_1_82"],
     visibility = [],
     deps = [
@@ -14418,6 +18026,13 @@ third_party_rust.rust_library(
     crate = "logos_derive",
     crate_root = "logos-derive-0.12.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "logos-derive",
+            "version": "0.12.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -14444,6 +18059,13 @@ third_party_rust.rust_library(
     crate = "logos_derive",
     crate_root = "logos-derive-0.15.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "logos-derive",
+            "version": "0.15.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [":logos-codegen-0.15"],
@@ -14463,6 +18085,13 @@ third_party_rust.rust_library(
     crate = "logos_derive",
     crate_root = "logos-derive-0.16.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "logos-derive",
+            "version": "0.16.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [":logos-codegen-0.16"],
@@ -14482,6 +18111,13 @@ third_party_rust.rust_library(
     crate = "lru",
     crate_root = "lru-0.16.4.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "lru",
+            "version": "0.16.4",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -14503,6 +18139,13 @@ third_party_rust.rust_library(
         "default",
         "hashbrown",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "lru",
+            "version": "0.18.4",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":hashbrown-0.17"],
 )
@@ -14521,6 +18164,13 @@ third_party_rust.rust_library(
     crate = "lru_slab",
     crate_root = "lru-slab-0.1.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "lru-slab",
+            "version": "0.1.3",
+            "licenses": ["MIT OR Apache-2.0 OR Zlib"],
+        },
+    },
     visibility = [],
 )
 
@@ -14559,6 +18209,13 @@ third_party_rust.rust_library(
         "lz4",
         "metrics",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "lsm-tree",
+            "version": "3.1.10",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     named_deps = {
         "byteorder": ":byteorder-lite-0.1",
     },
@@ -14595,6 +18252,13 @@ third_party_rust.rust_library(
     crate_root = "lsp-types-0.94.1.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "lsp-types",
+            "version": "0.94.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-1",
@@ -14619,6 +18283,13 @@ third_party_rust.rust_library(
     crate = "lz4",
     crate_root = "lz4-1.28.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "lz4",
+            "version": "1.28.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":lz4-sys-1"],
 )
@@ -14666,6 +18337,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "lz4-sys",
+            "version": "1.11.1+lz4-1.10.0",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":lz4-sys-1-lz4-c-aarch64-linux"],
@@ -14709,6 +18387,13 @@ third_party_rust.cxx_library(
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/lz4hc.h]",
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/xxhash.h]",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "lz4-sys",
+            "version": "1.11.1+lz4-1.10.0",
+            "licenses": ["MIT"],
+        },
+    },
     preferred_linkage = "static",
     preprocessor_flags = ["-I$(location :lz4-sys-1.11.1+lz4-1.10.0.crate)/liblz4/lib"],
     visibility = [],
@@ -14739,6 +18424,13 @@ third_party_rust.cxx_library(
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/lz4hc.h]",
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/xxhash.h]",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "lz4-sys",
+            "version": "1.11.1+lz4-1.10.0",
+            "licenses": ["MIT"],
+        },
+    },
     preferred_linkage = "static",
     preprocessor_flags = ["-I$(location :lz4-sys-1.11.1+lz4-1.10.0.crate)/liblz4/lib"],
     visibility = [],
@@ -14769,6 +18461,13 @@ third_party_rust.cxx_library(
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/lz4hc.h]",
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/xxhash.h]",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "lz4-sys",
+            "version": "1.11.1+lz4-1.10.0",
+            "licenses": ["MIT"],
+        },
+    },
     preferred_linkage = "static",
     preprocessor_flags = ["-I$(location :lz4-sys-1.11.1+lz4-1.10.0.crate)/liblz4/lib"],
     visibility = [],
@@ -14799,6 +18498,13 @@ third_party_rust.cxx_library(
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/lz4hc.h]",
         ":lz4-sys-1.11.1+lz4-1.10.0.crate[liblz4/lib/xxhash.h]",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "lz4-sys",
+            "version": "1.11.1+lz4-1.10.0",
+            "licenses": ["MIT"],
+        },
+    },
     preferred_linkage = "static",
     preprocessor_flags = ["-I$(location :lz4-sys-1.11.1+lz4-1.10.0.crate)/liblz4/lib"],
     visibility = [],
@@ -14826,6 +18532,13 @@ third_party_rust.rust_library(
         "safe-encode",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "lz4_flex",
+            "version": "0.13.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":twox-hash-2"],
 )
@@ -14848,6 +18561,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "mac-addr",
+            "version": "0.3.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -14865,6 +18585,13 @@ third_party_rust.rust_library(
     crate = "mac_address",
     crate_root = "mac_address-1.1.8.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "mac_address",
+            "version": "1.1.8",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":nix-0.29"],
@@ -14902,6 +18629,13 @@ third_party_rust.rust_library(
     crate = "maplit",
     crate_root = "maplit-1.0.2.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "maplit",
+            "version": "1.0.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -14919,6 +18653,13 @@ third_party_rust.rust_library(
     crate = "matchers",
     crate_root = "matchers-0.2.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "matchers",
+            "version": "0.2.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":regex-automata-0.4"],
 )
@@ -14938,6 +18679,13 @@ third_party_rust.rust_library(
     crate_root = "matchit-0.8.4.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "matchit",
+            "version": "0.8.4",
+            "licenses": ["MIT AND BSD-3-Clause"],
+        },
+    },
     visibility = [],
 )
 
@@ -14960,6 +18708,13 @@ third_party_rust.rust_library(
         "default",
         "oid",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "md-5",
+            "version": "0.11.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -14991,6 +18746,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "md5",
+            "version": "0.8.1",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -15013,6 +18775,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "memchr",
+            "version": "2.8.3",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -15036,6 +18805,13 @@ third_party_rust.rust_library(
     crate = "memmap2",
     crate_root = "memmap2-0.9.11.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "memmap2",
+            "version": "0.9.11",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -15067,6 +18843,13 @@ third_party_rust.rust_library(
     crate = "memmem",
     crate_root = "memmem-0.1.1.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "memmem",
+            "version": "0.1.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -15088,6 +18871,13 @@ third_party_rust.rust_library(
         "OUT_DIR": "$(location :memoffset-0.6-build-script-run[out_dir])",
     },
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "memoffset",
+            "version": "0.6.5",
+            "licenses": ["MIT"],
+        },
+    },
     rustc_flags = ["@$(location :memoffset-0.6-build-script-run[rustc_flags])"],
     visibility = [],
 )
@@ -15099,6 +18889,13 @@ third_party_rust.rust_binary(
     crate_root = "memoffset-0.6.5.crate/build.rs",
     edition = "2015",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "memoffset",
+            "version": "0.6.5",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":autocfg-1"],
 )
@@ -15129,6 +18926,13 @@ third_party_rust.rust_library(
         "OUT_DIR": "$(location :memoffset-0.9-build-script-run[out_dir])",
     },
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "memoffset",
+            "version": "0.9.1",
+            "licenses": ["MIT"],
+        },
+    },
     rustc_flags = ["@$(location :memoffset-0.9-build-script-run[rustc_flags])"],
     visibility = [],
 )
@@ -15140,6 +18944,13 @@ third_party_rust.rust_binary(
     crate_root = "memoffset-0.9.1.crate/build.rs",
     edition = "2015",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "memoffset",
+            "version": "0.9.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":autocfg-1"],
 )
@@ -15166,6 +18977,13 @@ third_party_rust.rust_library(
     crate = "metrics",
     crate_root = "metrics-0.24.6.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "metrics",
+            "version": "0.24.6",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":rapidhash-4"],
 )
@@ -15205,6 +19023,13 @@ third_party_rust.rust_library(
         "sketches-ddsketch",
         "storage",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "metrics-util",
+            "version": "0.20.4",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":aho-corasick-1",
@@ -15241,6 +19066,13 @@ third_party_rust.rust_library(
         "default",
         "service-metrics",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "metrique",
+            "version": "0.1.31",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":itoa-1",
@@ -15270,6 +19102,13 @@ third_party_rust.rust_library(
     crate = "metrique_core",
     crate_root = "metrique-core-0.1.22.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "metrique-core",
+            "version": "0.1.22",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":itertools-0.14",
@@ -15291,6 +19130,13 @@ third_party_rust.rust_library(
     crate = "metrique_macro",
     crate_root = "metrique-macro-0.1.22.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "metrique-macro",
+            "version": "0.1.22",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -15317,6 +19163,13 @@ third_party_rust.rust_library(
     crate = "metrique_service_metrics",
     crate_root = "metrique-service-metrics-0.1.23.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "metrique-service-metrics",
+            "version": "0.1.23",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":metrique-writer-0.1"],
 )
@@ -15336,6 +19189,13 @@ third_party_rust.rust_library(
     crate_root = "metrique-timesource-0.1.10.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "metrique-timesource",
+            "version": "0.1.10",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -15358,6 +19218,13 @@ third_party_rust.rust_library(
         "metrics-rs-024",
         "tracing-subscriber-03",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "metrique-writer",
+            "version": "0.1.27",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     named_deps = {
         "metrics_024": ":metrics-0.24",
         "metrics_util_020": ":metrics-util-0.20",
@@ -15393,6 +19260,13 @@ third_party_rust.rust_library(
     crate_root = "metrique-writer-core-0.1.21.crate/src/lib.rs",
     edition = "2024",
     features = ["serde"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "metrique-writer-core",
+            "version": "0.1.21",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":derive-where-1",
@@ -15416,6 +19290,13 @@ third_party_rust.rust_library(
     crate = "metrique_writer_macro",
     crate_root = "metrique-writer-macro-0.1.10.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "metrique-writer-macro",
+            "version": "0.1.10",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -15464,6 +19345,13 @@ third_party_rust.rust_library(
         "derive",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "miette",
+            "version": "7.6.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -15487,6 +19375,13 @@ third_party_rust.rust_library(
     crate = "miette_derive",
     crate_root = "miette-derive-7.6.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "miette-derive",
+            "version": "7.6.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -15510,6 +19405,13 @@ third_party_rust.rust_library(
     crate = "mime",
     crate_root = "mime-0.3.17.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "mime",
+            "version": "0.3.17",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -15528,6 +19430,13 @@ third_party_rust.rust_library(
     crate_root = "minimal-lexical-0.2.1.crate/src/lib.rs",
     edition = "2018",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "minimal-lexical",
+            "version": "0.2.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -15546,6 +19455,13 @@ third_party_rust.rust_library(
     crate_root = "miniz_oxide-0.8.9.crate/src/lib.rs",
     edition = "2021",
     features = ["with-alloc"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "miniz_oxide",
+            "version": "0.8.9",
+            "licenses": ["MIT OR Zlib OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":adler2-2"],
 )
@@ -15570,6 +19486,13 @@ third_party_rust.rust_library(
         "simd-adler32",
         "with-alloc",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "miniz_oxide",
+            "version": "0.9.1",
+            "licenses": ["MIT OR Zlib OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":adler2-2",
@@ -15596,6 +19519,13 @@ third_party_rust.rust_library(
         "os-ext",
         "os-poll",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "mio",
+            "version": "1.2.3",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             features = [
@@ -15662,6 +19592,13 @@ third_party_rust.rust_library(
     crate_root = "mixtrics-0.2.5.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "mixtrics",
+            "version": "0.2.5",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":itertools-0.15",
@@ -15683,6 +19620,13 @@ third_party_rust.rust_library(
     crate = "multimap",
     crate_root = "multimap-0.10.1.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "multimap",
+            "version": "0.10.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -15700,6 +19644,13 @@ third_party_rust.rust_library(
     crate = "multiversion",
     crate_root = "multiversion-0.9.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "multiversion",
+            "version": "0.9.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":multiversion-macros-0.9"],
 )
@@ -15718,6 +19669,13 @@ third_party_rust.rust_library(
     crate = "multiversion_macros",
     crate_root = "multiversion-macros-0.9.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "multiversion-macros",
+            "version": "0.9.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -15742,6 +19700,13 @@ third_party_rust.rust_library(
     crate = "multiversion_no_op",
     crate_root = "multiversion_no_op-1.0.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "multiversion_no_op",
+            "version": "1.0.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
 )
@@ -15767,6 +19732,13 @@ third_party_rust.rust_library(
         "transport-https",
         "transport-tls",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "n0-dns-resolver",
+            "version": "0.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "macos-arm64": dict(
             deps = [":system-configuration-0.8"],
@@ -15810,6 +19782,13 @@ third_party_rust.rust_binary(
         "transport-https",
         "transport-tls",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "n0-dns-resolver",
+            "version": "0.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -15842,6 +19821,13 @@ third_party_rust.rust_library(
         "anyhow",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "n0-error",
+            "version": "1.0.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":anyhow-1",
@@ -15864,6 +19850,13 @@ third_party_rust.rust_library(
     crate = "n0_error_macros",
     crate_root = "n0-error-macros-1.0.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "n0-error-macros",
+            "version": "1.0.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -15890,6 +19883,13 @@ third_party_rust.rust_library(
     env = {
         "OUT_DIR": "$(location :n0-future-0.3-build-script-run[out_dir])",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "n0-future",
+            "version": "0.3.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :n0-future-0.3-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -15909,6 +19909,13 @@ third_party_rust.rust_binary(
     crate = "build_script_build",
     crate_root = "n0-future-0.3.2.crate/build.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "n0-future",
+            "version": "0.3.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":cfg_aliases-0.2"],
 )
@@ -15941,6 +19948,13 @@ third_party_rust.rust_library(
     crate_root = "n0-mainline-0.7.1.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "n0-mainline",
+            "version": "0.7.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":crc-3",
@@ -15974,6 +19988,13 @@ third_party_rust.rust_library(
     crate = "n0_watcher",
     crate_root = "n0-watcher-1.0.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "n0-watcher",
+            "version": "1.0.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":derive_more-2",
@@ -16000,6 +20021,13 @@ third_party_rust.rust_library(
         "alpn",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "native-tls",
+            "version": "0.2.18",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -16057,6 +20085,13 @@ third_party_rust.rust_library(
     crate = "nested_enum_utils",
     crate_root = "nested_enum_utils-0.2.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "nested_enum_utils",
+            "version": "0.2.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -16087,6 +20122,13 @@ third_party_rust.rust_library(
         "default",
         "gateway",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "netdev",
+            "version": "0.45.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":ipnet-2",
@@ -16115,6 +20157,13 @@ third_party_rust.rust_library(
         "default",
         "gateway",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "netdev",
+            "version": "0.46.3",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -16167,6 +20216,13 @@ third_party_rust.rust_library(
     crate = "netlink_packet_core",
     crate_root = "netlink-packet-core-0.8.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "netlink-packet-core",
+            "version": "0.8.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":paste-1"],
 )
@@ -16185,6 +20241,13 @@ third_party_rust.rust_library(
     crate = "netlink_packet_core",
     crate_root = "netlink-packet-core-0.9.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "netlink-packet-core",
+            "version": "0.9.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -16202,6 +20265,13 @@ third_party_rust.rust_library(
     crate = "netlink_packet_route",
     crate_root = "netlink-packet-route-0.31.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "netlink-packet-route",
+            "version": "0.31.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -16225,6 +20295,13 @@ third_party_rust.rust_library(
     crate = "netlink_packet_route",
     crate_root = "netlink-packet-route-0.33.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "netlink-packet-route",
+            "version": "0.33.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -16253,6 +20330,13 @@ third_party_rust.rust_library(
         "default",
         "tokio_socket",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "netlink-proto",
+            "version": "0.12.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bytes-1",
@@ -16285,6 +20369,13 @@ third_party_rust.rust_library(
         "tokio",
         "tokio_socket",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "netlink-sys",
+            "version": "0.8.8",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bytes-1",
@@ -16310,6 +20401,13 @@ third_party_rust.rust_library(
     crate_root = "netlink-sys-0.9.0.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "netlink-sys",
+            "version": "0.9.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bytes-1",
@@ -16334,6 +20432,13 @@ third_party_rust.rust_library(
     edition = "2024",
     env = {
         "OUT_DIR": "$(location :netwatch-0.19-build-script-run[out_dir])",
+    },
+    metadata = {
+        "third-party.metadata": {
+            "name": "netwatch",
+            "version": "0.19.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
     },
     platform = {
         "linux-arm64": dict(
@@ -16414,6 +20519,13 @@ third_party_rust.rust_binary(
     crate = "build_script_build",
     crate_root = "netwatch-0.19.3.crate/build.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "netwatch",
+            "version": "0.19.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":cfg_aliases-0.2"],
 )
@@ -16439,6 +20551,13 @@ third_party_rust.rust_library(
     crate = "debug_unreachable",
     crate_root = "new_debug_unreachable-1.0.6.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "new_debug_unreachable",
+            "version": "1.0.6",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -16456,6 +20575,13 @@ third_party_rust.rust_library(
     crate = "nibble_vec",
     crate_root = "nibble_vec-0.1.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "nibble_vec",
+            "version": "0.1.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":smallvec-1"],
 )
@@ -16485,6 +20611,13 @@ third_party_rust.rust_library(
         "signal",
         "term",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "nix",
+            "version": "0.28.0",
+            "licenses": ["MIT"],
+        },
+    },
     rustc_flags = ["@$(location :nix-0.28-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -16508,6 +20641,13 @@ third_party_rust.rust_binary(
         "signal",
         "term",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "nix",
+            "version": "0.28.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":cfg_aliases-0.1"],
 )
@@ -16552,6 +20692,13 @@ third_party_rust.rust_library(
         "net",
         "socket",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "nix",
+            "version": "0.29.0",
+            "licenses": ["MIT"],
+        },
+    },
     rustc_flags = ["@$(location :nix-0.29-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -16576,6 +20723,13 @@ third_party_rust.rust_binary(
         "net",
         "socket",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "nix",
+            "version": "0.29.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":cfg_aliases-0.2"],
 )
@@ -16617,6 +20771,13 @@ third_party_rust.rust_library(
         "process",
         "signal",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "nix",
+            "version": "0.31.3",
+            "licenses": ["MIT"],
+        },
+    },
     rustc_flags = ["@$(location :nix-0.31-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -16637,6 +20798,13 @@ third_party_rust.rust_binary(
         "process",
         "signal",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "nix",
+            "version": "0.31.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":cfg_aliases-0.2"],
 )
@@ -16671,6 +20839,13 @@ third_party_rust.rust_library(
         "alloc",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "nom",
+            "version": "7.1.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":memchr-2",
@@ -16697,6 +20872,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "nom",
+            "version": "8.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":memchr-2"],
 )
@@ -16720,6 +20902,13 @@ third_party_rust.rust_library(
         "serialize",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "nonempty",
+            "version": "0.12.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":serde-1"],
 )
@@ -16745,6 +20934,13 @@ third_party_rust.rust_library(
         "runtime-tokio",
         "rustls",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "noq",
+            "version": "1.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     named_deps = {
         "proto": ":noq-proto-1",
         "udp": ":noq-udp-1",
@@ -16775,6 +20971,13 @@ third_party_rust.rust_binary(
         "runtime-tokio",
         "rustls",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "noq",
+            "version": "1.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":cfg_aliases-0.2"],
 )
@@ -16805,6 +21008,13 @@ third_party_rust.rust_library(
     crate_root = "noq-proto-1.3.0.crate/src/lib.rs",
     edition = "2024",
     features = ["rustls"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "noq-proto",
+            "version": "1.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":aes-gcm-0.10",
@@ -16847,6 +21057,13 @@ third_party_rust.rust_library(
         "tracing",
         "tracing-log",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "noq-udp",
+            "version": "1.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":windows-sys-0.61"],
@@ -16875,6 +21092,13 @@ third_party_rust.rust_binary(
         "tracing",
         "tracing-log",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "noq-udp",
+            "version": "1.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":cfg_aliases-0.2"],
 )
@@ -16911,6 +21135,13 @@ third_party_rust.rust_library(
         "fsevent-sys",
         "macos_fsevent",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "notify",
+            "version": "8.2.0",
+            "licenses": ["CC0-1.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -16978,6 +21209,13 @@ third_party_rust.rust_library(
         "default",
         "macos_fsevent",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "notify-debouncer-mini",
+            "version": "0.7.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":crossbeam-channel-0.5",
@@ -17002,6 +21240,13 @@ third_party_rust.rust_library(
     crate = "notify_types",
     crate_root = "notify-types-2.1.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "notify-types",
+            "version": "2.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":bitflags-2"],
 )
@@ -17024,6 +21269,13 @@ third_party_rust.rust_library(
         "default",
         "user",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ntapi",
+            "version": "0.4.3",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":winapi-0.3"],
 )
@@ -17046,6 +21298,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "nu-ansi-term",
+            "version": "0.50.3",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             named_deps = {
@@ -17080,6 +21339,13 @@ third_party_rust.rust_library(
         "num-bigint",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "num",
+            "version": "0.4.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":num-bigint-0.4",
@@ -17109,6 +21375,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "num-bigint",
+            "version": "0.4.8",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":num-integer-0.1",
@@ -17131,6 +21404,13 @@ third_party_rust.rust_library(
     crate_root = "num-complex-0.4.6.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "num-complex",
+            "version": "0.4.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":num-traits-0.2"],
 )
@@ -17149,6 +21429,13 @@ third_party_rust.rust_library(
     crate = "num_conv",
     crate_root = "num-conv-0.2.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "num-conv",
+            "version": "0.2.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -17166,6 +21453,13 @@ third_party_rust.rust_library(
     crate = "num_derive",
     crate_root = "num-derive-0.4.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "num-derive",
+            "version": "0.4.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -17193,6 +21487,13 @@ third_party_rust.rust_library(
         "i128",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "num-integer",
+            "version": "0.1.47",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":num-traits-0.2"],
 )
@@ -17215,6 +21516,13 @@ third_party_rust.rust_library(
         "i128",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "num-iter",
+            "version": "0.1.46",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":num-integer-0.1",
@@ -17236,6 +21544,13 @@ third_party_rust.rust_library(
     crate = "num_modular",
     crate_root = "num-modular-0.6.5.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "num-modular",
+            "version": "0.6.5",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -17259,6 +21574,13 @@ third_party_rust.rust_library(
         "num-bigint-std",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "num-rational",
+            "version": "0.4.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":num-bigint-0.4",
@@ -17289,6 +21611,13 @@ third_party_rust.rust_library(
         "i128",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "num-traits",
+            "version": "0.2.19",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :num-traits-0.2-build-script-run[rustc_flags])"],
     visibility = [],
 )
@@ -17304,6 +21633,13 @@ third_party_rust.rust_binary(
         "i128",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "num-traits",
+            "version": "0.2.19",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":autocfg-1"],
 )
@@ -17334,6 +21670,13 @@ third_party_rust.rust_library(
     crate = "num_cpus",
     crate_root = "num_cpus-1.17.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "num_cpus",
+            "version": "1.17.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":libc-0.2"],
 )
@@ -17356,6 +21699,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "num_enum",
+            "version": "0.7.6",
+            "licenses": ["BSD-3-Clause OR MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":num_enum_derive-0.7",
@@ -17381,6 +21731,13 @@ third_party_rust.rust_library(
         "proc-macro-crate",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "num_enum_derive",
+            "version": "0.7.6",
+            "licenses": ["BSD-3-Clause OR MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -17405,6 +21762,13 @@ third_party_rust.rust_library(
     crate = "num_threads",
     crate_root = "num_threads-0.1.7.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "num_threads",
+            "version": "0.1.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "macos-arm64": dict(
             deps = [":libc-0.2"],
@@ -17430,6 +21794,13 @@ third_party_rust.rust_library(
     crate = "numeric_cast",
     crate_root = "numeric_cast-0.3.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "numeric_cast",
+            "version": "0.3.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -17468,6 +21839,13 @@ third_party_rust.rust_library(
         "alloc",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2",
+            "version": "0.6.4",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":objc2-encode-4"],
 )
@@ -17542,6 +21920,13 @@ third_party_rust.rust_library(
         "objc2",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2-core-foundation",
+            "version": "0.3.2",
+            "licenses": ["Zlib OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -17570,6 +21955,13 @@ third_party_rust.rust_library(
         "alloc",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2-encode",
+            "version": "4.1.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -17593,6 +21985,13 @@ third_party_rust.rust_library(
         "libc",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2-io-kit",
+            "version": "0.3.2",
+            "licenses": ["Zlib OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":libc-0.2",
@@ -17619,6 +22018,13 @@ third_party_rust.rust_library(
         "bitflags",
         "objc2",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2-security",
+            "version": "0.3.2",
+            "licenses": ["Zlib OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -17665,6 +22071,13 @@ third_party_rust.rust_library(
         "objc2-security",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "objc2-system-configuration",
+            "version": "0.3.2",
+            "licenses": ["Zlib OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -17704,6 +22117,13 @@ third_party_rust.rust_library(
         "std",
         "xcoff",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "object",
+            "version": "0.39.1",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     rustc_flags = ["@$(location :object-0.39-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [":memchr-2"],
@@ -17726,6 +22146,13 @@ third_party_rust.rust_binary(
         "std",
         "xcoff",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "object",
+            "version": "0.39.1",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -17792,6 +22219,13 @@ third_party_rust.rust_library(
         "walkdir",
         "windows-sys",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "object_store",
+            "version": "0.14.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":nix-0.31"],
@@ -17854,6 +22288,13 @@ third_party_rust.rust_library(
         "race",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "once_cell",
+            "version": "1.21.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":critical-section-1",
@@ -17876,6 +22317,13 @@ third_party_rust.rust_library(
     crate_root = "once_cell_polyfill-1.70.2.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "once_cell_polyfill",
+            "version": "1.70.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -17893,6 +22341,13 @@ third_party_rust.rust_library(
     crate = "opaque_debug",
     crate_root = "opaque-debug-0.3.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "opaque-debug",
+            "version": "0.3.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -17921,6 +22376,13 @@ third_party_rust.rust_library(
         "default",
         "unstable_boringssl",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "openssl",
+            "version": "0.10.81",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     named_deps = {
         "ffi": ":openssl-sys-0.9",
     },
@@ -18002,6 +22464,13 @@ third_party_rust.rust_library(
     crate = "openssl_macros",
     crate_root = "openssl-macros-0.1.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "openssl-macros",
+            "version": "0.1.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -18025,6 +22494,13 @@ third_party_rust.rust_library(
     crate = "openssl_probe",
     crate_root = "openssl-probe-0.2.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "openssl-probe",
+            "version": "0.2.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -18046,6 +22522,13 @@ third_party_rust.rust_library(
         "bindgen",
         "unstable_boringssl",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "openssl-sys",
+            "version": "0.9.117",
+            "licenses": ["MIT"],
+        },
+    },
     rustc_flags = ["--cfg=boringssl"],
     visibility = [],
     deps = [
@@ -18107,6 +22590,13 @@ third_party_rust.rust_library(
         "trace",
         "tracing",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "opentelemetry",
+            "version": "0.32.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":futures-core-0.3",
@@ -18137,6 +22627,13 @@ third_party_rust.rust_library(
     crate = "opentelemetry_appender_log",
     crate_root = "opentelemetry-appender-log-0.32.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "opentelemetry-appender-log",
+            "version": "0.32.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":log-0.4",
@@ -18179,6 +22676,13 @@ third_party_rust.rust_library(
         "reqwest",
         "reqwest-blocking",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "opentelemetry-http",
+            "version": "0.32.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":async-trait-0.1",
@@ -18243,6 +22747,13 @@ third_party_rust.rust_library(
         "tonic-types",
         "trace",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "opentelemetry-otlp",
+            "version": "0.32.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":http-1",
@@ -18283,6 +22794,13 @@ third_party_rust.rust_library(
         "tonic-prost",
         "trace",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "opentelemetry-proto",
+            "version": "0.32.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":opentelemetry-0.32",
@@ -18313,6 +22831,13 @@ third_party_rust.rust_library(
     crate = "opentelemetry_resource_detectors",
     crate_root = "opentelemetry-resource-detectors-0.12.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "opentelemetry-resource-detectors",
+            "version": "0.12.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":opentelemetry-0.32",
@@ -18345,6 +22870,13 @@ third_party_rust.rust_library(
         "default",
         "semconv_experimental",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "opentelemetry-semantic-conventions",
+            "version": "0.32.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -18398,6 +22930,13 @@ third_party_rust.rust_library(
         "tokio-stream",
         "trace",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "opentelemetry_sdk",
+            "version": "0.32.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":futures-channel-0.3",
@@ -18426,6 +22965,13 @@ third_party_rust.rust_library(
     crate = "option_ext",
     crate_root = "option-ext-0.2.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "option-ext",
+            "version": "0.2.0",
+            "licenses": ["MPL-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -18447,6 +22993,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ordered-float",
+            "version": "4.6.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":num-traits-0.2"],
 )
@@ -18470,6 +23023,13 @@ third_party_rust.rust_library(
         "serde",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ordered-float",
+            "version": "5.5.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":num-traits-0.2",
@@ -18495,6 +23055,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ouroboros",
+            "version": "0.18.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":aliasable-0.1",
@@ -18518,6 +23085,13 @@ third_party_rust.rust_library(
     crate_root = "ouroboros_macro-0.18.5.crate/src/lib.rs",
     edition = "2018",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ouroboros_macro",
+            "version": "0.18.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -18543,6 +23117,13 @@ third_party_rust.rust_library(
     crate = "outref",
     crate_root = "outref-0.5.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "outref",
+            "version": "0.5.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -18560,6 +23141,13 @@ third_party_rust.rust_library(
     crate = "papaya",
     crate_root = "papaya-0.2.5.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "papaya",
+            "version": "0.2.5",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":equivalent-1",
@@ -18581,6 +23169,13 @@ third_party_rust.rust_library(
     crate = "parking",
     crate_root = "parking-2.2.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "parking",
+            "version": "2.2.1",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -18605,6 +23200,13 @@ third_party_rust.rust_library(
     crate_root = "parking_lot-0.12.5.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "parking_lot",
+            "version": "0.12.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":lock_api-0.4",
@@ -18628,6 +23230,13 @@ third_party_rust.rust_library(
     edition = "2021",
     env = {
         "OUT_DIR": "$(location :parking_lot_core-0.9-build-script-run[out_dir])",
+    },
+    metadata = {
+        "third-party.metadata": {
+            "name": "parking_lot_core",
+            "version": "0.9.12",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
     },
     platform = {
         "linux-arm64": dict(
@@ -18663,6 +23272,13 @@ third_party_rust.rust_binary(
     crate = "build_script_build",
     crate_root = "parking_lot_core-0.9.12.crate/build.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "parking_lot_core",
+            "version": "0.9.12",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -18687,6 +23303,13 @@ third_party_rust.rust_library(
     crate = "paste",
     crate_root = "paste-1.0.15.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "paste",
+            "version": "1.0.15",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
 )
@@ -18710,6 +23333,13 @@ third_party_rust.rust_library(
         "default",
         "yansi",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "pear",
+            "version": "0.2.9",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":inlinable_string-0.1",
@@ -18732,6 +23362,13 @@ third_party_rust.rust_library(
     crate = "pear_codegen",
     crate_root = "pear_codegen-0.2.9.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "pear_codegen",
+            "version": "0.2.9",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -18757,6 +23394,13 @@ third_party_rust.rust_library(
     crate_root = "pem-rfc7468-1.0.0.crate/src/lib.rs",
     edition = "2024",
     features = ["alloc"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "pem-rfc7468",
+            "version": "1.0.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":base64ct-1"],
 )
@@ -18786,6 +23430,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "percent-encoding",
+            "version": "2.3.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -18803,6 +23454,13 @@ third_party_rust.rust_library(
     crate = "perf_event_data",
     crate_root = "perf-event-data-0.1.8.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "perf-event-data",
+            "version": "0.1.8",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -18825,6 +23483,13 @@ third_party_rust.rust_library(
     crate = "perf_event_open_sys",
     crate_root = "perf-event-open-sys2-5.0.6.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "perf-event-open-sys2",
+            "version": "5.0.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":libc-0.2",
@@ -18851,6 +23516,13 @@ third_party_rust.rust_library(
         "memchr",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "pest",
+            "version": "2.9.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":memchr-2",
@@ -18876,6 +23548,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "pest_derive",
+            "version": "2.9.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -18899,6 +23578,13 @@ third_party_rust.rust_library(
     crate_root = "pest_generator-2.9.1.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "pest_generator",
+            "version": "2.9.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":pest-2",
@@ -18924,6 +23610,13 @@ third_party_rust.rust_library(
     crate_root = "pest_meta-2.9.1.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "pest_meta",
+            "version": "2.9.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":pest-2"],
 )
@@ -18942,6 +23635,13 @@ third_party_rust.rust_library(
     crate = "petgraph",
     crate_root = "petgraph-0.6.5.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "petgraph",
+            "version": "0.6.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":fixedbitset-0.4",
@@ -18963,6 +23663,13 @@ third_party_rust.rust_library(
     crate = "petgraph",
     crate_root = "petgraph-0.7.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "petgraph",
+            "version": "0.7.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":fixedbitset-0.5",
@@ -18985,6 +23692,13 @@ third_party_rust.rust_library(
     crate_root = "petgraph-0.8.3.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "petgraph",
+            "version": "0.8.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":fixedbitset-0.5",
@@ -19013,6 +23727,13 @@ third_party_rust.rust_library(
         "phf_macros",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "phf",
+            "version": "0.11.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":phf_macros-0.11",
@@ -19038,6 +23759,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "phf",
+            "version": "0.14.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":phf_shared-0.14"],
 )
@@ -19056,6 +23784,13 @@ third_party_rust.rust_library(
     crate = "phf_codegen",
     crate_root = "phf_codegen-0.11.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "phf_codegen",
+            "version": "0.11.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":phf_generator-0.11",
@@ -19077,6 +23812,13 @@ third_party_rust.rust_library(
     crate = "phf_generator",
     crate_root = "phf_generator-0.11.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "phf_generator",
+            "version": "0.11.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":phf_shared-0.11",
@@ -19098,6 +23840,13 @@ third_party_rust.rust_library(
     crate = "phf_macros",
     crate_root = "phf_macros-0.11.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "phf_macros",
+            "version": "0.11.3",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -19127,6 +23876,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "phf_shared",
+            "version": "0.11.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":siphasher-1"],
 )
@@ -19146,6 +23902,13 @@ third_party_rust.rust_library(
     crate_root = "phf_shared-0.14.0.crate/src/lib.rs",
     edition = "2024",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "phf_shared",
+            "version": "0.14.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":siphasher-1"],
 )
@@ -19164,6 +23927,13 @@ third_party_rust.rust_library(
     crate = "pico_args",
     crate_root = "pico-args-0.5.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "pico-args",
+            "version": "0.5.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -19181,6 +23951,13 @@ third_party_rust.rust_library(
     crate = "pin_project",
     crate_root = "pin-project-1.1.13.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "pin-project",
+            "version": "1.1.13",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":pin-project-internal-1"],
 )
@@ -19199,6 +23976,13 @@ third_party_rust.rust_library(
     crate = "pin_project_internal",
     crate_root = "pin-project-internal-1.1.13.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "pin-project-internal",
+            "version": "1.1.13",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -19222,6 +24006,13 @@ third_party_rust.rust_library(
     crate = "pin_project_lite",
     crate_root = "pin-project-lite-0.2.17.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "pin-project-lite",
+            "version": "0.2.17",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -19243,6 +24034,13 @@ third_party_rust.rust_library(
         "alloc",
         "pem",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "pkcs8",
+            "version": "0.11.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":der-0.8",
@@ -19268,6 +24066,13 @@ third_party_rust.rust_library(
         "default",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "plist",
+            "version": "1.10.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":base64-0.23",
@@ -19298,6 +24103,13 @@ third_party_rust.rust_library(
     crate = "pollster",
     crate_root = "pollster-1.0.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "pollster",
+            "version": "1.0.1",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -19315,6 +24127,13 @@ third_party_rust.rust_library(
     crate = "polyval",
     crate_root = "polyval-0.6.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "polyval",
+            "version": "0.6.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -19362,6 +24181,13 @@ third_party_rust.rust_library(
         "serde",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "portable-atomic",
+            "version": "1.15.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     rustc_flags = ["@$(location :portable-atomic-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [":serde-1"],
@@ -19396,6 +24222,13 @@ third_party_rust.rust_binary(
         "serde",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "portable-atomic",
+            "version": "1.15.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -19438,6 +24271,13 @@ third_party_rust.rust_library(
     crate = "portmapper",
     crate_root = "portmapper-0.19.3.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "portmapper",
+            "version": "0.19.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":base64-0.22",
@@ -19478,6 +24318,13 @@ third_party_rust.rust_library(
     crate = "positioned_io",
     crate_root = "positioned-io-0.3.5.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "positioned-io",
+            "version": "0.3.5",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -19524,6 +24371,13 @@ third_party_rust.rust_library(
         "postcard-derive",
         "use-std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "postcard",
+            "version": "1.1.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":cobs-0.3",
@@ -19547,6 +24401,13 @@ third_party_rust.rust_library(
     crate = "postcard_derive",
     crate_root = "postcard-derive-0.2.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "postcard-derive",
+            "version": "0.2.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -19575,6 +24436,13 @@ third_party_rust.rust_library(
         "writeable",
         "zerovec",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "potential_utf",
+            "version": "0.1.6",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":writeable-0.6",
@@ -19596,6 +24464,13 @@ third_party_rust.rust_library(
     crate = "powerfmt",
     crate_root = "powerfmt-0.2.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "powerfmt",
+            "version": "0.2.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -19617,6 +24492,13 @@ third_party_rust.rust_library(
         "simd",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ppv-lite86",
+            "version": "0.2.21",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":zerocopy-0.8"],
 )
@@ -19635,6 +24517,13 @@ third_party_rust.rust_library(
     crate = "precomputed_hash",
     crate_root = "precomputed-hash-0.1.1.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "precomputed-hash",
+            "version": "0.1.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -19652,6 +24541,13 @@ third_party_rust.rust_library(
     crate = "pretty",
     crate_root = "pretty-0.12.5.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "pretty",
+            "version": "0.12.5",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":arrayvec-0.5",
@@ -19691,6 +24587,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "37",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "prettyplease",
+            "version": "0.2.37",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":proc-macro2-1",
@@ -19729,6 +24632,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "prettyplease",
+            "version": "0.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":proc-macro2-1",
@@ -19750,6 +24660,13 @@ third_party_rust.rust_library(
     crate = "proc_macro_crate",
     crate_root = "proc-macro-crate-3.5.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "proc-macro-crate",
+            "version": "3.5.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":toml_edit-0.25"],
 )
@@ -19771,6 +24688,13 @@ third_party_rust.rust_library(
     env = {
         "OUT_DIR": "$(location :proc-macro-error-0.4-build-script-run[out_dir])",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "proc-macro-error",
+            "version": "0.4.12",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :proc-macro-error-0.4-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -19787,6 +24711,13 @@ third_party_rust.rust_binary(
     crate = "build_script_build",
     crate_root = "proc-macro-error-0.4.12.crate/build.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "proc-macro-error",
+            "version": "0.4.12",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":version_check-0.9"],
 )
@@ -19812,6 +24743,13 @@ third_party_rust.rust_library(
     crate = "proc_macro_error_attr",
     crate_root = "proc-macro-error-attr-0.4.12.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "proc-macro-error-attr",
+            "version": "0.4.12",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -19836,6 +24774,13 @@ third_party_rust.rust_library(
     crate = "proc_macro_hack",
     crate_root = "proc-macro-hack-0.5.20+deprecated.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "proc-macro-hack",
+            "version": "0.5.20+deprecated",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
 )
@@ -19867,6 +24812,13 @@ third_party_rust.rust_library(
         "default",
         "proc-macro",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "proc-macro2",
+            "version": "1.0.107",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :proc-macro2-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [":unicode-ident-1"],
@@ -19882,6 +24834,13 @@ third_party_rust.rust_binary(
         "default",
         "proc-macro",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "proc-macro2",
+            "version": "1.0.107",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -19915,6 +24874,13 @@ third_party_rust.rust_library(
         "default",
         "yansi",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "proc-macro2-diagnostics",
+            "version": "0.10.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":proc-macro2-1",
@@ -19943,6 +24909,13 @@ third_party_rust.rust_library(
         "parking_lot",
         "progress-tree",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "prodash",
+            "version": "31.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":parking_lot-0.12"],
 )
@@ -19972,6 +24945,13 @@ third_party_rust.rust_library(
         "derive",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "prost",
+            "version": "0.14.4",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bytes-1",
@@ -19998,6 +24978,13 @@ third_party_rust.rust_library(
         "default",
         "format",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "prost-build",
+            "version": "0.14.4",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":heck-0.5",
@@ -20030,6 +25017,13 @@ third_party_rust.rust_library(
     crate = "prost_derive",
     crate_root = "prost-derive-0.14.4.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "prost-derive",
+            "version": "0.14.4",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -20065,6 +25059,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "prost-types",
+            "version": "0.14.4",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":prost-0.14"],
 )
@@ -20105,6 +25106,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "32",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "psm",
+            "version": "0.1.32",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             rustc_flags = ["--cfg=switchable_stack"],
@@ -20143,6 +25151,13 @@ third_party_rust.cxx_library(
         "-DCFG_TARGET_ENV_gnu",
     ],
     headers = [],
+    metadata = {
+        "third-party.metadata": {
+            "name": "psm",
+            "version": "0.1.32",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     preferred_linkage = "static",
     preprocessor_flags = ["-I$(location :psm-0.1.32.crate)/src/arch"],
     visibility = [],
@@ -20157,6 +25172,13 @@ third_party_rust.cxx_library(
         "-DCFG_TARGET_ARCH_aarch64",
     ],
     headers = [],
+    metadata = {
+        "third-party.metadata": {
+            "name": "psm",
+            "version": "0.1.32",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     preferred_linkage = "static",
     preprocessor_flags = ["-I$(location :psm-0.1.32.crate)/src/arch"],
     visibility = [],
@@ -20172,6 +25194,13 @@ third_party_rust.cxx_library(
         "-DCFG_TARGET_ENV_gnu",
     ],
     headers = [],
+    metadata = {
+        "third-party.metadata": {
+            "name": "psm",
+            "version": "0.1.32",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     preferred_linkage = "static",
     preprocessor_flags = ["-I$(location :psm-0.1.32.crate)/src/arch"],
     visibility = [],
@@ -20186,6 +25215,13 @@ third_party_rust.cxx_library(
         "-DCFG_TARGET_ARCH_x86_64",
     ],
     headers = [],
+    metadata = {
+        "third-party.metadata": {
+            "name": "psm",
+            "version": "0.1.32",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     preferred_linkage = "static",
     preprocessor_flags = ["-I$(location :psm-0.1.32.crate)/src/arch"],
     visibility = [],
@@ -20195,6 +25231,13 @@ third_party_rust.cxx_library(
     name = "psm-0.1-cbits-x86_64-windows",
     srcs = [":psm-0.1.32.crate[src/arch/x86_64_msvc.asm]"],
     headers = [],
+    metadata = {
+        "third-party.metadata": {
+            "name": "psm",
+            "version": "0.1.32",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     preferred_linkage = "static",
     preprocessor_flags = ["-I$(location :psm-0.1.32.crate)/src/arch"],
     visibility = [],
@@ -20214,6 +25257,13 @@ third_party_rust.rust_library(
     crate = "pulldown_cmark",
     crate_root = "pulldown-cmark-0.13.4.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "pulldown-cmark",
+            "version": "0.13.4",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -20236,6 +25286,13 @@ third_party_rust.rust_library(
     crate = "pulldown_cmark_to_cmark",
     crate_root = "pulldown-cmark-to-cmark-22.0.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "pulldown-cmark-to-cmark",
+            "version": "22.0.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":pulldown-cmark-0.13"],
 )
@@ -20254,6 +25311,13 @@ third_party_rust.rust_library(
     crate = "quanta",
     crate_root = "quanta-0.12.6.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "quanta",
+            "version": "0.12.6",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -20319,6 +25383,13 @@ third_party_rust.rust_library(
         "serde",
         "serialize",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "quick-xml",
+            "version": "0.42.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":memchr-2",
@@ -20346,6 +25417,13 @@ third_party_rust.rust_library(
     crate = "quick_cache",
     crate_root = "quick_cache-0.6.24.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "quick_cache",
+            "version": "0.6.24",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":equivalent-1",
@@ -20377,6 +25455,13 @@ third_party_rust.rust_library(
         "default",
         "proc-macro",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "quote",
+            "version": "1.0.47",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":proc-macro2-1"],
 )
@@ -20395,6 +25480,13 @@ third_party_rust.rust_library(
     crate = "radix_trie",
     crate_root = "radix_trie-0.2.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "radix_trie",
+            "version": "0.2.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":endian-type-0.1",
@@ -20417,6 +25509,13 @@ third_party_rust.rust_library(
     crate_root = "rand-0.8.8.crate/src/lib.rs",
     edition = "2018",
     features = ["small_rng"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "rand",
+            "version": "0.8.8",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":rand_core-0.6"],
 )
@@ -20444,6 +25543,13 @@ third_party_rust.rust_library(
         "std_rng",
         "thread_rng",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "rand",
+            "version": "0.9.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":rand_chacha-0.9",
@@ -20479,6 +25585,13 @@ third_party_rust.rust_library(
         "sys_rng",
         "thread_rng",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "rand",
+            "version": "0.10.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":chacha20-0.10",
@@ -20502,6 +25615,13 @@ third_party_rust.rust_library(
     crate_root = "rand_chacha-0.9.0.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "rand_chacha",
+            "version": "0.9.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":ppv-lite86-0.2",
@@ -20527,6 +25647,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "rand_chacha",
+            "version": "0.10.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":ppv-lite86-0.2",
@@ -20548,6 +25675,13 @@ third_party_rust.rust_library(
     crate = "rand_core",
     crate_root = "rand_core-0.6.4.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rand_core",
+            "version": "0.6.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -20569,6 +25703,13 @@ third_party_rust.rust_library(
         "os_rng",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "rand_core",
+            "version": "0.9.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":getrandom-0.3"],
 )
@@ -20587,6 +25728,13 @@ third_party_rust.rust_library(
     crate = "rand_core",
     crate_root = "rand_core-0.10.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rand_core",
+            "version": "0.10.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -20604,6 +25752,13 @@ third_party_rust.rust_library(
     crate = "rand_pcg",
     crate_root = "rand_pcg-0.10.2.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rand_pcg",
+            "version": "0.10.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":rand_core-0.10"],
 )
@@ -20622,6 +25777,13 @@ third_party_rust.rust_library(
     crate = "rand_xoshiro",
     crate_root = "rand_xoshiro-0.6.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rand_xoshiro",
+            "version": "0.6.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":rand_core-0.6"],
 )
@@ -20640,6 +25802,13 @@ third_party_rust.rust_library(
     crate = "rand_xoshiro",
     crate_root = "rand_xoshiro-0.7.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rand_xoshiro",
+            "version": "0.7.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":rand_core-0.9"],
 )
@@ -20663,6 +25832,13 @@ third_party_rust.rust_library(
         "new_unchecked",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "range-collections",
+            "version": "0.4.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":binary-merge-0.1",
@@ -20687,6 +25863,13 @@ third_party_rust.rust_library(
     crate = "rapidhash",
     crate_root = "rapidhash-4.5.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rapidhash",
+            "version": "4.5.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":rustversion-1"],
 )
@@ -20721,6 +25904,13 @@ third_party_rust.rust_library(
         "underline-color",
         "widget-calendar",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ratatui",
+            "version": "0.30.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":instability-0.3",
@@ -20751,6 +25941,13 @@ third_party_rust.rust_library(
         "std",
         "underline-color",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ratatui-core",
+            "version": "0.1.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -20787,6 +25984,13 @@ third_party_rust.rust_library(
         "default",
         "underline-color",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ratatui-crossterm",
+            "version": "0.1.2",
+            "licenses": ["MIT"],
+        },
+    },
     named_deps = {
         "crossterm_0_29": ":crossterm-0.29",
     },
@@ -20812,6 +26016,13 @@ third_party_rust.rust_library(
     crate = "ratatui_macros",
     crate_root = "ratatui-macros-0.7.2.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "ratatui-macros",
+            "version": "0.7.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":ratatui-core-0.1",
@@ -20837,6 +26048,13 @@ third_party_rust.rust_library(
         "calendar",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ratatui-widgets",
+            "version": "0.3.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -20867,6 +26085,13 @@ third_party_rust.rust_library(
     crate = "raw_cpuid",
     crate_root = "raw-cpuid-11.6.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "raw-cpuid",
+            "version": "11.6.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":bitflags-2"],
 )
@@ -20891,6 +26116,13 @@ third_party_rust.rust_library(
     crate = "rayon",
     crate_root = "rayon-1.12.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rayon",
+            "version": "1.12.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":either-1",
@@ -20912,6 +26144,13 @@ third_party_rust.rust_library(
     crate = "rayon_core",
     crate_root = "rayon-core-1.13.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rayon-core",
+            "version": "1.13.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":crossbeam-deque-0.8",
@@ -20937,6 +26176,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "redb",
+            "version": "4.3.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -20986,6 +26232,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PRE": "",
         "OUT_DIR": "$(location :ref-cast-1-build-script-run[out_dir])",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "ref-cast",
+            "version": "1.0.27",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :ref-cast-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [":ref-cast-impl-1"],
@@ -21013,6 +26266,13 @@ third_party_rust.rust_binary(
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "27",
         "CARGO_PKG_VERSION_PRE": "",
+    },
+    metadata = {
+        "third-party.metadata": {
+            "name": "ref-cast",
+            "version": "1.0.27",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
     },
     visibility = [],
 )
@@ -21067,6 +26327,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "27",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "ref-cast-impl",
+            "version": "1.0.27",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -21090,6 +26357,13 @@ third_party_rust.rust_library(
     crate = "reflink_copy",
     crate_root = "reflink-copy-0.1.30.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "reflink-copy",
+            "version": "0.1.30",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -21147,6 +26421,13 @@ third_party_rust.rust_library(
         "unicode-script",
         "unicode-segment",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "regex",
+            "version": "1.13.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":aho-corasick-1",
@@ -21200,6 +26481,13 @@ third_party_rust.rust_library(
         "unicode-segment",
         "unicode-word-boundary",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "regex-automata",
+            "version": "0.4.18",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":aho-corasick-1",
@@ -21233,6 +26521,13 @@ third_party_rust.rust_library(
         "unicode-script",
         "unicode-segment",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "regex-syntax",
+            "version": "0.6.29",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -21262,6 +26557,13 @@ third_party_rust.rust_library(
         "unicode-script",
         "unicode-segment",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "regex-syntax",
+            "version": "0.8.11",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -21299,6 +26601,13 @@ third_party_rust.rust_library(
         "stream",
         "system-proxy",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "reqwest",
+            "version": "0.13.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     named_deps = {
         "native_tls_crate": ":native-tls-0.2",
     },
@@ -21353,6 +26662,13 @@ third_party_rust.rust_library(
     crate = "roff",
     crate_root = "roff-1.1.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "roff",
+            "version": "1.1.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -21370,6 +26686,13 @@ third_party_rust.rust_library(
     crate = "rpassword",
     crate_root = "rpassword-7.5.4.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rpassword",
+            "version": "7.5.4",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -21408,6 +26731,13 @@ third_party_rust.rust_library(
     crate = "rtoolbox",
     crate_root = "rtoolbox-0.0.6.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rtoolbox",
+            "version": "0.0.6",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -21448,6 +26778,13 @@ third_party_rust.rust_library(
     env = {
         "OUT_DIR": "$(location :rust_decimal-1-build-script-run[out_dir])",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "rust_decimal",
+            "version": "1.43.0",
+            "licenses": ["MIT"],
+        },
+    },
     rustc_flags = ["@$(location :rust_decimal-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -21462,6 +26799,13 @@ third_party_rust.rust_binary(
     crate = "build_script_build",
     crate_root = "rust_decimal-1.43.0.crate/build.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rust_decimal",
+            "version": "1.43.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -21486,6 +26830,13 @@ third_party_rust.rust_library(
     crate = "rustc_demangle",
     crate_root = "rustc-demangle-0.1.28.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustc-demangle",
+            "version": "0.1.28",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -21507,6 +26858,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustc-hash",
+            "version": "2.1.3",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -21524,6 +26882,13 @@ third_party_rust.rust_library(
     crate = "rustc_literal_escaper",
     crate_root = "rustc-literal-escaper-0.0.8.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustc-literal-escaper",
+            "version": "0.0.8",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -21541,6 +26906,13 @@ third_party_rust.rust_library(
     crate = "rustc_version",
     crate_root = "rustc_version-0.4.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustc_version",
+            "version": "0.4.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":semver-1"],
 )
@@ -21574,6 +26946,13 @@ third_party_rust.rust_library(
         "thread",
         "time",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustix",
+            "version": "1.1.5",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":linux-raw-sys-0.12"],
@@ -21617,6 +26996,13 @@ third_party_rust.rust_binary(
         "thread",
         "time",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustix",
+            "version": "1.1.5",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -21665,6 +27051,13 @@ third_party_rust.rust_library(
         "std",
         "tls12",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustls",
+            "version": "0.23.45",
+            "licenses": ["Apache-2.0 OR ISC OR MIT"],
+        },
+    },
     named_deps = {
         "pki_types": ":rustls-pki-types-1",
     },
@@ -21692,6 +27085,13 @@ third_party_rust.rust_library(
     crate = "rustls_native_certs",
     crate_root = "rustls-native-certs-0.8.4.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustls-native-certs",
+            "version": "0.8.4",
+            "licenses": ["Apache-2.0 OR ISC OR MIT"],
+        },
+    },
     named_deps = {
         "pki_types": ":rustls-pki-types-1",
     },
@@ -21737,6 +27137,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustls-pki-types",
+            "version": "1.15.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":zeroize-1"],
 )
@@ -21755,6 +27162,13 @@ third_party_rust.rust_library(
     crate = "rustls_platform_verifier",
     crate_root = "rustls-platform-verifier-0.7.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustls-platform-verifier",
+            "version": "0.7.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -21816,6 +27230,13 @@ third_party_rust.rust_library(
         "alloc",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustls-webpki",
+            "version": "0.103.15",
+            "licenses": ["ISC"],
+        },
+    },
     named_deps = {
         "pki_types": ":rustls-pki-types-1",
     },
@@ -21855,6 +27276,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PRE": "",
         "OUT_DIR": "$(location :rustversion-1-build-script-run[out_dir])",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustversion",
+            "version": "1.0.23",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     rustc_flags = ["@$(location :rustversion-1-build-script-run[rustc_flags])"],
     visibility = [],
@@ -21882,6 +27310,13 @@ third_party_rust.rust_binary(
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "23",
         "CARGO_PKG_VERSION_PRE": "",
+    },
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustversion",
+            "version": "1.0.23",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
     },
     visibility = [],
 )
@@ -21928,6 +27363,13 @@ third_party_rust.rust_library(
         "with-dirs",
         "with-file-history",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "rustyline",
+            "version": "14.0.0",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -21995,6 +27437,13 @@ third_party_rust.rust_library(
     crate = "ryu",
     crate_root = "ryu-1.0.23.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "ryu",
+            "version": "1.0.23",
+            "licenses": ["Apache-2.0 OR BSL-1.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -22018,6 +27467,13 @@ third_party_rust.rust_library(
     crate = "s3s",
     crate_root = "s3s-0.16.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "s3s",
+            "version": "0.16.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":arc-swap-1",
@@ -22088,6 +27544,13 @@ third_party_rust.rust_library(
     crate = "s3s_rfc2047",
     crate_root = "s3s-rfc2047-0.16.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "s3s-rfc2047",
+            "version": "0.16.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":base64-simd-0.8",
@@ -22109,6 +27572,13 @@ third_party_rust.rust_library(
     crate = "s3s_sigv2",
     crate_root = "s3s-sigv2-0.16.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "s3s-sigv2",
+            "version": "0.16.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":base64-simd-0.8",
@@ -22134,6 +27604,13 @@ third_party_rust.rust_library(
     crate = "s3s_sigv4",
     crate_root = "s3s-sigv4-0.16.1.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "s3s-sigv4",
+            "version": "0.16.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":arrayvec-0.7",
@@ -22179,6 +27656,13 @@ third_party_rust.rust_library(
         "rayon",
         "salsa_unstable",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "salsa",
+            "version": "0.28.5",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":boxcar-0.2",
@@ -22217,6 +27701,13 @@ third_party_rust.rust_library(
     crate_root = "salsa-macro-rules-0.28.5.crate/src/lib.rs",
     edition = "2024",
     features = ["accumulator"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "salsa-macro-rules",
+            "version": "0.28.5",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -22235,6 +27726,13 @@ third_party_rust.rust_library(
     crate_root = "salsa-macros-0.28.5.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "salsa-macros",
+            "version": "0.28.5",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -22258,6 +27756,13 @@ third_party_rust.rust_library(
     crate = "same_file",
     crate_root = "same-file-1.0.6.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "same-file",
+            "version": "1.0.6",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":winapi-util-0.1"],
@@ -22284,6 +27789,13 @@ third_party_rust.rust_library(
     crate_root = "sapling-renderdag-0.1.0.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "sapling-renderdag",
+            "version": "0.1.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":bitflags-2"],
 )
@@ -22302,6 +27814,13 @@ third_party_rust.rust_library(
     crate = "streampager",
     crate_root = "sapling-streampager-0.12.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "sapling-streampager",
+            "version": "0.12.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":dirs-6",
@@ -22335,6 +27854,13 @@ third_party_rust.rust_library(
     crate = "scc",
     crate_root = "scc-2.4.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "scc",
+            "version": "2.4.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":sdd-3"],
 )
@@ -22353,6 +27879,13 @@ third_party_rust.rust_library(
     crate = "schannel",
     crate_root = "schannel-0.1.29.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "schannel",
+            "version": "0.1.29",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":windows-sys-0.61"],
 )
@@ -22371,6 +27904,13 @@ third_party_rust.rust_library(
     crate = "schemafy",
     crate_root = "schemafy-0.5.2.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "schemafy",
+            "version": "0.5.2",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -22399,6 +27939,13 @@ third_party_rust.rust_library(
     crate = "schemafy_core",
     crate_root = "schemafy_core-0.5.2.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "schemafy_core",
+            "version": "0.5.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":serde-1",
@@ -22420,6 +27967,13 @@ third_party_rust.rust_library(
     crate = "schemafy_lib",
     crate_root = "schemafy_lib-0.5.2.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "schemafy_lib",
+            "version": "0.5.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":Inflector-0.11",
@@ -22452,6 +28006,13 @@ third_party_rust.rust_library(
         "default",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "scm-record",
+            "version": "0.10.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":cassowary-0.3",
@@ -22484,6 +28045,13 @@ third_party_rust.rust_library(
         "default",
         "use_std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "scopeguard",
+            "version": "1.2.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -22501,6 +28069,13 @@ third_party_rust.rust_library(
     crate = "sdd",
     crate_root = "sdd-3.0.10.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "sdd",
+            "version": "3.0.10",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -22524,6 +28099,13 @@ third_party_rust.rust_library(
         "default",
         "session-tickets",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "security-framework",
+            "version": "3.7.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -22552,6 +28134,13 @@ third_party_rust.rust_library(
         "OSX_10_13",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "security-framework-sys",
+            "version": "2.17.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":core-foundation-sys-0.8",
@@ -22573,6 +28162,13 @@ third_party_rust.rust_library(
     crate = "seize",
     crate_root = "seize-0.5.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "seize",
+            "version": "0.5.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -22590,6 +28186,13 @@ third_party_rust.rust_library(
     crate = "self_cell",
     crate_root = "self_cell-1.3.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "self_cell",
+            "version": "1.3.0",
+            "licenses": ["Apache-2.0 OR GPL-2.0-only"],
+        },
+    },
     visibility = [],
 )
 
@@ -22611,6 +28214,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "semver",
+            "version": "1.0.28",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -22646,6 +28256,13 @@ third_party_rust.rust_library(
         "serde_derive",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde",
+            "version": "1.0.229",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :serde-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -22671,6 +28288,13 @@ third_party_rust.rust_binary(
         "serde_derive",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde",
+            "version": "1.0.229",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -22706,6 +28330,13 @@ third_party_rust.rust_library(
     crate = "serde_bencode",
     crate_root = "serde_bencode-0.2.4.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_bencode",
+            "version": "0.2.4",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":serde-1",
@@ -22728,6 +28359,13 @@ third_party_rust.rust_library(
     crate_root = "serde_bser-0.4.0.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_bser",
+            "version": "0.4.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":anyhow-1",
@@ -22757,6 +28395,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_bytes",
+            "version": "0.11.19",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":serde_core-1"],
 )
@@ -22786,6 +28431,13 @@ third_party_rust.rust_library(
         "result",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_core",
+            "version": "1.0.229",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :serde_core-1-build-script-run[rustc_flags])"],
     visibility = [],
 )
@@ -22806,6 +28458,13 @@ third_party_rust.rust_binary(
         "result",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_core",
+            "version": "1.0.229",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -22858,6 +28517,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_derive",
+            "version": "1.0.229",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -22898,6 +28564,13 @@ third_party_rust.rust_library(
         "raw_value",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_json",
+            "version": "1.0.151",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :serde_json-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -22923,6 +28596,13 @@ third_party_rust.rust_binary(
         "raw_value",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_json",
+            "version": "1.0.151",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -22955,6 +28635,13 @@ third_party_rust.rust_library(
     crate = "serde_repr",
     crate_root = "serde_repr-0.1.21.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_repr",
+            "version": "0.1.21",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -22979,6 +28666,13 @@ third_party_rust.rust_library(
     crate_root = "serde_spanned-0.6.9.crate/src/lib.rs",
     edition = "2021",
     features = ["serde"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_spanned",
+            "version": "0.6.9",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":serde-1"],
 )
@@ -23003,6 +28697,13 @@ third_party_rust.rust_library(
         "serde",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_spanned",
+            "version": "1.1.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":serde_core-1"],
 )
@@ -23021,6 +28722,13 @@ third_party_rust.rust_library(
     crate = "serde_urlencoded",
     crate_root = "serde_urlencoded-0.7.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_urlencoded",
+            "version": "0.7.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":form_urlencoded-1",
@@ -23051,6 +28759,13 @@ third_party_rust.rust_library(
         "macros",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_with",
+            "version": "3.23.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":serde_core-1",
@@ -23073,6 +28788,13 @@ third_party_rust.rust_library(
     crate = "serde_with_macros",
     crate_root = "serde_with_macros-3.23.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_with_macros",
+            "version": "3.23.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -23097,6 +28819,13 @@ third_party_rust.rust_library(
     crate = "serde_yaml",
     crate_root = "serde_yaml-0.9.34+deprecated.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "serde_yaml",
+            "version": "0.9.34+deprecated",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":indexmap-2",
@@ -23121,6 +28850,13 @@ third_party_rust.rust_library(
     crate = "serdect",
     crate_root = "serdect-0.4.3.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "serdect",
+            "version": "0.4.3",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":base16ct-1",
@@ -23142,6 +28878,13 @@ third_party_rust.rust_library(
     crate = "sfa",
     crate_root = "sfa-1.0.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "sfa",
+            "version": "1.0.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     named_deps = {
         "byteorder": ":byteorder-lite-0.1",
     },
@@ -23167,6 +28910,13 @@ third_party_rust.rust_library(
     crate_root = "sha1-0.10.7.crate/src/lib.rs",
     edition = "2018",
     features = ["compress"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "sha1",
+            "version": "0.10.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -23200,6 +28950,13 @@ third_party_rust.rust_library(
         "default",
         "oid",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "sha1",
+            "version": "0.11.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -23222,6 +28979,13 @@ third_party_rust.rust_library(
     crate = "sha1_checked",
     crate_root = "sha1-checked-0.10.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "sha1-checked",
+            "version": "0.10.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":digest-0.10",
@@ -23243,6 +29007,13 @@ third_party_rust.rust_library(
     crate = "sha1_smol",
     crate_root = "sha1_smol-1.0.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "sha1_smol",
+            "version": "1.0.1",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     visibility = [],
 )
 
@@ -23264,6 +29035,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "sha2",
+            "version": "0.10.9",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -23297,6 +29075,13 @@ third_party_rust.rust_library(
         "default",
         "oid",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "sha2",
+            "version": "0.11.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -23319,6 +29104,13 @@ third_party_rust.rust_library(
     crate = "sha3",
     crate_root = "sha3-0.10.9.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "sha3",
+            "version": "0.10.9",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":digest-0.10",
@@ -23340,6 +29132,13 @@ third_party_rust.rust_library(
     crate = "sharded_slab",
     crate_root = "sharded-slab-0.1.7.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "sharded-slab",
+            "version": "0.1.7",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":lazy_static-1"],
 )
@@ -23362,6 +29161,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "shlex",
+            "version": "2.0.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -23384,6 +29190,13 @@ third_party_rust.rust_library(
         "default",
         "iterator",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "signal-hook",
+            "version": "0.3.18",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":libc-0.2",
@@ -23409,6 +29222,13 @@ third_party_rust.rust_library(
         "mio-1_0",
         "support-v1_0",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "signal-hook-mio",
+            "version": "0.2.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     named_deps = {
         "mio_1_0": ":mio-1",
     },
@@ -23433,6 +29253,13 @@ third_party_rust.rust_library(
     crate = "signal_hook_registry",
     crate_root = "signal-hook-registry-1.4.8.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "signal-hook-registry",
+            "version": "1.4.8",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":errno-0.3",
@@ -23458,6 +29285,13 @@ third_party_rust.rust_library(
         "alloc",
         "rand_core",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "signature",
+            "version": "3.0.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":rand_core-0.10"],
 )
@@ -23477,6 +29311,13 @@ third_party_rust.rust_library(
     crate_root = "simd-adler32-0.3.10.crate/src/lib.rs",
     edition = "2018",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "simd-adler32",
+            "version": "0.3.10",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -23500,6 +29341,13 @@ third_party_rust.rust_library(
         "public_imp",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "simdutf8",
+            "version": "0.1.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -23522,6 +29370,13 @@ third_party_rust.rust_library(
         "inline",
         "text",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "similar",
+            "version": "2.7.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -23543,6 +29398,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "simple-dns",
+            "version": "0.12.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":bitflags-2"],
 )
@@ -23565,6 +29427,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "siphasher",
+            "version": "1.0.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -23586,6 +29455,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "sized-chunks",
+            "version": "0.6.5",
+            "licenses": ["MPL-2.0+"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitmaps-2",
@@ -23607,6 +29483,13 @@ third_party_rust.rust_library(
     crate = "sketches_ddsketch",
     crate_root = "sketches-ddsketch-0.3.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "sketches-ddsketch",
+            "version": "0.3.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -23628,6 +29511,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "slab",
+            "version": "0.4.12",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -23652,6 +29542,13 @@ third_party_rust.rust_library(
     crate_root = "slatedb-0.16.0.crate/src/lib.rs",
     edition = "2021",
     features = ["foyer"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "slatedb",
+            "version": "0.16.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":async-channel-2",
@@ -23715,6 +29612,13 @@ third_party_rust.rust_library(
     crate_root = "slatedb-common-0.16.0.crate/src/lib.rs",
     edition = "2021",
     features = ["serde"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "slatedb-common",
+            "version": "0.16.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":chrono-0.4",
@@ -23742,6 +29646,13 @@ third_party_rust.rust_library(
     crate = "slatedb_txn_obj",
     crate_root = "slatedb-txn-obj-0.16.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "slatedb-txn-obj",
+            "version": "0.16.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":async-trait-0.1",
@@ -23771,6 +29682,13 @@ third_party_rust.rust_library(
     crate_root = "slotmap-1.1.1.crate/src/lib.rs",
     edition = "2018",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "slotmap",
+            "version": "1.1.1",
+            "licenses": ["Zlib"],
+        },
+    },
     rustc_flags = ["--cfg=has_min_const_generics"],
     visibility = [],
 )
@@ -23789,6 +29707,13 @@ third_party_rust.rust_library(
     crate = "small_ctor",
     crate_root = "small_ctor-0.1.2.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "small_ctor",
+            "version": "0.1.2",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
 )
@@ -23814,6 +29739,13 @@ third_party_rust.rust_library(
         "union",
         "write",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "smallvec",
+            "version": "1.16.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":serde-1"],
 )
@@ -23832,6 +29764,13 @@ third_party_rust.rust_library(
     crate = "smawk",
     crate_root = "smawk-0.3.3.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "smawk",
+            "version": "0.3.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -23849,6 +29788,13 @@ third_party_rust.rust_library(
     crate = "smol_str",
     crate_root = "smol_str-0.1.24.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "smol_str",
+            "version": "0.1.24",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -23871,6 +29817,13 @@ third_party_rust.rust_library(
         "serde",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "smol_str",
+            "version": "0.3.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":serde_core-1"],
 )
@@ -23890,6 +29843,13 @@ third_party_rust.rust_library(
     crate_root = "socket2-0.6.5.crate/src/lib.rs",
     edition = "2021",
     features = ["all"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "socket2",
+            "version": "0.6.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -23927,6 +29887,13 @@ third_party_rust.rust_library(
     crate = "sorted_index_buffer",
     crate_root = "sorted-index-buffer-0.2.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "sorted-index-buffer",
+            "version": "0.2.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -23944,6 +29911,13 @@ third_party_rust.rust_library(
     crate = "spez",
     crate_root = "spez-0.1.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "spez",
+            "version": "0.1.2",
+            "licenses": ["BSD-2-Clause"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -23978,6 +29952,13 @@ third_party_rust.rust_library(
         "rwlock",
         "spin_mutex",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "spin",
+            "version": "0.9.9",
+            "licenses": ["MIT"],
+        },
+    },
     named_deps = {
         "lock_api_crate": ":lock_api-0.4",
     },
@@ -24004,6 +29985,13 @@ third_party_rust.rust_library(
         "rwlock",
         "spin_mutex",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "spin",
+            "version": "0.10.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -24025,6 +30013,13 @@ third_party_rust.rust_library(
         "alloc",
         "pem",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "spki",
+            "version": "0.8.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":der-0.8"],
 )
@@ -24044,6 +30039,13 @@ third_party_rust.rust_library(
     crate_root = "stable_deref_trait-1.2.1.crate/src/lib.rs",
     edition = "2015",
     features = ["alloc"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "stable_deref_trait",
+            "version": "1.2.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             features = ["std"],
@@ -24086,6 +30088,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "25",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "stacker",
+            "version": "0.1.25",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":windows-sys-0.61"],
@@ -24114,6 +30123,14 @@ third_party_rust.rust_library(
     crate = "starlark",
     crate_root = "starlark-rust-a9d911d33fd77ff2/starlark/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "starlark",
+            "namespace": "facebook",
+            "version": "0.13.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":allocative-0.3",
@@ -24163,6 +30180,14 @@ third_party_rust.rust_library(
     crate = "starlark_derive",
     crate_root = "starlark-rust-a9d911d33fd77ff2/starlark_derive/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "starlark_derive",
+            "namespace": "facebook",
+            "version": "0.13.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -24179,6 +30204,14 @@ third_party_rust.rust_library(
     crate = "starlark_map",
     crate_root = "starlark-rust-a9d911d33fd77ff2/starlark_map/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "starlark_map",
+            "namespace": "facebook",
+            "version": "0.13.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":allocative-0.3",
@@ -24214,6 +30247,14 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
         "OUT_DIR": "$(location :starlark_syntax-0.13-build-script-run[out_dir])",
+    },
+    metadata = {
+        "third-party.metadata": {
+            "name": "starlark_syntax",
+            "namespace": "facebook",
+            "version": "0.13.0",
+            "licenses": ["Apache-2.0"],
+        },
     },
     rustc_flags = ["@$(location :starlark_syntax-0.13-build-script-run[rustc_flags])"],
     visibility = [],
@@ -24259,6 +30300,14 @@ third_party_rust.rust_binary(
         "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "starlark_syntax",
+            "namespace": "facebook",
+            "version": "0.13.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":lalrpop-0.19"],
 )
@@ -24297,6 +30346,13 @@ third_party_rust.rust_library(
     crate = "static_assertions",
     crate_root = "static_assertions-1.1.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "static_assertions",
+            "version": "1.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -24319,6 +30375,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "std-next",
+            "version": "0.1.9",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":simdutf8-0.1",
@@ -24346,6 +30409,13 @@ third_party_rust.rust_library(
         "lazy_static",
         "regex",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "str_inflector",
+            "version": "0.12.0",
+            "licenses": ["BSD-2-Clause"],
+        },
+    },
     visibility = [],
     deps = [
         ":lazy_static-1",
@@ -24367,6 +30437,13 @@ third_party_rust.rust_library(
     crate = "string_cache",
     crate_root = "string_cache-0.8.9.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "string_cache",
+            "version": "0.8.9",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":new_debug_unreachable-1",
@@ -24382,6 +30459,14 @@ third_party_rust.rust_library(
     crate = "strong_hash",
     crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/strong_hash/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "strong_hash",
+            "namespace": "facebook",
+            "version": "0.1.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":ref-cast-1",
@@ -24395,6 +30480,14 @@ third_party_rust.rust_library(
     crate = "strong_hash_derive",
     crate_root = "starlark-rust-a9d911d33fd77ff2/gazebo/strong_hash_derive/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "strong_hash_derive",
+            "namespace": "facebook",
+            "version": "0.1.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -24417,6 +30510,13 @@ third_party_rust.rust_library(
     crate = "strsim",
     crate_root = "strsim-0.10.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "strsim",
+            "version": "0.10.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -24434,6 +30534,13 @@ third_party_rust.rust_library(
     crate = "strsim",
     crate_root = "strsim-0.11.1.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "strsim",
+            "version": "0.11.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -24457,6 +30564,13 @@ third_party_rust.rust_library(
         "std",
         "strum_macros",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "strum",
+            "version": "0.28.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":strum_macros-0.28"],
 )
@@ -24475,6 +30589,13 @@ third_party_rust.rust_library(
     crate = "strum_macros",
     crate_root = "strum_macros-0.28.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "strum_macros",
+            "version": "0.28.0",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -24505,6 +30626,13 @@ third_party_rust.rust_library(
         "i128",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "subtle",
+            "version": "2.6.1",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     visibility = [],
 )
 
@@ -24522,6 +30650,13 @@ third_party_rust.rust_library(
     crate = "swarm_discovery",
     crate_root = "swarm-discovery-0.6.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "swarm-discovery",
+            "version": "0.6.3",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":acto-0.8",
@@ -24561,6 +30696,13 @@ third_party_rust.rust_library(
         "visit",
         "visit-mut",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "syn",
+            "version": "1.0.109",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":proc-macro2-1",
@@ -24602,6 +30744,13 @@ third_party_rust.rust_library(
         "visit",
         "visit-mut",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "syn",
+            "version": "2.0.119",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":proc-macro2-1",
@@ -24637,6 +30786,13 @@ third_party_rust.rust_library(
         "visit",
         "visit-mut",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "syn",
+            "version": "3.0.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":proc-macro2-1",
@@ -24659,6 +30815,13 @@ third_party_rust.rust_library(
     crate = "syn_mid",
     crate_root = "syn-mid-0.5.4.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "syn-mid",
+            "version": "0.5.4",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":proc-macro2-1",
@@ -24685,6 +30848,13 @@ third_party_rust.rust_library(
         "futures",
         "futures-core",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "sync_wrapper",
+            "version": "1.0.2",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":futures-core-0.3"],
 )
@@ -24707,6 +30877,13 @@ third_party_rust.rust_library(
         "default",
         "proc-macro",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "synstructure",
+            "version": "0.13.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":proc-macro2-1",
@@ -24733,6 +30910,13 @@ third_party_rust.rust_library(
         "default",
         "proc-macro",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "synstructure",
+            "version": "0.14.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":proc-macro2-1",
@@ -24764,6 +30948,13 @@ third_party_rust.rust_library(
         "system",
         "user",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "sysinfo",
+            "version": "0.35.2",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "macos-arm64": dict(
             features = ["objc2-core-foundation"],
@@ -24815,6 +31006,13 @@ third_party_rust.rust_library(
     crate = "system_configuration",
     crate_root = "system-configuration-0.7.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "system-configuration",
+            "version": "0.7.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -24837,6 +31035,13 @@ third_party_rust.rust_library(
     crate = "system_configuration",
     crate_root = "system-configuration-0.8.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "system-configuration",
+            "version": "0.8.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -24859,6 +31064,13 @@ third_party_rust.rust_library(
     crate = "system_configuration_sys",
     crate_root = "system-configuration-sys-0.6.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "system-configuration-sys",
+            "version": "0.6.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":core-foundation-sys-0.8",
@@ -24885,6 +31097,13 @@ third_party_rust.rust_library(
         "std",
         "taffy_tree",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "taffy",
+            "version": "0.5.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":arrayvec-0.7",
@@ -24917,6 +31136,13 @@ third_party_rust.rust_library(
         "default",
         "xattr",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tar",
+            "version": "0.4.46",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -24971,6 +31197,13 @@ third_party_rust.rust_library(
         "default",
         "getrandom",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tempfile",
+            "version": "3.27.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":rustix-1"],
@@ -25014,6 +31247,13 @@ third_party_rust.rust_library(
     crate_root = "term-0.7.0.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "term",
+            "version": "0.7.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [
@@ -25047,6 +31287,13 @@ third_party_rust.rust_library(
     crate_root = "term-1.2.1.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "term",
+            "version": "1.2.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":windows-sys-0.61"],
@@ -25072,6 +31319,13 @@ third_party_rust.rust_library(
     crate = "termcolor",
     crate_root = "termcolor-1.4.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "termcolor",
+            "version": "1.4.1",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":winapi-util-0.1"],
@@ -25097,6 +31351,13 @@ third_party_rust.rust_library(
     crate = "terminal_size",
     crate_root = "terminal_size-0.4.4.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "terminal_size",
+            "version": "0.4.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":rustix-1"],
@@ -25137,6 +31398,13 @@ third_party_rust.rust_library(
     env = {
         "OUT_DIR": "$(location :terminfo-0.9-build-script-run[out_dir])",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "terminfo",
+            "version": "0.9.0",
+            "licenses": ["WTFPL"],
+        },
+    },
     rustc_flags = ["@$(location :terminfo-0.9-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -25152,6 +31420,13 @@ third_party_rust.rust_binary(
     crate = "build_script_build",
     crate_root = "terminfo-0.9.0.crate/build.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "terminfo",
+            "version": "0.9.0",
+            "licenses": ["WTFPL"],
+        },
+    },
     visibility = [],
     deps = [":phf_codegen-0.11"],
 )
@@ -25177,6 +31452,13 @@ third_party_rust.rust_library(
     crate = "termios",
     crate_root = "termios-0.3.3.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "termios",
+            "version": "0.3.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":libc-0.2"],
 )
@@ -25211,6 +31493,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_MINOR": "23",
         "CARGO_PKG_VERSION_PATCH": "3",
         "CARGO_PKG_VERSION_PRE": "",
+    },
+    metadata = {
+        "third-party.metadata": {
+            "name": "termwiz",
+            "version": "0.23.3",
+            "licenses": ["MIT"],
+        },
     },
     platform = {
         "linux-arm64": dict(
@@ -25297,6 +31586,13 @@ third_party_rust.rust_library(
     crate = "textwrap",
     crate_root = "textwrap-0.11.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "textwrap",
+            "version": "0.11.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":unicode-width-0.1"],
 )
@@ -25323,6 +31619,13 @@ third_party_rust.rust_library(
         "unicode-linebreak",
         "unicode-width",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "textwrap",
+            "version": "0.16.4",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":icu_segmenter-2",
@@ -25349,6 +31652,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "thin-vec",
+            "version": "0.2.20",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -25384,6 +31694,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PRE": "",
         "OUT_DIR": "$(location :thiserror-1-build-script-run[out_dir])",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "thiserror",
+            "version": "1.0.69",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :thiserror-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [":thiserror-impl-1"],
@@ -25411,6 +31728,13 @@ third_party_rust.rust_binary(
         "CARGO_PKG_VERSION_MINOR": "0",
         "CARGO_PKG_VERSION_PATCH": "69",
         "CARGO_PKG_VERSION_PRE": "",
+    },
+    metadata = {
+        "third-party.metadata": {
+            "name": "thiserror",
+            "version": "1.0.69",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
     },
     visibility = [],
 )
@@ -25476,6 +31800,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "thiserror",
+            "version": "2.0.20",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :thiserror-2-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [":thiserror-impl-2"],
@@ -25508,6 +31839,13 @@ third_party_rust.rust_binary(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "thiserror",
+            "version": "2.0.20",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -25565,6 +31903,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "69",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "thiserror-impl",
+            "version": "1.0.69",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -25605,6 +31950,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "20",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "thiserror-impl",
+            "version": "2.0.20",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -25628,6 +31980,13 @@ third_party_rust.rust_library(
     crate = "thread_local",
     crate_root = "thread_local-1.1.10.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "thread_local",
+            "version": "1.1.10",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":cfg-if-1"],
 )
@@ -25657,6 +32016,13 @@ third_party_rust.rust_library(
         "serde-well-known",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "time",
+            "version": "0.3.55",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -25708,6 +32074,13 @@ third_party_rust.rust_library(
     crate = "time_core",
     crate_root = "time-core-0.1.9.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "time-core",
+            "version": "0.1.9",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -25730,6 +32103,13 @@ third_party_rust.rust_library(
         "parsing",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "time-macros",
+            "version": "0.2.32",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -25752,6 +32132,13 @@ third_party_rust.rust_library(
     crate = "timeago",
     crate_root = "timeago-0.6.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "timeago",
+            "version": "0.6.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -25791,6 +32178,13 @@ third_party_rust.rust_library(
         "default",
         "sha3",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tiny-keccak",
+            "version": "2.0.2",
+            "licenses": ["CC0-1.0"],
+        },
+    },
     rustc_flags = ["@$(location :tiny-keccak-2-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [":crunchy-0.2"],
@@ -25823,6 +32217,13 @@ third_party_rust.rust_binary(
         "default",
         "sha3",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tiny-keccak",
+            "version": "2.0.2",
+            "licenses": ["CC0-1.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -25867,6 +32268,13 @@ third_party_rust.rust_library(
         "alloc",
         "zerovec",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tinystr",
+            "version": "0.8.4",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":displaydoc-0.2",
@@ -25893,6 +32301,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tinyvec",
+            "version": "1.13.3",
+            "licenses": ["Zlib OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -25941,6 +32356,13 @@ third_party_rust.rust_library(
         "tokio_track_caller",
         "tracing",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tokio",
+            "version": "1.53.1",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [
@@ -26006,6 +32428,13 @@ third_party_rust.rust_library(
     crate = "tokio_macros",
     crate_root = "tokio-macros-2.7.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "tokio-macros",
+            "version": "2.7.2",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -26029,6 +32458,13 @@ third_party_rust.rust_library(
     crate = "tokio_native_tls",
     crate_root = "tokio-native-tls-0.3.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "tokio-native-tls",
+            "version": "0.3.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":native-tls-0.2",
@@ -26056,6 +32492,13 @@ third_party_rust.rust_library(
     crate = "tokio_openssl",
     crate_root = "tokio-openssl-0.6.5.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "tokio-openssl",
+            "version": "0.6.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":openssl-0.10",
@@ -26088,6 +32531,13 @@ third_party_rust.rust_library(
         "logging",
         "tls12",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tokio-rustls",
+            "version": "0.26.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":rustls-0.23",
@@ -26122,6 +32572,13 @@ third_party_rust.rust_library(
         "time",
         "tokio-util",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tokio-stream",
+            "version": "0.1.19",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":futures-core-0.3",
@@ -26158,6 +32615,13 @@ third_party_rust.rust_library(
         "slab",
         "time",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tokio-util",
+            "version": "0.6.10",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bytes-1",
@@ -26204,6 +32668,13 @@ third_party_rust.rust_library(
         "libc",
         "rt",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tokio-util",
+            "version": "0.7.19",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -26252,6 +32723,13 @@ third_party_rust.rust_library(
         "rustls-bring-your-own-connector",
         "sha1_smol",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tokio-websockets",
+            "version": "0.13.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":base64-0.22",
@@ -26290,6 +32768,13 @@ third_party_rust.rust_library(
         "display",
         "parse",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "toml",
+            "version": "0.8.23",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":serde-1",
@@ -26320,6 +32805,13 @@ third_party_rust.rust_library(
         "serde",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "toml",
+            "version": "1.1.6+spec-1.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":serde_core-1",
@@ -26346,6 +32838,13 @@ third_party_rust.rust_library(
     crate_root = "toml_datetime-0.6.11.crate/src/lib.rs",
     edition = "2021",
     features = ["serde"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "toml_datetime",
+            "version": "0.6.11",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":serde-1"],
 )
@@ -26370,6 +32869,13 @@ third_party_rust.rust_library(
         "serde",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "toml_datetime",
+            "version": "1.1.1+spec-1.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":serde_core-1"],
 )
@@ -26393,6 +32899,13 @@ third_party_rust.rust_library(
         "parse",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "toml_edit",
+            "version": "0.22.27",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":indexmap-2",
@@ -26424,6 +32937,13 @@ third_party_rust.rust_library(
         "parse",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "toml_edit",
+            "version": "0.25.15+spec-1.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":indexmap-2",
@@ -26455,6 +32975,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "toml_parser",
+            "version": "1.1.3+spec-1.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":winnow-1"],
 )
@@ -26478,6 +33005,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "toml_write",
+            "version": "0.1.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -26500,6 +33034,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "toml_writer",
+            "version": "1.1.2+spec-1.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -26548,6 +33089,13 @@ third_party_rust.rust_library(
         "server",
         "transport",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tonic",
+            "version": "0.14.6",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":async-trait-0.1",
@@ -26598,6 +33146,13 @@ third_party_rust.rust_library(
         "default",
         "transport",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tonic-build",
+            "version": "0.14.6",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":prettyplease-0.2",
@@ -26627,6 +33182,13 @@ third_party_rust.rust_library(
     crate = "tonic_health",
     crate_root = "tonic-health-0.14.6.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "tonic-health",
+            "version": "0.14.6",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":prost-0.14",
@@ -26657,6 +33219,13 @@ third_party_rust.rust_library(
     crate = "tonic_prost",
     crate_root = "tonic-prost-0.14.6.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "tonic-prost",
+            "version": "0.14.6",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bytes-1",
@@ -26690,6 +33259,13 @@ third_party_rust.rust_library(
         "default",
         "transport",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tonic-prost-build",
+            "version": "0.14.6",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":prettyplease-0.2",
@@ -26727,6 +33303,13 @@ third_party_rust.rust_library(
         "default",
         "server",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tonic-reflection",
+            "version": "0.14.6",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":prost-0.14",
@@ -26752,6 +33335,13 @@ third_party_rust.rust_library(
     crate = "tonic_types",
     crate_root = "tonic-types-0.14.6.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "tonic-types",
+            "version": "0.14.6",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":prost-0.14",
@@ -26802,6 +33392,13 @@ third_party_rust.rust_library(
         "tracing",
         "util",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tower",
+            "version": "0.5.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":futures-core-0.3",
@@ -26837,6 +33434,13 @@ third_party_rust.rust_library(
         "futures-util",
         "tower",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tower-http",
+            "version": "0.6.11",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -26866,6 +33470,13 @@ third_party_rust.rust_library(
     crate = "tower_layer",
     crate_root = "tower-layer-0.3.3.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "tower-layer",
+            "version": "0.3.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -26883,6 +33494,13 @@ third_party_rust.rust_library(
     crate = "tower_service",
     crate_root = "tower-service-0.3.3.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "tower-service",
+            "version": "0.3.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -26913,6 +33531,13 @@ third_party_rust.rust_library(
         "std",
         "tracing-attributes",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tracing",
+            "version": "0.1.44",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":log-0.4",
@@ -26936,6 +33561,13 @@ third_party_rust.rust_library(
     crate = "tracing_attributes",
     crate_root = "tracing-attributes-0.1.31.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "tracing-attributes",
+            "version": "0.1.31",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -26959,6 +33591,13 @@ third_party_rust.rust_library(
     crate = "tracing_chrome",
     crate_root = "tracing-chrome-0.7.2.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "tracing-chrome",
+            "version": "0.7.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":serde_json-1",
@@ -26986,6 +33625,13 @@ third_party_rust.rust_library(
         "once_cell",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tracing-core",
+            "version": "0.1.36",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":once_cell-1"],
 )
@@ -27008,6 +33654,13 @@ third_party_rust.rust_library(
         "log-tracer",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tracing-log",
+            "version": "0.2.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":log-0.4",
@@ -27059,6 +33712,13 @@ third_party_rust.rust_library(
         "smallvec",
         "tracing-log",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tracing-opentelemetry",
+            "version": "0.33.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":opentelemetry-0.32",
@@ -27107,6 +33767,13 @@ third_party_rust.rust_library(
         "tracing",
         "tracing-log",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "tracing-subscriber",
+            "version": "0.3.23",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":matchers-0.2",
@@ -27136,6 +33803,13 @@ third_party_rust.rust_library(
     crate = "transform_stream",
     crate_root = "transform-stream-0.3.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "transform-stream",
+            "version": "0.3.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":futures-core-0.3"],
 )
@@ -27154,6 +33828,13 @@ third_party_rust.rust_library(
     crate = "try_lock",
     crate_root = "try-lock-0.2.5.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "try-lock",
+            "version": "0.2.5",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -27175,6 +33856,13 @@ third_party_rust.rust_library(
         "xxhash32",
         "xxhash64",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "twox-hash",
+            "version": "2.1.4",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -27196,6 +33884,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "typed-arena",
+            "version": "2.0.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -27217,6 +33912,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "typed-path",
+            "version": "0.12.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27237,6 +33939,13 @@ third_party_rust.rust_library(
     env = {
         "OUT_DIR": "$(location :typeid-1-build-script-run[out_dir])",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "typeid",
+            "version": "1.0.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["@$(location :typeid-1-build-script-run[rustc_flags])"],
     visibility = [],
 )
@@ -27247,6 +33956,13 @@ third_party_rust.rust_binary(
     crate = "build_script_build",
     crate_root = "typeid-1.0.3.crate/build.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "typeid",
+            "version": "1.0.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27275,6 +33991,13 @@ third_party_rust.rust_library(
         "const-generics",
         "force_unix_path_separator",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "typenum",
+            "version": "1.20.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27296,6 +34019,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ucd-trie",
+            "version": "0.1.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27319,6 +34049,13 @@ third_party_rust.rust_library(
         "serde",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ulid",
+            "version": "1.2.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":rand-0.9",
@@ -27340,6 +34077,13 @@ third_party_rust.rust_library(
     crate = "uluru",
     crate_root = "uluru-3.1.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "uluru",
+            "version": "3.1.0",
+            "licenses": ["MPL-2.0"],
+        },
+    },
     visibility = [],
     deps = [":arrayvec-0.7"],
 )
@@ -27362,6 +34106,13 @@ third_party_rust.rust_library(
         "alloc",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "uncased",
+            "version": "0.9.10",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27379,6 +34130,13 @@ third_party_rust.rust_library(
     crate = "unicase",
     crate_root = "unicase-2.9.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "unicase",
+            "version": "2.9.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27396,6 +34154,13 @@ third_party_rust.rust_library(
     crate = "unicode_bom",
     crate_root = "unicode-bom-2.0.3.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "unicode-bom",
+            "version": "2.0.3",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27413,6 +34178,13 @@ third_party_rust.rust_library(
     crate = "unicode_ident",
     crate_root = "unicode-ident-1.0.26.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "unicode-ident",
+            "version": "1.0.26",
+            "licenses": ["(MIT OR Apache-2.0) AND Unicode-3.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27430,6 +34202,13 @@ third_party_rust.rust_library(
     crate = "unicode_normalization",
     crate_root = "unicode-normalization-0.1.25.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "unicode-normalization",
+            "version": "0.1.25",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":tinyvec-1"],
 )
@@ -27448,6 +34227,13 @@ third_party_rust.rust_library(
     crate = "unicode_script",
     crate_root = "unicode-script-0.5.8.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "unicode-script",
+            "version": "0.5.8",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27466,6 +34252,13 @@ third_party_rust.rust_library(
     crate_root = "unicode-security-0.1.2.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "unicode-security",
+            "version": "0.1.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":unicode-normalization-0.1",
@@ -27487,6 +34280,13 @@ third_party_rust.rust_library(
     crate = "unicode_segmentation",
     crate_root = "unicode-segmentation-1.13.3.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "unicode-segmentation",
+            "version": "1.13.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27505,6 +34305,13 @@ third_party_rust.rust_library(
     crate_root = "unicode-truncate-2.0.1.crate/src/lib.rs",
     edition = "2018",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "unicode-truncate",
+            "version": "2.0.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":itertools-0.14",
@@ -27531,6 +34338,13 @@ third_party_rust.rust_library(
         "cjk",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "unicode-width",
+            "version": "0.1.14",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27558,6 +34372,13 @@ third_party_rust.rust_library(
         "cjk",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "unicode-width",
+            "version": "0.2.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27576,6 +34397,13 @@ third_party_rust.rust_library(
     crate_root = "unicode-xid-0.2.6.crate/src/lib.rs",
     edition = "2015",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "unicode-xid",
+            "version": "0.2.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27593,6 +34421,13 @@ third_party_rust.rust_library(
     crate = "universal_hash",
     crate_root = "universal-hash-0.5.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "universal-hash",
+            "version": "0.5.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":crypto-common-0.1",
@@ -27614,6 +34449,13 @@ third_party_rust.rust_library(
     crate = "unsafe_libyaml",
     crate_root = "unsafe-libyaml-0.2.11.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "unsafe-libyaml",
+            "version": "0.2.11",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -27631,6 +34473,13 @@ third_party_rust.rust_library(
     crate = "untrusted",
     crate_root = "untrusted-0.9.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "untrusted",
+            "version": "0.9.0",
+            "licenses": ["ISC"],
+        },
+    },
     visibility = [],
 )
 
@@ -27653,6 +34502,13 @@ third_party_rust.rust_library(
         "serde",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "url",
+            "version": "2.5.8",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":form_urlencoded-1",
@@ -27677,6 +34533,13 @@ third_party_rust.rust_library(
     crate = "urlencoding",
     crate_root = "urlencoding-2.1.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "urlencoding",
+            "version": "2.1.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -27694,6 +34557,13 @@ third_party_rust.rust_library(
     crate = "utf8_iter",
     crate_root = "utf8_iter-1.0.4.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "utf8_iter",
+            "version": "1.0.4",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -27712,6 +34582,13 @@ third_party_rust.rust_library(
     crate_root = "utf8parse-0.2.2.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "utf8parse",
+            "version": "0.2.2",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -27744,6 +34621,13 @@ third_party_rust.rust_library(
         "v1",
         "v4",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "uuid",
+            "version": "1.26.1",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":atomic-0.6",
@@ -27771,6 +34655,13 @@ third_party_rust.rust_library(
         "signed",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "varint-rs",
+            "version": "2.2.1",
+            "licenses": ["0BSD"],
+        },
+    },
     visibility = [],
 )
 
@@ -27788,6 +34679,13 @@ third_party_rust.rust_library(
     crate = "vec_map",
     crate_root = "vec_map-0.8.2.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "vec_map",
+            "version": "0.8.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27805,6 +34703,13 @@ third_party_rust.rust_library(
     crate = "version_check",
     crate_root = "version_check-0.9.5.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "version_check",
+            "version": "0.9.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -27827,6 +34732,13 @@ third_party_rust.rust_library(
         "detect",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "vsimd",
+            "version": "0.8.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -27844,6 +34756,13 @@ third_party_rust.rust_library(
     crate = "vtparse",
     crate_root = "vtparse-0.6.2.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "vtparse",
+            "version": "0.6.2",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":utf8parse-0.2"],
 )
@@ -27862,6 +34781,13 @@ third_party_rust.rust_library(
     crate = "walkdir",
     crate_root = "walkdir-2.5.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "walkdir",
+            "version": "2.5.0",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":winapi-util-0.1"],
@@ -27888,6 +34814,13 @@ third_party_rust.rust_library(
     crate = "want",
     crate_root = "want-0.3.1.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "want",
+            "version": "0.3.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":try-lock-0.2"],
 )
@@ -27918,6 +34851,13 @@ third_party_rust.rust_library(
         "std",
         "wasmparser",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "wasm-encoder",
+            "version": "0.259.0",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":leb128fmt-0.1",
@@ -27939,6 +34879,13 @@ third_party_rust.rust_library(
     crate = "wasm_metadata",
     crate_root = "wasm-metadata-0.259.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "wasm-metadata",
+            "version": "0.259.0",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":anyhow-1",
@@ -27969,6 +34916,13 @@ third_party_rust.rust_library(
     crate_root = "wasm-smith-0.259.0.crate/src/lib.rs",
     edition = "2024",
     features = ["wasmparser"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "wasm-smith",
+            "version": "0.259.0",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":anyhow-1",
@@ -28009,6 +34963,13 @@ third_party_rust.rust_library(
         "std",
         "validate",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "wasmparser",
+            "version": "0.259.0",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-2",
@@ -28044,6 +35005,13 @@ third_party_rust.rust_library(
         "default",
         "validate",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "wasmprinter",
+            "version": "0.259.0",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":anyhow-1",
@@ -28070,6 +35038,13 @@ third_party_rust.rust_library(
         "component-model",
         "wasm-module",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "wast",
+            "version": "259.0.0",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bumpalo-3",
@@ -28104,6 +35079,13 @@ third_party_rust.rust_library(
         "component-model",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "wat",
+            "version": "1.259.0",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":wast-259"],
 )
@@ -28128,6 +35110,13 @@ third_party_rust.rust_library(
     crate = "watchman_client",
     crate_root = "watchman_client-0.9.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "watchman_client",
+            "version": "0.9.0",
+            "licenses": ["MIT"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":winapi-0.3"],
@@ -28164,6 +35153,13 @@ third_party_rust.rust_library(
     crate = "web_time",
     crate_root = "web-time-1.1.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "web-time",
+            "version": "1.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -28181,6 +35177,13 @@ third_party_rust.rust_library(
     crate = "webpki_roots",
     crate_root = "webpki-roots-1.0.9.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "webpki-roots",
+            "version": "1.0.9",
+            "licenses": ["CDLA-Permissive-2.0"],
+        },
+    },
     named_deps = {
         "pki_types": ":rustls-pki-types-1",
     },
@@ -28201,6 +35204,13 @@ third_party_rust.rust_library(
     crate = "wezterm_bidi",
     crate_root = "wezterm-bidi-0.2.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "wezterm-bidi",
+            "version": "0.2.3",
+            "licenses": ["MIT AND Unicode-DFS-2016"],
+        },
+    },
     visibility = [],
     deps = [
         ":log-0.4",
@@ -28223,6 +35233,13 @@ third_party_rust.rust_library(
     crate_root = "wezterm-blob-leases-0.1.1.crate/src/lib.rs",
     edition = "2021",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "wezterm-blob-leases",
+            "version": "0.1.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":getrandom-0.3",
@@ -28247,6 +35264,13 @@ third_party_rust.rust_library(
     crate = "wezterm_color_types",
     crate_root = "wezterm-color-types-0.3.0.crate/src/lib.rs",
     edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "wezterm-color-types",
+            "version": "0.3.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":csscolorparser-0.6",
@@ -28270,6 +35294,13 @@ third_party_rust.rust_library(
     crate = "wezterm_dynamic",
     crate_root = "wezterm-dynamic-0.2.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "wezterm-dynamic",
+            "version": "0.2.1",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":log-0.4",
@@ -28294,6 +35325,13 @@ third_party_rust.rust_library(
     crate = "wezterm_dynamic_derive",
     crate_root = "wezterm-dynamic-derive-0.1.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "wezterm-dynamic-derive",
+            "version": "0.1.1",
+            "licenses": ["MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -28321,6 +35359,13 @@ third_party_rust.rust_library(
         "default",
         "serde",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "wezterm-input-types",
+            "version": "0.1.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":bitflags-1",
@@ -28351,6 +35396,13 @@ third_party_rust.rust_library(
         "wasi-wasite",
         "wasm-web",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "whoami",
+            "version": "2.1.3",
+            "licenses": ["Apache-2.0 OR BSL-1.0 OR MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             deps = [":libc-0.2"],
@@ -28393,6 +35445,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "widestring",
+            "version": "1.2.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -28449,6 +35508,13 @@ third_party_rust.rust_library(
         "winuser",
         "ws2def",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "winapi",
+            "version": "0.3.9",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     platform = {
         "windows-gnu": dict(
             deps = [":winapi-x86_64-pc-windows-gnu-0.4"],
@@ -28500,6 +35566,13 @@ third_party_rust.rust_binary(
         "winuser",
         "ws2def",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "winapi",
+            "version": "0.3.9",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -28560,6 +35633,13 @@ third_party_rust.rust_library(
     crate = "winapi_util",
     crate_root = "winapi-util-0.1.11.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "winapi-util",
+            "version": "0.1.11",
+            "licenses": ["Unlicense OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":windows-sys-0.61"],
 )
@@ -28582,6 +35662,13 @@ third_party_rust.rust_library(
     crate = "winapi_x86_64_pc_windows_gnu",
     crate_root = "winapi-x86_64-pc-windows-gnu-0.4.0.crate/src/lib.rs",
     edition = "2015",
+    metadata = {
+        "third-party.metadata": {
+            "name": "winapi-x86_64-pc-windows-gnu",
+            "version": "0.4.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":winapi-x86_64-pc-windows-gnu-0.4-extra_libraries-libwinapi_ole32.a",
@@ -28591,12 +35678,26 @@ third_party_rust.rust_library(
 
 third_party_rust.prebuilt_cxx_library(
     name = "winapi-x86_64-pc-windows-gnu-0.4-extra_libraries-libwinapi_ole32.a",
+    metadata = {
+        "third-party.metadata": {
+            "name": "winapi-x86_64-pc-windows-gnu",
+            "version": "0.4.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     static_lib = ":winapi-x86_64-pc-windows-gnu-0.4.0.crate[lib/libwinapi_ole32.a]",
     visibility = [],
 )
 
 third_party_rust.prebuilt_cxx_library(
     name = "winapi-x86_64-pc-windows-gnu-0.4-extra_libraries-libwinapi_shell32.a",
+    metadata = {
+        "third-party.metadata": {
+            "name": "winapi-x86_64-pc-windows-gnu",
+            "version": "0.4.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     static_lib = ":winapi-x86_64-pc-windows-gnu-0.4.0.crate[lib/libwinapi_shell32.a]",
     visibility = [],
 )
@@ -28662,6 +35763,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows",
+            "version": "0.61.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":windows-collections-0.2",
@@ -28709,6 +35817,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows",
+            "version": "0.62.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":windows-collections-0.3",
@@ -28732,6 +35847,13 @@ third_party_rust.rust_library(
     crate = "windows_collections",
     crate_root = "windows-collections-0.2.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-collections",
+            "version": "0.2.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":windows-core-0.61"],
 )
@@ -28751,6 +35873,13 @@ third_party_rust.rust_library(
     crate_root = "windows-collections-0.3.2.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-collections",
+            "version": "0.3.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":windows-core-0.62"],
 )
@@ -28770,6 +35899,13 @@ third_party_rust.rust_library(
     crate_root = "windows-core-0.61.2.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-core",
+            "version": "0.61.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":windows-implement-0.60",
@@ -28798,6 +35934,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-core",
+            "version": "0.62.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":windows-implement-0.60",
@@ -28822,6 +35965,13 @@ third_party_rust.rust_library(
     crate = "windows_future",
     crate_root = "windows-future-0.2.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-future",
+            "version": "0.2.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":windows-core-0.61",
@@ -28845,6 +35995,13 @@ third_party_rust.rust_library(
     crate_root = "windows-future-0.3.2.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-future",
+            "version": "0.3.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":windows-core-0.62",
@@ -28867,6 +36024,13 @@ third_party_rust.rust_library(
     crate = "windows_implement",
     crate_root = "windows-implement-0.60.2.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-implement",
+            "version": "0.60.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -28890,6 +36054,13 @@ third_party_rust.rust_library(
     crate = "windows_interface",
     crate_root = "windows-interface-0.59.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-interface",
+            "version": "0.59.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -28913,6 +36084,13 @@ third_party_rust.rust_library(
     crate = "windows_link",
     crate_root = "windows-link-0.1.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-link",
+            "version": "0.1.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -28930,6 +36108,13 @@ third_party_rust.rust_library(
     crate = "windows_link",
     crate_root = "windows-link-0.2.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-link",
+            "version": "0.2.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -28947,6 +36132,13 @@ third_party_rust.rust_library(
     crate = "windows_numerics",
     crate_root = "windows-numerics-0.2.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-numerics",
+            "version": "0.2.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":windows-core-0.61",
@@ -28969,6 +36161,13 @@ third_party_rust.rust_library(
     crate_root = "windows-numerics-0.3.1.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-numerics",
+            "version": "0.3.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":windows-core-0.62",
@@ -28994,6 +36193,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-registry",
+            "version": "0.6.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":windows-link-0.2",
@@ -29017,6 +36223,13 @@ third_party_rust.rust_library(
     crate_root = "windows-result-0.3.4.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-result",
+            "version": "0.3.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":windows-link-0.1"],
 )
@@ -29039,6 +36252,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-result",
+            "version": "0.4.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":windows-link-0.2"],
 )
@@ -29058,6 +36278,13 @@ third_party_rust.rust_library(
     crate_root = "windows-strings-0.4.2.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-strings",
+            "version": "0.4.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":windows-link-0.1"],
 )
@@ -29077,6 +36304,13 @@ third_party_rust.rust_library(
     crate_root = "windows-strings-0.5.1.crate/src/lib.rs",
     edition = "2021",
     features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-strings",
+            "version": "0.5.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":windows-link-0.2"],
 )
@@ -29107,6 +36341,13 @@ third_party_rust.rust_library(
         "Win32_UI_Input_KeyboardAndMouse",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-sys",
+            "version": "0.52.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":windows-targets-0.52"],
 )
@@ -29134,6 +36375,13 @@ third_party_rust.rust_library(
         "Win32_System_IO",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-sys",
+            "version": "0.59.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":windows-targets-0.52"],
 )
@@ -29164,6 +36412,13 @@ third_party_rust.rust_library(
         "Win32_System_WindowsProgramming",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-sys",
+            "version": "0.60.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":windows-targets-0.53"],
 )
@@ -29228,6 +36483,13 @@ third_party_rust.rust_library(
         "Win32_UI_Shell",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-sys",
+            "version": "0.61.2",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":windows-link-0.2"],
 )
@@ -29246,6 +36508,13 @@ third_party_rust.rust_library(
     crate = "windows_targets",
     crate_root = "windows-targets-0.52.6.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-targets",
+            "version": "0.52.6",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["--cfg=windows_raw_dylib"],
     visibility = [],
 )
@@ -29264,6 +36533,13 @@ third_party_rust.rust_library(
     crate = "windows_targets",
     crate_root = "windows-targets-0.53.5.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-targets",
+            "version": "0.53.5",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     rustc_flags = ["--cfg=windows_raw_dylib"],
     visibility = [],
     deps = [":windows-link-0.2"],
@@ -29283,6 +36559,13 @@ third_party_rust.rust_library(
     crate = "windows_threading",
     crate_root = "windows-threading-0.1.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-threading",
+            "version": "0.1.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":windows-link-0.1"],
 )
@@ -29301,6 +36584,13 @@ third_party_rust.rust_library(
     crate = "windows_threading",
     crate_root = "windows-threading-0.2.1.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "windows-threading",
+            "version": "0.2.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":windows-link-0.2"],
 )
@@ -29324,6 +36614,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "winnow",
+            "version": "0.6.26",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -29346,6 +36643,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "winnow",
+            "version": "0.7.15",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -29371,6 +36675,13 @@ third_party_rust.rust_library(
         "parser",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "winnow",
+            "version": "1.0.4",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -29388,6 +36699,13 @@ third_party_rust.rust_library(
     crate = "winreg",
     crate_root = "winreg-0.56.0.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "winreg",
+            "version": "0.56.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":cfg-if-1",
@@ -29433,6 +36751,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = ["clap"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "wit-bindgen-c",
+            "version": "0.62.0",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":anyhow-1",
@@ -29467,6 +36792,13 @@ third_party_rust.rust_library(
     crate_root = "wit-bindgen-core-0.62.0.crate/src/lib.rs",
     edition = "2024",
     features = ["clap"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "wit-bindgen-core",
+            "version": "0.62.0",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":anyhow-1",
@@ -29514,6 +36846,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = ["clap"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "wit-bindgen-rust",
+            "version": "0.62.0",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":anyhow-1",
@@ -29565,6 +36904,13 @@ third_party_rust.rust_library(
         "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
     },
+    metadata = {
+        "third-party.metadata": {
+            "name": "wit-component",
+            "version": "0.259.0",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":anyhow-1",
@@ -29608,6 +36954,13 @@ third_party_rust.rust_library(
         "serde_json",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "wit-parser",
+            "version": "0.259.0",
+            "licenses": ["Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":anyhow-1",
@@ -29642,6 +36995,13 @@ third_party_rust.rust_library(
         "chrono",
         "default",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "wmi",
+            "version": "0.18.4",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":chrono-0.4",
@@ -29669,6 +37029,13 @@ third_party_rust.rust_library(
     crate_root = "writeable-0.6.4.crate/src/lib.rs",
     edition = "2021",
     features = ["alloc"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "writeable",
+            "version": "0.6.4",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -29690,6 +37057,13 @@ third_party_rust.rust_library(
         "default",
         "unsupported",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "xattr",
+            "version": "1.6.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [":rustix-1"],
 )
@@ -29708,6 +37082,13 @@ third_party_rust.rust_library(
     crate = "xml",
     crate_root = "xml-rs-0.8.29.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "xml-rs",
+            "version": "0.8.29",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -29726,6 +37107,13 @@ third_party_rust.rust_library(
     crate_root = "xmltree-0.10.3.crate/src/lib.rs",
     edition = "2018",
     features = ["default"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "xmltree",
+            "version": "0.10.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":xml-rs-0.8"],
 )
@@ -29749,6 +37137,13 @@ third_party_rust.rust_library(
         "xxh3",
         "xxh64",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "xxhash-rust",
+            "version": "0.8.18",
+            "licenses": ["BSL-1.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -29771,6 +37166,13 @@ third_party_rust.rust_library(
         "default",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "yansi",
+            "version": "1.0.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
     visibility = [],
 )
 
@@ -29793,6 +37195,13 @@ third_party_rust.rust_library(
         "derive",
         "zerofrom",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "yoke",
+            "version": "0.8.3",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":stable_deref_trait-1",
@@ -29815,6 +37224,13 @@ third_party_rust.rust_library(
     crate = "yoke_derive",
     crate_root = "yoke-derive-0.8.3.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "yoke-derive",
+            "version": "0.8.3",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -29858,6 +37274,13 @@ third_party_rust.rust_library(
         "OUT_DIR": "$(location :zerocopy-0.8-build-script-run[out_dir])",
     },
     features = ["simd"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zerocopy",
+            "version": "0.8.57",
+            "licenses": ["BSD-2-Clause OR Apache-2.0 OR MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             features = [
@@ -29902,6 +37325,13 @@ third_party_rust.rust_binary(
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = ["simd"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zerocopy",
+            "version": "0.8.57",
+            "licenses": ["BSD-2-Clause OR Apache-2.0 OR MIT"],
+        },
+    },
     platform = {
         "linux-arm64": dict(
             features = [
@@ -29967,6 +37397,13 @@ third_party_rust.rust_library(
     crate = "zerocopy_derive",
     crate_root = "zerocopy-derive-0.8.57.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "zerocopy-derive",
+            "version": "0.8.57",
+            "licenses": ["BSD-2-Clause OR Apache-2.0 OR MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -29994,6 +37431,13 @@ third_party_rust.rust_library(
         "alloc",
         "derive",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zerofrom",
+            "version": "0.1.8",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
     deps = [":zerofrom-derive-0.1"],
 )
@@ -30012,6 +37456,13 @@ third_party_rust.rust_library(
     crate = "zerofrom_derive",
     crate_root = "zerofrom-derive-0.1.8.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "zerofrom-derive",
+            "version": "0.1.8",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -30048,6 +37499,13 @@ third_party_rust.rust_library(
         "derive",
         "zeroize_derive",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zeroize",
+            "version": "1.9.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     visibility = [],
     deps = [":zeroize_derive-1"],
 )
@@ -30066,6 +37524,13 @@ third_party_rust.rust_library(
     crate = "zeroize_derive",
     crate_root = "zeroize_derive-1.5.0.crate/src/lib.rs",
     edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "zeroize_derive",
+            "version": "1.5.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -30094,6 +37559,13 @@ third_party_rust.rust_library(
         "yoke",
         "zerofrom",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zerotrie",
+            "version": "0.2.5",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":displaydoc-0.2",
@@ -30121,6 +37593,13 @@ third_party_rust.rust_library(
         "derive",
         "yoke",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zerovec",
+            "version": "0.11.8",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":yoke-0.8",
@@ -30143,6 +37622,13 @@ third_party_rust.rust_library(
     crate = "zerovec_derive",
     crate_root = "zerovec-derive-0.11.6.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "zerovec-derive",
+            "version": "0.11.6",
+            "licenses": ["Unicode-3.0"],
+        },
+    },
     proc_macro = True,
     visibility = [],
     deps = [
@@ -30196,6 +37682,13 @@ third_party_rust.rust_library(
         "deflate-flate2-zlib-rs",
         "deflate-zopfli",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zip",
+            "version": "8.6.0",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [
         ":crc32fast-1",
@@ -30227,6 +37720,13 @@ third_party_rust.rust_library(
         "rust-allocator",
         "std",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zlib-rs",
+            "version": "0.6.8",
+            "licenses": ["Zlib"],
+        },
+    },
     visibility = [],
 )
 
@@ -30244,6 +37744,13 @@ third_party_rust.rust_library(
     crate = "zmij",
     crate_root = "zmij-1.0.23.crate/src/lib.rs",
     edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "zmij",
+            "version": "1.0.23",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
 )
 
@@ -30267,6 +37774,13 @@ third_party_rust.rust_library(
         "std",
         "zlib",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zopfli",
+            "version": "0.8.3",
+            "licenses": ["Apache-2.0"],
+        },
+    },
     visibility = [],
     deps = [
         ":bumpalo-3",
@@ -30302,6 +37816,13 @@ third_party_rust.rust_library(
         "legacy",
         "zdict_builder",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zstd",
+            "version": "0.13.3",
+            "licenses": ["MIT"],
+        },
+    },
     visibility = [],
     deps = [":zstd-safe-7"],
 )
@@ -30326,6 +37847,13 @@ third_party_rust.rust_library(
         "std",
         "zdict_builder",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zstd-safe",
+            "version": "7.3.0",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     visibility = [],
     deps = [":zstd-sys-2"],
 )
@@ -30349,6 +37877,13 @@ third_party_rust.rust_library(
         "std",
         "zdict_builder",
     ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zstd-sys",
+            "version": "2.1.0+zstd.1.5.7",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
     visibility = [],
     deps = ["third-party//by-name/zs/zstd:zstd"],
 )
