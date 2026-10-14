@@ -29,6 +29,7 @@ type command struct {
 var commands = map[string]command{
 	"image":    {"stack layers and configuration on a base image", runImage},
 	"index":    {"combine single-platform images into one multi-platform index", runIndex},
+	"tar":      {"write a reproducible tar of files and directories", runTar},
 	"validate": {"check a layout's descriptors, digests and configs", runValidate},
 }
 

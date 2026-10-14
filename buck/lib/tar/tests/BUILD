@@ -23,17 +23,18 @@ tar_file(
     prefix = "usr/local/bin",
 )
 
-shims.python_binary(
-    name = "verify_tar",
-    main = "verify_tar.py",
-)
-
-shims.run_test(
+# Both archives come from the same input, so they must be byte for byte the
+# same, and hold one normalized file under the prefix.
+shims.command_test(
     name = "test_tar",
-    args = [
-        "$(location :test_with_prefix_a)",
-        "$(location :test_with_prefix_b)",
-        "$(location :test_with_prefix.txt)",
-    ],
-    dep = ":verify_tar",
+    script = """
+        a="$(location :test_with_prefix_a)"
+        b="$(location :test_with_prefix_b)"
+        src="$(location :test_with_prefix.txt)"
+
+        cmp "$a" "$b"
+        test "`tar -tzf "$a"`" = usr/local/bin/test_with_prefix.txt
+        tar -xzOf "$a" usr/local/bin/test_with_prefix.txt | cmp - "$src"
+        TZ=UTC tar --numeric-owner -tvzf "$a" | grep -q '^-rw-r--r-- 0/0 .* 1970-01-01 00:00 usr/local/bin/test_with_prefix.txt$'
+    """,
 )

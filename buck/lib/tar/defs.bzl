@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2026 Benjamin Brittain
 # SPDX-License-Identifier: Apache-2.0
 
-load(":toolchain.bzl", "TarToolchainInfo")
+load("@root//buck/lib/oci:toolchain.bzl", "OciToolchainInfo")
 
 def _tar_file_impl(ctx: AnalysisContext) -> list[Provider]:
     tar_output_name = (
@@ -15,15 +15,16 @@ def _tar_file_impl(ctx: AnalysisContext) -> list[Provider]:
 
     # this is not GNU tar. don't look these flags up in the manual.
     cmd = cmd_args(
-        ctx.attrs._tar_toolchain[TarToolchainInfo].tar[RunInfo],
-        "--compress",
-        "true" if ctx.attrs.compress else "false",
-        "--file_path",
+        ctx.attrs._oci_toolchain[OciToolchainInfo].oci[RunInfo],
+        "tar",
+        "--srcs",
         srcs_file_path,
-        "--filename",
+        "--output",
         tar_file.as_output(),
         hidden = srcs,
     )
+    if ctx.attrs.compress:
+        cmd.add("--compress")
 
     # Add prefix if specified
     if ctx.attrs.prefix:
@@ -44,9 +45,10 @@ tar_file = rule(
             default = None,
             doc = "Directory prefix to add to all files in the tar (e.g., 'usr/local/bin')",
         ),
-        "_tar_toolchain": attrs.toolchain_dep(
-            default = "toolchains//:tar",
-            providers = [TarToolchainInfo],
+        # The oci tool writes the archive, so tar_file needs no toolchain of its own.
+        "_oci_toolchain": attrs.toolchain_dep(
+            default = "toolchains//:oci",
+            providers = [OciToolchainInfo],
         ),
     },
 )
