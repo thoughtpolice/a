@@ -14,6 +14,7 @@ tar_file(
     srcs = [":test_with_prefix.txt"],
     compress = True,
     prefix = "usr/local/bin",
+    target_compatible_with = ["config//os:linux"],
 )
 
 tar_file(
@@ -21,6 +22,7 @@ tar_file(
     srcs = [":test_with_prefix.txt"],
     compress = True,
     prefix = "usr/local/bin",
+    target_compatible_with = ["config//os:linux"],
 )
 
 # Both archives come from the same input, so they must be byte for byte the
@@ -37,4 +39,5 @@ shims.command_test(
         tar -xzOf "$a" usr/local/bin/test_with_prefix.txt | cmp - "$src"
         TZ=UTC tar --numeric-owner -tvzf "$a" | grep -q '^-rw-r--r-- 0/0 .* 1970-01-01 00:00 usr/local/bin/test_with_prefix.txt$'
     """,
+    target_compatible_with = ["config//os:linux"],
 )
