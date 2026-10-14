@@ -4,8 +4,8 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 )
 
@@ -59,11 +59,10 @@ type rawError struct {
 	direct string
 }
 
-func (e *rawError) UnmarshalJSON(data []byte) error {
-	trimmed := bytes.TrimSpace(data)
-	if len(trimmed) > 0 && trimmed[0] == '"' {
+func (e *rawError) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if dec.PeekKind() == '"' {
 		var message string
-		if err := json.Unmarshal(trimmed, &message); err != nil {
+		if err := json.UnmarshalDecode(dec, &message); err != nil {
 			return err
 		}
 		*e = rawError{direct: message}
@@ -71,7 +70,7 @@ func (e *rawError) UnmarshalJSON(data []byte) error {
 	}
 	type plain rawError
 	var decoded plain
-	if err := json.Unmarshal(data, &decoded); err != nil {
+	if err := json.UnmarshalDecode(dec, &decoded); err != nil {
 		return err
 	}
 	*e = rawError(decoded)

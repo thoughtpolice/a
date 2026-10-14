@@ -6,7 +6,7 @@ package main
 import (
 	"archive/tar"
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"io"
 	"os"
 	"path/filepath"
@@ -132,13 +132,20 @@ func TestUnpack(t *testing.T) {
 
 	var spec struct {
 		Process struct {
-			User struct{ UID, GID int }
-			Args []string
-		}
-		Root struct{ Path string }
+			User struct {
+				UID int `json:"uid"`
+				GID int `json:"gid"`
+			} `json:"user"`
+			Args []string `json:"args"`
+		} `json:"process"`
+		Root struct {
+			Path string `json:"path"`
+		} `json:"root"`
 	}
 	data, _ := os.ReadFile(filepath.Join(bundle, "config.json"))
-	json.Unmarshal(data, &spec)
+	if err := json.Unmarshal(data, &spec); err != nil {
+		t.Fatal(err)
+	}
 	if spec.Process.User.UID != 65534 || spec.Process.User.GID != 65533 || strings.Join(spec.Process.Args, " ") != "/bin/sh -c true" || spec.Root.Path != "rootfs" {
 		t.Errorf("config.json %s", data)
 	}

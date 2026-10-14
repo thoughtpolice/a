@@ -5,9 +5,8 @@ package main
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
-	"io"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -285,16 +284,8 @@ func parseChangedPaths(stdout []byte) ([]string, error) {
 }
 
 func decodeSingleJSONValue(line string) (any, error) {
-	decoder := json.NewDecoder(strings.NewReader(line))
 	var value any
-	if err := decoder.Decode(&value); err != nil {
-		return nil, err
-	}
-	var extra any
-	if err := decoder.Decode(&extra); err != io.EOF {
-		if err == nil {
-			return nil, fmt.Errorf("trailing JSON value")
-		}
+	if err := json.Unmarshal([]byte(line), &value); err != nil {
 		return nil, err
 	}
 	return value, nil

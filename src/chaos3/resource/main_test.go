@@ -10,7 +10,7 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -98,12 +98,9 @@ func TestSetupResourceHandsOffOnlyJSON(t *testing.T) {
 	}
 	t.Cleanup(process.stop)
 	var pool resourcePool
-	decoder := json.NewDecoder(&stdout)
-	if err := decoder.Decode(&pool); err != nil {
+	// UnmarshalRead also rejects anything after the first JSON record.
+	if err := json.UnmarshalRead(&stdout, &pool); err != nil {
 		t.Fatal(err)
-	}
-	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
-		t.Fatalf("resource stdout contains more than one JSON record: %v", err)
 	}
 	want := resourcePool{PID: command.Process.Pid, Resources: []resourceAliases{{
 		AccessKeyID: accessKeyID, Endpoint: "http://127.0.0.1:12345", Log: process.logPath,
@@ -162,7 +159,7 @@ func TestSetupResourceFailedHandoffReapsChild(t *testing.T) {
 	directory := t.TempDir()
 	command := fixtureCommand(t, "ready")
 	process, err := setupResource(command, failingWriter{}, directory, 5*time.Second)
-	if process != nil || err == nil || !strings.Contains(err.Error(), "encode local resource: fixture broken pipe") {
+	if process != nil || !errors.Is(err, errBrokenPipe) || !strings.Contains(err.Error(), "encode local resource:") {
 		if process != nil {
 			process.stop()
 		}
@@ -193,7 +190,9 @@ func TestSetupResourceFailedLogCreationDoesNotStart(t *testing.T) {
 
 type failingWriter struct{}
 
-func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("fixture broken pipe") }
+var errBrokenPipe = errors.New("fixture broken pipe")
+
+func (failingWriter) Write([]byte) (int, error) { return 0, errBrokenPipe }
 
 func assertEmptyDirectory(t *testing.T, directory string) {
 	t.Helper()

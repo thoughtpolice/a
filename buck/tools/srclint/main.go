@@ -20,7 +20,8 @@
 package main
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"flag"
 	"fmt"
@@ -137,7 +138,7 @@ func runCheck(args []string, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	data, err = json.MarshalIndent(r, "", "  ")
+	data, err = json.Marshal(r, jsontext.WithIndent("  "))
 	if err != nil {
 		return err
 	}

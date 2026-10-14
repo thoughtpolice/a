@@ -13,7 +13,8 @@
 package main
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -154,7 +155,7 @@ func setupResource(command *exec.Cmd, stdout io.Writer, logDir string, timeout t
 			Region: region, SecretAccessKey: secretAccessKey,
 		}},
 	}
-	if err := json.NewEncoder(stdout).Encode(pool); err != nil {
+	if err := json.MarshalEncode(jsontext.NewEncoder(stdout), pool); err != nil {
 		process.stop()
 		return nil, fmt.Errorf("encode local resource: %w", err)
 	}

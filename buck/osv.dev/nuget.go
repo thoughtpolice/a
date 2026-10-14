@@ -4,8 +4,7 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"strings"
@@ -40,7 +39,7 @@ func loadNuGetLock(path string) ([]nugetPackage, error) {
 
 func parseNuGetLock(data []byte) ([]nugetPackage, error) {
 	var lock nugetLock
-	if err := json.NewDecoder(bytes.NewReader(data)).Decode(&lock); err != nil {
+	if err := json.Unmarshal(data, &lock); err != nil {
 		return nil, err
 	}
 	if lock.Version != supportedNuGetLockVersion {

@@ -8,7 +8,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"io"
@@ -28,7 +28,7 @@ const stateFile = "oci-unpack.json"
 
 type unpackState struct {
 	Manifest Descriptor             `json:"manifest"`
-	Config   json.RawMessage        `json:"config"`
+	Config   jsontext.Value         `json:"config"`
 	Entries  map[string]rootfsEntry `json:"entries"`
 }
 
@@ -38,7 +38,7 @@ type rootfsEntry struct {
 	Mode   int64  `json:"mode"`
 	UID    int    `json:"uid"`
 	GID    int    `json:"gid"`
-	Size   int64  `json:"size,omitempty"`
+	Size   int64  `json:"size,omitzero"`
 	Digest string `json:"digest,omitempty"`
 	Link   string `json:"link,omitempty"`
 }

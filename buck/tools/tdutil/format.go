@@ -4,7 +4,8 @@
 package main
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"unicode/utf8"
@@ -62,23 +63,19 @@ func render(output io.Writer, format outputFormat, meta *metadata, targets []aff
 			Head:       meta.headRevset,
 			BaseCommit: meta.baseCommit,
 			HeadCommit: meta.headCommit,
-			Universe:   nonNilStrings(meta.universe),
+			Universe:   meta.universe,
 			Count:      len(converted),
-			Targets:    nonNilJSONTargets(converted),
+			Targets:    converted,
 		}
-		encoder := json.NewEncoder(output)
-		encoder.SetEscapeHTML(false)
-		encoder.SetIndent("", "  ")
-		return encoder.Encode(document)
+		return json.MarshalEncode(jsontext.NewEncoder(output, jsontext.WithIndent("  ")), document)
 	case formatJSONLines:
 		converted, err := targetsForJSON(targets)
 		if err != nil {
 			return err
 		}
-		encoder := json.NewEncoder(output)
-		encoder.SetEscapeHTML(false)
+		encoder := jsontext.NewEncoder(output)
 		for _, target := range converted {
-			if err := encoder.Encode(target); err != nil {
+			if err := json.MarshalEncode(encoder, target); err != nil {
 				return err
 			}
 		}
@@ -127,18 +124,4 @@ func validateMetadata(meta *metadata) error {
 		}
 	}
 	return nil
-}
-
-func nonNilStrings(values []string) []string {
-	if values == nil {
-		return []string{}
-	}
-	return values
-}
-
-func nonNilJSONTargets(values []jsonTarget) []jsonTarget {
-	if values == nil {
-		return []jsonTarget{}
-	}
-	return values
 }

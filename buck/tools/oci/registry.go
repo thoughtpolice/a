@@ -8,7 +8,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -305,7 +305,7 @@ func (r *registry) tryFetchToken(ctx context.Context, tokenURL string) (*oauth2.
 		AccessToken string `json:"access_token"`
 		ExpiresIn   int    `json:"expires_in"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&reply); err != nil {
+	if err := json.UnmarshalRead(resp.Body, &reply); err != nil {
 		return nil, fmt.Errorf("token reply: %w", err)
 	}
 	token := &oauth2.Token{AccessToken: reply.Token, TokenType: "Bearer"}

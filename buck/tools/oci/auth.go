@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"os"
@@ -148,7 +148,10 @@ func helperCredentials(ctx context.Context, helper, domain string) (credentials,
 		}
 		return credentials{}, fmt.Errorf("docker-credential-%s: %v: %s", helper, err, strings.TrimSpace(stderr.String()))
 	}
-	var reply struct{ Username, Secret string }
+	var reply struct {
+		Username string `json:"Username"`
+		Secret   string `json:"Secret"`
+	}
 	if err := json.Unmarshal(out, &reply); err != nil {
 		return credentials{}, fmt.Errorf("docker-credential-%s: %w", helper, err)
 	}

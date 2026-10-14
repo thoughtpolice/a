@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
 	"io"
 	"os"
 	"path/filepath"
@@ -98,8 +98,9 @@ func baseConfig(arch string) map[string]any {
 			"Env":    []any{"PATH=/bin", "SHARED=base"},
 			"Labels": map[string]any{"keep": "1", "shared": "base"},
 		},
-		"history":     []any{map[string]any{"created_by": "base"}},
-		"future-only": json.Number("12345678901234567890"),
+		"history":       []any{map[string]any{"created_by": "base"}},
+		"future-only":   jsontext.Value("12345678901234567890"),
+		"future-nested": map[string]any{"n": []any{jsontext.Value("12345678901234567891")}},
 	}
 }
 
@@ -181,8 +182,11 @@ func TestImage(t *testing.T) {
 	if config["created"] != "1970-01-01T00:00:00Z" {
 		t.Errorf("created %v", config["created"])
 	}
-	if config["future-only"] != json.Number("12345678901234567890") {
-		t.Errorf("an unknown config field did not round-trip: %v", config["future-only"])
+	if got := marshal(config["future-only"]); string(got) != "12345678901234567890" {
+		t.Errorf("an unknown config field did not round-trip: %s", got)
+	}
+	if got := marshal(config["future-nested"]); string(got) != `{"n":[12345678901234567891]}` {
+		t.Errorf("a nested unknown config field did not round-trip: %s", got)
 	}
 
 	// The same inputs give the same image.

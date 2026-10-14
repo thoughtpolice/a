@@ -4,7 +4,8 @@
 package main
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -70,13 +71,13 @@ func loadPackageLock(path string) ([]npmPackage, npmSkips, error) {
 
 func parsePackageLock(r io.Reader) ([]npmPackage, npmSkips, error) {
 	var lock npmLock
-	decoder := json.NewDecoder(r)
-	if err := decoder.Decode(&lock); err != nil {
+	decoder := jsontext.NewDecoder(r)
+	if err := json.UnmarshalDecode(decoder, &lock); err != nil {
 		return nil, npmSkips{}, fmt.Errorf("decode package-lock.json: %w", err)
 	}
 	// A lockfile is exactly one JSON object; anything after it means the file
 	// was concatenated or truncated mid-write.
-	if err := decoder.Decode(new(json.RawMessage)); !errors.Is(err, io.EOF) {
+	if _, err := decoder.ReadValue(); !errors.Is(err, io.EOF) {
 		return nil, npmSkips{}, fmt.Errorf("package-lock.json has trailing content after the root object")
 	}
 	if lock.LockfileVersion == nil {

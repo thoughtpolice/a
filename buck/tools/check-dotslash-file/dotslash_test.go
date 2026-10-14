@@ -7,7 +7,8 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -37,7 +38,7 @@ func entry(url string, data []byte) map[string]any {
 
 func writeDotslash(t *testing.T, platforms map[string]any) string {
 	t.Helper()
-	body, err := json.MarshalIndent(map[string]any{"name": "tool", "platforms": platforms}, "", "  ")
+	body, err := json.Marshal(map[string]any{"name": "tool", "platforms": platforms}, jsontext.WithIndent("  "), json.Deterministic(true))
 	if err != nil {
 		t.Fatal(err)
 	}

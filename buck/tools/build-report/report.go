@@ -4,7 +4,8 @@
 package main
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"strings"
 )
@@ -30,7 +31,7 @@ type BuildInfo struct {
 	ID          string `json:"id"`
 	Status      string `json:"status"`
 	ProjectRoot string `json:"project_root"`
-	Truncated   bool   `json:"truncated,omitempty"`
+	Truncated   bool   `json:"truncated,omitzero"`
 }
 
 const (
@@ -48,7 +49,7 @@ type Summary struct {
 	OtherOutcomes  map[string]int `json:"other_outcomes,omitempty"`
 	SuccessRatePct float64        `json:"success_rate_pct"`
 	DefaultOutputs int            `json:"default_outputs"`
-	OtherOutputs   int            `json:"other_outputs,omitempty"`
+	OtherOutputs   int            `json:"other_outputs,omitzero"`
 	Configurations int            `json:"configurations"`
 }
 
@@ -78,8 +79,8 @@ type Breakdowns struct {
 type GroupCount struct {
 	Name    string  `json:"name"`
 	Targets int     `json:"targets"`
-	Failed  int     `json:"failed,omitempty"`
-	Percent float64 `json:"percent,omitempty"`
+	Failed  int     `json:"failed,omitzero"`
+	Percent float64 `json:"percent,omitzero"`
 }
 
 // Failure is one root cause and every target it took down. Errors sharing a
@@ -141,7 +142,7 @@ func loadReport(data []byte) (*Report, error) {
 }
 
 func (r *Report) marshalJSON() (string, error) {
-	encoded, err := json.MarshalIndent(r, "", "  ")
+	encoded, err := json.Marshal(r, jsontext.WithIndent("  "), json.Deterministic(true))
 	if err != nil {
 		return "", fmt.Errorf("encode report: %w", err)
 	}

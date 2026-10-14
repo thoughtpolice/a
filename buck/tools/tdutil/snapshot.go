@@ -9,7 +9,8 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
-	"encoding/json"
+	"encoding/json/v2"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -168,7 +169,7 @@ func quotedOrAbsent(version string) string {
 // a network and one that is not.
 func encodeSnapshotDocumentTo(output io.Writer, document *snapshotDocument) error {
 	compressor := gzip.NewWriter(output)
-	if err := json.NewEncoder(compressor).Encode(document); err != nil {
+	if err := json.MarshalWrite(compressor, document, json.Deterministic(true)); err != nil {
 		return fmt.Errorf("encoding base snapshot: %w", err)
 	}
 	if err := compressor.Close(); err != nil {
@@ -206,22 +207,17 @@ func decodeSnapshotDocument(input *bufio.Reader) (*snapshotDocument, error) {
 	}
 
 	// One pass, because the document is far too large to parse twice for the
-	// sake of a nicer message. DisallowUnknownFields therefore reports a
+	// sake of a nicer message. RejectUnknownMembers therefore reports a
 	// future schema as an unknown field rather than as an unsupported
-	// version, so say what that actually means. Every failure here is a
-	// fallback to full collection, never a wrong answer.
-	decoder := json.NewDecoder(reader)
-	decoder.DisallowUnknownFields()
+	// version, so say what that actually means. Trailing data after the
+	// document is rejected too. Every failure here is a fallback to full
+	// collection, never a wrong answer.
 	var document snapshotDocument
-	if err := decoder.Decode(&document); err != nil {
-		if strings.Contains(err.Error(), "unknown field") {
+	if err := json.UnmarshalRead(reader, &document, json.RejectUnknownMembers(true)); err != nil {
+		if errors.Is(err, json.ErrUnknownName) {
 			return nil, fmt.Errorf("base snapshot was written by a different tdutil or schema: %w", err)
 		}
 		return nil, fmt.Errorf("malformed base snapshot: %w", err)
-	}
-	var extra any
-	if err := decoder.Decode(&extra); err != io.EOF {
-		return nil, fmt.Errorf("malformed base snapshot: trailing data after the document")
 	}
 
 	if document.Schema != snapshotSchemaVersion {

@@ -4,10 +4,10 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -137,30 +137,34 @@ func splitDigest(digest string) (string, string, error) {
 	return algorithm, encoded, nil
 }
 
-// marshal encodes JSON the same way every time: Go sorts map keys, and
+// marshal encodes JSON the same way every time: map keys are sorted, and
 // struct fields keep their declared order.
 func marshal(v any) []byte {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
+	data, err := json.Marshal(v, json.Deterministic(true))
+	if err != nil {
 		panic(err)
 	}
-	return bytes.TrimSuffix(buf.Bytes(), []byte("\n"))
+	return data
 }
 
-// decodeJSON decodes data, keeping numbers exact so that configs written by
-// other tools round-trip unchanged.
-func decodeJSON(data []byte, v any) error {
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
-	if err := dec.Decode(v); err != nil {
+// exactNumbers decodes JSON numbers held in an any as their original text, so
+// that configs written by other tools round-trip unchanged rather than through
+// float64.
+var exactNumbers = json.WithUnmarshalers(json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v *any) error {
+	if dec.PeekKind() != '0' {
+		return errors.ErrUnsupported
+	}
+	number, err := dec.ReadValue()
+	if err != nil {
 		return err
 	}
-	if dec.More() {
-		return errors.New("trailing data after JSON value")
-	}
+	*v = number.Clone()
 	return nil
+}))
+
+// decodeJSON decodes data, keeping numbers exact; see exactNumbers.
+func decodeJSON(data []byte, v any) error {
+	return json.Unmarshal(data, v, exactNumbers)
 }
 
 // Layout is an OCI image layout directory.

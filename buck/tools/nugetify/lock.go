@@ -4,8 +4,8 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"sort"
@@ -63,10 +63,8 @@ func loadLock(path string) (*lockFile, error) {
 }
 
 func parseLock(data []byte) (*lockFile, error) {
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
 	var lock lockFile
-	if err := decoder.Decode(&lock); err != nil {
+	if err := json.Unmarshal(data, &lock, json.RejectUnknownMembers(true)); err != nil {
 		return nil, err
 	}
 	if err := lock.validate(); err != nil {
@@ -166,22 +164,7 @@ func (l *lockFile) find(id string) *lockPackage {
 
 func (l *lockFile) encode() ([]byte, error) {
 	sort.Slice(l.Packages, func(i, j int) bool { return lessID(l.Packages[i].ID, l.Packages[j].ID) })
-	for index := range l.Packages {
-		pkg := &l.Packages[index]
-		if pkg.Assemblies == nil {
-			pkg.Assemblies = []string{}
-		}
-		if pkg.Symbols == nil {
-			pkg.Symbols = []string{}
-		}
-		if pkg.Dependencies == nil {
-			pkg.Dependencies = []string{}
-		}
-	}
-	if l.Packages == nil {
-		l.Packages = []lockPackage{}
-	}
-	data, err := json.MarshalIndent(l, "", "  ")
+	data, err := json.Marshal(l, jsontext.WithIndent("  "))
 	if err != nil {
 		return nil, err
 	}

@@ -6,7 +6,7 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"os/exec"
 	"sort"
@@ -58,7 +58,7 @@ func (b buckAuditor) readWolfiTargets(ctx context.Context) (wolfiTargetResponse,
 	}
 
 	var response wolfiTargetResponse
-	if err := json.NewDecoder(&stdout).Decode(&response); err != nil {
+	if err := json.UnmarshalRead(&stdout, &response); err != nil {
 		return nil, fmt.Errorf("decode Buck Wolfi target attributes: %w", err)
 	}
 	if len(response) == 0 {

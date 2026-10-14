@@ -4,7 +4,7 @@
 package main
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -105,7 +105,7 @@ func (r *fakeRegistry) serve(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, "bad token request", http.StatusBadRequest)
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]any{"token": "secret-token", "expires_in": 300})
+		json.MarshalWrite(w, map[string]any{"token": "secret-token", "expires_in": 300})
 		return
 	}
 	if req.Header.Get("Authorization") != "Bearer secret-token" {

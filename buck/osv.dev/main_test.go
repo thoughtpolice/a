@@ -6,7 +6,8 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -296,7 +297,7 @@ func (m *mockAuditor) readWolfiTargets(_ context.Context) (wolfiTargetResponse, 
 	return response, nil
 }
 
-func rawJSON(t *testing.T, value any) json.RawMessage {
+func rawJSON(t *testing.T, value any) jsontext.Value {
 	t.Helper()
 	encoded, err := json.Marshal(value)
 	if err != nil {
@@ -440,7 +441,7 @@ func TestOSVQueryPaginationAndDetails(t *testing.T) {
 			var request struct {
 				Queries []osvQuery `json:"queries"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			if err := json.UnmarshalRead(r.Body, &request); err != nil {
 				t.Errorf("decode query: %v", err)
 			}
 			if queryCalls == 1 {
@@ -641,7 +642,7 @@ func harnessOSVServer(t *testing.T) *httptest.Server {
 			var request struct {
 				Queries []osvQuery `json:"queries"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			if err := json.UnmarshalRead(r.Body, &request); err != nil {
 				t.Errorf("decode query: %v", err)
 			}
 			results := make([]osvResult, len(request.Queries))
@@ -670,7 +671,7 @@ func harnessOSVServer(t *testing.T) *httptest.Server {
 					results[index] = osvResult{Vulns: []vulnerabilityRef{{ID: "OSV-2"}}}
 				}
 			}
-			if err := json.NewEncoder(w).Encode(batchResponse{Results: results}); err != nil {
+			if err := json.MarshalWrite(w, batchResponse{Results: results}); err != nil {
 				t.Errorf("encode response: %v", err)
 			}
 		case "/vulns/OSV-2":

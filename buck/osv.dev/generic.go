@@ -7,7 +7,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"os/exec"
 	"path"
@@ -24,7 +25,7 @@ type packageAuditor interface {
 	read(context.Context, ...string) (auditResponse, error)
 }
 
-type packageValues map[string]json.RawMessage
+type packageValues map[string]jsontext.Value
 type auditResponse map[string]packageValues
 
 func (b buckAuditor) read(ctx context.Context, targets ...string) (auditResponse, error) {
@@ -43,8 +44,7 @@ func (b buckAuditor) read(ctx context.Context, targets ...string) (auditResponse
 	}
 
 	var response auditResponse
-	decoder := json.NewDecoder(&stdout)
-	if err := decoder.Decode(&response); err != nil {
+	if err := json.UnmarshalRead(&stdout, &response); err != nil {
 		return nil, fmt.Errorf("decode buck package metadata: %w", err)
 	}
 	if len(response) == 0 {
@@ -191,7 +191,7 @@ func collectGenericSubjects(ctx context.Context, auditor packageAuditor) ([]subj
 
 func decodeRequired(values packageValues, key string, destination any) error {
 	raw, ok := values[key]
-	if !ok || len(raw) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+	if !ok || len(raw) == 0 || raw.Kind() == 'n' {
 		return fmt.Errorf("missing %s", key)
 	}
 	if err := json.Unmarshal(raw, destination); err != nil {
