@@ -61,7 +61,7 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	flags.StringVar(&cfg.buckPath, "buck", "./buck/bin/buck2", "path to the Buck2 dotslash executable")
 	flags.StringVar(&cfg.buckIsolationDir, "buck-isolation-dir", "buck2-3p-osv-tests", "Buck2 isolation directory used for metadata audits")
 	flags.StringVar(&cfg.cargoLockPath, "cargo-lock", "buck/third-party/rust/Cargo.lock", "Cargo.lock to scan")
-	flags.StringVar(&cfg.npmLockPath, "npm-lock", "buck/tests/osv.io/testdata/package-lock.json", "npm package-lock.json to scan")
+	flags.StringVar(&cfg.npmLockPath, "npm-lock", "buck/osv.dev/testdata/package-lock.json", "npm package-lock.json to scan")
 	flags.StringVar(&cfg.nugetLockPath, "nuget-lock", "buck/third-party/csharp/nuget.lock", "nuget.lock to scan")
 	flags.IntVar(&cfg.batchSize, "batch-size", 100, "queries per OSV batch")
 	flags.IntVar(&cfg.concurrency, "concurrency", 8, "maximum concurrent OSV requests")

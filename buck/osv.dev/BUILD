@@ -17,7 +17,7 @@ SRCS = [
 ]
 
 shims.go_binary(
-    name = "osv.io",
+    name = "osv.dev",
     srcs = SRCS,
     cgo_enabled = False,
     tests = [
@@ -42,6 +42,6 @@ shims.go_test(
 # target directly still runs it, and CI does so in the `advisories` job.
 shims.dynamic_test(
     name = "check",
-    dep = ":osv.io",
+    dep = ":osv.dev",
     labels = ["external-data"],
 )

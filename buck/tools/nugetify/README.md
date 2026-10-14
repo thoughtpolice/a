@@ -14,7 +14,7 @@ buck2 run root//buck/tools/nugetify -- buckify
   base URLs) a package may come from, tried in order after nuget.org.
 - `buck/third-party/csharp/nuget.lock` is the resolved graph: every package
   with its hashes, the `lib/` folder the framework consumes, the assemblies
-  and symbols in it, and its dependencies. `buck/tests/osv.io` scans it.
+  and symbols in it, and its dependencies. `buck/osv.dev` scans it.
 - `buck/third-party/csharp/BUILD` is rendered from the lock alone as
   `nuget.package(...)` calls; `buck/shims/third_party_csharp.bzl` turns each
   into the archive download and the prebuilt library. A package from another

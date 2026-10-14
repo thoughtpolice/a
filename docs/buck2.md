@@ -257,7 +257,7 @@ infrastructure errors. Listings are cacheable actions, so they must be a pure
 function of the command line and its declared inputs; discovery that reads
 undeclared state belongs in case execution, which always runs fresh.
 `buck/tests/dynamic-runner` is a live fixture for the protocol, and
-`buck/tests/osv.io` is the real consumer.
+`buck/osv.dev` is the real consumer.
 
 ### Rules vs Macros vs Functions
 

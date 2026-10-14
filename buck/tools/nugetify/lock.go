@@ -16,7 +16,7 @@ const lockVersion = 1
 
 // lockFile is nuget.lock: the resolved package graph with everything the
 // BUILD file needs, so emitting it never touches the network. The OSV check
-// under buck/tests/osv.io reads the same file.
+// under buck/osv.dev reads the same file.
 type lockFile struct {
 	Version   int           `json:"version"`
 	Framework lockFramework `json:"framework"`

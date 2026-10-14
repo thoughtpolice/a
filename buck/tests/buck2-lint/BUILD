@@ -9,6 +9,7 @@ SOURCE_DIRS = [
     # junk inside if it's expanded.
     "buck/bin",
     "buck/mode",
+    "buck/osv.dev",
     "buck/platforms",
     "buck/shims",
     "buck/tests",
