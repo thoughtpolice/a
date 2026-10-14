@@ -1,3 +1,0 @@
-#lang zuo/private/base
-
-(include "../base-common/syntax-error.zuo")

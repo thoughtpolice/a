@@ -111,7 +111,6 @@ var fileTypes = []fileType{
 	{".html", []commentStyle{htmlStyle}},
 	{".wat", []commentStyle{lispStyle}},
 	{".wit", []commentStyle{slashStyle}},
-	{".zuo", []commentStyle{lispStyle}},
 	{".sv", []commentStyle{slashStyle}},
 	{".erl", []commentStyle{erlangStyle}},
 	{".luau", []commentStyle{luaStyle}},

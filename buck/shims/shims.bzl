@@ -17,7 +17,6 @@ load("@toolchains//csharp:defs.bzl", _csharp = "csharp")
 load("@toolchains//deno:defs.bzl", _deno = "deno")
 load("@toolchains//lean:defs.bzl", _lean = "lean")
 load("@toolchains//uv:defs.bzl", _uv_impl = "uv")
-load("@toolchains//zuo:defs.bzl", _zuo = "zuo")
 
 # MARK: Package metadata handling
 
@@ -481,28 +480,6 @@ def _depot_uv_tool_format(**kwargs):
     kwargs = _fix_kwargs("uv_tool_format", kwargs)
     _uv_impl.tool_format(**kwargs)
 
-# MARK: Zuo toolchain wrappers
-
-def _depot_zuo_binary(**kwargs):
-    """Wrapper for zuo.binary that applies package defaults."""
-    kwargs = _fix_kwargs("zuo_binary", kwargs)
-    _zuo.binary(**kwargs)
-
-def _depot_zuo_module(**kwargs):
-    """Wrapper for zuo.module that applies package defaults."""
-    kwargs = _fix_kwargs("zuo_module", kwargs)
-    _zuo.module(**kwargs)
-
-def _depot_zuo_embedded_binary(**kwargs):
-    """Wrapper for zuo.embedded_binary that applies package defaults."""
-    kwargs = _fix_kwargs("zuo_embedded_binary", kwargs)
-    _zuo.embedded_binary(**kwargs)
-
-def _depot_zuo_test(**kwargs):
-    """Wrapper for zuo.test that applies package defaults."""
-    kwargs = _fix_kwargs("zuo_test", kwargs)
-    _zuo.test(**kwargs)
-
 # MARK: C# toolchain wrappers
 
 def _depot_csharp_library(**kwargs):
@@ -588,12 +565,6 @@ shims = struct(
         python_binary = _depot_uv_python_binary,
         python_test = _depot_uv_python_test,
         tool_format = _depot_uv_tool_format,
-    ),
-    zuo = struct(
-        binary = _depot_zuo_binary,
-        module = _depot_zuo_module,
-        embedded_binary = _depot_zuo_embedded_binary,
-        test = _depot_zuo_test,
     ),
     lean = struct(
         library = _depot_lean_library,

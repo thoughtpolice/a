@@ -50,8 +50,6 @@ var skippedPaths = []string{
 	".direnv",
 	"cellar",
 	".ruff_cache",
-	"buck/third-party/zuo/lib",
-	"buck/third-party/zuo/local",
 	"work",
 }
 
@@ -63,9 +61,6 @@ func shouldProcessFile(filePath string) bool {
 		}
 	}
 	if hasPathComponent(normalized, "node_modules") {
-		return false
-	}
-	if strings.HasPrefix(normalized, "buck/third-party/zuo/zuo") {
 		return false
 	}
 

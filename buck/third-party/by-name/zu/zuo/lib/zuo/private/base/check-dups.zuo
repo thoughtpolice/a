@@ -1,3 +1,0 @@
-#lang zuo/private/base
-
-(include "../base-common/check-dups.zuo")

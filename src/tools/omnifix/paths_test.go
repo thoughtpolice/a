@@ -20,7 +20,6 @@ func TestShouldProcessFile(t *testing.T) {
 		{name: "node modules", path: "web/node_modules/pkg/index.js", want: false},
 		{name: "node modules substring", path: "web/node_modules-cache/index.js", want: true},
 		{name: "windows separators", path: `web\node_modules\pkg\index.js`, want: false},
-		{name: "zuo generated source", path: "buck/third-party/zuo/zuo.c", want: false},
 		{name: "similar work path", path: "workspace/file.txt", want: true},
 		{name: "case insensitive image", path: "assets/logo.PNG", want: false},
 		{name: "uppercase stage-1 source", path: "bootstrap/compiler.M1", want: false},

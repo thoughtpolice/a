@@ -81,11 +81,6 @@ shims.toolchain_alias(
 )
 
 shims.toolchain_alias(
-    name = "zuo",
-    actual = "toolchains//zuo:zuo",
-)
-
-shims.toolchain_alias(
     name = "tar",
     actual = "toolchains//tar:tar",
 )

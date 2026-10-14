@@ -25,7 +25,6 @@ third_party_meta([
     'by-name/wu/wuffs',
     'by-name/zl/zlib',
     'by-name/zs/zstd',
-    'by-name/zu/zuo',
     'csharp',
     'oci-images',
     'rust',

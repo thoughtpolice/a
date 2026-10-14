@@ -154,10 +154,6 @@ _SOURCE_ATTRS = {
     "tar_file": ["srcs"],
     "uv_python_binary": ["main", "srcs"],
     "uv_python_test": ["script"],
-    "zuo_binary": ["main"],
-    "zuo_embedded_binary": ["main"],
-    "zuo_module": ["srcs"],
-    "zuo_test": ["src"],
 }
 
 def _is_label(s: str) -> bool:

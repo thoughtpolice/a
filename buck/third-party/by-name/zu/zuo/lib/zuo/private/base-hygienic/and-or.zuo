@@ -1,3 +1,0 @@
-#lang zuo/private/base-hygienic
-
-(include "../base-common/and-or.zuo")
