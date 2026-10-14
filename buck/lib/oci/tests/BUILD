@@ -643,6 +643,10 @@ LAYOUTS = [
     "test_multiplatform_full",
     "test_repacked",
     "test_repacked_on_base",
+]
+
+# The native binary images build only for x86_64.
+NATIVE_LAYOUTS = [
     "native_hello_image",
     "native_hello_repointed_image",
 ]
@@ -652,7 +656,10 @@ shims.command_test(
     cmd = [
         "$(exe root//buck/tools/oci:oci)",
         "validate",
-    ] + ["$(location :{})".format(name) for name in LAYOUTS],
+    ] + ["$(location :{})".format(name) for name in LAYOUTS] + shims.select({
+        "config//cpu:x86_64": ["$(location :{})".format(name) for name in NATIVE_LAYOUTS],
+        "DEFAULT": [],
+    }),
 )
 
 # A Docker archive is an OCI layout too, so the extracted tar must validate.
