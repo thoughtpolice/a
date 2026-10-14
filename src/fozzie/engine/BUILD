@@ -78,6 +78,15 @@ depot.rust_test(
     ],
 )
 
+# Linked into the fixtures that crash on purpose; see no_core_dump.c.
+depot.cxx_library(
+    name = "no-core-dump",
+    srcs = ["no_core_dump.c"],
+    compiler_flags = ["-std=c11"],
+    link_whole = True,
+    preferred_linkage = "static",
+)
+
 depot.cxx_binary(
     name = "executor-test-target",
     srcs = ["test_target.c"],
@@ -88,7 +97,10 @@ depot.cxx_binary(
     ],
     link_style = "static",
     linker_flags = TARGET_LINKER_FLAGS,
-    deps = ["root//src/fozzie/runtime:runtime"],
+    deps = [
+        "root//src/fozzie/runtime:runtime",
+        ":no-core-dump",
+    ],
 )
 
 depot.rust_test(
@@ -132,7 +144,10 @@ depot.cxx_binary(
     ],
     link_style = "static",
     linker_flags = ASAN_TARGET_LINKER_FLAGS,
-    deps = ["root//src/fozzie/runtime:runtime"],
+    deps = [
+        "root//src/fozzie/runtime:runtime",
+        ":no-core-dump",
+    ],
 )
 
 depot.write_file(
