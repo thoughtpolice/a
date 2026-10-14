@@ -5,19 +5,14 @@ load(":toolchain.bzl", "OciToolchainInfo")
 
 def _oci_pull_impl(ctx: AnalysisContext) -> list[Provider]:
     """
-    Pull an OCI image from a registry using skopeo.
+    Pull an OCI image from a registry.
     Returns an OCI image layout directory.
     """
     output = ctx.actions.declare_output(ctx.label.name, dir = True)
 
-    # Get skopeo from toolchain
-    skopeo = ctx.attrs._oci_toolchain[OciToolchainInfo].skopeo[RunInfo]
-
-    # Build command
     cmd = cmd_args([
-        ctx.attrs._pull_helper[RunInfo],
-        "--skopeo",
-        skopeo,
+        ctx.attrs._oci_toolchain[OciToolchainInfo].oci[RunInfo],
+        "pull",
         "--image",
         ctx.attrs.image,
         "--platform",
@@ -51,9 +46,6 @@ oci_pull = rule(
         "platform": attrs.string(
             default = "linux/amd64",
             doc = "Platform (e.g., 'linux/amd64', 'linux/arm64')",
-        ),
-        "_pull_helper": attrs.default_only(
-            attrs.exec_dep(default = "//buck/lib/oci/helpers:oci_pull"),
         ),
         "_oci_toolchain": attrs.toolchain_dep(
             default = "toolchains//:oci",

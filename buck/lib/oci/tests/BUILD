@@ -534,6 +534,12 @@ oci_index(
 # ============================================================================
 
 LAYOUTS = [
+    "alpine_base",
+    "alpine_amd64",
+    "alpine_arm64",
+    "busybox_base",
+    "debian_base",
+    "nginx_latest",
     "test_image_simple",
     "test_image_full",
     "test_image_layered",
