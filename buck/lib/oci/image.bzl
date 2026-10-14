@@ -6,7 +6,6 @@ load(":toolchain.bzl", "OciToolchainInfo")
 def _oci_image_impl(ctx: AnalysisContext) -> list[Provider]:
     """
     Build an OCI image from a base image + layers + configuration.
-    Uses pure Python OCI manipulation - no external tools required.
     """
     output = ctx.actions.declare_output(ctx.label.name, dir = True)
 
@@ -22,7 +21,8 @@ def _oci_image_impl(ctx: AnalysisContext) -> list[Provider]:
     # Build command with hidden dependencies
     cmd = cmd_args(
         [
-            ctx.attrs._image_helper[RunInfo],
+            ctx.attrs._oci_toolchain[OciToolchainInfo].oci[RunInfo],
+            "image",
             "--base",
             base_image,
             "--output",
@@ -31,10 +31,8 @@ def _oci_image_impl(ctx: AnalysisContext) -> list[Provider]:
         hidden = [base_image] + layer_files,
     )
 
-    # Add layers if any
-    if layer_files:
-        cmd.add("--layers")
-        cmd.add(layer_files)
+    for layer in layer_files:
+        cmd.add(["--layer", layer])
 
     # Add environment variables
     for key, value in ctx.attrs.env.items():
@@ -44,13 +42,11 @@ def _oci_image_impl(ctx: AnalysisContext) -> list[Provider]:
     for key, value in ctx.attrs.image_labels.items():
         cmd.add(["--label", "{}={}".format(key, value)])
 
-    # Add entrypoint
+    # As JSON, so that an argument can hold any character, commas included.
     if ctx.attrs.entrypoint:
-        cmd.add("--entrypoint={}".format(",".join(ctx.attrs.entrypoint)))
-
-    # Add cmd
+        cmd.add(["--entrypoint", json.encode(ctx.attrs.entrypoint)])
     if ctx.attrs.cmd:
-        cmd.add("--cmd={}".format(",".join(ctx.attrs.cmd)))
+        cmd.add(["--cmd", json.encode(ctx.attrs.cmd)])
 
     # Add working directory
     if ctx.attrs.working_dir:
@@ -135,9 +131,6 @@ oci_image = rule(
         "created": attrs.string(
             default = "1970-01-01T00:00:00Z",
             doc = "RFC 3339 creation timestamp for the image and new history entries",
-        ),
-        "_image_helper": attrs.default_only(
-            attrs.exec_dep(default = "//buck/lib/oci/helpers:oci_image"),
         ),
         "_oci_toolchain": attrs.toolchain_dep(
             default = "toolchains//:oci",

@@ -12,12 +12,6 @@ shims.python_binary(
 )
 
 shims.python_binary(
-    name = "oci_image",
-    main = "oci_image.py",
-    visibility = ["PUBLIC"],
-)
-
-shims.python_binary(
     name = "oci_unpack",
     main = "oci_unpack.py",
     visibility = ["PUBLIC"],
@@ -26,12 +20,6 @@ shims.python_binary(
 shims.python_binary(
     name = "oci_repack",
     main = "oci_repack.py",
-    visibility = ["PUBLIC"],
-)
-
-shims.python_binary(
-    name = "oci_index",
-    main = "oci_index.py",
     visibility = ["PUBLIC"],
 )
 
@@ -72,11 +60,6 @@ shims.python_binary(
     name = "container_smoke",
     main = "container_smoke.py",
     visibility = ["PUBLIC"],
-)
-
-shims.python_binary(
-    name = "validate_image",
-    main = "validate_image.py",
 )
 
 # The test does a plain 'import native_binary_layer', so the module has to land

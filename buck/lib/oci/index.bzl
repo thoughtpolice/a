@@ -8,6 +8,8 @@ def _oci_index_impl(ctx: AnalysisContext) -> list[Provider]:
     Create a multi-platform OCI image index.
     Combines multiple platform-specific images into a single index.
     """
+    if len(ctx.attrs.images) != len(ctx.attrs.platforms):
+        fail("oci_index: {} images but {} platforms".format(len(ctx.attrs.images), len(ctx.attrs.platforms)))
     output = ctx.actions.declare_output(ctx.label.name, dir = True)
 
     # Collect all image dependencies
@@ -19,7 +21,8 @@ def _oci_index_impl(ctx: AnalysisContext) -> list[Provider]:
     # Build command
     cmd = cmd_args(
         [
-            ctx.attrs._index_helper[RunInfo],
+            ctx.attrs._oci_toolchain[OciToolchainInfo].oci[RunInfo],
+            "index",
             "--output",
             output.as_output(),
         ],
@@ -30,8 +33,7 @@ def _oci_index_impl(ctx: AnalysisContext) -> list[Provider]:
     for image_dep, platform in zip(ctx.attrs.images, ctx.attrs.platforms):
         image = image_dep[DefaultInfo].default_outputs[0]
 
-        # Format: path:platform
-        cmd.add(["--image", cmd_args([image, ":", platform], delimiter = "")])
+        cmd.add(["--image", cmd_args([platform, "=", image], delimiter = "")])
 
     ctx.actions.run(
         cmd,
@@ -51,9 +53,6 @@ oci_index = rule(
         "platforms": attrs.list(
             attrs.string(),
             doc = "Platform strings corresponding to images (e.g., ['linux/amd64', 'linux/arm64'])",
-        ),
-        "_index_helper": attrs.default_only(
-            attrs.exec_dep(default = "//buck/lib/oci/helpers:oci_index"),
         ),
         "_oci_toolchain": attrs.toolchain_dep(
             default = "toolchains//:oci",

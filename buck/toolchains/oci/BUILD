@@ -83,6 +83,7 @@ patchelf_binary(
 
 oci_toolchain(
     name = "oci",
+    oci = "root//buck/tools/oci:oci",
     patchelf = ":patchelf",
     skopeo = ":skopeo",
     target_compatible_with = ["config//os:linux"],

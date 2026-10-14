@@ -528,3 +528,49 @@ oci_index(
 #     bundle = ":test_for_repack_unpacked",
 #     tag = "repacked",
 # )
+
+# ============================================================================
+# Every image and index above, checked descriptor by descriptor
+# ============================================================================
+
+LAYOUTS = [
+    "test_image_simple",
+    "test_image_full",
+    "test_image_layered",
+    "test_app_amd64",
+    "test_app_arm64",
+    "test_app_multiplatform",
+    "test_multilayer",
+    "test_env_base",
+    "test_env_override",
+    "test_labels_base",
+    "test_labels_override",
+    "test_cmd_only",
+    "test_entrypoint_only",
+    "test_cmd_and_entrypoint",
+    "test_exposed_ports",
+    "test_volumes",
+    "test_user_root",
+    "test_user_numeric",
+    "test_workdir",
+    "test_metadata_only",
+    "test_many_layers",
+    "test_special_chars_metadata",
+    "test_busybox_based",
+    "test_debian_based",
+    "test_complete_app",
+    "test_chain_level1",
+    "test_chain_level2",
+    "test_chain_level3",
+    "test_platform_specific_amd64",
+    "test_platform_specific_arm64",
+    "test_multiplatform_full",
+]
+
+shims.command_test(
+    name = "validate-layouts",
+    cmd = [
+        "$(exe root//buck/tools/oci:oci)",
+        "validate",
+    ] + ["$(location :{})".format(name) for name in LAYOUTS],
+)

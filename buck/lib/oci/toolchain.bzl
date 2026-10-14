@@ -170,8 +170,9 @@ def download_umoci(
 
 # Toolchain provider
 OciToolchainInfo = provider(
-    doc = "OCI toolchain providing skopeo, umoci, and patchelf",
+    doc = "OCI toolchain providing the oci tool, skopeo, umoci, and patchelf",
     fields = {
+        "oci": provider_field(typing.Any, default = None),
         "patchelf": provider_field(typing.Any, default = None),
         "skopeo": provider_field(typing.Any, default = None),
         "umoci": provider_field(typing.Any, default = None),
@@ -183,6 +184,7 @@ def _oci_toolchain_impl(ctx) -> list[[DefaultInfo, OciToolchainInfo]]:
     return [
         DefaultInfo(),
         OciToolchainInfo(
+            oci = ctx.attrs.oci,
             patchelf = ctx.attrs.patchelf,
             skopeo = ctx.attrs.skopeo,
             umoci = ctx.attrs.umoci,
@@ -192,6 +194,7 @@ def _oci_toolchain_impl(ctx) -> list[[DefaultInfo, OciToolchainInfo]]:
 oci_toolchain = rule(
     impl = _oci_toolchain_impl,
     attrs = {
+        "oci": attrs.exec_dep(providers = [RunInfo]),
         "patchelf": attrs.exec_dep(providers = [RunInfo]),
         "skopeo": attrs.exec_dep(providers = [RunInfo]),
         "umoci": attrs.exec_dep(providers = [RunInfo]),
