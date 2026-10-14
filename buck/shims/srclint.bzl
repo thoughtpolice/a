@@ -138,7 +138,6 @@ _SOURCE_ATTRS = {
     "go_library": ["srcs"],
     "go_test": ["srcs"],
     "hurl_test": ["src"],
-    "k6_run": ["script"],
     "lean_binary": ["srcs"],
     "lean_library": ["srcs"],
     "lean_test": ["srcs"],

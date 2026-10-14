@@ -15,7 +15,6 @@ load("@root//buck/tools/filecheck:defs.bzl", _filecheck_lit_external_rule = "fil
 load("@root//buck/tools/git-fetch:defs.bzl", _git_fetch_rule = "git_fetch")
 load("@toolchains//csharp:defs.bzl", _csharp = "csharp")
 load("@toolchains//deno:defs.bzl", _deno = "deno")
-load("@toolchains//k6:defs.bzl", "k6_run")
 load("@toolchains//lean:defs.bzl", _lean = "lean")
 load("@toolchains//uv:defs.bzl", _uv_impl = "uv")
 load("@toolchains//zuo:defs.bzl", _zuo = "zuo")
@@ -504,13 +503,6 @@ def _depot_zuo_test(**kwargs):
     kwargs = _fix_kwargs("zuo_test", kwargs)
     _zuo.test(**kwargs)
 
-# MARK: k6 wrappers
-
-def _depot_k6_run(**kwargs):
-    """Wrapper for k6_run that applies package defaults."""
-    kwargs = _fix_kwargs("k6_run", kwargs)
-    k6_run(**kwargs)
-
 # MARK: C# toolchain wrappers
 
 def _depot_csharp_library(**kwargs):
@@ -602,9 +594,6 @@ shims = struct(
         module = _depot_zuo_module,
         embedded_binary = _depot_zuo_embedded_binary,
         test = _depot_zuo_test,
-    ),
-    k6 = struct(
-        run = _depot_k6_run,
     ),
     lean = struct(
         library = _depot_lean_library,
