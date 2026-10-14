@@ -1,0 +1,194 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+"""Queries the Go language server's launcher and package driver ask of Buck.
+
+  setup     build gopls and the driver, and find the Go distribution the
+            build uses, whose `go` the server runs
+  packages  the Go targets owning some files, or whose package has one of
+            some import paths, with the go_library targets they import, and
+            the stdlib and golang.org/x packages any Go target can import:
+            where each one's sources and `go list` output are, for the
+            driver to assemble into go/packages' answer
+"""
+
+load("@prelude//go:package_root.bzl", "strip_package_root")
+load("@prelude//go:packages.bzl", "GoPackageInfo")
+load("@toolchains//golang/x:defs.bzl", "GoImportableInfo")
+
+_LIBRARY_KINDS = "^(go_library|go_x_library)$"
+
+# Every Go target on the default platform builds in one configuration: the
+# platforms turn cgo off for all of them (buck/platforms/BUILD), and the
+# repository allows no build tags. The go_x_library the driver depends on is
+# the one they all do, whose stdlib and golang.org/x the driver describes, and
+# whose `go` the launcher runs.
+_CANONICAL = "toolchains//golang/lsp:driver"
+
+def _go_kinds(tests: bool) -> str:
+    return "^(go_binary|go_bootstrap_binary|go_library{})$".format("|go_test|go_test_internal" if tests else "")
+
+def _unforward(ctx: bxl.Context, node: bxl.ConfiguredTargetNode) -> bxl.ConfiguredTargetNode:
+    """The node a "forward" node stands for. The Go rules transition their
+    own configuration, and configuring one gives a forward node whose only
+    dependency is the target in the configuration it builds in."""
+    for _ in range(8):
+        if node.rule_type != "forward":
+            break
+        node = [dep for dep in ctx.cquery().deps(node, 1) if dep.label != node.label][0]
+    return node
+
+def _deps(ctx: bxl.Context, node: bxl.ConfiguredTargetNode) -> list[bxl.ConfiguredTargetNode]:
+    """A Go target's go_library and go_x_library dependencies."""
+    return [dep for dep in ctx.cquery().kind(_LIBRARY_KINDS, ctx.cquery().deps(node, 1)) if dep.label != node.label]
+
+def _canonical(ctx: bxl.Context) -> bxl.ConfiguredTargetNode:
+    for dep in _deps(ctx, _unforward(ctx, ctx.configured_targets(_CANONICAL))):
+        if dep.rule_type.endswith(":go_x_library"):
+            return dep
+    fail("{} has no go_x_library dependency".format(_CANONICAL))
+
+def _abs(ctx: bxl.Context, artifact: Artifact):
+    if artifact.is_source:
+        return get_path_without_materialization(artifact, ctx, abs = True)
+    return ctx.output.ensure(artifact).abs_path()
+
+def _setup_impl(ctx: bxl.Context) -> None:
+    out = {}
+    for name in ["gopls", "driver"]:
+        node = ctx.configured_targets("toolchains//golang/lsp:" + name)
+        info = ctx.analysis(node).providers()[DefaultInfo]
+        out[name] = ctx.output.ensure(info.default_outputs[0]).abs_path()
+    importable = ctx.analysis(_canonical(ctx).label).providers()[GoImportableInfo]
+    out["goroot"] = ctx.output.ensure(importable.goroot).abs_path()
+    ctx.output.print_json(out)
+
+def _importable(ctx: bxl.Context, info: GoImportableInfo) -> dict:
+    return {
+        "goarch": info.goarch,
+        "goos": info.goos,
+        "goroot": ctx.output.ensure(info.goroot).abs_path(),
+        "stdlib": ctx.output.ensure(info.stdlib).abs_path(),
+        "x": {
+            import_path: [ctx.output.ensure(go_list).abs_path(), ctx.output.ensure(pkg_dir).abs_path()]
+            for import_path, (go_list, pkg_dir) in info.x.items()
+        },
+    }
+
+def _packages_impl(ctx: bxl.Context) -> None:
+    kinds = _go_kinds(ctx.cli_args.tests)
+    errors = []
+
+    # Each target to describe, to whether it was found by import path.
+    labels = {}
+
+    # The owners of each file, one query each, so that a package that fails
+    # to load only loses its own files.
+    unowned = []
+    files = ctx.cli_args.file
+    owners = ctx.lazy.join_all([ctx.lazy.uquery().owner(f).catch() for f in files]).resolve() if files else []
+    for file, result in zip(files, owners):
+        if not result.is_ok():
+            errors.append({"file": file, "message": result.unwrap_err().message})
+            continue
+        go = ctx.uquery().kind(kinds, result.unwrap())
+        if len(go) == 0:
+            unowned.append(file)
+        for node in go:
+            labels[node.label] = False
+
+    # Targets whose package has an import path: those in the directory of
+    # that name in each cell. A Go target's package_name can say otherwise,
+    # so the import path is checked again after analysis.
+    import_paths = ctx.cli_args.import_path
+    if import_paths:
+        cells = ctx.audit().cell()
+        patterns = ["{}//{}:".format(cell, path) for path in import_paths for cell in cells]
+        for result in ctx.lazy.join_all([ctx.lazy.unconfigured_target_nodes_keep_going(p).catch() for p in patterns]).resolve():
+            if result.is_ok():
+                nodes, _ = result.unwrap()
+                for node in ctx.uquery().kind(kinds, nodes):
+                    labels.setdefault(node.label, True)
+
+    # Configure each with the default platform; one that is incompatible
+    # with it is left out.
+    configured = []
+    by_path = {}
+    for result in ctx.lazy.join_all([ctx.lazy.configured_target_node(label).catch() for label in labels]).resolve():
+        if result.is_ok():
+            node = _unforward(ctx, result.unwrap())
+            configured.append(node)
+            by_path[str(node.label.raw_target())] = labels[node.label.raw_target()]
+
+    # Each root, then each go_library it imports, transitively; a Go target
+    # can import only its direct dependencies' packages, and the stdlib and
+    # golang.org/x ones through the go_x_library every target depends on.
+    packages = {}
+    queue = [(node, True) for node in configured]
+    for _ in range(1000000):
+        if not queue:
+            break
+        node, root = queue.pop()
+        id = str(node.label.raw_target())
+        if id in packages:
+            packages[id]["root"] = packages[id]["root"] or root
+            continue
+        result = ctx.lazy.analysis(node.label).catch().resolve()
+        if not result.is_ok():
+            errors.append({"target": id, "message": result.unwrap_err().message})
+            continue
+        kind = node.rule_type.split(":")[-1]
+
+        # A go_bootstrap_binary is built by the bootstrap toolchain from the
+        # stdlib alone, and says nothing about its sources but their names.
+        if kind == "go_bootstrap_binary":
+            packages[id] = {
+                "deps": [],
+                "files": {src.basename: _abs(ctx, src) for src in node.resolved_attrs_eager(ctx).srcs},
+                "go_list": None,
+                "kind": kind,
+                "pkg_path": node.label.package,
+                "root": root,
+            }
+            continue
+
+        info = result.unwrap().providers()[GoPackageInfo]
+        if root and by_path.get(id) and info.pkg_import_path not in import_paths:
+            continue
+
+        libraries = []
+        for dep in _deps(ctx, node):
+            if not dep.rule_type.endswith(":go_x_library"):
+                libraries.append(str(dep.label.raw_target()))
+                queue.append((_unforward(ctx, dep), False))
+
+        packages[id] = {
+            "deps": libraries,
+            "files": {strip_package_root(src.short_path, info.package_root): _abs(ctx, src) for src in info.srcs},
+            "go_list": ctx.output.ensure(info.go_list_out).abs_path(),
+            "kind": kind,
+            "pkg_path": info.pkg_import_path,
+            "root": root,
+        }
+
+    ctx.output.print_json({
+        "errors": errors,
+        "importable": _importable(ctx, ctx.analysis(_canonical(ctx).label).providers()[GoImportableInfo]),
+        "packages": packages,
+        "root": ctx.root(),
+        "unowned": unowned,
+    })
+
+setup = bxl_main(
+    impl = _setup_impl,
+    cli_args = {},
+)
+
+packages = bxl_main(
+    impl = _packages_impl,
+    cli_args = {
+        "file": cli_args.list(cli_args.string(), default = [], doc = "Absolute paths of Go source files"),
+        "import_path": cli_args.list(cli_args.string(), default = [], doc = "Import paths of packages"),
+        "tests": cli_args.bool(default = False, doc = "Include go_test targets"),
+    },
+)

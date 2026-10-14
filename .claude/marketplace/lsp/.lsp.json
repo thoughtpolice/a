@@ -23,5 +23,15 @@
     "extensionToLanguage": {
       ".lean": "lean4"
     }
+  },
+  "gopls": {
+    "command": "/bin/sh",
+    "args": ["-c", "exec \"$(buck2 root --kind project)/buck/toolchains/golang/lsp/gopls\""],
+    "extensionToLanguage": {
+      ".go": "go"
+    },
+    "initializationOptions": {
+      "directoryFilters": ["-buck-out", "-work", "-**/node_modules"]
+    }
   }
 }

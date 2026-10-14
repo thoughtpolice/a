@@ -19,10 +19,14 @@ must be known before any source has been read. They come from
 packages.bzl, which manifest.go writes from the modules themselves for each
 platform the toolchain targets. `:manifest-test` fails when that file no
 longer matches the pinned modules.
+
+`GoImportableInfo` describes the same packages, and the stdlib's, as sources
+rather than archives, for the language server's package driver (../lsp).
 """
 
 load("@prelude//decls:toolchains_common.bzl", "toolchains_common")
 load("@prelude//go:compile.bzl", "GoPkgCompileInfo")
+load("@prelude//go:go_list_stdlib.bzl", "go_list_stdlib")
 load("@prelude//go:link.bzl", "GoPkgLinkInfo")
 load("@prelude//go:package_builder.bzl", "BuildPackageGoList", "BuildPackageParams", "build_package")
 load("@prelude//go:packages.bzl", "GoPkg", "GoStdlib", "GoStdlibDynamicValue", "merge_pkgs")
@@ -40,6 +44,22 @@ GO_X_PLATFORMS = [
     "windows/amd64",
     "windows/arm64",
 ]
+
+# The packages a Go target imports without naming a dependency, as sources,
+# in the configuration the target builds them in. Nothing builds these
+# artifacts unless a consumer asks for them.
+GoImportableInfo = provider(fields = {
+    "goarch": provider_field(str),
+    "goos": provider_field(str),
+    # The Go distribution: GOROOT for the stdlib's sources.
+    "goroot": provider_field(Artifact),
+    # `go list -json std` as one JSON array; see go_list_stdlib.bzl in the
+    # prelude for its fields.
+    "stdlib": provider_field(Artifact),
+    # Each golang.org/x import path to its pkg_analyzer output (the `go list`
+    # fields of go_list.bzl in the prelude) and its directory.
+    "x": provider_field(dict[str, (Artifact, Artifact)]),
+})
 
 # MARK: Library
 
@@ -77,6 +97,7 @@ def _go_x_library_impl(ctx: AnalysisContext) -> list[Provider]:
             coverage_instrumented = False,
         )
 
+    sources = {}
     for import_path, pkg in pkgs.items():
         root, rel = _module_dir(ctx.attrs.modules, import_path)
         pkg_dir = root.project(rel) if rel else root
@@ -98,6 +119,7 @@ def _go_x_library_impl(ctx: AnalysisContext) -> list[Provider]:
             identifier = import_path,
             allow_cache_upload = go_toolchain.allow_cache_upload,
         )
+        sources[import_path] = (analysis, pkg_dir)
 
         ctx.actions.dynamic_output_new(_build_x_package(
             target_label = ctx.label,
@@ -121,6 +143,13 @@ def _go_x_library_impl(ctx: AnalysisContext) -> list[Provider]:
         # A go_library requires one from each of its dependencies. These
         # packages bring no shared libraries.
         merge_shared_libraries(ctx.actions),
+        GoImportableInfo(
+            goarch = go_toolchain.env_go_arch,
+            goos = go_toolchain.env_go_os,
+            goroot = go_toolchain.env_go_root,
+            stdlib = go_list_stdlib(ctx.actions, go_toolchain, cgo_enabled = False),
+            x = sources,
+        ),
     ]
 
 def _build_x_package_impl(

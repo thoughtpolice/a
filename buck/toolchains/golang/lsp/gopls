@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+"""Run gopls with Buck answering its package queries.
+
+Builds gopls and the package driver with Buck, then runs gopls with every
+argument given here (none, for an editor's language server) and:
+
+  GOPACKAGESDRIVER  the driver, which asks Buck which targets own each file
+  GOROOT, PATH      the Go distribution Buck builds with, ahead of any other
+                    `go`: gopls asks it for the Go version and environment
+  GOTOOLCHAIN       local, so that `go` never fetches another toolchain
+
+See README.md.
+"""
+
+import json
+import os
+import subprocess
+import sys
+
+BXL = "toolchains//golang/lsp/gopls.bxl:setup"
+
+
+def main():
+    here = os.path.dirname(os.path.realpath(__file__))
+    proc = subprocess.run(
+        ["buck2", "bxl", "--console=simple", BXL],
+        cwd=here,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        sys.stderr.write(proc.stderr)
+        sys.exit(1)
+    setup = json.loads(proc.stdout)
+
+    env = dict(os.environ)
+    env["GOPACKAGESDRIVER"] = setup["driver"]
+    env["GOROOT"] = setup["goroot"]
+    env["GOTOOLCHAIN"] = "local"
+    env["PATH"] = os.pathsep.join([os.path.join(setup["goroot"], "bin"), env.get("PATH", "")])
+    os.execve(setup["gopls"], [setup["gopls"]] + sys.argv[1:], env)
+
+
+if __name__ == "__main__":
+    main()

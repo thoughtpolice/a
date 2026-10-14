@@ -37,6 +37,20 @@
       "fileTypes": [".lean"],
       "rootMarkers": [".buckconfig"],
       "languageId": "lean4"
+    },
+    "gopls": {
+      "command": "/bin/sh",
+      "args": ["-c", "exec \"$(buck2 root --kind project)/buck/toolchains/golang/lsp/gopls\""],
+      "fileTypes": [".go"],
+      "rootMarkers": [".buckconfig"],
+      "initOptions": {
+        "directoryFilters": ["-buck-out", "-work", "-**/node_modules"]
+      },
+      "settings": {
+        "gopls": {
+          "directoryFilters": ["-buck-out", "-work", "-**/node_modules"]
+        }
+      }
     }
   }
 }
