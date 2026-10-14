@@ -727,6 +727,51 @@ The shim system provides:
 - Environment variables are injected automatically
 - Metadata from PACKAGE files propagates to all targets
 
+### Source Checks (srclint)
+
+The shims also give every target a sibling test, `<name>.srclint`, that checks
+the SPDX header and whitespace of the source files the target names, and give
+each package an `__starlark.srclint` test over its BUILD, PACKAGE, `.bzl` and
+`.bxl` files, which also requires every `load()` of a `.bzl` file by absolute
+path to name it as a target (`@root//buck/shims:shims.bzl`, not
+`@root//buck/shims/shims.bzl`). The checks follow the build graph rather than
+scanning the tree: a change selects only the tests of the targets whose files
+it touched, and the checking is a cached action, so unchanged files are not
+read again.
+
+Only a file in a language srclint knows the comment syntax of needs an SPDX
+header; documents, data and configuration without comments get the whitespace
+check alone, and binary files get none.
+
+```starlark
+depot.genrule(
+    name = "protos.rs",
+    srcs = glob(["**/*.proto"]),
+    # Vendored files under their own headers.
+    srclint = {"spdx_exclude": glob(["google/**/*.proto"])},
+    ...
+)
+
+# Files no target reads: dotfiles, Nix expressions, CI configuration.
+depot.lint_files(
+    name = "nix",
+    srcs = glob(["**/*.nix"]),
+)
+
+# A package whose targets all come from non-shim rules (toolchains).
+depot.lint_package()
+```
+
+`srclint = False` drops a target's test; `pkg.srclint(sources = False)` in a
+PACKAGE file drops the source tests of every target below it, as
+`buck/third-party` does, and vendored packages have them off already. Their
+build files are still checked, all but the SPDX header. See `buck/shims/srclint.bzl` for which rule
+attributes count as sources. To find files the build reads but no test checks:
+
+```bash
+buck2 bxl //buck/tools/srclint/coverage.bxl:coverage
+```
+
 ### Package Metadata System
 
 `PACKAGE` files define package-level metadata using `pkg.info()`:
