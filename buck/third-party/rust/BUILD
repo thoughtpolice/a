@@ -27032,18 +27032,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "rustls-0.23.45.crate",
-    sha256 = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634",
-    strip_prefix = "rustls-0.23.45",
-    urls = ["https://static.crates.io/crates/rustls/0.23.45/download"],
+    name = "rustls-0.23.46.crate",
+    sha256 = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf",
+    strip_prefix = "rustls-0.23.46",
+    urls = ["https://static.crates.io/crates/rustls/0.23.46/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "rustls-0.23",
-    srcs = [":rustls-0.23.45.crate"],
+    srcs = [":rustls-0.23.46.crate"],
     crate = "rustls",
-    crate_root = "rustls-0.23.45.crate/src/lib.rs",
+    crate_root = "rustls-0.23.46.crate/src/lib.rs",
     edition = "2021",
     features = [
         "log",
@@ -27054,7 +27054,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "rustls",
-            "version": "0.23.45",
+            "version": "0.23.46",
             "licenses": ["Apache-2.0 OR ISC OR MIT"],
         },
     },

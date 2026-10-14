@@ -157,7 +157,7 @@ rand = "0.10.3"
 ratatui = "0.30"
 rayon = "1.12.0"
 # NOTE (aseipp): no default features, ever: they pull in aws-lc-rs.
-rustls = { version = "0.23.45", default-features = false, features = ["std"] }
+rustls = { version = "0.23.46", default-features = false, features = ["std"] }
 # NOTE (aseipp): reqwest 0.13 flipped `default-tls` to rustls (which pulls
 # ring/aws-lc-rs). We build against BoringSSL, so disable default features and
 # select `native-tls` explicitly; the rest mirrors reqwest's default set.
