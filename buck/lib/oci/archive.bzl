@@ -9,23 +9,20 @@ def _oci_archive_impl(ctx: AnalysisContext) -> list[Provider]:
     image = ctx.attrs.image[DefaultInfo].default_outputs[0]
     output = ctx.actions.declare_output(ctx.attrs.out or ctx.label.name + ".tar")
 
-    source = cmd_args("oci:", image, ":", ctx.attrs.source_tag, delimiter = "")
-    destination = cmd_args(
-        "docker-archive:",
-        output.as_output(),
-        ":",
-        ctx.attrs.image_name,
-        ":",
-        ctx.attrs.tag,
-        delimiter = "",
-    )
     command = cmd_args([
-        ctx.attrs._oci_toolchain[OciToolchainInfo].skopeo[RunInfo],
-        "copy",
-        "--insecure-policy",
-        source,
-        destination,
-    ], hidden = [image])
+        ctx.attrs._oci_toolchain[OciToolchainInfo].oci[RunInfo],
+        "archive",
+        "--image",
+        image,
+        "--source-tag",
+        ctx.attrs.source_tag,
+        "--name",
+        ctx.attrs.image_name,
+        "--tag",
+        ctx.attrs.tag,
+        "--output",
+        output.as_output(),
+    ])
 
     ctx.actions.run(
         command,

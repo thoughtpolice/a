@@ -27,9 +27,12 @@ type command struct {
 }
 
 var commands = map[string]command{
+	"archive":  {"write a layout's image as a tar that docker load accepts", runArchive},
 	"image":    {"stack layers and configuration on a base image", runImage},
 	"index":    {"combine single-platform images into one multi-platform index", runIndex},
+	"load":     {"load a layout's image into the docker daemon", runLoad},
 	"pull":     {"copy an image from a registry into a layout", runPull},
+	"smoke":    {"run an image under docker until it logs readiness", runSmoke},
 	"tar":      {"write a reproducible tar of files and directories", runTar},
 	"validate": {"check a layout's descriptors, digests and configs", runValidate},
 }

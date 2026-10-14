@@ -215,8 +215,8 @@ def _image(
       <name>             the OCI image layout directory
       <name>-docker      a docker-archive tarball for `docker load`
       <name>-push        `buck2 run` it with a destination such as
-                         ttl.sh/$USER-image:1h to push the image with
-                         skopeo. It prints the pushed image by digest.
+                         ttl.sh/$USER-image:1h to push the image. It
+                         prints the pushed image by digest.
       <name>-boot-smoke  a docker boot test, unless boot_smoke=False. It
                          requires systemd to reach `running` with no
                          failed units and every unit in boot_smoke_units
@@ -321,7 +321,7 @@ def _image(
             cmd = [
                       "bash",
                       "$(location {}:boot_smoke.sh)".format(_TOOLS),
-                      "$(exe depot-toolchains//oci:skopeo)",
+                      "$(exe root//buck/tools/oci:oci)",
                       _tool("scratch_image"),
                       "$(location :{})".format(name),
                       "--image-cmd",

@@ -13,6 +13,8 @@ oci_unpack = shims.oci.unpack
 
 oci_index = shims.oci.index
 
+oci_archive = shims.oci.archive
+
 tar_file = shims.tar_file
 
 # Test 1: Pull a base image
@@ -579,4 +581,23 @@ shims.command_test(
         "$(exe root//buck/tools/oci:oci)",
         "validate",
     ] + ["$(location :{})".format(name) for name in LAYOUTS],
+)
+
+# A Docker archive is an OCI layout too, so the extracted tar must validate.
+oci_archive(
+    name = "test_complete_app_docker",
+    image = ":test_complete_app",
+    image_name = "test-complete-app",
+    tag = "v1",
+)
+
+shims.command_test(
+    name = "validate-archive",
+    script = """
+        out="`mktemp -d`"
+        trap 'rm -rf "$out"' EXIT
+        tar -xf "$(location :test_complete_app_docker)" -C "$out"
+        test -f "$out/manifest.json"
+        "$(exe root//buck/tools/oci:oci)" validate "$out"
+    """,
 )

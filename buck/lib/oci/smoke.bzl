@@ -8,9 +8,8 @@ load(":toolchain.bzl", "OciToolchainInfo")
 def _oci_container_test_impl(ctx: AnalysisContext) -> list[Provider]:
     image = ctx.attrs.image[DefaultInfo].default_outputs[0]
     command = cmd_args([
-        ctx.attrs._smoke_helper[RunInfo],
-        "--skopeo",
-        ctx.attrs._oci_toolchain[OciToolchainInfo].skopeo[RunInfo],
+        ctx.attrs._oci_toolchain[OciToolchainInfo].oci[RunInfo],
+        "smoke",
         "--image",
         image,
         "--ready-log",
@@ -49,9 +48,6 @@ oci_container_test = rule(
             attrs.arg(),
             default = [],
             doc = "Optional arguments that replace the image Cmd",
-        ),
-        "_smoke_helper": attrs.default_only(
-            attrs.exec_dep(default = "//buck/lib/oci/helpers:container_smoke"),
         ),
         "_oci_toolchain": attrs.toolchain_dep(
             default = "toolchains//:oci",

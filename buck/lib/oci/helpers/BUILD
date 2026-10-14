@@ -50,12 +50,6 @@ shims.python_binary(
     visibility = ["PUBLIC"],
 )
 
-shims.python_binary(
-    name = "container_smoke",
-    main = "container_smoke.py",
-    visibility = ["PUBLIC"],
-)
-
 # The test does a plain 'import native_binary_layer', so the module has to land
 # at the root of the package rather than under the default base module.
 shims.python_library(

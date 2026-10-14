@@ -23,7 +23,7 @@
 # dev machine, not a hermetic unit test, and a sandbox for trusted build
 # output rather than hostile images.
 #
-# Usage: boot_smoke.sh SKOPEO SCRATCH_IMAGE OCI_LAYOUT --image-cmd CSV
+# Usage: boot_smoke.sh OCI SCRATCH_IMAGE OCI_LAYOUT --image-cmd CSV
 #        [--base-layer-count N] [--policy FILE]
 #        [--userland] [--dev] [--containers] [EXTRA_UNIT...]
 #
@@ -39,7 +39,7 @@
 
 set -euo pipefail
 
-SKOPEO="${1:?skopeo binary}"
+OCI="${1:?oci tool binary}"
 VALIDATOR="${2:?scratch_image binary}"
 OCI_LAYOUT="${3:?oci image layout dir}"
 shift 3
@@ -200,8 +200,7 @@ fi
 # ---------------------------------------------------------------------------
 
 echo "boot_smoke: loading $OCI_LAYOUT into docker as $TAG"
-timeout --signal=KILL 90s "$SKOPEO" --insecure-policy copy \
-    "oci:$OCI_LAYOUT:latest" "docker-daemon:$TAG"
+timeout --signal=KILL 90s "$OCI" load --image "$OCI_LAYOUT" --tag "$TAG"
 
 echo "boot_smoke: running systemd with a private cgroup namespace and bounded capabilities"
 # The image's own Cmd boots on a pty, so the --show-status lines land in
