@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+load("@root//buck/shims:srclint.bzl", "srclint")
+
 DenoToolchain = provider(fields = {
     "deno": provider_field(typing.Any),
 })
@@ -192,6 +194,7 @@ def deno_binary(**kwargs):
     """
     Wrapper for deno.binary that automatically adds lint test to tests parameter.
     """
+    kwargs = srclint.attach("deno_binary", kwargs)
     name = kwargs.get("name")
     tests = kwargs.pop("tests", [])
 
@@ -209,6 +212,7 @@ def deno_test(**kwargs):
     """
     Wrapper for deno.test that automatically adds lint test to tests parameter.
     """
+    kwargs = srclint.attach("deno_test", kwargs)
     name = kwargs.get("name")
     tests = kwargs.pop("tests", [])
 
@@ -330,6 +334,9 @@ def deno_run(name, src = None, package_id = None, **kwargs):
     """
     if (src == None) == (package_id == None):
         fail("deno_run: Exactly one of 'src' or 'package_id' must be provided")
+
+    srclint.attach("deno_run", dict(kwargs, name = name, src = src))
+    kwargs.pop("srclint", None)
 
     # Add lint test if src is provided
     tests = kwargs.pop("tests", [])
@@ -461,6 +468,7 @@ def deno_bundle(**kwargs):
     them; callers must provide any ambient declarations needed to type-check.
     ``minify`` strips comments and whitespace from the output.
     """
+    kwargs = srclint.attach("deno_bundle", kwargs)
     name = kwargs.get("name")
     tests = kwargs.pop("tests", [])
 

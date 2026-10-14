@@ -123,6 +123,18 @@ def __get_pkg_path() -> str:
 def third_party_meta(names: list[str]):
     _meta_write_package_value("3p", names)
 
+# MARK: Source checks
+
+def _srclint(sources: bool) -> None:
+    """Turn the srclint tests of targets' sources on or off for this package
+    and those below it.
+
+    See buck/shims/srclint.bzl. They are on by default, and off in a package
+    whose `info` says it is vendored. The test of a package's own build files
+    is always on, but leaves out the SPDX check where the sources' are off.
+    """
+    write_package_value("srclint.sources", sources, overwrite = True)
+
 # MARK: Modifiers
 
 def set_cfg_constructor(aliases = dict()):
@@ -139,6 +151,7 @@ def set_cfg_constructor(aliases = dict()):
 pkg = struct(
     info = _info,
     third_party_meta = third_party_meta,
+    srclint = _srclint,
     get_path = __get_pkg_path,
     version = lambda: read_package_value("meta.version"),
     cfg_constructor = set_cfg_constructor,

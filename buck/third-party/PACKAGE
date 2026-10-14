@@ -1,7 +1,12 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:package.bzl", "third_party_meta")
+load("@root//buck/shims:package.bzl", "pkg", "third_party_meta")
+
+# Vendored source keeps its upstream headers and formatting. The build files
+# here are this repository's own, and are still checked, but for their SPDX
+# headers.
+pkg.srclint(sources = False)
 
 third_party_meta([
     'by-name/bo/boringssl',

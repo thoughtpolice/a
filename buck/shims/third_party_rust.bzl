@@ -3,17 +3,25 @@
 
 load("@prelude//rust:cargo_buildscript.bzl", "buildscript_run")
 load("@prelude//rust:cargo_package.bzl", "cargo")
+load("@root//buck/shims:srclint.bzl", "srclint")
+
+# Each wrapper checks the package's own build files, and nothing else: the
+# sources are the crates' own.
 
 def _rust_library(**kwargs):
+    srclint.lint_package()
     cargo.rust_library(**kwargs)
 
 def _rust_binary(**kwargs):
+    srclint.lint_package()
     cargo.rust_binary(**kwargs)
 
 def _cxx_library(**kwargs):
+    srclint.lint_package()
     native.cxx_library(**kwargs)
 
 def _prebuilt_cxx_library(**kwargs):
+    srclint.lint_package()
     native.prebuilt_cxx_library(**kwargs)
 
 third_party_rust = struct(

@@ -36,5 +36,10 @@ depot.genrule(
     out = ".",
     srcs = glob(["**/*.proto"]),
     env = protoc_env(),
+    # Vendored from Google and Bazel, under their own license headers.
+    srclint = {"spdx_exclude": glob([
+        "build/**/*.proto",
+        "google/**/*.proto",
+    ])},
     visibility = [],
 )

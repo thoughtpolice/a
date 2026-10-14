@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", "shims")
+load("@root//buck/shims:srclint.bzl", "srclint")
 
 def _ncc_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
     source_dir = ctx.actions.copied_dir(
@@ -45,9 +46,12 @@ def _ncc_bundle_impl(ctx: AnalysisContext) -> list[Provider]:
         DefaultInfo(default_output = outdir.project("index.js")),
     ]
 
-ncc_bundle = rule(
+_ncc_bundle = rule(
     impl = _ncc_bundle_impl,
     attrs = {
         "srcs": attrs.list(attrs.source()),
     },
 )
+
+def ncc_bundle(**kwargs):
+    _ncc_bundle(**srclint.attach("ncc_bundle", kwargs))

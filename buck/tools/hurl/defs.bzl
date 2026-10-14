@@ -9,6 +9,8 @@ LocalResourceInfo dependencies and injects their environment only during
 execution, not listing. There is no application-specific fixture logic here.
 """
 
+load("@root//buck/shims:srclint.bzl", "srclint")
+
 def _archive_binary_impl(ctx: AnalysisContext) -> list[Provider]:
     archive = ctx.attrs.archive
     binary = archive.project("bin/hurl")
@@ -87,7 +89,7 @@ def _hurl_test_impl(ctx: AnalysisContext) -> list[Provider]:
         ),
     ]
 
-hurl_test = rule(
+_hurl_test = rule(
     impl = _hurl_test_impl,
     attrs = {
         "connect_timeout": attrs.string(default = "5s", doc = "Connection timeout per request, in Hurl duration syntax."),
@@ -104,6 +106,9 @@ hurl_test = rule(
     },
     doc = "Runs one HTTP-contract scenario with bounded requests and no automatic retries.",
 )
+
+def hurl_test(**kwargs):
+    _hurl_test(**srclint.attach("hurl_test", kwargs))
 
 hurl = struct(
     test = hurl_test,

@@ -10,6 +10,7 @@ load("@root//buck/shims:cross_target.bzl", _cross_target_binary_rule = "cross_ta
 load("@root//buck/shims:dynamic_test_internal.bzl", _dynamic_test_external_rule = "dynamic_test_external", _dynamic_test_internal_rule = "dynamic_test_internal")
 load("@root//buck/shims:go_test_internal.bzl", _go_test_internal_rule = "go_test_internal")
 load("@root//buck/shims:rust_test_internal.bzl", _rust_test_internal_rule = "rust_test_internal")
+load("@root//buck/shims:srclint.bzl", _srclint = "srclint")
 load("@root//buck/tools/filecheck:defs.bzl", _filecheck_lit_external_rule = "filecheck_lit_external", _filecheck_lit_internal_rule = "filecheck_lit_internal", _filecheck_test_rule = "filecheck_test")
 load("@root//buck/tools/git-fetch:defs.bzl", _git_fetch_rule = "git_fetch")
 load("@toolchains//csharp:defs.bzl", _csharp = "csharp")
@@ -48,11 +49,11 @@ def _apply_package_compatibility(kwargs):
 
     return kwargs
 
-def _fix_kwargs(_rule_name: str, kwargs):
+def _fix_kwargs(rule_name: str, kwargs):
     """Apply all package-level defaults and fixes to rule kwargs.
 
     Args:
-        _rule_name: The name of the rule being called (e.g., "rust_library", "cxx_binary") - currently unused but reserved for future use
+        rule_name: The name of the rule being called (e.g., "rust_library", "cxx_binary")
         kwargs: The keyword arguments passed to the rule
 
     This is the central place to add new package-level defaults that should
@@ -61,12 +62,10 @@ def _fix_kwargs(_rule_name: str, kwargs):
     """
     kwargs = _apply_package_compatibility(kwargs)
 
-    # Add more fixes here as needed in the future
-    # Example of rule-specific handling:
-    # if rule_name.startswith("rust_"):
-    #     kwargs = _apply_rust_specific_fixes(kwargs)
-    # elif rule_name.startswith("cxx_"):
-    #     kwargs = _apply_cxx_specific_fixes(kwargs)
+    # Every target declared through a shim gets a test over its sources; see
+    # srclint.bzl. This pops the `srclint` argument the rule itself would
+    # reject.
+    kwargs = _srclint.attach(rule_name, kwargs)
 
     return kwargs
 
@@ -186,6 +185,7 @@ def _depot_cxx_binary(**kwargs):
     native.cxx_binary(**kwargs)
 
 def _depot_cxx_genrule(**kwargs):
+    _srclint.lint_package()
     native.cxx_genrule(**kwargs)
 
 def _depot_prebuilt_cxx_library(**kwargs):
@@ -434,18 +434,23 @@ def _enforce_starlark_memory_limit(bytes: [None, int] = None):
 
 # Easier setting of constraints and values
 def _constraint(**kwargs):
+    _srclint.lint_package()
     native.constraint(**kwargs)
 
 def _platform(**kwargs):
+    _srclint.lint_package()
     native.platform(**kwargs)
 
 def _alias(**kwargs):
+    _srclint.lint_package()
     native.alias(**kwargs)
 
 def _config_setting(**kwargs):
+    _srclint.lint_package()
     native.config_setting(**kwargs)
 
 def _toolchain_alias(**kwargs):
+    _srclint.lint_package()
     native.toolchain_alias(**kwargs)
 
 # Downloads take the package compatibility default like everything else:
@@ -645,6 +650,8 @@ shims = struct(
     config_setting = _config_setting,
     toolchain_alias = _toolchain_alias,
     command_test = _command_test,
+    lint_files = _srclint.lint_files,
+    lint_package = _srclint.lint_package,
     run_test = _run_test,
     ci_srcs_any_path = CI_SRCS_ANY_PATH,
     dynamic_test = _depot_dynamic_test,
