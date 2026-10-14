@@ -3,7 +3,8 @@
 
 // Package x checks that a Go target imports golang.org/x packages with
 // no dependency of its own: one or two from every pinned module, including
-// ones with assembly (chacha20poly1305, cpu) and go:embed (publicsuffix).
+// ones with assembly (chacha20poly1305, cpu) and go:embed (publicsuffix),
+// and through a go_library that does the same (lib).
 package x
 
 import (
@@ -21,6 +22,8 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"golang.org/x/time/rate"
+
+	"golang/x/lib"
 )
 
 func TestCrypto(t *testing.T) {
@@ -75,6 +78,12 @@ func TestTerm(t *testing.T) {
 func TestText(t *testing.T) {
 	if got := cases.Title(language.English).String("hello world"); got != "Hello World" {
 		t.Fatalf("Title = %q", got)
+	}
+}
+
+func TestLibrary(t *testing.T) {
+	if got := lib.Title("hello world"); got != "Hello World" {
+		t.Fatalf("lib.Title = %q", got)
 	}
 }
 

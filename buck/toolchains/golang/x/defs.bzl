@@ -30,6 +30,7 @@ load("@prelude//go:package_builder.bzl", "BuildPackageGoList", "BuildPackagePara
 load("@prelude//go:packages.bzl", "GoPkg", "GoStdlib", "GoStdlibDynamicValue", "merge_pkgs")
 load("@prelude//go:toolchain.bzl", "GoToolchainInfo", "evaluate_cgo_enabled", "get_toolchain_env_vars")
 load("@prelude//go/transitions:defs.bzl", "build_tags_attr", "cgo_enabled_attr", "go_stdlib_transition")
+load("@prelude//linking:shared_libraries.bzl", "merge_shared_libraries")
 load("@root//buck/shims:shims.bzl", "shims")
 
 # The GOOS/GOARCH pairs the toolchain can target; see ../defs.bzl.
@@ -125,6 +126,9 @@ def _go_x_library_impl(ctx: AnalysisContext) -> list[Provider]:
         DefaultInfo(default_outputs = [pkg.archive_file for pkg in pkgs.values()]),
         GoPkgCompileInfo(pkgs = pkgs),
         GoPkgLinkInfo(pkgs = pkgs),
+        # A go_library requires one from each of its dependencies. These
+        # packages bring no shared libraries.
+        merge_shared_libraries(ctx.actions),
     ]
 
 def _build_x_package_impl(

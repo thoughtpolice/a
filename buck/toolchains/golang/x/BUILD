@@ -26,7 +26,14 @@ go_x(
     packages = X_PACKAGES,
 )
 
+shims.go_library(
+    name = "x-lib",
+    package_name = "golang/x/lib",
+    srcs = ["lib/lib.go"],
+)
+
 shims.go_test(
     name = "x-test",
     srcs = ["x_test.go"],
+    deps = [":x-lib"],
 )
