@@ -1,0 +1,65 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+"""Lists the files the build reads that no srclint test checks.
+
+The srclint tests come from the shims, which know which attributes of which
+rules name sources (see buck/shims/srclint.bzl). A rule declared some other
+way, or an attribute missing from that table, leaves files unchecked; this
+finds them by asking the graph for everything its targets read, plus the
+BUILD, PACKAGE and .bzl files that define them, and subtracting what the
+srclint tests read.
+
+    buck2 bxl //buck/tools/srclint/coverage.bxl:coverage
+    buck2 bxl //buck/tools/srclint/coverage.bxl:coverage -- --universe tilde//...
+
+Sources of vendored packages, and of packages that turn srclint's source
+tests off, are listed too; they are unchecked on purpose. The third-party
+cell's sources are left out, but not its build files, which are checked.
+"""
+
+_DEFAULT_UNIVERSE = [
+    "root//...",
+    "mode//...",
+    "third-party//...",
+    "tilde//...",
+    "toolchains//...",
+]
+
+# Cells whose files are not the repository's own code. The cellar's are, but
+# it can depend on nothing outside itself, srclint included.
+_FOREIGN_CELLS = ["prelude", "cellar", "depot-cellar", "none"]
+
+# Cells whose build files are the repository's own, but whose sources are not.
+_FOREIGN_SOURCE_CELLS = ["third-party", "depot-third-party"]
+
+def _coverage_impl(ctx: bxl.Context):
+    query = ctx.uquery()
+    universe = query.eval(" + ".join(ctx.cli_args.universe))
+    tests = query.kind("srclint_test", universe)
+    targets = universe - tests
+
+    # Keyed by (cell, path within the cell).
+    read = {}
+    for f in query.inputs(targets):
+        if f.cell not in _FOREIGN_SOURCE_CELLS:
+            read[(f.cell, f.path)] = "input"
+    for f in query.eval("allbuildfiles({})".format(" + ".join(ctx.cli_args.universe))):
+        read[(f.cell, f.path)] = "build file"
+    checked = {(f.cell, f.path): True for f in query.inputs(tests)}
+
+    unchecked = [key for key in read if key not in checked and key[0] not in _FOREIGN_CELLS]
+    cells = {cell: None for cell, _ in unchecked}.keys()
+    cell_roots = ctx.audit().cell(list(cells)) if cells else {}
+    root = ctx.root()
+    for cell, path in sorted(unchecked, key = lambda key: (cell_roots[key[0]], key[1])):
+        cell_root = cell_roots[cell].removeprefix(root).removeprefix("/")
+        ctx.output.print("{}\t{}".format(cell_root + "/" + path if cell_root else path, read[(cell, path)]))
+    ctx.output.print("{} of {} files the build reads are not checked by srclint".format(len(unchecked), len(read)))
+
+coverage = bxl_main(
+    impl = _coverage_impl,
+    cli_args = {
+        "universe": cli_args.list(cli_args.string(), default = _DEFAULT_UNIVERSE),
+    },
+)
