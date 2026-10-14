@@ -32,6 +32,7 @@ var commands = map[string]command{
 	"index":    {"combine single-platform images into one multi-platform index", runIndex},
 	"load":     {"load a layout's image into the docker daemon", runLoad},
 	"pull":     {"copy an image from a registry into a layout", runPull},
+	"push":     {"copy a layout's image to registries, layouts or archives", runPush},
 	"smoke":    {"run an image under docker until it logs readiness", runSmoke},
 	"tar":      {"write a reproducible tar of files and directories", runTar},
 	"validate": {"check a layout's descriptors, digests and configs", runValidate},

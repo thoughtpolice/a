@@ -8,9 +8,8 @@ load(":toolchain.bzl", "OciToolchainInfo")
 def _oci_push_impl(ctx: AnalysisContext) -> list[Provider]:
     image = ctx.attrs.image[DefaultInfo].default_outputs[0]
     command = cmd_args([
-        ctx.attrs._push_helper[RunInfo],
-        "--skopeo",
-        ctx.attrs._oci_toolchain[OciToolchainInfo].skopeo[RunInfo],
+        ctx.attrs._oci_toolchain[OciToolchainInfo].oci[RunInfo],
+        "push",
         "--image",
         image,
     ])
@@ -44,13 +43,10 @@ oci_push = rule(
             default = [],
             doc = "Tags pushed to `repository` when `buck2 run` names no destination",
         ),
-        "_push_helper": attrs.default_only(
-            attrs.exec_dep(default = "//buck/lib/oci/helpers:oci_push"),
-        ),
         "_oci_toolchain": attrs.toolchain_dep(
             default = "toolchains//:oci",
             providers = [OciToolchainInfo],
         ),
     },
-    doc = "Push an OCI layout with skopeo when run: buck2 run :target -- REF...",
+    doc = "Push an OCI layout when run: buck2 run :target -- REF...",
 )

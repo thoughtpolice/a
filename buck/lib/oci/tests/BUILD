@@ -124,8 +124,8 @@ oci_index(
 )
 
 # Test 9b: Push targets. Building one builds its image, and
-# `buck2 run :test_app_multiplatform_push -- --dry-run` shows the skopeo
-# commands a real run would use.
+# `buck2 run :test_app_multiplatform_push -- --dry-run` shows what a real
+# run would push.
 oci_push(
     name = "test_image_simple_push",
     image = ":test_image_simple",
