@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "0.19.1",
+    description = """
+        A small utility to modify the dynamic linker and RPATH of ELF executables.
+    """,
+    license = "GPL-3.0-or-later",
+    copyright = [
+        "2004-2026 Eelco Dolstra and the patchelf contributors",
+    ],
+    visibility = ['PUBLIC'],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/NixOS/patchelf",
+        commit = "7688b17c18d16f67fa8d5a82a2404c2e3a18648d",
+    ),
+)
