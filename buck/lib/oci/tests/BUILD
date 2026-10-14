@@ -567,8 +567,9 @@ shims.oci.native_binary_image(
     target_compatible_with = ["config//cpu:x86_64"],
 )
 
-# The first layer carries a glibc from the Nix store and the second none.
-# Unpacking puts each binary where its interpreter can find it.
+# The first layer carries the binary's glibc from the Nix store, if it was
+# linked against one, and the second never does. Unpacking puts each binary
+# where its interpreter can find it.
 shims.oci.unpack(
     name = "native_hello_unpacked",
     image = ":native_hello_image",
@@ -586,9 +587,15 @@ shims.command_test(
     script = """
         nix="$(location :native_hello_unpacked)/rootfs"
         test -x "$nix/usr/local/bin/hello"
-        ls -d "$nix"/nix/store/*-glibc-* >/dev/null
-        interp="`grep -ao '/nix/store/[a-z0-9]*-glibc-[^/]*/lib/ld-linux-x86-64.so.2' "$nix/usr/local/bin/hello" | head -1`"
-        test -e "$nix$interp"
+        # The C toolchain is Nix's in the dev shell and the host's elsewhere,
+        # as on a CI runner. A host-linked binary has no store roots to copy.
+        if grep -aq /nix/store/ "$(location :native_hello)"; then
+            ls -d "$nix"/nix/store/*-glibc-* >/dev/null
+            interp="`grep -ao '/nix/store/[a-z0-9]*-glibc-[^/]*/lib/ld-linux-x86-64.so.2' "$nix/usr/local/bin/hello" | head -1`"
+            test -e "$nix$interp"
+        else
+            test ! -e "$nix/nix"
+        fi
 
         repointed="$(location :native_hello_repointed_unpacked)/rootfs"
         test -x "$repointed/usr/local/bin/hello"
