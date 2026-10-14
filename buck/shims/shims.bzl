@@ -11,6 +11,7 @@ load("@root//buck/shims:dynamic_test_internal.bzl", _dynamic_test_external_rule 
 load("@root//buck/shims:go_test_internal.bzl", _go_test_internal_rule = "go_test_internal")
 load("@root//buck/shims:rust_test_internal.bzl", _rust_test_internal_rule = "rust_test_internal")
 load("@root//buck/tools/filecheck:defs.bzl", _filecheck_lit_external_rule = "filecheck_lit_external", _filecheck_lit_internal_rule = "filecheck_lit_internal", _filecheck_test_rule = "filecheck_test")
+load("@root//buck/tools/git-fetch:defs.bzl", _git_fetch_rule = "git_fetch")
 load("@toolchains//csharp:defs.bzl", _csharp = "csharp")
 load("@toolchains//deno:defs.bzl", _deno = "deno")
 load("@toolchains//k6:defs.bzl", "k6_run")
@@ -460,7 +461,10 @@ def _http_file(**kwargs):
 
 def _git_fetch(**kwargs):
     kwargs = _fix_kwargs("git_fetch", kwargs)
-    native.git_fetch(**kwargs)
+
+    # Not native.git_fetch: that runs the host's `git` with the host's git
+    # configuration. This one fetches with git-fetch (buck/tools/git-fetch).
+    _git_fetch_rule(**kwargs)
 
 def _test_suite(**kwargs):
     kwargs = _fix_kwargs("test_suite", kwargs)

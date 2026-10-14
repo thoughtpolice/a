@@ -53,6 +53,23 @@ Network errors other than bad certificates and unknown hosts, and HTTP
 second apart and doubling. A request is abandoned after two minutes in which the server
 sends nothing. `--verbose` reports how long each step took.
 
+## The rule
+
+`defs.bzl` defines `git_fetch`, which `shims.git_fetch` uses, with the
+prelude rule's attributes and outputs, so the targets reindeer generates
+for git dependencies work unchanged. The default output is the work tree,
+named after the target minus `.git`. Each `sub_targets` path is a
+sub-target of it, and `[.git]` is the repository. The fetch is a
+local-only action, because remote executors may not have network access,
+and its result is cached like any other action's.
+
+The binary is linked with `-s -w`, which is what `-m release` adds for Go.
+As an exec dependency it never sees `-m release`, and stripping it takes
+what comes down from the cache from 8.2 MB to 5.7 MB.
+
+`update_submodules = True` fails at analysis time. Nothing in the tree
+uses it.
+
 ## .gitattributes
 
 The checkout applies `.gitattributes` from the tree as git does with
@@ -85,8 +102,10 @@ rather than checking out differently from git.
 
 ## Tests
 
-`buck2 test //buck/tools/git-fetch:unit` runs unit tests against packs
-built in the test, including a fake HTTP server for the protocol.
+`buck2 test //buck/tools/git-fetch/...` runs unit tests against packs
+built in the test, including a fake HTTP server for the protocol, and
+`:fetch-hello-world`, which fetches `octocat/Hello-World` from GitHub
+through `shims.git_fetch`.
 `cases_test.go` records what git itself checks out for a set of
 `.gitattributes` cases, and which paths `git check-attr` matches for a set
 of patterns. It is generated, and can be regenerated with any git:
