@@ -1,0 +1,42 @@
+{
+  "servers": {
+    "rust-analyzer": {
+      "command": "rust-analyzer",
+      "fileTypes": [".rs"],
+      "rootMarkers": [".buckconfig"],
+      "initOptions": {
+        "check": {
+          "overrideCommand": ["rust-project", "check", "$saved_file"]
+        },
+        "workspace": {
+          "discoverConfig": {
+            "command": ["rust-project", "develop-json", "--sysroot-mode=rustc", "{arg}"],
+            "progressLabel": "rust-analyzer[buck2]",
+            "filesToWatch": ["BUILD", "PACKAGE"]
+          }
+        }
+      },
+      "settings": {
+        "rust-analyzer": {
+          "check": {
+            "overrideCommand": ["rust-project", "check", "$saved_file"]
+          },
+          "workspace": {
+            "discoverConfig": {
+              "command": ["rust-project", "develop-json", "--sysroot-mode=rustc", "{arg}"],
+              "progressLabel": "rust-analyzer[buck2]",
+              "filesToWatch": ["BUILD", "PACKAGE"]
+            }
+          }
+        }
+      }
+    },
+    "lean": {
+      "command": "/bin/sh",
+      "args": ["-c", "exec \"$(buck2 root --kind project)/buck/toolchains/lean/lsp/lake\" serve"],
+      "fileTypes": [".lean"],
+      "rootMarkers": [".buckconfig"],
+      "languageId": "lean4"
+    }
+  }
+}

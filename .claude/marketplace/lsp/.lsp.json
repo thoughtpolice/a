@@ -1,0 +1,27 @@
+{
+  "rust-analyzer": {
+    "command": "rust-analyzer",
+    "extensionToLanguage": {
+      ".rs": "rust"
+    },
+    "initializationOptions": {
+      "check": {
+        "overrideCommand": ["rust-project", "check", "$saved_file"]
+      },
+      "workspace": {
+        "discoverConfig": {
+          "command": ["rust-project", "develop-json", "--sysroot-mode=rustc", "{arg}"],
+          "progressLabel": "rust-analyzer[buck2]",
+          "filesToWatch": ["BUILD", "PACKAGE"]
+        }
+      }
+    }
+  },
+  "lean": {
+    "command": "/bin/sh",
+    "args": ["-c", "exec \"$(buck2 root --kind project)/buck/toolchains/lean/lsp/lake\" serve"],
+    "extensionToLanguage": {
+      ".lean": "lean4"
+    }
+  }
+}

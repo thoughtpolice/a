@@ -1,0 +1,13 @@
+{
+  "name": "depot",
+  "owner": {
+    "name": "Austin Seipp"
+  },
+  "plugins": [
+    {
+      "name": "depot-lsp",
+      "source": "./lsp",
+      "description": "Buck2-powered Language Servers"
+    }
+  ]
+}

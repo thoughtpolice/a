@@ -5,6 +5,17 @@
     "ENABLE_BACKGROUND_TASKS": "true",
     "CLAUDE_CODE_ENABLE_UNIFIED_READ_TOOL": "true"
   },
+  "extraKnownMarketplaces": {
+    "depot": {
+      "source": {
+        "source": "directory",
+        "path": "./.claude/marketplace"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "depot-lsp@depot": true
+  },
   "hooks": {
     "PostToolUse": [
       {

@@ -37,17 +37,19 @@ wrote, and a different Lean fails on them.
 
 ## Setup
 
-The repository configures three editors. Each needs `buck2` on its PATH,
-which the Nix shell (direnv) provides.
+The repository configures three editors and two coding agents. Each needs
+`buck2` on its PATH, which the Nix shell (direnv) provides.
 
 | Editor | Where | How |
 | --- | --- | --- |
 | VS Code (vscode-lean4) | `.vscode/settings.json` | `lean4.envPathExtensions` puts `bin/` ahead of the Nix shell's lean |
 | Helix | `.helix/languages.toml` | `[language-server.lean]` runs `lake serve` from here |
 | Zed (the Lean 4 extension) | `.zed/settings.json` | `lsp.lean4-lsp.binary` runs `lake serve` from here |
+| Claude Code | `.claude/marketplace/lsp/.lsp.json` | the `depot-lsp` plugin, enabled in `.claude/settings.json`, runs `lake serve` from here |
+| OMP | `.omp/lsp.json` | `servers.lean` runs `lake serve` from here |
 
-Helix and Zed start servers in the workspace root and find this
-directory through `buck2 root`.
+Helix, Zed, Claude Code and OMP start servers in the workspace root and
+find this directory through `buck2 root`.
 
 Helix since workspace trust (#15177, 2026-03) reads `.helix/` only for a
 trusted workspace, and the grant covers a hash of that directory, so any
