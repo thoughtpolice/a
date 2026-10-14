@@ -114,7 +114,13 @@ jobs:
             return $exit_code
           }
 
-          retry_command buck2 test @buck/ci.buckargs -m debug root//... tilde//... cellar//bootstrap/stage0-posix/... \
+          # The toolchains, mode and third-party cells' own tests are not run
+          # here, but the source checks of their files are; see
+          # buck/shims/srclint.bzl.
+          SRCLINT_TARGETS="${{ runner.temp }}/srclint-targets.txt"
+          buck2 uquery @buck/ci.buckargs 'kind(srclint_test, toolchains//... + mode//... + third-party//...)' > "$SRCLINT_TARGETS"
+
+          retry_command buck2 test @buck/ci.buckargs -m debug root//... tilde//... cellar//bootstrap/stage0-posix/... "@$SRCLINT_TARGETS" \
             --build-report ${{ runner.temp }}/build-report.json \
             --build-report-options fill-out-failures --
       - name: Generate build report
