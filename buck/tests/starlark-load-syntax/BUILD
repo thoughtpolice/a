@@ -3,16 +3,30 @@
 
 load("@root//buck/shims:shims.bzl", "shims")
 
-shims.python_binary(
+shims.go_binary(
     name = "check-starlark-load-syntax",
-    main = "main.py",
-    tests = [":starlark-load-syntax"],
+    srcs = ["main.go"],
+    cgo_enabled = False,
+    link_mode = "internal",
+    tests = [
+        ":starlark-load-syntax",
+        ":unit",
+    ],
+)
+
+shims.go_test(
+    name = "unit",
+    srcs = [
+        "main.go",
+        "main_test.go",
+    ],
+    cgo_enabled = False,
 )
 
 shims.run_test(
     name = "starlark-load-syntax",
-    # Mirrors the rglob patterns in main.py. No dot forms: the checker skips any
-    # path with a dot-leading component, which is also where these globs stop.
+    # Mirrors the files starlarkFiles in main.go checks. No dot forms: it
+    # skips any dot-leading directory, which is also where these globs stop.
     ci_srcs = [
         "**/BUILD",
         "**/PACKAGE",
