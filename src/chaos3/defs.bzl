@@ -6,13 +6,13 @@
 The setup helper starts the actual server on an ephemeral loopback port, waits
 for the endpoint it writes to a readiness pipe, and transfers its PID to Buck
 for teardown. Each
-resource exposes both AWS-compatible environment variables and Hurl variables.
+resource exposes both AWS-compatible environment variables and barf variables.
 Buck keys local resource pools by target label and holds a pool entry for the
 duration of a test, so a test that mutates server state needs its own resource
 target rather than one shared with other tests.
 """
 
-load("@root//buck/tools/hurl:defs.bzl", "hurl")
+load("@root//buck/tools/barf:defs.bzl", "barf")
 
 # Fault settings, in the order the server receives them. Each rule attribute
 # maps to one chaos3 flag. A boolean passes the bare flag, a list repeats the
@@ -55,10 +55,10 @@ def _chaos3_local_resource_impl(ctx: AnalysisContext) -> list[Provider]:
                 "AWS_ACCESS_KEY_ID": "access_key_id",
                 "AWS_REGION": "region",
                 "AWS_SECRET_ACCESS_KEY": "secret_access_key",
-                "HURL_VARIABLE_access_key_id": "access_key_id",
-                "HURL_VARIABLE_endpoint": "endpoint",
-                "HURL_VARIABLE_region": "region",
-                "HURL_VARIABLE_secret_access_key": "secret_access_key",
+                "BARF_VAR_access_key_id": "access_key_id",
+                "BARF_VAR_endpoint": "endpoint",
+                "BARF_VAR_region": "region",
+                "BARF_VAR_secret_access_key": "secret_access_key",
                 "CHAOS3_ENDPOINT": "endpoint",
                 "CHAOS3_LOG": "log",
                 "S3_ENDPOINT": "endpoint",
@@ -107,14 +107,14 @@ def chaos3_local_resource(
         **kwargs
     )
 
-def chaos3_hurl_test(name: str, src: str, bucket: str = "hurl", **kwargs):
-    """Run one Hurl scenario against a private chaos3 server.
+def chaos3_http_test(name: str, src: str, bucket: str = "scenario", **kwargs):
+    """Run one barf scenario against a private chaos3 server.
 
     The server starts with ``bucket`` created, and the scenario receives it as
-    ``{{bucket}}`` next to ``{{endpoint}}`` and the signing variables. Fault
+    ``{bucket}`` next to ``{endpoint}`` and the signing variables. Fault
     settings go to the private resource with the same meanings as for
     ``chaos3_local_resource``. The remaining keyword arguments go to
-    ``hurl.test``.
+    ``barf.test``.
     """
     resource_kwargs = {}
     for attr in _FAULT_ATTRS:
@@ -126,7 +126,7 @@ def chaos3_hurl_test(name: str, src: str, bucket: str = "hurl", **kwargs):
         buckets = [bucket],
         **resource_kwargs
     )
-    hurl.test(
+    barf.test(
         name = name,
         src = src,
         local_resources = {"chaos3": ":" + resource},

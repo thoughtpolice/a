@@ -1,0 +1,129 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+# ListObjectsV2 counts delimiter groups as entries, never repeats them on later
+# pages, echoes opaque tokens, and URL-encodes keys exactly once when requested.
+
+PUT /{bucket}/a
+  body a
+expect 200
+  capture etag = header ETag
+
+PUT /{bucket}/b/second
+  body bb
+expect 200
+
+PUT /{bucket}/b/first
+  body b
+expect 200
+
+PUT /{bucket}/c
+  body ccc
+expect 200
+
+PUT /{bucket}/d/deep/child
+  body d
+expect 200
+
+PUT /{bucket}/z
+  body z
+expect 200
+
+GET /{bucket}?list-type=2&delimiter=%2F&max-keys=2
+expect 200
+  capture next = xml NextContinuationToken
+  xml Name = {bucket}
+  xml KeyCount = 2
+  xml IsTruncated = true
+  xml Contents count 1
+  xml Key = a
+  xml Size = 1
+  xml ETag = {etag}
+  xml LastModified present
+  xml CommonPrefixes/Prefix = b/
+  xml NextContinuationToken present
+
+# The continuation token takes precedence over an incompatible start-after.
+GET /{bucket}
+  query list-type: 2
+  query delimiter: /
+  query max-keys: 2
+  query continuation-token: {next}
+  query start-after: z
+expect 200
+  capture last = xml NextContinuationToken
+  xml ContinuationToken = {next}
+  xml KeyCount = 2
+  xml IsTruncated = true
+  xml Contents count 1
+  xml Key = c
+  xml CommonPrefixes/Prefix = d/
+
+GET /{bucket}
+  query list-type: 2
+  query delimiter: /
+  query max-keys: 2
+  query continuation-token: {last}
+expect 200
+  xml ContinuationToken = {last}
+  xml KeyCount = 1
+  xml IsTruncated = false
+  xml Key = z
+  xml CommonPrefixes absent
+  xml NextContinuationToken absent
+
+GET /{bucket}?list-type=2&delimiter=%2F&start-after=b%2Ffirst&max-keys=1
+expect 200
+  xml Key = c
+  xml CommonPrefixes absent
+
+GET /{bucket}?list-type=2&max-keys=0
+expect 200
+  xml KeyCount = 0
+  xml IsTruncated = false
+  xml NextContinuationToken absent
+
+GET /{bucket}?list-type=2&max-keys=-1
+expect 400
+  xml Code = InvalidArgument
+
+PUT /{bucket}/special/a%26%3C
+  body xml
+expect 200
+
+PUT /{bucket}/special/literal%252Fname
+  body percent
+expect 200
+
+PUT /{bucket}/special/space%20%2B%20name
+  body space
+expect 200
+
+PUT /{bucket}/special/caf%C3%A9/%E9%9B%AA
+  body unicode
+expect 200
+
+GET /{bucket}?list-type=2&prefix=special%2F
+expect 200
+  xml Key count 4
+  xml Key[1] = special/a&<
+  xml Key[2] = special/café/雪
+  xml Key[3] = special/literal%2Fname
+  xml Key[4] = special/space + name
+  xml EncodingType absent
+
+GET /{bucket}?list-type=2&prefix=special%2F&encoding-type=url
+expect 200
+  xml EncodingType = url
+  xml /ListBucketResult/Prefix = special%2F
+  xml Key[1] = special%2Fa%26%3C
+  xml Key[2] = special%2Fcaf%C3%A9%2F%E9%9B%AA
+  xml Key[3] = special%2Fliteral%252Fname
+  xml Key[4] = special%2Fspace%20%2B%20name
+
+GET /{bucket}/special/literal%252Fname
+expect 200
+  body percent
+
+GET /{bucket}/special/literal%2Fname
+expect 404
+  xml Code = NoSuchKey

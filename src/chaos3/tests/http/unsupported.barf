@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+# chaos3 is deliberately an S3 subset. Recognized but unimplemented operations
+# return the S3 NotImplemented error, rather than silently claiming success.
+# In particular clients must use ListObjectsV2, not the legacy listing API.
+
+PUT /{bucket}/object
+  body preserved
+expect 200
+
+GET /{bucket}
+expect 501
+  xml Code = NotImplemented
+
+GET /{bucket}?versioning
+expect 501
+  xml Code = NotImplemented
+
+GET /{bucket}?location
+expect 501
+  xml Code = NotImplemented
+
+GET /{bucket}?uploads
+expect 501
+  xml Code = NotImplemented
+
+GET /{bucket}/object?tagging
+expect 501
+  xml Code = NotImplemented
+
+GET /{bucket}/object?acl
+expect 501
+  xml Code = NotImplemented
+
+GET /{bucket}/object?attributes
+  header x-amz-object-attributes: ETag,ObjectSize
+expect 501
+  xml Code = NotImplemented
+
+# A real in-progress upload is still not listable (ListParts is unsupported).
+POST /{bucket}/object?uploads
+expect 200
+  capture upload = xml UploadId
+
+PUT /{bucket}/object?uploadId={upload}&partNumber=1
+  body pending
+expect 200
+
+GET /{bucket}/object?uploadId={upload}
+expect 501
+  xml Code = NotImplemented
+
+DELETE /{bucket}/object?uploadId={upload}
+expect 204
+
+GET /{bucket}/object
+expect 200
+  body preserved
+
+GET /{bucket}?list-type=2
+expect 200
+  xml KeyCount = 1
+  xml Key = object

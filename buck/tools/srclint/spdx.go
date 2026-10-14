@@ -115,7 +115,7 @@ var fileTypes = []fileType{
 	{".erl", []commentStyle{erlangStyle}},
 	{".luau", []commentStyle{luaStyle}},
 	{".lean", []commentStyle{luaStyle}},
-	{".hurl", []commentStyle{hashStyle}},
+	{".barf", []commentStyle{hashStyle}},
 	{".test", litStyles},
 	{".check", litStyles},
 }

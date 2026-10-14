@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+# This fixture configures errors before GET and after PUT/DELETE commit.
+
+PUT /{bucket}/uncertain
+  body committed despite error
+expect 500
+  xml Code = InternalError
+
+GET /{bucket}/uncertain
+expect 503
+  xml Code = SlowDown
+
+GET /{bucket}/uncertain
+expect 503
+  xml Code = SlowDown
+
+GET /{bucket}/uncertain
+expect 200
+  body committed despite error
+
+PUT /{bucket}/uncertain
+  body retried successfully
+expect 200
+
+DELETE /{bucket}/uncertain
+expect 503
+  xml Code = ServiceUnavailable
+
+GET /{bucket}/uncertain
+expect 404
+  xml Code = NoSuchKey
+
+DELETE /{bucket}/uncertain
+expect 204

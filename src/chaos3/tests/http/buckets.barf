@@ -1,0 +1,95 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+# Bucket creation is idempotent in us-east-1, deletion rejects nonempty buckets,
+# and lexically sorted bucket pages terminate without spurious continuation.
+# The test gets its own server, so exact ListBuckets assertions are safe.
+
+GET /
+expect 200
+  xml Bucket count 1
+  xml Bucket/Name = {bucket}
+
+PUT /page-c
+expect 200
+  header Location: /page-c
+
+PUT /page-a
+expect 200
+
+PUT /page-b
+expect 200
+
+HEAD /page-a
+expect 200
+  header x-amz-bucket-region: us-east-1
+
+PUT /page-a/key
+  body preserved
+expect 200
+
+PUT /page-a
+expect 200
+  header Location: /page-a
+
+GET /page-a/key
+expect 200
+  body preserved
+
+GET /
+  query prefix: page-
+  query max-buckets: 2
+expect 200
+  capture next = xml ContinuationToken
+  xml Bucket count 2
+  xml Bucket[1]/Name = page-a
+  xml Bucket[2]/Name = page-b
+  xml Prefix = page-
+  xml ContinuationToken present
+
+GET /
+  query prefix: page-
+  query max-buckets: 2
+  query continuation-token: {next}
+expect 200
+  xml Bucket count 1
+  xml Bucket/Name = page-c
+  xml ContinuationToken absent
+
+GET /?prefix=page-&max-buckets=3
+expect 200
+  xml Bucket count 3
+  xml ContinuationToken absent
+
+GET /?prefix=absent
+expect 200
+  xml Bucket count 0
+  xml ContinuationToken absent
+
+GET /?max-buckets=0
+expect 400
+  xml Code = InvalidArgument
+
+GET /?max-buckets=10001
+expect 400
+  xml Code = InvalidArgument
+
+DELETE /page-a
+expect 409
+  xml Code = BucketNotEmpty
+
+GET /page-a/key
+expect 200
+  body preserved
+
+DELETE /page-a/key
+expect 204
+
+DELETE /page-a
+expect 204
+
+HEAD /page-a
+expect 404
+
+DELETE /page-a
+expect 404
+  xml Code = NoSuchBucket

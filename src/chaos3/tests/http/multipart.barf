@@ -1,0 +1,158 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+# Multipart completion is atomic: bad order, absent parts, and an undersized
+# nonfinal part must leave the upload repairable and old object readable. S3
+# multipart uses ordinary PUTs and XML completion, not multipart/form-data.
+
+PUT /{bucket}/multipart
+  body original
+expect 200
+  capture original = header ETag
+
+POST /{bucket}/multipart?uploads
+  header Content-Type: application/octet-stream
+  header Cache-Control: no-cache
+  header x-amz-meta-purpose: multipart
+expect 200
+  capture upload = xml UploadId
+  xml Bucket = {bucket}
+  xml Key = multipart
+  xml UploadId nonempty
+
+PUT /{bucket}/multipart?uploadId={upload}&partNumber=0
+  body wrong
+expect 400
+  xml Code = InvalidArgument
+
+PUT /{bucket}/multipart?uploadId={upload}&partNumber=10001
+  body wrong
+expect 400
+  xml Code = InvalidArgument
+
+PUT /{bucket}/multipart?uploadId={upload}&partNumber=1
+  body too small
+expect 200
+  capture first = header ETag
+
+PUT /{bucket}/multipart?uploadId={upload}&partNumber=2
+# Make the first selected part large enough that order is the only violated
+# condition in the reversed completion below, not also its minimum part size.
+  body-file large-part.bin
+expect 200
+  capture last = header ETag
+
+POST /{bucket}/multipart?uploadId={upload}
+  body <CompleteMultipartUpload><Part><PartNumber>2</PartNumber><ETag>{last}</ETag></Part><Part><PartNumber>1</PartNumber><ETag>{first}</ETag></Part></CompleteMultipartUpload>
+expect 400
+  xml Code = InvalidPartOrder
+
+PUT /{bucket}/multipart?uploadId={upload}&partNumber=2
+  body z
+expect 200
+  capture last = header ETag
+
+POST /{bucket}/multipart?uploadId={upload}
+  body <CompleteMultipartUpload><Part><PartNumber>3</PartNumber><ETag>{last}</ETag></Part></CompleteMultipartUpload>
+expect 400
+  xml Code = InvalidPart
+
+POST /{bucket}/multipart?uploadId={upload}
+  body <CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>{first}</ETag></Part><Part><PartNumber>2</PartNumber><ETag>{last}</ETag></Part></CompleteMultipartUpload>
+expect 400
+  xml Code = EntityTooSmall
+
+GET /{bucket}/multipart
+expect 200
+  header ETag: {original}
+  body original
+
+# Replace only the undersized part with exactly the 5 MiB minimum.
+PUT /{bucket}/multipart?uploadId={upload}&partNumber=1
+  body-file large-part.bin
+expect 200
+  header ETag: "79b281060d337b9b2b84ccf390adcf74"
+  capture repaired = header ETag
+
+# Replacing a part invalidates its old ETag without consuming the upload.
+POST /{bucket}/multipart?uploadId={upload}
+  body <CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>{first}</ETag></Part><Part><PartNumber>2</PartNumber><ETag>{last}</ETag></Part></CompleteMultipartUpload>
+expect 400
+  xml Code = InvalidPart
+
+POST /{bucket}/multipart?uploadId={upload}
+  header If-None-Match: *
+  body <CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>{repaired}</ETag></Part><Part><PartNumber>2</PartNumber><ETag>{last}</ETag></Part></CompleteMultipartUpload>
+expect 412
+  xml Code = PreconditionFailed
+
+GET /{bucket}/multipart
+expect 200
+  header ETag: {original}
+  body original
+
+POST /{bucket}/multipart?uploadId={upload}
+  header If-Match: {original}
+  body <CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>{repaired}</ETag></Part><Part><PartNumber>2</PartNumber><ETag>{last}</ETag></Part></CompleteMultipartUpload>
+expect 200
+  capture completed = xml ETag
+  xml Bucket = {bucket}
+  xml Key = multipart
+# Independently computed MD5(MD5(5 MiB of 'a') || MD5('z')) + '-2'.
+  xml ETag = "8563290c5210e22ffe276e2320dc9d21-2"
+
+HEAD /{bucket}/multipart
+expect 200
+  header Content-Length: 5242881
+  header Content-Type: application/octet-stream
+  header Cache-Control: no-cache
+  header x-amz-meta-purpose: multipart
+  header ETag: {completed}
+
+GET /{bucket}/multipart
+  header Range: bytes=0-5242879
+expect 206
+  header Content-Range: bytes 0-5242879/5242881
+  body-file large-part.bin
+
+GET /{bucket}/multipart
+  header Range: bytes=5242879-
+expect 206
+  header Content-Range: bytes 5242879-5242880/5242881
+  body az
+
+GET /{bucket}/multipart
+  header If-None-Match: {completed}
+expect 304
+
+POST /{bucket}/multipart?uploadId={upload}
+  body <CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>{repaired}</ETag></Part></CompleteMultipartUpload>
+expect 404
+  xml Code = NoSuchUpload
+
+# A second upload is independently abortable; abort must not remove the object.
+POST /{bucket}/multipart?uploads
+expect 200
+  capture abort = xml UploadId
+  xml UploadId != {upload}
+
+PUT /{bucket}/multipart?uploadId={abort}&partNumber=1
+  body discarded
+expect 200
+
+PUT /{bucket}/wrong-key?uploadId={abort}&partNumber=1
+  body wrong
+expect 404
+  xml Code = NoSuchUpload
+
+DELETE /{bucket}/multipart?uploadId={abort}
+expect 204
+
+PUT /{bucket}/multipart?uploadId={abort}&partNumber=1
+  body wrong
+expect 404
+  xml Code = NoSuchUpload
+
+HEAD /{bucket}/multipart
+expect 200
+  header Content-Length: 5242881
+  header ETag: {completed}

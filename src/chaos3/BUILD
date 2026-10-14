@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
-load(":defs.bzl", "chaos3_hurl_test")
+load(":defs.bzl", "chaos3_http_test")
 
 FIXTURES = "root//src/chaos3/tests/fixtures:fixtures"
 
-# One Hurl scenario per entry, with the settings its server needs. Each
+# One barf scenario per entry, with the settings its server needs. Each
 # scenario mutates its server, so each gets a private resource target. defs.bzl
-# explains why a shared one would not isolate them. Only scenarios that send
-# `file,` bodies depend on the generated fixtures.
+# explains why a shared one would not isolate them. Only scenarios that use
+# `body-file` depend on the generated fixtures.
 HTTP_CASES = {
     "buckets": {},
     "checksums": {},
@@ -97,9 +97,9 @@ depot.filecheck.lit(
 )
 
 [
-    chaos3_hurl_test(
-        name = "hurl-{}".format(case),
-        src = "tests/hurl/{}.hurl".format(case),
+    chaos3_http_test(
+        name = "http-{}".format(case),
+        src = "tests/http/{}.barf".format(case),
         **settings
     )
     for case, settings in HTTP_CASES.items()
@@ -107,5 +107,5 @@ depot.filecheck.lit(
 
 depot.test_suite(
     name = "http-tests",
-    tests = [":hurl-{}".format(case) for case in HTTP_CASES],
+    tests = [":http-{}".format(case) for case in HTTP_CASES],
 )

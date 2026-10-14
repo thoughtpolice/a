@@ -439,7 +439,7 @@ async fn completed_multipart_etag_uses_the_aws_md5_of_md5s_formula() {
         .pop()
         .unwrap();
     // MD5(MD5(5 MiB of 'a') || MD5('z')) with the part count appended, computed
-    // outside this crate and shared with tests/hurl/multipart.hurl.
+    // outside this crate and shared with tests/http/multipart.barf.
     assert_eq!(final_etag, "\"8563290c5210e22ffe276e2320dc9d21-2\"");
 
     // GET and HEAD echo the same ETag the completion returned.

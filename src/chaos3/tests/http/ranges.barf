@@ -1,0 +1,91 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+# Inclusive, open-ended, suffix, clamped, and unsatisfiable byte ranges. An
+# unsuccessful range cannot damage the object; empty objects are still valid.
+
+PUT /{bucket}/range
+  body 0123456789
+expect 200
+
+GET /{bucket}/range
+  header Range: bytes=0-0
+expect 206
+  header Content-Range: bytes 0-0/10
+  header Content-Length: 1
+  body 0
+
+GET /{bucket}/range
+  header Range: bytes=3-6
+expect 206
+  header Content-Range: bytes 3-6/10
+  header Content-Length: 4
+  body 3456
+
+GET /{bucket}/range
+  header Range: bytes=7-
+expect 206
+  header Content-Range: bytes 7-9/10
+  body 789
+
+GET /{bucket}/range
+  header Range: bytes=7-999
+expect 206
+  header Content-Range: bytes 7-9/10
+  body 789
+
+GET /{bucket}/range
+  header Range: bytes=-3
+expect 206
+  header Content-Range: bytes 7-9/10
+  body 789
+
+GET /{bucket}/range
+  header Range: bytes=-100
+expect 206
+  header Content-Range: bytes 0-9/10
+  body 0123456789
+
+# Unlike GET, S3 HeadObject returns 200 with the selected range's length.
+# https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html
+HEAD /{bucket}/range
+  header Range: bytes=3-6
+expect 200
+  header Content-Range: bytes 3-6/10
+  header Content-Length: 4
+  body-size 0
+
+GET /{bucket}/range
+  header Range: bytes=10-
+expect 416
+  xml Code = InvalidRange
+
+GET /{bucket}/range
+  header Range: bytes=-0
+expect 416
+  xml Code = InvalidRange
+
+GET /{bucket}/range
+expect 200
+  header Content-Range absent
+  body 0123456789
+
+PUT /{bucket}/empty
+  body-file empty.bin
+expect 200
+  header ETag: "d41d8cd98f00b204e9800998ecf8427e"
+
+GET /{bucket}/empty
+expect 200
+  header Content-Length: 0
+  header ETag: "d41d8cd98f00b204e9800998ecf8427e"
+  body-size 0
+
+GET /{bucket}/empty
+  header Range: bytes=0-
+expect 416
+  xml Code = InvalidRange
+
+HEAD /{bucket}/empty
+  header Range: bytes=-1
+expect 416
+  body-size 0

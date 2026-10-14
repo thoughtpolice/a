@@ -3,7 +3,7 @@
 
 """Generate exact HTTP body fixtures without checking megabyte blobs into source.
 
-The output directory is a Buck artifact passed to Hurl's --file-root option.
+The output directory is a Buck artifact passed to barf's --file-root option.
 large-part.bin meets S3's minimum nonfinal multipart size; the other two files
 exercise arbitrary binary bytes and an empty payload. No network or randomness.
 """

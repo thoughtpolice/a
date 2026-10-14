@@ -2,16 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", "shims")
-load("@root//buck/tools/hurl:defs.bzl", "hurl")
+load("@root//buck/tools/barf:defs.bzl", "barf")
 
-shims.export_file(
-    name = "version-check-source",
-    src = "version.check",
-)
-
-# A strict stand-in executable validates how hurl.test renders its command.
-# The real distribution is independently exercised by ../:version-check and
-# chaos3's HTTP scenarios; these two tests need no server or network access.
+# A strict stand-in executable validates how barf.test renders its command.
+# barf itself is covered by ../:unit and chaos3's HTTP scenarios; these two
+# tests need no server or network access.
 shims.go_binary(
     name = "check-arguments",
     srcs = ["check_arguments.go"],
@@ -29,21 +24,21 @@ shims.copy_files(
     srcs = {"input.txt": ":generated-input"},
 )
 
-hurl.test(
+barf.test(
     name = "default-arguments",
-    src = "arguments.hurl",
-    _hurl = ":check-arguments",
+    src = "arguments.barf",
+    _barf = ":check-arguments",
 )
 
-hurl.test(
+barf.test(
     name = "custom-arguments",
-    src = "arguments.hurl",
-    _hurl = ":check-arguments",
+    src = "arguments.barf",
+    _barf = ":check-arguments",
     connect_timeout = "1200ms",
     data = ["hidden.txt"],
-    env = {"HURL_RULE_CASE": "custom"},
+    env = {"BARF_RULE_CASE": "custom"},
     file_root = ":fixtures",
-    max_time = "9s",
+    request_timeout = "9s",
     variables = {
         "fixture": "$(location :generated-input)",
         "value": "spaces and an = sign",

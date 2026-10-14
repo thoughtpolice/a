@@ -68,12 +68,12 @@ $ buck2 test root//src/chaos3/...
 
 The suite has complementary layers:
 
-- [Hurl scenarios](tests/hurl/) describe the public HTTP contract: bucket and
+- [barf scenarios](tests/http/) describe the public HTTP contract: bucket and
   object lifecycle, binary bodies and metadata, range boundaries, conditional
   reads and writes, pagination, copy and batch deletion, multipart validation
   and recovery, checksums, signatures, and intentionally unsupported APIs.
-  Hurl performs its own HTTP, header, body, and XML assertions; no custom XML
-  assertion helpers or hand-written request signing are needed in these cases.
+  [barf](../../buck/tools/barf/README.md) checks status, headers, bodies, and
+  XML elements and signs requests itself, so the scenarios need no helpers.
 - [FileCheck CLI tests](tests/cli.test) check exact help text, argument errors,
   output streams, and exit codes using the repository's `filecheck.lit` runner.
 - The [Rust HTTP-adapter tests](tests/memory_test.rs) drive `s3s::S3Service`
@@ -93,11 +93,11 @@ Run just the HTTP contracts or one scenario with:
 
 ```console
 $ buck2 test root//src/chaos3:http-tests
-$ buck2 test root//src/chaos3:hurl-multipart
+$ buck2 test root//src/chaos3:http-multipart
 $ buck2 test root//src/chaos3:cli-output-test
 ```
 
-Each Hurl target gets its own Buck `LocalResourceInfo` fixture: the real chaos3
+Each scenario target gets its own Buck `LocalResourceInfo` fixture: the real chaos3
 binary on a fresh ephemeral loopback port, with the scenario's bucket created.
 Buck injects the endpoint and credentials and terminates the server after the
 test; no manually running chaos3 is needed. One resource target per scenario
@@ -105,24 +105,24 @@ keeps whole-bucket listings and mutable state isolated when tests run in
 parallel. Requests have timeouts, retries are disabled, and HTTP test results
 are not cached.
 
-Buck downloads the checksum-pinned [Hurl tool](../../../buck/tools/hurl/README.md).
-Its upstream binaries require host libraries as documented there. Binary fixtures,
-including a 5 MiB multipart part, are generated deterministically by
-[`tests/fixtures:fixtures`](tests/fixtures/BUILD), not checked into source control.
+barf is a pure Go tool built from source, with no host library requirements.
+Binary fixtures, including a 5 MiB multipart part, are generated
+deterministically by [`tests/fixtures:fixtures`](tests/fixtures/BUILD), not
+checked into source control.
 The tests require no AWS account, external service, or additional Python packages.
 
 ## Reusable Buck resource
 
 Other integration tests can use the rules in [`defs.bzl`](defs.bzl).
-`chaos3_hurl_test` pairs one Hurl scenario with a private server, and
+`chaos3_http_test` pairs one barf scenario with a private server, and
 `chaos3_local_resource` declares a server for any other kind of test:
 
 ```python
-load("@root//src/chaos3:defs.bzl", "chaos3_hurl_test", "chaos3_local_resource")
+load("@root//src/chaos3:defs.bzl", "chaos3_http_test", "chaos3_local_resource")
 
-chaos3_hurl_test(
+chaos3_http_test(
     name = "http-test",
-    src = "http.hurl",
+    src = "http.barf",
     bucket = "my-test",
 )
 
@@ -132,8 +132,10 @@ chaos3_local_resource(
 )
 ```
 
-In the Hurl file, use `{{endpoint}}` and `{{bucket}}`; signing credentials are
-available as `{{access_key_id}}`, `{{secret_access_key}}`, and `{{region}}`.
+In the barf script, targets starting with `/` are relative to the server, and
+`{bucket}` names its bucket; a `sign` line signs a request with the server's
+credentials, also available as `{access_key_id}`, `{secret_access_key}`, and
+`{region}`.
 Tests that name a `chaos3_local_resource` in `local_resources` receive
 `CHAOS3_ENDPOINT`, `S3_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 `AWS_REGION`, and `CHAOS3_LOG`. The last points to a temporary server log
@@ -378,7 +380,7 @@ subsequent visits.
 
 ### Configured Buck fixtures
 
-Both `chaos3_local_resource` and `chaos3_hurl_test` accept fault settings:
+Both `chaos3_local_resource` and `chaos3_http_test` accept fault settings:
 
 ```python
 chaos3_local_resource(
@@ -388,9 +390,9 @@ chaos3_local_resource(
     fault_seed = 42,
 )
 
-chaos3_hurl_test(
+chaos3_http_test(
     name = "s3-stress-test",
-    src = "stress.hurl",
+    src = "stress.barf",
     chaos = "storage-v1",
     chaos_requests = 200,
     fault_seed = 42,
@@ -405,7 +407,7 @@ pipe that chaos3 writes after binding, so readiness makes no S3 request and
 consumes no failure budget. The seed and server diagnostics are available
 through `CHAOS3_LOG`.
 
-The [fault HTTP scenario](tests/hurl/faults.hurl) demonstrates a committed PUT
+The [fault HTTP scenario](tests/http/faults.barf) demonstrates a committed PUT
 with an error response, two retryable GET errors followed by success, and a
 committed DELETE with an error response.
 

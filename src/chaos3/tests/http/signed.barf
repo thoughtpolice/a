@@ -1,0 +1,93 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+# barf signs real requests with AWS SigV4. chaos3 intentionally accepts
+# anonymous traffic, but supplied credentials must verify. Both wrong-key and
+# wrong-secret failures must leave existing bytes intact and absent keys absent.
+
+PUT /{bucket}/signed%20%2B%20key
+  header If-None-Match: *
+  header x-amz-meta-purpose: signed transport
+  sign
+  body signed payload
+expect 200
+  capture etag = header ETag
+
+GET /{bucket}/signed%20%2B%20key
+  header If-Match: {etag}
+  header Range: bytes=0-5
+  sign
+expect 206
+  header Content-Range: bytes 0-5/14
+  header x-amz-meta-purpose: signed transport
+  body signed
+
+GET /{bucket}
+  sign
+  query list-type: 2
+  query prefix: signed +
+  query encoding-type: url
+expect 200
+  xml Key = signed%20%2B%20key
+  xml KeyCount = 1
+
+PUT /{bucket}/signed%20%2B%20key
+  sign access_key_id=wrong
+  body wrong
+expect 403
+  xml Code = NotSignedUp
+
+PUT /{bucket}/signed%20%2B%20key
+  sign secret_access_key=wrong
+  body wrong
+expect 403
+  xml Code = SignatureDoesNotMatch
+
+GET /{bucket}/signed%20%2B%20key
+  sign
+expect 200
+  header ETag: {etag}
+  body signed payload
+
+PUT /{bucket}/absent
+  sign secret_access_key=wrong
+  body wrong
+expect 403
+  xml Code = SignatureDoesNotMatch
+
+HEAD /{bucket}/absent
+  sign
+expect 404
+
+# Multipart captures are also valid inputs to later signed requests.
+POST /{bucket}/multipart?uploads
+  sign
+expect 200
+  capture upload = xml UploadId
+
+PUT /{bucket}/multipart?uploadId={upload}&partNumber=1
+  sign
+  body signed part
+expect 200
+  capture part = header ETag
+
+POST /{bucket}/multipart?uploadId={upload}
+  sign
+  body <CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>{part}</ETag></Part></CompleteMultipartUpload>
+expect 200
+
+GET /{bucket}/multipart
+  sign
+expect 200
+  body signed part
+
+POST /{bucket}?delete
+  header Content-Type: application/xml
+  sign
+  body <Delete><Object><Key>signed + key</Key></Object><Object><Key>multipart</Key></Object></Delete>
+expect 200
+  xml Deleted count 2
+
+GET /{bucket}?list-type=2
+  sign
+expect 200
+  xml KeyCount = 0

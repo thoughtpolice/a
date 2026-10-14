@@ -1,0 +1,100 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+# Server-side copies preserve bytes and optionally replace metadata. Failed
+# copies preserve their destination; batch delete understands XML-escaped keys
+# and reports missing keys as deleted unless Quiet suppresses success entries.
+
+PUT /{bucket}/source%26key
+  header Content-Type: text/plain
+  header x-amz-meta-team: orchestra
+  body payload
+expect 200
+  capture etag = header ETag
+
+PUT /backup
+expect 200
+
+PUT /backup/copy
+  header x-amz-copy-source: /{bucket}/source%26key
+  header x-amz-copy-source-if-match: {etag}
+expect 200
+  xml ETag = {etag}
+  xml LastModified present
+
+GET /backup/copy
+expect 200
+  header ETag: {etag}
+  header Content-Type: text/plain
+  header x-amz-meta-team: orchestra
+  body payload
+
+PUT /backup/copy
+  header x-amz-copy-source: /{bucket}/source%26key
+  header x-amz-metadata-directive: REPLACE
+  header Content-Type: application/octet-stream
+  header x-amz-meta-purpose: replaced
+expect 200
+
+HEAD /backup/copy
+expect 200
+  header ETag: {etag}
+  header Content-Type: application/octet-stream
+  header x-amz-meta-purpose: replaced
+  header x-amz-meta-team absent
+
+PUT /backup/copy
+  header x-amz-copy-source: /{bucket}/source%26key
+  header x-amz-copy-source-if-match: "wrong"
+expect 412
+  xml Code = PreconditionFailed
+
+PUT /backup/copy
+  header x-amz-copy-source: /{bucket}/missing
+expect 404
+  xml Code = NoSuchKey
+
+GET /backup/copy
+expect 200
+  header x-amz-meta-purpose: replaced
+  body payload
+
+PUT /{bucket}/source%26key
+  header x-amz-copy-source: /{bucket}/source%26key
+expect 400
+  xml Code = InvalidRequest
+
+PUT /{bucket}/keep
+  body preserved
+expect 200
+
+POST /{bucket}?delete
+  header Content-Type: application/xml
+  body <Delete><Object><Key>source&amp;key</Key></Object><Object><Key>missing</Key></Object></Delete>
+expect 200
+  xml Deleted count 2
+  xml Key[1] = source&key
+  xml Key[2] = missing
+  xml Error absent
+
+HEAD /{bucket}/source%26key
+expect 404
+
+GET /{bucket}/keep
+expect 200
+  body preserved
+
+POST /{bucket}?delete
+  header Content-Type: application/xml
+  body <Delete><Quiet>true</Quiet><Object><Key>keep</Key></Object><Object><Key>missing</Key></Object></Delete>
+expect 200
+  xml Deleted absent
+  xml Error absent
+
+GET /{bucket}?list-type=2
+expect 200
+  xml KeyCount = 0
+
+# Deleting the source bucket's objects does not touch the cross-bucket copy.
+GET /backup/copy
+expect 200
+  body payload

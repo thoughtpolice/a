@@ -4,7 +4,7 @@
 // The resource helper's tests exercise its real subprocess, pipe, and JSON
 // boundaries. A fixture child announces readiness without opening sockets, so
 // these tests remain usable in Buck's network-restricted unit-test sandbox.
-// Hurl and Orchestra integration tests separately exercise the actual chaos3
+// barf and Orchestra integration tests separately exercise the actual chaos3
 // listener.
 package main
 

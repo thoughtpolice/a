@@ -1,0 +1,108 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+# Compare-and-swap writes/deletes, date round trips, and HTTP precondition
+# precedence. Every rejected mutation must preserve the previously stored bytes.
+
+PUT /{bucket}/cas
+  header If-Match: *
+  body wrong
+expect 404
+  xml Code = NoSuchKey
+
+PUT /{bucket}/cas
+  header If-None-Match: *
+  body original
+expect 200
+  capture original = header ETag
+
+PUT /{bucket}/cas
+  header If-None-Match: *
+  body wrong
+expect 412
+  xml Code = PreconditionFailed
+
+PUT /{bucket}/cas
+  header If-Match: "stale"
+  body wrong
+expect 412
+  xml Code = PreconditionFailed
+
+GET /{bucket}/cas
+expect 200
+  header ETag: {original}
+  capture modified = header Last-Modified
+  body original
+
+GET /{bucket}/cas
+  header If-Modified-Since: {modified}
+expect 304
+  body-size 0
+
+HEAD /{bucket}/cas
+  header If-Unmodified-Since: {modified}
+expect 200
+  header ETag: {original}
+
+GET /{bucket}/cas
+  header If-Unmodified-Since: Sat, 01 Jan 2000 00:00:00 GMT
+expect 412
+  xml Code = PreconditionFailed
+
+# A successful If-Match takes precedence over the stale date.
+GET /{bucket}/cas
+  header If-Match: {original}
+  header If-Unmodified-Since: Sat, 01 Jan 2000 00:00:00 GMT
+expect 200
+  body original
+
+# If-None-Match takes precedence over If-Modified-Since in either direction.
+GET /{bucket}/cas
+  header If-None-Match: "stale"
+  header If-Modified-Since: Fri, 01 Jan 2100 00:00:00 GMT
+expect 200
+  body original
+
+GET /{bucket}/cas
+  header If-None-Match: {original}
+  header If-Modified-Since: Sat, 01 Jan 2000 00:00:00 GMT
+  header Range: bytes=999-
+expect 304
+
+GET /{bucket}/cas
+  header If-Match: "stale"
+  header Range: bytes=999-
+expect 412
+  xml Code = PreconditionFailed
+
+PUT /{bucket}/cas
+  header If-Match: {original}
+  body updated
+expect 200
+  capture updated = header ETag
+  header ETag != {original}
+
+DELETE /{bucket}/cas
+  header If-Match: {original}
+expect 412
+  xml Code = PreconditionFailed
+
+GET /{bucket}/cas
+expect 200
+  header ETag: {updated}
+  body updated
+
+DELETE /{bucket}/cas
+  header If-Match: {updated}
+expect 204
+
+DELETE /{bucket}/cas
+expect 204
+
+DELETE /{bucket}/cas
+  header If-Match: {updated}
+expect 404
+  xml Code = NoSuchKey
+
+GET /{bucket}/cas
+expect 404
+  xml Code = NoSuchKey

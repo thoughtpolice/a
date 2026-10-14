@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+# Binary bodies and object metadata survive the real HTTP transport. Replacing
+# an object replaces its metadata too; absent buckets and keys stay distinct.
+
+PUT /{bucket}/binary
+  header Content-Type: application/octet-stream
+  header Cache-Control: max-age=60
+  header Content-Disposition: attachment; filename=data.bin
+  header Content-Encoding: identity
+  header Content-Language: en
+  header Expires: Fri, 01 Jan 2100 00:00:00 GMT
+  header x-amz-meta-purpose: transport test
+  header x-amz-meta-other: second
+  body-file smallbinary.bin
+expect 200
+  capture etag = header ETag
+
+GET /{bucket}/binary
+expect 200
+  header Content-Type: application/octet-stream
+  header Content-Length: 4
+  header Accept-Ranges: bytes
+  header ETag: {etag}
+  header Cache-Control: max-age=60
+  header Content-Disposition: attachment; filename=data.bin
+  header Content-Encoding: identity
+  header Content-Language: en
+  header x-amz-meta-purpose: transport test
+  header x-amz-meta-other: second
+  capture expires = header Expires
+  header Expires present
+  header Last-Modified present
+  body-hex 000102ff
+
+HEAD /{bucket}/binary
+expect 200
+  header Content-Length: 4
+  header Content-Type: application/octet-stream
+  header ETag: {etag}
+  header Expires: {expires}
+  header x-amz-meta-purpose: transport test
+  body-size 0
+
+PUT /{bucket}/binary
+  body replacement
+expect 200
+  header ETag != {etag}
+
+GET /{bucket}/binary
+expect 200
+  header x-amz-meta-purpose absent
+  header x-amz-meta-other absent
+  header Cache-Control absent
+  header Expires absent
+  body replacement
+
+GET /{bucket}/absent
+expect 404
+  xml Code = NoSuchKey
+
+HEAD /{bucket}/absent
+expect 404
+  body-size 0
+
+GET /absent-bucket/key
+expect 404
+  xml Code = NoSuchBucket
+
+PUT /absent-bucket/key
+  body not published
+expect 404
+  xml Code = NoSuchBucket
+
+DELETE /absent-bucket/key
+expect 404
+  xml Code = NoSuchBucket

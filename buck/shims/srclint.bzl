@@ -118,6 +118,7 @@ srclint_test = rule(
 # marks a dict whose keys are. Rules not listed here, such as downloads and
 # images, name no sources of their own.
 _SOURCE_ATTRS = {
+    "barf_test": ["src"],
     "copy_files": ["srcs"],
     "csharp_binary": ["srcs"],
     "csharp_library": ["srcs"],
@@ -137,7 +138,6 @@ _SOURCE_ATTRS = {
     "go_binary": ["srcs"],
     "go_library": ["srcs"],
     "go_test": ["srcs"],
-    "hurl_test": ["src"],
     "lean_binary": ["srcs"],
     "lean_library": ["srcs"],
     "lean_test": ["srcs"],
