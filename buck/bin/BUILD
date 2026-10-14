@@ -25,9 +25,7 @@ FILE_LIST = glob(
         args = [
             "$(location :{})".format(file),
         ],
-        dep = "//buck/tools/check-dotslash-file:{}".format(
-            "check-hashes" if not file.endswith(".exe") else "check-windows-shim",
-        ),
+        dep = "//buck/tools/check-dotslash-file",
     )
     for file in FILE_LIST
 ]

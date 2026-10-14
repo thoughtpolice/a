@@ -3,17 +3,20 @@
 
 load("@root//buck/shims:shims.bzl", "shims")
 
-# Test harnesses for dotslash file verification
-# The actual tests are defined in //buck/bin:dotslash-check
-
-shims.python_binary(
-    name = "check-hashes",
-    main = "hashes.py",
-    visibility = ["PUBLIC"],
+# Checks one file under buck/bin; //buck/bin:tests runs it on each of them.
+shims.go_binary(
+    name = "check-dotslash-file",
+    srcs = glob(
+        ["*.go"],
+        exclude = ["*_test.go"],
+    ),
+    cgo_enabled = False,
+    link_mode = "internal",
+    tests = [":unit"],
 )
 
-shims.python_binary(
-    name = "check-windows-shim",
-    main = "windows-shim.py",
-    visibility = ["PUBLIC"],
+shims.go_test(
+    name = "unit",
+    srcs = glob(["*.go"]),
+    cgo_enabled = False,
 )
