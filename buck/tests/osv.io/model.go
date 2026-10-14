@@ -413,6 +413,15 @@ var wolfiExceptions = []exception{
 		ID:     "CGA-w94f-2g4r-22gc",
 		Reason: "posix-libc-utils-bin-2.44 CVE-2026-97399: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
+	// Chainguard's advisory page lists this cni-plugins stdlib finding
+	// (CVE-2026-78669, GO-2026-6611 in the dhcp plugin) as fixed in 1.9.1-r16,
+	// the pinned build, but OSV's copy has no fixed event yet. Remove this
+	// once the check reports it unused.
+	// https://images.chainguard.dev/security/CGA-8j2h-p468-v3g6
+	{
+		ID:     "CGA-8j2h-p468-v3g6",
+		Reason: "cni-plugins CVE-2026-78669: Chainguard marks it fixed in 1.9.1-r16, the pinned version, but OSV's record lacks the fixed event; accepted until OSV catches up",
+	},
 }
 
 // exceptionSets binds each ecosystem's exception list to the subject kind it
