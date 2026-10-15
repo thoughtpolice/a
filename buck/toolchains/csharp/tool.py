@@ -367,7 +367,10 @@ def cmd_link(args):
             command.append("-fuse-ld=" + args.fuse_ld)
     command += libraries
     if apple:
-        command += ["-L/usr/lib/swift", "-lobjc", "-lswiftCore", "-lswiftFoundation", "-licucore", "-ldl", "-lm"]
+        # The runtime is C++. Elsewhere the pack's libstdc++compat stands in
+        # for the C++ library; on Apple the system's libc++ is it, and the C
+        # compiler driver links with does not add it.
+        command += ["-L/usr/lib/swift", "-lobjc", "-lswiftCore", "-lswiftFoundation", "-licucore", "-lc++", "-ldl", "-lm"]
         for framework in ("CoreFoundation", "CryptoKit", "Foundation", "Network", "Security", "GSS"):
             command += ["-framework", framework]
     else:
