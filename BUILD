@@ -12,6 +12,7 @@ shims.lint_files(
         ".envrc.nix.recommended",
         "buck/ci.buckargs",
         "buck/ci.buckconfig",
+        "check.py",
         "doctor.py",
     ] + glob([
         ".buckconfig.d/*",
