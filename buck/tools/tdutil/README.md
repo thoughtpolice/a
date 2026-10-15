@@ -54,7 +54,13 @@ information. Each target record has this stable shape:
 }
 ```
 
-Roots have depth zero and a null `affected_dep`. `--format json-lines` emits one
+Roots have depth zero and a null `affected_dep`.
+
+A changed path which nothing claims — no target's input, no build, PACKAGE or
+loaded file, no `ci_srcs` glob, no global configuration — selects nothing, and
+tdutil names such paths on stderr. For documentation that is the right answer;
+for a file some test reads without declaring it, it is a gap to close with a
+real input or `ci_srcs`. `--format json-lines` emits one
 such record per target. Run with `--help` for all options.
 
 ## Quick mode

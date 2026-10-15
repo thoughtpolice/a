@@ -288,3 +288,48 @@ func sortedSet(values map[string]struct{}) []string {
 	sort.Strings(result)
 	return result
 }
+
+// unownedPaths lists the changed paths nothing in either graph claims: no
+// target's input, no build, PACKAGE or loaded file, no `ci_srcs` glob, and no
+// global configuration. Each one selects nothing. That is right for a README,
+// and a silent gap for a file some test reads without declaring it, which only
+// a person can tell apart.
+func unownedPaths(base, head *snapshot, changed []string, config tdutilConfig) ([]string, error) {
+	config = config.withDefaults()
+	graph, err := newGraph(base, head, config)
+	if err != nil {
+		return nil, err
+	}
+	patterns, err := compileCIPatterns(graph, config)
+	if err != nil {
+		return nil, err
+	}
+	labels := sortedTargetLabels(graph.targets)
+	changedSet := make(map[string]struct{}, len(changed))
+	for _, changedPath := range changed {
+		changedSet[strings.ReplaceAll(changedPath, "\\", "/")] = struct{}{}
+	}
+	var result []string
+	for _, changedPath := range sortedSet(changedSet) {
+		if config.isGlobalConfiguration(changedPath) || len(graph.labelsForInput(changedPath)) > 0 {
+			continue
+		}
+		if _, known := graph.fileByPath(changedPath); known {
+			continue
+		}
+		if isPackageFile(pathBase(changedPath)) || config.buildFiles.isBuildFile(changedPath) {
+			continue
+		}
+		claimed := false
+		for _, label := range labels {
+			if patterns[label].srcs.matches(changedPath) {
+				claimed = true
+				break
+			}
+		}
+		if !claimed {
+			result = append(result, changedPath)
+		}
+	}
+	return result, nil
+}

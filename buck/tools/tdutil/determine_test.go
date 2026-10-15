@@ -364,3 +364,29 @@ func TestChangeOutsideTheSelectionReachesSelectedDependents(t *testing.T) {
 		t.Errorf("affected dep = %v", dep)
 	}
 }
+
+func TestUnownedPathsAreThoseNothingClaims(t *testing.T) {
+	lib := determineTestTarget("root//lib", "lib", "h", nil, []string{"lib/lib.rs"})
+	lint := determineTestTarget("root//lint", "lint", "h", nil, nil)
+	lint.ciSrcs = []string{"tools/**"}
+	base := determineTestSnapshot(t, lib, lint)
+	head := base
+	config := defaultTdutilConfig()
+	config.globalConfigPaths = []string{"buck/mode"}
+	config.buildFiles = buildFileMatcher{cells: []cellBuildFiles{{root: "", names: []string{"BUILD"}}}}
+	got, err := unownedPaths(&base, &head, []string{
+		"README.md",
+		"buck/mode/debug",
+		"docs/notes.md",
+		"lib/BUILD",
+		"lib/lib.rs",
+		"pkg/PACKAGE",
+		"tools/check.sh",
+	}, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"README.md", "docs/notes.md"}; !slices.Equal(got, want) {
+		t.Errorf("unowned = %v, want %v", got, want)
+	}
+}

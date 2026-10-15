@@ -188,6 +188,9 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 			if err != nil {
 				return err
 			}
+			if err := noteUnownedPaths(stderr, &quickSnapshot, &quickSnapshot, changed, config); err != nil {
+				return err
+			}
 		} else {
 			baseDocument := obtainBaseDocument(ctx, app.runner, &args, cache, jj.repository, revisions.base, config, stderr)
 
@@ -314,6 +317,9 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					changed,
 					determineOptions{depth: args.depth, config: config},
 				)
+				if analysisErr == nil {
+					analysisErr = noteUnownedPaths(stderr, &baseSnapshot, &headSnapshot, changed, config)
+				}
 			}
 			affected, err = finishWorkspacePair(
 				cleanupContext,
@@ -617,4 +623,26 @@ func warnIgnoredCellDependents(stderr io.Writer, collected *snapshot, config tdu
 			return
 		}
 	}
+}
+
+// noteUnownedPaths names the changed paths which selected nothing because
+// nothing claims them, so that one a test reads without declaring it is seen
+// rather than silently left untested.
+func noteUnownedPaths(stderr io.Writer, base, head *snapshot, changed []string, config tdutilConfig) error {
+	unowned, err := unownedPaths(base, head, changed, config)
+	if err != nil || len(unowned) == 0 {
+		return err
+	}
+	const shown = 5
+	listed := strings.Join(unowned[:min(len(unowned), shown)], ", ")
+	if len(unowned) > shown {
+		listed += fmt.Sprintf(", and %d more", len(unowned)-shown)
+	}
+	_, _ = fmt.Fprintf(
+		stderr,
+		"tdutil: note: %d changed path(s) belong to no target and select nothing: %s\n",
+		len(unowned),
+		listed,
+	)
+	return nil
 }
