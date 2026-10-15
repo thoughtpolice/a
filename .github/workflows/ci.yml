@@ -70,8 +70,10 @@ jobs:
       - name: (Linux) Install packages
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update && sudo apt-get install -y mold
           cargo install bindgen-cli --version 0.72.1 --locked
+      - name: (Linux) Install mold
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/install-mold
       - name: (macOS) Install packages
         if: runner.os == 'macOS'
         run: |

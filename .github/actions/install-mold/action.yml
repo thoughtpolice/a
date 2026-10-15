@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+name: Install mold
+description: Install a pinned mold release, the linker the C++ toolchain uses on Linux
+runs:
+  using: "composite"
+  steps:
+    # The C++ toolchain links with -fuse-ld=mold on Linux. Ubuntu 24.04's
+    # mold is 2.30, which leaves an archive's weak definitions unused where a
+    # shared library also defines the symbol: Lean's runtime, built against a
+    # static libc++, then links with operator delete unresolved. Use the
+    # release the dev shell has instead, checked against its digest.
+    - name: Install mold
+      shell: bash
+      run: | # zizmor: ignore[github-env]
+        VERSION=2.42.1
+        case "$(uname -m)" in
+          x86_64) ARCH=x86_64 SHA256=6ff270c9bf07d2bec5c98aa324eb7c4daf6a1a4d815c05ff1708049616047855 ;;
+          aarch64) ARCH=aarch64 SHA256=16b025652d3d7456689e6025a77e1903bb2a15e7630877c26cc133f5df95b9c6 ;;
+          *) echo "::error::no mold release for $(uname -m)"; exit 1 ;;
+        esac
+
+        NAME="mold-$VERSION-$ARCH-linux"
+        curl -fsSL --retry 5 -o "$RUNNER_TEMP/$NAME.tar.gz" \
+          "https://github.com/rui314/mold/releases/download/v$VERSION/$NAME.tar.gz"
+        echo "$SHA256  $RUNNER_TEMP/$NAME.tar.gz" | sha256sum --check --strict
+        tar -xzf "$RUNNER_TEMP/$NAME.tar.gz" -C "$RUNNER_TEMP"
+        rm "$RUNNER_TEMP/$NAME.tar.gz"
+
+        echo "$RUNNER_TEMP/$NAME/bin" >> "$GITHUB_PATH"
+        "$RUNNER_TEMP/$NAME/bin/mold" --version
