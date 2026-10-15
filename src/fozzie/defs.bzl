@@ -168,7 +168,12 @@ _fozzie_fuzz_binary = rule(
 )
 
 def _compatibility(binary_kwargs: dict):
-    compatible_with = binary_kwargs.pop("target_compatible_with", [])
+    # What the shims would apply: the target's own requirements, else its
+    # package's (see pkg.info), to which the host's are added.
+    compatible_with = binary_kwargs.pop(
+        "target_compatible_with",
+        read_package_value("meta.target_compatible_with"),
+    )
     if compatible_with == None:
         compatible_with = []
     host = host_info()
