@@ -225,6 +225,15 @@ def cmd_toolchain(args):
     libdir = os.path.join(run(["lean", "--print-prefix"], capture_output=True, text=True, check=True).stdout.strip(), "lib", "lean")
     ldflags = [flag for flag in ldflags if not defines_main(libdir, flag)]
 
+    # A release build of Lean, as CI installs, keeps the libc++, gmp, libuv
+    # and OpenSSL its runtime links against in its own lib directory, not the
+    # system's, and leanc names that directory only when it drives its own
+    # clang. Name it for the C++ toolchain's linker too. Nix's Lean takes them
+    # from the system, and has none there.
+    bundled = os.path.dirname(libdir)
+    if os.path.exists(os.path.join(bundled, "libc++.a")):
+        ldflags = ["-L", bundled] + ldflags
+
     # The Nix ld wrapper adds a runpath for -L directories but not for shared
     # objects named by absolute path (gmp, openssl). lld, which the fozzie
     # configurations link with, bypasses the wrapper altogether and adds none,
