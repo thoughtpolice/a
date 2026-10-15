@@ -822,7 +822,12 @@ def lean_library(
     cxx_library(
         name = name + "--native",
         srcs = c_srcs,
-        deps = [RUNTIME] + deps,
+        deps = deps,
+        # C and C++ which call into the library include lean.h, and link with
+        # the runtime its code needs, so both are part of its interface. In the
+        # Nix shell the compiler wrapper adds Lean's include directory to every
+        # compile, which hides a consumer this would otherwise leave without.
+        exported_deps = [RUNTIME],
         compiler_flags = LEAN_C_COMPILE_FLAGS + compiler_flags,
         # Lean's own runtime and standard library are static archives built
         # without -fPIC, so nothing linking them can be a shared object.
