@@ -33,6 +33,9 @@ Usage:
 With no arguments, compares the fork point of trunk() and @ to @ over the whole
 of the repository's root cell. If the first positional argument contains ` + "`//`" + `,
 all positional arguments are target patterns and the default revisions are used.
+The universe is what is reported: the graph is collected over every cell in the
+repository, less any [tdutil] ignore_cells, so that a change to a dependency
+outside the universe still reaches the targets inside it.
 
 Options:
       --from REV              Base JJ revset (default: ` + defaultBaseRevset + `)

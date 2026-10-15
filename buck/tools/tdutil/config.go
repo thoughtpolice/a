@@ -9,6 +9,8 @@ import (
 	"encoding/hex"
 	"encoding/json/v2"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -52,6 +54,15 @@ type tdutilConfig struct {
 	ciHintRule        string
 	skipUpstreamLabel string
 	buildFiles        buildFileMatcher
+	// ignoredCells are internal cells left out of the collected graph, named
+	// by `ignore_cells`: archived code nothing depends on, whose breakage would
+	// otherwise fail every run.
+	ignoredCells []string
+	// collectCells are the cells whose whole graph is collected whatever the
+	// universe: every cell rooted inside the repository and present on disk,
+	// less the ignored ones. A universe target can depend on any of them, and
+	// a change there is invisible unless its targets are in the graph.
+	collectCells []string
 }
 
 // defaultTdutilConfig is what an unconfigured repository gets, and what tests
@@ -159,6 +170,7 @@ func (config tdutilConfig) digest() string {
 	writeFramedField(hash, "ci-deps", config.ciDepsAttribute)
 	writeFramedField(hash, "ci-hint-rule", config.ciHintRule)
 	writeFramedField(hash, "skip-upstream-label", config.skipUpstreamLabel)
+	writeFramedList(hash, "ignored-cells", config.ignoredCells)
 	writeFramedField(hash, "build-files", "")
 	for _, cell := range config.buildFiles.cells {
 		writeFramedField(hash, "cell-root", cell.root)
@@ -214,7 +226,32 @@ func loadTdutilConfig(
 	if err != nil {
 		return tdutilConfig{}, err
 	}
-	return newTdutilConfig(cells, audited)
+	config, err := newTdutilConfig(cells, audited)
+	if err != nil {
+		return tdutilConfig{}, err
+	}
+	config.collectCells = collectableCells(repository, cells, config.ignoredCells)
+	return config, nil
+}
+
+// collectableCells names the internal cells whose graph is collected. A cell
+// whose root is not on disk has nothing to collect: buck2 lists a bundled
+// prelude as rooted inside the repository, and a placeholder cell may name a
+// directory that does not exist.
+func collectableCells(repository string, cells cellMap, ignored []string) []string {
+	result := make([]string, 0, len(cells.cells))
+	for cell, root := range cells.cells {
+		if slices.Contains(ignored, cell) {
+			continue
+		}
+		info, err := os.Stat(filepath.Join(repository, filepath.FromSlash(root)))
+		if err != nil || !info.IsDir() {
+			continue
+		}
+		result = append(result, cell)
+	}
+	slices.Sort(result)
+	return result
 }
 
 // parseAuditedConfig turns `buck2 audit config --all-cells --json` output into
@@ -265,6 +302,14 @@ func newTdutilConfig(cells cellMap, audited map[string]map[string]string) (tduti
 	config.ciDepsAttribute = configString(section, "tdutil.ci_deps_attribute", defaultCiDepsAttribute)
 	config.ciHintRule = configString(section, "tdutil.ci_hint_rule", defaultCiHintRule)
 	config.skipUpstreamLabel = configString(section, "tdutil.skip_upstream_label", defaultSkipUpstreamLabel)
+	for _, cell := range configList(section, "tdutil.ignore_cells") {
+		if _, ok := cells.cells[cell]; !ok {
+			return tdutilConfig{}, fmt.Errorf("`tdutil.ignore_cells` names `%s`, which is not a cell inside the repository", cell)
+		}
+		config.ignoredCells = append(config.ignoredCells, cell)
+	}
+	slices.Sort(config.ignoredCells)
+	config.ignoredCells = slices.Compact(config.ignoredCells)
 
 	for _, name := range []struct{ key, value string }{
 		{"tdutil.ci_srcs_attribute", config.ciSrcsAttribute},

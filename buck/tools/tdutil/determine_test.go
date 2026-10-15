@@ -342,3 +342,25 @@ func TestInvalidCIGlobFailsClosedWithContext(t *testing.T) {
 		t.Fatalf("invalid glob error = %v", err)
 	}
 }
+
+// A dependency outside the selection, such as a toolchain, is still in the
+// collected graph: a change to it reaches the selected targets that use it,
+// which are reported with it as the reason, while it is not.
+func TestChangeOutsideTheSelectionReachesSelectedDependents(t *testing.T) {
+	toolchainOld := determineTestTarget("root//toolchains", "go", "old", nil, nil)
+	toolchainNew := determineTestTarget("root//toolchains", "go", "new", nil, nil)
+	app := determineTestTarget("root//app", "app", "same", []string{"root//toolchains:go"}, nil)
+	base := determineTestSnapshot(t, toolchainOld, app)
+	head := determineTestSnapshot(t, toolchainNew, app)
+	result, err := determine(&base, &head, []string{"toolchains/BUILD"}, determineOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reported := withinUniverse(result, []string{"root//app/..."})
+	if !slices.Equal(affectedLabels(reported), []string{"root//app:app"}) {
+		t.Fatalf("reported = %#v", reported)
+	}
+	if dep := reported[0].affectedDep; dep == nil || *dep != "root//toolchains:go" {
+		t.Errorf("affected dep = %v", dep)
+	}
+}

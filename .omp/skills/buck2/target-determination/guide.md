@@ -30,7 +30,10 @@ multiple parents; choose one explicitly. Use `jj log -r 'REVSET'` and
 `trunk()` is not the fork point when trunk has advanced since branching.
 
 Use repeatable `--universe PATTERN` or positional target patterns to limit
-coverage. `depot//src/...` excludes build tooling and quality tests under
+coverage. The universe only limits what is reported: the graph is collected over
+every repository cell (less `[tdutil] ignore_cells`), so changes to toolchains,
+third-party code and other cells still reach the universe targets using them.
+`depot//src/...` excludes build tooling and quality tests under
 `depot//buck/tests/...`; it is not a full-repository validation universe. Choose
 coverage that includes downstream consumers, not just the changed package.
 

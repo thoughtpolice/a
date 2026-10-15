@@ -4,6 +4,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -200,6 +202,7 @@ func TestConfigDigestCoversEveryResolvedValue(t *testing.T) {
 		"ci_deps":         func(c *tdutilConfig) { c.ciDepsAttribute = "other" },
 		"ci_hint":         func(c *tdutilConfig) { c.ciHintRule = "other" },
 		"skip label":      func(c *tdutilConfig) { c.skipUpstreamLabel = "other" },
+		"ignored cells":   func(c *tdutilConfig) { c.ignoredCells = []string{"archive"} },
 		"build file name": func(c *tdutilConfig) { c.buildFiles.cells[0].names = []string{"BUCK"} },
 		"cell root": func(c *tdutilConfig) {
 			c.buildFiles.cells = []cellBuildFiles{{root: "sub", names: []string{"BUILD"}}}
@@ -226,5 +229,46 @@ func TestNormalizeConfigPathsIsOrderAndSpellingIndependent(t *testing.T) {
 	}
 	if !slices.Equal(first, []string{"buck/mode", "ci/modes"}) {
 		t.Fatalf("normalized = %v", first)
+	}
+}
+
+func TestIgnoreCellsNamesInternalCellsOnce(t *testing.T) {
+	cells := assembleCellMap(map[string]string{"root": "", "archive": "archive"}, map[string]string{"prelude": "/elsewhere"})
+	config, err := newTdutilConfig(cells, testAuditedConfig(t, `{"root//tdutil.ignore_cells":"archive, archive"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(config.ignoredCells, []string{"archive"}) {
+		t.Errorf("ignored cells = %v", config.ignoredCells)
+	}
+	// A misspelt or external cell would leave the cell it meant collected, or
+	// ignore one that is never collected anyway: either way it is a mistake.
+	for _, bad := range []string{"archiv", "prelude"} {
+		raw := `{"root//tdutil.ignore_cells":"` + bad + `"}`
+		if _, err := newTdutilConfig(cells, testAuditedConfig(t, raw)); err == nil {
+			t.Errorf("accepted ignore_cells = %s", bad)
+		}
+	}
+}
+
+func TestCollectableCellsAreTheInternalCellsOnDisk(t *testing.T) {
+	repository := t.TempDir()
+	for _, dir := range []string{"third-party", "archive"} {
+		if err := os.Mkdir(filepath.Join(repository, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cells := assembleCellMap(
+		map[string]string{
+			"root":        "",
+			"third-party": "third-party",
+			"archive":     "archive",
+			"bundled":     "prelude",
+		},
+		map[string]string{"external": "/elsewhere"},
+	)
+	got := collectableCells(repository, cells, []string{"archive"})
+	if want := []string{"root", "third-party"}; !slices.Equal(got, want) {
+		t.Errorf("collectable cells = %v, want %v", got, want)
 	}
 }

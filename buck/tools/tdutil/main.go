@@ -90,6 +90,11 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 		args.universe = normalizeUniverse([]string{config.rootCell + "//..."})
 		logProgress(stderr, &args, "universe defaulted to %s", strings.Join(args.universe, " "))
 	}
+	// From here on args.universe is what is collected, which every cache and
+	// snapshot identity describes; the selection is only what is reported.
+	selection := args.universe
+	args.universe = collectionUniverse(selection, config.collectCells)
+	logProgress(stderr, &args, "collecting %s", strings.Join(args.universe, " "))
 
 	// Opened before anything is collected, so a location that cannot work —
 	// an unknown scheme, absent credentials — stops the run at once instead of
@@ -166,6 +171,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				return err
 			}
 			logProgress(stderr, &args, "parsed %d working-copy targets", len(quickSnapshot.targets))
+			warnIgnoredCellDependents(stderr, &quickSnapshot, config)
 			// Quick mode plans both endpoints against the same tree, so a
 			// pattern either has evidence and is queried or fails the run.
 			decline := snapshotDecline(&args, "head", true, true)
@@ -276,6 +282,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					len(baseSnapshot.targets),
 					len(headSnapshot.targets),
 				)
+				warnIgnoredCellDependents(stderr, &headSnapshot, config)
 				headDecline := snapshotDecline(&args, "head", plan.headCoversEveryPattern(), headInPlace)
 				if args.snapshotHeadTo != nil {
 					captureHeadSnapshot(
@@ -323,13 +330,14 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 		}
 	}
 
+	affected = withinUniverse(affected, selection)
 	logProgress(stderr, &args, "%d affected target(s)", len(affected))
 	meta := metadata{
 		baseRevset: args.base,
 		headRevset: args.head,
 		baseCommit: revisions.base,
 		headCommit: revisions.head,
-		universe:   args.universe,
+		universe:   selection,
 	}
 	if args.output == nil {
 		return render(stdout, args.format, &meta, affected)
@@ -587,4 +595,26 @@ func logProgress(output io.Writer, args *cliArgs, format string, values ...any) 
 		return
 	}
 	_, _ = fmt.Fprintf(output, "tdutil: "+format+"\n", values...)
+}
+
+// warnIgnoredCellDependents says when the collected graph has edges into a cell
+// `ignore_cells` leaves out. Nothing there can select its dependents, so the
+// configuration that left it out has become wrong.
+func warnIgnoredCellDependents(stderr io.Writer, collected *snapshot, config tdutilConfig) {
+	dependents := ignoredCellDependents(collected, config.ignoredCells)
+	if len(dependents) == 0 {
+		return
+	}
+	for _, label := range sortedTargetLabels(collected.targets) {
+		if dep, ok := dependents[label]; ok {
+			_, _ = fmt.Fprintf(
+				stderr,
+				"tdutil: warning: %d target(s) depend on cells that `ignore_cells` leaves out of the graph, such as %s on %s; changes there select nothing\n",
+				len(dependents),
+				label,
+				dep,
+			)
+			return
+		}
+	}
 }

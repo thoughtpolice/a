@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"slices"
 	"strings"
 	"syscall"
 )
@@ -256,4 +257,64 @@ func snapshotHasExact(input *snapshot, packageName, name string) bool {
 		}
 	}
 	return false
+}
+
+// collectionUniverse is what tdutil queries, as opposed to what it reports. A
+// selection is only as complete as the graph its reverse dependencies are
+// walked in: a toolchain, a vendored crate or a library in another cell is a
+// dependency like any other, and a change to it reaches its dependents only
+// if it is in the graph to change. So every collectable cell is queried
+// whole, and a selection pattern survives only for a cell that is not, such
+// as one `ignore_cells` leaves out but the caller asked for anyway.
+func collectionUniverse(selection, collectCells []string) []string {
+	whole := make(map[string]bool, len(collectCells))
+	patterns := make([]string, 0, len(collectCells)+len(selection))
+	for _, cell := range collectCells {
+		whole[cell] = true
+		patterns = append(patterns, cell+"//...")
+	}
+	for _, pattern := range selection {
+		cell, _, _ := strings.Cut(pattern, "//")
+		if !whole[cell] {
+			patterns = append(patterns, pattern)
+		}
+	}
+	return normalizeUniverse(patterns)
+}
+
+// withinUniverse keeps the affected targets the caller asked about. Impact is
+// propagated through the whole collected graph first, so a target outside the
+// selection can still be why one inside it is reported.
+func withinUniverse(affected []affectedTarget, selection []string) []affectedTarget {
+	kept := make([]affectedTarget, 0, len(affected))
+	for _, candidate := range affected {
+		for _, pattern := range selection {
+			if targetPatternMatches(pattern, candidate.target) {
+				kept = append(kept, candidate)
+				break
+			}
+		}
+	}
+	return kept
+}
+
+// ignoredCellDependents finds collected targets which depend on a target in an
+// ignored cell. Those edges lead out of the graph, so a change at their far
+// end selects nothing. Each such target is reported once, with one of the
+// dependencies it was found through.
+func ignoredCellDependents(collected *snapshot, ignored []string) map[string]string {
+	result := make(map[string]string)
+	if len(ignored) == 0 {
+		return result
+	}
+	for _, label := range sortedTargetLabels(collected.targets) {
+		for _, dep := range collected.targets[label].deps {
+			cell, _, _ := strings.Cut(dep, "//")
+			if slices.Contains(ignored, cell) {
+				result[label] = dep
+				break
+			}
+		}
+	}
+	return result
 }

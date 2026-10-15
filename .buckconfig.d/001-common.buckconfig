@@ -128,6 +128,11 @@ global_config_paths = \
     .github/workflows/ci.yml, \
     check.py
 
+# tdutil collects every cell in the repository, since a target can depend on
+# any of them, and reports only the universe it was asked about. The cellar
+# is archived: nothing depends on it, and its breakage shouldn't fail a run.
+ignore_cells = depot-cellar
+
 [build]
 # set the default execution platform for builds on this machine. NOTE: this
 # platform definition is where remote execution (optionally) is enabled via

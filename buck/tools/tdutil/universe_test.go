@@ -200,3 +200,40 @@ func TestExactValidationUsesRepoPathsAcrossCellAliases(t *testing.T) {
 		t.Fatal("missing target validated")
 	}
 }
+
+func TestCollectionQueriesEveryCollectableCellWhole(t *testing.T) {
+	got := collectionUniverse(
+		[]string{"root//src/...", "root//tools:tool", "archive//keep/...", "toolchains//go:go"},
+		[]string{"root", "third-party", "toolchains"},
+	)
+	want := []string{"archive//keep/...", "root//...", "third-party//...", "toolchains//..."}
+	if !slices.Equal(got, want) {
+		t.Errorf("collection universe = %v, want %v", got, want)
+	}
+}
+
+func TestWithinUniverseReportsOnlyTheSelection(t *testing.T) {
+	affected := []affectedTarget{
+		{target: "root//app:app"},
+		{target: "root//src/lib:lib"},
+		{target: "toolchains//:go"},
+	}
+	got := affectedLabels(withinUniverse(affected, []string{"root//src/...", "root//app:app"}))
+	if want := []string{"root//app:app", "root//src/lib:lib"}; !slices.Equal(got, want) {
+		t.Errorf("reported = %v, want %v", got, want)
+	}
+}
+
+func TestIgnoredCellDependentsFindsEdgesOutOfTheGraph(t *testing.T) {
+	collected := determineTestSnapshot(t,
+		determineTestTarget("root//app", "app", "h", []string{"archive//lib:lib", "root//lib:lib"}, nil),
+		determineTestTarget("root//lib", "lib", "h", []string{"toolchains//:cxx"}, nil),
+	)
+	got := ignoredCellDependents(&collected, []string{"archive"})
+	if len(got) != 1 || got["root//app:app"] != "archive//lib:lib" {
+		t.Errorf("dependents = %v", got)
+	}
+	if got := ignoredCellDependents(&collected, nil); len(got) != 0 {
+		t.Errorf("dependents with nothing ignored = %v", got)
+	}
+}

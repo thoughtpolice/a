@@ -272,7 +272,23 @@ ci_srcs_must_match_attribute = ci_srcs_must_match
 ci_deps_attribute = ci_deps
 ci_hint_rule = ci_hint
 skip_upstream_label = ci:dangerously_skip_upstream
+
+# Cells inside the repository to leave out of the collected graph, comma
+# separated. Default: none.
+ignore_cells = depot-cellar
 ```
+
+The graph is always collected over every cell rooted inside the repository
+whose root exists on disk, whatever the universe, and only the universe is
+reported. A target's dependencies can live in any cell — a toolchain, a vendored
+crate, a library in another cell — and a change there reaches its dependents
+only if it is in the graph to change: collected over the universe alone, a Go
+toolchain bump selected one lint target instead of the five hundred Go targets
+that build with it. `ignore_cells` is for archived code nothing depends on,
+whose breakage would otherwise fail every run; tdutil warns when a collected
+target depends on an ignored cell after all. A bundled prelude has no root on
+disk and is never collected, so put the `buck2` launcher in
+`global_config_paths`.
 
 The section is read from the cell rooted at the repository root, which is also
 the cell whose name supplies the default universe: with no `--universe`, tdutil
@@ -303,11 +319,11 @@ is rejected rather than reused.
    in place. `--no-head-in-place` forces materialization anyway.
 3. In parallel, run Buck's cell audit and its streaming target dump with target
    hashes, inputs, dependencies, package records, and Buck-reported import
-   edges. The dump is parsed as it streams rather than accumulated in memory.
+   edges, over every collectable cell rather than only the universe. The dump is parsed as it streams rather than accumulated in memory.
 4. Seed impact from added/removed/hash-changed targets, changed inputs, BUILD
    and inherited PACKAGE files, transitive Buck-reported imports, and CI annotations.
 5. Walk head-graph reverse dependencies (including `ci_deps`) and emit only
-   targets which still exist at the head revision. A `ci_deps` entry is
+   targets which still exist at the head revision and fall in the universe. A `ci_deps` entry is
    `:name`, `//package:name`, `//package:`, or `//package/...`; any other
    shape is refused, as an invalid `ci_srcs` glob is, rather than matching
    nothing.
