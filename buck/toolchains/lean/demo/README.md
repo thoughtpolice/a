@@ -37,7 +37,7 @@ project would.
 | `Main.lean` | the `framelog` program |
 | `Golden.lean` | golden bytes, bit-flip and torn-write checks, and the theorems again, in a test of their own |
 | `client.cpp` | a C++ program writing and scanning logs through the library |
-| `fuzz.cpp` | a fozzie harness for the decoder |
+| `property.cpp` | the decoder's properties, on every small change to a valid log |
 
 ## Proofs
 
@@ -56,11 +56,11 @@ building.
 
 The proofs go the encoder's way: what is written reads back. The other
 way, that any log the decoder accepts is exactly the encoding of its
-records, is `Framelog.canonical`, which the fuzzer checks instead of a
-proof. Planting a decoder that accepts a padded varint, `0x87 0x00` for 7,
-makes `buck2 run toolchains//lean/demo:fuzz` abort within a few seconds
-(about 80,000 inputs). The test's 2,000 runs only catch regressions that
-show up quickly.
+records, is `Framelog.canonical`, which `:property-test` checks instead of
+a proof: on every truncation of `:seed-log`, a log the program itself
+writes, and on every change of one of its bytes to 0x00, 0xff, or itself
+with its low or high bit flipped. It checks too that scanning never claims
+more bytes than it was given.
 
 `:framelog-lib` sets `allow_sorry` false (the default), turns warnings into
 errors and sets `autoImplicit` to false, so a proof cannot quietly go
@@ -81,12 +81,10 @@ leanchecker.
   `scan` in its `#guard`s.
 - **Packages.** `package = "framelog"` names the library's symbols,
   `initialize_framelog_Framelog` and the like, which `client.cpp` and
-  `fuzz.cpp` call.
-- **C++ calling Lean.** `:client` is a plain `cxx_binary` with
-  `:framelog-lib` in its deps, run by `:client-test`.
-- **Fuzzing.** `:fuzz` and `:fuzz-asan` instrument the Lean code along with
-  the harness and link with lld. Their corpus starts from `:seed-log`, a
-  log the program itself writes.
+  `property.cpp` call.
+- **C++ calling Lean.** `:client` and `:property` are plain `cxx_binary`
+  targets with `:framelog-lib` in their deps, run by `:client-test` and
+  `:property-test`.
 - **Editors.** Open any `.lean` file here with the repository's editor
   setup and the server builds its imports through Buck. Find-references on
   `Frame.encode` reaches `Framelog.lean` and `Golden.lean`.
@@ -95,7 +93,6 @@ leanchecker.
 
 ```console
 $ buck2 test toolchains//lean/demo/...
-$ buck2 run toolchains//lean/demo:fuzz          # keeps fuzzing until stopped
 ```
 
 The codec works on `List Nat`, which keeps the proofs in plain arithmetic

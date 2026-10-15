@@ -87,12 +87,12 @@ library directly. `interop.cpp` in `tests/` calls Lean from C++ that way.
 Lean's runtime archives are not position independent, so Lean libraries
 link statically.
 
-Lean code also goes into fozzie fuzz targets, whose generated C is then
-instrumented like any other (`tests/fuzz.cpp`). Those link with lld, outside
-the Nix linker wrapper, so `:runtime` carries a runpath for every shared
-library Lean needs, libstdc++ included. It also leaves out the toolchain
-archives that hold a program's `main` (LeanExport, since 4.35), which
-would otherwise replace the fuzz runtime's weak `main`.
+Lean code can also go into fozzie fuzz targets, whose generated C is then
+instrumented like any other. Those link with lld, outside the Nix linker
+wrapper, so `:runtime` carries a runpath for every shared library Lean
+needs, libstdc++ included. It also leaves out the toolchain archives that
+hold a program's `main` (LeanExport, since 4.35), which would otherwise
+replace the fuzz runtime's weak `main`.
 
 ## Precompiled libraries
 

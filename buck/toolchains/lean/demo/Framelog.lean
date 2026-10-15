@@ -9,7 +9,7 @@ public import Framelog.Frame
 # Framelog
 
 The operations a program needs on a whole log, over `ByteArray`, and the
-same operations exported to C (`framelog_*`) for C++ code and the fuzzer.
+same operations exported to C (`framelog_*`) for C++ code and its tests.
 -/
 
 namespace Framelog
@@ -53,7 +53,7 @@ public def intactBytes (log : ByteArray) : UInt64 :=
   (scan log).2.toUInt64
 
 /-- Whether `log` is either damaged or exactly the encoding of its records.
-`Frame.replay` proves the converse direction; the fuzzer checks this one,
+`Frame.replay` proves the converse direction; property.cpp checks this one,
 which says the format has one encoding per log. -/
 @[export framelog_canonical]
 public def canonical (log : ByteArray) : Bool :=

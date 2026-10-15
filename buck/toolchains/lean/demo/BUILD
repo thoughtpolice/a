@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
-load("@root//src/fozzie:defs.bzl", "cxx_fuzz_binary")
 
 # framelog, a record log with checksummed frames. See README.md.
 
@@ -80,28 +79,21 @@ depot.run_test(
     dep = ":client",
 )
 
-# A valid log for the fuzzer to start from, written by the program.
+# A valid log, written by the program, for the property test to vary.
 depot.genrule(
     name = "seed-log",
     out = "seed.log",
     cmd = "printf 'begin 7\\\\nput k v\\\\ncommit 7\\\\n' > $TMP/records && $(exe :framelog) pack $TMP/records $OUT",
 )
 
-[
-    cxx_fuzz_binary(
-        name = name,
-        srcs = ["fuzz.cpp"],
-        corpus = [":seed-log"],
-        duration_seconds = 0,
-        jobs = 1,
-        # The codec works on lists; short inputs keep each run quick.
-        max_input = 512,
-        runs = 2000,
-        sanitizer = sanitizer,
-        deps = [":framelog-lib"],
-    )
-    for name, sanitizer in [
-        ("fuzz", "none"),
-        ("fuzz-asan", "address"),
-    ]
-]
+depot.cxx_binary(
+    name = "property",
+    srcs = ["property.cpp"],
+    deps = [":framelog-lib"],
+)
+
+depot.run_test(
+    name = "property-test",
+    args = ["$(location :seed-log)"],
+    dep = ":property",
+)

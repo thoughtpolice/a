@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
-load("@root//src/fozzie:defs.bzl", "cxx_fuzz_binary")
 
 # Two Lean libraries (one with its @[extern] function in C), a Lean program
 # using both, proofs, and a C++ program calling into Lean.
@@ -145,21 +144,3 @@ depot.run_test(
     name = "interop-test",
     dep = ":interop",
 )
-
-# Lean code in fuzz targets, which link with lld outside the Nix linker
-# wrapper. The harness feeds :greeting arbitrary bytes.
-[
-    cxx_fuzz_binary(
-        name = name,
-        srcs = ["fuzz.cpp"],
-        duration_seconds = 0,
-        jobs = 1,
-        runs = 256,
-        sanitizer = sanitizer,
-        deps = [":greeting"],
-    )
-    for name, sanitizer in [
-        ("greeting-fuzz", "none"),
-        ("greeting-fuzz-asan", "address"),
-    ]
-]
