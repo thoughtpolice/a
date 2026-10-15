@@ -18,6 +18,8 @@ deno.run(
 deno.run(
     name = "claude-review",
     src = "claude-review.tsx",
+    config = "deno.json",
+    lock = "deno.lock",
     permissions = [
         "all",
     ],
@@ -26,6 +28,8 @@ deno.run(
 deno.run(
     name = "claude-difftool",
     src = "claude-difftool.ts",
+    config = "deno.json",
+    lock = "deno.lock",
     permissions = [
         "run=claude,diff,rich",
     ],

@@ -7,6 +7,7 @@ load("@toolchains//deno:defs.bzl", "deno")
 deno.binary(
     name = "rtlcc",
     config = "deno.jsonc",
+    lock = "deno.lock",
     main = "main.tsx",
     permissions = [
         "read",

@@ -47,6 +47,10 @@ def download_deno(version: str, hashes: list[(str, str)]):
         }),
     )
 
+def _discovered_files(ctx: AnalysisContext) -> list:
+    """The config and lockfile, which Deno reads without being told to."""
+    return [f for f in [ctx.attrs.config, ctx.attrs.lock] if f != None]
+
 def _deno_binary_impl(ctx: AnalysisContext) -> list[Provider]:
     deno = ctx.attrs._deno_toolchain[DenoToolchain].deno
 
@@ -64,7 +68,7 @@ def _deno_binary_impl(ctx: AnalysisContext) -> list[Provider]:
                  permissions +
                  [
                      ctx.attrs.main,
-                 ]),
+                 ], hidden = _discovered_files(ctx)),
         category = "deno_compile",
         allow_cache_upload = True,
         env = {
@@ -106,7 +110,7 @@ def _deno_binary_impl(ctx: AnalysisContext) -> list[Provider]:
                 unstable_features,
                 permissions,
                 ctx.attrs.main,
-            ]),
+            ], hidden = _discovered_files(ctx)),
         ),
     ]
 
@@ -117,6 +121,9 @@ _deno_binary = rule(
         "main": attrs.source(),
         "type": attrs.enum(["run", "serve"]),
         "config": attrs.option(attrs.source(), default = None),
+        # The lockfile Deno finds next to the config. Deno reads it on its own;
+        # naming it makes it an input, so a change to it rebuilds and retests.
+        "lock": attrs.option(attrs.source(), default = None),
         "unstable_features": attrs.list(attrs.string(), default = []),
         "permissions": attrs.list(attrs.string(), default = []),
         # Deno lint rules to switch off, for sources written to another runtime's conventions
@@ -143,6 +150,8 @@ def _deno_test_impl(ctx: AnalysisContext) -> list[Provider]:
     # Files the tests read at runtime rather than import: naming them keeps the
     # test's inputs complete without putting them on the command line.
     cmd.add(cmd_args(hidden = ctx.attrs.data))
+    if ctx.attrs.lock:
+        cmd.add(cmd_args(hidden = ctx.attrs.lock))
 
     # Create lint subtarget - lint test source files
     lint_cmd = cmd_args([
@@ -177,6 +186,9 @@ _deno_test = rule(
     attrs = {
         "srcs": attrs.list(attrs.source()),
         "config": attrs.option(attrs.source(), default = None),
+        # The lockfile Deno finds next to the config. Deno reads it on its own;
+        # naming it makes it an input, so a change to it rebuilds and retests.
+        "lock": attrs.option(attrs.source(), default = None),
         # A `$(location ...)` value makes that artifact an input of the test,
         # so a test can be handed a built file through the environment.
         "env": attrs.dict(attrs.string(), attrs.arg(), default = {}),
@@ -253,6 +265,8 @@ def _deno_run_impl(ctx: AnalysisContext) -> list[Provider]:
     # The modules the entry point reaches: they are inputs of the run even
     # though only the entry point is named on the command line.
     cmd.add(cmd_args(hidden = ctx.attrs.srcs))
+    if ctx.attrs.lock:
+        cmd.add(cmd_args(hidden = ctx.attrs.lock))
 
     # Create lint subtarget only if src is provided
     sub_targets = {}
@@ -283,7 +297,7 @@ def _deno_run_impl(ctx: AnalysisContext) -> list[Provider]:
             check_cmd = cmd_args([
                 deno,
                 "check",
-            ] + config_args + files)
+            ] + config_args + files, hidden = _discovered_files(ctx))
 
             sub_targets["check"] = [
                 DefaultInfo(),
@@ -310,6 +324,9 @@ _deno_run = rule(
         "permissions": attrs.list(attrs.string(), default = []),
         "unstable_features": attrs.list(attrs.string(), default = []),
         "config": attrs.option(attrs.source(), default = None),
+        # The lockfile Deno finds next to the config. Deno reads it on its own;
+        # naming it makes it an input, so a change to it rebuilds and retests.
+        "lock": attrs.option(attrs.source(), default = None),
         # Deno lint rules to switch off, for sources written to another runtime's conventions
         "lint_rules_exclude": attrs.list(attrs.string(), default = []),
         "_deno_toolchain": attrs.toolchain_dep(default = "toolchains//:deno", providers = [DenoToolchain]),
@@ -329,6 +346,7 @@ def deno_run(name, src = None, package_id = None, **kwargs):
         src: Source file to run (mutually exclusive with package_id)
         package_id: NPM package to run (mutually exclusive with src)
         config: Optional deno.json config file
+        lock: Optional deno.lock beside the config
         unstable_features: List of unstable features to enable
         permissions: List of permissions to allow
     """
