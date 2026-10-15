@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp, 2003-2026 Eelco Dolstra and the Nixpkgs/NixOS contributors
 # SPDX-License-Identifier: MIT
 
-# Lean 4.36.0 from trunk (leanprover/lean4@7cd10322, 2026-10-09; 243 commits
+# Lean 4.36.0 nightly-2026-10-10 (leanprover/lean4@b8182f64; 244 commits
 # past 4.35.0-rc3), from nixpkgs' pkgs/by-name/le/lean4/package.nix at
 # NixOS/nixpkgs@edac0312cb6c052d9addce2555e114f7003993f0 (which packages
 # 4.34.1). Changes from that file: the version and source, and CaDiCaL,
@@ -36,8 +36,11 @@ stdenv.mkDerivation (finalAttrs: {
   pname = "lean4";
   # `version` is what `lean --version` reports (the toolchain check reads
   # this line, `buck/toolchains/lean/tool.py`): the part after the first
-  # dash is passed as LEAN_SPECIAL_VERSION_DESC below.
-  version = "4.36.0-unstable-2026-10-09";
+  # dash is passed as LEAN_SPECIAL_VERSION_DESC below. CI reads it too, and
+  # installs the release or nightly of that name
+  # (.github/actions/install-lean), so pin a commit Lean published, and the
+  # binary it downloads reports the same version as the one built here.
+  version = "4.36.0-nightly-2026-10-10";
 
   __structuredAttrs = true;
   strictDeps = true;
@@ -45,8 +48,8 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "leanprover";
     repo = "lean4";
-    rev = "7cd10322fcb4c2f4fd3827c9082422a49ac2dd1f";
-    hash = "sha256-7MLLwT2EFdPL061bppFG0iOa/xjaP+mr+xpqkXIYKxY=";
+    rev = "b8182f6428135d8de524313001fffe7434bfacad";
+    hash = "sha256-Wh9fyCyWjPdSEIeE+vaDNNSyfu1VmaM1sf7otcsgl0M=";
   };
 
   postPatch =
@@ -121,8 +124,8 @@ stdenv.mkDerivation (finalAttrs: {
     "-DCADICAL_LIB=${lib.getLib cadical'}/lib/libcadical.a"
     "-DCADICAL_INCLUDE_DIR=${lib.getDev cadical'}/include"
   ]
-  # Release CI passes the "rc3" of "4.35.0-rc3" this way, and this file
-  # the "unstable-2026-10-09" of a trunk build. Without it the binary
+  # Release CI passes the "rc3" of "4.35.0-rc3" and the "nightly-2026-10-10"
+  # of a nightly this way, and so does this file. Without it the binary
   # reports, and stamps into every .olean, plain "4.36.0". The flag stays
   # untyped: the top-level CMakeLists.txt forwards only untyped -D options
   # to the stage builds, and lib.cmakeFeature writes ":STRING".
