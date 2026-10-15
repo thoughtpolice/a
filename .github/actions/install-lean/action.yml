@@ -38,5 +38,17 @@ runs:
         tar --zstd -xf "$RUNNER_TEMP/$NAME.tar.zst" -C "$RUNNER_TEMP"
         rm "$RUNNER_TEMP/$NAME.tar.zst"
 
-        echo "$RUNNER_TEMP/$NAME/bin" >> "$GITHUB_PATH"
-        "$RUNNER_TEMP/$NAME/bin/lean" --version
+        # The archive's bin/ also holds the clang, ld.lld and llvm-ar that
+        # leanc drives, and on PATH they would shadow the runner's own: that
+        # clang carries no headers, so every C compile would lose stddef.h.
+        # Put only the Lean tools buck/toolchains/lean runs there, as wrappers
+        # rather than symlinks so each still finds its prefix where it lives.
+        TOOLS="$RUNNER_TEMP/lean-tools"
+        mkdir -p "$TOOLS"
+        for tool in lake lean leanc leanchecker leanir; do
+          printf '#!/bin/sh\nexec "%s" "$@"\n' "$RUNNER_TEMP/$NAME/bin/$tool" > "$TOOLS/$tool"
+          chmod +x "$TOOLS/$tool"
+        done
+
+        echo "$TOOLS" >> "$GITHUB_PATH"
+        "$TOOLS/lean" --version
