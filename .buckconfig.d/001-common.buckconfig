@@ -108,9 +108,25 @@ enable_suspension = true
 # Paths outside Buck's own well-known configuration names whose modification
 # reconfigures the whole graph, and so must select every target rather than be
 # reasoned about target by target. tdutil recognizes .buckconfig, .bcfg,
-# .buckargs, .buckconfig.d/ and buckroot without being told; the build modes
-# live somewhere only this repository knows about.
-global_config_paths = buck/mode
+# .buckargs, .buckconfig.d/ and buckroot without being told; the rest live
+# somewhere only this repository knows about:
+#
+# - the build modes;
+# - the buck2 launcher, since the prelude is bundled into the binary and both
+#   endpoint graphs are read with the head's buck2, so a prelude change never
+#   shows up as a changed target;
+# - the platforms and the constraints that select() keys on, which no target
+#   depends on as a dep;
+# - the CI workflow and the script that drives it, so a change to how CI
+#   tests proves itself against everything.
+global_config_paths = \
+    buck/mode, \
+    buck/bin/buck2, \
+    buck/bin/buck2.exe, \
+    buck/platforms, \
+    buck/toolchains/cfg, \
+    .github/workflows/ci.yml, \
+    check.py
 
 [build]
 # set the default execution platform for builds on this machine. NOTE: this
