@@ -392,7 +392,8 @@ for tool in \
   "$(exe :wat2wasm)"
 do
   MIMALLOC_SHOW_STATS=1 "$tool" --version >"$workdir/stats" 2>&1
-  grep -q "malloc req:" "$workdir/stats"
+  # mimalloc 3.5 marks the count approximate: "malloc req~", not "malloc req:".
+  grep -Eq "malloc req[:~]" "$workdir/stats"
 done
 """,
     ],
