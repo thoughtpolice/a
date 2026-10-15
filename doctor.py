@@ -12,18 +12,20 @@ Check modules are dynamically loaded from src/repo-doctor/check-*.py
 """
 
 import sys
+
 sys.dont_write_bytecode = True
 
+import argparse
+import importlib.util
 import os
 import platform
-import importlib.util
-import argparse
-from pathlib import Path
 from enum import Enum
+from pathlib import Path
 
 
 class CheckStatus(Enum):
     """Status of a diagnostic check."""
+
     OK = "OK"
     WARNING = "WARNING"
     ERROR = "ERROR"
@@ -41,8 +43,8 @@ def get_distro_name():
                 for line in f:
                     if line.startswith("ID="):
                         return line.split("=")[1].strip().strip('"')
-    except Exception:
-        pass
+    except (OSError, UnicodeDecodeError):
+        return None
 
     return None
 
@@ -65,14 +67,18 @@ def load_check_modules(checks_dir):
 
     # Look for files matching pattern: [0-9]{4}-check-*.py
     import re
-    pattern = re.compile(r'^(\d{4})-check-.*\.py$')
+
+    pattern = re.compile(r"^(\d{4})-check-.*\.py$")
 
     for check_file in sorted(checks_path.glob("[0-9][0-9][0-9][0-9]-check-*.py")):
         try:
             # Extract issue number from filename
             match = pattern.match(check_file.name)
             if not match:
-                print(f"Warning: {check_file.name} doesn't match expected pattern", file=sys.stderr)
+                print(
+                    f"Warning: {check_file.name} doesn't match expected pattern",
+                    file=sys.stderr,
+                )
                 continue
 
             issue_number = match.group(1)
@@ -89,11 +95,19 @@ def load_check_modules(checks_dir):
                     # Get ISSUE_INFORMATION if available
                     issue_info = getattr(module, "ISSUE_INFORMATION", None)
                     if not issue_info:
-                        print(f"Warning: {check_file.name} missing ISSUE_INFORMATION", file=sys.stderr)
+                        print(
+                            f"Warning: {check_file.name} missing ISSUE_INFORMATION",
+                            file=sys.stderr,
+                        )
                     modules.append((module, issue_id, issue_info))
                 else:
-                    print(f"Warning: {check_file.name} missing run_check() function", file=sys.stderr)
-        except Exception as e:
+                    print(
+                        f"Warning: {check_file.name} missing run_check() function",
+                        file=sys.stderr,
+                    )
+        # A check is arbitrary code, and one that fails to load must not take
+        # the others down with it.
+        except Exception as e:  # noqa: BLE001
             print(f"Warning: Failed to load {check_file.name}: {e}", file=sys.stderr)
 
     return modules
@@ -101,18 +115,13 @@ def load_check_modules(checks_dir):
 
 def print_result(result, use_color=True):
     """Print a check result with appropriate formatting."""
-    status_symbols = {
-        "OK": "✓",
-        "WARNING": "⚠",
-        "ERROR": "✗",
-        "SKIP": "-"
-    }
+    status_symbols = {"OK": "✓", "WARNING": "⚠", "ERROR": "✗", "SKIP": "-"}
 
     status_colors = {
-        "OK": "\033[32m",      # Green
-        "WARNING": "\033[33m", # Yellow
-        "ERROR": "\033[31m",   # Red
-        "SKIP": "\033[90m"     # Gray
+        "OK": "\033[32m",  # Green
+        "WARNING": "\033[33m",  # Yellow
+        "ERROR": "\033[31m",  # Red
+        "SKIP": "\033[90m",  # Gray
     }
 
     reset = "\033[0m"
@@ -130,12 +139,14 @@ def print_result(result, use_color=True):
     if use_color:
         color = status_colors.get(status, "")
         symbol = status_symbols.get(status, "?")
-        print(f"{color}{symbol}{reset}{issue_tag} {result['name']}: {result['message']}")
+        print(
+            f"{color}{symbol}{reset}{issue_tag} {result['name']}: {result['message']}"
+        )
     else:
         symbol = status_symbols.get(status, "?")
         print(f"[{status}]{issue_tag} {result['name']}: {result['message']}")
 
-    if "help_text" in result and result["help_text"]:
+    if result.get("help_text"):
         print()
         for line in result["help_text"].split("\n"):
             print(f"  {line}")
@@ -165,9 +176,9 @@ def run_diagnostics():
 
     # Determine if we should use colors
     use_color = (
-        sys.stdout.isatty() and
-        os.getenv("NO_COLOR") is None and
-        platform.system() != "Windows"
+        sys.stdout.isatty()
+        and os.getenv("NO_COLOR") is None
+        and platform.system() != "Windows"
     )
 
     # Find the checks directory relative to this script
@@ -194,8 +205,12 @@ def run_diagnostics():
                     result["issue_id"] = None
                 results.append(result)
             else:
-                print(f"Warning: Check returned invalid result: {module.__name__}", file=sys.stderr)
-        except Exception as e:
+                print(
+                    f"Warning: Check returned invalid result: {module.__name__}",
+                    file=sys.stderr,
+                )
+        # Likewise for a check that fails while running.
+        except Exception as e:  # noqa: BLE001
             print(f"Error running check {module.__name__}: {e}", file=sys.stderr)
 
     # Group skipped checks by platform
@@ -246,7 +261,9 @@ def run_diagnostics():
 
     print("-" * 70)
     print()
-    print(f"Summary: {ok_count} OK, {warning_count} warning(s), {error_count} error(s), {total_skip_count} skipped")
+    print(
+        f"Summary: {ok_count} OK, {warning_count} warning(s), {error_count} error(s), {total_skip_count} skipped"
+    )
     print()
 
     if error_count > 0:
@@ -276,7 +293,10 @@ def show_issue_explanation(issue_id):
     for module, mod_issue_id, issue_info in check_modules:
         if mod_issue_id == issue_id:
             if not issue_info:
-                print(f"Error: Issue {issue_id} found but has no ISSUE_INFORMATION", file=sys.stderr)
+                print(
+                    f"Error: Issue {issue_id} found but has no ISSUE_INFORMATION",
+                    file=sys.stderr,
+                )
                 return 1
 
             # Format and print the explanation
@@ -289,17 +309,17 @@ def show_issue_explanation(issue_id):
             lines.append("")
             lines.append("DESCRIPTION")
             lines.append("-" * 70)
-            lines.append(issue_info['description'])
+            lines.append(issue_info["description"])
             lines.append("")
             lines.append("HOW TO FIX")
             lines.append("-" * 70)
-            lines.append(issue_info['fix'])
+            lines.append(issue_info["fix"])
 
-            if issue_info.get('related_links'):
+            if issue_info.get("related_links"):
                 lines.append("")
                 lines.append("RELATED LINKS")
                 lines.append("-" * 70)
-                for link in issue_info['related_links']:
+                for link in issue_info["related_links"]:
                     lines.append(f"  - {link}")
 
             lines.append("")
@@ -332,9 +352,9 @@ def list_all_issues():
         if not issue_info:
             continue
 
-        platform_name = issue_info['platform']
-        title = issue_info['title']
-        severity = issue_info['severity']
+        platform_name = issue_info["platform"]
+        title = issue_info["title"]
+        severity = issue_info["severity"]
 
         if platform_name not in by_platform:
             by_platform[platform_name] = []
@@ -358,19 +378,17 @@ def main():
     """Main entry point with argument parsing."""
     parser = argparse.ArgumentParser(
         description="Diagnostic tool for monorepo development environment",
-        epilog="Use --explain <issue-id> to get detailed fix instructions for specific issues"
+        epilog="Use --explain <issue-id> to get detailed fix instructions for specific issues",
     )
 
     parser.add_argument(
         "--explain",
         metavar="ISSUE_ID",
-        help="Show detailed explanation and fix instructions for a specific issue (e.g., DOC-0001)"
+        help="Show detailed explanation and fix instructions for a specific issue (e.g., DOC-0001)",
     )
 
     parser.add_argument(
-        "--list-issues",
-        action="store_true",
-        help="List all known issues and their IDs"
+        "--list-issues", action="store_true", help="List all known issues and their IDs"
     )
 
     args = parser.parse_args()
