@@ -5,6 +5,13 @@ on:
     branches:
       - canon
   pull_request:
+  # Once a day, and on request, test everything on canon, which is what
+  # integrate does for any event with no commit to compare against. Target
+  # determination is only as good as the graph it reads, and a test can break
+  # without a commit, through a download or an advisory: this catches both.
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
