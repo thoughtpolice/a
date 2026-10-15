@@ -1,1 +1,5 @@
 buildscript.run = false
+# What eyre's build script emits on any rustc since 1.65, which is every one we
+# build with. Without them it pairs std's Backtrace with its own stand-in and
+# does not compile. generic_member_access, a nightly-only probe, stays off.
+cfgs = ["backtrace", "eyre_no_fmt_args_capture", "eyre_no_fmt_arguments_as_str", "track_caller"]

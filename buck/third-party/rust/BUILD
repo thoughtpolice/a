@@ -8817,6 +8817,12 @@ third_party_rust.rust_library(
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
+    rustc_flags = [
+        "--cfg=backtrace",
+        "--cfg=eyre_no_fmt_args_capture",
+        "--cfg=eyre_no_fmt_arguments_as_str",
+        "--cfg=track_caller",
+    ],
     visibility = [],
     deps = [
         ":indenter-0.3",
