@@ -1,10 +1,13 @@
 # SPDX-FileCopyrightText: © 2026 Austin Seipp, 2003-2026 Eelco Dolstra and the Nixpkgs/NixOS contributors
 # SPDX-License-Identifier: MIT
 
-# Lean 4.35.0-rc3, from nixpkgs' pkgs/by-name/le/lean4/package.nix at
+# Lean 4.36.0 from trunk (leanprover/lean4@7cd10322, 2026-10-09; 243 commits
+# past 4.35.0-rc3), from nixpkgs' pkgs/by-name/le/lean4/package.nix at
 # NixOS/nixpkgs@edac0312cb6c052d9addce2555e114f7003993f0 (which packages
-# 4.34.1). Changes from that file are the version, the source hash and the
-# leanir backport in postPatch. The pinned nixpkgs-unstable still ships 4.30.0.
+# 4.34.1). Changes from that file: the version and source, and CaDiCaL,
+# which trunk links into the Lean libraries (`-lcadical` in leanc's flags)
+# and builds from git unless told where the program, the static library
+# and the headers are. The pinned nixpkgs-unstable still ships 4.30.0.
 # Delete this file and use pkgs.lean4 once the lock catches up.
 
 {
@@ -31,7 +34,10 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "lean4";
-  version = "4.35.0-rc3";
+  # `version` is what `lean --version` reports (the toolchain check reads
+  # this line, `buck/toolchains/lean/tool.py`): the part after the first
+  # dash is passed as LEAN_SPECIAL_VERSION_DESC below.
+  version = "4.36.0-unstable-2026-10-09";
 
   __structuredAttrs = true;
   strictDeps = true;
@@ -39,8 +45,8 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "leanprover";
     repo = "lean4";
-    tag = "v${finalAttrs.version}";
-    hash = "sha256-gVqvQ9fdyCFxMiplNl5fQsw3uc3fPrkO2N3RymVAi7Y=";
+    rev = "7cd10322fcb4c2f4fd3827c9082422a49ac2dd1f";
+    hash = "sha256-7MLLwT2EFdPL061bppFG0iOa/xjaP+mr+xpqkXIYKxY=";
   };
 
   postPatch =
@@ -54,24 +60,6 @@ stdenv.mkDerivation (finalAttrs: {
         stage0/src/CMakeLists.txt \
         stage0/src/runtime/CMakeLists.txt \
         --replace-fail '${pattern}' '${finalAttrs.mimalloc-src}'
-    ''
-    # Backport the LeanIR.lean half of leanprover/lean4#14906, which landed on
-    # main after the 4.35 branch was cut. Without it leanir drops the setup's
-    # package id, so a module compiled with compiler.postponeCompile defines
-    # initialize_Foo while its importers call initialize_<pkg>_Foo.
-    + ''
-      substituteInPlace src/LeanIR.lean \
-        --replace-fail \
-          'import Lean.Compiler.IR.CompilerM' \
-          $'import Lean.Compiler.IR.CompilerM\nimport Lean.Compiler.ModPkgExt' \
-        --replace-fail \
-          '  let env := env.setMainModule modName' \
-          $'  let env := env.setMainModule modName\n  let env := env.setModulePackage setup.package?'
-    ''
-    # Remove tests that fails in sandbox.
-    # It expects `sourceRoot` to be a git repository.
-    + ''
-      rm -rf src/lake/examples/git/
     '';
 
   preConfigure = ''
@@ -94,6 +82,7 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   buildInputs = [
+    cadical'
     gmp
     libuv
     openssl
@@ -124,13 +113,21 @@ stdenv.mkDerivation (finalAttrs: {
     (lib.cmakeBool "INSTALL_CADICAL" false)
     (lib.cmakeBool "USE_MIMALLOC" enableMimalloc)
     (lib.cmakeFeature "FETCHCONTENT_SOURCE_DIR_MIMALLOC" finalAttrs.mimalloc-src.outPath)
+    # CaDiCaL: the program (also on lean's PATH below), the static library
+    # that trunk links into the Lean libraries and copies to lib/lean, and
+    # its headers; without all three the build clones and builds it from
+    # git, which the sandbox cannot. Untyped: see LEAN_SPECIAL_VERSION_DESC.
+    "-DCADICAL=${cadical'}/bin/cadical"
+    "-DCADICAL_LIB=${lib.getLib cadical'}/lib/libcadical.a"
+    "-DCADICAL_INCLUDE_DIR=${lib.getDev cadical'}/include"
   ]
-  # Release CI passes the "rc3" of "4.35.0-rc3" this way. Without it the
-  # binary reports, and stamps into every .olean, plain "4.35.0". The flag
-  # stays untyped: the top-level CMakeLists.txt forwards only untyped -D
-  # options to the stage builds, and lib.cmakeFeature writes ":STRING".
+  # Release CI passes the "rc3" of "4.35.0-rc3" this way, and this file
+  # the "unstable-2026-10-09" of a trunk build. Without it the binary
+  # reports, and stamps into every .olean, plain "4.36.0". The flag stays
+  # untyped: the top-level CMakeLists.txt forwards only untyped -D options
+  # to the stage builds, and lib.cmakeFeature writes ":STRING".
   ++ lib.optional (lib.hasInfix "-" finalAttrs.version) (
-    "-DLEAN_SPECIAL_VERSION_DESC=${lib.last (lib.splitString "-" finalAttrs.version)}"
+    "-DLEAN_SPECIAL_VERSION_DESC=${lib.concatStringsSep "-" (lib.drop 1 (lib.splitString "-" finalAttrs.version))}"
   );
 
   nativeInstallCheckInputs = [
@@ -141,7 +138,7 @@ stdenv.mkDerivation (finalAttrs: {
   meta = {
     description = "Automatic and interactive theorem prover";
     homepage = "https://leanprover.github.io/";
-    changelog = "https://github.com/leanprover/lean4/blob/${finalAttrs.src.tag}/RELEASES.md";
+    changelog = "https://github.com/leanprover/lean4/blob/${finalAttrs.src.rev}/RELEASES.md";
     license = lib.licenses.asl20;
     platforms = lib.platforms.all;
     maintainers = with lib.maintainers; [
