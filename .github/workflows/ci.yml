@@ -70,6 +70,8 @@ jobs:
           cargo install bindgen-cli --version 0.72.1 --locked
       - name: Install DotSlash
         uses: ./.github/actions/install-dotslash
+      - name: Install Lean
+        uses: ./.github/actions/install-lean
       - name: Set up environment
         shell: bash
         run: echo "PATH=$GITHUB_WORKSPACE/buck/bin:$GITHUB_WORKSPACE/buck/bin/extra:$PATH" >> $GITHUB_ENV
@@ -190,6 +192,8 @@ jobs:
           cargo install bindgen-cli --version 0.72.1 --locked
       - name: Install DotSlash
         uses: ./.github/actions/install-dotslash
+      - name: Install Lean
+        uses: ./.github/actions/install-lean
       - name: Set up environment
         shell: bash
         run: echo "PATH=$GITHUB_WORKSPACE/buck/bin:$GITHUB_WORKSPACE/buck/bin/extra:$PATH" >> $GITHUB_ENV

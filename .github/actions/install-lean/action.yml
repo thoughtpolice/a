@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+name: Install Lean
+description: Install the Lean release or nightly that buck/nix/lean4.nix builds
+runs:
+  using: "composite"
+  steps:
+    # The Lean toolchain (buck/toolchains/lean) runs the lean on PATH and
+    # checks that `lean --version` reports the `version` in lean4.nix, which
+    # names a commit Lean published: "4.36.0", "4.36.0-rc1" or
+    # "4.36.0-nightly-2026-10-10". Download that build rather than the Nix
+    # one, which would take a full Lean build on every runner.
+    - name: Install Lean
+      shell: bash
+      run: | # zizmor: ignore[github-env]
+        VERSION=$(sed -nE 's/^[[:space:]]*version = "([^"]+)";/\1/p' buck/nix/lean4.nix)
+        case "$VERSION" in
+          *-nightly-*) REPO=leanprover/lean4-nightly TAG="${VERSION#*-}" ;;
+          *-unstable-*|"")
+            echo "::error file=buck/nix/lean4.nix::Lean '$VERSION' has no published build; pin a release or nightly"
+            exit 1
+            ;;
+          *) REPO=leanprover/lean4 TAG="v$VERSION" ;;
+        esac
+
+        case "$RUNNER_OS/$(uname -m)" in
+          Linux/x86_64) PLATFORM=linux ;;
+          Linux/aarch64) PLATFORM=linux_aarch64 ;;
+          macOS/arm64) PLATFORM=darwin_aarch64 ;;
+          macOS/x86_64) PLATFORM=darwin ;;
+          *) echo "::error::no Lean build for $RUNNER_OS/$(uname -m)"; exit 1 ;;
+        esac
+
+        NAME="lean-$VERSION-$PLATFORM"
+        curl -fsSL --retry 5 -o "$RUNNER_TEMP/$NAME.tar.zst" \
+          "https://github.com/$REPO/releases/download/$TAG/$NAME.tar.zst"
+        tar --zstd -xf "$RUNNER_TEMP/$NAME.tar.zst" -C "$RUNNER_TEMP"
+        rm "$RUNNER_TEMP/$NAME.tar.zst"
+
+        echo "$RUNNER_TEMP/$NAME/bin" >> "$GITHUB_PATH"
+        "$RUNNER_TEMP/$NAME/bin/lean" --version
