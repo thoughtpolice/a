@@ -11,6 +11,10 @@ permissions:
   actions: read
 
 jobs:
+  # Every push to canon and every pull request is tested through target
+  # determination: check.py runs tdutil over the change, and only what it
+  # selects is tested. The job keeps the name `integrate` because the trunk
+  # ruleset requires its checks by that name.
   build:
     name: integrate
     strategy:
@@ -26,7 +30,9 @@ jobs:
           - os: macos-15
             abi: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    # A change to the build configuration, or a determination that fails,
+    # tests everything, so this is sized for that rather than the common case.
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repository
@@ -83,12 +89,139 @@ jobs:
       - name: Init jj repository
         shell: bash
         run: dotslash ./buck/bin/extra/jj git init --colocate
+
+      # The commits tdutil compares. A pull request is tested as GitHub's merge
+      # of it into the base branch, which is what was checked out, so it is
+      # compared with that merge's first parent: exactly the pull request's
+      # changes, on top of the base as it is now. A push is compared with the
+      # commit it replaced. Anything else has no base, and tests everything.
+      - name: Resolve comparison commits
+        id: commits
+        shell: bash
+        run: |
+          case "$EVENT" in
+            pull_request) base="$(git rev-parse HEAD^1)" ;;
+            push) base="$BEFORE" ;;
+            *) base="" ;;
+          esac
+          # A push which creates the branch has no commit before it.
+          if [ "$base" = 0000000000000000000000000000000000000000 ]; then
+            base=""
+          fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+
+      # Optimistically reuse the base commit's graph, captured by an earlier
+      # push run. tdutil validates the snapshot against the requested commit,
+      # universe, configuration, and buck2 version, and silently collects the
+      # base graph itself when the snapshot is missing or unusable.
+      #
+      # The restore, tdutil, and save steps below must all name the same file.
+      # actions/cache derives an entry version from the `path` input, so a save
+      # and a restore that disagree on the filename never see each other's
+      # entries, even when their keys match byte for byte.
+      - name: Restore base graph snapshot
+        if: steps.commits.outputs.base != ''
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ runner.temp }}/tdutil-snapshot.json
+          key: tdutil-base-snapshot-v1-${{ matrix.abi }}-${{ steps.commits.outputs.base }}-${{ hashFiles('buck/bin/buck2', 'buck/ci.buckconfig') }}
+
+      # check.py builds tdutil and runs it over the universe CI tests, printing
+      # the affected targets; see its docstring. CI configuration is passed to
+      # tdutil's graph queries, which must describe the same graph the test
+      # step builds.
+      #
+      # On a push, --snapshot-head-to records the head graph this run has
+      # already collected, so refreshing the trunk snapshot costs only the
+      # serialization rather than a second full collection. It goes to a
+      # distinct path so that its existence is an unambiguous signal that a new
+      # snapshot was written, rather than the restored base file still sitting
+      # there. Failing to write it is reported by tdutil and never fails the run.
+      #
+      # With no base, or when a determination fails and so names nothing
+      # trustworthy, `check.py --everything` lists every target CI tests, a
+      # superset of any selection, and that is tested instead. Both leave out
+      # what check.py's EXCLUDE does, so no runner builds a vendored crate on
+      # its own. tdutil fails closed on a Buck graph error at either endpoint,
+      # and the listing then reports the error itself: this is how a package
+      # which no longer loads is surfaced, whether or not the diff touched it.
+      - name: Determine affected targets
+        id: determine
+        shell: bash
+        run: |
+          TARGETS="$RUNNER_TEMP/affected-targets.txt"
+          SCOPE=affected
+          if [ -z "$BASE" ]; then
+            SCOPE=everything
+          else
+            CAPTURE=()
+            if [ "$EVENT" = push ]; then
+              CAPTURE=(--snapshot-head-to "$RUNNER_TEMP/tdutil-snapshot-new.json")
+            fi
+            if ! ./check.py \
+                --config ci.depot_gha_ci=true \
+                --verbose \
+                --from "$BASE" \
+                --to "$HEAD" \
+                --base-snapshot "$RUNNER_TEMP/tdutil-snapshot.json" \
+                "${CAPTURE[@]}" \
+                > "$TARGETS"; then
+              echo "::warning::Target determination failed; testing everything instead."
+              SCOPE=everything
+            fi
+          fi
+          if [ "$SCOPE" = everything ]; then
+            ./check.py --everything @buck/ci.buckargs > "$TARGETS"
+          fi
+          echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Target determination"
+            echo "Testing $(wc -l < "$TARGETS") target(s): $SCOPE."
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ steps.commits.outputs.base }}
+          HEAD: ${{ steps.commits.outputs.head }}
+
+      # The determination step above already wrote the new trunk snapshot, so
+      # there is nothing left to collect here. Move it onto the path the
+      # restore step named: actions/cache derives an entry version from
+      # `path`, so a save which names a different file would never be found
+      # by the restore above, however exactly their keys matched. An absent
+      # file means tdutil declined or failed to write one, which costs the
+      # next run a base collection and is not a build failure.
+      - name: Stage the new base graph snapshot
+        id: capture-snapshot
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          NEW_SNAPSHOT="$RUNNER_TEMP/tdutil-snapshot-new.json"
+          if [ -s "$NEW_SNAPSHOT" ]; then
+            mv -f -- "$NEW_SNAPSHOT" "$RUNNER_TEMP/tdutil-snapshot.json"
+            echo "captured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "captured=false" >> "$GITHUB_OUTPUT"
+            echo "No new snapshot was written; the next run collects its base graph."
+          fi
+      - name: Save base graph snapshot
+        if: github.event_name == 'push' && steps.capture-snapshot.outputs.captured == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ runner.temp }}/tdutil-snapshot.json
+          key: tdutil-base-snapshot-v1-${{ matrix.abi }}-${{ steps.commits.outputs.head }}-${{ hashFiles('buck/bin/buck2', 'buck/ci.buckconfig') }}
+
       - name: buck2 test ...
         shell: bash
         run: |
-          # Retry function: attempts a command up to 5 times with exponential backoff
+          # A few attempts ride out a flaky download; a real failure fails
+          # every attempt, and each repeats only what is not already built.
           retry_command() {
-            local max_attempts=5
+            local max_attempts=3
             local attempt=1
             local exit_code=0
 
@@ -116,293 +249,35 @@ jobs:
             return $exit_code
           }
 
-          # The toolchains, mode and third-party cells' own tests are not run
-          # here, but the source checks of their files are; see
-          # buck/shims/srclint.bzl.
-          SRCLINT_TARGETS="${{ runner.temp }}/srclint-targets.txt"
-          buck2 uquery @buck/ci.buckargs 'kind(srclint_test, toolchains//... + mode//... + third-party//...)' > "$SRCLINT_TARGETS"
-
-          retry_command buck2 test @buck/ci.buckargs -m debug root//... tilde//... cellar//bootstrap/stage0-posix/... "@$SRCLINT_TARGETS" \
-            --build-report ${{ runner.temp }}/build-report.json \
-            --build-report-options fill-out-failures --
+          REPORT=(
+            --build-report "$RUNNER_TEMP/build-report.json"
+            --build-report-options fill-out-failures
+          )
+          COUNT=$(wc -l < "$TARGETS")
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No targets are affected; there is nothing to test."
+            exit 0
+          fi
+          echo "Testing $COUNT target(s)"
+          # The list names targets regardless of platform, and this runner
+          # tests the ones it can.
+          retry_command buck2 test @buck/ci.buckargs -m debug "@$TARGETS" \
+            --skip-incompatible-targets "${REPORT[@]}" --
+        env:
+          TARGETS: ${{ steps.determine.outputs.targets }}
       - name: Generate build report
         if: always()
         shell: bash
         run: |
           # Report generation is informational: pass/fail signal comes from
           # the test step, and the summary matters most when that failed.
-          REPORT="${{ runner.temp }}/build-report.json"
+          REPORT="$RUNNER_TEMP/build-report.json"
           if [ -f "$REPORT" ]; then
             buck2 run root//buck/tools/build-report:build-report -- "$REPORT" || true
             buck2 run root//buck/tools/build-report:build-report -- --format markdown "$REPORT" >> "$GITHUB_STEP_SUMMARY" || true
           else
             echo "Build report file not found, skipping report generation"
           fi
-
-  # Target determination workflow - parallel to main build, non-fatal for smoke testing
-  target-determination:
-    name: target-determination
-    continue-on-error: true # Non-fatal during transition period
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-24.04
-            abi: x86_64-unknown-linux-gnu
-          - os: ubuntu-24.04-arm
-            abi: aarch64-unknown-linux-gnu
-          - os: macos-15
-            abi: aarch64-apple-darwin
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Install NodeJS
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: "22"
-      - name: Install uv
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
-        with:
-          version: "0.7.12"
-          enable-cache: false
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
-        with:
-          toolchain: "nightly-2026-03-24"
-      - name: Setup Erlang/OTP
-        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
-        with:
-          otp-version: '28.1.1'
-      - name: (Linux) Install packages
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update && sudo apt-get install -y mold
-          cargo install bindgen-cli --version 0.72.1 --locked
-      - name: (macOS) Install packages
-        if: runner.os == 'macOS'
-        run: |
-          HOMEBREW_NO_REQUIRE_TAP_TRUST=1 brew untap aws/tap || true
-          brew install go
-          cargo install bindgen-cli --version 0.72.1 --locked
-      - name: Install DotSlash
-        uses: ./.github/actions/install-dotslash
-      - name: Install Lean
-        uses: ./.github/actions/install-lean
-      - name: Set up environment
-        shell: bash
-        run: echo "PATH=$GITHUB_WORKSPACE/buck/bin:$GITHUB_WORKSPACE/buck/bin/extra:$PATH" >> $GITHUB_ENV
-      - name: Configure Buck2 for CI
-        shell: bash
-        run: |
-          printf '\n' >> .buckconfig.local
-          cat buck/ci.buckconfig >> .buckconfig.local
-      - name: Init jj repository
-        shell: bash
-        run: dotslash ./buck/bin/extra/jj git init --colocate
-      - name: Resolve comparison commits
-        id: commits
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "base=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
-            echo "head=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-          else
-            # for push events, compare against the previous commit
-            echo "base=${{ github.event.before }}" >> $GITHUB_OUTPUT
-            echo "head=${{ github.sha }}" >> $GITHUB_OUTPUT
-          fi
-      # Optimistically reuse the base commit's graph, captured by an earlier
-      # push run. tdutil validates the snapshot against the requested commit,
-      # universe, configuration, and buck2 version, and silently collects the
-      # base graph itself when the snapshot is missing or unusable.
-      #
-      # The restore, tdutil, and save steps below must all name the same file.
-      # actions/cache derives an entry version from the `path` input, so a save
-      # and a restore that disagree on the filename never see each other's
-      # entries, even when their keys match byte for byte.
-      - name: Restore base graph snapshot
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ${{ runner.temp }}/tdutil-snapshot.json
-          key: tdutil-base-snapshot-v1-${{ matrix.abi }}-${{ steps.commits.outputs.base }}-${{ hashFiles('buck/bin/buck2', 'buck/ci.buckconfig') }}
-      - name: Determine affected targets
-        id: determine-targets
-        continue-on-error: true
-        shell: bash
-        run: |
-          BASE_COMMIT="${{ steps.commits.outputs.base }}"
-          HEAD_COMMIT="${{ steps.commits.outputs.head }}"
-
-          echo "Base commit: $BASE_COMMIT"
-          echo "Head commit: $HEAD_COMMIT"
-          echo "Determining impacted targets..."
-
-          # Run the first-party detector. Pass CI configuration to the inner
-          # graph queries as well as to the outer build of tdutil.
-          #
-          # On a push, --snapshot-head-to records the head graph this run has
-          # already collected, so refreshing the trunk snapshot costs only the
-          # serialization rather than a second full collection. It goes to a
-          # distinct path so that its existence is an unambiguous signal that
-          # a new snapshot was written, rather than the restored base file
-          # still sitting there. Failing to write it is reported by tdutil and
-          # never fails the run.
-          #
-          # tdutil does not tolerate a Buck graph error at either endpoint: it
-          # collects without --keep-going, so a package which fails to load
-          # aborts the query and the step below. That lands in the full-test
-          # fallback, which tests the universe outright and is what surfaces
-          # the error. A broken package therefore costs a full test run until
-          # it is fixed, at either endpoint, whether or not the diff touched it.
-          #
-          # The universe must name every cell the full-test fallback below
-          # tests. tilde and cellar are separate cells, so depot//... does not
-          # reach them, and their targets were absent from the graph rather
-          # than merely unselected: a change under tilde/ could only ever pick
-          # up the repo-wide lint targets, never the tilde targets actually
-          # built from the sources it changed. Keep the two lists in step.
-          #
-          # Spell the cells canonically. `buck2 audit cell --json`, which is
-          # what tdutil reads, reports only canonical names, so the aliases
-          # the fallback uses -- tilde//, cellar//, root// -- are cells tdutil
-          # has never heard of and it refuses the pattern outright.
-          TARGETS_FILE="${{ runner.temp }}/affected-targets.txt"
-          CAPTURE=()
-          if [ "${{ github.event_name }}" = "push" ]; then
-            CAPTURE=(--snapshot-head-to "${{ runner.temp }}/tdutil-snapshot-new.json")
-          fi
-          buck2 run @buck/ci.buckargs root//buck/tools/tdutil:tdutil -- \
-            --config ci.depot_gha_ci=true \
-            --verbose \
-            --format text \
-            --output "$TARGETS_FILE" \
-            --from "$BASE_COMMIT" \
-            --to "$HEAD_COMMIT" \
-            --base-snapshot "${{ runner.temp }}/tdutil-snapshot.json" \
-            "${CAPTURE[@]}" \
-            --universe depot//... \
-            --universe depot-tilde//... \
-            --universe depot-cellar//bootstrap/stage0-posix/...
-
-          if [ -f "$TARGETS_FILE" ]; then
-            TARGET_COUNT=$(wc -l < "$TARGETS_FILE")
-            echo "target-file=$TARGETS_FILE" >> $GITHUB_OUTPUT
-            echo "target-count=$TARGET_COUNT" >> $GITHUB_OUTPUT
-
-            if [ "$TARGET_COUNT" -eq 0 ]; then
-              echo "targets-found=false" >> $GITHUB_OUTPUT
-              echo "reasonable-target-count=false" >> $GITHUB_OUTPUT
-              echo "no-targets-affected=true" >> $GITHUB_OUTPUT
-              echo "No targets affected by changes, skipping test"
-            elif [ "$TARGET_COUNT" -le 5000 ]; then
-              echo "targets-found=true" >> $GITHUB_OUTPUT
-              echo "reasonable-target-count=true" >> $GITHUB_OUTPUT
-              echo "no-targets-affected=false" >> $GITHUB_OUTPUT
-              echo "Found $TARGET_COUNT affected targets, will proceed with targeted test"
-            else
-              echo "targets-found=true" >> $GITHUB_OUTPUT
-              echo "reasonable-target-count=false" >> $GITHUB_OUTPUT
-              echo "no-targets-affected=false" >> $GITHUB_OUTPUT
-              echo "Found $TARGET_COUNT affected targets, but count is too high, will fall back to full test"
-            fi
-          else
-            echo "targets-found=false" >> $GITHUB_OUTPUT
-            echo "reasonable-target-count=false" >> $GITHUB_OUTPUT
-            echo "no-targets-affected=false" >> $GITHUB_OUTPUT
-            # FIXME (aseipp): this should be an error in the long run
-            echo "No targets file generated, will fall back to full test"
-          fi
-
-      # The determination step above already wrote the new trunk snapshot, so
-      # there is nothing left to collect here. Move it onto the path the
-      # restore step named: actions/cache derives an entry version from
-      # `path`, so a save which names a different file would never be found
-      # by the restore above, however exactly their keys matched. An absent
-      # file means tdutil declined or failed to write one, which costs the
-      # next run a base collection and is not a build failure.
-      - name: Stage the new base graph snapshot
-        id: capture-snapshot
-        if: github.event_name == 'push'
-        shell: bash
-        run: |
-          NEW_SNAPSHOT="${{ runner.temp }}/tdutil-snapshot-new.json"
-          if [ -s "$NEW_SNAPSHOT" ]; then
-            mv -f -- "$NEW_SNAPSHOT" "${{ runner.temp }}/tdutil-snapshot.json"
-            echo "captured=true" >> $GITHUB_OUTPUT
-          else
-            echo "captured=false" >> $GITHUB_OUTPUT
-            echo "No new snapshot was written; the next run collects its base graph."
-          fi
-      - name: Save base graph snapshot
-        if: github.event_name == 'push' && steps.capture-snapshot.outputs.captured == 'true'
-        continue-on-error: true
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ${{ runner.temp }}/tdutil-snapshot.json
-          key: tdutil-base-snapshot-v1-${{ matrix.abi }}-${{ steps.commits.outputs.head }}-${{ hashFiles('buck/bin/buck2', 'buck/ci.buckconfig') }}
-
-      # Test Step - either targeted or full test (skip if no targets affected)
-      - name: Test affected targets
-        if: steps.determine-targets.outputs.no-targets-affected != 'true'
-        continue-on-error: true
-        shell: bash
-        run: |
-          if [ "${TARGETS_FOUND}" = "true" ] && [ "${REASONABLE_TARGET_COUNT}" = "true" ]; then
-            echo "Testing targeted selection of ${TARGET_COUNT} targets"
-            buck2 test @buck/ci.buckargs -m debug @"${TARGET_FILE}" \
-              --skip-missing-targets \
-              --skip-incompatible-targets \
-              --build-report ${{ runner.temp }}/build-report.json \
-              --build-report-options fill-out-failures --
-          else
-            echo "Falling back to full test"
-            buck2 test @buck/ci.buckargs -m debug \
-              root//... tilde//... cellar//bootstrap/stage0-posix/... \
-              --build-report ${{ runner.temp }}/build-report.json \
-              --build-report-options fill-out-failures --
-          fi
-        env:
-          TARGETS_FOUND: ${{ steps.determine-targets.outputs.targets-found }}
-          REASONABLE_TARGET_COUNT: ${{ steps.determine-targets.outputs.reasonable-target-count }}
-          TARGET_COUNT: ${{ steps.determine-targets.outputs.target-count }}
-          TARGET_FILE: ${{ steps.determine-targets.outputs.target-file }}
-
-      - name: Report results
-        if: always()
-        shell: bash
-        run: |
-          echo "## Target Determination Summary"
-          echo "- OS: ${MATRIX_OS} (${MATRIX_ABI})"
-          echo "- No targets affected: ${NO_TARGETS_AFFECTED:-false}"
-          echo "- Targets found: ${TARGETS_FOUND}"
-          if [ "${NO_TARGETS_AFFECTED}" = "true" ]; then
-            echo "- Test skipped: No targets affected by changes"
-          elif [ "${TARGETS_FOUND}" = "true" ]; then
-            echo "- Target count: ${TARGET_COUNT}"
-            echo "- Used targeted test: ${REASONABLE_TARGET_COUNT}"
-          fi
-
-          echo
-          REPORT="${{ runner.temp }}/build-report.json"
-          if [ -f "$REPORT" ]; then
-            buck2 run root//buck/tools/build-report:build-report -- "$REPORT" || true
-            buck2 run root//buck/tools/build-report:build-report -- --format markdown "$REPORT" >> "$GITHUB_STEP_SUMMARY" || true
-          else
-            echo "Build report file not found, skipping report generation"
-          fi
-        env:
-          MATRIX_OS: ${{ matrix.os }}
-          MATRIX_ABI: ${{ matrix.abi }}
-          NO_TARGETS_AFFECTED: ${{ steps.determine-targets.outputs.no-targets-affected }}
-          TARGETS_FOUND: ${{ steps.determine-targets.outputs.targets-found }}
-          TARGET_COUNT: ${{ steps.determine-targets.outputs.target-count }}
-          REASONABLE_TARGET_COUNT: ${{ steps.determine-targets.outputs.reasonable-target-count }}
 
   # The osv.dev check asks that database whether anything this repository pins
   # is subject to a published advisory, so its verdict tracks the database rather
