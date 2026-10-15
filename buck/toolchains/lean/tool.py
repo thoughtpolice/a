@@ -216,7 +216,12 @@ def cmd_toolchain(args):
         else:
             codegen.append(cflags[i])
             i += 1
-    if codegen != args.expect_cflags:
+    expected = args.expect_cflags
+    # Mach-O code is always position independent, so leanc does not say
+    # -fPIC on macOS, where passing it anyway changes nothing.
+    if sys.platform == "darwin":
+        expected = [flag for flag in expected if flag != "-fPIC"]
+    if codegen != expected:
         fail(
             "leanc compiles generated C with {} but LEAN_C_FLAGS in "
             "buck/toolchains/lean/defs.bzl says {}; update it".format(codegen, args.expect_cflags)
