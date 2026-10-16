@@ -23,7 +23,8 @@
 //! be, and runs the actions the daemon's scheduler sends it, reading
 //! inputs from the daemon's store and writing outputs back. It offers this
 //! machine's OS and architecture as Buck names them, `container-image=host`,
-//! and any `--property` given; it keeps a cache of input files, so each is
+//! `container-image=empty` where it can run actions in an empty root, and
+//! any `--property` given; it keeps a cache of input files, so each is
 //! fetched once. When the connection drops it dials again.
 
 #[global_allocator]
@@ -125,7 +126,7 @@ async fn main() -> Result<()> {
         .await
         .context("failed to bind an iroh endpoint")?;
 
-    let mut properties = worker::host_properties();
+    let mut properties = worker::offered_properties();
     properties.extend(args.properties);
     let name = args.name.unwrap_or_else(|| {
         std::fs::read_to_string("/proc/sys/kernel/hostname")

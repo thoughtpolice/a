@@ -20,7 +20,7 @@ use gonzo_protos::worker::v1::{
     scheduler_message, worker_message,
 };
 use protos::build::bazel::remote::execution::v2::{
-    ActionResult, ExecuteResponse, ExecutedActionMetadata, platform::Property,
+    Action, ActionResult, Command, ExecuteResponse, ExecutedActionMetadata, platform::Property,
 };
 use protos::google::rpc::{Code, Status};
 
@@ -31,13 +31,14 @@ use crate::digest::DigestFunction;
 use crate::inputs::Inputs;
 use crate::outputs;
 use crate::runner::{self, Outcome, SpawnError};
+use crate::sandbox::EmptyRoot;
 
 /// How a worker presents itself and runs actions.
 #[derive(Clone, Debug)]
 pub struct Config {
     /// How it appears in logs and in each result's metadata.
     pub name: String,
-    /// What it offers; see [`host_properties`].
+    /// What it offers; see [`offered_properties`].
     pub properties: Vec<Property>,
     /// How many actions it runs at once.
     pub slots: usize,
@@ -65,6 +66,20 @@ pub fn host_environment() -> Vec<(String, String)> {
     std::env::var("PATH")
         .map(|path| vec![("PATH".to_string(), path)])
         .unwrap_or_default()
+}
+
+/// What a worker on this machine offers: its [`host_properties`], and
+/// `container-image=empty` too where it can run actions in an empty root
+/// (see [`sandbox`](crate::sandbox)).
+pub fn offered_properties() -> Vec<Property> {
+    let mut properties = host_properties();
+    if crate::sandbox::supported() {
+        properties.push(Property {
+            name: "container-image".to_string(),
+            value: crate::sandbox::EMPTY.to_string(),
+        });
+    }
+    properties
 }
 
 /// The properties of this machine as Buck names them (see
@@ -320,9 +335,19 @@ impl Worker {
             .filter(|t| !t.is_zero())
             .unwrap_or(self.config.default_timeout)
             .min(self.config.max_timeout);
-        let mut environment: Vec<(String, String)> = self
-            .config
-            .base_environment
+        // An empty root has nothing of the host, its PATH included.
+        let (empty_root, base_environment) = match container_image(action, command) {
+            "host" => (None, &self.config.base_environment[..]),
+            crate::sandbox::EMPTY => (
+                Some(
+                    EmptyRoot::new(&root, Path::new(&command.working_directory))
+                        .context("preparing the action's empty root")?,
+                ),
+                &[][..],
+            ),
+            other => bail!("this worker cannot run actions in container-image={other}"),
+        };
+        let mut environment: Vec<(String, String)> = base_environment
             .iter()
             .filter(|(name, _)| {
                 !command
@@ -357,6 +382,7 @@ impl Worker {
                 stderr: &stderr,
                 timeout,
                 cgroup: cgroup.as_ref(),
+                empty_root: empty_root.as_ref(),
             },
             cancelled,
         )
@@ -414,6 +440,18 @@ impl Worker {
             ..Default::default()
         })
     }
+}
+
+/// The image the action asks to run in: the value of its platform's
+/// `container-image`, or `host` if it names none.
+fn container_image<'a>(action: &'a Action, command: &'a Command) -> &'a str {
+    // Command.platform is deprecated in favour of Action.platform, but
+    // older clients only set the one.
+    #[allow(deprecated)]
+    let platform = action.platform.as_ref().or(command.platform.as_ref());
+    platform
+        .and_then(|p| p.properties.iter().find(|p| p.name == "container-image"))
+        .map_or("host", |p| p.value.as_str())
 }
 
 fn message(message: worker_message::Message) -> WorkerMessage {

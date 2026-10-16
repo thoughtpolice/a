@@ -59,7 +59,7 @@ pub fn spawn(
         .unwrap_or_else(|_| "local".to_string());
     let worker = worker::Worker::new(worker::Config {
         name,
-        properties: worker::host_properties(),
+        properties: worker::offered_properties(),
         slots: settings.slots,
         dir: settings.dir.clone(),
         cache_bytes: settings.cache_bytes,

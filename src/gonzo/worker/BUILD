@@ -16,6 +16,7 @@ DEPS = [
     "third-party//rust:prost-types",
     "third-party//rust:quick_cache",
     "third-party//rust:sha2",
+    "third-party//rust:tempfile",
     "third-party//rust:thiserror",
     "third-party//rust:tokio",
     "third-party//rust:tokio-stream",
@@ -39,7 +40,6 @@ depot.rust_test(
     crate_root = "lib.rs",
     deps = DEPS + [
         "third-party//rust:dial9",
-        "third-party//rust:tempfile",
         "//src/crates/dial9-tonic",
         "//src/gonzo/api",
         "//src/gonzo/scheduler",

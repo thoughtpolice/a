@@ -6,8 +6,9 @@
 //! The command runs with exactly the environment it names, in its own
 //! process group (and cgroup, if it has one), with stdin empty and stdout
 //! and stderr in files. When it exits, runs out of time or is cancelled,
-//! whatever else is left in its group and cgroup is killed too. Nothing
-//! more is isolated yet: the command sees the machine as the worker does.
+//! whatever else is left in its group and cgroup is killed too. It sees
+//! the machine as the worker does, or, given an [`EmptyRoot`], nothing but
+//! its inputs.
 
 use std::future::Future;
 use std::os::unix::process::ExitStatusExt as _;
@@ -18,13 +19,15 @@ use std::time::Duration;
 use anyhow::{Context as _, Result, bail};
 
 use crate::cgroup::ActionCgroup;
+use crate::sandbox::EmptyRoot;
 
 /// What to run.
 #[derive(Debug)]
 pub struct Spec<'a> {
     /// The program and its arguments. A program named with a `/` but not
     /// absolute is relative to the working directory; one without a `/`
-    /// is looked up in the command's own `PATH`.
+    /// is looked up in the command's own `PATH`, in the empty root if it
+    /// has one.
     pub arguments: &'a [String],
     pub environment: &'a [(String, String)],
     pub working_directory: &'a Path,
@@ -33,6 +36,8 @@ pub struct Spec<'a> {
     pub timeout: Duration,
     /// A cgroup for the command and everything it starts.
     pub cgroup: Option<&'a ActionCgroup>,
+    /// Run the command with its input root as its whole filesystem.
+    pub empty_root: Option<&'a EmptyRoot>,
 }
 
 /// How a command ended.
@@ -58,7 +63,9 @@ pub async fn run(spec: &Spec<'_>, cancelled: impl Future<Output = ()>) -> Result
     let Some((program, arguments)) = spec.arguments.split_first() else {
         bail!("the command has no arguments");
     };
-    let program = if program.contains('/') {
+    // In an empty root the working directory is the current one when the
+    // command execs, under another name than the worker's.
+    let program = if program.contains('/') && spec.empty_root.is_none() {
         spec.working_directory.join(program)
     } else {
         PathBuf::from(program)
@@ -84,6 +91,13 @@ pub async fn run(spec: &Spec<'_>, cancelled: impl Future<Output = ()>) -> Result
         // SAFETY: joining makes one async-signal-safe write(2).
         unsafe {
             command.pre_exec(move || crate::cgroup::join(procs));
+        }
+    }
+    if let Some(root) = spec.empty_root.cloned() {
+        // SAFETY: entering makes system calls only. It runs after the
+        // cgroup join, which needs the worker's view of /sys/fs/cgroup.
+        unsafe {
+            command.pre_exec(move || root.enter());
         }
     }
     let mut child = spawn(&mut command).await.map_err(|source| SpawnError {
@@ -192,6 +206,7 @@ mod tests {
                     stderr: &stderr,
                     timeout,
                     cgroup: None,
+                    empty_root: None,
                 },
                 cancelled,
             )
@@ -356,6 +371,7 @@ mod tests {
                 stderr: &scratch.dir.path().join("stderr"),
                 timeout: LONG,
                 cgroup: Some(&cgroup),
+                empty_root: None,
             },
             std::future::pending(),
         )
