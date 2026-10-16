@@ -1,7 +1,12 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
 load(
     "@cellar//bootstrap:defs.bzl",
+    "NATIVE_CONSTRAINTS",
     "export_file",
     "filegroup",
+    "native_attrs",
     "stage0_answer_test",
 )
 
@@ -20,10 +25,13 @@ def __hex0(ctx: AnalysisContext) -> list[Provider]:
         RunInfo(args = cmd_args(output)),
     ]
 
-hex0 = rule(impl = __hex0, attrs = {
+_hex0_rule = rule(impl = __hex0, attrs = {
     "bin": attrs.source(),
     "src": attrs.source(),
 })
+
+def hex0(**kwargs):
+    _hex0_rule(**native_attrs(kwargs))
 
 # hex1 and hex2 have the same APIs
 hex1 = hex0
@@ -44,10 +52,13 @@ def __catm(ctx: AnalysisContext) -> list[Provider]:
         DefaultInfo(default_output = output),
     ]
 
-catm = rule(impl = __catm, attrs = {
+_catm_rule = rule(impl = __catm, attrs = {
     "bin": attrs.source(),
     "inputs": attrs.list(attrs.source()),
 })
+
+def catm(**kwargs):
+    _catm_rule(**native_attrs(kwargs))
 
 def __M0(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
@@ -63,10 +74,13 @@ def __M0(ctx: AnalysisContext) -> list[Provider]:
         DefaultInfo(default_output = output),
     ]
 
-M0 = rule(impl = __M0, attrs = {
+_M0_rule = rule(impl = __M0, attrs = {
     "bin": attrs.source(),
     "src": attrs.source(),
 })
+
+def M0(**kwargs):
+    _M0_rule(**native_attrs(kwargs))
 
 def __cc(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
@@ -82,10 +96,13 @@ def __cc(ctx: AnalysisContext) -> list[Provider]:
         DefaultInfo(default_output = output),
     ]
 
-cc = rule(impl = __cc, attrs = {
+_cc_rule = rule(impl = __cc, attrs = {
     "bin": attrs.source(),
     "src": attrs.source(),
 })
+
+def cc(**kwargs):
+    _cc_rule(**native_attrs(kwargs))
 
 def __M2(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
@@ -107,13 +124,16 @@ def __M2(ctx: AnalysisContext) -> list[Provider]:
         DefaultInfo(default_output = output),
     ]
 
-M2 = rule(impl = __M2, attrs = {
+_M2_rule = rule(impl = __M2, attrs = {
     "bin": attrs.source(),
     "arch": attrs.string(),
     "srcs": attrs.list(attrs.source()),
     "bootstrap": attrs.bool(default = False),
     "debug": attrs.bool(default = False),
 })
+
+def M2(**kwargs):
+    _M2_rule(**native_attrs(kwargs))
 
 def __blood_elf(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
@@ -133,12 +153,15 @@ def __blood_elf(ctx: AnalysisContext) -> list[Provider]:
         DefaultInfo(default_output = output),
     ]
 
-blood_elf = rule(impl = __blood_elf, attrs = {
+_blood_elf_rule = rule(impl = __blood_elf, attrs = {
     "bin": attrs.source(),
     "sixtyfour": attrs.bool(),
     "little_endian": attrs.bool(),
     "srcs": attrs.list(attrs.source()),
 })
+
+def blood_elf(**kwargs):
+    _blood_elf_rule(**native_attrs(kwargs))
 
 def __m1_0(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
@@ -158,12 +181,15 @@ def __m1_0(ctx: AnalysisContext) -> list[Provider]:
         DefaultInfo(default_output = output),
     ]
 
-M1_0 = rule(impl = __m1_0, attrs = {
+_M1_0_rule = rule(impl = __m1_0, attrs = {
     "bin": attrs.source(),
     "arch": attrs.string(),
     "little_endian": attrs.bool(),
     "srcs": attrs.list(attrs.source()),
 })
+
+def M1_0(**kwargs):
+    _M1_0_rule(**native_attrs(kwargs))
 
 def __hex2_1(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
@@ -186,13 +212,16 @@ def __hex2_1(ctx: AnalysisContext) -> list[Provider]:
         RunInfo(args = cmd_args(output)),
     ]
 
-hex2_1 = rule(impl = __hex2_1, attrs = {
+_hex2_1_rule = rule(impl = __hex2_1, attrs = {
     "bin": attrs.source(),
     "arch": attrs.string(),
     "little_endian": attrs.bool(),
     "base_address": attrs.string(),
     "srcs": attrs.list(attrs.source()),
 })
+
+def hex2_1(**kwargs):
+    _hex2_1_rule(**native_attrs(kwargs))
 
 M1 = M1_0
 hex2 = hex2_1
@@ -898,8 +927,8 @@ def stage0_binaries(
 #   4) declares the `:check` test that runs sha256sum over that filegroup
 #      against the golden answers.
 #
-# Every target requires Linux and `arch`, so a platform without both skips
-# them instead of failing to build them.
+# Every target requires x86_64 Linux, so another platform skips them instead
+# of failing to build them.
 #
 # Arguments:
 #   arch              target architecture passed to M2/M1/hex2 rules.
@@ -910,10 +939,7 @@ def stage0_platform(
         arch,
         arch_dir_upper,
         filegroup_name):
-    compat = {"target_compatible_with": [
-        "cellar//bootstrap/platforms:linux",
-        "cellar//bootstrap/platforms:" + arch,
-    ]}
+    compat = {"target_compatible_with": NATIVE_CONSTRAINTS}
 
     export_file(name = "answers", **compat)
 

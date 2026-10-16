@@ -1,3 +1,5 @@
+load("@cellar//bootstrap:defs.bzl", "native_attrs")
+
 def __cc(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
     tools = ctx.attrs.tools[DefaultInfo].default_outputs[0]
@@ -27,7 +29,7 @@ def __cc(ctx: AnalysisContext) -> list[Provider]:
         RunInfo(args = cmd_args(output)),
     ]
 
-cc = rule(impl = __cc, attrs = {
+_cc_rule = rule(impl = __cc, attrs = {
     "os": attrs.string(),
     "arch": attrs.string(),
     "src": attrs.source(),
@@ -36,6 +38,9 @@ cc = rule(impl = __cc, attrs = {
         attrs.dep(default = "cellar//bootstrap/stage0-posix/m2-libc:m2-libc"),
     ),
 })
+
+def cc(**kwargs):
+    _cc_rule(**native_attrs(kwargs))
 
 def create_all(sources):
     """Create cc targets for all mescc-tools-extra C sources.
@@ -51,8 +56,4 @@ def create_all(sources):
             os = "Linux",
             arch = "amd64",
             tools = "cellar//bootstrap/stage0-posix/seeds/linux-amd64:bins",
-            target_compatible_with = [
-                "cellar//bootstrap/platforms:linux",
-                "cellar//bootstrap/platforms:amd64",
-            ],
         )

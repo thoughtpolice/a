@@ -853,7 +853,14 @@ Buck registers `root//buck/platforms:execution`: the host's executor first,
 which takes every target that does not require another cpu or os, then, in
 `full-remote` mode, a remote-only executor for each other Linux cpu. A target
 whose `exec_compatible_with` names another cpu runs on those workers and never
-on the client. Without remote execution, such a target finds no executor and
+on the client. For example, `cellar//bootstrap` requires x86_64 Linux, so an
+arm64 Linux client builds it with:
+
+```bash
+buck2 build @mode//buildbuddy cellar//bootstrap/...
+```
+
+Without remote execution, such a target finds no executor and
 fails to configure. `buck2_re_client.container_image` names the image remote
 Linux actions run in, and `buck2.local_sandbox_read_paths` and
 `local_sandbox_write_paths` replace the paths a sandboxed local action may

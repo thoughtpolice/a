@@ -1,3 +1,22 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Every bootstrap program is a static x86_64 Linux executable, and each stage
+# runs the previous stage's programs, so the rules require x86_64 Linux of both
+# the target and the executor: locally on an x86_64 Linux client, and on
+# remote x86_64 Linux workers from any other.
+NATIVE_CONSTRAINTS = [
+    "config//cpu/constraints:x86_64",
+    "config//os/constraints:linux",
+]
+
+def native_attrs(kwargs):
+    """Require the bootstrap's native ABI for both outputs and action tools."""
+    result = dict(kwargs)
+    for key in ["target_compatible_with", "exec_compatible_with"]:
+        result[key] = NATIVE_CONSTRAINTS + result.get(key, [])
+    return result
+
 def __export_file_impl(ctx: AnalysisContext) -> list[Provider]:
     return [
         DefaultInfo(default_output = ctx.attrs.src),
@@ -51,9 +70,12 @@ def __stage0_answer_test(ctx: AnalysisContext) -> list[Provider]:
         ExternalRunnerTestInfo(type = "simple", command = cmd + ctx.attrs.args),
     ]
 
-stage0_answer_test = rule(impl = __stage0_answer_test, attrs = {
+_stage0_answer_test_rule = rule(impl = __stage0_answer_test, attrs = {
     "chdirexec": attrs.dep(),
     "command": attrs.dep(),
     "input": attrs.dep(),
     "args": attrs.list(attrs.arg()),
 })
+
+def stage0_answer_test(**kwargs):
+    _stage0_answer_test_rule(**native_attrs(kwargs))
