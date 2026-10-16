@@ -174,3 +174,57 @@ async fn a_worker_that_has_not_joined_gets_nothing() {
         .expect("an answer in time");
     assert!(checked.is_err(), "{checked:?}");
 }
+
+/// A worker that knows only the cluster's name finds the daemon on the
+/// DHT and joins it. The DHT is a private testnet on loopback, so this
+/// never touches the real mainline network.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_worker_finds_and_joins_a_daemon_by_cluster_name() {
+    let testnet = iroh_rendezvous::n0_mainline::Testnet::new(5)
+        .await
+        .expect("a DHT testnet");
+    let dht = || {
+        Dht::builder()
+            .bootstrap(&testnet.bootstrap)
+            .build()
+            .expect("joining the testnet")
+    };
+    let cluster = Cluster::new("lab-7f3a");
+    let (daemon, worker) = (endpoint(true).await, endpoint(false).await);
+    let _stop = serve_health(&daemon, vec![JoinKey::generate(), cluster.key()]);
+    let announcing = Cluster::rendezvous(&daemon, Some(dht())).expect("rendezvous");
+    let _announcer = cluster.announce(&announcing);
+
+    let finding = Cluster::rendezvous(&worker, Some(dht())).expect("rendezvous");
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(30);
+    let found = loop {
+        let found = cluster.daemons(&finding).await.expect("finding");
+        if !found.is_empty() {
+            break found;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "no daemon announced"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    };
+    assert_eq!(found, [daemon.id()]);
+    assert!(
+        Cluster::new("lab-other")
+            .daemons(&finding)
+            .await
+            .expect("finding")
+            .is_empty(),
+        "another cluster's daemons stay hidden"
+    );
+
+    // No address lookup here, so dial the address directly.
+    let conn = worker
+        .connect(iroh_utils::dialable_addr(&daemon), ALPN)
+        .await
+        .expect("connect");
+    join(&conn, worker.id(), &cluster.key())
+        .await
+        .expect("join");
+    assert_eq!(check(channel(conn)).await.expect("check"), 1);
+}

@@ -17,6 +17,7 @@ DEPS = [
     "//src/crates/accept",
     "//src/crates/iroh-boring",
     "//src/crates/iroh-dial",
+    "//src/crates/iroh-rendezvous",
 ]
 
 depot.rust_library(
