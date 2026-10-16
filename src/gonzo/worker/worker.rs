@@ -26,6 +26,7 @@ use protos::google::rpc::{Code, Status};
 
 use crate::cache::FileCache;
 use crate::cas::{Cas, Missing};
+use crate::cgroup::Cgroups;
 use crate::digest::DigestFunction;
 use crate::inputs::Inputs;
 use crate::outputs;
@@ -86,6 +87,8 @@ pub struct Worker {
     inputs: Inputs,
     builds: PathBuf,
     next_build: AtomicU64,
+    /// Where actions' cgroups go, if the worker can make them.
+    cgroups: Option<Cgroups>,
     /// Held for the worker's life, so two workers never share a directory.
     _lock: std::fs::File,
 }
@@ -114,6 +117,16 @@ impl Worker {
         }
         std::fs::create_dir_all(&builds)?;
         let files = Arc::new(FileCache::open(&config.dir.join("files"))?);
+        let cgroups = Cgroups::new();
+        match &cgroups {
+            Some(cgroups) => tracing::info!(
+                cgroups = %cgroups.dir().display(),
+                "actions run in cgroups of their own"
+            ),
+            None => {
+                tracing::info!("actions run in process groups; this process cannot make cgroups")
+            }
+        }
         let cas = Cas::new(channel.clone(), "");
         Ok(Self {
             scheduler: SchedulerClient::new(channel),
@@ -121,6 +134,7 @@ impl Worker {
             cas,
             builds,
             next_build: AtomicU64::new(0),
+            cgroups,
             config,
             _lock: lock,
         })
@@ -198,10 +212,9 @@ impl Worker {
         assign: Assign,
         cancelled: impl Future<Output = ()>,
     ) -> ExecuteResponse {
-        let build = self
-            .builds
-            .join(self.next_build.fetch_add(1, Ordering::Relaxed).to_string());
-        let response = match self.try_execute(&assign, &build, cancelled).await {
+        let number = self.next_build.fetch_add(1, Ordering::Relaxed).to_string();
+        let build = self.builds.join(&number);
+        let response = match self.try_execute(&assign, &build, &number, cancelled).await {
             Ok(response) => response,
             Err(e) => {
                 let code = if e.downcast_ref::<Missing>().is_some() {
@@ -230,6 +243,7 @@ impl Worker {
         &self,
         assign: &Assign,
         build: &Path,
+        number: &str,
         cancelled: impl Future<Output = ()>,
     ) -> Result<ExecuteResponse> {
         let mut metadata = ExecutedActionMetadata {
@@ -285,6 +299,14 @@ impl Worker {
             .map(|v| (v.name.clone(), v.value.clone()))
             .collect();
         let (stdout, stderr) = (build.join("stdout"), build.join("stderr"));
+        let cgroup = match &self.cgroups {
+            Some(cgroups) => Some(
+                cgroups
+                    .create(number)
+                    .context("making the action's cgroup")?,
+            ),
+            None => None,
+        };
         metadata.execution_start_timestamp = Some(now());
         let outcome = runner::run(
             &runner::Spec {
@@ -294,10 +316,12 @@ impl Worker {
                 stdout: &stdout,
                 stderr: &stderr,
                 timeout,
+                cgroup: cgroup.as_ref(),
             },
             cancelled,
         )
         .await?;
+        drop(cgroup);
         metadata.execution_completed_timestamp = Some(now());
 
         let (exit_code, status) = match outcome {

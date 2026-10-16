@@ -4,10 +4,10 @@
 //! Running an action's command.
 //!
 //! The command runs with exactly the environment it names, in its own
-//! process group, with stdin empty and stdout and stderr in files. When it
-//! exits, runs out of time or is cancelled, whatever else is left in its
-//! group is killed too. Nothing more is isolated yet: the command sees the
-//! machine as the worker does.
+//! process group (and cgroup, if it has one), with stdin empty and stdout
+//! and stderr in files. When it exits, runs out of time or is cancelled,
+//! whatever else is left in its group and cgroup is killed too. Nothing
+//! more is isolated yet: the command sees the machine as the worker does.
 
 use std::future::Future;
 use std::os::unix::process::ExitStatusExt as _;
@@ -16,6 +16,8 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use anyhow::{Context as _, Result, bail};
+
+use crate::cgroup::ActionCgroup;
 
 /// What to run.
 #[derive(Debug)]
@@ -29,6 +31,8 @@ pub struct Spec<'a> {
     pub stdout: &'a Path,
     pub stderr: &'a Path,
     pub timeout: Duration,
+    /// A cgroup for the command and everything it starts.
+    pub cgroup: Option<&'a ActionCgroup>,
 }
 
 /// How a command ended.
@@ -75,6 +79,13 @@ pub async fn run(spec: &Spec<'_>, cancelled: impl Future<Output = ()>) -> Result
         .stderr(stderr)
         .process_group(0)
         .kill_on_drop(true);
+    if let Some(cgroup) = spec.cgroup {
+        let procs = cgroup.procs_fd();
+        // SAFETY: joining makes one async-signal-safe write(2).
+        unsafe {
+            command.pre_exec(move || crate::cgroup::join(procs));
+        }
+    }
     let mut child = command.spawn().map_err(|source| SpawnError {
         program: program.clone(),
         source,
@@ -96,6 +107,9 @@ pub async fn run(spec: &Spec<'_>, cancelled: impl Future<Output = ()>) -> Result
     // Whatever the command left behind goes with it. The group is killed
     // before the child is reaped, so its id cannot have been reused.
     drop(group);
+    if let Some(cgroup) = spec.cgroup {
+        cgroup.kill().await;
+    }
     let _ = child.wait().await;
     Ok(outcome)
 }
@@ -154,6 +168,7 @@ mod tests {
                     stdout: &stdout,
                     stderr: &stderr,
                     timeout,
+                    cgroup: None,
                 },
                 cancelled,
             )
@@ -290,5 +305,53 @@ mod tests {
             .unwrap();
         assert_eq!(outcome, Outcome::Cancelled);
         assert!(started.elapsed() < Duration::from_secs(10));
+    }
+
+    #[tokio::test]
+    async fn processes_that_leave_the_group_die_with_the_cgroup() {
+        let Some(cgroups) = crate::cgroup::Cgroups::new() else {
+            eprintln!("skipping: this process cannot make cgroups");
+            return;
+        };
+        let scratch = Scratch::new();
+        let cgroup = cgroups.create("escape").expect("a cgroup");
+        let arguments: Vec<String> = [
+            "sh",
+            "-c",
+            "setsid sleep 100 < /dev/null > /dev/null 2>&1 & echo $! > ../escaped",
+        ]
+        .iter()
+        .map(|a| a.to_string())
+        .collect();
+        let environment = [("PATH".to_string(), "/usr/bin:/bin".to_string())];
+        let outcome = run(
+            &Spec {
+                arguments: &arguments,
+                environment: &environment,
+                working_directory: &scratch.root(),
+                stdout: &scratch.dir.path().join("stdout"),
+                stderr: &scratch.dir.path().join("stderr"),
+                timeout: LONG,
+                cgroup: Some(&cgroup),
+            },
+            std::future::pending(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(outcome, Outcome::Exited(0));
+        let pid: i32 = std::fs::read_to_string(scratch.dir.path().join("escaped"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+        for _ in 0..100 {
+            if gone(pid) {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        // SAFETY: kill(2) touches no memory.
+        unsafe { libc::kill(pid, libc::SIGKILL) };
+        panic!("{pid} left its process group and outlived its action");
     }
 }

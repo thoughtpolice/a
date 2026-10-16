@@ -8,6 +8,7 @@
 
 pub mod cache;
 pub mod cas;
+pub mod cgroup;
 pub mod digest;
 pub mod inputs;
 pub mod outputs;
