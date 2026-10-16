@@ -104,7 +104,8 @@ def native_libs(dynlibs: list[str]) -> tuple[list[str], list[str]]:
     if not dynlibs:
         return [], []
     libdir = run(["lean", "--print-libdir"], capture_output=True, text=True, check=True).stdout.strip()
-    return [os.path.abspath(d) for d in dynlibs], [os.path.join(libdir, "libLake_shared.so")]
+    lake = "libLake_shared.dylib" if sys.platform == "darwin" else "libLake_shared.so"
+    return [os.path.abspath(d) for d in dynlibs], [os.path.join(libdir, lake)]
 
 
 def write_setup(tmp: str, args, arts: dict, options: dict) -> str:
@@ -156,7 +157,9 @@ def defines_main(libdir: str, flag: str) -> bool:
     if not os.path.exists(archive):
         return False
     out = run(["nm", "--defined-only", "--extern-only", archive], capture_output=True, text=True, check=True).stdout
-    return any(line.split()[-2:] == ["T", "main"] for line in out.splitlines() if line.strip())
+    # Mach-O symbol names carry a leading underscore.
+    main = "_main" if sys.platform == "darwin" else "main"
+    return any(line.split()[-2:] == ["T", main] for line in out.splitlines() if line.strip())
 
 
 def libstdcxx_dirs(cxx: list[str]) -> list[str]:
@@ -235,13 +238,13 @@ def cmd_toolchain(args):
     libdir = os.path.join(run(["lean", "--print-prefix"], capture_output=True, text=True, check=True).stdout.strip(), "lib", "lean")
     ldflags = [flag for flag in ldflags if not defines_main(libdir, flag)]
 
-    # A release build of Lean, as CI installs, keeps the libc++, gmp, libuv
-    # and OpenSSL its runtime links against in its own lib directory, not the
-    # system's, and leanc names that directory only when it drives its own
-    # clang. Name it for the C++ toolchain's linker too. Nix's Lean takes them
-    # from the system, and has none there.
+    # A release build of Lean, as CI installs, keeps the gmp, libuv and
+    # OpenSSL its runtime links against (and on Linux, libc++) in its own lib
+    # directory, not the system's, and leanc names that directory only when
+    # it drives its own clang. Name it for the C++ toolchain's linker too.
+    # Nix's Lean takes them from the system, and has none there.
     bundled = os.path.dirname(libdir)
-    if os.path.exists(os.path.join(bundled, "libc++.a")):
+    if any(os.path.exists(os.path.join(bundled, lib)) for lib in ["libc++.a", "libgmp.a"]):
         ldflags = ["-L", bundled] + ldflags
 
     # The Nix ld wrapper adds a runpath for -L directories but not for shared

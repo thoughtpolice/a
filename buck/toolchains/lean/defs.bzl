@@ -37,7 +37,8 @@ can implement `@[extern]` declarations, through plain `deps`.
 LeanLibraryInfo, the per-module artifacts the Lean side needs.
 """
 
-load("@prelude//cxx:cxx_toolchain_types.bzl", "CxxToolchainInfo")
+load("@prelude//cxx:cxx_toolchain_types.bzl", "CxxToolchainInfo", "LinkerType")
+load("@prelude//cxx:linker.bzl", "get_link_whole_args")
 load("@prelude//linking:link_info.bzl", "LinkStrategy", "MergedLinkInfo", "get_link_args_for_strategy", "unpack_link_args")
 
 # What `leanc --print-cflags` passes when compiling generated C, minus its
@@ -287,6 +288,16 @@ def _topo(names: list[str], graph: dict) -> list[str]:
         fail("import cycle among {}".format(sorted(pending.keys())))
     return order
 
+def _plugin_flags(linker_type: LinkerType) -> list[str]:
+    """Link flags for a shared object that the lean process loads.
+
+    Such an object leaves the Lean symbols it does not define to the process.
+    An ELF shared object may; a Mach-O one has to say so.
+    """
+    if linker_type == LinkerType("darwin"):
+        return ["-Wl,-undefined,dynamic_lookup"]
+    return []
+
 def _precompile_externs(ctx: AnalysisContext, plugin_infos: list) -> list[Artifact]:
     """What a module of a precompiled target loads before the shared objects
     of the target's own modules: those of every Lean library under the
@@ -302,16 +313,21 @@ def _precompile_externs(ctx: AnalysisContext, plugin_infos: list) -> list[Artifa
     if externs:
         shared = ctx.actions.declare_output("shared", "externs.so")
         args = get_link_args_for_strategy(ctx.actions, ctx.label, cxx.linker_info, externs, LinkStrategy("static_pic"), False, None)
+        if cxx.linker_info.type == LinkerType("darwin"):
+            # ld64 cannot end a whole-archive span, but every archive here
+            # is to be linked whole.
+            whole = ["-Wl,-all_load", unpack_link_args(args)]
+        else:
+            whole = ["-Wl,--whole-archive", unpack_link_args(args), "-Wl,--no-whole-archive"]
         ctx.actions.run(
             cmd_args(
                 cxx.linker_info.linker,
                 cxx.linker_info.linker_flags,
                 "-shared",
+                _plugin_flags(cxx.linker_info.type),
                 "-o",
                 shared.as_output(),
-                "-Wl,--whole-archive",
-                unpack_link_args(args),
-                "-Wl,--no-whole-archive",
+                whole,
             ),
             category = "lean_externs_plugin",
         )
@@ -329,6 +345,7 @@ def _precompile_modules(ctx: AnalysisContext, toolchain: LeanToolchainInfo, own:
                 LEAN_C_COMPILE_FLAGS,
                 cmd_args(toolchain.stamp, format = "@{}"),
                 "-shared",
+                _plugin_flags(cxx.linker_info.type),
                 "-o",
                 m.shared.as_output(),
                 m.c,
@@ -680,11 +697,10 @@ def _lean_library_impl(ctx: AnalysisContext) -> list[Provider]:
             cxx.linker_info.linker,
             cxx.linker_info.linker_flags,
             "-shared",
+            _plugin_flags(cxx.linker_info.type),
             "-o",
             shared.as_output(),
-            "-Wl,--whole-archive",
-            native[DefaultInfo].sub_targets["static-pic"][DefaultInfo].default_outputs,
-            "-Wl,--no-whole-archive",
+            get_link_whole_args(cxx.linker_info.type, native[DefaultInfo].sub_targets["static-pic"][DefaultInfo].default_outputs),
             unpack_link_args(externs),
         ),
         category = "lean_plugin",

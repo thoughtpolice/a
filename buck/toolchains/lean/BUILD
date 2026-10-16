@@ -27,19 +27,26 @@ lean_toolchain_check(
 
 # lean.h, for C and C++ code implementing @[extern] functions. That code
 # depends on this rather than :runtime, so that a precompiled library's
-# shared object can include it without Lean's static runtime.
+# shared object can include it without Lean's static runtime. A shared
+# object of such code leaves the Lean symbols to the process loading it,
+# which Mach-O allows only when told.
 shims.cxx_library(
     name = "headers",
+    exported_linker_flags = shims.select({
+        "config//os:macos": ["-Wl,-undefined,dynamic_lookup"],
+        "DEFAULT": [],
+    }),
     exported_preprocessor_flags = ["@$(location :check[cflags])"],
     visibility = ["PUBLIC"],
 )
 
 # lean.h and Lean's runtime and standard library, for the generated C and
-# for programs that call Lean code.
+# for programs that call Lean code. It does not take :headers, whose
+# linker flag would let a macOS program link with symbols missing.
 shims.cxx_library(
     name = "runtime",
-    exported_deps = [":headers"],
     exported_post_linker_flags = ["@$(location :check[ldflags])"],
+    exported_preprocessor_flags = ["@$(location :check[cflags])"],
     preferred_linkage = "static",
     visibility = ["PUBLIC"],
 )
