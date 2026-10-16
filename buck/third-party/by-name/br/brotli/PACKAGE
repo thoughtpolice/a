@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "1.2.0",
+    description = """
+        Brotli, a generic-purpose lossless compression algorithm.
+    """,
+    license = "MIT",
+    copyright = [
+        "2009, 2010, 2013-2016 by the Brotli Authors",
+    ],
+    visibility = ["PUBLIC"],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/google/brotli",
+        commit = "028fb5a23661f123017c060daa546b55cf4bde29",
+    ),
+)
