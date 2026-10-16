@@ -10,15 +10,36 @@ load(
     "stage0_answer_test",
 )
 
+def _executable_seed_impl(ctx: AnalysisContext) -> list[Provider]:
+    # Windows source metadata has no executable bit. Normalize the artifact's
+    # metadata before it is uploaded to a Linux worker; preserve the seed bytes.
+    output = ctx.actions.copy_file(
+        ctx.label.name,
+        ctx.attrs.src,
+        executable_bit_override = True,
+    )
+    return [
+        DefaultInfo(default_output = output),
+        RunInfo(args = cmd_args(output)),
+    ]
+
+_executable_seed_rule = rule(impl = _executable_seed_impl, attrs = {
+    "src": attrs.source(),
+})
+
+def executable_seed(**kwargs):
+    _executable_seed_rule(**native_attrs(kwargs))
+
 def __hex0(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
     ctx.actions.run(
         [
-            ctx.attrs.bin,
+            ctx.attrs.bin[DefaultInfo].default_outputs[0],
             ctx.attrs.src,
             output.as_output(),
         ],
         category = "stage0_hex012",
+        clear_environment = True,
     )
     return [
         DefaultInfo(default_output = output),
@@ -26,7 +47,7 @@ def __hex0(ctx: AnalysisContext) -> list[Provider]:
     ]
 
 _hex0_rule = rule(impl = __hex0, attrs = {
-    "bin": attrs.source(),
+    "bin": attrs.exec_dep(),
     "src": attrs.source(),
 })
 
@@ -43,17 +64,18 @@ def __catm(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
     ctx.actions.run(
         [
-            ctx.attrs.bin,
+            ctx.attrs.bin[DefaultInfo].default_outputs[0],
             output.as_output(),
         ] + ctx.attrs.inputs,
         category = "stage0_catm",
+        clear_environment = True,
     )
     return [
         DefaultInfo(default_output = output),
     ]
 
 _catm_rule = rule(impl = __catm, attrs = {
-    "bin": attrs.source(),
+    "bin": attrs.exec_dep(),
     "inputs": attrs.list(attrs.source()),
 })
 
@@ -64,18 +86,19 @@ def __M0(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
     ctx.actions.run(
         [
-            ctx.attrs.bin,
+            ctx.attrs.bin[DefaultInfo].default_outputs[0],
             ctx.attrs.src,
             output.as_output(),
         ],
         category = "stage0_m0",
+        clear_environment = True,
     )
     return [
         DefaultInfo(default_output = output),
     ]
 
 _M0_rule = rule(impl = __M0, attrs = {
-    "bin": attrs.source(),
+    "bin": attrs.exec_dep(),
     "src": attrs.source(),
 })
 
@@ -86,18 +109,19 @@ def __cc(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
     ctx.actions.run(
         [
-            ctx.attrs.bin,
+            ctx.attrs.bin[DefaultInfo].default_outputs[0],
             ctx.attrs.src,
             output.as_output(),
         ],
         category = "stage0_cc",
+        clear_environment = True,
     )
     return [
         DefaultInfo(default_output = output),
     ]
 
 _cc_rule = rule(impl = __cc, attrs = {
-    "bin": attrs.source(),
+    "bin": attrs.exec_dep(),
     "src": attrs.source(),
 })
 
@@ -106,7 +130,7 @@ def cc(**kwargs):
 
 def __M2(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
-        ctx.attrs.bin,
+        ctx.attrs.bin[DefaultInfo].default_outputs[0],
         "--architecture",
         ctx.attrs.arch,
     ]
@@ -119,13 +143,13 @@ def __M2(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
     cmd.extend(["-o", output.as_output()])
 
-    ctx.actions.run(cmd, category = "stage0_m2")
+    ctx.actions.run(cmd, category = "stage0_m2", clear_environment = True)
     return [
         DefaultInfo(default_output = output),
     ]
 
 _M2_rule = rule(impl = __M2, attrs = {
-    "bin": attrs.source(),
+    "bin": attrs.exec_dep(),
     "arch": attrs.string(),
     "srcs": attrs.list(attrs.source()),
     "bootstrap": attrs.bool(default = False),
@@ -137,7 +161,7 @@ def M2(**kwargs):
 
 def __blood_elf(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
-        ctx.attrs.bin,
+        ctx.attrs.bin[DefaultInfo].default_outputs[0],
     ]
     if ctx.attrs.sixtyfour:
         cmd.append("--64")
@@ -148,13 +172,13 @@ def __blood_elf(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
     cmd.extend(["-o", output.as_output()])
 
-    ctx.actions.run(cmd, category = "stage0_blood_elf")
+    ctx.actions.run(cmd, category = "stage0_blood_elf", clear_environment = True)
     return [
         DefaultInfo(default_output = output),
     ]
 
 _blood_elf_rule = rule(impl = __blood_elf, attrs = {
-    "bin": attrs.source(),
+    "bin": attrs.exec_dep(),
     "sixtyfour": attrs.bool(),
     "little_endian": attrs.bool(),
     "srcs": attrs.list(attrs.source()),
@@ -165,7 +189,7 @@ def blood_elf(**kwargs):
 
 def __m1_0(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
-        ctx.attrs.bin,
+        ctx.attrs.bin[DefaultInfo].default_outputs[0],
         "--architecture",
         ctx.attrs.arch,
     ]
@@ -176,13 +200,13 @@ def __m1_0(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
     cmd.extend(["-o", output.as_output()])
 
-    ctx.actions.run(cmd, category = "stage0_m1_zero")
+    ctx.actions.run(cmd, category = "stage0_m1_zero", clear_environment = True)
     return [
         DefaultInfo(default_output = output),
     ]
 
 _M1_0_rule = rule(impl = __m1_0, attrs = {
-    "bin": attrs.source(),
+    "bin": attrs.exec_dep(),
     "arch": attrs.string(),
     "little_endian": attrs.bool(),
     "srcs": attrs.list(attrs.source()),
@@ -193,7 +217,7 @@ def M1_0(**kwargs):
 
 def __hex2_1(ctx: AnalysisContext) -> list[Provider]:
     cmd = [
-        ctx.attrs.bin,
+        ctx.attrs.bin[DefaultInfo].default_outputs[0],
         "--architecture",
         ctx.attrs.arch,
     ]
@@ -206,14 +230,14 @@ def __hex2_1(ctx: AnalysisContext) -> list[Provider]:
     output = ctx.actions.declare_output(ctx.label.name)
     cmd.extend(["-o", output.as_output()])
 
-    ctx.actions.run(cmd, category = "stage0_hex2_one")
+    ctx.actions.run(cmd, category = "stage0_hex2_one", clear_environment = True)
     return [
         DefaultInfo(default_output = output),
         RunInfo(args = cmd_args(output)),
     ]
 
 _hex2_1_rule = rule(impl = __hex2_1, attrs = {
-    "bin": attrs.source(),
+    "bin": attrs.exec_dep(),
     "arch": attrs.string(),
     "little_endian": attrs.bool(),
     "base_address": attrs.string(),
@@ -315,14 +339,16 @@ def stage0_binaries(
         m2libc + ":bootstrappable.c",
     ]
 
-    # Final set of filegroup outputs: these are what the `:bins` filegroup
-    # exposes to downstream (namely mescc-tools-extra).
+    # The M2libc definitions and ELF headers that the later phases assemble
+    # and link with.
     defs_m1 = m2libc + ":" + arch + "/" + arch + "_defs.M1"
     libc_core_m1 = m2libc + ":" + arch + "/libc-core.M1"
     libc_full_m1 = m2libc + ":" + arch + "/libc-full.M1"
     elf_hex2 = m2libc + ":" + arch + "/ELF-" + arch + ".hex2"
     elf_debug_hex2 = m2libc + ":" + arch + "/ELF-" + arch + "-debug.hex2"
 
+    # The final tools, which mescc-tools-extra, Mes and the cellar helpers
+    # build with.
     filegroup(
         name = "bins",
         srcs = [
@@ -337,7 +363,8 @@ def stage0_binaries(
     )
 
     # Phase 0a: build hex0 from the bootstrap binary
-    hex0(name = "hex0", bin = "hex0-seed", src = "hex0.hex0", **compat)
+    executable_seed(name = "hex0-seed", src = "hex0-seed", **compat)
+    hex0(name = "hex0", bin = ":hex0-seed", src = "hex0.hex0", **compat)
 
     # Phase 1: build hex1 from hex0
     hex0(name = "hex1", bin = ":hex0", src = "hex1.hex0", **compat)
@@ -979,9 +1006,9 @@ def stage0_platform(
 
     stage0_answer_test(
         name = "check",
+        input = ":" + filegroup_name,
         command = mtex + ":sha256sum",
         chdirexec = "cellar//bootstrap/stage0-posix/cellar-extra:chdirexec",
-        input = ":" + filegroup_name,
         args = ["--check", "answers"],
         **compat
     )

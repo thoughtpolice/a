@@ -39,18 +39,33 @@ def __filegroup_impl(ctx: AnalysisContext) -> list[Provider]:
     else:
         srcs = {src.short_path: src for src in ctx.attrs.srcs}
 
+    # Buck records a copied directory's contents by inserting each source in
+    # turn, and a directory replaces whatever lies at its path, while the
+    # copy on disk merges them. A source inside another would differ between
+    # the local tree and what remote workers receive, so none may overlap.
+    projections = dict(srcs)
+    for path in srcs:
+        parts = path.split("/")
+        for end in range(1, len(parts)):
+            parent = "/".join(parts[:end])
+            if parent in srcs:
+                fail("{} lies inside {}, which is also a source".format(path, parent))
+            projections[parent] = None
     output = ctx.actions.copied_dir(ctx.label.name, srcs)
-    return [DefaultInfo(default_output = output)]
+    return [DefaultInfo(default_output = output, sub_targets = {
+        path: [DefaultInfo(default_output = output.project(path))]
+        for path in projections
+    })]
 
 filegroup = rule(
-    doc = """Create a directory that contains links to a list of srcs.
+    doc = """Copy `srcs` into one directory named `name`.
 
-    Each symlink is based on the shortpath for the given `srcs[x]`. The output
-    directory uses `name` for its name.
+    A dict maps each path in the directory to its source. A list places each
+    source at its short path. Every path is also a sub-target.
     """,
     impl = __filegroup_impl,
     attrs = {
-        "srcs": attrs.option(attrs.named_set(attrs.source(), sorted = False), default = None),
+        "srcs": attrs.named_set(attrs.source(), sorted = False, default = {}),
     },
 )
 

@@ -50,8 +50,8 @@ Each stage builds the next one from source.
 
 The bootstrap trusts Buck2, the running kernel and the hex0 seed. An earlier
 step built every other program that a build action runs, from sources in this
-tree. In the sandbox above, actions read only their declared inputs and
-`/proc/self`.
+tree. Actions run with an empty environment, and in the sandbox above they
+read only their declared inputs and `/proc/self`.
 
 ## Updating stage0-posix
 

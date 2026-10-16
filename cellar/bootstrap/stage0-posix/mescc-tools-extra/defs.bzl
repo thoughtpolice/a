@@ -33,7 +33,7 @@ _cc_rule = rule(impl = __cc, attrs = {
     "os": attrs.string(),
     "arch": attrs.string(),
     "src": attrs.source(),
-    "tools": attrs.dep(),
+    "tools": attrs.exec_dep(),
     "_m2_libc": attrs.default_only(
         attrs.dep(default = "cellar//bootstrap/stage0-posix/m2-libc:m2-libc"),
     ),
