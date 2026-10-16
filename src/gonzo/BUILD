@@ -24,6 +24,8 @@ BUILD_DEPS = [
     "third-party//rust:dial9",
     "third-party//rust:console-subscriber",
     "third-party//rust:rustls",
+    "third-party//rust:serde",
+    "third-party//rust:serde_json",
     "third-party//rust:tokio",
     "third-party//rust:tonic",
     "third-party//rust:tower",

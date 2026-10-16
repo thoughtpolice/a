@@ -947,6 +947,15 @@ async fn run_server(
     );
 
     let backend = parse_backend(cli.store())?;
+    // Held until the server has stopped and the store is closed.
+    let claim = match &backend {
+        store::StoreBackend::LocalFs(path) => {
+            Some(daemon::StoreClaim::take(std::path::Path::new(path))?)
+        }
+        // A throwaway store has no other writer, and an S3 store is
+        // fenced by SlateDB alone.
+        store::StoreBackend::Memory | store::StoreBackend::S3 { .. } => None,
+    };
     let oci_credentials = match &args.oci_auth_file {
         Some(path) => read_oci_credentials(path)?,
         None => fetch_oci::RegistryCredentials::default(),
@@ -1090,6 +1099,14 @@ async fn run_server(
     let request_timeout =
         (args.request_timeout > 0).then(|| std::time::Duration::from_secs(args.request_timeout));
 
+    if let Some(claim) = &claim {
+        claim.announce(&daemon::DaemonInfo {
+            pid: std::process::id(),
+            address: address.to_string(),
+            version: option_env!("depot_VERSION").unwrap_or("dev").to_string(),
+        })?;
+    }
+
     let fetch_config = api::FetchConfig {
         cpus: rt_info.effective_cpus,
         git_spool_dir: args.git_spool_dir.clone(),
@@ -1154,6 +1171,7 @@ async fn run_server(
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+mod daemon;
 mod pressure_gate;
 pub mod reapi_grpc;
 mod request_timeout;
