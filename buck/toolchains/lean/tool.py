@@ -164,7 +164,12 @@ def libstdcxx_dirs(cxx: list[str]) -> list[str]:
 
     The Nix compiler wrapper adds the -L that picks it, so the driver's own
     -print-file-name does not know; a traced link of an empty program does.
+
+    macOS has no libstdc++ to find: C++ programs there use the system's
+    libc++, and Apple's ld has no --trace.
     """
+    if sys.platform == "darwin":
+        return []
     with tempfile.TemporaryDirectory() as tmp:
         src = os.path.join(tmp, "main.cpp")
         with open(src, "w") as f:
