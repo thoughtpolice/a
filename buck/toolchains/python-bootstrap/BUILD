@@ -7,6 +7,7 @@ load(
     "simple_exe_download",
     "standalone_python_bootstrap_toolchain",
     "standalone_python_download",
+    "standalone_python_runtime",
 )
 
 PYTHON_VERSION_TAG = "20250106"
@@ -17,11 +18,11 @@ standalone_python_bootstrap_toolchain(
     name = "python_bootstrap",
     interpreter = shims.select({
         "config//cpu:arm64": shims.select({
-            "config//os:linux": "$(location :cpython-{PYTHON_VERSION}-aarch64-unknown-linux-gnu.tar.gz[python/bin/python])".format(PYTHON_VERSION = PYTHON_VERSION),
+            "config//os:linux": "$(location :cpython-{PYTHON_VERSION}-aarch64-unknown-linux-gnu-runtime)/bin/python3".format(PYTHON_VERSION = PYTHON_VERSION),
             "config//os:macos": "$(location :cpython-{PYTHON_VERSION}-aarch64-apple-darwin.tar.gz[python/bin/python])".format(PYTHON_VERSION = PYTHON_VERSION),
         }),
         "config//cpu:x86_64": shims.select({
-            "config//os:linux": "$(location :cpython-{PYTHON_VERSION}-x86_64-unknown-linux-gnu.tar.gz[python/bin/python])".format(PYTHON_VERSION = PYTHON_VERSION),
+            "config//os:linux": "$(location :cpython-{PYTHON_VERSION}-x86_64-unknown-linux-gnu-runtime)/bin/python3".format(PYTHON_VERSION = PYTHON_VERSION),
             "config//os:windows": "$(location :cpython-{PYTHON_VERSION}-x86_64-pc-windows-msvc.tar.gz[python/python.exe])".format(PYTHON_VERSION = PYTHON_VERSION),
         }),
     }),
@@ -45,18 +46,44 @@ standalone_python_bootstrap_toolchain(
                 "config//os:windows": ":smoltar-x86_64-pc-windows-msvc.exe",
             }),
         }),
-        url = "https://github.com/astral-sh/python-build-standalone/releases/download/{PYTHON_VERSION_TAG}/cpython-{PYTHON_VERSION}-{name}-install_only.tar.gz".format(
+        url = "https://github.com/astral-sh/python-build-standalone/releases/download/{PYTHON_VERSION_TAG}/cpython-{PYTHON_VERSION}-{name}-{variant}.tar.gz".format(
             name = name,
             PYTHON_VERSION = PYTHON_VERSION,
             PYTHON_VERSION_TAG = PYTHON_VERSION_TAG,
+            variant = variant,
         ),
         visibility = [],
     )
-    for name, sha256, bin in [
-        ("aarch64-unknown-linux-gnu", "d37aef7bdf5c27f7d006918f7cedb31f4ba07c88f61baac4ffbe0bee6d4b5248", "python/bin/python"),
-        ("aarch64-apple-darwin", "bbfc96038d0b6922fd783f6eb2c9bf9abb648531d23d236bc1a0c16bdd061944", "python/bin/python"),
-        ("x86_64-unknown-linux-gnu", "bb4696825039a2b5dc7fea2c6aeb085c89fd397016b44165ec73b4224ccc83e2", "python/bin/python"),
-        ("x86_64-pc-windows-msvc", "e1f151612939a80ad0320244c3d404934e5e99e04d6fa382a8cd5606386b9a11", "python/python.exe"),
+    # The Linux builds are stripped: their libpython is 38 MiB rather than
+    # 240, and every bootstrap action carries it (see the runtimes below).
+    for name, variant, sha256, bin in [
+        ("aarch64-unknown-linux-gnu", "install_only_stripped", "3c720649b2af9873262429074826ef0e35f98140e38df365b36a668573a86cf0", "python/bin/python"),
+        ("aarch64-apple-darwin", "install_only", "bbfc96038d0b6922fd783f6eb2c9bf9abb648531d23d236bc1a0c16bdd061944", "python/bin/python"),
+        ("x86_64-unknown-linux-gnu", "install_only_stripped", "726a608e2867c2867caa2cf3f668cb15018456070eee32375675f190946650bc", "python/bin/python"),
+        ("x86_64-pc-windows-msvc", "install_only", "e1f151612939a80ad0320244c3d404934e5e99e04d6fa382a8cd5606386b9a11", "python/python.exe"),
+    ]
+]
+
+# On Linux, where actions may run remotely, the interpreter is a minimal
+# runtime (see make_runtime.py) rather than a file of a whole install: an
+# action is given its inputs and nothing else, and python/bin/python alone
+# cannot even load its libpython.
+[
+    standalone_python_runtime(
+        name = "cpython-{PYTHON_VERSION}-{name}-runtime".format(
+            name = name,
+            PYTHON_VERSION = PYTHON_VERSION,
+        ),
+        python = ":cpython-{PYTHON_VERSION}-{name}.tar.gz".format(
+            name = name,
+            PYTHON_VERSION = PYTHON_VERSION,
+        ),
+        script = "make_runtime.py",
+        visibility = [],
+    )
+    for name in [
+        "aarch64-unknown-linux-gnu",
+        "x86_64-unknown-linux-gnu",
     ]
 ]
 
