@@ -86,7 +86,7 @@ pub async fn run(spec: &Spec<'_>, cancelled: impl Future<Output = ()>) -> Result
             command.pre_exec(move || crate::cgroup::join(procs));
         }
     }
-    let mut child = command.spawn().map_err(|source| SpawnError {
+    let mut child = spawn(&mut command).await.map_err(|source| SpawnError {
         program: program.clone(),
         source,
     })?;
@@ -112,6 +112,29 @@ pub async fn run(spec: &Spec<'_>, cancelled: impl Future<Output = ()>) -> Result
     }
     let _ = child.wait().await;
     Ok(outcome)
+}
+
+/// How many times to try a spawn that finds its program busy.
+const BUSY_ATTEMPTS: u32 = 10;
+
+/// Spawn `command`, waiting out a program that is still open for writing.
+///
+/// The worker writes actions' input files while it forks commands for
+/// others, and a child forked between a file's open and close holds the
+/// file open for writing until it execs. An exec of that file meanwhile
+/// fails with ETXTBSY ("text file busy"), for a few milliseconds at most,
+/// so it is tried again, as Bazel and Go's os/exec do.
+async fn spawn(command: &mut tokio::process::Command) -> std::io::Result<tokio::process::Child> {
+    let mut attempt = 1;
+    loop {
+        match command.spawn() {
+            Err(e) if e.raw_os_error() == Some(libc::ETXTBSY) && attempt < BUSY_ATTEMPTS => {
+                tokio::time::sleep(Duration::from_millis(5 << attempt)).await;
+                attempt += 1;
+            }
+            result => return result,
+        }
+    }
 }
 
 /// A process group, killed when this is dropped.
@@ -353,5 +376,33 @@ mod tests {
         // SAFETY: kill(2) touches no memory.
         unsafe { libc::kill(pid, libc::SIGKILL) };
         panic!("{pid} left its process group and outlived its action");
+    }
+
+    #[tokio::test]
+    async fn a_program_still_open_for_writing_is_waited_for() {
+        let scratch = Scratch::new();
+        let program = scratch.root().join("tool");
+        std::fs::write(&program, "#!/bin/sh\necho ran\n").unwrap();
+        std::fs::set_permissions(
+            &program,
+            std::os::unix::fs::PermissionsExt::from_mode(0o755),
+        )
+        .unwrap();
+        // Open for writing, as a child forked mid-write would hold it, for
+        // a little while.
+        let writer = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&program)
+            .unwrap();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            drop(writer);
+        });
+        let outcome = scratch
+            .run(&["./tool"], LONG, std::future::pending())
+            .await
+            .unwrap();
+        assert_eq!(outcome, Outcome::Exited(0));
+        assert_eq!(scratch.stdout(), "ran\n");
     }
 }
