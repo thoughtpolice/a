@@ -605,6 +605,7 @@ shims = struct(
     constraint = _constraint,
     platform = _platform,
     alias = _alias,
+    command_alias = lambda **kwargs: native.command_alias(**_fix_kwargs("command_alias", kwargs)),
     config_setting = _config_setting,
     toolchain_alias = _toolchain_alias,
     command_test = _command_test,
