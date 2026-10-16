@@ -440,23 +440,15 @@ fn status_file_and_registry_describe_a_durable_campaign() {
     let work = directory.path().join("campaign");
     let seed = directory.path().join("seed");
     fs::write(&seed, b"ordinary seed").unwrap();
-    let output = run(engine()
-        .args(["fuzz", "--target"])
-        .arg(executable("FOZZIE_TEST_TARGET"))
-        .arg("--workdir")
-        .arg(&work)
+    // Two workers share one corpus, so even a fixed seed does not fix the
+    // inputs they try. The parallel fixture has no failing input for them to
+    // find, unlike the test target's one-byte abort.
+    let output = run(fixture("parallel", &work)
+        .arg("--target-arg")
+        .arg(directory.path())
         .arg("--corpus")
         .arg(&seed)
-        .args([
-            "--runs",
-            "64",
-            "--duration",
-            "0",
-            "--jobs",
-            "2",
-            "--seed",
-            "1234",
-        ])
+        .args(["--runs", "64", "--jobs", "2", "--seed", "1234"])
         .env("FOZZIE_STATE_DIR", &state));
     assert!(output.status.success(), "{output:?}");
     let result = summary(&output);
