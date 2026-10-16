@@ -35,28 +35,26 @@ async fn setup() -> Setup {
     let daemon = Daemon::start().await;
     let scratch = tempfile::tempdir().unwrap();
     let worker = Arc::new(
-        Worker::new(
-            daemon.channel.clone(),
-            Config {
-                name: "test-worker".into(),
-                properties: host_properties(),
-                slots: 2,
-                dir: scratch.path().join("worker"),
-                cache_bytes: u64::MAX,
-                base_environment: vec![
-                    ("PATH".into(), "/usr/bin:/bin".into()),
-                    ("FROM_THE_IMAGE".into(), "yes".into()),
-                ],
-                default_timeout: Duration::from_secs(60),
-                max_timeout: Duration::from_secs(600),
-            },
-        )
+        Worker::new(Config {
+            name: "test-worker".into(),
+            properties: host_properties(),
+            slots: 2,
+            dir: scratch.path().join("worker"),
+            cache_bytes: u64::MAX,
+            base_environment: vec![
+                ("PATH".into(), "/usr/bin:/bin".into()),
+                ("FROM_THE_IMAGE".into(), "yes".into()),
+            ],
+            default_timeout: Duration::from_secs(60),
+            max_timeout: Duration::from_secs(600),
+        })
         .expect("worker"),
     );
     let (stop, stopped) = oneshot::channel::<()>();
+    let channel = daemon.channel.clone();
     tokio::spawn(async move {
         worker
-            .serve(async {
+            .serve(channel, async {
                 let _ = stopped.await;
             })
             .await
@@ -297,4 +295,47 @@ async fn actions_start_from_the_base_environment() {
     let stdout = String::from_utf8_lossy(&stdout);
     assert!(stdout.contains("FROM_THE_IMAGE=yes\n"), "{stdout}");
     assert_eq!(stdout.matches("PATH=").count(), 1, "{stdout}");
+}
+
+/// A worker serves one session after another, as it does when it
+/// reconnects, keeping what it has cached.
+#[tokio::test]
+async fn a_worker_serves_session_after_session() {
+    let daemon = Daemon::start().await;
+    let scratch = tempfile::tempdir().unwrap();
+    let worker = Arc::new(
+        Worker::new(Config {
+            name: "reconnecting".into(),
+            properties: host_properties(),
+            slots: 1,
+            dir: scratch.path().join("worker"),
+            cache_bytes: u64::MAX,
+            base_environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
+            default_timeout: Duration::from_secs(60),
+            max_timeout: Duration::from_secs(60),
+        })
+        .expect("worker"),
+    );
+    // A session that ends at once.
+    worker
+        .serve(daemon.channel.clone(), async {})
+        .await
+        .expect("the first session");
+
+    let (stop, stopped) = oneshot::channel::<()>();
+    let serving = tokio::spawn({
+        let (worker, channel) = (worker.clone(), daemon.channel.clone());
+        async move {
+            worker
+                .serve(channel, async {
+                    let _ = stopped.await;
+                })
+                .await
+        }
+    });
+    let digest = action(&daemon, "echo again", &[], &Directory::default(), None).await;
+    let response = completion(&mut execute(&daemon, &digest).await).await;
+    assert_eq!(response.result.expect("a result").exit_code, 0);
+    let _ = stop.send(());
+    serving.await.unwrap().expect("the second session");
 }

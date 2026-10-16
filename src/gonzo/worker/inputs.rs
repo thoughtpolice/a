@@ -28,15 +28,13 @@ type Tree = HashMap<Key, Arc<Directory>>;
 
 /// See the module documentation.
 pub struct Inputs {
-    cas: Cas,
     files: Arc<FileCache>,
     directories: quick_cache::sync::Cache<(DigestFunction, Key), Arc<Directory>>,
 }
 
 impl Inputs {
-    pub fn new(cas: Cas, files: Arc<FileCache>) -> Self {
+    pub fn new(files: Arc<FileCache>) -> Self {
         Self {
-            cas,
             files,
             directories: quick_cache::sync::Cache::new(DIRECTORY_CACHE_ENTRIES),
         }
@@ -45,11 +43,12 @@ impl Inputs {
     /// Lay out the tree rooted at `root` in `dest`, an empty directory.
     pub async fn materialize(
         &self,
+        cas: &Cas,
         function: DigestFunction,
         root: &Digest,
         dest: &Path,
     ) -> Result<()> {
-        let tree = self.tree(function, root).await?;
+        let tree = self.tree(cas, function, root).await?;
         let files: Vec<Digest> = tree
             .values()
             .flat_map(|dir| &dir.files)
@@ -59,7 +58,7 @@ impl Inputs {
                     .with_context(|| format!("input file {:?} has no digest", file.name))
             })
             .collect::<Result<_>>()?;
-        let pinned = self.files.fetch(&self.cas, function, &files).await?;
+        let pinned = self.files.fetch(cas, function, &files).await?;
 
         let files = self.files.clone();
         let (root, dest) = (root.clone(), dest.to_path_buf());
@@ -71,7 +70,7 @@ impl Inputs {
     }
 
     /// Every directory of the tree rooted at `root`.
-    async fn tree(&self, function: DigestFunction, root: &Digest) -> Result<Tree> {
+    async fn tree(&self, cas: &Cas, function: DigestFunction, root: &Digest) -> Result<Tree> {
         let mut tree = Tree::new();
         let mut level = vec![root.clone()];
         while !level.is_empty() {
@@ -91,7 +90,7 @@ impl Inputs {
                     None => fetch.push(digest),
                 }
             }
-            for (k, data) in self.cas.read_blobs(function, &fetch).await? {
+            for (k, data) in cas.read_blobs(function, &fetch).await? {
                 let dir = Directory::decode(data.as_ref())
                     .with_context(|| format!("input directory {}/{} does not decode", k.0, k.1))?;
                 check_names(&dir)?;

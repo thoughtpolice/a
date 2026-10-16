@@ -57,19 +57,16 @@ pub fn spawn(
     let name = std::fs::read_to_string("/proc/sys/kernel/hostname")
         .map(|h| h.trim().to_string())
         .unwrap_or_else(|_| "local".to_string());
-    let worker = worker::Worker::new(
-        channel(handover),
-        worker::Config {
-            name,
-            properties: worker::host_properties(),
-            slots: settings.slots,
-            dir: settings.dir.clone(),
-            cache_bytes: settings.cache_bytes,
-            base_environment: worker::host_environment(),
-            default_timeout: settings.default_timeout,
-            max_timeout: settings.max_timeout,
-        },
-    )
+    let worker = worker::Worker::new(worker::Config {
+        name,
+        properties: worker::host_properties(),
+        slots: settings.slots,
+        dir: settings.dir.clone(),
+        cache_bytes: settings.cache_bytes,
+        base_environment: worker::host_environment(),
+        default_timeout: settings.default_timeout,
+        max_timeout: settings.max_timeout,
+    })
     .with_context(|| {
         format!(
             "failed to start the local worker in {}",
@@ -83,7 +80,7 @@ pub fn spawn(
         "local worker starting"
     );
     Ok(tokio::spawn(async move {
-        if let Err(e) = worker.serve(shutdown).await {
+        if let Err(e) = worker.serve(channel(handover), shutdown).await {
             tracing::error!("the local worker stopped: {e:#}");
         }
     }))

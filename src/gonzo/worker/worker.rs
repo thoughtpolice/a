@@ -99,8 +99,6 @@ pub fn host_properties() -> Vec<Property> {
 /// See the module documentation.
 pub struct Worker {
     config: Config,
-    scheduler: SchedulerClient<Channel>,
-    cas: Cas,
     inputs: Inputs,
     builds: PathBuf,
     next_build: AtomicU64,
@@ -111,9 +109,9 @@ pub struct Worker {
 }
 
 impl Worker {
-    /// A worker reaching the daemon over `channel`. Claims `config.dir`,
-    /// clearing out anything an earlier worker left mid-action.
-    pub fn new(channel: Channel, config: Config) -> Result<Self> {
+    /// A worker as `config` says. Claims `config.dir`, clearing out
+    /// anything an earlier worker left mid-action.
+    pub fn new(config: Config) -> Result<Self> {
         std::fs::create_dir_all(&config.dir)
             .with_context(|| format!("creating {}", config.dir.display()))?;
         let lock = std::fs::File::options()
@@ -147,11 +145,8 @@ impl Worker {
                 tracing::info!("actions run in process groups; this process cannot make cgroups")
             }
         }
-        let cas = Cas::new(channel.clone(), "");
         Ok(Self {
-            scheduler: SchedulerClient::new(channel),
-            inputs: Inputs::new(cas.clone(), files),
-            cas,
+            inputs: Inputs::new(files),
             builds,
             next_build: AtomicU64::new(0),
             cgroups,
@@ -160,9 +155,16 @@ impl Worker {
         })
     }
 
-    /// Take actions from the scheduler until the session ends or `shutdown`
-    /// resolves. Actions still running then are stopped.
-    pub async fn serve(self: &Arc<Self>, shutdown: impl Future<Output = ()>) -> Result<()> {
+    /// Take actions from the scheduler at the other end of `channel` until
+    /// the session ends or `shutdown` resolves. Actions still running then
+    /// are stopped. A worker may serve one session after another, keeping
+    /// its caches.
+    pub async fn serve(
+        self: &Arc<Self>,
+        channel: Channel,
+        shutdown: impl Future<Output = ()>,
+    ) -> Result<()> {
+        let cas = Cas::new(channel.clone(), "");
         let (to_scheduler, rx) = mpsc::channel(64);
         to_scheduler
             .send(message(worker_message::Message::Hello(Hello {
@@ -172,9 +174,7 @@ impl Worker {
                 version: option_env!("depot_VERSION").unwrap_or("dev").to_string(),
             })))
             .await?;
-        let mut from_scheduler = self
-            .scheduler
-            .clone()
+        let mut from_scheduler = SchedulerClient::new(channel)
             .session(ReceiverStream::new(rx))
             .await
             .context("starting a session with the scheduler")?
@@ -192,10 +192,10 @@ impl Worker {
                     Ok(Some(SchedulerMessage { message: Some(scheduler_message::Message::Assign(assign)) })) => {
                         let (cancel, cancelled) = oneshot::channel();
                         running.insert(assign.operation.clone(), cancel);
-                        let (worker, done_tx) = (self.clone(), done_tx.clone());
+                        let (worker, cas, done_tx) = (self.clone(), cas.clone(), done_tx.clone());
                         tasks.spawn(async move {
                             let operation = assign.operation.clone();
-                            let response = worker.execute(assign, async { let _ = cancelled.await; }).await;
+                            let response = worker.execute(&cas, assign, async { let _ = cancelled.await; }).await;
                             let _ = done_tx.send((operation, response));
                         });
                     }
@@ -229,12 +229,16 @@ impl Worker {
     /// Run one action, and say how it went.
     async fn execute(
         &self,
+        cas: &Cas,
         assign: Assign,
         cancelled: impl Future<Output = ()>,
     ) -> ExecuteResponse {
         let number = self.next_build.fetch_add(1, Ordering::Relaxed).to_string();
         let build = self.builds.join(&number);
-        let response = match self.try_execute(&assign, &build, &number, cancelled).await {
+        let response = match self
+            .try_execute(cas, &assign, &build, &number, cancelled)
+            .await
+        {
             Ok(response) => response,
             Err(e) => {
                 let code = if e.downcast_ref::<Missing>().is_some() {
@@ -261,6 +265,7 @@ impl Worker {
 
     async fn try_execute(
         &self,
+        cas: &Cas,
         assign: &Assign,
         build: &Path,
         number: &str,
@@ -290,7 +295,9 @@ impl Worker {
         let root = build.join("root");
         std::fs::create_dir_all(&root)?;
         metadata.input_fetch_start_timestamp = Some(now());
-        self.inputs.materialize(function, input_root, &root).await?;
+        self.inputs
+            .materialize(cas, function, input_root, &root)
+            .await?;
         metadata.input_fetch_completed_timestamp = Some(now());
 
         let working_directory = Path::new(&command.working_directory);
@@ -385,10 +392,10 @@ impl Worker {
         let produced = if outcome == Outcome::TimedOut {
             outputs::Produced::default()
         } else {
-            outputs::upload(&self.cas, function, command, &working_directory).await?
+            outputs::upload(cas, function, command, &working_directory).await?
         };
-        let stdout_digest = outputs::upload_file(&self.cas, function, &stdout).await?;
-        let stderr_digest = outputs::upload_file(&self.cas, function, &stderr).await?;
+        let stdout_digest = outputs::upload_file(cas, function, &stdout).await?;
+        let stderr_digest = outputs::upload_file(cas, function, &stderr).await?;
         metadata.output_upload_completed_timestamp = Some(now());
         metadata.worker_completed_timestamp = Some(now());
 

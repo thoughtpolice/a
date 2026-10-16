@@ -71,13 +71,13 @@ async fn lays_out_files_directories_and_symlinks() {
 
     let scratch = tempfile::tempdir().unwrap();
     let files = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
-    let inputs = Inputs::new(daemon.cas(), files);
+    let (inputs, cas) = (Inputs::new(files), daemon.cas());
     for attempt in ["first", "second"] {
         // The second time, everything comes from the caches.
         let dest = scratch.path().join(attempt);
         std::fs::create_dir(&dest).unwrap();
         inputs
-            .materialize(DigestFunction::Sha256, &root, &dest)
+            .materialize(&cas, DigestFunction::Sha256, &root, &dest)
             .await
             .expect("materialize");
 
@@ -118,9 +118,9 @@ async fn missing_inputs_are_named() {
 
     let scratch = tempfile::tempdir().unwrap();
     let files = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
-    let inputs = Inputs::new(daemon.cas(), files);
+    let (inputs, cas) = (Inputs::new(files), daemon.cas());
     let err = inputs
-        .materialize(DigestFunction::Sha256, &root, scratch.path())
+        .materialize(&cas, DigestFunction::Sha256, &root, scratch.path())
         .await
         .expect_err("an input is missing");
     let missing = err.downcast_ref::<Missing>().expect("a Missing error");
@@ -133,7 +133,7 @@ async fn entries_must_be_file_names() {
     let text = daemon.put("x").await;
     let scratch = tempfile::tempdir().unwrap();
     let files = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
-    let inputs = Inputs::new(daemon.cas(), files);
+    let (inputs, cas) = (Inputs::new(files), daemon.cas());
     for name in ["..", "a/b", ""] {
         let root = daemon
             .put_dir(&Directory {
@@ -142,7 +142,7 @@ async fn entries_must_be_file_names() {
             })
             .await;
         let err = inputs
-            .materialize(DigestFunction::Sha256, &root, scratch.path())
+            .materialize(&cas, DigestFunction::Sha256, &root, scratch.path())
             .await
             .expect_err("refused");
         assert!(format!("{err:#}").contains("is not a file name"), "{err:#}");
