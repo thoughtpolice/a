@@ -21,7 +21,7 @@ pub enum AppEvent {
     /// Connection or operation error.
     Error(String),
     /// Server capabilities received.
-    Capabilities(Box<protos::build::bazel::remote::execution::v2::ServerCapabilities>),
+    Capabilities(Box<crate::client::ServerCapabilities>),
     /// Transfer progress update.
     Progress(ProgressUpdate),
     /// Upload completed.

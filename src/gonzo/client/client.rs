@@ -1,24 +1,26 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
+//! CLI/TUI-shaped adapter over [`reapi_client`].
+//!
+//! Everything protocol-shaped — resource names, batch-versus-stream selection,
+//! digest verification, asset lookups, directory materialization — lives in
+//! `reapi-client`. What remains here is what only this tool needs: filesystem
+//! I/O for the CLI's file arguments, result records the TUI renders, and an
+//! adapter from the library's progress callback to the channel the event loop
+//! already listens on.
+
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use bytes::Bytes;
-use prost::Message as _;
-use sha2::{Digest as Sha2Digest, Sha256};
+use reapi_client::{ConnectOptions, Digest, Progress, ReapiClient as Client};
 use tokio::sync::mpsc;
-use tonic::transport::Channel;
 
-use protos::build::bazel::remote::asset::v1 as asset;
-use protos::build::bazel::remote::execution::v2::{
-    self as reapi, action_cache_client::ActionCacheClient, capabilities_client::CapabilitiesClient,
-    content_addressable_storage_client::ContentAddressableStorageClient,
-};
-use protos::google::bytestream::byte_stream_client::ByteStreamClient;
+pub use reapi_client::{DigestFunction, ServerCapabilities};
 
-const BATCH_THRESHOLD: usize = 2 * 1024 * 1024; // 2 MiB
-const CHUNK_SIZE: usize = 2 * 1024 * 1024; // 2 MiB
+/// Interactive users tolerate a slower connect than a launcher does, and the
+/// server may be across a network rather than on loopback.
+const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Progress update sent from background gRPC operations.
 #[derive(Debug, Clone)]
@@ -52,56 +54,59 @@ pub struct FetchResult {
     pub output_path: String,
 }
 
-/// Wrapper around REAPI gRPC client stubs.
+/// Bridge the library's progress callback onto the channel the TUI polls.
+///
+/// A closed receiver is not an error: the CLI drops its receiver immediately
+/// because it has nothing to draw.
+fn progress_sink(tx: mpsc::UnboundedSender<ProgressUpdate>) -> Progress {
+    Progress::new(move |transferred, total| {
+        let _ = tx.send(ProgressUpdate { transferred, total });
+    })
+}
+
+/// Wrapper around [`reapi_client::ReapiClient`] that speaks in file paths and
+/// display records.
 pub struct ReapiClient {
-    cas: ContentAddressableStorageClient<Channel>,
-    bytestream: ByteStreamClient<Channel>,
-    ac: ActionCacheClient<Channel>,
-    caps: CapabilitiesClient<Channel>,
-    push: asset::push_client::PushClient<Channel>,
-    fetch: asset::fetch_client::FetchClient<Channel>,
-    instance_name: String,
+    inner: Client,
+    function: DigestFunction,
 }
 
 impl ReapiClient {
     /// Connect to an REAPI server.
-    pub async fn connect(url: &str, instance_name: &str) -> Result<Self> {
-        let channel = Channel::from_shared(url.to_string())
-            .context("invalid server URL")?
-            .http2_keep_alive_interval(std::time::Duration::from_secs(30))
-            .keep_alive_timeout(std::time::Duration::from_secs(20))
-            .keep_alive_while_idle(true)
-            .connect()
-            .await
-            .context("failed to connect to server")?;
+    ///
+    /// `function` fixes the digest function for every operation on this
+    /// client. It is explicit rather than defaulted so that each tool states
+    /// which keyspace it is reading and writing: blobs stored under SHA-256
+    /// are invisible to a BLAKE3 lookup and vice versa.
+    pub async fn connect(url: &str, instance_name: &str, function: DigestFunction) -> Result<Self> {
+        let inner = Client::connect(
+            ConnectOptions::new(url)
+                .instance_name(instance_name)
+                .connect_timeout(CONNECT_TIMEOUT),
+        )
+        .await
+        .context("failed to connect to server")?;
 
-        Ok(Self {
-            cas: ContentAddressableStorageClient::new(channel.clone()),
-            bytestream: ByteStreamClient::new(channel.clone()),
-            ac: ActionCacheClient::new(channel.clone()),
-            caps: CapabilitiesClient::new(channel.clone()),
-            push: asset::push_client::PushClient::new(channel.clone()),
-            fetch: asset::fetch_client::FetchClient::new(channel),
-            instance_name: instance_name.to_string(),
-        })
+        Ok(Self { inner, function })
+    }
+
+    /// The digest function this client transfers with.
+    pub fn digest_function(&self) -> DigestFunction {
+        self.function
     }
 
     /// Fetch server capabilities.
-    pub async fn get_capabilities(&mut self) -> Result<reapi::ServerCapabilities> {
-        let resp = self
-            .caps
-            .get_capabilities(reapi::GetCapabilitiesRequest {
-                instance_name: self.instance_name.clone(),
-            })
+    pub async fn get_capabilities(&mut self) -> Result<ServerCapabilities> {
+        self.inner
+            .get_capabilities()
             .await
-            .context("GetCapabilities RPC failed")?;
-        Ok(resp.into_inner())
+            .context("GetCapabilities RPC failed")
     }
 
     /// Upload a file to CAS. Returns the digest.
     pub async fn upload_file(
         &mut self,
-        path: &std::path::Path,
+        path: &Path,
         progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
     ) -> Result<UploadResult> {
         let data = tokio::fs::read(path)
@@ -116,273 +121,65 @@ impl ReapiClient {
         data: Vec<u8>,
         progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
     ) -> Result<UploadResult> {
-        let total = data.len() as u64;
-        let hash = {
-            let mut hasher = Sha256::new();
-            hasher.update(&data);
-            hex::encode(hasher.finalize())
-        };
+        let data = bytes::Bytes::from(data);
+        let digest = Digest::of(self.function, &data);
+        let progress = progress_sink(progress_tx);
+        progress.report(0, digest.size as u64);
 
-        let _ = progress_tx.send(ProgressUpdate {
-            transferred: 0,
-            total,
-        });
-
-        // Check if blob already exists
-        let digest = reapi::Digest {
-            hash: hash.clone(),
-            size_bytes: total as i64,
-            ..Default::default()
-        };
+        // Skipping an upload the server does not need is worth one round trip
+        // when the alternative is re-sending the whole blob.
         let missing = self
-            .cas
-            .find_missing_blobs(reapi::FindMissingBlobsRequest {
-                instance_name: self.instance_name.clone(),
-                blob_digests: vec![digest.clone()],
-                digest_function: 0, // SHA-256 default
-            })
+            .inner
+            .find_missing(self.function, std::slice::from_ref(&digest))
             .await
-            .context("FindMissingBlobs RPC failed")?
-            .into_inner();
+            .context("FindMissingBlobs RPC failed")?;
 
-        if missing.missing_blob_digests.is_empty() {
-            let _ = progress_tx.send(ProgressUpdate {
-                transferred: total,
-                total,
-            });
+        if missing.is_empty() {
+            progress.report(digest.size as u64, digest.size as u64);
             return Ok(UploadResult {
-                hash,
-                size: total,
+                hash: digest.hash,
+                size: digest.size as u64,
                 already_present: true,
             });
         }
 
-        if data.len() <= BATCH_THRESHOLD {
-            self.upload_batch(&hash, Bytes::from(data), &progress_tx)
-                .await?;
-        } else {
-            self.upload_bytestream(&hash, total, Bytes::from(data), &progress_tx)
-                .await?;
-        }
+        self.inner
+            .write_blob_with_progress(self.function, &digest, data, &progress)
+            .await
+            .context("uploading blob failed")?;
 
         Ok(UploadResult {
-            hash,
-            size: total,
+            hash: digest.hash,
+            size: digest.size as u64,
             already_present: false,
         })
     }
 
-    async fn upload_batch(
-        &mut self,
-        hash: &str,
-        data: Bytes,
-        progress_tx: &mpsc::UnboundedSender<ProgressUpdate>,
-    ) -> Result<()> {
-        let total = data.len() as u64;
-        let req = reapi::BatchUpdateBlobsRequest {
-            instance_name: self.instance_name.clone(),
-            requests: vec![reapi::batch_update_blobs_request::Request {
-                digest: Some(reapi::Digest {
-                    hash: hash.to_string(),
-                    size_bytes: total as i64,
-                    ..Default::default()
-                }),
-                data,
-                compressor: 0,
-            }],
-            digest_function: 0,
-        };
-
-        let resp = self
-            .cas
-            .batch_update_blobs(req)
-            .await
-            .context("BatchUpdateBlobs RPC failed")?
-            .into_inner();
-
-        for r in &resp.responses {
-            if let Some(ref status) = r.status {
-                if status.code != 0 {
-                    anyhow::bail!("batch upload failed for {}: {}", hash, status.message);
-                }
-            }
-        }
-
-        let _ = progress_tx.send(ProgressUpdate {
-            transferred: total,
-            total,
-        });
-        Ok(())
-    }
-
-    async fn upload_bytestream(
-        &mut self,
-        hash: &str,
-        total: u64,
-        data: Bytes,
-        progress_tx: &mpsc::UnboundedSender<ProgressUpdate>,
-    ) -> Result<()> {
-        let uuid = uuid::Uuid::new_v4();
-        let resource_name = if self.instance_name.is_empty() {
-            format!("uploads/{uuid}/blobs/{hash}/{total}")
-        } else {
-            format!("{}/uploads/{uuid}/blobs/{hash}/{total}", self.instance_name)
-        };
-
-        let mut offset: usize = 0;
-        let mut requests = Vec::new();
-        while offset < data.len() {
-            let end = std::cmp::min(offset + CHUNK_SIZE, data.len());
-            let chunk = data.slice(offset..end);
-            let finish = end == data.len();
-            requests.push(protos::google::bytestream::WriteRequest {
-                resource_name: resource_name.clone(),
-                write_offset: offset as i64,
-                finish_write: finish,
-                data: chunk,
-            });
-            offset = end;
-        }
-
-        let progress_tx = progress_tx.clone();
-        let mut transferred: u64 = 0;
-        let request_stream = futures::stream::iter(requests.into_iter().map(move |req| {
-            transferred += req.data.len() as u64;
-            let _ = progress_tx.send(ProgressUpdate { transferred, total });
-            req
-        }));
-
-        self.bytestream
-            .write(request_stream)
-            .await
-            .context("ByteStream.Write RPC failed")?;
-
-        Ok(())
-    }
-
-    /// Download a blob from CAS by digest.
+    /// Download a blob from CAS by digest and write it to `output_path`.
     pub async fn download_blob(
         &mut self,
         hash: &str,
         size: u64,
-        output_path: &std::path::Path,
+        output_path: &Path,
         progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
     ) -> Result<DownloadResult> {
-        let _ = progress_tx.send(ProgressUpdate {
-            transferred: 0,
-            total: size,
-        });
-
-        let data = self.read_blob(hash, size, &progress_tx).await?;
+        let digest = Digest::new(hash, size as i64);
+        let data = self
+            .inner
+            .read_blob_with_progress(self.function, &digest, &progress_sink(progress_tx))
+            .await
+            .context("downloading blob failed")?
+            .with_context(|| format!("blob {hash}/{size} not found"))?;
 
         tokio::fs::write(output_path, &data)
             .await
             .with_context(|| format!("failed to write {}", output_path.display()))?;
 
         Ok(DownloadResult {
-            hash: hash.to_string(),
+            hash: digest.hash,
             size,
             output_path: output_path.display().to_string(),
         })
-    }
-
-    /// Download a blob from CAS and check it against the digest it was
-    /// requested by.
-    async fn read_blob(
-        &mut self,
-        hash: &str,
-        size: u64,
-        progress_tx: &mpsc::UnboundedSender<ProgressUpdate>,
-    ) -> Result<Bytes> {
-        let data = if (size as usize) <= BATCH_THRESHOLD {
-            self.download_batch(hash, size, progress_tx).await?
-        } else {
-            self.download_bytestream(hash, size, progress_tx).await?
-        };
-        verify_digest(hash, size, &data)?;
-        Ok(data)
-    }
-
-    async fn download_batch(
-        &mut self,
-        hash: &str,
-        size: u64,
-        progress_tx: &mpsc::UnboundedSender<ProgressUpdate>,
-    ) -> Result<Bytes> {
-        let req = reapi::BatchReadBlobsRequest {
-            instance_name: self.instance_name.clone(),
-            digests: vec![reapi::Digest {
-                hash: hash.to_string(),
-                size_bytes: size as i64,
-                ..Default::default()
-            }],
-            acceptable_compressors: vec![],
-            digest_function: 0,
-        };
-
-        let resp = self
-            .cas
-            .batch_read_blobs(req)
-            .await
-            .context("BatchReadBlobs RPC failed")?
-            .into_inner();
-
-        let r = resp
-            .responses
-            .into_iter()
-            .next()
-            .context("empty BatchReadBlobs response")?;
-
-        if let Some(ref status) = r.status {
-            if status.code != 0 {
-                anyhow::bail!("batch read failed for {hash}: {}", status.message);
-            }
-        }
-
-        let _ = progress_tx.send(ProgressUpdate {
-            transferred: size,
-            total: size,
-        });
-
-        Ok(r.data)
-    }
-
-    async fn download_bytestream(
-        &mut self,
-        hash: &str,
-        size: u64,
-        progress_tx: &mpsc::UnboundedSender<ProgressUpdate>,
-    ) -> Result<Bytes> {
-        let resource_name = if self.instance_name.is_empty() {
-            format!("blobs/{hash}/{size}")
-        } else {
-            format!("{}/blobs/{hash}/{size}", self.instance_name)
-        };
-
-        let resp = self
-            .bytestream
-            .read(protos::google::bytestream::ReadRequest {
-                resource_name,
-                read_offset: 0,
-                read_limit: 0,
-            })
-            .await
-            .context("ByteStream.Read RPC failed")?;
-
-        let mut stream = resp.into_inner();
-        let mut buf = Vec::with_capacity(size as usize);
-
-        use tokio_stream::StreamExt;
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk.context("ByteStream.Read stream error")?;
-            buf.extend_from_slice(&chunk.data);
-            let _ = progress_tx.send(ProgressUpdate {
-                transferred: buf.len() as u64,
-                total: size,
-            });
-        }
-
-        Ok(Bytes::from(buf))
     }
 
     /// Push a remote asset association, mapping URIs + qualifiers to a blob
@@ -394,43 +191,25 @@ impl ReapiClient {
         uris: Vec<String>,
         qualifiers: Vec<(String, String)>,
     ) -> Result<()> {
-        let req = asset::PushBlobRequest {
-            instance_name: self.instance_name.clone(),
-            uris,
-            qualifiers: qualifiers
-                .into_iter()
-                .map(|(name, value)| asset::Qualifier { name, value })
-                .collect(),
-            blob_digest: Some(reapi::Digest {
-                hash: hash.to_string(),
-                size_bytes: size,
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
-
-        self.push
-            .push_blob(req)
+        self.inner
+            .push_blob(self.function, &Digest::new(hash, size), &uris, &qualifiers)
             .await
-            .context("PushBlob RPC failed")?;
-
-        Ok(())
+            .context("PushBlob RPC failed")
     }
 
-    /// Fetch a remote asset by URI + qualifiers and download it.
+    /// Fetch a remote asset by URI + qualifiers and write it to disk.
     ///
-    /// For git repositories (detected via `resource_type=application/x-git` or
-    /// VCS qualifiers) and container images (`oci://` and `docker://` URIs),
-    /// uses the FetchDirectory RPC and recursively downloads the directory
-    /// tree. For everything else, uses FetchBlob and downloads a single file.
+    /// Git repositories and container images resolve to a directory tree and
+    /// are materialized under `output_path`; everything else is a single blob
+    /// written to it.
     pub async fn fetch_asset(
         &mut self,
         uri: &str,
         qualifiers: Vec<(String, String)>,
-        output_path: &std::path::Path,
+        output_path: &Path,
         progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
     ) -> Result<FetchResult> {
-        if Self::is_directory_fetch(uri, &qualifiers) {
+        if is_directory_fetch(uri, &qualifiers) {
             self.fetch_directory_asset(uri, qualifiers, output_path, progress_tx)
                 .await
         } else {
@@ -439,21 +218,37 @@ impl ReapiClient {
         }
     }
 
-    /// Returns true if the URI and qualifiers indicate a directory fetch: a
-    /// git clone, or a container image, which arrives as an OCI image layout.
-    fn is_directory_fetch(uri: &str, qualifiers: &[(String, String)]) -> bool {
-        let scheme = uri.split_once("://").map_or("", |(scheme, _)| scheme);
-        scheme.eq_ignore_ascii_case("oci")
-            || scheme.eq_ignore_ascii_case("docker")
-            || qualifiers.iter().any(|(name, value)| {
-                (name == "resource_type" && value == "application/x-git")
-                    || name == "vcs.branch"
-                    || name == "vcs.commit"
-            })
+    /// Fetch a remote asset as a directory tree and materialize it under
+    /// `output_path`.
+    pub async fn fetch_directory_asset(
+        &mut self,
+        uri: &str,
+        qualifiers: Vec<(String, String)>,
+        output_path: &Path,
+        progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
+    ) -> Result<FetchResult> {
+        let uris = vec![uri.to_string()];
+        let progress = progress_sink(progress_tx);
+        let asset = self
+            .inner
+            .fetch_directory(self.function, &uris, &qualifiers)
+            .await
+            .context("FetchDirectory failed")?;
+
+        self.inner
+            .materialize_directory(self.function, &asset.digest, output_path, &progress)
+            .await
+            .with_context(|| format!("writing tree to {}", output_path.display()))?;
+
+        Ok(FetchResult {
+            uri: asset.uri,
+            hash: asset.digest.hash,
+            size: asset.digest.size as u64,
+            output_path: output_path.display().to_string(),
+        })
     }
 
-    /// Fetch a blob asset via FetchBlob RPC, whatever the URI and qualifiers
-    /// suggest.
+    /// Fetch a remote asset as a single blob and write it to `output_path`.
     pub async fn fetch_blob_asset(
         &mut self,
         uri: &str,
@@ -461,355 +256,131 @@ impl ReapiClient {
         output_path: &Path,
         progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
     ) -> Result<FetchResult> {
-        let req = asset::FetchBlobRequest {
-            instance_name: self.instance_name.clone(),
-            uris: vec![uri.to_string()],
-            qualifiers: qualifiers
-                .into_iter()
-                .map(|(name, value)| asset::Qualifier { name, value })
-                .collect(),
-            ..Default::default()
-        };
-
-        let resp = self
-            .fetch
-            .fetch_blob(req)
+        let uris = vec![uri.to_string()];
+        let progress = progress_sink(progress_tx);
+        let asset = self
+            .inner
+            .fetch_blob(self.function, &uris, &qualifiers)
             .await
-            .context("FetchBlob RPC failed")?
-            .into_inner();
+            .context("FetchBlob failed")?;
 
-        if let Some(ref status) = resp.status {
-            if status.code != 0 {
-                anyhow::bail!("FetchBlob failed: {}", status.message);
-            }
-        }
-
-        let digest = resp
-            .blob_digest
-            .context("FetchBlob response missing blob_digest")?;
-        let hash = digest.hash;
-        let size = digest.size_bytes as u64;
-
-        self.download_blob(&hash, size, output_path, progress_tx)
-            .await?;
-
-        Ok(FetchResult {
-            uri: if resp.uri.is_empty() {
-                uri.to_string()
-            } else {
-                resp.uri
-            },
-            hash,
-            size,
-            output_path: output_path.display().to_string(),
-        })
-    }
-
-    /// Fetch a directory asset via FetchDirectory RPC, then download the tree.
-    async fn fetch_directory_asset(
-        &mut self,
-        uri: &str,
-        qualifiers: Vec<(String, String)>,
-        output_path: &Path,
-        progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
-    ) -> Result<FetchResult> {
-        let req = asset::FetchDirectoryRequest {
-            instance_name: self.instance_name.clone(),
-            uris: vec![uri.to_string()],
-            qualifiers: qualifiers
-                .into_iter()
-                .map(|(name, value)| asset::Qualifier { name, value })
-                .collect(),
-            ..Default::default()
-        };
-
-        let resp = self
-            .fetch
-            .fetch_directory(req)
+        let data = self
+            .inner
+            .read_blob_with_progress(self.function, &asset.digest, &progress)
             .await
-            .context("FetchDirectory RPC failed")?
-            .into_inner();
-
-        if let Some(ref status) = resp.status {
-            if status.code != 0 {
-                anyhow::bail!("FetchDirectory failed: {}", status.message);
-            }
-        }
-
-        let digest = resp
-            .root_directory_digest
-            .context("FetchDirectory response missing root_directory_digest")?;
-        let hash = digest.hash.clone();
-        let size = digest.size_bytes as u64;
-
-        // Create the output directory and download the tree recursively
-        tokio::fs::create_dir_all(output_path)
-            .await
-            .with_context(|| format!("failed to create {}", output_path.display()))?;
-        self.download_directory_tree(&hash, size, output_path, &progress_tx)
-            .await?;
-
-        Ok(FetchResult {
-            uri: if resp.uri.is_empty() {
-                uri.to_string()
-            } else {
-                resp.uri
-            },
-            hash,
-            size,
-            output_path: output_path.display().to_string(),
-        })
-    }
-
-    /// Recursively download a Directory tree from CAS to disk.
-    ///
-    /// The tree comes from the server, so nothing in it is trusted: every
-    /// blob is checked against its digest, every entry name must be a single
-    /// path component, and entries are created exclusively, so the download
-    /// fails rather than writing through anything already present under
-    /// `output_dir`. Symlinks are created last, once nothing else remains to
-    /// be written below them.
-    fn download_directory_tree<'a>(
-        &'a mut self,
-        hash: &'a str,
-        size: u64,
-        output_dir: &'a Path,
-        progress_tx: &'a mpsc::UnboundedSender<ProgressUpdate>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
-        Box::pin(async move {
-            let data = self.read_blob(hash, size, progress_tx).await?;
-            let dir = reapi::Directory::decode(data.as_ref())
-                .context("failed to decode Directory proto")?;
-            check_entry_names(&dir)?;
-
-            for file in &dir.files {
-                let digest = file.digest.as_ref().context("FileNode missing digest")?;
-                let file_path = output_dir.join(&file.name);
-                let file_data = self
-                    .read_blob(&digest.hash, digest.size_bytes as u64, progress_tx)
-                    .await?;
-                write_new_file(&file_path, &file_data).await?;
-
-                // Set executable bit on Unix
-                #[cfg(unix)]
-                if file.is_executable {
-                    use std::os::unix::fs::PermissionsExt;
-                    let perms = std::fs::Permissions::from_mode(0o755);
-                    tokio::fs::set_permissions(&file_path, perms)
-                        .await
-                        .with_context(|| {
-                            format!("failed to set permissions on {}", file_path.display())
-                        })?;
-                }
-            }
-
-            for subdir in &dir.directories {
-                let digest = subdir
-                    .digest
-                    .as_ref()
-                    .context("DirectoryNode missing digest")?;
-                let subdir_path = output_dir.join(&subdir.name);
-                tokio::fs::create_dir(&subdir_path)
-                    .await
-                    .with_context(|| format!("failed to create {}", subdir_path.display()))?;
-                self.download_directory_tree(
-                    &digest.hash,
-                    digest.size_bytes as u64,
-                    &subdir_path,
-                    progress_tx,
+            .context("downloading fetched blob failed")?
+            .with_context(|| {
+                format!(
+                    "server resolved {} to {} but does not hold it",
+                    asset.uri, asset.digest
                 )
-                .await?;
-            }
+            })?;
 
-            for symlink in &dir.symlinks {
-                let link_path = output_dir.join(&symlink.name);
-                #[cfg(unix)]
-                tokio::fs::symlink(&symlink.target, &link_path)
-                    .await
-                    .with_context(|| format!("failed to create symlink {}", link_path.display()))?;
-            }
+        tokio::fs::write(output_path, &data)
+            .await
+            .with_context(|| format!("failed to write {}", output_path.display()))?;
 
-            Ok(())
+        Ok(FetchResult {
+            uri: asset.uri,
+            hash: asset.digest.hash,
+            size: asset.digest.size as u64,
+            output_path: output_path.display().to_string(),
         })
     }
-
-    /// Get an action cache result by action digest.
-    pub async fn get_action_result(
-        &mut self,
-        hash: &str,
-        size: i64,
-    ) -> Result<Option<reapi::ActionResult>> {
-        let resp = self
-            .ac
-            .get_action_result(reapi::GetActionResultRequest {
-                instance_name: self.instance_name.clone(),
-                action_digest: Some(reapi::Digest {
-                    hash: hash.to_string(),
-                    size_bytes: size,
-                    ..Default::default()
-                }),
-                ..Default::default()
-            })
-            .await;
-
-        match resp {
-            Ok(r) => Ok(Some(r.into_inner())),
-            Err(status) if status.code() == tonic::Code::NotFound => Ok(None),
-            Err(e) => Err(e).context("GetActionResult RPC failed"),
-        }
-    }
 }
 
-/// Check downloaded bytes against the digest they were requested by.
-fn verify_digest(hash: &str, size: u64, data: &[u8]) -> Result<()> {
-    if data.len() as u64 != size {
-        anyhow::bail!(
-            "size mismatch for {hash}: expected {size} bytes, got {}",
-            data.len()
-        );
-    }
-    let actual_hash = hex::encode(Sha256::digest(data));
-    if actual_hash != hash {
-        anyhow::bail!("hash mismatch: expected {hash}, got {actual_hash}");
-    }
-    Ok(())
-}
-
-/// Reject a Directory unless its files, subdirectories, and symlinks have
-/// distinct names that are each a single path component.
+/// Returns true if the URI and qualifiers indicate a directory fetch: a git
+/// clone, or a container image (an `oci://` or `docker://` URI), which
+/// arrives as an OCI image layout.
 ///
-/// REAPI requires this of every Directory, and the client joins these names
-/// onto local paths, so a name such as `..` or `a/b`, or a symlink sharing
-/// its name with a subdirectory, could otherwise lead outside the output.
-fn check_entry_names(dir: &reapi::Directory) -> Result<()> {
-    let mut seen = std::collections::HashSet::new();
-    let names = (dir.files.iter().map(|f| &f.name))
-        .chain(dir.directories.iter().map(|d| &d.name))
-        .chain(dir.symlinks.iter().map(|s| &s.name));
-    for name in names {
-        if name.is_empty() || name == "." || name == ".." || name.contains(['/', '\0']) {
-            anyhow::bail!("invalid directory entry name {name:?}");
-        }
-        if !seen.insert(name.as_str()) {
-            anyhow::bail!("duplicate directory entry name {name:?}");
-        }
-    }
-    Ok(())
-}
-
-/// Write `data` to a file that must not exist yet.
-///
-/// Creating with `O_EXCL` also refuses a symlink at `path`, so the write can
-/// never follow one to somewhere else.
-async fn write_new_file(path: &Path, data: &[u8]) -> Result<()> {
-    use tokio::io::AsyncWriteExt as _;
-    let mut file = tokio::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)
-        .await
-        .with_context(|| format!("failed to create {}", path.display()))?;
-    file.write_all(data)
-        .await
-        .with_context(|| format!("failed to write {}", path.display()))?;
-    // A tokio file finishes its last write in the background unless flushed.
-    file.flush()
-        .await
-        .with_context(|| format!("failed to write {}", path.display()))?;
-    Ok(())
+/// A heuristic, and deliberately kept in this tool rather than in the library:
+/// which qualifiers imply a tree is a convention between particular clients
+/// and servers, not part of the protocol.
+fn is_directory_fetch(uri: &str, qualifiers: &[(String, String)]) -> bool {
+    let scheme = uri.split_once("://").map_or("", |(scheme, _)| scheme);
+    scheme.eq_ignore_ascii_case("oci")
+        || scheme.eq_ignore_ascii_case("docker")
+        || qualifiers.iter().any(|(name, value)| {
+            (name == "resource_type" && value == "application/x-git")
+                || name == "vcs.branch"
+                || name == "vcs.commit"
+        })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn digest_of(data: &[u8]) -> (String, u64) {
-        (hex::encode(Sha256::digest(data)), data.len() as u64)
+    const GIT: &str = "https://example.com/repo";
+
+    #[test]
+    fn git_qualifiers_select_a_directory_fetch() {
+        assert!(is_directory_fetch(
+            GIT,
+            &[("vcs.commit".to_string(), "abc".to_string())]
+        ));
+        assert!(is_directory_fetch(
+            GIT,
+            &[("vcs.branch".to_string(), "main".to_string())]
+        ));
+        assert!(is_directory_fetch(
+            GIT,
+            &[("resource_type".to_string(), "application/x-git".to_string())]
+        ));
     }
 
     #[test]
-    fn git_and_image_fetches_are_directories() {
-        let digest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-        let commit = [("vcs.commit".to_string(), "abc".to_string())];
-        assert!(ReapiClient::is_directory_fetch(
-            "https://example.com/r",
-            &commit
+    fn other_qualifiers_select_a_blob_fetch() {
+        assert!(!is_directory_fetch(GIT, &[]));
+        assert!(!is_directory_fetch(
+            GIT,
+            &[("checksum.sri".to_string(), "sha256-abc".to_string())]
         ));
-        assert!(ReapiClient::is_directory_fetch(
+        // A resource_type that is not git must not be mistaken for a tree.
+        assert!(!is_directory_fetch(
+            GIT,
+            &[(
+                "resource_type".to_string(),
+                "application/octet-stream".to_string()
+            )]
+        ));
+    }
+
+    #[test]
+    fn image_uris_select_a_directory_fetch() {
+        let digest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        assert!(is_directory_fetch(
             &format!("oci://ghcr.io/a/b@{digest}"),
             &[]
         ));
-        assert!(ReapiClient::is_directory_fetch(
+        assert!(is_directory_fetch(
             &format!("Docker://docker.io/a/b@{digest}"),
             &[]
         ));
-        assert!(!ReapiClient::is_directory_fetch(
-            "https://example.com/oci://x",
-            &[]
-        ));
+        assert!(!is_directory_fetch("https://example.com/oci://x", &[]));
     }
 
     #[test]
-    fn verify_digest_checks_hash_and_size() {
-        let (hash, size) = digest_of(b"hello");
-        verify_digest(&hash, size, b"hello").unwrap();
-        assert!(verify_digest(&hash, size, b"jello").is_err());
-        assert!(verify_digest(&hash, size + 1, b"hello").is_err());
+    fn progress_updates_reach_the_channel() {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let progress = progress_sink(tx);
+
+        progress.report(3, 9);
+        progress.report(9, 9);
+
+        let first = rx.try_recv().expect("first update");
+        assert_eq!((first.transferred, first.total), (3, 9));
+        let second = rx.try_recv().expect("second update");
+        assert_eq!((second.transferred, second.total), (9, 9));
     }
 
-    fn file(name: &str) -> reapi::FileNode {
-        reapi::FileNode {
-            name: name.to_string(),
-            ..Default::default()
-        }
-    }
-
+    /// The CLI drops its receiver because it has nothing to draw; that must
+    /// not surface as an error mid-transfer.
     #[test]
-    fn entry_names_must_be_single_components() {
-        for name in ["", ".", "..", "../x", "a/b", "/etc", "nul\0byte"] {
-            let dir = reapi::Directory {
-                files: vec![file(name)],
-                ..Default::default()
-            };
-            assert!(check_entry_names(&dir).is_err(), "{name:?} accepted");
-        }
-        let dir = reapi::Directory {
-            files: vec![file("a"), file(".hidden"), file("..dots")],
-            ..Default::default()
-        };
-        check_entry_names(&dir).unwrap();
-    }
-
-    #[test]
-    fn entry_names_must_be_distinct_across_kinds() {
-        let dir = reapi::Directory {
-            directories: vec![reapi::DirectoryNode {
-                name: "a".to_string(),
-                ..Default::default()
-            }],
-            symlinks: vec![reapi::SymlinkNode {
-                name: "a".to_string(),
-                target: "/elsewhere".to_string(),
-                ..Default::default()
-            }],
-            ..Default::default()
-        };
-        assert!(check_entry_names(&dir).is_err());
-    }
-
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn new_files_never_follow_symlinks() {
-        let root = tempfile::tempdir().unwrap();
-        let outside = root.path().join("outside");
-        let link = root.path().join("link");
-        std::os::unix::fs::symlink(&outside, &link).unwrap();
-        assert!(write_new_file(&link, b"data").await.is_err());
-        assert!(!outside.exists(), "the write followed the symlink");
-
-        let fresh = root.path().join("fresh");
-        write_new_file(&fresh, b"data").await.unwrap();
-        assert_eq!(std::fs::read(&fresh).unwrap(), b"data");
-        assert!(write_new_file(&fresh, b"again").await.is_err());
+    fn a_dropped_receiver_is_not_an_error() {
+        let (tx, rx) = mpsc::unbounded_channel();
+        let progress = progress_sink(tx);
+        drop(rx);
+        progress.report(1, 2);
     }
 }
