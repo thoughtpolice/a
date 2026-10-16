@@ -68,6 +68,43 @@ standalone_python_download = rule(
     },
 )
 
+def _standalone_python_runtime(ctx: AnalysisContext) -> list[Provider]:
+    install = ctx.attrs.python[DefaultInfo].default_outputs[0].project("python")
+    out = ctx.actions.declare_output("runtime", dir = True)
+    ctx.actions.run(
+        cmd_args(
+            # The install's own interpreter, which needs the rest of the
+            # install to start.
+            cmd_args(install.project("bin/python3"), hidden = install),
+            "-I",
+            ctx.attrs.script,
+            install,
+            out.as_output(),
+        ),
+        category = "python_runtime",
+    )
+    python = out.project("bin/python3")
+    return [
+        DefaultInfo(default_output = out, sub_targets = {
+            "python": [DefaultInfo(default_output = python)],
+        }),
+        RunInfo(args = cmd_args(python, hidden = out)),
+    ]
+
+# The smallest runtime of a python-build-standalone install that runs the
+# prelude's bootstrap scripts: its interpreter, libpython and the standard
+# library, compiled and zipped (see make_runtime.py). Every action that runs a
+# bootstrap script takes the interpreter's files as inputs, and a remote worker
+# lays them out for each one, so a whole install, at thousands of files, costs
+# every such action.
+standalone_python_runtime = rule(
+    impl = _standalone_python_runtime,
+    attrs = {
+        "python": attrs.dep(),
+        "script": attrs.source(),
+    },
+)
+
 def _standalone_python_bootstrap(ctx):
     args = cmd_args([ctx.attrs.interpreter])
     return [
