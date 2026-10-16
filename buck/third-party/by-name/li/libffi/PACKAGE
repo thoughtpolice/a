@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "OsvGitRepoInfo", "pkg")
+
+pkg.info(
+    version = "3.8.0",
+    description = """
+        A portable foreign function interface library: calls functions and
+        builds closures from a description of their signature at run time.
+    """,
+    license = "MIT",
+    copyright = [
+        "1996-2026 Anthony Green, Red Hat, Inc and others",
+    ],
+    visibility = ["PUBLIC"],
+    # fficonfig.h and the ffi.h substitutions in BUILD describe Linux and
+    # macOS on x86_64 and arm64.
+    compatible_with = [
+        "config//os:linux",
+        "config//os:macos",
+    ],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/libffi/libffi",
+        commit = "12ffd1f9dc56fcea79d2f742f424301ae668d663",
+    ),
+)
