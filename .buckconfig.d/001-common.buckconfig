@@ -134,10 +134,11 @@ global_config_paths = \
 ignore_cells = depot-cellar
 
 [build]
-# set the default execution platform for builds on this machine. NOTE: this
-# platform definition is where remote execution (optionally) is enabled via
+# set the execution platforms for builds on this machine: the host's default,
+# then, with remote execution on, remote workers of other cpus. NOTE: these
+# platform definitions are where remote execution (optionally) is enabled via
 # ExecutionPlatformRegistrationInfo
-execution_platforms = root//buck/platforms:default
+execution_platforms = root//buck/platforms:execution
 
 [parser]
 # set the default execution platform for several target patterns. this is
