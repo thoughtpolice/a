@@ -5,6 +5,11 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
     "//src/crates/reapi-protos:protos",
+    "//src/gonzo/protos:gonzo-protos",
+    "third-party//rust:prost-types",
+    "third-party//rust:tokio",
+    "third-party//rust:tracing",
+    "third-party//rust:uuid",
 ]
 
 depot.rust_library(

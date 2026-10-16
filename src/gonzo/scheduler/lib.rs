@@ -6,3 +6,6 @@
 //! reports in the action cache. See `src/gonzo/notes/execution.md`.
 
 pub mod platform;
+mod scheduler;
+
+pub use scheduler::{Config, Job, Scheduler, Stage, Subscription, WorkerId, failure};
