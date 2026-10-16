@@ -29,7 +29,7 @@ use s3s::dto;
 use s3s::service::S3ServiceBuilder;
 use s3s::{S3, S3Error, S3ErrorCode, S3Request, S3Response, S3Result, s3_error};
 
-use crate::sigv4::sha256_hex;
+use s3_client::sigv4::sha256_hex;
 
 pub(crate) const TEST_ACCESS_KEY: &str = "AKIAIOSFODNN7EXAMPLE";
 pub(crate) const TEST_SECRET_KEY: &str = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";

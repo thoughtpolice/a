@@ -5,21 +5,10 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 load("@root//src/chaos3:defs.bzl", "chaos3_local_resource")
 
 DEPS = [
+    "//src/crates/s3-client:s3-client",
     "third-party//rust:async-trait",
-    "third-party//rust:bytes",
-    "third-party//rust:chrono",
     "third-party//rust:futures",
-    "third-party//rust:hex",
-    "third-party//rust:hmac",
     "third-party//rust:object_store",
-    "third-party//rust:percent-encoding",
-    "third-party//rust:quick-xml",
-    "third-party//rust:reqwest",
-    "third-party//rust:serde",
-    "third-party//rust:sha2",
-    "third-party//rust:thiserror",
-    "third-party//rust:tokio",
-    "third-party//rust:tracing",
 ]
 
 depot.rust_library(
@@ -30,15 +19,16 @@ depot.rust_library(
 )
 
 TEST_DEPS = DEPS + [
+    "third-party//rust:bytes",
+    "third-party//rust:chrono",
     "third-party//rust:hyper",
     "third-party//rust:hyper-util",
     "third-party//rust:s3s",
     "third-party//rust:slatedb",
+    "third-party//rust:tokio",
 ]
 
 TEST_MODULES = {
-    "sigv4": {},
-    "xml": {},
     "store": {},
     "slatedb": {},
 }

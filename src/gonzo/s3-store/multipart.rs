@@ -6,9 +6,10 @@
 use std::sync::{Arc, Mutex};
 
 use object_store::path::Path;
-use object_store::{Attributes, MultipartUpload, PutPayload, PutResult, UploadPart};
+use object_store::{MultipartUpload, PutPayload, PutResult, UploadPart};
+use s3_client::{Client, ObjectAttributes};
 
-use crate::client::{S3Client, generic_msg};
+use crate::{generic_msg, map_error, put_result};
 
 /// An in-progress S3 multipart upload.
 ///
@@ -23,22 +24,22 @@ pub(crate) struct S3MultipartUpload {
 
 #[derive(Debug)]
 struct UploadState {
-    client: Arc<S3Client>,
+    client: Client,
     location: Path,
     upload_id: String,
     /// What the upload was created with, which identifies its object if a
     /// completion's outcome has to be reconciled.
-    attributes: Attributes,
+    attributes: ObjectAttributes,
     /// ETags and sizes of completed parts, indexed by zero-based part index.
     parts: Mutex<Vec<Option<(String, u64)>>>,
 }
 
 impl S3MultipartUpload {
     pub(crate) fn new(
-        client: Arc<S3Client>,
+        client: Client,
         location: Path,
         upload_id: String,
-        attributes: Attributes,
+        attributes: ObjectAttributes,
     ) -> Self {
         Self {
             state: Arc::new(UploadState {
@@ -63,8 +64,14 @@ impl MultipartUpload for S3MultipartUpload {
         Box::pin(async move {
             let e_tag = state
                 .client
-                .put_part(&state.location, &state.upload_id, idx, data)
-                .await?;
+                .upload_part(
+                    state.location.as_ref(),
+                    &state.upload_id,
+                    idx + 1,
+                    data.into(),
+                )
+                .await
+                .map_err(|e| map_error(state.location.as_ref(), e))?;
             let mut parts = state.parts.lock().expect("parts mutex never poisoned");
             if parts.len() <= idx {
                 parts.resize(idx + 1, None);
@@ -105,32 +112,36 @@ impl MultipartUpload for S3MultipartUpload {
             let e_tag = self
                 .state
                 .client
-                .put_part(
-                    &self.state.location,
+                .upload_part(
+                    self.state.location.as_ref(),
                     &self.state.upload_id,
-                    0,
-                    PutPayload::new(),
+                    1,
+                    Default::default(),
                 )
-                .await?;
+                .await
+                .map_err(|e| map_error(self.state.location.as_ref(), e))?;
             part_etags.push(e_tag);
         }
 
         self.state
             .client
-            .complete_multipart(
-                &self.state.location,
+            .complete_multipart_upload(
+                self.state.location.as_ref(),
                 &self.state.upload_id,
                 part_etags,
                 size,
                 &self.state.attributes,
             )
             .await
+            .map(put_result)
+            .map_err(|e| map_error(self.state.location.as_ref(), e))
     }
 
     async fn abort(&mut self) -> object_store::Result<()> {
         self.state
             .client
-            .abort_multipart(&self.state.location, &self.state.upload_id)
+            .abort_multipart_upload(self.state.location.as_ref(), &self.state.upload_id)
             .await
+            .map_err(|e| map_error(self.state.location.as_ref(), e))
     }
 }
