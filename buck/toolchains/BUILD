@@ -48,11 +48,6 @@ shims.toolchain_alias(
 )
 
 shims.toolchain_alias(
-    name = "ocaml",
-    actual = "toolchains//ocaml:ocaml",
-)
-
-shims.toolchain_alias(
     name = "go",
     actual = "toolchains//golang:go",
 )

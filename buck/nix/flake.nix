@@ -60,7 +60,6 @@
               });
 
           llvmPackages = pkgs.llvmPackages_latest;
-          ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_5;
 
           lean4 = pkgs.callPackage ./lean4.nix { };
 
@@ -128,9 +127,6 @@
                 # by name; the compiler wrapper only provides `ar`, which on
                 # Linux is GNU ar and cannot index them.
                 llvm
-              ])
-              ++ (with ocamlPackages; [
-                ocaml
               ])
               ++ (with pkgs; [
                 ourRustVersion

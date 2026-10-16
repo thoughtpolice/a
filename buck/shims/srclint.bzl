@@ -142,8 +142,6 @@ _SOURCE_ATTRS = {
     "lean_library": ["srcs"],
     "lean_test": ["srcs"],
     "ncc_bundle": ["srcs"],
-    "ocaml_binary": ["srcs"],
-    "ocaml_library": ["srcs"],
     "python_binary": ["main", "srcs"],
     "python_bootstrap_binary": ["main"],
     "python_bootstrap_library": ["srcs"],
