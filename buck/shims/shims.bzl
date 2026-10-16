@@ -435,10 +435,6 @@ def _constraint(**kwargs):
     _srclint.lint_package()
     native.constraint(**kwargs)
 
-def _platform(**kwargs):
-    _srclint.lint_package()
-    native.platform(**kwargs)
-
 def _alias(**kwargs):
     _srclint.lint_package()
     native.alias(**kwargs)
@@ -603,7 +599,6 @@ shims = struct(
     cross_binary = _depot_cross_binary,
     cross_target_binary = _depot_cross_target_binary,
     constraint = _constraint,
-    platform = _platform,
     alias = _alias,
     command_alias = lambda **kwargs: native.command_alias(**_fix_kwargs("command_alias", kwargs)),
     config_setting = _config_setting,

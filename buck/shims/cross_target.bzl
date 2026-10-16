@@ -6,12 +6,11 @@ configuration the caller is being built in.
 
 This is the triple-only sibling of cross_binary.bzl: it overlays just the
 toolchains//cfg/target:target constraint onto the incoming configuration and
-leaves cpu and os alone, the same shape buck/platforms uses for the uefi and
-wasm32 platforms. That is the right tool for triples that do not correspond
-to a host-like cpu/os pair, such as wasm32-unknown-unknown: moving config//os
-to `none` would strand every select in the toolchains that keys on the host
-os, while the rust and cxx toolchains already key what actually differs, the
-linker and the target flags, on the triple.
+leaves cpu and os alone. That is the right tool for triples that do not
+correspond to a host-like cpu/os pair, such as wasm32-unknown-unknown: moving
+config//os to `none` would strand every select in the toolchains that keys on
+the host os, while the rust and cxx toolchains already key what actually
+differs, the linker and the target flags, on the triple.
 """
 
 load("@prelude//:paths.bzl", "paths")

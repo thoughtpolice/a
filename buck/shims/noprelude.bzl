@@ -44,7 +44,7 @@ def constraint(**_kwargs):
     fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.constraint() instead')
 
 def platform(**_kwargs):
-    fail('use load("@root//buck/shims:shims.bzl", "shims") and call shims.platform() instead')
+    fail("set the target configuration with modifiers instead of a platform: pkg.cfg_modifiers() in a PACKAGE file, or -m on the command line")
 
 # C# rules (the prelude's own csharp_library only knows Windows csc.exe)
 def csharp_library(**_kwargs):
