@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Round-trips against a real `cache-server` process.
+//! Round-trips against a real `gonzo` process.
 //!
 //! These deliberately do not use a hand-written stub server. The bugs worth
 //! catching here are wire-format ones — the digest-function segment in a
@@ -17,7 +17,7 @@ use crate::{
     BATCH_THRESHOLD, ConnectOptions, Digest, DigestFunction, Error, Progress, ReapiClient,
 };
 
-/// A `cache-server` child process, killed when the test drops it.
+/// A `gonzo` child process, killed when the test drops it.
 struct ServerGuard {
     child: Child,
     url: String,
@@ -39,8 +39,8 @@ fn free_port() -> u16 {
 }
 
 async fn start_server() -> (ServerGuard, ReapiClient) {
-    let binary = buck_resources::get("src/crates/reapi-client/cache-server")
-        .expect("cache-server binary resource");
+    let binary =
+        buck_resources::get("src/crates/reapi-client/gonzo").expect("gonzo binary resource");
 
     let port = free_port();
     let child = Command::new(&binary)
@@ -57,7 +57,7 @@ async fn start_server() -> (ServerGuard, ReapiClient) {
             &format!("127.0.0.1:{port}"),
         ])
         .spawn()
-        .expect("spawn cache-server");
+        .expect("spawn gonzo");
 
     let guard = ServerGuard {
         child,
@@ -69,7 +69,7 @@ async fn start_server() -> (ServerGuard, ReapiClient) {
         match ReapiClient::connect(ConnectOptions::new(&guard.url)).await {
             Ok(client) => return (guard, client),
             Err(e) if Instant::now() >= deadline => {
-                panic!("cache-server did not become ready at {}: {e}", guard.url)
+                panic!("gonzo did not become ready at {}: {e}", guard.url)
             }
             Err(_) => tokio::time::sleep(Duration::from_millis(50)).await,
         }

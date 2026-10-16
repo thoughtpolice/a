@@ -14,7 +14,7 @@ pkg.info(
     ],
     visibility = ['PUBLIC'],
     # dial9 is Linux perf tooling; this crate inherited
-    # the constraint from the cache-server package before moving here.
+    # the constraint from the gonzo package before moving here.
     target_compatible_with = [
         "config//os:linux",
     ],

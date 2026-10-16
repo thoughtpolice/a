@@ -38,7 +38,7 @@ many downstream targets; use the build graph rather than guessing dependencies.
 
 | Path | Contents |
 | --- | --- |
-| `src/` | Main projects; TypeScript tools live under `src/tools/` |
+| `src/` | Main projects |
 | `buck/` | Build configuration, toolchains, and third-party dependencies |
 | `buck/toolchains/` | Language toolchains |
 | `buck/third-party/` | External libraries, crates, and container definitions |

@@ -123,7 +123,7 @@ def _result_entries(stdout: str) -> list[dict]:
 
 def _rust_test_internal_impl(ctx: AnalysisContext) -> list[Provider]:
     # Closures capturing the target label, so reported names read
-    # `src/tools/cache-server/storage:tests-concurrency - cas::get_blob`
+    # `src/gonzo/storage:tests-concurrency - cas::get_blob`
     # while the execution filter stays the bare test path.
     target = ctx.label.package + ":" + ctx.label.name
 

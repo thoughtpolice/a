@@ -35,15 +35,15 @@ depot.rust_test(
     deps = DEPS,
 )
 
-# Round-trips against a real cache-server process, which the test spawns from
+# Round-trips against a real gonzo process, which the test spawns from
 # the binary handed to it as a resource. Split from `:tests` so that the pure
-# unit tests stay buildable everywhere: cache-server is Linux-only.
+# unit tests stay buildable everywhere: gonzo is Linux-only.
 depot.rust_test(
     name = "integration-tests",
     srcs = glob(["*.rs"]),
     crate_root = "lib.rs",
     resources = {
-        "cache-server": "//src/tools/cache-server:cache-server",
+        "gonzo": "//src/gonzo:gonzo",
     },
     rustc_flags = ["--cfg=integration_tests"],
     target_compatible_with = ["config//os:linux"],
