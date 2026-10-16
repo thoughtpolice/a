@@ -35,10 +35,12 @@ def _description(s: str) -> None:
 def _version(s: str) -> None:
     """Set the version of the current package."""
 
-    # https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
-    r = "^([0-9]\\d*)\\.([0-9]\\d*)\\.([0-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+    # Upstream versions as their projects spell them: dotted numbers, which
+    # need not be semver (Verilator's "5.052"), with optional semver-style
+    # pre-release and build suffixes.
+    r = "^[0-9]+(?:\\.[0-9]+)*(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
     if not regex_match(r, s):
-        fail("Invalid version, must be semver-style: {}".format(s))
+        fail("Invalid version, must be dotted numbers with optional -pre and +build suffixes: {}".format(s))
     return _meta_write_package_value("version", s.strip())
 
 def _copyright(cc: list[str]) -> None:
