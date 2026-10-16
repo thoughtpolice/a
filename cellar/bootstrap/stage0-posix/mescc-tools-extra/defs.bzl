@@ -40,9 +40,8 @@ cc = rule(impl = __cc, attrs = {
 def create_all(sources):
     """Create cc targets for all mescc-tools-extra C sources.
 
-    Must be called from a BUILD file with glob() results since select() is
-    only available as a built-in in .bzl files (the cellar cell's noprelude
-    shim overrides it in BUILD files).
+    BUILD supplies the source inventory; this helper applies the shared
+    native compiler settings.
     """
     for src in sources:
         name = src.split(".")[0] if "." in src else src
@@ -50,13 +49,10 @@ def create_all(sources):
             name = name,
             src = src,
             os = "Linux",
-            arch = select({
-                "cellar//bootstrap/platforms:amd64": "amd64",
-                "cellar//bootstrap/platforms:aarch64": "aarch64",
-            }),
-            tools = select({
-                "cellar//bootstrap/platforms:amd64": "cellar//bootstrap/stage0-posix/seeds/linux-amd64:bins",
-                "cellar//bootstrap/platforms:aarch64": "cellar//bootstrap/stage0-posix/seeds/linux-arm64:bins",
-            }),
-            target_compatible_with = ["cellar//bootstrap/platforms:linux"],
+            arch = "amd64",
+            tools = "cellar//bootstrap/stage0-posix/seeds/linux-amd64:bins",
+            target_compatible_with = [
+                "cellar//bootstrap/platforms:linux",
+                "cellar//bootstrap/platforms:amd64",
+            ],
         )

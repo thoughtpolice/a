@@ -72,6 +72,11 @@ filenames), while `bootstrap.c` comes from `M2libc/amd64/linux/bootstrap.c`:
 | `catm.hex2`     | `AMD64/catm_AMD64.hex2`               |
 | `M0.hex2`       | `AMD64/M0_AMD64.hex2`                 |
 
+Only x86_64 bootstraps from a seed; other targets get cross compilers built
+there. `m2-libc/` still keeps every architecture's files, because
+M2-Mesoplanet opens every file an `#include` names, including those behind
+another architecture's `#if`.
+
 A validation script is included to verify all files match upstream:
 
     ./stage0-posix/check-upstream.sh /path/to/stage0-posix
@@ -89,9 +94,7 @@ step. Ideally, its use will go away in the future.
 
 Roughly in the order they need to be accomplished:
 
-- stage0-posix
-  - [x] x86_64
-  - [ ] aarch64
+- [x] stage0-posix (x86_64)
 - [ ] mes + mescc
   - [ ] mescc self-bootstrap
 - [ ] tinycc
