@@ -34,9 +34,11 @@ static GLOBAL_ALLOCATOR: Dial9Allocator<mimalloc::MiMalloc> =
 )]
 struct Cli {
     /// Storage backend: "memory", "file:///path/to/dir", a bare path, or
-    /// "s3://bucket[/prefix]" (configured via AWS_* environment variables)
-    #[arg(long, default_value = "memory", env = "GONZO_STORE", global = true)]
-    store: String,
+    /// "s3://bucket[/prefix]" (configured via AWS_* environment variables).
+    /// Defaults to `gonzo/store` under $XDG_CACHE_HOME (or ~/.cache), which
+    /// every checkout on the machine shares.
+    #[arg(long, env = "GONZO_STORE", global = true)]
+    store: Option<String>,
 
     /// Which events the console log shows: a level (`info`), or directives
     /// in `RUST_LOG` syntax, e.g. `info,slatedb::garbage_collector=debug`.
@@ -345,7 +347,7 @@ fn trace_metadata(cli: &Cli, command: &str) -> Vec<(String, String)> {
         ("host.name", hostname),
         ("process.pid", std::process::id().to_string()),
         ("gonzo.command", command.to_string()),
-        ("gonzo.store", cli.store.clone()),
+        ("gonzo.store", cli.store().to_string()),
     ]
     .into_iter()
     .map(|(k, v)| (k.to_string(), v))
@@ -445,8 +447,36 @@ fn attach_options() -> TokioAttachOptions {
         .build()
 }
 
+impl Cli {
+    /// The store to open: `--store`, or [`default_store`] as `main` filled
+    /// it in.
+    fn store(&self) -> &str {
+        self.store
+            .as_deref()
+            .expect("main fills in the default store")
+    }
+}
+
+/// Where the store lives when `--store` is not given: `gonzo/store` under
+/// the XDG cache directory, so that Buck in every checkout and workspace
+/// on the machine, and every agent, shares one store and one daemon.
+fn default_store() -> Result<String> {
+    let absolute = |var: &str| {
+        std::env::var_os(var)
+            .map(PathBuf::from)
+            .filter(|dir| dir.is_absolute())
+    };
+    let cache = absolute("XDG_CACHE_HOME")
+        .or_else(|| absolute("HOME").map(|home| home.join(".cache")))
+        .context("no --store given, and neither XDG_CACHE_HOME nor HOME names a directory to keep the default store in")?;
+    Ok(cache.join("gonzo").join("store").display().to_string())
+}
+
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+    if cli.store.is_none() {
+        cli.store = Some(default_store()?);
+    }
 
     let rt_info = runtime::init();
 
@@ -651,6 +681,51 @@ mod bare_invocation_tests {
 }
 
 #[cfg(test)]
+mod default_store_tests {
+    use super::*;
+
+    /// The default store is `gonzo/store` under XDG_CACHE_HOME when that is
+    /// an absolute path, as the XDG spec asks, and under ~/.cache otherwise.
+    /// Checked in child runs of this test binary, for the same reason as
+    /// `bare_invocation_tests::takes_the_environment`.
+    #[test]
+    fn follows_the_xdg_cache_directory() {
+        let home = "/home/someone/.cache/gonzo/store";
+        for (xdg, expected) in [
+            (Some("/xdg/cache"), "/xdg/cache/gonzo/store"),
+            (Some("relative/cache"), home),
+            (None, home),
+        ] {
+            let mut child =
+                std::process::Command::new(std::env::current_exe().expect("test binary"));
+            child
+                .args(["--exact", "default_store_tests::is_where_expected"])
+                .env("HOME", "/home/someone")
+                .env("EXPECTED_STORE", expected);
+            match xdg {
+                Some(dir) => child.env("XDG_CACHE_HOME", dir),
+                None => child.env_remove("XDG_CACHE_HOME"),
+            };
+            let child = child.output().expect("run the child");
+            let stdout = String::from_utf8_lossy(&child.stdout);
+            assert!(
+                child.status.success() && stdout.contains("1 passed"),
+                "XDG_CACHE_HOME={xdg:?}: {stdout}{}",
+                String::from_utf8_lossy(&child.stderr)
+            );
+        }
+    }
+
+    /// The default store is where `EXPECTED_STORE` says, if it is set.
+    #[test]
+    fn is_where_expected() {
+        if let Ok(expected) = std::env::var("EXPECTED_STORE") {
+            assert_eq!(default_store().expect("a default store"), expected);
+        }
+    }
+}
+
+#[cfg(test)]
 mod console_filter_tests {
     use super::*;
 
@@ -768,7 +843,7 @@ async fn run_compactor(cli: &Cli) -> Result<()> {
     let otel_config = telemetry::OtelConfig::from_env();
     telemetry::init_metrics(&otel_config)?;
 
-    let backend = parse_backend(&cli.store)?;
+    let backend = parse_backend(cli.store())?;
     let object_store =
         store::create_object_store(&backend).context("failed to create object store")?;
 
@@ -784,7 +859,7 @@ async fn run_compactor(cli: &Cli) -> Result<()> {
     let compactor = Arc::new(builder.build());
 
     tracing::info!(
-        store = %cli.store,
+        store = %cli.store(),
         version = option_env!("depot_VERSION").unwrap_or("dev"),
         "standalone compactor running"
     );
@@ -871,7 +946,7 @@ async fn run_server(
         "--max-concurrent-requests must be at least 1"
     );
 
-    let backend = parse_backend(&cli.store)?;
+    let backend = parse_backend(cli.store())?;
     let oci_credentials = match &args.oci_auth_file {
         Some(path) => read_oci_credentials(path)?,
         None => fetch_oci::RegistryCredentials::default(),
@@ -911,7 +986,7 @@ async fn run_server(
 
     let cache_store = store::CacheStore::open(backend, store_settings)
         .await
-        .with_context(|| format!("failed to open cache store (backend: {:?})", cli.store))?;
+        .with_context(|| format!("failed to open cache store (backend: {:?})", cli.store()))?;
     let cache_store = Arc::new(cache_store);
 
     let address: std::net::SocketAddr = args.address.parse().with_context(|| {
@@ -958,7 +1033,7 @@ async fn run_server(
 
     tracing::info!(
         %address,
-        store = %cli.store,
+        store = %cli.store(),
         default_ttl_days = cli.default_ttl_days,
         version = option_env!("depot_VERSION").unwrap_or("dev"),
         tls = tls_config.is_some(),
