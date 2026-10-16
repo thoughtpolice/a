@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "1.10.0",
+    description = """
+        LZ4, an extremely fast lossless compression algorithm.
+    """,
+    license = "BSD-2-Clause",
+    copyright = [
+        "2011-2020 Yann Collet",
+    ],
+    visibility = ["PUBLIC"],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/lz4/lz4",
+        commit = "ebb370ca83af193212df4dcbadcc5d87bc0de2f0",
+    ),
+)
