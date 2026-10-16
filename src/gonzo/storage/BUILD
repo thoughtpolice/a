@@ -4,8 +4,8 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
-    "//src/gonzo/local-object-store:local-object-store",
-    "//src/gonzo/s3-store:s3-store",
+    "//src/gonzo/storage/object-store/local:local",
+    "//src/gonzo/storage/object-store/s3:s3",
     "third-party//rust:anyhow",
     "third-party//rust:async-trait",
     "third-party//rust:blake3",

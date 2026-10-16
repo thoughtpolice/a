@@ -4,22 +4,19 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
-    "//src/crates/egress:egress",
-    "//src/crates/egress-http:egress-http",
-    "third-party//rust:base64",
+    "third-party//rust:async-trait",
     "third-party//rust:bytes",
-    "third-party//rust:dial9",
-    "third-party//rust:http-body-util",
-    "third-party//rust:hyper",
-    "third-party//rust:openssl",
-    "third-party//rust:sha2",
+    "third-party//rust:crossbeam-channel",
+    "third-party//rust:futures",
+    "third-party//rust:object_store",
     "third-party//rust:tokio",
-    "third-party//rust:tracing",
 ]
 
 depot.rust_library(
-    name = "fetch-http",
+    name = "local",
     srcs = glob(["*.rs"]),
+    crate = "local_object_store",
+    crate_root = "lib.rs",
     visibility = ["//src/gonzo/..."],
     deps = DEPS,
 )
@@ -27,5 +24,8 @@ depot.rust_library(
 depot.rust_test(
     name = "tests",
     srcs = glob(["*.rs"]),
-    deps = DEPS + ["third-party//rust:hyper-util"],
+    crate_root = "lib.rs",
+    deps = DEPS + [
+        "third-party//rust:tempfile",
+    ],
 )

@@ -32,8 +32,9 @@ DEPS = [
 ]
 
 depot.rust_library(
-    name = "fetch-git",
+    name = "git",
     srcs = LIB_SRCS,
+    crate = "fetch_git",
     visibility = ["//src/gonzo/..."],
     deps = DEPS,
 )
@@ -57,6 +58,6 @@ depot.rust_binary(
         "third-party//rust:tokio",
         "third-party//rust:tracing",
         "third-party//rust:tracing-subscriber",
-        ":fetch-git",
+        ":git",
     ],
 )
