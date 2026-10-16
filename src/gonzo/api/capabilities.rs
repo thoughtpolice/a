@@ -18,8 +18,18 @@ use protos::build::bazel::semver::SemVer;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+/// What the server can do. By default, cache only.
 #[derive(Debug, Default)]
-pub struct CapabilitiesService {}
+pub struct CapabilitiesService {
+    exec_enabled: bool,
+}
+
+impl CapabilitiesService {
+    /// A server that executes actions too, when `exec_enabled`.
+    pub fn new(exec_enabled: bool) -> Self {
+        Self { exec_enabled }
+    }
+}
 
 #[tonic::async_trait]
 impl capabilities_server::Capabilities for CapabilitiesService {
@@ -59,8 +69,9 @@ impl capabilities_server::Capabilities for CapabilitiesService {
 
         let exec_caps = ExecutionCapabilities {
             digest_function: Sha256.into(),
-            digest_functions: digests.clone(),
-            exec_enabled: false,
+            // Workers hash outputs themselves, and know no SHA256TREE.
+            digest_functions: vec![Sha256.into(), Blake3.into()],
+            exec_enabled: self.exec_enabled,
             supported_node_properties: vec![],
             execution_priority_capabilities: None,
         };

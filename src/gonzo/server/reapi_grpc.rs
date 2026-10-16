@@ -1,6 +1,14 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! The daemon's front end: which services each kind of peer reaches, and
+//! the listeners they reach them on.
+//!
+//! Clients (Buck, over loopback TCP) get the whole of the REAPI, with
+//! storage calls answered by the store and execution calls by the
+//! scheduler. Workers get only what they need: the CAS and ByteStream for
+//! inputs and outputs, and their sessions with the scheduler.
+
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use accept::Accept;
@@ -10,6 +18,7 @@ use tower::Layer;
 
 use crate::store::CacheStore;
 
+use gonzo_protos::worker::v1::scheduler_server::SchedulerServer;
 use protos::google::bytestream::byte_stream_server::ByteStreamServer;
 
 use protos::build::bazel::remote::asset::v1::{fetch_server::FetchServer, push_server::PushServer};
@@ -23,16 +32,79 @@ use protos::google::longrunning::operations_server::OperationsServer;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+/// The daemon's services, and the route table each kind of peer gets.
+#[derive(Clone)]
+pub struct Frontend {
+    pub store: Arc<CacheStore>,
+    pub scheduler: scheduler::Scheduler,
+    pub fetch_config: api::FetchConfig,
+    pub handle: Dial9TokioHandle,
+}
+
+impl Frontend {
+    /// Everything, for clients.
+    fn client_routes(&self) -> tonic::service::Routes {
+        let store = &self.store;
+        let reflection_service = tonic_reflection::server::Builder::configure()
+            .register_encoded_file_descriptor_set(protos::FILE_DESCRIPTOR_SET)
+            .register_encoded_file_descriptor_set(tonic_health::pb::FILE_DESCRIPTOR_SET)
+            .build_v1()
+            .unwrap();
+        tonic::service::Routes::new(CapabilitiesServer::new(api::CapabilitiesService::new(true)))
+            .add_service(api::CasServer::new(
+                api::ContentAddressableStorageService::new(store.clone(), self.handle.clone()),
+            ))
+            .add_service(ActionCacheServer::new(api::ActionCacheService::new(
+                store.clone(),
+            )))
+            .add_service(ExecutionServer::new(scheduler::ExecutionService::new(
+                self.scheduler.clone(),
+                store.clone(),
+            )))
+            .add_service(ByteStreamServer::new(api::ByteStreamService::new(
+                store.clone(),
+                self.handle.clone(),
+            )))
+            .add_service(OperationsServer::new(scheduler::OperationsService::new(
+                self.scheduler.clone(),
+            )))
+            .add_service(FetchServer::new(api::FetchService::new(
+                store.clone(),
+                self.handle.clone(),
+                self.fetch_config.clone(),
+            )))
+            .add_service(PushServer::new(api::PushService::new(store.clone())))
+            .add_service(LogStreamServiceServer::new(api::LogStreamSvc::default()))
+            .add_service(reflection_service)
+    }
+
+    /// What a worker needs: its inputs, somewhere to put its outputs, and
+    /// a session with the scheduler.
+    fn worker_routes(&self) -> tonic::service::Routes {
+        let store = &self.store;
+        tonic::service::Routes::new(CapabilitiesServer::new(api::CapabilitiesService::new(true)))
+            .add_service(api::CasServer::new(
+                api::ContentAddressableStorageService::new(store.clone(), self.handle.clone()),
+            ))
+            .add_service(ByteStreamServer::new(api::ByteStreamService::new(
+                store.clone(),
+                self.handle.clone(),
+            )))
+            .add_service(SchedulerServer::new(scheduler::WorkerSessions::new(
+                self.scheduler.clone(),
+                store.clone(),
+            )))
+    }
+}
+
 pub async fn start_reapi_grpc(
     address: SocketAddr,
     tls: Option<Arc<rustls::ServerConfig>>,
     shutdown: impl Future<Output = ()> + Send + 'static,
-    store: Arc<CacheStore>,
+    frontend: &Frontend,
     request_timeout: Option<Duration>,
     max_concurrent_requests: Option<usize>,
     max_connections: usize,
-    fetch_config: api::FetchConfig,
-    handle: Dial9TokioHandle,
     pressure_monitor: Option<runtime::psi::PressureMonitor>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (health_reporter, health_service) = tonic_health::server::health_reporter();
@@ -50,39 +122,17 @@ pub async fn start_reapi_grpc(
 
     let timeouts = crate::request_timeout::RequestTimeouts {
         default: request_timeout,
-        fetch: fetch_config
+        fetch: frontend
+            .fetch_config
             .max_fetch_time
             .map(|max| max + api::FETCH_TIMEOUT_MARGIN),
     };
 
-    let cas_service = api::ContentAddressableStorageService::new(store.clone(), handle.clone());
-    let action_cache_service = api::ActionCacheService::new(store.clone());
-    let bytestream_service = api::ByteStreamService::new(store.clone(), handle.clone());
-    let execution_service = api::ExecutionService::default();
-    let capabilities_service = api::CapabilitiesService::default();
-    let operations_service = api::OperationsService::default();
-    let fetch_service = api::FetchService::new(store.clone(), handle.clone(), fetch_config);
-    let push_service = api::PushService::new(store.clone());
-    let logstream_service = api::LogStreamSvc::default();
-    let reflection_service = tonic_reflection::server::Builder::configure()
-        .register_encoded_file_descriptor_set(protos::FILE_DESCRIPTOR_SET)
-        .register_encoded_file_descriptor_set(tonic_health::pb::FILE_DESCRIPTOR_SET)
-        .build_v1()
-        .unwrap();
-
     // Build routes using tonic::service::Routes directly — we bypass tonic's
     // transport layer so we can run our own traced accept loop.
-    let routes = tonic::service::Routes::new(CapabilitiesServer::new(capabilities_service))
-        .add_service(api::CasServer::new(cas_service))
-        .add_service(ActionCacheServer::new(action_cache_service))
-        .add_service(ExecutionServer::new(execution_service))
-        .add_service(ByteStreamServer::new(bytestream_service))
-        .add_service(OperationsServer::new(operations_service))
-        .add_service(FetchServer::new(fetch_service))
-        .add_service(PushServer::new(push_service))
-        .add_service(LogStreamServiceServer::new(logstream_service))
+    let routes = frontend
+        .client_routes()
         .add_service(health_service)
-        .add_service(reflection_service)
         .prepare();
 
     let effective_limit = max_concurrent_requests.unwrap_or(8192);
@@ -99,6 +149,7 @@ pub async fn start_reapi_grpc(
         make_room: Some(listener.room_wanted()),
         ..Default::default()
     };
+    let handle = frontend.handle.clone();
 
     match tls {
         Some(config) => {
@@ -130,6 +181,34 @@ pub async fn start_reapi_grpc(
     }
 }
 
+/// Serve workers on `acceptor`: the daemon's own worker, through an
+/// in-process pipe.
+///
+/// Worker traffic is never shed under memory pressure: refusing a worker
+/// its inputs fails the action outright, where refusing a client only
+/// sends it to build locally.
+pub async fn serve_workers<A: Accept>(
+    acceptor: A,
+    frontend: &Frontend,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let timeouts = crate::request_timeout::RequestTimeouts {
+        default: None,
+        fetch: None,
+    };
+    serve_stack(
+        acceptor,
+        frontend.worker_routes().prepare(),
+        timeouts,
+        8192,
+        None,
+        frontend.handle.clone(),
+        shutdown,
+        dial9_tonic::ConnectionLimits::default(),
+    )
+    .await
+}
+
 /// Mark the server and each of its services NOT_SERVING.
 async fn set_not_serving(health: &tonic_health::server::HealthReporter) {
     let status = tonic_health::ServingStatus::NotServing;
@@ -148,7 +227,7 @@ async fn set_services_status(
         <CapabilitiesServer<api::CapabilitiesService> as NamedService>::NAME,
         <ContentAddressableStorageServer<api::ContentAddressableStorageService> as NamedService>::NAME,
         <ActionCacheServer<api::ActionCacheService> as NamedService>::NAME,
-        <ExecutionServer<api::ExecutionService> as NamedService>::NAME,
+        <ExecutionServer<scheduler::ExecutionService> as NamedService>::NAME,
         <ByteStreamServer<api::ByteStreamService> as NamedService>::NAME,
         <FetchServer<api::FetchService> as NamedService>::NAME,
         <PushServer<api::PushService> as NamedService>::NAME,
@@ -158,8 +237,8 @@ async fn set_services_status(
     }
 }
 
-/// Serve the prepared routes over any transport: plain TCP, TLS, or later
-/// an iroh acceptor.
+/// Serve the prepared routes over any transport: plain TCP, TLS, an
+/// in-process pipe, or later an iroh acceptor.
 ///
 /// Applies the per-route request timeouts, then the global concurrency
 /// limit. When a pressure monitor is available, wraps the outermost layer

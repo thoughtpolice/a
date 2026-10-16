@@ -22,6 +22,7 @@ use crate::store::{CacheStore, CacheStoreSettings, StoreBackend};
 struct Server {
     addr: SocketAddr,
     store: Arc<CacheStore>,
+    frontend: crate::reapi_grpc::Frontend,
     stop: Option<tokio::sync::oneshot::Sender<()>>,
     task: tokio::task::JoinHandle<()>,
 }
@@ -38,8 +39,14 @@ impl Server {
                 .expect("open store"),
         );
         let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
+        let frontend = crate::reapi_grpc::Frontend {
+            store: store.clone(),
+            scheduler: scheduler::Scheduler::new(scheduler::Config::default()),
+            fetch_config: api::FetchConfig::default(),
+            handle: Dial9TokioHandle::disabled(),
+        };
         let task = tokio::spawn({
-            let store = store.clone();
+            let frontend = frontend.clone();
             async move {
                 crate::reapi_grpc::start_reapi_grpc(
                     addr,
@@ -47,12 +54,10 @@ impl Server {
                     async move {
                         let _ = stopped.await;
                     },
-                    store,
+                    &frontend,
                     None,
                     Some(8192),
                     1024,
-                    api::FetchConfig::default(),
-                    Dial9TokioHandle::disabled(),
                     None,
                 )
                 .await
@@ -69,6 +74,7 @@ impl Server {
         Self {
             addr,
             store,
+            frontend,
             stop: Some(stop),
             task,
         }
@@ -250,4 +256,119 @@ async fn get_tree_answers_over_grpc() {
         .await
         .expect("every page");
     assert_eq!(pages[0].directories[0], stored, "the root, byte for byte");
+}
+
+/// Store `data` in `server`'s CAS and return its digest.
+async fn put_blob(
+    server: &Server,
+    data: Vec<u8>,
+) -> protos::build::bazel::remote::execution::v2::Digest {
+    let bytes = Bytes::from(data);
+    let digest = crate::store::ContentDigest::compute(crate::store::DigestFn::Sha256, &bytes);
+    server
+        .store
+        .cas_put_blob(&digest, bytes.clone(), crate::store::Compression::Identity)
+        .await
+        .expect("store the blob");
+    protos::build::bazel::remote::execution::v2::Digest {
+        hash: hex::encode(digest.hash),
+        size_bytes: bytes.len() as i64,
+    }
+}
+
+/// An action executed over a real connection runs on the daemon's own
+/// worker, which reaches the daemon through an in-process pipe, and its
+/// output comes back through the CAS.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn executes_actions_on_the_local_worker() {
+    use protos::build::bazel::remote::execution::v2::{
+        Action, Command, Directory, ExecuteRequest, ExecuteResponse, GetCapabilitiesRequest,
+        Platform, capabilities_client::CapabilitiesClient, command::EnvironmentVariable,
+        execution_client::ExecutionClient,
+    };
+    use protos::google::longrunning::operation;
+
+    let server = Server::start().await;
+    let scratch = tempfile::tempdir().expect("scratch");
+    let (handover_tx, handover) = accept::Handover::new();
+    let (stop_serving, serving_stopped) = tokio::sync::oneshot::channel::<()>();
+    let serving = tokio::spawn({
+        let frontend = server.frontend.clone();
+        async move {
+            crate::reapi_grpc::serve_workers(handover, &frontend, async move {
+                let _ = serving_stopped.await;
+            })
+            .await
+            .expect("serve the worker");
+        }
+    });
+    let (stop_worker, worker_stopped) = tokio::sync::oneshot::channel::<()>();
+    let worker = crate::local_worker::spawn(
+        crate::local_worker::Settings {
+            slots: 2,
+            dir: scratch.path().join("worker"),
+            default_timeout: std::time::Duration::from_secs(60),
+            max_timeout: std::time::Duration::from_secs(60),
+        },
+        handover_tx,
+        async move {
+            let _ = worker_stopped.await;
+        },
+    )
+    .expect("start the local worker");
+
+    let channel = server.channel().await;
+    let caps = CapabilitiesClient::new(channel.clone())
+        .get_capabilities(GetCapabilitiesRequest::default())
+        .await
+        .expect("capabilities")
+        .into_inner();
+    assert!(caps.execution_capabilities.expect("execution").exec_enabled);
+
+    let command = Command {
+        arguments: vec!["sh".into(), "-c".into(), "echo hi > out.txt".into()],
+        environment_variables: vec![EnvironmentVariable {
+            name: "PATH".into(),
+            value: "/usr/bin:/bin".into(),
+        }],
+        output_paths: vec!["out.txt".into()],
+        ..Default::default()
+    };
+    let action = Action {
+        command_digest: Some(put_blob(&server, command.encode_to_vec()).await),
+        input_root_digest: Some(put_directory(&server, &Directory::default()).await),
+        platform: Some(Platform {
+            properties: worker::host_properties(),
+        }),
+        ..Default::default()
+    };
+    let action_digest = put_blob(&server, action.encode_to_vec()).await;
+    let mut stream = ExecutionClient::new(channel)
+        .execute(ExecuteRequest {
+            action_digest: Some(action_digest),
+            digest_function: 1,
+            ..Default::default()
+        })
+        .await
+        .expect("execute")
+        .into_inner();
+    let response = loop {
+        let op = tokio::time::timeout(std::time::Duration::from_secs(30), stream.message())
+            .await
+            .expect("in time")
+            .expect("a message")
+            .expect("not the end yet");
+        if let Some(operation::Result::Response(any)) = op.result {
+            break ExecuteResponse::decode(any.value.as_slice()).expect("decode");
+        }
+    };
+    let result = response.result.expect("a result");
+    assert_eq!(result.exit_code, 0);
+    let out = result.output_files[0].digest.as_ref().expect("a digest");
+    assert_eq!(out.hash, hex::encode(Sha256::digest(b"hi\n")));
+
+    let _ = stop_worker.send(());
+    worker.await.expect("the worker stops");
+    let _ = stop_serving.send(());
+    serving.await.expect("serving stops");
 }

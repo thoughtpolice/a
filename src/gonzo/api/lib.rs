@@ -21,14 +21,8 @@ pub use capabilities::CapabilitiesService;
 mod cas;
 pub use cas::{CasServer, ContentAddressableStorageService};
 
-mod execution;
-pub use execution::ExecutionService;
-
 mod logstream;
 pub use logstream::LogStreamSvc;
-
-mod operations;
-pub use operations::OperationsService;
 
 mod git_clone;
 mod oci_image;

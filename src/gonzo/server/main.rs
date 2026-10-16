@@ -270,6 +270,26 @@ struct ServeArgs {
     #[arg(long, env = "GONZO_OCI_AUTH_FILE")]
     oci_auth_file: Option<PathBuf>,
 
+    // --- Execution ---
+    /// How many actions the worker for this machine runs at once (default:
+    /// one per CPU); 0 runs none here, leaving execution to other workers.
+    #[arg(long, env = "GONZO_LOCAL_WORKER_SLOTS")]
+    local_worker_slots: Option<usize>,
+
+    /// Where the worker for this machine keeps its file cache and lays out
+    /// actions. Defaults to `worker` in a local store's directory; a store
+    /// elsewhere (in memory, on S3) runs no local worker without one.
+    #[arg(long, env = "GONZO_WORKER_DIR")]
+    worker_dir: Option<PathBuf>,
+
+    /// The timeout, in seconds, of an action that sets none.
+    #[arg(long, default_value_t = 3600, env = "GONZO_ACTION_TIMEOUT")]
+    action_timeout: u64,
+
+    /// The longest timeout, in seconds, an action may set.
+    #[arg(long, default_value_t = 4 * 3600, env = "GONZO_MAX_ACTION_TIMEOUT")]
+    max_action_timeout: u64,
+
     // --- OTEL options ---
     /// Enable OpenTelemetry export (also enabled if OTEL_EXPORTER_OTLP_ENDPOINT is set)
     #[arg(long)]
@@ -948,6 +968,10 @@ async fn run_server(
     );
 
     let backend = parse_backend(cli.store())?;
+    let store_dir = match &backend {
+        store::StoreBackend::LocalFs(path) => Some(PathBuf::from(path)),
+        store::StoreBackend::Memory | store::StoreBackend::S3 { .. } => None,
+    };
     // Held until the server has stopped and the store is closed.
     let claim = match &backend {
         store::StoreBackend::LocalFs(path) => {
@@ -1041,6 +1065,20 @@ async fn run_server(
         .max_connections
         .unwrap_or_else(|| runtime::fds::max_connections(rt_info.open_files.unwrap_or(1024)));
 
+    let worker_dir = args
+        .worker_dir
+        .clone()
+        .or_else(|| store_dir.as_ref().map(|dir| dir.join("worker")));
+    let local_worker_slots = match (&worker_dir, args.local_worker_slots) {
+        (Some(_), slots) => slots.unwrap_or(rt_info.effective_cpus),
+        (None, Some(slots)) if slots > 0 => {
+            anyhow::bail!(
+                "--local-worker-slots needs a --worker-dir for a store that is not on local disk"
+            )
+        }
+        (None, _) => 0,
+    };
+
     tracing::info!(
         %address,
         store = %cli.store(),
@@ -1053,6 +1091,7 @@ async fn run_server(
         max_concurrent_requests = args.max_concurrent_requests,
         max_connections,
         disable_compactor = args.disable_compactor,
+        local_worker_slots,
         dial9 = dial9::Dial9Handle::current().is_enabled(),
         load_shedding = pressure_monitor.is_some(),
         trace_dir = trace_dir.map_or("disabled".to_string(), |d| d.display().to_string()),
@@ -1061,6 +1100,15 @@ async fn run_server(
 
     let shutdown_notify = Arc::new(tokio::sync::Notify::new());
     let shutdown_notify2 = shutdown_notify.clone();
+    // Tells everything besides the client listener, such as the local
+    // worker, that the daemon is stopping.
+    let (stopping, stopping_rx) = tokio::sync::watch::channel(false);
+    let stopped = move || {
+        let mut stopping = stopping_rx.clone();
+        async move {
+            let _ = stopping.wait_for(|stopping| *stopping).await;
+        }
+    };
     // Set if the store stops under the server (see below).
     let store_failure = Arc::new(std::sync::OnceLock::new());
 
@@ -1088,6 +1136,7 @@ async fn run_server(
                 }
             }
             shutdown_notify2.notify_one();
+            stopping.send_replace(true);
         }
     };
 
@@ -1118,21 +1167,62 @@ async fn run_server(
         max_oci_fetches: args.max_concurrent_oci_fetches,
         oci_credentials,
     };
+    let scheduler = scheduler::Scheduler::new(scheduler::Config::default());
+    scheduler.spawn_sweeper();
+    let frontend = reapi_grpc::Frontend {
+        store: cache_store.clone(),
+        scheduler,
+        fetch_config,
+        handle,
+    };
+
+    let local_worker = if let Some(dir) = worker_dir.filter(|_| local_worker_slots > 0) {
+        let (handover_tx, handover) = accept::Handover::new();
+        tokio::spawn({
+            let frontend = frontend.clone();
+            let stopped = stopped();
+            async move {
+                if let Err(e) = reapi_grpc::serve_workers(handover, &frontend, stopped).await {
+                    tracing::error!("serving the local worker failed: {e}");
+                }
+            }
+        });
+        Some(local_worker::spawn(
+            local_worker::Settings {
+                slots: local_worker_slots,
+                dir,
+                default_timeout: std::time::Duration::from_secs(args.action_timeout),
+                max_timeout: std::time::Duration::from_secs(args.max_action_timeout),
+            },
+            handover_tx,
+            stopped(),
+        )?)
+    } else {
+        None
+    };
+
     let result = tokio::select! {
         r = reapi_grpc::start_reapi_grpc(
                 address,
                 tls_config,
                 shutdown,
-                cache_store.clone(),
+                &frontend,
                 request_timeout,
                 Some(args.max_concurrent_requests),
                 max_connections,
-                fetch_config,
-                handle,
                 pressure_monitor,
         ) => r,
         _ = drain_deadline => Ok(()),
     };
+
+    // The local worker stops its actions as the daemon stops.
+    if let Some(local_worker) = local_worker
+        && tokio::time::timeout(std::time::Duration::from_secs(10), local_worker)
+            .await
+            .is_err()
+    {
+        tracing::warn!("the local worker did not stop within 10s");
+    }
 
     if let Some(reason) = store_failure.get() {
         telemetry::shutdown_otel();
@@ -1173,6 +1263,7 @@ async fn run_server(
 // ---------------------------------------------------------------------------------------------------------------------
 
 mod daemon;
+mod local_worker;
 mod pressure_gate;
 pub mod reapi_grpc;
 mod request_timeout;

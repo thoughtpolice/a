@@ -43,7 +43,7 @@ impl<S> RequestTimeout<S> {
             protos::build::bazel::remote::asset::v1::fetch_server::FetchServer<api::FetchService>;
         type Execution =
             protos::build::bazel::remote::execution::v2::execution_server::ExecutionServer<
-                api::ExecutionService,
+                scheduler::ExecutionService,
             >;
         Self {
             inner,
