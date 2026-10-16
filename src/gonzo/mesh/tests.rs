@@ -10,11 +10,9 @@ use super::*;
 
 /// An endpoint on loopback, accepting workers if `daemon`.
 async fn endpoint(daemon: bool) -> Endpoint {
-    let mut builder = iroh_boring::builder();
-    if daemon {
-        builder = builder.alpns(vec![ALPN.to_vec()]);
-    }
-    builder.bind().await.expect("bind")
+    bind(SecretKey::generate(), daemon, iroh_dial::Global::none())
+        .await
+        .expect("bind")
 }
 
 /// A worker's connection to `daemon`, and the daemon's to the worker.
@@ -100,4 +98,79 @@ async fn a_proof_is_good_only_between_the_two_it_names() {
         admit(&to_worker, daemon.id(), &keys),
     );
     assert!(admitted.is_err() && joined.is_err());
+}
+
+/// A daemon serving the gRPC health service to joined workers.
+fn serve_health(daemon: &Endpoint, keys: Vec<JoinKey>) -> tokio::sync::oneshot::Sender<()> {
+    let (_reporter, health) = tonic_health::server::health_reporter();
+    let routes = tonic::service::Routes::new(health).prepare();
+    let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
+    tokio::spawn(dial9_tonic::serve_traced(
+        serve(daemon.clone(), keys),
+        routes,
+        dial9::Dial9TokioHandle::disabled(),
+        async move {
+            let _ = stopped.await;
+        },
+    ));
+    stop
+}
+
+async fn check(channel: tonic::transport::Channel) -> Result<i32, tonic::Status> {
+    use tonic_health::pb::{HealthCheckRequest, health_client::HealthClient};
+    let response = HealthClient::new(channel)
+        .check(HealthCheckRequest {
+            service: String::new(),
+        })
+        .await?;
+    Ok(response.into_inner().status)
+}
+
+#[tokio::test]
+async fn joined_workers_reach_the_daemons_grpc_services() {
+    let (daemon, worker) = (endpoint(true).await, endpoint(false).await);
+    let key = JoinKey::generate();
+    let _stop = serve_health(&daemon, vec![key.clone()]);
+    let conn = worker
+        .connect(iroh_utils::dialable_addr(&daemon), ALPN)
+        .await
+        .expect("connect");
+    join(&conn, worker.id(), &key).await.expect("join");
+    let channel = channel(conn);
+    // Twice over one channel, and over a second channel on the same
+    // connection, which is a second stream.
+    for _ in 0..2 {
+        assert_eq!(check(channel.clone()).await.expect("check"), 1);
+    }
+    assert_eq!(
+        check(super::channel(connect_again(&worker, &daemon, &key).await))
+            .await
+            .expect("check"),
+        1
+    );
+}
+
+async fn connect_again(worker: &Endpoint, daemon: &Endpoint, key: &JoinKey) -> Connection {
+    let conn = worker
+        .connect(iroh_utils::dialable_addr(daemon), ALPN)
+        .await
+        .expect("connect");
+    join(&conn, worker.id(), key).await.expect("join");
+    conn
+}
+
+#[tokio::test]
+async fn a_worker_that_has_not_joined_gets_nothing() {
+    let (daemon, worker) = (endpoint(true).await, endpoint(false).await);
+    let _stop = serve_health(&daemon, vec![JoinKey::generate()]);
+    let conn = worker
+        .connect(iroh_utils::dialable_addr(&daemon), ALPN)
+        .await
+        .expect("connect");
+    // Straight to gRPC: the daemon takes the stream for a handshake, which
+    // fails, and closes the connection.
+    let checked = tokio::time::timeout(std::time::Duration::from_secs(20), check(channel(conn)))
+        .await
+        .expect("an answer in time");
+    assert!(checked.is_err(), "{checked:?}");
 }

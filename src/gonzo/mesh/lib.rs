@@ -9,10 +9,12 @@
 //! connection, so the daemon's gRPC services serve over iroh as they do
 //! over TCP ([`serve`], [`channel`]). See `src/gonzo/notes/execution.md`.
 
+mod grpc;
 mod join;
 mod keys;
 mod ticket;
 
+pub use grpc::{Stream, bind, channel, serve};
 pub use join::{CLOSE_REFUSED, HANDSHAKE_TIMEOUT, JoinError, admit, join};
 pub use keys::{JoinKey, load_or_create_identity};
 pub use ticket::{JoinTicket, ParseTicketError};
