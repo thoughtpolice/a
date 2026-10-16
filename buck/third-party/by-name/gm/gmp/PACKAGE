@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "OsvPurlInfo", "pkg")
+
+pkg.info(
+    version = "6.3.0",
+    description = """
+        The GNU Multiple Precision Arithmetic Library: arbitrary precision
+        integers, rationals and floating point numbers.
+    """,
+    license = "LGPL-3.0-or-later OR GPL-2.0-or-later",
+    copyright = [
+        "1991-2023 Free Software Foundation, Inc.",
+    ],
+    visibility = ["PUBLIC"],
+    # config.h describes 64-bit Linux and macOS; see there.
+    compatible_with = [
+        "config//os:linux",
+        "config//os:macos",
+    ],
+
+    # GMP is developed in Mercurial, so there is no git commit to name.
+    osv_info = OsvPurlInfo(
+        name = "pkg:generic/gmplib/gmp",
+    ),
+)
