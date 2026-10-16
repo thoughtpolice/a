@@ -12,6 +12,9 @@ pub mod digest;
 pub mod inputs;
 pub mod outputs;
 pub mod runner;
+mod worker;
+
+pub use worker::{Config, Worker, host_properties};
 
 #[cfg(test)]
 mod test_support;
@@ -20,3 +23,5 @@ mod test_support;
 mod test_inputs;
 #[cfg(test)]
 mod test_outputs;
+#[cfg(test)]
+mod test_worker;

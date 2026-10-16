@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! A daemon's CAS for the worker to talk to, in process.
+//! A daemon for the worker to talk to, in process: its CAS and its
+//! scheduler.
 
 use std::sync::Arc;
 
@@ -10,7 +11,10 @@ use prost::Message as _;
 use tokio::sync::oneshot;
 use tonic::transport::{Channel, Endpoint};
 
-use protos::build::bazel::remote::execution::v2::{Digest, Directory};
+use gonzo_protos::worker::v1::scheduler_server::SchedulerServer;
+use protos::build::bazel::remote::execution::v2::{
+    Digest, Directory, execution_server::ExecutionServer,
+};
 use protos::google::bytestream::byte_stream_server::ByteStreamServer;
 use storage::{CacheStore, CacheStoreSettings, Compression, ContentDigest, DigestFn, StoreBackend};
 
@@ -30,12 +34,21 @@ impl Daemon {
                 .expect("open store"),
         );
         let handle = dial9::Dial9TokioHandle::disabled();
+        let scheduler = scheduler::Scheduler::new(scheduler::Config::default());
         let routes = tonic::service::Routes::new(api::CasServer::new(
             api::ContentAddressableStorageService::new(store.clone(), handle.clone()),
         ))
         .add_service(ByteStreamServer::new(api::ByteStreamService::new(
             store.clone(),
             handle.clone(),
+        )))
+        .add_service(ExecutionServer::new(scheduler::ExecutionService::new(
+            scheduler.clone(),
+            store.clone(),
+        )))
+        .add_service(SchedulerServer::new(scheduler::WorkerSessions::new(
+            scheduler,
+            store.clone(),
         )))
         .prepare();
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")

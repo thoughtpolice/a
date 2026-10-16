@@ -5,6 +5,7 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
     "//src/crates/reapi-protos:protos",
+    "//src/gonzo/protos:gonzo-protos",
     "third-party//rust:anyhow",
     "third-party//rust:blake3",
     "third-party//rust:bytes",
@@ -12,12 +13,14 @@ DEPS = [
     "third-party//rust:hex",
     "third-party//rust:libc",
     "third-party//rust:prost",
+    "third-party//rust:prost-types",
     "third-party//rust:quick_cache",
     "third-party//rust:sha2",
     "third-party//rust:thiserror",
     "third-party//rust:tokio",
     "third-party//rust:tokio-stream",
     "third-party//rust:tonic",
+    "third-party//rust:tracing",
     "third-party//rust:uuid",
 ]
 
@@ -39,6 +42,7 @@ depot.rust_test(
         "third-party//rust:tempfile",
         "//src/crates/dial9-tonic",
         "//src/gonzo/api",
+        "//src/gonzo/scheduler",
         "//src/gonzo/storage",
     ],
 )
