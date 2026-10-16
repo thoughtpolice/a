@@ -24,6 +24,7 @@ const PIPE_BYTES: usize = 4 * 1024 * 1024;
 pub struct Settings {
     pub slots: usize,
     pub dir: PathBuf,
+    pub cache_bytes: u64,
     pub default_timeout: Duration,
     pub max_timeout: Duration,
 }
@@ -63,6 +64,7 @@ pub fn spawn(
             properties: worker::host_properties(),
             slots: settings.slots,
             dir: settings.dir.clone(),
+            cache_bytes: settings.cache_bytes,
             default_timeout: settings.default_timeout,
             max_timeout: settings.max_timeout,
         },

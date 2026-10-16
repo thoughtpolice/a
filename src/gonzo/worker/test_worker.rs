@@ -42,6 +42,7 @@ async fn setup() -> Setup {
                 properties: host_properties(),
                 slots: 2,
                 dir: scratch.path().join("worker"),
+                cache_bytes: u64::MAX,
                 default_timeout: Duration::from_secs(60),
                 max_timeout: Duration::from_secs(600),
             },

@@ -70,7 +70,7 @@ async fn lays_out_files_directories_and_symlinks() {
         .await;
 
     let scratch = tempfile::tempdir().unwrap();
-    let files = Arc::new(FileCache::open(&scratch.path().join("files")).unwrap());
+    let files = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
     let inputs = Inputs::new(daemon.cas(), files);
     for attempt in ["first", "second"] {
         // The second time, everything comes from the caches.
@@ -117,7 +117,7 @@ async fn missing_inputs_are_named() {
         .await;
 
     let scratch = tempfile::tempdir().unwrap();
-    let files = Arc::new(FileCache::open(&scratch.path().join("files")).unwrap());
+    let files = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
     let inputs = Inputs::new(daemon.cas(), files);
     let err = inputs
         .materialize(DigestFunction::Sha256, &root, scratch.path())
@@ -132,7 +132,7 @@ async fn entries_must_be_file_names() {
     let daemon = Daemon::start().await;
     let text = daemon.put("x").await;
     let scratch = tempfile::tempdir().unwrap();
-    let files = Arc::new(FileCache::open(&scratch.path().join("files")).unwrap());
+    let files = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
     let inputs = Inputs::new(daemon.cas(), files);
     for name in ["..", "a/b", ""] {
         let root = daemon

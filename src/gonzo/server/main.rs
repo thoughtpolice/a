@@ -282,6 +282,11 @@ struct ServeArgs {
     #[arg(long, env = "GONZO_WORKER_DIR")]
     worker_dir: Option<PathBuf>,
 
+    /// Most GiB of input files the worker for this machine keeps, so that
+    /// each is downloaded once.
+    #[arg(long, default_value_t = 20, env = "GONZO_WORKER_CACHE_GIB")]
+    worker_cache_gib: u64,
+
     /// The timeout, in seconds, of an action that sets none.
     #[arg(long, default_value_t = 3600, env = "GONZO_ACTION_TIMEOUT")]
     action_timeout: u64,
@@ -1191,6 +1196,7 @@ async fn run_server(
             local_worker::Settings {
                 slots: local_worker_slots,
                 dir,
+                cache_bytes: args.worker_cache_gib * 1024 * MIB,
                 default_timeout: std::time::Duration::from_secs(args.action_timeout),
                 max_timeout: std::time::Duration::from_secs(args.max_action_timeout),
             },

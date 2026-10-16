@@ -307,6 +307,7 @@ async fn executes_actions_on_the_local_worker() {
         crate::local_worker::Settings {
             slots: 2,
             dir: scratch.path().join("worker"),
+            cache_bytes: u64::MAX,
             default_timeout: std::time::Duration::from_secs(60),
             max_timeout: std::time::Duration::from_secs(60),
         },

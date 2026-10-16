@@ -44,6 +44,8 @@ pub struct Config {
     /// Where it keeps its file cache (`files/`) and lays out actions
     /// (`builds/`).
     pub dir: PathBuf,
+    /// Most bytes of input files to keep in the file cache.
+    pub cache_bytes: u64,
     /// The timeout of an action that sets none.
     pub default_timeout: Duration,
     /// The longest timeout an action may set.
@@ -116,7 +118,10 @@ impl Worker {
             remove_tree(&builds).with_context(|| format!("clearing {}", builds.display()))?;
         }
         std::fs::create_dir_all(&builds)?;
-        let files = Arc::new(FileCache::open(&config.dir.join("files"))?);
+        let files = Arc::new(FileCache::open(
+            &config.dir.join("files"),
+            config.cache_bytes,
+        )?);
         let cgroups = Cgroups::new();
         match &cgroups {
             Some(cgroups) => tracing::info!(

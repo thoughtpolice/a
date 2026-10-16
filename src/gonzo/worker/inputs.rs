@@ -59,11 +59,15 @@ impl Inputs {
                     .with_context(|| format!("input file {:?} has no digest", file.name))
             })
             .collect::<Result<_>>()?;
-        self.files.fetch(&self.cas, function, &files).await?;
+        let pinned = self.files.fetch(&self.cas, function, &files).await?;
 
         let files = self.files.clone();
         let (root, dest) = (root.clone(), dest.to_path_buf());
-        tokio::task::spawn_blocking(move || lay_out(&files, function, &tree, &root, &dest)).await?
+        let laid_out =
+            tokio::task::spawn_blocking(move || lay_out(&files, function, &tree, &root, &dest))
+                .await?;
+        drop(pinned);
+        laid_out
     }
 
     /// Every directory of the tree rooted at `root`.
