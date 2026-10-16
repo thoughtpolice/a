@@ -951,8 +951,8 @@ def stage0_binaries(
 #   3) assembles the filegroup named `filegroup_name`, laying out the produced
 #      binaries under `<arch_dir_upper>/bin/`, mirroring the upstream
 #      stage0-posix directory layout that `<arch>.answers` expects;
-#   4) declares the `:check` test that runs sha256sum over that filegroup
-#      against the golden answers.
+#   4) declares the dynamic `:check` test that discovers every golden answer
+#      and runs sha256sum once per filegroup entry.
 #
 # Every target requires x86_64 Linux, so another platform skips them instead
 # of failing to build them.
@@ -1007,8 +1007,6 @@ def stage0_platform(
     stage0_answer_test(
         name = "check",
         input = ":" + filegroup_name,
-        command = mtex + ":sha256sum",
-        chdirexec = "cellar//bootstrap/stage0-posix/cellar-extra:chdirexec",
-        args = ["--check", "answers"],
+        sha256sum = mtex + ":sha256sum",
         **compat
     )

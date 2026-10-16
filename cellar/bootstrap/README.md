@@ -88,6 +88,8 @@ that is missing upstream or differs from it.
 Cellar's own helpers live in `stage0-posix/cellar-extra/`, which the script
 does not check. M2-Mesoplanet builds them like mescc-tools-extra:
 
+- `answer-test` lists stage0's answers file and checks one entry of it for the
+  answer test.
 - `bytecmp` compares two files byte for byte.
 - `chdirenv` runs a command in a directory it creates, keeping the environment.
 - `chdirexec` runs a command in a directory with an empty environment.
