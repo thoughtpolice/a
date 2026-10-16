@@ -136,7 +136,10 @@ const OUTPUT_CHECKS_IN_FLIGHT: usize = 32;
 /// it that FindMissingBlobs already calls them missing, would fail that
 /// client later, so it is reported as a miss instead: the client runs the
 /// action again, and uploading its outputs renews them.
-async fn outputs_stored(
+///
+/// The scheduler applies the same rule, both before executing an action
+/// and before recording what a worker reports.
+pub async fn outputs_stored(
     store: &CacheStore,
     digest_fn: DigestFn,
     result: &ActionResult,

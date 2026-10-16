@@ -239,6 +239,13 @@ impl Scheduler {
         })
     }
 
+    /// The operation called `name` and where it is, without waiting on it.
+    pub fn peek(&self, name: &str) -> Option<(Arc<Job>, Stage)> {
+        let guard = self.shared.lock();
+        let op = guard.state.operations.get(name)?;
+        Some((op.job.clone(), op.stage.borrow().clone()))
+    }
+
     /// Stop the operation called `name`, whoever is waiting for it.
     pub fn cancel(&self, name: &str) -> bool {
         let mut guard = self.shared.lock();

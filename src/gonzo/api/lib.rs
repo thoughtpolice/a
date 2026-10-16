@@ -4,9 +4,13 @@
 //! The REAPI and Remote Asset gRPC services the cache server answers.
 
 pub(crate) mod helpers;
+pub use helpers::{
+    instrumented_rpc, parse_and_validate_digest, parse_and_validate_digest_ref,
+    resolve_digest_function, store_error_to_status,
+};
 
 mod action_cache;
-pub use action_cache::ActionCacheService;
+pub use action_cache::{ActionCacheService, outputs_stored};
 
 mod bytestream;
 pub use bytestream::ByteStreamService;
