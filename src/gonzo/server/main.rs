@@ -116,7 +116,7 @@ enum Command {
 #[derive(Parser, Debug)]
 struct ServeArgs {
     /// The address to listen on
-    #[arg(short, long, default_value = "127.0.0.1:8080", env = "GONZO_ADDRESS")]
+    #[arg(short, long, default_value = "127.0.0.1:8980", env = "GONZO_ADDRESS")]
     address: String,
 
     /// Enable tokio-console debugging subscriber
@@ -675,7 +675,7 @@ mod bare_invocation_tests {
     /// The address `GONZO_ADDRESS` sets, if any, else the default.
     #[test]
     fn listens_where_told() {
-        let expected = std::env::var("GONZO_ADDRESS").unwrap_or_else(|_| "127.0.0.1:8080".into());
+        let expected = std::env::var("GONZO_ADDRESS").unwrap_or_else(|_| "127.0.0.1:8980".into());
         assert_eq!(bare_serve_args().address, expected);
     }
 }
@@ -1000,7 +1000,7 @@ async fn run_server(
 
     let address: std::net::SocketAddr = args.address.parse().with_context(|| {
         format!(
-            "invalid listen address {:?} (expected HOST:PORT, e.g. 127.0.0.1:8080)",
+            "invalid listen address {:?} (expected HOST:PORT, e.g. 127.0.0.1:8980)",
             args.address,
         )
     })?;

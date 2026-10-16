@@ -13,7 +13,8 @@ on GitHub so you can get a transparent RBE cache for free.
 buck2 run //src/gonzo --
 ```
 
-The store defaults to `gonzo/store` under `$XDG_CACHE_HOME` (usually
+It listens on `127.0.0.1:8980` (Buildbarn's port; 8080 is too often
+taken by something else). The store defaults to `gonzo/store` under `$XDG_CACHE_HOME` (usually
 `~/.cache/gonzo/store`), so every checkout on the machine shares it; pass
 `--store` for another location, or `--store memory` for a throwaway one.
 

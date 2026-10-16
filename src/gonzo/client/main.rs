@@ -53,11 +53,11 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
     version = option_env!("depot_VERSION").unwrap_or("dev"),
 )]
 struct Cli {
-    /// REAPI server URL (e.g. http://127.0.0.1:8080)
+    /// REAPI server URL (e.g. http://127.0.0.1:8980)
     #[arg(
         short,
         long,
-        default_value = "http://127.0.0.1:8080",
+        default_value = "http://127.0.0.1:8980",
         env = "CACHE_CLIENT_SERVER",
         global = true
     )]

@@ -28,7 +28,7 @@ struct Args {
     /// REAPI server URL
     #[arg(
         long,
-        default_value = "http://127.0.0.1:8080",
+        default_value = "http://127.0.0.1:8980",
         env = "CACHE_CLIENT_SERVER"
     )]
     server: String,

@@ -39,7 +39,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 #[command(name = "cache-bench")]
 struct Cli {
     /// The cache's gRPC endpoint.
-    #[arg(long, default_value = "http://127.0.0.1:8080", global = true)]
+    #[arg(long, default_value = "http://127.0.0.1:8980", global = true)]
     server: String,
 
     /// REAPI instance name.
