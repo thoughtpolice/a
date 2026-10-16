@@ -44,3 +44,15 @@ depot.genrule(
     ])},
     visibility = [],
 )
+
+# The protos themselves, for protocols elsewhere that import them.
+depot.filegroup(
+    name = "proto-srcs",
+    srcs = glob(["**/*.proto"]),
+    # Vendored from Google and Bazel, under their own license headers.
+    srclint = {"spdx_exclude": glob([
+        "build/**/*.proto",
+        "google/**/*.proto",
+    ])},
+    visibility = ["PUBLIC"],
+)
