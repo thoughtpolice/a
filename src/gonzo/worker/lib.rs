@@ -15,7 +15,7 @@ pub mod outputs;
 pub mod runner;
 mod worker;
 
-pub use worker::{Config, Worker, host_properties};
+pub use worker::{Config, Worker, host_environment, host_properties};
 
 #[cfg(test)]
 mod test_support;

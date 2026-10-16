@@ -46,10 +46,25 @@ pub struct Config {
     pub dir: PathBuf,
     /// Most bytes of input files to keep in the file cache.
     pub cache_bytes: u64,
+    /// The environment of the "image" actions run in: variables each action
+    /// gets unless its command sets them. See [`host_environment`].
+    pub base_environment: Vec<(String, String)>,
     /// The timeout of an action that sets none.
     pub default_timeout: Duration,
     /// The longest timeout an action may set.
     pub max_timeout: Duration,
+}
+
+/// The environment an action on this machine starts from, as a container
+/// image's would: the worker's own `PATH`, so that a command named without
+/// a path (Buck's system toolchains name `rustc`, say) is found where the
+/// worker would find it, as it is when Buck runs the action locally. That
+/// is what `container-image=host` promises; an action that should not
+/// depend on the machine's tools sets its own `PATH`.
+pub fn host_environment() -> Vec<(String, String)> {
+    std::env::var("PATH")
+        .map(|path| vec![("PATH".to_string(), path)])
+        .unwrap_or_default()
 }
 
 /// The properties of this machine as Buck names them (see
@@ -298,11 +313,24 @@ impl Worker {
             .filter(|t| !t.is_zero())
             .unwrap_or(self.config.default_timeout)
             .min(self.config.max_timeout);
-        let environment: Vec<(String, String)> = command
-            .environment_variables
+        let mut environment: Vec<(String, String)> = self
+            .config
+            .base_environment
             .iter()
-            .map(|v| (v.name.clone(), v.value.clone()))
+            .filter(|(name, _)| {
+                !command
+                    .environment_variables
+                    .iter()
+                    .any(|v| v.name == *name)
+            })
+            .cloned()
             .collect();
+        environment.extend(
+            command
+                .environment_variables
+                .iter()
+                .map(|v| (v.name.clone(), v.value.clone())),
+        );
         let (stdout, stderr) = (build.join("stdout"), build.join("stderr"));
         let cgroup = match &self.cgroups {
             Some(cgroups) => Some(

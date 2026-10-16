@@ -43,6 +43,10 @@ async fn setup() -> Setup {
                 slots: 2,
                 dir: scratch.path().join("worker"),
                 cache_bytes: u64::MAX,
+                base_environment: vec![
+                    ("PATH".into(), "/usr/bin:/bin".into()),
+                    ("FROM_THE_IMAGE".into(), "yes".into()),
+                ],
                 default_timeout: Duration::from_secs(60),
                 max_timeout: Duration::from_secs(600),
             },
@@ -279,4 +283,18 @@ async fn an_action_nobody_waits_for_is_killed() {
         );
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
+}
+
+#[tokio::test]
+async fn actions_start_from_the_base_environment() {
+    let setup = setup().await;
+    let daemon = &setup.daemon;
+    // The command sets PATH itself (see `action`), and not FROM_THE_IMAGE.
+    let digest = action(daemon, "env | sort", &[], &Directory::default(), None).await;
+    let response = completion(&mut execute(daemon, &digest).await).await;
+    let result = response.result.expect("a result");
+    let stdout = daemon.get(result.stdout_digest.as_ref().unwrap()).await;
+    let stdout = String::from_utf8_lossy(&stdout);
+    assert!(stdout.contains("FROM_THE_IMAGE=yes\n"), "{stdout}");
+    assert_eq!(stdout.matches("PATH=").count(), 1, "{stdout}");
 }

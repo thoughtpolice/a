@@ -65,6 +65,7 @@ pub fn spawn(
             slots: settings.slots,
             dir: settings.dir.clone(),
             cache_bytes: settings.cache_bytes,
+            base_environment: worker::host_environment(),
             default_timeout: settings.default_timeout,
             max_timeout: settings.max_timeout,
         },
