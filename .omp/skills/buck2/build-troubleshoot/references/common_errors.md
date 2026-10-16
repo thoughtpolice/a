@@ -449,8 +449,9 @@ Error: Cannot execute arm64 binary on x86_64
 
 **Solutions:**
 ```bash
-# Build for specific platform
-buck2 build //target --target-platforms=//platforms:x86_64-linux
+# Build for a specific cpu, moving the target triple with it
+buck2 build //target -m config//cpu/constraints:x86_64 \
+  -m 'toolchains//cfg/target:target[x86_64-unknown-linux-gnu]'
 
 # Check current platform
 buck2 audit config platform

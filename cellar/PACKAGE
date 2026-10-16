@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+load("@prelude//cfg/modifier:set_cfg_modifiers.bzl", "set_cfg_modifiers")
+
 # By default, PACKAGE visibility clauses only specify _default_ visibility; if a
 # target within the package specifies its own explicit visibility, eg is marked
 # as 'PUBLIC', then it overrides the default, and a target in root//... could
@@ -15,3 +17,11 @@ enforce_within_view_intersection()
 # be able to see things within the cellar (ie no dependency on prelude, on
 # toolchains, root, etc). Other things, however, may depend on it.
 package( inherit = False, within_view = [ "cellar//..." ] )
+
+# The full-source bootstrap starts from an x86_64 Linux seed on any client: an
+# x86_64 Linux one runs it locally, others on remote workers. These override
+# the host's cpu and os, which the root PACKAGE sets for everything beneath it.
+set_cfg_modifiers([
+    "config//cpu/constraints:x86_64",
+    "config//os/constraints:linux",
+])

@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
+load("@root//buck/platforms:modifiers.bzl", "DEFAULT_MODIFIERS")
 load("@root//buck/shims:package.bzl", "pkg")
 
 pkg.cfg_constructor(
@@ -10,6 +11,6 @@ pkg.cfg_constructor(
     },
 )
 
-pkg.cfg_modifiers([
-    "mode//:build-mode[debug]"
+pkg.cfg_modifiers(DEFAULT_MODIFIERS + [
+    "mode//:build-mode[debug]",
 ])

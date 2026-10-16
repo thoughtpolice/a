@@ -140,19 +140,6 @@ ignore_cells = depot-cellar
 # ExecutionPlatformRegistrationInfo
 execution_platforms = root//buck/platforms:execution
 
-[parser]
-# set the default execution platform for several target patterns. this is
-# required; the main documentation for the format is the source code, I think...
-#
-# the full-source bootstrap in cellar starts from an x86_64 Linux seed, on any
-# client: an x86_64 Linux one runs it locally, others on remote workers.
-target_platform_detector_spec = \
-  target:cellar//...->root//buck/platforms:x86_64-linux \
-  target:root//...->root//buck/platforms:default \
-  target:third-party//...->root//buck/platforms:default \
-  target:tilde//...->root//buck/platforms:default \
-  target:toolchains//...->root//buck/platforms:default
-
 [project]
 # things that should not be scanned by buck2 for file changes. if you notice
 # something strange is being scanned, it might be worth adding here.

@@ -840,6 +840,32 @@ rustc_flags = select({
 - Release: Slow compilation, small binaries, optimized
 - Different cache entries (debug and release don't share artifacts)
 
+### Target Configuration
+
+Targets are configured with modifiers, not target platforms. The root
+`PACKAGE` sets the host's cpu and os, cgo off, and debug mode, from
+`buck/platforms/modifiers.bzl`. PACKAGE files apply by directory rather than by
+cell, so that reaches every cell under the repository root. A PACKAGE file
+further down overrides it: `cellar//PACKAGE` pins the bootstrap to x86_64
+Linux. On the command line, `-m` overrides both:
+
+```bash
+buck2 build -m release //src/app
+buck2 build -m config//cpu/constraints:arm64 \
+  -m 'toolchains//cfg/target:target[aarch64-unknown-linux-gnu]' //src/app
+```
+
+Move the target triple together with the cpu and os: selects keyed on one
+would otherwise answer for a different platform than selects keyed on the
+other. `shims.cross_binary` does the same for a dependency edge.
+
+There is no `parser.target_platform_detector_spec`. Don't reach for
+`--target-platforms`, `default_target_platform` or `configured_alias` either:
+they only choose the platform the modifiers start from, and the root
+`PACKAGE`'s modifiers then put the host's cpu and os back, so
+`--target-platforms root//buck/platforms:arm64-linux` quietly builds for the
+host.
+
 ### Execution Platforms
 
 `buck/platforms` defines a platform per cpu and os, such as
@@ -1214,8 +1240,9 @@ done | sort -k2 -rn | head -10
 ```bash
 # Compare dependencies across platforms
 diff \
-  <(buck2 cquery "deps('//src/app:binary')" --target-platforms=//toolchains:x86_64-linux) \
-  <(buck2 cquery "deps('//src/app:binary')" --target-platforms=//toolchains:aarch64-linux)
+  <(buck2 cquery "deps('//src/app:binary')") \
+  <(buck2 cquery "deps('//src/app:binary')" -m config//cpu/constraints:arm64 \
+      -m 'toolchains//cfg/target:target[aarch64-unknown-linux-gnu]')
 
 # See what changes between debug and release
 diff \
