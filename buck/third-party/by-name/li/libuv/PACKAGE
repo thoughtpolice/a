@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "OsvGitRepoInfo", "pkg")
+
+pkg.info(
+    version = "1.53.0",
+    description = """
+        Cross-platform asynchronous I/O: the event loop, networking, file
+        system and process library underneath Node.js.
+    """,
+    # MIT for libuv itself; tree.h is BSD-2-Clause and the inet_pton and
+    # inet_ntop code in src/inet.c is ISC (see LICENSE-extra).
+    license = "MIT AND BSD-2-Clause AND ISC",
+    copyright = [
+        "2015-2026 libuv project contributors",
+        "Joyent, Inc. and other Node contributors",
+    ],
+    visibility = ["PUBLIC"],
+
+    # Only the Unix half of the build is described here: src/win needs its
+    # own sources, defines and system libraries.
+    compatible_with = [
+        "config//os:linux",
+        "config//os:macos",
+    ],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/libuv/libuv",
+        commit = "840404ce8ba7cc0204be52389a6cfff9f2c90fb6",
+    ),
+)
