@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "0.8.4",
+    description = """
+        xxHash, an extremely fast non-cryptographic hash algorithm.
+    """,
+    # The library is BSD-2-Clause; the xxhsum command line tool is
+    # GPL-2.0-or-later.
+    license = "BSD-2-Clause AND GPL-2.0-or-later",
+    copyright = [
+        "2012-2023 Yann Collet",
+    ],
+    visibility = ["PUBLIC"],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/Cyan4973/xxHash",
+        commit = "c87183a77d67f7d37e3d2d1b7eaac5e7c695e4f0",
+    ),
+)
