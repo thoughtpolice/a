@@ -50,6 +50,30 @@ impl Accept for TcpListener {
     }
 }
 
+/// Connections made in the same process and handed over through a
+/// channel, rather than accepted from a socket: one end of an in-memory
+/// pipe, say, whose other end a client in the process holds. The source is
+/// exhausted once every [`Handover`] sender is gone.
+pub struct Handover<Io> {
+    connections: tokio::sync::mpsc::Receiver<Io>,
+}
+
+impl<Io> Handover<Io> {
+    /// A source of the connections sent on the returned sender.
+    pub fn new() -> (tokio::sync::mpsc::Sender<Io>, Self) {
+        let (tx, connections) = tokio::sync::mpsc::channel(16);
+        (tx, Self { connections })
+    }
+}
+
+impl<Io: AsyncRead + AsyncWrite + Unpin + Send + 'static> Accept for Handover<Io> {
+    type Io = Io;
+
+    async fn accept(&mut self) -> std::io::Result<Option<Io>> {
+        Ok(self.connections.recv().await)
+    }
+}
+
 /// How often a newcomer held at the cap asks again for room.
 pub const MAKE_ROOM_INTERVAL: std::time::Duration = std::time::Duration::from_secs(1);
 
@@ -418,5 +442,29 @@ mod tests {
         assert_eq!(&buf, b"ping");
         stream.write_all(b"pong").await.expect("write");
         client.await.expect("client task");
+    }
+
+    #[tokio::test]
+    async fn handover_yields_what_is_sent_until_the_senders_are_gone() {
+        let (tx, mut handover) = Handover::new();
+        let (mut ours, theirs) = tokio::io::duplex(64);
+        tx.send(theirs).await.expect("send");
+
+        let mut stream = Accept::accept(&mut handover)
+            .await
+            .expect("accept")
+            .expect("a connection");
+        ours.write_all(b"ping").await.expect("write");
+        let mut buf = [0u8; 4];
+        stream.read_exact(&mut buf).await.expect("read");
+        assert_eq!(&buf, b"ping");
+
+        drop(tx);
+        assert!(
+            Accept::accept(&mut handover)
+                .await
+                .expect("accept")
+                .is_none()
+        );
     }
 }
