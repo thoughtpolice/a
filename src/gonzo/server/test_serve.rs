@@ -373,3 +373,58 @@ async fn executes_actions_on_the_local_worker() {
     let _ = stop_serving.send(());
     serving.await.expect("serving stops");
 }
+
+/// A worker on another machine, joining over iroh with the daemon's
+/// ticket, reaches what workers need; one with another key does not.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn workers_join_over_iroh_with_the_ticket() {
+    use protos::build::bazel::remote::execution::v2::{
+        GetCapabilitiesRequest, capabilities_client::CapabilitiesClient,
+    };
+
+    let server = Server::start().await;
+    let scratch = tempfile::tempdir().expect("scratch");
+    let (_stop, stopped) = tokio::sync::oneshot::channel::<()>();
+    let listening = crate::remote_workers::start(
+        &server.frontend,
+        Some(&scratch.path().join("mesh")),
+        iroh_dial::Global::none(),
+        async move {
+            let _ = stopped.await;
+        },
+    )
+    .await
+    .expect("accept workers");
+    // The key is kept for the next start.
+    assert!(scratch.path().join("mesh/join-key").exists());
+    let ticket: mesh::JoinTicket = listening.ticket.to_string().parse().expect("a ticket");
+    let daemon = iroh_utils::dialable_addr(&listening.endpoint);
+
+    let worker = mesh::bind(
+        mesh::SecretKey::generate(),
+        false,
+        iroh_dial::Global::none(),
+    )
+    .await
+    .expect("bind");
+    let conn = worker
+        .connect(daemon.clone(), mesh::ALPN)
+        .await
+        .expect("connect");
+    mesh::join(&conn, worker.id(), &ticket.key)
+        .await
+        .expect("join");
+    let caps = CapabilitiesClient::new(mesh::channel(conn))
+        .get_capabilities(GetCapabilitiesRequest::default())
+        .await
+        .expect("capabilities")
+        .into_inner();
+    assert!(caps.execution_capabilities.expect("execution").exec_enabled);
+
+    let conn = worker.connect(daemon, mesh::ALPN).await.expect("connect");
+    let refused = mesh::join(&conn, worker.id(), &mesh::JoinKey::generate()).await;
+    assert!(
+        matches!(refused, Err(mesh::JoinError::UnknownWorker)),
+        "{refused:?}"
+    );
+}

@@ -9,11 +9,13 @@ BUILD_DEPS = [
     # local deps
     "//src/crates/accept:accept",
     "//src/crates/dial9-tonic:dial9-tonic",
+    "//src/crates/iroh-dial:iroh-dial",
     "//src/crates/reapi-protos:protos",
     "//src/crates/rustls-boring:rustls-boring",
     "//src/crates/rustls-transport:rustls-transport",
     "//src/gonzo/api:api",
     "//src/gonzo/assets/oci:oci",
+    "//src/gonzo/mesh:mesh",
     "//src/gonzo/protos:gonzo-protos",
     "//src/gonzo/runtime:runtime",
     "//src/gonzo/scheduler:scheduler",
@@ -65,6 +67,7 @@ ALL_TEST_RESOURCES = {
 }
 
 TEST_DEPS = BUILD_DEPS + [
+    "//src/crates/iroh-utils:iroh-utils",
     "third-party//rust:buck-resources",
     "third-party//rust:bytes",
     "third-party//rust:futures",

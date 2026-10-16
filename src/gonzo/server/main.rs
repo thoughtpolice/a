@@ -111,6 +111,10 @@ enum Command {
 
     /// Run standalone SlateDB compaction (database must already exist)
     Compact,
+
+    /// Print the ticket that lets a worker join the daemon serving the
+    /// store (started with --accept-workers): `gonzo-worker --join TICKET`
+    Ticket,
 }
 
 #[derive(Parser, Debug)]
@@ -286,6 +290,13 @@ struct ServeArgs {
     /// each is downloaded once.
     #[arg(long, default_value_t = 20, env = "GONZO_WORKER_CACHE_GIB")]
     worker_cache_gib: u64,
+
+    /// Accept workers on other machines, which join over iroh with the
+    /// ticket `gonzo ticket` prints. The daemon becomes reachable through
+    /// iroh's relays and address lookup (n0's DNS, the mainline DHT, mDNS);
+    /// only workers holding the ticket may join.
+    #[arg(long, env = "GONZO_ACCEPT_WORKERS")]
+    accept_workers: bool,
 
     /// The timeout, in seconds, of an action that sets none.
     #[arg(long, default_value_t = 3600, env = "GONZO_ACTION_TIMEOUT")]
@@ -504,6 +515,10 @@ fn main() -> Result<()> {
         cli.store = Some(default_store()?);
     }
 
+    if let Some(Command::Ticket) = cli.command {
+        return print_ticket(&cli);
+    }
+
     let rt_info = runtime::init();
 
     let mut builder = tokio::runtime::Builder::new_multi_thread();
@@ -513,6 +528,7 @@ fn main() -> Result<()> {
     let command = match cli.command {
         Some(Command::Compact) => "compact",
         Some(Command::Serve(_)) | None => "serve",
+        Some(Command::Ticket) => unreachable!("handled above"),
     };
     let claimed = if cli.disable_dial9 {
         None
@@ -577,6 +593,25 @@ fn main() -> Result<()> {
     drop(runtime);
     recorder.graceful_shutdown(std::time::Duration::from_secs(5));
     result
+}
+
+/// Print the join ticket of the daemon serving the store, from its
+/// `daemon.json`.
+fn print_ticket(cli: &Cli) -> Result<()> {
+    let store::StoreBackend::LocalFs(dir) = parse_backend(cli.store())? else {
+        anyhow::bail!("only a store on local disk records its daemon's ticket");
+    };
+    let info = daemon::running(std::path::Path::new(&dir))
+        .with_context(|| format!("no daemon is serving the store at {dir}"))?;
+    let ticket = info.ticket.with_context(|| {
+        format!(
+            "the daemon serving {dir} (pid {}) does not accept workers; start it with \
+             --accept-workers",
+            info.pid
+        )
+    })?;
+    println!("{ticket}");
+    Ok(())
 }
 
 /// Read the registry credentials in the Docker `config.json` at `path`.
@@ -785,6 +820,7 @@ async fn async_main(
 ) -> Result<()> {
     match cli.command {
         Some(Command::Compact) => run_compactor(&cli).await,
+        Some(Command::Ticket) => unreachable!("handled in main"),
         Some(Command::Serve(ref args)) => {
             run_server(
                 &cli,
@@ -1154,14 +1190,6 @@ async fn run_server(
     let request_timeout =
         (args.request_timeout > 0).then(|| std::time::Duration::from_secs(args.request_timeout));
 
-    if let Some(claim) = &claim {
-        claim.announce(&daemon::DaemonInfo {
-            pid: std::process::id(),
-            address: address.to_string(),
-            version: option_env!("depot_VERSION").unwrap_or("dev").to_string(),
-        })?;
-    }
-
     let fetch_config = api::FetchConfig {
         cpus: rt_info.effective_cpus,
         git_spool_dir: args.git_spool_dir.clone(),
@@ -1206,6 +1234,31 @@ async fn run_server(
     } else {
         None
     };
+
+    let remote_workers = if args.accept_workers {
+        let dir = store_dir.as_ref().map(|dir| dir.join("mesh"));
+        Some(
+            remote_workers::start(
+                &frontend,
+                dir.as_deref(),
+                iroh_dial::Global::default(),
+                stopped(),
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
+
+    if let Some(claim) = &claim {
+        claim.announce(&daemon::DaemonInfo {
+            pid: std::process::id(),
+            address: address.to_string(),
+            version: option_env!("depot_VERSION").unwrap_or("dev").to_string(),
+            endpoint: remote_workers.as_ref().map(|r| r.endpoint.id().to_string()),
+            ticket: remote_workers.as_ref().map(|r| r.ticket.to_string()),
+        })?;
+    }
 
     let result = tokio::select! {
         r = reapi_grpc::start_reapi_grpc(
@@ -1272,6 +1325,7 @@ mod daemon;
 mod local_worker;
 mod pressure_gate;
 pub mod reapi_grpc;
+mod remote_workers;
 mod request_timeout;
 pub mod store;
 pub mod tls;

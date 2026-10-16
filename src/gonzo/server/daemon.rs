@@ -18,6 +18,7 @@
 
 use std::fs::File;
 use std::io::Write as _;
+use std::os::unix::fs::OpenOptionsExt as _;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -36,6 +37,13 @@ pub struct DaemonInfo {
     /// Where it serves gRPC, as `HOST:PORT`.
     pub address: String,
     pub version: String,
+    /// Its iroh endpoint ID, if it accepts workers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub endpoint: Option<String>,
+    /// A ticket for joining it as a worker, if it accepts workers. It is a
+    /// credential, which is why the file is the owner's alone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ticket: Option<String>,
 }
 
 /// A daemon's claim on a local store, released when dropped.
@@ -77,7 +85,12 @@ impl StoreClaim {
         // Written whole and renamed into place, so a reader never sees half
         // of it.
         let partial = self.dir.join(format!("{STATE_FILE}.partial"));
-        let mut file = File::create(&partial)
+        let mut file = File::options()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(&partial)
             .with_context(|| format!("failed to create {}", partial.display()))?;
         serde_json::to_writer_pretty(&mut file, info).context("failed to encode daemon.json")?;
         file.write_all(b"\n")
@@ -129,6 +142,8 @@ mod tests {
             pid: 4321,
             address: "127.0.0.1:8980".into(),
             version: "test".into(),
+            endpoint: None,
+            ticket: Some("a ticket".into()),
         }
     }
 
