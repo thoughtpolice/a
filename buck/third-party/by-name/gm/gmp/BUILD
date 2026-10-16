@@ -1,0 +1,1053 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+load("@root//buck/shims:shims.bzl", "shims")
+
+VERSION = pkg.version()
+
+# This is GMP's `configure --disable-assembly` build: the generic C mpn
+# routines, a hand-written config.h in place of configure's (see there), and
+# the tables configure would have make generate.
+#
+# configure's GMP_LIMB_BITS and GMP_NAIL_BITS, which gmp.h and the table
+# generators take. config.h rejects a target whose limb is not 64 bits.
+LIMB_BITS = 64
+
+NAIL_BITS = 0
+
+# MARK: Sources
+
+# The lists below follow Makefile.am, in its order, so that a new release is
+# a matter of diffing them. TOP is libgmp_la_SOURCES, with the TAL_OBJECT of
+# --enable-alloca=reentrant (tal-reent) added.
+TOP = [
+    "assert",
+    "compat",
+    "errno",
+    "extract-dbl",
+    "invalid",
+    "memory",
+    "mp_bpl",
+    "mp_clz_tab",
+    "mp_dv_tab",
+    "mp_minv_tab",
+    "mp_get_fns",
+    "mp_set_fns",
+    "version",
+    "nextprime",
+    "primesieve",
+    "tal-reent",
+]
+
+MPF = [
+    "init",
+    "init2",
+    "inits",
+    "set",
+    "set_ui",
+    "set_si",
+    "set_str",
+    "set_d",
+    "set_z",
+    "iset",
+    "iset_ui",
+    "iset_si",
+    "iset_str",
+    "iset_d",
+    "clear",
+    "clears",
+    "get_str",
+    "dump",
+    "size",
+    "eq",
+    "reldiff",
+    "sqrt",
+    "random2",
+    "inp_str",
+    "out_str",
+    "add",
+    "add_ui",
+    "sub",
+    "sub_ui",
+    "ui_sub",
+    "mul",
+    "mul_ui",
+    "div",
+    "div_ui",
+    "cmp_z",
+    "cmp",
+    "cmp_d",
+    "cmp_ui",
+    "cmp_si",
+    "mul_2exp",
+    "div_2exp",
+    "abs",
+    "neg",
+    "set_q",
+    "get_d",
+    "get_d_2exp",
+    "set_dfl_prec",
+    "set_prc",
+    "set_prc_raw",
+    "get_dfl_prec",
+    "get_prc",
+    "ui_div",
+    "sqrt_ui",
+    "ceilfloor",
+    "trunc",
+    "pow_ui",
+    "urandomb",
+    "swap",
+    "fits_sint",
+    "fits_slong",
+    "fits_sshort",
+    "fits_uint",
+    "fits_ulong",
+    "fits_ushort",
+    "get_si",
+    "get_ui",
+    "int_p",
+]
+
+MPZ = [
+    "abs",
+    "add",
+    "add_ui",
+    "aorsmul",
+    "aorsmul_i",
+    "and",
+    "array_init",
+    "bin_ui",
+    "bin_uiui",
+    "cdiv_q",
+    "cdiv_q_ui",
+    "cdiv_qr",
+    "cdiv_qr_ui",
+    "cdiv_r",
+    "cdiv_r_ui",
+    "cdiv_ui",
+    "cfdiv_q_2exp",
+    "cfdiv_r_2exp",
+    "clear",
+    "clears",
+    "clrbit",
+    "cmp",
+    "cmp_d",
+    "cmp_si",
+    "cmp_ui",
+    "cmpabs",
+    "cmpabs_d",
+    "cmpabs_ui",
+    "com",
+    "combit",
+    "cong",
+    "cong_2exp",
+    "cong_ui",
+    "divexact",
+    "divegcd",
+    "dive_ui",
+    "divis",
+    "divis_ui",
+    "divis_2exp",
+    "dump",
+    "export",
+    "mfac_uiui",
+    "2fac_ui",
+    "fac_ui",
+    "oddfac_1",
+    "prodlimbs",
+    "fdiv_q_ui",
+    "fdiv_qr",
+    "fdiv_qr_ui",
+    "fdiv_r",
+    "fdiv_r_ui",
+    "fdiv_q",
+    "fdiv_ui",
+    "fib_ui",
+    "fib2_ui",
+    "fits_sint",
+    "fits_slong",
+    "fits_sshort",
+    "fits_uint",
+    "fits_ulong",
+    "fits_ushort",
+    "gcd",
+    "gcd_ui",
+    "gcdext",
+    "get_d",
+    "get_d_2exp",
+    "get_si",
+    "get_str",
+    "get_ui",
+    "getlimbn",
+    "hamdist",
+    "import",
+    "init",
+    "init2",
+    "inits",
+    "inp_raw",
+    "inp_str",
+    "invert",
+    "ior",
+    "iset",
+    "iset_d",
+    "iset_si",
+    "iset_str",
+    "iset_ui",
+    "jacobi",
+    "kronsz",
+    "kronuz",
+    "kronzs",
+    "kronzu",
+    "lcm",
+    "lcm_ui",
+    "limbs_finish",
+    "limbs_modify",
+    "limbs_read",
+    "limbs_write",
+    "lucmod",
+    "lucnum_ui",
+    "lucnum2_ui",
+    "millerrabin",
+    "mod",
+    "mul",
+    "mul_2exp",
+    "mul_si",
+    "mul_ui",
+    "n_pow_ui",
+    "neg",
+    "nextprime",
+    "out_raw",
+    "out_str",
+    "perfpow",
+    "perfsqr",
+    "popcount",
+    "pow_ui",
+    "powm",
+    "powm_sec",
+    "powm_ui",
+    "primorial_ui",
+    "pprime_p",
+    "random",
+    "random2",
+    "realloc",
+    "realloc2",
+    "remove",
+    "roinit_n",
+    "root",
+    "rootrem",
+    "rrandomb",
+    "scan0",
+    "scan1",
+    "set",
+    "set_d",
+    "set_f",
+    "set_q",
+    "set_si",
+    "set_str",
+    "set_ui",
+    "setbit",
+    "size",
+    "sizeinbase",
+    "sqrt",
+    "sqrtrem",
+    "stronglucas",
+    "sub",
+    "sub_ui",
+    "swap",
+    "tdiv_ui",
+    "tdiv_q",
+    "tdiv_q_2exp",
+    "tdiv_q_ui",
+    "tdiv_qr",
+    "tdiv_qr_ui",
+    "tdiv_r",
+    "tdiv_r_2exp",
+    "tdiv_r_ui",
+    "tstbit",
+    "ui_pow_ui",
+    "ui_sub",
+    "urandomb",
+    "urandomm",
+    "xor",
+]
+
+MPQ = [
+    "abs",
+    "aors",
+    "canonicalize",
+    "clear",
+    "clears",
+    "cmp",
+    "cmp_si",
+    "cmp_ui",
+    "div",
+    "get_d",
+    "get_den",
+    "get_num",
+    "get_str",
+    "init",
+    "inits",
+    "inp_str",
+    "inv",
+    "md_2exp",
+    "mul",
+    "neg",
+    "out_str",
+    "set",
+    "set_den",
+    "set_num",
+    "set_si",
+    "set_str",
+    "set_ui",
+    "equal",
+    "set_z",
+    "set_d",
+    "set_f",
+    "swap",
+]
+
+PRINTF = [
+    "asprintf",
+    "asprntffuns",
+    "doprnt",
+    "doprntf",
+    "doprnti",
+    "fprintf",
+    "obprintf",
+    "obvprintf",
+    "obprntffuns",
+    "printf",
+    "printffuns",
+    "snprintf",
+    "snprntffuns",
+    "sprintf",
+    "sprintffuns",
+    "vasprintf",
+    "vfprintf",
+    "vprintf",
+    "vsnprintf",
+    "vsprintf",
+    "repl-vsnprintf",
+]
+
+SCANF = [
+    "doscan",
+    "fscanf",
+    "fscanffuns",
+    "scanf",
+    "sscanf",
+    "sscanffuns",
+    "vfscanf",
+    "vscanf",
+    "vsscanf",
+]
+
+RAND = [
+    "rand",
+    "randclr",
+    "randdef",
+    "randiset",
+    "randlc2s",
+    "randlc2x",
+    "randmt",
+    "randmts",
+    "rands",
+    "randsd",
+    "randsdui",
+    "randbui",
+    "randmui",
+]
+
+CXX = [
+    "isfuns",
+    "ismpf",
+    "ismpq",
+    "ismpz",
+    "ismpznw",
+    "limits",
+    "osdoprnti",
+    "osfuns",
+    "osmpf",
+    "osmpq",
+    "osmpz",
+]
+
+# The mpn functions configure.ac's gmp_mpn_functions lists, for the path
+# --disable-assembly searches, which is mpn/generic alone. Of the optional
+# ones only add_n_sub_n has a generic version. configure links each function
+# to mpn/<function>.c and the Makefile compiles it with OPERATION_<function>.
+MPN = [
+    "add",
+    "add_1",
+    "add_n",
+    "sub",
+    "sub_1",
+    "sub_n",
+    "cnd_add_n",
+    "cnd_sub_n",
+    "cnd_swap",
+    "neg",
+    "com",
+    "mul_1",
+    "addmul_1",
+    "submul_1",
+    "add_err1_n",
+    "add_err2_n",
+    "add_err3_n",
+    "sub_err1_n",
+    "sub_err2_n",
+    "sub_err3_n",
+    "lshift",
+    "rshift",
+    "dive_1",
+    "diveby3",
+    "divis",
+    "divrem",
+    "divrem_1",
+    "divrem_2",
+    "fib2_ui",
+    "fib2m",
+    "mod_1",
+    "mod_34lsub1",
+    "mode1o",
+    "pre_divrem_1",
+    "pre_mod_1",
+    "dump",
+    "mod_1_1",
+    "mod_1_2",
+    "mod_1_3",
+    "mod_1_4",
+    "lshiftc",
+    "mul",
+    "mul_fft",
+    "mul_n",
+    "sqr",
+    "mul_basecase",
+    "sqr_basecase",
+    "nussbaumer_mul",
+    "mulmid_basecase",
+    "toom42_mulmid",
+    "mulmid_n",
+    "mulmid",
+    "random",
+    "random2",
+    "pow_1",
+    "rootrem",
+    "sqrtrem",
+    "sizeinbase",
+    "get_str",
+    "set_str",
+    "compute_powtab",
+    "scan0",
+    "scan1",
+    "cmp",
+    "zero_p",
+    "perfsqr",
+    "perfpow",
+    "strongfibo",
+    "gcd_11",
+    "gcd_22",
+    "gcd_1",
+    "gcd",
+    "gcdext_1",
+    "gcdext",
+    "gcd_subdiv_step",
+    "gcdext_lehmer",
+    "div_q",
+    "tdiv_qr",
+    "jacbase",
+    "jacobi_2",
+    "jacobi",
+    "get_d",
+    "matrix22_mul",
+    "matrix22_mul1_inverse_vector",
+    "hgcd_matrix",
+    "hgcd2",
+    "hgcd_step",
+    "hgcd_reduce",
+    "hgcd",
+    "hgcd_appr",
+    "hgcd2_jacobi",
+    "hgcd_jacobi",
+    "mullo_n",
+    "mullo_basecase",
+    "sqrlo",
+    "sqrlo_basecase",
+    "toom22_mul",
+    "toom32_mul",
+    "toom42_mul",
+    "toom52_mul",
+    "toom62_mul",
+    "toom33_mul",
+    "toom43_mul",
+    "toom53_mul",
+    "toom54_mul",
+    "toom63_mul",
+    "toom44_mul",
+    "toom6h_mul",
+    "toom6_sqr",
+    "toom8h_mul",
+    "toom8_sqr",
+    "toom_couple_handling",
+    "toom2_sqr",
+    "toom3_sqr",
+    "toom4_sqr",
+    "toom_eval_dgr3_pm1",
+    "toom_eval_dgr3_pm2",
+    "toom_eval_pm1",
+    "toom_eval_pm2",
+    "toom_eval_pm2exp",
+    "toom_eval_pm2rexp",
+    "toom_interpolate_5pts",
+    "toom_interpolate_6pts",
+    "toom_interpolate_7pts",
+    "toom_interpolate_8pts",
+    "toom_interpolate_12pts",
+    "toom_interpolate_16pts",
+    "invertappr",
+    "invert",
+    "binvert",
+    "mulmod_bnm1",
+    "sqrmod_bnm1",
+    "mulmod_bknp1",
+    "div_qr_1",
+    "div_qr_1n_pi1",
+    "div_qr_2",
+    "div_qr_2n_pi1",
+    "div_qr_2u_pi1",
+    "sbpi1_div_q",
+    "sbpi1_div_qr",
+    "sbpi1_divappr_q",
+    "dcpi1_div_q",
+    "dcpi1_div_qr",
+    "dcpi1_divappr_q",
+    "mu_div_qr",
+    "mu_divappr_q",
+    "mu_div_q",
+    "bdiv_q_1",
+    "sbpi1_bdiv_q",
+    "sbpi1_bdiv_qr",
+    "sbpi1_bdiv_r",
+    "dcpi1_bdiv_q",
+    "dcpi1_bdiv_qr",
+    "mu_bdiv_q",
+    "mu_bdiv_qr",
+    "bdiv_q",
+    "bdiv_qr",
+    "broot",
+    "brootinv",
+    "bsqrt",
+    "bsqrtinv",
+    "divexact",
+    "bdiv_dbm1c",
+    "redc_1",
+    "redc_2",
+    "redc_n",
+    "powm",
+    "powlo",
+    "sec_powm",
+    "sec_mul",
+    "sec_sqr",
+    "sec_invert",
+    "trialdiv",
+    "remove",
+    "copyi",
+    "copyd",
+    "zero",
+    "sec_tabselect",
+    "comb_tables",
+    "add_n_sub_n",
+]
+
+# The rest come from a file that defines several functions, configure.ac's
+# GMP_MULFUNC_CHOICES, and that file is compiled once for each.
+MPN_MULTI = {
+    "popcount": "popham",
+    "hamdist": "popham",
+    "sec_div_qr": "sec_div",
+    "sec_div_r": "sec_div",
+    "sec_pi1_div_qr": "sec_pi1_div",
+    "sec_pi1_div_r": "sec_pi1_div",
+    "sec_add_1": "sec_aors_1",
+    "sec_sub_1": "sec_aors_1",
+    "and_n": "logops_n",
+    "andn_n": "logops_n",
+    "nand_n": "logops_n",
+    "ior_n": "logops_n",
+    "iorn_n": "logops_n",
+    "nior_n": "logops_n",
+    "xor_n": "logops_n",
+    "xnor_n": "logops_n",
+}
+
+# The table generators, all run on the build machine (see Makefile.am).
+GENERATORS = [
+    "fac",
+    "sieve",
+    "fib",
+    "bases",
+    "trialdivtab",
+    "jacobitab",
+    "psqr",
+]
+
+# tests/libtests, less the calling conventions checks, which are assembly.
+LIBTESTS = [
+    "memory",
+    "misc",
+    "refmpf",
+    "refmpn",
+    "refmpq",
+    "refmpz",
+    "spinner",
+    "trace",
+]
+
+# Every check_PROGRAMS of tests/ and its subdirectories ("" is tests/ itself),
+# that is, all of `make check` but mini-gmp's, less mpn/t-addaddmul: it only
+# checks an assembly routine, and without one exits 77 for automake's SKIP.
+TESTS = {
+    "": [
+        "t-bswap",
+        "t-constants",
+        "t-count_zeros",
+        "t-hightomask",
+        "t-modlinv",
+        "t-popc",
+        "t-parity",
+        "t-sub",
+    ],
+    "mpn": [
+        "t-asmtype",
+        "t-aors_1",
+        "t-divrem_1",
+        "t-mod_1",
+        "t-fat",
+        "t-get_d",
+        "t-instrument",
+        "t-iord_u",
+        "t-mp_bases",
+        "t-perfsqr",
+        "t-scan",
+        "logic",
+        "t-toom22",
+        "t-toom32",
+        "t-toom33",
+        "t-toom42",
+        "t-toom43",
+        "t-toom44",
+        "t-toom52",
+        "t-toom53",
+        "t-toom54",
+        "t-toom62",
+        "t-toom63",
+        "t-toom6h",
+        "t-toom8h",
+        "t-toom2-sqr",
+        "t-toom3-sqr",
+        "t-toom4-sqr",
+        "t-toom6-sqr",
+        "t-toom8-sqr",
+        "t-div",
+        "t-mul",
+        "t-mullo",
+        "t-sqrlo",
+        "t-mulmod_bnm1",
+        "t-sqrmod_bnm1",
+        "t-mulmid",
+        "t-mulmod_bknp1",
+        "t-sqrmod_bknp1",
+        "t-hgcd",
+        "t-hgcd_appr",
+        "t-matrix22",
+        "t-invert",
+        "t-bdiv",
+        "t-fib2m",
+        "t-broot",
+        "t-brootinv",
+        "t-minvert",
+        "t-sizeinbase",
+        "t-gcd_11",
+        "t-gcd_22",
+        "t-gcdext_1",
+    ],
+    "mpz": [
+        "reuse",
+        "t-addsub",
+        "t-cmp",
+        "t-mul",
+        "t-mul_i",
+        "t-tdiv",
+        "t-tdiv_ui",
+        "t-fdiv",
+        "t-fdiv_ui",
+        "t-cdiv_ui",
+        "t-gcd",
+        "t-gcd_ui",
+        "t-lcm",
+        "t-invert",
+        "dive",
+        "dive_ui",
+        "t-sqrtrem",
+        "convert",
+        "io",
+        "t-inp_str",
+        "logic",
+        "t-bit",
+        "t-powm",
+        "t-powm_ui",
+        "t-pow",
+        "t-div_2exp",
+        "t-root",
+        "t-perfsqr",
+        "t-perfpow",
+        "t-jac",
+        "t-bin",
+        "t-get_d",
+        "t-get_d_2exp",
+        "t-get_si",
+        "t-set_d",
+        "t-set_si",
+        "t-lucm",
+        "t-fac_ui",
+        "t-mfac_uiui",
+        "t-primorial_ui",
+        "t-fib_ui",
+        "t-lucnum_ui",
+        "t-scan",
+        "t-fits",
+        "t-divis",
+        "t-divis_2exp",
+        "t-cong",
+        "t-cong_2exp",
+        "t-sizeinbase",
+        "t-set_str",
+        "t-aorsmul",
+        "t-cmp_d",
+        "t-cmp_si",
+        "t-hamdist",
+        "t-oddeven",
+        "t-popcount",
+        "t-set_f",
+        "t-io_raw",
+        "t-import",
+        "t-export",
+        "t-pprime_p",
+        "t-nextprime",
+        "t-remove",
+        "t-limbs",
+    ],
+    "mpq": [
+        "t-aors",
+        "t-cmp",
+        "t-cmp_ui",
+        "t-cmp_si",
+        "t-equal",
+        "t-get_d",
+        "t-get_str",
+        "t-inp_str",
+        "t-inv",
+        "t-md_2exp",
+        "t-set_f",
+        "t-set_str",
+        "io",
+        "reuse",
+        "t-cmp_z",
+    ],
+    "mpf": [
+        "t-dm2exp",
+        "t-conv",
+        "t-add",
+        "t-sub",
+        "t-sqrt",
+        "t-sqrt_ui",
+        "t-muldiv",
+        "reuse",
+        "t-cmp_d",
+        "t-cmp_si",
+        "t-div",
+        "t-fits",
+        "t-get_d",
+        "t-get_d_2exp",
+        "t-get_si",
+        "t-get_ui",
+        "t-gsprec",
+        "t-inp_str",
+        "t-int_p",
+        "t-mul_ui",
+        "t-set",
+        "t-set_q",
+        "t-set_si",
+        "t-set_ui",
+        "t-trunc",
+        "t-ui_div",
+        "t-eq",
+        "t-pow_ui",
+    ],
+    "misc": [
+        "t-printf",
+        "t-scanf",
+        "t-locale",
+    ],
+    "rand": [
+        "t-iset",
+        "t-lc2exp",
+        "t-mt",
+        "t-rand",
+        "t-urbui",
+        "t-urmui",
+        "t-urndmm",
+    ],
+    "cxx": [
+        "t-binary",
+        "t-cast",
+        "t-cxx11",
+        "t-headers",
+        "t-iostream",
+        "t-istream",
+        "t-locale",
+        "t-misc",
+        "t-mix",
+        "t-ops",
+        "t-ops2qf",
+        "t-ops2f",
+        "t-ops3",
+        "t-ostream",
+        "t-prec",
+        "t-ternary",
+        "t-unary",
+        "t-do-exceptions-work-at-all-with-this-compiler",
+        "t-ops2z",
+        "t-assign",
+        "t-constr",
+        "t-rand",
+    ],
+}
+
+# Each test's name here, `<directory>-<name>`, and its sources.
+TEST_SRCS = {
+    "{}-{}".format(d, t) if d else t: ["tests/{}/{}.c".format(d, t) if d else "tests/{}.c".format(t)]
+    for d, tests in TESTS.items()
+    if d != "cxx"
+    for t in tests
+} | {
+    "cxx-" + t: ["tests/cxx/{}.cc".format(t)] + (["tests/cxx/clocale.c"] if t == "t-locale" else [])
+    for t in TESTS["cxx"]
+}
+
+LIB_SRCS = (
+    ["{}.c".format(f) for f in TOP] +
+    ["mpf/{}.c".format(f) for f in MPF] +
+    ["mpz/{}.c".format(f) for f in MPZ] +
+    ["mpq/{}.c".format(f) for f in MPQ] +
+    ["printf/{}.c".format(f) for f in PRINTF] +
+    ["scanf/{}.c".format(f) for f in SCANF] +
+    ["rand/{}.c".format(f) for f in RAND]
+)
+
+shims.http_archive(
+    name = "src",
+    sha256 = "a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898",
+    strip_prefix = "gmp-{}".format(VERSION),
+    sub_targets = (
+        LIB_SRCS +
+        ["mpn/generic/{}.c".format(f) for f in MPN] +
+        ["cxx/{}.cc".format(f) for f in CXX] +
+        ["gen-{}.c".format(g) for g in GENERATORS] +
+        ["tests/{}.c".format(f) for f in LIBTESTS] +
+        [src for srcs in TEST_SRCS.values() for src in srcs] + [
+            "gmp-h.in",
+            "gmpxx.h",
+            "mpn/generic/gmp-mparam.h",
+        ]
+    ),
+    type = "tar.xz",
+    urls = [
+        "https://gmplib.org/download/gmp/gmp-{}.tar.xz".format(VERSION),
+    ],
+)
+
+# Sources include headers that sit next to them in the archive, like
+# mpz/aors.h, and the top of the tree, like gmp-impl.h, so every compile names
+# the whole tree as an include directory, which also makes all of it an input.
+INCLUDE_SRC = "-I$(location :src)"
+
+# MARK: Generated files
+
+# gmp.h is gmp-h.in with configure's substitutions: 64-bit `unsigned long`
+# limbs, no nails, and a static (not DLL) library.
+shims.genrule(
+    name = "gmp.h",
+    out = "gmp.h",
+    cmd = " ".join([
+        "sed",
+        "-e 's|@HAVE_HOST_CPU_FAMILY_power@|0|'",
+        "-e 's|@HAVE_HOST_CPU_FAMILY_powerpc@|0|'",
+        "-e 's|@GMP_LIMB_BITS@|{}|'".format(LIMB_BITS),
+        "-e 's|@GMP_NAIL_BITS@|{}|'".format(NAIL_BITS),
+        "-e 's|@DEFN_LONG_LONG_LIMB@|/* #undef _LONG_LONG_LIMB */|'",
+        "-e 's|@LIBGMP_DLL@|0|'",
+        "-e 's|@CC@|clang|'",
+        "-e 's|@CFLAGS@||'",
+        "$(location :src[gmp-h.in])",
+        "> $OUT",
+    ]),
+)
+
+[
+    shims.cxx_binary(
+        name = "gen-{}".format(g),
+        srcs = [":src[gen-{}.c]".format(g)],
+        linker_flags = ["-lm"],
+        # bootstrap.c, which most of them include, and mini-gmp.
+        preprocessor_flags = [INCLUDE_SRC],
+    )
+    for g in GENERATORS
+]
+
+# Makefile.am's rules, with the generator arguments it uses.
+GENERATED = {
+    "fac_table.h": "$(exe :gen-fac) {} {}".format(LIMB_BITS, NAIL_BITS),
+    "sieve_table.h": "$(exe :gen-sieve) {}".format(LIMB_BITS),
+    "fib_table.h": "$(exe :gen-fib) header {} {}".format(LIMB_BITS, NAIL_BITS),
+    "fib_table.c": "$(exe :gen-fib) table {} {}".format(LIMB_BITS, NAIL_BITS),
+    "mp_bases.h": "$(exe :gen-bases) header {} {}".format(LIMB_BITS, NAIL_BITS),
+    "mp_bases.c": "$(exe :gen-bases) table {} {}".format(LIMB_BITS, NAIL_BITS),
+    "trialdivtab.h": "$(exe :gen-trialdivtab) {} 8000".format(LIMB_BITS),
+    "jacobitab.h": "$(exe :gen-jacobitab)",
+    "perfsqr.h": "$(exe :gen-psqr) {} {}".format(LIMB_BITS, NAIL_BITS),
+}
+
+[
+    shims.genrule(
+        name = out,
+        out = out,
+        cmd = "{} > $OUT".format(cmd),
+    )
+    for out, cmd in GENERATED.items()
+]
+
+# What configure's links (mpn/popcount.c to mpn/generic/popham.c, and so on)
+# and the Makefile's -DOPERATION_popcount together amount to.
+[
+    shims.write_file(
+        name = "mpn-{}.c".format(f),
+        contents = [
+            "#define OPERATION_{} 1".format(f),
+            "#include \"mpn/generic/{}.c\"".format(base),
+            "",
+        ],
+    )
+    for f, base in MPN_MULTI.items()
+]
+
+# MARK: Libraries
+
+# The headers the library's sources and GMP's tests share, which are not
+# part of its interface.
+shims.cxx_library(
+    name = "internal",
+    exported_headers = {
+        h: ":" + h
+        for h in GENERATED
+        if h.endswith(".h")
+    } | {
+        # Upstream generates these two into mpn/, where the mpn sources find
+        # them by their bare names; the tests use the longer ones.
+        "mpn/jacobitab.h": ":jacobitab.h",
+        "mpn/perfsqr.h": ":perfsqr.h",
+        "config.h": "config.h",
+        "gmp-mparam.h": ":src[mpn/generic/gmp-mparam.h]",
+    },
+    exported_preprocessor_flags = [INCLUDE_SRC],
+    header_namespace = "",
+    visibility = [],
+)
+
+shims.cxx_library(
+    name = "gmp",
+    srcs = (
+        [":src[{}]".format(f) for f in LIB_SRCS] +
+        [(
+            ":src[mpn/generic/{}.c]".format(f),
+            ["-DOPERATION_{}".format(f)],
+        ) for f in MPN] +
+        [":mpn-{}.c".format(f) for f in MPN_MULTI] + [
+            ":fib_table.c",
+            ":mp_bases.c",
+        ]
+    ),
+    exported_headers = {
+        "gmp.h": ":gmp.h",
+    },
+    header_namespace = "",
+    preferred_linkage = "static",
+    preprocessor_flags = ["-D__GMP_WITHIN_GMP"],
+    deps = [":internal"],
+)
+
+shims.cxx_library(
+    name = "gmpxx",
+    srcs = [":src[cxx/{}.cc]".format(f) for f in CXX],
+    exported_deps = [":gmp"],
+    exported_headers = {
+        "gmpxx.h": ":src[gmpxx.h]",
+    },
+    header_namespace = "",
+    preferred_linkage = "static",
+    preprocessor_flags = ["-D__GMP_WITHIN_GMPXX"],
+    deps = [":internal"],
+)
+
+# MARK: Tests
+
+shims.cxx_binary(
+    name = "test-smoke-bin",
+    srcs = ["test.c"],
+    deps = [":gmp"],
+)
+
+shims.command_test(
+    name = "test-smoke",
+    cmd = ["$(exe :test-smoke-bin)"],
+)
+
+shims.cxx_library(
+    name = "libtests",
+    srcs = [":src[tests/{}.c]".format(f) for f in LIBTESTS],
+    exported_deps = [
+        ":gmp",
+        ":internal",
+    ],
+    exported_preprocessor_flags = [INCLUDE_SRC + "/tests"],
+    preferred_linkage = "static",
+    visibility = [],
+)
+
+# Each upstream test is `test-<directory>-<name>`. Several write a scratch
+# file into the directory they run in, under one fixed name per kind of test,
+# so each runs in a directory of its own: a fresh one in $TMPDIR, or where
+# that is not writable, as in the local sandbox, the private directory the
+# sandbox already runs it in.
+[
+    [
+        shims.cxx_binary(
+            name = "test-{}-bin".format(name),
+            srcs = [":src[{}]".format(src) for src in srcs],
+            deps = [":libtests"] + ([":gmpxx"] if name.startswith("cxx-") else []),
+        ),
+        shims.command_test(
+            name = "test-{}".format(name),
+            script = """
+                if dir=`mktemp -d 2>/dev/null`; then
+                    trap 'rm -rf "$dir"' EXIT
+                    cd "$dir"
+                fi
+                $(exe :test-{}-bin)
+            """.format(name),
+        ),
+    ]
+    for name, srcs in TEST_SRCS.items()
+]
