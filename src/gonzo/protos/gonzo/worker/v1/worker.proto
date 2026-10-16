@@ -1,0 +1,85 @@
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+// How workers take actions from gonzo's scheduler and hand back results.
+//
+// A worker dials the daemon and holds one Session open for as long as it
+// serves. Inputs and outputs move through the daemon's ordinary
+// ContentAddressableStorage and ByteStream services on the same connection;
+// only the scheduling happens here.
+
+syntax = "proto3";
+
+package gonzo.worker.v1;
+
+import "build/bazel/remote/execution/v2/remote_execution.proto";
+import "google/protobuf/timestamp.proto";
+
+service Scheduler {
+  // One stream per worker. The worker speaks first, with Hello; the
+  // scheduler then sends it actions, at most as many at once as it has
+  // slots, and the worker reports each one Finished. The session, and every
+  // action the scheduler gave it, ends with the stream: the scheduler queues
+  // those actions again, and the worker kills them.
+  rpc Session(stream WorkerMessage) returns (stream SchedulerMessage);
+}
+
+message WorkerMessage {
+  oneof message {
+    Hello hello = 1;
+    Finished finished = 2;
+  }
+}
+
+message SchedulerMessage {
+  oneof message {
+    Assign assign = 1;
+    Cancel cancel = 2;
+  }
+}
+
+// What a worker offers: actions run on a worker only if it has every
+// property the action's platform asks for.
+message Hello {
+  // How the worker appears in logs and in ExecutedActionMetadata.
+  string name = 1;
+
+  // A property may appear more than once, once per value the worker
+  // accepts (container-image=host and container-image=docker://..., say).
+  repeated build.bazel.remote.execution.v2.Platform.Property properties = 2;
+
+  // How many actions it runs at once.
+  uint32 slots = 3;
+
+  // The worker's version, for logs.
+  string version = 4;
+}
+
+// Run an action.
+message Assign {
+  // The operation the action belongs to, which Finished and Cancel name.
+  string operation = 1;
+
+  build.bazel.remote.execution.v2.DigestFunction.Value digest_function = 2;
+  build.bazel.remote.execution.v2.Digest action_digest = 3;
+
+  // The action and its command, already read from the CAS by the scheduler.
+  build.bazel.remote.execution.v2.Action action = 4;
+  build.bazel.remote.execution.v2.Command command = 5;
+
+  // When the action was queued, for ExecutedActionMetadata.
+  google.protobuf.Timestamp queued = 6;
+}
+
+// Stop running an action nobody is waiting for any more. The worker still
+// reports it Finished once it has stopped, which frees its slot.
+message Cancel {
+  string operation = 1;
+}
+
+// An action has run, or could not be run. The outputs the result names are
+// already in the CAS.
+message Finished {
+  string operation = 1;
+  build.bazel.remote.execution.v2.ExecuteResponse response = 2;
+}
