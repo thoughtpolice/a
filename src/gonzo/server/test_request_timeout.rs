@@ -40,6 +40,8 @@ async fn call(
 const FETCH_DIRECTORY: &str = "/build.bazel.remote.asset.v1.Fetch/FetchDirectory";
 const FIND_MISSING: &str =
     "/build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs";
+const EXECUTE: &str = "/build.bazel.remote.execution.v2.Execution/Execute";
+const WAIT_EXECUTION: &str = "/build.bazel.remote.execution.v2.Execution/WaitExecution";
 
 #[tokio::test(start_paused = true)]
 async fn fetches_get_their_own_limit() {
@@ -76,4 +78,19 @@ async fn a_fetch_past_its_limit_is_cut_off() {
     );
     // No default limit: anything else may take as long as it takes.
     assert_eq!(call(&mut svc, FIND_MISSING).await.body(), "done");
+}
+
+#[tokio::test(start_paused = true)]
+async fn executions_last_as_long_as_their_actions() {
+    let timeouts = RequestTimeouts {
+        default: Some(Duration::from_secs(900)),
+        fetch: Some(Duration::from_secs(1802)),
+    };
+    // An hour: past every limit the server sets.
+    let mut svc = RequestTimeout::new(slow(Duration::from_secs(3600)), timeouts);
+    for path in [EXECUTE, WAIT_EXECUTION] {
+        let response = call(&mut svc, path).await;
+        assert_eq!(response.body(), "done", "{path}");
+        assert!(response.headers().get("grpc-status").is_none(), "{path}");
+    }
 }
