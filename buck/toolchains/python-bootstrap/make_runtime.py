@@ -13,9 +13,10 @@ Every action that runs a bootstrap script takes the interpreter as an
 input, and so all of the files it needs to start: a whole install is
 thousands of files, which a remote worker lays out for every such action.
 This keeps three: the interpreter, libpython (which, in these builds, has
-every extension module linked in), and the standard library compiled into
-`pythonXY.zip`, which CPython puts on sys.path by itself and whose
-presence tells it where its prefix is. GUI toolkits, the test suite and
+every extension module linked in, and which keeps all of its names, since
+a bootstrap script may look it up through sysconfig), and the standard
+library compiled into `pythonXY.zip`, which CPython puts on sys.path by
+itself and whose presence tells it where its prefix is. GUI toolkits, the test suite and
 the bundled pip are left out. The lib-dynload directory is kept, empty
 but for a placeholder, since CPython warns at every start without it.
 
@@ -59,10 +60,18 @@ def main() -> None:
     os.makedirs(dynload)
     # Some tools drop an empty directory; one with a file stays.
     open(os.path.join(dynload, ".keep"), "w").close()
-    # The interpreter loads $ORIGIN/../lib/libpythonX.Y.so.1.0; the other
-    # names are symlinks to it.
-    libpython = f"libpython{version}.so.1.0"
-    shutil.copy2(os.path.join(prefix, "lib", libpython), os.path.join(lib, libpython))
+    # The interpreter loads $ORIGIN/../lib/libpythonX.Y.so.1.0. The other
+    # names are kept as the install has them, the unversioned symlink among
+    # them: the prelude's gather_libpython_symbols finds libpython by the
+    # name sysconfig gives (LDLIBRARY), and runs nm on it.
+    for name in sorted(os.listdir(os.path.join(prefix, "lib"))):
+        if not name.startswith("libpython"):
+            continue
+        source = os.path.join(prefix, "lib", name)
+        if os.path.islink(source):
+            os.symlink(os.readlink(source), os.path.join(lib, name))
+        else:
+            shutil.copy2(source, os.path.join(lib, name))
 
     archive = os.path.join(lib, f"python{version.replace('.', '')}.zip")
     with (
