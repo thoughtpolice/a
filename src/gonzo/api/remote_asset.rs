@@ -16,7 +16,7 @@ use protos::build::bazel::remote::asset::v1::{
 };
 use protos::build::bazel::remote::execution::v2::Digest;
 
-use crate::store::{
+use storage::{
     AssetEntry, CacheStore, Compression, ContentDigest, DigestFn, IncrementalHasher, unix_now_secs,
 };
 

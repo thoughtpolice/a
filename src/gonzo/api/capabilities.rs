@@ -47,7 +47,7 @@ impl capabilities_server::Capabilities for CapabilitiesService {
             symlink_absolute_path_strategy: Allowed.into(),
             supported_batch_update_compressors: vec![Zstd.into()],
             supported_compressors: vec![Zstd.into()],
-            max_cas_blob_size_bytes: crate::store::MAX_BLOB_REASSEMBLE_SIZE as i64,
+            max_cas_blob_size_bytes: storage::MAX_BLOB_REASSEMBLE_SIZE as i64,
             split_blob_support: true,
             splice_blob_support: true,
             fast_cdc_2020_params: Some(FastCdc2020Params {

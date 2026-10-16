@@ -18,7 +18,7 @@ use protos::build::bazel::remote::execution::v2::{
     batch_update_blobs_response, content_addressable_storage_server,
 };
 
-use crate::store::{
+use storage::{
     CPU_INLINE_BYTES, CacheStore, Compression, ContentDigest, DigestFn, MAX_BLOB_REASSEMBLE_SIZE,
     MAX_MANIFEST_CHUNK_COUNT,
 };
@@ -713,7 +713,7 @@ async fn stream_tree(
             .map_err(|e| tonic::Status::internal(format!("failed to decode directory: {e}")))?;
         for link in &links.directories {
             if let Some(ref d) = link.digest {
-                if let Some(hash) = crate::store::parse_digest_hash(&d.hash) {
+                if let Some(hash) = storage::parse_digest_hash(&d.hash) {
                     let sub_cd = ContentDigest::new(digest_fn, hash);
                     if visited.insert(sub_cd) {
                         queue.push_back(sub_cd);

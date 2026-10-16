@@ -50,7 +50,7 @@ use fetch_git::tree::GitTreeEntry;
 use fetch_git::{CloneOptions, GitFetchError};
 use futures::stream::TryStreamExt as _;
 
-use crate::store::{CacheStore, ContentDigest, DigestFn};
+use storage::{CacheStore, ContentDigest, DigestFn};
 
 use super::helpers::{http_status_code, qualifier, rpc_status};
 
@@ -541,7 +541,7 @@ async fn upload(
     store: &CacheStore,
     writes: Vec<CasWrite>,
     counts: &UploadCounts,
-) -> crate::store::Result<()> {
+) -> storage::Result<()> {
     let total = writes.len();
     let blobs = writes
         .into_iter()
@@ -987,8 +987,8 @@ pub(super) async fn fetch_git_directory(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::service::test_helpers::make_store;
-    use crate::store::Compression;
+    use crate::test_helpers::make_store;
+    use storage::Compression;
 
     // --- is_git_uri ---
 
@@ -1510,7 +1510,7 @@ mod tests {
         for sub_dir in &dir.directories {
             let sub_cd = ContentDigest::new(
                 digest_fn,
-                crate::store::parse_digest_hash(&sub_dir.digest.as_ref().unwrap().hash).unwrap(),
+                storage::parse_digest_hash(&sub_dir.digest.as_ref().unwrap().hash).unwrap(),
             );
             let sub_bytes = store.cas_get_blob(&sub_cd).await.unwrap().unwrap();
             let sub = Directory::decode(sub_bytes).unwrap();
@@ -1579,7 +1579,7 @@ mod tests {
         for sub_dir in &dir.directories {
             let sub_cd = ContentDigest::new(
                 digest_fn,
-                crate::store::parse_digest_hash(&sub_dir.digest.as_ref().unwrap().hash).unwrap(),
+                storage::parse_digest_hash(&sub_dir.digest.as_ref().unwrap().hash).unwrap(),
             );
             let sub_bytes = store.cas_get_blob(&sub_cd).await.unwrap().unwrap();
             let sub = Directory::decode(sub_bytes).unwrap();
@@ -1789,7 +1789,7 @@ mod tests {
         let dir = Directory::decode(store.cas_get_blob(&root).await.unwrap().unwrap()).unwrap();
         let a = ContentDigest::new(
             DigestFn::Sha256,
-            crate::store::parse_digest_hash(&dir.files[0].digest.as_ref().unwrap().hash).unwrap(),
+            storage::parse_digest_hash(&dir.files[0].digest.as_ref().unwrap().hash).unwrap(),
         );
         assert_eq!(
             &store.cas_get_blob(&a).await.unwrap().unwrap()[..],
@@ -1802,8 +1802,8 @@ mod tests {
     #[tokio::test]
     async fn blobs_past_half_their_ttl_are_renewed() {
         let store = CacheStore::open(
-            crate::store::StoreBackend::Memory,
-            crate::store::CacheStoreSettings {
+            storage::StoreBackend::Memory,
+            storage::CacheStoreSettings {
                 default_ttl: Some(jiff::SignedDuration::from_millis(1200)),
                 ..Default::default()
             },
@@ -2086,8 +2086,7 @@ mod tests {
         // shared subtree with the same digest.
         let dir_a_cd = ContentDigest::new(
             digest_fn,
-            crate::store::parse_digest_hash(&dir.directories[0].digest.as_ref().unwrap().hash)
-                .unwrap(),
+            storage::parse_digest_hash(&dir.directories[0].digest.as_ref().unwrap().hash).unwrap(),
         );
         let dir_a_bytes = store.cas_get_blob(&dir_a_cd).await.unwrap().unwrap();
         let dir_a = Directory::decode(dir_a_bytes).unwrap();
@@ -2096,8 +2095,7 @@ mod tests {
 
         let dir_b_cd = ContentDigest::new(
             digest_fn,
-            crate::store::parse_digest_hash(&dir.directories[1].digest.as_ref().unwrap().hash)
-                .unwrap(),
+            storage::parse_digest_hash(&dir.directories[1].digest.as_ref().unwrap().hash).unwrap(),
         );
         let dir_b_bytes = store.cas_get_blob(&dir_b_cd).await.unwrap().unwrap();
         let dir_b = Directory::decode(dir_b_bytes).unwrap();
@@ -2105,7 +2103,7 @@ mod tests {
         // dir_b > nested > shared
         let nested_cd = ContentDigest::new(
             digest_fn,
-            crate::store::parse_digest_hash(&dir_b.directories[0].digest.as_ref().unwrap().hash)
+            storage::parse_digest_hash(&dir_b.directories[0].digest.as_ref().unwrap().hash)
                 .unwrap(),
         );
         let nested_bytes = store.cas_get_blob(&nested_cd).await.unwrap().unwrap();

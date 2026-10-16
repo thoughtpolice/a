@@ -248,10 +248,7 @@ async fn bytestream_reads_ranges_of_inline_and_chunked_blobs() {
     let store = make_store().await;
     let bs = make_bs(store.clone());
 
-    for size in [
-        crate::store::INLINE_BLOB_MAX,
-        crate::store::INLINE_BLOB_MAX + 1,
-    ] {
+    for size in [storage::INLINE_BLOB_MAX, storage::INLINE_BLOB_MAX + 1] {
         let data = make_data(size);
         let cd = ContentDigest::new(DigestFn::Sha256, sha256(&data));
         store
@@ -856,7 +853,7 @@ async fn bytestream_write_rejects_oversized_declared_size_upfront() {
 
     let data = b"tiny payload";
     // Declare a size larger than MAX_BLOB_REASSEMBLE_SIZE in the resource name.
-    let oversized = crate::store::MAX_BLOB_REASSEMBLE_SIZE as i64 + 1;
+    let oversized = storage::MAX_BLOB_REASSEMBLE_SIZE as i64 + 1;
     let resource_name = format!(
         "uploads/test-uuid/blobs/{}/{}",
         hex::encode(sha256(data)),

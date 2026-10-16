@@ -31,12 +31,10 @@ pub async fn start_reapi_grpc(
     request_timeout: Option<Duration>,
     max_concurrent_requests: Option<usize>,
     max_connections: usize,
-    fetch_config: crate::service::FetchConfig,
+    fetch_config: api::FetchConfig,
     handle: Dial9TokioHandle,
     pressure_monitor: Option<runtime::psi::PressureMonitor>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use crate::service;
-
     let (health_reporter, health_service) = tonic_health::server::health_reporter();
     set_services_status(&health_reporter, tonic_health::ServingStatus::Serving).await;
 
@@ -54,18 +52,18 @@ pub async fn start_reapi_grpc(
         default: request_timeout,
         fetch: fetch_config
             .max_fetch_time
-            .map(|max| max + service::FETCH_TIMEOUT_MARGIN),
+            .map(|max| max + api::FETCH_TIMEOUT_MARGIN),
     };
 
-    let cas_service = service::ContentAddressableStorageService::new(store.clone(), handle.clone());
-    let action_cache_service = service::ActionCacheService::new(store.clone());
-    let bytestream_service = service::ByteStreamService::new(store.clone(), handle.clone());
-    let execution_service = service::ExecutionService::default();
-    let capabilities_service = service::CapabilitiesService::default();
-    let operations_service = service::OperationsService::default();
-    let fetch_service = service::FetchService::new(store.clone(), handle.clone(), fetch_config);
-    let push_service = service::PushService::new(store.clone());
-    let logstream_service = service::LogStreamSvc::default();
+    let cas_service = api::ContentAddressableStorageService::new(store.clone(), handle.clone());
+    let action_cache_service = api::ActionCacheService::new(store.clone());
+    let bytestream_service = api::ByteStreamService::new(store.clone(), handle.clone());
+    let execution_service = api::ExecutionService::default();
+    let capabilities_service = api::CapabilitiesService::default();
+    let operations_service = api::OperationsService::default();
+    let fetch_service = api::FetchService::new(store.clone(), handle.clone(), fetch_config);
+    let push_service = api::PushService::new(store.clone());
+    let logstream_service = api::LogStreamSvc::default();
     let reflection_service = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(protos::FILE_DESCRIPTOR_SET)
         .register_encoded_file_descriptor_set(tonic_health::pb::FILE_DESCRIPTOR_SET)
@@ -75,7 +73,7 @@ pub async fn start_reapi_grpc(
     // Build routes using tonic::service::Routes directly — we bypass tonic's
     // transport layer so we can run our own traced accept loop.
     let routes = tonic::service::Routes::new(CapabilitiesServer::new(capabilities_service))
-        .add_service(service::CasServer::new(cas_service))
+        .add_service(api::CasServer::new(cas_service))
         .add_service(ActionCacheServer::new(action_cache_service))
         .add_service(ExecutionServer::new(execution_service))
         .add_service(ByteStreamServer::new(bytestream_service))
@@ -144,18 +142,17 @@ async fn set_services_status(
     health: &tonic_health::server::HealthReporter,
     status: tonic_health::ServingStatus,
 ) {
-    use crate::service;
     use tonic::server::NamedService;
 
     for name in [
-        <CapabilitiesServer<service::CapabilitiesService> as NamedService>::NAME,
-        <ContentAddressableStorageServer<service::ContentAddressableStorageService> as NamedService>::NAME,
-        <ActionCacheServer<service::ActionCacheService> as NamedService>::NAME,
-        <ExecutionServer<service::ExecutionService> as NamedService>::NAME,
-        <ByteStreamServer<service::ByteStreamService> as NamedService>::NAME,
-        <FetchServer<service::FetchService> as NamedService>::NAME,
-        <PushServer<service::PushService> as NamedService>::NAME,
-        <LogStreamServiceServer<service::LogStreamSvc> as NamedService>::NAME,
+        <CapabilitiesServer<api::CapabilitiesService> as NamedService>::NAME,
+        <ContentAddressableStorageServer<api::ContentAddressableStorageService> as NamedService>::NAME,
+        <ActionCacheServer<api::ActionCacheService> as NamedService>::NAME,
+        <ExecutionServer<api::ExecutionService> as NamedService>::NAME,
+        <ByteStreamServer<api::ByteStreamService> as NamedService>::NAME,
+        <FetchServer<api::FetchService> as NamedService>::NAME,
+        <PushServer<api::PushService> as NamedService>::NAME,
+        <LogStreamServiceServer<api::LogStreamSvc> as NamedService>::NAME,
     ] {
         health.set_service_status(name, status).await;
     }

@@ -35,9 +35,8 @@ pub struct RequestTimeout<S> {
 impl<S> RequestTimeout<S> {
     pub fn new(inner: S, timeouts: RequestTimeouts) -> Self {
         use tonic::server::NamedService as _;
-        type Fetch = protos::build::bazel::remote::asset::v1::fetch_server::FetchServer<
-            crate::service::FetchService,
-        >;
+        type Fetch =
+            protos::build::bazel::remote::asset::v1::fetch_server::FetchServer<api::FetchService>;
         Self {
             inner,
             timeouts,

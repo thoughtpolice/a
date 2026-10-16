@@ -1384,7 +1384,7 @@ async fn capabilities_reports_blob_size_limit() {
     assert!(cache_caps.max_cas_blob_size_bytes > 0);
     assert_eq!(
         cache_caps.max_cas_blob_size_bytes,
-        crate::store::MAX_BLOB_REASSEMBLE_SIZE as i64
+        storage::MAX_BLOB_REASSEMBLE_SIZE as i64
     );
 }
 

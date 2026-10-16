@@ -40,7 +40,7 @@ use prost::Message as _;
 
 use protos::build::bazel::remote::execution::v2::{Digest, Directory, DirectoryNode, FileNode};
 
-use crate::store::{
+use storage::{
     CPU_INLINE_BYTES, CacheStore, Compression, ContentDigest, DigestFn, parse_digest_hash,
 };
 

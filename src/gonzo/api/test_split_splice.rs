@@ -332,7 +332,7 @@ async fn splice_blob_from_blobs_of_every_layout() {
 
     let sizes = [
         100,
-        crate::store::INLINE_BLOB_MAX + 1,
+        storage::INLINE_BLOB_MAX + 1,
         3 * 1024 * 1024, // split by the store
     ];
     let mut whole = Vec::new();

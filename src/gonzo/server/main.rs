@@ -1015,7 +1015,7 @@ async fn run_server(
     let request_timeout =
         (args.request_timeout > 0).then(|| std::time::Duration::from_secs(args.request_timeout));
 
-    let fetch_config = service::FetchConfig {
+    let fetch_config = api::FetchConfig {
         cpus: rt_info.effective_cpus,
         git_spool_dir: args.git_spool_dir.clone(),
         max_fetch_time: (args.fetch_timeout > 0)
@@ -1082,7 +1082,6 @@ async fn run_server(
 mod pressure_gate;
 pub mod reapi_grpc;
 mod request_timeout;
-pub mod service;
 pub mod store;
 pub mod tls;
 

@@ -8,9 +8,7 @@ use std::time::Instant;
 use bytes::Bytes;
 use tonic::Status;
 
-use crate::store::{
-    CacheStore, Compression, ContentDigest, DigestFn, StoreError, parse_digest_hash,
-};
+use storage::{CacheStore, Compression, ContentDigest, DigestFn, StoreError, parse_digest_hash};
 
 /// Maximum total size for batch requests (4 MB).
 pub const MAX_BATCH_TOTAL_SIZE: i64 = 4_000_000;

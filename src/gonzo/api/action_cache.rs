@@ -12,7 +12,7 @@ use protos::build::bazel::remote::execution::v2::{
     action_cache_server,
 };
 
-use crate::store::{CacheStore, DigestFn};
+use storage::{CacheStore, DigestFn};
 
 use super::helpers::{
     instrumented_rpc, parse_and_validate_digest, parse_and_validate_digest_ref,

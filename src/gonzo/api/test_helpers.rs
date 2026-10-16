@@ -23,7 +23,7 @@ pub use protos::build::bazel::remote::asset::v1::{
 
 pub use dial9::Dial9TokioHandle;
 
-pub use crate::store::{
+pub use storage::{
     CacheStore, CacheStoreSettings, Compression, ContentDigest, DigestFn, StoreBackend,
 };
 

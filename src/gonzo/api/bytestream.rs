@@ -12,7 +12,7 @@ use protos::google::bytestream::{
     WriteResponse, byte_stream_server,
 };
 
-use crate::store::{
+use storage::{
     BlobChunks, CacheStore, ChunkInfo, Compression, ContentDigest, MAX_BLOB_REASSEMBLE_SIZE,
     parse_digest_hash,
 };
@@ -38,7 +38,7 @@ const READ_AHEAD_BUDGET_KIB: usize = 1 << 20;
 /// A chunk read, its size, and the share of the budget it holds until
 /// dropped.
 type ChunkRead = (
-    crate::store::Result<bytes::Bytes>,
+    storage::Result<bytes::Bytes>,
     u64,
     Option<tokio::sync::OwnedSemaphorePermit>,
 );

@@ -12,32 +12,22 @@ BUILD_DEPS = [
     "//src/crates/reapi-protos:protos",
     "//src/crates/rustls-boring:rustls-boring",
     "//src/crates/rustls-transport:rustls-transport",
-    "//src/gonzo/assets/git:git",
-    "//src/gonzo/assets/http:http",
+    "//src/gonzo/api:api",
     "//src/gonzo/assets/oci:oci",
     "//src/gonzo/runtime:runtime",
     "//src/gonzo/storage:storage",
     "//src/gonzo/telemetry:telemetry",
     # crates.io
-    "third-party//rust:bytes",
-    "third-party//rust:futures",
-    "third-party//rust:hex",
     "third-party//rust:jiff",
-    "third-party//rust:sha2",
     "third-party//rust:anyhow",
     "third-party//rust:clap",
     "third-party//rust:dial9",
     "third-party//rust:console-subscriber",
-    "third-party//rust:openssl",
-    "third-party//rust:prost",
-    "third-party//rust:prost-types",
     "third-party//rust:rustls",
     "third-party//rust:tokio",
-    "third-party//rust:tokio-stream",
     "third-party//rust:tonic",
     "third-party//rust:tower",
     "third-party//rust:hyper",
-    "third-party//rust:tonic-prost",
     "third-party//rust:tonic-health",
     "third-party//rust:tonic-reflection",
     "third-party//rust:tracing",
@@ -46,19 +36,13 @@ BUILD_DEPS = [
 
 depot.rust_binary(
     name = "gonzo",
-    srcs = glob(["src/**/*.rs"]),
+    srcs = glob(["server/*.rs"]),
     visibility = ["PUBLIC"],
     deps = BUILD_DEPS,
 )
 
 TEST_MODULES = {
-    "cas": {},
     "dial9": {},
-    "split_splice": {},
-    "action_cache": {},
-    "bytestream": {},
-    "resource_names": {},
-    "remote_asset": {},
     "request_timeout": {},
     "serve": {},
     "tls": {
@@ -75,17 +59,21 @@ ALL_TEST_RESOURCES = {
 }
 
 TEST_DEPS = BUILD_DEPS + [
-    "third-party//rust:base64",
     "third-party//rust:buck-resources",
-    "third-party//rust:serde_json",
+    "third-party//rust:bytes",
+    "third-party//rust:futures",
+    "third-party//rust:hex",
+    "third-party//rust:prost",
+    "third-party//rust:sha2",
     "third-party//rust:tempfile",
+    "third-party//rust:tonic-prost",
 ]
 
 # Per-module test targets
 [depot.rust_test(
     name = "tests-" + name,
-    srcs = glob(["src/**/*.rs"]),
-    crate_root = "src/main.rs",
+    srcs = glob(["server/*.rs"]),
+    crate_root = "server/main.rs",
     resources = config.get("resources", {}),
     rustc_flags = ["--cfg=test_module_" + name],
     deps = TEST_DEPS,
@@ -94,8 +82,8 @@ TEST_DEPS = BUILD_DEPS + [
 # All-in-one target
 depot.rust_test(
     name = "tests",
-    srcs = glob(["src/**/*.rs"]),
-    crate_root = "src/main.rs",
+    srcs = glob(["server/*.rs"]),
+    crate_root = "server/main.rs",
     resources = ALL_TEST_RESOURCES,
     rustc_flags = ["--cfg=test_module_" + name for name in TEST_MODULES],
     deps = TEST_DEPS,
