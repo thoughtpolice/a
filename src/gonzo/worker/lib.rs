@@ -10,6 +10,7 @@ pub mod cache;
 pub mod cas;
 pub mod digest;
 pub mod inputs;
+pub mod outputs;
 pub mod runner;
 
 #[cfg(test)]
@@ -17,3 +18,5 @@ mod test_support;
 
 #[cfg(test)]
 mod test_inputs;
+#[cfg(test)]
+mod test_outputs;
