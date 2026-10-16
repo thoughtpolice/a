@@ -389,6 +389,8 @@ async fn workers_join_over_iroh_with_the_ticket() {
         &server.frontend,
         Some(&scratch.path().join("mesh")),
         iroh_dial::Global::none(),
+        None,
+        None,
         async move {
             let _ = stopped.await;
         },

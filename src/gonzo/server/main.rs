@@ -298,6 +298,13 @@ struct ServeArgs {
     #[arg(long, env = "GONZO_ACCEPT_WORKERS")]
     accept_workers: bool,
 
+    /// Also accept workers that know this cluster name, and announce the
+    /// daemon under it on the mainline DHT so that they find it; implies
+    /// --accept-workers. Whoever knows the name can join, so make it hard
+    /// to guess.
+    #[arg(long, env = "GONZO_CLUSTER")]
+    cluster: Option<String>,
+
     /// The timeout, in seconds, of an action that sets none.
     #[arg(long, default_value_t = 3600, env = "GONZO_ACTION_TIMEOUT")]
     action_timeout: u64,
@@ -1235,13 +1242,16 @@ async fn run_server(
         None
     };
 
-    let remote_workers = if args.accept_workers {
+    let remote_workers = if args.accept_workers || args.cluster.is_some() {
         let dir = store_dir.as_ref().map(|dir| dir.join("mesh"));
+        let cluster = args.cluster.as_deref().map(mesh::Cluster::new);
         Some(
             remote_workers::start(
                 &frontend,
                 dir.as_deref(),
                 iroh_dial::Global::default(),
+                cluster.as_ref(),
+                None,
                 stopped(),
             )
             .await?,

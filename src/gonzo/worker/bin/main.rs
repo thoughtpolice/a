@@ -12,6 +12,13 @@
 //! gonzo-worker --join <ticket>
 //! ```
 //!
+//! or, with no ticket to pass around, a cluster name both know:
+//!
+//! ```text
+//! gonzo serve --cluster lab-7f3a91     # the daemon
+//! gonzo-worker --cluster lab-7f3a91    # its workers, anywhere
+//! ```
+//!
 //! The worker dials the daemon over iroh, through relays and NATs as need
 //! be, and runs the actions the daemon's scheduler sends it, reading
 //! inputs from the daemon's store and writing outputs back. It offers this
@@ -35,10 +42,16 @@ use protos::build::bazel::remote::execution::v2::platform::Property;
     name = "gonzo-worker",
     version = option_env!("depot_VERSION").unwrap_or("dev")
 )]
+#[command(group = clap::ArgGroup::new("daemon").required(true))]
 struct Args {
     /// The ticket of the daemon to join, from `gonzo ticket` on its machine.
-    #[arg(long, env = "GONZO_WORKER_JOIN")]
-    join: mesh::JoinTicket,
+    #[arg(long, env = "GONZO_WORKER_JOIN", group = "daemon")]
+    join: Option<mesh::JoinTicket>,
+
+    /// Join whichever daemon announces itself in this cluster (started
+    /// with the same --cluster) instead.
+    #[arg(long, env = "GONZO_CLUSTER", group = "daemon")]
+    cluster: Option<String>,
 
     /// How many actions to run at once (default: one per CPU).
     #[arg(long, env = "GONZO_WORKER_SLOTS")]
@@ -132,9 +145,18 @@ async fn main() -> Result<()> {
         default_timeout: Duration::from_secs(args.action_timeout),
         max_timeout: Duration::from_secs(args.max_action_timeout),
     })?);
+    let daemon = match (args.join, args.cluster) {
+        (Some(ticket), _) => Daemon::Ticket(ticket),
+        (None, Some(name)) => Daemon::Cluster {
+            rendezvous: mesh::Cluster::rendezvous(&endpoint, None)
+                .context("failed to join the DHT to find the cluster's daemons")?,
+            cluster: mesh::Cluster::new(name),
+        },
+        (None, None) => unreachable!("clap requires one"),
+    };
     tracing::info!(
         worker = %endpoint.id(),
-        daemon = %args.join.daemon.id,
+        daemon = %daemon,
         slots,
         dir = %dir.display(),
         "gonzo-worker starting"
@@ -147,22 +169,41 @@ async fn main() -> Result<()> {
         stop.send_replace(true);
     });
     let mut backoff = Duration::from_secs(1);
-    loop {
-        match session(&endpoint, &args.join, &worker, stopping.clone()).await {
-            Ok(Ended::Shutdown) => break,
-            Ok(Ended::Lost) => {
-                tracing::warn!("lost the daemon");
-                backoff = Duration::from_secs(1);
+    'serving: loop {
+        let candidates = match daemon.candidates().await {
+            Ok(candidates) if candidates.is_empty() => {
+                tracing::warn!("no daemon has announced itself in {daemon} yet");
+                Vec::new()
             }
-            Err(e) => match e.downcast_ref::<mesh::JoinError>() {
-                // A ticket that does not work will not start working.
-                Some(mesh::JoinError::UnknownWorker | mesh::JoinError::UnknownDaemon) => {
-                    return Err(
-                        e.context("the daemon and this worker do not share the ticket's key")
-                    );
+            Ok(candidates) => candidates,
+            Err(e) => {
+                tracing::warn!("failed to look for daemons: {e:#}");
+                Vec::new()
+            }
+        };
+        for (target, key) in candidates {
+            match session(&endpoint, target, &key, &worker, stopping.clone()).await {
+                Ok(Ended::Shutdown) => break 'serving,
+                Ok(Ended::Lost) => {
+                    tracing::warn!("lost the daemon");
+                    backoff = Duration::from_secs(1);
+                    break;
                 }
-                _ => tracing::warn!("{e:#}"),
-            },
+                Err(e) => match (e.downcast_ref::<mesh::JoinError>(), &daemon) {
+                    // A ticket that does not work will not start working.
+                    (
+                        Some(mesh::JoinError::UnknownWorker | mesh::JoinError::UnknownDaemon),
+                        Daemon::Ticket(_),
+                    ) => {
+                        return Err(
+                            e.context("the daemon and this worker do not share the ticket's key")
+                        );
+                    }
+                    // In a cluster, anyone who knows the name can announce
+                    // themselves; try the next.
+                    _ => tracing::warn!("{e:#}"),
+                },
+            }
         }
         tracing::info!("trying again in {}s", backoff.as_secs());
         if tokio::time::timeout(backoff, stopped(stopping.clone()))
@@ -175,6 +216,42 @@ async fn main() -> Result<()> {
     }
     endpoint.close().await;
     Ok(())
+}
+
+/// The daemon to join: the one a ticket names, or any of a cluster's.
+enum Daemon {
+    Ticket(mesh::JoinTicket),
+    Cluster {
+        cluster: mesh::Cluster,
+        rendezvous: mesh::Rendezvous,
+    },
+}
+
+impl Daemon {
+    /// Where to dial, and the key to join with, in the order to try them.
+    async fn candidates(&self) -> Result<Vec<(mesh::EndpointAddr, mesh::JoinKey)>> {
+        Ok(match self {
+            Self::Ticket(ticket) => vec![(ticket.daemon.clone(), ticket.key.clone())],
+            Self::Cluster {
+                cluster,
+                rendezvous,
+            } => cluster
+                .daemons(rendezvous)
+                .await?
+                .into_iter()
+                .map(|id| (mesh::EndpointAddr::new(id), cluster.key()))
+                .collect(),
+        })
+    }
+}
+
+impl std::fmt::Display for Daemon {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Ticket(ticket) => write!(f, "{}", ticket.daemon.id),
+            Self::Cluster { cluster, .. } => write!(f, "cluster {}", cluster.name()),
+        }
+    }
 }
 
 /// How a session ended without failing.
@@ -194,15 +271,16 @@ async fn stopped(mut stopping: tokio::sync::watch::Receiver<bool>) {
 /// does.
 async fn session(
     endpoint: &mesh::Endpoint,
-    ticket: &mesh::JoinTicket,
+    daemon: mesh::EndpointAddr,
+    key: &mesh::JoinKey,
     worker: &Arc<worker::Worker>,
     stopping: tokio::sync::watch::Receiver<bool>,
 ) -> Result<Ended> {
     let joining = async {
-        let conn = iroh_dial::dial(endpoint, ticket.daemon.clone().into(), mesh::ALPN)
+        let conn = iroh_dial::dial(endpoint, daemon.into(), mesh::ALPN)
             .await
             .context("failed to reach the daemon")?;
-        mesh::join(&conn, endpoint.id(), &ticket.key).await?;
+        mesh::join(&conn, endpoint.id(), key).await?;
         anyhow::Ok(conn)
     };
     let conn = tokio::select! {
@@ -258,7 +336,17 @@ mod tests {
     }
 
     #[test]
-    fn a_ticket_is_required() {
+    fn a_ticket_or_a_cluster_is_required() {
         assert!(Args::try_parse_from(["gonzo-worker"]).is_err());
+        assert!(Args::try_parse_from(["gonzo-worker", "--cluster", "lab"]).is_ok());
+        let ticket = mesh::JoinTicket {
+            daemon: mesh::EndpointAddr::new(mesh::SecretKey::generate().public()),
+            key: mesh::JoinKey::generate(),
+        }
+        .to_string();
+        assert!(
+            Args::try_parse_from(["gonzo-worker", "--join", &ticket, "--cluster", "lab"]).is_err(),
+            "one or the other"
+        );
     }
 }

@@ -21,15 +21,20 @@ const RELAY_WAIT: std::time::Duration = std::time::Duration::from_secs(3);
 pub struct Listening {
     pub endpoint: mesh::Endpoint,
     pub ticket: mesh::JoinTicket,
+    /// Announces the daemon in its cluster, if it has one, while kept.
+    _announcer: Option<mesh::Announcer>,
 }
 
 /// Accept workers that join with the key in `dir` (or a new one, without
-/// a directory), found and reached as `preset` says, until `stopped`
-/// resolves.
+/// a directory), or with `cluster`'s, found and reached as `preset` says,
+/// until `stopped` resolves. A daemon in a cluster announces itself on the
+/// DHT (`dht`, or the public one).
 pub async fn start(
     frontend: &Frontend,
     dir: Option<&Path>,
     preset: iroh_dial::Global,
+    cluster: Option<&mesh::Cluster>,
+    dht: Option<mesh::Dht>,
     stopped: impl Future<Output = ()> + Send + 'static,
 ) -> Result<Listening> {
     let (identity, key) = match dir {
@@ -52,7 +57,21 @@ pub async fn start(
         key: key.clone(),
     };
 
-    let streams = mesh::serve(endpoint.clone(), vec![key]);
+    let mut keys = vec![key];
+    let announcer = match cluster {
+        Some(cluster) => {
+            keys.push(cluster.key());
+            let rendezvous = mesh::Cluster::rendezvous(&endpoint, dht)
+                .context("failed to join the DHT to announce the cluster")?;
+            tracing::info!(
+                cluster = cluster.name(),
+                "announcing the daemon in its cluster"
+            );
+            Some(cluster.announce(&rendezvous))
+        }
+        None => None,
+    };
+    let streams = mesh::serve(endpoint.clone(), keys);
     let frontend = frontend.clone();
     let closing = endpoint.clone();
     tokio::spawn(async move {
@@ -62,5 +81,9 @@ pub async fn start(
         closing.close().await;
     });
     tracing::info!(endpoint = %endpoint.id(), "accepting workers over iroh");
-    Ok(Listening { endpoint, ticket })
+    Ok(Listening {
+        endpoint,
+        ticket,
+        _announcer: announcer,
+    })
 }
