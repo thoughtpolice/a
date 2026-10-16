@@ -219,9 +219,31 @@ impl Cas {
         digest: &Digest,
         path: &Path,
     ) -> Result<()> {
-        let mut file = tokio::fs::File::open(path)
+        let file = tokio::fs::File::open(path)
             .await
             .with_context(|| format!("opening {}", path.display()))?;
+        self.write_stream(function, digest, file)
+            .await
+            .with_context(|| format!("uploading {}", path.display()))
+    }
+
+    /// Stream `data`, whose digest is `digest`, into the CAS: a blob in
+    /// memory too large for a batch.
+    pub async fn write_bytes(
+        &self,
+        function: DigestFunction,
+        digest: &Digest,
+        data: Bytes,
+    ) -> Result<()> {
+        self.write_stream(function, digest, &data[..]).await
+    }
+
+    async fn write_stream(
+        &self,
+        function: DigestFunction,
+        digest: &Digest,
+        mut blob: impl tokio::io::AsyncRead + Unpin,
+    ) -> Result<()> {
         let resource_name = self.resource(function, digest, Some(uuid::Uuid::new_v4()));
         let size = digest.size_bytes;
         let (tx, rx) = tokio::sync::mpsc::channel::<WriteRequest>(4);
@@ -229,7 +251,7 @@ impl Cas {
             let mut offset = 0i64;
             let mut buffer = vec![0; WRITE_CHUNK];
             loop {
-                let n = file.read(&mut buffer).await?;
+                let n = blob.read(&mut buffer).await?;
                 let finish_write = offset + n as i64 >= size;
                 let request = WriteRequest {
                     resource_name: if offset == 0 {
@@ -246,7 +268,7 @@ impl Cas {
                     return anyhow::Ok(());
                 }
                 if n == 0 {
-                    bail!("{} ended before its {size} bytes", path.display());
+                    bail!("the blob ended before its {size} bytes");
                 }
             }
         };

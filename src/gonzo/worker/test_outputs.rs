@@ -166,3 +166,36 @@ async fn large_outputs_are_streamed() {
     assert_eq!(digest.size_bytes, big.len() as i64);
     assert_eq!(daemon.get(digest).await.as_ref(), big.as_slice());
 }
+
+#[tokio::test]
+async fn large_trees_are_streamed() {
+    // A directory output whose tree is over the daemon's 4 MB message
+    // limit, as an unpacked source archive's can be.
+    let daemon = Daemon::start().await;
+    let scratch = tempfile::tempdir().unwrap();
+    let long = "x".repeat(200);
+    for i in 0..10_000 {
+        write(
+            scratch.path(),
+            &format!("out/{i:05}{long}/{i:05}{long}"),
+            b"",
+            0o644,
+        );
+    }
+    let command = Command {
+        output_paths: vec!["out".into()],
+        ..Default::default()
+    };
+    let produced = outputs::upload(
+        &daemon.cas(),
+        DigestFunction::Sha256,
+        &command,
+        scratch.path(),
+    )
+    .await
+    .expect("upload");
+    let digest = produced.directories[0].tree_digest.as_ref().unwrap();
+    assert!(digest.size_bytes > 4 * 1024 * 1024, "{}", digest.size_bytes);
+    let tree = Tree::decode(daemon.get(digest).await).unwrap();
+    assert_eq!(tree.children.len(), 10_000);
+}

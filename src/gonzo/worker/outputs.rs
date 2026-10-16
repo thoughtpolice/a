@@ -252,6 +252,12 @@ struct Uploads {
     blobs: Vec<(Digest, Bytes)>,
 }
 
+/// A blob too large for a batch, and where it is.
+enum Large {
+    File(PathBuf),
+    Memory(Bytes),
+}
+
 impl Uploads {
     /// Upload whichever of these the CAS does not have yet.
     async fn send(self, cas: &Cas, function: DigestFunction) -> Result<()> {
@@ -271,13 +277,20 @@ impl Uploads {
             .map(key)
             .collect();
 
+        // Large blobs stream, from disk or, for the tree of a large output
+        // directory, from memory; the daemon refuses a batch over its limit.
         let mut small = Vec::new();
+        let mut large = Vec::new();
         for (digest, data) in self.blobs {
-            if missing.remove(&key(&digest)) {
+            if !missing.remove(&key(&digest)) {
+                continue;
+            }
+            if digest.size_bytes <= BATCH_BLOB_MAX {
                 small.push((digest, data));
+            } else {
+                large.push((digest, Large::Memory(data)));
             }
         }
-        let mut large = Vec::new();
         for (digest, path) in self.files {
             if !missing.remove(&key(&digest)) {
                 continue;
@@ -288,12 +301,17 @@ impl Uploads {
                     .with_context(|| format!("reading {}", path.display()))?;
                 small.push((digest, data.into()));
             } else {
-                large.push((digest, path));
+                large.push((digest, Large::File(path)));
             }
         }
         cas.write_blobs(function, small).await?;
         futures::stream::iter(large)
-            .map(|(digest, path)| async move { cas.write_file(function, &digest, &path).await })
+            .map(|(digest, large)| async move {
+                match large {
+                    Large::File(path) => cas.write_file(function, &digest, &path).await,
+                    Large::Memory(data) => cas.write_bytes(function, &digest, data).await,
+                }
+            })
             .buffer_unordered(PARALLEL_UPLOADS)
             .try_collect::<()>()
             .await
