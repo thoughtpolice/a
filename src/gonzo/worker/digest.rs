@@ -44,10 +44,11 @@ impl DigestFunction {
     }
 
     pub fn hasher(self) -> Hasher {
-        match self {
-            Self::Sha256 => Hasher::Sha256(<sha2::Sha256 as sha2::Digest>::new(), 0),
-            Self::Blake3 => Hasher::Blake3(Box::new(blake3::Hasher::new()), 0),
-        }
+        let inner = match self {
+            Self::Sha256 => Inner::Sha256(<sha2::Sha256 as sha2::Digest>::new()),
+            Self::Blake3 => Inner::Blake3(Box::new(blake3::Hasher::new())),
+        };
+        Hasher { inner, len: 0 }
     }
 
     pub fn of(self, data: &[u8]) -> Digest {
@@ -80,33 +81,35 @@ impl fmt::Display for DigestFunction {
 }
 
 /// A digest being computed, with the length so far.
-pub enum Hasher {
-    Sha256(sha2::Sha256, u64),
-    Blake3(Box<blake3::Hasher>, u64),
+pub struct Hasher {
+    inner: Inner,
+    len: u64,
+}
+
+enum Inner {
+    Sha256(sha2::Sha256),
+    Blake3(Box<blake3::Hasher>),
 }
 
 impl Hasher {
     pub fn update(&mut self, data: &[u8]) {
-        match self {
-            Self::Sha256(h, n) => {
-                sha2::Digest::update(h, data);
-                *n += data.len() as u64;
-            }
-            Self::Blake3(h, n) => {
+        match &mut self.inner {
+            Inner::Sha256(h) => sha2::Digest::update(h, data),
+            Inner::Blake3(h) => {
                 h.update(data);
-                *n += data.len() as u64;
             }
         }
+        self.len += data.len() as u64;
     }
 
     pub fn finish(self) -> Digest {
-        let (hash, size) = match self {
-            Self::Sha256(h, n) => (hex::encode(sha2::Digest::finalize(h)), n),
-            Self::Blake3(h, n) => (h.finalize().to_hex().to_string(), n),
+        let hash = match self.inner {
+            Inner::Sha256(h) => hex::encode(sha2::Digest::finalize(h)),
+            Inner::Blake3(h) => h.finalize().to_hex().to_string(),
         };
         Digest {
             hash,
-            size_bytes: size as i64,
+            size_bytes: self.len as i64,
         }
     }
 }
