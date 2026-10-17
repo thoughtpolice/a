@@ -101,7 +101,7 @@ pub async fn upload_file(cas: &Cas, function: DigestFunction, path: &Path) -> Re
             .of_file(&path)
             .with_context(|| format!("reading {}", path.display()))?;
         let mut uploads = Uploads::default();
-        uploads.files.push((digest.clone(), path));
+        uploads.file(digest.clone(), path);
         anyhow::Ok((digest, uploads))
     })
     .await??;
@@ -145,7 +145,9 @@ fn collect(
             };
             let encoded = Bytes::from(tree.encode_to_vec());
             let tree_digest = function.of(&encoded);
-            uploads.blobs.push((tree_digest.clone(), encoded));
+            uploads
+                .0
+                .push((tree_digest.clone(), Source::Memory(encoded)));
             produced.directories.push(OutputDirectory {
                 path: output.clone(),
                 tree_digest: Some(tree_digest),
@@ -156,7 +158,7 @@ fn collect(
             let digest = function
                 .of_file(&path)
                 .with_context(|| format!("reading {}", path.display()))?;
-            uploads.files.push((digest.clone(), path));
+            uploads.file(digest.clone(), path);
             produced.files.push(OutputFile {
                 path: output.clone(),
                 digest: Some(digest),
@@ -222,7 +224,7 @@ impl TreeBuilder<'_> {
                     .function
                     .of_file(&path)
                     .with_context(|| format!("reading {}", path.display()))?;
-                self.uploads.files.push((digest.clone(), path));
+                self.uploads.file(digest.clone(), path);
                 dir.files.push(FileNode {
                     name,
                     digest: Some(digest),
@@ -245,28 +247,29 @@ fn utf8<'a>(name: &'a std::ffi::OsStr, path: &Path) -> Result<&'a str> {
         .with_context(|| format!("{} is not UTF-8, which REAPI paths must be", path.display()))
 }
 
-/// Blobs to upload: files on disk, and encoded messages in memory.
+/// Blobs to upload, and where each is.
 #[derive(Debug, Default)]
-struct Uploads {
-    files: Vec<(Digest, PathBuf)>,
-    blobs: Vec<(Digest, Bytes)>,
-}
+struct Uploads(Vec<(Digest, Source)>);
 
-/// A blob too large for a batch, and where it is.
-enum Large {
+#[derive(Debug)]
+enum Source {
     File(PathBuf),
+    /// An encoded message.
     Memory(Bytes),
 }
 
 impl Uploads {
+    fn file(&mut self, digest: Digest, path: PathBuf) {
+        self.0.push((digest, Source::File(path)));
+    }
+
     /// Upload whichever of these the CAS does not have yet.
     async fn send(self, cas: &Cas, function: DigestFunction) -> Result<()> {
         let mut all = HashSet::new();
         let digests: Vec<Digest> = self
-            .files
+            .0
             .iter()
             .map(|(d, _)| d)
-            .chain(self.blobs.iter().map(|(d, _)| d))
             .filter(|d| all.insert(key(d)))
             .cloned()
             .collect();
@@ -281,35 +284,29 @@ impl Uploads {
         // directory, from memory; the daemon refuses a batch over its limit.
         let mut small = Vec::new();
         let mut large = Vec::new();
-        for (digest, data) in self.blobs {
+        for (digest, source) in self.0 {
             if !missing.remove(&key(&digest)) {
                 continue;
             }
-            if digest.size_bytes <= BATCH_BLOB_MAX {
-                small.push((digest, data));
-            } else {
-                large.push((digest, Large::Memory(data)));
-            }
-        }
-        for (digest, path) in self.files {
-            if !missing.remove(&key(&digest)) {
+            if digest.size_bytes > BATCH_BLOB_MAX {
+                large.push((digest, source));
                 continue;
             }
-            if digest.size_bytes <= BATCH_BLOB_MAX {
-                let data = tokio::fs::read(&path)
+            let data = match source {
+                Source::File(path) => tokio::fs::read(&path)
                     .await
-                    .with_context(|| format!("reading {}", path.display()))?;
-                small.push((digest, data.into()));
-            } else {
-                large.push((digest, Large::File(path)));
-            }
+                    .with_context(|| format!("reading {}", path.display()))?
+                    .into(),
+                Source::Memory(data) => data,
+            };
+            small.push((digest, data));
         }
         cas.write_blobs(function, small).await?;
         futures::stream::iter(large)
-            .map(|(digest, large)| async move {
-                match large {
-                    Large::File(path) => cas.write_file(function, &digest, &path).await,
-                    Large::Memory(data) => cas.write_bytes(function, &digest, data).await,
+            .map(|(digest, source)| async move {
+                match source {
+                    Source::File(path) => cas.write_file(function, &digest, &path).await,
+                    Source::Memory(data) => cas.write_bytes(function, &digest, data).await,
                 }
             })
             .buffer_unordered(PARALLEL_UPLOADS)
