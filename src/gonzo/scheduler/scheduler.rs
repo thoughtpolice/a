@@ -469,8 +469,11 @@ impl State {
                 }
             }
             None => {
-                if let Some(queue) = self.queues.get_mut(&op.job.requirements) {
-                    queue.waiting.retain(|(_, n)| n != name);
+                // Queues are in order of sequence number.
+                if let Some(queue) = self.queues.get_mut(&op.job.requirements)
+                    && let Ok(at) = queue.waiting.binary_search_by_key(&op.seq, |(seq, _)| *seq)
+                {
+                    queue.waiting.remove(at);
                 }
             }
         }
