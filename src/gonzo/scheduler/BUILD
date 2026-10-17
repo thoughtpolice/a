@@ -32,10 +32,6 @@ depot.rust_test(
     srcs = glob(["*.rs"]),
     crate_root = "lib.rs",
     deps = DEPS + [
-        "third-party//rust:bytes",
-        "third-party//rust:dial9",
-        "third-party//rust:hex",
-        "third-party//rust:sha2",
-        "//src/crates/dial9-tonic",
+        "//src/gonzo/testing:gonzo-testing",
     ],
 )

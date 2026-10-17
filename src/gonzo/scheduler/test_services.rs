@@ -4,15 +4,13 @@
 //! The services end to end, over real HTTP/2: clients executing actions,
 //! and fake workers taking them.
 
-use std::sync::Arc;
 use std::time::Duration;
 
-use bytes::Bytes;
 use prost::Message as _;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::Streaming;
-use tonic::transport::{Channel, Endpoint};
+use tonic::transport::Channel;
 
 use gonzo_protos::worker::v1::{
     Finished, Hello, SchedulerMessage, WorkerMessage, scheduler_client::SchedulerClient,
@@ -23,77 +21,35 @@ use protos::build::bazel::remote::execution::v2::{
     WaitExecutionRequest, execution_client::ExecutionClient, execution_server::ExecutionServer,
     platform::Property,
 };
-use protos::google::longrunning::{Operation, operation, operations_server::OperationsServer};
+use protos::google::longrunning::operations_server::OperationsServer;
 use protos::google::rpc::Code;
-use storage::{CacheStore, CacheStoreSettings, Compression, ContentDigest, DigestFn, StoreBackend};
+use storage::CacheStore;
+
+use gonzo_testing::{Daemon, completion, execute, put};
 
 use crate::{Config, ExecutionService, OperationsService, Scheduler, WorkerSessions};
 
 /// Long enough for anything here to happen.
 const PATIENCE: Duration = Duration::from_secs(10);
 
-struct Server {
-    channel: Channel,
-    store: Arc<CacheStore>,
-    _stop: oneshot::Sender<()>,
-}
-
-async fn start() -> Server {
-    let store = Arc::new(
-        CacheStore::open(StoreBackend::Memory, CacheStoreSettings::default())
-            .await
-            .expect("open store"),
-    );
-    let scheduler = Scheduler::new(Config::default());
-    let routes = tonic::service::Routes::new(ExecutionServer::new(ExecutionService::new(
-        scheduler.clone(),
-        store.clone(),
-    )))
-    .add_service(OperationsServer::new(OperationsService::new(
-        scheduler.clone(),
-    )))
-    .add_service(SchedulerServer::new(WorkerSessions::new(
-        scheduler,
-        store.clone(),
-    )))
-    .prepare();
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let addr = listener.local_addr().expect("address");
-    let (stop, stopped) = oneshot::channel::<()>();
-    tokio::spawn(dial9_tonic::serve_traced(
-        listener,
-        routes,
-        dial9::Dial9TokioHandle::disabled(),
-        async move {
-            let _ = stopped.await;
-        },
-    ));
-    let channel = Endpoint::from_shared(format!("http://{addr}"))
-        .expect("endpoint")
-        .connect()
-        .await
-        .expect("connect");
-    Server {
-        channel,
-        store,
-        _stop: stop,
-    }
-}
-
-async fn put(store: &CacheStore, data: impl Into<Bytes>) -> Digest {
-    let data = data.into();
-    let cd = ContentDigest::compute(DigestFn::Sha256, &data);
-    let digest = Digest {
-        hash: hex::encode(cd.hash),
-        size_bytes: data.len() as i64,
-    };
-    store
-        .cas_put_blob(&cd, data, Compression::Identity)
-        .await
-        .expect("put");
-    digest
+/// A daemon serving the scheduler's services, besides its CAS.
+async fn start() -> Daemon {
+    Daemon::start(|routes, store| {
+        let scheduler = Scheduler::new(Config::default());
+        routes
+            .add_service(ExecutionServer::new(ExecutionService::new(
+                scheduler.clone(),
+                store.clone(),
+            )))
+            .add_service(OperationsServer::new(OperationsService::new(
+                scheduler.clone(),
+            )))
+            .add_service(SchedulerServer::new(WorkerSessions::new(
+                scheduler,
+                store.clone(),
+            )))
+    })
+    .await
 }
 
 /// Store an action running `argv` on `arch`, and return its digest.
@@ -114,39 +70,6 @@ async fn action(store: &CacheStore, argv: &[&str], arch: &str) -> Digest {
         ..Default::default()
     };
     put(store, action.encode_to_vec()).await
-}
-
-async fn execute(channel: &Channel, action: &Digest) -> Streaming<Operation> {
-    ExecutionClient::new(channel.clone())
-        .execute(ExecuteRequest {
-            action_digest: Some(action.clone()),
-            digest_function: 1,
-            ..Default::default()
-        })
-        .await
-        .expect("execute")
-        .into_inner()
-}
-
-/// Read operations until one is done, and return its response.
-async fn completion(stream: &mut Streaming<Operation>) -> (String, ExecuteResponse) {
-    loop {
-        let op = tokio::time::timeout(PATIENCE, stream.message())
-            .await
-            .expect("in time")
-            .expect("a message")
-            .expect("not the end yet");
-        if !op.done {
-            continue;
-        }
-        let Some(operation::Result::Response(any)) = op.result else {
-            panic!("a response");
-        };
-        return (
-            op.name,
-            ExecuteResponse::decode(any.value.as_slice()).expect("decode"),
-        );
-    }
 }
 
 struct FakeWorker {
