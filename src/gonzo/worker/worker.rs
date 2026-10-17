@@ -276,11 +276,7 @@ impl Worker {
                 };
                 tracing::debug!(operation = %assign.operation, "action failed: {e:#}");
                 ExecuteResponse {
-                    status: Some(Status {
-                        code: code as i32,
-                        message: format!("{e:#}"),
-                        details: Vec::new(),
-                    }),
+                    status: Some(status(code, format!("{e:#}"))),
                     ..Default::default()
                 }
             }
@@ -405,19 +401,14 @@ impl Worker {
             Outcome::Exited(code) => (code, Status::default()),
             Outcome::TimedOut => (
                 128 + libc::SIGKILL,
-                Status {
-                    code: Code::DeadlineExceeded as i32,
-                    message: format!("the action ran past its timeout of {}s", timeout.as_secs()),
-                    details: Vec::new(),
-                },
+                status(
+                    Code::DeadlineExceeded,
+                    format!("the action ran past its timeout of {}s", timeout.as_secs()),
+                ),
             ),
             Outcome::Cancelled => {
                 return Ok(ExecuteResponse {
-                    status: Some(Status {
-                        code: Code::Cancelled as i32,
-                        message: "the action was cancelled".to_string(),
-                        details: Vec::new(),
-                    }),
+                    status: Some(status(Code::Cancelled, "the action was cancelled")),
                     ..Default::default()
                 });
             }
@@ -468,6 +459,14 @@ fn container_image<'a>(action: &'a Action, command: &'a Command) -> &'a str {
 fn message(message: worker_message::Message) -> WorkerMessage {
     WorkerMessage {
         message: Some(message),
+    }
+}
+
+fn status(code: Code, message: impl Into<String>) -> Status {
+    Status {
+        code: code as i32,
+        message: message.into(),
+        details: Vec::new(),
     }
 }
 
