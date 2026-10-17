@@ -182,7 +182,7 @@ pub async fn start_reapi_grpc(
 }
 
 /// Serve workers on `acceptor`: the daemon's own worker, through an
-/// in-process pipe.
+/// in-process pipe, or workers elsewhere, over iroh.
 ///
 /// Worker traffic is never shed under memory pressure: refusing a worker
 /// its inputs fails the action outright, where refusing a client only
@@ -238,7 +238,7 @@ async fn set_services_status(
 }
 
 /// Serve the prepared routes over any transport: plain TCP, TLS, an
-/// in-process pipe, or later an iroh acceptor.
+/// in-process pipe, or iroh.
 ///
 /// Applies the per-route request timeouts, then the global concurrency
 /// limit. When a pressure monitor is available, wraps the outermost layer
