@@ -66,7 +66,7 @@ impl Cas {
     ) -> Result<HashMap<Key, Bytes>> {
         let mut blobs = HashMap::with_capacity(digests.len());
         let mut missing = Vec::new();
-        for batch in batches(digests) {
+        for batch in batches(digests, |d| d.size_bytes) {
             let response = self
                 .cas
                 .clone()
@@ -175,14 +175,12 @@ impl Cas {
         function: DigestFunction,
         blobs: Vec<(Digest, Bytes)>,
     ) -> Result<()> {
-        let digests: Vec<Digest> = blobs.iter().map(|(d, _)| d.clone()).collect();
-        let mut data: HashMap<Key, Bytes> = blobs.into_iter().map(|(d, b)| (key(&d), b)).collect();
-        for batch in batches(&digests) {
+        for batch in batches(&blobs, |(d, _)| d.size_bytes) {
             let requests = batch
                 .iter()
-                .map(|digest| batch_update_blobs_request::Request {
+                .map(|(digest, data)| batch_update_blobs_request::Request {
                     digest: Some(digest.clone()),
-                    data: data.remove(&key(digest)).unwrap_or_default(),
+                    data: data.clone(),
                     compressor: 0,
                 })
                 .collect();
@@ -314,17 +312,18 @@ fn same(got: &Digest, digest: &Digest) -> Result<()> {
     Ok(())
 }
 
-/// `digests` in groups of at most [`BATCH_BYTES`] of blobs each.
-fn batches(digests: &[Digest]) -> impl Iterator<Item = &[Digest]> {
-    let mut rest = digests;
+/// `blobs`, whose sizes `size` tells, in groups of at most [`BATCH_BYTES`]
+/// each.
+fn batches<T>(blobs: &[T], size: impl Fn(&T) -> i64) -> impl Iterator<Item = &[T]> {
+    let mut rest = blobs;
     std::iter::from_fn(move || {
         if rest.is_empty() {
             return None;
         }
         let mut bytes = 0;
         let mut n = 0;
-        while n < rest.len() && (n == 0 || bytes + rest[n].size_bytes <= BATCH_BYTES) {
-            bytes += rest[n].size_bytes;
+        while n < rest.len() && (n == 0 || bytes + size(&rest[n]) <= BATCH_BYTES) {
+            bytes += size(&rest[n]);
             n += 1;
         }
         let (batch, tail) = rest.split_at(n);
