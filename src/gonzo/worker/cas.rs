@@ -116,36 +116,33 @@ impl Cas {
             read_offset: 0,
             read_limit: 0,
         };
-        let mut stream = match self.bytestream.clone().read(request).await {
-            Ok(response) => response.into_inner(),
-            Err(status) if status.code() == tonic::Code::NotFound => {
-                return Err(Missing(vec![digest.clone()]).into());
+        let read_error = |status: tonic::Status| -> anyhow::Error {
+            if status.code() == tonic::Code::NotFound {
+                Missing(vec![digest.clone()]).into()
+            } else {
+                anyhow::Error::new(status).context("ByteStream.Read")
             }
-            Err(status) => return Err(status).context("ByteStream.Read"),
         };
+        let mut stream = self
+            .bytestream
+            .clone()
+            .read(request)
+            .await
+            .map_err(read_error)?
+            .into_inner();
         let mut file = tokio::fs::File::create_new(path)
             .await
             .with_context(|| format!("creating {}", path.display()))?;
         let mut hasher = function.hasher();
         while let Some(chunk) = stream.next().await {
-            let chunk = match chunk {
-                Ok(chunk) => chunk.data,
-                Err(status) if status.code() == tonic::Code::NotFound => {
-                    return Err(Missing(vec![digest.clone()]).into());
-                }
-                Err(status) => return Err(status).context("ByteStream.Read"),
-            };
+            let chunk = chunk.map_err(read_error)?.data;
             hasher.update(&chunk);
             file.write_all(&chunk)
                 .await
                 .with_context(|| format!("writing {}", path.display()))?;
         }
         file.flush().await?;
-        let got = hasher.finish();
-        if got != *digest {
-            bail!("read {} for {}", show(&got), show(digest));
-        }
-        Ok(())
+        same(&hasher.finish(), digest)
     }
 
     /// Which of `digests` the CAS does not have.
@@ -306,9 +303,13 @@ impl Cas {
 
 /// Check that `data` is what `digest` names.
 fn check(function: DigestFunction, digest: &Digest, data: &[u8]) -> Result<()> {
-    let got = function.of(data);
-    if got != *digest {
-        bail!("read {} for {}", show(&got), show(digest));
+    same(&function.of(data), digest)
+}
+
+/// Check that what was read, whose digest is `got`, is what `digest` names.
+fn same(got: &Digest, digest: &Digest) -> Result<()> {
+    if got != digest {
+        bail!("read {} for {}", show(got), show(digest));
     }
     Ok(())
 }
