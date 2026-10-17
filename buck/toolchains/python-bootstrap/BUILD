@@ -68,22 +68,40 @@ standalone_python_bootstrap_toolchain(
 # runtime (see make_runtime.py) rather than a file of a whole install: an
 # action is given its inputs and nothing else, and python/bin/python alone
 # cannot even load its libpython.
+#
+# Making a runtime runs the install's own interpreter, so each one builds only
+# for, and only on, its own platform; a build of the whole package skips the
+# other's rather than failing to execute it.
 [
     standalone_python_runtime(
         name = "cpython-{PYTHON_VERSION}-{name}-runtime".format(
             name = name,
             PYTHON_VERSION = PYTHON_VERSION,
         ),
+        exec_compatible_with = constraints,
         python = ":cpython-{PYTHON_VERSION}-{name}.tar.gz".format(
             name = name,
             PYTHON_VERSION = PYTHON_VERSION,
         ),
         script = "make_runtime.py",
+        target_compatible_with = constraints,
         visibility = [],
     )
-    for name in [
-        "aarch64-unknown-linux-gnu",
-        "x86_64-unknown-linux-gnu",
+    for name, constraints in [
+        (
+            "aarch64-unknown-linux-gnu",
+            [
+                "config//cpu:arm64",
+                "config//os:linux",
+            ],
+        ),
+        (
+            "x86_64-unknown-linux-gnu",
+            [
+                "config//cpu:x86_64",
+                "config//os:linux",
+            ],
+        ),
     ]
 ]
 
