@@ -6,6 +6,7 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 DEPS = [
     "//src/crates/reapi-protos:protos",
     "//src/gonzo/protos:gonzo-protos",
+    "//src/gonzo/runtime",
     "third-party//rust:anyhow",
     "third-party//rust:blake3",
     "third-party//rust:bytes",

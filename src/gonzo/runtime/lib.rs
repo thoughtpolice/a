@@ -13,6 +13,8 @@ pub mod fds;
 mod mimalloc_config;
 pub mod psi;
 
+pub use cgroup::self_cgroup_v2_dir;
+
 /// Profiling capabilities determined by Linux kernel settings.
 #[derive(Debug, Clone)]
 pub struct PerfCapabilities {

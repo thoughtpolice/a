@@ -105,7 +105,7 @@ pub(crate) fn detect() -> CgroupLimits {
 /// Reads `/proc/self/cgroup` which on a v2-only system contains a
 /// single line `0::<path>`. The cgroup directory is then
 /// `/sys/fs/cgroup/<path>`.
-fn self_cgroup_v2_dir() -> Option<std::path::PathBuf> {
+pub fn self_cgroup_v2_dir() -> Option<std::path::PathBuf> {
     let contents = fs::read_to_string("/proc/self/cgroup").ok()?;
     parse_cgroup_v2_path(&contents)
 }

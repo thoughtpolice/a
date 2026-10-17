@@ -30,7 +30,7 @@ impl Cgroups {
     /// A parent for action cgroups beneath the process's own cgroup, if the
     /// process may make one.
     pub fn new() -> Option<Self> {
-        let own = own_cgroup()?;
+        let own = runtime::self_cgroup_v2_dir()?;
         // Moving a process between cgroups takes write access to their
         // common ancestor's cgroup.procs, here the worker's own.
         File::options()
@@ -132,13 +132,4 @@ pub fn join(fd: RawFd) -> io::Result<()> {
     } else {
         Err(io::Error::last_os_error())
     }
-}
-
-/// The process's own cgroup directory, under cgroup v2.
-fn own_cgroup() -> Option<PathBuf> {
-    let cgroups = std::fs::read_to_string("/proc/self/cgroup").ok()?;
-    // In cgroup v2 alone, the one line reads `0::/path`.
-    let path = cgroups.lines().find_map(|line| line.strip_prefix("0::"))?;
-    let dir = Path::new("/sys/fs/cgroup").join(path.trim_start_matches('/'));
-    dir.join("cgroup.procs").exists().then_some(dir)
 }
