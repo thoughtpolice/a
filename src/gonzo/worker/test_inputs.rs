@@ -145,6 +145,23 @@ async fn entries_must_be_file_names() {
             .materialize(&cas, DigestFunction::Sha256, &root, scratch.path())
             .await
             .expect_err("refused");
-        assert!(format!("{err:#}").contains("is not a file name"), "{err:#}");
+        assert!(
+            format!("{err:#}").contains("is not a single path component"),
+            "{err:#}"
+        );
     }
+    let root = daemon
+        .put_dir(&Directory {
+            files: vec![file("a", &text, false), file("a", &text, true)],
+            ..Default::default()
+        })
+        .await;
+    let err = inputs
+        .materialize(&cas, DigestFunction::Sha256, &root, scratch.path())
+        .await
+        .expect_err("refused");
+    assert!(
+        format!("{err:#}").contains("appears more than once"),
+        "{err:#}"
+    );
 }

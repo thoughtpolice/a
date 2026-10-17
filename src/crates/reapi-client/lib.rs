@@ -813,7 +813,7 @@ impl BlobStream {
 /// REAPI requires this of every `Directory`, and materialization joins these
 /// names onto local paths, so `..`, `a/b`, or a symlink sharing its name with
 /// a subdirectory could otherwise lead outside the destination.
-fn check_entry_names(directory: &reapi::Directory) -> Result<()> {
+pub fn check_entry_names(directory: &reapi::Directory) -> Result<()> {
     let mut seen = std::collections::HashSet::new();
     let names = (directory.files.iter().map(|f| &f.name))
         .chain(directory.directories.iter().map(|d| &d.name))

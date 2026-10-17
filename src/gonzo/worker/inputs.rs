@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{Context as _, Result};
 use prost::Message as _;
 
 use protos::build::bazel::remote::execution::v2::{Digest, Directory};
@@ -93,7 +93,8 @@ impl Inputs {
             for (k, data) in cas.read_blobs(function, &fetch).await? {
                 let dir = Directory::decode(data.as_ref())
                     .with_context(|| format!("input directory {}/{} does not decode", k.0, k.1))?;
-                check_names(&dir)?;
+                reapi_client::check_entry_names(&dir)
+                    .with_context(|| format!("input directory {}/{}", k.0, k.1))?;
                 let dir = Arc::new(dir);
                 self.directories.insert((function, k.clone()), dir.clone());
                 tree.insert(k, dir.clone());
@@ -109,23 +110,6 @@ impl Inputs {
         }
         Ok(tree)
     }
-}
-
-/// Every entry of a directory must be a single path component, so that
-/// nothing the tree says can reach outside the input root.
-fn check_names(dir: &Directory) -> Result<()> {
-    let names = dir
-        .files
-        .iter()
-        .map(|f| &f.name)
-        .chain(dir.directories.iter().map(|d| &d.name))
-        .chain(dir.symlinks.iter().map(|s| &s.name));
-    for name in names {
-        if name.is_empty() || name == "." || name == ".." || name.contains(['/', '\0']) {
-            bail!("input tree entry {name:?} is not a file name");
-        }
-    }
-    Ok(())
 }
 
 fn lay_out(
