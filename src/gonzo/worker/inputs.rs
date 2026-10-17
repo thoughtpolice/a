@@ -7,7 +7,7 @@
 //! and kept in memory, since the same toolchain directories appear under
 //! action after action. Its files come from the [`FileCache`].
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -76,6 +76,7 @@ impl Inputs {
         while !level.is_empty() {
             let mut found = Vec::new();
             let mut fetch = Vec::new();
+            let mut queued = HashSet::new();
             for digest in level.drain(..) {
                 let k = key(&digest);
                 if tree.contains_key(&k) {
@@ -86,8 +87,11 @@ impl Inputs {
                         tree.insert(k, dir.clone());
                         found.push(dir);
                     }
-                    None if fetch.iter().any(|d: &Digest| key(d) == k) => {}
-                    None => fetch.push(digest),
+                    None => {
+                        if queued.insert(k) {
+                            fetch.push(digest);
+                        }
+                    }
                 }
             }
             for (k, data) in cas.read_blobs(function, &fetch).await? {
