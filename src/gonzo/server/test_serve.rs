@@ -126,12 +126,7 @@ async fn early_answers_do_not_cost_the_connection() {
     // Larger than a stream's flow-control window (8 MiB), so the client
     // cannot finish sending before the answer arrives.
     let data = Bytes::from(vec![0x5a; 32 << 20]);
-    let digest = crate::store::ContentDigest::compute(crate::store::DigestFn::Sha256, &data);
-    server
-        .store
-        .cas_put_blob(&digest, data.clone(), crate::store::Compression::Identity)
-        .await
-        .expect("store the blob");
+    gonzo_testing::put(&server.store, data.clone()).await;
 
     let client = ByteStreamClient::new(server.channel().await);
     let messages = write_messages(&data, 1 << 20);
@@ -151,14 +146,6 @@ async fn early_answers_do_not_cost_the_connection() {
         .await
         .expect("every write answered");
     assert!(committed.iter().all(|&c| c == data.len() as i64));
-}
-
-/// Store `dir` in `server`'s CAS and return its digest.
-async fn put_directory(
-    server: &Server,
-    dir: &protos::build::bazel::remote::execution::v2::Directory,
-) -> protos::build::bazel::remote::execution::v2::Digest {
-    put_blob(server, dir.encode_to_vec()).await
 }
 
 /// A GetTreeResponse page read without decoding its Directories.
@@ -194,7 +181,7 @@ async fn get_tree_answers_over_grpc() {
     let root = Directory {
         directories: vec![DirectoryNode {
             name: "bin".into(),
-            digest: Some(put_directory(&server, &leaf).await),
+            digest: Some(gonzo_testing::put(&server.store, leaf.encode_to_vec()).await),
         }],
         ..Default::default()
     };
@@ -202,18 +189,8 @@ async fn get_tree_answers_over_grpc() {
     let mut stored = root.encode_to_vec();
     prost::encoding::encode_key(99, prost::encoding::WireType::Varint, &mut stored);
     prost::encoding::encode_varint(7, &mut stored);
-    let stored = Bytes::from(stored);
-    let digest = crate::store::ContentDigest::compute(crate::store::DigestFn::Sha256, &stored);
-    server
-        .store
-        .cas_put_blob(&digest, stored.clone(), crate::store::Compression::Identity)
-        .await
-        .expect("store the root");
     let request = GetTreeRequest {
-        root_digest: Some(protos::build::bazel::remote::execution::v2::Digest {
-            hash: hex::encode(digest.hash),
-            size_bytes: stored.len() as i64,
-        }),
+        root_digest: Some(gonzo_testing::put(&server.store, stored.clone()).await),
         ..Default::default()
     };
 
@@ -248,35 +225,15 @@ async fn get_tree_answers_over_grpc() {
     assert_eq!(pages[0].directories[0], stored, "the root, byte for byte");
 }
 
-/// Store `data` in `server`'s CAS and return its digest.
-async fn put_blob(
-    server: &Server,
-    data: Vec<u8>,
-) -> protos::build::bazel::remote::execution::v2::Digest {
-    let bytes = Bytes::from(data);
-    let digest = crate::store::ContentDigest::compute(crate::store::DigestFn::Sha256, &bytes);
-    server
-        .store
-        .cas_put_blob(&digest, bytes.clone(), crate::store::Compression::Identity)
-        .await
-        .expect("store the blob");
-    protos::build::bazel::remote::execution::v2::Digest {
-        hash: hex::encode(digest.hash),
-        size_bytes: bytes.len() as i64,
-    }
-}
-
 /// An action executed over a real connection runs on the daemon's own
 /// worker, which reaches the daemon through an in-process pipe, and its
 /// output comes back through the CAS.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn executes_actions_on_the_local_worker() {
     use protos::build::bazel::remote::execution::v2::{
-        Action, Command, Directory, ExecuteRequest, ExecuteResponse, GetCapabilitiesRequest,
-        Platform, capabilities_client::CapabilitiesClient, command::EnvironmentVariable,
-        execution_client::ExecutionClient,
+        Action, Command, Directory, GetCapabilitiesRequest, Platform,
+        capabilities_client::CapabilitiesClient, command::EnvironmentVariable,
     };
-    use protos::google::longrunning::operation;
 
     let server = Server::start().await;
     let scratch = tempfile::tempdir().expect("scratch");
@@ -326,33 +283,18 @@ async fn executes_actions_on_the_local_worker() {
         ..Default::default()
     };
     let action = Action {
-        command_digest: Some(put_blob(&server, command.encode_to_vec()).await),
-        input_root_digest: Some(put_directory(&server, &Directory::default()).await),
+        command_digest: Some(gonzo_testing::put(&server.store, command.encode_to_vec()).await),
+        input_root_digest: Some(
+            gonzo_testing::put(&server.store, Directory::default().encode_to_vec()).await,
+        ),
         platform: Some(Platform {
             properties: worker::host_properties(),
         }),
         ..Default::default()
     };
-    let action_digest = put_blob(&server, action.encode_to_vec()).await;
-    let mut stream = ExecutionClient::new(channel)
-        .execute(ExecuteRequest {
-            action_digest: Some(action_digest),
-            digest_function: 1,
-            ..Default::default()
-        })
-        .await
-        .expect("execute")
-        .into_inner();
-    let response = loop {
-        let op = tokio::time::timeout(std::time::Duration::from_secs(30), stream.message())
-            .await
-            .expect("in time")
-            .expect("a message")
-            .expect("not the end yet");
-        if let Some(operation::Result::Response(any)) = op.result {
-            break ExecuteResponse::decode(any.value.as_slice()).expect("decode");
-        }
-    };
+    let action_digest = gonzo_testing::put(&server.store, action.encode_to_vec()).await;
+    let mut stream = gonzo_testing::execute(&channel, &action_digest).await;
+    let (_, response) = gonzo_testing::completion(&mut stream).await;
     let result = response.result.expect("a result");
     assert_eq!(result.exit_code, 0);
     let out = result.output_files[0].digest.as_ref().expect("a digest");

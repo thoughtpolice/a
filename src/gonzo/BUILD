@@ -68,6 +68,7 @@ ALL_TEST_RESOURCES = {
 
 TEST_DEPS = BUILD_DEPS + [
     "//src/crates/iroh-utils:iroh-utils",
+    "//src/gonzo/testing:gonzo-testing",
     "third-party//rust:buck-resources",
     "third-party//rust:bytes",
     "third-party//rust:futures",
