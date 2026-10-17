@@ -13,7 +13,7 @@
 use std::time::Duration;
 
 use iroh::EndpointId;
-use iroh::endpoint::{Connection, VarInt};
+use iroh::endpoint::{Connection, ConnectionError, VarInt};
 
 use crate::keys::JoinKey;
 
@@ -54,6 +54,11 @@ fn proof(key: &JoinKey, role: &str, daemon: EndpointId, worker: EndpointId) -> b
     hasher.finalize()
 }
 
+/// Whether `reason` is a daemon's refusal.
+fn refused(reason: Option<ConnectionError>) -> bool {
+    matches!(reason, Some(ConnectionError::ApplicationClosed(close)) if close.error_code == CLOSE_REFUSED)
+}
+
 /// What the other end sent: one proof, and nothing else.
 fn read_proof(bytes: Vec<u8>) -> Option<blake3::Hash> {
     <[u8; 32]>::try_from(bytes)
@@ -71,17 +76,13 @@ pub async fn join(conn: &Connection, me: EndpointId, key: &JoinKey) -> Result<()
             .map_err(JoinError::connection)?;
         send.finish().map_err(JoinError::connection)?;
         let reply = match recv.read_to_end(64).await {
-            Ok(reply) => reply,
-            Err(e) => {
-                // A daemon that refuses closes the connection, saying why.
-                if let Some(iroh::endpoint::ConnectionError::ApplicationClosed(close)) =
-                    conn.close_reason()
-                    && close.error_code == CLOSE_REFUSED
-                {
-                    return Err(JoinError::UnknownWorker);
-                }
-                return Err(JoinError::connection(e));
-            }
+            Ok(reply) if !reply.is_empty() => reply,
+            // A daemon that refuses closes the connection, saying why. The
+            // stream it drops ends empty, and that end may arrive first.
+            Ok(_) if refused(Some(conn.closed().await)) => return Err(JoinError::UnknownWorker),
+            Ok(_) => return Err(JoinError::UnknownDaemon),
+            Err(_) if refused(conn.close_reason()) => return Err(JoinError::UnknownWorker),
+            Err(e) => return Err(JoinError::connection(e)),
         };
         match read_proof(reply) {
             Some(answer) if answer == proof(key, "daemon", daemon, me) => Ok(()),

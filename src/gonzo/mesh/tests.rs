@@ -82,6 +82,27 @@ async fn a_daemon_that_cannot_prove_the_key_is_not_trusted() {
 }
 
 #[tokio::test]
+async fn a_refusal_whose_stream_ends_before_the_close_reads_as_one() {
+    let (daemon, worker) = (endpoint(true).await, endpoint(false).await);
+    let (to_daemon, to_worker) = connect(&daemon, &worker).await;
+    // As `admit` does when refusing, but with the stream's end and the
+    // close in separate packets, as a busy daemon may send them.
+    let refusing = tokio::spawn(async move {
+        let (send, mut recv) = to_worker.accept_bi().await.expect("a stream");
+        let _ = recv.read_to_end(64).await;
+        drop(send);
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        to_worker.close(CLOSE_REFUSED, b"not admitted");
+    });
+    let joined = join(&to_daemon, worker.id(), &JoinKey::generate()).await;
+    assert!(
+        matches!(joined, Err(JoinError::UnknownWorker)),
+        "{joined:?}"
+    );
+    refusing.await.expect("refused");
+}
+
+#[tokio::test]
 async fn a_proof_is_good_only_between_the_two_it_names() {
     let (daemon, worker, other) = (
         endpoint(true).await,
