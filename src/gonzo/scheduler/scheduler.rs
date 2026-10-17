@@ -256,9 +256,9 @@ impl Scheduler {
 
     /// The job a worker was given as `name`, if it is still the worker's.
     pub fn assigned(&self, worker: WorkerId, name: &str) -> Option<Arc<Job>> {
-        let state = lock(&self.state);
-        let op = state.operations.get(name)?;
-        (op.worker == Some(worker) && !op.stage.borrow().is_completed()).then(|| op.job.clone())
+        lock(&self.state)
+            .owned_by(name, worker)
+            .map(|op| op.job.clone())
     }
 
     /// A worker has stopped running `name`, with `response`. Frees its slot,
@@ -272,11 +272,7 @@ impl Scheduler {
             tracing::warn!(worker = %w.name, operation = name, "worker finished an operation it was not running");
             return;
         }
-        if state
-            .operations
-            .get(name)
-            .is_some_and(|op| op.worker == Some(worker) && !op.stage.borrow().is_completed())
-        {
+        if state.owned_by(name, worker).is_some() {
             state.complete(name, response);
         }
         state.dispatch();
@@ -343,6 +339,14 @@ impl Scheduler {
 }
 
 impl State {
+    /// The operation called `name`, if it is `worker`'s to run. Completing
+    /// an operation takes it from its worker.
+    fn owned_by(&self, name: &str, worker: WorkerId) -> Option<&Operation> {
+        self.operations
+            .get(name)
+            .filter(|op| op.worker == Some(worker))
+    }
+
     fn enqueue(&mut self, job: Job) -> String {
         let name = format!("operations/{}", uuid::Uuid::new_v4());
         let seq = self.next_seq;
