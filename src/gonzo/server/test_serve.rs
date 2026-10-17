@@ -158,17 +158,7 @@ async fn put_directory(
     server: &Server,
     dir: &protos::build::bazel::remote::execution::v2::Directory,
 ) -> protos::build::bazel::remote::execution::v2::Digest {
-    let bytes = Bytes::from(dir.encode_to_vec());
-    let digest = crate::store::ContentDigest::compute(crate::store::DigestFn::Sha256, &bytes);
-    server
-        .store
-        .cas_put_blob(&digest, bytes.clone(), crate::store::Compression::Identity)
-        .await
-        .expect("store the directory");
-    protos::build::bazel::remote::execution::v2::Digest {
-        hash: hex::encode(digest.hash),
-        size_bytes: bytes.len() as i64,
-    }
+    put_blob(server, dir.encode_to_vec()).await
 }
 
 /// A GetTreeResponse page read without decoding its Directories.
