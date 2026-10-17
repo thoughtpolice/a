@@ -10,7 +10,6 @@ use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context as _, Result, bail};
 use bytes::Bytes;
-use futures::{StreamExt as _, TryStreamExt as _};
 use prost::Message as _;
 
 use protos::build::bazel::remote::execution::v2::{
@@ -18,11 +17,8 @@ use protos::build::bazel::remote::execution::v2::{
     OutputSymlink, SymlinkNode, Tree,
 };
 
-use crate::cas::{BATCH_BLOB_MAX, Cas};
+use crate::cas::{Blob, Cas};
 use crate::digest::{DigestFunction, Key, key};
-
-/// Large files uploaded at once.
-const PARALLEL_UPLOADS: usize = 4;
 
 /// What an action produced, as an `ActionResult` names it.
 #[derive(Debug, Default)]
@@ -140,9 +136,7 @@ fn collect(
                 };
                 let encoded = Bytes::from(tree.encode_to_vec());
                 let tree_digest = function.of(&encoded);
-                uploads
-                    .0
-                    .push((tree_digest.clone(), Source::Memory(encoded)));
+                uploads.0.push((tree_digest.clone(), Blob::Memory(encoded)));
                 produced.directories.push(OutputDirectory {
                     path: output.clone(),
                     tree_digest: Some(tree_digest),
@@ -265,18 +259,11 @@ fn utf8<'a>(name: &'a std::ffi::OsStr, path: &Path) -> Result<&'a str> {
 
 /// Blobs to upload, and where each is.
 #[derive(Debug, Default)]
-struct Uploads(Vec<(Digest, Source)>);
-
-#[derive(Debug)]
-enum Source {
-    File(PathBuf),
-    /// An encoded message.
-    Memory(Bytes),
-}
+struct Uploads(Vec<(Digest, Blob)>);
 
 impl Uploads {
     fn file(&mut self, digest: Digest, path: PathBuf) {
-        self.0.push((digest, Source::File(path)));
+        self.0.push((digest, Blob::File(path)));
     }
 
     /// Upload whichever of these the CAS does not have yet.
@@ -295,47 +282,11 @@ impl Uploads {
             .iter()
             .map(key)
             .collect();
-
-        // Large blobs stream, from disk or, for the tree of a large output
-        // directory, from memory; the daemon refuses a batch over its limit.
-        let mut small = Vec::new();
-        let mut small_files = Vec::new();
-        let mut large = Vec::new();
-        for (digest, source) in self.0 {
-            if !missing.remove(&key(&digest)) {
-                continue;
-            }
-            match source {
-                source if digest.size_bytes > BATCH_BLOB_MAX => large.push((digest, source)),
-                Source::File(path) => small_files.push((digest, path)),
-                Source::Memory(data) => small.push((digest, data)),
-            }
-        }
-        let batches = async {
-            let read = tokio::task::spawn_blocking(move || {
-                small_files
-                    .into_iter()
-                    .map(|(digest, path)| {
-                        let data = std::fs::read(&path)
-                            .with_context(|| format!("reading {}", path.display()))?;
-                        anyhow::Ok((digest, Bytes::from(data)))
-                    })
-                    .collect::<Result<Vec<_>>>()
-            })
-            .await??;
-            small.extend(read);
-            cas.write_blobs(function, small).await
-        };
-        let streams = futures::stream::iter(large)
-            .map(|(digest, source)| async move {
-                match source {
-                    Source::File(path) => cas.write_file(function, &digest, &path).await,
-                    Source::Memory(data) => cas.write_bytes(function, &digest, data).await,
-                }
-            })
-            .buffer_unordered(PARALLEL_UPLOADS)
-            .try_collect::<()>();
-        futures::try_join!(batches, streams)?;
-        Ok(())
+        let blobs = self
+            .0
+            .into_iter()
+            .filter(|(digest, _)| missing.remove(&key(digest)))
+            .collect();
+        cas.write_blobs(function, blobs).await
     }
 }

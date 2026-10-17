@@ -5,11 +5,11 @@
 //! streamed whole, and everything read checked against its digest.
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context as _, Result, bail};
 use bytes::Bytes;
-use futures::StreamExt as _;
+use futures::{StreamExt as _, TryStreamExt as _};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tonic::transport::Channel;
 
@@ -32,11 +32,21 @@ const BATCH_BYTES: i64 = 3 * 1024 * 1024;
 /// Batches read at once.
 const PARALLEL_BATCHES: usize = 4;
 
+/// Blobs streamed at once.
+const PARALLEL_STREAMS: usize = 4;
+
 /// Most digests asked about in one FindMissingBlobs.
 const FIND_MISSING_MAX: usize = 4096;
 
 /// Payload of one ByteStream write.
 const WRITE_CHUNK: usize = 1024 * 1024;
+
+/// A blob to store, and where it is.
+#[derive(Debug)]
+pub enum Blob {
+    File(PathBuf),
+    Memory(Bytes),
+}
 
 /// Blobs an action needs that the CAS does not have. The action fails
 /// with `FAILED_PRECONDITION`, which tells the client to upload them again.
@@ -176,8 +186,60 @@ impl Cas {
         Ok(missing)
     }
 
-    /// Store small blobs, by batches.
+    /// Store `blobs`, of any size: small ones by batches, with any files
+    /// among them read at once, and large ones streamed, a few at a time,
+    /// meanwhile, since the daemon refuses a batch over its limit.
     pub async fn write_blobs(
+        &self,
+        function: DigestFunction,
+        blobs: Vec<(Digest, Blob)>,
+    ) -> Result<()> {
+        let mut small = Vec::new();
+        let mut small_files = Vec::new();
+        let mut large = Vec::new();
+        for (digest, blob) in blobs {
+            match blob {
+                blob if digest.size_bytes > BATCH_BLOB_MAX => large.push((digest, blob)),
+                Blob::File(path) => small_files.push((digest, path)),
+                Blob::Memory(data) => small.push((digest, data)),
+            }
+        }
+        let batched = async {
+            let read = tokio::task::spawn_blocking(move || {
+                small_files
+                    .into_iter()
+                    .map(|(digest, path)| {
+                        let data = std::fs::read(&path)
+                            .with_context(|| format!("reading {}", path.display()))?;
+                        anyhow::Ok((digest, Bytes::from(data)))
+                    })
+                    .collect::<Result<Vec<_>>>()
+            })
+            .await??;
+            small.extend(read);
+            self.write_batches(function, small).await
+        };
+        let streamed = futures::stream::iter(large)
+            .map(|(digest, blob)| async move {
+                match blob {
+                    Blob::File(path) => {
+                        let file = tokio::fs::File::open(&path)
+                            .await
+                            .with_context(|| format!("opening {}", path.display()))?;
+                        self.write_stream(function, &digest, file)
+                            .await
+                            .with_context(|| format!("uploading {}", path.display()))
+                    }
+                    Blob::Memory(data) => self.write_stream(function, &digest, &data[..]).await,
+                }
+            })
+            .buffer_unordered(PARALLEL_STREAMS)
+            .try_collect::<()>();
+        futures::try_join!(batched, streamed)?;
+        Ok(())
+    }
+
+    async fn write_batches(
         &self,
         function: DigestFunction,
         blobs: Vec<(Digest, Bytes)>,
@@ -210,32 +272,6 @@ impl Cas {
             }
         }
         Ok(())
-    }
-
-    /// Stream the file at `path`, whose digest is `digest`, into the CAS.
-    pub async fn write_file(
-        &self,
-        function: DigestFunction,
-        digest: &Digest,
-        path: &Path,
-    ) -> Result<()> {
-        let file = tokio::fs::File::open(path)
-            .await
-            .with_context(|| format!("opening {}", path.display()))?;
-        self.write_stream(function, digest, file)
-            .await
-            .with_context(|| format!("uploading {}", path.display()))
-    }
-
-    /// Stream `data`, whose digest is `digest`, into the CAS: a blob in
-    /// memory too large for a batch.
-    pub async fn write_bytes(
-        &self,
-        function: DigestFunction,
-        digest: &Digest,
-        data: Bytes,
-    ) -> Result<()> {
-        self.write_stream(function, digest, &data[..]).await
     }
 
     async fn write_stream(
