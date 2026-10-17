@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! The daemon's CAS, as the worker uses it: batches of small blobs, files
-//! streamed whole, and everything read checked against its digest.
+//! The daemon's CAS, as the worker uses it: blobs of any size, batched
+//! when small and streamed when large, in memory or on disk, and
+//! everything read checked against its digest. Callers never choose
+//! between the two.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{Context as _, Result, bail};
 use bytes::Bytes;
@@ -23,7 +25,7 @@ use protos::google::bytestream::{ReadRequest, WriteRequest, byte_stream_client::
 use crate::digest::{DigestFunction, Key, key, show};
 
 /// Blobs up to this size travel in batches; larger ones stream.
-pub const BATCH_BLOB_MAX: i64 = 1024 * 1024;
+const BATCH_BLOB_MAX: i64 = 1024 * 1024;
 
 /// Most bytes of blobs in one batch, under the daemon's 4 MB limit with
 /// room for the messages around them.
@@ -32,8 +34,11 @@ const BATCH_BYTES: i64 = 3 * 1024 * 1024;
 /// Batches read at once.
 const PARALLEL_BATCHES: usize = 4;
 
-/// Blobs streamed at once.
-const PARALLEL_STREAMS: usize = 4;
+/// Blobs streamed from the CAS at once.
+const PARALLEL_READS: usize = 16;
+
+/// Blobs streamed into the CAS at once.
+const PARALLEL_WRITES: usize = 4;
 
 /// Most digests asked about in one FindMissingBlobs.
 const FIND_MISSING_MAX: usize = 4096;
@@ -70,13 +75,102 @@ impl Cas {
         }
     }
 
-    /// Read small blobs, by batches; fails with [`Missing`] if any is not
-    /// stored.
+    /// Read blobs of any size into memory: small ones by batches, and large
+    /// ones streamed meanwhile, a few at a time. Fails with [`Missing`],
+    /// naming every one the CAS does not have.
     pub async fn read_blobs(
         &self,
         function: DigestFunction,
         digests: &[Digest],
     ) -> Result<HashMap<Key, Bytes>> {
+        let (small, large): (Vec<Digest>, Vec<Digest>) = digests
+            .iter()
+            .cloned()
+            .partition(|d| d.size_bytes <= BATCH_BLOB_MAX);
+        let streamed = futures::stream::iter(large)
+            .map(|digest| async move {
+                let mut data = Vec::with_capacity(digest.size_bytes as usize);
+                let found = self.read_stream(function, &digest, &mut data).await?;
+                anyhow::Ok((digest, found.then(|| Bytes::from(data))))
+            })
+            .buffer_unordered(PARALLEL_READS)
+            .try_collect::<Vec<_>>();
+        let ((mut blobs, mut missing), streamed) =
+            futures::try_join!(self.read_batches(function, &small), streamed)?;
+        for (digest, data) in streamed {
+            match data {
+                Some(data) => {
+                    blobs.insert(key(&digest), data);
+                }
+                None => missing.push(digest),
+            }
+        }
+        if !missing.is_empty() {
+            return Err(Missing(missing).into());
+        }
+        Ok(blobs)
+    }
+
+    /// Read each blob into a new file at its path: small ones by batches,
+    /// written at once, and large ones streamed meanwhile, a few at a time.
+    /// Fails with [`Missing`], naming every one the CAS does not have;
+    /// files already written are the caller's to remove.
+    pub async fn read_to_files(
+        &self,
+        function: DigestFunction,
+        blobs: Vec<(Digest, PathBuf)>,
+    ) -> Result<()> {
+        let (small, large): (Vec<_>, Vec<_>) = blobs
+            .into_iter()
+            .partition(|(d, _)| d.size_bytes <= BATCH_BLOB_MAX);
+        let batched = async {
+            let digests: Vec<Digest> = small.iter().map(|(d, _)| d.clone()).collect();
+            let (mut data, missing) = self.read_batches(function, &digests).await?;
+            let writes: Vec<(PathBuf, Bytes)> = small
+                .into_iter()
+                .filter_map(|(digest, path)| data.remove(&key(&digest)).map(|data| (path, data)))
+                .collect();
+            tokio::task::spawn_blocking(move || {
+                for (path, data) in writes {
+                    std::fs::write(&path, data)
+                        .with_context(|| format!("writing {}", path.display()))?;
+                }
+                anyhow::Ok(())
+            })
+            .await??;
+            anyhow::Ok(missing)
+        };
+        let streamed = futures::stream::iter(large)
+            .map(|(digest, path)| async move {
+                let mut file = tokio::fs::File::create_new(&path)
+                    .await
+                    .with_context(|| format!("creating {}", path.display()))?;
+                let found = self
+                    .read_stream(function, &digest, &mut file)
+                    .await
+                    .with_context(|| {
+                        format!("reading {} into {}", show(&digest), path.display())
+                    })?;
+                file.flush().await?;
+                anyhow::Ok((!found).then_some(digest))
+            })
+            .buffer_unordered(PARALLEL_READS)
+            .try_collect::<Vec<_>>();
+        let (mut missing, streamed) = futures::try_join!(batched, streamed)?;
+        missing.extend(streamed.into_iter().flatten());
+        if !missing.is_empty() {
+            return Err(Missing(missing).into());
+        }
+        Ok(())
+    }
+
+    /// Read small blobs by batches, a few at once: those read, checked, and
+    /// those the CAS does not have.
+    async fn read_batches(
+        &self,
+        function: DigestFunction,
+        digests: &[Digest],
+    ) -> Result<(HashMap<Key, Bytes>, Vec<Digest>)> {
         let mut blobs = HashMap::with_capacity(digests.len());
         let mut missing = Vec::new();
         let requests: Vec<_> = batches(digests, |d| d.size_bytes)
@@ -115,51 +209,39 @@ impl Cas {
                 blobs.insert(key(&digest), blob.data);
             }
         }
-        if !missing.is_empty() {
-            return Err(Missing(missing).into());
-        }
-        Ok(blobs)
+        Ok((blobs, missing))
     }
 
-    /// Stream a blob into a new file at `path`, checking it on the way.
-    pub async fn read_to_file(
+    /// Stream a blob into `sink`, checking it on the way; `false` if the
+    /// CAS does not have it.
+    async fn read_stream(
         &self,
         function: DigestFunction,
         digest: &Digest,
-        path: &Path,
-    ) -> Result<()> {
+        sink: &mut (impl tokio::io::AsyncWrite + Unpin),
+    ) -> Result<bool> {
         let request = ReadRequest {
             resource_name: self.resource(function, digest, None),
             read_offset: 0,
             read_limit: 0,
         };
-        let read_error = |status: tonic::Status| -> anyhow::Error {
-            if status.code() == tonic::Code::NotFound {
-                Missing(vec![digest.clone()]).into()
-            } else {
-                anyhow::Error::new(status).context("ByteStream.Read")
-            }
+        let mut stream = match self.bytestream.clone().read(request).await {
+            Ok(response) => response.into_inner(),
+            Err(status) if status.code() == tonic::Code::NotFound => return Ok(false),
+            Err(status) => return Err(status).context("ByteStream.Read"),
         };
-        let mut stream = self
-            .bytestream
-            .clone()
-            .read(request)
-            .await
-            .map_err(read_error)?
-            .into_inner();
-        let mut file = tokio::fs::File::create_new(path)
-            .await
-            .with_context(|| format!("creating {}", path.display()))?;
         let mut hasher = function.hasher();
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(read_error)?.data;
+            let chunk = match chunk {
+                Ok(chunk) => chunk.data,
+                Err(status) if status.code() == tonic::Code::NotFound => return Ok(false),
+                Err(status) => return Err(status).context("ByteStream.Read"),
+            };
             hasher.update(&chunk);
-            file.write_all(&chunk)
-                .await
-                .with_context(|| format!("writing {}", path.display()))?;
+            sink.write_all(&chunk).await?;
         }
-        file.flush().await?;
-        same(&hasher.finish(), digest)
+        same(&hasher.finish(), digest)?;
+        Ok(true)
     }
 
     /// Which of `digests` the CAS does not have.
@@ -233,7 +315,7 @@ impl Cas {
                     Blob::Memory(data) => self.write_stream(function, &digest, &data[..]).await,
                 }
             })
-            .buffer_unordered(PARALLEL_STREAMS)
+            .buffer_unordered(PARALLEL_WRITES)
             .try_collect::<()>();
         futures::try_join!(batched, streamed)?;
         Ok(())

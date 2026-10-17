@@ -165,3 +165,34 @@ async fn entries_must_be_file_names() {
         "{err:#}"
     );
 }
+
+/// A directory too large for a batch streams, as any large blob does.
+#[tokio::test]
+async fn a_directory_too_large_for_a_batch_is_streamed() {
+    let daemon = Daemon::start().await;
+    let target = "t".repeat(200);
+    let symlinks = (0..25_000)
+        .map(|i| SymlinkNode {
+            name: format!("link{i:05}"),
+            target: target.clone(),
+            node_properties: None,
+        })
+        .collect();
+    let root = daemon
+        .put_dir(&Directory {
+            symlinks,
+            ..Default::default()
+        })
+        .await;
+    assert!(root.size_bytes > 4_000_000, "the daemon's batch limit");
+    let scratch = tempfile::tempdir().unwrap();
+    let files = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
+    let dest = scratch.path().join("root");
+    std::fs::create_dir(&dest).unwrap();
+    Inputs::new(files)
+        .materialize(&daemon.cas(), DigestFunction::Sha256, &root, &dest)
+        .await
+        .expect("laid out");
+    let link = std::fs::read_link(dest.join("link24999")).unwrap();
+    assert_eq!(link.to_str(), Some(target.as_str()));
+}

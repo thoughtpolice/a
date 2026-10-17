@@ -22,15 +22,11 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use anyhow::{Context as _, Result};
-use futures::{StreamExt as _, TryStreamExt as _};
 
 use protos::build::bazel::remote::execution::v2::Digest;
 
-use crate::cas::{BATCH_BLOB_MAX, Cas};
+use crate::cas::Cas;
 use crate::digest::{DigestFunction, Key, key};
-
-/// Downloads under way at once.
-const PARALLEL_DOWNLOADS: usize = 16;
 
 /// A cached file, as the index knows it.
 type Name = (DigestFunction, Key);
@@ -261,54 +257,22 @@ impl FileCache {
                 }
             }
         }
-        let (small, large): (Vec<Digest>, Vec<Digest>) = absent
+        let downloads: Vec<(Digest, PathBuf)> = absent
             .into_iter()
-            .partition(|d| d.size_bytes <= BATCH_BLOB_MAX);
-
-        // Small blobs come by batches, and large ones stream, at once.
-        let batched = async {
-            let mut blobs = cas.read_blobs(function, &small).await?;
-            let writes: Vec<_> = small
-                .into_iter()
-                .map(|digest| {
-                    let data = blobs
-                        .remove(&key(&digest))
-                        .expect("read_blobs read them all");
-                    (self.partial(), digest, data)
-                })
-                .collect();
-            tokio::task::spawn_blocking(move || {
-                writes
-                    .into_iter()
-                    .map(|(partial, digest, data)| {
-                        std::fs::write(&partial, data)
-                            .with_context(|| format!("writing {}", partial.display()))?;
-                        Ok((partial, digest))
-                    })
-                    .collect::<Result<Vec<(PathBuf, Digest)>>>()
-            })
-            .await?
-        };
-        let streamed = futures::stream::iter(large)
-            .map(|digest| async move {
-                let partial = self.partial();
-                let result = cas.read_to_file(function, &digest, &partial).await;
-                if result.is_err() {
-                    let _ = std::fs::remove_file(&partial);
-                }
-                result?;
-                anyhow::Ok((partial, digest))
-            })
-            .buffer_unordered(PARALLEL_DOWNLOADS)
-            .try_collect::<Vec<(PathBuf, Digest)>>();
-        let (mut downloaded, streamed) = futures::try_join!(batched, streamed)?;
-        downloaded.extend(streamed);
+            .map(|digest| (digest, self.partial()))
+            .collect();
+        if let Err(e) = cas.read_to_files(function, downloads.clone()).await {
+            for (_, partial) in &downloads {
+                let _ = std::fs::remove_file(partial);
+            }
+            return Err(e);
+        }
 
         // Moving downloads into place and evicting happen under the lock
         // together, so that an eviction never removes a file just fetched
         // again.
         let mut index = self.lock();
-        for (partial, digest) in downloaded {
+        for (digest, partial) in downloads {
             keep(&partial, &self.path(function, &digest))?;
             let name = (function, key(&digest));
             index.insert(name.clone(), digest.size_bytes as u64, true);
