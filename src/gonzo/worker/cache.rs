@@ -85,9 +85,10 @@ impl Index {
         }
     }
 
-    /// Add a file the cache now holds, pinned, unless it already had it.
-    fn insert(&mut self, name: Name, size: u64, pins: usize) {
-        if pins > 0 && self.pin(&name) {
+    /// Add a file the cache now holds, unless it already had it, and pin it
+    /// if `pinned`.
+    fn insert(&mut self, name: Name, size: u64, pinned: bool) {
+        if pinned && self.pin(&name) {
             return;
         }
         if self.entries.contains_key(&name) {
@@ -100,7 +101,7 @@ impl Index {
             Entry {
                 size,
                 used: self.clock,
-                pins,
+                pins: usize::from(pinned),
             },
         );
         self.bytes += size;
@@ -170,7 +171,7 @@ impl FileCache {
         let evicted = {
             let mut index = cache.lock();
             for (name, size, _) in found {
-                index.insert(name, size, 0);
+                index.insert(name, size, false);
             }
             index.evict(max_bytes)
         };
@@ -310,7 +311,7 @@ impl FileCache {
         for (partial, digest) in downloaded {
             keep(&partial, &self.path(function, &digest))?;
             let name = (function, key(&digest));
-            index.insert(name.clone(), digest.size_bytes as u64, 1);
+            index.insert(name.clone(), digest.size_bytes as u64, true);
             pinned.names.push(name);
         }
         let evicted = index.evict(self.max_bytes);
