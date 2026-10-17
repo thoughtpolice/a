@@ -299,26 +299,34 @@ impl Uploads {
         // Large blobs stream, from disk or, for the tree of a large output
         // directory, from memory; the daemon refuses a batch over its limit.
         let mut small = Vec::new();
+        let mut small_files = Vec::new();
         let mut large = Vec::new();
         for (digest, source) in self.0 {
             if !missing.remove(&key(&digest)) {
                 continue;
             }
-            if digest.size_bytes > BATCH_BLOB_MAX {
-                large.push((digest, source));
-                continue;
+            match source {
+                source if digest.size_bytes > BATCH_BLOB_MAX => large.push((digest, source)),
+                Source::File(path) => small_files.push((digest, path)),
+                Source::Memory(data) => small.push((digest, data)),
             }
-            let data = match source {
-                Source::File(path) => tokio::fs::read(&path)
-                    .await
-                    .with_context(|| format!("reading {}", path.display()))?
-                    .into(),
-                Source::Memory(data) => data,
-            };
-            small.push((digest, data));
         }
-        cas.write_blobs(function, small).await?;
-        futures::stream::iter(large)
+        let batches = async {
+            let read = tokio::task::spawn_blocking(move || {
+                small_files
+                    .into_iter()
+                    .map(|(digest, path)| {
+                        let data = std::fs::read(&path)
+                            .with_context(|| format!("reading {}", path.display()))?;
+                        anyhow::Ok((digest, Bytes::from(data)))
+                    })
+                    .collect::<Result<Vec<_>>>()
+            })
+            .await??;
+            small.extend(read);
+            cas.write_blobs(function, small).await
+        };
+        let streams = futures::stream::iter(large)
             .map(|(digest, source)| async move {
                 match source {
                     Source::File(path) => cas.write_file(function, &digest, &path).await,
@@ -326,7 +334,8 @@ impl Uploads {
                 }
             })
             .buffer_unordered(PARALLEL_UPLOADS)
-            .try_collect::<()>()
-            .await
+            .try_collect::<()>();
+        futures::try_join!(batches, streams)?;
+        Ok(())
     }
 }
