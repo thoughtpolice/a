@@ -206,7 +206,6 @@ impl Worker {
         // Dropping an action's sender cancels it.
         let mut running: HashMap<String, oneshot::Sender<()>> = HashMap::new();
         let mut tasks = tokio::task::JoinSet::new();
-        let (done_tx, mut done) = mpsc::unbounded_channel::<(String, ExecuteResponse)>();
         tokio::pin!(shutdown);
         let ended = loop {
             tokio::select! {
@@ -214,23 +213,28 @@ impl Worker {
                     Ok(Some(SchedulerMessage { message: Some(scheduler_message::Message::Assign(assign)) })) => {
                         let (cancel, cancelled) = oneshot::channel();
                         running.insert(assign.operation.clone(), cancel);
-                        let (worker, cas, done_tx) = (self.clone(), cas.clone(), done_tx.clone());
+                        let (worker, cas) = (self.clone(), cas.clone());
                         tasks.spawn(async move {
                             let operation = assign.operation.clone();
                             let response = worker.execute(&cas, assign, async { let _ = cancelled.await; }).await;
-                            let _ = done_tx.send((operation, response));
+                            (operation, response)
                         });
                     }
                     Ok(Some(SchedulerMessage { message: Some(scheduler_message::Message::Cancel(cancel)) })) => {
-                        if let Some(cancel) = running.remove(&cancel.operation) {
-                            let _ = cancel.send(());
-                        }
+                        running.remove(&cancel.operation);
                     }
                     Ok(Some(_)) => {}
                     Ok(None) => break Ok(()),
                     Err(status) => break Err(anyhow::Error::from(status).context("the session with the scheduler failed")),
                 },
-                Some((operation, response)) = done.recv() => {
+                Some(joined) = tasks.join_next() => {
+                    let (operation, response) = match joined {
+                        Ok(done) => done,
+                        Err(e) => {
+                            tracing::error!("an action's task failed: {e}");
+                            continue;
+                        }
+                    };
                     running.remove(&operation);
                     let finished = worker_message::Message::Finished(Finished {
                         operation,
