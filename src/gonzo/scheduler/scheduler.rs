@@ -248,10 +248,9 @@ impl Scheduler {
 
     /// Stop the operation called `name`, whoever is waiting for it.
     pub fn cancel(&self, name: &str) -> bool {
-        let mut guard = self.shared.lock();
-        let found = guard.cancel(name);
-        guard.dispatch();
-        found
+        // Cancelling frees no slot: a worker's stays taken until it says
+        // it has stopped. So there is nothing new to dispatch.
+        self.shared.lock().cancel(name)
     }
 
     /// Register a worker. Actions for it arrive on the receiver, until
@@ -472,7 +471,6 @@ impl Guard<'_> {
         if op.watchers == 0 && !op.stage.borrow().is_completed() {
             tracing::debug!(operation = name, "nobody is waiting; cancelling");
             self.cancel(name);
-            self.dispatch();
         }
     }
 
