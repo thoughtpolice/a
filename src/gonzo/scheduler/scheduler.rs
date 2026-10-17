@@ -114,14 +114,14 @@ pub struct Subscription {
 
 #[derive(Debug)]
 struct Watching {
-    scheduler: Weak<Shared>,
+    scheduler: Weak<Mutex<State>>,
     name: String,
 }
 
 impl Drop for Watching {
     fn drop(&mut self) {
-        if let Some(shared) = self.scheduler.upgrade() {
-            shared.lock().unwatch(&self.name);
+        if let Some(state) = self.scheduler.upgrade() {
+            lock(&state).unwatch(&self.name);
         }
     }
 }
@@ -129,26 +129,16 @@ impl Drop for Watching {
 /// See the module documentation. Cheap to clone.
 #[derive(Clone, Debug)]
 pub struct Scheduler {
-    shared: Arc<Shared>,
+    state: Arc<Mutex<State>>,
 }
 
-#[derive(Debug)]
-struct Shared {
-    config: Config,
-    state: Mutex<State>,
-}
-
-impl Shared {
-    fn lock(&self) -> Guard<'_> {
-        Guard {
-            config: &self.config,
-            state: self.state.lock().unwrap_or_else(|e| e.into_inner()),
-        }
-    }
+fn lock(state: &Mutex<State>) -> MutexGuard<'_, State> {
+    state.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 #[derive(Debug, Default)]
 struct State {
+    config: Config,
     /// Every operation, finished ones until they are pruned.
     operations: HashMap<String, Operation>,
     /// Unfinished cacheable operations, by action.
@@ -192,48 +182,42 @@ struct Worker {
     to_worker: mpsc::UnboundedSender<SchedulerMessage>,
 }
 
-/// The state, locked, with the configuration beside it.
-struct Guard<'a> {
-    config: &'a Config,
-    state: MutexGuard<'a, State>,
-}
-
 impl Scheduler {
     pub fn new(config: Config) -> Self {
         Self {
-            shared: Arc::new(Shared {
+            state: Arc::new(Mutex::new(State {
                 config,
-                state: Mutex::default(),
-            }),
+                ..Default::default()
+            })),
         }
     }
 
     /// Queue `job`, or join the identical cacheable one already under way.
     pub fn submit(&self, job: Job) -> Subscription {
-        let mut guard = self.shared.lock();
-        let name = match guard.state.in_flight.get(&job.key()) {
+        let mut state = lock(&self.state);
+        let name = match state.in_flight.get(&job.key()) {
             Some(name) if job.cacheable() => name.clone(),
-            _ => guard.enqueue(job),
+            _ => state.enqueue(job),
         };
-        guard.dispatch();
-        self.watch(&mut guard, &name)
+        state.dispatch();
+        self.watch(&mut state, &name)
             .expect("the operation was just found or made")
     }
 
     /// Watch the operation called `name`, if there is one.
     pub fn subscribe(&self, name: &str) -> Option<Subscription> {
-        self.watch(&mut self.shared.lock(), name)
+        self.watch(&mut lock(&self.state), name)
     }
 
-    fn watch(&self, guard: &mut Guard<'_>, name: &str) -> Option<Subscription> {
-        let op = guard.state.operations.get_mut(name)?;
+    fn watch(&self, state: &mut State, name: &str) -> Option<Subscription> {
+        let op = state.operations.get_mut(name)?;
         op.watchers += 1;
         Some(Subscription {
             name: name.to_string(),
             job: op.job.clone(),
             stages: op.stage.subscribe(),
             _watching: Watching {
-                scheduler: Arc::downgrade(&self.shared),
+                scheduler: Arc::downgrade(&self.state),
                 name: name.to_string(),
             },
         })
@@ -241,8 +225,8 @@ impl Scheduler {
 
     /// The operation called `name` and where it is, without waiting on it.
     pub fn peek(&self, name: &str) -> Option<(Arc<Job>, Stage)> {
-        let guard = self.shared.lock();
-        let op = guard.state.operations.get(name)?;
+        let state = lock(&self.state);
+        let op = state.operations.get(name)?;
         Some((op.job.clone(), op.stage.borrow().clone()))
     }
 
@@ -250,16 +234,16 @@ impl Scheduler {
     pub fn cancel(&self, name: &str) -> bool {
         // Cancelling frees no slot: a worker's stays taken until it says
         // it has stopped. So there is nothing new to dispatch.
-        self.shared.lock().cancel(name)
+        lock(&self.state).cancel(name)
     }
 
     /// Register a worker. Actions for it arrive on the receiver, until
     /// [`disconnect`](Self::disconnect).
     pub fn connect(&self, hello: &Hello) -> (WorkerId, mpsc::UnboundedReceiver<SchedulerMessage>) {
         let (to_worker, from_scheduler) = mpsc::unbounded_channel();
-        let mut guard = self.shared.lock();
-        let id = guard.state.next_worker;
-        guard.state.next_worker += 1;
+        let mut state = lock(&self.state);
+        let id = state.next_worker;
+        state.next_worker += 1;
         let worker = Worker {
             name: hello.name.clone(),
             offer: Offer::new(&hello.properties),
@@ -274,51 +258,50 @@ impl Scheduler {
             version = %hello.version,
             "worker connected"
         );
-        guard.state.workers.insert(id, worker);
-        guard.dispatch();
+        state.workers.insert(id, worker);
+        state.dispatch();
         (id, from_scheduler)
     }
 
     /// The job a worker was given as `name`, if it is still the worker's.
     pub fn assigned(&self, worker: WorkerId, name: &str) -> Option<Arc<Job>> {
-        let guard = self.shared.lock();
-        let op = guard.state.operations.get(name)?;
+        let state = lock(&self.state);
+        let op = state.operations.get(name)?;
         (op.worker == Some(worker) && !op.stage.borrow().is_completed()).then(|| op.job.clone())
     }
 
     /// A worker has stopped running `name`, with `response`. Frees its slot,
     /// and completes the operation if it was still the worker's.
     pub fn finished(&self, worker: WorkerId, name: &str, response: ExecuteResponse) {
-        let mut guard = self.shared.lock();
-        let Some(w) = guard.state.workers.get_mut(&worker) else {
+        let mut state = lock(&self.state);
+        let Some(w) = state.workers.get_mut(&worker) else {
             return;
         };
         if !w.running.remove(name) {
             tracing::warn!(worker = %w.name, operation = name, "worker finished an operation it was not running");
             return;
         }
-        if guard
-            .state
+        if state
             .operations
             .get(name)
             .is_some_and(|op| op.worker == Some(worker) && !op.stage.borrow().is_completed())
         {
-            guard.complete(name, response);
+            state.complete(name, response);
         }
-        guard.dispatch();
+        state.dispatch();
     }
 
     /// A worker has gone. Its unfinished operations queue again, or fail
     /// once they have lost too many workers.
     pub fn disconnect(&self, worker: WorkerId) {
-        let mut guard = self.shared.lock();
-        let Some(w) = guard.state.workers.remove(&worker) else {
+        let mut state = lock(&self.state);
+        let Some(w) = state.workers.remove(&worker) else {
             return;
         };
         tracing::info!(worker = %w.name, running = w.running.len(), "worker disconnected");
-        let max_attempts = guard.config.max_attempts;
+        let max_attempts = state.config.max_attempts;
         for name in w.running {
-            let Some(op) = guard.state.operations.get_mut(&name) else {
+            let Some(op) = state.operations.get_mut(&name) else {
                 continue;
             };
             if op.stage.borrow().is_completed() {
@@ -330,60 +313,59 @@ impl Scheduler {
                     "the action lost its worker {} times (last: {})",
                     op.attempts, w.name
                 );
-                guard.complete(&name, failure(Code::Unavailable, message));
+                state.complete(&name, failure(Code::Unavailable, message));
             } else {
                 op.stage.send_replace(Stage::Queued);
                 let (seq, requirements) = (op.seq, op.job.requirements.clone());
                 // Back to the front, by its original place in line.
-                let queue = guard.state.queues.entry(requirements).or_default();
+                let queue = state.queues.entry(requirements).or_default();
                 let at = queue.waiting.partition_point(|(s, _)| *s < seq);
                 queue.waiting.insert(at, (seq, name));
             }
         }
-        guard.dispatch();
+        state.dispatch();
     }
 
     /// Fail actions that no worker has been able to run for the grace
     /// period, and forget operations finished long enough ago.
     pub fn sweep(&self) {
-        let mut guard = self.shared.lock();
-        guard.sweep(Instant::now());
+        let mut state = lock(&self.state);
+        state.sweep(Instant::now());
     }
 
     /// Run [`sweep`](Self::sweep) every second until the scheduler is
     /// dropped.
     pub fn spawn_sweeper(&self) {
-        let shared = Arc::downgrade(&self.shared);
+        let state = Arc::downgrade(&self.state);
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_secs(1));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
             loop {
                 tick.tick().await;
-                let Some(shared) = shared.upgrade() else {
+                let Some(state) = state.upgrade() else {
                     return;
                 };
-                shared.lock().sweep(Instant::now());
+                lock(&state).sweep(Instant::now());
             }
         });
     }
 }
 
-impl Guard<'_> {
+impl State {
     fn enqueue(&mut self, job: Job) -> String {
         let name = format!("operations/{}", uuid::Uuid::new_v4());
-        let seq = self.state.next_seq;
-        self.state.next_seq += 1;
+        let seq = self.next_seq;
+        self.next_seq += 1;
         let job = Arc::new(job);
         if job.cacheable() {
-            self.state.in_flight.insert(job.key(), name.clone());
+            self.in_flight.insert(job.key(), name.clone());
         }
-        self.state
-            .queues
+        self.queues
             .entry(job.requirements.clone())
             .or_default()
             .waiting
             .push_back((seq, name.clone()));
-        self.state.operations.insert(
+        self.operations.insert(
             name.clone(),
             Operation {
                 job,
@@ -402,15 +384,14 @@ impl Guard<'_> {
     /// Hand queued actions to workers with free slots until none is left
     /// that any free worker can run.
     fn dispatch(&mut self) {
-        let state = &mut *self.state;
         loop {
             let mut assigned = false;
-            for (&id, worker) in state.workers.iter_mut() {
+            for (&id, worker) in self.workers.iter_mut() {
                 if worker.running.len() >= worker.slots {
                     continue;
                 }
                 // The oldest action of any queue this worker can run.
-                let Some(queue) = state
+                let Some(queue) = self
                     .queues
                     .iter_mut()
                     .filter(|(req, queue)| !queue.waiting.is_empty() && worker.offer.satisfies(req))
@@ -420,7 +401,7 @@ impl Guard<'_> {
                     continue;
                 };
                 let (_, name) = queue.waiting.pop_front().expect("queue is not empty");
-                let op = state
+                let op = self
                     .operations
                     .get_mut(&name)
                     .expect("queued operations exist");
@@ -451,20 +432,20 @@ impl Guard<'_> {
     }
 
     fn complete(&mut self, name: &str, response: ExecuteResponse) {
-        let Some(op) = self.state.operations.get_mut(name) else {
+        let Some(op) = self.operations.get_mut(name) else {
             return;
         };
         op.worker = None;
         op.finished_at = Some(Instant::now());
         op.stage.send_replace(Stage::Completed(Arc::new(response)));
         let key = op.job.key();
-        if self.state.in_flight.get(&key).is_some_and(|n| n == name) {
-            self.state.in_flight.remove(&key);
+        if self.in_flight.get(&key).is_some_and(|n| n == name) {
+            self.in_flight.remove(&key);
         }
     }
 
     fn unwatch(&mut self, name: &str) {
-        let Some(op) = self.state.operations.get_mut(name) else {
+        let Some(op) = self.operations.get_mut(name) else {
             return;
         };
         op.watchers -= 1;
@@ -475,8 +456,7 @@ impl Guard<'_> {
     }
 
     fn cancel(&mut self, name: &str) -> bool {
-        let state = &mut *self.state;
-        let Some(op) = state.operations.get(name) else {
+        let Some(op) = self.operations.get(name) else {
             return false;
         };
         if op.stage.borrow().is_completed() {
@@ -485,7 +465,7 @@ impl Guard<'_> {
         match op.worker {
             // Its slot stays taken until the worker says it has stopped.
             Some(id) => {
-                if let Some(worker) = state.workers.get(&id) {
+                if let Some(worker) = self.workers.get(&id) {
                     let _ = worker.to_worker.send(SchedulerMessage {
                         message: Some(Message::Cancel(Cancel {
                             operation: name.to_string(),
@@ -494,7 +474,7 @@ impl Guard<'_> {
                 }
             }
             None => {
-                if let Some(queue) = state.queues.get_mut(&op.job.requirements) {
+                if let Some(queue) = self.queues.get_mut(&op.job.requirements) {
                     queue.waiting.retain(|(_, n)| n != name);
                 }
             }
@@ -509,13 +489,12 @@ impl Guard<'_> {
     fn sweep(&mut self, now: Instant) {
         let grace = self.config.unmatched_grace;
         let mut expired = Vec::new();
-        let state = &mut *self.state;
-        for (requirements, queue) in &mut state.queues {
+        for (requirements, queue) in &mut self.queues {
             if queue.waiting.is_empty() {
                 queue.unmatched_since = None;
                 continue;
             }
-            if state
+            if self
                 .workers
                 .values()
                 .any(|w| w.offer.satisfies(requirements))
@@ -531,7 +510,6 @@ impl Guard<'_> {
         }
         if !expired.is_empty() {
             let offers: Vec<String> = self
-                .state
                 .workers
                 .values()
                 .map(|w| format!("{} ({})", w.name, w.offer))
@@ -552,12 +530,10 @@ impl Guard<'_> {
                 }
             }
         }
-        self.state
-            .queues
-            .retain(|_, queue| !queue.waiting.is_empty());
+        self.queues.retain(|_, queue| !queue.waiting.is_empty());
 
         let keep = self.config.keep_finished;
-        self.state.operations.retain(|_, op| {
+        self.operations.retain(|_, op| {
             op.finished_at
                 .is_none_or(|at| now.duration_since(at) < keep)
         });
