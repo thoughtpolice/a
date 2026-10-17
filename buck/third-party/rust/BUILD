@@ -20175,6 +20175,37 @@ third_party_rust.rust_library(
     crate = "netdev",
     crate_root = "netdev-0.45.1.crate/src/lib.rs",
     edition = "2024",
+    env = {
+        "OUT_DIR": "$(location :netdev-0.45-build-script-run[out_dir])",
+    },
+    features = [
+        "android-extra",
+        "apple-system-configuration-extra",
+        "default",
+        "gateway",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "netdev",
+            "version": "0.45.1",
+            "licenses": ["MIT"],
+        },
+    },
+    rustc_flags = ["@$(location :netdev-0.45-build-script-run[rustc_flags])"],
+    visibility = [],
+    deps = [
+        ":ipnet-2",
+        ":mac-addr-0.3",
+        ":windows-sys-0.61",
+    ],
+)
+
+third_party_rust.rust_binary(
+    name = "netdev-0.45-build-script-build",
+    srcs = [":netdev-0.45.1.crate"],
+    crate = "build_script_build",
+    crate_root = "netdev-0.45.1.crate/build.rs",
+    edition = "2024",
     features = [
         "android-extra",
         "apple-system-configuration-extra",
@@ -20189,11 +20220,20 @@ third_party_rust.rust_library(
         },
     },
     visibility = [],
-    deps = [
-        ":ipnet-2",
-        ":mac-addr-0.3",
-        ":windows-sys-0.61",
+)
+
+third_party_rust.buildscript_run(
+    name = "netdev-0.45-build-script-run",
+    package_name = "netdev",
+    buildscript_rule = ":netdev-0.45-build-script-build",
+    features = [
+        "android-extra",
+        "apple-system-configuration-extra",
+        "default",
+        "gateway",
     ],
+    rustc_link_lib = True,
+    version = "0.45.1",
 )
 
 shims.http_archive(
@@ -20210,6 +20250,9 @@ third_party_rust.rust_library(
     crate = "netdev",
     crate_root = "netdev-0.46.3.crate/src/lib.rs",
     edition = "2024",
+    env = {
+        "OUT_DIR": "$(location :netdev-0.46-build-script-run[out_dir])",
+    },
     features = [
         "android-extra",
         "apple-system-configuration-extra",
@@ -20253,12 +20296,49 @@ third_party_rust.rust_library(
             ],
         ),
     },
+    rustc_flags = ["@$(location :netdev-0.46-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
         ":ipnet-2",
         ":libc-0.2",
         ":mac-addr-0.3",
     ],
+)
+
+third_party_rust.rust_binary(
+    name = "netdev-0.46-build-script-build",
+    srcs = [":netdev-0.46.3.crate"],
+    crate = "build_script_build",
+    crate_root = "netdev-0.46.3.crate/build.rs",
+    edition = "2024",
+    features = [
+        "android-extra",
+        "apple-system-configuration-extra",
+        "default",
+        "gateway",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "netdev",
+            "version": "0.46.3",
+            "licenses": ["MIT"],
+        },
+    },
+    visibility = [],
+)
+
+third_party_rust.buildscript_run(
+    name = "netdev-0.46-build-script-run",
+    package_name = "netdev",
+    buildscript_rule = ":netdev-0.46-build-script-build",
+    features = [
+        "android-extra",
+        "apple-system-configuration-extra",
+        "default",
+        "gateway",
+    ],
+    rustc_link_lib = True,
+    version = "0.46.3",
 )
 
 shims.http_archive(
@@ -31181,6 +31261,30 @@ third_party_rust.rust_library(
     crate = "system_configuration_sys",
     crate_root = "system-configuration-sys-0.6.0.crate/src/lib.rs",
     edition = "2021",
+    env = {
+        "OUT_DIR": "$(location :system-configuration-sys-0.6-build-script-run[out_dir])",
+    },
+    metadata = {
+        "third-party.metadata": {
+            "name": "system-configuration-sys",
+            "version": "0.6.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    rustc_flags = ["@$(location :system-configuration-sys-0.6-build-script-run[rustc_flags])"],
+    visibility = [],
+    deps = [
+        ":core-foundation-sys-0.8",
+        ":libc-0.2",
+    ],
+)
+
+third_party_rust.rust_binary(
+    name = "system-configuration-sys-0.6-build-script-build",
+    srcs = [":system-configuration-sys-0.6.0.crate"],
+    crate = "build_script_build",
+    crate_root = "system-configuration-sys-0.6.0.crate/build.rs",
+    edition = "2021",
     metadata = {
         "third-party.metadata": {
             "name": "system-configuration-sys",
@@ -31189,10 +31293,14 @@ third_party_rust.rust_library(
         },
     },
     visibility = [],
-    deps = [
-        ":core-foundation-sys-0.8",
-        ":libc-0.2",
-    ],
+)
+
+third_party_rust.buildscript_run(
+    name = "system-configuration-sys-0.6-build-script-run",
+    package_name = "system-configuration-sys",
+    buildscript_rule = ":system-configuration-sys-0.6-build-script-build",
+    rustc_link_lib = True,
+    version = "0.6.0",
 )
 
 shims.http_archive(

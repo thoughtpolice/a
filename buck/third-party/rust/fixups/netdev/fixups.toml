@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-# buildscript only emits a SystemConfiguration framework link flag on apple
-# platforms; nothing to do on linux
-buildscript.run = false
+# The build script links the SystemConfiguration framework on Apple targets
+# and does nothing else; run it and keep its link line (see
+# system-configuration-sys for why not a macOS-only rustc flag).
+[buildscript.run]
+rustc_link_lib = true

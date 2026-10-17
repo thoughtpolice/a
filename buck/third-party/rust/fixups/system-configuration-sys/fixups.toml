@@ -1,1 +1,10 @@
-buildscript.run = false
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The build script links the SystemConfiguration framework on Apple targets,
+# which the bindings need and declare no #[link] for. Run it, and keep its
+# link line, rather than pass the flag under a macOS cfg: only macOS reaches
+# this crate, so reindeer would hoist that flag onto every platform, and
+# rustc rejects it off Apple.
+[buildscript.run]
+rustc_link_lib = true
