@@ -379,9 +379,7 @@ fn start_recorder(
 /// What every trace segment says about the process that wrote it, so
 /// segments from different hosts, versions, and runs can be told apart.
 fn trace_metadata(cli: &Cli, command: &str) -> Vec<(String, String)> {
-    let hostname = std::fs::read_to_string("/proc/sys/kernel/hostname")
-        .map(|h| h.trim().to_string())
-        .unwrap_or_else(|_| "unknown".to_string());
+    let hostname = worker::host_name().unwrap_or_else(|| "unknown".to_string());
     [
         ("service.name", "gonzo".to_string()),
         (

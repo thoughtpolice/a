@@ -141,11 +141,10 @@ async fn serve(args: Args, runtime_info: runtime::RuntimeInfo) -> Result<()> {
 
     let mut properties = worker::offered_properties();
     properties.extend(args.properties);
-    let name = args.name.unwrap_or_else(|| {
-        std::fs::read_to_string("/proc/sys/kernel/hostname")
-            .map(|h| h.trim().to_string())
-            .unwrap_or_else(|_| endpoint.id().fmt_short().to_string())
-    });
+    let name = args
+        .name
+        .or_else(worker::host_name)
+        .unwrap_or_else(|| endpoint.id().fmt_short().to_string());
     let slots = args.slots.unwrap_or(runtime_info.effective_cpus);
     let worker = Arc::new(worker::Worker::new(worker::Config {
         name,

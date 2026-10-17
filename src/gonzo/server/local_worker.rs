@@ -54,11 +54,8 @@ pub fn spawn(
     handover: tokio::sync::mpsc::Sender<DuplexStream>,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<tokio::task::JoinHandle<()>> {
-    let name = std::fs::read_to_string("/proc/sys/kernel/hostname")
-        .map(|h| h.trim().to_string())
-        .unwrap_or_else(|_| "local".to_string());
     let worker = worker::Worker::new(worker::Config {
-        name,
+        name: worker::host_name().unwrap_or_else(|| "local".to_string()),
         properties: worker::offered_properties(),
         slots: settings.slots,
         dir: settings.dir.clone(),

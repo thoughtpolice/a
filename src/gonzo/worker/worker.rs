@@ -68,6 +68,13 @@ pub fn host_environment() -> Vec<(String, String)> {
         .unwrap_or_default()
 }
 
+/// This machine's host name, if the kernel says.
+pub fn host_name() -> Option<String> {
+    std::fs::read_to_string("/proc/sys/kernel/hostname")
+        .ok()
+        .map(|name| name.trim().to_string())
+}
+
 /// What a worker on this machine offers: its [`host_properties`], and
 /// `container-image=empty` too where it can run actions in an empty root
 /// (see [`sandbox`](crate::sandbox)).
