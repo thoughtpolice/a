@@ -15,6 +15,9 @@ path = "top.rs"
 anyhow = "1.0.104"
 arbitrary = "1.1"
 argh = "0.1.19"
+# The key derivation for short join codes (src/gonzo/mesh); only the raw
+# hash is used, not the password-hash string format.
+argon2 = { version = "0.5.3", default-features = false, features = ["alloc"] }
 ariadne = "0.6.0"
 async-stream = "0.3.6"
 async-trait = "0.1"

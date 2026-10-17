@@ -878,6 +878,59 @@ third_party_rust.rust_library(
 )
 
 shims.alias(
+    name = "argon2",
+    actual = ":argon2-0.5",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "argon2-0.5.3.crate",
+    sha256 = "3c3610892ee6e0cbce8ae2700349fcf8f98adb0dbfbee85aec3c9179d29cc072",
+    strip_prefix = "argon2-0.5.3",
+    urls = ["https://static.crates.io/crates/argon2/0.5.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "argon2-0.5",
+    srcs = [":argon2-0.5.3.crate"],
+    crate = "argon2",
+    crate_root = "argon2-0.5.3.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "alloc",
+        "password-hash",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "argon2",
+            "version": "0.5.3",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    platform = {
+        "linux-x86_64": dict(
+            deps = [":cpufeatures-0.2"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":cpufeatures-0.2"],
+        ),
+        "windows-gnu": dict(
+            deps = [":cpufeatures-0.2"],
+        ),
+        "windows-msvc": dict(
+            deps = [":cpufeatures-0.2"],
+        ),
+    },
+    visibility = [],
+    deps = [
+        ":base64ct-1",
+        ":blake2-0.10",
+        ":password-hash-0.5",
+    ],
+)
+
+shims.alias(
     name = "ariadne",
     actual = ":ariadne-0.6",
     visibility = ["PUBLIC"],
@@ -23296,6 +23349,40 @@ third_party_rust.buildscript_run(
 )
 
 shims.http_archive(
+    name = "password-hash-0.5.0.crate",
+    sha256 = "346f04948ba92c43e8469c1ee6736c7563d71012b17d40745260fe106aac2166",
+    strip_prefix = "password-hash-0.5.0",
+    urls = ["https://static.crates.io/crates/password-hash/0.5.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "password-hash-0.5",
+    srcs = [":password-hash-0.5.0.crate"],
+    crate = "password_hash",
+    crate_root = "password-hash-0.5.0.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "alloc",
+        "default",
+        "rand_core",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "password-hash",
+            "version": "0.5.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":base64ct-1",
+        ":rand_core-0.6",
+        ":subtle-2",
+    ],
+)
+
+shims.http_archive(
     name = "paste-1.0.15.crate",
     sha256 = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a",
     strip_prefix = "paste-1.0.15",
@@ -29551,7 +29638,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "slatedb",
-            "version": "0.16.0",
+            "version": "0.17.0",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -29621,7 +29708,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "slatedb-common",
-            "version": "0.16.0",
+            "version": "0.17.0",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -29655,7 +29742,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "slatedb-txn-obj",
-            "version": "0.16.0",
+            "version": "0.17.0",
             "licenses": ["Apache-2.0"],
         },
     },
