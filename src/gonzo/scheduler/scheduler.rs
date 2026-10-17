@@ -488,8 +488,8 @@ impl State {
         let grace = self.config.unmatched_grace;
         let mut expired = Vec::new();
         for (requirements, queue) in &mut self.queues {
+            // Emptied queues go below.
             if queue.waiting.is_empty() {
-                queue.unmatched_since = None;
                 continue;
             }
             if self
@@ -502,7 +502,6 @@ impl State {
             }
             let since = *queue.unmatched_since.get_or_insert(now);
             if now.duration_since(since) >= grace {
-                queue.unmatched_since = None;
                 expired.push((requirements.clone(), std::mem::take(&mut queue.waiting)));
             }
         }
