@@ -264,29 +264,31 @@ impl FileCache {
             .into_iter()
             .partition(|d| d.size_bytes <= BATCH_BLOB_MAX);
 
-        let mut blobs = cas.read_blobs(function, &small).await?;
-        let writes: Vec<_> = small
-            .into_iter()
-            .map(|digest| {
-                let data = blobs
-                    .remove(&key(&digest))
-                    .expect("read_blobs read them all");
-                (self.partial(), digest, data)
-            })
-            .collect();
-        let mut downloaded: Vec<(PathBuf, Digest)> = tokio::task::spawn_blocking(move || {
-            writes
+        // Small blobs come by batches, and large ones stream, at once.
+        let batched = async {
+            let mut blobs = cas.read_blobs(function, &small).await?;
+            let writes: Vec<_> = small
                 .into_iter()
-                .map(|(partial, digest, data)| {
-                    std::fs::write(&partial, data)
-                        .with_context(|| format!("writing {}", partial.display()))?;
-                    Ok((partial, digest))
+                .map(|digest| {
+                    let data = blobs
+                        .remove(&key(&digest))
+                        .expect("read_blobs read them all");
+                    (self.partial(), digest, data)
                 })
-                .collect::<Result<Vec<_>>>()
-        })
-        .await??;
-
-        let streamed: Vec<(PathBuf, Digest)> = futures::stream::iter(large)
+                .collect();
+            tokio::task::spawn_blocking(move || {
+                writes
+                    .into_iter()
+                    .map(|(partial, digest, data)| {
+                        std::fs::write(&partial, data)
+                            .with_context(|| format!("writing {}", partial.display()))?;
+                        Ok((partial, digest))
+                    })
+                    .collect::<Result<Vec<(PathBuf, Digest)>>>()
+            })
+            .await?
+        };
+        let streamed = futures::stream::iter(large)
             .map(|digest| async move {
                 let partial = self.partial();
                 let result = cas.read_to_file(function, &digest, &partial).await;
@@ -297,8 +299,8 @@ impl FileCache {
                 anyhow::Ok((partial, digest))
             })
             .buffer_unordered(PARALLEL_DOWNLOADS)
-            .try_collect()
-            .await?;
+            .try_collect::<Vec<(PathBuf, Digest)>>();
+        let (mut downloaded, streamed) = futures::try_join!(batched, streamed)?;
         downloaded.extend(streamed);
 
         // Moving downloads into place and evicting happen under the lock
