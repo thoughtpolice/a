@@ -35,7 +35,7 @@ pub struct Produced {
 /// The paths, relative to the working directory, where the command may
 /// leave outputs. Whether each was declared a file or a directory does not
 /// matter (see [`upload`]).
-fn expected(command: &Command) -> Result<Vec<String>> {
+pub fn expected(command: &Command) -> Result<Vec<String>> {
     #[allow(deprecated)]
     let outputs: Vec<String> = if command.output_paths.is_empty() {
         command
@@ -71,42 +71,39 @@ pub fn prepare(command: &Command, working_directory: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Upload what the command left at its output paths under
-/// `working_directory`, and say what it was. An output the command did not
-/// produce is left out, as REAPI asks.
+/// Upload what the command left at the `outputs` paths (see [`expected`])
+/// under `working_directory`, and say what it was; and upload the files at
+/// `streams`, such as its stdout and stderr, giving their digests. An
+/// output the command did not produce is left out, as REAPI asks.
 ///
 /// Buck's `strict` output mode lists outputs that may be either a file or
 /// a directory as `output_files`, so a directory found there is reported
 /// as an output directory; likewise a file found where a directory was
 /// expected is reported as a file.
-pub async fn upload(
+pub async fn upload<const N: usize>(
     cas: &Cas,
     function: DigestFunction,
-    command: &Command,
+    outputs: Vec<String>,
     working_directory: &Path,
-) -> Result<Produced> {
-    let outputs = expected(command)?;
+    streams: [PathBuf; N],
+) -> Result<(Produced, [Digest; N])> {
     let root = working_directory.to_path_buf();
-    let (produced, uploads) =
-        tokio::task::spawn_blocking(move || collect(function, &outputs, &root)).await??;
-    uploads.send(cas, function).await?;
-    Ok(produced)
-}
-
-/// Upload the file at `path`, returning its digest.
-pub async fn upload_file(cas: &Cas, function: DigestFunction, path: &Path) -> Result<Digest> {
-    let path = path.to_path_buf();
-    let (digest, uploads) = tokio::task::spawn_blocking(move || {
-        let digest = function
-            .of_file(&path)
-            .with_context(|| format!("reading {}", path.display()))?;
-        let mut uploads = Uploads::default();
-        uploads.file(digest.clone(), path);
-        anyhow::Ok((digest, uploads))
+    let (produced, streams, uploads) = tokio::task::spawn_blocking(move || {
+        let (produced, mut uploads) = collect(function, &outputs, &root)?;
+        let mut digests = Vec::with_capacity(N);
+        for path in streams {
+            let digest = function
+                .of_file(&path)
+                .with_context(|| format!("reading {}", path.display()))?;
+            uploads.file(digest.clone(), path);
+            digests.push(digest);
+        }
+        let digests: [Digest; N] = digests.try_into().expect("a digest per stream");
+        anyhow::Ok((produced, digests, uploads))
     })
     .await??;
     uploads.send(cas, function).await?;
-    Ok(digest)
+    Ok((produced, streams))
 }
 
 fn collect(

@@ -76,7 +76,8 @@ async fn files_directories_and_symlinks_are_uploaded() {
         &["bin/tool", "gen/alias", "gen/either", "never/made"],
         &["gen/out"],
     );
-    let produced = outputs::upload(&daemon.cas(), DigestFunction::Sha256, &command, root)
+    let outputs = outputs::expected(&command).unwrap();
+    let (produced, []) = outputs::upload(&daemon.cas(), DigestFunction::Sha256, outputs, root, [])
         .await
         .expect("upload");
 
@@ -154,11 +155,12 @@ async fn large_outputs_are_streamed() {
         output_paths: vec!["big.bin".into()],
         ..Default::default()
     };
-    let produced = outputs::upload(
+    let (produced, []) = outputs::upload(
         &daemon.cas(),
         DigestFunction::Sha256,
-        &command,
+        outputs::expected(&command).unwrap(),
         scratch.path(),
+        [],
     )
     .await
     .expect("upload");
@@ -186,11 +188,12 @@ async fn large_trees_are_streamed() {
         output_paths: vec!["out".into()],
         ..Default::default()
     };
-    let produced = outputs::upload(
+    let (produced, []) = outputs::upload(
         &daemon.cas(),
         DigestFunction::Sha256,
-        &command,
+        outputs::expected(&command).unwrap(),
         scratch.path(),
+        [],
     )
     .await
     .expect("upload");

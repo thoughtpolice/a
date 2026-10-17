@@ -417,13 +417,19 @@ impl Worker {
         metadata.output_upload_start_timestamp = Some(now());
         // A timed-out action's outputs are not worth anything; its output
         // streams say what it was doing.
-        let produced = if outcome == Outcome::TimedOut {
-            outputs::Produced::default()
+        let expected = if outcome == Outcome::TimedOut {
+            Vec::new()
         } else {
-            outputs::upload(cas, function, command, &working_directory).await?
+            outputs::expected(command)?
         };
-        let stdout_digest = outputs::upload_file(cas, function, &stdout).await?;
-        let stderr_digest = outputs::upload_file(cas, function, &stderr).await?;
+        let (produced, [stdout_digest, stderr_digest]) = outputs::upload(
+            cas,
+            function,
+            expected,
+            &working_directory,
+            [stdout, stderr],
+        )
+        .await?;
         metadata.output_upload_completed_timestamp = Some(now());
         metadata.worker_completed_timestamp = Some(now());
 
