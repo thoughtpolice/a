@@ -23,9 +23,10 @@
 //! be, and runs the actions the daemon's scheduler sends it, reading
 //! inputs from the daemon's store and writing outputs back. It offers this
 //! machine's OS and architecture as Buck names them, `container-image=host`,
-//! `container-image=empty` where it can run actions in an empty root, and
-//! any `--property` given; it keeps a cache of input files, so each is
-//! fetched once. When the connection drops it dials again.
+//! `container-image=empty` where it can run actions in an empty root, any
+//! `--image` it runs inside, and any `--property` given; it keeps a cache of
+//! input files, so each is fetched once. When the connection drops it dials
+//! again.
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -70,9 +71,16 @@ struct Args {
     cache_gib: u64,
 
     /// A platform property to offer besides this machine's own, as
-    /// NAME=VALUE; may be given more than once.
+    /// NAME=VALUE; may be given more than once. Images are offered with
+    /// --image instead.
     #[arg(long = "property", value_parser = property)]
     properties: Vec<Property>,
+
+    /// A container image this worker runs inside: actions asking for
+    /// `container-image=IMAGE` run here on the host as it is, as
+    /// `container-image=host` actions do. May be given more than once.
+    #[arg(long = "image", value_name = "IMAGE")]
+    images: Vec<String>,
 
     /// How the worker appears in the daemon's logs and in results
     /// (default: the host name).
@@ -97,6 +105,11 @@ fn property(text: &str) -> Result<Property, String> {
     let (name, value) = text
         .split_once('=')
         .ok_or_else(|| format!("{text:?} is not NAME=VALUE"))?;
+    // Offered without a way to run it, the image would take actions only
+    // to fail them.
+    if name == "container-image" {
+        return Err(format!("offer an image with --image {value}"));
+    }
     Ok(Property {
         name: name.to_string(),
         value: value.to_string(),
@@ -139,8 +152,10 @@ async fn serve(args: Args, runtime_info: runtime::RuntimeInfo) -> Result<()> {
         .await
         .context("failed to bind an iroh endpoint")?;
 
-    let mut properties = worker::offered_properties();
+    let mut properties = worker::host_properties();
     properties.extend(args.properties);
+    let mut images = worker::host_images();
+    images.extend(args.images.into_iter().map(worker::Image::host));
     let name = args
         .name
         .or_else(worker::host_name)
@@ -149,10 +164,10 @@ async fn serve(args: Args, runtime_info: runtime::RuntimeInfo) -> Result<()> {
     let worker = Arc::new(worker::Worker::new(worker::Config {
         name,
         properties,
+        images,
         slots,
         dir: dir.join("work"),
         cache_bytes: args.cache_gib * 1024 * 1024 * 1024,
-        base_environment: worker::host_environment(),
         default_timeout: Duration::from_secs(args.action_timeout),
         max_timeout: Duration::from_secs(args.max_action_timeout),
     })?);
@@ -341,9 +356,11 @@ mod tests {
     fn properties_are_name_equals_value() {
         let p = property("gpu=nvidia").unwrap();
         assert_eq!((p.name.as_str(), p.value.as_str()), ("gpu", "nvidia"));
-        let p = property("container-image=docker://x=y").unwrap();
-        assert_eq!(p.value, "docker://x=y");
+        let p = property("pool=a=b").unwrap();
+        assert_eq!(p.value, "a=b");
         assert!(property("gpu").is_err());
+        let refused = property("container-image=docker://x").unwrap_err();
+        assert!(refused.contains("--image docker://x"), "{refused}");
     }
 
     #[test]

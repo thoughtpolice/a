@@ -20,9 +20,12 @@ use protos::google::rpc::Code;
 
 use crate::digest::DigestFunction;
 use crate::test_support::Daemon;
-use crate::{Config, Worker, host_properties};
+use crate::{Config, Image, Worker, host_properties};
 
 const PATIENCE: Duration = Duration::from_secs(30);
+
+/// An image the test worker runs actions in besides `host`.
+const CI_IMAGE: &str = "docker://ci";
 
 /// A daemon and a worker serving it, for as long as this is kept.
 struct Setup {
@@ -38,13 +41,24 @@ async fn setup() -> Setup {
         Worker::new(Config {
             name: "test-worker".into(),
             properties: host_properties(),
+            images: vec![
+                Image {
+                    name: "host".into(),
+                    empty_root: false,
+                    environment: vec![
+                        ("PATH".into(), "/usr/bin:/bin".into()),
+                        ("FROM_THE_IMAGE".into(), "yes".into()),
+                    ],
+                },
+                Image {
+                    name: CI_IMAGE.into(),
+                    empty_root: false,
+                    environment: vec![("IN_CI_IMAGE".into(), "yes".into())],
+                },
+            ],
             slots: 2,
             dir: scratch.path().join("worker"),
             cache_bytes: u64::MAX,
-            base_environment: vec![
-                ("PATH".into(), "/usr/bin:/bin".into()),
-                ("FROM_THE_IMAGE".into(), "yes".into()),
-            ],
             default_timeout: Duration::from_secs(60),
             max_timeout: Duration::from_secs(600),
         })
@@ -297,6 +311,67 @@ async fn actions_start_from_the_base_environment() {
     assert_eq!(stdout.matches("PATH=").count(), 1, "{stdout}");
 }
 
+#[test]
+fn a_worker_offers_its_properties_and_each_of_its_images() {
+    let config = Config {
+        name: "offering".into(),
+        properties: host_properties(),
+        images: vec![Image::host("host"), Image::host(CI_IMAGE), Image::empty()],
+        slots: 1,
+        dir: "/nonexistent".into(),
+        cache_bytes: 0,
+        default_timeout: Duration::from_secs(1),
+        max_timeout: Duration::from_secs(1),
+    };
+    let offered: Vec<(String, String)> = config
+        .offered()
+        .into_iter()
+        .map(|p| (p.name, p.value))
+        .collect();
+    let images: Vec<&str> = offered
+        .iter()
+        .filter(|(name, _)| name == "container-image")
+        .map(|(_, value)| value.as_str())
+        .collect();
+    assert_eq!(images, ["host", CI_IMAGE, "empty"]);
+    assert!(offered.iter().any(|(name, _)| name == "OSFamily"));
+}
+
+#[tokio::test]
+async fn an_action_runs_in_the_image_it_asks_for() {
+    let setup = setup().await;
+    let daemon = &setup.daemon;
+    let command = Command {
+        arguments: vec!["sh".into(), "-c".into(), "env | sort".into()],
+        environment_variables: vec![EnvironmentVariable {
+            name: "PATH".into(),
+            value: "/usr/bin:/bin".into(),
+        }],
+        ..Default::default()
+    };
+    let mut properties = host_properties();
+    properties.push(
+        protos::build::bazel::remote::execution::v2::platform::Property {
+            name: "container-image".into(),
+            value: CI_IMAGE.into(),
+        },
+    );
+    let action = Action {
+        command_digest: Some(daemon.put(command.encode_to_vec()).await),
+        input_root_digest: Some(daemon.put_dir(&Directory::default()).await),
+        platform: Some(Platform { properties }),
+        ..Default::default()
+    };
+    let digest = daemon.put(action.encode_to_vec()).await;
+    let response = completion(&mut execute(daemon, &digest).await).await;
+    let result = response.result.expect("a result");
+    let stdout = daemon.get(result.stdout_digest.as_ref().unwrap()).await;
+    let stdout = String::from_utf8_lossy(&stdout);
+    // That image's environment, not the host's.
+    assert!(stdout.contains("IN_CI_IMAGE=yes\n"), "{stdout}");
+    assert!(!stdout.contains("FROM_THE_IMAGE"), "{stdout}");
+}
+
 /// A worker serves one session after another, as it does when it
 /// reconnects, keeping what it has cached.
 #[tokio::test]
@@ -307,10 +382,14 @@ async fn a_worker_serves_session_after_session() {
         Worker::new(Config {
             name: "reconnecting".into(),
             properties: host_properties(),
+            images: vec![Image {
+                name: "host".into(),
+                empty_root: false,
+                environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
+            }],
             slots: 1,
             dir: scratch.path().join("worker"),
             cache_bytes: u64::MAX,
-            base_environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
             default_timeout: Duration::from_secs(60),
             max_timeout: Duration::from_secs(60),
         })

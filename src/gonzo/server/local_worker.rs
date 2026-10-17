@@ -56,11 +56,11 @@ pub fn spawn(
 ) -> Result<tokio::task::JoinHandle<()>> {
     let worker = worker::Worker::new(worker::Config {
         name: worker::host_name().unwrap_or_else(|| "local".to_string()),
-        properties: worker::offered_properties(),
+        properties: worker::host_properties(),
+        images: worker::host_images(),
         slots: settings.slots,
         dir: settings.dir.clone(),
         cache_bytes: settings.cache_bytes,
-        base_environment: worker::host_environment(),
         default_timeout: settings.default_timeout,
         max_timeout: settings.max_timeout,
     })

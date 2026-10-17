@@ -16,9 +16,7 @@ pub mod runner;
 pub mod sandbox;
 mod worker;
 
-pub use worker::{
-    Config, Worker, host_environment, host_name, host_properties, offered_properties,
-};
+pub use worker::{Config, Image, Worker, host_images, host_name, host_properties};
 
 #[cfg(test)]
 mod test_support;

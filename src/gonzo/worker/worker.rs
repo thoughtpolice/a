@@ -38,8 +38,11 @@ use crate::sandbox::EmptyRoot;
 pub struct Config {
     /// How it appears in logs and in each result's metadata.
     pub name: String,
-    /// What it offers; see [`offered_properties`].
+    /// What it offers besides its images: [`host_properties`], say.
     pub properties: Vec<Property>,
+    /// The images it runs actions in, each offered as a `container-image`;
+    /// see [`host_images`].
+    pub images: Vec<Image>,
     /// How many actions it runs at once.
     pub slots: usize,
     /// Where it keeps its file cache (`files/`) and lays out actions
@@ -47,25 +50,75 @@ pub struct Config {
     pub dir: PathBuf,
     /// Most bytes of input files to keep in the file cache.
     pub cache_bytes: u64,
-    /// The environment of the "image" actions run in: variables each action
-    /// gets unless its command sets them. See [`host_environment`].
-    pub base_environment: Vec<(String, String)>,
     /// The timeout of an action that sets none.
     pub default_timeout: Duration,
     /// The longest timeout an action may set.
     pub max_timeout: Duration,
 }
 
-/// The environment an action on this machine starts from, as a container
-/// image's would: the worker's own `PATH`, so that a command named without
-/// a path (Buck's system toolchains name `rustc`, say) is found where the
-/// worker would find it, as it is when Buck runs the action locally. That
-/// is what `container-image=host` promises; an action that should not
-/// depend on the machine's tools sets its own `PATH`.
-pub fn host_environment() -> Vec<(String, String)> {
-    std::env::var("PATH")
-        .map(|path| vec![("PATH".to_string(), path)])
-        .unwrap_or_default()
+impl Config {
+    /// Everything the worker offers: its properties, and a
+    /// `container-image` for each of its images.
+    pub fn offered(&self) -> Vec<Property> {
+        let images = self.images.iter().map(|image| Property {
+            name: "container-image".to_string(),
+            value: image.name.clone(),
+        });
+        self.properties.iter().cloned().chain(images).collect()
+    }
+}
+
+/// An image a worker runs actions in, as their platforms' `container-image`
+/// names it.
+#[derive(Clone, Debug)]
+pub struct Image {
+    pub name: String,
+    /// Whether actions run in an empty root, with nothing of the host (see
+    /// [`sandbox`](crate::sandbox)), rather than on the host as it is.
+    pub empty_root: bool,
+    /// Variables each action gets unless its command sets them.
+    pub environment: Vec<(String, String)>,
+}
+
+impl Image {
+    /// Actions run on this machine as it is, starting from the worker's own
+    /// `PATH`, so that a command named without a path (Buck's system
+    /// toolchains name `rustc`, say) is found where the worker would find
+    /// it, as it is when Buck runs the action locally. An action that
+    /// should not depend on the machine's tools sets its own `PATH`.
+    ///
+    /// That is what `container-image=host` promises; a worker that itself
+    /// runs inside an image may run actions this way under that image's
+    /// name too.
+    pub fn host(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            empty_root: false,
+            environment: std::env::var("PATH")
+                .map(|path| vec![("PATH".to_string(), path)])
+                .unwrap_or_default(),
+        }
+    }
+
+    /// Actions run in an empty root, holding their inputs and nothing of
+    /// the host, its `PATH` included.
+    pub fn empty() -> Self {
+        Self {
+            name: crate::sandbox::EMPTY.to_string(),
+            empty_root: true,
+            environment: Vec::new(),
+        }
+    }
+}
+
+/// The images a worker on this machine runs actions in: `host`, and
+/// `empty` where it can make empty roots.
+pub fn host_images() -> Vec<Image> {
+    let mut images = vec![Image::host("host")];
+    if crate::sandbox::supported() {
+        images.push(Image::empty());
+    }
+    images
 }
 
 /// This machine's host name, if the kernel says.
@@ -75,24 +128,9 @@ pub fn host_name() -> Option<String> {
         .map(|name| name.trim().to_string())
 }
 
-/// What a worker on this machine offers: its [`host_properties`], and
-/// `container-image=empty` too where it can run actions in an empty root
-/// (see [`sandbox`](crate::sandbox)).
-pub fn offered_properties() -> Vec<Property> {
-    let mut properties = host_properties();
-    if crate::sandbox::supported() {
-        properties.push(Property {
-            name: "container-image".to_string(),
-            value: crate::sandbox::EMPTY.to_string(),
-        });
-    }
-    properties
-}
-
 /// The properties of this machine as Buck names them (see
-/// `buck/platforms/defs.bzl`): `OSFamily` as Bazel spells it, `Arch` as Go
-/// and OCI do, and `container-image=host`, since actions run on the machine
-/// as it is rather than in an image.
+/// `buck/platforms/defs.bzl`): `OSFamily` as Bazel spells it, and `Arch` as
+/// Go and OCI do. Its `container-image`s come from its [`host_images`].
 pub fn host_properties() -> Vec<Property> {
     let os = match std::env::consts::OS {
         "linux" => "Linux",
@@ -105,17 +143,13 @@ pub fn host_properties() -> Vec<Property> {
         "aarch64" => "arm64",
         other => other,
     };
-    [
-        ("OSFamily", os),
-        ("Arch", arch),
-        ("container-image", "host"),
-    ]
-    .into_iter()
-    .map(|(name, value)| Property {
-        name: name.to_string(),
-        value: value.to_string(),
-    })
-    .collect()
+    [("OSFamily", os), ("Arch", arch)]
+        .into_iter()
+        .map(|(name, value)| Property {
+            name: name.to_string(),
+            value: value.to_string(),
+        })
+        .collect()
 }
 
 /// See the module documentation.
@@ -191,7 +225,7 @@ impl Worker {
         to_scheduler
             .send(message(worker_message::Message::Hello(Hello {
                 name: self.config.name.clone(),
-                properties: self.config.properties.clone(),
+                properties: self.config.offered(),
                 slots: self.config.slots as u32,
                 version: option_env!("depot_VERSION").unwrap_or("dev").to_string(),
             })))
@@ -342,19 +376,22 @@ impl Worker {
             .filter(|t| !t.is_zero())
             .unwrap_or(self.config.default_timeout)
             .min(self.config.max_timeout);
-        // An empty root has nothing of the host, its PATH included.
-        let (empty_root, base_environment) = match container_image(action, command) {
-            "host" => (None, &self.config.base_environment[..]),
-            crate::sandbox::EMPTY => (
-                Some(
-                    EmptyRoot::new(&root, Path::new(&command.working_directory))
-                        .context("preparing the action's empty root")?,
-                ),
-                &[][..],
-            ),
-            other => bail!("this worker cannot run actions in container-image={other}"),
-        };
-        let mut environment: Vec<(String, String)> = base_environment
+        let wanted = container_image(action, command);
+        let image = self
+            .config
+            .images
+            .iter()
+            .find(|image| image.name == wanted)
+            .with_context(|| {
+                format!("this worker cannot run actions in container-image={wanted}")
+            })?;
+        let empty_root = image
+            .empty_root
+            .then(|| EmptyRoot::new(&root, Path::new(&command.working_directory)))
+            .transpose()
+            .context("preparing the action's empty root")?;
+        let mut environment: Vec<(String, String)> = image
+            .environment
             .iter()
             .filter(|(name, _)| {
                 !command
