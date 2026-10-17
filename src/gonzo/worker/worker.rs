@@ -179,7 +179,7 @@ impl Worker {
         channel: Channel,
         shutdown: impl Future<Output = ()>,
     ) -> Result<()> {
-        let cas = Cas::new(channel.clone(), "");
+        let cas = Cas::new(channel.clone());
         let (to_scheduler, rx) = mpsc::channel(64);
         to_scheduler
             .send(message(worker_message::Message::Hello(Hello {

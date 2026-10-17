@@ -46,16 +46,14 @@ pub struct Missing(pub Vec<Digest>);
 pub struct Cas {
     cas: ContentAddressableStorageClient<Channel>,
     bytestream: ByteStreamClient<Channel>,
-    instance_name: String,
 }
 
 impl Cas {
-    pub fn new(channel: Channel, instance_name: impl Into<String>) -> Self {
+    pub fn new(channel: Channel) -> Self {
         Self {
             cas: ContentAddressableStorageClient::new(channel.clone())
                 .max_decoding_message_size(usize::MAX),
             bytestream: ByteStreamClient::new(channel),
-            instance_name: instance_name.into(),
         }
     }
 
@@ -73,7 +71,7 @@ impl Cas {
                 .cas
                 .clone()
                 .batch_read_blobs(BatchReadBlobsRequest {
-                    instance_name: self.instance_name.clone(),
+                    instance_name: String::new(),
                     digests: batch.to_vec(),
                     acceptable_compressors: Vec::new(),
                     digest_function: function.to_proto(),
@@ -162,7 +160,7 @@ impl Cas {
                 .cas
                 .clone()
                 .find_missing_blobs(FindMissingBlobsRequest {
-                    instance_name: self.instance_name.clone(),
+                    instance_name: String::new(),
                     blob_digests: chunk.to_vec(),
                     digest_function: function.to_proto(),
                 })
@@ -195,7 +193,7 @@ impl Cas {
                 .cas
                 .clone()
                 .batch_update_blobs(BatchUpdateBlobsRequest {
-                    instance_name: self.instance_name.clone(),
+                    instance_name: String::new(),
                     requests,
                     digest_function: function.to_proto(),
                 })
@@ -293,10 +291,6 @@ impl Cas {
         upload: Option<uuid::Uuid>,
     ) -> String {
         let mut name = String::new();
-        if !self.instance_name.is_empty() {
-            name.push_str(&self.instance_name);
-            name.push('/');
-        }
         if let Some(uuid) = upload {
             name.push_str(&format!("uploads/{uuid}/"));
         }

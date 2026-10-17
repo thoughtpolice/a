@@ -77,7 +77,7 @@ impl Daemon {
     }
 
     pub fn cas(&self) -> Cas {
-        Cas::new(self.channel.clone(), "")
+        Cas::new(self.channel.clone())
     }
 
     /// Store `data`, returning its SHA-256 digest.
