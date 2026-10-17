@@ -41,10 +41,7 @@ depot.rust_test(
     srcs = glob(["*.rs"]),
     crate_root = "lib.rs",
     deps = DEPS + [
-        "third-party//rust:dial9",
-        "//src/crates/dial9-tonic",
-        "//src/gonzo/api",
         "//src/gonzo/scheduler",
-        "//src/gonzo/storage",
+        "//src/gonzo/testing:gonzo-testing",
     ],
 )

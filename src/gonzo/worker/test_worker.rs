@@ -9,14 +9,14 @@ use std::time::Duration;
 
 use prost::Message as _;
 use tokio::sync::oneshot;
-use tonic::Streaming;
 
 use protos::build::bazel::remote::execution::v2::{
-    Action, Command, Digest, Directory, ExecuteRequest, ExecuteResponse, FileNode, Platform,
-    command::EnvironmentVariable, execution_client::ExecutionClient,
+    Action, Command, Digest, Directory, ExecuteResponse, FileNode, Platform,
+    command::EnvironmentVariable,
 };
-use protos::google::longrunning::{Operation, operation};
 use protos::google::rpc::Code;
+
+use gonzo_testing::completion;
 
 use crate::digest::DigestFunction;
 use crate::test_support::Daemon;
@@ -109,31 +109,6 @@ async fn action(
     daemon.put(action.encode_to_vec()).await
 }
 
-async fn execute(daemon: &Daemon, digest: &Digest) -> Streaming<Operation> {
-    ExecutionClient::new(daemon.channel.clone())
-        .execute(ExecuteRequest {
-            action_digest: Some(digest.clone()),
-            digest_function: 1,
-            ..Default::default()
-        })
-        .await
-        .expect("execute")
-        .into_inner()
-}
-
-async fn completion(stream: &mut Streaming<Operation>) -> ExecuteResponse {
-    loop {
-        let op = tokio::time::timeout(PATIENCE, stream.message())
-            .await
-            .expect("in time")
-            .expect("a message")
-            .expect("not the end yet");
-        if let Some(operation::Result::Response(any)) = op.result {
-            return ExecuteResponse::decode(any.value.as_slice()).expect("decode");
-        }
-    }
-}
-
 fn code(response: &ExecuteResponse) -> i32 {
     response.status.as_ref().map_or(0, |s| s.code)
 }
@@ -161,7 +136,7 @@ async fn an_action_runs_and_its_outputs_come_back() {
     )
     .await;
 
-    let response = completion(&mut execute(daemon, &digest).await).await;
+    let response = completion(&mut daemon.execute(&digest).await).await.1;
     assert_eq!(code(&response), 0, "{:?}", response.status);
     assert!(!response.cached_result);
     let result = response.result.expect("a result");
@@ -182,7 +157,7 @@ async fn an_action_runs_and_its_outputs_come_back() {
     assert!(metadata.execution_completed_timestamp.is_some());
 
     // Recorded in the action cache, so the next time is a hit.
-    let again = completion(&mut execute(daemon, &digest).await).await;
+    let again = completion(&mut daemon.execute(&digest).await).await.1;
     assert!(again.cached_result);
 }
 
@@ -198,7 +173,7 @@ async fn a_failing_action_reports_its_exit_code_and_stderr() {
         None,
     )
     .await;
-    let response = completion(&mut execute(daemon, &digest).await).await;
+    let response = completion(&mut daemon.execute(&digest).await).await.1;
     assert_eq!(code(&response), 0, "the action ran; it just failed");
     let result = response.result.unwrap();
     assert_eq!(result.exit_code, 2);
@@ -225,7 +200,7 @@ async fn a_missing_input_fails_the_precondition() {
         ..Default::default()
     };
     let digest = action(daemon, "cat absent", &[], &inputs, None).await;
-    let response = completion(&mut execute(daemon, &digest).await).await;
+    let response = completion(&mut daemon.execute(&digest).await).await.1;
     assert_eq!(
         code(&response),
         Code::FailedPrecondition as i32,
@@ -246,7 +221,7 @@ async fn an_action_past_its_timeout_is_stopped() {
         Some(Duration::from_secs(1)),
     )
     .await;
-    let response = completion(&mut execute(daemon, &digest).await).await;
+    let response = completion(&mut daemon.execute(&digest).await).await.1;
     assert_eq!(
         code(&response),
         Code::DeadlineExceeded as i32,
@@ -270,7 +245,7 @@ async fn an_action_nobody_waits_for_is_killed() {
     let pid_file = setup.scratch.path().join("pid");
     let script = format!("echo $$ > {}; exec sleep 60", pid_file.display());
     let digest = action(daemon, &script, &[], &Directory::default(), None).await;
-    let stream = execute(daemon, &digest).await;
+    let stream = daemon.execute(&digest).await;
 
     let deadline = tokio::time::Instant::now() + PATIENCE;
     let pid = loop {
@@ -303,7 +278,7 @@ async fn actions_start_from_the_base_environment() {
     let daemon = &setup.daemon;
     // The command sets PATH itself (see `action`), and not FROM_THE_IMAGE.
     let digest = action(daemon, "env | sort", &[], &Directory::default(), None).await;
-    let response = completion(&mut execute(daemon, &digest).await).await;
+    let response = completion(&mut daemon.execute(&digest).await).await.1;
     let result = response.result.expect("a result");
     let stdout = daemon.get(result.stdout_digest.as_ref().unwrap()).await;
     let stdout = String::from_utf8_lossy(&stdout);
@@ -363,7 +338,7 @@ async fn an_action_runs_in_the_image_it_asks_for() {
         ..Default::default()
     };
     let digest = daemon.put(action.encode_to_vec()).await;
-    let response = completion(&mut execute(daemon, &digest).await).await;
+    let response = completion(&mut daemon.execute(&digest).await).await.1;
     let result = response.result.expect("a result");
     let stdout = daemon.get(result.stdout_digest.as_ref().unwrap()).await;
     let stdout = String::from_utf8_lossy(&stdout);
@@ -413,7 +388,7 @@ async fn a_worker_serves_session_after_session() {
         }
     });
     let digest = action(&daemon, "echo again", &[], &Directory::default(), None).await;
-    let response = completion(&mut execute(&daemon, &digest).await).await;
+    let response = completion(&mut daemon.execute(&digest).await).await.1;
     assert_eq!(response.result.expect("a result").exit_code, 0);
     let _ = stop.send(());
     serving.await.unwrap().expect("the second session");
