@@ -123,54 +123,43 @@ fn collect(
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
             Err(e) => return Err(e).with_context(|| format!("examining {}", path.display())),
         };
-        let kind = metadata.file_type();
-        if kind.is_symlink() {
-            let target = std::fs::read_link(&path)?;
-            produced.symlinks.push(OutputSymlink {
+        match entry(function, &mut uploads, &path, &metadata)? {
+            Entry::Symlink(target) => produced.symlinks.push(OutputSymlink {
                 path: output.clone(),
-                target: utf8(target.as_os_str(), &path)?.to_string(),
+                target,
                 node_properties: None,
-            });
-        } else if kind.is_dir() {
-            let mut tree = TreeBuilder {
-                function,
-                uploads: &mut uploads,
-                children: Vec::new(),
-                seen: HashSet::new(),
-            };
-            let root_dir = tree.directory(&path)?;
-            let tree = Tree {
-                root: Some(root_dir),
-                children: tree.children,
-            };
-            let encoded = Bytes::from(tree.encode_to_vec());
-            let tree_digest = function.of(&encoded);
-            uploads
-                .0
-                .push((tree_digest.clone(), Source::Memory(encoded)));
-            produced.directories.push(OutputDirectory {
-                path: output.clone(),
-                tree_digest: Some(tree_digest),
-                is_topologically_sorted: false,
-                root_directory_digest: None,
-            });
-        } else if kind.is_file() {
-            let digest = function
-                .of_file(&path)
-                .with_context(|| format!("reading {}", path.display()))?;
-            uploads.file(digest.clone(), path);
-            produced.files.push(OutputFile {
+            }),
+            Entry::Directory => {
+                let mut tree = TreeBuilder {
+                    function,
+                    uploads: &mut uploads,
+                    children: Vec::new(),
+                    seen: HashSet::new(),
+                };
+                let root_dir = tree.directory(&path)?;
+                let tree = Tree {
+                    root: Some(root_dir),
+                    children: tree.children,
+                };
+                let encoded = Bytes::from(tree.encode_to_vec());
+                let tree_digest = function.of(&encoded);
+                uploads
+                    .0
+                    .push((tree_digest.clone(), Source::Memory(encoded)));
+                produced.directories.push(OutputDirectory {
+                    path: output.clone(),
+                    tree_digest: Some(tree_digest),
+                    is_topologically_sorted: false,
+                    root_directory_digest: None,
+                });
+            }
+            Entry::File { digest, executable } => produced.files.push(OutputFile {
                 path: output.clone(),
                 digest: Some(digest),
-                is_executable: metadata.permissions().mode() & 0o111 != 0,
+                is_executable: executable,
                 contents: Bytes::new(),
                 node_properties: None,
-            });
-        } else {
-            bail!(
-                "output {} is neither a file, a directory nor a symlink",
-                path.display()
-            );
+            }),
         }
     }
     Ok((produced, uploads))
@@ -201,44 +190,74 @@ impl TreeBuilder<'_> {
         let mut dir = Directory::default();
         for (name, path) in entries {
             let metadata = std::fs::symlink_metadata(&path)?;
-            let kind = metadata.file_type();
-            if kind.is_symlink() {
-                let target = std::fs::read_link(&path)?;
-                dir.symlinks.push(SymlinkNode {
+            match entry(self.function, self.uploads, &path, &metadata)? {
+                Entry::Symlink(target) => dir.symlinks.push(SymlinkNode {
                     name,
-                    target: utf8(target.as_os_str(), &path)?.to_string(),
+                    target,
                     node_properties: None,
-                });
-            } else if kind.is_dir() {
-                let sub = self.directory(&path)?;
-                let digest = self.function.of(&sub.encode_to_vec());
-                if self.seen.insert(key(&digest)) {
-                    self.children.push(sub);
+                }),
+                Entry::Directory => {
+                    let sub = self.directory(&path)?;
+                    let digest = self.function.of(&sub.encode_to_vec());
+                    if self.seen.insert(key(&digest)) {
+                        self.children.push(sub);
+                    }
+                    dir.directories.push(DirectoryNode {
+                        name,
+                        digest: Some(digest),
+                    });
                 }
-                dir.directories.push(DirectoryNode {
+                Entry::File { digest, executable } => dir.files.push(FileNode {
                     name,
                     digest: Some(digest),
-                });
-            } else if kind.is_file() {
-                let digest = self
-                    .function
-                    .of_file(&path)
-                    .with_context(|| format!("reading {}", path.display()))?;
-                self.uploads.file(digest.clone(), path);
-                dir.files.push(FileNode {
-                    name,
-                    digest: Some(digest),
-                    is_executable: metadata.permissions().mode() & 0o111 != 0,
+                    is_executable: executable,
                     node_properties: None,
-                });
-            } else {
-                bail!(
-                    "{} is neither a file, a directory nor a symlink",
-                    path.display()
-                );
+                }),
             }
         }
         Ok(dir)
+    }
+}
+
+/// What is at a path, as an output or an entry of an output directory.
+enum Entry {
+    Symlink(String),
+    /// A directory, for the caller to walk.
+    Directory,
+    File {
+        digest: Digest,
+        executable: bool,
+    },
+}
+
+/// What is at `path`, whose metadata is `metadata`. A file is hashed and
+/// added to `uploads`.
+fn entry(
+    function: DigestFunction,
+    uploads: &mut Uploads,
+    path: &Path,
+    metadata: &std::fs::Metadata,
+) -> Result<Entry> {
+    let kind = metadata.file_type();
+    if kind.is_symlink() {
+        let target = std::fs::read_link(path)?;
+        Ok(Entry::Symlink(utf8(target.as_os_str(), path)?.to_string()))
+    } else if kind.is_dir() {
+        Ok(Entry::Directory)
+    } else if kind.is_file() {
+        let digest = function
+            .of_file(path)
+            .with_context(|| format!("reading {}", path.display()))?;
+        uploads.file(digest.clone(), path.to_path_buf());
+        Ok(Entry::File {
+            digest,
+            executable: metadata.permissions().mode() & 0o111 != 0,
+        })
+    } else {
+        bail!(
+            "{} is neither a file, a directory nor a symlink",
+            path.display()
+        )
     }
 }
 
