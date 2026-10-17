@@ -109,16 +109,10 @@ pub struct Subscription {
     pub name: String,
     pub job: Arc<Job>,
     pub stages: watch::Receiver<Stage>,
-    _watching: Watching,
-}
-
-#[derive(Debug)]
-struct Watching {
     scheduler: Weak<Mutex<State>>,
-    name: String,
 }
 
-impl Drop for Watching {
+impl Drop for Subscription {
     fn drop(&mut self) {
         if let Some(state) = self.scheduler.upgrade() {
             lock(&state).unwatch(&self.name);
@@ -216,10 +210,7 @@ impl Scheduler {
             name: name.to_string(),
             job: op.job.clone(),
             stages: op.stage.subscribe(),
-            _watching: Watching {
-                scheduler: Arc::downgrade(&self.state),
-                name: name.to_string(),
-            },
+            scheduler: Arc::downgrade(&self.state),
         })
     }
 
