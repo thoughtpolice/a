@@ -3,8 +3,3 @@ engine_address = grpc://127.0.0.1:8980
 action_cache_address = grpc://127.0.0.1:8980
 cas_address = grpc://127.0.0.1:8980
 tls = false
-
-default_mode = full-remote
-force_remote = true
-container_image = host
-cache_upload = true
