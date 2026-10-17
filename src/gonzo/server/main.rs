@@ -1146,10 +1146,8 @@ async fn run_server(
         "gonzo ready",
     );
 
-    let shutdown_notify = Arc::new(tokio::sync::Notify::new());
-    let shutdown_notify2 = shutdown_notify.clone();
     // Tells everything besides the client listener, such as the local
-    // worker, that the daemon is stopping.
+    // worker and the drain deadline, that the daemon is stopping.
     let (stopping, stopping_rx) = tokio::sync::watch::channel(false);
     let stopped = move || {
         let mut stopping = stopping_rx.clone();
@@ -1183,15 +1181,17 @@ async fn run_server(
                     let _ = store_failure.set(reason);
                 }
             }
-            shutdown_notify2.notify_one();
             stopping.send_replace(true);
         }
     };
 
-    let drain_deadline = async {
-        shutdown_notify.notified().await;
-        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-        tracing::warn!("drain timeout (10s), forcing shutdown");
+    let drain_deadline = {
+        let stopped = stopped();
+        async move {
+            stopped.await;
+            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+            tracing::warn!("drain timeout (10s), forcing shutdown");
+        }
     };
 
     let request_timeout =
