@@ -238,7 +238,7 @@ wit-bindgen-rust = { version = "0.62.0", features = ["clap"] }
 wit-component = "0.259.0"
 wit-parser = "0.259.0"
 zeroize = "1.9"
-zip = { version = "8", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 # NOTE (zstd): stay on 0.13 while slatedb's foyer-storage pins it. 0.14 brings
 # its own zstd-safe 8, so the bump buys a second Rust wrapper over the one
 # zstd-sys build and nothing else.

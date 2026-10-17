@@ -20837,6 +20837,14 @@ third_party_rust.rust_library(
             "licenses": ["MIT"],
         },
     },
+    platform = {
+        "macos-arm64": dict(
+            features = ["fs"],
+        ),
+        "macos-x86_64": dict(
+            features = ["fs"],
+        ),
+    },
     rustc_flags = ["@$(location :nix-0.31-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
@@ -20864,6 +20872,14 @@ third_party_rust.rust_binary(
             "licenses": ["MIT"],
         },
     },
+    platform = {
+        "macos-arm64": dict(
+            features = ["fs"],
+        ),
+        "macos-x86_64": dict(
+            features = ["fs"],
+        ),
+    },
     visibility = [],
     deps = [":cfg_aliases-0.2"],
 )
@@ -20877,6 +20893,14 @@ third_party_rust.buildscript_run(
         "process",
         "signal",
     ],
+    platform = {
+        "macos-arm64": dict(
+            features = ["fs"],
+        ),
+        "macos-x86_64": dict(
+            features = ["fs"],
+        ),
+    },
     version = "0.31.3",
 )
 
@@ -37733,28 +37757,28 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "zip",
-    actual = ":zip-8",
+    actual = ":zip-9",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "zip-8.6.0.crate",
-    sha256 = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b",
-    strip_prefix = "zip-8.6.0",
-    urls = ["https://static.crates.io/crates/zip/8.6.0/download"],
+    name = "zip-9.0.4.crate",
+    sha256 = "a954114b47a54df49f83d2722814e86b23d4bb1b54a1b90fb7d92b41619ddc22",
+    strip_prefix = "zip-9.0.4",
+    urls = ["https://static.crates.io/crates/zip/9.0.4/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "zip-8",
-    srcs = [":zip-8.6.0.crate"],
+    name = "zip-9",
+    srcs = [":zip-9.0.4.crate"],
     crate = "zip",
-    crate_root = "zip-8.6.0.crate/src/lib.rs",
+    crate_root = "zip-9.0.4.crate/src/lib.rs",
     edition = "2024",
     env = {
         "CARGO_BIN_NAME": "zip",
         "CARGO_CRATE_NAME": "zip",
-        "CARGO_MANIFEST_DIR": "zip-8.6.0.crate",
+        "CARGO_MANIFEST_DIR": "zip-9.0.4.crate",
         "CARGO_PKG_AUTHORS": "Mathijs van de Nes <git@mathijs.vd-nes.nl>:Marli Frost <marli@frost.red>:Ryan Levick <ryan.levick@gmail.com>:Chris Hennick <hennickc@amazon.com>",
         "CARGO_PKG_DESCRIPTION": "Library to support the reading and writing of zip files.",
         "CARGO_PKG_HOMEPAGE": "",
@@ -37762,10 +37786,10 @@ third_party_rust.rust_library(
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/zip-rs/zip2",
         "CARGO_PKG_RUST_VERSION": "1.88",
-        "CARGO_PKG_VERSION": "8.6.0",
-        "CARGO_PKG_VERSION_MAJOR": "8",
-        "CARGO_PKG_VERSION_MINOR": "6",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION": "9.0.4",
+        "CARGO_PKG_VERSION_MAJOR": "9",
+        "CARGO_PKG_VERSION_MINOR": "0",
+        "CARGO_PKG_VERSION_PATCH": "4",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -37778,9 +37802,17 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "zip",
-            "version": "8.6.0",
+            "version": "9.0.4",
             "licenses": ["MIT"],
         },
+    },
+    platform = {
+        "macos-arm64": dict(
+            deps = [":nix-0.31"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":nix-0.31"],
+        ),
     },
     visibility = [],
     deps = [
