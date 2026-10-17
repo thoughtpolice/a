@@ -5,10 +5,13 @@
 //! response, by route.
 //!
 //! Remote Asset fetches clone repositories and download archives, which
-//! takes minutes; every other RPC is bounded far tighter, except for
-//! `Execute` and `WaitExecution`, which last as long as the action runs
-//! (its own timeout bounds it). A request out of time is answered
-//! `DEADLINE_EXCEEDED`.
+//! takes minutes; every other RPC is bounded far tighter. A request out of
+//! time is answered `DEADLINE_EXCEEDED`.
+//!
+//! The limit covers the time until a response starts. A streaming
+//! response, once started, goes on as long as it needs: `Execute` and
+//! `WaitExecution` answer at once with a stream of the operation's stages,
+//! which lasts as long as the action runs (its own timeout bounds it).
 
 use std::future::Future;
 use std::pin::Pin;
@@ -19,7 +22,7 @@ use std::time::Duration;
 /// Time limits per route; `None` is no limit.
 #[derive(Clone, Copy, Debug)]
 pub struct RequestTimeouts {
-    /// For every RPC but Remote Asset fetches and executions.
+    /// For every RPC but Remote Asset fetches.
     pub default: Option<Duration>,
     /// For the Remote Asset `Fetch` service.
     pub fetch: Option<Duration>,
@@ -32,8 +35,6 @@ pub struct RequestTimeout<S> {
     timeouts: RequestTimeouts,
     /// Path prefix of the Fetch service's methods: `/<service name>/`.
     fetch_prefix: Arc<str>,
-    /// Path prefix of the Execution service's methods.
-    execution_prefix: Arc<str>,
 }
 
 impl<S> RequestTimeout<S> {
@@ -41,23 +42,16 @@ impl<S> RequestTimeout<S> {
         use tonic::server::NamedService as _;
         type Fetch =
             protos::build::bazel::remote::asset::v1::fetch_server::FetchServer<api::FetchService>;
-        type Execution =
-            protos::build::bazel::remote::execution::v2::execution_server::ExecutionServer<
-                scheduler::ExecutionService,
-            >;
         Self {
             inner,
             timeouts,
             fetch_prefix: format!("/{}/", Fetch::NAME).into(),
-            execution_prefix: format!("/{}/", Execution::NAME).into(),
         }
     }
 
     fn limit(&self, path: &str) -> Option<Duration> {
         if path.starts_with(&*self.fetch_prefix) {
             self.timeouts.fetch
-        } else if path.starts_with(&*self.execution_prefix) {
-            None
         } else {
             self.timeouts.default
         }

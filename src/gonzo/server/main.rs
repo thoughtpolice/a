@@ -127,9 +127,9 @@ struct ServeArgs {
     #[arg(long, default_value_t = false)]
     tokio_console: bool,
 
-    /// Per-request timeout in seconds (0 = no timeout), for every RPC but
-    /// Remote Asset fetches (see --fetch-timeout) and executions, which last
-    /// as long as their actions
+    /// Per-request timeout in seconds (0 = no timeout) until a response
+    /// starts, for every RPC but Remote Asset fetches (see --fetch-timeout);
+    /// a streaming response, such as an execution's, may go on past it
     #[arg(long, default_value_t = 900, env = "GONZO_REQUEST_TIMEOUT")]
     request_timeout: u64,
 

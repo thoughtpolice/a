@@ -41,7 +41,6 @@ const FETCH_DIRECTORY: &str = "/build.bazel.remote.asset.v1.Fetch/FetchDirectory
 const FIND_MISSING: &str =
     "/build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs";
 const EXECUTE: &str = "/build.bazel.remote.execution.v2.Execution/Execute";
-const WAIT_EXECUTION: &str = "/build.bazel.remote.execution.v2.Execution/WaitExecution";
 
 #[tokio::test(start_paused = true)]
 async fn fetches_get_their_own_limit() {
@@ -80,17 +79,34 @@ async fn a_fetch_past_its_limit_is_cut_off() {
     assert_eq!(call(&mut svc, FIND_MISSING).await.body(), "done");
 }
 
+/// A response body that arrives whenever its sender sends it, as a
+/// streamed response's does.
+#[derive(Default)]
+struct Later(Option<tokio::sync::oneshot::Receiver<&'static str>>);
+
 #[tokio::test(start_paused = true)]
-async fn executions_last_as_long_as_their_actions() {
+async fn a_response_once_started_may_stream_past_the_limit() {
     let timeouts = RequestTimeouts {
         default: Some(Duration::from_secs(900)),
         fetch: Some(Duration::from_secs(1802)),
     };
-    // An hour: past every limit the server sets.
-    let mut svc = RequestTimeout::new(slow(Duration::from_secs(3600)), timeouts);
-    for path in [EXECUTE, WAIT_EXECUTION] {
-        let response = call(&mut svc, path).await;
-        assert_eq!(response.body(), "done", "{path}");
-        assert!(response.headers().get("grpc-status").is_none(), "{path}");
-    }
+    let (send, body) = tokio::sync::oneshot::channel();
+    let mut body = Some(body);
+    // Answers at once, as Execute does with the stream of its stages.
+    let at_once = tower::service_fn(move |_req: hyper::Request<()>| {
+        let body = body.take();
+        async move { Ok::<_, std::convert::Infallible>(hyper::Response::new(Later(body))) }
+    });
+    let mut svc = RequestTimeout::new(at_once, timeouts);
+    let req = hyper::Request::builder().uri(EXECUTE).body(()).unwrap();
+    let response = svc.ready().await.unwrap().call(req).await.unwrap();
+    assert!(response.headers().get("grpc-status").is_none());
+
+    // An hour on, past every limit the server sets, the body still comes.
+    tokio::time::sleep(Duration::from_secs(3600)).await;
+    send.send("done").unwrap();
+    let Later(Some(body)) = response.into_body() else {
+        panic!("the body was not passed through");
+    };
+    assert_eq!(body.await.unwrap(), "done");
 }
