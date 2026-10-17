@@ -5,21 +5,16 @@
 //!
 //! ```text
 //! # on the daemon's machine
-//! gonzo serve --accept-workers
-//! gonzo ticket
+//! gonzo serve      # says: gonzo-worker --join acid-bunny-crown-dwarf-ivory-swamp
+//! gonzo code       # says it again
 //!
 //! # on this one
-//! gonzo-worker --join <ticket>
+//! gonzo-worker --join acid-bunny-crown-dwarf-ivory-swamp
 //! ```
 //!
-//! or, with no ticket to pass around, a join code both know:
-//!
-//! ```text
-//! gonzo serve --cluster acid-bunny-crown-dwarf-ivory-swamp     # the daemon
-//! gonzo-worker --cluster acid-bunny-crown-dwarf-ivory-swamp    # its workers
-//! ```
-//!
-//! The worker dials the daemon over iroh, through relays and NATs as need
+//! The worker finds the daemon by its join code on the mainline DHT, or
+//! takes its ticket (`gonzo ticket`) where the DHT cannot be reached. It
+//! dials the daemon over iroh, through relays and NATs as need
 //! be, and runs the actions the daemon's scheduler sends it, reading
 //! inputs from the daemon's store and writing outputs back. It offers this
 //! machine's OS and architecture as Buck names them, `container-image=host`,
@@ -44,16 +39,11 @@ use protos::build::bazel::remote::execution::v2::platform::Property;
     name = "gonzo-worker",
     version = option_env!("depot_VERSION").unwrap_or("dev")
 )]
-#[command(group = clap::ArgGroup::new("daemon").required(true))]
 struct Args {
-    /// The ticket of the daemon to join, from `gonzo ticket` on its machine.
-    #[arg(long, env = "GONZO_WORKER_JOIN", group = "daemon")]
-    join: Option<mesh::JoinTicket>,
-
-    /// Join whichever daemon announces itself in this cluster (started
-    /// with the same --cluster) instead.
-    #[arg(long, env = "GONZO_CLUSTER", group = "daemon")]
-    cluster: Option<mesh::JoinCode>,
+    /// The daemon to join: its join code (`gonzo code` on its machine) or
+    /// its ticket (`gonzo ticket`).
+    #[arg(long, env = "GONZO_WORKER_JOIN", value_parser = join, value_name = "CODE|TICKET")]
+    join: Join,
 
     /// How many actions to run at once (default: one per CPU this process
     /// may use).
@@ -99,6 +89,21 @@ struct Args {
     /// syntax.
     #[arg(long, default_value = "info", env = "GONZO_LOG")]
     log: String,
+}
+
+/// The daemon `--join` names.
+#[derive(Clone, Debug)]
+enum Join {
+    Code(mesh::JoinCode),
+    Ticket(mesh::JoinTicket),
+}
+
+fn join(text: &str) -> Result<Join, String> {
+    // A ticket starts with `endpoint`, which no code does.
+    if text.trim_start().starts_with("endpoint") {
+        return text.parse().map(Join::Ticket).map_err(|e| e.to_string());
+    }
+    text.parse().map(Join::Code).map_err(|e| e.to_string())
 }
 
 fn property(text: &str) -> Result<Property, String> {
@@ -171,15 +176,14 @@ async fn serve(args: Args, runtime_info: runtime::RuntimeInfo) -> Result<()> {
         default_timeout: Duration::from_secs(args.action_timeout),
         max_timeout: Duration::from_secs(args.max_action_timeout),
     })?);
-    let daemon = match (args.join, args.cluster) {
-        (Some(ticket), _) => Daemon::Ticket(ticket),
-        (None, Some(code)) => Daemon::Cluster {
+    let daemon = match args.join {
+        Join::Ticket(ticket) => Daemon::Ticket(ticket),
+        Join::Code(code) => Daemon::Cluster {
             rendezvous: mesh::Cluster::rendezvous(&endpoint, None)
                 .context("failed to join the DHT to find the cluster's daemons")?,
             // Slow on purpose; see mesh::JoinCode.
             cluster: tokio::task::spawn_blocking(move || code.cluster()).await?,
         },
-        (None, None) => unreachable!("clap requires one"),
     };
     tracing::info!(
         worker = %endpoint.id(),
@@ -199,7 +203,7 @@ async fn serve(args: Args, runtime_info: runtime::RuntimeInfo) -> Result<()> {
     'serving: loop {
         let candidates = match daemon.candidates().await {
             Ok(candidates) if candidates.is_empty() => {
-                tracing::warn!("no daemon has announced itself in {daemon} yet");
+                tracing::warn!("no daemon has announced itself under {daemon} yet");
                 Vec::new()
             }
             Ok(candidates) => candidates,
@@ -276,7 +280,7 @@ impl std::fmt::Display for Daemon {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Ticket(ticket) => write!(f, "{}", ticket.daemon.id),
-            Self::Cluster { cluster, .. } => write!(f, "cluster {}", cluster.hint()),
+            Self::Cluster { cluster, .. } => write!(f, "code {}", cluster.hint()),
         }
     }
 }
@@ -365,19 +369,19 @@ mod tests {
     }
 
     #[test]
-    fn a_ticket_or_a_cluster_is_required() {
-        let code = mesh::JoinCode::generate().to_string();
+    fn join_takes_a_code_or_a_ticket() {
         assert!(Args::try_parse_from(["gonzo-worker"]).is_err());
-        assert!(Args::try_parse_from(["gonzo-worker", "--cluster", &code]).is_ok());
-        assert!(Args::try_parse_from(["gonzo-worker", "--cluster", "lab"]).is_err());
+        let code = mesh::JoinCode::generate();
+        let parsed = Args::try_parse_from(["gonzo-worker", "--join", &code.to_string()]).unwrap();
+        assert!(matches!(parsed.join, Join::Code(c) if c == code));
         let ticket = mesh::JoinTicket {
             daemon: mesh::EndpointAddr::new(mesh::SecretKey::generate().public()),
             key: mesh::JoinKey::generate(),
-        }
-        .to_string();
-        assert!(
-            Args::try_parse_from(["gonzo-worker", "--join", &ticket, "--cluster", &code]).is_err(),
-            "one or the other"
-        );
+        };
+        let parsed = Args::try_parse_from(["gonzo-worker", "--join", &ticket.to_string()]).unwrap();
+        assert!(matches!(parsed.join, Join::Ticket(t) if t == ticket));
+        let typo = join("acid-acorn-acre-acts-afar-xyzzy").unwrap_err();
+        assert!(typo.contains("xyzzy"), "{typo}");
+        assert!(join("endpointabc").is_err());
     }
 }

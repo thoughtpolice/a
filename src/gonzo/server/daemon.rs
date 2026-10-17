@@ -44,6 +44,9 @@ pub struct DaemonInfo {
     /// credential, which is why the file is the owner's alone.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ticket: Option<String>,
+    /// Its join code, if workers may join by code; a credential too.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
 }
 
 /// A daemon's claim on a local store, released when dropped.
@@ -144,6 +147,7 @@ mod tests {
             version: "test".into(),
             endpoint: None,
             ticket: Some("a ticket".into()),
+            code: None,
         }
     }
 

@@ -27,15 +27,25 @@ slot per CPU; `--local-worker-slots` to change it), and other machines can
 join it as workers over [iroh](https://www.iroh.computer), from anywhere:
 
 ```bash
-# on the daemon's machine
-buck2 run //src/gonzo -- serve --accept-workers
-buck2 run //src/gonzo -- ticket
+# on the daemon's machine: it prints its join code as it starts
+buck2 run //src/gonzo -- serve
+buck2 run //src/gonzo -- code      # prints it again
 
 # on another machine
-buck2 run //src/gonzo/worker/bin:gonzo-worker -- --join <ticket>
+buck2 run //src/gonzo/worker/bin:gonzo-worker -- --join acid-bunny-crown-dwarf-ivory-swamp
 ```
 
-The ticket is a credential: whoever holds it can join as a worker, and the
-daemon caches what its workers report. Removing `mesh/join-key` from the
-store's directory, and restarting, revokes every ticket. See
+The join code is six random words, made up the first time the daemon runs
+and kept in the store's directory (`mesh/join-code`). The daemon announces
+itself under it on the BitTorrent mainline DHT, where workers find it. What
+the DHT sees is derived from the code through Argon2id, so the code cannot
+be found by trying codes against it. Where the DHT cannot be reached,
+`gonzo ticket` prints a ticket, which carries the daemon's addresses
+instead (`--remote-workers ticket` to accept tickets alone, `off` to accept
+no remote workers).
+
+The code and the ticket are credentials: whoever holds one can join as a
+worker, and the daemon caches what its workers report. Removing
+`mesh/join-code` from the store's directory, and restarting, makes up a new
+code; removing `mesh/join-key` revokes every ticket. See
 [notes/execution.md](notes/execution.md) for the design.

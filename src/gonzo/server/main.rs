@@ -113,8 +113,24 @@ enum Command {
     Compact,
 
     /// Print the ticket that lets a worker join the daemon serving the
-    /// store (started with --accept-workers): `gonzo-worker --join TICKET`
+    /// store: `gonzo-worker --join TICKET`
     Ticket,
+
+    /// Print the join code that lets a worker join the daemon serving the
+    /// store, through the mainline DHT: `gonzo-worker --join CODE`
+    Code,
+}
+
+/// How workers on other machines join the daemon.
+#[derive(clap::ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+enum RemoteWorkers {
+    /// By the daemon's join code, which it announces itself under on the
+    /// mainline DHT, or by its ticket.
+    Code,
+    /// By its ticket alone.
+    Ticket,
+    /// Not at all.
+    Off,
 }
 
 #[derive(Parser, Debug)]
@@ -291,18 +307,19 @@ struct ServeArgs {
     #[arg(long, default_value_t = 20, env = "GONZO_WORKER_CACHE_GIB")]
     worker_cache_gib: u64,
 
-    /// Accept workers on other machines, which join over iroh with the
-    /// ticket `gonzo ticket` prints. The daemon becomes reachable through
-    /// iroh's relays and address lookup (n0's DNS, the mainline DHT, mDNS);
-    /// only workers holding the ticket may join.
-    #[arg(long, env = "GONZO_ACCEPT_WORKERS")]
-    accept_workers: bool,
+    /// How workers on other machines join, over iroh: by the six-word join
+    /// code `gonzo code` prints, or the ticket `gonzo ticket` does. The
+    /// daemon becomes reachable through iroh's relays and address lookup
+    /// (n0's DNS, the mainline DHT, mDNS); only workers holding the code or
+    /// the ticket may join, and the daemon caches what its workers report.
+    #[arg(long, value_enum, default_value_t = RemoteWorkers::Code, env = "GONZO_REMOTE_WORKERS")]
+    remote_workers: RemoteWorkers,
 
-    /// Also accept workers that know this join code (six words, such as
-    /// one an earlier daemon made up), and announce the daemon under it on
-    /// the mainline DHT so that they find it; implies --accept-workers.
-    #[arg(long, env = "GONZO_CLUSTER")]
-    cluster: Option<mesh::JoinCode>,
+    /// The join code to announce the daemon under, instead of the one kept
+    /// in the store's directory (`mesh/join-code`, made up the first time).
+    /// Daemons given the same code share their workers.
+    #[arg(long, env = "GONZO_JOIN_CODE")]
+    join_code: Option<mesh::JoinCode>,
 
     /// The timeout, in seconds, of an action that sets none.
     #[arg(long, default_value_t = 3600, env = "GONZO_ACTION_TIMEOUT")]
@@ -519,8 +536,10 @@ fn main() -> Result<()> {
         cli.store = Some(default_store()?);
     }
 
-    if let Some(Command::Ticket) = cli.command {
-        return print_ticket(&cli);
+    match cli.command {
+        Some(Command::Ticket) => return print_credential(&cli, Credential::Ticket),
+        Some(Command::Code) => return print_credential(&cli, Credential::Code),
+        _ => {}
     }
 
     let rt_info = runtime::init();
@@ -532,7 +551,7 @@ fn main() -> Result<()> {
     let command = match cli.command {
         Some(Command::Compact) => "compact",
         Some(Command::Serve(_)) | None => "serve",
-        Some(Command::Ticket) => unreachable!("handled above"),
+        Some(Command::Ticket | Command::Code) => unreachable!("handled above"),
     };
     let claimed = if cli.disable_dial9 {
         None
@@ -599,22 +618,32 @@ fn main() -> Result<()> {
     result
 }
 
-/// Print the join ticket of the daemon serving the store, from its
+/// What lets a worker join a daemon.
+#[derive(Clone, Copy)]
+enum Credential {
+    Ticket,
+    Code,
+}
+
+/// Print the join ticket or code of the daemon serving the store, from its
 /// `daemon.json`.
-fn print_ticket(cli: &Cli) -> Result<()> {
+fn print_credential(cli: &Cli, which: Credential) -> Result<()> {
     let store::StoreBackend::LocalFs(dir) = parse_backend(cli.store())? else {
-        anyhow::bail!("only a store on local disk records its daemon's ticket");
+        anyhow::bail!("only a store on local disk records its daemon's ticket and code");
     };
     let info = daemon::running(std::path::Path::new(&dir))
         .with_context(|| format!("no daemon is serving the store at {dir}"))?;
-    let ticket = info.ticket.with_context(|| {
+    let (credential, needs) = match which {
+        Credential::Ticket => (info.ticket, "--remote-workers code or ticket"),
+        Credential::Code => (info.code, "--remote-workers code"),
+    };
+    let credential = credential.with_context(|| {
         format!(
-            "the daemon serving {dir} (pid {}) does not accept workers; start it with \
-             --accept-workers",
+            "the daemon serving {dir} (pid {}) was not started with {needs}",
             info.pid
         )
     })?;
-    println!("{ticket}");
+    println!("{credential}");
     Ok(())
 }
 
@@ -824,7 +853,7 @@ async fn async_main(
 ) -> Result<()> {
     match cli.command {
         Some(Command::Compact) => run_compactor(&cli).await,
-        Some(Command::Ticket) => unreachable!("handled in main"),
+        Some(Command::Ticket | Command::Code) => unreachable!("handled in main"),
         Some(Command::Serve(ref args)) => {
             run_server(
                 &cli,
@@ -1239,26 +1268,34 @@ async fn run_server(
         None
     };
 
-    let remote_workers = if args.accept_workers || args.cluster.is_some() {
+    if args.join_code.is_some() && args.remote_workers != RemoteWorkers::Code {
+        anyhow::bail!("--join-code needs --remote-workers code");
+    }
+    let remote_workers = if args.remote_workers == RemoteWorkers::Off {
+        None
+    } else {
         let dir = store_dir.as_ref().map(|dir| dir.join("mesh"));
-        // Deriving a code's cluster is slow on purpose; see mesh::JoinCode.
-        let cluster = match args.cluster.clone() {
-            Some(code) => Some(tokio::task::spawn_blocking(move || code.cluster()).await?),
-            None => None,
+        let code = match (args.remote_workers, &args.join_code, &dir) {
+            (RemoteWorkers::Code, Some(code), _) => Some(code.clone()),
+            (RemoteWorkers::Code, None, Some(dir)) => Some(
+                mesh::JoinCode::load_or_create(&dir.join("join-code")).with_context(|| {
+                    format!("failed to read or make {}/join-code", dir.display())
+                })?,
+            ),
+            (RemoteWorkers::Code, None, None) => Some(mesh::JoinCode::generate()),
+            _ => None,
         };
         Some(
             remote_workers::start(
                 &frontend,
                 dir.as_deref(),
                 iroh_dial::Global::default(),
-                cluster.as_ref(),
+                code,
                 None,
                 stopped(),
             )
             .await?,
         )
-    } else {
-        None
     };
 
     if let Some(claim) = &claim {
@@ -1268,6 +1305,10 @@ async fn run_server(
             version: option_env!("depot_VERSION").unwrap_or("dev").to_string(),
             endpoint: remote_workers.as_ref().map(|r| r.endpoint.id().to_string()),
             ticket: remote_workers.as_ref().map(|r| r.ticket.to_string()),
+            code: remote_workers
+                .as_ref()
+                .and_then(|r| r.code.as_ref())
+                .map(ToString::to_string),
         })?;
     }
 

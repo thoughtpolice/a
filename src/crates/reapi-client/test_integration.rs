@@ -55,6 +55,9 @@ async fn start_server() -> (ServerGuard, ReapiClient) {
             "serve",
             "--address",
             &format!("127.0.0.1:{port}"),
+            // No iroh endpoint, nor announcing on the public DHT, in tests.
+            "--remote-workers",
+            "off",
         ])
         .spawn()
         .expect("spawn gonzo");
