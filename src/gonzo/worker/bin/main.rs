@@ -12,11 +12,11 @@
 //! gonzo-worker --join <ticket>
 //! ```
 //!
-//! or, with no ticket to pass around, a cluster name both know:
+//! or, with no ticket to pass around, a join code both know:
 //!
 //! ```text
-//! gonzo serve --cluster lab-7f3a91     # the daemon
-//! gonzo-worker --cluster lab-7f3a91    # its workers, anywhere
+//! gonzo serve --cluster acid-bunny-crown-dwarf-ivory-swamp     # the daemon
+//! gonzo-worker --cluster acid-bunny-crown-dwarf-ivory-swamp    # its workers
 //! ```
 //!
 //! The worker dials the daemon over iroh, through relays and NATs as need
@@ -53,7 +53,7 @@ struct Args {
     /// Join whichever daemon announces itself in this cluster (started
     /// with the same --cluster) instead.
     #[arg(long, env = "GONZO_CLUSTER", group = "daemon")]
-    cluster: Option<String>,
+    cluster: Option<mesh::JoinCode>,
 
     /// How many actions to run at once (default: one per CPU this process
     /// may use).
@@ -173,10 +173,11 @@ async fn serve(args: Args, runtime_info: runtime::RuntimeInfo) -> Result<()> {
     })?);
     let daemon = match (args.join, args.cluster) {
         (Some(ticket), _) => Daemon::Ticket(ticket),
-        (None, Some(name)) => Daemon::Cluster {
+        (None, Some(code)) => Daemon::Cluster {
             rendezvous: mesh::Cluster::rendezvous(&endpoint, None)
                 .context("failed to join the DHT to find the cluster's daemons")?,
-            cluster: mesh::Cluster::new(name),
+            // Slow on purpose; see mesh::JoinCode.
+            cluster: tokio::task::spawn_blocking(move || code.cluster()).await?,
         },
         (None, None) => unreachable!("clap requires one"),
     };
@@ -225,7 +226,7 @@ async fn serve(args: Args, runtime_info: runtime::RuntimeInfo) -> Result<()> {
                             e.context("the daemon and this worker do not share the ticket's key")
                         );
                     }
-                    // In a cluster, anyone who knows the name can announce
+                    // In a cluster, anyone who knows the code can announce
                     // themselves; try the next.
                     _ => tracing::warn!("{e:#}"),
                 },
@@ -275,7 +276,7 @@ impl std::fmt::Display for Daemon {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Ticket(ticket) => write!(f, "{}", ticket.daemon.id),
-            Self::Cluster { cluster, .. } => write!(f, "cluster {}", cluster.name()),
+            Self::Cluster { cluster, .. } => write!(f, "cluster {}", cluster.hint()),
         }
     }
 }
@@ -365,15 +366,17 @@ mod tests {
 
     #[test]
     fn a_ticket_or_a_cluster_is_required() {
+        let code = mesh::JoinCode::generate().to_string();
         assert!(Args::try_parse_from(["gonzo-worker"]).is_err());
-        assert!(Args::try_parse_from(["gonzo-worker", "--cluster", "lab"]).is_ok());
+        assert!(Args::try_parse_from(["gonzo-worker", "--cluster", &code]).is_ok());
+        assert!(Args::try_parse_from(["gonzo-worker", "--cluster", "lab"]).is_err());
         let ticket = mesh::JoinTicket {
             daemon: mesh::EndpointAddr::new(mesh::SecretKey::generate().public()),
             key: mesh::JoinKey::generate(),
         }
         .to_string();
         assert!(
-            Args::try_parse_from(["gonzo-worker", "--join", &ticket, "--cluster", "lab"]).is_err(),
+            Args::try_parse_from(["gonzo-worker", "--join", &ticket, "--cluster", &code]).is_err(),
             "one or the other"
         );
     }

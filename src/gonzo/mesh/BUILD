@@ -4,6 +4,7 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
+    "third-party//rust:argon2",
     "third-party//rust:blake3",
     "third-party//rust:hex",
     "third-party//rust:hyper-util",
@@ -20,10 +21,14 @@ DEPS = [
     "//src/crates/iroh-rendezvous",
 ]
 
+# words.rs is EFF's wordlist, and keeps EFF's copyright line.
+SRCLINT = {"spdx_exclude": ["words.rs"]}
+
 depot.rust_library(
     name = "mesh",
     srcs = glob(["*.rs"]),
     crate_root = "lib.rs",
+    srclint = SRCLINT,
     tests = [":tests"],
     visibility = ["//src/gonzo/..."],
     deps = DEPS,
@@ -33,6 +38,7 @@ depot.rust_test(
     name = "tests",
     srcs = glob(["*.rs"]),
     crate_root = "lib.rs",
+    srclint = SRCLINT,
     deps = DEPS + [
         "third-party//rust:dial9",
         "third-party//rust:tempfile",

@@ -64,7 +64,7 @@ pub async fn start(
             let rendezvous = mesh::Cluster::rendezvous(&endpoint, dht)
                 .context("failed to join the DHT to announce the cluster")?;
             tracing::info!(
-                cluster = cluster.name(),
+                cluster = cluster.hint(),
                 "announcing the daemon in its cluster"
             );
             Some(cluster.announce(&rendezvous))

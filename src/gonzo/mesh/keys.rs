@@ -22,21 +22,13 @@ pub fn load_or_create_identity(path: &Path) -> io::Result<SecretKey> {
 
 /// The secret a worker proves it knows to join a daemon, and the daemon
 /// proves back. A ticket carries a random one; a cluster's is derived from
-/// its name, so that everyone who knows the name has it.
+/// its join code, so that everyone who knows the code has it.
 #[derive(Clone, PartialEq, Eq)]
 pub struct JoinKey(pub(crate) [u8; 32]);
 
 impl JoinKey {
     pub fn generate() -> Self {
         Self(SecretKey::generate().to_bytes())
-    }
-
-    /// The key every member of the cluster called `name` shares.
-    pub fn for_cluster(name: &str) -> Self {
-        Self(blake3::derive_key(
-            "gonzo cluster join key v1",
-            name.as_bytes(),
-        ))
     }
 
     /// The key at `path`, or a new one written there.
@@ -67,10 +59,23 @@ impl FromStr for JoinKey {
     }
 }
 
-/// 32 bytes kept in hex at `path`, readable by the owner alone, made with
-/// `new` the first time.
+/// 32 bytes kept in hex at `path`, made with `new` the first time.
 fn load_or_create(path: &Path, new: impl FnOnce() -> [u8; 32]) -> io::Result<[u8; 32]> {
-    match read(path) {
+    let text = keep(path, || hex::encode(new()))?;
+    let mut bytes = [0; 32];
+    hex::decode_to_slice(text.trim(), &mut bytes).map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("{}: {e}", path.display()),
+        )
+    })?;
+    Ok(bytes)
+}
+
+/// The secret kept at `path`, or `new()`, written there first, readable by
+/// the owner alone.
+pub(crate) fn keep(path: &Path, new: impl FnOnce() -> String) -> io::Result<String> {
+    match std::fs::read_to_string(path) {
         Err(e) if e.kind() == io::ErrorKind::NotFound => {}
         read => return read,
     }
@@ -86,7 +91,7 @@ fn load_or_create(path: &Path, new: impl FnOnce() -> [u8; 32]) -> io::Result<[u8
         .truncate(true)
         .mode(0o600)
         .open(&partial)?;
-    writeln!(file, "{}", hex::encode(new()))?;
+    writeln!(file, "{}", new())?;
     file.sync_all()?;
     let linked = std::fs::hard_link(&partial, path);
     std::fs::remove_file(&partial)?;
@@ -95,19 +100,7 @@ fn load_or_create(path: &Path, new: impl FnOnce() -> [u8; 32]) -> io::Result<[u8
         Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
         Err(e) => return Err(e),
     }
-    read(path)
-}
-
-fn read(path: &Path) -> io::Result<[u8; 32]> {
-    let text = std::fs::read_to_string(path)?;
-    let mut bytes = [0; 32];
-    hex::decode_to_slice(text.trim(), &mut bytes).map_err(|e| {
-        io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("{}: {e}", path.display()),
-        )
-    })?;
-    Ok(bytes)
+    std::fs::read_to_string(path)
 }
 
 #[cfg(test)]
@@ -135,9 +128,7 @@ mod tests {
     }
 
     #[test]
-    fn a_cluster_key_follows_from_the_name() {
-        assert_eq!(JoinKey::for_cluster("lab"), JoinKey::for_cluster("lab"));
-        assert_ne!(JoinKey::for_cluster("lab"), JoinKey::for_cluster("lab2"));
+    fn a_key_round_trips_in_hex() {
         let key = JoinKey::generate();
         assert_eq!(key.to_string().parse::<JoinKey>().unwrap(), key);
     }

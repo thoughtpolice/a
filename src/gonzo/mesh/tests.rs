@@ -33,7 +33,7 @@ async fn a_worker_with_the_key_is_admitted_and_admits_the_daemon() {
     let (daemon, worker) = (endpoint(true).await, endpoint(false).await);
     let key = JoinKey::generate();
     let (to_daemon, to_worker) = connect(&daemon, &worker).await;
-    let keys = [JoinKey::for_cluster("other"), key.clone()];
+    let keys = [JoinKey::generate(), key.clone()];
     let (joined, admitted) = tokio::join!(
         join(&to_daemon, worker.id(), &key),
         admit(&to_worker, daemon.id(), &keys),
@@ -196,11 +196,11 @@ async fn a_worker_that_has_not_joined_gets_nothing() {
     assert!(checked.is_err(), "{checked:?}");
 }
 
-/// A worker that knows only the cluster's name finds the daemon on the
+/// A worker that knows only the daemon's join code finds the daemon on the
 /// DHT and joins it. The DHT is a private testnet on loopback, so this
 /// never touches the real mainline network.
 #[tokio::test(flavor = "multi_thread")]
-async fn a_worker_finds_and_joins_a_daemon_by_cluster_name() {
+async fn a_worker_finds_and_joins_a_daemon_by_its_code() {
     let testnet = iroh_rendezvous::n0_mainline::Testnet::new(5)
         .await
         .expect("a DHT testnet");
@@ -210,7 +210,7 @@ async fn a_worker_finds_and_joins_a_daemon_by_cluster_name() {
             .build()
             .expect("joining the testnet")
     };
-    let cluster = Cluster::new("lab-7f3a");
+    let cluster = JoinCode::generate().cluster();
     let (daemon, worker) = (endpoint(true).await, endpoint(false).await);
     let _stop = serve_health(&daemon, vec![JoinKey::generate(), cluster.key()]);
     let announcing = Cluster::rendezvous(&daemon, Some(dht())).expect("rendezvous");
@@ -231,7 +231,8 @@ async fn a_worker_finds_and_joins_a_daemon_by_cluster_name() {
     };
     assert_eq!(found, [daemon.id()]);
     assert!(
-        Cluster::new("lab-other")
+        JoinCode::generate()
+            .cluster()
             .daemons(&finding)
             .await
             .expect("finding")

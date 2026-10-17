@@ -8,14 +8,21 @@
 //! back. Every later stream of the connection then carries one HTTP/2
 //! connection, so the daemon's gRPC services serve over iroh as they do
 //! over TCP ([`serve`], [`channel`]). See `src/gonzo/notes/execution.md`.
+//!
+//! A worker finds the daemon by a ticket, which carries the daemon's ID,
+//! its addresses and its join key, or by the daemon's six-word
+//! [`JoinCode`], which names a [`Cluster`] on the mainline DHT.
 
 mod cluster;
+mod code;
 mod grpc;
 mod join;
 mod keys;
 mod ticket;
+mod words;
 
 pub use cluster::Cluster;
+pub use code::{JoinCode, ParseCodeError};
 pub use grpc::{Stream, bind, channel, serve};
 pub use iroh_rendezvous::{Announcer, Rendezvous, n0_mainline::Dht};
 pub use join::{CLOSE_REFUSED, HANDSHAKE_TIMEOUT, JoinError, admit, join};

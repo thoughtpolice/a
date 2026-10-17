@@ -298,12 +298,11 @@ struct ServeArgs {
     #[arg(long, env = "GONZO_ACCEPT_WORKERS")]
     accept_workers: bool,
 
-    /// Also accept workers that know this cluster name, and announce the
-    /// daemon under it on the mainline DHT so that they find it; implies
-    /// --accept-workers. Whoever knows the name can join, so make it hard
-    /// to guess.
+    /// Also accept workers that know this join code (six words, such as
+    /// one an earlier daemon made up), and announce the daemon under it on
+    /// the mainline DHT so that they find it; implies --accept-workers.
     #[arg(long, env = "GONZO_CLUSTER")]
-    cluster: Option<String>,
+    cluster: Option<mesh::JoinCode>,
 
     /// The timeout, in seconds, of an action that sets none.
     #[arg(long, default_value_t = 3600, env = "GONZO_ACTION_TIMEOUT")]
@@ -1242,7 +1241,11 @@ async fn run_server(
 
     let remote_workers = if args.accept_workers || args.cluster.is_some() {
         let dir = store_dir.as_ref().map(|dir| dir.join("mesh"));
-        let cluster = args.cluster.as_deref().map(mesh::Cluster::new);
+        // Deriving a code's cluster is slow on purpose; see mesh::JoinCode.
+        let cluster = match args.cluster.clone() {
+            Some(code) => Some(tokio::task::spawn_blocking(move || code.cluster()).await?),
+            None => None,
+        };
         Some(
             remote_workers::start(
                 &frontend,
