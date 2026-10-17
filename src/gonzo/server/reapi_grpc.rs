@@ -42,6 +42,18 @@ pub struct Frontend {
 }
 
 impl Frontend {
+    /// What clients and workers both use: the store's blobs.
+    fn store_routes(&self) -> tonic::service::Routes {
+        tonic::service::Routes::new(CapabilitiesServer::new(api::CapabilitiesService::new(true)))
+            .add_service(api::CasServer::new(
+                api::ContentAddressableStorageService::new(self.store.clone(), self.handle.clone()),
+            ))
+            .add_service(ByteStreamServer::new(api::ByteStreamService::new(
+                self.store.clone(),
+                self.handle.clone(),
+            )))
+    }
+
     /// Everything, for clients.
     fn client_routes(&self) -> tonic::service::Routes {
         let store = &self.store;
@@ -50,20 +62,13 @@ impl Frontend {
             .register_encoded_file_descriptor_set(tonic_health::pb::FILE_DESCRIPTOR_SET)
             .build_v1()
             .unwrap();
-        tonic::service::Routes::new(CapabilitiesServer::new(api::CapabilitiesService::new(true)))
-            .add_service(api::CasServer::new(
-                api::ContentAddressableStorageService::new(store.clone(), self.handle.clone()),
-            ))
+        self.store_routes()
             .add_service(ActionCacheServer::new(api::ActionCacheService::new(
                 store.clone(),
             )))
             .add_service(ExecutionServer::new(scheduler::ExecutionService::new(
                 self.scheduler.clone(),
                 store.clone(),
-            )))
-            .add_service(ByteStreamServer::new(api::ByteStreamService::new(
-                store.clone(),
-                self.handle.clone(),
             )))
             .add_service(OperationsServer::new(scheduler::OperationsService::new(
                 self.scheduler.clone(),
@@ -81,18 +86,10 @@ impl Frontend {
     /// What a worker needs: its inputs, somewhere to put its outputs, and
     /// a session with the scheduler.
     fn worker_routes(&self) -> tonic::service::Routes {
-        let store = &self.store;
-        tonic::service::Routes::new(CapabilitiesServer::new(api::CapabilitiesService::new(true)))
-            .add_service(api::CasServer::new(
-                api::ContentAddressableStorageService::new(store.clone(), self.handle.clone()),
-            ))
-            .add_service(ByteStreamServer::new(api::ByteStreamService::new(
-                store.clone(),
-                self.handle.clone(),
-            )))
+        self.store_routes()
             .add_service(SchedulerServer::new(scheduler::WorkerSessions::new(
                 self.scheduler.clone(),
-                store.clone(),
+                self.store.clone(),
             )))
     }
 }
