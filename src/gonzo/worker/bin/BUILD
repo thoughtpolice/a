@@ -13,6 +13,7 @@ DEPS = [
     "//src/crates/iroh-dial",
     "//src/crates/reapi-protos:protos",
     "//src/gonzo/mesh",
+    "//src/gonzo/runtime",
     "//src/gonzo/worker",
 ]
 

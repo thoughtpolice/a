@@ -54,7 +54,8 @@ struct Args {
     #[arg(long, env = "GONZO_CLUSTER", group = "daemon")]
     cluster: Option<String>,
 
-    /// How many actions to run at once (default: one per CPU).
+    /// How many actions to run at once (default: one per CPU this process
+    /// may use).
     #[arg(long, env = "GONZO_WORKER_SLOTS")]
     slots: Option<usize>,
 
@@ -105,9 +106,20 @@ fn property(text: &str) -> Result<Property, String> {
 /// The longest wait between attempts to reach the daemon.
 const MAX_BACKOFF: Duration = Duration::from_secs(60);
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let args = Args::parse();
+    // Before the runtime starts: this sizes it, raises the open file limit
+    // and fits the allocator to a memory limit.
+    let runtime_info = runtime::init();
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(runtime_info.effective_cpus)
+        .build()
+        .context("failed to start the tokio runtime")?
+        .block_on(serve(args, runtime_info))
+}
+
+async fn serve(args: Args, runtime_info: runtime::RuntimeInfo) -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::builder()
@@ -115,6 +127,7 @@ async fn main() -> Result<()> {
                 .with_context(|| format!("invalid --log filter {:?}", args.log))?,
         )
         .init();
+    runtime_info.emit_diagnostics();
 
     let dir = match args.dir {
         Some(dir) => dir,
@@ -133,9 +146,7 @@ async fn main() -> Result<()> {
             .map(|h| h.trim().to_string())
             .unwrap_or_else(|_| endpoint.id().fmt_short().to_string())
     });
-    let slots = args
-        .slots
-        .unwrap_or_else(|| std::thread::available_parallelism().map_or(1, std::num::NonZero::get));
+    let slots = args.slots.unwrap_or(runtime_info.effective_cpus);
     let worker = Arc::new(worker::Worker::new(worker::Config {
         name,
         properties,
