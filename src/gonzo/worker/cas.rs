@@ -29,6 +29,9 @@ pub const BATCH_BLOB_MAX: i64 = 1024 * 1024;
 /// room for the messages around them.
 const BATCH_BYTES: i64 = 3 * 1024 * 1024;
 
+/// Batches read at once.
+const PARALLEL_BATCHES: usize = 4;
+
 /// Most digests asked about in one FindMissingBlobs.
 const FIND_MISSING_MAX: usize = 4096;
 
@@ -66,19 +69,23 @@ impl Cas {
     ) -> Result<HashMap<Key, Bytes>> {
         let mut blobs = HashMap::with_capacity(digests.len());
         let mut missing = Vec::new();
-        for batch in batches(digests, |d| d.size_bytes) {
-            let response = self
-                .cas
-                .clone()
-                .batch_read_blobs(BatchReadBlobsRequest {
-                    instance_name: String::new(),
-                    digests: batch.to_vec(),
-                    acceptable_compressors: Vec::new(),
-                    digest_function: function.to_proto(),
-                })
-                .await
-                .context("BatchReadBlobs")?
-                .into_inner();
+        let requests: Vec<_> = batches(digests, |d| d.size_bytes)
+            .map(|batch| BatchReadBlobsRequest {
+                instance_name: String::new(),
+                digests: batch.to_vec(),
+                acceptable_compressors: Vec::new(),
+                digest_function: function.to_proto(),
+            })
+            .collect();
+        let cas = self.cas.clone();
+        let mut responses = futures::stream::iter(requests)
+            .map(move |request| {
+                let mut cas = cas.clone();
+                async move { cas.batch_read_blobs(request).await }
+            })
+            .buffer_unordered(PARALLEL_BATCHES);
+        while let Some(response) = responses.next().await {
+            let response = response.context("BatchReadBlobs")?.into_inner();
             for blob in response.responses {
                 let digest = blob
                     .digest
