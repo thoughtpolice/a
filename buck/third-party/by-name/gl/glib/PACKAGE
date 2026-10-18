@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "2.90.1",
+    description = """
+        GLib, the low-level core library of GNOME: data structures, a main
+        loop, threads, and portability wrappers. Only libglib-2.0 is built.
+    """,
+    license = "LGPL-2.1-or-later",
+    copyright = [
+        "1995-2026 The GLib contributors",
+    ],
+    visibility = ['PUBLIC'],
+    # config.h and glibconfig.h describe glibc on Linux. Set for the whole package, so its
+    # tests are skipped elsewhere along with the binaries they run.
+    target_compatible_with = [
+        "config//os:linux",
+    ],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://gitlab.gnome.org/GNOME/glib",
+        commit = "e05063ccc6c8f222465a1080927f4c14349f3de6",
+    ),
+)
