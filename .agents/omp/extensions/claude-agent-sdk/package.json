@@ -1,0 +1,23 @@
+{
+  "name": "omp-claude-agent-sdk",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Claude Max provider for OMP using the official Claude Agent SDK",
+  "omp": { "extensions": ["./index.ts"] },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.293",
+    "@modelcontextprotocol/sdk": "1.29.0"
+  },
+  "peerDependencies": {
+    "@oh-my-pi/pi-ai": ">=18.12.1",
+    "@oh-my-pi/pi-catalog": ">=18.12.1",
+    "@oh-my-pi/pi-coding-agent": ">=18.12.1"
+  },
+  "peerDependenciesMeta": {
+    "@oh-my-pi/pi-ai": { "optional": true },
+    "@oh-my-pi/pi-catalog": { "optional": true },
+    "@oh-my-pi/pi-coding-agent": { "optional": true }
+  }
+}
