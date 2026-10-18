@@ -1643,9 +1643,10 @@ echo "Redis at: $REDIS_PORT"
 
 #### Real-World Example: QEMU with TPM
 
-The `qemu-static` package demonstrates a sophisticated use of local resources:
+The `qemu` package's `qemu.run_qemu` rule can give a QEMU test a software
+TPM through a local resource:
 
-**Broker**: `buck/third-party/qemu-static/run-swtpm`
+**Broker**: `buck/third-party/by-name/qe/qemu/run-swtpm`
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
@@ -1661,52 +1662,67 @@ TPM=$!
 echo "{\"pid\": $TPM, \"resources\": [{\"socket_path\": \"$TMPDIR/swtpm/socket\"}]}"
 ```
 
-**Broker rule**: `buck/third-party/qemu-static/defs.bzl`
+**Broker rule**: `buck/third-party/by-name/qe/qemu/defs.bzl`
 ```starlark
-_swtpm_cmd = rule(
-    impl = lambda ctx: [
+def _swtpm_impl(ctx: AnalysisContext) -> list[Provider]:
+    script = ctx.attrs._script[DefaultInfo].default_outputs[0]
+    return [
         DefaultInfo(),
-        RunInfo(args = cmd_args(ctx.attrs._script[DefaultInfo].default_outputs[0])),
+        RunInfo(args = cmd_args(script)),
         LocalResourceInfo(
-            setup = cmd_args(ctx.attrs._script[DefaultInfo].default_outputs[0]),
+            setup = cmd_args(script),
             resource_env_vars = {
-                "SWTPM_SOCKET": "socket_path"
+                "SWTPM_SOCKET": "socket_path",
             },
         ),
-    ],
+    ]
+
+_swtpm = rule(
+    impl = _swtpm_impl,
     attrs = {
-        "_script": attrs.default_only(attrs.exec_dep(default = "third-party//by-name/qe/qemu-static:run-swtpm"))
-    }
+        "_script": attrs.default_only(attrs.exec_dep(default = "third-party//by-name/qe/qemu:run-swtpm")),
+    },
 )
 ```
 
-**Test (QEMU consuming the TPM)**: `buck/third-party/qemu-static/defs.bzl`
+**Test (QEMU consuming the TPM)**: `buck/third-party/by-name/qe/qemu/defs.bzl`
 ```starlark
-_run_qemu_impl = lambda ctx: [
-    DefaultInfo(),
-    RunInfo(args = cmd_args(['/usr/bin/env', 'bash', '-c',
-        cmd_args([
-            'qemu-system-' + ctx.attrs.system,
-            '-nographic',
-            '-chardev', 'socket,id=swtpm,path="$SWTPM_SOCKET"',  # Uses env var
-            '-tpmdev emulator,id=tpm0,chardev=swtpm',
-            '-device', 'tpm-tis-device,tpmdev=tpm0',
-        ] + ctx.attrs.args, delimiter = " ")
-    ])),
-    ExternalRunnerTestInfo(
-        type = "custom",
-        command = [cmd_args([...])],
-        local_resources = {
-            'swtpm': ctx.attrs.swtpm_broker.label
-        },
-        required_local_resources = [
-            RequiredTestLocalResource("swtpm", listing = False, execution = True),
-        ],
-    ),
-]
+def _run_qemu_impl(ctx: AnalysisContext) -> list[Provider]:
+    # One string for bash -c, so that $SWTPM_SOCKET expands when the test runs.
+    args = cmd_args(
+        [
+            ctx.attrs.qemu[RunInfo],
+            "-nographic",
+        ] + ctx.attrs.args + ([
+            "-chardev",
+            'socket,id=swtpm,path="$SWTPM_SOCKET"',  # Uses env var
+            "-tpmdev emulator,id=tpm0,chardev=swtpm",
+            "-device",
+            "tpm-tis-device,tpmdev=tpm0",
+        ] if ctx.attrs.swtpm_broker else []),
+        delimiter = " ",
+    )
+    cmd = cmd_args(["/usr/bin/env", "bash", "-c", args])
+
+    return [
+        DefaultInfo(),
+        RunInfo(args = cmd),
+        ExternalRunnerTestInfo(
+            type = "custom",
+            command = [cmd],
+            local_resources = {
+                "swtpm": ctx.attrs.swtpm_broker.label,
+            } if ctx.attrs.swtpm_broker else {},
+            required_local_resources = [
+                RequiredTestLocalResource("swtpm", listing = False, execution = True),
+            ] if ctx.attrs.swtpm_broker else [],
+        ),
+    ]
 ```
 
-This allows QEMU tests to use a software TPM without system dependencies.
+The emulator comes from the build (`third-party//by-name/qe/qemu:qemu-system-<system>`)
+and the TPM from `swtpm` on the PATH; the package's own `test-run-qemu`
+target uses both.
 
 #### Common Patterns and Best Practices
 
@@ -1879,7 +1895,7 @@ The local resources pattern enables hermetic, parallelizable integration tests b
 6. **Hermeticity**: No system dependencies, reproducible, cacheable
 
 For examples, see:
-- `buck/third-party/qemu-static/` - QEMU with TPM emulator
+- `buck/third-party/by-name/qe/qemu/` - QEMU with a TPM emulator
 - `buck/tests/local-resources/` - Example tests (HTTP, sockets, multi-resource)
 
 ### Running Binaries
