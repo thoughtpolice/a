@@ -113,6 +113,25 @@ var genericExceptions = []exception{
 		ID:     "OSV-2024-398",
 		Reason: "wabt use of an uninitialized value in BinaryReaderObjdump::PrintInitExpr; OSS-Fuzz 65975 is open with no fix",
 	},
+	// Three OSS-Fuzz crashes in QEMU's device models, open upstream. As with
+	// wabt, each range names an introduced commit and no fixed one, so every
+	// release since is affected. third-party//by-name/qe/qemu builds neither
+	// the MegaRAID SAS nor the SD host controller model, and virtio-gpu, which
+	// it does build, can only be driven there by the guest: the emulators are
+	// for local firmware and OS development on guests the developer controls.
+	// Remove these once upstream closes the reports.
+	{
+		ID:     "OSV-2021-820",
+		Reason: "QEMU virtio-gpu out-of-bounds read in virtio_gpu_disable_scanout, reachable only from the guest; OSS-Fuzz 34831 is open with no fix",
+	},
+	{
+		ID:     "OSV-2022-581",
+		Reason: "QEMU megasas heap overflow in megasas_map_sgl, a device the depot's QEMU does not build; OSS-Fuzz 49086 is open with no fix",
+	},
+	{
+		ID:     "OSV-2023-390",
+		Reason: "QEMU sdhci heap overflow in sdhci_write, a device the depot's QEMU does not build; OSS-Fuzz 58813 is open with no fix",
+	},
 }
 
 // NuGet packages under third-party//csharp, scanned from nuget.lock.
