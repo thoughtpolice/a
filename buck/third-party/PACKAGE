@@ -1,31 +1,10 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-load("@root//buck/shims:package.bzl", "pkg", "third_party_meta")
+load("@root//buck/shims:package.bzl", "pkg")
 
 # Vendored source keeps its upstream headers and formatting. The build files
 # here are this repository's own, and are still checked, but for their SPDX
 # headers.
 pkg.srclint(sources = False)
 
-third_party_meta([
-    'by-name/bo/boringssl',
-    'by-name/ca/capnproto',
-    'by-name/eg/egglog',
-    'by-name/is/isocline',
-    'by-name/li/libhegel',
-    'by-name/li/librseq',
-    'by-name/li/liburing',
-    'by-name/mi/mimalloc',
-    'by-name/qe/qemu-static',
-    'by-name/qu/quickjs-ng',
-    'by-name/sq/sqlite',
-    'by-name/wa/wabt',
-    'by-name/wo/wolfi',
-    'by-name/wu/wuffs',
-    'by-name/zl/zlib',
-    'by-name/zs/zstd',
-    'csharp',
-    'oci-images',
-    'rust',
-])

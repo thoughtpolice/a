@@ -273,6 +273,7 @@ func TestNPMPackageNameHandlesInstallPaths(t *testing.T) {
 }
 
 type mockAuditor struct {
+	packages       []string
 	responses      []auditResponse
 	calls          int
 	wolfiResponses []wolfiTargetResponse
@@ -286,6 +287,10 @@ func (m *mockAuditor) read(_ context.Context, _ ...string) (auditResponse, error
 	response := m.responses[m.calls]
 	m.calls++
 	return response, nil
+}
+
+func (m *mockAuditor) listPackages(_ context.Context) ([]string, error) {
+	return m.packages, nil
 }
 
 func (m *mockAuditor) readWolfiTargets(_ context.Context) (wolfiTargetResponse, error) {
@@ -307,33 +312,95 @@ func rawJSON(t *testing.T, value any) jsontext.Value {
 }
 
 func TestCollectGenericSubjects(t *testing.T) {
-	auditor := &mockAuditor{responses: []auditResponse{
-		{
-			"depot-third-party//": {
-				"meta.3p": rawJSON(t, []string{"foo", "rust", wolfiPackagePath, "bar"}),
-			},
+	foo := packageValues{
+		"meta.version": rawJSON(t, "1.2.3"),
+		"meta.osv": rawJSON(t, genericMetadata{
+			Type: "OsvPurlInfo", PURL: "pkg:generic/example/foo", Version: "1.2.3",
+		}),
+	}
+	auditor := &mockAuditor{
+		packages: []string{
+			"third-party//",
+			"third-party//bar",
+			"third-party//" + wolfiPackagePath,
+			"third-party//foo",
+			"third-party//foo/sub",
+			"third-party//rust",
 		},
-		{
-			"depot-third-party//foo": {
-				"meta.version": rawJSON(t, "1.2.3"),
-				"meta.osv": rawJSON(t, genericMetadata{
-					Type: "OsvPurlInfo", PURL: "pkg:generic/example/foo", Version: "1.2.3",
-				}),
-			},
+		responses: []auditResponse{{
+			// The cell's root, the Rust tree and Wolfi name no release.
+			"depot-third-party//":                    {},
+			"depot-third-party//rust":                {},
+			"depot-third-party//" + wolfiPackagePath: {"meta.license": rawJSON(t, "MIT")},
+			"depot-third-party//foo":                 foo,
+			// A subpackage inherits foo's values and is the same release.
+			"depot-third-party//foo/sub": foo,
 			"depot-third-party//bar": {
 				"meta.version": rawJSON(t, "2.0"),
 				"meta.osv": rawJSON(t, genericMetadata{
 					Type: "OsvGitRepoInfo", URL: "https://example.com/bar", Commit: "0123456789abcdef0123456789abcdef01234567",
 				}),
 			},
-		},
-	}}
+		}},
+	}
 	subjects, err := collectGenericSubjects(context.Background(), auditor)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(subjects) != 2 || subjects[0].Name != "third-party//foo" || subjects[1].Query.Commit != "0123456789abcdef0123456789abcdef01234567" {
+	if len(subjects) != 2 || subjects[0].Query.Commit != "0123456789abcdef0123456789abcdef01234567" || subjects[1].Name != "third-party//foo" {
 		t.Fatalf("unexpected subjects: %#v", subjects)
+	}
+}
+
+func TestCollectGenericSubjectsScansSubpackageWithItsOwnRelease(t *testing.T) {
+	auditor := &mockAuditor{
+		packages: []string{"third-party//foo", "third-party//foo/sub"},
+		responses: []auditResponse{{
+			"depot-third-party//foo": {
+				"meta.version": rawJSON(t, "1.0"),
+				"meta.osv":     rawJSON(t, genericMetadata{Type: "OsvPurlInfo", PURL: "pkg:generic/foo", Version: "1.0"}),
+			},
+			"depot-third-party//foo/sub": {
+				"meta.version": rawJSON(t, "2.0"),
+				"meta.osv":     rawJSON(t, genericMetadata{Type: "OsvPurlInfo", PURL: "pkg:generic/sub", Version: "2.0"}),
+			},
+		}},
+	}
+	subjects, err := collectGenericSubjects(context.Background(), auditor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(subjects) != 2 || subjects[1].Name != "third-party//foo/sub" {
+		t.Fatalf("unexpected subjects: %#v", subjects)
+	}
+}
+
+func TestCollectGenericSubjectsRejectsNoOSVPackages(t *testing.T) {
+	auditor := &mockAuditor{
+		packages:  []string{"third-party//"},
+		responses: []auditResponse{{"depot-third-party//": {}}},
+	}
+	if _, err := collectGenericSubjects(context.Background(), auditor); err == nil {
+		t.Fatal("collectGenericSubjects unexpectedly accepted a cell with no osv_info")
+	}
+}
+
+func TestPackagesOfTargets(t *testing.T) {
+	packages, err := packagesOfTargets([]string{
+		"depot-third-party//by-name/zl/zlib:libz",
+		"depot-third-party//by-name/zl/zlib:src",
+		"depot-third-party//:BUILD",
+		"third-party//oci-images:alpine",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"third-party//", "third-party//by-name/zl/zlib", "third-party//oci-images"}
+	if strings.Join(packages, " ") != strings.Join(want, " ") {
+		t.Fatalf("packagesOfTargets = %q, want %q", packages, want)
+	}
+	if _, err := packagesOfTargets([]string{"no-separator"}); err == nil {
+		t.Fatal("packagesOfTargets unexpectedly accepted a label without //")
 	}
 }
 
@@ -415,8 +482,7 @@ func TestWolfiSubjectsRejectsEmptySet(t *testing.T) {
 }
 
 func TestCollectGenericSubjectsReportsAllMetadataProblems(t *testing.T) {
-	auditor := &mockAuditor{responses: []auditResponse{
-		{"depot-third-party//": {"meta.3p": rawJSON(t, []string{"a", "b"})}},
+	auditor := &mockAuditor{packages: []string{"third-party//a", "third-party//b"}, responses: []auditResponse{
 		{
 			"depot-third-party//a": {"meta.version": rawJSON(t, "1")},
 			"depot-third-party//b": {
@@ -958,12 +1024,7 @@ func TestRunHarnessCaseNPMWithoutLockfile(t *testing.T) {
 func TestRunHarnessCaseGeneric(t *testing.T) {
 	server := harnessOSVServer(t)
 	cfg := harnessConfig(server, "")
-	auditor := &mockAuditor{responses: []auditResponse{
-		{
-			"depot-third-party//": {
-				"meta.3p": rawJSON(t, []string{"foo"}),
-			},
-		},
+	auditor := &mockAuditor{packages: []string{"third-party//foo"}, responses: []auditResponse{
 		{
 			"depot-third-party//foo": {
 				"meta.version": rawJSON(t, "1.2.3"),
@@ -991,12 +1052,7 @@ func TestRunHarnessCaseGenericExceptsGitRepoAdvisory(t *testing.T) {
 	})
 	server := harnessOSVServer(t)
 	cfg := harnessConfig(server, "")
-	auditor := &mockAuditor{responses: []auditResponse{
-		{
-			"depot-third-party//": {
-				"meta.3p": rawJSON(t, []string{"by-name/wi/widget"}),
-			},
-		},
+	auditor := &mockAuditor{packages: []string{"third-party//by-name/wi/widget"}, responses: []auditResponse{
 		{
 			"depot-third-party//by-name/wi/widget": {
 				"meta.version": rawJSON(t, "1.0.41+gaaaaaaa"),
@@ -1033,12 +1089,7 @@ func TestRunHarnessCaseGenericReportsUnusedExceptions(t *testing.T) {
 	withExceptions(t, genericSubject, exception{ID: "OSV-stale", Reason: "upstream fixed this"})
 	server := harnessOSVServer(t)
 	cfg := harnessConfig(server, "")
-	auditor := &mockAuditor{responses: []auditResponse{
-		{
-			"depot-third-party//": {
-				"meta.3p": rawJSON(t, []string{"foo"}),
-			},
-		},
+	auditor := &mockAuditor{packages: []string{"third-party//foo"}, responses: []auditResponse{
 		{
 			"depot-third-party//foo": {
 				"meta.version": rawJSON(t, "1.2.3"),

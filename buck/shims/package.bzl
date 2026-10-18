@@ -122,9 +122,6 @@ def __get_pkg_path() -> str:
         package_name(),
     )
 
-def third_party_meta(names: list[str]):
-    _meta_write_package_value("3p", names)
-
 # MARK: Source checks
 
 def _srclint(sources: bool) -> None:
@@ -152,7 +149,6 @@ def set_cfg_constructor(aliases = dict()):
 
 pkg = struct(
     info = _info,
-    third_party_meta = third_party_meta,
     srclint = _srclint,
     get_path = __get_pkg_path,
     version = lambda: read_package_value("meta.version"),

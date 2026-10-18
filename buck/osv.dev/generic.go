@@ -21,8 +21,17 @@ type buckAuditor struct {
 	isolationDir string
 }
 
+// thirdPartyPackages is every package of the third-party cell. The generic
+// scan covers the ones whose PACKAGE gives pkg.info an osv_info, so a new
+// package is scanned without being listed anywhere else: a list in the cell's
+// root PACKAGE would be inherited by every package below it, and so make
+// target determination select all of them, and their users, whenever it
+// changed.
+const thirdPartyPackages = "third-party//..."
+
 type packageAuditor interface {
 	read(context.Context, ...string) (auditResponse, error)
+	listPackages(context.Context) ([]string, error)
 }
 
 type packageValues map[string]jsontext.Value
@@ -51,6 +60,43 @@ func (b buckAuditor) read(ctx context.Context, targets ...string) (auditResponse
 		return nil, fmt.Errorf("buck returned no package metadata")
 	}
 	return response, nil
+}
+
+// listPackages returns the packages of thirdPartyPackages that have targets,
+// as "third-party//path".
+func (b buckAuditor) listPackages(ctx context.Context) ([]string, error) {
+	cmd := exec.CommandContext(ctx, b.path, "--isolation-dir", b.isolationDir, "uquery", thirdPartyPackages)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		message := strings.TrimSpace(stderr.String())
+		if message == "" {
+			message = err.Error()
+		}
+		return nil, fmt.Errorf("buck uquery third-party packages failed: %s", message)
+	}
+	return packagesOfTargets(strings.Fields(stdout.String()))
+}
+
+// packagesOfTargets maps target labels, cell-qualified however Buck spells the
+// cell, to the sorted set of their packages as "third-party//path".
+func packagesOfTargets(labels []string) ([]string, error) {
+	seen := make(map[string]struct{})
+	for _, label := range labels {
+		separator := strings.Index(label, "//")
+		colon := strings.LastIndex(label, ":")
+		if separator < 0 || colon < separator {
+			return nil, fmt.Errorf("unexpected target label %q", label)
+		}
+		seen["third-party//"+label[separator+2:colon]] = struct{}{}
+	}
+	packages := make([]string, 0, len(seen))
+	for pkg := range seen {
+		packages = append(packages, pkg)
+	}
+	sort.Strings(packages)
+	return packages, nil
 }
 
 func findPackageValues(response auditResponse, requested string) (packageValues, error) {
@@ -86,53 +132,47 @@ type genericMetadata struct {
 }
 
 func collectGenericSubjects(ctx context.Context, auditor packageAuditor) ([]subject, error) {
-	rootResponse, err := auditor.read(ctx, "third-party//")
+	packages, err := auditor.listPackages(ctx)
 	if err != nil {
 		return nil, err
 	}
-	root, err := findPackageValues(rootResponse, "third-party//")
+	if len(packages) == 0 {
+		return nil, fmt.Errorf("buck returned no third-party packages")
+	}
+	response, err := auditor.read(ctx, packages...)
 	if err != nil {
 		return nil, err
 	}
-	var packagePaths []string
-	if err := decodeRequired(root, "meta.3p", &packagePaths); err != nil {
-		return nil, fmt.Errorf("third-party//: %w", err)
-	}
-	if len(packagePaths) == 0 {
-		return nil, fmt.Errorf("third-party//: meta.3p is empty")
+	values := make(map[string]packageValues, len(packages))
+	for _, pkg := range packages {
+		if values[pkg], err = findPackageValues(response, pkg); err != nil {
+			return nil, err
+		}
 	}
 
-	seen := make(map[string]struct{}, len(packagePaths))
-	targets := make([]string, 0, len(packagePaths))
-	for _, packagePath := range packagePaths {
-		if packagePath == "rust" || packagePath == "csharp" || packagePath == wolfiPackagePath {
+	var targets []string
+	for _, pkg := range packages {
+		_, hasOSV := values[pkg]["meta.osv"]
+		_, hasVersion := values[pkg]["meta.version"]
+		// Neither: no pkg.info names an upstream release here (the cell's
+		// root, the Rust and C# trees, Wolfi's own pins). Only a version: a
+		// package that forgot its osv_info, which the checks below report.
+		if !hasOSV && !hasVersion {
 			continue
 		}
-		if packagePath == "" || path.IsAbs(packagePath) || path.Clean(packagePath) != packagePath || strings.Contains(packagePath, "//") {
-			return nil, fmt.Errorf("third-party//: invalid package path %q in meta.3p", packagePath)
+		if inheritsMetadata(pkg, values) {
+			continue
 		}
-		if _, duplicate := seen[packagePath]; duplicate {
-			return nil, fmt.Errorf("third-party//: duplicate package %q in meta.3p", packagePath)
-		}
-		seen[packagePath] = struct{}{}
-		targets = append(targets, "third-party//"+packagePath)
+		targets = append(targets, pkg)
 	}
 	if len(targets) == 0 {
-		return nil, fmt.Errorf("third-party//: no generic packages are listed")
+		return nil, fmt.Errorf("no third-party package declares osv_info")
 	}
 
-	response, err := auditor.read(ctx, targets...)
-	if err != nil {
-		return nil, err
-	}
 	subjects := make([]subject, 0, len(targets))
 	var problems []string
 	for _, target := range targets {
-		values, err := findPackageValues(response, target)
-		if err != nil {
-			problems = append(problems, err.Error())
-			continue
-		}
+		values := values[target]
 		var packageVersion string
 		if err := decodeRequired(values, "meta.version", &packageVersion); err != nil {
 			problems = append(problems, target+": "+err.Error())
@@ -187,6 +227,21 @@ func collectGenericSubjects(ctx context.Context, auditor packageAuditor) ([]subj
 		return nil, fmt.Errorf("invalid third-party OSV metadata:\n  - %s", strings.Join(problems, "\n  - "))
 	}
 	return subjects, nil
+}
+
+// inheritsMetadata says whether pkg is a subpackage that has its version and
+// OSV metadata only from its nearest ancestor package, which package values
+// are inherited from, and so stands for the same upstream release.
+func inheritsMetadata(pkg string, values map[string]packageValues) bool {
+	for dir := path.Dir(strings.TrimPrefix(pkg, "third-party//")); dir != "."; dir = path.Dir(dir) {
+		parent, ok := values["third-party//"+dir]
+		if !ok {
+			continue
+		}
+		own := values[pkg]
+		return bytes.Equal(own["meta.osv"], parent["meta.osv"]) && bytes.Equal(own["meta.version"], parent["meta.version"])
+	}
+	return false
 }
 
 func decodeRequired(values packageValues, key string, destination any) error {
