@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "4.9.5",
+    description = """
+        A general purpose TCP/IP emulator, used by virtual machine
+        hypervisors to provide user-mode networking.
+    """,
+    license = "BSD-3-Clause",
+    copyright = [
+        "1995-1996 Danny Gasparovski",
+        "2004-2008 Fabrice Bellard",
+        "2009-2026 The libslirp contributors",
+    ],
+    visibility = ['PUBLIC'],
+    # It is built against glib, which is Linux only here. Set for the whole package, so its
+    # tests are skipped elsewhere along with the binaries they run.
+    target_compatible_with = [
+        "config//os:linux",
+    ],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://gitlab.freedesktop.org/slirp/libslirp",
+        commit = "390848f47391f412451b2d259d8527fabb51e5e3",
+    ),
+)
