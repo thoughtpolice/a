@@ -1,3 +1,5 @@
+<file:buck/config/common>
+
 [cells]
 depot = .
 depot-cellar = cellar
@@ -30,19 +32,6 @@ fbsource = none
 # any time we could vendor it, or use a 'git' cell, if we needed to apply custom
 # patches
 prelude = bundled
-
-[buildfile]
-# for the sake of future compatibility and migrations, we don't want any
-# BUILD files in the project to use raw, un-imported symbols from the prelude
-# like 'cxx_library()'; we instead want to make sure every rule is explicitly
-# wrapped, load()ed and called, i.e. they should use 'depot.cxx_library()'
-# instead. do this by loading noprelude.bzl into every BUILD file, which will
-# stub out these bad symbols with an error message.
-includes = root//buck/shims/noprelude.bzl
-
-# also, 'BUILD' is a much better noun than 'BUCK', but sometimes BUCK is needed
-# when there are conflicts in case insensitive filesystems like macOS...
-name = BUILD,BUCK
 
 [buck2]
 # watchman is actually usable on all platforms

@@ -1,4 +1,4 @@
-<file:../.buckconfig.d/cells-common.include>
+<file:../buck/config/common>
 
 [cells]
 cellar = .
