@@ -159,7 +159,7 @@ content. Return a nonzero status on failure.
 
 - `src/chaos3/resource/main.go`: ephemeral loopback port, readiness pipe, JSON
   encoding, and failure cleanup before handing a child to Buck.
-- `buck/third-party/by-name/qe/qemu-static/defs.bzl` and `run-swtpm`: the broker
+- `buck/third-party/by-name/qe/qemu/defs.bzl` and `run-swtpm`: the broker
   provider, socket environment mapping, and test dependency wiring. Inspect its
   lifecycle before copying; add isolation and readiness checks where needed.
 - `docs/buck2.md`: background documentation for local resources. Prefer current
