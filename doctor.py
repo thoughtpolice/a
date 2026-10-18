@@ -55,7 +55,7 @@ def load_check_modules(checks_dir):
 
     Returns a list of tuples: (module, issue_id, issue_info) where:
     - module: The loaded Python module
-    - issue_id: Extracted from filename (e.g., "0001-check-all-dotslash.py" → "DOC-0001")
+    - issue_id: Extracted from filename (e.g., "0001-check-all-required-tools.py" → "DOC-0001")
     - issue_info: The module's ISSUE_INFORMATION dict (or None if not present)
     """
     modules = []
