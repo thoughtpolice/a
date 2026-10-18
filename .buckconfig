@@ -6,6 +6,10 @@ depot-toolchains = buck/toolchains
 depot-third-party = buck/third-party
 depot-tilde = tilde
 
+# these are required by the upstream buck2 prelude
+prelude = buck/prelude
+none = none
+
 [cell_aliases]
 root = depot
 cellar = depot-cellar
@@ -14,18 +18,113 @@ toolchains = depot-toolchains
 third-party = depot-third-party
 tilde = depot-tilde
 
+# these aliases are all required by the upstream buck2 prelude, with stubs for
+# meta-specific cells. 'config//' is occasionally useful for select() calls
+config = prelude
+buck = none
+fbcode = none
+fbsource = none
+
+[external_cells]
+# use the built-in prelude that is packaged inside of the buck2 executable. at
+# any time we could vendor it, or use a 'git' cell, if we needed to apply custom
+# patches
+prelude = bundled
+
 [buildfile]
-# 'BUILD' is a much better noun than 'BUCK', but sometimes BUCK is needed
+# for the sake of future compatibility and migrations, we don't want any
+# BUILD files in the project to use raw, un-imported symbols from the prelude
+# like 'cxx_library()'; we instead want to make sure every rule is explicitly
+# wrapped, load()ed and called, i.e. they should use 'depot.cxx_library()'
+# instead. do this by loading noprelude.bzl into every BUILD file, which will
+# stub out these bad symbols with an error message.
+includes = root//buck/shims/noprelude.bzl
+
+# also, 'BUILD' is a much better noun than 'BUCK', but sometimes BUCK is needed
 # when there are conflicts in case insensitive filesystems like macOS...
 name = BUILD,BUCK
 
-# for the sake of future compatibility and migrations, we don't want any BUILD
-# files in the project to use raw, un-imported symbols from the prelude like
-# 'cxx_library()'; we instead want to make sure every rule is explicitly
-# wrapped, load()ed and called, i.e. they should use 'depot.cxx_library()' instead.
-# do this by loading noprelude.bzl into every BUILD file, which will stub out
-# these bad symbols with an error message.
-includes = root//buck/shims/noprelude.bzl
+[buck2]
+# watchman is actually usable on all platforms
+file_watcher = watchman
+
+# store materializer state in sqlite. this means that the materializer state
+# will persist across restarts, kills, etc, effectively resulting in a local
+# action cache.
+sqlite_materializer_state = true
+sqlite_dep_file_state = true
+
+# defer writes on actions as long as possible. also will allow skipping writes
+# entirely w/ the on-disk sqlite materializer state
+defer_write_actions = true
+
+# enable 'buck2 clean --stale'
+clean_stale_enabled = true
+
+# background auto-clean stale artifacts with some default settings. note that
+# 'buck2 clean --stale' is not influenced by these and you must provide an
+# argument to --stale to override the defaults
+clean_stale_start_offset_hours = 1
+clean_stale_artifact_ttl_hours = 12
+clean_stale_period_hours = 24
+
+# upload every locally-executed action's result to the remote action cache
+# by default (unless an action turns it off)
+default_allow_cache_upload = true
+
+# enable content addressed actions by default
+declare_output_has_content_based_path_default = true
+action_has_content_based_path_default = true
+
+# 'buck2 test' should also build anything matching given target patterns
+test_builds_targets = true
+
+# 'A//B/C' is an alias for 'A//B/C:C' as it is in bazel
+infer_target_names = true
+
+# use sha256 since everything supports it. XXX FIXME (aseipp): blake3?
+digest_algorithms = SHA256
+
+# avoid thundering herd behaviors when batching large amounts of FindMissingBlob
+# requests: https://github.com/facebook/buck2/pull/1330
+deduplicate_get_digests_ttl_calls = true
+
+# These options are used to configure a "graph sketch" that roughly keeps track
+# of the size of the underlying graphs that buck2 uses. turn these on; they're
+# emitted as part of the build reports.
+log_total_configured_graph_sketch = true
+log_total_configured_graph_unconfigured_sketch = true
+log_configured_graph_unconfigured_sketch = true
+
+# deferred materialization requires that cache outputs never expire. if they
+# do, a command might fail if it expects a hit on an object that was supposed to
+# be an input. in that case, the buck2d daemon needs to restart to 'purge' its
+# knowledge of that object. this enables that.
+restarter = true
+
+# enable checking the peak memory in the interpreter, and also set a byte limit
+# for the interpreter. this is useful for catching runaway memory usage in BUILD
+# files just in case people start going crazy with them.
+check_starlark_peak_memory = true
+# also, enforce a max callstack size to prevent ridiculous stack sizes and
+# put a limit on how deep/abstract things can get.
+starlark_max_callstack_size = 50
+# default limit is 5MiB = 5 * 1024 * 1024 = 5242880 bytes. this is used by
+# starlark_memory_limit() by default if no limit is specified.
+default_starlark_peak_memory = 5242880
+
+[http]
+# Give slower upstream source mirrors time to connect and deliver data.
+connect_timeout_ms = 60000
+read_timeout_ms = 60000
+
+[buck2_re_client]
+# for larger blobs: set a larger gRPC timeout window so we can upload them in time
+grpc_timeout = 900
+
+[buck2_resource_control]
+status = if_available
+enable_suspension = true
 
 [test]
 # Tests whose verdict depends on data this repository does not control -- a
@@ -34,3 +133,53 @@ includes = root//buck/shims/noprelude.bzl
 # target directly still runs it, as does `--no-default-test-filters`, which is
 # what CI's dedicated jobs pass.
 default_exclude_labels = external-data
+
+[tdutil]
+# Paths outside Buck's own well-known configuration names whose modification
+# reconfigures the whole graph, and so must select every target rather than be
+# reasoned about target by target. tdutil recognizes .buckconfig, .bcfg,
+# .buckargs, .buckconfig.d/ and buckroot without being told; the rest live
+# somewhere only this repository knows about:
+#
+# - the build modes;
+# - the buck2 launcher, since the prelude is bundled into the binary and both
+#   endpoint graphs are read with the head's buck2, so a prelude change never
+#   shows up as a changed target;
+# - the platforms and the constraints that select() keys on, which no target
+#   depends on as a dep;
+# - the CI workflow and the script that drives it, so a change to how CI
+#   tests proves itself against everything.
+global_config_paths = \
+    buck/mode, \
+    buck/bin/buck2, \
+    buck/bin/buck2.exe, \
+    buck/platforms, \
+    buck/toolchains/cfg, \
+    .github/workflows/ci.yml, \
+    check.py
+
+# for now, cellar failures should not be relevant, so exclude them
+ignore_cells = depot-cellar
+
+[build]
+# set the execution platforms for builds on this machine: the host's default,
+# then, with remote execution on, remote workers of other cpus. NOTE: these
+# platform definitions are where remote execution (optionally) is enabled via
+# ExecutionPlatformRegistrationInfo
+execution_platforms = root//buck/platforms:execution
+
+[project]
+# things that should not be scanned by buck2 for file changes. if you notice
+# something strange is being scanned, it might be worth adding here.
+ignore = \
+  .jj, \
+  .git, \
+  .direnv, \
+  .watchman-cookie**, \
+  .gdb_history**, \
+  **.bck
+
+[alias]
+tdutil = root//buck/tools/tdutil:tdutil
+omnifix = root//buck/tools/omnifix:omnifix
+fozzie = root//src/fozzie:fozzie
