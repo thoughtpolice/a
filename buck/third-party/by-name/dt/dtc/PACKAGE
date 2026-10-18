@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "OsvGitRepoInfo", "pkg")
+
+pkg.info(
+    version = "1.8.1",
+    description = """
+        The Device Tree Compiler and libfdt, a library for reading and
+        writing flattened device trees. Only libfdt is built.
+    """,
+    license = "GPL-2.0-or-later OR BSD-2-Clause",
+    copyright = [
+        "2006-2026 David Gibson, IBM Corporation and the dtc contributors",
+    ],
+    visibility = ["PUBLIC"],
+    compatible_with = [
+        "config//os:linux",
+        "config//os:macos",
+    ],
+    osv_info = OsvGitRepoInfo(
+        url = "https://git.kernel.org/pub/scm/utils/dtc/dtc.git",
+        commit = "8f48565e5cfedc74d3f7512f1e0188e9d85dc1de",
+    ),
+)
