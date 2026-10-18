@@ -1,0 +1,172 @@
+/*
+ * SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/*
+ * The config-host.h meson.build would write for this build: an x86_64
+ * Linux host, glibc, clang, the system emulators only, and the libraries in
+ * third-party// (glib, pixman, libfdt, libslirp, zlib). A setting that
+ * meson.build leaves false is left out, as meson leaves it #undef.
+ *
+ * The host checks were answered by compiling meson.build's own probe
+ * programs, or its has_header/has_function equivalents, with the
+ * toolchain's clang against glibc 2.42. They hold for glibc 2.34 or newer
+ * (close_range, the newest function used here, arrived in 2.34).
+ *
+ * As in meson's output, a setting meson.build makes from a boolean is defined
+ * empty, and only the ones it sets to a number have a value: QEMU's
+ * IS_ENABLED() is true only of an empty definition.
+ *
+ * The @VERSION@ placeholders come from PACKAGE.
+ */
+
+/* Host */
+#define HOST_X86_64 1
+#define CONFIG_LINUX
+#define CONFIG_POSIX
+#define CONFIG_EPOLL
+#define HAVE_HOST_BLOCK_DEVICE
+#define CONFIG_HOST_DSOSUF ".so"
+
+/* Version */
+#define QEMU_VERSION "@VERSION@"
+#define QEMU_VERSION_MAJOR @VERSION_MAJOR@
+#define QEMU_VERSION_MINOR @VERSION_MINOR@
+#define QEMU_VERSION_MICRO @VERSION_MICRO@
+
+/*
+ * Installation paths, under meson's default prefix. CONFIG_RELOCATABLE makes
+ * QEMU resolve them against the directory of its executable, so the
+ * firmware search path is ../share/qemu next to the binary.
+ */
+#define CONFIG_RELOCATABLE
+#define CONFIG_PREFIX "/usr/local"
+#define CONFIG_BINDIR "/usr/local/bin"
+#define CONFIG_QEMU_CONFDIR "/usr/local/etc/qemu"
+#define CONFIG_QEMU_DATADIR "/usr/local/share/qemu"
+#define CONFIG_QEMU_DESKTOPDIR "/usr/local/share/applications"
+#define CONFIG_QEMU_FIRMWAREPATH "/usr/local/share/qemu-firmware",
+#define CONFIG_QEMU_HELPERDIR "/usr/local/libexec"
+#define CONFIG_QEMU_ICONDIR "/usr/local/share/icons"
+#define CONFIG_QEMU_LOCALEDIR "/usr/local/share/locale"
+#define CONFIG_QEMU_LOCALSTATEDIR "/usr/local/var"
+#define CONFIG_QEMU_MODDIR "/usr/local/lib/qemu"
+#define CONFIG_SYSCONFDIR "/usr/local/etc"
+#define CONFIG_SMBD_COMMAND "/usr/sbin/smbd"
+
+/* Accelerators. KVM itself is per target, in config-target.h. */
+#define CONFIG_TCG 1
+#define CONFIG_KVM_TARGETS "i386-softmmu" ,"x86_64-softmmu"
+
+/*
+ * Features and libraries: everything else meson.build can turn on (audio
+ * drivers, GUIs, TLS, compression, vhost, io_uring, modules, plugins, ...) is
+ * off.
+ */
+#define CONFIG_AUDIO_DRIVERS "",
+#define CONFIG_BDRV_RO_WHITELIST
+#define CONFIG_BDRV_RW_WHITELIST
+#define CONFIG_FDT
+#define CONFIG_L2TPV3
+#define CONFIG_PIXMAN
+#define CONFIG_SECRET_KEYRING
+#define CONFIG_SLIRP
+#define CONFIG_TPM
+#define CONFIG_VNC
+#define CONFIG_TLS_PRIORITY "NORMAL"
+#define CONFIG_TRACE_LOG
+#define CONFIG_TRACE_FILE "trace"
+
+/* Options at QEMU's defaults */
+#define CONFIG_ASAN_IFACE_FIBER
+#define CONFIG_COROUTINE_POOL
+#define CONFIG_QOM_CAST_DEBUG
+
+/* Guest agent features, which meson.build checks regardless */
+#define CONFIG_FSFREEZE
+#define CONFIG_FSTRIM
+
+/* Headers */
+#define CONFIG_LINUX_MAGIC_H
+#define HAVE_BTRFS_H
+#define HAVE_OPENAT2_H
+#define HAVE_PTY_H
+
+/* Functions */
+#define CONFIG_ACCEPT4
+#define CONFIG_CLOCK_ADJTIME
+#define CONFIG_CLOSE_RANGE
+#define CONFIG_DUP3
+#define CONFIG_FALLOCATE
+#define CONFIG_GETLOADAVG
+#define CONFIG_GETTID
+#define CONFIG_INOTIFY1
+#define CONFIG_MALLOC_TRIM
+#define CONFIG_MEMALIGN
+#define CONFIG_POSIX_FALLOCATE
+#define CONFIG_POSIX_MEMALIGN
+#define CONFIG_PPOLL
+#define CONFIG_PREADV
+#define CONFIG_SCHED_GETCPU
+#define CONFIG_SENDFILE
+#define CONFIG_SETNS
+#define CONFIG_SYNCFS
+#define CONFIG_SYNC_FILE_RANGE
+#define CONFIG_TIMERFD
+#define CONFIG_VALLOC
+#define HAVE_COPY_FILE_RANGE
+#define HAVE_GETIFADDRS
+#define HAVE_OPENPTY
+#define HAVE_STRCHRNUL
+#define HAVE_SYSTEM_FUNCTION
+
+/* Header symbols, members and types */
+#define CONFIG_AF_VSOCK
+#define CONFIG_BLKZONED
+#define CONFIG_FALLOCATE_PUNCH_HOLE
+#define CONFIG_FALLOCATE_ZERO_RANGE
+#define CONFIG_FIEMAP
+#define CONFIG_GETCPU
+#define CONFIG_GETRANDOM
+#define CONFIG_IOVEC
+#define CONFIG_PRCTL_PR_SET_TIMERSLACK
+#define CONFIG_RTNETLINK
+#define CONFIG_SYSMACROS
+#define HAVE_BLK_ZONE_REP_CAPACITY
+#define HAVE_IPPROTO_MPTCP
+#define HAVE_STRUCT_STAT_ST_ATIM
+#define HAVE_TCP_KEEPCNT
+#define HAVE_TCP_KEEPIDLE
+#define HAVE_TCP_KEEPINTVL
+#define HAVE_UTMPX
+
+/* Link checks */
+#define CONFIG_EVENTFD
+#define CONFIG_FDATASYNC
+#define CONFIG_GETAUXVAL
+#define CONFIG_MADVISE
+#define CONFIG_MEMFD
+#define CONFIG_OPEN_BY_HANDLE
+#define CONFIG_POSIX_MADVISE
+#define CONFIG_PTHREAD_AFFINITY_NP
+#define CONFIG_PTHREAD_CONDATTR_SETCLOCK
+#define CONFIG_PTHREAD_GETNAME_NP
+#define CONFIG_PTHREAD_SETNAME_NP_W_TID
+#define CONFIG_SIGNALFD
+#define HAVE_FSXATTR
+#define HAVE_MLOCKALL
+#define HAVE_MLOCK_ONFAULT
+
+/*
+ * 128-bit integers and atomics. CONFIG_ATOMIC128 needs -mcx16, which BUILD
+ * passes as meson.build does for its default x86-64-v1 baseline.
+ */
+#define CONFIG_INT128
+#define CONFIG_INT128_TYPE
+#define CONFIG_ATOMIC128
+
+/* x86 host instructions, chosen at run time */
+#define CONFIG_AVX2_OPT
+#define CONFIG_AVX512BW_OPT
+#define CONFIG_CPUID_H

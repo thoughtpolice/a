@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "11.1.2",
+    description = """
+        QEMU is an open source machine emulator and virtualizer. Only the
+        riscv64, aarch64 and x86_64 system emulators are built, with a small
+        set of mostly virtio devices.
+    """,
+    license = "GPL-2.0-only",
+    copyright = [
+        "2003-2026 Fabrice Bellard and the QEMU contributors",
+    ],
+    visibility = ['PUBLIC'],
+
+    # config-host.h, the TCG backend and the KVM accelerator are an x86_64
+    # Linux host's; an aarch64 host would need its own.
+    target_compatible_with = [
+        "config//os:linux",
+        "config//cpu:x86_64",
+    ],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://gitlab.com/qemu-project/qemu",
+        commit = "4fc49f46dc95d4a27de2509e7fceb2931e91faeb",
+    ),
+)
