@@ -122,6 +122,10 @@ fix = 'stack(@, 1)'
 # I use this all the time
 'stack1()' = 'stack(@,1)'
 
+# Somewhat common when looking at stack histories. Apparently something like
+# 'base_of(@)' is what's known as 'p4base' inside Google?
+'base_of(x)' = 'fork_point(x | trunk())'
+
 # The current set of "open" works. It is defined as: all stacks that are
 # reachable from my working copy, or any other commit I wrote.
 # n = 1, meaning that nothing from `trunk()` is included, so all resulting
