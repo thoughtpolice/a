@@ -1,6 +1,10 @@
 {
   "base_dir": "~/.local/share/claude/worktrees",
   "revision": "trunk()",
-  "run": [ "direnv allow" ],
+  "run": [
+    "ln -s .envrc.nix.recommended .envrc.local",
+    "direnv allow",
+    "printf '<file:buck/config/gonzo>\n\n[buck2_re_client]\ndefault_mode = cache-only\ncache_upload = true' > .buckconfig.local"
+  ],
   "symlinks": [ ]
 }
