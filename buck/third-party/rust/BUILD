@@ -27410,18 +27410,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "rustls-webpki-0.103.15.crate",
-    sha256 = "f3c3cf1d8b1e7d4927e2d154c3fcb02979afb9939629c62cd9048d4f07b60ac2",
-    strip_prefix = "rustls-webpki-0.103.15",
-    urls = ["https://static.crates.io/crates/rustls-webpki/0.103.15/download"],
+    name = "rustls-webpki-0.103.16.crate",
+    sha256 = "4443b1b6d39d7c663139942cc4558262562d2c84123bb6282ef177009ca8b281",
+    strip_prefix = "rustls-webpki-0.103.16",
+    urls = ["https://static.crates.io/crates/rustls-webpki/0.103.16/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "rustls-webpki-0.103",
-    srcs = [":rustls-webpki-0.103.15.crate"],
+    srcs = [":rustls-webpki-0.103.16.crate"],
     crate = "webpki",
-    crate_root = "rustls-webpki-0.103.15.crate/src/lib.rs",
+    crate_root = "rustls-webpki-0.103.16.crate/src/lib.rs",
     edition = "2021",
     features = [
         "alloc",
@@ -27430,7 +27430,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "rustls-webpki",
-            "version": "0.103.15",
+            "version": "0.103.16",
             "licenses": ["ISC"],
         },
     },
@@ -35389,23 +35389,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "webpki-roots-1.0.9.crate",
-    sha256 = "7dcd9d09a39985f5344844e66b0c530a33843579125f23e21e9f0f220850f22a",
-    strip_prefix = "webpki-roots-1.0.9",
-    urls = ["https://static.crates.io/crates/webpki-roots/1.0.9/download"],
+    name = "webpki-roots-1.0.10.crate",
+    sha256 = "1c1c8e20c8a38fc7d65abfe74eb7280e4aa667e8eec8bc84996d2874810748d9",
+    strip_prefix = "webpki-roots-1.0.10",
+    urls = ["https://static.crates.io/crates/webpki-roots/1.0.10/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "webpki-roots-1",
-    srcs = [":webpki-roots-1.0.9.crate"],
+    srcs = [":webpki-roots-1.0.10.crate"],
     crate = "webpki_roots",
-    crate_root = "webpki-roots-1.0.9.crate/src/lib.rs",
+    crate_root = "webpki-roots-1.0.10.crate/src/lib.rs",
     edition = "2021",
     metadata = {
         "third-party.metadata": {
             "name": "webpki-roots",
-            "version": "1.0.9",
+            "version": "1.0.10",
             "licenses": ["CDLA-Permissive-2.0"],
         },
     },
