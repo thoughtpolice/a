@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load(
-    "@prelude//python_bootstrap:python_bootstrap.bzl",
+    "@prelude//python_bootstrap:toolchain.bzl",
     "PythonBootstrapToolchainInfo",
 )
 
