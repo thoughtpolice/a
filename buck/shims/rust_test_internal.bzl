@@ -45,7 +45,7 @@ test into the library crate (activating cfg(test) and the test-only deps)
 instead of emitting a second crate with a duplicate root.
 """
 
-load("@prelude//decls:rust_rules.bzl", _prelude_rust_test = "rust_test")
+load("@prelude//rust:rust_binary.bzl", _prelude_rust_test = "rust_test")
 load(":test_internal.bzl", "internal_runner_from_external", "nonnegative_float_or_none")
 
 _LISTING_SUFFIX = ": test"
