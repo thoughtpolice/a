@@ -309,10 +309,6 @@ var wolfiExceptions = []exception{
 		Reason: "glibc-2.44 CVE-2026-97399: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
 	{
-		ID:     "CGA-wcq5-wxj2-j9rp",
-		Reason: "glibc-2.44 CVE-2026-97399: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
 		ID:     "CGA-3p64-pj6v-586c",
 		Reason: "glibc-2.44-locale-posix CVE-2026-8674: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
@@ -389,10 +385,6 @@ var wolfiExceptions = []exception{
 		Reason: "ld-linux-2.44 CVE-2026-97399: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
 	{
-		ID:     "CGA-v4q4-j4c8-88m4",
-		Reason: "ld-linux-2.44 CVE-2026-97399: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
 		ID:     "CGA-455w-rj3g-q384",
 		Reason: "posix-libc-utils-bin-2.44 CVE-2026-8674: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
@@ -431,6 +423,30 @@ var wolfiExceptions = []exception{
 	{
 		ID:     "CGA-w94f-2g4r-22gc",
 		Reason: "posix-libc-utils-bin-2.44 CVE-2026-97399: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	// CVE-2026-111943 (GO-2026-6809): Go 1.27.3 added a crypto/x509 denylist
+	// of emSign intermediates whose private keys leaked. containerd-2 and
+	// ctr-2 are built with go1.27.2, and Wolfi's newest builds (2.4.2-r0)
+	// predate go-1.27 1.27.3-r0, so there is no fixed version yet. On Linux
+	// Go verifies against the system roots, and the pinned
+	// ca-certificates-bundle (20260909-r3) no longer carries the emSign root
+	// those intermediates chain to. Remove these when Chainguard marks them
+	// fixed and the pins move to the rebuild.
+	{
+		ID:     "CGA-7j3j-q347-3xh3",
+		Reason: "containerd-2 CVE-2026-111943: built with go1.27.2, before the crypto/x509 emSign denylist; the pinned CA bundle drops the emSign root, accepted until a go1.27.3 rebuild",
+	},
+	{
+		ID:     "CGA-wfr7-pf8h-ww47",
+		Reason: "containerd-2 CVE-2026-111943: built with go1.27.2, before the crypto/x509 emSign denylist; the pinned CA bundle drops the emSign root, accepted until a go1.27.3 rebuild",
+	},
+	{
+		ID:     "CGA-c7hp-5w86-wvv8",
+		Reason: "ctr-2 CVE-2026-111943: built with go1.27.2, before the crypto/x509 emSign denylist; the pinned CA bundle drops the emSign root, accepted until a go1.27.3 rebuild",
+	},
+	{
+		ID:     "CGA-wg6r-5mq3-4c74",
+		Reason: "ctr-2 CVE-2026-111943: built with go1.27.2, before the crypto/x509 emSign denylist; the pinned CA bundle drops the emSign root, accepted until a go1.27.3 rebuild",
 	},
 	// Chainguard's advisory page lists this cni-plugins stdlib finding
 	// (CVE-2026-78669, GO-2026-6611 in the dhcp plugin) as fixed in 1.9.1-r16,

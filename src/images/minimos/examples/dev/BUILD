@@ -56,10 +56,11 @@ minimos.apk_culled_layer(
         "libattr1",
         "libbrotlicommon1",
         "libbrotlidec1",
+        "libbrotlienc1",
         "libcom_err",
         "libcurl-openssl4",
         "libidn2",
-        "libldap",
+        "libldap-2.7",
         "libnghttp2-14",
         "libproc-2-0",
         "libpsl",
@@ -71,6 +72,8 @@ minimos.apk_culled_layer(
         "sqlite-libs",
         "libssl3",
         "libcrypto3",
+        "openssl-4.0-libssl",
+        "openssl-4.0-libcrypto",
         "zlib",
         # Packages the base also uses, listed again for the parts the base
         # culls: glibc's libresolv, which krb5 links, ncurses's libncursesw

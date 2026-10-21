@@ -40,7 +40,7 @@ shims.run_test(
 # libraries they link or dlopen.
 MINIMOS_BASE = {
     "bash": ("5.3-r13", "55326f8afdd5061f463d74e0061b856c98c822404e4a06b17de65b5f91a60fe3"),
-    "ca-certificates-bundle": ("20260611-r1", "006012021d22e720b1832bb1eb92f53f7e917be65ae8ad80badd40a65eff5c5b"),
+    "ca-certificates-bundle": ("20260909-r3", "3ab79193fee767156a846f9cc91a4a0c1600741c3823fe036e007e2606c92d1f"),
     # Time sync. Note the build is -NTS: authenticated network time is not
     # on the table with this package, which is one reason the base takes
     # its time from the hypervisor's PTP clock instead of the network.
@@ -89,10 +89,18 @@ MINIMOS_BASE = {
     "wolfi-baselayout": ("20230201-r30", "0544802d073dac63485309a64a1f533735580bbbaa18b83a59058676c040c2fb"),
 }
 
-# TLS libraries shared by the minimos example services.
+# TLS libraries shared by the minimos example services. Wolfi is moving
+# from OpenSSL 3 to 4, which has its own sonames (libcrypto.so.4), so
+# both can ship side by side: libcurl and the libraries it loads have
+# moved, while the other pins here still link OpenSSL 3.
+# Keep each process on one of them; when bumping a package, move
+# everything that ends up in the same process along with it.
 CRYPTO = {
     "libcrypto3": ("3.6.4-r7", "611a5b9749a7c8ba9c62cea80e5e868c6bb7b5f58a89125099a3e2c1436f7f34"),
     "libssl3": ("3.6.4-r7", "f05850ab38a4d7206f804f5acd7c15c77ff0f209a1e096c5313286b70a317afb"),
+    # libcrypto.so.4 links brotli for certificate compression.
+    "openssl-4.0-libcrypto": ("4.0.3-r8", "d10eb0f17414cf586f7681baa3a15b942e09e3cf570f5de2a6799650671e067c"),
+    "openssl-4.0-libssl": ("4.0.3-r8", "47d1e6276be28279a15e45882ce4262330ef7a80d8f0294b89ba47330fc01c7b"),
 }
 
 # minimos example: valkey.
@@ -131,7 +139,7 @@ DEVTOOLS = {
     # user namespaces enabled.
     "bubblewrap": ("0.12.0-r0", "168a99ed4cd858fc1373239ea5bcb1bfdd961907013bdf58a1902a792554782c"),
     "coreutils": ("9.12-r2", "1c4cd0f5b5e65dc009d66a951b9964a874dc97e2d68bc611e21e2a60e50abc60"),
-    "curl": ("8.22.0-r2", "830bbdaa76fbc8395d3db3aba20b7fa533e7fda365e1a5325b7135986339fc04"),
+    "curl": ("8.23.0-r1", "c07fa9b1496617a9219c31cee02757475dca4e9ee1ec9624b3bc1628faeb67d0"),
     "diffutils": ("3.12-r7", "84d9b94ec5ad3642687eeb8af391b23afd48254f87bb7faf4268bcc18d6c57c6"),
     "findutils": ("4.11.0-r2", "4d2afb15bb8612291076909d93331682f2b81b365b6a6a9fa6a908b06e390458"),
     "gawk": ("5.4.1-r3", "05814690f92979b3b1509060f349a19e9797f0e84839687ba5dc5279c65b50c3"),
@@ -142,22 +150,26 @@ DEVTOOLS = {
     "gzip": ("1.14-r9", "8ac0cd9d0df4167d994f71ad9d4fed326a910181b89cfb64acb1ca0d19c3b2dd"),
     "jq": ("1.8.2-r2", "438d8ff4e57c13f5957f544b35efddbdfa4a9fb9ffa898a33e1b4f06316edb11"),
     "keyutils-libs": ("1.6.3-r40", "fed949d1e64467ba4c5f8ddabc9d898b3d2475d7dc2db3c4069f5dbfe1550400"),
-    "krb5-libs": ("1.22.2-r3", "8975622a6d9ecfd9875c01653b7a4e7d14b2de69ff8cfb94b658cfb81bb4d02d"),
+    "krb5-libs": ("1.22.2-r5", "c7118c9341898d7752b64fc61de65508e6fa29d45930192642da67814f20f833"),
     "less": ("710-r0", "6335f18bdf0f8d3328e917fb28bb7659f4d9a3c003cca7d6f23f8e3a387d787a"),
     "libattr1": ("2.6.0-r3", "dddc29015204ec417a96508d9ddce84628bcc34e1f44820951814ffe8d6642ea"),
     "libbrotlicommon1": ("1.2.0-r5", "ce2bbe259d5906f2d12592ea71e175f5d23f6437ad736a6506c1ec4f022926c9"),
     "libbrotlidec1": ("1.2.0-r5", "c21ea670f748f1d2b32c17199f8e1bc7e5188a5e2e9325adbffc05f3d8a7f074"),
+    "libbrotlienc1": ("1.2.0-r5", "de57f1002a3a764854757e8d22da91be457db133fc5e63df8503a99e83006ac8"),
     "libcom_err": ("1.47.4-r2", "23ca8006254dad6eaee4feb1b29f12d042f6214ea95c7fad9865d1c7c24ac1f9"),
-    "libcurl-openssl4": ("8.22.0-r2", "9000a78042230eb45315222e731c0472b0772d78010925be65892aa7fcc5e289"),
+    "libcurl-openssl4": ("8.23.0-r1", "4207bbb26e28cbb6370362c74f719f8320a8f47b0882e117881d95a571bea279"),
     "libidn2": ("2.3.8-r9", "75c10d044558781f8002156542d1b250b34f9e3cd135f7779f426c943c7a656c"),
-    "libldap": ("2.6.10-r5", "140df3743ee774109bec62bf0531321d2fbb501327cfbd855ab5a535ce3c4c90"),
+    # Wolfi split openldap into one package stream per release, like
+    # glibc; the plain libldap name stopped at 2.6.10. libcurl needs the
+    # 2.7 stream, the one built against OpenSSL 4.
+    "libldap-2.7": ("2.7.1-r2", "d5a416fe3b8b0c05f3722ef7b21275e95be03ab7873838d2f2e61847a84c8ca5"),
     "libnghttp2-14": ("1.70.0-r3", "cdc90205e0142d9ca0af3d8745125bd7a68e561af467ce624584a7f385f1b924"),
     "libproc-2-0": ("4.0.7-r1", "3482fbc6ce6df37cd5ead386f12033e8ed538971d9727668c923a26c1568b715"),
     "libpsl": ("0.23.3-r1", "4f36e4df35d55dd3f26c2a18386122e72f884fba1f9bc9628c07eb2e2b16319e"),
     "libunistring": ("1.4.2-r3", "a7d592a052801cf5026b55b256c83f2a1a61ba99b1fe7386187514032283042e"),
     "libverto": ("0.3.2-r8", "0f8ba3c1a124f996201b019e8c300b9f811a444d6040140794e359fb23c777b5"),
     "nghttp3": ("1.18.0-r1", "857408a1ea9daf5b7924a39609da89152add5e0e47a01cfa72a8b39bb8c478d9"),
-    "ngtcp2": ("1.25.0-r2", "736ef80b494708c25b3e8253b0318b723f8181fb36427a478e143cd6db267957"),
+    "ngtcp2": ("1.25.0-r5", "324f515085448dff9a7679894c52e3edc8f59fc6ee6efc36ca5d3807fb07bd22"),
     "oniguruma": ("6.9.10-r5", "f4cbff0609aa1c5f08e40e40590b7ac041f906e961722c0e17b417eff07176ba"),
     "patch": ("2.8-r10", "cf0bbb9b83ffc29a38baf72c577626e4e86632d787153d5f6a4d841f3e2d00be"),
     "procps": ("4.0.7-r1", "808656f0ec019afcafbf7c27a2e007a50d4c78117d93f31d19e44e2372ce9ac8"),
