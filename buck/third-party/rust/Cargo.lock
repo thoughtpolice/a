@@ -8908,6 +8908,7 @@ dependencies = [
  "rand 0.10.3",
  "ratatui",
  "rayon",
+ "regex",
  "reqwest",
  "rustls",
  "s3s",
@@ -8941,6 +8942,7 @@ dependencies = [
  "tracing-subscriber",
  "unicode-width 0.2.2",
  "uuid",
+ "wait4",
  "wasm-encoder",
  "wasm-smith",
  "wasmparser",
@@ -11381,6 +11383,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d9b2acfb050df409c972a37d3b8e08cdea3bddb0c09db9d53137e504cfabed0"
 dependencies = [
  "utf8parse",
+]
+
+[[package]]
+name = "wait4"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce2d6eb47d02e051093f3c8106983ed385e5c07700370f14dde91d14864cf12f"
+dependencies = [
+ "libc",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

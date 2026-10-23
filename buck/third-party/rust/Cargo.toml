@@ -159,6 +159,7 @@ quick_cache = { version = "0.6", default-features = false }
 rand = "0.10.3"
 ratatui = "0.30"
 rayon = "1.12.0"
+regex = "1.13.1"
 # NOTE (aseipp): no default features, ever: they pull in aws-lc-rs.
 rustls = { version = "0.23.46", default-features = false, features = ["std"] }
 # NOTE (aseipp): reqwest 0.13 flipped `default-tls` to rustls (which pulls
@@ -226,6 +227,7 @@ uuid = { version = "1.26.1", features = ["v4"] }
 wasm-encoder = { version = "0.259.0", features = ["wasmparser"] }
 wasm-smith = { version = "0.259.0", features = ["wasmparser"] }
 wasmparser = "0.259.0"
+wait4 = "0.2.0"
 wasmprinter = "0.259.0"
 wat = "1.259.0"
 watchman_client = "0.9.0"
