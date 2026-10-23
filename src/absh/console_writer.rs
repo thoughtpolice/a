@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: © 2020-2026 Stepan Koltsov <stepan.koltsov@gmail.com>
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: MIT
 
 use std::fmt;
+use std::io::IsTerminal;
 
 use crate::ansi::strip_csi;
 
@@ -11,7 +13,7 @@ pub struct ConsoleWriter {
 }
 
 fn is_tty() -> bool {
-    !cfg!(windows) && atty::is(atty::Stream::Stderr)
+    !cfg!(windows) && std::io::stderr().is_terminal()
 }
 
 impl ConsoleWriter {
