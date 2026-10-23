@@ -1,5 +1,12 @@
 # absh: A/B testing for shell scripts
 
+> [!NOTE]
+> This is a fork of [absh](https://github.com/stepancheg/absh) by Stepan Koltsov,
+> taken at `045b9e7` and kept under its original MIT license (see `LICENSE`).
+> It differs from upstream only in building with Buck2, allocating with
+> mimalloc, and using current dependencies: `std` replaces `atty`, `once_cell`
+> and `dirs`, and `rand` and `wait4` are on their latest releases.
+
 ```sh
 $ absh \
   -a "test a" \
@@ -19,13 +26,11 @@ B: distr=[   ▁▁▁▁▄▅▄▇▅▇█▂▃▅▃▅▃▁▁▂▃▃�
 B/A: 0.979 0.975..0.983 (95% conf)
 ```
 
-## How to install
+## How to run
 
 ```sh
-cargo install --git https://github.com/stepancheg/absh absh
+buck2 run //src/absh -- -a 'test a' -b 'test b'
 ```
-
-Cargo is a Rust package manager and build system. It can be downloaded [from rustup.rs](https://rustup.rs/).
 
 ## absh --help
 

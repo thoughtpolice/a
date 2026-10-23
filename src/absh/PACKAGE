@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    version = "0.0.0",
+    description = """
+        absh, A/B testing for shell scripts, by Stepan Koltsov. Forked from
+        https://github.com/stepancheg/absh at 045b9e7 and moved to current
+        dependencies; see README.md.
+    """,
+    # absh is Stepan Koltsov's work under the MIT license (LICENSE); the
+    # fork's changes are under the same license.
+    license = "MIT",
+    copyright = [
+        "© 2020-2026 Stepan Koltsov <stepan.koltsov@gmail.com>",
+        "© 2026 Austin Seipp",
+    ],
+    visibility = ["PUBLIC"],
+)
