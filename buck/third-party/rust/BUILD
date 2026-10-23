@@ -26585,6 +26585,12 @@ third_party_rust.rust_library(
     deps = [":cfg-if-1"],
 )
 
+shims.alias(
+    name = "regex",
+    actual = ":regex-1",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "regex-1.13.1.crate",
     sha256 = "f020237b6c8eed93db2e2cb53c00c60a8e1bc73da7d073199a1180401450218d",
@@ -34992,6 +34998,56 @@ third_party_rust.rust_library(
     deps = [":utf8parse-0.2"],
 )
 
+shims.alias(
+    name = "wait4",
+    actual = ":wait4-0.2",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "wait4-0.2.0.crate",
+    sha256 = "ce2d6eb47d02e051093f3c8106983ed385e5c07700370f14dde91d14864cf12f",
+    strip_prefix = "wait4-0.2.0",
+    urls = ["https://static.crates.io/crates/wait4/0.2.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "wait4-0.2",
+    srcs = [":wait4-0.2.0.crate"],
+    crate = "wait4",
+    crate_root = "wait4-0.2.0.crate/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "wait4",
+            "version": "0.2.0",
+            "licenses": ["MIT"],
+        },
+    },
+    platform = {
+        "linux-arm64": dict(
+            deps = [":libc-0.2"],
+        ),
+        "linux-x86_64": dict(
+            deps = [":libc-0.2"],
+        ),
+        "macos-arm64": dict(
+            deps = [":libc-0.2"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":libc-0.2"],
+        ),
+        "windows-gnu": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+    },
+    visibility = [],
+)
+
 shims.http_archive(
     name = "walkdir-2.5.0.crate",
     sha256 = "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b",
@@ -36696,6 +36752,7 @@ third_party_rust.rust_library(
         "Win32_System_Memory",
         "Win32_System_Performance",
         "Win32_System_Pipes",
+        "Win32_System_ProcessStatus",
         "Win32_System_Registry",
         "Win32_System_SystemInformation",
         "Win32_System_SystemServices",
