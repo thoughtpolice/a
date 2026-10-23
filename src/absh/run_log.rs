@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: © 2020-2026 Stepan Koltsov <stepan.koltsov@gmail.com>
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: MIT
 
 use std::fmt;
@@ -38,7 +39,7 @@ impl RunLog {
     }
 
     pub fn open() -> RunLog {
-        let home_dir = dirs::home_dir().expect("home_dir not found");
+        let home_dir = std::env::home_dir().expect("home_dir not found");
         let mut absh_logs_dir = home_dir.clone();
         absh_logs_dir.push(".absh/logs");
         let mut name = absh_logs_dir.clone();

@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: © 2020-2026 Stepan Koltsov <stepan.koltsov@gmail.com>
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: MIT
 
 use std::convert::TryInto;
@@ -21,8 +22,11 @@ use absh::opts::AbshOpts;
 use absh::run_log::RunLog;
 use absh::sh::spawn_sh;
 use clap::Parser;
-use rand::prelude::SliceRandom;
+use rand::seq::SliceRandom;
 use wait4::Wait4;
+
+#[global_allocator]
+static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn run_test(log: &mut RunLog, test: &mut Experiment, opts: &AbshOpts) -> anyhow::Result<()> {
     writeln!(log.both_log_and_stderr())?;
@@ -107,7 +111,7 @@ fn run_pair(
 ) -> anyhow::Result<()> {
     let mut indices: Vec<ExperimentName> = tests.keys().collect();
     if opts.random_order {
-        indices.shuffle(&mut rand::thread_rng());
+        indices.shuffle(&mut rand::rng());
     }
     for &index in &indices {
         run_test(log, tests.get_mut(index).unwrap(), opts)?;

@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: © 2020-2026 Stepan Koltsov <stepan.koltsov@gmail.com>
+// SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: MIT
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
+
 use regex::Regex;
 
 /// ANSI color.
@@ -49,7 +51,7 @@ pub const RESET: &str = "\x1B[0m";
 
 // https://en.wikipedia.org/wiki/ANSI_escape_code#CSIsection
 pub fn strip_csi(s: &str) -> String {
-    static REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("\x1b\\[[0-9]+[a-zA-Z]").unwrap());
+    static REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new("\x1b\\[[0-9]+[a-zA-Z]").unwrap());
     REGEX.replace_all(s, "").into_owned()
 }
 
