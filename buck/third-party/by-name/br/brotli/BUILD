@@ -8,7 +8,7 @@ VERSION = pkg.version()
 
 shims.http_archive(
     name = "src",
-    sha256 = "816c96e8e8f193b40151dad7e8ff37b1221d019dbcb9c35cd3fadbfe6477dfec",
+    sha256 = "98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f",
     strip_prefix = "brotli-{}".format(VERSION),
     sub_targets = [
         "c/common/constants.c",
@@ -63,7 +63,7 @@ shims.http_archive(
 # leaves out: files and their compressed forms from upstream's encoder.
 shims.http_archive(
     name = "testdata",
-    sha256 = "e8624d888f13067e7635353397cf42956bf4ca1382da67f9cec8d43e800deecb",
+    sha256 = "00a4375c03b7cf6bdb71ecb9ad6bec847f23affd52f27e75270efaf720219589",
     strip_prefix = "tests/testdata",
     type = "tar.xz",
     urls = [

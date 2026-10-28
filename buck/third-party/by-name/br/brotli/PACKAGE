@@ -4,7 +4,7 @@
 load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 
 pkg.info(
-    version = "1.2.0",
+    version = "1.2.1",
     description = """
         Brotli, a generic-purpose lossless compression algorithm.
     """,
@@ -15,6 +15,6 @@ pkg.info(
     visibility = ["PUBLIC"],
     osv_info = OsvGitRepoInfo(
         url = "https://github.com/google/brotli",
-        commit = "028fb5a23661f123017c060daa546b55cf4bde29",
+        commit = "db24a98aed38a16de78cc05ca15cdd8dc2a0d92d",
     ),
 )
