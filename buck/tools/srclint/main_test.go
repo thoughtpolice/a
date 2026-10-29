@@ -30,6 +30,7 @@ func TestSPDX(t *testing.T) {
 		{"bare year", "a.py", "# SPDX-FileCopyrightText: © " + year + " Someone\n# SPDX-License-Identifier: MIT\n", ""},
 		{"two copyright lines", "a.go", "// SPDX-FileCopyrightText: © " + year + " A\n// SPDX-FileCopyrightText: © " + year + " B\n// SPDX-License-Identifier: ISC\n", ""},
 		{"compound license", "a.c", "// SPDX-FileCopyrightText: © " + year + " A\n// SPDX-License-Identifier: MIT OR Apache-2.0\n", ""},
+		{"mpl", "a.rs", "// SPDX-FileCopyrightText: © " + year + " A\n// SPDX-License-Identifier: MPL-2.0\n", ""},
 		{"block comment", "a.css", header("/*", " */"), ""},
 		{"ocaml", "a.ml", header("(*", " *)"), ""},
 		{"html after doctype", "a.html", "<!DOCTYPE html>\n" + header("<!--", " -->"), ""},

@@ -26,6 +26,9 @@ var allowedLicenses = []string{
 	"BSD-2-Clause",
 	"BSD-3-Clause",
 	"ISC",
+	// File-level copyleft: code ported from an MPL project keeps its
+	// license, and the rest of the repository can still link it.
+	"MPL-2.0",
 	// Compound licenses, in both orderings.
 	"Apache-2.0 AND MIT",
 	"Apache-2.0 OR MIT",
