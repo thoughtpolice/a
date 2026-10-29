@@ -1,0 +1,6 @@
+#! /usr/bin/env scheme-script
+;; SPDX-FileCopyrightText: © 2016-2026 Austin Seipp
+;; SPDX-License-Identifier: BSD-3-Clause
+(import (chezscheme))
+
+(printf "hello world\n")

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: © 2016-2026 Austin Seipp
+# SPDX-License-Identifier: BSD-3-Clause
+echo hello world
+echo
+echo goodbye world
+exit 0

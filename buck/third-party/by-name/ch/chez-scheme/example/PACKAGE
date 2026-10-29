@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: © 2016-2026 Austin Seipp
+# SPDX-License-Identifier: BSD-3-Clause
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    description = "An example application framework for Chez Scheme, used as its tests.",
+    license = "BSD-3-Clause",
+    copyright = [
+        "2016-2026 Austin Seipp",
+    ],
+    # The kernel pins threads to cores with sched_setaffinity.
+    target_compatible_with = [
+        "config//os:linux",
+    ],
+)

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: © 2016-2026 Austin Seipp
+# SPDX-License-Identifier: BSD-3-Clause
+#
+# Runs @APPNAME@ from the binary distribution this script is in: the boot
+# files and the companion C library sit beside the executable.
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB="$DIR/../lib/@APPNAME@/@VERSION@"
+export APP_RTS_CLIBDIR="$LIB"
+export SCHEMEHEAPDIRS="$LIB"
+exec "$LIB/@APPNAME@.exe" "$@"
