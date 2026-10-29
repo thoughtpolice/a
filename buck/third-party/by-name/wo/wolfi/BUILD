@@ -65,7 +65,7 @@ MINIMOS_BASE = {
     # libcap.so.2, which needs nothing but libc.
     "libcap": ("2.78-r3", "dc83031936427b3ad7c9c627a36bab793df6381a7cdfc512796bd0eadafa31ed"),
     "libcap-ng": ("0.9.6-r0", "28a94408e0676f58e3847e141b60d1e635ae728de31d2a73f26fb027ab3561b4"),
-    "libexpat1": ("2.8.4-r0", "2aa592acf91515e05dcf42d86036093797d286a018dd8c32445c1c102efd0f59"),
+    "libexpat1": ("2.9.0-r0", "49291dad97f2292a5796c2cdb766f6476b274332ae2bbd3c35447d7f305f81a8"),
     "libgcc": ("16.2.0-r1", "6c41a73a5e07bfa17ff3fa6c64d0a898905168c780a04f2092eacb53545106db"),
     "liblz4-1": ("1.10.0-r10", "6101590621fdf09d741a45780cd1e9d11d96cb2d1da73ac6bf71e85029c2a5ed"),
     "libmount": ("2.42.3-r4", "abdd679d0f1b18fb1aa2dd09156cbc309fe87d8344676be9d6a179533d007551"),
@@ -91,8 +91,8 @@ MINIMOS_BASE = {
 
 # TLS libraries shared by the minimos example services. Wolfi is moving
 # from OpenSSL 3 to 4, which has its own sonames (libcrypto.so.4), so
-# both can ship side by side: libcurl and the libraries it loads have
-# moved, while the other pins here still link OpenSSL 3.
+# both can ship side by side: nginx, libcurl and the libraries libcurl
+# loads have moved, while the other pins here still link OpenSSL 3.
 # Keep each process on one of them; when bumping a package, move
 # everything that ends up in the same process along with it.
 CRYPTO = {
@@ -123,8 +123,8 @@ MEMCACHED = {
 # transition package, is what actually ships libcrypt.so.1.
 NGINX = {
     "libxcrypt": ("4.5.2-r5", "56db97bbb709ae6d15323e3e470584171f17ac46ae06e7f9dd66d343df7d014e"),
-    "nginx-mainline": ("1.31.6-r0", "e7cf286fcd87b8882f8d0aa9bb9a359930cc129f08edf60e028197bbb22c89e0"),
-    "nginx-mainline-mime-types": ("1.31.6-r0", "794664d7471aba650fea5f10b3bdd48951d0c9263f630eb9f85e9045f2176123"),
+    "nginx-mainline": ("1.31.8-r1", "428331fc00bf89c88e6e54943db74efbc06832548b0a752482e8e9ec3552eb02"),
+    "nginx-mainline-mime-types": ("1.31.8-r1", "8365ee137dd4b2e5438d6a0663e05f79e92c1bb5f1c54bb03d97fb561b5bdf81"),
     "zlib": ("1.3.2.1_rc20260601-r0", "113244c87aa28d7e98aca6d1460da28a0d73057a0dad84cc6e3442d639a7334a"),
 }
 
@@ -153,9 +153,9 @@ DEVTOOLS = {
     "krb5-libs": ("1.22.2-r5", "c7118c9341898d7752b64fc61de65508e6fa29d45930192642da67814f20f833"),
     "less": ("710-r0", "6335f18bdf0f8d3328e917fb28bb7659f4d9a3c003cca7d6f23f8e3a387d787a"),
     "libattr1": ("2.6.0-r3", "dddc29015204ec417a96508d9ddce84628bcc34e1f44820951814ffe8d6642ea"),
-    "libbrotlicommon1": ("1.2.0-r5", "ce2bbe259d5906f2d12592ea71e175f5d23f6437ad736a6506c1ec4f022926c9"),
-    "libbrotlidec1": ("1.2.0-r5", "c21ea670f748f1d2b32c17199f8e1bc7e5188a5e2e9325adbffc05f3d8a7f074"),
-    "libbrotlienc1": ("1.2.0-r5", "de57f1002a3a764854757e8d22da91be457db133fc5e63df8503a99e83006ac8"),
+    "libbrotlicommon1": ("1.2.1-r2", "fcc021ab88501ff5fcc1d74783df7f062bb7c260050565a9ca556db2537aedc5"),
+    "libbrotlidec1": ("1.2.1-r2", "bf2619bf5ab853dc8617c5f42fbba87f1cf1bf32e580322e22d49564554c31f6"),
+    "libbrotlienc1": ("1.2.1-r2", "e916a6a52270b1bf7ae14ca61f5b9a9dda068149c352ae8bf1cf10489dfe2959"),
     "libcom_err": ("1.47.4-r2", "23ca8006254dad6eaee4feb1b29f12d042f6214ea95c7fad9865d1c7c24ac1f9"),
     "libcurl-openssl4": ("8.23.0-r1", "4207bbb26e28cbb6370362c74f719f8320a8f47b0882e117881d95a571bea279"),
     "libidn2": ("2.3.8-r9", "75c10d044558781f8002156542d1b250b34f9e3cd135f7779f426c943c7a656c"),
@@ -190,12 +190,12 @@ DEVTOOLS = {
 # latches module loading off before anything could load one.
 CONTAINERS = {
     "cni-plugins": ("1.9.1-r16", "fdc7dcd4160ea4083cb5d7e97a3152066c76ed6551cca7913aca7cfd7c60096f"),
-    "containerd-2": ("2.4.1-r2", "711924bc8c2d001459d21d4d005edf21bbc5c71e512c83cde22dd0f942270a14"),
-    "ctr-2": ("2.4.1-r2", "1fa17fdc7dd75856a1d3fe3a048d53337f0f4c235d17b1aa5d64fcc909a3a00f"),
+    "containerd-2": ("2.4.2-r4", "2cb84613620771ee48e0b815dc5fa51f83058dad76a54e21eba598505058160a"),
+    "ctr-2": ("2.4.2-r4", "4dbaa4a120dcca328df42728a667aa73aabae6176c277857f5ef4d400efd6648"),
     "iptables": ("1.8.13-r4", "696cbf0f9ca46dd1a0f0c74a73c0c8b16ece2cdc15542b2b40a6ee20de0615e2"),
     "libmnl": ("1.0.5-r8", "916046fd5e2a6e707b00b6f2f3ae9534eca0eec3426a5e6a2a849bfa6d39c388"),
     "libnftnl": ("1.3.2-r0", "845c6e710018d5bbd6640658929f4d61db9ec9bce918cdec1682d98954e2e936"),
-    "nerdctl": ("2.4.1-r3", "d65c03075a54a094290b1211f39a6e08bf79d38f5cdd2cd1232e89bd4ef0f5a0"),
+    "nerdctl": ("2.4.1-r5", "4321063848a2eab6660dedc08cac3ac19145e917de9e03352203a0be59efe962"),
 }
 
 wolfi_apks(MINIMOS_BASE)
