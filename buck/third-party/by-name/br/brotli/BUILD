@@ -162,9 +162,15 @@ shims.cxx_binary(
     ],
 )
 
+# BrotliEncoderVersion() and BrotliDecoderVersion() pack the version as
+# major << 24 | minor << 12 | patch; checking it against the package's catches
+# a bump whose archive doesn't match.
+MAJOR, MINOR, PATCH = [int(x) for x in VERSION.split(".")]
+
 shims.cxx_binary(
     name = "test-roundtrip-bin",
     srcs = ["test.c"],
+    preprocessor_flags = ["-DEXPECTED_VERSION={}".format((MAJOR << 24) | (MINOR << 12) | PATCH)],
     deps = [
         ":brotlidec",
         ":brotlienc",

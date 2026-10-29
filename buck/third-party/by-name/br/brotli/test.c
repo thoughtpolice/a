@@ -48,8 +48,8 @@ static size_t compress_stream(const uint8_t *in, size_t n, uint8_t *out, size_t 
 }
 
 int main(void) {
-    CHECK(BrotliEncoderVersion() == 0x1002000);
-    CHECK(BrotliDecoderVersion() == 0x1002000);
+    CHECK(BrotliEncoderVersion() == EXPECTED_VERSION);
+    CHECK(BrotliDecoderVersion() == EXPECTED_VERSION);
 
     // Text-like data: words from a small vocabulary, chosen pseudorandomly.
     static const char *words[] = {"brotli", "buck", "compress", "the", "a", "window", "quality", "\n"};
