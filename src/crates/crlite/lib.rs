@@ -22,7 +22,12 @@
 //! ```
 //!
 //! A TLS client that has already verified the peer's chain knows the issuer,
-//! and can skip the intermediates lookup with [`Database::query_with_issuer`].
+//! and can skip the intermediates lookup with [`Database::query_chain`] or
+//! [`Database::query_with_issuer`].
+//!
+//! CRLite only covers end-entity certificates. Firefox catches revoked
+//! intermediates with OneCRL, in the `onecrl` crate; check the chain against
+//! both.
 //!
 //! Adapted from upstream's `rust-query-crlite`
 //! (<https://github.com/mozilla/crlite>). The difference is the crypto:
@@ -173,21 +178,23 @@ impl Intermediates {
     /// The SPKI, in DER, of an enrolled intermediate that signed `cert`.
     fn issuer_spki(&self, cert: &X509Certificate, cert_der: &[u8]) -> Option<Vec<u8>> {
         let candidates = self.0.get(cert.issuer().as_raw())?;
-        let leaf = openssl::x509::X509::from_der(cert_der).ok()?;
-        for der in candidates {
-            let Ok((_, issuer)) = X509Certificate::from_der(der) else {
-                continue;
-            };
+        candidates.iter().find_map(|der| {
+            let (_, issuer) = X509Certificate::from_der(der).ok()?;
             let spki = issuer.public_key().raw;
-            let Ok(key) = openssl::pkey::PKey::public_key_from_der(spki) else {
-                continue;
-            };
-            if leaf.verify(&key).unwrap_or(false) {
-                return Some(spki.to_vec());
-            }
-        }
-        None
+            signed_by(cert_der, spki).then(|| spki.to_vec())
+        })
     }
+}
+
+/// Whether the holder of `spki` signed a DER-encoded certificate.
+fn signed_by(cert_der: &[u8], spki: &[u8]) -> bool {
+    let Ok(cert) = openssl::x509::X509::from_der(cert_der) else {
+        return false;
+    };
+    let Ok(key) = openssl::pkey::PKey::public_key_from_der(spki) else {
+        return false;
+    };
+    cert.verify(&key).unwrap_or(false)
 }
 
 /// The CT log IDs and timestamps of a certificate's embedded SCTs, which
@@ -295,6 +302,26 @@ impl Database {
         Ok(self.query_parsed(&parse(cert_der)?, issuer_spki))
     }
 
+    /// The status of the leaf of a chain of DER-encoded certificates, leaf
+    /// first. The leaf's issuer is the next certificate if that signed it,
+    /// and is looked up among the enrolled intermediates otherwise. Only the
+    /// leaf is checked: CRLite has nothing to say about the rest.
+    pub fn query_chain<C: AsRef<[u8]>>(&self, chain: &[C]) -> Result<Status> {
+        let Some(leaf_der) = chain.first().map(AsRef::as_ref) else {
+            return Err(Error::new("empty certificate chain"));
+        };
+        if let Some(issuer_der) = chain.get(1).map(AsRef::as_ref) {
+            let (_, issuer) = X509Certificate::from_der(issuer_der)
+                .map_err(|_| Error::new("could not parse issuer certificate"))?;
+            let spki = issuer.public_key().raw;
+            if signed_by(leaf_der, spki) {
+                return self.query_with_issuer(leaf_der, spki);
+            }
+            debug!("The second certificate of the chain did not sign the first");
+        }
+        self.query(leaf_der)
+    }
+
     fn query_parsed(&self, cert: &X509Certificate, issuer_spki: &[u8]) -> Status {
         log_cert(cert);
         let issuer = IssuerSpkiHash(openssl::sha::sha256(issuer_spki));
@@ -342,11 +369,18 @@ fn log_cert(cert: &X509Certificate) {
     debug!("Serial number: {}", hex::encode(cert.raw_serial()));
 }
 
-/// Decode a certificate that is either PEM or DER.
-pub fn pem_or_der(input: &[u8]) -> Vec<u8> {
-    match x509_parser::pem::parse_x509_pem(input) {
-        Ok((_, pem)) => pem.contents,
-        Err(_) => input.to_vec(),
+/// The DER certificates in PEM input, in order, or the input itself if it
+/// isn't PEM and so might be a DER certificate.
+pub fn certificates(input: &[u8]) -> Vec<Vec<u8>> {
+    let pems: Vec<_> = x509_parser::pem::Pem::iter_from_buffer(input)
+        .map_while(|block| block.ok())
+        .filter(|pem| pem.label == "CERTIFICATE")
+        .map(|pem| pem.contents)
+        .collect();
+    if pems.is_empty() {
+        vec![input.to_vec()]
+    } else {
+        pems
     }
 }
 

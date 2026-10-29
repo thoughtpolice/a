@@ -3,7 +3,7 @@
 
 use clubcard_crlite::Encoding;
 
-use crate::{Database, INTERMEDIATES_FILE, Intermediates, Status, pem_or_der};
+use crate::{Database, INTERMEDIATES_FILE, Intermediates, Status, certificates};
 use crlite_fixture::{Fixture, spki};
 
 fn database(fixture: &Fixture, encoding: Encoding) -> (tempfile::TempDir, Database) {
@@ -106,12 +106,68 @@ fn intermediates_roundtrip() {
 }
 
 #[test]
-fn pem() {
+fn query_chain() {
     let fixture = Fixture::new();
-    let pem = openssl::x509::X509::from_der(&fixture.good.der)
-        .unwrap()
-        .to_pem()
-        .unwrap();
-    assert_eq!(pem_or_der(&pem), fixture.good.der);
-    assert_eq!(pem_or_der(&fixture.good.der), fixture.good.der);
+    // No intermediates file: the issuer comes from the chain.
+    let dir = tempfile::tempdir().unwrap();
+    fixture.write_filter(dir.path(), Encoding::V4);
+    let db = Database::load(dir.path()).unwrap();
+    let ca = &fixture.ca.der;
+    assert_eq!(
+        db.query_chain(&[&fixture.revoked.der, ca]).unwrap(),
+        Status::Revoked
+    );
+    assert_eq!(
+        db.query_chain(&[&fixture.good.der, ca]).unwrap(),
+        Status::Good
+    );
+    // A next certificate that didn't sign the leaf isn't its issuer, and
+    // without the intermediates nothing else is.
+    let other = &fixture.other_ca.der;
+    assert_eq!(
+        db.query_chain(&[&fixture.revoked.der, other]).unwrap(),
+        Status::NotEnrolled
+    );
+    assert_eq!(
+        db.query_chain(&[&fixture.revoked.der]).unwrap(),
+        Status::NotEnrolled
+    );
+    assert!(db.query_chain::<Vec<u8>>(&[]).is_err());
+}
+
+#[test]
+fn query_chain_falls_back_to_the_intermediates() {
+    let fixture = Fixture::new();
+    let (_dir, db) = database(&fixture, Encoding::V4);
+    let other = &fixture.other_ca.der;
+    assert_eq!(
+        db.query_chain(&[&fixture.revoked.der, other]).unwrap(),
+        Status::Revoked
+    );
+    assert_eq!(db.query_chain(&[&fixture.good.der]).unwrap(), Status::Good);
+}
+
+#[test]
+fn certificates_in_pem_or_der() {
+    let fixture = Fixture::new();
+    let pem = |der: &[u8]| {
+        openssl::x509::X509::from_der(der)
+            .unwrap()
+            .to_pem()
+            .unwrap()
+    };
+    let mut bundle = pem(&fixture.good.der);
+    bundle.extend(pem(&fixture.ca.der));
+    assert_eq!(
+        certificates(&bundle),
+        [fixture.good.der.clone(), fixture.ca.der.clone()]
+    );
+    assert_eq!(
+        certificates(&pem(&fixture.good.der)),
+        std::slice::from_ref(&fixture.good.der)
+    );
+    assert_eq!(
+        certificates(&fixture.good.der),
+        std::slice::from_ref(&fixture.good.der)
+    );
 }
