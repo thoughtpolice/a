@@ -28,6 +28,10 @@ instead, with no comparison at all; any further arguments go to buck2:
 
     buck2 test @check.py#everything
     ./check.py --everything @buck/ci.buckargs
+
+Read by buck2 as an argument file, it also prints the flags CI's test step
+gives buck2 with the list (see ARG_FILE_FLAGS), so that a local run tests what
+CI would. Run directly, as CI does, it prints the targets alone.
 """
 
 import sys
@@ -63,6 +67,12 @@ UNIVERSE = [
 # target that uses it is, for that target's platform, and a change to it still
 # selects those targets, since tdutil walks the whole graph.
 EXCLUDE = ["depot-third-party//rust:"]
+
+# What buck2 is told ahead of the targets when it reads this script as an
+# argument file, as CI's test step tells it: the list names targets whatever
+# platform they are for, and only those this host can build are wanted, rather
+# than an error for each of the rest.
+ARG_FILE_FLAGS = ["--skip-incompatible-targets"]
 
 # Flavors are what follows the '#' in '@check.py#quick', which buck2 hands to
 # an argument file as '--flavors quick'.
@@ -124,13 +134,25 @@ def names_universe(argv):
     return False
 
 
+def under_buck():
+    """Whether buck2 is reading this script's output as an argument file."""
+    return bool(os.environ.get("BUCK2_ARG_FILE"))
+
+
+def print_targets(labels):
+    """Print the targets, after ARG_FILE_FLAGS when buck2 reads them."""
+    if under_buck():
+        sys.stdout.writelines(flag + "\n" for flag in ARG_FILE_FLAGS)
+    sys.stdout.writelines(label + "\n" for label in labels)
+
+
 def status_stream():
     """Where progress goes: the terminal, wherever it can be found."""
     # buck2 captures an argument file's stderr and shows it only if the script
     # fails, so under buck2 a successful run would print nothing at all. Write
     # to the terminal directly then; with none, as in CI, stderr is all there
     # is.
-    if os.environ.get("BUCK2_ARG_FILE"):
+    if under_buck():
         try:
             return open("/dev/tty", "w")
         except OSError:
@@ -187,7 +209,7 @@ def everything(root, status, buck_args):
         return result.returncode
     labels = [line for line in result.stdout.splitlines() if line.strip()]
     status.write(f"{len(labels)} targets ({time.monotonic() - start:.1f}s)\n")
-    sys.stdout.writelines(label + "\n" for label in labels)
+    print_targets(labels)
     return 0
 
 
@@ -232,7 +254,7 @@ def main():
     noun = "target" if count == 1 else "targets"
     status.write(f"{count} {noun} ({time.monotonic() - start:.1f}s)\n")
     sys.stderr.write(result.stderr)
-    sys.stdout.writelines(label + "\n" for label in labels)
+    print_targets(labels)
     return 0
 
 
