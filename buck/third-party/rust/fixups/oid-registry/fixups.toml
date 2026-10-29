@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The build script turns assets/oid_db.txt into the OID constants that
+# src/lib.rs includes from OUT_DIR.
+buildscript.run = true
