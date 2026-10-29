@@ -349,3 +349,6 @@ pub fn pem_or_der(input: &[u8]) -> Vec<u8> {
         Err(_) => input.to_vec(),
     }
 }
+
+#[cfg(test)]
+mod tests;
