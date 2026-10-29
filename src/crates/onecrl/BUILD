@@ -19,6 +19,9 @@ depot.rust_library(
     name = "onecrl",
     srcs = ["lib.rs"],
     crate_root = "lib.rs",
+    # rust-analyzer merges a test target named `<library>-unittest` into the
+    # library crate.
+    tests = [":onecrl-unittest"],
     visibility = ["PUBLIC"],
     deps = DEPS,
 )
@@ -31,4 +34,17 @@ depot.filegroup(
     name = "testdata",
     srcs = glob(["testdata/**"]),
     visibility = ["//src/crates/crlite/..."],
+)
+
+depot.rust_test(
+    name = "onecrl-unittest",
+    srcs = [
+        "lib.rs",
+        "tests.rs",
+    ],
+    crate_root = "lib.rs",
+    run_env = {
+        "ONECRL_TESTDATA": "$(location :testdata)",
+    },
+    deps = DEPS,
 )

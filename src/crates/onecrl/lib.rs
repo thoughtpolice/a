@@ -203,3 +203,6 @@ pub fn update(path: &Path, instance: Instance) -> Result<OneCrl> {
         .map_err(|e| Error(format!("could not write {}: {e}", path.display())))?;
     Ok(onecrl)
 }
+
+#[cfg(test)]
+mod tests;
