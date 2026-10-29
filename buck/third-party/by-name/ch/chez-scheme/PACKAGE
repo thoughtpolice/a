@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "OsvGitRepoInfo", "pkg")
+
+pkg.info(
+    version = "10.4.1",
+    description = """
+        Chez Scheme, an optimizing native-code compiler and runtime for R6RS
+        Scheme.
+    """,
+    # The Nanopass framework the compiler is built with is MIT.
+    license = "Apache-2.0 AND MIT",
+    copyright = [
+        "1984-2026 Cisco Systems, Inc.",
+        "2000-2015 Dipanwita Sarkar, Andrew W. Keep, R. Kent Dybvig, Oscar Waddell",
+    ],
+    visibility = ["PUBLIC"],
+    # BUILD records configure's choices for these.
+    compatible_with = [
+        "config//os:linux",
+        "config//os:macos",
+    ],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/cisco/ChezScheme",
+        commit = "e95a7efbafa2cf3bd5343ea542e6bc909a7ab2c4",
+    ),
+)
