@@ -8,6 +8,8 @@ load("@root//src/images/minimos:defs.bzl", "minimos")
 
 # nginx, its upstream mime.types, and the libraries it links that the
 # base doesn't ship. The .so closure finds glibc and libpcre2 in the base.
+# Wolfi's nginx links OpenSSL 4 since 1.31.6-r3, and libcrypto.so.4 links
+# brotli for certificate compression.
 # nginx-mainline carries security fixes Wolfi hasn't backported to
 # nginx-stable, and both install the same paths.
 minimos.apk_culled_layer(
@@ -17,8 +19,11 @@ minimos.apk_culled_layer(
         "nginx-mainline-mime-types",
         "zlib",
         "libxcrypt",
-        "libssl3",
-        "libcrypto3",
+        "openssl-4.0-libssl",
+        "openssl-4.0-libcrypto",
+        "libbrotlicommon1",
+        "libbrotlidec1",
+        "libbrotlienc1",
     ],
 )
 
