@@ -22,3 +22,13 @@ depot.rust_library(
     visibility = ["PUBLIC"],
     deps = DEPS,
 )
+
+# The certificate chains of the eMudhra intermediate CA compromise of October
+# 2026, from https://emudhra.we-have-a-problem.com/ (chains.zip; the site is
+# Apache-2.0), and the OneCRL records that revoke those intermediates, taken
+# from the collection on 29 October 2026.
+depot.filegroup(
+    name = "testdata",
+    srcs = glob(["testdata/**"]),
+    visibility = ["//src/crates/crlite/..."],
+)
