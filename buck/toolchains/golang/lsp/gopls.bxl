@@ -12,6 +12,7 @@
             driver to assemble into go/packages' answer
 """
 
+load("@prelude//go:compile.bzl", "infer_package_root")
 load("@prelude//go:package_root.bzl", "strip_package_root")
 load("@prelude//go:packages.bzl", "GoPackageInfo")
 load("@toolchains//golang/x:defs.bzl", "GoImportableInfo")
@@ -52,6 +53,28 @@ def _abs(ctx: bxl.Context, artifact: Artifact):
     if artifact.is_source:
         return get_path_without_materialization(artifact, ctx, abs = True)
     return ctx.output.ensure(artifact).abs_path()
+
+def _package_root(ctx: bxl.Context, node: bxl.ConfiguredTargetNode, info: GoPackageInfo) -> str:
+    """The directory a Go target's sources are named relative to, as the
+    prelude's package_builder.bzl decides it."""
+    root = node.resolved_attrs_eager(ctx).package_root
+    return root if root != None else infer_package_root(info.srcs)
+
+def _go_list(ctx: bxl.Context, node: bxl.ConfiguredTargetNode, info: GoPackageInfo) -> Artifact:
+    """The `go list` output for a Go target's package. The prelude reads it
+    into a DynamicValue, not a provider, so this finds the action writing it,
+    which go_list.bzl names for the package. A go_test has another, for its
+    test main package."""
+    name = info.pkg_import_path.split("/")[-1]
+    outputs = [
+        output
+        for action in ctx.aquery().all_actions(node.label)
+        if str(action.attrs.category) == "go_list" and str(action.attrs.identifier) == name
+        for output in action.action().outputs()
+    ]
+    if len(outputs) != 1:
+        fail("{}: expected one go_list output named {}, found {}".format(node.label, name, outputs))
+    return outputs[0]
 
 def _setup_impl(ctx: bxl.Context) -> None:
     out = {}
@@ -162,10 +185,11 @@ def _packages_impl(ctx: bxl.Context) -> None:
                 libraries.append(str(dep.label.raw_target()))
                 queue.append((_unforward(ctx, dep), False))
 
+        package_root = _package_root(ctx, node, info)
         packages[id] = {
             "deps": libraries,
-            "files": {strip_package_root(src.short_path, info.package_root): _abs(ctx, src) for src in info.srcs},
-            "go_list": ctx.output.ensure(info.go_list_out).abs_path(),
+            "files": {strip_package_root(src.short_path, package_root): _abs(ctx, src) for src in info.srcs},
+            "go_list": ctx.output.ensure(_go_list(ctx, node, info)).abs_path(),
             "kind": kind,
             "pkg_path": info.pkg_import_path,
             "root": root,
