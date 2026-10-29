@@ -5725,23 +5725,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "ctutils-0.4.2.crate",
-    sha256 = "7d5515a3834141de9eafb9717ad39eea8247b5674e6066c404e8c4b365d2a29e",
-    strip_prefix = "ctutils-0.4.2",
-    urls = ["https://static.crates.io/crates/ctutils/0.4.2/download"],
+    name = "ctutils-0.4.4.crate",
+    sha256 = "12218662ccac37d9714f2191252553d67585b97df8c839cbe49e0bde278dc865",
+    strip_prefix = "ctutils-0.4.4",
+    urls = ["https://static.crates.io/crates/ctutils/0.4.4/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "ctutils-0.4",
-    srcs = [":ctutils-0.4.2.crate"],
+    srcs = [":ctutils-0.4.4.crate"],
     crate = "ctutils",
-    crate_root = "ctutils-0.4.2.crate/src/lib.rs",
+    crate_root = "ctutils-0.4.4.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "ctutils",
-            "version": "0.4.2",
+            "version": "0.4.4",
             "licenses": ["Apache-2.0 OR MIT"],
         },
     },
@@ -25801,23 +25801,23 @@ third_party_rust.cxx_library(
 )
 
 shims.http_archive(
-    name = "pulldown-cmark-0.13.4.crate",
-    sha256 = "e9f068eba8e7071c5f9511831b44f32c740d5adf574e990f946ddb53db2f314e",
-    strip_prefix = "pulldown-cmark-0.13.4",
-    urls = ["https://static.crates.io/crates/pulldown-cmark/0.13.4/download"],
+    name = "pulldown-cmark-0.13.5.crate",
+    sha256 = "278e9268c93b9e498a2da46c34d90ba93a3255eb99009646398f34bc73ab36eb",
+    strip_prefix = "pulldown-cmark-0.13.5",
+    urls = ["https://static.crates.io/crates/pulldown-cmark/0.13.5/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "pulldown-cmark-0.13",
-    srcs = [":pulldown-cmark-0.13.4.crate"],
+    srcs = [":pulldown-cmark-0.13.5.crate"],
     crate = "pulldown_cmark",
-    crate_root = "pulldown-cmark-0.13.4.crate/src/lib.rs",
+    crate_root = "pulldown-cmark-0.13.5.crate/src/lib.rs",
     edition = "2021",
     metadata = {
         "third-party.metadata": {
             "name": "pulldown-cmark",
-            "version": "0.13.4",
+            "version": "0.13.5",
             "licenses": ["MIT"],
         },
     },
@@ -33001,18 +33001,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "tokio-1.53.1.crate",
-    sha256 = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed",
-    strip_prefix = "tokio-1.53.1",
-    urls = ["https://static.crates.io/crates/tokio/1.53.1/download"],
+    name = "tokio-1.53.3.crate",
+    sha256 = "ce3335fa71841cda333a58d7615b03901380ecf09d59b3296d21f8bbac0dde4e",
+    strip_prefix = "tokio-1.53.3",
+    urls = ["https://static.crates.io/crates/tokio/1.53.3/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "tokio-1",
-    srcs = [":tokio-1.53.1.crate"],
+    srcs = [":tokio-1.53.3.crate"],
     crate = "tokio",
-    crate_root = "tokio-1.53.1.crate/src/lib.rs",
+    crate_root = "tokio-1.53.3.crate/src/lib.rs",
     edition = "2021",
     features = [
         "bytes",
@@ -33042,7 +33042,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "tokio",
-            "version": "1.53.1",
+            "version": "1.53.3",
             "licenses": ["MIT"],
         },
     },
@@ -38421,23 +38421,23 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "zip-9.0.4.crate",
-    sha256 = "a954114b47a54df49f83d2722814e86b23d4bb1b54a1b90fb7d92b41619ddc22",
-    strip_prefix = "zip-9.0.4",
-    urls = ["https://static.crates.io/crates/zip/9.0.4/download"],
+    name = "zip-9.0.5.crate",
+    sha256 = "6e04976da629d3b04204ba8105b396a193af8ad2583b2c79bfb3ab8af580a11e",
+    strip_prefix = "zip-9.0.5",
+    urls = ["https://static.crates.io/crates/zip/9.0.5/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "zip-9",
-    srcs = [":zip-9.0.4.crate"],
+    srcs = [":zip-9.0.5.crate"],
     crate = "zip",
-    crate_root = "zip-9.0.4.crate/src/lib.rs",
+    crate_root = "zip-9.0.5.crate/src/lib.rs",
     edition = "2024",
     env = {
         "CARGO_BIN_NAME": "zip",
         "CARGO_CRATE_NAME": "zip",
-        "CARGO_MANIFEST_DIR": "zip-9.0.4.crate",
+        "CARGO_MANIFEST_DIR": "zip-9.0.5.crate",
         "CARGO_PKG_AUTHORS": "Mathijs van de Nes <git@mathijs.vd-nes.nl>:Marli Frost <marli@frost.red>:Ryan Levick <ryan.levick@gmail.com>:Chris Hennick <hennickc@amazon.com>",
         "CARGO_PKG_DESCRIPTION": "Library to support the reading and writing of zip files.",
         "CARGO_PKG_HOMEPAGE": "",
@@ -38445,10 +38445,10 @@ third_party_rust.rust_library(
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/zip-rs/zip2",
         "CARGO_PKG_RUST_VERSION": "1.88",
-        "CARGO_PKG_VERSION": "9.0.4",
+        "CARGO_PKG_VERSION": "9.0.5",
         "CARGO_PKG_VERSION_MAJOR": "9",
         "CARGO_PKG_VERSION_MINOR": "0",
-        "CARGO_PKG_VERSION_PATCH": "4",
+        "CARGO_PKG_VERSION_PATCH": "5",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -38461,7 +38461,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "zip",
-            "version": "9.0.4",
+            "version": "9.0.5",
             "licenses": ["MIT"],
         },
     },
@@ -38574,12 +38574,6 @@ third_party_rust.rust_library(
     ],
 )
 
-shims.alias(
-    name = "zstd",
-    actual = ":zstd-0.13",
-    visibility = ["PUBLIC"],
-)
-
 shims.http_archive(
     name = "zstd-0.13.3.crate",
     sha256 = "e91ee311a569c327171651566e07972200e76fcfe2242a4fa446149a3881c08a",
@@ -38609,6 +38603,43 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [":zstd-safe-7"],
+)
+
+shims.alias(
+    name = "zstd",
+    actual = ":zstd-0.14",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "zstd-0.14.3.crate",
+    sha256 = "db3ae9bf90af6e40197bef767eeefc46ad6397420fe873830bd85e5fbbfb3c70",
+    strip_prefix = "zstd-0.14.3",
+    urls = ["https://static.crates.io/crates/zstd/0.14.3/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "zstd-0.14",
+    srcs = [":zstd-0.14.3.crate"],
+    crate = "zstd",
+    crate_root = "zstd-0.14.3.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "arrays",
+        "default",
+        "legacy",
+        "zdict_builder",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zstd",
+            "version": "0.14.3",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
+    visibility = [],
+    deps = [":zstd-safe-8"],
 )
 
 shims.http_archive(
@@ -38643,18 +38674,49 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "zstd-sys-2.1.0+zstd.1.5.7.crate",
-    sha256 = "0ef0a8027ec3ee71300ab3bcbcd0393f434aa72b91ca6d635a39941deae8eea0",
-    strip_prefix = "zstd-sys-2.1.0+zstd.1.5.7",
-    urls = ["https://static.crates.io/crates/zstd-sys/2.1.0+zstd.1.5.7/download"],
+    name = "zstd-safe-8.2.0.crate",
+    sha256 = "ded520f16b29e1a9b771c722221b2b0a0398c2316d9bb3c42b458a5414d7434b",
+    strip_prefix = "zstd-safe-8.2.0",
+    urls = ["https://static.crates.io/crates/zstd-safe/8.2.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "zstd-safe-8",
+    srcs = [":zstd-safe-8.2.0.crate"],
+    crate = "zstd_safe",
+    crate_root = "zstd-safe-8.2.0.crate/src/lib.rs",
+    edition = "2018",
+    features = [
+        "arrays",
+        "legacy",
+        "std",
+        "zdict_builder",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "zstd-safe",
+            "version": "8.2.0",
+            "licenses": ["BSD-3-Clause"],
+        },
+    },
+    visibility = [],
+    deps = [":zstd-sys-2"],
+)
+
+shims.http_archive(
+    name = "zstd-sys-2.1.2+zstd.1.5.7.crate",
+    sha256 = "481ada9c543b2323cbb7bbdbb5249177fbf0188ed959ed2c15e4b22421c84ed3",
+    strip_prefix = "zstd-sys-2.1.2+zstd.1.5.7",
+    urls = ["https://static.crates.io/crates/zstd-sys/2.1.2+zstd.1.5.7/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "zstd-sys-2",
-    srcs = [":zstd-sys-2.1.0+zstd.1.5.7.crate"],
+    srcs = [":zstd-sys-2.1.2+zstd.1.5.7.crate"],
     crate = "zstd_sys",
-    crate_root = "zstd-sys-2.1.0+zstd.1.5.7.crate/src/lib.rs",
+    crate_root = "zstd-sys-2.1.2+zstd.1.5.7.crate/src/lib.rs",
     edition = "2018",
     features = [
         "legacy",
@@ -38664,7 +38726,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "zstd-sys",
-            "version": "2.1.0+zstd.1.5.7",
+            "version": "2.1.2+zstd.1.5.7",
             "licenses": ["BSD-3-Clause"],
         },
     },
