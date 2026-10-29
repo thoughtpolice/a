@@ -27415,6 +27415,12 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "rustls-webpki",
+    actual = ":rustls-webpki-0.103",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "rustls-webpki-0.103.16.crate",
     sha256 = "4443b1b6d39d7c663139942cc4558262562d2c84123bb6282ef177009ca8b281",

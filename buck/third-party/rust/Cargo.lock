@@ -8911,6 +8911,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rustls",
+ "rustls-webpki",
  "s3s",
  "salsa",
  "serde",

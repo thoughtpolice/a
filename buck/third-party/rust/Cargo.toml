@@ -174,6 +174,11 @@ reqwest = { version = "0.13.5", default-features = false, features = [
     "stream",
     "system-proxy",
 ] }
+# NOTE (rustls-webpki): rustls-transport builds verified paths itself, to
+# check them against CRLite and OneCRL. No crypto backend features (ring,
+# aws-lc-rs): signatures are verified with the rustls provider's algorithms.
+# Keep in step with the version rustls resolves.
+rustls-webpki = { version = "0.103.16", default-features = false, features = ["std"] }
 # chaos3 needs only s3s's core protocol adapter, not its optional TLS backends.
 s3s = { version = "0.16.1", default-features = false }
 salsa = "0.28.5"
