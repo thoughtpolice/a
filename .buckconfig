@@ -160,9 +160,15 @@ execution_platforms = root//buck/platforms:execution
 [project]
 # things that should not be scanned by buck2 for file changes. if you notice
 # something strange is being scanned, it might be worth adding here.
+#
+# work/ holds jj workspaces and checkouts of other projects. A workspace has
+# its own .buckroot, and another project's build files are not ours to parse,
+# so nothing there belongs to this build: not its packages, and not the files
+# a glob here would otherwise find, as the srclint tests' do.
 ignore = \
   .jj, \
   .git, \
+  work, \
   .direnv, \
   .watchman-cookie**, \
   .gdb_history**, \
