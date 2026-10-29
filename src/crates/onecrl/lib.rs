@@ -11,7 +11,7 @@
 //! client wanting Firefox's revocation checks wants both:
 //!
 //! ```ignore
-//! let onecrl = onecrl::OneCrl::load(&path)?;
+//! let onecrl = onecrl::update(&path, onecrl::Instance::Prod)?;
 //! if let Some((index, why)) = onecrl.check_chain(&verified_chain)? {
 //!     // reject: certificate `index` of the chain is revoked
 //! }
@@ -23,10 +23,32 @@ use std::path::Path;
 
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
+use log::debug;
 use serde::Deserialize;
 use x509_parser::prelude::*;
 
-/// An error loading OneCRL, or parsing a certificate.
+/// A Remote Settings instance to download OneCRL from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Instance {
+    Prod,
+    Stage,
+}
+
+impl Instance {
+    /// The collection's records, in the bucket Firefox reads them from.
+    pub fn url(self) -> &'static str {
+        match self {
+            Instance::Prod => {
+                "https://firefox.settings.services.mozilla.com/v1/buckets/security-state/collections/onecrl/records"
+            }
+            Instance::Stage => {
+                "https://firefox.settings.services.allizom.org/v1/buckets/security-state/collections/onecrl/records"
+            }
+        }
+    }
+}
+
+/// An error loading or downloading OneCRL, or parsing a certificate.
 #[derive(Debug)]
 pub struct Error(String);
 
@@ -119,7 +141,7 @@ impl OneCrl {
         Ok(onecrl)
     }
 
-    /// Load a file of the collection's records.
+    /// Load a file written by [`update`].
     pub fn load(path: &Path) -> Result<Self> {
         let json = std::fs::read(path)
             .map_err(|e| Error(format!("could not read {}: {e}", path.display())))?;
@@ -164,4 +186,20 @@ impl OneCrl {
         }
         Ok(None)
     }
+}
+
+/// Download OneCRL from `instance` and write it to `path`, returning it.
+/// The download is parsed before it replaces what `path` holds.
+pub fn update(path: &Path, instance: Instance) -> Result<OneCrl> {
+    debug!("Fetching OneCRL from {}", instance.url());
+    let json = reqwest::blocking::get(instance.url())
+        .and_then(|response| response.error_for_status())
+        .and_then(|response| response.bytes())
+        .map_err(|e| Error(format!("could not fetch OneCRL: {e}")))?;
+    let onecrl = OneCrl::from_json(&json)?;
+    let tmp = path.with_extension("tmp");
+    std::fs::write(&tmp, &json)
+        .and_then(|()| std::fs::rename(&tmp, path))
+        .map_err(|e| Error(format!("could not write {}: {e}", path.display())))?;
+    Ok(onecrl)
 }

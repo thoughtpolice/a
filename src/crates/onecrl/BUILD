@@ -7,7 +7,9 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
     "third-party//rust:base64",
+    "third-party//rust:log",
     "third-party//rust:openssl",
+    "third-party//rust:reqwest",
     "third-party//rust:serde",
     "third-party//rust:serde_json",
     "third-party//rust:x509-parser",
