@@ -212,6 +212,82 @@ var rustExceptions = []exception{
 		ID:     "RUSTSEC-2024-0449",
 		Reason: "unsafe-libyaml is unmaintained; pulled in by slatedb via figment and serde_yaml for settings files the cache server never loads, awaiting slatedb/figment moving off serde_yaml",
 	},
+	// GHSA-qwgh-2vcv-g2f7 covers every block-buffer release before 0.12.1,
+	// but the bug is in the inline cursor that 0.11 introduced: EagerBuffer
+	// keeps its position in the block's last byte and ReadBuffer in its
+	// first, so a panicking callback can leave input bytes there. 0.10.4,
+	// which the whole digest 0.10 stack (sha1, sha2, sha3, blake2, jj-lib,
+	// argon2) still requires, keeps the position in a separate `pos: u8`
+	// field that no callback can reach and that is only ever assigned a
+	// valid value, so a panic leaves the previous position intact. Remove
+	// this once nothing depends on digest 0.10.
+	{
+		ID:     "GHSA-qwgh-2vcv-g2f7",
+		Reason: "block-buffer inline cursor corrupted by a panicking callback; 0.10.4 (digest 0.10) stores the cursor in a separate field callbacks cannot write, awaiting the digest 0.10 users moving to digest 0.11",
+	},
+	// zstd 0.14.3 / zstd-safe 8.2.0 fix these, and depot's own zstd uses
+	// them, but foyer-storage 0.22.6 (via slatedb), the newest release, still
+	// requires zstd 0.13, which has no fixed release; neither has zstd-safe 7.
+	// foyer only calls zstd::Encoder::new and zstd::Decoder::new (the
+	// stream::write encoder and the stream::read decoder, each on a fresh
+	// context) over cache entries it wrote itself, and the build enables
+	// neither the experimental, zstdmt nor seekable feature. That path reaches
+	// none of the APIs below: no context reuse via with_context, no one-shot
+	// calls, no dictionaries or training, no try_clone, no around_pos, and the
+	// legacy-frame bug is in the write-side decoder only. Remove these once
+	// foyer moves to zstd 0.14.3+.
+	{
+		ID:     "RUSTSEC-2026-0391",
+		Reason: "zstd 0.13 with_context leaks an abandoned stream into the next; foyer-storage (via slatedb) pins 0.13 and only uses fresh contexts, awaiting a foyer release on zstd 0.14.3+",
+	},
+	{
+		ID:     "RUSTSEC-2026-0395",
+		Reason: "zstd-safe 7 use-after-free with CParameter::StableInBuffer, an experimental-feature parameter; foyer-storage's zstd 0.13 stream encoder/decoder never reach it, awaiting a foyer release on zstd 0.14.3+",
+	},
+	{
+		ID:     "RUSTSEC-2026-0396",
+		Reason: "zstd-safe 7 Seekable reads a NULL or out-of-bounds seek table; seekable feature; foyer-storage's zstd 0.13 stream encoder/decoder never reach it, awaiting a foyer release on zstd 0.14.3+",
+	},
+	{
+		ID:     "RUSTSEC-2026-0397",
+		Reason: "zstd-safe 7 OutBuffer::around_pos exposes uninitialized memory; foyer-storage's zstd 0.13 stream encoder/decoder never reach it, awaiting a foyer release on zstd 0.14.3+",
+	},
+	{
+		ID:     "RUSTSEC-2026-0398",
+		Reason: "zstd-safe 7 Seekable::decompress over-long Vec length; seekable feature; foyer-storage's zstd 0.13 stream encoder/decoder never reach it, awaiting a foyer release on zstd 0.14.3+",
+	},
+	{
+		ID:     "RUSTSEC-2026-0399",
+		Reason: "zstd-safe 7 use-after-free through init_using_cdict/init_using_ddict, experimental feature; foyer-storage's zstd 0.13 stream encoder/decoder never reach it, awaiting a foyer release on zstd 0.14.3+",
+	},
+	{
+		ID:     "RUSTSEC-2026-0400",
+		Reason: "zstd-safe 7 dictionary use-after-free after a one-shot call on a context with an open stream; foyer-storage's zstd 0.13 stream encoder/decoder never reach it, awaiting a foyer release on zstd 0.14.3+",
+	},
+	{
+		ID:     "RUSTSEC-2026-0401",
+		Reason: "zstd-safe 7 out-of-bounds read in train_from_buffer with overflowing sample sizes; foyer-storage's zstd 0.13 stream encoder/decoder never reach it, awaiting a foyer release on zstd 0.14.3+",
+	},
+	{
+		ID:     "RUSTSEC-2026-0402",
+		Reason: "zstd-safe 7 heap overflow in CCtx::try_clone on a multithreaded context, experimental and zstdmt features; foyer-storage's zstd 0.13 stream encoder/decoder never reach it, awaiting a foyer release on zstd 0.14.3+",
+	},
+	{
+		ID:     "RUSTSEC-2026-0403",
+		Reason: "zstd-safe 7 uninitialized memory from stream::write::Decoder after a failed legacy frame; foyer-storage's zstd 0.13 stream encoder/decoder never reach it, awaiting a foyer release on zstd 0.14.3+",
+	},
+	{
+		ID:     "RUSTSEC-2026-0404",
+		Reason: "zstd-safe 7 double free in DCtx::try_clone, experimental feature; foyer-storage's zstd 0.13 stream encoder/decoder never reach it, awaiting a foyer release on zstd 0.14.3+",
+	},
+	{
+		ID:     "RUSTSEC-2026-0405",
+		Reason: "zstd-safe 7 out-of-bounds read with an out-of-range InBuffer::pos in SeekableCStream; foyer-storage's zstd 0.13 stream encoder/decoder never reach it, awaiting a foyer release on zstd 0.14.3+",
+	},
+	{
+		ID:     "RUSTSEC-2026-0406",
+		Reason: "zstd-safe 7 use-after-free changing a multithreaded context with an unfinished frame, zstdmt feature; foyer-storage's zstd 0.13 stream encoder/decoder never reach it, awaiting a foyer release on zstd 0.14.3+",
+	},
 }
 
 // npmExceptions accepts advisories against packages in a package-lock.json
@@ -424,29 +500,29 @@ var wolfiExceptions = []exception{
 		ID:     "CGA-w94f-2g4r-22gc",
 		Reason: "posix-libc-utils-bin-2.44 CVE-2026-97399: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
-	// CVE-2026-111943 (GO-2026-6809): Go 1.27.3 added a crypto/x509 denylist
-	// of emSign intermediates whose private keys leaked. containerd-2 and
-	// ctr-2 are built with go1.27.2, and Wolfi's newest builds (2.4.2-r0)
-	// predate go-1.27 1.27.3-r0, so there is no fixed version yet. On Linux
-	// Go verifies against the system roots, and the pinned
-	// ca-certificates-bundle (20260909-r3) no longer carries the emSign root
-	// those intermediates chain to. Remove these when Chainguard marks them
-	// fixed and the pins move to the rebuild.
+	// libexpat 2.9.0 has two denial-of-service bugs: billion-laughs
+	// protection that detects amplification too late (CVE-2026-115506), and
+	// XML_ParserReset leaving tracked allocations behind (CVE-2026-113351).
+	// The fixes merged upstream on 2026-10-23 (libexpat PRs 1433 and 1431)
+	// but are unreleased, and 2.9.0-r0 is Wolfi's newest build. minimos
+	// ships libexpat1 only as a DT_NEEDED library of dbus, which parses its
+	// own root-owned configuration with it, never XML from a peer. Remove
+	// these when a Wolfi build with the fixes clears OSV.
 	{
-		ID:     "CGA-7j3j-q347-3xh3",
-		Reason: "containerd-2 CVE-2026-111943: built with go1.27.2, before the crypto/x509 emSign denylist; the pinned CA bundle drops the emSign root, accepted until a go1.27.3 rebuild",
+		ID:     "CGA-32gf-5529-3pvx",
+		Reason: "libexpat1 CVE-2026-115506: late billion-laughs detection (CPU DoS); fixed upstream but unreleased, and dbus only parses its root-owned configuration, accepted until a fixed Wolfi version clears OSV",
 	},
 	{
-		ID:     "CGA-wfr7-pf8h-ww47",
-		Reason: "containerd-2 CVE-2026-111943: built with go1.27.2, before the crypto/x509 emSign denylist; the pinned CA bundle drops the emSign root, accepted until a go1.27.3 rebuild",
+		ID:     "CGA-683h-gf3c-jgc8",
+		Reason: "libexpat1 CVE-2026-115506: late billion-laughs detection (CPU DoS); fixed upstream but unreleased, and dbus only parses its root-owned configuration, accepted until a fixed Wolfi version clears OSV",
 	},
 	{
-		ID:     "CGA-c7hp-5w86-wvv8",
-		Reason: "ctr-2 CVE-2026-111943: built with go1.27.2, before the crypto/x509 emSign denylist; the pinned CA bundle drops the emSign root, accepted until a go1.27.3 rebuild",
+		ID:     "CGA-6mq2-cc4m-px38",
+		Reason: "libexpat1 CVE-2026-113351: XML_ParserReset keeps allocation accounting (memory DoS); fixed upstream but unreleased, and dbus only parses its root-owned configuration, accepted until a fixed Wolfi version clears OSV",
 	},
 	{
-		ID:     "CGA-wg6r-5mq3-4c74",
-		Reason: "ctr-2 CVE-2026-111943: built with go1.27.2, before the crypto/x509 emSign denylist; the pinned CA bundle drops the emSign root, accepted until a go1.27.3 rebuild",
+		ID:     "CGA-gxcg-r99q-jjvj",
+		Reason: "libexpat1 CVE-2026-113351: XML_ParserReset keeps allocation accounting (memory DoS); fixed upstream but unreleased, and dbus only parses its root-owned configuration, accepted until a fixed Wolfi version clears OSV",
 	},
 	// Chainguard's advisory page lists this cni-plugins stdlib finding
 	// (CVE-2026-78669, GO-2026-6611 in the dhcp plugin) as fixed in 1.9.1-r16,
