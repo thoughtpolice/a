@@ -859,6 +859,12 @@ Move the target triple together with the cpu and os: selects keyed on one
 would otherwise answer for a different platform than selects keyed on the
 other. `shims.cross_binary` does the same for a dependency edge.
 
+A modifier only applies to the targets named on the command line; a
+dependency takes the configuration of what depends on it. To build a
+dependency in a given mode whatever its users are built in, as a tool that
+tests run and that must be fast, wrap it in `shims.mode_binary(name, actual,
+mode = "release")`, a transition that changes only the build mode.
+
 There is no `parser.target_platform_detector_spec`. Don't reach for
 `--target-platforms`, `default_target_platform` or `configured_alias` either:
 they only choose the platform the modifiers start from, and the root

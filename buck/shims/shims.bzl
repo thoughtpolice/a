@@ -9,6 +9,7 @@ load("@root//buck/shims:cross_binary.bzl", _cross_binary_rule = "cross_binary")
 load("@root//buck/shims:cross_target.bzl", _cross_target_binary_rule = "cross_target_binary")
 load("@root//buck/shims:dynamic_test_internal.bzl", _dynamic_test_external_rule = "dynamic_test_external", _dynamic_test_internal_rule = "dynamic_test_internal")
 load("@root//buck/shims:go_test_internal.bzl", _go_test_internal_rule = "go_test_internal")
+load("@root//buck/shims:mode_binary.bzl", _mode_binary_rule = "mode_binary")
 load("@root//buck/shims:rust_test_internal.bzl", _rust_test_internal_rule = "rust_test_internal")
 load("@root//buck/shims:srclint.bzl", _srclint = "srclint")
 load("@root//buck/tools/filecheck:defs.bzl", _filecheck_lit_external_rule = "filecheck_lit_external", _filecheck_lit_internal_rule = "filecheck_lit_internal", _filecheck_test_rule = "filecheck_test")
@@ -228,6 +229,10 @@ def _depot_cross_binary(**kwargs):
 def _depot_cross_target_binary(**kwargs):
     kwargs = _fix_kwargs("cross_target_binary", kwargs)
     _cross_target_binary_rule(**kwargs)
+
+def _depot_mode_binary(**kwargs):
+    kwargs = _fix_kwargs("mode_binary", kwargs)
+    _mode_binary_rule(**kwargs)
 
 # MARK: Supplemental rules
 
@@ -598,6 +603,7 @@ shims = struct(
     filegroup = _depot_filegroup,
     cross_binary = _depot_cross_binary,
     cross_target_binary = _depot_cross_target_binary,
+    mode_binary = _depot_mode_binary,
     constraint = _constraint,
     alias = _alias,
     command_alias = lambda **kwargs: native.command_alias(**_fix_kwargs("command_alias", kwargs)),
