@@ -384,6 +384,12 @@ def cmd_check(args):
     leanchecker finds modules on LEAN_PATH by walking it and turning file
     paths back into module names with realpath, so a tree of symlinks into
     buck-out does not work. Hard links (or copies across filesystems) do.
+
+    Each module gets a leanchecker process of its own. Given several modules
+    at once, leanchecker (Lean 4.36 and 4.37 nightlies) also replays much of
+    what they import, taking seconds and gigabytes, and often segfaults; one
+    module at a time takes a fraction of a second and a few hundred
+    megabytes.
     """
     with tempfile.TemporaryDirectory() as tmp:
         root = os.path.join(tmp, "lib")
@@ -404,8 +410,9 @@ def cmd_check(args):
                         shutil.copyfile(src, dest)
 
         env = dict(os.environ, LEAN_PATH=root)
-        proc = run(["leanchecker"] + args.modules, env=env, capture_output=True, text=True)
-        report(proc, "leanchecker")
+        for module in args.modules:
+            proc = run(["leanchecker", module], env=env, capture_output=True, text=True)
+            report(proc, "leanchecker " + module)
         print("leanchecker: {} module(s) replayed".format(len(args.modules)))
 
 
