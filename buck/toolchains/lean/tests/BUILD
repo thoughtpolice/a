@@ -134,6 +134,19 @@ depot.run_test(
     dep = ":granular-test",
 )
 
+depot.python_binary(
+    name = "build-mode-test",
+    main = "build_mode_test.py",
+)
+
+# Queries how the generated C is configured in debug and release mode, in a
+# Buck daemon of its own (like :granular).
+depot.run_test(
+    name = "build-mode",
+    ci_srcs = ["buck/toolchains/lean/**"],
+    dep = ":build-mode-test",
+)
+
 depot.cxx_binary(
     name = "interop",
     srcs = ["interop.cpp"],

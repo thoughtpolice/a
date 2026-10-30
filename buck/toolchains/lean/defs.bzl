@@ -60,6 +60,17 @@ LEAN_C_COMPILE_FLAGS = LEAN_C_FLAGS + [
     "-w",
 ]
 
+def _release_flags():
+    """What a release build adds to the generated C, as Lake's release build
+    type does: `-O3` comes with the C++ toolchain's flags in that mode, and
+    `NDEBUG` turns off the runtime's assertions, `lean.h`'s checks on every
+    constructor field and array access, which slow an allocating program
+    by a quarter."""
+    return select({
+        "mode//:build-mode[debug]": [],
+        "mode//:build-mode[release]": ["-DNDEBUG"],
+    })
+
 # Root namespaces of the modules shipped in the toolchain's lib/lean. An
 # import under one of these that no dependency provides is left to Lean,
 # which finds it next to its own binary.
@@ -844,7 +855,7 @@ def lean_library(
         # Nix shell the compiler wrapper adds Lean's include directory to every
         # compile, which hides a consumer this would otherwise leave without.
         exported_deps = [RUNTIME],
-        compiler_flags = LEAN_C_COMPILE_FLAGS + compiler_flags,
+        compiler_flags = LEAN_C_COMPILE_FLAGS + _release_flags() + compiler_flags,
         # Lean's own runtime and standard library are static archives built
         # without -fPIC, so nothing linking them can be a shared object.
         preferred_linkage = "static",
@@ -881,7 +892,7 @@ def lean_binary(
         name = name,
         srcs = c_srcs,
         deps = [RUNTIME] + deps,
-        compiler_flags = LEAN_C_COMPILE_FLAGS + compiler_flags,
+        compiler_flags = LEAN_C_COMPILE_FLAGS + _release_flags() + compiler_flags,
         **dict(shared, **kwargs)
     )
 
@@ -918,7 +929,7 @@ def lean_test(
             name = name + "--bin",
             srcs = c_srcs,
             deps = [RUNTIME] + deps,
-            compiler_flags = LEAN_C_COMPILE_FLAGS + compiler_flags,
+            compiler_flags = LEAN_C_COMPILE_FLAGS + _release_flags() + compiler_flags,
             **shared
         )
     lean_test_rule(

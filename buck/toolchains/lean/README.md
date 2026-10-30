@@ -135,6 +135,17 @@ the module beside it.
 The subtargets of `<name>--lean` are `[Module.Name]` (its .olean, .ir.sig
 and .ir directories), `[Module.Name.c]` and `[imports.json]`.
 
+## Build modes
+
+The generated C is compiled as Lake's build types compile it. In debug
+mode, the default, the C++ toolchain's flags give `-g -Og`. In release
+mode (`-m release`) they give `-O3`, and the rules add `-DNDEBUG`, which
+turns off `lean.h`'s assertions: checks on every constructor field and
+array access, which slow a program that allocates by a quarter to a half.
+`tests:build-mode` checks that each kind of C target gets it in release
+mode only. Precompiled modules are compiled by the execution platform's C++
+toolchain, as before.
+
 ## Toolchain version
 
 `:check` runs `lean --version` and compares it to the `version` in
