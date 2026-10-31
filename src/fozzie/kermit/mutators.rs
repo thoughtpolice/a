@@ -7,7 +7,7 @@
 
 use crate::lines::{LineOp, LineStore};
 use crate::source::Source;
-use crate::{bytes, lines};
+use crate::{bytes, lines, number, text, utf8};
 
 macro_rules! mutators {
     ($($variant:ident => $name:literal, $description:literal;)*) => {
@@ -38,6 +38,7 @@ macro_rules! mutators {
 }
 
 mutators! {
+    AsciiBad => "ab", "enhance silly issues in ASCII string data handling";
     ByteDrop => "bd", "drop a byte";
     ByteFlip => "bf", "flip one bit";
     ByteInsert => "bi", "insert a random byte";
@@ -57,6 +58,9 @@ mutators! {
     LinePermute => "lp", "swap order of lines";
     LineInsert => "lis", "insert a line from elsewhere";
     LineReplace => "lrs", "replace a line with one from elsewhere";
+    Utf8Widen => "uw", "try to make a code point too wide";
+    Utf8Insert => "ui", "insert funny unicode";
+    Number => "num", "try to modify a textual number";
     Nop => "nop", "do nothing (debug/test)";
 }
 
@@ -78,6 +82,7 @@ impl Mutator {
         store: &mut LineStore,
     ) -> i8 {
         match self {
+            Mutator::AsciiBad => text::mutate(source, block),
             Mutator::ByteDrop => bytes::drop_byte(source, block),
             Mutator::ByteFlip => bytes::flip(source, block),
             Mutator::ByteInsert => bytes::insert(source, block),
@@ -97,6 +102,9 @@ impl Mutator {
             Mutator::LinePermute => lines::mutate(source, block, LineOp::Permute),
             Mutator::LineInsert => store.insert(source, block),
             Mutator::LineReplace => store.replace(source, block),
+            Mutator::Utf8Widen => utf8::widen(source, block),
+            Mutator::Utf8Insert => utf8::insert(source, block),
+            Mutator::Number => number::mutate(source, block),
             Mutator::Nop => 0,
         }
     }

@@ -3,12 +3,17 @@
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
+DEPS = [
+    "third-party//rust:num-bigint",
+]
+
 depot.rust_library(
     name = "kermit",
     srcs = glob(["*.rs"]),
     crate = "kermit",
     crate_root = "lib.rs",
     visibility = ["PUBLIC"],
+    deps = DEPS,
 )
 
 depot.rust_test(
@@ -16,7 +21,7 @@ depot.rust_test(
     srcs = glob(["*.rs"]),
     crate = "kermit",
     crate_root = "lib.rs",
-    deps = [
+    deps = DEPS + [
         "third-party//by-name/mi/mimalloc:rust",
     ],
 )
