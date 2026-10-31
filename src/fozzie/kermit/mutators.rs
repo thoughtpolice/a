@@ -5,8 +5,9 @@
 
 //! The mutator table, with radamsa's names and descriptions, and dispatch.
 
-use crate::bytes;
+use crate::lines::{LineOp, LineStore};
 use crate::source::Source;
+use crate::{bytes, lines};
 
 macro_rules! mutators {
     ($($variant:ident => $name:literal, $description:literal;)*) => {
@@ -47,6 +48,15 @@ mutators! {
     ByteRandom => "ber", "swap a byte with a random one";
     SequenceRepeat => "sr", "repeat a sequence of bytes";
     SequenceDelete => "sd", "delete a sequence of bytes";
+    LineDelete => "ld", "delete a line";
+    LineDeleteMany => "lds", "delete many lines";
+    LineDuplicate => "lr2", "duplicate a line";
+    LineClone => "li", "copy a line closeby";
+    LineRepeat => "lr", "repeat a line";
+    LineSwap => "ls", "swap two lines";
+    LinePermute => "lp", "swap order of lines";
+    LineInsert => "lis", "insert a line from elsewhere";
+    LineReplace => "lrs", "replace a line with one from elsewhere";
     Nop => "nop", "do nothing (debug/test)";
 }
 
@@ -59,8 +69,14 @@ impl Mutator {
     }
 
     /// Mutates `block` in place and returns the score step, positive when
-    /// the data suited this mutator and negative when it did not.
-    pub(crate) fn apply<S: Source>(self, source: &mut S, block: &mut Vec<u8>) -> i8 {
+    /// the data suited this mutator and negative when it did not. `store`
+    /// is this mutator's memory of earlier blocks, used by `lis` and `lrs`.
+    pub(crate) fn apply<S: Source>(
+        self,
+        source: &mut S,
+        block: &mut Vec<u8>,
+        store: &mut LineStore,
+    ) -> i8 {
         match self {
             Mutator::ByteDrop => bytes::drop_byte(source, block),
             Mutator::ByteFlip => bytes::flip(source, block),
@@ -72,6 +88,15 @@ impl Mutator {
             Mutator::ByteRandom => bytes::randomize(source, block),
             Mutator::SequenceRepeat => bytes::repeat_sequence(source, block),
             Mutator::SequenceDelete => bytes::delete_sequence(source, block),
+            Mutator::LineDelete => lines::mutate(source, block, LineOp::Delete),
+            Mutator::LineDeleteMany => lines::mutate(source, block, LineOp::DeleteRun),
+            Mutator::LineDuplicate => lines::mutate(source, block, LineOp::Duplicate),
+            Mutator::LineClone => lines::mutate(source, block, LineOp::Clone),
+            Mutator::LineRepeat => lines::mutate(source, block, LineOp::Repeat),
+            Mutator::LineSwap => lines::mutate(source, block, LineOp::Swap),
+            Mutator::LinePermute => lines::mutate(source, block, LineOp::Permute),
+            Mutator::LineInsert => store.insert(source, block),
+            Mutator::LineReplace => store.replace(source, block),
             Mutator::Nop => 0,
         }
     }

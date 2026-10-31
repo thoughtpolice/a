@@ -6,21 +6,22 @@
 //! Kermit is radamsa's black-box mutation engine, ported to Rust.
 //!
 //! Kermit turns a sample input into an interestingly different one without
-//! knowing its format. Each call picks a *pattern*, which mutates once,
-//! possibly many times, or in a burst at one place. It then walks to a block
-//! of up to 4 KiB and tries mutators in a weighted random order until one
-//! changes the block.
+//! knowing its format. It guesses at lines, falling back to plain bytes.
+//! Each call picks a *pattern*, which mutates once, possibly many times, or
+//! in a burst at one place. It then walks to a block of up to 4 KiB and
+//! tries mutators in a weighted random order until one changes the block.
 //!
-//! Mutators keep a score between 2 and 10 that they adjust by how well the
-//! data suits them, so over a run the mix adapts to the input. A mutator's
-//! chance of going first is its score times the priority the [`Config`]
-//! gives it.
+//! Mutators keep a score between 2 and 10 that they adjust themselves. A
+//! line mutator gains on text and loses on binary data, so over a run the
+//! mix adapts to the input. A mutator's chance of going first is its score
+//! times the priority the [`Config`] gives it.
 //!
 //! All randomness comes through a [`Source`], so the same seed reproduces
 //! the same outputs, and a property-testing engine can drive and shrink
 //! the choices.
 
 mod bytes;
+mod lines;
 mod list;
 mod mutators;
 mod source;
@@ -28,13 +29,15 @@ mod source;
 pub use mutators::{Mutator, MutatorSet};
 pub use source::{Rng, Source};
 
+use lines::LineStore;
 use std::cmp::Reverse;
 use std::fmt;
 use std::ops::Range;
 
 /// radamsa's default mutators and priorities, less the ones kermit has not
 /// ported yet.
-pub const DEFAULT_MUTATORS: &str = "sr,sd,bd,bf,bi,br,bp,bei,bed,ber";
+pub const DEFAULT_MUTATORS: &str =
+    "ld,lds,lr2,li,ls,lp,lr,lis,lrs,sr,sd,bd,bf,bi,br,bp,bei,bed,ber";
 
 /// radamsa's default patterns and priorities.
 pub const DEFAULT_PATTERNS: &str = "od,nd=2,bu";
@@ -179,6 +182,7 @@ struct Slot {
     mutator: Mutator,
     priority: u32,
     score: i32,
+    store: LineStore,
 }
 
 impl Kermit {
@@ -191,6 +195,7 @@ impl Kermit {
                 mutator,
                 priority,
                 score: (source.below(MAX_SCORE as usize) as i32).max(MIN_SCORE),
+                store: LineStore::default(),
             })
             .collect();
         let mut patterns = config.patterns.clone();
@@ -307,7 +312,7 @@ impl Kermit {
             let slot = &mut self.slots[index];
             let before = block.clone();
             source.begin(slot.mutator.name());
-            let delta = slot.mutator.apply(source, block);
+            let delta = slot.mutator.apply(source, block, &mut slot.store);
             source.end();
             slot.score = (slot.score + i32::from(delta)).clamp(MIN_SCORE, MAX_SCORE);
             if *block != before {
@@ -412,6 +417,30 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn scores_follow_what_suits_the_data() {
+        // Line mutators lose on binary data, and the byte mutator, which
+        // steps at random, does the changing.
+        let (mut kermit, mut rng) = engine("ld,lr2,bd", "od", 7);
+        for _ in 0..200 {
+            kermit.mutate(&mut rng, b"\x00\xff binary");
+        }
+        let scores: Vec<_> = kermit.scores().take(2).collect();
+        assert_eq!(
+            scores,
+            [
+                (Mutator::LineDelete, MIN_SCORE),
+                (Mutator::LineDuplicate, MIN_SCORE)
+            ]
+        );
+
+        let (mut kermit, mut rng) = engine("ld,lr2", "od", 7);
+        for _ in 0..200 {
+            kermit.mutate(&mut rng, b"x = 1\ny = 2\n");
+        }
+        assert!(kermit.scores().all(|(_, score)| score == MAX_SCORE));
     }
 
     #[test]
