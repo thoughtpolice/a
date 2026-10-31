@@ -8,7 +8,7 @@
 use crate::lines::{LineOp, LineStore};
 use crate::source::Source;
 use crate::tree::TreeOp;
-use crate::{bytes, fuse, lines, number, text, tree, utf8};
+use crate::{bytes, fuse, lines, number, text, tree, utf8, xml};
 
 macro_rules! mutators {
     ($($variant:ident => $name:literal, $description:literal;)*) => {
@@ -67,6 +67,7 @@ mutators! {
     Utf8Widen => "uw", "try to make a code point too wide";
     Utf8Insert => "ui", "insert funny unicode";
     Number => "num", "try to modify a textual number";
+    Xml => "xp", "try to parse XML and mutate it";
     FuseThis => "ft", "jump to a similar position in block";
     FuseNext => "fn", "likely clone data between similar positions";
     FuseOld => "fo", "fuse previously seen data elsewhere";
@@ -119,6 +120,7 @@ impl Mutator {
             Mutator::Utf8Widen => utf8::widen(source, block),
             Mutator::Utf8Insert => utf8::insert(source, block),
             Mutator::Number => number::mutate(source, block),
+            Mutator::Xml => xml::mutate(source, block, &mut memory.tags),
             Mutator::FuseThis => fuse::fuse_this(source, block),
             Mutator::FuseNext => fuse::fuse_next(source, block),
             Mutator::FuseOld => fuse::fuse_old(source, block, &mut memory.block),
@@ -127,12 +129,13 @@ impl Mutator {
     }
 }
 
-/// What a mutator keeps between blocks: lines for `lis` and `lrs`, and a
-/// block for `fo`.
+/// What a mutator keeps between blocks: lines for `lis` and `lrs`, a block
+/// for `fo`, and the tags `xp` has seen.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Memory {
     pub lines: LineStore,
     pub block: Option<Vec<u8>>,
+    pub tags: xml::TagStore,
 }
 
 /// A set of mutators, such as the ones that changed an input.
@@ -172,7 +175,7 @@ mod tests {
             assert_eq!(*mutator as usize, index);
             assert_eq!(Mutator::from_name(mutator.name()), Some(*mutator));
         }
-        assert_eq!(Mutator::from_name("xp"), None);
+        assert_eq!(Mutator::from_name("xq"), None);
     }
 
     #[test]

@@ -6,8 +6,8 @@
 Kermit is a Rust port of the mutation engine of [radamsa], Aki Helin's
 black-box fuzzer. Given a sample input it produces an interestingly
 different one, without knowing the format. It guesses at structure
-instead: lines, decimal numbers, quoted strings, bracketed trees and UTF-8,
-with plain byte edits as the fallback.
+instead: lines, decimal numbers, quoted strings, bracketed trees, XML-ish
+tags and UTF-8, with plain byte edits as the fallback.
 
 [radamsa]: https://gitlab.com/akihe/radamsa
 
@@ -42,6 +42,7 @@ mutation toward the unmutated seed.
 | `uw` `ui` | make a byte an overlong UTF-8 sequence, or insert troublesome code points |
 | `ft` `fn` `fo` | splice the block onto itself, across its halves, or with a block remembered from an earlier input, at points where the two share context |
 | `td` `tr2` `ts1` `ts2` `tr` | delete, duplicate, swap or recursively repeat bracketed nodes |
+| `xp` | swap, duplicate, nest, repeat or insert XML-ish elements, using tags and attributes seen in earlier inputs |
 | `nop` | do nothing |
 
 Pattern `od` mutates once, `nd` possibly many times, and `bu` several times
@@ -50,8 +51,9 @@ tree mutators out of the default list.
 
 ## Differences from radamsa
 
-- Kermit has not ported the XML mutator `xp` yet, so the default list
-  leaves it out.
+- `xp` nests or repeats an element at most 1025 times rather than 16385.
+  When its chosen operation changes nothing it inserts a tag instead of
+  drawing again.
 - `fn` fuses the block with itself, as radamsa does for the last block of
   a stream, rather than with the next block.
 - Inputs are whole buffers rather than streams, and kermit has no output

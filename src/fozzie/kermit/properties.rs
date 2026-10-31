@@ -10,9 +10,9 @@ use hegel::TestCase;
 use hegel::generators::{self as gs, PrintableGenerator as _};
 
 /// Bytes biased toward the ones the lexers care about: quotes, brackets,
-/// escapes, line breaks, and bytes that are not text.
+/// tag punctuation, escapes, line breaks, and bytes that are not text.
 fn structured_bytes() -> impl gs::PrintableGenerator<Vec<u8>> {
-    let alphabet = b"\"'\\()[]<>{}\n\t a1\x00\x7f\xff".to_vec();
+    let alphabet = b"\"'\\()[]<>{}/=b\n\t a1\x00\x7f\xff".to_vec();
     gs::vecs(gs::sampled_from(alphabet)).max_size(64)
 }
 

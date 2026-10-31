@@ -57,7 +57,8 @@ fn digit_runs(block: &[u8]) -> Vec<std::ops::Range<usize>> {
     runs
 }
 
-fn change<S: Source>(source: &mut S, value: BigInt) -> BigInt {
+/// A nearby, boundary or far-away replacement for `value`.
+pub(crate) fn change<S: Source>(source: &mut S, value: BigInt) -> BigInt {
     match source.below(12) {
         0 => value + 1,
         1 => value - 1,

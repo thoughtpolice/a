@@ -7,8 +7,8 @@
 //!
 //! Kermit turns a sample input into an interestingly different one without
 //! knowing its format. It guesses at structure instead: lines, decimal
-//! numbers, quoted strings, bracketed trees and UTF-8, falling back to plain
-//! bytes. Each call picks a *pattern*, which mutates once, possibly many
+//! numbers, quoted strings, bracketed trees, XML-ish tags and UTF-8, falling
+//! back to plain bytes. Each call picks a *pattern*, which mutates once, possibly many
 //! times, or in a burst at one place. It then walks to a block of up to
 //! 4 KiB and tries mutators in a weighted random order until one changes
 //! the block.
@@ -34,6 +34,7 @@ mod source;
 mod text;
 mod tree;
 mod utf8;
+mod xml;
 
 pub use mutators::{Mutator, MutatorSet};
 pub use source::{Rng, Source};
@@ -43,11 +44,9 @@ use std::cmp::Reverse;
 use std::fmt;
 use std::ops::Range;
 
-/// radamsa's default mutators and priorities, less `xp`, which kermit has
-/// not ported yet. Like radamsa, kermit leaves the tree mutators out of the
-/// default list.
-pub const DEFAULT_MUTATORS: &str =
-    "ft=2,fo=2,fn,num=5,ld,lds,lr2,li,ls,lp,lr,lis,lrs,sr,sd,bd,bf,bi,br,bp,bei,bed,ber,uw,ui=2,ab";
+/// radamsa's default mutators and priorities. Like radamsa, kermit leaves
+/// the tree mutators out of the default list.
+pub const DEFAULT_MUTATORS: &str = "ft=2,fo=2,fn,num=5,ld,lds,lr2,li,ls,lp,lr,lis,lrs,sr,sd,bd,bf,bi,br,bp,bei,bed,ber,uw,ui=2,xp=9,ab";
 
 /// radamsa's default patterns and priorities.
 pub const DEFAULT_PATTERNS: &str = "od,nd=2,bu";
@@ -369,7 +368,7 @@ mod tests {
         assert_eq!(config.patterns, [(Pattern::Once, 1)]);
         Config::default();
         for (mutators, error) in [
-            ("xp", "unknown mutator \"xp\""),
+            ("xq", "unknown mutator \"xq\""),
             ("bd=-1", "bad priority \"-1\" for mutator \"bd\""),
             ("bd,bd=2", "mutator \"bd\" is listed twice"),
             ("bd=0", "no mutator is enabled"),
