@@ -21789,6 +21789,12 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.alias(
+    name = "num-bigint",
+    actual = ":num-bigint-0.4",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "num-bigint-0.4.8.crate",
     sha256 = "c89e69e7e0f03bea5ef08013795c25018e101932225a656383bd384495ecc367",

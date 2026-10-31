@@ -8992,6 +8992,7 @@ dependencies = [
  "memmap2",
  "n0-mainline",
  "notify-debouncer-mini",
+ "num-bigint",
  "object_store",
  "openssl",
  "opentelemetry",

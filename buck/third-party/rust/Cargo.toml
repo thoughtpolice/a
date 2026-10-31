@@ -141,6 +141,7 @@ md5 = "0.8"
 memmap2 = "0.9.11"
 n0-mainline = "0.7.1"
 notify-debouncer-mini = { version = "0.7.0", features = ["crossbeam-channel"] }
+num-bigint = "0.4.8"
 object_store = "0.14"
 openssl = "0.10.81"
 # NOTE (opentelemetry): the core stays on 0.32 until the edges catch up. 0.33
