@@ -8,7 +8,7 @@
 use crate::lines::{LineOp, LineStore};
 use crate::source::Source;
 use crate::tree::TreeOp;
-use crate::{binary, bytes, encode, fuse, json, lines, number, text, tree, utf8, xml};
+use crate::{binary, bytes, dictionary, encode, fuse, json, lines, number, text, tree, utf8, xml};
 
 macro_rules! mutators {
     ($($variant:ident => $name:literal, $description:literal;)*) => {
@@ -77,6 +77,8 @@ mutators! {
     SizeBoundary => "sz", "grow or shrink the block to a power-of-two boundary length";
     Encode => "ec", "re-encode a run of text";
     JsonValue => "jv", "replace a JSON value with an awkward one";
+    DictionaryInsert => "di", "insert a dictionary token";
+    DictionaryReplace => "dr", "overwrite bytes with a dictionary token";
     Nop => "nop", "do nothing (debug/test)";
 }
 
@@ -90,12 +92,14 @@ impl Mutator {
 
     /// Mutates `block` in place and returns the score step, positive when
     /// the data suited this mutator and negative when it did not. `memory`
-    /// is what this mutator kept from earlier blocks.
+    /// is what this mutator kept from earlier blocks, and `tokens` is the
+    /// engine's dictionary.
     pub(crate) fn apply<S: Source>(
         self,
         source: &mut S,
         block: &mut Vec<u8>,
         memory: &mut Memory,
+        tokens: &[Vec<u8>],
     ) -> i8 {
         match self {
             Mutator::AsciiBad => text::mutate(source, block),
@@ -136,6 +140,8 @@ impl Mutator {
             Mutator::SizeBoundary => binary::size_boundary(source, block),
             Mutator::Encode => encode::mutate(source, block),
             Mutator::JsonValue => json::mutate(source, block),
+            Mutator::DictionaryInsert => dictionary::insert(source, block, tokens),
+            Mutator::DictionaryReplace => dictionary::overwrite(source, block, tokens),
             Mutator::Nop => 0,
         }
     }

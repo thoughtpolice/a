@@ -61,10 +61,13 @@ Kermit adds mutators that radamsa lacks. They run by default at priority
 | `sz` | truncate or extend the block to 2^k - 1, 2^k or 2^k + 1 bytes |
 | `ec` | re-encode a run of text with percent or double-percent encoding, HTML entities, `\u` `\x` or octal escapes, fullwidth forms, swapped case, UTF-16LE or overlong UTF-8 |
 | `jv` | replace a JSON string, number or literal with an edge case such as `9007199254740993`, `1e309`, `-0`, a lone surrogate escape, a value of another type, deep nesting or a long string |
+| `di` `dr` | insert a dictionary token, or overwrite bytes with one |
 
 The integer mutators score up on binary data and down on text, the
 reverse of the line mutators. `jv` scores up on blocks that start like
-JSON.
+JSON. `di` and `dr` draw from tokens given with `Config::dictionary` or
+added during a run through `Kermit::dictionary_mut`, and do nothing
+without them.
 
 ## Differences from radamsa
 

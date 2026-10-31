@@ -9,8 +9,8 @@
 //! knowing its format. It guesses at structure instead: lines, decimal
 //! numbers, quoted strings, bracketed trees, XML-ish tags and UTF-8, falling
 //! back to plain bytes. Beyond radamsa, it also edits fixed-width integers
-//! and guessed length fields of binary formats, re-encodes text, and swaps
-//! JSON values for awkward ones.
+//! and guessed length fields of binary formats, re-encodes text, swaps JSON
+//! values for awkward ones, and splices in dictionary tokens.
 //!
 //! Each call picks a *pattern*, which mutates once, possibly many times, or
 //! in a burst at one place. It then walks to a block of up to 4 KiB and
@@ -27,6 +27,7 @@
 
 mod binary;
 mod bytes;
+mod dictionary;
 mod encode;
 mod fuse;
 mod json;
@@ -52,7 +53,7 @@ use std::ops::Range;
 
 /// radamsa's default mutators and priorities, then kermit's own at priority
 /// 1. Like radamsa, kermit leaves the tree mutators out of the default list.
-pub const DEFAULT_MUTATORS: &str = "ft=2,fo=2,fn,num=5,ld,lds,lr2,li,ls,lp,lr,lis,lrs,sr,sd,bd,bf,bi,br,bp,bei,bed,ber,uw,ui=2,xp=9,ab,wi,wa,lf,sz,ec,jv";
+pub const DEFAULT_MUTATORS: &str = "ft=2,fo=2,fn,num=5,ld,lds,lr2,li,ls,lp,lr,lis,lrs,sr,sd,bd,bf,bi,br,bp,bei,bed,ber,uw,ui=2,xp=9,ab,wi,wa,lf,sz,ec,jv,di,dr";
 
 /// radamsa's default patterns and priorities.
 pub const DEFAULT_PATTERNS: &str = "od,nd=2,bu";
@@ -113,6 +114,7 @@ impl Pattern {
 pub struct Config {
     mutators: Vec<(Mutator, u32)>,
     patterns: Vec<(Pattern, u32)>,
+    dictionary: Vec<Vec<u8>>,
 }
 
 impl Config {
@@ -122,7 +124,19 @@ impl Config {
     pub fn parse(mutators: &str, patterns: &str) -> Result<Self, ParseError> {
         let mutators = parse_list(mutators, "mutator", Mutator::from_name)?;
         let patterns = parse_list(patterns, "pattern", Pattern::from_name)?;
-        Ok(Self { mutators, patterns })
+        Ok(Self {
+            mutators,
+            patterns,
+            dictionary: Vec::new(),
+        })
+    }
+
+    /// Adds tokens for the dictionary mutators `di` and `dr`, skipping
+    /// empty ones.
+    pub fn dictionary(mut self, tokens: impl IntoIterator<Item = Vec<u8>>) -> Self {
+        self.dictionary
+            .extend(tokens.into_iter().filter(|token| !token.is_empty()));
+        self
     }
 }
 
@@ -190,6 +204,7 @@ pub struct Mutation {
 pub struct Kermit {
     slots: Vec<Slot>,
     patterns: Vec<(Pattern, u32)>,
+    dictionary: Vec<Vec<u8>>,
 }
 
 #[derive(Clone, Debug)]
@@ -215,7 +230,18 @@ impl Kermit {
             .collect();
         let mut patterns = config.patterns.clone();
         patterns.sort_by_key(|&(_, priority)| Reverse(priority));
-        Self { slots, patterns }
+        Self {
+            slots,
+            patterns,
+            dictionary: config.dictionary.clone(),
+        }
+    }
+
+    /// The tokens `di` and `dr` draw from. A caller can add tokens it learns
+    /// during a run, such as values a coverage-guided fuzzer saw the target
+    /// compare against.
+    pub fn dictionary_mut(&mut self) -> &mut Vec<Vec<u8>> {
+        &mut self.dictionary
     }
 
     /// Each enabled mutator with its current score.
@@ -327,7 +353,9 @@ impl Kermit {
             let slot = &mut self.slots[index];
             let before = block.clone();
             source.begin(slot.mutator.name());
-            let delta = slot.mutator.apply(source, block, &mut slot.memory);
+            let delta = slot
+                .mutator
+                .apply(source, block, &mut slot.memory, &self.dictionary);
             source.end();
             slot.score = (slot.score + i32::from(delta)).clamp(MIN_SCORE, MAX_SCORE);
             if *block != before {
@@ -456,6 +484,24 @@ mod tests {
             kermit.mutate(&mut rng, b"x = 1\ny = 2\n");
         }
         assert!(kermit.scores().all(|(_, score)| score == MAX_SCORE));
+    }
+
+    #[test]
+    fn dictionary_tokens_reach_the_output() {
+        let mut rng = Rng::new(9);
+        let config = Config::parse("di", "od")
+            .expect("parses")
+            .dictionary([b"TOKEN".to_vec(), Vec::new()]);
+        let mut kermit = Kermit::new(&config, &mut rng);
+        for _ in 0..50 {
+            let output = kermit.mutate(&mut rng, b"seed").data;
+            assert!(output.windows(5).any(|window| window == b"TOKEN"));
+        }
+        kermit.dictionary_mut().clear();
+        assert!(kermit.mutate(&mut rng, b"seed").applied.is_empty());
+        kermit.dictionary_mut().push(b"LEARNED".to_vec());
+        let output = kermit.mutate(&mut rng, b"seed").data;
+        assert!(output.windows(7).any(|window| window == b"LEARNED"));
     }
 
     #[test]
