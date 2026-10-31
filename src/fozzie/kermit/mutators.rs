@@ -7,7 +7,8 @@
 
 use crate::lines::{LineOp, LineStore};
 use crate::source::Source;
-use crate::{bytes, lines, number, text, utf8};
+use crate::tree::TreeOp;
+use crate::{bytes, lines, number, text, tree, utf8};
 
 macro_rules! mutators {
     ($($variant:ident => $name:literal, $description:literal;)*) => {
@@ -58,6 +59,11 @@ mutators! {
     LinePermute => "lp", "swap order of lines";
     LineInsert => "lis", "insert a line from elsewhere";
     LineReplace => "lrs", "replace a line with one from elsewhere";
+    TreeDelete => "td", "delete a node";
+    TreeDuplicate => "tr2", "duplicate a node";
+    TreeSwapOne => "ts1", "swap one node with another one";
+    TreeSwapTwo => "ts2", "swap two nodes pairwise";
+    TreeStutter => "tr", "repeat a path of the parse tree";
     Utf8Widen => "uw", "try to make a code point too wide";
     Utf8Insert => "ui", "insert funny unicode";
     Number => "num", "try to modify a textual number";
@@ -102,6 +108,11 @@ impl Mutator {
             Mutator::LinePermute => lines::mutate(source, block, LineOp::Permute),
             Mutator::LineInsert => store.insert(source, block),
             Mutator::LineReplace => store.replace(source, block),
+            Mutator::TreeDelete => tree::mutate(source, block, TreeOp::Delete),
+            Mutator::TreeDuplicate => tree::mutate(source, block, TreeOp::Duplicate),
+            Mutator::TreeSwapOne => tree::mutate(source, block, TreeOp::SwapOne),
+            Mutator::TreeSwapTwo => tree::mutate(source, block, TreeOp::SwapTwo),
+            Mutator::TreeStutter => tree::mutate(source, block, TreeOp::Stutter),
             Mutator::Utf8Widen => utf8::widen(source, block),
             Mutator::Utf8Insert => utf8::insert(source, block),
             Mutator::Number => number::mutate(source, block),

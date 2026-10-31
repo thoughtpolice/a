@@ -7,10 +7,11 @@
 //!
 //! Kermit turns a sample input into an interestingly different one without
 //! knowing its format. It guesses at structure instead: lines, decimal
-//! numbers, quoted strings and UTF-8, falling back to plain bytes. Each
-//! call picks a *pattern*, which mutates once, possibly many times, or in a
-//! burst at one place. It then walks to a block of up to 4 KiB and tries
-//! mutators in a weighted random order until one changes the block.
+//! numbers, quoted strings, bracketed trees and UTF-8, falling back to plain
+//! bytes. Each call picks a *pattern*, which mutates once, possibly many
+//! times, or in a burst at one place. It then walks to a block of up to
+//! 4 KiB and tries mutators in a weighted random order until one changes
+//! the block.
 //!
 //! Mutators keep a score between 2 and 10 that they adjust themselves. A
 //! line mutator gains on text and loses on binary data, so over a run the
@@ -28,6 +29,7 @@ mod mutators;
 mod number;
 mod source;
 mod text;
+mod tree;
 mod utf8;
 
 pub use mutators::{Mutator, MutatorSet};
@@ -39,7 +41,8 @@ use std::fmt;
 use std::ops::Range;
 
 /// radamsa's default mutators and priorities, less `ft`, `fn`, `fo` and
-/// `xp`, which kermit has not ported yet.
+/// `xp`, which kermit has not ported yet. Like radamsa, kermit leaves the
+/// tree mutators out of the default list.
 pub const DEFAULT_MUTATORS: &str =
     "num=5,ld,lds,lr2,li,ls,lp,lr,lis,lrs,sr,sd,bd,bf,bi,br,bp,bei,bed,ber,uw,ui=2,ab";
 
