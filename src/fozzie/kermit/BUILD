@@ -9,7 +9,10 @@ DEPS = [
 
 depot.rust_library(
     name = "kermit",
-    srcs = glob(["*.rs"]),
+    srcs = glob(
+        ["*.rs"],
+        exclude = ["properties.rs"],
+    ),
     crate = "kermit",
     crate_root = "lib.rs",
     visibility = ["PUBLIC"],
@@ -23,5 +26,6 @@ depot.rust_test(
     crate_root = "lib.rs",
     deps = DEPS + [
         "third-party//by-name/mi/mimalloc:rust",
+        "third-party//rust:hegeltest",
     ],
 )

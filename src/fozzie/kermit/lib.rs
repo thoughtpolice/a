@@ -27,6 +27,8 @@ mod lines;
 mod list;
 mod mutators;
 mod number;
+#[cfg(test)]
+mod properties;
 mod source;
 mod text;
 mod tree;
