@@ -8,7 +8,7 @@
 use crate::lines::{LineOp, LineStore};
 use crate::source::Source;
 use crate::tree::TreeOp;
-use crate::{binary, bytes, fuse, lines, number, text, tree, utf8, xml};
+use crate::{binary, bytes, encode, fuse, json, lines, number, text, tree, utf8, xml};
 
 macro_rules! mutators {
     ($($variant:ident => $name:literal, $description:literal;)*) => {
@@ -75,6 +75,8 @@ mutators! {
     WordArith => "wa", "add or subtract a little from a 1, 2, 4 or 8 byte integer";
     LengthField => "lf", "make a guessed length field lie";
     SizeBoundary => "sz", "grow or shrink the block to a power-of-two boundary length";
+    Encode => "ec", "re-encode a run of text";
+    JsonValue => "jv", "replace a JSON value with an awkward one";
     Nop => "nop", "do nothing (debug/test)";
 }
 
@@ -132,6 +134,8 @@ impl Mutator {
             Mutator::WordArith => binary::arithmetic(source, block),
             Mutator::LengthField => binary::length_field(source, block),
             Mutator::SizeBoundary => binary::size_boundary(source, block),
+            Mutator::Encode => encode::mutate(source, block),
+            Mutator::JsonValue => json::mutate(source, block),
             Mutator::Nop => 0,
         }
     }

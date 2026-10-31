@@ -59,9 +59,12 @@ Kermit adds mutators that radamsa lacks. They run by default at priority
 | `wi` `wa` | write an interesting value into, or add or subtract up to 35 from, a 1, 2, 4 or 8 byte integer in either byte order, as AFL does |
 | `lf` | find a field whose value is the length of what follows it, or of the block, and make it lie |
 | `sz` | truncate or extend the block to 2^k - 1, 2^k or 2^k + 1 bytes |
+| `ec` | re-encode a run of text with percent or double-percent encoding, HTML entities, `\u` `\x` or octal escapes, fullwidth forms, swapped case, UTF-16LE or overlong UTF-8 |
+| `jv` | replace a JSON string, number or literal with an edge case such as `9007199254740993`, `1e309`, `-0`, a lone surrogate escape, a value of another type, deep nesting or a long string |
 
 The integer mutators score up on binary data and down on text, the
-reverse of the line mutators.
+reverse of the line mutators. `jv` scores up on blocks that start like
+JSON.
 
 ## Differences from radamsa
 
