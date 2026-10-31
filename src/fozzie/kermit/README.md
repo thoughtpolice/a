@@ -40,6 +40,7 @@ mutation toward the unmutated seed.
 | `num` | rewrite a decimal number as a nearby, boundary or distant value, with boundaries up to 2^128 + 1 |
 | `ab` | put format strings, shell metacharacters, escapes or long runs into text and quoted strings |
 | `uw` `ui` | make a byte an overlong UTF-8 sequence, or insert troublesome code points |
+| `ft` `fn` `fo` | splice the block onto itself, across its halves, or with a block remembered from an earlier input, at points where the two share context |
 | `td` `tr2` `ts1` `ts2` `tr` | delete, duplicate, swap or recursively repeat bracketed nodes |
 | `nop` | do nothing |
 
@@ -49,8 +50,10 @@ tree mutators out of the default list.
 
 ## Differences from radamsa
 
-- Kermit has not ported the fuse mutators `ft`, `fn` and `fo` or the XML
-  mutator `xp` yet, so the default list leaves them out.
+- Kermit has not ported the XML mutator `xp` yet, so the default list
+  leaves it out.
+- `fn` fuses the block with itself, as radamsa does for the last block of
+  a stream, rather than with the next block.
 - Inputs are whole buffers rather than streams, and kermit has no output
   modes, TCP or UDP clients, or pcapng support.
 - `bi` and `ui` also grow an empty input, so an empty seed still produces

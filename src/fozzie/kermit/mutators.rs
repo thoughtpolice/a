@@ -8,7 +8,7 @@
 use crate::lines::{LineOp, LineStore};
 use crate::source::Source;
 use crate::tree::TreeOp;
-use crate::{bytes, lines, number, text, tree, utf8};
+use crate::{bytes, fuse, lines, number, text, tree, utf8};
 
 macro_rules! mutators {
     ($($variant:ident => $name:literal, $description:literal;)*) => {
@@ -67,6 +67,9 @@ mutators! {
     Utf8Widen => "uw", "try to make a code point too wide";
     Utf8Insert => "ui", "insert funny unicode";
     Number => "num", "try to modify a textual number";
+    FuseThis => "ft", "jump to a similar position in block";
+    FuseNext => "fn", "likely clone data between similar positions";
+    FuseOld => "fo", "fuse previously seen data elsewhere";
     Nop => "nop", "do nothing (debug/test)";
 }
 
@@ -79,13 +82,13 @@ impl Mutator {
     }
 
     /// Mutates `block` in place and returns the score step, positive when
-    /// the data suited this mutator and negative when it did not. `store`
-    /// is this mutator's memory of earlier blocks, used by `lis` and `lrs`.
+    /// the data suited this mutator and negative when it did not. `memory`
+    /// is what this mutator kept from earlier blocks.
     pub(crate) fn apply<S: Source>(
         self,
         source: &mut S,
         block: &mut Vec<u8>,
-        store: &mut LineStore,
+        memory: &mut Memory,
     ) -> i8 {
         match self {
             Mutator::AsciiBad => text::mutate(source, block),
@@ -106,8 +109,8 @@ impl Mutator {
             Mutator::LineRepeat => lines::mutate(source, block, LineOp::Repeat),
             Mutator::LineSwap => lines::mutate(source, block, LineOp::Swap),
             Mutator::LinePermute => lines::mutate(source, block, LineOp::Permute),
-            Mutator::LineInsert => store.insert(source, block),
-            Mutator::LineReplace => store.replace(source, block),
+            Mutator::LineInsert => memory.lines.insert(source, block),
+            Mutator::LineReplace => memory.lines.replace(source, block),
             Mutator::TreeDelete => tree::mutate(source, block, TreeOp::Delete),
             Mutator::TreeDuplicate => tree::mutate(source, block, TreeOp::Duplicate),
             Mutator::TreeSwapOne => tree::mutate(source, block, TreeOp::SwapOne),
@@ -116,24 +119,35 @@ impl Mutator {
             Mutator::Utf8Widen => utf8::widen(source, block),
             Mutator::Utf8Insert => utf8::insert(source, block),
             Mutator::Number => number::mutate(source, block),
+            Mutator::FuseThis => fuse::fuse_this(source, block),
+            Mutator::FuseNext => fuse::fuse_next(source, block),
+            Mutator::FuseOld => fuse::fuse_old(source, block, &mut memory.block),
             Mutator::Nop => 0,
         }
     }
 }
 
+/// What a mutator keeps between blocks: lines for `lis` and `lrs`, and a
+/// block for `fo`.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct Memory {
+    pub lines: LineStore,
+    pub block: Option<Vec<u8>>,
+}
+
 /// A set of mutators, such as the ones that changed an input.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct MutatorSet(u32);
+pub struct MutatorSet(u64);
 
-const _: () = assert!(Mutator::ALL.len() <= u32::BITS as usize);
+const _: () = assert!(Mutator::ALL.len() <= u64::BITS as usize);
 
 impl MutatorSet {
     pub fn insert(&mut self, mutator: Mutator) {
-        self.0 |= 1 << mutator as u32;
+        self.0 |= 1 << mutator as u64;
     }
 
     pub fn contains(self, mutator: Mutator) -> bool {
-        self.0 & (1 << mutator as u32) != 0
+        self.0 & (1 << mutator as u64) != 0
     }
 
     pub fn is_empty(self) -> bool {

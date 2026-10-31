@@ -23,6 +23,7 @@
 //! the choices.
 
 mod bytes;
+mod fuse;
 mod lines;
 mod list;
 mod mutators;
@@ -37,16 +38,16 @@ mod utf8;
 pub use mutators::{Mutator, MutatorSet};
 pub use source::{Rng, Source};
 
-use lines::LineStore;
+use mutators::Memory;
 use std::cmp::Reverse;
 use std::fmt;
 use std::ops::Range;
 
-/// radamsa's default mutators and priorities, less `ft`, `fn`, `fo` and
-/// `xp`, which kermit has not ported yet. Like radamsa, kermit leaves the
-/// tree mutators out of the default list.
+/// radamsa's default mutators and priorities, less `xp`, which kermit has
+/// not ported yet. Like radamsa, kermit leaves the tree mutators out of the
+/// default list.
 pub const DEFAULT_MUTATORS: &str =
-    "num=5,ld,lds,lr2,li,ls,lp,lr,lis,lrs,sr,sd,bd,bf,bi,br,bp,bei,bed,ber,uw,ui=2,ab";
+    "ft=2,fo=2,fn,num=5,ld,lds,lr2,li,ls,lp,lr,lis,lrs,sr,sd,bd,bf,bi,br,bp,bei,bed,ber,uw,ui=2,ab";
 
 /// radamsa's default patterns and priorities.
 pub const DEFAULT_PATTERNS: &str = "od,nd=2,bu";
@@ -191,7 +192,7 @@ struct Slot {
     mutator: Mutator,
     priority: u32,
     score: i32,
-    store: LineStore,
+    memory: Memory,
 }
 
 impl Kermit {
@@ -204,7 +205,7 @@ impl Kermit {
                 mutator,
                 priority,
                 score: (source.below(MAX_SCORE as usize) as i32).max(MIN_SCORE),
-                store: LineStore::default(),
+                memory: Memory::default(),
             })
             .collect();
         let mut patterns = config.patterns.clone();
@@ -321,7 +322,7 @@ impl Kermit {
             let slot = &mut self.slots[index];
             let before = block.clone();
             source.begin(slot.mutator.name());
-            let delta = slot.mutator.apply(source, block, &mut slot.store);
+            let delta = slot.mutator.apply(source, block, &mut slot.memory);
             source.end();
             slot.score = (slot.score + i32::from(delta)).clamp(MIN_SCORE, MAX_SCORE);
             if *block != before {
