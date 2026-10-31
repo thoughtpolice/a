@@ -17,11 +17,21 @@
 #define OK(call) do { \
     hegel_result_t code = (call); \
     if (code != HEGEL_OK) { \
-        fprintf(stderr, "%s: %d: %s\n", #call, code, \
-                hegel_context_last_error(ctx)); \
+        hegel_string_t error = hegel_context_last_error(ctx); \
+        fprintf(stderr, "%s: %d: %.*s\n", #call, code, \
+                (int)error.len, error.data); \
         exit(1); \
     } \
 } while (0)
+
+// Borrowed string arguments carry their length and need no terminator.
+#define STRING(literal) ((hegel_string_t){literal, sizeof(literal) - 1})
+
+static bool string_equals(hegel_string_t string, const char *expected) {
+    size_t len = strlen(expected);
+    return string.data != NULL && string.len == len &&
+           memcmp(string.data, expected, len) == 0;
+}
 
 // Exercise the pull-based protocol used by language bindings: generate,
 // report outcomes, shrink a failure, and replay the minimal counterexample.
@@ -29,13 +39,14 @@ static void exercise_run(hegel_context_t *ctx, bool failing) {
     hegel_settings_t *settings = NULL;
     OK(hegel_settings_new(ctx, &settings));
     OK(hegel_settings_set_backend(ctx, settings, HEGEL_BACKEND_DEFAULT));
-    OK(hegel_settings_set_database(ctx, settings, ""));
+    OK(hegel_settings_set_database(ctx, settings, &STRING("")));
     OK(hegel_settings_set_seed(ctx, settings, 42, true));
     OK(hegel_settings_set_test_cases(ctx, settings, 100));
     OK(hegel_settings_set_verbosity(ctx, settings, HEGEL_VERBOSITY_QUIET));
 
     hegel_run_t *run = NULL;
     OK(hegel_run_start(ctx, settings, NULL, NULL, &run));
+    const hegel_string_t message = STRING("value >= 10");
     size_t cases = 0;
     for (;;) {
         hegel_test_case_t *tc = NULL;
@@ -56,7 +67,7 @@ static void exercise_run(hegel_context_t *ctx, bool failing) {
         bool failed = failing && value >= 10;
         OK(hegel_mark_complete(ctx, tc,
                                failed ? HEGEL_STATUS_INTERESTING : HEGEL_STATUS_VALID,
-                               failed ? "value >= 10" : NULL));
+                               failed ? &message : NULL));
         OK(hegel_test_case_free(ctx, tc));
     }
     CHECK(cases > 0);
@@ -74,18 +85,18 @@ static void exercise_run(hegel_context_t *ctx, bool failing) {
     if (failing) {
         hegel_failure_t *failure = NULL;
         OK(hegel_run_result_failure(ctx, result, 0, &failure));
-        const char *origin = NULL;
+        hegel_string_t origin = {0};
         OK(hegel_failure_origin(ctx, failure, &origin));
-        CHECK(origin != NULL && strcmp(origin, "value >= 10") == 0);
-        const char *blob = NULL;
+        CHECK(string_equals(origin, "value >= 10"));
+        const hegel_string_t *blob = NULL;
         OK(hegel_failure_reproduction_blob(ctx, failure, &blob));
-        CHECK(blob != NULL && blob[0] != '\0');
+        CHECK(blob != NULL && blob->len > 0);
         hegel_test_case_t *replay = NULL;
-        OK(hegel_test_case_from_blob(ctx, settings, blob, NULL, NULL, &replay));
+        OK(hegel_test_case_from_blob(ctx, settings, *blob, NULL, NULL, &replay));
         int64_t minimal = -1;
         OK(hegel_generate_integer(ctx, replay, 0, 100, &minimal));
         CHECK(minimal == 10);
-        OK(hegel_mark_complete(ctx, replay, HEGEL_STATUS_INTERESTING, origin));
+        OK(hegel_mark_complete(ctx, replay, HEGEL_STATUS_INTERESTING, &origin));
         OK(hegel_test_case_free(ctx, replay));
         OK(hegel_failure_free(ctx, failure));
     }
@@ -97,14 +108,14 @@ static void exercise_run(hegel_context_t *ctx, bool failing) {
 int main(void) {
     hegel_context_t *ctx = hegel_context_new();
     CHECK(ctx != NULL);
-    const char *version = NULL;
+    hegel_string_t version = {0};
     OK(hegel_version(ctx, &version));
-    CHECK(version != NULL && strcmp(version, HEGEL_EXPECTED_VERSION) == 0);
+    CHECK(string_equals(version, HEGEL_EXPECTED_VERSION));
 
     // Foreign callers receive an error code and a diagnostic for bad handles.
     CHECK(hegel_settings_set_test_cases(ctx, NULL, 1) == HEGEL_E_INVALID_HANDLE);
-    const char *error = hegel_context_last_error(ctx);
-    CHECK(error != NULL && error[0] != '\0');
+    hegel_string_t error = hegel_context_last_error(ctx);
+    CHECK(error.data != NULL && error.len > 0);
 
     exercise_run(ctx, false);
     exercise_run(ctx, true);

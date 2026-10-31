@@ -6126,56 +6126,56 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "dashu-base-0.4.3.crate",
-    sha256 = "993b95dc1b248e3f5747dcb017a41d6e75853a2e5ee4504f7d537c5b8dffdae4",
-    strip_prefix = "dashu-base-0.4.3",
-    urls = ["https://static.crates.io/crates/dashu-base/0.4.3/download"],
+    name = "dashu-base-0.6.1.crate",
+    sha256 = "861a614e79388a4c72aa66b0bdabc91e3a4f30d53e0c8d962953e207d75884d0",
+    strip_prefix = "dashu-base-0.6.1",
+    urls = ["https://static.crates.io/crates/dashu-base/0.6.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "dashu-base-0.4",
-    srcs = [":dashu-base-0.4.3.crate"],
+    name = "dashu-base-0.6",
+    srcs = [":dashu-base-0.6.1.crate"],
     crate = "dashu_base",
-    crate_root = "dashu-base-0.4.3.crate/src/lib.rs",
+    crate_root = "dashu-base-0.6.1.crate/src/lib.rs",
     edition = "2021",
     metadata = {
         "third-party.metadata": {
             "name": "dashu-base",
-            "version": "0.4.3",
+            "version": "0.6.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
+    deps = [":num-modular-0.6"],
 )
 
 shims.http_archive(
-    name = "dashu-int-0.4.3.crate",
-    sha256 = "49c05a0d5cb0b39fcc87c46432fdac24b90dce239857c7f6b798be4ffc3c42c6",
-    strip_prefix = "dashu-int-0.4.3",
-    urls = ["https://static.crates.io/crates/dashu-int/0.4.3/download"],
+    name = "dashu-int-0.6.2.crate",
+    sha256 = "64a0490b40a6a3f6427970035f17f76fd59c01d3cd9f9140809672863a0d64c8",
+    strip_prefix = "dashu-int-0.6.2",
+    urls = ["https://static.crates.io/crates/dashu-int/0.6.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "dashu-int-0.4",
-    srcs = [":dashu-int-0.4.3.crate"],
+    name = "dashu-int-0.6",
+    srcs = [":dashu-int-0.6.2.crate"],
     crate = "dashu_int",
-    crate_root = "dashu-int-0.4.3.crate/src/lib.rs",
+    crate_root = "dashu-int-0.6.2.crate/src/lib.rs",
     edition = "2021",
     metadata = {
         "third-party.metadata": {
             "name": "dashu-int",
-            "version": "0.4.3",
+            "version": "0.6.2",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":cfg-if-1",
-        ":dashu-base-0.4",
+        ":dashu-base-0.6",
         ":num-modular-0.6",
-        ":rustversion-1",
         ":static_assertions-1",
     ],
 )
@@ -13773,23 +13773,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "hegeltest",
-    actual = ":hegeltest-0.46",
+    actual = ":hegeltest-0.51",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "hegeltest-0.46.1.crate",
-    sha256 = "9f67041ef61905b0671d0120c9f02a8bee140ccf56ca256720a366ca77c942c4",
-    strip_prefix = "hegeltest-0.46.1",
-    urls = ["https://static.crates.io/crates/hegeltest/0.46.1/download"],
+    name = "hegeltest-0.51.0.crate",
+    sha256 = "e943e465ed0cc8ad09b916b803a5955e02a124fad09bcb8799e1a77efc2bff69",
+    strip_prefix = "hegeltest-0.51.0",
+    urls = ["https://static.crates.io/crates/hegeltest/0.51.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-0.46",
-    srcs = [":hegeltest-0.46.1.crate"],
+    name = "hegeltest-0.51",
+    srcs = [":hegeltest-0.51.0.crate"],
     crate = "hegel",
-    crate_root = "hegeltest-0.46.1.crate/src/lib.rs",
+    crate_root = "hegeltest-0.51.0.crate/src/lib.rs",
     edition = "2024",
     features = [
         "default",
@@ -13798,41 +13798,41 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "hegeltest",
-            "version": "0.46.1",
+            "version": "0.51.0",
             "licenses": ["MIT"],
         },
     },
     visibility = [],
     deps = [
-        ":hegeltest-c-0.43",
-        ":hegeltest-macros-0.46",
+        ":hegeltest-c-0.49",
+        ":hegeltest-macros-0.51",
         ":parking_lot-0.12",
     ],
 )
 
 shims.alias(
     name = "hegeltest-c",
-    actual = ":hegeltest-c-0.43",
+    actual = ":hegeltest-c-0.49",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "hegeltest-c-0.43.1.crate",
-    sha256 = "d2516a3430aa6acc6191042653161173d6fa5023558f1487ae440c401843fdf5",
-    strip_prefix = "hegeltest-c-0.43.1",
-    urls = ["https://static.crates.io/crates/hegeltest-c/0.43.1/download"],
+    name = "hegeltest-c-0.49.0.crate",
+    sha256 = "fff33a90b762226a4078760b9279082bfac33152e4e7d6cb0d789c88959f982c",
+    strip_prefix = "hegeltest-c-0.49.0",
+    urls = ["https://static.crates.io/crates/hegeltest-c/0.49.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-c-0.43",
-    srcs = [":hegeltest-c-0.43.1.crate"],
+    name = "hegeltest-c-0.49",
+    srcs = [":hegeltest-c-0.49.0.crate"],
     crate = "hegel_c",
-    crate_root = "hegeltest-c-0.43.1.crate/src/lib.rs",
+    crate_root = "hegeltest-c-0.49.0.crate/src/lib.rs",
     dlopen_enable = True,
     edition = "2024",
     env = {
-        "CARGO_PKG_VERSION": "0.43.1",
+        "CARGO_PKG_VERSION": "0.49.0",
     },
     features = [
         "default",
@@ -13842,7 +13842,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "hegeltest-c",
-            "version": "0.43.1",
+            "version": "0.49.0",
             "licenses": ["MIT"],
         },
     },
@@ -13868,7 +13868,7 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
-        ":dashu-int-0.4",
+        ":dashu-int-0.6",
         ":hashbrown-0.17",
         ":libm-0.2",
         ":miniz_oxide-0.8",
@@ -13880,31 +13880,31 @@ third_party_rust.rust_library(
 )
 
 shims.filegroup(
-    name = "hegeltest-c-0.43-headers",
+    name = "hegeltest-c-0.49-headers",
     srcs = {
-        "hegeltest-c-0.43.1.crate": ":hegeltest-c-0.43.1.crate",
+        "hegeltest-c-0.49.0.crate": ":hegeltest-c-0.49.0.crate",
     },
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "hegeltest-macros-0.46.1.crate",
-    sha256 = "dd8ae855a2016aa70ae90ebf8f24bc077ac2c12dac177eba6d1091a997d0e81d",
-    strip_prefix = "hegeltest-macros-0.46.1",
-    urls = ["https://static.crates.io/crates/hegeltest-macros/0.46.1/download"],
+    name = "hegeltest-macros-0.51.0.crate",
+    sha256 = "0379b413f89425fa144429ebe3b344fb277d394c6c7242f4546b414cd16af5b9",
+    strip_prefix = "hegeltest-macros-0.51.0",
+    urls = ["https://static.crates.io/crates/hegeltest-macros/0.51.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-macros-0.46",
-    srcs = [":hegeltest-macros-0.46.1.crate"],
+    name = "hegeltest-macros-0.51",
+    srcs = [":hegeltest-macros-0.51.0.crate"],
     crate = "hegel_macros",
-    crate_root = "hegeltest-macros-0.46.1.crate/src/lib.rs",
+    crate_root = "hegeltest-macros-0.51.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "hegeltest-macros",
-            "version": "0.46.1",
+            "version": "0.51.0",
             "licenses": ["MIT"],
         },
     },

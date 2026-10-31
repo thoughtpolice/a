@@ -9,6 +9,15 @@ import re
 import sys
 
 
+class HegelString(ctypes.Structure):
+    """hegel_string_t: a UTF-8 buffer and its length in bytes."""
+
+    _fields_ = [("data", ctypes.c_void_p), ("len", ctypes.c_size_t)]
+
+    def __bytes__(self):
+        return ctypes.string_at(self.data, self.len)
+
+
 def main():
     library, header, expected_version = sys.argv[1:]
     lib = ctypes.CDLL(str(Path(library).resolve()))
@@ -24,18 +33,18 @@ def main():
     lib.hegel_context_new.restype = ctypes.c_void_p
     lib.hegel_context_free.argtypes = [ctypes.c_void_p]
     lib.hegel_context_free.restype = ctypes.c_int
-    lib.hegel_version.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_char_p)]
+    lib.hegel_version.argtypes = [ctypes.c_void_p, ctypes.POINTER(HegelString)]
     lib.hegel_version.restype = ctypes.c_int
 
     ctx = lib.hegel_context_new()
     if not ctx:
         raise RuntimeError("hegel_context_new returned NULL")
     try:
-        version = ctypes.c_char_p()
+        version = HegelString()
         if lib.hegel_version(ctx, ctypes.byref(version)) != 0:
             raise RuntimeError("hegel_version failed")
-        if version.value != expected_version.encode():
-            raise RuntimeError(f"unexpected engine version: {version.value!r}")
+        if bytes(version) != expected_version.encode():
+            raise RuntimeError(f"unexpected engine version: {bytes(version)!r}")
     finally:
         if lib.hegel_context_free(ctx) != 0:
             raise RuntimeError("hegel_context_free failed")
