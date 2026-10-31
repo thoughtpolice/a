@@ -8,7 +8,7 @@
 use crate::lines::{LineOp, LineStore};
 use crate::source::Source;
 use crate::tree::TreeOp;
-use crate::{bytes, fuse, lines, number, text, tree, utf8, xml};
+use crate::{binary, bytes, fuse, lines, number, text, tree, utf8, xml};
 
 macro_rules! mutators {
     ($($variant:ident => $name:literal, $description:literal;)*) => {
@@ -71,6 +71,10 @@ mutators! {
     FuseThis => "ft", "jump to a similar position in block";
     FuseNext => "fn", "likely clone data between similar positions";
     FuseOld => "fo", "fuse previously seen data elsewhere";
+    WordInteresting => "wi", "overwrite a 1, 2, 4 or 8 byte integer with an interesting value";
+    WordArith => "wa", "add or subtract a little from a 1, 2, 4 or 8 byte integer";
+    LengthField => "lf", "make a guessed length field lie";
+    SizeBoundary => "sz", "grow or shrink the block to a power-of-two boundary length";
     Nop => "nop", "do nothing (debug/test)";
 }
 
@@ -124,6 +128,10 @@ impl Mutator {
             Mutator::FuseThis => fuse::fuse_this(source, block),
             Mutator::FuseNext => fuse::fuse_next(source, block),
             Mutator::FuseOld => fuse::fuse_old(source, block, &mut memory.block),
+            Mutator::WordInteresting => binary::interesting(source, block),
+            Mutator::WordArith => binary::arithmetic(source, block),
+            Mutator::LengthField => binary::length_field(source, block),
+            Mutator::SizeBoundary => binary::size_boundary(source, block),
             Mutator::Nop => 0,
         }
     }

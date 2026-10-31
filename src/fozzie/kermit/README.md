@@ -49,6 +49,20 @@ Pattern `od` mutates once, `nd` possibly many times, and `bu` several times
 in one block. The defaults are radamsa's. Like radamsa, kermit leaves the
 tree mutators out of the default list.
 
+## Beyond radamsa
+
+Kermit adds mutators that radamsa lacks. They run by default at priority
+1.
+
+| Name | Mutation |
+| --- | --- |
+| `wi` `wa` | write an interesting value into, or add or subtract up to 35 from, a 1, 2, 4 or 8 byte integer in either byte order, as AFL does |
+| `lf` | find a field whose value is the length of what follows it, or of the block, and make it lie |
+| `sz` | truncate or extend the block to 2^k - 1, 2^k or 2^k + 1 bytes |
+
+The integer mutators score up on binary data and down on text, the
+reverse of the line mutators.
+
 ## Differences from radamsa
 
 - `xp` nests or repeats an element at most 1025 times rather than 16385.

@@ -8,10 +8,12 @@
 //! Kermit turns a sample input into an interestingly different one without
 //! knowing its format. It guesses at structure instead: lines, decimal
 //! numbers, quoted strings, bracketed trees, XML-ish tags and UTF-8, falling
-//! back to plain bytes. Each call picks a *pattern*, which mutates once, possibly many
-//! times, or in a burst at one place. It then walks to a block of up to
-//! 4 KiB and tries mutators in a weighted random order until one changes
-//! the block.
+//! back to plain bytes. Beyond radamsa, it also edits fixed-width integers
+//! and guessed length fields of binary formats.
+//!
+//! Each call picks a *pattern*, which mutates once, possibly many times, or
+//! in a burst at one place. It then walks to a block of up to 4 KiB and
+//! tries mutators in a weighted random order until one changes the block.
 //!
 //! Mutators keep a score between 2 and 10 that they adjust themselves. A
 //! line mutator gains on text and loses on binary data, so over a run the
@@ -22,6 +24,7 @@
 //! the same outputs, and a property-testing engine can drive and shrink
 //! the choices.
 
+mod binary;
 mod bytes;
 mod fuse;
 mod lines;
@@ -44,9 +47,9 @@ use std::cmp::Reverse;
 use std::fmt;
 use std::ops::Range;
 
-/// radamsa's default mutators and priorities. Like radamsa, kermit leaves
-/// the tree mutators out of the default list.
-pub const DEFAULT_MUTATORS: &str = "ft=2,fo=2,fn,num=5,ld,lds,lr2,li,ls,lp,lr,lis,lrs,sr,sd,bd,bf,bi,br,bp,bei,bed,ber,uw,ui=2,xp=9,ab";
+/// radamsa's default mutators and priorities, then kermit's own at priority
+/// 1. Like radamsa, kermit leaves the tree mutators out of the default list.
+pub const DEFAULT_MUTATORS: &str = "ft=2,fo=2,fn,num=5,ld,lds,lr2,li,ls,lp,lr,lis,lrs,sr,sd,bd,bf,bi,br,bp,bei,bed,ber,uw,ui=2,xp=9,ab,wi,wa,lf,sz";
 
 /// radamsa's default patterns and priorities.
 pub const DEFAULT_PATTERNS: &str = "od,nd=2,bu";
