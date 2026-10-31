@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    version = "0.1.0",
+    description = """
+        Kermit, a Rust port of Aki Helin's radamsa mutation engine from
+        https://gitlab.com/akihe/radamsa; see README.md.
+    """,
+    # radamsa is Aki Helin's work under the MIT license (LICENSE); the port
+    # is under the same license.
+    license = "MIT",
+    copyright = [
+        "© 2013 Aki Helin",
+        "© 2026 Austin Seipp",
+    ],
+    inherit = True,
+)
