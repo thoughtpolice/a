@@ -556,7 +556,14 @@ fn draw_workers(campaign: &Campaign, frame: &mut Frame, area: Rect) {
 }
 
 fn draw_yields(campaign: &Campaign, frame: &mut Frame, area: Rect) {
-    let rows = campaign.status.mutators.iter().map(|mutator| {
+    // A campaign reports every kermit mutator, but one that never ran, or
+    // a campaign without kermit, would only crowd out the rest.
+    let shown = campaign
+        .status
+        .mutators
+        .iter()
+        .filter(|mutator| mutator.applied > 0 || !mutator.name.starts_with("kermit:"));
+    let rows = shown.map(|mutator| {
         let share = if mutator.applied == 0 {
             "-".to_owned()
         } else {
@@ -870,10 +877,9 @@ mod tests {
                     last_input_len: 312,
                 })
                 .collect(),
-            mutators: crate::mutate::MUTATOR_NAMES
-                .iter()
-                .map(|name| MutatorYield {
-                    name: (*name).to_owned(),
+            mutators: (0..crate::mutate::MUTATOR_COUNT)
+                .map(|index| MutatorYield {
+                    name: crate::mutate::mutator_name(index),
                     applied: 120_000,
                     useful: 812,
                 })

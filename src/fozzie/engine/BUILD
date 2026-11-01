@@ -4,6 +4,7 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 ENGINE_DEPS = [
+    "root//src/fozzie/kermit:kermit",
     "third-party//rust:anyhow",
     "third-party//rust:base64",
     "third-party//rust:blake3",

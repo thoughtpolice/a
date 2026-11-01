@@ -469,7 +469,12 @@ fn status_file_and_registry_describe_a_durable_campaign() {
         .sum();
     assert_eq!(worker_executions, 62);
     let mutators = status["mutators"].as_array().unwrap();
-    assert_eq!(mutators.len(), 8);
+    let names: Vec<&str> = mutators
+        .iter()
+        .map(|mutator| mutator["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names[0], "flip_bit");
+    assert!(names.contains(&"kermit:jump") && names.contains(&"kermit:num"));
     let applied: u64 = mutators
         .iter()
         .map(|mutator| mutator["applied"].as_u64().unwrap())

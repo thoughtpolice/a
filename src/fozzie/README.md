@@ -138,6 +138,26 @@ decoding the comparison region altogether and no longer counts its
 truncation; the cost of a large `cmp_capacity` is then only the target's
 recording.
 
+Each input comes from one of two mutation engines. Fozzie's byte mutators
+flip, set, add to, insert, delete, copy and splice bytes and insert
+dictionary entries. [Kermit](kermit/README.md), a port of radamsa, guesses
+at structure instead: lines, decimal numbers, quoted strings, brackets and
+XML-ish tags, as well as fixed-width integers, length fields and JSON
+values. `--mutator both`, the default, picks one engine at random for each
+input, and `--mutator bytes` or `--mutator kermit` uses one alone. Each
+worker keeps its own kermit engine, whose mutator scores adapt to the
+inputs it sees, and kermit's `di` and `dr` mutators draw from the same
+dynamic dictionary, comparison operands included. One kermit input in six
+starts from kermit's jump generator, which splices two corpus inputs where
+they share context. `--kermit-mutations` and `--kermit-patterns` take
+radamsa-style lists such as `num=5,ld,bd=0`, and the status file names
+kermit's mutators with a `kermit:` prefix.
+
+Kermit's mutations cost more than byte edits and make larger inputs, so a
+campaign that uses it runs fewer executions. On a `serde_json` harness in a
+release build, `both` still reached about 30% more coverage features in 40
+seconds than `bytes` alone, with a third of the executions.
+
 For a durable campaign, give `buck2 run` a work directory. External seeds are
 imported into its content-addressed corpus, so it is self-contained afterward;
 existing interesting inputs are loaded automatically on the next invocation:

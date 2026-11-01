@@ -11,10 +11,8 @@ pub const MAX_DICTIONARY_ENTRIES: usize = 8_192;
 const MAX_DICTIONARY_BYTES: usize = 16 * 1024 * 1024;
 const MAX_DICTIONARY_LINE_BYTES: usize = 1024 * 1024;
 
-pub const MUTATOR_COUNT: usize = 8;
-/// Mutator names in the order `mutate` selects them; a `MutatorSet` indexes
-/// into this.
-pub const MUTATOR_NAMES: [&str; MUTATOR_COUNT] = [
+/// The byte mutators, in the order `mutate_bytes` selects them.
+const BYTE_MUTATORS: [&str; 8] = [
     "flip_bit",
     "set_byte",
     "arithmetic",
@@ -25,12 +23,41 @@ pub const MUTATOR_NAMES: [&str; MUTATOR_COUNT] = [
     "insert_dictionary",
 ];
 
-/// The mutators one `mutate` call selected, as a bitmask over
-/// `MUTATOR_NAMES`. A mutator that fell back to another (a full input, an
-/// empty dictionary) is still reported as itself: the report is about the
-/// strategy chosen, and the fallback is part of that strategy.
+/// The index of kermit's jump generator, which splices the base and splice
+/// inputs before kermit mutates the result.
+const KERMIT_JUMP: usize = BYTE_MUTATORS.len();
+
+/// The index of the first of kermit's mutators, which follow in
+/// `kermit::Mutator::ALL` order.
+const KERMIT_MUTATORS: usize = KERMIT_JUMP + 1;
+
+pub const MUTATOR_COUNT: usize = KERMIT_MUTATORS + kermit::Mutator::ALL.len();
+const _: () = assert!(MUTATOR_COUNT <= 64, "a MutatorSet holds 64 mutators");
+
+/// One in this many kermit mutations starts from a jump between two corpus
+/// inputs, the share radamsa's default generator priorities give jumps.
+const KERMIT_JUMP_ODDS: usize = 6;
+
+/// The name of the mutator a `MutatorSet` index stands for. Kermit's carry
+/// a `kermit:` prefix, as in `kermit:num`.
+pub fn mutator_name(index: usize) -> String {
+    match index {
+        _ if index < KERMIT_JUMP => BYTE_MUTATORS[index].to_owned(),
+        KERMIT_JUMP => "kermit:jump".to_owned(),
+        _ => format!(
+            "kermit:{}",
+            kermit::Mutator::ALL[index - KERMIT_MUTATORS].name()
+        ),
+    }
+}
+
+/// The mutators one `mutate` call selected, as a bitmask over the indices
+/// `mutator_name` names. A byte mutator that fell back to another (a full
+/// input, an empty dictionary) is still reported as itself: the report is
+/// about the strategy chosen, and the fallback is part of that strategy.
+/// Kermit reports only the mutators that changed its input.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct MutatorSet(u8);
+pub struct MutatorSet(u64);
 
 impl MutatorSet {
     fn insert(&mut self, index: usize) {
@@ -43,6 +70,27 @@ impl MutatorSet {
 
     pub fn iter(self) -> impl Iterator<Item = usize> {
         (0..MUTATOR_COUNT).filter(move |index| self.contains(*index))
+    }
+}
+
+/// Which mutation engines a campaign uses.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, clap::ValueEnum)]
+pub enum Strategy {
+    /// Fozzie's byte mutators.
+    Bytes,
+    /// Kermit, the port of radamsa's structure-guessing mutators.
+    Kermit,
+    /// Each input picks one of the two at random.
+    Both,
+}
+
+impl Strategy {
+    pub fn name(self) -> &'static str {
+        match self {
+            Strategy::Bytes => "bytes",
+            Strategy::Kermit => "kermit",
+            Strategy::Both => "both",
+        }
     }
 }
 
@@ -76,7 +124,78 @@ impl Rng {
     }
 }
 
-pub fn mutate(
+/// Kermit draws from the worker's generator, so the campaign seed still
+/// fixes a one-worker campaign's inputs.
+impl kermit::Source for Rng {
+    fn below(&mut self, upper: usize) -> usize {
+        Rng::below(self, upper)
+    }
+}
+
+/// One worker's mutators. Kermit's scores adapt to the inputs it mutates,
+/// so each worker keeps its own engine.
+pub struct Mutators {
+    strategy: Strategy,
+    kermit: Option<kermit::Kermit>,
+    /// How many dictionary entries kermit has been given so far.
+    synced: usize,
+}
+
+impl Mutators {
+    /// A `Bytes` strategy draws nothing here, so its inputs match those of
+    /// a campaign without kermit.
+    pub fn new(strategy: Strategy, config: &kermit::Config, rng: &mut Rng) -> Self {
+        let kermit = (strategy != Strategy::Bytes).then(|| kermit::Kermit::new(config, rng));
+        Self {
+            strategy,
+            kermit,
+            synced: 0,
+        }
+    }
+
+    /// Mutates `base`, perhaps splicing in `splice`, to at most `max_input`
+    /// bytes. `dictionary` may only have grown since the last call.
+    pub fn mutate(
+        &mut self,
+        base: &[u8],
+        splice: &[u8],
+        dictionary: &[Vec<u8>],
+        max_input: usize,
+        rng: &mut Rng,
+    ) -> (Vec<u8>, MutatorSet) {
+        let engine = match (&mut self.kermit, self.strategy) {
+            (Some(engine), Strategy::Kermit) => engine,
+            (Some(engine), Strategy::Both) if rng.below(2) == 1 => engine,
+            _ => return mutate_bytes(base, splice, dictionary, max_input, rng),
+        };
+        engine
+            .dictionary_mut()
+            .extend_from_slice(&dictionary[self.synced..]);
+        self.synced = dictionary.len();
+        let mut applied = MutatorSet::default();
+        let jumped;
+        let base = if rng.below(KERMIT_JUMP_ODDS) == 0 {
+            applied.insert(KERMIT_JUMP);
+            jumped = kermit::generate::jump(rng, base, splice);
+            &jumped
+        } else {
+            base
+        };
+        let mutation = engine.mutate(rng, base);
+        for mutator in mutation.applied.iter() {
+            let position = kermit::Mutator::ALL
+                .iter()
+                .position(|&known| known == mutator)
+                .expect("kermit reports its own mutators");
+            applied.insert(KERMIT_MUTATORS + position);
+        }
+        let mut output = mutation.data;
+        output.truncate(max_input);
+        (output, applied)
+    }
+}
+
+fn mutate_bytes(
     base: &[u8],
     splice: &[u8],
     dictionary: &[Vec<u8>],
@@ -87,7 +206,7 @@ pub fn mutate(
     let mut applied = MutatorSet::default();
     let rounds = 1 + rng.below(4);
     for _ in 0..rounds {
-        let choice = rng.below(MUTATOR_COUNT);
+        let choice = rng.below(BYTE_MUTATORS.len());
         applied.insert(choice);
         match choice {
             0 => flip_bit(&mut output, max_input, rng),
@@ -369,9 +488,10 @@ mod tests {
         let mut first = Rng::new(42);
         let mut second = Rng::new(42);
         for _ in 0..100 {
-            let (a, applied_a) = mutate(b"abcdef", b"uvwxyz", &[b"token".to_vec()], 12, &mut first);
+            let (a, applied_a) =
+                mutate_bytes(b"abcdef", b"uvwxyz", &[b"token".to_vec()], 12, &mut first);
             let (b, applied_b) =
-                mutate(b"abcdef", b"uvwxyz", &[b"token".to_vec()], 12, &mut second);
+                mutate_bytes(b"abcdef", b"uvwxyz", &[b"token".to_vec()], 12, &mut second);
             assert_eq!(a, b);
             assert_eq!(applied_a, applied_b);
             assert!(a.len() <= 12);
@@ -384,14 +504,93 @@ mod tests {
         let mut second = Rng::new(7);
         let mut seen = MutatorSet::default();
         for _ in 0..100 {
-            let (_, a) = mutate(b"abcdef", b"uvwxyz", &[b"token".to_vec()], 32, &mut first);
-            let (_, b) = mutate(b"abcdef", b"uvwxyz", &[b"token".to_vec()], 32, &mut second);
+            let (_, a) = mutate_bytes(b"abcdef", b"uvwxyz", &[b"token".to_vec()], 32, &mut first);
+            let (_, b) = mutate_bytes(b"abcdef", b"uvwxyz", &[b"token".to_vec()], 32, &mut second);
             assert_eq!(a, b);
             assert!(a.iter().next().is_some());
             assert!(a.iter().count() <= 4);
             seen.0 |= a.0;
         }
-        assert_eq!(seen.iter().count(), MUTATOR_COUNT);
+        assert_eq!(seen.iter().count(), BYTE_MUTATORS.len());
+    }
+
+    #[test]
+    fn the_bytes_strategy_draws_as_before() {
+        let config = kermit::Config::default();
+        let mut first = Rng::new(3);
+        let mut second = Rng::new(3);
+        let mut mutators = Mutators::new(Strategy::Bytes, &config, &mut first);
+        for _ in 0..100 {
+            assert_eq!(
+                mutators.mutate(b"abcdef", b"uvwxyz", &[], 32, &mut first),
+                mutate_bytes(b"abcdef", b"uvwxyz", &[], 32, &mut second)
+            );
+        }
+    }
+
+    #[test]
+    fn kermit_is_deterministic_bounded_and_named() {
+        let config = kermit::Config::default();
+        let sample = b"GET /index.html HTTP/1.1\nContent-Length: 12\n\n{\"a\": [1, 2]}\n";
+        let run = |seed| {
+            let mut rng = Rng::new(seed);
+            let mut mutators = Mutators::new(Strategy::Kermit, &config, &mut rng);
+            (0..200)
+                .map(|_| mutators.mutate(sample, b"other input 42\n", &[], 64, &mut rng))
+                .collect::<Vec<_>>()
+        };
+        let outputs = run(9);
+        assert_eq!(outputs, run(9));
+        let mut seen = MutatorSet::default();
+        for (output, applied) in &outputs {
+            assert!(output.len() <= 64);
+            assert!(applied.iter().all(|index| index >= KERMIT_JUMP));
+            seen.0 |= applied.0;
+        }
+        assert!(seen.contains(KERMIT_JUMP));
+        let names: Vec<String> = seen.iter().map(mutator_name).collect();
+        assert!(names.len() > 5, "{names:?}");
+        assert!(names.iter().all(|name| name.starts_with("kermit:")));
+    }
+
+    #[test]
+    fn both_strategies_take_turns() {
+        let config = kermit::Config::default();
+        let mut rng = Rng::new(5);
+        let mut mutators = Mutators::new(Strategy::Both, &config, &mut rng);
+        let mut seen = MutatorSet::default();
+        for _ in 0..100 {
+            seen.0 |= mutators
+                .mutate(b"line one\nline 2\n", b"", &[], 64, &mut rng)
+                .1
+                .0;
+        }
+        assert!(seen.iter().any(|index| index < KERMIT_JUMP));
+        assert!(seen.iter().any(|index| index > KERMIT_JUMP));
+    }
+
+    #[test]
+    fn kermit_receives_dictionary_growth() {
+        let config = kermit::Config::parse("di", "od").unwrap();
+        let mut rng = Rng::new(1);
+        let mut mutators = Mutators::new(Strategy::Kermit, &config, &mut rng);
+        let mut dictionary = vec![b"FIRST".to_vec()];
+        mutators.mutate(b"abc", b"", &dictionary, 64, &mut rng);
+        dictionary.push(b"SECOND".to_vec());
+        let found = (0..100).any(|_| {
+            let (output, _) = mutators.mutate(b"abc", b"", &dictionary, 64, &mut rng);
+            output.windows(6).any(|window| window == b"SECOND")
+        });
+        assert!(found);
+        assert_eq!(mutators.synced, 2);
+    }
+
+    #[test]
+    fn names_every_mutator() {
+        assert_eq!(mutator_name(0), "flip_bit");
+        assert_eq!(mutator_name(KERMIT_JUMP), "kermit:jump");
+        assert_eq!(mutator_name(KERMIT_MUTATORS), "kermit:ab");
+        assert_eq!(mutator_name(MUTATOR_COUNT - 1), "kermit:nop");
     }
 
     #[test]

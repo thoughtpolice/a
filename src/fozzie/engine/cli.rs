@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::mutate::Strategy;
 use clap::{Args, Parser, Subcommand};
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -100,6 +101,20 @@ pub struct FuzzOptions {
     /// Persistent target processes; zero selects available parallelism.
     #[arg(long, default_value_t = 0, overrides_with = "jobs")]
     pub jobs: usize,
+
+    /// Which mutation engines to use: Fozzie's byte mutators, kermit's
+    /// structure-guessing ones, or both, picked at random for each input.
+    #[arg(long, value_enum, default_value_t = Strategy::Both, overrides_with = "mutator")]
+    pub mutator: Strategy,
+
+    /// Kermit's mutators and their priorities, in radamsa's syntax, as in
+    /// num=5,ld,bd=0.
+    #[arg(long, default_value = kermit::DEFAULT_MUTATORS, overrides_with = "kermit_mutations")]
+    pub kermit_mutations: String,
+
+    /// Kermit's mutation patterns and their priorities.
+    #[arg(long, default_value = kermit::DEFAULT_PATTERNS, overrides_with = "kermit_patterns")]
+    pub kermit_patterns: String,
 
     /// Reproducible campaign RNG seed.
     #[arg(long, default_value_t = 0xF022_1E_u64, overrides_with = "seed")]

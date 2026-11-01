@@ -370,10 +370,9 @@ mod tests {
                     last_input_len: 17,
                 })
                 .collect(),
-            mutators: crate::mutate::MUTATOR_NAMES
-                .iter()
-                .map(|name| MutatorYield {
-                    name: (*name).to_owned(),
+            mutators: (0..crate::mutate::MUTATOR_COUNT)
+                .map(|index| MutatorYield {
+                    name: crate::mutate::mutator_name(index),
                     applied: 100,
                     useful: 1,
                 })

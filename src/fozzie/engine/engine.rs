@@ -7,8 +7,8 @@ use crate::corpus::{Corpus, persist_replace, read_bounded};
 use crate::executor::{Execution, ExecutorConfig, Finding, FindingFingerprint, PersistentExecutor};
 use crate::interrupt;
 use crate::mutate::{
-    MAX_DICTIONARY_ENTRIES, MUTATOR_COUNT, MUTATOR_NAMES, MutatorSet, Rng, load_dictionaries,
-    mutate,
+    MAX_DICTIONARY_ENTRIES, MUTATOR_COUNT, MutatorSet, Mutators, Rng, Strategy, load_dictionaries,
+    mutator_name,
 };
 use crate::shm::CmpObservation;
 use crate::status::registry::{self, Registration};
@@ -50,6 +50,10 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
     let corpus_path = work.path().join("corpus");
     let corpus = Corpus::load(&options.corpus, corpus_path, executor_config.max_input)?;
     let dictionary_entries = load_dictionaries(&options.dictionaries, executor_config.max_input)?;
+    // Growth past the input limit would only be truncated away.
+    let kermit_config = kermit::Config::parse(&options.kermit_mutations, &options.kermit_patterns)
+        .context("parsing --kermit-mutations and --kermit-patterns")?
+        .growth_limit(executor_config.max_input);
     let artifact_sink = ArtifactSink::new(
         work.path(),
         &executor_config,
@@ -60,9 +64,10 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
     let jobs = effective_jobs(options.jobs, options.test_mode);
 
     eprintln!(
-        "fozzie: seed={} jobs={} corpus={} timeout={}ms workdir={}",
+        "fozzie: seed={} jobs={} mutator={} corpus={} timeout={}ms workdir={}",
         options.seed,
         jobs,
+        options.mutator.name(),
         corpus.len(),
         executor_config.timeout.as_millis(),
         work.path().display()
@@ -73,6 +78,8 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
         corpus: Mutex::new(corpus),
         features: Mutex::new(Coverage::default()),
         dictionary: RwLock::new(DynamicDictionary::new(dictionary_entries)),
+        strategy: options.mutator,
+        kermit: kermit_config,
         artifacts: artifact_sink,
         executions: AtomicU64::new(0),
         interesting: AtomicU64::new(0),
@@ -345,6 +352,7 @@ fn worker_loop(
     deadline: Option<Instant>,
 ) -> Result<()> {
     let mut rng = Rng::new(campaign_seed ^ (worker_id as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15));
+    let mut mutators = Mutators::new(shared.strategy, &shared.kermit, &mut rng);
     let mut executor = PersistentExecutor::new(config.clone(), worker_root)?;
     let mut consecutive_errors = 0_u32;
     let stats = &shared.workers[worker_id];
@@ -361,7 +369,7 @@ fn worker_loop(
         let (input, applied) = {
             let dictionary = shared.dictionary.read().unwrap();
             executor.set_collect_comparisons(!dictionary.is_full());
-            mutate(
+            mutators.mutate(
                 &base,
                 &splice,
                 dictionary.entries(),
@@ -680,6 +688,9 @@ struct Shared {
     corpus: Mutex<Corpus>,
     features: Mutex<Coverage>,
     dictionary: RwLock<DynamicDictionary>,
+    strategy: Strategy,
+    /// Each worker builds its own kermit engine from this.
+    kermit: kermit::Config,
     artifacts: ArtifactSink,
     executions: AtomicU64,
     interesting: AtomicU64,
@@ -722,13 +733,25 @@ impl Coverage {
 /// neighbouring workers off one cache line so the relaxed increments never
 /// bounce a line between cores.
 #[repr(align(64))]
-#[derive(Default)]
 struct WorkerStats {
     executions: AtomicU64,
     restarts: AtomicU64,
     last_input_len: AtomicUsize,
     applied: [AtomicU64; MUTATOR_COUNT],
     useful: [AtomicU64; MUTATOR_COUNT],
+}
+
+// Arrays this long have no derived `Default`.
+impl Default for WorkerStats {
+    fn default() -> Self {
+        Self {
+            executions: AtomicU64::new(0),
+            restarts: AtomicU64::new(0),
+            last_input_len: AtomicUsize::new(0),
+            applied: std::array::from_fn(|_| AtomicU64::new(0)),
+            useful: std::array::from_fn(|_| AtomicU64::new(0)),
+        }
+    }
 }
 
 impl WorkerStats {
@@ -955,7 +978,7 @@ impl Shared {
             .collect();
         let mutators = (0..MUTATOR_COUNT)
             .map(|index| MutatorYield {
-                name: MUTATOR_NAMES[index].to_owned(),
+                name: mutator_name(index),
                 applied: self
                     .workers
                     .iter()
