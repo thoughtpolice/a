@@ -140,6 +140,9 @@
                 hunspell
                 hunspellDicts."en_US-large"
                 watchman
+                pahole
+                libelf
+                libdwarf
 
                 # cargo tools
                 cargo-edit
