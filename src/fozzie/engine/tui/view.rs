@@ -514,6 +514,8 @@ fn draw_throughput(campaign: &Campaign, frame: &mut Frame, area: Rect) {
             Span::raw(status.worker_restarts.to_string()),
             Span::styled("  unstable ", DIM),
             Span::raw(status.unstable_seeds.to_string()),
+            Span::styled("  noisy edges ", DIM),
+            Span::raw(status.unstable_edges.to_string()),
         ]),
         workers,
     );
@@ -866,6 +868,7 @@ mod tests {
             last_finding_ms: Some(59_000),
             worker_restarts: 0,
             unstable_seeds: 1,
+            unstable_edges: 2,
             truncated_observations: 0,
             flaky_findings: 1,
             dictionary_entries: 511,

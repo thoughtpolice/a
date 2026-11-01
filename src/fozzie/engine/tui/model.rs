@@ -565,6 +565,7 @@ mod tests {
             last_finding_ms: None,
             worker_restarts: 0,
             unstable_seeds: 0,
+            unstable_edges: 0,
             truncated_observations: 0,
             flaky_findings: 0,
             dictionary_entries: 0,

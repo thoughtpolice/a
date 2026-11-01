@@ -4,7 +4,9 @@
 use crate::artifact::{ArtifactSink, RecordedFinding};
 use crate::cli::{Cli, Command, FuzzOptions, MinimizeOptions, ReplayOptions};
 use crate::corpus::{Corpus, persist_replace, read_bounded};
-use crate::executor::{Execution, ExecutorConfig, Finding, FindingFingerprint, PersistentExecutor};
+use crate::executor::{
+    Execution, ExecutorConfig, Finding, FindingFingerprint, Observation, PersistentExecutor,
+};
 use crate::interrupt;
 use crate::mutate::{
     MAX_DICTIONARY_ENTRIES, MUTATOR_COUNT, MutatorSet, Mutators, Rng, Strategy, load_dictionaries,
@@ -211,6 +213,10 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
         work.preserve();
     }
     let workdir_persisted = work.temporary.is_none();
+    let (features, unstable_edges) = {
+        let coverage = shared.features.lock().unwrap();
+        (coverage.features.len(), coverage.unstable_edges.len())
+    };
     let summary = Summary {
         seed: options.seed,
         workdir: work.path().to_path_buf(),
@@ -226,10 +232,11 @@ fn fuzz(options: FuzzOptions) -> Result<ExitCode> {
             primary_executions as f64 / elapsed.as_secs_f64()
         },
         corpus_size: shared.corpus.lock().unwrap().len(),
-        features: shared.features.lock().unwrap().features.len(),
+        features,
         interesting_inputs: shared.interesting.load(Ordering::Relaxed),
         worker_restarts: shared.restarts.load(Ordering::Relaxed),
         unstable_seeds: shared.unstable_seeds.load(Ordering::Relaxed),
+        unstable_edges,
         truncated_observations: shared.truncated_observations.load(Ordering::Relaxed),
         flaky_findings,
         finding: finding.clone(),
@@ -308,8 +315,7 @@ fn calibrate(
                     break;
                 }
             }
-            Execution::Ok(first) => {
-                let first_features = first.features.iter().copied().collect::<HashSet<_>>();
+            Execution::Ok(mut first) => {
                 if let Some(second_id) = claim_execution(shared, run_limit, deadline) {
                     let second = executor.run(&seed)?;
                     match second {
@@ -319,18 +325,15 @@ fn calibrate(
                             }
                         }
                         Execution::Ok(second) => {
-                            let second_features =
-                                second.features.iter().copied().collect::<HashSet<_>>();
-                            if first_features != second_features {
+                            if shared
+                                .features
+                                .lock()
+                                .unwrap()
+                                .stabilize(&mut first, &second)
+                            {
                                 shared.unstable_seeds.fetch_add(1, Ordering::Relaxed);
-                                let mut stable = first;
-                                stable
-                                    .features
-                                    .retain(|feature| second_features.contains(feature));
-                                absorb_observation(shared, &seed, stable, false)?;
-                            } else {
-                                absorb_observation(shared, &seed, first, false)?;
                             }
+                            absorb_observation(shared, &seed, first, false)?;
                         }
                     }
                 } else {
@@ -379,7 +382,19 @@ fn worker_loop(
         };
         stats.last_input_len.store(input.len(), Ordering::Relaxed);
 
-        match executor.run(&input) {
+        let execution = executor.run(&input).and_then(|execution| match execution {
+            Execution::Ok(observation) => confirm_novelty(
+                &shared,
+                &mut executor,
+                stats,
+                &input,
+                observation,
+                run_limit,
+                deadline,
+            ),
+            finding => Ok(finding),
+        });
+        match execution {
             Ok(Execution::Ok(observation)) => {
                 consecutive_errors = 0;
                 let novel = absorb_observation(&shared, &input, observation, true)?;
@@ -412,10 +427,48 @@ fn worker_loop(
     Ok(())
 }
 
+/// Runs an input whose first run seems to add coverage once more, so that
+/// noise alone cannot add it to the corpus. Only the features both runs
+/// share count, and edges that differ become unstable for the campaign.
+/// With no budget left for the second run, the first counts as it is.
+///
+/// An observation that adds nothing loses its features, since coverage only
+/// grows and they could never add anything later. Absorbing it then skips
+/// the coverage lock, which every worker would otherwise take twice.
+fn confirm_novelty(
+    shared: &Shared,
+    executor: &mut PersistentExecutor,
+    stats: &WorkerStats,
+    input: &[u8],
+    mut first: Observation,
+    run_limit: u64,
+    deadline: Option<Instant>,
+) -> Result<Execution> {
+    if !shared.features.lock().unwrap().adds_to(&first.features) {
+        first.features.clear();
+        return Ok(Execution::Ok(first));
+    }
+    if claim_execution(shared, run_limit, deadline).is_none() {
+        return Ok(Execution::Ok(first));
+    }
+    stats.executions.fetch_add(1, Ordering::Relaxed);
+    match executor.run(input)? {
+        Execution::Ok(second) => {
+            shared
+                .features
+                .lock()
+                .unwrap()
+                .stabilize(&mut first, &second);
+            Ok(Execution::Ok(first))
+        }
+        finding => Ok(finding),
+    }
+}
+
 fn absorb_observation(
     shared: &Shared,
     input: &[u8],
-    observation: crate::executor::Observation,
+    observation: Observation,
     persist: bool,
 ) -> Result<bool> {
     if observation.features_truncated || observation.comparisons_truncated {
@@ -423,7 +476,9 @@ fn absorb_observation(
             .truncated_observations
             .fetch_add(1, Ordering::Relaxed);
     }
-    let new_features = {
+    let new_features = if observation.features.is_empty() {
+        0
+    } else {
         let mut coverage = shared.features.lock().unwrap();
         observation
             .features
@@ -741,18 +796,51 @@ struct Shared {
 /// Global novelty. The edges (the counter behind each bucketed feature)
 /// are kept under the same lock because a feature is inserted at most once
 /// per campaign while a status snapshot happens every second.
+///
+/// An edge whose features differ between two runs of one input is unstable:
+/// a randomly seeded hash table or a lazy initializer drives it, not the
+/// input. Its features never count as new coverage again, so noise cannot
+/// fill the corpus.
 #[derive(Default)]
 struct Coverage {
     features: HashSet<u64>,
     edges: HashSet<u64>,
+    unstable_edges: HashSet<u64>,
 }
 
 impl Coverage {
     fn insert(&mut self, feature: u64) -> bool {
-        if !self.features.insert(feature) {
+        if self.unstable_edges.contains(&(feature >> 3)) || !self.features.insert(feature) {
             return false;
         }
         self.edges.insert(feature >> 3);
+        true
+    }
+
+    /// Whether `features` holds one that [`Coverage::insert`] would add.
+    fn adds_to(&self, features: &[u64]) -> bool {
+        features.iter().any(|feature| {
+            !self.unstable_edges.contains(&(feature >> 3)) && !self.features.contains(feature)
+        })
+    }
+
+    /// Compares two runs of one input, marks the edges whose features
+    /// differ as unstable, and keeps in `first` only the features both runs
+    /// share. Returns whether the runs differed.
+    fn stabilize(&mut self, first: &mut Observation, second: &Observation) -> bool {
+        let first_features: HashSet<u64> = first.features.iter().copied().collect();
+        let second_features: HashSet<u64> = second.features.iter().copied().collect();
+        if first_features == second_features {
+            return false;
+        }
+        self.unstable_edges.extend(
+            first_features
+                .symmetric_difference(&second_features)
+                .map(|feature| feature >> 3),
+        );
+        first
+            .features
+            .retain(|feature| second_features.contains(feature));
         true
     }
 }
@@ -989,9 +1077,13 @@ impl Shared {
     /// Takes each lock once and never nests them, so a worker holding the
     /// verifier while it records a finding cannot deadlock with a snapshot.
     fn status(&self, campaign: &Campaign) -> Status {
-        let (features, edges) = {
+        let (features, edges, unstable_edges) = {
             let coverage = self.features.lock().unwrap();
-            (coverage.features.len(), coverage.edges.len())
+            (
+                coverage.features.len(),
+                coverage.edges.len(),
+                coverage.unstable_edges.len(),
+            )
         };
         let workers = self
             .workers
@@ -1045,6 +1137,7 @@ impl Shared {
             last_finding_ms: self.last_finding_ms.get(),
             worker_restarts: self.restarts.load(Ordering::Relaxed),
             unstable_seeds: self.unstable_seeds.load(Ordering::Relaxed),
+            unstable_edges,
             truncated_observations: self.truncated_observations.load(Ordering::Relaxed),
             flaky_findings: self.flaky_findings.load(Ordering::Relaxed),
             dictionary_entries: self.dictionary.read().unwrap().len(),
@@ -1119,6 +1212,7 @@ struct Summary {
     interesting_inputs: u64,
     worker_restarts: u64,
     unstable_seeds: u64,
+    unstable_edges: usize,
     truncated_observations: u64,
     flaky_findings: u64,
     finding: Option<RecordedFinding>,
@@ -1160,6 +1254,27 @@ mod tests {
         assert!(coverage.insert(3 << 3));
         assert_eq!(coverage.features.len(), 3);
         assert_eq!(coverage.edges.len(), 2);
+    }
+
+    #[test]
+    fn unstable_edges_stop_counting_as_coverage() {
+        let observation = |features: &[u64]| Observation {
+            features: features.to_vec(),
+            comparisons: Vec::new(),
+            features_truncated: false,
+            comparisons_truncated: false,
+        };
+        let mut coverage = Coverage::default();
+        let mut first = observation(&[1 << 3, 2 << 3 | 1, 4 << 3]);
+        let second = observation(&[1 << 3, 2 << 3 | 2, 5 << 3]);
+        assert!(coverage.stabilize(&mut first, &second));
+        assert_eq!(first.features, [1 << 3]);
+        assert_eq!(coverage.unstable_edges, HashSet::from([2, 4, 5]));
+        // Any bucket of an unstable edge is noise from now on.
+        assert!(!coverage.adds_to(&[2 << 3 | 7, 5 << 3]));
+        assert!(!coverage.insert(2 << 3 | 7));
+        assert!(coverage.adds_to(&[2 << 3, 6 << 3]));
+        assert!(!coverage.stabilize(&mut first.clone(), &first));
     }
 
     #[test]

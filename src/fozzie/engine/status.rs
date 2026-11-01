@@ -56,6 +56,10 @@ pub struct Status {
     pub last_finding_ms: Option<u64>,
     pub worker_restarts: u64,
     pub unstable_seeds: u64,
+    /// Edges whose features differed between two runs of one input, which
+    /// no longer count as new coverage.
+    #[serde(default)]
+    pub unstable_edges: usize,
     pub truncated_observations: u64,
     pub flaky_findings: u64,
     pub dictionary_entries: usize,
@@ -359,6 +363,7 @@ mod tests {
             last_finding_ms: Some(4_990),
             worker_restarts: 0,
             unstable_seeds: 1,
+            unstable_edges: 3,
             truncated_observations: 2,
             flaky_findings: 0,
             dictionary_entries: 33,

@@ -109,6 +109,19 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     if (strcmp(arguments[1], "large-input") == 0) {
         return size == 200000 && data[0] == 'x' && data[size - 1] == 'x' ? 17 : 0;
     }
+    if (strcmp(arguments[1], "noisy") == 0) {
+        // Takes a different branch on every other call, as a randomly
+        // seeded hash table might, whatever the input.
+        // Stores to two places keep the compiler from merging the branches.
+        static unsigned int calls;
+        static volatile unsigned int even, odd;
+        if (++calls % 2 == 0) {
+            even = calls;
+        } else {
+            odd = calls;
+        }
+        return 0;
+    }
     if (strcmp(arguments[1], "overread") == 0) {
         // Reads one byte past the input, which only the input's placement
         // can catch in a target built without ASan.

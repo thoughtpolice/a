@@ -157,6 +157,18 @@ decoding the comparison region altogether and no longer counts its
 truncation; the cost of a large `cmp_capacity` is then only the target's
 recording.
 
+Some coverage comes from the process rather than the input. Rust's default
+hash maps seed each table at random, so one input run twice probes them
+differently, and a lazy initializer runs only once. Fozzie runs every seed
+twice at startup, and runs an input again whenever its first run seems to
+add coverage. An edge whose features differ between the two runs becomes
+unstable for the rest of the campaign and never counts as new coverage
+again, as in AFL++, so noise cannot fill the corpus. The summary counts the
+seeds that differed under `unstable_seeds` and the edges under
+`unstable_edges`; a large count points at instrumented code that keeps state
+between runs. Fuzz builds leave mimalloc uninstrumented for that reason,
+since its paths follow the heap's history.
+
 Each input comes from one of two mutation engines. Fozzie's byte mutators
 flip, set, add to, insert, delete, copy and splice bytes and insert
 dictionary entries. [Kermit](kermit/README.md), a port of radamsa, guesses

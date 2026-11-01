@@ -219,6 +219,34 @@ fn minimizes_a_bare_relative_filename() {
 }
 
 #[test]
+fn noisy_edges_stop_counting_as_coverage() {
+    let directory = tempfile::tempdir().unwrap();
+    let seed = directory.path().join("seed");
+    fs::write(&seed, b"seed").unwrap();
+    let output = run(engine()
+        .args(["fuzz", "--target"])
+        .arg(executable("FOZZIE_REGRESSION_TARGET"))
+        .args(["--target-arg", "noisy", "--corpus"])
+        .arg(&seed)
+        .args([
+            "--duration",
+            "0",
+            "--runs",
+            "200",
+            "--seed",
+            "7",
+            "--test-mode",
+        ]));
+    assert!(output.status.success(), "{output:?}");
+    let result = summary(&output);
+    // Calibration sees the seed take both branches, and from then on no
+    // mutation adds an input for reaching the other one.
+    assert_eq!(result["unstable_seeds"], 1);
+    assert_eq!(result["unstable_edges"], 2);
+    assert_eq!(result["corpus_size"], 1);
+}
+
+#[test]
 fn reading_past_the_input_crashes_without_asan() {
     let directory = tempfile::tempdir().unwrap();
     let input = directory.path().join("input");
