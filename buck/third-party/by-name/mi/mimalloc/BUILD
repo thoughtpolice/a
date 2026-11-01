@@ -130,6 +130,15 @@ MIMALLOC_HEADERS = {
     "free.c": ":src[src/free.c]",
 }
 
+# Fozzie's fuzz builds give every C library in a target SanitizerCoverage,
+# but the allocator is not code under test. Its paths depend on the heap's
+# history rather than the input, so one input run twice covers different
+# allocator code, and its comparisons would crowd the fuzzer's dictionary.
+MIMALLOC_COMPILER_FLAGS = shims.select({
+    "toolchains//cfg/instrumentation:instrumentation[none]": [],
+    "DEFAULT": ["-fno-sanitize-coverage=inline-8bit-counters,pc-table,trace-cmp"],
+})
+
 MIMALLOC_PREPROCESSOR_FLAGS = [
     "-DMI_SECURE=0",
     "-DMI_DEBUG=0",
@@ -139,6 +148,7 @@ MIMALLOC_PREPROCESSOR_FLAGS = [
 shims.cxx_library(
     name = "mimalloc",
     srcs = MIMALLOC_SRCS,
+    compiler_flags = MIMALLOC_COMPILER_FLAGS,
     exported_headers = EXPORTED_HEADERS,
     header_namespace = "",
     headers = MIMALLOC_HEADERS,
@@ -152,7 +162,7 @@ shims.cxx_library(
 shims.cxx_library(
     name = "mimalloc-override",
     srcs = MIMALLOC_OVERRIDE_SRCS,
-    compiler_flags = shims.select({
+    compiler_flags = MIMALLOC_COMPILER_FLAGS + shims.select({
         "config//os:windows": [],
         "DEFAULT": ["-fno-builtin-malloc"],
     }),
