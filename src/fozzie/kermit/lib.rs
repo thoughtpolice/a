@@ -30,6 +30,7 @@ mod bytes;
 mod dictionary;
 mod encode;
 mod fuse;
+pub mod generate;
 mod json;
 mod lines;
 mod list;
