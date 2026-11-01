@@ -69,6 +69,35 @@ JSON. `di` and `dr` draw from tokens given with `Config::dictionary` or
 added during a run through `Kermit::dictionary_mut`, and do nothing
 without them.
 
+## Command line
+
+`root//src/fozzie/kermit/cli:kermit` is a command line in the style of
+radamsa's. It takes radamsa's flags, plus `-D` for a dictionary:
+
+```sh
+buck2 run root//src/fozzie/kermit/cli:kermit -- -s 7 -n 100 -o 'out-%03n.%s' samples/*.json
+```
+
+Paths name sample files, and `-` or no paths at all reads standard input.
+`-o` takes `-` for standard output, a path pattern, `:PORT` to serve each
+output to one TCP client, or `ADDRESS:PORT` to send each one to a TCP
+server, with a `/udp` suffix for UDP. A path pattern can use `%n` for the
+output's number, `%0Nn` for the number padded to N digits, `%s` for the
+sample's suffix, `%p` for the first sample's suffix, `%h` for the
+output's checksum, and `%%` for a percent sign.
+
+The generators of `-g` pick each sample. `file` reads one of the given
+files, `jump` splices two of them where they share context, `stdin`
+reads standard input, and `random` makes random bytes. `-l` lists every
+mutator, pattern and generator.
+
+A seed makes a run repeatable, and `-S N` repeats a run from output N
+without writing the outputs before it. A uniqueness filter drops outputs
+already written. `-M` logs the seed and then one JSON line per output
+with its generator, sources, pattern, mutators, checksum and
+destination. `-D` reads an AFL or libFuzzer dictionary for `di` and
+`dr`.
+
 ## Differences from radamsa
 
 - `xp` nests or repeats an element at most 1025 times rather than 16385.
@@ -76,8 +105,17 @@ without them.
   drawing again.
 - `fn` fuses the block with itself, as radamsa does for the last block of
   a stream, rather than with the next block.
-- Inputs are whole buffers rather than streams, and kermit has no output
-  modes, TCP or UDP clients, or pcapng support.
+- Kermit reads each sample whole rather than as a stream, and has no
+  pcapng generator.
+- `-M` writes JSON lines rather than radamsa's own record format.
+- `-H` offers BLAKE3, the default, SHA-1 and SHA-256 rather than radamsa's
+  stream hash. The checksum covers the output as written, after
+  `--output-template` and `-T`, so `%h` names a file by its own hash.
+- `-T` truncates outputs. radamsa parses the flag but ignores it.
+- `-o` also takes IPv6 addresses such as `[::1]:80`.
+- A path pattern with an unknown `%` escape is an error, not a warning.
+- After 10000 duplicate outputs in a row kermit stops with an error,
+  where radamsa would keep trying forever.
 - `bi` and `ui` also grow an empty input, so an empty seed still produces
   new inputs.
 - Kermit's random streams differ from radamsa's, so a seed produces
