@@ -51,33 +51,30 @@ pub fn resource(name: &str) -> Option<PathBuf> {
 #[macro_export]
 macro_rules! fuzz_target {
     (|$data:ident: &[u8]| -> i32 $body:block) => {
+        /// The libFuzzer entry point, which Fozzie's target runtime calls
+        /// once per input.
+        ///
+        /// # Safety
+        ///
+        /// `fozzie_data` must point to `fozzie_size` initialized bytes that
+        /// stay valid and unchanged for the call.
         #[unsafe(no_mangle)]
-        pub extern "C" fn LLVMFuzzerTestOneInput(
+        pub unsafe extern "C" fn LLVMFuzzerTestOneInput(
             fozzie_data: *const u8,
             fozzie_size: usize,
         ) -> i32 {
+            // The body runs in a safe function of its own, so it needs
+            // `unsafe` blocks of its own in every edition.
+            fn fozzie_harness($data: &[u8]) -> i32 $body
             // SAFETY: Fozzie's target runtime passes a valid mapped input
             // region containing at least `fozzie_size` initialized bytes.
-            let $data: &[u8] = unsafe {
-                ::core::slice::from_raw_parts(fozzie_data, fozzie_size)
-            };
-            let result: i32 = $body;
-            result
+            fozzie_harness(unsafe { ::core::slice::from_raw_parts(fozzie_data, fozzie_size) })
         }
     };
     (|$data:ident: &[u8]| $body:block) => {
-        #[unsafe(no_mangle)]
-        pub extern "C" fn LLVMFuzzerTestOneInput(
-            fozzie_data: *const u8,
-            fozzie_size: usize,
-        ) -> i32 {
-            // SAFETY: Fozzie's target runtime passes a valid mapped input
-            // region containing at least `fozzie_size` initialized bytes.
-            let $data: &[u8] = unsafe {
-                ::core::slice::from_raw_parts(fozzie_data, fozzie_size)
-            };
+        $crate::fuzz_target!(|$data: &[u8]| -> i32 {
             $body
             0
-        }
+        });
     };
 }
