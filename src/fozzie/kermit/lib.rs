@@ -44,6 +44,7 @@ mod tree;
 mod utf8;
 mod xml;
 
+pub use dictionary::parse as parse_dictionary;
 pub use mutators::{Mutator, MutatorSet};
 pub use source::{Rng, Source};
 
