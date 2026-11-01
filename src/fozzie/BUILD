@@ -14,6 +14,7 @@ depot.test_suite(
     tests = [
         "root//src/fozzie/engine:all-tests",
         "root//src/fozzie/examples/cxx:packet-fuzz",
+        "root//src/fozzie/examples/cxx:packet-fuzz-coverage",
         "root//src/fozzie/examples/rust:decoder-fuzz",
         "root//src/fozzie/examples/rust:json-fuzz",
         "root//src/fozzie/kermit:tests",
@@ -24,13 +25,15 @@ depot.test_suite(
     visibility = ["PUBLIC"],
 )
 
-# Keep sanitizer execution opt-in while allowing builders without an ASan
-# runtime to validate the ordinary Fozzie suite. This target still analyzes the
-# public transitions and materializes both instrumented final binaries.
+# C and C++ fuzz tests run under ASan by default, so the ordinary suite above
+# needs an ASan runtime. These targets gather the rest of the sanitizer
+# coverage: the engine's own ASan fixtures and the opt-in Rust profile. This
+# filegroup still analyzes the public transitions and materializes the
+# instrumented final binaries.
 depot.filegroup(
     name = "asan-builds",
     srcs = [
-        "root//src/fozzie/examples/cxx:packet-fuzz-asan",
+        "root//src/fozzie/examples/cxx:packet-fuzz",
         "root//src/fozzie/examples/rust:decoder-fuzz-asan",
     ],
     visibility = ["PUBLIC"],
@@ -40,7 +43,7 @@ depot.test_suite(
     name = "asan-tests",
     tests = [
         "root//src/fozzie/engine:asan-tests",
-        "root//src/fozzie/examples/cxx:packet-fuzz-asan",
+        "root//src/fozzie/examples/cxx:packet-fuzz",
         "root//src/fozzie/examples/rust:decoder-fuzz-asan",
     ],
     visibility = ["PUBLIC"],

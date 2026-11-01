@@ -15,6 +15,7 @@ depot.write_file(
     contents = ["FZ1payload"],
 )
 
+# C and C++ harnesses fuzz under ASan and UBSan by default.
 cxx_fuzz_binary(
     name = "packet-fuzz",
     srcs = ["packet_fuzz.c"],
@@ -22,17 +23,18 @@ cxx_fuzz_binary(
     duration_seconds = 0,
     jobs = 1,
     runs = 64,
+    visibility = ["PUBLIC"],
     deps = [":packet-parser"],
 )
 
+# Coverage alone runs faster but misses most memory errors.
 cxx_fuzz_binary(
-    name = "packet-fuzz-asan",
+    name = "packet-fuzz-coverage",
     srcs = ["packet_fuzz.c"],
     corpus = [":seed"],
     duration_seconds = 0,
     jobs = 1,
     runs = 16,
-    sanitizer = "address",
-    visibility = ["PUBLIC"],
+    sanitizer = "none",
     deps = [":packet-parser"],
 )

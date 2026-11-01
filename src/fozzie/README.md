@@ -78,7 +78,10 @@ fozzie::fuzz_target!(|data: &[u8]| -> i32 {
 });
 ```
 
-AddressSanitizer is an opt-in profile on either rule:
+`cxx_fuzz_binary` builds under AddressSanitizer by default, since memory
+errors in C and C++ rarely crash by themselves, and `sanitizer = "none"` asks
+for coverage alone, which runs faster and misses most of them. Safe Rust
+cannot make those errors, so for Rust the address profile is opt-in:
 
 ```python
 rust_fuzz_binary(
@@ -92,13 +95,14 @@ rust_fuzz_binary(
 The transition applies ASan and SanitizerCoverage to the complete target
 dependency graph, and C and C++ code gets UBSan as well, which aborts the run
 on its first report. Nix's clang wrapper passes `-fwrapv`, which defines
-signed overflow and so hides it from UBSan, so the profile turns that off. On Linux, Clang supplies the one statically linked
-compiler-rt runtime for C++, Rust, and mixed-language final binaries, and Rust
-uses `-Zexternal-clangrt` to avoid a second copy; macOS links the dynamic
-runtime described under the current boundary below. Fuzz targets that install a custom
-allocator should select the system allocator when `cfg(fozzie_asan)` is set,
-because replacing `malloc` can bypass ASan's heap redzones. The Rust example
-shows this while retaining mimalloc for ordinary coverage-only campaigns.
+signed overflow and so hides it from UBSan, so the profile turns that off. On
+Linux, Clang supplies the one statically linked compiler-rt runtime for C++,
+Rust, and mixed-language final binaries, and Rust uses `-Zexternal-clangrt`
+to avoid a second copy; macOS links the dynamic runtime described under the
+current boundary below. Fuzz targets that install a custom allocator should
+select the system allocator when `cfg(fozzie_asan)` is set, because replacing
+`malloc` can bypass ASan's heap redzones. The Rust example shows this while
+retaining mimalloc for ordinary coverage-only campaigns.
 
 Every fuzz build keeps the checks a release build drops, since each one is
 an oracle the fuzzer can trip. Rust code gets debug assertions and overflow
@@ -335,9 +339,9 @@ quiesce any work that can still touch the input before returning. A slower
 spawn/file/stdin adapter and a forkserver are natural future executors for
 stateful programs.
 
-Coverage feedback works without an external sanitizer runtime. The optional
-address profile uses the compiler-rt carried by the Clang on `PATH`; it does
-not link libFuzzer. On Linux that runtime is linked statically and Rust
+Coverage feedback works without an external sanitizer runtime. The address
+profile, the default for C and C++, uses the compiler-rt carried by the Clang
+on `PATH`; it does not link libFuzzer. On Linux that runtime is linked statically and Rust
 targets use `-Zexternal-clangrt`, so Clang owns the single copy and callback
 and allocator ownership stay unambiguous for mixed-language binaries. Darwin
 ships ASan only as a dylib, and rustc's `-nodefaultlibs` link keeps Clang from

@@ -255,11 +255,16 @@ def cxx_fuzz_binary(
         feature_capacity: int = 65536,
         cmp_capacity: int = 4096,
         jobs: int = 0,
-        sanitizer: str = "none",
+        sanitizer: str = "address",
         test_seed: int = 0xF0221E,
         visibility = None,
         **binary_kwargs):
-    """Build a C/C++ `LLVMFuzzerTestOneInput` harness and expose it as a test."""
+    """Build a C/C++ `LLVMFuzzerTestOneInput` harness and expose it as a test.
+
+    C and C++ code fuzzes under ASan and UBSan unless `sanitizer = "none"`
+    asks for coverage alone, since memory errors in C rarely crash by
+    themselves.
+    """
     target_compatible_with = _compatibility(binary_kwargs)
     _require_static(binary_kwargs)
     linker_flags = binary_kwargs.pop("linker_flags", []) + _SELF_CONTAINED_LINKER_FLAGS
