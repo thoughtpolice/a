@@ -116,6 +116,9 @@ destination. `-D` reads an AFL or libFuzzer dictionary for `di` and
 - A path pattern with an unknown `%` escape is an error, not a warning.
 - After 10000 duplicate outputs in a row kermit stops with an error,
   where radamsa would keep trying forever.
+- `nd` and `bu` stop adding mutations once an output has outgrown its
+  input by 1 MiB, or by `Config::growth_limit`. radamsa has no limit, and
+  a burst of line repeats, each up to 1023 copies, can exhaust memory.
 - `bi` and `ui` also grow an empty input, so an empty seed still produces
   new inputs.
 - Kermit's random streams differ from radamsa's, so a seed produces

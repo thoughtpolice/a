@@ -72,15 +72,20 @@ const MAX_BLOCK: usize = 4096;
 /// How many more rounds of every mutator to try when none changed a block.
 const MAX_RETRIES: usize = 24;
 
+/// How far `nd` and `bu` let an output outgrow its input before they stop
+/// adding mutations, unless [`Config::growth_limit`] says otherwise.
+pub const DEFAULT_GROWTH_LIMIT: usize = 1 << 20;
+
 /// How a call spreads its mutations over the input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Pattern {
     /// One mutation.
     Once,
     /// One mutation, then with probability 4/5 another, at or after the
-    /// last one, and so on.
+    /// last one, and so on, until the output outgrows the growth limit.
     Many,
-    /// Two or more mutations of the same block.
+    /// Two or more mutations of the same block, or just one once the
+    /// output outgrows the growth limit.
     Burst,
 }
 
@@ -117,6 +122,7 @@ pub struct Config {
     mutators: Vec<(Mutator, u32)>,
     patterns: Vec<(Pattern, u32)>,
     dictionary: Vec<Vec<u8>>,
+    growth_limit: usize,
 }
 
 impl Config {
@@ -130,7 +136,18 @@ impl Config {
             mutators,
             patterns,
             dictionary: Vec::new(),
+            growth_limit: DEFAULT_GROWTH_LIMIT,
         })
+    }
+
+    /// Sets how many bytes an output may outgrow its input by before `nd`
+    /// and `bu` stop adding mutations. Mutations compound, so without a
+    /// limit a burst of line repeats, each up to 1023 copies, could grow an
+    /// output past any memory. One mutation may still cross the limit, so
+    /// a caller with a hard size limit truncates as well.
+    pub fn growth_limit(mut self, bytes: usize) -> Self {
+        self.growth_limit = bytes;
+        self
     }
 
     /// Adds tokens for the dictionary mutators `di` and `dr`, skipping
@@ -207,6 +224,7 @@ pub struct Kermit {
     slots: Vec<Slot>,
     patterns: Vec<(Pattern, u32)>,
     dictionary: Vec<Vec<u8>>,
+    growth_limit: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -236,6 +254,7 @@ impl Kermit {
             slots,
             patterns,
             dictionary: config.dictionary.clone(),
+            growth_limit: config.growth_limit,
         }
     }
 
@@ -263,9 +282,10 @@ impl Kermit {
             }
             Pattern::Many => {
                 let mut from = 0;
+                let limit = input.len().saturating_add(self.growth_limit);
                 loop {
                     from = self.mutate_once(source, &mut data, from, &mut applied);
-                    if !source.chance(4, 5) {
+                    if data.len() > limit || !source.chance(4, 5) {
                         break;
                     }
                 }
@@ -274,8 +294,9 @@ impl Kermit {
                 let range = block(source, data.len(), 0);
                 let mut chunk = data[range.clone()].to_vec();
                 self.force_change(source, &mut chunk, &mut applied);
+                let limit = range.len().saturating_add(self.growth_limit);
                 let mut count = 1;
-                while source.chance(4, 5) || count < 2 {
+                while chunk.len() <= limit && (source.chance(4, 5) || count < 2) {
                     self.force_change(source, &mut chunk, &mut applied);
                     count += 1;
                 }
@@ -414,6 +435,26 @@ mod tests {
                 Config::parse(mutators, "od").unwrap_err().to_string(),
                 error
             );
+        }
+    }
+
+    #[test]
+    fn compounding_mutations_stop_at_the_growth_limit() {
+        // Each line repeat makes up to 1023 copies, so a burst of them
+        // grows geometrically without the limit.
+        for pattern in ["bu", "nd"] {
+            let mut rng = Rng::new(4);
+            let config = Config::parse("lr", pattern).unwrap().growth_limit(100);
+            let mut engine = Kermit::new(&config, &mut rng);
+            for _ in 0..200 {
+                let output = engine.mutate(&mut rng, b"a\nb\n").data;
+                // One repeat past the limit at most.
+                assert!(
+                    output.len() <= (4 + 100) * 1024,
+                    "{pattern}: {}",
+                    output.len()
+                );
+            }
         }
     }
 
