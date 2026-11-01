@@ -100,6 +100,37 @@ with its generator, sources, pattern, mutators, checksum and
 destination. `-D` reads an AFL or libFuzzer dictionary for `di` and
 `dr`.
 
+## Hegel
+
+`root//src/fozzie/kermit/hegel:hegel` is the crate `kermit_hegel`. Its
+`mutations` generator draws an input for a Hegel property test as a seed
+followed by up to eight `Kermit::edit` edits, all made from Hegel's
+choices:
+
+```rust
+#[hegel::test]
+fn sizes_parse(tc: hegel::TestCase) {
+    let input = tc.draw(kermit_hegel::mutations([b"width=640\nheight=480\n"]));
+    sizes::parse(&input).ok();
+}
+```
+
+When the property fails, Hegel shrinks the input toward a seed. It drops
+edits, and moves each one it keeps toward the first mutator, the first
+block and the smallest change. A size parser that overflows past 65535
+shrinks to one `num` edit:
+
+```text
+let input = b"width=65536\nheight=480\n";  // seed 0, then num
+```
+
+With several seeds, a quarter of the inputs splice two of them as `jump`
+does. `config` picks the mutators, and a zero draw picks the first one in
+its list. `max_edits` bounds the edits, and `max_size`, 64 KiB by
+default, truncates the input after each one. `HegelSource` lets a test
+drive the rest of kermit from Hegel, such as `Kermit::mutate` with its
+patterns.
+
 ## Differences from radamsa
 
 - `xp` repeats an element at most 1025 times rather than 16385. When its

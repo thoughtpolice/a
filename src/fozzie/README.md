@@ -284,6 +284,11 @@ mutation, coverage feedback, parallel execution, lifecycle isolation, corpus
 management, and Buck reproducibility. Neither component needs to know the
 other's internal scheduling model.
 
+The two also meet in the middle. `kermit_hegel::mutations`, described in
+[kermit's README](kermit/README.md#hegel), runs fozzie's kermit mutators from
+Hegel's choices inside an ordinary `rust_test`. A failure then shrinks to a
+valid seed plus the few edits that break it, rather than to bytes.
+
 ## Current boundary and next layers
 
 Fozzie runs on Linux 5.3 or newer and on macOS, and requires a repeatable

@@ -17,6 +17,7 @@ depot.test_suite(
         "root//src/fozzie/examples/rust:decoder-fuzz",
         "root//src/fozzie/kermit:tests",
         "root//src/fozzie/kermit/cli:tests",
+        "root//src/fozzie/kermit/hegel:tests",
         "root//src/fozzie/runtime:tests",
     ],
     visibility = ["PUBLIC"],
