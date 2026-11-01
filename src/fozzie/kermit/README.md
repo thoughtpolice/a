@@ -107,6 +107,11 @@ destination. `-D` reads an AFL or libFuzzer dictionary for `di` and
   deep as plain bytes, and `tr` and `xp` nest at most 512 levels deeper
   in one call. Their recursive walks then fit a thread's stack, where
   radamsa's Lisp runtime has no stack to exhaust.
+- The fuse mutators find shared contexts by hashing rather than byte by
+  byte. They draw the context length as radamsa's search would reach it,
+  but need no fuel limit, since the search costs the same at any length.
+  On two related 4 KiB blocks that cuts a fuse from milliseconds to a
+  fraction of one.
 - `fn` fuses the block with itself, as radamsa does for the last block of
   a stream, rather than with the next block.
 - Kermit reads each sample whole rather than as a stream, and has no
