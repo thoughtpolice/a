@@ -197,6 +197,11 @@ depot.write_file(
     contents = ["O"],
 )
 
+depot.write_file(
+    name = "asan-use-after-return-seed",
+    contents = ["R"],
+)
+
 depot.command_test(
     name = "executor-smoke-test",
     cmd = [
@@ -395,6 +400,27 @@ depot.command_test(
     ],
 )
 
+depot.command_test(
+    name = "executor-asan-use-after-return-test",
+    cmd = [
+        "$(exe :fozzie)",
+        "replay",
+        "--target",
+        "$(exe :executor-asan-test-target)",
+        "--sanitizer",
+        "address",
+        "--input",
+        "$(location :asan-use-after-return-seed)",
+        "--max-input",
+        "63",
+        "--expect-finding",
+        "--expect-kind",
+        "crash",
+        "--expect-sanitizer",
+        "address",
+    ],
+)
+
 # Built by the fuzz rule rather than with its own flags, so it checks the
 # toolchain's address profile, which adds UBSan for C and C++.
 cxx_fuzz_binary(
@@ -432,6 +458,7 @@ depot.test_suite(
     tests = [
         ":executor-asan-overflow-test",
         ":executor-asan-underflow-test",
+        ":executor-asan-use-after-return-test",
         ":profile-ubsan-test",
     ],
 )

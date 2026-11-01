@@ -33,8 +33,15 @@ const SHUTDOWN_GRACE: Duration = Duration::from_millis(100);
 const SANITIZER_REPORT_GRACE: Duration = Duration::from_secs(10);
 const STDERR_CAPACITY: usize = 1024 * 1024;
 const MAX_COUNTER_COUNT: u64 = u64::MAX >> 3;
+/// ASan checks worth their cost that its defaults leave out, which
+/// `ASAN_OPTIONS` can still override. Use after return finds pointers to
+/// dead stack frames, and filling every new allocation, not only its first
+/// 4 KiB, makes reads of uninitialized heap memory stand out and keeps one
+/// run's leftovers from reaching the next.
+const ASAN_DEFAULT_OPTIONS: &str =
+    "detect_stack_use_after_return=1:max_malloc_fill_size=1073741824";
 const ASAN_REQUIRED_OPTIONS: &str = "abort_on_error=1:disable_coredump=0:symbolize=1:allow_addr2line=1:detect_leaks=0:allow_user_poisoning=1";
-const UBSAN_REQUIRED_OPTIONS: &str = "abort_on_error=1:print_stacktrace=1";
+const UBSAN_REQUIRED_OPTIONS: &str = "abort_on_error=1:halt_on_error=1:print_stacktrace=1";
 
 #[derive(Clone, Debug)]
 pub struct ExecutorConfig {
@@ -415,12 +422,23 @@ fn sanitizer_signature(stderr: &[u8]) -> Option<String> {
         .then(|| "undefined-behavior:runtime-error".to_owned())
 }
 
-fn runtime_options(existing: Option<&OsStr>, required: &str) -> OsString {
-    let mut options = existing.unwrap_or_default().to_os_string();
-    if !options.is_empty() {
-        options.push(":");
+/// Joins sanitizer options so the user's override the defaults and the
+/// options the engine relies on override both.
+fn runtime_options(defaults: &str, existing: Option<&OsStr>, required: &str) -> OsString {
+    let mut options = OsString::new();
+    for part in [
+        OsStr::new(defaults),
+        existing.unwrap_or_default(),
+        OsStr::new(required),
+    ] {
+        if part.is_empty() {
+            continue;
+        }
+        if !options.is_empty() {
+            options.push(":");
+        }
+        options.push(part);
     }
-    options.push(required);
     options
 }
 
@@ -677,11 +695,15 @@ impl Session {
             .env("RUST_BACKTRACE", "1")
             .env(
                 "ASAN_OPTIONS",
-                runtime_options(asan_options.as_deref(), ASAN_REQUIRED_OPTIONS),
+                runtime_options(
+                    ASAN_DEFAULT_OPTIONS,
+                    asan_options.as_deref(),
+                    ASAN_REQUIRED_OPTIONS,
+                ),
             )
             .env(
                 "UBSAN_OPTIONS",
-                runtime_options(ubsan_options.as_deref(), UBSAN_REQUIRED_OPTIONS),
+                runtime_options("", ubsan_options.as_deref(), UBSAN_REQUIRED_OPTIONS),
             )
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -1228,20 +1250,32 @@ mod tests {
     }
 
     #[test]
-    fn appends_required_sanitizer_options_after_user_options() {
+    fn orders_sanitizer_options_defaults_then_user_then_required() {
         assert_eq!(
             runtime_options(
+                "",
                 Some(OsStr::new("verbosity=1:abort_on_error=0")),
                 "abort_on_error=1"
             ),
             OsString::from("verbosity=1:abort_on_error=0:abort_on_error=1")
         );
         assert_eq!(
-            runtime_options(None, "symbolize=1:allow_addr2line=1"),
+            runtime_options("", None, "symbolize=1:allow_addr2line=1"),
             OsString::from("symbolize=1:allow_addr2line=1")
+        );
+        assert_eq!(
+            runtime_options(
+                "detect_stack_use_after_return=1",
+                Some(OsStr::new("detect_stack_use_after_return=0")),
+                "abort_on_error=1"
+            ),
+            OsString::from(
+                "detect_stack_use_after_return=1:detect_stack_use_after_return=0:abort_on_error=1"
+            )
         );
         assert!(
             runtime_options(
+                ASAN_DEFAULT_OPTIONS,
                 Some(OsStr::new("allow_user_poisoning=0")),
                 ASAN_REQUIRED_OPTIONS
             )

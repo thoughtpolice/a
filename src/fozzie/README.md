@@ -107,7 +107,11 @@ library's checks of unsafe preconditions as well. C++ code on Linux gets
 libstdc++'s `_GLIBCXX_ASSERTIONS`, which catch, for example, an index past a
 vector's size but within its capacity, where ASan sees nothing wrong. The
 fuzz profiles never define `NDEBUG`, so C `assert` stays on unless a library
-defines it itself.
+defines it itself. ASan targets also
+detect use of a returned stack frame, and they fill every new allocation
+rather than its first 4 KiB, so reads of uninitialized memory stand out and
+one run's leftovers do not reach the next. `ASAN_OPTIONS` can turn either
+off.
 
 A harness that needs a file at run time, such as a reference implementation
 to compare against, names it in `resources`. The file belongs to the wrapper
