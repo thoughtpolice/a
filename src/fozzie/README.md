@@ -98,6 +98,15 @@ allocator should select the system allocator when `cfg(fozzie_asan)` is set,
 because replacing `malloc` can bypass ASan's heap redzones. The Rust example
 shows this while retaining mimalloc for ordinary coverage-only campaigns.
 
+Every fuzz build keeps the checks a release build drops, since each one is
+an oracle the fuzzer can trip. Rust code gets debug assertions and overflow
+checks, as under cargo-fuzz, and the debug assertions turn on the standard
+library's checks of unsafe preconditions as well. C++ code on Linux gets
+libstdc++'s `_GLIBCXX_ASSERTIONS`, which catch, for example, an index past a
+vector's size but within its capacity, where ASan sees nothing wrong. The
+fuzz profiles never define `NDEBUG`, so C `assert` stays on unless a library
+defines it itself.
+
 A harness that needs a file at run time, such as a reference implementation
 to compare against, names it in `resources`. The file belongs to the wrapper
 rather than the target, so it is built without instrumentation, and the

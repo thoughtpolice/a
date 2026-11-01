@@ -50,13 +50,18 @@ target_rustc_flags = shims.select({
 })
 
 fozzie_rustc_flags = [
-    # Keep fuzz builds representative of optimized production code while
-    # retaining enough information to symbolize coverage and diagnostics.
+    # Optimize like a release build and keep enough information to
+    # symbolize coverage and diagnostics.
     "-Copt-level=3",
     "-Cdebuginfo=line-tables-only",
-    "-Cdebug-assertions=false",
-    "-Coverflow-checks=false",
     "-Cforce-frame-pointers=yes",
+
+    # Every check is an oracle a fuzzer can trip, so fuzz builds keep the
+    # ones a release build drops, as cargo-fuzz does. Debug assertions also
+    # turn on the standard library's checks of unsafe preconditions, such
+    # as alignment and bounds, in the code that inlines it.
+    "-Cdebug-assertions=true",
+    "-Coverflow-checks=true",
 
     # rustc exposes LLVM SanitizerCoverage through the sancov module pass.
     # Level 3 instruments every edge, the same coverage the C++ flags ask

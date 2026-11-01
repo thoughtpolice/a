@@ -62,7 +62,14 @@ fozzie_compiler_flags = [
     "-gline-tables-only",
     "-fno-omit-frame-pointer",
     "-fsanitize-coverage=inline-8bit-counters,pc-table,trace-cmp",
-]
+] + shims.select({
+    # libstdc++'s cheap assertions check container preconditions that ASan
+    # cannot see, such as an index past a vector's size but within its
+    # capacity. Unlike _GLIBCXX_DEBUG they leave the ABI alone, so prebuilt
+    # C++ code still links.
+    "config//os:linux": ["-D_GLIBCXX_ASSERTIONS"],
+    "DEFAULT": [],
+})
 
 fozzie_asan_compiler_flags = fozzie_compiler_flags + [
     "-fsanitize=address",
