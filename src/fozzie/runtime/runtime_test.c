@@ -33,6 +33,13 @@ static const uintptr_t test_pcs[6] = {
     0x3000, 0,
 };
 static int initialize_calls;
+
+#if defined(FOZZIE_TEST_WITHOUT_ASAN)
+/* Without ASan's poisoning, the input must end at the arena's guard page. */
+static int input_bounded(const uint8_t* data, size_t size) {
+    return (uintptr_t)(data + size) % (uintptr_t)sysconf(_SC_PAGESIZE) == 0;
+}
+#else
 static const volatile void* last_unpoison_address;
 static size_t last_unpoison_size;
 static const volatile void* last_poison_address;
@@ -48,6 +55,12 @@ void __asan_poison_memory_region(const volatile void* address, size_t size) {
     last_poison_size = size;
 }
 
+static int input_bounded(const uint8_t* data, size_t size) {
+    return last_unpoison_address == data && last_unpoison_size == size &&
+           last_poison_address == data + size && last_poison_size == 64 - size;
+}
+#endif
+
 __attribute__((constructor)) static void register_test_instrumentation(void) {
     __sanitizer_cov_8bit_counters_init((char*)test_counters,
         (char*)test_counters + sizeof(test_counters));
@@ -62,9 +75,7 @@ int LLVMFuzzerInitialize(int* argc, char*** argv) {
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-    if (initialize_calls != 1 || size != 1 || last_unpoison_address != data ||
-        last_unpoison_size != size || last_poison_address != data + size ||
-        last_poison_size != 64 - size) {
+    if (initialize_calls != 1 || size != 1 || !input_bounded(data, size)) {
         return 99;
     }
     if (data[0] == 1) {

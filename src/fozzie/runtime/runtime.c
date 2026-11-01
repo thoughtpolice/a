@@ -63,6 +63,7 @@ struct runtime_state {
     size_t mapping_size;
     uint8_t* shared_input;
     uint8_t* target_input;
+    uint8_t* input_end;
     uint8_t* input_arena;
     size_t input_arena_size;
     size_t input_prefix_size;
@@ -276,6 +277,7 @@ FOZZIE_NOCOV static int create_input_arena(void) {
         ~((size_t)FOZZIE_ASAN_GRANULARITY - 1U);
     state.input_prefix_size = rounded_capacity - state.input_slot_size;
     state.target_input = writable + state.input_prefix_size;
+    state.input_end = writable + rounded_capacity;
     return FOZZIE_TARGET_EXIT_OK;
 }
 
@@ -334,6 +336,7 @@ FOZZIE_NOCOV static void cleanup_runtime(void) {
         munmap(state.input_arena, state.input_arena_size);
         state.input_arena = NULL;
         state.target_input = NULL;
+        state.input_end = NULL;
     }
     if (state.shm_fd >= 0) {
         close(state.shm_fd);
@@ -437,9 +440,13 @@ FOZZIE_NOCOV static void reset_observations(void) {
     atomic_store_explicit(&comparisons_truncated, false, memory_order_relaxed);
 }
 
-FOZZIE_NOCOV static void configure_input_bounds(size_t input_size) {
+/* Places one run's input where reading past its end is caught. Under ASan
+ * the input starts on a shadow granule and the bytes around it are poisoned.
+ * Without ASan it ends where the guard page after the arena begins, so an
+ * overread faults instead of reading the slack of a larger slot. */
+FOZZIE_NOCOV static uint8_t* place_input(size_t input_size) {
     if (__asan_poison_memory_region == NULL || __asan_unpoison_memory_region == NULL) {
-        return;
+        return state.input_end - input_size;
     }
     if (state.input_prefix_size != 0) {
         __asan_poison_memory_region(
@@ -448,6 +455,7 @@ FOZZIE_NOCOV static void configure_input_bounds(size_t input_size) {
     __asan_unpoison_memory_region(state.target_input, input_size);
     __asan_poison_memory_region(
         state.target_input + input_size, state.input_slot_size - input_size);
+    return state.target_input;
 }
 
 FOZZIE_NOCOV static uint8_t hit_bucket(uint8_t count) {
@@ -557,10 +565,10 @@ FOZZIE_NOCOV static int run_loop(void) {
         }
 
         reset_observations();
-        configure_input_bounds((size_t)input_size);
-        memcpy(state.target_input, state.shared_input, (size_t)input_size);
+        uint8_t* input = place_input((size_t)input_size);
+        memcpy(input, state.shared_input, (size_t)input_size);
         atomic_store_explicit(&collecting, true, memory_order_release);
-        int harness_return = LLVMFuzzerTestOneInput(state.target_input, (size_t)input_size);
+        int harness_return = LLVMFuzzerTestOneInput(input, (size_t)input_size);
         atomic_store_explicit(&collecting, false, memory_order_release);
 
         uint32_t done_flags = 0;

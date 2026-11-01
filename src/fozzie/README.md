@@ -223,10 +223,12 @@ buck2 run root//src/fozzie/engine:fozzie -- tui --once --workdir /var/tmp/parser
 The generated binary is intentionally small. It contains the user harness,
 the transitively instrumented Rust/C/C++ code under test, and `fozzie_rt`. One
 persistent target process runs per controller worker. Inputs arrive through a
-shared mapping, then the runtime copies each one into a guarded private arena
-and asks ASan to poison the bytes before and beyond its logical bounds. The
-input slot is shadow-granule aligned, and controller-required ASan options keep
-user poisoning enabled. Fixed-size, little-endian Run/Done frames travel over
+shared mapping, then the runtime copies each one into a guarded private arena,
+so a harness never reads the shared mapping or a slot larger than its input.
+Under ASan the input starts on a shadow granule, ASan poisons the bytes before
+and beyond its logical bounds, and controller-required ASan options keep user
+poisoning enabled. Without ASan the input ends where the arena's guard page
+begins, so even an off-by-one read past it faults. Fixed-size, little-endian Run/Done frames travel over
 a Unix socket in a private `/tmp` directory, independent of campaign path
 length. The parent enforces one absolute deadline, monitors the direct target
 even when descendants retain descriptors, and kills residual process group

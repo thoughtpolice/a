@@ -219,6 +219,21 @@ fn minimizes_a_bare_relative_filename() {
 }
 
 #[test]
+fn reading_past_the_input_crashes_without_asan() {
+    let directory = tempfile::tempdir().unwrap();
+    let input = directory.path().join("input");
+    fs::write(&input, b"short").unwrap();
+    let output = run(engine()
+        .args(["replay", "--target"])
+        .arg(executable("FOZZIE_REGRESSION_TARGET"))
+        .args(["--target-arg", "overread", "--input"])
+        .arg(&input)
+        .args(["--expect-finding", "--expect-kind", "crash"])
+        .args(["--expect-code", &libc::SIGSEGV.to_string()]));
+    assert!(output.status.success(), "{output:?}");
+}
+
+#[test]
 fn minimizes_structure_as_well_as_bytes() {
     let directory = tempfile::tempdir().unwrap();
     let input = b"# display\nheight=480\nwidth=640000\ndepth=24\n";

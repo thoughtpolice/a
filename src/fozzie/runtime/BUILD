@@ -48,7 +48,28 @@ depot.command_test(
     cmd = ["$(exe :runtime-test-bin)"],
 )
 
+# The same test with no ASan poisoning functions, where the runtime must end
+# each input at its guard page instead.
+depot.cxx_binary(
+    name = "runtime-test-without-asan-bin",
+    srcs = ["runtime_test.c"],
+    compiler_flags = [
+        "-std=c11",
+        "-fno-sanitize-coverage=inline-8bit-counters,pc-table,trace-cmp",
+    ],
+    preprocessor_flags = ["-DFOZZIE_TEST_WITHOUT_ASAN"],
+    deps = [":runtime"],
+)
+
+depot.command_test(
+    name = "runtime-test-without-asan",
+    cmd = ["$(exe :runtime-test-without-asan-bin)"],
+)
+
 depot.test_suite(
     name = "tests",
-    tests = [":runtime-test"],
+    tests = [
+        ":runtime-test",
+        ":runtime-test-without-asan",
+    ],
 )
