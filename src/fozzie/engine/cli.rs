@@ -179,6 +179,11 @@ pub struct MinimizeOptions {
     /// Destination; defaults to INPUT.minimized.
     #[arg(long)]
     pub output: Option<PathBuf>,
+
+    /// Only delete byte ranges. By default minimization also deletes whole
+    /// lines and bracketed nodes, lowers numbers and simplifies bytes.
+    #[arg(long)]
+    pub bytes_only: bool,
 }
 
 #[derive(Debug, Args)]

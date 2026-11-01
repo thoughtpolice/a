@@ -219,6 +219,26 @@ fn minimizes_a_bare_relative_filename() {
 }
 
 #[test]
+fn minimizes_structure_as_well_as_bytes() {
+    let directory = tempfile::tempdir().unwrap();
+    let input = b"# display\nheight=480\nwidth=640000\ndepth=24\n";
+    fs::write(directory.path().join("input"), input).unwrap();
+    let minimize = |extra: &[&str]| {
+        let output = run(engine()
+            .args(["minimize", "--target"])
+            .arg(executable("FOZZIE_REGRESSION_TARGET"))
+            .args(["--target-arg", "sizes", "--input", "input"])
+            .args(extra)
+            .current_dir(directory.path()));
+        assert!(output.status.success(), "{output:?}");
+        fs::read(directory.path().join("input.minimized")).unwrap()
+    };
+    // Deleting bytes cannot lower the width without losing the overflow.
+    assert_eq!(minimize(&["--bytes-only"]), b"width=640000");
+    assert_eq!(minimize(&[]), b"width=65536");
+}
+
+#[test]
 fn supports_long_campaign_and_temporary_paths() {
     let directory = tempfile::tempdir().unwrap();
     let campaign = directory.path().join("long-campaign-".repeat(10));

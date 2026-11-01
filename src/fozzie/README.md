@@ -261,6 +261,16 @@ discarded, and flaky candidates remain durable. If no `--workdir` was supplied,
 a campaign with any finding or infrastructure failure retains its temporary
 directory and reports the path in the summary.
 
+`fozzie minimize` alternates two reducers until neither changes the input.
+One deletes byte ranges, as ddmin does. The other is kermit's
+structure-aware reduction. It deletes whole lines and bracketed nodes,
+empties and unwraps nodes, lowers each decimal number to the least value
+that keeps the finding, and replaces letters with `a` or `A` and binary
+bytes with zero. A width overflow found in `height=480\nwidth=640000\n`
+minimizes to `width=65536`, where deleting bytes alone stops at
+`width=640000`. The structural passes cost a few runs per line, node and
+byte, and up to 64 per number, so `--bytes-only` skips them.
+
 ## Compiler and semantic fuzzing
 
 For compiler work, put the oracle in the harness. Good patterns include:

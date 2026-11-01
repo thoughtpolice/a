@@ -109,6 +109,26 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     if (strcmp(arguments[1], "large-input") == 0) {
         return size == 200000 && data[0] == 'x' && data[size - 1] == 'x' ? 17 : 0;
     }
+    if (strcmp(arguments[1], "sizes") == 0) {
+        // A width past 65535 on any line overflows a 16-bit field.
+        for (size_t line = 0; line < size;) {
+            size_t at = line;
+            if (size - at > 6 && memcmp(data + at, "width=", 6) == 0) {
+                unsigned long long value = 0;
+                for (at += 6; at < size && data[at] >= '0' && data[at] <= '9'; at++) {
+                    value = value > 100000 ? value : value * 10 + (unsigned)(data[at] - '0');
+                }
+                if (value > 65535) {
+                    return 19;
+                }
+            }
+            while (line < size && data[line] != '\n') {
+                line++;
+            }
+            line++;
+        }
+        return 0;
+    }
 
     const char* mapping = getenv("FOZZIE_SHM_PATH");
     const char* component = mapping == NULL ? NULL : strstr(mapping, "/workers/");

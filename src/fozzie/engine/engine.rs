@@ -574,30 +574,23 @@ fn minimize(options: MinimizeOptions) -> Result<ExitCode> {
         Execution::Ok(_) => bail!("input does not fail in the target"),
     };
 
-    let mut granularity = 2_usize;
-    while !input.is_empty() {
-        let chunk = input.len().div_ceil(granularity);
-        let mut reduced = false;
-        let mut begin = 0;
-        while begin < input.len() {
-            let end = (begin + chunk).min(input.len());
-            let mut candidate = input.clone();
-            candidate.drain(begin..end);
+    // Byte-range deletion shrinks fastest, and the structure-aware passes
+    // then lower numbers, simplify bytes and remove whole lines and nodes.
+    // Each can expose deletions for the other, so they alternate until
+    // neither changes the input.
+    loop {
+        input = delete_ranges(&mut executor, input, &expected)?;
+        if options.bytes_only {
+            break;
+        }
+        let reduced = kermit::reduce(input.clone(), |candidate| {
             executor.restart();
-            if preserves(&mut executor, &candidate, &expected)? {
-                input = candidate;
-                granularity = granularity.saturating_sub(1).max(2);
-                reduced = true;
-                break;
-            }
-            begin = end;
+            preserves(&mut executor, candidate, &expected)
+        })?;
+        if reduced == input {
+            break;
         }
-        if !reduced {
-            if granularity >= input.len() {
-                break;
-            }
-            granularity = (granularity * 2).min(input.len());
-        }
+        input = reduced;
     }
 
     executor.restart();
@@ -617,6 +610,41 @@ fn minimize(options: MinimizeOptions) -> Result<ExitCode> {
         output.display()
     );
     Ok(ExitCode::SUCCESS)
+}
+
+/// Deletes ever smaller byte ranges while the finding persists, as ddmin
+/// does with deletions only.
+fn delete_ranges(
+    executor: &mut PersistentExecutor,
+    mut input: Vec<u8>,
+    expected: &FindingFingerprint,
+) -> Result<Vec<u8>> {
+    let mut granularity = 2_usize;
+    while !input.is_empty() {
+        let chunk = input.len().div_ceil(granularity);
+        let mut reduced = false;
+        let mut begin = 0;
+        while begin < input.len() {
+            let end = (begin + chunk).min(input.len());
+            let mut candidate = input.clone();
+            candidate.drain(begin..end);
+            executor.restart();
+            if preserves(executor, &candidate, expected)? {
+                input = candidate;
+                granularity = granularity.saturating_sub(1).max(2);
+                reduced = true;
+                break;
+            }
+            begin = end;
+        }
+        if !reduced {
+            if granularity >= input.len() {
+                break;
+            }
+            granularity = (granularity * 2).min(input.len());
+        }
+    }
+    Ok(input)
 }
 
 fn preserves(
