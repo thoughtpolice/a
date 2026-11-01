@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# JSON's literals, punctuation and escapes, for the json-fuzz example.
+"true"
+"false"
+"null"
+"{"
+"}"
+"["
+"]"
+":"
+","
+"\""
+"\\\\"
+"\\/"
+"\\b"
+"\\f"
+"\\n"
+"\\r"
+"\\t"
+"\\u"
+"\\ud800"
+"\\udc00"
+"-"
+"0."
+"e+"
+"E-"

@@ -154,9 +154,10 @@ radamsa-style lists such as `num=5,ld,bd=0`, and the status file names
 kermit's mutators with a `kermit:` prefix.
 
 Kermit's mutations cost more than byte edits and make larger inputs, so a
-campaign that uses it runs fewer executions. On a `serde_json` harness in a
-release build, `both` still reached about 30% more coverage features in 40
-seconds than `bytes` alone, with a third of the executions.
+campaign that uses it runs fewer executions. On a `serde_json` harness like
+the [`json-fuzz` example](examples/rust/json_fuzz.rs), in a release build,
+`both` still reached about 30% more coverage features in 40 seconds than
+`bytes` alone, with a third of the executions.
 
 For a durable campaign, give `buck2 run` a work directory. External seeds are
 imported into its content-addressed corpus, so it is self-contained afterward;
