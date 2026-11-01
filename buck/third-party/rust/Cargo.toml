@@ -193,7 +193,9 @@ rustls-webpki = { version = "0.103.16", default-features = false, features = ["s
 s3s = { version = "0.16.1", default-features = false }
 salsa = "0.28.5"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+# NOTE (fozzie): float_roundtrip parses floats exactly, so a value written
+# back parses to the same value. Fozzie's json-fuzz example checks that.
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
 # NOTE (aseipp): sha1, sha2, and hmac move together (hmac 0.13 needs the
 # digest 0.11 family). sha2 0.11 picks the ARMv8 SHA-2 instructions at run
 # time by default, which 0.10 only did behind its `asm` feature (and the

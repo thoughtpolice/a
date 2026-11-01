@@ -42,8 +42,8 @@ depot.write_file(
     contents = ['{"name": "fozzie", "id": 42, "tags": ["a", "b"], "nested": {"x": 1.5e3, "ok": true, "none": null}, "s": "caf\\u00e9"}'],
 )
 
-# A harness for serde_json, which kermit's JSON and tree mutators suit. The
-# dictionary supplies JSON's tokens and escapes from the start, before the
+# A round-trip oracle for serde_json, which kermit's JSON and tree mutators
+# suit. The dictionary supplies JSON's tokens and escapes from the start, before the
 # comparison operands fill the dynamic dictionary.
 rust_fuzz_binary(
     name = "json-fuzz",

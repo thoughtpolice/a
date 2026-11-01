@@ -29220,6 +29220,7 @@ third_party_rust.rust_library(
     features = [
         "alloc",
         "default",
+        "float_roundtrip",
         "indexmap",
         "preserve_order",
         "raw_value",
@@ -29252,6 +29253,7 @@ third_party_rust.rust_binary(
     features = [
         "alloc",
         "default",
+        "float_roundtrip",
         "indexmap",
         "preserve_order",
         "raw_value",
@@ -29274,6 +29276,7 @@ third_party_rust.buildscript_run(
     features = [
         "alloc",
         "default",
+        "float_roundtrip",
         "indexmap",
         "preserve_order",
         "raw_value",
