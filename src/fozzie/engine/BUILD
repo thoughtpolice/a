@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
+load("@root//src/fozzie:defs.bzl", "cxx_fuzz_binary")
 
 ENGINE_DEPS = [
     "root//src/fozzie/kermit:kermit",
@@ -394,10 +395,43 @@ depot.command_test(
     ],
 )
 
+# Built by the fuzz rule rather than with its own flags, so it checks the
+# toolchain's address profile, which adds UBSan for C and C++.
+cxx_fuzz_binary(
+    name = "profile-ubsan-target",
+    srcs = ["ubsan_test_target.c"],
+    duration_seconds = 0,
+    jobs = 1,
+    runs = 1,
+    sanitizer = "address",
+)
+
+depot.command_test(
+    name = "profile-ubsan-test",
+    cmd = [
+        "$(exe :fozzie)",
+        "replay",
+        "--target",
+        "$(location :profile-ubsan-target)",
+        "--target-arg",
+        "overflow",
+        "--sanitizer",
+        "address",
+        "--input",
+        "$(location :crash-seed)",
+        "--expect-finding",
+        "--expect-kind",
+        "crash",
+        "--expect-sanitizer",
+        "undefined-behavior",
+    ],
+)
+
 depot.test_suite(
     name = "asan-tests",
     tests = [
         ":executor-asan-overflow-test",
         ":executor-asan-underflow-test",
+        ":profile-ubsan-test",
     ],
 )

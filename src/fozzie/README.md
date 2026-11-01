@@ -90,7 +90,9 @@ rust_fuzz_binary(
 ```
 
 The transition applies ASan and SanitizerCoverage to the complete target
-dependency graph. On Linux, Clang supplies the one statically linked
+dependency graph, and C and C++ code gets UBSan as well, which aborts the run
+on its first report. Nix's clang wrapper passes `-fwrapv`, which defines
+signed overflow and so hides it from UBSan, so the profile turns that off. On Linux, Clang supplies the one statically linked
 compiler-rt runtime for C++, Rust, and mixed-language final binaries, and Rust
 uses `-Zexternal-clangrt` to avoid a second copy; macOS links the dynamic
 runtime described under the current boundary below. Fuzz targets that install a custom

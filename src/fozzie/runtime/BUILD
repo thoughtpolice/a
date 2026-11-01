@@ -8,7 +8,7 @@ depot.cxx_library(
     srcs = ["runtime.c"],
     compiler_flags = [
         "-std=c11",
-        "-fno-sanitize=address",
+        "-fno-sanitize=address,undefined",
         "-fno-sanitize-coverage=inline-8bit-counters,pc-table,trace-cmp",
     ],
     exported_headers = [

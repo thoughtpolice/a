@@ -72,7 +72,14 @@ fozzie_compiler_flags = [
 })
 
 fozzie_asan_compiler_flags = fozzie_compiler_flags + [
-    "-fsanitize=address",
+    # UBSan adds the checks ASan lacks, such as signed overflow, bad shifts
+    # and misaligned pointers. Its handlers live in the ASan runtime, and a
+    # report aborts the run instead of letting it continue.
+    "-fsanitize=address,undefined",
+    "-fno-sanitize-recover=undefined",
+    # Nix's clang wrapper passes -fwrapv for its strictoverflow hardening,
+    # which defines signed overflow and so drops UBSan's check for it.
+    "-fno-wrapv",
 ]
 
 instrumentation_compiler_flags = shims.select({
