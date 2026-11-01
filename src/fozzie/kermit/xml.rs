@@ -15,6 +15,7 @@
 //! A mutated block comes back in a compact rendering: one space between
 //! attributes, nothing before `>`, and ` />` for a self-closing tag.
 
+use crate::MAX_DEPTH;
 use crate::number;
 use crate::source::Source;
 use num_bigint::BigInt;
@@ -147,7 +148,9 @@ fn pump<S: Source>(source: &mut S, nodes: &mut [Node]) -> bool {
     }
     let end = &targets[source.below(targets.len())];
     let mut branch = start.clone();
-    for _ in 0..pumps(source) {
+    // Each pump nests the element `end.len()` levels deeper.
+    let count = pumps(source).min((MAX_DEPTH / end.len()).max(1));
+    for _ in 0..count {
         let mut next = start.clone();
         *get_mut(std::slice::from_mut(&mut next), end) = branch;
         branch = next;
@@ -386,26 +389,36 @@ fn skip_space(data: &[u8], at: &mut usize) {
 }
 
 /// Pairs each close tag with the latest unmatched open tag of the same
-/// name, making an element of the nodes between them.
+/// name, making an element of the nodes between them. A pair that would
+/// nest elements deeper than `MAX_DEPTH` stays unpaired.
 fn shrub(nodes: Vec<Node>) -> Vec<Node> {
     let mut done: Vec<Node> = Vec::new();
+    // How deeply elements nest in each node of `done`.
+    let mut depths: Vec<usize> = Vec::new();
     for node in nodes {
         let Node::Close(name) = node else {
             done.push(node);
+            depths.push(0);
             continue;
         };
         let open = done
             .iter()
             .rposition(|node| matches!(node, Node::Open(open, _) if *open == name));
-        match open {
-            Some(index) => {
+        let depth = open.map(|index| 1 + depths[index + 1..].iter().max().unwrap_or(&0));
+        match (open, depth) {
+            (Some(index), Some(depth)) if depth <= MAX_DEPTH => {
                 let content = done.split_off(index + 1);
+                depths.truncate(index);
                 let Some(Node::Open(name, attributes)) = done.pop() else {
                     unreachable!("rposition found an open tag")
                 };
                 done.push(Node::Element(name, attributes, content));
+                depths.push(depth);
             }
-            None => done.push(Node::Close(name)),
+            _ => {
+                done.push(Node::Close(name));
+                depths.push(0);
+            }
         }
     }
     done

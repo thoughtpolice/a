@@ -100,9 +100,13 @@ destination. `-D` reads an AFL or libFuzzer dictionary for `di` and
 
 ## Differences from radamsa
 
-- `xp` nests or repeats an element at most 1025 times rather than 16385.
-  When its chosen operation changes nothing it inserts a tag instead of
-  drawing again.
+- `xp` repeats an element at most 1025 times rather than 16385. When its
+  chosen operation changes nothing it inserts a tag instead of drawing
+  again.
+- The tree mutators and `xp` see brackets and tags nested more than 512
+  deep as plain bytes, and `tr` and `xp` nest at most 512 levels deeper
+  in one call. Their recursive walks then fit a thread's stack, where
+  radamsa's Lisp runtime has no stack to exhaust.
 - `fn` fuses the block with itself, as radamsa does for the last block of
   a stream, rather than with the next block.
 - Kermit reads each sample whole rather than as a stream, and has no

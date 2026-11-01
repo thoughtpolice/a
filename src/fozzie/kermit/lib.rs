@@ -72,6 +72,14 @@ const MAX_BLOCK: usize = 4096;
 /// How many more rounds of every mutator to try when none changed a block.
 const MAX_RETRIES: usize = 24;
 
+/// How deeply the tree and XML mutators nest the structure they guess at.
+/// They walk it recursively, and a burst can grow a block far past 4 KiB,
+/// so without a bound a deeply bracketed block could exhaust the stack.
+/// Parsing treats deeper openers as plain bytes, and `tr` and `xp` add at
+/// most this many levels in one call, so their walks stay near twice this
+/// depth.
+const MAX_DEPTH: usize = 512;
+
 /// How far `nd` and `bu` let an output outgrow its input before they stop
 /// adding mutations, unless [`Config::growth_limit`] says otherwise.
 pub const DEFAULT_GROWTH_LIMIT: usize = 1 << 20;
@@ -456,6 +464,32 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn deep_nesting_fits_a_worker_stack() {
+        // Fozzie's worker threads have the default 2 MiB stack. Feeding
+        // outputs back in, as a fuzzer's corpus does, compounds nesting.
+        let run = || {
+            let mut rng = Rng::new(6);
+            let config = Config::parse("tr,xp,td,tr2", "bu,nd").unwrap();
+            let mut engine = Kermit::new(&config, &mut rng);
+            let mut input = b"<a><b>x</b></a> f(g[h{i}])".to_vec();
+            for _ in 0..300 {
+                input = engine.mutate(&mut rng, &input).data;
+                input.truncate(1 << 16);
+            }
+            let deep = [vec![b'('; 1 << 16], vec![b')'; 1 << 16]].concat();
+            engine.mutate(&mut rng, &deep);
+            let tags = [b"<a>".repeat(1 << 14), b"</a>".repeat(1 << 14)].concat();
+            engine.mutate(&mut rng, &tags);
+        };
+        std::thread::Builder::new()
+            .stack_size(2 << 20)
+            .spawn(run)
+            .unwrap()
+            .join()
+            .unwrap();
     }
 
     #[test]

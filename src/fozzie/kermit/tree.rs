@@ -11,6 +11,7 @@
 //! block parses and the tree flattens back to the same bytes. The mutators
 //! then delete, duplicate, swap or recursively repeat nodes.
 
+use crate::MAX_DEPTH;
 use crate::lines::binarish;
 use crate::source::Source;
 
@@ -102,7 +103,8 @@ fn stutter<S: Source>(source: &mut S, trees: &mut Vec<Tree>, nodes: &[Path]) -> 
     let Some((parent, child)) = found else {
         return false;
     };
-    let levels = source.log(10).max(1);
+    // Each level nests the child `child.len()` levels deeper.
+    let levels = source.log(10).max(1).min((MAX_DEPTH / child.len()).max(1));
     let outer = get(trees, &nodes[parent]).clone();
     let mut value = outer.clone();
     for _ in 1..levels {
@@ -121,7 +123,7 @@ fn stutter<S: Source>(source: &mut S, trees: &mut Vec<Tree>, nodes: &[Path]) -> 
 
 /// Parses `data` into a forest of bytes and delimited nodes.
 pub fn parse(data: &[u8]) -> Vec<Tree> {
-    grow(data, &mut 0, None).0
+    grow(data, &mut 0, None, 0).0
 }
 
 fn closer(byte: u8) -> Option<u8> {
@@ -138,9 +140,9 @@ fn closer(byte: u8) -> Option<u8> {
 
 /// Reads until `close`, returning the children read and whether `close` was
 /// found. At the end of the data, an unclosed opener and its contents are
-/// returned as siblings instead of a node. Recursion is as deep as the
-/// nesting, which a block's 4 KiB bounds.
-fn grow(data: &[u8], at: &mut usize, close: Option<u8>) -> (Vec<Tree>, bool) {
+/// returned as siblings instead of a node. Openers deeper than
+/// `MAX_DEPTH` are plain bytes, which bounds the recursion.
+fn grow(data: &[u8], at: &mut usize, close: Option<u8>, depth: usize) -> (Vec<Tree>, bool) {
     let mut out = Vec::new();
     while let Some(&byte) = data.get(*at) {
         *at += 1;
@@ -148,9 +150,9 @@ fn grow(data: &[u8], at: &mut usize, close: Option<u8>) -> (Vec<Tree>, bool) {
             out.push(Tree::Byte(byte));
             return (out, true);
         }
-        match closer(byte) {
+        match closer(byte).filter(|_| depth < MAX_DEPTH) {
             Some(next) => {
-                let (inner, closed) = grow(data, at, Some(next));
+                let (inner, closed) = grow(data, at, Some(next), depth + 1);
                 if closed {
                     let mut node = vec![Tree::Byte(byte)];
                     node.extend(inner);
@@ -285,6 +287,24 @@ mod tests {
             run(&[], b"(only)", TreeOp::SwapOne),
             (-1, "(only)".to_string())
         );
+    }
+
+    #[test]
+    fn deep_openers_become_bytes() {
+        fn depth(trees: &[Tree]) -> usize {
+            trees
+                .iter()
+                .map(|tree| match tree {
+                    Tree::Byte(_) => 0,
+                    Tree::Node(children) => 1 + depth(children),
+                })
+                .max()
+                .unwrap_or(0)
+        }
+        let deep = [vec![b'['; 600], vec![b']'; 600]].concat();
+        let trees = parse(&deep);
+        assert_eq!(depth(&trees), MAX_DEPTH);
+        assert_eq!(flatten(&trees), deep);
     }
 
     #[test]
