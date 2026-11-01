@@ -5,7 +5,7 @@
 //! generated inputs. Buck runs tests in the repository root, so hegel keeps
 //! no example database there.
 
-use crate::{Config, Kermit, Rng, text, tree};
+use crate::{Config, Kermit, Rng, reduce, text, tree};
 use hegel::TestCase;
 use hegel::generators::{self as gs, PrintableGenerator as _};
 
@@ -60,4 +60,20 @@ fn the_engine_is_deterministic_on_any_input(tc: TestCase) {
             .collect::<Vec<_>>()
     };
     assert_eq!(run(), run());
+}
+
+/// Reduction keeps the failure, never grows the input, and stops at a
+/// fixed point. The failure here is having at least so many of some byte.
+#[hegel::test(test_cases = 300, database = None)]
+fn reduction_keeps_the_failure_and_ends(tc: TestCase) {
+    let input = tc.draw(structured_bytes());
+    let needle = tc.draw(gs::sampled_from(b"\"(<a1\n\xff".to_vec()));
+    let count = |data: &[u8]| data.iter().filter(|&&byte| byte == needle).count();
+    let wanted = tc.draw(gs::integers::<usize>().max_value(count(&input)));
+    let fails = |data: &[u8]| Ok::<_, std::convert::Infallible>(count(data) >= wanted);
+    let Ok(out) = reduce(input.clone(), fails);
+    assert!(count(&out) >= wanted);
+    assert!(out.len() <= input.len());
+    let Ok(again) = reduce(out.clone(), fails);
+    assert_eq!(again, out);
 }

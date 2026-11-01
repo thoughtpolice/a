@@ -38,6 +38,7 @@ mod mutators;
 mod number;
 #[cfg(test)]
 mod properties;
+mod reduce;
 mod source;
 mod text;
 mod tree;
@@ -46,6 +47,7 @@ mod xml;
 
 pub use dictionary::parse as parse_dictionary;
 pub use mutators::{Mutator, MutatorSet};
+pub use reduce::reduce;
 pub use source::{Rng, Source};
 
 use mutators::Memory;

@@ -100,6 +100,22 @@ with its generator, sources, pattern, mutators, checksum and
 destination. `-D` reads an AFL or libFuzzer dictionary for `di` and
 `dr`.
 
+## Reduction
+
+`kermit::reduce` shrinks an input that a predicate says still fails. It
+complements a minimizer that deletes byte ranges, such as fozzie's, with
+passes that follow the structure kermit guesses at:
+
+- delete each line
+- delete, empty or unwrap each bracketed or quoted node, larger ones first
+- lower each decimal number to the least value that still fails, by a
+  binary search that tries zero first
+- replace runs of letters with `a` or `A`, and bytes that are not text
+  with zero, then each such byte alone
+
+It keeps only changes that make the input shortlex smaller, so it always
+ends, and it repeats the passes until none changes the input.
+
 ## Hegel
 
 `root//src/fozzie/kermit/hegel:hegel` is the crate `kermit_hegel`. Its

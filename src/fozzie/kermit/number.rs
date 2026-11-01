@@ -38,7 +38,7 @@ pub fn mutate<S: Source>(source: &mut S, block: &mut Vec<u8>) -> i8 {
 }
 
 /// The byte ranges of maximal ASCII digit runs.
-fn digit_runs(block: &[u8]) -> Vec<std::ops::Range<usize>> {
+pub(crate) fn digit_runs(block: &[u8]) -> Vec<std::ops::Range<usize>> {
     let mut runs = Vec::new();
     let mut start = None;
     for (index, byte) in block.iter().enumerate() {
