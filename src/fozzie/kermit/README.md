@@ -27,7 +27,9 @@ syntax, such as `num=5,ld,bd=0`, where priority 0 disables an entry.
 All randomness flows through the `Source` trait, and a zero draw always
 picks the simplest outcome. A property-testing engine such as Hegel can
 therefore drive the mutators with its own choices and shrink a failing
-mutation toward the unmutated seed.
+mutation toward the unmutated seed. `Kermit::edit` makes one such
+mutation of one block, with no pattern or scores, for a caller that
+decides how many to make.
 
 ## Mutators
 

@@ -318,6 +318,47 @@ impl Kermit {
         }
     }
 
+    /// Makes one edit to `data`: picks a mutator by priority and applies it
+    /// to one block. If the mutator changes nothing, the ones after it in
+    /// the list try in turn, wrapping around. Returns the mutator that
+    /// changed the data, or `None` when none could.
+    ///
+    /// Unlike [`mutate`](Self::mutate), an edit ignores patterns and scores.
+    /// A caller that drives the draws, such as a property-testing engine,
+    /// then decides how many edits to make, and zero draws pick the first
+    /// mutator in the list and the first block. A shrinker that removes
+    /// edits and lowers draws therefore moves toward the unedited input.
+    pub fn edit<S: Source>(&mut self, source: &mut S, data: &mut Vec<u8>) -> Option<Mutator> {
+        let total = self.slots.iter().map(|slot| slot.priority as usize).sum();
+        let mut pick = source.below(total);
+        let first = self
+            .slots
+            .iter()
+            .position(|slot| match pick.checked_sub(slot.priority as usize) {
+                Some(rest) => {
+                    pick = rest;
+                    false
+                }
+                None => true,
+            })
+            .expect("the pick is below the total");
+        let range = block(source, data.len(), 0);
+        let mut chunk = data[range.clone()].to_vec();
+        let count = self.slots.len();
+        for offset in 0..count {
+            let slot = &mut self.slots[(first + offset) % count];
+            source.begin(slot.mutator.name());
+            slot.mutator
+                .apply(source, &mut chunk, &mut slot.memory, &self.dictionary);
+            source.end();
+            if chunk != data[range.clone()] {
+                data.splice(range, chunk);
+                return Some(slot.mutator);
+            }
+        }
+        None
+    }
+
     fn pattern<S: Source>(&self, source: &mut S) -> Pattern {
         let total = self
             .patterns
@@ -579,6 +620,56 @@ mod tests {
         kermit.dictionary_mut().push(b"LEARNED".to_vec());
         let output = kermit.mutate(&mut rng, b"seed").data;
         assert!(output.windows(7).any(|window| window == b"LEARNED"));
+    }
+
+    #[test]
+    fn zero_draws_edit_with_the_first_mutator_that_applies() {
+        use crate::source::Script;
+        let config = Config::parse("bd,bi", "od").unwrap();
+        let mut kermit = Kermit::new(&config, &mut Script::new(&[]));
+        let mut data = b"seed".to_vec();
+        assert_eq!(
+            kermit.edit(&mut Script::new(&[]), &mut data),
+            Some(Mutator::ByteDrop)
+        );
+        assert_eq!(data, b"eed");
+
+        // There is no number to change, so the byte mutator after it edits.
+        let config = Config::parse("num,bi", "od").unwrap();
+        let mut kermit = Kermit::new(&config, &mut Script::new(&[]));
+        let mut data = b"seed".to_vec();
+        assert_eq!(
+            kermit.edit(&mut Script::new(&[]), &mut data),
+            Some(Mutator::ByteInsert)
+        );
+        assert_eq!(data, b"\0seed");
+    }
+
+    #[test]
+    fn edits_follow_the_drawn_mutator_and_wrap_around() {
+        use crate::source::Script;
+        let config = Config::parse("bi,num", "od").unwrap();
+        let mut kermit = Kermit::new(&config, &mut Script::new(&[]));
+        let mut data = b"seed 7".to_vec();
+        // Priorities 1 and 1, so a draw of 1 picks num.
+        assert_eq!(
+            kermit.edit(&mut Script::new(&[1]), &mut data),
+            Some(Mutator::Number)
+        );
+        assert_ne!(data, b"seed 7");
+        assert!(data.starts_with(b"seed "));
+
+        let mut data = b"seed".to_vec();
+        assert_eq!(
+            kermit.edit(&mut Script::new(&[1]), &mut data),
+            Some(Mutator::ByteInsert)
+        );
+
+        let config = Config::parse("num", "od").unwrap();
+        let mut kermit = Kermit::new(&config, &mut Script::new(&[]));
+        let mut data = b"seed".to_vec();
+        assert_eq!(kermit.edit(&mut Rng::new(1), &mut data), None);
+        assert_eq!(data, b"seed");
     }
 
     #[test]
