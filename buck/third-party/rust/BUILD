@@ -25807,23 +25807,23 @@ third_party_rust.cxx_library(
 )
 
 shims.http_archive(
-    name = "pulldown-cmark-0.13.5.crate",
-    sha256 = "278e9268c93b9e498a2da46c34d90ba93a3255eb99009646398f34bc73ab36eb",
-    strip_prefix = "pulldown-cmark-0.13.5",
-    urls = ["https://static.crates.io/crates/pulldown-cmark/0.13.5/download"],
+    name = "pulldown-cmark-0.13.6.crate",
+    sha256 = "3db2be46835f013dd3f4fa7f5f7402c537787b54ebb6fe2b94bbdd7e2669bb7b",
+    strip_prefix = "pulldown-cmark-0.13.6",
+    urls = ["https://static.crates.io/crates/pulldown-cmark/0.13.6/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "pulldown-cmark-0.13",
-    srcs = [":pulldown-cmark-0.13.5.crate"],
+    srcs = [":pulldown-cmark-0.13.6.crate"],
     crate = "pulldown_cmark",
-    crate_root = "pulldown-cmark-0.13.5.crate/src/lib.rs",
+    crate_root = "pulldown-cmark-0.13.6.crate/src/lib.rs",
     edition = "2021",
     metadata = {
         "third-party.metadata": {
             "name": "pulldown-cmark",
-            "version": "0.13.5",
+            "version": "0.13.6",
             "licenses": ["MIT"],
         },
     },
