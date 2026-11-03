@@ -15,14 +15,14 @@
 //!
 //! A blob only disappears by expiring, and a rewrite only moves its expiry
 //! later, so an entry is good until the expiry its read saw (see
-//! [`expiring`](crate::expiring)).
+//! [`expiring_cache`]).
 
 use bytes::Bytes;
 
-use crate::expiring::{ExpiringCache, Weigh};
 #[cfg(doc)]
 use crate::manifest::INLINE_BLOB_MAX;
 use crate::manifest::{BlobManifest, ChunkInfo};
+use expiring_cache::{ExpiringCache, Policy, UniformHashBuilder, Weigh};
 use reapi_cas::Compression;
 use reapi_cas::ContentDigest;
 
@@ -52,13 +52,13 @@ impl Weigh for Blob {
 }
 
 pub(crate) struct SmallBlobCache {
-    blobs: ExpiringCache<Blob>,
+    blobs: ExpiringCache<ContentDigest, Blob, UniformHashBuilder>,
 }
 
 impl SmallBlobCache {
     /// A cache holding up to `capacity_bytes` of blobs, or none for 0.
     pub(crate) fn new(capacity_bytes: u64) -> Option<Self> {
-        let blobs = ExpiringCache::new(capacity_bytes, MIN_SHARD_BYTES, 0)?;
+        let blobs = ExpiringCache::new(capacity_bytes, MIN_SHARD_BYTES, Policy::DEFAULT)?;
         Some(Self { blobs })
     }
 

@@ -7,7 +7,6 @@ mod action_results;
 mod backlog;
 mod db_cache;
 mod error;
-mod expiring;
 mod manifest;
 mod manifest_cache;
 mod presence;

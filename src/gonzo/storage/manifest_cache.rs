@@ -13,15 +13,15 @@
 //! them, nearly: an upload writes its chunks before its manifest, so they
 //! expire as much earlier as the upload took. An entry is therefore served
 //! until [`EXPIRY_MARGIN_MS`] before the expiry its read saw (see
-//! [`expiring`](crate::expiring)). A rewrite can give a blob
+//! [`expiring_cache`]). A rewrite can give a blob
 //! another chunk list (a splice, say); the chunks of the list kept here live
 //! as long as the entry is served all the same. A read that finds a chunk
 //! missing anyway drops the entry, so the next read goes to the store.
 
 use std::sync::Arc;
 
-use crate::expiring::{ExpiringCache, Weigh};
 use crate::manifest::{BlobManifest, ChunkInfo};
+use expiring_cache::{ExpiringCache, Policy, UniformHashBuilder, Weigh};
 use reapi_cas::Compression;
 use reapi_cas::ContentDigest;
 
@@ -53,13 +53,17 @@ impl Weigh for Chunked {
 }
 
 pub(crate) struct ManifestCache {
-    manifests: ExpiringCache<Chunked>,
+    manifests: ExpiringCache<ContentDigest, Chunked, UniformHashBuilder>,
 }
 
 impl ManifestCache {
     /// A cache holding up to `capacity_bytes` of manifests, or none for 0.
     pub(crate) fn new(capacity_bytes: u64) -> Option<Self> {
-        let manifests = ExpiringCache::new(capacity_bytes, MIN_SHARD_BYTES, EXPIRY_MARGIN_MS)?;
+        let manifests = ExpiringCache::new(
+            capacity_bytes,
+            MIN_SHARD_BYTES,
+            Policy::with_margin(EXPIRY_MARGIN_MS),
+        )?;
         Some(Self { manifests })
     }
 

@@ -4,6 +4,7 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
+    "//src/crates/expiring-cache:expiring-cache",
     "//src/crates/object-store-local:object-store-local",
     "//src/crates/object-store-s3:object-store-s3",
     "//src/crates/reapi-cas:reapi-cas",

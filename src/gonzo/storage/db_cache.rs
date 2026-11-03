@@ -49,7 +49,7 @@ impl QuickDbCache {
     pub(crate) fn new(capacity_bytes: u64) -> Self {
         Self {
             entries: Arc::new(quick_cache::sync::Cache::with_options(
-                sharded_options(capacity_bytes, MIN_SHARD_BYTES),
+                expiring_cache::shard_options(capacity_bytes, MIN_SHARD_BYTES),
                 EntryWeight,
                 Default::default(),
                 Default::default(),
@@ -75,27 +75,6 @@ impl QuickDbCache {
             }
         }
     }
-}
-
-/// A quick_cache of `capacity_bytes` in shards of at least `min_shard_bytes`
-/// (quick_cache turns away any entry heavier than a shard's share of the
-/// budget), and no more of them than quick_cache would use by default.
-pub(crate) fn sharded_options(capacity_bytes: u64, min_shard_bytes: u64) -> quick_cache::Options {
-    // quick_cache sizes its tables from an item estimate; blocks are a
-    // few KiB, filters and indexes larger, so 4 KiB a piece errs high.
-    let items = usize::try_from(capacity_bytes / 4096)
-        .unwrap_or(usize::MAX)
-        .clamp(1024, 1 << 22);
-    let default_shards = std::thread::available_parallelism().map_or(4, |n| n.get() * 4);
-    let shards = usize::try_from(capacity_bytes / min_shard_bytes)
-        .unwrap_or(usize::MAX)
-        .clamp(1, default_shards);
-    quick_cache::OptionsBuilder::new()
-        .estimated_items_capacity(items)
-        .weight_capacity(capacity_bytes.max(1))
-        .shards(shards)
-        .build()
-        .expect("valid cache options")
 }
 
 #[async_trait::async_trait]
@@ -180,7 +159,7 @@ mod tests {
     fn large_indexes_are_kept() {
         let capacity = crate::DEFAULT_META_CACHE_BYTES;
         let cache = quick_cache::sync::Cache::<u64, Vec<u8>, Len>::with_options(
-            sharded_options(capacity, MIN_SHARD_BYTES),
+            expiring_cache::shard_options(capacity, MIN_SHARD_BYTES),
             Len,
             Default::default(),
             Default::default(),

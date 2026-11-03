@@ -7,22 +7,19 @@
 //! one point lookup, which SlateDB spends mostly on reference counting
 //! shared by every core (see `small_blobs`). Entries read are kept here,
 //! under a byte budget, until the expiry their read saw (see
-//! [`expiring`](crate::expiring)).
+//! [`expiring_cache`]).
 //!
 //! Unlike a blob, an entry can be overwritten. This process is the store's
-//! only writer, so every write, once durable, drops the entry from here. A
-//! read that began before a write could still put back what it read, after
-//! the write dropped it; each write therefore also bumps a counter (one per
-//! stripe of the key space), and a read keeps what it read only if its
-//! stripe's counter did not move from before the read until after the
-//! entry went in.
-
-use std::sync::atomic::{AtomicU64, Ordering};
+//! only writer, so every write, once durable, drops the entry from here,
+//! along with what reads racing it would keep (see
+//! [`expiring_cache::InvalidatingCache`]).
 
 use bytes::Bytes;
+use expiring_cache::{InvalidatingCache, Policy, UniformHashBuilder};
 
-use crate::expiring::ExpiringCache;
 use reapi_cas::ContentDigest;
+
+pub(crate) use expiring_cache::ReadStart;
 
 /// The budget when none is given: hundreds of thousands of typical entries.
 pub const DEFAULT_ACTION_RESULT_CACHE_BYTES: u64 = 64 * 1024 * 1024;
@@ -32,49 +29,32 @@ pub const DEFAULT_ACTION_RESULT_CACHE_BYTES: u64 = 64 * 1024 * 1024;
 /// turn away.
 const MIN_SHARD_BYTES: u64 = 1024 * 1024;
 
-/// Write counters: enough that unrelated writes rarely keep a read from
-/// being kept.
-const STRIPES: usize = 4096;
-
-/// Where a read of an entry began, to tell whether a write came in since.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ReadStart(u64);
-
 pub(crate) struct ActionResultCache {
-    entries: ExpiringCache<Bytes>,
-    writes: Box<[AtomicU64]>,
+    entries: InvalidatingCache<ContentDigest, Bytes, UniformHashBuilder>,
 }
 
 impl ActionResultCache {
     /// A cache holding up to `capacity_bytes` of entries, or none for 0.
     pub(crate) fn new(capacity_bytes: u64) -> Option<Self> {
-        Some(Self {
-            entries: ExpiringCache::new(capacity_bytes, MIN_SHARD_BYTES, 0)?,
-            writes: (0..STRIPES).map(|_| AtomicU64::new(0)).collect(),
-        })
-    }
-
-    fn stripe(&self, digest: &ContentDigest) -> &AtomicU64 {
-        // Action digests are uniformly random already.
-        let word = u64::from_le_bytes(digest.hash[..8].try_into().expect("8 bytes"));
-        &self.writes[(word % STRIPES as u64) as usize]
+        let entries = InvalidatingCache::new(capacity_bytes, MIN_SHARD_BYTES, Policy::DEFAULT)?;
+        Some(Self { entries })
     }
 
     /// `digest`'s entry, if it is here and not past its expiry or its
     /// revalidation time at `now_ms`.
     pub(crate) fn get(&self, digest: &ContentDigest, now_ms: i64) -> Option<Bytes> {
-        self.entries.get(digest, now_ms).map(|(data, _)| data)
+        self.entries.get(digest, now_ms)
     }
 
     /// Note that a read of `digest`'s entry from the store begins, for
     /// [`insert`](Self::insert) to check against.
     pub(crate) fn read_start(&self, digest: &ContentDigest) -> ReadStart {
-        ReadStart(self.stripe(digest).load(Ordering::SeqCst))
+        self.entries.read_start(digest)
     }
 
     /// Keep `data`, read at `now_ms` as `digest`'s entry (expiring at
     /// `expires_at`) by a read that began at `start`, unless a write to
-    /// the same stripe has come in since.
+    /// it may have come in since.
     pub(crate) fn insert(
         &self,
         digest: ContentDigest,
@@ -83,27 +63,16 @@ impl ActionResultCache {
         expires_at: Option<i64>,
         now_ms: i64,
     ) {
-        let stripe = self.stripe(&digest);
-        if stripe.load(Ordering::SeqCst) != start.0 {
-            return;
-        }
         // A copy: the store hands out slices of the blocks it reads, and an
         // entry holding one would keep the whole block.
         let data = Bytes::copy_from_slice(&data);
-        self.entries.insert(digest, data, expires_at, now_ms);
-        // A write that bumped the stripe after the check above may already
-        // have dropped the entry, before it went in: take it out again. A
-        // write bumping it later drops it itself.
-        if stripe.load(Ordering::SeqCst) != start.0 {
-            self.entries.remove(&digest);
-        }
+        self.entries.insert(digest, start, data, expires_at, now_ms);
     }
 
     /// Drop `digest`'s entry, just written: what is kept of it, and what
     /// reads already under way would keep.
     pub(crate) fn invalidate(&self, digest: &ContentDigest) {
-        self.stripe(digest).fetch_add(1, Ordering::SeqCst);
-        self.entries.remove(digest);
+        self.entries.invalidate(digest);
     }
 }
 
