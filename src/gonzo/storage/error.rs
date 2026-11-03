@@ -75,6 +75,15 @@ impl StoreError {
     }
 }
 
+impl From<slatedb_utils::Error> for StoreError {
+    fn from(e: slatedb_utils::Error) -> Self {
+        match e {
+            slatedb_utils::Error::Refused(refused) => refused.into(),
+            slatedb_utils::Error::Db(e) => e.into(),
+        }
+    }
+}
+
 impl From<write_admission::Refused> for StoreError {
     fn from(refused: write_admission::Refused) -> Self {
         match refused {

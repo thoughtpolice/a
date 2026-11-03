@@ -115,7 +115,12 @@ async fn cas_get_blob_stream_detects_corruption() {
     let first_chunk_key = prefixed_key(PREFIX_CHUNK, DigestFn::Sha256, &manifest.chunks[0].hash);
     let mut corrupted = vec![Compression::Identity as u8];
     corrupted.extend_from_slice(b"corrupted data that is wrong");
-    store.db.put(&first_chunk_key, &corrupted).await.unwrap();
+    store
+        .db
+        .db()
+        .put(&first_chunk_key, &corrupted)
+        .await
+        .unwrap();
 
     // Stream should yield an error
     let stream = store
@@ -256,7 +261,7 @@ async fn cas_get_blob_stream_middle_chunk_corruption() {
     );
     let mut corrupted = vec![Compression::Identity as u8];
     corrupted.extend_from_slice(b"corrupted chunk data");
-    store.db.put(&target_key, &corrupted).await.unwrap();
+    store.db.db().put(&target_key, &corrupted).await.unwrap();
 
     // Stream should yield some successes then hit error at the corrupted chunk
     let stream = store

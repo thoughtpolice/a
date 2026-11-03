@@ -316,7 +316,13 @@ async fn splitting_a_blob_past_half_its_ttl_renews_it() {
     for chunk in chunk_digests(&manifest) {
         assert!(store.cas_blob_fresh(&chunk).await.expect("fresh"));
         let key = prefixed_key(PREFIX_CHUNK, chunk.function, &chunk.hash);
-        let stored = store.db.get_key_value(&key).await.expect("get").unwrap();
+        let stored = store
+            .db
+            .db()
+            .get_key_value(&key)
+            .await
+            .expect("get")
+            .unwrap();
         assert!(
             stored.expire_ts.unwrap() >= first + 2000,
             "chunk data renewed"
@@ -342,7 +348,7 @@ async fn splitting_a_blob_with_a_chunk_gone_fails() {
     let (manifest, _) = store.cas_get_manifest(&digest).await.expect("get").unwrap();
     let gone = &manifest.chunks[1];
     let key = prefixed_key(PREFIX_CHUNK, DigestFn::Sha256, &gone.hash);
-    store.db.delete(&key).await.expect("delete");
+    store.db.db().delete(&key).await.expect("delete");
 
     tokio::time::sleep(Duration::from_millis(1100)).await;
     let result = store.cas_split_blob(&digest).await;

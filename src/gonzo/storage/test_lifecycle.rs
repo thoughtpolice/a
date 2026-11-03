@@ -12,7 +12,7 @@ use std::time::Duration;
 #[tokio::test]
 async fn a_second_writer_fences_the_first() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let backend = || StoreBackend::LocalFs(dir.path().display().to_string());
+    let backend = || StoreBackend::LocalFs(dir.path().to_path_buf());
     let first = CacheStore::open(backend(), CacheStoreSettings::default())
         .await
         .expect("open first");
@@ -65,7 +65,7 @@ async fn a_clean_close_is_not_a_failure() {
 #[tokio::test]
 async fn each_kind_of_key_has_its_own_tree() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let backend = || StoreBackend::LocalFs(dir.path().display().to_string());
+    let backend = || StoreBackend::LocalFs(dir.path().to_path_buf());
     let store = CacheStore::open(backend(), CacheStoreSettings::default())
         .await
         .expect("open");
@@ -97,10 +97,9 @@ async fn each_kind_of_key_has_its_own_tree() {
 #[tokio::test]
 async fn a_store_made_without_the_split_is_refused() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let object_store =
-        create_object_store(&StoreBackend::LocalFs(dir.path().display().to_string()))
-            .expect("object store");
-    let db = Db::builder(DB_PATH, object_store)
+    let object_store = create_object_store(&StoreBackend::LocalFs(dir.path().to_path_buf()))
+        .expect("object store");
+    let db = slatedb::Db::builder(DB_PATH, object_store)
         .build()
         .await
         .expect("plain db");
@@ -108,7 +107,7 @@ async fn a_store_made_without_the_split_is_refused() {
     db.close().await.expect("close");
 
     let err = CacheStore::open(
-        StoreBackend::LocalFs(dir.path().display().to_string()),
+        StoreBackend::LocalFs(dir.path().to_path_buf()),
         CacheStoreSettings::default(),
     )
     .await

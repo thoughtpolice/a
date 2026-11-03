@@ -366,7 +366,7 @@ async fn put(store: &CacheStore, data: &Bytes, compression: Compression) -> Cont
 
 async fn chunk_key_exists(store: &CacheStore, digest: &ContentDigest) -> bool {
     let key = prefixed_key(PREFIX_CHUNK, digest.function, &digest.hash);
-    store.db.get(&key).await.unwrap().is_some()
+    store.db.db().get(&key).await.unwrap().is_some()
 }
 
 #[tokio::test]
@@ -427,7 +427,7 @@ async fn inline_blobs_are_compressed_when_it_pays() {
         let store = &store;
         async move {
             let key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
-            store.db.get(&key).await.unwrap().unwrap()
+            store.db.db().get(&key).await.unwrap().unwrap()
         }
     };
 
@@ -458,6 +458,7 @@ async fn inline_blob_corruption_is_detected() {
     let tampered = BlobManifest::inline(digest.hash, Bytes::from_static(b"tampered data"));
     store
         .db
+        .db()
         .put(&key, tampered.to_bytes(Compression::Identity).unwrap())
         .await
         .unwrap();
@@ -913,7 +914,7 @@ async fn cas_get_blob_detects_corruption() {
     let mut corrupted = vec![Compression::Identity as u8];
     corrupted.extend_from_slice(&data);
     corrupted[1] ^= 1;
-    store.db.put(&chunk_key, &corrupted).await.unwrap();
+    store.db.db().put(&chunk_key, &corrupted).await.unwrap();
 
     let result = store
         .cas_get_blob(&ContentDigest::new(DigestFn::Sha256, hash))
@@ -1484,7 +1485,7 @@ async fn compressed_chunks_are_smaller_than_uncompressed() {
 
     // Read raw bytes directly from storage to inspect compressed size
     let chunk_key = prefixed_key(PREFIX_CHUNK, DigestFn::Sha256, &hash);
-    let raw_chunk = store.db.get(&chunk_key).await.unwrap().unwrap();
+    let raw_chunk = store.db.db().get(&chunk_key).await.unwrap().unwrap();
     assert!(
         raw_chunk.len() < data.len(),
         "compressed chunk ({}) should be smaller than original ({})",
@@ -1908,6 +1909,7 @@ async fn lose_manifest(store: &CacheStore, digest: &ContentDigest) {
     let key = prefixed_key(PREFIX_MANIFEST, digest.function, &digest.hash);
     store
         .db
+        .db()
         .delete(key)
         .await
         .unwrap()
@@ -1987,6 +1989,7 @@ async fn single_chunk_blobs_are_served_from_memory_once_read() {
         lose_manifest(&store, &cd).await;
         store
             .db
+            .db()
             .delete(chunk_key(&cd))
             .await
             .unwrap()

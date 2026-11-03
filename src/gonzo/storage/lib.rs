@@ -4,7 +4,6 @@
 //! Content-addressable chunk storage backed by SlateDB with FastCDC chunking.
 
 mod action_results;
-mod db_cache;
 mod error;
 mod manifest;
 mod manifest_cache;
@@ -34,9 +33,8 @@ use std::sync::Arc;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use futures::{Stream, StreamExt as _, TryStreamExt as _};
-use slatedb::config::{DurabilityLevel, PutOptions, ReadOptions, Ttl};
-use slatedb::db_cache::{CacheTarget, SplitCache};
-use slatedb::{BlockCachePolicy, Db, PrefixExtractor, PrefixTarget, WriteBatch};
+use slatedb::config::{PutOptions, ReadOptions, Ttl};
+use slatedb::{BlockCachePolicy, WriteBatch};
 use tracing::{debug, instrument, warn};
 
 /// Re-export for callers that need to construct TTL durations.
@@ -126,20 +124,7 @@ impl std::fmt::Debug for CacheStoreSettings {
     }
 }
 
-/// A local disk cache in front of the object store.
-#[derive(Clone, Debug)]
-pub struct ObjectStoreCache {
-    /// Directory the cache lives in.
-    pub dir: std::path::PathBuf,
-    /// Most bytes it holds; `None` keeps SlateDB's default (16 GiB).
-    pub max_bytes: Option<usize>,
-}
-
-/// Default size of the in-memory SST data block cache (512 MiB).
-pub const DEFAULT_BLOCK_CACHE_BYTES: u64 = 512 * 1024 * 1024;
-
-/// Default size of the in-memory SST index and filter cache (128 MiB).
-pub const DEFAULT_META_CACHE_BYTES: u64 = 128 * 1024 * 1024;
+pub use slatedb_utils::{DEFAULT_BLOCK_CACHE_BYTES, DEFAULT_META_CACHE_BYTES, ObjectStoreCache};
 
 /// Prefix of the environment variables that override SlateDB settings, e.g.
 /// `GONZO_SLATEDB_L0_SST_SIZE_BYTES=134217728`, or with a `.` for a
@@ -179,175 +164,19 @@ pub const MAX_BLOB_REASSEMBLE_SIZE: usize = 2 * 1024 * 1024 * 1024;
 const MAX_ACTION_CACHE_ENTRY_SIZE: usize = 16 * 1024 * 1024;
 
 /// Where to store SlateDB data.
-#[derive(Debug)]
-pub enum StoreBackend {
-    /// In-memory object store (ephemeral, for testing).
-    Memory,
-    /// Local filesystem at the given path.
-    LocalFs(String),
-    /// S3 (or S3-compatible) bucket, optionally rooted at a key prefix.
-    ///
-    /// Credentials, region, and endpoint come from the standard `AWS_*`
-    /// environment variables; see [`object_store_s3::S3StoreBuilder::from_env`].
-    S3 {
-        bucket: String,
-        prefix: Option<String>,
-    },
-}
+pub use slatedb_utils::Backend as StoreBackend;
 
-/// Whether a backend's writes land on local media rather than remote object
-/// storage. This is the axis SlateDB's stock defaults are tuned against.
-fn writes_land_locally(backend: &StoreBackend) -> bool {
-    match backend {
-        StoreBackend::Memory | StoreBackend::LocalFs(_) => true,
-        StoreBackend::S3 { .. } => false,
-    }
-}
-
-/// Derive SlateDB settings for `backend`.
-///
-/// SlateDB ships defaults tuned for S3, where a flush is a billable, ~100 ms
-/// round trip. Two of those trades invert on a loopback store, so adjust them
-/// rather than leaving the operator to discover the defaults the hard way.
+/// [`slatedb_utils::settings::tuned`] settings for `backend`.
 pub fn tuned_settings(backend: &StoreBackend) -> slatedb::config::Settings {
-    let mut settings = slatedb::config::Settings::default();
-
-    if writes_land_locally(backend) {
-        // `flush_interval` is a WAL flush *tick*, and a write is not
-        // acknowledged until the next one makes it durable (see `commit`) —
-        // so it is a hard floor on write latency, and a cap of
-        // `concurrency / interval` on write throughput no matter how fast the
-        // machine is. SlateDB picks 100 ms to bound S3 PUT charges (its own
-        // docs quote ~$130/month at that rate); against memory or a local disk
-        // a flush costs microseconds and nothing per call, so the 100 ms is
-        // pure latency for no saving. Each tick with writes pending writes a
-        // WAL object that lives until garbage collection, so the tick stays
-        // a few milliseconds rather than one.
-        settings.flush_interval = Some(std::time::Duration::from_millis(5));
-    }
-
-    // SlateDB writes a bloom filter only for SSTs of at least 1000 keys. A
-    // 64 MiB SST of this cache's ~2 MiB chunks holds a few dozen, so stock
-    // SSTs mostly go without, and since keys are random hashes, every SST's
-    // key range covers every lookup: a miss (FindMissingBlobs on a new
-    // blob, say) then reads an index and a data block from every L0 SST and
-    // sorted run. With filters, a miss is answered from cached filters.
-    settings.min_filter_keys = 1;
-
-    // Each memtable flush adds one L0 SST to every segment it touches, and a
-    // segment holding `l0_max_ssts` of them stops flushes until a compaction
-    // takes them away; writes then stall once `max_unflushed_bytes` is
-    // buffered. The stock 8 gives a stream of uploads only seconds of slack,
-    // so allow twice that. Keys are random hashes, so every L0 SST spans the
-    // whole key space and the per-key limit is reached at the same count:
-    // it has to move too. A lookup consults every L0 SST of its segment,
-    // but through bloom filters held in the meta cache.
-    settings.l0_max_ssts = 16;
-    settings.l0_max_ssts_per_key = 16;
-
-    if let Some(compactor) = settings.compactor_options.as_mut() {
-        // The compactor looks for work, and its worker for submitted jobs,
-        // every 5 s by default — so a full L0 waited up to 10 s for a
-        // compaction that then took under one, with every upload stalled
-        // meanwhile. Each poll reads the manifest or the compactions file:
-        // free on a local store, a LIST and a GET on S3.
-        let poll = if writes_land_locally(backend) {
-            std::time::Duration::from_millis(100)
-        } else {
-            std::time::Duration::from_secs(1)
-        };
-        compactor.poll_interval = poll;
-        // Each compaction protects the SSTs it replaces with a checkpoint, so
-        // reads that began before it can finish, and garbage collection
-        // keeps them until it expires: 15 minutes by default, which under a
-        // stream of uploads made replaced data most of the store (about five
-        // times the live data on S3). Every read here is a point lookup that
-        // takes milliseconds, even against S3, so half a minute is ample;
-        // uploading 40 GB to a local store with two minutes peaked at 220 GB
-        // on disk, with half a minute at 140 GB.
-        compactor.checkpoint_lifetime = std::time::Duration::from_secs(30);
-        if let Some(worker) = compactor.worker.as_mut() {
-            worker.compactions_poll_interval = poll;
-            // SlateDB requires the worker's filter threshold to match the
-            // writer's; otherwise compacted SSTs drop their filters.
-            worker.min_filter_keys = settings.min_filter_keys;
-        }
-        // Size-tiered compaction merges 4 to 8 similar runs at a time by
-        // default, so a byte is rewritten about log4(store / L0 SST) times:
-        // with the WAL and the L0 flush, uploading 40 GB wrote 5.5 bytes to
-        // disk per byte uploaded, and a store's upload rate is its disk's
-        // write rate divided by that. Merging 8 to 32 at a time wrote 4.6,
-        // and took uploads about a quarter faster. The cost is more sorted
-        // runs, and a lookup checks each one's bloom filter, which the meta
-        // cache holds.
-        compactor
-            .scheduler_options
-            .insert("min_compaction_sources".into(), "8".into());
-        compactor
-            .scheduler_options
-            .insert("max_compaction_sources".into(), "32".into());
-    }
-
-    if let Some(gc) = settings.garbage_collector_options.as_mut() {
-        // Collection of replaced SSTs runs only every 10 minutes by default,
-        // on top of the compactor's checkpoint lifetime (above) and the
-        // 5-minute minimum age it keeps any SST for: under a stream of
-        // uploads, replaced data waited up to 25 minutes to go, and was most
-        // of the disk in use. Collect every half minute instead, as soon as
-        // the checkpoint lets go. The minimum age is not what keeps a
-        // compaction's or a flush's output safe before the manifest names
-        // it: collection spares SSTs newer than the oldest compaction under
-        // way and the newest L0 SST regardless. Flushed WAL is pinned by
-        // nothing (this store has no readers tailing it), so it goes after a
-        // minute, not five.
-        let minute = std::time::Duration::from_secs(60);
-        let half_minute = std::time::Duration::from_secs(30);
-        if let Some(wal) = gc.wal_options.as_mut() {
-            wal.interval = Some(minute);
-            wal.min_age = minute;
-        }
-        if let Some(compacted) = gc.compacted_options.as_mut() {
-            compacted.interval = Some(half_minute);
-            compacted.min_age = half_minute;
-        }
-
-        // WAL fence collection ships dry-run, so it deletes nothing and logs a
-        // paragraph explaining that it deleted nothing on every pass. Off is
-        // what dry-run already means, minus the noise. Enabling it for real
-        // risks data loss (see `wal_fence_options`), so off is also the safe
-        // reading of the default.
-        gc.wal_fence_options = None;
-
-        if matches!(backend, StoreBackend::LocalFs(_)) {
-            // Boundary advancement is the *only* thing in SlateDB that issues a
-            // conditional overwrite (`PutMode::Update`, in the boundary object
-            // behind the manifest and compactions stores), and object_store's
-            // LocalFileSystem returns `NotImplemented` for it. So the manifest
-            // and compactions collectors fail on every pass, forever, once per
-            // interval.
-            //
-            // Turning those two collectors off trades reclaiming their metadata
-            // for an error the operator cannot act on. The alternative is
-            // `boundary_files_enabled = false`, which keeps them collecting but
-            // lets a process suspended past `min_age` resurrect a deleted
-            // metadata ID and report a stale update as successful — a
-            // correctness risk on a workstation that sleeps. WAL and
-            // compacted-SST collection need no CAS and keep reclaiming the bulk
-            // of the space either way.
-            gc.manifest_options = None;
-            gc.compactions_options = None;
-        }
-    }
-
-    settings
+    slatedb_utils::settings::tuned(backend)
 }
 
 /// [`tuned_settings`] for `backend`, overridden by any
 /// [`SLATEDB_ENV_PREFIX`] environment variables.
 pub fn settings_for(backend: &StoreBackend) -> Result<slatedb::config::Settings> {
-    Ok(slatedb::config::Settings::from_env_with_default(
+    Ok(slatedb_utils::settings::from_env(
         SLATEDB_ENV_PREFIX,
-        tuned_settings(backend),
+        backend,
     )?)
 }
 
@@ -360,14 +189,11 @@ pub fn settings_for(backend: &StoreBackend) -> Result<slatedb::config::Settings>
 /// ([`chunk_read_options`]); repeated chunk reads are served by the OS page
 /// cache (local stores) or the object store disk cache (S3).
 pub fn block_cache_policy() -> BlockCachePolicy {
-    let data = |prefix: u8| CacheTarget::data([prefix]..[prefix + 1]);
-    BlockCachePolicy::default().with_flush_targets(&[
-        CacheTarget::Index,
-        CacheTarget::Filters,
-        data(PREFIX_ACTION),
-        data(PREFIX_MANIFEST),
-        data(PREFIX_ASSET),
-        data(PREFIX_GIT_BLOB),
+    slatedb_utils::segments::flush_cache_policy(&[
+        PREFIX_ACTION,
+        PREFIX_MANIFEST,
+        PREFIX_ASSET,
+        PREFIX_GIT_BLOB,
     ])
 }
 
@@ -383,20 +209,11 @@ pub fn block_cache_policy() -> BlockCachePolicy {
 /// what lets one lookup read a small blob.)
 ///
 /// SlateDB stamps the extractor's name into the manifest of a new store and
-/// refuses to open a store with a different one (or none), so the name and
-/// the one-byte split must never change. (The name predates the rename to
+/// refuses to open a store with a different one (or none), so the name
+/// must never change. (The name predates the rename to
 /// gonzo.)
-struct KeyKind;
-
-impl PrefixExtractor for KeyKind {
-    fn name(&self) -> &str {
-        "cache-server.key-kind.v1"
-    }
-
-    fn prefix_len(&self, target: &PrefixTarget) -> Option<usize> {
-        let (PrefixTarget::Point(bytes) | PrefixTarget::Prefix(bytes)) = target;
-        (!bytes.is_empty()).then_some(1)
-    }
+fn key_kind() -> slatedb_utils::segments::FirstByteSegments {
+    slatedb_utils::segments::FirstByteSegments::new("cache-server.key-kind.v1")
 }
 
 /// Chunks at most this large are read through the block cache. Small
@@ -408,42 +225,25 @@ const CACHED_CHUNK_BYTES: u64 = 64 * 1024;
 /// Reads of chunk data, which must not displace metadata in the block cache
 /// (see [`block_cache_policy`]).
 fn chunk_read_options() -> ReadOptions {
-    ReadOptions {
-        cache_blocks: false,
-        ..ReadOptions::default()
-    }
+    slatedb_utils::uncached_reads()
 }
 
 /// Reads that decide whether something is stored, and so whether a write
-/// can be skipped: they see only durable data. A write still in flight is
-/// not yet stored as far as an upload that would rely on it is concerned —
-/// skipping on its strength would acknowledge an upload before anything
-/// made it durable.
+/// can be skipped (see [`slatedb_utils::durable_reads`]).
 fn durable_read_options() -> ReadOptions {
-    ReadOptions {
-        durability_filter: DurabilityLevel::Remote,
-        ..ReadOptions::default()
-    }
+    slatedb_utils::durable_reads()
 }
 
-/// Milliseconds since the Unix epoch, the unit of SlateDB's expiry times.
-fn now_millis() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
-}
+use slatedb_utils::now_millis;
 
 /// Main storage engine wrapping SlateDB with CDC-aware blob storage.
 pub struct CacheStore {
-    db: Db,
+    db: slatedb_utils::DurableDb,
     /// The TTL (ms) new values get, if any.
     default_ttl_ms: Option<i64>,
     /// A value with less than this long (ms) to live is due for a rewrite:
     /// half the default TTL, or `None` without one.
     refresh_window_ms: Option<i64>,
-    /// Refuses writes while a local store's disk is short of its reserve,
-    /// or while the oldest write under way has waited too long.
-    admission: write_admission::Admission,
     /// Blobs known durably stored, so existence checks skip the LSM.
     presence: presence::PresenceCache,
     /// Small blobs recently read, so reading them again skips the LSM.
@@ -582,132 +382,37 @@ impl std::fmt::Debug for CacheStore {
 pub fn create_object_store(
     backend: &StoreBackend,
 ) -> Result<Arc<dyn slatedb::object_store::ObjectStore>> {
-    let object_store: Arc<dyn slatedb::object_store::ObjectStore> = match backend {
-        StoreBackend::Memory => Arc::new(slatedb::object_store::memory::InMemory::new()),
-        StoreBackend::LocalFs(path) => {
-            // The store's root has to exist before LocalFileSystem will use it.
-            std::fs::create_dir_all(path).map_err(|e| {
-                StoreError::Database(slatedb::Error::unavailable(format!(
-                    "create store directory {path}: {e}"
-                )))
-            })?;
-            // Reads on threads of its own, one trip each, rather than two
-            // trips through Tokio's blocking pool (see object-store-local).
-            let threads = std::thread::available_parallelism().map_or(8, |n| n.get().clamp(4, 32));
-            Arc::new(
-                object_store_local::PooledLocalFileSystem::new_with_prefix(path, threads).map_err(
-                    |e| StoreError::Database(slatedb::Error::unavailable(e.to_string())),
-                )?,
-            )
-        }
-        StoreBackend::S3 { bucket, prefix } => {
-            let store = object_store_s3::S3StoreBuilder::from_env()
-                .with_bucket(bucket)
-                .build()
-                .map_err(|e| StoreError::Database(slatedb::Error::unavailable(e.to_string())))?;
-            match prefix {
-                Some(prefix) => Arc::new(slatedb::object_store::prefix::PrefixStore::new(
-                    store,
-                    prefix.as_str(),
-                )),
-                None => Arc::new(store),
-            }
-        }
-    };
-    Ok(object_store)
+    Ok(backend.object_store()?)
 }
 
 impl CacheStore {
     /// Open the store with the given backend and settings.
     pub async fn open(backend: StoreBackend, settings: CacheStoreSettings) -> Result<Self> {
-        let object_store = create_object_store(&backend)?;
-
-        let default_ttl_ms = settings
-            .default_ttl
-            .map(|d| u64::try_from(d.as_millis()).expect("default TTL overflows u64 milliseconds"));
-        let base = match settings.slatedb_overrides.clone() {
-            Some(overrides) => overrides,
-            None => settings_for(&backend)?,
+        let default_ttl = settings.default_ttl.map(|ttl| {
+            std::time::Duration::try_from(ttl).expect("the default TTL is not negative")
+        });
+        let options = slatedb_utils::OpenOptions {
+            settings: settings.slatedb_overrides,
+            env_prefix: Some(SLATEDB_ENV_PREFIX.to_string()),
+            default_ttl,
+            disable_compactor: settings.disable_compactor,
+            block_cache_bytes: settings.block_cache_bytes,
+            meta_cache_bytes: settings.meta_cache_bytes,
+            write_buffer_bytes: settings.write_buffer_bytes,
+            object_store_cache: settings.object_store_cache,
+            metrics_recorder: settings.metrics_recorder,
+            disk_reserve_bytes: settings.disk_reserve_bytes,
+            max_write_wait: settings.max_write_wait,
+            segment_extractor: Some(Arc::new(key_kind())),
+            block_cache_policy: Some(block_cache_policy()),
         };
-        let mut db_settings = slatedb::config::Settings {
-            default_ttl_millis: default_ttl_ms,
-            compactor_options: if settings.disable_compactor {
-                None
-            } else {
-                base.compactor_options.clone()
-            },
-            ..base
-        };
-        if let Some(bytes) = settings.write_buffer_bytes {
-            db_settings.max_unflushed_bytes = usize::try_from(bytes).unwrap_or(usize::MAX);
-        }
-        match (&settings.object_store_cache, &backend) {
-            (Some(cache), StoreBackend::S3 { .. }) => {
-                let options = &mut db_settings.object_store_cache_options;
-                options.root_folder = Some(cache.dir.clone());
-                if cache.max_bytes.is_some() {
-                    options.max_cache_size_bytes = cache.max_bytes;
-                }
-                // Blobs are often read back soon after they are uploaded.
-                options.cache_on_flush = true;
-            }
-            (Some(_), _) => warn!("object store cache ignored: the store is already local"),
-            (None, _) => {}
-        }
-
-        let db_cache = SplitCache::new()
-            .with_block_cache(Some(Arc::new(db_cache::QuickDbCache::new(
-                settings
-                    .block_cache_bytes
-                    .unwrap_or(DEFAULT_BLOCK_CACHE_BYTES),
-            ))))
-            .with_meta_cache(Some(Arc::new(db_cache::QuickDbCache::new(
-                settings
-                    .meta_cache_bytes
-                    .unwrap_or(DEFAULT_META_CACHE_BYTES),
-            ))))
-            .build();
-
-        // The cache is this store's alone, so its entries need no scope of
-        // their own; and it lives in memory, so there is nothing for
-        // `DbCache::close` to save when the store closes.
-        const DB_CACHE_ID: u64 = 0;
-        let mut builder = Db::builder(DB_PATH, object_store)
-            .with_settings(db_settings)
-            .with_db_cache(Arc::new(db_cache), DB_CACHE_ID)
-            .with_block_cache_policy(block_cache_policy())
-            .with_segment_extractor(Arc::new(KeyKind));
-        if let Some(recorder) = settings.metrics_recorder.clone() {
-            builder = builder.with_metrics_recorder(recorder);
-        }
-        let disk = match (&backend, settings.disk_reserve_bytes) {
-            (_, Some(0)) => None,
-            (StoreBackend::LocalFs(path), reserve) => {
-                let disk =
-                    write_admission::DiskReserve::watch(path.into(), reserve).map_err(|e| {
-                        StoreError::Database(slatedb::Error::unavailable(format!(
-                            "measuring free space under {path}: {e}"
-                        )))
-                    })?;
-                tracing::info!(
-                    path,
-                    reserve = disk.reserve(),
-                    "keeping a free disk space reserve"
-                );
-                Some(disk)
-            }
-            _ => None,
-        };
-        let db = builder.build().await?;
-        let default_ttl_ms = default_ttl_ms.map(|ttl| i64::try_from(ttl).unwrap_or(i64::MAX));
+        let db = slatedb_utils::open(DB_PATH, &backend, options).await?;
+        let default_ttl_ms =
+            default_ttl.map(|ttl| i64::try_from(ttl.as_millis()).unwrap_or(i64::MAX));
         Ok(CacheStore {
             db,
             default_ttl_ms,
             refresh_window_ms: default_ttl_ms.map(|ttl| ttl / 2),
-            admission: write_admission::Admission::with_max_wait(
-                disk,
-                settings.max_write_wait.unwrap_or(DEFAULT_MAX_WRITE_WAIT),
-            ),
             presence: presence::PresenceCache::new(
                 settings
                     .presence_cache_entries
@@ -733,29 +438,16 @@ impl CacheStore {
     }
 
     /// Resolves once the database has stopped for any reason but a clean
-    /// close, with that reason: fenced by another writer that opened the
-    /// store, or stopped by a failed background task (WAL upload, memtable
-    /// flush, compaction, garbage collection). Every operation fails from
-    /// then on. Never resolves otherwise.
+    /// close, with that reason (see [`slatedb_utils::DurableDb::failed`]).
     pub async fn failed(&self) -> CloseReason {
-        let mut status = self.db.subscribe();
-        loop {
-            match status.borrow_and_update().close_reason {
-                None => {}
-                Some(CloseReason::Clean) => break,
-                Some(reason) => return reason,
-            }
-            if status.changed().await.is_err() {
-                break;
-            }
-        }
-        std::future::pending().await
+        self.db.failed().await
     }
 
     /// The key prefixes the store keeps separate LSM trees for, so far.
     #[cfg(test)]
     pub(crate) fn segments(&self) -> Vec<Bytes> {
         self.db
+            .db()
             .status()
             .list_segments()
             .into_iter()
@@ -769,64 +461,34 @@ impl CacheStore {
     }
 
     /// The value at `key` and when it expires (ms since the epoch), or `None`
-    /// if it is absent or has expired.
-    ///
-    /// SlateDB drops an expired value only once compaction reaches it, and
-    /// until then a plain read still returns it — so a blob would outlive
-    /// its TTL by however long compaction takes, and worse, an upload of it
-    /// would be skipped as already stored just before compaction removed it.
+    /// if it is absent or has expired (see
+    /// [`slatedb_utils::DurableDb::get_live`]).
     async fn get_live(
         &self,
         key: &[u8],
         options: &ReadOptions,
     ) -> Result<Option<(Bytes, Option<i64>)>> {
-        let Some(entry) = self.db.get_key_value_with_options(key, options).await? else {
-            return Ok(None);
-        };
-        if entry.expire_ts.is_some_and(|at| at <= now_millis()) {
-            return Ok(None);
-        }
-        Ok(Some((entry.value, entry.expire_ts)))
+        Ok(self.db.get_live(key, options).await?)
     }
 
-    /// Admit a write: refused while the disk under a local store is below
-    /// its reserve, or while the store is behind on writes. Hold what it
-    /// returns until the write is done.
-    fn admit_write(&self) -> Result<write_admission::Permit<'_>> {
-        Ok(self.admission.admit()?)
-    }
-
-    /// `Db::put`, returning once the value is durable.
+    /// Put `value` at `key`, returning once it is durable.
     async fn db_put(&self, key: &[u8], value: Bytes) -> Result<()> {
-        let _write = self.admit_write()?;
-        self.db
-            .put_bytes(Bytes::copy_from_slice(key), value)
-            .await?
-            .await_durable()
-            .await?;
-        Ok(())
+        Ok(self.db.put(Bytes::copy_from_slice(key), value).await?)
     }
 
-    /// Write `batch`, returning once it is durable.
-    ///
-    /// SlateDB acknowledges a write as soon as it is in the in-memory WAL,
-    /// and makes it durable on the next flush tick. A cache that answered
-    /// then could lose an upload it had told the client succeeded, or report
-    /// a blob present that a crash then takes away, so every write here
-    /// waits. Concurrent waits are satisfied by the same flush.
+    /// Write `batch`, returning once it is durable: a cache that answered
+    /// sooner could lose an upload it had told the client succeeded, or
+    /// report a blob present that a crash then takes away (see
+    /// [`slatedb_utils::DurableDb`]).
     pub(crate) async fn commit(&self, batch: WriteBatch) -> Result<()> {
-        let _write = self.admit_write()?;
-        self.db.write(batch).await?.await_durable().await?;
-        Ok(())
+        Ok(self.db.commit(batch).await?)
     }
 
     /// Write `batch` without waiting for it to be durable. Writes become
     /// durable in order, so a later [`commit`](Self::commit) returning
     /// means this one is durable too.
     pub(crate) async fn write_ahead(&self, batch: WriteBatch) -> Result<()> {
-        let _write = self.admit_write()?;
-        self.db.write(batch).await?;
-        Ok(())
+        Ok(self.db.write_ahead(batch).await?)
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -1505,6 +1167,7 @@ impl CacheStore {
                     let key = prefixed_key(PREFIX_CHUNK, digest_fn, &hash);
                     let value = self
                         .db
+                        .db()
                         .get_with_options(&key, &chunk_read_options())
                         .await?;
                     Ok::<_, StoreError>((
@@ -1662,7 +1325,7 @@ impl CacheStore {
             Some(size) if size <= CACHED_CHUNK_BYTES => ReadOptions::default(),
             _ => chunk_read_options(),
         };
-        match self.db.get_with_options(&key, &options).await? {
+        match self.db.db().get_with_options(&key, &options).await? {
             Some(raw) => Ok(Some(parse_chunk_tag(raw)?)),
             None => Ok(None),
         }
@@ -1724,6 +1387,7 @@ impl CacheStore {
         let key = prefixed_key(PREFIX_CHUNK, digest.function, &digest.hash);
         let result = self
             .db
+            .db()
             .get_with_options(&key, &chunk_read_options())
             .await?;
         Ok(result.is_some() || self.cas_blob_exists(digest).await?)

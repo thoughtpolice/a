@@ -3,13 +3,13 @@
 
 //! SlateDB's in-memory block and metadata caches, on quick_cache.
 //!
-//! Every lookup goes through these: a FindMissingBlobs digest consults the
-//! filter of each SST in its segment. SlateDB's stock cache is foyer with
+//! Every lookup goes through these: a point lookup consults the filter of
+//! each SST its key could be in. SlateDB's stock cache is foyer with
 //! LRU eviction, whose hits take an exclusive lock on the shard (to move the
 //! entry to the front) and whose handles take it again when dropped; with
 //! every worker hitting the same few hot entries, a dial9 trace of a busy
-//! server found its Tokio workers parked on those locks for 41% of their
-//! off-CPU time. quick_cache's hits take a shared read lock and set a bit,
+//! cache server (gonzo) found its Tokio workers parked on those locks for
+//! 41% of their off-CPU time. quick_cache's hits take a shared read lock and set a bit,
 //! and its eviction (CLOCK-Pro-like) keeps the hit rate.
 //!
 //! quick_cache splits its budget evenly between shards (by default four per
@@ -31,7 +31,7 @@ type Entries = quick_cache::sync::Cache<CachedKey, CachedEntry, EntryWeight>;
 const MIN_SHARD_BYTES: u64 = 16 * 1024 * 1024;
 
 /// A [`DbCache`] holding at most a byte budget of entries.
-pub(crate) struct QuickDbCache {
+pub struct QuickDbCache {
     entries: Arc<Entries>,
 }
 
@@ -46,7 +46,8 @@ impl quick_cache::Weighter<CachedKey, CachedEntry> for EntryWeight {
 }
 
 impl QuickDbCache {
-    pub(crate) fn new(capacity_bytes: u64) -> Self {
+    /// A cache holding at most `capacity_bytes` of SlateDB entries.
+    pub fn new(capacity_bytes: u64) -> Self {
         Self {
             entries: Arc::new(quick_cache::sync::Cache::with_options(
                 expiring_cache::shard_options(capacity_bytes, MIN_SHARD_BYTES),

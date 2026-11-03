@@ -120,7 +120,7 @@ async fn cas_get_chunk_detects_corruption() {
     let chunk_key = prefixed_key(PREFIX_CHUNK, DigestFn::Sha256, &hash);
     let mut corrupted = vec![Compression::Identity as u8]; // valid tag
     corrupted.extend_from_slice(b"corrupted data");
-    store.db.put(&chunk_key, &corrupted).await.unwrap();
+    store.db.db().put(&chunk_key, &corrupted).await.unwrap();
 
     let result = store
         .cas_get_chunk(&ContentDigest::new(DigestFn::Sha256, hash))

@@ -631,15 +631,16 @@ fn print_credential(cli: &Cli, which: Credential) -> Result<()> {
     let store::StoreBackend::LocalFs(dir) = parse_backend(cli.store())? else {
         anyhow::bail!("only a store on local disk records its daemon's ticket and code");
     };
-    let info = daemon::running(std::path::Path::new(&dir))
-        .with_context(|| format!("no daemon is serving the store at {dir}"))?;
+    let info = daemon::running(&dir)
+        .with_context(|| format!("no daemon is serving the store at {}", dir.display()))?;
     let (credential, needs) = match which {
         Credential::Ticket => (info.ticket, "--remote-workers code or ticket"),
         Credential::Code => (info.code, "--remote-workers code"),
     };
     let credential = credential.with_context(|| {
         format!(
-            "the daemon serving {dir} (pid {}) was not started with {needs}",
+            "the daemon serving {} (pid {}) was not started with {needs}",
+            dir.display(),
             info.pid
         )
     })?;
@@ -665,7 +666,7 @@ fn parse_backend(store: &str) -> Result<store::StoreBackend> {
     if store == "memory" {
         Ok(store::StoreBackend::Memory)
     } else if let Some(path) = store.strip_prefix("file://") {
-        Ok(store::StoreBackend::LocalFs(path.to_string()))
+        Ok(store::StoreBackend::LocalFs(path.into()))
     } else if let Some(rest) = store.strip_prefix("s3://") {
         let (bucket, prefix) = match rest.split_once('/') {
             Some((bucket, prefix)) => {
@@ -682,7 +683,7 @@ fn parse_backend(store: &str) -> Result<store::StoreBackend> {
             prefix,
         })
     } else if store.starts_with('/') || store.starts_with('.') {
-        Ok(store::StoreBackend::LocalFs(store.to_string()))
+        Ok(store::StoreBackend::LocalFs(store.into()))
     } else {
         anyhow::bail!(
             "invalid --store value: {:?} (expected \"memory\", \"file:///path\", \
@@ -704,11 +705,11 @@ mod parse_backend_tests {
         ));
         assert!(matches!(
             parse_backend("file:///var/cache").unwrap(),
-            store::StoreBackend::LocalFs(path) if path == "/var/cache",
+            store::StoreBackend::LocalFs(path) if path.as_os_str() == "/var/cache",
         ));
         assert!(matches!(
             parse_backend("./relative").unwrap(),
-            store::StoreBackend::LocalFs(path) if path == "./relative",
+            store::StoreBackend::LocalFs(path) if path.as_os_str() == "./relative",
         ));
         parse_backend("garbage").unwrap_err();
     }
@@ -1042,19 +1043,14 @@ async fn run_server(
     );
 
     let backend = parse_backend(cli.store())?;
-    let store_dir = match &backend {
-        store::StoreBackend::LocalFs(path) => Some(PathBuf::from(path)),
-        store::StoreBackend::Memory | store::StoreBackend::S3 { .. } => None,
-    };
+    let store_dir = backend.local_dir().map(PathBuf::from);
     // Held until the server has stopped and the store is closed.
-    let claim = match &backend {
-        store::StoreBackend::LocalFs(path) => {
-            Some(daemon::StoreClaim::take(std::path::Path::new(path))?)
-        }
-        // A throwaway store has no other writer, and an S3 store is
-        // fenced by SlateDB alone.
-        store::StoreBackend::Memory | store::StoreBackend::S3 { .. } => None,
-    };
+    // A throwaway store has no other writer, and an S3 store is fenced by
+    // SlateDB alone.
+    let claim = backend
+        .local_dir()
+        .map(daemon::StoreClaim::take)
+        .transpose()?;
     let oci_credentials = match &args.oci_auth_file {
         Some(path) => read_oci_credentials(path)?,
         None => fetch_oci::RegistryCredentials::default(),

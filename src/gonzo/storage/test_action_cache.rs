@@ -233,6 +233,7 @@ async fn entries_are_served_from_memory_once_read() {
         let key = prefixed_key(PREFIX_ACTION, digest.function, &digest.hash);
         store
             .db
+            .db()
             .delete(key)
             .await
             .unwrap()
