@@ -83,9 +83,9 @@ MINIMOS_BASE = {
     # every -2.44 pin. Other packages build against the newest release,
     # and minimos's cull.py fails the build when one needs a newer glibc
     # than this.
-    "glibc-2.44": ("2.44-r7", "dea23a14ef24d4b92417a3aab1b6e640589d71d29c068116664526681350058b"),
-    "glibc-2.44-locale-posix": ("2.44-r7", "974a2eec09f1b14eb215ce9ff0eb678a9b451d9da658411e398d480be0c0b07f"),
-    "ld-linux-2.44": ("2.44-r7", "b1355fa173448048cb2ae37635eae78cb580d2a0d67cd84f3fee7a2fcc03a6cf"),
+    "glibc-2.44": ("2.44-r13", "c57e1f5171a413533a9efbcfdad6232446726d654af2388551771b247f7b1a91"),
+    "glibc-2.44-locale-posix": ("2.44-r13", "f6594a54a3f204f634c136360333feb00b53d216be2ccbfe0c62af2994dcc0b2"),
+    "ld-linux-2.44": ("2.44-r13", "b0bd0bc2b0c7d1f59e9476c5beb8215abee8681d6f712ed74bc71089bb504bd0"),
     "libacl1": ("2.4.0-r3", "10858ad8137f60ca54784978f41148c28377f82ed6ff96a74ac0459dfb519717"),
     "libaudit": ("4.2.1-r1", "61f35651d60ab459206f5dabad2796f37fb99dad2099da3f95c0d474bb69fbad"),
     "libblkid": ("2.42.3-r4", "73376a7be9f64bbfe2101d32ad47b97a2816e8a97019c3c1d00a89eb9391548f"),
@@ -109,7 +109,7 @@ MINIMOS_BASE = {
     "ncurses": ("6.6.20260919-r0", "1da57712d34cdae9381bc8c5f891229da11be56b7d3d361b76ca09491bee836b"),
     "ncurses-terminfo-base": ("6.6.20260919-r0", "85a89620ae73783e4b0b8bd84a218c889a8a5dfd3ac95a53ae3f2935910604a0"),
     # getent, which exe.dev's SSH server runs to find the login shell.
-    "posix-libc-utils-bin-2.44": ("2.44-r7", "99fabf78ac10f6f206a05a7d6bb30fa161a68216264961faa6460dd090c3924c"),
+    "posix-libc-utils-bin-2.44": ("2.44-r13", "e47e42096ba29e872b9d77eb141f4ead6b0f76d172813469373b20feacc49760"),
     "systemd": ("261.3-r1", "19420aa5135ddc78da4296b93300c3d7728a73c3e701e86e2a3bc530e53733ef"),
     "systemd-logind-service": ("261.3-r1", "f33e64e7be053ff553eb34532a0d88a8a555bfb0f568dd11890ba7b24368a2ab"),
     "systemd-systemctl": ("261.3-r1", "2a51c95cbc31c6394ccff6829bcebdf4d6389933b34a15524e135aad1357c2ef"),

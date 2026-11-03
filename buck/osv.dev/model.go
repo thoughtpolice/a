@@ -346,22 +346,14 @@ var wolfiExceptions = []exception{
 		Reason: "nerdctl GO-2026-5932: x/crypto/openpgp is unmaintained and has no fixed version; the package does not use OpenPGP, accepted until Chainguard marks it fixed",
 	},
 	// glibc-2.44 advisories with no fixed version. The -2.44 pins are already
-	// Wolfi's newest build (2.44-r7) and no newer glibc stream exists. Remove
+	// Wolfi's newest build (2.44-r13) and no newer glibc stream exists. Remove
 	// these when Chainguard marks them fixed or the pins move to a new stream.
 	{
 		ID:     "CGA-fjmw-f657-w678",
 		Reason: "glibc-2.44 CVE-2026-8674: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
 	{
-		ID:     "CGA-jm93-f4m9-rgvp",
-		Reason: "glibc-2.44 CVE-2026-8674: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
 		ID:     "CGA-84qm-pxw8-f58f",
-		Reason: "glibc-2.44 CVE-2026-86805: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
-		ID:     "CGA-xjxq-jmjw-7rj2",
 		Reason: "glibc-2.44 CVE-2026-86805: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
 	{
@@ -373,14 +365,6 @@ var wolfiExceptions = []exception{
 		Reason: "glibc-2.44 CVE-2026-89092: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
 	{
-		ID:     "CGA-jgmh-74vj-wrg2",
-		Reason: "glibc-2.44 CVE-2026-95818: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
-		ID:     "CGA-mjgh-p45f-mvfg",
-		Reason: "glibc-2.44 CVE-2026-95818: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
 		ID:     "CGA-4gmv-8mr7-5pxx",
 		Reason: "glibc-2.44 CVE-2026-97399: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
@@ -389,32 +373,12 @@ var wolfiExceptions = []exception{
 		Reason: "glibc-2.44-locale-posix CVE-2026-8674: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
 	{
-		ID:     "CGA-fv7m-5pp8-x296",
-		Reason: "glibc-2.44-locale-posix CVE-2026-8674: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
-		ID:     "CGA-g8xj-42hr-jc3p",
-		Reason: "glibc-2.44-locale-posix CVE-2026-86805: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
-		ID:     "CGA-mc39-989g-jgjq",
-		Reason: "glibc-2.44-locale-posix CVE-2026-86805: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
 		ID:     "CGA-5w45-f7wm-grx2",
 		Reason: "glibc-2.44-locale-posix CVE-2026-89092: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
 	{
 		ID:     "CGA-6px6-pp92-76hc",
 		Reason: "glibc-2.44-locale-posix CVE-2026-89092: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
-		ID:     "CGA-h5x5-q5m8-wjmv",
-		Reason: "glibc-2.44-locale-posix CVE-2026-95818: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
-		ID:     "CGA-hqr3-vw5h-72j2",
-		Reason: "glibc-2.44-locale-posix CVE-2026-95818: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
 	{
 		ID:     "CGA-8wmh-vmch-wfc4",
@@ -427,18 +391,6 @@ var wolfiExceptions = []exception{
 	{
 		ID:     "CGA-q52v-g232-2h9m",
 		Reason: "ld-linux-2.44 CVE-2026-8674: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
-		ID:     "CGA-qh6f-vvgw-cjc9",
-		Reason: "ld-linux-2.44 CVE-2026-8674: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
-		ID:     "CGA-m5c2-m8fc-gvwj",
-		Reason: "ld-linux-2.44 CVE-2026-86805: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
-		ID:     "CGA-xv8p-mh32-whm2",
-		Reason: "ld-linux-2.44 CVE-2026-86805: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
 	{
 		ID:     "CGA-8h6p-6495-cwhr",
@@ -461,16 +413,8 @@ var wolfiExceptions = []exception{
 		Reason: "ld-linux-2.44 CVE-2026-97399: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
 	{
-		ID:     "CGA-455w-rj3g-q384",
-		Reason: "posix-libc-utils-bin-2.44 CVE-2026-8674: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
 		ID:     "CGA-fv27-p839-6fm7",
 		Reason: "posix-libc-utils-bin-2.44 CVE-2026-8674: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
-		ID:     "CGA-ffcw-vc6v-cpwp",
-		Reason: "posix-libc-utils-bin-2.44 CVE-2026-86805: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
 	{
 		ID:     "CGA-j44h-q4h6-v9gx",
@@ -479,18 +423,6 @@ var wolfiExceptions = []exception{
 	{
 		ID:     "CGA-gvf6-5784-4mvf",
 		Reason: "posix-libc-utils-bin-2.44 CVE-2026-89092: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
-		ID:     "CGA-r6gr-c6w7-cxgf",
-		Reason: "posix-libc-utils-bin-2.44 CVE-2026-89092: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
-		ID:     "CGA-q7vx-xg2j-789q",
-		Reason: "posix-libc-utils-bin-2.44 CVE-2026-95818: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
-	},
-	{
-		ID:     "CGA-w3h6-x3hh-x82x",
-		Reason: "posix-libc-utils-bin-2.44 CVE-2026-95818: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
 	{
 		ID:     "CGA-4pmj-8wjv-7647",

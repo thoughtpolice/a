@@ -16,7 +16,7 @@ DEVCONTAINER = {
     "debianutils": ("5.24-r2", "ef60036c61cf48e250bcc105b12ac41e1566175d7b19544b5c16ee53fda120d9"),
     "file": ("5.48-r3", "6eeb28c54e545aa5a869493451d61bcef2e3814c90e11330e2e1c5b4f20e060f"),
     "gcc": ("16.2.0-r1", "d443be05dbf5f4d7015cd5d8522102fcfd03a88e27a3807855d3454f2b14cf99"),
-    "glibc-2.44-dev": ("2.44-r7", "6c0c139167f4a5659fbc491dcb5c7fda4facc1a03e24217f5c16ea81e0af8be2"),
+    "glibc-2.44-dev": ("2.44-r13", "b3d129edf63ec42f515aeb13f9c9bd4079887b487c5efd69a90f45a00af8621e"),
     "gmp": ("6.3.0-r12", "86d210fa85d0bec8976904cfd654f1f7634ccfd7b5aed6afd2cc1177e3bba49f"),
     "gnutar-rmt": ("1.35-r12", "be8c92526089fee030e2fd04cb2f276a5d2b99d306a3d7b58b558f157dec4fb4"),
     "icu-data-full": ("75.1-r42", "42141bcd0d2d3479c3a2e9b478ff162d45feadba6120729f951baf7be34d4a32"),
