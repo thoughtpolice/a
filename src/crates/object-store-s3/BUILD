@@ -12,10 +12,9 @@ DEPS = [
 ]
 
 depot.rust_library(
-    name = "s3",
+    name = "object-store-s3",
     srcs = glob(["*.rs"]),
-    crate = "s3_store",
-    visibility = ["//src/gonzo/..."],
+    visibility = ["PUBLIC"],
     deps = DEPS,
 )
 

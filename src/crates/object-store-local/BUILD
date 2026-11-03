@@ -13,11 +13,10 @@ DEPS = [
 ]
 
 depot.rust_library(
-    name = "local",
+    name = "object-store-local",
     srcs = glob(["*.rs"]),
-    crate = "local_object_store",
     crate_root = "lib.rs",
-    visibility = ["//src/gonzo/..."],
+    visibility = ["PUBLIC"],
     deps = DEPS,
 )
 

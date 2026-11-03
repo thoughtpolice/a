@@ -194,7 +194,7 @@ pub enum StoreBackend {
     /// S3 (or S3-compatible) bucket, optionally rooted at a key prefix.
     ///
     /// Credentials, region, and endpoint come from the standard `AWS_*`
-    /// environment variables; see [`s3_store::S3StoreBuilder::from_env`].
+    /// environment variables; see [`object_store_s3::S3StoreBuilder::from_env`].
     S3 {
         bucket: String,
         prefix: Option<String>,
@@ -599,16 +599,16 @@ pub fn create_object_store(
                 )))
             })?;
             // Reads on threads of its own, one trip each, rather than two
-            // trips through Tokio's blocking pool (see local-object-store).
+            // trips through Tokio's blocking pool (see object-store-local).
             let threads = std::thread::available_parallelism().map_or(8, |n| n.get().clamp(4, 32));
             Arc::new(
-                local_object_store::PooledLocalFileSystem::new_with_prefix(path, threads).map_err(
+                object_store_local::PooledLocalFileSystem::new_with_prefix(path, threads).map_err(
                     |e| StoreError::Database(slatedb::Error::unavailable(e.to_string())),
                 )?,
             )
         }
         StoreBackend::S3 { bucket, prefix } => {
-            let store = s3_store::S3StoreBuilder::from_env()
+            let store = object_store_s3::S3StoreBuilder::from_env()
                 .with_bucket(bucket)
                 .build()
                 .map_err(|e| StoreError::Database(slatedb::Error::unavailable(e.to_string())))?;

@@ -14,7 +14,7 @@ type Result<T, E = object_store::Error> = std::result::Result<T, E>;
 /// Configure and construct an [`S3Store`].
 ///
 /// ```no_run
-/// # use s3_store::S3StoreBuilder;
+/// # use object_store_s3::S3StoreBuilder;
 /// let store = S3StoreBuilder::from_env()
 ///     .with_bucket("my-bucket")
 ///     .with_region("us-east-1")
