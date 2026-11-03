@@ -5,7 +5,9 @@
 //!
 //! The tree's directories are read a level at a time, a batch per level,
 //! and kept in memory, since the same toolchain directories appear under
-//! action after action. Its files come from the [`FileCache`].
+//! action after action. Its files come from a [`FileCache`], and are
+//! copied out of it under [`hermetic_run::writing_input`], so that a
+//! command spawned meanwhile cannot hold one open for writing.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -17,7 +19,8 @@ use prost::Message as _;
 use protos::build::bazel::remote::execution::v2::Directory;
 use reapi_cas::{Digest, DigestFn};
 
-use crate::cache::FileCache;
+use reflink_cache::FileCache;
+
 use crate::cas::Cas;
 
 /// Directories kept in memory.
@@ -122,8 +125,7 @@ fn lay_out(
     for file in &dir.files {
         let dest = path.join(&file.name);
         let digest = node_digest(file.digest.as_ref(), "file", &file.name)?;
-        files
-            .copy_to(function, &digest, file.is_executable, &dest)
+        copy_input(files, function, &digest, file.is_executable, &dest)
             .with_context(|| format!("creating {}", dest.display()))?;
     }
     for symlink in &dir.symlinks {
@@ -138,6 +140,24 @@ fn lay_out(
         lay_out(files, function, tree, &digest, &dest)?;
     }
     Ok(())
+}
+
+/// Copy the cached file with `digest` to `dest`, where a command may run
+/// it.
+pub(crate) fn copy_input(
+    files: &FileCache,
+    function: DigestFn,
+    digest: &Digest,
+    executable: bool,
+    dest: &Path,
+) -> std::io::Result<()> {
+    files.copy_to(
+        function,
+        digest,
+        executable,
+        dest,
+        hermetic_run::writing_input,
+    )
 }
 
 /// The digest of the input `kind` (a file or directory) called `name`.

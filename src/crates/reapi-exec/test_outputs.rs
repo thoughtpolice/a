@@ -9,7 +9,7 @@ use prost::Message as _;
 use protos::build::bazel::remote::execution::v2::{Command, Directory, Tree};
 
 use crate::outputs;
-use crate::test_support::Daemon;
+use crate::test_cas::TestCas;
 use reapi_cas::DigestFn;
 
 fn write(root: &Path, path: &str, contents: &[u8], mode: u32) {
@@ -58,7 +58,7 @@ fn outputs_must_stay_inside_the_working_directory() {
 
 #[tokio::test]
 async fn files_directories_and_symlinks_are_uploaded() {
-    let daemon = Daemon::start().await;
+    let server = TestCas::start().await;
     let scratch = tempfile::tempdir().unwrap();
     let root = scratch.path();
     write(root, "bin/tool", b"#!/bin/sh\n", 0o755);
@@ -77,7 +77,7 @@ async fn files_directories_and_symlinks_are_uploaded() {
         &["gen/out"],
     );
     let outputs = outputs::expected(&command).unwrap();
-    let (produced, []) = outputs::upload(&daemon.cas(), DigestFn::Sha256, outputs, root, [])
+    let (produced, []) = outputs::upload(&server.cas(), DigestFn::Sha256, outputs, root, [])
         .await
         .expect("upload");
 
@@ -86,7 +86,7 @@ async fn files_directories_and_symlinks_are_uploaded() {
     assert_eq!(tool.path, "bin/tool");
     assert!(tool.is_executable);
     assert_eq!(
-        daemon.get(tool.digest.as_ref().unwrap()).await.as_ref(),
+        server.get(tool.digest.as_ref().unwrap()).await.as_ref(),
         b"#!/bin/sh\n"
     );
 
@@ -101,7 +101,7 @@ async fn files_directories_and_symlinks_are_uploaded() {
         .collect();
     assert_eq!(paths, ["gen/either", "gen/out"]);
     let out = &produced.directories[1];
-    let tree = Tree::decode(daemon.get(out.tree_digest.as_ref().unwrap()).await).unwrap();
+    let tree = Tree::decode(server.get(out.tree_digest.as_ref().unwrap()).await).unwrap();
     let root_dir = tree.root.unwrap();
     let names = |d: &Directory| {
         (
@@ -138,7 +138,7 @@ async fn files_directories_and_symlinks_are_uploaded() {
     }
     for file in &root_dir.files {
         assert!(
-            daemon.has(file.digest.as_ref().unwrap()).await,
+            server.has(file.digest.as_ref().unwrap()).await,
             "{}",
             file.name
         );
@@ -147,7 +147,7 @@ async fn files_directories_and_symlinks_are_uploaded() {
 
 #[tokio::test]
 async fn large_outputs_are_streamed() {
-    let daemon = Daemon::start().await;
+    let server = TestCas::start().await;
     let scratch = tempfile::tempdir().unwrap();
     let big: Vec<u8> = (0..5 * 1024 * 1024 + 17).map(|i| (i % 253) as u8).collect();
     write(scratch.path(), "big.bin", &big, 0o644);
@@ -156,7 +156,7 @@ async fn large_outputs_are_streamed() {
         ..Default::default()
     };
     let (produced, []) = outputs::upload(
-        &daemon.cas(),
+        &server.cas(),
         DigestFn::Sha256,
         outputs::expected(&command).unwrap(),
         scratch.path(),
@@ -166,14 +166,14 @@ async fn large_outputs_are_streamed() {
     .expect("upload");
     let digest = produced.files[0].digest.as_ref().unwrap();
     assert_eq!(digest.size_bytes, big.len() as i64);
-    assert_eq!(daemon.get(digest).await.as_ref(), big.as_slice());
+    assert_eq!(server.get(digest).await.as_ref(), big.as_slice());
 }
 
 #[tokio::test]
 async fn large_trees_are_streamed() {
-    // A directory output whose tree is over the daemon's 4 MB message
+    // A directory output whose tree is over the server's 4 MB message
     // limit, as an unpacked source archive's can be.
-    let daemon = Daemon::start().await;
+    let server = TestCas::start().await;
     let scratch = tempfile::tempdir().unwrap();
     let long = "x".repeat(200);
     for i in 0..10_000 {
@@ -189,7 +189,7 @@ async fn large_trees_are_streamed() {
         ..Default::default()
     };
     let (produced, []) = outputs::upload(
-        &daemon.cas(),
+        &server.cas(),
         DigestFn::Sha256,
         outputs::expected(&command).unwrap(),
         scratch.path(),
@@ -199,6 +199,6 @@ async fn large_trees_are_streamed() {
     .expect("upload");
     let digest = produced.directories[0].tree_digest.as_ref().unwrap();
     assert!(digest.size_bytes > 4 * 1024 * 1024, "{}", digest.size_bytes);
-    let tree = Tree::decode(daemon.get(digest).await).unwrap();
+    let tree = Tree::decode(server.get(digest).await).unwrap();
     assert_eq!(tree.children.len(), 10_000);
 }

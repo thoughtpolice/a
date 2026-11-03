@@ -26,11 +26,9 @@ use protos::google::rpc::{Code, Status};
 
 use hermetic_run::{self as runner, Cgroups, EmptyRoot, Outcome, SpawnError};
 
-use crate::cache::FileCache;
-use crate::cas::{Cas, Missing};
-use crate::inputs::Inputs;
-use crate::outputs;
 use reapi_cas::{Digest, DigestFn};
+use reapi_exec::{Cas, Inputs, Missing, outputs};
+use reflink_cache::FileCache;
 
 /// How a worker presents itself and runs actions.
 #[derive(Clone, Debug)]

@@ -6,10 +6,6 @@
 //! for its own machine, and `gonzo-worker` runs one anywhere else; either
 //! way it speaks gRPC to the daemon. See `src/gonzo/notes/execution.md`.
 
-pub mod cache;
-pub mod cas;
-pub mod inputs;
-pub mod outputs;
 mod worker;
 
 pub use worker::{Config, Image, Worker, host_images, host_name, host_properties};
@@ -17,9 +13,5 @@ pub use worker::{Config, Image, Worker, host_images, host_name, host_properties}
 #[cfg(test)]
 mod test_support;
 
-#[cfg(test)]
-mod test_inputs;
-#[cfg(test)]
-mod test_outputs;
 #[cfg(test)]
 mod test_worker;

@@ -21,8 +21,8 @@ use protos::google::longrunning::{
 };
 use storage::{CacheStore, ContentDigest, DigestFn};
 
-use crate::platform::Requirements;
 use crate::scheduler::{Job, Scheduler, Stage, Subscription};
+use reapi_exec::platform::Requirements;
 
 /// How often an operation's stream repeats its stage when nothing has
 /// changed, so that a long execution never looks like an idle stream.

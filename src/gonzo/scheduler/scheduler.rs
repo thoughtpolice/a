@@ -31,7 +31,7 @@ use gonzo_protos::worker::v1::{
 use protos::build::bazel::remote::execution::v2::{Action, Command, Digest, ExecuteResponse};
 use protos::google::rpc::{Code, Status};
 
-use crate::platform::{Offer, Requirements};
+use reapi_exec::platform::{Offer, Requirements};
 
 /// How the scheduler treats actions and workers.
 #[derive(Clone, Debug)]

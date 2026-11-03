@@ -1,17 +1,25 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! Input files, kept by digest so each is downloaded once.
+//! Files kept on disk by REAPI digest, so each is downloaded once, and
+//! handed out as copies.
 //!
-//! Actions get their own copy of each file. On btrfs and XFS that copy is
-//! a reflink, which shares the cached file's blocks until one side writes,
-//! so it costs about what a hard link would; an action that writes to its
-//! inputs cannot corrupt the cache, as it could with a hard link.
-//! Elsewhere the copy is a real one.
+//! Each user gets its own copy of a file. On btrfs and XFS that copy is a
+//! reflink, which shares the cached file's blocks until one side writes,
+//! so it costs about what a hard link would; a user that writes to its
+//! copy cannot corrupt the cache, as it could with a hard link. Elsewhere
+//! the copy is a real one.
 //!
 //! The cache keeps under a size, evicting the files used longest ago
-//! (across restarts, those downloaded longest ago), but never a file an
-//! action is being given.
+//! (across restarts, those downloaded longest ago), but never a file
+//! someone holds [`Pinned`]. Where the files come from is the caller's:
+//! anything that can write blobs to files, checked, is a [`Fetch`].
+//!
+//! The cache does not run commands, but its users often do: a command
+//! forked while a copy is open for writing inherits the descriptor, and
+//! executing the copy then fails with `ETXTBSY` until the command execs.
+//! [`FileCache::copy_to`] takes a `guard` to hold over the write for that
+//! (see `hermetic_run::writing_input`).
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io;
@@ -24,8 +32,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use anyhow::{Context as _, Result};
 
 use reapi_cas::{Digest, DigestFn};
-
-use crate::cas::Cas;
 
 /// A cached file, as the index knows it.
 type Name = (DigestFn, Digest);
@@ -125,8 +131,20 @@ impl Index {
     }
 }
 
-/// Files an action is being given, kept from eviction until this is
-/// dropped.
+/// Where a [`FileCache`] gets files it does not have.
+pub trait Fetch: Sync {
+    /// Write each blob into a new file at its path, checked against its
+    /// digest. On failure, files already written are the caller's to
+    /// remove; the error is passed to the caller of [`FileCache::fetch`]
+    /// as it is, so that it can say which blobs were missing.
+    fn fetch_to_files(
+        &self,
+        function: DigestFn,
+        blobs: Vec<(Digest, PathBuf)>,
+    ) -> impl Future<Output = Result<()>> + Send;
+}
+
+/// Files being handed out, kept from eviction until this is dropped.
 #[must_use]
 pub struct Pinned<'a> {
     cache: &'a FileCache,
@@ -223,11 +241,11 @@ impl FileCache {
             .join(format!("{hash}-{}", digest.size))
     }
 
-    /// Download whichever of `digests` the cache does not have yet, and keep
-    /// all of them until the result is dropped.
+    /// Fetch whichever of `digests` the cache does not have yet from
+    /// `source`, and keep all of them until the result is dropped.
     pub async fn fetch(
         &self,
-        cas: &Cas,
+        source: &impl Fetch,
         function: DigestFn,
         digests: &[Digest],
     ) -> Result<Pinned<'_>> {
@@ -255,7 +273,7 @@ impl FileCache {
             .into_iter()
             .map(|digest| (digest, self.partial()))
             .collect();
-        if let Err(e) = cas.read_to_files(function, downloads.clone()).await {
+        if let Err(e) = source.fetch_to_files(function, downloads.clone()).await {
             for (_, partial) in &downloads {
                 let _ = std::fs::remove_file(partial);
             }
@@ -278,18 +296,19 @@ impl FileCache {
         Ok(pinned)
     }
 
-    /// Give the action a copy of the file with `digest` at `dest`.
-    pub fn copy_to(
+    /// Make a read-only copy of the file with `digest` at `dest`, which must
+    /// not exist, holding what `guard` returns until the copy is closed.
+    pub fn copy_to<G>(
         &self,
         function: DigestFn,
         digest: &Digest,
         executable: bool,
         dest: &Path,
+        guard: impl FnOnce() -> G,
     ) -> io::Result<()> {
         let source = self.path(function, digest);
         let from = std::fs::File::open(&source)?;
-        // Until the copy is closed, no command forks to hold it open.
-        let _writing = hermetic_run::writing_input();
+        let _writing = guard();
         let to = std::fs::File::create_new(dest)?;
         if !reflink(&from, &to) {
             let mut from = from;
@@ -326,162 +345,4 @@ fn reflink(from: &std::fs::File, to: &std::fs::File) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    use crate::test_support::{Daemon, digest};
-
-    const SHA256: DigestFn = DigestFn::Sha256;
-
-    async fn fetched(cache: &FileCache, cas: &Cas, digest: &Digest) {
-        drop(
-            cache
-                .fetch(cas, SHA256, &[digest.clone()])
-                .await
-                .expect("fetch"),
-        );
-    }
-
-    #[tokio::test]
-    async fn the_files_used_longest_ago_are_evicted() {
-        let daemon = Daemon::start().await;
-        let (a, b, c) = (
-            digest(&daemon.put("aaaa").await),
-            digest(&daemon.put("bbbb").await),
-            digest(&daemon.put("cccc").await),
-        );
-        let scratch = tempfile::tempdir().unwrap();
-        // Room for two.
-        let cache = FileCache::open(scratch.path(), 8).unwrap();
-        let cas = daemon.cas();
-        fetched(&cache, &cas, &a).await;
-        fetched(&cache, &cas, &b).await;
-        // Using a again leaves b the oldest.
-        fetched(&cache, &cas, &a).await;
-        fetched(&cache, &cas, &c).await;
-        assert!(cache.path(SHA256, &a).exists());
-        assert!(!cache.path(SHA256, &b).exists());
-        assert!(cache.path(SHA256, &c).exists());
-    }
-
-    #[tokio::test]
-    async fn files_being_given_out_are_kept() {
-        let daemon = Daemon::start().await;
-        let (a, b, c) = (
-            digest(&daemon.put("aaaa").await),
-            digest(&daemon.put("bbbb").await),
-            digest(&daemon.put("cccc").await),
-        );
-        let scratch = tempfile::tempdir().unwrap();
-        // Room for one.
-        let cache = FileCache::open(scratch.path(), 4).unwrap();
-        let cas = daemon.cas();
-        let holding_a = cache.fetch(&cas, SHA256, &[a]).await.unwrap();
-        let holding_b = cache.fetch(&cas, SHA256, &[b]).await.unwrap();
-        assert!(cache.path(SHA256, &a).exists() && cache.path(SHA256, &b).exists());
-
-        drop((holding_a, holding_b));
-        fetched(&cache, &cas, &c).await;
-        assert!(!cache.path(SHA256, &a).exists());
-        assert!(!cache.path(SHA256, &b).exists());
-        assert!(cache.path(SHA256, &c).exists());
-    }
-
-    #[tokio::test]
-    async fn a_reopened_cache_knows_its_files() {
-        let daemon = Daemon::start().await;
-        let (a, b) = (
-            digest(&daemon.put("aaaa").await),
-            digest(&daemon.put("bbbb").await),
-        );
-        let scratch = tempfile::tempdir().unwrap();
-        {
-            let cache = FileCache::open(scratch.path(), 100).unwrap();
-            let cas = daemon.cas();
-            fetched(&cache, &cas, &a).await;
-            fetched(&cache, &cas, &b).await;
-        }
-        // A smaller cache keeps what fits.
-        let cache = FileCache::open(scratch.path(), 4).unwrap();
-        let kept = [&a, &b]
-            .iter()
-            .filter(|d| cache.path(SHA256, d).exists())
-            .count();
-        assert_eq!(kept, 1);
-    }
-
-    /// A command forked while a copy is open for writing holds it open
-    /// until it execs, and an action's exec of the copy meanwhile fails
-    /// with ETXTBSY. Here the copy waits on a FIFO and the command waits to
-    /// exec, so that, were they not kept apart, they would overlap.
-    #[tokio::test(flavor = "multi_thread")]
-    async fn no_command_forks_while_a_copy_is_open_for_writing() {
-        use std::io::Write as _;
-        use std::os::unix::ffi::OsStrExt as _;
-        use std::sync::Arc;
-        use std::time::Duration;
-
-        let scratch = tempfile::tempdir().unwrap();
-        let cache = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
-        let digest = SHA256.digest(b"a slow tool");
-        let source = cache.path(SHA256, &digest);
-        std::fs::create_dir_all(source.parent().unwrap()).unwrap();
-        let fifo = std::ffi::CString::new(source.as_os_str().as_bytes()).unwrap();
-        // SAFETY: mkfifo(3) reads a NUL-terminated path.
-        assert_eq!(unsafe { libc::mkfifo(fifo.as_ptr(), 0o600) }, 0);
-        // The FIFO's only writer is another process, so the copy ends when
-        // it exits, whatever a child of this one holds.
-        let mut writer = std::process::Command::new("/bin/sh")
-            .args([
-                "-c",
-                r#"exec 3>"$0"; read go; printf '#!/bin/sh\nexit 0\n' >&3"#,
-            ])
-            .arg(&source)
-            .stdin(std::process::Stdio::piped())
-            .spawn()
-            .unwrap();
-
-        let tool = scratch.path().join("tool");
-        let copying = tokio::task::spawn_blocking({
-            let (cache, tool) = (cache.clone(), tool.clone());
-            move || cache.copy_to(SHA256, &digest, true, &tool)
-        });
-        while !tool.exists() {
-            tokio::time::sleep(Duration::from_millis(1)).await;
-        }
-
-        let mut release = [0; 2];
-        // SAFETY: pipe(2) fills the two descriptors.
-        assert_eq!(unsafe { libc::pipe(release.as_mut_ptr()) }, 0);
-        let [held, unblock] = release;
-        let mut command = tokio::process::Command::new("/bin/sh");
-        command.args(["-c", ":"]);
-        // SAFETY: read(2) is async-signal-safe.
-        unsafe {
-            command.pre_exec(move || {
-                let mut byte = 0u8;
-                libc::read(held, (&raw mut byte).cast(), 1);
-                Ok(())
-            });
-        }
-        let spawning =
-            tokio::task::spawn_blocking(move || hermetic_run::spawn(&mut command).unwrap());
-        // Time for the command to fork, if it may while the copy is open.
-        tokio::time::sleep(Duration::from_millis(200)).await;
-
-        writer.stdin.take().unwrap().write_all(b"\n").unwrap();
-        assert!(writer.wait().unwrap().success());
-        copying.await.unwrap().unwrap();
-        let ran = std::process::Command::new(&tool).status();
-
-        // SAFETY: write(2) reads the one byte given.
-        assert_eq!(unsafe { libc::write(unblock, b"\n".as_ptr().cast(), 1) }, 1);
-        assert!(spawning.await.unwrap().wait().await.unwrap().success());
-        // SAFETY: both descriptors are this test's own.
-        unsafe {
-            libc::close(held);
-            libc::close(unblock);
-        }
-        assert!(ran.unwrap().success());
-    }
-}
+mod tests;

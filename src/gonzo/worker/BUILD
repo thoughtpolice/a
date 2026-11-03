@@ -6,24 +6,19 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 DEPS = [
     "//src/crates/hermetic-run:hermetic-run",
     "//src/crates/reapi-cas",
-    "//src/crates/reapi-client",
+    "//src/crates/reapi-exec",
+    "//src/crates/reflink-cache",
     "//src/crates/reapi-protos:protos",
     "//src/gonzo/protos:gonzo-protos",
-    "//src/crates/runtime-env:runtime-env",
     "third-party//rust:anyhow",
-    "third-party//rust:bytes",
-    "third-party//rust:futures",
     "third-party//rust:libc",
     "third-party//rust:prost",
     "third-party//rust:prost-types",
-    "third-party//rust:quick_cache",
     "third-party//rust:tempfile",
-    "third-party//rust:thiserror",
     "third-party//rust:tokio",
     "third-party//rust:tokio-stream",
     "third-party//rust:tonic",
     "third-party//rust:tracing",
-    "third-party//rust:uuid",
 ]
 
 depot.rust_library(

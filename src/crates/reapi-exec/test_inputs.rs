@@ -8,11 +8,11 @@ use protos::build::bazel::remote::execution::v2::{
     Digest, Directory, DirectoryNode, FileNode, SymlinkNode,
 };
 
-use crate::cache::FileCache;
 use crate::cas::Missing;
 use crate::inputs::Inputs;
-use crate::test_support::{Daemon, digest};
+use crate::test_cas::TestCas;
 use reapi_cas::DigestFn;
+use reflink_cache::FileCache;
 
 fn file(name: &str, digest: &Digest, executable: bool) -> FileNode {
     FileNode {
@@ -36,15 +36,15 @@ fn mode(path: &std::path::Path) -> u32 {
 
 #[tokio::test]
 async fn lays_out_files_directories_and_symlinks() {
-    let daemon = Daemon::start().await;
-    let text = daemon.put("some text\n").await;
-    let script = daemon.put("#!/bin/sh\necho hi\n").await;
+    let server = TestCas::start().await;
+    let text = server.put("some text\n").await;
+    let script = server.put("#!/bin/sh\necho hi\n").await;
     // Big enough to be streamed rather than batched.
     let big: Vec<u8> = (0..3 * 1024 * 1024).map(|i| (i % 251) as u8).collect();
-    let big_digest = daemon.put(big.clone()).await;
+    let big_digest = server.put(big.clone()).await;
 
-    let empty = daemon.put_dir(&Directory::default()).await;
-    let sub = daemon
+    let empty = server.put_dir(&Directory::default()).await;
+    let sub = server
         .put_dir(&Directory {
             files: vec![
                 file("big.bin", &big_digest, false),
@@ -53,7 +53,7 @@ async fn lays_out_files_directories_and_symlinks() {
             ..Default::default()
         })
         .await;
-    let root = daemon
+    let root = server
         .put_dir(&Directory {
             files: vec![
                 file("run.sh", &script, true),
@@ -71,13 +71,18 @@ async fn lays_out_files_directories_and_symlinks() {
 
     let scratch = tempfile::tempdir().unwrap();
     let files = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
-    let (inputs, cas) = (Inputs::new(files), daemon.cas());
+    let (inputs, cas) = (Inputs::new(files), server.cas());
     for attempt in ["first", "second"] {
         // The second time, everything comes from the caches.
         let dest = scratch.path().join(attempt);
         std::fs::create_dir(&dest).unwrap();
         inputs
-            .materialize(&cas, DigestFn::Sha256, &digest(&root), &dest)
+            .materialize(
+                &cas,
+                DigestFn::Sha256,
+                &reapi_cas::Digest::from_proto(&root).unwrap(),
+                &dest,
+            )
             .await
             .expect("materialize");
 
@@ -107,9 +112,9 @@ async fn lays_out_files_directories_and_symlinks() {
 
 #[tokio::test]
 async fn missing_inputs_are_named() {
-    let daemon = Daemon::start().await;
+    let server = TestCas::start().await;
     let absent = DigestFn::Sha256.digest(b"never uploaded").to_proto();
-    let root = daemon
+    let root = server
         .put_dir(&Directory {
             files: vec![file("absent", &absent, false)],
             ..Default::default()
@@ -118,31 +123,41 @@ async fn missing_inputs_are_named() {
 
     let scratch = tempfile::tempdir().unwrap();
     let files = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
-    let (inputs, cas) = (Inputs::new(files), daemon.cas());
+    let (inputs, cas) = (Inputs::new(files), server.cas());
     let err = inputs
-        .materialize(&cas, DigestFn::Sha256, &digest(&root), scratch.path())
+        .materialize(
+            &cas,
+            DigestFn::Sha256,
+            &reapi_cas::Digest::from_proto(&root).unwrap(),
+            scratch.path(),
+        )
         .await
         .expect_err("an input is missing");
     let missing = err.downcast_ref::<Missing>().expect("a Missing error");
-    assert_eq!(missing.0, [digest(&absent)]);
+    assert_eq!(missing.0, [reapi_cas::Digest::from_proto(&absent).unwrap()]);
 }
 
 #[tokio::test]
 async fn entries_must_be_file_names() {
-    let daemon = Daemon::start().await;
-    let text = daemon.put("x").await;
+    let server = TestCas::start().await;
+    let text = server.put("x").await;
     let scratch = tempfile::tempdir().unwrap();
     let files = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
-    let (inputs, cas) = (Inputs::new(files), daemon.cas());
+    let (inputs, cas) = (Inputs::new(files), server.cas());
     for name in ["..", "a/b", ""] {
-        let root = daemon
+        let root = server
             .put_dir(&Directory {
                 files: vec![file(name, &text, false)],
                 ..Default::default()
             })
             .await;
         let err = inputs
-            .materialize(&cas, DigestFn::Sha256, &digest(&root), scratch.path())
+            .materialize(
+                &cas,
+                DigestFn::Sha256,
+                &reapi_cas::Digest::from_proto(&root).unwrap(),
+                scratch.path(),
+            )
             .await
             .expect_err("refused");
         assert!(
@@ -150,14 +165,19 @@ async fn entries_must_be_file_names() {
             "{err:#}"
         );
     }
-    let root = daemon
+    let root = server
         .put_dir(&Directory {
             files: vec![file("a", &text, false), file("a", &text, true)],
             ..Default::default()
         })
         .await;
     let err = inputs
-        .materialize(&cas, DigestFn::Sha256, &digest(&root), scratch.path())
+        .materialize(
+            &cas,
+            DigestFn::Sha256,
+            &reapi_cas::Digest::from_proto(&root).unwrap(),
+            scratch.path(),
+        )
         .await
         .expect_err("refused");
     assert!(
@@ -169,7 +189,7 @@ async fn entries_must_be_file_names() {
 /// A directory too large for a batch streams, as any large blob does.
 #[tokio::test]
 async fn a_directory_too_large_for_a_batch_is_streamed() {
-    let daemon = Daemon::start().await;
+    let server = TestCas::start().await;
     let target = "t".repeat(200);
     let symlinks = (0..25_000)
         .map(|i| SymlinkNode {
@@ -178,19 +198,24 @@ async fn a_directory_too_large_for_a_batch_is_streamed() {
             node_properties: None,
         })
         .collect();
-    let root = daemon
+    let root = server
         .put_dir(&Directory {
             symlinks,
             ..Default::default()
         })
         .await;
-    assert!(root.size_bytes > 4_000_000, "the daemon's batch limit");
+    assert!(root.size_bytes > 4_000_000, "gRPC's message limit");
     let scratch = tempfile::tempdir().unwrap();
     let files = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
     let dest = scratch.path().join("root");
     std::fs::create_dir(&dest).unwrap();
     Inputs::new(files)
-        .materialize(&daemon.cas(), DigestFn::Sha256, &digest(&root), &dest)
+        .materialize(
+            &server.cas(),
+            DigestFn::Sha256,
+            &reapi_cas::Digest::from_proto(&root).unwrap(),
+            &dest,
+        )
         .await
         .expect("laid out");
     let link = std::fs::read_link(dest.join("link24999")).unwrap();

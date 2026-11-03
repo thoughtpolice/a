@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! The daemon's CAS, as the worker uses it: blobs of any size, batched
-//! when small and streamed when large, in memory or on disk, and
-//! everything read checked against its digest. Callers never choose
-//! between the two.
+//! A CAS, as a worker uses it: blobs of any size, batched when small and
+//! streamed when large, in memory or on disk, many at once, and everything
+//! read checked against its digest. Callers never choose between batches
+//! and streams.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -27,8 +27,8 @@ use reapi_cas::{Compression, Digest, DigestFn};
 /// Blobs up to this size travel in batches; larger ones stream.
 const BATCH_BLOB_MAX: u64 = 1024 * 1024;
 
-/// Most bytes of blobs in one batch, under the daemon's 4 MB limit with
-/// room for the messages around them.
+/// Most bytes of blobs in one batch, under gRPC's default 4 MB message
+/// limit, which servers keep, with room for the messages around them.
 const BATCH_BYTES: u64 = 3 * 1024 * 1024;
 
 /// Batches read at once.
@@ -64,14 +64,25 @@ pub struct Missing(pub Vec<Digest>);
 pub struct Cas {
     cas: ContentAddressableStorageClient<Channel>,
     bytestream: ByteStreamClient<Channel>,
+    instance: String,
 }
 
 impl Cas {
+    /// The CAS served over `channel`, under the default instance name.
     pub fn new(channel: Channel) -> Self {
         Self {
             cas: ContentAddressableStorageClient::new(channel.clone())
                 .max_decoding_message_size(usize::MAX),
             bytestream: ByteStreamClient::new(channel),
+            instance: String::new(),
+        }
+    }
+
+    /// This CAS under the instance name `instance`.
+    pub fn with_instance(self, instance: impl Into<String>) -> Self {
+        Self {
+            instance: instance.into(),
+            ..self
         }
     }
 
@@ -173,7 +184,7 @@ impl Cas {
         let mut missing = Vec::new();
         let requests: Vec<_> = batches(digests, |d| d.size)
             .map(|batch| BatchReadBlobsRequest {
-                instance_name: String::new(),
+                instance_name: self.instance.clone(),
                 digests: batch.iter().map(Digest::to_proto).collect(),
                 acceptable_compressors: Vec::new(),
                 digest_function: function.to_proto_i32(),
@@ -218,7 +229,7 @@ impl Cas {
         sink: &mut (impl tokio::io::AsyncWrite + Unpin),
     ) -> Result<bool> {
         let request = ReadRequest {
-            resource_name: read_name("", function, Compression::Identity, digest),
+            resource_name: read_name(&self.instance, function, Compression::Identity, digest),
             read_offset: 0,
             read_limit: 0,
         };
@@ -253,7 +264,7 @@ impl Cas {
                 .cas
                 .clone()
                 .find_missing_blobs(FindMissingBlobsRequest {
-                    instance_name: String::new(),
+                    instance_name: self.instance.clone(),
                     blob_digests: chunk.iter().map(Digest::to_proto).collect(),
                     digest_function: function.to_proto_i32(),
                 })
@@ -269,7 +280,7 @@ impl Cas {
 
     /// Store `blobs`, of any size: small ones by batches, with any files
     /// among them read at once, and large ones streamed, a few at a time,
-    /// meanwhile, since the daemon refuses a batch over its limit.
+    /// meanwhile, since servers refuse a batch over their limit.
     pub async fn write_blobs(&self, function: DigestFn, blobs: Vec<(Digest, Blob)>) -> Result<()> {
         let mut small = Vec::new();
         let mut small_files = Vec::new();
@@ -330,7 +341,7 @@ impl Cas {
                 .cas
                 .clone()
                 .batch_update_blobs(BatchUpdateBlobsRequest {
-                    instance_name: String::new(),
+                    instance_name: self.instance.clone(),
                     requests,
                     digest_function: function.to_proto_i32(),
                 })
@@ -357,7 +368,13 @@ impl Cas {
         mut blob: impl tokio::io::AsyncRead + Unpin,
     ) -> Result<()> {
         let uuid = uuid::Uuid::new_v4().to_string();
-        let resource_name = write_name("", &uuid, function, Compression::Identity, digest);
+        let resource_name = write_name(
+            &self.instance,
+            &uuid,
+            function,
+            Compression::Identity,
+            digest,
+        );
         let size = digest.size_bytes();
         let (tx, rx) = tokio::sync::mpsc::channel::<WriteRequest>(4);
         let reader = async move {
@@ -397,6 +414,16 @@ impl Cas {
             );
         }
         Ok(())
+    }
+}
+
+impl reflink_cache::Fetch for Cas {
+    async fn fetch_to_files(
+        &self,
+        function: DigestFn,
+        blobs: Vec<(Digest, PathBuf)>,
+    ) -> Result<()> {
+        self.read_to_files(function, blobs).await
     }
 }
 

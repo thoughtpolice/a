@@ -7,7 +7,7 @@
 use gonzo_protos::worker::v1::scheduler_server::SchedulerServer;
 use protos::build::bazel::remote::execution::v2::execution_server::ExecutionServer;
 
-use crate::cas::Cas;
+use reapi_exec::Cas;
 
 pub struct Daemon(gonzo_testing::Daemon);
 
@@ -41,9 +41,4 @@ impl std::ops::Deref for Daemon {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
-}
-
-/// A digest the daemon gave, as the worker takes one.
-pub fn digest(digest: &protos::build::bazel::remote::execution::v2::Digest) -> reapi_cas::Digest {
-    reapi_cas::Digest::from_proto(digest).expect("a valid digest")
 }
