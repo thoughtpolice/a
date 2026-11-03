@@ -339,72 +339,11 @@ struct CasWrite {
 }
 
 /// Bytes decoded but not yet stored, shared by a conversion's threads.
-struct Budget {
-    available: Mutex<usize>,
-    freed: Condvar,
-    total: usize,
-}
+type Budget = sync_utils::ByteBudget;
 
 /// Budget bytes held, given back when dropped: once a batch is stored, or
 /// abandoned.
-struct Held {
-    budget: Arc<Budget>,
-    bytes: usize,
-}
-
-impl Budget {
-    fn new(total: usize) -> Arc<Self> {
-        Arc::new(Self {
-            available: Mutex::new(total),
-            freed: Condvar::new(),
-            total,
-        })
-    }
-
-    /// Take `bytes` (the whole budget, for anything larger) if that much is
-    /// free now.
-    fn try_take(&self, bytes: usize) -> Option<usize> {
-        let want = bytes.min(self.total);
-        let mut available = self.available.lock().expect("budget lock never poisoned");
-        if *available < want {
-            return None;
-        }
-        *available -= want;
-        Some(want)
-    }
-
-    /// Wait until `bytes` (the whole budget, for anything larger) are free
-    /// and take them, unless `stop` is set first.
-    fn take(&self, bytes: usize, stop: &AtomicBool) -> Result<usize, GitCloneError> {
-        let want = bytes.min(self.total);
-        let mut available = self.available.lock().expect("budget lock never poisoned");
-        while *available < want {
-            if stop.load(Ordering::Relaxed) {
-                return Err(GitCloneError::Stopped);
-            }
-            available = self
-                .freed
-                .wait_timeout(available, Duration::from_millis(50))
-                .expect("budget lock never poisoned")
-                .0;
-        }
-        *available -= want;
-        Ok(want)
-    }
-}
-
-impl Drop for Held {
-    fn drop(&mut self) {
-        if self.bytes > 0 {
-            *self
-                .budget
-                .available
-                .lock()
-                .expect("budget lock never poisoned") += self.bytes;
-            self.budget.freed.notify_all();
-        }
-    }
-}
+type Held = sync_utils::Held;
 
 /// CAS writes on their way to storage, with the budget their data holds.
 struct Batch {
@@ -443,10 +382,7 @@ impl<'a> Sink<'a> {
         Batch {
             writes: Vec::new(),
             bytes: 0,
-            held: Held {
-                budget: Arc::clone(budget),
-                bytes: 0,
-            },
+            held: budget.nothing(),
         }
     }
 
@@ -458,10 +394,12 @@ impl<'a> Sink<'a> {
             Some(taken) => taken,
             None => {
                 self.send()?;
-                self.budget.take(bytes, self.stop)?
+                self.budget
+                    .take(bytes, self.stop)
+                    .map_err(|sync_utils::Stopped| GitCloneError::Stopped)?
             }
         };
-        self.batch.held.bytes += taken;
+        self.batch.held.absorb(taken);
         Ok(())
     }
 
@@ -1597,32 +1535,6 @@ mod tests {
             let cd = ContentDigest::new(digest_fn, digest_fn.hash_data(data));
             assert!(store.cas_get_blob(&cd).await.unwrap().is_some());
         }
-    }
-
-    // --- Budget ---
-
-    #[test]
-    fn budget_takes_and_gives_back() {
-        let budget = Budget::new(100);
-        let stop = AtomicBool::new(false);
-        assert_eq!(budget.try_take(60), Some(60));
-        assert_eq!(budget.try_take(60), None);
-        let held = Held {
-            budget: Arc::clone(&budget),
-            bytes: 60,
-        };
-        drop(held);
-        // More than the whole budget takes the whole budget.
-        assert_eq!(budget.take(1000, &stop).unwrap(), 100);
-        assert_eq!(budget.try_take(1), None);
-    }
-
-    #[test]
-    fn budget_waits_end_when_stopped() {
-        let budget = Budget::new(10);
-        assert_eq!(budget.try_take(10), Some(10));
-        let stop = AtomicBool::new(true);
-        assert!(matches!(budget.take(1, &stop), Err(GitCloneError::Stopped)));
     }
 
     /// Many threads, a budget smaller than the data, and tiny batches:

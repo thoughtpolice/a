@@ -6,6 +6,7 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 DEPS = [
     "//src/crates/reapi-cas:reapi-cas",
     "//src/crates/reapi-protos:protos",
+    "//src/crates/sync-utils:sync-utils",
     "//src/crates/fetch-git:fetch-git",
     "//src/crates/fetch-http:fetch-http",
     "//src/crates/fetch-oci:fetch-oci",

@@ -236,28 +236,7 @@ fn fetch_key(
 /// Origin fetches in progress, so that concurrent requests for the same
 /// asset wait for one fetch and then find it cached, instead of each going
 /// to the origin.
-#[derive(Default)]
-struct InFlight(std::sync::Mutex<HashMap<FetchKey, Weak<tokio::sync::Mutex<()>>>>);
-
-impl InFlight {
-    /// Wait until no other request is fetching `key`, then hold it until the
-    /// guard is dropped.
-    async fn enter(&self, key: FetchKey) -> tokio::sync::OwnedMutexGuard<()> {
-        let lock = {
-            let mut fetches = self.0.lock().expect("in-flight map lock never poisoned");
-            fetches.retain(|_, held| held.strong_count() > 0);
-            match fetches.get(&key).and_then(Weak::upgrade) {
-                Some(lock) => lock,
-                None => {
-                    let lock = Arc::new(tokio::sync::Mutex::new(()));
-                    fetches.insert(key, Arc::downgrade(&lock));
-                    lock
-                }
-            }
-        };
-        lock.lock_owned().await
-    }
-}
+type InFlight = sync_utils::KeyedLock<FetchKey>;
 
 /// How long an HTTP fetch may take when the request sets no timeout.
 const DEFAULT_HTTP_FETCH_TIMEOUT: Duration = Duration::from_secs(60);
@@ -400,7 +379,7 @@ impl FetchService {
     ) -> Result<Result<AssetEntry, E>, tonic::Status> {
         let _fetching = self
             .fetches
-            .enter(fetch_key(directory, digest_fn, uri, qualifiers))
+            .lock(fetch_key(directory, digest_fn, uri, qualifiers))
             .await;
         if let Some(entry) = self
             .try_cached_lookup(
