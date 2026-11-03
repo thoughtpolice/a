@@ -15,16 +15,17 @@ use opentelemetry_sdk::{
 };
 use tracing_subscriber::Layer;
 
-use super::OtelConfig;
+use crate::OtelConfig;
 
 /// Global tracer provider for shutdown.
 static TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
 
-/// Initialize the OpenTelemetry tracing layer.
+/// Initialize the OpenTelemetry tracing layer, installing the global tracer
+/// provider, whose tracer wide events then use (see [`crate::wide`]).
 ///
 /// Returns `None` if OTEL is disabled or not configured.
 /// Returns `Some(layer)` that can be added to the tracing subscriber.
-pub fn init_otel_layer<S>(
+pub fn init_tracing_layer<S>(
     config: &OtelConfig,
 ) -> Result<Option<Box<dyn Layer<S> + Send + Sync + 'static>>>
 where
@@ -67,7 +68,7 @@ where
         .with_batch_exporter(exporter)
         .build();
 
-    let tracer = provider.tracer("gonzo");
+    let tracer = provider.tracer(crate::wide::set_scope(&config.service_name));
 
     let _ = TRACER_PROVIDER.set(provider.clone());
     opentelemetry::global::set_tracer_provider(provider);
@@ -77,8 +78,8 @@ where
     Ok(Some(Box::new(layer)))
 }
 
-/// Shutdown OpenTelemetry, flushing any pending spans.
-pub fn shutdown_otel() {
+/// Shut OpenTelemetry tracing down, flushing any pending spans.
+pub fn shutdown() {
     if let Some(provider) = TRACER_PROVIDER.get() {
         let _ = provider.shutdown();
     }

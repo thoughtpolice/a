@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    version = "0.1.0",
+    description = "A tracing filter capping how often any one log statement fires.",
+    license = "Apache-2.0",
+    copyright = ["2024-2026 Austin Seipp"],
+    visibility = ["PUBLIC"],
+)

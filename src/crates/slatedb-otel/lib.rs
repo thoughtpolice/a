@@ -20,8 +20,8 @@ use slatedb_common::metrics::{CounterFn, GaugeFn, HistogramFn, MetricsRecorder, 
 ///
 /// Instruments are created on the meter provider in place when SlateDB
 /// registers them (as a database or compactor is built), so create the
-/// recorder after [`init_metrics`](crate::init_metrics) has installed the
-/// global provider; instruments created before it stay no-ops.
+/// recorder after the global meter provider is installed; instruments
+/// created before it stay no-ops.
 pub struct OtelMetricsRecorder {
     meter: Meter,
 }

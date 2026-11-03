@@ -4,17 +4,11 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
+    "//src/crates/otel-wide:otel-wide",
+    "//src/crates/slatedb-otel:slatedb-otel",
+    "//src/crates/tracing-storm:tracing-storm",
     "third-party//rust:anyhow",
     "third-party//rust:opentelemetry",
-    "third-party//rust:opentelemetry_sdk",
-    "third-party//rust:opentelemetry-otlp",
-    "third-party//rust:opentelemetry-semantic-conventions",
-    "third-party//rust:parking_lot",
-    "third-party//rust:slatedb-common",
-    "third-party//rust:tokio",
-    "third-party//rust:tracing",
-    "third-party//rust:tracing-opentelemetry",
-    "third-party//rust:tracing-subscriber",
 ]
 
 depot.rust_library(

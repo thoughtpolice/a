@@ -936,7 +936,7 @@ async fn run_compactor(cli: &Cli) -> Result<()> {
 
     // The compactor takes no OTEL flags; the standard environment variables
     // (OTEL_EXPORTER_OTLP_ENDPOINT, ...) enable metrics export.
-    let otel_config = telemetry::OtelConfig::from_env();
+    let otel_config = telemetry::OtelConfig::from_env_or(telemetry::SERVICE_NAME);
     telemetry::init_metrics(&otel_config)?;
 
     let backend = parse_backend(cli.store())?;
@@ -995,12 +995,13 @@ async fn run_server(
     rt_info: &runtime::RuntimeInfo,
 ) -> Result<()> {
     // Build OTEL config from env + CLI
-    let otel_config = telemetry::OtelConfig::from_env().with_cli_overrides(
-        if args.otel_enabled { Some(true) } else { None },
-        args.otel_endpoint.clone(),
-        Some(args.otel_service_name.clone()),
-        args.otel_sampling_ratio,
-    );
+    let otel_config = telemetry::OtelConfig::from_env_or(telemetry::SERVICE_NAME)
+        .with_cli_overrides(
+            if args.otel_enabled { Some(true) } else { None },
+            args.otel_endpoint.clone(),
+            Some(args.otel_service_name.clone()),
+            args.otel_sampling_ratio,
+        );
 
     let tokio_console_layer = if args.tokio_console {
         Some(console_subscriber::spawn())

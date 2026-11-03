@@ -20,7 +20,7 @@
 //! ```ignore
 //! // At request entry point (recommended approach):
 //! async fn handle_request(&self, req: Request) -> Result<Response> {
-//!     telemetry::with_wide_context("cas.find_missing_blobs", async {
+//!     otel_wide::with_wide_context("cas.find_missing_blobs", async {
 //!         wide!("user.id", user_id);
 //!         wide!("request.size_bytes", 1024i64);
 //!         wide_inc!("stats.cache_hits");
@@ -29,13 +29,14 @@
 //! }
 //!
 //! // Or using the guard directly:
-//! let _span = telemetry::start_request("cas.find_missing_blobs");
+//! let _span = otel_wide::start_request("cas.find_missing_blobs");
 //! ```
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::Instant;
 
@@ -84,6 +85,20 @@ impl Drop for WideEventGuard {
     }
 }
 
+/// The instrumentation scope wide event spans are made under: the service's
+/// name, once [`init_tracing_layer`](crate::init_tracing_layer) has run.
+static SCOPE: OnceLock<&'static str> = OnceLock::new();
+
+/// Make wide event spans under `name`, unless a scope was set already;
+/// returns the scope in effect.
+pub(crate) fn set_scope(name: &str) -> &'static str {
+    SCOPE.get_or_init(|| Box::leak(name.to_string().into_boxed_str()))
+}
+
+fn scope() -> &'static str {
+    SCOPE.get().copied().unwrap_or("otel-wide")
+}
+
 /// Start a new wide event span for a request.
 ///
 /// Creates a span with `canon: true` automatically set. Duration is tracked
@@ -91,7 +106,7 @@ impl Drop for WideEventGuard {
 ///
 /// Returns a guard that must be held for the duration of the request.
 pub fn start_request(name: &'static str) -> WideEventGuard {
-    let tracer = opentelemetry::global::tracer("gonzo");
+    let tracer = opentelemetry::global::tracer(scope());
     let mut span = tracer
         .span_builder(name)
         .with_kind(SpanKind::Server)

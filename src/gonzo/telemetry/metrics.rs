@@ -5,11 +5,9 @@
 
 use std::sync::OnceLock;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use opentelemetry::KeyValue;
 use opentelemetry::metrics::{Counter, Histogram, Meter, UpDownCounter};
-use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::{Resource, metrics::SdkMeterProvider};
 
 use super::OtelConfig;
 
@@ -83,42 +81,12 @@ impl CacheMetrics {
     }
 }
 
-/// Initialize OTEL metrics.
+/// Initialize OTEL metrics: install the meter provider `config` asks for
+/// (see [`otel_wide::init_meter_provider`]) and register gonzo's.
 pub fn init_metrics(config: &OtelConfig) -> Result<()> {
-    if !config.enabled {
-        let meter = opentelemetry::global::meter("gonzo");
-        let _ = METRICS.set(CacheMetrics::new(&meter));
-        return Ok(());
-    }
-
-    let endpoint = config
-        .endpoint
-        .as_ref()
-        .context("OTEL endpoint required when enabled")?;
-
-    let resource = Resource::builder()
-        .with_attribute(KeyValue::new(
-            opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-            config.service_name.clone(),
-        ))
-        .build();
-
-    let exporter = opentelemetry_otlp::MetricExporter::builder()
-        .with_tonic()
-        .with_endpoint(endpoint)
-        .build()
-        .context("failed to create OTLP metric exporter")?;
-
-    let provider = SdkMeterProvider::builder()
-        .with_resource(resource)
-        .with_reader(opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build())
-        .build();
-
-    opentelemetry::global::set_meter_provider(provider);
-
-    let meter = opentelemetry::global::meter("gonzo");
+    otel_wide::init_meter_provider(config)?;
+    let meter = opentelemetry::global::meter(crate::SERVICE_NAME);
     let _ = METRICS.set(CacheMetrics::new(&meter));
-
     Ok(())
 }
 
@@ -127,7 +95,7 @@ pub fn init_metrics(config: &OtelConfig) -> Result<()> {
 /// Returns lazily-initialized no-op metrics if `init_metrics` was not called.
 pub fn metrics() -> &'static CacheMetrics {
     METRICS.get_or_init(|| {
-        let meter = opentelemetry::global::meter("gonzo");
+        let meter = opentelemetry::global::meter(crate::SERVICE_NAME);
         CacheMetrics::new(&meter)
     })
 }
