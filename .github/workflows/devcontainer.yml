@@ -1,0 +1,88 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Builds, tests and publishes the devcontainer (src/images/devcontainer).
+# Buck2 does all of it, so this only checks out the repository, puts
+# DotSlash on PATH, and hands the registry token to the push target.
+name: devcontainer
+
+on:
+  pull_request:
+    paths:
+      - "src/images/devcontainer/**"
+      - "src/images/minimos/tools/**"
+      - "buck/third-party/by-name/wo/wolfi/**"
+      - ".github/workflows/devcontainer.yml"
+  push:
+    branches: ["canon"]
+    paths:
+      - "src/images/devcontainer/**"
+      - "src/images/minimos/tools/**"
+      - "buck/third-party/by-name/wo/wolfi/**"
+      - ".github/workflows/devcontainer.yml"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish this commit and move the canon tag to it"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Publishing runs share one group, so an older run can't move canon after a
+# newer one starts. Other runs never wait on each other.
+concurrency:
+  group: devcontainer-${{ (github.repository == 'thoughtpolice/a' && ((github.event_name == 'push' && github.ref == 'refs/heads/canon') || (github.event_name == 'workflow_dispatch' && inputs.publish))) && 'publish' || format('run-{0}', github.run_id) }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    name: image (linux/amd64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUBLISH: ${{ github.repository == 'thoughtpolice/a' && ((github.event_name == 'push' && github.ref == 'refs/heads/canon') || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - name: Install DotSlash
+        uses: ./.github/actions/install-dotslash
+      - name: Configure Buck2 for CI
+        shell: bash
+        run: |
+          printf '\n' >> .buckconfig.local
+          cat buck/ci.buckconfig >> .buckconfig.local
+
+      # The smoke test loads the image into the runner's docker and checks
+      # the toolchain inside it with the network off.
+      - name: buck2 test //src/images/devcontainer/...
+        shell: bash
+        run: |
+          ./buck/bin/buck2 test @buck/ci.buckargs \
+            //src/images/devcontainer/... \
+            third-party//by-name/wo/wolfi/...
+
+      # The push target prints each pushed image by digest.
+      - name: Publish
+        if: env.PUBLISH == 'true'
+        shell: bash
+        run: |
+          umask 077
+          export REGISTRY_AUTH_FILE="$RUNNER_TEMP/registry-auth.json"
+          auth=$(printf '%s:%s' "$ACTOR" "$TOKEN" | base64 -w0)
+          printf '{"auths":{"ghcr.io":{"auth":"%s"}}}\n' "$auth" > "$REGISTRY_AUTH_FILE"
+          ./buck/bin/buck2 run @buck/ci.buckargs //src/images/devcontainer:devcontainer-push -- \
+            --tag "sha-$GITHUB_SHA" \
+            --tag canon | tee -a "$GITHUB_STEP_SUMMARY"
+          rm -f "$REGISTRY_AUTH_FILE"
+        env:
+          ACTOR: ${{ github.actor }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
