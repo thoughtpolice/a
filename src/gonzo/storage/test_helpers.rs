@@ -9,8 +9,17 @@ pub use sha2::{Digest as _, Sha256};
 use super::*;
 
 /// Helper: open an in-memory CacheStore for testing.
+///
+/// The store never refuses writes for being behind. On a loaded CI runner
+/// one put can take longer than DEFAULT_MAX_WRITE_WAIT, and the refusal
+/// then fails tests that are about something else. backlog.rs tests the
+/// refusal itself.
 pub async fn open_memory_store() -> CacheStore {
-    CacheStore::open(StoreBackend::Memory, CacheStoreSettings::default())
+    let settings = CacheStoreSettings {
+        max_write_wait: Some(std::time::Duration::ZERO),
+        ..CacheStoreSettings::default()
+    };
+    CacheStore::open(StoreBackend::Memory, settings)
         .await
         .unwrap()
 }
