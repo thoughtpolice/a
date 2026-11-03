@@ -39,7 +39,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     # A change to the build configuration, or a determination that fails,
     # tests everything, so this is sized for that rather than the common case.
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
       - name: Checkout repository
