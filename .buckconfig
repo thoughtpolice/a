@@ -34,9 +34,6 @@ fbsource = none
 prelude = bundled
 
 [buck2]
-# watchman is actually usable on all platforms
-file_watcher = watchman
-
 # store materializer state in sqlite. this means that the materializer state
 # will persist across restarts, kills, etc, effectively resulting in a local
 # action cache.
