@@ -33,7 +33,7 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use crate::data::Rng;
-use crate::hist::Histogram;
+use loghist::Histogram;
 
 /// What one kind of RPC did.
 #[derive(Default, Clone)]

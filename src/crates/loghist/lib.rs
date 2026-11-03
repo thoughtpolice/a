@@ -9,6 +9,8 @@ const SUB_BITS: u32 = 6;
 const SUB: u64 = 1 << SUB_BITS;
 const BUCKETS: usize = ((64 - SUB_BITS as usize) + 1) * SUB as usize;
 
+/// Values recorded, by log-linear bucket, with their count, sum, least and
+/// greatest.
 #[derive(Clone)]
 pub struct Histogram {
     counts: Box<[u64; BUCKETS]>,

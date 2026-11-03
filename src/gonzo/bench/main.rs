@@ -23,7 +23,6 @@ use clap::{Args, Parser, Subcommand};
 use protos::build::bazel::remote::execution::v2::{Digest, UpdateActionResultRequest};
 
 mod data;
-mod hist;
 mod rpc;
 mod run;
 mod workloads;
