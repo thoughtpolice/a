@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! Running an action's command.
+//! Running a command.
 //!
 //! The command runs with exactly the environment it names, in its own
 //! process group (and cgroup, if it has one), with stdin empty and stdout
 //! and stderr in files. When it exits, runs out of time or is cancelled,
 //! whatever else is left in its group and cgroup is killed too. It sees
-//! the machine as the worker does, or, given an [`EmptyRoot`], nothing but
+//! the machine as this process does, or, given an [`EmptyRoot`], nothing but
 //! its inputs.
 
 use std::future::Future;
@@ -19,8 +19,8 @@ use std::time::Duration;
 
 use anyhow::{Context as _, Result, bail};
 
-use crate::cgroup::ActionCgroup;
-use crate::sandbox::EmptyRoot;
+use crate::cgroup::Cgroup;
+use crate::empty_root::EmptyRoot;
 
 /// What to run.
 #[derive(Debug)]
@@ -36,8 +36,8 @@ pub struct Spec<'a> {
     pub stderr: &'a Path,
     pub timeout: Duration,
     /// A cgroup for the command and everything it starts.
-    pub cgroup: Option<&'a ActionCgroup>,
-    /// Run the command with its input root as its whole filesystem.
+    pub cgroup: Option<&'a Cgroup>,
+    /// Run the command with a directory as its whole filesystem.
     pub empty_root: Option<&'a EmptyRoot>,
 }
 
@@ -65,7 +65,7 @@ pub async fn run(spec: &Spec<'_>, cancelled: impl Future<Output = ()>) -> Result
         bail!("the command has no arguments");
     };
     // In an empty root the working directory is the current one when the
-    // command execs, under another name than the worker's.
+    // command execs, under another name than this process's.
     let program = if program.contains('/') && spec.empty_root.is_none() {
         spec.working_directory.join(program)
     } else {
@@ -96,7 +96,7 @@ pub async fn run(spec: &Spec<'_>, cancelled: impl Future<Output = ()>) -> Result
     }
     if let Some(root) = spec.empty_root.cloned() {
         // SAFETY: entering makes system calls only. It runs after the
-        // cgroup join, which needs the worker's view of /sys/fs/cgroup.
+        // cgroup join, which needs this process's view of /sys/fs/cgroup.
         unsafe {
             command.pre_exec(move || root.enter());
         }
@@ -129,27 +129,25 @@ pub async fn run(spec: &Spec<'_>, cancelled: impl Future<Output = ()>) -> Result
     Ok(outcome)
 }
 
-/// Held to read while the worker has open for writing a file an action may
-/// execute, and to write while a command is spawned.
+/// Held to read while the process has open for writing a file a command
+/// may execute, and to write while a command is spawned.
 ///
-/// A child forked from the multithreaded worker holds every descriptor the
-/// worker had open until it execs, after joining its cgroup and entering
+/// A child forked from a multithreaded process holds every descriptor the
+/// process had open until it execs, after joining its cgroup and entering
 /// its empty root. An exec of a file still open for writing fails with
-/// ETXTBSY ("text file busy"), and not only the worker's exec: one in
-/// another action, such as a compiler driver's of its compiler proper,
-/// fails the action. Spawning returns once the child has exec'd, or failed
+/// ETXTBSY ("text file busy"), and not only this process's exec: one in
+/// another command, such as a compiler driver's of its compiler proper,
+/// fails the command. Spawning returns once the child has exec'd, or failed
 /// to, so no child is between fork and exec while an input is written.
 static SPAWNING: RwLock<()> = RwLock::new(());
 
-/// Hold while writing a file that an action may execute; see [`SPAWNING`].
-pub(crate) fn writing_input() -> RwLockReadGuard<'static, ()> {
+/// Hold while writing a file that a command may execute; see [`SPAWNING`].
+pub fn writing_input() -> RwLockReadGuard<'static, ()> {
     SPAWNING.read().unwrap_or_else(PoisonError::into_inner)
 }
 
 /// Spawn `command` while no input is open for writing; see [`SPAWNING`].
-pub(crate) fn spawn(
-    command: &mut tokio::process::Command,
-) -> std::io::Result<tokio::process::Child> {
+pub fn spawn(command: &mut tokio::process::Command) -> std::io::Result<tokio::process::Child> {
     let _spawning = SPAWNING.write().unwrap_or_else(PoisonError::into_inner);
     command.spawn()
 }
@@ -329,7 +327,7 @@ mod tests {
             }
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
-        panic!("the background process {pid} outlived its action");
+        panic!("the background process {pid} outlived its command");
     }
 
     #[tokio::test]
@@ -350,7 +348,7 @@ mod tests {
 
     #[tokio::test]
     async fn processes_that_leave_the_group_die_with_the_cgroup() {
-        let Some(cgroups) = crate::cgroup::Cgroups::new() else {
+        let Some(cgroups) = crate::cgroup::Cgroups::new("hermetic-run-test") else {
             eprintln!("skipping: this process cannot make cgroups");
             return;
         };
@@ -394,6 +392,6 @@ mod tests {
         }
         // SAFETY: kill(2) touches no memory.
         unsafe { libc::kill(pid, libc::SIGKILL) };
-        panic!("{pid} left its process group and outlived its action");
+        panic!("{pid} left its process group and outlived its command");
     }
 }

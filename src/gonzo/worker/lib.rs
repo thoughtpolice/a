@@ -8,12 +8,9 @@
 
 pub mod cache;
 pub mod cas;
-pub mod cgroup;
 pub mod digest;
 pub mod inputs;
 pub mod outputs;
-pub mod runner;
-pub mod sandbox;
 mod worker;
 
 pub use worker::{Config, Image, Worker, host_images, host_name, host_properties};
@@ -25,7 +22,5 @@ mod test_support;
 mod test_inputs;
 #[cfg(test)]
 mod test_outputs;
-#[cfg(test)]
-mod test_sandbox;
 #[cfg(test)]
 mod test_worker;

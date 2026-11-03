@@ -24,14 +24,13 @@ use protos::build::bazel::remote::execution::v2::{
 };
 use protos::google::rpc::{Code, Status};
 
+use hermetic_run::{self as runner, Cgroups, EmptyRoot, Outcome, SpawnError};
+
 use crate::cache::FileCache;
 use crate::cas::{Cas, Missing};
-use crate::cgroup::Cgroups;
 use crate::digest::DigestFunction;
 use crate::inputs::Inputs;
 use crate::outputs;
-use crate::runner::{self, Outcome, SpawnError};
-use crate::sandbox::EmptyRoot;
 
 /// How a worker presents itself and runs actions.
 #[derive(Clone, Debug)]
@@ -104,18 +103,22 @@ impl Image {
     /// the host, its `PATH` included.
     pub fn empty() -> Self {
         Self {
-            name: crate::sandbox::EMPTY.to_string(),
+            name: EMPTY_IMAGE.to_string(),
             empty_root: true,
             environment: Vec::new(),
         }
     }
 }
 
+/// The `container-image` value that asks for an empty root (see
+/// [`hermetic_run::EmptyRoot`]).
+pub const EMPTY_IMAGE: &str = "empty";
+
 /// The images a worker on this machine runs actions in: `host`, and
 /// `empty` where it can make empty roots.
 pub fn host_images() -> Vec<Image> {
     let mut images = vec![Image::host("host")];
-    if crate::sandbox::supported() {
+    if hermetic_run::empty_root::supported() {
         images.push(Image::empty());
     }
     images
@@ -191,7 +194,7 @@ impl Worker {
             &config.dir.join("files"),
             config.cache_bytes,
         )?);
-        let cgroups = Cgroups::new();
+        let cgroups = Cgroups::new("gonzo-actions");
         match &cgroups {
             Some(cgroups) => tracing::info!(
                 cgroups = %cgroups.dir().display(),

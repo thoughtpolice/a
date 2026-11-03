@@ -295,7 +295,7 @@ impl FileCache {
         let source = self.path(function, digest);
         let from = std::fs::File::open(&source)?;
         // Until the copy is closed, no command forks to hold it open.
-        let _writing = crate::runner::writing_input();
+        let _writing = hermetic_run::writing_input();
         let to = std::fs::File::create_new(dest)?;
         if !reflink(&from, &to) {
             let mut from = from;
@@ -468,7 +468,7 @@ mod tests {
             });
         }
         let spawning =
-            tokio::task::spawn_blocking(move || crate::runner::spawn(&mut command).unwrap());
+            tokio::task::spawn_blocking(move || hermetic_run::spawn(&mut command).unwrap());
         // Time for the command to fork, if it may while the copy is open.
         tokio::time::sleep(Duration::from_millis(200)).await;
 

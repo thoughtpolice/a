@@ -1,18 +1,19 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! A cgroup for each action, where the worker may make them.
+//! A cgroup for each command, where this process may make them.
 //!
-//! A process group holds only processes that stay in it, and a command can
-//! leave its group (`setsid`, as daemons do) and outlive its action. A
-//! cgroup holds every process started in it, so killing an action's cgroup
+//! A process group holds only processes that stay in it, and a process a
+//! command starts can leave its group (`setsid`, as daemons do) and outlive
+//! the command. A
+//! cgroup holds every process started in it, so killing a command's cgroup
 //! (`cgroup.kill`) stops all of it.
 //!
-//! The worker makes its cgroups under its own, in cgroup v2, when that is
+//! This process makes its cgroups under its own, in cgroup v2, when that is
 //! writable, as it is for a user's own processes under systemd. Elsewhere
-//! actions get process groups alone. No controllers are enabled: the
-//! cgroups only gather processes, and limits and pressure on the worker's
-//! own cgroup still cover its actions.
+//! commands get process groups alone. No controllers are enabled: the
+//! cgroups only gather processes, and limits and pressure on this process's
+//! own cgroup still cover its commands.
 
 use std::fs::File;
 use std::io::{self, Write as _};
@@ -20,24 +21,24 @@ use std::os::fd::{AsRawFd as _, RawFd};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-/// Where this worker's action cgroups go.
+/// Where this process's command cgroups go.
 #[derive(Debug)]
 pub struct Cgroups {
     dir: PathBuf,
 }
 
 impl Cgroups {
-    /// A parent for action cgroups beneath the process's own cgroup, if the
-    /// process may make one.
-    pub fn new() -> Option<Self> {
+    /// A parent for commands' cgroups beneath the process's own cgroup,
+    /// named `{prefix}-{pid}`, if the process may make one.
+    pub fn new(prefix: &str) -> Option<Self> {
         let own = runtime_env::self_cgroup_v2_dir()?;
         // Moving a process between cgroups takes write access to their
-        // common ancestor's cgroup.procs, here the worker's own.
+        // common ancestor's cgroup.procs, here this process's own.
         File::options()
             .write(true)
             .open(own.join("cgroup.procs"))
             .ok()?;
-        let dir = own.join(format!("gonzo-actions-{}", std::process::id()));
+        let dir = own.join(format!("{prefix}-{}", std::process::id()));
         match std::fs::create_dir(&dir) {
             Ok(()) => {}
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
@@ -55,12 +56,12 @@ impl Cgroups {
         &self.dir
     }
 
-    /// A new, empty cgroup for an action.
-    pub fn create(&self, name: &str) -> io::Result<ActionCgroup> {
+    /// A new, empty cgroup for a command.
+    pub fn create(&self, name: &str) -> io::Result<Cgroup> {
         let dir = self.dir.join(name);
         std::fs::create_dir(&dir)?;
         match File::options().write(true).open(dir.join("cgroup.procs")) {
-            Ok(procs) => Ok(ActionCgroup { dir, procs }),
+            Ok(procs) => Ok(Cgroup { dir, procs }),
             Err(e) => {
                 let _ = std::fs::remove_dir(&dir);
                 Err(e)
@@ -75,16 +76,16 @@ impl Drop for Cgroups {
     }
 }
 
-/// One action's cgroup, removed (once empty) when dropped.
+/// One command's cgroup, removed (once empty) when dropped.
 #[derive(Debug)]
-pub struct ActionCgroup {
+pub struct Cgroup {
     dir: PathBuf,
     /// Its `cgroup.procs`, open before the command forks, so the child
     /// joins by writing to it.
     procs: File,
 }
 
-impl ActionCgroup {
+impl Cgroup {
     /// The descriptor a child writes `0` to, to join.
     pub fn procs_fd(&self) -> RawFd {
         self.procs.as_raw_fd()
@@ -115,7 +116,7 @@ impl ActionCgroup {
     }
 }
 
-impl Drop for ActionCgroup {
+impl Drop for Cgroup {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir(&self.dir);
     }

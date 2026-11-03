@@ -1,20 +1,20 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! `container-image=empty`: an action whose whole filesystem is its input
-//! root.
+//! A command whose whole filesystem is one directory (a command's input
+//! root, say: REAPI workers offer this as `container-image=empty`).
 //!
 //! The command starts in new user, mount, network, IPC and UTS namespaces,
 //! and its input root becomes `/` (by `pivot_root`, the host's root then
-//! detached), so nothing outside its declared inputs exists for it: no
+//! detached), so nothing outside that directory exists for it: no
 //! `/bin`, no `/lib`, no `/dev`, no `/proc`, no `/tmp`, and no network but
-//! a loopback device that is down. It runs as the worker's own user, mapped
+//! a loopback device that is down. It runs as this process's own user, mapped
 //! to itself. This is for checking that a build needs nothing of the host,
 //! as a full-source bootstrap should not.
 //!
 //! An unprivileged process may do all of this where the kernel allows
-//! unprivileged user namespaces, as most distributions' kernels do; a
-//! worker offers `container-image=empty` only where [`supported`] says so.
+//! unprivileged user namespaces, as most distributions' kernels do: check
+//! [`supported`] before offering it.
 
 use std::ffi::CString;
 use std::io;
@@ -22,15 +22,12 @@ use std::os::unix::ffi::OsStrExt as _;
 use std::path::{Component, Path};
 use std::sync::OnceLock;
 
-/// The image value that asks for an empty root.
-pub const EMPTY: &str = "empty";
-
 /// What a command needs to enter its empty root, prepared before it forks:
 /// between fork and exec a child of a multithreaded process may make
 /// system calls, but not allocate.
 #[derive(Clone, Debug)]
 pub struct EmptyRoot {
-    /// The input root, as the worker sees it.
+    /// The root, as this process sees it.
     root: CString,
     /// The working directory, as the command will see it.
     cwd: CString,
@@ -149,7 +146,7 @@ pub fn supported() -> bool {
     *SUPPORTED.get_or_init(|| match probe() {
         Ok(()) => true,
         Err(e) => {
-            tracing::info!("actions cannot run in an empty root here: {e}");
+            tracing::info!("commands cannot run in an empty root here: {e}");
             false
         }
     })
@@ -159,7 +156,7 @@ fn probe() -> io::Result<()> {
     use std::os::unix::process::CommandExt as _;
     let scratch = tempfile::tempdir()?;
     let root = EmptyRoot::new(scratch.path(), Path::new(""))?;
-    let mut command = std::process::Command::new("/gonzo-probe-of-an-empty-root");
+    let mut command = std::process::Command::new("/hermetic-run-probe-of-an-empty-root");
     // SAFETY: entering makes system calls only.
     unsafe {
         command.pre_exec(move || root.enter());

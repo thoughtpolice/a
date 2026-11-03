@@ -11,8 +11,8 @@ use std::os::unix::fs::PermissionsExt as _;
 use std::path::Path;
 use std::time::Duration;
 
-use crate::runner::{self, Outcome, SpawnError, Spec};
-use crate::sandbox::{self, EmptyRoot};
+use crate::empty_root::{self as sandbox, EmptyRoot};
+use crate::run::{self as runner, Outcome, SpawnError, Spec};
 
 /// A static x86_64 Linux executable that asks `access(argv[1], F_OK)` and
 /// exits with the errno it gets, or 0 if the path exists.
