@@ -23,13 +23,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use anyhow::{Context as _, Result};
 
-use protos::build::bazel::remote::execution::v2::Digest;
+use reapi_cas::{Digest, DigestFn};
 
 use crate::cas::Cas;
-use crate::digest::{DigestFunction, Key, key};
 
 /// A cached file, as the index knows it.
-type Name = (DigestFunction, Key);
+type Name = (DigestFn, Digest);
 
 /// See the module documentation.
 #[derive(Debug)]
@@ -71,7 +70,7 @@ impl Index {
         self.clock += 1;
         entry.used = self.clock;
         entry.pins += 1;
-        self.by_use.insert(self.clock, name.clone());
+        self.by_use.insert(self.clock, *name);
         true
     }
 
@@ -91,7 +90,7 @@ impl Index {
             return;
         }
         self.clock += 1;
-        self.by_use.insert(self.clock, name.clone());
+        self.by_use.insert(self.clock, name);
         self.entries.insert(
             name,
             Entry {
@@ -179,7 +178,7 @@ impl FileCache {
     /// written.
     fn scan(&self) -> io::Result<Vec<(Name, u64, std::time::SystemTime)>> {
         let mut found = Vec::new();
-        for function in [DigestFunction::Sha256, DigestFunction::Blake3] {
+        for function in [DigestFn::Sha256, DigestFn::Blake3, DigestFn::Sha256Tree] {
             let Ok(fans) = std::fs::read_dir(self.dir.join(function.to_string())) else {
                 continue;
             };
@@ -189,11 +188,11 @@ impl FileCache {
                     let metadata = file.metadata()?;
                     let parsed = file.file_name().to_str().and_then(|name| {
                         let (hash, size) = name.rsplit_once('-')?;
-                        Some((hash.to_string(), size.parse::<i64>().ok()?))
+                        Digest::parse(hash, size.parse().ok()?).ok()
                     });
                     match parsed {
-                        Some(key) => {
-                            found.push(((function, key), metadata.len(), metadata.modified()?))
+                        Some(digest) => {
+                            found.push(((function, digest), metadata.len(), metadata.modified()?))
                         }
                         None => std::fs::remove_file(file.path())?,
                     }
@@ -210,23 +209,18 @@ impl FileCache {
     /// Remove the files of `names`, which the index has forgotten; the
     /// caller holds the index's lock, or nothing else can use the cache.
     fn remove(&self, names: Vec<Name>) {
-        for (function, (hash, size)) in names {
-            let digest = Digest {
-                hash,
-                size_bytes: size,
-            };
+        for (function, digest) in names {
             let _ = std::fs::remove_file(self.path(function, &digest));
         }
     }
 
     /// Where the file with `digest` is kept.
-    pub fn path(&self, function: DigestFunction, digest: &Digest) -> PathBuf {
-        let hash = &digest.hash;
-        let fan = hash.get(..2).unwrap_or("00");
+    pub fn path(&self, function: DigestFn, digest: &Digest) -> PathBuf {
+        let hash = digest.hex();
         self.dir
             .join(function.to_string())
-            .join(fan)
-            .join(format!("{hash}-{}", digest.size_bytes))
+            .join(&hash[..2])
+            .join(format!("{hash}-{}", digest.size))
     }
 
     /// Download whichever of `digests` the cache does not have yet, and keep
@@ -234,7 +228,7 @@ impl FileCache {
     pub async fn fetch(
         &self,
         cas: &Cas,
-        function: DigestFunction,
+        function: DigestFn,
         digests: &[Digest],
     ) -> Result<Pinned<'_>> {
         let mut pinned = Pinned {
@@ -246,14 +240,14 @@ impl FileCache {
         {
             let mut index = self.lock();
             for digest in digests {
-                let name = (function, key(digest));
-                if !seen.insert(name.clone()) {
+                let name = (function, *digest);
+                if !seen.insert(name) {
                     continue;
                 }
                 if index.pin(&name) {
                     pinned.names.push(name);
                 } else {
-                    absent.push(digest.clone());
+                    absent.push(*digest);
                 }
             }
         }
@@ -274,8 +268,8 @@ impl FileCache {
         let mut index = self.lock();
         for (digest, partial) in downloads {
             keep(&partial, &self.path(function, &digest))?;
-            let name = (function, key(&digest));
-            index.insert(name.clone(), digest.size_bytes as u64, true);
+            let name = (function, digest);
+            index.insert(name, digest.size, true);
             pinned.names.push(name);
         }
         let evicted = index.evict(self.max_bytes);
@@ -287,7 +281,7 @@ impl FileCache {
     /// Give the action a copy of the file with `digest` at `dest`.
     pub fn copy_to(
         &self,
-        function: DigestFunction,
+        function: DigestFn,
         digest: &Digest,
         executable: bool,
         dest: &Path,
@@ -335,9 +329,9 @@ fn reflink(from: &std::fs::File, to: &std::fs::File) -> bool {
 mod tests {
     use super::*;
 
-    use crate::test_support::Daemon;
+    use crate::test_support::{Daemon, digest};
 
-    const SHA256: DigestFunction = DigestFunction::Sha256;
+    const SHA256: DigestFn = DigestFn::Sha256;
 
     async fn fetched(cache: &FileCache, cas: &Cas, digest: &Digest) {
         drop(
@@ -352,9 +346,9 @@ mod tests {
     async fn the_files_used_longest_ago_are_evicted() {
         let daemon = Daemon::start().await;
         let (a, b, c) = (
-            daemon.put("aaaa").await,
-            daemon.put("bbbb").await,
-            daemon.put("cccc").await,
+            digest(&daemon.put("aaaa").await),
+            digest(&daemon.put("bbbb").await),
+            digest(&daemon.put("cccc").await),
         );
         let scratch = tempfile::tempdir().unwrap();
         // Room for two.
@@ -374,16 +368,16 @@ mod tests {
     async fn files_being_given_out_are_kept() {
         let daemon = Daemon::start().await;
         let (a, b, c) = (
-            daemon.put("aaaa").await,
-            daemon.put("bbbb").await,
-            daemon.put("cccc").await,
+            digest(&daemon.put("aaaa").await),
+            digest(&daemon.put("bbbb").await),
+            digest(&daemon.put("cccc").await),
         );
         let scratch = tempfile::tempdir().unwrap();
         // Room for one.
         let cache = FileCache::open(scratch.path(), 4).unwrap();
         let cas = daemon.cas();
-        let holding_a = cache.fetch(&cas, SHA256, &[a.clone()]).await.unwrap();
-        let holding_b = cache.fetch(&cas, SHA256, &[b.clone()]).await.unwrap();
+        let holding_a = cache.fetch(&cas, SHA256, &[a]).await.unwrap();
+        let holding_b = cache.fetch(&cas, SHA256, &[b]).await.unwrap();
         assert!(cache.path(SHA256, &a).exists() && cache.path(SHA256, &b).exists());
 
         drop((holding_a, holding_b));
@@ -396,7 +390,10 @@ mod tests {
     #[tokio::test]
     async fn a_reopened_cache_knows_its_files() {
         let daemon = Daemon::start().await;
-        let (a, b) = (daemon.put("aaaa").await, daemon.put("bbbb").await);
+        let (a, b) = (
+            digest(&daemon.put("aaaa").await),
+            digest(&daemon.put("bbbb").await),
+        );
         let scratch = tempfile::tempdir().unwrap();
         {
             let cache = FileCache::open(scratch.path(), 100).unwrap();
@@ -426,7 +423,7 @@ mod tests {
 
         let scratch = tempfile::tempdir().unwrap();
         let cache = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
-        let digest = SHA256.of(b"a slow tool");
+        let digest = SHA256.digest(b"a slow tool");
         let source = cache.path(SHA256, &digest);
         std::fs::create_dir_all(source.parent().unwrap()).unwrap();
         let fifo = std::ffi::CString::new(source.as_os_str().as_bytes()).unwrap();

@@ -10,9 +10,9 @@ use protos::build::bazel::remote::execution::v2::{
 
 use crate::cache::FileCache;
 use crate::cas::Missing;
-use crate::digest::DigestFunction;
 use crate::inputs::Inputs;
-use crate::test_support::Daemon;
+use crate::test_support::{Daemon, digest};
+use reapi_cas::DigestFn;
 
 fn file(name: &str, digest: &Digest, executable: bool) -> FileNode {
     FileNode {
@@ -77,7 +77,7 @@ async fn lays_out_files_directories_and_symlinks() {
         let dest = scratch.path().join(attempt);
         std::fs::create_dir(&dest).unwrap();
         inputs
-            .materialize(&cas, DigestFunction::Sha256, &root, &dest)
+            .materialize(&cas, DigestFn::Sha256, &digest(&root), &dest)
             .await
             .expect("materialize");
 
@@ -108,7 +108,7 @@ async fn lays_out_files_directories_and_symlinks() {
 #[tokio::test]
 async fn missing_inputs_are_named() {
     let daemon = Daemon::start().await;
-    let absent = DigestFunction::Sha256.of(b"never uploaded");
+    let absent = DigestFn::Sha256.digest(b"never uploaded").to_proto();
     let root = daemon
         .put_dir(&Directory {
             files: vec![file("absent", &absent, false)],
@@ -120,11 +120,11 @@ async fn missing_inputs_are_named() {
     let files = Arc::new(FileCache::open(&scratch.path().join("files"), u64::MAX).unwrap());
     let (inputs, cas) = (Inputs::new(files), daemon.cas());
     let err = inputs
-        .materialize(&cas, DigestFunction::Sha256, &root, scratch.path())
+        .materialize(&cas, DigestFn::Sha256, &digest(&root), scratch.path())
         .await
         .expect_err("an input is missing");
     let missing = err.downcast_ref::<Missing>().expect("a Missing error");
-    assert_eq!(missing.0, [absent]);
+    assert_eq!(missing.0, [digest(&absent)]);
 }
 
 #[tokio::test]
@@ -142,7 +142,7 @@ async fn entries_must_be_file_names() {
             })
             .await;
         let err = inputs
-            .materialize(&cas, DigestFunction::Sha256, &root, scratch.path())
+            .materialize(&cas, DigestFn::Sha256, &digest(&root), scratch.path())
             .await
             .expect_err("refused");
         assert!(
@@ -157,7 +157,7 @@ async fn entries_must_be_file_names() {
         })
         .await;
     let err = inputs
-        .materialize(&cas, DigestFunction::Sha256, &root, scratch.path())
+        .materialize(&cas, DigestFn::Sha256, &digest(&root), scratch.path())
         .await
         .expect_err("refused");
     assert!(
@@ -190,7 +190,7 @@ async fn a_directory_too_large_for_a_batch_is_streamed() {
     let dest = scratch.path().join("root");
     std::fs::create_dir(&dest).unwrap();
     Inputs::new(files)
-        .materialize(&daemon.cas(), DigestFunction::Sha256, &root, &dest)
+        .materialize(&daemon.cas(), DigestFn::Sha256, &digest(&root), &dest)
         .await
         .expect("laid out");
     let link = std::fs::read_link(dest.join("link24999")).unwrap();

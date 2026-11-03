@@ -8,9 +8,9 @@ use prost::Message as _;
 
 use protos::build::bazel::remote::execution::v2::{Command, Directory, Tree};
 
-use crate::digest::{DigestFunction, key};
 use crate::outputs;
 use crate::test_support::Daemon;
+use reapi_cas::DigestFn;
 
 fn write(root: &Path, path: &str, contents: &[u8], mode: u32) {
     let path = root.join(path);
@@ -77,7 +77,7 @@ async fn files_directories_and_symlinks_are_uploaded() {
         &["gen/out"],
     );
     let outputs = outputs::expected(&command).unwrap();
-    let (produced, []) = outputs::upload(&daemon.cas(), DigestFunction::Sha256, outputs, root, [])
+    let (produced, []) = outputs::upload(&daemon.cas(), DigestFn::Sha256, outputs, root, [])
         .await
         .expect("upload");
 
@@ -131,7 +131,7 @@ async fn files_directories_and_symlinks_are_uploaded() {
         assert!(
             tree.children
                 .iter()
-                .any(|c| key(&DigestFunction::Sha256.of(&c.encode_to_vec())) == key(digest)),
+                .any(|c| DigestFn::Sha256.digest(&c.encode_to_vec()).to_proto() == *digest),
             "{}",
             sub.name
         );
@@ -157,7 +157,7 @@ async fn large_outputs_are_streamed() {
     };
     let (produced, []) = outputs::upload(
         &daemon.cas(),
-        DigestFunction::Sha256,
+        DigestFn::Sha256,
         outputs::expected(&command).unwrap(),
         scratch.path(),
         [],
@@ -190,7 +190,7 @@ async fn large_trees_are_streamed() {
     };
     let (produced, []) = outputs::upload(
         &daemon.cas(),
-        DigestFunction::Sha256,
+        DigestFn::Sha256,
         outputs::expected(&command).unwrap(),
         scratch.path(),
         [],

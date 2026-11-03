@@ -14,22 +14,22 @@ use std::sync::Arc;
 use anyhow::{Context as _, Result};
 use prost::Message as _;
 
-use protos::build::bazel::remote::execution::v2::{Digest, Directory};
+use protos::build::bazel::remote::execution::v2::Directory;
+use reapi_cas::{Digest, DigestFn};
 
 use crate::cache::FileCache;
 use crate::cas::Cas;
-use crate::digest::{DigestFunction, Key, key, show};
 
 /// Directories kept in memory.
 const DIRECTORY_CACHE_ENTRIES: usize = 100_000;
 
 /// A tree's directories, by digest.
-type Tree = HashMap<Key, Arc<Directory>>;
+type Tree = HashMap<Digest, Arc<Directory>>;
 
 /// See the module documentation.
 pub struct Inputs {
     files: Arc<FileCache>,
-    directories: quick_cache::sync::Cache<(DigestFunction, Key), Arc<Directory>>,
+    directories: quick_cache::sync::Cache<(DigestFn, Digest), Arc<Directory>>,
 }
 
 impl Inputs {
@@ -44,7 +44,7 @@ impl Inputs {
     pub async fn materialize(
         &self,
         cas: &Cas,
-        function: DigestFunction,
+        function: DigestFn,
         root: &Digest,
         dest: &Path,
     ) -> Result<()> {
@@ -52,16 +52,12 @@ impl Inputs {
         let files: Vec<Digest> = tree
             .values()
             .flat_map(|dir| &dir.files)
-            .map(|file| {
-                file.digest
-                    .clone()
-                    .with_context(|| format!("input file {:?} has no digest", file.name))
-            })
+            .map(|file| node_digest(file.digest.as_ref(), "file", &file.name))
             .collect::<Result<_>>()?;
         let pinned = self.files.fetch(cas, function, &files).await?;
 
         let files = self.files.clone();
-        let (root, dest) = (root.clone(), dest.to_path_buf());
+        let (root, dest) = (*root, dest.to_path_buf());
         let laid_out =
             tokio::task::spawn_blocking(move || lay_out(&files, function, &tree, &root, &dest))
                 .await?;
@@ -70,45 +66,42 @@ impl Inputs {
     }
 
     /// Every directory of the tree rooted at `root`.
-    async fn tree(&self, cas: &Cas, function: DigestFunction, root: &Digest) -> Result<Tree> {
+    async fn tree(&self, cas: &Cas, function: DigestFn, root: &Digest) -> Result<Tree> {
         let mut tree = Tree::new();
-        let mut level = vec![root.clone()];
+        let mut level = vec![*root];
         while !level.is_empty() {
             let mut found = Vec::new();
             let mut fetch = Vec::new();
             let mut queued = HashSet::new();
             for digest in level.drain(..) {
-                let k = key(&digest);
-                if tree.contains_key(&k) {
+                if tree.contains_key(&digest) {
                     continue;
                 }
-                match self.directories.get(&(function, k.clone())) {
+                match self.directories.get(&(function, digest)) {
                     Some(dir) => {
-                        tree.insert(k, dir.clone());
+                        tree.insert(digest, dir.clone());
                         found.push(dir);
                     }
                     None => {
-                        if queued.insert(k) {
+                        if queued.insert(digest) {
                             fetch.push(digest);
                         }
                     }
                 }
             }
-            for (k, data) in cas.read_blobs(function, &fetch).await? {
+            for (digest, data) in cas.read_blobs(function, &fetch).await? {
                 let dir = Directory::decode(data.as_ref())
-                    .with_context(|| format!("input directory {}/{} does not decode", k.0, k.1))?;
+                    .with_context(|| format!("input directory {digest} does not decode"))?;
                 reapi_client::check_entry_names(&dir)
-                    .with_context(|| format!("input directory {}/{}", k.0, k.1))?;
+                    .with_context(|| format!("input directory {digest}"))?;
                 let dir = Arc::new(dir);
-                self.directories.insert((function, k.clone()), dir.clone());
-                tree.insert(k, dir.clone());
+                self.directories.insert((function, digest), dir.clone());
+                tree.insert(digest, dir.clone());
                 found.push(dir);
             }
             for dir in found {
                 for sub in &dir.directories {
-                    level.push(sub.digest.clone().with_context(|| {
-                        format!("input directory {:?} has no digest", sub.name)
-                    })?);
+                    level.push(node_digest(sub.digest.as_ref(), "directory", &sub.name)?);
                 }
             }
         }
@@ -118,19 +111,19 @@ impl Inputs {
 
 fn lay_out(
     files: &FileCache,
-    function: DigestFunction,
+    function: DigestFn,
     tree: &Tree,
     digest: &Digest,
     path: &Path,
 ) -> Result<()> {
     let dir = tree
-        .get(&key(digest))
-        .with_context(|| format!("directory {} is not in the tree", show(digest)))?;
+        .get(digest)
+        .with_context(|| format!("directory {digest} is not in the tree"))?;
     for file in &dir.files {
         let dest = path.join(&file.name);
-        let digest = file.digest.as_ref().expect("checked when fetching");
+        let digest = node_digest(file.digest.as_ref(), "file", &file.name)?;
         files
-            .copy_to(function, digest, file.is_executable, &dest)
+            .copy_to(function, &digest, file.is_executable, &dest)
             .with_context(|| format!("creating {}", dest.display()))?;
     }
     for symlink in &dir.symlinks {
@@ -141,8 +134,18 @@ fn lay_out(
     for sub in &dir.directories {
         let dest = path.join(&sub.name);
         std::fs::create_dir(&dest).with_context(|| format!("creating {}", dest.display()))?;
-        let digest = sub.digest.as_ref().expect("checked when fetching");
-        lay_out(files, function, tree, digest, &dest)?;
+        let digest = node_digest(sub.digest.as_ref(), "directory", &sub.name)?;
+        lay_out(files, function, tree, &digest, &dest)?;
     }
     Ok(())
+}
+
+/// The digest of the input `kind` (a file or directory) called `name`.
+fn node_digest(
+    digest: Option<&protos::build::bazel::remote::execution::v2::Digest>,
+    kind: &str,
+    name: &str,
+) -> Result<Digest> {
+    let digest = digest.with_context(|| format!("input {kind} {name:?} has no digest"))?;
+    Digest::from_proto(digest).with_context(|| format!("input {kind} {name:?}"))
 }

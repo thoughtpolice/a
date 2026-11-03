@@ -13,12 +13,12 @@ use bytes::Bytes;
 use prost::Message as _;
 
 use protos::build::bazel::remote::execution::v2::{
-    Command, Digest, Directory, DirectoryNode, FileNode, OutputDirectory, OutputFile,
-    OutputSymlink, SymlinkNode, Tree,
+    Command, Directory, DirectoryNode, FileNode, OutputDirectory, OutputFile, OutputSymlink,
+    SymlinkNode, Tree,
 };
+use reapi_cas::{Digest, DigestFn};
 
 use crate::cas::{Blob, Cas};
-use crate::digest::{DigestFunction, Key, key};
 
 /// What an action produced, as an `ActionResult` names it.
 #[derive(Debug, Default)]
@@ -78,7 +78,7 @@ pub fn prepare(command: &Command, working_directory: &Path) -> Result<()> {
 /// expected is reported as a file.
 pub async fn upload<const N: usize>(
     cas: &Cas,
-    function: DigestFunction,
+    function: DigestFn,
     outputs: Vec<String>,
     working_directory: &Path,
     streams: [PathBuf; N],
@@ -89,9 +89,9 @@ pub async fn upload<const N: usize>(
         let mut digests = Vec::with_capacity(N);
         for path in streams {
             let digest = function
-                .of_file(&path)
+                .digest_file(&path)
                 .with_context(|| format!("reading {}", path.display()))?;
-            uploads.file(digest.clone(), path);
+            uploads.file(digest, path);
             digests.push(digest);
         }
         let digests: [Digest; N] = digests.try_into().expect("a digest per stream");
@@ -102,11 +102,7 @@ pub async fn upload<const N: usize>(
     Ok((produced, streams))
 }
 
-fn collect(
-    function: DigestFunction,
-    outputs: &[String],
-    root: &Path,
-) -> Result<(Produced, Uploads)> {
+fn collect(function: DigestFn, outputs: &[String], root: &Path) -> Result<(Produced, Uploads)> {
     let mut produced = Produced::default();
     let mut uploads = Uploads::default();
     for output in outputs {
@@ -135,18 +131,18 @@ fn collect(
                     children: tree.children,
                 };
                 let encoded = Bytes::from(tree.encode_to_vec());
-                let tree_digest = function.of(&encoded);
-                uploads.0.push((tree_digest.clone(), Blob::Memory(encoded)));
+                let tree_digest = function.digest(&encoded);
+                uploads.0.push((tree_digest, Blob::Memory(encoded)));
                 produced.directories.push(OutputDirectory {
                     path: output.clone(),
-                    tree_digest: Some(tree_digest),
+                    tree_digest: Some(tree_digest.to_proto()),
                     is_topologically_sorted: false,
                     root_directory_digest: None,
                 });
             }
             Entry::File { digest, executable } => produced.files.push(OutputFile {
                 path: output.clone(),
-                digest: Some(digest),
+                digest: Some(digest.to_proto()),
                 is_executable: executable,
                 contents: Bytes::new(),
                 node_properties: None,
@@ -158,11 +154,11 @@ fn collect(
 
 /// Builds a `Tree` of an output directory.
 struct TreeBuilder<'a> {
-    function: DigestFunction,
+    function: DigestFn,
     uploads: &'a mut Uploads,
     children: Vec<Directory>,
     /// Children already listed, by digest.
-    seen: HashSet<Key>,
+    seen: HashSet<Digest>,
 }
 
 impl TreeBuilder<'_> {
@@ -189,18 +185,18 @@ impl TreeBuilder<'_> {
                 }),
                 Entry::Directory => {
                     let sub = self.directory(&path)?;
-                    let digest = self.function.of(&sub.encode_to_vec());
-                    if self.seen.insert(key(&digest)) {
+                    let digest = self.function.digest(&sub.encode_to_vec());
+                    if self.seen.insert(digest) {
                         self.children.push(sub);
                     }
                     dir.directories.push(DirectoryNode {
                         name,
-                        digest: Some(digest),
+                        digest: Some(digest.to_proto()),
                     });
                 }
                 Entry::File { digest, executable } => dir.files.push(FileNode {
                     name,
-                    digest: Some(digest),
+                    digest: Some(digest.to_proto()),
                     is_executable: executable,
                     node_properties: None,
                 }),
@@ -224,7 +220,7 @@ enum Entry {
 /// What is at `path`, whose metadata is `metadata`. A file is hashed and
 /// added to `uploads`.
 fn entry(
-    function: DigestFunction,
+    function: DigestFn,
     uploads: &mut Uploads,
     path: &Path,
     metadata: &std::fs::Metadata,
@@ -237,9 +233,9 @@ fn entry(
         Ok(Entry::Directory)
     } else if kind.is_file() {
         let digest = function
-            .of_file(path)
+            .digest_file(path)
             .with_context(|| format!("reading {}", path.display()))?;
-        uploads.file(digest.clone(), path.to_path_buf());
+        uploads.file(digest, path.to_path_buf());
         Ok(Entry::File {
             digest,
             executable: metadata.permissions().mode() & 0o111 != 0,
@@ -267,25 +263,23 @@ impl Uploads {
     }
 
     /// Upload whichever of these the CAS does not have yet.
-    async fn send(self, cas: &Cas, function: DigestFunction) -> Result<()> {
+    async fn send(self, cas: &Cas, function: DigestFn) -> Result<()> {
         let mut all = HashSet::new();
         let digests: Vec<Digest> = self
             .0
             .iter()
-            .map(|(d, _)| d)
-            .filter(|d| all.insert(key(d)))
-            .cloned()
+            .map(|(d, _)| *d)
+            .filter(|d| all.insert(*d))
             .collect();
-        let mut missing: HashSet<Key> = cas
+        let mut missing: HashSet<Digest> = cas
             .find_missing(function, &digests)
             .await?
-            .iter()
-            .map(key)
+            .into_iter()
             .collect();
         let blobs = self
             .0
             .into_iter()
-            .filter(|(digest, _)| missing.remove(&key(digest)))
+            .filter(|(digest, _)| missing.remove(digest))
             .collect();
         cas.write_blobs(function, blobs).await
     }

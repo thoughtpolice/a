@@ -18,9 +18,9 @@ use protos::google::rpc::Code;
 
 use gonzo_testing::completion;
 
-use crate::digest::DigestFunction;
 use crate::test_support::Daemon;
 use crate::{Config, Image, Worker, host_properties};
+use reapi_cas::DigestFn;
 
 const PATIENCE: Duration = Duration::from_secs(30);
 
@@ -193,7 +193,7 @@ async fn a_missing_input_fails_the_precondition() {
     let inputs = Directory {
         files: vec![FileNode {
             name: "absent".into(),
-            digest: Some(DigestFunction::Sha256.of(b"never uploaded")),
+            digest: Some(DigestFn::Sha256.digest(b"never uploaded").to_proto()),
             is_executable: false,
             node_properties: None,
         }],

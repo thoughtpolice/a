@@ -28,9 +28,9 @@ use hermetic_run::{self as runner, Cgroups, EmptyRoot, Outcome, SpawnError};
 
 use crate::cache::FileCache;
 use crate::cas::{Cas, Missing};
-use crate::digest::DigestFunction;
 use crate::inputs::Inputs;
 use crate::outputs;
+use reapi_cas::{Digest, DigestFn};
 
 /// How a worker presents itself and runs actions.
 #[derive(Clone, Debug)]
@@ -336,7 +336,7 @@ impl Worker {
             worker_start_timestamp: Some(now()),
             ..Default::default()
         };
-        let function = DigestFunction::from_proto(assign.digest_function)
+        let function = DigestFn::of_request(assign.digest_function)
             .with_context(|| format!("unsupported digest function {}", assign.digest_function))?;
         let action = assign
             .action
@@ -350,12 +350,13 @@ impl Worker {
             .input_root_digest
             .as_ref()
             .context("the action has no input root")?;
+        let input_root = Digest::from_proto(input_root).context("the action's input root")?;
 
         let root = build.join("root");
         std::fs::create_dir_all(&root)?;
         metadata.input_fetch_start_timestamp = Some(now());
         self.inputs
-            .materialize(cas, function, input_root, &root)
+            .materialize(cas, function, &input_root, &root)
             .await?;
         metadata.input_fetch_completed_timestamp = Some(now());
 
@@ -479,8 +480,8 @@ impl Worker {
                 output_directories: produced.directories,
                 output_symlinks: produced.symlinks,
                 exit_code,
-                stdout_digest: Some(stdout_digest),
-                stderr_digest: Some(stderr_digest),
+                stdout_digest: Some(stdout_digest.to_proto()),
+                stderr_digest: Some(stderr_digest.to_proto()),
                 execution_metadata: Some(metadata),
                 ..Default::default()
             }),

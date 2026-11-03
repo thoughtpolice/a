@@ -42,3 +42,8 @@ impl std::ops::Deref for Daemon {
         &self.0
     }
 }
+
+/// A digest the daemon gave, as the worker takes one.
+pub fn digest(digest: &protos::build::bazel::remote::execution::v2::Digest) -> reapi_cas::Digest {
+    reapi_cas::Digest::from_proto(digest).expect("a valid digest")
+}

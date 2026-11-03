@@ -16,20 +16,20 @@ use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tonic::transport::Channel;
 
 use protos::build::bazel::remote::execution::v2::{
-    BatchReadBlobsRequest, BatchUpdateBlobsRequest, Digest, FindMissingBlobsRequest,
+    BatchReadBlobsRequest, BatchUpdateBlobsRequest, FindMissingBlobsRequest,
     batch_update_blobs_request,
     content_addressable_storage_client::ContentAddressableStorageClient,
 };
 use protos::google::bytestream::{ReadRequest, WriteRequest, byte_stream_client::ByteStreamClient};
-
-use crate::digest::{DigestFunction, Key, key, show};
+use reapi_cas::resource::{read_name, write_name};
+use reapi_cas::{Compression, Digest, DigestFn};
 
 /// Blobs up to this size travel in batches; larger ones stream.
-const BATCH_BLOB_MAX: i64 = 1024 * 1024;
+const BATCH_BLOB_MAX: u64 = 1024 * 1024;
 
 /// Most bytes of blobs in one batch, under the daemon's 4 MB limit with
 /// room for the messages around them.
-const BATCH_BYTES: i64 = 3 * 1024 * 1024;
+const BATCH_BYTES: u64 = 3 * 1024 * 1024;
 
 /// Batches read at once.
 const PARALLEL_BATCHES: usize = 4;
@@ -56,7 +56,7 @@ pub enum Blob {
 /// Blobs an action needs that the CAS does not have. The action fails
 /// with `FAILED_PRECONDITION`, which tells the client to upload them again.
 #[derive(Debug, thiserror::Error)]
-#[error("missing from the CAS: {}", .0.iter().map(show).collect::<Vec<_>>().join(", "))]
+#[error("missing from the CAS: {}", .0.iter().map(Digest::to_string).collect::<Vec<_>>().join(", "))]
 pub struct Missing(pub Vec<Digest>);
 
 /// See the module documentation. Cheap to clone.
@@ -80,16 +80,16 @@ impl Cas {
     /// naming every one the CAS does not have.
     pub async fn read_blobs(
         &self,
-        function: DigestFunction,
+        function: DigestFn,
         digests: &[Digest],
-    ) -> Result<HashMap<Key, Bytes>> {
+    ) -> Result<HashMap<Digest, Bytes>> {
         let (small, large): (Vec<Digest>, Vec<Digest>) = digests
             .iter()
-            .cloned()
-            .partition(|d| d.size_bytes <= BATCH_BLOB_MAX);
+            .copied()
+            .partition(|d| d.size <= BATCH_BLOB_MAX);
         let streamed = futures::stream::iter(large)
             .map(|digest| async move {
-                let mut data = Vec::with_capacity(digest.size_bytes as usize);
+                let mut data = Vec::with_capacity(digest.size as usize);
                 let found = self.read_stream(function, &digest, &mut data).await?;
                 anyhow::Ok((digest, found.then(|| Bytes::from(data))))
             })
@@ -100,7 +100,7 @@ impl Cas {
         for (digest, data) in streamed {
             match data {
                 Some(data) => {
-                    blobs.insert(key(&digest), data);
+                    blobs.insert(digest, data);
                 }
                 None => missing.push(digest),
             }
@@ -117,18 +117,18 @@ impl Cas {
     /// files already written are the caller's to remove.
     pub async fn read_to_files(
         &self,
-        function: DigestFunction,
+        function: DigestFn,
         blobs: Vec<(Digest, PathBuf)>,
     ) -> Result<()> {
         let (small, large): (Vec<_>, Vec<_>) = blobs
             .into_iter()
-            .partition(|(d, _)| d.size_bytes <= BATCH_BLOB_MAX);
+            .partition(|(d, _)| d.size <= BATCH_BLOB_MAX);
         let batched = async {
-            let digests: Vec<Digest> = small.iter().map(|(d, _)| d.clone()).collect();
+            let digests: Vec<Digest> = small.iter().map(|(d, _)| *d).collect();
             let (mut data, missing) = self.read_batches(function, &digests).await?;
             let writes: Vec<(PathBuf, Bytes)> = small
                 .into_iter()
-                .filter_map(|(digest, path)| data.remove(&key(&digest)).map(|data| (path, data)))
+                .filter_map(|(digest, path)| data.remove(&digest).map(|data| (path, data)))
                 .collect();
             tokio::task::spawn_blocking(move || {
                 for (path, data) in writes {
@@ -148,9 +148,7 @@ impl Cas {
                 let found = self
                     .read_stream(function, &digest, &mut file)
                     .await
-                    .with_context(|| {
-                        format!("reading {} into {}", show(&digest), path.display())
-                    })?;
+                    .with_context(|| format!("reading {digest} into {}", path.display()))?;
                 file.flush().await?;
                 anyhow::Ok((!found).then_some(digest))
             })
@@ -168,17 +166,17 @@ impl Cas {
     /// those the CAS does not have.
     async fn read_batches(
         &self,
-        function: DigestFunction,
+        function: DigestFn,
         digests: &[Digest],
-    ) -> Result<(HashMap<Key, Bytes>, Vec<Digest>)> {
+    ) -> Result<(HashMap<Digest, Bytes>, Vec<Digest>)> {
         let mut blobs = HashMap::with_capacity(digests.len());
         let mut missing = Vec::new();
-        let requests: Vec<_> = batches(digests, |d| d.size_bytes)
+        let requests: Vec<_> = batches(digests, |d| d.size)
             .map(|batch| BatchReadBlobsRequest {
                 instance_name: String::new(),
-                digests: batch.to_vec(),
+                digests: batch.iter().map(Digest::to_proto).collect(),
                 acceptable_compressors: Vec::new(),
-                digest_function: function.to_proto(),
+                digest_function: function.to_proto_i32(),
             })
             .collect();
         let cas = self.cas.clone();
@@ -193,20 +191,19 @@ impl Cas {
             for blob in response.responses {
                 let digest = blob
                     .digest
+                    .as_ref()
                     .context("BatchReadBlobs answered without a digest")?;
+                let digest = Digest::from_proto(digest).context("BatchReadBlobs")?;
                 match blob.status.map_or(0, |s| s.code) {
                     0 => {}
                     5 => {
                         missing.push(digest);
                         continue;
                     }
-                    code => bail!(
-                        "BatchReadBlobs failed for {} with code {code}",
-                        show(&digest)
-                    ),
+                    code => bail!("BatchReadBlobs failed for {digest} with code {code}"),
                 }
                 check(function, &digest, &blob.data)?;
-                blobs.insert(key(&digest), blob.data);
+                blobs.insert(digest, blob.data);
             }
         }
         Ok((blobs, missing))
@@ -216,12 +213,12 @@ impl Cas {
     /// CAS does not have it.
     async fn read_stream(
         &self,
-        function: DigestFunction,
+        function: DigestFn,
         digest: &Digest,
         sink: &mut (impl tokio::io::AsyncWrite + Unpin),
     ) -> Result<bool> {
         let request = ReadRequest {
-            resource_name: self.resource(function, digest, None),
+            resource_name: read_name("", function, Compression::Identity, digest),
             read_offset: 0,
             read_limit: 0,
         };
@@ -247,7 +244,7 @@ impl Cas {
     /// Which of `digests` the CAS does not have.
     pub async fn find_missing(
         &self,
-        function: DigestFunction,
+        function: DigestFn,
         digests: &[Digest],
     ) -> Result<Vec<Digest>> {
         let mut missing = Vec::new();
@@ -257,13 +254,15 @@ impl Cas {
                 .clone()
                 .find_missing_blobs(FindMissingBlobsRequest {
                     instance_name: String::new(),
-                    blob_digests: chunk.to_vec(),
-                    digest_function: function.to_proto(),
+                    blob_digests: chunk.iter().map(Digest::to_proto).collect(),
+                    digest_function: function.to_proto_i32(),
                 })
                 .await
                 .context("FindMissingBlobs")?
                 .into_inner();
-            missing.extend(response.missing_blob_digests);
+            for digest in &response.missing_blob_digests {
+                missing.push(Digest::from_proto(digest).context("FindMissingBlobs")?);
+            }
         }
         Ok(missing)
     }
@@ -271,17 +270,13 @@ impl Cas {
     /// Store `blobs`, of any size: small ones by batches, with any files
     /// among them read at once, and large ones streamed, a few at a time,
     /// meanwhile, since the daemon refuses a batch over its limit.
-    pub async fn write_blobs(
-        &self,
-        function: DigestFunction,
-        blobs: Vec<(Digest, Blob)>,
-    ) -> Result<()> {
+    pub async fn write_blobs(&self, function: DigestFn, blobs: Vec<(Digest, Blob)>) -> Result<()> {
         let mut small = Vec::new();
         let mut small_files = Vec::new();
         let mut large = Vec::new();
         for (digest, blob) in blobs {
             match blob {
-                blob if digest.size_bytes > BATCH_BLOB_MAX => large.push((digest, blob)),
+                blob if digest.size > BATCH_BLOB_MAX => large.push((digest, blob)),
                 Blob::File(path) => small_files.push((digest, path)),
                 Blob::Memory(data) => small.push((digest, data)),
             }
@@ -321,16 +316,12 @@ impl Cas {
         Ok(())
     }
 
-    async fn write_batches(
-        &self,
-        function: DigestFunction,
-        blobs: Vec<(Digest, Bytes)>,
-    ) -> Result<()> {
-        for batch in batches(&blobs, |(d, _)| d.size_bytes) {
+    async fn write_batches(&self, function: DigestFn, blobs: Vec<(Digest, Bytes)>) -> Result<()> {
+        for batch in batches(&blobs, |(d, _)| d.size) {
             let requests = batch
                 .iter()
                 .map(|(digest, data)| batch_update_blobs_request::Request {
-                    digest: Some(digest.clone()),
+                    digest: Some(digest.to_proto()),
                     data: data.clone(),
                     compressor: 0,
                 })
@@ -341,14 +332,17 @@ impl Cas {
                 .batch_update_blobs(BatchUpdateBlobsRequest {
                     instance_name: String::new(),
                     requests,
-                    digest_function: function.to_proto(),
+                    digest_function: function.to_proto_i32(),
                 })
                 .await
                 .context("BatchUpdateBlobs")?
                 .into_inner();
             for blob in response.responses {
                 if let Some(status) = blob.status.filter(|s| s.code != 0) {
-                    let digest = blob.digest.as_ref().map_or_else(String::new, show);
+                    let digest = blob
+                        .digest
+                        .as_ref()
+                        .map_or_else(String::new, |d| format!("{}/{}", d.hash, d.size_bytes));
                     bail!("storing {digest} failed: {}", status.message);
                 }
             }
@@ -358,12 +352,13 @@ impl Cas {
 
     async fn write_stream(
         &self,
-        function: DigestFunction,
+        function: DigestFn,
         digest: &Digest,
         mut blob: impl tokio::io::AsyncRead + Unpin,
     ) -> Result<()> {
-        let resource_name = self.resource(function, digest, Some(uuid::Uuid::new_v4()));
-        let size = digest.size_bytes;
+        let uuid = uuid::Uuid::new_v4().to_string();
+        let resource_name = write_name("", &uuid, function, Compression::Identity, digest);
+        let size = digest.size_bytes();
         let (tx, rx) = tokio::sync::mpsc::channel::<WriteRequest>(4);
         let reader = async move {
             let mut offset = 0i64;
@@ -403,43 +398,24 @@ impl Cas {
         }
         Ok(())
     }
-
-    fn resource(
-        &self,
-        function: DigestFunction,
-        digest: &Digest,
-        upload: Option<uuid::Uuid>,
-    ) -> String {
-        let mut name = String::new();
-        if let Some(uuid) = upload {
-            name.push_str(&format!("uploads/{uuid}/"));
-        }
-        name.push_str("blobs/");
-        if let Some(function) = function.resource_name() {
-            name.push_str(function);
-            name.push('/');
-        }
-        name.push_str(&show(digest));
-        name
-    }
 }
 
 /// Check that `data` is what `digest` names.
-fn check(function: DigestFunction, digest: &Digest, data: &[u8]) -> Result<()> {
-    same(&function.of(data), digest)
+fn check(function: DigestFn, digest: &Digest, data: &[u8]) -> Result<()> {
+    same(&function.digest(data), digest)
 }
 
 /// Check that what was read, whose digest is `got`, is what `digest` names.
 fn same(got: &Digest, digest: &Digest) -> Result<()> {
     if got != digest {
-        bail!("read {} for {}", show(got), show(digest));
+        bail!("read {got} for {digest}");
     }
     Ok(())
 }
 
 /// `blobs`, whose sizes `size` tells, in groups of at most [`BATCH_BYTES`]
 /// each.
-fn batches<T>(blobs: &[T], size: impl Fn(&T) -> i64) -> impl Iterator<Item = &[T]> {
+fn batches<T>(blobs: &[T], size: impl Fn(&T) -> u64) -> impl Iterator<Item = &[T]> {
     let mut rest = blobs;
     std::iter::from_fn(move || {
         if rest.is_empty() {
