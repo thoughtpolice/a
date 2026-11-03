@@ -73,6 +73,9 @@ use registry::RegistryClient;
 /// routinely exceed 256 MiB.
 pub const MAX_OCI_BLOB_SIZE: u64 = 2 * 1024 * 1024 * 1024;
 
+/// What requests to registries say they come from.
+pub const USER_AGENT: &str = "fetch-oci";
+
 /// Total size cap summed across config + all layers, checked before any blob
 /// download begins.
 pub const MAX_OCI_TOTAL_SIZE: u64 = 16 * 1024 * 1024 * 1024;

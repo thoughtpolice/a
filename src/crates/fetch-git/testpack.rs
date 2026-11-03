@@ -6,7 +6,7 @@
 //! Builds syntactically valid packfiles — real object headers, delta
 //! encodings, offsets, and SHA-1 trailer — without needing a git binary or
 //! network access. Used by this crate's tests and by downstream crates
-//! (e.g. gonzo's git ingestion tests).
+//! (e.g. tests of code that ingests what a clone fetched).
 //!
 //! Not a stable API: test support only.
 

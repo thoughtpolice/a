@@ -32,10 +32,9 @@ DEPS = [
 ]
 
 depot.rust_library(
-    name = "git",
+    name = "fetch-git",
     srcs = LIB_SRCS,
-    crate = "fetch_git",
-    visibility = ["//src/gonzo/..."],
+    visibility = ["PUBLIC"],
     deps = DEPS,
 )
 
@@ -49,7 +48,7 @@ depot.rust_binary(
     name = "clone",
     srcs = ["clone.rs"],
     crate_root = "clone.rs",
-    visibility = ["//src/gonzo/..."],
+    visibility = ["PUBLIC"],
     deps = [
         "third-party//by-name/mi/mimalloc:rust",
         "third-party//rust:clap",
@@ -58,6 +57,6 @@ depot.rust_binary(
         "third-party//rust:tokio",
         "third-party//rust:tracing",
         "third-party//rust:tracing-subscriber",
-        ":git",
+        ":fetch-git",
     ],
 )

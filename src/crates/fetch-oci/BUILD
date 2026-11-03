@@ -5,7 +5,7 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
     "//src/crates/egress-http:egress-http",
-    "//src/gonzo/assets/http:http",
+    "//src/crates/fetch-http:fetch-http",
     "third-party//rust:base64",
     "third-party//rust:bytes",
     "third-party//rust:dial9",
@@ -22,10 +22,9 @@ DEPS = [
 ]
 
 depot.rust_library(
-    name = "oci",
+    name = "fetch-oci",
     srcs = glob(["*.rs"]),
-    crate = "fetch_oci",
-    visibility = ["//src/gonzo/..."],
+    visibility = ["PUBLIC"],
     deps = DEPS,
 )
 

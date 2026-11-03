@@ -32,8 +32,6 @@ use openssl::ssl::SslConnector;
 use crate::credentials::Credentials;
 use crate::{MAX_DOCUMENT_SIZE, OciFetchError, auth};
 
-const USER_AGENT: &str = "gonzo/fetch-oci";
-
 /// HTTP client for one repository on one registry. Holds the SSL
 /// configuration, a telemetry handle, the credentials to answer challenges
 /// with, and the `Authorization` the registry last asked for.
@@ -205,7 +203,7 @@ fn request(
     authorization: Option<&str>,
 ) -> Result<Request<Empty<Bytes>>, HttpFetchError> {
     let mut builder = Request::builder()
-        .header(hyper::header::USER_AGENT, USER_AGENT)
+        .header(hyper::header::USER_AGENT, crate::USER_AGENT)
         .header(hyper::header::ACCEPT, accept);
     if let Some(value) = authorization {
         let value = HeaderValue::from_str(value).map_err(|e| {

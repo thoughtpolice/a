@@ -18,10 +18,9 @@ DEPS = [
 ]
 
 depot.rust_library(
-    name = "http",
+    name = "fetch-http",
     srcs = glob(["*.rs"]),
-    crate = "fetch_http",
-    visibility = ["//src/gonzo/..."],
+    visibility = ["PUBLIC"],
     deps = DEPS,
 )
 

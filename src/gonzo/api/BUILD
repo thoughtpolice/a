@@ -6,9 +6,9 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 DEPS = [
     "//src/crates/reapi-cas:reapi-cas",
     "//src/crates/reapi-protos:protos",
-    "//src/gonzo/assets/git:git",
-    "//src/gonzo/assets/http:http",
-    "//src/gonzo/assets/oci:oci",
+    "//src/crates/fetch-git:fetch-git",
+    "//src/crates/fetch-http:fetch-http",
+    "//src/crates/fetch-oci:fetch-oci",
     "//src/gonzo/storage:storage",
     "//src/gonzo/telemetry:telemetry",
     "third-party//rust:bytes",

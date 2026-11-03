@@ -202,7 +202,7 @@ async fn send_refs_request(
     handle: &Dial9TokioHandle,
 ) -> Result<hyper::Response<hyper::body::Incoming>, GitFetchError> {
     let req = hyper::Request::builder()
-        .header(hyper::header::USER_AGENT, "gonzo/git-fetch")
+        .header(hyper::header::USER_AGENT, crate::USER_AGENT)
         .header(hyper::header::ACCEPT, "*/*")
         .header(GIT_PROTOCOL_V2.0, GIT_PROTOCOL_V2.1)
         .body(http_body_util::Empty::<Bytes>::new())
@@ -457,7 +457,7 @@ async fn post_upload_pack(
 ) -> Result<hyper::Response<hyper::body::Incoming>, GitFetchError> {
     let mut req = hyper::Request::builder()
         .method(hyper::Method::POST)
-        .header(hyper::header::USER_AGENT, "gonzo/git-fetch")
+        .header(hyper::header::USER_AGENT, crate::USER_AGENT)
         .header(hyper::header::CONTENT_TYPE, UPLOAD_PACK_REQUEST_TYPE)
         .header(hyper::header::ACCEPT, UPLOAD_PACK_RESULT_TYPE);
     if protocol_v2 {

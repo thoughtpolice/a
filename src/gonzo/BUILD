@@ -14,7 +14,7 @@ BUILD_DEPS = [
     "//src/crates/rustls-boring:rustls-boring",
     "//src/crates/rustls-transport:rustls-transport",
     "//src/gonzo/api:api",
-    "//src/gonzo/assets/oci:oci",
+    "//src/crates/fetch-oci:fetch-oci",
     "//src/gonzo/mesh:mesh",
     "//src/gonzo/protos:gonzo-protos",
     "//src/gonzo/runtime:runtime",

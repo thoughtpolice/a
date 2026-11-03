@@ -78,7 +78,7 @@ use refs::{Protocol, RefInfo};
 ///
 /// Declared object sizes come from attacker-controlled packfile headers, so
 /// they must be bounded before any allocation. 2 GiB matches the largest blob
-/// the gonzo storage layer will accept.
+/// gonzo's storage layer will accept.
 pub const MAX_GIT_OBJECT_SIZE: usize = 2 * 1024 * 1024 * 1024;
 
 /// Maximum pack size (32 GiB). Packs are spooled to disk, never held in
@@ -101,6 +101,9 @@ pub const MAX_REF_ADVERTISEMENT_SIZE: usize = 64 * 1024 * 1024;
 /// bytes, so ~1000 single-character components); the limit exists so a
 /// malicious pack cannot drive recursive tree walks into a stack overflow.
 pub const MAX_TREE_DEPTH: usize = 1024;
+
+/// What requests to Git servers say they come from.
+pub const USER_AGENT: &str = "fetch-git";
 
 /// The limits every fetched pack is indexed under.
 const PACK_LIMITS: PackLimits = PackLimits {

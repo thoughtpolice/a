@@ -18,6 +18,9 @@ use sha2::{Digest as _, Sha256, Sha384, Sha512};
 /// Maximum size for HTTP-fetched content (256 MiB).
 pub const MAX_HTTP_FETCH_SIZE: usize = 256 * 1024 * 1024;
 
+/// What fetches say they come from.
+pub const USER_AGENT: &str = "fetch-http";
+
 /// Maximum number of HTTP redirects to follow.
 const MAX_REDIRECTS: u32 = 10;
 
@@ -232,7 +235,7 @@ pub async fn fetch_http_blob(
     let target = egress_http::Target::parse(uri)?;
     let request = |_: &egress_http::Target| {
         hyper::Request::builder()
-            .header(hyper::header::USER_AGENT, "gonzo")
+            .header(hyper::header::USER_AGENT, USER_AGENT)
             .body(http_body_util::Empty::<Bytes>::new())
             .map_err(|e| HttpFetchError::RequestFailed(format!("build request: {e}")))
     };
