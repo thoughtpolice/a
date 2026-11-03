@@ -17,7 +17,7 @@ pub use error::{Result, StoreError};
 pub use manifest::{BlobManifest, ChunkInfo, INLINE_BLOB_MAX, MAX_MANIFEST_CHUNK_COUNT};
 pub use manifest_cache::DEFAULT_MANIFEST_CACHE_BYTES;
 pub use reapi_cas::{Compression, StreamingDecompressor};
-pub use reapi_cas::{ContentDigest, DigestFn, IncrementalHasher, parse_digest_hash};
+pub use reapi_cas::{ContentDigest, Digest, DigestFn, IncrementalHasher, parse_digest_hash};
 pub use small_blobs::DEFAULT_SMALL_BLOB_CACHE_BYTES;
 pub use write_admission::DEFAULT_MAX_WRITE_WAIT;
 pub use write_admission::{default_reserve, filesystem_space};

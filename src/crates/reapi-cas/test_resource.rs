@@ -209,3 +209,27 @@ fn sha256_names_leave_out_the_digest_function() {
         format!("uploads/u/blobs/{hash}/1")
     );
 }
+
+#[test]
+fn parsed_names_give_their_digest() {
+    let digest = DigestFn::Blake3.digest(b"x");
+    let read = parse_read(&read_name(
+        "i",
+        DigestFn::Blake3,
+        Compression::Identity,
+        &digest,
+    ))
+    .unwrap();
+    assert_eq!(read.digest(), Ok(digest));
+    let write = parse_write(&write_name(
+        "",
+        "u",
+        DigestFn::Sha256,
+        Compression::Zstd,
+        &digest,
+    ))
+    .unwrap();
+    assert_eq!(write.digest(), Ok(digest));
+    let bad = parse_read("blobs/abc/1").unwrap();
+    assert!(bad.digest().is_err());
+}

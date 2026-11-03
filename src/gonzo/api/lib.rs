@@ -5,7 +5,7 @@
 
 pub(crate) mod helpers;
 pub use helpers::{
-    instrumented_rpc, parse_and_validate_digest, parse_and_validate_digest_ref,
+    instrumented_rpc, parse_and_validate_digest, parse_and_validate_digest_ref, parse_digest,
     resolve_digest_function, store_error_to_status,
 };
 

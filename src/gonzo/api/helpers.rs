@@ -8,7 +8,7 @@ use std::time::Instant;
 use bytes::Bytes;
 use tonic::Status;
 
-use storage::{CacheStore, ContentDigest, DigestFn, StoreError, parse_digest_hash};
+use storage::{CacheStore, ContentDigest, Digest, DigestFn, StoreError};
 
 /// Maximum total size for batch requests (4 MB).
 pub const MAX_BATCH_TOTAL_SIZE: i64 = 4_000_000;
@@ -55,20 +55,19 @@ pub fn parse_and_validate_digest(
     parse_and_validate_digest_ref(d, digest_fn)
 }
 
+/// Parse a `Digest` proto, rejecting a malformed one as `INVALID_ARGUMENT`.
+pub fn parse_digest(
+    digest: &protos::build::bazel::remote::execution::v2::Digest,
+) -> Result<Digest, Status> {
+    Digest::from_proto(digest).map_err(|e| Status::invalid_argument(e.to_string()))
+}
+
 /// Validate and parse a `Digest` proto reference into a [`ContentDigest`].
 pub fn parse_and_validate_digest_ref(
     digest: &protos::build::bazel::remote::execution::v2::Digest,
     digest_fn: DigestFn,
 ) -> Result<ContentDigest, Status> {
-    if digest.size_bytes < 0 {
-        return Err(Status::invalid_argument(format!(
-            "size_bytes must be non-negative, got {}",
-            digest.size_bytes
-        )));
-    }
-    let hash = parse_digest_hash(&digest.hash)
-        .ok_or_else(|| Status::invalid_argument(format!("invalid digest hash: {}", digest.hash)))?;
-    Ok(ContentDigest::new(digest_fn, hash))
+    Ok(parse_digest(digest)?.content(digest_fn))
 }
 
 /// Validate blob data: check hash and size match the claimed digest.
@@ -80,13 +79,13 @@ pub fn validate_blob_data(
     let d = digest
         .as_ref()
         .ok_or_else(|| Status::invalid_argument("missing digest"))?;
-    let hash = parse_digest_hash(&d.hash)
-        .ok_or_else(|| Status::invalid_argument(format!("invalid digest hash: {}", d.hash)))?;
+    let d = parse_digest(d)?;
+    let hash = d.hash;
 
-    if d.size_bytes != data.len() as i64 {
+    if d.size != data.len() as u64 {
         return Err(Status::invalid_argument(format!(
             "size mismatch: expected {}, got {}",
-            d.size_bytes,
+            d.size,
             data.len()
         )));
     }

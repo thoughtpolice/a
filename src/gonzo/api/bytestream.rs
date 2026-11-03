@@ -14,7 +14,6 @@ use protos::google::bytestream::{
 
 use storage::{
     BlobChunks, CacheStore, ChunkInfo, Compression, ContentDigest, MAX_BLOB_REASSEMBLE_SIZE,
-    parse_digest_hash,
 };
 
 use super::helpers::{
@@ -183,10 +182,10 @@ impl ByteStreamService {
             }
         );
 
-        let hash = parse_digest_hash(&parsed.hash).ok_or_else(|| {
-            tonic::Status::invalid_argument(format!("invalid digest hash: {}", parsed.hash))
-        })?;
-        let expected_cd = ContentDigest::new(parsed.digest_fn, hash);
+        let expected_cd = parsed
+            .digest()
+            .map_err(|e| tonic::Status::invalid_argument(e.to_string()))?
+            .content(parsed.digest_fn);
 
         // Already stored (with enough of its TTL left): say so now rather
         // than take in the rest. REAPI has the server answer at once in that
@@ -390,10 +389,10 @@ impl byte_stream_server::ByteStream for ByteStreamService {
                 ));
             }
 
-            let hash = parse_digest_hash(&parsed.hash).ok_or_else(|| {
-                tonic::Status::invalid_argument(format!("invalid digest hash: {}", parsed.hash))
-            })?;
-            let cd = ContentDigest::new(parsed.digest_fn, hash);
+            let cd = parsed
+                .digest()
+                .map_err(|e| tonic::Status::invalid_argument(e.to_string()))?
+                .content(parsed.digest_fn);
 
             let blob = store
                 .cas_blob_chunks(&cd)

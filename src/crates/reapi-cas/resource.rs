@@ -17,7 +17,7 @@
 //! builders here leave it out for SHA-256.
 
 use crate::compression::Compression;
-use crate::digest::{Digest, DigestFn};
+use crate::digest::{Digest, DigestFn, InvalidDigest};
 
 /// Why a string is not a resource name of the kind asked for. The message
 /// names the string.
@@ -90,6 +90,13 @@ pub struct ReadResourceName {
     pub compressor: Compression,
 }
 
+impl ReadResourceName {
+    /// The digest the name gives, if its hash and size are valid.
+    pub fn digest(&self) -> std::result::Result<Digest, InvalidDigest> {
+        Digest::parse(&self.hash, self.size)
+    }
+}
+
 /// Parse a ByteStream read resource name, with or without an instance
 /// name, compressor, or digest function (see the module documentation).
 pub fn parse_read(name: &str) -> Result<ReadResourceName> {
@@ -126,6 +133,13 @@ pub struct WriteResourceName {
     pub uuid: Option<String>,
     pub digest_fn: DigestFn,
     pub compressor: Compression,
+}
+
+impl WriteResourceName {
+    /// The digest the name gives, if its hash and size are valid.
+    pub fn digest(&self) -> std::result::Result<Digest, InvalidDigest> {
+        Digest::parse(&self.hash, self.size)
+    }
 }
 
 /// Parse a ByteStream write resource name, with or without an instance

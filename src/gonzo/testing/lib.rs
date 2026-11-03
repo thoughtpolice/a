@@ -157,6 +157,7 @@ pub async fn completion(stream: &mut Streaming<Operation>) -> (String, ExecuteRe
 }
 
 fn sha256(digest: &Digest) -> ContentDigest {
-    let hash = storage::parse_digest_hash(&digest.hash).expect("a sha256 digest");
-    ContentDigest::new(DigestFn::Sha256, hash)
+    storage::Digest::from_proto(digest)
+        .expect("a valid digest")
+        .content(DigestFn::Sha256)
 }

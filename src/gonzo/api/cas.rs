@@ -713,8 +713,8 @@ async fn stream_tree(
             .map_err(|e| tonic::Status::internal(format!("failed to decode directory: {e}")))?;
         for link in &links.directories {
             if let Some(ref d) = link.digest {
-                if let Some(hash) = storage::parse_digest_hash(&d.hash) {
-                    let sub_cd = ContentDigest::new(digest_fn, hash);
+                if let Ok(d) = storage::Digest::from_proto(d) {
+                    let sub_cd = d.content(digest_fn);
                     if visited.insert(sub_cd) {
                         queue.push_back(sub_cd);
                     }
