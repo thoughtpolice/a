@@ -16,7 +16,6 @@ shims.lint_files(
         "doctor.py",
     ] + glob([
         ".buckconfig.d/*",
-        ".devcontainer/*.sh",
         ".github/**/*.yml",
         "src/repo-doctor/*.py",
     ]),

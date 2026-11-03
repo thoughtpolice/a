@@ -100,16 +100,8 @@
               mold
             ];
 
-          devcontainer = pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (
-            import ./devcontainer-image.nix {
-              inherit pkgs self system;
-            }
-          );
         in
         {
-          packages = devcontainer.packages or { };
-          checks = devcontainer.checks or { };
-
           # mkShell's own stdenv puts its compiler wrapper first on PATH, and
           # on Darwin that is nixpkgs' default LLVM, a major version behind
           # llvmPackages_latest, so `clang` and `ld.lld` came from different
@@ -189,8 +181,6 @@
       bySystem = lib.genAttrs systems outputsFor;
     in
     {
-      packages = lib.mapAttrs (_: attrs: attrs.packages) bySystem;
-      checks = lib.mapAttrs (_: attrs: attrs.checks) bySystem;
       devShells = lib.mapAttrs (_: attrs: attrs.devShells) bySystem;
     };
 }
