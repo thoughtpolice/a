@@ -3,6 +3,7 @@
 
 """Check that required host tools are available in PATH (all platforms)."""
 
+import os
 import platform
 import shutil
 
@@ -16,6 +17,11 @@ REQUIRED_TOOLS = [
     ("nix", {"Linux", "Darwin"}, "https://nixos.org/download"),
     ("direnv", {"Linux", "Darwin"}, "https://direnv.net/docs/installation.html"),
 ]
+
+
+# The devcontainer (src/images/devcontainer) carries the toolchains itself and
+# has no Nix. It ships this file to say so.
+DEVCONTAINER_MARKER = "/etc/depot/devcontainer"
 
 
 ISSUE_INFORMATION = {
@@ -89,11 +95,14 @@ def run_check():
     Status must be one of: "OK", "WARNING", "ERROR", "SKIP"
     """
     system = platform.system()
+    in_devcontainer = os.path.exists(DEVCONTAINER_MARKER)
     found = []
     missing = []
 
     for tool, platforms, hint in REQUIRED_TOOLS:
         if platforms is not None and system not in platforms:
+            continue
+        if in_devcontainer and tool in {"nix", "direnv"}:
             continue
         if shutil.which(tool):
             found.append(tool)
