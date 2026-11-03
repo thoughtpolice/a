@@ -13,15 +13,15 @@
 //! [`STATE_FILE`] beside it. A second daemon finds the lock taken and
 //! exits, saying where the first one is.
 //!
+//! The claim itself is a [`dir_claim::Claim`].
+//!
 //! The standalone compactor takes no lock: it runs beside a server started
 //! with `--disable-compactor`, and SlateDB coordinates the two.
 
-use std::fs::File;
-use std::io::Write as _;
-use std::os::unix::fs::OpenOptionsExt as _;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
+use dir_claim::{Claim, Files, TakeError};
 use serde::{Deserialize, Serialize};
 
 /// The lock a daemon holds on its store's directory.
@@ -29,6 +29,11 @@ pub const LOCK_FILE: &str = "gonzo.lock";
 
 /// What the daemon holding the lock says about itself.
 pub const STATE_FILE: &str = "daemon.json";
+
+const FILES: Files = Files {
+    lock: LOCK_FILE,
+    state: STATE_FILE,
+};
 
 /// The contents of [`STATE_FILE`].
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -51,76 +56,32 @@ pub struct DaemonInfo {
 
 /// A daemon's claim on a local store, released when dropped.
 #[derive(Debug)]
-pub struct StoreClaim {
-    dir: PathBuf,
-    /// Held for the claim's life; closing it releases the lock.
-    _lock: File,
-}
+pub struct StoreClaim(Claim<DaemonInfo>);
 
 impl StoreClaim {
     /// Claim the store in `dir`, creating the directory if need be, or fail
     /// saying which daemon has it.
     pub fn take(dir: &Path) -> Result<Self> {
-        std::fs::create_dir_all(dir)
-            .with_context(|| format!("failed to create the store directory {}", dir.display()))?;
-        let path = dir.join(LOCK_FILE);
-        let lock = File::options()
-            .create(true)
-            .truncate(false)
-            .write(true)
-            .open(&path)
-            .with_context(|| format!("failed to open {}", path.display()))?;
-        match lock.try_lock() {
-            Ok(()) => Ok(Self {
-                dir: dir.to_path_buf(),
-                _lock: lock,
-            }),
-            Err(std::fs::TryLockError::WouldBlock) => Err(anyhow::anyhow!(held(dir))),
-            Err(std::fs::TryLockError::Error(e)) => {
-                Err(e).with_context(|| format!("failed to lock {}", path.display()))
-            }
+        match Claim::take(dir, FILES) {
+            Ok(claim) => Ok(Self(claim)),
+            Err(TakeError::Held { holder, .. }) => Err(anyhow::anyhow!(held(dir, holder))),
+            Err(TakeError::Failed(e)) => Err(e.into()),
         }
     }
 
     /// Record `info` as this daemon's [`STATE_FILE`].
     pub fn announce(&self, info: &DaemonInfo) -> Result<()> {
-        let path = self.dir.join(STATE_FILE);
-        // Written whole and renamed into place, so a reader never sees half
-        // of it.
-        let partial = self.dir.join(format!("{STATE_FILE}.partial"));
-        let mut file = File::options()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(&partial)
-            .with_context(|| format!("failed to create {}", partial.display()))?;
-        serde_json::to_writer_pretty(&mut file, info).context("failed to encode daemon.json")?;
-        file.write_all(b"\n")
-            .and_then(|()| file.sync_all())
-            .with_context(|| format!("failed to write {}", partial.display()))?;
-        std::fs::rename(&partial, &path)
-            .with_context(|| format!("failed to write {}", path.display()))
-    }
-}
-
-impl Drop for StoreClaim {
-    /// Remove [`STATE_FILE`] while the lock is still held (fields drop after
-    /// this), so the next daemon never reads this one's.
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(self.dir.join(STATE_FILE));
+        Ok(self.0.announce(info)?)
     }
 }
 
 /// The daemon that has the store in `dir` open, if it has said.
 pub fn running(dir: &Path) -> Option<DaemonInfo> {
-    let json = std::fs::read(dir.join(STATE_FILE)).ok()?;
-    serde_json::from_slice(&json).ok()
+    dir_claim::holder(dir, FILES)
 }
 
 /// Why `dir` cannot be claimed.
-fn held(dir: &Path) -> String {
-    let running = running(dir);
+fn held(dir: &Path, running: Option<DaemonInfo>) -> String {
     let dir = dir.display();
     match running {
         Some(info) => format!(
