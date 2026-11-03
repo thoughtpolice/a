@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@root//buck/shims:shims.bzl", "shims")
+load(":devcontainer.bzl", "DEVCONTAINER")
 load(":wolfi.bzl", "wolfi_apks")
 
 shims.python_binary(
@@ -31,7 +32,7 @@ shims.run_test(
     dep = ":update-test",
 )
 
-# Writes closure locks for BUILD to load; see resolve.py.
+# Writes the closure locks that BUILD loads below, such as devcontainer.bzl.
 shims.python_binary(
     name = "resolve",
     base_module = "",
@@ -239,3 +240,8 @@ wolfi_apks(NGINX)
 wolfi_apks(DEVTOOLS)
 
 wolfi_apks(CONTAINERS)
+
+# The devcontainer (src/images/devcontainer) adds the packages its closure
+# needs beyond the pins above. resolve.py generates devcontainer.bzl from
+# that image's packages.txt; rerun it after bumping the pins here.
+wolfi_apks(DEVCONTAINER)

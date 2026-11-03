@@ -1,0 +1,71 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Wolfi packages the devcontainer installs, before dependencies. The
+# resolver turns this list into buck/third-party/by-name/wo/wolfi/devcontainer.bzl;
+# rerun it after any change here (README.md has the command).
+
+# The filesystem layout, libc and the C.UTF-8 locale. Wolfi publishes glibc
+# as one package stream per release, and BUILD pins the 2.44 stream.
+wolfi-baselayout
+ca-certificates-bundle
+glibc-2.44
+glibc-2.44-locale-posix
+ld-linux-2.44
+# getent and locale.
+posix-libc-utils-bin-2.44
+
+# An ordinary shell userland, with dash as /bin/sh, as on Debian and
+# Ubuntu.
+bash
+dash-binsh
+coreutils
+debianutils
+diffutils
+file
+findutils
+gawk
+grep
+gzip
+bzip2
+less
+ncurses-terminfo-base
+patch
+procps
+sed
+gnutar
+unzip
+xz
+zip
+zstd
+
+# Source control and the network.
+curl
+git
+jq
+openssh-client
+
+# check.py and doctor.py run the host python3. Buck2's Python toolchain
+# downloads its own.
+python-3.13
+
+# The .NET SDK that buck/toolchains/csharp downloads loads the host's ICU,
+# and fails to start without it.
+icu-libs
+
+# The C and C++ toolchain (buck/toolchains/cxx): clang, lld, llvm-ar and
+# friends, the sanitizer runtimes, and mold, which links on Linux. clang
+# pulls in GCC for libstdc++ and the C runtime objects.
+clang-23
+clang-23-extras
+compiler-rt-23
+glibc-2.44-dev
+lld-23
+llvm-23
+mold
+
+# Rust. The compiler itself is a pinned upstream nightly (see BUILD), since
+# Wolfi packages stable releases only. bindgen stays on 0.72.1, the release
+# third-party//by-name/bo/boringssl checks for; it loads libclang from
+# clang-23.
+rust-bindgen=0.72.1-r11
