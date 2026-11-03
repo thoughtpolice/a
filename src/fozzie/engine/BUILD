@@ -202,24 +202,20 @@ depot.write_file(
     contents = ["R"],
 )
 
+# Two workers share one corpus, so a fixed seed does not fix the inputs they
+# try, and 32 runs against the test target can reach its one-byte abort. The
+# parallel fixture has no failing input, so the campaign must use its whole
+# budget and exit cleanly.
 depot.command_test(
     name = "executor-smoke-test",
-    cmd = [
-        "$(exe :fozzie)",
-        "fuzz",
-        "--target",
-        "$(exe :executor-test-target)",
-        "--corpus",
-        "$(location :smoke-seed)",
-        "--runs",
-        "32",
-        "--duration",
-        "0",
-        "--jobs",
-        "2",
-        "--seed",
-        "1234",
-    ],
+    script = """
+dir="`mktemp -d`"
+trap 'rm -rf "$dir"' EXIT
+$(exe :fozzie) fuzz --target $(exe :regression-target) \\
+    --target-arg parallel --target-arg "$dir" \\
+    --corpus $(location :smoke-seed) --workdir "$dir/campaign" \\
+    --runs 32 --duration 0 --jobs 2 --seed 1234
+""",
 )
 
 depot.command_test(

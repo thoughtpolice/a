@@ -257,8 +257,18 @@ fn reading_past_the_input_crashes_without_asan() {
         .args(["--target-arg", "overread", "--input"])
         .arg(&input)
         .args(["--expect-finding", "--expect-kind", "crash"])
-        .args(["--expect-code", &libc::SIGSEGV.to_string()]));
+        .args(["--expect-code", &guard_page_signal().to_string()]));
     assert!(output.status.success(), "{output:?}");
+}
+
+/// The signal a read of the input arena's PROT_NONE guard page raises.
+/// Darwin reports a protection fault on a mapped page as SIGBUS.
+fn guard_page_signal() -> libc::c_int {
+    if cfg!(target_os = "macos") {
+        libc::SIGBUS
+    } else {
+        libc::SIGSEGV
+    }
 }
 
 #[test]
