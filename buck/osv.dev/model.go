@@ -465,6 +465,191 @@ var wolfiExceptions = []exception{
 		ID:     "CGA-8j2h-p468-v3g6",
 		Reason: "cni-plugins CVE-2026-78669: Chainguard marks it fixed in 1.9.1-r16, the pinned version, but OSV's record lacks the fixed event; accepted until OSV catches up",
 	},
+	// glibc-2.44-dev, the devcontainer's libc headers, carries the same
+	// unfixed glibc advisories as the glibc-2.44 runtime above, and moves with
+	// that stream.
+	{
+		ID:     "CGA-q98f-x5gg-77jq",
+		Reason: "glibc-2.44-dev CVE-2026-86805: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-vxj5-vgq2-w95g",
+		Reason: "glibc-2.44-dev CVE-2026-86805: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-9jhh-7whq-9r98",
+		Reason: "glibc-2.44-dev CVE-2026-89092: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-85j7-p5fv-48pq",
+		Reason: "glibc-2.44-dev CVE-2026-97399: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-pq49-vpwf-9c5h",
+		Reason: "glibc-2.44-dev CVE-2026-97399: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	// binutils advisories with no fixed version. Wolfi's 2.47-r2 is its newest
+	// build. The devcontainer runs binutils only on objects its own build
+	// produced, never on untrusted files. Remove these when Chainguard marks
+	// them fixed.
+	{
+		ID:     "CGA-9gj8-gjxv-82qf",
+		Reason: "binutils CVE-2026-6844: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-fp47-6j6h-hj89",
+		Reason: "binutils CVE-2026-6844: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-g89r-r3vh-pg54",
+		Reason: "binutils CVE-2026-6845: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-vm64-rhrg-jq27",
+		Reason: "binutils CVE-2026-6845: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-3x96-2xqq-vjp6",
+		Reason: "binutils CVE-2026-90801: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-9rcc-j9xg-72hj",
+		Reason: "binutils CVE-2026-90801: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-52cx-9f2g-9fj3",
+		Reason: "binutils CVE-2026-90802: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-fw29-622p-rcr2",
+		Reason: "binutils CVE-2026-90802: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-9c6v-m8x8-j3fw",
+		Reason: "binutils CVE-2026-90803: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-rfj3-3xpp-75fh",
+		Reason: "binutils CVE-2026-90803: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-5gv6-97hw-c99g",
+		Reason: "binutils CVE-2026-90804: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-mxhv-p599-37pj",
+		Reason: "binutils CVE-2026-90804: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-7cxq-52mv-wf27",
+		Reason: "binutils CVE-2026-90828: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-m742-4p9j-3f58",
+		Reason: "binutils CVE-2026-90828: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-59px-82vq-wxf5",
+		Reason: "binutils CVE-2026-90829: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-fxmw-q594-mwr3",
+		Reason: "binutils CVE-2026-90829: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-654r-h3j3-cp6j",
+		Reason: "binutils CVE-2026-90830: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-793r-8w27-7cpx",
+		Reason: "binutils CVE-2026-90830: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-2v63-758j-xjm7",
+		Reason: "binutils CVE-2026-90831: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-qpvq-hw46-jg8f",
+		Reason: "binutils CVE-2026-90831: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-84q2-7229-4h7w",
+		Reason: "binutils CVE-2026-91779: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-rqgg-6xvr-c6q9",
+		Reason: "binutils CVE-2026-91779: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-3gg8-98rw-pxh5",
+		Reason: "binutils CVE-2026-91780: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-rcxm-9cq6-m5fx",
+		Reason: "binutils CVE-2026-91780: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-2wfw-w4p7-55x5",
+		Reason: "binutils CVE-2026-91781: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-4pq8-rj3p-hwfh",
+		Reason: "binutils CVE-2026-91781: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-59hv-jrxx-977f",
+		Reason: "binutils CVE-2026-91782: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-r4h9-8rmm-9h9q",
+		Reason: "binutils CVE-2026-91782: no fixed Wolfi version; the devcontainer only runs binutils on its own build outputs, accepted until a fixed Wolfi version clears OSV",
+	},
+	// GNU tar's advisories, filed again against gnutar-rmt, the remote tape
+	// server that comes with it. gnutar's own entries are above; nothing in
+	// the devcontainer runs rmt.
+	{
+		ID:     "CGA-hw3x-x556-3rqr",
+		Reason: "gnutar-rmt CVE-2026-18477: no fixed Wolfi version; rmt is installed with GNU tar and never run, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-vqm8-jx54-c2cp",
+		Reason: "gnutar-rmt CVE-2026-18477: no fixed Wolfi version; rmt is installed with GNU tar and never run, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-f98f-wjrv-6qj4",
+		Reason: "gnutar-rmt CVE-2026-18508: no fixed Wolfi version; rmt is installed with GNU tar and never run, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-r254-q9vp-5wqf",
+		Reason: "gnutar-rmt CVE-2026-18508: no fixed Wolfi version; rmt is installed with GNU tar and never run, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-582v-r7g5-w5rq",
+		Reason: "gnutar-rmt CVE-2026-5704: no fixed Wolfi version; rmt is installed with GNU tar and never run, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-x5hq-xw39-hh38",
+		Reason: "gnutar-rmt CVE-2026-5704: no fixed Wolfi version; rmt is installed with GNU tar and never run, accepted until a fixed Wolfi version clears OSV",
+	},
+	// python-3.13 advisories with no fixed version, in Wolfi's newest build.
+	// The devcontainer's python3 runs only check.py and doctor.py; Buck2's
+	// Python toolchain downloads its own interpreter.
+	{
+		ID:     "CGA-8fx3-25f8-fh5x",
+		Reason: "python-3.13 CVE-2025-15367: no fixed Wolfi version; the devcontainer runs only the repository's own scripts with it, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-ffmr-pm2v-8xqw",
+		Reason: "python-3.13 CVE-2025-15367: no fixed Wolfi version; the devcontainer runs only the repository's own scripts with it, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-4jf6-rmh4-vqjj",
+		Reason: "python-3.13 CVE-2026-103995: no fixed Wolfi version; the devcontainer runs only the repository's own scripts with it, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-vq33-cv22-hgvv",
+		Reason: "python-3.13 CVE-2026-103995: no fixed Wolfi version; the devcontainer runs only the repository's own scripts with it, accepted until a fixed Wolfi version clears OSV",
+	},
 }
 
 // exceptionSets binds each ecosystem's exception list to the subject kind it
