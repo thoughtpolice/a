@@ -153,7 +153,12 @@ async fn serve(args: Args, runtime_info: runtime_env::RuntimeInfo) -> Result<()>
     };
     let identity = mesh::load_or_create_identity(&dir.join("identity"))
         .with_context(|| format!("failed to read or make {}/identity", dir.display()))?;
-    let endpoint = mesh::bind(identity, false, iroh_dial::Global::default())
+    let endpoint = mesh::PROTOCOL
+        .bind_member(
+            identity,
+            iroh_dial::Global::default(),
+            &mesh::Transport::default(),
+        )
         .await
         .context("failed to bind an iroh endpoint")?;
 
@@ -182,7 +187,7 @@ async fn serve(args: Args, runtime_info: runtime_env::RuntimeInfo) -> Result<()>
             rendezvous: mesh::Cluster::rendezvous(&endpoint, None)
                 .context("failed to join the DHT to find the cluster's daemons")?,
             // Slow on purpose; see mesh::JoinCode.
-            cluster: tokio::task::spawn_blocking(move || code.cluster()).await?,
+            cluster: tokio::task::spawn_blocking(move || code.cluster(&mesh::PROTOCOL)).await?,
         },
     };
     tracing::info!(
@@ -223,7 +228,7 @@ async fn serve(args: Args, runtime_info: runtime_env::RuntimeInfo) -> Result<()>
                 Err(e) => match (e.downcast_ref::<mesh::JoinError>(), &daemon) {
                     // A ticket that does not work will not start working.
                     (
-                        Some(mesh::JoinError::UnknownWorker | mesh::JoinError::UnknownDaemon),
+                        Some(mesh::JoinError::UnknownMember | mesh::JoinError::UnknownHost),
                         Daemon::Ticket(_),
                     ) => {
                         return Err(
@@ -262,12 +267,12 @@ impl Daemon {
     /// Where to dial, and the key to join with, in the order to try them.
     async fn candidates(&self) -> Result<Vec<(mesh::EndpointAddr, mesh::JoinKey)>> {
         Ok(match self {
-            Self::Ticket(ticket) => vec![(ticket.daemon.clone(), ticket.key.clone())],
+            Self::Ticket(ticket) => vec![(ticket.host.clone(), ticket.key.clone())],
             Self::Cluster {
                 cluster,
                 rendezvous,
             } => cluster
-                .daemons(rendezvous)
+                .hosts(rendezvous)
                 .await?
                 .into_iter()
                 .map(|id| (mesh::EndpointAddr::new(id), cluster.key()))
@@ -279,7 +284,7 @@ impl Daemon {
 impl std::fmt::Display for Daemon {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Ticket(ticket) => write!(f, "{}", ticket.daemon.id),
+            Self::Ticket(ticket) => write!(f, "{}", ticket.host.id),
             Self::Cluster { cluster, .. } => write!(f, "code {}", cluster.hint()),
         }
     }
@@ -311,7 +316,7 @@ async fn session(
         let conn = iroh_dial::dial(endpoint, daemon.into(), mesh::ALPN)
             .await
             .context("failed to reach the daemon")?;
-        mesh::join(&conn, endpoint.id(), key).await?;
+        mesh::PROTOCOL.join(&conn, endpoint.id(), key).await?;
         anyhow::Ok(conn)
     };
     let conn = tokio::select! {
@@ -320,7 +325,10 @@ async fn session(
     };
     tracing::info!(daemon = %conn.remote_id(), "joined the daemon");
     let served = worker
-        .serve(mesh::channel(conn.clone()), stopped(stopping.clone()))
+        .serve(
+            mesh::channel(conn.clone(), &mesh::Transport::default()),
+            stopped(stopping.clone()),
+        )
         .await;
     conn.close(0u32.into(), b"done");
     served?;
@@ -375,7 +383,7 @@ mod tests {
         let parsed = Args::try_parse_from(["gonzo-worker", "--join", &code.to_string()]).unwrap();
         assert!(matches!(parsed.join, Join::Code(c) if c == code));
         let ticket = mesh::JoinTicket {
-            daemon: mesh::EndpointAddr::new(mesh::SecretKey::generate().public()),
+            host: mesh::EndpointAddr::new(mesh::SecretKey::generate().public()),
             key: mesh::JoinKey::generate(),
         };
         let parsed = Args::try_parse_from(["gonzo-worker", "--join", &ticket.to_string()]).unwrap();

@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! Clusters: daemons and workers that find each other on the BitTorrent
+//! Clusters: hosts and members that find each other on the BitTorrent
 //! mainline DHT, by a [`JoinCode`](crate::JoinCode) they share, rather
 //! than by ticket.
 //!
-//! A daemon announces itself under the cluster's topic; a worker reads who
+//! A host announces itself under the cluster's topic; a member reads who
 //! has, dials them, and joins with the cluster's key. Both come from the
 //! code (see [`JoinCode::cluster`](crate::JoinCode::cluster)).
 
@@ -14,7 +14,7 @@ use iroh_rendezvous::{Announcer, Rendezvous, Topic, n0_mainline::Dht};
 
 use crate::keys::JoinKey;
 
-/// A cluster: where its daemons announce themselves, and the key members
+/// A cluster: where its hosts announce themselves, and the key members
 /// join with.
 #[derive(Clone)]
 pub struct Cluster {
@@ -48,14 +48,14 @@ impl Cluster {
         }
     }
 
-    /// Announce the daemon `rendezvous` speaks for, every few minutes,
+    /// Announce the host `rendezvous` speaks for, every few minutes,
     /// until the result is dropped.
     pub fn announce(&self, rendezvous: &Rendezvous) -> Announcer {
         rendezvous.spawn_announcer(self.topic.clone())
     }
 
-    /// The daemons announced in the cluster lately, most recent first.
-    pub async fn daemons(&self, rendezvous: &Rendezvous) -> std::io::Result<Vec<EndpointId>> {
+    /// The hosts announced in the cluster lately, most recent first.
+    pub async fn hosts(&self, rendezvous: &Rendezvous) -> std::io::Result<Vec<EndpointId>> {
         rendezvous
             .find(&self.topic)
             .await

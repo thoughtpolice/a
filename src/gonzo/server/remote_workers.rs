@@ -50,14 +50,15 @@ pub async fn start(
         ),
         None => (mesh::SecretKey::generate(), mesh::JoinKey::generate()),
     };
-    let endpoint = mesh::bind(identity, true, preset)
+    let endpoint = mesh::PROTOCOL
+        .bind_host(identity, preset, &mesh::Transport::default())
         .await
         .context("failed to bind the iroh endpoint for workers")?;
     // A ticket carrying the daemon's relay reaches it even where address
     // lookup does not; without one in a moment, workers look it up by ID.
     let _ = tokio::time::timeout(RELAY_WAIT, endpoint.online()).await;
     let ticket = mesh::JoinTicket {
-        daemon: endpoint.addr(),
+        host: endpoint.addr(),
         key: key.clone(),
     };
 
@@ -67,7 +68,7 @@ pub async fn start(
             // Slow on purpose; see mesh::JoinCode.
             let cluster = {
                 let code = code.clone();
-                tokio::task::spawn_blocking(move || code.cluster()).await?
+                tokio::task::spawn_blocking(move || code.cluster(&mesh::PROTOCOL)).await?
             };
             keys.push(cluster.key());
             let rendezvous = mesh::Cluster::rendezvous(&endpoint, dht)
@@ -77,7 +78,7 @@ pub async fn start(
         }
         None => None,
     };
-    let streams = mesh::serve(endpoint.clone(), keys);
+    let streams = mesh::PROTOCOL.serve(endpoint.clone(), keys);
     let frontend = frontend.clone();
     let closing = endpoint.clone();
     tokio::spawn(async move {

@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    version = "0.1.0",
+    description = "A host and members joining it over iroh by ticket or six-word join code, with gRPC served over the mesh.",
+    license = "Apache-2.0",
+    copyright = ["2026 Austin Seipp"],
+    visibility = ["PUBLIC"],
+)

@@ -334,21 +334,23 @@ async fn workers_join_over_iroh_with_the_ticket() {
     let ticket: mesh::JoinTicket = listening.ticket.to_string().parse().expect("a ticket");
     let daemon = iroh_utils::dialable_addr(&listening.endpoint);
 
-    let worker = mesh::bind(
-        mesh::SecretKey::generate(),
-        false,
-        iroh_dial::Global::none(),
-    )
-    .await
-    .expect("bind");
+    let worker = mesh::PROTOCOL
+        .bind_member(
+            mesh::SecretKey::generate(),
+            iroh_dial::Global::none(),
+            &mesh::Transport::default(),
+        )
+        .await
+        .expect("bind");
     let conn = worker
         .connect(daemon.clone(), mesh::ALPN)
         .await
         .expect("connect");
-    mesh::join(&conn, worker.id(), &ticket.key)
+    mesh::PROTOCOL
+        .join(&conn, worker.id(), &ticket.key)
         .await
         .expect("join");
-    let caps = CapabilitiesClient::new(mesh::channel(conn))
+    let caps = CapabilitiesClient::new(mesh::channel(conn, &mesh::Transport::default()))
         .get_capabilities(GetCapabilitiesRequest::default())
         .await
         .expect("capabilities")
@@ -356,9 +358,11 @@ async fn workers_join_over_iroh_with_the_ticket() {
     assert!(caps.execution_capabilities.expect("execution").exec_enabled);
 
     let conn = worker.connect(daemon, mesh::ALPN).await.expect("connect");
-    let refused = mesh::join(&conn, worker.id(), &mesh::JoinKey::generate()).await;
+    let refused = mesh::PROTOCOL
+        .join(&conn, worker.id(), &mesh::JoinKey::generate())
+        .await;
     assert!(
-        matches!(refused, Err(mesh::JoinError::UnknownWorker)),
+        matches!(refused, Err(mesh::JoinError::UnknownMember)),
         "{refused:?}"
     );
 }

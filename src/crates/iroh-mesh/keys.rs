@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! The keys a daemon and its workers keep: each one's iroh identity, and
-//! the join key that lets a worker in.
+//! The keys a host and its members keep: each one's iroh identity, and
+//! the join key that lets a member in.
 
 use std::fmt;
 use std::io::{self, Write as _};
@@ -13,14 +13,14 @@ use std::str::FromStr;
 use iroh::SecretKey;
 
 /// The secret key at `path`, or a new one written there. The key is an
-/// endpoint's identity, so it is kept: a daemon whose ID changed would
-/// strand every worker that knew it.
+/// endpoint's identity, so it is kept: a host whose ID changed would
+/// strand every member that knew it.
 pub fn load_or_create_identity(path: &Path) -> io::Result<SecretKey> {
     let bytes = load_or_create(path, || SecretKey::generate().to_bytes())?;
     Ok(SecretKey::from_bytes(&bytes))
 }
 
-/// The secret a worker proves it knows to join a daemon, and the daemon
+/// The secret a member proves it knows to join a host, and the host
 /// proves back. A ticket carries a random one; a cluster's is derived from
 /// its join code, so that everyone who knows the code has it.
 #[derive(Clone, PartialEq, Eq)]

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! Join tickets: what a worker needs to join a daemon, in one string.
+//! Join tickets: what a member needs to join a host, in one string.
 
 use std::fmt;
 use std::str::FromStr;
@@ -11,32 +11,27 @@ use iroh_tickets::endpoint::EndpointTicket;
 
 use crate::keys::JoinKey;
 
-/// A daemon's endpoint, with whatever addresses it had when the ticket was
+/// A host's endpoint, with whatever addresses it had when the ticket was
 /// made, and its join key. Printed as the endpoint ticket, a `.`, and the
 /// key in hex; the ticket's base32 never contains a `.`.
 ///
-/// A ticket is a credential: whoever has it can join the daemon as a
-/// worker, and so produce results it will cache.
+/// A ticket is a credential: whoever has it can join the host as a
+/// member.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JoinTicket {
-    pub daemon: EndpointAddr,
+    pub host: EndpointAddr,
     pub key: JoinKey,
 }
 
 impl fmt::Display for JoinTicket {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}.{}",
-            EndpointTicket::new(self.daemon.clone()),
-            self.key
-        )
+        write!(f, "{}.{}", EndpointTicket::new(self.host.clone()), self.key)
     }
 }
 
 /// A string that is not a join ticket.
 #[derive(Debug, thiserror::Error)]
-#[error("not a gonzo join ticket (an endpoint ticket, a `.`, and a hex key)")]
+#[error("not a join ticket (an endpoint ticket, a `.`, and a hex key)")]
 pub struct ParseTicketError;
 
 impl FromStr for JoinTicket {
@@ -46,7 +41,7 @@ impl FromStr for JoinTicket {
         let (ticket, key) = s.trim().rsplit_once('.').ok_or(ParseTicketError)?;
         let ticket = EndpointTicket::from_str(ticket).map_err(|_| ParseTicketError)?;
         Ok(Self {
-            daemon: ticket.into(),
+            host: ticket.into(),
             key: key.parse().map_err(|_| ParseTicketError)?,
         })
     }
@@ -60,7 +55,7 @@ mod tests {
     fn a_ticket_round_trips() {
         let id = iroh::SecretKey::generate().public();
         let ticket = JoinTicket {
-            daemon: EndpointAddr::new(id).with_ip_addr("127.0.0.1:4433".parse().unwrap()),
+            host: EndpointAddr::new(id).with_ip_addr("127.0.0.1:4433".parse().unwrap()),
             key: JoinKey::generate(),
         };
         let printed = ticket.to_string();

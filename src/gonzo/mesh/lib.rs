@@ -1,38 +1,20 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! How gonzo daemons and their workers reach each other over iroh.
-//!
-//! A worker dials the daemon on [`ALPN`] and proves, on the connection's
-//! first stream, that it knows a join key ([`join`]); the daemon proves it
-//! back. Every later stream of the connection then carries one HTTP/2
-//! connection, so the daemon's gRPC services serve over iroh as they do
-//! over TCP ([`serve`], [`channel`]). See `src/gonzo/notes/execution.md`.
-//!
-//! A worker finds the daemon by a ticket, which carries the daemon's ID,
-//! its addresses and its join key, or by the daemon's six-word
-//! [`JoinCode`], which names a [`Cluster`] on the mainline DHT.
+//! How gonzo daemons and their workers reach each other: [`iroh_mesh`],
+//! with the daemon as its host and workers as its members, speaking
+//! [`PROTOCOL`]. See `src/gonzo/notes/execution.md`.
 
-mod cluster;
-mod code;
-mod grpc;
-mod join;
-mod keys;
-mod ticket;
-mod words;
+pub use iroh_mesh::*;
 
-pub use cluster::Cluster;
-pub use code::{JoinCode, ParseCodeError};
-pub use grpc::{Stream, bind, channel, serve};
-pub use iroh_rendezvous::{Announcer, Rendezvous, n0_mainline::Dht};
-pub use join::{CLOSE_REFUSED, HANDSHAKE_TIMEOUT, JoinError, admit, join};
-pub use keys::{JoinKey, load_or_create_identity};
-pub use ticket::{JoinTicket, ParseTicketError};
+/// What workers and daemons speak. Every field is wire format: changing
+/// one strands every worker, ticket and join code in use.
+pub const PROTOCOL: Protocol = Protocol {
+    alpn: b"gonzo/worker/1",
+    name: "gonzo",
+    host: "daemon",
+    member: "worker",
+};
 
-pub use iroh::{Endpoint, EndpointAddr, EndpointId, SecretKey};
-
-/// What workers and daemons speak.
-pub const ALPN: &[u8] = b"gonzo/worker/1";
-
-#[cfg(test)]
-mod tests;
+/// The ALPN workers dial daemons on.
+pub const ALPN: &[u8] = PROTOCOL.alpn;

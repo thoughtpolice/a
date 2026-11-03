@@ -1,23 +1,25 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! Join codes: six words a daemon makes up once and keeps, which a worker
-//! anywhere types to join it, as `gonzo-worker --join acid-bunny-…`.
+//! Join codes: six words a host makes up once and keeps, which a member
+//! anywhere types to join it (`gonzo-worker --join acid-bunny-…`, say).
 //!
-//! A code is a [`Cluster`]: the daemon announces itself on the mainline DHT
-//! under it, and workers find the daemon there and join with the key it
+//! A code is a [`Cluster`]: the host announces itself on the mainline DHT
+//! under it, and members find the host there and join with the key it
 //! derives. What DHT nodes see is derived from the code, so the code has to
 //! be impossible to find by trying codes against it:
 //!
 //! - It is random, six of the 1296 words of EFF's short wordlist: 62 bits.
 //! - The topic and the join key come from it through Argon2id with RFC
 //!   9106's second recommended parameters (64 MiB, three passes), which
-//!   make each guess cost about as much as a worker spends once at start.
+//!   make each guess cost about as much as a member spends once at start.
+//!   The Argon2 salt is the [`Protocol`]'s, so one application's codes
+//!   name nothing in another's.
 //!   Trying every code would take hundreds of millions of GPU-years.
 //!
 //! Magic Wormhole makes do with shorter codes because each is used once
 //! and a password-authenticated key exchange allows a single guess; a join
-//! code is used for as long as the daemon keeps it, by every worker, so it
+//! code is used for as long as the host keeps it, by every member, so it
 //! is the code itself that has to be strong.
 
 use std::fmt;
@@ -27,6 +29,7 @@ use std::str::FromStr;
 
 use iroh_rendezvous::Topic;
 
+use crate::Protocol;
 use crate::cluster::Cluster;
 use crate::keys::{JoinKey, keep};
 use crate::words::WORDS;
@@ -71,9 +74,10 @@ impl JoinCode {
             })
     }
 
-    /// The cluster the code names. This is the slow part (a fraction of a
-    /// second, and 64 MiB), so run it off the async runtime's threads.
-    pub fn cluster(&self) -> Cluster {
+    /// The cluster the code names under `protocol`. This is the slow part
+    /// (a fraction of a second, and 64 MiB), so run it off the async
+    /// runtime's threads.
+    pub fn cluster(&self, protocol: &Protocol) -> Cluster {
         let params = argon2::Params::new(64 * 1024, 3, 4, Some(64)).expect("valid parameters");
         let argon2 =
             argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
@@ -81,7 +85,7 @@ impl JoinCode {
         argon2
             .hash_password_into(
                 self.to_string().as_bytes(),
-                b"gonzo join code v1",
+                protocol.code_salt().as_bytes(),
                 &mut derived,
             )
             .expect("an output of a valid length");
@@ -201,8 +205,20 @@ mod tests {
     fn a_code_derives_the_same_cluster_everywhere() {
         let code: JoinCode = "acid-acorn-acre-acts-afar-affix".parse().unwrap();
         let other: JoinCode = "acid-acorn-acre-acts-afar-aged".parse().unwrap();
-        assert_eq!(code.cluster().key(), code.cluster().key());
-        assert_ne!(code.cluster().key(), other.cluster().key());
+        let protocol = crate::tests::PROTOCOL;
+        assert_eq!(code.cluster(&protocol).key(), code.cluster(&protocol).key());
+        assert_ne!(
+            code.cluster(&protocol).key(),
+            other.cluster(&protocol).key()
+        );
+        let elsewhere = Protocol {
+            name: "elsewhere",
+            ..protocol
+        };
+        assert_ne!(
+            code.cluster(&protocol).key(),
+            code.cluster(&elsewhere).key()
+        );
     }
 
     #[test]
