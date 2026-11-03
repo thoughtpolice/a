@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use bytes::Bytes;
 
 use crate::expiring::ExpiringCache;
-use crate::hashing::ContentDigest;
+use reapi_cas::ContentDigest;
 
 /// The budget when none is given: hundreds of thousands of typical entries.
 pub const DEFAULT_ACTION_RESULT_CACHE_BYTES: u64 = 64 * 1024 * 1024;
@@ -110,7 +110,7 @@ impl ActionResultCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hashing::DigestFn;
+    use reapi_cas::DigestFn;
 
     fn digest(n: u8) -> ContentDigest {
         ContentDigest::new(DigestFn::Sha256, [n; 32])

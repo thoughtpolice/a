@@ -214,7 +214,7 @@ impl ByteStreamService {
                 parsed
                     .compressor
                     .streaming_decompressor(decompressor_limit)
-                    .map_err(store_error_to_status)?,
+                    .map_err(|e| store_error_to_status(e.into()))?,
             )
         } else {
             None
@@ -229,7 +229,9 @@ impl ByteStreamService {
             .ok_or_else(|| tonic::Status::invalid_argument("write size overflow"))?;
         match decompressor.as_mut() {
             Some(dec) => {
-                let decompressed = dec.write(&first.data).map_err(store_error_to_status)?;
+                let decompressed = dec
+                    .write(&first.data)
+                    .map_err(|e| store_error_to_status(e.into()))?;
                 if !decompressed.is_empty() {
                     writer
                         .write(&decompressed)
@@ -260,7 +262,9 @@ impl ByteStreamService {
                 .ok_or_else(|| tonic::Status::invalid_argument("write size overflow"))?;
             match decompressor.as_mut() {
                 Some(dec) => {
-                    let decompressed = dec.write(&msg.data).map_err(store_error_to_status)?;
+                    let decompressed = dec
+                        .write(&msg.data)
+                        .map_err(|e| store_error_to_status(e.into()))?;
                     if !decompressed.is_empty() {
                         writer
                             .write(&decompressed)
@@ -280,7 +284,7 @@ impl ByteStreamService {
         }
 
         if let Some(dec) = decompressor {
-            let remaining = dec.finish().map_err(store_error_to_status)?;
+            let remaining = dec.finish().map_err(|e| store_error_to_status(e.into()))?;
             if !remaining.is_empty() {
                 writer
                     .write(&remaining)

@@ -8,8 +8,8 @@
 //! that can expire a little earlier) and, as a guard against the store
 //! losing data underneath the server, for [`REVALIDATE_MS`] at most.
 
-use crate::hashing::ContentDigest;
 use crate::presence::{DigestHashBuilder, REVALIDATE_MS};
+use reapi_cas::ContentDigest;
 
 /// How long something read may be served without reading it again.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -134,8 +134,8 @@ impl<V: Weigh + Clone> ExpiringCache<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hashing::DigestFn;
     use bytes::Bytes;
+    use reapi_cas::DigestFn;
 
     fn digest(n: u8) -> ContentDigest {
         ContentDigest::new(DigestFn::Sha256, [n; 32])

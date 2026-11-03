@@ -4,6 +4,7 @@
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
+    "//src/crates/reapi-cas:reapi-cas",
     "//src/crates/reapi-protos:protos",
     "//src/gonzo/assets/git:git",
     "//src/gonzo/assets/http:http",
@@ -37,7 +38,6 @@ TEST_MODULES = {
     "split_splice": {},
     "action_cache": {},
     "bytestream": {},
-    "resource_names": {},
     "remote_asset": {},
 }
 

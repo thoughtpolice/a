@@ -20,10 +20,10 @@
 
 use std::sync::Arc;
 
-use crate::compression::Compression;
 use crate::expiring::{ExpiringCache, Weigh};
-use crate::hashing::ContentDigest;
 use crate::manifest::{BlobManifest, ChunkInfo};
+use reapi_cas::Compression;
+use reapi_cas::ContentDigest;
 
 /// The budget when none is given: some two hundred thousand manifests of
 /// one chunk.
@@ -110,7 +110,7 @@ impl ManifestCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hashing::DigestFn;
+    use reapi_cas::DigestFn;
 
     fn digest(n: u8) -> ContentDigest {
         ContentDigest::new(DigestFn::Sha256, [n; 32])

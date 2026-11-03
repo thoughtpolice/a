@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use super::test_helpers::*;
-use super::*;
+use crate::digest::*;
+use crate::test_helpers::*;
 
 // =================================================================================================================
 // DigestFn tests
@@ -212,7 +212,7 @@ fn sha256tree_reapi_spec_test_vectors() {
     // https://github.com/bazelbuild/remote-apis/blob/main/build/bazel/remote/execution/v2/sha256tree_test_vectors.txt
     //
     // Each vector: hash of a repeating sequence 0, 1, 2, ..., 250, 0, 1, ... of given length.
-    let vectors_path = buck_resources::get("src/gonzo/storage/sha256tree_test_vectors")
+    let vectors_path = buck_resources::get("src/crates/reapi-cas/sha256tree_test_vectors")
         .expect("failed to locate sha256tree test vectors resource");
     let vectors_text = std::fs::read_to_string(&vectors_path)
         .unwrap_or_else(|e| panic!("failed to read {}: {}", vectors_path.display(), e));

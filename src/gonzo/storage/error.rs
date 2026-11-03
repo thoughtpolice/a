@@ -75,6 +75,12 @@ impl StoreError {
     }
 }
 
+impl From<reapi_cas::CompressionError> for StoreError {
+    fn from(e: reapi_cas::CompressionError) -> Self {
+        StoreError::CompressionFailed(e.0)
+    }
+}
+
 impl From<slatedb::Error> for StoreError {
     fn from(e: slatedb::Error) -> Self {
         StoreError::Database(e)

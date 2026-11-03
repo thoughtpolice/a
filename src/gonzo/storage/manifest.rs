@@ -9,8 +9,8 @@ use std::time::SystemTime;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
-use super::compression::Compression;
 use super::error::{Result, StoreError};
+use reapi_cas::Compression;
 
 // Maximum number of chunks in a manifest
 pub const MAX_MANIFEST_CHUNK_COUNT: usize = 100_000;

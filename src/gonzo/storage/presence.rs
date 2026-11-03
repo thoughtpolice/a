@@ -18,7 +18,7 @@
 use std::hash::{BuildHasher, Hasher};
 
 use crate::expiring::Freshness;
-use crate::hashing::ContentDigest;
+use reapi_cas::ContentDigest;
 
 /// How long a cached answer is trusted before it is looked up again (ms).
 pub(crate) const REVALIDATE_MS: i64 = 10 * 60 * 1000;
@@ -100,7 +100,7 @@ impl Hasher for DigestHasher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hashing::DigestFn;
+    use reapi_cas::DigestFn;
 
     fn digest(n: u8) -> ContentDigest {
         ContentDigest::new(DigestFn::Sha256, [n; 32])

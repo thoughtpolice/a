@@ -1,20 +1,31 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Compression algorithm support for chunk storage.
+//! REAPI compressors (`Compressor.Value`), each capped against decompression
+//! bombs, with a streaming decompressor for ByteStream uploads.
 
 use std::borrow::Cow;
 use std::fmt;
 use std::io::{Cursor, Read as _, Write as _};
 use std::str::FromStr;
 
-use anyhow::Context as _;
 use bytes::Bytes;
 
-use super::error::{Result, StoreError};
+/// Why a codec failed: a malformed payload, one that expands past its
+/// limit, or a failed blocking task.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{0}")]
+pub struct CompressionError(pub String);
+
+/// A string that names no compressor.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("unknown compressor: {0}")]
+pub struct UnknownCompressor(pub String);
+
+type Result<T> = std::result::Result<T, CompressionError>;
 
 // Maximum decompressed size for any single chunk (16 MiB, well above CDC_MAX_SIZE)
-pub(crate) const MAX_CHUNK_DECOMPRESSED_SIZE: usize = 16 * 1024 * 1024;
+pub const MAX_CHUNK_DECOMPRESSED_SIZE: usize = 16 * 1024 * 1024;
 
 /// Compression algorithm identifier.
 ///
@@ -36,7 +47,7 @@ impl Compression {
             Compression::Identity => Ok(Cow::Borrowed(data)),
             Compression::Zstd => zstd::bulk::compress(data, 3)
                 .map(Cow::Owned)
-                .map_err(|e| StoreError::CompressionFailed(format!("zstd: {e}"))),
+                .map_err(|e| CompressionError(format!("zstd: {e}"))),
             Compression::Deflate => {
                 let mut encoder = flate2::write::DeflateEncoder::new(
                     Vec::with_capacity(data.len()),
@@ -44,11 +55,11 @@ impl Compression {
                 );
                 encoder
                     .write_all(data)
-                    .map_err(|e| StoreError::CompressionFailed(format!("deflate: {e}")))?;
+                    .map_err(|e| CompressionError(format!("deflate: {e}")))?;
                 encoder
                     .finish()
                     .map(Cow::Owned)
-                    .map_err(|e| StoreError::CompressionFailed(format!("deflate: {e}")))
+                    .map_err(|e| CompressionError(format!("deflate: {e}")))
             }
             Compression::Brotli => {
                 let mut output = Vec::with_capacity(data.len());
@@ -56,7 +67,7 @@ impl Compression {
                     let mut encoder = brotli::CompressorWriter::new(&mut output, 4096, 4, 20);
                     encoder
                         .write_all(data)
-                        .map_err(|e| StoreError::CompressionFailed(format!("brotli: {e}")))?;
+                        .map_err(|e| CompressionError(format!("brotli: {e}")))?;
                 }
                 Ok(Cow::Owned(output))
             }
@@ -106,15 +117,15 @@ impl Compression {
             Compression::Zstd => {
                 let capacity = size_hint.unwrap_or(data.len().saturating_mul(4)).min(limit);
                 let decoder = zstd::stream::read::Decoder::new(Cursor::new(data))
-                    .map_err(|e| StoreError::CompressionFailed(format!("zstd: {e}")))?;
+                    .map_err(|e| CompressionError(format!("zstd: {e}")))?;
                 let mut limited = std::io::Read::take(decoder, limit as u64);
                 let mut output = Vec::with_capacity(capacity);
                 limited
                     .read_to_end(&mut output)
-                    .map_err(|e| StoreError::CompressionFailed(format!("zstd: {e}")))?;
+                    .map_err(|e| CompressionError(format!("zstd: {e}")))?;
                 let mut probe = [0u8; 1];
                 if limited.into_inner().read(&mut probe).unwrap_or(0) > 0 {
-                    return Err(StoreError::CompressionFailed(format!(
+                    return Err(CompressionError(format!(
                         "zstd: decompressed size exceeds limit {limit}"
                     )));
                 }
@@ -127,10 +138,10 @@ impl Compression {
                 let mut output = Vec::with_capacity(capacity);
                 limited
                     .read_to_end(&mut output)
-                    .map_err(|e| StoreError::CompressionFailed(format!("deflate: {e}")))?;
+                    .map_err(|e| CompressionError(format!("deflate: {e}")))?;
                 let mut probe = [0u8; 1];
                 if limited.into_inner().read(&mut probe).unwrap_or(0) > 0 {
-                    return Err(StoreError::CompressionFailed(format!(
+                    return Err(CompressionError(format!(
                         "deflate: decompressed size exceeds limit {limit}"
                     )));
                 }
@@ -143,10 +154,10 @@ impl Compression {
                 let mut output = Vec::with_capacity(capacity);
                 limited
                     .read_to_end(&mut output)
-                    .map_err(|e| StoreError::CompressionFailed(format!("brotli: {e}")))?;
+                    .map_err(|e| CompressionError(format!("brotli: {e}")))?;
                 let mut probe = [0u8; 1];
                 if limited.into_inner().read(&mut probe).unwrap_or(0) > 0 {
-                    return Err(StoreError::CompressionFailed(format!(
+                    return Err(CompressionError(format!(
                         "brotli: decompressed size exceeds limit {limit}"
                     )));
                 }
@@ -166,7 +177,7 @@ impl Compression {
             Ok(Bytes::from(compressed.into_owned()))
         })
         .await
-        .map_err(|e| StoreError::CompressionFailed(format!("spawn_blocking: {e}")))?
+        .map_err(|e| CompressionError(format!("spawn_blocking: {e}")))?
     }
 
     /// Async decompress with size hint: runs on a blocking thread for non-Identity codecs.
@@ -184,7 +195,7 @@ impl Compression {
             Ok(Bytes::from(decompressed.into_owned()))
         })
         .await
-        .map_err(|e| StoreError::CompressionFailed(format!("spawn_blocking: {e}")))?
+        .map_err(|e| CompressionError(format!("spawn_blocking: {e}")))?
     }
 
     /// Async decompress: runs on a blocking thread for non-Identity codecs.
@@ -198,7 +209,7 @@ impl Compression {
             Ok(Bytes::from(decompressed.into_owned()))
         })
         .await
-        .map_err(|e| StoreError::CompressionFailed(format!("spawn_blocking: {e}")))?
+        .map_err(|e| CompressionError(format!("spawn_blocking: {e}")))?
     }
 
     /// Convert from a proto `Compressor.Value` i32.
@@ -285,7 +296,7 @@ impl Compression {
             Compression::Identity => DecompressorInner::Identity,
             Compression::Zstd => {
                 let decoder = zstd::stream::raw::Decoder::new()
-                    .map_err(|e| StoreError::CompressionFailed(format!("zstd init: {e}")))?;
+                    .map_err(|e| CompressionError(format!("zstd init: {e}")))?;
                 DecompressorInner::Zstd(decoder, vec![0u8; STREAMING_DECOMPRESS_BUF_SIZE])
             }
             Compression::Deflate => DecompressorInner::Deflate(
@@ -306,7 +317,7 @@ impl Compression {
 
 fn check_decompression_limit(total_out: usize, limit: usize, codec: &str) -> Result<()> {
     if total_out > limit {
-        return Err(StoreError::CompressionFailed(format!(
+        return Err(CompressionError(format!(
             "{codec}: decompressed size {total_out} exceeds limit {limit}"
         )));
     }
@@ -337,7 +348,7 @@ impl StreamingDecompressor {
                 loop {
                     let status = decoder
                         .run_on_buffers(&compressed[src_pos..], out_buf)
-                        .map_err(|e| StoreError::CompressionFailed(format!("zstd: {e}")))?;
+                        .map_err(|e| CompressionError(format!("zstd: {e}")))?;
                     src_pos += status.bytes_read;
                     if status.bytes_written > 0 {
                         self.total_out += status.bytes_written;
@@ -365,7 +376,7 @@ impl StreamingDecompressor {
                             out_buf,
                             flate2::FlushDecompress::None,
                         )
-                        .map_err(|e| StoreError::CompressionFailed(format!("deflate: {e}")))?;
+                        .map_err(|e| CompressionError(format!("deflate: {e}")))?;
                     let consumed = (decompress.total_in() - before_in) as usize;
                     let produced = (decompress.total_out() - before_out) as usize;
                     src_pos += consumed;
@@ -391,7 +402,7 @@ impl StreamingDecompressor {
                 for piece in compressed.chunks(FEED_SIZE) {
                     writer
                         .write_all(piece)
-                        .map_err(|e| StoreError::CompressionFailed(format!("brotli: {e}")))?;
+                        .map_err(|e| CompressionError(format!("brotli: {e}")))?;
                     let decompressed = writer.get_mut();
                     let produced = decompressed.len();
                     if produced > 0 {
@@ -424,7 +435,7 @@ impl StreamingDecompressor {
                 loop {
                     let status = decoder
                         .run_on_buffers(&[], &mut out_buf)
-                        .map_err(|e| StoreError::CompressionFailed(format!("zstd: {e}")))?;
+                        .map_err(|e| CompressionError(format!("zstd: {e}")))?;
                     if status.bytes_written > 0 {
                         total_out += status.bytes_written;
                         check_decompression_limit(total_out, limit, "zstd")?;
@@ -441,7 +452,7 @@ impl StreamingDecompressor {
                     let before_out = decompress.total_out();
                     let status = decompress
                         .decompress(&[], &mut out_buf, flate2::FlushDecompress::Finish)
-                        .map_err(|e| StoreError::CompressionFailed(format!("deflate: {e}")))?;
+                        .map_err(|e| CompressionError(format!("deflate: {e}")))?;
                     let produced = (decompress.total_out() - before_out) as usize;
                     if produced > 0 {
                         total_out += produced;
@@ -457,7 +468,7 @@ impl StreamingDecompressor {
             DecompressorInner::Brotli(mut writer) => {
                 writer
                     .close()
-                    .map_err(|e| StoreError::CompressionFailed(format!("brotli: {e}")))?;
+                    .map_err(|e| CompressionError(format!("brotli: {e}")))?;
                 let decompressed = writer.get_mut();
                 let produced = decompressed.len();
                 if produced > 0 {
@@ -482,9 +493,9 @@ impl fmt::Display for Compression {
 }
 
 impl FromStr for Compression {
-    type Err = anyhow::Error;
+    type Err = UnknownCompressor;
 
-    fn from_str(s: &str) -> anyhow::Result<Self> {
-        Self::from_str_name(s).context(format!("unknown compression: {}", s))
+    fn from_str(s: &str) -> std::result::Result<Self, UnknownCompressor> {
+        Self::from_str_name(s).ok_or_else(|| UnknownCompressor(s.to_string()))
     }
 }

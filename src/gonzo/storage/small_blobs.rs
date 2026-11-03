@@ -19,12 +19,12 @@
 
 use bytes::Bytes;
 
-use crate::compression::Compression;
 use crate::expiring::{ExpiringCache, Weigh};
-use crate::hashing::ContentDigest;
 #[cfg(doc)]
 use crate::manifest::INLINE_BLOB_MAX;
 use crate::manifest::{BlobManifest, ChunkInfo};
+use reapi_cas::Compression;
+use reapi_cas::ContentDigest;
 
 /// The budget when none is given: thousands to tens of thousands of small
 /// blobs.
@@ -114,7 +114,7 @@ impl SmallBlobCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hashing::DigestFn;
+    use reapi_cas::DigestFn;
 
     fn digest(n: u8) -> ContentDigest {
         ContentDigest::new(DigestFn::Sha256, [n; 32])

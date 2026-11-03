@@ -5,11 +5,9 @@
 
 mod action_results;
 mod backlog;
-mod compression;
 mod db_cache;
 mod error;
 mod expiring;
-mod hashing;
 mod manifest;
 mod manifest_cache;
 mod presence;
@@ -20,20 +18,15 @@ mod writer;
 // Re-export public API so the external interface is unchanged.
 pub use action_results::DEFAULT_ACTION_RESULT_CACHE_BYTES;
 pub use backlog::DEFAULT_MAX_WRITE_WAIT;
-pub use compression::{Compression, StreamingDecompressor};
 pub use error::{Result, StoreError};
-pub use hashing::{ContentDigest, DigestFn, IncrementalHasher, parse_digest_hash};
 pub use manifest::{BlobManifest, ChunkInfo, INLINE_BLOB_MAX, MAX_MANIFEST_CHUNK_COUNT};
 pub use manifest_cache::DEFAULT_MANIFEST_CACHE_BYTES;
+pub use reapi_cas::{Compression, StreamingDecompressor};
+pub use reapi_cas::{ContentDigest, DigestFn, IncrementalHasher, parse_digest_hash};
 pub use small_blobs::DEFAULT_SMALL_BLOB_CACHE_BYTES;
 pub use space::{default_reserve, filesystem_space};
 pub use writer::CasBlobWriter;
 
-// Crate-internal re-exports used by sibling modules and tests.
-pub(crate) use compression::MAX_CHUNK_DECOMPRESSED_SIZE;
-pub(crate) use hashing::{
-    SHA256TREE_IV, SHA256TREE_LEAF_SIZE, sha256_block_cipher, sha256tree_hash,
-};
 pub use manifest::unix_now_secs;
 
 // Re-export std types used by tests via `super::*`.
@@ -167,10 +160,14 @@ const PREFIX_ACTION: u8 = b'a';
 const PREFIX_ASSET: u8 = b'r';
 const PREFIX_GIT_BLOB: u8 = b'g';
 
-// FastCDC parameters: avg 512 KiB, min = avg/4, max = avg*4
-const CDC_AVG_SIZE: usize = 524_288; // 512 KiB
-const CDC_MIN_SIZE: usize = CDC_AVG_SIZE / 4; // 128 KiB
-const CDC_MAX_SIZE: usize = CDC_AVG_SIZE * 4; // 2 MiB
+// FastCDC parameters, as REAPI recommends them: avg 512 KiB, min = avg/4,
+// max = avg*4, seed 0.
+const CDC: reapi_cas::FastCdc2020 = reapi_cas::FastCdc2020::RECOMMENDED;
+#[cfg_attr(not(test), allow(dead_code))]
+const CDC_AVG_SIZE: usize = CDC.avg_size;
+#[cfg_attr(not(test), allow(dead_code))]
+const CDC_MIN_SIZE: usize = CDC.min_size;
+const CDC_MAX_SIZE: usize = CDC.max_size;
 
 // Blobs below this size are stored as a single chunk (no CDC splitting)
 const SMALL_BLOB_THRESHOLD: usize = CDC_MAX_SIZE;
@@ -2008,14 +2005,7 @@ fn prepare_blob(
 
 /// The chunks FastCDC cuts `data` into, as `(offset, length)`.
 pub(crate) fn cdc_ranges(data: &[u8]) -> impl Iterator<Item = (usize, usize)> + '_ {
-    fastcdc::v2020::FastCDC::with_level(
-        data,
-        CDC_MIN_SIZE,
-        CDC_AVG_SIZE,
-        CDC_MAX_SIZE,
-        fastcdc::v2020::Normalization::Level2,
-    )
-    .map(|c| (c.offset, c.length))
+    CDC.ranges(data)
 }
 
 /// Compress chunk ranges in parallel and write them to a WriteBatch.

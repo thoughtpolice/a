@@ -7,14 +7,14 @@ use bytes::BytesMut;
 use slatedb::WriteBatch;
 use tracing::{debug, instrument};
 
-use super::compression::Compression;
 use super::error::{Result, StoreError};
-use super::hashing::{ContentDigest, DigestFn, IncrementalHasher};
 use super::manifest::{BlobManifest, ChunkInfo, INLINE_BLOB_MAX, unix_now_secs};
 use super::{
     CDC_MAX_SIZE, CacheStore, MAX_BLOB_REASSEMBLE_SIZE, PREFIX_CHUNK, PREFIX_MANIFEST,
     SMALL_BLOB_THRESHOLD, cdc_ranges, compress_and_batch_chunks, prefixed_key, tagged_chunk,
 };
+use reapi_cas::Compression;
+use reapi_cas::{ContentDigest, DigestFn, IncrementalHasher};
 
 /// Streaming writer that builds a CAS blob incrementally from arbitrary-sized pieces.
 ///

@@ -6,7 +6,6 @@
 use std::fmt;
 use std::str::FromStr;
 
-use anyhow::Context as _;
 use sha2::{Digest as _, Sha256};
 
 // SHA256TREE: data at or below this size uses plain SHA-256
@@ -17,10 +16,16 @@ pub(crate) const SHA256TREE_IV: [u32; 8] = [
     0xcbbb9d5d, 0x629a292a, 0x9159015a, 0x152fecd8, 0x67332667, 0x8eb44a87, 0xdb0c2e0d, 0x47b5481d,
 ];
 
+/// A string that names no digest function.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("unknown digest function: {0}")]
+pub struct UnknownDigestFunction(pub String);
+
 /// Digest function identifier for multi-hash support.
 ///
-/// The `repr(u8)` values are internal storage discriminator bytes, not proto
-/// enum values. Use `from_proto_i32` / `to_proto_i32` for proto conversion.
+/// The `repr(u8)` values are storage discriminator bytes, not proto enum
+/// values, and are stable: stores write them into keys. Use
+/// `from_proto_i32` / `to_proto_i32` for proto conversion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum DigestFn {
@@ -50,6 +55,15 @@ impl DigestFn {
             9 => Some(DigestFn::Blake3),
             _ => None,
         }
+    }
+
+    /// The digest function a request names in its `digest_function` field,
+    /// where 0 (unset) means SHA-256, as it did before requests named one.
+    pub fn of_request(v: i32) -> Option<Self> {
+        if v == 0 {
+            return Some(DigestFn::Sha256);
+        }
+        Self::from_proto_i32(v)
     }
 
     /// Convert to the proto `DigestFunction.Value` i32.
@@ -88,10 +102,10 @@ impl fmt::Display for DigestFn {
 }
 
 impl FromStr for DigestFn {
-    type Err = anyhow::Error;
+    type Err = UnknownDigestFunction;
 
-    fn from_str(s: &str) -> anyhow::Result<Self> {
-        Self::from_str_name(s).context(format!("unknown digest function: {}", s))
+    fn from_str(s: &str) -> Result<Self, UnknownDigestFunction> {
+        Self::from_str_name(s).ok_or_else(|| UnknownDigestFunction(s.to_string()))
     }
 }
 

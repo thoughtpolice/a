@@ -1,14 +1,15 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: Apache-2.0
 
-use super::test_helpers::*;
+use crate::compression::Compression;
+use crate::digest::DigestFn;
+use crate::resource::{parse_read, parse_write, read_name, write_name};
 
 #[test]
 fn parse_read_resource_name_simple() {
-    let parsed = super::helpers::parse_read_resource_name(
-        "blobs/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/0",
-    )
-    .unwrap();
+    let parsed =
+        parse_read("blobs/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/0")
+            .unwrap();
     assert_eq!(
         parsed.hash,
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -18,7 +19,7 @@ fn parse_read_resource_name_simple() {
 
 #[test]
 fn parse_read_resource_name_with_digest_function() {
-    let parsed = super::helpers::parse_read_resource_name(
+    let parsed = parse_read(
         "blobs/sha256/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/0",
     )
     .unwrap();
@@ -31,7 +32,7 @@ fn parse_read_resource_name_with_digest_function() {
 
 #[test]
 fn parse_read_resource_name_with_instance() {
-    let parsed = super::helpers::parse_read_resource_name(
+    let parsed = parse_read(
         "my-instance/blobs/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/42",
     )
     .unwrap();
@@ -40,7 +41,7 @@ fn parse_read_resource_name_with_instance() {
 
 #[test]
 fn parse_write_resource_name_simple() {
-    let parsed = super::helpers::parse_write_resource_name(
+    let parsed = parse_write(
         "uploads/abc-123/blobs/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/0",
     )
     .unwrap();
@@ -50,7 +51,7 @@ fn parse_write_resource_name_simple() {
 
 #[test]
 fn parse_write_resource_name_with_digest_function() {
-    let parsed = super::helpers::parse_write_resource_name(
+    let parsed = parse_write(
         "uploads/abc-123/blobs/blake3/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/100",
     )
     .unwrap();
@@ -61,12 +62,12 @@ fn parse_write_resource_name_with_digest_function() {
 
 #[test]
 fn parse_write_resource_name_invalid() {
-    assert!(super::helpers::parse_write_resource_name("invalid/resource").is_err());
+    assert!(parse_write("invalid/resource").is_err());
 }
 
 #[test]
 fn parse_read_resource_name_compressed_blobs() {
-    let parsed = super::helpers::parse_read_resource_name(
+    let parsed = parse_read(
         "compressed-blobs/zstd/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/100",
     )
     .unwrap();
@@ -81,7 +82,7 @@ fn parse_read_resource_name_compressed_blobs() {
 
 #[test]
 fn parse_read_resource_name_compressed_blobs_with_digest_fn() {
-    let parsed = super::helpers::parse_read_resource_name(
+    let parsed = parse_read(
         "compressed-blobs/zstd/blake3/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/42",
     )
     .unwrap();
@@ -92,7 +93,7 @@ fn parse_read_resource_name_compressed_blobs_with_digest_fn() {
 
 #[test]
 fn parse_read_resource_name_compressed_blobs_with_instance() {
-    let parsed = super::helpers::parse_read_resource_name(
+    let parsed = parse_read(
         "my-instance/compressed-blobs/zstd/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/10",
     )
     .unwrap();
@@ -102,7 +103,7 @@ fn parse_read_resource_name_compressed_blobs_with_instance() {
 
 #[test]
 fn parse_write_resource_name_compressed_blobs() {
-    let parsed = super::helpers::parse_write_resource_name(
+    let parsed = parse_write(
         "uploads/abc-123/compressed-blobs/zstd/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/200",
     )
     .unwrap();
@@ -114,7 +115,7 @@ fn parse_write_resource_name_compressed_blobs() {
 
 #[test]
 fn parse_write_resource_name_compressed_blobs_with_digest_fn() {
-    let parsed = super::helpers::parse_write_resource_name(
+    let parsed = parse_write(
         "uploads/abc-123/compressed-blobs/zstd/blake3/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/300",
     )
     .unwrap();
@@ -126,16 +127,15 @@ fn parse_write_resource_name_compressed_blobs_with_digest_fn() {
 
 #[test]
 fn parse_read_resource_name_uncompressed_has_identity() {
-    let parsed = super::helpers::parse_read_resource_name(
-        "blobs/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/0",
-    )
-    .unwrap();
+    let parsed =
+        parse_read("blobs/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/0")
+            .unwrap();
     assert_eq!(parsed.compressor, Compression::Identity);
 }
 
 #[test]
 fn parse_write_resource_name_uncompressed_has_identity() {
-    let parsed = super::helpers::parse_write_resource_name(
+    let parsed = parse_write(
         "uploads/abc-123/blobs/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/0",
     )
     .unwrap();
@@ -144,17 +144,66 @@ fn parse_write_resource_name_uncompressed_has_identity() {
 
 #[test]
 fn resolve_digest_function_defaults() {
-    let df = super::helpers::resolve_digest_function(0).unwrap();
+    let df = DigestFn::of_request(0).unwrap();
     assert_eq!(df, DigestFn::Sha256);
 }
 
 #[test]
 fn resolve_digest_function_sha256() {
-    let df = super::helpers::resolve_digest_function(1).unwrap();
+    let df = DigestFn::of_request(1).unwrap();
     assert_eq!(df, DigestFn::Sha256);
 }
 
 #[test]
 fn resolve_digest_function_invalid() {
-    assert!(super::helpers::resolve_digest_function(99).is_err());
+    assert!(DigestFn::of_request(99).is_none());
+}
+
+#[test]
+fn built_names_parse_back() {
+    let hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    for instance in ["", "main", "a/b"] {
+        for digest_fn in [DigestFn::Sha256, DigestFn::Blake3, DigestFn::Sha256Tree] {
+            for compressor in [Compression::Identity, Compression::Zstd] {
+                let name = read_name(instance, digest_fn, compressor, hash, 42);
+                let read = parse_read(&name).unwrap();
+                assert_eq!(
+                    (
+                        read.hash.as_str(),
+                        read.size,
+                        read.digest_fn,
+                        read.compressor
+                    ),
+                    (hash, 42, digest_fn, compressor),
+                    "{name}"
+                );
+
+                let name = write_name(instance, "u-1", digest_fn, compressor, hash, 42);
+                let write = parse_write(&name).unwrap();
+                assert_eq!(
+                    (write.hash.as_str(), write.size, write.uuid.as_deref()),
+                    (hash, 42, Some("u-1")),
+                    "{name}"
+                );
+                assert_eq!((write.digest_fn, write.compressor), (digest_fn, compressor));
+            }
+        }
+    }
+}
+
+#[test]
+fn sha256_names_leave_out_the_digest_function() {
+    let hash = "ab".repeat(32);
+    assert_eq!(
+        read_name("", DigestFn::Sha256, Compression::Identity, &hash, 1),
+        format!("blobs/{hash}/1")
+    );
+    assert_eq!(
+        read_name("i", DigestFn::Blake3, Compression::Zstd, &hash, 1),
+        format!("i/compressed-blobs/zstd/blake3/{hash}/1")
+    );
+    assert_eq!(
+        write_name("", "u", DigestFn::Sha256, Compression::Identity, &hash, 1),
+        format!("uploads/u/blobs/{hash}/1")
+    );
 }

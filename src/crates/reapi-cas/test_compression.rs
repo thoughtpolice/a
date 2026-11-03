@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use super::test_helpers::*;
-use super::*;
+use std::borrow::Cow;
+
+use crate::compression::*;
+use crate::test_helpers::*;
 
 // =================================================================================================================
 // Compression tests
@@ -150,14 +152,14 @@ fn decompress_bomb_zstd_rejected() {
     // reject it since the actual decompressed size is larger than the cap.
     let result = Compression::Zstd.decompress(&compressed);
     assert!(result.is_err());
-    assert!(matches!(result, Err(StoreError::CompressionFailed(_))));
+    assert!(matches!(result, Err(CompressionError(_))));
 
     // decompress_with_size_hint also clamps to MAX_CHUNK_DECOMPRESSED_SIZE,
     // so it rejects data exceeding the cap regardless of the hint.
     let result =
         Compression::Zstd.decompress_with_size_hint(&compressed, MAX_CHUNK_DECOMPRESSED_SIZE + 1);
     assert!(result.is_err());
-    assert!(matches!(result, Err(StoreError::CompressionFailed(_))));
+    assert!(matches!(result, Err(CompressionError(_))));
 }
 
 // =================================================================================================================
@@ -216,7 +218,7 @@ fn decompress_bomb_deflate_rejected() {
     // The compressed payload is small, but decompresses to > limit
     let result = Compression::Deflate.decompress(&compressed);
     assert!(result.is_err());
-    assert!(matches!(result, Err(StoreError::CompressionFailed(_))));
+    assert!(matches!(result, Err(CompressionError(_))));
 }
 
 #[test]
@@ -225,7 +227,7 @@ fn decompress_bomb_brotli_rejected() {
     let compressed = Compression::Brotli.compress(&data).unwrap();
     let result = Compression::Brotli.decompress(&compressed);
     assert!(result.is_err());
-    assert!(matches!(result, Err(StoreError::CompressionFailed(_))));
+    assert!(matches!(result, Err(CompressionError(_))));
 }
 
 #[test]
@@ -236,7 +238,7 @@ fn streaming_decompressor_zstd_enforces_limit() {
     let mut decompressor = Compression::Zstd.streaming_decompressor(limit).unwrap();
     let result = decompressor.write(&compressed);
     assert!(
-        matches!(result, Err(StoreError::CompressionFailed(_))),
+        matches!(result, Err(CompressionError(_))),
         "expected limit error, got {:?}",
         result,
     );
@@ -250,7 +252,7 @@ fn streaming_decompressor_deflate_enforces_limit() {
     let mut decompressor = Compression::Deflate.streaming_decompressor(limit).unwrap();
     let result = decompressor.write(&compressed);
     assert!(
-        matches!(result, Err(StoreError::CompressionFailed(_))),
+        matches!(result, Err(CompressionError(_))),
         "expected limit error, got {:?}",
         result,
     );
@@ -264,7 +266,7 @@ fn streaming_decompressor_brotli_enforces_limit() {
     let mut decompressor = Compression::Brotli.streaming_decompressor(limit).unwrap();
     let result = decompressor.write(&compressed);
     assert!(
-        matches!(result, Err(StoreError::CompressionFailed(_))),
+        matches!(result, Err(CompressionError(_))),
         "expected limit error, got {:?}",
         result,
     );
