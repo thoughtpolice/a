@@ -117,13 +117,17 @@ pub async fn start_reapi_grpc(
         }
     };
 
-    let timeouts = crate::request_timeout::RequestTimeouts {
-        default: request_timeout,
-        fetch: frontend
+    // Remote Asset fetches clone repositories and download archives, which
+    // takes minutes: they get a limit of their own.
+    let timeouts = grpc_guards::RequestTimeouts::new(request_timeout)
+        .service::<protos::build::bazel::remote::asset::v1::fetch_server::FetchServer<
+        api::FetchService,
+    >>(
+        frontend
             .fetch_config
             .max_fetch_time
             .map(|max| max + api::FETCH_TIMEOUT_MARGIN),
-    };
+    );
 
     // Build routes using tonic::service::Routes directly — we bypass tonic's
     // transport layer so we can run our own traced accept loop.
@@ -189,10 +193,7 @@ pub async fn serve_workers<A: Accept>(
     frontend: &Frontend,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let timeouts = crate::request_timeout::RequestTimeouts {
-        default: None,
-        fetch: None,
-    };
+    let timeouts = grpc_guards::RequestTimeouts::new(None);
     serve_stack(
         acceptor,
         frontend.worker_routes().prepare(),
@@ -244,7 +245,7 @@ async fn set_services_status(
 async fn serve_stack<A: Accept>(
     acceptor: A,
     routes: tonic::service::Routes,
-    timeouts: crate::request_timeout::RequestTimeouts,
+    timeouts: grpc_guards::RequestTimeouts,
     effective_limit: usize,
     pressure_monitor: Option<runtime_env::psi::PressureMonitor>,
     handle: Dial9TokioHandle,
@@ -252,14 +253,19 @@ async fn serve_stack<A: Accept>(
     limits: dial9_tonic::ConnectionLimits,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let svc = tower::limit::ConcurrencyLimit::new(
-        crate::request_timeout::RequestTimeout::new(routes, timeouts),
+        grpc_guards::RequestTimeout::new(routes, timeouts),
         effective_limit,
     );
     match pressure_monitor {
         Some(monitor) => {
-            let svc = crate::pressure_gate::PressureGateLayer::new(
-                monitor,
-                runtime_env::psi::PressureLevel::High,
+            // Shed load before memory pressure gets the process killed.
+            let threshold = runtime_env::psi::PressureLevel::High;
+            let svc = grpc_guards::ShedLayer::new(
+                move || {
+                    let memory = monitor.current().memory;
+                    (memory >= threshold).then(|| format!("memory pressure {memory}"))
+                },
+                "server under memory pressure, retry later",
             )
             .layer(svc);
             dial9_tonic::serve_traced_with(acceptor, svc, handle, shutdown, limits).await

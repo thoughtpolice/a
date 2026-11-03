@@ -9,6 +9,7 @@ BUILD_DEPS = [
     # local deps
     "//src/crates/accept:accept",
     "//src/crates/dial9-tonic:dial9-tonic",
+    "//src/crates/grpc-guards:grpc-guards",
     "//src/crates/iroh-dial:iroh-dial",
     "//src/crates/reapi-protos:protos",
     "//src/crates/rustls-boring:rustls-boring",
@@ -51,7 +52,6 @@ depot.rust_binary(
 
 TEST_MODULES = {
     "dial9": {},
-    "request_timeout": {},
     "serve": {},
     "tls": {
         "resources": {

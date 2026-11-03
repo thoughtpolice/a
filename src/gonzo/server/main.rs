@@ -1372,18 +1372,13 @@ async fn run_server(
 
 mod daemon;
 mod local_worker;
-mod pressure_gate;
 pub mod reapi_grpc;
 mod remote_workers;
-mod request_timeout;
 pub mod store;
 pub mod tls;
 
 #[cfg(test_module_dial9)]
 mod test_dial9;
-
-#[cfg(test_module_request_timeout)]
-mod test_request_timeout;
 
 #[cfg(test_module_serve)]
 mod test_serve;

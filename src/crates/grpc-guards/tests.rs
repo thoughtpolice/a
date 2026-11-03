@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use tower::{Service as _, ServiceExt as _};
 
-use crate::request_timeout::{RequestTimeout, RequestTimeouts};
+use crate::{RequestTimeout, RequestTimeouts, ShedLayer};
 
 /// A service answering after `delay`.
 fn slow(
@@ -37,17 +37,16 @@ async fn call(
     svc.ready().await.unwrap().call(req).await.unwrap()
 }
 
+const FETCH: &str = "/build.bazel.remote.asset.v1.Fetch/";
 const FETCH_DIRECTORY: &str = "/build.bazel.remote.asset.v1.Fetch/FetchDirectory";
 const FIND_MISSING: &str =
     "/build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs";
 const EXECUTE: &str = "/build.bazel.remote.execution.v2.Execution/Execute";
 
 #[tokio::test(start_paused = true)]
-async fn fetches_get_their_own_limit() {
-    let timeouts = RequestTimeouts {
-        default: Some(Duration::from_secs(900)),
-        fetch: Some(Duration::from_secs(1802)),
-    };
+async fn routes_get_their_own_limit() {
+    let timeouts = RequestTimeouts::new(Some(Duration::from_secs(900)))
+        .route(FETCH, Some(Duration::from_secs(1802)));
     // Twenty minutes: past the default limit, within the fetch limit.
     let mut svc = RequestTimeout::new(slow(Duration::from_secs(1200)), timeouts);
 
@@ -62,10 +61,7 @@ async fn fetches_get_their_own_limit() {
 
 #[tokio::test(start_paused = true)]
 async fn a_fetch_past_its_limit_is_cut_off() {
-    let timeouts = RequestTimeouts {
-        default: None,
-        fetch: Some(Duration::from_secs(60)),
-    };
+    let timeouts = RequestTimeouts::new(None).route(FETCH, Some(Duration::from_secs(60)));
     let mut svc = RequestTimeout::new(slow(Duration::from_secs(61)), timeouts);
     let fetch = call(&mut svc, FETCH_DIRECTORY).await;
     assert_eq!(fetch.headers()["grpc-status"], "4");
@@ -86,10 +82,8 @@ struct Later(Option<tokio::sync::oneshot::Receiver<&'static str>>);
 
 #[tokio::test(start_paused = true)]
 async fn a_response_once_started_may_stream_past_the_limit() {
-    let timeouts = RequestTimeouts {
-        default: Some(Duration::from_secs(900)),
-        fetch: Some(Duration::from_secs(1802)),
-    };
+    let timeouts = RequestTimeouts::new(Some(Duration::from_secs(900)))
+        .route(FETCH, Some(Duration::from_secs(1802)));
     let (send, body) = tokio::sync::oneshot::channel();
     let mut body = Some(body);
     // Answers at once, as Execute does with the stream of its stages.
@@ -109,4 +103,44 @@ async fn a_response_once_started_may_stream_past_the_limit() {
         panic!("the body was not passed through");
     };
     assert_eq!(body.await.unwrap(), "done");
+}
+
+#[test]
+fn the_first_matching_route_sets_the_limit() {
+    let timeouts = RequestTimeouts::new(Some(Duration::from_secs(1)))
+        .route("/a.B/Slow", None)
+        .route("/a.B/", Some(Duration::from_secs(2)));
+    assert_eq!(timeouts.limit("/a.B/Slow"), None);
+    assert_eq!(timeouts.limit("/a.B/Fast"), Some(Duration::from_secs(2)));
+    assert_eq!(timeouts.limit("/c.D/Any"), Some(Duration::from_secs(1)));
+}
+
+#[tokio::test]
+async fn an_overloaded_server_sheds_requests() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use tower::Layer as _;
+
+    let overloaded = Arc::new(AtomicBool::new(false));
+    let layer = {
+        let overloaded = overloaded.clone();
+        ShedLayer::new(
+            move || {
+                overloaded
+                    .load(Ordering::Relaxed)
+                    .then(|| "busy".to_string())
+            },
+            "server busy, retry later",
+        )
+    };
+    let mut svc = layer.layer(slow(Duration::ZERO));
+    let req = || hyper::Request::builder().uri(EXECUTE).body(()).unwrap();
+    let admitted = svc.ready().await.unwrap().call(req()).await.unwrap();
+    assert_eq!(admitted.body(), "done");
+
+    overloaded.store(true, Ordering::Relaxed);
+    let shed = svc.ready().await.unwrap().call(req()).await.unwrap();
+    assert_eq!(shed.headers()["grpc-status"], "14");
+    assert_eq!(shed.headers()["grpc-message"], "server busy, retry later");
+    assert_eq!(shed.body(), "");
 }
