@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# Installed at /etc/buckconfig, which Buck2 reads for every project on
+# the machine. Wolfi has no watchman, so Buck2 hashes the files it reads
+# instead, as CI does.
+
+[buck2]
+file_watcher = fs_hash_crawler
