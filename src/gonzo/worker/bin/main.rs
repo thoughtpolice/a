@@ -128,7 +128,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
     // Before the runtime starts: this sizes it, raises the open file limit
     // and fits the allocator to a memory limit.
-    let runtime_info = runtime::init();
+    let runtime_info = runtime_env::init();
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .worker_threads(runtime_info.effective_cpus)
@@ -137,7 +137,7 @@ fn main() -> Result<()> {
         .block_on(serve(args, runtime_info))
 }
 
-async fn serve(args: Args, runtime_info: runtime::RuntimeInfo) -> Result<()> {
+async fn serve(args: Args, runtime_info: runtime_env::RuntimeInfo) -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::builder()

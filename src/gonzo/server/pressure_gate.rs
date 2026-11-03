@@ -3,7 +3,7 @@
 
 //! Tower layer that sheds load when cgroup memory pressure is high.
 //!
-//! When the [`PressureMonitor`](runtime::psi::PressureMonitor) reports
+//! When the [`PressureMonitor`](runtime_env::psi::PressureMonitor) reports
 //! memory pressure at or above a configurable threshold, incoming
 //! requests are rejected immediately with gRPC status `UNAVAILABLE`.
 //! This prevents the process from being OOM-killed under sustained
@@ -13,7 +13,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use runtime::psi::{PressureLevel, PressureMonitor};
+use runtime_env::psi::{PressureLevel, PressureMonitor};
 
 /// Tower [`Layer`](tower::Layer) that wraps a service with
 /// pressure-aware load shedding.

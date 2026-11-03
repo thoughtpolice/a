@@ -102,7 +102,7 @@ pub async fn start_reapi_grpc(
     request_timeout: Option<Duration>,
     max_concurrent_requests: Option<usize>,
     max_connections: usize,
-    pressure_monitor: Option<runtime::psi::PressureMonitor>,
+    pressure_monitor: Option<runtime_env::psi::PressureMonitor>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (health_reporter, health_service) = tonic_health::server::health_reporter();
     set_services_status(&health_reporter, tonic_health::ServingStatus::Serving).await;
@@ -246,7 +246,7 @@ async fn serve_stack<A: Accept>(
     routes: tonic::service::Routes,
     timeouts: crate::request_timeout::RequestTimeouts,
     effective_limit: usize,
-    pressure_monitor: Option<runtime::psi::PressureMonitor>,
+    pressure_monitor: Option<runtime_env::psi::PressureMonitor>,
     handle: Dial9TokioHandle,
     shutdown: impl Future<Output = ()> + Send + 'static,
     limits: dial9_tonic::ConnectionLimits,
@@ -259,7 +259,7 @@ async fn serve_stack<A: Accept>(
         Some(monitor) => {
             let svc = crate::pressure_gate::PressureGateLayer::new(
                 monitor,
-                runtime::psi::PressureLevel::High,
+                runtime_env::psi::PressureLevel::High,
             )
             .layer(svc);
             dial9_tonic::serve_traced_with(acceptor, svc, handle, shutdown, limits).await

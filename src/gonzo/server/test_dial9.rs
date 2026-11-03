@@ -20,7 +20,7 @@ fn records_a_sealed_segment() {
     let tmp = tempfile::tempdir().expect("temp dir");
     let trace_dir = tmp.path().join("traces");
 
-    let caps = runtime::check_perf_capabilities();
+    let caps = runtime_env::check_perf_capabilities();
     let metadata = vec![("service.name".to_string(), "test".to_string())];
     let recorder = start_recorder(&trace_dir, 1, 8, 10, metadata, &caps).expect("start recorder");
     assert!(

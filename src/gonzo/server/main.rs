@@ -360,7 +360,7 @@ fn start_recorder(
     max_total_mib: u64,
     sched_sample_interval: u64,
     metadata: Vec<(String, String)>,
-    caps: &runtime::PerfCapabilities,
+    caps: &runtime_env::PerfCapabilities,
 ) -> Result<dial9::Recorder> {
     let writer = DiskBuffer::builder()
         .base_path(trace_dir)
@@ -542,7 +542,7 @@ fn main() -> Result<()> {
         _ => {}
     }
 
-    let rt_info = runtime::init();
+    let rt_info = runtime_env::init();
 
     let mut builder = tokio::runtime::Builder::new_multi_thread();
     builder.enable_all();
@@ -586,7 +586,7 @@ fn main() -> Result<()> {
         return result;
     };
 
-    let caps = runtime::check_perf_capabilities();
+    let caps = runtime_env::check_perf_capabilities();
     let recorder = start_recorder(
         &trace_dir,
         cli.trace_max_file_mib,
@@ -849,8 +849,8 @@ async fn async_main(
     cli: Cli,
     handle: Dial9TokioHandle,
     trace_dir: Option<PathBuf>,
-    perf_caps: Option<runtime::PerfCapabilities>,
-    rt_info: runtime::RuntimeInfo,
+    perf_caps: Option<runtime_env::PerfCapabilities>,
+    rt_info: runtime_env::RuntimeInfo,
 ) -> Result<()> {
     match cli.command {
         Some(Command::Compact) => run_compactor(&cli).await,
@@ -991,8 +991,8 @@ async fn run_server(
     args: &ServeArgs,
     handle: Dial9TokioHandle,
     trace_dir: Option<&PathBuf>,
-    perf_caps: Option<&runtime::PerfCapabilities>,
-    rt_info: &runtime::RuntimeInfo,
+    perf_caps: Option<&runtime_env::PerfCapabilities>,
+    rt_info: &runtime_env::RuntimeInfo,
 ) -> Result<()> {
     // Build OTEL config from env + CLI
     let otel_config = telemetry::OtelConfig::from_env_or(telemetry::SERVICE_NAME)
@@ -1033,7 +1033,7 @@ async fn run_server(
     }
     spawn_recording_toggle()?;
 
-    let pressure_monitor = runtime::psi::PressureMonitor::spawn(
+    let pressure_monitor = runtime_env::psi::PressureMonitor::spawn(
         rt_info.pressure_dir().map(std::path::Path::to_path_buf),
         std::time::Duration::from_secs(2),
     );
@@ -1134,7 +1134,7 @@ async fn run_server(
 
     let max_connections = args
         .max_connections
-        .unwrap_or_else(|| runtime::fds::max_connections(rt_info.open_files.unwrap_or(1024)));
+        .unwrap_or_else(|| runtime_env::fds::max_connections(rt_info.open_files.unwrap_or(1024)));
 
     let worker_dir = args
         .worker_dir

@@ -30,7 +30,7 @@ impl Cgroups {
     /// A parent for action cgroups beneath the process's own cgroup, if the
     /// process may make one.
     pub fn new() -> Option<Self> {
-        let own = runtime::self_cgroup_v2_dir()?;
+        let own = runtime_env::self_cgroup_v2_dir()?;
         // Moving a process between cgroups takes write access to their
         // common ancestor's cgroup.procs, here the worker's own.
         File::options()

@@ -11,9 +11,9 @@ DEPS = [
 ]
 
 depot.rust_library(
-    name = "runtime",
+    name = "runtime-env",
     srcs = glob(["*.rs"]),
-    visibility = ["//src/gonzo/..."],
+    visibility = ["PUBLIC"],
     deps = DEPS,
 )
 

@@ -7,7 +7,7 @@ DEPS = [
     "//src/crates/reapi-client",
     "//src/crates/reapi-protos:protos",
     "//src/gonzo/protos:gonzo-protos",
-    "//src/gonzo/runtime",
+    "//src/crates/runtime-env:runtime-env",
     "third-party//rust:anyhow",
     "third-party//rust:blake3",
     "third-party//rust:bytes",

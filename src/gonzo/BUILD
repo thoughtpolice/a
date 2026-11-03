@@ -17,7 +17,7 @@ BUILD_DEPS = [
     "//src/crates/fetch-oci:fetch-oci",
     "//src/gonzo/mesh:mesh",
     "//src/gonzo/protos:gonzo-protos",
-    "//src/gonzo/runtime:runtime",
+    "//src/crates/runtime-env:runtime-env",
     "//src/gonzo/scheduler:scheduler",
     "//src/gonzo/storage:storage",
     "//src/gonzo/telemetry:telemetry",

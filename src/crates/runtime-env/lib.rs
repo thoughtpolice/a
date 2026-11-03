@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! Runtime environment checks for the cache server.
+//! Runtime environment checks for a Linux service.
 //!
 //! Validates Linux kernel settings required for dial9 CPU profiling and
 //! kernel stack traces before the traced runtime starts. Detects cgroup
