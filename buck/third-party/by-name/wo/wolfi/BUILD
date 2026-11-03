@@ -31,6 +31,34 @@ shims.run_test(
     dep = ":update-test",
 )
 
+# Writes closure locks for BUILD to load; see resolve.py.
+shims.python_binary(
+    name = "resolve",
+    base_module = "",
+    main = "resolve.py",
+    visibility = ["PUBLIC"],
+    deps = [":update-lib"],
+)
+
+shims.python_library(
+    name = "resolve-lib",
+    srcs = ["resolve.py"],
+    base_module = "",
+    deps = [":update-lib"],
+)
+
+shims.python_binary(
+    name = "resolve-test",
+    base_module = "",
+    main = "resolve_test.py",
+    deps = [":resolve-lib"],
+)
+
+shims.run_test(
+    name = "test-resolve",
+    dep = ":resolve-test",
+)
+
 # Pinned Wolfi packages: {package: (version, sha256 of the .apk)}.
 # Grouped by consumer; the groups are documentation only — every pin
 # becomes a `<package>.apk` target. See wolfi.bzl for the refresh story.
