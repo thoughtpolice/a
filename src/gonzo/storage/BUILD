@@ -8,6 +8,7 @@ DEPS = [
     "//src/crates/object-store-local:object-store-local",
     "//src/crates/object-store-s3:object-store-s3",
     "//src/crates/reapi-cas:reapi-cas",
+    "//src/crates/write-admission:write-admission",
     "third-party//rust:async-trait",
     "third-party//rust:bytes",
     "third-party//rust:futures",

@@ -75,6 +75,17 @@ impl StoreError {
     }
 }
 
+impl From<write_admission::Refused> for StoreError {
+    fn from(refused: write_admission::Refused) -> Self {
+        match refused {
+            write_admission::Refused::DiskFull { free, reserve } => {
+                StoreError::DiskFull { free, reserve }
+            }
+            write_admission::Refused::Behind { waited } => StoreError::Behind { waited },
+        }
+    }
+}
+
 impl From<reapi_cas::CompressionError> for StoreError {
     fn from(e: reapi_cas::CompressionError) -> Self {
         StoreError::CompressionFailed(e.0)

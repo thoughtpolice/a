@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    version = "0.1.0",
+    description = "Write admission for stores: refuse writes while behind on them or short of disk space.",
+    license = "Apache-2.0",
+    copyright = ["2024-2026 Austin Seipp"],
+    visibility = ["PUBLIC"],
+)

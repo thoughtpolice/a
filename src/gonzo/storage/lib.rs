@@ -4,26 +4,24 @@
 //! Content-addressable chunk storage backed by SlateDB with FastCDC chunking.
 
 mod action_results;
-mod backlog;
 mod db_cache;
 mod error;
 mod manifest;
 mod manifest_cache;
 mod presence;
 mod small_blobs;
-mod space;
 mod writer;
 
 // Re-export public API so the external interface is unchanged.
 pub use action_results::DEFAULT_ACTION_RESULT_CACHE_BYTES;
-pub use backlog::DEFAULT_MAX_WRITE_WAIT;
 pub use error::{Result, StoreError};
 pub use manifest::{BlobManifest, ChunkInfo, INLINE_BLOB_MAX, MAX_MANIFEST_CHUNK_COUNT};
 pub use manifest_cache::DEFAULT_MANIFEST_CACHE_BYTES;
 pub use reapi_cas::{Compression, StreamingDecompressor};
 pub use reapi_cas::{ContentDigest, DigestFn, IncrementalHasher, parse_digest_hash};
 pub use small_blobs::DEFAULT_SMALL_BLOB_CACHE_BYTES;
-pub use space::{default_reserve, filesystem_space};
+pub use write_admission::DEFAULT_MAX_WRITE_WAIT;
+pub use write_admission::{default_reserve, filesystem_space};
 pub use writer::CasBlobWriter;
 
 pub use manifest::unix_now_secs;
@@ -86,7 +84,7 @@ pub struct CacheStoreSettings {
     /// `Some(0)` turns the check off.
     pub disk_reserve_bytes: Option<u64>,
     /// Refuse new writes while the oldest under way has waited longer than
-    /// this (see [`backlog`]). `None` keeps [`DEFAULT_MAX_WRITE_WAIT`];
+    /// this (see [`write_admission::Backlog`]). `None` keeps [`DEFAULT_MAX_WRITE_WAIT`];
     /// `Some(ZERO)` lets writes wait as long as the store takes.
     pub max_write_wait: Option<std::time::Duration>,
     /// How many stored blobs to remember, so that checking for them again
@@ -443,10 +441,9 @@ pub struct CacheStore {
     /// A value with less than this long (ms) to live is due for a rewrite:
     /// half the default TTL, or `None` without one.
     refresh_window_ms: Option<i64>,
-    /// Local stores: the free space writes need.
-    disk: Option<Arc<space::DiskReserve>>,
-    /// Writes under way, refused while the oldest has waited too long.
-    backlog: Option<backlog::Backlog>,
+    /// Refuses writes while a local store's disk is short of its reserve,
+    /// or while the oldest write under way has waited too long.
+    admission: write_admission::Admission,
     /// Blobs known durably stored, so existence checks skip the LSM.
     presence: presence::PresenceCache,
     /// Small blobs recently read, so reading them again skips the LSM.
@@ -686,11 +683,12 @@ impl CacheStore {
         let disk = match (&backend, settings.disk_reserve_bytes) {
             (_, Some(0)) => None,
             (StoreBackend::LocalFs(path), reserve) => {
-                let disk = space::DiskReserve::watch(path.into(), reserve).map_err(|e| {
-                    StoreError::Database(slatedb::Error::unavailable(format!(
-                        "measuring free space under {path}: {e}"
-                    )))
-                })?;
+                let disk =
+                    write_admission::DiskReserve::watch(path.into(), reserve).map_err(|e| {
+                        StoreError::Database(slatedb::Error::unavailable(format!(
+                            "measuring free space under {path}: {e}"
+                        )))
+                    })?;
                 tracing::info!(
                     path,
                     reserve = disk.reserve(),
@@ -706,11 +704,10 @@ impl CacheStore {
             db,
             default_ttl_ms,
             refresh_window_ms: default_ttl_ms.map(|ttl| ttl / 2),
-            disk,
-            backlog: match settings.max_write_wait.unwrap_or(DEFAULT_MAX_WRITE_WAIT) {
-                std::time::Duration::ZERO => None,
-                limit => Some(backlog::Backlog::new(limit)),
-            },
+            admission: write_admission::Admission::with_max_wait(
+                disk,
+                settings.max_write_wait.unwrap_or(DEFAULT_MAX_WRITE_WAIT),
+            ),
             presence: presence::PresenceCache::new(
                 settings
                     .presence_cache_entries
@@ -795,14 +792,8 @@ impl CacheStore {
     /// Admit a write: refused while the disk under a local store is below
     /// its reserve, or while the store is behind on writes. Hold what it
     /// returns until the write is done.
-    fn admit_write(&self) -> Result<Option<backlog::Ticket<'_>>> {
-        if let Some(disk) = &self.disk {
-            disk.check()?;
-        }
-        self.backlog
-            .as_ref()
-            .map(backlog::Backlog::admit)
-            .transpose()
+    fn admit_write(&self) -> Result<write_admission::Permit<'_>> {
+        Ok(self.admission.admit()?)
     }
 
     /// `Db::put`, returning once the value is durable.

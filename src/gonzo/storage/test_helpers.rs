@@ -12,7 +12,7 @@ use super::*;
 ///
 /// The store never refuses writes for being behind. On a loaded CI runner
 /// one put can take longer than DEFAULT_MAX_WRITE_WAIT, and the refusal
-/// then fails tests that are about something else. backlog.rs tests the
+/// then fails tests that are about something else. write-admission tests the
 /// refusal itself.
 pub async fn open_memory_store() -> CacheStore {
     let settings = CacheStoreSettings {

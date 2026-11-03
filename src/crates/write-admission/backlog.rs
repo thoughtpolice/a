@@ -3,30 +3,30 @@
 
 //! Refuses writes while the store is too far behind on them.
 //!
-//! A write waits inside SlateDB while its memtables cannot be flushed: L0
-//! is full until compaction catches up, and compaction goes as fast as the
-//! disk. Nothing else bounds that wait, so writes arriving faster than the
+//! A write to an LSM store such as SlateDB waits while its memtables cannot
+//! be flushed: L0 is full until compaction catches up, and compaction goes
+//! as fast as the disk. Nothing else bounds that wait, so writes arriving faster than the
 //! disk takes them join a queue that grows for as long as they do, and
 //! uploads come to take tens of seconds while connections fill with
 //! requests waiting on them. Once the oldest write under way has waited
-//! longer than a limit, new writes are refused at once instead (the server
-//! answers RESOURCE_EXHAUSTED, which Bazel and Buck treat as a failed cache
-//! upload, not a failed build) until the store catches up. Reads are never
-//! refused, and writes already under way carry on.
+//! longer than a limit, new writes are refused at once instead (a cache
+//! server answers RESOURCE_EXHAUSTED, say, which Bazel and Buck treat as a
+//! failed cache upload, not a failed build) until the store catches up.
+//! Reads are never refused, and writes already under way carry on.
 
 use std::collections::BTreeSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
-use crate::error::{Result, StoreError};
+use crate::Refused;
 
 /// How long the oldest write under way may have waited before new ones
 /// are refused, by default.
 pub const DEFAULT_MAX_WRITE_WAIT: Duration = Duration::from_secs(2);
 
 /// The writes under way, by when each began.
-pub(crate) struct Backlog {
+pub struct Backlog {
     limit: Duration,
     under_way: Mutex<BTreeSet<(Instant, u64)>>,
     next: AtomicU64,
@@ -36,7 +36,7 @@ pub(crate) struct Backlog {
 
 /// A write under way; dropping it (done or abandoned) takes it off the
 /// backlog.
-pub(crate) struct Ticket<'a> {
+pub struct Ticket<'a> {
     backlog: &'a Backlog,
     key: (Instant, u64),
 }
@@ -53,7 +53,7 @@ impl Drop for Ticket<'_> {
 
 impl Backlog {
     /// Refuse writes once the oldest under way has waited past `limit`.
-    pub(crate) fn new(limit: Duration) -> Self {
+    pub fn new(limit: Duration) -> Self {
         Self {
             limit,
             under_way: Mutex::new(BTreeSet::new()),
@@ -63,7 +63,7 @@ impl Backlog {
     }
 
     /// Admit a write, or refuse it while the store is behind.
-    pub(crate) fn admit(&self) -> Result<Ticket<'_>> {
+    pub fn admit(&self) -> Result<Ticket<'_>, Refused> {
         let now = Instant::now();
         let mut under_way = self.under_way.lock().expect("backlog lock");
         let waited = under_way.first().map_or(Duration::ZERO, |(oldest, _)| {
@@ -77,7 +77,7 @@ impl Backlog {
                     "the store is behind on writes; refusing new ones until it catches up"
                 );
             }
-            return Err(StoreError::Behind { waited });
+            return Err(Refused::Behind { waited });
         }
         let key = (now, self.next.fetch_add(1, Ordering::Relaxed));
         under_way.insert(key);
@@ -102,7 +102,7 @@ mod tests {
 
         let refused = backlog.admit().err().unwrap();
         assert!(
-            matches!(refused, StoreError::Behind { waited } if waited >= Duration::from_millis(80)),
+            matches!(refused, Refused::Behind { waited } if waited >= Duration::from_millis(80)),
             "{refused}"
         );
 

@@ -3,20 +3,20 @@
 
 //! Keeps a local store from filling its disk.
 //!
-//! When the filesystem under a local store fills, SlateDB's next memtable
-//! flush or compaction fails, the database stops, and so does the server:
-//! every client loses the cache, reads included, until someone frees space
-//! and restarts it. Refusing new writes while free space is below a reserve
+//! When the filesystem under a local store fills, an LSM store's next
+//! memtable flush or compaction fails, the database stops, and so does
+//! whatever serves it: every client loses it, reads included, until someone
+//! frees space and restarts it. Refusing new writes while free space is below a reserve
 //! keeps reads working, leaves compaction and garbage collection the room
-//! they need to bring usage back down, and tells clients why their uploads
-//! fail (a cache upload failing is a warning to Bazel and Buck, not an error).
+//! they need to bring usage back down, and tells clients why their writes
+//! fail.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use crate::error::{Result, StoreError};
+use crate::Refused;
 
 /// How often free space is measured.
 const REFRESH: Duration = Duration::from_secs(1);
@@ -48,7 +48,7 @@ pub fn filesystem_space(path: &Path) -> std::io::Result<(u64, u64)> {
 }
 
 /// Free space under a local store, measured every [`REFRESH`].
-pub(crate) struct DiskReserve {
+pub struct DiskReserve {
     path: PathBuf,
     reserve: u64,
     free: AtomicU64,
@@ -59,7 +59,7 @@ impl DiskReserve {
     /// Watch the filesystem holding `path`, refusing writes below `reserve`
     /// bytes free ([`default_reserve`] if `None`). The watch runs on the
     /// current Tokio runtime until the returned value is dropped.
-    pub(crate) fn watch(path: PathBuf, reserve: Option<u64>) -> std::io::Result<Arc<Self>> {
+    pub fn watch(path: PathBuf, reserve: Option<u64>) -> std::io::Result<Arc<Self>> {
         let (free, total) = filesystem_space(&path)?;
         let reserve = reserve.unwrap_or_else(|| default_reserve(total));
         let this = Arc::new(Self {
@@ -109,10 +109,10 @@ impl DiskReserve {
     }
 
     /// Fails while free space is below the reserve.
-    pub(crate) fn check(&self) -> Result<()> {
+    pub fn check(&self) -> Result<(), Refused> {
         let free = self.free.load(Ordering::Relaxed);
         if free < self.reserve {
-            return Err(StoreError::DiskFull {
+            return Err(Refused::DiskFull {
                 free,
                 reserve: self.reserve,
             });
@@ -120,7 +120,12 @@ impl DiskReserve {
         Ok(())
     }
 
-    pub(crate) fn reserve(&self) -> u64 {
+    pub fn reserve(&self) -> u64 {
         self.reserve
+    }
+
+    /// Free bytes, as last measured.
+    pub fn free(&self) -> u64 {
+        self.free.load(Ordering::Relaxed)
     }
 }
