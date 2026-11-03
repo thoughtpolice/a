@@ -24,15 +24,32 @@ use protos::build::bazel::remote::execution::v2::{Digest, UpdateActionResultRequ
 
 mod data;
 mod rpc;
-mod run;
 mod workloads;
 
 use data::{Blob, Contents, SizeDist};
+use loadgen::{Arrivals, Driver, Model, Outcome, Plan, Sessions, Workload};
 use rpc::Clients;
-use run::{Arrivals, Driver, Model, Outcome, Plan, Sessions, Workload};
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+/// How arrivals are spaced, as the command line names it.
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum ArrivalsArg {
+    /// Exponential gaps: arrivals from many independent clients.
+    Poisson,
+    /// Equal gaps.
+    Uniform,
+}
+
+impl From<ArrivalsArg> for Arrivals {
+    fn from(arg: ArrivalsArg) -> Self {
+        match arg {
+            ArrivalsArg::Poisson => Arrivals::Poisson,
+            ArrivalsArg::Uniform => Arrivals::Uniform,
+        }
+    }
+}
 
 #[derive(Parser)]
 #[command(name = "cache-bench")]
@@ -55,8 +72,8 @@ struct Cli {
     rate: Vec<f64>,
 
     /// How --rate's arrivals are spaced.
-    #[arg(long, value_enum, default_value_t = Arrivals::Poisson, global = true)]
-    arrivals: Arrivals,
+    #[arg(long, value_enum, default_value_t = ArrivalsArg::Poisson, global = true)]
+    arrivals: ArrivalsArg,
 
     /// Partly-open model: each --rate arrival is a session of this many
     /// operations on average (geometric), one after another, with --think
@@ -325,7 +342,7 @@ fn models(cli: &Cli) -> Result<Vec<Model>> {
         .map(|&rate| {
             Model::Sessions(Sessions {
                 rate,
-                arrivals: cli.arrivals,
+                arrivals: cli.arrivals.into(),
                 length,
                 think: cli.think,
                 max_in_flight: cli.max_in_flight,
@@ -355,6 +372,7 @@ fn corpus(
                     (start..(start + per).min(count))
                         .map(|i| {
                             let id = (tag << 56) | i as u64;
+                            use data::Sizes as _;
                             let mut rng = data::Rng::keyed(&[seed, id]);
                             let size = rng.size(min, max, dist);
                             Blob::new(seed, id, size, c)
@@ -415,19 +433,19 @@ async fn go<W: Workload>(cli: &Cli, models: &[Model], seed: u64, name: &str, w: 
             cli.duration
         );
         let out = driver.run(model, &plan, i as u64).await;
-        run::report(name, &out);
+        loadgen::report(name, &out);
         if let Some(path) = &cli.json {
             use std::io::Write as _;
             let mut f = std::fs::OpenOptions::new()
                 .create(true)
                 .append(true)
                 .open(path)?;
-            writeln!(f, "{}", run::to_json(name, &out))?;
+            writeln!(f, "{}", loadgen::to_json(name, &out))?;
         }
         runs.push(out);
     }
     if runs.len() > 1 {
-        run::summary(name, &runs);
+        loadgen::summary(name, &runs);
     }
     Ok(runs.iter().map(|r| r.rec.verify_failures).sum())
 }

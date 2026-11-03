@@ -1,7 +1,15 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! How operations (steps of a workload) are issued, and what they did.
+//! Load generation: issuing a workload's operations under a system model,
+//! recording what they did, and reporting it.
+//!
+//! A [`Workload`] says what one operation is; a [`Driver`] issues them as
+//! a [`Model`] says, for as long as a [`Plan`] says, each slot recording
+//! into a [`Recorder`]; [`report`], [`summary`] and [`to_json`] say what
+//! came of an [`Outcome`]. Failures are grouped by a label the workload
+//! gives each one ([`Recorder::failed`]), so that nothing here depends on
+//! what the operations are: RPCs, file writes, anything.
 //!
 //! Three system models, as Schroeder, Wierman, and Harchol-Balter define
 //! them in "Open Versus Closed: A Cautionary Tale" (NSDI '06):
@@ -32,8 +40,11 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use crate::data::Rng;
 use loghist::Histogram;
+
+mod rng;
+
+pub use rng::Rng;
 
 /// What one kind of RPC did.
 #[derive(Default, Clone)]
@@ -107,33 +118,32 @@ impl Recorder {
         s.bytes += bytes;
     }
 
-    pub fn err(&mut self, op: &'static str, started: Instant, status: &tonic::Status) {
+    /// Record a failure of `op`, started at `started`. Failures are counted
+    /// by `label`, so it should name a kind of failure (a status code and a
+    /// short message, say), not one instance.
+    pub fn failed(&mut self, op: &'static str, started: Instant, label: impl Into<String>) {
         self.tick();
         if !self.measuring {
             return;
         }
         let s = self.ops.entry(op).or_default();
         s.latency.record(started.elapsed().as_nanos() as u64);
-        let mut msg: String = status.message().chars().take(80).collect();
-        if msg.is_empty() {
-            msg = "(no message)".into();
-        }
-        *s.errors
-            .entry(format!("{:?}: {msg}", status.code()))
-            .or_default() += 1;
+        *s.errors.entry(label.into()).or_default() += 1;
     }
 
-    /// Record the outcome of `op`, started at `started`.
-    pub fn result<T>(
+    /// Record the outcome of `op`, started at `started`: its bytes if it
+    /// succeeded, or its failure under the label `label` gives it.
+    pub fn outcome<T, E>(
         &mut self,
         op: &'static str,
         started: Instant,
-        result: &Result<T, tonic::Status>,
+        result: &Result<T, E>,
         bytes: impl FnOnce(&T) -> u64,
+        label: impl FnOnce(&E) -> String,
     ) {
         match result {
             Ok(v) => self.ok(op, started, bytes(v)),
-            Err(status) => self.err(op, started, status),
+            Err(e) => self.failed(op, started, label(e)),
         }
     }
 
@@ -204,7 +214,7 @@ pub trait Workload: Send + Sync + 'static {
 }
 
 /// How arrivals are spaced.
-#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Arrivals {
     /// Exponential gaps: arrivals from many independent clients.
     Poisson,

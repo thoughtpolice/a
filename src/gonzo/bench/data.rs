@@ -9,71 +9,17 @@ use bytes::Bytes;
 use protos::build::bazel::remote::execution::v2::Digest;
 use sha2::{Digest as _, Sha256};
 
-/// xoshiro256++, seeded through splitmix64.
-#[derive(Clone)]
-pub struct Rng([u64; 4]);
+pub use loadgen::Rng;
 
-impl Rng {
-    pub fn new(seed: u64) -> Self {
-        let mut s = seed;
-        let mut next = || {
-            s = s.wrapping_add(0x9E37_79B9_7F4A_7C15);
-            let mut z = s;
-            z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-            z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-            z ^ (z >> 31)
-        };
-        Self([next(), next(), next(), next()])
-    }
-
-    /// A generator for the stream named by `parts`.
-    pub fn keyed(parts: &[u64]) -> Self {
-        let mut h = 0xcbf2_9ce4_8422_2325u64;
-        for p in parts {
-            h = (h ^ p).wrapping_mul(0x0000_0100_0000_01B3).rotate_left(29);
-        }
-        Self::new(h)
-    }
-
-    pub fn next_u64(&mut self) -> u64 {
-        let s = &mut self.0;
-        let result = s[0].wrapping_add(s[3]).rotate_left(23).wrapping_add(s[0]);
-        let t = s[1] << 17;
-        s[2] ^= s[0];
-        s[3] ^= s[1];
-        s[1] ^= s[2];
-        s[0] ^= s[3];
-        s[2] ^= t;
-        s[3] = s[3].rotate_left(45);
-        result
-    }
-
-    /// Uniform in `0..n` (n > 0).
-    pub fn below(&mut self, n: u64) -> u64 {
-        ((u128::from(self.next_u64()) * u128::from(n)) >> 64) as u64
-    }
-
-    /// Uniform in `lo..=hi`.
-    pub fn between(&mut self, lo: u64, hi: u64) -> u64 {
-        lo + self.below(hi - lo + 1)
-    }
-
-    pub fn chance(&mut self, p: f64) -> bool {
-        (self.next_u64() >> 11) as f64 / (1u64 << 53) as f64 <= p
-    }
-
-    /// Uniform in `(0, 1]`.
-    pub fn unit(&mut self) -> f64 {
-        ((self.next_u64() >> 11) + 1) as f64 / (1u64 << 53) as f64
-    }
-
-    /// Exponentially distributed, of mean `mean`.
-    pub fn exp(&mut self, mean: f64) -> f64 {
-        -mean * self.unit().ln()
-    }
-
+/// Blob sizes drawn from a [`Rng`].
+pub trait Sizes {
     /// A blob size in `min..=max`, spread as `dist` says.
-    pub fn size(&mut self, min: usize, max: usize, dist: SizeDist) -> usize {
+    fn size(&mut self, min: usize, max: usize, dist: SizeDist) -> usize;
+}
+
+impl Sizes for Rng {
+    /// A blob size in `min..=max`, spread as `dist` says.
+    fn size(&mut self, min: usize, max: usize, dist: SizeDist) -> usize {
         match dist {
             SizeDist::Uniform => self.between(min as u64, max as u64) as usize,
             SizeDist::LogUniform => {
@@ -83,15 +29,6 @@ impl Rng {
                 size.clamp(min, max)
             }
         }
-    }
-
-    pub fn fill(&mut self, buf: &mut [u8]) {
-        let (chunks, rest) = buf.as_chunks_mut::<8>();
-        for c in chunks {
-            *c = self.next_u64().to_le_bytes();
-        }
-        let last = self.next_u64().to_le_bytes();
-        rest.copy_from_slice(&last[..rest.len()]);
     }
 }
 
@@ -225,14 +162,6 @@ mod tests {
             assert_ne!(a, blob(8, 1, 1000, contents));
             assert_eq!(blob(7, 3, 5, contents).len(), 5);
         }
-    }
-
-    #[test]
-    fn exponential_draws_have_their_mean() {
-        let mut rng = Rng::new(3);
-        let n = 200_000;
-        let mean = (0..n).map(|_| rng.exp(2.5)).sum::<f64>() / n as f64;
-        assert!((mean - 2.5).abs() < 0.05, "mean {mean}");
     }
 
     #[test]

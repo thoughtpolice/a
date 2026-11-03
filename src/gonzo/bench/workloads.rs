@@ -16,9 +16,47 @@ use protos::build::bazel::remote::execution::v2::{
     GetActionResultRequest, GetTreeRequest, OutputFile, UpdateActionResultRequest,
 };
 
-use crate::data::{Blob, Contents, Rng, SizeDist, absent_digest, digest_of};
+use crate::data::{Blob, Contents, Rng, SizeDist, Sizes as _, absent_digest, digest_of};
 use crate::rpc::{BATCH_BYTES, Clients, batch_read_bytes, batch_update, check_batch_read};
-use crate::run::{Recorder, Workload};
+use loadgen::{Recorder, Workload};
+
+/// Recording RPCs' failures by status code and message.
+trait RecordStatus {
+    fn err(&mut self, op: &'static str, started: Instant, status: &tonic::Status);
+
+    fn result<T>(
+        &mut self,
+        op: &'static str,
+        started: Instant,
+        result: &Result<T, tonic::Status>,
+        bytes: impl FnOnce(&T) -> u64,
+    );
+}
+
+/// A failure's label: its code and the start of its message.
+fn label(status: &tonic::Status) -> String {
+    let mut msg: String = status.message().chars().take(80).collect();
+    if msg.is_empty() {
+        msg = "(no message)".into();
+    }
+    format!("{:?}: {msg}", status.code())
+}
+
+impl RecordStatus for Recorder {
+    fn err(&mut self, op: &'static str, started: Instant, status: &tonic::Status) {
+        self.failed(op, started, label(status));
+    }
+
+    fn result<T>(
+        &mut self,
+        op: &'static str,
+        started: Instant,
+        result: &Result<T, tonic::Status>,
+        bytes: impl FnOnce(&T) -> u64,
+    ) {
+        self.outcome(op, started, result, bytes, label);
+    }
+}
 
 /// Ids of generated blobs: `tag` keeps the streams of different purposes
 /// apart, `worker` those of different workers.
