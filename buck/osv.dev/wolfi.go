@@ -167,7 +167,8 @@ func validWolfiPackageName(value string) bool {
 		return false
 	}
 	for _, char := range value {
-		if (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') || strings.ContainsRune("+_.-", char) {
+		// Most names are lower-case, but not all: libLLVM-23.
+		if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || strings.ContainsRune("+_.-", char) {
 			continue
 		}
 		return false

@@ -435,6 +435,22 @@ func TestCollectWolfiSubjects(t *testing.T) {
 	}
 }
 
+// Wolfi names are mostly lower-case, but not all of them.
+func TestWolfiSubjectsAcceptUpperCaseNames(t *testing.T) {
+	subjects, err := wolfiSubjects(wolfiTargetResponse{
+		"depot-third-party//by-name/wo/wolfi:libLLVM-23.apk": {
+			SHA256: strings.Repeat("c", 64),
+			URLs:   []string{wolfiRepository + "libLLVM-23-23.1.4-r1.apk"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(subjects) != 1 || subjects[0].Name != "libLLVM-23@23.1.4-r1" {
+		t.Fatalf("unexpected subjects: %#v", subjects)
+	}
+}
+
 func TestWolfiSubjectsReportsAllTargetProblems(t *testing.T) {
 	validSHA := strings.Repeat("c", 64)
 	targets := wolfiTargetResponse{
