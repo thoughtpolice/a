@@ -21,16 +21,16 @@
 //!
 //! # Deliberate omissions
 //!
-//! - **Digest functions other than SHA-256 and BLAKE3.** This client verifies
-//!   everything it reads, so it only offers functions it can compute.
-//!   [`ServerCapabilities`] still *reports* whatever else a server advertises.
+//! - **Digest functions other than SHA-256, BLAKE3 and SHA256TREE.** This
+//!   client verifies everything it reads, so it only offers functions it can
+//!   compute ([`DigestFn`]). [`ServerCapabilities`] still *reports*
+//!   whatever else a server advertises.
 //! - **TLS.** Endpoints must be `http://`. See [`ConnectOptions`].
 //! - **Execution and the Action Cache.** Not needed by any consumer yet.
 //!
 //! [REAPI]: https://github.com/bazelbuild/remote-apis
 
 mod capabilities;
-mod digest;
 mod error;
 mod progress;
 
@@ -50,18 +50,19 @@ use protos::build::bazel::remote::execution::v2 as reapi;
 use protos::google::bytestream;
 
 pub use crate::capabilities::{ApiVersion, ServerCapabilities};
-pub use crate::digest::{Digest, DigestFunction};
 pub use crate::error::{Error, Result};
 pub use crate::progress::Progress;
+pub use reapi_cas::{Digest, DigestFn, InvalidDigest};
 
-use crate::digest::{read_resource_name, write_resource_name};
+use reapi_cas::Compression;
+use reapi_cas::resource::{read_name, write_name};
 
 /// Blobs at or below this size use the batch CAS RPCs; larger ones stream.
 ///
 /// Servers advertise their own ceiling as
 /// [`ServerCapabilities::max_batch_total_size_bytes`]; this is comfortably
 /// under the common default.
-pub const BATCH_THRESHOLD: i64 = 2 * 1024 * 1024;
+pub const BATCH_THRESHOLD: u64 = 2 * 1024 * 1024;
 
 /// Payload size of a single ByteStream `Write` message.
 const WRITE_CHUNK_SIZE: usize = 2 * 1024 * 1024;
@@ -230,7 +231,7 @@ impl ReapiClient {
     /// what was asked for, and silently falling back would hide it.
     pub async fn read_blob(
         &mut self,
-        function: DigestFunction,
+        function: DigestFn,
         digest: &Digest,
     ) -> Result<Option<Bytes>> {
         self.read_blob_with_progress(function, digest, &Progress::none())
@@ -241,12 +242,11 @@ impl ReapiClient {
     /// arrive.
     pub async fn read_blob_with_progress(
         &mut self,
-        function: DigestFunction,
+        function: DigestFn,
         digest: &Digest,
         progress: &Progress,
     ) -> Result<Option<Bytes>> {
-        digest.validate()?;
-        let total = digest.size as u64;
+        let total = digest.size;
         progress.report(0, total);
 
         let data = if digest.size <= BATCH_THRESHOLD {
@@ -261,7 +261,7 @@ impl ReapiClient {
             let Some(mut stream) = self.read_blob_stream(function, digest).await? else {
                 return Ok(None);
             };
-            let mut buf = Vec::with_capacity(digest.size.max(0) as usize);
+            let mut buf = Vec::with_capacity(usize::try_from(digest.size).unwrap_or(0));
             while let Some(chunk) = stream.next_chunk().await? {
                 buf.extend_from_slice(&chunk);
                 progress.report(buf.len() as u64, total);
@@ -269,19 +269,18 @@ impl ReapiClient {
             Bytes::from(buf)
         };
 
-        if data.len() as i64 != digest.size {
+        if data.len() as u64 != digest.size {
             return Err(Error::SizeMismatch {
-                expected: digest.hash.clone(),
-                expected_size: digest.size,
-                actual_size: data.len() as i64,
+                expected: *digest,
+                actual_size: data.len() as u64,
             });
         }
 
-        let actual = function.hash(&data);
-        if actual != digest.hash {
+        let actual = function.digest(&data);
+        if actual != *digest {
             return Err(Error::DigestMismatch {
                 function,
-                expected: digest.hash.clone(),
+                expected: *digest,
                 actual,
             });
         }
@@ -291,7 +290,7 @@ impl ReapiClient {
 
     async fn read_blob_batched(
         &mut self,
-        function: DigestFunction,
+        function: DigestFn,
         digest: &Digest,
     ) -> Result<Option<Bytes>> {
         let response = self
@@ -300,7 +299,7 @@ impl ReapiClient {
                 instance_name: self.instance_name.clone(),
                 digests: vec![to_proto_digest(digest)],
                 acceptable_compressors: vec![],
-                digest_function: function.to_proto(),
+                digest_function: function.to_proto_i32(),
             })
             .await
             .map_err(|source| Error::Rpc {
@@ -342,13 +341,11 @@ impl ReapiClient {
     /// whatever the blob's size.
     pub async fn read_blob_stream(
         &mut self,
-        function: DigestFunction,
+        function: DigestFn,
         digest: &Digest,
     ) -> Result<Option<BlobStream>> {
-        digest.validate()?;
-
         let request = bytestream::ReadRequest {
-            resource_name: read_resource_name(&self.instance_name, function, digest),
+            resource_name: read_name(&self.instance_name, function, Compression::Identity, digest),
             read_offset: 0,
             read_limit: 0,
         };
@@ -372,7 +369,7 @@ impl ReapiClient {
     /// only after you have checked them yourself.
     pub async fn write_blob(
         &mut self,
-        function: DigestFunction,
+        function: DigestFn,
         digest: &Digest,
         data: Bytes,
     ) -> Result<()> {
@@ -384,17 +381,15 @@ impl ReapiClient {
     /// are handed to the transport.
     pub async fn write_blob_with_progress(
         &mut self,
-        function: DigestFunction,
+        function: DigestFn,
         digest: &Digest,
         data: Bytes,
         progress: &Progress,
     ) -> Result<()> {
-        digest.validate()?;
-        if data.len() as i64 != digest.size {
+        if data.len() as u64 != digest.size {
             return Err(Error::SizeMismatch {
-                expected: digest.hash.clone(),
-                expected_size: digest.size,
-                actual_size: data.len() as i64,
+                expected: *digest,
+                actual_size: data.len() as u64,
             });
         }
 
@@ -407,10 +402,11 @@ impl ReapiClient {
             return Ok(());
         }
 
-        let resource_name = write_resource_name(
+        let resource_name = write_name(
             &self.instance_name,
             &uuid::Uuid::new_v4().to_string(),
             function,
+            Compression::Identity,
             digest,
         );
 
@@ -454,7 +450,7 @@ impl ReapiClient {
 
     async fn write_blob_batched(
         &mut self,
-        function: DigestFunction,
+        function: DigestFn,
         digest: &Digest,
         data: Bytes,
     ) -> Result<()> {
@@ -467,7 +463,7 @@ impl ReapiClient {
                     data,
                     compressor: 0,
                 }],
-                digest_function: function.to_proto(),
+                digest_function: function.to_proto_i32(),
             })
             .await
             .map_err(|source| Error::Rpc {
@@ -496,20 +492,16 @@ impl ReapiClient {
     /// request carries a single `digest_function` field.
     pub async fn find_missing(
         &mut self,
-        function: DigestFunction,
+        function: DigestFn,
         digests: &[Digest],
     ) -> Result<Vec<Digest>> {
         if digests.is_empty() {
             return Ok(Vec::new());
         }
-        for digest in digests {
-            digest.validate()?;
-        }
-
         let request = reapi::FindMissingBlobsRequest {
             instance_name: self.instance_name.clone(),
             blob_digests: digests.iter().map(to_proto_digest).collect(),
-            digest_function: function.to_proto(),
+            digest_function: function.to_proto_i32(),
         };
 
         let response = self
@@ -522,11 +514,11 @@ impl ReapiClient {
             })?
             .into_inner();
 
-        Ok(response
+        response
             .missing_blob_digests
             .iter()
             .map(from_proto_digest)
-            .collect())
+            .collect()
     }
 
     /// Record that each URI in `uris` resolves to the blob named by `digest`.
@@ -541,19 +533,17 @@ impl ReapiClient {
     /// [`Digest::to_sri`]).
     pub async fn push_blob(
         &mut self,
-        function: DigestFunction,
+        function: DigestFn,
         digest: &Digest,
         uris: &[String],
         qualifiers: &[(String, String)],
     ) -> Result<()> {
-        digest.validate()?;
-
         let request = asset::PushBlobRequest {
             instance_name: self.instance_name.clone(),
             uris: uris.to_vec(),
             qualifiers: to_proto_qualifiers(qualifiers),
             blob_digest: Some(to_proto_digest(digest)),
-            digest_function: function.to_proto(),
+            digest_function: function.to_proto_i32(),
             ..Default::default()
         };
 
@@ -576,7 +566,7 @@ impl ReapiClient {
     /// cheaper and free of side effects.
     pub async fn fetch_blob(
         &mut self,
-        function: DigestFunction,
+        function: DigestFn,
         uris: &[String],
         qualifiers: &[(String, String)],
     ) -> Result<FetchedAsset> {
@@ -586,7 +576,7 @@ impl ReapiClient {
                 instance_name: self.instance_name.clone(),
                 uris: uris.to_vec(),
                 qualifiers: to_proto_qualifiers(qualifiers),
-                digest_function: function.to_proto(),
+                digest_function: function.to_proto_i32(),
                 ..Default::default()
             })
             .await
@@ -606,7 +596,7 @@ impl ReapiClient {
 
         Ok(FetchedAsset {
             uri: fallback_uri(response.uri, uris),
-            digest: from_proto_digest(&digest),
+            digest: from_proto_digest(&digest)?,
             qualifiers: from_proto_qualifiers(response.qualifiers),
         })
     }
@@ -618,7 +608,7 @@ impl ReapiClient {
     /// tree to disk.
     pub async fn fetch_directory(
         &mut self,
-        function: DigestFunction,
+        function: DigestFn,
         uris: &[String],
         qualifiers: &[(String, String)],
     ) -> Result<FetchedAsset> {
@@ -628,7 +618,7 @@ impl ReapiClient {
                 instance_name: self.instance_name.clone(),
                 uris: uris.to_vec(),
                 qualifiers: to_proto_qualifiers(qualifiers),
-                digest_function: function.to_proto(),
+                digest_function: function.to_proto_i32(),
                 ..Default::default()
             })
             .await
@@ -649,7 +639,7 @@ impl ReapiClient {
 
         Ok(FetchedAsset {
             uri: fallback_uri(response.uri, uris),
-            digest: from_proto_digest(&digest),
+            digest: from_proto_digest(&digest)?,
             qualifiers: from_proto_qualifiers(response.qualifiers),
         })
     }
@@ -670,7 +660,7 @@ impl ReapiClient {
     /// written beneath them. `dest` itself may already exist.
     pub async fn materialize_directory(
         &mut self,
-        function: DigestFunction,
+        function: DigestFn,
         root: &Digest,
         dest: &Path,
         progress: &Progress,
@@ -682,13 +672,13 @@ impl ReapiClient {
                 path: dest.display().to_string(),
                 source,
             })?;
-        self.materialize_tree(function, root.clone(), dest.to_path_buf(), progress.clone())
+        self.materialize_tree(function, *root, dest.to_path_buf(), progress.clone())
             .await
     }
 
     fn materialize_tree(
         &mut self,
-        function: DigestFunction,
+        function: DigestFn,
         digest: Digest,
         dest: std::path::PathBuf,
         progress: Progress,
@@ -719,7 +709,7 @@ impl ReapiClient {
                     })?;
                 let path = dest.join(&file.name);
                 let contents = self
-                    .read_blob_with_progress(function, &from_proto_digest(node), &progress)
+                    .read_blob_with_progress(function, &from_proto_digest(node)?, &progress)
                     .await?
                     .ok_or_else(|| Error::MalformedResponse {
                         rpc: "materialize_directory",
@@ -763,7 +753,7 @@ impl ReapiClient {
                         path: path.display().to_string(),
                         source,
                     })?;
-                self.materialize_tree(function, from_proto_digest(node), path, progress.clone())
+                self.materialize_tree(function, from_proto_digest(node)?, path, progress.clone())
                     .await?;
             }
 
@@ -874,17 +864,12 @@ fn fallback_uri(reported: String, requested: &[String]) -> String {
 }
 
 fn to_proto_digest(digest: &Digest) -> reapi::Digest {
-    reapi::Digest {
-        hash: digest.hash.clone(),
-        size_bytes: digest.size,
-    }
+    digest.to_proto()
 }
 
-fn from_proto_digest(digest: &reapi::Digest) -> Digest {
-    Digest {
-        hash: digest.hash.clone(),
-        size: digest.size_bytes,
-    }
+/// A digest a server sent, which may be malformed.
+fn from_proto_digest(digest: &reapi::Digest) -> Result<Digest> {
+    Ok(Digest::from_proto(digest)?)
 }
 
 fn to_proto_qualifiers(qualifiers: &[(String, String)]) -> Vec<asset::Qualifier> {

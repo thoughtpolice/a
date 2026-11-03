@@ -157,6 +157,169 @@ impl fmt::Display for ContentDigest {
     }
 }
 
+/// A REAPI `Digest`: the hash of some content and its length in bytes.
+///
+/// It does not say which function made the hash; a request names that once
+/// for all its digests. The proto message's `hash` is hex and its size
+/// signed, so converting from one checks both (see [`Digest::from_proto`]).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Digest {
+    pub hash: [u8; 32],
+    pub size: u64,
+}
+
+/// A digest whose hash is not 64 hex digits, or whose size is negative.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum InvalidDigest {
+    #[error("digest hash {0:?} is not 64 hex digits")]
+    Hash(String),
+    #[error("digest size {0} is negative")]
+    Size(i64),
+}
+
+impl Digest {
+    pub fn new(hash: [u8; 32], size: u64) -> Self {
+        Self { hash, size }
+    }
+
+    /// The digest of `data` under `function`.
+    pub fn of(function: DigestFn, data: &[u8]) -> Self {
+        Self::new(function.hash_data(data), data.len() as u64)
+    }
+
+    /// From a hex hash, in either case, and a size as the protos have it.
+    pub fn parse(hash: &str, size: i64) -> Result<Self, InvalidDigest> {
+        let hash = parse_digest_hash(hash).ok_or_else(|| InvalidDigest::Hash(hash.to_string()))?;
+        let size = u64::try_from(size).map_err(|_| InvalidDigest::Size(size))?;
+        Ok(Self::new(hash, size))
+    }
+
+    /// From the proto message.
+    pub fn from_proto(
+        digest: &protos::build::bazel::remote::execution::v2::Digest,
+    ) -> Result<Self, InvalidDigest> {
+        Self::parse(&digest.hash, digest.size_bytes)
+    }
+
+    /// As the proto message, with the hash in lowercase hex.
+    pub fn to_proto(&self) -> protos::build::bazel::remote::execution::v2::Digest {
+        protos::build::bazel::remote::execution::v2::Digest {
+            hash: self.hex(),
+            size_bytes: self.size_bytes(),
+        }
+    }
+
+    /// The hash in lowercase hex.
+    pub fn hex(&self) -> String {
+        hex::encode(self.hash)
+    }
+
+    /// The size as the protos have it. No content is 2⁶³ bytes long.
+    pub fn size_bytes(&self) -> i64 {
+        i64::try_from(self.size).unwrap_or(i64::MAX)
+    }
+
+    /// This digest as a Subresource Integrity value, as the Remote Asset
+    /// API's `checksum.sri` qualifier carries one, if `function` made it.
+    ///
+    /// Only SHA-256 has one: SRI registers no prefix for BLAKE3 or
+    /// SHA256TREE, and servers parse only `sha256`, `sha384` and `sha512`.
+    pub fn to_sri(&self, function: DigestFn) -> Option<String> {
+        use base64::Engine as _;
+        match function {
+            DigestFn::Sha256 => Some(format!(
+                "sha256-{}",
+                base64::engine::general_purpose::STANDARD.encode(self.hash)
+            )),
+            DigestFn::Blake3 | DigestFn::Sha256Tree => None,
+        }
+    }
+
+    /// The hash, with `function`, without the size, as stores key content.
+    pub fn content(&self, function: DigestFn) -> ContentDigest {
+        ContentDigest::new(function, self.hash)
+    }
+}
+
+/// `hash/size`, as resource names and error messages write a digest.
+impl fmt::Display for Digest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}", hex::encode(self.hash), self.size)
+    }
+}
+
+impl fmt::Debug for Digest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Digest({self})")
+    }
+}
+
+impl From<Digest> for protos::build::bazel::remote::execution::v2::Digest {
+    fn from(digest: Digest) -> Self {
+        digest.to_proto()
+    }
+}
+
+impl TryFrom<&protos::build::bazel::remote::execution::v2::Digest> for Digest {
+    type Error = InvalidDigest;
+
+    fn try_from(
+        digest: &protos::build::bazel::remote::execution::v2::Digest,
+    ) -> Result<Self, InvalidDigest> {
+        Self::from_proto(digest)
+    }
+}
+
+/// A [`Digest`] being computed: the hash and the length so far.
+pub struct Hasher {
+    inner: IncrementalHasher,
+    len: u64,
+}
+
+impl Hasher {
+    pub fn new(function: DigestFn) -> Self {
+        Self {
+            inner: IncrementalHasher::new(function, 0),
+            len: 0,
+        }
+    }
+
+    pub fn update(&mut self, data: &[u8]) {
+        self.inner.update(data);
+        self.len += data.len() as u64;
+    }
+
+    pub fn finish(self) -> Digest {
+        Digest::new(self.inner.finalize(), self.len)
+    }
+}
+
+impl DigestFn {
+    /// A hasher computing a [`Digest`] incrementally.
+    pub fn hasher(self) -> Hasher {
+        Hasher::new(self)
+    }
+
+    /// The [`Digest`] of `data`.
+    pub fn digest(self, data: &[u8]) -> Digest {
+        Digest::of(self, data)
+    }
+
+    /// The [`Digest`] of the file at `path`, read a piece at a time.
+    pub fn digest_file(self, path: &std::path::Path) -> std::io::Result<Digest> {
+        use std::io::Read as _;
+        let mut file = std::fs::File::open(path)?;
+        let mut hasher = self.hasher();
+        let mut buffer = vec![0; 256 * 1024];
+        loop {
+            match file.read(&mut buffer)? {
+                0 => return Ok(hasher.finish()),
+                n => hasher.update(&buffer[..n]),
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // SHA256TREE implementation
 // ---------------------------------------------------------------------------------------------------------------------

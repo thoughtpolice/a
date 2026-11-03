@@ -16,7 +16,7 @@ use anyhow::{Context, Result};
 use reapi_client::{ConnectOptions, Digest, Progress, ReapiClient as Client};
 use tokio::sync::mpsc;
 
-pub use reapi_client::{DigestFunction, ServerCapabilities};
+pub use reapi_client::{DigestFn, ServerCapabilities};
 
 /// Interactive users tolerate a slower connect than a launcher does, and the
 /// server may be across a network rather than on loopback.
@@ -68,7 +68,7 @@ fn progress_sink(tx: mpsc::UnboundedSender<ProgressUpdate>) -> Progress {
 /// display records.
 pub struct ReapiClient {
     inner: Client,
-    function: DigestFunction,
+    function: DigestFn,
 }
 
 impl ReapiClient {
@@ -78,7 +78,7 @@ impl ReapiClient {
     /// client. It is explicit rather than defaulted so that each tool states
     /// which keyspace it is reading and writing: blobs stored under SHA-256
     /// are invisible to a BLAKE3 lookup and vice versa.
-    pub async fn connect(url: &str, instance_name: &str, function: DigestFunction) -> Result<Self> {
+    pub async fn connect(url: &str, instance_name: &str, function: DigestFn) -> Result<Self> {
         let inner = Client::connect(
             ConnectOptions::new(url)
                 .instance_name(instance_name)
@@ -91,7 +91,7 @@ impl ReapiClient {
     }
 
     /// The digest function this client transfers with.
-    pub fn digest_function(&self) -> DigestFunction {
+    pub fn digest_function(&self) -> DigestFn {
         self.function
     }
 
@@ -124,7 +124,7 @@ impl ReapiClient {
         let data = bytes::Bytes::from(data);
         let digest = Digest::of(self.function, &data);
         let progress = progress_sink(progress_tx);
-        progress.report(0, digest.size as u64);
+        progress.report(0, digest.size);
 
         // Skipping an upload the server does not need is worth one round trip
         // when the alternative is re-sending the whole blob.
@@ -135,10 +135,10 @@ impl ReapiClient {
             .context("FindMissingBlobs RPC failed")?;
 
         if missing.is_empty() {
-            progress.report(digest.size as u64, digest.size as u64);
+            progress.report(digest.size, digest.size);
             return Ok(UploadResult {
-                hash: digest.hash,
-                size: digest.size as u64,
+                hash: digest.hex(),
+                size: digest.size,
                 already_present: true,
             });
         }
@@ -149,8 +149,8 @@ impl ReapiClient {
             .context("uploading blob failed")?;
 
         Ok(UploadResult {
-            hash: digest.hash,
-            size: digest.size as u64,
+            hash: digest.hex(),
+            size: digest.size,
             already_present: false,
         })
     }
@@ -163,7 +163,7 @@ impl ReapiClient {
         output_path: &Path,
         progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
     ) -> Result<DownloadResult> {
-        let digest = Digest::new(hash, size as i64);
+        let digest = Digest::parse(hash, size as i64)?;
         let data = self
             .inner
             .read_blob_with_progress(self.function, &digest, &progress_sink(progress_tx))
@@ -176,7 +176,7 @@ impl ReapiClient {
             .with_context(|| format!("failed to write {}", output_path.display()))?;
 
         Ok(DownloadResult {
-            hash: digest.hash,
+            hash: digest.hex(),
             size,
             output_path: output_path.display().to_string(),
         })
@@ -192,7 +192,12 @@ impl ReapiClient {
         qualifiers: Vec<(String, String)>,
     ) -> Result<()> {
         self.inner
-            .push_blob(self.function, &Digest::new(hash, size), &uris, &qualifiers)
+            .push_blob(
+                self.function,
+                &Digest::parse(hash, size)?,
+                &uris,
+                &qualifiers,
+            )
             .await
             .context("PushBlob RPC failed")
     }
@@ -242,8 +247,8 @@ impl ReapiClient {
 
         Ok(FetchResult {
             uri: asset.uri,
-            hash: asset.digest.hash,
-            size: asset.digest.size as u64,
+            hash: asset.digest.hex(),
+            size: asset.digest.size,
             output_path: output_path.display().to_string(),
         })
     }
@@ -282,8 +287,8 @@ impl ReapiClient {
 
         Ok(FetchResult {
             uri: asset.uri,
-            hash: asset.digest.hash,
-            size: asset.digest.size as u64,
+            hash: asset.digest.hex(),
+            size: asset.digest.size,
             output_path: output_path.display().to_string(),
         })
     }

@@ -4,8 +4,9 @@
 //! The content-addressed storage vocabulary of the Remote Execution API, for
 //! servers and clients alike:
 //!
-//! - [`digest`]: the digest functions (SHA-256, BLAKE3, SHA256TREE), typed
-//!   digests, and an incremental hasher for each.
+//! - [`digest`]: the digest functions (SHA-256, BLAKE3, SHA256TREE), the
+//!   [`Digest`] of REAPI messages (hash and size), the [`ContentDigest`]
+//!   stores key content by (function and hash), and incremental hashers.
 //! - [`compression`]: REAPI's compressors, capped against decompression
 //!   bombs, with a streaming decompressor.
 //! - [`chunking`]: FastCDC 2020 as REAPI's SplitBlob and SpliceBlob use it.
@@ -25,7 +26,8 @@ pub use compression::{
     UnknownCompressor,
 };
 pub use digest::{
-    ContentDigest, DigestFn, IncrementalHasher, UnknownDigestFunction, parse_digest_hash,
+    ContentDigest, Digest, DigestFn, Hasher, IncrementalHasher, InvalidDigest,
+    UnknownDigestFunction, parse_digest_hash,
 };
 pub use resource::{ReadResourceName, ResourceNameError, WriteResourceName};
 

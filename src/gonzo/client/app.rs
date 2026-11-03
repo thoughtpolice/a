@@ -78,7 +78,7 @@ pub struct App {
 
     // capabilities
     pub capabilities: Option<crate::client::ServerCapabilities>,
-    pub digest_function: crate::client::DigestFunction,
+    pub digest_function: crate::client::DigestFn,
 
     // upload
     pub upload_path: String,
@@ -123,7 +123,7 @@ impl App {
     pub fn new(
         server_url: String,
         instance_name: String,
-        digest_function: crate::client::DigestFunction,
+        digest_function: crate::client::DigestFn,
         event_tx: mpsc::UnboundedSender<AppEvent>,
     ) -> Self {
         Self {

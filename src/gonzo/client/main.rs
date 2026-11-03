@@ -29,16 +29,16 @@ use event::{AppEvent, spawn_event_reader};
 /// Blobs stored under one function are invisible to a lookup under another, so
 /// this selects a keyspace as much as an algorithm.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, clap::ValueEnum)]
-enum DigestFn {
+enum DigestArg {
     Sha256,
     Blake3,
 }
 
-impl From<DigestFn> for client::DigestFunction {
-    fn from(value: DigestFn) -> Self {
+impl From<DigestArg> for client::DigestFn {
+    fn from(value: DigestArg) -> Self {
         match value {
-            DigestFn::Sha256 => client::DigestFunction::Sha256,
-            DigestFn::Blake3 => client::DigestFunction::Blake3,
+            DigestArg::Sha256 => client::DigestFn::Sha256,
+            DigestArg::Blake3 => client::DigestFn::Blake3,
         }
     }
 }
@@ -78,11 +78,11 @@ struct Cli {
         short,
         long,
         value_enum,
-        default_value_t = DigestFn::Sha256,
+        default_value_t = DigestArg::Sha256,
         env = "CACHE_CLIENT_DIGEST_FUNCTION",
         global = true
     )]
-    digest_function: DigestFn,
+    digest_function: DigestArg,
 
     #[command(subcommand)]
     command: Option<Command>,
@@ -169,7 +169,7 @@ fn main() -> Result<()> {
 fn run_command(
     server: String,
     instance: String,
-    function: client::DigestFunction,
+    function: client::DigestFn,
     cmd: Command,
 ) -> Result<()> {
     let rt = tokio::runtime::Builder::new_multi_thread()
@@ -348,7 +348,7 @@ fn fmt_bytes(bytes: u64) -> String {
 
 // ── TUI mode ────────────────────────────────────────────────────────────
 
-fn run_tui(server: String, instance: String, function: client::DigestFunction) -> Result<()> {
+fn run_tui(server: String, instance: String, function: client::DigestFn) -> Result<()> {
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(move |info| {
         let _ = disable_raw_mode();
@@ -379,7 +379,7 @@ async fn run_app(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     server: String,
     instance: String,
-    function: client::DigestFunction,
+    function: client::DigestFn,
 ) -> Result<()> {
     let (event_tx, mut app_events) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
     let mut term_events = spawn_event_reader(Duration::from_millis(100));

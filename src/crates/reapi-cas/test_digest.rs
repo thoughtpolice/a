@@ -471,3 +471,98 @@ fn parse_digest_hash_uppercase() {
     let result = parse_digest_hash(hex).unwrap();
     assert_eq!(result[0], 0xe3);
 }
+
+// =================================================================================================================
+// Digest (hash and size) tests
+// =================================================================================================================
+
+const EMPTY_SHA256: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+#[test]
+fn digest_of_data_has_its_hash_and_size() {
+    let d = DigestFn::Sha256.digest(b"");
+    assert_eq!((d.hex().as_str(), d.size), (EMPTY_SHA256, 0));
+    let hello = DigestFn::Blake3.digest(b"hello");
+    assert_eq!(
+        hello.to_string(),
+        "ea8f163db38682925e4491c5e58d4bb3506ef8c14eb78a86e908c5624a67200f/5"
+    );
+}
+
+#[test]
+fn digest_parse_checks_hash_and_size() {
+    let d = Digest::parse(EMPTY_SHA256, 0).unwrap();
+    assert_eq!(d, DigestFn::Sha256.digest(b""));
+    // Either case parses; the hash is written back in lowercase.
+    let upper = Digest::parse(&EMPTY_SHA256.to_uppercase(), 0).unwrap();
+    assert_eq!(upper.hex(), EMPTY_SHA256);
+    assert_eq!(
+        Digest::parse(EMPTY_SHA256, -1),
+        Err(InvalidDigest::Size(-1))
+    );
+    for bad in ["abc", &"g".repeat(64), &"a".repeat(66)] {
+        assert_eq!(
+            Digest::parse(bad, 0),
+            Err(InvalidDigest::Hash(bad.to_string()))
+        );
+    }
+}
+
+#[test]
+fn digest_proto_roundtrip() {
+    let d = DigestFn::Sha256.digest(b"some bytes");
+    let proto = d.to_proto();
+    assert_eq!((proto.hash.len(), proto.size_bytes), (64, 10));
+    assert_eq!(Digest::from_proto(&proto), Ok(d));
+    let negative = protos::build::bazel::remote::execution::v2::Digest {
+        hash: EMPTY_SHA256.into(),
+        size_bytes: -5,
+    };
+    assert!(Digest::try_from(&negative).is_err());
+}
+
+#[test]
+fn hasher_matches_one_shot_digest_for_every_function() {
+    let data: Vec<u8> = (0..10_000u32).map(|i| (i % 253) as u8).collect();
+    for function in [DigestFn::Sha256, DigestFn::Blake3, DigestFn::Sha256Tree] {
+        let mut hasher = function.hasher();
+        for piece in data.chunks(777) {
+            hasher.update(piece);
+        }
+        assert_eq!(hasher.finish(), function.digest(&data), "{function}");
+    }
+}
+
+#[test]
+fn digest_of_a_file_matches_its_contents() {
+    let dir = std::env::temp_dir().join(format!("reapi-cas-digest-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("blob");
+    let data = vec![7u8; 300 * 1024];
+    std::fs::write(&path, &data).unwrap();
+    let digest = DigestFn::Blake3.digest_file(&path).unwrap();
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert_eq!(digest, DigestFn::Blake3.digest(&data));
+}
+
+#[test]
+fn digest_names_its_content_under_a_function() {
+    let d = DigestFn::Blake3.digest(b"x");
+    assert_eq!(
+        d.content(DigestFn::Blake3),
+        ContentDigest::compute(DigestFn::Blake3, b"x")
+    );
+}
+
+/// The SRI form must be exactly what servers parse: `sha256-` and the
+/// standard base64 of the raw 32 bytes.
+#[test]
+fn sri_of_empty_sha256() {
+    let d = DigestFn::Sha256.digest(b"");
+    assert_eq!(
+        d.to_sri(DigestFn::Sha256).as_deref(),
+        Some("sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=")
+    );
+    assert_eq!(d.to_sri(DigestFn::Blake3), None);
+    assert_eq!(d.to_sri(DigestFn::Sha256Tree), None);
+}

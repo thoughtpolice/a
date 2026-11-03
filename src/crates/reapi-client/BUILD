@@ -5,15 +5,12 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 
 DEPS = [
     # in-tree deps
+    "//src/crates/reapi-cas",
     "//src/crates/reapi-protos:protos",
     # crates.io
-    "third-party//rust:base64",
-    "third-party//rust:blake3",
     "third-party//rust:bytes",
     "third-party//rust:futures",
-    "third-party//rust:hex",
     "third-party//rust:prost",
-    "third-party//rust:sha2",
     "third-party//rust:thiserror",
     "third-party//rust:tokio",
     "third-party//rust:tonic",

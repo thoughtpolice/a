@@ -37,23 +37,23 @@ pub enum Error {
         "digest mismatch reading {expected} ({function}): server returned content hashing to {actual}"
     )]
     DigestMismatch {
-        function: crate::DigestFunction,
-        expected: String,
-        actual: String,
+        function: crate::DigestFn,
+        expected: crate::Digest,
+        actual: crate::Digest,
     },
 
     /// The server returned a blob whose length disagrees with the requested
     /// digest's `size_bytes`.
-    #[error("size mismatch reading {expected}: expected {expected_size} bytes, got {actual_size}")]
+    #[error("size mismatch reading {expected}: got {actual_size} bytes")]
     SizeMismatch {
-        expected: String,
-        expected_size: i64,
-        actual_size: i64,
+        expected: crate::Digest,
+        actual_size: u64,
     },
 
-    /// A digest was rejected before it reached the wire.
-    #[error("invalid digest: {0}")]
-    InvalidDigest(String),
+    /// A digest, from a server's response or a directory it holds, is not
+    /// a valid one.
+    #[error(transparent)]
+    InvalidDigest(#[from] crate::InvalidDigest),
 
     /// A Remote Asset fetch reported failure in its response body.
     ///

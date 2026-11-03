@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::compression::Compression;
-use crate::digest::DigestFn;
+use crate::digest::{Digest, DigestFn};
 use crate::resource::{parse_read, parse_write, read_name, write_name};
 
 #[test]
@@ -162,10 +162,11 @@ fn resolve_digest_function_invalid() {
 #[test]
 fn built_names_parse_back() {
     let hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    let digest = Digest::parse(hash, 42).unwrap();
     for instance in ["", "main", "a/b"] {
         for digest_fn in [DigestFn::Sha256, DigestFn::Blake3, DigestFn::Sha256Tree] {
             for compressor in [Compression::Identity, Compression::Zstd] {
-                let name = read_name(instance, digest_fn, compressor, hash, 42);
+                let name = read_name(instance, digest_fn, compressor, &digest);
                 let read = parse_read(&name).unwrap();
                 assert_eq!(
                     (
@@ -178,7 +179,7 @@ fn built_names_parse_back() {
                     "{name}"
                 );
 
-                let name = write_name(instance, "u-1", digest_fn, compressor, hash, 42);
+                let name = write_name(instance, "u-1", digest_fn, compressor, &digest);
                 let write = parse_write(&name).unwrap();
                 assert_eq!(
                     (write.hash.as_str(), write.size, write.uuid.as_deref()),
@@ -194,16 +195,17 @@ fn built_names_parse_back() {
 #[test]
 fn sha256_names_leave_out_the_digest_function() {
     let hash = "ab".repeat(32);
+    let digest = Digest::parse(&hash, 1).unwrap();
     assert_eq!(
-        read_name("", DigestFn::Sha256, Compression::Identity, &hash, 1),
+        read_name("", DigestFn::Sha256, Compression::Identity, &digest),
         format!("blobs/{hash}/1")
     );
     assert_eq!(
-        read_name("i", DigestFn::Blake3, Compression::Zstd, &hash, 1),
+        read_name("i", DigestFn::Blake3, Compression::Zstd, &digest),
         format!("i/compressed-blobs/zstd/blake3/{hash}/1")
     );
     assert_eq!(
-        write_name("", "u", DigestFn::Sha256, Compression::Identity, &hash, 1),
+        write_name("", "u", DigestFn::Sha256, Compression::Identity, &digest),
         format!("uploads/u/blobs/{hash}/1")
     );
 }

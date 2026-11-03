@@ -17,7 +17,7 @@
 //! builders here leave it out for SHA-256.
 
 use crate::compression::Compression;
-use crate::digest::DigestFn;
+use crate::digest::{Digest, DigestFn};
 
 /// Why a string is not a resource name of the kind asked for. The message
 /// names the string.
@@ -171,13 +171,7 @@ pub fn parse_write(name: &str) -> Result<WriteResourceName> {
 
 /// `{instance}/` or nothing, then `blobs/` or `compressed-blobs/{compressor}/`,
 /// then the digest.
-fn push_blob(
-    name: &mut String,
-    digest_fn: DigestFn,
-    compressor: Compression,
-    hash: &str,
-    size: i64,
-) {
+fn push_blob(name: &mut String, digest_fn: DigestFn, compressor: Compression, digest: &Digest) {
     use std::fmt::Write as _;
     match compressor {
         Compression::Identity => name.push_str("blobs/"),
@@ -188,7 +182,7 @@ fn push_blob(
     if digest_fn != DigestFn::Sha256 {
         let _ = write!(name, "{}/", digest_fn.as_str());
     }
-    let _ = write!(name, "{hash}/{size}");
+    let _ = write!(name, "{digest}");
 }
 
 fn with_instance(instance: &str) -> String {
@@ -199,34 +193,32 @@ fn with_instance(instance: &str) -> String {
     }
 }
 
-/// The resource name to read the blob `hash` (hex) of `size` bytes under,
-/// sent `compressor`-compressed.
+/// The resource name to read the blob `digest` under, sent
+/// `compressor`-compressed.
 pub fn read_name(
     instance: &str,
     digest_fn: DigestFn,
     compressor: Compression,
-    hash: &str,
-    size: i64,
+    digest: &Digest,
 ) -> String {
     let mut name = with_instance(instance);
-    push_blob(&mut name, digest_fn, compressor, hash, size);
+    push_blob(&mut name, digest_fn, compressor, digest);
     name
 }
 
-/// The resource name to upload the blob `hash` (hex) of `size` bytes under,
-/// as the upload `uuid`, sent `compressor`-compressed.
+/// The resource name to upload the blob `digest` under, as the upload
+/// `uuid`, sent `compressor`-compressed.
 pub fn write_name(
     instance: &str,
     uuid: &str,
     digest_fn: DigestFn,
     compressor: Compression,
-    hash: &str,
-    size: i64,
+    digest: &Digest,
 ) -> String {
     let mut name = with_instance(instance);
     name.push_str("uploads/");
     name.push_str(uuid);
     name.push('/');
-    push_blob(&mut name, digest_fn, compressor, hash, size);
+    push_blob(&mut name, digest_fn, compressor, digest);
     name
 }
