@@ -13,15 +13,8 @@ let
     .${system};
 in
 pkgs.mold-unwrapped.overrideAttrs (previousAttrs: {
-  # MOLD_TARGETS was added immediately after the locked release. Backport the
-  # upstream change so a native-only development image does not carry every
-  # linker backend supported by mold.
-  patches = (previousAttrs.patches or [ ]) ++ [
-    (pkgs.fetchpatch {
-      url = "https://github.com/rui314/mold/commit/dce9ac1e5c9165484c39fda2a4abf443871d1f95.patch";
-      hash = "sha256-qimLuH9vnhTLvYScqUYklLxkMeVlbSA2UoDK553T2gE=";
-    })
-  ];
+  # Build only the native backend, so a native-only development image does
+  # not carry every linker backend supported by mold.
   cmakeFlags = (previousAttrs.cmakeFlags or [ ]) ++ [
     (lib.cmakeFeature "MOLD_TARGETS" moldTarget)
   ];
