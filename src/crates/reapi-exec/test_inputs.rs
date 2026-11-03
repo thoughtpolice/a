@@ -8,7 +8,6 @@ use protos::build::bazel::remote::execution::v2::{
     Digest, Directory, DirectoryNode, FileNode, SymlinkNode,
 };
 
-use crate::cas::Missing;
 use crate::inputs::Inputs;
 use crate::test_cas::TestCas;
 use reapi_cas::DigestFn;
@@ -133,8 +132,8 @@ async fn missing_inputs_are_named() {
         )
         .await
         .expect_err("an input is missing");
-    let missing = err.downcast_ref::<Missing>().expect("a Missing error");
-    assert_eq!(missing.0, [reapi_cas::Digest::from_proto(&absent).unwrap()]);
+    let missing = crate::missing(&err).expect("missing blobs");
+    assert_eq!(missing, [reapi_cas::Digest::from_proto(&absent).unwrap()]);
 }
 
 #[tokio::test]

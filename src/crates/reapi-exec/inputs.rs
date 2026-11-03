@@ -10,7 +10,7 @@
 //! command spawned meanwhile cannot hold one open for writing.
 
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context as _, Result};
@@ -21,7 +21,7 @@ use reapi_cas::{Digest, DigestFn};
 
 use reflink_cache::FileCache;
 
-use crate::cas::Cas;
+use reapi_client::Cas;
 
 /// Directories kept in memory.
 const DIRECTORY_CACHE_ENTRIES: usize = 100_000;
@@ -57,7 +57,7 @@ impl Inputs {
             .flat_map(|dir| &dir.files)
             .map(|file| node_digest(file.digest.as_ref(), "file", &file.name))
             .collect::<Result<_>>()?;
-        let pinned = self.files.fetch(cas, function, &files).await?;
+        let pinned = self.files.fetch(&FromCas(cas), function, &files).await?;
 
         let files = self.files.clone();
         let (root, dest) = (*root, dest.to_path_buf());
@@ -140,6 +140,19 @@ fn lay_out(
         lay_out(files, function, tree, &digest, &dest)?;
     }
     Ok(())
+}
+
+/// The CAS, as the [`FileCache`] fetches from it.
+struct FromCas<'a>(&'a Cas);
+
+impl reflink_cache::Fetch for FromCas<'_> {
+    async fn fetch_to_files(
+        &self,
+        function: DigestFn,
+        blobs: Vec<(Digest, PathBuf)>,
+    ) -> Result<()> {
+        Ok(self.0.read_to_files(function, blobs).await?)
+    }
 }
 
 /// Copy the cached file with `digest` to `dest`, where a command may run

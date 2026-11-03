@@ -11,14 +11,10 @@ DEPS = [
     "//src/crates/reflink-cache",
     "third-party//rust:anyhow",
     "third-party//rust:bytes",
-    "third-party//rust:futures",
     "third-party//rust:prost",
     "third-party//rust:quick_cache",
-    "third-party//rust:thiserror",
     "third-party//rust:tokio",
-    "third-party//rust:tokio-stream",
     "third-party//rust:tonic",
-    "third-party//rust:uuid",
 ]
 
 depot.rust_library(
@@ -35,6 +31,7 @@ depot.rust_test(
     srcs = glob(["*.rs"]),
     crate_root = "lib.rs",
     deps = DEPS + [
+        "third-party//rust:futures",
         "third-party//rust:libc",
         "third-party//rust:tempfile",
     ],

@@ -13,6 +13,7 @@ DEPS = [
     "third-party//rust:prost",
     "third-party//rust:thiserror",
     "third-party//rust:tokio",
+    "third-party//rust:tokio-stream",
     "third-party//rust:tonic",
     "third-party//rust:uuid",
 ]

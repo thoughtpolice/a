@@ -55,6 +55,20 @@ pub enum Error {
     #[error(transparent)]
     InvalidDigest(#[from] crate::InvalidDigest),
 
+    /// Blobs the CAS does not have, from a read of many. (A read of one
+    /// reports a miss as `Ok(None)`.)
+    #[error("missing from the CAS: {}", .0.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(", "))]
+    Missing(Vec<crate::Digest>),
+
+    /// The server failed one blob of a batch.
+    #[error("{rpc} failed for {digest} with code {code}: {message}")]
+    BlobFailed {
+        rpc: &'static str,
+        digest: crate::Digest,
+        code: i32,
+        message: String,
+    },
+
     /// A Remote Asset fetch reported failure in its response body.
     ///
     /// Distinct from [`Error::Rpc`]: the RPC itself succeeded, and the server

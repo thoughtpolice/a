@@ -30,7 +30,7 @@ use protos::google::bytestream::{
 use protos::google::rpc;
 use reapi_cas::{Digest, DigestFn};
 
-use crate::cas::Cas;
+use reapi_client::Cas;
 
 type Blobs = Arc<Mutex<HashMap<(DigestFn, Digest), Bytes>>>;
 

@@ -8,8 +8,9 @@
 //! trees, and read a server's advertised capabilities.
 //!
 //! `prost`, `tonic` and the generated proto crate are private implementation
-//! details — nothing in the public API mentions them, so consumers depend on
-//! this crate alone.
+//! details — nothing in the public API mentions them but [`Cas::new`], for
+//! callers bringing their own channel, so consumers depend on this crate
+//! alone.
 //!
 //! # Transfer strategy
 //!
@@ -17,7 +18,9 @@
 //! [`write_blob`](ReapiClient::write_blob) choose between the batch CAS RPCs
 //! and ByteStream by size, at [`BATCH_THRESHOLD`]. Callers do not pick: a
 //! blob's size already determines which is cheaper, and a miss reads as
-//! `Ok(None)` either way.
+//! `Ok(None)` either way. [`Cas`], which they go through, also moves many
+//! blobs at once, to and from memory or files, packing small ones into
+//! batches and streaming large ones in parallel.
 //!
 //! # Deliberate omissions
 //!
@@ -31,6 +34,7 @@
 //! [REAPI]: https://github.com/bazelbuild/remote-apis
 
 mod capabilities;
+mod cas;
 mod error;
 mod progress;
 
@@ -47,25 +51,13 @@ use tonic::transport::Channel;
 
 use protos::build::bazel::remote::asset::v1 as asset;
 use protos::build::bazel::remote::execution::v2 as reapi;
-use protos::google::bytestream;
 
 pub use crate::capabilities::{ApiVersion, ServerCapabilities};
 pub use crate::error::{Error, Result};
 pub use crate::progress::Progress;
 pub use reapi_cas::{Digest, DigestFn, InvalidDigest};
 
-use reapi_cas::Compression;
-use reapi_cas::resource::{read_name, write_name};
-
-/// Blobs at or below this size use the batch CAS RPCs; larger ones stream.
-///
-/// Servers advertise their own ceiling as
-/// [`ServerCapabilities::max_batch_total_size_bytes`]; this is comfortably
-/// under the common default.
-pub const BATCH_THRESHOLD: u64 = 2 * 1024 * 1024;
-
-/// Payload size of a single ByteStream `Write` message.
-const WRITE_CHUNK_SIZE: usize = 2 * 1024 * 1024;
+pub use crate::cas::{BATCH_BYTES, BATCH_THRESHOLD, Blob, BlobStream, Cas};
 
 /// How long to wait for a connection before giving up.
 ///
@@ -73,9 +65,6 @@ const WRITE_CHUNK_SIZE: usize = 2 * 1024 * 1024;
 /// blackholed endpoint must fail fast enough to fall back to an origin, rather
 /// than stalling until a TCP timeout.
 const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
-
-/// `google.rpc.Code.NOT_FOUND`.
-const CODE_NOT_FOUND: i32 = 5;
 
 /// How to reach an REAPI server.
 ///
@@ -139,8 +128,7 @@ pub struct FetchedAsset {
 /// multiplexes over one HTTP/2 connection.
 #[derive(Debug, Clone)]
 pub struct ReapiClient {
-    cas: reapi::content_addressable_storage_client::ContentAddressableStorageClient<Channel>,
-    bytestream: bytestream::byte_stream_client::ByteStreamClient<Channel>,
+    blobs: Cas,
     push: asset::push_client::PushClient<Channel>,
     fetch: asset::fetch_client::FetchClient<Channel>,
     caps: reapi::capabilities_client::CapabilitiesClient<Channel>,
@@ -189,10 +177,7 @@ impl ReapiClient {
 
     fn from_channel(channel: Channel, instance_name: String) -> Self {
         Self {
-            cas: reapi::content_addressable_storage_client::ContentAddressableStorageClient::new(
-                channel.clone(),
-            ),
-            bytestream: bytestream::byte_stream_client::ByteStreamClient::new(channel.clone()),
+            blobs: Cas::new(channel.clone()).with_instance(instance_name.clone()),
             push: asset::push_client::PushClient::new(channel.clone()),
             fetch: asset::fetch_client::FetchClient::new(channel.clone()),
             caps: reapi::capabilities_client::CapabilitiesClient::new(channel),
@@ -203,6 +188,11 @@ impl ReapiClient {
     /// The instance name this client addresses.
     pub fn instance_name(&self) -> &str {
         &self.instance_name
+    }
+
+    /// The CAS, for transfers of many blobs at once.
+    pub fn cas(&self) -> &Cas {
+        &self.blobs
     }
 
     /// Read the server's advertised capabilities.
@@ -234,7 +224,8 @@ impl ReapiClient {
         function: DigestFn,
         digest: &Digest,
     ) -> Result<Option<Bytes>> {
-        self.read_blob_with_progress(function, digest, &Progress::none())
+        self.blobs
+            .read_blob(function, digest, &Progress::none())
             .await
     }
 
@@ -246,120 +237,16 @@ impl ReapiClient {
         digest: &Digest,
         progress: &Progress,
     ) -> Result<Option<Bytes>> {
-        let total = digest.size;
-        progress.report(0, total);
-
-        let data = if digest.size <= BATCH_THRESHOLD {
-            match self.read_blob_batched(function, digest).await? {
-                Some(data) => {
-                    progress.report(total, total);
-                    data
-                }
-                None => return Ok(None),
-            }
-        } else {
-            let Some(mut stream) = self.read_blob_stream(function, digest).await? else {
-                return Ok(None);
-            };
-            let mut buf = Vec::with_capacity(usize::try_from(digest.size).unwrap_or(0));
-            while let Some(chunk) = stream.next_chunk().await? {
-                buf.extend_from_slice(&chunk);
-                progress.report(buf.len() as u64, total);
-            }
-            Bytes::from(buf)
-        };
-
-        if data.len() as u64 != digest.size {
-            return Err(Error::SizeMismatch {
-                expected: *digest,
-                actual_size: data.len() as u64,
-            });
-        }
-
-        let actual = function.digest(&data);
-        if actual != *digest {
-            return Err(Error::DigestMismatch {
-                function,
-                expected: *digest,
-                actual,
-            });
-        }
-
-        Ok(Some(data))
+        self.blobs.read_blob(function, digest, progress).await
     }
 
-    async fn read_blob_batched(
-        &mut self,
-        function: DigestFn,
-        digest: &Digest,
-    ) -> Result<Option<Bytes>> {
-        let response = self
-            .cas
-            .batch_read_blobs(reapi::BatchReadBlobsRequest {
-                instance_name: self.instance_name.clone(),
-                digests: vec![to_proto_digest(digest)],
-                acceptable_compressors: vec![],
-                digest_function: function.to_proto_i32(),
-            })
-            .await
-            .map_err(|source| Error::Rpc {
-                rpc: "ContentAddressableStorage.BatchReadBlobs",
-                source,
-            })?
-            .into_inner();
-
-        let Some(blob) = response.responses.into_iter().next() else {
-            return Err(Error::MalformedResponse {
-                rpc: "BatchReadBlobs",
-                detail: "no response for the requested digest".to_string(),
-            });
-        };
-
-        // A batch read reports a miss in the per-blob status rather than as an
-        // RPC error, so it has to be translated to match the streaming path.
-        if let Some(status) = &blob.status {
-            if status.code == CODE_NOT_FOUND {
-                return Ok(None);
-            }
-            if status.code != 0 {
-                return Err(Error::MalformedResponse {
-                    rpc: "BatchReadBlobs",
-                    detail: format!("status {}: {}", status.code, status.message),
-                });
-            }
-        }
-
-        Ok(Some(blob.data))
-    }
-
-    /// Begin reading a blob, returning a pull-based reader instead of
-    /// buffering the whole thing.
-    ///
-    /// `Ok(None)` is a miss, as with [`read_blob`](Self::read_blob). Unlike
-    /// `read_blob`, **the caller must verify the content itself** — nothing
-    /// here can check a hash it has not seen in full. This always streams,
-    /// whatever the blob's size.
+    /// See [`Cas::read_blob_stream`].
     pub async fn read_blob_stream(
         &mut self,
         function: DigestFn,
         digest: &Digest,
     ) -> Result<Option<BlobStream>> {
-        let request = bytestream::ReadRequest {
-            resource_name: read_name(&self.instance_name, function, Compression::Identity, digest),
-            read_offset: 0,
-            read_limit: 0,
-        };
-
-        match self.bytestream.read(request).await {
-            Ok(response) => Ok(Some(BlobStream {
-                inner: response.into_inner(),
-            })),
-            Err(status) if status.code() == tonic::Code::NotFound => Ok(None),
-            Err(source) => Err(Error::Rpc {
-                rpc: "ByteStream.Read",
-                source,
-            }),
-        }
+        self.blobs.read_blob_stream(function, digest).await
     }
 
     /// Write a blob to the CAS.
@@ -373,7 +260,8 @@ impl ReapiClient {
         digest: &Digest,
         data: Bytes,
     ) -> Result<()> {
-        self.write_blob_with_progress(function, digest, data, &Progress::none())
+        self.blobs
+            .write_blob(function, digest, data, &Progress::none())
             .await
     }
 
@@ -386,104 +274,9 @@ impl ReapiClient {
         data: Bytes,
         progress: &Progress,
     ) -> Result<()> {
-        if data.len() as u64 != digest.size {
-            return Err(Error::SizeMismatch {
-                expected: *digest,
-                actual_size: data.len() as u64,
-            });
-        }
-
-        let total = data.len() as u64;
-        progress.report(0, total);
-
-        if digest.size <= BATCH_THRESHOLD {
-            self.write_blob_batched(function, digest, data).await?;
-            progress.report(total, total);
-            return Ok(());
-        }
-
-        let resource_name = write_name(
-            &self.instance_name,
-            &uuid::Uuid::new_v4().to_string(),
-            function,
-            Compression::Identity,
-            digest,
-        );
-
-        let mut requests = Vec::new();
-        let mut offset = 0usize;
-        // An empty blob still needs one message, to carry finish_write.
-        loop {
-            let end = std::cmp::min(offset + WRITE_CHUNK_SIZE, data.len());
-            let chunk = data.slice(offset..end);
-            let finish_write = end == data.len();
-            requests.push(bytestream::WriteRequest {
-                resource_name: resource_name.clone(),
-                write_offset: offset as i64,
-                finish_write,
-                data: chunk,
-            });
-            offset = end;
-            if finish_write {
-                break;
-            }
-        }
-
-        let progress = progress.clone();
-        let mut sent = 0u64;
-        let stream = futures::stream::iter(requests.into_iter().map(move |request| {
-            sent += request.data.len() as u64;
-            progress.report(sent, total);
-            request
-        }));
-
-        self.bytestream
-            .write(stream)
+        self.blobs
+            .write_blob(function, digest, data, progress)
             .await
-            .map_err(|source| Error::Rpc {
-                rpc: "ByteStream.Write",
-                source,
-            })?;
-
-        Ok(())
-    }
-
-    async fn write_blob_batched(
-        &mut self,
-        function: DigestFn,
-        digest: &Digest,
-        data: Bytes,
-    ) -> Result<()> {
-        let response = self
-            .cas
-            .batch_update_blobs(reapi::BatchUpdateBlobsRequest {
-                instance_name: self.instance_name.clone(),
-                requests: vec![reapi::batch_update_blobs_request::Request {
-                    digest: Some(to_proto_digest(digest)),
-                    data,
-                    compressor: 0,
-                }],
-                digest_function: function.to_proto_i32(),
-            })
-            .await
-            .map_err(|source| Error::Rpc {
-                rpc: "ContentAddressableStorage.BatchUpdateBlobs",
-                source,
-            })?
-            .into_inner();
-
-        for blob in &response.responses {
-            if let Some(status) = &blob.status {
-                if status.code != 0 {
-                    return Err(Error::MalformedResponse {
-                        rpc: "BatchUpdateBlobs",
-                        detail: format!("status {}: {}", status.code, status.message),
-                    });
-                }
-            }
-        }
-
-        Ok(())
     }
 
     /// Ask which of `digests` the server does not already have.
@@ -495,30 +288,7 @@ impl ReapiClient {
         function: DigestFn,
         digests: &[Digest],
     ) -> Result<Vec<Digest>> {
-        if digests.is_empty() {
-            return Ok(Vec::new());
-        }
-        let request = reapi::FindMissingBlobsRequest {
-            instance_name: self.instance_name.clone(),
-            blob_digests: digests.iter().map(to_proto_digest).collect(),
-            digest_function: function.to_proto_i32(),
-        };
-
-        let response = self
-            .cas
-            .find_missing_blobs(request)
-            .await
-            .map_err(|source| Error::Rpc {
-                rpc: "ContentAddressableStorage.FindMissingBlobs",
-                source,
-            })?
-            .into_inner();
-
-        response
-            .missing_blob_digests
-            .iter()
-            .map(from_proto_digest)
-            .collect()
+        self.blobs.find_missing(function, digests).await
     }
 
     /// Record that each URI in `uris` resolves to the blob named by `digest`.
@@ -776,27 +546,6 @@ impl ReapiClient {
     }
 }
 
-/// A blob being read incrementally. See
-/// [`read_blob_stream`](ReapiClient::read_blob_stream).
-#[derive(Debug)]
-pub struct BlobStream {
-    inner: tonic::Streaming<bytestream::ReadResponse>,
-}
-
-impl BlobStream {
-    /// Pull the next chunk, or `None` at end of stream.
-    pub async fn next_chunk(&mut self) -> Result<Option<Bytes>> {
-        match self.inner.message().await {
-            Ok(Some(response)) => Ok(Some(response.data)),
-            Ok(None) => Ok(None),
-            Err(source) => Err(Error::Rpc {
-                rpc: "ByteStream.Read",
-                source,
-            }),
-        }
-    }
-}
-
 /// Reject a `Directory` unless its files, subdirectories, and symlinks have
 /// distinct names that are each a single path component.
 ///
@@ -938,7 +687,7 @@ mod tests {
         let uris = vec!["https://example.com/a".to_string()];
         let err = check_asset_status(
             Some(protos::google::rpc::Status {
-                code: CODE_NOT_FOUND,
+                code: 5,
                 message: "no such asset".to_string(),
                 ..Default::default()
             }),
@@ -966,7 +715,7 @@ mod tests {
     /// boundary must behave identically to callers.
     #[test]
     fn batch_threshold_is_the_documented_size() {
-        assert_eq!(BATCH_THRESHOLD, 2 * 1024 * 1024);
+        assert_eq!(BATCH_THRESHOLD, 1024 * 1024);
     }
 
     fn file(name: &str) -> reapi::FileNode {

@@ -27,7 +27,7 @@ use protos::google::rpc::{Code, Status};
 use hermetic_run::{self as runner, Cgroups, EmptyRoot, Outcome, SpawnError};
 
 use reapi_cas::{Digest, DigestFn};
-use reapi_exec::{Cas, Inputs, Missing, outputs};
+use reapi_exec::{Cas, Inputs, outputs};
 use reflink_cache::FileCache;
 
 /// How a worker presents itself and runs actions.
@@ -302,7 +302,7 @@ impl Worker {
         {
             Ok(response) => response,
             Err(e) => {
-                let code = if e.downcast_ref::<Missing>().is_some() {
+                let code = if reapi_exec::missing(&e).is_some() {
                     Code::FailedPrecondition
                 } else if e.downcast_ref::<SpawnError>().is_some() {
                     Code::InvalidArgument

@@ -18,7 +18,7 @@ use protos::build::bazel::remote::execution::v2::{
 };
 use reapi_cas::{Digest, DigestFn};
 
-use crate::cas::{Blob, Cas};
+use reapi_client::{Blob, Cas};
 
 /// What an action produced, as an `ActionResult` names it.
 #[derive(Debug, Default)]
@@ -281,6 +281,6 @@ impl Uploads {
             .into_iter()
             .filter(|(digest, _)| missing.remove(digest))
             .collect();
-        cas.write_blobs(function, blobs).await
+        Ok(cas.write_blobs(function, blobs).await?)
     }
 }

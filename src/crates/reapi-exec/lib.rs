@@ -6,22 +6,30 @@
 //!
 //! - [`platform`]: which workers may run which actions, by platform
 //!   properties.
-//! - [`cas`]: a CAS client for bulk reads and writes, batched or streamed by
-//!   size and checked against digests; it is a [`reflink_cache::Fetch`].
 //! - [`inputs`]: laying out an action's input root from the CAS, through a
-//!   [`reflink_cache::FileCache`].
+//!   [`reflink_cache::FileCache`] that fetches from it.
 //! - [`outputs`]: preparing for an action's outputs, then collecting and
 //!   uploading what it produced.
 //!
-//! Digests are [`reapi_cas::Digest`]s, converted to and from the protos at
-//! the edges.
+//! The CAS is `reapi_client`'s [`Cas`], which moves many blobs at once,
+//! batched or streamed by size. Digests are [`reapi_cas::Digest`]s,
+//! converted to and from the protos at the edges.
 
-pub mod cas;
 pub mod inputs;
 pub mod outputs;
 pub mod platform;
 
-pub use cas::{Blob, Cas, Missing};
+pub use reapi_client::{Blob, Cas};
+
+/// The blobs an operation found missing from the CAS, if that is why it
+/// failed. A worker reports such a failure as `FAILED_PRECONDITION`, which
+/// tells the client to upload them again.
+pub fn missing(error: &anyhow::Error) -> Option<&[reapi_cas::Digest]> {
+    match error.downcast_ref::<reapi_client::Error>()? {
+        reapi_client::Error::Missing(digests) => Some(digests),
+        _ => None,
+    }
+}
 pub use inputs::Inputs;
 pub use outputs::Produced;
 pub use platform::{Offer, Requirements};

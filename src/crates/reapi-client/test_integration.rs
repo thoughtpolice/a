@@ -705,3 +705,89 @@ async fn materialize_directory_never_writes_through_a_symlink() {
     assert!(matches!(err, Error::Io { .. }), "{err}");
     assert!(!outside.join("target").exists());
 }
+
+// ---------------------------------------------------------------------------
+// Many blobs at once
+// ---------------------------------------------------------------------------
+
+/// Blobs of every size, from memory and from files, go up in one call and
+/// come back in one call, small ones batched and large ones streamed; what
+/// the server lacks is named, all of it, rather than failing on the first.
+#[tokio::test]
+async fn many_blobs_round_trip_through_batches_and_streams() {
+    use crate::Blob;
+
+    let (_server, client) = start_server().await;
+    let cas = client.cas();
+    let f = DigestFn::Blake3;
+    let scratch = tempfile::tempdir().expect("tempdir");
+
+    let sizes = [
+        0,
+        1,
+        1000,
+        BATCH_THRESHOLD as usize,
+        BATCH_THRESHOLD as usize + 1,
+        5 << 20,
+    ];
+    let mut blobs = Vec::new();
+    let mut expected = std::collections::HashMap::new();
+    for (i, size) in sizes.into_iter().enumerate() {
+        let data: Vec<u8> = (0..size).map(|j| (j * 7 + i) as u8).collect();
+        let digest = Digest::of(f, &data);
+        let blob = if i % 2 == 0 {
+            let path = scratch.path().join(format!("up{i}"));
+            std::fs::write(&path, &data).unwrap();
+            Blob::File(path)
+        } else {
+            Blob::Memory(data.clone().into())
+        };
+        blobs.push((digest, blob));
+        expected.insert(digest, data);
+    }
+    // Enough small ones to need several batches.
+    for i in 0..40u32 {
+        let data = vec![i as u8; 200 * 1024];
+        let digest = Digest::of(f, &data);
+        blobs.push((digest, Blob::Memory(data.clone().into())));
+        expected.insert(digest, data);
+    }
+    let digests: Vec<Digest> = expected.keys().copied().collect();
+    let missing = cas.find_missing(f, &digests).await.expect("find missing");
+    // The empty blob is always present.
+    assert_eq!(missing.len(), digests.len() - 1);
+
+    cas.write_blobs(f, blobs).await.expect("write blobs");
+    assert!(cas.find_missing(f, &digests).await.unwrap().is_empty());
+
+    let read = cas.read_blobs(f, &digests).await.expect("read blobs");
+    assert_eq!(read.len(), expected.len());
+    for (digest, data) in &expected {
+        assert_eq!(read[digest].as_ref(), data.as_slice(), "{digest}");
+    }
+
+    let files: Vec<_> = digests
+        .iter()
+        .enumerate()
+        .map(|(i, d)| (*d, scratch.path().join(format!("down{i}"))))
+        .collect();
+    cas.read_to_files(f, files.clone())
+        .await
+        .expect("read to files");
+    for (digest, path) in &files {
+        assert_eq!(&std::fs::read(path).unwrap(), &expected[digest]);
+    }
+
+    let absent = [Digest::of(f, b"absent"), Digest::of(f, &vec![1; 3 << 20])];
+    let mut asked = digests.clone();
+    asked.extend(absent);
+    match cas.read_blobs(f, &asked).await {
+        Err(Error::Missing(mut missing)) => {
+            missing.sort();
+            let mut absent = absent.to_vec();
+            absent.sort();
+            assert_eq!(missing, absent);
+        }
+        other => panic!("expected the absent blobs named, got {other:?}"),
+    }
+}
