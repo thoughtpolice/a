@@ -8,7 +8,7 @@ VERSION = pkg.version()
 
 shims.http_archive(
     name = "src",
-    sha256 = "928e9406addd99eb8623348f2cfcd916eade9a263c60d42be79bc7aee4ee8453",
+    sha256 = "28bcd89aa3683fd2a946537e5ce3f11cc46b5cbf3383c7561aaef3df5ff9f1dd",
     strip_prefix = "quickjs-{VERSION}".format(VERSION = VERSION),
     sub_targets = [
         # Core library sources

@@ -4,7 +4,7 @@
 load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 
 pkg.info(
-    version = "0.14.0",
+    version = "0.18.0",
     description = """
         QuickJS-NG is an embeddable Javascript engine forked from QuickJS.
     """,
@@ -17,6 +17,6 @@ pkg.info(
 
     osv_info = OsvGitRepoInfo(
         url = "https://github.com/quickjs-ng/quickjs",
-        commit = "3c051980ab7e783dfbfb1c70c014ce5e05ecf24c",  # v0.14.0
+        commit = "d7215b0ad3fc2c562e8317fd9bca058fd4863804",  # v0.18.0
     ),
 )
