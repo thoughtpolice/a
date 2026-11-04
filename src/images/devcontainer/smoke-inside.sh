@@ -14,6 +14,10 @@ test "$(stat -c %a /var/tmp)" = 1777
 test "$(id -u)" = 0
 getent passwd root >/dev/null
 
+# A local time zone, UTC.
+test "$(date +%Z)" = UTC
+test -f "$(readlink -f /etc/localtime)"
+
 # The marker doctor.py looks for.
 test -f /etc/depot/devcontainer
 

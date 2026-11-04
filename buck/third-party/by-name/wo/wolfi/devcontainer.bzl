@@ -88,6 +88,7 @@ DEVCONTAINER = {
     "python-3.13-base": ("3.13.18_git20261030-r0", "bf8587b0322d2a65db13ffee47914b708746fb43c65e317b300ab5daa3394e14"),
     "readline": ("8.3-r3", "bc694bcbfcf3d3d48c890b2701714269c9c0851a85c44bb5bf38347e4999f80b"),
     "rust-bindgen": ("0.72.1-r11", "8542054027aa5932c938ce5c4ad3bf3e9840c9e87ecaca27e79a07f3db05a250"),
+    "tzdata": ("2026f-r0", "9da7dba0dfb4db14f08ef88c4124e51b09f4f0803c45524fa5ee6d901a3c472c"),
     "unzip": ("6.0-r8", "3918ab6b639c91cb0a6db769376038526b4c70b18695c3c04d4199b4a28f7ed3"),
     "zip": ("3.0-r11", "ff2b006a214aef33cf32e956230873c34b472d2208df9026764f9415178c5064"),
     "zstd": ("1.5.7-r10", "ecf124c32a884057a42133d82ce1694c6e3b5c991d52f2cf6ca1624ff0e9a0d4"),
@@ -243,6 +244,7 @@ DEVCONTAINER_CLOSURE = [
     "python-3.13",
     "rust-bindgen",
     "sed",
+    "tzdata",
     "unzip",
     "zip",
 ]

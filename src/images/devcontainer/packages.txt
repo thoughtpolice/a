@@ -39,6 +39,10 @@ xz
 zip
 zstd
 
+# Time zones, and /etc/localtime naming UTC (see BUILD). Lean's language
+# server exits at startup without /etc/localtime.
+tzdata
+
 # Source control and the network.
 curl
 git

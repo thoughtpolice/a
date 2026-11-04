@@ -213,6 +213,8 @@ minimos.overlay(
         "usr/local/bin/" + tool: "config/lean.sh:755"
         for tool in _LEAN_TOOLS
     },
+    # UTC, as on Debian's and Ubuntu's images.
+    symlinks = {"etc/localtime": "../usr/share/zoneinfo/UTC"},
 )
 
 _LAYERS = [
