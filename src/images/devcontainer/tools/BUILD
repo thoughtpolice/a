@@ -19,3 +19,10 @@ depot.python_binary(
     main = "rust_layer.py",
     visibility = ["PUBLIC"],
 )
+
+depot.python_binary(
+    name = "archive_layer",
+    base_module = "",
+    main = "archive_layer.py",
+    visibility = ["PUBLIC"],
+)
