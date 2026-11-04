@@ -435,6 +435,10 @@ shims.command_test(
         chmod -R u+w "$work"
         cd "$work"
         export UV_TEST_TIMEOUT_MULTIPLIER=3
+        # The runner refuses to start as root unless this is set, and the
+        # devcontainer runs everything as root. The tests that need an
+        # unprivileged user skip themselves under root.
+        export UV_RUN_AS_ROOT=1
         runner=$(exe :run-tests)
         "$runner" --list | awk '{ print $1 }' | grep -Fvx """ + " ".join(["-e " + t for t in UPSTREAM_TESTS_EXCLUDED]) + """ > tests
         total=0 failed=0 skipped=0 failures=
