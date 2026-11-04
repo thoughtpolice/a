@@ -102,6 +102,87 @@ depot.genrule(
     ),
 )
 
+# Lean's published build of the release or nightly buck/nix/lean4.nix
+# pins, as CI's install-lean action installs it; buck/toolchains/lean
+# checks the version. It goes in /opt/lean, less what _LEAN_EXCLUDES
+# leaves out, and config/lean.sh puts its tools on PATH.
+_LEAN_VERSION = "4.37.0-nightly-2026-10-29"
+
+# The release unpacks to 3.3GB. Most of what goes:
+_LEAN_EXCLUDES = [
+    # The C toolchain leanc drives: clang, lld, llvm-ar, LLVM's and
+    # clang's libraries, clang's headers and a glibc to link against.
+    # buck/toolchains/lean asks leanc for its flags only, and compiles
+    # and links with buck/toolchains/cxx. leanmake and lean.mk drive it.
+    "bin/clang",
+    "bin/ld.lld",
+    "bin/llvm-ar",
+    "bin/leanmake",
+    "include/clang",
+    "lib/*crt*.o",
+    "lib/glibc",
+    "lib/libLLVM*",
+    "lib/libclang-cpp*",
+    "share/lean",
+    # Checkers, servers and tools that nothing here runs.
+    "bin/beam-daemon",
+    "bin/con-leche",
+    "bin/con-ron",
+    "bin/lean-beam*",
+    "bin/lean4lean",
+    "bin/leanchecker-paranoid",
+    "bin/leanexport",
+    "bin/leantar",
+    "bin/nanoda_bin",
+    # The Lean and Lake libraries' .olean, .ir and .ilean files and
+    # sources, 1.6GB, which only `import Lean` and `import Lake` read.
+    # Nothing in the repository imports either, and the language server
+    # gets its setup from buck/toolchains/lean/lsp/lake rather than Lake.
+    # libLean.a, libLake.a and the shared libraries stay, since every
+    # Lean program and Lean's own binaries link them.
+    "lib/lean/Lake",
+    "lib/lean/Lake.*",
+    "lib/lean/LakeMain.*",
+    "lib/lean/Lean",
+    "lib/lean/Lean.*",
+    "src/lean/Lean",
+    "src/lean/Lean.lean",
+    "src/lean/lake",
+]
+
+depot.http_file(
+    name = "lean.tar.zst",
+    sha256 = "4e4a4fa6a64a393773c43df02a84dd2799e605f7e5dba60598680c28f29794f8",
+    urls = ["https://github.com/leanprover/lean4-nightly/releases/download/nightly-{}/lean-{}-linux.tar.zst".format(
+        _LEAN_VERSION.split("-nightly-")[1],
+        _LEAN_VERSION,
+    )],
+)
+
+depot.genrule(
+    name = "lean-layer",
+    out = "lean-layer.tar.gz",
+    cmd = " ".join(
+        [
+            "$(exe {}:archive_layer)".format(_TOOLS),
+            "--out",
+            "$OUT",
+            "--prefix",
+            "opt/lean",
+        ] + ["--exclude '{}'".format(path) for path in _LEAN_EXCLUDES] + [
+            "$(location :lean.tar.zst)",
+        ],
+    ),
+)
+
+_LEAN_TOOLS = [
+    "lake",
+    "lean",
+    "leanc",
+    "leanchecker",
+    "leanir",
+]
+
 # DotSlash runs every launcher in buck/bin, buck2 included. The musl
 # build is static.
 depot.http_archive(
@@ -126,12 +207,16 @@ minimos.overlay(
         "usr/local/bin/buck2": "config/launcher.sh:755",
         "usr/local/bin/dotslash": ":dotslash[dotslash]:755",
         "usr/local/bin/jj": "config/launcher.sh:755",
+    } | {
+        "usr/local/bin/" + tool: "config/lean.sh:755"
+        for tool in _LEAN_TOOLS
     },
 )
 
 _LAYERS = [
     ":wolfi-layer",
     ":rust-layer",
+    ":lean-layer",
     ":overlay-layer",
 ]
 

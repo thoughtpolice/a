@@ -70,4 +70,19 @@ printf 'int smoke_add(int a, int b);\n' > smoke.h
 bindgen smoke.h --allowlist-function smoke_add -o smoke.rs
 grep -q 'pub fn smoke_add' smoke.rs
 
+# Lean, without the C toolchain its release bundles. A program compiled
+# to C and linked by the image's clang with leanc's flags, plus the
+# release's own lib for libc++ and gmp, as buck/toolchains/lean links,
+# runs.
+for tool in lake lean leanc leanchecker leanir; do
+    test "$(command -v "$tool")" = "/usr/local/bin/$tool"
+done
+test ! -e /opt/lean/bin/clang
+lean --version
+printf 'def main : IO Unit := IO.println "lean"\n' > Hello.lean
+lean Hello.lean -c hello-lean.c
+# shellcheck disable=SC2046
+clang -fuse-ld=mold hello-lean.c $(leanc --print-ldflags) -L /opt/lean/lib -o hello-lean
+test "$(./hello-lean)" = lean
+
 echo "devcontainer smoke: ok"

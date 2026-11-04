@@ -21,7 +21,7 @@ Changing it means changing this package and rebuilding.
 
 ## What's in it
 
-Everything except Rust and DotSlash comes from pinned
+Everything except Rust, Lean and DotSlash comes from pinned
 [Wolfi](https://wolfi.dev) packages. `packages.txt` lists the roots, and
 `third-party//by-name/wo/wolfi:resolve` turns them into the full closure
 in `buck/third-party/by-name/wo/wolfi/devcontainer.bzl`, with a version
@@ -39,13 +39,19 @@ the minimos pins. The image contains:
   in `/usr/local`, with std for x86_64 and aarch64 Linux, both UEFI
   targets, and wasm32. Wolfi only packages stable Rust, and the toolchain
   needs `-Zthreads` and `-Zsanitizer`.
+- Lean's published build of the release or nightly `buck/nix/lean4.nix`
+  pins, in `/opt/lean`. `lake`, `lean`, `leanc`, `leanchecker` and
+  `leanir` in `/usr/local/bin` run it. It leaves out the C toolchain the
+  release bundles, since `buck/toolchains/lean` compiles with the
+  image's, and the Lean and Lake libraries' modules, so `import Lean` and
+  `import Lake` don't work in the image. BUILD lists what goes.
 - ICU, which the .NET SDK that `buck/toolchains/csharp` downloads loads
   from the host.
 - DotSlash, from its static musl release.
 
 Go, Python, Deno and protoc need nothing here, since the build downloads
-them. Lean and Erlang aren't in the image yet, so their toolchains don't
-work in it.
+them. Erlang isn't in the image yet, so its toolchain doesn't work in
+it.
 
 ## Differences from Wolfi's defaults
 
@@ -71,14 +77,16 @@ buck2 test //src/images/devcontainer:smoke
 
 The smoke test loads the image into docker and runs `smoke-inside.sh` in
 a container with no network. That script compiles and links C, C++ and
-Rust the way the toolchains do, builds Rust for every std target, and
-runs bindgen against libclang. Without a docker it can reach, the test
-reports SKIP. `buck2 run` on it fails instead.
+Rust the way the toolchains do, builds Rust for every std target, runs
+bindgen against libclang, and compiles and runs a Lean program. Without
+a docker it can reach, the test reports SKIP. `buck2 run` on it fails
+instead.
 
-The image builds from three layers. `tools/apk_layer.py` streams the Wolfi
+The image builds from four layers. `tools/apk_layer.py` streams the Wolfi
 packages into one, `tools/rust_layer.py` installs Rust's component
-tarballs into another, and `minimos.overlay` writes the config and
-launchers. minimos's `scratch_image` assembles them. Both layer tools are
+tarballs into another, `tools/archive_layer.py` unpacks Lean's release
+tarball into a third, and `minimos.overlay` writes the config and
+wrappers. minimos's `scratch_image` assembles them. The layer tools are
 deterministic and need no root, docker or apk-tools.
 
 ## Publishing
@@ -109,12 +117,14 @@ move everything forward, run `buck2 run third-party//by-name/wo/wolfi:update`
 first and then the resolver.
 
 To move Rust, change `_RUST_DATE` in BUILD and copy each component's
-`xz_hash` from that date's `channel-rust-nightly.toml`.
+`xz_hash` from that date's `channel-rust-nightly.toml`. When
+`buck/nix/lean4.nix` moves Lean, change `_LEAN_VERSION` and the sha256 of
+the `lean.tar.zst` download in BUILD to match. `buck/toolchains/lean`
+fails on a Lean of the wrong version.
 
 ## Not done yet
 
 - linux/amd64 only. The Wolfi pins are x86_64 only, like minimos's.
-- Lean and Erlang, which `buck/toolchains/lean` and
-  `buck/toolchains/erlang` take from the host.
+- Erlang, which `buck/toolchains/erlang` takes from the host.
 - CI's own jobs don't run in the image yet. That's the next step toward
   needing nothing from a provider but a container runtime.
