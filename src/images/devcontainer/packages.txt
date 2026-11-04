@@ -74,3 +74,11 @@ rust-bindgen=0.72.1-r11
 # OTP's .hrl headers, which the prelude's Erlang rules include.
 erlang-28
 erlang-28-dev
+
+# Podman, for the tests that run containers: the image smokes load their
+# image and run it. It runs rootful, as the image's root, in a container
+# started with --privileged; README.md has how. /var/lib/containers is
+# then on the outer container's overlayfs, where the kernel won't stack
+# another overlay, and Podman uses fuse-overlayfs instead when it's there.
+podman-6.0
+fuse-overlayfs

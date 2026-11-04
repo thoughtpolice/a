@@ -205,8 +205,10 @@ minimos.overlay(
     files = {
         "etc/buckconfig": "config/buckconfig",
         "usr/local/bin/buck2": "config/launcher.sh:755",
+        "usr/local/bin/docker": "config/podman.sh:755",
         "usr/local/bin/dotslash": ":dotslash[dotslash]:755",
         "usr/local/bin/jj": "config/launcher.sh:755",
+        "usr/local/bin/podman": "config/podman.sh:755",
     } | {
         "usr/local/bin/" + tool: "config/lean.sh:755"
         for tool in _LEAN_TOOLS

@@ -48,6 +48,8 @@ the minimos pins. The image contains:
 - Erlang/OTP 28 for `buck/toolchains/erlang`.
 - ICU, which the .NET SDK that `buck/toolchains/csharp` downloads loads
   from the host.
+- Podman, as both `podman` and `docker`, for the tests that run
+  containers. See [Running containers](#running-containers).
 - DotSlash, from its static musl release.
 
 Go, Python, Deno and protoc need nothing here, since the build downloads
@@ -66,6 +68,28 @@ them.
   every project on the machine, selects `fs_hash_crawler`, as CI does.
   The repository's own configuration and a `.buckconfig.local` still
   override it.
+
+## Running containers
+
+The minimos boot smokes and this image's own smoke test load an image and
+run it with `docker`. In the image, `docker` and `podman` both run Podman
+as root. That works when the image itself runs with `--privileged`:
+
+```
+docker run --rm -it --privileged ghcr.io/thoughtpolice/a/devcontainer:canon
+```
+
+Without it, the tests report SKIP, as on a host without docker.
+
+Podman needs to delegate cgroup controllers to the containers it makes,
+and cgroup v2 allows that only from a cgroup with no processes in it.
+The outer container's processes all start in the root of its cgroup
+namespace, so the first `podman` or `docker` call moves them into a child
+cgroup, `init`, as Docker-in-Docker does. `config/podman.sh` does this.
+The kernel won't stack Podman's overlay mounts on the outer container's
+overlay root, so Podman uses fuse-overlayfs for its storage, which it
+picks on its own. Mounting a volume at `/var/lib/containers` gives it a
+plain filesystem, where it uses the kernel's overlayfs instead.
 
 ## Building and testing
 

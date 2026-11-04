@@ -92,4 +92,13 @@ erlc hello.erl
 test "$(erl -noshell -pa . -s hello main -s init stop)" = erlang
 command -v escript
 
+# Podman answers as both podman and docker. Running a container takes
+# --privileged, which this one doesn't have; the minimos boot smokes run
+# containers with it.
+case "$(docker --version)" in podman*) ;; *) exit 1 ;; esac
+podman --version
+for tool in crun conmon netavark fuse-overlayfs; do
+    command -v "$tool" || test -x "/usr/libexec/podman/$tool"
+done
+
 echo "devcontainer smoke: ok"
