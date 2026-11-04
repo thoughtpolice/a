@@ -41,7 +41,7 @@ result() {
 problem=""
 if ! command -v docker >/dev/null 2>&1; then
     problem="docker is not installed"
-elif ! info=$(docker info --format '{{.ServerVersion}}' 2>&1); then
+elif ! info=$(docker version --format '{{.Server.Version}}' 2>&1); then
     problem="docker can't reach its daemon: $info"
 fi
 if [[ -n "$problem" ]]; then

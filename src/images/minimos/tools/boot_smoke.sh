@@ -223,7 +223,9 @@ fi
 DOCKER_PROBLEM=""
 if ! command -v docker >/dev/null 2>&1; then
     DOCKER_PROBLEM="docker is not installed"
-elif ! DOCKER_INFO=$(timeout --signal=KILL 15s docker info --format '{{.ServerVersion}}' 2>&1); then
+# `docker version` rather than `docker info`, whose fields Podman's
+# docker command doesn't share. In the devcontainer `docker` is Podman.
+elif ! DOCKER_INFO=$(timeout --signal=KILL 15s docker version --format '{{.Server.Version}}' 2>&1); then
     DOCKER_PROBLEM="docker can't reach its daemon"
 fi
 if [[ -n "$DOCKER_PROBLEM" ]]; then
@@ -253,6 +255,13 @@ echo "boot_smoke: running systemd with a private cgroup namespace and bounded ca
 # child, the manager only sees an exit status, and PID 1 exits. Seccomp,
 # the capability bound and no-new-privileges stay on, and on a host
 # without AppArmor the option changes nothing.
+#
+# Docker's local log driver keeps a bounded, rotated log. Podman has no
+# such driver, and its default k8s-file driver takes the size limit alone.
+LOG_ARGS=(--log-driver local --log-opt max-size=2m --log-opt max-file=2)
+if [[ "$(docker --version 2>/dev/null)" == podman* ]]; then
+    LOG_ARGS=(--log-opt max-size=2m)
+fi
 RUN_OUTPUT=""
 if ! RUN_OUTPUT=$(timeout --signal=KILL 30s docker run -d -t \
     --cidfile "$CID_FILE" \
@@ -264,9 +273,7 @@ if ! RUN_OUTPUT=$(timeout --signal=KILL 30s docker run -d -t \
     --cpus 2 \
     --pids-limit 1024 \
     --ulimit core=0:0 \
-    --log-driver local \
-    --log-opt max-size=2m \
-    --log-opt max-file=2 \
+    "${LOG_ARGS[@]}" \
     --security-opt no-new-privileges=true \
     --security-opt apparmor=unconfined \
     --cap-drop ALL \
