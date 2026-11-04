@@ -650,6 +650,319 @@ var wolfiExceptions = []exception{
 		ID:     "CGA-vq33-cv22-hgvv",
 		Reason: "python-3.13 CVE-2026-103995: no fixed Wolfi version; the devcontainer runs only the repository's own scripts with it, accepted until a fixed Wolfi version clears OSV",
 	},
+	// Wolfi stopped publishing podman-6.0 after 6.0.2-r2, the build the
+	// devcontainer pins. These advisories are Go standard library and
+	// module findings in its binaries: some are fixed in later builds that
+	// only Chainguard's own repository has, the rest have no fix yet.
+	// The devcontainer only runs podman to start the repository's own
+	// test images, in CI's privileged job container.
+	{
+		ID:     "CGA-2mfc-xg87-22pg",
+		Reason: "podman-6.0 CVE-2026-116587: fixed in 6.0.2-r15, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-36mh-p5xf-h7j3",
+		Reason: "podman-6.0 CVE-2026-116587: fixed in 6.0.2-r15, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-rjpf-9q27-7qrp",
+		Reason: "podman-6.0 CVE-2026-116587: fixed in 6.0.2-r15, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-w9wh-33qf-xpjr",
+		Reason: "podman-6.0 CVE-2026-116587: fixed in 6.0.2-r15, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-9p94-3xx8-82gg",
+		Reason: "podman-6.0 CVE-2026-17106: fixed in 6.0.2-r4, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-c9v4-xxw2-qrxf",
+		Reason: "podman-6.0 CVE-2026-17106: fixed in 6.0.2-r4, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-r6jc-9x73-82gh",
+		Reason: "podman-6.0 CVE-2026-17106: fixed in 6.0.2-r4, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-vjf3-rgx5-jwmg",
+		Reason: "podman-6.0 CVE-2026-17106: fixed in 6.0.2-r4, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-45c8-48hf-g288",
+		Reason: "podman-6.0 CVE-2026-56855: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-776j-g447-pvf5",
+		Reason: "podman-6.0 CVE-2026-56855: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-pggx-j9hj-99gh",
+		Reason: "podman-6.0 CVE-2026-56855: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-rx76-v667-fw36",
+		Reason: "podman-6.0 CVE-2026-56855: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-48vp-wm6v-26mc",
+		Reason: "podman-6.0 CVE-2026-61711: fixed in 6.0.2-r5, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-55hx-246h-27pp",
+		Reason: "podman-6.0 CVE-2026-61711: fixed in 6.0.2-r5, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-hh3j-4vxv-9fgj",
+		Reason: "podman-6.0 CVE-2026-61711: fixed in 6.0.2-r5, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-jqp6-xx8w-377w",
+		Reason: "podman-6.0 CVE-2026-61711: fixed in 6.0.2-r5, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-79gx-ggc8-mhjx",
+		Reason: "podman-6.0 CVE-2026-61712: fixed in 6.0.2-r5, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-jh5h-gvj7-3cr8",
+		Reason: "podman-6.0 CVE-2026-61712: fixed in 6.0.2-r5, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-m69p-xfhj-6x38",
+		Reason: "podman-6.0 CVE-2026-61712: fixed in 6.0.2-r5, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-w3hf-j2gm-mjm7",
+		Reason: "podman-6.0 CVE-2026-61712: fixed in 6.0.2-r5, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-5jrw-2jpj-6mfp",
+		Reason: "podman-6.0 CVE-2026-78659: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-rrx2-h6rf-gvm5",
+		Reason: "podman-6.0 CVE-2026-78659: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-rwm8-r7pq-gpfr",
+		Reason: "podman-6.0 CVE-2026-78659: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-v6gj-6rhr-2jqq",
+		Reason: "podman-6.0 CVE-2026-78659: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-4748-73j9-v763",
+		Reason: "podman-6.0 CVE-2026-78662: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-c644-m44r-r6pg",
+		Reason: "podman-6.0 CVE-2026-78662: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-cxj7-vxr3-rhx3",
+		Reason: "podman-6.0 CVE-2026-78662: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-vg58-cwhm-7wvx",
+		Reason: "podman-6.0 CVE-2026-78662: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-3f38-hm8c-jwx3",
+		Reason: "podman-6.0 CVE-2026-78663: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-66j6-85jc-h6m5",
+		Reason: "podman-6.0 CVE-2026-78663: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-8rv7-hj3m-95q6",
+		Reason: "podman-6.0 CVE-2026-78663: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-h2m8-q6gf-5wr5",
+		Reason: "podman-6.0 CVE-2026-78663: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-25qr-5pr6-rwmr",
+		Reason: "podman-6.0 CVE-2026-78669: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-3gc6-wrc2-v4f4",
+		Reason: "podman-6.0 CVE-2026-78669: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-9gm4-9wcf-rj3j",
+		Reason: "podman-6.0 CVE-2026-78669: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-hcgq-8ww6-7535",
+		Reason: "podman-6.0 CVE-2026-78669: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-277w-j353-fxfw",
+		Reason: "podman-6.0 CVE-2026-81870: fixed in 6.0.2-r9, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-hhrv-g8r3-2q4f",
+		Reason: "podman-6.0 CVE-2026-81870: fixed in 6.0.2-r9, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-pg7w-m2h9-mxpj",
+		Reason: "podman-6.0 CVE-2026-81870: fixed in 6.0.2-r9, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-rjr3-vvhh-f58g",
+		Reason: "podman-6.0 CVE-2026-81870: fixed in 6.0.2-r9, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-3x28-3gxf-gq7p",
+		Reason: "podman-6.0 CVE-2026-84303: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-j8pp-x8v5-93cq",
+		Reason: "podman-6.0 CVE-2026-84303: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-jp99-wh7x-g5mv",
+		Reason: "podman-6.0 CVE-2026-84303: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-vm22-3r25-439v",
+		Reason: "podman-6.0 CVE-2026-84303: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-cg88-pgqw-76hv",
+		Reason: "podman-6.0 CVE-2026-84304: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-j3v4-v6fq-q2rw",
+		Reason: "podman-6.0 CVE-2026-84304: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-mjmp-jrw6-ff8r",
+		Reason: "podman-6.0 CVE-2026-84304: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-vqc8-9jp5-h2rc",
+		Reason: "podman-6.0 CVE-2026-84304: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-3436-f7j9-hw6f",
+		Reason: "podman-6.0 CVE-2026-84445: fixed in 6.0.2-r8, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-5j34-hj83-82p7",
+		Reason: "podman-6.0 CVE-2026-84445: fixed in 6.0.2-r8, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-x5qj-5c35-fw44",
+		Reason: "podman-6.0 CVE-2026-84445: fixed in 6.0.2-r8, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-xxrx-wvm9-52xx",
+		Reason: "podman-6.0 CVE-2026-84445: fixed in 6.0.2-r8, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-5h5r-mwg5-m25q",
+		Reason: "podman-6.0 CVE-2026-85747: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-9vch-cfwq-f5hx",
+		Reason: "podman-6.0 CVE-2026-85747: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-9x6j-hmq9-m7mp",
+		Reason: "podman-6.0 CVE-2026-85747: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-r4pc-m9q9-q6gw",
+		Reason: "podman-6.0 CVE-2026-85747: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-2h3r-f4vx-3cpq",
+		Reason: "podman-6.0 CVE-2026-94603: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-9494-pm5r-23pj",
+		Reason: "podman-6.0 CVE-2026-94603: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-f5cv-w5w6-gw9v",
+		Reason: "podman-6.0 CVE-2026-94603: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-grqp-px63-ghpx",
+		Reason: "podman-6.0 CVE-2026-94603: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-mxfj-hfh4-h97q",
+		Reason: "podman-6.0 CVE-2026-94603: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-p6xq-2782-cc36",
+		Reason: "podman-6.0 CVE-2026-94603: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-qh23-76mw-6p2g",
+		Reason: "podman-6.0 CVE-2026-94603: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-xvmf-m3pv-mpqf",
+		Reason: "podman-6.0 CVE-2026-94603: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-2438-f3jm-2w85",
+		Reason: "podman-6.0 CVE-2026-97032: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-9cpw-9m22-4869",
+		Reason: "podman-6.0 CVE-2026-97032: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-fvxc-c4pf-88fx",
+		Reason: "podman-6.0 CVE-2026-97032: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-j565-9vxm-4v2q",
+		Reason: "podman-6.0 CVE-2026-97032: fixed in 6.0.2-r11, which Wolfi hasn't published; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-7w4v-rw3h-v76w",
+		Reason: "podman-6.0 GO-2026-5932: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-jrw4-rx6f-rx45",
+		Reason: "podman-6.0 GO-2026-5932: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-qhvx-w39h-jh8j",
+		Reason: "podman-6.0 GO-2026-5932: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-r8jc-34mg-jc52",
+		Reason: "podman-6.0 GO-2026-5932: no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	// libcrypt1-2.44, which linux-pam brings into the devcontainer, carries
+	// the same unfixed glibc advisories as the glibc-2.44 runtime above, and
+	// moves with that stream.
+	{
+		ID:     "CGA-6cv2-mm79-q3h6",
+		Reason: "libcrypt1-2.44 CVE-2026-8674: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-5273-pf8c-cg4v",
+		Reason: "libcrypt1-2.44 CVE-2026-89092: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-jr99-f6q8-945r",
+		Reason: "libcrypt1-2.44 CVE-2026-95818: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-xqrp-7jh5-56v7",
+		Reason: "libcrypt1-2.44 CVE-2026-97399: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
 }
 
 // exceptionSets binds each ecosystem's exception list to the subject kind it
