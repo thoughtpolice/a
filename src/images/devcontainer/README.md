@@ -45,13 +45,13 @@ the minimos pins. The image contains:
   release bundles, since `buck/toolchains/lean` compiles with the
   image's, and the Lean and Lake libraries' modules, so `import Lean` and
   `import Lake` don't work in the image. BUILD lists what goes.
+- Erlang/OTP 28 for `buck/toolchains/erlang`.
 - ICU, which the .NET SDK that `buck/toolchains/csharp` downloads loads
   from the host.
 - DotSlash, from its static musl release.
 
 Go, Python, Deno and protoc need nothing here, since the build downloads
-them. Erlang isn't in the image yet, so its toolchain doesn't work in
-it.
+them.
 
 ## Differences from Wolfi's defaults
 
@@ -78,9 +78,9 @@ buck2 test //src/images/devcontainer:smoke
 The smoke test loads the image into docker and runs `smoke-inside.sh` in
 a container with no network. That script compiles and links C, C++ and
 Rust the way the toolchains do, builds Rust for every std target, runs
-bindgen against libclang, and compiles and runs a Lean program. Without
-a docker it can reach, the test reports SKIP. `buck2 run` on it fails
-instead.
+bindgen against libclang, and compiles and runs Lean and Erlang programs.
+Without a docker it can reach, the test reports SKIP. `buck2 run` on it
+fails instead.
 
 The image builds from four layers. `tools/apk_layer.py` streams the Wolfi
 packages into one, `tools/rust_layer.py` installs Rust's component
@@ -125,6 +125,5 @@ fails on a Lean of the wrong version.
 ## Not done yet
 
 - linux/amd64 only. The Wolfi pins are x86_64 only, like minimos's.
-- Erlang, which `buck/toolchains/erlang` takes from the host.
 - CI's own jobs don't run in the image yet. That's the next step toward
   needing nothing from a provider but a container runtime.

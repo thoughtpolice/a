@@ -85,4 +85,11 @@ lean Hello.lean -c hello-lean.c
 clang -fuse-ld=mold hello-lean.c $(leanc --print-ldflags) -L /opt/lean/lib -o hello-lean
 test "$(./hello-lean)" = lean
 
+# Erlang/OTP 28, for buck/toolchains/erlang.
+test "$(erl -noshell -eval 'io:put_chars(erlang:system_info(otp_release)), halt().')" = 28
+printf -- '-module(hello).\n-export([main/0]).\n-include_lib("kernel/include/file.hrl").\nmain() -> io:put_chars("erlang").\n' > hello.erl
+erlc hello.erl
+test "$(erl -noshell -pa . -s hello main -s init stop)" = erlang
+command -v escript
+
 echo "devcontainer smoke: ok"

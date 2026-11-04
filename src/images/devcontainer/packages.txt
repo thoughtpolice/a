@@ -69,3 +69,8 @@ mold
 # third-party//by-name/bo/boringssl checks for; it loads libclang from
 # clang-23.
 rust-bindgen=0.72.1-r11
+
+# Erlang/OTP, which buck/toolchains/erlang takes from the host. -dev has
+# OTP's .hrl headers, which the prelude's Erlang rules include.
+erlang-28
+erlang-28-dev
