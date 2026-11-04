@@ -149,5 +149,5 @@ fails on a Lean of the wrong version.
 ## Not done yet
 
 - linux/amd64 only. The Wolfi pins are x86_64 only, like minimos's.
-- CI's own jobs don't run in the image yet. That's the next step toward
-  needing nothing from a provider but a container runtime.
+- Only the x86_64 Linux `integrate` job in `.github/workflows/ci.yml`
+  runs in the image. The others still set up their runner.

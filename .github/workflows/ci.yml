@@ -22,14 +22,22 @@ jobs:
   # determination: check.py runs tdutil over the change, and only what it
   # selects is tested. The job keeps the name `integrate` because the trunk
   # ruleset requires its checks by that name.
+  #
+  # x86_64 Linux runs in the devcontainer (src/images/devcontainer), which
+  # has every host tool the build needs, so none of the setup steps below
+  # run there. --privileged lets the image's podman run the boot smokes'
+  # containers. The other runners have no image yet, and set themselves up.
   build:
-    name: integrate
+    # Spelled out, because the default name lists every matrix value and the
+    # ruleset requires these names: `container` must not join them.
+    name: integrate (${{ matrix.os }}, ${{ matrix.abi }})
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-24.04
             abi: x86_64-unknown-linux-gnu
+            container: ghcr.io/thoughtpolice/a/devcontainer:canon
           - os: ubuntu-24.04-arm
             abi: aarch64-unknown-linux-gnu
           #- os: windows-2022
@@ -37,6 +45,10 @@ jobs:
           - os: macos-15
             abi: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
+    # An empty image, as the entries without one give, runs on the runner.
+    container:
+      image: ${{ matrix.container }}
+      options: --privileged
     # A change to the build configuration, or a determination that fails,
     # tests everything, so this is sized for that rather than the common case.
     timeout-minutes: 90
@@ -48,10 +60,12 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - name: Install NodeJS
+        if: matrix.container == ''
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: "22"
       - name: Install uv
+        if: matrix.container == ''
         uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
         with:
           version: "0.7.12"
@@ -60,19 +74,21 @@ jobs:
           # invalidate. Buck2 owns the caching that actually matters.
           enable-cache: false
       - name: Setup Rust
+        if: matrix.container == ''
         uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
           toolchain: "nightly-2026-03-24"
       - name: Setup Erlang/OTP
+        if: matrix.container == ''
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
         with:
           otp-version: '28.1.1'
       - name: (Linux) Install packages
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.container == ''
         run: |
           cargo install bindgen-cli --version 0.72.1 --locked
       - name: (Linux) Install mold
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.container == ''
         uses: ./.github/actions/install-mold
       - name: (macOS) Install packages
         if: runner.os == 'macOS'
@@ -84,8 +100,10 @@ jobs:
           brew install go
           cargo install bindgen-cli --version 0.72.1 --locked
       - name: Install DotSlash
+        if: matrix.container == ''
         uses: ./.github/actions/install-dotslash
       - name: Install Lean
+        if: matrix.container == ''
         uses: ./.github/actions/install-lean
       - name: Set up environment
         shell: bash
@@ -95,6 +113,12 @@ jobs:
         run: |
           printf '\n' >> .buckconfig.local
           cat buck/ci.buckconfig >> .buckconfig.local
+      # In a container the checkout belongs to the runner's user rather than
+      # root, and git refuses to work in a repository someone else owns.
+      - name: Trust the checkout
+        if: matrix.container != ''
+        shell: bash
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Init jj repository
         shell: bash
         run: dotslash ./buck/bin/extra/jj git init --colocate
