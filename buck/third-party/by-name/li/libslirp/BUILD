@@ -81,7 +81,7 @@ TESTS = [
 
 shims.http_archive(
     name = "src",
-    sha256 = "f43e68b60b580647574ec4a0e2b6c600a56281e6c39f79426510832dc810f483",
+    sha256 = "d2567fa06a6357c7755d61c67293b2c0bf069b3f2173bde6b76cf768529a1938",
     strip_prefix = "libslirp-v{}".format(VERSION),
     sub_targets = [
         "src/libslirp.h",

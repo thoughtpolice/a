@@ -4,7 +4,7 @@
 load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
 
 pkg.info(
-    version = "4.9.5",
+    version = "4.9.7",
     description = """
         A general purpose TCP/IP emulator, used by virtual machine
         hypervisors to provide user-mode networking.
@@ -24,6 +24,6 @@ pkg.info(
 
     osv_info = OsvGitRepoInfo(
         url = "https://gitlab.freedesktop.org/slirp/libslirp",
-        commit = "390848f47391f412451b2d259d8527fabb51e5e3",
+        commit = "ce12dcddf710a71dc0de6450ec95edbadf8e9f66",
     ),
 )
