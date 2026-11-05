@@ -11,7 +11,8 @@
 //! [`Client`] covers the object API that storage engines and coordination
 //! code need. It reads objects with ranges and conditions, writes them
 //! with `If-None-Match: *` or `If-Match` preconditions, and also deletes,
-//! copies, lists, and runs multipart uploads. It retries transient failures,
+//! copies, lists, and runs multipart uploads, whose completion can carry
+//! the same preconditions. It retries transient failures,
 //! reconciles writes whose retry finds the earlier attempt already applied,
 //! and resumes response bodies that break off.
 //!

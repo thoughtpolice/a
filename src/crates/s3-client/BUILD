@@ -56,6 +56,9 @@ CHAOS3_SCENARIOS = {
     "body-truncated": {
         "failpoints": [TRUNCATE_FIRST_BODY],
     },
+    "complete-after-commit": {
+        "failpoints": ["s3.complete_multipart_upload.after_commit=1*return(InternalError)"],
+    },
     "presigned-body-truncated": {
         "failpoints": [TRUNCATE_FIRST_BODY],
     },

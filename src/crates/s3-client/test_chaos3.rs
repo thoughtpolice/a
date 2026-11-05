@@ -222,24 +222,12 @@ async fn multipart_uploads_complete_in_part_order() {
     let client = chaos3_client();
     let key = format!("{}/multi", prefix("multipart"));
     let body = pattern(5 * 1024 * 1024 + 17);
-    let upload = client
-        .create_multipart_upload(&key, &PutObject::default())
-        .await
-        .unwrap();
-    let (first, second) = body.split_at(5 * 1024 * 1024);
-    let e1 = client
-        .upload_part(&key, &upload, 1, Bytes::copy_from_slice(first))
-        .await
-        .unwrap();
-    let e2 = client
-        .upload_part(&key, &upload, 2, Bytes::copy_from_slice(second))
-        .await
-        .unwrap();
+    let (upload, e_tags) = upload_two_parts(&client, &key, &body, &Default::default()).await;
     client
         .complete_multipart_upload(
             &key,
             &upload,
-            vec![e1, e2],
+            e_tags,
             body.len() as u64,
             &Default::default(),
         )
@@ -250,6 +238,107 @@ async fn multipart_uploads_complete_in_part_order() {
         .await
         .unwrap();
     assert_eq!(read.bytes().await.unwrap(), body);
+}
+
+/// Upload `body` as a two-part multipart upload of `key` created with
+/// `attributes`, returning the upload ID and the part ETags, ready to
+/// complete.
+async fn upload_two_parts(
+    client: &Client,
+    key: &str,
+    body: &Bytes,
+    attributes: &ObjectAttributes,
+) -> (String, Vec<String>) {
+    let options = PutObject {
+        attributes: attributes.clone(),
+        ..Default::default()
+    };
+    let upload = client.create_multipart_upload(key, &options).await.unwrap();
+    let (first, second) = body.split_at(5 * 1024 * 1024);
+    let mut e_tags = Vec::new();
+    for (number, part) in [first, second].into_iter().enumerate() {
+        e_tags.push(
+            client
+                .upload_part(key, &upload, number + 1, Bytes::copy_from_slice(part))
+                .await
+                .unwrap(),
+        );
+    }
+    (upload, e_tags)
+}
+
+#[cfg(chaos3_scenario = "healthy")]
+#[tokio::test]
+async fn a_conditional_completion_creates_but_never_replaces() {
+    let client = chaos3_client();
+    let key = format!("{}/multi", prefix("multipart-absent"));
+    let body = pattern(5 * 1024 * 1024 + 17);
+    let absent = WriteCondition::Absent;
+    let none = ObjectAttributes::default();
+
+    let (upload, e_tags) = upload_two_parts(&client, &key, &body, &none).await;
+    let size = body.len() as u64;
+    client
+        .complete_multipart_upload_if(&key, &upload, e_tags, size, &none, &absent)
+        .await
+        .expect("nothing is in the way of the first completion");
+
+    // A second upload of the same key fails its condition, leaving the
+    // object as it was and the upload in place to abort.
+    let other = pattern(5 * 1024 * 1024 + 99).slice(3..);
+    let (upload, e_tags) = upload_two_parts(&client, &key, &other, &none).await;
+    let size = other.len() as u64;
+    let error = client
+        .complete_multipart_upload_if(&key, &upload, e_tags, size, &none, &absent)
+        .await
+        .unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::PreconditionFailed, "{error}");
+    client.abort_multipart_upload(&key, &upload).await.unwrap();
+    let read = client
+        .get_object(&key, &GetObject::default())
+        .await
+        .unwrap();
+    assert_eq!(read.bytes().await.unwrap(), body);
+}
+
+// The server answers 500 after committing the first multipart completion.
+// The retry finds its upload consumed and recognizes the object by its
+// size and the upload's metadata, even though the completion was
+// conditional.
+#[cfg(chaos3_scenario = "complete_after_commit")]
+#[tokio::test]
+async fn a_conditional_completion_recognizes_its_own_committed_attempt() {
+    let client = chaos3_client();
+    let key = format!("{}/multi", prefix("multipart-ambiguous"));
+    let body = pattern(5 * 1024 * 1024 + 17);
+    let size = body.len() as u64;
+    let absent = WriteCondition::Absent;
+    let tagged = |token: &str| ObjectAttributes {
+        metadata: [("upload".to_string(), token.to_string())].into(),
+        ..Default::default()
+    };
+
+    let first = tagged("token-1");
+    let (upload, e_tags) = upload_two_parts(&client, &key, &body, &first).await;
+    client
+        .complete_multipart_upload_if(&key, &upload, e_tags, size, &first, &absent)
+        .await
+        .expect("the retry finds the committed completion");
+    let read = client
+        .get_object(&key, &GetObject::default())
+        .await
+        .unwrap();
+    assert_eq!(read.bytes().await.unwrap(), body);
+
+    // Without a replay, an object in the way is another's: a second upload
+    // of the same bytes and size is refused.
+    let second = tagged("token-2");
+    let (upload, e_tags) = upload_two_parts(&client, &key, &body, &second).await;
+    let error = client
+        .complete_multipart_upload_if(&key, &upload, e_tags, size, &second, &absent)
+        .await
+        .unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::PreconditionFailed, "{error}");
 }
 
 // The server answers 500 after committing the first two PutObjects. The

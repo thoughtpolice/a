@@ -343,6 +343,38 @@ impl Client {
         size: u64,
         attributes: &ObjectAttributes,
     ) -> Result<PutObjectOutput> {
+        self.complete_multipart_upload_if(
+            key,
+            upload_id,
+            part_etags,
+            size,
+            attributes,
+            &WriteCondition::None,
+        )
+        .await
+    }
+
+    /// [`complete_multipart_upload`](Self::complete_multipart_upload) with a
+    /// precondition on the object it creates. With
+    /// [`WriteCondition::Absent`] the upload completes only if no object
+    /// has the key, so it never replaces one; S3 has supported this since
+    /// August 2024, and a failed condition reports
+    /// [`ErrorKind::PreconditionFailed`] and leaves the upload in place.
+    ///
+    /// A retry after an attempt that took effect finds either the upload
+    /// consumed or the object it made in the way of its own condition. In
+    /// both cases the completion succeeded if the object now in place has
+    /// `size` bytes and `attributes`' user metadata, as for an
+    /// unconditional completion.
+    pub async fn complete_multipart_upload_if(
+        &self,
+        key: &str,
+        upload_id: &str,
+        part_etags: Vec<String>,
+        size: u64,
+        attributes: &ObjectAttributes,
+        condition: &WriteCondition,
+    ) -> Result<PutObjectOutput> {
         let parts = xml::CompleteMultipartUpload {
             part: part_etags
                 .into_iter()
@@ -357,16 +389,23 @@ impl Client {
             .map_err(|e| Error::invalid_from("could not serialize the part list", e))?;
         let url = self.object_url(key, &[("uploadId", upload_id)])?;
         let mut request = reqwest::Request::new(Method::POST, url);
+        apply_condition(request.headers_mut(), condition)?;
         *request.body_mut() = Some(Bytes::from(body).into());
 
         let sent = self.send_reporting_replays(request, false).await;
         let response = match sent.result {
             Ok(response) => response,
             // A replay of a completion that took effect finds its upload
-            // consumed. Nothing else consumes an upload this client still
-            // holds, so the object now in place is this upload's if it has
-            // the size of the parts and the upload's user metadata.
-            Err(error) if error.kind() == ErrorKind::NotFound && sent.replayed_unknown => {
+            // consumed, or, if it is conditional, the object it made. Nothing
+            // else consumes an upload this client still holds, so the object
+            // now in place is this upload's if it has the size of the parts
+            // and the upload's user metadata.
+            Err(error)
+                if sent.replayed_unknown
+                    && (error.kind() == ErrorKind::NotFound
+                        || (*condition != WriteCondition::None
+                            && error.kind() == ErrorKind::PreconditionFailed)) =>
+            {
                 return match self.head_object(key, &GetObject::default()).await {
                     Ok(stored)
                         if stored.info.size == size
