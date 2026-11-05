@@ -8939,6 +8939,7 @@ dependencies = [
  "clubcard",
  "clubcard-crlite",
  "console-subscriber",
+ "crc-fast",
  "crossbeam-channel",
  "crossterm",
  "dashmap",

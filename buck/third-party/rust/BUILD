@@ -4859,6 +4859,12 @@ third_party_rust.rust_library(
     visibility = [],
 )
 
+shims.alias(
+    name = "crc-fast",
+    actual = ":crc-fast-1",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
     name = "crc-fast-1.10.0.crate",
     sha256 = "e75b2483e97a5a7da73ac68a05b629f9c53cff58d8ed1c77866079e18b00dba5",
@@ -4899,6 +4905,7 @@ third_party_rust.rust_library(
         "panic-handler",
         "std",
     ],
+    linkable_alias = "crc-fast",
     metadata = {
         "third-party.metadata": {
             "name": "crc-fast",
