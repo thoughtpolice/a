@@ -13,7 +13,8 @@
 //! takes any body.
 //!
 //! The query of a presigned URL grants access to its object to whoever
-//! reads it, so [`PresignedClient`] leaves it out of errors and logs, and
+//! reads it, so [`PresignedClient`] leaves it out of errors and logs, along
+//! with the signatures S3 quotes back in error bodies, and
 //! [`PresignedRequest`]'s `Debug` output leaves it out too.
 
 use std::time::Duration;

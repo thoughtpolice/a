@@ -130,6 +130,9 @@ impl Transport {
                         );
                     }
                     let mut body = response.text().await.unwrap_or_default();
+                    if self.redact_queries {
+                        body = redact_signatures(&body);
+                    }
                     body.truncate(body.floor_char_boundary(ERROR_BODY_CAP));
                     break Err(Error::status(status, url, body));
                 }
@@ -175,4 +178,75 @@ pub(crate) fn redact_query(url: &str) -> String {
 /// which `redact` leaves out.
 fn display_error(error: reqwest::Error, redact: bool) -> reqwest::Error {
     if redact { error.without_url() } else { error }
+}
+
+/// `body`, an S3 error response, without the signatures it echoes.
+///
+/// AWS answers a presigned request whose signature does not match with an
+/// error that quotes the signature it was given in `<SignatureProvided>`.
+/// That is the signature of the request as signed, which together with the
+/// URL in the same error grants what the request grants, so a presigned
+/// client's errors leave it out, along with any `X-Amz-Signature` query
+/// parameter a message quotes.
+fn redact_signatures(body: &str) -> String {
+    const ELEMENT: &str = "<SignatureProvided>";
+    const PARAMETER: &str = "X-Amz-Signature=";
+    let mut out = String::with_capacity(body.len());
+    let mut rest = body;
+    loop {
+        let element = rest.find(ELEMENT).map(|at| (at + ELEMENT.len(), true));
+        let parameter = rest.find(PARAMETER).map(|at| (at + PARAMETER.len(), false));
+        let Some((start, in_element)) = element.into_iter().chain(parameter).min() else {
+            break;
+        };
+        let len = if in_element {
+            rest[start..].find("</SignatureProvided>")
+        } else {
+            rest[start..].find(|c: char| !c.is_ascii_alphanumeric())
+        };
+        out.push_str(&rest[..start]);
+        out.push_str("<redacted>");
+        rest = &rest[len.map_or(rest.len(), |len| start + len)..];
+    }
+    out.push_str(rest);
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::redact_signatures;
+
+    #[test]
+    fn signatures_in_error_bodies_are_redacted() {
+        // The shape of AWS's answer to a presigned GET relabeled as a PUT.
+        let body = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+            <Error><Code>SignatureDoesNotMatch</Code>\
+            <AWSAccessKeyId>AKIAIOSFODNN7EXAMPLE</AWSAccessKeyId>\
+            <StringToSign>AWS4-HMAC-SHA256\n20130524T000000Z</StringToSign>\
+            <SignatureProvided>aeeed9bbccd4d02ee5c0109b86d86835f995330da4c265957d157751f604d404</SignatureProvided>\
+            <CanonicalRequest>PUT /test.txt X-Amz-Expires=86400</CanonicalRequest>\
+            </Error>";
+        let redacted = redact_signatures(body);
+        assert!(!redacted.contains("aeeed9bb"), "{redacted}");
+        assert!(
+            redacted.contains("<SignatureProvided><redacted></SignatureProvided>"),
+            "{redacted}"
+        );
+        assert!(redacted.contains("<Code>SignatureDoesNotMatch</Code>"));
+        assert!(redacted.contains("X-Amz-Expires=86400"));
+
+        let quoted = "bad query: X-Amz-Signature=abc123&X-Amz-Date=1 and X-Amz-Signature=def";
+        assert_eq!(
+            redact_signatures(quoted),
+            "bad query: X-Amz-Signature=<redacted>&X-Amz-Date=1 and X-Amz-Signature=<redacted>",
+        );
+        // Unterminated elements lose everything after the opening tag.
+        assert_eq!(
+            redact_signatures("<SignatureProvided>abc"),
+            "<SignatureProvided><redacted>"
+        );
+        for plain in ["", "<Error><Code>NoSuchKey</Code></Error>", "Signature"] {
+            assert_eq!(redact_signatures(plain), plain);
+        }
+    }
 }
