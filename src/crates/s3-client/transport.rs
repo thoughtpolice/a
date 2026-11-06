@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Sending requests: the connection pool and the retry policy.
+//! Sending requests: the connection pool and the retry policy that
+//! [`Client`](crate::Client) and [`PresignedClient`](crate::PresignedClient)
+//! share.
 
 use std::time::Duration;
 

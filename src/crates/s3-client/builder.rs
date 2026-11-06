@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use crate::client::{Client, Config};
 use crate::error::{Error, Result};
+use crate::presign::PresignedClient;
 use crate::sigv4::Credentials;
 use crate::transport::Transport;
 
@@ -260,6 +261,15 @@ impl ClientBuilder {
             sign_payload: self.sign_payload.unwrap_or(parsed.scheme() == "http"),
         };
         Ok(Client::new(config, transport))
+    }
+
+    /// Construct a client for [`PresignedRequest`](crate::PresignedRequest)s,
+    /// which holds no credentials and addresses no bucket of its own.
+    ///
+    /// Only the timeouts, retry settings and user agent apply; the bucket,
+    /// endpoint, region and credentials come with each request's signature.
+    pub fn build_presigned(self) -> Result<PresignedClient> {
+        Ok(PresignedClient::new(self.transport()?))
     }
 
     /// The HTTP client and retry policy these settings call for.

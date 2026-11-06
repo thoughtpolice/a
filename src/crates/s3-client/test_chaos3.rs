@@ -18,7 +18,7 @@ use futures::TryStreamExt as _;
 
 use crate::{
     ByteRange, Client, ClientBuilder, ErrorKind, GetObject, ListObjects, ObjectAttributes,
-    PutObject, WriteCondition,
+    PresignedClient, PutObject, WriteCondition,
 };
 
 fn chaos3_client() -> Client {
@@ -34,6 +34,16 @@ fn chaos3_client() -> Client {
         .build()
         .expect("chaos3 client configuration is valid")
 }
+
+/// A client with no credentials, for requests `chaos3_client` presigned.
+fn holder() -> PresignedClient {
+    ClientBuilder::new()
+        .build_presigned()
+        .expect("presigned client configuration is valid")
+}
+
+/// How long the presigned requests in these tests stay valid.
+const HOUR: std::time::Duration = std::time::Duration::from_secs(3600);
 
 /// A key prefix no other test, or earlier attempt of this one, has used.
 fn prefix(test: &str) -> String {
@@ -274,6 +284,46 @@ async fn a_truncated_body_resumes_from_where_it_stopped() {
     let body = pattern(64 * 1024);
     client
         .put_object(&key, body.clone(), &PutObject::default())
+        .await
+        .unwrap();
+    let read = client
+        .get_object(&key, &GetObject::default())
+        .await
+        .unwrap();
+    assert_eq!(read.bytes().await.unwrap(), body);
+}
+
+#[cfg(chaos3_scenario = "healthy")]
+#[tokio::test]
+async fn a_holder_uploads_the_parts_of_a_multipart_upload_the_signer_runs() {
+    let client = chaos3_client();
+    let holder = holder();
+    let key = format!("{}/multi", prefix("presigned-multipart"));
+    let body = pattern(5 * 1024 * 1024 + 17);
+    let upload = client
+        .create_multipart_upload(&key, &PutObject::default())
+        .await
+        .unwrap();
+    let mut e_tags = Vec::new();
+    for (index, part) in body.chunks(5 * 1024 * 1024).enumerate() {
+        let request = client
+            .presign_upload_part(&key, &upload, index + 1, HOUR)
+            .unwrap();
+        let e_tag = holder
+            .upload_part(&request, Bytes::copy_from_slice(part))
+            .await
+            .unwrap();
+        e_tags.push(e_tag);
+    }
+    assert_eq!(e_tags.len(), 2);
+    client
+        .complete_multipart_upload(
+            &key,
+            &upload,
+            e_tags,
+            body.len() as u64,
+            &Default::default(),
+        )
         .await
         .unwrap();
     let read = client

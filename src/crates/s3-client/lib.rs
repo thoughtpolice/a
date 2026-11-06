@@ -54,7 +54,7 @@ mod xml;
 pub use crate::builder::ClientBuilder;
 pub use crate::client::Client;
 pub use crate::error::{Error, ErrorKind, Result};
-pub use crate::presign::{MAX_PRESIGNED_EXPIRY, PresignedRequest};
+pub use crate::presign::{MAX_PRESIGNED_EXPIRY, PresignedClient, PresignedRequest};
 pub use crate::sigv4::Credentials;
 pub use crate::types::{
     ByteRange, ByteStream, GetObject, GetObjectOutput, ListObjects, ListPage, ObjectAttributes,

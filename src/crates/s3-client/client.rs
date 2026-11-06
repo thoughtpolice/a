@@ -241,10 +241,7 @@ impl Client {
                     None => Err(error),
                 }
             }
-            Err(error) if if_match && error.kind() == ErrorKind::NotFound => {
-                Err(error.with_kind(ErrorKind::PreconditionFailed))
-            }
-            Err(error) => Err(error),
+            Err(error) => Err(write_error(error, if_match)),
         }
     }
 
@@ -486,6 +483,17 @@ pub(crate) fn apply_condition(headers: &mut HeaderMap, condition: &WriteConditio
     Ok(())
 }
 
+/// `error` from a write, which was an `If-Match` write if `if_match` is set.
+/// S3 answers such a write over an object since deleted with 404, where most
+/// S3-compatible services answer 412, so a 404 becomes a failed precondition.
+pub(crate) fn write_error(error: Error, if_match: bool) -> Error {
+    if if_match && error.kind() == ErrorKind::NotFound {
+        error.with_kind(ErrorKind::PreconditionFailed)
+    } else {
+        error
+    }
+}
+
 /// Put the headers for `options` on a `GetObject` or `HeadObject` request,
 /// all but its version, which goes in the query.
 pub(crate) fn apply_read_options(headers: &mut HeaderMap, options: &GetObject) -> Result<()> {
@@ -590,7 +598,7 @@ async fn xml_body<T: serde::de::DeserializeOwned>(response: Response) -> Result<
         .map_err(|e| Error::invalid_from(format!("invalid XML response from {url}"), e))
 }
 
-fn header_value(value: &str) -> Result<HeaderValue> {
+pub(crate) fn header_value(value: &str) -> Result<HeaderValue> {
     HeaderValue::from_str(value)
         .map_err(|e| Error::invalid_from(format!("invalid header value {value:?}"), e))
 }
@@ -640,7 +648,7 @@ fn put_output_of(info: ObjectInfo) -> PutObjectOutput {
     }
 }
 
-fn put_output(headers: &HeaderMap) -> PutObjectOutput {
+pub(crate) fn put_output(headers: &HeaderMap) -> PutObjectOutput {
     PutObjectOutput {
         e_tag: header_string(headers, ETAG.as_str()),
         version: header_string(headers, VERSION_HEADER),

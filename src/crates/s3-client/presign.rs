@@ -6,25 +6,30 @@
 //! A process with credentials signs a request ahead of time with
 //! [`Client::presign_get_object`], [`Client::presign_put_object`] or
 //! [`Client::presign_upload_part`], and hands the [`PresignedRequest`] to
-//! one without credentials, which sends it until it expires. The signature
-//! covers the method, the object, the query and the headers named when
-//! signing, and nothing else, so a presigned `GetObject` serves any range of
-//! its object and a presigned `PutObject` takes any body.
+//! one without credentials, which sends it with a [`PresignedClient`] until
+//! it expires. The signature covers the method, the object, the query and
+//! the headers named when signing, and nothing else, so a presigned
+//! `GetObject` serves any range of its object and a presigned `PutObject`
+//! takes any body.
 //!
 //! The query of a presigned URL grants access to its object to whoever
-//! reads it, so [`PresignedRequest`]'s `Debug` output leaves it out.
+//! reads it, so [`PresignedClient`] leaves it out of errors and logs, and
+//! [`PresignedRequest`]'s `Debug` output leaves it out too.
 
 use std::time::Duration;
 
+use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use reqwest::Method;
-use reqwest::header::HeaderMap;
+use reqwest::header::{HeaderMap, HeaderName, IF_MATCH};
 
-use crate::client::{Client, apply_attributes, apply_condition};
+use crate::client::{
+    Client, apply_attributes, apply_condition, header_value, part_e_tag, put_output, write_error,
+};
 use crate::error::{Error, Result};
 use crate::sigv4;
-use crate::transport::redact_query;
-use crate::types::PutObject;
+use crate::transport::{Transport, redact_query};
+use crate::types::{PutObject, PutObjectOutput};
 
 /// The longest a presigned request can stay valid, which is what S3
 /// accepts.
@@ -34,7 +39,7 @@ pub const MAX_PRESIGNED_EXPIRY: Duration = Duration::from_secs(7 * 24 * 60 * 60)
 /// it expires.
 ///
 /// Every field is a plain string or time, so the request can travel in any
-/// message format.
+/// message format. Send it with [`PresignedClient`].
 #[derive(Clone, PartialEq, Eq)]
 pub struct PresignedRequest {
     /// The HTTP method, such as `GET`.
@@ -168,5 +173,89 @@ impl Client {
             headers,
             expires_at: date + chrono::Duration::seconds(seconds as i64),
         })
+    }
+}
+
+/// Sends [`PresignedRequest`]s, holding no credentials of its own.
+///
+/// Requests are retried as [`Client`] retries them, until the signature
+/// expires. URLs in errors and logs leave out their queries, where the
+/// signatures are. Cloning is cheap; clones share one connection pool. Build
+/// one with
+/// [`ClientBuilder::build_presigned`](crate::ClientBuilder::build_presigned).
+#[derive(Debug, Clone)]
+pub struct PresignedClient {
+    transport: Transport,
+}
+
+impl PresignedClient {
+    pub(crate) fn new(transport: Transport) -> Self {
+        Self {
+            transport: Transport {
+                redact_queries: true,
+                ..transport
+            },
+        }
+    }
+
+    /// Send a presigned `PutObject` with `body`.
+    ///
+    /// A conditional write that fails its precondition reports
+    /// [`ErrorKind::PreconditionFailed`](crate::ErrorKind::PreconditionFailed).
+    /// Unlike [`Client::put_object`], this cannot reconcile a replay. When an
+    /// attempt fails without knowing whether it took effect, and the retry
+    /// then fails the precondition, the object may be this write's or
+    /// another's. Without read access the holder cannot tell, so it reports
+    /// the failure, and the signer can read the object to decide.
+    pub async fn put_object(
+        &self,
+        request: &PresignedRequest,
+        body: Bytes,
+    ) -> Result<PutObjectOutput> {
+        let mut http = self.build(request, Method::PUT)?;
+        // S3 occasionally reports transient conflicts for concurrent
+        // `If-Match` puts.
+        let if_match = http.headers().contains_key(IF_MATCH);
+        *http.body_mut() = Some(body.into());
+        let response = self
+            .transport
+            .send(http, if_match, |_| {})
+            .await
+            .result
+            .map_err(|error| write_error(error, if_match))?;
+        Ok(put_output(response.headers()))
+    }
+
+    /// Send a presigned `UploadPart` with `body`, returning the part's ETag
+    /// for the signer to complete the upload with.
+    pub async fn upload_part(&self, request: &PresignedRequest, body: Bytes) -> Result<String> {
+        let mut http = self.build(request, Method::PUT)?;
+        *http.body_mut() = Some(body.into());
+        let response = self.transport.send(http, false, |_| {}).await.result?;
+        part_e_tag(&request.display_url(), &response)
+    }
+
+    /// The HTTP request for `request`, which must be for `method`.
+    fn build(&self, request: &PresignedRequest, method: Method) -> Result<reqwest::Request> {
+        if request.method != method.as_str() {
+            return Err(Error::invalid(format!(
+                "the presigned request is for {}, not {method}",
+                request.method,
+            )));
+        }
+        let url = reqwest::Url::parse(&request.url).map_err(|e| {
+            Error::invalid_from(
+                format!("invalid presigned URL {}", request.display_url()),
+                e,
+            )
+        })?;
+        let mut http = reqwest::Request::new(method, url);
+        for (name, value) in &request.headers {
+            let name = HeaderName::from_bytes(name.as_bytes())
+                .map_err(|e| Error::invalid_from(format!("invalid header name {name:?}"), e))?;
+            let value = header_value(value)?;
+            http.headers_mut().append(name, value);
+        }
+        Ok(http)
     }
 }
