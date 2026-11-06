@@ -30,8 +30,8 @@ use crate::sigv4::{
 };
 use crate::transport::{Sent, Transport};
 use crate::types::{
-    GetObject, GetObjectOutput, ListObjects, ListPage, ObjectAttributes, ObjectInfo, PutObject,
-    PutObjectOutput, WriteCondition,
+    ByteRange, GetObject, GetObjectOutput, ListObjects, ListPage, ObjectAttributes, ObjectInfo,
+    PutObject, PutObjectOutput, WriteCondition,
 };
 use crate::xml;
 
@@ -185,10 +185,6 @@ impl Client {
         options: &GetObject,
         head: bool,
     ) -> Result<GetObjectOutput> {
-        if let Some(range) = &options.range {
-            range.validate()?;
-        }
-
         let method = if head { Method::HEAD } else { Method::GET };
         let url = match &options.version {
             Some(version) => self.object_url(key, &[("versionId", version)])?,
@@ -196,70 +192,15 @@ impl Client {
         };
 
         let mut request = reqwest::Request::new(method, url);
-        let headers = request.headers_mut();
-        if let Some(range) = &options.range {
-            headers.insert(RANGE, header_value(&range.to_string())?);
-        }
-        if let Some(tag) = &options.if_match {
-            headers.insert(IF_MATCH, header_value(tag)?);
-        }
-        if let Some(tag) = &options.if_none_match {
-            headers.insert(IF_NONE_MATCH, header_value(tag)?);
-        }
-        if let Some(date) = &options.if_modified_since {
-            headers.insert(IF_MODIFIED_SINCE, http_date(date)?);
-        }
-        if let Some(date) = &options.if_unmodified_since {
-            headers.insert(IF_UNMODIFIED_SINCE, http_date(date)?);
-        }
-
+        apply_read_options(request.headers_mut(), options)?;
         let response = self.send(request, false).await?;
-
-        let mut info = header_info(key, response.headers())?;
-        let range = if let Some(expected) = &options.range {
-            if response.status() != StatusCode::PARTIAL_CONTENT {
-                return Err(Error::invalid(format!(
-                    "range request for {key} returned {} instead of 206 Partial Content",
-                    response.status(),
-                )));
-            }
-            let content_range = response
-                .headers()
-                .get(CONTENT_RANGE)
-                .and_then(|v| v.to_str().ok())
-                .ok_or_else(|| {
-                    Error::invalid(format!("no Content-Range in partial response for {key}"))
-                })?;
-            let (actual, size) = parse_content_range(content_range).ok_or_else(|| {
-                Error::invalid(format!("invalid Content-Range {content_range:?} for {key}"))
-            })?;
-            // Content-Range reports the size of the whole object, and
-            // Content-Length only that of the returned slice.
-            info.size = size;
-            let expected = expected.resolve(size)?;
-            if actual != expected {
-                return Err(Error::invalid(format!(
-                    "requested range {expected:?} for {key} but got {actual:?}",
-                )));
-            }
-            actual
-        } else {
-            0..info.size
-        };
-
-        let attributes = header_attributes(response.headers())?;
-        let body = if head {
-            futures::stream::empty().boxed()
-        } else {
-            self.transport().body(response)
-        };
-
-        Ok(GetObjectOutput {
-            info,
-            attributes,
-            range,
-            body,
-        })
+        read_output(
+            self.transport(),
+            key,
+            response,
+            options.range.as_ref(),
+            head,
+        )
     }
 
     /// `PutObject`, optionally conditional.
@@ -279,26 +220,13 @@ impl Client {
             &options.attributes,
             options.tagging.as_deref(),
         )?;
+        apply_condition(request.headers_mut(), &options.condition)?;
         // S3 occasionally reports transient conflicts for concurrent
         // `If-Match` puts.
-        let mut retry_on_conflict = false;
-        match &options.condition {
-            WriteCondition::None => {}
-            WriteCondition::Absent => {
-                request
-                    .headers_mut()
-                    .insert(IF_NONE_MATCH, HeaderValue::from_static("*"));
-            }
-            WriteCondition::Matches(tag) => {
-                request.headers_mut().insert(IF_MATCH, header_value(tag)?);
-                retry_on_conflict = true;
-            }
-        }
+        let if_match = matches!(options.condition, WriteCondition::Matches(_));
         *request.body_mut() = Some(body.clone().into());
 
-        let sent = self
-            .send_reporting_replays(request, retry_on_conflict)
-            .await;
+        let sent = self.send_reporting_replays(request, if_match).await;
         let conditional = options.condition != WriteCondition::None;
         match sent.result {
             Ok(response) => Ok(put_output(response.headers())),
@@ -318,10 +246,7 @@ impl Client {
                     None => Err(error),
                 }
             }
-            Err(error)
-                if matches!(options.condition, WriteCondition::Matches(_))
-                    && error.kind() == ErrorKind::NotFound =>
-            {
+            Err(error) if if_match && error.kind() == ErrorKind::NotFound => {
                 Err(error.with_kind(ErrorKind::PreconditionFailed))
             }
             Err(error) => Err(error),
@@ -408,12 +333,7 @@ impl Client {
         *request.body_mut() = Some(body.into());
 
         let response = self.send(request, false).await?;
-        let e_tag = response
-            .headers()
-            .get(ETAG)
-            .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| Error::invalid(format!("no ETag in UploadPart response for {key}")))?;
-        Ok(e_tag.to_string())
+        part_e_tag(key, &response)
     }
 
     /// `CompleteMultipartUpload` over the part ETags in part order.
@@ -555,6 +475,108 @@ impl Client {
 fn parse_url(url: &str) -> Result<reqwest::Url> {
     reqwest::Url::parse(url)
         .map_err(|e| Error::invalid_from(format!("invalid request URL {url}"), e))
+}
+
+/// Put the header for `condition` on a write.
+pub(crate) fn apply_condition(headers: &mut HeaderMap, condition: &WriteCondition) -> Result<()> {
+    match condition {
+        WriteCondition::None => {}
+        WriteCondition::Absent => {
+            headers.insert(IF_NONE_MATCH, HeaderValue::from_static("*"));
+        }
+        WriteCondition::Matches(tag) => {
+            headers.insert(IF_MATCH, header_value(tag)?);
+        }
+    }
+    Ok(())
+}
+
+/// Put the headers for `options` on a `GetObject` or `HeadObject` request,
+/// all but its version, which goes in the query.
+pub(crate) fn apply_read_options(headers: &mut HeaderMap, options: &GetObject) -> Result<()> {
+    if let Some(range) = &options.range {
+        range.validate()?;
+        headers.insert(RANGE, header_value(&range.to_string())?);
+    }
+    if let Some(tag) = &options.if_match {
+        headers.insert(IF_MATCH, header_value(tag)?);
+    }
+    if let Some(tag) = &options.if_none_match {
+        headers.insert(IF_NONE_MATCH, header_value(tag)?);
+    }
+    if let Some(date) = &options.if_modified_since {
+        headers.insert(IF_MODIFIED_SINCE, http_date(date)?);
+    }
+    if let Some(date) = &options.if_unmodified_since {
+        headers.insert(IF_UNMODIFIED_SINCE, http_date(date)?);
+    }
+    Ok(())
+}
+
+/// The output of a successful `GetObject` or `HeadObject` for `key`, which
+/// asked for `range`. The body is not resumed.
+pub(crate) fn read_output(
+    transport: &Transport,
+    key: &str,
+    response: Response,
+    range: Option<&ByteRange>,
+    head: bool,
+) -> Result<GetObjectOutput> {
+    let mut info = header_info(key, response.headers())?;
+    let range = if let Some(expected) = range {
+        if response.status() != StatusCode::PARTIAL_CONTENT {
+            return Err(Error::invalid(format!(
+                "range request for {key} returned {} instead of 206 Partial Content",
+                response.status(),
+            )));
+        }
+        let content_range = response
+            .headers()
+            .get(CONTENT_RANGE)
+            .and_then(|v| v.to_str().ok())
+            .ok_or_else(|| {
+                Error::invalid(format!("no Content-Range in partial response for {key}"))
+            })?;
+        let (actual, size) = parse_content_range(content_range).ok_or_else(|| {
+            Error::invalid(format!("invalid Content-Range {content_range:?} for {key}"))
+        })?;
+        // Content-Range reports the size of the whole object, and
+        // Content-Length only that of the returned slice.
+        info.size = size;
+        let expected = expected.resolve(size)?;
+        if actual != expected {
+            return Err(Error::invalid(format!(
+                "requested range {expected:?} for {key} but got {actual:?}",
+            )));
+        }
+        actual
+    } else {
+        0..info.size
+    };
+
+    let attributes = header_attributes(response.headers())?;
+    let body = if head {
+        futures::stream::empty().boxed()
+    } else {
+        transport.body(response)
+    };
+
+    Ok(GetObjectOutput {
+        info,
+        attributes,
+        range,
+        body,
+    })
+}
+
+/// The ETag of an `UploadPart` response for `key`.
+pub(crate) fn part_e_tag(key: &str, response: &Response) -> Result<String> {
+    let e_tag = response
+        .headers()
+        .get(ETAG)
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(|| Error::invalid(format!("no ETag in UploadPart response for {key}")))?;
+    Ok(e_tag.to_string())
 }
 
 /// Percent-encode an object key for use in a URL path, preserving `/`.
