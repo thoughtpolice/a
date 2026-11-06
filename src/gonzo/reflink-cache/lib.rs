@@ -512,6 +512,8 @@ mod test_faults;
 #[cfg(test)]
 mod test_fetch;
 #[cfg(test)]
+mod test_kill;
+#[cfg(test)]
 mod test_machine;
 #[cfg(test)]
 mod test_recovery;
