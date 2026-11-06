@@ -1,0 +1,9 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The command an editor runs as its C and C++ language server. It builds
+# the wrapper (main.go and db.go) with Buck and runs it with the arguments
+# given, which writes the compilation database and starts clangd. See
+# README.md.
+exec buck2 run --console=none -v 0 toolchains//cxx/lsp:clangd -- "$@"

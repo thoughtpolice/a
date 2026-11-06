@@ -1,0 +1,85 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+"""The compile commands of every C and C++ target, for clangd (see README.md).
+
+  commands  every source and header compile command of the C and C++
+            targets in some patterns, in the default platform, as the build
+            runs them, with argument files and generated headers built
+
+A package that fails to load, or a target that fails to configure or
+analyze, is left out with a note in `errors`, rather than costing every
+other target its entries.
+
+Each entry is the one the prelude's own
+`prelude//cxx/tools/compilation_database.bxl:generate` writes. That script
+fails as a whole when one target in its patterns does, and drops whether an
+entry is for a header, so this one stands in for it. It also takes only the
+C and C++ rule kinds, which skips analyzing every other target. Lean
+libraries, whose generated C lives in buck-out, and aliases, which repeat
+another target's entries, are the targets with entries that it leaves out.
+"""
+
+load("@prelude//cxx:comp_db.bzl", "CxxCompilationDbInfo")
+
+_KINDS = "^(cxx_binary|cxx_library|cxx_test|cxx_python_extension)$"
+
+def _commands_impl(ctx: bxl.Context) -> None:
+    errors = []
+    labels = []
+    loaded = ctx.lazy.join_all([ctx.lazy.unconfigured_target_nodes_keep_going(p).catch() for p in ctx.cli_args.patterns]).resolve()
+    for pattern, result in zip(ctx.cli_args.patterns, loaded):
+        if not result.is_ok():
+            errors.append("{}: {}".format(pattern, result.unwrap_err().message))
+            continue
+        nodes, package_errors = result.unwrap()
+        for package, message in package_errors.items():
+            errors.append("{}: {}".format(package, message))
+        labels += [node.label for node in ctx.uquery().kind(_KINDS, nodes)]
+
+    # Configured in the default platform. A target incompatible with it is
+    # left out without a note, as `buck2 build` skips one in a pattern.
+    configured = ctx.lazy.join_all([ctx.lazy.configured_target_node(label).catch() for label in labels]).resolve()
+    nodes = []
+    for label, result in zip(labels, configured):
+        if result.is_ok():
+            nodes.append(result.unwrap())
+        elif " is incompatible with " not in result.unwrap_err().message:
+            errors.append("{}: {}".format(label, result.unwrap_err().message))
+    analyzed = ctx.lazy.join_all([ctx.lazy.analysis(node.label).catch() for node in nodes]).resolve()
+
+    entries = []
+    for node, result in zip(nodes, analyzed):
+        if not result.is_ok():
+            errors.append("{}: {}".format(node.label.raw_target(), result.unwrap_err().message))
+            continue
+        info = result.unwrap().providers().get(CxxCompilationDbInfo)
+        if not info:
+            continue
+        for command in info.info.values():
+            args = command.cxx_compile_cmd.base_compile_cmd.copy()
+            args.add(command.cxx_compile_cmd.argsfile.cmd_form)
+            args.add(command.args)
+            entries.append({
+                "arguments": args,
+                "file": command.src,
+                "header": command.is_header,
+                "target": str(node.label.raw_target()),
+            })
+
+    actions = ctx.bxl_actions().actions
+    out = actions.declare_output("commands.json", has_content_based_path = False)
+    written = actions.write_json(
+        out,
+        {"entries": entries, "errors": errors, "root": ctx.root()},
+        with_inputs = True,
+    )
+    ctx.output.ensure_multiple(written)
+    ctx.output.print(ctx.output.ensure(out).abs_path())
+
+commands = bxl_main(
+    impl = _commands_impl,
+    cli_args = {
+        "patterns": cli_args.list(cli_args.string(), doc = "Target patterns to take C and C++ targets from"),
+    },
+)

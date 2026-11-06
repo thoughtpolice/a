@@ -51,6 +51,12 @@
           "directoryFilters": ["-buck-out", "-work", "-**/node_modules"]
         }
       }
+    },
+    "clangd": {
+      "command": "/bin/sh",
+      "args": ["-c", "exec \"$(buck2 root --kind project)/buck/toolchains/cxx/lsp/clangd\""],
+      "fileTypes": [".c", ".h", ".cc", ".cpp", ".cxx", ".hh", ".hpp", ".hxx", ".inc"],
+      "rootMarkers": [".buckconfig"]
     }
   }
 }

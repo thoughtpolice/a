@@ -35,3 +35,9 @@ directoryFilters = ["-buck-out", "-work", "-**/node_modules"]
 [[language]]
 name = "go"
 roots = [".buckroot"]
+
+# clangd, with the compile commands Buck builds with (see
+# buck/toolchains/cxx/lsp). Helix's C and C++ languages use it already.
+[language-server.clangd]
+command = "/bin/sh"
+args = ["-c", "exec \"$(buck2 root --kind project)/buck/toolchains/cxx/lsp/clangd\""]

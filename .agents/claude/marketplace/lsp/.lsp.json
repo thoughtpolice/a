@@ -33,5 +33,20 @@
     "initializationOptions": {
       "directoryFilters": ["-buck-out", "-work", "-**/node_modules"]
     }
+  },
+  "clangd": {
+    "command": "/bin/sh",
+    "args": ["-c", "exec \"$(buck2 root --kind project)/buck/toolchains/cxx/lsp/clangd\""],
+    "extensionToLanguage": {
+      ".c": "c",
+      ".h": "c",
+      ".cc": "cpp",
+      ".cpp": "cpp",
+      ".cxx": "cpp",
+      ".hh": "cpp",
+      ".hpp": "cpp",
+      ".hxx": "cpp",
+      ".inc": "cpp"
+    }
   }
 }
