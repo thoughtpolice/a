@@ -12,6 +12,7 @@ use futures::StreamExt as _;
 
 use crate::client::Client;
 use crate::error::{ErrorKind, Result};
+use crate::presign::{PresignedClient, PresignedRequest};
 use crate::transport::Transport;
 use crate::types::{ByteRange, ByteStream, GetObject, GetObjectOutput};
 
@@ -23,12 +24,18 @@ pub(crate) enum Source {
         key: String,
         version: Option<String>,
     },
+    /// A presigned `GetObject`, which a holder may send with any range.
+    Presigned {
+        client: PresignedClient,
+        request: PresignedRequest,
+    },
 }
 
 impl Source {
     fn transport(&self) -> &Transport {
         match self {
             Self::Object { client, .. } => client.transport(),
+            Self::Presigned { client, .. } => client.transport(),
         }
     }
 
@@ -36,6 +43,7 @@ impl Source {
     fn describe(&self) -> String {
         match self {
             Self::Object { key, .. } => key.clone(),
+            Self::Presigned { request, .. } => request.display_url(),
         }
     }
 
@@ -55,6 +63,7 @@ impl Source {
                 options.version = version.clone();
                 client.get_or_head(key, &options, false).await
             }
+            Self::Presigned { client, request } => client.get_once(request, &options).await,
         }
     }
 }

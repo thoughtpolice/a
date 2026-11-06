@@ -39,6 +39,33 @@
 //! # }
 //! ```
 //!
+//! A process with credentials can also presign requests for one that has
+//! none: [`Client::presign_get_object`], [`Client::presign_put_object`] and
+//! [`Client::presign_upload_part`] return a [`PresignedRequest`], which a
+//! [`PresignedClient`] sends with the same retries and body resumption
+//! until it expires:
+//!
+//! ```no_run
+//! # async fn example() -> s3_client::Result<()> {
+//! use std::time::Duration;
+//!
+//! use s3_client::{ByteRange, ClientBuilder, GetObject};
+//!
+//! // Where the credentials are.
+//! let client = ClientBuilder::from_env().with_bucket("my-bucket").build()?;
+//! let request = client.presign_get_object("packs/0a/01J", Duration::from_secs(3600))?;
+//!
+//! // Anywhere else, once the request has been sent there.
+//! let holder = ClientBuilder::new().build_presigned()?;
+//! let options = GetObject {
+//!     range: Some(ByteRange::Bounded(4096..8192)),
+//!     ..Default::default()
+//! };
+//! let bytes = holder.get_object(&request, &options).await?.bytes().await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! [`sigv4`] signs requests to other AWS-style services too.
 
 mod body;

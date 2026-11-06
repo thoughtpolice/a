@@ -23,13 +23,15 @@ use chrono::{DateTime, Utc};
 use reqwest::Method;
 use reqwest::header::{HeaderMap, HeaderName, IF_MATCH};
 
+use crate::body::{Source, resumable};
 use crate::client::{
-    Client, apply_attributes, apply_condition, header_value, part_e_tag, put_output, write_error,
+    Client, apply_attributes, apply_condition, apply_read_options, header_value, part_e_tag,
+    put_output, read_output, write_error,
 };
 use crate::error::{Error, Result};
 use crate::sigv4;
 use crate::transport::{Transport, redact_query};
-use crate::types::{PutObject, PutObjectOutput};
+use crate::types::{GetObject, GetObjectOutput, PutObject, PutObjectOutput};
 
 /// The longest a presigned request can stay valid, which is what S3
 /// accepts.
@@ -76,8 +78,7 @@ impl Client {
     /// A presigned `GetObject` of `key`, valid for `expires_in`.
     ///
     /// The holder may ask for any range of the object and add the
-    /// conditions of [`GetObject`](crate::GetObject), but not choose a
-    /// version.
+    /// conditions of [`GetObject`], but not choose a version.
     pub fn presign_get_object(&self, key: &str, expires_in: Duration) -> Result<PresignedRequest> {
         let url = self.object_url(key, &[])?;
         self.presign_at(Method::GET, url, HeaderMap::new(), expires_in, Utc::now())
@@ -178,10 +179,10 @@ impl Client {
 
 /// Sends [`PresignedRequest`]s, holding no credentials of its own.
 ///
-/// Requests are retried as [`Client`] retries them, until the signature
-/// expires. URLs in errors and logs leave out their queries, where the
-/// signatures are. Cloning is cheap; clones share one connection pool. Build
-/// one with
+/// Requests are retried and response bodies resumed as [`Client`] does,
+/// until the signature expires. URLs in errors and logs leave out their
+/// queries, where the signatures are. Cloning is cheap; clones share one
+/// connection pool. Build one with
 /// [`ClientBuilder::build_presigned`](crate::ClientBuilder::build_presigned).
 #[derive(Debug, Clone)]
 pub struct PresignedClient {
@@ -196,6 +197,63 @@ impl PresignedClient {
                 ..transport
             },
         }
+    }
+
+    pub(crate) fn transport(&self) -> &Transport {
+        &self.transport
+    }
+
+    /// Send a presigned `GetObject`, honoring every [`GetObject`] field but
+    /// the version, which only the signer can choose.
+    ///
+    /// The body resumes after a dropped connection or a short read, as
+    /// [`Client::get_object`]'s does.
+    pub async fn get_object(
+        &self,
+        request: &PresignedRequest,
+        options: &GetObject,
+    ) -> Result<GetObjectOutput> {
+        let output = self.get_once(request, options).await?;
+        let source = Source::Presigned {
+            client: self.clone(),
+            request: request.clone(),
+        };
+        Ok(resumable(source, output))
+    }
+
+    /// [`get_object`](Self::get_object) without resuming the body.
+    pub(crate) async fn get_once(
+        &self,
+        request: &PresignedRequest,
+        options: &GetObject,
+    ) -> Result<GetObjectOutput> {
+        if options.version.is_some() {
+            return Err(Error::invalid(
+                "a presigned GetObject reads the version it was signed for",
+            ));
+        }
+        let mut http = self.build(request, Method::GET)?;
+        let mut added = HeaderMap::new();
+        apply_read_options(&mut added, options)?;
+        for (name, value) in added {
+            let name = name.expect("each header was inserted once");
+            if http.headers().contains_key(&name) {
+                return Err(Error::invalid(format!(
+                    "{name} is fixed by the presigned request's signature",
+                )));
+            }
+            http.headers_mut().insert(name, value);
+        }
+
+        let response = self.transport.send(http, false, |_| {}).await.result?;
+        let label = request.display_url();
+        read_output(
+            &self.transport,
+            &label,
+            response,
+            options.range.as_ref(),
+            false,
+        )
     }
 
     /// Send a presigned `PutObject` with `body`.

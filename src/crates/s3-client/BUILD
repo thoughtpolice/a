@@ -45,13 +45,19 @@ depot.rust_test(
 # test_chaos3.rs selects a scenario's tests by the `chaos3_scenario` cfg.
 CHAOS3_BUCKET = "s3-client"
 
+# Ends the first GetObject body after one chunk.
+TRUNCATE_FIRST_BODY = "s3.get_object.body=1*off->1*return(truncate)"
+
 CHAOS3_SCENARIOS = {
     "healthy": {},
     "put-after-commit": {
         "failpoints": ["s3.put_object.after_commit=2*return(InternalError)"],
     },
     "body-truncated": {
-        "failpoints": ["s3.get_object.body=1*off->1*return(truncate)"],
+        "failpoints": [TRUNCATE_FIRST_BODY],
+    },
+    "presigned-body-truncated": {
+        "failpoints": [TRUNCATE_FIRST_BODY],
     },
 }
 

@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Presigning, checked against AWS's published example.
+//! Presigning, checked against AWS's published example, and the presigned
+//! client's handling of requests before anything is sent.
 //!
 //! The example is from "Authenticating Requests: Using Query Parameters"
 //! in the S3 API reference
@@ -10,13 +11,14 @@
 
 use std::time::Duration;
 
+use chrono::Utc;
 use reqwest::Method;
 use reqwest::header::HeaderMap;
 
 use crate::test_sigv4::{date, test_credentials};
 use crate::{
-    Client, ClientBuilder, ErrorKind, MAX_PRESIGNED_EXPIRY, ObjectAttributes, PresignedRequest,
-    PutObject, WriteCondition,
+    Client, ClientBuilder, ErrorKind, GetObject, MAX_PRESIGNED_EXPIRY, ObjectAttributes,
+    PresignedRequest, PutObject, WriteCondition,
 };
 
 /// A client for AWS's example bucket, addressed the way the example is.
@@ -197,4 +199,41 @@ fn debug_output_leaves_out_the_signature() {
         debug.contains("https://examplebucket.s3.amazonaws.com/test.txt?<redacted>"),
         "{debug}"
     );
+}
+
+#[tokio::test]
+async fn a_request_is_only_sent_as_the_operation_it_was_signed_for() {
+    let client = example_client().build().unwrap();
+    let get = presign_get(&client, "test.txt", Duration::from_secs(60));
+    let holder = ClientBuilder::new().build_presigned().unwrap();
+    let error = holder.put_object(&get, "x".into()).await.unwrap_err();
+    assert!(error.to_string().contains("is for GET, not PUT"), "{error}");
+    let versioned = GetObject {
+        version: Some("v1".into()),
+        ..Default::default()
+    };
+    let error = holder.get_object(&get, &versioned).await.unwrap_err();
+    assert!(error.to_string().contains("version"), "{error}");
+}
+
+#[tokio::test]
+async fn errors_leave_out_the_signature() {
+    // Nothing listens on port 1, so the connection is refused at once.
+    let request = PresignedRequest {
+        method: "GET".into(),
+        url: "http://127.0.0.1:1/bucket/key?X-Amz-Signature=secret".into(),
+        headers: Vec::new(),
+        expires_at: Utc::now(),
+    };
+    let holder = ClientBuilder::new()
+        .with_max_attempts(1)
+        .build_presigned()
+        .unwrap();
+    let error = holder
+        .get_object(&request, &GetObject::default())
+        .await
+        .unwrap_err();
+    let message = format!("{error} {error:?}");
+    assert!(!message.contains("secret"), "{message}");
+    assert!(message.contains("127.0.0.1:1/bucket/key"), "{message}");
 }

@@ -18,7 +18,7 @@ use futures::TryStreamExt as _;
 
 use crate::{
     ByteRange, Client, ClientBuilder, ErrorKind, GetObject, ListObjects, ObjectAttributes,
-    PresignedClient, PutObject, WriteCondition,
+    PresignedClient, PresignedRequest, PutObject, WriteCondition,
 };
 
 fn chaos3_client() -> Client {
@@ -295,6 +295,127 @@ async fn a_truncated_body_resumes_from_where_it_stopped() {
 
 #[cfg(chaos3_scenario = "healthy")]
 #[tokio::test]
+async fn a_holder_without_credentials_puts_and_reads_ranges_through_presigned_requests() {
+    let client = chaos3_client();
+    let holder = holder();
+    let key = format!("{}/packs/0a/pack", prefix("presigned"));
+    let body = pattern(100_000);
+
+    let create = PutObject {
+        condition: WriteCondition::Absent,
+        attributes: ObjectAttributes {
+            content_type: Some("application/x-pack".into()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let put = client.presign_put_object(&key, &create, HOUR).unwrap();
+    let written = holder.put_object(&put, body.clone()).await.unwrap();
+    assert!(written.e_tag.is_some());
+
+    // The signed `If-None-Match: *` makes the URL good only for creating.
+    let again = holder.put_object(&put, pattern(10)).await.unwrap_err();
+    assert_eq!(again.kind(), ErrorKind::PreconditionFailed, "{again}");
+
+    let get = client.presign_get_object(&key, HOUR).unwrap();
+    for range in [
+        ByteRange::Bounded(4_096..8_192),
+        ByteRange::Offset(99_000),
+        ByteRange::Suffix(10),
+    ] {
+        let read = GetObject {
+            range: Some(range.clone()),
+            ..Default::default()
+        };
+        let output = holder.get_object(&get, &read).await.unwrap();
+        let expected = range.resolve(body.len() as u64).unwrap();
+        assert_eq!(output.range, expected);
+        assert_eq!(output.info.size, body.len() as u64);
+        assert_eq!(
+            output.attributes.content_type.as_deref(),
+            Some("application/x-pack")
+        );
+        let start = expected.start as usize;
+        let end = expected.end as usize;
+        assert_eq!(output.bytes().await.unwrap(), body.slice(start..end));
+    }
+    let whole = holder
+        .get_object(&get, &GetObject::default())
+        .await
+        .unwrap();
+    assert_eq!(whole.bytes().await.unwrap(), body);
+
+    // Conditions the holder adds are its own to choose.
+    let unchanged = GetObject {
+        if_none_match: written.e_tag.clone(),
+        ..Default::default()
+    };
+    let error = holder.get_object(&get, &unchanged).await.unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::NotModified, "{error}");
+}
+
+#[cfg(chaos3_scenario = "healthy")]
+#[tokio::test]
+async fn the_server_refuses_presigned_requests_that_were_altered_or_expired() {
+    let client = chaos3_client();
+    let holder = holder();
+    let key = format!("{}/object", prefix("refused"));
+    client
+        .put_object(&key, pattern(64), &PutObject::default())
+        .await
+        .unwrap();
+    let get = client.presign_get_object(&key, HOUR).unwrap();
+
+    let other_key = PresignedRequest {
+        url: get.url.replace("/object?", "/other?"),
+        ..get.clone()
+    };
+    let error = holder
+        .get_object(&other_key, &GetObject::default())
+        .await
+        .unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::PermissionDenied, "{error}");
+    assert!(!error.to_string().contains("X-Amz-Signature"), "{error}");
+
+    // A GET's signature does not cover a PUT, even if the holder relabels it.
+    let relabeled = PresignedRequest {
+        method: "PUT".into(),
+        ..get.clone()
+    };
+    let error = holder.put_object(&relabeled, pattern(8)).await.unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::PermissionDenied, "{error}");
+
+    // A signed header must be sent as signed.
+    let create = PutObject {
+        condition: WriteCondition::Absent,
+        ..Default::default()
+    };
+    let put = client
+        .presign_put_object(&format!("{key}-new"), &create, HOUR)
+        .unwrap();
+    let unconditional = PresignedRequest {
+        headers: Vec::new(),
+        ..put
+    };
+    let error = holder
+        .put_object(&unconditional, pattern(8))
+        .await
+        .unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::PermissionDenied, "{error}");
+
+    let short = client
+        .presign_get_object(&key, std::time::Duration::from_secs(1))
+        .unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(2_100)).await;
+    let error = holder
+        .get_object(&short, &GetObject::default())
+        .await
+        .unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::PermissionDenied, "{error}");
+}
+
+#[cfg(chaos3_scenario = "healthy")]
+#[tokio::test]
 async fn a_holder_uploads_the_parts_of_a_multipart_upload_the_signer_runs() {
     let client = chaos3_client();
     let holder = holder();
@@ -331,4 +452,24 @@ async fn a_holder_uploads_the_parts_of_a_multipart_upload_the_signer_runs() {
         .await
         .unwrap();
     assert_eq!(read.bytes().await.unwrap(), body);
+}
+
+// The first GetObject body ends after one 4 KiB chunk.
+#[cfg(chaos3_scenario = "presigned_body_truncated")]
+#[tokio::test]
+async fn a_truncated_presigned_body_resumes_from_where_it_stopped() {
+    let client = chaos3_client();
+    let key = format!("{}/big", prefix("presigned-resume"));
+    let body = pattern(64 * 1024);
+    client
+        .put_object(&key, body.clone(), &PutObject::default())
+        .await
+        .unwrap();
+    let get = client.presign_get_object(&key, HOUR).unwrap();
+    let read = GetObject {
+        range: Some(ByteRange::Offset(1_000)),
+        ..Default::default()
+    };
+    let output = holder().get_object(&get, &read).await.unwrap();
+    assert_eq!(output.bytes().await.unwrap(), body.slice(1_000..));
 }
