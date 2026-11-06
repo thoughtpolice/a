@@ -7,9 +7,10 @@ depot.rust_library(
     name = "rustls-boring",
     srcs = glob(["*.rs"]),
     crate_root = "lib.rs",
-    # The `-unittest` companion below: rust-analyzer merges a test target
-    # named `<library>-unittest` and listed here into the library crate
-    # (one crate with cfg(test)) instead of a second crate on lib.rs.
+    # The `-unittest` companion below shares lib.rs, so rust-project
+    # (buck/toolchains/rust/lsp) folds it into the library's crate (one
+    # crate with cfg(test)) instead of giving rust-analyzer a second crate
+    # on lib.rs.
     tests = [":rustls-boring-unittest"],
     visibility = ["PUBLIC"],
     deps = [

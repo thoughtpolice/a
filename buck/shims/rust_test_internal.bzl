@@ -37,12 +37,13 @@ label; only the bare test path is used as the execution filter.
 Delegation makes these targets indistinguishable from `rust_test` outside
 of `buck2 test`: `buck2 run` behaves identically (env injection included),
 `DefaultInfo` keeps its sub-targets (rust-analyzer materializes `sources`),
-and `RustAnalyzerInfo` carries target kind "test" so rust-project discovers
-the target through the `_rust_analyzer_target_kind` attribute. For unit
-tests sharing a library's crate root, name the target `<library>-unittest`
-and list it in the library's `tests` attribute: rust-project then folds the
-test into the library crate (activating cfg(test) and the test-only deps)
-instead of emitting a second crate with a duplicate root.
+and `RustAnalyzerInfo` carries target kind "test" so rust-project
+(buck/toolchains/rust/lsp) discovers the target through the
+`_rust_analyzer_target_kind` attribute. A unit test sharing a library's
+crate root is folded into the library's crate (cfg(test) on, the test-only
+deps added) instead of becoming a second crate on the same root; list it in
+the library's `tests` attribute so that opening any of the library's files
+loads it.
 """
 
 load("@prelude//rust:rust_binary.bzl", _prelude_rust_test = "rust_test")

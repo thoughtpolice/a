@@ -1,0 +1,216 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+"""Queries the rust-analyzer integration (rust-project) asks of Buck.
+
+  crates  the Rust targets owning some files, in a BUILD file, or named by
+          label, with every Rust crate they depend on, and each one's
+          sources, dependencies, features, environment and flags, for
+          rust-project to assemble into a rust-project.json. Also builds
+          what rust-analyzer reads, which is each crate's source tree,
+          generated sources, build script outputs and proc macro dylibs.
+  check   the rustc (or clippy) diagnostics of the Rust targets owning a
+          file, built as the build builds them.
+
+Every Rust rule the prelude defines, and any rule wrapping one (such as
+depot.rust_test's internal runner rule), carries a _rust_analyzer_target_kind
+attribute and returns RustAnalyzerInfo, which is how both find them.
+"""
+
+load("@prelude//rust:link_info.bzl", "RustProcMacroInfo")
+load("@prelude//rust:outputs.bzl", "RustcExtraOutputsInfo")
+load("@prelude//rust:rust_toolchain.bzl", "RustToolchainInfo")
+load("@prelude//rust/rust-analyzer:provider.bzl", "RustAnalyzerInfo")
+
+_KIND_ATTR = "_rust_analyzer_target_kind"
+_KINDS = "^(bin|lib|test|unit_test)$"
+
+# The toolchain every Rust target here builds with; rust-project asks its
+# rustc for the sysroot that rust-analyzer loads the standard library from.
+_TOOLCHAIN = "toolchains//rust:rust"
+
+def _rust(query, targets):
+    return query.attrregexfilter(_KIND_ATTR, _KINDS, targets)
+
+def _roots(ctx: bxl.Context) -> (list, list[str]):
+    """The Rust targets asked for, and the BUILD files they are in, as
+    unconfigured nodes. A BUILD file's other Rust targets come along, up to
+    max_extra, so that opening one file of a package loads its siblings:
+    a library's binary and tests, say."""
+    args = ctx.cli_args
+    query = ctx.uquery()
+    if args.file:
+        roots = _rust(query, query.owner(args.file))
+    elif args.buildfile:
+        roots = _rust(query, query.targets_in_buildfile(args.buildfile))
+    else:
+        roots = ctx.unconfigured_targets([args.label])
+
+    buildfiles = []
+    for node in roots:
+        path = ctx.fs.abs_path_unsafe(node.buildfile_path)
+        if path not in buildfiles:
+            buildfiles.append(path)
+
+    nodes = {node.label: node for node in roots}
+    budget = args.max_extra
+    for path in buildfiles:
+        if budget <= 0:
+            break
+        siblings = _rust(query, query.targets_in_buildfile(path))
+        siblings -= query.attrfilter("labels", "rustc_do_not_check", siblings)
+        for node in siblings:
+            if budget <= 0:
+                break
+            if node.label not in nodes:
+                nodes[node.label] = node
+                budget -= 1
+    return nodes.values(), buildfiles
+
+def _configure(ctx: bxl.Context, roots: list) -> list[bxl.ConfiguredTargetNode]:
+    """`roots` in the default platform, leaving out any incompatible with it,
+    then the Rust tests that they list in `tests`."""
+    results = ctx.lazy.join_all([ctx.lazy.configured_target_node(node.label).catch() for node in roots]).resolve()
+    configured = [r.unwrap().unwrap_forward() for r in results if r.is_ok()]
+    if not configured:
+        return []
+    tests = _rust(ctx.cquery(), ctx.cquery().testsof(ctarget_set(configured)))
+    seen = {node.label: None for node in configured}
+    for node in tests:
+        node = node.unwrap_forward()
+        if node.label not in seen:
+            seen[node.label] = None
+            configured.append(node)
+    return configured
+
+def _resolve(dep: Dependency) -> TargetLabel:
+    """The crate a dependency names, past any alias. An alias forwards the
+    providers of what it points at, RustAnalyzerInfo included."""
+    info = dep.get(RustAnalyzerInfo)
+    return info.target.raw_target() if info else dep.label.raw_target()
+
+def _crate(ctx: bxl.Context, node: bxl.ConfiguredTargetNode, result: bxl.AnalysisResult, workspace: dict, third_party: str) -> dict:
+    providers = result.providers()
+    info = providers[RustAnalyzerInfo]
+    attrs = node.resolved_attrs_eager(ctx)
+
+    # named_deps is a dict of local name to dependency, or a list of
+    # (name, dependency) pairs whose names, which may hold macros, the
+    # prelude writes one per line to the target's named_deps sub-target.
+    named_deps = {}
+    named_deps_file = None
+    named_deps_order = []
+    if type(attrs.named_deps) == type({}):
+        for name, dep in attrs.named_deps.items():
+            named_deps[str(_resolve(dep))] = name
+    else:
+        named_deps_file = providers[DefaultInfo].sub_targets["named_deps"][DefaultInfo].default_outputs[0]
+        named_deps_order = [str(_resolve(dep)) for _name, dep in attrs.named_deps]
+
+    macro = providers.get(RustProcMacroInfo)
+    srcs = list(attrs.srcs) + list(attrs.mapped_srcs.keys())
+    label = node.label.raw_target()
+
+    return {
+        "buildfile": ctx.fs.project_rel_path(node.buildfile_path),
+        "crate": info.crate.simple,
+        "crate_dynamic": info.crate.dynamic,
+        "crate_root": info.crate_root,
+        "deps": [str(_resolve(dep)) for dep in info.rust_deps],
+        "edition": info.edition,
+        "env": {k: cmd_args(v, delimiter = "") for k, v in info.env.items()},
+        "features": info.features,
+        "in_workspace": label in workspace,
+        "kind": info.target_kind.value,
+        "label": str(label),
+        "labels": getattr(attrs, "labels", []) or [],
+        "name": attrs.name,
+        "named_deps": named_deps,
+        "named_deps_file": named_deps_file,
+        "named_deps_order": named_deps_order,
+        "proc_macro": bool(getattr(attrs, "proc_macro", False)),
+        "proc_macro_dylib": macro.dylib if macro else None,
+        "rustc_flags": info.rustc_flags,
+        "sources": providers[DefaultInfo].sub_targets["sources"][DefaultInfo].default_outputs[0],
+        "srcs": srcs,
+        "third_party": ctx.fs.abs_path_unsafe(node.buildfile_path).startswith(third_party + "/"),
+        "unit_test_of": str(info.unit_test_of.raw_target()) if info.unit_test_of else None,
+    }
+
+def _crates_impl(ctx: bxl.Context) -> None:
+    roots, buildfiles = _roots(ctx)
+    configured = _configure(ctx, roots)
+
+    # Every crate the roots depend on, transitively, proc macros included
+    # (in the configuration they build in). A crate in several
+    # configurations, such as one a proc macro and a library both use,
+    # becomes one crate in rust-analyzer, from the first one seen.
+    workspace = {node.label.raw_target(): None for node in configured}
+    labels = {}
+    for result in ctx.analysis(configured).values():
+        for label in result.providers()[RustAnalyzerInfo].transitive_target_set:
+            labels[label] = None
+    nodes = ctx.configured_targets(labels.keys()) if labels else []
+    analysis = ctx.analysis(nodes) if labels else {}
+
+    # Crates from the third-party cell are built without their tests, so
+    # rust-project leaves cfg(test) off for them.
+    third_party = ctx.audit().cell(["third-party"])["third-party"]
+    crates = {}
+    for node in nodes:
+        raw = str(node.label.raw_target())
+        if raw in crates:
+            continue
+        crates[raw] = _crate(ctx, node, analysis[node.label.with_sub_target()], workspace, third_party)
+
+    toolchain = ctx.analysis(ctx.configured_targets(_TOOLCHAIN)).providers()[RustToolchainInfo]
+    actions = ctx.bxl_actions().actions
+    out = actions.declare_output("crates.json", has_content_based_path = False)
+    written = actions.write_json(
+        out,
+        {
+            "buildfiles": buildfiles,
+            "crates": crates,
+            "roots": sorted([str(label) for label in workspace]),
+            "rustc": cmd_args(toolchain.compiler),
+        },
+        with_inputs = True,
+        absolute = True,
+    )
+    ctx.output.ensure_multiple(written)
+    ctx.output.print(ctx.output.ensure(out).abs_path())
+
+def _check_impl(ctx: bxl.Context) -> None:
+    file = ctx.cli_args.file
+    owners = _rust(ctx.uquery(), ctx.uquery().owner(file))
+    diagnostics = []
+    if len(owners) > 0:
+        universe = ctx.target_universe(owners).target_set()
+        nodes = _rust(ctx.cquery(), ctx.cquery().owner(file, universe))
+        for result in ctx.analysis(nodes).values():
+            outputs = result.providers().get(RustcExtraOutputsInfo)
+            if outputs:
+                output = outputs.clippy if ctx.cli_args.clippy else outputs.metadata
+                diagnostics.append(output.compile_output.diag_json)
+    ctx.output.print_json({
+        "diagnostics": [a.abs_path() for a in ctx.output.ensure_multiple(diagnostics)],
+        "root": ctx.root(),
+    })
+
+crates = bxl_main(
+    impl = _crates_impl,
+    cli_args = {
+        "buildfile": cli_args.option(cli_args.string(doc = "Absolute path of a BUILD file")),
+        "file": cli_args.option(cli_args.string(doc = "Absolute path of a Rust source file")),
+        "label": cli_args.option(cli_args.target_label(doc = "A Rust target")),
+        "max_extra": cli_args.int(default = 50, doc = "How many other targets of the same BUILD files to load"),
+    },
+)
+
+check = bxl_main(
+    impl = _check_impl,
+    cli_args = {
+        "clippy": cli_args.bool(default = True, doc = "Run clippy rather than rustc"),
+        "file": cli_args.string(doc = "Absolute path of a Rust source file"),
+    },
+)

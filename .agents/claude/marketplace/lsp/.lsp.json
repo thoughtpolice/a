@@ -6,11 +6,11 @@
     },
     "initializationOptions": {
       "check": {
-        "overrideCommand": ["rust-project", "check", "$saved_file"]
+        "overrideCommand": ["/bin/sh", "-c", "exec \"$(buck2 root --kind project)/buck/toolchains/rust/lsp/rust-project\" check \"$1\"", "rust-project", "$saved_file"]
       },
       "workspace": {
         "discoverConfig": {
-          "command": ["rust-project", "develop-json", "--sysroot-mode=rustc", "{arg}"],
+          "command": ["/bin/sh", "-c", "exec \"$(buck2 root --kind project)/buck/toolchains/rust/lsp/rust-project\" discover \"$1\"", "rust-project", "{arg}"],
           "progressLabel": "rust-analyzer[buck2]",
           "filesToWatch": ["BUILD", "PACKAGE"]
         }

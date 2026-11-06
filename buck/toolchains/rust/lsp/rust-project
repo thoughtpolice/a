@@ -1,0 +1,8 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The command rust-analyzer runs for workspace discovery and check-on-save:
+# builds rust-project (main.go and its neighbours) with Buck and runs it
+# with the arguments given, in the caller's directory. See README.md.
+exec buck2 run --console=none -v 0 toolchains//rust/lsp:rust-project -- "$@"

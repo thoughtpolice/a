@@ -253,7 +253,7 @@ shims.write_file(
     ],
 )
 
-# layer this into a filegroup so that buck2-rust-project and rust-analyzer can
+# layer this into a filegroup so that rust-project and rust-analyzer can
 # more easily find the source code for this crate
 shims.filegroup(
     name = "mimalloc-ffi-lib-src",
