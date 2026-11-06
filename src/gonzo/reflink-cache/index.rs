@@ -29,6 +29,8 @@ pub(crate) struct Index {
     dirty_watch: watch::Sender<u64>,
     clock: u64,
     next_seq: u64,
+    /// Clean files not vouched for (see `Clean::vouched`).
+    unvouched: usize,
 }
 
 #[derive(Debug)]
@@ -42,7 +44,12 @@ struct Entry {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum State {
-    Clean,
+    Clean {
+        /// Whether the store the cache last joined is known to keep the
+        /// blob, as it does what was fetched from it or marked clean once
+        /// copied to it. A clean file not vouched for is plain cache.
+        vouched: bool,
+    },
     Dirty {
         /// Orders dirty files, and names the file in the dirty area.
         seq: u64,
@@ -56,7 +63,7 @@ pub(crate) enum State {
 impl State {
     pub(crate) fn held(self) -> Held {
         match self {
-            State::Clean => Held::Clean,
+            State::Clean { .. } => Held::Clean,
             State::Dirty { .. } => Held::Dirty,
         }
     }
@@ -73,6 +80,7 @@ impl Index {
             dirty_watch: watch::Sender::new(0),
             clock: 0,
             next_seq: 0,
+            unvouched: 0,
         }
     }
 
@@ -86,7 +94,7 @@ impl Index {
             return false;
         };
         self.clock += 1;
-        if entry.state == State::Clean {
+        if let State::Clean { .. } = entry.state {
             self.by_use.remove(&entry.used);
             self.by_use.insert(self.clock, *name);
         }
@@ -103,7 +111,7 @@ impl Index {
 
     /// Add a clean file the cache now holds, unless it already had it, and
     /// pin it if `pinned`.
-    pub(crate) fn insert_clean(&mut self, name: Name, size: u64, pinned: bool) {
+    pub(crate) fn insert_clean(&mut self, name: Name, size: u64, pinned: bool, vouched: bool) {
         if pinned && self.pin(&name) {
             return;
         }
@@ -118,10 +126,11 @@ impl Index {
                 size,
                 used: self.clock,
                 pins: usize::from(pinned),
-                state: State::Clean,
+                state: State::Clean { vouched },
             },
         );
         self.clean_bytes += size;
+        self.unvouched += usize::from(!vouched);
     }
 
     /// A sequence number for a new dirty file.
@@ -132,17 +141,20 @@ impl Index {
 
     /// Add a dirty file numbered `seq`, durable once `ticket` is, which
     /// takes the place of a clean one of the same name, keeping its pins.
-    pub(crate) fn insert_dirty(&mut self, name: Name, size: u64, seq: u64, ticket: u64) {
+    /// Returns whether it did.
+    pub(crate) fn insert_dirty(&mut self, name: Name, size: u64, seq: u64, ticket: u64) -> bool {
         self.next_seq = self.next_seq.max(seq);
+        let replaced = matches!(self.state(&name), Some(State::Clean { .. }));
         let pins = match self.entries.remove(&name) {
             Some(Entry {
-                state: State::Clean,
+                state: State::Clean { vouched },
                 used,
                 size,
                 pins,
             }) => {
                 self.by_use.remove(&used);
                 self.clean_bytes -= size;
+                self.unvouched -= usize::from(!vouched);
                 pins
             }
             Some(Entry {
@@ -168,6 +180,7 @@ impl Index {
         );
         self.dirty_bytes += size;
         self.dirty_watch.send_replace(self.dirty_bytes);
+        replaced
     }
 
     /// Start moving the dirty file `name` to the clean files, returning
@@ -204,7 +217,7 @@ impl Index {
         self.clean_bytes += entry.size;
         self.clock += 1;
         entry.used = self.clock;
-        entry.state = State::Clean;
+        entry.state = State::Clean { vouched: true };
         self.by_use.insert(self.clock, *name);
     }
 
@@ -224,11 +237,58 @@ impl Index {
                 continue;
             }
             self.clean_bytes -= entry.size;
+            if entry.state == (State::Clean { vouched: false }) {
+                self.unvouched -= 1;
+            }
             self.entries.remove(&name);
             evicted.push(name);
         }
         self.by_use.extend(skipped);
         evicted
+    }
+
+    /// Take back every clean file's vouching, returning them all.
+    pub(crate) fn unvouch_all(&mut self) -> Vec<Name> {
+        let mut names = Vec::new();
+        for (name, entry) in &mut self.entries {
+            if let State::Clean { vouched } = &mut entry.state {
+                *vouched = false;
+                names.push(*name);
+            }
+        }
+        self.unvouched = names.len();
+        names
+    }
+
+    /// Vouch for the clean file `name`, if the cache holds it.
+    pub(crate) fn vouch(&mut self, name: &Name) {
+        if let Some(Entry {
+            state: State::Clean {
+                vouched: vouched @ false,
+            },
+            ..
+        }) = self.entries.get_mut(name)
+        {
+            *vouched = true;
+            self.unvouched -= 1;
+        }
+    }
+
+    /// The clean files not vouched for.
+    pub(crate) fn unvouched(&self) -> impl Iterator<Item = Name> + '_ {
+        self.entries
+            .iter()
+            .filter(|(_, entry)| entry.state == (State::Clean { vouched: false }))
+            .map(|(name, _)| *name)
+    }
+
+    pub(crate) fn unvouched_count(&self) -> usize {
+        self.unvouched
+    }
+
+    /// The clean files.
+    pub(crate) fn clean(&self) -> impl Iterator<Item = Name> + '_ {
+        self.by_use.values().copied()
     }
 
     /// Dirty files and their sequence numbers, oldest first.

@@ -30,7 +30,7 @@
 //! would keep. Files found torn are removed, and the removals synced,
 //! before the new run's state is written.
 
-use std::io::{self, Read as _, Write as _};
+use std::io::{self, Read as _};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
@@ -39,9 +39,10 @@ use reapi_cas::{Digest, DigestFn};
 use tokio::sync::{OwnedRwLockReadGuard, RwLock};
 
 use crate::commit::Commits;
-use crate::fs::{File as _, Fs};
+use crate::fs::Fs;
 use crate::index::{Index, Name};
-use crate::layout::Layout;
+use crate::layout::{Layout, read_small, replace_small};
+use crate::stamp::{Stamp, read_stamp};
 use crate::{FileCache, Held, Inner, Options, create_dir_all};
 
 /// What opening a cache found an earlier run had left.
@@ -96,6 +97,10 @@ impl<F: Fs> FileCache<F> {
         // just made durable.
         fs.sync_fs(&layout.root)?;
         let last = read_state(&fs, &layout)?;
+        let store = read_stamp(&fs, &layout)?;
+        // Clean files are vouched for in the store stamped, if any (see
+        // `stamp`).
+        let vouched = store.is_some();
         for entry in fs.read_dir(&layout.partial)? {
             fs.remove_file(&layout.partial.join(entry.name))?;
         }
@@ -161,6 +166,10 @@ impl<F: Fs> FileCache<F> {
             commits: Commits::new(),
             writes: Arc::new(RwLock::new(true)),
             recovery,
+            stamp: Mutex::new(Stamp {
+                vouched_for: store.clone(),
+                on_disk: store,
+            }),
         };
         found.dirty.sort_by_key(|found| found.seq);
         found.clean.sort_by_key(|found| found.modified);
@@ -184,7 +193,7 @@ impl<F: Fs> FileCache<F> {
                 if index.state(&clean.name).is_some() {
                     extra.push(inner.layout.clean(&clean.name));
                 } else {
-                    index.insert_clean(clean.name, clean.name.1.size, false);
+                    index.insert_clean(clean.name, clean.name.1.size, false, vouched);
                 }
             }
             for path in extra {
@@ -216,6 +225,7 @@ impl<F: Fs> FileCache<F> {
         if let Some(failed) = self.inner.commits.failed() {
             return Err(failed);
         }
+        self.inner.stamp_if_vouched().await?;
         let inner = self.inner.clone();
         self.inner
             .fs
@@ -245,36 +255,19 @@ fn state_path(layout: &Layout) -> PathBuf {
 }
 
 fn read_state(fs: &impl Fs, layout: &Layout) -> io::Result<Option<Mode>> {
-    let mut contents = String::new();
-    match fs.open(&state_path(layout)) {
-        Ok(mut file) => {
-            // A state that does not read as one is no state.
-            if file.read_to_string(&mut contents).is_err() {
-                return Ok(None);
-            }
-        }
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
-        Err(e) => return Err(e),
-    }
+    let contents = read_small(fs, &state_path(layout))?.unwrap_or_default();
     Ok([Mode::Clean, Mode::Durable, Mode::Volatile]
         .into_iter()
         .find(|mode| contents.trim_end() == mode.as_str()))
 }
 
-/// Replace the state durably: the old one stays until the new one is
-/// whole, whatever the durability of the cache.
 fn write_state(fs: &impl Fs, layout: &Layout, mode: Mode) -> io::Result<()> {
-    let path = state_path(layout);
-    let new = path.with_extension("new");
-    match fs.remove_file(&new) {
-        Err(e) if e.kind() != io::ErrorKind::NotFound => return Err(e),
-        _ => {}
-    }
-    let mut file = fs.create_new(&new)?;
-    file.write_all(format!("{}\n", mode.as_str()).as_bytes())?;
-    file.sync_data()?;
-    fs.rename(&new, &path)?;
-    fs.sync_dir(&layout.root)
+    replace_small(
+        fs,
+        layout,
+        &state_path(layout),
+        &format!("{}\n", mode.as_str()),
+    )
 }
 
 fn hash_file(

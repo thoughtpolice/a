@@ -21,12 +21,14 @@
 //!
 //! A dirty file is the only copy of its blob: an action's output taken in
 //! with [`FileCache::ingest`], or a blob a client sent written in with
-//! [`FileCache::upload`], until it is copied elsewhere and marked clean. Dirty files count toward the size but are never evicted, so
-//! they alone can push the cache over it. [`FileCache::dirty_files`]
-//! lists them oldest first, for whatever copies them elsewhere. Past a
-//! cap on dirty bytes ([`Options::dirty_cap`]) the cache's user should
-//! take no more in: [`FileCache::usage`] says when, and
-//! [`FileCache::below_dirty_cap`] waits until it may again.
+//! [`FileCache::upload`], until it is copied elsewhere and marked clean.
+//! Dirty files count toward the size but are never evicted, so they alone
+//! can push the cache over it. [`FileCache::dirty_files`] lists them
+//! oldest first, for whatever copies them elsewhere, and
+//! [`FileCache::open_file`] reads them. Past a cap on dirty bytes
+//! ([`Options::dirty_cap`]) the cache's user should take no more in:
+//! [`FileCache::usage`] says when, and [`FileCache::below_dirty_cap`]
+//! waits until it may again.
 //!
 //! # Durability
 //!
@@ -36,6 +38,16 @@
 //! too. Data is synced in parallel on blocking threads, and ingests that
 //! finish together share one sync of the dirty area's directory.
 //! [`Options::durable`] turns syncing off.
+//!
+//! # Stores
+//!
+//! A clean file's blob is kept in the store the node belongs to. A node
+//! that joins another store ([`FileCache::join`]) treats the clean files
+//! it has as plain cache, not counted as held when a blob is taken in,
+//! until it has registered them with the new store and vouched for them
+//! ([`FileCache::vouch`]).
+//!
+//! # Recovery
 //!
 //! A cache that was not [closed](FileCache::close) is checked when it is
 //! opened again: its dirty files are hashed again, and, if it ran without
@@ -53,7 +65,9 @@
 //! - `partial/`: downloads, uploads and copies being written, removed on
 //!   opening;
 //! - `state`: how the last run stopped, or is running, which says what
-//!   opening must check (see [`Recovery`]).
+//!   opening must check (see [`Recovery`]);
+//! - `store`: the ID of the store the clean files are vouched for in (see
+//!   [`FileCache::join`]).
 //!
 //! # Commands
 //!
@@ -74,6 +88,7 @@ mod ingest;
 mod layout;
 mod recover;
 pub mod sim;
+mod stamp;
 mod upload;
 
 use std::collections::HashSet;
@@ -177,6 +192,7 @@ struct Inner<F> {
     /// to it, so that closing it waits for them.
     writes: Arc<tokio::sync::RwLock<bool>>,
     recovery: Recovery,
+    stamp: Mutex<stamp::Stamp>,
     /// Directories whose own names are durable, so names made in them
     /// can be: those made or found by this run.
     dirs: Mutex<HashSet<PathBuf>>,
@@ -332,7 +348,7 @@ impl<F: Fs> FileCache<F> {
                 unused.push(partial);
             } else {
                 inner.keep(&partial, &inner.layout.clean(&name))?;
-                index.insert_clean(name, digest.size, true);
+                index.insert_clean(name, digest.size, true, true);
             }
             pinned.names.push(name);
         }
@@ -395,7 +411,7 @@ impl<F: Fs> Inner<F> {
             }
             // A file the index lacks may still be in place: the caller may
             // know better, and only the file can say.
-            Some(State::Clean) | None => self.fs.open(&self.layout.clean(name)),
+            Some(State::Clean { .. }) | None => self.fs.open(&self.layout.clean(name)),
         }
     }
 
@@ -490,6 +506,8 @@ mod test_fetch;
 mod test_recovery;
 #[cfg(test)]
 mod test_sim;
+#[cfg(test)]
+mod test_stamp;
 #[cfg(test)]
 mod test_support;
 #[cfg(test)]

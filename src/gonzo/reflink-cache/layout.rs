@@ -3,14 +3,14 @@
 
 //! Where a cache keeps its files, and finding what an earlier run left.
 
-use std::io;
+use std::io::{self, Read as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use reapi_cas::{Digest, DigestFn};
 
 use crate::Held;
-use crate::fs::Fs;
+use crate::fs::{File as _, Fs};
 use crate::index::Name;
 
 const FUNCTIONS: [DigestFn; 3] = [DigestFn::Sha256, DigestFn::Blake3, DigestFn::Sha256Tree];
@@ -127,4 +127,36 @@ fn parse_dirty(name: &str) -> Option<(u64, Name)> {
         seq.parse().ok()?,
         (function.parse().ok()?, parse_clean(rest)?),
     ))
+}
+
+/// The contents of the small file at `path`, if it is there and reads as
+/// text.
+pub(crate) fn read_small(fs: &impl Fs, path: &Path) -> io::Result<Option<String>> {
+    let mut contents = String::new();
+    match fs.open(path) {
+        Ok(mut file) => Ok(file.read_to_string(&mut contents).ok().map(|_| contents)),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+/// Replace the small file at `path`, in the cache's root, with
+/// `contents`, durably whatever the durability of the cache: the old file
+/// stays until the new one is whole.
+pub(crate) fn replace_small(
+    fs: &impl Fs,
+    layout: &Layout,
+    path: &Path,
+    contents: &str,
+) -> io::Result<()> {
+    let new = path.with_extension("new");
+    match fs.remove_file(&new) {
+        Err(e) if e.kind() != io::ErrorKind::NotFound => return Err(e),
+        _ => {}
+    }
+    let mut file = fs.create_new(&new)?;
+    file.write_all(contents.as_bytes())?;
+    file.sync_data()?;
+    fs.rename(&new, path)?;
+    fs.sync_dir(&layout.root)
 }

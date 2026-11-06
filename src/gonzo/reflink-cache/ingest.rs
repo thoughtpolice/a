@@ -41,25 +41,33 @@ impl<F: Fs> FileCache<F> {
             return Ok(Ingested::Already(held));
         }
         inner.seal_source(name, path).await?;
-        let (entered, ticket) = match inner.enter_dirty(name, path) {
+        let entered = match inner.enter_dirty(name, path) {
             Err(e) if e.raw_os_error() == Some(libc::EXDEV) => {
                 let copy = inner.copy_in(path).await?;
                 let entered = inner.enter_dirty(name, &copy);
-                if !matches!(entered, Ok((Ingested::Added, _))) {
+                if !matches!(
+                    entered,
+                    Ok(Entered {
+                        ingested: Ingested::Added,
+                        ..
+                    })
+                ) {
                     let _ = inner.fs.remove_file(&copy);
                 }
-                entered?
+                let entered = entered?;
+                let _ = inner.fs.remove_file(path);
+                entered
             }
-            Ok((Ingested::Added, ticket)) => {
-                inner.wait_durable(ticket).await?;
-                return Ok(Ingested::Added);
+            Ok(entered) => {
+                if entered.ingested != Ingested::Added {
+                    // The blob was taken in meanwhile.
+                    let _ = inner.fs.remove_file(path);
+                }
+                entered
             }
-            entered => entered?,
+            Err(e) => return Err(e),
         };
-        // The file was copied in, or the blob was taken in meanwhile.
-        let _ = inner.fs.remove_file(path);
-        inner.wait_durable(ticket).await?;
-        Ok(entered)
+        inner.settle(entered).await
     }
 
     /// Move the dirty files with `digests` to the clean files: once they
@@ -85,12 +93,24 @@ impl<F: Fs> FileCache<F> {
     }
 }
 
+/// What [`Inner::enter_dirty`] did.
+pub(crate) struct Entered {
+    name: Name,
+    pub ingested: Ingested,
+    /// The commit to wait for until it is durable.
+    ticket: u64,
+    /// Whether a clean file, plain cache, was replaced.
+    replaced: bool,
+}
+
 impl<F: Fs> Inner<F> {
     /// How the cache holds `name`, and the ticket to wait for until that
-    /// is durable.
+    /// is durable. A clean file not vouched for is plain cache, which
+    /// does not count: taking the blob in makes it dirty.
     pub(crate) fn held(&self, name: &Name) -> Option<(Held, u64)> {
         match self.lock().state(name)? {
-            State::Clean => Some((Held::Clean, 0)),
+            State::Clean { vouched: false } => None,
+            State::Clean { vouched: true } => Some((Held::Clean, 0)),
             State::Dirty { ticket, .. } => Some((Held::Dirty, ticket)),
         }
     }
@@ -149,19 +169,27 @@ impl<F: Fs> Inner<F> {
     }
 
     /// Rename the sealed file at `from` into the dirty area as `name`,
-    /// unless the cache holds it already, returning what happened and the
-    /// ticket to wait for until it is durable. The rename and the index's
-    /// record of it happen under the lock together, with nothing to wait
-    /// on between, so that neither eviction nor a cancelled caller can
-    /// come between them.
-    pub(crate) fn enter_dirty(&self, name: Name, from: &Path) -> io::Result<(Ingested, u64)> {
+    /// unless the cache holds it already (other than as a clean file not
+    /// vouched for, which it replaces). The rename and the index's record
+    /// of it happen under the lock together, with nothing to wait on
+    /// between, so that neither eviction nor a cancelled caller can come
+    /// between them.
+    pub(crate) fn enter_dirty(&self, name: Name, from: &Path) -> io::Result<Entered> {
         let mut index = self.lock();
-        if let Some(state) = index.state(&name) {
-            let ticket = match state {
-                State::Dirty { ticket, .. } => ticket,
-                State::Clean => 0,
-            };
-            return Ok((Ingested::Already(state.held()), ticket));
+        let found = |ingested, ticket| Entered {
+            name,
+            ingested,
+            ticket,
+            replaced: false,
+        };
+        match index.state(&name) {
+            Some(State::Dirty { ticket, .. }) => {
+                return Ok(found(Ingested::Already(Held::Dirty), ticket));
+            }
+            Some(State::Clean { vouched: true }) => {
+                return Ok(found(Ingested::Already(Held::Clean), 0));
+            }
+            Some(State::Clean { vouched: false }) | None => {}
         }
         let seq = index.next_seq();
         self.fs.rename(from, &self.layout.dirty(&name, seq))?;
@@ -170,10 +198,29 @@ impl<F: Fs> Inner<F> {
         } else {
             0
         };
-        index.insert_dirty(name, name.1.size, seq, ticket);
+        let replaced = index.insert_dirty(name, name.1.size, seq, ticket);
         let evicted = index.evict(self.options.max_bytes);
         self.remove(evicted);
-        Ok((Ingested::Added, ticket))
+        Ok(Entered {
+            name,
+            ingested: Ingested::Added,
+            ticket,
+            replaced,
+        })
+    }
+
+    /// Wait until what [`enter_dirty`](Self::enter_dirty) did is durable.
+    /// Only then is a clean file it replaced removed: removed before, a
+    /// crash could keep the removal and lose the rename, and with them
+    /// the blob's only copy here.
+    pub(crate) async fn settle(self: &Arc<Self>, entered: Entered) -> io::Result<Ingested> {
+        self.wait_durable(entered.ticket).await?;
+        if entered.replaced {
+            // Were this cancelled, opening would find both, and keep the
+            // dirty one.
+            let _ = self.fs.remove_file(&self.layout.clean(&entered.name));
+        }
+        Ok(entered.ingested)
     }
 
     fn mark_clean(&self, names: &[Name]) -> io::Result<()> {

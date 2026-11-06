@@ -117,13 +117,12 @@ impl<F: Fs> Upload<F> {
                 io::Result::Ok(())
             })
             .await?;
-        let (ingested, ticket) = inner.enter_dirty(self.name, &self.path)?;
-        if ingested == Ingested::Added {
+        let entered = inner.enter_dirty(self.name, &self.path)?;
+        if entered.ingested == Ingested::Added {
             // The file is the cache's now.
             self.path = PathBuf::new();
         }
-        inner.wait_durable(ticket).await?;
-        Ok(ingested)
+        inner.settle(entered).await
     }
 }
 
