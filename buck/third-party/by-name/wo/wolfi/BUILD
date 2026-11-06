@@ -219,8 +219,8 @@ DEVTOOLS = {
 # latches module loading off before anything could load one.
 CONTAINERS = {
     "cni-plugins": ("1.9.1-r16", "fdc7dcd4160ea4083cb5d7e97a3152066c76ed6551cca7913aca7cfd7c60096f"),
-    "containerd-2": ("2.4.2-r5", "fd5dcf98125b3a12a461d81671a46bc20c5ca84f133c5a9ad92123c04498ac86"),
-    "ctr-2": ("2.4.2-r5", "9e3ef2c5711faeff966c5b2de12f89618df567b3c7c87da7f521ad06d5d3a36a"),
+    "containerd-2": ("2.4.2-r6", "5e72d89dfbed396d8aff68b2e03e2fbac16f243a9f929df47d539981a68bb377"),
+    "ctr-2": ("2.4.2-r6", "5c084d33813de2373d94c2358eab475c1317bb84be59facc9566fec37aec740e"),
     "iptables": ("1.8.13-r4", "696cbf0f9ca46dd1a0f0c74a73c0c8b16ece2cdc15542b2b40a6ee20de0615e2"),
     "libmnl": ("1.0.5-r8", "916046fd5e2a6e707b00b6f2f3ae9534eca0eec3426a5e6a2a849bfa6d39c388"),
     "libnftnl": ("1.3.2-r0", "845c6e710018d5bbd6640658929f4d61db9ec9bce918cdec1682d98954e2e936"),

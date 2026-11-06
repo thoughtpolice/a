@@ -963,6 +963,109 @@ var wolfiExceptions = []exception{
 		ID:     "CGA-xqrp-7jh5-56v7",
 		Reason: "libcrypt1-2.44 CVE-2026-97399: no fixed Wolfi version; temporarily accepted for development images until a fixed Wolfi version clears OSV",
 	},
+	// CVE-2026-84243 lets gettext, in glibc 2.0 and later, accept a LANGUAGE
+	// entry that contains '/' or is "..", so whoever sets a program's
+	// environment can make it load a message catalog from anywhere, and a
+	// crafted one crashes the program or feeds it mismatched format
+	// directives. setuid and setgid programs ignore such entries, so the
+	// attacker has to be someone who already runs the program with an
+	// environment of their choosing. Chainguard files it against every
+	// package of the glibc-2.44 stream, whose newest build (2.44-r13) has no
+	// fix. Remove these with the stream's other advisories.
+	{
+		ID:     "CGA-vmwj-jjh8-4jc2",
+		Reason: "glibc-2.44 CVE-2026-84243: no fixed Wolfi version; gettext loads a catalog that LANGUAGE names only for whoever already sets the program's environment, temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-vqgw-m6g6-pc47",
+		Reason: "glibc-2.44 CVE-2026-84243: no fixed Wolfi version; gettext loads a catalog that LANGUAGE names only for whoever already sets the program's environment, temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-2jmj-wr3h-6fpp",
+		Reason: "glibc-2.44-locale-posix CVE-2026-84243: no fixed Wolfi version; gettext loads a catalog that LANGUAGE names only for whoever already sets the program's environment, temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-648p-786w-6252",
+		Reason: "glibc-2.44-locale-posix CVE-2026-84243: no fixed Wolfi version; gettext loads a catalog that LANGUAGE names only for whoever already sets the program's environment, temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-45fq-8vhv-xj7w",
+		Reason: "ld-linux-2.44 CVE-2026-84243: no fixed Wolfi version; gettext loads a catalog that LANGUAGE names only for whoever already sets the program's environment, temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-8g9v-xq63-x2vq",
+		Reason: "ld-linux-2.44 CVE-2026-84243: no fixed Wolfi version; gettext loads a catalog that LANGUAGE names only for whoever already sets the program's environment, temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-v2r8-q36g-388v",
+		Reason: "posix-libc-utils-bin-2.44 CVE-2026-84243: no fixed Wolfi version; gettext loads a catalog that LANGUAGE names only for whoever already sets the program's environment, temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-xwgf-hwh2-xcwq",
+		Reason: "posix-libc-utils-bin-2.44 CVE-2026-84243: no fixed Wolfi version; gettext loads a catalog that LANGUAGE names only for whoever already sets the program's environment, temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-hqrh-vq6v-6876",
+		Reason: "glibc-2.44-dev CVE-2026-84243: no fixed Wolfi version; gettext loads a catalog that LANGUAGE names only for whoever already sets the program's environment, temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-j4g4-qvrq-r5j2",
+		Reason: "glibc-2.44-dev CVE-2026-84243: no fixed Wolfi version; gettext loads a catalog that LANGUAGE names only for whoever already sets the program's environment, temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-hwj4-g9rw-v8qr",
+		Reason: "libcrypt1-2.44 CVE-2026-84243: no fixed Wolfi version; gettext loads a catalog that LANGUAGE names only for whoever already sets the program's environment, temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-q6fg-h29r-r9xf",
+		Reason: "libcrypt1-2.44 CVE-2026-84243: no fixed Wolfi version; gettext loads a catalog that LANGUAGE names only for whoever already sets the program's environment, temporarily accepted for development images until a fixed Wolfi version clears OSV",
+	},
+	// CVE-2026-116591 (GO-2026-6865) makes the zstd decoder of
+	// klauspost/compress before 1.20.2 panic on a crafted two-block frame.
+	// containerd-2 and ctr-2 have the fix in 2.4.2-r6, but Wolfi publishes
+	// no podman-6.0 build after 6.0.2-r2 (see above), and the
+	// devcontainer's podman only unpacks the repository's own test images.
+	{
+		ID:     "CGA-7xfw-8v5q-4gfm",
+		Reason: "podman-6.0 CVE-2026-116591: zstd decoder panic on a crafted frame, no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-c6xg-4pp6-xf55",
+		Reason: "podman-6.0 CVE-2026-116591: zstd decoder panic on a crafted frame, no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-hrw7-cc4g-x4q4",
+		Reason: "podman-6.0 CVE-2026-116591: zstd decoder panic on a crafted frame, no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-wx22-5x9w-g8gw",
+		Reason: "podman-6.0 CVE-2026-116591: zstd decoder panic on a crafted frame, no fixed Wolfi version; podman only starts the repository's own test images in CI's devcontainer, accepted until a fixed Wolfi version clears OSV",
+	},
+	// CVE-2026-116566 lets python-3.13's socket.getaddrinfo() accept null
+	// bytes in its host and port, which truncate them. Wolfi's newest build
+	// has no fix, and the devcontainer's python3 runs only the repository's
+	// own scripts, as above.
+	{
+		ID:     "CGA-4g47-3qx8-cxg6",
+		Reason: "python-3.13 CVE-2026-116566: no fixed Wolfi version; the devcontainer runs only the repository's own scripts with it, accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-v6xf-4jgm-wmg5",
+		Reason: "python-3.13 CVE-2026-116566: no fixed Wolfi version; the devcontainer runs only the repository's own scripts with it, accepted until a fixed Wolfi version clears OSV",
+	},
+	// CVE-2026-119586 is in the sqlite3 shell through 3.54.1. Its .recover
+	// copies dot-commands planted in a database's schema into its output,
+	// which run when that output is piped back into sqlite3. Chainguard
+	// files it against sqlite-libs, which carries only libsqlite3 and no
+	// shell, and still detects it in 3.54.1-r0, Wolfi's newest build.
+	{
+		ID:     "CGA-3466-5x3q-qphw",
+		Reason: "sqlite-libs CVE-2026-119586: the flaw is in the sqlite3 shell, which sqlite-libs does not ship, and no fixed Wolfi version exists; accepted until a fixed Wolfi version clears OSV",
+	},
+	{
+		ID:     "CGA-rrf8-5g96-7xjm",
+		Reason: "sqlite-libs CVE-2026-119586: the flaw is in the sqlite3 shell, which sqlite-libs does not ship, and no fixed Wolfi version exists; accepted until a fixed Wolfi version clears OSV",
+	},
 }
 
 // exceptionSets binds each ecosystem's exception list to the subject kind it
