@@ -19,13 +19,25 @@ DEPS = [
     "third-party//rust:tokio",
 ]
 
+# Fault injection is compiled out of the library; `reflink-cache-faults`
+# is the same crate with it on, for tests and fuzzers here and in its
+# users.
 depot.rust_library(
     name = "reflink-cache",
     srcs = SRCS,
     crate_root = "lib.rs",
     tests = [":tests"],
     visibility = ["PUBLIC"],
-    deps = DEPS,
+    deps = DEPS + ["//src/crates/faultline:disabled"],
+)
+
+depot.rust_library(
+    name = "reflink-cache-faults",
+    srcs = SRCS,
+    crate = "reflink_cache",
+    crate_root = "lib.rs",
+    visibility = ["PUBLIC"],
+    deps = DEPS + ["//src/crates/faultline"],
 )
 
 depot.rust_test(
@@ -36,5 +48,6 @@ depot.rust_test(
         "third-party//rust:hegeltest",
         "third-party//rust:tempfile",
         "third-party//rust:thiserror",
+        "//src/crates/faultline",
     ],
 )

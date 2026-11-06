@@ -79,9 +79,11 @@
 //!
 //! Every filesystem call goes through [`Fs`], which is the operating
 //! system's ([`RealFs`]) but for tests, which can use a simulated one
-//! that loses what was not made durable ([`sim::SimFs`]).
+//! that loses what was not made durable ([`sim::SimFs`]), or one that
+//! fails calls on purpose ([`faults::Faulty`]).
 
 mod commit;
+pub mod faults;
 pub mod fs;
 mod index;
 mod ingest;
@@ -500,6 +502,8 @@ mod test_cap;
 mod test_commit;
 #[cfg(test)]
 mod test_dirty;
+#[cfg(test)]
+mod test_faults;
 #[cfg(test)]
 mod test_fetch;
 #[cfg(test)]
