@@ -64,8 +64,8 @@ pub(crate) fn resumable(
                         return Ok(None);
                     }
                     state.failures += 1;
-                    let config = state.client.config();
-                    if state.failures >= config.max_attempts {
+                    let transport = state.client.transport();
+                    if state.failures >= transport.max_attempts {
                         return Err(error);
                     }
                     tracing::debug!(
@@ -74,7 +74,7 @@ pub(crate) fn resumable(
                         remaining = ?state.remaining,
                         "resuming S3 response body",
                     );
-                    tokio::time::sleep(config.backoff(state.failures)).await;
+                    tokio::time::sleep(transport.backoff(state.failures)).await;
                     let options = GetObject {
                         range: Some(ByteRange::Bounded(state.remaining.clone())),
                         if_match: Some(state.e_tag.clone()),

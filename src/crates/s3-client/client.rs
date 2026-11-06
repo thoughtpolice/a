@@ -10,7 +10,6 @@
 use std::collections::BTreeMap;
 use std::ops::Range;
 use std::sync::Arc;
-use std::time::Duration;
 
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
@@ -29,6 +28,7 @@ use crate::error::{Error, ErrorKind, Result};
 use crate::sigv4::{
     self, Credentials, EMPTY_SHA256, STRICT_PATH_ENCODE_SET, UNSIGNED_PAYLOAD, query_string,
 };
+use crate::transport::{Sent, Transport};
 use crate::types::{
     GetObject, GetObjectOutput, ListObjects, ListPage, ObjectAttributes, ObjectInfo, PutObject,
     PutObjectOutput, WriteCondition,
@@ -44,9 +44,6 @@ const TAGS_HEADER: &str = "x-amz-tagging";
 const COPY_SOURCE_HEADER: &str = "x-amz-copy-source";
 const STORAGE_CLASS_HEADER: &str = "x-amz-storage-class";
 
-/// How many response body bytes to preserve in error messages.
-const ERROR_BODY_CAP: usize = 2048;
-
 /// Resolved connection configuration for a bucket.
 #[derive(Debug)]
 pub(crate) struct Config {
@@ -59,21 +56,9 @@ pub(crate) struct Config {
     pub bucket_endpoint: String,
     /// `None` sends unsigned (anonymous) requests.
     pub credentials: Option<Credentials>,
-    /// Maximum request attempts (first try plus retries), at least 1.
-    pub max_attempts: usize,
     /// Whether signatures cover the body's SHA-256 rather than
     /// `UNSIGNED-PAYLOAD`.
     pub sign_payload: bool,
-    /// Base delay for exponential retry backoff.
-    pub retry_backoff: Duration,
-}
-
-impl Config {
-    /// The delay before trying again after `failures` consecutive failures.
-    pub(crate) fn backoff(&self, failures: usize) -> Duration {
-        self.retry_backoff
-            .saturating_mul(1u32 << failures.saturating_sub(1).min(16) as u32)
-    }
 }
 
 /// An S3 client for one bucket.
@@ -95,26 +80,22 @@ pub struct Client {
 #[derive(Debug)]
 struct Inner {
     config: Config,
-    http: reqwest::Client,
-}
-
-/// The outcome of [`Client::send_reporting_replays`].
-struct Sent {
-    result: Result<Response>,
-    /// An attempt before the last failed in a way that may have taken
-    /// effect on the server, so the last attempt may have been a replay.
-    replayed_unknown: bool,
+    transport: Transport,
 }
 
 impl Client {
-    pub(crate) fn new(config: Config, http: reqwest::Client) -> Self {
+    pub(crate) fn new(config: Config, transport: Transport) -> Self {
         Self {
-            inner: Arc::new(Inner { config, http }),
+            inner: Arc::new(Inner { config, transport }),
         }
     }
 
     pub(crate) fn config(&self) -> &Config {
         &self.inner.config
+    }
+
+    pub(crate) fn transport(&self) -> &Transport {
+        &self.inner.transport
     }
 
     /// The bucket this client addresses.
@@ -145,21 +126,14 @@ impl Client {
     }
 
     /// [`send`](Self::send), also reporting whether a failed attempt may
-    /// nonetheless have taken effect before a later one replayed it.
-    ///
-    /// A 5xx status, or a transport error once the request may have reached
-    /// the server, leaves the outcome unknown. S3 can apply a write and then
-    /// fail to deliver its response. Replaying an idempotent request is
-    /// harmless, but a replayed conditional write fails its own precondition
-    /// and a replayed multipart completion finds its upload consumed. Callers
-    /// of those requests use the report to reconcile such a failure.
+    /// nonetheless have taken effect before a later one replayed it. See
+    /// [`Transport::send`].
     async fn send_reporting_replays(
         &self,
         request: reqwest::Request,
         retry_on_conflict: bool,
     ) -> Sent {
         let config = self.config();
-        let url = request.url().to_string();
         // Request bodies are always buffered, so a signature can cover the
         // hash of exactly the bytes being sent.
         let payload_sha256 = match request.body().and_then(reqwest::Body::as_bytes) {
@@ -167,77 +141,13 @@ impl Client {
             Some(_) if !config.sign_payload => UNSIGNED_PAYLOAD.to_string(),
             Some(body) => sigv4::sha256_hex(body),
         };
-        let mut attempt = 0usize;
-        let mut replayed_unknown = false;
-        let result = loop {
-            attempt += 1;
-            let mut req = request
-                .try_clone()
-                .expect("S3 request bodies are buffered and cloneable");
-            if let Some(credentials) = &config.credentials {
-                sigv4::sign_request(&mut req, credentials, &config.region, &payload_sha256);
-            }
-
-            match self.inner.http.execute(req).await {
-                Ok(response) => {
-                    let status = response.status();
-                    if status.is_success() {
-                        break Ok(response);
-                    }
-
-                    let retryable = status.is_server_error()
-                        || status == StatusCode::TOO_MANY_REQUESTS
-                        || status == StatusCode::REQUEST_TIMEOUT
-                        || (retry_on_conflict && status == StatusCode::CONFLICT);
-                    if retryable && attempt < config.max_attempts {
-                        tracing::debug!(%url, %status, attempt, "retrying S3 request");
-                        replayed_unknown |= status.is_server_error();
-                        tokio::time::sleep(config.backoff(attempt)).await;
-                        continue;
-                    }
-
-                    if retryable {
-                        // Out of retries on a failure that should have
-                        // passed, so the store is struggling or unreachable.
-                        // Plain answers, such as a 404 for an absent object,
-                        // are not worth a warning.
-                        tracing::warn!(
-                            %url,
-                            %status,
-                            attempts = attempt,
-                            "S3 request failed after retries"
-                        );
-                    }
-                    let mut body = response.text().await.unwrap_or_default();
-                    body.truncate(body.floor_char_boundary(ERROR_BODY_CAP));
-                    break Err(Error::status(status, url, body));
+        self.transport()
+            .send(request, retry_on_conflict, |req| {
+                if let Some(credentials) = &config.credentials {
+                    sigv4::sign_request(req, credentials, &config.region, &payload_sha256);
                 }
-                Err(error) => {
-                    if attempt < config.max_attempts && !error.is_builder() {
-                        tracing::debug!(%url, %error, attempt, "retrying S3 request");
-                        // A failed connection never carried the request.
-                        replayed_unknown |= !error.is_connect();
-                        tokio::time::sleep(config.backoff(attempt)).await;
-                        continue;
-                    }
-                    tracing::warn!(
-                        %url,
-                        %error,
-                        attempts = attempt,
-                        "S3 request failed after retries"
-                    );
-                    break Err(Error::Transport {
-                        url,
-                        attempts: attempt,
-                        source: error,
-                    });
-                }
-            }
-        };
-        Sent {
-            result,
-            replayed_unknown,
-        }
+            })
+            .await
     }
 
     /// `GetObject`, honoring every [`GetObject`] field.

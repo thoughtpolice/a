@@ -46,6 +46,7 @@ mod builder;
 mod client;
 mod error;
 pub mod sigv4;
+mod transport;
 mod types;
 mod xml;
 

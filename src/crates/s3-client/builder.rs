@@ -8,6 +8,7 @@ use std::time::Duration;
 use crate::client::{Client, Config};
 use crate::error::{Error, Result};
 use crate::sigv4::Credentials;
+use crate::transport::Transport;
 
 /// The per-request timeout when none is chosen.
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(300);
@@ -189,7 +190,7 @@ impl ClientBuilder {
 
     /// Validate the configuration and construct the client.
     pub fn build(self) -> Result<Client> {
-        let request_timeout = self.request_timeout();
+        let transport = self.transport()?;
         let bucket = self
             .bucket
             .filter(|b| !b.is_empty())
@@ -251,6 +252,18 @@ impl ClientBuilder {
             }
         };
 
+        let config = Config {
+            bucket,
+            region,
+            bucket_endpoint,
+            credentials,
+            sign_payload: self.sign_payload.unwrap_or(parsed.scheme() == "http"),
+        };
+        Ok(Client::new(config, transport))
+    }
+
+    /// The HTTP client and retry policy these settings call for.
+    fn transport(&self) -> Result<Transport> {
         // HTTP/1.1 only, because S3 endpoints do not negotiate h2 and a
         // stable `host` header keeps SigV4 signing deterministic. Redirects
         // are disabled because a replayed request needs re-signing, and the
@@ -260,23 +273,17 @@ impl ClientBuilder {
             .redirect(reqwest::redirect::Policy::none())
             .connect_timeout(self.connect_timeout.unwrap_or(Duration::from_secs(5)))
             .user_agent(self.user_agent.as_deref().unwrap_or("depot-s3-client"));
-        if let Some(timeout) = request_timeout {
+        if let Some(timeout) = self.request_timeout() {
             http = http.timeout(timeout);
         }
         let http = http
             .build()
             .map_err(|e| Error::invalid_from("failed to build HTTP client", e))?;
-
-        let config = Config {
-            bucket,
-            region,
-            bucket_endpoint,
-            credentials,
+        Ok(Transport {
+            http,
             max_attempts: self.max_attempts.unwrap_or(3),
-            sign_payload: self.sign_payload.unwrap_or(parsed.scheme() == "http"),
             retry_backoff: self.retry_backoff.unwrap_or(Duration::from_millis(100)),
-        };
-        Ok(Client::new(config, http))
+        })
     }
 }
 
