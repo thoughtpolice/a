@@ -111,6 +111,8 @@ grpc_timeout = 900
 [buck2_resource_control]
 status = if_available
 enable_suspension = true
+memory_max = 70%
+memory_high = 60%
 
 [test]
 # Tests whose verdict depends on data this repository does not control -- a
