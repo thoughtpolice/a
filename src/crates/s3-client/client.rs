@@ -13,8 +13,8 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
+use futures::StreamExt as _;
 use futures::stream::BoxStream;
-use futures::{StreamExt as _, TryStreamExt as _};
 use percent_encoding::{PercentEncode, utf8_percent_encode};
 use reqwest::header::{
     CACHE_CONTROL, CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_LANGUAGE, CONTENT_LENGTH,
@@ -251,14 +251,7 @@ impl Client {
         let body = if head {
             futures::stream::empty().boxed()
         } else {
-            let url = response.url().to_string();
-            response
-                .bytes_stream()
-                .map_err(move |source| Error::Body {
-                    url: url.clone(),
-                    source,
-                })
-                .boxed()
+            self.transport().body(response)
         };
 
         Ok(GetObjectOutput {

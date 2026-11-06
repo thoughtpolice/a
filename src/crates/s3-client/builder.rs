@@ -283,6 +283,7 @@ impl ClientBuilder {
             http,
             max_attempts: self.max_attempts.unwrap_or(3),
             retry_backoff: self.retry_backoff.unwrap_or(Duration::from_millis(100)),
+            redact_queries: false,
         })
     }
 }

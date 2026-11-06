@@ -5,9 +5,11 @@
 
 use std::time::Duration;
 
+use futures::{StreamExt as _, TryStreamExt as _};
 use reqwest::{Response, StatusCode};
 
 use crate::error::{Error, Result};
+use crate::types::ByteStream;
 
 /// How many response body bytes to preserve in error messages.
 const ERROR_BODY_CAP: usize = 2048;
@@ -20,6 +22,10 @@ pub(crate) struct Transport {
     pub max_attempts: usize,
     /// Base delay for exponential retry backoff.
     pub retry_backoff: Duration,
+    /// Leave query strings out of the URLs in errors and logs. A presigned
+    /// request's query holds its signature, which grants access to whoever
+    /// reads it until it expires.
+    pub redact_queries: bool,
 }
 
 /// The outcome of [`Transport::send`].
@@ -35,6 +41,29 @@ impl Transport {
     pub(crate) fn backoff(&self, failures: usize) -> Duration {
         self.retry_backoff
             .saturating_mul(1u32 << failures.saturating_sub(1).min(16) as u32)
+    }
+
+    /// `url` as errors and logs show it.
+    pub(crate) fn display_url(&self, url: &reqwest::Url) -> String {
+        if self.redact_queries {
+            redact_query(url.as_str())
+        } else {
+            url.to_string()
+        }
+    }
+
+    /// The body of `response`, whose errors show its URL as errors and logs
+    /// do.
+    pub(crate) fn body(&self, response: Response) -> ByteStream {
+        let url = self.display_url(response.url());
+        let redact = self.redact_queries;
+        response
+            .bytes_stream()
+            .map_err(move |source| Error::Body {
+                url: url.clone(),
+                source: display_error(source, redact),
+            })
+            .boxed()
     }
 
     /// Execute `request` with bounded retries, calling `prepare` on each
@@ -58,7 +87,7 @@ impl Transport {
         retry_on_conflict: bool,
         prepare: impl Fn(&mut reqwest::Request),
     ) -> Sent {
-        let url = request.url().to_string();
+        let url = self.display_url(request.url());
         let mut attempt = 0usize;
         let mut replayed_unknown = false;
         let result = loop {
@@ -103,6 +132,7 @@ impl Transport {
                     break Err(Error::status(status, url, body));
                 }
                 Err(error) => {
+                    let error = display_error(error, self.redact_queries);
                     if attempt < self.max_attempts && !error.is_builder() {
                         tracing::debug!(%url, %error, attempt, "retrying S3 request");
                         // A failed connection never carried the request.
@@ -129,4 +159,18 @@ impl Transport {
             replayed_unknown,
         }
     }
+}
+
+/// `url` without its query, which a presigned URL's signature is in.
+fn redact_query(url: &str) -> String {
+    match url.split_once('?') {
+        Some((base, _)) => format!("{base}?<redacted>"),
+        None => url.to_string(),
+    }
+}
+
+/// `error` as errors and logs show it: reqwest's errors carry the URL,
+/// which `redact` leaves out.
+fn display_error(error: reqwest::Error, redact: bool) -> reqwest::Error {
+    if redact { error.without_url() } else { error }
 }
