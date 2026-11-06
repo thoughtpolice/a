@@ -23,7 +23,10 @@
 //! with [`FileCache::ingest`], or a blob a client sent written in with
 //! [`FileCache::upload`], until it is copied elsewhere and marked clean. Dirty files count toward the size but are never evicted, so
 //! they alone can push the cache over it. [`FileCache::dirty_files`]
-//! lists them oldest first, for whatever copies them elsewhere.
+//! lists them oldest first, for whatever copies them elsewhere. Past a
+//! cap on dirty bytes ([`Options::dirty_cap`]) the cache's user should
+//! take no more in: [`FileCache::usage`] says when, and
+//! [`FileCache::below_dirty_cap`] waits until it may again.
 //!
 //! # Durability
 //!
@@ -94,6 +97,10 @@ pub struct Options {
     /// Most bytes of files to keep, clean and dirty: clean files are
     /// evicted to stay under it, but dirty ones are not.
     pub max_bytes: u64,
+    /// Most bytes of dirty files to hold before [`Usage::over_dirty_cap`]
+    /// says to stop taking more in: a quarter of `max_bytes` unless set.
+    /// Nothing here stops more being taken in; the caller decides.
+    pub dirty_cap: Option<u64>,
     /// Whether files are made durable before they are used: on unless a
     /// lost file costs too little to wait for the disk.
     pub durable: bool,
@@ -103,8 +110,13 @@ impl Options {
     pub fn new(max_bytes: u64) -> Self {
         Options {
             max_bytes,
+            dirty_cap: None,
             durable: true,
         }
+    }
+
+    fn dirty_cap(&self) -> u64 {
+        self.dirty_cap.unwrap_or(self.max_bytes / 4)
     }
 }
 
@@ -133,6 +145,16 @@ pub struct Usage {
     pub clean_files: usize,
     pub dirty_bytes: u64,
     pub dirty_files: usize,
+    /// See [`Options::dirty_cap`].
+    pub dirty_cap: u64,
+}
+
+impl Usage {
+    /// Whether more dirty bytes are held than the cap allows, so that the
+    /// caller should take no more in until some are marked clean.
+    pub fn over_dirty_cap(&self) -> bool {
+        self.dirty_bytes > self.dirty_cap
+    }
 }
 
 struct Inner<F> {
@@ -222,7 +244,7 @@ impl<F: Fs> FileCache<F> {
             layout,
             next_partial: AtomicU64::new(0),
             options,
-            index: Mutex::default(),
+            index: Mutex::new(Index::new()),
             commits: Commits::new(),
         };
         found.dirty.sort_by_key(|found| found.seq);
@@ -288,7 +310,17 @@ impl<F: Fs> FileCache<F> {
             clean_files,
             dirty_bytes: index.dirty_bytes(),
             dirty_files,
+            dirty_cap: self.inner.options.dirty_cap(),
         }
+    }
+
+    /// Wait until the dirty bytes are no more than the cap: at once if
+    /// they are not over it now.
+    pub async fn below_dirty_cap(&self) {
+        let cap = self.inner.options.dirty_cap();
+        let mut dirty_bytes = self.inner.lock().watch_dirty_bytes();
+        // The index holds the sender as long as the cache lives.
+        let _ = dirty_bytes.wait_for(|bytes| *bytes <= cap).await;
     }
 
     /// Open the file with `digest`, clean or dirty, to read: to copy a
@@ -500,6 +532,8 @@ fn create_dir_all(fs: &impl Fs, path: &Path) -> io::Result<()> {
     }
 }
 
+#[cfg(test)]
+mod test_cap;
 #[cfg(test)]
 mod test_commit;
 #[cfg(test)]

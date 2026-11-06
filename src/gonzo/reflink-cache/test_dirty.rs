@@ -55,6 +55,7 @@ fn an_ingested_file_is_moved_in_dirty() {
         Usage {
             dirty_bytes: 9,
             dirty_files: 1,
+            dirty_cap: 250,
             ..Usage::default()
         }
     );

@@ -6,6 +6,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use reapi_cas::{Digest, DigestFn};
+use tokio::sync::watch;
 
 use crate::Held;
 
@@ -14,7 +15,7 @@ pub(crate) type Name = (DigestFn, Digest);
 
 /// Every cached file: clean ones in order of use, and dirty ones in the
 /// order they were made dirty.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct Index {
     entries: HashMap<Name, Entry>,
     /// Clean files by when they were last used, oldest first: the order
@@ -24,6 +25,8 @@ pub(crate) struct Index {
     dirty: BTreeMap<u64, Name>,
     clean_bytes: u64,
     dirty_bytes: u64,
+    /// `dirty_bytes`, for those waiting for it to drop.
+    dirty_watch: watch::Sender<u64>,
     clock: u64,
     next_seq: u64,
 }
@@ -60,6 +63,19 @@ impl State {
 }
 
 impl Index {
+    pub(crate) fn new() -> Self {
+        Index {
+            entries: HashMap::new(),
+            by_use: BTreeMap::new(),
+            dirty: BTreeMap::new(),
+            clean_bytes: 0,
+            dirty_bytes: 0,
+            dirty_watch: watch::Sender::new(0),
+            clock: 0,
+            next_seq: 0,
+        }
+    }
+
     pub(crate) fn state(&self, name: &Name) -> Option<State> {
         self.entries.get(name).map(|entry| entry.state)
     }
@@ -151,6 +167,7 @@ impl Index {
             },
         );
         self.dirty_bytes += size;
+        self.dirty_watch.send_replace(self.dirty_bytes);
     }
 
     /// Start moving the dirty file `name` to the clean files, returning
@@ -183,6 +200,7 @@ impl Index {
         }
         self.dirty.remove(seq);
         self.dirty_bytes -= entry.size;
+        self.dirty_watch.send_replace(self.dirty_bytes);
         self.clean_bytes += entry.size;
         self.clock += 1;
         entry.used = self.clock;
@@ -224,6 +242,11 @@ impl Index {
 
     pub(crate) fn dirty_bytes(&self) -> u64 {
         self.dirty_bytes
+    }
+
+    /// Dirty bytes, as they change.
+    pub(crate) fn watch_dirty_bytes(&self) -> watch::Receiver<u64> {
+        self.dirty_watch.subscribe()
     }
 
     /// How many files are clean and dirty.
