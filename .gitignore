@@ -7,8 +7,8 @@ __pycache__
 .envrc.local
 .buckconfig.local
 CLAUDE.local.md
-.claude/settings.local.json
-.claude/worktree.local.json
+.agents/claude/settings.local.json
+.agents/claude/worktree.local.json
 
 # Various junk
 *.pending-snap
