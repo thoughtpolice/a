@@ -83,7 +83,7 @@ impl<F: Fs> FileCache<F> {
 impl<F: Fs> Inner<F> {
     /// How the cache holds `name`, and the ticket to wait for until that
     /// is durable.
-    fn held(&self, name: &Name) -> Option<(Held, u64)> {
+    pub(crate) fn held(&self, name: &Name) -> Option<(Held, u64)> {
         match self.lock().state(name)? {
             State::Clean => Some((Held::Clean, 0)),
             State::Dirty { ticket, .. } => Some((Held::Dirty, ticket)),
@@ -149,7 +149,7 @@ impl<F: Fs> Inner<F> {
     /// record of it happen under the lock together, with nothing to wait
     /// on between, so that neither eviction nor a cancelled caller can
     /// come between them.
-    fn enter_dirty(&self, name: Name, from: &Path) -> io::Result<(Ingested, u64)> {
+    pub(crate) fn enter_dirty(&self, name: Name, from: &Path) -> io::Result<(Ingested, u64)> {
         let mut index = self.lock();
         if let Some(state) = index.state(&name) {
             let ticket = match state {

@@ -20,8 +20,8 @@
 //! longest ago), but never a file someone holds [`Pinned`].
 //!
 //! A dirty file is the only copy of its blob: an action's output taken in
-//! with [`FileCache::ingest`], until it is copied elsewhere and marked
-//! clean. Dirty files count toward the size but are never evicted, so
+//! with [`FileCache::ingest`], or a blob a client sent written in with
+//! [`FileCache::upload`], until it is copied elsewhere and marked clean. Dirty files count toward the size but are never evicted, so
 //! they alone can push the cache over it. [`FileCache::dirty_files`]
 //! lists them oldest first, for whatever copies them elsewhere.
 //!
@@ -42,7 +42,8 @@
 //!   digest, fanned out by the hash's first byte;
 //! - `dirty/<seq>-<function>-<hash>-<size>`: dirty files, numbered in the
 //!   order they were taken in;
-//! - `partial/`: downloads and copies being written, removed on opening.
+//! - `partial/`: downloads, uploads and copies being written, removed on
+//!   opening.
 //!
 //! # Commands
 //!
@@ -62,6 +63,7 @@ mod index;
 mod ingest;
 mod layout;
 pub mod sim;
+mod upload;
 
 use std::collections::HashSet;
 use std::io;
@@ -78,6 +80,7 @@ use fs::File as _;
 pub use fs::{Fs, RealFs};
 use index::{Index, Name, State};
 use layout::Layout;
+pub use upload::Upload;
 
 /// See the module documentation.
 pub struct FileCache<F: Fs = RealFs> {
@@ -507,5 +510,7 @@ mod test_fetch;
 mod test_sim;
 #[cfg(test)]
 mod test_support;
+#[cfg(test)]
+mod test_upload;
 #[cfg(test)]
 mod tests;
