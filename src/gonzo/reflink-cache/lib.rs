@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! Files kept on disk by REAPI digest, so each is downloaded once, and
-//! handed out as copies.
+//! Files kept on disk by REAPI digest: a cache of files downloaded once
+//! and handed out as copies, and a store of files that exist nowhere
+//! else yet.
 //!
 //! Each user gets its own copy of a file. On btrfs and XFS that copy is a
 //! reflink, which shares the cached file's blocks until one side writes,
@@ -10,10 +11,38 @@
 //! copy cannot corrupt the cache, as it could with a hard link. Elsewhere
 //! the copy is a real one.
 //!
-//! The cache keeps under a size, evicting the files used longest ago
-//! (across restarts, those downloaded longest ago), but never a file
-//! someone holds [`Pinned`]. Where the files come from is the caller's:
-//! anything that can write blobs to files, checked, is a [`Fetch`].
+//! # Clean and dirty files
+//!
+//! A clean file is a copy of a blob kept elsewhere: one fetched from a
+//! [`Fetch`], or one a caller has said is kept elsewhere now
+//! ([`FileCache::mark_clean`]). The cache keeps under a size, evicting
+//! the clean files used longest ago (across restarts, those downloaded
+//! longest ago), but never a file someone holds [`Pinned`].
+//!
+//! A dirty file is the only copy of its blob: an action's output taken in
+//! with [`FileCache::ingest`], until it is copied elsewhere and marked
+//! clean. Dirty files count toward the size but are never evicted, so
+//! they alone can push the cache over it. [`FileCache::dirty_files`]
+//! lists them oldest first, for whatever copies them elsewhere.
+//!
+//! # Durability
+//!
+//! A file's data is made durable before the file is named in the cache,
+//! so that a power loss cannot leave the name of a torn file behind. An
+//! ingest returns only once the file's name in the dirty area is durable
+//! too. [`Options::durable`] turns both off.
+//!
+//! # Layout
+//!
+//! In the cache's directory:
+//!
+//! - `<function>/<hh>/<hash>-<size>`: clean files, by digest function and
+//!   digest, fanned out by the hash's first byte;
+//! - `dirty/<seq>-<function>-<hash>-<size>`: dirty files, numbered in the
+//!   order they were taken in;
+//! - `partial/`: downloads and copies being written, removed on opening.
+//!
+//! # Commands
 //!
 //! The cache does not run commands, but its users often do: a command
 //! forked while a copy is open for writing inherits the descriptor, and
@@ -21,16 +50,14 @@
 //! [`FileCache::copy_to`] takes a `guard` to hold over the write for that
 //! (see `hermetic_run::writing_input`).
 //!
-//! A download's data is made durable before the download is named in the
-//! cache, so that a power loss cannot leave the name of a torn file
-//! behind; [`Options::durable`] turns that off.
-//!
 //! Every filesystem call goes through [`Fs`], which is the operating
 //! system's ([`RealFs`]) but for tests, which can use a simulated one
 //! that loses what was not made durable ([`sim::SimFs`]).
 
 pub mod fs;
 mod index;
+mod ingest;
+mod layout;
 pub mod sim;
 
 use std::collections::HashSet;
@@ -45,7 +72,8 @@ use reapi_cas::{Digest, DigestFn};
 
 use fs::File as _;
 pub use fs::{Fs, RealFs};
-use index::{Index, Name};
+use index::{Index, Name, State};
+use layout::Layout;
 
 /// See the module documentation.
 pub struct FileCache<F: Fs = RealFs> {
@@ -56,7 +84,8 @@ pub struct FileCache<F: Fs = RealFs> {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Options {
-    /// Most bytes of files to keep.
+    /// Most bytes of files to keep, clean and dirty: clean files are
+    /// evicted to stay under it, but dirty ones are not.
     pub max_bytes: u64,
     /// Whether files are made durable before they are used: on unless a
     /// lost file costs too little to wait for the disk.
@@ -72,20 +101,48 @@ impl Options {
     }
 }
 
+/// How the cache holds a file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Held {
+    /// A copy of a blob kept elsewhere, which may be evicted.
+    Clean,
+    /// The only copy of its blob, kept until it is marked clean.
+    Dirty,
+}
+
+/// What [`FileCache::ingest`] did with a file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Ingested {
+    /// The file is a new dirty file.
+    Added,
+    /// The cache held the blob already, and kept what it had.
+    Already(Held),
+}
+
+/// What a cache holds.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Usage {
+    pub clean_bytes: u64,
+    pub clean_files: usize,
+    pub dirty_bytes: u64,
+    pub dirty_files: usize,
+}
+
 struct Inner<F> {
     fs: F,
-    dir: PathBuf,
-    /// Where downloads land before they are complete and checked.
-    partial: PathBuf,
+    layout: Layout,
     next_partial: AtomicU64,
     options: Options,
     index: Mutex<Index>,
+    /// Directories whose own names are durable, so names made in them
+    /// can be: those made or found by this run.
+    dirs: Mutex<HashSet<PathBuf>>,
 }
 
 impl<F: Fs> std::fmt::Debug for FileCache<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FileCache")
-            .field("dir", &self.inner.dir)
+            .field("dir", &self.inner.layout.root)
             .field("options", &self.inner.options)
             .finish_non_exhaustive()
     }
@@ -133,25 +190,57 @@ impl<F: Fs> FileCache<F> {
     /// The cache in `dir` on `fs`, as [`open`](FileCache::open) but with
     /// all of the [`Options`].
     pub fn open_with(fs: F, dir: &Path, options: Options) -> io::Result<Self> {
-        let partial = dir.join("partial");
-        create_dir_all(&fs, &partial)?;
-        for entry in fs.read_dir(&partial)? {
-            fs.remove_file(&partial.join(entry.name))?;
+        let layout = Layout::new(dir);
+        create_dir_all(&fs, &layout.root)?;
+        for sub in [&layout.partial, &layout.dirty] {
+            match fs.create_dir(sub) {
+                Err(e) if e.kind() != io::ErrorKind::AlreadyExists => return Err(e),
+                _ => {}
+            }
         }
+        if options.durable {
+            if let Some(parent) = dir.parent().filter(|p| !p.as_os_str().is_empty()) {
+                fs.sync_dir(parent)?;
+            }
+            fs.sync_dir(&layout.root)?;
+        }
+        for entry in fs.read_dir(&layout.partial)? {
+            fs.remove_file(&layout.partial.join(entry.name))?;
+        }
+        let mut found = layout.scan(&fs)?;
         let inner = Inner {
+            dirs: Mutex::new(HashSet::from([layout.root.clone(), layout.dirty.clone()])),
             fs,
-            dir: dir.to_path_buf(),
-            partial,
+            layout,
             next_partial: AtomicU64::new(0),
             options,
             index: Mutex::default(),
         };
-        let mut found = inner.scan()?;
-        found.sort_by_key(|(_, _, modified)| *modified);
+        found.dirty.sort_by_key(|found| found.seq);
+        found.clean.sort_by_key(|found| found.modified);
         let evicted = {
             let mut index = inner.lock();
-            for (name, size, _) in found {
-                index.insert(name, size, false);
+            let mut extra = Vec::new();
+            for dirty in found.dirty {
+                // A blob is dirty once; were it twice, the oldest is kept.
+                if index.state(&dirty.name).is_some() {
+                    extra.push(inner.layout.dirty(&dirty.name, dirty.seq));
+                } else {
+                    index.insert_dirty(dirty.name, dirty.name.1.size, dirty.seq);
+                }
+            }
+            for clean in found.clean {
+                // A blob both dirty and clean was being marked clean, or
+                // was taken in again as dirty: keeping it dirty is safe
+                // either way.
+                if index.state(&clean.name).is_some() {
+                    extra.push(inner.layout.clean(&clean.name));
+                } else {
+                    index.insert_clean(clean.name, clean.name.1.size, false);
+                }
+            }
+            for path in extra {
+                inner.fs.remove_file(&path)?;
             }
             index.evict(inner.options.max_bytes)
         };
@@ -161,9 +250,38 @@ impl<F: Fs> FileCache<F> {
         })
     }
 
-    /// Where the file with `digest` is kept.
+    /// Where the clean file with `digest` is kept.
     pub fn path(&self, function: DigestFn, digest: &Digest) -> PathBuf {
-        self.inner.path(function, digest)
+        self.inner.layout.clean(&(function, *digest))
+    }
+
+    /// How the cache holds the file with `digest`, if it does.
+    pub fn has(&self, function: DigestFn, digest: &Digest) -> Option<Held> {
+        let state = self.inner.lock().state(&(function, *digest));
+        state.map(State::held)
+    }
+
+    /// The dirty files, oldest first.
+    pub fn dirty_files(&self) -> Vec<(DigestFn, Digest)> {
+        self.inner.lock().dirty().map(|(_, name)| name).collect()
+    }
+
+    pub fn usage(&self) -> Usage {
+        let index = self.inner.lock();
+        let (clean_files, dirty_files) = index.files();
+        Usage {
+            clean_bytes: index.clean_bytes(),
+            clean_files,
+            dirty_bytes: index.dirty_bytes(),
+            dirty_files,
+        }
+    }
+
+    /// Open the file with `digest`, clean or dirty, to read: to copy a
+    /// dirty file elsewhere, say. What is open stays readable whatever
+    /// becomes of the file in the cache.
+    pub fn open_file(&self, function: DigestFn, digest: &Digest) -> io::Result<F::File> {
+        self.inner.open_held(&(function, *digest))
     }
 
     /// Fetch whichever of `digests` the cache does not have yet from
@@ -214,15 +332,24 @@ impl<F: Fs> FileCache<F> {
         // together, so that an eviction never removes a file just fetched
         // again.
         let mut index = inner.lock();
+        let mut unused = Vec::new();
         for (digest, partial) in downloads {
-            inner.keep(&partial, &inner.path(function, &digest))?;
             let name = (function, digest);
-            index.insert(name, digest.size, true);
+            // The blob may have been fetched or taken in meanwhile.
+            if index.pin(&name) {
+                unused.push(partial);
+            } else {
+                inner.keep(&partial, &inner.layout.clean(&name))?;
+                index.insert_clean(name, digest.size, true);
+            }
             pinned.names.push(name);
         }
         let evicted = index.evict(inner.options.max_bytes);
         inner.remove(evicted);
         drop(index);
+        for partial in unused {
+            let _ = inner.fs.remove_file(&partial);
+        }
         Ok(pinned)
     }
 
@@ -237,7 +364,7 @@ impl<F: Fs> FileCache<F> {
         guard: impl FnOnce() -> G,
     ) -> io::Result<()> {
         let fs = &self.inner.fs;
-        let mut from = fs.open(&self.path(function, digest))?;
+        let mut from = self.inner.open_held(&(function, *digest))?;
         let _writing = guard();
         let mut to = fs.create_new(dest)?;
         if !fs.reflink(&from, &to) {
@@ -248,60 +375,67 @@ impl<F: Fs> FileCache<F> {
 }
 
 impl<F: Fs> Inner<F> {
-    /// The files an earlier run left, with their sizes and when they were
-    /// written.
-    fn scan(&self) -> io::Result<Vec<(Name, u64, std::time::SystemTime)>> {
-        let fs = &self.fs;
-        let mut found = Vec::new();
-        for function in [DigestFn::Sha256, DigestFn::Blake3, DigestFn::Sha256Tree] {
-            let functions = self.dir.join(function.to_string());
-            let Ok(fans) = fs.read_dir(&functions) else {
-                continue;
-            };
-            for fan in fans {
-                let fan = functions.join(fan.name);
-                for file in fs.read_dir(&fan)? {
-                    let path = fan.join(&file.name);
-                    let metadata = fs.metadata(&path)?;
-                    let parsed = file.name.to_str().and_then(|name| {
-                        let (hash, size) = name.rsplit_once('-')?;
-                        Digest::parse(hash, size.parse().ok()?).ok()
-                    });
-                    match parsed {
-                        Some(digest) => {
-                            found.push(((function, digest), metadata.len, metadata.modified))
-                        }
-                        None => fs.remove_file(&path)?,
-                    }
-                }
-            }
-        }
-        Ok(found)
-    }
-
     fn lock(&self) -> std::sync::MutexGuard<'_, Index> {
         self.index.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    /// Remove the files of `names`, which the index has forgotten; the
-    /// caller holds the index's lock, or nothing else can use the cache.
+    /// Remove the clean files of `names`, which the index has forgotten;
+    /// the caller holds the index's lock, or nothing else can use the
+    /// cache.
     fn remove(&self, names: Vec<Name>) {
-        for (function, digest) in names {
-            let _ = self.fs.remove_file(&self.path(function, &digest));
+        for name in names {
+            let _ = self.fs.remove_file(&self.layout.clean(&name));
         }
     }
 
-    fn path(&self, function: DigestFn, digest: &Digest) -> PathBuf {
-        let hash = digest.hex();
-        self.dir
-            .join(function.to_string())
-            .join(&hash[..2])
-            .join(format!("{hash}-{}", digest.size))
+    /// Open the file the cache holds as `name`.
+    fn open_held(&self, name: &Name) -> io::Result<F::File> {
+        let state = self.lock().state(name);
+        match state {
+            Some(State::Dirty { seq, .. }) => {
+                match self.fs.open(&self.layout.dirty(name, seq)) {
+                    // Marking it clean may have moved it since.
+                    Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                        self.fs.open(&self.layout.clean(name))
+                    }
+                    opened => opened,
+                }
+            }
+            // A file the index lacks may still be in place: the caller may
+            // know better, and only the file can say.
+            Some(State::Clean) | None => self.fs.open(&self.layout.clean(name)),
+        }
+    }
+
+    /// Make the directory `dir` in the cache, and its parents, with their
+    /// names durable if the cache is, so that a durable name made in it
+    /// cannot be lost with it.
+    fn make_dir(&self, dir: &Path) -> io::Result<()> {
+        if self.known_dirs().contains(dir) {
+            return Ok(());
+        }
+        let parent = dir.parent().expect("cache directories have parents");
+        self.make_dir(parent)?;
+        match self.fs.create_dir(dir) {
+            Err(e) if e.kind() != io::ErrorKind::AlreadyExists => return Err(e),
+            _ => {}
+        }
+        // Found here, the directory may be another call's, made but not
+        // yet durable: sync its parent either way.
+        if self.options.durable {
+            self.fs.sync_dir(parent)?;
+        }
+        self.known_dirs().insert(dir.to_path_buf());
+        Ok(())
+    }
+
+    fn known_dirs(&self) -> std::sync::MutexGuard<'_, HashSet<PathBuf>> {
+        self.dirs.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     fn partial(&self) -> PathBuf {
         let n = self.next_partial.fetch_add(1, Ordering::Relaxed);
-        self.partial.join(n.to_string())
+        self.layout.partial.join(n.to_string())
     }
 
     /// Make complete, checked downloads read-only, and their data
@@ -328,9 +462,7 @@ impl<F: Fs> Inner<F> {
 
     /// Move a sealed download into place at `path`.
     fn keep(&self, partial: &Path, path: &Path) -> Result<()> {
-        create_dir_all(&self.fs, path.parent().expect("cache paths have parents"))?;
-        // Another action may have fetched the same file meanwhile; the
-        // contents are the same either way.
+        self.make_dir(path.parent().expect("cache paths have parents"))?;
         self.fs
             .rename(partial, path)
             .with_context(|| format!("moving a download to {}", path.display()))
@@ -354,6 +486,8 @@ fn create_dir_all(fs: &impl Fs, path: &Path) -> io::Result<()> {
     }
 }
 
+#[cfg(test)]
+mod test_dirty;
 #[cfg(test)]
 mod test_fetch;
 #[cfg(test)]

@@ -7,8 +7,8 @@
 use crate::Options;
 use crate::test_support::*;
 
-/// Fetch a blob, lose power keeping every name but no unsynced data, and
-/// return what the reopened cache hands out for it, if it has it.
+/// Fetch a blob, lose power keeping every name but zeroing unsynced data,
+/// and return what the reopened cache hands out for it, if it has it.
 fn fetched_then_crashed(durable: bool) -> Option<Vec<u8>> {
     let fs = sim();
     let blobs = SimBlobs::new(&fs);
@@ -21,7 +21,7 @@ fn fetched_then_crashed(durable: bool) -> Option<Vec<u8>> {
     let pinned = runtime().block_on(cache.fetch(&blobs, SHA256, &[digest]));
     drop(pinned.unwrap());
     drop(cache);
-    fs.crash(&mut keep_names_lose_data);
+    fs.crash(&mut keep_names_zero_data);
     let cache = open(&fs, options).unwrap();
     copy_out(&cache, &fs, SHA256, &digest).ok()
 }
@@ -39,7 +39,7 @@ fn a_fetched_file_survives_a_power_loss_whole() {
 /// cache without durability from handing such a file out.)
 #[test]
 fn without_durability_the_same_power_loss_tears_it() {
-    assert_eq!(fetched_then_crashed(false).as_deref(), Some(&b""[..]));
+    assert_eq!(fetched_then_crashed(false), Some(vec![0; 14]));
 }
 
 #[test]

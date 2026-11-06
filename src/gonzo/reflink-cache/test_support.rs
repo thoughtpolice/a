@@ -100,3 +100,14 @@ pub fn copy_out(
 pub fn keep_names_lose_data(n: u64) -> u64 {
     if n == 2 { 1 } else { 0 }
 }
+
+/// A crash that keeps every directory change, and of each file with
+/// unsynced data, its size but not its blocks: zeroes where its data
+/// was, which no check of sizes can tell from a whole file.
+pub fn keep_names_zero_data(n: u64) -> u64 {
+    match n {
+        2 => 1,
+        4 => 3,
+        _ => 0,
+    }
+}
