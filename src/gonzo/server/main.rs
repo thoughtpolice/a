@@ -139,6 +139,12 @@ struct ServeArgs {
     #[arg(short, long, default_value = "127.0.0.1:8980", env = "GONZO_ADDRESS")]
     address: String,
 
+    /// Once listening, write the address listened on to this file, as
+    /// `HOST:PORT` and a newline, replacing the file whole. With port 0 in
+    /// --address the system picks a free port, and this says which.
+    #[arg(long)]
+    address_file: Option<PathBuf>,
+
     /// Enable tokio-console debugging subscriber
     #[arg(long, default_value_t = false)]
     tokio_console: bool,
@@ -1295,6 +1301,25 @@ async fn run_server(
         )
     };
 
+    let listener = tokio::net::TcpListener::bind(address).await.map_err(|e| {
+        if e.kind() == std::io::ErrorKind::AddrInUse {
+            anyhow::anyhow!(
+                "failed to bind to {address}: address already in use \
+                 (is another gonzo running?)"
+            )
+        } else {
+            anyhow::Error::new(e).context(format!("failed to bind to {address}"))
+        }
+    })?;
+    // Differs from the address asked for when its port was 0.
+    let address = listener
+        .local_addr()
+        .context("failed to read the address listened on")?;
+    tracing::info!(%address, "listening");
+    if let Some(path) = &args.address_file {
+        write_address_file(path, address)?;
+    }
+
     if let Some(claim) = &claim {
         claim.announce(&daemon::DaemonInfo {
             pid: std::process::id(),
@@ -1311,7 +1336,7 @@ async fn run_server(
 
     let result = tokio::select! {
         r = reapi_grpc::start_reapi_grpc(
-                address,
+                listener,
                 tls_config,
                 shutdown,
                 &frontend,
@@ -1352,20 +1377,17 @@ async fn run_server(
         .context("failed to close cache store")?;
     telemetry::shutdown_otel();
 
-    match result {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            let msg = e.to_string();
-            if msg.contains("Address already in use") || msg.contains("os error 98") {
-                anyhow::bail!(
-                    "failed to bind to {}: address already in use \
-                     (is another gonzo running?)",
-                    address
-                );
-            }
-            Err(anyhow::anyhow!("{}", e))
-        }
-    }
+    result.map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+/// Write `address` to `path` by renaming a finished file into place, so a
+/// reader watching for it never sees part of one.
+fn write_address_file(path: &std::path::Path, address: std::net::SocketAddr) -> Result<()> {
+    let mut partial = path.as_os_str().to_owned();
+    partial.push(".partial");
+    std::fs::write(&partial, format!("{address}\n"))
+        .and_then(|()| std::fs::rename(&partial, path))
+        .with_context(|| format!("failed to write the address file {}", path.display()))
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

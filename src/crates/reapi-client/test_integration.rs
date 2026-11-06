@@ -18,7 +18,8 @@ use crate::{BATCH_THRESHOLD, ConnectOptions, Digest, DigestFn, Error, Progress, 
 /// A `gonzo` child process, killed when the test drops it.
 struct ServerGuard {
     child: Child,
-    url: String,
+    /// Where it writes its address; removed once it is gone.
+    _dir: tempfile::TempDir,
 }
 
 impl Drop for ServerGuard {
@@ -28,53 +29,62 @@ impl Drop for ServerGuard {
     }
 }
 
-/// Ask the OS for an unused port, then hand it to the server. There is an
-/// unavoidable gap between releasing the port and the server binding it; on a
-/// loopback interface in a test that is not worth defending against.
-fn free_port() -> u16 {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
-    listener.local_addr().expect("local_addr").port()
-}
-
 async fn start_server() -> (ServerGuard, ReapiClient) {
     let binary =
         buck_resources::get("src/crates/reapi-client/gonzo").expect("gonzo binary resource");
 
-    let port = free_port();
+    let dir = tempfile::tempdir().expect("tempdir");
+    let address_file = dir.path().join("address");
     let child = Command::new(&binary)
-        // `--store`/`--console-log` are global; `--address` belongs to the
-        // `serve` subcommand, which must be named explicitly to reach it even
-        // though it is the default.
+        // `--store`/`--console-log`/`--disable-dial9` are global; the rest
+        // belong to the `serve` subcommand, which must be named explicitly
+        // to reach them even though it is the default.
         .args([
             "--store",
             "memory",
             "--console-log",
             "error",
+            // Each server would otherwise claim the user's trace directory,
+            // and all but the first of them run without tracing anyway.
+            "--disable-dial9",
             "serve",
+            // The server picks a free port itself and says which. Picking
+            // one here and handing it over leaves a gap in which another
+            // server can take it, another test's server among them, and
+            // the client then talks to that one until its test ends.
             "--address",
-            &format!("127.0.0.1:{port}"),
-            // No iroh endpoint, nor announcing on the public DHT, in tests.
-            "--remote-workers",
-            "off",
+            "127.0.0.1:0",
+            "--address-file",
         ])
+        .arg(&address_file)
+        // No iroh endpoint, nor announcing on the public DHT, in tests.
+        .args(["--remote-workers", "off"])
         .spawn()
         .expect("spawn gonzo");
-
-    let guard = ServerGuard {
-        child,
-        url: format!("http://127.0.0.1:{port}"),
-    };
+    let mut guard = ServerGuard { child, _dir: dir };
 
     let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        match ReapiClient::connect(ConnectOptions::new(&guard.url)).await {
-            Ok(client) => return (guard, client),
-            Err(e) if Instant::now() >= deadline => {
-                panic!("gonzo did not become ready at {}: {e}", guard.url)
-            }
-            Err(_) => tokio::time::sleep(Duration::from_millis(50)).await,
+    let address = loop {
+        if let Ok(address) = std::fs::read_to_string(&address_file) {
+            break address;
         }
-    }
+        if let Some(status) = guard.child.try_wait().expect("wait for gonzo") {
+            panic!("gonzo exited before it was listening: {status}");
+        }
+        assert!(
+            Instant::now() < deadline,
+            "gonzo was not listening within 30s"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    };
+
+    // Listening already, so this connects at once, even if the server has
+    // yet to accept.
+    let url = format!("http://{}", address.trim());
+    let client = ReapiClient::connect(ConnectOptions::new(&url))
+        .await
+        .unwrap_or_else(|e| panic!("connect to gonzo at {url}: {e}"));
+    (guard, client)
 }
 
 #[tokio::test]

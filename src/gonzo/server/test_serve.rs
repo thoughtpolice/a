@@ -30,9 +30,10 @@ struct Server {
 impl Server {
     async fn start() -> Self {
         let _ = telemetry::init_metrics(&telemetry::OtelConfig::default());
-        let addr = std::net::TcpListener::bind("127.0.0.1:0")
-            .and_then(|l| l.local_addr())
-            .expect("a free port");
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind a free port");
+        let addr = listener.local_addr().expect("local addr");
         let store = Arc::new(
             CacheStore::open(StoreBackend::Memory, CacheStoreSettings::default())
                 .await
@@ -49,7 +50,7 @@ impl Server {
             let frontend = frontend.clone();
             async move {
                 crate::reapi_grpc::start_reapi_grpc(
-                    addr,
+                    listener,
                     None,
                     async move {
                         let _ = stopped.await;
@@ -64,13 +65,8 @@ impl Server {
                 .expect("serve");
             }
         });
-        // Up once it accepts connections.
-        for _ in 0..200 {
-            if tokio::net::TcpStream::connect(addr).await.is_ok() {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-        }
+        // Connections made before the server accepts wait in the listen
+        // backlog, so it is ready once bound.
         Self {
             addr,
             store,

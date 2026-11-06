@@ -9,7 +9,7 @@
 //! scheduler. Workers get only what they need: the CAS and ByteStream for
 //! inputs and outputs, and their sessions with the scheduler.
 
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use accept::Accept;
 use dial9::Dial9TokioHandle;
@@ -94,8 +94,10 @@ impl Frontend {
     }
 }
 
+/// Serve clients on `listener`, bound by the caller: it knows the address it
+/// asked for, and can learn the one it got when that was port 0.
 pub async fn start_reapi_grpc(
-    address: SocketAddr,
+    listener: tokio::net::TcpListener,
     tls: Option<Arc<rustls::ServerConfig>>,
     shutdown: impl Future<Output = ()> + Send + 'static,
     frontend: &Frontend,
@@ -142,10 +144,7 @@ pub async fn start_reapi_grpc(
     // flight included), so the store always has descriptors left. At the
     // cap, the connection that has gone longest without a request makes
     // room for a newcomer.
-    let listener = accept::Limited::new(
-        tokio::net::TcpListener::bind(address).await?,
-        max_connections,
-    );
+    let listener = accept::Limited::new(listener, max_connections);
     let limits = dial9_tonic::ConnectionLimits {
         make_room: Some(listener.room_wanted()),
         ..Default::default()
