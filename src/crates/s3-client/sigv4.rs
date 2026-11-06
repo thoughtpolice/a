@@ -132,8 +132,7 @@ pub fn sign_request_at(
     let host_value = HeaderValue::from_str(&host).expect("URL authority is a valid header value");
     request.headers_mut().insert(HOST, host_value);
 
-    let date_str = date.format("%Y%m%dT%H%M%SZ").to_string();
-    let date_value = HeaderValue::from_str(&date_str).expect("formatted date is ASCII");
+    let date_value = HeaderValue::from_str(&amz_date(date)).expect("formatted date is ASCII");
     request
         .headers_mut()
         .insert(DATE_HEADER.clone(), date_value);
@@ -144,29 +143,75 @@ pub fn sign_request_at(
         .insert(HASH_HEADER.clone(), hash_value);
 
     let (signed_headers, canonical_headers) = canonicalize_headers(request.headers());
+    let canonical_request = canonical_request(
+        request,
+        service,
+        &canonicalize_query(request.url()),
+        &canonical_headers,
+        &signed_headers,
+        payload_sha256,
+    );
+    let scope = scope(service, region, date);
+    let signature = signature(
+        credentials,
+        service,
+        region,
+        date,
+        &scope,
+        &canonical_request,
+    );
 
+    let authorization = format!(
+        "{ALGORITHM} Credential={}/{scope}, SignedHeaders={signed_headers}, Signature={signature}",
+        credentials.access_key_id,
+    );
+    let auth_value = HeaderValue::from_str(&authorization).expect("authorization header is ASCII");
+    request.headers_mut().insert(AUTHORIZATION, auth_value);
+}
+
+/// The `x-amz-date` form of `date`.
+fn amz_date(date: DateTime<Utc>) -> String {
+    date.format("%Y%m%dT%H%M%SZ").to_string()
+}
+
+/// The credential scope: the day, region and service a signature is for.
+fn scope(service: &str, region: &str, date: DateTime<Utc>) -> String {
+    format!("{}/{region}/{service}/aws4_request", date.format("%Y%m%d"))
+}
+
+/// The canonical request that a signature for `request` covers.
+fn canonical_request(
+    request: &reqwest::Request,
+    service: &str,
+    canonical_query: &str,
+    canonical_headers: &str,
+    signed_headers: &str,
+    payload_sha256: &str,
+) -> String {
     // S3 uses the (already percent-encoded) URL path verbatim; every other
     // service percent-encodes it a second time
     let canonical_uri = match service {
         "s3" => request.url().path().to_string(),
         _ => utf8_percent_encode(request.url().path(), &STRICT_PATH_ENCODE_SET).to_string(),
     };
-
-    let canonical_query = canonicalize_query(request.url());
-
-    let canonical_request = format!(
-        "{}\n{}\n{}\n{}\n{}\n{}",
+    format!(
+        "{}\n{canonical_uri}\n{canonical_query}\n{canonical_headers}\n{signed_headers}\n{payload_sha256}",
         request.method().as_str(),
-        canonical_uri,
-        canonical_query,
-        canonical_headers,
-        signed_headers,
-        payload_sha256,
-    );
+    )
+}
 
-    let scope = format!("{}/{region}/{service}/aws4_request", date.format("%Y%m%d"));
+/// The hex signature of `canonical_request` within credential scope `scope`.
+fn signature(
+    credentials: &Credentials,
+    service: &str,
+    region: &str,
+    date: DateTime<Utc>,
+    scope: &str,
+    canonical_request: &str,
+) -> String {
     let string_to_sign = format!(
-        "{ALGORITHM}\n{date_str}\n{scope}\n{}",
+        "{ALGORITHM}\n{}\n{scope}\n{}",
+        amz_date(date),
         sha256_hex(canonical_request.as_bytes()),
     );
 
@@ -179,14 +224,7 @@ pub fn sign_request_at(
     let key = hmac_sha256(&key, region.as_bytes());
     let key = hmac_sha256(&key, service.as_bytes());
     let key = hmac_sha256(&key, b"aws4_request");
-    let signature = hex::encode(hmac_sha256(&key, string_to_sign.as_bytes()));
-
-    let authorization = format!(
-        "{ALGORITHM} Credential={}/{scope}, SignedHeaders={signed_headers}, Signature={signature}",
-        credentials.access_key_id,
-    );
-    let auth_value = HeaderValue::from_str(&authorization).expect("authorization header is ASCII");
-    request.headers_mut().insert(AUTHORIZATION, auth_value);
+    hex::encode(hmac_sha256(&key, string_to_sign.as_bytes()))
 }
 
 /// The `host` header value for a URL: the host, plus the port when it is not
