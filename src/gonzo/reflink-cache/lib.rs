@@ -504,11 +504,15 @@ mod test_cap;
 #[cfg(test)]
 mod test_commit;
 #[cfg(test)]
+mod test_crash;
+#[cfg(test)]
 mod test_dirty;
 #[cfg(test)]
 mod test_faults;
 #[cfg(test)]
 mod test_fetch;
+#[cfg(test)]
+mod test_machine;
 #[cfg(test)]
 mod test_recovery;
 #[cfg(test)]
