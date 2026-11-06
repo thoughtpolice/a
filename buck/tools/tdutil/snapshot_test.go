@@ -321,7 +321,6 @@ func TestCachedBaseStillSelectsDependentsOfDeletedTargets(t *testing.T) {
 		workspace,
 		"buck2",
 		nil,
-		"",
 		[]string{"root//..."},
 		defaultTdutilConfig(),
 	)

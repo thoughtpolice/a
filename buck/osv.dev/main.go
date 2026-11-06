@@ -24,15 +24,14 @@ import (
 const defaultOSVAPIBase = "https://api.osv.dev/v1"
 
 type config struct {
-	apiBase          string
-	buckPath         string
-	buckIsolationDir string
-	cargoLockPath    string
-	npmLockPath      string
-	nugetLockPath    string
-	batchSize        int
-	concurrency      int
-	httpTimeout      time.Duration
+	apiBase       string
+	buckPath      string
+	cargoLockPath string
+	npmLockPath   string
+	nugetLockPath string
+	batchSize     int
+	concurrency   int
+	httpTimeout   time.Duration
 }
 
 var checkModes = []string{"all", "generic", "rust", "npm", "wolfi", "nuget"}
@@ -42,7 +41,7 @@ func isCheckMode(value string) bool {
 }
 
 func (c config) auditor() dependencyAuditor {
-	return buckAuditor{path: c.buckPath, isolationDir: c.buckIsolationDir}
+	return buckAuditor{path: c.buckPath}
 }
 
 func main() {
@@ -59,7 +58,6 @@ func realMain(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	flags.SetOutput(stderr)
 	flags.StringVar(&cfg.apiBase, "api-base", defaultOSVAPIBase, "OSV API base URL")
 	flags.StringVar(&cfg.buckPath, "buck", "./buck/bin/buck2", "path to the Buck2 dotslash executable")
-	flags.StringVar(&cfg.buckIsolationDir, "buck-isolation-dir", "buck2-3p-osv-tests", "Buck2 isolation directory used for metadata audits")
 	flags.StringVar(&cfg.cargoLockPath, "cargo-lock", "buck/third-party/rust/Cargo.lock", "Cargo.lock to scan")
 	flags.StringVar(&cfg.npmLockPath, "npm-lock", "", "npm package-lock.json to scan; npm is skipped in all mode when unset")
 	flags.StringVar(&cfg.nugetLockPath, "nuget-lock", "buck/third-party/csharp/nuget.lock", "nuget.lock to scan")

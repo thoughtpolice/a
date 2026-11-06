@@ -287,6 +287,16 @@ def _copy_files(**kwargs):
     kwargs = _fix_kwargs("copy_files", kwargs)
     _copy_files_rule(**kwargs)
 
+# The shared Buck2 daemon that .envrc, the Claude settings and CI select. A
+# test inherits no BUCK2_* variable, so one that runs buck2 itself takes this
+# as its `env`, and its calls join the daemon running the test in the same
+# isolation directory. A buck2 outside that daemon could not use the
+# checkout's buck-out while the daemon holds it.
+_SHARED_DAEMON_ENV = {
+    "BUCK2_DAEMON_GROUP": "station",
+    "BUCK2_SHARE_DAEMON": "true",
+}
+
 def _command_test_impl(ctx: AnalysisContext) -> list[Provider]:
     if ctx.attrs.cmd and ctx.attrs.script:
         fail("command_test: 'cmd' and 'script' arguments are mutually exclusive")
@@ -301,6 +311,7 @@ def _command_test_impl(ctx: AnalysisContext) -> list[Provider]:
             ExternalRunnerTestInfo(
                 type = "custom",
                 command = ctx.attrs.cmd,
+                env = ctx.attrs.env,
             ),
         ]
     else:
@@ -322,6 +333,7 @@ def _command_test_impl(ctx: AnalysisContext) -> list[Provider]:
             ExternalRunnerTestInfo(
                 type = "custom",
                 command = [command],
+                env = ctx.attrs.env,
             ),
         ]
 
@@ -331,6 +343,9 @@ _command_test_rule = rule(
         # See the note on the same attribute in _run_test_rule.
         "ci_srcs": attrs.list(attrs.string(), default = []),
         "cmd": attrs.option(attrs.list(attrs.arg()), default = None),
+        # Set for the test under `buck2 test`. Values take macros such as
+        # $(location ...).
+        "env": attrs.dict(attrs.string(), attrs.arg(), default = {}),
         "script": attrs.option(attrs.arg(), default = None),
     },
 )
@@ -373,6 +388,7 @@ def _run_test_impl(ctx: AnalysisContext) -> list[Provider]:
         ExternalRunnerTestInfo(
             type = "custom",
             command = command,
+            env = ctx.attrs.env,
         ),
     ]
 
@@ -385,6 +401,8 @@ _run_test_rule = rule(
         # though they are not declared inputs.
         "ci_srcs": attrs.list(attrs.string(), default = []),
         "dep": attrs.dep(providers = [RunInfo]),
+        # See the note on the same attribute in _command_test_rule.
+        "env": attrs.dict(attrs.string(), attrs.arg(), default = {}),
     },
 )
 
@@ -613,6 +631,7 @@ shims = struct(
     lint_files = _srclint.lint_files,
     lint_package = _srclint.lint_package,
     run_test = _run_test,
+    shared_daemon_env = _SHARED_DAEMON_ENV,
     dynamic_test = _depot_dynamic_test,
     filecheck = struct(
         test = _depot_filecheck_test,

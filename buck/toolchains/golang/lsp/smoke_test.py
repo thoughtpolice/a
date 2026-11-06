@@ -13,8 +13,7 @@ that an import added in the editor, before any save, resolves; and that a
 type error shows. Then checks that a golang.org/x file type-checks after an
 editor adds its module as a workspace folder, that a go_bootstrap_binary's
 file does, and that a file no target owns gets an error saying so. The
-driver's Buck calls run in their own isolation directory, whose daemon this
-stops at the end.
+driver's Buck calls run in the shared Buck daemon that runs this test.
 """
 
 import json
@@ -26,7 +25,6 @@ import threading
 import time
 import tomllib
 
-ISOLATION_DIR = ".gopls-tests"
 TIMEOUT = 600
 
 
@@ -68,11 +66,9 @@ def configured_server(root: str) -> tuple[list[str], dict]:
 class Server:
     def __init__(self, root: str, command: list[str], settings: dict):
         self.settings = settings
-        env = dict(os.environ, BUCK_ISOLATION_DIR=ISOLATION_DIR)
         self.proc = subprocess.Popen(
             command,
             cwd=root,
-            env=env,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
         )
@@ -263,7 +259,6 @@ def main():
     finally:
         if server.proc.poll() is None:
             server.proc.kill()
-        subprocess.run(["buck2", "--isolation-dir", ISOLATION_DIR, "kill"], cwd=root, capture_output=True)
     print("ok")
 
 

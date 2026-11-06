@@ -41,5 +41,6 @@ shims.go_test(
 shims.dynamic_test(
     name = "check",
     dep = ":osv.dev",
+    env = shims.shared_daemon_env,
     labels = ["external-data"],
 )

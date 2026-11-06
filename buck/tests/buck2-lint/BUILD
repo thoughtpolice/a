@@ -38,9 +38,8 @@ shims.command_test(
     cmd = [
         "dotslash",
         "$(location //buck/bin:buck2)",
-        "--isolation-dir",
-        ".buck2-lint-tests",
         "starlark",
         "lint",
     ] + SOURCE_DIRS,
+    env = shims.shared_daemon_env,
 )

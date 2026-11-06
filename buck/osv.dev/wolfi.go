@@ -40,7 +40,6 @@ type dependencyAuditor interface {
 // without maintaining or parsing a second manifest.
 func (b buckAuditor) readWolfiTargets(ctx context.Context) (wolfiTargetResponse, error) {
 	args := []string{
-		"--isolation-dir", b.isolationDir,
 		"uquery", wolfiTargetSet,
 		"--output-attribute", "urls|sha256",
 		"--json",

@@ -52,13 +52,11 @@ func TestAuditCellsUsesExactArgumentOrder(t *testing.T) {
 		workspace,
 		"custom-buck2",
 		[]string{"--config", "ci.mode=test"},
-		"tdutil-isolation",
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	wantArgs := []string{
-		"--isolation-dir", "tdutil-isolation",
 		"audit", "cell", "--json",
 		"--config", "ci.mode=test",
 	}
@@ -81,7 +79,6 @@ func TestCollectTargetsUsesExactArgumentOrder(t *testing.T) {
 		workspace,
 		"custom-buck2",
 		[]string{"--config", "ci.mode=test"},
-		"tdutil-isolation",
 		[]string{"root//src/app:app", "root//tools/..."},
 		cells,
 
@@ -91,7 +88,6 @@ func TestCollectTargetsUsesExactArgumentOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantArgs := []string{
-		"--isolation-dir", "tdutil-isolation",
 		"targets",
 		"--config", "ci.mode=test",
 		"--streaming",
@@ -117,7 +113,7 @@ func TestCollectTargetsSkipsCommandForAbsentEndpoint(t *testing.T) {
 		t.Fatal("runner called for endpoint without patterns")
 		return processResult{}, nil
 	}}
-	snapshot, err := collectTargets(context.Background(), runner, "unused", "buck2", nil, "", nil, cells, defaultTdutilConfig())
+	snapshot, err := collectTargets(context.Background(), runner, "unused", "buck2", nil, nil, cells, defaultTdutilConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +148,6 @@ func TestCollectTargetsPrefersStreamingRunnerAndParsesIncrementally(t *testing.T
 		t.TempDir(),
 		"buck2",
 		nil,
-		"",
 		[]string{"root//src/app:app"},
 		testCellMap(t),
 
@@ -181,7 +176,6 @@ func TestCollectTargetsProcessFailureOutranksStreamedParseError(t *testing.T) {
 		t.TempDir(),
 		"buck2",
 		nil,
-		"",
 		[]string{"root//src/app:app"},
 		testCellMap(t),
 
@@ -203,7 +197,6 @@ func TestCollectTargetsStreamedParseErrorKeepsLineNumber(t *testing.T) {
 		t.TempDir(),
 		"buck2",
 		nil,
-		"",
 		[]string{"root//src/app:app"},
 		testCellMap(t),
 
@@ -220,10 +213,10 @@ func TestBuckCollectorsRejectNonUTF8Stdout(t *testing.T) {
 	runner := buckFakeRunner{runFunc: func(context.Context, commandSpec) (processResult, error) {
 		return successfulBuckResult([]byte{0xff}), nil
 	}}
-	if _, err := auditCells(context.Background(), runner, workspace, "buck2", nil, ""); err == nil || !strings.Contains(err.Error(), "non-UTF-8 stdout") {
+	if _, err := auditCells(context.Background(), runner, workspace, "buck2", nil); err == nil || !strings.Contains(err.Error(), "non-UTF-8 stdout") {
 		t.Errorf("audit invalid-UTF-8 error = %v", err)
 	}
-	if _, err := collectTargets(context.Background(), runner, workspace, "buck2", nil, "", []string{"root//..."}, cells, defaultTdutilConfig()); err == nil || !strings.Contains(err.Error(), "non-UTF-8 stdout") {
+	if _, err := collectTargets(context.Background(), runner, workspace, "buck2", nil, []string{"root//..."}, cells, defaultTdutilConfig()); err == nil || !strings.Contains(err.Error(), "non-UTF-8 stdout") {
 		t.Errorf("targets invalid-UTF-8 error = %v", err)
 	}
 }
@@ -248,7 +241,7 @@ func TestCollectSnapshotPairRejectsEmptyPatterns(t *testing.T) {
 		t.Fatal("runner called for an empty universe")
 		return processResult{}, nil
 	}}
-	_, _, _, err := collectSnapshotPair(context.Background(), runner, "base", "head", "buck2", nil, "", nil, defaultTdutilConfig())
+	_, _, _, err := collectSnapshotPair(context.Background(), runner, "base", "head", "buck2", nil, nil, defaultTdutilConfig())
 	if err == nil || !strings.Contains(err.Error(), "at least one Buck target pattern") {
 		t.Fatalf("empty-pattern error = %v", err)
 	}
@@ -302,7 +295,6 @@ func TestCollectSnapshotPairRunsBothEndpointStagesConcurrentlyAndPrefersBaseErro
 		headWorkspace,
 		"buck2",
 		nil,
-		"",
 		[]string{"root//..."},
 		defaultTdutilConfig(),
 	)

@@ -10,8 +10,7 @@ definition from one of them, and jumps to its source. NativeEval.lean and
 NativeLocal/Eval.lean check that precompiled code loads, both a whole
 library and a module of the same target, and Greeting/Basic.lean that
 references reach files the server never opened. The shim's Buck
-calls run in their own isolation directory, whose daemon this stops at the
-end.
+calls run in the shared Buck daemon that runs this test.
 """
 
 import json
@@ -22,7 +21,6 @@ import sys
 import threading
 import time
 
-ISOLATION_DIR = ".lean-lsp-tests"
 TIMEOUT = 600
 
 
@@ -39,11 +37,9 @@ def project_root() -> str:
 
 class Server:
     def __init__(self, root: str):
-        env = dict(os.environ, BUCK_ISOLATION_DIR=ISOLATION_DIR)
         self.proc = subprocess.Popen(
             [os.path.join(root, "buck/toolchains/lean/lsp/lake"), "serve"],
             cwd=root,
-            env=env,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
         )
@@ -169,7 +165,6 @@ def main():
     finally:
         if server.proc.poll() is None:
             server.proc.kill()
-        subprocess.run(["buck2", "--isolation-dir", ISOLATION_DIR, "kill"], cwd=root, capture_output=True)
 
 
 if __name__ == "__main__":

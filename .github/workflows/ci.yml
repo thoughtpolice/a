@@ -17,6 +17,14 @@ permissions:
   contents: read
   actions: read
 
+# Every buck2 call shares one daemon, as .envrc has it. A test that runs
+# buck2 itself passes these on to it (shims.shared_daemon_env), and that call
+# fails unless the buck2 running the test is in the same daemon group: a
+# plain daemon would own the checkout's buck-out.
+env:
+  BUCK2_SHARE_DAEMON: "true"
+  BUCK2_DAEMON_GROUP: station
+
 jobs:
   # Every push to canon and every pull request is tested through target
   # determination: check.py runs tdutil over the change, and only what it

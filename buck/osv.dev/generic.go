@@ -17,8 +17,7 @@ import (
 )
 
 type buckAuditor struct {
-	path         string
-	isolationDir string
+	path string
 }
 
 // thirdPartyPackages is every package of the third-party cell. The generic
@@ -38,7 +37,7 @@ type packageValues map[string]jsontext.Value
 type auditResponse map[string]packageValues
 
 func (b buckAuditor) read(ctx context.Context, targets ...string) (auditResponse, error) {
-	args := []string{"--isolation-dir", b.isolationDir, "audit", "package-values"}
+	args := []string{"audit", "package-values"}
 	args = append(args, targets...)
 	cmd := exec.CommandContext(ctx, b.path, args...)
 	var stdout, stderr bytes.Buffer
@@ -65,7 +64,7 @@ func (b buckAuditor) read(ctx context.Context, targets ...string) (auditResponse
 // listPackages returns the packages of thirdPartyPackages that have targets,
 // as "third-party//path".
 func (b buckAuditor) listPackages(ctx context.Context) ([]string, error) {
-	cmd := exec.CommandContext(ctx, b.path, "--isolation-dir", b.isolationDir, "uquery", thirdPartyPackages)
+	cmd := exec.CommandContext(ctx, b.path, "uquery", thirdPartyPackages)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

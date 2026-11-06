@@ -9,12 +9,13 @@ shims.python_binary(
 )
 
 # Runs the language server through `lake serve` against the toolchain's
-# tests, with its own Buck daemon (like //buck/tests/buck2-lint), so it reads
-# the checkout rather than declared inputs.
+# tests, through the shared Buck daemon (like //buck/tests/buck2-lint), so it
+# reads the checkout rather than declared inputs.
 shims.run_test(
     name = "smoke",
     ci_srcs = ["buck/toolchains/lean/**"],
     dep = ":smoke-test",
+    env = shims.shared_daemon_env,
 )
 
 # The wrappers an editor runs in place of lean and lake.

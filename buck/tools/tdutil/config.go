@@ -188,11 +188,11 @@ func resolveRepositoryConfig(
 	args *cliArgs,
 	repository string,
 ) (tdutilConfig, error) {
-	cells, err := auditCells(ctx, runner, repository, args.buck, args.buckArgs, args.isolationDir)
+	cells, err := auditCells(ctx, runner, repository, args.buck, args.buckArgs)
 	if err != nil {
 		return tdutilConfig{}, err
 	}
-	return loadTdutilConfig(ctx, runner, repository, args.buck, args.buckArgs, args.isolationDir, cells)
+	return loadTdutilConfig(ctx, runner, repository, args.buck, args.buckArgs, cells)
 }
 
 // loadTdutilConfig reads the repository's conventions out of buckconfig. One
@@ -203,11 +203,9 @@ func loadTdutilConfig(
 	runner processRunner,
 	repository, buck string,
 	buckArgs []string,
-	isolation string,
 	cells cellMap,
 ) (tdutilConfig, error) {
-	args := isolationArgs(isolation)
-	args = append(args, "audit", "config", "--all-cells", "--json")
+	args := []string{"audit", "config", "--all-cells", "--json"}
 	args = append(args, buckArgs...)
 	args = append(args,
 		"buildfile.name",

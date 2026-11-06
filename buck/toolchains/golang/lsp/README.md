@@ -105,8 +105,10 @@ keeps a second view.
 - A `go_bootstrap_binary` tells Buck only its file names, so the driver
   picks its files by build constraint and reads its imports itself. It
   builds from the stdlib alone.
-- `buck2` runs in the default daemon. Set `BUCK_ISOLATION_DIR` in the
-  editor's environment to use another.
+- `buck2` runs in the daemon the editor's environment selects. Give it the
+  `BUCK2_SHARE_DAEMON` and `BUCK2_DAEMON_GROUP` that `.envrc` sets, so it
+  joins the shell's shared daemon: a `buck2` outside that daemon cannot use
+  the checkout while it runs.
 
 Some things the driver does not cover:
 

@@ -41,7 +41,6 @@ func collectSnapshotPair(
 	runner processRunner,
 	baseWorkspace, headWorkspace, buck string,
 	buckArgs []string,
-	isolation string,
 	patterns []string,
 	config tdutilConfig,
 ) (snapshot, snapshot, universePlan, error) {
@@ -52,11 +51,11 @@ func collectSnapshotPair(
 	baseCellsChannel := make(chan cellMapResult, 1)
 	headCellsChannel := make(chan cellMapResult, 1)
 	go func() {
-		cells, err := auditCells(ctx, runner, baseWorkspace, buck, buckArgs, isolation)
+		cells, err := auditCells(ctx, runner, baseWorkspace, buck, buckArgs)
 		baseCellsChannel <- cellMapResult{cells: cells, err: err}
 	}()
 	go func() {
-		cells, err := auditCells(ctx, runner, headWorkspace, buck, buckArgs, isolation)
+		cells, err := auditCells(ctx, runner, headWorkspace, buck, buckArgs)
 		headCellsChannel <- cellMapResult{cells: cells, err: err}
 	}()
 	baseCells := <-baseCellsChannel
@@ -75,11 +74,11 @@ func collectSnapshotPair(
 	baseChannel := make(chan snapshotResult, 1)
 	headChannel := make(chan snapshotResult, 1)
 	go func() {
-		collected, err := collectTargets(ctx, runner, baseWorkspace, buck, buckArgs, isolation, plan.basePatterns, baseCells.cells, config)
+		collected, err := collectTargets(ctx, runner, baseWorkspace, buck, buckArgs, plan.basePatterns, baseCells.cells, config)
 		baseChannel <- snapshotResult{snapshot: collected, err: err}
 	}()
 	go func() {
-		collected, err := collectTargets(ctx, runner, headWorkspace, buck, buckArgs, isolation, plan.headPatterns, headCells.cells, config)
+		collected, err := collectTargets(ctx, runner, headWorkspace, buck, buckArgs, plan.headPatterns, headCells.cells, config)
 		headChannel <- snapshotResult{snapshot: collected, err: err}
 	}()
 	base := <-baseChannel
@@ -101,10 +100,8 @@ func auditCells(
 	runner processRunner,
 	workspace, buck string,
 	buckArgs []string,
-	isolation string,
 ) (cellMap, error) {
-	args := isolationArgs(isolation)
-	args = append(args, "audit", "cell", "--json")
+	args := []string{"audit", "cell", "--json"}
 	args = append(args, buckArgs...)
 	result, err := runner.run(ctx, commandSpec{path: buck, args: args, dir: workspace})
 	if err != nil {
@@ -124,7 +121,6 @@ func collectTargets(
 	runner processRunner,
 	workspace, buck string,
 	buckArgs []string,
-	isolation string,
 	patterns []string,
 	cells cellMap,
 	config tdutilConfig,
@@ -132,8 +128,7 @@ func collectTargets(
 	if len(patterns) == 0 {
 		return emptySnapshot(cells), nil
 	}
-	args := isolationArgs(isolation)
-	args = append(args, "targets")
+	args := []string{"targets"}
 	args = append(args, buckArgs...)
 	args = append(args,
 		"--streaming",
@@ -153,13 +148,6 @@ func collectTargets(
 		return snapshot{}, err
 	}
 	return parser.finish()
-}
-
-func isolationArgs(isolation string) []string {
-	if isolation == "" {
-		return nil
-	}
-	return []string{"--isolation-dir", isolation}
 }
 
 func ensureBuckProcessSuccess(description string, result processResult) error {

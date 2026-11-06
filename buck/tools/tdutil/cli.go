@@ -79,7 +79,6 @@ Options:
       --jj COMMAND            JJ executable (default: jj)
       --buck-arg ARG          Extra Buck2 argument (repeatable)
   -c, --config KEY=VALUE      Pass a Buck2 config value to graph queries
-      --isolation-dir NAME    Inner Buck2 isolation directory (default: tdutil)
       --ignore-working-copy   Do not ask JJ to snapshot before resolving revsets
       --keep-workspaces       Retain temporary historical workspaces for debugging
       --no-head-in-place      Materialize the head revision in a temporary
@@ -116,7 +115,6 @@ type cliArgs struct {
 	buck              string
 	jj                string
 	buckArgs          []string
-	isolationDir      string
 	ignoreWorkingCopy bool
 	keepWorkspaces    bool
 	noHeadInPlace     bool
@@ -154,7 +152,6 @@ func parseCLI(argv []string) (cliAction, error) {
 	buck := "buck2"
 	jj := "jj"
 	var buckArgs []string
-	isolationDir := "tdutil"
 	ignoreWorkingCopy := false
 	keepWorkspaces := false
 	noHeadInPlace := false
@@ -353,12 +350,6 @@ func parseCLI(argv []string) (cliAction, error) {
 				return cliAction{}, err
 			}
 			buckArgs = append(buckArgs, "-c", raw)
-		case "--isolation-dir":
-			raw, err := value("--isolation-dir")
-			if err != nil {
-				return cliAction{}, err
-			}
-			isolationDir = raw
 		case "--ignore-working-copy":
 			if err := setSwitch("--ignore-working-copy", &ignoreWorkingCopy); err != nil {
 				return cliAction{}, err
@@ -458,7 +449,6 @@ func parseCLI(argv []string) (cliAction, error) {
 		buck:              buck,
 		jj:                jj,
 		buckArgs:          buckArgs,
-		isolationDir:      isolationDir,
 		ignoreWorkingCopy: ignoreWorkingCopy,
 		keepWorkspaces:    keepWorkspaces,
 		noHeadInPlace:     noHeadInPlace,

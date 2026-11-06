@@ -163,7 +163,6 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				jj.repository,
 				args.buck,
 				append([]string(nil), args.buckArgs...),
-				args.isolationDir,
 				args.universe,
 				config,
 			)
@@ -254,7 +253,6 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					headCheckout,
 					args.buck,
 					buckArgs,
-					args.isolationDir,
 					args.universe,
 					config,
 				)
@@ -272,7 +270,6 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					headCheckout,
 					args.buck,
 					buckArgs,
-					args.isolationDir,
 					args.universe,
 					config,
 				)
@@ -387,7 +384,7 @@ func runSnapshotCapture(
 	var collected snapshot
 	if inPlace {
 		logProgress(stderr, args, "snapshotting the working-copy Buck graph (%s)", strings.Join(args.universe, " "))
-		collected, err = collectQuickSnapshot(ctx, app.runner, jj.repository, args.buck, buckArgs, args.isolationDir, args.universe, config)
+		collected, err = collectQuickSnapshot(ctx, app.runner, jj.repository, args.buck, buckArgs, args.universe, config)
 		if err != nil {
 			return err
 		}
@@ -403,7 +400,7 @@ func runSnapshotCapture(
 		}
 		cleanupContext := context.WithoutCancel(ctx)
 		logProgress(stderr, args, "snapshotting the Buck graph at %s (%s)", headCommit, strings.Join(args.universe, " "))
-		collected, err = collectQuickSnapshot(ctx, app.runner, headWorkspace.checkout, args.buck, buckArgs, args.isolationDir, args.universe, config)
+		collected, err = collectQuickSnapshot(ctx, app.runner, headWorkspace.checkout, args.buck, buckArgs, args.universe, config)
 		err = finishOneWorkspace(cleanupContext, headWorkspace, args.keepWorkspaces, err, "snapshot", stderr)
 		if err != nil {
 			return err

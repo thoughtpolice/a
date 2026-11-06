@@ -116,7 +116,10 @@ shims.filegroup(
 )
 
 # Runs the real buck2 against a synthetic project to pin the diagnostic text
-# the universe recognizers parse. Skips when buck2 is not reachable.
+# the universe recognizers parse. Skips when buck2 is not reachable. The
+# project gets a daemon of its own, which the test stops, rather than
+# shims.shared_daemon_env: the shared daemon refuses its bare .buckconfig's
+# startup config.
 shims.go_test(
     name = "integration",
     srcs = SRCS + ["integration_test.go"],

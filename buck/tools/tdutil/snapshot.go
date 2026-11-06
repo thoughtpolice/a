@@ -440,7 +440,6 @@ func collectSnapshotPairFromDocument(
 	document *snapshotDocument,
 	headWorkspace, buck string,
 	buckArgs []string,
-	isolation string,
 	patterns []string,
 	config tdutilConfig,
 ) (snapshot, snapshot, universePlan, error) {
@@ -451,7 +450,7 @@ func collectSnapshotPairFromDocument(
 	if err != nil {
 		return snapshot{}, snapshot{}, universePlan{}, err
 	}
-	headCells, err := auditCells(ctx, runner, headWorkspace, buck, buckArgs, isolation)
+	headCells, err := auditCells(ctx, runner, headWorkspace, buck, buckArgs)
 	if err != nil {
 		return snapshot{}, snapshot{}, universePlan{}, err
 	}
@@ -459,7 +458,7 @@ func collectSnapshotPairFromDocument(
 	if err != nil {
 		return snapshot{}, snapshot{}, universePlan{}, err
 	}
-	head, err := collectTargets(ctx, runner, headWorkspace, buck, buckArgs, isolation, plan.headPatterns, headCells, config)
+	head, err := collectTargets(ctx, runner, headWorkspace, buck, buckArgs, plan.headPatterns, headCells, config)
 	if err != nil {
 		return snapshot{}, snapshot{}, universePlan{}, err
 	}

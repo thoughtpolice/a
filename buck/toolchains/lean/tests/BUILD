@@ -126,12 +126,13 @@ depot.python_binary(
     main = "granular_test.py",
 )
 
-# Queries the action graph behind Granular.Abc in a Buck daemon of its own
+# Queries the action graph behind Granular.Abc through the shared Buck daemon
 # (like lsp:smoke), so it needs the checkout rather than declared inputs.
 depot.run_test(
     name = "granular",
     ci_srcs = ["buck/toolchains/lean/**"],
     dep = ":granular-test",
+    env = depot.shared_daemon_env,
 )
 
 depot.python_binary(
@@ -139,12 +140,13 @@ depot.python_binary(
     main = "build_mode_test.py",
 )
 
-# Queries how the generated C is configured in debug and release mode, in a
-# Buck daemon of its own (like :granular).
+# Queries how the generated C is configured in debug and release mode,
+# through the shared Buck daemon (like :granular).
 depot.run_test(
     name = "build-mode",
     ci_srcs = ["buck/toolchains/lean/**"],
     dep = ":build-mode-test",
+    env = depot.shared_daemon_env,
 )
 
 depot.cxx_binary(

@@ -8,15 +8,14 @@ Lake compiles a release build's C with `-O3 -DNDEBUG`. Here `-O3` comes from
 the C++ toolchain's flags in release mode, and the Lean rules add `NDEBUG`,
 which turns off `lean.h`'s assertions. The C targets of a library, a binary
 and an executable test must carry it in release mode and not in debug mode.
-The query (`buck2 cquery`, the flags as configured in each mode) runs in a
-Buck daemon of its own, which this stops at the end.
+The query (`buck2 cquery`, the flags as configured in each mode) runs in
+the shared Buck daemon that runs this test.
 """
 
 import json
 import subprocess
 import sys
 
-ISOLATION_DIR = ".lean-build-mode-tests"
 TARGETS = [
     "toolchains//lean/tests:greeting--native",
     "toolchains//lean/tests:hello",
@@ -31,7 +30,7 @@ def fail(msg: str):
 
 def flags(root: str, mode: list[str]) -> dict[str, list[str]]:
     query = subprocess.run(
-        ["buck2", "--isolation-dir", ISOLATION_DIR, "cquery", *mode, "set({})".format(" ".join(TARGETS)),
+        ["buck2", "cquery", *mode, "set({})".format(" ".join(TARGETS)),
          "--output-attribute", "compiler_flags", "--json"],
         cwd=root,
         capture_output=True,
@@ -46,11 +45,8 @@ def main():
     root = subprocess.run(
         ["buck2", "root", "--kind", "project"], capture_output=True, text=True, check=True
     ).stdout.strip()
-    try:
-        debug = flags(root, [])
-        release = flags(root, ["-m", "release"])
-    finally:
-        subprocess.run(["buck2", "--isolation-dir", ISOLATION_DIR, "kill"], cwd=root, capture_output=True)
+    debug = flags(root, [])
+    release = flags(root, ["-m", "release"])
     if len(debug) != len(TARGETS) or len(release) != len(TARGETS):
         fail("expected {} targets, got {} and {}".format(len(TARGETS), sorted(debug), sorted(release)))
     for target in sorted(debug):

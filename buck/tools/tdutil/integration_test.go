@@ -65,19 +65,18 @@ func TestRealBuck2GraphRoundTripsThroughTheCache(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	runner := osProcessRunner{}
-	const isolation = "tdutil-integration-cache"
 	t.Cleanup(func() {
 		killCtx, killCancel := context.WithTimeout(context.Background(), time.Minute)
 		defer killCancel()
 		_, _ = runner.run(killCtx, commandSpec{
 			path: buck,
-			args: []string{"--isolation-dir", isolation, "kill"},
+			args: []string{"kill"},
 			dir:  project,
 		})
 	})
 
 	universe := []string{"root//pkg:"}
-	collected, err := collectQuickSnapshot(ctx, runner, project, buck, nil, isolation, universe, defaultTdutilConfig())
+	collected, err := collectQuickSnapshot(ctx, runner, project, buck, nil, universe, defaultTdutilConfig())
 	if err != nil {
 		t.Fatal(err)
 	}

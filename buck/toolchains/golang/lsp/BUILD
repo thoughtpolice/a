@@ -67,9 +67,9 @@ shims.python_binary(
 )
 
 # Runs gopls through the launcher against tests/, the way the Helix, Claude
-# Code and OMP configurations start it (checking that they agree), with its
-# own Buck daemon (like the Lean language server's test), so it reads the
-# checkout rather than declared inputs.
+# Code and OMP configurations start it (checking that they agree), through
+# the shared Buck daemon (like the Lean language server's test), so it reads
+# the checkout rather than declared inputs.
 shims.run_test(
     name = "smoke",
     ci_srcs = [
@@ -79,6 +79,7 @@ shims.run_test(
         "buck/toolchains/golang/**",
     ],
     dep = ":smoke-test",
+    env = shims.shared_daemon_env,
 )
 
 # The launcher an editor runs as its Go language server.
