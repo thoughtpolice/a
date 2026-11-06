@@ -23,7 +23,7 @@ use reqwest::header::{
 };
 use reqwest::{Method, Response, StatusCode};
 
-use crate::body::resumable;
+use crate::body::{Source, resumable};
 use crate::error::{Error, ErrorKind, Result};
 use crate::sigv4::{
     self, Credentials, EMPTY_SHA256, STRICT_PATH_ENCODE_SET, UNSIGNED_PAYLOAD, query_string,
@@ -158,18 +158,13 @@ impl Client {
     /// from the same version. The read fails instead if the response had no
     /// ETag, the object changed, or resuming runs out of attempts.
     pub async fn get_object(&self, key: &str, options: &GetObject) -> Result<GetObjectOutput> {
-        let mut output = self.get_or_head(key, options, false).await?;
-        if let Some(e_tag) = output.info.e_tag.clone() {
-            output.body = resumable(
-                self.clone(),
-                key.to_string(),
-                e_tag,
-                output.info.version.clone(),
-                output.range.clone(),
-                output.body,
-            );
-        }
-        Ok(output)
+        let output = self.get_or_head(key, options, false).await?;
+        let source = Source::Object {
+            client: self.clone(),
+            key: key.to_string(),
+            version: output.info.version.clone(),
+        };
+        Ok(resumable(source, output))
     }
 
     /// `HeadObject`, honoring every [`GetObject`] field. The body of the

@@ -11,45 +11,82 @@ use std::ops::Range;
 use futures::StreamExt as _;
 
 use crate::client::Client;
-use crate::error::ErrorKind;
-use crate::types::{ByteRange, ByteStream, GetObject};
+use crate::error::{ErrorKind, Result};
+use crate::transport::Transport;
+use crate::types::{ByteRange, ByteStream, GetObject, GetObjectOutput};
+
+/// Where a body's object can be read again.
+pub(crate) enum Source {
+    /// A key, read with the client's credentials.
+    Object {
+        client: Client,
+        key: String,
+        version: Option<String>,
+    },
+}
+
+impl Source {
+    fn transport(&self) -> &Transport {
+        match self {
+            Self::Object { client, .. } => client.transport(),
+        }
+    }
+
+    /// The object, for logs.
+    fn describe(&self) -> String {
+        match self {
+            Self::Object { key, .. } => key.clone(),
+        }
+    }
+
+    /// The bytes in `range` of the version whose ETag is `e_tag`.
+    async fn read(&self, range: Range<u64>, e_tag: &str) -> Result<GetObjectOutput> {
+        let mut options = GetObject {
+            range: Some(ByteRange::Bounded(range)),
+            if_match: Some(e_tag.to_string()),
+            ..Default::default()
+        };
+        match self {
+            Self::Object {
+                client,
+                key,
+                version,
+            } => {
+                options.version = version.clone();
+                client.get_or_head(key, &options, false).await
+            }
+        }
+    }
+}
 
 /// What [`resumable`] needs to re-request the rest of a body.
 struct Resume {
-    client: Client,
-    key: String,
+    source: Source,
     e_tag: String,
-    version: Option<String>,
     /// The part of the requested range not yet delivered.
     remaining: Range<u64>,
     body: ByteStream,
     failures: usize,
 }
 
-/// `body`, the bytes in `range` of version `e_tag` of `key`, resumed after
-/// each failure with a request for just the bytes not yet delivered.
+/// `output`, its body resumed after each failure with a request through
+/// `source` for just the bytes not yet delivered.
 ///
 /// The continuation carries `If-Match` on the original ETag, so it comes
-/// from the same version. Consecutive failures without progress share the
-/// client's attempt budget.
-pub(crate) fn resumable(
-    client: Client,
-    key: String,
-    e_tag: String,
-    version: Option<String>,
-    range: Range<u64>,
-    body: ByteStream,
-) -> ByteStream {
+/// from the same version; a response without an ETag is left as it is.
+/// Consecutive failures without progress share the client's attempt budget.
+pub(crate) fn resumable(source: Source, mut output: GetObjectOutput) -> GetObjectOutput {
+    let Some(e_tag) = output.info.e_tag.clone() else {
+        return output;
+    };
     let state = Resume {
-        client,
-        key,
+        source,
         e_tag,
-        version,
-        remaining: range,
-        body,
+        remaining: output.range.clone(),
+        body: output.body,
         failures: 0,
     };
-    futures::stream::try_unfold(state, |mut state| async move {
+    output.body = futures::stream::try_unfold(state, |mut state| async move {
         loop {
             match state.body.next().await {
                 None => return Ok(None),
@@ -64,24 +101,18 @@ pub(crate) fn resumable(
                         return Ok(None);
                     }
                     state.failures += 1;
-                    let transport = state.client.transport();
+                    let transport = state.source.transport();
                     if state.failures >= transport.max_attempts {
                         return Err(error);
                     }
                     tracing::debug!(
-                        key = %state.key,
+                        object = %state.source.describe(),
                         %error,
                         remaining = ?state.remaining,
                         "resuming S3 response body",
                     );
                     tokio::time::sleep(transport.backoff(state.failures)).await;
-                    let options = GetObject {
-                        range: Some(ByteRange::Bounded(state.remaining.clone())),
-                        if_match: Some(state.e_tag.clone()),
-                        version: state.version.clone(),
-                        ..Default::default()
-                    };
-                    let continuation = state.client.get_or_head(&state.key, &options, false);
+                    let continuation = state.source.read(state.remaining.clone(), &state.e_tag);
                     state.body = match continuation.await {
                         Ok(output) => output.body,
                         // The object changed since the body started, so its
@@ -95,5 +126,6 @@ pub(crate) fn resumable(
             }
         }
     })
-    .boxed()
+    .boxed();
+    output
 }
