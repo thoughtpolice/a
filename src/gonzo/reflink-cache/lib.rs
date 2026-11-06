@@ -36,7 +36,9 @@
 //! so that a power loss cannot leave the name of a torn file behind. An
 //! ingest returns only once the file's name in the dirty area is durable
 //! too. Data is synced in parallel on blocking threads, and ingests that
-//! finish together share one sync of the dirty area's directory.
+//! finish together share one sync of the dirty area's directory. Should
+//! that sync fail, which names reached the disk is unknown, so every
+//! later ingest and upload fails until the cache is opened again.
 //! [`Options::durable`] turns syncing off.
 //!
 //! # Stores
@@ -52,7 +54,11 @@
 //! A cache that was not [closed](FileCache::close) is checked when it is
 //! opened again: its dirty files are hashed again, and, if it ran without
 //! durability, its clean ones too, and files that are not their blobs
-//! removed ([`FileCache::recovery`] says which).
+//! removed ([`FileCache::recovery`] says which). A user that never
+//! closes the cache and never takes files in, such as a worker's input
+//! cache, has no dirty files to check, and pays only a sync of the
+//! filesystem on opening; but a cache from before the `state` file is
+//! checked in full, once.
 //!
 //! # Layout
 //!
@@ -257,7 +263,9 @@ impl<F: Fs> FileCache<F> {
         self.inner.layout.clean(&(function, *digest))
     }
 
-    /// How the cache holds the file with `digest`, if it does.
+    /// How the cache holds the file with `digest`, if it does. A dirty
+    /// file may not be durable yet, if it is being taken in; and a clean
+    /// one not vouched for in the store last joined is plain cache.
     pub fn has(&self, function: DigestFn, digest: &Digest) -> Option<Held> {
         let state = self.inner.lock().state(&(function, *digest));
         state.map(State::held)
