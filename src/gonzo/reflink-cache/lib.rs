@@ -21,6 +21,10 @@
 //! [`FileCache::copy_to`] takes a `guard` to hold over the write for that
 //! (see `hermetic_run::writing_input`).
 //!
+//! A download's data is made durable before the download is named in the
+//! cache, so that a power loss cannot leave the name of a torn file
+//! behind; [`Options::durable`] turns that off.
+//!
 //! Every filesystem call goes through [`Fs`], which is the operating
 //! system's ([`RealFs`]) but for tests, which can use a simulated one
 //! that loses what was not made durable ([`sim::SimFs`]).
@@ -54,11 +58,17 @@ pub struct FileCache<F: Fs = RealFs> {
 pub struct Options {
     /// Most bytes of files to keep.
     pub max_bytes: u64,
+    /// Whether files are made durable before they are used: on unless a
+    /// lost file costs too little to wait for the disk.
+    pub durable: bool,
 }
 
 impl Options {
     pub fn new(max_bytes: u64) -> Self {
-        Options { max_bytes }
+        Options {
+            max_bytes,
+            durable: true,
+        }
     }
 }
 
@@ -189,7 +199,11 @@ impl<F: Fs> FileCache<F> {
             .into_iter()
             .map(|digest| (digest, inner.partial()))
             .collect();
-        if let Err(e) = source.fetch_to_files(function, downloads.clone()).await {
+        let fetched = match source.fetch_to_files(function, downloads.clone()).await {
+            Ok(()) => inner.seal(&downloads).await,
+            Err(e) => Err(e),
+        };
+        if let Err(e) = fetched {
             for (_, partial) in &downloads {
                 let _ = inner.fs.remove_file(partial);
             }
@@ -290,10 +304,31 @@ impl<F: Fs> Inner<F> {
         self.partial.join(n.to_string())
     }
 
-    /// Move a complete, checked download into place at `path`.
+    /// Make complete, checked downloads read-only, and their data
+    /// durable, in parallel. A download is named in the cache only after
+    /// this: were it named first, a power loss could keep the name but
+    /// not all of the data, and the cache would hand out a torn file.
+    async fn seal(self: &Arc<Self>, downloads: &[(Digest, PathBuf)]) -> Result<()> {
+        let sealing = downloads.iter().map(|(_, partial)| {
+            let (inner, partial) = (self.clone(), partial.clone());
+            self.fs.blocking(move || {
+                let file = inner.fs.open(&partial)?;
+                file.set_mode(0o444)?;
+                if inner.options.durable {
+                    file.sync_data()?;
+                }
+                io::Result::Ok(())
+            })
+        });
+        futures::future::try_join_all(sealing)
+            .await
+            .context("sealing downloads")?;
+        Ok(())
+    }
+
+    /// Move a sealed download into place at `path`.
     fn keep(&self, partial: &Path, path: &Path) -> Result<()> {
         create_dir_all(&self.fs, path.parent().expect("cache paths have parents"))?;
-        self.fs.open(partial)?.set_mode(0o444)?;
         // Another action may have fetched the same file meanwhile; the
         // contents are the same either way.
         self.fs
@@ -320,6 +355,10 @@ fn create_dir_all(fs: &impl Fs, path: &Path) -> io::Result<()> {
 }
 
 #[cfg(test)]
+mod test_fetch;
+#[cfg(test)]
 mod test_sim;
+#[cfg(test)]
+mod test_support;
 #[cfg(test)]
 mod tests;

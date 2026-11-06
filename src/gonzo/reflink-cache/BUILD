@@ -14,6 +14,7 @@ SRCS = glob(
 DEPS = [
     "//src/crates/reapi-cas",
     "third-party//rust:anyhow",
+    "third-party//rust:futures",
     "third-party//rust:libc",
     "third-party//rust:tokio",
 ]
