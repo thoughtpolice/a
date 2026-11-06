@@ -235,6 +235,9 @@ impl<F: Fs> Drop for Pinned<F> {
         for name in &self.names {
             index.unpin(name);
         }
+        // Pins may have held the cache over its size.
+        let evicted = index.evict(self.inner.options.max_bytes);
+        self.inner.remove(evicted);
     }
 }
 

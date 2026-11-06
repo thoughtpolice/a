@@ -204,3 +204,21 @@ fn opening_removes_partial_downloads_and_strays() {
     let partial = std::fs::read_dir(scratch.path().join("partial")).unwrap();
     assert_eq!(partial.count(), 0);
 }
+
+#[tokio::test]
+async fn dropping_pins_evicts_what_they_held_over_the_size() {
+    let blobs = Blobs::default();
+    let (a, b) = (blobs.put("aaaa"), blobs.put("bbbb"));
+    let scratch = tempfile::tempdir().unwrap();
+    // Room for one.
+    let cache = FileCache::open(scratch.path(), 4).unwrap();
+    let holding = cache.fetch(&blobs, SHA256, &[a, b]).await.unwrap();
+    assert_eq!(cache.usage().clean_bytes, 8);
+    drop(holding);
+    assert_eq!(cache.usage().clean_bytes, 4);
+    let kept = [a, b]
+        .iter()
+        .filter(|d| cache.path(SHA256, d).exists())
+        .count();
+    assert_eq!(kept, 1);
+}
