@@ -3,10 +3,12 @@
 
 //! AWS Signature Version 4 request signing.
 //!
-//! Implements header-based [SigV4] signing for S3-compatible services on top
-//! of the RustCrypto `hmac`/`sha2` stack, so no ring or aws-lc-rs enters the
-//! build graph (TLS itself comes from reqwest's native-tls backend, which the
-//! toolchain satisfies with BoringSSL).
+//! Implements [SigV4] signing for S3-compatible services on top of the
+//! RustCrypto `hmac`/`sha2` stack, so no ring or aws-lc-rs enters the build
+//! graph (TLS itself comes from reqwest's native-tls backend, which the
+//! toolchain satisfies with BoringSSL). [`sign_request_at`] signs with the
+//! `Authorization` header, and [`presign_request_at`] signs in the query
+//! string, for URLs handed to someone without credentials.
 //!
 //! The algorithm follows the canonical-request construction rules exactly:
 //! the S3 service uses the URL path verbatim (single URI encoding), while
@@ -129,8 +131,7 @@ pub fn sign_request_at(
     // hyper would fill in `host` at transmission time; insert it explicitly
     // so the signed header set matches what goes over the wire
     let host = host_header_value(request.url());
-    let host_value = HeaderValue::from_str(&host).expect("URL authority is a valid header value");
-    request.headers_mut().insert(HOST, host_value);
+    request.headers_mut().insert(HOST, host);
 
     let date_value = HeaderValue::from_str(&amz_date(date)).expect("formatted date is ASCII");
     request
@@ -167,6 +168,71 @@ pub fn sign_request_at(
     );
     let auth_value = HeaderValue::from_str(&authorization).expect("authorization header is ASCII");
     request.headers_mut().insert(AUTHORIZATION, auth_value);
+}
+
+/// Presign `request` in place: sign it with query-string authentication, so
+/// that whoever holds its URL can send it without credentials until
+/// `expires_in_secs` after `date`.
+///
+/// The signature goes in the URL's query, after `X-Amz-Algorithm`,
+/// `X-Amz-Credential`, `X-Amz-Date`, `X-Amz-Expires`, `X-Amz-SignedHeaders`
+/// and, with a session token, `X-Amz-Security-Token`. It covers `host` and
+/// every header already on the request except `authorization`,
+/// `content-length` and `user-agent`, so the holder must send exactly those
+/// headers and may add others, such as `Range`. The payload is
+/// `UNSIGNED-PAYLOAD`, since the body is not known when the URL is made.
+///
+/// S3 refuses an expiry over seven days, and a URL signed with a session
+/// token stops working when the token does.
+pub fn presign_request_at(
+    request: &mut reqwest::Request,
+    credentials: &Credentials,
+    service: &str,
+    region: &str,
+    expires_in_secs: u64,
+    date: DateTime<Utc>,
+) {
+    let scope = scope(service, region, date);
+    let mut signed = request.headers().clone();
+    signed.insert(HOST, host_header_value(request.url()));
+    let (signed_headers, canonical_headers) = canonicalize_headers(&signed);
+
+    let mut pairs: Vec<(String, String)> = request.url().query_pairs().into_owned().collect();
+    pairs.extend([
+        ("X-Amz-Algorithm".to_string(), ALGORITHM.to_string()),
+        (
+            "X-Amz-Credential".to_string(),
+            format!("{}/{scope}", credentials.access_key_id),
+        ),
+        ("X-Amz-Date".to_string(), amz_date(date)),
+        ("X-Amz-Expires".to_string(), expires_in_secs.to_string()),
+        ("X-Amz-SignedHeaders".to_string(), signed_headers.clone()),
+    ]);
+    if let Some(token) = &credentials.session_token {
+        pairs.push(("X-Amz-Security-Token".to_string(), token.clone()));
+    }
+    pairs.sort_unstable();
+    let query = query_string(&pairs);
+
+    let canonical_request = canonical_request(
+        request,
+        service,
+        &query,
+        &canonical_headers,
+        &signed_headers,
+        UNSIGNED_PAYLOAD,
+    );
+    let signature = signature(
+        credentials,
+        service,
+        region,
+        date,
+        &scope,
+        &canonical_request,
+    );
+    request
+        .url_mut()
+        .set_query(Some(&format!("{query}&X-Amz-Signature={signature}")));
 }
 
 /// The `x-amz-date` form of `date`.
@@ -229,12 +295,13 @@ fn signature(
 
 /// The `host` header value for a URL: the host, plus the port when it is not
 /// the scheme default.
-fn host_header_value(url: &reqwest::Url) -> String {
+fn host_header_value(url: &reqwest::Url) -> HeaderValue {
     let host = url.host_str().unwrap_or_default();
-    match url.port() {
+    let host = match url.port() {
         Some(port) => format!("{host}:{port}"),
         None => host.to_string(),
-    }
+    };
+    HeaderValue::from_str(&host).expect("URL authority is a valid header value")
 }
 
 /// Canonicalize headers into the `(SignedHeaders, CanonicalHeaders)` pair.
