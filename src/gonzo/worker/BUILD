@@ -6,8 +6,8 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 DEPS = [
     "//src/crates/hermetic-run:hermetic-run",
     "//src/crates/reapi-cas",
-    "//src/crates/reapi-exec",
-    "//src/crates/reflink-cache",
+    "//src/gonzo/reapi-exec",
+    "//src/gonzo/reflink-cache",
     "//src/crates/reapi-protos:protos",
     "//src/gonzo/protos:gonzo-protos",
     "third-party//rust:anyhow",

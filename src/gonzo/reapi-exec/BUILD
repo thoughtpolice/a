@@ -8,7 +8,7 @@ DEPS = [
     "//src/crates/reapi-cas",
     "//src/crates/reapi-client",
     "//src/crates/reapi-protos:protos",
-    "//src/crates/reflink-cache",
+    "//src/gonzo/reflink-cache",
     "third-party//rust:anyhow",
     "third-party//rust:bytes",
     "third-party//rust:prost",
