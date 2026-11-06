@@ -43,6 +43,8 @@ pub(crate) enum State {
     Dirty {
         /// Orders dirty files, and names the file in the dirty area.
         seq: u64,
+        /// The group commit that makes its name durable (see `commit`).
+        ticket: u64,
         /// Whether it is being moved to the clean files.
         cleaning: bool,
     },
@@ -112,9 +114,9 @@ impl Index {
         self.next_seq
     }
 
-    /// Add a dirty file numbered `seq`, which takes the place of a clean
-    /// one of the same name, keeping its pins.
-    pub(crate) fn insert_dirty(&mut self, name: Name, size: u64, seq: u64) {
+    /// Add a dirty file numbered `seq`, durable once `ticket` is, which
+    /// takes the place of a clean one of the same name, keeping its pins.
+    pub(crate) fn insert_dirty(&mut self, name: Name, size: u64, seq: u64, ticket: u64) {
         self.next_seq = self.next_seq.max(seq);
         let pins = match self.entries.remove(&name) {
             Some(Entry {
@@ -143,6 +145,7 @@ impl Index {
                 pins,
                 state: State::Dirty {
                     seq,
+                    ticket,
                     cleaning: false,
                 },
             },
@@ -158,6 +161,7 @@ impl Index {
             State::Dirty {
                 seq,
                 cleaning: cleaning @ false,
+                ..
             } => {
                 *cleaning = true;
                 Some(*seq)
@@ -170,7 +174,7 @@ impl Index {
     /// clean if it `moved`, and still dirty if not.
     pub(crate) fn end_clean(&mut self, name: &Name, moved: bool) {
         let entry = self.entries.get_mut(name).expect("files being moved stay");
-        let State::Dirty { seq, cleaning } = &mut entry.state else {
+        let State::Dirty { seq, cleaning, .. } = &mut entry.state else {
             unreachable!("{name:?} is being moved");
         };
         if !moved {

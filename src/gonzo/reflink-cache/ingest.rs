@@ -30,29 +30,34 @@ impl<F: Fs> FileCache<F> {
     ) -> io::Result<Ingested> {
         let inner = &self.inner;
         let name = (function, *digest);
-        if let Some(held) = inner.held_durably(&name).await? {
+        if let Some(failed) = inner.commits.failed() {
+            return Err(failed);
+        }
+        if let Some((held, ticket)) = inner.held(&name) {
             let _ = inner.fs.remove_file(path);
+            // It may have been taken in just now, its name not yet durable.
+            inner.wait_durable(ticket).await?;
             return Ok(Ingested::Already(held));
         }
         inner.seal_source(name, path).await?;
-        let entered = match inner.enter_dirty(name, path) {
+        let (entered, ticket) = match inner.enter_dirty(name, path) {
             Err(e) if e.raw_os_error() == Some(libc::EXDEV) => {
                 let copy = inner.copy_in(path).await?;
                 let entered = inner.enter_dirty(name, &copy);
-                if !matches!(entered, Ok(Ingested::Added)) {
+                if !matches!(entered, Ok((Ingested::Added, _))) {
                     let _ = inner.fs.remove_file(&copy);
                 }
                 entered?
             }
-            Ok(Ingested::Added) => return inner.commit().await.map(|()| Ingested::Added),
+            Ok((Ingested::Added, ticket)) => {
+                inner.wait_durable(ticket).await?;
+                return Ok(Ingested::Added);
+            }
             entered => entered?,
         };
         // The file was copied in, or the blob was taken in meanwhile.
         let _ = inner.fs.remove_file(path);
-        match entered {
-            Ingested::Added | Ingested::Already(Held::Dirty) => inner.commit().await?,
-            Ingested::Already(Held::Clean) => {}
-        }
+        inner.wait_durable(ticket).await?;
         Ok(entered)
     }
 
@@ -76,18 +81,12 @@ impl<F: Fs> FileCache<F> {
 }
 
 impl<F: Fs> Inner<F> {
-    /// How the cache holds `name`, once that is durable.
-    async fn held_durably(self: &Arc<Self>, name: &Name) -> io::Result<Option<Held>> {
-        let state = self.lock().state(name);
-        match state {
-            None => Ok(None),
-            Some(State::Clean) => Ok(Some(Held::Clean)),
-            Some(State::Dirty { .. }) => {
-                // It may have been taken in just now, its name not yet
-                // durable.
-                self.commit().await?;
-                Ok(Some(Held::Dirty))
-            }
+    /// How the cache holds `name`, and the ticket to wait for until that
+    /// is durable.
+    fn held(&self, name: &Name) -> Option<(Held, u64)> {
+        match self.lock().state(name)? {
+            State::Clean => Some((Held::Clean, 0)),
+            State::Dirty { ticket, .. } => Some((Held::Dirty, ticket)),
         }
     }
 
@@ -145,32 +144,31 @@ impl<F: Fs> Inner<F> {
     }
 
     /// Rename the sealed file at `from` into the dirty area as `name`,
-    /// unless the cache holds it already. The rename and the index's
+    /// unless the cache holds it already, returning what happened and the
+    /// ticket to wait for until it is durable. The rename and the index's
     /// record of it happen under the lock together, with nothing to wait
     /// on between, so that neither eviction nor a cancelled caller can
     /// come between them.
-    fn enter_dirty(&self, name: Name, from: &Path) -> io::Result<Ingested> {
+    fn enter_dirty(&self, name: Name, from: &Path) -> io::Result<(Ingested, u64)> {
         let mut index = self.lock();
         if let Some(state) = index.state(&name) {
-            return Ok(Ingested::Already(state.held()));
+            let ticket = match state {
+                State::Dirty { ticket, .. } => ticket,
+                State::Clean => 0,
+            };
+            return Ok((Ingested::Already(state.held()), ticket));
         }
         let seq = index.next_seq();
         self.fs.rename(from, &self.layout.dirty(&name, seq))?;
-        index.insert_dirty(name, name.1.size, seq);
+        let ticket = if self.options.durable {
+            self.commits.issue()
+        } else {
+            0
+        };
+        index.insert_dirty(name, name.1.size, seq, ticket);
         let evicted = index.evict(self.options.max_bytes);
         self.remove(evicted);
-        Ok(Ingested::Added)
-    }
-
-    /// Make the names in the dirty area durable.
-    async fn commit(self: &Arc<Self>) -> io::Result<()> {
-        if !self.options.durable {
-            return Ok(());
-        }
-        let inner = self.clone();
-        self.fs
-            .blocking(move || inner.fs.sync_dir(&inner.layout.dirty))
-            .await
+        Ok((Ingested::Added, ticket))
     }
 
     fn mark_clean(&self, names: &[Name]) -> io::Result<()> {

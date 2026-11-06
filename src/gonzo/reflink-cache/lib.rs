@@ -30,7 +30,9 @@
 //! A file's data is made durable before the file is named in the cache,
 //! so that a power loss cannot leave the name of a torn file behind. An
 //! ingest returns only once the file's name in the dirty area is durable
-//! too. [`Options::durable`] turns both off.
+//! too. Data is synced in parallel on blocking threads, and ingests that
+//! finish together share one sync of the dirty area's directory.
+//! [`Options::durable`] turns syncing off.
 //!
 //! # Layout
 //!
@@ -54,6 +56,7 @@
 //! system's ([`RealFs`]) but for tests, which can use a simulated one
 //! that loses what was not made durable ([`sim::SimFs`]).
 
+mod commit;
 pub mod fs;
 mod index;
 mod ingest;
@@ -70,6 +73,7 @@ use anyhow::{Context as _, Result};
 
 use reapi_cas::{Digest, DigestFn};
 
+use commit::Commits;
 use fs::File as _;
 pub use fs::{Fs, RealFs};
 use index::{Index, Name, State};
@@ -134,6 +138,7 @@ struct Inner<F> {
     next_partial: AtomicU64,
     options: Options,
     index: Mutex<Index>,
+    commits: Commits,
     /// Directories whose own names are durable, so names made in them
     /// can be: those made or found by this run.
     dirs: Mutex<HashSet<PathBuf>>,
@@ -215,6 +220,7 @@ impl<F: Fs> FileCache<F> {
             next_partial: AtomicU64::new(0),
             options,
             index: Mutex::default(),
+            commits: Commits::new(),
         };
         found.dirty.sort_by_key(|found| found.seq);
         found.clean.sort_by_key(|found| found.modified);
@@ -226,7 +232,7 @@ impl<F: Fs> FileCache<F> {
                 if index.state(&dirty.name).is_some() {
                     extra.push(inner.layout.dirty(&dirty.name, dirty.seq));
                 } else {
-                    index.insert_dirty(dirty.name, dirty.name.1.size, dirty.seq);
+                    index.insert_dirty(dirty.name, dirty.name.1.size, dirty.seq, 0);
                 }
             }
             for clean in found.clean {
@@ -245,6 +251,11 @@ impl<F: Fs> FileCache<F> {
             index.evict(inner.options.max_bytes)
         };
         inner.remove(evicted);
+        // What an earlier run left may not be durable, if it was killed:
+        // make it so, so that what was found counts as durable.
+        if inner.options.durable {
+            inner.fs.sync_fs(&inner.layout.root)?;
+        }
         Ok(FileCache {
             inner: Arc::new(inner),
         })
@@ -486,6 +497,8 @@ fn create_dir_all(fs: &impl Fs, path: &Path) -> io::Result<()> {
     }
 }
 
+#[cfg(test)]
+mod test_commit;
 #[cfg(test)]
 mod test_dirty;
 #[cfg(test)]
