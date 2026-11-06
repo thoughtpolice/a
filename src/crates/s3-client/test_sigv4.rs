@@ -15,7 +15,7 @@ use reqwest::header::AUTHORIZATION;
 
 use crate::sigv4::{Credentials, EMPTY_SHA256, UNSIGNED_PAYLOAD, sha256_hex, sign_request_at};
 
-fn test_credentials() -> Credentials {
+pub(crate) fn test_credentials() -> Credentials {
     // well-known example credentials from the AWS documentation
     Credentials {
         access_key_id: "AKIAIOSFODNN7EXAMPLE".to_string(),
@@ -24,7 +24,7 @@ fn test_credentials() -> Credentials {
     }
 }
 
-fn date(rfc3339: &str) -> DateTime<Utc> {
+pub(crate) fn date(rfc3339: &str) -> DateTime<Utc> {
     DateTime::parse_from_rfc3339(rfc3339)
         .expect("valid test date")
         .with_timezone(&Utc)

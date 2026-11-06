@@ -45,6 +45,7 @@ mod body;
 mod builder;
 mod client;
 mod error;
+mod presign;
 pub mod sigv4;
 mod transport;
 mod types;
@@ -53,11 +54,15 @@ mod xml;
 pub use crate::builder::ClientBuilder;
 pub use crate::client::Client;
 pub use crate::error::{Error, ErrorKind, Result};
+pub use crate::presign::{MAX_PRESIGNED_EXPIRY, PresignedRequest};
 pub use crate::sigv4::Credentials;
 pub use crate::types::{
     ByteRange, ByteStream, GetObject, GetObjectOutput, ListObjects, ListPage, ObjectAttributes,
     ObjectInfo, PutObject, PutObjectOutput, WriteCondition,
 };
+
+#[cfg(test)]
+mod test_presign;
 
 #[cfg(test)]
 mod test_sigv4;

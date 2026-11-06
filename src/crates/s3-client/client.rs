@@ -104,7 +104,7 @@ impl Client {
     }
 
     /// The URL of `key`, with `query` encoded the way SigV4 signs it.
-    fn object_url(&self, key: &str, query: &[(&str, &str)]) -> Result<reqwest::Url> {
+    pub(crate) fn object_url(&self, key: &str, query: &[(&str, &str)]) -> Result<reqwest::Url> {
         let url = format!("{}/{}", self.config().bucket_endpoint, encode_key(key));
         let mut url = parse_url(&url)?;
         if !query.is_empty() {
@@ -678,7 +678,7 @@ fn standard_headers(attributes: &ObjectAttributes) -> [(HeaderName, Option<&Stri
 
 /// Map attributes and tags onto their standard HTTP and `x-amz-` request
 /// headers.
-fn apply_attributes(
+pub(crate) fn apply_attributes(
     headers: &mut HeaderMap,
     attributes: &ObjectAttributes,
     tagging: Option<&str>,

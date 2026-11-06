@@ -162,7 +162,7 @@ impl Transport {
 }
 
 /// `url` without its query, which a presigned URL's signature is in.
-fn redact_query(url: &str) -> String {
+pub(crate) fn redact_query(url: &str) -> String {
     match url.split_once('?') {
         Some((base, _)) => format!("{base}?<redacted>"),
         None => url.to_string(),
