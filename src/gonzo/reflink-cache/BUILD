@@ -3,15 +3,24 @@
 
 load("@root//buck/shims:shims.bzl", depot = "shims")
 
+SRCS = glob(
+    ["*.rs"],
+    exclude = [
+        "test_*.rs",
+        "tests.rs",
+    ],
+)
+
 DEPS = [
     "//src/crates/reapi-cas",
     "third-party//rust:anyhow",
     "third-party//rust:libc",
+    "third-party//rust:tokio",
 ]
 
 depot.rust_library(
     name = "reflink-cache",
-    srcs = glob(["*.rs"]),
+    srcs = SRCS,
     crate_root = "lib.rs",
     tests = [":tests"],
     visibility = ["PUBLIC"],
@@ -25,6 +34,5 @@ depot.rust_test(
     deps = DEPS + [
         "third-party//rust:tempfile",
         "third-party//rust:thiserror",
-        "third-party//rust:tokio",
     ],
 )

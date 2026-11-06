@@ -184,3 +184,23 @@ fn files_are_laid_out_by_function_and_digest() {
             .join(format!("{hex}-1"))
     );
 }
+
+#[test]
+fn opening_removes_partial_downloads_and_strays() {
+    let scratch = tempfile::tempdir().unwrap();
+    let digest = SHA256.digest(b"kept");
+    {
+        let cache = FileCache::open(scratch.path(), 100).unwrap();
+        let path = cache.path(SHA256, &digest);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, b"kept").unwrap();
+        std::fs::write(path.with_file_name("not-a-digest"), b"x").unwrap();
+        std::fs::write(scratch.path().join("partial").join("7"), b"half").unwrap();
+    }
+    let cache = FileCache::open(scratch.path(), 100).unwrap();
+    let path = cache.path(SHA256, &digest);
+    assert_eq!(std::fs::read(&path).unwrap(), b"kept");
+    assert!(!path.with_file_name("not-a-digest").exists());
+    let partial = std::fs::read_dir(scratch.path().join("partial")).unwrap();
+    assert_eq!(partial.count(), 0);
+}

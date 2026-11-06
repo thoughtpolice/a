@@ -20,114 +20,62 @@
 //! executing the copy then fails with `ETXTBSY` until the command execs.
 //! [`FileCache::copy_to`] takes a `guard` to hold over the write for that
 //! (see `hermetic_run::writing_input`).
+//!
+//! Every filesystem call goes through [`Fs`], which is the operating
+//! system's ([`RealFs`]) but for tests.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+pub mod fs;
+mod index;
+
+use std::collections::HashSet;
 use std::io;
-use std::os::fd::AsRawFd as _;
-use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 
 use anyhow::{Context as _, Result};
 
 use reapi_cas::{Digest, DigestFn};
 
-/// A cached file, as the index knows it.
-type Name = (DigestFn, Digest);
+use fs::File as _;
+pub use fs::{Fs, RealFs};
+use index::{Index, Name};
 
 /// See the module documentation.
-#[derive(Debug)]
-pub struct FileCache {
+pub struct FileCache<F: Fs = RealFs> {
+    inner: Arc<Inner<F>>,
+}
+
+/// How to open a [`FileCache`].
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct Options {
+    /// Most bytes of files to keep.
+    pub max_bytes: u64,
+}
+
+impl Options {
+    pub fn new(max_bytes: u64) -> Self {
+        Options { max_bytes }
+    }
+}
+
+struct Inner<F> {
+    fs: F,
     dir: PathBuf,
     /// Where downloads land before they are complete and checked.
     partial: PathBuf,
     next_partial: AtomicU64,
-    /// Most bytes of files to keep.
-    max_bytes: u64,
+    options: Options,
     index: Mutex<Index>,
 }
 
-/// Every cached file, in order of use.
-#[derive(Debug, Default)]
-struct Index {
-    entries: HashMap<Name, Entry>,
-    /// Names by when they were last used, oldest first.
-    by_use: BTreeMap<u64, Name>,
-    bytes: u64,
-    clock: u64,
-}
-
-#[derive(Debug)]
-struct Entry {
-    size: u64,
-    used: u64,
-    /// Actions being given the file, which keep it from eviction.
-    pins: usize,
-}
-
-impl Index {
-    /// Record a use of `name`, pinning it, if the cache has it.
-    fn pin(&mut self, name: &Name) -> bool {
-        let Some(entry) = self.entries.get_mut(name) else {
-            return false;
-        };
-        self.by_use.remove(&entry.used);
-        self.clock += 1;
-        entry.used = self.clock;
-        entry.pins += 1;
-        self.by_use.insert(self.clock, *name);
-        true
-    }
-
-    fn unpin(&mut self, name: &Name) {
-        if let Some(entry) = self.entries.get_mut(name) {
-            entry.pins -= 1;
-        }
-    }
-
-    /// Add a file the cache now holds, unless it already had it, and pin it
-    /// if `pinned`.
-    fn insert(&mut self, name: Name, size: u64, pinned: bool) {
-        if pinned && self.pin(&name) {
-            return;
-        }
-        if self.entries.contains_key(&name) {
-            return;
-        }
-        self.clock += 1;
-        self.by_use.insert(self.clock, name);
-        self.entries.insert(
-            name,
-            Entry {
-                size,
-                used: self.clock,
-                pins: usize::from(pinned),
-            },
-        );
-        self.bytes += size;
-    }
-
-    /// Forget the files used longest ago, and unpinned, until no more than
-    /// `max_bytes` are left, and return them for removal.
-    fn evict(&mut self, max_bytes: u64) -> Vec<Name> {
-        let mut evicted = Vec::new();
-        let mut skipped = Vec::new();
-        while self.bytes > max_bytes {
-            let Some((used, name)) = self.by_use.pop_first() else {
-                break;
-            };
-            let entry = &self.entries[&name];
-            if entry.pins > 0 {
-                skipped.push((used, name));
-                continue;
-            }
-            self.bytes -= entry.size;
-            self.entries.remove(&name);
-            evicted.push(name);
-        }
-        self.by_use.extend(skipped);
-        evicted
+impl<F: Fs> std::fmt::Debug for FileCache<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FileCache")
+            .field("dir", &self.inner.dir)
+            .field("options", &self.inner.options)
+            .finish_non_exhaustive()
     }
 }
 
@@ -146,14 +94,14 @@ pub trait Fetch: Sync {
 
 /// Files being handed out, kept from eviction until this is dropped.
 #[must_use]
-pub struct Pinned<'a> {
-    cache: &'a FileCache,
+pub struct Pinned<F: Fs = RealFs> {
+    inner: Arc<Inner<F>>,
     names: Vec<Name>,
 }
 
-impl Drop for Pinned<'_> {
+impl<F: Fs> Drop for Pinned<F> {
     fn drop(&mut self) {
-        let mut index = self.cache.lock();
+        let mut index = self.inner.lock();
         for name in &self.names {
             index.unpin(name);
         }
@@ -165,54 +113,149 @@ impl FileCache {
     /// `max_bytes`. Partial downloads left by an earlier run are removed,
     /// and what it left complete is kept.
     pub fn open(dir: &Path, max_bytes: u64) -> io::Result<Self> {
+        Self::open_with(RealFs, dir, Options::new(max_bytes))
+    }
+}
+
+impl<F: Fs> FileCache<F> {
+    /// The cache in `dir` on `fs`, as [`open`](FileCache::open) but with
+    /// all of the [`Options`].
+    pub fn open_with(fs: F, dir: &Path, options: Options) -> io::Result<Self> {
         let partial = dir.join("partial");
-        match std::fs::remove_dir_all(&partial) {
-            Ok(()) => {}
-            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
-            Err(e) => return Err(e),
+        create_dir_all(&fs, &partial)?;
+        for entry in fs.read_dir(&partial)? {
+            fs.remove_file(&partial.join(entry.name))?;
         }
-        std::fs::create_dir_all(&partial)?;
-        let cache = Self {
+        let inner = Inner {
+            fs,
             dir: dir.to_path_buf(),
             partial,
             next_partial: AtomicU64::new(0),
-            max_bytes,
+            options,
             index: Mutex::default(),
         };
-        let mut found = cache.scan()?;
+        let mut found = inner.scan()?;
         found.sort_by_key(|(_, _, modified)| *modified);
         let evicted = {
-            let mut index = cache.lock();
+            let mut index = inner.lock();
             for (name, size, _) in found {
                 index.insert(name, size, false);
             }
-            index.evict(max_bytes)
+            index.evict(inner.options.max_bytes)
         };
-        cache.remove(evicted);
-        Ok(cache)
+        inner.remove(evicted);
+        Ok(FileCache {
+            inner: Arc::new(inner),
+        })
     }
 
+    /// Where the file with `digest` is kept.
+    pub fn path(&self, function: DigestFn, digest: &Digest) -> PathBuf {
+        self.inner.path(function, digest)
+    }
+
+    /// Fetch whichever of `digests` the cache does not have yet from
+    /// `source`, and keep all of them until the result is dropped.
+    pub async fn fetch(
+        &self,
+        source: &impl Fetch,
+        function: DigestFn,
+        digests: &[Digest],
+    ) -> Result<Pinned<F>> {
+        let inner = &self.inner;
+        let mut pinned = Pinned {
+            inner: inner.clone(),
+            names: Vec::new(),
+        };
+        let mut seen = HashSet::new();
+        let mut absent = Vec::new();
+        {
+            let mut index = inner.lock();
+            for digest in digests {
+                let name = (function, *digest);
+                if !seen.insert(name) {
+                    continue;
+                }
+                if index.pin(&name) {
+                    pinned.names.push(name);
+                } else {
+                    absent.push(*digest);
+                }
+            }
+        }
+        let downloads: Vec<(Digest, PathBuf)> = absent
+            .into_iter()
+            .map(|digest| (digest, inner.partial()))
+            .collect();
+        if let Err(e) = source.fetch_to_files(function, downloads.clone()).await {
+            for (_, partial) in &downloads {
+                let _ = inner.fs.remove_file(partial);
+            }
+            return Err(e);
+        }
+
+        // Moving downloads into place and evicting happen under the lock
+        // together, so that an eviction never removes a file just fetched
+        // again.
+        let mut index = inner.lock();
+        for (digest, partial) in downloads {
+            inner.keep(&partial, &inner.path(function, &digest))?;
+            let name = (function, digest);
+            index.insert(name, digest.size, true);
+            pinned.names.push(name);
+        }
+        let evicted = index.evict(inner.options.max_bytes);
+        inner.remove(evicted);
+        drop(index);
+        Ok(pinned)
+    }
+
+    /// Make a read-only copy of the file with `digest` at `dest`, which must
+    /// not exist, holding what `guard` returns until the copy is closed.
+    pub fn copy_to<G>(
+        &self,
+        function: DigestFn,
+        digest: &Digest,
+        executable: bool,
+        dest: &Path,
+        guard: impl FnOnce() -> G,
+    ) -> io::Result<()> {
+        let fs = &self.inner.fs;
+        let mut from = fs.open(&self.path(function, digest))?;
+        let _writing = guard();
+        let mut to = fs.create_new(dest)?;
+        if !fs.reflink(&from, &to) {
+            io::copy(&mut from, &mut to)?;
+        }
+        to.set_mode(if executable { 0o555 } else { 0o444 })
+    }
+}
+
+impl<F: Fs> Inner<F> {
     /// The files an earlier run left, with their sizes and when they were
     /// written.
     fn scan(&self) -> io::Result<Vec<(Name, u64, std::time::SystemTime)>> {
+        let fs = &self.fs;
         let mut found = Vec::new();
         for function in [DigestFn::Sha256, DigestFn::Blake3, DigestFn::Sha256Tree] {
-            let Ok(fans) = std::fs::read_dir(self.dir.join(function.to_string())) else {
+            let functions = self.dir.join(function.to_string());
+            let Ok(fans) = fs.read_dir(&functions) else {
                 continue;
             };
             for fan in fans {
-                for file in std::fs::read_dir(fan?.path())? {
-                    let file = file?;
-                    let metadata = file.metadata()?;
-                    let parsed = file.file_name().to_str().and_then(|name| {
+                let fan = functions.join(fan.name);
+                for file in fs.read_dir(&fan)? {
+                    let path = fan.join(&file.name);
+                    let metadata = fs.metadata(&path)?;
+                    let parsed = file.name.to_str().and_then(|name| {
                         let (hash, size) = name.rsplit_once('-')?;
                         Digest::parse(hash, size.parse().ok()?).ok()
                     });
                     match parsed {
                         Some(digest) => {
-                            found.push(((function, digest), metadata.len(), metadata.modified()?))
+                            found.push(((function, digest), metadata.len, metadata.modified))
                         }
-                        None => std::fs::remove_file(file.path())?,
+                        None => fs.remove_file(&path)?,
                     }
                 }
             }
@@ -228,12 +271,11 @@ impl FileCache {
     /// caller holds the index's lock, or nothing else can use the cache.
     fn remove(&self, names: Vec<Name>) {
         for (function, digest) in names {
-            let _ = std::fs::remove_file(self.path(function, &digest));
+            let _ = self.fs.remove_file(&self.path(function, &digest));
         }
     }
 
-    /// Where the file with `digest` is kept.
-    pub fn path(&self, function: DigestFn, digest: &Digest) -> PathBuf {
+    fn path(&self, function: DigestFn, digest: &Digest) -> PathBuf {
         let hash = digest.hex();
         self.dir
             .join(function.to_string())
@@ -241,107 +283,38 @@ impl FileCache {
             .join(format!("{hash}-{}", digest.size))
     }
 
-    /// Fetch whichever of `digests` the cache does not have yet from
-    /// `source`, and keep all of them until the result is dropped.
-    pub async fn fetch(
-        &self,
-        source: &impl Fetch,
-        function: DigestFn,
-        digests: &[Digest],
-    ) -> Result<Pinned<'_>> {
-        let mut pinned = Pinned {
-            cache: self,
-            names: Vec::new(),
-        };
-        let mut seen = HashSet::new();
-        let mut absent = Vec::new();
-        {
-            let mut index = self.lock();
-            for digest in digests {
-                let name = (function, *digest);
-                if !seen.insert(name) {
-                    continue;
-                }
-                if index.pin(&name) {
-                    pinned.names.push(name);
-                } else {
-                    absent.push(*digest);
-                }
-            }
-        }
-        let downloads: Vec<(Digest, PathBuf)> = absent
-            .into_iter()
-            .map(|digest| (digest, self.partial()))
-            .collect();
-        if let Err(e) = source.fetch_to_files(function, downloads.clone()).await {
-            for (_, partial) in &downloads {
-                let _ = std::fs::remove_file(partial);
-            }
-            return Err(e);
-        }
-
-        // Moving downloads into place and evicting happen under the lock
-        // together, so that an eviction never removes a file just fetched
-        // again.
-        let mut index = self.lock();
-        for (digest, partial) in downloads {
-            keep(&partial, &self.path(function, &digest))?;
-            let name = (function, digest);
-            index.insert(name, digest.size, true);
-            pinned.names.push(name);
-        }
-        let evicted = index.evict(self.max_bytes);
-        self.remove(evicted);
-        drop(index);
-        Ok(pinned)
-    }
-
-    /// Make a read-only copy of the file with `digest` at `dest`, which must
-    /// not exist, holding what `guard` returns until the copy is closed.
-    pub fn copy_to<G>(
-        &self,
-        function: DigestFn,
-        digest: &Digest,
-        executable: bool,
-        dest: &Path,
-        guard: impl FnOnce() -> G,
-    ) -> io::Result<()> {
-        let source = self.path(function, digest);
-        let from = std::fs::File::open(&source)?;
-        let _writing = guard();
-        let to = std::fs::File::create_new(dest)?;
-        if !reflink(&from, &to) {
-            let mut from = from;
-            io::copy(&mut from, &mut &to)?;
-        }
-        to.set_permissions(std::fs::Permissions::from_mode(if executable {
-            0o555
-        } else {
-            0o444
-        }))
-    }
-
     fn partial(&self) -> PathBuf {
         let n = self.next_partial.fetch_add(1, Ordering::Relaxed);
         self.partial.join(n.to_string())
     }
+
+    /// Move a complete, checked download into place at `path`.
+    fn keep(&self, partial: &Path, path: &Path) -> Result<()> {
+        create_dir_all(&self.fs, path.parent().expect("cache paths have parents"))?;
+        self.fs.open(partial)?.set_mode(0o444)?;
+        // Another action may have fetched the same file meanwhile; the
+        // contents are the same either way.
+        self.fs
+            .rename(partial, path)
+            .with_context(|| format!("moving a download to {}", path.display()))
+    }
 }
 
-/// Move a complete, checked download into place at `path`.
-fn keep(partial: &Path, path: &Path) -> Result<()> {
-    std::fs::create_dir_all(path.parent().expect("cache paths have parents"))?;
-    std::fs::set_permissions(partial, std::fs::Permissions::from_mode(0o444))?;
-    // Another action may have fetched the same file meanwhile; the contents
-    // are the same either way.
-    std::fs::rename(partial, path)
-        .with_context(|| format!("moving a download to {}", path.display()))
-}
-
-/// Make `to` share `from`'s blocks, if the filesystem can.
-fn reflink(from: &std::fs::File, to: &std::fs::File) -> bool {
-    // SAFETY: FICLONE takes the source descriptor as its argument; both
-    // descriptors stay open for the call.
-    unsafe { libc::ioctl(to.as_raw_fd(), libc::FICLONE, from.as_raw_fd()) == 0 }
+/// Create the directory `path` and any missing parents.
+fn create_dir_all(fs: &impl Fs, path: &Path) -> io::Result<()> {
+    match fs.create_dir(path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == io::ErrorKind::AlreadyExists && fs.metadata(path)?.is_dir => Ok(()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {
+            let parent = path
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+                .ok_or(e)?;
+            create_dir_all(fs, parent)?;
+            create_dir_all(fs, path)
+        }
+        Err(e) => Err(e),
+    }
 }
 
 #[cfg(test)]
