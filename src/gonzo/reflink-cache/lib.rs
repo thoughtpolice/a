@@ -37,6 +37,11 @@
 //! finish together share one sync of the dirty area's directory.
 //! [`Options::durable`] turns syncing off.
 //!
+//! A cache that was not [closed](FileCache::close) is checked when it is
+//! opened again: its dirty files are hashed again, and, if it ran without
+//! durability, its clean ones too, and files that are not their blobs
+//! removed ([`FileCache::recovery`] says which).
+//!
 //! # Layout
 //!
 //! In the cache's directory:
@@ -46,7 +51,9 @@
 //! - `dirty/<seq>-<function>-<hash>-<size>`: dirty files, numbered in the
 //!   order they were taken in;
 //! - `partial/`: downloads, uploads and copies being written, removed on
-//!   opening.
+//!   opening;
+//! - `state`: how the last run stopped, or is running, which says what
+//!   opening must check (see [`Recovery`]).
 //!
 //! # Commands
 //!
@@ -65,6 +72,7 @@ pub mod fs;
 mod index;
 mod ingest;
 mod layout;
+mod recover;
 pub mod sim;
 mod upload;
 
@@ -83,6 +91,7 @@ use fs::File as _;
 pub use fs::{Fs, RealFs};
 use index::{Index, Name, State};
 use layout::Layout;
+pub use recover::Recovery;
 pub use upload::Upload;
 
 /// See the module documentation.
@@ -164,6 +173,10 @@ struct Inner<F> {
     options: Options,
     index: Mutex<Index>,
     commits: Commits,
+    /// Whether the cache is open for writing, and held by those writing
+    /// to it, so that closing it waits for them.
+    writes: Arc<tokio::sync::RwLock<bool>>,
+    recovery: Recovery,
     /// Directories whose own names are durable, so names made in them
     /// can be: those made or found by this run.
     dirs: Mutex<HashSet<PathBuf>>,
@@ -210,82 +223,14 @@ impl<F: Fs> Drop for Pinned<F> {
 impl FileCache {
     /// The cache in `dir`, created if need be, holding no more than
     /// `max_bytes`. Partial downloads left by an earlier run are removed,
-    /// and what it left complete is kept.
+    /// and what it left complete is kept, checked first if it did not
+    /// close the cache.
     pub fn open(dir: &Path, max_bytes: u64) -> io::Result<Self> {
         Self::open_with(RealFs, dir, Options::new(max_bytes))
     }
 }
 
 impl<F: Fs> FileCache<F> {
-    /// The cache in `dir` on `fs`, as [`open`](FileCache::open) but with
-    /// all of the [`Options`].
-    pub fn open_with(fs: F, dir: &Path, options: Options) -> io::Result<Self> {
-        let layout = Layout::new(dir);
-        create_dir_all(&fs, &layout.root)?;
-        for sub in [&layout.partial, &layout.dirty] {
-            match fs.create_dir(sub) {
-                Err(e) if e.kind() != io::ErrorKind::AlreadyExists => return Err(e),
-                _ => {}
-            }
-        }
-        if options.durable {
-            if let Some(parent) = dir.parent().filter(|p| !p.as_os_str().is_empty()) {
-                fs.sync_dir(parent)?;
-            }
-            fs.sync_dir(&layout.root)?;
-        }
-        for entry in fs.read_dir(&layout.partial)? {
-            fs.remove_file(&layout.partial.join(entry.name))?;
-        }
-        let mut found = layout.scan(&fs)?;
-        let inner = Inner {
-            dirs: Mutex::new(HashSet::from([layout.root.clone(), layout.dirty.clone()])),
-            fs,
-            layout,
-            next_partial: AtomicU64::new(0),
-            options,
-            index: Mutex::new(Index::new()),
-            commits: Commits::new(),
-        };
-        found.dirty.sort_by_key(|found| found.seq);
-        found.clean.sort_by_key(|found| found.modified);
-        let evicted = {
-            let mut index = inner.lock();
-            let mut extra = Vec::new();
-            for dirty in found.dirty {
-                // A blob is dirty once; were it twice, the oldest is kept.
-                if index.state(&dirty.name).is_some() {
-                    extra.push(inner.layout.dirty(&dirty.name, dirty.seq));
-                } else {
-                    index.insert_dirty(dirty.name, dirty.name.1.size, dirty.seq, 0);
-                }
-            }
-            for clean in found.clean {
-                // A blob both dirty and clean was being marked clean, or
-                // was taken in again as dirty: keeping it dirty is safe
-                // either way.
-                if index.state(&clean.name).is_some() {
-                    extra.push(inner.layout.clean(&clean.name));
-                } else {
-                    index.insert_clean(clean.name, clean.name.1.size, false);
-                }
-            }
-            for path in extra {
-                inner.fs.remove_file(&path)?;
-            }
-            index.evict(inner.options.max_bytes)
-        };
-        inner.remove(evicted);
-        // What an earlier run left may not be durable, if it was killed:
-        // make it so, so that what was found counts as durable.
-        if inner.options.durable {
-            inner.fs.sync_fs(&inner.layout.root)?;
-        }
-        Ok(FileCache {
-            inner: Arc::new(inner),
-        })
-    }
-
     /// Where the clean file with `digest` is kept.
     pub fn path(&self, function: DigestFn, digest: &Digest) -> PathBuf {
         self.inner.layout.clean(&(function, *digest))
@@ -339,6 +284,7 @@ impl<F: Fs> FileCache<F> {
         digests: &[Digest],
     ) -> Result<Pinned<F>> {
         let inner = &self.inner;
+        let _writing = inner.writing().await?;
         let mut pinned = Pinned {
             inner: inner.clone(),
             names: Vec::new(),
@@ -540,6 +486,8 @@ mod test_commit;
 mod test_dirty;
 #[cfg(test)]
 mod test_fetch;
+#[cfg(test)]
+mod test_recovery;
 #[cfg(test)]
 mod test_sim;
 #[cfg(test)]

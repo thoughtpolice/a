@@ -29,6 +29,7 @@ impl<F: Fs> FileCache<F> {
         path: &Path,
     ) -> io::Result<Ingested> {
         let inner = &self.inner;
+        let _writing = inner.writing().await?;
         let name = (function, *digest);
         if let Some(failed) = inner.commits.failed() {
             return Err(failed);
@@ -70,12 +71,16 @@ impl<F: Fs> FileCache<F> {
     /// since a rename is atomic.
     pub async fn mark_clean(&self, function: DigestFn, digests: &[Digest]) -> io::Result<()> {
         let inner = self.inner.clone();
+        let writing = inner.writing().await?;
         let names: Vec<Name> = digests.iter().map(|digest| (function, *digest)).collect();
         // All in one piece of blocking work, so that the moves the index
         // records as begun are always ended, even if this is cancelled.
         self.inner
             .fs
-            .blocking(move || inner.mark_clean(&names))
+            .blocking(move || {
+                let _writing = writing;
+                inner.mark_clean(&names)
+            })
             .await
     }
 }

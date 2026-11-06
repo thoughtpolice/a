@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use reapi_cas::{Digest, DigestFn, Hasher};
+use tokio::sync::OwnedRwLockReadGuard;
 
 use crate::fs::{File as _, Fs};
 use crate::index::Name;
@@ -29,6 +30,7 @@ pub struct Upload<F: Fs = RealFs> {
     file: Option<F::File>,
     hasher: Option<Hasher>,
     written: u64,
+    _writing: OwnedRwLockReadGuard<bool>,
 }
 
 impl<F: Fs> FileCache<F> {
@@ -40,6 +42,7 @@ impl<F: Fs> FileCache<F> {
         digest: &Digest,
     ) -> io::Result<Option<Upload<F>>> {
         let inner = &self.inner;
+        let writing = inner.writing().await?;
         if let Some(failed) = inner.commits.failed() {
             return Err(failed);
         }
@@ -57,6 +60,7 @@ impl<F: Fs> FileCache<F> {
             file: Some(file),
             hasher: Some(function.hasher()),
             written: 0,
+            _writing: writing,
         }))
     }
 }

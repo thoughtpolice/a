@@ -9,6 +9,7 @@ use std::time::SystemTime;
 
 use reapi_cas::{Digest, DigestFn};
 
+use crate::Held;
 use crate::fs::Fs;
 use crate::index::Name;
 
@@ -39,8 +40,8 @@ pub(crate) struct FoundDirty {
 pub(crate) struct Found {
     pub clean: Vec<FoundClean>,
     pub dirty: Vec<FoundDirty>,
-    /// Dirty files whose size is not their digest's, which were removed.
-    pub torn: Vec<Name>,
+    /// Files whose size is not their digest's, which were removed.
+    pub torn: Vec<(Name, Held)>,
 }
 
 impl Layout {
@@ -87,7 +88,11 @@ impl Layout {
                                 modified: metadata.modified,
                             })
                         }
-                        _ => fs.remove_file(&path)?,
+                        Some(digest) => {
+                            found.torn.push(((function, digest), Held::Clean));
+                            fs.remove_file(&path)?;
+                        }
+                        None => fs.remove_file(&path)?,
                     }
                 }
             }
@@ -100,7 +105,7 @@ impl Layout {
                     found.dirty.push(FoundDirty { seq, name })
                 }
                 Some((_, name)) => {
-                    found.torn.push(name);
+                    found.torn.push((name, Held::Dirty));
                     fs.remove_file(&path)?;
                 }
                 None => fs.remove_file(&path)?,

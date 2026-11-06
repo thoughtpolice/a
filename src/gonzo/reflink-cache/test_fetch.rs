@@ -4,12 +4,13 @@
 //! Fetched files are made durable before they are named in the cache, so
 //! a power loss never leaves a torn file that `copy_to` would hand out.
 
-use crate::Options;
 use crate::test_support::*;
+use crate::{Options, Recovery};
 
-/// Fetch a blob, lose power keeping every name but zeroing unsynced data,
-/// and return what the reopened cache hands out for it, if it has it.
-fn fetched_then_crashed(durable: bool) -> Option<Vec<u8>> {
+/// Fetch a blob and lose power, keeping every name but zeroing unsynced
+/// data. Returns what was on disk then, what the reopened cache hands out
+/// for it, if anything, and what reopening found.
+fn fetched_then_crashed(durable: bool) -> (Vec<u8>, Option<Vec<u8>>, Recovery) {
     let fs = sim();
     let blobs = SimBlobs::new(&fs);
     let digest = blobs.put(b"a fetched file");
@@ -20,26 +21,32 @@ fn fetched_then_crashed(durable: bool) -> Option<Vec<u8>> {
     let cache = open(&fs, options.clone()).unwrap();
     let pinned = runtime().block_on(cache.fetch(&blobs, SHA256, &[digest]));
     drop(pinned.unwrap());
+    let path = cache.path(SHA256, &digest);
     drop(cache);
     fs.crash(&mut keep_names_zero_data);
+    let on_disk = fs.read(&path).unwrap();
     let cache = open(&fs, options).unwrap();
-    copy_out(&cache, &fs, SHA256, &digest).ok()
+    let served = copy_out(&cache, &fs, SHA256, &digest).ok();
+    (on_disk, served, cache.recovery().clone())
 }
 
 #[test]
 fn a_fetched_file_survives_a_power_loss_whole() {
-    assert_eq!(
-        fetched_then_crashed(true).as_deref(),
-        Some(&b"a fetched file"[..])
-    );
+    let (on_disk, served, recovery) = fetched_then_crashed(true);
+    assert_eq!(on_disk, b"a fetched file");
+    assert_eq!(served.as_deref(), Some(&b"a fetched file"[..]));
+    assert!(recovery.unclean);
+    assert_eq!(recovery.dropped, []);
 }
 
 /// Without durability the same crash tears the file, which shows the
-/// test above can fail. (Recovery after an unclean stop is what keeps a
-/// cache without durability from handing such a file out.)
+/// test above can fail; opening again finds it torn and removes it.
 #[test]
 fn without_durability_the_same_power_loss_tears_it() {
-    assert_eq!(fetched_then_crashed(false), Some(vec![0; 14]));
+    let (on_disk, served, recovery) = fetched_then_crashed(false);
+    assert_eq!(on_disk, [0; 14]);
+    assert_eq!(served, None);
+    assert_eq!(recovery.dropped.len(), 1);
 }
 
 #[test]
