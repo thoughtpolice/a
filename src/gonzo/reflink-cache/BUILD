@@ -32,6 +32,7 @@ depot.rust_test(
     srcs = glob(["*.rs"]),
     crate_root = "lib.rs",
     deps = DEPS + [
+        "third-party//rust:hegeltest",
         "third-party//rust:tempfile",
         "third-party//rust:thiserror",
     ],

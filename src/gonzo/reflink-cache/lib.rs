@@ -22,10 +22,12 @@
 //! (see `hermetic_run::writing_input`).
 //!
 //! Every filesystem call goes through [`Fs`], which is the operating
-//! system's ([`RealFs`]) but for tests.
+//! system's ([`RealFs`]) but for tests, which can use a simulated one
+//! that loses what was not made durable ([`sim::SimFs`]).
 
 pub mod fs;
 mod index;
+pub mod sim;
 
 use std::collections::HashSet;
 use std::io;
@@ -317,5 +319,7 @@ fn create_dir_all(fs: &impl Fs, path: &Path) -> io::Result<()> {
     }
 }
 
+#[cfg(test)]
+mod test_sim;
 #[cfg(test)]
 mod tests;
