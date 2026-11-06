@@ -20,7 +20,11 @@ permissions:
 # Every buck2 call shares one daemon, as .envrc has it. A test that runs
 # buck2 itself passes these on to it (shims.shared_daemon_env), and that call
 # fails unless the buck2 running the test is in the same daemon group: a
-# plain daemon would own the checkout's buck-out.
+# plain daemon would own the checkout's buck-out. For the same reason no step
+# gives buck2 a --config. A test's own buck2 reads the buckconfig files, CI's
+# .buckconfig.local among them, but not the flags its parent ran with, and
+# the shared daemon refuses a call whose configuration differs from the
+# command it runs inside.
 env:
   BUCK2_SHARE_DAEMON: "true"
   BUCK2_DAEMON_GROUP: station
@@ -172,9 +176,9 @@ jobs:
           key: tdutil-base-snapshot-v1-${{ matrix.abi }}-${{ steps.commits.outputs.base }}-${{ hashFiles('buck/bin/buck2', 'buck/ci.buckconfig') }}
 
       # check.py builds tdutil and runs it over the universe CI tests, printing
-      # the affected targets; see its docstring. CI configuration is passed to
-      # tdutil's graph queries, which must describe the same graph the test
-      # step builds.
+      # the affected targets; see its docstring. tdutil's graph queries read
+      # the same buckconfig files as the test step, so they describe the
+      # graph it builds.
       #
       # On a push, --snapshot-head-to records the head graph this run has
       # already collected, so refreshing the trunk snapshot costs only the
@@ -204,7 +208,6 @@ jobs:
               CAPTURE=(--snapshot-head-to "$RUNNER_TEMP/tdutil-snapshot-new.json")
             fi
             if ! ./check.py \
-                --config ci.depot_gha_ci=true \
                 --verbose \
                 --from "$BASE" \
                 --to "$HEAD" \

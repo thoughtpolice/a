@@ -245,7 +245,7 @@ func testIdentity() snapshotIdentity {
 	return snapshotIdentity{
 		buckVersion:       "buck2 abc123",
 		universe:          []string{"depot//..."},
-		buckArgs:          []string{"-c", "ci.depot_gha_ci=true"},
+		buckArgs:          []string{"-c", "project.buildmode=release"},
 		localConfigDigest: "aa00",
 		platform:          "linux/amd64",
 		configDigest:      "cf01",
@@ -257,7 +257,7 @@ func testIdentity() snapshotIdentity {
 // exactly like a broken backend. Pinning it here makes going cold a deliberate
 // act rather than an accident nobody notices for a month.
 func TestSnapshotCacheKeyIsPinned(t *testing.T) {
-	const want = "v2-4/ba656e22ecf6457b/deadbeef.json.gz"
+	const want = "v2-4/8fd04b2ec1900baf/deadbeef.json.gz"
 	if got := snapshotCacheKey(testIdentity(), "deadbeef"); got != want {
 		t.Fatalf("cache key = %q, want %q\nchanging the derivation invalidates every cache; update this only on purpose", got, want)
 	}
