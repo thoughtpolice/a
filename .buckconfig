@@ -130,6 +130,8 @@ default_exclude_labels = external-data
 # somewhere only this repository knows about:
 #
 # - the build modes;
+# - buck/config, which this file, the cell configs and .buckconfig.local
+#   include;
 # - the buck2 launcher, since the prelude is bundled into the binary and both
 #   endpoint graphs are read with the head's buck2, so a prelude change never
 #   shows up as a changed target;
@@ -139,6 +141,7 @@ default_exclude_labels = external-data
 #   tests proves itself against everything.
 global_config_paths = \
     buck/mode, \
+    buck/config, \
     buck/bin/buck2, \
     buck/bin/buck2.exe, \
     buck/platforms, \
