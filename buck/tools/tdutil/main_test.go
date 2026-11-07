@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -43,6 +44,9 @@ const pipelineTargetJSON = `{"name":"lib","buck.package":"depot//src","buck.type
 type pipelineRunner struct {
 	repository string
 	diff       []byte
+	// diffFor, when set, answers `jj diff --from from --to to` instead of
+	// diff, so endpoints can differ from the working copy and each other.
+	diffFor func(from, to string) []byte
 
 	mu                 sync.Mutex
 	commands           []commandSpec
@@ -65,6 +69,8 @@ type pipelineRunner struct {
 	expectLocalBuckConfig      bool
 	expectedLocalBuckConfig    []byte
 	localBuckConfigCollisionAt int
+	configAudit                []byte
+	firstCheckoutDirs          []string
 	cancelOnTargets            func()
 	cancelOnce                 sync.Once
 }
@@ -170,7 +176,7 @@ func (runner *pipelineRunner) requireParallelCollection() {
 }
 
 func (runner *pipelineRunner) run(ctx context.Context, spec commandSpec) (processResult, error) {
-	recorded := commandSpec{path: spec.path, args: append([]string(nil), spec.args...), dir: spec.dir}
+	recorded := commandSpec{path: spec.path, args: append([]string(nil), spec.args...), dir: spec.dir, env: append([]string(nil), spec.env...)}
 	runner.mu.Lock()
 	runner.commands = append(runner.commands, recorded)
 	runner.mu.Unlock()
@@ -190,6 +196,11 @@ func (runner *pipelineRunner) run(ctx context.Context, spec commandSpec) (proces
 		}
 		return processResult{stdout: []byte(strings.Repeat("b", 40) + "\n")}, nil
 	case hasArgument(spec.args, "diff"):
+		if runner.diffFor != nil {
+			from, _ := argumentAfter(spec.args, "--from")
+			to, _ := argumentAfter(spec.args, "--to")
+			return processResult{stdout: runner.diffFor(from, to)}, nil
+		}
 		return processResult{stdout: append([]byte(nil), runner.diff...)}, nil
 	case hasArgumentSequence(spec.args, "workspace", "add"):
 		checkout := spec.args[len(spec.args)-1]
@@ -202,7 +213,16 @@ func (runner *pipelineRunner) run(ctx context.Context, spec commandSpec) (proces
 		runner.workspaceRoots = append(runner.workspaceRoots, filepath.Dir(checkout))
 		fail := runner.failHeadAdd && addition == 2
 		collision := runner.localBuckConfigCollisionAt == addition
+		var dirs []string
+		if addition == 1 {
+			dirs = runner.firstCheckoutDirs
+		}
 		runner.mu.Unlock()
+		for _, dir := range dirs {
+			if err := os.MkdirAll(filepath.Join(checkout, dir), 0o700); err != nil {
+				return processResult{}, err
+			}
+		}
 		if collision {
 			if err := os.WriteFile(filepath.Join(checkout, buckLocalConfigName), []byte("historical config\n"), 0o600); err != nil {
 				return processResult{}, err
@@ -230,12 +250,17 @@ func (runner *pipelineRunner) run(ctx context.Context, spec commandSpec) (proces
 		runner.mu.Unlock()
 		return processResult{}, nil
 	case hasArgumentSequence(spec.args, "audit", "config"):
-		// The startup configuration read: no cell sets buildfile.name and
-		// there is no [tdutil] section, so every default applies.
+		// The startup configuration read: unless a test supplies one, no
+		// cell sets buildfile.name and there is no [tdutil] section, so
+		// every default applies.
 		runner.mu.Lock()
 		runner.configAudited = true
+		audited := runner.configAudit
 		runner.mu.Unlock()
-		return processResult{stdout: []byte(`{}`)}, nil
+		if audited == nil {
+			audited = []byte(`{}`)
+		}
+		return processResult{stdout: append([]byte(nil), audited...)}, nil
 	case hasArgumentSequence(spec.args, "audit", "cell"):
 		if runner.expectLocalBuckConfig {
 			got, err := os.ReadFile(filepath.Join(spec.dir, buckLocalConfigName))
@@ -275,6 +300,8 @@ func (runner *pipelineRunner) run(ctx context.Context, spec commandSpec) (proces
 			targets = []byte(pipelineTargetJSON)
 		}
 		return processResult{stdout: append([]byte(nil), targets...)}, nil
+	case len(spec.args) == 1 && spec.args[0] == "kill":
+		return processResult{}, nil
 	default:
 		return processResult{}, fmt.Errorf("unexpected command: %s %q", spec.path, spec.args)
 	}
@@ -347,6 +374,57 @@ func hasArgument(arguments []string, wanted string) bool {
 		}
 	}
 	return false
+}
+
+func argumentAfter(arguments []string, flag string) (string, bool) {
+	for index, argument := range arguments {
+		if argument == flag && index+1 < len(arguments) {
+			return arguments[index+1], true
+		}
+	}
+	return "", false
+}
+
+// ranWithOwnDaemon reports whether a command ran with a buck2 daemon of its
+// own rather than the shared one.
+func ranWithOwnDaemon(command commandSpec) bool {
+	return slices.Contains(command.env, "BUCK2_SHARE_DAEMON=false")
+}
+
+// checkDaemons checks that every Buck query ran with a daemon of its own
+// exactly when its checkout is listed in own, and that each such daemon was
+// stopped once, after the checkout's queries and before any workspace was
+// forgotten.
+func checkDaemons(t *testing.T, commands []commandSpec, own ...string) {
+	t.Helper()
+	stopped := map[string]int{}
+	for _, command := range commands {
+		switch {
+		case hasArgumentSequence(command.args, "audit", "cell") || hasArgument(command.args, "targets"):
+			if got, want := ranWithOwnDaemon(command), slices.Contains(own, command.dir); got != want {
+				t.Fatalf("%q in %s: own daemon = %v, want %v", command.args, command.dir, got, want)
+			}
+			if stopped[command.dir] > 0 {
+				t.Fatalf("queried %s after stopping its daemon", command.dir)
+			}
+		case len(command.args) == 1 && command.args[0] == "kill":
+			if !slices.Contains(own, command.dir) || !ranWithOwnDaemon(command) {
+				t.Fatalf("stopped a daemon it should not have: %+v", command)
+			}
+			stopped[command.dir]++
+		case hasArgumentSequence(command.args, "workspace", "forget"):
+			for _, dir := range own {
+				if stopped[dir] == 0 {
+					t.Fatalf("forgot a workspace before stopping the daemon of %s", dir)
+				}
+			}
+		}
+	}
+	for _, dir := range own {
+		if stopped[dir] != 1 {
+			t.Fatalf("daemon of %s stopped %d times, want once", dir, stopped[dir])
+		}
+	}
 }
 
 func hasArgumentSuffix(arguments []string, suffix ...string) bool {
@@ -577,6 +655,167 @@ func TestApplicationHeadInPlaceSkipsHeadMaterialization(t *testing.T) {
 			t.Fatalf("workspace root retained: %s (err=%v)", root, err)
 		}
 	}
+}
+
+func TestApplicationGlobalConfigurationChangeCollectsHeadAlone(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		args []string
+		adds int
+	}{
+		{name: "head in place", adds: 0},
+		{name: "head materialized", args: []string{"--to", "head"}, adds: 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			app, runner, _ := pipelineApplicationFixture(t)
+			runner.diff = []byte(`{"status":"modified","source":".bucksettings.toml","target":".bucksettings.toml"}
+`)
+			var stdout bytes.Buffer
+			if err := runApplication(context.Background(), app, test.args, &stdout, &bytes.Buffer{}); err != nil {
+				t.Fatal(err)
+			}
+			if got, want := stdout.String(), "depot//src:lib\n"; got != want {
+				t.Fatalf("stdout = %q, want %q", got, want)
+			}
+			commands, roots, adds, forgets, audits, targets, _ := runner.snapshot()
+			if adds != test.adds || forgets != test.adds || audits != 1 || targets != 1 {
+				t.Fatalf("lifecycle = adds %d, forgets %d, audits %d, targets %d", adds, forgets, audits, targets)
+			}
+			// Any workspace is the head's: the base is never materialized. A
+			// materialized head is configured unlike the working copy, as the
+			// diff says, so its buck2 gets a daemon of its own.
+			for _, command := range commands {
+				if hasArgumentSequence(command.args, "workspace", "add") &&
+					!hasArgumentSequence(command.args, "--revision", strings.Repeat("c", 40)) {
+					t.Fatalf("materialized a revision other than head: %q", command.args)
+				}
+			}
+			if test.adds == 0 {
+				checkDaemons(t, commands)
+			} else {
+				checkDaemons(t, commands, checkoutOf(t, commands, strings.Repeat("c", 40)))
+			}
+			for _, root := range roots {
+				if _, err := os.Stat(root); !os.IsNotExist(err) {
+					t.Fatalf("workspace root retained: %s (err=%v)", root, err)
+				}
+			}
+		})
+	}
+}
+
+func TestApplicationGlobalConfigurationChangeFallsBackToTheBase(t *testing.T) {
+	// The selection names a package of an uncollected cell that exists only
+	// at base: the head alone cannot tell that from a typo, so the base is
+	// collected after all, and the run succeeds as it would have before.
+	app, runner, _ := pipelineApplicationFixture(t)
+	runner.diff = []byte(`{"status":"modified","source":".buckconfig","target":".buckconfig"}
+`)
+	runner.configAudit = []byte(`{"depot//tdutil.ignore_cells":"other"}`)
+	runner.cellAudit = []byte(`{"depot":".","other":"other"}`)
+	runner.firstCheckoutDirs = []string{"other/gone"}
+	var stdout bytes.Buffer
+	args := []string{"--from", "base", "--universe", "other//gone/..."}
+	if err := runApplication(context.Background(), app, args, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	// Every head target is selected, and none is in other//gone/...
+	if got := stdout.String(); got != "" {
+		t.Fatalf("stdout = %q, want nothing", got)
+	}
+	commands, roots, adds, forgets, audits, targets, _ := runner.snapshot()
+	// One head audit for the attempt, then both endpoints' audits and
+	// target queries; the attempt stops before querying targets.
+	if adds != 1 || forgets != 1 || audits != 3 || targets != 2 {
+		t.Fatalf("lifecycle = adds %d, forgets %d, audits %d, targets %d", adds, forgets, audits, targets)
+	}
+	for _, command := range commands {
+		if hasArgumentSequence(command.args, "workspace", "add") &&
+			!hasArgumentSequence(command.args, "--revision", strings.Repeat("a", 40)) {
+			t.Fatalf("materialized a revision other than base: %q", command.args)
+		}
+	}
+	// The diff changes the configuration and the head is the working copy,
+	// so the base is configured unlike the working copy.
+	checkDaemons(t, commands, checkoutOf(t, commands, strings.Repeat("a", 40)))
+	for _, root := range roots {
+		if _, err := os.Stat(root); !os.IsNotExist(err) {
+			t.Fatalf("workspace root retained: %s (err=%v)", root, err)
+		}
+	}
+}
+
+// checkoutOf returns where revision was materialized.
+func checkoutOf(t *testing.T, commands []commandSpec, revision string) string {
+	t.Helper()
+	for _, command := range commands {
+		if hasArgumentSequence(command.args, "workspace", "add") && hasArgumentSequence(command.args, "--revision", revision) {
+			return command.args[len(command.args)-1]
+		}
+	}
+	t.Fatalf("revision %s was not materialized", revision)
+	return ""
+}
+
+func TestApplicationCheckoutsConfiguredUnlikeTheWorkingCopyGetDaemonsOfTheirOwn(t *testing.T) {
+	const lib = `{"status":"modified","source":"src/lib.go","target":"src/lib.go"}` + "\n"
+	const settings = `{"status":"modified","source":".bucksettings.toml","target":".bucksettings.toml"}` + "\n"
+	base, head := strings.Repeat("a", 40), strings.Repeat("c", 40)
+	for _, test := range []struct {
+		name string
+		// What each endpoint's tree differs from the working copy by.
+		baseToWorkingCopy, headToWorkingCopy string
+		own                                  []string
+	}{
+		{name: "configured alike", baseToWorkingCopy: lib, headToWorkingCopy: lib},
+		{name: "head configured unlike", baseToWorkingCopy: lib, headToWorkingCopy: settings, own: []string{head}},
+		{name: "both configured unlike", baseToWorkingCopy: lib + settings, headToWorkingCopy: settings, own: []string{base, head}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			app, runner, _ := pipelineApplicationFixture(t)
+			runner.diffFor = func(from, to string) []byte {
+				switch {
+				case from == base && to == head:
+					return []byte(lib)
+				case from == base:
+					return []byte(test.baseToWorkingCopy)
+				default:
+					return []byte(test.headToWorkingCopy)
+				}
+			}
+			var stdout bytes.Buffer
+			if err := runApplication(context.Background(), app, []string{"--from", "base", "--to", "head"}, &stdout, &bytes.Buffer{}); err != nil {
+				t.Fatal(err)
+			}
+			if got, want := stdout.String(), "depot//src:lib\n"; got != want {
+				t.Fatalf("stdout = %q, want %q", got, want)
+			}
+			commands, _, adds, forgets, audits, targets, _ := runner.snapshot()
+			if adds != 2 || forgets != 2 || audits != 2 || targets != 2 {
+				t.Fatalf("lifecycle = adds %d, forgets %d, audits %d, targets %d", adds, forgets, audits, targets)
+			}
+			var own []string
+			for _, revision := range test.own {
+				own = append(own, checkoutOf(t, commands, revision))
+			}
+			checkDaemons(t, commands, own...)
+		})
+	}
+}
+
+func TestApplicationSnapshotCaptureGivesARevisionConfiguredUnlikeTheWorkingCopyItsOwnDaemon(t *testing.T) {
+	app, runner, _ := pipelineApplicationFixture(t)
+	runner.diff = []byte(`{"status":"modified","source":".bucksettings.toml","target":".bucksettings.toml"}
+`)
+	path := filepath.Join(t.TempDir(), "snapshot.json")
+	if err := runApplication(context.Background(), app, []string{"--snapshot-to", path, "--to", "head"}, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	commands, _, adds, forgets, _, _, _ := runner.snapshot()
+	if adds != 1 || forgets != 1 {
+		t.Fatalf("lifecycle = adds %d, forgets %d", adds, forgets)
+	}
+	checkDaemons(t, commands, checkoutOf(t, commands, strings.Repeat("c", 40)))
 }
 
 func TestApplicationQuickModeUsesOneWorkingCopyQueryAndNoWorkspaces(t *testing.T) {

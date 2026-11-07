@@ -191,6 +191,7 @@ func TestGlobalConfigurationClassifierCoversBuckConventions(t *testing.T) {
 		"config/dev.bcfg",
 		"buck/ci.buckargs",
 		"cell/dev.buckargs",
+		".bucksettings.toml",
 	} {
 		if !config.isGlobalConfiguration(path) {
 			t.Errorf("expected %q to match", path)
@@ -198,6 +199,10 @@ func TestGlobalConfigurationClassifierCoversBuckConventions(t *testing.T) {
 	}
 	for _, path := range []string{
 		"src/config.rs",
+		// Buck reads settings only at the project root, and the local
+		// override is untracked, like .buckconfig.local.
+		"cell/.bucksettings.toml",
+		".bucksettings.local.toml",
 		"buck/model/remote",
 		"modes/remote",
 		"config/buckconfig",

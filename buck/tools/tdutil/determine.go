@@ -44,10 +44,10 @@ func determine(base, head *snapshot, changed []string, options determineOptions)
 	if err != nil {
 		return nil, err
 	}
-	for _, changedPath := range changedPaths {
-		if options.config.isGlobalConfiguration(changedPath) {
-			return selectEveryHeadTarget(graph, "build configuration changed"), nil
-		}
+	// The base graph plays no part in this, so the caller does not collect
+	// one for such a diff.
+	if _, global := options.config.globalConfigurationChange(changedPaths); global {
+		return selectEveryHeadTarget(graph, "build configuration changed"), nil
 	}
 
 	roots := make(map[string]string)

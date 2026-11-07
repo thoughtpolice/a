@@ -13,6 +13,7 @@ SRCS = [
     "cells.go",
     "cli.go",
     "config.go",
+    "daemon.go",
     "determine.go",
     "format.go",
     "glob.go",

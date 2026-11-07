@@ -267,9 +267,10 @@ unconfigured repository gets.
 [tdutil]
 # Repository-relative paths, comma separated, whose modification reconfigures
 # the whole graph and so selects every target. Buck's own well-known names —
-# .buckroot, *.buckconfig, *.bcfg, *.buckargs, .buckconfig.d/, buckconfigs/ —
-# are always recognized; this is for whatever else a repository keeps its build
-# modes or argument files in. Default: none.
+# .buckroot, *.buckconfig, *.bcfg, *.buckargs, .buckconfig.d/, buckconfigs/,
+# and the root .bucksettings.toml — are always recognized; this is for
+# whatever else a repository keeps its build modes or argument files in.
+# Default: none.
 global_config_paths = buck/mode
 
 # Names of the CI metadata attributes and label. Default: as written here.
@@ -322,7 +323,9 @@ is rejected rather than reused.
    is materialized the same way only when its tree differs from the working
    copy; when they match — including a colocated CI checkout whose working
    copy is an empty commit atop the pinned head — the head graph is queried
-   in place. `--no-head-in-place` forces materialization anyway.
+   in place. `--no-head-in-place` forces materialization anyway. A diff that
+   changes global configuration skips the base: it selects every head
+   target, so the base graph would decide nothing (see below).
 3. In parallel, run Buck's cell audit and its streaming target dump with target
    hashes, inputs, dependencies, package records, and Buck-reported import
    edges, over every collectable cell rather than only the universe. The dump is parsed as it streams rather than accumulated in memory.
@@ -336,7 +339,25 @@ is rejected rather than reused.
 
 Cell-qualified Buck paths are mapped through `buck2 audit cell` separately in
 each workspace; the tool never assumes that stripping `cell//` yields a JJ
-path. Configuration changes select the whole requested head universe.
+path. Configuration changes select the whole requested head universe, and
+only the head graph is collected for them: neither a base snapshot nor a base
+workspace is needed. Skipping the base is also what lets such a diff run under
+a shared daemon (`BUCK2_DAEMON_GROUP`), which refuses a tenant whose daemon
+configuration differs from its own — as the base checkout's does when the diff
+changes `.bucksettings.toml`. The base is collected after all only when the
+head alone cannot validate the universe: a pattern naming nothing at head may
+name a package or target the diff removed, which only the base can tell from a
+typo.
+
+Under a daemon group (`BUCK2_SHARE_DAEMON` with `BUCK2_DAEMON_GROUP`), the
+buck2 of every checkout joins the daemon serving the working copy. A
+materialized checkout whose global
+configuration differs from the working copy's — `jj diff` against `@` touches
+a global configuration path — would be refused by it, so its buck2 runs with
+`BUCK2_SHARE_DAEMON=false` and starts a daemon of its own, which tdutil stops
+before removing the checkout. The base of a head queried in place differs from
+the working copy by exactly the diff, so that case costs no extra `jj diff`.
+
 Malformed JSON, bad revsets, and Buck graph errors all fail closed instead of
 returning an incomplete target set; see below.
 
@@ -346,10 +367,10 @@ temporary base inside the source repository is rejected. Workspaces and their
 containers are forgotten and removed even on errors; `--keep-workspaces`
 retains them for diagnosis. A tdutil process killed outright cannot run that
 cleanup, so each run also sweeps workspace registrations left by tdutil
-processes which are provably dead. The repository's `.buckconfig.local`, when
-present, is snapshotted once and installed mode 0600 in each private checkout
-before its Buck daemon starts. Retained diagnostic workspaces therefore retain
-that snapshot too. Extra Buck configuration must describe both graphs, so pass
+processes which are provably dead. The repository's `.buckconfig.local` and
+`.bucksettings.local.toml`, when present, are snapshotted once and installed
+mode 0600 in each private checkout before its Buck daemon starts. Retained
+diagnostic workspaces therefore retain that snapshot too. Extra Buck configuration must describe both graphs, so pass
 it with `--config KEY=VALUE` or repeat `--buck-arg`.
 
 A head queried in place reads the live working copy, including its live

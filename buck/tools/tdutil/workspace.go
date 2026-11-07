@@ -22,11 +22,24 @@ var workspaceSequence atomic.Uint64
 
 const buckLocalConfigName = ".buckconfig.local"
 
-// buckLocalConfig is an immutable snapshot shared by both endpoint
-// workspaces. Reading it once guarantees that the two Buck graphs use exactly
-// the same repository-local configuration even if the source file changes
-// while tdutil is running.
+// buckLocalSettingsName is the repository-local counterpart of
+// .bucksettings.toml. Like .buckconfig.local it is never committed, so a
+// checkout lacks it unless it is copied in.
+const buckLocalSettingsName = ".bucksettings.local.toml"
+
+// buckLocalConfigNames are the repository-local Buck files each checkout gets.
+var buckLocalConfigNames = []string{buckLocalConfigName, buckLocalSettingsName}
+
+// buckLocalConfig is an immutable snapshot of the repository-local Buck files,
+// shared by both endpoint workspaces. Reading them once guarantees that the
+// two Buck graphs use exactly the same repository-local configuration even if
+// a source file changes while tdutil is running.
 type buckLocalConfig struct {
+	files []buckLocalFile
+}
+
+type buckLocalFile struct {
+	name     string
 	source   string
 	contents []byte
 }
@@ -134,25 +147,32 @@ func createWorkspace(
 	return result, nil
 }
 
-// snapshotBuckLocalConfig reads the invoking workspace's local configuration
-// once. A missing file is the normal case and needs no representation in the
-// historical workspaces.
+// snapshotBuckLocalConfig reads the invoking workspace's local Buck files
+// once. Missing files are the normal case and need no representation in the
+// historical workspaces; with none present the snapshot is nil.
 func snapshotBuckLocalConfig(repository string) (*buckLocalConfig, error) {
-	source := filepath.Join(repository, buckLocalConfigName)
-	info, err := os.Stat(source)
-	switch {
-	case os.IsNotExist(err):
+	var files []buckLocalFile
+	for _, name := range buckLocalConfigNames {
+		source := filepath.Join(repository, name)
+		info, err := os.Stat(source)
+		switch {
+		case os.IsNotExist(err):
+			continue
+		case err != nil:
+			return nil, fmt.Errorf("checking repository-local Buck file %s: %w", source, err)
+		case !info.Mode().IsRegular():
+			return nil, fmt.Errorf("repository-local Buck file %s is not a regular file", source)
+		}
+		contents, err := os.ReadFile(source)
+		if err != nil {
+			return nil, fmt.Errorf("reading repository-local Buck file %s: %w", source, err)
+		}
+		files = append(files, buckLocalFile{name: name, source: source, contents: contents})
+	}
+	if len(files) == 0 {
 		return nil, nil
-	case err != nil:
-		return nil, fmt.Errorf("checking repository-local Buck config %s: %w", source, err)
-	case !info.Mode().IsRegular():
-		return nil, fmt.Errorf("repository-local Buck config %s is not a regular file", source)
 	}
-	contents, err := os.ReadFile(source)
-	if err != nil {
-		return nil, fmt.Errorf("reading repository-local Buck config %s: %w", source, err)
-	}
-	return &buckLocalConfig{source: source, contents: contents}, nil
+	return &buckLocalConfig{files: files}, nil
 }
 
 // install places the snapshot where Buck's client and daemon can both see it
@@ -162,10 +182,19 @@ func (config *buckLocalConfig) install(checkout string) error {
 	if config == nil {
 		return nil
 	}
-	destination := filepath.Join(checkout, buckLocalConfigName)
+	for _, file := range config.files {
+		if err := file.install(checkout); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (file buckLocalFile) install(checkout string) error {
+	destination := filepath.Join(checkout, file.name)
 	output, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
-		return fmt.Errorf("installing repository-local Buck config in temporary workspace %s: %w", destination, err)
+		return fmt.Errorf("installing repository-local Buck file in temporary workspace %s: %w", destination, err)
 	}
 	succeeded := false
 	defer func() {
@@ -175,20 +204,20 @@ func (config *buckLocalConfig) install(checkout string) error {
 		}
 	}()
 
-	written, err := output.Write(config.contents)
+	written, err := output.Write(file.contents)
 	if err != nil {
-		return fmt.Errorf("writing repository-local Buck config snapshot from %s to %s: %w", config.source, destination, err)
+		return fmt.Errorf("writing repository-local Buck file snapshot from %s to %s: %w", file.source, destination, err)
 	}
-	if written != len(config.contents) {
-		return fmt.Errorf("writing repository-local Buck config snapshot from %s to %s: %w", config.source, destination, io.ErrShortWrite)
+	if written != len(file.contents) {
+		return fmt.Errorf("writing repository-local Buck file snapshot from %s to %s: %w", file.source, destination, io.ErrShortWrite)
 	}
 	if runtime.GOOS != "windows" {
 		if err := output.Chmod(0o600); err != nil {
-			return fmt.Errorf("setting private permissions on repository-local Buck config %s: %w", destination, err)
+			return fmt.Errorf("setting private permissions on repository-local Buck file %s: %w", destination, err)
 		}
 	}
 	if err := output.Close(); err != nil {
-		return fmt.Errorf("closing repository-local Buck config %s: %w", destination, err)
+		return fmt.Errorf("closing repository-local Buck file %s: %w", destination, err)
 	}
 	succeeded = true
 	return nil

@@ -381,6 +381,40 @@ func TestBuckLocalConfigSnapshotIsStableAndPrivate(t *testing.T) {
 	}
 }
 
+func TestBuckLocalSettingsAreInstalledWithOrWithoutTheConfig(t *testing.T) {
+	settings := []byte("[starlark]\nmax_callstack_size = 60\n")
+	for _, withConfig := range []bool{false, true} {
+		repository := t.TempDir()
+		checkout := t.TempDir()
+		if err := os.WriteFile(filepath.Join(repository, buckLocalSettingsName), settings, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if withConfig {
+			if err := os.WriteFile(filepath.Join(repository, buckLocalConfigName), []byte("[buck2]\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		config, err := snapshotBuckLocalConfig(repository)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := config.install(checkout); err != nil {
+			t.Fatal(err)
+		}
+		got, err := os.ReadFile(filepath.Join(checkout, buckLocalSettingsName))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != string(settings) {
+			t.Fatalf("installed settings = %q, want %q", got, settings)
+		}
+		_, err = os.Lstat(filepath.Join(checkout, buckLocalConfigName))
+		if installed := err == nil; installed != withConfig {
+			t.Fatalf("with config %v: config installed = %v (err=%v)", withConfig, installed, err)
+		}
+	}
+}
+
 func TestBuckLocalConfigInstallRefusesExistingPath(t *testing.T) {
 	repository := t.TempDir()
 	checkout := t.TempDir()

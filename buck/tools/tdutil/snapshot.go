@@ -372,9 +372,11 @@ func loadBaseSnapshot(path string, identity snapshotIdentity, baseCommit string)
 	return document, ""
 }
 
-// localBuckConfigDigest identifies the repository-local Buck configuration
-// which both endpoint graphs would observe. An absent file digests to the
-// empty string.
+// localBuckConfigDigest identifies the repository-local Buck files which both
+// endpoint graphs would observe. No file digests to the empty string, and
+// .buckconfig.local alone to the SHA-256 of its contents, which is what every
+// document recorded before the settings file was copied holds; any other set
+// of files is hashed with their names framed in.
 func localBuckConfigDigest(repository string) (string, error) {
 	config, err := snapshotBuckLocalConfig(repository)
 	if err != nil {
@@ -383,7 +385,14 @@ func localBuckConfigDigest(repository string) (string, error) {
 	if config == nil {
 		return "", nil
 	}
-	return fmt.Sprintf("%x", sha256.Sum256(config.contents)), nil
+	if len(config.files) == 1 && config.files[0].name == buckLocalConfigName {
+		return fmt.Sprintf("%x", sha256.Sum256(config.files[0].contents)), nil
+	}
+	hash := sha256.New()
+	for _, file := range config.files {
+		writeFramedField(hash, file.name, string(file.contents))
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 func buckVersionString(ctx context.Context, runner processRunner, buck string) (string, error) {

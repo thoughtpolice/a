@@ -191,7 +191,17 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				return err
 			}
 		} else {
-			baseDocument := obtainBaseDocument(ctx, app.runner, &args, cache, jj.repository, revisions.base, config, stderr)
+			// A diff that changes the build configuration selects every head
+			// target, and its base graph decides nothing, so only the head is
+			// collected. Besides the saving, this is what lets such a diff run
+			// under a shared daemon: the base checkout's daemon configuration
+			// may differ from the head's, and a daemon group refuses a tenant
+			// whose configuration differs from its own.
+			globalPath, globalChange := config.globalConfigurationChange(changed)
+			var baseDocument *snapshotDocument
+			if !globalChange {
+				baseDocument = obtainBaseDocument(ctx, app.runner, &args, cache, jj.repository, revisions.base, config, stderr)
+			}
 
 			// The head graph is queried directly in the invoking workspace when the
 			// requested head has the working-copy tree: the tree on disk already is
@@ -204,6 +214,24 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				}
 			}
 
+			// A materialized checkout whose global configuration differs from
+			// the working copy's runs buck2 with a daemon of its own; see
+			// needsOwnDaemon. The head in place is the working copy, and then
+			// the base differs from the working copy by exactly the diff.
+			headOwnDaemon := false
+			if !headInPlace {
+				headOwnDaemon, err = needsOwnDaemon(ctx, jj, revisions.head, args.ignoreWorkingCopy, config)
+				if err != nil {
+					return err
+				}
+			}
+			baseNeedsOwnDaemon := func() (bool, error) {
+				if headInPlace {
+					return globalChange, nil
+				}
+				return needsOwnDaemon(ctx, jj, revisions.base, args.ignoreWorkingCopy, config)
+			}
+
 			localConfig, err := snapshotBuckLocalConfig(jj.repository)
 			if err != nil {
 				return err
@@ -211,7 +239,12 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 			cleanupContext := context.WithoutCancel(ctx)
 
 			var baseWorkspace *workspace
-			if baseDocument == nil {
+			baseOwnDaemon := false
+			if !globalChange && baseDocument == nil {
+				baseOwnDaemon, err = baseNeedsOwnDaemon()
+				if err != nil {
+					return err
+				}
 				baseWorkspace, err = createWorkspace(ctx, jj, revisions.base, app.tempDir(), currentDir, localConfig)
 				if err != nil {
 					return err
@@ -235,11 +268,50 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				headCheckout = headWorkspace.checkout
 			}
 
+			if headOwnDaemon {
+				logProgress(stderr, &args, "head's build configuration differs from the working copy's: its buck2 gets a daemon of its own")
+			}
+			headRunner := endpointRunner(app.runner, headOwnDaemon)
 			buckArgs := append([]string(nil), args.buckArgs...)
 			var baseSnapshot, headSnapshot snapshot
 			var plan universePlan
 			var analysisErr error
-			if baseDocument != nil {
+			headAlone := false
+			if globalChange {
+				logProgress(
+					stderr,
+					&args,
+					"`%s` changed the build configuration: querying the head Buck graph alone (%s)",
+					globalPath,
+					strings.Join(args.universe, " "),
+				)
+				headSnapshot, plan, headAlone, analysisErr = collectHeadAlone(
+					ctx,
+					headRunner,
+					headCheckout,
+					args.buck,
+					buckArgs,
+					args.universe,
+					config,
+				)
+				if analysisErr == nil && !headAlone {
+					logProgress(stderr, &args, "the head graph alone cannot validate the universe; collecting the base graph too")
+					baseDocument = obtainBaseDocument(ctx, app.runner, &args, cache, jj.repository, revisions.base, config, stderr)
+					if baseDocument == nil {
+						baseOwnDaemon, analysisErr = baseNeedsOwnDaemon()
+						if analysisErr == nil {
+							baseWorkspace, analysisErr = createWorkspace(ctx, jj, revisions.base, app.tempDir(), currentDir, localConfig)
+						}
+						if analysisErr == nil {
+							defer func() { _ = baseWorkspace.close(cleanupContext) }()
+						}
+					}
+				}
+			}
+			switch {
+			case analysisErr != nil, headAlone:
+				// The head alone sufficed, or reaching the base failed.
+			case baseDocument != nil:
 				logProgress(
 					stderr,
 					&args,
@@ -248,7 +320,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				)
 				baseSnapshot, headSnapshot, plan, analysisErr = collectSnapshotPairFromDocument(
 					ctx,
-					app.runner,
+					headRunner,
 					baseDocument,
 					headCheckout,
 					args.buck,
@@ -256,7 +328,10 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 					args.universe,
 					config,
 				)
-			} else {
+			default:
+				if baseOwnDaemon {
+					logProgress(stderr, &args, "base's build configuration differs from the working copy's: its buck2 gets a daemon of its own")
+				}
 				logProgress(
 					stderr,
 					&args,
@@ -265,7 +340,8 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				)
 				baseSnapshot, headSnapshot, plan, analysisErr = collectSnapshotPair(
 					ctx,
-					app.runner,
+					endpointRunner(app.runner, baseOwnDaemon),
+					headRunner,
 					baseWorkspace.checkout,
 					headCheckout,
 					args.buck,
@@ -275,13 +351,20 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				)
 			}
 			if analysisErr == nil {
-				logProgress(
-					stderr,
-					&args,
-					"parsed %d base and %d head targets",
-					len(baseSnapshot.targets),
-					len(headSnapshot.targets),
-				)
+				if headAlone {
+					// determine selects every head target without reading
+					// the base.
+					baseSnapshot = headSnapshot
+					logProgress(stderr, &args, "parsed %d head targets", len(headSnapshot.targets))
+				} else {
+					logProgress(
+						stderr,
+						&args,
+						"parsed %d base and %d head targets",
+						len(baseSnapshot.targets),
+						len(headSnapshot.targets),
+					)
+				}
 				warnIgnoredCellDependents(stderr, &headSnapshot, config)
 				headDecline := snapshotDecline(&args, "head", plan.headCoversEveryPattern(), headInPlace)
 				if args.snapshotHeadTo != nil {
@@ -304,7 +387,7 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				// this base will ask for. Storing it is what turns a repeated
 				// local run into a head-only collection, and it costs only the
 				// serialization, since the collection has already happened.
-				if baseDocument == nil {
+				if baseWorkspace != nil {
 					baseDecline := snapshotDecline(&args, "base", plan.baseCoversEveryPattern(), false)
 					cache.storeSnapshot(ctx, &args, "base", revisions.base, baseDecline, &baseSnapshot, stderr)
 				}
@@ -317,6 +400,12 @@ func runApplication(ctx context.Context, app application, argv []string, stdout,
 				if analysisErr == nil {
 					analysisErr = noteUnownedPaths(stderr, &baseSnapshot, &headSnapshot, changed, config)
 				}
+			}
+			if baseOwnDaemon && baseWorkspace != nil {
+				stopOwnDaemon(cleanupContext, app.runner, baseWorkspace.checkout, args.buck, stderr)
+			}
+			if headOwnDaemon {
+				stopOwnDaemon(cleanupContext, app.runner, headWorkspace.checkout, args.buck, stderr)
 			}
 			affected, err = finishWorkspacePair(
 				cleanupContext,
@@ -393,14 +482,24 @@ func runSnapshotCapture(
 		if err != nil {
 			return err
 		}
+		ownDaemon, err := needsOwnDaemon(ctx, jj, headCommit, args.ignoreWorkingCopy, config)
+		if err != nil {
+			return err
+		}
 		sweepWorkspaces(ctx, app, jj, args, stderr)
 		headWorkspace, err := createWorkspace(ctx, jj, headCommit, app.tempDir(), currentDir, localConfig)
 		if err != nil {
 			return err
 		}
 		cleanupContext := context.WithoutCancel(ctx)
+		if ownDaemon {
+			logProgress(stderr, args, "the build configuration at %s differs from the working copy's: its buck2 gets a daemon of its own", headCommit)
+		}
 		logProgress(stderr, args, "snapshotting the Buck graph at %s (%s)", headCommit, strings.Join(args.universe, " "))
-		collected, err = collectQuickSnapshot(ctx, app.runner, headWorkspace.checkout, args.buck, buckArgs, args.universe, config)
+		collected, err = collectQuickSnapshot(ctx, endpointRunner(app.runner, ownDaemon), headWorkspace.checkout, args.buck, buckArgs, args.universe, config)
+		if ownDaemon {
+			stopOwnDaemon(cleanupContext, app.runner, headWorkspace.checkout, args.buck, stderr)
+		}
 		err = finishOneWorkspace(cleanupContext, headWorkspace, args.keepWorkspaces, err, "snapshot", stderr)
 		if err != nil {
 			return err
@@ -540,7 +639,7 @@ func finishWorkspacePair(
 		case base != nil:
 			_, _ = fmt.Fprintf(stderr, "tdutil: retained base workspace %s; head was queried in place\n", base.keep())
 		case head != nil:
-			_, _ = fmt.Fprintf(stderr, "tdutil: retained head workspace %s; base came from a snapshot\n", head.keep())
+			_, _ = fmt.Fprintf(stderr, "tdutil: retained head workspace %s; the base was not materialized\n", head.keep())
 		}
 		return result, resultErr
 	}

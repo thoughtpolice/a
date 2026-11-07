@@ -133,10 +133,14 @@ func isPackageFile(name string) bool {
 
 // isGlobalConfiguration reports whether changing a path changes how the whole
 // graph is configured, which no target-by-target comparison can model. The
-// well-known Buck names are recognised everywhere; `global_config_paths`
-// covers whatever else a repository keeps its build modes and argument files
-// in, which is otherwise invisible to us and would silently under-select.
+// well-known Buck names are recognised everywhere, except `.bucksettings.toml`,
+// which Buck reads only at the project root; `global_config_paths` covers
+// whatever else a repository keeps its build modes and argument files in,
+// which is otherwise invisible to us and would silently under-select.
 func (config tdutilConfig) isGlobalConfiguration(path string) bool {
+	if path == ".bucksettings.toml" {
+		return true
+	}
 	name := pathBase(path)
 	if name == ".buckroot" || strings.HasSuffix(name, ".buckconfig") ||
 		strings.HasSuffix(name, ".bcfg") || strings.HasSuffix(name, ".buckargs") {
@@ -153,6 +157,18 @@ func (config tdutilConfig) isGlobalConfiguration(path string) bool {
 		}
 	}
 	return false
+}
+
+// globalConfigurationChange returns the first of the changed paths that is
+// global configuration, if any. Such a diff selects every head target.
+func (config tdutilConfig) globalConfigurationChange(changed []string) (string, bool) {
+	for _, path := range changed {
+		path = strings.ReplaceAll(path, "\\", "/")
+		if config.isGlobalConfiguration(path) {
+			return path, true
+		}
+	}
+	return "", false
 }
 
 // digest folds the resolved configuration into the snapshot identity. Two runs

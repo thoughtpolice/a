@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 )
 
@@ -19,6 +20,9 @@ type commandSpec struct {
 	path string
 	args []string
 	dir  string
+	// env, when not empty, is added to the inherited environment, overriding
+	// any variable of the same name.
+	env []string
 }
 
 // processResult separates an ordinary unsuccessful exit from an inability to
@@ -123,6 +127,9 @@ func (osProcessRunner) run(ctx context.Context, spec commandSpec) (processResult
 	if spec.dir != "" {
 		cmd.Dir = spec.dir
 	}
+	if len(spec.env) > 0 {
+		cmd.Env = append(os.Environ(), spec.env...)
+	}
 	var stdout bytes.Buffer
 	stderr := boundedBuffer{limit: stderrLimit}
 	cmd.Stdout = &stdout
@@ -159,6 +166,9 @@ func (osProcessRunner) runLines(ctx context.Context, spec commandSpec, line func
 	cmd := exec.CommandContext(ctx, spec.path, spec.args...)
 	if spec.dir != "" {
 		cmd.Dir = spec.dir
+	}
+	if len(spec.env) > 0 {
+		cmd.Env = append(os.Environ(), spec.env...)
 	}
 	stderr := boundedBuffer{limit: stderrLimit}
 	cmd.Stderr = &stderr

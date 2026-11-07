@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/json/v2"
 	"errors"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -236,12 +238,54 @@ func TestBuckProcessFailureReportsStatusAndTrimmedStderr(t *testing.T) {
 	}
 }
 
+func TestCollectHeadAloneDefersToTheBaseForWhatTheHeadLacks(t *testing.T) {
+	workspace := t.TempDir()
+	if err := os.Mkdir(filepath.Join(workspace, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var queries atomic.Int32
+	runner := buckFakeRunner{runFunc: func(_ context.Context, spec commandSpec) (processResult, error) {
+		if commandContains(spec, "cell") {
+			return successfulBuckResult(cellAuditFor(t, workspace)), nil
+		}
+		queries.Add(1)
+		return successfulBuckResult([]byte(`{"name":"lib","buck.package":"root//src","buck.type":"rule","buck.deps":[],"buck.inputs":[],"buck.target_hash":"h"}` + "\n")), nil
+	}}
+	for _, test := range []struct {
+		patterns []string
+		alone    bool
+		queries  int32
+	}{
+		{patterns: []string{"root//..."}, alone: true, queries: 1},
+		{patterns: []string{"root//src:lib"}, alone: true, queries: 1},
+		// Absent at head, perhaps removed by the diff: nothing is queried.
+		{patterns: []string{"root//gone/..."}, alone: false, queries: 0},
+		// The package is there but the target is not: removed, or a typo.
+		{patterns: []string{"root//src:removed"}, alone: false, queries: 1},
+	} {
+		queries.Store(0)
+		head, _, alone, err := collectHeadAlone(context.Background(), runner, workspace, "buck2", nil, test.patterns, defaultTdutilConfig())
+		if err != nil {
+			t.Fatalf("%v: %v", test.patterns, err)
+		}
+		if alone != test.alone || queries.Load() != test.queries {
+			t.Fatalf("%v: alone = %v after %d queries, want %v after %d", test.patterns, alone, queries.Load(), test.alone, test.queries)
+		}
+		if alone && len(head.targets) != 1 {
+			t.Fatalf("%v: collected %d targets", test.patterns, len(head.targets))
+		}
+		if !alone && len(head.targets) != 0 {
+			t.Fatalf("%v: returned %d targets it cannot vouch for", test.patterns, len(head.targets))
+		}
+	}
+}
+
 func TestCollectSnapshotPairRejectsEmptyPatterns(t *testing.T) {
 	runner := buckFakeRunner{runFunc: func(context.Context, commandSpec) (processResult, error) {
 		t.Fatal("runner called for an empty universe")
 		return processResult{}, nil
 	}}
-	_, _, _, err := collectSnapshotPair(context.Background(), runner, "base", "head", "buck2", nil, nil, defaultTdutilConfig())
+	_, _, _, err := collectSnapshotPair(context.Background(), runner, runner, "base", "head", "buck2", nil, nil, defaultTdutilConfig())
 	if err == nil || !strings.Contains(err.Error(), "at least one Buck target pattern") {
 		t.Fatalf("empty-pattern error = %v", err)
 	}
@@ -290,6 +334,7 @@ func TestCollectSnapshotPairRunsBothEndpointStagesConcurrentlyAndPrefersBaseErro
 
 	_, _, _, err := collectSnapshotPair(
 		ctx,
+		runner,
 		runner,
 		baseWorkspace,
 		headWorkspace,

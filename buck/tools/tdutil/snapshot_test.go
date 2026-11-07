@@ -6,7 +6,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json/v2"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -333,5 +335,48 @@ func TestCachedBaseStillSelectsDependentsOfDeletedTargets(t *testing.T) {
 	}
 	if len(affected) != 1 || affected[0].target != "root//src:app" {
 		t.Fatalf("affected = %#v, want only the surviving dependent", affected)
+	}
+}
+
+func TestLocalBuckConfigDigestCoversTheSettingsFile(t *testing.T) {
+	repository := t.TempDir()
+	digest := func() string {
+		t.Helper()
+		got, err := localBuckConfigDigest(repository)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	write := func(name, contents string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(repository, name), []byte(contents), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := digest(); got != "" {
+		t.Fatalf("no local files digest to %q, want empty", got)
+	}
+	config := "[buck2]\nfile_watcher = watchman\n"
+	write(buckLocalConfigName, config)
+	// Documents recorded before the settings file was copied hold this.
+	configOnly := digest()
+	if want := fmt.Sprintf("%x", sha256.Sum256([]byte(config))); configOnly != want {
+		t.Fatalf(".buckconfig.local alone digests to %q, want %q", configOnly, want)
+	}
+	write(buckLocalSettingsName, "[starlark]\nmax_callstack_size = 60\n")
+	withSettings := digest()
+	if withSettings == configOnly {
+		t.Fatal("the settings file does not change the digest")
+	}
+	write(buckLocalSettingsName, "[starlark]\nmax_callstack_size = 70\n")
+	if digest() == withSettings {
+		t.Fatal("a change to the settings file does not change the digest")
+	}
+	if err := os.Remove(filepath.Join(repository, buckLocalConfigName)); err != nil {
+		t.Fatal(err)
+	}
+	if settingsOnly := digest(); settingsOnly == "" || settingsOnly == withSettings {
+		t.Fatalf("the settings file alone digests to %q", settingsOnly)
 	}
 }

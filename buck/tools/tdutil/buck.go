@@ -34,11 +34,12 @@ type cellMapResult struct {
 	err   error
 }
 
-// collectSnapshotPair collects both endpoint graphs concurrently. Both
-// workers are always joined, and a base failure wins when both endpoints fail.
+// collectSnapshotPair collects both endpoint graphs concurrently, running
+// buck2 at each through its own runner. Both workers are always joined, and a
+// base failure wins when both endpoints fail.
 func collectSnapshotPair(
 	ctx context.Context,
-	runner processRunner,
+	baseRunner, headRunner processRunner,
 	baseWorkspace, headWorkspace, buck string,
 	buckArgs []string,
 	patterns []string,
@@ -51,11 +52,11 @@ func collectSnapshotPair(
 	baseCellsChannel := make(chan cellMapResult, 1)
 	headCellsChannel := make(chan cellMapResult, 1)
 	go func() {
-		cells, err := auditCells(ctx, runner, baseWorkspace, buck, buckArgs)
+		cells, err := auditCells(ctx, baseRunner, baseWorkspace, buck, buckArgs)
 		baseCellsChannel <- cellMapResult{cells: cells, err: err}
 	}()
 	go func() {
-		cells, err := auditCells(ctx, runner, headWorkspace, buck, buckArgs)
+		cells, err := auditCells(ctx, headRunner, headWorkspace, buck, buckArgs)
 		headCellsChannel <- cellMapResult{cells: cells, err: err}
 	}()
 	baseCells := <-baseCellsChannel
@@ -74,11 +75,11 @@ func collectSnapshotPair(
 	baseChannel := make(chan snapshotResult, 1)
 	headChannel := make(chan snapshotResult, 1)
 	go func() {
-		collected, err := collectTargets(ctx, runner, baseWorkspace, buck, buckArgs, plan.basePatterns, baseCells.cells, config)
+		collected, err := collectTargets(ctx, baseRunner, baseWorkspace, buck, buckArgs, plan.basePatterns, baseCells.cells, config)
 		baseChannel <- snapshotResult{snapshot: collected, err: err}
 	}()
 	go func() {
-		collected, err := collectTargets(ctx, runner, headWorkspace, buck, buckArgs, plan.headPatterns, headCells.cells, config)
+		collected, err := collectTargets(ctx, headRunner, headWorkspace, buck, buckArgs, plan.headPatterns, headCells.cells, config)
 		headChannel <- snapshotResult{snapshot: collected, err: err}
 	}()
 	base := <-baseChannel
@@ -93,6 +94,46 @@ func collectSnapshotPair(
 		return snapshot{}, snapshot{}, universePlan{}, err
 	}
 	return base.snapshot, head.snapshot, plan, nil
+}
+
+// collectHeadAlone collects only the head graph, for a diff that changes the
+// build configuration: such a diff selects every head target, so the base
+// graph would decide nothing. It reports false, with nothing collected, when
+// the head alone cannot validate the universe — a pattern naming nothing at
+// head may name what the diff removed, which only the base can tell from a
+// typo — and the caller then compares both endpoints as usual.
+func collectHeadAlone(
+	ctx context.Context,
+	runner processRunner,
+	headWorkspace, buck string,
+	buckArgs []string,
+	patterns []string,
+	config tdutilConfig,
+) (snapshot, universePlan, bool, error) {
+	if len(patterns) == 0 {
+		return snapshot{}, universePlan{}, false, fmt.Errorf("at least one Buck target pattern is required")
+	}
+	cells, err := auditCells(ctx, runner, headWorkspace, buck, buckArgs)
+	if err != nil {
+		return snapshot{}, universePlan{}, false, err
+	}
+	// Planned as against a base snapshot, which vouches for every pattern;
+	// the plan is kept only when the head has evidence for each one itself.
+	plan, err := planUniverseCachedBase(headWorkspace, cells, patterns)
+	if err != nil {
+		return snapshot{}, universePlan{}, false, err
+	}
+	if !plan.headCoversEveryPattern() {
+		return snapshot{}, universePlan{}, false, nil
+	}
+	head, err := collectTargets(ctx, runner, headWorkspace, buck, buckArgs, plan.headPatterns, cells, config)
+	if err != nil {
+		return snapshot{}, universePlan{}, false, err
+	}
+	if validateUniverse(&plan, &head, &head) != nil {
+		return snapshot{}, universePlan{}, false, nil
+	}
+	return head, plan, true, nil
 }
 
 func auditCells(
