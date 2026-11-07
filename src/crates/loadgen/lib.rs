@@ -833,6 +833,7 @@ pub fn to_json(name: &str, out: &Outcome) -> serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
 
     /// Operations that take `0` and do nothing else.
     struct Nap(Duration);
@@ -922,25 +923,45 @@ mod tests {
         });
     }
 
+    /// Instant operations that note when each began.
+    struct Stamp(Arc<Mutex<Vec<Instant>>>);
+
+    impl Workload for Stamp {
+        type State = ();
+
+        fn state(&self, _worker: usize) {}
+
+        async fn step(&self, _state: &mut (), rec: &mut Recorder) {
+            let t = Instant::now();
+            self.0.lock().unwrap().push(t);
+            rec.ok("stamp", t, 0);
+        }
+    }
+
     #[test]
     fn think_times_are_not_rounded_to_timer_ticks() {
-        // One worker thinking 300 us on average between instant operations
-        // gets through about 1000 in 300 ms; on the runtime's millisecond
-        // timer alone it would manage about 300.
+        // One worker thinks for an exponential time of mean 300 us between
+        // instant operations, so the gaps between their starts have a median
+        // near 210 us. On the runtime's millisecond timer alone each think
+        // runs to a tick or past it, and the median gap passes a
+        // millisecond. A busy machine preempts the worker in some thinks and
+        // stretches those gaps, but too few of them to move the median, so
+        // unlike a count of operations in a fixed time, this holds under
+        // load.
         block_on(async {
-            let mut driver = Driver::new(Nap(Duration::ZERO), 1);
+            let starts = Arc::new(Mutex::new(Vec::new()));
+            let mut driver = Driver::new(Stamp(Arc::clone(&starts)), 1);
             let model = Model::Closed {
                 concurrency: 1,
                 think: Duration::from_micros(300),
             };
-            let plan = Plan {
-                warmup: Duration::ZERO,
-                duration: Duration::from_millis(300),
-                ops: None,
-                quiet: true,
-            };
-            let n = driver.run(&model, &plan, 0).await.rec.response.count();
-            assert!((700..=1300).contains(&n), "{n} operations");
+            driver.run(&model, &plan(1000), 0).await;
+            let starts = starts.lock().unwrap();
+            let mut gaps: Vec<_> = starts.windows(2).map(|w| w[1] - w[0]).collect();
+            assert_eq!(gaps.len(), 999);
+            gaps.sort();
+            let median = gaps[gaps.len() / 2];
+            assert!(median < Duration::from_micros(500), "median gap {median:?}");
         });
     }
 
