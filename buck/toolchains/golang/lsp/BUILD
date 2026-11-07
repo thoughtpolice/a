@@ -69,7 +69,8 @@ shims.python_binary(
 # Runs gopls through the launcher against tests/, the way the Helix, Claude
 # Code and OMP configurations start it (checking that they agree), through
 # the shared Buck daemon (like the Lean language server's test), so it reads
-# the checkout rather than declared inputs.
+# the checkout rather than declared inputs. `prebuild` is what the
+# launcher's and driver's Buck calls build.
 shims.run_test(
     name = "smoke",
     ci_srcs = [
@@ -80,6 +81,13 @@ shims.run_test(
     ],
     dep = ":smoke-test",
     env = shims.shared_daemon_env,
+    prebuild = [
+        ":driver",
+        ":gopls",
+        "//golang/lsp/tests/hello:hello",
+        "//golang/lsp/tests/hello:hello-test",
+        "//golang/x:x[importable]",
+    ],
 )
 
 # The launcher an editor runs as its Go language server.

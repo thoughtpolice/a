@@ -136,20 +136,32 @@ def _go_x_library_impl(ctx: AnalysisContext) -> list[Provider]:
             out_x_shared = pkg.export_file_shared.as_output(),
         ))
 
+    importable = GoImportableInfo(
+        goarch = go_toolchain.env_go_arch,
+        goos = go_toolchain.env_go_os,
+        goroot = go_toolchain.env_go_root,
+        stdlib = go_list_stdlib(ctx.actions, go_toolchain, cgo_enabled = False),
+        x = sources,
+    )
     return [
-        DefaultInfo(default_outputs = [pkg.archive_file for pkg in pkgs.values()]),
+        DefaultInfo(
+            default_outputs = [pkg.archive_file for pkg in pkgs.values()],
+            sub_targets = {
+                # Every file GoImportableInfo names, which gopls.bxl hands
+                # the language server; its smoke test builds them first.
+                "importable": [DefaultInfo(default_outputs = [importable.goroot, importable.stdlib] + [
+                    artifact
+                    for go_list, pkg_dir in sources.values()
+                    for artifact in (go_list, pkg_dir)
+                ])],
+            },
+        ),
         GoPkgCompileInfo(pkgs = pkgs),
         GoPkgLinkInfo(pkgs = pkgs),
         # A go_library requires one from each of its dependencies. These
         # packages bring no shared libraries.
         merge_shared_libraries(ctx.actions),
-        GoImportableInfo(
-            goarch = go_toolchain.env_go_arch,
-            goos = go_toolchain.env_go_os,
-            goroot = go_toolchain.env_go_root,
-            stdlib = go_list_stdlib(ctx.actions, go_toolchain, cgo_enabled = False),
-            x = sources,
-        ),
+        importable,
     ]
 
 def _build_x_package_impl(

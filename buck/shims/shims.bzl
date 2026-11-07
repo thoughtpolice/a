@@ -381,7 +381,12 @@ def _command(**kwargs):
     _command_rule(**kwargs)
 
 def _run_test_impl(ctx: AnalysisContext) -> list[Provider]:
-    command = [ctx.attrs.dep[RunInfo].args] + ctx.attrs.args
+    prebuilt = [
+        output
+        for dep in ctx.attrs.prebuild
+        for output in dep[DefaultInfo].default_outputs + dep[DefaultInfo].other_outputs
+    ]
+    command = [ctx.attrs.dep[RunInfo].args, cmd_args(hidden = prebuilt)] + ctx.attrs.args
     return [
         DefaultInfo(),
         RunInfo(args = cmd_args(command)),
@@ -403,6 +408,14 @@ _run_test_rule = rule(
         "dep": attrs.dep(providers = [RunInfo]),
         # See the note on the same attribute in _command_test_rule.
         "env": attrs.dict(attrs.string(), attrs.arg(), default = {}),
+        # Targets built before the test starts, as hidden inputs of its
+        # command. A test whose nested buck2 builds in the shared daemon
+        # names what that build needs here. Otherwise the nested build waits
+        # behind the outer command's queue while the test holds one of that
+        # command's slots, and a busy `buck2 test` times it out. Unlike a
+        # declared input, nothing here is passed to the test; it only finds
+        # these targets already built.
+        "prebuild": attrs.list(attrs.dep(), default = []),
     },
 )
 

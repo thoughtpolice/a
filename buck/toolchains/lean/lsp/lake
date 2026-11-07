@@ -38,8 +38,10 @@ import time
 
 BXL = "toolchains//lean/lsp/lean.bxl"
 
-# Cells holding Lean targets, for LEAN_SRC_PATH.
-SRC_PATTERNS = ["root//...", "toolchains//...", "depot-tilde//..."]
+# Cells holding Lean targets, for LEAN_SRC_PATH. DEPOT_LEAN_PATTERNS, a
+# space-separated list, replaces them; the smoke test uses it to index only
+# its own package.
+SRC_PATTERNS = os.environ.get("DEPOT_LEAN_PATTERNS", "").split() or ["root//...", "toolchains//...", "depot-tilde//..."]
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
 from tool import import_arts, native_libs  # noqa: E402

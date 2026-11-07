@@ -30,7 +30,11 @@ PATH, with four variables set:
 
 `lean.bxl:index` does the building and finds the roots. A module that does
 not build is left out of the index with a note in the server's log, rather
-than keeping the server from starting.
+than keeping the server from starting. `DEPOT_LEAN_PATTERNS`, a
+space-separated list of target patterns, replaces the three cells it
+indexes. The smoke test sets it to `toolchains//lean/tests/...`, so a
+busy `buck2 test` does not leave it waiting for every Lean module in the
+repository.
 
 The server loads .olean files and precompiled libraries that Buck's Lean
 wrote, and a different Lean fails on them.
