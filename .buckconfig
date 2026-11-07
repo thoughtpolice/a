@@ -68,9 +68,6 @@ test_builds_targets = true
 # 'A//B/C' is an alias for 'A//B/C:C' as it is in bazel
 infer_target_names = true
 
-# use sha256 since everything supports it. XXX FIXME (aseipp): blake3?
-digest_algorithms = SHA256
-
 # avoid thundering herd behaviors when batching large amounts of FindMissingBlob
 # requests: https://github.com/facebook/buck2/pull/1330
 deduplicate_get_digests_ttl_calls = true
@@ -90,29 +87,16 @@ restarter = true
 
 # enable checking the peak memory in the interpreter, and also set a byte limit
 # for the interpreter. this is useful for catching runaway memory usage in BUILD
-# files just in case people start going crazy with them.
+# files just in case people start going crazy with them. (the max callstack
+# size is starlark.max_callstack_size in .bucksettings.toml.)
 check_starlark_peak_memory = true
-# also, enforce a max callstack size to prevent ridiculous stack sizes and
-# put a limit on how deep/abstract things can get.
-starlark_max_callstack_size = 50
 # default limit is 5MiB = 5 * 1024 * 1024 = 5242880 bytes. this is used by
 # starlark_memory_limit() by default if no limit is specified.
 default_starlark_peak_memory = 5242880
 
-[http]
-# Give slower upstream source mirrors time to connect and deliver data.
-connect_timeout_ms = 60000
-read_timeout_ms = 60000
-
 [buck2_re_client]
 # for larger blobs: set a larger gRPC timeout window so we can upload them in time
 grpc_timeout = 900
-
-[buck2_resource_control]
-status = if_available
-enable_suspension = true
-memory_max = 70%
-memory_high = 60%
 
 [test]
 # Tests whose verdict depends on data this repository does not control -- a
@@ -151,13 +135,6 @@ global_config_paths = \
 
 # for now, cellar failures should not be relevant, so exclude them
 ignore_cells = depot-cellar
-
-[build]
-# set the execution platforms for builds on this machine: the host's default,
-# then, with remote execution on, remote workers of other cpus. NOTE: these
-# platform definitions are where remote execution (optionally) is enabled via
-# ExecutionPlatformRegistrationInfo
-execution_platforms = root//buck/platforms:execution
 
 [project]
 # things that should not be scanned by buck2 for file changes. if you notice

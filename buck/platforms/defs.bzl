@@ -223,9 +223,9 @@ def _execution_platforms_impl(ctx: AnalysisContext) -> list[Provider]:
         platforms.extend(dep[ExecutionPlatformRegistrationInfo].platforms)
     return [DefaultInfo(), ExecutionPlatformRegistrationInfo(platforms = platforms)]
 
-# Buck reads one build.execution_platforms target and gives each target the
-# first of its platforms that the target's exec_compatible_with and exec deps
-# accept.
+# Buck reads one target, the execution_platforms.target setting in
+# .bucksettings.toml, and gives each target the first of its platforms that
+# the target's exec_compatible_with and exec deps accept.
 __execution_platforms = rule(
     impl = _execution_platforms_impl,
     attrs = {

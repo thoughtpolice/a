@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# Typed Buck settings: the configuration buck2 reads about itself. A key set
+# here wins over the buckconfig key it replaces, `-c` included, so override
+# one with `--setting` or a `.bucksettings.local.toml` instead. `buck2 audit
+# settings --verbose` lists every key and where its value comes from.
+
+[hydration]
+enable_paging = true
+page_out_on_idle = true
+eviction_policy = "on_memory_pressure"
+
+[digest]
+# use sha256 since everything supports it. XXX FIXME (aseipp): blake3?
+algorithms = "SHA256"
+
+[starlark]
+# enforce a max callstack size to prevent ridiculous stack sizes and put a
+# limit on how deep/abstract things can get.
+max_callstack_size = 50
+
+[http]
+# Give slower upstream source mirrors time to connect and deliver data.
+connect_timeout_ms = 60000
+read_timeout_ms = 60000
+
+[resource_control]
+status = "if_available"
+enable_suspension = true
+memory_max = "70%"
+memory_high = "60%"
+
+[execution_platforms]
+# set the execution platforms for builds on this machine: the host's default,
+# then, with remote execution on, remote workers of other cpus. NOTE: these
+# platform definitions are where remote execution (optionally) is enabled via
+# ExecutionPlatformRegistrationInfo
+target = "root//buck/platforms:execution"
