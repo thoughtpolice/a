@@ -11,7 +11,7 @@
   (export quad-main quad-version editor-init! build-exe!
           ;; headless driving, for tests and --batch scripts
           headless-start! headless-client! use-client! headless-buffer!
-          press! type! screen screen-row screen-of client-received buffer-contents
+          press! type! screen screen-row screen-cursor screen-of client-received buffer-contents
           selected primary-text redraw!
           check expect-equal failure!)
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
@@ -191,6 +191,8 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
   (define (screen-of c) (grid-model-lines (hashtable-ref models c #f)))
   (define (screen) (screen-of the-test-client))
   (define (screen-row n) (list-ref (screen) n))
+  ;; Where the test client's cursor is, (row col shape), or #f.
+  (define (screen-cursor) (grid-model-cursor (hashtable-ref models the-test-client #f)))
   ;; The messages a client got that are not about its screen, newest first.
   (define (client-received c) (grid-model-other (hashtable-ref models c #f)))
   (define (buffer-contents) (buffer-string (current-buffer)))

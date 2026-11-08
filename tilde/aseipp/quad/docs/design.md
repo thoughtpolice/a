@@ -62,7 +62,7 @@ with escape sequences (`core/term.sls`), a GUI with its own text renderer.
 Mouse and layout coordinates are cells, both ways.
 
 Cells keep clients simple and identical in behaviour. Things a GUI would
-rather draw natively, such as pickers, legends, the prompt and smooth
+rather draw natively, such as pickers, dialogs, legends, popups, the prompt and smooth
 scrolling, can become optional messages later, offered by capability as
 Neovim's `ext_*` options are. The grid stays the baseline every client
 supports.

@@ -197,7 +197,7 @@ for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
 | `core/syntax.sls` | the highlighting lexer and the node tree |
 | `core/selection.sls` | selection modes and movements |
 | `core/event.sls` | input events, as clients report them |
-| `core/editor.sls` | the core and extension API: clients, buffers, commands, keymaps, hooks, variables, prompts |
+| `core/editor.sls` | the core and extension API: clients, buffers, commands, keymaps, hooks, variables, prompts, popups |
 | `core/commands.sls` | the standard commands and Ki's keymaps |
 | `core/display.sls` | drawing each client's frame, sent as changed cells |
 | `core/protocol.sls` | the client protocol: MessagePack frames, events as messages |

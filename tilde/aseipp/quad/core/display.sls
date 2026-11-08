@@ -481,23 +481,39 @@
           [else k]))
 
   ;; A picker: a centered window with the query and the filtered candidates.
+  ;; Its hint, if any, wraps above the query. It is as tall as its most
+  ;; candidates need, so a few choices make a small window, which keeps its
+  ;; size as the query filters them.
   (define (draw-picker! g rows cols p)
     (let* ([width (min (- cols 4) 100)]
-           [height (min (- rows 4) 24)]
+           [most-height (min (- rows 4) 24)]
+           [hint (if (prompt-hint p) (wrap-text (prompt-hint p) (- width 4)) '())]
+           [hint (if (> (length hint) (quotient most-height 3))
+                     (append (take hint (- (quotient most-height 3) 1)) (list "…"))
+                     hint)]
+           [skip (if (null? hint) 0 (+ (length hint) 1))]
+           [height (min most-height (+ 4 skip (max 1 (prompt-most p))))]
            [top (quotient (- rows height) 2)]
            [left (quotient (- cols width) 2)]
+           [query (+ top 1 skip)]
            [items (prompt-items p)]
            [n (length items)]
-           [visible (- height 4)]
+           [visible (max 0 (- height 4 skip))]
            [index (prompt-index p)]
-           [first (max 0 (min (- index (quotient visible 2)) (- n visible)))])
+           [first (max 0 (min (- index (quotient visible 2)) (- n visible)))]
+           [rule (lambda (r) (do ([c 1 (+ c 1)]) ((>= c (- width 1))) (put! g r (+ left c) #\─ (UI 'ui.popup.border))))])
       (draw-box! g top left height width (prompt-label p))
       (let ([count (format " ~a/~a " (if (= n 0) 0 (+ index 1)) n)])
         (put-string! g top (- (+ left width) 2 (string-length count)) count (UI 'ui.popup.border)))
-      (let ([col (put-string! g (+ top 1) (+ left 2) "❯ " (UI 'ui.prompt.label))])
-        (put-string! g (+ top 1) col (prompt-input p) (UI 'ui.popup) (+ left width -2))
-        (do ([c 1 (+ c 1)]) ((>= c (- width 1))) (put! g (+ top 2) (+ left c) #\─ (UI 'ui.popup.border)))
-        (let loop ([items (drop items first)] [i first] [r (+ top 3)])
+      (let loop ([ls hint] [r (+ top 1)])
+        (unless (null? ls)
+          (put-string! g r (+ left 2) (car ls) (UI 'ui.popup) (+ left width -2))
+          (loop (cdr ls) (+ r 1))))
+      (when (pair? hint) (rule (- query 1)))
+      (let ([col (put-string! g query (+ left 2) "❯ " (UI 'ui.prompt.label))])
+        (put-string! g query col (prompt-input p) (UI 'ui.popup) (+ left width -2))
+        (rule (+ query 1))
+        (let loop ([items (drop items first)] [i first] [r (+ query 2)])
           (when (and (pair? items) (< r (+ top height -1)))
             (let* ([item (car items)] [selected? (= i index)]
                    [face (UI (if selected? 'ui.menu.selected 'ui.menu))]
@@ -510,7 +526,105 @@
                       (put! g r c ch (if (memv j hits) (face-merge face (F 'ui.menu.match)) face))
                       (chars (+ j 1) (+ c (max 1 (char-width ch))))))))
               (loop (cdr items) (+ i 1) (+ r 1)))))
-        (list (+ top 1) (+ col (string-width (substring (prompt-input p) 0 (prompt-cursor p)))) 'bar))))
+        (list query (+ col (string-width (substring (prompt-input p) 0 (prompt-cursor p)))) 'bar))))
+
+  ;; Split text into lines of at most width columns, at spaces where it can.
+  (define (wrap-text text width)
+    (apply append
+           (map (lambda (line)
+                  (let loop ([line line] [acc '()])
+                    (if (<= (string-width line) width)
+                        (reverse (cons line acc))
+                        (let* ([cut (let fit ([i 0] [w 0])
+                                      (if (or (= i (string-length line))
+                                              (> (+ w (char-width (string-ref line i))) width))
+                                          i
+                                          (fit (+ i 1) (+ w (char-width (string-ref line i))))))]
+                               [space (let back ([i cut])
+                                        (cond [(<= i 0) #f]
+                                              [(char=? (string-ref line i) #\space) i]
+                                              [else (back (- i 1))]))]
+                               [at (if (and space (> space 0)) space (max 1 cut))])
+                          (loop (string-trim-left (substring line at (string-length line)))
+                                (cons (substring line 0 at) acc))))))
+                (string-split text #\newline))))
+
+;; Where lines of at most width columns start in s, breaking after a space
+  ;; where it can and after a newline always; no character is dropped, so a
+  ;; cursor index falls in exactly one line.
+  (define (wrap-starts s width)
+    (let ([n (string-length s)])
+      (let loop ([start 0] [acc '()])
+        (let fit ([i start] [w 0] [space #f])
+          (cond
+           [(= i n) (reverse (cons start acc))]
+           [(char=? (string-ref s i) #\newline) (loop (+ i 1) (cons start acc))]
+           [(and (> i start) (> (+ w (char-width (string-ref s i))) width))
+            (loop (or space i) (cons start acc))]
+           [else (fit (+ i 1) (+ w (char-width (string-ref s i)))
+                      (if (char=? (string-ref s i) #\space) (+ i 1) space))])))))
+
+  ;; A dialog: a centered window, the input wrapping inside it, a little
+  ;; above the middle as a form's would be. The box grows with the text up
+  ;; to half the screen, then scrolls to keep the cursor in view.
+  (define (draw-dialog! g rows cols p)
+    (let* ([width (min (- cols 4) 80)]
+           [inner (- width 4)]
+           [input (if (eq? (prompt-style p) 'secret)
+                      (make-string (string-length (prompt-input p)) #\•)
+                      (prompt-input p))]
+           [cursor (prompt-cursor p)]
+           [starts (list->vector (wrap-starts input inner))]
+           [nlines (vector-length starts)]
+           [line-of (let loop ([i (- nlines 1)])
+                      (if (or (= i 0) (<= (vector-ref starts i) cursor)) i (loop (- i 1))))]
+           [visible (max 1 (min (max 3 nlines) (- (quotient rows 2) 2)))]
+           [first (max 0 (- line-of (- visible 1)))]
+           [height (+ visible 2)]
+           [top (max 0 (- (quotient (- rows height) 2) (quotient rows 8)))]
+           [left (quotient (- cols width) 2)]
+           [face (UI 'ui.popup)]
+           [line-text (lambda (i)
+                        (let* ([end (if (< (+ i 1) nlines) (vector-ref starts (+ i 1)) (string-length input))]
+                               [t (substring input (vector-ref starts i) end)])
+                          (if (and (> (string-length t) 0) (char=? (string-ref t (- (string-length t) 1)) #\newline))
+                              (substring t 0 (- (string-length t) 1))
+                              t)))])
+      (draw-box! g top left height width (prompt-label p))
+      (if (and (string=? input "") (prompt-hint p))
+          (put-string! g (+ top 1) (+ left 2) (prompt-hint p) (face-merge face (F 'ui.popup.info)) (+ left width -2))
+          (do ([i first (+ i 1)] [r (+ top 1) (+ r 1)]) ((or (= i nlines) (= r (+ top 1 visible))))
+            (put-string! g r (+ left 2) (line-text i) face (+ left width -1))))
+      (let ([f " ⏎ send · esc cancel "])
+        (put-string! g (+ top height -1) (max (+ left 1) (- (+ left width) 2 (string-width f))) f
+                     (UI 'ui.popup.border) (+ left width -1)))
+      (list (+ top 1 (- line-of first))
+            (+ left 2 (string-width (substring input (vector-ref starts line-of) cursor)))
+            'bar)))
+
+  ;; A popup, at the right between rows top and bottom: its last lines.
+  (define (draw-popup! g rows cols p top bottom)
+    (let* ([now (lambda (x) (if (procedure? x) (x) x))]
+           [title (now (popup-title p))]
+           [footer (now (popup-footer p))]
+           [width (min (- cols 2) (max 50 (quotient cols 2)) 100)]
+           [inner (- width 4)]
+           [left (- cols width 1)]
+           [lines (apply append
+                         (map (lambda (l) (map (lambda (t) (cons t (cdr l))) (wrap-text (car l) inner)))
+                              ((popup-lines p))))]
+           [height (min (- bottom top) (max 3 (+ 2 (length lines))))]
+           [shown (let ([n (- height 2)]) (if (> (length lines) n) (drop lines (- (length lines) n)) lines))])
+      (when (and (>= height 3) (> inner 0))
+        (draw-box! g top left height width title)
+        (let loop ([ls shown] [r (+ top 1)])
+          (unless (null? ls)
+            (put-string! g r (+ left 2) (car (car ls)) (face-merge (UI 'ui.popup) (F (cdr (car ls)))) (+ left width -2))
+            (loop (cdr ls) (+ r 1))))
+        (when footer
+          (let ([f (string-append " " footer " ")])
+            (put-string! g (+ top height -1) (max (+ left 1) (- (+ left width) 2 (string-width f))) f
+                         (UI 'ui.popup.border) (+ left width -1)))))))
 
   ;; A line prompt's candidates, listed above the bottom row.
   (define (draw-completions! g rows cols p bottom)
@@ -545,10 +659,12 @@
               (when tabs? (draw-bufferline! g b cols))
               (let ([gutter (draw-buffer! g v text-top height cols (not p))])
                 (draw-status! g status-row v cols)
+                (when (current-popup) (draw-popup! g rows cols (current-popup) text-top status-row))
                 (let* ([bottom-cursor (draw-bottom! g (- rows 1) cols)]
                        [cursor
                         (cond
                          [(and p (eq? (prompt-style p) 'picker)) (draw-picker! g rows cols p)]
+                         [(and p (memq (prompt-style p) '(dialog secret))) (draw-dialog! g rows cols p)]
                          [(and p (eq? (prompt-style p) 'line))
                           (draw-completions! g rows cols p status-row)
                           bottom-cursor]

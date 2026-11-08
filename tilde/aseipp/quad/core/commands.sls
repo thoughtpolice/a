@@ -1277,10 +1277,11 @@
   (defcmd toggle-line-numbers "Cycle absolute, relative and no line numbers"
     (set-var! 'line-numbers (case (get-var 'line-numbers #f) [(absolute) 'relative] [(relative) #f] [else 'absolute])))
   (defcmd toggle-whitespace "Show or hide whitespace" (set-var! 'show-whitespace (not (get-var 'show-whitespace #f))))
-  (defcmd escape "Back to one selection, and stop extending"
+  (defcmd escape "Hide the popup, else back to one selection, and stop extending"
     (let ([b (cur)])
       (jump-labels-set! '() #f)
       (cond
+       [(current-popup) (hide-popup!)]
        [(view-extending? (cv))
         (view-extending?-set! (cv) #f)
         (set-sels! b (map sel-collapse (sels-of b)))]

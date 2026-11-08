@@ -65,9 +65,11 @@
    primary-selection-set! system-clipboard-request!
    ;; prompts
    make-prompt prompt? prompt-label prompt-input prompt-input-set! prompt-cursor
-   prompt-cursor-set! prompt-items prompt-index prompt-index-set! prompt-style
+   prompt-cursor-set! prompt-items prompt-index prompt-index-set! prompt-style prompt-hint prompt-most
    current-prompt open-prompt! close-prompt! prompt-refresh! prompt-accept!
-   read-string-prompt pick
+   read-string-prompt read-string-dialog pick
+   ;; popups
+   make-popup popup? popup-title popup-lines popup-footer current-popup show-popup! hide-popup!
    ;; geometry, for the mouse
    view-geometry view-geometry-set! screen->position display-column
    ;; events
@@ -93,12 +95,12 @@
             views                     ; buffer -> view
             (mutable prompt) (mutable layer) (mutable jumps) (mutable jump-callback)
             (mutable message) (mutable geometry) (mutable pending-clipboard)
-            (mutable dirty?) (mutable frame) locals)
+            (mutable dirty?) (mutable frame) locals (mutable popup))
     (protocol
      (lambda (new)
        (lambda (id name connection rows cols capabilities)
          (new id name connection rows cols capabilities #f (make-eq-hashtable)
-              #f #f '() #f #f #f #f #t #f (make-eq-hashtable))))))
+              #f #f '() #f #f #f #f #t #f (make-eq-hashtable) #f)))))
 
   (define (client-has? c capability) (and (member capability (client-capabilities c)) #t))
   (define (client-local c key default) (hashtable-ref (client-locals c) key default))
@@ -638,14 +640,23 @@
   ;; A prompt reads a line in the bottom row. Given a candidates procedure
   ;; it is a picker: candidates are (display . value) pairs, fuzzy-filtered
   ;; by the input; style 'picker draws them in a centered floating window.
+  ;; Style 'dialog reads text in a centered window instead, as a form's text
+  ;; box would: the label is its title, the input wraps and the box grows
+  ;; with it, and hint, if any, shows while the input is empty. Style
+  ;; 'secret is a dialog that shows bullets for what is typed. A picker's
+  ;; hint, if any, is shown above its query: the question it asks.
 
   (define-record-type prompt
     (fields label (mutable input) (mutable cursor) candidates
-            (mutable items) (mutable index) on-accept on-change style)
+            (mutable items) (mutable index) on-accept on-change style hint
+            (mutable most))             ; the most items it has had, for its size
     (protocol
      (lambda (new)
-       (lambda (label initial candidates on-accept on-change style)
-         (new label initial (string-length initial) candidates '() 0 on-accept on-change style)))))
+       (case-lambda
+        [(label initial candidates on-accept on-change style)
+         (new label initial (string-length initial) candidates '() 0 on-accept on-change style #f 0)]
+        [(label initial candidates on-accept on-change style hint)
+         (new label initial (string-length initial) candidates '() 0 on-accept on-change style hint 0)]))))
 
   (define (current-prompt) (and the-client (client-prompt the-client)))
 
@@ -661,6 +672,7 @@
                                      all))]
              [sorted (if (string=? input "") scored (sort (lambda (a b) (> (car a) (car b))) scored))])
         (prompt-items-set! p (map (lambda (x) (cons (caddr x) (cadr x))) sorted))
+        (prompt-most-set! p (max (prompt-most p) (length sorted)))
         (prompt-index-set! p (clamp (prompt-index p) 0 (max 0 (- (length sorted) 1))))))
     (when (prompt-on-change p) ((prompt-on-change p) (prompt-input p))))
 
@@ -684,14 +696,41 @@
      [(label k) (read-string-prompt label "" k)]
      [(label initial k) (open-prompt! (make-prompt label initial #f k #f 'line))]))
 
+  ;; Read text in a centered window titled title, then call (k text). hint
+  ;; (a string or #f) says what to write. A secret's text is not shown.
+  (define read-string-dialog
+    (case-lambda
+     [(title hint k) (read-string-dialog title hint "" k)]
+     [(title hint initial k) (read-string-dialog title hint initial k #f)]
+     [(title hint initial k secret?)
+      (open-prompt! (make-prompt title initial #f k #f (if secret? 'secret 'dialog) hint))]))
+
   ;; Pick among candidates, a list or a procedure from the input to a list,
   ;; of (display . value) pairs, then call (k value).
   (define pick
     (case-lambda
      [(label candidates k) (pick label candidates k 'picker)]
-     [(label candidates k style)
+     [(label candidates k style) (pick label candidates k style #f)]
+     [(label candidates k style hint)
       (open-prompt! (make-prompt label "" (if (procedure? candidates) candidates (lambda (_) candidates))
-                                 k #f style))]))
+                                 k #f style hint))]))
+
+  ;; ---------------------------------------------------------------------------
+  ;; Popups
+  ;;
+  ;; A popup is a floating window of text a client shows over its view, at
+  ;; the right, until it is hidden (escape hides it): an agent's progress, a
+  ;; command's output. It does not take the keys. (lines) gives its
+  ;; contents each time it is drawn, as (text . face) pairs, a face name for
+  ;; each line of text; long lines wrap, and the last lines show. footer is a
+  ;; hint for its bottom border, or #f. The title and footer may be
+  ;; procedures too, called each time it is drawn.
+
+  (define-record-type popup (fields title lines footer))
+
+  (define (current-popup) (and the-client (client-popup the-client)))
+  (define (show-popup! p) (client-popup-set! the-client p))
+  (define (hide-popup!) (when the-client (client-popup-set! the-client #f)))
 
   ;; ---------------------------------------------------------------------------
   ;; Layers, legends and jumps, per client
