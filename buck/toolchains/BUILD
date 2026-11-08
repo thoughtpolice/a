@@ -43,6 +43,11 @@ shims.toolchain_alias(
 )
 
 shims.toolchain_alias(
+    name = "chez",
+    actual = "toolchains//chez:chez",
+)
+
+shims.toolchain_alias(
     name = "deno",
     actual = "toolchains//deno:deno",
 )
