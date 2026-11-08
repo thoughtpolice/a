@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "2026.21",
+    description = """
+        Slang, a shading language and compiler that targets SPIR-V, HLSL,
+        GLSL, Metal, WGSL, CUDA and C++. Only the compiler (libslang-compiler
+        and slangc) and the modules it loads (GLSL, and glslang/SPIRV-Tools)
+        are built: no LLVM backend, language server, gfx or standard modules.
+    """,
+    # Per REUSE.toml: of what is built, dxcapi.h (the DXC interface) is
+    # NCSA-style and slang-crypto.cpp's hash code is public domain.
+    license = "Apache-2.0 WITH LLVM-exception AND LicenseRef-UOI-NCSA AND Unlicense",
+    copyright = [
+        "2016 Carnegie Mellon University and NVIDIA Corporation",
+        "2024 The Khronos Group, Inc.",
+        "Microsoft Corporation",
+    ],
+    visibility = ["PUBLIC"],
+
+    # Linux, macOS and Windows, each with its own shared library naming,
+    # linker flags and install layout (BUILD).
+    compatible_with = [
+        "config//os:linux",
+        "config//os:macos",
+        "config//os:windows",
+    ],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/shader-slang/slang",
+        commit = "e73d268973dae1a2af701277b27c2fddef98a274",
+    ),
+)
