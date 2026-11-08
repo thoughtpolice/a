@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+# Slang's pin, after 16.2.0. glslang builds against a particular
+# SPIRV-Tools, and the two have to move together.
+GIT_COMMIT = "d1f52c8993a501bd52d4fbd044bfeb9ecdceb9f4"
+
+pkg.info(
+    version = "16.2.0+gd1f52c89",
+    description = """
+        glslang, the Khronos reference front end for GLSL and ESSL, with an
+        HLSL front end and a SPIR-V back end, as a library and the glslang
+        command line tool.
+    """,
+    # Per LICENSE.txt: most of glslang is BSD-3-Clause, with BSD-2-Clause,
+    # MIT and Apache-2.0 parts; the Bison-generated parser is GPL with the
+    # Bison exception; the preprocessor is also under NVIDIA's original
+    # permissive license.
+    license = "BSD-3-Clause AND BSD-2-Clause AND MIT AND Apache-2.0 AND GPL-3.0-or-later WITH Bison-exception-2.2 AND LicenseRef-NVIDIA-glslang-preprocessor",
+    copyright = [
+        "2002-2026 The Khronos Group Inc., Google Inc., NVIDIA Corporation, LunarG, Inc. and the glslang contributors",
+    ],
+    visibility = ["PUBLIC"],
+
+    # Linux and macOS with the Unix OS layer, and Windows with its own
+    # (BUILD).
+    compatible_with = [
+        "config//os:linux",
+        "config//os:macos",
+        "config//os:windows",
+    ],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/KhronosGroup/glslang",
+        commit = GIT_COMMIT,
+    ),
+)
