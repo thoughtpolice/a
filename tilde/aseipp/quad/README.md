@@ -152,12 +152,16 @@ quad gives the agent tools of its own (`quad_eval`, `quad_describe`,
 `quad_apropos`, `quad_keymap`, `quad_reload_config`, `quad_context`), so it
 finds the API rather than guessing, and each question carries what you are
 looking at. It works in the init file's directory, under Codex's
-`workspace-write` sandbox; anything more it asks first, in a picker
-(`space a y` if you dismissed it). While it works, `space a a` again steers
+`workspace-write` sandbox; anything more it asks first, in a picker. It
+can ask you questions as it works, and an MCP server it uses can ask too:
+for a form's values (a dialog or picker for each field), to open a link, or
+for more permissions. Each waits its turn; `space a y` takes up one you
+dismissed. While it works, `space a a` again steers
 it and `space a i` interrupts it; `space a t` is the whole conversation,
 `space a n` starts another, `esc` hides the popup and `space a p` brings it
 back. The variables `codex-command`, `codex-model`, `codex-sandbox`,
-`codex-approval-policy`, `codex-directory` and `codex-log` change how it
+`codex-approval-policy`, `codex-directory`, `codex-questions` and
+`codex-log` change how it
 runs, and `define-codex-tool!` gives it more tools: the agent can write
 those too.
 

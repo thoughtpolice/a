@@ -11,10 +11,13 @@
 ;; editor, describing commands, variables and keys, reloading the init file.
 ;; The agent works in the init file's directory, under the sandbox and
 ;; approval policy set below; it asks before anything else, in a picker.
+;; It may ask questions of its own as it works, and the MCP servers it
+;; uses may ask for things (a form to fill in, a link to open): each waits
+;; its turn, in pickers and dialogs over the view.
 ;;
 ;;   space a a    ask (while it works: steer it)
 ;;   space a p    show or hide the popup that follows it
-;;   space a y    answer a waiting approval
+;;   space a y    answer what is waiting (escape leaves it waiting)
 ;;   space a i    interrupt it
 ;;   space a t    the whole conversation, in a buffer
 ;;   space a n    a new conversation
@@ -27,7 +30,7 @@
 ;;     (lambda (args) (number->string (length (string-split (buffer-string (current-buffer)) #\space)))))
 (library (quad ext codex)
   (export codex-ask! codex-start! codex-stop! codex-interrupt! codex-new-thread!
-          codex-running? codex-busy? codex-thread-id codex-approvals codex-approve!
+          codex-running? codex-busy? codex-thread-id codex-waiting codex-answer!
           codex-transcript-text codex-popup define-codex-tool! codex-tools
           codex-instructions)
   (import (chezscheme) (quad util) (quad json) (quad jsonrpc) (quad text)
@@ -44,6 +47,8 @@
   (define-variable codex-directory #f
     "The directory Codex works in, or #f for the init file's")
   (define-variable codex-log #f "A file for the app server's standard error, or #f")
+  (define-variable codex-questions #t
+    "Whether Codex may ask questions as it works (Codex's default_mode_request_user_input, still experimental)")
 
   ;; ---------------------------------------------------------------------------
   ;; State: one app server and one conversation, for the whole editor. A
@@ -59,12 +64,13 @@
   (define stopping? #f)
   (define turn-client #f)
   (define waiting '())          ; thunks to run once a thread is ready
-  (define approvals '())        ; (id label choices), oldest first
+  (define asks '())             ; what waits for the user: (id label answer), oldest first
 
   (define (codex-running?) (and rpc #t))
   (define (codex-busy?) busy?)
   (define (codex-thread-id) thread-id)
-  (define (codex-approvals) approvals)
+  ;; What waits for an answer, oldest first: (request-id . label).
+  (define (codex-waiting) (map (lambda (a) (cons (car a) (cadr a))) asks))
 
   ;; The conversation, as the popup shows it: newest first.
   (define-record-type entry (fields kind (mutable text) (mutable face)))
@@ -118,11 +124,11 @@
                           (cons line acc))))))))
 
   (define codex-popup
-    (make-popup (lambda () (cond [(pair? approvals) "Codex · approval needed"]
+    (make-popup (lambda () (cond [(pair? asks) "Codex · waiting for you"]
                                  [busy? "Codex · working"]
                                  [else "Codex"]))
                 popup-contents
-                (lambda () (cond [(pair? approvals) "space a y approve"]
+                (lambda () (cond [(pair? asks) "space a y answer"]
                                  [busy? "space a a steer · space a i interrupt · esc hide"]
                                  [else "space a a ask · esc hide"]))))
 
@@ -323,6 +329,8 @@ bindings, quad_context the editor's state. The essentials:
 - buffers and selections: current-buffer, buffer-string, sels-texts, edit-sels!, selection-text, insert-at-cursors!
 - themes: (define-theme 'name palette faces), (load-theme! 'name)
 - tools of your own for later conversations: (define-codex-tool! \"name\" \"description\" json-schema (lambda (args) \"result\"))
+When a request leaves a choice that matters open (which key, which behaviour), ask with \
+request_user_input if you have it, offering the likely answers; otherwise choose and say so.
 quad's Scheme is Chez Scheme 10 (R6RS). Reply briefly: what you changed, and the keys or \
 commands to use it."
             (init-file-path) (codex-directory)))
@@ -386,6 +394,10 @@ commands to use it."
          (sandbox . ,(get-var 'codex-sandbox))
          ,@(if (get-var 'codex-model) `((model . ,(get-var 'codex-model))) '())
          (developerInstructions . ,(codex-instructions))
+         ,@(if (get-var 'codex-questions)
+               '((config . ((features.default_mode_request_user_input . #t)
+                            (suppress_unstable_features_warning . #t))))
+               '())
          (dynamicTools . ,(list->vector (map tool-spec tools)))
          (ephemeral . #t))
        (lambda (r)
@@ -431,7 +443,7 @@ commands to use it."
     (set! thread-id #f)
     (set! turn-id #f)
     (set! busy? #f)
-    (set! approvals '())
+    (drop-asks!)
     (set! entries '())
     (hashtable-clear! items))
 
@@ -447,7 +459,7 @@ commands to use it."
     (set! thread-starting? #f)
     (set! turn-id #f)
     (set! busy? #f)
-    (set! approvals '())
+    (drop-asks!)
     (unless stopping?
       (add-entry! 'error (format "The Codex app server exited (status ~a)." status) 'error)))
 
@@ -473,9 +485,14 @@ commands to use it."
         (add-entry! 'error (format "~a~a" (or (json-ref params 'error 'message) "an error")
                                    (if (json-ref params 'willRetry) " (retrying)" ""))
                     'error)]
+       [(string=? method "warning")
+        (add-entry! 'status (or (json-ref params 'message) "a warning") 'warning)]
        [(string=? method "serverRequest/resolved")
+        ;; Answered, or no longer wanted (the turn ended): stop asking.
         (let ([id (json-ref params 'requestId)])
-          (set! approvals (remp (lambda (a) (equal? (car a) id)) approvals)))]
+          (when (assoc id asks)
+            (forget-ask! id)
+            (when (equal? id open-ask) (close-ours!))))]
        [else (void)])))
 
   (define (changed-files item)
@@ -543,7 +560,274 @@ commands to use it."
         (add-entry! 'status (if ms (format "Done in ~,1fs." (/ ms 1000.0)) "Done.") 'ui.text.dim)]))
     (as-asker (lambda () (unless (current-popup) (message "Codex is done: space a p shows what it did")))))
 
-  ;; Requests: tools, and approvals.
+  ;; ---------------------------------------------------------------------------
+  ;; Asking the user: approvals, the agent's questions, MCP servers' forms
+  ;;
+  ;; Each request that waits for the user is (id label answer): (answer
+  ;; reply) opens what asks -- pickers and dialogs, one after another, as the
+  ;; client that asked -- and calls (reply result). Escape leaves it
+  ;; waiting; codex-answer! starts it again. One is asked at a time, oldest
+  ;; first.
+
+  (define open-ask #f)          ; the id of the one being asked
+  (define our-prompt #f)        ; the prompt it has open
+
+  (define (ask! id label answer)
+    (set! asks (append asks (list (list id label answer))))
+    (as-asker (lambda () (unless (current-prompt) (codex-answer!)))))
+
+  (define (forget-ask! id)
+    (set! asks (remp (lambda (a) (equal? (car a) id)) asks)))
+
+  ;; Close the prompt we opened, if it is still open.
+  (define (close-ours!)
+    (let ([p our-prompt])
+      (set! our-prompt #f)
+      (set! open-ask #f)
+      (when p
+        (for-each (lambda (c) (with-client c (lambda () (when (eq? (current-prompt) p) (close-prompt!)))))
+                  (clients)))))
+
+  (define (drop-asks!)
+    (close-ours!)
+    (set! asks '()))
+
+  ;; Answer the oldest request that waits.
+  (define (codex-answer!)
+    (if (null? asks)
+        (message "Codex is not waiting for an answer")
+        (let* ([a (car asks)] [id (car a)])
+          (set! open-ask id)
+          ((caddr a)
+           (lambda (result)
+             (set! open-ask #f)
+             (set! our-prompt #f)
+             ;; Unless it was resolved meanwhile.
+             (when (assoc id asks)
+               (forget-ask! id)
+               (when rpc (jsonrpc-reply! rpc id result)))
+             (when (and (pair? asks) (not (current-prompt))) (codex-answer!)))))))
+
+  ;; Pick among choices, (display . value) pairs, with hint (the question)
+  ;; above them; then (k value). Text that matches none is asked again,
+  ;; unless free?: then it is the answer.
+  (define ask-pick
+    (case-lambda
+     [(title hint choices k) (ask-pick title hint choices k #f)]
+     [(title hint choices k free?)
+      (let again ()
+        (pick title choices
+              (lambda (v) (if (or free? (member v (map cdr choices))) (k v) (again)))
+              'picker hint)
+        (set! our-prompt (current-prompt)))]))
+
+  (define (ask-text title hint initial secret? k)
+    (read-string-dialog title hint initial k secret?)
+    (set! our-prompt (current-prompt)))
+
+  ;; Ask each of steps, (lambda (k) ...) calling k with its answer, in
+  ;; turn; then (done answers).
+  (define (in-turn steps done)
+    (let loop ([steps steps] [acc '()])
+      (if (null? steps)
+          (done (reverse acc))
+          ((car steps) (lambda (v) (loop (cdr steps) (cons v acc)))))))
+
+  (define (non-empty s) (and (string? s) (not (string=? (string-trim s) "")) s))
+  ;; The texts given, a paragraph each; #f if there are none.
+  (define (paragraphs . ss) (non-empty (string-join (filter non-empty ss) "\n\n")))
+
+  ;; Commands and file changes: a decision.
+  (define (approval title hint)
+    (lambda (reply)
+      (ask-pick title hint
+                '(("Yes" . "accept") ("Yes, and the like for the rest of this session" . "acceptForSession")
+                  ("No" . "decline") ("No, and stop" . "cancel"))
+                (lambda (d)
+                  (add-entry! 'answer (string-append "→ " (cdr (assoc d '(("accept" . "yes") ("acceptForSession" . "yes, this session")
+                                                                          ("decline" . "no") ("cancel" . "no, and stop")))))
+                              'ui.text.dim)
+                  (reply `((decision . ,d)))))))
+
+  ;; The agent's questions (request_user_input): a picker of its options
+  ;; when it gives some, "something else" opening a dialog if it may be
+  ;; anything; else a dialog.
+  (define something-else (list 'something-else))
+
+  (define (question-step q)
+    (let* ([header (or (non-empty (json-ref q 'header)) "Codex asks")]
+           [question (or (json-ref q 'question) "")]
+           [options (vector->list (or (json-ref q 'options) '#()))]
+           [secret? (json-ref q 'isSecret)]
+           [answered (lambda (k)
+                       (lambda (a)
+                         (add-entry! 'answer (string-append "→ " (if secret? "(secret)" a)) 'ui.text.dim)
+                         (k a)))])
+      (lambda (k)
+        (let ([k (answered k)]
+              [text (lambda (k) (ask-text header question "" secret? k))])
+          (if (null? options)
+              (text k)
+              (ask-pick header question
+                        (append (map (lambda (o)
+                                       (let ([l (or (json-ref o 'label) "?")])
+                                         (cons (if (non-empty (json-ref o 'description))
+                                                   (string-append l " — " (json-ref o 'description))
+                                                   l)
+                                               l)))
+                                     options)
+                                (if (json-ref q 'isOther) (list (cons "Something else…" something-else)) '()))
+                        (lambda (v) (if (eq? v something-else) (text k) (k v)))
+                        (json-ref q 'isOther)))))))
+
+  (define (user-input-answer qs)
+    (lambda (reply)
+      (in-turn (map question-step qs)
+               (lambda (answers)
+                 (reply `((answers . ,(map (lambda (q a) (cons (string->symbol (json-ref q 'id)) `((answers . #(,a)))))
+                                           qs answers))))))))
+
+  ;; MCP elicitation: a server asks for a form's values, or to open a link.
+  (define skip (list 'skip))
+
+  ;; A form field's choices, (display . value) pairs, or #f.
+  (define (field-options schema)
+    (let ([one-of (json-ref schema 'oneOf)] [any-of (json-ref schema 'items 'anyOf)]
+          [enum (or (json-ref schema 'enum) (json-ref schema 'items 'enum))]
+          [names (json-ref schema 'enumNames)])
+      (cond
+       [(or one-of any-of)
+        => (lambda (v) (map (lambda (o) (cons (or (json-ref o 'title) (json-ref o 'const)) (json-ref o 'const)))
+                            (vector->list v)))]
+       [enum (let ([names (if (and names (= (vector-length names) (vector-length enum))) names enum)])
+               (map cons (vector->list names) (vector->list enum)))]
+       [else #f])))
+
+  ;; Ask for one field of a form: (k value), or (k skip) to leave it out.
+  (define (field-step key schema required?)
+    (let* ([title (or (non-empty (json-ref schema 'title)) (symbol->string key))]
+           [hint (paragraphs (json-ref schema 'description) (if required? #f "Optional."))]
+           [type (json-ref schema 'type)]
+           [default (let ([d (assq 'default schema)]) (and d (cdr d)))]
+           [options (field-options schema)]
+           [optional (if required? '() (list (cons "(leave it out)" skip)))]
+           [first-default (lambda (choices)
+                            (let ([d (find (lambda (c) (equal? (cdr c) default)) choices)])
+                              (if d (cons d (remove d choices)) choices)))])
+      (lambda (k)
+        (cond
+         [(equal? type "array")
+          (let loop ([chosen (if (vector? default) (vector->list default) '())])
+            (ask-pick title hint
+                      (cons (cons (format "Done: ~a chosen" (length chosen)) skip)
+                            (map (lambda (o) (cons (string-append (if (member (cdr o) chosen) "[x] " "[ ] ") (car o)) (cdr o)))
+                                 (or options '())))
+                      (lambda (v)
+                        (if (eq? v skip)
+                            (k (list->vector (filter (lambda (x) (member x chosen)) (map cdr (or options '())))))
+                            (loop (if (member v chosen) (remove v chosen) (cons v chosen)))))))]
+         [options (ask-pick title hint (append (first-default options) optional) k)]
+         [(equal? type "boolean")
+          (ask-pick title hint (append (first-default '(("Yes" . #t) ("No" . #f))) optional) k)]
+         [else
+          (let again ()
+            (ask-text title hint (cond [(string? default) default] [(number? default) (number->string default)] [else ""]) #f
+                      (lambda (s)
+                        (let ([s (string-trim s)])
+                          (cond
+                           [(string=? s "")
+                            (if required? (begin (message-error "~a is required" title) (again)) (k skip))]
+                           [(member type '("number" "integer"))
+                            (let ([n (string->number s)])
+                              (if (and n (real? n) (or (equal? type "number") (integer? n)))
+                                  (k (if (equal? type "integer") (exact n) n))
+                                  (begin (message-error "~a wants ~a" title (if (equal? type "integer") "a whole number" "a number"))
+                                         (again))))]
+                           [else (k s)])))))]))))
+
+  (define (elicitation-answer params)
+    (let* ([server (or (json-ref params 'serverName) "An MCP server")]
+           [mode (json-ref params 'mode)]
+           [refuse (lambda (action) `((action . ,action) (content . null) (_meta . null)))]
+           [accept (lambda (content) `((action . "accept") (content . ,content) (_meta . null)))]
+           [answered (lambda (reply what result)
+                       (add-entry! 'answer (string-append "→ " what) 'ui.text.dim)
+                       (reply result))]
+           [decide (lambda (reply)
+                     (lambda (v)
+                       (if (equal? v "decline")
+                           (answered reply "declined" (refuse "decline"))
+                           (answered reply "cancelled" (refuse "cancel")))))])
+      (cond
+       [(equal? mode "url")
+        (let ([url (or (json-ref params 'url) "")])
+          (lambda (reply)
+            (ask-pick (format "~a: open a link" server) (paragraphs (json-ref params 'message) url)
+                      '(("I opened it: go on" . open) ("Copy the link, and go on" . copy)
+                        ("No" . "decline") ("No, and stop" . "cancel"))
+                      (lambda (v)
+                        (cond
+                         [(eq? v 'copy) (clipboard-push! url) (answered reply "copied the link" (accept 'null))]
+                         [(eq? v 'open) (answered reply "opened it" (accept 'null))]
+                         [else ((decide reply) v)])))))]
+       [(equal? mode "openai/userVerification")
+        (lambda (reply)
+          (ask-pick (format "~a: ~a" server (or (json-ref params 'title) "verify"))
+                    (paragraphs (json-ref params 'description) (json-ref params 'challenge))
+                    '(("Yes" . yes) ("No" . "decline") ("No, and stop" . "cancel"))
+                    (lambda (v) (if (eq? v 'yes) (answered reply "yes" (accept 'null)) ((decide reply) v)))))]
+       [else
+        ;; A form: its fields, one after another. A form with none is a
+        ;; yes or no.
+        (let* ([schema (or (json-ref params 'requestedSchema) '())]
+               [fields (let ([p (json-ref schema 'properties)]) (if (json-object? p) p '()))]
+               [required (map (lambda (x) (if (string? x) (string->symbol x) x))
+                              (vector->list (or (json-ref schema 'required) '#())))])
+          (lambda (reply)
+            (ask-pick (format "~a asks" server) (json-ref params 'message)
+                      `((,(if (null? fields) "Yes" "Answer") . answer) ("No" . "decline") ("No, and stop" . "cancel"))
+                      (lambda (v)
+                        (if (eq? v 'answer)
+                            (in-turn (map (lambda (f) (field-step (car f) (cdr f) (memq (car f) required))) fields)
+                                     (lambda (values)
+                                       (answered reply "answered"
+                                                 (accept (let loop ([fs fields] [vs values])
+                                                           (cond [(null? fs) '()]
+                                                                 [(eq? (car vs) skip) (loop (cdr fs) (cdr vs))]
+                                                                 [else (cons (cons (caar fs) (car vs)) (loop (cdr fs) (cdr vs)))]))))))
+                            ((decide reply) v))))))])))
+
+  ;; More permissions for the sandbox, for the turn or the session.
+  (define (describe-permissions perms)
+    (let ([paths (lambda (v) (string-join (map (lambda (x) (if (string? x) x (json->string x))) (vector->list v)) ", "))])
+      (or (non-empty
+           (string-join
+            (filter non-empty
+                    (list (and (json-ref perms 'network 'enabled) "network access")
+                          (let ([r (json-ref perms 'fileSystem 'read)]) (and r (> (vector-length r) 0) (string-append "read " (paths r))))
+                          (let ([w (json-ref perms 'fileSystem 'write)]) (and w (> (vector-length w) 0) (string-append "write " (paths w))))
+                          (let ([e (json-ref perms 'fileSystem 'entries)])
+                            (and e (> (vector-length e) 0)
+                                 (string-join (map (lambda (x) (format "~a ~a" (or (json-ref x 'access) "?")
+                                                                       (let ([p (json-ref x 'path)])
+                                                                         (or (json-ref p 'path) (json-ref p 'pattern) (json-ref p 'value) "?"))))
+                                                   (vector->list e))
+                                              ", ")))))
+            "; "))
+          "more permissions")))
+
+  (define (permissions-answer perms why)
+    (let ([granted (filter (lambda (e) (not (eq? (cdr e) 'null))) perms)])
+      (lambda (reply)
+        (ask-pick "Give Codex more permissions?" (paragraphs (describe-permissions perms) why)
+                  '(("Yes, for this turn" . "turn") ("Yes, for this session" . "session") ("No" . no))
+                  (lambda (v)
+                    (add-entry! 'answer (if (eq? v 'no) "→ no" (string-append "→ yes, this " v)) 'ui.text.dim)
+                    (reply (if (eq? v 'no)
+                               '((permissions) (scope . "turn"))
+                               `((permissions . ,granted) (scope . ,v)))))))))
+
+  ;; Requests: tools, and what needs the user.
   (define (on-request rpc id method params)
     (cond
      [(string=? method "item/tool/call")
@@ -551,34 +835,30 @@ commands to use it."
      [(string=? method "item/commandExecution/requestApproval")
       (let ([cmd (or (json-ref params 'command) "a command")] [why (json-ref params 'reason)])
         (add-entry! 'approval (format "? run ~a~a" cmd (if why (format " (~a)" why) "")) 'warning)
-        (ask-approval! id (string-append "Run " (clip cmd 60) "?")
-                       '(("Run it" . "accept") ("Run it, and the like, this session" . "acceptForSession")
-                         ("Don't" . "decline") ("Don't, and stop" . "cancel"))))]
+        (ask! id "a command"
+              (approval (string-append "Run " (clip cmd 60) "?")
+                        (paragraphs (string-append "$ " cmd)
+                                    (let ([cwd (json-ref params 'cwd)]) (and cwd (string-append "in " cwd)))
+                                    why))))]
      [(string=? method "item/fileChange/requestApproval")
       (let* ([e (hashtable-ref items (or (json-ref params 'itemId) "") #f)]
              [what (if e (entry-text e) "files")])
         (add-entry! 'approval (format "? change ~a" what) 'warning)
-        (ask-approval! id "Make these changes?"
-                       '(("Change them" . "accept") ("Change files freely this session" . "acceptForSession")
-                         ("Don't" . "decline") ("Don't, and stop" . "cancel"))))]
+        (ask! id "file changes" (approval "Make these changes?" (paragraphs what (json-ref params 'reason)))))]
+     [(string=? method "item/tool/requestUserInput")
+      (let ([qs (vector->list (or (json-ref params 'questions) '#()))])
+        (for-each (lambda (q) (add-entry! 'question (format "? ~a" (or (json-ref q 'question) "")) 'warning)) qs)
+        (ask! id "a question" (user-input-answer qs)))]
      [(string=? method "mcpServer/elicitation/request")
-      (jsonrpc-reply! rpc id '((action . "decline") (content . null) (_meta . null)))]
+      (add-entry! 'question (format "? ~a: ~a" (or (json-ref params 'serverName) "an MCP server")
+                                    (or (json-ref params 'message) (json-ref params 'title) "asks"))
+                  'warning)
+      (ask! id "an MCP server" (elicitation-answer params))]
+     [(string=? method "item/permissions/requestApproval")
+      (let ([perms (or (json-ref params 'permissions) '())])
+        (add-entry! 'approval (format "? more permissions: ~a" (describe-permissions perms)) 'warning)
+        (ask! id "permissions" (permissions-answer perms (json-ref params 'reason))))]
      [else (jsonrpc-reply-error! rpc id -32601 (format "quad does not handle ~a" method))]))
-
-  (define (ask-approval! id label choices)
-    (set! approvals (append approvals (list (list id label choices))))
-    (as-asker (lambda () (unless (current-prompt) (codex-approve!)))))
-
-  ;; Answer the oldest waiting approval, in a picker.
-  (define (codex-approve!)
-    (if (null? approvals)
-        (message "Codex is not waiting for an answer")
-        (let* ([a (car approvals)] [id (car a)])
-          (pick (cadr a) (caddr a)
-                (lambda (decision)
-                  (set! approvals (remp (lambda (x) (equal? (car x) id)) approvals))
-                  (when rpc (jsonrpc-reply! rpc id `((decision . ,decision))))
-                  (when (pair? approvals) (codex-approve!)))))))
 
   ;; ---------------------------------------------------------------------------
   ;; Commands and keys
@@ -626,7 +906,7 @@ commands to use it."
                            (lambda (s) (unless (string=? (string-trim s) "") (codex-ask! s))))))
    (define-command 'codex-popup "Show or hide what Codex is doing"
      (lambda () (if (current-popup) (hide-popup!) (show-popup! codex-popup))))
-   (define-command 'codex-approve "Answer Codex's waiting approval" codex-approve!)
+   (define-command 'codex-answer "Answer what Codex, or a server it uses, is waiting to know" codex-answer!)
    (define-command 'codex-interrupt "Interrupt Codex" codex-interrupt!)
    (define-command 'codex-transcript "Show the conversation with Codex in a buffer" show-transcript!)
    (define-command 'codex-new-thread "Start a new conversation with Codex"
@@ -636,7 +916,7 @@ commands to use it."
 
    (define-key ai-keymap "a" 'codex-ask "Ask")
    (define-key ai-keymap "p" 'codex-popup "Popup")
-   (define-key ai-keymap "y" 'codex-approve "Approve")
+   (define-key ai-keymap "y" 'codex-answer "Answer")
    (define-key ai-keymap "i" 'codex-interrupt "Interrupt")
    (define-key ai-keymap "t" 'codex-transcript "Transcript")
    (define-key ai-keymap "n" 'codex-new-thread "New Conversation")
@@ -645,7 +925,7 @@ commands to use it."
 
    (define-status-segment! 'right
      (lambda (v)
-       (cond [(pair? approvals) (cons " codex: approve? " 'ui.statusline.insert)]
+       (cond [(pair? asks) (cons " codex: waiting for you " 'ui.statusline.insert)]
              [busy? (cons " codex ⋯ " 'ui.statusline.normal)]
              [else #f])))
 
