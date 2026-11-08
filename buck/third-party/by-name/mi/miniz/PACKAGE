@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+# Slang's pin, a commit after 3.0.2, the last release.
+GIT_COMMIT = "6ef6c68f4fcbb8287aa8edf9c6670804932f41c6"
+
+pkg.info(
+    version = "3.0.2+g6ef6c68f",
+    description = """
+        miniz, a single-file zlib-compatible deflate/inflate library with
+        zip archive reading and writing.
+    """,
+    license = "MIT",
+    copyright = [
+        "2013-2014 RAD Game Tools and Valve Software",
+        "2010-2014 Rich Geldreich and Tenacious Software LLC",
+    ],
+    visibility = ["PUBLIC"],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/richgel999/miniz",
+        commit = GIT_COMMIT,
+    ),
+)
