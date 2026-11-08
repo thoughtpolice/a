@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+# Vendored so that it can be changed here: upstream's Vulkan backend
+# presents only on Windows. The code is upstream's, at this commit, less what
+# the Vulkan backend and the deferred renderer do not use, laid out anew:
+# include/nogfx and lib/ (upstream's include/NoGraphicsAPI and src/), and
+# example/ (examples/deferred_renderer, with utility/ as example/util), with
+# includes renamed to match. The build files, window/, and the changes marked
+# "depot:" are this repository's.
+GIT_COMMIT = "ffd9f2ab6b7442dcfbe0cb0051d84d0edb078d89"
+
+pkg.info(
+    version = "0.1.0+gffd9f2ab",
+    description = """
+        nogfx, Sebastian Aaltonen's NoGraphicsAPI: a minimal graphics API on
+        recent Vulkan extensions, from his "No Graphics API" blog post and
+        SIGGRAPH talk. The Vulkan backend, a window for it on Linux, and the
+        deferred renderer example; upstream's Metal backend, other examples,
+        docs, CMake build and tests are left out.
+    """,
+    license = "MIT",
+    copyright = [
+        "2026 Sebastian Aaltonen",
+    ],
+    # nogfx's packages use each other's targets.
+    visibility = ["tilde//aseipp/nogfx/..."],
+    vendored = True,
+    vendor_info = {
+        "url": "https://github.com/sebbbi/NoGraphicsAPI",
+        "commit": GIT_COMMIT,
+    },
+
+    # The Vulkan backend, on Linux; the Windows parts are kept but unbuilt.
+    target_compatible_with = [
+        "config//os:linux",
+    ],
+)
