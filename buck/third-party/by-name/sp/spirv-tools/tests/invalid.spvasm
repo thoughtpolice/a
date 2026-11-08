@@ -1,0 +1,19 @@
+; SPDX-FileCopyrightText: © 2026 Austin Seipp
+; SPDX-License-Identifier: Apache-2.0
+
+; Well-formed but invalid: an integer addition whose result type is void.
+
+               OpCapability Shader
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint GLCompute %main "main"
+               OpExecutionMode %main LocalSize 1 1 1
+       %void = OpTypeVoid
+         %fn = OpTypeFunction %void
+       %uint = OpTypeInt 32 0
+     %uint_2 = OpConstant %uint 2
+     %uint_3 = OpConstant %uint 3
+       %main = OpFunction %void None %fn
+      %entry = OpLabel
+        %sum = OpIAdd %void %uint_2 %uint_3
+               OpReturn
+               OpFunctionEnd

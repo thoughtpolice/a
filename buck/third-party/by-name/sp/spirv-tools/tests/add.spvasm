@@ -1,0 +1,30 @@
+; SPDX-FileCopyrightText: © 2026 Austin Seipp
+; SPDX-License-Identifier: Apache-2.0
+
+; A compute shader that stores 2 + 3 into a storage buffer.
+
+               OpCapability Shader
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint GLCompute %main "main" %out
+               OpExecutionMode %main LocalSize 1 1 1
+               OpDecorate %buf Block
+               OpMemberDecorate %buf 0 Offset 0
+               OpDecorate %out DescriptorSet 0
+               OpDecorate %out Binding 0
+       %void = OpTypeVoid
+         %fn = OpTypeFunction %void
+       %uint = OpTypeInt 32 0
+        %buf = OpTypeStruct %uint
+    %ptr_buf = OpTypePointer StorageBuffer %buf
+   %ptr_uint = OpTypePointer StorageBuffer %uint
+        %out = OpVariable %ptr_buf StorageBuffer
+     %uint_0 = OpConstant %uint 0
+     %uint_2 = OpConstant %uint 2
+     %uint_3 = OpConstant %uint 3
+       %main = OpFunction %void None %fn
+      %entry = OpLabel
+        %sum = OpIAdd %uint %uint_2 %uint_3
+          %p = OpAccessChain %ptr_uint %out %uint_0
+               OpStore %p %sum
+               OpReturn
+               OpFunctionEnd

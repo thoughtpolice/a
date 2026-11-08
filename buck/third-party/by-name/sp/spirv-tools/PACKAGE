@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+# Slang's pin, 78 commits after v2026.4. glslang pins SPIRV-Tools too, and
+# the two have to move together.
+GIT_COMMIT = "b8c3b64b63758042576f6853d7f0abe9251460fa"
+
+pkg.info(
+    version = "2026.4+gb8c3b64b",
+    description = """
+        SPIRV-Tools, the Khronos SPIR-V assembler, disassembler, validator,
+        optimizer, linker and reducer, as libraries and command line tools.
+    """,
+    license = "Apache-2.0",
+    copyright = [
+        "2015-2026 The Khronos Group Inc.",
+        "2016-2026 Google LLC",
+    ],
+    visibility = ["PUBLIC"],
+
+    # The configuration upstream's Bazel build gives every Unix host
+    # (SPIRV_LINUX, which macOS shares) on Linux and macOS, and its CMake
+    # build's for MSVC on Windows (BUILD).
+    compatible_with = [
+        "config//os:linux",
+        "config//os:macos",
+        "config//os:windows",
+    ],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/KhronosGroup/SPIRV-Tools",
+        commit = GIT_COMMIT,
+    ),
+)
