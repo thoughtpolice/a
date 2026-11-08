@@ -309,4 +309,16 @@ starlark_derive = { git = "https://github.com/facebook/starlark-rust", rev = "46
 
 [target.'cfg(unix)'.dependencies]
 
+[target.'cfg(target_os = "linux")'.dependencies]
+# The NoGraphicsAPI examples' window (third-party//by-name/no/nographicsapi):
+# winit's X11 and Wayland backends, which load libX11 and libwayland-client
+# at run time, so no C headers or -devel packages are needed; and no
+# client-side decorations, whose drawing pulls in fonts and a rasterizer.
+winit = { version = "0.30.13", default-features = false, features = [
+  "rwh_06",
+  "wayland",
+  "wayland-dlopen",
+  "x11",
+] }
+
 [target.'cfg(windows)'.dependencies]

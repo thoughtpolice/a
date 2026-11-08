@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# buildscript writes OUT_DIR/config.rs, which the crate include!s: each X11
+# library's pkg-config libdir. Those are only a fallback after loading the
+# library by its soname, and without the .pc files (no -devel packages) they
+# are all None; safe to run
+buildscript.run = true

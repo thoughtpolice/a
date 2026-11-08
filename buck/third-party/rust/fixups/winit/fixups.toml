@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# buildscript only emits hermetic cfg_aliases (x11_platform, wayland_platform
+# etc.), which the crate's code is written against; safe to run
+buildscript.run = true

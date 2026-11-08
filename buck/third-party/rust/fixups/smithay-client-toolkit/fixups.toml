@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# buildscript only probes pkg-config for libxkbcommon with the `xkbcommon`
+# feature, which is off (winit uses xkbcommon-dl at run time)
+buildscript.run = false

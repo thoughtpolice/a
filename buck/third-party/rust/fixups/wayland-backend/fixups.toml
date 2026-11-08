@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# buildscript only declares check-cfgs, and compiles C log shims for the
+# `log` feature, which is off
+buildscript.run = false

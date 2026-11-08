@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# buildscript probes pkg-config for libwayland unless `dlopen` is on, which it
+# is: libwayland-client is loaded at run time
+buildscript.run = false

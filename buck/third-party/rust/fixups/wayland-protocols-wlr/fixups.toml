@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# wayland_scanner's macros read the protocol XML vendored in the crate,
+# which they find through CARGO_MANIFEST_DIR.
+cargo_env = ["CARGO_MANIFEST_DIR"]
+extra_srcs = ["wlr-protocols/**/*.xml"]

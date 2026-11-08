@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# buildscript only declares the coverage cfgs for check-cfg
+buildscript.run = false
+
+# wayland_scanner's macros read the core protocol, wayland.xml, from beside
+# Cargo.toml, which they find through CARGO_MANIFEST_DIR.
+cargo_env = ["CARGO_MANIFEST_DIR"]
+extra_srcs = ["wayland.xml"]
