@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "8.2.7",
+    description = """
+        fast_float, a header-only implementation of the C++ from_chars
+        functions for floating-point and integer types.
+    """,
+    license = "Apache-2.0 OR MIT OR BSL-1.0",
+    copyright = [
+        "2021 The fast_float authors",
+    ],
+    visibility = ["PUBLIC"],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/fastfloat/fast_float",
+        commit = "e0b53eaf63c6d00e0725788ef1dbb759aa321d79",
+    ),
+)
