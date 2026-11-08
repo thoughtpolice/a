@@ -32,7 +32,7 @@ chez.rust_library(name = "native", crate = ":native-rs", library = "native")
   info go into the `[debug]` sub-target, a file beside the executable that
   it names (`.gnu_debuglink`), so that debuggers and profilers find it.
 - `chez.rust_library` generates the Scheme library binding a Rust crate's
-  procedures (see the `chez` crate, `src/crates/chez`).
+  procedures (see the `chez` crate, `tilde/aseipp/quad/chez-rs`).
 
 A kernel is a C program that links `:kernel` (Chez Scheme's runtime and
 `scheme.h`) and boots from its appended boot files with `:embed`
