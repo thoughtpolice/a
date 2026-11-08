@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+# Slang's pin. SPIRV-Headers has no releases of its own, only Vulkan SDK
+# tags; the version is the one its CMakeLists.txt declares.
+GIT_COMMIT = "86f980c731e62ae4eaf383d320449d71687936bf"
+
+pkg.info(
+    version = "1.5.5+g86f980c7",
+    description = """
+        SPIRV-Headers, the Khronos SPIR-V headers for C and C++ and the
+        machine-readable JSON grammars of SPIR-V and its extended
+        instruction sets.
+    """,
+    # A few grammar and header files are CC-BY-4.0; see LICENSE.
+    license = "MIT AND CC-BY-4.0",
+    copyright = [
+        "2015-2024 The Khronos Group Inc.",
+    ],
+    visibility = ["PUBLIC"],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/KhronosGroup/SPIRV-Headers",
+        commit = GIT_COMMIT,
+    ),
+)
