@@ -8,6 +8,9 @@
 // (lib.rs). Everything else, the editor included, is Scheme. The executable
 // allocates with mimalloc, which overrides malloc for C, Chez Scheme and Rust
 // alike.
+//
+// quad --build-exe writes new executables the same way the build does: this
+// kernel, then boot files (see toolchains//chez's embed.sls).
 #define _GNU_SOURCE
 #include "scheme.h"
 
@@ -34,7 +37,7 @@ fatal(const char* msg)
   exit(70);
 }
 
-// The path of the running executable.
+// The path of the running executable, which quad --build-exe copies.
 static const char* g_self_path;
 
 // The Rust half's procedures (lib.rs).

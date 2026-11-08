@@ -50,6 +50,12 @@ toolchain has the layout). It needs only libc at run time, and allocates
 with mimalloc, which overrides malloc for C, Chez Scheme and Rust alike. The
 full Chez compiler is in it, so extensions are compiled, not interpreted.
 
+`quad --build-exe OUT FILE...` writes a new standalone editor: a copy of
+itself with `FILE...` compiled into one more boot file, whose code runs as
+the editor boots. That is how a configured editor becomes one binary to hand
+out; `defs.bzl`'s `quad_executable` does the same from Buck, and
+`:quad-custom` builds `examples/site.ss` into one.
+
 ## The terminal
 
 quad asks the terminal what it speaks and uses the best of it: Ghostty,
@@ -194,7 +200,7 @@ for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
 | `core/grid.sls` | a client's model of its screen |
 | `core/term.sls`, `core/tui.sls` | the terminal client: input decoding, painting, in-process or over a socket |
 | `core/face.sls` | faces and themes (the default is Helix's purple) |
-| `core/main.sls` | the command line, headless clients for testing |
+| `core/main.sls` | the command line, `--build-exe`, headless clients for testing |
 | `ext/*.sls` | the built-in extensions |
 
 The Scheme builds with the Chez Scheme toolchain (`buck/toolchains/chez`):

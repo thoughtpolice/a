@@ -8,7 +8,7 @@
 ;; editor (--connect). Each editor can also listen for more clients
 ;; (--listen). Headless clients drive the editor for tests and --batch.
 (library (quad main)
-  (export quad-main quad-version editor-init!
+  (export quad-main quad-version editor-init! build-exe!
           ;; headless driving, for tests and --batch scripts
           headless-start! headless-client! use-client! headless-buffer!
           press! type! screen screen-row screen-of client-received buffer-contents
@@ -16,7 +16,7 @@
           check expect-equal failure!)
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
           (quad syntax) (quad buffer) (quad selection) (quad editor)
-          (quad commands) (quad display) (quad kernel)
+          (quad commands) (quad display) (chez embed) (quad kernel)
           (quad protocol) (quad grid) (quad server) (quad tui))
 
   (define quad-version "0.1.0")
@@ -32,6 +32,8 @@
                        the result, exit
   --batch FILE         run FILE headless, as a script (tests use this)
   --repl               a Chez Scheme REPL with all of quad imported
+  --build-exe OUT F..  write OUT: this editor, with the Scheme files F...
+                       compiled in, as one standalone executable
   --version            print the version
   -h, --help           this message
 
@@ -229,6 +231,49 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
           0)))
 
   ;; ---------------------------------------------------------------------------
+  ;; Standalone executables
+  ;;
+  ;; quad is a kernel with boot files appended (see (chez embed), from the
+  ;; toolchain). --build-exe copies the running executable's kernel and boot
+  ;; files, compiles the given Scheme files into one more boot file, and
+  ;; appends that: its code runs as the editor boots, with all of quad in
+  ;; scope, before any init file.
+
+  (define (read-forms path)
+    (call-with-input-file path
+      (lambda (p) (let loop ([acc '()]) (let ([x (read p)]) (if (eof-object? x) (reverse acc) (loop (cons x acc))))))))
+
+  (define (build-exe! out files)
+    (let* ([self (quad-self-path)]
+           [index (read-boot-index self)]
+           [tmp (format "~a.build~a" out (random 1000000))]
+           [objs '()])
+      (when (null? index) (errorf 'build-exe "~a has no boot files appended" self))
+      (mkdir tmp)
+      ;; Each file is compiled as top-level code that imports all of quad.
+      (for-each
+       (lambda (f i)
+         (let ([src (format "~a/site~a.ss" tmp i)] [obj (format "~a/site~a.so" tmp i)])
+           (call-with-output-file src
+             (lambda (p)
+               (let ([forms (read-forms f)])
+                 (write `(import ,@(quad-libraries)) p)
+                 (newline p)
+                 (for-each (lambda (x) (unless (and (pair? x) (eq? (car x) 'import)) (write x p) (newline p))) forms))))
+           (parameterize ([compile-file-message #f] [generate-inspector-information #f])
+             (compile-file src obj))
+           (set! objs (append objs (list obj)))))
+       files (iota (length files)))
+      (let ([boot (format "~a/site.boot" tmp)])
+        (apply make-boot-file boot '("quad") objs)
+        (pack-executable out self (executable-kernel-length self)
+                         (append (map (lambda (e) (cons (car e) (extract-boot self (car e)))) index)
+                                 (list (cons "site" boot))))
+        (for-each delete-file (append (map (lambda (o) (string-append (substring o 0 (- (string-length o) 3)) ".ss")) objs) objs (list boot)))
+        (delete-directory tmp)
+        (printf "wrote ~a (~a boot files)\n" out (+ 1 (length index))))))
+
+  ;; ---------------------------------------------------------------------------
   ;; The command line
 
   (define (quad-main args)
@@ -271,6 +316,9 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
         (interaction-environment (quad-environment))
         (waiter-prompt-string "quad>")
         (new-cafe)
+        0]
+       [(and (string=? (car args) "--build-exe") (pair? (cdr args)))
+        (build-exe! (cadr args) (cddr args))
         0]
        [(and (> (string-length (car args)) 1) (char=? (string-ref (car args) 0) #\+)
              (string->number (substring (car args) 1 (string-length (car args)))))

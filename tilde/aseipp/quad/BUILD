@@ -17,9 +17,11 @@
 #
 #   buck2 run depot-tilde//aseipp/quad:quad -- FILE    edit FILE
 #   :quad                                              the standalone executable
+#   :quad-custom                                       one with extra code compiled in
 
 load("@root//buck/shims:shims.bzl", "shims")
 load("@toolchains//chez:defs.bzl", "chez")
+load(":defs.bzl", "quad_executable")
 
 # The extensions in ext/ the editor is built with, in load order, with the
 # libraries each needs beyond the core.
@@ -103,7 +105,10 @@ chez.library(
     srcs = glob(["core/*.sls"]),
     prefix = "quad",
     strip_prefix = "core",
-    deps = [":native"],
+    deps = [
+        "toolchains//chez:embed-scheme",
+        ":native",
+    ],
 )
 
 [
@@ -161,6 +166,12 @@ chez.standalone(
     name = "quad",
     boots = [":boot"],
     kernel = ":kernel",
+)
+
+# An example of a configured editor, built with quad itself.
+quad_executable(
+    name = "quad-custom",
+    srcs = ["examples/site.ss"],
 )
 
 # MARK: Tests
@@ -259,5 +270,15 @@ shims.command_test(
         quad=$(exe :quad)
         $quad -q --eval '(kernel-rust-version)' | grep -q '^"quad-kernel 0.1.0 (rust)"$'
         test "`$quad -q --eval '(blake3-hex "abc")'`" = '"6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85"'
+    """,
+)
+
+# The configured editor carries its extra code: a command and a variable.
+shims.command_test(
+    name = "test-custom",
+    script = """
+        quad=$(exe :quad-custom)
+        test "`$quad -q --eval '(get-var (quote greeting))'`" = '"hello from a custom quad"'
+        test "`$quad -q --eval '(command? (find-command (quote insert-date)))'`" = '#t'
     """,
 )
