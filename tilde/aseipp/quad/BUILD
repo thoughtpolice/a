@@ -22,11 +22,17 @@ load("@toolchains//chez:defs.bzl", "chez")
 # The extensions in ext/ the editor is built with, in load order, with the
 # libraries each needs beyond the core.
 EXTENSIONS = {
+    "c": [],
     "lisp": [],
+    "markdown": [],
+    "shell": [],
 }
 
 EXTENSION_ORDER = [
     "lisp",
+    "c",
+    "shell",
+    "markdown",
 ]
 
 # MARK: Kernel

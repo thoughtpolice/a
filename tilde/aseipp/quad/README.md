@@ -121,8 +121,9 @@ can't express itself: raw terminal I/O, `poll`, Unix sockets.
 `ext/*.sls` are the libraries `(quad ext NAME)`, each a `chez.library`
 target of its own; `EXTENSIONS` in `BUILD` picks the ones the editor is built
 with, and the generated program invokes each as the editor boots, which is
-when it registers its modes, commands and keys. The built-in one is `lisp` (Scheme and other Lisps: s-expressions
-for the NODE mode, Lisp indentation).
+when it registers its modes, commands and keys. The built-in ones are `lisp` (Scheme and other Lisps: s-expressions
+for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
+(`#`-commented languages) and `markdown`.
 
 ## Layout
 
