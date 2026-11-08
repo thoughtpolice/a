@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "5.4.9",
+    description = """
+        Lua, a lightweight embeddable scripting language: the liblua library
+        and the lua interpreter.
+    """,
+    license = "MIT",
+    copyright = [
+        "1994-2026 Lua.org, PUC-Rio",
+    ],
+    visibility = ["PUBLIC"],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/lua/lua",
+        commit = "312b9efaa1061c2c4cad08554dbc1351c3270eef",
+    ),
+)
