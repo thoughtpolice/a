@@ -108,7 +108,7 @@ the text are; the same movements work in every mode.
 | `,` | surround: `, s m` wraps in `()`, `, r m` unwraps, `, d m` selects inside |
 | `e` | buffers (layer) |
 | `enter` | save |
-| `space` | menu: `space space` command palette, `space e` eval, `space k d` files, `space k f` buffers, `space ;` explorer, `space /` every key, `space j v` quit |
+| `space` | menu: `space space` command palette, `space e` eval, `space k d` files, `space k f` buffers, `space ;` explorer, `space /` every key, `space j v` quit, `space a` the agent (below) |
 
 Layers are momentary: hold `r` and press `l` to delete rightwards (again
 and again while `r` is held); tap `r` alone to delete the selection. Hold a
@@ -137,6 +137,29 @@ The init file is `$QUAD_INIT`, else `$XDG_CONFIG_HOME/quad/init.ss`, else
 `space e` evaluates an expression; in a Scheme buffer, select a form with
 `d` and press `space l e`. `quad --repl` is a Chez REPL with quad loaded.
 `examples/init.ss` shows more.
+
+## An agent that extends the editor
+
+`space a a` opens a box in the middle of the screen where you ask an agent
+for a change to quad itself: "bind ctrl+d to duplicate the line", "a darker
+theme", "a mode for TOML". The agent is
+OpenAI Codex, through its app server (`codex app-server`, which must be on
+`PATH` and logged in). It edits your init file, applies the change to the
+running editor and checks it, and a popup at the right follows along: what
+it says, the commands it runs, the files it changes, the tools it calls.
+
+quad gives the agent tools of its own (`quad_eval`, `quad_describe`,
+`quad_apropos`, `quad_keymap`, `quad_reload_config`, `quad_context`), so it
+finds the API rather than guessing, and each question carries what you are
+looking at. It works in the init file's directory, under Codex's
+`workspace-write` sandbox; anything more it asks first, in a picker
+(`space a y` if you dismissed it). While it works, `space a a` again steers
+it and `space a i` interrupts it; `space a t` is the whole conversation,
+`space a n` starts another, `esc` hides the popup and `space a p` brings it
+back. The variables `codex-command`, `codex-model`, `codex-sandbox`,
+`codex-approval-policy`, `codex-directory` and `codex-log` change how it
+runs, and `define-codex-tool!` gives it more tools: the agent can write
+those too.
 
 ## The kernel
 
@@ -183,7 +206,7 @@ target of its own; `EXTENSIONS` in `BUILD` picks the ones the editor is built
 with, and the generated program invokes each as the editor boots, which is
 when it registers its modes, commands and keys. The built-in ones are `lisp` (Scheme and other Lisps: s-expressions
 for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
-(`#`-commented languages), `markdown` and `blake3`.
+(`#`-commented languages), `markdown`, `blake3`, and `codex`, the agent.
 
 ## Layout
 

@@ -28,6 +28,7 @@ load(":defs.bzl", "quad_executable")
 EXTENSIONS = {
     "blake3": [":native"],
     "c": [],
+    "codex": [],
     "lisp": [],
     "markdown": [],
     "shell": [],
@@ -39,6 +40,7 @@ EXTENSION_ORDER = [
     "shell",
     "markdown",
     "blake3",
+    "codex",
 ]
 
 # MARK: Kernel
@@ -249,6 +251,18 @@ shims.command_test(
         test "`$quad --eval '(and (find-command (quote shout)) #t)'`" = '#t'
         # Unless -q says not to.
         test "`$quad -q --eval '(get-var (quote scroll-margin))'`" = 3
+    """,
+)
+
+# The agent extension, against a stand-in for Codex's app server
+# (tests/codex-server.ss, run by quad itself), with an init file of its own.
+shims.command_test(
+    name = "test-codex",
+    script = """
+        dir=`mktemp -d /tmp/quad-test.XXXXXX`
+        trap 'rm -rf "$dir"' EXIT
+        export QUAD_TEST_DIR=$(location :tests)/tests QUAD_INIT=$dir/init.ss
+        $(exe :quad) -q --batch $QUAD_TEST_DIR/codex.ss
     """,
 )
 
