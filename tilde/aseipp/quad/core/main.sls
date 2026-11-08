@@ -3,9 +3,10 @@
 ;; SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 ;; SPDX-License-Identifier: Apache-2.0
 ;;
-;; quad runs as a daemon that clients connect to (--daemon); --connect
-;; --eval evaluates in a running one. Headless clients drive the editor for
-;; tests and --batch.
+;; quad runs as an editor with its terminal attached (the default), as a
+;; daemon that clients connect to (--daemon), or as a client of a running
+;; editor (--connect). Each editor can also listen for more clients
+;; (--listen). Headless clients drive the editor for tests and --batch.
 (library (quad main)
   (export quad-main quad-version editor-init!
           ;; headless driving, for tests and --batch scripts
@@ -16,7 +17,7 @@
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
           (quad syntax) (quad buffer) (quad selection) (quad editor)
           (quad commands) (quad display) (quad kernel)
-          (quad protocol) (quad grid) (quad server))
+          (quad protocol) (quad grid) (quad server) (quad tui))
 
   (define quad-version "0.1.0")
 
@@ -24,9 +25,9 @@
     "usage: quad [options] [+LINE] [file ...]
 
   -q, --no-init        don't load the init file
-  --listen[=PATH]      accept clients on the Unix socket PATH
-  --daemon             run the editor, for clients; implies --listen
-  --connect[=PATH]     with --eval: the editor listening at PATH
+  --listen[=PATH]      also accept clients on the Unix socket PATH
+  --daemon             run without a terminal, for clients; implies --listen
+  --connect[=PATH]     be a client of the editor listening at PATH
   --eval EXPR          evaluate EXPR (in that editor, with --connect), print
                        the result, exit
   --batch FILE         run FILE headless, as a script (tests use this)
@@ -71,11 +72,14 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
       (for-each remove-client! (clients))
       0))
 
-  ;; The editor, for clients to connect to. There is no terminal client
-  ;; yet: that is all it runs as.
-  (define (no-terminal)
-    (fprintf (current-error-port) "quad: no terminal client: use --daemon, --eval or --batch\n~a" usage)
-    2)
+  ;; The editor with this terminal attached.
+  (define (interactive! files line init? listen)
+    (editor-init! files)
+    (when init? (load-init-file! (init-file-path)))
+    (when listen (server-listen! listen))
+    (let ([c (tui-attach!)])
+      (when line (with-client c (lambda () (run-command (lambda () (goto-line! line))))))
+      (serve!)))
 
   ;; The editor with no terminal, for clients to connect to.
   (define (daemon! files init? listen)
@@ -246,8 +250,9 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
             (let ([v (eval-string expr)])
               (unless (eq? v (void)) (write v) (newline))
               0)]
+           [connect (tui-connect! connect files line)]
            [daemon? (daemon! files init? (or listen (default-socket-path)))]
-           [else (no-terminal)]))]
+           [else (interactive! files line init? listen)]))]
        [(member (car args) '("-h" "--help")) (display usage) 0]
        [(string=? (car args) "--version")
         (let-values ([(major minor patch) (scheme-version-number)])

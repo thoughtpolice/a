@@ -73,9 +73,10 @@ A transport is anything that delivers a byte stream on a file descriptor.
 The server's loop (`core/server.sls`) polls descriptors through the kernel
 (`quad_poll`), and `serve-stream!` serves a client on any of them:
 
-- **in-process**: clients in the editor's own process, such as the tests'
-  headless ones, exchange message lists directly, with no encoding;
-- **Unix sockets**: `--daemon` accepts clients on a socket; `--connect
+- **in-process**: the terminal client in the editor's own process exchanges
+  message lists directly, with no encoding (`tui-attach!`);
+- **Unix sockets**: `--listen[=PATH]` and `--daemon` accept clients on a
+  socket; `--connect[=PATH]` is a terminal client over one; `--connect
   --eval EXPR` evaluates in a running editor;
 - **others, such as Iroh**: anything that can hand the server a descriptor
   per stream, such as one end of a `socketpair` bridged to a QUIC stream,

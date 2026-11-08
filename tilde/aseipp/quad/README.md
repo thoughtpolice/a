@@ -16,7 +16,8 @@ buffer, the selection modes, the keymaps, the renderer, the commands
 it while the editor runs.
 
 ```sh
-buck2 build depot-tilde//aseipp/quad:quad    # the standalone executable
+buck2 run depot-tilde//aseipp/quad:quad -- FILE...
+buck2 build depot-tilde//aseipp/quad:quad       # the standalone executable
 ```
 
 ## Clients and servers
@@ -29,7 +30,10 @@ key, mouse and paste events. [docs/design.md](docs/design.md) has the
 architecture and the protocol, which a graphical client would speak too.
 
 ```sh
-quad --daemon FILE         # an editor, for clients
+quad FILE                  # an editor with this terminal attached
+quad --listen FILE         # ... that other clients can attach to as well
+quad --daemon FILE         # an editor with no terminal, for clients
+quad --connect             # a terminal client of a running editor
 quad --connect --eval '(map client-name (clients))'
 ```
 
@@ -45,6 +49,25 @@ and `scheme.boot` and quad's own boot file appended (`embed.sls` in the Chez
 toolchain has the layout). It needs only libc at run time, and allocates
 with mimalloc, which overrides malloc for C and Chez Scheme alike. The
 full Chez compiler is in it, so extensions are compiled, not interpreted.
+
+## The terminal
+
+quad asks the terminal what it speaks and uses the best of it: Ghostty,
+kitty, WezTerm, foot, iTerm2 and other modern terminals get
+
+- the kitty keyboard protocol, for unambiguous keys and key *release*
+  events, which make Ki's momentary layers work as designed;
+- synchronized output (mode 2026), so frames never tear;
+- 24-bit color (`QUAD_256=1` falls back to 256 colors);
+- SGR mouse reporting: click to select, drag to extend, double-click a word,
+  triple-click a line, shift-click to extend, alt-click to add a cursor,
+  middle-click to paste the primary selection, the wheel to scroll;
+- OSC 52 clipboard writes, for copy (and the primary selection, from mouse
+  selections), over ssh too, and OSC 52 reads for `space v`;
+- bracketed paste, focus events (files changed on disk are reloaded when you
+  come back), cursor shapes, window titles, OSC 7 and OSC 22.
+
+Older terminals get the xterm encodings; `QUAD_LEGACY_KEYS=1` forces them.
 
 ## Keys
 
@@ -142,6 +165,7 @@ for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
 | `core/protocol.sls` | the client protocol: MessagePack frames, events as messages |
 | `core/server.sls` | the event loop over descriptors, sockets, client messages |
 | `core/grid.sls` | a client's model of its screen |
+| `core/term.sls`, `core/tui.sls` | the terminal client: input decoding, painting, in-process or over a socket |
 | `core/face.sls` | faces and themes (the default is Helix's purple) |
 | `core/main.sls` | the command line, headless clients for testing |
 | `ext/*.sls` | the built-in extensions |

@@ -4,8 +4,8 @@
 ;; SPDX-License-Identifier: Apache-2.0
 ;;
 ;; The server waits on a set of sources, each a file descriptor with what to
-;; do when it is readable: a listening socket, the connection of each client
-;; elsewhere. Messages from
+;; do when it is readable: the terminal of a client in this process, a
+;; listening socket, the connection of each client elsewhere. Messages from
 ;; clients (protocol.sls) go to client-receive!; after each round, every
 ;; client is drawn (display.sls) and sent what changed.
 ;;

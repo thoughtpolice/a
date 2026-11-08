@@ -14,7 +14,8 @@
 # library target each for the core and every extension, the program, the
 # boot file, the standalone executable.
 #
-#   :quad    the standalone executable
+#   buck2 run depot-tilde//aseipp/quad:quad -- FILE    edit FILE
+#   :quad                                              the standalone executable
 
 load("@root//buck/shims:shims.bzl", "shims")
 load("@toolchains//chez:defs.bzl", "chez")
@@ -142,6 +143,7 @@ shims.filegroup(
         "text",
         "selection",
         "editing",
+        "keys",
         "terminal",
         "protocol",
         "clients",
