@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "1.4.357",
+    description = """
+        The Khronos Vulkan loader, libvulkan.so.1: it finds the system's
+        drivers (ICDs) and layers through their JSON manifests and dispatches
+        the Vulkan API to them.
+    """,
+    license = "Apache-2.0",
+    copyright = [
+        "2014-2026 The Khronos Group Inc.",
+        "2014-2026 Valve Corporation",
+        "2014-2026 LunarG, Inc.",
+    ],
+    visibility = ["PUBLIC"],
+
+    # Only the Linux configuration has been built and tested.
+    target_compatible_with = [
+        "config//os:linux",
+    ],
+
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/KhronosGroup/Vulkan-Loader",
+        commit = "5f157b62e333c63260d05d81bf66faa216ab0fb8",
+    ),
+)
