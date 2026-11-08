@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+pkg.info(
+    version = "4.5.0",
+    description = """
+        ankerl::unordered_dense, a fast, densely stored hashmap and hashset
+        for C++17, as a single header.
+    """,
+    license = "MIT",
+    copyright = [
+        "2022 Martin Leitner-Ankerl",
+    ],
+    visibility = ["PUBLIC"],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/martinus/unordered_dense",
+        commit = "73f3cbb237e84d483afafc743f1f14ec53e12314",
+    ),
+)
