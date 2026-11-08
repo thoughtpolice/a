@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg", "OsvGitRepoInfo")
+
+# Slang's pin, on the gfm branch; the version is the one its CMakeLists.txt
+# declares.
+GIT_COMMIT = "924936d0427cb25a61169739a7660230bffa6ea6"
+
+pkg.info(
+    version = "0.29.0-gfm.13+g924936d0",
+    description = """
+        swift-cmark, the Swift project's fork of cmark-gfm: a CommonMark
+        parser and renderer in C. Only the core library, without the GFM
+        syntax extensions, is built.
+    """,
+    # cmark is BSD-2-Clause; the houdini, buffer and utf8 code it derives
+    # from other projects is MIT.
+    license = "BSD-2-Clause AND MIT",
+    copyright = [
+        "2014 John MacFarlane",
+        "2012 Vicent Martí",
+        "2012 Github, Inc.",
+    ],
+    visibility = ["PUBLIC"],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/swiftlang/swift-cmark",
+        commit = GIT_COMMIT,
+    ),
+)
