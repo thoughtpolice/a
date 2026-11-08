@@ -171,6 +171,11 @@ descriptor to the editor's event loop; the ticker is the smallest example.
 `ext/blake3.sls` (`space l h`) and `tests/native.ss` use these. Nothing is
 registered by hand, and there are no pointers in sight.
 
+Subprocesses are a component too, `spawn-process`, with pipes to and from
+the program; Scheme polls and reads its output's descriptor like any other.
+`core/jsonrpc.sls` speaks JSON-RPC to such programs, a message per line, as
+Codex's app server and MCP servers do.
+
 ## Extensions
 
 `ext/*.sls` are the libraries `(quad ext NAME)`, each a `chez.library`
@@ -185,7 +190,7 @@ for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
 | File | |
 | --- | --- |
 | `kernel/kernel.c` | boots Chez from the appended boot files; termios, poll, SIGWINCH |
-| `kernel/lib.rs` | the Rust half: `(quad native)`'s procedures |
+| `kernel/lib.rs` | the Rust half: `(quad native)`'s procedures, subprocesses |
 | `core/kernel.sls` | the kernel's primitives, bound for Scheme |
 | `core/text.sls` | gap buffer with an incremental line index |
 | `core/buffer.sls` | buffers, the views of them (selections, modes, scroll), undo, files |
@@ -198,6 +203,7 @@ for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
 | `core/protocol.sls` | the client protocol: MessagePack frames, events as messages |
 | `core/server.sls` | the event loop over descriptors, sockets, client messages |
 | `core/grid.sls` | a client's model of its screen |
+| `core/json.sls`, `core/jsonrpc.sls` | JSON, and JSON-RPC with a subprocess |
 | `core/term.sls`, `core/tui.sls` | the terminal client: input decoding, painting, in-process or over a socket |
 | `core/face.sls` | faces and themes (the default is Helix's purple) |
 | `core/main.sls` | the command line, `--build-exe`, headless clients for testing |

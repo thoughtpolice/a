@@ -200,6 +200,7 @@ shims.filegroup(
         "protocol",
         "clients",
         "native",
+        "json",
     ]
 ]
 
