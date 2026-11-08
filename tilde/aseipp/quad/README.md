@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 An editor platform in the spirit of Emacs, written in [Chez Scheme], with
 [Ki]'s selection-first modal bindings and a modern terminal front end.
 
-A small kernel in C (`kernel/`) boots Chez Scheme and provides the
+A small kernel in C and Rust (`kernel/`) boots Chez Scheme and provides the
 primitives Scheme can't express itself. Everything else is Scheme: the text
 buffer, the selection modes, the keymaps, the renderer, the commands
 (`core/`), and the language modes and other extensions built in by default
@@ -47,7 +47,7 @@ daemon (`space j k` stops it for everyone).
 `quad` is a single executable: the kernel with Chez Scheme's `petite.boot`
 and `scheme.boot` and quad's own boot file appended (`embed.sls` in the Chez
 toolchain has the layout). It needs only libc at run time, and allocates
-with mimalloc, which overrides malloc for C and Chez Scheme alike. The
+with mimalloc, which overrides malloc for C, Chez Scheme and Rust alike. The
 full Chez compiler is in it, so extensions are compiled, not interpreted.
 
 ## The terminal
@@ -139,6 +139,32 @@ executable (`toolchains//chez:embed`) and registers the primitives Scheme
 can't express itself: raw terminal I/O, `poll`, Unix sockets.
 `core/kernel.sls` binds them.
 
+The Rust half, `kernel/lib.rs`, is written with the `chez` crate
+(`chez-rs/`). Each `#[chez::procedure]` is an ordinary Rust function
+that becomes a Scheme procedure in `(quad native)`, which the build generates
+from the Rust:
+
+```rust
+/// The BLAKE3 hash of a bytevector: a 32-byte bytevector.
+#[chez::procedure]
+fn blake3(data: Bytes) -> ByteVec { ... }
+
+#[chez::procedure]
+fn make_ticker(interval_ms: u64, count: u64) -> Result<Object<Ticker>, String> { ... }
+
+chez::library! { pub fn native() -> "quad native" { blake3, make_ticker, ... } }
+```
+
+Arguments and results convert by their Rust types. A wrong argument, an
+`Err` or a panic is a Scheme error that names the argument. A Rust value
+returned as `Object<T>` is a handle that Scheme passes back as `Ref<T>` or
+`RefMut<T>`: its type is checked, borrows are checked, and it is dropped
+once Scheme no longer references it. A component with threads of its own
+(the network, next) hands Scheme a `Mailbox`, and `watch-fd!` adds its
+descriptor to the editor's event loop; the ticker is the smallest example.
+`ext/blake3.sls` (`space l h`) and `tests/native.ss` use these. Nothing is
+registered by hand, and there are no pointers in sight.
+
 ## Extensions
 
 `ext/*.sls` are the libraries `(quad ext NAME)`, each a `chez.library`
@@ -146,13 +172,14 @@ target of its own; `EXTENSIONS` in `BUILD` picks the ones the editor is built
 with, and the generated program invokes each as the editor boots, which is
 when it registers its modes, commands and keys. The built-in ones are `lisp` (Scheme and other Lisps: s-expressions
 for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
-(`#`-commented languages) and `markdown`.
+(`#`-commented languages), `markdown` and `blake3`.
 
 ## Layout
 
 | File | |
 | --- | --- |
 | `kernel/kernel.c` | boots Chez from the appended boot files; termios, poll, SIGWINCH |
+| `kernel/lib.rs` | the Rust half: `(quad native)`'s procedures |
 | `core/kernel.sls` | the kernel's primitives, bound for Scheme |
 | `core/text.sls` | gap buffer with an incremental line index |
 | `core/buffer.sls` | buffers, the views of them (selections, modes, scroll), undo, files |

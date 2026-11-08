@@ -6,7 +6,8 @@
 #
 #   kernel/   the kernel: C (kernel.c) boots Chez Scheme from boot files
 #             appended to its own executable and does raw terminal and socket
-#             I/O
+#             I/O; Rust (lib.rs) provides components through the chez crate,
+#             as the Scheme library (quad native)
 #   core/     the editor, in Scheme: the libraries (quad *)
 #   ext/      extensions built in by default: the libraries (quad ext *)
 #
@@ -23,6 +24,7 @@ load("@toolchains//chez:defs.bzl", "chez")
 # The extensions in ext/ the editor is built with, in load order, with the
 # libraries each needs beyond the core.
 EXTENSIONS = {
+    "blake3": [":native"],
     "c": [],
     "lisp": [],
     "markdown": [],
@@ -34,9 +36,40 @@ EXTENSION_ORDER = [
     "c",
     "shell",
     "markdown",
+    "blake3",
 ]
 
 # MARK: Kernel
+
+KERNEL_RS_DEPS = [
+    "//aseipp/quad/chez-rs:chez",
+    "third-party//rust:blake3",
+]
+
+shims.rust_library(
+    name = "kernel-rs",
+    srcs = ["kernel/lib.rs"],
+    crate = "quad_kernel",
+    crate_root = "kernel/lib.rs",
+    tests = [":kernel-rs-test"],
+    deps = KERNEL_RS_DEPS,
+)
+
+shims.rust_test(
+    name = "kernel-rs-test",
+    srcs = ["kernel/lib.rs"],
+    crate = "quad_kernel",
+    crate_root = "kernel/lib.rs",
+    deps = KERNEL_RS_DEPS,
+)
+
+# (quad native): the Rust half's procedures, as kernel/lib.rs declares them.
+chez.rust_library(
+    name = "native",
+    crate = ":kernel-rs",
+    crate_name = "quad_kernel",
+    library = "native",
+)
 
 shims.cxx_binary(
     name = "kernel",
@@ -48,10 +81,17 @@ shims.cxx_binary(
         "-Wno-unused-parameter",
         "-O2",
     ],
+    # Everything is linked in, position-independently: the Rust archive too,
+    # which Buck builds non-PIC for plain static linking.
+    link_style = "static_pic",
+    # The executable is what quad distributes: without DWARF (mostly Rust's
+    # std) it is a third of the size. The symbol table stays.
+    linker_flags = ["-Wl,--strip-debug"],
     deps = [
+        ":kernel-rs",
         "toolchains//chez:embed",
         "toolchains//chez:kernel",
-        # malloc and free, for C and Chez Scheme alike.
+        # malloc and free, for C, Chez Scheme and Rust alike.
         "third-party//by-name/mi/mimalloc:mimalloc-override",
     ],
 )
@@ -63,6 +103,7 @@ chez.library(
     srcs = glob(["core/*.sls"]),
     prefix = "quad",
     strip_prefix = "core",
+    deps = [":native"],
 )
 
 [
@@ -147,6 +188,7 @@ shims.filegroup(
         "terminal",
         "protocol",
         "clients",
+        "native",
     ]
 ]
 
@@ -207,5 +249,15 @@ shims.command_test(
         MIMALLOC_SHOW_STATS=1 $(exe :quad) -q --eval '(make-bytevector 100000)' > "$stats" 2>&1
         # mimalloc 3.5 marks the count approximate: "malloc req~", not "malloc req:".
         grep -Eq "malloc req[:~]" "$stats"
+    """,
+)
+
+# Scheme calls into the kernel's Rust half.
+shims.command_test(
+    name = "test-rust",
+    script = """
+        quad=$(exe :quad)
+        $quad -q --eval '(kernel-rust-version)' | grep -q '^"quad-kernel 0.1.0 (rust)"$'
+        test "`$quad -q --eval '(blake3-hex "abc")'`" = '"6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85"'
     """,
 )

@@ -3,10 +3,11 @@
 
 // kernel.c -- the C kernel of quad: boots Chez Scheme from the boot files
 // appended to its own executable (toolchains//chez:embed), registers the
-// primitives the Scheme side cannot express itself: the terminal and
-// connection ones. Everything else, the editor included, is Scheme. The
-// executable allocates with mimalloc, which overrides malloc for C and Chez
-// Scheme alike.
+// primitives the Scheme side cannot express itself -- the terminal and
+// connection ones here -- and the Rust half's procedures, (quad native)
+// (lib.rs). Everything else, the editor included, is Scheme. The executable
+// allocates with mimalloc, which overrides malloc for C, Chez Scheme and Rust
+// alike.
 #define _GNU_SOURCE
 #include "scheme.h"
 
@@ -35,6 +36,9 @@ fatal(const char* msg)
 
 // The path of the running executable.
 static const char* g_self_path;
+
+// The Rust half's procedures (lib.rs).
+void quad_native_register(void);
 
 /* -------------------------------------------------------------------------- */
 /* -- Terminal primitives --------------------------------------------------- */
@@ -170,7 +174,7 @@ quad_suspend(void)
 
 // Clients reach the editor over byte streams. The server polls every
 // descriptor it serves -- the terminal, the listening socket, each client's
-// connection -- through quad_poll. Other transports (Iroh, say)
+// connection -- through quad_poll. Other transports (Iroh, from the Rust half)
 // join by handing Scheme a descriptor for each stream, a socketpair end.
 
 // Wait up to timeout_ms (forever if negative) for any of fds[0..n) to be
@@ -295,6 +299,7 @@ main(int ac, const char* av[])
 #define K(fn) Sforeign_symbol(#fn, (void*)fn);
   ALLPRIMS(K)
 #undef K
+  quad_native_register();
 
   // The program's scheme-start, which the last boot file set, runs the
   // editor; Sscheme_start skips the program name in av[0].

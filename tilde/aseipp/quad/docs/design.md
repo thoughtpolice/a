@@ -78,8 +78,10 @@ The server's loop (`core/server.sls`) polls descriptors through the kernel
 - **Unix sockets**: `--listen[=PATH]` and `--daemon` accept clients on a
   socket; `--connect[=PATH]` is a terminal client over one; `--connect
   --eval EXPR` evaluates in a running editor;
-- **others, such as Iroh**: anything that can hand the server a descriptor
-  per stream, such as one end of a `socketpair` bridged to a QUIC stream,
+- **others, such as Iroh**: the kernel's Rust half (written with the `chez`
+  crate) can run an endpoint on threads of its own, as an `Object` Scheme
+  holds, and bridge each QUIC stream to one end of a `socketpair`, handing
+  the other end to Scheme (through a `Mailbox`, polled with `watch-fd!`)
   for `serve-stream!`. Nothing else in Scheme changes.
 
 ## The protocol

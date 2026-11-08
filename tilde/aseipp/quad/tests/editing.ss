@@ -172,3 +172,10 @@
 (headless-buffer! "(* 6 7)" 'scheme)
 (press! "d" "space" "l" "e")
 (expect-equal "eval selection" (cdr (current-message)) "⇒ 42")
+
+;; Extensions register as the editor boots: the BLAKE3 command, built on the
+;; kernel's Rust half, is bound and hashes the selection.
+(headless-buffer! "abc" 'text)
+(press! "s" "space" "l" "h")
+(expect-equal "hash-selection" (cdr (current-message))
+              "BLAKE3 6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85")

@@ -897,12 +897,13 @@
   ;; Evaluation: init files and --eval run in an environment with the whole
   ;; of quad imported, where top-level definitions are allowed.
 
-  ;; Every quad library loaded -- the core ones and the extensions built in
-  ;; -- with (chezscheme): what init files see.
+  ;; Every quad library loaded -- the core ones, the extensions built in,
+  ;; (quad native) from Rust -- with (chezscheme) and (chez rust), for Rust
+  ;; objects: what init files see.
   (define (quad-libraries)
-    (cons '(chezscheme)
-          (sort (lambda (a b) (string<? (format "~s" a) (format "~s" b)))
-                (filter (lambda (l) (and (pair? l) (eq? (car l) 'quad))) (library-list)))))
+    (cons* '(chezscheme) '(chez rust)
+           (sort (lambda (a b) (string<? (format "~s" a) (format "~s" b)))
+                 (filter (lambda (l) (and (pair? l) (eq? (car l) 'quad))) (library-list)))))
 
   (define the-environment #f)
   (define (quad-environment)

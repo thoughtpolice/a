@@ -11,10 +11,10 @@
 ;;
 ;; A transport is anything that delivers a byte stream on a descriptor:
 ;; serve-stream! serves a client over one, speaking framed messages. Unix
-;; sockets are built in (server-listen!); others, like Iroh's QUIC streams,
-;; hand the server a descriptor per stream.
+;; sockets are built in (server-listen!); others, like Iroh's QUIC streams
+;; from the kernel's Rust half, hand the server a descriptor per stream.
 (library (quad server)
-  (export make-source source? add-source! remove-source! sources
+  (export make-source source? add-source! remove-source! sources watch-fd!
           server-connect! client-receive! server-render! server-run!
           serve-stream! server-listen! server-unlisten! default-socket-path
           frame-sender)
@@ -33,6 +33,14 @@
   (define (sources) the-sources)
   (define (add-source! s) (set! the-sources (append the-sources (list s))))
   (define (remove-source! s) (set! the-sources (remq s the-sources)))
+
+  ;; Call (on-readable) whenever fd is readable, until the source returned
+  ;; is removed: how components with threads of their own (the Rust half's
+  ;; mailboxes) join the event loop.
+  (define (watch-fd! fd on-readable)
+    (let ([s (make-source fd on-readable (lambda () -1) void void)])
+      (add-source! s)
+      s))
 
   ;; ---------------------------------------------------------------------------
   ;; Clients

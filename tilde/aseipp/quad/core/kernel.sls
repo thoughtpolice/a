@@ -6,7 +6,8 @@
 ;; The kernel (kernel/kernel.c) registers each primitive with Sforeign_symbol
 ;; after the boot files load, so every foreign procedure here is resolved on
 ;; its first call. Outside the kernel (a plain Chez Scheme loading these
-;; libraries) they are simply unavailable.
+;; libraries) they are simply unavailable. The Rust half's procedures are
+;; (quad native), generated from kernel/lib.rs.
 (library (quad kernel)
   (export kernel-available?
           kernel-isatty kernel-tty-raw kernel-tty-restore kernel-tty-size
