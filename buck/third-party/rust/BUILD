@@ -38344,18 +38344,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "zeroize-1.9.0.crate",
-    sha256 = "e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e",
-    strip_prefix = "zeroize-1.9.0",
-    urls = ["https://static.crates.io/crates/zeroize/1.9.0/download"],
+    name = "zeroize-1.9.1.crate",
+    sha256 = "e13084392c5e4bc371903e2935a5eaeed24905a7511356b883835e18a78f6879",
+    strip_prefix = "zeroize-1.9.1",
+    urls = ["https://static.crates.io/crates/zeroize/1.9.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "zeroize-1",
-    srcs = [":zeroize-1.9.0.crate"],
+    srcs = [":zeroize-1.9.1.crate"],
     crate = "zeroize",
-    crate_root = "zeroize-1.9.0.crate/src/lib.rs",
+    crate_root = "zeroize-1.9.1.crate/src/lib.rs",
     edition = "2024",
     features = [
         "alloc",
@@ -38366,7 +38366,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "zeroize",
-            "version": "1.9.0",
+            "version": "1.9.1",
             "licenses": ["Apache-2.0 OR MIT"],
         },
     },

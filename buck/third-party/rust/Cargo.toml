@@ -262,7 +262,7 @@ wit-bindgen-core = "0.62.0"
 wit-bindgen-rust = { version = "0.62.0", features = ["clap"] }
 wit-component = "0.259.0"
 wit-parser = "0.259.0"
-zeroize = "1.9"
+zeroize = "1.9.1"
 zip = { version = "9", default-features = false, features = ["deflate"] }
 # NOTE (zstd): 0.14.3 / zstd-safe 8.2 carry the fixes for RUSTSEC-2026-0391
 # and RUSTSEC-2026-0395..0406, none of which reached 0.13 / zstd-safe 7.
