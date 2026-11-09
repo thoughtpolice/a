@@ -29,7 +29,8 @@
   ;; text: what the key types, or #f. kind: press, repeat or release.
   (define-record-type key-event (fields name mods text kind))
   (define-record-type paste-event (fields text))
-  ;; kind: press, release, drag, scroll-up or scroll-down; 0-based cells.
+  ;; kind: press, release, drag, move (no button held), scroll-up or
+  ;; scroll-down; 0-based cells.
   (define-record-type mouse-event (fields kind button col row mods))
   ;; The system clipboard's contents, answering the server's request for
   ;; them: target is "c" (the clipboard) or "p" (the primary selection).

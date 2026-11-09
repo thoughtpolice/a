@@ -3,7 +3,10 @@
 ;; SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 ;; SPDX-License-Identifier: Apache-2.0
 ;;
-;; quad runs as an editor with its terminal attached (the default), as a
+;; quad runs as an editor in a window, where there is a display and one
+;; opens, else in its terminal (--gui and --tui choose) -- or, when an
+;; editor already listens at the default socket (a daemon), as a client of
+;; that one, as emacsclient would (--new starts another) -- as a
 ;; daemon that clients connect to (--daemon), or as a client of a running
 ;; editor (--connect). Each editor can also listen for more clients
 ;; (--listen), and for clients anywhere over iroh (--mesh), who find it
@@ -19,7 +22,8 @@
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
           (quad syntax) (quad buffer) (quad selection) (quad editor)
           (quad commands) (quad display) (chez embed) (quad kernel)
-          (quad protocol) (quad grid) (quad server) (quad tui) (quad project) (quad mesh))
+          (quad protocol) (quad grid) (quad server) (quad tui) (quad gui) (quad project) (quad mesh)
+          (quad relay))
 
   (define quad-version "0.1.0")
 
@@ -31,6 +35,13 @@
     "usage: quad [options] [+LINE] [file ...]
 
   -q, --no-init        don't load the init file, or any project's
+  --gui                edit in a window, never the terminal (needs Vulkan,
+                       and a quad on the host's C library); otherwise quad
+                       opens a window where there is a display and one can
+                       open, and uses the terminal where not
+  --tui                edit in the terminal, never a window
+  --new                start an editor of its own, even where a daemon
+                       listens at PATH (quad is otherwise its client)
   --listen[=PATH]      also accept clients on the Unix socket PATH
   --daemon             run without a terminal, for clients; implies --listen
   --mesh               also accept clients over iroh, from anywhere: they
@@ -94,27 +105,52 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
       (for-each remove-client! (clients))
       0))
 
-  ;; The editor with this terminal attached; with the tutor shown, if
-  ;; tutor? (and the editor has one).
+  ;; Whether a window could be shown here at all: a display to show it on.
+  (define (display-available?)
+    (exists (lambda (v) (let ([s (getenv v)]) (and s (not (string=? s "")))))
+            '("WAYLAND_DISPLAY" "DISPLAY")))
+
+  ;; What to edit in, as ui asks -- 'gui, a window (an error where none can
+  ;; open); 'tui, this terminal; 'auto, a window where there is a display
+  ;; and one opens, else this terminal: (window . why), window #f for the
+  ;; terminal, and why the window that was tried did not open.
+  (define (open-ui ui)
+    (case ui
+      [(gui) (cons (gui-window) #f)]
+      [(tui) (cons #f #f)]
+      [else (if (display-available?)
+                (guard (e [#t (cons #f (condition->string e))]) (cons (gui-window) #f))
+                (cons #f #f))]))
+
+  ;; The editor with this terminal or a window attached (as ui asks, see
+  ;; open-ui); with the tutor shown, if tutor? (and the editor has one).
   (define (configure! init?)
     (lambda ()
       (if init?
           (begin (load-init-file! (init-file-path)) (project-visit! (current-directory)))
           (set-var! 'project-config #f))))
 
-  (define (interactive! files line init? listen tutor? mesh?)
+  (define (interactive! files line init? listen tutor? mesh? ui)
     (editor-init! files (configure! init?))
     (when listen (server-listen! listen))
     (when mesh? (mesh-listen! #t (mesh-announcer (lambda (fmt . args) (apply message fmt args)))))
-    (let ([c (tui-attach!)])
-      (when line (with-client c (lambda () (run-command (lambda () (goto-line! line))))))
-      (when tutor?
-        (with-client c
-          (lambda ()
-            (if (find-command 'tutor)
-                (run-command 'tutor)
-                (message-error "This quad was built without its tutor")))))
-      (serve!)))
+    (let ([c (guard (e [#t (report-error e) #f])
+               (let ([w (open-ui ui)])
+                 ;; Why there is no window goes in *Messages*, not in the
+                 ;; way: a quad on the toolchain's C library never has one.
+                 (when (cdr w) (log-message! (string-append "No window, so this terminal: " (cdr w))))
+                 (if (car w) (gui-attach! (car w)) (tui-attach!))))])
+      (cond
+       [(not c) 1]                       ; neither a window nor a terminal
+       [else
+        (when line (with-client c (lambda () (run-command (lambda () (goto-line! line))))))
+        (when tutor?
+          (with-client c
+            (lambda ()
+              (if (find-command 'tutor)
+                  (run-command 'tutor)
+                  (message-error "This quad was built without its tutor")))))
+        (serve!)])))
 
   ;; The editor with no terminal, for clients to connect to.
   (define (daemon! files init? listen mesh?)
@@ -142,6 +178,20 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
                   '("clients anywhere join with the code: quad --connect=~a"
                     "clients join with the ticket: quad --connect=~a"
                     "iroh: ~a")))))
+
+  ;; A client of the editor on descriptor fd, in a window or this terminal
+  ;; (as ui asks, see open-ui). Returns the exit status.
+  (define (client! fd files line ui)
+    (guard (e [#t (report-error e) 1])
+      (let ([w (open-ui ui)])
+        (if (car w) (gui-connect! (car w) fd files line) (tui-connect! fd files line)))))
+
+  ;; A connection to the editor listening at the default socket, or #f.
+  (define (local-editor-fd)
+    (let ([path (default-socket-path)])
+      (and (file-exists? path)
+           (let ([fd (kernel-unix-connect path)])
+             (and (>= fd 0) fd)))))
 
   ;; Where --connect goes: a socket path, a join code or a ticket; bare,
   ;; the local editor's socket.
@@ -201,12 +251,14 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
     (case-lambda
      [(rows cols) (headless-client! rows cols #f)]
      [(rows cols kitty?)
-      (let* ([model (make-grid-model)]
-             [c (server-connect! "headless" rows cols
-                                 (append (if kitty? '("release-events") '())
-                                         '("clipboard" "primary-selection"))
-                                 (lambda (msg) (grid-model-apply! model msg))
-                                 void)])
+      (letrec* ([model (make-grid-model)]
+                [paint (lambda (msg) (grid-model-apply! model msg))]
+                [c (server-connect! "headless" rows cols
+                                    (append (if kitty? '("release-events") '())
+                                            '("clipboard" "primary-selection" "scroll"))
+                                    (frontend-sender (lambda () c) paint)
+                                    void)])
+        (frontend! c paint)
         (hashtable-set! models c model)
         (render-client! c)
         c)]))
@@ -245,7 +297,7 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
   (define (press! . keys)
     (for-each
      (lambda (k)
-       (client-receive! the-test-client (event->message (if (string? k) (spec->key-event k) k)))
+       (deliver! the-test-client (event->message (if (string? k) (spec->key-event k) k)))
        (server-render!))
      (let flat ([k keys]) (cond [(null? k) '()] [(pair? k) (append (flat (car k)) (flat (cdr k)))] [else (list k)]))))
 
@@ -347,6 +399,10 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
   (define (quad-main args)
     (define tutor? #f)
     (define mesh? #f)
+    ;; What to edit in: 'auto (a window where one opens, else the
+    ;; terminal), 'gui or 'tui.
+    (define ui 'auto)
+    (define new? #f)
     (let loop ([args args] [files '()] [line #f] [init? #t] [listen #f] [daemon? #f] [connect #f] [expr #f])
       ;; --opt, or --opt=PATH.
       (define (path-option opt)
@@ -364,16 +420,28 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
             (let ([v (eval-string expr)])
               (unless (eq? v (void)) (write v) (newline))
               0)]
+           [(and (eq? ui 'gui) daemon?)
+            (display "quad: --gui is a window, and --daemon an editor without one\n" (current-error-port))
+            2]
            [connect (let-values ([(fd session) (connect-fd (connect-target connect))])
-                      (tui-connect! fd files line))]
+                      (client! fd files line ui))]
            [daemon? (daemon! files init? (or listen (default-socket-path)) mesh?)]
-           [else (interactive! files line init? listen tutor? mesh?)]))]
+           [else
+            ;; An editor listening at the default socket is the one to
+            ;; edit in, unless this is to be an editor of its own.
+            (let ([fd (and (not (or new? listen mesh? tutor?)) (local-editor-fd))])
+              (if fd
+                  (client! fd files line ui)
+                  (interactive! files line init? listen tutor? mesh? ui)))]))]
        [(member (car args) '("-h" "--help")) (display usage) 0]
        [(string=? (car args) "--version")
         (let-values ([(major minor patch) (scheme-version-number)])
           (printf "quad ~a (Chez Scheme ~a.~a.~a)\n" quad-version major minor patch))
         0]
        [(string=? (car args) "--tutor") (set! tutor? #t) (loop (cdr args) files line init? listen daemon? connect expr)]
+       [(string=? (car args) "--gui") (set! ui 'gui) (loop (cdr args) files line init? listen daemon? connect expr)]
+       [(string=? (car args) "--tui") (set! ui 'tui) (loop (cdr args) files line init? listen daemon? connect expr)]
+       [(string=? (car args) "--new") (set! new? #t) (loop (cdr args) files line init? listen daemon? connect expr)]
        [(member (car args) '("-q" "--no-init")) (loop (cdr args) files line #f listen daemon? connect expr)]
        [(path-option "--listen") => (lambda (p) (loop (cdr args) files line init? p daemon? connect expr))]
        [(string=? (car args) "--daemon") (loop (cdr args) files line init? listen #t connect expr)]

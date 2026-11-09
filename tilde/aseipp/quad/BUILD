@@ -17,11 +17,12 @@
 #
 #   buck2 run depot-tilde//aseipp/quad:quad -- FILE    edit FILE
 #   :quad                                              the standalone executable
+#   :quad-host                                         on the host's C library, with --gui
 #   :quad-custom                                       one with extra code compiled in
 
 load("@root//buck/shims:shims.bzl", "shims")
 load("@toolchains//chez:defs.bzl", "chez")
-load(":defs.bzl", "quad_executable")
+load(":defs.bzl", "quad_executable", "slang_shader")
 
 # The extensions in ext/ the editor is built with, in load order, with the
 # libraries each needs beyond the core.
@@ -61,31 +62,79 @@ KERNEL_RS_DEPS = [
     "root//src/crates/accept:accept",
     "root//src/crates/iroh-dial:iroh-dial",
     "root//src/crates/iroh-mesh:iroh-mesh",
+    "third-party//rust:ash",
     "third-party//rust:blake3",
+    "third-party//rust:fontique",
     "third-party//rust:futures",
+    "third-party//rust:harfrust",
+    "third-party//rust:skrifa",
+    "third-party//rust:smithay-clipboard",
     "third-party//rust:tokio",
+    "third-party//rust:unicode-width",
+    "third-party//rust:winit",
+]
+
+KERNEL_RS_SRCS = [
+    "kernel/font.rs",
+    "kernel/gui.rs",
+    "kernel/lib.rs",
+    "kernel/mesh.rs",
+    "kernel/render.rs",
+    "kernel/slug.rs",
+]
+
+# The GUI's shaders (kernel/gui.slang): a vertex and a fragment shader for
+# each of its pipelines, beside kernel/gui.rs, which includes them.
+GUI_SHADERS = {
+    "gui.glyph.frag.spv": ("glyphFragment", "fragment"),
+    "gui.glyph.vert.spv": ("glyphVertex", "vertex"),
+    "gui.rect.frag.spv": ("rectFragment", "fragment"),
+    "gui.rect.vert.spv": ("rectVertex", "vertex"),
+}
+
+# The window's default font, built in, beside kernel/font.rs, which
+# includes it.
+BUILT_IN_FONTS = {
+    "third-party//by-name/je/jetbrains-mono:" + style: "kernel/fonts/JetBrainsMono-{}.ttf".format(style)
+    for style in [
+        "Regular",
+        "Bold",
+        "Italic",
+        "BoldItalic",
+    ]
+}
+
+KERNEL_RS_MAPPED_SRCS = {
+    ":" + out: "kernel/" + out
+    for out in GUI_SHADERS
+} | BUILT_IN_FONTS
+
+[
+    slang_shader(
+        name = out,
+        src = "kernel/gui.slang",
+        entry = entry,
+        stage = stage,
+    )
+    for out, (entry, stage) in GUI_SHADERS.items()
 ]
 
 shims.rust_library(
     name = "kernel-rs",
-    srcs = [
-        "kernel/lib.rs",
-        "kernel/mesh.rs",
-    ],
+    srcs = KERNEL_RS_SRCS,
     crate = "quad_kernel",
     crate_root = "kernel/lib.rs",
+    mapped_srcs = KERNEL_RS_MAPPED_SRCS,
     tests = [":kernel-rs-test"],
     deps = KERNEL_RS_DEPS,
 )
 
 shims.rust_test(
     name = "kernel-rs-test",
-    srcs = [
-        "kernel/lib.rs",
-        "kernel/mesh.rs",
-    ],
+    srcs = KERNEL_RS_SRCS,
     crate = "quad_kernel",
     crate_root = "kernel/lib.rs",
+    mapped_srcs = KERNEL_RS_MAPPED_SRCS,
     deps = KERNEL_RS_DEPS,
 )
 
@@ -204,6 +253,19 @@ chez.standalone(
     kernel = ":kernel",
 )
 
+# The same editor, on the host's C library (glibc and libstdc++ at least as
+# new as the toolchain's) in place of the toolchain's: the one to hand out,
+# and the one --gui works in, since the host's Vulkan loader and GPU driver
+# load into it.
+#
+#   buck2 run depot-tilde//aseipp/quad:quad-host -- --gui FILE
+chez.standalone(
+    name = "quad-host",
+    boots = [":boot"],
+    host = True,
+    kernel = ":kernel",
+)
+
 # An example of a configured editor, built with quad itself.
 quad_executable(
     name = "quad-custom",
@@ -239,8 +301,33 @@ shims.filegroup(
         "json",
         "tutor",
         "people",
+        "gui",
+        "scroll",
+        "link",
     ]
 ]
+
+# What the window draws, drawn with no window and checked against the
+# cells (tests/gui-render.ss): on Mesa's lavapipe where it is installed,
+# skipped where nothing can draw.
+shims.export_file(
+    name = "gui-render.sh",
+    src = "tests/gui-render.sh",
+)
+
+shims.command(
+    name = "gui-render",
+    cmd = ["$(location :gui-render.sh)"],
+)
+
+shims.dynamic_test(
+    name = "test-gui-render",
+    args = [
+        "$(exe :quad-host)",
+        "$(location :tests)/tests",
+    ],
+    dep = ":gui-render",
+)
 
 # A daemon, and clients in other processes: a scripted one speaking the
 # protocol over the socket, and --connect --eval.
@@ -258,6 +345,10 @@ shims.command_test(
         test -S $QUAD_SOCKET
 
         $quad -q --batch $(location :tests)/tests/remote.ss
+        # A client of another editor switches to the daemon, and back.
+        $quad -q --batch $(location :tests)/tests/relay.ss
+        # The daemon is still there, and its client left it.
+        test "`$quad --connect --eval '(length (clients))'`" = 1
         test "`$quad --connect --eval '(+ 1 2)'`" = 3
         # The scripted client detached; only this one remains.
         test "`$quad --connect --eval '(length (clients))'`" = 1
@@ -275,12 +366,23 @@ shims.command_test(
     name = "test-cli",
     script = """
         quad=$(exe :quad)
+        # No daemon: quad would otherwise be a client of one running here.
+        export QUAD_SOCKET=`mktemp -u /tmp/quad-test.XXXXXX`
         $quad --version | grep -q '^quad 0.1.0 (Chez Scheme 10.4.1)'
         test "`$quad -q --eval '(+ 1 2)'`" = 3
         # The editor's own libraries are in scope.
         test "`$quad -q --eval '(text-length (make-text "hello"))'`" = 5
-        # Without a terminal the editor refuses to start, rather than hang.
-        ! $quad -q < /dev/null > /dev/null 2>&1
+        # Without a terminal (or a window: no display) the editor refuses to
+        # start, rather than hang.
+        ! env -u WAYLAND_DISPLAY -u DISPLAY $quad -q < /dev/null > /dev/null 2>&1
+        ! $quad -q --tui < /dev/null > /dev/null 2>&1
+        # A window is not a daemon.
+        out=`$quad -q --gui --daemon 2>&1 || true`
+        grep -q 'an editor without one' <<<"$out"
+        # Where no window can open (here, with no display; also wherever
+        # this quad is on the toolchain's C library), the editor says so
+        # and stops.
+        ! env -u WAYLAND_DISPLAY -u DISPLAY $quad -q --gui < /dev/null > /dev/null 2>&1
         # The example init file loads, and its definitions take effect.
         export QUAD_INIT=$(location :examples)/examples/init.ss
         test "`$quad --eval '(get-var (quote scroll-margin))'`" = 5

@@ -85,12 +85,31 @@
           id)))
 
   (define (face-flags f)
-    (logior (if (face-bold? f) 1 0) (if (face-italic? f) 2 0) (if (face-underline? f) 4 0)
-            (if (face-undercurl? f) 8 0) (if (face-dim? f) 16 0) (if (face-reverse? f) 32 0)))
+    (logior (if (face-bold? f) 1 0) (if (face-italic? f) 2 0)
+            (case (face-underline-style f)
+              [(single) 4] [(curly) 8] [(double) 64] [(dotted) 128] [(dashed) 256] [else 0])
+            (if (face-dim? f) 16 0) (if (face-reverse? f) 32 0)
+            (if (face-strikethrough? f) 512 0) (if (face-overline? f) 1024 0)))
 
   ;; The client's state between frames: the grid it shows and the ids it
   ;; knows.
-  (define-record-type frame (fields grid known))
+  ;; scroll: (top bottom buffer line), the text area's rows and what they
+  ;; showed, for scroll hints; or #f.
+  (define-record-type frame (fields grid known cursor scroll))
+
+  ;; prev with rows top to bottom moved up by n (down, for n < 0), as a
+  ;; client that scrolls them has them; rows scrolled in match no cell.
+  (define (scrolled-grid prev top bottom n)
+    (let ([chars (vector-copy (grid-chars prev))] [faces (vector-copy (grid-faces prev))]
+          [cols (grid-cols prev)])
+      (do ([r top (+ r 1)]) ((= r bottom))
+        (let ([from (+ r n)])
+          (if (and (>= from top) (< from bottom))
+              (begin (vector-set! chars r (vector-ref (grid-chars prev) from))
+                     (vector-set! faces r (vector-ref (grid-faces prev) from)))
+              (begin (vector-set! chars r (make-vector cols #f))
+                     (vector-set! faces r (make-vector cols #f))))))
+      (make-grid (grid-rows prev) cols chars faces)))
 
   ;; Forget what client c shows, so the next frame redraws it whole.
   (define (invalidate-client! c) (client-frame-set! c #f))
@@ -119,20 +138,38 @@
                                          [else (list text hl)])
                                    out)))))))))
 
-  (define (send-frame! c g cursor)
+  ;; scroll is the text area, as frame-scroll has it: when it shows the
+  ;; same buffer as before, moved by fewer lines than it has, a client
+  ;; that can ("scroll") is told to move its rows, and is sent only what
+  ;; that leaves different.
+  (define (send-frame! c g cursor scroll)
     (let* ([old (client-frame c)]
            [full? (or (not old)
                       (not (= (grid-rows (frame-grid old)) (grid-rows g)))
                       (not (= (grid-cols (frame-grid old)) (grid-cols g))))]
            [known (if full? (make-eqv-hashtable) (frame-known old))]
-           [prev (and (not full?) (frame-grid old))]
+           [shift (and (not full?) scroll (frame-scroll old) (client-has? c "scroll")
+                       (let ([was (frame-scroll old)])
+                         (and (= (car scroll) (car was)) (= (cadr scroll) (cadr was))
+                              (eq? (caddr scroll) (caddr was))
+                              (let ([n (- (cadddr scroll) (cadddr was))])
+                                (and (not (zero? n)) (< (abs n) (- (cadr scroll) (car scroll))) n)))))]
+           [prev (and (not full?)
+                      (if shift
+                          (scrolled-grid (frame-grid old) (car scroll) (cadr scroll) shift)
+                          (frame-grid old)))]
+           [changed? full?]
            [hl! (lambda (f)
                   (let ([id (face-id f)])
                     (unless (hashtable-contains? known id)
                       (hashtable-set! known id #t)
-                      (client-send! c (list "hl" id (face-fg f) (face-bg f) (face-flags f))))
+                      (client-send! c (list "hl" id (face-fg f) (face-bg f) (face-flags f)
+                                            (face-underline-color f) (face-link f))))
                     id))])
       (when full? (client-send! c (list "grid" (grid-rows g) (grid-cols g))))
+      (when shift
+        (set! changed? #t)
+        (client-send! c (list "scroll" (car scroll) (cadr scroll) shift)))
       (do ([r 0 (+ r 1)]) ((= r (grid-rows g)))
         (let ([chars (vector-ref (grid-chars g) r)] [faces (vector-ref (grid-faces g) r)])
           (let-values ([(first last)
@@ -149,11 +186,14 @@
             (when first
               ;; Never start on the right half of a wide character.
               (let ([first (if (and (> first 0) (eq? (vector-ref chars first) 'wide)) (- first 1) first)])
+                (set! changed? #t)
                 (client-send! c (list "line" r first (row-cells g r first (+ last 1) hl!))))))))
-      (client-send! c (if cursor (list "cursor" (car cursor) (cadr cursor) (symbol->string (caddr cursor)))
-                          '("cursor" #f)))
-      (client-send! c '("flush"))
-      (client-frame-set! c (make-frame g known))))
+      ;; A frame like the last is not sent: clients draw only what changed.
+      (when (or changed? (not (equal? cursor (frame-cursor old))))
+        (client-send! c (if cursor (list "cursor" (car cursor) (cadr cursor) (symbol->string (caddr cursor)))
+                            '("cursor" #f)))
+        (client-send! c '("flush")))
+      (client-frame-set! c (make-frame g known cursor scroll))))
 
   ;; ---------------------------------------------------------------------------
   ;; The text area
@@ -292,10 +332,11 @@
                [else (when (visible? sc) (put! g row sc ch face))])
               (loop (+ i 1) (+ col w) ss))])))))
 
-;; Decorators mark up a buffer's text beyond its syntax: diagnostics,
+  ;; Decorators mark up a buffer's text beyond its syntax: diagnostics,
   ;; say. (decorator buffer start end) gives the ranges to mark between
-  ;; positions start and end, as (start end face-name) lists, which are
-  ;; drawn over the syntax's faces and under the selections.
+  ;; positions start and end, as (start end face) lists -- a face's name,
+  ;; or a face -- which are drawn over the syntax's faces and under the
+  ;; selections.
   (define decorators '())
   (define (add-decorator! f) (set! decorators (append decorators (list f))))
   (define (remove-decorator! f) (set! decorators (remq f decorators)))
@@ -303,7 +344,7 @@
   (define (decorations b start end)
     (apply append
            (map (lambda (f)
-                  (map (lambda (d) (list (car d) (cadr d) (F (caddr d))))
+                  (map (lambda (d) (list (car d) (cadr d) (let ([f (caddr d)]) (if (face? f) f (F f)))))
                        (guard (e [#t '()]) (f b start end))))
                 decorators)))
 
@@ -329,7 +370,12 @@
            [others (others-views v)]
            [decos (if (or (null? decorators) (> top last))
                       '()
-                      (decorations b (text-line-start t top) (+ 1 (text-line-end t last))))])
+                      (decorations b (text-line-start t top) (+ 1 (text-line-end t last))))]
+           ;; The link under the pointer (see link.sls), underlined.
+           [decos (let ([h (let ([c (view-client v)]) (and c (client-local c 'hover-link #f)))])
+                    (if (and h (eq? (car h) b))
+                        (append decos (list (list (cadr h) (caddr h) (F 'ui.link.hover))))
+                        decos))])
       (view-geometry-set! (list row0 gutter height (- width gutter) top left))
       (do ([r 0 (+ r 1)]) ((= r height))
         (let ([line (+ top r)] [row (+ row0 r)])
@@ -764,5 +810,5 @@
                          [else #f])])
                   (when (and (layer-legend-visible?) (not p))
                     (draw-legend! g rows cols status-row))
-                  (send-frame! c g cursor)
+                  (send-frame! c g cursor (list text-top status-row b (view-top v)))
                   (client-dirty?-set! c #f))))))))))

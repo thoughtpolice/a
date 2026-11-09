@@ -36,7 +36,7 @@
    find-buffer-named kill-buffer! add-buffer!
    open-file! new-buffer! save-buffer! buffer-display-name
    ;; messages
-   message message-error current-message clear-message! messages-buffer
+   message message-error current-message clear-message! messages-buffer log-message!
    set-messages-buffer!
    ;; variables
    define-variable get-var set-var! set-local! variable-names variable-doc
@@ -295,9 +295,11 @@
             (let ([v (hashtable-ref variables name #f)])
               (if v (car v) (errorf 'get-var "no variable named ~s" name)))))]))
 
+  ;; variable-change-hook runs with the name and the new value.
   (define (set-var! name v)
     (let ([old (hashtable-ref variables name #f)])
-      (hashtable-set! variables name (cons v (if old (cdr old) "")))))
+      (hashtable-set! variables name (cons v (if old (cdr old) "")))
+      (run-hooks 'variable-change-hook name v)))
 
   ;; Buffer-local keys are compared with eq?, so each variable's key is
   ;; interned here.

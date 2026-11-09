@@ -43,6 +43,17 @@
                    (vector-set! row (+ col i) (cons text hl))))
                (loop (cdr cells) (+ col n) hl)))))]
       [(hl) (hashtable-set! (grid-model-hls g) (cadr msg) (cddr msg))]
+      ;; Rows top to bottom move up by n (down for n < 0); those scrolled
+      ;; in are blank until lines fill them.
+      [(scroll)
+       (let ([top (cadr msg)] [bottom (caddr msg)] [n (cadddr msg)]
+             [rows (vector-copy (grid-model-cells g))])
+         (do ([r top (+ r 1)]) ((= r bottom))
+           (let ([from (+ r n)])
+             (vector-set! (grid-model-cells g) r
+                          (if (and (>= from top) (< from bottom))
+                              (vector-ref rows from)
+                              (make-vector (grid-model-cols g) (cons " " 0)))))))]
       [(cursor) (grid-model-cursor-set! g (and (cadr msg) (cdr msg)))]
       [(flush) (grid-model-frames-set! g (+ 1 (grid-model-frames g)))]
       [else (grid-model-other-set! g (cons msg (grid-model-other g)))]))

@@ -16,12 +16,13 @@ buffers.
  ┌──────────────────────────────────────────────┐
  │ buffers, undo, files, major modes            │   in-process   ┌────────────┐
  │ commands, keymaps, hooks, variables, themes  │◀──────────────▶│ terminal   │
- │ the clipboard history                        │    messages    └────────────┘
+ │ the clipboard history                        │    messages    │ or window  │ quad --gui
+ │                                              │                └────────────┘
  │                                              │                ┌────────────┐
  │ per client: views (one per buffer visited),  │◀── frames ────▶│ terminal   │ quad --connect
  │   prompt, layer, jump labels, message, size, │  unix socket   └────────────┘
  │   capabilities                               │                ┌────────────┐
- │ per view: selections, input mode, selection  │◀── frames ────▶│ GUI        │ (to come)
+ │ per view: selections, input mode, selection  │◀── frames ────▶│ window     │ quad --gui --connect
  │   mode, extension, scroll, history           │  any stream    └────────────┘
  └──────────────────────────────────────────────┘
 ```
@@ -47,9 +48,18 @@ buffer (`map-position`), so other clients' cursors follow the text. Undo
 restores the selections of the view that undoes. Each client sees the
 others' cursors (face `ui.cursor.other`), and its status line counts them.
 
-Leaving (`quit`, `space j v`) detaches the client. The editor stops when its
-last client leaves, unless it is a daemon. `kill-server` stops it for
-everyone.
+Leaving (`quit`, `space j v`) detaches the client, and closing a window
+or terminal does too. The editor stops when its last client leaves, unless
+it is a daemon. `kill-server` stops it for everyone.
+
+Starting quad where an editor already listens at the default socket makes
+a client of that editor, as emacsclient does (`--new` starts another). A
+client in an editor's process can show another editor instead
+(`core/relay.sls`, the `connect` command): its input goes there, that
+editor's frames are painted in its place, and this editor's are not; when
+the other says goodbye, or goes away, it is drawn afresh here. Its
+terminal or window is the same either way: only where its messages go
+changes.
 
 ## Drawing: the server sends cells
 
@@ -95,7 +105,7 @@ Messages are lists whose first element is a string naming them. Over a
 stream, each is one *frame*: a 4-byte big-endian length, then the message
 as a MessagePack array. quad uses the subset of nil, booleans, integers,
 floats, strings, binary and arrays; maps are accepted. Highlight colors are
-`0xRRGGBB` integers, or false for the default. The protocol version is 1.
+`0xRRGGBB` integers, or false for the default. The protocol version is 2.
 `core/protocol.sls` implements it; `tests/protocol.ss` checks known
 encodings.
 
@@ -143,7 +153,67 @@ encodings.
 
 ## A graphical client
 
-A Vulkan client, or one on any other API, needs to:
+quad edits in a window where there is a display (Wayland or X11) and one
+can open, and in its terminal otherwise (`--gui` and `--tui` insist on
+one or the other; why no window opened goes in `*Messages*`). The window
+attaches in the editor's process (`core/gui.sls`), as the terminal does,
+or, as a client (`--connect`, or of a running daemon), opens onto an
+editor elsewhere (a socket, or iroh), as a terminal client does: either way
+it keeps a grid model and paints it at each `flush`, so it shows what a terminal would, cell for cell, in the same
+theme. The window is the Rust half's (`kernel/gui.rs`): winit's, on
+Wayland or X11, drawn with Vulkan 1.3 through ash. Every window of a
+process runs on one thread, with one event loop, and draws with one Vulkan
+device; `new-window` (`space j w`) opens another onto the same editor, from
+a window or a terminal, each a client of its own (with its own size, and
+zoom). Its two Slang pipelines (`kernel/gui.slang`) read a frame's data by
+buffer device address, with no descriptor sets: rectangles in cells (the
+cells' backgrounds, the cursor, underlines), and glyphs.
+
+Text is drawn from the fonts' outlines on the GPU, at any size, with no
+rasterized atlas: Eric Lengyel's Slug algorithm, whose reference shader
+`kernel/gui.slang` ports. `kernel/font.rs` finds fonts with fontique
+(fontconfig; `gui-font-family`, by default the built-in JetBrains Mono,
+else the system's monospace font, at `gui-font-size` points), with fallbacks by script for what they lack;
+shapes runs of cells in one style with HarfRust, so ligatures and marks
+work, and places each glyph at the cell its cluster starts in; and draws
+box drawing and blocks itself, to fill their cells exactly, as terminals
+do. `kernel/slug.rs` turns outlines (skrifa) into Slug's curve and band
+data. The size is chosen so that capitals are a whole number of pixels
+tall, as Lengyel suggests for unhinted text. Text blends as ghostty's
+does by default on Linux ("linear-corrected"): in linear light, with its
+coverage corrected so that glyphs keep the weight they have when blended
+gamma-encoded, as most terminals blend. The grid sits 2 points in from
+the window's edges, ghostty's padding, and text is 12 points, its size on
+Linux.
+
+Nothing links against Vulkan or the window system: `libvulkan.so.1`,
+`libwayland-client` and `libX11` are loaded when a window opens. They
+are the host's, and so is the GPU driver they load, which cannot load
+into a process on the toolchain's C library: `:quad-host` is quad on the
+host's dynamic linker and libraries (`host` on `chez.standalone`), and
+`--gui` needs it. `QUAD_VULKAN_VALIDATION=1` turns on the Khronos
+validation layer, where it is installed; `QUAD_GUI_X11=1` asks for X11;
+`QUAD_GUI_DEVICE=NAME` picks the Vulkan device whose name has NAME in it;
+`QUAD_GUI_SNAPSHOT=FILE` writes each frame the window presents to FILE, as
+a PPM image.
+
+A window costs nothing while nothing changes: its thread sleeps in the
+event loop, and draws only when the editor sends a frame, at the
+compositor's next frame callback, so a burst of frames (key repeat,
+scrolling) draws at most once a refresh, and a window no one can see draws
+nothing. Frames are presented FIFO, never drawn to be thrown away. Laying
+out a frame reuses what the last ones laid out: rows by their contents
+(wherever they are now), runs of text by their shaping, glyphs by their
+curves.
+
+The same renderer draws into images with no window (`gui-headless`,
+`draw-frame-image`): `tests/gui-render.ss` draws an editor's frames so and
+checks them against its cells -- backgrounds exactly, ink where there is
+text, box drawing reaching its cells' edges. `:test-gui-render` runs it on
+Mesa's lavapipe, a software renderer, where it is installed, and skips
+where nothing can draw.
+
+A client in another process, on Vulkan or any other API, needs to:
 
 1. connect (a Unix socket, or an iroh stream) and send `hello` with
    its size in cells and its capabilities (`release-events` comes free with

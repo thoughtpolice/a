@@ -40,8 +40,8 @@
 (expect-equal "kitty space" (decode "\x1b;[32;;32u") '("space"))
 
 ;; Mouse, focus and clipboard replies.
-(expect-equal "sgr mouse" (decode "\x1b;[<0;10;5M\x1b;[<0;12;5m\x1b;[<64;1;1M\x1b;[<32;3;4M")
-              '((press 0 9 4) (release 0 11 4) (scroll-up 0 0 0) (drag 0 2 3)))
+(expect-equal "sgr mouse" (decode "\x1b;[<0;10;5M\x1b;[<0;12;5m\x1b;[<64;1;1M\x1b;[<32;3;4M\x1b;[<35;7;2M")
+              '((press 0 9 4) (release 0 11 4) (scroll-up 0 0 0) (drag 0 2 3) (move 0 6 1)))
 (expect-equal "focus" (decode "\x1b;[I\x1b;[O") '(focus-in focus-out))
 (expect-equal "osc 52 reply" (decode "\x1b;]52;c;aGVsbG8=\x1b;\\") '((clipboard "c" "hello")))
 (expect-equal "osc 52 reply with bel" (decode "\x1b;]52;p;eA==\a") '((clipboard "p" "x")))

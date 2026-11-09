@@ -16,10 +16,10 @@
 (library (quad server)
   (export make-source source? add-source! remove-source! sources watch-fd!
           server-connect! client-receive! server-render! server-run!
-          serve-stream! server-listen! server-unlisten! default-socket-path
+          serve-stream! server-listen! server-unlisten! server-listening-paths default-socket-path
           frame-sender)
   (import (chezscheme) (quad util) (quad kernel) (quad event) (quad buffer)
-          (quad editor) (quad commands) (quad display) (quad protocol))
+          (quad editor) (quad commands) (quad display) (quad link) (quad protocol))
 
   ;; ---------------------------------------------------------------------------
   ;; Sources
@@ -52,11 +52,36 @@
 
   (define (stringify v) (with-output-to-string (lambda () (write v))))
 
+  ;; The pointer's shape over what is at (row, col) on client c's screen:
+  ;; a hand over a link, text over a buffer's text, the arrow elsewhere.
+  (define (pointer-shape c row col)
+    (cond
+     [(client-local c 'hover-link #f) "pointer"]
+     [(with-client c (lambda () (screen->position row col))) "text"]
+     [else "default"]))
+
+  ;; The pointer moved over client c's screen: note the link under it, which
+  ;; is drawn underlined, and tell c the pointer's shape when that changes.
+  (define (pointer-moved! c ev)
+    (let ([row (mouse-event-row ev)] [col (mouse-event-col ev)])
+      (pointer-hover! c row col (mouse-event-mods ev))
+      (when (client-has? c "pointer-shape")
+        (let ([shape (pointer-shape c row col)])
+          (unless (equal? shape (client-local c 'pointer #f))
+            (client-local-set! c 'pointer shape)
+            (client-send! c (list "pointer" shape)))))))
+
   ;; Handle a message from client c.
   (define (client-receive! c msg)
     (let ([ev (message->event msg)])
       (if ev
-          (with-client c (lambda () (handle-event ev)))
+          (if (and (mouse-event? ev) (eq? (mouse-event-kind ev) 'move))
+              (pointer-moved! c ev)
+              (begin
+                ;; What is under the pointer may move: no link is
+                ;; underlined until it moves again.
+                (client-local-set! c 'hover-link #f)
+                (with-client c (lambda () (handle-event ev)))))
           (case (string->symbol (car msg))
             [(resize)
              (client-rows-set! c (cadr msg))
@@ -180,6 +205,9 @@
                    "quad.sock")))
 
   (define listening '())
+
+  ;; The socket paths this editor listens at.
+  (define (server-listening-paths) (map car listening))
 
   ;; Accept clients on a Unix socket at path. A socket left by a server
   ;; that is gone is replaced; a live one is an error.

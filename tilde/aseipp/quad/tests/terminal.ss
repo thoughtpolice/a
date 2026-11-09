@@ -73,3 +73,23 @@
 ;; Wide characters take two cells.
 (headless-buffer! "日本語 text" 'text)
 (check "wide" (string-contains (screen-row 1) "日本語 text"))
+
+;; Lines: underline styles and their colors, strikethrough and overline.
+;; A modern terminal (one speaking the kitty keyboard protocol) gets the
+;; styles and colors; an older one a plain underline.
+(expect-equal "undercurl, colored" (hl-sgr #f #f 8 #t #xff8000 #t) "\x1b;[0;4:3;58:2::255:128:0m")
+(expect-equal "undercurl, older terminals" (hl-sgr #f #f 8 #t #xff8000 #f) "\x1b;[0;4m")
+(expect-equal "double, dotted, dashed"
+              (map (lambda (f) (hl-sgr #f #f f #t #f #t)) '(64 128 256))
+              '("\x1b;[0;4:2m" "\x1b;[0;4:4m" "\x1b;[0;4:5m"))
+(expect-equal "strikethrough and overline" (hl-sgr #f #f (logior 512 1024) #t #f #f) "\x1b;[0;9;53m")
+
+;; Faces say them so.
+(set-face! 'test.lines '(double-underline (underline-color "#00ff00") strikethrough overline))
+(let ([f (face-ref 'test.lines)])
+  (expect-equal "a face's lines"
+                (list (face-underline-style f) (face-underline-color f) (face-strikethrough? f) (face-overline? f))
+                '(double #x00ff00 #t #t)))
+(expect-equal "merged over another, they stay"
+              (face-underline-style (merge-faces (face-ref 'test.lines) (make-face #xffffff #f)))
+              'double)

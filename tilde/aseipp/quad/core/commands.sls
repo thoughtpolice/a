@@ -31,7 +31,7 @@
    ;; files and lines
    project-files load-init-file! init-file-path goto-line!)
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
-          (quad syntax) (quad buffer) (quad selection) (quad editor))
+          (quad syntax) (quad buffer) (quad selection) (quad editor) (quad link))
 
   (define (cur) (current-buffer))
   (define (cv) (current-view))
@@ -1006,9 +1006,9 @@
   ;;
   ;; Click selects the unit of the current selection mode under the pointer;
   ;; double-click selects a word and triple-click a line (switching modes);
-  ;; dragging extends; shift-click extends to the pointer; alt- or
-  ;; ctrl-click adds a cursor; middle-click pastes the primary selection;
-  ;; the wheel scrolls.
+  ;; dragging extends; shift-click extends to the pointer; ctrl-click
+  ;; follows a link (link.sls), and elsewhere adds a cursor, as alt-click
+  ;; does; middle-click pastes the primary selection; the wheel scrolls.
 
   (define last-click #f)   ; (time pos count)
   (define drag-anchor #f)
@@ -1034,6 +1034,8 @@
                 (when (eq? (view-input-mode (cv)) 'insert) (exit-insert!))
                 (push-selection-history! b)
                 (cond
+                 [(and (logtest (mouse-event-mods ev) mod-ctrl) (link-at b pos))
+                  => (lambda (l) (run-command (lambda () (follow-link! (caddr l)))))]
                  [(logtest (mouse-event-mods ev) mod-shift)
                   (let ([r (unit-at b pos)] [p (primary)])
                     (set-sels! b (cons (make-sel (car r) (cdr r) (or (sel-anchor p) (sel-range p))) (cdr (sels-of b)))))]
@@ -1114,6 +1116,11 @@
   (define-syntax defcmd
     (syntax-rules ()
       [(_ name doc body ...) (at-load (define-command 'name doc (lambda () body ...)))]))
+
+  (defcmd open-link "Follow the link at the cursor: open a file here, or a URL on your machine"
+    (let* ([p (primary)]
+           [l (or (link-at (cur) (sel-range-start p)) (link-at (cur) (max 0 (- (sel-range-end p) 1))))])
+      (if l (follow-link! (caddr l)) (message "No link here"))))
 
   (defcmd move-left "Previous unit" (move! 'left))
   (defcmd move-right "Next unit" (move! 'right))
@@ -1493,7 +1500,7 @@
   (define context-menu
     (menu 'context "Context"
           "e" 'eval-selection "Eval Selection" "b" 'eval-buffer "Eval Buffer"
-          "|" 'pipe "Pipe"))
+          "|" 'pipe "Pipe" "o" 'open-link "Open Link"))
 
   (define space-keymap
     (menu 'space "Space"

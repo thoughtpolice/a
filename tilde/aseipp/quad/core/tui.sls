@@ -11,7 +11,7 @@
 (library (quad tui)
   (export tui-attach! tui-connect!)
   (import (chezscheme) (quad util) (quad kernel) (quad event) (quad term)
-          (quad protocol) (quad editor) (quad display) (quad server))
+          (quad protocol) (quad editor) (quad display) (quad server) (quad relay) (quad link))
 
   (define (terminal-client-name) (format "tui:~a" (or (getenv "TERM") "terminal")))
 
@@ -27,7 +27,12 @@
       (redraw)
       #t]
      [(equal? (car msg) "bye") #f]
+     [(equal? (car msg) "open-url") (open-url-here! (cadr msg)) #t]
      [else #t]))
+
+  ;; What the terminal can do, and this process: open URLs, in a desktop.
+  (define (tui-capabilities tty)
+    (append (tty-capabilities tty) (if (can-open-urls?) '("open-url") '())))
 
   ;; Events from the terminal, as messages to send.
   (define (input-messages events) (map event->message events))
@@ -44,15 +49,19 @@
            [close (lambda ()
                     (remove-source! src)
                     (close-tty! tty)
-                    ;; The terminal was the editor's reason to run, unless
-                    ;; it is a daemon.
-                    (unless (editor-daemon?) (editor-stop!)))]
-           [send (lambda (msg)
-                   (handle! tty msg
-                            (lambda (m) (client-receive! client m))
-                            (lambda () (invalidate-client! client))))])
+                    ;; The editor runs while it has clients (a window, other
+                    ;; terminals), or is a daemon.
+                    (when (and (null? (clients)) (not (editor-daemon?))) (editor-stop!)))]
+           ;; Messages go to the editor this terminal shows: this one, or
+           ;; another it has switched to (relay.sls).
+           [paint (lambda (msg)
+                    (handle! tty msg
+                             (lambda (m) (deliver! client m))
+                             (lambda () (deliver! client '("redraw")))))])
       (set! client (server-connect! (terminal-client-name) (tty-rows tty) (tty-cols tty)
-                                    (tty-capabilities tty) send close))
+                                    (tui-capabilities tty) (frontend-sender (lambda () client) paint)
+                                    close))
+      (frontend! client paint)
       (set-client-user! client (default-user-name))
       (set! src
             (make-source
@@ -60,15 +69,15 @@
              (lambda ()
                (let ([events (tty-read-available! tty)])
                  (if events
-                     (for-each (lambda (m) (client-receive! client m)) (input-messages events))
+                     (for-each (lambda (m) (deliver! client m)) (input-messages events))
                      (remove-client! client))))
              (lambda () (tty-pending-timeout tty))
              (lambda ()
-               (for-each (lambda (m) (client-receive! client m))
+               (for-each (lambda (m) (deliver! client m))
                          (input-messages (tty-flush-pending! tty))))
              (lambda ()
                (when (tty-take-resize! tty)
-                 (client-receive! client (list "resize" (tty-rows tty) (tty-cols tty)))))))
+                 (deliver! client (list "resize" (tty-rows tty) (tty-cols tty)))))))
       (add-source! src)
       client))
 
@@ -87,7 +96,7 @@
              [reader (make-frame-reader)]
              [buf (make-bytevector 65536)])
         (send (list "hello" protocol-version (terminal-client-name) (tty-rows tty) (tty-cols tty)
-                    (tty-capabilities tty)))
+                    (tui-capabilities tty)))
         (send (list "user" (default-user-name)))
         ;; Paths are the server's to open, so they go absolute.
         (for-each (lambda (f)

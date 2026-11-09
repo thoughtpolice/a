@@ -16,11 +16,17 @@
 ;;     ("redraw")  ("open" path line)  ("eval" id expression)  ("detach")
 ;;
 ;;   server -> client
-;;     ("hl" id fg bg flags)  ("grid" rows cols)  ("line" row col cells),
+;;     ("hl" id fg bg flags underline-color link)  ("grid" rows cols),
+;;       link the URL the highlight's text leads to, or #f
+;;       ("line" row col cells),
 ;;       each cell (text [hl [repeat]]) as in Neovim's grid_line
+;;     ("scroll" top bottom n): rows top to bottom (exclusive) move up n
+;;       (down, for n < 0), sent to clients with the "scroll" capability
 ;;     ("cursor" row col shape) or ("cursor" #f)  ("flush")
 ;;     ("clipboard-set" target text)  ("clipboard-get" target)  ("title" text)
 ;;     ("cwd" path)  ("pointer" shape)  ("bell")  ("suspend")
+;;     ("open-url" url): open it, on the client's machine; sent to clients
+;;       with the "open-url" capability
 ;;     ("result" id ok? text)  ("bye" reason)
 (library (quad protocol)
   (export protocol-version
@@ -28,7 +34,12 @@
           event->message message->event)
   (import (chezscheme) (quad util) (quad event))
 
-  (define protocol-version 1)
+  ;; 2: highlights carry an underline color, and flags for underline
+  ;; styles, strikethrough and overline (display.sls's face-flags: bold 1,
+  ;; italic 2, underline 4, undercurl 8, dim 16, reverse 32, double
+  ;; underline 64, dotted 128, dashed 256, strikethrough 512, overline 1024),
+  ;; and links.
+  (define protocol-version 2)
 
   ;; ---------------------------------------------------------------------------
   ;; MessagePack, the subset quad uses: nil and booleans (#f and #t; nil

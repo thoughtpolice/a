@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 # SPDX-License-Identifier: Apache-2.0
 
-"""Standalone quad executables with Scheme code compiled in.
+"""Standalone quad executables with Scheme code compiled in, and the GUI's
+shaders.
 
 quad is a kernel with boot files appended to it (kernel/kernel.c, and
 embed.sls in the Chez toolchain). `quad --build-exe OUT FILE...` writes a copy of itself
@@ -24,4 +25,24 @@ def quad_executable(name: str, srcs: list[str], quad: str = "depot-tilde//aseipp
         cmd = "$(exe {}) --build-exe $OUT {}".format(quad, " ".join(srcs)),
         executable = True,
         **kwargs
+    )
+
+def slang_shader(name: str, src: str, entry: str, stage: str):
+    """`:<name>`, a file of SPIR-V for Vulkan 1.3 from the entry point
+    `entry` (a `stage` shader) of the Slang source `src`, checked by
+    spirv-val."""
+    shims.genrule(
+        name = name,
+        srcs = [src],
+        out = name,
+        cmd = " && ".join([
+            " ".join([
+                "$(exe third-party//by-name/sl/slang:slangc)",
+                "$SRCDIR/" + src,
+                "-target spirv -profile spirv_1_6 -emit-spirv-directly -fvk-use-entrypoint-name",
+                "-entry {} -stage {}".format(entry, stage),
+                "-o $OUT",
+            ]),
+            "$(exe third-party//by-name/sp/spirv-tools:spirv-val) --target-env vulkan1.3 $OUT",
+        ]),
     )

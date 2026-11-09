@@ -13,21 +13,29 @@
 (define model (make-grid-model))
 (define buf (make-bytevector 65536))
 
-;; Read and apply messages until a frame is complete.
-(define (await-frame!)
-  (let ([frames (grid-model-frames model)])
-    (let loop ()
-      (when (= frames (grid-model-frames model))
-        (let ([n (kernel-read fd buf (bytevector-length buf) 5000)])
-          (when (<= n 0) (errorf 'remote "no frame from the server"))
-          (for-each (lambda (m) (grid-model-apply! model m)) (reader buf n))
-          (loop))))))
+;; Read and apply what arrives within timeout milliseconds; #f if nothing
+;; did.
+(define (pump! timeout)
+  (let ([n (kernel-read fd buf (bytevector-length buf) timeout)])
+    (and (> n 0)
+         (begin (for-each (lambda (m) (grid-model-apply! model m)) (reader buf n)) #t))))
 
-(define (key! spec) (send (event->message (spec->key-event spec))) (await-frame!))
+;; Read until (pred), or fail: the server sends frames only when something
+;; changed, so a test waits for what it expects.
+(define (await! what pred)
+  (let loop ()
+    (unless (pred)
+      (unless (pump! 5000) (errorf 'remote "no ~a from the server" what))
+      (loop))))
+
+;; Send a key, and take in whatever it changes.
+(define (key! spec)
+  (send (event->message (spec->key-event spec)))
+  (let loop () (when (pump! 200) (loop))))
 (define (rows) (grid-model-lines model))
 
 (send (list "hello" protocol-version "remote-test" 8 50 '("clipboard")))
-(await-frame!)
+(await! "frame" (lambda () (> (grid-model-frames model) 0)))
 (expect-equal "size" (list (grid-model-rows model) (grid-model-cols model)) '(8 50))
 (check "the daemon's file" (exists (lambda (r) (string-contains r "remote content")) (rows)))
 
@@ -46,9 +54,7 @@
 
 ;; Evaluation, as this client.
 (send '("eval" 7 "(buffer-name (current-buffer))"))
-(let loop ()
-  (let ([r (find (lambda (m) (equal? (car m) "result")) (grid-model-other model))])
-    (if r
-        (expect-equal "eval" r '("result" 7 #t "\"file.txt\""))
-        (begin (await-frame!) (loop)))))
+(define (result) (find (lambda (m) (equal? (car m) "result")) (grid-model-other model)))
+(await! "result" result)
+(expect-equal "eval" (result) '("result" 7 #t "\"file.txt\""))
 (send '("detach"))

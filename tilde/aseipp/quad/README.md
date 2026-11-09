@@ -18,6 +18,7 @@ it while the editor runs.
 ```sh
 buck2 run depot-tilde//aseipp/quad:quad -- FILE...
 buck2 build depot-tilde//aseipp/quad:quad       # the standalone executable
+buck2 run depot-tilde//aseipp/quad:quad-host -- FILE   # in a window
 ```
 
 ## Clients and servers
@@ -27,17 +28,31 @@ several can be attached at once, to the same buffers, each with its own
 selections, modes and prompt, each seeing the others' cursors. The server
 draws each client's screen as cells and sends what changed; clients send
 key, mouse and paste events. [docs/design.md](docs/design.md) has the
-architecture and the protocol, which a graphical client would speak too.
+architecture and the protocol, which a graphical client in another process
+would speak too.
 
 ```sh
-quad FILE                  # an editor with this terminal attached
+quad FILE                  # an editor in a window (the host-linked :quad-host),
+                           # or in this terminal where no window can open
+quad --tui FILE            # ... in this terminal, always
+quad --gui FILE            # ... in a window, always
 quad --listen FILE         # ... that other clients can attach to as well
 quad --daemon FILE         # an editor with no terminal, for clients
-quad --connect             # a terminal client of a running editor
+quad FILE                  # with a daemon running: its client, as emacsclient
+quad --new FILE            # ... or an editor of its own anyway
+quad --connect             # a client of a running editor, in a window or here
+quad --tui --connect       # ... in this terminal, always
 quad --connect --eval '(map client-name (clients))'
 quad --daemon --mesh       # ... joinable over iroh, from anywhere
 quad --connect=rock-stir-duct-feed-slick-showy   # by the code it printed
 ```
+
+`space j w` opens another window onto the same editor, from a window or a
+terminal. A terminal or window can also switch to another editor and back, as
+tmux's switch-client does: `space j o` (`connect`) asks for a socket path,
+or a join code or ticket (empty: this machine's daemon), and shows that
+editor in its place; leaving it (`space j v`) comes back to this one, which
+kept running meanwhile.
 
 The socket is `$QUAD_SOCKET`, else `quad.sock` in `$XDG_RUNTIME_DIR/quad`;
 `--listen=PATH` and `--connect=PATH` name another. Quitting (`space j v`)
@@ -366,7 +381,19 @@ are the program, its boot file and the standalone executable.
 The tests (`tests/*.ss`) run with `quad --batch`, as headless clients that
 keep a model of their screen from the server's messages, as any client does;
 `tests/clients.ss` has several at once, and `:test-remote` runs a daemon with
-clients in other processes.
+clients in other processes. `:test-gui-render` draws frames as the window
+does, with no window, and checks them against the cells (on Mesa's
+lavapipe, where it is installed; skipped where nothing can draw).
+
+## Credits
+
+The window (`--gui`) draws text with the [Slug] algorithm, by Eric Lengyel:
+its shader (`kernel/gui.slang`) is his reference shader, ported to Slang.
+Slug shader code Copyright 2017 by Eric Lengyel, MIT OR Apache-2.0. Its
+default font, built in, is [JetBrains Mono](https://www.jetbrains.com/lp/mono/),
+Copyright 2020 The JetBrains Mono Project Authors, under the SIL Open Font
+License 1.1.
 
 [Chez Scheme]: https://cisco.github.io/ChezScheme/
+[Slug]: https://github.com/EricLengyel/Slug
 [Ki]: https://ki-editor.org

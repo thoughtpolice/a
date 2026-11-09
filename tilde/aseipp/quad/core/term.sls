@@ -129,6 +129,8 @@
              [button (logand b 3)])
         (cond
          [(logtest b 64) (make-mouse-event (if (= button 0) 'scroll-up 'scroll-down) 0 x y mods)]
+         ;; Motion: with no button held (3), the pointer moving over cells.
+         [(and (logtest b 32) (= button 3)) (make-mouse-event 'move 0 x y mods)]
          [(logtest b 32) (make-mouse-event 'drag button x y mods)]
          [(char=? final #\m) (make-mouse-event 'release button x y mods)]
          [else (make-mouse-event 'press button x y mods)]))]
@@ -267,9 +269,11 @@
             (mutable early)            ; events read while probing
             out                        ; output for the frame being painted
             hls                        ; highlight id -> SGR string
+            links                      ; highlight id -> its hyperlink, if any
             (mutable cursor)           ; (row col shape) or #f
             (mutable in-frame?)
-            (mutable last-hl)))        ; the highlight the terminal has now
+            (mutable last-hl)          ; the highlight the terminal has now
+            (mutable link)))           ; the hyperlink open now, or #f
 
   (define (write-now t s)
     (let ([bv (string->utf8 s)])
@@ -322,7 +326,7 @@
     (string-append
      "\x1b;[?1049h"                     ; alternate screen
      "\x1b;[?2004h"                     ; bracketed paste
-     "\x1b;[?1000h\x1b;[?1002h\x1b;[?1006h" ; SGR mouse, with drags
+     "\x1b;[?1000h\x1b;[?1003h\x1b;[?1006h" ; SGR mouse, with any motion
      "\x1b;[?1004h"                     ; focus in/out
      "\x1b;]22;text\x1b;\\"              ; the I-beam pointer
      "\x1b;[?25l"))
@@ -335,7 +339,7 @@
   (define (leave-sequence t)
     (string-append
      (if (tty-kitty? t) "\x1b;[<u" "")
-     "\x1b;[0m\x1b;[?1004l\x1b;[?1006l\x1b;[?1002l\x1b;[?1000l\x1b;[?2004l\x1b;[0 q\x1b;]22;default\x1b;\\\x1b;[?25h\x1b;[?1049l"))
+     "\x1b;[0m\x1b;[?1004l\x1b;[?1006l\x1b;[?1003l\x1b;[?1000l\x1b;[?2004l\x1b;[0 q\x1b;]22;default\x1b;\\\x1b;[?25h\x1b;[?1049l"))
 
   ;; Ask whether the terminal speaks the kitty keyboard protocol: it answers
   ;; CSI ? flags u before the device attributes every terminal reports.
@@ -361,7 +365,8 @@
     ;; Every terminal quad targets has 24-bit color; QUAD_256 falls back to
     ;; the 256-color palette for the rest.
     (let ([t (make-tty 0 1 24 80 #f (not (getenv "QUAD_256")) '() '()
-                       (open-output-string) (make-eqv-hashtable) #f #f #f)])
+                       (open-output-string) (make-eqv-hashtable) (make-eqv-hashtable)
+                       #f #f #f #f)])
       (unless (and (= 1 (kernel-isatty 0)) (= 1 (kernel-isatty 1)))
         (errorf 'quad "standard input and output must be a terminal"))
       (kernel-tty-raw 0)
@@ -373,7 +378,7 @@
   ;; What this terminal can do, for the server: the protocol's capabilities.
   (define (tty-capabilities t)
     (append (if (tty-kitty? t) '("release-events") '())
-            '("clipboard" "primary-selection" "title" "pointer-shape")))
+            '("clipboard" "primary-selection" "title" "pointer-shape" "scroll")))
 
   (define (close-tty! t)
     (write-now t (leave-sequence t))
@@ -406,20 +411,34 @@
     (let ([q (lambda (x) (cond [(< x 48) 0] [(< x 115) 1] [else (quotient (- x 35) 40)]))])
       (+ 16 (* 36 (q r)) (* 6 (q g)) (q b))))
 
-  ;; The SGR sequence for a highlight: colors or #f, and flags (bold 1,
-  ;; italic 2, underline 4, undercurl 8, dim 16, reverse 32).
-  (define (hl-sgr fg bg flags truecolor?)
-    (string-append
-     "\x1b;[0"
-     (if (logtest flags 1) ";1" "")
-     (if (logtest flags 16) ";2" "")
-     (if (logtest flags 2) ";3" "")
-     (if (logtest flags 4) ";4" "")
-     (if (logtest flags 8) ";4:3" "")
-     (if (logtest flags 32) ";7" "")
-     (if fg (string-append ";" (color-sgr #t fg truecolor?)) "")
-     (if bg (string-append ";" (color-sgr #f bg truecolor?)) "")
-     "m"))
+  ;; The SGR sequence for a highlight: colors or #f, flags (see
+  ;; protocol.sls), and the underline's color or #f. A modern? terminal
+  ;; (one that speaks the kitty keyboard protocol: kitty, ghostty, wezterm,
+  ;; foot) takes underline styles (4:n) and colors (58); others get a plain
+  ;; underline.
+  (define hl-sgr
+    (case-lambda
+     [(fg bg flags truecolor?) (hl-sgr fg bg flags truecolor? #f #f)]
+     [(fg bg flags truecolor? underline-color modern?)
+      (let ([style (cond [(logtest flags 4) "4"] [(not modern?) (if (logtest flags (logior 8 64 128 256)) "4" #f)]
+                         [(logtest flags 8) "4:3"] [(logtest flags 64) "4:2"]
+                         [(logtest flags 128) "4:4"] [(logtest flags 256) "4:5"] [else #f])])
+        (string-append
+         "\x1b;[0"
+         (if (logtest flags 1) ";1" "")
+         (if (logtest flags 16) ";2" "")
+         (if (logtest flags 2) ";3" "")
+         (if style (string-append ";" style) "")
+         (if (logtest flags 32) ";7" "")
+         (if (logtest flags 512) ";9" "")
+         (if (logtest flags 1024) ";53" "")
+         (if fg (string-append ";" (color-sgr #t fg truecolor?)) "")
+         (if bg (string-append ";" (color-sgr #f bg truecolor?)) "")
+         (if (and style underline-color modern? truecolor?)
+             (format ";58:2::~a:~a:~a" (ash underline-color -16) (logand (ash underline-color -8) 255)
+                     (logand underline-color 255))
+             "")
+         "m"))]))
 
   (define (frame-out t)
     (unless (tty-in-frame? t)
@@ -429,14 +448,31 @@
 
   (define (osc t s) (put-string (frame-out t) (string-append "\x1b;]" s "\x1b;\\")))
 
+  ;; Cells written from now are hyperlink url's (OSC 8), or none for #f.
+  (define (set-link! t p url)
+    (unless (equal? url (tty-link t))
+      (put-string p (string-append "\x1b;]8;;" (or url "") "\x1b;\\"))
+      (tty-link-set! t url)))
+
+  ;; A link the terminal shows: one leading outside the editor. The editor
+  ;; opens file: links itself, on a ctrl-click the terminal passes on.
+  (define (terminal-link url)
+    (and (string? url) (not (string-prefix? "file:" url))
+         (list->string (filter (lambda (c) (char>=? c #\space)) (string->list url)))))
+
   (define (tty-paint! t msg)
     (let ([out (lambda () (frame-out t))])
       (case (string->symbol (car msg))
         [(hl)
-         (let-values ([(id fg bg flags) (apply values (cdr msg))])
-           (hashtable-set! (tty-hls t) id (hl-sgr fg bg flags (tty-truecolor? t))))
+         ;; (id fg bg flags underline-color link); protocol 1 had neither.
+         (let* ([args (cdr msg)] [id (car args)] [fg (cadr args)] [bg (caddr args)] [flags (cadddr args)]
+                [more (cddddr args)]
+                [underline-color (and (pair? more) (car more))]
+                [link (and (pair? more) (pair? (cdr more)) (terminal-link (cadr more)))])
+           (hashtable-set! (tty-hls t) id (hl-sgr fg bg flags (tty-truecolor? t) underline-color (tty-kitty? t)))
+           (if link (hashtable-set! (tty-links t) id link) (hashtable-delete! (tty-links t) id)))
          #t]
-        [(grid) (put-string (out) "\x1b;[0m\x1b;[2J") (tty-last-hl-set! t #f) #t]
+        [(grid) (set-link! t (out) #f) (put-string (out) "\x1b;[0m\x1b;[2J") (tty-last-hl-set! t #f) #t]
         [(line)
          (let ([row (cadr msg)] [col (caddr msg)] [p (out)])
            (put-string p (format "\x1b;[~a;~aH" (+ row 1) (+ col 1)))
@@ -450,15 +486,26 @@
                       [n (if (and (pair? (cdr cell)) (pair? (cddr cell))) (caddr cell) 1)])
                  (unless (eqv? new-hl (tty-last-hl t))
                    (put-string p (hashtable-ref (tty-hls t) new-hl "\x1b;[0m"))
+                   (set-link! t p (hashtable-ref (tty-links t) new-hl #f))
                    (tty-last-hl-set! t new-hl))
                  ;; "" is the right half of a wide character, already drawn.
                  (unless (string=? text "")
                    (do ([i 0 (+ i 1)]) ((= i n)) (put-string p text)))
                  (loop (cdr cells) new-hl)))))
          #t]
+        ;; The terminal moves the rows itself: a scroll region, then
+        ;; scrolling up (SU) or down (SD) in it.
+        [(scroll)
+         (let ([top (cadr msg)] [bottom (caddr msg)] [n (cadddr msg)])
+           (set-link! t (out) #f)
+           (put-string (out) (format "\x1b;[0m\x1b;[~a;~ar\x1b;[~a~a\x1b;[r"
+                                     (+ top 1) bottom (abs n) (if (> n 0) "S" "T")))
+           (tty-last-hl-set! t #f))
+         #t]
         [(cursor) (tty-cursor-set! t (and (cadr msg) (cdr msg))) #t]
         [(flush)
          (let ([p (out)] [c (tty-cursor t)])
+           (set-link! t p #f)
            (put-string p "\x1b;[0m")
            (tty-last-hl-set! t #f)
            (if c

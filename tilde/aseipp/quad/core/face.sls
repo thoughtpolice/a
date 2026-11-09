@@ -3,25 +3,37 @@
 ;; SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 ;; SPDX-License-Identifier: Apache-2.0
 ;;
-;; A face is a foreground, a background and attributes; colors are 24-bit
-;; integers, or #f to inherit. Faces are named with dotted symbols, Helix
+;; A face is a foreground, a background and attributes -- bold, italic,
+;; dim, reverse, an underline (single, double, curly, dotted or dashed) of
+;; its own color or the text's, strikethrough, overline; colors are 24-bit
+;; integers, or #f to inherit. A face can also carry a link, a URL that
+;; the text it covers leads to (see link.sls). Faces are named with dotted symbols, Helix
 ;; style ('ui.statusline.insert, 'keyword.control), and a name that the theme
 ;; lacks falls back to its parent ('ui.statusline, then 'ui).
 (library (quad face)
   (export make-face face? face-fg face-bg face-bold? face-italic? face-underline?
-          face-undercurl? face-dim? face-reverse? merge-faces face-ref
+          face-undercurl? face-dim? face-reverse? face-underline-style face-underline-color
+          face-strikethrough? face-overline? face-link merge-faces face-ref
           define-theme load-theme! current-theme-name theme-names set-face!
           palette-color default-face)
   (import (chezscheme) (quad util))
 
+  ;; underline-style: #f, single, double, curly, dotted or dashed.
   (define-record-type face
-    (fields fg bg bold? italic? underline? undercurl? dim? reverse?)
+    (fields fg bg bold? italic? underline-style dim? reverse?
+            underline-color strikethrough? overline? link)
     (protocol
      (lambda (new)
        (case-lambda
-        [(fg bg) (new fg bg #f #f #f #f #f #f)]
-        [(fg bg bold? italic? underline? undercurl? dim? reverse?)
-         (new fg bg bold? italic? underline? undercurl? dim? reverse?)]))))
+        [(fg bg) (new fg bg #f #f #f #f #f #f #f #f #f)]
+        [(fg bg bold? italic? underline-style dim? reverse? underline-color strikethrough? overline?)
+         (new fg bg bold? italic? underline-style dim? reverse? underline-color strikethrough? overline? #f)]
+        [(fg bg bold? italic? underline-style dim? reverse? underline-color strikethrough? overline? link)
+         (new fg bg bold? italic? underline-style dim? reverse? underline-color strikethrough? overline? link)]))))
+
+  ;; An underline other than a curly one, and a curly one.
+  (define (face-underline? f) (and (face-underline-style f) (not (face-undercurl? f))))
+  (define (face-undercurl? f) (eq? (face-underline-style f) 'curly))
 
   (define default-face (make-face #f #f))
 
@@ -31,10 +43,13 @@
                (or (face-bg top) (face-bg base))
                (or (face-bold? top) (face-bold? base))
                (or (face-italic? top) (face-italic? base))
-               (or (face-underline? top) (face-underline? base))
-               (or (face-undercurl? top) (face-undercurl? base))
+               (or (face-underline-style top) (face-underline-style base))
                (or (face-dim? top) (face-dim? base))
-               (or (face-reverse? top) (face-reverse? base))))
+               (or (face-reverse? top) (face-reverse? base))
+               (or (face-underline-color top) (face-underline-color base))
+               (or (face-strikethrough? top) (face-strikethrough? base))
+               (or (face-overline? top) (face-overline? base))
+               (or (face-link top) (face-link base))))
 
   (define themes (make-eq-hashtable))
   (define current-faces (make-eq-hashtable))
@@ -56,15 +71,21 @@
         (if p (palette-color (cdr p)) (errorf 'palette-color "unknown color ~s" c)))]
      [else (errorf 'palette-color "bad color ~s" c)]))
 
-  ;; A face spec: a color (the foreground), or a list of
-  ;; (fg c) (bg c) bold italic underline undercurl dim reverse.
+  ;; A face spec: a color (the foreground), or a list of (fg c) (bg c)
+  ;; bold italic dim reverse strikethrough overline, an underline --
+  ;; underline, double-underline, undercurl, dotted-underline or
+  ;; dashed-underline -- and its color, (underline-color c).
   (define (spec->face spec)
     (if (or (symbol? spec) (string? spec) (integer? spec))
         (make-face (palette-color spec) #f)
         (let ([get (lambda (k) (let ([p (assq k (filter pair? spec))]) (and p (palette-color (cadr p)))))]
               [has (lambda (k) (and (memq k spec) #t))])
-          (make-face (get 'fg) (get 'bg) (has 'bold) (has 'italic) (has 'underline)
-                     (has 'undercurl) (has 'dim) (has 'reverse)))))
+          (make-face (get 'fg) (get 'bg) (has 'bold) (has 'italic)
+                     (cond [(has 'underline) 'single] [(has 'double-underline) 'double]
+                           [(has 'undercurl) 'curly] [(has 'dotted-underline) 'dotted]
+                           [(has 'dashed-underline) 'dashed] [else #f])
+                     (has 'dim) (has 'reverse) (get 'underline-color)
+                     (has 'strikethrough) (has 'overline)))))
 
   (define (parent-name sym)
     (let* ([s (symbol->string sym)]
@@ -175,6 +196,10 @@
       (markup.bold . ((fg lilac) bold))
       (markup.italic . ((fg lilac) italic))
       (markup.link . ((fg honey) underline))
+      ;; A link found in any text, a URL say: plain until the pointer is
+      ;; over it.
+      (ui.link . ())
+      (ui.link.hover . (underline))
       (markup.raw . silver)
       (diagnostic.error . ((fg apricot) undercurl))
       (diagnostic.warning . ((fg lightning) undercurl))
