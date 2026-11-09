@@ -281,11 +281,11 @@ zstd = "0.14.3"
 ## Git repos come below
 
 # NOTE (dial9): 0.5 replaced the `dial9-tokio-telemetry` crate with the `dial9`
-# facade; the rev is the `dial9-v0.5.1` tag. Tokio integration is a feature now
+# facade; the rev is the `dial9-v0.5.8` tag. Tokio integration is a feature now
 # (`tokio`), and it is the only one that pulls a runtime in. `process-resource`
 # was on by default on unix in 0.3 and is opt-in here, so name it to keep the
 # rusage events cache-server traces already carried.
-dial9 = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "5badd12f1b61beb5508a5a8f3965384ba3d87527", features = [
+dial9 = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "79079191de100585f25ccb6986561faba0b48054", features = [
     "tokio",
     "cpu-profiling",
     "memory-profiling",

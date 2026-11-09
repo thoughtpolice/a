@@ -12,7 +12,7 @@ load("@root//buck/shims:third_party_rust.bzl", "third_party_rust")
 shims.git_fetch(
     name = "dial9-tokio-telemetry-43aa6b6c06fdd4e0.git",
     repo = "https://github.com/dial9-rs/dial9-tokio-telemetry",
-    rev = "5badd12f1b61beb5508a5a8f3965384ba3d87527",
+    rev = "79079191de100585f25ccb6986561faba0b48054",
     visibility = [],
 )
 
@@ -6844,7 +6844,7 @@ third_party_rust.rust_library(
         "third-party.metadata": {
             "name": "dial9",
             "namespace": "dial9-rs",
-            "version": "0.5.1",
+            "version": "0.5.8",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -6878,10 +6878,10 @@ third_party_rust.rust_library(
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dial9-rs/dial9",
         "CARGO_PKG_RUST_VERSION": "",
-        "CARGO_PKG_VERSION": "0.5.1",
+        "CARGO_PKG_VERSION": "0.5.7",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "5",
-        "CARGO_PKG_VERSION_PATCH": "1",
+        "CARGO_PKG_VERSION_PATCH": "7",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = ["pipeline"],
@@ -6889,12 +6889,13 @@ third_party_rust.rust_library(
         "third-party.metadata": {
             "name": "dial9-core",
             "namespace": "dial9-rs",
-            "version": "0.5.1",
+            "version": "0.5.7",
             "licenses": ["Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
+        ":ahash-0.8",
         ":arc-swap-1",
         ":bon-3",
         ":bytes-1",
@@ -6922,7 +6923,7 @@ third_party_rust.rust_library(
         "third-party.metadata": {
             "name": "dial9-macro",
             "namespace": "dial9-rs",
-            "version": "0.5.0",
+            "version": "0.5.1",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -6951,7 +6952,7 @@ third_party_rust.rust_library(
         "third-party.metadata": {
             "name": "dial9-perf-self-profile",
             "namespace": "dial9-rs",
-            "version": "0.5.1",
+            "version": "0.5.7",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -6988,7 +6989,7 @@ third_party_rust.rust_library(
         ":crossbeam-queue-0.3",
         ":dial9-core-0.5",
         ":dial9-trace-format-0.5",
-        ":scc-2",
+        ":scc-3",
         ":tokio-1",
         ":tracing-0.1",
     ],
@@ -7009,7 +7010,7 @@ third_party_rust.rust_library(
         "third-party.metadata": {
             "name": "dial9-tokio-telemetry",
             "namespace": "dial9-rs",
-            "version": "0.5.1",
+            "version": "0.5.8",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -7049,12 +7050,13 @@ third_party_rust.rust_library(
         "third-party.metadata": {
             "name": "dial9-trace-format",
             "namespace": "dial9-rs",
-            "version": "0.5.0",
+            "version": "0.5.4",
             "licenses": ["Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
+        ":ahash-0.8",
         ":dial9-trace-format-derive-0.5",
         ":serde-1",
         ":typeid-1",
@@ -7071,7 +7073,7 @@ third_party_rust.rust_library(
         "third-party.metadata": {
             "name": "dial9-trace-format-derive",
             "namespace": "dial9-rs",
-            "version": "0.5.0",
+            "version": "0.5.4",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -28619,6 +28621,30 @@ third_party_rust.rust_library(
     ],
 )
 
+shims.http_archive(
+    name = "saa-5.6.2.crate",
+    sha256 = "bd85992a680de788217d9c70b74aa7685b108cf1aba02f728fb27f1b27199ad1",
+    strip_prefix = "saa-5.6.2",
+    urls = ["https://static.crates.io/crates/saa/5.6.2/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "saa-5",
+    srcs = [":saa-5.6.2.crate"],
+    crate = "saa",
+    crate_root = "saa-5.6.2.crate/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "saa",
+            "version": "5.6.2",
+            "licenses": ["Apache-2.0"],
+        },
+    },
+    visibility = [],
+)
+
 shims.alias(
     name = "salsa",
     actual = ":salsa-0.28",
@@ -28832,28 +28858,31 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "scc-2.4.0.crate",
-    sha256 = "46e6f046b7fef48e2660c57ed794263155d713de679057f2d0c169bfc6e756cc",
-    strip_prefix = "scc-2.4.0",
-    urls = ["https://static.crates.io/crates/scc/2.4.0/download"],
+    name = "scc-3.8.8.crate",
+    sha256 = "5d5f8ca67c4f6208caf824037a6a9df0211b4e0937fccc4f543441f294d04511",
+    strip_prefix = "scc-3.8.8",
+    urls = ["https://static.crates.io/crates/scc/3.8.8/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "scc-2",
-    srcs = [":scc-2.4.0.crate"],
+    name = "scc-3",
+    srcs = [":scc-3.8.8.crate"],
     crate = "scc",
-    crate_root = "scc-2.4.0.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "scc-3.8.8.crate/src/lib.rs",
+    edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "scc",
-            "version": "2.4.0",
+            "version": "3.8.8",
             "licenses": ["Apache-2.0"],
         },
     },
     visibility = [],
-    deps = [":sdd-3"],
+    deps = [
+        ":saa-5",
+        ":sdd-4",
+    ],
 )
 
 shims.http_archive(
@@ -29047,27 +29076,28 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "sdd-3.0.10.crate",
-    sha256 = "490dcfcbfef26be6800d11870ff2df8774fa6e86d047e3e8c8a76b25655e41ca",
-    strip_prefix = "sdd-3.0.10",
-    urls = ["https://static.crates.io/crates/sdd/3.0.10/download"],
+    name = "sdd-4.8.11.crate",
+    sha256 = "a31877eee03686b905845993b5d9809a220c9dd5a10e9d6021d7ca67384c9070",
+    strip_prefix = "sdd-4.8.11",
+    urls = ["https://static.crates.io/crates/sdd/4.8.11/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "sdd-3",
-    srcs = [":sdd-3.0.10.crate"],
+    name = "sdd-4",
+    srcs = [":sdd-4.8.11.crate"],
     crate = "sdd",
-    crate_root = "sdd-3.0.10.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "sdd-4.8.11.crate/src/lib.rs",
+    edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "sdd",
-            "version": "3.0.10",
+            "version": "4.8.11",
             "licenses": ["Apache-2.0"],
         },
     },
     visibility = [],
+    deps = [":saa-5"],
 )
 
 shims.http_archive(

@@ -2026,8 +2026,8 @@ dependencies = [
 
 [[package]]
 name = "dial9"
-version = "0.5.1"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
+version = "0.5.8"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=79079191de100585f25ccb6986561faba0b48054#79079191de100585f25ccb6986561faba0b48054"
 dependencies = [
  "bon",
  "dial9-core",
@@ -2042,9 +2042,10 @@ dependencies = [
 
 [[package]]
 name = "dial9-core"
-version = "0.5.1"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
+version = "0.5.7"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=79079191de100585f25ccb6986561faba0b48054#79079191de100585f25ccb6986561faba0b48054"
 dependencies = [
+ "ahash",
  "arc-swap",
  "bon",
  "bytes",
@@ -2063,8 +2064,8 @@ dependencies = [
 
 [[package]]
 name = "dial9-macro"
-version = "0.5.0"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
+version = "0.5.1"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=79079191de100585f25ccb6986561faba0b48054#79079191de100585f25ccb6986561faba0b48054"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2073,8 +2074,8 @@ dependencies = [
 
 [[package]]
 name = "dial9-metrique"
-version = "0.5.1"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
+version = "0.5.7"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=79079191de100585f25ccb6986561faba0b48054#79079191de100585f25ccb6986561faba0b48054"
 dependencies = [
  "dial9-core",
  "dial9-trace-format",
@@ -2086,8 +2087,8 @@ dependencies = [
 
 [[package]]
 name = "dial9-perf-self-profile"
-version = "0.5.1"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
+version = "0.5.7"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=79079191de100585f25ccb6986561faba0b48054#79079191de100585f25ccb6986561faba0b48054"
 dependencies = [
  "blazesym",
  "bon",
@@ -2106,8 +2107,8 @@ dependencies = [
 
 [[package]]
 name = "dial9-tokio-telemetry"
-version = "0.5.1"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
+version = "0.5.8"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=79079191de100585f25ccb6986561faba0b48054#79079191de100585f25ccb6986561faba0b48054"
 dependencies = [
  "bon",
  "bytes",
@@ -2130,9 +2131,10 @@ dependencies = [
 
 [[package]]
 name = "dial9-trace-format"
-version = "0.5.0"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
+version = "0.5.4"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=79079191de100585f25ccb6986561faba0b48054#79079191de100585f25ccb6986561faba0b48054"
 dependencies = [
+ "ahash",
  "dial9-trace-format-derive",
  "serde",
  "typeid",
@@ -2140,8 +2142,8 @@ dependencies = [
 
 [[package]]
 name = "dial9-trace-format-derive"
-version = "0.5.0"
-source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=5badd12f1b61beb5508a5a8f3965384ba3d87527#5badd12f1b61beb5508a5a8f3965384ba3d87527"
+version = "0.5.4"
+source = "git+https://github.com/dial9-rs/dial9-tokio-telemetry?rev=79079191de100585f25ccb6986561faba0b48054#79079191de100585f25ccb6986561faba0b48054"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -9522,6 +9524,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "saa"
+version = "5.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd85992a680de788217d9c70b74aa7685b108cf1aba02f728fb27f1b27199ad1"
+
+[[package]]
 name = "salsa"
 version = "0.28.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9606,10 +9614,11 @@ dependencies = [
 
 [[package]]
 name = "scc"
-version = "2.4.0"
+version = "3.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46e6f046b7fef48e2660c57ed794263155d713de679057f2d0c169bfc6e756cc"
+checksum = "5d5f8ca67c4f6208caf824037a6a9df0211b4e0937fccc4f543441f294d04511"
 dependencies = [
+ "saa",
  "sdd",
 ]
 
@@ -9719,9 +9728,12 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "sdd"
-version = "3.0.10"
+version = "4.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "490dcfcbfef26be6800d11870ff2df8774fa6e86d047e3e8c8a76b25655e41ca"
+checksum = "a31877eee03686b905845993b5d9809a220c9dd5a10e9d6021d7ca67384c9070"
+dependencies = [
+ "saa",
+]
 
 [[package]]
 name = "security-framework"
