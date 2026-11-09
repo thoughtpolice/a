@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The build script only adds link flags for the "linked" feature; quad uses
+# "loaded", which dlopens libvulkan.so.1 instead.
+buildscript.run = false

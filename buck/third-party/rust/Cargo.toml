@@ -310,6 +310,9 @@ starlark_derive = { git = "https://github.com/facebook/starlark-rust", rev = "46
 [target.'cfg(unix)'.dependencies]
 
 [target.'cfg(target_os = "linux")'.dependencies]
+# Vulkan for quad's GUI (tilde/aseipp/quad): ash loads libvulkan.so.1 at
+# run time ("loaded"), so nothing links against the host's Vulkan loader.
+ash = { version = "0.38.0", default-features = false, features = ["loaded", "std"] }
 # The NoGraphicsAPI examples' window (third-party//by-name/no/nographicsapi):
 # winit's X11 and Wayland backends, which load libX11 and libwayland-client
 # at run time, so no C headers or -devel packages are needed; and no

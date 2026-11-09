@@ -1102,6 +1102,42 @@ third_party_rust.rust_library(
     deps = [":term-1"],
 )
 
+shims.alias(
+    name = "ash",
+    actual = ":ash-0.38",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "ash-0.38.0+1.3.281.crate",
+    sha256 = "0bb44936d800fea8f016d7f2311c6a4f97aebd5dc86f09906139ec848cf3a46f",
+    strip_prefix = "ash-0.38.0+1.3.281",
+    urls = ["https://static.crates.io/crates/ash/0.38.0+1.3.281/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "ash-0.38",
+    srcs = [":ash-0.38.0+1.3.281.crate"],
+    crate = "ash",
+    crate_root = "ash-0.38.0+1.3.281.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "libloading",
+        "loaded",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "ash",
+            "version": "0.38.0+1.3.281",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [":libloading-0.8"],
+)
+
 shims.http_archive(
     name = "asn1-rs-0.7.2.crate",
     sha256 = "b7f43a50ac4fdca5df8e885c21b835997f0a1cdee65494a6847694a98652d9d8",
