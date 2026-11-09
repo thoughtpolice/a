@@ -33826,40 +33826,41 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "tonic-0.14.6.crate",
-    sha256 = "ac2a5518c70fa84342385732db33fb3f44bc4cc748936eb5833d2df34d6445ef",
-    strip_prefix = "tonic-0.14.6",
-    urls = ["https://static.crates.io/crates/tonic/0.14.6/download"],
+    name = "tonic-0.14.9.crate",
+    sha256 = "e2cdfc673aabd30fe8fee92e65837b644c37c5d47f0f97ae6d5e0f1237d15e1b",
+    strip_prefix = "tonic-0.14.9",
+    urls = ["https://static.crates.io/crates/tonic/0.14.9/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "tonic-0.14",
-    srcs = [":tonic-0.14.6.crate"],
+    srcs = [":tonic-0.14.9.crate"],
     crate = "tonic",
-    crate_root = "tonic-0.14.6.crate/src/lib.rs",
+    crate_root = "tonic-0.14.9.crate/src/lib.rs",
     edition = "2024",
     env = {
         "CARGO_BIN_NAME": "tonic",
         "CARGO_CRATE_NAME": "tonic",
-        "CARGO_MANIFEST_DIR": "tonic-0.14.6.crate",
-        "CARGO_PKG_AUTHORS": "Lucio Franco <luciofranco14@gmail.com>",
+        "CARGO_MANIFEST_DIR": "tonic-0.14.9.crate",
+        "CARGO_PKG_AUTHORS": "gRPC authors",
         "CARGO_PKG_DESCRIPTION": "A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility.\n",
-        "CARGO_PKG_HOMEPAGE": "https://github.com/hyperium/tonic",
+        "CARGO_PKG_HOMEPAGE": "https://github.com/grpc/grpc-rust",
         "CARGO_PKG_NAME": "tonic",
         "CARGO_PKG_README": "README.md",
-        "CARGO_PKG_REPOSITORY": "https://github.com/hyperium/tonic",
+        "CARGO_PKG_REPOSITORY": "https://github.com/grpc/grpc-rust",
         "CARGO_PKG_RUST_VERSION": "1.88",
-        "CARGO_PKG_VERSION": "0.14.6",
+        "CARGO_PKG_VERSION": "0.14.9",
         "CARGO_PKG_VERSION_MAJOR": "0",
         "CARGO_PKG_VERSION_MINOR": "14",
-        "CARGO_PKG_VERSION_PATCH": "6",
+        "CARGO_PKG_VERSION_PATCH": "9",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
         "channel",
         "codegen",
         "default",
+        "h2",
         "router",
         "server",
         "transport",
@@ -33867,7 +33868,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "tonic",
-            "version": "0.14.6",
+            "version": "0.14.9",
             "licenses": ["MIT"],
         },
     },
@@ -33890,6 +33891,7 @@ third_party_rust.rust_library(
         ":sync_wrapper-1",
         ":tokio-1",
         ":tokio-stream-0.1",
+        ":tokio-util-0.7",
         ":tower-0.5",
         ":tower-layer-0.3",
         ":tower-service-0.3",
@@ -33904,18 +33906,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "tonic-build-0.14.6.crate",
-    sha256 = "c68f61875ac5293cf72e6c8cf0158086428c82c37229e98c840878f1706b0322",
-    strip_prefix = "tonic-build-0.14.6",
-    urls = ["https://static.crates.io/crates/tonic-build/0.14.6/download"],
+    name = "tonic-build-0.14.9.crate",
+    sha256 = "ac6d916d206ed7bdda1778ddff9bda43303789c258877e7bc22fb44ee5c984b4",
+    strip_prefix = "tonic-build-0.14.9",
+    urls = ["https://static.crates.io/crates/tonic-build/0.14.9/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "tonic-build-0.14",
-    srcs = [":tonic-build-0.14.6.crate"],
+    srcs = [":tonic-build-0.14.9.crate"],
     crate = "tonic_build",
-    crate_root = "tonic-build-0.14.6.crate/src/lib.rs",
+    crate_root = "tonic-build-0.14.9.crate/src/lib.rs",
     edition = "2024",
     features = [
         "default",
@@ -33924,7 +33926,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "tonic-build",
-            "version": "0.14.6",
+            "version": "0.14.9",
             "licenses": ["MIT"],
         },
     },
@@ -33944,23 +33946,23 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "tonic-health-0.14.6.crate",
-    sha256 = "fcfab99db777fba2802f0dfa861d1628d1ae916fb199d29819941f139ae85082",
-    strip_prefix = "tonic-health-0.14.6",
-    urls = ["https://static.crates.io/crates/tonic-health/0.14.6/download"],
+    name = "tonic-health-0.14.9.crate",
+    sha256 = "bc97d645691d64d96db1afe386d0d2918ac84ab56e2c91e153f22f6349a378cd",
+    strip_prefix = "tonic-health-0.14.9",
+    urls = ["https://static.crates.io/crates/tonic-health/0.14.9/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "tonic-health-0.14",
-    srcs = [":tonic-health-0.14.6.crate"],
+    srcs = [":tonic-health-0.14.9.crate"],
     crate = "tonic_health",
-    crate_root = "tonic-health-0.14.6.crate/src/lib.rs",
+    crate_root = "tonic-health-0.14.9.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "tonic-health",
-            "version": "0.14.6",
+            "version": "0.14.9",
             "licenses": ["MIT"],
         },
     },
@@ -33981,23 +33983,23 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "tonic-prost-0.14.6.crate",
-    sha256 = "50849f68853be452acf590cde0b146665b8d507b3b8af17261df47e02c209ea0",
-    strip_prefix = "tonic-prost-0.14.6",
-    urls = ["https://static.crates.io/crates/tonic-prost/0.14.6/download"],
+    name = "tonic-prost-0.14.9.crate",
+    sha256 = "eba464054e2226f182a34489b8b079bf4c6e3e7ab5fd7fc30e024f24aa92a484",
+    strip_prefix = "tonic-prost-0.14.9",
+    urls = ["https://static.crates.io/crates/tonic-prost/0.14.9/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "tonic-prost-0.14",
-    srcs = [":tonic-prost-0.14.6.crate"],
+    srcs = [":tonic-prost-0.14.9.crate"],
     crate = "tonic_prost",
-    crate_root = "tonic-prost-0.14.6.crate/src/lib.rs",
+    crate_root = "tonic-prost-0.14.9.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "tonic-prost",
-            "version": "0.14.6",
+            "version": "0.14.9",
             "licenses": ["MIT"],
         },
     },
@@ -34016,18 +34018,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "tonic-prost-build-0.14.6.crate",
-    sha256 = "654e5643eff75d7f8c99197ce1440ed19a3474eada74c12bbac488b2cafdae27",
-    strip_prefix = "tonic-prost-build-0.14.6",
-    urls = ["https://static.crates.io/crates/tonic-prost-build/0.14.6/download"],
+    name = "tonic-prost-build-0.14.9.crate",
+    sha256 = "2ea216ddc448e08e7839ab09e20e60b06b6a1c32745ccb212c0ebd161c199f1b",
+    strip_prefix = "tonic-prost-build-0.14.9",
+    urls = ["https://static.crates.io/crates/tonic-prost-build/0.14.9/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "tonic-prost-build-0.14",
-    srcs = [":tonic-prost-build-0.14.6.crate"],
+    srcs = [":tonic-prost-build-0.14.9.crate"],
     crate = "tonic_prost_build",
-    crate_root = "tonic-prost-build-0.14.6.crate/src/lib.rs",
+    crate_root = "tonic-prost-build-0.14.9.crate/src/lib.rs",
     edition = "2024",
     features = [
         "cleanup-markdown",
@@ -34037,7 +34039,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "tonic-prost-build",
-            "version": "0.14.6",
+            "version": "0.14.9",
             "licenses": ["MIT"],
         },
     },
@@ -34061,18 +34063,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "tonic-reflection-0.14.6.crate",
-    sha256 = "acccd136a4bf19810a1fde9c74edc6129b42a66b44d0c1c8aaa67aeb49a146a7",
-    strip_prefix = "tonic-reflection-0.14.6",
-    urls = ["https://static.crates.io/crates/tonic-reflection/0.14.6/download"],
+    name = "tonic-reflection-0.14.9.crate",
+    sha256 = "7eb4700e220803efd45baf3babaa1958c79adc9e0fe6fbd4422f9188d1e57d26",
+    strip_prefix = "tonic-reflection-0.14.9",
+    urls = ["https://static.crates.io/crates/tonic-reflection/0.14.9/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "tonic-reflection-0.14",
-    srcs = [":tonic-reflection-0.14.6.crate"],
+    srcs = [":tonic-reflection-0.14.9.crate"],
     crate = "tonic_reflection",
-    crate_root = "tonic-reflection-0.14.6.crate/src/lib.rs",
+    crate_root = "tonic-reflection-0.14.9.crate/src/lib.rs",
     edition = "2024",
     features = [
         "default",
@@ -34081,7 +34083,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "tonic-reflection",
-            "version": "0.14.6",
+            "version": "0.14.9",
             "licenses": ["MIT"],
         },
     },
