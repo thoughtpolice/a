@@ -6,6 +6,7 @@ load("@root//buck/shims:shims.bzl", depot = "shims")
 DEPS = [
     "third-party//rust:argon2",
     "third-party//rust:blake3",
+    "third-party//rust:futures",
     "third-party//rust:hex",
     "third-party//rust:iroh",
     "third-party//rust:iroh-tickets",

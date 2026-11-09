@@ -237,6 +237,10 @@ async fn a_member_finds_and_joins_a_host_by_its_code() {
     let (host, member) = (endpoint(true).await, endpoint(false).await);
     let _stop = serve_echo(&host, vec![JoinKey::generate(), cluster.key()]);
     let announcing = Cluster::rendezvous(&host, Some(dht())).expect("rendezvous");
+    cluster
+        .announce_once(&announcing)
+        .await
+        .expect("announcing once");
     let _announcer = cluster.announce(&announcing);
 
     let finding = Cluster::rendezvous(&member, Some(dht())).expect("rendezvous");
@@ -250,6 +254,15 @@ async fn a_member_finds_and_joins_a_host_by_its_code() {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     };
     assert_eq!(found, [host.id()]);
+    {
+        use futures::StreamExt as _;
+        let mut stream = cluster.host_stream(&finding).await.expect("finding");
+        assert_eq!(
+            stream.next().await,
+            Some(host.id()),
+            "the host, as it is found"
+        );
+    }
     assert!(
         JoinCode::generate()
             .cluster(&PROTOCOL)
