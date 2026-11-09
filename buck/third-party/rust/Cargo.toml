@@ -21,10 +21,10 @@ argon2 = { version = "0.6.0", default-features = false, features = ["alloc"] }
 ariadne = "0.6.0"
 async-stream = "0.3.6"
 async-trait = "0.1"
-# NOTE (base64): stay on 0.22 until the ecosystem moves. hyper-util, reqwest,
-# tonic, attohttpc, portmapper, termwiz and tokio-websockets all still pin
-# 0.22, so bumping this crate only adds a third copy to the graph.
-base64 = "0.22.1"
+# NOTE (base64): reqwest, hyper-util and clubcard-crlite are on 0.23, so it is
+# in the graph already; tonic, gix-transport, attohttpc, portmapper, termwiz,
+# tokio-websockets and hdrhistogram still hold a 0.22 copy beside it.
+base64 = "0.23.1"
 # NOTE (bincode): 1.x is unmaintained, but it is the format of CRLite's
 # filters (via clubcard-crlite) and of the intermediates file upstream's
 # query tool keeps beside them, which src/crates/crlite reads and writes.
