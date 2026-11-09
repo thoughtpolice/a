@@ -879,54 +879,50 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "argon2",
-    actual = ":argon2-0.5",
+    actual = ":argon2-0.6",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "argon2-0.5.3.crate",
-    sha256 = "3c3610892ee6e0cbce8ae2700349fcf8f98adb0dbfbee85aec3c9179d29cc072",
-    strip_prefix = "argon2-0.5.3",
-    urls = ["https://static.crates.io/crates/argon2/0.5.3/download"],
+    name = "argon2-0.6.0.crate",
+    sha256 = "134c52ddac6d63c576bef8168db10c83c49c26444ecbc68060fef078925a901c",
+    strip_prefix = "argon2-0.6.0",
+    urls = ["https://static.crates.io/crates/argon2/0.6.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "argon2-0.5",
-    srcs = [":argon2-0.5.3.crate"],
+    name = "argon2-0.6",
+    srcs = [":argon2-0.6.0.crate"],
     crate = "argon2",
-    crate_root = "argon2-0.5.3.crate/src/lib.rs",
-    edition = "2021",
-    features = [
-        "alloc",
-        "password-hash",
-    ],
+    crate_root = "argon2-0.6.0.crate/src/lib.rs",
+    edition = "2024",
+    features = ["alloc"],
     metadata = {
         "third-party.metadata": {
             "name": "argon2",
-            "version": "0.5.3",
+            "version": "0.6.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     platform = {
         "linux-x86_64": dict(
-            deps = [":cpufeatures-0.2"],
+            deps = [":cpufeatures-0.3"],
         ),
         "macos-x86_64": dict(
-            deps = [":cpufeatures-0.2"],
+            deps = [":cpufeatures-0.3"],
         ),
         "windows-gnu": dict(
-            deps = [":cpufeatures-0.2"],
+            deps = [":cpufeatures-0.3"],
         ),
         "windows-msvc": dict(
-            deps = [":cpufeatures-0.2"],
+            deps = [":cpufeatures-0.3"],
         ),
     },
     visibility = [],
     deps = [
         ":base64ct-1",
-        ":blake2-0.10",
-        ":password-hash-0.5",
+        ":blake2-0.11",
     ],
 )
 
@@ -2063,31 +2059,6 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [":typenum-1"],
-)
-
-shims.http_archive(
-    name = "blake2-0.10.6.crate",
-    sha256 = "46502ad458c9a52b69d4d4d32775c788b7a1b85e8bc9d482d92250fc0e3f8efe",
-    strip_prefix = "blake2-0.10.6",
-    urls = ["https://static.crates.io/crates/blake2/0.10.6/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "blake2-0.10",
-    srcs = [":blake2-0.10.6.crate"],
-    crate = "blake2",
-    crate_root = "blake2-0.10.6.crate/src/lib.rs",
-    edition = "2018",
-    metadata = {
-        "third-party.metadata": {
-            "name": "blake2",
-            "version": "0.10.6",
-            "licenses": ["MIT OR Apache-2.0"],
-        },
-    },
-    visibility = [],
-    deps = [":digest-0.10"],
 )
 
 shims.http_archive(
@@ -7185,9 +7156,7 @@ third_party_rust.rust_library(
         "block-buffer",
         "core-api",
         "default",
-        "mac",
         "std",
-        "subtle",
     ],
     metadata = {
         "third-party.metadata": {
@@ -7200,7 +7169,6 @@ third_party_rust.rust_library(
     deps = [
         ":block-buffer-0.10",
         ":crypto-common-0.1",
-        ":subtle-2",
     ],
 )
 
@@ -24155,40 +24123,6 @@ third_party_rust.buildscript_run(
     package_name = "parking_lot_core",
     buildscript_rule = ":parking_lot_core-0.9-build-script-build",
     version = "0.9.12",
-)
-
-shims.http_archive(
-    name = "password-hash-0.5.0.crate",
-    sha256 = "346f04948ba92c43e8469c1ee6736c7563d71012b17d40745260fe106aac2166",
-    strip_prefix = "password-hash-0.5.0",
-    urls = ["https://static.crates.io/crates/password-hash/0.5.0/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "password-hash-0.5",
-    srcs = [":password-hash-0.5.0.crate"],
-    crate = "password_hash",
-    crate_root = "password-hash-0.5.0.crate/src/lib.rs",
-    edition = "2021",
-    features = [
-        "alloc",
-        "default",
-        "rand_core",
-    ],
-    metadata = {
-        "third-party.metadata": {
-            "name": "password-hash",
-            "version": "0.5.0",
-            "licenses": ["MIT OR Apache-2.0"],
-        },
-    },
-    visibility = [],
-    deps = [
-        ":base64ct-1",
-        ":rand_core-0.6",
-        ":subtle-2",
-    ],
 )
 
 shims.http_archive(
