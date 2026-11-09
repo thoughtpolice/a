@@ -142,13 +142,17 @@ The init file is `$QUAD_INIT`, else `$XDG_CONFIG_HOME/quad/init.ss`, else
 
 ## An agent that extends the editor
 
-`space a a` opens a box in the middle of the screen where you ask an agent
-for a change to quad itself: "bind ctrl+d to duplicate the line", "a darker
-theme", "a mode for TOML". The agent is
-OpenAI Codex, through its app server (`codex app-server`, which must be on
-`PATH` and logged in). It edits your init file, applies the change to the
-running editor and checks it, and a popup at the right follows along: what
-it says, the commands it runs, the files it changes, the tools it calls.
+`space a a` opens a box in the middle of the screen, "Submit Feedback to
+AI", where you tell an agent what to change or add to quad itself: "bind
+ctrl+d to duplicate the line", "a darker theme", "a mode for TOML". It
+edits your init file, applies the change to the running editor and checks
+it. A popup at the top right keeps a summary of what it is doing, a few
+lines that a small, quick model (`codex-summary-model`, GPT-6-Luna, at low
+effort) rewrites every few seconds as it works, and once more when it is
+done; `space a t` has the whole log. The summarizer reads the log as the
+project reviewer reads code (see Projects): as single samples of a thread,
+which can run nothing. The agent is OpenAI Codex, through its app server
+(`codex app-server`, which must be on `PATH` and logged in).
 
 quad gives the agent tools of its own (`quad_eval`, `quad_describe`,
 `quad_apropos`, `quad_keymap`, `quad_reload_config`, `quad_context`), so it
@@ -162,8 +166,9 @@ dismissed. While it works, `space a a` again steers
 it and `space a i` interrupts it; `space a t` is the whole conversation,
 `space a n` starts another, `esc` hides the popup and `space a p` brings it
 back. The variables `codex-command`, `codex-model`, `codex-sandbox`,
-`codex-approval-policy`, `codex-directory`, `codex-questions` and
-`codex-log` change how it
+`codex-approval-policy`, `codex-directory`, `codex-questions`,
+`codex-summary-model` (`#f` shows the log instead of a summary),
+`codex-summary-effort`, `codex-summary-interval` and `codex-log` change how it
 runs, and `define-codex-tool!` gives it more tools: the agent can write
 those too.
 

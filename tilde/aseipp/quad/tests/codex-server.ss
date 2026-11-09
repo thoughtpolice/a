@@ -12,9 +12,10 @@
 ;; permissions. The turn's last message holds, as JSON after "RESULTS ",
 ;; what quad answered.
 ;;
-;; A thread started without tools is a review's: its turn says "ready",
-;; and thread/sample answers with a verdict that reports what the review
-;; was given, for codex.ss and project.ss to check.
+;; A thread started without tools is a review's or the summarizer's: its
+;; turn says "ready", and thread/sample answers with a verdict, or a
+;; summary, that reports what it was given, for codex.ss and project.ss to
+;; check.
 
 (define (send! v)
   (display (json->string v))
@@ -48,7 +49,8 @@
       (if (and (equal? (json-ref m 'id) id) (not (json-ref m 'method)))
           (begin (notify "serverRequest/resolved" `((requestId . ,id)))
                  (json-ref m 'result))
-          (wait)))))
+          ;; Other requests -- a summary, say -- are answered meanwhile.
+          (begin (when (json-ref m 'method) (handle! m)) (wait))))))
 
 (define (call-tool id name args)
   (let ([r (ask id "item/tool/call" `((callId . ,(format "call-~a" id)) (namespace . null)
@@ -122,8 +124,11 @@
                                             (text . ,(string-append "RESULTS " (json->string results)))))))
         (notify "turn/completed" `((turn . ((id . ,turn) (status . "completed") (durationMs . 1500)))))))))
 
-(let loop ()
-  (let* ([m (next)] [id (json-ref m 'id)] [method (json-ref m 'method)] [params (json-ref m 'params)])
+(define threads '())                    ; review thread -> its thread/start params
+(define summaries 0)
+
+(define (handle! m)
+  (let* ([id (json-ref m 'id)] [method (json-ref m 'method)] [params (json-ref m 'params)])
     (cond
      [(equal? method "initialize")
       (reply id `((userAgent . "fake/0") (codexHome . "/nonexistent") (platformFamily . "unix")
@@ -132,16 +137,28 @@
       (set! reviews (+ reviews 1))
       (let ([t (format "review-~a" reviews)])
         (set! review-params params)
+        (set! threads (cons (cons t params) threads))
         (reply id `((thread . ((id . ,t) (cwd . ,(json-ref params 'cwd)))))))]
      [(and (equal? method "turn/start") (string-prefix? "review-" (json-ref params 'threadId)))
       (let ([t (json-ref params 'threadId)])
         (set! review-input (json-ref params 'input 0 'text))
+        (set! threads (cons (cons (string-append t "/effort") (json-ref params 'effort)) threads))
         (reply id `((turn . ((id . "review-turn") (status . "inProgress") (items . #())))))
         (send! `((method . "turn/completed")
                  (params . ((threadId . ,t) (turn . ((id . "review-turn") (status . "completed"))))))))]
      [(equal? method "thread/inject_items")
       (set! injected (json-ref params 'items 0 'content 0 'text))
       (reply id '())]
+     [(and (equal? method "thread/sample") (string-contains (json-ref params 'prompt) "Keep a summary"))
+      (set! summaries (+ summaries 1))
+      (let* ([prompt (json-ref params 'prompt)] [t (json-ref params 'threadId)] [p (cdr (assoc t threads))])
+        (reply id `((sourceTurnId . ,(json-ref params 'expectedTurnId)) (responseId . "s")
+                    (text . ,(format "SUMMARY ~a: model ~a, effort ~a (warm-up ~a)~%fits: ~a; has the request: ~a; finished: ~a"
+                                     summaries (json-ref p 'model) (json-ref params 'effort)
+                                     (cdr (assoc (string-append t "/effort") threads))
+                                     (< (bytevector-length (string->utf8 prompt)) 4000)
+                                     (and (string-contains prompt "add a command") #t)
+                                     (and (string-contains prompt "The agent has finished.") #t))))))]
      [(equal? method "thread/sample")
       (let* ([prompt (json-ref params 'prompt)]
              [marker (let ([i (string-contains prompt "BEGIN-")])
@@ -170,5 +187,8 @@
       (notify "thread/started" `((thread . ((id . ,thread)))))]
      [(equal? method "turn/start") (run-turn! id (json-ref params 'input 0 'text))]
      [id (send! `((id . ,id) (error . ((code . -32601) (message . ,(format "unknown method ~a" method))))))]
-     [else (void)])
-    (loop)))
+     [else (void)])))
+
+(let loop ()
+  (handle! (next))
+  (loop))

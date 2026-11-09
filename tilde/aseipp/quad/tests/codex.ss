@@ -34,6 +34,7 @@
   (run-until title (lambda () (let ([p (current-prompt)]) (and p (equal? (prompt-label p) title))))))
 
 (headless-start! 30 120)
+(set-var! 'codex-summary-interval 0)
 (set-var! 'codex-command (list (quad-self-path) "-q" "--batch" (path-join here "codex-server.ss")))
 (check "not running yet" (not (codex-running?)))
 (check "the AI menu" (eq? (keymap-lookup-target (keymap-lookup-target space-keymap "a") "a") 'codex-ask))
@@ -41,19 +42,19 @@
 ;; Ask, from the AI menu.
 (press! "space" "a" "a")
 ;; A dialog in the middle of the screen, not the bottom row.
-(check "a dialog" (and (on-screen? "Ask Codex") (on-screen? "Describe a change")))
+(check "a dialog" (and (on-screen? "Submit Feedback to AI") (on-screen? "What should change, or what is missing?")))
 (check "in the middle" (let loop ([rs (screen)] [i 0])
-                         (cond [(null? rs) #f] [(string-contains (car rs) "Ask Codex") (< 3 i 15)]
+                         (cond [(null? rs) #f] [(string-contains (car rs) "Submit Feedback to AI") (< 3 i 15)]
                                [else (loop (cdr rs) (+ i 1))])))
 (type! "add a command")
 (press! "enter")
 (check "running" (codex-running?))
-(check "the popup" (and (on-screen? "Codex · working") (on-screen? "› add a command")))
-(check "working, in the status line" (on-screen? "codex ⋯"))
+(check "the popup" (and (on-screen? "AI · working") (on-screen? "› add a command")))
+(check "working, in the status line" (on-screen? "ai ⋯"))
 
 ;; The agent asks before running a command: a picker.
 (run-until "an approval" (lambda () (current-prompt)))
-(check "approval needed" (and (on-screen? "Run make check?") (on-screen? "codex: waiting for you")))
+(check "approval needed" (and (on-screen? "Run make check?") (on-screen? "ai: waiting for you")))
 (check "the whole command, and why" (and (on-screen? "$ make check") (on-screen? "to test")))
 ;; The picker covers the popup; the conversation is as it shows it.
 (check "it streamed" (string-contains (codex-transcript-text) "Looking around."))
@@ -110,15 +111,24 @@
 (check "the link" (on-screen? "https://example.com/login"))
 (type! "copy")
 (press! "enter")
-(asked "Give Codex more permissions?")
+(asked "Give the AI more permissions?")
 (check "which" (and (on-screen? "network access") (on-screen? "to fetch a package")))
 (type! "session")
 (press! "enter")
 
 (run-until "the turn's end" (lambda () (not (codex-busy?))))
 (check "nothing waits" (and (null? (codex-waiting)) (not (current-prompt))))
-(check "done" (and (on-screen? "Done in 1.5s.") (on-screen? "$ make check  ✓")))
-(check "no longer working" (not (on-screen? "codex ⋯")))
+(check "done" (and (on-screen? "Done in 1.5s.") (string-contains (codex-transcript-text) "$ make check  ✓")))
+(check "no longer working" (not (on-screen? "ai ⋯")))
+
+;; The popup is a summary, kept up to date by the small model as it works,
+;; from samples that fit thread/sample, and once more when it is done.
+(run-until "the last summary" (lambda () (redraw!) (on-screen? "finished: #t")))
+(check "a summary, in the popup" (on-screen? "model gpt-6-luna, effort low (warm-up low)"))
+(check "of the request" (and (on-screen? "fits: #t; has the request: #t") (on-screen? "› add a command")))
+(check "kept up to date" (and (on-screen? "SUMMARY ") (not (on-screen? "SUMMARY 1:"))))
+(check "and the end" (on-screen? "Done in 1.5s."))
+(check "not the log" (not (on-screen? "Looking around.")))
 
 ;; What the stand-in was told, and what quad's tools answered it.
 (define results
@@ -135,7 +145,7 @@
 (expect-equal "eval" (result 'eval) '((ok . #t) (text . "output:\nhi\nvalue: 3")))
 (check "a failed eval" (and (not (result 'fail 'ok)) (string-contains (result 'fail 'text) "car")))
 (check "describe" (string-contains (result 'describe 'text) "command escape: Hide the popup"))
-(check "keymap" (string-contains (result 'keymap 'text) "a → codex-ask (Ask)"))
+(check "keymap" (string-contains (result 'keymap 'text) "a → codex-ask (Feedback)"))
 (check "no such tool" (not (result 'missing 'ok)))
 (check "reloaded" (and (result 'reload 'ok) (string-contains (result 'reload 'text) "Loaded")))
 (check "what the agent wrote is in the editor" (command? (find-command 'from-codex)))
@@ -164,9 +174,9 @@
 
 ;; Escape hides the popup; space a p brings it back.
 (press! "esc")
-(check "hidden" (not (on-screen? "Codex")))
+(check "hidden" (not (on-screen? "AI ·")))
 (press! "space" "a" "p")
-(check "shown" (on-screen? "space a a ask"))
+(check "shown" (on-screen? "space a a feedback"))
 
 ;; Stopping.
 (codex-stop!)
