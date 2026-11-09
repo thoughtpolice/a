@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# zbus-lockstep's #[validate] checks each signal against the D-Bus
+# interface XML in the crate's xml/ directory, which it finds from
+# CARGO_MANIFEST_DIR at compile time.
+cargo_env = true

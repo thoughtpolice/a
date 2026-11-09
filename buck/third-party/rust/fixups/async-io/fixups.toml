@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# The build script only sets async_io_no_pipe for rustc before 1.87; the
+# toolchain is newer, and without the cfg the crate uses std's pipes.
+buildscript.run = false

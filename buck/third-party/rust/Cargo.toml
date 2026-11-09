@@ -167,6 +167,8 @@ opentelemetry-semantic-conventions = "0.33.1"
 tracing-opentelemetry = "0.34.0"
 parking_lot = "0.12.5"
 percent-encoding = "2"
+# PNG images for quad's GUI (tilde/aseipp/quad), decoded to draw them.
+png = "0.18"
 pollster = "1.0.1"
 proc-macro2 = "1.0.107"
 prost = "0.14.4"
@@ -324,6 +326,16 @@ smithay-clipboard = "=0.7.2"
 # The system's fonts and their fallbacks for quad's GUI, from fontconfig,
 # which it loads at run time ("fontconfig-dlopen"), as ash loads Vulkan.
 fontique = { version = "0.12.0", features = ["fontconfig-dlopen"] }
+# Screen readers for quad's GUI: AccessKit's tree of what a window shows,
+# given to the desktop's accessibility bus (AT-SPI, over D-Bus: zbus, in
+# Rust, so nothing links against libdbus) by its winit adapter. Its D-Bus
+# connection runs on async-io's executor, on its own thread.
+accesskit = "0.25.2"
+accesskit_winit = { version = "0.34.2", default-features = false, features = [
+  "accesskit_unix",
+  "async-io",
+  "rwh_06",
+] }
 # Vulkan for quad's GUI (tilde/aseipp/quad): ash loads libvulkan.so.1 at
 # run time ("loaded"), so nothing links against the host's Vulkan loader.
 ash = { version = "0.38.0", default-features = false, features = ["loaded", "std"] }

@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# zvariant's derives name the zvariant crate as the deriving crate's
+# Cargo.toml has it (zbus::zvariant, here), which proc-macro-crate reads
+# from CARGO_MANIFEST_DIR.
+cargo_env = true
