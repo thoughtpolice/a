@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "OsvGitRepoInfo", "pkg")
+
+# The LTS 20250814 branch at its first patch release, the revision bloaty
+# (by-name/bl/bloaty) pins as a submodule.
+GIT_COMMIT = "d38452e1ee03523a208362186fd42248ff2609f6"
+
+pkg.info(
+    version = "20250814.1",
+    description = "Abseil C++ common libraries",
+    license = "Apache-2.0",
+    copyright = [
+        "2017-2026 The Abseil Authors",
+    ],
+    visibility = ["PUBLIC"],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/abseil/abseil-cpp",
+        commit = GIT_COMMIT,
+    ),
+)
