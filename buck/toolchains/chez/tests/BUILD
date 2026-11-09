@@ -65,6 +65,12 @@ shims.command_test(
         out=`$(exe :demo-bin) a b`
         echo "$out"
         test "$out" = 'HELLO, CHEZ HELLO, CHEZ ("a" "b")'
+        # Found through PATH, from elsewhere, its argv[0] names no file: it
+        # finds its boot files by asking the system where it is.
+        exe=$(location :demo-bin)
+        dir=`dirname $exe`
+        name=`basename $exe`
+        test "`cd / && PATH=$dir:$PATH $name a b`" = "$out"
         # The boot file loads (demo greet name), (demo greet), (demo shout),
         # each after what it imports.
         test "`cat $(location :greet[manifest])`" = '(((demo greet name) "demo/greet/name.so") ((demo greet) "demo/greet.so"))'

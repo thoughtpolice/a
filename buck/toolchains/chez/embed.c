@@ -16,6 +16,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
+
 #define TRAILER_MAGIC "CHEZBOOT"
 #define NAME_LEN 16
 #define ENTRY_LEN (8 + 8 + NAME_LEN)
@@ -52,6 +56,12 @@ chez_embed_self_path(const char* argv0)
     path[len] = '\0';
     return path;
   }
+#elif defined(__APPLE__)
+  // The path the executable was started by, which may be relative, or a
+  // symlink's: resolved, as /proc/self/exe is.
+  char started[PATH_MAX];
+  uint32_t size = sizeof(started);
+  if (_NSGetExecutablePath(started, &size) == 0 && realpath(started, path)) return path;
 #endif
   if (argv0 && realpath(argv0, path)) return path;
   return NULL;

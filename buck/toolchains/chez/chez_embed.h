@@ -16,8 +16,9 @@
 extern "C" {
 #endif
 
-// The path of the running executable (from /proc/self/exe on Linux, else
-// argv0 resolved), or NULL. The string is static.
+// The path of the running executable (from /proc/self/exe on Linux,
+// _NSGetExecutablePath on macOS, else argv0 resolved), or NULL. The string
+// is static.
 const char* chez_embed_self_path(const char* argv0);
 
 // Register, in order, the boot files appended to the executable at path.
