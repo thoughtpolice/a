@@ -291,6 +291,18 @@ shims.command_test(
     """,
 )
 
+# Projects: trust, review (against the Codex stand-in), configuration,
+# and a project's own language server (the LSP stand-in).
+shims.command_test(
+    name = "test-project",
+    script = """
+        dir=`mktemp -d /tmp/quad-test.XXXXXX`
+        trap 'rm -rf "$dir"' EXIT
+        export QUAD_TEST_DIR=$(location :tests)/tests QUAD_PROJECT_DIR=$dir QUAD_INIT=$dir/init.ss
+        $(exe :quad) -q --batch $QUAD_TEST_DIR/project.ss
+    """,
+)
+
 # The allocator is mimalloc, through its malloc override.
 shims.command_test(
     name = "test-mimalloc",

@@ -6,8 +6,9 @@
 ;; quad as a Language Server Protocol client. A server is chosen by file
 ;; extension (define-lsp-server!; clangd, rust-analyzer, gopls and others
 ;; are defined already, and used when their commands are on PATH), and one
-;; runs per project root, found by walking up from the file to a marker
-;; such as .git or Cargo.toml. Opening a file starts it; the buffer is kept
+;; runs per root, found by walking up from the file to a marker such as
+;; .git or Cargo.toml. A server a project's .quad/init.ss defines is for
+;; that project's files, ahead of the others (see (quad project)). Opening a file starts it; the buffer is kept
 ;; in step with it change by change; its diagnostics underline the text.
 ;;
 ;; The keys are Ki's:
@@ -24,14 +25,14 @@
 ;;   space k e            every diagnostic, in every file
 ;;   ctrl+space           (insert mode) complete
 (library (quad ext lsp)
-  (export define-lsp-server! lsp-server-specs lsp-language-id-set!
+  (export define-lsp-server! lsp-servers-from-json lsp-server-specs lsp-language-id-set!
           lsp-request! lsp-notify! lsp-buffer-server lsp-servers lsp-server-name
           lsp-server-capabilities lsp-diagnostics diag-start diag-end diag-severity diag-message
           lsp-stop! lsp-restart! lsp-log-lines
           lsp-position lsp-offset path->uri uri->path)
   (import (chezscheme) (quad util) (quad text) (quad syntax) (quad json) (quad jsonrpc)
           (quad buffer) (quad selection) (quad editor) (quad commands) (quad display)
-          (only (quad main) quad-version))
+          (quad project) (only (quad main) quad-version))
 
   (define-variable lsp-enabled #t "Whether opening a file starts its language server")
   (define-variable lsp-log-file #f "A file for language servers' standard error, or #f")
@@ -41,22 +42,60 @@
   ;; ---------------------------------------------------------------------------
   ;; Which server, for which files
 
-  (define-record-type spec (fields name command extensions roots options))
-  (define specs '())
+  (define-record-type spec
+    (fields name command extensions roots root require-root? config init-options languages scope))
+  (define specs '())                    ; newest first
   (define (lsp-server-specs) specs)
 
-  ;; Use command (a list of strings) for files with these extensions,
-  ;; rooted at the nearest directory up from the file holding one of roots
-  ;; (file names). options, if given, is the server's initializationOptions.
-  ;; A later definition for an extension comes first; one whose command is
-  ;; not on PATH is passed over.
-  (define define-lsp-server!
-    (case-lambda
-     [(name command extensions) (define-lsp-server! name command extensions '(".git") #f)]
-     [(name command extensions roots) (define-lsp-server! name command extensions roots #f)]
-     [(name command extensions roots options)
-      (set! specs (cons (make-spec name command extensions roots options)
-                        (remp (lambda (s) (eq? (spec-name s) name)) specs)))]))
+  ;; Use command (a list of strings) for files with these extensions.
+  ;; Properties follow, a symbol and its value each:
+  ;;
+  ;;   'roots '("Cargo.toml" ".git")  the root is the nearest directory up
+  ;;                                  from the file holding one (default .git)
+  ;;   'root "/path"                  or always this directory
+  ;;   'require-root #t               no marker found: not this server
+  ;;   'config json                   its settings, as Helix's `config`: the
+  ;;                                  initializationOptions, and what it gets
+  ;;                                  when it asks (workspace/configuration)
+  ;;   'initialization-options json   other initializationOptions than config
+  ;;   'languages '(("h" . "cpp"))    language IDs, by extension
+  ;;
+  ;; A later definition comes first, and one a project defines is for its
+  ;; files only; a server whose command is not on PATH is passed over.
+  (define (define-lsp-server! name command extensions . props)
+    (define (prop key default)
+      (let loop ([l props])
+        (cond [(or (null? l) (null? (cdr l))) default]
+              [(eq? (car l) key) (cadr l)]
+              [else (loop (cddr l))])))
+    (let ([scope (project-loading)])
+      (set! specs (cons (make-spec name command extensions (prop 'roots '(".git")) (prop 'root #f)
+                                   (prop 'require-root #f) (prop 'config #f) (prop 'initialization-options #f)
+                                   (prop 'languages '()) scope)
+                        (remp (lambda (s) (and (eq? (spec-name s) name) (equal? (spec-scope s) scope))) specs)))))
+
+  ;; Define the servers a JSON file describes, in the form Claude Code's LSP
+  ;; plugins use: {"name": {"command": ..., "args": [...],
+  ;; "extensionToLanguage": {".rs": "rust"}, "initializationOptions": ...,
+  ;; "settings": ...}}. Properties, as define-lsp-server! takes them, apply to
+  ;; every one.
+  (define (lsp-servers-from-json file . props)
+    (for-each
+     (lambda (entry)
+       (let* ([name (car entry)] [d (cdr entry)]
+              [langs (map (lambda (e) (cons (let ([x (symbol->string (car e))])
+                                              (if (string-prefix? "." x) (substring x 1 (string-length x)) x))
+                                            (cdr e)))
+                          (or (json-ref d 'extensionToLanguage) '()))])
+         (apply define-lsp-server! name
+                (cons (json-ref d 'command) (vector->list (or (json-ref d 'args) '#())))
+                (map car langs)
+                (append props
+                        (list 'languages langs)
+                        (let ([init (json-ref d 'initializationOptions)] [settings (json-ref d 'settings)])
+                          (append (if (or settings init) (list 'config (or settings init)) '())
+                                  (if (and settings init) (list 'initialization-options init) '())))))))
+     (json-read-string (read-file-string file))))
 
   (define language-ids
     '(("c" . "c") ("h" . "c") ("cc" . "cpp") ("cpp" . "cpp") ("cxx" . "cpp") ("hpp" . "cpp")
@@ -75,8 +114,9 @@
               [(char=? (string-ref base i) #\.) (substring base (+ i 1) (string-length base))]
               [else (loop (- i 1))]))))
 
-  (define (language-id path)
-    (let ([e (extension path)]) (cond [(assoc e language-ids) => cdr] [else e])))
+  (define (language-id sp path)
+    (let ([e (extension path)])
+      (cond [(assoc e (spec-languages sp)) => cdr] [(assoc e language-ids) => cdr] [else e])))
 
   (define (find-executable name)
     (if (string-index name #\/)
@@ -87,20 +127,43 @@
                       (and (file-exists? f) (not (file-directory? f)) f)))
                   (string-split path #\:)))))
 
+  (define (in-scope? sp path)
+    (let ([scope (spec-scope sp)])
+      (or (not scope)
+          (and (member scope (project-roots path)) (eq? (project-state scope) 'loaded)))))
+
+  (define (marker-root sp path)
+    (let loop ([dir (path-dirname path)])
+      (cond
+       [(exists (lambda (m) (file-exists? (path-join dir m))) (spec-roots sp)) dir]
+       [(or (string=? dir "/") (string=? dir "") (string=? (path-dirname dir) dir)) #f]
+       [else (loop (path-dirname dir))])))
+
+  ;; The server for path: the innermost project's, then the newest.
   (define (spec-for path)
-    (let ([e (extension path)])
-      (find (lambda (s) (and (member e (spec-extensions s)) (find-executable (car (spec-command s)))))
-            specs)))
+    (let* ([e (extension path)]
+           [fits (filter (lambda (s) (and (member e (spec-extensions s)) (in-scope? s path)
+                                          (or (not (spec-require-root? s)) (spec-root s) (marker-root s path))
+                                          (find-executable (car (spec-command s)))))
+                         specs)])
+      (and (pair? fits)
+           (let ([depth (lambda (s) (if (spec-scope s) (string-length (spec-scope s)) -1))])
+             (fold-left (lambda (best s) (if (> (depth s) (depth best)) s best)) (car fits) (cdr fits))))))
+
+  (define (spec-root-for sp path)
+    (or (spec-root sp) (marker-root sp path) (path-dirname path)))
 
   ;; The nearest directory up from path's holding one of markers, else
   ;; path's own directory.
-  (define (find-root path markers)
-    (let ([start (path-dirname path)])
-      (let loop ([dir start])
-        (cond
-         [(exists (lambda (m) (file-exists? (path-join dir m))) markers) dir]
-         [(or (string=? dir "/") (string=? dir "") (string=? (path-dirname dir) dir)) start]
-         [else (loop (path-dirname dir))]))))
+  ;; A server's settings for a workspace/configuration item: the part of
+  ;; its config the section names, or all of it for the server's own name
+  ;; (as rust-analyzer and gopls ask), else null.
+  (define (config-section sp section)
+    (let ([config (spec-config sp)])
+      (cond
+       [(not config) 'null]
+       [(or (not section) (string=? section "") (string=? section (symbol->string (spec-name sp)))) config]
+       [else (or (apply json-ref config (map string->symbol (string-split section #\.))) 'null)])))
 
   ;; ---------------------------------------------------------------------------
   ;; URIs
@@ -169,7 +232,7 @@
   (define-record-type conn
     (fields spec root (mutable rpc) (mutable capabilities) (mutable encoding)
             (mutable ready?) (mutable waiting) (mutable buffers) (mutable progress)
-            (mutable stopping?)))
+            (mutable stopping?) (mutable watchers)))   ; registration id -> glob matchers
 
   (define conns '())
   (define (lsp-servers) conns)
@@ -207,7 +270,7 @@
       (window . ((workDoneProgress . #t) (showMessage . ()) (showDocument . ((support . #t)))))))
 
   (define (start-conn! sp root)
-    (let ([c (make-conn sp root #f '() 'utf-16 #f '() '() '() #f)])
+    (let ([c (make-conn sp root #f '() 'utf-16 #f '() '() '() #f '())])
       (guard (e [#t (message-error "~a would not start: ~a" (spec-name sp) (condition->string e))
                     (log! "~a would not start: ~a" (spec-name sp) (condition->string e))
                     #f])
@@ -225,12 +288,15 @@
            (rootUri . ,(path->uri root)) (rootPath . ,root)
            (workspaceFolders . #(((uri . ,(path->uri root)) (name . ,(path-basename root)))))
            (capabilities . ,(lsp-client-capabilities))
-           ,@(if (spec-options sp) `((initializationOptions . ,(spec-options sp))) '()))
+           ,@(let ([init (or (spec-init-options sp) (spec-config sp))])
+               (if init `((initializationOptions . ,init)) '())))
          (lambda (result)
            (conn-capabilities-set! c (or (json-ref result 'capabilities) '()))
            (conn-encoding-set! c (let ([e (json-ref result 'capabilities 'positionEncoding)])
                                    (cond [(equal? e "utf-32") 'utf-32] [(equal? e "utf-8") 'utf-8] [else 'utf-16])))
            (jsonrpc-notify! (conn-rpc c) "initialized" '())
+           (when (spec-config sp)
+             (jsonrpc-notify! (conn-rpc c) "workspace/didChangeConfiguration" `((settings . ,(spec-config sp)))))
            (conn-ready?-set! c #t)
            (let ([ks (reverse (conn-waiting c))])
              (conn-waiting-set! c '())
@@ -284,11 +350,15 @@
   ;; Give buffer b to its language server, starting one if need be.
   (define (attach! b)
     (let ([path (buffer-path b)])
-      (when (and path (get-var 'lsp-enabled) (not (lsp-buffer-server b)) (not (buffer-local b 'lsp-tried #f)))
+      (when (and path (get-var 'lsp-enabled) (not (lsp-buffer-server b)) (not (buffer-local b 'lsp-tried #f))
+                 ;; Not while its project waits for an answer about trust:
+                 ;; the project may want another server, or none.
+                 (not (exists (lambda (root) (memq (project-state root) '(unknown pending asking)))
+                              (project-roots path))))
         (buffer-local-set! b 'lsp-tried #t)
         (let ([sp (spec-for path)])
           (when sp
-            (let* ([root (find-root path (spec-roots sp))]
+            (let* ([root (spec-root-for sp path)]
                    [c (or (find (lambda (c) (and (eq? (conn-spec c) sp) (equal? (conn-root c) root)
                                                  (not (conn-stopping? c))))
                                 conns)
@@ -304,7 +374,7 @@
       (buffer-local-set! b 'lsp-open #t)
       (buffer-local-set! b 'lsp-uri (buffer-uri b))
       (jsonrpc-notify! (conn-rpc c) "textDocument/didOpen"
-                       `((textDocument . ((uri . ,(buffer-uri b)) (languageId . ,(language-id (buffer-path b)))
+                       `((textDocument . ((uri . ,(buffer-uri b)) (languageId . ,(language-id (conn-spec c) (buffer-path b)))
                                           (version . 0) (text . ,(buffer-string b))))))))
 
   (define (detach! b)
@@ -359,6 +429,7 @@
         ;; Saved under another name: a new document.
         (detach! b) (buffer-local-set! b 'lsp-tried #f) (attach! b)]
        [(and (buffer-local b 'lsp-open #f) (jsonrpc-running? (conn-rpc c)))
+        (file-changed! (buffer-path b) 2)
         (flush! b)
         (let ([save (json-ref (conn-capabilities c) 'textDocumentSync 'save)])
           (when save
@@ -933,9 +1004,16 @@
     (let ([rpc (conn-rpc c)])
       (cond
        [(string=? method "workspace/configuration")
-        (jsonrpc-reply! rpc id (list->vector (map (lambda (_) 'null) (as-list (json-ref params 'items)))))]
-       [(member method '("client/registerCapability" "client/unregisterCapability" "window/workDoneProgress/create"))
+        (jsonrpc-reply! rpc id (list->vector (map (lambda (item) (config-section (conn-spec c) (json-ref item 'section)))
+                                                  (as-list (json-ref params 'items)))))]
+       [(string=? method "client/registerCapability")
+        (for-each (lambda (r) (register! c r)) (as-list (json-ref params 'registrations)))
         (jsonrpc-reply! rpc id 'null)]
+       [(string=? method "client/unregisterCapability")
+        (for-each (lambda (r) (conn-watchers-set! c (remp (lambda (w) (equal? (car w) (json-ref r 'id))) (conn-watchers c))))
+                  (as-list (or (json-ref params 'unregisterations) (json-ref params 'unregistrations))))
+        (jsonrpc-reply! rpc id 'null)]
+       [(string=? method "window/workDoneProgress/create") (jsonrpc-reply! rpc id 'null)]
        [(string=? method "workspace/workspaceFolders")
         (jsonrpc-reply! rpc id `#(((uri . ,(path->uri (conn-root c))) (name . ,(path-basename (conn-root c))))))]
        [(string=? method "workspace/applyEdit")
@@ -956,6 +1034,88 @@
                         (lambda (a) (jsonrpc-reply! rpc id (if (json-object? a) a 'null)))
                         'picker (json-ref params 'message))))))]
        [else (jsonrpc-reply-error! rpc id -32601 (format "quad does not handle ~a" method))])))
+
+  ;; ---------------------------------------------------------------------------
+  ;; Watched files: a server can ask to hear of changes to files matching
+  ;; globs (rust-analyzer, of BUILD files, to rediscover the project). quad
+  ;; tells it of the files it saves.
+
+  (define (register! c r)
+    (when (equal? (json-ref r 'method) "workspace/didChangeWatchedFiles")
+      (conn-watchers-set!
+       c (cons (cons (json-ref r 'id)
+                     (filter-map (lambda (w)
+                                   (let ([g (json-ref w 'globPattern)])
+                                     (cond
+                                      [(string? g) (glob-matcher (if (or (string-prefix? "/" g) (string-prefix? "**" g)) g (string-append "**/" g)))]
+                                      [(json-ref g 'pattern)
+                                       => (lambda (pat)
+                                            (let ([base (let ([b (json-ref g 'baseUri)]) (if (string? b) b (json-ref b 'uri)))])
+                                              (glob-matcher (path-join (uri->path (or base "")) pat))))]
+                                      [else #f])))
+                                 (as-list (json-ref r 'registerOptions 'watchers))))
+                 (conn-watchers c)))))
+
+  ;; A glob as a predicate on paths: ** any run of directories, * any run
+  ;; of characters but /, ? one of them, {a,b} either.
+  (define (glob-matcher glob)
+    (lambda (path)
+      (let match ([g (string->list glob)] [p (string->list path)])
+        (cond
+         [(null? g) (null? p)]
+         [(and (char=? (car g) #\*) (pair? (cdr g)) (char=? (cadr g) #\*))
+          (let* ([rest (cddr g)] [rest (if (and (pair? rest) (char=? (car rest) #\/)) (cdr rest) rest)])
+            (let loop ([p p])
+              (or (match rest p)
+                  (and (pair? p) (loop (cdr p))))))]
+         [(char=? (car g) #\*)
+          (let loop ([p p])
+            (or (match (cdr g) p)
+                (and (pair? p) (not (char=? (car p) #\/)) (loop (cdr p)))))]
+         [(char=? (car g) #\{)
+          (let* ([close (let find ([l (cdr g)] [acc '()]) (cond [(null? l) #f] [(char=? (car l) #\}) (cons (reverse acc) (cdr l))] [else (find (cdr l) (cons (car l) acc))]))])
+            (if close
+                (exists (lambda (alt) (match (append (string->list alt) (cdr close)) p))
+                        (string-split (list->string (car close)) #\,))
+                (and (pair? p) (char=? (car p) #\{) (match (cdr g) (cdr p)))))]
+         [(null? p) #f]
+         [(char=? (car g) #\?) (and (not (char=? (car p) #\/)) (match (cdr g) (cdr p)))]
+         [else (and (char=? (car g) (car p)) (match (cdr g) (cdr p)))]))))
+
+  (define (file-changed! path kind)
+    (for-each (lambda (c)
+                (when (and (conn-ready? c) (exists (lambda (w) (exists (lambda (m) (m path)) (cdr w))) (conn-watchers c)))
+                  (jsonrpc-notify! (conn-rpc c) "workspace/didChangeWatchedFiles"
+                                   `((changes . #(((uri . ,(path->uri path)) (type . ,kind))))))))
+              conns))
+
+  ;; ---------------------------------------------------------------------------
+  ;; Projects: their servers come and go with them
+
+  (define (project-loaded! root)
+    ;; Each of the project's buffers to the server it should now have.
+    (for-each (lambda (b)
+                (let ([path (buffer-path b)])
+                  (when (and path (member root (project-roots path)))
+                    (let ([c (lsp-buffer-server b)] [sp (spec-for path)])
+                      (unless (and c (eq? (conn-spec c) sp))
+                        (detach! b)
+                        (buffer-local-set! b 'lsp-tried #f)
+                        (attach! b))))))
+              (buffers))
+    (stop-unused!))
+
+  (define (project-unloaded! root)
+    (set! specs (remp (lambda (s) (equal? (spec-scope s) root)) specs))
+    (for-each (lambda (c)
+                (unless (memq (conn-spec c) specs)
+                  (for-each (lambda (b) (detach! b) (buffer-local-set! b 'lsp-tried #f)) (conn-buffers c))))
+              conns))
+
+  ;; Servers left with no buffers, whose definition is gone, stop.
+  (define (stop-unused!)
+    (for-each (lambda (c) (when (and (null? (conn-buffers c)) (not (memq (conn-spec c) specs))) (stop-conn! c)))
+              conns))
 
   ;; ---------------------------------------------------------------------------
   ;; The status line: the server, its progress, and the diagnostics' count.
@@ -1000,7 +1160,7 @@
 
   (at-load
    (for-each
-    (lambda (s) (apply define-lsp-server! s))
+    (lambda (s) (define-lsp-server! (car s) (cadr s) (caddr s) 'roots (cadddr s)))
     (reverse
      '((clangd ("clangd") ("c" "h" "cc" "cpp" "cxx" "hpp" "hh" "hxx")
                ("compile_commands.json" "compile_flags.txt" ".clangd" ".git"))
@@ -1014,6 +1174,9 @@
        (bash-language-server ("bash-language-server" "start") ("sh" "bash") (".git"))
        (nixd ("nixd") ("nix") ("flake.nix" ".git"))
        (lean ("lake" "serve") ("lean") ("lakefile.lean" "lakefile.toml" "lean-toolchain")))))
+   (add-hook! 'project-load-hook project-loaded!)
+   (add-hook! 'project-declined-hook project-loaded!)
+   (add-hook! 'project-unload-hook project-unloaded!)
    (for-each define-selection-mode!
              (list (diagnostic-mode 'diagnostic "DIAGNOSTIC" (diagnostic-filter 'diagnostic))
                    (diagnostic-mode 'diagnostic-error "ERROR" (diagnostic-filter 'diagnostic-error))

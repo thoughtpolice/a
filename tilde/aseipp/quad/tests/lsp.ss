@@ -47,7 +47,7 @@
 (write-file! "a.fake" "def top\n  def inner\nfoo = 1\n😀 bad meh foo\nprint(foo)   \n")
 (write-file! "b.fake" "use foo\n")
 
-(define-lsp-server! 'fake (list (quad-self-path) "-q" "--batch" (path-join here "lsp-server.ss")) '("fake") '(".fakeroot"))
+(define-lsp-server! 'fake (list (quad-self-path) "-q" "--batch" (path-join here "lsp-server.ss")) '("fake") 'roots '(".fakeroot"))
 (headless-start! 30 100)
 (define a (open-file! (path-join work "a.fake")))
 (define b (open-file! (path-join work "b.fake")))

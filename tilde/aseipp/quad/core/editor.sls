@@ -275,6 +275,8 @@
   (define-variable legend-delay 300 "Milliseconds before a momentary layer shows its keys.")
   (define-variable line-numbers 'absolute "Gutter line numbers: absolute, relative or #f.")
   (define-variable show-whitespace #f "Draw tabs and trailing spaces.")
+  (define-variable trim-trailing-whitespace #f "Remove spaces and tabs at the ends of lines when saving.")
+  (define-variable trim-final-newlines #f "Remove newlines after the last one at the end when saving.")
   (define-variable cursorline #t "Highlight the line of the primary selection.")
   (define-variable system-clipboard #t "Copy to the client's system clipboard too.")
 
@@ -481,11 +483,15 @@
 
   ;; Visit a file, reusing its buffer if it is open; a missing file makes an
   ;; empty buffer that saving creates.
+  ;; The buffer visiting path, opened if need be: before-open-file-hook
+  ;; runs with the path first (projects load their configuration then),
+  ;; find-file-hook with the new buffer after.
   (define (open-file! path)
     (let* ([path (absolute-path (expand-home path))]
            [existing (find (lambda (b) (equal? (buffer-path b) path)) the-buffers)])
       (or existing
-          (let* ([contents (if (file-exists? path) (read-file-string path) "")]
+          (let* ([_ (run-hooks 'before-open-file-hook path)]
+                 [contents (if (file-exists? path) (read-file-string path) "")]
                  [mode (major-mode-for-path path)]
                  [b (make-buffer (unique-name (path-basename path)) path contents mode)])
             (buffer-local-set! b 'mtime (and (file-exists? path) (file-modification-time path)))
@@ -500,12 +506,38 @@
      [(b path)
       (unless path (errorf 'save-buffer! "buffer ~a has no file" (buffer-name b)))
       (run-hooks 'before-save-hook b)
+      (trim-whitespace! b)
       (write-file-string path (buffer-string b))
       (buffer-path-set! b path)
       (buffer-mark-saved! b)
       (buffer-local-set! b 'mtime (file-modification-time path))
       (run-hooks 'after-save-hook b)
       (message "Wrote ~a (~a lines)" (buffer-display-name b) (text-line-count (buffer-text b)))]))
+
+;; What trim-trailing-whitespace and trim-final-newlines ask of a buffer
+  ;; being saved, as one undo step.
+  (define (trim-whitespace! b)
+    (let* ([t (buffer-text b)] [n (text-length t)]
+           [lines (if (get-var 'trim-trailing-whitespace b)
+                      (let loop ([l (- (text-line-count t) 1)] [acc '()])
+                        (if (< l 0)
+                            acc
+                            (let* ([s (text-line-start t l)] [e (text-line-end t l)]
+                                   [k (let back ([i e]) (if (and (> i s) (memv (text-ref t (- i 1)) '(#\space #\tab))) (back (- i 1)) i))])
+                              (loop (- l 1) (if (< k e) (cons (list k e "") acc) acc)))))
+                      '())]
+           [end (if (get-var 'trim-final-newlines b)
+                    ;; At most one newline at the end.
+                    (let back ([i n]) (if (and (> i 1) (char=? (text-ref t (- i 1)) #\newline) (char=? (text-ref t (- i 2)) #\newline))
+                                          (back (- i 1))
+                                          i))
+                    n)]
+           [lines (filter (lambda (c) (< (car c) end)) lines)]
+           [changes (if (< end n) (append lines (list (list end n ""))) lines)])
+      (unless (null? changes)
+        (buffer-begin-group! b)
+        (buffer-edit! b changes)
+        (buffer-end-group! b))))
 
   ;; Kill buffer b: every client showing it moves to the buffer it saw most
   ;; recently (a fresh *scratch* if none is left).

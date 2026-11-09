@@ -192,11 +192,50 @@ count in the status line; landing on one shows its message.
 | `ctrl+space` | (insert mode) complete: a menu at the cursor, narrowed as you type |
 
 `lsp-restart`, `lsp-stop`, `lsp-info` and `lsp-log` are in the command
-palette. Another server is a line in the init file:
+palette. Another server is a line in the init file, or a project's:
 
 ```scheme
-(define-lsp-server! 'ocamllsp '("ocamllsp") '("ml" "mli") '("dune-project" ".git"))
+(define-lsp-server! 'ocamllsp '("ocamllsp") '("ml" "mli") 'roots '("dune-project" ".git"))
+(define-lsp-server! 'gopls '("gopls") '("go") 'root "/src/repo"
+  'config '((directoryFilters . #("-buck-out"))))   ; its settings, as Helix's `config`
+(lsp-servers-from-json "servers.json")              ; Claude Code's LSP plugin format
 ```
+
+A server a project defines is for that project's files, ahead of the
+others, and goes when the project reloads. quad tells a server of the files
+it saves that match the globs it asks to watch, as rust-analyzer does for
+`BUILD` files.
+
+## Projects
+
+A directory with a `.quad/init.ss` is a project: opening a file in it (or
+starting quad there) loads that configuration, for the project's files,
+after your own. Projects nest; the inner one's settings come last. It runs
+with all of quad in scope, and can also say:
+
+```scheme
+(project-root)                    ; this project's directory
+(project-path "buck/tool")        ; a path in it
+(project-set! 'tab-width 4)       ; a variable, for the project's buffers
+(project-buffer-hook! proc)       ; (proc buffer) for each of its buffers
+(project-add-hook! 'hook proc)    ; add-hook!, undone when it reloads
+```
+
+That is code from a repository, so quad asks before running it, as Helix
+and VS Code do. You can trust it, read it first, or have an AI review it
+first: Codex reads `.quad/` without any tools, as a single model sample
+(`thread/sample`) that can run nothing, the code fenced by a random marker
+it cannot forge, in a thread started outside the repository and deleted
+after. The verdict is advice, shown with the question; the code could be
+written to mislead its reader. Trust is kept by a hash of `.quad/`, in
+`$XDG_STATE_HOME/quad/trusted`, so any change asks again. `project-trust`,
+`project-reload`, `project-forget` and `project-info` are commands; `quad
+-q` loads no project. This repository's own `.quad/init.ss` runs the
+language servers through Buck, from the same file Claude Code's plugin
+uses, and trims whitespace on save as `.helix/` has it.
+
+`trim-trailing-whitespace` and `trim-final-newlines` are variables of
+their own, for any buffer.
 
 ## The kernel
 
@@ -270,6 +309,7 @@ in `BUILD` gives an extension files to include as it compiles).
 | `core/json.sls`, `core/jsonrpc.sls` | JSON, and JSON-RPC with a subprocess |
 | `core/term.sls`, `core/tui.sls` | the terminal client: input decoding, painting, in-process or over a socket |
 | `core/face.sls` | faces and themes (the default is Helix's purple) |
+| `core/project.sls` | projects: `.quad/` configuration, trust, review |
 | `core/main.sls` | the command line, `--build-exe`, headless clients for testing |
 | `ext/*.sls` | the built-in extensions |
 

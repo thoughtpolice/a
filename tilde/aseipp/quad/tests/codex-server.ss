@@ -11,6 +11,10 @@
 ;; the agent and MCP servers can ask: a question, a form, a link and more
 ;; permissions. The turn's last message holds, as JSON after "RESULTS ",
 ;; what quad answered.
+;;
+;; A thread started without tools is a review's: its turn says "ready",
+;; and thread/sample answers with a verdict that reports what the review
+;; was given, for codex.ss and project.ss to check.
 
 (define (send! v)
   (display (json->string v))
@@ -26,6 +30,11 @@
 (define cwd #f)
 (define tools '())
 (define instructions "")
+(define reviews 0)
+(define review-params '())
+(define review-input #f)
+(define injected #f)
+(define deleted '())
 (define config '())
 
 (define (reply id result) (send! `((id . ,id) (result . ,result))))
@@ -119,6 +128,39 @@
      [(equal? method "initialize")
       (reply id `((userAgent . "fake/0") (codexHome . "/nonexistent") (platformFamily . "unix")
                   (platformOs . "linux")))]
+     [(and (equal? method "thread/start") (not (json-ref params 'dynamicTools)))
+      (set! reviews (+ reviews 1))
+      (let ([t (format "review-~a" reviews)])
+        (set! review-params params)
+        (reply id `((thread . ((id . ,t) (cwd . ,(json-ref params 'cwd)))))))]
+     [(and (equal? method "turn/start") (string-prefix? "review-" (json-ref params 'threadId)))
+      (let ([t (json-ref params 'threadId)])
+        (set! review-input (json-ref params 'input 0 'text))
+        (reply id `((turn . ((id . "review-turn") (status . "inProgress") (items . #())))))
+        (send! `((method . "turn/completed")
+                 (params . ((threadId . ,t) (turn . ((id . "review-turn") (status . "completed"))))))))]
+     [(equal? method "thread/inject_items")
+      (set! injected (json-ref params 'items 0 'content 0 'text))
+      (reply id '())]
+     [(equal? method "thread/sample")
+      (let* ([prompt (json-ref params 'prompt)]
+             [marker (let ([i (string-contains prompt "BEGIN-")])
+                       (and i (substring prompt (+ i 6) (+ i 6 64))))]
+             [material (or injected "")]
+             [p review-params])
+        (reply id `((sourceTurnId . ,(json-ref params 'expectedTurnId)) (responseId . "r")
+                    (text . ,(format "VERDICT: CAUTION - it runs make~%- after turn ~a~%- tools: ~a; approvals: ~a; sandbox: ~a; ephemeral: ~a~%- in the project: ~a; warm-up: ~a~%- fenced: ~a; has the code: ~a"
+                                     (json-ref params 'expectedTurnId)
+                                     (if (json-ref p 'dynamicTools) "some" "none")
+                                     (json-ref p 'approvalPolicy) (json-ref p 'sandbox) (json-ref p 'ephemeral)
+                                     (and (getenv "QUAD_PROJECT_DIR") (string-prefix? (getenv "QUAD_PROJECT_DIR") (json-ref p 'cwd)))
+                                     review-input
+                                     (and marker (< (bytevector-length (string->utf8 prompt)) 4000)
+                                          (string-contains material (string-append "BEGIN-" marker))
+                                          (string-contains material (string-append "END-" marker)) #t)
+                                     (and (string-contains material "project-set!") (not (string-contains prompt "project-set!")) #t))))))]
+     [(equal? method "thread/delete") (set! deleted (cons (json-ref params 'threadId) deleted)) (reply id '())]
+     [(equal? method "test/deleted") (reply id (list->vector deleted))]
      [(equal? method "thread/start")
       (set! cwd (json-ref params 'cwd))
       (set! instructions (json-ref params 'developerInstructions))

@@ -17,14 +17,14 @@
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
           (quad syntax) (quad buffer) (quad selection) (quad editor)
           (quad commands) (quad display) (chez embed) (quad kernel)
-          (quad protocol) (quad grid) (quad server) (quad tui))
+          (quad protocol) (quad grid) (quad server) (quad tui) (quad project))
 
   (define quad-version "0.1.0")
 
   (define usage
     "usage: quad [options] [+LINE] [file ...]
 
-  -q, --no-init        don't load the init file
+  -q, --no-init        don't load the init file, or any project's
   --listen[=PATH]      also accept clients on the Unix socket PATH
   --daemon             run without a terminal, for clients; implies --listen
   --connect[=PATH]     be a client of the editor listening at PATH
@@ -47,11 +47,19 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
   ;; Setup
 
   ;; The buffers every editor starts with, and the files asked for; the
-  ;; first file (or *scratch*) is what new clients show.
-  (define (editor-init! files)
+  ;; first file (or *scratch*) is what new clients show. setup runs before
+  ;; the files open (the init file, the working directory's project), so
+  ;; that what it sets up applies to them too.
+  (define editor-init!
+    (case-lambda
+     [(files) (editor-init! files void)]
+     [(files setup) (editor-setup! files setup)]))
+
+  (define (editor-setup! files setup)
     (let ([m (new-buffer! "*Messages*" "" fundamental-mode)])
       (buffer-read-only?-set! m #t)
       (set-messages-buffer! m))
+    (setup)
     (let ([opened (map open-file! files)])
       (set-current-buffer!
        (if (pair? opened)
@@ -78,9 +86,14 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
 
   ;; The editor with this terminal attached; with the tutor shown, if
   ;; tutor? (and the editor has one).
+  (define (configure! init?)
+    (lambda ()
+      (if init?
+          (begin (load-init-file! (init-file-path)) (project-visit! (current-directory)))
+          (set-var! 'project-config #f))))
+
   (define (interactive! files line init? listen tutor?)
-    (editor-init! files)
-    (when init? (load-init-file! (init-file-path)))
+    (editor-init! files (configure! init?))
     (when listen (server-listen! listen))
     (let ([c (tui-attach!)])
       (when line (with-client c (lambda () (run-command (lambda () (goto-line! line))))))
@@ -95,8 +108,7 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
   ;; The editor with no terminal, for clients to connect to.
   (define (daemon! files init? listen)
     (editor-daemon?-set! #t)
-    (editor-init! files)
-    (when init? (load-init-file! (init-file-path)))
+    (editor-init! files (configure! init?))
     (server-listen! listen)
     (printf "quad: listening at ~a\n" listen)
     (flush-output-port (current-output-port))
@@ -302,8 +314,7 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
           (cond
            [(and expr connect) (remote-eval! connect expr)]
            [expr
-            (editor-init! files)
-            (when init? (load-init-file! (init-file-path)))
+            (editor-init! files (configure! init?))
             (let ([v (eval-string expr)])
               (unless (eq? v (void)) (write v) (newline))
               0)]
@@ -323,6 +334,7 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
        [(and (string=? (car args) "--eval") (pair? (cdr args)))
         (loop (cddr args) files line init? listen daemon? connect (cadr args))]
        [(and (string=? (car args) "--batch") (pair? (cdr args)))
+        (unless init? (set-var! 'project-config #f))
         (batch! (cadr args))]
        [(string=? (car args) "--repl")
         (editor-init! '())
