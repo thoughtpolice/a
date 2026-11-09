@@ -8,7 +8,9 @@
 //! ([`Protocol::join`]); the host proves it back ([`Protocol::admit`]).
 //! Every later stream of the connection is the application's: the host
 //! takes them as members open them ([`Protocol::serve`]), and what they
-//! carry is up to it. (gonzo's mesh crate runs gRPC over them.)
+//! carry is up to it. (gonzo's mesh crate runs gRPC over them.) So are the
+//! connection's datagrams: each stream names the connection it came on
+//! ([`Stream::connection`]).
 //!
 //! A member finds the host by a [`JoinTicket`], which carries the host's
 //! ID, its addresses and its join key, or by the host's six-word

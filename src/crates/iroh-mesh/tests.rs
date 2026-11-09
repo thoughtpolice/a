@@ -194,6 +194,30 @@ async fn joined_members_reach_the_hosts_streams() {
     assert_eq!(echo(&again, b"three").await.expect("echo"), b"three");
 }
 
+/// The host reaches a member's connection through the streams it opens:
+/// datagrams go both ways on it, beside the streams.
+#[tokio::test]
+async fn a_stream_carries_its_members_connection_for_datagrams() {
+    use accept::Accept as _;
+    let (host, member) = (endpoint(true).await, endpoint(false).await);
+    let key = JoinKey::generate();
+    let mut streams = PROTOCOL.serve(host.clone(), vec![key.clone()]);
+    let conn = connect_again(&member, &host, &key).await;
+    // A stream reaches the host once something is sent on it.
+    let (mut send, _recv) = conn.open_bi().await.expect("open");
+    send.write_all(b"hello").await.expect("write");
+    let stream = streams.accept().await.expect("accept").expect("a stream");
+    assert_eq!(stream.connection().remote_id(), member.id());
+    conn.send_datagram(b"up"[..].into()).expect("send up");
+    let up = stream.connection().read_datagram().await.expect("read up");
+    assert_eq!(&up[..], b"up");
+    stream
+        .connection()
+        .send_datagram(b"down"[..].into())
+        .expect("send down");
+    assert_eq!(&conn.read_datagram().await.expect("read down")[..], b"down");
+}
+
 async fn connect_again(member: &Endpoint, host: &Endpoint, key: &JoinKey) -> Connection {
     let conn = member
         .connect(iroh_utils::dialable_addr(host), PROTOCOL.alpn)

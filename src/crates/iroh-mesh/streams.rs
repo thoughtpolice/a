@@ -6,16 +6,59 @@
 //! application's, to carry what it likes (gonzo's workers carry one HTTP/2
 //! connection each, for gRPC; quad's clients the editor's protocol).
 
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
-use iroh::endpoint::{QuicTransportConfig, RecvStream, SendStream, VarInt};
+use iroh::endpoint::{Connection, QuicTransportConfig, RecvStream, SendStream, VarInt};
 use iroh::{Endpoint, SecretKey};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::Protocol;
 use crate::keys::JoinKey;
 
-/// A stream a joined member opened, both ways.
-pub type Stream = tokio::io::Join<RecvStream, SendStream>;
+/// A stream a joined member opened, both ways, and the connection it came
+/// on: for what else the application sends that member besides streams
+/// (datagrams, say).
+pub struct Stream {
+    io: tokio::io::Join<RecvStream, SendStream>,
+    connection: Connection,
+}
+
+impl Stream {
+    /// The member's connection, which this stream is one of.
+    pub fn connection(&self) -> &Connection {
+        &self.connection
+    }
+}
+
+impl AsyncRead for Stream {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.io).poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for Stream {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        Pin::new(&mut self.io).poll_write(cx, buf)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.io).poll_flush(cx)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.io).poll_shutdown(cx)
+    }
+}
 
 /// How endpoints of a mesh use QUIC.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -121,7 +164,11 @@ impl Protocol {
                     }
                     tracing::info!(%member, role = protocol.member, "a member joined");
                     while let Ok((send, recv)) = conn.accept_bi().await {
-                        if streams.send(tokio::io::join(recv, send)).await.is_err() {
+                        let stream = Stream {
+                            io: tokio::io::join(recv, send),
+                            connection: conn.clone(),
+                        };
+                        if streams.send(stream).await.is_err() {
                             conn.close(VarInt::from_u32(0), b"the host is stopping");
                             return;
                         }
