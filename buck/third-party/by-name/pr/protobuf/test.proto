@@ -1,0 +1,17 @@
+// SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto2";
+
+package depot.protobuf_test;
+
+message Section {
+  optional string name = 1;
+  optional uint64 size = 2;
+}
+
+message Report {
+  optional string file = 1;
+  repeated Section sections = 2;
+  map<string, int64> totals = 3;
+}

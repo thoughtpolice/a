@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "OsvGitRepoInfo", "pkg")
+
+# The 31.1 release (C++ runtime 6.31.1), which bloaty (by-name/bl/bloaty)
+# pins as a submodule.
+GIT_COMMIT = "74211c0dfc2777318ab53c2cd2c317a2ef9012de"
+
+pkg.info(
+    version = "31.1",
+    description = "Protocol Buffers: the C++ runtime and the protoc compiler",
+    license = "BSD-3-Clause AND MIT",
+    copyright = [
+        "2008-2026 Google Inc.",
+        "2019 Yibo Cai",
+    ],
+    visibility = ["PUBLIC"],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/protocolbuffers/protobuf",
+        commit = GIT_COMMIT,
+    ),
+)
