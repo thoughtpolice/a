@@ -102,15 +102,8 @@
   (define (clip s n)
     (if (> (string-length s) n) (string-append (substring s 0 n) "…") s))
 
-  ;; The client things happen as: the one that asked, while it is here.
-  (define (asking-client)
-    (cond [(and turn-client (memq turn-client (clients))) turn-client]
-          [(pair? (clients)) (car (clients))]
-          [else #f]))
-
-  (define (as-asker thunk)
-    (let ([c (asking-client)])
-      (if c (with-client c thunk) (thunk))))
+  ;; Things happen as the client that asked, while it is here.
+  (define (as-asker thunk) (with-client-or-any turn-client thunk))
 
   ;; ---------------------------------------------------------------------------
   ;; The popup
@@ -629,7 +622,7 @@ commands to use it."
   (define open-ask #f)          ; the id of the one being asked
   (define our-prompt #f)        ; the prompt it has open
 
-  (define (ask! id label answer)
+  (define (queue-ask! id label answer)
     (set! asks (append asks (list (list id label answer))))
     (as-asker (lambda () (unless (current-prompt) (codex-answer!)))))
 
@@ -892,7 +885,7 @@ commands to use it."
      [(string=? method "item/commandExecution/requestApproval")
       (let ([cmd (or (json-ref params 'command) "a command")] [why (json-ref params 'reason)])
         (add-entry! 'approval (format "? run ~a~a" cmd (if why (format " (~a)" why) "")) 'warning)
-        (ask! id "a command"
+        (queue-ask! id "a command"
               (approval (string-append "Run " (clip cmd 60) "?")
                         (paragraphs (string-append "$ " cmd)
                                     (let ([cwd (json-ref params 'cwd)]) (and cwd (string-append "in " cwd)))
@@ -901,20 +894,20 @@ commands to use it."
       (let* ([e (hashtable-ref items (or (json-ref params 'itemId) "") #f)]
              [what (if e (entry-text e) "files")])
         (add-entry! 'approval (format "? change ~a" what) 'warning)
-        (ask! id "file changes" (approval "Make these changes?" (paragraphs what (json-ref params 'reason)))))]
+        (queue-ask! id "file changes" (approval "Make these changes?" (paragraphs what (json-ref params 'reason)))))]
      [(string=? method "item/tool/requestUserInput")
       (let ([qs (vector->list (or (json-ref params 'questions) '#()))])
         (for-each (lambda (q) (add-entry! 'question (format "? ~a" (or (json-ref q 'question) "")) 'warning)) qs)
-        (ask! id "a question" (user-input-answer qs)))]
+        (queue-ask! id "a question" (user-input-answer qs)))]
      [(string=? method "mcpServer/elicitation/request")
       (add-entry! 'question (format "? ~a: ~a" (or (json-ref params 'serverName) "an MCP server")
                                     (or (json-ref params 'message) (json-ref params 'title) "asks"))
                   'warning)
-      (ask! id "an MCP server" (elicitation-answer params))]
+      (queue-ask! id "an MCP server" (elicitation-answer params))]
      [(string=? method "item/permissions/requestApproval")
       (let ([perms (or (json-ref params 'permissions) '())])
         (add-entry! 'approval (format "? more permissions: ~a" (describe-permissions perms)) 'warning)
-        (ask! id "permissions" (permissions-answer perms (json-ref params 'reason))))]
+        (queue-ask! id "permissions" (permissions-answer perms (json-ref params 'reason))))]
      [else (jsonrpc-reply-error! rpc id -32601 (format "quad does not handle ~a" method))]))
 
   ;; ---------------------------------------------------------------------------

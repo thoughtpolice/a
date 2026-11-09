@@ -99,6 +99,38 @@ The server's loop (`core/server.sls`) polls descriptors through the kernel
   the editor announces itself on the mainline DHT under its code, so the
   code alone finds it. Nothing else in Scheme changes.
 
+## Voice
+
+People attached over iroh can talk (`ext/voice.sls`, `space j a`; `space
+j m` mutes). Speech goes beside the protocol, not in it: a frame (20 ms
+of Opus, `third-party//by-name/op/opus`) per QUIC datagram, on the
+connection the client already has, since a reliable stream would hold
+every later frame up behind a lost one. The editor is the hub: it sends
+each client's frames on, unchanged but for the speaker number it gives
+that client, to everyone else in voice, and plays them itself if its own
+person is in voice. Each process that plays puts each voice back in order
+in a jitter buffer of two to six frames, makes up a lost frame from the
+next one's redundancy (in-band FEC) or conceals it, and sums the voices
+(`kernel/voice/`). A datagram is version 1, the speaker (0 the editor's
+own person), a 16-bit frame number and the Opus packet; in silence
+nothing is sent (DTX).
+
+The protocol only says who is in voice. `["voice", mode]` tells a client
+over iroh to put its connection in voice (`"on"`, `"muted"`) or out
+(`"off"`), and to open the microphone and speakers of the process its
+person is at; what fails comes back as `["voice", "failed", why]`.
+Clients on the editor's own machine get no message: the editor's process
+makes their sound itself. The microphone is open only while someone at
+the process is in voice and not muted, and a window that switches to
+another editor (`core/relay.sls`) leaves voice in this one first, as its
+speech would otherwise go to both. Sound goes through the desktop's
+sound server with PulseAudio's simple API (`libpulse-simple.so.0`, which
+PipeWire serves), loaded when voice starts, as Vulkan is when a window
+opens; each stream shows in the desktop's mixer as quad's.
+`QUAD_VOICE_INPUT` and `QUAD_VOICE_OUTPUT` name files of raw samples to
+use instead, for tests. There is no echo cancellation yet: use headphones,
+or mute.
+
 ## The protocol
 
 Messages are lists whose first element is a string naming them. Over a
@@ -124,6 +156,7 @@ encodings.
 | `["redraw"]` | send the whole screen again |
 | `["open", path, line]` | visit a file (absolute path), at a line or false |
 | `["eval", id, expression]` | evaluate Scheme as this client; answered by `result` |
+| `["voice", "failed", why]` | the client could not do what `voice` said (see Voice) |
 | `["detach"]` | leave |
 
 ### Server to client
@@ -144,6 +177,7 @@ encodings.
 | `["title", text]`, `["cwd", path]`, `["pointer", shape]`, `["bell"]` | window title, working directory, mouse pointer (a CSS cursor name), bell |
 | `["suspend"]` | stop the client's process (a terminal's `^Z`), then redraw |
 | `["open-url", url]` | open the URL on the client's machine (`open-url` capability) |
+| `["voice", mode]` | put this client's iroh connection in voice, with its person's microphone and speakers (`"on"`, `"muted"`), or out (`"off"`) (`voice` capability) |
 | `["result", id, ok, text]` | the answer to `eval`: the value written, or the error |
 | `["bye", reason]` | the server is done with this client |
 
@@ -159,6 +193,7 @@ encodings.
 | `scroll` | it moves rows itself (`scroll`), so that scrolling sends only the rows scrolled in |
 | `open-url` | it can open URLs for its user (it runs in their desktop session) |
 | `images` | it draws images (`image`, `images`): a window, or a terminal that speaks kitty's graphics protocol |
+| `voice` | its process can make its person's sound in voice (`voice`) |
 
 ## A graphical client
 
@@ -181,7 +216,13 @@ a flush sends it only the rows that changed, and scrolls move the rest,
 so a frame costs about what changed; where the driver can
 (`VK_KHR_incremental_present`), the compositor is told which rows those
 were, and redraws only them. The window is the Rust half's (`kernel/gui/`): winit's, on
-Wayland or X11, drawn with Vulkan 1.3 through ash. Every window of a
+Wayland or X11, drawn with Vulkan 1.3 through ash. Vulkan is called in
+one module alone (`kernel/render/vulkan.rs`): its types own Vulkan's
+objects, each holding what it was made from (instance, device, surface,
+window) so none outlives it, and destroying itself when dropped; mapped
+memory is written only by a frame whose commands are done, and read only
+when the device is idle. Each `unsafe` call there says why it holds, and
+the rest of the renderer is safe code. Every window of a
 process runs on one thread, with one event loop, and draws with one Vulkan
 device; `new-window` (`space j w`) opens another onto the same editor, from
 a window or a terminal, each a client of its own (with its own size, and
@@ -219,9 +260,9 @@ Linux.
 Nothing links against Vulkan or the window system: `libvulkan.so.1`,
 `libwayland-client` and `libX11` are loaded when a window opens. They
 are the host's, and so is the GPU driver they load, which cannot load
-into a process on the toolchain's C library: `:quad-host` is quad on the
-host's dynamic linker and libraries (`host` on `chez.standalone`), and
-`--gui` needs it. `QUAD_VULKAN_VALIDATION=1` turns on the Khronos
+into a process on the toolchain's C library: on Linux, `:quad` runs on
+the host's dynamic linker and libraries (`host` on `chez.standalone`),
+which `--gui` needs. `QUAD_VULKAN_VALIDATION=1` turns on the Khronos
 validation layer, where it is installed; `QUAD_GUI_X11=1` asks for X11;
 `QUAD_GUI_DEVICE=NAME` picks the Vulkan device whose name has NAME in it;
 `QUAD_GUI_SNAPSHOT=FILE` writes each frame the window presents to FILE, as

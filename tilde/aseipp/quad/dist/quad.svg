@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: © 2024-2026 Austin Seipp -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- quad's icon: a "q" and a block cursor, in the default theme's colors. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#3b224c"/>
+  <g fill="none" stroke="#dbbfef" stroke-width="6" stroke-linecap="round">
+    <circle cx="25" cy="28" r="10"/>
+    <path d="M35 19v29"/>
+  </g>
+  <rect x="42" y="36" width="10" height="16" rx="1.5" fill="#ffffff"/>
+</svg>

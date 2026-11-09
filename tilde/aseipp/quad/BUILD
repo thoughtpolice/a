@@ -16,10 +16,11 @@
 # boot file, the standalone executable.
 #
 #   buck2 run depot-tilde//aseipp/quad:quad -- FILE    edit FILE
+#   buck2 install depot-tilde//aseipp/quad:quad        install it, in ~/.local
 #   :quad                                              the standalone executable
-#   :quad-host                                         on the host's C library, with --gui
 #   :quad-custom                                       one with extra code compiled in
 
+load("@root//buck/installers:defs.bzl", "installable")
 load("@root//buck/shims:shims.bzl", "shims")
 load("@toolchains//chez:defs.bzl", "chez")
 load(":defs.bzl", "quad_executable", "slang_shader")
@@ -37,6 +38,10 @@ EXTENSIONS = {
     "people": [],
     "shell": [],
     "tutor": [],
+    "voice": [
+        ":native",
+        ":ext-people",
+    ],
 }
 
 # Files beside an extension's source that it includes as it compiles.
@@ -54,6 +59,7 @@ EXTENSION_ORDER = [
     "codex",
     "lsp",
     "people",
+    "voice",
     "tutor",
 ]
 
@@ -68,15 +74,20 @@ KERNEL_RS_DEPS = [
     "root//src/crates/iroh-mesh:iroh-mesh",
     "third-party//rust:ash",
     "third-party//rust:blake3",
+    "third-party//rust:bytes",
     "third-party//rust:fontique",
     "third-party//rust:futures",
     "third-party//rust:harfrust",
+    "third-party//rust:iroh",
+    "third-party//rust:libc",
     "third-party//rust:png",
     "third-party//rust:skrifa",
     "third-party//rust:smithay-clipboard",
     "third-party//rust:tokio",
     "third-party//rust:unicode-width",
     "third-party//rust:winit",
+    # Voice's codec (kernel/voice/opus.rs).
+    "third-party//by-name/op/opus:opus",
 ]
 
 KERNEL_RS_SRCS = [
@@ -98,10 +109,15 @@ KERNEL_RS_SRCS = [
     "kernel/render/gpu.rs",
     "kernel/render/headless.rs",
     "kernel/render/mod.rs",
+    "kernel/render/vulkan.rs",
     "kernel/render/window.rs",
     "kernel/screen.rs",
     "kernel/slug.rs",
     "kernel/timing.rs",
+    "kernel/voice/mix.rs",
+    "kernel/voice/mod.rs",
+    "kernel/voice/opus.rs",
+    "kernel/voice/pulse.rs",
 ]
 
 # The GUI's shaders (kernel/gui.slang): a vertex and a fragment shader for
@@ -270,24 +286,31 @@ chez.boot(
 )
 
 # The kernel with the boot files appended: a single executable that needs
-# nothing else at run time.
+# nothing else at run time but, on Linux, the host's C library (glibc and
+# libstdc++ at least as new as the toolchain's) in place of the
+# toolchain's, since the host's Vulkan loader and GPU driver load into it
+# for --gui.
 chez.standalone(
-    name = "quad",
-    boots = [":boot"],
-    kernel = ":kernel",
-)
-
-# The same editor, on the host's C library (glibc and libstdc++ at least as
-# new as the toolchain's) in place of the toolchain's: the one to hand out,
-# and the one --gui works in, since the host's Vulkan loader and GPU driver
-# load into it.
-#
-#   buck2 run depot-tilde//aseipp/quad:quad-host -- --gui FILE
-chez.standalone(
-    name = "quad-host",
+    name = "quad-exe",
+    out = "quad",
     boots = [":boot"],
     host = True,
     kernel = ":kernel",
+)
+
+# The executable, which `buck2 install` puts in ~/.local (the installer's
+# --prefix names another place) with its desktop entry and icon (dist/).
+#
+#   buck2 install -m release depot-tilde//aseipp/quad:quad
+installable(
+    name = "quad",
+    files = {
+        "bin/quad": ":quad-exe",
+        "share/applications/quad.desktop": "dist/quad.desktop",
+        "share/icons/hicolor/scalable/apps/quad.svg": "dist/quad.svg",
+    },
+    installer = "root//buck/installers/prefix:prefix",
+    main = ":quad-exe",
 )
 
 # An example of a configured editor, built with quad itself.
@@ -353,7 +376,7 @@ shims.command(
 shims.dynamic_test(
     name = "test-gui-render",
     args = [
-        "$(exe :quad-host)",
+        "$(exe :quad)",
         "$(location :tests)/tests",
     ],
     dep = ":gui-render",
@@ -364,7 +387,7 @@ shims.dynamic_test(
 shims.dynamic_test(
     name = "test-golden",
     args = [
-        "$(exe :quad-host)",
+        "$(exe :quad)",
         "$(location :tests)/tests",
         "golden",
     ],
@@ -507,6 +530,33 @@ shims.command_test(
         again=`sed -n 's/.*the ticket: quad --connect=//p' $dir/daemon2.log`
         test -n "$again" && test "$again" != "$ticket"
         test "`QUAD_SOCKET=$dir/none $quad --connect=$again --eval '(+ 2 2)'`" = 4
+        $quad --connect --eval '(editor-quit!)' > /dev/null
+        wait $daemon
+    """,
+)
+
+# Voice: for this editor's own people, who leave it to switch to another
+# editor (tests/voice.ss), then between a daemon and a client over iroh,
+# both ways (tests/voice-link.ss). Files stand in for microphones and
+# speakers.
+shims.command_test(
+    name = "test-voice",
+    script = """
+        quad=$(exe :quad)
+        dir=`mktemp -d /tmp/quad-test.XXXXXX`
+        trap 'kill $daemon 2>/dev/null || true; rm -rf "$dir"' EXIT
+        export QUAD_SOCKET=$dir/quad.sock QUAD_MESH_LOCAL=1 HOME=$dir XDG_CONFIG_HOME=$dir/config XDG_STATE_HOME=$dir/state
+        QUAD_VOICE_INPUT=$dir/host-in.raw QUAD_VOICE_OUTPUT=$dir/host-out.raw \
+            $quad -q --daemon --mesh > $dir/daemon.log 2>&1 &
+        daemon=$!
+        for i in `seq 200`; do grep -q "the ticket" $dir/daemon.log && break; sleep 0.05; done
+
+        QUAD_VOICE_INPUT=$dir/local-in.raw QUAD_VOICE_OUTPUT=$dir/local-out.raw \
+            $quad -q --batch $(location :tests)/tests/voice.ss
+        export QUAD_TICKET=`sed -n 's/.*the ticket: quad --connect=//p' $dir/daemon.log`
+        test -n "$QUAD_TICKET"
+        QUAD_TEST_DIR=$dir QUAD_VOICE_INPUT=$dir/client-in.raw QUAD_VOICE_OUTPUT=$dir/client-out.raw \
+            $quad -q --batch $(location :tests)/tests/voice-link.ss
         $quad --connect --eval '(editor-quit!)' > /dev/null
         wait $daemon
     """,

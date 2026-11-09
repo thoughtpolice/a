@@ -115,14 +115,19 @@ impl Windows {
         // Shown once AccessKit's adapter is made, as it must be.
         let attributes = Window::default_attributes()
             .with_visible(false)
+            // The app id (Wayland) and class (X11): what launchers and the
+            // compositor match to dist/quad.desktop.
+            .with_name("quad", "quad")
             .with_title(title.clone())
             .with_inner_size(LogicalSize::new(
                 f64::from(size.0) * f64::from(w) + pad,
                 f64::from(size.1) * f64::from(h) + pad,
             ));
-        let window = event_loop
-            .create_window(attributes)
-            .map_err(|e| format!("cannot create a window: {e}"))?;
+        let window = Arc::new(
+            event_loop
+                .create_window(attributes)
+                .map_err(|e| format!("cannot create a window: {e}"))?,
+        );
         timing::mark("window made");
         let access = Access::new(event_loop, &window, self.proxy.clone());
         let renderer = Renderer::new(&window, &mut self.gpu)?;

@@ -99,18 +99,15 @@
         (process-stop! (jsonrpc-process rpc) grace-ms)
         (exited! rpc))]))
 
-  (define read-buffer (make-bytevector 65536))
-
   (define (readable! rpc)
-    (let ([n (kernel-read (process-output-fd (jsonrpc-process rpc)) read-buffer
-                          (bytevector-length read-buffer) 0)])
+    (let ([got (kernel-read-some (process-output-fd (jsonrpc-process rpc)) 0)])
       (cond
-       [(= n -1)
+       [(not got)
         ;; The end: reap it.
         (process-stop! (jsonrpc-process rpc) 1000)
         (exited! rpc)]
-       [(> n 0)
-        (let* ([data (bytevector-append (jsonrpc-partial rpc) (subbytevector read-buffer 0 n))]
+       [(> (bytevector-length got) 0)
+        (let* ([data (bytevector-append (jsonrpc-partial rpc) got)]
                [messages (if (eq? (jsonrpc-framing rpc) 'headers)
                              (split-framed! rpc data)
                              (split-lines! rpc data))])

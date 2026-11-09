@@ -294,15 +294,9 @@
   (define (tty-take-resize! t)
     (and (= 1 (kernel-take-winch)) (begin (refresh-size! t) #t)))
 
-  (define read-buffer (make-bytevector 65536))
-
   (define (read-bytes t timeout-ms)
-    (let ([n (kernel-read (tty-in-fd t) read-buffer (bytevector-length read-buffer) timeout-ms)])
-      (cond
-       [(= n -1) #f]
-       [(<= n 0) '()]
-       [else (let loop ([i (- n 1)] [acc '()])
-               (if (< i 0) acc (loop (- i 1) (cons (bytevector-u8-ref read-buffer i) acc))))])))
+    (let ([got (kernel-read-some (tty-in-fd t) timeout-ms)])
+      (and got (bytevector->u8-list got))))
 
   ;; Read what input is available now and decode it: a list of events, or
   ;; #f at end of input. An incomplete sequence waits for more bytes, or for
@@ -465,7 +459,7 @@
       (put-string (tty-out t) "\x1b;[?2026h\x1b;[?25l"))
     (tty-out t))
 
-;; An OSC sequence: in the frame being painted, or at once (a pointer's
+  ;; An OSC sequence: in the frame being painted, or at once (a pointer's
   ;; shape changes with no frame to follow).
   (define (osc t s)
     (let ([seq (string-append "\x1b;]" s "\x1b;\\")])
@@ -535,64 +529,12 @@
   (define (tty-paint! t msg)
     (let ([out (lambda () (frame-out t))])
       (case (string->symbol (car msg))
-        [(hl)
-         ;; (id fg bg flags underline-color link); protocol 1 had neither.
-         (let* ([args (cdr msg)] [id (car args)] [fg (cadr args)] [bg (caddr args)] [flags (cadddr args)]
-                [more (cddddr args)]
-                [underline-color (and (pair? more) (car more))]
-                [link (and (pair? more) (pair? (cdr more)) (terminal-link (cadr more)))])
-           (hashtable-set! (tty-hls t) id (hl-sgr fg bg flags (tty-truecolor? t) underline-color (tty-kitty? t)))
-           (if link (hashtable-set! (tty-links t) id link) (hashtable-delete! (tty-links t) id)))
-         #t]
+        [(hl) (paint-hl! t (cdr msg)) #t]
         [(grid) (set-link! t (out) #f) (put-string (out) "\x1b;[0m\x1b;[2J") (tty-last-hl-set! t #f) #t]
-        [(line)
-         (let ([row (cadr msg)] [col (caddr msg)] [p (out)])
-           (put-string p (format "\x1b;[~a;~aH" (+ row 1) (+ col 1)))
-           ;; Cells are (text [hl [repeat]]): hl carries over from the cell
-           ;; before, and is only sent to the terminal when it changes.
-           (let loop ([cells (cadddr msg)] [hl #f])
-             (unless (null? cells)
-               (let* ([cell (car cells)]
-                      [text (car cell)]
-                      [new-hl (if (pair? (cdr cell)) (cadr cell) hl)]
-                      [n (if (and (pair? (cdr cell)) (pair? (cddr cell))) (caddr cell) 1)])
-                 (unless (eqv? new-hl (tty-last-hl t))
-                   (put-string p (hashtable-ref (tty-hls t) new-hl "\x1b;[0m"))
-                   (set-link! t p (hashtable-ref (tty-links t) new-hl #f))
-                   (tty-last-hl-set! t new-hl))
-                 ;; "" is the right half of a wide character, already drawn.
-                 (unless (string=? text "")
-                   (do ([i 0 (+ i 1)]) ((= i n)) (put-string p text)))
-                 (loop (cdr cells) new-hl)))))
-         #t]
-        ;; The terminal moves the rows itself: a scroll region, then
-        ;; scrolling up (SU) or down (SD) in it.
-        [(scroll)
-         (let ([top (cadr msg)] [bottom (caddr msg)] [n (cadddr msg)])
-           (set-link! t (out) #f)
-           (put-string (out) (format "\x1b;[0m\x1b;[~a;~ar\x1b;[~a~a\x1b;[r"
-                                     (+ top 1) bottom (abs n) (if (> n 0) "S" "T")))
-           (tty-last-hl-set! t #f))
-         #t]
+        [(line) (paint-line! t (out) (cadr msg) (caddr msg) (cadddr msg)) #t]
+        [(scroll) (paint-scroll! t (out) (cadr msg) (caddr msg) (cadddr msg)) #t]
         [(cursor) (tty-cursor-set! t (and (cadr msg) (cdr msg))) #t]
-        [(flush)
-         (let ([p (out)] [c (tty-cursor t)])
-           (set-link! t p #f)
-           (put-string p "\x1b;[0m")
-           (tty-last-hl-set! t #f)
-           ;; A hidden cursor is still put where it is, for screen readers.
-           (cond
-            [(not c) (put-string p "\x1b;[?25l")]
-            [(string=? (caddr c) "hidden")
-             (put-string p (format "\x1b;[~a;~aH\x1b;[?25l" (+ 1 (car c)) (+ 1 (cadr c))))]
-            [else
-             (put-string p (format "\x1b;[~a;~aH~a\x1b;[?25h" (+ 1 (car c)) (+ 1 (cadr c))
-                                   (case (string->symbol (caddr c))
-                                     [(bar) "\x1b;[6 q"] [(underline) "\x1b;[4 q"] [else "\x1b;[2 q"])))])
-           (put-string p "\x1b;[?2026l")
-           (tty-in-frame?-set! t #f)
-           (write-now t (get-output-string p)))
-         #t]
+        [(flush) (paint-flush! t (out)) #t]
         [(image)
          (when (tty-graphics? t)
            (send-picture! t (out) (cadr msg) (caddr msg) (cadddr msg) (list-ref msg 4)))
@@ -608,6 +550,64 @@
         [(clipboard-get) (osc t (string-append "52;" (cadr msg) ";?")) #t]
         [(bell) (put-string (out) "\a") #t]
         [else #f])))
+
+  ;; A highlight, (id fg bg flags underline-color link), as the escapes
+  ;; that set it (and the link it leads to); protocol 1 had neither of the
+  ;; last two.
+  (define (paint-hl! t args)
+    (let* ([id (car args)] [fg (cadr args)] [bg (caddr args)] [flags (cadddr args)]
+           [more (cddddr args)]
+           [underline-color (and (pair? more) (car more))]
+           [link (and (pair? more) (pair? (cdr more)) (terminal-link (cadr more)))])
+      (hashtable-set! (tty-hls t) id (hl-sgr fg bg flags (tty-truecolor? t) underline-color (tty-kitty? t)))
+      (if link (hashtable-set! (tty-links t) id link) (hashtable-delete! (tty-links t) id))))
+
+  ;; Cells from (row, col), each (text [hl [repeat]]): hl carries over from
+  ;; the cell before, and is only sent to the terminal when it changes.
+  (define (paint-line! t p row col cells)
+    (put-string p (format "\x1b;[~a;~aH" (+ row 1) (+ col 1)))
+    (let loop ([cells cells] [hl #f])
+      (unless (null? cells)
+        (let* ([cell (car cells)]
+               [text (car cell)]
+               [new-hl (if (pair? (cdr cell)) (cadr cell) hl)]
+               [n (if (and (pair? (cdr cell)) (pair? (cddr cell))) (caddr cell) 1)])
+          (unless (eqv? new-hl (tty-last-hl t))
+            (put-string p (hashtable-ref (tty-hls t) new-hl "\x1b;[0m"))
+            (set-link! t p (hashtable-ref (tty-links t) new-hl #f))
+            (tty-last-hl-set! t new-hl))
+          ;; "" is the right half of a wide character, already drawn.
+          (unless (string=? text "")
+            (do ([i 0 (+ i 1)]) ((= i n)) (put-string p text)))
+          (loop (cdr cells) new-hl)))))
+
+  ;; The terminal moves rows top to bottom itself: a scroll region, then
+  ;; scrolling up (SU) or down (SD) in it.
+  (define (paint-scroll! t p top bottom n)
+    (set-link! t p #f)
+    (put-string p (format "\x1b;[0m\x1b;[~a;~ar\x1b;[~a~a\x1b;[r"
+                          (+ top 1) bottom (abs n) (if (> n 0) "S" "T")))
+    (tty-last-hl-set! t #f))
+
+  ;; The frame is done: the cursor, then the synchronized update ends and
+  ;; the terminal shows it all at once.
+  (define (paint-flush! t p)
+    (let ([c (tty-cursor t)])
+      (set-link! t p #f)
+      (put-string p "\x1b;[0m")
+      (tty-last-hl-set! t #f)
+      ;; A hidden cursor is still put where it is, for screen readers.
+      (cond
+       [(not c) (put-string p "\x1b;[?25l")]
+       [(string=? (caddr c) "hidden")
+        (put-string p (format "\x1b;[~a;~aH\x1b;[?25l" (+ 1 (car c)) (+ 1 (cadr c))))]
+       [else
+        (put-string p (format "\x1b;[~a;~aH~a\x1b;[?25h" (+ 1 (car c)) (+ 1 (cadr c))
+                              (case (string->symbol (caddr c))
+                                [(bar) "\x1b;[6 q"] [(underline) "\x1b;[4 q"] [else "\x1b;[2 q"])))])
+      (put-string p "\x1b;[?2026l")
+      (tty-in-frame?-set! t #f)
+      (write-now t (get-output-string p))))
 
   (define base64-chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
 

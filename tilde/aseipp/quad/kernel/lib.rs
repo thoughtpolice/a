@@ -37,6 +37,7 @@ mod render;
 mod screen;
 mod slug;
 mod timing;
+mod voice;
 
 /// The BLAKE3 hash of a bytevector: a 32-byte bytevector.
 #[chez::procedure]
@@ -314,6 +315,50 @@ fn mesh_session_editor(s: Ref<mesh::Session>) -> String {
     s.editor.clone()
 }
 
+// ---------------------------------------------------------------------------
+// Voice over iroh (voice/, for ext/voice.sls)
+
+/// Whether the client descriptor `fd` is a connection over iroh: a
+/// client's of this editor, or this client's to its editor.
+#[chez::procedure(name = "voice-link?")]
+fn voice_link(fd: i32) -> bool {
+    voice::is_link(fd)
+}
+
+/// Put the connection `fd` in voice: a client's of this editor, if
+/// `member?`, whose speech this editor sends on to everyone else in
+/// voice; else this client's to its editor.
+#[chez::procedure(name = "voice-join!")]
+fn voice_join(fd: i32, member: bool) -> Result<(), String> {
+    voice::join(fd, member)
+}
+
+/// Take the connection `fd` out of voice.
+#[chez::procedure(name = "voice-leave!")]
+fn voice_leave(fd: i32) {
+    voice::leave(fd);
+}
+
+/// This process's person's sound: "on", "muted" (the microphone closed) or
+/// "off". An error says why the sound server would not open.
+#[chez::procedure(name = "voice-local!")]
+fn voice_local(mode: String) -> Result<(), String> {
+    voice::set_local(&mode)
+}
+
+/// Readable when who is talking changes.
+#[chez::procedure]
+fn voice_events_fd() -> Result<i32, String> {
+    voice::events_fd()
+}
+
+/// Who is talking: the descriptors of connections in voice, and -1 for
+/// this process's own person.
+#[chez::procedure]
+fn voice_talking() -> Vec<i32> {
+    voice::talking()
+}
+
 // MARK: GUI windows (gui/, for core/gui.sls)
 
 /// The font to draw with: `family` (else the system's monospace font) at
@@ -517,6 +562,7 @@ chez::library! {
         process_close_input, process_status, process_stop,
         mesh_host_start, mesh_host_fd, mesh_host_take, mesh_host_info,
         mesh_target_kind, mesh_connect, mesh_session_fd, mesh_session_editor,
+        voice_link, voice_join, voice_leave, voice_local, voice_events_fd, voice_talking,
         gui_prepare, gui_open, gui_fd, gui_take, gui_frame, gui_paint, gui_image, gui_set_title, gui_close,
         gui_headless, gui_headless_info, gui_headless_draw, gui_headless_image,
         gui_has_clipboard, gui_clipboard_set, gui_clipboard_get, gui_set_font, gui_set_pointer,

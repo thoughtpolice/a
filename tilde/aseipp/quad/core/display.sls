@@ -196,10 +196,65 @@
                                          [else (list text hl)])
                                    out)))))))))
 
-  ;; scroll is the text area, as frame-scroll has it: when it shows the
-  ;; same buffer as before, moved by fewer lines than it has, a client
-  ;; that can ("scroll") is told to move its rows, and is sent only what
-  ;; that leaves different.
+  ;; How many lines the text area moved since the frame old, when the
+  ;; client can scroll its rows ("scroll") to match: scroll is the text
+  ;; area, as frame-scroll has it, and it must show the same buffer, moved
+  ;; by fewer lines than it has. Else #f.
+  (define (frame-shift c old scroll)
+    (let ([was (and old (frame-scroll old))])
+      (and scroll was (client-has? c "scroll")
+           (= (car scroll) (car was)) (= (cadr scroll) (cadr was)) (eq? (caddr scroll) (caddr was))
+           (let ([n (- (cadddr scroll) (cadddr was))])
+             (and (not (zero? n)) (< (abs n) (- (cadr scroll) (car scroll))) n)))))
+
+  ;; The first and last columns of row r where g and prev differ, or #f
+  ;; and #f; the whole row when there is no prev.
+  (define (changed-span g prev r)
+    (if (not prev)
+        (values 0 (- (grid-cols g) 1))
+        (let ([chars (vector-ref (grid-chars g) r)] [faces (vector-ref (grid-faces g) r)]
+              [pchars (vector-ref (grid-chars prev) r)] [pfaces (vector-ref (grid-faces prev) r)])
+          (let loop ([i 0] [first #f] [last #f])
+            (cond
+             [(= i (grid-cols g)) (values first last)]
+             [(and (equal? (vector-ref chars i) (vector-ref pchars i))
+                   (eq? (vector-ref faces i) (vector-ref pfaces i)))
+              (loop (+ i 1) first last)]
+             [else (loop (+ i 1) (or first i) i)])))))
+
+  ;; Send client c the rows of g that differ from prev (all of them, with
+  ;; no prev), each from its first changed cell; hl! names each cell's face.
+  ;; Returns whether any did.
+  (define (send-rows! c g prev hl!)
+    (let loop ([r 0] [changed? #f])
+      (if (= r (grid-rows g))
+          changed?
+          (let-values ([(first last) (changed-span g prev r)])
+            (when first
+              ;; Never start on the right half of a wide character.
+              (let ([first (if (and (> first 0) (eq? (vector-ref (vector-ref (grid-chars g) r) first) 'wide))
+                               (- first 1)
+                               first)])
+                (client-send! c (list "line" r first (row-cells g r first (+ last 1) hl!)))))
+            (loop (+ r 1) (or changed? (and first #t)))))))
+
+  ;; Send client c each picture it has not had (it keeps them), then where
+  ;; they all are.
+  (define (send-pictures! c pictures)
+    (let ([sent (or (client-local c 'pictures #f)
+                    (let ([h (make-hashtable string-hash string=?)]) (client-local-set! c 'pictures h) h))])
+      (for-each (lambda (p)
+                  (let ([pic (cdr p)])
+                    (unless (hashtable-contains? sent (picture-key pic))
+                      (hashtable-set! sent (picture-key pic) #t)
+                      (client-send! c (list "image" (picture-key pic) (picture-width pic)
+                                            (picture-height pic) (picture-png pic))))))
+                pictures)
+      (client-send! c (list "images" (map car pictures)))))
+
+  ;; Send client c what of frame g (with cursor, and the text area scroll,
+  ;; for frame-shift) differs from what it shows; nothing, when nothing
+  ;; does.
   (define (send-frame! c g cursor scroll)
     (let* ([cursor (and cursor (or (not (eq? (caddr cursor) 'hidden)) (client-has? c "hidden-cursor"))
                         cursor)]
@@ -207,18 +262,12 @@
            [full? (or (not old)
                       (not (= (grid-rows (frame-grid old)) (grid-rows g)))
                       (not (= (grid-cols (frame-grid old)) (grid-cols g))))]
-           [known (if full? (make-eqv-hashtable) (frame-known old))]
-           [shift (and (not full?) scroll (frame-scroll old) (client-has? c "scroll")
-                       (let ([was (frame-scroll old)])
-                         (and (= (car scroll) (car was)) (= (cadr scroll) (cadr was))
-                              (eq? (caddr scroll) (caddr was))
-                              (let ([n (- (cadddr scroll) (cadddr was))])
-                                (and (not (zero? n)) (< (abs n) (- (cadr scroll) (car scroll))) n)))))]
-           [prev (and (not full?)
-                      (if shift
-                          (scrolled-grid (frame-grid old) (car scroll) (cadr scroll) shift)
-                          (frame-grid old)))]
-           [changed? full?]
+           [old (and (not full?) old)]
+           [known (if old (frame-known old) (make-eqv-hashtable))]
+           [shift (frame-shift c old scroll)]
+           [prev (and old (if shift
+                              (scrolled-grid (frame-grid old) (car scroll) (cadr scroll) shift)
+                              (frame-grid old)))]
            [pictures (if (client-has? c "images") (frame-pictures g) '())]
            [hl! (lambda (f)
                   (let ([id (face-id f)])
@@ -227,47 +276,18 @@
                       (client-send! c (list "hl" id (face-fg f) (face-bg f) (face-flags f)
                                             (face-underline-color f) (face-link f))))
                     id))])
-      (when full? (client-send! c (list "grid" (grid-rows g) (grid-cols g))))
-      (when shift
-        (set! changed? #t)
-        (client-send! c (list "scroll" (car scroll) (cadr scroll) shift)))
-      (do ([r 0 (+ r 1)]) ((= r (grid-rows g)))
-        (let ([chars (vector-ref (grid-chars g) r)] [faces (vector-ref (grid-faces g) r)])
-          (let-values ([(first last)
-                        (if full?
-                            (values 0 (- (grid-cols g) 1))
-                            (let ([pchars (vector-ref (grid-chars prev) r)] [pfaces (vector-ref (grid-faces prev) r)])
-                              (let loop ([i 0] [first #f] [last #f])
-                                (if (= i (grid-cols g))
-                                    (values first last)
-                                    (if (and (equal? (vector-ref chars i) (vector-ref pchars i))
-                                             (eq? (vector-ref faces i) (vector-ref pfaces i)))
-                                        (loop (+ i 1) first last)
-                                        (loop (+ i 1) (or first i) i))))))])
-            (when first
-              ;; Never start on the right half of a wide character.
-              (let ([first (if (and (> first 0) (eq? (vector-ref chars first) 'wide)) (- first 1) first)])
-                (set! changed? #t)
-                (client-send! c (list "line" r first (row-cells g r first (+ last 1) hl!))))))))
-      ;; Pictures, each sent once to a client (which keeps them), then
-      ;; where they are, when that changes (a terminal forgets on "grid").
-      (when (and (client-has? c "images") (or full? (not (equal? (map car pictures) (frame-images old)))))
-        (let ([sent (or (client-local c 'pictures #f)
-                        (let ([h (make-hashtable string-hash string=?)]) (client-local-set! c 'pictures h) h))])
-          (for-each (lambda (p)
-                      (let ([pic (cdr p)])
-                        (unless (hashtable-contains? sent (picture-key pic))
-                          (hashtable-set! sent (picture-key pic) #t)
-                          (client-send! c (list "image" (picture-key pic) (picture-width pic)
-                                                (picture-height pic) (picture-png pic))))))
-                    pictures))
-        (set! changed? #t)
-        (client-send! c (list "images" (map car pictures))))
-      ;; A frame like the last is not sent: clients draw only what changed.
-      (when (or changed? (not (equal? cursor (frame-cursor old))))
-        (client-send! c (if cursor (list "cursor" (car cursor) (cadr cursor) (symbol->string (caddr cursor)))
-                            '("cursor" #f)))
-        (client-send! c '("flush")))
+      (unless old (client-send! c (list "grid" (grid-rows g) (grid-cols g))))
+      (when shift (client-send! c (list "scroll" (car scroll) (cadr scroll) shift)))
+      (let* ([rows? (send-rows! c g prev hl!)]
+             ;; A terminal forgets its pictures on "grid".
+             [pictures? (and (client-has? c "images")
+                             (or (not old) (not (equal? (map car pictures) (frame-images old)))))])
+        (when pictures? (send-pictures! c pictures))
+        ;; A frame like the last is not sent: clients draw only what changed.
+        (when (or (not old) shift rows? pictures? (not (equal? cursor (frame-cursor old))))
+          (client-send! c (if cursor (list "cursor" (car cursor) (cadr cursor) (symbol->string (caddr cursor)))
+                              '("cursor" #f)))
+          (client-send! c '("flush"))))
       (client-frame-set! c (make-frame g known cursor scroll (map car pictures)))))
 
   ;; ---------------------------------------------------------------------------
@@ -429,7 +449,7 @@
                        (guard (e [#t '()]) (f b start end))))
                 decorators)))
 
-;; Major modes that draw their buffers themselves (an image's, say):
+  ;; Major modes that draw their buffers themselves (an image's, say):
   ;; mode name -> (drawer grid view row0 height width), which draws rows
   ;; row0 to row0 + height, with place-picture! if it likes.
   (define buffer-drawers (make-eq-hashtable))
@@ -464,16 +484,8 @@
            [match (matching-bracket v)]
            [tw (get-var 'tab-width b)]
            [ws? (get-var 'show-whitespace b)]
-           [jumps (jump-labels)]
            [others (others-views v)]
-           [decos (if (or (null? decorators) (> top last))
-                      '()
-                      (decorations b (text-line-start t top) (+ 1 (text-line-end t last))))]
-           ;; The link under the pointer (see link.sls), underlined.
-           [decos (let ([h (let ([c (view-client v)]) (and c (client-local c 'hover-link #f)))])
-                    (if (and h (eq? (car h) b))
-                        (append decos (list (list (cadr h) (caddr h) (F 'ui.link.hover))))
-                        decos))])
+           [decos (view-decorations v top last)])
       (view-geometry-set! (list row0 gutter height (- width gutter) top left))
       (do ([r 0 (+ r 1)]) ((= r height))
         (let ([line (+ top r)] [row (+ row0 r)])
@@ -488,33 +500,55 @@
                                    text-face)])
                 (fill-row! g row 0 width row-face)
                 (when numbers
-                  (let* ([n (if (and (eq? numbers 'relative) (not cur?)) (abs (- line primary-line)) (+ line 1))]
-                         [str (number->string n)])
-                    (put-string! g row (- gutter 1 (string-length str)) str
-                                 (face-merge row-face (F (if cur? 'ui.linenr.selected 'ui.linenr))))))
+                  (draw-line-number! g row gutter row-face cur?
+                                     (if (and (eq? numbers 'relative) (not cur?)) (abs (- line primary-line)) (+ line 1))))
                 (draw-line! g b row s e gutter width left row-face (vector-ref spans r)
                             (append (filter (lambda (d) (and (< (car d) (+ e 1)) (> (cadr d) s))) decos)
                                     (selection-spans v s e))
                             match tw ws?)
-                ;; Who else has their cursor on this line, after its end.
-                (let ([here (filter (lambda (o) (<= s (head-position o (view-primary o)) e)) others)])
-                  (unless (null? here)
-                    (let loop ([os here] [col (+ gutter (- (display-column b e) left) 2)])
-                      (when (and (pair? os) (< col width))
-                        (let ([c (view-client (car os))])
-                          (loop (cdr os)
-                                (+ 1 (put-string! g row (max gutter col) (string-append "◂ " (client-user c))
-                                                  (face-merge row-face (peer-face c 'name)) width))))))))))))
-      ;; Jump labels over the units they name.
+                (draw-peer-names! g b row s e (+ gutter (- (display-column b e) left) 2) gutter width
+                                  row-face others)))))
+      (draw-jump-labels! g b row0 top last gutter left width)
+      gutter))
+
+  ;; What decorates view v's lines top to last: the decorators', and the
+  ;; link under the pointer (see link.sls), underlined.
+  (define (view-decorations v top last)
+    (let* ([b (view-buffer v)] [t (buffer-text b)]
+           [decos (if (or (null? decorators) (> top last))
+                      '()
+                      (decorations b (text-line-start t top) (+ 1 (text-line-end t last))))]
+           [h (let ([c (view-client v)]) (and c (client-local c 'hover-link #f)))])
+      (if (and h (eq? (car h) b))
+          (append decos (list (list (cadr h) (caddr h) (F 'ui.link.hover))))
+          decos)))
+
+  ;; Line number n, right-aligned in the gutter of row.
+  (define (draw-line-number! g row gutter row-face cur? n)
+    (let ([str (number->string n)])
+      (put-string! g row (- gutter 1 (string-length str)) str
+                   (face-merge row-face (F (if cur? 'ui.linenr.selected 'ui.linenr))))))
+
+  ;; The names of the people (others' views) whose cursors are on the line
+  ;; [s, e] drawn in row, from column col on.
+  (define (draw-peer-names! g b row s e col gutter width row-face others)
+    (let loop ([os (filter (lambda (o) (<= s (head-position o (view-primary o)) e)) others)] [col col])
+      (when (and (pair? os) (< col width))
+        (let ([c (view-client (car os))])
+          (loop (cdr os)
+                (+ 1 (put-string! g row (max gutter col) (string-append "◂ " (client-user c))
+                                  (face-merge row-face (peer-face c 'name)) width)))))))
+
+  ;; Jump labels over the units they name, on lines top to last.
+  (define (draw-jump-labels! g b row0 top last gutter left width)
+    (let ([t (buffer-text b)])
       (for-each
        (lambda (j)
-         (let ([pos (car (cdr j))])
-           (when (<= top (text-line-of t pos) last)
-             (let ([row (+ row0 (- (text-line-of t pos) top))]
-                   [col (+ gutter (- (display-column b pos) left))])
-               (put-string! g row (max gutter col) (car j) (UI 'ui.jump-label) width)))))
-       jumps)
-      gutter))
+         (let* ([pos (cadr j)] [line (text-line-of t pos)])
+           (when (<= top line last)
+             (put-string! g (+ row0 (- line top)) (max gutter (+ gutter (- (display-column b pos) left)))
+                          (car j) (UI 'ui.jump-label) width))))
+       (jump-labels))))
 
   ;; ---------------------------------------------------------------------------
   ;; The status line and the bottom row

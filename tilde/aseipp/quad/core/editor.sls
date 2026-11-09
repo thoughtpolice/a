@@ -28,7 +28,7 @@
    client-capabilities client-has? client-connection client-view client-views
    client-frame client-frame-set! client-dirty? client-dirty?-set! client-local client-local-set!
    client-user set-client-user! client-color person? people default-user-name peer-colors
-   clients current-client set-current-client! with-client add-client! remove-client! client-send!
+   clients current-client set-current-client! with-client with-client-or-any add-client! remove-client! client-send!
    client-quit! client-switch-buffer! view-of
    ;; editor state
    current-view current-buffer set-current-buffer! switch-to-buffer! buffers
@@ -174,6 +174,13 @@
         (lambda () (set! the-client c) (set-current-edit-view! (client-view c)))
         thunk
         (lambda () (set! the-client old) (set-current-edit-view! (and old (client-view old)))))))
+
+  ;; Run thunk as client c while it is connected, else as any client, else
+  ;; as none: for what a client started (a question, a tool's work) that
+  ;; may finish after it left.
+  (define (with-client-or-any c thunk)
+    (let ([c (if (and c (memq c (clients))) c (and (pair? (clients)) (car (clients))))])
+      (if c (with-client c thunk) (thunk))))
 
   ;; Send a message to client c, if it is connected.
   (define (client-send! c msg)

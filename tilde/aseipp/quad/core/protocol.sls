@@ -14,6 +14,7 @@
 ;;     ("key" name mods text kind)  ("paste" text)  ("mouse" kind button col row mods)
 ;;     ("focus" in?)  ("resize" rows cols)  ("clipboard" target text)
 ;;     ("redraw")  ("open" path line)  ("eval" id expression)  ("detach")
+;;     ("voice" "failed" why): the client could not do what "voice" said
 ;;
 ;;   server -> client
 ;;     ("hl" id fg bg flags underline-color link)  ("grid" rows cols),
@@ -37,6 +38,9 @@
 ;;       cells now, each fit in rows by cols cells from (row, col), of
 ;;       which the first shown rows show; to clients with the "images"
 ;;       capability, when they change
+;;     ("voice" mode): put this client's iroh connection in voice ("on",
+;;       "muted") or out ("off"), with its person's microphone and
+;;       speakers; to clients with the "voice" capability (ext/voice.sls)
 ;;     ("result" id ok? text)  ("bye" reason)
 (library (quad protocol)
   (export protocol-version

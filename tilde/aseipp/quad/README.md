@@ -17,8 +17,8 @@ it while the editor runs.
 
 ```sh
 buck2 run depot-tilde//aseipp/quad:quad -- FILE...
-buck2 build depot-tilde//aseipp/quad:quad       # the standalone executable
-buck2 run depot-tilde//aseipp/quad:quad-host -- FILE   # in a window
+buck2 build depot-tilde//aseipp/quad:quad            # the standalone executable
+buck2 install -m release depot-tilde//aseipp/quad:quad   # into ~/.local
 ```
 
 ## Clients and servers
@@ -32,7 +32,7 @@ architecture and the protocol, which a graphical client in another process
 would speak too.
 
 ```sh
-quad FILE                  # an editor in a window (the host-linked :quad-host),
+quad FILE                  # an editor in a window,
                            # or in this terminal where no window can open
 quad --tui FILE            # ... in this terminal, always
 quad --gui FILE            # ... in a window, always
@@ -72,6 +72,18 @@ cursor, their scroll) until you press a key. `space j t` says something to
 everyone, and `space j h` shows the chat, and who came and went. Over iroh
 (below), that is anyone, anywhere, with the code.
 
+`space j a` turns voice on: you hear everyone else who has, and they hear
+you, and everyone is told you joined; `space j m` mutes your microphone,
+and `space j a` again leaves. Nobody hears or is heard until they turn it
+on themselves. The status line says how many are in voice, and who is
+talking, as they start and stop; the people list (`space j l`) says who is
+in voice, muted, or talking. Switching to another editor (`space j o`)
+leaves voice in this one. Sound goes through your desktop's sound server (PipeWire or
+PulseAudio), where quad's streams can be routed and turned up or down;
+there is no echo cancellation yet, so use headphones. The speech travels
+as Opus over the same iroh connection, beside the editor's protocol
+([docs/design.md](docs/design.md#voice)).
+
 With `--mesh` (or the command `mesh-listen`, in a running editor) an
 editor also accepts clients over [iroh](https://iroh.computer), through
 NATs and from anywhere, using the repository's `iroh-mesh`. It prints a
@@ -89,9 +101,11 @@ shows the code and copies a ticket.
 
 `quad` is a single executable: the kernel with Chez Scheme's `petite.boot`
 and `scheme.boot` and quad's own boot file appended (`embed.sls` in the Chez
-toolchain has the layout). It needs only libc at run time, and allocates
-with mimalloc, which overrides malloc for C, Chez Scheme and Rust alike. The
-full Chez compiler is in it, so extensions are compiled, not interpreted.
+toolchain has the layout). It needs only the host's C library at run time
+(on Linux it runs on the host's dynamic linker, not the toolchain's: see
+docs/design.md), and allocates with mimalloc, which overrides malloc for
+C, Chez Scheme and Rust alike. The full Chez compiler is in it, so
+extensions are compiled, not interpreted.
 
 A release build (`buck2 build -m release :quad`) is 22 MB, most of it the
 Rust half's iroh stack. The executable is stripped: its symbols and what
@@ -108,6 +122,14 @@ itself with `FILE...` compiled into one more boot file, whose code runs as
 the editor boots. That is how a configured editor becomes one binary to hand
 out; `defs.bzl`'s `quad_executable` does the same from Buck, and
 `:quad-custom` builds `examples/site.ss` into one.
+
+`buck2 install :quad` puts the executable in `~/.local/bin`, and `dist/`'s
+desktop entry and icon, for application launchers, in `~/.local/share`
+(the installer is `buck/installers/prefix`; `-- --prefix DIR` installs
+under DIR instead). A file is replaced whole, so a running quad keeps its
+old executable. The entry runs `quad` from the session's `PATH`, with
+`--gui`, so it opens a window on the running editor when one listens, as
+`quad --gui` from a terminal does.
 
 ## The terminal
 
@@ -342,7 +364,7 @@ with, and the generated program invokes each as the editor boots, which is
 when it registers its modes, commands and keys. The built-in ones are `lisp` (Scheme and other Lisps: s-expressions
 for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
 (`#`-commented languages), `markdown`, `blake3`, `codex`, the agent, `lsp`,
-language servers, `people`, working together, and
+language servers, `people`, working together, `voice`, talking, and
 `tutor`, whose lessons are `ext/tutor.md`, compiled in (`EXTENSION_DATA`
 in `BUILD` gives an extension files to include as it compiles).
 
@@ -371,6 +393,7 @@ in `BUILD` gives an extension files to include as it compiles).
 | `core/project.sls` | projects: `.quad/` configuration, trust, review |
 | `core/main.sls` | the command line, `--build-exe`, headless clients for testing |
 | `ext/*.sls` | the built-in extensions |
+| `dist/` | the desktop entry and icon |
 
 The Scheme builds with the Chez Scheme toolchain (`buck/toolchains/chez`):
 `:core` and each `:ext-*` are `chez.library` targets, compiled against their

@@ -56,6 +56,36 @@
   (define operator-chars (string->list "+-*/=<>!&|^%~?:.@$"))
   (define bracket-chars (string->list "()[]{}"))
 
+  ;; Scans of text before position end, shared by the highlighter (a line at
+  ;; a time) and the node tree (the whole text).
+
+  ;; The first position from i on whose character is not ok?, or end.
+  (define (scan-while text i end ok?)
+    (let loop ([i i]) (if (and (< i end) (ok? (text-ref text i))) (loop (+ i 1)) i)))
+
+  ;; Inside a string closed by q, from i: the position after its close, or
+  ;; #f when it does not close before end. A backslash escapes what follows.
+  (define (scan-string text i end q)
+    (let loop ([i i])
+      (cond [(>= i end) #f]
+            [(char=? (text-ref text i) #\\) (loop (+ i 2))]
+            [(char=? (text-ref text i) q) (+ i 1)]
+            [else (loop (+ i 1))])))
+
+  ;; Inside a block comment from open to close, at depth d, from i:
+  ;; (values position depth), depth 0 when it closed just before position,
+  ;; else end and the depth there. Comments nest when nest?.
+  (define (scan-block text i end open close nest? d)
+    (let loop ([i i] [d d])
+      (cond
+       [(>= i end) (values end d)]
+       [(text-match-at? text i close)
+        (if (= d 1)
+            (values (+ i (string-length close)) 0)
+            (loop (+ i (string-length close)) (- d 1)))]
+       [(and nest? (text-match-at? text i open)) (loop (+ i (string-length open)) (+ d 1))]
+       [else (loop (+ i 1) d)])))
+
   ;; Lex the line [s, e) from `state`, calling (emit start end face) for each
   ;; highlighted token; returns the state at the end of the line.
   (define (lex-line syn text s e state emit)
@@ -69,38 +99,16 @@
     (define strs (syntax-string-chars syn))
     (define blocks (syntax-block-comments syn))
     (define (ch i) (text-ref text i))
-
-    ;; Inside a string closed by q: the position after its close, or #f.
-    (define (string-end i q)
-      (let loop ([i i])
-        (cond [(>= i e) #f]
-              [(char=? (ch i) #\\) (loop (+ i 2))]
-              [(char=? (ch i) q) (+ i 1)]
-              [else (loop (+ i 1))])))
-
-    ;; Inside a block comment at depth d: (values end depth) where depth 0
-    ;; means it closed at end.
-    (define (comment-end i d)
-      (let ([open (car (car blocks))] [close (cdr (car blocks))])
-        (let loop ([i i] [d d])
-          (cond
-           [(>= i e) (values e d)]
-           [(text-match-at? text i close)
-            (if (= d 1) (values (+ i (string-length close)) 0)
-                (loop (+ i (string-length close)) (- d 1)))]
-           [(and lisp? (text-match-at? text i open)) (loop (+ i (string-length open)) (+ d 1))]
-           [else (loop (+ i 1) d)]))))
-
-    (define (word-end i)
-      (let loop ([i i]) (if (and (< i e) (word? (ch i))) (loop (+ i 1)) i)))
+    (define (string-end i q) (scan-string text i e q))
+    (define (comment-end i d) (scan-block text i e (car (car blocks)) (cdr (car blocks)) lisp? d))
+    (define (word-end i) (scan-while text i e word?))
 
     (define (number-start? i)
       (let ([c (ch i)])
         (or (char-numeric? c)
             (and (memv c '(#\- #\+ #\.)) (< (+ i 1) e) (char-numeric? (ch (+ i 1)))))))
 
-    (define (next-non-space i)
-      (let loop ([i i]) (if (and (< i e) (char-whitespace? (ch i))) (loop (+ i 1)) i)))
+    (define (next-non-space i) (scan-while text i e char-whitespace?))
 
     (let loop ([i s] [state state] [def 0])
       (cond
@@ -231,17 +239,12 @@
     (define (close? c) (memv c '(#\) #\] #\})))
     (define (delimiter? c)
       (or (char-whitespace? c) (open? c) (close? c) (memv c strs) (and lisp? (char=? c #\;))))
-    (define (skip-line i) (let loop ([i i]) (if (and (< i len) (not (char=? (ch i) #\newline))) (loop (+ i 1)) i)))
+    (define (skip-line i) (scan-while text i len (lambda (c) (not (char=? c #\newline)))))
+    ;; Past the block comment or string opening at i (to the end, unclosed).
     (define (skip-block i open close)
-      (let loop ([i (+ i (string-length open))] [d 1])
-        (cond [(>= i len) len]
-              [(text-match-at? text i close) (if (= d 1) (+ i (string-length close)) (loop (+ i (string-length close)) (- d 1)))]
-              [(and lisp? (text-match-at? text i open)) (loop (+ i (string-length open)) (+ d 1))]
-              [else (loop (+ i 1) d)])))
-    (define (skip-string i q)
-      (let loop ([i (+ i 1)])
-        (cond [(>= i len) len] [(char=? (ch i) #\\) (loop (+ i 2))]
-              [(char=? (ch i) q) (+ i 1)] [else (loop (+ i 1))])))
+      (let-values ([(end d) (scan-block text (+ i (string-length open)) len open close lisp? 1)]) end))
+    (define (skip-string i q) (or (scan-string text (+ i 1) len q) len))
+    (define (leaf-end i ok?) (scan-while text i len ok?))
 
     (let loop ([i 0] [stack (list root)] [prefix #f])
       (define (leaf! s e) (add-kid! (car stack) (make-node-closed (or prefix s) e)))
@@ -269,7 +272,7 @@
                 (loop (+ i 1) stack #f)
                 (begin (close-node! (car stack) (+ i 1)) (loop (+ i 1) (cdr stack) #f)))]
            [(and lisp? (char=? c #\#) (< (+ i 1) len) (char=? (ch (+ i 1)) #\\))
-            (let ([e (let w ([j (min len (+ i 3))]) (if (and (< j len) (word? (ch j))) (w (+ j 1)) j))])
+            (let ([e (leaf-end (min len (+ i 3)) word?)])
               (leaf! i e) (loop e stack #f))]
            [(and lisp? (memv c '(#\' #\` #\,)))
             (let ([n (if (and (char=? c #\,) (< (+ i 1) len) (char=? (ch (+ i 1)) #\@)) 2 1)])
@@ -280,14 +283,13 @@
                 (loop (+ i 2) stack (or prefix i)))]
            [(and (not lisp?) (memv c '(#\, #\;))) (loop (+ i 1) stack #f)]
            [lisp?
-            (let ([e (let w ([j (+ i 1)]) (if (and (< j len) (not (delimiter? (ch j)))) (w (+ j 1)) j))])
+            (let ([e (leaf-end (+ i 1) (lambda (d) (not (delimiter? d))))])
               (leaf! i e) (loop e stack #f))]
            [(word? c)
-            (let ([e (let w ([j (+ i 1)]) (if (and (< j len) (word? (ch j))) (w (+ j 1)) j))])
+            (let ([e (leaf-end (+ i 1) word?)])
               (leaf! i e) (loop e stack #f))]
            [else
-            (let ([e (let w ([j (+ i 1)])
-                       (if (and (< j len) (let ([d (ch j)]) (not (or (word? d) (delimiter? d) (memv d '(#\, #\;)))))) (w (+ j 1)) j))])
+            (let ([e (leaf-end (+ i 1) (lambda (d) (not (or (word? d) (delimiter? d) (memv d '(#\, #\;))))))])
               (leaf! i e) (loop e stack #f))]))])))
 
   (define (make-node-closed s e)

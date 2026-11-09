@@ -113,6 +113,8 @@
                         (list "result" id #t (stringify (eval-string (caddr msg)))))))))]
             [(detach) (with-client c (lambda () (client-quit! c)))]
             [(hello) (void)]
+            ;; ("voice" "failed" why): see ext/voice.sls.
+            [(voice) (run-hooks 'client-voice-hook c (cdr msg))]
             [(user) (when (and (pair? (cdr msg)) (string? (cadr msg)))
                       (set-client-user! c (cadr msg)))]
             [else (with-client c (lambda () (message-error "Unknown message ~a" (car msg))))])))
@@ -170,8 +172,6 @@
       (let ([bv (encode-frame msg)])
         (kernel-write fd bv (bytevector-length bv)))))
 
-  (define read-buffer (make-bytevector 65536))
-
   ;; Serve a client on descriptor fd: its first message must be "hello".
   ;; on-close runs when it goes.
   (define serve-stream!
@@ -190,12 +190,12 @@
               (make-source
                fd
                (lambda ()
-                 (let ([n (kernel-read fd read-buffer (bytevector-length read-buffer) 0)])
+                 (let ([got (kernel-read-some fd 0)])
                    (cond
-                    [(= n -1)
+                    [(not got)
                      ;; Gone: the client disconnected.
                      (if client (remove-client! client) (close!))]
-                    [(> n 0)
+                    [else
                      (for-each
                       (lambda (msg)
                         (cond
@@ -204,10 +204,13 @@
                           ;; ("hello" version name rows cols capabilities)
                           (let-values ([(version name rows cols caps) (apply values (cdr msg))])
                             (set! client (server-connect! name rows cols caps (frame-sender fd) close!))
+                            ;; What else goes with the stream (voice, over
+                            ;; iroh) knows the client by its descriptor.
+                            (client-local-set! client 'stream-fd fd)
                             (when (> version protocol-version)
                               (with-client client (lambda () (message-error "Client speaks protocol ~a; this server ~a" version protocol-version)))))]
                          [else (close!)]))
-                      (reader read-buffer n))])))
+                      (reader got (bytevector-length got)))])))
                (lambda () -1) void void))
         (add-source! src)
         src)]))

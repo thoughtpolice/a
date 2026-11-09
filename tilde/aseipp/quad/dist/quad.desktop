@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# quad in application launchers. Exec finds quad on the session's PATH; the
+# window's Wayland app id is "quad", which matches this file's name.
+[Desktop Entry]
+Type=Application
+Name=quad
+GenericName=Text Editor
+Comment=Edit text, in a window or a terminal
+Icon=quad
+TryExec=quad
+Exec=quad --gui %F
+Terminal=false
+StartupNotify=false
+StartupWMClass=quad
+Categories=Development;TextEditor;
+Keywords=editor;text;code;scheme;
+MimeType=text/plain;text/markdown;text/x-csrc;text/x-chdr;text/x-c++src;text/x-rust;text/x-python;text/x-scheme;application/x-shellscript;

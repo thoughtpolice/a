@@ -11,7 +11,8 @@
 (library (quad tui)
   (export tui-attach! tui-connect!)
   (import (chezscheme) (quad util) (quad kernel) (quad event) (quad term)
-          (quad protocol) (quad editor) (quad display) (quad server) (quad relay) (quad link))
+          (quad protocol) (quad editor) (quad display) (quad server) (quad relay) (quad link)
+          (quad voice))
 
   (define (terminal-client-name) (format "tui:~a" (or (getenv "TERM") "terminal")))
 
@@ -30,9 +31,10 @@
      [(equal? (car msg) "open-url") (open-url-here! (cadr msg)) #t]
      [else #t]))
 
-  ;; What the terminal can do, and this process: open URLs, in a desktop.
+  ;; What the terminal can do, and this process: open URLs, in a desktop,
+  ;; and voice.
   (define (tui-capabilities tty)
-    (append (tty-capabilities tty) (if (can-open-urls?) '("open-url") '())))
+    (append (tty-capabilities tty) '("voice") (if (can-open-urls?) '("open-url") '())))
 
   ;; Events from the terminal, as messages to send.
   (define (input-messages events) (map event->message events))
@@ -93,8 +95,7 @@
       (when (< fd 0) (errorf 'quad "no server is listening at ~a" path))
       (let* ([tty (open-tty)]
              [send (frame-sender fd)]
-             [reader (make-frame-reader)]
-             [buf (make-bytevector 65536)])
+             [reader (make-frame-reader)])
         (send (list "hello" protocol-version (terminal-client-name) (tty-rows tty) (tty-cols tty)
                     (tui-capabilities tty)))
         (send (list "user" (default-user-name)))
@@ -116,10 +117,12 @@
                          #t))
                    ;; The server.
                    (if (memv fd ready)
-                       (let ([n (kernel-read fd buf (bytevector-length buf) 0)])
-                         (and (> n -1)
-                              (for-all (lambda (msg) (handle! tty msg send (lambda () (send '("redraw")))))
-                                       (reader buf n))))
+                       (let ([got (kernel-read-some fd 0)])
+                         (and got
+                              (for-all (lambda (msg)
+                                         (or (voice-message! fd msg send)
+                                             (handle! tty msg send (lambda () (send '("redraw"))))))
+                                       (reader got (bytevector-length got)))))
                        #t))])
             (when (tty-take-resize! tty) (send (list "resize" (tty-rows tty) (tty-cols tty))))
             (if continue?

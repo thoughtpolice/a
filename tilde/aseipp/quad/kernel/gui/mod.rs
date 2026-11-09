@@ -15,7 +15,7 @@
 //! loads `libwayland-client` or `libX11`, and fontique loads fontconfig,
 //! so an editor that never opens a window never needs them. They are the
 //! host's, and the host's driver loads into this process, so the
-//! executable must run on the host's C library (`:quad-host`; `host` on
+//! executable must run on the host's C library (`:quad` does: `host` on
 //! chez.standalone).
 //!
 //! The renderer is Vulkan 1.3 with no render passes, descriptor sets or
@@ -29,7 +29,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex, OnceLock, mpsc};
+use std::sync::{Arc, Mutex, OnceLock, mpsc};
 use std::time::Duration;
 
 use chez::{IntoScheme, Mailbox, Scope, Sender, Value};
@@ -38,7 +38,7 @@ use winit::dpi::{LogicalSize, PhysicalPosition, PhysicalSize};
 use winit::event::{ElementState, Ime, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
-use winit::platform::wayland::EventLoopBuilderExtWayland;
+use winit::platform::wayland::{EventLoopBuilderExtWayland, WindowAttributesExtWayland};
 use winit::platform::x11::EventLoopBuilderExtX11;
 use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 use winit::window::{CursorIcon, Window, WindowId};
@@ -202,7 +202,7 @@ impl Gui {
         Gui::open_window(title, (cols, rows), font).map_err(|error| match toolchain_linked() {
             Some(linker) => format!(
                 "{error}\n(this quad runs on {linker}, the toolchain's C library, which cannot load \
-                 the host's graphics libraries: use the host-linked one, :quad-host)"
+                 the host's graphics libraries: use the host-linked one, :quad)"
             ),
             None => error,
         })

@@ -8,7 +8,8 @@ use super::*;
 
 pub(super) struct Win {
     pub(super) renderer: Renderer,
-    pub(super) window: Window,
+    /// Shared with its renderer's surface, which draws to it.
+    pub(super) window: Arc<Window>,
     /// What it shows, for screen readers.
     pub(super) access: Access,
     pub(super) title: String,

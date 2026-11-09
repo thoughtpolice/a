@@ -183,14 +183,11 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
 
   ;; Everything on fd until it ends, as text.
   (define (read-all fd)
-    (let ([buf (make-bytevector 4096)])
-      (let loop ([acc '()])
-        (let ([n (kernel-read fd buf 4096 -1)])
-          (if (<= n 0)
-              (utf8->string (apply bytevector-append (reverse acc)))
-              (let ([b (make-bytevector n)])
-                (bytevector-copy! buf 0 b 0 n)
-                (loop (cons b acc))))))))
+    (let loop ([acc '()])
+      (let ([got (kernel-read-some fd -1)])
+        (if got
+            (loop (cons got acc))
+            (utf8->string (apply bytevector-append (reverse acc)))))))
 
   ;; Start making what a window draws with, on another thread, where one
   ;; may open, so that it opens sooner: Vulkan's device takes longer to
@@ -293,14 +290,14 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
   ;; ticket), as a client: print the result. Returns the exit status.
   (define (remote-eval! target expr)
     (let-values ([(fd session) (connect-fd target)])
-      (let ([send (frame-sender fd)] [reader (make-frame-reader)] [buf (make-bytevector 65536)])
+      (let ([send (frame-sender fd)] [reader (make-frame-reader)])
         (send (list "hello" protocol-version "eval" 3 10 '()))
         (send (list "eval" 1 expr))
         (let loop ()
-          (let ([n (kernel-read fd buf (bytevector-length buf) -1)])
-            (if (<= n 0)
+          (let ([got (kernel-read-some fd -1)])
+            (if (not got)
                 (begin (kernel-close fd) 1)
-                (let ([result (find (lambda (m) (equal? (car m) "result")) (reader buf n))])
+                (let ([result (find (lambda (m) (equal? (car m) "result")) (reader got (bytevector-length got)))])
                   (if result
                       (begin
                         (send '("detach"))
@@ -425,8 +422,12 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
   ;; buffer, say).
   (define (run-until name pred)
     (let* ([deadline (+ (real-time) 10000)] [timed-out? #f]
-           [src (make-source -1 void (lambda () (max 0 (- deadline (real-time))))
-                             (lambda () (set! timed-out? #t) (editor-stop!))
+           ;; The frame just drawn may be what pred waits for: then the
+           ;; loop does not wait, for something that may never come.
+           [src (make-source -1 void (lambda () (if (pred) 0 (max 0 (- deadline (real-time)))))
+                             (lambda ()
+                               (unless (pred) (set! timed-out? #t))
+                               (editor-stop!))
                              (lambda () (when (pred) (editor-stop!))))])
       (add-source! src)
       (unless (pred) (server-run!))

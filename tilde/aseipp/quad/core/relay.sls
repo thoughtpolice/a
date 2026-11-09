@@ -18,7 +18,7 @@
 (library (quad relay)
   (export frontend! frontend-sender deliver! relayed? relay-connect! relay-end!)
   (import (chezscheme) (quad util) (quad kernel) (quad protocol) (quad buffer)
-          (quad editor) (quad commands) (quad display) (quad server) (quad mesh))
+          (quad editor) (quad commands) (quad display) (quad server) (quad mesh) (quad voice))
 
   ;; A client's connection to another editor.
   (define-record-type relay (fields fd session send reader (mutable source) target))
@@ -44,6 +44,7 @@
         (client-local-set! c 'relay #f)
         (when (relay-source r) (remove-source! (relay-source r)))
         (guard (e [#t (void)]) ((relay-send r) '("detach")))
+        (voice-forget! (relay-fd r))
         (kernel-close (relay-fd r))
         ;; Its screen shows the other editor's frame and title: draw it
         ;; whole, and title it again.
@@ -88,23 +89,28 @@
     (let-values ([(fd session) (target-fd target)])
       (let* ([send (frame-sender fd)]
              [r (make-relay fd session send (make-frame-reader) #f
-                            (if (and target (not (string=? target ""))) target "this machine's daemon"))]
-             [buf (make-bytevector 65536)])
+                            (if (and target (not (string=? target ""))) target "this machine's daemon"))])
         (send (list "hello" protocol-version (client-name c) (client-rows c) (client-cols c)
                     (client-capabilities c)))
         (send (list "user" (client-user c)))
         (client-local-set! c 'relay r)
+        ;; What c did here that the other editor would do too (voice:
+        ;; this process's microphone is c's person's) stops.
+        (run-hooks 'client-relay-hook c)
         (relay-source-set! r
                            (watch-fd! fd
                                       (lambda ()
-                                        (let ([n (kernel-read fd buf (bytevector-length buf) 0)])
-                                          (if (<= n 0)
+                                        (let ([got (kernel-read-some fd 0)])
+                                          (if (not got)
                                               (relay-end! c "the other editor went away")
                                               (let ([paint (client-local c 'paint void)])
-                                                (let loop ([msgs ((relay-reader r) buf n)])
+                                                (let loop ([msgs ((relay-reader r) got (bytevector-length got))])
                                                   (cond
                                                    [(null? msgs) (void)]
                                                    [(equal? (caar msgs) "bye") (relay-end! c #f)]
+                                                   ;; Voice is this process's to carry: its
+                                                   ;; person is here.
+                                                   [(voice-message! fd (car msgs) send) (loop (cdr msgs))]
                                                    [else (paint (car msgs)) (loop (cdr msgs))]))))))))
         r)))
 

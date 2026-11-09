@@ -1026,57 +1026,75 @@
     (or (current-unit b (cons pos (min (buffer-length b) (+ pos 1)))) (cons pos pos)))
 
   (define (on-mouse ev)
-    (let* ([b (cur)] [kind (mouse-event-kind ev)]
-           [pos (screen->position (mouse-event-row ev) (mouse-event-col ev))])
-      (case kind
+    (let ([b (cur)] [pos (screen->position (mouse-event-row ev) (mouse-event-col ev))])
+      (case (mouse-event-kind ev)
         [(scroll-up) (scroll! -3)]
         [(scroll-down) (scroll! 3)]
         [(press)
          (when (and pos (not (current-prompt)))
            (exit-layer!)
            (case (mouse-event-button ev)
-             [(0)
-              (let* ([now (real-time)]
-                     [count (if (and last-click (< (- now (car last-click)) 400) (= pos (cadr last-click)))
-                                (+ 1 (caddr last-click)) 1)])
-                (set! last-click (list now pos count))
-                (when (eq? (view-input-mode (cv)) 'insert) (exit-insert!))
-                (push-selection-history! b)
-                (cond
-                 [(and (logtest (mouse-event-mods ev) mod-ctrl) (link-at b pos))
-                  => (lambda (l) (run-command (lambda () (follow-link! (caddr l)))))]
-                 [(logtest (mouse-event-mods ev) mod-shift)
-                  (let ([r (unit-at b pos)] [p (primary)])
-                    (set-sels! b (cons (make-sel (car r) (cdr r) (or (sel-anchor p) (sel-range p))) (cdr (sels-of b)))))]
-                 [(logtest (mouse-event-mods ev) (logior mod-alt mod-ctrl))
-                  (let ([r (unit-at b pos)]) (set-sels! b (cons (range->sel r) (sels-of b))))]
-                 [else
-                  (case (min count 3)
-                    [(2) (set-selection-mode! b 'word)]
-                    [(3) (set-selection-mode! b 'line)]
-                    [else (void)])
-                  (let ([r (unit-at b pos)])
-                    (set! drag-anchor r)
-                    (set-sels! b (list (range->sel r))))]))]
-             [(1)
-              (let ([s (primary-selection)])
-                (when (> (string-length s) 0)
-                  (run-command (lambda ()
-                                 (let ([starts (buffer-edit! b (list (list pos pos s)))])
-                                   (set-sels! b (list (make-sel (car starts) (+ (car starts) (string-length s))))))))))]
+             [(0) (click! b pos (mouse-event-mods ev))]
+             [(1) (paste-primary-at! b pos)]
              [else (void)]))]
-        [(drag)
-         (when (and pos drag-anchor (= (mouse-event-button ev) 0))
-           (let ([r (unit-at b pos)])
-             (set-sels! b (list (make-sel (car r) (cdr r) drag-anchor)))
-             (view-local-set! (cv) 'free-scroll #f)))]
-        [(release)
-         (when drag-anchor
-           (let ([p (primary)])
-             (when (sel-anchor p)
-               (set-sels! b (list (sel-collapse p)))
-               (primary-selection-set! (selection-text b (primary)))))
-           (set! drag-anchor #f))])))
+        [(drag) (when (and pos drag-anchor (= (mouse-event-button ev) 0)) (drag-to! b pos))]
+        [(release) (when drag-anchor (end-drag! b))])))
+
+  ;; How many clicks at pos this one makes: one more than the last, if
+  ;; that was there, under 400 ms ago.
+  (define (click-count! pos)
+    (let* ([now (real-time)]
+           [count (if (and last-click (< (- now (car last-click)) 400) (= pos (cadr last-click)))
+                      (+ 1 (caddr last-click))
+                      1)])
+      (set! last-click (list now pos count))
+      count))
+
+  ;; A left click at pos: ctrl follows the link there, shift extends the
+  ;; selection, alt (or ctrl) adds one; else it selects the unit there (a
+  ;; word on a double click, a line on a triple) and starts a drag.
+  (define (click! b pos mods)
+    (let ([count (click-count! pos)])
+      (when (eq? (view-input-mode (cv)) 'insert) (exit-insert!))
+      (push-selection-history! b)
+      (cond
+       [(and (logtest mods mod-ctrl) (link-at b pos))
+        => (lambda (l) (run-command (lambda () (follow-link! (caddr l)))))]
+       [(logtest mods mod-shift)
+        (let ([r (unit-at b pos)] [p (primary)])
+          (set-sels! b (cons (make-sel (car r) (cdr r) (or (sel-anchor p) (sel-range p))) (cdr (sels-of b)))))]
+       [(logtest mods (logior mod-alt mod-ctrl))
+        (set-sels! b (cons (range->sel (unit-at b pos)) (sels-of b)))]
+       [else
+        (case (min count 3)
+          [(2) (set-selection-mode! b 'word)]
+          [(3) (set-selection-mode! b 'line)]
+          [else (void)])
+        (let ([r (unit-at b pos)])
+          (set! drag-anchor r)
+          (set-sels! b (list (range->sel r))))])))
+
+  ;; A middle click: the primary selection's text, pasted at pos.
+  (define (paste-primary-at! b pos)
+    (let ([s (primary-selection)])
+      (when (> (string-length s) 0)
+        (run-command (lambda ()
+                       (let ([starts (buffer-edit! b (list (list pos pos s)))])
+                         (set-sels! b (list (make-sel (car starts) (+ (car starts) (string-length s)))))))))))
+
+  ;; Dragging: the selection reaches from where the drag began to pos.
+  (define (drag-to! b pos)
+    (let ([r (unit-at b pos)])
+      (set-sels! b (list (make-sel (car r) (cdr r) drag-anchor)))
+      (view-local-set! (cv) 'free-scroll #f)))
+
+  ;; The drag is done: what it selected becomes the primary selection.
+  (define (end-drag! b)
+    (let ([p (primary)])
+      (when (sel-anchor p)
+        (set-sels! b (list (sel-collapse p)))
+        (primary-selection-set! (selection-text b (primary)))))
+    (set! drag-anchor #f))
 
   (at-load (add-hook! 'mouse-hook on-mouse))
 
@@ -1105,7 +1123,7 @@
                 (let ([v (client-view c)]) (when v (send-title! c (view-buffer v))))))
    (add-hook! 'buffer-switch-hook (lambda (b) (send-title! (current-client) b))))
 
-    ;; Coming back to the terminal: reload files changed on disk behind
+  ;; Coming back to the terminal: reload files changed on disk behind
   ;; unmodified buffers, and warn about modified ones.
   (at-load (add-hook! 'focus-in-hook
              (lambda ()

@@ -17,7 +17,7 @@
 ;; cursor, their scroll -- until you press a key. Everyone hears when
 ;; someone joins or leaves.
 (library (quad ext people)
-  (export follow! unfollow! following say! chat-lines)
+  (export follow! unfollow! following say! announce! chat-lines define-person-note!)
   (import (chezscheme) (quad util) (quad text) (quad buffer) (quad event)
           (quad editor) (quad commands) (quad display))
 
@@ -40,6 +40,13 @@
         (buffer-read-only?-set! b #f)
         (buffer-insert! b (buffer-length b) (string-append text "\n"))
         (buffer-read-only?-set! b #t))))
+
+  ;; Tell everyone but `except` (#f: everyone) something that happened,
+  ;; and note it in *chat*.
+  (define (announce! except fmt . args)
+    (let ([text (apply format fmt args)])
+      (log! text)
+      (tell! except "~a" text)))
 
   ;; Say text to everyone, as the current client's person.
   (define (say! text)
@@ -129,12 +136,23 @@
                     (if (eq? (view-input-mode v) 'insert) ", typing" "")))
           "nowhere yet")))
 
+  ;; What else the people list says about each person: procedures from a
+  ;; client to a string, or #f (voice adds who is in it).
+  (define person-notes '())
+  (define (define-person-note! proc) (set! person-notes (append person-notes (list proc))))
+
+  (define (notes c)
+    (apply string-append
+           (map (lambda (s) (string-append "  " s))
+                (filter string?
+                        (cons (let ([l (following c)]) (and l (format "following ~a" (client-user l))))
+                              (map (lambda (note) (note c)) person-notes))))))
+
   (define (people-picker!)
     (let ([me (current-client)])
       (pick "People"
             (map (lambda (c)
-                   (cons (format "~a~a  ~a~a" (client-user c) (if (eq? c me) " (you)" "") (where c)
-                                 (let ([l (following c)]) (if l (format "  following ~a" (client-user l)) "")))
+                   (cons (format "~a~a  ~a~a" (client-user c) (if (eq? c me) " (you)" "") (where c) (notes c))
                          c))
                  (people))
             follow!

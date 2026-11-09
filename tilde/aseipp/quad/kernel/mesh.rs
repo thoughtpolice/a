@@ -19,6 +19,7 @@
 //! once it stops, they are worth nothing. Clients take a fresh identity
 //! each time too.
 
+use std::collections::HashMap;
 use std::os::fd::{AsRawFd as _, IntoRawFd as _, OwnedFd};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
@@ -26,6 +27,7 @@ use std::time::Duration;
 use accept::Accept as _;
 use chez::{Mailbox, Sender};
 use futures::StreamExt as _;
+use iroh::endpoint::Connection;
 use iroh_mesh::{
     Announcer, Cluster, Endpoint, EndpointAddr, JoinCode, JoinKey, JoinTicket, Protocol, SecretKey,
     Transport,
@@ -46,7 +48,7 @@ const LOOK_FOR: Duration = Duration::from_secs(10);
 /// How long an editor waits for its relay before making its ticket.
 const RELAY_WAIT: Duration = Duration::from_secs(3);
 
-fn runtime() -> &'static tokio::runtime::Runtime {
+pub(crate) fn runtime() -> &'static tokio::runtime::Runtime {
     static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
     RUNTIME.get_or_init(|| {
         tokio::runtime::Builder::new_multi_thread()
@@ -68,20 +70,44 @@ fn preset(local: bool) -> iroh_dial::Global {
     }
 }
 
+/// The connections that the descriptors Scheme has for streams belong
+/// to: for what else goes over them (voice's datagrams, voice/).
+fn links() -> &'static Mutex<HashMap<i32, Connection>> {
+    static LINKS: OnceLock<Mutex<HashMap<i32, Connection>>> = OnceLock::new();
+    LINKS.get_or_init(Mutex::default)
+}
+
+/// The connection whose stream Scheme has as `fd`, while it is open.
+pub fn link(fd: i32) -> Option<Connection> {
+    let conn = links().lock().unwrap().get(&fd).cloned()?;
+    conn.close_reason().is_none().then_some(conn)
+}
+
 /// Pump `stream` to and from one end of a new socketpair, until either
-/// side ends; the other end.
-fn bridge<S>(stream: S) -> std::io::Result<OwnedFd>
+/// side ends; the other end, which stands for `conn` (see [`link`]) until
+/// then.
+fn bridge<S>(stream: S, conn: Connection) -> std::io::Result<OwnedFd>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
     let (ours, theirs) = std::os::unix::net::UnixStream::pair()?;
     ours.set_nonblocking(true)?;
+    let fd = theirs.as_raw_fd();
+    links().lock().unwrap().insert(fd, conn.clone());
     let mut stream = stream;
     runtime().spawn(async move {
-        let Ok(mut ours) = tokio::net::UnixStream::from_std(ours) else {
-            return;
-        };
-        let _ = tokio::io::copy_bidirectional(&mut ours, &mut stream).await;
+        if let Ok(mut ours) = tokio::net::UnixStream::from_std(ours) {
+            let _ = tokio::io::copy_bidirectional(&mut ours, &mut stream).await;
+        }
+        // Scheme may have closed the descriptor, and its number gone to
+        // something else, with a connection of its own.
+        let mut links = links().lock().unwrap();
+        if links
+            .get(&fd)
+            .is_some_and(|c| c.stable_id() == conn.stable_id())
+        {
+            links.remove(&fd);
+        }
     });
     Ok(theirs.into())
 }
@@ -218,7 +244,8 @@ async fn serve(mut streams: accept::Handover<iroh_mesh::Stream>, tx: Sender<i32>
     while let Ok(Some(stream)) = streams.accept().await {
         // A stream that cannot be bridged (out of descriptors) is dropped,
         // which the client sees as a closed connection.
-        if let Ok(fd) = bridge(stream) {
+        let conn = stream.connection().clone();
+        if let Ok(fd) = bridge(stream, conn) {
             if tx.send(fd.as_raw_fd()).is_err() {
                 // The editor stopped listening; the descriptor closes.
                 return;
@@ -280,7 +307,7 @@ pub fn connect(target: &str, local: bool) -> Result<Session, String> {
                     .await
                     .map_err(|e| e.to_string())?;
                 let (send, recv) = conn.open_bi().await.map_err(|e| e.to_string())?;
-                let fd = bridge(tokio::io::join(recv, send))
+                let fd = bridge(tokio::io::join(recv, send), conn.clone())
                     .map_err(|e| e.to_string())?
                     .into_raw_fd();
                 Ok::<_, String>((fd, conn.remote_id().to_string()))

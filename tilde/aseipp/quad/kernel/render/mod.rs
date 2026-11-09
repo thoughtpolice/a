@@ -15,7 +15,7 @@
 //! Nothing links against Vulkan: ash loads the host's `libvulkan.so.1` when
 //! a renderer is made ([`ash::Entry::load`]). The host's driver loads into
 //! this process, so the executable must run on the host's C library
-//! (`:quad-host`). `QUAD_GUI_DEVICE=NAME` picks the device whose name has
+//! (`:quad`). `QUAD_GUI_DEVICE=NAME` picks the device whose name has
 //! NAME in it (`llvmpipe` for lavapipe); `QUAD_VULKAN_VALIDATION=1` turns
 //! on the Khronos validation layer, where it is installed.
 //!
@@ -24,17 +24,18 @@
 //! made ahead ([`prepare`]), on another thread, while the editor starts
 //! and the window is made. Pipelines take under a millisecond to make
 //! (drivers keep their own shader caches), so none is cached here.
+//!
+//! Vulkan is called in one module alone ([`vulkan`]), whose types own its
+//! objects and keep the conditions its calls need; the rest is safe code.
 
-use std::ffi::{CStr, c_char};
+use std::ffi::CStr;
 use std::rc::Rc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
 use ash::vk;
 use winit::dpi::PhysicalSize;
-use winit::raw_window_handle::{
-    HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle,
-};
+use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 use winit::window::Window;
 
 use crate::font::{GLYPH_BYTES, RECT_BYTES};
@@ -44,11 +45,13 @@ use crate::timing;
 
 mod gpu;
 mod headless;
+mod vulkan;
 mod window;
 
 pub use gpu::Gpu;
 use gpu::*;
 pub use headless::{Headless, write_ppm};
+use vulkan::*;
 pub use window::{Renderer, prepare};
 
 /// The shaders, compiled by slangc (BUILD: `:gui.*.spv`).
@@ -89,22 +92,6 @@ pub struct DrawList<'a> {
     pub origin: [f32; 2],
 }
 
-/// What the shaders' push constants hold: `Params` in kernel/gui.slang.
-#[repr(C)]
-struct Params {
-    rects: vk::DeviceAddress,
-    glyphs: vk::DeviceAddress,
-    curves: vk::DeviceAddress,
-    bands: vk::DeviceAddress,
-    pictures: vk::DeviceAddress,
-    pixels: vk::DeviceAddress,
-    cell: [f32; 2],
-    viewport: [f32; 2],
-    origin: [f32; 2],
-    linear: u32,
-    reserved: u32,
-}
-
 /// Whether frames drawn in `format` blend in linear light: whether it
 /// encodes sRGB itself.
 fn is_srgb(format: vk::Format) -> bool {
@@ -126,9 +113,4 @@ fn linearize(v: f32) -> f32 {
 
 fn vk_error(what: &str) -> impl Fn(vk::Result) -> String + '_ {
     move |e| format!("vulkan: {what}: {e}")
-}
-
-fn bytes_of<T>(items: &[T]) -> &[u8] {
-    // SAFETY: plain data (f32s and u32s), read as the bytes it is.
-    unsafe { std::slice::from_raw_parts(items.as_ptr().cast(), size_of_val(items)) }
 }

@@ -10,7 +10,7 @@
 ;; (quad native), generated from kernel/lib.rs.
 (library (quad kernel)
   (export kernel-isatty kernel-tty-raw kernel-tty-restore kernel-tty-size kernel-tty-pixels
-          kernel-read kernel-write kernel-take-winch kernel-suspend
+          kernel-read-some kernel-write kernel-take-winch kernel-suspend
           kernel-poll kernel-unix-listen kernel-unix-connect kernel-accept kernel-close
           kernel-fork-detached
           quad-self-path)
@@ -37,6 +37,17 @@
   (define-kernel kernel-take-winch "quad_take_winch" () int)
   (define-kernel kernel-suspend "quad_suspend" () void)
   (define-kernel quad-self-path "quad_self_path" () string)
+
+  ;; What is readable on fd within timeout-ms (-1: however long it takes),
+  ;; as a bytevector: empty when nothing came in time, or a signal came
+  ;; first; #f at the end of input, or on an error.
+  (define read-scratch (make-bytevector 65536))
+  (define (kernel-read-some fd timeout-ms)
+    (let ([n (kernel-read fd read-scratch (bytevector-length read-scratch) timeout-ms)])
+      (cond
+       [(= n -1) #f]
+       [(<= n 0) (make-bytevector 0)]
+       [else (let ([b (make-bytevector n)]) (bytevector-copy! read-scratch 0 b 0 n) b)])))
 
   ;; Connections (kernel.c).
   (define-kernel k-poll "quad_poll" (u8* int int u8*) int)

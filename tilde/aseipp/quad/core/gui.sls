@@ -23,7 +23,7 @@
           make-painter painter-note! painter-flush!)
   (import (chezscheme) (quad util) (quad native) (quad kernel) (quad event) (quad face)
           (quad protocol) (quad grid) (quad editor) (quad commands) (quad server) (quad relay)
-          (quad link))
+          (quad link) (quad voice))
 
   (define-variable gui-font-family "JetBrains Mono"
     "The font family a window draws text in: JetBrains Mono is built in; another that is not installed falls back to the system's monospace font.")
@@ -321,7 +321,7 @@
 
   ;; What a window can do, for the server: the protocol's capabilities.
   (define (gui-capabilities win)
-    (append '("title" "font" "pointer-shape" "scroll" "images" "hidden-cursor")
+    (append '("title" "font" "pointer-shape" "scroll" "images" "hidden-cursor" "voice")
             (if (gui-clipboard? win) '("clipboard" "primary-selection") '())
             (if (can-open-urls?) '("open-url") '())))
 
@@ -471,8 +471,7 @@
   (define (gui-connect! win fd files line)
     (let* ([screen (make-screen)]
            [send (frame-sender fd)]
-           [reader (make-frame-reader)]
-           [buf (make-bytevector 65536)])
+           [reader (make-frame-reader)])
       (send (list "hello" protocol-version "gui" initial-rows initial-cols (gui-capabilities win)))
       (send (list "user" (default-user-name)))
       ;; Paths are the editor's to open, so they go absolute.
@@ -485,9 +484,11 @@
                 (and (or (not (memv (gui-fd win) ready))
                          (window-events! win send report-to-stderr))
                      (or (not (memv fd ready))
-                         (let ([n (kernel-read fd buf (bytevector-length buf) 0)])
-                           (and (> n -1)
-                                (for-all (lambda (msg) (paint! win screen msg)) (reader buf n))))))])
+                         (let ([got (kernel-read-some fd 0)])
+                           (and got
+                                (for-all (lambda (msg)
+                                           (or (voice-message! fd msg send) (paint! win screen msg)))
+                                         (reader got (bytevector-length got)))))))])
           (if continue?
               (loop)
               (begin

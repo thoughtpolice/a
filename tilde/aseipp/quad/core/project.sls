@@ -283,23 +283,22 @@
   (define (asking?) (exists (lambda (p) (eq? (proj-state p) 'asking)) (hashtable-values* projects)))
   (define (hashtable-values* h) (let-values ([(ks vs) (hashtable-entries h)]) (vector->list vs)))
 
+  ;; Run thunk as the current client, or any: #f, without running it,
+  ;; when there is none to ask.
   (define (as-asker thunk)
-    (let ([c (cond [(and (current-client) (memq (current-client) (clients))) (current-client)]
-                   [(pair? (clients)) (car (clients))]
-                   [else #f])])
-      (and c (begin (with-client c thunk) #t))))
+    (and (pair? (clients)) (begin (with-client-or-any (current-client) thunk) #t)))
 
   (define (next-question!)
     (when (and (pair? queue) (pair? (clients)) (not (asking?)))
       (let ([p (car queue)])
         (set! queue (cdr queue))
-        (ask! p))))
+        (ask-trust! p))))
 
   ;; Ask about root now, as the current client.
   (define (project-ask! root)
     (let ([p (project! root)])
       (set! queue (remq p queue))
-      (ask! p)))
+      (ask-trust! p)))
 
   (define (summary root)
     (let* ([files (project-config-files root)]
@@ -310,7 +309,7 @@ trust where the repository came from; a change to these files asks again."
               root (length files) (if (= (length files) 1) "" "s") lines (if (= lines 1) "" "s")
               (string-join (map car files) ", "))))
 
-  (define (ask! p)
+  (define (ask-trust! p)
     (let ([root (proj-root p)])
       (proj-state-set! p 'asking)
       (unless (as-asker
@@ -359,12 +358,12 @@ mislead it): ~a" (string-trim first))))
       (message "Reviewing ~a/.quad/ ..." root)
       (reviewer root (project-config-files root)
                 (case-lambda
-                 [(text) (proj-review-set! p text) (with-client* client (lambda () (ask! p)))]
+                 [(text) (proj-review-set! p text) (with-client* client (lambda () (ask-trust! p)))]
                  [(no why) (with-client* client
-                             (lambda () (message-error "The review failed: ~a" why) (ask! p)))]))))
+                             (lambda () (message-error "The review failed: ~a" why) (ask-trust! p)))]))))
 
   (define (with-client* c thunk)
-    (if (and c (memq c (clients))) (with-client c thunk) (as-asker thunk)))
+    (when (pair? (clients)) (with-client-or-any c thunk)))
 
   (define (show-review! p)
     (show-text-buffer! "*project review*"

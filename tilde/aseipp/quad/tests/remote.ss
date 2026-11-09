@@ -11,14 +11,13 @@
 (define send (frame-sender fd))
 (define reader (make-frame-reader))
 (define model (make-grid-model))
-(define buf (make-bytevector 65536))
 
 ;; Read and apply what arrives within timeout milliseconds; #f if nothing
 ;; did.
 (define (pump! timeout)
-  (let ([n (kernel-read fd buf (bytevector-length buf) timeout)])
-    (and (> n 0)
-         (begin (for-each (lambda (m) (grid-model-apply! model m)) (reader buf n)) #t))))
+  (let ([got (kernel-read-some fd timeout)])
+    (and got (> (bytevector-length got) 0)
+         (begin (for-each (lambda (m) (grid-model-apply! model m)) (reader got (bytevector-length got))) #t))))
 
 ;; Read until (pred), or fail: the server sends frames only when something
 ;; changed, so a test waits for what it expects.

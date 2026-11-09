@@ -17,7 +17,7 @@
 ;; tilde/aseipp/quad:
 ;;
 ;;   QUAD_GUI_DEVICE=llvmpipe QUAD_GOLDEN=tests/golden QUAD_GOLDEN_UPDATE=1 \
-;;     $(buck2 build --show-full-simple-output :quad-host) -q --batch tests/golden.ss
+;;     $(buck2 build --show-full-simple-output :quad) -q --batch tests/golden.ss
 ;;
 ;; and look at what changed before committing them.
 
