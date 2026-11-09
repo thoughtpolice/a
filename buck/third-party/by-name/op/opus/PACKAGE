@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "OsvGitRepoInfo", "pkg")
+
+pkg.info(
+    version = "1.5.2",
+    description = """
+        Opus, the interactive speech and audio codec (RFC 6716): SILK for
+        speech, CELT for music, and a hybrid of the two.
+    """,
+    license = "BSD-3-Clause",
+    copyright = [
+        "2001-2023 Xiph.Org, Skype Limited, Octasic, Jean-Marc Valin, Timothy B. Terriberry, CSIRO, Gregory Maxwell, Mark Borgerding, Erik de Castro Lopo, Mozilla, Amazon",
+    ],
+    visibility = ["PUBLIC"],
+    osv_info = OsvGitRepoInfo(
+        url = "https://github.com/xiph/opus",
+        commit = "ddbe48383984d56acd9e1ab6a090c54ca6b735a6",
+    ),
+)
