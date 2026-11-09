@@ -29757,18 +29757,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "sha2-0.11.0.crate",
-    sha256 = "446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4",
-    strip_prefix = "sha2-0.11.0",
-    urls = ["https://static.crates.io/crates/sha2/0.11.0/download"],
+    name = "sha2-0.11.1.crate",
+    sha256 = "47d7069beb7d6ac7b9acd1039986e73443f24234f41074da099d6f994ac9ad19",
+    strip_prefix = "sha2-0.11.1",
+    urls = ["https://static.crates.io/crates/sha2/0.11.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "sha2-0.11",
-    srcs = [":sha2-0.11.0.crate"],
+    srcs = [":sha2-0.11.1.crate"],
     crate = "sha2",
-    crate_root = "sha2-0.11.0.crate/src/lib.rs",
+    crate_root = "sha2-0.11.1.crate/src/lib.rs",
     edition = "2024",
     features = [
         "alloc",
@@ -29778,7 +29778,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "sha2",
-            "version": "0.11.0",
+            "version": "0.11.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
