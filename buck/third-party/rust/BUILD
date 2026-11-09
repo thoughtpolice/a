@@ -17830,18 +17830,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "libc-0.2.189.crate",
-    sha256 = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2",
-    strip_prefix = "libc-0.2.189",
-    urls = ["https://static.crates.io/crates/libc/0.2.189/download"],
+    name = "libc-0.2.191.crate",
+    sha256 = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a",
+    strip_prefix = "libc-0.2.191",
+    urls = ["https://static.crates.io/crates/libc/0.2.191/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "libc-0.2",
-    srcs = [":libc-0.2.189.crate"],
+    srcs = [":libc-0.2.191.crate"],
     crate = "libc",
-    crate_root = "libc-0.2.189.crate/src/lib.rs",
+    crate_root = "libc-0.2.191.crate/src/lib.rs",
     edition = "2021",
     env = {
         "OUT_DIR": "$(location :libc-0.2-build-script-run[out_dir])",
@@ -17853,7 +17853,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "libc",
-            "version": "0.2.189",
+            "version": "0.2.191",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -17877,9 +17877,9 @@ third_party_rust.rust_library(
 
 third_party_rust.rust_binary(
     name = "libc-0.2-build-script-build",
-    srcs = [":libc-0.2.189.crate"],
+    srcs = [":libc-0.2.191.crate"],
     crate = "build_script_build",
-    crate_root = "libc-0.2.189.crate/build.rs",
+    crate_root = "libc-0.2.191.crate/build.rs",
     edition = "2021",
     features = [
         "default",
@@ -17888,7 +17888,7 @@ third_party_rust.rust_binary(
     metadata = {
         "third-party.metadata": {
             "name": "libc",
-            "version": "0.2.189",
+            "version": "0.2.191",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -17931,7 +17931,7 @@ third_party_rust.buildscript_run(
             features = ["extra_traits"],
         ),
     },
-    version = "0.2.189",
+    version = "0.2.191",
 )
 
 shims.http_archive(
