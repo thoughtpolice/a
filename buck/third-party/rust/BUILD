@@ -14349,18 +14349,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "hyper-1.11.1.crate",
-    sha256 = "27b501faa50e7a26c3d3560ca625132f4078a17771f4810baf70475ae48cbe43",
-    strip_prefix = "hyper-1.11.1",
-    urls = ["https://static.crates.io/crates/hyper/1.11.1/download"],
+    name = "hyper-1.12.0.crate",
+    sha256 = "2c3e324da4c95177d6291d4c8730197c0d1822f8a9766814a4a44fa5ab797c9c",
+    strip_prefix = "hyper-1.12.0",
+    urls = ["https://static.crates.io/crates/hyper/1.12.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "hyper-1",
-    srcs = [":hyper-1.11.1.crate"],
+    srcs = [":hyper-1.12.0.crate"],
     crate = "hyper",
-    crate_root = "hyper-1.11.1.crate/src/lib.rs",
+    crate_root = "hyper-1.12.0.crate/src/lib.rs",
     edition = "2021",
     features = [
         "client",
@@ -14372,7 +14372,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "hyper",
-            "version": "1.11.1",
+            "version": "1.12.0",
             "licenses": ["MIT"],
         },
     },
@@ -14515,19 +14515,19 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "hyper-util-0.1.20.crate",
-    sha256 = "96547c2556ec9d12fb1578c4eaf448b04993e7fb79cbaad930a656880a6bdfa0",
-    strip_prefix = "hyper-util-0.1.20",
-    urls = ["https://static.crates.io/crates/hyper-util/0.1.20/download"],
+    name = "hyper-util-0.1.21.crate",
+    sha256 = "ddc03d96684f9226b8a787cdb71488417b53ab5ea8fdb1dac946cb9431cc8bff",
+    strip_prefix = "hyper-util-0.1.21",
+    urls = ["https://static.crates.io/crates/hyper-util/0.1.21/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "hyper-util-0.1",
-    srcs = [":hyper-util-0.1.20.crate"],
+    srcs = [":hyper-util-0.1.21.crate"],
     crate = "hyper_util",
-    crate_root = "hyper-util-0.1.20.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "hyper-util-0.1.21.crate/src/lib.rs",
+    edition = "2024",
     features = [
         "client",
         "client-legacy",
@@ -14545,7 +14545,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "hyper-util",
-            "version": "0.1.20",
+            "version": "0.1.21",
             "licenses": ["MIT"],
         },
     },
@@ -14565,12 +14565,13 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
-        ":base64-0.22",
+        ":base64-0.23",
         ":bytes-1",
         ":futures-channel-0.3",
         ":futures-util-0.3",
         ":http-1",
         ":http-body-1",
+        ":httparse-1",
         ":hyper-1",
         ":ipnet-2",
         ":libc-0.2",
@@ -35622,23 +35623,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "want-0.3.1.crate",
-    sha256 = "bfa7760aed19e106de2c7c0b581b509f2f25d3dacaf737cb82ac61bc6d760b0e",
-    strip_prefix = "want-0.3.1",
-    urls = ["https://static.crates.io/crates/want/0.3.1/download"],
+    name = "want-0.3.2.crate",
+    sha256 = "ec4cdd0dd910afe868b7ef477227d8d538b46b3075031afee8a9f2acb0a2ed0b",
+    strip_prefix = "want-0.3.2",
+    urls = ["https://static.crates.io/crates/want/0.3.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "want-0.3",
-    srcs = [":want-0.3.1.crate"],
+    srcs = [":want-0.3.2.crate"],
     crate = "want",
-    crate_root = "want-0.3.1.crate/src/lib.rs",
+    crate_root = "want-0.3.2.crate/src/lib.rs",
     edition = "2018",
     metadata = {
         "third-party.metadata": {
             "name": "want",
-            "version": "0.3.1",
+            "version": "0.3.2",
             "licenses": ["MIT"],
         },
     },
