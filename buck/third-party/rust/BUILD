@@ -22897,18 +22897,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "openssl-0.10.81.crate",
-    sha256 = "77823a27f0babb03091cb9ed9ef80af3b39dbc82f97e8fa530374b7dafd87a45",
-    strip_prefix = "openssl-0.10.81",
-    urls = ["https://static.crates.io/crates/openssl/0.10.81/download"],
+    name = "openssl-0.10.82.crate",
+    sha256 = "4de8111e94a56adca7ebfe6c365b6d42f99deb69b74b6becacd4204e2f193aa2",
+    strip_prefix = "openssl-0.10.82",
+    urls = ["https://static.crates.io/crates/openssl/0.10.82/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "openssl-0.10",
-    srcs = [":openssl-0.10.81.crate"],
+    srcs = [":openssl-0.10.82.crate"],
     crate = "openssl",
-    crate_root = "openssl-0.10.81.crate/src/lib.rs",
+    crate_root = "openssl-0.10.82.crate/src/lib.rs",
     edition = "2021",
     features = [
         "bindgen",
@@ -22918,7 +22918,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "openssl",
-            "version": "0.10.81",
+            "version": "0.10.82",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -23044,18 +23044,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "openssl-sys-0.9.117.crate",
-    sha256 = "b47e7e6bb2c38cd930d25a23b40fa52e068c10e85f3e03a7f5ba5aaca5713695",
-    strip_prefix = "openssl-sys-0.9.117",
-    urls = ["https://static.crates.io/crates/openssl-sys/0.9.117/download"],
+    name = "openssl-sys-0.9.118.crate",
+    sha256 = "19c413d6ec9ebaf5e1c829d355cb3e9f783778d700f135be0921d52fce3c60ae",
+    strip_prefix = "openssl-sys-0.9.118",
+    urls = ["https://static.crates.io/crates/openssl-sys/0.9.118/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "openssl-sys-0.9",
-    srcs = [":openssl-sys-0.9.117.crate"],
+    srcs = [":openssl-sys-0.9.118.crate"],
     crate = "openssl_sys",
-    crate_root = "openssl-sys-0.9.117.crate/src/lib.rs",
+    crate_root = "openssl-sys-0.9.118.crate/src/lib.rs",
     edition = "2021",
     features = [
         "bindgen",
@@ -23064,7 +23064,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "openssl-sys",
-            "version": "0.9.117",
+            "version": "0.9.118",
             "licenses": ["MIT"],
         },
     },
