@@ -147,17 +147,16 @@ notify-debouncer-mini = { version = "0.7.0", features = ["crossbeam-channel"] }
 num-bigint = "0.4.8"
 object_store = "0.14"
 openssl = "0.10.82"
-# NOTE (opentelemetry): the core stays on 0.32 until the edges catch up. 0.33
-# is out, but opentelemetry-resource-detectors 0.12 and tracing-opentelemetry
-# 0.33 — both the newest releases — still require opentelemetry ^0.32, so
-# moving the core would put two opentelemetry majors in the graph.
-opentelemetry = "0.32.0"
-opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.32.0", features = ["grpc-tonic"] }
-opentelemetry-resource-detectors = "0.12.0"
-opentelemetry-appender-log = "0.32.0"
-opentelemetry-semantic-conventions = "0.32.1"
-tracing-opentelemetry = "0.33.0"
+# NOTE (opentelemetry): move the core crates, opentelemetry-resource-detectors
+# and tracing-opentelemetry together; each edge release requires exactly one
+# opentelemetry minor, so a partial bump puts two copies in the graph.
+opentelemetry = "0.33.1"
+opentelemetry_sdk = { version = "0.33.1", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.33.1", features = ["grpc-tonic"] }
+opentelemetry-resource-detectors = "0.13.0"
+opentelemetry-appender-log = "0.33.1"
+opentelemetry-semantic-conventions = "0.33.1"
+tracing-opentelemetry = "0.34.0"
 parking_lot = "0.12.5"
 percent-encoding = "2"
 pollster = "1.0.1"
