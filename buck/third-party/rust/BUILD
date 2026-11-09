@@ -2579,18 +2579,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "brotli-9.0.0.crate",
-    sha256 = "f8b851b75c23ca7873623d612fe49bd1989aeb03d08fb9432187eb253d3d4c6b",
-    strip_prefix = "brotli-9.0.0",
-    urls = ["https://static.crates.io/crates/brotli/9.0.0/download"],
+    name = "brotli-9.1.1.crate",
+    sha256 = "627b7cfb0578f0eafce087a90fcd40add1231900b69e4d4de2d456260a4f5d81",
+    strip_prefix = "brotli-9.1.1",
+    urls = ["https://static.crates.io/crates/brotli/9.1.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "brotli-9",
-    srcs = [":brotli-9.0.0.crate"],
+    srcs = [":brotli-9.1.1.crate"],
     crate = "brotli",
-    crate_root = "brotli-9.0.0.crate/src/lib.rs",
+    crate_root = "brotli-9.1.1.crate/src/lib.rs",
     edition = "2015",
     features = [
         "alloc-stdlib",
@@ -2600,7 +2600,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "brotli",
-            "version": "9.0.0",
+            "version": "9.1.1",
             "licenses": ["BSD-3-Clause AND MIT"],
         },
     },
@@ -2613,18 +2613,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "brotli-decompressor-6.0.0.crate",
-    sha256 = "46087801e40b785410c352bee60e9b6226312709cf52d5fff92776cdf5cf6490",
-    strip_prefix = "brotli-decompressor-6.0.0",
-    urls = ["https://static.crates.io/crates/brotli-decompressor/6.0.0/download"],
+    name = "brotli-decompressor-6.3.0.crate",
+    sha256 = "97d9071e5b45944c5a9c06baf13a7a65ffa2c88c204015967852c90869692c05",
+    strip_prefix = "brotli-decompressor-6.3.0",
+    urls = ["https://static.crates.io/crates/brotli-decompressor/6.3.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "brotli-decompressor-6",
-    srcs = [":brotli-decompressor-6.0.0.crate"],
+    srcs = [":brotli-decompressor-6.3.0.crate"],
     crate = "brotli_decompressor",
-    crate_root = "brotli-decompressor-6.0.0.crate/src/lib.rs",
+    crate_root = "brotli-decompressor-6.3.0.crate/src/lib.rs",
     edition = "2015",
     features = [
         "alloc-stdlib",
@@ -2633,7 +2633,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "brotli-decompressor",
-            "version": "6.0.0",
+            "version": "6.3.0",
             "licenses": ["BSD-3-Clause OR MIT"],
         },
     },
