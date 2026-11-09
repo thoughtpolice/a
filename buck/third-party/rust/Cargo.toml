@@ -219,7 +219,7 @@ slatedb-common = "=0.18.1"
 syn = { version = "2.0.119", features = ["full"] }
 tar = "0.4"
 tempfile = "3.27.0"
-thiserror = "2.0.20"
+thiserror = "2.0.21"
 tonic = "0.14.6"
 tonic-build = "0.14.6"
 tonic-health = "0.14.6"

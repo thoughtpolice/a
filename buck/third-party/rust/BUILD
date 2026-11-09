@@ -32540,34 +32540,34 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "thiserror-2.0.20.crate",
-    sha256 = "ec86235f5fcc2a73650310756d2ac5b138a5780bbbdfae3eeccec992c435ba4f",
-    strip_prefix = "thiserror-2.0.20",
-    urls = ["https://static.crates.io/crates/thiserror/2.0.20/download"],
+    name = "thiserror-2.0.21.crate",
+    sha256 = "09e52cb86a36cede5cb101bf8908837b3e4c6e5e59fe7fd85c23fb56200d189e",
+    strip_prefix = "thiserror-2.0.21",
+    urls = ["https://static.crates.io/crates/thiserror/2.0.21/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "thiserror-2",
-    srcs = [":thiserror-2.0.20.crate"],
+    srcs = [":thiserror-2.0.21.crate"],
     crate = "thiserror",
-    crate_root = "thiserror-2.0.20.crate/src/lib.rs",
+    crate_root = "thiserror-2.0.21.crate/src/lib.rs",
     edition = "2021",
     env = {
         "CARGO_BIN_NAME": "thiserror",
         "CARGO_CRATE_NAME": "thiserror",
-        "CARGO_MANIFEST_DIR": "thiserror-2.0.20.crate",
+        "CARGO_MANIFEST_DIR": "thiserror-2.0.21.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "derive(Error)",
         "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "thiserror",
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/thiserror",
-        "CARGO_PKG_RUST_VERSION": "1.71",
-        "CARGO_PKG_VERSION": "2.0.20",
+        "CARGO_PKG_RUST_VERSION": "1.77",
+        "CARGO_PKG_VERSION": "2.0.21",
         "CARGO_PKG_VERSION_MAJOR": "2",
         "CARGO_PKG_VERSION_MINOR": "0",
-        "CARGO_PKG_VERSION_PATCH": "20",
+        "CARGO_PKG_VERSION_PATCH": "21",
         "CARGO_PKG_VERSION_PRE": "",
         "OUT_DIR": "$(location :thiserror-2-build-script-run[out_dir])",
     },
@@ -32578,7 +32578,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "thiserror",
-            "version": "2.0.20",
+            "version": "2.0.21",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -32589,25 +32589,25 @@ third_party_rust.rust_library(
 
 third_party_rust.rust_binary(
     name = "thiserror-2-build-script-build",
-    srcs = [":thiserror-2.0.20.crate"],
+    srcs = [":thiserror-2.0.21.crate"],
     crate = "build_script_build",
-    crate_root = "thiserror-2.0.20.crate/build.rs",
+    crate_root = "thiserror-2.0.21.crate/build.rs",
     edition = "2021",
     env = {
         "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
-        "CARGO_MANIFEST_DIR": "thiserror-2.0.20.crate",
+        "CARGO_MANIFEST_DIR": "thiserror-2.0.21.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "derive(Error)",
         "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "thiserror",
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/thiserror",
-        "CARGO_PKG_RUST_VERSION": "1.71",
-        "CARGO_PKG_VERSION": "2.0.20",
+        "CARGO_PKG_RUST_VERSION": "1.77",
+        "CARGO_PKG_VERSION": "2.0.21",
         "CARGO_PKG_VERSION_MAJOR": "2",
         "CARGO_PKG_VERSION_MINOR": "0",
-        "CARGO_PKG_VERSION_PATCH": "20",
+        "CARGO_PKG_VERSION_PATCH": "21",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -32617,7 +32617,7 @@ third_party_rust.rust_binary(
     metadata = {
         "third-party.metadata": {
             "name": "thiserror",
-            "version": "2.0.20",
+            "version": "2.0.21",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -32634,17 +32634,17 @@ third_party_rust.buildscript_run(
         "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/thiserror",
-        "CARGO_PKG_RUST_VERSION": "1.71",
+        "CARGO_PKG_RUST_VERSION": "1.77",
         "CARGO_PKG_VERSION_MAJOR": "2",
         "CARGO_PKG_VERSION_MINOR": "0",
-        "CARGO_PKG_VERSION_PATCH": "20",
+        "CARGO_PKG_VERSION_PATCH": "21",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
         "default",
         "std",
     ],
-    version = "2.0.20",
+    version = "2.0.21",
 )
 
 shims.http_archive(
@@ -32695,40 +32695,40 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "thiserror-impl-2.0.20.crate",
-    sha256 = "bc04cd3e1236dd4a98afca4569f2deb3f120e5422a4023be2cb683f8486292af",
-    strip_prefix = "thiserror-impl-2.0.20",
-    urls = ["https://static.crates.io/crates/thiserror-impl/2.0.20/download"],
+    name = "thiserror-impl-2.0.21.crate",
+    sha256 = "fe5197923287db20a58125f0bc85c062f7f2c892de97b18c356f9efb14b28524",
+    strip_prefix = "thiserror-impl-2.0.21",
+    urls = ["https://static.crates.io/crates/thiserror-impl/2.0.21/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "thiserror-impl-2",
-    srcs = [":thiserror-impl-2.0.20.crate"],
+    srcs = [":thiserror-impl-2.0.21.crate"],
     crate = "thiserror_impl",
-    crate_root = "thiserror-impl-2.0.20.crate/src/lib.rs",
+    crate_root = "thiserror-impl-2.0.21.crate/src/lib.rs",
     edition = "2021",
     env = {
         "CARGO_BIN_NAME": "thiserror_impl",
         "CARGO_CRATE_NAME": "thiserror_impl",
-        "CARGO_MANIFEST_DIR": "thiserror-impl-2.0.20.crate",
+        "CARGO_MANIFEST_DIR": "thiserror-impl-2.0.21.crate",
         "CARGO_PKG_AUTHORS": "David Tolnay <dtolnay@gmail.com>",
         "CARGO_PKG_DESCRIPTION": "Implementation detail of the `thiserror` crate",
         "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "thiserror-impl",
         "CARGO_PKG_README": "",
         "CARGO_PKG_REPOSITORY": "https://github.com/dtolnay/thiserror",
-        "CARGO_PKG_RUST_VERSION": "1.71",
-        "CARGO_PKG_VERSION": "2.0.20",
+        "CARGO_PKG_RUST_VERSION": "1.77",
+        "CARGO_PKG_VERSION": "2.0.21",
         "CARGO_PKG_VERSION_MAJOR": "2",
         "CARGO_PKG_VERSION_MINOR": "0",
-        "CARGO_PKG_VERSION_PATCH": "20",
+        "CARGO_PKG_VERSION_PATCH": "21",
         "CARGO_PKG_VERSION_PRE": "",
     },
     metadata = {
         "third-party.metadata": {
             "name": "thiserror-impl",
-            "version": "2.0.20",
+            "version": "2.0.21",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
