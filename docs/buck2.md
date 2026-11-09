@@ -821,7 +821,12 @@ buck2 build @mode//release //src/app
 ```
 
 Build modes are implemented as cell modifiers that affect configuration:
-- `@mode//debug`: `-Cdebuginfo=2`, `-Copt-level=0`, incremental compilation enabled
+- `@mode//debug`: `-Cdebuginfo=2`, `-Copt-level=0`, incremental compilation enabled;
+  on Linux, split debug info: C and C++ compile with `-gsplit-dwarf=single`
+  and Rust with `-Csplit-debuginfo=unpacked` (DWARF 5, as clang writes), so
+  links neither copy nor carry debug info. Debuggers read it where it was
+  compiled; a binary's `[dwp]` sub-target packs it into one `.dwp` file
+  (`llvm-dwp`). See `buck/toolchains/cxx/BUILD`.
 - `@mode//release`: `-Copt-level=3`, `-Cdebuginfo=none`, LTO enabled
 
 To read the current build mode in BUILD files:

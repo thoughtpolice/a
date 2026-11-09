@@ -22,6 +22,7 @@ load(
     "RuntimeDependencyHandling",
     "ShlibInterfacesMode",
 )
+load("@prelude//cxx:debug.bzl", "SplitDebugMode")
 load("@prelude//cxx:headers.bzl", "HeaderMode")
 load("@prelude//cxx:linker.bzl", "is_pdb_generated")
 load("@prelude//decls:common.bzl", "buck")
@@ -180,7 +181,7 @@ def _cxx_toolchain_from_cxx_tools_info(ctx: AnalysisContext, cxx_tools_info: Cxx
             objdump = RunInfo(args = ["objdump"]),
             ranlib = RunInfo(args = ["ranlib"]),
             strip = RunInfo(args = ["strip"]),
-            dwp = None,
+            dwp = RunInfo(args = [ctx.attrs.dwp]) if ctx.attrs.dwp else None,
             bolt = None,
         ),
         cxx_compiler_info = CxxCompilerInfo(
@@ -216,6 +217,7 @@ def _cxx_toolchain_from_cxx_tools_info(ctx: AnalysisContext, cxx_tools_info: Cxx
             compiler_type = cxx_tools_info.compiler_type,
         ),
         header_mode = HeaderMode("symlink_tree_only"),
+        split_debug_mode = SplitDebugMode(ctx.attrs.split_debug_mode or "none"),
         cpp_dep_tracking_mode = ctx.attrs.cpp_dep_tracking_mode,
         pic_behavior = pic_behavior,
         llvm_link = llvm_link,
@@ -276,6 +278,11 @@ system_cxx_toolchain = rule(
         "cvtres_flags": attrs.list(attrs.string(), default = []),
         "cxx_compiler": attrs.option(attrs.string(), default = None),
         "cxx_flags": attrs.list(attrs.string(), default = []),
+        "dwp": attrs.option(
+            attrs.string(),
+            default = None,
+            doc = "The tool that packs a binary's split debug info into one .dwp file (llvm-dwp).",
+        ),
         "link_flags": attrs.list(attrs.string(), default = []),
         "link_ordering": attrs.option(attrs.enum(LinkOrdering.values()), default = None),
         "link_style": attrs.string(default = "shared"),
@@ -288,6 +295,11 @@ system_cxx_toolchain = rule(
         "post_link_flags": attrs.list(attrs.string(), default = []),
         "rc_compiler": attrs.option(attrs.string(), default = None),
         "rc_flags": attrs.list(attrs.string(), default = []),
+        "split_debug_mode": attrs.option(
+            attrs.enum(SplitDebugMode.values()),
+            default = None,
+            doc = "Where debug info goes: none (into binaries), single (left in the objects, with -gsplit-dwarf=single) or split. Rust follows it with -Csplit-debuginfo=unpacked.",
+        ),
         "_cxx_tools_info": attrs.exec_dep(
             providers = [CxxToolsInfo],
             default = "prelude//toolchains/msvc:msvc_tools" if host_info().os.is_windows else "toolchains//cxx/clang:path_clang_tools",

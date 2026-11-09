@@ -44,6 +44,34 @@ opt_flags = shims.select({
             "/Zi",
             "/Od",
         ],
+        # Split DWARF (see split_debug_mode below): the debug info stays in
+        # the objects, and links neither copy it nor carry it. Not for the
+        # triples without it, which build under the host's os.
+        "config//os:linux": shims.select({
+            "toolchains//cfg/target:target[wasm32-unknown-unknown]": [
+                "-g",
+                "-Og",
+            ],
+            "toolchains//cfg/target:target[x86_64-unknown-uefi]": [
+                "-g",
+                "-Og",
+            ],
+            "toolchains//cfg/target:target[aarch64-unknown-uefi]": [
+                "-g",
+                "-Og",
+            ],
+            "DEFAULT": shims.select({
+                "toolchains//cfg/instrumentation:instrumentation[none]": [
+                    "-g",
+                    "-gsplit-dwarf=single",
+                    "-Og",
+                ],
+                "DEFAULT": [
+                    "-g",
+                    "-Og",
+                ],
+            }),
+        }),
         "DEFAULT": [
             "-g",
             "-Og",
@@ -175,6 +203,31 @@ link_flags = shims.select({
     }),
 })
 
+# Debug builds on Linux keep debug info out of what they link: C and C++
+# objects hold theirs (-gsplit-dwarf=single, in opt_flags above), and the
+# prelude has rustc write each crate's into .dwo files beside it
+# (-Csplit-debuginfo=unpacked). Linking copies none of it, so links are
+# faster and binaries a fraction of the size, and debuggers read it from
+# where it was compiled; a binary's [dwp] sub-target packs it all into one
+# .dwp file to take elsewhere. Release builds keep their line tables in the
+# binary, for backtraces, and so do fuzzing builds, whose crash reports
+# symbolize from the binary alone.
+split_debug_mode = shims.select({
+    "mode//:build-mode[debug]": shims.select({
+        "config//os:linux": shims.select({
+            "toolchains//cfg/instrumentation:instrumentation[none]": shims.select({
+                "toolchains//cfg/target:target[wasm32-unknown-unknown]": None,
+                "toolchains//cfg/target:target[x86_64-unknown-uefi]": None,
+                "toolchains//cfg/target:target[aarch64-unknown-uefi]": None,
+                "DEFAULT": "single",
+            }),
+            "DEFAULT": None,
+        }),
+        "DEFAULT": None,
+    }),
+    "DEFAULT": None,
+})
+
 system_cxx_toolchain(
     name = "cxx",
     # GNU ar cannot build the symbol index for WebAssembly object files.
@@ -189,9 +242,14 @@ system_cxx_toolchain(
         "DEFAULT": None,
     }),
     cxx_flags = cxx_base_flags + cxx_warn_flags + opt_flags + instrumentation_compiler_flags,
+    dwp = shims.select({
+        "config//os:linux": "llvm-dwp",
+        "DEFAULT": None,
+    }),
     link_flags = link_flags,
     linker = linker,
     linker_type = linker_type,
+    split_debug_mode = split_debug_mode,
 )
 
 # Read by the toolchain rule, which the shims do not wrap.
