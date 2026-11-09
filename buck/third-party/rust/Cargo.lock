@@ -966,9 +966,9 @@ dependencies = [
 
 [[package]]
 name = "cedar-policy"
-version = "4.13.0"
+version = "4.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e4f5e46c425491b7133eecb3030d82d27301b84bfa08533c59a6902cca7eb80"
+checksum = "5ab947d799cd1bacd4a060d2657c667fdb2559bae9b75319344d48fb6e22f408"
 dependencies = [
  "cedar-policy-core",
  "cedar-policy-formatter",
@@ -987,12 +987,12 @@ dependencies = [
 
 [[package]]
 name = "cedar-policy-core"
-version = "4.13.0"
+version = "4.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a30d11033d59b262bbb380d8bb5dc5c3dd2dd2281675c558ef4fd8a161ce669"
+checksum = "84f39a1d02e72014885b6c33d5ec4fbd0c7ede5ed1069b3a9e5775874bca066b"
 dependencies = [
  "chrono",
- "educe 0.7.6",
+ "educe",
  "either",
  "itertools 0.15.0",
  "lalrpop 0.22.2",
@@ -1015,9 +1015,9 @@ dependencies = [
 
 [[package]]
 name = "cedar-policy-formatter"
-version = "4.13.0"
+version = "4.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a2c8dc671e62597c85caa11694365b76050abcd9f2177f0520ccac0580f9a41"
+checksum = "9d778cb4470373659f37e4065646ea0080932f3ee77bd156ab0ecff6a7876357"
 dependencies = [
  "cedar-policy-core",
  "itertools 0.15.0",
@@ -2387,18 +2387,6 @@ dependencies = [
  "signature",
  "subtle",
  "zeroize",
-]
-
-[[package]]
-name = "educe"
-version = "0.7.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e451fac8dd8dece16234604bf1efce6e90fddd8ab6ad4d66eec0eca5160959dd"
-dependencies = [
- "enum-ordinalize",
- "proc-macro2",
- "quote",
- "syn 3.0.6",
 ]
 
 [[package]]
@@ -8965,7 +8953,7 @@ dependencies = [
  "dial9",
  "dupe 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "dupe_derive 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "educe 0.8.2",
+ "educe",
  "egglog",
  "egglog-experimental",
  "egraph-serialize",

@@ -49,7 +49,7 @@ clubcard-crlite = { version = "0.6.2", features = ["builder"] }
 # to arrive for free through jj-cli, which stopped enabling it in 0.45.
 clap = { version = "4.6", features = ["derive", "env"] }
 console-subscriber = "0.5.0"
-cedar-policy = "4.13.0"
+cedar-policy = "4.14.1"
 # NOTE (crc-fast): CRC-32C (iSCSI) with SIMD, for src/crates/blob-pack's
 # per-entry checksums. s3s already locks it, so this adds no new crate.
 crc-fast = "1.10.0"

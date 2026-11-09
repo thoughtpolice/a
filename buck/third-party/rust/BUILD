@@ -3186,23 +3186,23 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "cedar-policy-4.13.0.crate",
-    sha256 = "5e4f5e46c425491b7133eecb3030d82d27301b84bfa08533c59a6902cca7eb80",
-    strip_prefix = "cedar-policy-4.13.0",
-    urls = ["https://static.crates.io/crates/cedar-policy/4.13.0/download"],
+    name = "cedar-policy-4.14.1.crate",
+    sha256 = "5ab947d799cd1bacd4a060d2657c667fdb2559bae9b75319344d48fb6e22f408",
+    strip_prefix = "cedar-policy-4.14.1",
+    urls = ["https://static.crates.io/crates/cedar-policy/4.14.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "cedar-policy-4",
-    srcs = [":cedar-policy-4.13.0.crate"],
+    srcs = [":cedar-policy-4.14.1.crate"],
     crate = "cedar_policy",
-    crate_root = "cedar-policy-4.13.0.crate/src/lib.rs",
+    crate_root = "cedar-policy-4.14.1.crate/src/lib.rs",
     edition = "2021",
     env = {
         "CARGO_BIN_NAME": "cedar_policy",
         "CARGO_CRATE_NAME": "cedar_policy",
-        "CARGO_MANIFEST_DIR": "cedar-policy-4.13.0.crate",
+        "CARGO_MANIFEST_DIR": "cedar-policy-4.14.1.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Cedar is a language for defining permissions as policies, which describe who should have access to what.",
         "CARGO_PKG_HOMEPAGE": "https://cedarpolicy.com",
@@ -3210,10 +3210,10 @@ third_party_rust.rust_library(
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
         "CARGO_PKG_RUST_VERSION": "1.89",
-        "CARGO_PKG_VERSION": "4.13.0",
+        "CARGO_PKG_VERSION": "4.14.1",
         "CARGO_PKG_VERSION_MAJOR": "4",
-        "CARGO_PKG_VERSION_MINOR": "13",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "14",
+        "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
         "OUT_DIR": "$(location :cedar-policy-4-build-script-run[out_dir])",
     },
@@ -3226,7 +3226,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "cedar-policy",
-            "version": "4.13.0",
+            "version": "4.14.1",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -3251,14 +3251,14 @@ third_party_rust.rust_library(
 
 third_party_rust.rust_binary(
     name = "cedar-policy-4-build-script-build",
-    srcs = [":cedar-policy-4.13.0.crate"],
+    srcs = [":cedar-policy-4.14.1.crate"],
     crate = "build_script_build",
-    crate_root = "cedar-policy-4.13.0.crate/build.rs",
+    crate_root = "cedar-policy-4.14.1.crate/build.rs",
     edition = "2021",
     env = {
         "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
-        "CARGO_MANIFEST_DIR": "cedar-policy-4.13.0.crate",
+        "CARGO_MANIFEST_DIR": "cedar-policy-4.14.1.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Cedar is a language for defining permissions as policies, which describe who should have access to what.",
         "CARGO_PKG_HOMEPAGE": "https://cedarpolicy.com",
@@ -3266,10 +3266,10 @@ third_party_rust.rust_binary(
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
         "CARGO_PKG_RUST_VERSION": "1.89",
-        "CARGO_PKG_VERSION": "4.13.0",
+        "CARGO_PKG_VERSION": "4.14.1",
         "CARGO_PKG_VERSION_MAJOR": "4",
-        "CARGO_PKG_VERSION_MINOR": "13",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "14",
+        "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -3281,7 +3281,7 @@ third_party_rust.rust_binary(
     metadata = {
         "third-party.metadata": {
             "name": "cedar-policy",
-            "version": "4.13.0",
+            "version": "4.14.1",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -3300,8 +3300,8 @@ third_party_rust.buildscript_run(
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
         "CARGO_PKG_RUST_VERSION": "1.89",
         "CARGO_PKG_VERSION_MAJOR": "4",
-        "CARGO_PKG_VERSION_MINOR": "13",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "14",
+        "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -3310,27 +3310,27 @@ third_party_rust.buildscript_run(
         "default",
         "ipaddr",
     ],
-    version = "4.13.0",
+    version = "4.14.1",
 )
 
 shims.http_archive(
-    name = "cedar-policy-core-4.13.0.crate",
-    sha256 = "7a30d11033d59b262bbb380d8bb5dc5c3dd2dd2281675c558ef4fd8a161ce669",
-    strip_prefix = "cedar-policy-core-4.13.0",
-    urls = ["https://static.crates.io/crates/cedar-policy-core/4.13.0/download"],
+    name = "cedar-policy-core-4.14.1.crate",
+    sha256 = "84f39a1d02e72014885b6c33d5ec4fbd0c7ede5ed1069b3a9e5775874bca066b",
+    strip_prefix = "cedar-policy-core-4.14.1",
+    urls = ["https://static.crates.io/crates/cedar-policy-core/4.14.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "cedar-policy-core-4",
-    srcs = [":cedar-policy-core-4.13.0.crate"],
+    srcs = [":cedar-policy-core-4.14.1.crate"],
     crate = "cedar_policy_core",
-    crate_root = "cedar-policy-core-4.13.0.crate/src/lib.rs",
+    crate_root = "cedar-policy-core-4.14.1.crate/src/lib.rs",
     edition = "2021",
     env = {
         "CARGO_BIN_NAME": "cedar_policy_core",
         "CARGO_CRATE_NAME": "cedar_policy_core",
-        "CARGO_MANIFEST_DIR": "cedar-policy-core-4.13.0.crate",
+        "CARGO_MANIFEST_DIR": "cedar-policy-core-4.14.1.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Core implementation of the Cedar policy language",
         "CARGO_PKG_HOMEPAGE": "https://cedarpolicy.com",
@@ -3338,10 +3338,10 @@ third_party_rust.rust_library(
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
         "CARGO_PKG_RUST_VERSION": "1.89",
-        "CARGO_PKG_VERSION": "4.13.0",
+        "CARGO_PKG_VERSION": "4.14.1",
         "CARGO_PKG_VERSION_MAJOR": "4",
-        "CARGO_PKG_VERSION_MINOR": "13",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "14",
+        "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
         "OUT_DIR": "$(location :cedar-policy-core-4-build-script-run[out_dir])",
     },
@@ -3354,7 +3354,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "cedar-policy-core",
-            "version": "4.13.0",
+            "version": "4.14.1",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -3362,7 +3362,7 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":chrono-0.4",
-        ":educe-0.7",
+        ":educe-0.8",
         ":either-1",
         ":itertools-0.15",
         ":lalrpop-util-0.22",
@@ -3385,14 +3385,14 @@ third_party_rust.rust_library(
 
 third_party_rust.rust_binary(
     name = "cedar-policy-core-4-build-script-build",
-    srcs = [":cedar-policy-core-4.13.0.crate"],
+    srcs = [":cedar-policy-core-4.14.1.crate"],
     crate = "build_script_build",
-    crate_root = "cedar-policy-core-4.13.0.crate/build.rs",
+    crate_root = "cedar-policy-core-4.14.1.crate/build.rs",
     edition = "2021",
     env = {
         "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
-        "CARGO_MANIFEST_DIR": "cedar-policy-core-4.13.0.crate",
+        "CARGO_MANIFEST_DIR": "cedar-policy-core-4.14.1.crate",
         "CARGO_PKG_AUTHORS": "",
         "CARGO_PKG_DESCRIPTION": "Core implementation of the Cedar policy language",
         "CARGO_PKG_HOMEPAGE": "https://cedarpolicy.com",
@@ -3400,10 +3400,10 @@ third_party_rust.rust_binary(
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
         "CARGO_PKG_RUST_VERSION": "1.89",
-        "CARGO_PKG_VERSION": "4.13.0",
+        "CARGO_PKG_VERSION": "4.14.1",
         "CARGO_PKG_VERSION_MAJOR": "4",
-        "CARGO_PKG_VERSION_MINOR": "13",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "14",
+        "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -3415,7 +3415,7 @@ third_party_rust.rust_binary(
     metadata = {
         "third-party.metadata": {
             "name": "cedar-policy-core",
-            "version": "4.13.0",
+            "version": "4.14.1",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -3435,8 +3435,8 @@ third_party_rust.buildscript_run(
         "CARGO_PKG_REPOSITORY": "https://github.com/cedar-policy/cedar",
         "CARGO_PKG_RUST_VERSION": "1.89",
         "CARGO_PKG_VERSION_MAJOR": "4",
-        "CARGO_PKG_VERSION_MINOR": "13",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "14",
+        "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -3445,27 +3445,27 @@ third_party_rust.buildscript_run(
         "default",
         "ipaddr",
     ],
-    version = "4.13.0",
+    version = "4.14.1",
 )
 
 shims.http_archive(
-    name = "cedar-policy-formatter-4.13.0.crate",
-    sha256 = "8a2c8dc671e62597c85caa11694365b76050abcd9f2177f0520ccac0580f9a41",
-    strip_prefix = "cedar-policy-formatter-4.13.0",
-    urls = ["https://static.crates.io/crates/cedar-policy-formatter/4.13.0/download"],
+    name = "cedar-policy-formatter-4.14.1.crate",
+    sha256 = "9d778cb4470373659f37e4065646ea0080932f3ee77bd156ab0ecff6a7876357",
+    strip_prefix = "cedar-policy-formatter-4.14.1",
+    urls = ["https://static.crates.io/crates/cedar-policy-formatter/4.14.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "cedar-policy-formatter-4",
-    srcs = [":cedar-policy-formatter-4.13.0.crate"],
+    srcs = [":cedar-policy-formatter-4.14.1.crate"],
     crate = "cedar_policy_formatter",
-    crate_root = "cedar-policy-formatter-4.13.0.crate/src/lib.rs",
+    crate_root = "cedar-policy-formatter-4.14.1.crate/src/lib.rs",
     edition = "2021",
     metadata = {
         "third-party.metadata": {
             "name": "cedar-policy-formatter",
-            "version": "4.13.0",
+            "version": "4.14.1",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -7825,52 +7825,6 @@ third_party_rust.rust_library(
         ":signature-3",
         ":subtle-2",
         ":zeroize-1",
-    ],
-)
-
-shims.http_archive(
-    name = "educe-0.7.6.crate",
-    sha256 = "e451fac8dd8dece16234604bf1efce6e90fddd8ab6ad4d66eec0eca5160959dd",
-    strip_prefix = "educe-0.7.6",
-    urls = ["https://static.crates.io/crates/educe/0.7.6/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "educe-0.7",
-    srcs = [":educe-0.7.6.crate"],
-    crate = "educe",
-    crate_root = "educe-0.7.6.crate/src/lib.rs",
-    edition = "2024",
-    features = [
-        "Clone",
-        "Copy",
-        "Debug",
-        "Default",
-        "Deref",
-        "DerefMut",
-        "Eq",
-        "Hash",
-        "Into",
-        "Ord",
-        "PartialEq",
-        "PartialOrd",
-        "default",
-    ],
-    metadata = {
-        "third-party.metadata": {
-            "name": "educe",
-            "version": "0.7.6",
-            "licenses": ["MIT"],
-        },
-    },
-    proc_macro = True,
-    visibility = [],
-    deps = [
-        ":enum-ordinalize-4",
-        ":proc-macro2-1",
-        ":quote-1",
-        ":syn-3",
     ],
 )
 
