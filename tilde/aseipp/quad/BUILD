@@ -110,12 +110,15 @@ shims.cxx_binary(
     # Everything is linked in, position-independently: the Rust archive too,
     # which Buck builds non-PIC for plain static linking.
     link_style = "static_pic",
-    # The executable is what quad distributes: without DWARF (mostly Rust's
-    # std) it is a third of the size. The symbol table stays. The dynamic
-    # one leaves out the Rust and C++ names (kernel/exports.map).
+    # Sections nothing refers to go: the Rust half's crates are an object
+    # each (codegen-units=1), so whole crates come in for one function, and
+    # this leaves the functions that are used (a quarter less code). The
+    # dynamic symbol table leaves out the Rust and C++ names
+    # (kernel/exports.map). Debug info stays in the objects (split DWARF,
+    # toolchains//cxx), and :quad strips the rest into its [debug] file.
     linker_flags = [
-        "-Wl,--strip-debug",
         "-Wl,--version-script=$(location :kernel-exports)",
+        "-Wl,--gc-sections",
     ],
     deps = [
         ":kernel-rs",

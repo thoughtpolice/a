@@ -78,6 +78,16 @@ toolchain has the layout). It needs only libc at run time, and allocates
 with mimalloc, which overrides malloc for C, Chez Scheme and Rust alike. The
 full Chez compiler is in it, so extensions are compiled, not interpreted.
 
+A release build (`buck2 build -m release :quad`) is 22 MB, most of it the
+Rust half's iroh stack. The executable is stripped: its symbols and what
+debug info its link has are in `:quad[debug]`, `quad.debug` beside it,
+which it names (`.gnu_debuglink`) for gdb, lldb and perf. The rest of the
+debug info never reaches it (split DWARF, in debug builds: see
+`buck/toolchains/cxx`); `:kernel[dwp]` packs all of it into one file. To
+debug a debug build, from the repository root: `gdb -ex 'symbol-file
+QUAD.debug' QUAD`. The link drops the sections nothing refers to
+(`--gc-sections`), a quarter of the code.
+
 `quad --build-exe OUT FILE...` writes a new standalone editor: a copy of
 itself with `FILE...` compiled into one more boot file, whose code runs as
 the editor boots. That is how a configured editor becomes one binary to hand
