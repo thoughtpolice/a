@@ -3,7 +3,7 @@
 ;; SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
 ;; SPDX-License-Identifier: Apache-2.0
 ;;
-;; Built with `quad --build-exe quad-custom examples/site.ss` (the
+;; Built with `quad --build-exe quad-custom docs/examples/site.ss` (the
 ;; :quad-custom target). This is ordinary init-file code: all of quad is in
 ;; scope. The same file works as ~/.config/quad/init.ss.
 

@@ -14,7 +14,7 @@ A small kernel in C and Rust (`kernel/`) boots Chez Scheme and provides the
 primitives Scheme can't express itself. Everything else is Scheme: the text
 buffer, the selection modes, the keymaps, the renderer, the commands
 (`core/`), and the language modes and other extensions built in by default
-(`ext/`). All of it is visible to your init file, which can redefine any of
+(`core/ext/`). All of it is visible to your init file, which can redefine any of
 it while the editor runs.
 
 ```sh
@@ -128,9 +128,9 @@ of the code.
 itself with `FILE...` compiled into one more boot file, whose code runs as
 the editor boots. That is how a configured editor becomes one binary to hand
 out; `defs.bzl`'s `quad_executable` does the same from Buck, and
-`:quad-custom` builds `examples/site.ss` into one.
+`:quad-custom` builds `docs/examples/site.ss` into one.
 
-`buck2 install :quad` puts the executable in `~/.local/bin`, and `dist/`'s
+`buck2 install :quad` puts the executable in `~/.local/bin`, and `etc/`'s
 desktop entry and icon, for Linux's application launchers, in `~/.local/share`
 (the installer is `buck/installers/prefix`; `-- --prefix DIR` installs
 under DIR instead). A file is replaced whole, so a running quad keeps its
@@ -233,7 +233,32 @@ The init file is `$QUAD_INIT`, else `$XDG_CONFIG_HOME/quad/init.ss`, else
 
 `space e` evaluates an expression; in a Scheme buffer, select a form with
 `d` and press `space l e`. `quad --repl` is a Chez REPL with quad loaded.
-`examples/init.ss` shows more.
+`docs/examples/init.ss` shows more.
+
+### Testing your configuration
+
+`quad --test` runs the `.ss` files in `tests/` beside the init file
+(`~/.config/quad/tests/`), or the files named after it, in an editor with
+no window or terminal and your init file loaded. A test drives the editor
+as a client would and checks what happens:
+
+```scheme
+(headless-start! 12 60)                ; a client, 12 rows by 60 columns
+(headless-buffer! "hello world" 'text) ; a buffer for it to show
+(set-sels! (current-buffer) (list (make-sel 0 5)))
+(press! "ctrl+u")
+(expect-equal "ctrl+u shouts" (buffer-contents) "HELLO world")
+(redraw!)
+(check "the status line counts lines" (on-screen? "1 lines"))
+```
+
+Each check prints `ok` or `FAIL`; the run ends with how many passed and
+failed, and exits 1 if any failed, so it can guard a dotfiles repository's
+CI. `quad -q --test` leaves the init file out. The testing library
+(`core/testing.sls`) has the rest: `press!` and `type!` for keys, `screen`
+and `screen-row-of` for what a client shows, `run-until` to wait for a
+process or a timer, `test-temp-dir` and `write-file!` for files.
+`docs/examples/tests/init.ss` tests `docs/examples/init.ss`.
 
 ## An agent that extends the editor
 
@@ -345,7 +370,7 @@ can't express itself: raw terminal I/O, `poll`, Unix sockets.
 `core/kernel.sls` binds them.
 
 The Rust half, `kernel/lib.rs`, is written with the `chez` crate
-(`chez-rs/`). Each `#[chez::procedure]` is an ordinary Rust function
+(`kernel/chez-rs/`). Each `#[chez::procedure]` is an ordinary Rust function
 that becomes a Scheme procedure in `(quad native)`, which the build generates
 from the Rust:
 
@@ -367,7 +392,7 @@ returned as `Object<T>` is a handle that Scheme passes back as `Ref<T>` or
 once Scheme no longer references it. A component with threads of its own
 (the network, next) hands Scheme a `Mailbox`, and `watch-fd!` adds its
 descriptor to the editor's event loop; the ticker is the smallest example.
-`ext/blake3.sls` (`space l h`) and `tests/native.ss` use these. Nothing is
+`core/ext/blake3.sls` (`space l h`) and `tests/native.ss` use these. Nothing is
 registered by hand, and there are no pointers in sight.
 
 Subprocesses are a component too, `spawn-process`, with pipes to and from
@@ -378,14 +403,14 @@ as language servers do.
 
 ## Extensions
 
-`ext/*.sls` are the libraries `(quad ext NAME)`, each a `chez.library`
+`core/ext/*.sls` are the libraries `(quad ext NAME)`, each a `chez.library`
 target of its own; `EXTENSIONS` in `BUILD` picks the ones the editor is built
 with, and the generated program invokes each as the editor boots, which is
 when it registers its modes, commands and keys. The built-in ones are `lisp` (Scheme and other Lisps: s-expressions
 for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
 (`#`-commented languages), `markdown`, `blake3`, `codex`, the agent, `lsp`,
 language servers, `people`, working together, `voice`, talking, and
-`tutor`, whose lessons are `ext/tutor.md`, compiled in (`EXTENSION_DATA`
+`tutor`, whose lessons are `core/ext/tutor.md`, compiled in (`EXTENSION_DATA`
 in `BUILD` gives an extension files to include as it compiles).
 
 ## Layout
@@ -400,7 +425,7 @@ in `BUILD` gives an extension files to include as it compiles).
 | `core/syntax.sls` | the highlighting lexer and the node tree |
 | `core/selection.sls` | selection modes and movements |
 | `core/event.sls` | input events, as clients report them |
-| `core/editor.sls` | the core and extension API: clients, buffers, commands, keymaps, hooks, variables, prompts, popups |
+| `core/editor.sls` | the core and extension API, gathered from `client.sls` (clients, messages, variables, hooks), `keymap.sls` (commands, keymaps) and `prompt.sls` (prompts, popups, layers): buffers, selections, events |
 | `core/commands.sls` | the standard commands and Ki's keymaps |
 | `core/display.sls` | drawing each client's frame, sent as changed cells |
 | `core/protocol.sls` | the client protocol: MessagePack frames, events as messages |
@@ -408,12 +433,14 @@ in `BUILD` gives an extension files to include as it compiles).
 | `core/grid.sls` | a client's model of its screen |
 | `core/json.sls`, `core/jsonrpc.sls` | JSON, and JSON-RPC with a subprocess |
 | `core/term.sls`, `core/tui.sls` | the terminal client: input decoding, painting, in-process or over a socket |
+| `core/frontend.sls` | what clients share: extensions' messages and capabilities, diverting a client's input |
 | `core/face.sls` | faces and themes (the default is Helix's purple) |
-| `core/mesh.sls`, `kernel/mesh.rs` | editors and clients over iroh (`iroh-mesh`) |
-| `core/project.sls` | projects: `.quad/` configuration, trust, review |
-| `core/main.sls` | the command line, `--build-exe`, headless clients for testing |
-| `ext/*.sls` | the built-in extensions |
-| `dist/` | the desktop entry and icon |
+| `core/ext/mesh.sls`, `kernel/mesh.rs` | editors and clients over iroh (`iroh-mesh`), a transport for `server.sls` |
+| `core/ext/project.sls` | projects: `.quad/` configuration, trust, review |
+| `core/main.sls` | the command line, `--build-exe` |
+| `core/testing.sls` | headless clients for tests and `--batch` scripts |
+| `core/ext/*.sls` | the built-in extensions |
+| `etc/` | the desktop entry and icon |
 
 The Scheme builds with the Chez Scheme toolchain (`buck/toolchains/chez`):
 `:core` and each `:ext-*` are `chez.library` targets, compiled against their

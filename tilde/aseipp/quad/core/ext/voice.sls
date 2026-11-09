@@ -16,12 +16,72 @@
 ;; half's voice/). The sound is the client's own process's -- the person is
 ;; there -- except for clients on the editor's own machine (its terminal,
 ;; its windows, clients on its socket), whose sound the editor's process
-;; makes itself (core/voice.sls). The status line says who is in voice,
-;; and who is talking.
+;; makes itself. The status line says who is in voice, and who is
+;; talking.
 (library (quad ext voice)
-  (export in-voice voice-toggle! voice-mute!)
+  (export in-voice voice-toggle! voice-mute! voice-want! voice-message! voice-forget!)
   (import (chezscheme) (quad util) (quad buffer) (quad editor) (quad commands) (quad display)
-          (quad server) (quad native) (quad voice) (quad ext people))
+          (quad server) (quad frontend) (quad native) (quad ext people))
+
+  ;; ---------------------------------------------------------------------------
+  ;; This process's sound
+  ;;
+  ;; Whoever is at a process -- the editor's own terminal or window, or a
+  ;; client elsewhere -- hears and speaks through that process. Two things
+  ;; may want it to: the editor, for a person at one of its own clients,
+  ;; and a client process, when the editor it is attached to says so (the
+  ;; "voice" message). Each says what it wants under a key of its own; the
+  ;; sound is on while anyone wants it on, muted while someone wants it but
+  ;; nobody unmuted, and off otherwise, so the microphone is open only
+  ;; while someone here is in voice and not muted.
+
+  (define wants '())                    ; key -> "on" or "muted"
+
+  (define (combined)
+    (cond [(member "on" (map cdr wants)) "on"]
+          [(pair? wants) "muted"]
+          [else "off"]))
+
+  ;; key wants this process's sound mode: "on", "muted" or "off". An error
+  ;; (no sound server) leaves things as they were.
+  (define (voice-want! key mode)
+    (let ([before wants])
+      (set! wants (if (equal? mode "off")
+                      (remp (lambda (w) (equal? (car w) key)) wants)
+                      (cons (cons key mode) (remp (lambda (w) (equal? (car w) key)) wants))))
+      (guard (e [#t (set! wants before) (raise e)])
+        (voice-local! (combined)))))
+
+  ;; A client process: the editor at fd said ("voice" mode). Its link goes
+  ;; in voice, or out, and so does this process's sound; what fails is
+  ;; said back ("voice" "failed" why). Whether msg was voice's.
+  (define (voice-message! fd msg send)
+    (and (pair? msg) (equal? (car msg) "voice") (pair? (cdr msg))
+         (let ([mode (cadr msg)])
+           (guard (e [#t (voice-forget! fd)
+                         (send (list "voice" "failed" (condition->string e)))])
+             (cond
+              [(equal? mode "off") (voice-forget! fd)]
+              [else (voice-want! (cons 'link fd) mode)
+                    (voice-join! fd #f)]))
+           #t)))
+
+  ;; The connection at fd is gone, or out of voice.
+  (define (voice-forget! fd)
+    (voice-leave! fd)
+    (voice-want! (cons 'link fd) "off"))
+
+  ;; Every client of this process can carry its person's voice; one in a
+  ;; process of its own takes ("voice" mode) from the editor at its
+  ;; stream, and forgets it when the stream closes (the relay extension's,
+  ;; showing another editor).
+  (at-load
+   (define-frontend-capability! 'voice (lambda () '("voice")))
+   (define-frontend-handler! 'voice (lambda (fd msg send) (and fd (voice-message! fd msg send))))
+   (add-hook! 'stream-closed-hook voice-forget!))
+
+  ;; ---------------------------------------------------------------------------
+  ;; The people in voice
 
   ;; Client c's part in voice: #f, "on" or "muted".
   (define (in-voice c) (client-local c 'voice #f))
@@ -116,7 +176,7 @@
                 (when (in-voice c)
                   (guard (e [#t (void)]) (set-mode! c "off"))
                   (announce! c "~a left voice" (client-user c)))))
-   ;; A client that switches to another editor (core/relay.sls) leaves
+   ;; A client that switches to another editor (core/ext/relay.sls) leaves
    ;; voice here: in voice there, its speech would go to both.
    (add-hook! 'client-relay-hook
               (lambda (c)

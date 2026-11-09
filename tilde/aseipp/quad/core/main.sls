@@ -13,21 +13,12 @@
 ;; by its join code. Headless clients drive the editor for tests and
 ;; --batch.
 (library (quad main)
-  (export quad-main quad-version editor-init! build-exe!
-          ;; headless driving, for tests and --batch scripts
-          headless-start! headless-client! use-client! headless-buffer!
-          press! type! screen screen-row screen-cursor screen-of client-received buffer-contents
-          selected primary-text redraw!
-          check expect-equal failure!
-          run-until on-screen? screen-row-of prompt-titled? error-message-of
-          test-temp-dir write-file! model-client! headless-gpu)
+  (export quad-main quad-version editor-init! build-exe!)
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
           (quad syntax) (quad buffer) (quad selection) (quad editor)
           (quad commands) (quad display) (chez embed) (quad kernel)
-          (quad protocol) (quad grid) (quad server) (quad tui) (quad gui) (quad project) (quad mesh)
-          (quad relay) (only (quad native) timing-mark gui-prepare gui-headless gui-display?))
-
-  (define quad-version "0.1.0")
+          (quad protocol) (quad grid) (quad server) (quad tui) (quad gui) (quad testing)
+          (quad frontend) (only (quad native) timing-mark gui-prepare gui-display?))
 
   ;; Sessions over iroh, held while their connections are used: one that
   ;; is collected closes its endpoint.
@@ -58,6 +49,9 @@
   --eval EXPR          evaluate EXPR (in that editor, with --connect), print
                        the result, exit
   --batch FILE         run FILE headless, as a script (tests use this)
+  --test [FILE ...]    run tests of your configuration: the FILEs, or the
+                       .ss files in tests/ beside the init file, headless,
+                       with the init file loaded (unless -q)
   --tutor              start with the tutor, which teaches the keys
   --repl               a Chez Scheme REPL with all of quad imported
   --build-exe OUT F..  write OUT: this editor, with the Scheme files F...
@@ -72,32 +66,6 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
 
   ;; ---------------------------------------------------------------------------
   ;; Setup
-
-  ;; The buffers every editor starts with, and the files asked for; the
-  ;; first file (or *scratch*) is what new clients show. setup runs before
-  ;; the files open (the init file, the working directory's project), so
-  ;; that what it sets up applies to them too.
-  (define editor-init!
-    (case-lambda
-     [(files) (editor-init! files void)]
-     [(files setup)
-      (let ([m (new-buffer! "*Messages*" "" fundamental-mode)])
-        (buffer-read-only?-set! m #t)
-        (set-messages-buffer! m))
-      (setup)
-      ;; This process's own command line may name a pipe (quad <(git diff))
-      ;; for it to read.
-      (let ([opened (parameterize ([open-special-files? #t]) (map open-file! files))])
-        (set-current-buffer!
-       (if (pair? opened)
-           (car opened)
-           (new-buffer! "*scratch*"
-                        (string-append ";; Welcome to quad " quad-version ", an editor written in Chez Scheme.\n"
-                                       ";; Keys are Ki's: space / lists them, space space runs a command by name,\n"
-                                       ";; and space e evaluates Scheme. Select a form with d, then space l e.\n"
-                                       ";; New to them? space k h (or quad --tutor) teaches them.\n\n"
-                                       "(message \"hello from ~a\" (scheme-version))\n")
-                        (or (find-major-mode 'scheme) fundamental-mode)))))]))
 
   (define (report-error e)
     (display "quad: " (current-error-port))
@@ -203,13 +171,15 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
     (when (and (not (eq? ui 'tui)) (display-available?))
       (gui-prepare)))
 
-  ;; What sets the editor up before its files open: the init file and the
-  ;; working directory's project, unless init? is #f (-q).
+  ;; What sets the editor up before its files open: the init file, then
+  ;; what extensions do with the directory quad started in (startup-
+  ;; directory-hook: the project extension loads its project); with init?
+  ;; #f (-q), none of it (skip-configuration-hook).
   (define (configure! init?)
     (lambda ()
       (if init?
-          (begin (load-init-file! (init-file-path)) (project-visit! (current-directory)))
-          (set-var! 'project-config #f))))
+          (begin (load-init-file! (init-file-path)) (run-hooks 'startup-directory-hook (current-directory)))
+          (run-hooks 'skip-configuration-hook))))
 
   ;; The editor with this terminal or a window attached (as ui asks, see
   ;; open-ui); with the tutor shown, if tutor? (and the editor has one).
@@ -218,7 +188,7 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
     (editor-init! files (configure! init?))
     (timing-mark "editor ready")
     (when listen (server-listen! listen))
-    (when mesh? (mesh-listen! #t (mesh-announcer (lambda (fmt . args) (apply message fmt args)))))
+    (when mesh? (listen-over! 'mesh (lambda (fmt . args) (apply message fmt args))))
     (let ([c (guard (e [#t (report-error e) #f])
                (let ([w (open-ui ui)])
                  ;; Why there is no window goes in *Messages*, not in the
@@ -247,24 +217,17 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
     (printf "quad: listening at ~a\n" listen)
     (flush-output-port (current-output-port))
     (when mesh?
-      (mesh-listen! #t (mesh-announcer (lambda (fmt . args)
-                                         (apply printf (string-append "quad: " fmt "\n") args)
-                                         (flush-output-port (current-output-port))))))
+      (listen-over! 'mesh (lambda (fmt . args)
+                            (apply printf (string-append "quad: " fmt "\n") args)
+                            (flush-output-port (current-output-port)))))
     (serve!))
 
-  ;; Says how clients join, once the endpoint knows, or what failed.
-  (define (mesh-announcer say)
-    (let ([said '()])
-      (lambda (info)
-        (for-each (lambda (key what)
-                    (let ([v (cdr (assq key info))])
-                      (when (and v (not (member (cons key v) said)))
-                        (set! said (cons (cons key v) said))
-                        (say what v))))
-                  '(code ticket error)
-                  '("clients anywhere join with the code: quad --connect=~a"
-                    "clients join with the ticket: quad --connect=~a"
-                    "iroh: ~a")))))
+  ;; Accept clients over the transport named name too (an extension's),
+  ;; telling how they join with (say fmt arg ...).
+  (define (listen-over! name say)
+    (let ([t (find-transport name)])
+      (unless t (errorf 'quad "this quad was built without its ~a extension" name))
+      ((transport-listen t) say)))
 
   ;; A client of the editor on descriptor fd, in a window or this terminal
   ;; (as ui asks, see open-ui). Returns the exit status.
@@ -287,10 +250,10 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
 
   ;; A descriptor connected to target, and what keeps it open.
   (define (connect-fd target)
-    (if (mesh-target? target)
-        (begin
-          (display "quad: connecting over iroh...\n" (current-error-port))
-          (let-values ([(fd session editor) (mesh-connect-fd! target)])
+    (if (transport-for target)
+        (let ([t (transport-for target)])
+          (fprintf (current-error-port) "quad: connecting over ~a...\n" (transport-label t))
+          (let-values ([(fd session editor) ((transport-connect t) target)])
             (set! sessions (cons session sessions))
             (values fd session)))
         (let ([fd (begin
@@ -320,211 +283,6 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
                             (begin (display (cadddr result)) (newline) 0)
                             (begin (display (cadddr result) (current-error-port)) (newline (current-error-port)) 1)))
                       (loop)))))))))
-
-  ;; ---------------------------------------------------------------------------
-  ;; Headless driving
-  ;;
-  ;; A batch script connects clients that keep a model of their screen, as
-  ;; any client would, presses keys as them, and checks their screens and
-  ;; the buffers:
-  ;;
-  ;;   (headless-start! 24 80 "file.ss")
-  ;;   (press! "s" "l" "r" "r")       ; WORD mode, next word, delete it
-  ;;   (expect-equal "deleted" (buffer-contents) "...")
-
-  (define models (make-eq-hashtable))   ; client -> grid model
-  (define the-test-client #f)
-
-  ;; Connect a headless client of the given size; kitty? says whether it
-  ;; reports key releases.
-  (define headless-client!
-    (case-lambda
-     [(rows cols) (headless-client! rows cols #f)]
-     [(rows cols kitty?)
-      (letrec* ([model (make-grid-model)]
-                [paint (lambda (msg) (grid-model-apply! model msg))]
-                [c (server-connect! "headless" rows cols
-                                    (append (if kitty? '("release-events") '())
-                                            '("clipboard" "primary-selection" "scroll"))
-                                    (frontend-sender (lambda () c) paint)
-                                    void)])
-        (frontend! c paint)
-        (hashtable-set! models c model)
-        (render-client! c)
-        c)]))
-
-  ;; Make c the client keys are pressed as, and the current client.
-  (define (use-client! c)
-    (set! the-test-client c)
-    (set-current-client! c))
-
-  (define headless-start!
-    (case-lambda
-     [(rows cols) (headless-start! rows cols #f)]
-     [(rows cols file) (headless-start! rows cols file #f)]
-     [(rows cols file kitty?)
-      (editor-init! (if file (list file) '()))
-      (use-client! (headless-client! rows cols kitty?))]))
-
-  ;; A fresh buffer with `contents` in major mode `mode` (a name), shown,
-  ;; with its first character selected in CHAR mode.
-  (define (headless-buffer! contents mode)
-    (let ([b (new-buffer! "test" contents (or (find-major-mode mode) fundamental-mode))])
-      (switch-to-buffer! b)
-      (redraw!)
-      b))
-
-  ;; The texts of the current view's selections, primary first.
-  (define (selected)
-    (let ([v (current-view)])
-      (map (lambda (s) (buffer-substring (view-buffer v) (sel-range-start s) (sel-range-end s))) (view-sels v))))
-  (define (primary-text) (car (selected)))
-
-  (define (redraw!) (server-render!))
-
-  ;; Press keys as the current test client: key specs ("j", "alt+k",
-  ;; "space"), events, or lists of them. The server draws after each.
-  (define (press! . keys)
-    (for-each
-     (lambda (k)
-       (deliver! the-test-client (event->message (if (string? k) (spec->key-event k) k)))
-       (server-render!))
-     (let flat ([k keys]) (cond [(null? k) '()] [(pair? k) (append (flat (car k)) (flat (cdr k)))] [else (list k)]))))
-
-  ;; Type a string, a key per character.
-  (define (type! s)
-    (apply press! (map (lambda (c) (if (char=? c #\space) "space" (if (char=? c #\newline) "enter" (string c))))
-                       (string->list s))))
-
-  (define (screen-of c) (grid-model-lines (hashtable-ref models c #f)))
-  (define (screen) (screen-of the-test-client))
-  (define (screen-row n) (list-ref (screen) n))
-  ;; Where the test client's cursor is, (row col shape), or #f.
-  (define (screen-cursor) (grid-model-cursor (hashtable-ref models the-test-client #f)))
-  ;; The messages a client got that are not about its screen, newest first.
-  (define (client-received c) (grid-model-other (hashtable-ref models c #f)))
-  (define (buffer-contents) (buffer-string (current-buffer)))
-
-  ;; Macros expanded elsewhere may not reference assigned variables, so the
-  ;; failure count is reached through procedures.
-  (define failures 0)
-  (define (failure!) (set! failures (+ failures 1)))
-
-  ;; (check name expr): passes when expr is true; an error fails it.
-  (define-syntax check
-    (syntax-rules ()
-      [(_ name expr)
-       (let ([v (guard (e [#t (list 'error (if (condition? e)
-                                               (call-with-string-output-port (lambda (p) (display-condition e p)))
-                                               e))])
-                  (if expr #t #f))])
-         (if (eq? v #t)
-             (printf "ok   ~a\n" name)
-             (begin (failure!)
-                    (printf "FAIL ~a: ~s\n" name v))))]))
-
-  (define (expect-equal name got want)
-    (if (equal? got want)
-        (printf "ok   ~a\n" name)
-        (begin
-          (failure!)
-          (printf "FAIL ~a\n  got:  ~s\n  want: ~s\n" name got want))))
-
-  ;; Run the editor's loop until (pred) holds, then draw: for a test that
-  ;; waits on a process, a socket or a timer. Ten seconds without it end
-  ;; the test, failed: what it would do next might go elsewhere (save a
-  ;; buffer, say).
-  (define (run-until name pred)
-    (let* ([deadline (+ (real-time) 10000)] [timed-out? #f]
-           ;; The frame just drawn may be what pred waits for: then the
-           ;; loop does not wait, for something that may never come.
-           [src (make-source -1 void (lambda () (if (pred) 0 (max 0 (- deadline (real-time)))))
-                             (lambda ()
-                               (unless (pred) (set! timed-out? #t))
-                               (editor-stop!))
-                             (lambda () (when (pred) (editor-stop!))))])
-      (add-source! src)
-      (unless (pred) (server-run!))
-      (remove-source! src)
-      (when timed-out?
-        (printf "FAIL ~a: timed out\n" name)
-        (remove-test-dirs!)
-        (exit 1))
-      (editor-restart!)
-      (redraw!)))
-
-  ;; Whether text s is on the test client's screen.
-  (define (on-screen? s) (exists (lambda (r) (string-contains r s)) (screen)))
-
-  ;; The first row of client c's screen (the test client's) with s in it,
-  ;; or #f.
-  (define screen-row-of
-    (case-lambda
-     [(s) (screen-row-of the-test-client s)]
-     [(c s) (let loop ([rs (screen-of c)] [i 0])
-              (cond [(null? rs) #f] [(string-contains (car rs) s) i] [else (loop (cdr rs) (+ i 1))]))]))
-
-  ;; Whether a prompt titled title is open.
-  (define (prompt-titled? title)
-    (let ([p (current-prompt)]) (and p (equal? (prompt-label p) title))))
-
-  ;; The message of what (thunk) raises, or "no error".
-  (define (error-message-of thunk)
-    (guard (e [#t (if (condition? e) (condition-message e) e)]) (thunk) "no error"))
-
-  ;; A fresh directory for a test, under $TMPDIR, removed when it ends.
-  (define test-dirs '())
-  (define (test-temp-dir name)
-    (let* ([t (current-time)]
-           [dir (format "~a/quad-~a-~a-~a" (or (getenv "TMPDIR") "/tmp") name
-                        (time-second t) (time-nanosecond t))])
-      (mkdir dir)
-      (set! test-dirs (cons dir test-dirs))
-      dir))
-
-  (define (remove-tree! path)
-    (if (and (file-directory? path) (not (file-symbolic-link? path)))
-        (begin
-          (for-each (lambda (f) (remove-tree! (path-join path f))) (directory-list path))
-          (delete-directory path))
-        (delete-file path)))
-
-  (define (remove-test-dirs!)
-    (for-each (lambda (d) (when (file-exists? d) (remove-tree! d))) test-dirs)
-    (set! test-dirs '()))
-
-  ;; Write text to path, making the directories it is in.
-  (define (write-file! path text)
-    (let mkdir-p ([d (path-dirname path)])
-      (unless (file-exists? d) (mkdir-p (path-dirname d)) (mkdir d)))
-    (call-with-output-file path (lambda (p) (display text p)) 'replace))
-
-  ;; A client named name, rows by cols, with these capabilities, that keeps
-  ;; a model of its screen, as a window or a terminal does: the client and
-  ;; its model.
-  (define (model-client! name rows cols capabilities)
-    (let* ([model (make-grid-model)]
-           [c (server-connect! name rows cols capabilities (lambda (m) (grid-model-apply! model m)) void)])
-      (values c model)))
-
-  ;; Frames drawn with no window (gui-headless), or the test skipped where
-  ;; nothing can draw them.
-  (define (headless-gpu family points system-fonts?)
-    (guard (e [#t (printf "SKIP: ~a\n" (if (condition? e) (condition->string e) e))
-                  (exit 0)])
-      (gui-headless family points system-fonts?)))
-
-  (define (batch! file)
-    (guard (e [#t (display "quad: " (current-error-port))
-                  (if (condition? e) (display-condition e (current-error-port)) (write e (current-error-port)))
-                  (newline (current-error-port))
-                  (remove-test-dirs!)
-                  1])
-      (load file (lambda (x) (eval x (quad-environment))))
-      (remove-test-dirs!)
-      (if (> failures 0)
-          (begin (printf "~a failure~a\n" failures (if (= failures 1) "" "s")) 1)
-          0)))
 
   ;; ---------------------------------------------------------------------------
   ;; Standalone executables
@@ -574,8 +332,8 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
 
   ;; What the command line asks for.
   (define-record-type options
-    (fields (mutable mode)      ; edit, help, version, batch, repl or build-exe
-            (mutable mode-args) ; batch: (file); build-exe: (out file ...)
+    (fields (mutable mode)      ; edit, help, version, batch, test, repl or build-exe
+            (mutable mode-args) ; batch: (file); test: (file ...); build-exe: (out file ...)
             (mutable files)     ; to visit, in order
             (mutable line)      ; +LINE's, or #f
             (mutable init?)     ; load the init file and the project's (not -q)
@@ -588,7 +346,8 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
     (protocol (lambda (new) (lambda () (new 'edit '() '() #f #t 'auto #f #f #f #f #f #f #f #f)))))
 
   ;; The options args ask for, or a string saying what is wrong with them.
-  ;; --help, --version, --batch, --repl and --build-exe end the options.
+  ;; --help, --version, --batch, --test, --repl and --build-exe end the
+  ;; options.
   (define (parse-args args)
     (let ([o (make-options)])
       (define (finish) (options-files-set! o (reverse (options-files o))) o)
@@ -610,6 +369,7 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
                [(string=? a "--version") (mode! 'version '())]
                [(string=? a "--repl") (mode! 'repl '())]
                [(string=? a "--batch") (if (pair? more) (mode! 'batch (list (car more))) "--batch needs a file")]
+               [(string=? a "--test") (mode! 'test more)]
                [(string=? a "--build-exe") (if (pair? more) (mode! 'build-exe more) "--build-exe needs an output path")]
                [(string=? a "--eval")
                 (if (pair? more)
@@ -642,8 +402,15 @@ $XDG_CONFIG_HOME/quad/init.ss, or ~/.config/quad/init.ss.
            (printf "quad ~a (Chez Scheme ~a.~a.~a)\n" quad-version major minor patch))
          0]
         [(batch)
-         (unless init? (set-var! 'project-config #f))
+         (unless init? (run-hooks 'skip-configuration-hook))
          (batch! (car (options-mode-args o)))]
+        [(test)
+         ;; The init file, but not the project of the directory the tests
+         ;; run in: what they test is the configuration, wherever they run.
+         (test-setup-set! (if init?
+                              (lambda () (load-init-file! (init-file-path)))
+                              (lambda () (run-hooks 'skip-configuration-hook))))
+         (run-tests! (let ([files (options-mode-args o)]) (and (pair? files) files)))]
         [(repl)
          (editor-init! '())
          (interaction-environment (quad-environment))

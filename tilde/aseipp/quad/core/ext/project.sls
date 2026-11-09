@@ -28,7 +28,7 @@
 ;;
 ;; and the language server extension scopes the servers it defines to the
 ;; project's files.
-(library (quad project)
+(library (quad ext project)
   (export project-config-roots project-visit! project-roots project-state project-review
           project-root project-path project-set! project-buffer-hook! project-add-hook!
           project-loading project-of project-buffer? project-hash project-config-files
@@ -382,6 +382,10 @@ untrusted text. Its verdict is advice: code can be written to mislead a reviewer
 
   (at-load
    (add-hook! 'before-open-file-hook project-visit!)
+   ;; The directory quad started in may be in a project; quad -q loads no
+   ;; project's configuration.
+   (add-hook! 'startup-directory-hook project-visit!)
+   (add-hook! 'skip-configuration-hook (lambda () (set-var! 'project-config #f)))
    (add-hook! 'find-file-hook buffer-opened!)
    (add-hook! 'client-attach-hook (lambda (c) (next-question!)))
    (define-command 'project-trust "Ask again whether to trust this project's .quad/"

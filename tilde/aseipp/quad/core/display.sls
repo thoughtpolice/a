@@ -17,7 +17,8 @@
 ;; and the frame's placements whenever they change ("images").
 (library (quad display)
   (export render-client! invalidate-client! define-status-segment! status-segments
-          face-id add-decorator! remove-decorator! define-buffer-drawer!
+          face-id add-decorator! remove-decorator! add-view-decorator! remove-view-decorator!
+          define-buffer-drawer!
           make-picture picture? picture-key picture-width picture-height picture-png
           place-picture! put-string! ui-face)
   (import (chezscheme) (quad util) (quad text) (quad face)
@@ -442,12 +443,22 @@
   (define (add-decorator! f) (set! decorators (append decorators (list f))))
   (define (remove-decorator! f) (set! decorators (remq f decorators)))
 
-  (define (decorations b start end)
+  ;; Decorators of one view, rather than of every view of a buffer: (f v
+  ;; start end) gives spans as a decorator's do, for what one client shows
+  ;; alone (the link under its pointer, say).
+  (define view-decorators '())
+  (define (add-view-decorator! f) (set! view-decorators (append view-decorators (list f))))
+  (define (remove-view-decorator! f) (set! view-decorators (remq f view-decorators)))
+
+  (define (decoration-spans fs call)
     (apply append
            (map (lambda (f)
                   (map (lambda (d) (list (car d) (cadr d) (let ([f (caddr d)]) (if (face? f) f (F f)))))
-                       (guard (e [#t '()]) (f b start end))))
-                decorators)))
+                       (guard (e [#t '()]) (call f))))
+                fs)))
+
+  (define (decorations b start end)
+    (decoration-spans decorators (lambda (f) (f b start end))))
 
   ;; Major modes that draw their buffers themselves (an image's, say):
   ;; mode name -> (drawer grid view row0 height width), which draws rows
@@ -512,16 +523,16 @@
       gutter))
 
   ;; What decorates view v's lines top to last: the decorators', and the
-  ;; link under the pointer (see link.sls), underlined.
+  ;; view decorators'.
   (define (view-decorations v top last)
-    (let* ([b (view-buffer v)] [t (buffer-text b)]
-           [decos (if (or (null? decorators) (> top last))
+    (if (> top last)
+        '()
+        (let* ([b (view-buffer v)] [t (buffer-text b)]
+               [start (text-line-start t top)] [end (+ 1 (text-line-end t last))])
+          (append (if (null? decorators) '() (decorations b start end))
+                  (if (null? view-decorators)
                       '()
-                      (decorations b (text-line-start t top) (+ 1 (text-line-end t last))))]
-           [h (let ([c (view-client v)]) (and c (client-local c 'hover-link #f)))])
-      (if (and h (eq? (car h) b))
-          (append decos (list (list (cadr h) (caddr h) (F 'ui.link.hover))))
-          decos)))
+                      (decoration-spans view-decorators (lambda (f) (f v start end))))))))
 
   ;; Line number n, right-aligned in the gutter of row.
   (define (draw-line-number! g row gutter row-face cur? n)

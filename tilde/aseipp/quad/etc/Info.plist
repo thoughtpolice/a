@@ -3,7 +3,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- quad as a macOS app (BUILD: :quad.app), as Finder, the Dock and
      LaunchServices read it. Its version is quad-version's (core/main.sls);
-     its icon is dist/quad.svg (BUILD: :quad.icns). -->
+     its icon is etc/quad.svg (BUILD: :quad.icns). -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>

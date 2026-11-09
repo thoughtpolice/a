@@ -11,14 +11,14 @@
 (library (quad tui)
   (export tui-attach! tui-connect!)
   (import (chezscheme) (quad util) (quad kernel) (quad event) (quad term)
-          (quad protocol) (quad editor) (quad display) (quad server) (quad relay) (quad link)
-          (quad voice))
+          (quad protocol) (quad editor) (quad display) (quad server) (quad frontend))
 
   (define (terminal-client-name) (format "tui:~a" (or (getenv "TERM") "terminal")))
 
   ;; Handle a message from the server that painting does not: returns #f
-  ;; when the server said goodbye.
-  (define (handle! tty msg send redraw)
+  ;; when the server said goodbye. fd is the server's stream, for a
+  ;; terminal in a process of its own; #f in the server's.
+  (define (handle! tty fd msg send redraw)
     (cond
      [(tty-paint! tty msg) #t]
      [(equal? (car msg) "suspend")
@@ -28,13 +28,11 @@
       (redraw)
       #t]
      [(equal? (car msg) "bye") #f]
-     [(equal? (car msg) "open-url") (open-url-here! (cadr msg)) #t]
-     [else #t]))
+     [else (frontend-handle! fd msg send) #t]))
 
-  ;; What the terminal can do, and this process: open URLs, in a desktop,
-  ;; and voice.
+  ;; What the terminal can do, and what this process can (frontend.sls).
   (define (tui-capabilities tty)
-    (append (tty-capabilities tty) '("voice") (if (can-open-urls?) '("open-url") '())))
+    (append (tty-capabilities tty) (frontend-capabilities)))
 
   ;; Events from the terminal, as messages to send.
   (define (input-messages events) (map event->message events))
@@ -54,16 +52,14 @@
                     ;; The editor runs while it has clients (a window, other
                     ;; terminals), or is a daemon.
                     (when (and (null? (clients)) (not (editor-daemon?))) (editor-stop!)))]
-           ;; Messages go to the editor this terminal shows: this one, or
-           ;; another it has switched to (relay.sls).
+           ;; Input goes to the editor this terminal shows: this one, or
+           ;; another it is diverted to (frontend.sls).
            [paint (lambda (msg)
-                    (handle! tty msg
+                    (handle! tty #f msg
                              (lambda (m) (deliver! client m))
                              (lambda () (deliver! client '("redraw")))))])
-      (set! client (server-connect! (terminal-client-name) (tty-rows tty) (tty-cols tty)
-                                    (tui-capabilities tty) (frontend-sender (lambda () client) paint)
-                                    close))
-      (frontend! client paint)
+      (set! client (frontend-connect! (terminal-client-name) (tty-rows tty) (tty-cols tty)
+                                      (tui-capabilities tty) paint close))
       (set-client-user! client (default-user-name))
       (set! src
             (make-source
@@ -122,8 +118,7 @@
                          (unless got (set! lost? #t))
                          (and got
                               (for-all (lambda (msg)
-                                         (or (voice-message! fd msg send)
-                                             (handle! tty msg send (lambda () (send '("redraw"))))))
+                                         (handle! tty fd msg send (lambda () (send '("redraw")))))
                                        (reader got (bytevector-length got)))))
                        #t))])
             (when (tty-take-resize! tty) (send (list "resize" (tty-rows tty) (tty-cols tty))))

@@ -9,7 +9,7 @@
 #             I/O; Rust (lib.rs) provides components through the chez crate,
 #             as the Scheme library (quad native)
 #   core/     the editor, in Scheme: the libraries (quad *)
-#   ext/      extensions built in by default: the libraries (quad ext *)
+#   core/ext/ extensions built in by default: the libraries (quad ext *)
 #
 # The Scheme builds with the Chez Scheme toolchain (toolchains//chez): a
 # library target each for the core and every extension, the program, the
@@ -25,17 +25,21 @@ load("@root//buck/shims:shims.bzl", "shims")
 load("@toolchains//chez:defs.bzl", "chez")
 load(":defs.bzl", "quad_executable", "slang_metal", "slang_shader")
 
-# The extensions in ext/ the editor is built with, in load order, with the
+# The extensions in core/ext/ the editor is built with, in load order, with the
 # libraries each needs beyond the core.
 EXTENSIONS = {
     "blake3": [":native"],
     "c": [],
-    "codex": [],
+    "codex": [":ext-project"],
     "image": [":native"],
+    "link": [],
     "lisp": [],
-    "lsp": [],
-    "markdown": [],
+    "lsp": [":ext-project"],
+    "markdown": [":ext-link"],
+    "mesh": [":native"],
     "people": [],
+    "project": [":native"],
+    "relay": [],
     "shell": [],
     "tutor": [],
     "voice": [
@@ -46,19 +50,23 @@ EXTENSIONS = {
 
 # Files beside an extension's source that it includes as it compiles.
 EXTENSION_DATA = {
-    "tutor": ["ext/tutor.md"],
+    "tutor": ["core/ext/tutor.md"],
 }
 
 EXTENSION_ORDER = [
+    "link",
     "lisp",
     "c",
     "shell",
     "markdown",
     "image",
     "blake3",
+    "project",
     "codex",
     "lsp",
     "people",
+    "mesh",
+    "relay",
     "voice",
     "tutor",
 ]
@@ -66,7 +74,7 @@ EXTENSION_ORDER = [
 # MARK: Kernel
 
 KERNEL_RS_DEPS = [
-    "//aseipp/quad/chez-rs:chez",
+    "//aseipp/quad/kernel/chez-rs:chez",
     "third-party//rust:accesskit",
     "third-party//rust:accesskit_winit",
     "root//src/crates/accept:accept",
@@ -311,8 +319,9 @@ chez.library(
 [
     chez.library(
         name = "ext-" + ext,
-        srcs = ["ext/{}.sls".format(ext)] + EXTENSION_DATA.get(ext, []),
+        srcs = ["core/ext/{}.sls".format(ext)] + EXTENSION_DATA.get(ext, []),
         prefix = "quad",
+        strip_prefix = "core",
         deps = [":core"] + extra,
     )
     for ext, extra in EXTENSIONS.items()
@@ -371,15 +380,15 @@ chez.standalone(
 )
 
 # The executable, which `buck2 install` puts in ~/.local (the installer's
-# --prefix names another place) with its desktop entry and icon (dist/).
+# --prefix names another place) with its desktop entry and icon (etc/).
 #
 #   buck2 install -m release depot-tilde//aseipp/quad:quad
 installable(
     name = "quad",
     files = {
         "bin/quad": ":quad-exe",
-        "share/applications/quad.desktop": "dist/quad.desktop",
-        "share/icons/hicolor/scalable/apps/quad.svg": "dist/quad.svg",
+        "share/applications/quad.desktop": "etc/quad.desktop",
+        "share/icons/hicolor/scalable/apps/quad.svg": "etc/quad.svg",
     },
     installer = "root//buck/installers/prefix:prefix",
     main = ":quad-exe",
@@ -393,27 +402,27 @@ installable(
 macos_app(
     name = "quad.app",
     executable = ":quad-exe",
-    info_plist = "dist/Info.plist",
+    info_plist = "etc/Info.plist",
     resources = {
         "quad.icns": ":quad.icns",
     },
     target_compatible_with = ["config//os:macos"],
 )
 
-# The app's icon: dist/quad.svg at each size an icon has, drawn by macOS's
+# The app's icon: etc/quad.svg at each size an icon has, drawn by macOS's
 # own sips and packed by iconutil, on Apple's grid for an app's icon: the
 # SVG's rounded square, 60 of its 64 units, is 824 pixels of 1024, 100 in
 # from each edge.
 shims.genrule(
     name = "quad.icns",
-    srcs = ["dist/quad.svg"],
+    srcs = ["etc/quad.svg"],
     out = "quad.icns",
     cmd = """
         set -e
         sed -e 's|width="64" height="64" viewBox="0 0 64 64"|width="1024" height="1024" viewBox="-5.28155 -5.28155 74.5631 74.5631"|' \
             $SRCS > $TMP/icon.svg
         if ! grep -q 'width="1024"' $TMP/icon.svg; then
-            echo "dist/quad.svg: not 64 units square, as the grid here takes it" >&2
+            echo "etc/quad.svg: not 64 units square, as the grid here takes it" >&2
             exit 1
         fi
         /usr/bin/sips -s format png $TMP/icon.svg --out $TMP/icon.png > /dev/null
@@ -435,7 +444,7 @@ shims.genrule(
 # An example of a configured editor, built with quad itself.
 quad_executable(
     name = "quad-custom",
-    srcs = ["examples/site.ss"],
+    srcs = ["docs/examples/site.ss"],
 )
 
 # MARK: Tests
@@ -450,7 +459,10 @@ shims.filegroup(
 
 shims.filegroup(
     name = "examples",
-    srcs = glob(["examples/*.ss"]),
+    srcs = glob([
+        "docs/examples/*.ss",
+        "docs/examples/tests/*.ss",
+    ]),
 )
 
 [
@@ -604,7 +616,7 @@ shims.command_test(
         # and stops.
         ! $nodisplay $quad -q --gui < /dev/null > /dev/null 2>&1
         # The example init file loads, and its definitions take effect.
-        export QUAD_INIT=$(location :examples)/examples/init.ss
+        export QUAD_INIT=$(location :examples)/docs/examples/init.ss
         test "`$quad --eval '(get-var (quote scroll-margin))'`" = 5
         test "`$quad --eval '(and (find-command (quote shout)) #t)'`" = '#t'
         # Unless -q says not to.
@@ -679,6 +691,32 @@ shims.command_test(
         trap 'rm -rf "$dir"' EXIT
         export QUAD_TEST_DIR=$(location :tests)/tests QUAD_PROJECT_DIR=$dir QUAD_INIT=$dir/init.ss
         $(exe :quad) -q --batch $QUAD_TEST_DIR/project.ss
+    """,
+)
+
+# Tests of a configuration (quad --test): the example init file's, by name
+# and as tests/ beside the init file, which pass; one that fails, which
+# fails the run; and without the init file (-q), which its tests need.
+shims.command_test(
+    name = "test-config",
+    script = """
+        quad=$(exe :quad)
+        examples=$(location :examples)/docs/examples
+        dir=`mktemp -d /tmp/quad-test.XXXXXX`
+        trap 'rm -rf "$dir"' EXIT
+        export QUAD_SOCKET=$dir/none HOME=$dir XDG_CONFIG_HOME=$dir/config
+        QUAD_INIT=$examples/init.ss $quad --test $examples/tests/init.ss > $dir/named.log
+        grep -q "4 passed, 0 failed, in 1 file" $dir/named.log
+        mkdir -p $dir/config/quad/tests
+        cp $examples/init.ss $dir/config/quad/init.ss
+        cp $examples/tests/init.ss $dir/config/quad/tests/init.ss
+        $quad --test > $dir/found.log
+        grep -q "4 passed, 0 failed, in 1 file" $dir/found.log
+        echo '(check "one is two" (= 1 2))' > $dir/config/quad/tests/wrong.ss
+        ! $quad --test > $dir/wrong.log
+        grep -q "FAIL one is two" $dir/wrong.log
+        grep -q "4 passed, 1 failed, in 2 files" $dir/wrong.log
+        ! $quad -q --test $dir/config/quad/tests/init.ss > $dir/bare.log
     """,
 )
 

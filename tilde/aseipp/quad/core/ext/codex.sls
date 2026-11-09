@@ -35,7 +35,7 @@
           codex-transcript-text codex-popup define-codex-tool! codex-tools
           codex-instructions)
   (import (chezscheme) (quad util) (quad json) (quad jsonrpc) (quad text)
-          (quad buffer) (quad editor) (quad commands) (quad display) (quad project) (quad native) (quad server)
+          (quad buffer) (quad editor) (quad commands) (quad display) (quad ext project) (quad native) (quad server)
           (only (quad main) quad-version))
 
   (define-variable codex-command '("codex" "app-server")

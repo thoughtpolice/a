@@ -8,7 +8,7 @@
 ;; are defined already, and used when their commands are on PATH), and one
 ;; runs per root, found by walking up from the file to a marker such as
 ;; .git or Cargo.toml. A server a project's .quad/init.ss defines is for
-;; that project's files, ahead of the others (see (quad project)). Opening a file starts it; the buffer is kept
+;; that project's files, ahead of the others (see (quad ext project)). Opening a file starts it; the buffer is kept
 ;; in step with it change by change; its diagnostics underline the text.
 ;;
 ;; The keys are Ki's:
@@ -32,7 +32,7 @@
           lsp-position lsp-offset path->uri uri->path)
   (import (chezscheme) (quad util) (quad text) (quad syntax) (quad json) (quad jsonrpc)
           (quad buffer) (quad selection) (quad editor) (quad commands) (quad display)
-          (quad project) (only (quad main) quad-version))
+          (quad ext project) (only (quad main) quad-version))
 
   (define-variable lsp-enabled #t "Whether opening a file starts its language server")
   (define-variable lsp-log-file #f "A file for language servers' standard error, or #f")

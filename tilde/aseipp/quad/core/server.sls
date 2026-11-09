@@ -17,10 +17,13 @@
   (export make-source source? add-source! remove-source! sources watch-fd!
           server-connect! client-receive! server-render! server-run!
           serve-stream! server-listen! server-unlisten! server-listening-paths default-socket-path
-          socket-dir-safe?
+          socket-dir-safe? define-pointer-handler!
+          make-transport transport? transport-name transport-label transport-target?
+          transport-connect transport-connect-later transport-self? transport-listen
+          define-transport! transport-for find-transport
           frame-sender)
   (import (chezscheme) (quad util) (quad kernel) (quad event) (quad buffer)
-          (quad editor) (quad commands) (quad display) (quad link) (quad protocol))
+          (quad editor) (quad commands) (quad display) (quad protocol))
 
   ;; ---------------------------------------------------------------------------
   ;; Sources
@@ -53,20 +56,36 @@
 
   (define (stringify v) (with-output-to-string (lambda () (write v))))
 
+  ;; What extensions make of the pointer: name -> #(hover shape forget).
+  ;; (hover c row col mods): the pointer moved to (row, col) on client c's
+  ;; screen, with mods held; whether that changed what c shows (a link
+  ;; under it underlined, say). (shape c row col): the pointer's shape
+  ;; there, or #f to leave it to the others. (forget c): other input came,
+  ;; which may move what is under the pointer.
+  (define pointer-handlers '())
+
+  (define (define-pointer-handler! name hover shape forget)
+    (set! pointer-handlers
+          (append (remp (lambda (h) (eq? (car h) name)) pointer-handlers)
+                  (list (cons name (vector hover shape forget))))))
+
+  (define (each-pointer-handler f) (for-each (lambda (h) (f (cdr h))) pointer-handlers))
+
   ;; The pointer's shape over what is at (row, col) on client c's screen:
-  ;; a hand over a link, text over a buffer's text, the arrow elsewhere.
+  ;; an extension's, else text over a buffer's text, the arrow elsewhere.
   (define (pointer-shape c row col)
     (cond
-     [(client-local c 'hover-link #f) "pointer"]
+     [(exists (lambda (h) ((vector-ref (cdr h) 1) c row col)) pointer-handlers) => values]
      [(with-client c (lambda () (screen->position row col))) "text"]
      [else "default"]))
 
-  ;; The pointer moved over client c's screen: note the link under it, which
-  ;; is drawn underlined, and tell c the pointer's shape when that changes.
-  ;; Whether what c shows changed.
+  ;; The pointer moved over client c's screen: tell the extensions, and c
+  ;; the pointer's shape when that changes. Whether what c shows changed.
   (define (pointer-moved! c ev)
     (let* ([row (mouse-event-row ev)] [col (mouse-event-col ev)]
-           [changed? (pointer-hover! c row col (mouse-event-mods ev))])
+           [changed? (fold-left (lambda (changed? h)
+                                  (or ((vector-ref (cdr h) 0) c row col (mouse-event-mods ev)) changed?))
+                                #f pointer-handlers)])
       (when (client-has? c "pointer-shape")
         (let ([shape (pointer-shape c row col)])
           (unless (equal? shape (client-local c 'pointer #f))
@@ -88,9 +107,9 @@
           (if (and (mouse-event? ev) (eq? (mouse-event-kind ev) 'move))
               (unless (pointer-moved! c ev) (set! received-quietly (+ received-quietly 1)))
               (begin
-                ;; What is under the pointer may move: no link is
-                ;; underlined until it moves again.
-                (client-local-set! c 'hover-link #f)
+                ;; What is under the pointer may move: until it moves
+                ;; again, nothing is under it.
+                (each-pointer-handler (lambda (h) ((vector-ref h 2) c)))
                 (with-client c (lambda () (handle-event ev)))))
           (case (string->symbol (car msg))
             [(resize)
@@ -115,7 +134,7 @@
                         (list "result" id #t (stringify (eval-string (caddr msg)))))))))]
             [(detach) (with-client c (lambda () (client-quit! c)))]
             [(hello) (void)]
-            ;; ("voice" "failed" why): see ext/voice.sls.
+            ;; ("voice" "failed" why): see core/ext/voice.sls.
             [(voice) (run-hooks 'client-voice-hook c (cdr msg))]
             [(user) (when (and (pair? (cdr msg)) (string? (cadr msg)))
                       (set-client-user! c (cadr msg)))]
@@ -322,6 +341,34 @@
                (lambda () -1) void void))
         (add-source! src)
         src)]))
+
+  ;; ---------------------------------------------------------------------------
+  ;; Transports
+  ;;
+  ;; Editors are reached on Unix sockets (below), and on what extensions
+  ;; add: iroh, the mesh extension's. A transport, by name, says which
+  ;; targets it reaches, (target? s); connects to one, waiting, (connect s)
+  ;; -> (values fd session editor), session what keeps it open and editor
+  ;; the editor's identity; connects in the background, (connect-later s
+  ;; done failed), calling (done fd session editor) or (failed why) and
+  ;; returning a thunk that gives up; knows this editor's identity, (self?
+  ;; editor); and accepts clients, (listen say), (say fmt arg ...) telling
+  ;; how they join. label names it to people ("iroh").
+  (define-record-type transport
+    (fields name label target? connect connect-later self? listen))
+
+  (define transports '())
+
+  (define (define-transport! t)
+    (set! transports (append (remp (lambda (o) (eq? (transport-name o) (transport-name t))) transports)
+                             (list t))))
+
+  ;; The transport that reaches target, or #f: a Unix socket's path.
+  (define (transport-for target)
+    (find (lambda (t) ((transport-target? t) target)) transports))
+
+  (define (find-transport name)
+    (find (lambda (t) (eq? (transport-name t) name)) transports))
 
   ;; ---------------------------------------------------------------------------
   ;; Unix sockets

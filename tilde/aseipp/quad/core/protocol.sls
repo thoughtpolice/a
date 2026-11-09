@@ -40,7 +40,7 @@
 ;;       capability, when they change
 ;;     ("voice" mode): put this client's iroh connection in voice ("on",
 ;;       "muted") or out ("off"), with its person's microphone and
-;;       speakers; to clients with the "voice" capability (ext/voice.sls)
+;;       speakers; to clients with the "voice" capability (core/ext/voice.sls)
 ;;     ("result" id ok? text)  ("bye" reason)
 (library (quad protocol)
   (export protocol-version

@@ -14,11 +14,12 @@
 ;; link, follows it. A file: link opens the file in the editor (at line n for #Ln or
 ;; #n), and any other is opened by the client, on its machine, when it can
 ;; ("open-url"), or shown.
-(library (quad link)
+(library (quad ext link)
   (export define-link-finder! buffer-links link-at pointer-link pointer-hover!
           follow-link! file-link-path can-open-urls? open-url-here! link-faces-count)
   (import (chezscheme) (quad util) (quad text) (quad face) (quad buffer)
-          (quad event) (quad editor) (quad display) (quad native))
+          (quad event) (quad editor) (quad commands) (quad display) (quad server) (quad frontend)
+          (quad native))
 
   ;; ---------------------------------------------------------------------------
   ;; Finding links
@@ -162,13 +163,30 @@
                         (and l (cons b l))))))))))
 
   ;; The pointer moved to (row, col) on client c's screen, with modifiers
-  ;; mods held: with ctrl, a click follows the link under it, which
-  ;; display.sls underlines (client-local 'hover-link). Whether that
-  ;; changed what c shows.
+  ;; mods held: with ctrl, a click follows the link under it, which is
+  ;; underlined (client-local 'hover-link). Whether that changed what c
+  ;; shows.
   (define (pointer-hover! c row col mods)
     (let ([l (and (logtest mods mod-ctrl) (pointer-link c row col))])
       (and (not (equal? l (client-local c 'hover-link #f)))
            (begin (client-local-set! c 'hover-link l) #t))))
+
+  (at-load
+   ;; A hand over the link under the pointer, underlined, until other input.
+   (define-pointer-handler! 'link pointer-hover!
+     (lambda (c row col) (and (client-local c 'hover-link #f) "pointer"))
+     (lambda (c) (client-local-set! c 'hover-link #f)))
+   (add-view-decorator!
+    (lambda (v start end)
+      (let ([h (let ([c (view-client v)]) (and c (client-local c 'hover-link #f)))])
+        (if (and h (eq? (car h) (view-buffer v)))
+            (list (list (cadr h) (caddr h) 'ui.link.hover))
+            '()))))
+   ;; With ctrl held, a click follows the link there.
+   (define-click-handler! 'link
+     (lambda (b pos mods)
+       (let ([l (and (logtest mods mod-ctrl) (link-at b pos))])
+         (and l (begin (run-command (lambda () (follow-link! (caddr l)))) #t))))))
 
   ;; ---------------------------------------------------------------------------
   ;; Following links
@@ -231,8 +249,23 @@
     (when (can-open-urls?)
       (guard (e [#t (void)]) (launch-process (list (if macos? "open" "xdg-open") url)))))
 
-  ;; Every buffer's links are drawn with their faces.
+  ;; A client in this process opens what the editor asks it to, where it
+  ;; can.
   (at-load
+   (define-frontend-capability! 'open-url (lambda () (if (can-open-urls?) '("open-url") '())))
+   (define-frontend-handler! 'open-url
+     (lambda (fd msg send)
+       (and (equal? (car msg) "open-url") (pair? (cdr msg)) (string? (cadr msg))
+            (begin (open-url-here! (cadr msg)) #t)))))
+
+  (at-load
+   ;; Every buffer's links are drawn with their faces.
    (add-decorator!
     (lambda (b start end)
-      (map (lambda (l) (list (car l) (cadr l) (cadddr l))) (buffer-links b start end))))))
+      (map (lambda (l) (list (car l) (cadr l) (cadddr l))) (buffer-links b start end))))
+   (define-command 'open-link "Follow the link at the cursor: open a file here, or a URL on your machine"
+     (lambda ()
+       (let* ([b (current-buffer)] [p (primary)]
+              [l (or (link-at b (sel-range-start p)) (link-at b (max 0 (- (sel-range-end p) 1))))])
+         (if l (follow-link! (caddr l)) (message "No link here")))))
+   (define-key (keymap-lookup-target space-keymap "l") "o" 'open-link "Open Link")))

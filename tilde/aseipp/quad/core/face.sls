@@ -7,7 +7,7 @@
 ;; dim, reverse, an underline (single, double, curly, dotted or dashed) of
 ;; its own color or the text's, strikethrough, overline; colors are 24-bit
 ;; integers, or #f to inherit. A face can also carry a link, a URL that
-;; the text it covers leads to (see link.sls). Faces are named with dotted symbols, Helix
+;; the text it covers leads to (see core/ext/link.sls). Faces are named with dotted symbols, Helix
 ;; style ('ui.statusline.insert, 'keyword.control), and a name that the theme
 ;; lacks falls back to its parent ('ui.statusline, then 'ui).
 (library (quad face)

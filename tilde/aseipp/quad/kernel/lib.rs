@@ -345,7 +345,7 @@ fn mesh_session_editor(s: Ref<mesh::Session>) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Voice over iroh (voice/, for ext/voice.sls)
+// Voice over iroh (voice/, for core/ext/voice.sls)
 
 /// Whether the client descriptor `fd` is a connection over iroh: a
 /// client's of this editor, or this client's to its editor.

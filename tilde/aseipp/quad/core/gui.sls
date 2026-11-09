@@ -23,8 +23,8 @@
   (export gui-window gui-attach! gui-connect! frame-rects frame-cells window-message draw-frame-image
           make-painter painter-note! painter-flush!)
   (import (chezscheme) (quad util) (quad native) (quad kernel) (quad event) (quad face)
-          (quad protocol) (quad grid) (quad editor) (quad commands) (quad server) (quad relay)
-          (quad link) (quad voice))
+          (quad protocol) (quad grid) (quad editor) (quad commands) (quad server)
+          (quad frontend))
 
   (define-variable gui-font-family "JetBrains Mono"
     "The font family a window draws text in: JetBrains Mono is built in; another that is not installed falls back to the system's monospace font.")
@@ -327,12 +327,13 @@
     (append '("title" "font" "pointer-shape" "scroll" "images" "hidden-cursor" "voice")
             (if (gui-clipboard? win) '("clipboard") '())
             (if (gui-primary-selection? win) '("primary-selection") '())
-            (if (can-open-urls?) '("open-url") '())))
+            (frontend-capabilities)))
 
   ;; Handle a message from the server: the screen's go into the model,
-  ;; which is painted at each flush. Returns #f when the server said
-  ;; goodbye.
-  (define (paint! win screen msg)
+  ;; which is painted at each flush; others are extensions' (frontend.sls),
+  ;; with fd the server's stream (#f in its process) and send to answer
+  ;; on it. Returns #f when the server said goodbye.
+  (define (paint! win screen fd msg send)
     (let ([model (screen-model screen)])
       (case (string->symbol (car msg))
         [(grid line hl cursor scroll images)
@@ -352,9 +353,8 @@
         ;; contents come back as a "clipboard" event (window-message).
         [(clipboard-set) (gui-clipboard-set! win (cadr msg) (caddr msg)) #t]
         [(clipboard-get) (gui-clipboard-get! win (cadr msg)) #t]
-        [(open-url) (open-url-here! (cadr msg)) #t]
         [(bye) #f]
-        [else #t])))
+        [else (frontend-handle! fd msg send) #t])))
 
   ;; Handle the window's events: send (as protocol messages) what are the
   ;; editor's, and report what went wrong. Returns #f once it is closed.
@@ -446,12 +446,11 @@
                     ;; The editor runs while it has clients (another window,
                     ;; a terminal), or is a daemon.
                     (when (and (null? (clients)) (not (editor-daemon?))) (editor-stop!)))]
-           ;; Messages go to the editor this window shows: this one, or
-           ;; another it has switched to (relay.sls).
-           [paint (lambda (msg) (paint! win screen msg))])
-      (set! client (server-connect! "gui" initial-rows initial-cols (gui-capabilities win)
-                                    (frontend-sender (lambda () client) paint) close))
-      (frontend! client paint)
+           ;; Input goes to the editor this window shows: this one, or
+           ;; another it is diverted to (frontend.sls).
+           [paint (lambda (msg) (paint! win screen #f msg (lambda (m) (deliver! client m))))])
+      (set! client (frontend-connect! "gui" initial-rows initial-cols (gui-capabilities win)
+                                      paint close))
       (set-client-user! client (default-user-name))
       (set! src
             (watch-fd! (gui-fd win)
@@ -493,7 +492,7 @@
                            (unless got (set! lost? #t))
                            (and got
                                 (for-all (lambda (msg)
-                                           (or (voice-message! fd msg send) (paint! win screen msg)))
+                                           (paint! win screen fd msg send))
                                          (reader got (bytevector-length got)))))))])
           (if (and continue? (not (kernel-stop-requested?)))
               (loop)

@@ -20,6 +20,21 @@
 ;; prompt, layer, jump labels and message, and a connection that carries what
 ;; it should draw. Commands run on behalf of one client, the current client:
 ;; current-view, current-buffer, message, prompts and so on are its.
+;;
+;; (quad editor) is all of it, from libraries in layers, each built on the
+;; ones before it:
+;;
+;;   client.sls   clients and people, messages, variables, hooks, the
+;;                buffer list
+;;   keymap.sls   commands and keymaps
+;;   prompt.sls   prompts and pickers, popups, layers and jump labels,
+;;                where a view is drawn
+;;   editor.sls   (this) major modes, buffers and files, selections, the
+;;                clipboard, events, evaluation
+;;
+;; Their shared state is reached through procedures -- (current-client),
+;; (clients), (buffers) -- as Chez Scheme exports no variable a library
+;; assigns.
 (library (quad editor)
   (export
    ;; clients
@@ -80,378 +95,8 @@
    ;; batch / eval
    quad-environment quad-libraries eval-string condition->string)
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
-          (quad syntax) (quad buffer) (quad selection) (only (quad kernel) kernel-hostname))
-
-  ;; ---------------------------------------------------------------------------
-  ;; Clients
-  ;;
-  ;; A connection is how the server reaches a client: (send message) and
-  ;; (close). The background client has none: it is who --eval, --batch and
-  ;; hooks with no client of their own run as.
-
-  (define-record-type connection (fields send close))
-
-  (define-record-type client
-    (fields id (mutable name) (mutable connection)
-            (mutable rows) (mutable cols) (mutable capabilities)
-            (mutable view)            ; the view shown
-            views                     ; buffer -> view
-            (mutable prompt) (mutable layer) (mutable jumps) (mutable jump-callback)
-            (mutable message) (mutable geometry) (mutable pending-clipboard)
-            (mutable dirty?) (mutable frame) locals (mutable popup))
-    (protocol
-     (lambda (new)
-       (lambda (id name connection rows cols capabilities)
-         (new id name connection rows cols capabilities #f (make-eq-hashtable)
-              #f #f '() #f #f #f #f #t #f (make-eq-hashtable) #f)))))
-
-  (define (client-has? c capability) (and (member capability (client-capabilities c)) #t))
-  (define (client-local c key default) (hashtable-ref (client-locals c) key default))
-  (define (client-local-set! c key v) (hashtable-set! (client-locals c) key v))
-
-  ;; ---------------------------------------------------------------------------
-  ;; People: who is at each client, for the others to see
-
-  ;; How many colors people are told apart by (faces ui.peer.N.*).
-  (define peer-colors 6)
-
-  ;; Clients that are someone (a terminal, a GUI), not a one-off --eval.
-  (define (person? c) (not (equal? (client-name c) "eval")))
-  (define (people) (filter person? the-clients))
-
-  ;; Who is at client c: the name it gave, else "client N".
-  (define (client-user c) (or (client-local c 'user #f) (format "client ~a" (client-id c))))
-
-  ;; Name client c's person; client-user-hook runs with c and the old
-  ;; name (#f the first time).
-  (define (set-client-user! c name)
-    (let ([old (client-local c 'user #f)])
-      (client-local-set! c 'user name)
-      (run-hooks 'client-user-hook c old)))
-
-  ;; Client c's color, 0 to peer-colors - 1: the first that nobody else
-  ;; here has, given as it attaches.
-  (define (client-color c) (client-local c 'color 0))
-
-  (define (assign-color! c)
-    (let ([taken (map client-color (remq c the-clients))])
-      (client-local-set! c 'color
-                         (let loop ([i 0])
-                           (cond [(= i peer-colors) (modulo (client-id c) peer-colors)]
-                                 [(memv i taken) (loop (+ i 1))]
-                                 [else i])))))
-
-  ;; $QUAD_USER, else user@host.
-  (define (default-user-name)
-    (or (getenv "QUAD_USER")
-        (let ([user (or (getenv "USER") "someone")]
-              [host (or (getenv "HOSTNAME")
-                        (guard (e [#t #f])
-                          (let ([h (kernel-hostname)])
-                            (and (not (string=? h "")) h))))])
-          (if host (format "~a@~a" user (car (string-split host #\.))) user))))
-
-  (define next-client-id 0)
-  (define the-clients '())
-  (define the-client #f)
-
-  ;; The connected clients, oldest first; the background client is not one.
-  (define (clients) the-clients)
-  (define (current-client) the-client)
-
-  (define (current-view) (and the-client (client-view the-client)))
-  (define (current-buffer) (let ([v (current-view)]) (and v (view-buffer v))))
-
-  ;; Make c the client things run as when no event is being handled: tools
-  ;; and tests driving the editor directly use this.
-  (define (set-current-client! c)
-    (set! the-client c)
-    (set-current-edit-view! (client-view c)))
-
-  ;; Run thunk on behalf of client c.
-  (define (with-client c thunk)
-    (let ([old the-client])
-      (dynamic-wind
-        (lambda () (set! the-client c) (set-current-edit-view! (client-view c)))
-        thunk
-        (lambda () (set! the-client old) (set-current-edit-view! (and old (client-view old)))))))
-
-  ;; Run thunk as client c while it is connected, else as any client, else
-  ;; as none: for what a client started (a question, a tool's work) that
-  ;; may finish after it left.
-  (define (with-client-or-any c thunk)
-    (let ([c (if (and c (memq c (clients))) c (and (pair? (clients)) (car (clients))))])
-      (if c (with-client c thunk) (thunk))))
-
-  ;; Send a message to client c, if it is connected.
-  (define (client-send! c msg)
-    (let ([conn (client-connection c)])
-      (when conn ((connection-send conn) msg))))
-
-  ;; A new client, showing the buffer the current client shows (or the
-  ;; first buffer). connection is #f for the background client.
-  (define (add-client! name connection rows cols capabilities)
-    (set! next-client-id (+ next-client-id 1))
-    (let ([c (make-client next-client-id name connection rows cols capabilities)])
-      (when connection (set! the-clients (append the-clients (list c))) (assign-color! c))
-      (let ([b (or (current-buffer) (and (pair? the-buffers) (car the-buffers)))])
-        (when b (client-switch-buffer! c b)))
-      (unless the-client (set! the-client c))
-      (when connection (run-hooks 'client-attach-hook c))
-      c))
-
-  ;; Disconnect client c: its views go, and its connection is closed.
-  (define (remove-client! c)
-    (when (memq c the-clients)
-      (set! the-clients (remq c the-clients))
-      (let-values ([(bs vs) (hashtable-entries (client-views c))])
-        (vector-for-each detach-view! vs))
-      (hashtable-clear! (client-views c))
-      (client-view-set! c #f)
-      (let ([conn (client-connection c)])
-        (client-connection-set! c #f)
-        (when conn ((connection-close conn))))
-      (run-hooks 'client-detach-hook c)
-      (when (eq? the-client c) (set! the-client background))))
-
-  ;; Client c's view of buffer b, made the first time it is asked for.
-  (define (view-of c b)
-    (or (hashtable-ref (client-views c) b #f)
-        (let ([v (make-view b c)])
-          (hashtable-set! (client-views c) b v)
-          (attach-view! v)
-          v)))
-
-  (define (client-switch-buffer! c b)
-    (let ([old (client-view c)] [v (view-of c b)])
-      (unless (eq? old v)
-        (when old (view-last-seen-set! old (real-time)))
-        (client-view-set! c v)
-        (when (eq? c the-client) (set-current-edit-view! v))
-        (with-client c (lambda () (run-hooks 'buffer-switch-hook b))))))
-
-  ;; The editor runs as long as it has clients, or as a daemon until told
-  ;; to stop. A client quitting just leaves, unless it is the last.
-  (define running? #t)
-  (define daemon? #f)
-  (define (editor-running?) running?)
-  (define (editor-stop!) (set! running? #f))
-  (define (editor-restart!) (set! running? #t))
-  (define (editor-daemon?) daemon?)
-  (define (editor-daemon?-set! x) (set! daemon? x))
-
-  (define (editor-quit!)
-    (run-hooks 'kill-editor-hook)
-    (for-each (lambda (c) (client-send! c '("bye" "the editor stopped"))) the-clients)
-    (set! running? #f))
-
-  (define (client-quit! c)
-    (if (or daemon? (exists (lambda (o) (not (eq? o c))) the-clients))
-        (begin (client-send! c '("bye" "detached")) (remove-client! c))
-        (editor-quit!)))
-
-  ;; ---------------------------------------------------------------------------
-  ;; Messages
-
-  (define the-messages-buffer #f)
-  (define (messages-buffer) the-messages-buffer)
-
-  (define (set-messages-buffer! b) (set! the-messages-buffer b))
-  (define (current-message) (and the-client (client-message the-client)))
-  (define (clear-message!) (when the-client (client-message-set! the-client #f)))
-
-  ;; *Messages* keeps every message, appended to its text directly: it has
-  ;; no undo history and never counts as modified.
-  (define (log-message! s)
-    (let ([b the-messages-buffer])
-      (when b
-        (let ([t (buffer-text b)])
-          (text-insert! t (text-length t) (string-append s "\n"))
-          (buffer-mark-saved! b)))))
-
-  (define (show! face s)
-    (when the-client (client-message-set! the-client (cons face s)))
-    (log-message! s))
-
-  (define (message fmt . args) (show! 'ui.message (apply format fmt args)))
-  (define (message-error fmt . args) (show! 'ui.message.error (apply format fmt args)))
-
-  ;; ---------------------------------------------------------------------------
-  ;; Variables
-
-  (define variables (make-eq-hashtable))  ; name -> (value . doc)
-
-  (define-syntax define-variable
-    (syntax-rules ()
-      [(_ name default doc)
-       (at-load (define-variable* 'name default doc))]))
-
-  (define (define-variable* name default doc)
-    (unless (hashtable-contains? variables name)
-      (hashtable-set! variables name (cons default doc))))
-
-  (define (variable-names) (vector->list (hashtable-keys variables)))
-  (define (variable-doc name) (let ([v (hashtable-ref variables name #f)]) (and v (cdr v))))
-
-  ;; A buffer-local value wins over the global one.
-  (define get-var
-    (case-lambda
-     [(name) (get-var name (current-buffer))]
-     [(name b)
-      (let ([local (and b (buffer-local b (local-key name) #f))])
-        (if local
-            (car local)
-            (let ([v (hashtable-ref variables name #f)])
-              (if v (car v) (errorf 'get-var "no variable named ~s" name)))))]))
-
-  ;; variable-change-hook runs with the name and the new value.
-  (define (set-var! name v)
-    (let ([old (hashtable-ref variables name #f)])
-      (hashtable-set! variables name (cons v (if old (cdr old) "")))
-      (run-hooks 'variable-change-hook name v)))
-
-  ;; Buffer-local keys are compared with eq?, so each variable's key is
-  ;; interned here.
-  (define local-keys (make-eq-hashtable))
-  (define (local-key name)
-    (or (hashtable-ref local-keys name #f)
-        (let ([k (cons 'var name)]) (hashtable-set! local-keys name k) k)))
-
-  (define set-local!
-    (case-lambda
-     [(name v) (set-local! name v (current-buffer))]
-     [(name v b) (buffer-local-set! b (local-key name) (list v))]))
-
-  (define-variable tab-width 8 "Columns a tab character occupies.")
-  (define-variable indent-unit "  " "The text one level of indentation inserts.")
-  (define-variable auto-pairs #t "Insert closing brackets and quotes in pairs.")
-  (define-variable scroll-margin 3 "Lines kept visible above and below the selection.")
-  (define-variable legend-delay 300 "Milliseconds before a momentary layer shows its keys.")
-  (define-variable line-numbers 'absolute "Gutter line numbers: absolute, relative or #f.")
-  (define-variable show-whitespace #f "Draw tabs and trailing spaces.")
-  (define-variable trim-trailing-whitespace #f "Remove spaces and tabs at the ends of lines when saving.")
-  (define-variable trim-final-newlines #f "Remove newlines after the last one at the end when saving.")
-  (define-variable cursorline #t "Highlight the line of the primary selection.")
-  (define-variable system-clipboard #t "Copy to the client's system clipboard too.")
-
-  ;; ---------------------------------------------------------------------------
-  ;; Hooks
-
-  (define hooks (make-eq-hashtable))
-
-  (define (add-hook! name proc)
-    (hashtable-update! hooks name (lambda (l) (if (memq proc l) l (append l (list proc)))) '()))
-
-  (define (remove-hook! name proc)
-    (hashtable-update! hooks name (lambda (l) (remq proc l)) '()))
-
-  (define (run-hooks name . args)
-    (for-each
-     (lambda (p)
-       (guard (e [#t (message-error "~a: ~a" name (condition->string e))])
-         (apply p args)))
-     (hashtable-ref hooks name '())))
-
-  (define (condition->string e)
-    (if (condition? e)
-        (call-with-string-output-port (lambda (p) (display-condition e p)))
-        (format "~s" e)))
-
-  ;; ---------------------------------------------------------------------------
-  ;; Commands
-
-  (define-record-type command (fields name doc proc))
-  (define commands (make-eq-hashtable))
-  (define the-last-command #f)
-  (define the-this-command #f)
-  (define (last-command) the-last-command)
-  (define (this-command) the-this-command)
-
-  (define (define-command name doc proc)
-    (hashtable-set! commands name (make-command name doc proc))
-    name)
-
-  (define (find-command name) (hashtable-ref commands name #f))
-  (define (command-names) (sort (lambda (a b) (string<? (symbol->string a) (symbol->string b)))
-                                (vector->list (hashtable-keys commands))))
-
-  ;; Run a command (a name or a procedure). In normal mode each command is
-  ;; one undo step; one that enters insert mode extends the step until the
-  ;; insert session ends.
-  (define (run-command c)
-    (let* ([v (current-view)]
-           [b (view-buffer v)]
-           [proc (cond [(procedure? c) c]
-                       [(find-command c) => command-proc]
-                       [else (errorf 'run-command "no command named ~s" c)])])
-      (set! the-this-command c)
-      ;; A command brings the view back to the selection after scrolling
-      ;; with the wheel; scrolling commands set free-scroll again.
-      (view-local-set! v 'free-scroll #f)
-      (let ([normal? (eq? (view-input-mode v) 'normal)])
-        (when normal? (buffer-begin-group! b))
-        (guard (e [#t (message-error "~a" (condition->string e))])
-          (proc))
-        (when (and normal? (eq? (current-view) v) (eq? (view-input-mode v) 'normal))
-          (buffer-end-group! b)))
-      (set! the-last-command c)
-      (run-hooks 'post-command-hook c)))
-
-  ;; ---------------------------------------------------------------------------
-  ;; Keymaps
-  ;;
-  ;; A keymap maps key specs to bindings, each a target (a command name, a
-  ;; procedure or a keymap) and a short label for the legend. A keymap bound
-  ;; as a target is a layer: pressing its key enters it, and the next key is
-  ;; looked up there. A momentary layer has an on-tap command: with the kitty
-  ;; protocol it is active only while its key is held, and a tap with no other
-  ;; key runs on-tap; on a legacy terminal, pressing its key twice does.
-
-  (define-record-type keymap
-    (fields name title bindings (mutable on-tap) (mutable momentary?))
-    (protocol
-     (lambda (new)
-       (case-lambda
-        [(name) (new name (symbol->string name) (make-hashtable string-hash string=?) #f #f)]
-        [(name title) (new name title (make-hashtable string-hash string=?) #f #f)]
-        [(name title on-tap)
-         (new name title (make-hashtable string-hash string=?) on-tap (and on-tap #t))]))))
-
-  (define-record-type binding (fields target label order))
-  (define binding-counter 0)
-
-  (define define-key
-    (case-lambda
-     [(km key target) (define-key km key target #f)]
-     [(km key target label)
-      (set! binding-counter (+ binding-counter 1))
-      (hashtable-set! (keymap-bindings km) key
-                      (make-binding target
-                                    (or label
-                                        (cond [(keymap? target) (keymap-title target)]
-                                              [(symbol? target) (symbol->string target)]
-                                              [else "λ"]))
-                                    binding-counter))]))
-
-  (define (undefine-key! km key) (hashtable-delete! (keymap-bindings km) key))
-
-  (define (keymap-lookup km key) (hashtable-ref (keymap-bindings km) key #f))
-
-  ;; What a key is bound to, or #f: handy for reaching into layers, as in
-  ;; (define-key (keymap-lookup-target space-keymap "l") "d" 'my-command).
-  (define (keymap-lookup-target km key)
-    (let ([b (keymap-lookup km key)]) (and b (binding-target b))))
-
-  ;; The bindings, as (key . binding), in the order they were defined.
-  (define (keymap-entries km)
-    (let-values ([(ks vs) (hashtable-entries (keymap-bindings km))])
-      (sort (lambda (a b) (< (binding-order (cdr a)) (binding-order (cdr b))))
-            (map cons (vector->list ks) (vector->list vs)))))
-
-  (define global-keymap (make-keymap 'global "Global"))
-  (define normal-keymap (make-keymap 'normal "Normal"))
-  (define insert-keymap (make-keymap 'insert "Insert"))
-  (define prompt-keymap (make-keymap 'prompt "Prompt"))
+          (quad syntax) (quad buffer) (quad selection) (only (quad kernel) kernel-hostname)
+          (quad client) (quad keymap) (quad prompt))
 
   ;; ---------------------------------------------------------------------------
   ;; Major modes
@@ -501,24 +146,16 @@
   ;; ---------------------------------------------------------------------------
   ;; Buffers
 
-  (define the-buffers '())
-
-  (define (buffers) the-buffers)
-
-  (define (add-buffer! b)
-    (set! the-buffers (append the-buffers (list b)))
-    (run-hooks 'buffer-created-hook b)
-    b)
 
   ;; Show buffer b in the current client.
   (define (switch-to-buffer! b)
-    (client-switch-buffer! the-client b)
+    (client-switch-buffer! (current-client) b)
     b)
 
   (define (set-current-buffer! b) (switch-to-buffer! b))
 
   (define (find-buffer-named name)
-    (find (lambda (b) (string=? (buffer-name b) name)) the-buffers))
+    (find (lambda (b) (string=? (buffer-name b) name)) (buffers)))
 
   (define (unique-name name)
     (if (not (find-buffer-named name))
@@ -571,7 +208,7 @@
   ;; find-file-hook with the new buffer after.
   (define (open-file! path)
     (let* ([path (absolute-path (expand-home path))]
-           [existing (find (lambda (b) (equal? (buffer-path b) path)) the-buffers)])
+           [existing (find (lambda (b) (equal? (buffer-path b) path)) (buffers))])
       (when (and (not existing) (special-file? path) (not (open-special-files?)))
         (errorf 'open-file "~a is not a regular file: only a quad of its own opens it (quad --new ~a)"
                 path path))
@@ -630,9 +267,9 @@
   ;; Kill buffer b: every client showing it moves to the buffer it saw most
   ;; recently (a fresh *scratch* if none is left).
   (define (kill-buffer! b)
-    (set! the-buffers (remq b the-buffers))
+    (remove-buffer! b)
     (run-hooks 'kill-buffer-hook b)
-    (when (null? the-buffers)
+    (when (null? (buffers))
       (new-buffer! "*scratch*" "" (or (find-major-mode 'scheme) fundamental-mode)))
     (for-each
      (lambda (c)
@@ -644,9 +281,9 @@
              (client-view-set! c #f)
              (let-values ([(bs vs) (hashtable-entries (client-views c))])
                (let ([recent (sort (lambda (x y) (> (view-last-seen x) (view-last-seen y)))
-                                   (filter (lambda (v) (memq (view-buffer v) the-buffers)) (vector->list vs)))])
-                 (client-switch-buffer! c (if (pair? recent) (view-buffer (car recent)) (car the-buffers)))))))))
-     (cons background the-clients)))
+                                   (filter (lambda (v) (memq (view-buffer v) (buffers))) (vector->list vs)))])
+                 (client-switch-buffer! c (if (pair? recent) (view-buffer (car recent)) (car (buffers))))))))))
+     (cons background (clients))))
 
   ;; ---------------------------------------------------------------------------
   ;; Selections
@@ -654,7 +291,7 @@
   ;; These take a view, or a buffer meaning the current client's view of it.
 
   (define (as-view x)
-    (cond [(view? x) x] [(buffer? x) (view-of the-client x)] [else (errorf 'as-view "not a view or buffer: ~s" x)]))
+    (cond [(view? x) x] [(buffer? x) (view-of (current-client) x)] [else (errorf 'as-view "not a view or buffer: ~s" x)]))
 
   (define (sels-of x) (view-sels (as-view x)))
   (define (primary) (view-primary (current-view)))
@@ -723,8 +360,8 @@
     (let ([strs (if (string? strs) (list strs) strs)])
       (set! ring (take (cons strs (remp (lambda (e) (equal? e strs)) ring)) 60))
       (set! ring-index 0)
-      (when (and (get-var 'system-clipboard) (client-has? the-client "clipboard"))
-        (client-send! the-client (list "clipboard-set" "c" (string-join strs "\n"))))))
+      (when (and (get-var 'system-clipboard) (client-has? (current-client) "clipboard"))
+        (client-send! (current-client) (list "clipboard-set" "c" (string-join strs "\n"))))))
 
   (define (clipboard-top) (if (null? ring) #f (list-ref ring (min ring-index (- (length ring) 1)))))
 
@@ -742,211 +379,17 @@
   (define (primary-selection-set! s)
     (set! the-primary-selection s)
     (when (and (get-var 'system-clipboard) (> (string-length s) 0)
-               (client-has? the-client "primary-selection"))
-      (client-send! the-client (list "clipboard-set" "p" s))))
+               (client-has? (current-client) "primary-selection"))
+      (client-send! (current-client) (list "clipboard-set" "p" s))))
 
   ;; Ask the client for its system clipboard, then call (k text).
   (define (system-clipboard-request! k)
-    (if (client-has? the-client "clipboard")
+    (if (client-has? (current-client) "clipboard")
         (begin
-          (client-pending-clipboard-set! the-client k)
-          (client-send! the-client '("clipboard-get" "c"))
+          (client-pending-clipboard-set! (current-client) k)
+          (client-send! (current-client) '("clipboard-get" "c"))
           (message "Asked for the clipboard..."))
         (message-error "This client has no clipboard to ask")))
-
-  ;; ---------------------------------------------------------------------------
-  ;; Prompts and pickers
-  ;;
-  ;; A prompt reads a line in the bottom row. Given a candidates procedure
-  ;; it is a picker: candidates are (display . value) pairs, fuzzy-filtered
-  ;; by the input; style 'picker draws them in a centered floating window.
-  ;; Style 'dialog reads text in a centered window instead, as a form's text
-  ;; box would: the label is its title, the input wraps and the box grows
-  ;; with it, and hint, if any, shows while the input is empty. Style
-  ;; 'secret is a dialog that shows bullets for what is typed. A picker's
-  ;; hint, if any, is shown above its query: the question it asks. Style
-  ;; 'menu shows the candidates in a small window at the cursor, as
-  ;; completions; its on-change typically puts the input in the text.
-
-  (define-record-type prompt
-    (fields label (mutable input) (mutable cursor) candidates
-            (mutable items) (mutable index) on-accept on-change style hint
-            (mutable most))             ; the most items it has had, for its size
-    (protocol
-     (lambda (new)
-       (case-lambda
-        [(label initial candidates on-accept on-change style)
-         (new label initial (string-length initial) candidates '() 0 on-accept on-change style #f 0)]
-        [(label initial candidates on-accept on-change style hint)
-         (new label initial (string-length initial) candidates '() 0 on-accept on-change style hint 0)]))))
-
-  (define (current-prompt) (and the-client (client-prompt the-client)))
-
-  (define (prompt-refresh! p)
-    (when (prompt-candidates p)
-      (let* ([input (prompt-input p)]
-             [all ((prompt-candidates p) input)]
-             [scored (if (string=? input "")
-                         (map (lambda (c) (list 0 '() c)) all)
-                         (filter-map (lambda (c)
-                                       (let ([s (fuzzy-score input (car c))])
-                                         (and s (list (car s) (cdr s) c))))
-                                     all))]
-             [sorted (if (string=? input "") scored (sort (lambda (a b) (> (car a) (car b))) scored))])
-        (prompt-items-set! p (map (lambda (x) (cons (caddr x) (cadr x))) sorted))
-        (prompt-most-set! p (max (prompt-most p) (length sorted)))
-        (prompt-index-set! p (clamp (prompt-index p) 0 (max 0 (- (length sorted) 1))))))
-    (when (prompt-on-change p) ((prompt-on-change p) (prompt-input p))))
-
-  (define (open-prompt! p)
-    (client-prompt-set! the-client p)
-    (prompt-refresh! p))
-
-  (define (close-prompt!) (client-prompt-set! the-client #f))
-
-  (define (prompt-accept! p)
-    (close-prompt!)
-    (let ([items (prompt-items p)])
-      (if (prompt-candidates p)
-          (if (pair? items)
-              ((prompt-on-accept p) (cdr (car (list-ref items (prompt-index p)))))
-              ((prompt-on-accept p) (prompt-input p)))
-          ((prompt-on-accept p) (prompt-input p)))))
-
-  (define read-string-prompt
-    (case-lambda
-     [(label k) (read-string-prompt label "" k)]
-     [(label initial k) (open-prompt! (make-prompt label initial #f k #f 'line))]))
-
-  ;; Read text in a centered window titled title, then call (k text). hint
-  ;; (a string or #f) says what to write. A secret's text is not shown.
-  (define read-string-dialog
-    (case-lambda
-     [(title hint k) (read-string-dialog title hint "" k)]
-     [(title hint initial k) (read-string-dialog title hint initial k #f)]
-     [(title hint initial k secret?)
-      (open-prompt! (make-prompt title initial #f k #f (if secret? 'secret 'dialog) hint))]))
-
-  ;; Pick among candidates, a list or a procedure from the input to a list,
-  ;; of (display . value) pairs, then call (k value).
-  (define pick
-    (case-lambda
-     [(label candidates k) (pick label candidates k 'picker)]
-     [(label candidates k style) (pick label candidates k style #f)]
-     [(label candidates k style hint)
-      (open-prompt! (make-prompt label "" (if (procedure? candidates) candidates (lambda (_) candidates))
-                                 k #f style hint))]))
-
-  ;; ---------------------------------------------------------------------------
-  ;; Popups
-  ;;
-  ;; A popup is a floating window of text a client shows over its view, at
-  ;; the right, until it is hidden (escape hides it): an agent's progress, a
-  ;; command's output. It does not take the keys. (lines) gives its
-  ;; contents each time it is drawn, as (text . face) pairs, a face name for
-  ;; each line of text; long lines wrap, and the last lines show. footer is a
-  ;; hint for its bottom border, or #f. The title and footer may be
-  ;; procedures too, called each time it is drawn.
-
-  (define-record-type popup (fields title lines footer))
-
-  (define (current-popup) (and the-client (client-popup the-client)))
-  (define (show-popup! p) (client-popup-set! the-client p))
-  (define (hide-popup!) (when the-client (client-popup-set! the-client #f)))
-
-  ;; ---------------------------------------------------------------------------
-  ;; Layers, legends and jumps, per client
-
-  ;; The active layer: #(keymap trigger-key held? used? entered-at)
-  (define (active-layer) (and the-client (client-layer the-client)))
-  (define (active-layer-keymap) (let ([l (active-layer)]) (and l (vector-ref l 0))))
-  (define (exit-layer!) (client-layer-set! the-client #f))
-
-  ;; A momentary layer is held only when the client reports key releases.
-  (define (enter-layer! km key)
-    (client-layer-set! the-client
-                       (vector km key (and (keymap-momentary? km) (client-has? the-client "release-events"))
-                               #f (real-time))))
-
-  ;; A momentary layer shows its legend once its key has been held a moment;
-  ;; a menu shows it at once.
-  (define (layer-legend-visible?)
-    (let ([l (active-layer)])
-      (and l
-           (or (not (keymap-momentary? (vector-ref l 0)))
-               (>= (- (real-time) (vector-ref l 4)) (get-var 'legend-delay))))))
-
-  ;; The milliseconds until client c's screen changes on its own, -1 for
-  ;; never: the server's poll timeout.
-  (define (idle-timeout c)
-    (let ([l (client-layer c)])
-      (if (and l (keymap-momentary? (vector-ref l 0))
-               (< (- (real-time) (vector-ref l 4)) (get-var 'legend-delay)))
-          (max 1 (- (get-var 'legend-delay) (- (real-time) (vector-ref l 4))))
-          -1)))
-
-  ;; Jump labels: a list of (label-string . range), and what to do with the
-  ;; range picked.
-  (define (jump-labels) (if the-client (client-jumps the-client) '()))
-  (define (jump-callback) (client-jump-callback the-client))
-  (define (jump-labels-set! labels k)
-    (client-jumps-set! the-client labels)
-    (client-jump-callback-set! the-client k))
-
-  ;; ---------------------------------------------------------------------------
-  ;; Geometry: where the client's view is drawn, which the display records
-  ;; each frame: (row col height width top left).
-
-  (define (view-geometry) (and the-client (client-geometry the-client)))
-  (define (view-geometry-set! g) (client-geometry-set! the-client g))
-
-  ;; The cluster of text t at i (see grapheme-end in (quad util)), up to
-  ;; `end`, and the columns it takes at column col: its end and columns.
-  (define (cluster t i end col)
-    (if (char=? (text-ref t i) #\tab)
-        (values (+ i 1) (let ([tw (get-var 'tab-width)]) (- tw (modulo col tw))))
-        (let* ([ref (lambda (k) (text-ref t k))] [j (grapheme-end ref i end)])
-          (values j (grapheme-columns ref i j)))))
-
-  ;; The position after the grapheme cluster at p, and the start of the
-  ;; one before p: where moving and deleting by characters goes.
-  (define (grapheme-after b p)
-    (let ([t (buffer-text b)])
-      (grapheme-end (lambda (i) (text-ref t i)) p (text-length t))))
-
-  (define (grapheme-before b p)
-    (if (<= p 0)
-        0
-        (let ([t (buffer-text b)])
-          (grapheme-start (lambda (i) (text-ref t i)) (- p 1)
-                          (text-line-start t (text-line-of t (- p 1)))))))
-
-  ;; The display column of pos on its line.
-  (define (display-column b pos)
-    (let* ([t (buffer-text b)] [s (text-line-start t (text-line-of t pos))])
-      (let loop ([i s] [col 0])
-        (if (>= i pos)
-            col
-            (let-values ([(j w) (cluster t i pos col)]) (loop j (+ col w)))))))
-
-  ;; The buffer position under screen cell (row, col), or #f outside the
-  ;; text area; columns left of the text (the gutter) map to the line start.
-  (define (screen->position row col)
-    (let ([g (view-geometry)] [b (current-buffer)])
-      (and g b
-           (let ([r (- row (list-ref g 0))] [c (- col (list-ref g 1))])
-             (and (<= 0 r (- (list-ref g 2) 1))
-                  (let* ([t (buffer-text b)]
-                         [line (+ r (list-ref g 4))])
-                    (if (>= line (text-line-count t))
-                        (buffer-length b)
-                        (let ([goal (+ (max 0 c) (list-ref g 5))]
-                              [s (text-line-start t line)] [e (text-line-end t line)])
-                          (let loop ([i s] [col 0])
-                            (if (>= i e)
-                                e
-                                (let-values ([(j w) (cluster t i e col)])
-                                  (if (> (+ col w) goal) i (loop j (+ col w))))))))))))))
 
   ;; ---------------------------------------------------------------------------
   ;; Events, from the current client
@@ -978,7 +421,7 @@
           (run-command (lambda () (k (cdr (car matching))))))]
        [else
         ;; Two-letter labels: keep the ones that start with this key.
-        (client-jumps-set! the-client
+        (client-jumps-set! (current-client)
                            (map (lambda (l) (cons (substring (car l) 1 (string-length (car l))) (cdr l)))
                                 matching))])))
 
@@ -1065,14 +508,12 @@
      [(paste-event? ev) (run-hooks 'paste-hook (paste-event-text ev))]
      [(mouse-event? ev) (run-hooks 'mouse-hook ev)]
      [(clipboard-event? ev)
-      (let ([k (client-pending-clipboard the-client)])
-        (client-pending-clipboard-set! the-client #f)
+      (let ([k (client-pending-clipboard (current-client))])
+        (client-pending-clipboard-set! (current-client) #f)
         (when k (run-command (lambda () (k (clipboard-event-text ev))))))]
      [(focus-event? ev) (run-hooks (if (focus-event-in? ev) 'focus-in-hook 'focus-out-hook))]
      [else (void)]))
 
-  ;; Who runs when no client does.
-  (define background (add-client! "background" #f 24 80 '()))
 
   ;; ---------------------------------------------------------------------------
   ;; Evaluation: init files and --eval run in an environment with the whole

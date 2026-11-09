@@ -16,7 +16,7 @@
     chez.boot(name = "app", deps = [":main"])          # app.boot
     chez.standalone(name = "app-bin", kernel = ":kernel", boots = [":app"])
 
-Rust procedures (the chez crate, tilde/aseipp/quad/chez-rs) become a Scheme library
+Rust procedures (the chez crate, tilde/aseipp/quad/kernel/chez-rs) become a Scheme library
 with chez.rust_library, which writes the library their chez::library!
 describes:
 
@@ -38,7 +38,7 @@ load("@prelude//cxx:cxx_toolchain_types.bzl", "CxxToolchainInfo", "LinkerType")
 load("@root//buck/shims:shims.bzl", "shims")
 
 # The Scheme half of the chez crate: (chez rust).
-CHEZ_RUST_SCHEME = "depot-tilde//aseipp/quad/chez-rs:scheme"
+CHEZ_RUST_SCHEME = "depot-tilde//aseipp/quad/kernel/chez-rs:scheme"
 
 ChezToolchainInfo = provider(fields = {
     "scheme": provider_field(typing.Any),

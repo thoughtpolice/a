@@ -55,7 +55,7 @@ it is a daemon. `kill-server` stops it for everyone.
 Starting quad where an editor already listens at the default socket makes
 a client of that editor, as emacsclient does (`--new` starts another). A
 client in an editor's process can show another editor instead
-(`core/relay.sls`, the `connect` command): its input goes there, that
+(`core/ext/relay.sls`, the `connect` command): its input goes there, that
 editor's frames are painted in its place, and this editor's are not; when
 the other says goodbye, or goes away, it is drawn afresh here. Its
 terminal or window is the same either way: only where its messages go
@@ -101,7 +101,7 @@ The server's loop (`core/server.sls`) polls descriptors through the kernel
 
 ## Voice
 
-People attached over iroh can talk (`ext/voice.sls`, `space j a`; `space
+People attached over iroh can talk (`core/ext/voice.sls`, `space j a`; `space
 j m` mutes). Speech goes beside the protocol, not in it: a frame (20 ms
 of Opus, `third-party//by-name/op/opus`) per QUIC datagram, on the
 connection the client already has, since a reliable stream would hold
@@ -122,7 +122,7 @@ person is at; what fails comes back as `["voice", "failed", why]`.
 Clients on the editor's own machine get no message: the editor's process
 makes their sound itself. The microphone is open only while someone at
 the process is in voice and not muted, and a window that switches to
-another editor (`core/relay.sls`) leaves voice in this one first, as its
+another editor (`core/ext/relay.sls`) leaves voice in this one first, as its
 speech would otherwise go to both. Sound goes through the desktop's
 sound server with PulseAudio's simple API (`libpulse-simple.so.0`, which
 PipeWire serves), loaded when voice starts, as Vulkan is when a window

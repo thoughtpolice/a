@@ -189,7 +189,7 @@ impl Windows {
                 f64::from(size.1) * f64::from(h) + pad,
             ));
         // The app id (Wayland) and class (X11): what launchers and the
-        // compositor match to dist/quad.desktop.
+        // compositor match to etc/quad.desktop.
         #[cfg(target_os = "linux")]
         let attributes = attributes.with_name("quad", "quad");
         let window = Arc::new(

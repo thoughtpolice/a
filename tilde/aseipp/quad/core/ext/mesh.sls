@@ -13,7 +13,7 @@
 ;; the editor, as anyone who can reach its socket can. So they are made up
 ;; afresh each time the editor starts listening, with a fresh identity,
 ;; and kept nowhere: once it stops, they are worth nothing.
-(library (quad mesh)
+(library (quad ext mesh)
   (export mesh-listen! mesh-listening? mesh-info mesh-target? mesh-connect-fd! mesh-connect-later!
           mesh-local? mesh-self?)
   (import (chezscheme) (quad util) (quad editor) (quad server) (quad native))
@@ -107,4 +107,26 @@
   ;; Whether editor, an endpoint's ID, is this editor's own.
   (define (mesh-self? editor)
     (let ([id (assq 'id (mesh-info))])
-      (and id (equal? (cdr id) editor)))))
+      (and id (equal? (cdr id) editor))))
+
+  ;; Says how clients join, once the endpoint knows, or what failed:
+  ;; (say fmt arg ...).
+  (define (mesh-announcer say)
+    (let ([said '()])
+      (lambda (info)
+        (for-each (lambda (key what)
+                    (let ([v (cdr (assq key info))])
+                      (when (and v (not (member (cons key v) said)))
+                        (set! said (cons (cons key v) said))
+                        (say what v))))
+                  '(code ticket error)
+                  '("clients anywhere join with the code: quad --connect=~a"
+                    "clients join with the ticket: quad --connect=~a"
+                    "iroh: ~a")))))
+
+  ;; Join codes and tickets name editors to connect to (quad --connect, the
+  ;; connect command), and quad --mesh listens.
+  (at-load
+   (define-transport!
+    (make-transport 'mesh "iroh" mesh-target? mesh-connect-fd! mesh-connect-later! mesh-self?
+                    (lambda (say) (mesh-listen! #t (mesh-announcer say)))))))

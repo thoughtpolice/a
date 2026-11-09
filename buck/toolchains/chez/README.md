@@ -38,7 +38,7 @@ chez.rust_library(name = "native", crate = ":native-rs", library = "native")
   place of the toolchain's, as an executable that loads the host's
   libraries at run time (a Vulkan loader and GPU driver, say) must.
 - `chez.rust_library` generates the Scheme library binding a Rust crate's
-  procedures (see the `chez` crate, `tilde/aseipp/quad/chez-rs`).
+  procedures (see the `chez` crate, `tilde/aseipp/quad/kernel/chez-rs`).
 
 A kernel is a C program that links `:kernel` (Chez Scheme's runtime and
 `scheme.h`) and boots from its appended boot files with `:embed`

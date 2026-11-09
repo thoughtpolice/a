@@ -28,10 +28,14 @@
    exit-insert! gap-between line-indent indent-for-newline
    ;; keymaps
    enclosure-keymap space-keymap local-keymap
+   ;; the mouse
+   define-click-handler!
    ;; files and lines
-   project-files load-init-file! init-file-path goto-line!)
+   project-files load-init-file! init-file-path goto-line!
+   ;; starting
+   quad-version editor-init!)
   (import (chezscheme) (quad util) (quad text) (quad event) (quad face)
-          (quad syntax) (quad buffer) (quad selection) (quad editor) (quad link))
+          (quad syntax) (quad buffer) (quad selection) (quad editor))
 
   (define (cur) (current-buffer))
   (define (cv) (current-view))
@@ -1016,7 +1020,7 @@
   ;; Click selects the unit of the current selection mode under the pointer;
   ;; double-click selects a word and triple-click a line (switching modes);
   ;; dragging extends; shift-click extends to the pointer; ctrl-click
-  ;; follows a link (link.sls), and elsewhere adds a cursor, as alt-click
+  ;; follows a link (the link extension), and elsewhere adds a cursor, as alt-click
   ;; does; middle-click pastes the primary selection; the wheel scrolls.
 
   (define last-click #f)   ; (time pos count)
@@ -1050,7 +1054,15 @@
       (set! last-click (list now pos count))
       count))
 
-  ;; A left click at pos: ctrl follows the link there, shift extends the
+  ;; What extensions do with a left click: name -> (handler b pos mods),
+  ;; true if it took the click (with ctrl held, the link extension follows
+  ;; the link there).
+  (define click-handlers '())
+  (define (define-click-handler! name handler)
+    (set! click-handlers (append (remp (lambda (h) (eq? (car h) name)) click-handlers)
+                                 (list (cons name handler)))))
+
+  ;; A left click at pos: an extension's, if one takes it; shift extends the
   ;; selection, alt (or ctrl) adds one; else it selects the unit there (a
   ;; word on a double click, a line on a triple) and starts a drag.
   (define (click! b pos mods)
@@ -1058,8 +1070,7 @@
       (when (eq? (view-input-mode (cv)) 'insert) (exit-insert!))
       (push-selection-history! b)
       (cond
-       [(and (logtest mods mod-ctrl) (link-at b pos))
-        => (lambda (l) (run-command (lambda () (follow-link! (caddr l)))))]
+       [(exists (lambda (h) ((cdr h) b pos mods)) click-handlers) (void)]
        [(logtest mods mod-shift)
         (let ([r (unit-at b pos)] [p (primary)])
           (set-sels! b (cons (make-sel (car r) (cdr r) (or (sel-anchor p) (sel-range p))) (cdr (sels-of b)))))]
@@ -1143,11 +1154,6 @@
   (define-syntax defcmd
     (syntax-rules ()
       [(_ name doc body ...) (at-load (define-command 'name doc (lambda () body ...)))]))
-
-  (defcmd open-link "Follow the link at the cursor: open a file here, or a URL on your machine"
-    (let* ([p (primary)]
-           [l (or (link-at (cur) (sel-range-start p)) (link-at (cur) (max 0 (- (sel-range-end p) 1))))])
-      (if l (follow-link! (caddr l)) (message "No link here"))))
 
   (defcmd move-left "Previous unit" (move! 'left))
   (defcmd move-right "Next unit" (move! 'right))
@@ -1534,7 +1540,7 @@
   (define context-menu
     (menu 'context "Context"
           "e" 'eval-selection "Eval Selection" "b" 'eval-buffer "Eval Buffer"
-          "|" 'pipe "Pipe" "o" 'open-link "Open Link"))
+          "|" 'pipe "Pipe"))
 
   (define space-keymap
     (menu 'space "Space"
@@ -1593,6 +1599,37 @@
         "down" 'prompt-next "Next" "up" 'prompt-previous "Previous"
         "ctrl+n" 'prompt-next "Next" "ctrl+p" 'prompt-previous "Previous"
         "tab" 'prompt-next "Next" "shift+tab" 'prompt-previous "Previous"))
+
+  ;; ---------------------------------------------------------------------------
+  ;; Starting
+
+  (define quad-version "0.1.0")
+
+  ;; The buffers every editor starts with, and the files asked for; the
+  ;; first file (or *scratch*) is what new clients show. setup runs before
+  ;; the files open (the init file, the working directory's project), so
+  ;; that what it sets up applies to them too.
+  (define editor-init!
+    (case-lambda
+     [(files) (editor-init! files void)]
+     [(files setup)
+      (let ([m (new-buffer! "*Messages*" "" fundamental-mode)])
+        (buffer-read-only?-set! m #t)
+        (set-messages-buffer! m))
+      (setup)
+      ;; This process's own command line may name a pipe (quad <(git diff))
+      ;; for it to read.
+      (let ([opened (parameterize ([open-special-files? #t]) (map open-file! files))])
+        (set-current-buffer!
+       (if (pair? opened)
+           (car opened)
+           (new-buffer! "*scratch*"
+                        (string-append ";; Welcome to quad " quad-version ", an editor written in Chez Scheme.\n"
+                                       ";; Keys are Ki's: space / lists them, space space runs a command by name,\n"
+                                       ";; and space e evaluates Scheme. Select a form with d, then space l e.\n"
+                                       ";; New to them? space k h (or quad --tutor) teaches them.\n\n"
+                                       "(message \"hello from ~a\" (scheme-version))\n")
+                        (or (find-major-mode 'scheme) fundamental-mode)))))]))
 
   ;; ---------------------------------------------------------------------------
   ;; Init files

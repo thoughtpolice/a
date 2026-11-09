@@ -26,7 +26,7 @@ depot.cxx_library(
 
 DEPS = [
     ":shim",
-    "//aseipp/quad/chez-rs/macros:chez-macros",
+    "//aseipp/quad/kernel/chez-rs/macros:chez-macros",
     "third-party//rust:libc",
 ]
 

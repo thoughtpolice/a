@@ -5,7 +5,7 @@
 (library (quad ext markdown)
   (export markdown-syntax markdown-mode)
   (import (chezscheme) (quad util) (quad text) (quad syntax) (quad buffer)
-          (quad editor) (quad commands) (quad link))
+          (quad editor) (quad commands) (quad ext link))
 
   (define markdown-syntax
     (make-syntax 'markdown #f '() '() '() default-word-char? (keyword-table) '()
