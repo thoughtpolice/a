@@ -3,8 +3,12 @@
 
 //! How gonzo daemons and their workers reach each other: [`iroh_mesh`],
 //! with the daemon as its host and workers as its members, speaking
-//! [`PROTOCOL`]. See `src/gonzo/notes/execution.md`.
+//! [`PROTOCOL`], and gRPC over the streams workers open ([`channel`]). See
+//! `src/gonzo/notes/execution.md`.
 
+mod grpc;
+
+pub use grpc::channel;
 pub use iroh_mesh::*;
 
 /// What workers and daemons speak. Every field is wire format: changing
@@ -18,3 +22,6 @@ pub const PROTOCOL: Protocol = Protocol {
 
 /// The ALPN workers dial daemons on.
 pub const ALPN: &[u8] = PROTOCOL.alpn;
+
+#[cfg(test)]
+mod tests;

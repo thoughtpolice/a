@@ -1,28 +1,28 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! gRPC over iroh: each QUIC stream after the handshake carries one
-//! HTTP/2 connection, so neither tonic nor the host's services know they
-//! are not on TCP.
+//! A mesh's endpoints, and the streams its members open: after the join
+//! handshake, every stream a member opens on its connection is the
+//! application's, to carry what it likes (gonzo's workers carry one HTTP/2
+//! connection each, for gRPC; quad's clients the editor's protocol).
 
 use std::time::Duration;
 
-use iroh::endpoint::{Connection, QuicTransportConfig, RecvStream, SendStream, VarInt};
+use iroh::endpoint::{QuicTransportConfig, RecvStream, SendStream, VarInt};
 use iroh::{Endpoint, SecretKey};
-use tonic::transport::Channel;
 
 use crate::Protocol;
 use crate::keys::JoinKey;
 
-/// One HTTP/2 connection's worth of QUIC stream.
+/// A stream a joined member opened, both ways.
 pub type Stream = tokio::io::Join<RecvStream, SendStream>;
 
 /// How endpoints of a mesh use QUIC.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Transport {
     /// Streams a member may hold open at once on one connection to a
-    /// host. Each gRPC channel takes one, and a reconnecting channel
-    /// another.
+    /// host. (A gRPC channel over the mesh takes one, and a reconnecting
+    /// channel another.)
     pub max_member_streams: u32,
     /// Bytes in flight per stream.
     pub stream_window: u32,
@@ -95,8 +95,8 @@ impl Protocol {
     }
 
     /// Admit members that join `endpoint` with one of `keys`, and hand over
-    /// every stream they open afterwards, to serve gRPC on. Ends when the
-    /// endpoint closes or the source is dropped.
+    /// every stream they open afterwards, to serve whatever the application
+    /// speaks on. Ends when the endpoint closes or the source is dropped.
     pub fn serve(&self, endpoint: Endpoint, keys: Vec<JoinKey>) -> accept::Handover<Stream> {
         let (streams, handover) = accept::Handover::new();
         let protocol = *self;
@@ -132,22 +132,4 @@ impl Protocol {
         });
         handover
     }
-}
-
-/// A gRPC channel to the host at the other end of `conn`, which this
-/// member has joined. Each HTTP/2 connection the channel makes is a new
-/// stream of `conn`; once `conn` closes, the channel fails.
-pub fn channel(conn: Connection, transport: &Transport) -> Channel {
-    // The authority is never resolved: every connection is a stream of
-    // `conn`.
-    tonic::transport::Endpoint::from_static("http://mesh.iroh")
-        .initial_connection_window_size(Some(transport.connection_window))
-        .initial_stream_window_size(Some(transport.stream_window))
-        .connect_with_connector_lazy(tower::service_fn(move |_: tonic::transport::Uri| {
-            let conn = conn.clone();
-            async move {
-                let (send, recv) = conn.open_bi().await.map_err(std::io::Error::other)?;
-                Ok::<_, std::io::Error>(hyper_util::rt::TokioIo::new(tokio::io::join(recv, send)))
-            }
-        }))
 }

@@ -1,15 +1,14 @@
 // SPDX-FileCopyrightText: © 2026 Austin Seipp
 // SPDX-License-Identifier: Apache-2.0
 
-//! A host and the members that join it over iroh, from anywhere, and the
-//! gRPC services the host serves them.
+//! A host and the members that join it over iroh, from anywhere.
 //!
 //! A member dials the host on its [`Protocol`]'s ALPN and proves, on the
 //! connection's first stream, that it knows a join key
 //! ([`Protocol::join`]); the host proves it back ([`Protocol::admit`]).
-//! Every later stream of the connection then carries one HTTP/2
-//! connection, so the host's gRPC services serve over iroh as they do over
-//! TCP ([`Protocol::serve`], [`channel`]).
+//! Every later stream of the connection is the application's: the host
+//! takes them as members open them ([`Protocol::serve`]), and what they
+//! carry is up to it. (gonzo's mesh crate runs gRPC over them.)
 //!
 //! A member finds the host by a [`JoinTicket`], which carries the host's
 //! ID, its addresses and its join key, or by the host's six-word
@@ -19,18 +18,18 @@
 
 mod cluster;
 mod code;
-mod grpc;
 mod join;
 mod keys;
+mod streams;
 mod ticket;
 mod words;
 
 pub use cluster::Cluster;
 pub use code::{JoinCode, ParseCodeError};
-pub use grpc::{Stream, Transport, channel};
 pub use iroh_rendezvous::{Announcer, Rendezvous, n0_mainline::Dht};
 pub use join::{CLOSE_REFUSED, HANDSHAKE_TIMEOUT, JoinError};
 pub use keys::{JoinKey, load_or_create_identity};
+pub use streams::{Stream, Transport};
 pub use ticket::{JoinTicket, ParseTicketError};
 
 pub use iroh::{Endpoint, EndpointAddr, EndpointId, SecretKey};

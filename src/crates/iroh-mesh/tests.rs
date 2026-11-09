@@ -31,10 +31,6 @@ async fn endpoint(host: bool) -> Endpoint {
     .expect("bind")
 }
 
-fn channel(conn: Connection) -> tonic::transport::Channel {
-    crate::channel(conn, &Transport::default())
-}
-
 async fn join(conn: &Connection, me: EndpointId, key: &JoinKey) -> Result<(), JoinError> {
     PROTOCOL.join(conn, me, key).await
 }
@@ -146,54 +142,56 @@ async fn a_proof_is_good_only_between_the_two_it_names() {
     assert!(admitted.is_err() && joined.is_err());
 }
 
-/// A host serving the gRPC health service to joined members.
-fn serve_health(host: &Endpoint, keys: Vec<JoinKey>) -> tokio::sync::oneshot::Sender<()> {
-    let (_reporter, health) = tonic_health::server::health_reporter();
-    let routes = tonic::service::Routes::new(health).prepare();
-    let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
-    tokio::spawn(dial9_tonic::serve_traced(
-        PROTOCOL.serve(host.clone(), keys),
-        routes,
-        dial9::Dial9TokioHandle::disabled(),
-        async move {
-            let _ = stopped.await;
-        },
-    ));
+/// A host that echoes, on every stream its joined members open, what they
+/// send, until it is stopped.
+fn serve_echo(host: &Endpoint, keys: Vec<JoinKey>) -> tokio::sync::oneshot::Sender<()> {
+    use accept::Accept as _;
+    let mut streams = PROTOCOL.serve(host.clone(), keys);
+    let (stop, mut stopped) = tokio::sync::oneshot::channel::<()>();
+    tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                stream = streams.accept() => match stream {
+                    Ok(Some(stream)) => {
+                        tokio::spawn(async move {
+                            let (mut recv, mut send) = tokio::io::split(stream);
+                            let _ = tokio::io::copy(&mut recv, &mut send).await;
+                            let _ = tokio::io::AsyncWriteExt::shutdown(&mut send).await;
+                        });
+                    }
+                    _ => return,
+                },
+                _ = &mut stopped => return,
+            }
+        }
+    });
     stop
 }
 
-async fn check(channel: tonic::transport::Channel) -> Result<i32, tonic::Status> {
-    use tonic_health::pb::{HealthCheckRequest, health_client::HealthClient};
-    let response = HealthClient::new(channel)
-        .check(HealthCheckRequest {
-            service: String::new(),
-        })
-        .await?;
-    Ok(response.into_inner().status)
+/// Send `message` on a new stream of `conn`, and read what comes back.
+async fn echo(conn: &Connection, message: &[u8]) -> Result<Vec<u8>, String> {
+    let (mut send, mut recv) = conn.open_bi().await.map_err(|e| e.to_string())?;
+    send.write_all(message).await.map_err(|e| e.to_string())?;
+    send.finish().map_err(|e| e.to_string())?;
+    recv.read_to_end(1024).await.map_err(|e| e.to_string())
 }
 
 #[tokio::test]
-async fn joined_members_reach_the_hosts_grpc_services() {
+async fn joined_members_reach_the_hosts_streams() {
     let (host, member) = (endpoint(true).await, endpoint(false).await);
     let key = JoinKey::generate();
-    let _stop = serve_health(&host, vec![key.clone()]);
+    let _stop = serve_echo(&host, vec![key.clone()]);
     let conn = member
         .connect(iroh_utils::dialable_addr(&host), PROTOCOL.alpn)
         .await
         .expect("connect");
     join(&conn, member.id(), &key).await.expect("join");
-    let joined = channel(conn);
-    // Twice over one channel, and over a second channel on the same
-    // connection, which is a second stream.
-    for _ in 0..2 {
-        assert_eq!(check(joined.clone()).await.expect("check"), 1);
+    // Two streams on one connection, and one on a second connection.
+    for message in [&b"one"[..], b"two"] {
+        assert_eq!(echo(&conn, message).await.expect("echo"), message);
     }
-    assert_eq!(
-        check(channel(connect_again(&member, &host, &key).await))
-            .await
-            .expect("check"),
-        1
-    );
+    let again = connect_again(&member, &host, &key).await;
+    assert_eq!(echo(&again, b"three").await.expect("echo"), b"three");
 }
 
 async fn connect_again(member: &Endpoint, host: &Endpoint, key: &JoinKey) -> Connection {
@@ -208,17 +206,17 @@ async fn connect_again(member: &Endpoint, host: &Endpoint, key: &JoinKey) -> Con
 #[tokio::test]
 async fn a_member_that_has_not_joined_gets_nothing() {
     let (host, member) = (endpoint(true).await, endpoint(false).await);
-    let _stop = serve_health(&host, vec![JoinKey::generate()]);
+    let _stop = serve_echo(&host, vec![JoinKey::generate()]);
     let conn = member
         .connect(iroh_utils::dialable_addr(&host), PROTOCOL.alpn)
         .await
         .expect("connect");
-    // Straight to gRPC: the host takes the stream for a handshake, which
-    // fails, and closes the connection.
-    let checked = tokio::time::timeout(std::time::Duration::from_secs(20), check(channel(conn)))
+    // Straight to a stream of its own: the host takes it for a handshake,
+    // which fails, and closes the connection.
+    let echoed = tokio::time::timeout(std::time::Duration::from_secs(20), echo(&conn, &[0; 32]))
         .await
         .expect("an answer in time");
-    assert!(checked.is_err(), "{checked:?}");
+    assert!(echoed.is_err(), "{echoed:?}");
 }
 
 /// A member that knows only the host's join code finds the host on the
@@ -237,7 +235,7 @@ async fn a_member_finds_and_joins_a_host_by_its_code() {
     };
     let cluster = JoinCode::generate().cluster(&PROTOCOL);
     let (host, member) = (endpoint(true).await, endpoint(false).await);
-    let _stop = serve_health(&host, vec![JoinKey::generate(), cluster.key()]);
+    let _stop = serve_echo(&host, vec![JoinKey::generate(), cluster.key()]);
     let announcing = Cluster::rendezvous(&host, Some(dht())).expect("rendezvous");
     let _announcer = cluster.announce(&announcing);
 
@@ -270,7 +268,7 @@ async fn a_member_finds_and_joins_a_host_by_its_code() {
     join(&conn, member.id(), &cluster.key())
         .await
         .expect("join");
-    assert_eq!(check(channel(conn)).await.expect("check"), 1);
+    assert_eq!(echo(&conn, b"hello").await.expect("echo"), b"hello");
 }
 
 /// gonzo's daemons and workers predate this crate, and its protocol must
