@@ -16,6 +16,26 @@ UPB_BOOTSTRAP_SOURCES = ["upb/reflection/cmake/google/protobuf/descriptor.upb_mi
 # cmake/protoc.cmake.
 PROTOC_SOURCES = ["src/google/protobuf/compiler/main.cc"]
 
+# The .proto files cmake/install.cmake installs as include/ for `import
+# "google/protobuf/..."`: wkt_protos_files and the descriptor, plugin and C++
+# features protos of src/file_lists.cmake. The Java and Go features protos
+# live in the excluded runtimes.
+WELL_KNOWN_PROTOS = [
+    "google/protobuf/any.proto",
+    "google/protobuf/api.proto",
+    "google/protobuf/compiler/plugin.proto",
+    "google/protobuf/cpp_features.proto",
+    "google/protobuf/descriptor.proto",
+    "google/protobuf/duration.proto",
+    "google/protobuf/empty.proto",
+    "google/protobuf/field_mask.proto",
+    "google/protobuf/source_context.proto",
+    "google/protobuf/struct.proto",
+    "google/protobuf/timestamp.proto",
+    "google/protobuf/type.proto",
+    "google/protobuf/wrappers.proto",
+]
+
 # The runtimes of other languages are most of the tree; nothing here builds
 # them, and protoc's generators for them live under src/.
 shims.http_archive(
@@ -41,7 +61,8 @@ shims.http_archive(
     strip_prefix = "protobuf-{}".format(GIT_COMMIT),
     sub_targets = sorted(
         [f for files in SOURCES.values() for f in files] +
-        UTF8_RANGE_SOURCES + UPB_BOOTSTRAP_SOURCES + PROTOC_SOURCES,
+        UTF8_RANGE_SOURCES + UPB_BOOTSTRAP_SOURCES + PROTOC_SOURCES +
+        ["src/" + f for f in WELL_KNOWN_PROTOS],
     ),
     type = "tar.gz",
     urls = [
@@ -153,6 +174,14 @@ shims.cxx_binary(
     preprocessor_flags = PREPROCESSOR_FLAGS,
     visibility = ["PUBLIC"],
     deps = [":libprotoc"],
+)
+
+# The include directory for protoc's --proto_path (PROTOC_INCLUDE), laid out
+# as an installed protoc's include/.
+shims.filegroup(
+    name = "well-known-protos",
+    srcs = {f: ":src[src/{}]".format(f) for f in WELL_KNOWN_PROTOS},
+    visibility = ["PUBLIC"],
 )
 
 # MARK: Tests
