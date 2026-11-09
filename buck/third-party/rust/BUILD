@@ -2939,18 +2939,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "capnp-0.27.2.crate",
-    sha256 = "93f7ce2b1b49d58b2b754f9146ef07e3244f9b67e7563bc1292fbd5f01b142f0",
-    strip_prefix = "capnp-0.27.2",
-    urls = ["https://static.crates.io/crates/capnp/0.27.2/download"],
+    name = "capnp-0.27.3.crate",
+    sha256 = "98216f4102645406ce4dbb0d2b3511cae502537885bae5662812ccc1fe6b04e7",
+    strip_prefix = "capnp-0.27.3",
+    urls = ["https://static.crates.io/crates/capnp/0.27.3/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "capnp-0.27",
-    srcs = [":capnp-0.27.2.crate"],
+    srcs = [":capnp-0.27.3.crate"],
     crate = "capnp",
-    crate_root = "capnp-0.27.2.crate/src/lib.rs",
+    crate_root = "capnp-0.27.3.crate/src/lib.rs",
     edition = "2021",
     features = [
         "alloc",
@@ -2960,7 +2960,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "capnp",
-            "version": "0.27.2",
+            "version": "0.27.3",
             "licenses": ["MIT"],
         },
     },
@@ -3009,23 +3009,23 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "capnp-rpc-0.27.0.crate",
-    sha256 = "01c95bfe8fb2c366b5f54c8be5e9679bd36ec5e1df59e94f95fdd4af697aca13",
-    strip_prefix = "capnp-rpc-0.27.0",
-    urls = ["https://static.crates.io/crates/capnp-rpc/0.27.0/download"],
+    name = "capnp-rpc-0.27.3.crate",
+    sha256 = "629b0af76bb3b4073694783338d1844d993b13848d9b8618f67e2ed39870b4ca",
+    strip_prefix = "capnp-rpc-0.27.3",
+    urls = ["https://static.crates.io/crates/capnp-rpc/0.27.3/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "capnp-rpc-0.27",
-    srcs = [":capnp-rpc-0.27.0.crate"],
+    srcs = [":capnp-rpc-0.27.3.crate"],
     crate = "capnp_rpc",
-    crate_root = "capnp-rpc-0.27.0.crate/src/lib.rs",
+    crate_root = "capnp-rpc-0.27.3.crate/src/lib.rs",
     edition = "2021",
     metadata = {
         "third-party.metadata": {
             "name": "capnp-rpc",
-            "version": "0.27.0",
+            "version": "0.27.3",
             "licenses": ["MIT"],
         },
     },
