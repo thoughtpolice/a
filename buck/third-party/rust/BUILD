@@ -17022,18 +17022,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "jiff-0.2.37.crate",
-    sha256 = "0ab1baf72f08796de0260609515130699b890ac25f30e610ad894bc5856cafdb",
-    strip_prefix = "jiff-0.2.37",
-    urls = ["https://static.crates.io/crates/jiff/0.2.37/download"],
+    name = "jiff-0.2.41.crate",
+    sha256 = "fcefdcefac59ac8f8401852e3427d55610481fc41e6625c39bac62d2d771623a",
+    strip_prefix = "jiff-0.2.41",
+    urls = ["https://static.crates.io/crates/jiff/0.2.41/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "jiff-0.2",
-    srcs = [":jiff-0.2.37.crate"],
+    srcs = [":jiff-0.2.41.crate"],
     crate = "jiff",
-    crate_root = "jiff-0.2.37.crate/src/lib.rs",
+    crate_root = "jiff-0.2.41.crate/src/lib.rs",
     edition = "2021",
     features = [
         "alloc",
@@ -17049,7 +17049,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "jiff",
-            "version": "0.2.37",
+            "version": "0.2.41",
             "licenses": ["Unlicense OR MIT"],
         },
     },
@@ -17074,18 +17074,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "jiff-core-0.1.1.crate",
-    sha256 = "5e52fe76043ccecc9005d2305ebaadf7d7fc0cc89ca6baa10a94d6bc68c7128c",
-    strip_prefix = "jiff-core-0.1.1",
-    urls = ["https://static.crates.io/crates/jiff-core/0.1.1/download"],
+    name = "jiff-core-0.1.4.crate",
+    sha256 = "77a24020db0ee88d1c681d677681bd31f9f4ea189a455425223d52ce4f1508aa",
+    strip_prefix = "jiff-core-0.1.4",
+    urls = ["https://static.crates.io/crates/jiff-core/0.1.4/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "jiff-core-0.1",
-    srcs = [":jiff-core-0.1.1.crate"],
+    srcs = [":jiff-core-0.1.4.crate"],
     crate = "jiff_core",
-    crate_root = "jiff-core-0.1.1.crate/src/lib.rs",
+    crate_root = "jiff-core-0.1.4.crate/src/lib.rs",
     edition = "2021",
     features = [
         "alloc",
@@ -17095,7 +17095,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "jiff-core",
-            "version": "0.1.1",
+            "version": "0.1.4",
             "licenses": ["Unlicense OR MIT"],
         },
     },
