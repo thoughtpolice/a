@@ -18161,18 +18161,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "log-0.4.34.crate",
-    sha256 = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6",
-    strip_prefix = "log-0.4.34",
-    urls = ["https://static.crates.io/crates/log/0.4.34/download"],
+    name = "log-0.4.35.crate",
+    sha256 = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c",
+    strip_prefix = "log-0.4.35",
+    urls = ["https://static.crates.io/crates/log/0.4.35/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "log-0.4",
-    srcs = [":log-0.4.34.crate"],
+    srcs = [":log-0.4.35.crate"],
     crate = "log",
-    crate_root = "log-0.4.34.crate/src/lib.rs",
+    crate_root = "log-0.4.35.crate/src/lib.rs",
     edition = "2021",
     features = [
         "alloc",
@@ -18182,7 +18182,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "log",
-            "version": "0.4.34",
+            "version": "0.4.35",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
