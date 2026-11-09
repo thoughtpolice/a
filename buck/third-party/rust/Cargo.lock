@@ -5192,9 +5192,9 @@ dependencies = [
 
 [[package]]
 name = "iocraft"
-version = "0.9.1"
+version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41b8c1ddc08a912247397bef7b99f9ed409eecc711557f5523fe362d880d6f98"
+checksum = "e028d4507ae8d12747d024913b6c867f21809433a769dc3bfa03917f147db0f1"
 dependencies = [
  "bitflags 2.13.2",
  "crossterm",
@@ -5203,15 +5203,17 @@ dependencies = [
  "iocraft-macros",
  "regex",
  "taffy",
+ "unicode-segmentation",
  "unicode-width 0.1.14",
 ]
 
 [[package]]
 name = "iocraft-macros"
-version = "0.2.4"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e8c51048da5618a10af1135e9e474700f19946f456c857ae0b12ebff2a91b4d"
+checksum = "af30de216ec7e8dbd285c2c54bcb32a9ac22f28500e8a5739007ba22ca4ddb25"
 dependencies = [
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn 2.0.119",

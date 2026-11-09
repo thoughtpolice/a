@@ -15738,18 +15738,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "iocraft-0.9.1.crate",
-    sha256 = "41b8c1ddc08a912247397bef7b99f9ed409eecc711557f5523fe362d880d6f98",
-    strip_prefix = "iocraft-0.9.1",
-    urls = ["https://static.crates.io/crates/iocraft/0.9.1/download"],
+    name = "iocraft-0.9.4.crate",
+    sha256 = "e028d4507ae8d12747d024913b6c867f21809433a769dc3bfa03917f147db0f1",
+    strip_prefix = "iocraft-0.9.4",
+    urls = ["https://static.crates.io/crates/iocraft/0.9.4/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "iocraft-0.9",
-    srcs = [":iocraft-0.9.1.crate"],
+    srcs = [":iocraft-0.9.4.crate"],
     crate = "iocraft",
-    crate_root = "iocraft-0.9.1.crate/src/lib.rs",
+    crate_root = "iocraft-0.9.4.crate/src/lib.rs",
     edition = "2021",
     features = [
         "crossterm",
@@ -15758,7 +15758,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "iocraft",
-            "version": "0.9.1",
+            "version": "0.9.4",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -15771,34 +15771,36 @@ third_party_rust.rust_library(
         ":iocraft-macros-0.2",
         ":regex-1",
         ":taffy-0.5",
+        ":unicode-segmentation-1",
         ":unicode-width-0.1",
     ],
 )
 
 shims.http_archive(
-    name = "iocraft-macros-0.2.4.crate",
-    sha256 = "5e8c51048da5618a10af1135e9e474700f19946f456c857ae0b12ebff2a91b4d",
-    strip_prefix = "iocraft-macros-0.2.4",
-    urls = ["https://static.crates.io/crates/iocraft-macros/0.2.4/download"],
+    name = "iocraft-macros-0.2.6.crate",
+    sha256 = "af30de216ec7e8dbd285c2c54bcb32a9ac22f28500e8a5739007ba22ca4ddb25",
+    strip_prefix = "iocraft-macros-0.2.6",
+    urls = ["https://static.crates.io/crates/iocraft-macros/0.2.6/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "iocraft-macros-0.2",
-    srcs = [":iocraft-macros-0.2.4.crate"],
+    srcs = [":iocraft-macros-0.2.6.crate"],
     crate = "iocraft_macros",
-    crate_root = "iocraft-macros-0.2.4.crate/src/lib.rs",
+    crate_root = "iocraft-macros-0.2.6.crate/src/lib.rs",
     edition = "2021",
     metadata = {
         "third-party.metadata": {
             "name": "iocraft-macros",
-            "version": "0.2.4",
+            "version": "0.2.6",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     proc_macro = True,
     visibility = [],
     deps = [
+        ":proc-macro-crate-3",
         ":proc-macro2-1",
         ":quote-1",
         ":syn-2",
