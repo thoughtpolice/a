@@ -13759,23 +13759,23 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "hegeltest",
-    actual = ":hegeltest-0.51",
+    actual = ":hegeltest-0.52",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "hegeltest-0.51.0.crate",
-    sha256 = "e943e465ed0cc8ad09b916b803a5955e02a124fad09bcb8799e1a77efc2bff69",
-    strip_prefix = "hegeltest-0.51.0",
-    urls = ["https://static.crates.io/crates/hegeltest/0.51.0/download"],
+    name = "hegeltest-0.52.0.crate",
+    sha256 = "f6b95008b427c3bd008deeafe667169eae3f69543035f2ce57e9b9bba45876c0",
+    strip_prefix = "hegeltest-0.52.0",
+    urls = ["https://static.crates.io/crates/hegeltest/0.52.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-0.51",
-    srcs = [":hegeltest-0.51.0.crate"],
+    name = "hegeltest-0.52",
+    srcs = [":hegeltest-0.52.0.crate"],
     crate = "hegel",
-    crate_root = "hegeltest-0.51.0.crate/src/lib.rs",
+    crate_root = "hegeltest-0.52.0.crate/src/lib.rs",
     edition = "2024",
     features = [
         "default",
@@ -13784,41 +13784,41 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "hegeltest",
-            "version": "0.51.0",
+            "version": "0.52.0",
             "licenses": ["MIT"],
         },
     },
     visibility = [],
     deps = [
-        ":hegeltest-c-0.49",
-        ":hegeltest-macros-0.51",
+        ":hegeltest-c-0.50",
+        ":hegeltest-macros-0.52",
         ":parking_lot-0.12",
     ],
 )
 
 shims.alias(
     name = "hegeltest-c",
-    actual = ":hegeltest-c-0.49",
+    actual = ":hegeltest-c-0.50",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "hegeltest-c-0.49.0.crate",
-    sha256 = "fff33a90b762226a4078760b9279082bfac33152e4e7d6cb0d789c88959f982c",
-    strip_prefix = "hegeltest-c-0.49.0",
-    urls = ["https://static.crates.io/crates/hegeltest-c/0.49.0/download"],
+    name = "hegeltest-c-0.50.0.crate",
+    sha256 = "e894a93df5b2fe2c137c32bb32194e63c0d9190c4266140ab4b43ba757315a51",
+    strip_prefix = "hegeltest-c-0.50.0",
+    urls = ["https://static.crates.io/crates/hegeltest-c/0.50.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-c-0.49",
-    srcs = [":hegeltest-c-0.49.0.crate"],
+    name = "hegeltest-c-0.50",
+    srcs = [":hegeltest-c-0.50.0.crate"],
     crate = "hegel_c",
-    crate_root = "hegeltest-c-0.49.0.crate/src/lib.rs",
+    crate_root = "hegeltest-c-0.50.0.crate/src/lib.rs",
     dlopen_enable = True,
     edition = "2024",
     env = {
-        "CARGO_PKG_VERSION": "0.49.0",
+        "CARGO_PKG_VERSION": "0.50.0",
     },
     features = [
         "default",
@@ -13828,7 +13828,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "hegeltest-c",
-            "version": "0.49.0",
+            "version": "0.50.0",
             "licenses": ["MIT"],
         },
     },
@@ -13866,31 +13866,31 @@ third_party_rust.rust_library(
 )
 
 shims.filegroup(
-    name = "hegeltest-c-0.49-headers",
+    name = "hegeltest-c-0.50-headers",
     srcs = {
-        "hegeltest-c-0.49.0.crate": ":hegeltest-c-0.49.0.crate",
+        "hegeltest-c-0.50.0.crate": ":hegeltest-c-0.50.0.crate",
     },
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "hegeltest-macros-0.51.0.crate",
-    sha256 = "0379b413f89425fa144429ebe3b344fb277d394c6c7242f4546b414cd16af5b9",
-    strip_prefix = "hegeltest-macros-0.51.0",
-    urls = ["https://static.crates.io/crates/hegeltest-macros/0.51.0/download"],
+    name = "hegeltest-macros-0.52.0.crate",
+    sha256 = "7ccc83b3daf472bc2d84b675ac403fdfcc76df02044a2ab9facc1294baeba017",
+    strip_prefix = "hegeltest-macros-0.52.0",
+    urls = ["https://static.crates.io/crates/hegeltest-macros/0.52.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "hegeltest-macros-0.51",
-    srcs = [":hegeltest-macros-0.51.0.crate"],
+    name = "hegeltest-macros-0.52",
+    srcs = [":hegeltest-macros-0.52.0.crate"],
     crate = "hegel_macros",
-    crate_root = "hegeltest-macros-0.51.0.crate/src/lib.rs",
+    crate_root = "hegeltest-macros-0.52.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "hegeltest-macros",
-            "version": "0.51.0",
+            "version": "0.52.0",
             "licenses": ["MIT"],
         },
     },

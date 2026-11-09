@@ -106,9 +106,9 @@ gix-pack = { version = "=0.74.2", default-features = false, features = [
     "streaming-input",
 ] }
 gix-zlib = "=0.1.0"
-hegeltest = { version = "0.51.0", features = ["static-engine"] }
+hegeltest = { version = "0.52.0", features = ["static-engine"] }
 # Must match hegeltest's exact engine dependency.
-hegeltest-c = "=0.49.0"
+hegeltest-c = "=0.50.0"
 hex = "0.4.3"
 hmac = "0.13"
 http = "1.5.0"
