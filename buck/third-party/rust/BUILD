@@ -7817,18 +7817,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "educe-0.8.1.crate",
-    sha256 = "1ebdb1f8f8d2815bbe7b369a7da10343c82026a4503b68bd1279ba557611e96d",
-    strip_prefix = "educe-0.8.1",
-    urls = ["https://static.crates.io/crates/educe/0.8.1/download"],
+    name = "educe-0.8.2.crate",
+    sha256 = "a00371d2607edea062396ef1ce6ade65c8e915ac7a1277daa198208420f682c6",
+    strip_prefix = "educe-0.8.2",
+    urls = ["https://static.crates.io/crates/educe/0.8.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "educe-0.8",
-    srcs = [":educe-0.8.1.crate"],
+    srcs = [":educe-0.8.2.crate"],
     crate = "educe",
-    crate_root = "educe-0.8.1.crate/src/lib.rs",
+    crate_root = "educe-0.8.2.crate/src/lib.rs",
     edition = "2024",
     features = [
         "Clone",
@@ -7848,7 +7848,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "educe",
-            "version": "0.8.1",
+            "version": "0.8.2",
             "licenses": ["MIT"],
         },
     },
