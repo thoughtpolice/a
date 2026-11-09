@@ -35376,18 +35376,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "uuid-1.26.1.crate",
-    sha256 = "2ef6dac1e96601b4fb3acccccff2139741fcb757cb9a36089bf5be91cfb285ce",
-    strip_prefix = "uuid-1.26.1",
-    urls = ["https://static.crates.io/crates/uuid/1.26.1/download"],
+    name = "uuid-1.29.2.crate",
+    sha256 = "bed99139f7dac9b5cfe5f17be4d66dc7079a34dee1d74bcc77217119240e267c",
+    strip_prefix = "uuid-1.29.2",
+    urls = ["https://static.crates.io/crates/uuid/1.29.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "uuid-1",
-    srcs = [":uuid-1.26.1.crate"],
+    srcs = [":uuid-1.29.2.crate"],
     crate = "uuid",
-    crate_root = "uuid-1.26.1.crate/src/lib.rs",
+    crate_root = "uuid-1.29.2.crate/src/lib.rs",
     edition = "2021",
     features = [
         "atomic",
@@ -35401,7 +35401,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "uuid",
-            "version": "1.26.1",
+            "version": "1.29.2",
             "licenses": ["Apache-2.0 OR MIT"],
         },
     },
