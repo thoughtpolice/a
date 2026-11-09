@@ -39,6 +39,7 @@
    view-cursor-start? view-cursor-start?-set! view-extending? view-extending?-set!
    view-last-seen view-last-seen-set! view-local view-local-set!
    attach-view! detach-view! current-edit-view set-current-edit-view! map-position
+   add-change-listener! remove-change-listener!
    read-file-string write-file-string)
   (import (chezscheme) (quad util) (quad text) (quad syntax))
 
@@ -163,6 +164,16 @@
   ;; ---------------------------------------------------------------------------
   ;; Editing
 
+  ;; Procedures told of every change to every buffer's text, undo and redo
+  ;; too: (listener buffer changes) just before they are made, with the old
+  ;; text still there to measure them by. changes are (start end text),
+  ;; sorted and apart, in the old text's positions; made last to first, so
+  ;; each one's positions hold until it is made. Language servers are kept in
+  ;; step this way.
+  (define change-listeners '())
+  (define (add-change-listener! f) (set! change-listeners (append change-listeners (list f))))
+  (define (remove-change-listener! f) (set! change-listeners (remq f change-listeners)))
+
   ;; Apply changes, each (start end text), to the text: sorted, applied last
   ;; to first, recorded as a transaction unless `record?` is false. Returns
   ;; the list of new start positions, in the order the changes were given.
@@ -180,6 +191,9 @@
                          indexed)]
            [old-texts (map (lambda (c) (text-substring t (car c) (cadr c))) sorted)]
            [result (make-vector (length changes) 0)])
+      (unless (null? sorted)
+        (let ([cs (map (lambda (c) (list (car c) (cadr c) (caddr c))) sorted)])
+          (for-each (lambda (f) (f b cs)) change-listeners)))
       ;; Apply from the last change backwards, so earlier positions hold.
       (for-each
        (lambda (c)

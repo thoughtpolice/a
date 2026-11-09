@@ -16,7 +16,7 @@
 (library (quad selection)
   (export make-selection-mode selection-mode? selection-mode-name selection-mode-label
           selection-mode-current selection-mode-move selection-mode-visible
-          selection-mode-line-wise?
+          selection-mode-line-wise? selection-mode-of-text?
           define-selection-mode! find-selection-mode selection-mode-names
           token-units line-range line-full-range blank-line? line-indent-end
           search-pattern search-pattern-set! goal-column)
@@ -28,7 +28,16 @@
             current      ; (buffer range) -> range or #f
             move         ; (buffer range direction) -> range or #f
             visible      ; (buffer first-line last-line) -> ranges, for jumps
-            line-wise?)) ; units are lines: gaps are newlines
+            line-wise?   ; units are lines: gaps are newlines
+            of-text?)    ; units are the text's own, not things found in it
+                         ; (search matches, diagnostics): typing leaves them
+    (protocol
+     (lambda (new)
+       (case-lambda
+        [(name label current move visible line-wise?)
+         (new name label current move visible line-wise? #t)]
+        [(name label current move visible line-wise? of-text?)
+         (new name label current move visible line-wise? of-text?)]))))
 
   ;; The column vertical movements aim for, kept across a run of them by the
   ;; view (its sticky column); #f aims for the selection's own column.
@@ -421,7 +430,7 @@
              (if (and m (>= (car m) pos) (<= (cdr m) hi))
                  (loop (+ 1 (car m)) (cons m acc))
                  (reverse acc))))))
-     #f))
+     #f #f))
 
   (for-each define-selection-mode!
             (list (tokens-mode 'char "CHAR" 'char)

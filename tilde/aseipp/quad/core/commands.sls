@@ -177,7 +177,7 @@
   (define (exit-insert!)
     (let* ([b (cur)]
            [mode (view-local (cv) 'insert-previous-mode 'char)]
-           [mode (if (eq? mode 'search) 'char mode)])
+           [mode (if (selection-mode-of-text? (find-selection-mode mode)) mode 'char)])
       (view-input-mode-set! (cv) 'normal)
       (buffer-end-group! b)
       (set-selection-mode! b mode)

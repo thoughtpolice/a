@@ -13,7 +13,7 @@
 ;; (or a string, for a character with combining marks) and an interned face.
 (library (quad display)
   (export render-client! invalidate-client! define-status-segment! status-segments
-          face-id)
+          face-id add-decorator! remove-decorator!)
   (import (chezscheme) (quad util) (quad text) (quad face)
           (quad syntax) (quad buffer) (quad selection) (quad editor))
 
@@ -270,6 +270,21 @@
                [else (when (visible? sc) (put! g row sc ch face))])
               (loop (+ i 1) (+ col w) ss))])))))
 
+;; Decorators mark up a buffer's text beyond its syntax: diagnostics,
+  ;; say. (decorator buffer start end) gives the ranges to mark between
+  ;; positions start and end, as (start end face-name) lists, which are
+  ;; drawn over the syntax's faces and under the selections.
+  (define decorators '())
+  (define (add-decorator! f) (set! decorators (append decorators (list f))))
+  (define (remove-decorator! f) (set! decorators (remq f decorators)))
+
+  (define (decorations b start end)
+    (apply append
+           (map (lambda (f)
+                  (map (lambda (d) (list (car d) (cadr d) (F (caddr d))))
+                       (guard (e [#t '()]) (f b start end))))
+                decorators)))
+
   (define (draw-buffer! g v row0 height width focused?)
     (let* ([b (view-buffer v)]
            [t (buffer-text b)]
@@ -288,7 +303,10 @@
            [match (matching-bracket v)]
            [tw (get-var 'tab-width b)]
            [ws? (get-var 'show-whitespace b)]
-           [jumps (jump-labels)])
+           [jumps (jump-labels)]
+           [decos (if (or (null? decorators) (> top last))
+                      '()
+                      (decorations b (text-line-start t top) (+ 1 (text-line-end t last))))])
       (view-geometry-set! (list row0 gutter height (- width gutter) top left))
       (do ([r 0 (+ r 1)]) ((= r height))
         (let ([line (+ top r)] [row (+ row0 r)])
@@ -308,7 +326,9 @@
                     (put-string! g row (- gutter 1 (string-length str)) str
                                  (face-merge row-face (F (if cur? 'ui.linenr.selected 'ui.linenr))))))
                 (draw-line! g b row s e gutter width left row-face (vector-ref spans r)
-                            (selection-spans v s e) match tw ws?)))))
+                            (append (filter (lambda (d) (and (< (car d) (+ e 1)) (> (cadr d) s))) decos)
+                                    (selection-spans v s e))
+                            match tw ws?)))))
       ;; Jump labels over the units they name.
       (for-each
        (lambda (j)
@@ -515,18 +535,49 @@
         (rule (+ query 1))
         (let loop ([items (drop items first)] [i first] [r (+ query 2)])
           (when (and (pair? items) (< r (+ top height -1)))
-            (let* ([item (car items)] [selected? (= i index)]
-                   [face (UI (if selected? 'ui.menu.selected 'ui.menu))]
-                   [hits (cdr item)])
-              (fill-row! g r (+ left 1) (+ left width -1) face)
-              (let ([text (car (car item))])
-                (let chars ([j 0] [c (+ left 2)])
-                  (when (and (< j (string-length text)) (< c (+ left width -2)))
-                    (let ([ch (string-ref text j)])
-                      (put! g r c ch (if (memv j hits) (face-merge face (F 'ui.menu.match)) face))
-                      (chars (+ j 1) (+ c (max 1 (char-width ch))))))))
-              (loop (cdr items) (+ i 1) (+ r 1)))))
+            (draw-candidate! g r left width (car items) (= i index))
+            (loop (cdr items) (+ i 1) (+ r 1))))
         (list query (+ col (string-width (substring (prompt-input p) 0 (prompt-cursor p)))) 'bar))))
+
+  ;; A prompt's candidate, as a row of a window from column left, width
+  ;; wide: its text, with the characters the query matched marked.
+  (define (draw-candidate! g r left width item selected?)
+    (let ([face (UI (if selected? 'ui.menu.selected 'ui.menu))] [hits (cdr item)] [text (car (car item))])
+      (fill-row! g r (+ left 1) (+ left width -1) face)
+      (let chars ([j 0] [c (+ left 2)])
+        (when (and (< j (string-length text)) (< c (+ left width -2)))
+          (let ([ch (string-ref text j)])
+            (put! g r c ch (if (memv j hits) (face-merge face (F 'ui.menu.match)) face))
+            (chars (+ j 1) (+ c (max 1 (char-width ch)))))))))
+
+  ;; A menu: a prompt's candidates in a small window at the primary cursor,
+  ;; below it where there is room, as completions are shown. What is typed
+  ;; goes into the text (the prompt's on-change puts it there), so the
+  ;; cursor stays in the text. Rows top to bottom are the text's.
+  (define (draw-menu! g cols p v gutter text-top bottom)
+    (let* ([b (view-buffer v)] [t (buffer-text b)]
+           [pos (head-position v (view-primary v))]
+           [r (+ text-top (- (text-line-of t pos) (view-top v)))]
+           [c (+ gutter (- (display-column b pos) (view-left v)))]
+           [items (prompt-items p)] [n (length items)] [index (prompt-index p)]
+           [shown (max 1 (min 10 n (- bottom text-top 2)))]
+           [widest (apply max 0 (map (lambda (i) (string-width (car (car i)))) (take items (min n 100))))]
+           [width (max 16 (min (- cols 2) 60 (+ widest 4)))]
+           [height (+ shown 2)]
+           [top (if (<= (+ r 1 height) bottom) (+ r 1) (max text-top (- r height)))]
+           [left (max 0 (min (- c 2) (- cols width)))]
+           [first (max 0 (min (- index (- shown 1)) (- n shown)))])
+      (draw-box! g top left height width (prompt-label p))
+      (when (> n 1)
+        (let ([count (format " ~a/~a " (+ index 1) n)])
+          (put-string! g (+ top height -1) (- (+ left width) 2 (string-length count)) count (UI 'ui.popup.border))))
+      (if (= n 0)
+          (put-string! g (+ top 1) (+ left 2) "no matches" (face-merge (UI 'ui.popup) (F 'ui.text.dim)) (+ left width -2))
+          (let loop ([items (drop items first)] [i first] [row (+ top 1)])
+            (when (and (pair? items) (< row (+ top height -1)))
+              (draw-candidate! g row left width (car items) (= i index))
+              (loop (cdr items) (+ i 1) (+ row 1)))))
+      (and (< (- text-top 1) r bottom) (< (- gutter 1) c cols) (list r c 'bar))))
 
   ;; Split text into lines of at most width columns, at spaces where it can.
   (define (wrap-text text width)
@@ -665,6 +716,7 @@
                         (cond
                          [(and p (eq? (prompt-style p) 'picker)) (draw-picker! g rows cols p)]
                          [(and p (memq (prompt-style p) '(dialog secret))) (draw-dialog! g rows cols p)]
+                         [(and p (eq? (prompt-style p) 'menu)) (draw-menu! g cols p v gutter text-top status-row)]
                          [(and p (eq? (prompt-style p) 'line))
                           (draw-completions! g rows cols p status-row)
                           bottom-cursor]

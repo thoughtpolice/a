@@ -60,6 +60,23 @@
 (check "stopped" (not (jsonrpc-running? rpc)))
 (check "sending after exit is an error" (string? (error-of (lambda () (jsonrpc-notify! rpc "x" #f)))))
 
+;; The same, framed as the Language Server Protocol has it: a header
+;; giving the length in bytes. The text is longer than one read (64 KiB)
+;; and not all ASCII, so a message arrives in pieces and its length in
+;; bytes is not its length in characters.
+(define big (apply string-append (map (lambda (i) "λ-😀-") (iota 20000))))
+(set! results '())
+(define framed
+  (jsonrpc-start '("cat") #f #f void
+                 (lambda (rpc id method params) (jsonrpc-reply! rpc id params))
+                 (lambda (s) (editor-stop!))
+                 'headers))
+(jsonrpc-request! framed "echo" `((text . ,big))
+                  (lambda (r) (set! results (cons r results)) (process-close-input! (jsonrpc-process framed))))
+(server-run!)
+(editor-restart!)
+(check "framed, in pieces" (equal? results `(((text . ,big)))))
+
 ;; A program that is not there.
 (check "spawn failure" (string-contains (error-of (lambda () (spawn-process '("/nonexistent/quad-test") #f #f)))
                                         "/nonexistent/quad-test"))

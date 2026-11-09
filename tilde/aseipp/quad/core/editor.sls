@@ -644,7 +644,9 @@
   ;; box would: the label is its title, the input wraps and the box grows
   ;; with it, and hint, if any, shows while the input is empty. Style
   ;; 'secret is a dialog that shows bullets for what is typed. A picker's
-  ;; hint, if any, is shown above its query: the question it asks.
+  ;; hint, if any, is shown above its query: the question it asks. Style
+  ;; 'menu shows the candidates in a small window at the cursor, as
+  ;; completions; its on-change typically puts the input in the text.
 
   (define-record-type prompt
     (fields label (mutable input) (mutable cursor) candidates
