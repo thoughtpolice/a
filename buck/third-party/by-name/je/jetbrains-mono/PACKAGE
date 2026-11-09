@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: © 2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+load("@root//buck/shims:package.bzl", "pkg")
+
+pkg.info(
+    version = "2.304",
+    description = """
+        JetBrains Mono, a monospace typeface for code: its regular, bold,
+        italic and bold italic TrueType fonts.
+    """,
+    license = "OFL-1.1",
+    copyright = [
+        "2020 The JetBrains Mono Project Authors",
+    ],
+    visibility = ["PUBLIC"],
+)
