@@ -242,7 +242,7 @@ tokio-util = { version = "0.7.20", features = ["compat"] }
 tower = { version = "0.5", features = ["util", "limit"] }
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
-unicode-width = "0.2.2"
+unicode-width = "0.2.3"
 uuid = { version = "1.26.1", features = ["v4"] }
 # NOTE (x509-parser): never `verify` or `verify-aws`, which bring in ring and
 # aws-lc-rs; verify signatures with BoringSSL (the `openssl` crate) instead.

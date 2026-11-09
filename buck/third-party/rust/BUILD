@@ -35132,18 +35132,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "unicode-width-0.2.2.crate",
-    sha256 = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254",
-    strip_prefix = "unicode-width-0.2.2",
-    urls = ["https://static.crates.io/crates/unicode-width/0.2.2/download"],
+    name = "unicode-width-0.2.3.crate",
+    sha256 = "ca718471876992059f251e33aafc334346ada08042b7661dd1fe313a9bced557",
+    strip_prefix = "unicode-width-0.2.3",
+    urls = ["https://static.crates.io/crates/unicode-width/0.2.3/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "unicode-width-0.2",
-    srcs = [":unicode-width-0.2.2.crate"],
+    srcs = [":unicode-width-0.2.3.crate"],
     crate = "unicode_width",
-    crate_root = "unicode-width-0.2.2.crate/src/lib.rs",
+    crate_root = "unicode-width-0.2.3.crate/src/lib.rs",
     edition = "2021",
     features = [
         "cjk",
@@ -35152,7 +35152,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "unicode-width",
-            "version": "0.2.2",
+            "version": "0.2.3",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
