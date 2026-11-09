@@ -192,7 +192,7 @@ reqwest = { version = "0.13.5", default-features = false, features = [
 # Keep in step with the version rustls resolves.
 rustls-webpki = { version = "0.103.16", default-features = false, features = ["std"] }
 # chaos3 needs only s3s's core protocol adapter, not its optional TLS backends.
-s3s = { version = "0.16.1", default-features = false }
+s3s = { version = "0.17.0", default-features = false }
 salsa = "0.28.5"
 serde = { version = "1.0", features = ["derive"] }
 # NOTE (fozzie): float_roundtrip parses floats exactly, so a value written

@@ -28126,28 +28126,28 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "s3s",
-    actual = ":s3s-0.16",
+    actual = ":s3s-0.17",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "s3s-0.16.1.crate",
-    sha256 = "87d22507a8ebd0ea64972c76dfedbc477418dc70afd98bfce928263894067d2f",
-    strip_prefix = "s3s-0.16.1",
-    urls = ["https://static.crates.io/crates/s3s/0.16.1/download"],
+    name = "s3s-0.17.0.crate",
+    sha256 = "030a43692a1fd97bbd2c594eeaad8f5c1e452a9d29ad6a3eebce1650937c4a77",
+    strip_prefix = "s3s-0.17.0",
+    urls = ["https://static.crates.io/crates/s3s/0.17.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "s3s-0.16",
-    srcs = [":s3s-0.16.1.crate"],
+    name = "s3s-0.17",
+    srcs = [":s3s-0.17.0.crate"],
     crate = "s3s",
-    crate_root = "s3s-0.16.1.crate/src/lib.rs",
+    crate_root = "s3s-0.17.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "s3s",
-            "version": "0.16.1",
+            "version": "0.17.0",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -28169,7 +28169,6 @@ third_party_rust.rust_library(
         ":http-1",
         ":http-body-1",
         ":http-body-util-0.1",
-        ":httparse-1",
         ":hyper-1",
         ":itoa-1",
         ":jiff-0.2",
@@ -28182,9 +28181,10 @@ third_party_rust.rust_library(
         ":pin-project-lite-0.2",
         ":quick-xml-0.42",
         ":regex-1",
-        ":s3s-rfc2047-0.16",
-        ":s3s-sigv2-0.16",
-        ":s3s-sigv4-0.16",
+        ":s3s-multipart-0.17",
+        ":s3s-rfc2047-0.17",
+        ":s3s-sigv2-0.17",
+        ":s3s-sigv4-0.17",
         ":serde-1",
         ":serde_json-1",
         ":serde_urlencoded-0.7",
@@ -28208,23 +28208,55 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "s3s-rfc2047-0.16.1.crate",
-    sha256 = "f9d3e6b36be7cca3da377b4cabcd668ffe5b16c3b73a83f7a8f7b63ff6a178ee",
-    strip_prefix = "s3s-rfc2047-0.16.1",
-    urls = ["https://static.crates.io/crates/s3s-rfc2047/0.16.1/download"],
+    name = "s3s-multipart-0.17.0.crate",
+    sha256 = "a543079d42c20c81781b7e31704ecacd64b0e3819b2384db5bf4869abf6c6f01",
+    strip_prefix = "s3s-multipart-0.17.0",
+    urls = ["https://static.crates.io/crates/s3s-multipart/0.17.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "s3s-rfc2047-0.16",
-    srcs = [":s3s-rfc2047-0.16.1.crate"],
+    name = "s3s-multipart-0.17",
+    srcs = [":s3s-multipart-0.17.0.crate"],
+    crate = "s3s_multipart",
+    crate_root = "s3s-multipart-0.17.0.crate/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "s3s-multipart",
+            "version": "0.17.0",
+            "licenses": ["Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":arrayvec-0.7",
+        ":bytes-1",
+        ":futures-core-0.3",
+        ":httparse-1",
+        ":memchr-2",
+        ":thiserror-2",
+    ],
+)
+
+shims.http_archive(
+    name = "s3s-rfc2047-0.17.0.crate",
+    sha256 = "918b207c39474baef4774355100e712dfea46020e3289ddd5b4bc6e21927b826",
+    strip_prefix = "s3s-rfc2047-0.17.0",
+    urls = ["https://static.crates.io/crates/s3s-rfc2047/0.17.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "s3s-rfc2047-0.17",
+    srcs = [":s3s-rfc2047-0.17.0.crate"],
     crate = "s3s_rfc2047",
-    crate_root = "s3s-rfc2047-0.16.1.crate/src/lib.rs",
+    crate_root = "s3s-rfc2047-0.17.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "s3s-rfc2047",
-            "version": "0.16.1",
+            "version": "0.17.0",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -28236,23 +28268,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "s3s-sigv2-0.16.1.crate",
-    sha256 = "d96880b5ad8d639c9224155126741708aeb62ad3682e0476d2fd14290af808ef",
-    strip_prefix = "s3s-sigv2-0.16.1",
-    urls = ["https://static.crates.io/crates/s3s-sigv2/0.16.1/download"],
+    name = "s3s-sigv2-0.17.0.crate",
+    sha256 = "0979baf8cdf30e38bdfba8e58ee2776d78e55bb3bd3d1f3502f917829da79933",
+    strip_prefix = "s3s-sigv2-0.17.0",
+    urls = ["https://static.crates.io/crates/s3s-sigv2/0.17.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "s3s-sigv2-0.16",
-    srcs = [":s3s-sigv2-0.16.1.crate"],
+    name = "s3s-sigv2-0.17",
+    srcs = [":s3s-sigv2-0.17.0.crate"],
     crate = "s3s_sigv2",
-    crate_root = "s3s-sigv2-0.16.1.crate/src/lib.rs",
+    crate_root = "s3s-sigv2-0.17.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "s3s-sigv2",
-            "version": "0.16.1",
+            "version": "0.17.0",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -28268,23 +28300,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "s3s-sigv4-0.16.1.crate",
-    sha256 = "fed605cbaaa1cf4d82e8ee15098fb3e42d49c92bb6215eb1359f63bfc0c6b020",
-    strip_prefix = "s3s-sigv4-0.16.1",
-    urls = ["https://static.crates.io/crates/s3s-sigv4/0.16.1/download"],
+    name = "s3s-sigv4-0.17.0.crate",
+    sha256 = "330996b9a24804b3df4ad37e62e7817968857d99cf6029c21512b6b64b97f645",
+    strip_prefix = "s3s-sigv4-0.17.0",
+    urls = ["https://static.crates.io/crates/s3s-sigv4/0.17.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "s3s-sigv4-0.16",
-    srcs = [":s3s-sigv4-0.16.1.crate"],
+    name = "s3s-sigv4-0.17",
+    srcs = [":s3s-sigv4-0.17.0.crate"],
     crate = "s3s_sigv4",
-    crate_root = "s3s-sigv4-0.16.1.crate/src/lib.rs",
+    crate_root = "s3s-sigv4-0.17.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "s3s-sigv4",
-            "version": "0.16.1",
+            "version": "0.17.0",
             "licenses": ["Apache-2.0"],
         },
     },

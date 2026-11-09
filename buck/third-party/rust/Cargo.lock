@@ -9231,9 +9231,9 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "s3s"
-version = "0.16.1"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87d22507a8ebd0ea64972c76dfedbc477418dc70afd98bfce928263894067d2f"
+checksum = "030a43692a1fd97bbd2c594eeaad8f5c1e452a9d29ad6a3eebce1650937c4a77"
 dependencies = [
  "arc-swap",
  "arrayvec 0.7.8",
@@ -9251,7 +9251,6 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
- "httparse",
  "hyper",
  "itoa",
  "jiff",
@@ -9264,6 +9263,7 @@ dependencies = [
  "pin-project-lite",
  "quick-xml",
  "regex",
+ "s3s-multipart",
  "s3s-rfc2047",
  "s3s-sigv2",
  "s3s-sigv4",
@@ -9289,10 +9289,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "s3s-rfc2047"
-version = "0.16.1"
+name = "s3s-multipart"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9d3e6b36be7cca3da377b4cabcd668ffe5b16c3b73a83f7a8f7b63ff6a178ee"
+checksum = "a543079d42c20c81781b7e31704ecacd64b0e3819b2384db5bf4869abf6c6f01"
+dependencies = [
+ "arrayvec 0.7.8",
+ "bytes",
+ "futures-core",
+ "httparse",
+ "memchr",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "s3s-rfc2047"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "918b207c39474baef4774355100e712dfea46020e3289ddd5b4bc6e21927b826"
 dependencies = [
  "base64-simd",
  "thiserror 2.0.21",
@@ -9300,9 +9314,9 @@ dependencies = [
 
 [[package]]
 name = "s3s-sigv2"
-version = "0.16.1"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d96880b5ad8d639c9224155126741708aeb62ad3682e0476d2fd14290af808ef"
+checksum = "0979baf8cdf30e38bdfba8e58ee2776d78e55bb3bd3d1f3502f917829da79933"
 dependencies = [
  "base64-simd",
  "hmac",
@@ -9314,9 +9328,9 @@ dependencies = [
 
 [[package]]
 name = "s3s-sigv4"
-version = "0.16.1"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fed605cbaaa1cf4d82e8ee15098fb3e42d49c92bb6215eb1359f63bfc0c6b020"
+checksum = "330996b9a24804b3df4ad37e62e7817968857d99cf6029c21512b6b64b97f645"
 dependencies = [
  "arrayvec 0.7.8",
  "base64-simd",
