@@ -29236,18 +29236,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "serde_json-1.0.151.crate",
-    sha256 = "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
-    strip_prefix = "serde_json-1.0.151",
-    urls = ["https://static.crates.io/crates/serde_json/1.0.151/download"],
+    name = "serde_json-1.0.154.crate",
+    sha256 = "e7e9cc8b1b85264074fbcc02a88680c4096b1e47df8f739dceb03bf482f04bd6",
+    strip_prefix = "serde_json-1.0.154",
+    urls = ["https://static.crates.io/crates/serde_json/1.0.154/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "serde_json-1",
-    srcs = [":serde_json-1.0.151.crate"],
+    srcs = [":serde_json-1.0.154.crate"],
     crate = "serde_json",
-    crate_root = "serde_json-1.0.151.crate/src/lib.rs",
+    crate_root = "serde_json-1.0.154.crate/src/lib.rs",
     edition = "2021",
     env = {
         "OUT_DIR": "$(location :serde_json-1-build-script-run[out_dir])",
@@ -29264,13 +29264,14 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "serde_json",
-            "version": "1.0.151",
+            "version": "1.0.154",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     rustc_flags = ["@$(location :serde_json-1-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
+        ":foldhash-0.2",
         ":indexmap-2",
         ":itoa-1",
         ":memchr-2",
@@ -29281,9 +29282,9 @@ third_party_rust.rust_library(
 
 third_party_rust.rust_binary(
     name = "serde_json-1-build-script-build",
-    srcs = [":serde_json-1.0.151.crate"],
+    srcs = [":serde_json-1.0.154.crate"],
     crate = "build_script_build",
-    crate_root = "serde_json-1.0.151.crate/build.rs",
+    crate_root = "serde_json-1.0.154.crate/build.rs",
     edition = "2021",
     features = [
         "alloc",
@@ -29297,7 +29298,7 @@ third_party_rust.rust_binary(
     metadata = {
         "third-party.metadata": {
             "name": "serde_json",
-            "version": "1.0.151",
+            "version": "1.0.154",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -29317,7 +29318,7 @@ third_party_rust.buildscript_run(
         "raw_value",
         "std",
     ],
-    version = "1.0.151",
+    version = "1.0.154",
 )
 
 shims.http_archive(
