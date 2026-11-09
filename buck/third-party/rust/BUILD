@@ -727,18 +727,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "arbitrary-1.4.2.crate",
-    sha256 = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1",
-    strip_prefix = "arbitrary-1.4.2",
-    urls = ["https://static.crates.io/crates/arbitrary/1.4.2/download"],
+    name = "arbitrary-1.5.0.crate",
+    sha256 = "3bc62ac97cc33321f50863d514c3bc38a453947a8f9e781137e47c7401020aed",
+    strip_prefix = "arbitrary-1.5.0",
+    urls = ["https://static.crates.io/crates/arbitrary/1.5.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "arbitrary-1",
-    srcs = [":arbitrary-1.4.2.crate"],
+    srcs = [":arbitrary-1.5.0.crate"],
     crate = "arbitrary",
-    crate_root = "arbitrary-1.4.2.crate/src/lib.rs",
+    crate_root = "arbitrary-1.5.0.crate/src/lib.rs",
     edition = "2021",
     features = [
         "derive",
@@ -747,7 +747,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "arbitrary",
-            "version": "1.4.2",
+            "version": "1.5.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -6531,23 +6531,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "derive_arbitrary-1.4.2.crate",
-    sha256 = "1e567bd82dcff979e4b03460c307b3cdc9e96fde3d73bed1496d2bc75d9dd62a",
-    strip_prefix = "derive_arbitrary-1.4.2",
-    urls = ["https://static.crates.io/crates/derive_arbitrary/1.4.2/download"],
+    name = "derive_arbitrary-1.5.0.crate",
+    sha256 = "1b034bd7d5f032402a2479444dcc6f74e36a03f31854d41680fb240ef682a1ac",
+    strip_prefix = "derive_arbitrary-1.5.0",
+    urls = ["https://static.crates.io/crates/derive_arbitrary/1.5.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "derive_arbitrary-1",
-    srcs = [":derive_arbitrary-1.4.2.crate"],
+    srcs = [":derive_arbitrary-1.5.0.crate"],
     crate = "derive_arbitrary",
-    crate_root = "derive_arbitrary-1.4.2.crate/src/lib.rs",
+    crate_root = "derive_arbitrary-1.5.0.crate/src/lib.rs",
     edition = "2021",
     metadata = {
         "third-party.metadata": {
             "name": "derive_arbitrary",
-            "version": "1.4.2",
+            "version": "1.5.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -6556,7 +6556,7 @@ third_party_rust.rust_library(
     deps = [
         ":proc-macro2-1",
         ":quote-1",
-        ":syn-2",
+        ":syn-3",
     ],
 )
 
