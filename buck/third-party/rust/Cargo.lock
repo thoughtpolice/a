@@ -2047,7 +2047,7 @@ dependencies = [
  "metrique",
  "metrique-timesource",
  "tokio",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "tracing",
  "ulid",
 ]
@@ -2115,7 +2115,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "tokio",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "tracing",
 ]
 
@@ -4386,7 +4386,7 @@ dependencies = [
  "indexmap 2.14.2",
  "slab",
  "tokio",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "tracing",
 ]
 
@@ -5282,7 +5282,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-stream",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "tracing",
  "url",
  "wasm-bindgen-futures",
@@ -5393,7 +5393,7 @@ dependencies = [
  "rand 0.10.3",
  "serde",
  "tokio",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "tracing",
 ]
 
@@ -5511,7 +5511,7 @@ dependencies = [
  "strum",
  "tokio",
  "tokio-rustls",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "tokio-websockets",
  "tracing",
  "url",
@@ -5561,7 +5561,7 @@ dependencies = [
  "serde",
  "smallvec",
  "tokio",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "tracing",
 ]
 
@@ -6749,7 +6749,7 @@ dependencies = [
  "pin-project",
  "send_wrapper",
  "tokio",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-time",
@@ -6983,7 +6983,7 @@ dependencies = [
  "socket2",
  "time",
  "tokio",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "tracing",
  "web-sys",
  "windows 0.62.2",
@@ -8126,7 +8126,7 @@ dependencies = [
  "socket2",
  "time",
  "tokio",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "tower-layer",
  "tracing",
  "url",
@@ -8868,7 +8868,7 @@ dependencies = [
  "tokio",
  "tokio-native-tls",
  "tokio-rustls",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "tower",
  "tower-http",
  "tower-service",
@@ -9046,7 +9046,7 @@ dependencies = [
  "tokio-openssl",
  "tokio-rustls",
  "tokio-stream",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "tonic",
  "tonic-build",
  "tonic-health",
@@ -10011,7 +10011,7 @@ dependencies = [
  "sysinfo",
  "thiserror 1.0.69",
  "tokio",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "tracing",
  "ulid",
  "url",
@@ -10876,7 +10876,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
 ]
 
 [[package]]
@@ -10897,9 +10897,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.19"
+version = "0.7.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "494815d09bf52b5548659851081238f0ca39ff638363907596da739561c62c52"
+checksum = "e464cf451ba96ebfc6f9b6542f17ee8b8956e33f1e40d9690624e59d7a7f8a4b"
 dependencies = [
  "bytes",
  "futures-core",
@@ -10931,7 +10931,7 @@ dependencies = [
  "simdutf8",
  "tokio",
  "tokio-rustls",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
 ]
 
 [[package]]
@@ -11148,7 +11148,7 @@ dependencies = [
  "slab",
  "sync_wrapper",
  "tokio",
- "tokio-util 0.7.19",
+ "tokio-util 0.7.20",
  "tower-layer",
  "tower-service",
  "tracing",

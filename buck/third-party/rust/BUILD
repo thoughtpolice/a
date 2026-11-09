@@ -33417,18 +33417,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "tokio-util-0.7.19.crate",
-    sha256 = "494815d09bf52b5548659851081238f0ca39ff638363907596da739561c62c52",
-    strip_prefix = "tokio-util-0.7.19",
-    urls = ["https://static.crates.io/crates/tokio-util/0.7.19/download"],
+    name = "tokio-util-0.7.20.crate",
+    sha256 = "e464cf451ba96ebfc6f9b6542f17ee8b8956e33f1e40d9690624e59d7a7f8a4b",
+    strip_prefix = "tokio-util-0.7.20",
+    urls = ["https://static.crates.io/crates/tokio-util/0.7.20/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "tokio-util-0.7",
-    srcs = [":tokio-util-0.7.19.crate"],
+    srcs = [":tokio-util-0.7.20.crate"],
     crate = "tokio_util",
-    crate_root = "tokio-util-0.7.19.crate/src/lib.rs",
+    crate_root = "tokio-util-0.7.20.crate/src/lib.rs",
     edition = "2021",
     features = [
         "codec",
@@ -33446,7 +33446,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "tokio-util",
-            "version": "0.7.19",
+            "version": "0.7.20",
             "licenses": ["MIT"],
         },
     },
