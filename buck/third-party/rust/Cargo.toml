@@ -74,7 +74,7 @@ eyre = "0.6.14"
 # we never read, so the bump buys nothing here.
 fastcdc = "4.0.1"
 figleter = "0.2.2"
-fjall = { version = "3.1.10", default_features = false, features = [
+fjall = { version = "3.1.13", default_features = false, features = [
     "lz4",
     "metrics",
 ] }

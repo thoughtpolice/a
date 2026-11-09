@@ -9607,18 +9607,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "fjall-3.1.10.crate",
-    sha256 = "cd201c93927cdf4712e8f7d4c9c8d34d68c7534380c05d4a58864a309f91c33f",
-    strip_prefix = "fjall-3.1.10",
-    urls = ["https://static.crates.io/crates/fjall/3.1.10/download"],
+    name = "fjall-3.1.13.crate",
+    sha256 = "6e98f7212d748b723dcfbd43d5f166958945ad2c05ad4537fb99bcda42ad8a96",
+    strip_prefix = "fjall-3.1.13",
+    urls = ["https://static.crates.io/crates/fjall/3.1.13/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "fjall-3",
-    srcs = [":fjall-3.1.10.crate"],
+    srcs = [":fjall-3.1.13.crate"],
     crate = "fjall",
-    crate_root = "fjall-3.1.10.crate/src/lib.rs",
+    crate_root = "fjall-3.1.13.crate/src/lib.rs",
     edition = "2021",
     features = [
         "lz4",
@@ -9627,7 +9627,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "fjall",
-            "version": "3.1.10",
+            "version": "3.1.13",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
