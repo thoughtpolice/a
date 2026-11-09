@@ -1602,18 +1602,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "bao-tree-0.16.1.crate",
-    sha256 = "149a2a6017771141e2cd5d0c55b3892d8ff1958df5c318b2e496bf3544b426ed",
-    strip_prefix = "bao-tree-0.16.1",
-    urls = ["https://static.crates.io/crates/bao-tree/0.16.1/download"],
+    name = "bao-tree-0.17.0.crate",
+    sha256 = "50d0e17303b78c9bb240014f3f401ecae5c0460438ace49a171e5f97e3ae57ba",
+    strip_prefix = "bao-tree-0.17.0",
+    urls = ["https://static.crates.io/crates/bao-tree/0.17.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "bao-tree-0.16",
-    srcs = [":bao-tree-0.16.1.crate"],
+    name = "bao-tree-0.17",
+    srcs = [":bao-tree-0.17.0.crate"],
     crate = "bao_tree",
-    crate_root = "bao-tree-0.16.1.crate/src/lib.rs",
+    crate_root = "bao-tree-0.17.0.crate/src/lib.rs",
     edition = "2021",
     features = [
         "experimental-mixed",
@@ -1625,7 +1625,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "bao-tree",
-            "version": "0.16.1",
+            "version": "0.17.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -4482,10 +4482,7 @@ third_party_rust.rust_library(
     crate = "constant_time_eq",
     crate_root = "constant_time_eq-0.4.2.crate/src/lib.rs",
     edition = "2024",
-    features = [
-        "default",
-        "std",
-    ],
+    features = ["std"],
     metadata = {
         "third-party.metadata": {
             "name": "constant_time_eq",
@@ -10513,42 +10510,6 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "futures-concurrency-7.7.1.crate",
-    sha256 = "175cd8cca9e1d45b87f18ffa75088f2099e3c4fe5e2f83e42de112560bea8ea6",
-    strip_prefix = "futures-concurrency-7.7.1",
-    urls = ["https://static.crates.io/crates/futures-concurrency/7.7.1/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "futures-concurrency-7",
-    srcs = [":futures-concurrency-7.7.1.crate"],
-    crate = "futures_concurrency",
-    crate_root = "futures-concurrency-7.7.1.crate/src/lib.rs",
-    edition = "2021",
-    features = [
-        "alloc",
-        "default",
-        "std",
-    ],
-    metadata = {
-        "third-party.metadata": {
-            "name": "futures-concurrency",
-            "version": "7.7.1",
-            "licenses": ["MIT OR Apache-2.0"],
-        },
-    },
-    visibility = [],
-    deps = [
-        ":fixedbitset-0.5",
-        ":futures-core-0.3",
-        ":futures-lite-2",
-        ":pin-project-1",
-        ":smallvec-1",
-    ],
-)
-
-shims.http_archive(
     name = "futures-core-0.3.34.crate",
     sha256 = "92d699e522242e69e3003b94ecc1f960f3a5e015aa7c5d7486e65ad01dd94f5e",
     strip_prefix = "futures-core-0.3.34",
@@ -15895,24 +15856,24 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "iroh-1.3.0.crate",
-    sha256 = "885787b892b5e2507c701f132ecbd45d2bad4bbb75157a19427087c16dadb833",
-    strip_prefix = "iroh-1.3.0",
-    urls = ["https://static.crates.io/crates/iroh/1.3.0/download"],
+    name = "iroh-1.4.1.crate",
+    sha256 = "e3689cab508af9bcef7816c1201b403595ec6aa20e7d15e1f9683bb4be4a5b17",
+    strip_prefix = "iroh-1.4.1",
+    urls = ["https://static.crates.io/crates/iroh/1.4.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "iroh-1",
-    srcs = [":iroh-1.3.0.crate"],
+    srcs = [":iroh-1.4.1.crate"],
     crate = "iroh",
-    crate_root = "iroh-1.3.0.crate/src/lib.rs",
+    crate_root = "iroh-1.4.1.crate/src/lib.rs",
     dlopen_enable = True,
     edition = "2024",
     env = {
         "CARGO_BIN_NAME": "iroh",
         "CARGO_CRATE_NAME": "iroh",
-        "CARGO_MANIFEST_DIR": "iroh-1.3.0.crate",
+        "CARGO_MANIFEST_DIR": "iroh-1.4.1.crate",
         "CARGO_PKG_AUTHORS": "dignifiedquire <me@dignifiedquire.com>:n0 team",
         "CARGO_PKG_DESCRIPTION": "p2p quic connections dialed by public key",
         "CARGO_PKG_HOMEPAGE": "",
@@ -15920,10 +15881,10 @@ third_party_rust.rust_library(
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/n0-computer/iroh",
         "CARGO_PKG_RUST_VERSION": "1.91",
-        "CARGO_PKG_VERSION": "1.3.0",
+        "CARGO_PKG_VERSION": "1.4.1",
         "CARGO_PKG_VERSION_MAJOR": "1",
-        "CARGO_PKG_VERSION_MINOR": "3",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "4",
+        "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
         "OUT_DIR": "$(location :iroh-1-build-script-run[out_dir])",
     },
@@ -15935,7 +15896,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "iroh",
-            "version": "1.3.0",
+            "version": "1.4.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -15987,14 +15948,14 @@ third_party_rust.rust_library(
 
 third_party_rust.rust_binary(
     name = "iroh-1-build-script-build",
-    srcs = [":iroh-1.3.0.crate"],
+    srcs = [":iroh-1.4.1.crate"],
     crate = "build_script_build",
-    crate_root = "iroh-1.3.0.crate/build.rs",
+    crate_root = "iroh-1.4.1.crate/build.rs",
     edition = "2024",
     env = {
         "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
-        "CARGO_MANIFEST_DIR": "iroh-1.3.0.crate",
+        "CARGO_MANIFEST_DIR": "iroh-1.4.1.crate",
         "CARGO_PKG_AUTHORS": "dignifiedquire <me@dignifiedquire.com>:n0 team",
         "CARGO_PKG_DESCRIPTION": "p2p quic connections dialed by public key",
         "CARGO_PKG_HOMEPAGE": "",
@@ -16002,10 +15963,10 @@ third_party_rust.rust_binary(
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/n0-computer/iroh",
         "CARGO_PKG_RUST_VERSION": "1.91",
-        "CARGO_PKG_VERSION": "1.3.0",
+        "CARGO_PKG_VERSION": "1.4.1",
         "CARGO_PKG_VERSION_MAJOR": "1",
-        "CARGO_PKG_VERSION_MINOR": "3",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "4",
+        "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -16015,7 +15976,7 @@ third_party_rust.rust_binary(
     metadata = {
         "third-party.metadata": {
             "name": "iroh",
-            "version": "1.3.0",
+            "version": "1.4.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -16035,30 +15996,30 @@ third_party_rust.buildscript_run(
         "CARGO_PKG_REPOSITORY": "https://github.com/n0-computer/iroh",
         "CARGO_PKG_RUST_VERSION": "1.91",
         "CARGO_PKG_VERSION_MAJOR": "1",
-        "CARGO_PKG_VERSION_MINOR": "3",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "4",
+        "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
         "metrics",
         "portmapper",
     ],
-    version = "1.3.0",
+    version = "1.4.1",
 )
 
 shims.http_archive(
-    name = "iroh-base-1.3.0.crate",
-    sha256 = "6ae9092be76c9f5429776ab3394f5a5a78dc19dc2524267e884a5b9781546c3f",
-    strip_prefix = "iroh-base-1.3.0",
-    urls = ["https://static.crates.io/crates/iroh-base/1.3.0/download"],
+    name = "iroh-base-1.4.1.crate",
+    sha256 = "43b72366b16001af3a51574233df88ca6d62da0215807549a769e7de887da803",
+    strip_prefix = "iroh-base-1.4.1",
+    urls = ["https://static.crates.io/crates/iroh-base/1.4.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "iroh-base-1",
-    srcs = [":iroh-base-1.3.0.crate"],
+    srcs = [":iroh-base-1.4.1.crate"],
     crate = "iroh_base",
-    crate_root = "iroh-base-1.3.0.crate/src/lib.rs",
+    crate_root = "iroh-base-1.4.1.crate/src/lib.rs",
     edition = "2024",
     features = [
         "default",
@@ -16068,7 +16029,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "iroh-base",
-            "version": "1.3.0",
+            "version": "1.4.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -16089,26 +16050,26 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "iroh-blobs",
-    actual = ":iroh-blobs-0.103",
+    actual = ":iroh-blobs-0.104",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "iroh-blobs-0.103.0.crate",
-    sha256 = "5be50b0e2d0a9ba65cee4e0dfb708b3704e02ad12bd4c14c6307e94245943126",
-    strip_prefix = "iroh-blobs-0.103.0",
-    urls = ["https://static.crates.io/crates/iroh-blobs/0.103.0/download"],
+    name = "iroh-blobs-0.104.1.crate",
+    sha256 = "4f0c0f527363afa91564f82080fc5d31dd463e1831df0b546ff9594bbfa3cb60",
+    strip_prefix = "iroh-blobs-0.104.1",
+    urls = ["https://static.crates.io/crates/iroh-blobs/0.104.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "iroh-blobs-0.103",
-    srcs = [":iroh-blobs-0.103.0.crate"],
+    name = "iroh-blobs-0.104",
+    srcs = [":iroh-blobs-0.104.1.crate"],
     crate = "iroh_blobs",
-    crate_root = "iroh-blobs-0.103.0.crate/src/lib.rs",
+    crate_root = "iroh-blobs-0.104.1.crate/src/lib.rs",
     edition = "2021",
     env = {
-        "OUT_DIR": "$(location :iroh-blobs-0.103-build-script-run[out_dir])",
+        "OUT_DIR": "$(location :iroh-blobs-0.104-build-script-run[out_dir])",
     },
     features = [
         "fs-store",
@@ -16117,18 +16078,17 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "iroh-blobs",
-            "version": "0.103.0",
+            "version": "0.104.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
-    rustc_flags = ["@$(location :iroh-blobs-0.103-build-script-run[rustc_flags])"],
+    rustc_flags = ["@$(location :iroh-blobs-0.104-build-script-run[rustc_flags])"],
     visibility = [],
     deps = [
-        ":arrayvec-0.7",
-        ":bao-tree-0.16",
+        ":bao-tree-0.17",
         ":bytes-1",
         ":chrono-0.4",
-        ":constant_time_eq-0.4",
+        ":constant_time_eq-0.6",
         ":data-encoding-2",
         ":derive_more-2",
         ":genawaiter-0.99",
@@ -16138,7 +16098,7 @@ third_party_rust.rust_library(
         ":iroh-io-0.6",
         ":iroh-metrics-1",
         ":iroh-tickets-1",
-        ":iroh-util-0.6",
+        ":iroh-util-0.7",
         ":irpc-0.17",
         ":n0-error-1",
         ":n0-future-0.3",
@@ -16158,10 +16118,10 @@ third_party_rust.rust_library(
 )
 
 third_party_rust.rust_binary(
-    name = "iroh-blobs-0.103-build-script-build",
-    srcs = [":iroh-blobs-0.103.0.crate"],
+    name = "iroh-blobs-0.104-build-script-build",
+    srcs = [":iroh-blobs-0.104.1.crate"],
     crate = "build_script_build",
-    crate_root = "iroh-blobs-0.103.0.crate/build.rs",
+    crate_root = "iroh-blobs-0.104.1.crate/build.rs",
     edition = "2021",
     features = [
         "fs-store",
@@ -16170,7 +16130,7 @@ third_party_rust.rust_binary(
     metadata = {
         "third-party.metadata": {
             "name": "iroh-blobs",
-            "version": "0.103.0",
+            "version": "0.104.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -16179,29 +16139,29 @@ third_party_rust.rust_binary(
 )
 
 third_party_rust.buildscript_run(
-    name = "iroh-blobs-0.103-build-script-run",
+    name = "iroh-blobs-0.104-build-script-run",
     package_name = "iroh-blobs",
-    buildscript_rule = ":iroh-blobs-0.103-build-script-build",
+    buildscript_rule = ":iroh-blobs-0.104-build-script-build",
     features = [
         "fs-store",
         "metrics",
     ],
-    version = "0.103.0",
+    version = "0.104.1",
 )
 
 shims.http_archive(
-    name = "iroh-dns-1.3.0.crate",
-    sha256 = "80276761b56e904e26ea71d0863beef0bb8d5ab6b639cbd1338e4b615209e3a1",
-    strip_prefix = "iroh-dns-1.3.0",
-    urls = ["https://static.crates.io/crates/iroh-dns/1.3.0/download"],
+    name = "iroh-dns-1.4.1.crate",
+    sha256 = "7481d0792dde1035a2b06ec06ed3cf6d01fcb1a494e6931b489e32073382048d",
+    strip_prefix = "iroh-dns-1.4.1",
+    urls = ["https://static.crates.io/crates/iroh-dns/1.4.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "iroh-dns-1",
-    srcs = [":iroh-dns-1.3.0.crate"],
+    srcs = [":iroh-dns-1.4.1.crate"],
     crate = "iroh_dns",
-    crate_root = "iroh-dns-1.3.0.crate/src/lib.rs",
+    crate_root = "iroh-dns-1.4.1.crate/src/lib.rs",
     edition = "2024",
     env = {
         "OUT_DIR": "$(location :iroh-dns-1-build-script-run[out_dir])",
@@ -16210,7 +16170,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "iroh-dns",
-            "version": "1.3.0",
+            "version": "1.4.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -16236,15 +16196,15 @@ third_party_rust.rust_library(
 
 third_party_rust.rust_binary(
     name = "iroh-dns-1-build-script-build",
-    srcs = [":iroh-dns-1.3.0.crate"],
+    srcs = [":iroh-dns-1.4.1.crate"],
     crate = "build_script_build",
-    crate_root = "iroh-dns-1.3.0.crate/build.rs",
+    crate_root = "iroh-dns-1.4.1.crate/build.rs",
     edition = "2024",
     features = ["default"],
     metadata = {
         "third-party.metadata": {
             "name": "iroh-dns",
-            "version": "1.3.0",
+            "version": "1.4.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -16257,28 +16217,28 @@ third_party_rust.buildscript_run(
     package_name = "iroh-dns",
     buildscript_rule = ":iroh-dns-1-build-script-build",
     features = ["default"],
-    version = "1.3.0",
+    version = "1.4.1",
 )
 
 shims.alias(
     name = "iroh-gossip",
-    actual = ":iroh-gossip-0.101",
+    actual = ":iroh-gossip-0.102",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "iroh-gossip-0.101.0.crate",
-    sha256 = "4e1dc4b05f73e7a1b9e83b531eb63c3fd671b0af3aeb13b59c546dd7ca747515",
-    strip_prefix = "iroh-gossip-0.101.0",
-    urls = ["https://static.crates.io/crates/iroh-gossip/0.101.0/download"],
+    name = "iroh-gossip-0.102.0.crate",
+    sha256 = "f78267c0d936a3f51b8aa24419a7a267e42d1800ac99315f48045f2540c57922",
+    strip_prefix = "iroh-gossip-0.102.0",
+    urls = ["https://static.crates.io/crates/iroh-gossip/0.102.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "iroh-gossip-0.101",
-    srcs = [":iroh-gossip-0.101.0.crate"],
+    name = "iroh-gossip-0.102",
+    srcs = [":iroh-gossip-0.102.0.crate"],
     crate = "iroh_gossip",
-    crate_root = "iroh-gossip-0.101.0.crate/src/lib.rs",
+    crate_root = "iroh-gossip-0.102.0.crate/src/lib.rs",
     dlopen_enable = True,
     edition = "2021",
     features = [
@@ -16290,7 +16250,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "iroh-gossip",
-            "version": "0.101.0",
+            "version": "0.102.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -16300,7 +16260,6 @@ third_party_rust.rust_library(
         ":bytes-1",
         ":data-encoding-2",
         ":derive_more-2",
-        ":futures-concurrency-7",
         ":hex-0.4",
         ":indexmap-2",
         ":iroh-1",
@@ -16311,6 +16270,7 @@ third_party_rust.rust_library(
         ":n0-future-0.3",
         ":postcard-1",
         ":rand-0.10",
+        ":rustc-hash-2",
         ":serde-1",
         ":tokio-1",
         ":tokio-util-0.7",
@@ -16362,23 +16322,23 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "iroh-mainline-address-lookup-0.6.0.crate",
-    sha256 = "c10c07e607e6c31c99f61a075e8d06a1d621c738797e801afb3e80fed861440e",
-    strip_prefix = "iroh-mainline-address-lookup-0.6.0",
-    urls = ["https://static.crates.io/crates/iroh-mainline-address-lookup/0.6.0/download"],
+    name = "iroh-mainline-address-lookup-0.6.1.crate",
+    sha256 = "4624139b4c3e5e9b5e9aa137e4e591b4462a450c77e64ef3f137230d3d787230",
+    strip_prefix = "iroh-mainline-address-lookup-0.6.1",
+    urls = ["https://static.crates.io/crates/iroh-mainline-address-lookup/0.6.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "iroh-mainline-address-lookup-0.6",
-    srcs = [":iroh-mainline-address-lookup-0.6.0.crate"],
+    srcs = [":iroh-mainline-address-lookup-0.6.1.crate"],
     crate = "iroh_mainline_address_lookup",
-    crate_root = "iroh-mainline-address-lookup-0.6.0.crate/src/lib.rs",
+    crate_root = "iroh-mainline-address-lookup-0.6.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "iroh-mainline-address-lookup",
-            "version": "0.6.0",
+            "version": "0.6.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -16404,23 +16364,23 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "iroh-mdns-address-lookup-0.6.0.crate",
-    sha256 = "7afb03c296022fcb724a7bb76dbb8dcca6aac4f4eb65df161e084b7276c93d8c",
-    strip_prefix = "iroh-mdns-address-lookup-0.6.0",
-    urls = ["https://static.crates.io/crates/iroh-mdns-address-lookup/0.6.0/download"],
+    name = "iroh-mdns-address-lookup-0.6.1.crate",
+    sha256 = "c7e00b132891c9cfad726fb437b62315e722949d409717b6c7dcb535e9f24112",
+    strip_prefix = "iroh-mdns-address-lookup-0.6.1",
+    urls = ["https://static.crates.io/crates/iroh-mdns-address-lookup/0.6.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "iroh-mdns-address-lookup-0.6",
-    srcs = [":iroh-mdns-address-lookup-0.6.0.crate"],
+    srcs = [":iroh-mdns-address-lookup-0.6.1.crate"],
     crate = "iroh_mdns_address_lookup",
-    crate_root = "iroh-mdns-address-lookup-0.6.0.crate/src/lib.rs",
+    crate_root = "iroh-mdns-address-lookup-0.6.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "iroh-mdns-address-lookup",
-            "version": "0.6.0",
+            "version": "0.6.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -16510,24 +16470,24 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "iroh-relay-1.3.0.crate",
-    sha256 = "ee116a8233f84980574bb8d11e4517503080cd2c3605bafca04ee9c35d708bd9",
-    strip_prefix = "iroh-relay-1.3.0",
-    urls = ["https://static.crates.io/crates/iroh-relay/1.3.0/download"],
+    name = "iroh-relay-1.4.1.crate",
+    sha256 = "7e5589e7c1475700686603a970275687f760df853bc6525c7eb1347aa31d7230",
+    strip_prefix = "iroh-relay-1.4.1",
+    urls = ["https://static.crates.io/crates/iroh-relay/1.4.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "iroh-relay-1",
-    srcs = [":iroh-relay-1.3.0.crate"],
+    srcs = [":iroh-relay-1.4.1.crate"],
     crate = "iroh_relay",
-    crate_root = "iroh-relay-1.3.0.crate/src/lib.rs",
+    crate_root = "iroh-relay-1.4.1.crate/src/lib.rs",
     dlopen_enable = True,
     edition = "2024",
     env = {
         "CARGO_BIN_NAME": "iroh_relay",
         "CARGO_CRATE_NAME": "iroh_relay",
-        "CARGO_MANIFEST_DIR": "iroh-relay-1.3.0.crate",
+        "CARGO_MANIFEST_DIR": "iroh-relay-1.4.1.crate",
         "CARGO_PKG_AUTHORS": "n0 team",
         "CARGO_PKG_DESCRIPTION": "Iroh's relay server and client",
         "CARGO_PKG_HOMEPAGE": "",
@@ -16535,10 +16495,10 @@ third_party_rust.rust_library(
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/n0-computer/iroh",
         "CARGO_PKG_RUST_VERSION": "1.91",
-        "CARGO_PKG_VERSION": "1.3.0",
+        "CARGO_PKG_VERSION": "1.4.1",
         "CARGO_PKG_VERSION_MAJOR": "1",
-        "CARGO_PKG_VERSION_MINOR": "3",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "4",
+        "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
         "OUT_DIR": "$(location :iroh-relay-1-build-script-run[out_dir])",
     },
@@ -16546,7 +16506,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "iroh-relay",
-            "version": "1.3.0",
+            "version": "1.4.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -16573,6 +16533,7 @@ third_party_rust.rust_library(
         ":noq-1",
         ":noq-proto-1",
         ":num_enum-0.7",
+        ":percent-encoding-2",
         ":pin-project-1",
         ":postcard-1",
         ":rand-0.10",
@@ -16593,14 +16554,14 @@ third_party_rust.rust_library(
 
 third_party_rust.rust_binary(
     name = "iroh-relay-1-build-script-build",
-    srcs = [":iroh-relay-1.3.0.crate"],
+    srcs = [":iroh-relay-1.4.1.crate"],
     crate = "build_script_build",
-    crate_root = "iroh-relay-1.3.0.crate/build.rs",
+    crate_root = "iroh-relay-1.4.1.crate/build.rs",
     edition = "2024",
     env = {
         "CARGO_BIN_NAME": "build-script-build",
         "CARGO_CRATE_NAME": "build_script_build",
-        "CARGO_MANIFEST_DIR": "iroh-relay-1.3.0.crate",
+        "CARGO_MANIFEST_DIR": "iroh-relay-1.4.1.crate",
         "CARGO_PKG_AUTHORS": "n0 team",
         "CARGO_PKG_DESCRIPTION": "Iroh's relay server and client",
         "CARGO_PKG_HOMEPAGE": "",
@@ -16608,17 +16569,17 @@ third_party_rust.rust_binary(
         "CARGO_PKG_README": "README.md",
         "CARGO_PKG_REPOSITORY": "https://github.com/n0-computer/iroh",
         "CARGO_PKG_RUST_VERSION": "1.91",
-        "CARGO_PKG_VERSION": "1.3.0",
+        "CARGO_PKG_VERSION": "1.4.1",
         "CARGO_PKG_VERSION_MAJOR": "1",
-        "CARGO_PKG_VERSION_MINOR": "3",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "4",
+        "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = ["metrics"],
     metadata = {
         "third-party.metadata": {
             "name": "iroh-relay",
-            "version": "1.3.0",
+            "version": "1.4.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -16638,12 +16599,12 @@ third_party_rust.buildscript_run(
         "CARGO_PKG_REPOSITORY": "https://github.com/n0-computer/iroh",
         "CARGO_PKG_RUST_VERSION": "1.91",
         "CARGO_PKG_VERSION_MAJOR": "1",
-        "CARGO_PKG_VERSION_MINOR": "3",
-        "CARGO_PKG_VERSION_PATCH": "0",
+        "CARGO_PKG_VERSION_MINOR": "4",
+        "CARGO_PKG_VERSION_PATCH": "1",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = ["metrics"],
-    version = "1.3.0",
+    version = "1.4.1",
 )
 
 shims.alias(
@@ -16685,23 +16646,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "iroh-util-0.6.0.crate",
-    sha256 = "20e41eb982f15230c55f0a70a74a514360e1f565b07861924fd0e8db172b3d00",
-    strip_prefix = "iroh-util-0.6.0",
-    urls = ["https://static.crates.io/crates/iroh-util/0.6.0/download"],
+    name = "iroh-util-0.7.0.crate",
+    sha256 = "889d5cc9da2eaac9f63657237c491db17d1fe9fffdc7c0f2f0e04c49d5d45053",
+    strip_prefix = "iroh-util-0.7.0",
+    urls = ["https://static.crates.io/crates/iroh-util/0.7.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "iroh-util-0.6",
-    srcs = [":iroh-util-0.6.0.crate"],
+    name = "iroh-util-0.7",
+    srcs = [":iroh-util-0.7.0.crate"],
     crate = "iroh_util",
-    crate_root = "iroh-util-0.6.0.crate/src/lib.rs",
+    crate_root = "iroh-util-0.7.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "iroh-util",
-            "version": "0.6.0",
+            "version": "0.7.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -21374,18 +21335,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "noq-1.3.0.crate",
-    sha256 = "b78be567e796cfa74bb9bdc4117790af2d505eb887019cf8803244353eb09d89",
-    strip_prefix = "noq-1.3.0",
-    urls = ["https://static.crates.io/crates/noq/1.3.0/download"],
+    name = "noq-1.4.0.crate",
+    sha256 = "6249a065adc1edbc1704a95436f38dd60476064dbc3b7c47cf279e02d1590eb5",
+    strip_prefix = "noq-1.4.0",
+    urls = ["https://static.crates.io/crates/noq/1.4.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "noq-1",
-    srcs = [":noq-1.3.0.crate"],
+    srcs = [":noq-1.4.0.crate"],
     crate = "noq",
-    crate_root = "noq-1.3.0.crate/src/lib.rs",
+    crate_root = "noq-1.4.0.crate/src/lib.rs",
     edition = "2024",
     env = {
         "OUT_DIR": "$(location :noq-1-build-script-run[out_dir])",
@@ -21397,7 +21358,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "noq",
-            "version": "1.3.0",
+            "version": "1.4.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -21423,9 +21384,9 @@ third_party_rust.rust_library(
 
 third_party_rust.rust_binary(
     name = "noq-1-build-script-build",
-    srcs = [":noq-1.3.0.crate"],
+    srcs = [":noq-1.4.0.crate"],
     crate = "build_script_build",
-    crate_root = "noq-1.3.0.crate/build.rs",
+    crate_root = "noq-1.4.0.crate/build.rs",
     edition = "2024",
     features = [
         "runtime-tokio",
@@ -21434,7 +21395,7 @@ third_party_rust.rust_binary(
     metadata = {
         "third-party.metadata": {
             "name": "noq",
-            "version": "1.3.0",
+            "version": "1.4.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -21450,28 +21411,28 @@ third_party_rust.buildscript_run(
         "runtime-tokio",
         "rustls",
     ],
-    version = "1.3.0",
+    version = "1.4.0",
 )
 
 shims.http_archive(
-    name = "noq-proto-1.3.0.crate",
-    sha256 = "7c1e5b6fe668491eca022f745a0a9402585626c73a7b839b3424ace15d6a9c8f",
-    strip_prefix = "noq-proto-1.3.0",
-    urls = ["https://static.crates.io/crates/noq-proto/1.3.0/download"],
+    name = "noq-proto-1.4.0.crate",
+    sha256 = "c01a35be3ed37558c8db69554419f24eff8a63599b54f711bbe3863ec727c47d",
+    strip_prefix = "noq-proto-1.4.0",
+    urls = ["https://static.crates.io/crates/noq-proto/1.4.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "noq-proto-1",
-    srcs = [":noq-proto-1.3.0.crate"],
+    srcs = [":noq-proto-1.4.0.crate"],
     crate = "noq_proto",
-    crate_root = "noq-proto-1.3.0.crate/src/lib.rs",
+    crate_root = "noq-proto-1.4.0.crate/src/lib.rs",
     edition = "2024",
     features = ["rustls"],
     metadata = {
         "third-party.metadata": {
             "name": "noq-proto",
-            "version": "1.3.0",
+            "version": "1.4.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -21496,18 +21457,18 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "noq-udp-1.3.0.crate",
-    sha256 = "4dc50afea61aff926e150a36c31f06094608848e114a3fe667d76ec233163b1c",
-    strip_prefix = "noq-udp-1.3.0",
-    urls = ["https://static.crates.io/crates/noq-udp/1.3.0/download"],
+    name = "noq-udp-1.4.0.crate",
+    sha256 = "8d0160422832eea1cc11c34be04ee6d5a046452b0b46cfb14695d55a1f24c954",
+    strip_prefix = "noq-udp-1.4.0",
+    urls = ["https://static.crates.io/crates/noq-udp/1.4.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "noq-udp-1",
-    srcs = [":noq-udp-1.3.0.crate"],
+    srcs = [":noq-udp-1.4.0.crate"],
     crate = "noq_udp",
-    crate_root = "noq-udp-1.3.0.crate/src/lib.rs",
+    crate_root = "noq-udp-1.4.0.crate/src/lib.rs",
     edition = "2024",
     env = {
         "OUT_DIR": "$(location :noq-udp-1-build-script-run[out_dir])",
@@ -21520,7 +21481,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "noq-udp",
-            "version": "1.3.0",
+            "version": "1.4.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -21543,9 +21504,9 @@ third_party_rust.rust_library(
 
 third_party_rust.rust_binary(
     name = "noq-udp-1-build-script-build",
-    srcs = [":noq-udp-1.3.0.crate"],
+    srcs = [":noq-udp-1.4.0.crate"],
     crate = "build_script_build",
-    crate_root = "noq-udp-1.3.0.crate/build.rs",
+    crate_root = "noq-udp-1.4.0.crate/build.rs",
     edition = "2024",
     features = [
         "default",
@@ -21555,7 +21516,7 @@ third_party_rust.rust_binary(
     metadata = {
         "third-party.metadata": {
             "name": "noq-udp",
-            "version": "1.3.0",
+            "version": "1.4.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -21572,7 +21533,7 @@ third_party_rust.buildscript_run(
         "tracing",
         "tracing-log",
     ],
-    version = "1.3.0",
+    version = "1.4.0",
 )
 
 shims.http_archive(

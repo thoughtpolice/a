@@ -123,17 +123,17 @@ hyper-util = { version = "0.1", features = ["server-auto", "server-graceful", "h
 insta = "1.49.0"
 iocraft = "0.9.4"
 # NOTE (aseipp): default features enable `tls-ring`, so turn them off
-iroh = { version = "1.3.0", default-features = false, features = [
+iroh = { version = "1.4.1", default-features = false, features = [
     "metrics",
     "portmapper",
 ] }
 # Keep blob storage, but omit RPC: its default noq features enable tls-ring.
-iroh-blobs = { version = "0.103.0", default-features = false, features = ["fs-store", "metrics"] }
-iroh-gossip = "0.101.0"
+iroh-blobs = { version = "0.104.1", default-features = false, features = ["fs-store", "metrics"] }
+iroh-gossip = "0.102.0"
 # BitTorrent mainline DHT and mDNS address lookup, plus the DHT client both
 # the lookup and depot's topic rendezvous use. None of these pull in a TLS stack.
-iroh-mainline-address-lookup = "0.6.0"
-iroh-mdns-address-lookup = "0.6.0"
+iroh-mainline-address-lookup = "0.6.1"
+iroh-mdns-address-lookup = "0.6.1"
 iroh-tickets = "1.0.0"
 jiff = "0.2.41"
 landlock = "0.4.7"
