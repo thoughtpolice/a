@@ -19,7 +19,7 @@
 //! once it stops, they are worth nothing. Clients take a fresh identity
 //! each time too.
 
-use std::os::fd::{FromRawFd as _, IntoRawFd as _, OwnedFd};
+use std::os::fd::{AsRawFd as _, IntoRawFd as _, OwnedFd};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
@@ -69,8 +69,8 @@ fn preset(local: bool) -> iroh_dial::Global {
 }
 
 /// Pump `stream` to and from one end of a new socketpair, until either
-/// side ends; the other end's descriptor, which the caller now owns.
-fn bridge<S>(stream: S) -> std::io::Result<i32>
+/// side ends; the other end.
+fn bridge<S>(stream: S) -> std::io::Result<OwnedFd>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
@@ -83,7 +83,7 @@ where
         };
         let _ = tokio::io::copy_bidirectional(&mut ours, &mut stream).await;
     });
-    Ok(theirs.into_raw_fd())
+    Ok(theirs.into())
 }
 
 // ---------------------------------------------------------------------------
@@ -219,11 +219,12 @@ async fn serve(mut streams: accept::Handover<iroh_mesh::Stream>, tx: Sender<i32>
         // A stream that cannot be bridged (out of descriptors) is dropped,
         // which the client sees as a closed connection.
         if let Ok(fd) = bridge(stream) {
-            if tx.send(fd).is_err() {
-                // The editor stopped listening.
-                drop(unsafe { OwnedFd::from_raw_fd(fd) });
+            if tx.send(fd.as_raw_fd()).is_err() {
+                // The editor stopped listening; the descriptor closes.
                 return;
             }
+            // Scheme owns it now.
+            let _ = fd.into_raw_fd();
         }
     }
 }
@@ -279,7 +280,9 @@ pub fn connect(target: &str, local: bool) -> Result<Session, String> {
                     .await
                     .map_err(|e| e.to_string())?;
                 let (send, recv) = conn.open_bi().await.map_err(|e| e.to_string())?;
-                let fd = bridge(tokio::io::join(recv, send)).map_err(|e| e.to_string())?;
+                let fd = bridge(tokio::io::join(recv, send))
+                    .map_err(|e| e.to_string())?
+                    .into_raw_fd();
                 Ok::<_, String>((fd, conn.remote_id().to_string()))
             }
         };
