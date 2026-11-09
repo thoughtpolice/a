@@ -79,10 +79,10 @@ impl std::fmt::Debug for GitPack {
 struct Refusal(Option<GitFetchError>);
 
 impl Refusal {
-    fn refuse(&mut self, error: GitFetchError) -> gix_pack::data::input::Error {
+    fn refuse(&mut self, error: GitFetchError) -> gix_error::Error {
         let message = error.to_string();
         self.0 = Some(error);
-        gix_pack::data::input::Error::Io(io::Error::other(message).into())
+        gix_error::Error::from_error(io::Error::other(message))
     }
 }
 
@@ -151,7 +151,7 @@ impl GitPack {
                 || Ok((entry_bytes, &data[..])),
                 &mut checked,
                 Some(threads),
-                &mut gix_features::progress::Discard,
+                &mut gix_utils::progress::Discard,
                 &mut out,
                 interrupt,
                 gix_hash::Kind::Sha1,
@@ -244,10 +244,11 @@ impl GitPack {
             .bundle
             .pack
             .decode_header(entry, &mut reader.inflate, &|base| {
-                self.entry(base)
+                Ok(self
+                    .entry(base)
                     .ok()
                     .flatten()
-                    .map(gix_pack::data::decode::header::ResolvedBase::InPack)
+                    .map(gix_pack::data::decode::header::ResolvedBase::InPack))
             });
         self.return_reader(reader);
         let outcome = outcome.map_err(|e| {

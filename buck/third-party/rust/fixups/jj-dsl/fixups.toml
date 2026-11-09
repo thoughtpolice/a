@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# pest_derive resolves `#[grammar = "revset.pest"]` (and the fileset and
+# template grammars) against CARGO_MANIFEST_DIR. They moved here from jj-lib
+# in 0.46, so this crate needs the same override jj-lib had.
+[env]
+CARGO_MANIFEST_DIR = "jj-5d9a3f8a30f872ad/dsl"

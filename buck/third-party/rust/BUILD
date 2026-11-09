@@ -19,7 +19,7 @@ shims.git_fetch(
 shims.git_fetch(
     name = "jj-5d9a3f8a30f872ad.git",
     repo = "https://github.com/martinvonz/jj",
-    rev = "7c41cdeb16b6b321c64e789a966b6adf723816a5",
+    rev = "d16ee1fc88a72c54142241b079a34bbf3b033bc0",
     visibility = [],
 )
 
@@ -2079,10 +2079,6 @@ third_party_rust.rust_library(
     crate = "blake2",
     crate_root = "blake2-0.10.6.crate/src/lib.rs",
     edition = "2018",
-    features = [
-        "default",
-        "std",
-    ],
     metadata = {
         "third-party.metadata": {
             "name": "blake2",
@@ -2092,6 +2088,35 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [":digest-0.10"],
+)
+
+shims.http_archive(
+    name = "blake2-0.11.0.crate",
+    sha256 = "5b5d4d889834ee8ecfc0f8426ad30faf7cdcb10f741a8e6d7224d95325479f6f",
+    strip_prefix = "blake2-0.11.0",
+    urls = ["https://static.crates.io/crates/blake2/0.11.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "blake2-0.11",
+    srcs = [":blake2-0.11.0.crate"],
+    crate = "blake2",
+    crate_root = "blake2-0.11.0.crate/src/lib.rs",
+    edition = "2024",
+    features = [
+        "alloc",
+        "default",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "blake2",
+            "version": "0.11.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [":digest-0.11"],
 )
 
 shims.alias(
@@ -7555,6 +7580,45 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "dua-core-4.2.0.crate",
+    sha256 = "d687862f3206e7c660daeb6ab0200c65e58fccd7e508819e4bd9949304c640a8",
+    strip_prefix = "dua-core-4.2.0",
+    urls = ["https://static.crates.io/crates/dua-core/4.2.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "dua-core-4",
+    srcs = [":dua-core-4.2.0.crate"],
+    crate = "dua_core",
+    crate_root = "dua-core-4.2.0.crate/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "dua-core",
+            "version": "4.2.0",
+            "licenses": ["MIT"],
+        },
+    },
+    platform = {
+        "macos-arm64": dict(
+            deps = [":libc-0.2"],
+        ),
+        "macos-x86_64": dict(
+            deps = [":libc-0.2"],
+        ),
+        "windows-gnu": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+    },
+    visibility = [],
+    deps = [":crossbeam-0.8"],
+)
+
+shims.http_archive(
     name = "dunce-1.0.5.crate",
     sha256 = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813",
     strip_prefix = "dunce-1.0.5",
@@ -11205,137 +11269,287 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "gix",
-    actual = ":gix-0.87",
+    actual = ":gix-0.90",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "gix-0.87.1.crate",
-    sha256 = "fdefc1465d8631807deaf504dacdeff628b978de515653b47976ca7c28ab2a7a",
-    strip_prefix = "gix-0.87.1",
-    urls = ["https://static.crates.io/crates/gix/0.87.1/download"],
+    name = "gix-0.90.0.crate",
+    sha256 = "b92b20c1560511a9014b16e29db2f3c6f0580d4fe289b70f41131277b065a3b0",
+    strip_prefix = "gix-0.90.0",
+    urls = ["https://static.crates.io/crates/gix/0.90.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-0.87",
-    srcs = [":gix-0.87.1.crate"],
+    name = "gix-0.90",
+    srcs = [":gix-0.90.0.crate"],
     crate = "gix",
-    crate_root = "gix-0.87.1.crate/src/lib.rs",
+    crate_root = "gix-0.90.0.crate/src/lib.rs",
     edition = "2024",
     env = {
         "CARGO_BIN_NAME": "gix",
         "CARGO_CRATE_NAME": "gix",
-        "CARGO_MANIFEST_DIR": "gix-0.87.1.crate",
+        "CARGO_MANIFEST_DIR": "gix-0.90.0.crate",
         "CARGO_PKG_AUTHORS": "Sebastian Thiel <sebastian.thiel@icloud.com>",
         "CARGO_PKG_DESCRIPTION": "Interact with git repositories just like git would",
         "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "gix",
         "CARGO_PKG_README": "",
         "CARGO_PKG_REPOSITORY": "https://github.com/GitoxideLabs/gitoxide",
-        "CARGO_PKG_RUST_VERSION": "1.85",
-        "CARGO_PKG_VERSION": "0.87.1",
+        "CARGO_PKG_RUST_VERSION": "1.88",
+        "CARGO_PKG_VERSION": "0.90.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "87",
-        "CARGO_PKG_VERSION_PATCH": "1",
+        "CARGO_PKG_VERSION_MINOR": "90",
+        "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
         "attributes",
+        "auto-chain-error",
         "blob-diff",
         "blocking-http-transport-reqwest",
         "blocking-http-transport-reqwest-native-tls",
         "blocking-network-client",
         "command",
         "credentials",
+        "dirwalk",
         "excludes",
+        "gix-status",
         "index",
         "max-control",
-        "max-performance-safe",
+        "max-performance",
         "pack-cache-lru-dynamic",
         "pack-cache-lru-static",
         "parallel",
         "sha1",
         "sha256",
+        "status",
         "worktree-mutation",
     ],
     metadata = {
         "third-party.metadata": {
             "name": "gix",
-            "version": "0.87.1",
+            "version": "0.90.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
-        ":gix-actor-0.42",
-        ":gix-attributes-0.35",
-        ":gix-command-0.10",
-        ":gix-commitgraph-0.39",
-        ":gix-config-0.60",
-        ":gix-credentials-0.40",
-        ":gix-date-0.16",
-        ":gix-diff-0.67",
-        ":gix-discover-0.55",
-        ":gix-error-0.3",
-        ":gix-features-0.49",
-        ":gix-filter-0.34",
-        ":gix-fs-0.22",
-        ":gix-glob-0.27",
-        ":gix-hash-0.26",
-        ":gix-hashtable-0.16",
-        ":gix-ignore-0.22",
-        ":gix-index-0.55",
-        ":gix-lock-24",
-        ":gix-negotiate-0.35",
-        ":gix-object-0.64",
-        ":gix-odb-0.84",
-        ":gix-pack-0.74",
-        ":gix-path-0.12",
-        ":gix-pathspec-0.20",
-        ":gix-prompt-0.17",
-        ":gix-protocol-0.65",
-        ":gix-quote-0.8",
-        ":gix-ref-0.67",
-        ":gix-refspec-0.45",
-        ":gix-revision-0.49",
-        ":gix-revwalk-0.35",
-        ":gix-sec-0.14",
-        ":gix-shallow-0.13",
-        ":gix-submodule-0.34",
-        ":gix-tempfile-24",
-        ":gix-trace-0.1",
-        ":gix-transport-0.59",
-        ":gix-traverse-0.61",
-        ":gix-url-0.38",
-        ":gix-utils-0.3",
-        ":gix-validate-0.11",
-        ":gix-worktree-0.56",
-        ":gix-worktree-state-0.34",
-        ":gix-zlib-0.1",
+        ":gix-actor-0.44",
+        ":gix-attributes-0.37",
+        ":gix-command-0.12",
+        ":gix-commitgraph-0.42",
+        ":gix-config-0.62",
+        ":gix-credentials-0.42",
+        ":gix-date-0.18",
+        ":gix-diff-0.70",
+        ":gix-dir-0.32",
+        ":gix-discover-0.57",
+        ":gix-error-0.5",
+        ":gix-filter-0.36",
+        ":gix-fs-0.24",
+        ":gix-glob-0.29",
+        ":gix-hash-0.28",
+        ":gix-hashtable-0.18",
+        ":gix-ignore-0.24",
+        ":gix-index-0.58",
+        ":gix-lock-26",
+        ":gix-negotiate-0.38",
+        ":gix-object-0.66",
+        ":gix-odb-0.87",
+        ":gix-pack-0.77",
+        ":gix-parallel-0.50",
+        ":gix-path-0.14",
+        ":gix-pathspec-0.22",
+        ":gix-prompt-0.19",
+        ":gix-protocol-0.68",
+        ":gix-quote-0.10",
+        ":gix-ref-0.69",
+        ":gix-refspec-0.47",
+        ":gix-revision-0.52",
+        ":gix-revwalk-0.38",
+        ":gix-sec-0.16",
+        ":gix-shallow-0.15",
+        ":gix-status-0.37",
+        ":gix-submodule-0.36",
+        ":gix-tempfile-26",
+        ":gix-trace-0.3",
+        ":gix-transport-0.62",
+        ":gix-traverse-0.64",
+        ":gix-url-0.40",
+        ":gix-utils-0.5",
+        ":gix-validate-0.13",
+        ":gix-worktree-0.59",
+        ":gix-worktree-state-0.37",
+        ":gix-zlib-0.4",
         ":nonempty-0.12",
         ":smallvec-1",
-        ":thiserror-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-actor-0.42.0.crate",
-    sha256 = "e37efa99929ac62f980fb1a7dcd09dea85b3aa6ead6ba0498362add3f4e698de",
-    strip_prefix = "gix-actor-0.42.0",
-    urls = ["https://static.crates.io/crates/gix-actor/0.42.0/download"],
+    name = "gix-actor-0.44.1.crate",
+    sha256 = "78243d3371019288a40a75ba1a58de2815c32591fc87b9f7cb01918bce364ca8",
+    strip_prefix = "gix-actor-0.44.1",
+    urls = ["https://static.crates.io/crates/gix-actor/0.44.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-actor-0.42",
-    srcs = [":gix-actor-0.42.0.crate"],
+    name = "gix-actor-0.44",
+    srcs = [":gix-actor-0.44.1.crate"],
     crate = "gix_actor",
-    crate_root = "gix-actor-0.42.0.crate/src/lib.rs",
+    crate_root = "gix-actor-0.44.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-actor",
+            "version": "0.44.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bstr-1",
+        ":gix-date-0.18",
+        ":gix-error-0.5",
+    ],
+)
+
+shims.http_archive(
+    name = "gix-attributes-0.37.1.crate",
+    sha256 = "6b9947d93a94d41ddde66ac655674269121cbebaf6cdee30d8d0e7dbe85edb4c",
+    strip_prefix = "gix-attributes-0.37.1",
+    urls = ["https://static.crates.io/crates/gix-attributes/0.37.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "gix-attributes-0.37",
+    srcs = [":gix-attributes-0.37.1.crate"],
+    crate = "gix_attributes",
+    crate_root = "gix-attributes-0.37.1.crate/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-attributes",
+            "version": "0.37.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bstr-1",
+        ":gix-error-0.5",
+        ":gix-glob-0.29",
+        ":gix-parallel-0.50",
+        ":gix-path-0.14",
+        ":gix-quote-0.10",
+        ":gix-trace-0.3",
+        ":smallvec-1",
+        ":unicode-bom-2",
+    ],
+)
+
+shims.http_archive(
+    name = "gix-bitmap-0.6.1.crate",
+    sha256 = "422cd23418fd80e9e965595323975d72abd6364a66ff8f0daade5c105a7f35d2",
+    strip_prefix = "gix-bitmap-0.6.1",
+    urls = ["https://static.crates.io/crates/gix-bitmap/0.6.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "gix-bitmap-0.6",
+    srcs = [":gix-bitmap-0.6.1.crate"],
+    crate = "gix_bitmap",
+    crate_root = "gix-bitmap-0.6.1.crate/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-bitmap",
+            "version": "0.6.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [":gix-error-0.5"],
+)
+
+shims.http_archive(
+    name = "gix-chunk-0.10.1.crate",
+    sha256 = "dc6a775aba54f0d65698126cc4214b6bf8ddb208312e4ef4240dfe34b0697b87",
+    strip_prefix = "gix-chunk-0.10.1",
+    urls = ["https://static.crates.io/crates/gix-chunk/0.10.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "gix-chunk-0.10",
+    srcs = [":gix-chunk-0.10.1.crate"],
+    crate = "gix_chunk",
+    crate_root = "gix-chunk-0.10.1.crate/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-chunk",
+            "version": "0.10.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [":gix-error-0.5"],
+)
+
+shims.http_archive(
+    name = "gix-command-0.12.1.crate",
+    sha256 = "df63215f103299169e239dfe76f5cfa4a3d6d4adf69a01774085e3e0423cba34",
+    strip_prefix = "gix-command-0.12.1",
+    urls = ["https://static.crates.io/crates/gix-command/0.12.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "gix-command-0.12",
+    srcs = [":gix-command-0.12.1.crate"],
+    crate = "gix_command",
+    crate_root = "gix-command-0.12.1.crate/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-command",
+            "version": "0.12.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bstr-1",
+        ":gix-error-0.5",
+        ":gix-path-0.14",
+        ":gix-quote-0.10",
+        ":gix-trace-0.3",
+    ],
+)
+
+shims.http_archive(
+    name = "gix-commitgraph-0.42.0.crate",
+    sha256 = "60b53b700d2a506cf98075099df1fcc0558265cbb47fd86bc6d03c231e4bd72a",
+    strip_prefix = "gix-commitgraph-0.42.0",
+    urls = ["https://static.crates.io/crates/gix-commitgraph/0.42.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "gix-commitgraph-0.42",
+    srcs = [":gix-commitgraph-0.42.0.crate"],
+    crate = "gix_commitgraph",
+    crate_root = "gix-commitgraph-0.42.0.crate/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-commitgraph",
             "version": "0.42.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
@@ -11343,214 +11557,70 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-date-0.16",
-        ":gix-error-0.3",
-    ],
-)
-
-shims.http_archive(
-    name = "gix-attributes-0.35.0.crate",
-    sha256 = "76b83782ac69ae28921a6e8fbcf2e24069613f1518030b97ae622b079abffa54",
-    strip_prefix = "gix-attributes-0.35.0",
-    urls = ["https://static.crates.io/crates/gix-attributes/0.35.0/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "gix-attributes-0.35",
-    srcs = [":gix-attributes-0.35.0.crate"],
-    crate = "gix_attributes",
-    crate_root = "gix-attributes-0.35.0.crate/src/lib.rs",
-    edition = "2024",
-    features = ["parallel"],
-    metadata = {
-        "third-party.metadata": {
-            "name": "gix-attributes",
-            "version": "0.35.0",
-            "licenses": ["MIT OR Apache-2.0"],
-        },
-    },
-    visibility = [],
-    deps = [
-        ":bstr-1",
-        ":gix-features-0.49",
-        ":gix-glob-0.27",
-        ":gix-path-0.12",
-        ":gix-quote-0.8",
-        ":gix-trace-0.1",
-        ":smallvec-1",
-        ":thiserror-2",
-        ":unicode-bom-2",
-    ],
-)
-
-shims.http_archive(
-    name = "gix-bitmap-0.4.0.crate",
-    sha256 = "f17013c7ef5cb95ebb4bf4978201e6a8a42ffea9d666fd5388f1b7e742307d80",
-    strip_prefix = "gix-bitmap-0.4.0",
-    urls = ["https://static.crates.io/crates/gix-bitmap/0.4.0/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "gix-bitmap-0.4",
-    srcs = [":gix-bitmap-0.4.0.crate"],
-    crate = "gix_bitmap",
-    crate_root = "gix-bitmap-0.4.0.crate/src/lib.rs",
-    edition = "2024",
-    metadata = {
-        "third-party.metadata": {
-            "name": "gix-bitmap",
-            "version": "0.4.0",
-            "licenses": ["MIT OR Apache-2.0"],
-        },
-    },
-    visibility = [],
-    deps = [":gix-error-0.3"],
-)
-
-shims.http_archive(
-    name = "gix-chunk-0.8.0.crate",
-    sha256 = "00e32f938b3745ac93d73bc7490b6a15a661b2fc81973bfe90e275cc53c908e1",
-    strip_prefix = "gix-chunk-0.8.0",
-    urls = ["https://static.crates.io/crates/gix-chunk/0.8.0/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "gix-chunk-0.8",
-    srcs = [":gix-chunk-0.8.0.crate"],
-    crate = "gix_chunk",
-    crate_root = "gix-chunk-0.8.0.crate/src/lib.rs",
-    edition = "2024",
-    metadata = {
-        "third-party.metadata": {
-            "name": "gix-chunk",
-            "version": "0.8.0",
-            "licenses": ["MIT OR Apache-2.0"],
-        },
-    },
-    visibility = [],
-    deps = [":gix-error-0.3"],
-)
-
-shims.http_archive(
-    name = "gix-command-0.10.1.crate",
-    sha256 = "aa00adbd2c77f584cfe41f348772d2f131af1fa519a7f6b98638f1144ead96a4",
-    strip_prefix = "gix-command-0.10.1",
-    urls = ["https://static.crates.io/crates/gix-command/0.10.1/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "gix-command-0.10",
-    srcs = [":gix-command-0.10.1.crate"],
-    crate = "gix_command",
-    crate_root = "gix-command-0.10.1.crate/src/lib.rs",
-    edition = "2024",
-    metadata = {
-        "third-party.metadata": {
-            "name": "gix-command",
-            "version": "0.10.1",
-            "licenses": ["MIT OR Apache-2.0"],
-        },
-    },
-    visibility = [],
-    deps = [
-        ":bstr-1",
-        ":gix-path-0.12",
-        ":gix-quote-0.8",
-        ":gix-trace-0.1",
-    ],
-)
-
-shims.http_archive(
-    name = "gix-commitgraph-0.39.0.crate",
-    sha256 = "6b93c9fb1f5be01bba54a7a3b7455d359efc68555539c75ef74b8021bb6db497",
-    strip_prefix = "gix-commitgraph-0.39.0",
-    urls = ["https://static.crates.io/crates/gix-commitgraph/0.39.0/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "gix-commitgraph-0.39",
-    srcs = [":gix-commitgraph-0.39.0.crate"],
-    crate = "gix_commitgraph",
-    crate_root = "gix-commitgraph-0.39.0.crate/src/lib.rs",
-    edition = "2024",
-    metadata = {
-        "third-party.metadata": {
-            "name": "gix-commitgraph",
-            "version": "0.39.0",
-            "licenses": ["MIT OR Apache-2.0"],
-        },
-    },
-    visibility = [],
-    deps = [
-        ":bstr-1",
-        ":gix-chunk-0.8",
-        ":gix-error-0.3",
-        ":gix-hash-0.26",
+        ":gix-chunk-0.10",
+        ":gix-error-0.5",
+        ":gix-hash-0.28",
         ":memmap2-0.9",
         ":nonempty-0.12",
     ],
 )
 
 shims.http_archive(
-    name = "gix-config-0.60.0.crate",
-    sha256 = "f973c28c0a4871a7926fc90c8377d4458fd6cbb19692f56582b4d2022313ae90",
-    strip_prefix = "gix-config-0.60.0",
-    urls = ["https://static.crates.io/crates/gix-config/0.60.0/download"],
+    name = "gix-config-0.62.2.crate",
+    sha256 = "3e11ccf82e9630c4e7befbae07cbe90e79de61dc73a34448c2dec70a13da9ebf",
+    strip_prefix = "gix-config-0.62.2",
+    urls = ["https://static.crates.io/crates/gix-config/0.62.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-config-0.60",
-    srcs = [":gix-config-0.60.0.crate"],
+    name = "gix-config-0.62",
+    srcs = [":gix-config-0.62.2.crate"],
     crate = "gix_config",
-    crate_root = "gix-config-0.60.0.crate/src/lib.rs",
+    crate_root = "gix-config-0.62.2.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-config",
-            "version": "0.60.0",
+            "version": "0.62.2",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-config-value-0.19",
-        ":gix-features-0.49",
-        ":gix-glob-0.27",
-        ":gix-path-0.12",
-        ":gix-ref-0.67",
-        ":gix-sec-0.14",
-        ":gix-utils-0.3",
+        ":gix-config-value-0.21",
+        ":gix-error-0.5",
+        ":gix-glob-0.29",
+        ":gix-parallel-0.50",
+        ":gix-path-0.14",
+        ":gix-ref-0.69",
+        ":gix-sec-0.16",
+        ":gix-trace-0.3",
+        ":gix-utils-0.5",
         ":smallvec-1",
-        ":thiserror-2",
         ":unicode-bom-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-config-value-0.19.1.crate",
-    sha256 = "6f6af5321bfd3711a279d6b244d58532ba1cfabf9eb6374791f19929d8970082",
-    strip_prefix = "gix-config-value-0.19.1",
-    urls = ["https://static.crates.io/crates/gix-config-value/0.19.1/download"],
+    name = "gix-config-value-0.21.1.crate",
+    sha256 = "6cdada8bd9c97dc6522505c08226d9c88f0a1286f2c06b9e1bf51c3bf7ad7b2b",
+    strip_prefix = "gix-config-value-0.21.1",
+    urls = ["https://static.crates.io/crates/gix-config-value/0.21.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-config-value-0.19",
-    srcs = [":gix-config-value-0.19.1.crate"],
+    name = "gix-config-value-0.21",
+    srcs = [":gix-config-value-0.21.1.crate"],
     crate = "gix_config_value",
-    crate_root = "gix-config-value-0.19.1.crate/src/lib.rs",
+    crate_root = "gix-config-value-0.21.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-config-value",
-            "version": "0.19.1",
+            "version": "0.21.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -11572,138 +11642,184 @@ third_party_rust.rust_library(
     deps = [
         ":bitflags-2",
         ":bstr-1",
-        ":gix-path-0.12",
-        ":thiserror-2",
+        ":gix-error-0.5",
+        ":gix-path-0.14",
+        ":gix-utils-0.5",
     ],
 )
 
 shims.http_archive(
-    name = "gix-credentials-0.40.0.crate",
-    sha256 = "16c11822054fd4b80a1ab722b703f2e7c691b20484d898374289b742c1f49e50",
-    strip_prefix = "gix-credentials-0.40.0",
-    urls = ["https://static.crates.io/crates/gix-credentials/0.40.0/download"],
+    name = "gix-credentials-0.42.1.crate",
+    sha256 = "8487f709886267337ee39231a5e68f3c6a4e28fd59e056fc9e66e9638941c633",
+    strip_prefix = "gix-credentials-0.42.1",
+    urls = ["https://static.crates.io/crates/gix-credentials/0.42.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-credentials-0.40",
-    srcs = [":gix-credentials-0.40.0.crate"],
+    name = "gix-credentials-0.42",
+    srcs = [":gix-credentials-0.42.1.crate"],
     crate = "gix_credentials",
-    crate_root = "gix-credentials-0.40.0.crate/src/lib.rs",
+    crate_root = "gix-credentials-0.42.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-credentials",
-            "version": "0.40.0",
+            "version": "0.42.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-command-0.10",
-        ":gix-config-value-0.19",
-        ":gix-date-0.16",
-        ":gix-path-0.12",
-        ":gix-prompt-0.17",
-        ":gix-quote-0.8",
-        ":gix-sec-0.14",
-        ":gix-trace-0.1",
-        ":gix-url-0.38",
-        ":thiserror-2",
+        ":gix-command-0.12",
+        ":gix-config-value-0.21",
+        ":gix-date-0.18",
+        ":gix-error-0.5",
+        ":gix-path-0.14",
+        ":gix-prompt-0.19",
+        ":gix-quote-0.10",
+        ":gix-sec-0.16",
+        ":gix-trace-0.3",
+        ":gix-url-0.40",
+        ":percent-encoding-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-date-0.16.0.crate",
-    sha256 = "e63d9aa18f29facd571c8953e66224ee0075b9e16622024794555ed4acceea85",
-    strip_prefix = "gix-date-0.16.0",
-    urls = ["https://static.crates.io/crates/gix-date/0.16.0/download"],
+    name = "gix-date-0.18.1.crate",
+    sha256 = "4c538190012dbb536df54734ec38cc1109270c73f2f76585c011dd5b0c9f087c",
+    strip_prefix = "gix-date-0.18.1",
+    urls = ["https://static.crates.io/crates/gix-date/0.18.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-date-0.16",
-    srcs = [":gix-date-0.16.0.crate"],
+    name = "gix-date-0.18",
+    srcs = [":gix-date-0.18.1.crate"],
     crate = "gix_date",
-    crate_root = "gix-date-0.16.0.crate/src/lib.rs",
+    crate_root = "gix-date-0.18.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-date",
-            "version": "0.16.0",
+            "version": "0.18.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-error-0.3",
+        ":gix-error-0.5",
         ":itoa-1",
         ":jiff-0.2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-diff-0.67.1.crate",
-    sha256 = "1b1689ff5ddeee4acfb2a43e875a1072a76d208624b15a9065c938b39cb0da2a",
-    strip_prefix = "gix-diff-0.67.1",
-    urls = ["https://static.crates.io/crates/gix-diff/0.67.1/download"],
+    name = "gix-diff-0.70.0.crate",
+    sha256 = "2c794988335792f85c3ca79c385c950b3a921a71ba3df361cb1f9e5b6bd4a6e4",
+    strip_prefix = "gix-diff-0.70.0",
+    urls = ["https://static.crates.io/crates/gix-diff/0.70.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-diff-0.67",
-    srcs = [":gix-diff-0.67.1.crate"],
+    name = "gix-diff-0.70",
+    srcs = [":gix-diff-0.70.0.crate"],
     crate = "gix_diff",
-    crate_root = "gix-diff-0.67.1.crate/src/lib.rs",
+    crate_root = "gix-diff-0.70.0.crate/src/lib.rs",
     edition = "2024",
-    features = ["blob"],
+    features = [
+        "blob",
+        "index",
+    ],
     metadata = {
         "third-party.metadata": {
             "name": "gix-diff",
-            "version": "0.67.1",
+            "version": "0.70.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     named_deps = {
-        "imara_diff": ":gix-imara-diff-0.2",
+        "imara_diff": ":gix-imara-diff-0.3",
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-command-0.10",
-        ":gix-filter-0.34",
-        ":gix-fs-0.22",
-        ":gix-hash-0.26",
-        ":gix-object-0.64",
-        ":gix-path-0.12",
-        ":gix-tempfile-24",
-        ":gix-trace-0.1",
-        ":gix-traverse-0.61",
-        ":gix-worktree-0.56",
-        ":thiserror-2",
+        ":gix-attributes-0.37",
+        ":gix-command-0.12",
+        ":gix-error-0.5",
+        ":gix-filter-0.36",
+        ":gix-fs-0.24",
+        ":gix-hash-0.28",
+        ":gix-index-0.58",
+        ":gix-object-0.66",
+        ":gix-path-0.14",
+        ":gix-pathspec-0.22",
+        ":gix-tempfile-26",
+        ":gix-trace-0.3",
+        ":gix-traverse-0.64",
+        ":gix-worktree-0.59",
     ],
 )
 
 shims.http_archive(
-    name = "gix-discover-0.55.0.crate",
-    sha256 = "ec32a30ec2934735599c2545f30067e80bd255fd3454b52a5d59bc02b52874a3",
-    strip_prefix = "gix-discover-0.55.0",
-    urls = ["https://static.crates.io/crates/gix-discover/0.55.0/download"],
+    name = "gix-dir-0.32.0.crate",
+    sha256 = "af939f21c65d4f15457c72d08c874d454893185c51a3596e3c2bd3d9c567618d",
+    strip_prefix = "gix-dir-0.32.0",
+    urls = ["https://static.crates.io/crates/gix-dir/0.32.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-discover-0.55",
-    srcs = [":gix-discover-0.55.0.crate"],
+    name = "gix-dir-0.32",
+    srcs = [":gix-dir-0.32.0.crate"],
+    crate = "gix_dir",
+    crate_root = "gix-dir-0.32.0.crate/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-dir",
+            "version": "0.32.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bstr-1",
+        ":gix-discover-0.57",
+        ":gix-error-0.5",
+        ":gix-fs-0.24",
+        ":gix-ignore-0.24",
+        ":gix-index-0.58",
+        ":gix-object-0.66",
+        ":gix-path-0.14",
+        ":gix-pathspec-0.22",
+        ":gix-trace-0.3",
+        ":gix-utils-0.5",
+        ":gix-worktree-0.59",
+    ],
+)
+
+shims.http_archive(
+    name = "gix-discover-0.57.1.crate",
+    sha256 = "4a0875f4e5408713fcf92265973cc38bf9dc5a93384ce218beba0572b7785a03",
+    strip_prefix = "gix-discover-0.57.1",
+    urls = ["https://static.crates.io/crates/gix-discover/0.57.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "gix-discover-0.57",
+    srcs = [":gix-discover-0.57.1.crate"],
     crate = "gix_discover",
-    crate_root = "gix-discover-0.55.0.crate/src/lib.rs",
+    crate_root = "gix-discover-0.57.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-discover",
-            "version": "0.55.0",
+            "version": "0.57.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -11718,32 +11834,42 @@ third_party_rust.rust_library(
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-fs-0.22",
-        ":gix-path-0.12",
-        ":gix-ref-0.67",
-        ":gix-sec-0.14",
-        ":thiserror-2",
+        ":gix-error-0.5",
+        ":gix-fs-0.24",
+        ":gix-path-0.14",
+        ":gix-ref-0.69",
+        ":gix-sec-0.16",
     ],
 )
 
+shims.alias(
+    name = "gix-error",
+    actual = ":gix-error-0.5",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
-    name = "gix-error-0.3.2.crate",
-    sha256 = "4a1ba536602db507119eb5f3cdf80bef3ca5a5ec0dfc6e9c7f46dc70ade7c112",
-    strip_prefix = "gix-error-0.3.2",
-    urls = ["https://static.crates.io/crates/gix-error/0.3.2/download"],
+    name = "gix-error-0.5.2.crate",
+    sha256 = "d87ff4b3f3daf01234d38d176b0ec00e92de514cc0e3fb8a8898c5cb7ccd22bb",
+    strip_prefix = "gix-error-0.5.2",
+    urls = ["https://static.crates.io/crates/gix-error/0.5.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-error-0.3",
-    srcs = [":gix-error-0.3.2.crate"],
+    name = "gix-error-0.5",
+    srcs = [":gix-error-0.5.2.crate"],
     crate = "gix_error",
-    crate_root = "gix-error-0.3.2.crate/src/lib.rs",
+    crate_root = "gix-error-0.5.2.crate/src/lib.rs",
     edition = "2024",
+    features = [
+        "auto-chain-error",
+        "bstr",
+    ],
     metadata = {
         "third-party.metadata": {
             "name": "gix-error",
-            "version": "0.3.2",
+            "version": "0.5.2",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -11751,41 +11877,64 @@ third_party_rust.rust_library(
     deps = [":bstr-1"],
 )
 
-shims.alias(
-    name = "gix-features",
-    actual = ":gix-features-0.49",
-    visibility = ["PUBLIC"],
-)
-
 shims.http_archive(
-    name = "gix-features-0.49.1.crate",
-    sha256 = "39c0e59d9d253dcccc38c3a46b91bfb9b46bd63eed54fe1a719e12194884d52a",
-    strip_prefix = "gix-features-0.49.1",
-    urls = ["https://static.crates.io/crates/gix-features/0.49.1/download"],
+    name = "gix-filter-0.36.1.crate",
+    sha256 = "f8df8d50fda4684c6ec366f75e4082ab6fc3d437d3deec30ff88462710b68d17",
+    strip_prefix = "gix-filter-0.36.1",
+    urls = ["https://static.crates.io/crates/gix-filter/0.36.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-features-0.49",
-    srcs = [":gix-features-0.49.1.crate"],
-    crate = "gix_features",
-    crate_root = "gix-features-0.49.1.crate/src/lib.rs",
+    name = "gix-filter-0.36",
+    srcs = [":gix-filter-0.36.1.crate"],
+    crate = "gix_filter",
+    crate_root = "gix-filter-0.36.1.crate/src/lib.rs",
     edition = "2024",
-    features = [
-        "crc32",
-        "default",
-        "fs-read-dir",
-        "io-pipe",
-        "once_cell",
-        "parallel",
-        "prodash",
-        "progress",
-        "walkdir",
-    ],
     metadata = {
         "third-party.metadata": {
-            "name": "gix-features",
-            "version": "0.49.1",
+            "name": "gix-filter",
+            "version": "0.36.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bstr-1",
+        ":encoding_rs-0.8",
+        ":gix-attributes-0.37",
+        ":gix-command-0.12",
+        ":gix-error-0.5",
+        ":gix-hash-0.28",
+        ":gix-object-0.66",
+        ":gix-packetline-0.24",
+        ":gix-path-0.14",
+        ":gix-quote-0.10",
+        ":gix-trace-0.3",
+        ":gix-utils-0.5",
+        ":smallvec-1",
+    ],
+)
+
+shims.http_archive(
+    name = "gix-fs-0.24.1.crate",
+    sha256 = "808f23d897ddfe847d9b7206bda947901885be623bdf96b226a2dccf87f018c7",
+    strip_prefix = "gix-fs-0.24.1",
+    urls = ["https://static.crates.io/crates/gix-fs/0.24.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "gix-fs-0.24",
+    srcs = [":gix-fs-0.24.1.crate"],
+    crate = "gix_fs",
+    crate_root = "gix-fs-0.24.1.crate/src/lib.rs",
+    edition = "2024",
+    features = ["walkdir"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-fs",
+            "version": "0.24.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -11805,108 +11954,33 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
-        ":bytes-1",
-        ":crc32fast-1",
-        ":crossbeam-channel-0.5",
-        ":gix-path-0.12",
-        ":gix-trace-0.1",
-        ":gix-utils-0.3",
-        ":once_cell-1",
-        ":parking_lot-0.12",
-        ":prodash-31",
+        ":bstr-1",
+        ":gix-error-0.5",
+        ":gix-parallel-0.50",
+        ":gix-path-0.14",
+        ":gix-utils-0.5",
         ":walkdir-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-filter-0.34.0.crate",
-    sha256 = "9c30b28d957e2e6f1e1bbfbfd26b8e0bb0aab68d8a5e730fb4fd3049943575e3",
-    strip_prefix = "gix-filter-0.34.0",
-    urls = ["https://static.crates.io/crates/gix-filter/0.34.0/download"],
+    name = "gix-glob-0.29.1.crate",
+    sha256 = "7a12789fa68a150293ad8834d267b31044240532b5ccf2734d228fe985cba2be",
+    strip_prefix = "gix-glob-0.29.1",
+    urls = ["https://static.crates.io/crates/gix-glob/0.29.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-filter-0.34",
-    srcs = [":gix-filter-0.34.0.crate"],
-    crate = "gix_filter",
-    crate_root = "gix-filter-0.34.0.crate/src/lib.rs",
-    edition = "2024",
-    features = ["parallel"],
-    metadata = {
-        "third-party.metadata": {
-            "name": "gix-filter",
-            "version": "0.34.0",
-            "licenses": ["MIT OR Apache-2.0"],
-        },
-    },
-    visibility = [],
-    deps = [
-        ":bstr-1",
-        ":encoding_rs-0.8",
-        ":gix-attributes-0.35",
-        ":gix-command-0.10",
-        ":gix-hash-0.26",
-        ":gix-object-0.64",
-        ":gix-packetline-0.22",
-        ":gix-path-0.12",
-        ":gix-quote-0.8",
-        ":gix-trace-0.1",
-        ":gix-utils-0.3",
-        ":smallvec-1",
-        ":thiserror-2",
-    ],
-)
-
-shims.http_archive(
-    name = "gix-fs-0.22.1.crate",
-    sha256 = "ebcfa9fd253f25350a3b21b3dd74034a446098e373c6123d4cee3519894f12ef",
-    strip_prefix = "gix-fs-0.22.1",
-    urls = ["https://static.crates.io/crates/gix-fs/0.22.1/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "gix-fs-0.22",
-    srcs = [":gix-fs-0.22.1.crate"],
-    crate = "gix_fs",
-    crate_root = "gix-fs-0.22.1.crate/src/lib.rs",
-    edition = "2024",
-    metadata = {
-        "third-party.metadata": {
-            "name": "gix-fs",
-            "version": "0.22.1",
-            "licenses": ["MIT OR Apache-2.0"],
-        },
-    },
-    visibility = [],
-    deps = [
-        ":bstr-1",
-        ":gix-features-0.49",
-        ":gix-path-0.12",
-        ":gix-utils-0.3",
-        ":thiserror-2",
-    ],
-)
-
-shims.http_archive(
-    name = "gix-glob-0.27.1.crate",
-    sha256 = "b417cf515fd8c91468b578071f76d6cba716f8a1eccd853906bff4908b2c1413",
-    strip_prefix = "gix-glob-0.27.1",
-    urls = ["https://static.crates.io/crates/gix-glob/0.27.1/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "gix-glob-0.27",
-    srcs = [":gix-glob-0.27.1.crate"],
+    name = "gix-glob-0.29",
+    srcs = [":gix-glob-0.29.1.crate"],
     crate = "gix_glob",
-    crate_root = "gix-glob-0.27.1.crate/src/lib.rs",
+    crate_root = "gix-glob-0.29.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-glob",
-            "version": "0.27.1",
+            "version": "0.29.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -11914,30 +11988,32 @@ third_party_rust.rust_library(
     deps = [
         ":bitflags-2",
         ":bstr-1",
-        ":gix-features-0.49",
-        ":gix-path-0.12",
+        ":gix-fs-0.24",
+        ":gix-path-0.14",
+        ":gix-trace-0.3",
+        ":gix-utils-0.5",
     ],
 )
 
 shims.alias(
     name = "gix-hash",
-    actual = ":gix-hash-0.26",
+    actual = ":gix-hash-0.28",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "gix-hash-0.26.2.crate",
-    sha256 = "380b9c423a54f0821064b954b5a5ab25c660812f6a91da03c3f1cb4b10762aa5",
-    strip_prefix = "gix-hash-0.26.2",
-    urls = ["https://static.crates.io/crates/gix-hash/0.26.2/download"],
+    name = "gix-hash-0.28.1.crate",
+    sha256 = "b4802ffb87e051795822bfdaa8ab9075b23e316684f7054e6ce4a246b2b76f4e",
+    strip_prefix = "gix-hash-0.28.1",
+    urls = ["https://static.crates.io/crates/gix-hash/0.28.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-hash-0.26",
-    srcs = [":gix-hash-0.26.2.crate"],
+    name = "gix-hash-0.28",
+    srcs = [":gix-hash-0.28.1.crate"],
     crate = "gix_hash",
-    crate_root = "gix-hash-0.26.2.crate/src/lib.rs",
+    crate_root = "gix-hash-0.28.1.crate/src/lib.rs",
     edition = "2024",
     features = [
         "default",
@@ -11947,103 +12023,99 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "gix-hash",
-            "version": "0.26.2",
+            "version": "0.28.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":faster-hex-0.10",
-        ":gix-features-0.49",
-        ":sha1-checked-0.10",
+        ":gix-error-0.5",
+        ":gix-utils-0.5",
+        ":sha1dc-0.1",
         ":sha2-0.11",
-        ":thiserror-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-hashtable-0.16.0.crate",
-    sha256 = "78fccd6fea3bcf0b39c076bae60ae49b08daaf538b950202101a981f9d3c01d3",
-    strip_prefix = "gix-hashtable-0.16.0",
-    urls = ["https://static.crates.io/crates/gix-hashtable/0.16.0/download"],
+    name = "gix-hashtable-0.18.1.crate",
+    sha256 = "2f66822aee11ccb28d6a2e63b587254e578fb52a138bd5806b58d8560125592b",
+    strip_prefix = "gix-hashtable-0.18.1",
+    urls = ["https://static.crates.io/crates/gix-hashtable/0.18.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-hashtable-0.16",
-    srcs = [":gix-hashtable-0.16.0.crate"],
+    name = "gix-hashtable-0.18",
+    srcs = [":gix-hashtable-0.18.1.crate"],
     crate = "gix_hashtable",
-    crate_root = "gix-hashtable-0.16.0.crate/src/lib.rs",
+    crate_root = "gix-hashtable-0.18.1.crate/src/lib.rs",
     edition = "2024",
-    features = [
-        "sha1",
-        "sha256",
-    ],
     metadata = {
         "third-party.metadata": {
             "name": "gix-hashtable",
-            "version": "0.16.0",
+            "version": "0.18.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
-        ":gix-hash-0.26",
+        ":gix-hash-0.28",
         ":hashbrown-0.17",
         ":parking_lot-0.12",
     ],
 )
 
 shims.http_archive(
-    name = "gix-ignore-0.22.1.crate",
-    sha256 = "65859a2f7de5e159d4344a5486ebf53b6bac22d5ec6afa836e47c10ae88a7f0f",
-    strip_prefix = "gix-ignore-0.22.1",
-    urls = ["https://static.crates.io/crates/gix-ignore/0.22.1/download"],
+    name = "gix-ignore-0.24.1.crate",
+    sha256 = "968f12fe42896873504f46127cd5bf0f9a34fc1479a781f43cf94b5d8d760a15",
+    strip_prefix = "gix-ignore-0.24.1",
+    urls = ["https://static.crates.io/crates/gix-ignore/0.24.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-ignore-0.22",
-    srcs = [":gix-ignore-0.22.1.crate"],
+    name = "gix-ignore-0.24",
+    srcs = [":gix-ignore-0.24.1.crate"],
     crate = "gix_ignore",
-    crate_root = "gix-ignore-0.22.1.crate/src/lib.rs",
+    crate_root = "gix-ignore-0.24.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-ignore",
-            "version": "0.22.1",
+            "version": "0.24.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-glob-0.27",
-        ":gix-path-0.12",
-        ":gix-trace-0.1",
+        ":gix-glob-0.29",
+        ":gix-path-0.14",
+        ":gix-trace-0.3",
         ":unicode-bom-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-imara-diff-0.2.5.crate",
-    sha256 = "1c91d8cffac8849493a82233811bd02b2b183b8cf39bf704de0fa0841b737595",
-    strip_prefix = "gix-imara-diff-0.2.5",
-    urls = ["https://static.crates.io/crates/gix-imara-diff/0.2.5/download"],
+    name = "gix-imara-diff-0.3.3.crate",
+    sha256 = "7518b930f6aeb75e871d32ce873c2ae46e35cef19b5a0b039d4337f651d897cd",
+    strip_prefix = "gix-imara-diff-0.3.3",
+    urls = ["https://static.crates.io/crates/gix-imara-diff/0.3.3/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-imara-diff-0.2",
-    srcs = [":gix-imara-diff-0.2.5.crate"],
+    name = "gix-imara-diff-0.3",
+    srcs = [":gix-imara-diff-0.3.3.crate"],
     crate = "gix_imara_diff",
-    crate_root = "gix-imara-diff-0.2.5.crate/src/lib.rs",
+    crate_root = "gix-imara-diff-0.3.3.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
     metadata = {
         "third-party.metadata": {
             "name": "gix-imara-diff",
-            "version": "0.2.5",
+            "version": "0.3.3",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -12055,23 +12127,23 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "gix-index-0.55.0.crate",
-    sha256 = "632e16cb48b0e88a747e106924cb2765194105d8070a7a961b0d080ed806c632",
-    strip_prefix = "gix-index-0.55.0",
-    urls = ["https://static.crates.io/crates/gix-index/0.55.0/download"],
+    name = "gix-index-0.58.0.crate",
+    sha256 = "06bfc736774a623307eda890c918d308ef5acd37402bde2d6768fccb1f6ecb5d",
+    strip_prefix = "gix-index-0.58.0",
+    urls = ["https://static.crates.io/crates/gix-index/0.58.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-index-0.55",
-    srcs = [":gix-index-0.55.0.crate"],
+    name = "gix-index-0.58",
+    srcs = [":gix-index-0.58.0.crate"],
     crate = "gix_index",
-    crate_root = "gix-index-0.55.0.crate/src/lib.rs",
+    crate_root = "gix-index-0.58.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-index",
-            "version": "0.55.0",
+            "version": "0.58.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -12107,70 +12179,72 @@ third_party_rust.rust_library(
         ":bstr-1",
         ":filetime-0.2",
         ":fnv-1",
-        ":gix-bitmap-0.4",
-        ":gix-features-0.49",
-        ":gix-fs-0.22",
-        ":gix-hash-0.26",
-        ":gix-lock-24",
-        ":gix-object-0.64",
-        ":gix-traverse-0.61",
-        ":gix-utils-0.3",
-        ":gix-validate-0.11",
+        ":gix-bitmap-0.6",
+        ":gix-error-0.5",
+        ":gix-fs-0.24",
+        ":gix-hash-0.28",
+        ":gix-lock-26",
+        ":gix-object-0.66",
+        ":gix-parallel-0.50",
+        ":gix-trace-0.3",
+        ":gix-traverse-0.64",
+        ":gix-utils-0.5",
+        ":gix-validate-0.13",
         ":hashbrown-0.17",
         ":itoa-1",
         ":memmap2-0.9",
         ":smallvec-1",
-        ":thiserror-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-lock-24.0.0.crate",
-    sha256 = "d4c69157820343bf1c6e4b88b9808e920900de02e18aaf5862b30ada43814848",
-    strip_prefix = "gix-lock-24.0.0",
-    urls = ["https://static.crates.io/crates/gix-lock/24.0.0/download"],
+    name = "gix-lock-26.0.1.crate",
+    sha256 = "64783de116c477c5ea4a7f3b56e18ab363dabfdae2724291ea0587b642cadb3d",
+    strip_prefix = "gix-lock-26.0.1",
+    urls = ["https://static.crates.io/crates/gix-lock/26.0.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-lock-24",
-    srcs = [":gix-lock-24.0.0.crate"],
+    name = "gix-lock-26",
+    srcs = [":gix-lock-26.0.1.crate"],
     crate = "gix_lock",
-    crate_root = "gix-lock-24.0.0.crate/src/lib.rs",
+    crate_root = "gix-lock-26.0.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-lock",
-            "version": "24.0.0",
+            "version": "26.0.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
-        ":gix-tempfile-24",
-        ":gix-utils-0.3",
-        ":thiserror-2",
+        ":gix-error-0.5",
+        ":gix-fs-0.24",
+        ":gix-tempfile-26",
+        ":gix-utils-0.5",
     ],
 )
 
 shims.http_archive(
-    name = "gix-macros-0.1.6.crate",
-    sha256 = "d3836b4b051393464a753c5a08fe19c7ce0d8b77574a92bd558972941d4553cb",
-    strip_prefix = "gix-macros-0.1.6",
-    urls = ["https://static.crates.io/crates/gix-macros/0.1.6/download"],
+    name = "gix-macros-0.2.1.crate",
+    sha256 = "d02e51a52e15255757c06a6873529ae01205711aa9e8f9a1d46b556f1a14a96e",
+    strip_prefix = "gix-macros-0.2.1",
+    urls = ["https://static.crates.io/crates/gix-macros/0.2.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-macros-0.1",
-    srcs = [":gix-macros-0.1.6.crate"],
+    name = "gix-macros-0.2",
+    srcs = [":gix-macros-0.2.1.crate"],
     crate = "gix_macros",
-    crate_root = "gix-macros-0.1.6.crate/src/lib.rs",
+    crate_root = "gix-macros-0.2.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-macros",
-            "version": "0.1.6",
+            "version": "0.2.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -12184,56 +12258,57 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "gix-negotiate-0.35.1.crate",
-    sha256 = "91068ecee956121d663635b873ae87ad9c5d3f2d6788facfd12829140b39c897",
-    strip_prefix = "gix-negotiate-0.35.1",
-    urls = ["https://static.crates.io/crates/gix-negotiate/0.35.1/download"],
+    name = "gix-negotiate-0.38.0.crate",
+    sha256 = "148bee10394df68d44c245e05b4c0747edf19144405c6c36a9eee29db9bb250d",
+    strip_prefix = "gix-negotiate-0.38.0",
+    urls = ["https://static.crates.io/crates/gix-negotiate/0.38.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-negotiate-0.35",
-    srcs = [":gix-negotiate-0.35.1.crate"],
+    name = "gix-negotiate-0.38",
+    srcs = [":gix-negotiate-0.38.0.crate"],
     crate = "gix_negotiate",
-    crate_root = "gix-negotiate-0.35.1.crate/src/lib.rs",
+    crate_root = "gix-negotiate-0.38.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-negotiate",
-            "version": "0.35.1",
+            "version": "0.38.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bitflags-2",
-        ":gix-commitgraph-0.39",
-        ":gix-date-0.16",
-        ":gix-hash-0.26",
-        ":gix-object-0.64",
-        ":gix-revwalk-0.35",
+        ":gix-commitgraph-0.42",
+        ":gix-date-0.18",
+        ":gix-error-0.5",
+        ":gix-hash-0.28",
+        ":gix-object-0.66",
+        ":gix-revwalk-0.38",
     ],
 )
 
 shims.alias(
     name = "gix-object",
-    actual = ":gix-object-0.64",
+    actual = ":gix-object-0.66",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "gix-object-0.64.1.crate",
-    sha256 = "56fef799ca40cdeab4de5a3e74a696d8fa9b9c6264592646bf022e026f13ce2c",
-    strip_prefix = "gix-object-0.64.1",
-    urls = ["https://static.crates.io/crates/gix-object/0.64.1/download"],
+    name = "gix-object-0.66.1.crate",
+    sha256 = "beaf9086dd00b9d2a177ca3ae83210ce926cee7c0faa112e053851221cd8f94d",
+    strip_prefix = "gix-object-0.66.1",
+    urls = ["https://static.crates.io/crates/gix-object/0.66.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-object-0.64",
-    srcs = [":gix-object-0.64.1.crate"],
+    name = "gix-object-0.66",
+    srcs = [":gix-object-0.66.1.crate"],
     crate = "gix_object",
-    crate_root = "gix-object-0.64.1.crate/src/lib.rs",
+    crate_root = "gix-object-0.66.1.crate/src/lib.rs",
     edition = "2024",
     features = [
         "sha1",
@@ -12243,87 +12318,90 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "gix-object",
-            "version": "0.64.1",
+            "version": "0.66.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-actor-0.42",
-        ":gix-command-0.10",
-        ":gix-date-0.16",
-        ":gix-features-0.49",
-        ":gix-hash-0.26",
-        ":gix-hashtable-0.16",
-        ":gix-tempfile-24",
-        ":gix-utils-0.3",
-        ":gix-validate-0.11",
+        ":gix-actor-0.44",
+        ":gix-command-0.12",
+        ":gix-date-0.18",
+        ":gix-error-0.5",
+        ":gix-hash-0.28",
+        ":gix-hashtable-0.18",
+        ":gix-path-0.14",
+        ":gix-tempfile-26",
+        ":gix-utils-0.5",
+        ":gix-validate-0.13",
         ":itoa-1",
         ":smallvec-1",
-        ":thiserror-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-odb-0.84.0.crate",
-    sha256 = "cf45d195b71cb6363886e7b466821bf4dffd7aba1b6b814ff75488e0061d72a7",
-    strip_prefix = "gix-odb-0.84.0",
-    urls = ["https://static.crates.io/crates/gix-odb/0.84.0/download"],
+    name = "gix-odb-0.87.0.crate",
+    sha256 = "941b5b99fed282a5b05b54ea486c36c76b558afe151e6804c3acdd5c8f3c3459",
+    strip_prefix = "gix-odb-0.87.0",
+    urls = ["https://static.crates.io/crates/gix-odb/0.87.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-odb-0.84",
-    srcs = [":gix-odb-0.84.0.crate"],
+    name = "gix-odb-0.87",
+    srcs = [":gix-odb-0.87.0.crate"],
     crate = "gix_odb",
-    crate_root = "gix-odb-0.84.0.crate/src/lib.rs",
+    crate_root = "gix-odb-0.87.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-odb",
-            "version": "0.84.0",
+            "version": "0.87.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":arc-swap-1",
-        ":gix-features-0.49",
-        ":gix-fs-0.22",
-        ":gix-hash-0.26",
-        ":gix-hashtable-0.16",
-        ":gix-object-0.64",
-        ":gix-pack-0.74",
-        ":gix-path-0.12",
-        ":gix-quote-0.8",
-        ":gix-zlib-0.1",
+        ":crc32fast-1",
+        ":gix-error-0.5",
+        ":gix-fs-0.24",
+        ":gix-hash-0.28",
+        ":gix-hashtable-0.18",
+        ":gix-object-0.66",
+        ":gix-pack-0.77",
+        ":gix-parallel-0.50",
+        ":gix-path-0.14",
+        ":gix-quote-0.10",
+        ":gix-trace-0.3",
+        ":gix-utils-0.5",
+        ":gix-zlib-0.4",
         ":memmap2-0.9",
         ":parking_lot-0.12",
         ":tempfile-3",
-        ":thiserror-2",
     ],
 )
 
 shims.alias(
     name = "gix-pack",
-    actual = ":gix-pack-0.74",
+    actual = ":gix-pack-0.77",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "gix-pack-0.74.2.crate",
-    sha256 = "3d199d515cbdcf05f531f3859be9771fc12acac7b7fe0f5b581b2c1ab1c3a61e",
-    strip_prefix = "gix-pack-0.74.2",
-    urls = ["https://static.crates.io/crates/gix-pack/0.74.2/download"],
+    name = "gix-pack-0.77.0.crate",
+    sha256 = "e2ef461798b1e6cb652192c69dfc9658dfc1bab457ef812dd1ab85d75104cbef",
+    strip_prefix = "gix-pack-0.77.0",
+    urls = ["https://static.crates.io/crates/gix-pack/0.77.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-pack-0.74",
-    srcs = [":gix-pack-0.74.2.crate"],
+    name = "gix-pack-0.77",
+    srcs = [":gix-pack-0.77.0.crate"],
     crate = "gix_pack",
-    crate_root = "gix-pack-0.74.2.crate/src/lib.rs",
+    crate_root = "gix-pack-0.77.0.crate/src/lib.rs",
     edition = "2024",
     features = [
         "object-cache-dynamic",
@@ -12337,44 +12415,46 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "gix-pack",
-            "version": "0.74.2",
+            "version": "0.77.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":clru-0.6",
+        ":crc32fast-1",
         ":crossbeam-deque-0.8",
-        ":gix-chunk-0.8",
-        ":gix-error-0.3",
-        ":gix-features-0.49",
-        ":gix-hash-0.26",
-        ":gix-hashtable-0.16",
-        ":gix-object-0.64",
-        ":gix-path-0.12",
-        ":gix-tempfile-24",
-        ":gix-zlib-0.1",
+        ":gix-chunk-0.10",
+        ":gix-error-0.5",
+        ":gix-hash-0.28",
+        ":gix-hashtable-0.18",
+        ":gix-object-0.66",
+        ":gix-parallel-0.50",
+        ":gix-path-0.14",
+        ":gix-tempfile-26",
+        ":gix-trace-0.3",
+        ":gix-utils-0.5",
+        ":gix-zlib-0.4",
         ":memmap2-0.9",
         ":parking_lot-0.12",
         ":smallvec-1",
-        ":thiserror-2",
         ":uluru-3",
     ],
 )
 
 shims.http_archive(
-    name = "gix-packetline-0.22.2.crate",
-    sha256 = "792bd92bea390087e6223b18d4d023decc36467de31e6b066b69b94beea1b9e2",
-    strip_prefix = "gix-packetline-0.22.2",
-    urls = ["https://static.crates.io/crates/gix-packetline/0.22.2/download"],
+    name = "gix-packetline-0.24.1.crate",
+    sha256 = "8ebb59ef7aff9d435946a5e5c3d9cfb673be7665839fd72961c08c733a934fb7",
+    strip_prefix = "gix-packetline-0.24.1",
+    urls = ["https://static.crates.io/crates/gix-packetline/0.24.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-packetline-0.22",
-    srcs = [":gix-packetline-0.22.2.crate"],
+    name = "gix-packetline-0.24",
+    srcs = [":gix-packetline-0.24.1.crate"],
     crate = "gix_packetline",
-    crate_root = "gix-packetline-0.22.2.crate/src/lib.rs",
+    crate_root = "gix-packetline-0.24.1.crate/src/lib.rs",
     edition = "2024",
     features = [
         "blocking-io",
@@ -12383,7 +12463,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "gix-packetline",
-            "version": "0.22.2",
+            "version": "0.24.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -12391,60 +12471,94 @@ third_party_rust.rust_library(
     deps = [
         ":bstr-1",
         ":faster-hex-0.10",
-        ":gix-trace-0.1",
-        ":thiserror-2",
+        ":gix-error-0.5",
+        ":gix-trace-0.3",
     ],
 )
 
 shims.http_archive(
-    name = "gix-path-0.12.6.crate",
-    sha256 = "38fc6f029ea67de83cbcbd33fd98c05a48360d2932b39d9fdacbc6eae802d475",
-    strip_prefix = "gix-path-0.12.6",
-    urls = ["https://static.crates.io/crates/gix-path/0.12.6/download"],
+    name = "gix-parallel-0.50.1.crate",
+    sha256 = "58e7e10f8343e05f6ad8651f97dffa1caca1531bb274bfc8e3050e80e3ed5946",
+    strip_prefix = "gix-parallel-0.50.1",
+    urls = ["https://static.crates.io/crates/gix-parallel/0.50.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-path-0.12",
-    srcs = [":gix-path-0.12.6.crate"],
+    name = "gix-parallel-0.50",
+    srcs = [":gix-parallel-0.50.1.crate"],
+    crate = "gix_parallel",
+    crate_root = "gix-parallel-0.50.1.crate/src/lib.rs",
+    edition = "2024",
+    features = [
+        "default",
+        "once_cell",
+        "parallel",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-parallel",
+            "version": "0.50.1",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":crossbeam-channel-0.5",
+        ":gix-trace-0.3",
+        ":once_cell-1",
+        ":parking_lot-0.12",
+    ],
+)
+
+shims.http_archive(
+    name = "gix-path-0.14.1.crate",
+    sha256 = "83976e926a485e6fb4b8d9a0d7a30c53c1f607b81b5d310f06f92fd8385bf16a",
+    strip_prefix = "gix-path-0.14.1",
+    urls = ["https://static.crates.io/crates/gix-path/0.14.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "gix-path-0.14",
+    srcs = [":gix-path-0.14.1.crate"],
     crate = "gix_path",
-    crate_root = "gix-path-0.12.6.crate/src/lib.rs",
+    crate_root = "gix-path-0.14.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-path",
-            "version": "0.12.6",
+            "version": "0.14.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-trace-0.1",
-        ":gix-validate-0.11",
-        ":thiserror-2",
+        ":gix-error-0.5",
+        ":gix-trace-0.3",
+        ":gix-validate-0.13",
     ],
 )
 
 shims.http_archive(
-    name = "gix-pathspec-0.20.0.crate",
-    sha256 = "c92e44c63ba53bb55aa88ee48847664beae9446417621582fb14dfc69b2f8c72",
-    strip_prefix = "gix-pathspec-0.20.0",
-    urls = ["https://static.crates.io/crates/gix-pathspec/0.20.0/download"],
+    name = "gix-pathspec-0.22.1.crate",
+    sha256 = "490aa03a11e0cbb998a0a593b75e27ea2e30df4ebd8f84f60e0641b9b72270e8",
+    strip_prefix = "gix-pathspec-0.22.1",
+    urls = ["https://static.crates.io/crates/gix-pathspec/0.22.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-pathspec-0.20",
-    srcs = [":gix-pathspec-0.20.0.crate"],
+    name = "gix-pathspec-0.22",
+    srcs = [":gix-pathspec-0.22.1.crate"],
     crate = "gix_pathspec",
-    crate_root = "gix-pathspec-0.20.0.crate/src/lib.rs",
+    crate_root = "gix-pathspec-0.22.1.crate/src/lib.rs",
     edition = "2024",
-    features = ["parallel"],
     metadata = {
         "third-party.metadata": {
             "name": "gix-pathspec",
-            "version": "0.20.0",
+            "version": "0.22.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -12452,32 +12566,32 @@ third_party_rust.rust_library(
     deps = [
         ":bitflags-2",
         ":bstr-1",
-        ":gix-attributes-0.35",
-        ":gix-config-value-0.19",
-        ":gix-glob-0.27",
-        ":gix-path-0.12",
-        ":thiserror-2",
+        ":gix-attributes-0.37",
+        ":gix-config-value-0.21",
+        ":gix-error-0.5",
+        ":gix-glob-0.29",
+        ":gix-path-0.14",
     ],
 )
 
 shims.http_archive(
-    name = "gix-prompt-0.17.0.crate",
-    sha256 = "802256e13ecb2133ba5f9e6acbaa6b08bac027b1c5929f85f6adbb56ba3a4f28",
-    strip_prefix = "gix-prompt-0.17.0",
-    urls = ["https://static.crates.io/crates/gix-prompt/0.17.0/download"],
+    name = "gix-prompt-0.19.1.crate",
+    sha256 = "4d9650eedebb85e55577831db217403333416573356de722a040415c416f1cec",
+    strip_prefix = "gix-prompt-0.19.1",
+    urls = ["https://static.crates.io/crates/gix-prompt/0.19.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-prompt-0.17",
-    srcs = [":gix-prompt-0.17.0.crate"],
+    name = "gix-prompt-0.19",
+    srcs = [":gix-prompt-0.19.1.crate"],
     crate = "gix_prompt",
-    crate_root = "gix-prompt-0.17.0.crate/src/lib.rs",
+    crate_root = "gix-prompt-0.19.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-prompt",
-            "version": "0.17.0",
+            "version": "0.19.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -12509,25 +12623,25 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [
-        ":gix-command-0.10",
-        ":gix-config-value-0.19",
-        ":thiserror-2",
+        ":gix-command-0.12",
+        ":gix-config-value-0.21",
+        ":gix-error-0.5",
     ],
 )
 
 shims.http_archive(
-    name = "gix-protocol-0.65.1.crate",
-    sha256 = "68878c37ae168b474c762d70adc8a8e0f9323ed0d80444a672e2eb561fa16691",
-    strip_prefix = "gix-protocol-0.65.1",
-    urls = ["https://static.crates.io/crates/gix-protocol/0.65.1/download"],
+    name = "gix-protocol-0.68.0.crate",
+    sha256 = "83677ebae6a1a09dc07f2435b5ebe68470dc51afb74052135e98fd7c11f85ba9",
+    strip_prefix = "gix-protocol-0.68.0",
+    urls = ["https://static.crates.io/crates/gix-protocol/0.68.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-protocol-0.65",
-    srcs = [":gix-protocol-0.65.1.crate"],
+    name = "gix-protocol-0.68",
+    srcs = [":gix-protocol-0.68.0.crate"],
     crate = "gix_protocol",
-    crate_root = "gix-protocol-0.65.1.crate/src/lib.rs",
+    crate_root = "gix-protocol-0.68.0.crate/src/lib.rs",
     edition = "2024",
     features = [
         "blocking-client",
@@ -12537,217 +12651,215 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "gix-protocol",
-            "version": "0.65.1",
+            "version": "0.68.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-credentials-0.40",
-        ":gix-date-0.16",
-        ":gix-features-0.49",
-        ":gix-hash-0.26",
-        ":gix-lock-24",
-        ":gix-macros-0.1",
-        ":gix-negotiate-0.35",
-        ":gix-object-0.64",
-        ":gix-ref-0.67",
-        ":gix-refspec-0.45",
-        ":gix-revwalk-0.35",
-        ":gix-shallow-0.13",
-        ":gix-trace-0.1",
-        ":gix-transport-0.59",
-        ":gix-utils-0.3",
+        ":gix-credentials-0.42",
+        ":gix-date-0.18",
+        ":gix-error-0.5",
+        ":gix-hash-0.28",
+        ":gix-lock-26",
+        ":gix-macros-0.2",
+        ":gix-negotiate-0.38",
+        ":gix-object-0.66",
+        ":gix-ref-0.69",
+        ":gix-refspec-0.47",
+        ":gix-revwalk-0.38",
+        ":gix-shallow-0.15",
+        ":gix-trace-0.3",
+        ":gix-transport-0.62",
+        ":gix-utils-0.5",
         ":nonempty-0.12",
-        ":thiserror-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-quote-0.8.0.crate",
-    sha256 = "f74795eb76eab8313063849f9cbd2bbcdc6e4692f71c1d7d0244ab11cd777329",
-    strip_prefix = "gix-quote-0.8.0",
-    urls = ["https://static.crates.io/crates/gix-quote/0.8.0/download"],
+    name = "gix-quote-0.10.1.crate",
+    sha256 = "2413e65271303e9b674ec4785d469df4c3c36e888dbd165e3035de0405c6d9d1",
+    strip_prefix = "gix-quote-0.10.1",
+    urls = ["https://static.crates.io/crates/gix-quote/0.10.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-quote-0.8",
-    srcs = [":gix-quote-0.8.0.crate"],
+    name = "gix-quote-0.10",
+    srcs = [":gix-quote-0.10.1.crate"],
     crate = "gix_quote",
-    crate_root = "gix-quote-0.8.0.crate/src/lib.rs",
+    crate_root = "gix-quote-0.10.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-quote",
-            "version": "0.8.0",
+            "version": "0.10.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-error-0.3",
-        ":gix-utils-0.3",
+        ":gix-error-0.5",
+        ":gix-utils-0.5",
     ],
 )
 
 shims.http_archive(
-    name = "gix-ref-0.67.1.crate",
-    sha256 = "8328387e7ab354e1dc3afb63e6b4d1866f82d7ce035222bc9d5baaf36bc88020",
-    strip_prefix = "gix-ref-0.67.1",
-    urls = ["https://static.crates.io/crates/gix-ref/0.67.1/download"],
+    name = "gix-ref-0.69.1.crate",
+    sha256 = "68686e4697b9cd15d1b152ef51df870513210ed22938eacc13b3672b76035f13",
+    strip_prefix = "gix-ref-0.69.1",
+    urls = ["https://static.crates.io/crates/gix-ref/0.69.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-ref-0.67",
-    srcs = [":gix-ref-0.67.1.crate"],
+    name = "gix-ref-0.69",
+    srcs = [":gix-ref-0.69.1.crate"],
     crate = "gix_ref",
-    crate_root = "gix-ref-0.67.1.crate/src/lib.rs",
+    crate_root = "gix-ref-0.69.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-ref",
-            "version": "0.67.1",
+            "version": "0.69.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
-        ":gix-actor-0.42",
-        ":gix-features-0.49",
-        ":gix-fs-0.22",
-        ":gix-hash-0.26",
-        ":gix-lock-24",
-        ":gix-object-0.64",
-        ":gix-path-0.12",
-        ":gix-tempfile-24",
-        ":gix-utils-0.3",
-        ":gix-validate-0.11",
+        ":gix-actor-0.44",
+        ":gix-error-0.5",
+        ":gix-fs-0.24",
+        ":gix-hash-0.28",
+        ":gix-lock-26",
+        ":gix-object-0.66",
+        ":gix-parallel-0.50",
+        ":gix-path-0.14",
+        ":gix-tempfile-26",
+        ":gix-utils-0.5",
+        ":gix-validate-0.13",
         ":memmap2-0.9",
-        ":thiserror-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-refspec-0.45.1.crate",
-    sha256 = "7de280d46e8fd9e4d3e7e2ab4276b965e377ba68b2b9a8fce56371015e8bb059",
-    strip_prefix = "gix-refspec-0.45.1",
-    urls = ["https://static.crates.io/crates/gix-refspec/0.45.1/download"],
+    name = "gix-refspec-0.47.1.crate",
+    sha256 = "2569309da6fdc230973cf5b846508154c0e813fda60f2b2da768cc5655ed312c",
+    strip_prefix = "gix-refspec-0.47.1",
+    urls = ["https://static.crates.io/crates/gix-refspec/0.47.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-refspec-0.45",
-    srcs = [":gix-refspec-0.45.1.crate"],
+    name = "gix-refspec-0.47",
+    srcs = [":gix-refspec-0.47.1.crate"],
     crate = "gix_refspec",
-    crate_root = "gix-refspec-0.45.1.crate/src/lib.rs",
+    crate_root = "gix-refspec-0.47.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-refspec",
-            "version": "0.45.1",
+            "version": "0.47.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-hash-0.26",
-        ":gix-validate-0.11",
+        ":gix-error-0.5",
+        ":gix-hash-0.28",
+        ":gix-validate-0.13",
         ":smallvec-1",
-        ":thiserror-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-revision-0.49.1.crate",
-    sha256 = "4577b864c3e134697e91564553e43230c2e401bb1bcc51cfa998edca21c95078",
-    strip_prefix = "gix-revision-0.49.1",
-    urls = ["https://static.crates.io/crates/gix-revision/0.49.1/download"],
+    name = "gix-revision-0.52.0.crate",
+    sha256 = "241465fc73530f41d0a1c18320c5e291365b7c2c2a3dfd07afe2a5d6265085c8",
+    strip_prefix = "gix-revision-0.52.0",
+    urls = ["https://static.crates.io/crates/gix-revision/0.52.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-revision-0.49",
-    srcs = [":gix-revision-0.49.1.crate"],
+    name = "gix-revision-0.52",
+    srcs = [":gix-revision-0.52.0.crate"],
     crate = "gix_revision",
-    crate_root = "gix-revision-0.49.1.crate/src/lib.rs",
+    crate_root = "gix-revision-0.52.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-revision",
-            "version": "0.49.1",
+            "version": "0.52.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-commitgraph-0.39",
-        ":gix-date-0.16",
-        ":gix-error-0.3",
-        ":gix-hash-0.26",
-        ":gix-object-0.64",
-        ":gix-revwalk-0.35",
+        ":gix-commitgraph-0.42",
+        ":gix-date-0.18",
+        ":gix-error-0.5",
+        ":gix-hash-0.28",
+        ":gix-object-0.66",
+        ":gix-revwalk-0.38",
         ":nonempty-0.12",
     ],
 )
 
 shims.http_archive(
-    name = "gix-revwalk-0.35.0.crate",
-    sha256 = "248823eefe405e2c0754b74f6f43ab6faab68670cdbf2d6e114cb0471f766450",
-    strip_prefix = "gix-revwalk-0.35.0",
-    urls = ["https://static.crates.io/crates/gix-revwalk/0.35.0/download"],
+    name = "gix-revwalk-0.38.0.crate",
+    sha256 = "8b46edeacd25d9d3131941ae6bc91002bf7ba10e130393b7e9bc23d528625447",
+    strip_prefix = "gix-revwalk-0.38.0",
+    urls = ["https://static.crates.io/crates/gix-revwalk/0.38.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-revwalk-0.35",
-    srcs = [":gix-revwalk-0.35.0.crate"],
+    name = "gix-revwalk-0.38",
+    srcs = [":gix-revwalk-0.38.0.crate"],
     crate = "gix_revwalk",
-    crate_root = "gix-revwalk-0.35.0.crate/src/lib.rs",
+    crate_root = "gix-revwalk-0.38.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-revwalk",
-            "version": "0.35.0",
+            "version": "0.38.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
-        ":gix-commitgraph-0.39",
-        ":gix-date-0.16",
-        ":gix-error-0.3",
-        ":gix-hash-0.26",
-        ":gix-hashtable-0.16",
-        ":gix-object-0.64",
+        ":gix-commitgraph-0.42",
+        ":gix-date-0.18",
+        ":gix-error-0.5",
+        ":gix-hash-0.28",
+        ":gix-hashtable-0.18",
+        ":gix-object-0.66",
         ":smallvec-1",
-        ":thiserror-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-sec-0.14.2.crate",
-    sha256 = "af4fe6c152c1d50aea36f299825702cd37e303307832fec1d0fdd5844e47ce2f",
-    strip_prefix = "gix-sec-0.14.2",
-    urls = ["https://static.crates.io/crates/gix-sec/0.14.2/download"],
+    name = "gix-sec-0.16.1.crate",
+    sha256 = "9598d1f35baec7038c2d278bfcc18f1d8951f41dcc3f51ab6175661dfe5a6137",
+    strip_prefix = "gix-sec-0.16.1",
+    urls = ["https://static.crates.io/crates/gix-sec/0.16.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-sec-0.14",
-    srcs = [":gix-sec-0.14.2.crate"],
+    name = "gix-sec-0.16",
+    srcs = [":gix-sec-0.16.1.crate"],
     crate = "gix_sec",
-    crate_root = "gix-sec-0.14.2.crate/src/lib.rs",
+    crate_root = "gix-sec-0.16.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-sec",
-            "version": "0.14.2",
+            "version": "0.16.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -12766,13 +12878,13 @@ third_party_rust.rust_library(
         ),
         "windows-gnu": dict(
             deps = [
-                ":gix-path-0.12",
+                ":gix-path-0.14",
                 ":windows-sys-0.61",
             ],
         ),
         "windows-msvc": dict(
             deps = [
-                ":gix-path-0.12",
+                ":gix-path-0.14",
                 ":windows-sys-0.61",
             ],
         ),
@@ -12782,82 +12894,133 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "gix-shallow-0.13.0.crate",
-    sha256 = "1ecc9f4b40537043e4bbd7d3d1760e74fb8e7b07a546166b558acaa73ad97f4a",
-    strip_prefix = "gix-shallow-0.13.0",
-    urls = ["https://static.crates.io/crates/gix-shallow/0.13.0/download"],
+    name = "gix-shallow-0.15.1.crate",
+    sha256 = "1d805949578724b5164c90ec6d19567832ccaa5ba8a3fe26f7befc52007e2407",
+    strip_prefix = "gix-shallow-0.15.1",
+    urls = ["https://static.crates.io/crates/gix-shallow/0.15.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-shallow-0.13",
-    srcs = [":gix-shallow-0.13.0.crate"],
+    name = "gix-shallow-0.15",
+    srcs = [":gix-shallow-0.15.1.crate"],
     crate = "gix_shallow",
-    crate_root = "gix-shallow-0.13.0.crate/src/lib.rs",
+    crate_root = "gix-shallow-0.15.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-shallow",
-            "version": "0.13.0",
+            "version": "0.15.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-hash-0.26",
-        ":gix-lock-24",
+        ":gix-error-0.5",
+        ":gix-hash-0.28",
+        ":gix-lock-26",
         ":nonempty-0.12",
-        ":thiserror-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-submodule-0.34.0.crate",
-    sha256 = "da85564d6725c483b8d95d7b31d1db0b78c29e462a2b481949e2f18e1ed55a6a",
-    strip_prefix = "gix-submodule-0.34.0",
-    urls = ["https://static.crates.io/crates/gix-submodule/0.34.0/download"],
+    name = "gix-status-0.37.0.crate",
+    sha256 = "31b00c359278210e3cc0803d057db1d61c5d6694c21ed9ad0b8f8f862157247a",
+    strip_prefix = "gix-status-0.37.0",
+    urls = ["https://static.crates.io/crates/gix-status/0.37.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-submodule-0.34",
-    srcs = [":gix-submodule-0.34.0.crate"],
+    name = "gix-status-0.37",
+    srcs = [":gix-status-0.37.0.crate"],
+    crate = "gix_status",
+    crate_root = "gix-status-0.37.0.crate/src/lib.rs",
+    edition = "2024",
+    features = ["worktree-rewrites"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "gix-status",
+            "version": "0.37.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    platform = {
+        "windows-gnu": dict(
+            deps = [":hashbrown-0.16"],
+        ),
+        "windows-msvc": dict(
+            deps = [":hashbrown-0.16"],
+        ),
+    },
+    visibility = [],
+    deps = [
+        ":bstr-1",
+        ":filetime-0.2",
+        ":gix-diff-0.70",
+        ":gix-dir-0.32",
+        ":gix-error-0.5",
+        ":gix-filter-0.36",
+        ":gix-fs-0.24",
+        ":gix-hash-0.28",
+        ":gix-index-0.58",
+        ":gix-object-0.66",
+        ":gix-parallel-0.50",
+        ":gix-path-0.14",
+        ":gix-pathspec-0.22",
+        ":gix-trace-0.3",
+        ":gix-utils-0.5",
+        ":gix-worktree-0.59",
+    ],
+)
+
+shims.http_archive(
+    name = "gix-submodule-0.36.1.crate",
+    sha256 = "d558a1307b6f3de2a92bd91d0570c53952d4f2329e6860813007508c8ed413dc",
+    strip_prefix = "gix-submodule-0.36.1",
+    urls = ["https://static.crates.io/crates/gix-submodule/0.36.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "gix-submodule-0.36",
+    srcs = [":gix-submodule-0.36.1.crate"],
     crate = "gix_submodule",
-    crate_root = "gix-submodule-0.34.0.crate/src/lib.rs",
+    crate_root = "gix-submodule-0.36.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-submodule",
-            "version": "0.34.0",
+            "version": "0.36.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-config-0.60",
-        ":gix-path-0.12",
-        ":gix-pathspec-0.20",
-        ":gix-refspec-0.45",
-        ":gix-url-0.38",
-        ":thiserror-2",
+        ":gix-config-0.62",
+        ":gix-error-0.5",
+        ":gix-path-0.14",
+        ":gix-pathspec-0.22",
+        ":gix-refspec-0.47",
+        ":gix-url-0.40",
     ],
 )
 
 shims.http_archive(
-    name = "gix-tempfile-24.0.0.crate",
-    sha256 = "b675b920bd5a61d17ad542772f03ec34c60feb8ff683e1560c03ae967363731e",
-    strip_prefix = "gix-tempfile-24.0.0",
-    urls = ["https://static.crates.io/crates/gix-tempfile/24.0.0/download"],
+    name = "gix-tempfile-26.0.1.crate",
+    sha256 = "b8fdb135a043d6106b59bc58d59a326b277e495ec26fb9e02a1e2b6354bf4b5a",
+    strip_prefix = "gix-tempfile-26.0.1",
+    urls = ["https://static.crates.io/crates/gix-tempfile/26.0.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-tempfile-24",
-    srcs = [":gix-tempfile-24.0.0.crate"],
+    name = "gix-tempfile-26",
+    srcs = [":gix-tempfile-26.0.1.crate"],
     crate = "gix_tempfile",
-    crate_root = "gix-tempfile-24.0.0.crate/src/lib.rs",
+    crate_root = "gix-tempfile-26.0.1.crate/src/lib.rs",
     edition = "2024",
     features = [
         "default",
@@ -12866,7 +13029,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "gix-tempfile",
-            "version": "24.0.0",
+            "version": "26.0.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -12883,35 +13046,41 @@ third_party_rust.rust_library(
         "macos-x86_64": dict(
             deps = [":libc-0.2"],
         ),
+        "windows-gnu": dict(
+            deps = [":windows-sys-0.61"],
+        ),
+        "windows-msvc": dict(
+            deps = [":windows-sys-0.61"],
+        ),
     },
     visibility = [],
     deps = [
         ":dashmap-6",
-        ":gix-fs-0.22",
+        ":gix-fs-0.24",
         ":parking_lot-0.12",
         ":tempfile-3",
     ],
 )
 
 shims.http_archive(
-    name = "gix-trace-0.1.21.crate",
-    sha256 = "be3eb81d9dc914335923e50d52829c551feefd6a72d176c4130c546b67a60814",
-    strip_prefix = "gix-trace-0.1.21",
-    urls = ["https://static.crates.io/crates/gix-trace/0.1.21/download"],
+    name = "gix-trace-0.3.1.crate",
+    sha256 = "c477c029518d3f235c26db21ff7cccc1fa13c0c31b05c005a55b7affd4ffbd81",
+    strip_prefix = "gix-trace-0.3.1",
+    urls = ["https://static.crates.io/crates/gix-trace/0.3.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-trace-0.1",
-    srcs = [":gix-trace-0.1.21.crate"],
+    name = "gix-trace-0.3",
+    srcs = [":gix-trace-0.3.1.crate"],
     crate = "gix_trace",
-    crate_root = "gix-trace-0.1.21.crate/src/lib.rs",
+    crate_root = "gix-trace-0.3.1.crate/src/lib.rs",
     edition = "2024",
     features = ["default"],
     metadata = {
         "third-party.metadata": {
             "name": "gix-trace",
-            "version": "0.1.21",
+            "version": "0.3.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -12919,34 +13088,34 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "gix-transport-0.59.2.crate",
-    sha256 = "b3f41a64939953ff49117df4eb91334d299abc59ff57a90fb2193d8ffa5886f1",
-    strip_prefix = "gix-transport-0.59.2",
-    urls = ["https://static.crates.io/crates/gix-transport/0.59.2/download"],
+    name = "gix-transport-0.62.0.crate",
+    sha256 = "cdcd9cdfd8745aa38f926a4a380c13d76b200d7338de57fc492982cd5a6652ba",
+    strip_prefix = "gix-transport-0.62.0",
+    urls = ["https://static.crates.io/crates/gix-transport/0.62.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-transport-0.59",
-    srcs = [":gix-transport-0.59.2.crate"],
+    name = "gix-transport-0.62",
+    srcs = [":gix-transport-0.62.0.crate"],
     crate = "gix_transport",
-    crate_root = "gix-transport-0.59.2.crate/src/lib.rs",
+    crate_root = "gix-transport-0.62.0.crate/src/lib.rs",
     edition = "2024",
     env = {
         "CARGO_BIN_NAME": "gix_transport",
         "CARGO_CRATE_NAME": "gix_transport",
-        "CARGO_MANIFEST_DIR": "gix-transport-0.59.2.crate",
+        "CARGO_MANIFEST_DIR": "gix-transport-0.62.0.crate",
         "CARGO_PKG_AUTHORS": "Sebastian Thiel <sebastian.thiel@icloud.com>",
         "CARGO_PKG_DESCRIPTION": "A crate of the gitoxide project dedicated to implementing the git transport layer",
         "CARGO_PKG_HOMEPAGE": "",
         "CARGO_PKG_NAME": "gix-transport",
         "CARGO_PKG_README": "",
         "CARGO_PKG_REPOSITORY": "https://github.com/GitoxideLabs/gitoxide",
-        "CARGO_PKG_RUST_VERSION": "1.85",
-        "CARGO_PKG_VERSION": "0.59.2",
+        "CARGO_PKG_RUST_VERSION": "1.88",
+        "CARGO_PKG_VERSION": "0.62.0",
         "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "59",
-        "CARGO_PKG_VERSION_PATCH": "2",
+        "CARGO_PKG_VERSION_MINOR": "62",
+        "CARGO_PKG_VERSION_PATCH": "0",
         "CARGO_PKG_VERSION_PRE": "",
     },
     features = [
@@ -12963,7 +13132,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "gix-transport",
-            "version": "0.59.2",
+            "version": "0.62.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
@@ -12971,250 +13140,274 @@ third_party_rust.rust_library(
     deps = [
         ":base64-0.22",
         ":bstr-1",
-        ":gix-command-0.10",
-        ":gix-credentials-0.40",
-        ":gix-features-0.49",
-        ":gix-packetline-0.22",
-        ":gix-path-0.12",
-        ":gix-quote-0.8",
-        ":gix-sec-0.14",
-        ":gix-url-0.38",
+        ":gix-command-0.12",
+        ":gix-credentials-0.42",
+        ":gix-error-0.5",
+        ":gix-packetline-0.24",
+        ":gix-path-0.14",
+        ":gix-quote-0.10",
+        ":gix-sec-0.16",
+        ":gix-trace-0.3",
+        ":gix-url-0.40",
+        ":gix-utils-0.5",
         ":parking_lot-0.12",
         ":reqwest-0.13",
-        ":thiserror-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-traverse-0.61.0.crate",
-    sha256 = "9af3503668739f4de5dba57fe15cfd9adc443b08bcbbf195e5de16b648872245",
-    strip_prefix = "gix-traverse-0.61.0",
-    urls = ["https://static.crates.io/crates/gix-traverse/0.61.0/download"],
+    name = "gix-traverse-0.64.0.crate",
+    sha256 = "00171e00e91508300d0361072c4eb110ec0f1322d8b95ed36887231702a38ebc",
+    strip_prefix = "gix-traverse-0.64.0",
+    urls = ["https://static.crates.io/crates/gix-traverse/0.64.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-traverse-0.61",
-    srcs = [":gix-traverse-0.61.0.crate"],
+    name = "gix-traverse-0.64",
+    srcs = [":gix-traverse-0.64.0.crate"],
     crate = "gix_traverse",
-    crate_root = "gix-traverse-0.61.0.crate/src/lib.rs",
+    crate_root = "gix-traverse-0.64.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-traverse",
-            "version": "0.61.0",
+            "version": "0.64.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bitflags-2",
-        ":gix-commitgraph-0.39",
-        ":gix-date-0.16",
-        ":gix-hash-0.26",
-        ":gix-hashtable-0.16",
-        ":gix-object-0.64",
-        ":gix-revwalk-0.35",
+        ":gix-commitgraph-0.42",
+        ":gix-date-0.18",
+        ":gix-error-0.5",
+        ":gix-hash-0.28",
+        ":gix-hashtable-0.18",
+        ":gix-object-0.66",
+        ":gix-revwalk-0.38",
         ":smallvec-1",
-        ":thiserror-2",
     ],
 )
 
 shims.http_archive(
-    name = "gix-url-0.38.0.crate",
-    sha256 = "5bda80ccb4bc81fb9fb07a975916eb0c7a889bcbcb0c8a239c3f82a9cc2abdda",
-    strip_prefix = "gix-url-0.38.0",
-    urls = ["https://static.crates.io/crates/gix-url/0.38.0/download"],
+    name = "gix-url-0.40.1.crate",
+    sha256 = "def12e1016b872f1094442882f627905c59bd73480435291a4958cf373a8f28d",
+    strip_prefix = "gix-url-0.40.1",
+    urls = ["https://static.crates.io/crates/gix-url/0.40.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-url-0.38",
-    srcs = [":gix-url-0.38.0.crate"],
+    name = "gix-url-0.40",
+    srcs = [":gix-url-0.40.1.crate"],
     crate = "gix_url",
-    crate_root = "gix-url-0.38.0.crate/src/lib.rs",
+    crate_root = "gix-url-0.40.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-url",
-            "version": "0.38.0",
+            "version": "0.40.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-path-0.12",
-        ":gix-utils-0.3",
+        ":gix-error-0.5",
+        ":gix-path-0.14",
+        ":gix-utils-0.5",
         ":percent-encoding-2",
-        ":thiserror-2",
     ],
 )
 
+shims.alias(
+    name = "gix-utils",
+    actual = ":gix-utils-0.5",
+    visibility = ["PUBLIC"],
+)
+
 shims.http_archive(
-    name = "gix-utils-0.3.6.crate",
-    sha256 = "0da1c46491b49458a446cc76f0085860f8164c2290742e0aa8c653ce67240a97",
-    strip_prefix = "gix-utils-0.3.6",
-    urls = ["https://static.crates.io/crates/gix-utils/0.3.6/download"],
+    name = "gix-utils-0.5.2.crate",
+    sha256 = "11a9446060447e9ec58f5d333b98bed53389dfa10de5d8dd46fc76d01dfc2954",
+    strip_prefix = "gix-utils-0.5.2",
+    urls = ["https://static.crates.io/crates/gix-utils/0.5.2/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-utils-0.3",
-    srcs = [":gix-utils-0.3.6.crate"],
+    name = "gix-utils-0.5",
+    srcs = [":gix-utils-0.5.2.crate"],
     crate = "gix_utils",
-    crate_root = "gix-utils-0.3.6.crate/src/lib.rs",
+    crate_root = "gix-utils-0.5.2.crate/src/lib.rs",
     edition = "2024",
-    features = ["bstr"],
+    features = [
+        "bstr",
+        "interrupt",
+        "io-pipe",
+        "progress",
+    ],
     metadata = {
         "third-party.metadata": {
             "name": "gix-utils",
-            "version": "0.3.6",
+            "version": "0.5.2",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
+        ":bytes-1",
         ":fastrand-2",
         ":getrandom-0.4",
+        ":gix-error-0.5",
+        ":prodash-31",
         ":unicode-normalization-0.1",
     ],
 )
 
 shims.http_archive(
-    name = "gix-validate-0.11.4.crate",
-    sha256 = "4dae8780f63ed8a803b8bdabbd7aa5f5c5d74592c8b50eed875c1bb4f6545a6a",
-    strip_prefix = "gix-validate-0.11.4",
-    urls = ["https://static.crates.io/crates/gix-validate/0.11.4/download"],
+    name = "gix-validate-0.13.1.crate",
+    sha256 = "02b617c17754bf37ee7a9b48e33ffb806abecbbed779ba415199ac1480acf699",
+    strip_prefix = "gix-validate-0.13.1",
+    urls = ["https://static.crates.io/crates/gix-validate/0.13.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-validate-0.11",
-    srcs = [":gix-validate-0.11.4.crate"],
+    name = "gix-validate-0.13",
+    srcs = [":gix-validate-0.13.1.crate"],
     crate = "gix_validate",
-    crate_root = "gix-validate-0.11.4.crate/src/lib.rs",
+    crate_root = "gix-validate-0.13.1.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-validate",
-            "version": "0.11.4",
+            "version": "0.13.1",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
-    deps = [":bstr-1"],
+    deps = [
+        ":bstr-1",
+        ":gix-error-0.5",
+    ],
 )
 
 shims.http_archive(
-    name = "gix-worktree-0.56.0.crate",
-    sha256 = "3ed36b627476e2072c129900a17c977a38052b5497e27308159bc881fbf4eecf",
-    strip_prefix = "gix-worktree-0.56.0",
-    urls = ["https://static.crates.io/crates/gix-worktree/0.56.0/download"],
+    name = "gix-worktree-0.59.0.crate",
+    sha256 = "fe92aec0a25cf073394492a6ee2aa4d27632acde91a653d34de0e4da6afb485d",
+    strip_prefix = "gix-worktree-0.59.0",
+    urls = ["https://static.crates.io/crates/gix-worktree/0.59.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-worktree-0.56",
-    srcs = [":gix-worktree-0.56.0.crate"],
+    name = "gix-worktree-0.59",
+    srcs = [":gix-worktree-0.59.0.crate"],
     crate = "gix_worktree",
-    crate_root = "gix-worktree-0.56.0.crate/src/lib.rs",
+    crate_root = "gix-worktree-0.59.0.crate/src/lib.rs",
     edition = "2024",
     features = [
+        "add",
         "attributes",
-        "gix-features",
-        "parallel",
+        "gix-utils",
+        "remove",
     ],
     metadata = {
         "third-party.metadata": {
             "name": "gix-worktree",
-            "version": "0.56.0",
+            "version": "0.59.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-attributes-0.35",
-        ":gix-features-0.49",
-        ":gix-fs-0.22",
-        ":gix-glob-0.27",
-        ":gix-hash-0.26",
-        ":gix-ignore-0.22",
-        ":gix-index-0.55",
-        ":gix-object-0.64",
-        ":gix-path-0.12",
-        ":gix-validate-0.11",
+        ":dua-core-4",
+        ":gix-attributes-0.37",
+        ":gix-error-0.5",
+        ":gix-fs-0.24",
+        ":gix-glob-0.29",
+        ":gix-hash-0.28",
+        ":gix-ignore-0.24",
+        ":gix-index-0.58",
+        ":gix-object-0.66",
+        ":gix-path-0.14",
+        ":gix-trace-0.3",
+        ":gix-utils-0.5",
+        ":gix-validate-0.13",
     ],
 )
 
 shims.http_archive(
-    name = "gix-worktree-state-0.34.1.crate",
-    sha256 = "4c14faa5b9527823c656a033e841dde11ca5b774f1bca7a9cdc23db677e55d56",
-    strip_prefix = "gix-worktree-state-0.34.1",
-    urls = ["https://static.crates.io/crates/gix-worktree-state/0.34.1/download"],
+    name = "gix-worktree-state-0.37.0.crate",
+    sha256 = "18abf655ef8b8467657ac64b337171a9f4612ca6a421858a765857584beec9e8",
+    strip_prefix = "gix-worktree-state-0.37.0",
+    urls = ["https://static.crates.io/crates/gix-worktree-state/0.37.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-worktree-state-0.34",
-    srcs = [":gix-worktree-state-0.34.1.crate"],
+    name = "gix-worktree-state-0.37",
+    srcs = [":gix-worktree-state-0.37.0.crate"],
     crate = "gix_worktree_state",
-    crate_root = "gix-worktree-state-0.34.1.crate/src/lib.rs",
+    crate_root = "gix-worktree-state-0.37.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-worktree-state",
-            "version": "0.34.1",
+            "version": "0.37.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
         ":bstr-1",
-        ":gix-features-0.49",
-        ":gix-filter-0.34",
-        ":gix-fs-0.22",
-        ":gix-index-0.55",
-        ":gix-object-0.64",
-        ":gix-path-0.12",
-        ":gix-worktree-0.56",
+        ":gix-error-0.5",
+        ":gix-filter-0.36",
+        ":gix-fs-0.24",
+        ":gix-index-0.58",
+        ":gix-object-0.66",
+        ":gix-parallel-0.50",
+        ":gix-path-0.14",
+        ":gix-trace-0.3",
+        ":gix-utils-0.5",
+        ":gix-worktree-0.59",
         ":io-close-0.3",
-        ":thiserror-2",
     ],
 )
 
 shims.alias(
     name = "gix-zlib",
-    actual = ":gix-zlib-0.1",
+    actual = ":gix-zlib-0.4",
     visibility = ["PUBLIC"],
 )
 
 shims.http_archive(
-    name = "gix-zlib-0.1.0.crate",
-    sha256 = "3e8813f5579b3075ff9c90f7c59cd2b62b4ebb639361f0911648b22d7446cc7c",
-    strip_prefix = "gix-zlib-0.1.0",
-    urls = ["https://static.crates.io/crates/gix-zlib/0.1.0/download"],
+    name = "gix-zlib-0.4.0.crate",
+    sha256 = "7c5b29808570149d86f417184605111ede9dda5aa06015e9ea6da07f0c3ca41e",
+    strip_prefix = "gix-zlib-0.4.0",
+    urls = ["https://static.crates.io/crates/gix-zlib/0.4.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "gix-zlib-0.1",
-    srcs = [":gix-zlib-0.1.0.crate"],
+    name = "gix-zlib-0.4",
+    srcs = [":gix-zlib-0.4.0.crate"],
     crate = "gix_zlib",
-    crate_root = "gix-zlib-0.1.0.crate/src/lib.rs",
+    crate_root = "gix-zlib-0.4.0.crate/src/lib.rs",
     edition = "2024",
     metadata = {
         "third-party.metadata": {
             "name": "gix-zlib",
-            "version": "0.1.0",
+            "version": "0.4.0",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],
     deps = [
-        ":thiserror-2",
+        ":gix-error-0.5",
         ":zlib-rs-0.6",
     ],
 )
@@ -15485,8 +15678,8 @@ third_party_rust.rust_library(
     crate_root = "interim-0.2.1.crate/src/lib.rs",
     edition = "2021",
     features = [
-        "chrono_0_4",
         "default",
+        "jiff_0_2",
         "std",
     ],
     metadata = {
@@ -15496,11 +15689,11 @@ third_party_rust.rust_library(
             "licenses": ["MIT"],
         },
     },
+    named_deps = {
+        "jiff_0_2": ":jiff-0.2",
+    },
     visibility = [],
-    deps = [
-        ":chrono-0.4",
-        ":logos-0.15",
-    ],
+    deps = [":logos-0.15"],
 )
 
 shims.http_archive(
@@ -17018,6 +17211,7 @@ third_party_rust.rust_library(
         "alloc",
         "default",
         "perf-inline",
+        "serde",
         "std",
         "tz-fat",
         "tz-system",
@@ -17050,6 +17244,7 @@ third_party_rust.rust_library(
         ),
     },
     visibility = [],
+    deps = [":serde_core-1"],
 )
 
 shims.http_archive(
@@ -17132,12 +17327,12 @@ third_party_rust.rust_library(
 
 shims.alias(
     name = "jj-cli",
-    actual = ":jj-cli-0.45",
+    actual = ":jj-cli-0.47",
     visibility = ["PUBLIC"],
 )
 
 third_party_rust.rust_library(
-    name = "jj-cli-0.45",
+    name = "jj-cli-0.47",
     srcs = [":jj-5d9a3f8a30f872ad.git"],
     crate = "jj_cli",
     crate_root = "jj-5d9a3f8a30f872ad/cli/src/lib.rs",
@@ -17145,7 +17340,7 @@ third_party_rust.rust_library(
     env = {
         "CARGO_MANIFEST_DIR": "jj-5d9a3f8a30f872ad/cli",
         "JJ_DOCS_DIR": "docs/",
-        "JJ_VERSION": "0.45.1",
+        "JJ_VERSION": "0.47.1",
     },
     features = [
         "default",
@@ -17156,7 +17351,7 @@ third_party_rust.rust_library(
         "third-party.metadata": {
             "name": "jj-cli",
             "namespace": "martinvonz",
-            "version": "0.45.1",
+            "version": "0.47.1",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -17190,7 +17385,6 @@ third_party_rust.rust_library(
     deps = [
         ":ansi-to-tui-8",
         ":bstr-1",
-        ":chrono-0.4",
         ":clap-4",
         ":clap-markdown-0.1",
         ":clap_complete-4",
@@ -17202,24 +17396,25 @@ third_party_rust.rust_library(
         ":erased-serde-0.4",
         ":etcetera-0.11",
         ":futures-0.3",
-        ":gix-0.87",
+        ":gix-0.90",
         ":globset-0.4",
         ":indexmap-2",
         ":indoc-2",
         ":itertools-0.15",
-        ":jj-lib-0.45",
+        ":jiff-0.2",
+        ":jj-frontend-0.47",
+        ":jj-lib-0.47",
         ":maplit-1",
         ":once_cell-1",
         ":percent-encoding-2",
         ":pest-2",
-        ":pest_derive-2",
         ":pollster-1",
         ":rand-0.10",
         ":rand_chacha-0.10",
         ":ratatui-0.30",
         ":regex-1",
         ":rpassword-7",
-        ":sapling-renderdag-0.1",
+        ":sapling-renderdag-0.2",
         ":sapling-streampager-0.12",
         ":scm-record-0.10",
         ":serde-1",
@@ -17242,7 +17437,7 @@ third_party_rust.rust_library(
 )
 
 third_party_rust.rust_library(
-    name = "jj-core-0.45",
+    name = "jj-core-0.47",
     srcs = [":jj-5d9a3f8a30f872ad.git"],
     crate = "jj_core",
     crate_root = "jj-5d9a3f8a30f872ad/core/src/lib.rs",
@@ -17251,49 +17446,38 @@ third_party_rust.rust_library(
         "third-party.metadata": {
             "name": "jj-core",
             "namespace": "martinvonz",
-            "version": "0.45.1",
+            "version": "0.47.1",
             "licenses": ["Apache-2.0"],
         },
     },
-    platform = {
-        "windows-gnu": dict(
-            deps = [
-                ":same-file-1",
-                ":winreg-0.56",
-            ],
-        ),
-        "windows-msvc": dict(
-            deps = [
-                ":same-file-1",
-                ":winreg-0.56",
-            ],
-        ),
-    },
     visibility = [],
     deps = [
-        ":blake2-0.10",
+        ":async-trait-0.1",
+        ":blake2-0.11",
         ":bstr-1",
-        ":digest-0.10",
+        ":clru-0.6",
+        ":digest-0.11",
         ":either-1",
-        ":etcetera-0.11",
         ":futures-0.3",
         ":globset-0.4",
         ":hashbrown-0.17",
         ":indexmap-2",
+        ":interim-0.2",
         ":itertools-0.15",
-        ":jj-core-proc-macros-0.45",
+        ":jiff-0.2",
+        ":jj-core-proc-macros-0.47",
+        ":pollster-1",
         ":ref-cast-1",
         ":regex-1",
         ":serde-1",
         ":smallvec-1",
-        ":tempfile-3",
         ":thiserror-2",
         ":tracing-0.1",
     ],
 )
 
 third_party_rust.rust_library(
-    name = "jj-core-proc-macros-0.45",
+    name = "jj-core-proc-macros-0.47",
     srcs = [":jj-5d9a3f8a30f872ad.git"],
     crate = "jj_core_proc_macros",
     crate_root = "jj-5d9a3f8a30f872ad/core/proc-macros/src/lib.rs",
@@ -17302,7 +17486,7 @@ third_party_rust.rust_library(
         "third-party.metadata": {
             "name": "jj-core-proc-macros",
             "namespace": "martinvonz",
-            "version": "0.45.1",
+            "version": "0.47.1",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -17315,14 +17499,139 @@ third_party_rust.rust_library(
     ],
 )
 
+third_party_rust.rust_library(
+    name = "jj-default-index-0.47",
+    srcs = [":jj-5d9a3f8a30f872ad.git"],
+    crate = "jj_default_index",
+    crate_root = "jj-5d9a3f8a30f872ad/default-index/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "jj-default-index",
+            "namespace": "martinvonz",
+            "version": "0.47.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":async-trait-0.1",
+        ":blake2-0.11",
+        ":bstr-1",
+        ":digest-0.11",
+        ":either-1",
+        ":futures-0.3",
+        ":itertools-0.15",
+        ":jj-core-0.47",
+        ":jj-local-util-0.47",
+        ":maplit-1",
+        ":pollster-1",
+        ":prost-0.14",
+        ":ref-cast-1",
+        ":smallvec-1",
+        ":tempfile-3",
+        ":thiserror-2",
+        ":tracing-0.1",
+    ],
+)
+
+third_party_rust.rust_library(
+    name = "jj-dsl-0.47",
+    srcs = [":jj-5d9a3f8a30f872ad.git"],
+    crate = "jj_dsl",
+    crate_root = "jj-5d9a3f8a30f872ad/dsl/src/lib.rs",
+    edition = "2024",
+    env = {
+        "CARGO_MANIFEST_DIR": "jj-5d9a3f8a30f872ad/dsl",
+    },
+    metadata = {
+        "third-party.metadata": {
+            "name": "jj-dsl",
+            "namespace": "martinvonz",
+            "version": "0.47.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":itertools-0.15",
+        ":jj-core-0.47",
+        ":pest-2",
+        ":pest_derive-2",
+        ":strsim-0.11",
+        ":thiserror-2",
+    ],
+)
+
+third_party_rust.rust_library(
+    name = "jj-frontend-0.47",
+    srcs = [":jj-5d9a3f8a30f872ad.git"],
+    crate = "jj_frontend",
+    crate_root = "jj-5d9a3f8a30f872ad/frontend/src/lib.rs",
+    edition = "2024",
+    features = [
+        "default",
+        "git",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "jj-frontend",
+            "namespace": "martinvonz",
+            "version": "0.47.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":jiff-0.2",
+        ":jj-lib-0.47",
+        ":thiserror-2",
+        ":tracing-0.1",
+    ],
+)
+
+third_party_rust.rust_library(
+    name = "jj-git-backend-0.47",
+    srcs = [":jj-5d9a3f8a30f872ad.git"],
+    crate = "jj_git_backend",
+    crate_root = "jj-5d9a3f8a30f872ad/git-backend/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "jj-git-backend",
+            "namespace": "martinvonz",
+            "version": "0.47.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":async-trait-0.1",
+        ":blake2-0.11",
+        ":dunce-1",
+        ":futures-0.3",
+        ":gix-0.90",
+        ":itertools-0.15",
+        ":jj-core-0.47",
+        ":jj-local-util-0.47",
+        ":once_cell-1",
+        ":pollster-1",
+        ":prost-0.14",
+        ":smallvec-1",
+        ":tempfile-3",
+        ":thiserror-2",
+        ":tracing-0.1",
+    ],
+)
+
 shims.alias(
     name = "jj-lib",
-    actual = ":jj-lib-0.45",
+    actual = ":jj-lib-0.47",
     visibility = ["PUBLIC"],
 )
 
 third_party_rust.rust_library(
-    name = "jj-lib-0.45",
+    name = "jj-lib-0.47",
     srcs = [":jj-5d9a3f8a30f872ad.git"],
     crate = "jj_lib",
     crate_root = "jj-5d9a3f8a30f872ad/lib/src/lib.rs",
@@ -17339,7 +17648,62 @@ third_party_rust.rust_library(
         "third-party.metadata": {
             "name": "jj-lib",
             "namespace": "martinvonz",
-            "version": "0.45.1",
+            "version": "0.47.1",
+            "licenses": ["Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":async-trait-0.1",
+        ":blake2-0.11",
+        ":bstr-1",
+        ":digest-0.11",
+        ":dunce-1",
+        ":either-1",
+        ":futures-0.3",
+        ":gix-0.90",
+        ":gix-ignore-0.24",
+        ":globset-0.4",
+        ":indexmap-2",
+        ":itertools-0.15",
+        ":jiff-0.2",
+        ":jj-core-0.47",
+        ":jj-default-index-0.47",
+        ":jj-dsl-0.47",
+        ":jj-git-backend-0.47",
+        ":jj-local-util-0.47",
+        ":maplit-1",
+        ":memchr-2",
+        ":once_cell-1",
+        ":pollster-1",
+        ":prost-0.14",
+        ":rand-0.10",
+        ":rand_chacha-0.10",
+        ":rayon-1",
+        ":ref-cast-1",
+        ":regex-1",
+        ":serde-1",
+        ":smallvec-1",
+        ":tempfile-3",
+        ":thiserror-2",
+        ":tokio-1",
+        ":toml_edit-0.25",
+        ":tracing-0.1",
+        ":watchman_client-0.9",
+    ],
+)
+
+third_party_rust.rust_library(
+    name = "jj-local-util-0.47",
+    srcs = [":jj-5d9a3f8a30f872ad.git"],
+    crate = "jj_local_util",
+    crate_root = "jj-5d9a3f8a30f872ad/local-util/src/lib.rs",
+    edition = "2024",
+    metadata = {
+        "third-party.metadata": {
+            "name": "jj-local-util",
+            "namespace": "martinvonz",
+            "version": "0.47.1",
             "licenses": ["Apache-2.0"],
         },
     },
@@ -17356,47 +17720,31 @@ third_party_rust.rust_library(
         "macos-x86_64": dict(
             deps = [":rustix-1"],
         ),
+        "windows-gnu": dict(
+            deps = [
+                ":same-file-1",
+                ":windows-sys-0.61",
+                ":winreg-0.56",
+            ],
+        ),
+        "windows-msvc": dict(
+            deps = [
+                ":same-file-1",
+                ":windows-sys-0.61",
+                ":winreg-0.56",
+            ],
+        ),
     },
     visibility = [],
     deps = [
-        ":async-trait-0.1",
-        ":blake2-0.10",
-        ":bstr-1",
-        ":chrono-0.4",
-        ":clru-0.6",
-        ":digest-0.10",
-        ":dunce-1",
-        ":either-1",
-        ":etcetera-0.11",
+        ":blake2-0.11",
         ":futures-0.3",
-        ":gix-0.87",
-        ":gix-ignore-0.22",
-        ":globset-0.4",
-        ":indexmap-2",
-        ":interim-0.2",
         ":itertools-0.15",
-        ":jj-core-0.45",
-        ":maplit-1",
-        ":memchr-2",
-        ":once_cell-1",
-        ":pest-2",
-        ":pest_derive-2",
-        ":pollster-1",
-        ":prost-0.14",
+        ":jj-core-0.47",
         ":rand-0.10",
-        ":rand_chacha-0.10",
-        ":rayon-1",
-        ":ref-cast-1",
-        ":regex-1",
-        ":serde-1",
-        ":smallvec-1",
-        ":strsim-0.11",
         ":tempfile-3",
         ":thiserror-2",
-        ":tokio-1",
-        ":toml_edit-0.25",
         ":tracing-0.1",
-        ":watchman_client-0.9",
     ],
 )
 
@@ -25445,19 +25793,19 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "prodash-31.0.0.crate",
-    sha256 = "962200e2d7d551451297d9fdce85138374019ada198e30ea9ede38034e27604c",
-    strip_prefix = "prodash-31.0.0",
-    urls = ["https://static.crates.io/crates/prodash/31.0.0/download"],
+    name = "prodash-31.0.1.crate",
+    sha256 = "cf52d87428247c5aa3760ac8e7d8b13ec7b3579b955a8c3f311668b6860acba5",
+    strip_prefix = "prodash-31.0.1",
+    urls = ["https://static.crates.io/crates/prodash/31.0.1/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "prodash-31",
-    srcs = [":prodash-31.0.0.crate"],
+    srcs = [":prodash-31.0.1.crate"],
     crate = "prodash",
-    crate_root = "prodash-31.0.0.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "prodash-31.0.1.crate/src/lib.rs",
+    edition = "2024",
     features = [
         "default",
         "parking_lot",
@@ -25466,7 +25814,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "prodash",
-            "version": "31.0.0",
+            "version": "31.0.1",
             "licenses": ["MIT"],
         },
     },
@@ -28484,24 +28832,24 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "sapling-renderdag-0.1.0.crate",
-    sha256 = "edffb89cab87bd0901c5749d576f5d37a1f34e05160e936f463f4e94cc447b61",
-    strip_prefix = "sapling-renderdag-0.1.0",
-    urls = ["https://static.crates.io/crates/sapling-renderdag/0.1.0/download"],
+    name = "sapling-renderdag-0.2.0.crate",
+    sha256 = "32f8bbb5761950b84f34b4aadad6a4a7b38f2e752ee80ff606d4fb0a98812406",
+    strip_prefix = "sapling-renderdag-0.2.0",
+    urls = ["https://static.crates.io/crates/sapling-renderdag/0.2.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
-    name = "sapling-renderdag-0.1",
-    srcs = [":sapling-renderdag-0.1.0.crate"],
+    name = "sapling-renderdag-0.2",
+    srcs = [":sapling-renderdag-0.2.0.crate"],
     crate = "renderdag",
-    crate_root = "sapling-renderdag-0.1.0.crate/src/lib.rs",
-    edition = "2021",
+    crate_root = "sapling-renderdag-0.2.0.crate/src/lib.rs",
+    edition = "2024",
     features = ["default"],
     metadata = {
         "third-party.metadata": {
             "name": "sapling-renderdag",
-            "version": "0.1.0",
+            "version": "0.2.0",
             "licenses": ["MIT"],
         },
     },
@@ -29608,36 +29956,6 @@ third_party_rust.rust_library(
     ],
 )
 
-shims.http_archive(
-    name = "sha1-0.10.7.crate",
-    sha256 = "a978451301f4db1d02937a4ab3ccce137717b81826e79b7d49ffe3244a13c3b8",
-    strip_prefix = "sha1-0.10.7",
-    urls = ["https://static.crates.io/crates/sha1/0.10.7/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "sha1-0.10",
-    srcs = [":sha1-0.10.7.crate"],
-    crate = "sha1",
-    crate_root = "sha1-0.10.7.crate/src/lib.rs",
-    edition = "2018",
-    features = ["compress"],
-    metadata = {
-        "third-party.metadata": {
-            "name": "sha1",
-            "version": "0.10.7",
-            "licenses": ["MIT OR Apache-2.0"],
-        },
-    },
-    visibility = [],
-    deps = [
-        ":cfg-if-1",
-        ":cpufeatures-0.2",
-        ":digest-0.10",
-    ],
-)
-
 shims.alias(
     name = "sha1",
     actual = ":sha1-0.11",
@@ -29679,34 +29997,6 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
-    name = "sha1-checked-0.10.0.crate",
-    sha256 = "89f599ac0c323ebb1c6082821a54962b839832b03984598375bff3975b804423",
-    strip_prefix = "sha1-checked-0.10.0",
-    urls = ["https://static.crates.io/crates/sha1-checked/0.10.0/download"],
-    visibility = [],
-)
-
-third_party_rust.rust_library(
-    name = "sha1-checked-0.10",
-    srcs = [":sha1-checked-0.10.0.crate"],
-    crate = "sha1_checked",
-    crate_root = "sha1-checked-0.10.0.crate/src/lib.rs",
-    edition = "2021",
-    metadata = {
-        "third-party.metadata": {
-            "name": "sha1-checked",
-            "version": "0.10.0",
-            "licenses": ["MIT OR Apache-2.0"],
-        },
-    },
-    visibility = [],
-    deps = [
-        ":digest-0.10",
-        ":sha1-0.10",
-    ],
-)
-
-shims.http_archive(
     name = "sha1_smol-1.0.1.crate",
     sha256 = "bbfa15b3dddfee50a0fff136974b3e1bde555604ba463834a7eb7deb6417705d",
     strip_prefix = "sha1_smol-1.0.1",
@@ -29725,6 +30015,31 @@ third_party_rust.rust_library(
             "name": "sha1_smol",
             "version": "1.0.1",
             "licenses": ["BSD-3-Clause"],
+        },
+    },
+    visibility = [],
+)
+
+shims.http_archive(
+    name = "sha1dc-0.1.5.crate",
+    sha256 = "c5b0ebf6537e3e8db8bb7d21ecb6d7399738c953c757945c6b95e46c4e95df7b",
+    strip_prefix = "sha1dc-0.1.5",
+    urls = ["https://static.crates.io/crates/sha1dc/0.1.5/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "sha1dc-0.1",
+    srcs = [":sha1dc-0.1.5.crate"],
+    crate = "sha1dc",
+    crate_root = "sha1dc-0.1.5.crate/src/lib.rs",
+    edition = "2024",
+    features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "sha1dc",
+            "version": "0.1.5",
+            "licenses": ["MIT OR Apache-2.0"],
         },
     },
     visibility = [],

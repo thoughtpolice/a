@@ -84,12 +84,13 @@ glob = "0.3"
 # NOTE (aseipp): version and features must stay in lockstep with jj-lib's gix
 # requirement, or the whole gix crate stack gets duplicated in the build graph.
 # `zlib-rs` is gone as of gix 0.87; gix picks its own zlib backend now.
-gix = { version = "0.87.1", default-features = false, features = [
+# `max-performance-safe` went in 0.90; jj-lib asks for `max-performance`.
+gix = { version = "0.90.0", default-features = false, features = [
     "attributes",
     "blob-diff",
     "blocking-http-transport-reqwest-native-tls",
     "index",
-    "max-performance-safe",
+    "max-performance",
     "sha1",
     "sha256",
     "worktree-mutation",
@@ -97,15 +98,19 @@ gix = { version = "0.87.1", default-features = false, features = [
 # Pack indexing and object access for the cache-server's git fetcher, pinned
 # to the versions gix (above) resolves so they stay one crate stack.
 # `streaming-input` adds pack-stream indexing; it pulls in nothing new.
-gix-features = "=0.49.1"
-gix-hash = "=0.26.2"
-gix-object = { version = "=0.64.1", default-features = false, features = ["sha1"] }
-gix-pack = { version = "=0.74.2", default-features = false, features = [
+# gix-error is the error type gix-pack reports since 0.77.
+gix-error = "=0.5.2"
+gix-hash = "=0.28.1"
+gix-object = { version = "=0.66.1", default-features = false, features = ["sha1"] }
+gix-pack = { version = "=0.77.0", default-features = false, features = [
     "pack-cache-lru-dynamic",
     "sha1",
     "streaming-input",
 ] }
-gix-zlib = "=0.1.0"
+gix-zlib = "=0.4.0"
+# Progress sinks for gix-pack (`progress::Discard`); they moved here from
+# gix-features, which gix stopped using in 0.90.
+gix-utils = { version = "=0.5.2", features = ["progress"] }
 hegeltest = { version = "0.52.0", features = ["static-engine"] }
 # Must match hegeltest's exact engine dependency.
 hegeltest-c = "=0.50.0"
@@ -285,9 +290,9 @@ dial9 = { git = "https://github.com/dial9-rs/dial9-tokio-telemetry", rev = "5bad
 ] }
 
 # NOTE (jj): adjust fixups.toml too — `JJ_VERSION` there must match the rev.
-# This rev is the `v0.45.1` tag.
-jj-lib = { git = "https://github.com/martinvonz/jj", rev = "7c41cdeb16b6b321c64e789a966b6adf723816a5" }
-jj-cli = { git = "https://github.com/martinvonz/jj", rev = "7c41cdeb16b6b321c64e789a966b6adf723816a5" }
+# This rev is the `v0.47.1` tag.
+jj-lib = { git = "https://github.com/martinvonz/jj", rev = "d16ee1fc88a72c54142241b079a34bbf3b033bc0" }
+jj-cli = { git = "https://github.com/martinvonz/jj", rev = "d16ee1fc88a72c54142241b079a34bbf3b033bc0" }
 
 # NOTE (starlark): 0.14.2 exists but neither form of it is usable yet. The
 # crates.io release hard-pins `blake3 = "=1.8.2"`, two patch releases behind

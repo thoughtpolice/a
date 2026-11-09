@@ -5,6 +5,6 @@ buildscript.run = false
 omit_deps = ["mimalloc"]
 
 [env]
-JJ_VERSION = "0.45.1"
+JJ_VERSION = "0.47.1"
 JJ_DOCS_DIR = "docs/"
 CARGO_MANIFEST_DIR = "jj-5d9a3f8a30f872ad/cli"
