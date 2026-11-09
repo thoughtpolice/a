@@ -32,6 +32,12 @@ EXTENSIONS = {
     "lisp": [],
     "markdown": [],
     "shell": [],
+    "tutor": [],
+}
+
+# Files beside an extension's source that it includes as it compiles.
+EXTENSION_DATA = {
+    "tutor": ["ext/tutor.md"],
 }
 
 EXTENSION_ORDER = [
@@ -41,6 +47,7 @@ EXTENSION_ORDER = [
     "markdown",
     "blake3",
     "codex",
+    "tutor",
 ]
 
 # MARK: Kernel
@@ -116,7 +123,7 @@ chez.library(
 [
     chez.library(
         name = "ext-" + ext,
-        srcs = ["ext/{}.sls".format(ext)],
+        srcs = ["ext/{}.sls".format(ext)] + EXTENSION_DATA.get(ext, []),
         prefix = "quad",
         deps = [":core"] + extra,
     )
@@ -203,6 +210,7 @@ shims.filegroup(
         "clients",
         "native",
         "json",
+        "tutor",
     ]
 ]
 
@@ -251,6 +259,9 @@ shims.command_test(
         test "`$quad --eval '(and (find-command (quote shout)) #t)'`" = '#t'
         # Unless -q says not to.
         test "`$quad -q --eval '(get-var (quote scroll-margin))'`" = 3
+        # The tutor is built in, with its lessons.
+        $quad --help | grep -q -- --tutor
+        $quad -q --eval '(display tutor-text)' | grep -q '^# Lesson 10'
     """,
 )
 

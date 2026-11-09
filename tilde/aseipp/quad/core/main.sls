@@ -31,6 +31,7 @@
   --eval EXPR          evaluate EXPR (in that editor, with --connect), print
                        the result, exit
   --batch FILE         run FILE headless, as a script (tests use this)
+  --tutor              start with the tutor, which teaches the keys
   --repl               a Chez Scheme REPL with all of quad imported
   --build-exe OUT F..  write OUT: this editor, with the Scheme files F...
                        compiled in, as one standalone executable
@@ -58,7 +59,8 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
            (new-buffer! "*scratch*"
                         (string-append ";; Welcome to quad " quad-version ", an editor written in Chez Scheme.\n"
                                        ";; Keys are Ki's: space / lists them, space space runs a command by name,\n"
-                                       ";; and space e evaluates Scheme. Select a form with d, then space l e.\n\n"
+                                       ";; and space e evaluates Scheme. Select a form with d, then space l e.\n"
+                                       ";; New to them? space k h (or quad --tutor) teaches them.\n\n"
                                        "(message \"hello from ~a\" (scheme-version))\n")
                         (or (find-major-mode 'scheme) fundamental-mode))))))
 
@@ -74,13 +76,20 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
       (for-each remove-client! (clients))
       0))
 
-  ;; The editor with this terminal attached.
-  (define (interactive! files line init? listen)
+  ;; The editor with this terminal attached; with the tutor shown, if
+  ;; tutor? (and the editor has one).
+  (define (interactive! files line init? listen tutor?)
     (editor-init! files)
     (when init? (load-init-file! (init-file-path)))
     (when listen (server-listen! listen))
     (let ([c (tui-attach!)])
       (when line (with-client c (lambda () (run-command (lambda () (goto-line! line))))))
+      (when tutor?
+        (with-client c
+          (lambda ()
+            (if (find-command 'tutor)
+                (run-command 'tutor)
+                (message-error "This quad was built without its tutor")))))
       (serve!)))
 
   ;; The editor with no terminal, for clients to connect to.
@@ -279,6 +288,7 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
   ;; The command line
 
   (define (quad-main args)
+    (define tutor? #f)
     (let loop ([args args] [files '()] [line #f] [init? #t] [listen #f] [daemon? #f] [connect #f] [expr #f])
       ;; --opt, or --opt=PATH.
       (define (path-option opt)
@@ -299,12 +309,13 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
               0)]
            [connect (tui-connect! connect files line)]
            [daemon? (daemon! files init? (or listen (default-socket-path)))]
-           [else (interactive! files line init? listen)]))]
+           [else (interactive! files line init? listen tutor?)]))]
        [(member (car args) '("-h" "--help")) (display usage) 0]
        [(string=? (car args) "--version")
         (let-values ([(major minor patch) (scheme-version-number)])
           (printf "quad ~a (Chez Scheme ~a.~a.~a)\n" quad-version major minor patch))
         0]
+       [(string=? (car args) "--tutor") (set! tutor? #t) (loop (cdr args) files line init? listen daemon? connect expr)]
        [(member (car args) '("-q" "--no-init")) (loop (cdr args) files line #f listen daemon? connect expr)]
        [(path-option "--listen") => (lambda (p) (loop (cdr args) files line init? p daemon? connect expr))]
        [(string=? (car args) "--daemon") (loop (cdr args) files line init? listen #t connect expr)]

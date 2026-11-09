@@ -78,7 +78,9 @@ Older terminals get the xterm encodings; `QUAD_LEGACY_KEYS=1` forces them.
 ## Keys
 
 The bindings are Ki's on QWERTY. A *selection mode* says what the units of
-the text are; the same movements work in every mode.
+the text are; the same movements work in every mode. New to them? `quad
+--tutor` (or `space k h`) teaches them in about half an hour, vimtutor
+style: lessons, each with lines to practise on.
 
 | Keys | |
 | --- | --- |
@@ -210,7 +212,9 @@ target of its own; `EXTENSIONS` in `BUILD` picks the ones the editor is built
 with, and the generated program invokes each as the editor boots, which is
 when it registers its modes, commands and keys. The built-in ones are `lisp` (Scheme and other Lisps: s-expressions
 for the NODE mode, Lisp indentation), `c` (C-like languages), `shell`
-(`#`-commented languages), `markdown`, `blake3`, and `codex`, the agent.
+(`#`-commented languages), `markdown`, `blake3`, `codex`, the agent, and
+`tutor`, whose lessons are `ext/tutor.md`, compiled in (`EXTENSION_DATA`
+in `BUILD` gives an extension files to include as it compiles).
 
 ## Layout
 
