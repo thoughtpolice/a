@@ -9707,18 +9707,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "flate2-1.1.10.crate",
-    sha256 = "6e634e2e0ebac1ee034020da1ca582e17ffe4e0f5e985823721e168928136dcb",
-    strip_prefix = "flate2-1.1.10",
-    urls = ["https://static.crates.io/crates/flate2/1.1.10/download"],
+    name = "flate2-1.1.11.crate",
+    sha256 = "626d4928326b646e70f65ed36fc7cf9f206bdb68a0019ee7c6b4709da4e084c4",
+    strip_prefix = "flate2-1.1.11",
+    urls = ["https://static.crates.io/crates/flate2/1.1.11/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "flate2-1",
-    srcs = [":flate2-1.1.10.crate"],
+    srcs = [":flate2-1.1.11.crate"],
     crate = "flate2",
-    crate_root = "flate2-1.1.10.crate/src/lib.rs",
+    crate_root = "flate2-1.1.11.crate/src/lib.rs",
     edition = "2018",
     features = [
         "any_impl",
@@ -9732,7 +9732,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "flate2",
-            "version": "1.1.10",
+            "version": "1.1.11",
             "licenses": ["MIT OR Apache-2.0"],
         },
     },
