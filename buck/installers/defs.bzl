@@ -5,13 +5,19 @@
 
 def _installable_impl(ctx: AnalysisContext) -> list[Provider]:
     installer = ctx.attrs.installer
-    return [
-        DefaultInfo(),
+    providers = [
         InstallInfo(
             installer = installer,
             files = ctx.attrs.files,
         ),
     ]
+    main = ctx.attrs.main
+    if main == None:
+        return providers + [DefaultInfo()]
+    providers.append(main[DefaultInfo])
+    if RunInfo in main:
+        providers.append(main[RunInfo])
+    return providers
 
 installable = rule(
     impl = _installable_impl,
@@ -22,5 +28,10 @@ installable = rule(
             default = {},
         ),
         "installer": attrs.label(),
+        "main": attrs.option(
+            attrs.dep(),
+            default = None,
+            doc = "A target this one stands for otherwise: it builds its outputs and runs it, so that one name can be built, run and installed.",
+        ),
     },
 )
