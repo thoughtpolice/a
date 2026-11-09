@@ -109,12 +109,17 @@
   ;; (token-units kind buffer line) lists the units on a line, in order, as
   ;; (start end major?).
 
+  ;; A line's characters, each a grapheme cluster, and its newline.
   (define (char-units t line)
-    (let ([s (text-line-start t line)] [e (text-line-end t line)])
-      (let loop ([i (- (min (+ e 1) (text-length t)) 1)] [acc '()])
-        (if (< i s)
-            (if (and (null? acc) (= s (text-length t))) (list (list s s #t)) acc)
-            (loop (- i 1) (cons (list i (+ i 1) #t) acc))))))
+    (let* ([s (text-line-start t line)] [e (text-line-end t line)]
+           [end (min (+ e 1) (text-length t))] [ref (lambda (i) (text-ref t i))])
+      (if (and (= s end) (= s (text-length t)))
+          (list (list s s #t))
+          (let loop ([i s] [acc '()])
+            (if (>= i end)
+                (reverse acc)
+                (let ([j (if (= i e) (+ i 1) (grapheme-end ref i e))])
+                  (loop j (cons (list i j #t) acc))))))))
 
   (define (runs t s e classify)
     ;; Split [s, e) into maximal runs of the same class; class #f is skipped,

@@ -57,3 +57,9 @@
               (map (lambda (l) (text-line-start lt l)) (iota (text-line-count lt)))
               (let ([fresh (make-text (text->string lt))])
                 (map (lambda (l) (text-line-start fresh l)) (iota (text-line-count fresh)))))
+
+;; Columns, as terminals count them: emoji shown as pictures take two,
+;; their text-style neighbors one.
+(expect-equal "widths"
+              (map char-width (string->list "a界😀⚡✅🫠☀✔\x301;"))
+              '(1 2 2 2 2 2 1 1 0))

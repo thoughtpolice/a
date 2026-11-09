@@ -6,11 +6,11 @@
 //! snapshots, on a GPU or on a software renderer (Mesa's lavapipe).
 //!
 //! Vulkan 1.3 with no render passes, descriptor sets or vertex buffers:
-//! dynamic rendering, and two pipelines (kernel/gui.slang) whose push
+//! dynamic rendering, and three pipelines (kernel/gui.slang) whose push
 //! constants point at a frame's data by buffer device address. A frame
-//! ([`DrawList`]) is rectangles (backgrounds and the cursor), then glyphs
-//! (font.rs lays them out; slug.rs makes their curves), then more
-//! rectangles (underlines).
+//! ([`DrawList`]) is rectangles (backgrounds and the cursor), then images
+//! (image.rs), then glyphs (font.rs lays them out; slug.rs makes their
+//! curves), then more rectangles (underlines).
 //!
 //! Nothing links against Vulkan: ash loads the host's `libvulkan.so.1` when
 //! a renderer is made ([`ash::Entry::load`]). The host's driver loads into
@@ -18,9 +18,17 @@
 //! (`:quad-host`). `QUAD_GUI_DEVICE=NAME` picks the device whose name has
 //! NAME in it (`llvmpipe` for lavapipe); `QUAD_VULKAN_VALIDATION=1` turns
 //! on the Khronos validation layer, where it is installed.
+//!
+//! Loading Vulkan and making a device take most of the time a window takes
+//! to open (about 130 ms of 200, on NVIDIA's driver), so the device can be
+//! made ahead ([`prepare`]), on another thread, while the editor starts
+//! and the window is made. Pipelines take under a millisecond to make
+//! (drivers keep their own shader caches), so none is cached here.
 
 use std::ffi::{CStr, c_char};
 use std::rc::Rc;
+use std::sync::Mutex;
+use std::thread::JoinHandle;
 
 use ash::vk;
 use winit::dpi::PhysicalSize;
@@ -30,13 +38,17 @@ use winit::raw_window_handle::{
 use winit::window::Window;
 
 use crate::font::{GLYPH_BYTES, RECT_BYTES};
+use crate::image::PICTURE_BYTES;
 use crate::slug::Atlas;
+use crate::timing;
 
 /// The shaders, compiled by slangc (BUILD: `:gui.*.spv`).
 const RECT_VERTEX: &[u8] = include_bytes!("gui.rect.vert.spv");
 const RECT_FRAGMENT: &[u8] = include_bytes!("gui.rect.frag.spv");
 const GLYPH_VERTEX: &[u8] = include_bytes!("gui.glyph.vert.spv");
 const GLYPH_FRAGMENT: &[u8] = include_bytes!("gui.glyph.frag.spv");
+const IMAGE_VERTEX: &[u8] = include_bytes!("gui.image.vert.spv");
+const IMAGE_FRAGMENT: &[u8] = include_bytes!("gui.image.frag.spv");
 
 /// Frames the CPU may record while the GPU draws earlier ones.
 const FRAMES_IN_FLIGHT: usize = 2;
@@ -48,10 +60,15 @@ const ACQUIRE_TIMEOUT_NS: u64 = 50_000_000;
 /// they blend in linear light (see kernel/gui.slang).
 const HEADLESS_FORMAT: vk::Format = vk::Format::R8G8B8A8_SRGB;
 
-/// What a frame draws, in order: `rects`, then `glyphs`, then
-/// `decorations` (rectangles), from `atlas`'s curves.
+/// What a frame draws, in order: `rects`, then `pictures` (images, from
+/// `pixels`), then `glyphs`, then `decorations` (rectangles), from
+/// `atlas`'s curves.
 pub struct DrawList<'a> {
     pub rects: &'a [u8],
+    pub pictures: &'a [u8],
+    /// The pictures' pixels, and their generation: they are copied to the
+    /// GPU when it changes.
+    pub pixels: (&'a [u32], u64),
     pub glyphs: &'a [u8],
     pub decorations: &'a [u8],
     pub atlas: &'a Atlas,
@@ -70,6 +87,8 @@ struct Params {
     glyphs: vk::DeviceAddress,
     curves: vk::DeviceAddress,
     bands: vk::DeviceAddress,
+    pictures: vk::DeviceAddress,
+    pixels: vk::DeviceAddress,
     cell: [f32; 2],
     viewport: [f32; 2],
     origin: [f32; 2],
@@ -126,6 +145,10 @@ struct Buffers {
     bands: Option<HostBuffer>,
     /// The atlas generation `curves` and `bands` hold.
     atlas: Option<u64>,
+    pictures: Option<HostBuffer>,
+    pixels: Option<HostBuffer>,
+    /// The generation of the pixels `pixels` holds.
+    pixels_generation: Option<u64>,
 }
 
 /// A frame's commands, and the fence that says the GPU is done with them.
@@ -160,6 +183,9 @@ pub struct Gpu {
     layout: vk::PipelineLayout,
     rect_pipeline: vk::Pipeline,
     glyph_pipeline: vk::Pipeline,
+    image_pipeline: vk::Pipeline,
+    /// Whether presenting can say what changed (VK_KHR_incremental_present).
+    incremental_present: bool,
 }
 
 /// Loads Vulkan and makes an instance with `extensions`.
@@ -193,6 +219,7 @@ fn instance(extensions: &[&CStr]) -> Result<(ash::Entry, ash::Instance), String>
         )
     }
     .map_err(vk_error("creating an instance"))?;
+    timing::mark("vulkan loaded");
     Ok((entry, instance))
 }
 
@@ -207,10 +234,12 @@ impl Gpu {
         format: vk::Format,
         swapchain: bool,
     ) -> Result<Gpu, (ash::Instance, String)> {
-        let device = match unsafe { create_device(&instance, physical, family, swapchain) } {
-            Ok(device) => device,
-            Err(error) => return Err((instance, error)),
-        };
+        let (device, incremental_present) =
+            match unsafe { create_device(&instance, physical, family, swapchain) } {
+                Ok(made) => made,
+                Err(error) => return Err((instance, error)),
+            };
+        timing::mark("device made");
         let memory = unsafe { instance.get_physical_device_memory_properties(physical) };
         let queue = unsafe { device.get_device_queue(family, 0) };
         let mut gpu = Gpu {
@@ -225,6 +254,8 @@ impl Gpu {
             layout: vk::PipelineLayout::null(),
             rect_pipeline: vk::Pipeline::null(),
             glyph_pipeline: vk::Pipeline::null(),
+            image_pipeline: vk::Pipeline::null(),
+            incremental_present,
         };
         // From here on, Drop cleans up after a failure.
         match unsafe { gpu.pipelines() } {
@@ -240,6 +271,25 @@ impl Gpu {
         }
     }
 
+    /// Draws in `format` from now on: pipelines made again for it.
+    unsafe fn set_format(&mut self, format: vk::Format) -> Result<(), String> {
+        unsafe {
+            let _ = self.device.device_wait_idle();
+            for p in [self.rect_pipeline, self.glyph_pipeline, self.image_pipeline] {
+                if p != vk::Pipeline::null() {
+                    self.device.destroy_pipeline(p, None);
+                }
+            }
+            self.device.destroy_pipeline_layout(self.layout, None);
+        }
+        self.rect_pipeline = vk::Pipeline::null();
+        self.glyph_pipeline = vk::Pipeline::null();
+        self.image_pipeline = vk::Pipeline::null();
+        self.layout = vk::PipelineLayout::null();
+        self.format = format;
+        unsafe { self.pipelines() }
+    }
+
     unsafe fn pipelines(&mut self) -> Result<(), String> {
         let push = [vk::PushConstantRange::default()
             .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT)
@@ -253,6 +303,8 @@ impl Gpu {
         .map_err(vk_error("creating the pipeline layout"))?;
         self.rect_pipeline = unsafe { self.create_pipeline(RECT_VERTEX, RECT_FRAGMENT) }?;
         self.glyph_pipeline = unsafe { self.create_pipeline(GLYPH_VERTEX, GLYPH_FRAGMENT) }?;
+        self.image_pipeline = unsafe { self.create_pipeline(IMAGE_VERTEX, IMAGE_FRAGMENT) }?;
+        timing::mark("pipelines made");
         Ok(())
     }
 
@@ -391,9 +443,17 @@ impl Gpu {
     }
 
     unsafe fn destroy_buffers(&self, b: Buffers) {
-        for buffer in [b.rects, b.glyphs, b.decorations, b.curves, b.bands]
-            .into_iter()
-            .flatten()
+        for buffer in [
+            b.rects,
+            b.glyphs,
+            b.decorations,
+            b.curves,
+            b.bands,
+            b.pictures,
+            b.pixels,
+        ]
+        .into_iter()
+        .flatten()
         {
             unsafe { destroy_buffer(&self.device, buffer) };
         }
@@ -426,6 +486,13 @@ impl Gpu {
         }
         let curves = buffers.curves.as_ref().map_or(0, |b| b.address);
         let bands = buffers.bands.as_ref().map_or(0, |b| b.address);
+        let pictures = unsafe { write(d, m, &mut buffers.pictures, list.pictures) }?;
+        let (pixels, generation) = list.pixels;
+        if buffers.pixels_generation != Some(generation) || buffers.pixels.is_none() {
+            unsafe { write(d, m, &mut buffers.pixels, bytes_of(pixels)) }?;
+            buffers.pixels_generation = Some(generation);
+        }
+        let pixels = buffers.pixels.as_ref().map_or(0, |b| b.address);
 
         let c = commands.buffer;
         let extent = target.extent;
@@ -493,6 +560,11 @@ impl Gpu {
             let viewport = [extent.width as f32, extent.height as f32];
             let draws = [
                 (self.rect_pipeline, rects, list.rects.len() / RECT_BYTES),
+                (
+                    self.image_pipeline,
+                    pictures,
+                    list.pictures.len() / PICTURE_BYTES,
+                ),
                 (self.glyph_pipeline, glyphs, list.glyphs.len() / GLYPH_BYTES),
                 (
                     self.rect_pipeline,
@@ -507,12 +579,14 @@ impl Gpu {
                 d.cmd_bind_pipeline(c, vk::PipelineBindPoint::GRAPHICS, pipeline);
                 // Each draw's instances are at the start of its buffer;
                 // the rectangle pipeline reads `rects`, the glyph one
-                // `glyphs`.
+                // `glyphs`, the image one `pictures`.
                 let params = Params {
                     rects: address,
                     glyphs: address,
                     curves,
                     bands,
+                    pictures: address,
+                    pixels,
                     cell: list.cell,
                     viewport,
                     origin: list.origin,
@@ -629,6 +703,9 @@ impl Gpu {
             if self.glyph_pipeline != vk::Pipeline::null() {
                 self.device.destroy_pipeline(self.glyph_pipeline, None);
             }
+            if self.image_pipeline != vk::Pipeline::null() {
+                self.device.destroy_pipeline(self.image_pipeline, None);
+            }
             if self.layout != vk::PipelineLayout::null() {
                 self.device.destroy_pipeline_layout(self.layout, None);
             }
@@ -678,6 +755,9 @@ pub struct Renderer {
     /// (Wayland's).
     size: PhysicalSize<u32>,
     stale: bool,
+    /// The swapchain's images are new: the next frame changes all of the
+    /// window, whatever its damage says.
+    fresh: bool,
     frames: Vec<InFlight>,
     frame: usize,
     /// With `QUAD_GUI_SNAPSHOT=FILE`, each frame presented is also written
@@ -704,6 +784,11 @@ impl Renderer {
             RawDisplayHandle::Xlib(_) => ash::khr::xlib_surface::NAME,
             _ => return Err("only Wayland and X11 (Xlib) windows are supported".into()),
         };
+        if let Some(gpu) = unsafe { take_prepared(surface_extension, display, handle) } {
+            let gpu = Rc::new(gpu);
+            *shared = Some(gpu.clone());
+            return Renderer::on(gpu, display, handle, window.inner_size());
+        }
         let (entry, instance) = instance(&[ash::khr::surface::NAME, surface_extension])?;
         let surface_fn = ash::khr::surface::Instance::new(&entry, &instance);
         // The device is chosen for the first window's surface, which is
@@ -780,6 +865,7 @@ impl Renderer {
             swapchain: None,
             size,
             stale: true,
+            fresh: true,
             frames: Vec::new(),
             frame: 0,
             snapshot: std::env::var_os("QUAD_GUI_SNAPSHOT").map(Into::into),
@@ -912,6 +998,7 @@ impl Renderer {
         self.swapchain = Some(made);
         result?;
         self.stale = false;
+        self.fresh = true;
         Ok(true)
     }
 
@@ -944,11 +1031,18 @@ impl Renderer {
 
     /// Draws and presents a frame; returns whether it did, or whether it
     /// must be tried again (when the window is visible, or has a size).
-    pub fn draw(&mut self, list: &DrawList) -> Result<bool, String> {
-        unsafe { self.draw_frame(list) }
+    /// `damage` is what changed since the last frame presented, as
+    /// rectangles in pixels (x, y, width, height), for the compositor to
+    /// redraw only those; None, everything.
+    pub fn draw(&mut self, list: &DrawList, damage: Option<&[[u32; 4]]>) -> Result<bool, String> {
+        unsafe { self.draw_frame(list, damage) }
     }
 
-    unsafe fn draw_frame(&mut self, list: &DrawList) -> Result<bool, String> {
+    unsafe fn draw_frame(
+        &mut self,
+        list: &DrawList,
+        damage: Option<&[[u32; 4]]>,
+    ) -> Result<bool, String> {
         if !unsafe { self.ensure_swapchain() }? {
             return Ok(false);
         }
@@ -1001,15 +1095,22 @@ impl Renderer {
         let swapchains = [swapchain_handle];
         let indices = [index as u32];
         let waits = [rendered];
-        match unsafe {
-            self.swapchain_fn.queue_present(
-                self.gpu.queue,
-                &vk::PresentInfoKHR::default()
-                    .wait_semaphores(&waits)
-                    .swapchains(&swapchains)
-                    .image_indices(&indices),
-            )
-        } {
+        let rects: Vec<vk::RectLayerKHR> = damage
+            .filter(|_| self.gpu.incremental_present && !self.fresh)
+            .map(|damage| damage_rects(damage, target.extent))
+            .unwrap_or_default();
+        let regions = [vk::PresentRegionKHR::default().rectangles(&rects)];
+        let mut present_regions = vk::PresentRegionsKHR::default().regions(&regions);
+        let mut info = vk::PresentInfoKHR::default()
+            .wait_semaphores(&waits)
+            .swapchains(&swapchains)
+            .image_indices(&indices);
+        // With no rectangles, the whole image changed.
+        if !rects.is_empty() {
+            info = info.push_next(&mut present_regions);
+        }
+        self.fresh = false;
+        match unsafe { self.swapchain_fn.queue_present(self.gpu.queue, &info) } {
             Ok(suboptimal) => self.stale |= suboptimal,
             Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => self.stale = true,
             Err(e) => return Err(vk_error("presenting")(e)),
@@ -1101,6 +1202,108 @@ unsafe fn surface_format(
         })
         .or_else(|| formats.first().copied())
         .ok_or_else(|| "the surface has no formats".to_string())
+}
+
+// MARK: Made ahead
+
+/// The device being made ahead ([`prepare`]): for windows on a display
+/// whose surfaces this extension makes.
+static PREPARED: Mutex<Option<(&'static CStr, JoinHandle<Result<Gpu, String>>)>> = Mutex::new(None);
+
+/// The format a device is made ahead to draw in: what NVIDIA's driver
+/// offers windows first. Pipelines are made again for another (Mesa's
+/// drivers offer B8G8R8A8 first), which takes a millisecond.
+const PREPARED_FORMAT: vk::Format = vk::Format::R8G8B8A8_SRGB;
+
+/// Starts making the device the first window will draw with, on another
+/// thread, unless one is made or being made: for the display the
+/// environment names (Wayland's, else X11's), as winit chooses it.
+pub fn prepare() {
+    let nonempty = |v: &str| std::env::var_os(v).is_some_and(|s| !s.is_empty());
+    let x11 = std::env::var_os("QUAD_GUI_X11").is_some_and(|v| v == "1");
+    let surface_extension = if nonempty("WAYLAND_DISPLAY") && !x11 {
+        ash::khr::wayland_surface::NAME
+    } else if nonempty("DISPLAY") {
+        ash::khr::xlib_surface::NAME
+    } else {
+        return;
+    };
+    let mut prepared = PREPARED.lock().unwrap_or_else(|e| e.into_inner());
+    if prepared.is_some() {
+        return;
+    }
+    let made = std::thread::Builder::new()
+        .name("quad-gpu".into())
+        .spawn(move || {
+            let (entry, instance) = instance(&[ash::khr::surface::NAME, surface_extension])?;
+            let picked = unsafe { pick_device(&instance, None) };
+            let made = picked.and_then(|(physical, family)| {
+                unsafe {
+                    Gpu::new(
+                        entry,
+                        instance.clone(),
+                        physical,
+                        family,
+                        PREPARED_FORMAT,
+                        true,
+                    )
+                }
+                .map_err(|(_, error)| error)
+            });
+            if made.is_err() {
+                unsafe { instance.destroy_instance(None) };
+            }
+            made
+        });
+    if let Ok(handle) = made {
+        *prepared = Some((surface_extension, handle));
+    }
+}
+
+/// Waits for the device being made ahead, if one is, before the process
+/// exits (kernel.c calls this): an exit must not race a driver still
+/// loading, as NVIDIA's takes a lock as it loads that exiting takes too, and
+/// the two deadlock.
+#[unsafe(no_mangle)]
+pub extern "C" fn quad_gui_settle() {
+    let made = PREPARED.lock().unwrap_or_else(|e| e.into_inner()).take();
+    if let Some((_, handle)) = made {
+        // The process is ending: the device goes with it.
+        if let Ok(Ok(gpu)) = handle.join() {
+            std::mem::forget(gpu);
+        }
+    }
+}
+
+/// The device made ahead, waited for, if it suits the window with these
+/// handles: made for its kind of display, able to draw to it, and made to
+/// draw in its format (or made so again).
+unsafe fn take_prepared(
+    surface_extension: &CStr,
+    display: RawDisplayHandle,
+    handle: RawWindowHandle,
+) -> Option<Gpu> {
+    let (made_for, made) = PREPARED.lock().unwrap_or_else(|e| e.into_inner()).take()?;
+    let mut gpu = made.join().ok()?.ok()?;
+    if made_for != surface_extension {
+        return None;
+    }
+    let surface_fn = ash::khr::surface::Instance::new(&gpu.entry, &gpu.instance);
+    let surface = unsafe { create_surface(&gpu.entry, &gpu.instance, display, handle) }.ok()?;
+    let usable = unsafe {
+        surface_fn.get_physical_device_surface_support(gpu.physical, gpu.family, surface)
+    }
+    .unwrap_or(false);
+    let format = usable
+        .then(|| unsafe { surface_format(&surface_fn, gpu.physical, surface) }.ok())
+        .flatten();
+    unsafe { surface_fn.destroy_surface(surface, None) };
+    let format = format?.format;
+    if format != gpu.format {
+        timing::mark("the window draws in another format");
+        unsafe { gpu.set_format(format) }.ok()?;
+    }
+    Some(gpu)
 }
 
 // MARK: Without a window
@@ -1644,21 +1847,54 @@ unsafe fn pick_device(
         })
 }
 
+/// `damage` (rectangles in pixels: x, y, width, height) within an image of
+/// `extent`, as presenting takes it.
+fn damage_rects(damage: &[[u32; 4]], extent: vk::Extent2D) -> Vec<vk::RectLayerKHR> {
+    damage
+        .iter()
+        .filter_map(|&[x, y, w, h]| {
+            let (x, y) = (x.min(extent.width), y.min(extent.height));
+            let w = w.min(extent.width - x);
+            let h = h.min(extent.height - y);
+            (w > 0 && h > 0).then_some(vk::RectLayerKHR {
+                offset: vk::Offset2D {
+                    x: x as i32,
+                    y: y as i32,
+                },
+                extent: vk::Extent2D {
+                    width: w,
+                    height: h,
+                },
+                layer: 0,
+            })
+        })
+        .collect()
+}
+
+/// Makes the device, with a swapchain if `swapchain`; returns it, and
+/// whether it can present only what changed (VK_KHR_incremental_present).
 unsafe fn create_device(
     instance: &ash::Instance,
     physical: vk::PhysicalDevice,
     family: u32,
     swapchain: bool,
-) -> Result<ash::Device, String> {
+) -> Result<(ash::Device, bool), String> {
     let priorities = [1.0];
     let queues = [vk::DeviceQueueCreateInfo::default()
         .queue_family_index(family)
         .queue_priorities(&priorities)];
-    let extensions: Vec<*const c_char> = if swapchain {
-        vec![ash::khr::swapchain::NAME.as_ptr()]
-    } else {
-        Vec::new()
-    };
+    let incremental = swapchain
+        && unsafe { instance.enumerate_device_extension_properties(physical) }
+            .unwrap_or_default()
+            .iter()
+            .any(|e| e.extension_name_as_c_str() == Ok(ash::khr::incremental_present::NAME));
+    let mut extensions: Vec<*const c_char> = Vec::new();
+    if swapchain {
+        extensions.push(ash::khr::swapchain::NAME.as_ptr());
+    }
+    if incremental {
+        extensions.push(ash::khr::incremental_present::NAME.as_ptr());
+    }
     let mut v12 = vk::PhysicalDeviceVulkan12Features::default().buffer_device_address(true);
     let mut v13 = vk::PhysicalDeviceVulkan13Features::default()
         .dynamic_rendering(true)
@@ -1674,6 +1910,7 @@ unsafe fn create_device(
             None,
         )
     }
+    .map(|device| (device, incremental))
     .map_err(vk_error("creating the device"))
 }
 
@@ -1682,11 +1919,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn damage_is_kept_within_the_image() {
+        let extent = vk::Extent2D {
+            width: 100,
+            height: 50,
+        };
+        let rects = damage_rects(&[[10, 40, 200, 20], [0, 60, 10, 10], [5, 5, 0, 3]], extent);
+        assert_eq!(rects.len(), 1);
+        assert_eq!((rects[0].offset.x, rects[0].offset.y), (10, 40));
+        assert_eq!((rects[0].extent.width, rects[0].extent.height), (90, 10));
+    }
+
+    #[test]
     fn the_shaders_entry_points_are_named_for_their_pipelines() {
         let name = |code: &[u8]| entry_point_name(code).map(|n| n.into_string().unwrap());
         assert_eq!(name(RECT_VERTEX).as_deref(), Some("rectVertex"));
         assert_eq!(name(RECT_FRAGMENT).as_deref(), Some("rectFragment"));
         assert_eq!(name(GLYPH_VERTEX).as_deref(), Some("glyphVertex"));
         assert_eq!(name(GLYPH_FRAGMENT).as_deref(), Some("glyphFragment"));
+        assert_eq!(name(IMAGE_VERTEX).as_deref(), Some("imageVertex"));
+        assert_eq!(name(IMAGE_FRAGMENT).as_deref(), Some("imageFragment"));
     }
 }

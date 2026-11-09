@@ -70,13 +70,16 @@
             [else (printf "row ~a col ~a: ~x, not ~x\n" row col (vector-ref g (+ (* row 50) col)) (cell-bg row col))
                   #f]))))
 
-;; The terminal cursor is drawn over the cells, as its shape says.
+;; The terminal cursor is drawn over its row's cells, as its shape says:
+;; the last of its row's rectangles.
+(define (cursor-rect)
+  (car (reverse (filter (lambda (r) (= (list-ref r 1) 3.0)) (rects-of (frame-rects model))))))
 (grid-model-apply! model '("cursor" 3 4 "bar"))
-(let ([r (car (reverse (rects-of (frame-rects model))))])
+(let ([r (cursor-rect)])
   (expect-equal "a bar cursor" (list (list-ref r 0) (list-ref r 1) (list-ref r 3)) '(4.0 3.0 1.0))
   (check "a bar is thin" (< (list-ref r 2) 0.5)))
 (grid-model-apply! model '("cursor" 3 4 "block"))
-(expect-equal "a block cursor" (list-head (car (reverse (rects-of (frame-rects model)))) 4) '(4.0 3.0 1.0 1.0))
+(expect-equal "a block cursor" (list-head (cursor-rect) 4) '(4.0 3.0 1.0 1.0))
 
 ;; ---------------------------------------------------------------------------
 ;; Text: the cells to draw, and their colors.
@@ -155,17 +158,23 @@
 (define fonts (make-grid-model))
 (define zc (server-connect! "gui" 12 50 '("font") (lambda (m) (grid-model-apply! fonts m)) void))
 (define (last-font) (find (lambda (m) (equal? (car m) "font")) (grid-model-other fonts)))
-(expect-equal "a window is told its font" (last-font) '("font" "JetBrains Mono" 12))
+(expect-equal "a window is told its font" (last-font) '("font" "JetBrains Mono" 12 "" ()))
 (with-client zc (lambda () (run-command 'zoom-in)))
-(expect-equal "zooming in" (last-font) '("font" "JetBrains Mono" 13))
+(expect-equal "zooming in" (last-font) '("font" "JetBrains Mono" 13 "" ()))
 (with-client zc (lambda () (run-command 'zoom-out) (run-command 'zoom-out)))
-(expect-equal "zooming out" (last-font) '("font" "JetBrains Mono" 11))
+(expect-equal "zooming out" (last-font) '("font" "JetBrains Mono" 11 "" ()))
 (set-var! 'gui-font-size 14)
-(expect-equal "a zoomed window keeps its size" (last-font) '("font" "JetBrains Mono" 11))
+(expect-equal "a zoomed window keeps its size" (last-font) '("font" "JetBrains Mono" 11 "" ()))
 (with-client zc (lambda () (run-command 'zoom-reset)))
-(expect-equal "back to gui-font-size" (last-font) '("font" "JetBrains Mono" 14))
+(expect-equal "back to gui-font-size" (last-font) '("font" "JetBrains Mono" 14 "" ()))
 (set-var! 'gui-font-size 12)
-(expect-equal "which it follows" (last-font) '("font" "JetBrains Mono" 12))
+(expect-equal "which it follows" (last-font) '("font" "JetBrains Mono" 12 "" ()))
+(set-var! 'gui-font-features "-calt ss01")
+(set-var! 'gui-font-fallbacks '("Noto Sans Symbols"))
+(expect-equal "and its features and fallbacks"
+              (last-font) '("font" "JetBrains Mono" 12 "-calt ss01" ("Noto Sans Symbols")))
+(set-var! 'gui-font-features "")
+(set-var! 'gui-font-fallbacks '())
 (check "a client without the capability is not told" (not (find (lambda (m) (equal? (car m) "font")) (grid-model-other model))))
 
 ;; ---------------------------------------------------------------------------
@@ -185,3 +194,26 @@
 (expect-equal "over the status line, the arrow" (car (pointers)) '("pointer" "default"))
 (redraw!)
 (expect-equal "moving draws nothing" (grid-model-frames pointing) frames-before)
+
+;; ---------------------------------------------------------------------------
+;; The text cursor: in normal mode the selection's colors show it, so it is
+;; sent hidden, where it is (for screen readers), to clients that can hide
+;; it; others are told there is none.
+
+(define plain-model (make-grid-model))
+(define plain (server-connect! "gui" 12 50 '() (lambda (m) (grid-model-apply! plain-model m)) void))
+(define hiding (make-grid-model))
+(define hc (server-connect! "gui" 12 50 '("hidden-cursor") (lambda (m) (grid-model-apply! hiding m)) void))
+(for-each (lambda (c) (with-client c (lambda () (switch-to-buffer! buf)))) (list plain hc))
+(redraw!)
+(expect-equal "no cursor, to clients that would draw it" (grid-model-cursor plain-model) #f)
+(define at (grid-model-cursor hiding))
+(check "the selection's head, hidden" (and at (equal? (caddr at) "hidden")))
+(use-client! hc)
+(press! "l")
+(redraw!)
+(check "it follows the selection" (and (grid-model-cursor hiding) (not (equal? (grid-model-cursor hiding) at))))
+(press! "h")
+(redraw!)
+(expect-equal "in insert mode, a bar" (caddr (grid-model-cursor hiding)) "bar")
+(press! "esc")

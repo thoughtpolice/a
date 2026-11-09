@@ -9,8 +9,10 @@
 ;; iTerm2 and others): the kitty keyboard protocol for unambiguous keys with
 ;; press/release events, synchronized output (mode 2026) so frames never
 ;; tear, SGR mouse reporting, bracketed paste, OSC 52 clipboard access,
-;; focus events, cursor and pointer shapes, and 24-bit color. It degrades to
-;; the legacy xterm encodings otherwise.
+;; focus events, cursor and pointer shapes, 24-bit color, and grapheme
+;; clusters (mode 2027), so that emoji sequences take the columns the
+;; editor counts for them (util.sls). It degrades to the legacy xterm
+;; encodings otherwise.
 (library (quad term)
   (export decode-input
           tty? tty-in-fd tty-rows tty-cols tty-kitty? tty-truecolor?
@@ -273,7 +275,10 @@
             (mutable cursor)           ; (row col shape) or #f
             (mutable in-frame?)
             (mutable last-hl)          ; the highlight the terminal has now
-            (mutable link)))           ; the hyperlink open now, or #f
+            (mutable link)             ; the hyperlink open now, or #f
+            graphics?                  ; whether it speaks kitty's graphics protocol
+            pictures                   ; image key -> (id width height), sent to it
+            (mutable next-picture)))   ; the id the next image gets
 
   (define (write-now t s)
     (let ([bv (string->utf8 s)])
@@ -328,6 +333,7 @@
      "\x1b;[?2004h"                     ; bracketed paste
      "\x1b;[?1000h\x1b;[?1003h\x1b;[?1006h" ; SGR mouse, with any motion
      "\x1b;[?1004h"                     ; focus in/out
+     "\x1b;[?2027h"                     ; grapheme clusters, where it can
      "\x1b;]22;text\x1b;\\"              ; the I-beam pointer
      "\x1b;[?25l"))
 
@@ -339,7 +345,7 @@
   (define (leave-sequence t)
     (string-append
      (if (tty-kitty? t) "\x1b;[<u" "")
-     "\x1b;[0m\x1b;[?1004l\x1b;[?1006l\x1b;[?1003l\x1b;[?1000l\x1b;[?2004l\x1b;[0 q\x1b;]22;default\x1b;\\\x1b;[?25h\x1b;[?1049l"))
+     "\x1b;[0m\x1b;[?2027l\x1b;[?1004l\x1b;[?1006l\x1b;[?1003l\x1b;[?1000l\x1b;[?2004l\x1b;[0 q\x1b;]22;default\x1b;\\\x1b;[?25h\x1b;[?1049l"))
 
   ;; Ask whether the terminal speaks the kitty keyboard protocol: it answers
   ;; CSI ? flags u before the device attributes every terminal reports.
@@ -366,7 +372,7 @@
     ;; the 256-color palette for the rest.
     (let ([t (make-tty 0 1 24 80 #f (not (getenv "QUAD_256")) '() '()
                        (open-output-string) (make-eqv-hashtable) (make-eqv-hashtable)
-                       #f #f #f #f)])
+                       #f #f #f #f (kitty-graphics?) (make-hashtable string-hash string=?) 1)])
       (unless (and (= 1 (kernel-isatty 0)) (= 1 (kernel-isatty 1)))
         (errorf 'quad "standard input and output must be a terminal"))
       (kernel-tty-raw 0)
@@ -375,10 +381,23 @@
       (write-now t (string-append enter-sequence (kitty-push t)))
       t))
 
+  ;; Whether the terminal draws images with kitty's graphics protocol: kitty,
+  ;; ghostty and WezTerm do, by their names; tmux passes it on to none of
+  ;; them. QUAD_KITTY_GRAPHICS=1 or 0 says so instead.
+  (define (kitty-graphics?)
+    (let ([forced (getenv "QUAD_KITTY_GRAPHICS")]
+          [has (lambda (var s) (let ([v (getenv var)]) (and v (string-contains (string-downcase v) s) #t)))])
+      (if forced
+          (string=? forced "1")
+          (and (not (getenv "TMUX"))
+               (or (and (getenv "KITTY_WINDOW_ID") #t) (has "TERM" "kitty") (has "TERM" "ghostty")
+                   (has "TERM_PROGRAM" "ghostty") (has "TERM_PROGRAM" "wezterm"))))))
+
   ;; What this terminal can do, for the server: the protocol's capabilities.
   (define (tty-capabilities t)
     (append (if (tty-kitty? t) '("release-events") '())
-            '("clipboard" "primary-selection" "title" "pointer-shape" "scroll")))
+            (if (tty-graphics? t) '("images") '())
+            '("clipboard" "primary-selection" "title" "pointer-shape" "scroll" "hidden-cursor")))
 
   (define (close-tty! t)
     (write-now t (leave-sequence t))
@@ -446,13 +465,66 @@
       (put-string (tty-out t) "\x1b;[?2026h\x1b;[?25l"))
     (tty-out t))
 
-  (define (osc t s) (put-string (frame-out t) (string-append "\x1b;]" s "\x1b;\\")))
+;; An OSC sequence: in the frame being painted, or at once (a pointer's
+  ;; shape changes with no frame to follow).
+  (define (osc t s)
+    (let ([seq (string-append "\x1b;]" s "\x1b;\\")])
+      (if (tty-in-frame? t) (put-string (tty-out t) seq) (write-now t seq))))
 
   ;; Cells written from now are hyperlink url's (OSC 8), or none for #f.
   (define (set-link! t p url)
     (unless (equal? url (tty-link t))
       (put-string p (string-append "\x1b;]8;;" (or url "") "\x1b;\\"))
       (tty-link-set! t url)))
+
+;; Kitty's graphics protocol: an image is sent once, as PNG in base64
+  ;; chunks, under an id; placing it puts it at the cursor, over c columns
+  ;; (its rows follow from its shape), from x pixels into the cell, showing
+  ;; its first h pixel rows.
+  (define (apc p s) (put-string p (string-append "\x1b;_G" s "\x1b;\\")))
+
+  (define (send-picture! t p key width height png)
+    (unless (hashtable-contains? (tty-pictures t) key)
+      (let* ([id (tty-next-picture t)] [data (base64 png)] [n (string-length data)])
+        (tty-next-picture-set! t (+ id 1))
+        (hashtable-set! (tty-pictures t) key (list id width height))
+        (let loop ([i 0])
+          (let* ([j (min n (+ i 4096))] [more (if (< j n) 1 0)])
+            (apc p (string-append (if (= i 0) (format "a=t,f=100,t=d,i=~a,q=2," id) "")
+                                  (format "m=~a;" more) (substring data i j)))
+            (when (< j n) (loop j)))))))
+
+  ;; A cell's size in pixels, as the terminal says, else a guess.
+  (define (cell-pixels t)
+    (let ([n (kernel-tty-pixels (tty-out-fd t))])
+      (if (> n 0)
+          (cons (max 1 (quotient (ash n -16) (tty-cols t))) (max 1 (quotient (logand n #xffff) (tty-rows t))))
+          '(8 . 16))))
+
+  ;; Replace what is placed with placements, (key row col rows cols shown)
+  ;; each: an image fits its cells, keeping its shape and never growing,
+  ;; centered across them and at their top, and only its first shown rows
+  ;; of cells show.
+  (define (place-pictures! t p placements)
+    (apc p "a=d,d=a,q=2")
+    (let* ([cell (cell-pixels t)] [cw (car cell)] [ch (cdr cell)])
+      (for-each
+       (lambda (pl)
+         (let ([pic (hashtable-ref (tty-pictures t) (car pl) #f)])
+           (when pic
+             (let-values ([(row col rows cols shown) (apply values (cdr pl))])
+               (let* ([id (car pic)] [w (cadr pic)] [h (caddr pic)]
+                      [s (min 1 (/ (* cols cw) w) (/ (* rows ch) h))]
+                      [dw (max 1 (round (* w s)))] [dh (max 1 (round (* h s)))]
+                      [x0 (floor (/ (- (* cols cw) dw) 2))]
+                      [shown-px (min dh (* shown ch))]
+                      [src-h (max 1 (exact (round (/ shown-px s))))]
+                      [c (max 1 (exact (round (/ dw cw))))])
+                 (when (> shown 0)
+                   (put-string p (format "\x1b;[~a;~aH" (+ row 1) (+ col (quotient x0 cw) 1)))
+                   (apc p (format "a=p,i=~a,p=1,c=~a,X=~a,y=0,h=~a,C=1,q=2" id c (modulo x0 cw)
+                                  (min h src-h)))))))))
+       placements)))
 
   ;; A link the terminal shows: one leading outside the editor. The editor
   ;; opens file: links itself, on a ctrl-click the terminal passes on.
@@ -508,15 +580,24 @@
            (set-link! t p #f)
            (put-string p "\x1b;[0m")
            (tty-last-hl-set! t #f)
-           (if c
-               (put-string p (format "\x1b;[~a;~aH~a\x1b;[?25h" (+ 1 (car c)) (+ 1 (cadr c))
-                                     (case (string->symbol (caddr c))
-                                       [(bar) "\x1b;[6 q"] [(underline) "\x1b;[4 q"] [else "\x1b;[2 q"])))
-               (put-string p "\x1b;[?25l"))
+           ;; A hidden cursor is still put where it is, for screen readers.
+           (cond
+            [(not c) (put-string p "\x1b;[?25l")]
+            [(string=? (caddr c) "hidden")
+             (put-string p (format "\x1b;[~a;~aH\x1b;[?25l" (+ 1 (car c)) (+ 1 (cadr c))))]
+            [else
+             (put-string p (format "\x1b;[~a;~aH~a\x1b;[?25h" (+ 1 (car c)) (+ 1 (cadr c))
+                                   (case (string->symbol (caddr c))
+                                     [(bar) "\x1b;[6 q"] [(underline) "\x1b;[4 q"] [else "\x1b;[2 q"])))])
            (put-string p "\x1b;[?2026l")
            (tty-in-frame?-set! t #f)
            (write-now t (get-output-string p)))
          #t]
+        [(image)
+         (when (tty-graphics? t)
+           (send-picture! t (out) (cadr msg) (caddr msg) (cadddr msg) (list-ref msg 4)))
+         #t]
+        [(images) (when (tty-graphics? t) (place-pictures! t (out) (cadr msg))) #t]
         [(title) (osc t (string-append "2;" (cadr msg))) #t]
         [(cwd) (osc t (string-append "7;file://" (or (getenv "HOSTNAME") "") (cadr msg))) #t]
         [(pointer) (osc t (string-append "22;" (cadr msg))) #t]

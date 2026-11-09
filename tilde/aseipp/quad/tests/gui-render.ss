@@ -14,7 +14,7 @@
 (define h
   (guard (e [#t (printf "SKIP: ~a\n" (if (condition? e) (condition->string e) e))
                 (exit 0)])
-    (gui-headless (get-var 'gui-font-family) 12)))
+    (gui-headless (get-var 'gui-font-family) 12 #t)))
 (printf "drawing with ~a\n" (caddr (gui-headless-info h)))
 
 (define rows 14)
@@ -194,3 +194,118 @@
                    (and (ink? (list-ref l (quotient cell-w 2)) rc)
                         (not (ink? (car l) rc)) (not (ink? (list-ref l (- cell-w 1)) rc))))
                  (rows-of rc (quotient (* 3 cell-h) 4) cell-h))))
+
+;; ---------------------------------------------------------------------------
+;; Images: a PNG, red on its left half and blue on its right, is drawn at
+;; its own size, centered across the text area and at its top, and the
+;; cells around it are the background.
+
+(define png
+  (let ([px (make-bytevector (* 40 20 4) 0)])
+    (do ([i 0 (+ i 1)]) ((= i (* 40 20)))
+      (let ([left? (< (modulo i 40) 20)])
+        (bytevector-u8-set! px (* 4 i) (if left? 255 0))
+        (bytevector-u8-set! px (+ (* 4 i) 2) (if left? 0 255))
+        (bytevector-u8-set! px (+ (* 4 i) 3) 255)))
+    (png-encode 40 20 px)))
+(define png-dir (let ([t (current-time)]) (format "/tmp/quad-render-test-~a-~a" (time-second t) (time-nanosecond t))))
+(mkdir png-dir)
+(define png-path (string-append png-dir "/two.png"))
+(call-with-port (open-file-output-port png-path) (lambda (p) (put-bytevector p png)))
+
+(define viewing (make-grid-model))
+(define viewer (server-connect! "gui" rows cols '("images") (lambda (m) (grid-model-apply! viewing m)) void))
+(with-client viewer (lambda () (switch-to-buffer! (open-file! png-path))))
+(redraw!)
+(define placed (car (grid-model-images viewing)))
+(gui-headless-image! h (car placed) png)
+(let-values ([(w ht px) (draw-frame-image h viewing)])
+  (set! width w)
+  (set! image px))
+(let* ([top (* (list-ref placed 1) cell-h)]
+       [x0 (+ (* (list-ref placed 2) cell-w) (quotient (- (* (list-ref placed 4) cell-w) 40) 2))])
+  (expect-equal "an image's left half" (pixel (+ x0 5) (+ top 10)) #xff0000)
+  (expect-equal "and its right half" (pixel (+ x0 35) (+ top 10)) #x0000ff)
+  (expect-equal "the background beside it" (pixel (- x0 2) (+ top 10)) default-bg)
+  (expect-equal "and below it" (pixel (+ x0 5) (+ top 22)) default-bg))
+(delete-file png-path)
+(delete-directory png-dir)
+
+;; ---------------------------------------------------------------------------
+;; Emoji, from a color font where there is one: in their own colors (the
+;; smiling face is yellow), which neither the text's color nor the
+;; background, nor any blend of the two, is.
+
+(define emoji-view (make-grid-model))
+(define emoji-client (server-connect! "gui" rows cols '() (lambda (m) (grid-model-apply! emoji-view m)) void))
+(with-client emoji-client (lambda () (switch-to-buffer! (headless-buffer! "😀 🦀\n" 'fundamental))))
+(redraw!)
+(let-values ([(w ht px) (draw-frame-image h emoji-view)])
+  (set! width w)
+  (set! image px))
+(define (yellow? p)
+  (let ([r (ash p -16)] [g (logand (ash p -8) 255)] [b (logand p 255)])
+    (and (> r 200) (> g 150) (< b 100))))
+(let ([at (let loop ([row 0] [col 0])
+            (cond
+             [(= row rows) #f]
+             [(= col cols) (loop (+ row 1) 0)]
+             [(equal? (car (grid-model-cell emoji-view row col)) "😀") (cons row col)]
+             [else (loop row (+ col 1))]))])
+  (check "the emoji is on the screen" at)
+  (if (not (= 0 (system "fc-list :color=true family 2>/dev/null | grep -q .")))
+      (printf "no color emoji font here: emoji not checked\n")
+      (check "an emoji is drawn in its colors, two cells wide"
+             (let ([yellow (map (lambda (dx)
+                                  (exists (lambda (y)
+                                            (exists (lambda (x) (yellow? (pixel (+ (* (+ (cdr at) dx) cell-w) x)
+                                                                                (+ (* (car at) cell-h) y))))
+                                                    (iota cell-w)))
+                                          (iota cell-h)))
+                                '(0 1))])
+               (and (car yellow) (cadr yellow))))))
+
+;; ---------------------------------------------------------------------------
+;; Frames drawn a changed row at a time, onto what the window kept, are
+;; what drawing each whole gives, pixel for pixel, through an editing
+;; session: typing, moving, scrolling (rows moved by scroll hints), a
+;; picker over the text and gone again, another buffer.
+
+(define inc (gui-headless (get-var 'gui-font-family) 12 #t))
+(define inc-model (make-grid-model))
+(define inc-painter (make-painter))
+(define long (headless-buffer! (apply string-append
+                                      (map (lambda (i) (format "(define (line-~a x) (+ x ~a)) ; ~a\n" i i (make-string (modulo i 7) #\*)))
+                                           (iota 120)))
+                               'scheme))
+(define editor (server-connect! "gui" rows cols '("scroll")
+                                (lambda (m) (grid-model-apply! inc-model m) (painter-note! inc-painter inc-model m))
+                                void))
+(with-client editor (lambda () (switch-to-buffer! long)))
+(redraw!)
+
+(define (first-difference a b)
+  (let loop ([i 0])
+    (cond [(= i (bytevector-length a)) #f]
+          [(= (bytevector-u8-ref a i) (bytevector-u8-ref b i)) (loop (+ i 1))]
+          [else (let ([p (quotient i 4)]) (list 'x (modulo p width) 'y (quotient p width)))])))
+
+(for-each
+ (lambda (step)
+   (with-client editor (cdr step))
+   (redraw!)
+   (let-values ([(w1 h1 incremental) (draw-frame-image inc inc-model inc-painter)]
+                [(w2 h2 whole) (draw-frame-image h inc-model)])
+     (set! width w1)
+     (expect-equal (string-append "drawn a row at a time, as whole: " (car step))
+                   (first-difference incremental whole) #f)))
+ (list (cons "the first frame" void)
+       (cons "a line down" (lambda () (run-command 'move-down)))
+       (cons "typing" (lambda () (run-command (lambda () (buffer-edit! long (list (list 40 40 "hello, ")))))))
+       (cons "half a page down" (lambda () (run-command 'scroll-down)))
+       (cons "the wheel, up" (lambda () (client-receive! (current-client) '("mouse" "scroll-up" 0 5 5 0))))
+       (cons "far down" (lambda () (run-command (lambda () (goto-line! 100)))))
+       (cons "a picker" (lambda () (run-command 'command-palette)))
+       (cons "and gone" (lambda () (run-command 'prompt-cancel)))
+       (cons "another buffer" (lambda () (switch-to-buffer! buf)))
+       (cons "and back" (lambda () (switch-to-buffer! long)))))

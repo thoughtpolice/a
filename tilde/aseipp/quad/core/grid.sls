@@ -4,19 +4,19 @@
 ;; SPDX-License-Identifier: Apache-2.0
 ;;
 ;; What a client keeps to know what is on its screen: the cells, the
-;; highlights they use, and the cursor, from the "grid", "line", "hl" and
-;; "cursor" messages. The tests read the screen through this; a graphical
+;; highlights they use, the cursor and the images placed over the cells,
+;; from the "grid", "line", "hl", "scroll", "cursor" and "images" messages. The tests read the screen through this; a graphical
 ;; client keeps the same model and draws it.
 (library (quad grid)
   (export make-grid-model grid-model? grid-model-rows grid-model-cols
           grid-model-apply! grid-model-lines grid-model-row grid-model-cursor
-          grid-model-cell grid-model-hl grid-model-frames grid-model-other)
+          grid-model-cell grid-model-hl grid-model-frames grid-model-other grid-model-images)
   (import (chezscheme) (quad util))
 
   (define-record-type grid-model
     (fields (mutable rows) (mutable cols) (mutable cells) hls
-            (mutable cursor) (mutable frames) (mutable other))
-    (protocol (lambda (new) (lambda () (new 0 0 (vector) (make-eqv-hashtable) #f 0 '())))))
+            (mutable cursor) (mutable frames) (mutable other) (mutable images))
+    (protocol (lambda (new) (lambda () (new 0 0 (vector) (make-eqv-hashtable) #f 0 '() '())))))
 
   ;; Apply a message. Messages that are not about the screen are kept,
   ;; newest first, in grid-model-other.
@@ -55,6 +55,8 @@
                               (vector-ref rows from)
                               (make-vector (grid-model-cols g) (cons " " 0)))))))]
       [(cursor) (grid-model-cursor-set! g (and (cadr msg) (cdr msg)))]
+      ;; (key row col rows cols shown) for each image placed.
+      [(images) (grid-model-images-set! g (cadr msg))]
       [(flush) (grid-model-frames-set! g (+ 1 (grid-model-frames g)))]
       [else (grid-model-other-set! g (cons msg (grid-model-other g)))]))
 
@@ -67,5 +69,5 @@
   (define (grid-model-lines g)
     (map (lambda (r) (grid-model-row g r)) (iota (grid-model-rows g))))
 
-  ;; A highlight's (fg bg flags).
+  ;; A highlight's (fg bg flags underline-color link).
   (define (grid-model-hl g id) (hashtable-ref (grid-model-hls g) id #f)))

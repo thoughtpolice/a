@@ -204,6 +204,97 @@ impl skrifa::PathSink for Outline {
     }
 }
 
+// MARK: Synthetic styles
+
+/// Slants contours as an oblique style does: each point right by `k`
+/// times its height above the baseline.
+pub fn slant(contours: &mut [Vec<Curve>], k: f32) {
+    for c in contours.iter_mut().flatten() {
+        for p in [&mut c.p1, &mut c.p2, &mut c.p3] {
+            p[0] += p[1] * k;
+        }
+    }
+}
+
+/// Makes contours bolder, as FreeType's `FT_Outline_EmboldenXY` does:
+/// every point, control points too, moves `by` away from the filled side
+/// along the bisector of its two edges, so strokes grow by twice `by` and
+/// the shape stays centered where it was. Which side is filled follows
+/// from the winding of the whole shape (outer contours wind one way, holes
+/// the other), so holes shrink as strokes grow.
+pub fn embolden(contours: &mut [Vec<Curve>], by: f32) {
+    let area: f32 = contours
+        .iter()
+        .flatten()
+        .map(|c| cross(c.p1, c.p2) + cross(c.p2, c.p3))
+        .sum();
+    // Outward, from a direction of travel: right of it, where the fill
+    // is on the left (counterclockwise outer contours, y up), else left.
+    let out = |d: [f32; 2]| {
+        if area > 0.0 {
+            [d[1], -d[0]]
+        } else {
+            [-d[1], d[0]]
+        }
+    };
+    for contour in contours.iter_mut() {
+        // The contour as a polygon of its points, with which curve each is
+        // and whether it is the curve's start or its control point (a line
+        // has none: its control point is its end).
+        let mut points: Vec<([f32; 2], usize, bool)> = Vec::new();
+        for (i, c) in contour.iter().enumerate() {
+            points.push((c.p1, i, true));
+            if c.p2 != c.p3 {
+                points.push((c.p2, i, false));
+            }
+        }
+        let n = points.len();
+        let moved: Vec<[f32; 2]> = (0..n)
+            .map(|i| {
+                let p = points[i].0;
+                // The nearest points before and after that are elsewhere.
+                let before = (1..n).map(|k| points[(i + n - k) % n].0).find(|&q| q != p);
+                let after = (1..n).map(|k| points[(i + k) % n].0).find(|&q| q != p);
+                let (Some(before), Some(after)) = (before, after) else {
+                    return p;
+                };
+                let a = out(unit([p[0] - before[0], p[1] - before[1]]));
+                let b = out(unit([after[0] - p[0], after[1] - p[1]]));
+                // Along the bisector, as far as keeps both edges `by` out:
+                // (a + b) by / (1 + a·b), which is by √(2 / (1 + a·b))
+                // long. At a spike that is too far: no more than 4 `by`.
+                let d = 1.0 + a[0] * b[0] + a[1] * b[1];
+                let scale = by / d.max(0.125);
+                [p[0] + (a[0] + b[0]) * scale, p[1] + (a[1] + b[1]) * scale]
+            })
+            .collect();
+        let mut starts = vec![[0.0; 2]; contour.len()];
+        let mut controls: Vec<Option<[f32; 2]>> = vec![None; contour.len()];
+        for (&(_, curve, start), &q) in points.iter().zip(&moved) {
+            if start {
+                starts[curve] = q;
+            } else {
+                controls[curve] = Some(q);
+            }
+        }
+        let len = contour.len();
+        for (i, c) in contour.iter_mut().enumerate() {
+            c.p1 = starts[i];
+            c.p3 = starts[(i + 1) % len];
+            c.p2 = controls[i].unwrap_or(c.p3);
+        }
+    }
+}
+
+fn cross(a: [f32; 2], b: [f32; 2]) -> f32 {
+    a[0] * b[1] - a[1] * b[0]
+}
+
+fn unit(v: [f32; 2]) -> [f32; 2] {
+    let l = (v[0] * v[0] + v[1] * v[1]).sqrt().max(f32::MIN_POSITIVE);
+    [v[0] / l, v[1] / l]
+}
+
 /// Where a shape's data is, and what the shader needs to find its bands:
 /// `Glyph` in kernel/gui.slang, less its placement.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -365,6 +456,8 @@ fn bands(curves: &[Curve], index: &[u32], axis: usize, lo: f32, hi: f32) -> Band
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hegel::TestCase;
+    use hegel::generators as gs;
 
     fn square(x0: f32, y0: f32, x1: f32, y1: f32) -> Vec<Curve> {
         let mut o = Outline::new(1.0);
@@ -410,6 +503,71 @@ mod tests {
             }
         }
         winding != 0
+    }
+
+    fn bounds(contours: &[Vec<Curve>]) -> [f32; 4] {
+        Atlas::default().add(contours).unwrap().bounds
+    }
+
+    fn near(a: [f32; 4], b: [f32; 4]) -> bool {
+        a.iter().zip(b).all(|(x, y)| (x - y).abs() < 1e-5)
+    }
+
+    #[test]
+    fn emboldening_grows_strokes_whichever_way_they_wind() {
+        // Counterclockwise, as Outline draws it, and clockwise.
+        let mut ccw = vec![square(0.0, 0.0, 1.0, 1.0)];
+        embolden(&mut ccw, 0.1);
+        assert!(
+            near(bounds(&ccw), [-0.1, -0.1, 1.1, 1.1]),
+            "{:?}",
+            bounds(&ccw)
+        );
+        let mut cw = vec![square(0.0, 0.0, 1.0, 1.0)];
+        for c in &mut cw[0] {
+            std::mem::swap(&mut c.p1, &mut c.p3);
+            c.p2 = c.p3;
+        }
+        cw[0].reverse();
+        embolden(&mut cw, 0.1);
+        assert!(
+            near(bounds(&cw), [-0.1, -0.1, 1.1, 1.1]),
+            "{:?}",
+            bounds(&cw)
+        );
+        // A hole winds the other way, and shrinks.
+        let mut ring = vec![square(0.0, 0.0, 1.0, 1.0), square(0.3, 0.3, 0.7, 0.7)];
+        for c in &mut ring[1] {
+            std::mem::swap(&mut c.p1, &mut c.p3);
+            c.p2 = c.p3;
+        }
+        ring[1].reverse();
+        embolden(&mut ring, 0.05);
+        assert!(
+            near(bounds(&ring[1..]), [0.35, 0.35, 0.65, 0.65]),
+            "{:?}",
+            bounds(&ring[1..])
+        );
+        // A curve's control point moves out with it.
+        let mut o = Outline::new(1.0);
+        o.move_to_scaled([0.0, 0.0]);
+        o.quad_to_scaled([0.5, -1.0], [1.0, 0.0]);
+        o.line_to_scaled([0.5, 1.0]);
+        let mut bowl = o.finish();
+        let before = bowl[0][0].p2;
+        embolden(&mut bowl, 0.1);
+        assert!(bowl[0][0].p2[1] < before[1] - 0.09, "{:?}", bowl[0][0]);
+    }
+
+    #[test]
+    fn slanting_leans_right_above_the_baseline() {
+        let mut s = vec![square(0.0, -0.5, 1.0, 1.0)];
+        slant(&mut s, 0.25);
+        assert!(
+            near(bounds(&s), [-0.125, -0.5, 1.25, 1.0]),
+            "{:?}",
+            bounds(&s)
+        );
     }
 
     #[test]
@@ -512,5 +670,31 @@ mod tests {
             })
             .collect();
         assert!(xs.windows(2).all(|w| w[0] >= w[1]), "{xs:?}");
+    }
+
+    /// Emboldening a rectangle, wound either way, grows it by as much on
+    /// every side.
+    #[hegel::test(test_cases = 300, database = None)]
+    fn emboldening_grows_every_side_alike(tc: TestCase) {
+        let at = |tc: &TestCase| tc.draw(gs::integers::<u32>().max_value(64)) as f32 / 64.0;
+        let (x0, y0) = (at(&tc), at(&tc));
+        let w = tc.draw(gs::integers::<u32>().min_value(1).max_value(64)) as f32 / 64.0;
+        let h = tc.draw(gs::integers::<u32>().min_value(1).max_value(64)) as f32 / 64.0;
+        let by = tc.draw(gs::integers::<u32>().min_value(1).max_value(16)) as f32 / 256.0;
+        let mut shape = vec![square(x0, y0, x0 + w, y0 + h)];
+        if tc.draw(gs::booleans()) {
+            for c in &mut shape[0] {
+                std::mem::swap(&mut c.p1, &mut c.p3);
+                c.p2 = c.p3;
+            }
+            shape[0].reverse();
+        }
+        embolden(&mut shape, by);
+        let b = bounds(&shape);
+        let want = [x0 - by, y0 - by, x0 + w + by, y0 + h + by];
+        assert!(
+            b.iter().zip(want).all(|(a, b)| (a - b).abs() < 1e-4),
+            "{b:?}, not {want:?}"
+        );
     }
 }

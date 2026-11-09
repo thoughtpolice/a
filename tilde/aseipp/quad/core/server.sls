@@ -62,21 +62,30 @@
 
   ;; The pointer moved over client c's screen: note the link under it, which
   ;; is drawn underlined, and tell c the pointer's shape when that changes.
+  ;; Whether what c shows changed.
   (define (pointer-moved! c ev)
-    (let ([row (mouse-event-row ev)] [col (mouse-event-col ev)])
-      (pointer-hover! c row col (mouse-event-mods ev))
+    (let* ([row (mouse-event-row ev)] [col (mouse-event-col ev)]
+           [changed? (pointer-hover! c row col (mouse-event-mods ev))])
       (when (client-has? c "pointer-shape")
         (let ([shape (pointer-shape c row col)])
           (unless (equal? shape (client-local c 'pointer #f))
             (client-local-set! c 'pointer shape)
-            (client-send! c (list "pointer" shape)))))))
+            (client-send! c (list "pointer" shape)))))
+      changed?))
+
+  ;; Messages from clients, and those of them that changed nothing (a
+  ;; pointer moving over the same things): the loop draws only after
+  ;; something may have changed.
+  (define received 0)
+  (define received-quietly 0)
 
   ;; Handle a message from client c.
   (define (client-receive! c msg)
+    (set! received (+ received 1))
     (let ([ev (message->event msg)])
       (if ev
           (if (and (mouse-event? ev) (eq? (mouse-event-kind ev) 'move))
-              (pointer-moved! c ev)
+              (unless (pointer-moved! c ev) (set! received-quietly (+ received-quietly 1)))
               (begin
                 ;; What is under the pointer may move: no link is
                 ;; underlined until it moves again.
@@ -116,27 +125,38 @@
   ;; ---------------------------------------------------------------------------
   ;; The loop
 
+  ;; Each round draws the clients, unless all the last one did was take
+  ;; messages that changed nothing; then waits for input or a timeout and
+  ;; handles it. A source that is read without a client receiving
+  ;; anything (a language server's output, say) or a timeout may have
+  ;; changed anything.
+  (define draw-next? #t)
   (define (server-run!)
     (let loop ()
       (when (editor-running?)
-        (server-render!)
+        (when draw-next? (server-render!))
         (let* ([timeouts (append (map (lambda (s) ((source-timeout s))) the-sources)
                                  (map idle-timeout (clients)))]
                [waits (filter (lambda (t) (>= t 0)) timeouts)]
                [timeout (if (null? waits) -1 (apply min waits))]
-               [ready (kernel-poll (map source-fd the-sources) timeout)])
+               [ready (kernel-poll (map source-fd the-sources) timeout)]
+               [changed? (null? ready)]
+               [r0 received] [q0 received-quietly])
           (for-each
            (lambda (s)
              (when (and (memv (source-fd s) ready) (memq s the-sources))
-               (guarded (source-readable s))))
+               (let ([before received])
+                 (guarded (source-readable s))
+                 (when (= received before) (set! changed? #t)))))
            the-sources)
           (when (null? ready)
             (for-each (lambda (s)
                         (let ([t ((source-timeout s))])
                           (when (and (>= t 0) (<= t timeout)) (guarded (source-on-timeout s)))))
                       the-sources))
-          (for-each (lambda (s) (guarded (source-tick s))) the-sources))
-        (loop))))
+          (for-each (lambda (s) (guarded (source-tick s))) the-sources)
+          (set! draw-next? (or changed? (> (- received r0) (- received-quietly q0))))
+          (loop)))))
 
   (define (guarded thunk)
     (guard (e [#t (message-error "~a" (condition->string e))])

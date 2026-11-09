@@ -16,6 +16,8 @@
 //
 // - Rectangles, placed in cells and filled with a color: the cells'
 //   backgrounds, the cursor, underlines.
+// - Images (pictures), placed in pixels and read from the frame's pixels,
+//   one for each drawn (kernel/image.rs scales them so).
 // - Glyphs, drawn from their curves with Slug: text, and box drawing.
 //
 // Colors are sRGB-encoded 0xAARRGGBB. Where the image drawn into is sRGB
@@ -45,12 +47,23 @@ struct Glyph
     uint background; // 0xRRGGBB behind it, for the blending correction
 };
 
+// An image, placed (kernel/image.rs makes these).
+struct Picture
+{
+    float4 rect;  // where, in pixels: x, y, width, height
+    uint offset;  // its first pixel in the frame's pixels
+    uint stride;  // its pixels in a row
+    uint2 reserved;
+};
+
 struct Params
 {
     Rect* rects;
     Glyph* glyphs;
     float4* curves; // control points: (x1, y1, x2, y2), a curve per two texels
     uint2* bands;   // band headers (count, offset) and curve lists
+    Picture* pictures;
+    uint* pixels;   // RGBA bytes, sRGB-encoded, alpha not premultiplied
     float2 cell;     // a cell's size, in pixels
     float2 viewport; // the window's size, in pixels
     float2 origin;   // where the grid's top left is, in pixels (the window's padding)
@@ -118,6 +131,37 @@ RectVertex rectVertex(uint vertex : SV_VertexID, uint instance : SV_InstanceID)
 float4 rectFragment(RectVertex input) : SV_Target0
 {
     return input.color;
+}
+
+// MARK: Images
+
+struct PictureVertex
+{
+    float4 position : SV_Position;
+    float2 pixel : TEXCOORD0; // where in the picture, in its pixels
+    nointerpolation uint instance : TEXCOORD1;
+};
+
+[shader("vertex")]
+PictureVertex imageVertex(uint vertex : SV_VertexID, uint instance : SV_InstanceID)
+{
+    Picture picture = params.pictures[instance];
+    float2 at = corner(vertex) * picture.rect.zw;
+    PictureVertex output;
+    output.position = clipPosition(picture.rect.xy + at);
+    output.pixel = at;
+    output.instance = instance;
+    return output;
+}
+
+[shader("fragment")]
+float4 imageFragment(PictureVertex input) : SV_Target0
+{
+    Picture picture = params.pictures[input.instance];
+    uint2 p = min(uint2(input.pixel), uint2(picture.rect.zw) - 1);
+    uint rgba = params.pixels[picture.offset + p.y * picture.stride + p.x];
+    // 0xAABBGGRR, as unpackColor's 0xAARRGGBB.
+    return unpackColor((rgba & 0xFF00FF00) | ((rgba & 0xFF) << 16) | ((rgba >> 16) & 0xFF));
 }
 
 // MARK: Glyphs

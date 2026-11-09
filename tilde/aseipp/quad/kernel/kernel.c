@@ -42,6 +42,7 @@ static const char* g_self_path;
 
 // The Rust half's procedures (lib.rs).
 void quad_native_register(void);
+void quad_gui_settle(void);
 
 /* -------------------------------------------------------------------------- */
 /* -- Terminal primitives --------------------------------------------------- */
@@ -124,6 +125,16 @@ quad_tty_size(int fd)
   struct winsize ws;
   if (ioctl(fd, TIOCGWINSZ, &ws) != 0 || ws.ws_col == 0) return -1;
   return ((int)ws.ws_row << 16) | ws.ws_col;
+}
+
+// The window size in pixels as width * 65536 + height, or -1 where the
+// terminal does not say.
+int
+quad_tty_pixels(int fd)
+{
+  struct winsize ws;
+  if (ioctl(fd, TIOCGWINSZ, &ws) != 0 || ws.ws_xpixel == 0 || ws.ws_ypixel == 0) return -1;
+  return ((int)ws.ws_xpixel << 16) | ws.ws_ypixel;
 }
 
 // Wait up to timeout_ms (forever if negative) for input, then read up to n
@@ -264,6 +275,7 @@ quad_self_path(void)
   _(quad_tty_raw)   \
   _(quad_tty_restore) \
   _(quad_tty_size)  \
+  _(quad_tty_pixels) \
   _(quad_read)      \
   _(quad_write)     \
   _(quad_take_winch) \
@@ -307,6 +319,7 @@ main(int ac, const char* av[])
   // The program's scheme-start, which the last boot file set, runs the
   // editor; Sscheme_start skips the program name in av[0].
   int result = Sscheme_start(ac, av);
+  quad_gui_settle();
   restore_at_exit();
   Sscheme_deinit();
   return result;

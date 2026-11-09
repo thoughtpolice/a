@@ -131,14 +131,19 @@ encodings.
 | Message | Meaning |
 | --- | --- |
 | `["grid", rows, cols]` | the screen is this size, blank: a whole frame follows |
-| `["hl", id, fg, bg, flags]` | highlight `id` has these colors; `flags` bits bold 1, italic 2, underline 4, undercurl 8, dim 16, reverse 32 |
+| `["hl", id, fg, bg, flags, underline_color, link]` | highlight `id` has these colors; `flags` bits bold 1, italic 2, underline 4, undercurl 8, dim 16, reverse 32, double underline 64, dotted 128, dashed 256, strikethrough 512, overline 1024; the underline's color, or false for the text's; the URL its text links to, or false |
 | `["line", row, col, cells]` | cells from `(row, col)` rightwards; each `[text]`, `[text, hl]` or `[text, hl, repeat]`, with `hl` carried over from the previous cell when absent, as Neovim's `grid_line` |
-| `["cursor", row, col, shape]` or `["cursor", false]` | where to show the text cursor (`"block"`, `"bar"`, `"underline"`), or hide it |
+| `["scroll", top, bottom, n]` | rows `top` to `bottom` (exclusive) move up `n` rows (down, for negative `n`); `line`s fill those scrolled in (`scroll` capability) |
+| `["image", key, width, height, png]` | a PNG, kept under `key` (a hash of it), sent once before it is first placed (`images` capability) |
+| `["images", [[key, row, col, rows, cols, shown], ...]]` | the images over the cells now: each fits `rows` by `cols` cells from `(row, col)`, of which its first `shown` rows show (`images` capability) |
+| `["cursor", row, col, shape]` or `["cursor", false]` | where to show the text cursor (`"block"`, `"bar"`, `"underline"`), or hide it; `"hidden"` is where it is but drawn by no one, in normal mode, where the selection's colors show it, for screen readers (`hidden-cursor` capability; other clients get `false`) |
 | `["flush"]` | the frame is complete: show it |
 | `["clipboard-set", target, text]` | put text on the system clipboard (`"c"`) or primary selection (`"p"`) |
 | `["clipboard-get", target]` | ask for the system clipboard |
+| `["font", family, points, features, fallbacks]` | draw text in this font family at this size, with these OpenType features (HarfBuzz's spellings, separated by spaces or commas) and these fallback families first for what it lacks (`font` capability) |
 | `["title", text]`, `["cwd", path]`, `["pointer", shape]`, `["bell"]` | window title, working directory, mouse pointer (a CSS cursor name), bell |
 | `["suspend"]` | stop the client's process (a terminal's `^Z`), then redraw |
+| `["open-url", url]` | open the URL on the client's machine (`open-url` capability) |
 | `["result", id, ok, text]` | the answer to `eval`: the value written, or the error |
 | `["bye", reason]` | the server is done with this client |
 
@@ -150,6 +155,10 @@ encodings.
 | `clipboard` | it has a system clipboard: `clipboard-set` and `clipboard-get` with target `"c"` |
 | `primary-selection` | it has a primary selection: `clipboard-set` with target `"p"` |
 | `title`, `pointer-shape` | it shows a title and mouse pointer shapes |
+| `font` | it chooses its own font (`font`): a window |
+| `scroll` | it moves rows itself (`scroll`), so that scrolling sends only the rows scrolled in |
+| `open-url` | it can open URLs for its user (it runs in their desktop session) |
+| `images` | it draws images (`image`, `images`): a window, or a terminal that speaks kitty's graphics protocol |
 
 ## A graphical client
 
@@ -160,20 +169,34 @@ attaches in the editor's process (`core/gui.sls`), as the terminal does,
 or, as a client (`--connect`, or of a running daemon), opens onto an
 editor elsewhere (a socket, or iroh), as a terminal client does: either way
 it keeps a grid model and paints it at each `flush`, so it shows what a terminal would, cell for cell, in the same
-theme. The window is the Rust half's (`kernel/gui.rs`): winit's, on
+theme. The window keeps its screen a row at a time (`kernel/screen.rs`):
+a flush sends it only the rows that changed, and scrolls move the rest,
+so a frame costs about what changed; where the driver can
+(`VK_KHR_incremental_present`), the compositor is told which rows those
+were, and redraws only them. The window is the Rust half's (`kernel/gui.rs`): winit's, on
 Wayland or X11, drawn with Vulkan 1.3 through ash. Every window of a
 process runs on one thread, with one event loop, and draws with one Vulkan
 device; `new-window` (`space j w`) opens another onto the same editor, from
 a window or a terminal, each a client of its own (with its own size, and
-zoom). Its two Slang pipelines (`kernel/gui.slang`) read a frame's data by
-buffer device address, with no descriptor sets: rectangles in cells (the
-cells' backgrounds, the cursor, underlines), and glyphs.
+zoom). Its three Slang pipelines (`kernel/gui.slang`) read a frame's data
+by buffer device address, with no descriptor sets: rectangles in cells
+(the cells' backgrounds, the cursor, underlines), images (scaled on the
+CPU, `kernel/image.rs`, to be read a pixel for each drawn; color glyphs
+too), and glyphs.
 
 Text is drawn from the fonts' outlines on the GPU, at any size, with no
 rasterized atlas: Eric Lengyel's Slug algorithm, whose reference shader
 `kernel/gui.slang` ports. `kernel/font.rs` finds fonts with fontique
 (fontconfig; `gui-font-family`, by default the built-in JetBrains Mono,
-else the system's monospace font, at `gui-font-size` points), with fallbacks by script for what they lack;
+else the system's monospace font, at `gui-font-size` points, with
+`gui-font-features`), with fallbacks for what it lacks
+(`gui-font-fallbacks`, then fontconfig's for each script),
+and makes up the styles a family lacks as fontique suggests (a variable
+font's weight axis, else outlines emboldened or slanted, as FreeType's
+synthetic styles are); takes emoji (those asked for with U+FE0F, and those
+two cells wide) from a color font, painted on the CPU
+(`kernel/color.rs`: `COLR` versions 0 and 1, with their gradients and
+compositing, or `CBDT`/`sbix` bitmaps) into pictures of their cells;
 shapes runs of cells in one style with HarfRust, so ligatures and marks
 work, and places each glyph at the cell its cluster starts in; and draws
 box drawing and blocks itself, to fill their cells exactly, as terminals
@@ -195,7 +218,25 @@ host's dynamic linker and libraries (`host` on `chez.standalone`), and
 validation layer, where it is installed; `QUAD_GUI_X11=1` asks for X11;
 `QUAD_GUI_DEVICE=NAME` picks the Vulkan device whose name has NAME in it;
 `QUAD_GUI_SNAPSHOT=FILE` writes each frame the window presents to FILE, as
-a PPM image.
+a PPM image; `QUAD_TIMING=1` writes how long each step of starting up took
+to standard error.
+
+A window opens in about 150 ms (NVIDIA's driver, on Wayland), most of it
+Vulkan's: loading the drivers (about 60 ms) and making a device (about 70).
+So the device is made ahead, on another thread, as soon as the editor
+starts where a window may open (`gui-prepare`), while the editor, the
+event loop and the window are made; the system's fonts are listed
+(fontconfig, 10 to 40 ms) only once a family or a character needs them.
+Pipelines take under a millisecond, drivers keeping their own shader
+caches, so quad keeps no pipeline cache.
+
+Screen readers read a window as they read a terminal: AccessKit
+(`kernel/access.rs`) gives the desktop's accessibility bus (AT-SPI) a
+tree of the window's terminal, a line of text for each row of cells, laid
+out where the row is, with the text cursor as its selection (in normal mode, the selection's
+head, which the editor sends as a hidden cursor); each frame
+updates the rows it changed. Nothing is built until something on the bus
+asks for it.
 
 A window costs nothing while nothing changes: its thread sleeps in the
 event loop, and draws only when the editor sends a frame, at the
@@ -211,7 +252,14 @@ The same renderer draws into images with no window (`gui-headless`,
 checks them against its cells -- backgrounds exactly, ink where there is
 text, box drawing reaching its cells' edges. `:test-gui-render` runs it on
 Mesa's lavapipe, a software renderer, where it is installed, and skips
-where nothing can draw.
+where nothing can draw. `tests/golden.ss` (`:test-golden`) draws scenes
+(code, a picker, every text style) with the built-in font alone on
+lavapipe and compares them with the images in `tests/golden`, within a
+tolerance for antialiasing; how to draw those again, after a change meant
+to change them, is at the top of it. The Rust half's tests check
+properties over generated cases too (hegel): rows moved and changed as a
+plain list of them would be, coverage adding up to area, compositing
+making colors, any bytes from Scheme read or refused.
 
 A client in another process, on Vulkan or any other API, needs to:
 
@@ -225,5 +273,12 @@ A client in another process, on Vulkan or any other API, needs to:
 4. answer `clipboard-get`, and carry out `clipboard-set` and `title`.
 
 Cell widths follow Unicode East Asian Width (`char-width` in
-`core/util.sls`). The server marks the right half of each wide character
-with an empty cell, so a client never has to measure text itself.
+`core/util.sls`), with emoji shown as pictures two columns wide, and a
+cell holds a grapheme cluster (`grapheme-end`): a character with its
+marks, an emoji with its skin tone or the emoji joined to it, a flag. A
+cluster takes its first character's columns, or two for an emoji asked
+for as a picture (U+FE0F) and for a flag, as terminals that cluster
+graphemes (mode 2027, which the terminal client asks for) count them; the
+editor moves over and deletes clusters whole. The server marks the right
+half of each wide character with an empty cell, so a client never has to
+measure text itself.

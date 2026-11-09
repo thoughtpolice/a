@@ -10,7 +10,7 @@
 ;; (quad native), generated from kernel/lib.rs.
 (library (quad kernel)
   (export kernel-available?
-          kernel-isatty kernel-tty-raw kernel-tty-restore kernel-tty-size
+          kernel-isatty kernel-tty-raw kernel-tty-restore kernel-tty-size kernel-tty-pixels
           kernel-read kernel-write kernel-take-winch kernel-suspend
           kernel-poll kernel-unix-listen kernel-unix-connect kernel-accept kernel-close
           quad-self-path)
@@ -33,6 +33,7 @@
   (define-kernel kernel-tty-raw "quad_tty_raw" (int) int)
   (define-kernel kernel-tty-restore "quad_tty_restore" (int) int)
   (define-kernel kernel-tty-size "quad_tty_size" (int) int)
+  (define-kernel kernel-tty-pixels "quad_tty_pixels" (int) int)
   (define-kernel kernel-read "quad_read" (int u8* int int) int)
   (define-kernel kernel-write "quad_write" (int u8* int) int)
   (define-kernel kernel-take-winch "quad_take_winch" () int)

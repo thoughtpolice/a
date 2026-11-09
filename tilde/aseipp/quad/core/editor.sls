@@ -58,6 +58,7 @@
    ;; modes
    define-major-mode! find-major-mode major-mode-for-path auto-mode-alist
    auto-mode-alist-set! add-auto-mode! fundamental-mode set-major-mode!
+   set-binary-mode! binary-buffer?
    ;; selections
    set-sels! primary set-primary! sels-of selection-mode-of set-selection-mode!
    push-selection-history! selection-history-back! selection-history-forward!
@@ -72,7 +73,7 @@
    ;; popups
    make-popup popup? popup-title popup-lines popup-footer current-popup show-popup! hide-popup!
    ;; geometry, for the mouse
-   view-geometry view-geometry-set! screen->position display-column
+   view-geometry view-geometry-set! screen->position display-column grapheme-after grapheme-before
    ;; events
    handle-event idle-timeout
    ;; batch / eval
@@ -464,6 +465,14 @@
 
   (define (find-major-mode name) (hashtable-ref major-modes name #f))
 
+  ;; A binary mode's buffers show their file, which is not text (an image,
+  ;; say): it is not read into them, and they are read-only and never
+  ;; saved.
+  (define binary-modes (make-eq-hashtable))
+  (define (set-binary-mode! name) (hashtable-set! binary-modes name #t))
+  (define (binary-mode? mode) (hashtable-ref binary-modes (major-mode-name mode) #f))
+  (define (binary-buffer? b) (binary-mode? (buffer-major-mode b)))
+
   (define fundamental-mode (define-major-mode! 'text plain-syntax))
 
   ;; auto-mode-alist holds (pattern . mode-name), a pattern being a file
@@ -536,10 +545,11 @@
            [existing (find (lambda (b) (equal? (buffer-path b) path)) the-buffers)])
       (or existing
           (let* ([_ (run-hooks 'before-open-file-hook path)]
-                 [contents (if (file-exists? path) (read-file-string path) "")]
                  [mode (major-mode-for-path path)]
+                 [contents (if (and (file-exists? path) (not (binary-mode? mode))) (read-file-string path) "")]
                  [b (make-buffer (unique-name (path-basename path)) path contents mode)])
             (buffer-local-set! b 'mtime (and (file-exists? path) (file-modification-time path)))
+            (when (binary-mode? mode) (buffer-read-only?-set! b #t))
             (add-buffer! b)
             (set-major-mode! b mode)
             (run-hooks 'find-file-hook b)
@@ -550,6 +560,7 @@
      [(b) (save-buffer! b (buffer-path b))]
      [(b path)
       (unless path (errorf 'save-buffer! "buffer ~a has no file" (buffer-name b)))
+      (when (binary-buffer? b) (errorf 'save-buffer! "~a is not text, and is not saved" (buffer-name b)))
       (run-hooks 'before-save-hook b)
       (trim-whitespace! b)
       (write-file-string path (buffer-string b))
@@ -857,16 +868,34 @@
   (define (view-geometry) (and the-client (client-geometry the-client)))
   (define (view-geometry-set! g) (client-geometry-set! the-client g))
 
-  (define (char-columns c col)
-    (if (char=? c #\tab)
-        (let ([tw (get-var 'tab-width)]) (- tw (modulo col tw)))
-        (char-width c)))
+  ;; The cluster of text t at i (see grapheme-end in (quad util)), up to
+  ;; `end`, and the columns it takes at column col: its end and columns.
+  (define (cluster t i end col)
+    (if (char=? (text-ref t i) #\tab)
+        (values (+ i 1) (let ([tw (get-var 'tab-width)]) (- tw (modulo col tw))))
+        (let* ([ref (lambda (k) (text-ref t k))] [j (grapheme-end ref i end)])
+          (values j (grapheme-columns ref i j)))))
+
+  ;; The position after the grapheme cluster at p, and the start of the
+  ;; one before p: where moving and deleting by characters goes.
+  (define (grapheme-after b p)
+    (let ([t (buffer-text b)])
+      (grapheme-end (lambda (i) (text-ref t i)) p (text-length t))))
+
+  (define (grapheme-before b p)
+    (if (<= p 0)
+        0
+        (let ([t (buffer-text b)])
+          (grapheme-start (lambda (i) (text-ref t i)) (- p 1)
+                          (text-line-start t (text-line-of t (- p 1)))))))
 
   ;; The display column of pos on its line.
   (define (display-column b pos)
     (let* ([t (buffer-text b)] [s (text-line-start t (text-line-of t pos))])
       (let loop ([i s] [col 0])
-        (if (>= i pos) col (loop (+ i 1) (+ col (char-columns (text-ref t i) col)))))))
+        (if (>= i pos)
+            col
+            (let-values ([(j w) (cluster t i pos col)]) (loop j (+ col w)))))))
 
   ;; The buffer position under screen cell (row, col), or #f outside the
   ;; text area; columns left of the text (the gutter) map to the line start.
@@ -882,9 +911,10 @@
                         (let ([goal (+ (max 0 c) (list-ref g 5))]
                               [s (text-line-start t line)] [e (text-line-end t line)])
                           (let loop ([i s] [col 0])
-                            (cond [(>= i e) e]
-                                  [(let ([w (char-columns (text-ref t i) col)]) (> (+ col w) goal)) i]
-                                  [else (loop (+ i 1) (+ col (char-columns (text-ref t i) col)))]))))))))))
+                            (if (>= i e)
+                                e
+                                (let-values ([(j w) (cluster t i e col)])
+                                  (if (> (+ col w) goal) i (loop j (+ col w))))))))))))))
 
   ;; ---------------------------------------------------------------------------
   ;; Events, from the current client

@@ -19,11 +19,12 @@
 //! chez.standalone).
 //!
 //! The renderer is Vulkan 1.3 with no render passes, descriptor sets or
-//! vertex buffers: dynamic rendering, and two pipelines (kernel/gui.slang)
+//! vertex buffers: dynamic rendering, and three pipelines (kernel/gui.slang)
 //! whose push constants point at a frame's data by buffer device address.
 //! A frame is the cells' backgrounds and the cursor, as rectangles Scheme
-//! makes; then their text, as glyphs font.rs lays out and Slug draws from
-//! their curves; then underlines.
+//! makes; then images; then their text, as glyphs font.rs lays out and Slug
+//! draws from their curves; then underlines. A window keeps its screen
+//! (screen.rs): Scheme sends only the rows that changed.
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -42,8 +43,14 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 use winit::window::{CursorIcon, Window, WindowId};
 
-use crate::font::{CELL_BYTES, Fonts, RECT_BYTES};
+use crate::access::{self, Access};
+use crate::font::Colors;
+pub use crate::font::FontSpec;
+use crate::font::{Fonts, Metrics};
+use crate::image::{Images, PICTURE_BYTES, Placement};
 use crate::render::{DrawList, Gpu, Headless, Renderer};
+use crate::screen::{Screen, Update};
+use crate::timing;
 
 /// What happens to a window, for Scheme: each is a list, as the client
 /// protocol's messages are (core/protocol.sls), which core/gui.sls turns
@@ -136,7 +143,9 @@ enum Request {
         events: Sender<Event>,
         done: mpsc::Sender<Result<(), String>>,
     },
-    Paint(u64, Frame),
+    Paint(u64, Update),
+    /// A PNG, to be placed by its key.
+    Image(u64, String, Vec<u8>),
     Title(u64, String),
     /// Draw text in this font.
     SetFont(u64, FontSpec),
@@ -153,6 +162,8 @@ enum Request {
         key: u64,
         target: String,
     },
+    /// A screen reader's request (through AccessKit's adapter).
+    Access(accesskit_winit::Event),
     /// Close a window; `done`, if there is one, says when it is gone.
     Close {
         key: u64,
@@ -160,28 +171,10 @@ enum Request {
     },
 }
 
-/// One frame, as core/gui.sls makes it.
-#[derive(Default)]
-struct Frame {
-    /// Backgrounds and the cursor: [`RECT_BYTES`] each.
-    rects: Vec<u8>,
-    /// The cells with something to draw: [`CELL_BYTES`] each, with their
-    /// texts in `text`.
-    cells: Vec<u8>,
-    text: Vec<u8>,
-    /// 0xRRGGBB, where nothing else is drawn.
-    background: u32,
-    /// The text's color where cells leave it to the terminal: what text
-    /// being composed (an input method's) is drawn in.
-    foreground: u32,
-    /// Where the cursor is, (row, column), if it is shown.
-    cursor: Option<(u32, u32)>,
-}
-
-/// The font to draw with.
-pub struct FontSpec {
-    pub family: String,
-    pub points: f32,
+impl From<accesskit_winit::Event> for Request {
+    fn from(event: accesskit_winit::Event) -> Request {
+        Request::Access(event)
+    }
 }
 
 /// An open window, as Scheme holds it. Dropping it closes the window.
@@ -237,37 +230,14 @@ impl Gui {
         }
     }
 
-    /// Paints a frame: `rects` packed as kernel/gui.slang's `Rect`s, then
-    /// `cells` (packed as font.rs's [`CELL_BYTES`]) with their `text`, in
-    /// `colors` (background, foreground: 0xRRGGBB), with the cursor where
-    /// it is shown.
-    pub fn paint(
-        &self,
-        rects: &[u8],
-        cells: &[u8],
-        text: &[u8],
-        colors: (u32, u32),
-        cursor: Option<(u32, u32)>,
-    ) -> Result<(), String> {
-        let (background, foreground) = colors;
-        if rects.len() % RECT_BYTES != 0 {
-            return Err(format!(
-                "gui-paint!: rectangles are {RECT_BYTES} bytes each"
-            ));
-        }
-        if cells.len() % CELL_BYTES != 0 {
-            return Err(format!("gui-paint!: cells are {CELL_BYTES} bytes each"));
-        }
-        let frame = Frame {
-            rects: rects.to_vec(),
-            cells: cells.to_vec(),
-            text: text.to_vec(),
-            background,
-            foreground,
-            cursor,
-        };
-        self.request(Request::Paint(self.key, frame));
-        Ok(())
+    /// Paints a frame: what changed since the last (screen.rs).
+    pub fn paint(&self, update: Update) {
+        self.request(Request::Paint(self.key, update));
+    }
+
+    /// Takes a PNG, for frames to place by `key` (see image.rs).
+    pub fn add_image(&self, key: String, png: Vec<u8>) {
+        self.request(Request::Image(self.key, key, png));
     }
 
     pub fn set_title(&self, title: String) {
@@ -278,8 +248,8 @@ impl Gui {
         self.request(Request::Pointer(self.key, shape));
     }
 
-    pub fn set_font(&self, family: String, points: f32) {
-        self.request(Request::SetFont(self.key, FontSpec { family, points }));
+    pub fn set_font(&self, font: FontSpec) {
+        self.request(Request::SetFont(self.key, font));
     }
 
     pub fn clipboard_set(&self, target: String, text: String) {
@@ -356,6 +326,8 @@ fn system() -> Result<&'static System, String> {
     static SYSTEM: OnceLock<Result<System, String>> = OnceLock::new();
     SYSTEM
         .get_or_init(|| {
+            // The device, while the event loop and the window are made.
+            crate::render::prepare();
             let (ready, started) = mpsc::channel();
             std::thread::Builder::new()
                 .name("quad-gui".into())
@@ -400,6 +372,7 @@ fn run(ready: mpsc::Sender<Result<System, String>>) {
         has_clipboard: clipboard.is_some(),
     }));
     let mut windows = Windows {
+        proxy: event_loop.create_proxy(),
         open: HashMap::new(),
         ids: HashMap::new(),
         gpu: None,
@@ -411,6 +384,8 @@ fn run(ready: mpsc::Sender<Result<System, String>>) {
 // Fields drop in order: the windows (and their renderers) before the device
 // they share, and the clipboard before the display.
 struct Windows {
+    /// For screen readers' requests, which AccessKit sends as requests.
+    proxy: EventLoopProxy<Request>,
     open: HashMap<u64, Win>,
     ids: HashMap<WindowId, u64>,
     gpu: Option<Rc<Gpu>>,
@@ -429,11 +404,13 @@ impl Windows {
     ) -> Result<(), String> {
         // At a scale of 1 until the window says what it has: its cells are
         // logical pixels.
-        let fonts = Fonts::new(&font.family, font.points, 1.0)?;
+        let fonts = Fonts::new(&font, 1.0)?;
         let [w, h] = fonts.metrics.cell;
         let pad = 2.0 * f64::from(fonts.metrics.padding);
+        // Shown once AccessKit's adapter is made, as it must be.
         let attributes = Window::default_attributes()
-            .with_title(title)
+            .with_visible(false)
+            .with_title(title.clone())
             .with_inner_size(LogicalSize::new(
                 f64::from(size.0) * f64::from(w) + pad,
                 f64::from(size.1) * f64::from(h) + pad,
@@ -441,7 +418,11 @@ impl Windows {
         let window = event_loop
             .create_window(attributes)
             .map_err(|e| format!("cannot create a window: {e}"))?;
+        timing::mark("window made");
+        let access = Access::new(event_loop, &window, self.proxy.clone());
         let renderer = Renderer::new(&window, &mut self.gpu)?;
+        timing::mark("renderer made");
+        window.set_visible(true);
         // Input methods (and their text being composed) and compose
         // sequences.
         window.set_ime_allowed(true);
@@ -450,9 +431,14 @@ impl Windows {
         let mut win = Win {
             renderer,
             window,
+            access,
+            title,
             events,
             fonts,
-            frame: Frame::default(),
+            screen: Screen::default(),
+            damage: None,
+            images: Images::default(),
+            pixels: FramePixels::default(),
             grid: (0, 0),
             modifiers: ModifiersState::empty(),
             preedit: String::new(),
@@ -490,19 +476,28 @@ impl ApplicationHandler<Request> for Windows {
             } => {
                 let _ = done.send(self.open_window(event_loop, key, title, size, font, events));
             }
-            Request::Paint(key, frame) => {
+            Request::Paint(key, update) => {
                 if let Some(win) = self.open.get_mut(&key) {
-                    win.paint(frame);
+                    win.paint(update);
                 }
             }
             Request::Title(key, title) => {
-                if let Some(win) = self.open.get(&key) {
+                if let Some(win) = self.open.get_mut(&key) {
                     win.window.set_title(&title);
+                    win.title = title;
+                    win.tell_access_all();
                 }
             }
             Request::SetFont(key, font) => {
                 if let Some(win) = self.open.get_mut(&key) {
                     win.set_font(font);
+                }
+            }
+            Request::Image(key, image, png) => {
+                if let Some(win) = self.open.get_mut(&key) {
+                    if let Err(error) = win.images.add(image, &png) {
+                        win.send(Event::Error(error));
+                    }
                 }
             }
             Request::Pointer(key, shape) => {
@@ -538,6 +533,16 @@ impl ApplicationHandler<Request> for Windows {
                     win.send(Event::Clipboard { target, text });
                 }
             }
+            Request::Access(event) => {
+                let key = self.ids.get(&event.window_id).copied();
+                if let Some(win) = key.and_then(|key| self.open.get_mut(&key)) {
+                    // Screen readers only read; there is nothing they ask
+                    // the window to do (focus is the terminal's already).
+                    if let accesskit_winit::WindowEvent::InitialTreeRequested = event.window_event {
+                        win.tell_access_all();
+                    }
+                }
+            }
             Request::Close { key, done } => {
                 self.close(key);
                 if let Some(done) = done {
@@ -556,6 +561,7 @@ impl ApplicationHandler<Request> for Windows {
                 let _ = events.send(Event::Closed);
             }
         } else if let Some(win) = self.open.get_mut(&key) {
+            win.access.process_event(&win.window, &event);
             win.event(event);
         }
     }
@@ -565,9 +571,17 @@ impl ApplicationHandler<Request> for Windows {
 struct Win {
     renderer: Renderer,
     window: Window,
+    /// What it shows, for screen readers.
+    access: Access,
+    title: String,
     events: Sender<Event>,
     fonts: Fonts,
-    frame: Frame,
+    screen: Screen,
+    /// The rows that changed since the last frame presented, for the
+    /// compositor; None, everything.
+    damage: Option<Vec<bool>>,
+    images: Images,
+    pixels: FramePixels,
     /// Cells the window holds, (rows, cols), as last told to Scheme.
     grid: (u32, u32),
     modifiers: ModifiersState,
@@ -590,8 +604,30 @@ impl Win {
     // (key repeat, scrolling) is one frame per refresh, and a window no
     // one can see draws nothing. Snapshots draw at once, since a hidden
     // window gets no callbacks.
-    fn paint(&mut self, frame: Frame) {
-        self.frame = frame;
+    fn paint(&mut self, update: Update) {
+        let placed = std::mem::take(&mut self.screen.placements);
+        // A whole frame can change what is around the rows too: the
+        // padding, in a new background.
+        let whole = update.whole;
+        let changed = self.screen.apply(update);
+        if whole {
+            self.tell_access_all();
+        } else {
+            let (screen, metrics, title) = (&self.screen, self.fonts.metrics, &self.title);
+            let cols = self.grid.1;
+            self.access.changed(screen.row_count(), &changed, || {
+                access_view(screen, metrics, title, cols)
+            });
+        }
+        if whole || placed != self.screen.placements {
+            self.damage = None;
+        }
+        if let Some(damage) = &mut self.damage {
+            damage.resize(damage.len().max(changed.len()), false);
+            for (d, c) in damage.iter_mut().zip(changed) {
+                *d |= c;
+            }
+        }
         if std::env::var_os("QUAD_GUI_SNAPSHOT").is_some() {
             self.draw();
         } else {
@@ -599,12 +635,22 @@ impl Win {
         }
     }
 
+    /// Gives screen readers the whole screen again, as something asked
+    /// for it or as it all changed (where it is, or its title).
+    fn tell_access_all(&mut self) {
+        let (screen, metrics, title) = (&self.screen, self.fonts.metrics, &self.title);
+        let cols = self.grid.1;
+        self.access
+            .whole(|| access_view(screen, metrics, title, cols));
+    }
+
     fn set_font(&mut self, font: FontSpec) {
-        if let Err(error) = self.fonts.set_font(&font.family, font.points) {
+        if let Err(error) = self.fonts.set_font(&font) {
             self.send(Event::Error(error));
         }
         // The grid holds as many cells of the new size as fit.
         self.grid = (0, 0);
+        self.damage = None;
         self.resized(self.window.inner_size());
         self.window.request_redraw();
     }
@@ -665,6 +711,7 @@ impl Win {
     }
 
     fn resized(&mut self, size: PhysicalSize<u32>) {
+        self.damage = None;
         if self.fonts.set_scale(self.window.scale_factor() as f32) {
             self.window.request_redraw();
         }
@@ -765,6 +812,7 @@ impl Win {
             }
             Ime::Enabled | Ime::Disabled => self.preedit.clear(),
         }
+        self.damage = None;
         self.window.request_redraw();
     }
 
@@ -818,39 +866,24 @@ impl Win {
     }
 
     fn draw(&mut self) {
+        let (mut rects, mut laid) = self.screen.layout(&mut self.fonts);
         // Text being composed covers the cells after the cursor.
-        let preedit = match self.frame.cursor {
-            Some(cursor) if !self.preedit.is_empty() => Some(preedit_cells(
+        if let Some(cursor) = self.screen.cursor.filter(|_| !self.preedit.is_empty()) {
+            let (more_rects, cells, text) = preedit_cells(
                 &self.preedit,
                 cursor,
-                self.frame.foreground,
-                self.frame.background,
-                self.frame.text.len(),
-            )),
-            _ => None,
-        };
-        let (rects, glyphs, decorations) = match &preedit {
-            Some((rects, cells, text)) => {
-                let mut all_cells = self.frame.cells.clone();
-                all_cells.extend_from_slice(cells);
-                let mut all_text = self.frame.text.clone();
-                all_text.extend_from_slice(text);
-                let mut all_rects = self.frame.rects.clone();
-                all_rects.extend_from_slice(rects);
-                let (glyphs, decorations) = self.fonts.layout(&all_cells, &all_text);
-                (std::borrow::Cow::Owned(all_rects), glyphs, decorations)
-            }
-            None => {
-                let (glyphs, decorations) = self.fonts.layout(&self.frame.cells, &self.frame.text);
-                (
-                    std::borrow::Cow::Borrowed(&self.frame.rects[..]),
-                    glyphs,
-                    decorations,
-                )
-            }
-        };
+                self.screen.foreground,
+                self.screen.background,
+                0,
+            );
+            rects.extend_from_slice(&more_rects);
+            let more = self.fonts.layout(&cells, &text);
+            laid.glyphs.extend_from_slice(&more.glyphs);
+            laid.rects.extend_from_slice(&more.rects);
+            laid.pictures.extend_from_slice(&more.pictures);
+        }
         // The input method's candidates go by the cursor.
-        if let Some((row, col)) = self.frame.cursor {
+        if let Some((row, col)) = self.screen.cursor {
             let window = &self.window;
             let [w, h] = self.fonts.metrics.cell;
             let pad = self.fonts.metrics.padding;
@@ -859,26 +892,82 @@ impl Win {
                 PhysicalSize::new(w, h),
             );
         }
+        let pictures = self.pixels.pictures(
+            &mut self.images,
+            &self.screen.placements,
+            self.fonts.metrics.cell,
+            &self.fonts.colors,
+            &laid.pictures,
+        );
         let list = DrawList {
             rects: &rects,
-            glyphs: &glyphs,
-            decorations: &decorations,
+            pictures: &pictures,
+            pixels: (&self.pixels.pixels, self.pixels.generation),
+            glyphs: &laid.glyphs,
+            decorations: &laid.rects,
             atlas: &self.fonts.atlas,
-            background: self.frame.background,
+            background: self.screen.background,
             cell: self.fonts.metrics.cell,
             origin: [self.fonts.metrics.padding; 2],
         };
         // Before presenting, so that Wayland asks the compositor for the
         // frame callback that paces the next request_redraw.
         self.window.pre_present_notify();
-        match self.renderer.draw(&list) {
-            Ok(true) => {}
+        let damage = self.damage.as_deref().map(|rows| {
+            damage_bands(
+                rows,
+                self.fonts.metrics.cell[1],
+                self.fonts.metrics.padding,
+                self.window.inner_size().width,
+            )
+        });
+        match self.renderer.draw(&list, damage.as_deref()) {
+            Ok(true) => {
+                if self.damage.is_none() {
+                    timing::mark("a whole frame presented");
+                }
+                self.damage = Some(Vec::new());
+            }
             // Again at the compositor's next frame callback, which comes
             // once the window can be seen.
             Ok(false) => self.window.request_redraw(),
             Err(error) => self.send(Event::Error(error)),
         }
     }
+}
+
+/// What the screen shows, for screen readers.
+fn access_view(screen: &Screen, metrics: Metrics, title: &str, cols: u32) -> access::View {
+    access::View {
+        title: title.to_string(),
+        rows: screen.characters(),
+        cols,
+        cell: metrics.cell,
+        origin: metrics.padding,
+        cursor: screen.cursor,
+    }
+}
+
+/// Rows that changed, as rectangles of the window (x, y, width, height,
+/// in pixels): a band across it for each run of changed rows, `cell_h`
+/// pixels high each, below `padding`.
+fn damage_bands(rows: &[bool], cell_h: f32, padding: f32, width: u32) -> Vec<[u32; 4]> {
+    let mut bands = Vec::new();
+    let mut r = 0;
+    while r < rows.len() {
+        if !rows[r] {
+            r += 1;
+            continue;
+        }
+        let start = r;
+        while r < rows.len() && rows[r] {
+            r += 1;
+        }
+        let top = (padding + start as f32 * cell_h).floor() as u32;
+        let bottom = (padding + r as f32 * cell_h).ceil() as u32;
+        bands.push([0, top, width, bottom - top]);
+    }
+    bands
 }
 
 /// Shift, as (quad event) has it; the other modifiers are alt (2), ctrl
@@ -965,6 +1054,48 @@ fn key_name(key: NamedKey) -> Option<&'static str> {
     })
 }
 
+/// A frame's pictures, and the pixels they show: the images', then the
+/// color glyphs' (font.rs's [`Colors`]), which their pictures find from
+/// the start of the fonts' pixels, and so past the images' here.
+#[derive(Default)]
+struct FramePixels {
+    /// The generations of the images' and the glyphs' pixels it holds.
+    from: Option<(u64, u64)>,
+    pixels: Vec<u32>,
+    generation: u64,
+}
+
+impl FramePixels {
+    /// The pictures of `placements`' images and of color glyphs (`glyphs`,
+    /// a layout's): [`PICTURE_BYTES`] each, showing [`FramePixels::pixels`].
+    fn pictures(
+        &mut self,
+        images: &mut Images,
+        placements: &[Placement],
+        cell: [f32; 2],
+        colors: &Colors,
+        glyphs: &[u8],
+    ) -> Vec<u8> {
+        let mut pictures = images.layout(placements, cell);
+        let base = images.pixels.len() as u32;
+        let start = pictures.len();
+        pictures.extend_from_slice(glyphs);
+        for record in pictures[start..].chunks_exact_mut(PICTURE_BYTES) {
+            let offset = u32::from_ne_bytes(record[16..20].try_into().unwrap()) + base;
+            record[16..20].copy_from_slice(&offset.to_ne_bytes());
+        }
+        let from = (images.generation, colors.generation);
+        if self.from != Some(from) {
+            self.pixels.clear();
+            self.pixels.extend_from_slice(&images.pixels);
+            self.pixels.extend_from_slice(&colors.pixels);
+            self.from = Some(from);
+            self.generation += 1;
+        }
+        pictures
+    }
+}
+
 // MARK: Without a window
 
 /// Frames drawn into images, with no window: what a window would show, for
@@ -972,13 +1103,33 @@ fn key_name(key: NamedKey) -> Option<&'static str> {
 pub struct Snapshots {
     fonts: Fonts,
     gpu: Headless,
+    images: Images,
+    pixels: FramePixels,
+    screen: Screen,
 }
 
 impl Snapshots {
-    pub fn new(font: FontSpec) -> Result<Snapshots, String> {
-        let fonts = Fonts::new(&font.family, font.points, 1.0)?;
+    /// Snapshots in `font`, with the system's fonts if `system_fonts`
+    /// (else the built-in ones alone, which draw the same everywhere).
+    pub fn new(font: FontSpec, system_fonts: bool) -> Result<Snapshots, String> {
+        let fonts = if system_fonts {
+            Fonts::new(&font, 1.0)?
+        } else {
+            Fonts::built_in_only(&font, 1.0)?
+        };
         let gpu = Headless::new()?;
-        Ok(Snapshots { fonts, gpu })
+        Ok(Snapshots {
+            fonts,
+            gpu,
+            images: Images::default(),
+            pixels: FramePixels::default(),
+            screen: Screen::default(),
+        })
+    }
+
+    /// Takes a PNG, for frames to place by `key`.
+    pub fn add_image(&mut self, key: String, png: &[u8]) -> Result<(), String> {
+        self.images.add(key, png)
     }
 
     /// A cell's size, in pixels.
@@ -990,30 +1141,28 @@ impl Snapshots {
         self.gpu.device_name()
     }
 
-    /// Draws a frame of `cols` by `rows` cells, as [`Gui::paint`] takes
-    /// it; returns its pixels, RGBA, top row first.
-    pub fn draw(
-        &mut self,
-        rects: &[u8],
-        cells: &[u8],
-        text: &[u8],
-        background: u32,
-        cols: u32,
-        rows: u32,
-    ) -> Result<Vec<u8>, String> {
-        if rects.len() % RECT_BYTES != 0 || cells.len() % CELL_BYTES != 0 {
-            return Err(format!(
-                "rectangles are {RECT_BYTES} bytes each, and cells {CELL_BYTES}"
-            ));
-        }
-        let (glyphs, decorations) = self.fonts.layout(cells, text);
+    /// Takes a frame's changes, as [`Gui::paint`] does, and draws the
+    /// screen, `cols` cells wide; returns its pixels, RGBA, top row first.
+    pub fn draw(&mut self, update: Update, cols: u32) -> Result<Vec<u8>, String> {
+        let rows = update.rows;
+        self.screen.apply(update);
+        let (rects, laid) = self.screen.layout(&mut self.fonts);
         let [w, h] = self.fonts.metrics.cell;
+        let pictures = self.pixels.pictures(
+            &mut self.images,
+            &self.screen.placements,
+            [w, h],
+            &self.fonts.colors,
+            &laid.pictures,
+        );
         let list = DrawList {
-            rects,
-            glyphs: &glyphs,
-            decorations: &decorations,
+            rects: &rects,
+            pictures: &pictures,
+            pixels: (&self.pixels.pixels, self.pixels.generation),
+            glyphs: &laid.glyphs,
+            decorations: &laid.rects,
             atlas: &self.fonts.atlas,
-            background,
+            background: self.screen.background,
             cell: [w, h],
             // Frames as the grid is, with no padding around them.
             origin: [0.0, 0.0],
@@ -1025,6 +1174,18 @@ impl Snapshots {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hegel::TestCase;
+    use hegel::generators as gs;
+
+    #[test]
+    fn changed_rows_are_bands_across_the_window() {
+        let rows = [false, true, true, false, true];
+        assert_eq!(
+            damage_bands(&rows, 10.5, 2.0, 300),
+            [[0, 12, 300, 22], [0, 44, 300, 11]]
+        );
+        assert!(damage_bands(&[false; 3], 10.0, 0.0, 300).is_empty());
+    }
 
     #[test]
     fn text_being_composed_covers_the_cells_after_the_cursor() {
@@ -1047,5 +1208,25 @@ mod tests {
             .map(|w| f32::from_ne_bytes(w.try_into().unwrap()))
             .collect();
         assert_eq!(bounds, [5.0, 3.0, 4.0, 1.0]);
+    }
+
+    /// The compositor is told of exactly the rows that changed: the bands
+    /// cover them, and only them.
+    #[hegel::test(test_cases = 300, database = None)]
+    fn bands_are_the_changed_rows(tc: TestCase) {
+        let rows = tc.draw(gs::vecs(gs::booleans()).max_size(40));
+        let (cell_h, padding) = (tc.draw(gs::integers::<u32>().min_value(1).max_value(40)), 2);
+        let bands = damage_bands(&rows, cell_h as f32, padding as f32, 300);
+        let mut covered = vec![false; rows.len()];
+        for [x, y, w, h] in bands {
+            assert_eq!((x, w), (0, 300));
+            assert_eq!((y - padding) % cell_h, 0);
+            assert_eq!(h % cell_h, 0);
+            for r in (y - padding) / cell_h..(y - padding + h) / cell_h {
+                assert!(!covered[r as usize], "row {r} twice");
+                covered[r as usize] = true;
+            }
+        }
+        assert_eq!(covered, rows);
     }
 }

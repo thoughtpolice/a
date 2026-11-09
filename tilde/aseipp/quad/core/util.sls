@@ -6,7 +6,8 @@
   (export at-load clamp string-prefix? string-suffix? string-index string-contains
           string-join string-split string-trim-left string-trim-right string-trim
           string-repeat string-upcase* string-downcase*
-          char-width string-width fuzzy-score
+          char-width string-width grapheme-end grapheme-start grapheme-columns
+          string-graphemes fuzzy-score
           list-index take drop last-pair* filter-map delete-duplicates*
           path-join path-basename path-dirname expand-home
           sort-strings)
@@ -100,21 +101,115 @@
     (let ([n (char->integer c)])
       (cond
        [(< n #x300) 1]
-       [(or (<= #x300 n #x36F) (<= #x200B n #x200F) (= n #xFE0F)
-            (<= #x20D0 n #x20FF) (<= #xFE20 n #xFE2F))
+       [(or (<= #x300 n #x36F) (<= #x200B n #x200F) (<= #xFE00 n #xFE0F)
+            (<= #x20D0 n #x20FF) (<= #xFE20 n #xFE2F) (<= #x1160 n #x11FF)
+            (<= #xE0020 n #xE007F) (<= #xE0100 n #xE01EF))
         0]
        [(or (<= #x1100 n #x115F) (<= #x2E80 n #x303E) (<= #x3041 n #x33FF)
             (<= #x3400 n #x4DBF) (<= #x4E00 n #x9FFF) (<= #xA000 n #xA4CF)
             (<= #xAC00 n #xD7A3) (<= #xF900 n #xFAFF) (<= #xFE30 n #xFE4F)
             (<= #xFF00 n #xFF60) (<= #xFFE0 n #xFFE6)
             (<= #x1F300 n #x1F64F) (<= #x1F900 n #x1F9FF)
-            (<= #x1F680 n #x1F6FF) (<= #x20000 n #x3FFFD))
+            (<= #x1F680 n #x1F6FF) (<= #x1FA70 n #x1FAFF) (<= #x1F200 n #x1F2FF)
+            (<= #x20000 n #x3FFFD))
         2]
+       [(and (or (<= #x2300 n #x2BFF) (<= #x1F000 n #x1F7FF)) (wide-emoji? n)) 2]
        [else 1])))
 
+  ;; Emoji shown as pictures unless asked otherwise (Unicode's
+  ;; Emoji_Presentation), outside the blocks above: terminals give them two
+  ;; columns, as East Asian wide characters.
+  (define wide-emoji
+    '((#x231A . #x231B) (#x23E9 . #x23EC) (#x23F0 . #x23F0) (#x23F3 . #x23F3)
+      (#x25FD . #x25FE) (#x2614 . #x2615) (#x2648 . #x2653) (#x267F . #x267F)
+      (#x2693 . #x2693) (#x26A1 . #x26A1) (#x26AA . #x26AB) (#x26BD . #x26BE)
+      (#x26C4 . #x26C5) (#x26CE . #x26CE) (#x26D4 . #x26D4) (#x26EA . #x26EA)
+      (#x26F2 . #x26F3) (#x26F5 . #x26F5) (#x26FA . #x26FA) (#x26FD . #x26FD)
+      (#x2705 . #x2705) (#x270A . #x270B) (#x2728 . #x2728) (#x274C . #x274C)
+      (#x274E . #x274E) (#x2753 . #x2755) (#x2757 . #x2757) (#x2795 . #x2797)
+      (#x27B0 . #x27B0) (#x27BF . #x27BF) (#x2B1B . #x2B1C) (#x2B50 . #x2B50)
+      (#x2B55 . #x2B55) (#x1F004 . #x1F004) (#x1F0CF . #x1F0CF) (#x1F18E . #x1F18E)
+      (#x1F191 . #x1F19A) (#x1F7E0 . #x1F7EB) (#x1F7F0 . #x1F7F0)))
+
+  (define (wide-emoji? n)
+    (exists (lambda (r) (<= (car r) n (cdr r))) wide-emoji))
+
+  ;; ---------------------------------------------------------------------------
+  ;; Grapheme clusters: what shows in one place, as one character. The
+  ;; editor draws, counts columns, moves and deletes by them, as terminals
+  ;; that cluster graphemes (mode 2027: kitty, ghostty, wezterm, foot) draw
+  ;; them: a character with the marks, variation selectors, joiners and tags
+  ;; after it; an emoji with its skin tone, and those a zero-width joiner
+  ;; joins to it (a family, 👨‍👩‍👧); two regional indicators, a flag (🇯🇵).
+  ;; Each takes its first character's columns, but two for an emoji asked
+  ;; for as a picture (U+FE0F) and for a flag. Clusters are over characters
+  ;; (ref i) for indexes up to an end, so that strings and buffer texts
+  ;; alike have them; a newline is always a cluster of its own.
+
+  (define (regional-indicator? c) (<= #x1F1E6 (char->integer c) #x1F1FF))
+
+  ;; Whether c continues the cluster whose last character is prev and
+  ;; which has `ri` regional indicators.
+  (define (extends? prev c ri)
+    (let ([n (char->integer c)] [p (char->integer prev)])
+      (cond
+       [(or (char=? c #\newline) (char=? prev #\newline) (char=? c #\tab)) #f]
+       [(= (char-width c) 0) #t]
+       ;; After a zero-width joiner, what it joins.
+       [(= p #x200D) (> n #x7F)]
+       ;; Skin tones, after an emoji.
+       [(<= #x1F3FB n #x1F3FF) (> p #x7F)]
+       [(regional-indicator? c) (odd? ri)]
+       [else #f])))
+
+  ;; The end of the cluster that starts at i, of the characters (ref k)
+  ;; for k below end.
+  (define (grapheme-end ref i end)
+    (if (>= i end)
+        i
+        (let loop ([j (+ i 1)] [prev (ref i)] [ri (if (regional-indicator? (ref i)) 1 0)])
+          (if (>= j end)
+              j
+              (let ([c (ref j)])
+                (if (extends? prev c ri)
+                    (loop (+ j 1) c (if (regional-indicator? c) (+ ri 1) ri))
+                    j))))))
+
+  ;; The start of the cluster that index i is in, finding clusters from
+  ;; `start` (a line's start, where one surely begins).
+  (define (grapheme-start ref i start)
+    (let loop ([c start])
+      (let ([e (grapheme-end ref c (+ i 1))])
+        (if (or (> e i) (= e c)) c (loop e)))))
+
+  ;; The columns the cluster [i, j) takes.
+  (define (grapheme-columns ref i j)
+    (let ([first (ref i)])
+      (let ([w (char-width first)])
+        (cond
+         [(= w 0) 0]
+         [(and (regional-indicator? first) (> (- j i) 1)) 2]
+         [(and (= w 1) (let loop ([k (+ i 1)])
+                         (and (< k j) (or (char=? (ref k) #\xFE0F) (loop (+ k 1))))))
+          2]
+         [else w]))))
+
+  ;; The clusters of s, as strings.
+  (define (string-graphemes s)
+    (let ([ref (lambda (i) (string-ref s i))] [n (string-length s)])
+      (let loop ([i 0] [acc '()])
+        (if (>= i n)
+            (reverse acc)
+            (let ([j (grapheme-end ref i n)])
+              (loop j (cons (substring s i j) acc)))))))
+
   (define (string-width s)
-    (let loop ([i 0] [w 0])
-      (if (= i (string-length s)) w (loop (+ i 1) (+ w (char-width (string-ref s i)))))))
+    (let ([ref (lambda (i) (string-ref s i))] [n (string-length s)])
+      (let loop ([i 0] [w 0])
+        (if (>= i n)
+            w
+            (let ([j (grapheme-end ref i n)])
+              (loop j (+ w (grapheme-columns ref i j))))))))
 
   ;; Score `candidate` against `pattern` as a case-insensitive subsequence
   ;; match: #f if it does not match, else (score . matched-indices) where a

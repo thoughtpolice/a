@@ -30,6 +30,7 @@ EXTENSIONS = {
     "blake3": [":native"],
     "c": [],
     "codex": [],
+    "image": [":native"],
     "lisp": [],
     "lsp": [],
     "markdown": [],
@@ -48,6 +49,7 @@ EXTENSION_ORDER = [
     "c",
     "shell",
     "markdown",
+    "image",
     "blake3",
     "codex",
     "lsp",
@@ -59,6 +61,8 @@ EXTENSION_ORDER = [
 
 KERNEL_RS_DEPS = [
     "//aseipp/quad/chez-rs:chez",
+    "third-party//rust:accesskit",
+    "third-party//rust:accesskit_winit",
     "root//src/crates/accept:accept",
     "root//src/crates/iroh-dial:iroh-dial",
     "root//src/crates/iroh-mesh:iroh-mesh",
@@ -67,6 +71,7 @@ KERNEL_RS_DEPS = [
     "third-party//rust:fontique",
     "third-party//rust:futures",
     "third-party//rust:harfrust",
+    "third-party//rust:png",
     "third-party//rust:skrifa",
     "third-party//rust:smithay-clipboard",
     "third-party//rust:tokio",
@@ -75,12 +80,17 @@ KERNEL_RS_DEPS = [
 ]
 
 KERNEL_RS_SRCS = [
+    "kernel/access.rs",
+    "kernel/color.rs",
     "kernel/font.rs",
     "kernel/gui.rs",
+    "kernel/image.rs",
     "kernel/lib.rs",
     "kernel/mesh.rs",
     "kernel/render.rs",
+    "kernel/screen.rs",
     "kernel/slug.rs",
+    "kernel/timing.rs",
 ]
 
 # The GUI's shaders (kernel/gui.slang): a vertex and a fragment shader for
@@ -88,6 +98,8 @@ KERNEL_RS_SRCS = [
 GUI_SHADERS = {
     "gui.glyph.frag.spv": ("glyphFragment", "fragment"),
     "gui.glyph.vert.spv": ("glyphVertex", "vertex"),
+    "gui.image.frag.spv": ("imageFragment", "fragment"),
+    "gui.image.vert.spv": ("imageVertex", "vertex"),
     "gui.rect.frag.spv": ("rectFragment", "fragment"),
     "gui.rect.vert.spv": ("rectVertex", "vertex"),
 }
@@ -135,7 +147,8 @@ shims.rust_test(
     crate = "quad_kernel",
     crate_root = "kernel/lib.rs",
     mapped_srcs = KERNEL_RS_MAPPED_SRCS,
-    deps = KERNEL_RS_DEPS,
+    # Properties, checked over generated cases (hegel).
+    deps = KERNEL_RS_DEPS + ["third-party//rust:hegeltest"],
 )
 
 # (quad native): the Rust half's procedures, as kernel/lib.rs declares them.
@@ -276,7 +289,10 @@ quad_executable(
 
 shims.filegroup(
     name = "tests",
-    srcs = glob(["tests/*.ss"]),
+    srcs = glob([
+        "tests/*.ss",
+        "tests/golden/*.png",
+    ]),
 )
 
 shims.filegroup(
@@ -291,6 +307,7 @@ shims.filegroup(
     )
     for t in [
         "text",
+        "graphemes",
         "selection",
         "editing",
         "keys",
@@ -304,6 +321,8 @@ shims.filegroup(
         "gui",
         "scroll",
         "link",
+        "image",
+        "loop",
     ]
 ]
 
@@ -325,6 +344,18 @@ shims.dynamic_test(
     args = [
         "$(exe :quad-host)",
         "$(location :tests)/tests",
+    ],
+    dep = ":gui-render",
+)
+
+# Scenes drawn as tests/golden's images show them (tests/golden.ss), with
+# the built-in font on lavapipe; skipped where there is no lavapipe.
+shims.dynamic_test(
+    name = "test-golden",
+    args = [
+        "$(exe :quad-host)",
+        "$(location :tests)/tests",
+        "golden",
     ],
     dep = ":gui-render",
 )

@@ -11,9 +11,15 @@
 ;; Clients draw cells however they draw: the terminal client with escape
 ;; sequences, a graphical one with its own renderer. Cells hold a character
 ;; (or a string, for a character with combining marks) and an interned face.
+;;
+;; A frame can place images (pictures) over rectangles of cells, for
+;; clients that can draw them ("images"): each is sent once ("image"),
+;; and the frame's placements whenever they change ("images").
 (library (quad display)
   (export render-client! invalidate-client! define-status-segment! status-segments
-          face-id add-decorator! remove-decorator!)
+          face-id add-decorator! remove-decorator! define-buffer-drawer!
+          make-picture picture? picture-key picture-width picture-height picture-png
+          place-picture! put-string! ui-face)
   (import (chezscheme) (quad util) (quad text) (quad face)
           (quad syntax) (quad buffer) (quad selection) (quad editor))
 
@@ -31,18 +37,21 @@
 
   (define (F name) (face-ref name))
   (define (UI name) (face-merge (F 'ui) (F name)))
+  (define (ui-face name) (UI name))
 
   ;; ---------------------------------------------------------------------------
   ;; Grids
 
-  (define-record-type grid (fields rows cols chars faces))
+  ;; images: (picture row col rows cols) for each picture placed.
+  (define-record-type grid (fields rows cols chars faces (mutable images)))
 
   (define (new-grid rows cols face)
     (make-grid rows cols
                (let ([v (make-vector rows)])
                  (do ([r 0 (+ r 1)]) ((= r rows) v) (vector-set! v r (make-vector cols #\space))))
                (let ([v (make-vector rows)])
-                 (do ([r 0 (+ r 1)]) ((= r rows) v) (vector-set! v r (make-vector cols face))))))
+                 (do ([r 0 (+ r 1)]) ((= r rows) v) (vector-set! v r (make-vector cols face))))
+               '()))
 
   (define (put! g r c ch face)
     (when (and (< -1 r (grid-rows g)) (< -1 c (grid-cols g)))
@@ -57,20 +66,69 @@
     (case-lambda
      [(g r c s face) (put-string! g r c s face (grid-cols g))]
      [(g r c s face limit)
-      (let loop ([i 0] [col c])
-        (if (or (= i (string-length s)) (>= col limit))
-            col
-            (let* ([ch (string-ref s i)] [w (char-width ch)])
-              (cond
-               [(= w 0) (loop (+ i 1) col)]
-               [(> (+ col w) limit) col]
-               [else
-                (put! g r col ch face)
-                (when (= w 2) (put! g r (+ col 1) 'wide face))
-                (loop (+ i 1) (+ col w))]))))]))
+      (let ([ref (lambda (i) (string-ref s i))] [n (string-length s)])
+        (let loop ([i 0] [col c])
+          (if (or (= i n) (>= col limit))
+              col
+              (let* ([j (grapheme-end ref i n)] [w (grapheme-columns ref i j)])
+                (cond
+                 [(= w 0) (loop j col)]
+                 [(> (+ col w) limit) col]
+                 [else
+                  (put! g r col (if (= j (+ i 1)) (string-ref s i) (substring s i j)) face)
+                  (when (= w 2) (put! g r (+ col 1) 'wide face))
+                  (loop j (+ col w))])))))]))
 
   (define (fill-row! g r c0 c1 face)
     (do ([c c0 (+ c 1)]) ((>= c c1)) (put! g r c #\space face)))
+
+  ;; ---------------------------------------------------------------------------
+  ;; Pictures: images over cells
+  ;;
+  ;; A picture is a PNG, its size in pixels, and a key naming it: a hash
+  ;; of it, so that a client that has it under that key, from any editor,
+  ;; has this one.
+  (define-record-type picture (fields key width height png))
+
+  ;; The cells under a picture: blank, in a face of their own, so that
+  ;; whatever is drawn over them later shows in their place.
+  (define placeholder-faces (make-weak-eq-hashtable))
+  (define (placeholder-face)
+    (let ([base (F 'ui)])
+      (or (hashtable-ref placeholder-faces base #f)
+          (let ([f (make-face (face-fg base) (face-bg base))])
+            (hashtable-set! placeholder-faces base f)
+            f))))
+
+  ;; Place picture p over rows by cols cells from (row, col); clients fit
+  ;; it in them.
+  (define (place-picture! g p row col rows cols)
+    (let ([face (placeholder-face)])
+      (do ([r row (+ r 1)]) ((= r (+ row rows)))
+        (fill-row! g r col (+ col cols) face))
+      (grid-images-set! g (cons (list p row col rows cols) (grid-images g)))))
+
+  ;; How many of a placement's rows, from its top, nothing was drawn over.
+  (define (rows-shown g row col rows cols)
+    (let ([face (placeholder-face)] [end (min (+ col cols) (grid-cols g))])
+      (let loop ([r 0])
+        (if (and (< r rows) (< (+ row r) (grid-rows g))
+                 (let all ([c col])
+                   (or (>= c end)
+                       (and (eqv? (vector-ref (vector-ref (grid-chars g) (+ row r)) c) #\space)
+                            (eq? (face-at g (+ row r) c) face)
+                            (all (+ c 1))))))
+            (loop (+ r 1))
+            r))))
+
+  ;; The frame's placements, as "images" has them, and their pictures:
+  ;; those with some rows to show.
+  (define (frame-pictures g)
+    (filter (lambda (p) (> (list-ref (car p) 5) 0))
+            (map (lambda (i)
+                   (let ([p (car i)] [row (cadr i)] [col (caddr i)] [rows (cadddr i)] [cols (list-ref i 4)])
+                     (cons (list (picture-key p) row col rows cols (rows-shown g row col rows cols)) p)))
+                 (reverse (grid-images g)))))
 
   ;; ---------------------------------------------------------------------------
   ;; Output: frames as messages
@@ -94,8 +152,8 @@
   ;; The client's state between frames: the grid it shows and the ids it
   ;; knows.
   ;; scroll: (top bottom buffer line), the text area's rows and what they
-  ;; showed, for scroll hints; or #f.
-  (define-record-type frame (fields grid known cursor scroll))
+  ;; showed, for scroll hints; or #f. images: the placements it was sent.
+  (define-record-type frame (fields grid known cursor scroll images))
 
   ;; prev with rows top to bottom moved up by n (down, for n < 0), as a
   ;; client that scrolls them has them; rows scrolled in match no cell.
@@ -109,7 +167,7 @@
                      (vector-set! faces r (vector-ref (grid-faces prev) from)))
               (begin (vector-set! chars r (make-vector cols #f))
                      (vector-set! faces r (make-vector cols #f))))))
-      (make-grid (grid-rows prev) cols chars faces)))
+      (make-grid (grid-rows prev) cols chars faces '())))
 
   ;; Forget what client c shows, so the next frame redraws it whole.
   (define (invalidate-client! c) (client-frame-set! c #f))
@@ -143,7 +201,9 @@
   ;; that can ("scroll") is told to move its rows, and is sent only what
   ;; that leaves different.
   (define (send-frame! c g cursor scroll)
-    (let* ([old (client-frame c)]
+    (let* ([cursor (and cursor (or (not (eq? (caddr cursor) 'hidden)) (client-has? c "hidden-cursor"))
+                        cursor)]
+           [old (client-frame c)]
            [full? (or (not old)
                       (not (= (grid-rows (frame-grid old)) (grid-rows g)))
                       (not (= (grid-cols (frame-grid old)) (grid-cols g))))]
@@ -159,6 +219,7 @@
                           (scrolled-grid (frame-grid old) (car scroll) (cadr scroll) shift)
                           (frame-grid old)))]
            [changed? full?]
+           [pictures (if (client-has? c "images") (frame-pictures g) '())]
            [hl! (lambda (f)
                   (let ([id (face-id f)])
                     (unless (hashtable-contains? known id)
@@ -188,12 +249,26 @@
               (let ([first (if (and (> first 0) (eq? (vector-ref chars first) 'wide)) (- first 1) first)])
                 (set! changed? #t)
                 (client-send! c (list "line" r first (row-cells g r first (+ last 1) hl!))))))))
+      ;; Pictures, each sent once to a client (which keeps them), then
+      ;; where they are, when that changes (a terminal forgets on "grid").
+      (when (and (client-has? c "images") (or full? (not (equal? (map car pictures) (frame-images old)))))
+        (let ([sent (or (client-local c 'pictures #f)
+                        (let ([h (make-hashtable string-hash string=?)]) (client-local-set! c 'pictures h) h))])
+          (for-each (lambda (p)
+                      (let ([pic (cdr p)])
+                        (unless (hashtable-contains? sent (picture-key pic))
+                          (hashtable-set! sent (picture-key pic) #t)
+                          (client-send! c (list "image" (picture-key pic) (picture-width pic)
+                                                (picture-height pic) (picture-png pic))))))
+                    pictures))
+        (set! changed? #t)
+        (client-send! c (list "images" (map car pictures))))
       ;; A frame like the last is not sent: clients draw only what changed.
       (when (or changed? (not (equal? cursor (frame-cursor old))))
         (client-send! c (if cursor (list "cursor" (car cursor) (cadr cursor) (symbol->string (caddr cursor)))
                             '("cursor" #f)))
         (client-send! c '("flush")))
-      (client-frame-set! c (make-frame g known cursor scroll))))
+      (client-frame-set! c (make-frame g known cursor scroll (map car pictures)))))
 
   ;; ---------------------------------------------------------------------------
   ;; The text area
@@ -297,6 +372,7 @@
           (fold-left (lambda (f o) (if (and (<= (car o) i) (< i (cadr o))) (face-merge f (caddr o)) f))
                      f overlays)))
       (define (visible? sc) (and (>= sc gutter) (< sc width)))
+      (define (ref i) (text-ref t i))
       (let loop ([i s] [col 0] [ss syntax-spans])
         (let ([ss (let skip ([ss ss]) (if (and (pair? ss) (<= (cadr (car ss)) i)) (skip (cdr ss)) ss))]
               [sc (+ gutter (- col left))])
@@ -306,20 +382,25 @@
             ;; The newline: a space, so a selection or a cursor on it shows.
             (when (visible? sc) (put! g row sc #\space (face-for i ss)))]
            [else
+            ;; A grapheme cluster: a character and what extends it.
             (let* ([ch (text-ref t i)]
-                   [w (if (char=? ch #\tab) (- tw (modulo col tw)) (char-width ch))]
+                   [tab? (char=? ch #\tab)]
+                   [j (if tab? (+ i 1) (grapheme-end ref i e))]
+                   [w (if tab? (- tw (modulo col tw)) (grapheme-columns ref i j))]
+                   [ch (if (= j (+ i 1)) ch (text-substring t i j))]
                    [face (face-for i ss)])
               (cond
                [(= w 0)
-                ;; A combining mark joins the cell before it.
+                ;; Marks with nothing to mark (after a tab, at the line's
+                ;; start) join the cell before them.
                 (let ([pc (- sc 1)])
                   (when (visible? pc)
                     (let ([prev (vector-ref (vector-ref (grid-chars g) row) pc)])
                       (put! g row pc
                             (string-append (cond [(char? prev) (string prev)] [(string? prev) prev] [else ""])
-                                           (string ch))
+                                           (if (char? ch) (string ch) ch))
                             (face-at g row pc)))))]
-               [(char=? ch #\tab)
+               [tab?
                 (do ([k 0 (+ k 1)]) ((= k w))
                   (when (visible? (+ sc k))
                     (put! g row (+ sc k) (if (and ws? (= k 0)) #\→ #\space)
@@ -330,7 +411,7 @@
                       (begin (put! g row sc ch face) (put! g row (+ sc 1) 'wide face))
                       (put! g row sc #\space face)))]
                [else (when (visible? sc) (put! g row sc ch face))])
-              (loop (+ i 1) (+ col w) ss))])))))
+              (loop j (+ col w) ss))])))))
 
   ;; Decorators mark up a buffer's text beyond its syntax: diagnostics,
   ;; say. (decorator buffer start end) gives the ranges to mark between
@@ -347,6 +428,23 @@
                   (map (lambda (d) (list (car d) (cadr d) (let ([f (caddr d)]) (if (face? f) f (F f)))))
                        (guard (e [#t '()]) (f b start end))))
                 decorators)))
+
+;; Major modes that draw their buffers themselves (an image's, say):
+  ;; mode name -> (drawer grid view row0 height width), which draws rows
+  ;; row0 to row0 + height, with place-picture! if it likes.
+  (define buffer-drawers (make-eq-hashtable))
+  (define (define-buffer-drawer! mode-name drawer) (hashtable-set! buffer-drawers mode-name drawer))
+
+  ;; Draw view v's buffer; returns the width of its gutter.
+  (define (draw-view! g v row0 height width focused?)
+    (let ([drawer (hashtable-ref buffer-drawers (major-mode-name (buffer-major-mode (view-buffer v))) #f)])
+      (if drawer
+          (begin
+            ;; No text is under the pointer.
+            (view-geometry-set! #f)
+            (drawer g v row0 height width)
+            0)
+          (draw-buffer! g v row0 height width focused?))))
 
   (define (draw-buffer! g v row0 height width focused?)
     (let* ([b (view-buffer v)]
@@ -624,11 +722,14 @@
   (define (draw-candidate! g r left width item selected?)
     (let ([face (UI (if selected? 'ui.menu.selected 'ui.menu))] [hits (cdr item)] [text (car (car item))])
       (fill-row! g r (+ left 1) (+ left width -1) face)
-      (let chars ([j 0] [c (+ left 2)])
-        (when (and (< j (string-length text)) (< c (+ left width -2)))
-          (let ([ch (string-ref text j)])
-            (put! g r c ch (if (memv j hits) (face-merge face (F 'ui.menu.match)) face))
-            (chars (+ j 1) (+ c (max 1 (char-width ch)))))))))
+      (let ([ref (lambda (i) (string-ref text i))] [n (string-length text)])
+        (let chars ([j 0] [c (+ left 2)])
+          (when (and (< j n) (< c (+ left width -2)))
+            (let* ([k (grapheme-end ref j n)]
+                   [hit? (exists (lambda (h) (<= j h (- k 1))) hits)])
+              (put! g r c (if (= k (+ j 1)) (string-ref text j) (substring text j k))
+                    (if hit? (face-merge face (F 'ui.menu.match)) face))
+              (chars k (+ c (max 1 (grapheme-columns ref j k))))))))))
 
   ;; A menu: a prompt's candidates in a small window at the primary cursor,
   ;; below it where there is room, as completions are shown. What is typed
@@ -666,11 +767,13 @@
                   (let loop ([line line] [acc '()])
                     (if (<= (string-width line) width)
                         (reverse (cons line acc))
-                        (let* ([cut (let fit ([i 0] [w 0])
-                                      (if (or (= i (string-length line))
-                                              (> (+ w (char-width (string-ref line i))) width))
+                        (let* ([ref (lambda (i) (string-ref line i))]
+                               [n (string-length line)]
+                               [cut (let fit ([i 0] [w 0])
+                                      (if (= i n)
                                           i
-                                          (fit (+ i 1) (+ w (char-width (string-ref line i))))))]
+                                          (let* ([j (grapheme-end ref i n)] [cw (grapheme-columns ref i j)])
+                                            (if (> (+ w cw) width) i (fit j (+ w cw))))))]
                                [space (let back ([i cut])
                                         (cond [(<= i 0) #f]
                                               [(char=? (string-ref line i) #\space) i]
@@ -684,16 +787,18 @@
   ;; where it can and after a newline always; no character is dropped, so a
   ;; cursor index falls in exactly one line.
   (define (wrap-starts s width)
-    (let ([n (string-length s)])
+    (let ([n (string-length s)] [ref (lambda (i) (string-ref s i))])
       (let loop ([start 0] [acc '()])
         (let fit ([i start] [w 0] [space #f])
-          (cond
-           [(= i n) (reverse (cons start acc))]
-           [(char=? (string-ref s i) #\newline) (loop (+ i 1) (cons start acc))]
-           [(and (> i start) (> (+ w (char-width (string-ref s i))) width))
-            (loop (or space i) (cons start acc))]
-           [else (fit (+ i 1) (+ w (char-width (string-ref s i)))
-                      (if (char=? (string-ref s i) #\space) (+ i 1) space))])))))
+          (if (= i n)
+              (reverse (cons start acc))
+              (let* ([j (grapheme-end ref i n)] [cw (grapheme-columns ref i j)])
+                (cond
+                 [(char=? (string-ref s i) #\newline) (loop (+ i 1) (cons start acc))]
+                 [(and (> i start) (> (+ w cw) width))
+                  (loop (or space i) (cons start acc))]
+                 [else (fit j (+ w cw)
+                            (if (char=? (string-ref s i) #\space) (+ i 1) space))])))))))
 
   ;; A dialog: a centered window, the input wrapping inside it, a little
   ;; above the middle as a form's would be. The box grows with the text up
@@ -789,7 +894,7 @@
                    [height (- status-row text-top)]
                    [p (current-prompt)])
               (when tabs? (draw-bufferline! g b cols))
-              (let ([gutter (draw-buffer! g v text-top height cols (not p))])
+              (let ([gutter (draw-view! g v text-top height cols (not p))])
                 (draw-status! g status-row v cols)
                 (when (current-popup) (draw-popup! g rows cols (current-popup) text-top status-row))
                 (let* ([bottom-cursor (draw-bottom! g (- rows 1) cols)]
@@ -801,13 +906,16 @@
                          [(and p (eq? (prompt-style p) 'line))
                           (draw-completions! g rows cols p status-row)
                           bottom-cursor]
-                         [(eq? (view-input-mode v) 'insert)
-                          (let* ([t (buffer-text b)] [pos (sel-start (view-primary v))]
-                                 [line (text-line-of t pos)]
-                                 [r (+ text-top (- line (view-top v)))]
+                         ;; In insert mode a bar between characters;
+                         ;; else the selection's head, which its face
+                         ;; shows, so drawn by no one: for screen readers.
+                         [else
+                          (let* ([insert? (eq? (view-input-mode v) 'insert)]
+                                 [pos (if insert? (sel-start (view-primary v)) (head-position v (view-primary v)))]
+                                 [r (+ text-top (- (text-line-of (buffer-text b) pos) (view-top v)))]
                                  [col (+ gutter (- (display-column b pos) (view-left v)))])
-                            (and (< -1 r status-row) (< (- gutter 1) col cols) (list r col 'bar)))]
-                         [else #f])])
+                            (and (< -1 r status-row) (< (- gutter 1) col cols)
+                                 (list r col (if insert? 'bar 'hidden))))])])
                   (when (and (layer-legend-visible?) (not p))
                     (draw-legend! g rows cols status-row))
                   (send-frame! c g cursor (list text-top status-row b (view-top v)))

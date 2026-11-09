@@ -251,7 +251,9 @@
                        [unit (string-length (get-var 'indent-unit b))]
                        [in-indent? (and (> unit 1) (char=? prev #\space)
                                         (let loop ([i line-start]) (or (= i p) (and (char=? (text-ref t i) #\space) (loop (+ i 1))))))]
-                       [n (if in-indent? (let ([col (- p line-start)]) (max 1 (let ([r (remainder col unit)]) (if (= r 0) unit r)))) 1)])
+                       [n (if in-indent?
+                              (let ([col (- p line-start)]) (max 1 (let ([r (remainder col unit)]) (if (= r 0) unit r))))
+                              (- p (grapheme-before b p)))])
                   (list (- p n) (if pair? (+ p 1) p) "" (lambda (np) (make-sel np np))))))))))
 
   (define (delete-forward!)
@@ -260,7 +262,7 @@
        (lambda (sel)
          (let ([p (sel-start sel)])
            (and (< p (buffer-length b))
-                (list p (+ p 1) "" (lambda (np) (make-sel np np)))))))))
+                (list p (grapheme-after b p) "" (lambda (np) (make-sel np np)))))))))
 
   (define (word-char-at? b i)
     ((syntax-word-char? (major-mode-syntax (buffer-major-mode b))) (text-ref (buffer-text b) i)))
@@ -296,7 +298,11 @@
   (define (cursor-vertical b p dir)
     (let* ([t (buffer-text b)] [line (text-line-of t p)] [target (+ line dir)])
       (if (<= 0 target (- (text-line-count t) 1))
-          (text-pos-at t target (- p (text-line-start t line)))
+          (let ([q (text-pos-at t target (- p (text-line-start t line)))])
+            ;; Not inside a cluster.
+            (if (< q (text-length t))
+                (grapheme-start (lambda (i) (text-ref t i)) q (text-line-start t target))
+                q))
           p)))
 
   ;; ---------------------------------------------------------------------------
@@ -909,13 +915,16 @@
   (define (safe-quit!)
     (if (last-client?) (stop-editor!) (client-quit! (current-client))))
 
+  ;; A binary buffer (an image's) shows its file as it is now: only its
+  ;; time is noted.
   (define (reload-buffer! b)
     (when (and (buffer-path b) (file-exists? (buffer-path b)))
-      (let ([sels (sels-of b)])
-        (buffer-replace-all! b (read-file-string (buffer-path b)))
-        (buffer-mark-saved! b)
-        (buffer-local-set! b 'mtime (file-modification-time (buffer-path b)))
-        (set-sels! b sels))))
+      (unless (binary-buffer? b)
+        (let ([sels (sels-of b)])
+          (buffer-replace-all! b (read-file-string (buffer-path b)))
+          (buffer-mark-saved! b)
+          (set-sels! b sels)))
+      (buffer-local-set! b 'mtime (file-modification-time (buffer-path b)))))
 
   (define (close-buffer!)
     (let ([b (cur)])
@@ -1303,8 +1312,8 @@
   (defcmd delete-word-backward "Delete the word before the cursor" (delete-word-backward!))
   (defcmd delete-word-forward "Delete the word after the cursor" (delete-word-forward!))
   (defcmd insert-tab "Indent" (insert-at-cursors! (get-var 'indent-unit (cur))))
-  (defcmd cursor-left "Cursor left" (move-cursors! (lambda (b p) (max 0 (- p 1)))))
-  (defcmd cursor-right "Cursor right" (move-cursors! (lambda (b p) (min (buffer-length b) (+ p 1)))))
+  (defcmd cursor-left "Cursor left" (move-cursors! grapheme-before))
+  (defcmd cursor-right "Cursor right" (move-cursors! grapheme-after))
   (defcmd cursor-up "Cursor up" (move-cursors! (lambda (b p) (cursor-vertical b p -1))))
   (defcmd cursor-down "Cursor down" (move-cursors! (lambda (b p) (cursor-vertical b p 1))))
   (defcmd cursor-word-left "Cursor to the previous word" (move-cursors! word-start-before))
@@ -1339,12 +1348,19 @@
         (prompt-index-set! p (modulo (+ (prompt-index p) step) (length (prompt-items p)))))))
   (defcmd prompt-accept "Accept the input" (let ([p (current-prompt)]) (when p (prompt-accept! p))))
   (defcmd prompt-cancel "Cancel" (close-prompt!))
+  ;; The grapheme cluster before or after index c of string s.
+  (define (string-grapheme-before s c)
+    (if (<= c 0) 0 (grapheme-start (lambda (i) (string-ref s i)) (- c 1) 0)))
+  (define (string-grapheme-after s c)
+    (grapheme-end (lambda (i) (string-ref s i)) c (string-length s)))
   (defcmd prompt-delete-backward "Delete before the cursor"
-    (prompt-edit! (lambda (in c) (if (= c 0) (values in c)
-                                     (values (string-append (substring in 0 (- c 1)) (substring in c (string-length in))) (- c 1))))))
+    (prompt-edit! (lambda (in c)
+                    (let ([b (string-grapheme-before in c)])
+                      (values (string-append (substring in 0 b) (substring in c (string-length in))) b)))))
   (defcmd prompt-delete-forward "Delete after the cursor"
-    (prompt-edit! (lambda (in c) (if (= c (string-length in)) (values in c)
-                                     (values (string-append (substring in 0 c) (substring in (+ c 1) (string-length in))) c)))))
+    (prompt-edit! (lambda (in c)
+                    (let ([a (string-grapheme-after in c)])
+                      (values (string-append (substring in 0 c) (substring in a (string-length in))) c)))))
   (defcmd prompt-delete-word "Delete the word before the cursor"
     (prompt-edit! (lambda (in c)
                     (let* ([i (let loop ([i c]) (if (and (> i 0) (char=? (string-ref in (- i 1)) #\space)) (loop (- i 1)) i))]
@@ -1352,8 +1368,8 @@
                            [i (if (= i c) (max 0 (- c 1)) i)])
                       (values (string-append (substring in 0 i) (substring in c (string-length in))) i)))))
   (defcmd prompt-kill "Clear the input" (prompt-edit! (lambda (in c) (values "" 0))))
-  (defcmd prompt-left "Cursor left" (prompt-edit! (lambda (in c) (values in (- c 1)))))
-  (defcmd prompt-right "Cursor right" (prompt-edit! (lambda (in c) (values in (+ c 1)))))
+  (defcmd prompt-left "Cursor left" (prompt-edit! (lambda (in c) (values in (string-grapheme-before in c)))))
+  (defcmd prompt-right "Cursor right" (prompt-edit! (lambda (in c) (values in (string-grapheme-after in c)))))
   (defcmd prompt-home "Cursor to the start" (prompt-edit! (lambda (in c) (values in 0))))
   (defcmd prompt-end "Cursor to the end" (prompt-edit! (lambda (in c) (values in (string-length in)))))
   (defcmd prompt-next "Next candidate" (prompt-move! 1))

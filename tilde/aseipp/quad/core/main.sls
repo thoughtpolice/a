@@ -23,7 +23,7 @@
           (quad syntax) (quad buffer) (quad selection) (quad editor)
           (quad commands) (quad display) (chez embed) (quad kernel)
           (quad protocol) (quad grid) (quad server) (quad tui) (quad gui) (quad project) (quad mesh)
-          (quad relay))
+          (quad relay) (only (quad native) timing-mark gui-prepare))
 
   (define quad-version "0.1.0")
 
@@ -122,6 +122,13 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
                 (guard (e [#t (cons #f (condition->string e))]) (cons (gui-window) #f))
                 (cons #f #f))]))
 
+  ;; Start making what a window draws with, on another thread, where one
+  ;; may open, so that it opens sooner: Vulkan's device takes longer to
+  ;; make than the editor takes to start.
+  (define (prepare-ui! ui)
+    (when (and (not (eq? ui 'tui)) (display-available?))
+      (gui-prepare)))
+
   ;; The editor with this terminal or a window attached (as ui asks, see
   ;; open-ui); with the tutor shown, if tutor? (and the editor has one).
   (define (configure! init?)
@@ -131,7 +138,9 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
           (set-var! 'project-config #f))))
 
   (define (interactive! files line init? listen tutor? mesh? ui)
+    (prepare-ui! ui)
     (editor-init! files (configure! init?))
+    (timing-mark "editor ready")
     (when listen (server-listen! listen))
     (when mesh? (mesh-listen! #t (mesh-announcer (lambda (fmt . args) (apply message fmt args)))))
     (let ([c (guard (e [#t (report-error e) #f])
@@ -182,6 +191,7 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
   ;; A client of the editor on descriptor fd, in a window or this terminal
   ;; (as ui asks, see open-ui). Returns the exit status.
   (define (client! fd files line ui)
+    (prepare-ui! ui)
     (guard (e [#t (report-error e) 1])
       (let ([w (open-ui ui)])
         (if (car w) (gui-connect! (car w) fd files line) (tui-connect! fd files line)))))
@@ -403,6 +413,7 @@ init file is $QUAD_INIT, or $XDG_CONFIG_HOME/quad/init.ss, or
     ;; terminal), 'gui or 'tui.
     (define ui 'auto)
     (define new? #f)
+    (timing-mark "scheme started")
     (let loop ([args args] [files '()] [line #f] [init? #t] [listen #f] [daemon? #f] [connect #f] [expr #f])
       ;; --opt, or --opt=PATH.
       (define (path-option opt)

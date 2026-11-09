@@ -155,9 +155,12 @@
 
   ;; The pointer moved to (row, col) on client c's screen, with modifiers
   ;; mods held: with ctrl, a click follows the link under it, which
-  ;; display.sls underlines (client-local 'hover-link).
+  ;; display.sls underlines (client-local 'hover-link). Whether that
+  ;; changed what c shows.
   (define (pointer-hover! c row col mods)
-    (client-local-set! c 'hover-link (and (logtest mods mod-ctrl) (pointer-link c row col))))
+    (let ([l (and (logtest mods mod-ctrl) (pointer-link c row col))])
+      (and (not (equal? l (client-local c 'hover-link #f)))
+           (begin (client-local-set! c 'hover-link l) #t))))
 
   ;; ---------------------------------------------------------------------------
   ;; Following links

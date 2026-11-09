@@ -27,11 +27,16 @@ use std::time::{Duration, Instant};
 
 use chez::{ByteVec, Bytes, Mailbox, Object, Ref, RefMut};
 
+mod access;
+mod color;
 mod font;
 mod gui;
+mod image;
 mod mesh;
 mod render;
+mod screen;
 mod slug;
+mod timing;
 
 /// The BLAKE3 hash of a bytevector: a 32-byte bytevector.
 #[chez::procedure]
@@ -154,6 +159,42 @@ fn spawn_process(
 /// its own, as a desktop's launcher does: nothing is read from or written
 /// to it, and a thread waits for it to exit, so that it is not left a
 /// zombie.
+/// Start making what a window draws with (its Vulkan device), on another
+/// thread, so that a window opened soon after opens sooner.
+#[chez::procedure(name = "gui-prepare")]
+fn gui_prepare() {
+    render::prepare();
+}
+
+/// Write `rgba` (`width` by `height` RGBA pixels) to `path` as a PNG.
+#[chez::procedure(name = "png-file-write")]
+fn png_file_write(path: String, width: u32, height: u32, rgba: Bytes) -> Result<(), String> {
+    let png = image::encode(width, height, &rgba)?;
+    std::fs::write(&path, png).map_err(|e| format!("{path}: {e}"))
+}
+
+/// The pixels of the PNG at `path`, as RGBA; an error unless it is `width`
+/// by `height`.
+#[chez::procedure(name = "png-file-read")]
+fn png_file_read(path: String, width: u32, height: u32) -> Result<ByteVec, String> {
+    let png = std::fs::read(&path).map_err(|e| format!("{path}: {e}"))?;
+    let decoded = image::decode(&png).map_err(|e| format!("{path}: {e}"))?;
+    if (decoded.width, decoded.height) != (width, height) {
+        return Err(format!(
+            "{path} is {} by {}, not {width} by {height}",
+            decoded.width, decoded.height
+        ));
+    }
+    Ok(ByteVec(decoded.rgba))
+}
+
+/// Note that a step of starting up is done: with QUAD_TIMING=1, it is
+/// written to standard error with the time since the process started.
+#[chez::procedure(name = "timing-mark")]
+fn timing_mark(step: String) {
+    timing::mark(&step);
+}
+
 #[chez::procedure(name = "launch-process")]
 fn launch_process(argv: Vec<String>) -> Result<(), String> {
     let (program, args) = argv
@@ -280,9 +321,25 @@ fn mesh_session_editor(s: Ref<mesh::Session>) -> String {
 
 // MARK: GUI windows (gui.rs, for core/gui.sls)
 
-/// Open a window `cols` by `rows` cells in size, drawing text in the font
-/// `family` (else the system's monospace font) at `points`; its events come
-/// from gui-take!, once gui-fd is readable.
+/// The font to draw with: `family` (else the system's monospace font) at
+/// `points`, with OpenType `features` (HarfBuzz's spellings, separated by
+/// spaces or commas), and `fallbacks`, families for what it lacks.
+fn font_spec(
+    family: String,
+    points: f64,
+    features: String,
+    fallbacks: Vec<String>,
+) -> gui::FontSpec {
+    gui::FontSpec {
+        family,
+        points: points as f32,
+        features: vec![features],
+        fallbacks,
+    }
+}
+
+/// Open a window `cols` by `rows` cells in size, drawing text in a font
+/// (font_spec); its events come from gui-take!, once gui-fd is readable.
 #[chez::procedure(name = "gui-open")]
 fn gui_open(
     title: String,
@@ -290,11 +347,10 @@ fn gui_open(
     rows: u32,
     family: String,
     points: f64,
+    features: String,
+    fallbacks: Vec<String>,
 ) -> Result<Object<gui::Gui>, String> {
-    let font = gui::FontSpec {
-        family,
-        points: points as f32,
-    };
+    let font = font_spec(family, points, features, fallbacks);
     gui::Gui::open(title, cols, rows, font).map(Object)
 }
 
@@ -312,15 +368,54 @@ fn gui_take(g: Ref<gui::Gui>) -> Vec<gui::Event> {
     g.events.take()
 }
 
-/// Paint a frame: rectangles in cells (gui.slang's Rect, 32 bytes each),
-/// then the cells with text (font.rs's CELL_BYTES each, their texts in
-/// `text`), over a background color; text left to the terminal's color is
-/// in `foreground`, and the cursor is at (`cursor_row`, `cursor_col`), or
-/// hidden (-1).
+/// A frame's changes, as core/gui.sls encodes them (see screen.rs's
+/// [`screen::Update`]): the screen's rows; whether every row is sent;
+/// scrolls (three i32s each: top, bottom, n); the rows sent (four u32s
+/// each: the row, and its rectangles, cells and bytes of text, taken in
+/// turn from `rects` (gui.slang's Rect, 32 bytes each), `cells` (font.rs's
+/// CELL_BYTES each) and `text`); the background, and the color of text
+/// left to the terminal's; the cursor, or -1s where it is hidden; and the
+/// images placed (keys, and five u32s each, as image.rs's Placement
+/// reads them).
+#[allow(clippy::too_many_arguments)]
+fn frame_update(
+    rows: u32,
+    whole: bool,
+    scrolls: &[u8],
+    index: &[u8],
+    rects: &[u8],
+    cells: &[u8],
+    text: &[u8],
+    background: u32,
+    foreground: u32,
+    cursor_row: i32,
+    cursor_col: i32,
+    image_keys: Vec<String>,
+    image_places: &[u8],
+) -> Result<screen::Update, String> {
+    let (scrolls, changed) = screen::Update::rows_from(scrolls, index, rects, cells, text)?;
+    Ok(screen::Update {
+        rows,
+        whole,
+        scrolls,
+        changed,
+        background,
+        foreground,
+        cursor: (cursor_row >= 0 && cursor_col >= 0)
+            .then_some((cursor_row as u32, cursor_col as u32)),
+        placements: image::Placement::parse(image_keys, image_places)?,
+    })
+}
+
+/// Paint a frame: its changes, as `frame_update` reads them.
 #[chez::procedure(name = "gui-paint!")]
 #[allow(clippy::too_many_arguments)]
 fn gui_paint(
     g: Ref<gui::Gui>,
+    rows: u32,
+    whole: bool,
+    scrolls: Bytes,
+    index: Bytes,
     rects: Bytes,
     cells: Bytes,
     text: Bytes,
@@ -328,22 +423,58 @@ fn gui_paint(
     foreground: u32,
     cursor_row: i32,
     cursor_col: i32,
+    image_keys: Vec<String>,
+    image_places: Bytes,
 ) -> Result<(), String> {
-    let cursor =
-        (cursor_row >= 0 && cursor_col >= 0).then_some((cursor_row as u32, cursor_col as u32));
-    g.paint(&rects, &cells, &text, (background, foreground), cursor)
+    g.paint(frame_update(
+        rows,
+        whole,
+        &scrolls,
+        &index,
+        &rects,
+        &cells,
+        &text,
+        background,
+        foreground,
+        cursor_row,
+        cursor_col,
+        image_keys,
+        &image_places,
+    )?);
+    Ok(())
+}
+
+/// Take a PNG, for frames to place by `key`: gui-paint!'s images are
+/// placed by key, each over a rectangle of cells (five u32s: row, column,
+/// rows, columns, and how many of the rows to draw).
+#[chez::procedure(name = "gui-image!")]
+fn gui_image(g: Ref<gui::Gui>, key: String, png: Bytes) {
+    g.add_image(key, png.to_vec());
+}
+
+/// Take a PNG, for frames gui-headless-draw! draws to place by `key`.
+#[chez::procedure(name = "gui-headless-image!")]
+fn gui_headless_image(
+    mut h: RefMut<gui::Snapshots>,
+    key: String,
+    png: Bytes,
+) -> Result<(), String> {
+    h.add_image(key, &png)
 }
 
 /// Draw frames into images, with no window, in the font `family` (else the
 /// system's monospace font) at `points`: for tests, on a GPU or a software
-/// renderer (QUAD_GUI_DEVICE=llvmpipe for Mesa's lavapipe).
+/// renderer (QUAD_GUI_DEVICE=llvmpipe for Mesa's lavapipe). With
+/// `system_fonts` false, only the built-in fonts draw, so that images come
+/// out the same on every machine.
 #[chez::procedure(name = "gui-headless")]
-fn gui_headless(family: String, points: f64) -> Result<Object<gui::Snapshots>, String> {
-    let font = gui::FontSpec {
-        family,
-        points: points as f32,
-    };
-    gui::Snapshots::new(font).map(Object)
+fn gui_headless(
+    family: String,
+    points: f64,
+    system_fonts: bool,
+) -> Result<Object<gui::Snapshots>, String> {
+    let font = font_spec(family, points, String::new(), Vec::new());
+    gui::Snapshots::new(font, system_fonts).map(Object)
 }
 
 /// A cell's width and height in pixels, and the device drawing.
@@ -353,20 +484,43 @@ fn gui_headless_info(h: Ref<gui::Snapshots>) -> Vec<String> {
     vec![w.to_string(), hh.to_string(), h.device_name()]
 }
 
-/// A frame of `cols` by `rows` cells, as gui-paint! takes it, drawn: its
-/// pixels, RGBA, top row first.
+/// A frame's changes, as gui-paint! takes them, drawn `cols` cells wide:
+/// the screen's pixels, RGBA, top row first.
 #[chez::procedure(name = "gui-headless-draw!")]
+#[allow(clippy::too_many_arguments)]
 fn gui_headless_draw(
     mut h: RefMut<gui::Snapshots>,
+    cols: u32,
+    rows: u32,
+    whole: bool,
+    scrolls: Bytes,
+    index: Bytes,
     rects: Bytes,
     cells: Bytes,
     text: Bytes,
     background: u32,
-    cols: u32,
-    rows: u32,
+    foreground: u32,
+    cursor_row: i32,
+    cursor_col: i32,
+    image_keys: Vec<String>,
+    image_places: Bytes,
 ) -> Result<ByteVec, String> {
-    h.draw(&rects, &cells, &text, background, cols, rows)
-        .map(ByteVec)
+    let update = frame_update(
+        rows,
+        whole,
+        &scrolls,
+        &index,
+        &rects,
+        &cells,
+        &text,
+        background,
+        foreground,
+        cursor_row,
+        cursor_col,
+        image_keys,
+        &image_places,
+    )?;
+    h.draw(update, cols).map(ByteVec)
 }
 
 #[chez::procedure(name = "gui-set-title!")]
@@ -393,11 +547,17 @@ fn gui_clipboard_get(g: Ref<gui::Gui>, target: String) {
     g.clipboard_get(target);
 }
 
-/// Draw the window's text in `family` (else the system's monospace font)
-/// at `points`; its grid is sized again for it.
+/// Draw the window's text in another font (font_spec); its grid is sized
+/// again for it.
 #[chez::procedure(name = "gui-set-font!")]
-fn gui_set_font(g: Ref<gui::Gui>, family: String, points: f64) {
-    g.set_font(family, points as f32);
+fn gui_set_font(
+    g: Ref<gui::Gui>,
+    family: String,
+    points: f64,
+    features: String,
+    fallbacks: Vec<String>,
+) {
+    g.set_font(font_spec(family, points, features, fallbacks));
 }
 
 /// Show the pointer as `shape`, a CSS cursor name ("text", "default",
@@ -415,13 +575,13 @@ fn gui_close(mut g: RefMut<gui::Gui>) {
 chez::library! {
     /// `(quad native)`.
     pub fn native() -> "quad native" {
-        blake3, version, make_ticker, ticker_fd, ticker_take,
+        blake3, version, timing_mark, png_file_write, png_file_read, make_ticker, ticker_fd, ticker_take,
         spawn_process, launch_process, process_pid, process_input_fd, process_output_fd,
         process_close_input, process_status, process_stop,
         mesh_host_start, mesh_host_fd, mesh_host_take, mesh_host_info,
         mesh_target_kind, mesh_connect, mesh_session_fd, mesh_session_editor,
-        gui_open, gui_fd, gui_take, gui_paint, gui_set_title, gui_close,
-        gui_headless, gui_headless_info, gui_headless_draw,
+        gui_prepare, gui_open, gui_fd, gui_take, gui_paint, gui_image, gui_set_title, gui_close,
+        gui_headless, gui_headless_info, gui_headless_draw, gui_headless_image,
         gui_has_clipboard, gui_clipboard_set, gui_clipboard_get, gui_set_font, gui_set_pointer,
     }
 }

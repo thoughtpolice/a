@@ -22,11 +22,21 @@
 ;;       each cell (text [hl [repeat]]) as in Neovim's grid_line
 ;;     ("scroll" top bottom n): rows top to bottom (exclusive) move up n
 ;;       (down, for n < 0), sent to clients with the "scroll" capability
-;;     ("cursor" row col shape) or ("cursor" #f)  ("flush")
+;;     ("cursor" row col shape) or ("cursor" #f)  ("flush"): shape "block",
+;;       "bar", "underline", or "hidden": where the text cursor is, which
+;;       the client does not draw (the selection's colors show it), for
+;;       screen readers; sent only to clients with the "hidden-cursor"
+;;       capability
 ;;     ("clipboard-set" target text)  ("clipboard-get" target)  ("title" text)
 ;;     ("cwd" path)  ("pointer" shape)  ("bell")  ("suspend")
 ;;     ("open-url" url): open it, on the client's machine; sent to clients
 ;;       with the "open-url" capability
+;;     ("image" key width height png): a PNG, which the client keeps under
+;;       key (a hash of it), sent once before it is first placed
+;;     ("images" ((key row col rows cols shown) ...)): the images over the
+;;       cells now, each fit in rows by cols cells from (row, col), of
+;;       which the first shown rows show; to clients with the "images"
+;;       capability, when they change
 ;;     ("result" id ok? text)  ("bye" reason)
 (library (quad protocol)
   (export protocol-version
