@@ -225,10 +225,17 @@ def cmd_toolchain(args):
             codegen.append(cflags[i])
             i += 1
     expected = args.expect_cflags
-    # Mach-O code is always position independent, so leanc does not say
-    # -fPIC on macOS, where passing it anyway changes nothing.
     if sys.platform == "darwin":
+        # Mach-O code is always position independent, so leanc does not say
+        # -fPIC on macOS, where passing it anyway changes nothing.
         expected = [flag for flag in expected if flag != "-fPIC"]
+        # A Lean that is not a standalone release build, as Nix's is not,
+        # also names the SDK it was built against (-isysroot<dir>), and does
+        # so among its link flags too. The SDK is the C++ toolchain's to
+        # choose, as it is for all other C, and the Nix shell's clang already
+        # builds against that one.
+        codegen = [flag for flag in codegen if not flag.startswith("-isysroot")]
+        ldflags = [flag for flag in ldflags if not flag.startswith("-isysroot")]
     if codegen != expected:
         fail(
             "leanc compiles generated C with {} but LEAN_C_FLAGS in "

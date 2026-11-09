@@ -50,20 +50,39 @@
             )).overrideAttrs
               (_: {
                 # rust-overlay propagates nixpkgs' default `stdenv.cc` so rustc
-                # can link out of the box. On Darwin that default LLVM is a
-                # major version behind llvmPackages_latest, and as a propagated
-                # dependency it lands first on PATH and last in the setup hooks,
-                # shadowing the clang listed below. Propagate the matching clang
-                # instead.
+                # can link out of the box. On Darwin that default LLVM is older
+                # than llvmPackages below, and as a propagated dependency it
+                # lands first on PATH and last in the setup hooks, shadowing the
+                # clang listed below. Propagate the matching clang instead.
                 depsHostHostPropagated = [ llvmPackages.clang ];
                 propagatedBuildInputs = [ llvmPackages.clang ];
               });
 
-          llvmPackages = pkgs.llvmPackages_latest;
+          # The newest LLVM, except on Darwin. The binary cache has no Darwin
+          # build of this lock's LLVM 23.1.0, and building it fails in its
+          # check phase: test/tools/dsymutil/codesign.test needs a codesign
+          # that can sign bundles. Nixpkgs dropped the test just after this
+          # lock (Hydra's Darwin builds pass from 2026-09-21), so Darwin can go
+          # back to llvmPackages_latest once a nixpkgs update brings a cached
+          # LLVM 23. Until then it takes LLVM 22, the newest that is cached
+          # there; the default LLVM 21 will not do, since its ASan hangs
+          # before main on macOS 26 and later.
+          llvmPackages =
+            if pkgs.stdenv.hostPlatform.isDarwin then pkgs.llvmPackages_22 else pkgs.llvmPackages_latest;
 
           lean4 = pkgs.callPackage ./lean4.nix { };
 
-          dotnetSdk = pkgs.dotnetCorePackages.sdk_11_0;
+          # Nixpkgs builds .NET from source, and Hydra's Darwin builds of these
+          # prereleases come and go: none is cached for this lock, so the shell
+          # would compile the whole SDK there. Microsoft's binaries of the same
+          # release take its place on Darwin. Buck's C# toolchain downloads its
+          # own SDK either way; this one is only for running dotnet and
+          # dotnet-trace by hand.
+          dotnetSdk =
+            if pkgs.stdenv.hostPlatform.isDarwin then
+              pkgs.dotnetCorePackages.sdk_11_0-bin
+            else
+              pkgs.dotnetCorePackages.sdk_11_0;
 
           # This dotnet-trace build is published to the dotnet-tools feed
           # instead of nuget.org, so the package's nuget.org fetch is swapped
@@ -98,15 +117,16 @@
             with pkgs;
             lib.optionals stdenv.hostPlatform.isLinux [
               mold
+              pahole
             ];
 
         in
         {
           # mkShell's own stdenv puts its compiler wrapper first on PATH, and
-          # on Darwin that is nixpkgs' default LLVM, a major version behind
-          # llvmPackages_latest, so `clang` and `ld.lld` came from different
-          # releases. Building the shell on llvmPackages' stdenv keeps clang,
-          # lld, and the wrapper's libc++ and compiler-rt flags on one release.
+          # on Darwin that is nixpkgs' default LLVM, older than llvmPackages,
+          # so `clang` and `ld.lld` came from different releases. Building the
+          # shell on llvmPackages' stdenv keeps clang, lld, and the wrapper's
+          # libc++ and compiler-rt flags on one release.
           devShells.default = (pkgs.mkShell.override { stdenv = llvmPackages.stdenv; }) {
             packages =
               (with llvmPackages; [
@@ -132,7 +152,6 @@
                 hunspell
                 hunspellDicts."en_US-large"
                 watchman
-                pahole
                 libelf
                 libdwarf
 
