@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+
+# With the "dlopen" feature (fontique's "fontconfig-dlopen"), the build script
+# does nothing: libfontconfig is loaded at run time, so there is nothing to
+# find with pkg-config or link against.
+buildscript.run = false

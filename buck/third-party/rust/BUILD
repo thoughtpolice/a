@@ -2824,6 +2824,12 @@ third_party_rust.rust_library(
     crate = "bytemuck",
     crate_root = "bytemuck-1.25.2.crate/src/lib.rs",
     edition = "2018",
+    features = [
+        "bytemuck_derive",
+        "derive",
+        "extern_crate_alloc",
+        "min_const_generics",
+    ],
     metadata = {
         "third-party.metadata": {
             "name": "bytemuck",
@@ -2832,6 +2838,37 @@ third_party_rust.rust_library(
         },
     },
     visibility = [],
+    deps = [":bytemuck_derive-1"],
+)
+
+shims.http_archive(
+    name = "bytemuck_derive-1.12.1.crate",
+    sha256 = "6a1f896587b6f2c069c73d2f0913e2d590c3990285cd2f0b6aa02b786b4c679c",
+    strip_prefix = "bytemuck_derive-1.12.1",
+    urls = ["https://static.crates.io/crates/bytemuck_derive/1.12.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "bytemuck_derive-1",
+    srcs = [":bytemuck_derive-1.12.1.crate"],
+    crate = "bytemuck_derive",
+    crate_root = "bytemuck_derive-1.12.1.crate/src/lib.rs",
+    edition = "2018",
+    metadata = {
+        "third-party.metadata": {
+            "name": "bytemuck_derive",
+            "version": "1.12.1",
+            "licenses": ["Zlib OR Apache-2.0 OR MIT"],
+        },
+    },
+    proc_macro = True,
+    visibility = [],
+    deps = [
+        ":proc-macro2-1",
+        ":quote-1",
+        ":syn-3",
+    ],
 )
 
 shims.http_archive(
@@ -10056,6 +10093,80 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "font-types-0.12.7.crate",
+    sha256 = "835ae9d781464a79026cde387f9cbc650c9a4909d7cf7e658b127e3c35d2f35d",
+    strip_prefix = "font-types-0.12.7",
+    urls = ["https://static.crates.io/crates/font-types/0.12.7/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "font-types-0.12",
+    srcs = [":font-types-0.12.7.crate"],
+    crate = "font_types",
+    crate_root = "font-types-0.12.7.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "bytemuck",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "font-types",
+            "version": "0.12.7",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [":bytemuck-1"],
+)
+
+shims.alias(
+    name = "fontique",
+    actual = ":fontique-0.12",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "fontique-0.12.0.crate",
+    sha256 = "bbf1df16263783918b7da396077521f92b729ef7c429444dfcf03581f1448b77",
+    strip_prefix = "fontique-0.12.0",
+    urls = ["https://static.crates.io/crates/fontique/0.12.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "fontique-0.12",
+    srcs = [":fontique-0.12.0.crate"],
+    crate = "fontique",
+    crate_root = "fontique-0.12.0.crate/src/lib.rs",
+    edition = "2024",
+    features = [
+        "default",
+        "fontconfig-dlopen",
+        "std",
+        "system",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "fontique",
+            "version": "0.12.0",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":hashbrown-0.17",
+        ":linebender_resource_handle-0.1",
+        ":memmap2-0.9",
+        ":parlance-0.1",
+        ":read-fonts-0.41",
+        ":smallvec-1",
+        ":yeslogic-fontconfig-sys-6",
+    ],
+)
+
+shims.http_archive(
     name = "foreign-types-0.3.2.crate",
     sha256 = "f6f339eb8adc052cd2ca78910fda869aefa38d22d5cb648e6485e4d3fc06f3b1",
     strip_prefix = "foreign-types-0.3.2",
@@ -13695,6 +13806,47 @@ third_party_rust.rust_library(
         ":tokio-1",
         ":tokio-util-0.7",
         ":tracing-0.1",
+    ],
+)
+
+shims.alias(
+    name = "harfrust",
+    actual = ":harfrust-0.15",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "harfrust-0.15.0.crate",
+    sha256 = "865dcc4105d51c323d8fedbb2d75b5e9c8ecddf5613f74c82f851d0afbc97114",
+    strip_prefix = "harfrust-0.15.0",
+    urls = ["https://static.crates.io/crates/harfrust/0.15.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "harfrust-0.15",
+    srcs = [":harfrust-0.15.0.crate"],
+    crate = "harfrust",
+    crate_root = "harfrust-0.15.0.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "default",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "harfrust",
+            "version": "0.15.0",
+            "licenses": ["MIT"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bitflags-2",
+        ":bytemuck-1",
+        ":read-fonts-0.46",
+        ":smallvec-1",
+        ":yoke-0.8",
     ],
 )
 
@@ -18464,6 +18616,30 @@ third_party_rust.rust_library(
     },
     visibility = [],
     deps = [":bitflags-2"],
+)
+
+shims.http_archive(
+    name = "linebender_resource_handle-0.1.1.crate",
+    sha256 = "d4a5ff6bcca6c4867b1c4fd4ef63e4db7436ef363e0ad7531d1558856bae64f4",
+    strip_prefix = "linebender_resource_handle-0.1.1",
+    urls = ["https://static.crates.io/crates/linebender_resource_handle/0.1.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "linebender_resource_handle-0.1",
+    srcs = [":linebender_resource_handle-0.1.1.crate"],
+    crate = "linebender_resource_handle",
+    crate_root = "linebender_resource_handle-0.1.1.crate/src/lib.rs",
+    edition = "2021",
+    metadata = {
+        "third-party.metadata": {
+            "name": "linebender_resource_handle",
+            "version": "0.1.1",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
+    visibility = [],
 )
 
 shims.alias(
@@ -24334,6 +24510,31 @@ third_party_rust.buildscript_run(
 )
 
 shims.http_archive(
+    name = "parlance-0.1.1.crate",
+    sha256 = "73072a9470554c8e794778acece2312661218aaabb635600957d952cf01c716e",
+    strip_prefix = "parlance-0.1.1",
+    urls = ["https://static.crates.io/crates/parlance/0.1.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "parlance-0.1",
+    srcs = [":parlance-0.1.1.crate"],
+    crate = "parlance",
+    crate_root = "parlance-0.1.1.crate/src/lib.rs",
+    edition = "2024",
+    features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "parlance",
+            "version": "0.1.1",
+            "licenses": ["Apache-2.0 OR MIT"],
+        },
+    },
+    visibility = [],
+)
+
+shims.http_archive(
     name = "paste-1.0.15.crate",
     sha256 = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a",
     strip_prefix = "paste-1.0.15",
@@ -27475,6 +27676,69 @@ third_party_rust.rust_library(
     deps = [
         ":crossbeam-deque-0.8",
         ":crossbeam-utils-0.8",
+    ],
+)
+
+shims.http_archive(
+    name = "read-fonts-0.41.0.crate",
+    sha256 = "046a7d674daf459825b32f5062056d6882db0d2f5a479fbd76ccfc870ac18709",
+    strip_prefix = "read-fonts-0.41.0",
+    urls = ["https://static.crates.io/crates/read-fonts/0.41.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "read-fonts-0.41",
+    srcs = [":read-fonts-0.41.0.crate"],
+    crate = "read_fonts",
+    crate_root = "read-fonts-0.41.0.crate/src/lib.rs",
+    edition = "2021",
+    features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "read-fonts",
+            "version": "0.41.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bytemuck-1",
+        ":font-types-0.12",
+        ":once_cell-1",
+    ],
+)
+
+shims.http_archive(
+    name = "read-fonts-0.46.0.crate",
+    sha256 = "bdaa4fffe9ff3ca2c353fa9729792805b9b3e324695ff5a081f860612e81b330",
+    strip_prefix = "read-fonts-0.46.0",
+    urls = ["https://static.crates.io/crates/read-fonts/0.46.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "read-fonts-0.46",
+    srcs = [":read-fonts-0.46.0.crate"],
+    crate = "read_fonts",
+    crate_root = "read-fonts-0.46.0.crate/src/lib.rs",
+    edition = "2021",
+    features = ["std"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "read-fonts",
+            "version": "0.46.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bytemuck-1",
+        ":foldhash-0.2",
+        ":font-types-0.12",
+        ":once_cell-1",
+        ":smallvec-1",
+        ":yoke-0.8",
     ],
 )
 
@@ -31060,6 +31324,48 @@ third_party_rust.rust_library(
         },
     },
     visibility = [],
+)
+
+shims.alias(
+    name = "skrifa",
+    actual = ":skrifa-0.49",
+    visibility = ["PUBLIC"],
+)
+
+shims.http_archive(
+    name = "skrifa-0.49.0.crate",
+    sha256 = "a7459fb60888ad9a5f367dd293fa2fb9df142cb451aa6bfd6cd66a7d6a9b739d",
+    strip_prefix = "skrifa-0.49.0",
+    urls = ["https://static.crates.io/crates/skrifa/0.49.0/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "skrifa-0.49",
+    srcs = [":skrifa-0.49.0.crate"],
+    crate = "skrifa",
+    crate_root = "skrifa-0.49.0.crate/src/lib.rs",
+    edition = "2021",
+    features = [
+        "autohint_shaping",
+        "default",
+        "std",
+    ],
+    metadata = {
+        "third-party.metadata": {
+            "name": "skrifa",
+            "version": "0.49.0",
+            "licenses": ["MIT OR Apache-2.0"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":bytemuck-1",
+        ":once_cell-1",
+        ":read-fonts-0.46",
+        ":smallvec-1",
+        ":yoke-0.8",
+    ],
 )
 
 shims.http_archive(
@@ -39569,6 +39875,35 @@ third_party_rust.rust_library(
 )
 
 shims.http_archive(
+    name = "yeslogic-fontconfig-sys-6.0.1.crate",
+    sha256 = "1d8b8abf912b9a29ff112e1671c97c33636903d13a69712037190e6805af4f76",
+    strip_prefix = "yeslogic-fontconfig-sys-6.0.1",
+    urls = ["https://static.crates.io/crates/yeslogic-fontconfig-sys/6.0.1/download"],
+    visibility = [],
+)
+
+third_party_rust.rust_library(
+    name = "yeslogic-fontconfig-sys-6",
+    srcs = [":yeslogic-fontconfig-sys-6.0.1.crate"],
+    crate = "fontconfig_sys",
+    crate_root = "yeslogic-fontconfig-sys-6.0.1.crate/src/lib.rs",
+    edition = "2021",
+    features = ["dlopen"],
+    metadata = {
+        "third-party.metadata": {
+            "name": "yeslogic-fontconfig-sys",
+            "version": "6.0.1",
+            "licenses": ["MIT"],
+        },
+    },
+    visibility = [],
+    deps = [
+        ":dlib-0.5",
+        ":once_cell-1",
+    ],
+)
+
+shims.http_archive(
     name = "yoke-0.8.4.crate",
     sha256 = "417ef3fcf6c300b7dbd25c85531a746931c02ad536f3cf4786ed1e88223340b3",
     strip_prefix = "yoke-0.8.4",
@@ -39584,6 +39919,7 @@ third_party_rust.rust_library(
     edition = "2021",
     features = [
         "alloc",
+        "default",
         "derive",
         "zerofrom",
     ],
