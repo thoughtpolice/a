@@ -15425,18 +15425,18 @@ shims.alias(
 )
 
 shims.http_archive(
-    name = "insta-1.48.0.crate",
-    sha256 = "86f0f8fee8c926415c58d6ae43a08523a26faccb2323f5e6b644fe7dd4ef6b82",
-    strip_prefix = "insta-1.48.0",
-    urls = ["https://static.crates.io/crates/insta/1.48.0/download"],
+    name = "insta-1.49.0.crate",
+    sha256 = "b67d3d2e287e4b86c10b3f3b641033d1f89b74bdb39d05f34952e2b9a6fe21cd",
+    strip_prefix = "insta-1.49.0",
+    urls = ["https://static.crates.io/crates/insta/1.49.0/download"],
     visibility = [],
 )
 
 third_party_rust.rust_library(
     name = "insta-1",
-    srcs = [":insta-1.48.0.crate"],
+    srcs = [":insta-1.49.0.crate"],
     crate = "insta",
-    crate_root = "insta-1.48.0.crate/src/lib.rs",
+    crate_root = "insta-1.49.0.crate/src/lib.rs",
     edition = "2021",
     features = [
         "colors",
@@ -15446,7 +15446,7 @@ third_party_rust.rust_library(
     metadata = {
         "third-party.metadata": {
             "name": "insta",
-            "version": "1.48.0",
+            "version": "1.49.0",
             "licenses": ["Apache-2.0"],
         },
     },
