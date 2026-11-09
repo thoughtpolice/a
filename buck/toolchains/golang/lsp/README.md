@@ -48,7 +48,7 @@ The launcher runs gopls with four variables set:
 
 ## Setup
 
-The repository configures one editor and two coding agents. Each runs
+The repository configures two editors and two coding agents. Each runs
 `gopls` from this directory, found through `buck2 root`, so `buck2` has to
 be on its PATH (the Nix shell provides it).
 
@@ -57,6 +57,7 @@ be on its PATH (the Nix shell provides it).
 | Helix | `.helix/languages.toml` | `[language-server.gopls]` |
 | Claude Code | `.claude/marketplace/lsp/.lsp.json` | the `depot-lsp` plugin, enabled in `.claude/settings.json` |
 | OMP | `.omp/lsp.json` | `servers.gopls`, which takes the place of OMP's built-in gopls |
+| quad | `.quad/init.ss` | reads `.claude/marketplace/lsp/.lsp.json`, and gives its `initializationOptions` as the settings when gopls asks for them |
 
 Each sets gopls's `directoryFilters` to `-buck-out`, `-work` and
 `-**/node_modules`. The stdlib and golang.org/x sources live under

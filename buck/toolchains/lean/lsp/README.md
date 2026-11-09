@@ -41,7 +41,7 @@ wrote, and a different Lean fails on them.
 
 ## Setup
 
-The repository configures three editors and two coding agents. Each needs
+The repository configures four editors and two coding agents. Each needs
 `buck2` on its PATH, which the Nix shell (direnv) provides.
 
 | Editor | Where | How |
@@ -51,8 +51,9 @@ The repository configures three editors and two coding agents. Each needs
 | Zed (the Lean 4 extension) | `.zed/settings.json` | `lsp.lean4-lsp.binary` runs `lake serve` from here |
 | Claude Code | `.claude/marketplace/lsp/.lsp.json` | the `depot-lsp` plugin, enabled in `.claude/settings.json`, runs `lake serve` from here |
 | OMP | `.omp/lsp.json` | `servers.lean` runs `lake serve` from here |
+| quad | `.quad/init.ss` | reads `.claude/marketplace/lsp/.lsp.json`, so it runs `lake serve` from here as Claude Code does |
 
-Helix, Zed, Claude Code and OMP start servers in the workspace root and
+Helix, Zed, Claude Code, OMP and quad start servers in the workspace root and
 find this directory through `buck2 root`.
 
 Helix since workspace trust (#15177, 2026-03) reads `.helix/` only for a

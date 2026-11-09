@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: © 2024-2026 Austin Seipp
+# SPDX-License-Identifier: Apache-2.0
+#
+# Files outside .quad/ that this configuration relies on: quad hashes them
+# with it, so a change asks for trust again, and an AI review reads them.
+# The language servers init.ss starts, and how:
+.claude/marketplace/lsp/.lsp.json

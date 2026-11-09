@@ -76,7 +76,7 @@ Some things it does not cover:
 
 ## Setup
 
-The repository configures one editor and two coding agents. Each runs
+The repository configures two editors and two coding agents. Each runs
 `clangd` from this directory, found through `buck2 root`, so `buck2` and
 `clangd` have to be on its PATH (the Nix shell provides both, from the
 same LLVM as the clang the build uses).
@@ -86,6 +86,7 @@ same LLVM as the clang the build uses).
 | Helix | `.helix/languages.toml` | `[language-server.clangd]`, which Helix's C and C++ languages use already |
 | Claude Code | `.claude/marketplace/lsp/.lsp.json` | the `depot-lsp` plugin, enabled in `.claude/settings.json` |
 | OMP | `.omp/lsp.json` | `servers.clangd`, which takes the place of OMP's built-in clangd |
+| quad | `.quad/init.ss` | reads `.claude/marketplace/lsp/.lsp.json`, so it starts the server as Claude Code does |
 
 The smoke test fails if they start clangd differently. Any other editor
 works the same way. Run `buck/toolchains/cxx/lsp/clangd` as the C and C++

@@ -84,7 +84,7 @@ Some things it does not cover:
 
 ## Setup
 
-The repository configures one editor and two coding agents. Each runs
+The repository configures two editors and two coding agents. Each runs
 `rust-project` from this directory, found through `buck2 root`, so `buck2`
 and `rust-analyzer` have to be on its PATH (the Nix shell provides both).
 
@@ -93,6 +93,7 @@ and `rust-analyzer` have to be on its PATH (the Nix shell provides both).
 | Helix | `.helix/languages.toml` | `[language-server.rust-analyzer.config]` |
 | Claude Code | `.claude/marketplace/lsp/.lsp.json` | the `depot-lsp` plugin's `initializationOptions` |
 | OMP | `.omp/lsp.json` | `servers.rust-analyzer`, in both `initOptions` and `settings` |
+| quad | `.quad/init.ss` | reads `.claude/marketplace/lsp/.lsp.json`, and gives the same settings when rust-analyzer asks for them |
 
 The smoke test fails if the copies differ. Any other editor works the same
 way. Give rust-analyzer the same `check.overrideCommand` and
